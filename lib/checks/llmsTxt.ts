@@ -1,0 +1,17 @@
+import type { CheckResult } from '@/lib/types'
+
+export async function checkLlmsTxt(baseUrl: string): Promise<CheckResult> {
+  const url = new URL('/llms.txt', baseUrl).toString()
+  try {
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(8000),
+      headers: { 'User-Agent': 'Fimmick-AEO/1.0' },
+    })
+    if (!res.ok) return { status: 'fail', message: 'llms_txt_missing' }
+    const text = await res.text()
+    if (text.trim().length === 0) return { status: 'warn', message: 'llms_txt_empty' }
+    return { status: 'pass', message: 'llms_txt_found' }
+  } catch {
+    return { status: 'fail', message: 'llms_txt_fetch_error' }
+  }
+}
