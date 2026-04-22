@@ -1,8 +1,7 @@
 import { NextIntlClientProvider } from 'next-intl'
 import { getMessages } from 'next-intl/server'
 import { notFound } from 'next/navigation'
-
-const locales = ['en', 'zh-HK']
+import { routing } from '@/i18n/routing'
 
 export default async function LangLayout({
   children,
@@ -12,7 +11,7 @@ export default async function LangLayout({
   params: Promise<{ lang: string }>
 }) {
   const { lang } = await params
-  if (!locales.includes(lang)) notFound()
+  if (!(routing.locales as readonly string[]).includes(lang)) notFound()
 
   const messages = await getMessages()
 
