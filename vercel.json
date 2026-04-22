@@ -1,6 +1,5 @@
 {
-  "nodeVersion": "22.x",
-  "functions": {
+"functions": {
     "app/api/scan/route.ts": { "maxDuration": 60 },
     "app/api/fix/route.ts":  { "maxDuration": 30 }
   }
