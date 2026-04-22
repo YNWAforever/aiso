@@ -14,7 +14,7 @@ export function SovChart({ data }: Props) {
       <LineChart data={chartData}>
         <XAxis dataKey="week" tick={{ fontSize: 11 }} />
         <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
-        <Tooltip formatter={(v: number) => `${v}%`} />
+        <Tooltip formatter={(v) => [`${v}%`]} />
         <Line type="monotone" dataKey="sov" stroke="#2563eb" strokeWidth={2} dot={false} />
       </LineChart>
     </ResponsiveContainer>

@@ -23,7 +23,7 @@ export function PlatformBar({ data }: Props) {
       <BarChart data={chartData} layout="vertical">
         <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
         <YAxis type="category" dataKey="platform" tick={{ fontSize: 11 }} width={70} />
-        <Tooltip formatter={(v: number) => `${v}%`} />
+        <Tooltip formatter={(v) => [`${v}%`]} />
         <Bar dataKey="sov" fill="#2563eb" radius={[0, 4, 4, 0]} />
       </BarChart>
     </ResponsiveContainer>
