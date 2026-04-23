@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (event.type === 'invoice.payment_failed') {
-    const inv = event.data.object as { subscription: string }
+    const inv = event.data.object as unknown as { subscription: string }
     await supabase
       .from('accounts')
       .update({ status: 'past_due' })
