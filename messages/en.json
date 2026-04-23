@@ -62,5 +62,23 @@
     "sentiment_positive": "Positive",
     "sentiment_neutral": "Neutral",
     "sentiment_negative": "Negative"
+  },
+  "dashboard": {
+    "my_brands": "My Brands",
+    "add_brand": "Add Brand",
+    "ai_pulse": "AI Pulse",
+    "prompts": "Prompts",
+    "settings": "Settings",
+    "admin": "Admin",
+    "plan_starter": "Starter",
+    "plan_pro": "Pro",
+    "plan_enterprise": "Enterprise",
+    "upgrade_title": "Pro feature",
+    "upgrade_body": "Edit your prompt bank on the Pro plan.",
+    "upgrade_cta": "Upgrade to Pro",
+    "billing": "Manage Billing",
+    "sign_out": "Sign out",
+    "no_brands": "No brands yet. Add your first brand to get started.",
+    "week_of": "Week of"
   }
 }
