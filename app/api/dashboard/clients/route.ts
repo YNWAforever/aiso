@@ -46,7 +46,13 @@ export async function POST(req: NextRequest) {
     .select('id')
     .single()
 
-  if (error) return NextResponse.json({ error: 'Failed to create brand' }, { status: 500 })
+  if (error) {
+    // DB trigger raises BRAND_LIMIT_REACHED if a concurrent request won the race
+    if (error.message?.includes('BRAND_LIMIT_REACHED')) {
+      return NextResponse.json({ error: 'BRAND_LIMIT_REACHED', plan, limit }, { status: 403 })
+    }
+    return NextResponse.json({ error: 'Failed to create brand' }, { status: 500 })
+  }
 
   return NextResponse.json({ id: data.id })
 }

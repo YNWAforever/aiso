@@ -1,5 +1,6 @@
 import { getProfile } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { planAllows } from '@/lib/tier'
 import type { PromptBankItem } from '@/lib/types'
 
 export function groupByCategory(prompts: PromptBankItem[]): Record<string, PromptBankItem[]> {
@@ -45,6 +46,13 @@ export async function POST(
   const { clientId } = await params
   const profile = await getProfile()
   if (!profile) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Plan gate — prompt editing is a Pro+ feature
+  const plan = profile.accounts?.plan ?? 'starter'
+  if (!planAllows(plan, 'editPrompts')) {
+    return Response.json({ error: 'UPGRADE_REQUIRED', feature: 'editPrompts', plan }, { status: 403 })
+  }
+
   if (!await verifyOwnership(clientId, profile.account_id))
     return Response.json({ error: 'Not found' }, { status: 404 })
 

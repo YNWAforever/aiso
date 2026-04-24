@@ -124,5 +124,7 @@ export interface Notification {
   title: string
   message: string
   read: boolean
+  /** ISO date of the pulse scan week — used for deduplication (unique per client+type+week) */
+  scan_week: string | null
   created_at: string
 }
