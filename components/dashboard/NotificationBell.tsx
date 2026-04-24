@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import type { Notification } from '@/lib/types'
 
 const TYPE_ICON: Record<string, string> = {
@@ -17,7 +18,8 @@ export function NotificationBell({ initialCount }: { initialCount: number }) {
   const [count, setCount]          = useState(initialCount)
   const [notifications, setNotifs] = useState<Notification[]>([])
   const [loaded, setLoaded]        = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const ref    = useRef<HTMLDivElement>(null)
+  const router = useRouter()
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -40,7 +42,10 @@ export function NotificationBell({ initialCount }: { initialCount: number }) {
 
   const markAllRead = async () => {
     await fetch('/api/notifications/read-all', { method: 'PUT' })
-    setNotifs(n => n.map(x => ({ ...x, read: true }))); setCount(0)
+    setNotifs(n => n.map(x => ({ ...x, read: true })))
+    setCount(0)
+    // Re-render the server component so the TopBar badge count is also cleared
+    router.refresh()
   }
 
   return (

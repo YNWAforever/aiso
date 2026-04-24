@@ -40,8 +40,11 @@ export default async function DashboardPulsePage({
 
   const summary = (summaryRaw ?? []) as PulseWeeklySummary[]
   const missed  = (missedRaw  ?? []) as PulseMetric[]
-  const latestWeek = summary.at(-1)?.scan_week
-  const kpi = summary.find(d => d.scan_week === latestWeek && !d.platform)
+  const latestWeek    = summary.filter(d => !d.platform).at(-1)?.scan_week
+  const kpi           = summary.find(d => d.scan_week === latestWeek && !d.platform)
+  const platformCount = [...new Set(
+    summary.filter(d => d.scan_week === latestWeek && d.platform).map(d => d.platform)
+  )].length
 
   return (
     <>
@@ -61,7 +64,7 @@ export default async function DashboardPulsePage({
               {[
                 { label: 'Share of Voice', value: kpi ? `${kpi.sov_score}%` : '—' },
                 { label: 'Mentions',       value: kpi ? `${kpi.brand_mentions}/${kpi.total_queries}` : '—' },
-                { label: 'Platforms',      value: '4' },
+                { label: 'Platforms',      value: platformCount > 0 ? `${platformCount}` : '—' },
               ].map(({ label, value }) => (
                 <div key={label} className="bg-white rounded-xl border border-slate-200 p-5 text-center">
                   <p className="text-2xl font-black text-blue-600">{value}</p>

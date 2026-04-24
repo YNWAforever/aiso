@@ -46,9 +46,12 @@ export function CompetitorChart({ summary, brandName, topN = 3 }: Props) {
     : [0, Math.round(weekCount * 0.2), Math.round(weekCount * 0.4),
        Math.round(weekCount * 0.6), Math.round(weekCount * 0.8), weekCount - 1]
 
+  // Parse as UTC to avoid date shifting in timezones west of UTC (e.g. "2026-04-21"
+  // parsed as local time would become Apr 20 in UTC-1 and earlier).
   const formatWeek = (w: string) => {
-    const d = new Date(w)
-    return `${d.toLocaleString('default', { month: 'short' })} ${d.getDate()}`
+    const [, mm, dd] = w.split('-').map(Number)
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    return `${months[(mm ?? 1) - 1]} ${dd}`
   }
 
   return (

@@ -14,15 +14,20 @@ function Toggle({ active, onChange }: { active: boolean; onChange: (v: boolean) 
 }
 
 export function AlertsTab({ clientId }: Props) {
-  const [config, setConfig]   = useState<AlertConfig | null>(null)
-  const [saving, setSaving]   = useState(false)
-  const [saved, setSaved]     = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [config, setConfig]     = useState<AlertConfig | null>(null)
+  const [saving, setSaving]     = useState(false)
+  const [saved, setSaved]       = useState(false)
+  const [loading, setLoading]   = useState(true)
+  const [fetchErr, setFetchErr] = useState<string | null>(null)
 
   useEffect(() => {
     fetch(`/api/dashboard/clients/${clientId}/alerts`)
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`Failed to load alert config (${r.status})`)
+        return r.json()
+      })
       .then(({ config }) => { setConfig(config); setLoading(false) })
+      .catch(err => { setFetchErr(err.message ?? 'Unknown error'); setLoading(false) })
   }, [clientId])
 
   const update = (patch: Partial<AlertConfig>) =>
@@ -39,8 +44,9 @@ export function AlertsTab({ clientId }: Props) {
     setTimeout(() => setSaved(false), 3000)
   }
 
-  if (loading) return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-400">Loading…</div>
-  if (!config) return null
+  if (loading)   return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-400">Loading…</div>
+  if (fetchErr)  return <div className="bg-white rounded-xl border border-red-200 p-8 text-center text-sm text-red-500">{fetchErr}</div>
+  if (!config)   return null
 
   return (
     <div className="space-y-4">
