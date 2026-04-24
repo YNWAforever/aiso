@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProfile } from '@/lib/auth'
 import { supabase }   from '@/lib/supabase'
+import { maxBrandsForPlan } from '@/lib/tier'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,7 +10,25 @@ export async function POST(req: NextRequest) {
   const profile = await getProfile()
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { brand_name, domain } = await req.json()
+  const plan  = profile.accounts?.plan ?? 'starter'
+  const limit = maxBrandsForPlan(plan)
+
+  // Count existing brands for this account
+  const { count } = await supabase
+    .from('clients')
+    .select('*', { count: 'exact', head: true })
+    .eq('account_id', profile.account_id)
+
+  if ((count ?? 0) >= limit) {
+    return NextResponse.json(
+      { error: 'BRAND_LIMIT_REACHED', plan, limit },
+      { status: 403 }
+    )
+  }
+
+  const body = await req.json()
+  const { brand_name, domain, industry, competitors } = body
+
   if (!brand_name || typeof brand_name !== 'string') {
     return NextResponse.json({ error: 'brand_name required' }, { status: 400 })
   }
@@ -17,10 +36,12 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase
     .from('clients')
     .insert({
-      brand_name: brand_name.trim(),
-      domain: domain?.trim() ?? null,
-      account_id: profile.account_id,
-      status: 'active',
+      brand_name:  brand_name.trim(),
+      domain:      domain?.trim()     ?? null,
+      industry:    industry           ?? null,
+      competitors: Array.isArray(competitors) ? competitors : [],
+      account_id:  profile.account_id,
+      status:      'active',
     })
     .select('id')
     .single()

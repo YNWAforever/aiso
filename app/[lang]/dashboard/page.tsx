@@ -1,9 +1,10 @@
 import { requireAuth } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { BrandCard }    from '@/components/dashboard/BrandCard'
-import { TopBar }       from '@/components/dashboard/TopBar'
-import { AddBrandForm } from '@/components/dashboard/AddBrandForm'
-import { RecentScans }  from '@/components/dashboard/RecentScans'
+import { BrandCard }       from '@/components/dashboard/BrandCard'
+import { TopBar }          from '@/components/dashboard/TopBar'
+import { AddBrandWizard }  from '@/components/dashboard/AddBrandWizard'
+import { RecentScans }     from '@/components/dashboard/RecentScans'
+import { maxBrandsForPlan } from '@/lib/tier'
 import type { Client, PulseWeeklySummary, Scan } from '@/lib/types'
 
 export default async function DashboardPage({
@@ -47,6 +48,9 @@ export default async function DashboardPage({
     if (!(s.client_id in latestSov)) latestSov[s.client_id] = Number(s.sov_score)
   }
 
+  const plan    = profile.accounts?.plan ?? 'starter'
+  const atLimit = (clients?.length ?? 0) >= maxBrandsForPlan(plan)
+
   const hasClients = clients && clients.length > 0
   const hasScans   = scans && scans.length > 0
 
@@ -60,7 +64,7 @@ export default async function DashboardPage({
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Tracked Brands</h2>
-              <AddBrandForm lang={lang} compact />
+              {!atLimit && <AddBrandWizard lang={lang} />}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {(clients as Client[]).map(c => (
@@ -72,6 +76,7 @@ export default async function DashboardPage({
                 />
               ))}
             </div>
+            {atLimit && <AddBrandWizard lang={lang} disabled plan={plan} />}
           </div>
         ) : (
           <div>
@@ -82,7 +87,7 @@ export default async function DashboardPage({
               <p className="text-sm text-slate-400 mt-1 mb-6">
                 Track your Share of Voice across ChatGPT, Perplexity, Claude, and Gemini.
               </p>
-              <AddBrandForm lang={lang} />
+              <AddBrandWizard lang={lang} />
             </div>
           </div>
         )}
