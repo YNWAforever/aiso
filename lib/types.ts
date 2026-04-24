@@ -92,3 +92,37 @@ export interface Profile {
 export interface ProfileWithAccount extends Profile {
   accounts: Account
 }
+
+export interface PromptBankItem {
+  id: string
+  client_id: string
+  category: string
+  question: string
+  language: string
+  is_active: boolean
+  created_at: string
+}
+
+export interface AlertConfig {
+  id?: string
+  client_id: string
+  enabled_sov: boolean
+  sov_threshold: number
+  enabled_wow: boolean
+  wow_threshold: number
+  notify_email: boolean
+  notify_inapp: boolean
+  created_at?: string
+  updated_at?: string
+}
+
+export interface Notification {
+  id: string
+  account_id: string
+  client_id: string | null
+  type: 'sov_threshold' | 'sov_wow_drop' | 'sov_recovery'
+  title: string
+  message: string
+  read: boolean
+  created_at: string
+}

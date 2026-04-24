@@ -6,7 +6,7 @@ export const TIER_FEATURES = {
     alerts: false,
   },
   pro: {
-    maxBrands: 1,
+    maxBrands: 3,
     editPrompts: true,
     historyWeeks: 26,
     alerts: true,
@@ -26,4 +26,9 @@ export function planAllows(plan: string, feature: keyof TierFeatures): boolean {
   const tier = TIER_FEATURES[plan as Plan]
   if (!tier) return false
   return Boolean(tier[feature])
+}
+
+export function maxBrandsForPlan(plan: string): number {
+  const tier = TIER_FEATURES[plan as Plan]
+  return tier?.maxBrands ?? 1
 }
