@@ -1,8 +1,10 @@
 import { requireAuth } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { BrandCard } from '@/components/dashboard/BrandCard'
-import { TopBar } from '@/components/dashboard/TopBar'
-import type { Client, PulseWeeklySummary } from '@/lib/types'
+import { BrandCard }    from '@/components/dashboard/BrandCard'
+import { TopBar }       from '@/components/dashboard/TopBar'
+import { AddBrandForm } from '@/components/dashboard/AddBrandForm'
+import { RecentScans }  from '@/components/dashboard/RecentScans'
+import type { Client, PulseWeeklySummary, Scan } from '@/lib/types'
 
 export default async function DashboardPage({
   params,
@@ -10,15 +12,24 @@ export default async function DashboardPage({
   params: Promise<{ lang: string }>
 }) {
   const { lang } = await params
-  const profile = await requireAuth(lang)
+  const profile  = await requireAuth(lang)
   const supabase = await createServerSupabaseClient()
 
-  const { data: clients } = await supabase
-    .from('clients')
-    .select('*')
-    .eq('account_id', profile.account_id)
-    .eq('status', 'active')
-    .order('created_at')
+  const [{ data: clients }, { data: scans }] = await Promise.all([
+    supabase
+      .from('clients')
+      .select('*')
+      .eq('account_id', profile.account_id)
+      .eq('status', 'active')
+      .order('created_at'),
+
+    supabase
+      .from('scans')
+      .select('id, domain, score, created_at')
+      .eq('account_id', profile.account_id)
+      .order('created_at', { ascending: false })
+      .limit(10),
+  ])
 
   // Fetch latest SoV for each client
   const clientIds = (clients ?? []).map((c: Client) => c.id)
@@ -36,28 +47,54 @@ export default async function DashboardPage({
     if (!(s.client_id in latestSov)) latestSov[s.client_id] = Number(s.sov_score)
   }
 
+  const hasClients = clients && clients.length > 0
+  const hasScans   = scans && scans.length > 0
+
   return (
     <>
       <TopBar title="My Brands" />
-      <main className="flex-1 px-6 py-8">
-        {(!clients || clients.length === 0) ? (
-          <div className="text-center py-20 text-slate-400">
-            <p className="text-4xl mb-4">🏢</p>
-            <p className="font-medium">No brands yet.</p>
-            <p className="text-sm mt-1">Contact Fimmick to onboard your first brand.</p>
+      <main className="flex-1 px-6 py-8 space-y-8 max-w-4xl">
+
+        {/* ── Brands section ── */}
+        {hasClients ? (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Tracked Brands</h2>
+              <AddBrandForm lang={lang} compact />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(clients as Client[]).map(c => (
+                <BrandCard
+                  key={c.id}
+                  client={c}
+                  lang={lang}
+                  sovScore={latestSov[c.id]}
+                />
+              ))}
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl">
-            {(clients as Client[]).map(c => (
-              <BrandCard
-                key={c.id}
-                client={c}
-                lang={lang}
-                sovScore={latestSov[c.id]}
-              />
-            ))}
+          <div>
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Tracked Brands</h2>
+            <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+              <p className="text-3xl mb-3">🏢</p>
+              <p className="font-semibold text-slate-700">Add your first brand</p>
+              <p className="text-sm text-slate-400 mt-1 mb-6">
+                Track your Share of Voice across ChatGPT, Perplexity, Claude, and Gemini.
+              </p>
+              <AddBrandForm lang={lang} />
+            </div>
           </div>
         )}
+
+        {/* ── Recent Scans section ── */}
+        {hasScans && (
+          <div>
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Recent AEO Scans</h2>
+            <RecentScans scans={scans as Pick<Scan, 'id' | 'domain' | 'score' | 'created_at'>[]} lang={lang} />
+          </div>
+        )}
+
       </main>
     </>
   )

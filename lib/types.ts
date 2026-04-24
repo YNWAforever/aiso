@@ -20,6 +20,7 @@ export interface Scan {
   domain: string
   score: number
   results: ScanResults
+  account_id: string | null
   created_at: string
 }
 

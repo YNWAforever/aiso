@@ -1,11 +1,13 @@
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
-import { supabase }      from '@/lib/supabase'
-import { ScoreRing }     from '@/components/ScoreRing'
-import { CheckItem }     from '@/components/CheckItem'
-import { FixPackClient } from '@/components/FixPackClient'
-import type { Scan }     from '@/lib/types'
+import { supabase }        from '@/lib/supabase'
+import { getProfile }      from '@/lib/auth'
+import { ScoreRing }       from '@/components/ScoreRing'
+import { CheckItem }       from '@/components/CheckItem'
+import { FixPackClient }   from '@/components/FixPackClient'
+import { SaveScanButton }  from '@/components/SaveScanButton'
+import type { Scan }       from '@/lib/types'
 
 const CHECK_KEYS = ['c1_robots', 'c2_llms_txt', 'c3_bot_access', 'c4_structured_data', 'c5_extractability'] as const
 
@@ -13,11 +15,16 @@ export default async function ResultPage({ params }: { params: Promise<{ lang: s
   const { lang, id } = await params
   const t = await getTranslations()
 
-  const { data: scan } = await supabase.from('scans').select('*').eq('id', id).single()
+  const [{ data: scan }, profile] = await Promise.all([
+    supabase.from('scans').select('*').eq('id', id).single(),
+    getProfile(),
+  ])
   if (!scan) notFound()
 
   const s = scan as Scan
   const scoreLabel = s.score >= 80 ? t('result.score_good') : s.score >= 50 ? t('result.score_ok') : t('result.score_bad')
+  // Show "Save" button when user is logged in and this scan isn't already theirs
+  const canSave = profile && (!s.account_id || s.account_id !== profile.account_id)
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -26,9 +33,17 @@ export default async function ResultPage({ params }: { params: Promise<{ lang: s
           Fimmick <span className="text-blue-600">AEO</span>
         </Link>
         <div className="flex items-center gap-4">
-          <Link href={`/${lang}/auth/login`} className="text-sm text-slate-500 hover:text-slate-900 transition">
-            {t('nav.sign_in')}
-          </Link>
+          {canSave ? (
+            <SaveScanButton scanId={s.id} lang={lang} />
+          ) : profile ? (
+            <Link href={`/${lang}/dashboard`} className="text-sm text-slate-500 hover:text-slate-900 transition">
+              Dashboard
+            </Link>
+          ) : (
+            <Link href={`/${lang}/auth/login`} className="text-sm text-slate-500 hover:text-slate-900 transition">
+              {t('nav.sign_in')}
+            </Link>
+          )}
           <Link
             href={`/${lang}/pricing`}
             className="text-sm font-semibold bg-blue-600 text-white px-4 py-1.5 rounded-lg hover:bg-blue-700 transition"
