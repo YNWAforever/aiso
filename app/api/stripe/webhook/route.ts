@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServiceSupabaseClient } from '@/lib/supabase-server'
 
+export const dynamic = 'force-dynamic'
+
 function getPlan(priceId: string): 'starter' | 'pro' | 'enterprise' {
   if (priceId === process.env.STRIPE_PRICE_PRO) return 'pro'
   return 'starter'

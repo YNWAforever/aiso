@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase }       from '@/lib/supabase'
 import { callOpenRouter } from '@/lib/openrouter'
 
+export const dynamic = 'force-dynamic'
+
 export function parseFixPack(raw: string): { llms_txt: string; robots_patch: string; faq_schema: string } {
   const match = raw.match(/\{[\s\S]*\}/)
   return JSON.parse(match?.[0] ?? raw)

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { stripe, APP_URL } from '@/lib/stripe'
 import { requireAuth } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   const profile = await requireAuth()
   const stripeCustomerId = profile.accounts?.stripe_customer_id

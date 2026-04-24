@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe, STRIPE_PRICES, APP_URL } from '@/lib/stripe'
 import { requireAuth } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: NextRequest) {
   const { plan } = await req.json()
   const profile = await requireAuth()
