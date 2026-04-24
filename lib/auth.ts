@@ -13,7 +13,9 @@ export async function getProfile(): Promise<ProfileWithAccount | null> {
     .eq('id', user.id)
     .single()
 
-  return data as ProfileWithAccount | null
+  if (!data) return null
+  // Attach the auth email so callers (e.g. Stripe checkout) can use it
+  return { ...data, email: user.email ?? null } as ProfileWithAccount | null
 }
 
 export async function requireAuth(lang = 'en'): Promise<ProfileWithAccount> {

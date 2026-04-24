@@ -84,6 +84,7 @@ export interface Profile {
   id: string
   account_id: string
   display_name: string | null
+  email: string | null   // from auth.users, attached by getProfile()
   is_admin: boolean
   created_at: string
 }

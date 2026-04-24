@@ -5,10 +5,12 @@ import { useParams } from 'next/navigation'
 
 export default function PricingPage() {
   const [loading, setLoading] = useState(false)
+  const [checkoutError, setCheckoutError] = useState('')
   const { lang } = useParams<{ lang: string }>()
 
   const startProCheckout = async () => {
     setLoading(true)
+    setCheckoutError('')
     try {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
@@ -19,9 +21,15 @@ export default function PricingPage() {
         window.location.href = `/${lang}/auth/login?next=/${lang}/pricing`
         return
       }
-      const { url } = await res.json()
-      if (url) window.location.href = url
+      const data = await res.json()
+      if (!res.ok) {
+        setCheckoutError(data.error ?? 'Something went wrong. Please try again.')
+        setLoading(false)
+        return
+      }
+      if (data.url) window.location.href = data.url
     } catch {
+      setCheckoutError('Network error. Please try again.')
       setLoading(false)
     }
   }
@@ -89,6 +97,9 @@ export default function PricingPage() {
             >
               {loading ? 'Loading…' : 'Start Pro →'}
             </button>
+            {checkoutError && (
+              <p className="mt-3 text-red-400 text-xs text-center">{checkoutError}</p>
+            )}
           </div>
 
           {/* Enterprise */}
