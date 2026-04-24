@@ -1,7 +1,21 @@
 import Stripe from 'stripe'
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-03-25.dahlia',
+// Lazy singleton — defer new Stripe() until first use so that
+// module evaluation at Next.js build time (when STRIPE_SECRET_KEY
+// may be absent) does not throw "Neither apiKey nor config.authenticator provided".
+let _stripe: Stripe | null = null
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const stripe: Stripe = new Proxy({} as Stripe, {
+  get(_target, prop: string | symbol) {
+    if (!_stripe) {
+      _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+        apiVersion: '2026-03-25.dahlia',
+      })
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (_stripe as any)[prop]
+  },
 })
 
 export const STRIPE_PRICES = {
