@@ -9,17 +9,21 @@ export default function PricingPage() {
 
   const startProCheckout = async () => {
     setLoading(true)
-    const res = await fetch('/api/stripe/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: 'pro' }),
-    })
-    if (res.status === 401) {
-      window.location.href = `/${lang}/auth/login?next=/${lang}/pricing`
-      return
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: 'pro' }),
+      })
+      if (res.status === 401) {
+        window.location.href = `/${lang}/auth/login?next=/${lang}/pricing`
+        return
+      }
+      const { url } = await res.json()
+      if (url) window.location.href = url
+    } catch {
+      setLoading(false)
     }
-    const { url } = await res.json()
-    window.location.href = url
   }
 
   return (
