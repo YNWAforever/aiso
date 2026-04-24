@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase }       from '@/lib/supabase'
 import { callOpenRouter } from '@/lib/openrouter'
+import type { Scan }      from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,11 +23,12 @@ export async function POST(req: NextRequest) {
 
   if (existing) return NextResponse.json(existing)
 
-  const { data: scan, error: scanError } = await supabase
+  const { data: scanData, error: scanError } = await supabase
     .from('scans')
     .select('*')
     .eq('id', scanId)
     .single()
+  const scan = scanData as Scan | null
 
   if (scanError || !scan) return NextResponse.json({ error: 'Scan not found' }, { status: 404 })
 

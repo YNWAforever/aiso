@@ -9,13 +9,14 @@ export async function POST(req: NextRequest) {
 
   if (!brandName) return NextResponse.json({ error: 'brandName required' }, { status: 400 })
 
-  const { data: client, error: clientError } = await supabase
+  const { data: clientData, error: clientError } = await supabase
     .from('clients')
     .insert({ brand_name: brandName, industry: industry ?? null, competitors: competitors ?? [] })
     .select('id')
     .single()
+  const client = clientData as { id: string } | null
 
-  if (clientError) return NextResponse.json({ error: 'DB error' }, { status: 500 })
+  if (clientError || !client) return NextResponse.json({ error: 'DB error' }, { status: 500 })
 
   const raw = await callOpenRouter({
     model: 'anthropic/claude-haiku-4-5',
