@@ -18,7 +18,7 @@ export async function getProfile(): Promise<ProfileWithAccount | null> {
 
 export async function requireAuth(): Promise<ProfileWithAccount> {
   const profile = await getProfile()
-  if (!profile) redirect('/auth/login')
+  if (!profile) redirect('/en/auth/login')
   return profile
 }
 

@@ -17,7 +17,7 @@ export function PlanGate({ allowed, children, lang = 'en' }: Props) {
         Edit your prompt bank and unlock advanced analytics on the Pro plan.
       </p>
       <Link
-        href="/pricing"
+        href={`/${lang}/pricing`}
         className="mt-6 bg-blue-600 text-white rounded-lg px-5 py-2 text-sm font-medium hover:bg-blue-700 transition"
       >
         Upgrade to Pro →

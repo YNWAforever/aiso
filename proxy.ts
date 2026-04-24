@@ -40,7 +40,9 @@ export async function proxy(request: NextRequest) {
 
     if (!user) {
       const loginUrl = request.nextUrl.clone()
-      loginUrl.pathname = '/auth/login'
+      const langMatch = pathname.match(/^\/(en|zh-HK)/)
+      const lang = langMatch ? langMatch[1] : 'en'
+      loginUrl.pathname = `/${lang}/auth/login`
       loginUrl.searchParams.set('next', pathname)
       return NextResponse.redirect(loginUrl)
     }
