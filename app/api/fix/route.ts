@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     if (m) metaDescription = m[1].trim()
   } catch { /* use defaults */ }
 
-  const issues = Object.entries(scan.results as Record<string, { status: string; message: string }>)
+  const issues = Object.entries(scan.results as unknown as Record<string, { status: string; message: string }>)
     .filter(([, v]) => v.status !== 'pass')
     .map(([k, v]) => `${k}: ${v.message}`)
 
