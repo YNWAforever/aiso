@@ -10,7 +10,8 @@ export default async function PulsePage({ params }: { params: Promise<{ lang: st
   const { clientId } = await params
   const t = await getTranslations('pulse')
 
-  const { data: client } = await supabase.from('clients').select('brand_name').eq('id', clientId).single()
+  const { data: clientData } = await supabase.from('clients').select('brand_name').eq('id', clientId).single()
+  const client = clientData as { brand_name: string } | null
   if (!client) notFound()
 
   const [{ data: summaryRaw }, { data: missedRaw }] = await Promise.all([
