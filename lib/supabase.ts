@@ -20,6 +20,7 @@ function getInstance(): SupabaseClient {
 
 export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
   get(_target, prop: string | symbol) {
-    return (getInstance() as Record<string | symbol, unknown>)[prop]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (getInstance() as any)[prop]
   },
 })
