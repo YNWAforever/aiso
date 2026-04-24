@@ -10,7 +10,7 @@ export default async function DashboardPage({
   params: Promise<{ lang: string }>
 }) {
   const { lang } = await params
-  const profile = await requireAuth()
+  const profile = await requireAuth(lang)
   const supabase = await createServerSupabaseClient()
 
   const { data: clients } = await supabase

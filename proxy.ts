@@ -55,7 +55,8 @@ export async function proxy(request: NextRequest) {
         .single()
       if (!profile?.is_admin) {
         const dashUrl = request.nextUrl.clone()
-        dashUrl.pathname = '/en/dashboard'
+        const adminLangMatch = pathname.match(/^\/(en|zh-HK)/)
+        dashUrl.pathname = `/${adminLangMatch ? adminLangMatch[1] : 'en'}/dashboard`
         return NextResponse.redirect(dashUrl)
       }
     }

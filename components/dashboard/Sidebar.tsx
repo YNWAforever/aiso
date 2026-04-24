@@ -30,7 +30,7 @@ export function Sidebar({ profile, lang, clientId }: Props) {
 
   const signOut = async () => {
     await supabase.auth.signOut()
-    router.push('/auth/login')
+    router.push(`/${lang}/auth/login`)
   }
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')

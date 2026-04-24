@@ -13,7 +13,7 @@ export default async function DashboardPulsePage({
   params: Promise<{ lang: string; clientId: string }>
 }) {
   const { lang, clientId } = await params
-  const profile  = await requireAuth()
+  const profile  = await requireAuth(lang)
   const supabase = await createServerSupabaseClient()
 
   // Verify client belongs to user's account

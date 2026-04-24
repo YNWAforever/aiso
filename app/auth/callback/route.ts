@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get('error')
 
   if (error) {
-    return NextResponse.redirect(new URL(`/auth/login?error=${error}`, request.url))
+    return NextResponse.redirect(new URL(`/en/auth/login?error=${error}`, request.url))
   }
 
   if (code) {

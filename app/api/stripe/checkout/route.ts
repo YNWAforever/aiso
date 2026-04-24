@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     customer_email: profile.display_name ?? undefined,
     metadata: { account_id: profile.account_id },
     success_url: `${APP_URL}/auth/callback?next=/en/dashboard/settings`,
-    cancel_url:  `${APP_URL}/pricing`,
+    cancel_url:  `${APP_URL}/en/pricing`,
   })
 
   return NextResponse.json({ url: session.url })

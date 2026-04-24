@@ -16,14 +16,14 @@ export async function getProfile(): Promise<ProfileWithAccount | null> {
   return data as ProfileWithAccount | null
 }
 
-export async function requireAuth(): Promise<ProfileWithAccount> {
+export async function requireAuth(lang = 'en'): Promise<ProfileWithAccount> {
   const profile = await getProfile()
-  if (!profile) redirect('/en/auth/login')
+  if (!profile) redirect(`/${lang}/auth/login`)
   return profile
 }
 
-export async function requireAdmin(): Promise<ProfileWithAccount> {
-  const profile = await requireAuth()
-  if (!profile.is_admin) redirect('/en/dashboard')
+export async function requireAdmin(lang = 'en'): Promise<ProfileWithAccount> {
+  const profile = await requireAuth(lang)
+  if (!profile.is_admin) redirect(`/${lang}/dashboard`)
   return profile
 }

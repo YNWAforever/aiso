@@ -10,7 +10,7 @@ export default async function DashboardLayout({
   params: Promise<{ lang: string }>
 }) {
   const { lang } = await params
-  const profile = await requireAuth()
+  const profile = await requireAuth(lang)
 
   // Extract clientId from URL for sidebar active state
   const headersList = await headers()

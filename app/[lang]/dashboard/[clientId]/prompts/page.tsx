@@ -11,7 +11,7 @@ export default async function PromptsPage({
   params: Promise<{ lang: string; clientId: string }>
 }) {
   const { lang, clientId } = await params
-  const profile  = await requireAuth()
+  const profile  = await requireAuth(lang)
   const plan     = profile.accounts?.plan ?? 'starter'
   const supabase = await createServerSupabaseClient()
 
