@@ -6,6 +6,7 @@ export function LoginForm({ next }: { next?: string }) {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,12 +25,22 @@ export function LoginForm({ next }: { next?: string }) {
   const signInWithMagicLink = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    await supabase.auth.signInWithOtp({
+    setErrorMsg('')
+    const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: redirectTo },
     })
-    setSent(true)
-    setLoading(false)
+    if (error) {
+      setErrorMsg(
+        error.status === 429
+          ? 'Too many attempts. Please wait a few minutes before trying again.'
+          : error.message
+      )
+      setLoading(false)
+    } else {
+      setSent(true)
+      setLoading(false)
+    }
   }
 
   if (sent) {
@@ -73,6 +84,9 @@ export function LoginForm({ next }: { next?: string }) {
         >
           {loading ? 'Sending…' : 'Send Magic Link'}
         </button>
+        {errorMsg && (
+          <p className="text-red-600 text-sm mt-2">{errorMsg}</p>
+        )}
       </form>
     </div>
   )
