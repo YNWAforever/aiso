@@ -1,5 +1,5 @@
 {
-  "nav": { "title": "Fimmick AEO", "en": "EN", "zh": "中文" },
+  "nav": { "title": "Fimmick AEO", "en": "EN", "zh": "中文", "sign_in": "Sign in", "get_started": "Get started free" },
   "home": {
     "badge": "FREE AI READINESS CHECK",
     "headline": "Is Your Website\nVisible to AI Search?",
@@ -62,6 +62,13 @@
     "sentiment_positive": "Positive",
     "sentiment_neutral": "Neutral",
     "sentiment_negative": "Negative"
+  },
+  "upsell": {
+    "title": "Track {domain}'s AI presence every week",
+    "body": "See your Share of Voice across ChatGPT, Perplexity, Claude, and Gemini — automatically.",
+    "cta_primary": "Get started free",
+    "cta_secondary": "See plans",
+    "sign_in": "Already have an account? Sign in →"
   },
   "dashboard": {
     "my_brands": "My Brands",

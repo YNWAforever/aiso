@@ -1,5 +1,5 @@
 {
-  "nav": { "title": "Fimmick AEO", "en": "EN", "zh": "中文" },
+  "nav": { "title": "Fimmick AEO", "en": "EN", "zh": "中文", "sign_in": "登入", "get_started": "免費開始" },
   "home": {
     "badge": "免費 AI 可見度檢測",
     "headline": "你的網站\nAI 搜尋搵到嗎？",
@@ -62,6 +62,13 @@
     "sentiment_positive": "正面",
     "sentiment_neutral": "中性",
     "sentiment_negative": "負面"
+  },
+  "upsell": {
+    "title": "每週追蹤 {domain} 的 AI 能見度",
+    "body": "自動監測您在 ChatGPT、Perplexity、Claude 及 Gemini 的品牌佔有率。",
+    "cta_primary": "免費開始",
+    "cta_secondary": "查看方案",
+    "sign_in": "已有帳號？立即登入 →"
   },
   "dashboard": {
     "my_brands": "我的品牌",

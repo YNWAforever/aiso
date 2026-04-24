@@ -41,9 +41,20 @@ export default function HomePage() {
         <span className="font-bold text-slate-900">
           Fimmick <span className="text-blue-600">AEO</span>
         </span>
-        <Link href={`/${otherLang}`} className="text-sm text-blue-600 hover:underline">
-          {otherLabel}
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/auth/login" className="text-sm text-slate-500 hover:text-slate-900 transition">
+            {t('nav.sign_in')}
+          </Link>
+          <Link
+            href="/pricing"
+            className="text-sm font-semibold bg-blue-600 text-white px-4 py-1.5 rounded-lg hover:bg-blue-700 transition"
+          >
+            {t('nav.get_started')}
+          </Link>
+          <Link href={`/${otherLang}`} className="text-sm text-blue-600 hover:underline">
+            {otherLabel}
+          </Link>
+        </div>
       </nav>
 
       {/* Hero */}
