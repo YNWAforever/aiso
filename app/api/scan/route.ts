@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRobots }         from '@/lib/checks/robots'
+
+export const dynamic = 'force-dynamic'
 import { checkLlmsTxt }        from '@/lib/checks/llmsTxt'
 import { checkBotAccess }      from '@/lib/checks/botAccess'
 import { checkStructuredData } from '@/lib/checks/structuredData'

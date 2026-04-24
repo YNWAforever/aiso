@@ -25,9 +25,20 @@ export default async function ResultPage({ params }: { params: Promise<{ lang: s
         <Link href={`/${lang}`} className="font-bold text-slate-900">
           Fimmick <span className="text-blue-600">AEO</span>
         </Link>
-        <Link href={`/${lang === 'en' ? 'zh-HK' : 'en'}/result/${id}`} className="text-sm text-blue-600 hover:underline">
-          {lang === 'en' ? '中文' : 'EN'}
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href={`/${lang}/auth/login`} className="text-sm text-slate-500 hover:text-slate-900 transition">
+            {t('nav.sign_in')}
+          </Link>
+          <Link
+            href={`/${lang}/pricing`}
+            className="text-sm font-semibold bg-blue-600 text-white px-4 py-1.5 rounded-lg hover:bg-blue-700 transition"
+          >
+            {t('nav.get_started')}
+          </Link>
+          <Link href={`/${lang === 'en' ? 'zh-HK' : 'en'}/result/${id}`} className="text-sm text-blue-600 hover:underline">
+            {lang === 'en' ? '中文' : 'EN'}
+          </Link>
+        </div>
       </nav>
 
       <main className="max-w-xl mx-auto px-6 py-10">
@@ -61,6 +72,36 @@ export default async function ResultPage({ params }: { params: Promise<{ lang: s
           copyLabel={t('result.copy')}
           copiedLabel={t('result.copied')}
         />
+
+        {/* Post-scan upsell */}
+        <div className="bg-slate-900 rounded-xl p-7 mt-6 text-center">
+          <p className="text-2xl">📊</p>
+          <h2 className="text-white font-black text-lg mt-2">
+            {t('upsell.title', { domain: s.domain })}
+          </h2>
+          <p className="text-slate-400 text-sm mt-2 max-w-xs mx-auto">
+            {t('upsell.body')}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
+            <Link
+              href={`/${lang}/auth/login`}
+              className="bg-blue-600 text-white font-semibold px-6 py-2.5 rounded-lg text-sm hover:bg-blue-700 transition"
+            >
+              {t('upsell.cta_primary')}
+            </Link>
+            <Link
+              href={`/${lang}/pricing`}
+              className="bg-slate-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm hover:bg-slate-600 transition"
+            >
+              {t('upsell.cta_secondary')}
+            </Link>
+          </div>
+          <p className="mt-4">
+            <Link href={`/${lang}/auth/login`} className="text-slate-500 text-xs hover:text-slate-300 transition">
+              {t('upsell.sign_in')}
+            </Link>
+          </p>
+        </div>
       </main>
     </div>
   )

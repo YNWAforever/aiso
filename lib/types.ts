@@ -68,3 +68,24 @@ export interface PulseMetric {
   scan_week: string
   created_at: string
 }
+
+export interface Account {
+  id: string
+  stripe_customer_id: string | null
+  stripe_subscription_id: string | null
+  plan: 'starter' | 'pro' | 'enterprise'
+  status: 'active' | 'past_due' | 'cancelled' | 'trialing'
+  created_at: string
+}
+
+export interface Profile {
+  id: string
+  account_id: string
+  display_name: string | null
+  is_admin: boolean
+  created_at: string
+}
+
+export interface ProfileWithAccount extends Profile {
+  accounts: Account
+}

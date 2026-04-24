@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase }       from '@/lib/supabase'
 import { callOpenRouter } from '@/lib/openrouter'
+import type { Scan }      from '@/lib/types'
+
+export const dynamic = 'force-dynamic'
 
 export function parseFixPack(raw: string): { llms_txt: string; robots_patch: string; faq_schema: string } {
   const match = raw.match(/\{[\s\S]*\}/)
@@ -20,11 +23,12 @@ export async function POST(req: NextRequest) {
 
   if (existing) return NextResponse.json(existing)
 
-  const { data: scan, error: scanError } = await supabase
+  const { data: scanData, error: scanError } = await supabase
     .from('scans')
     .select('*')
     .eq('id', scanId)
     .single()
+  const scan = scanData as Scan | null
 
   if (scanError || !scan) return NextResponse.json({ error: 'Scan not found' }, { status: 404 })
 
@@ -39,7 +43,7 @@ export async function POST(req: NextRequest) {
     if (m) metaDescription = m[1].trim()
   } catch { /* use defaults */ }
 
-  const issues = Object.entries(scan.results as Record<string, { status: string; message: string }>)
+  const issues = Object.entries(scan.results as unknown as Record<string, { status: string; message: string }>)
     .filter(([, v]) => v.status !== 'pass')
     .map(([k, v]) => `${k}: ${v.message}`)
 
