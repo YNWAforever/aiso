@@ -18,7 +18,11 @@ function getInstance(): SupabaseClient {
   return _instance
 }
 
-export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
+// Exported as `any` because without generated Supabase schema types,
+// the typed SupabaseClient makes all .insert() / .upsert() row types `never`.
+// Using `any` lets callers access all Supabase methods without spurious TS errors.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const supabase: any = new Proxy({} as SupabaseClient, {
   get(_target, prop: string | symbol) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (getInstance() as any)[prop]
