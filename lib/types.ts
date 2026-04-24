@@ -36,6 +36,7 @@ export interface FixPack {
 export interface Client {
   id: string
   brand_name: string
+  domain: string | null
   industry: string | null
   competitors: string[]
   status: string

@@ -23,8 +23,8 @@ export default async function ResultPage({ params }: { params: Promise<{ lang: s
 
   const s = scan as Scan
   const scoreLabel = s.score >= 80 ? t('result.score_good') : s.score >= 50 ? t('result.score_ok') : t('result.score_bad')
-  // Show "Save" button when user is logged in and this scan isn't already theirs
-  const canSave = profile && (!s.account_id || s.account_id !== profile.account_id)
+  // Show "Save" button when user is logged in and this scan is unclaimed
+  const canSave = profile && !s.account_id
 
   return (
     <div className="min-h-screen bg-slate-50">
