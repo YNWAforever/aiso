@@ -21,10 +21,10 @@ export async function TopBar({ title, subtitle }: Props) {
   } catch { /* non-critical — bell shows 0 */ }
 
   return (
-    <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
+    <header className="bg-card border-b px-6 py-3.5 flex items-center justify-between">
       <div>
-        <h1 className="font-semibold text-slate-900 text-sm">{title}</h1>
-        {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
+        <h1 className="font-semibold text-foreground text-sm">{title}</h1>
+        {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
       </div>
       <NotificationBell initialCount={unreadCount} />
     </header>

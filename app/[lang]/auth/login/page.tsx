@@ -1,4 +1,5 @@
 import { LoginForm } from '@/components/auth/LoginForm'
+import { Zap } from 'lucide-react'
 
 export default async function LoginPage({
   searchParams,
@@ -8,13 +9,16 @@ export default async function LoginPage({
   const { next } = await searchParams
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl border border-slate-200 p-8 w-full max-w-sm shadow-sm">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="bg-card rounded-2xl border p-8 w-full max-w-sm shadow-sm">
         <div className="text-center mb-8">
-          <p className="font-black text-slate-900 text-xl">
-            Fimmick <span className="text-blue-600">AEO</span>
-          </p>
-          <p className="text-slate-500 text-sm mt-1">Sign in to your dashboard</p>
+          <div className="inline-flex items-center gap-2 mb-3">
+            <Zap className="size-4 text-primary" />
+            <p className="font-black text-foreground text-xl">
+              Fimmick <span className="text-primary">AEO</span>
+            </p>
+          </div>
+          <p className="text-muted-foreground text-sm">Sign in to your dashboard</p>
         </div>
         <LoginForm next={next} />
       </div>

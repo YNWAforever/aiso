@@ -5,6 +5,7 @@ import { TopBar }          from '@/components/dashboard/TopBar'
 import { AddBrandWizard }  from '@/components/dashboard/AddBrandWizard'
 import { RecentScans }     from '@/components/dashboard/RecentScans'
 import { maxBrandsForPlan } from '@/lib/tier'
+import { BarChart2 } from 'lucide-react'
 import type { Client, PulseWeeklySummary, Scan } from '@/lib/types'
 
 export default async function DashboardPage({
@@ -63,7 +64,7 @@ export default async function DashboardPage({
         {hasClients ? (
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Tracked Brands</h2>
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tracked Brands</h2>
               {!atLimit && <AddBrandWizard lang={lang} />}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -80,11 +81,13 @@ export default async function DashboardPage({
           </div>
         ) : (
           <div>
-            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Tracked Brands</h2>
-            <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
-              <p className="text-3xl mb-3">🏢</p>
-              <p className="font-semibold text-slate-700">Add your first brand</p>
-              <p className="text-sm text-slate-400 mt-1 mb-6">
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Tracked Brands</h2>
+            <div className="bg-card rounded-xl border p-8 text-center">
+              <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                <BarChart2 className="size-5 text-primary" />
+              </div>
+              <p className="font-semibold text-foreground">Add your first brand</p>
+              <p className="text-sm text-muted-foreground mt-1 mb-6">
                 Track your Share of Voice across ChatGPT, Perplexity, Claude, and Gemini.
               </p>
               <AddBrandWizard lang={lang} />
@@ -95,7 +98,7 @@ export default async function DashboardPage({
         {/* ── Recent Scans section ── */}
         {hasScans && (
           <div>
-            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Recent AEO Scans</h2>
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Recent AEO Scans</h2>
             <RecentScans scans={scans as Pick<Scan, 'id' | 'domain' | 'score' | 'created_at'>[]} lang={lang} />
           </div>
         )}
