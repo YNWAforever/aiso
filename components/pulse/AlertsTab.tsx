@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
 import type { AlertConfig } from '@/lib/types'
 
 interface Props { clientId: string }
@@ -44,66 +45,65 @@ export function AlertsTab({ clientId }: Props) {
     setTimeout(() => setSaved(false), 3000)
   }
 
-  if (loading)   return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-400">Loading…</div>
-  if (fetchErr)  return <div className="bg-white rounded-xl border border-red-200 p-8 text-center text-sm text-red-500">{fetchErr}</div>
+  if (loading)   return <div className="bg-card rounded-xl border p-8 text-center text-sm text-muted-foreground">Loading…</div>
+  if (fetchErr)  return <div className="bg-card rounded-xl border border-destructive/30 p-8 text-center text-sm text-destructive">{fetchErr}</div>
   if (!config)   return null
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
-        <p className="text-sm font-bold text-slate-800 mb-5">Alert Conditions</p>
+      <div className="bg-card rounded-xl border p-6">
+        <p className="text-sm font-bold text-foreground mb-5">Alert Conditions</p>
 
         {/* SoV threshold */}
-        <div className="mb-6 pb-6 border-b border-slate-100">
+        <div className="mb-6 pb-6 border-b">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-semibold text-slate-700">SoV drops below threshold</span>
+            <span className="text-sm font-semibold text-foreground">SoV drops below threshold</span>
             <Toggle active={config.enabled_sov} onChange={v => update({ enabled_sov: v })} />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-500">Alert when SoV falls below</span>
+            <span className="text-sm text-muted-foreground">Alert when SoV falls below</span>
             <input type="number" min={1} max={100} value={config.sov_threshold}
               onChange={e => update({ sov_threshold: parseInt(e.target.value) || 50 })}
               disabled={!config.enabled_sov}
-              className="w-16 border border-slate-200 rounded px-2 py-1 text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40" />
-            <span className="text-sm text-slate-500">%</span>
+              className="w-16 border border-border rounded px-2 py-1 text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-40 bg-input text-foreground" />
+            <span className="text-sm text-muted-foreground">%</span>
           </div>
         </div>
 
         {/* WoW drop */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-semibold text-slate-700">Week-over-week drop</span>
+            <span className="text-sm font-semibold text-foreground">Week-over-week drop</span>
             <Toggle active={config.enabled_wow} onChange={v => update({ enabled_wow: v })} />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-500">Alert when SoV drops more than</span>
+            <span className="text-sm text-muted-foreground">Alert when SoV drops more than</span>
             <input type="number" min={1} max={100} value={config.wow_threshold}
               onChange={e => update({ wow_threshold: parseInt(e.target.value) || 10 })}
               disabled={!config.enabled_wow}
-              className="w-16 border border-slate-200 rounded px-2 py-1 text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40" />
-            <span className="text-sm text-slate-500">points in one week</span>
+              className="w-16 border border-border rounded px-2 py-1 text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-40 bg-input text-foreground" />
+            <span className="text-sm text-muted-foreground">points in one week</span>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
-        <p className="text-sm font-bold text-slate-800 mb-4">Delivery</p>
+      <div className="bg-card rounded-xl border p-6">
+        <p className="text-sm font-bold text-foreground mb-4">Delivery</p>
         <div className="space-y-3">
           <label className="flex items-center gap-3 cursor-pointer">
             <input type="checkbox" checked={config.notify_email} onChange={e => update({ notify_email: e.target.checked })}
-              className="w-4 h-4 rounded accent-blue-600" />
-            <span className="text-sm text-slate-700">Email notification</span>
+              className="w-4 h-4 rounded accent-primary" />
+            <span className="text-sm text-foreground">Email notification</span>
           </label>
           <label className="flex items-center gap-3 cursor-pointer">
             <input type="checkbox" checked={config.notify_inapp} onChange={e => update({ notify_inapp: e.target.checked })}
-              className="w-4 h-4 rounded accent-blue-600" />
-            <span className="text-sm text-slate-700">In-app notification</span>
+              className="w-4 h-4 rounded accent-primary" />
+            <span className="text-sm text-foreground">In-app notification</span>
           </label>
         </div>
-        <button onClick={save} disabled={saving}
-          className="mt-5 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition">
+        <Button onClick={save} disabled={saving} className="mt-5">
           {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Alerts'}
-        </button>
+        </Button>
       </div>
     </div>
   )
