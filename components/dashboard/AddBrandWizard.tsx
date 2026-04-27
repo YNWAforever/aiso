@@ -1,6 +1,10 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Input }  from '@/components/ui/input'
+import { Label }  from '@/components/ui/label'
+import { cn }     from '@/lib/utils'
 
 interface Props {
   lang: string
@@ -26,6 +30,10 @@ export function AddBrandWizard({ lang, disabled, plan }: Props) {
 
   const reset = () => { setStep(1); setName(''); setDomain(''); setIndustry(''); setCompetitors(''); setError('') }
   const close = () => { reset(); setOpen(false) }
+
+  const handleBackdropKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') close()
+  }
 
   const submitStep1 = (e: React.FormEvent) => {
     e.preventDefault()
@@ -58,80 +66,108 @@ export function AddBrandWizard({ lang, disabled, plan }: Props) {
 
   if (disabled) {
     return (
-      <div className="rounded-xl border-2 border-dashed border-slate-200 p-8 text-center">
-        <p className="text-sm font-semibold text-slate-500 mb-1">Brand limit reached</p>
-        <p className="text-xs text-slate-400 mb-4">
+      <div className="rounded-xl border-2 border-dashed border-border p-8 text-center">
+        <p className="text-sm font-semibold text-foreground mb-1">Brand limit reached</p>
+        <p className="text-xs text-muted-foreground mb-4">
           Your {plan ?? 'current'} plan allows {plan === 'starter' ? '1 brand' : plan === 'pro' ? '3 brands' : '10 brands'}.
         </p>
-        <a href={`/${lang}/pricing`} className="inline-block bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-          Upgrade to Enterprise →
-        </a>
+        <Button size="sm" asChild>
+          <a href={`/${lang}/pricing`}>Upgrade to Enterprise →</a>
+        </Button>
       </div>
     )
   }
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className="text-sm font-medium text-blue-600 hover:text-blue-700 transition">
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)} className="text-primary hover:text-primary">
         + Add Brand
-      </button>
+      </Button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onKeyDown={handleBackdropKeyDown}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-brand-title"
+            className="bg-card rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border"
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b">
               <div>
-                <h2 className="text-base font-bold text-slate-900">Add Brand</h2>
-                <p className="text-xs text-slate-400">Step {step} of 2</p>
+                <h2 id="add-brand-title" className="text-base font-bold text-foreground">Add Brand</h2>
+                <p className="text-xs text-muted-foreground">Step {step} of 2</p>
               </div>
-              <button onClick={close} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">×</button>
+              <button onClick={close} className="text-muted-foreground hover:text-foreground text-2xl leading-none transition-colors">×</button>
             </div>
 
             {step === 1 && (
               <form onSubmit={submitStep1} className="px-6 py-5 space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Brand Name *</label>
-                  <input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Fimmick HK" required
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <div className="space-y-1.5">
+                  <Label htmlFor="brand-name">Brand Name *</Label>
+                  <Input
+                    id="brand-name"
+                    autoFocus
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    placeholder="e.g. Fimmick HK"
+                    required
+                  />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Website Domain</label>
-                  <input value={domain} onChange={e => setDomain(e.target.value)} placeholder="fimmick.com (optional)"
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <div className="space-y-1.5">
+                  <Label htmlFor="brand-domain">Website Domain</Label>
+                  <Input
+                    id="brand-domain"
+                    value={domain}
+                    onChange={e => setDomain(e.target.value)}
+                    placeholder="fimmick.com (optional)"
+                  />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
-                  <button type="button" onClick={close} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700">Cancel</button>
-                  <button type="submit" disabled={!name.trim()} className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition">Next →</button>
+                  <Button type="button" variant="ghost" onClick={close}>Cancel</Button>
+                  <Button type="submit" disabled={!name.trim()}>Next →</Button>
                 </div>
               </form>
             )}
 
             {step === 2 && (
               <form onSubmit={submitStep2} className="px-6 py-5 space-y-4">
-                {error && <p className="text-red-600 text-sm bg-red-50 rounded-lg p-3">{error}</p>}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Industry</label>
-                  <select value={industry} onChange={e => setIndustry(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                {error && <p className="text-destructive text-sm bg-destructive/10 rounded-lg p-3">{error}</p>}
+                <div className="space-y-1.5">
+                  <Label htmlFor="brand-industry">Industry</Label>
+                  <select
+                    id="brand-industry"
+                    value={industry}
+                    onChange={e => setIndustry(e.target.value)}
+                    className={cn(
+                      'flex h-9 w-full rounded-lg border border-border bg-input px-3 py-1 text-sm text-foreground shadow-sm transition-colors',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                    )}
+                  >
                     <option value="">Select industry (optional)</option>
                     {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Competitors</label>
-                  <input value={competitors} onChange={e => setCompetitors(e.target.value)}
+                <div className="space-y-1.5">
+                  <Label htmlFor="brand-competitors">Competitors</Label>
+                  <Input
+                    id="brand-competitors"
+                    value={competitors}
+                    onChange={e => setCompetitors(e.target.value)}
                     placeholder="Ogilvy, McCann, TBWA (comma-separated, optional)"
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  <p className="text-xs text-slate-400 mt-1">Used to track competitor mentions in AI responses.</p>
+                  />
+                  <p className="text-xs text-muted-foreground">Used to track competitor mentions in AI responses.</p>
                 </div>
-                <p className="text-xs text-slate-400 bg-blue-50 rounded-lg p-3">
-                  🔄 Weekly AI pulse monitoring will begin automatically on the next scan run.
+                <p className="text-xs text-muted-foreground bg-primary/5 rounded-lg p-3">
+                  Weekly AI pulse monitoring will begin automatically on the next scan run.
                 </p>
                 <div className="flex justify-between gap-2 pt-2">
-                  <button type="button" onClick={() => setStep(1)} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700">← Back</button>
-                  <button type="submit" disabled={loading} className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition">
+                  <Button type="button" variant="ghost" onClick={() => setStep(1)}>← Back</Button>
+                  <Button type="submit" disabled={loading}>
                     {loading ? 'Adding…' : 'Add Brand →'}
-                  </button>
+                  </Button>
                 </div>
               </form>
             )}

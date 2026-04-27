@@ -3,6 +3,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
+import {
+  Home, BarChart2, BookOpen, Settings, Wrench,
+  ChevronRight, LogOut, Zap,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { ProfileWithAccount } from '@/lib/types'
 
 interface Props {
@@ -11,10 +16,17 @@ interface Props {
   clientId?: string
 }
 
-const PLAN_COLORS: Record<string, string> = {
-  starter: 'bg-slate-600 text-slate-200',
-  pro: 'bg-blue-900 text-blue-300',
-  enterprise: 'bg-violet-900 text-violet-300',
+const PLAN_STYLES: Record<string, string> = {
+  starter:    'bg-secondary text-secondary-foreground',
+  pro:        'bg-primary/10 text-primary',
+  enterprise: 'bg-violet-100 text-violet-700',
+}
+
+interface NavItem {
+  href:     string
+  icon:     React.ComponentType<{ className?: string }>
+  label:    string
+  proOnly?: boolean
 }
 
 export function Sidebar({ profile, lang, clientId }: Props) {
@@ -35,49 +47,74 @@ export function Sidebar({ profile, lang, clientId }: Props) {
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
-  const navItem = (href: string, icon: string, label: string, proOnly?: boolean) => (
-    <Link
-      key={href}
-      href={href}
-      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition ${
-        isActive(href)
-          ? 'bg-slate-700 text-white'
-          : 'text-slate-400 hover:text-white hover:bg-slate-800'
-      }`}
-    >
-      <span>{icon}</span>
-      <span>{label}</span>
-      {proOnly && plan === 'starter' && (
-        <span className="ml-auto text-xs bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded">PRO</span>
-      )}
-    </Link>
-  )
+  const navItems: NavItem[] = [
+    { href: base,                            icon: Home,      label: 'My Brands' },
+    ...(clientId ? [
+      { href: `${base}/${clientId}`,         icon: BarChart2, label: 'AI Pulse' },
+      { href: `${base}/${clientId}/prompts`, icon: BookOpen,  label: 'Prompts', proOnly: true },
+    ] : []),
+    { href: `${base}/settings`,              icon: Settings,  label: 'Settings' },
+    ...(profile.is_admin ? [
+      { href: '/admin',                      icon: Wrench,    label: 'Admin' },
+    ] : []),
+  ]
 
   return (
-    <aside className="w-52 flex-shrink-0 bg-slate-900 flex flex-col h-screen sticky top-0">
-      <div className="px-4 py-4 border-b border-slate-800">
-        <p className="font-black text-white text-sm">
-          Fimmick <span className="text-blue-400">AEO</span>
+    <aside className="w-52 flex-shrink-0 flex flex-col h-screen sticky top-0 border-r bg-sidebar-background text-sidebar-foreground border-sidebar-border">
+      {/* Logo */}
+      <div className="px-4 py-4 border-b border-sidebar-border flex items-center gap-2">
+        <Zap className="size-4 text-primary" />
+        <p className="font-black text-sm text-foreground">
+          Fimmick <span className="text-primary">AEO</span>
         </p>
       </div>
 
-      <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
-        {navItem(base, '🏠', 'My Brands')}
-        {clientId && navItem(`${base}/${clientId}`, '📊', 'AI Pulse')}
-        {clientId && navItem(`${base}/${clientId}/prompts`, '📋', 'Prompts', true)}
-        {navItem(`${base}/settings`, '⚙️', 'Settings')}
-        {profile.is_admin && navItem('/admin', '🔧', 'Admin')}
+      {/* Nav */}
+      <nav className="flex-1 px-2 py-4 space-y-0.5 overflow-y-auto">
+        {navItems.map(({ href, icon: Icon, label, proOnly }) => {
+          const active = isActive(href)
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
+                active
+                  ? 'bg-primary/10 text-primary font-semibold'
+                  : 'text-sidebar-muted-fg hover:bg-accent hover:text-accent-foreground'
+              )}
+            >
+              <Icon className="size-4 flex-shrink-0" />
+              <span className="flex-1">{label}</span>
+              {proOnly && plan === 'starter' && (
+                <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-semibold">
+                  PRO
+                </span>
+              )}
+              {active && <ChevronRight className="size-3 opacity-50" />}
+            </Link>
+          )
+        })}
       </nav>
 
-      <div className="px-3 py-4 border-t border-slate-800 space-y-2">
-        <div className={`text-xs font-semibold px-2 py-1 rounded inline-block ${PLAN_COLORS[plan] ?? PLAN_COLORS.starter}`}>
+      {/* Footer */}
+      <div className="px-3 py-4 border-t border-sidebar-border space-y-2">
+        <span
+          className={cn(
+            'text-xs font-semibold px-2 py-1 rounded-full inline-block',
+            PLAN_STYLES[plan] ?? PLAN_STYLES.starter
+          )}
+        >
           {plan.toUpperCase()}
-        </div>
-        <p className="text-xs text-slate-500 truncate">{profile.display_name ?? 'Account'}</p>
+        </span>
+        <p className="text-xs text-muted-foreground truncate px-1">
+          {profile.display_name ?? 'Account'}
+        </p>
         <button
           onClick={signOut}
-          className="text-xs text-slate-500 hover:text-slate-300 transition"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
+          <LogOut className="size-3" />
           Sign out
         </button>
       </div>

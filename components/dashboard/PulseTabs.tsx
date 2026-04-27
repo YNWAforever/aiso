@@ -24,11 +24,13 @@ export function PulseTabs() {
   }
 
   return (
-    <div className="bg-white border-b border-slate-200 px-6 flex gap-0">
+    <div className="bg-card border-b px-6 flex gap-0">
       {TABS.map(({ id, label }) => (
         <button key={id} onClick={() => navigate(id)}
           className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === id ? 'text-blue-600 border-blue-600' : 'text-slate-500 border-transparent hover:text-slate-800'
+            activeTab === id
+              ? 'text-primary border-primary'
+              : 'text-muted-foreground border-transparent hover:text-foreground'
           }`}>
           {label}
         </button>
