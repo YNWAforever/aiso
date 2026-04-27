@@ -7,6 +7,7 @@ import { checkBotAccess }      from '@/lib/checks/botAccess'
 import { checkStructuredData } from '@/lib/checks/structuredData'
 import { checkExtractability } from '@/lib/checks/extractability'
 import { supabase }            from '@/lib/supabase'
+import { getProfile }          from '@/lib/auth'
 import type { ScanResults }    from '@/lib/types'
 
 const WEIGHTS = {
@@ -62,9 +63,13 @@ export async function POST(req: NextRequest) {
 
   const score = calculateScore(results)
 
+  // Attach to user's account if they are logged in
+  const profile = await getProfile()
+  const account_id = profile?.account_id ?? null
+
   const { data, error } = await supabase
     .from('scans')
-    .insert({ url: baseUrl, domain, score, results })
+    .insert({ url: baseUrl, domain, score, results, account_id })
     .select('id')
     .single()
 

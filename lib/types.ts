@@ -20,6 +20,7 @@ export interface Scan {
   domain: string
   score: number
   results: ScanResults
+  account_id: string | null
   created_at: string
 }
 
@@ -35,6 +36,7 @@ export interface FixPack {
 export interface Client {
   id: string
   brand_name: string
+  domain: string | null
   industry: string | null
   competitors: string[]
   status: string
@@ -82,10 +84,47 @@ export interface Profile {
   id: string
   account_id: string
   display_name: string | null
+  email: string | null   // from auth.users, attached by getProfile()
   is_admin: boolean
   created_at: string
 }
 
 export interface ProfileWithAccount extends Profile {
   accounts: Account
+}
+
+export interface PromptBankItem {
+  id: string
+  client_id: string
+  category: string
+  question: string
+  language: string
+  is_active: boolean
+  created_at: string
+}
+
+export interface AlertConfig {
+  id?: string
+  client_id: string
+  enabled_sov: boolean
+  sov_threshold: number
+  enabled_wow: boolean
+  wow_threshold: number
+  notify_email: boolean
+  notify_inapp: boolean
+  created_at?: string
+  updated_at?: string
+}
+
+export interface Notification {
+  id: string
+  account_id: string
+  client_id: string | null
+  type: 'sov_threshold' | 'sov_wow_drop' | 'sov_recovery'
+  title: string
+  message: string
+  read: boolean
+  /** ISO date of the pulse scan week — used for deduplication (unique per client+type+week) */
+  scan_week: string | null
+  created_at: string
 }
