@@ -60,19 +60,9 @@ export function Sidebar({ profile, lang, clientId }: Props) {
   ]
 
   return (
-    <aside
-      className="w-52 flex-shrink-0 flex flex-col h-screen sticky top-0 border-r"
-      style={{
-        background:  'var(--sidebar-background)',
-        borderColor: 'var(--sidebar-border)',
-        color:       'var(--sidebar-foreground)',
-      }}
-    >
+    <aside className="w-52 flex-shrink-0 flex flex-col h-screen sticky top-0 border-r bg-sidebar-background text-sidebar-foreground border-sidebar-border">
       {/* Logo */}
-      <div
-        className="px-4 py-4 border-b flex items-center gap-2"
-        style={{ borderColor: 'var(--sidebar-border)' }}
-      >
+      <div className="px-4 py-4 border-b border-sidebar-border flex items-center gap-2">
         <Zap className="size-4 text-primary" />
         <p className="font-black text-sm text-foreground">
           Fimmick <span className="text-primary">AEO</span>
@@ -91,7 +81,7 @@ export function Sidebar({ profile, lang, clientId }: Props) {
                 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
                 active
                   ? 'bg-primary/10 text-primary font-semibold'
-                  : 'text-[var(--sidebar-muted-fg)] hover:bg-accent hover:text-accent-foreground'
+                  : 'text-sidebar-muted-fg hover:bg-accent hover:text-accent-foreground'
               )}
             >
               <Icon className="size-4 flex-shrink-0" />
@@ -108,10 +98,7 @@ export function Sidebar({ profile, lang, clientId }: Props) {
       </nav>
 
       {/* Footer */}
-      <div
-        className="px-3 py-4 border-t space-y-2"
-        style={{ borderColor: 'var(--sidebar-border)' }}
-      >
+      <div className="px-3 py-4 border-t border-sidebar-border space-y-2">
         <span
           className={cn(
             'text-xs font-semibold px-2 py-1 rounded-full inline-block',

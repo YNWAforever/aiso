@@ -31,6 +31,10 @@ export function AddBrandWizard({ lang, disabled, plan }: Props) {
   const reset = () => { setStep(1); setName(''); setDomain(''); setIndustry(''); setCompetitors(''); setError('') }
   const close = () => { reset(); setOpen(false) }
 
+  const handleBackdropKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') close()
+  }
+
   const submitStep1 = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
@@ -81,11 +85,19 @@ export function AddBrandWizard({ lang, disabled, plan }: Props) {
       </Button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onKeyDown={handleBackdropKeyDown}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-brand-title"
+            className="bg-card rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border"
+          >
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <div>
-                <h2 className="text-base font-bold text-foreground">Add Brand</h2>
+                <h2 id="add-brand-title" className="text-base font-bold text-foreground">Add Brand</h2>
                 <p className="text-xs text-muted-foreground">Step {step} of 2</p>
               </div>
               <button onClick={close} className="text-muted-foreground hover:text-foreground text-2xl leading-none transition-colors">×</button>

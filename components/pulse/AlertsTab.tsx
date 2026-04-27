@@ -8,8 +8,8 @@ interface Props { clientId: string }
 function Toggle({ active, onChange }: { active: boolean; onChange: (v: boolean) => void }) {
   return (
     <button type="button" onClick={() => onChange(!active)}
-      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${active ? 'bg-green-500' : 'bg-slate-300'}`}>
-      <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition ${active ? 'translate-x-4' : 'translate-x-0'}`} />
+      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${active ? 'bg-green-500' : 'bg-muted'}`}>
+      <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow transform transition ${active ? 'translate-x-4' : 'translate-x-0'}`} />
     </button>
   )
 }
@@ -65,7 +65,7 @@ export function AlertsTab({ clientId }: Props) {
             <input type="number" min={1} max={100} value={config.sov_threshold}
               onChange={e => update({ sov_threshold: parseInt(e.target.value) || 50 })}
               disabled={!config.enabled_sov}
-              className="w-16 border border-border rounded px-2 py-1 text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-40 bg-input text-foreground" />
+              className="w-16 border border-border rounded px-2 py-1 text-sm font-bold text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 bg-input text-foreground" />
             <span className="text-sm text-muted-foreground">%</span>
           </div>
         </div>
@@ -81,7 +81,7 @@ export function AlertsTab({ clientId }: Props) {
             <input type="number" min={1} max={100} value={config.wow_threshold}
               onChange={e => update({ wow_threshold: parseInt(e.target.value) || 10 })}
               disabled={!config.enabled_wow}
-              className="w-16 border border-border rounded px-2 py-1 text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-40 bg-input text-foreground" />
+              className="w-16 border border-border rounded px-2 py-1 text-sm font-bold text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 bg-input text-foreground" />
             <span className="text-sm text-muted-foreground">points in one week</span>
           </div>
         </div>
