@@ -6,9 +6,13 @@ import { checkLlmsTxt }        from '@/lib/checks/llmsTxt'
 import { checkBotAccess }      from '@/lib/checks/botAccess'
 import { checkStructuredData } from '@/lib/checks/structuredData'
 import { checkExtractability } from '@/lib/checks/extractability'
+import { checkCitationDensity } from '@/lib/checks/citationDensity'
+import { checkFactualDensity }  from '@/lib/checks/factualDensity'
+import { checkTopicalAuthority } from '@/lib/checks/topicalAuthority'
+import { checkChunkability }    from '@/lib/checks/chunkability'
 import { supabase }            from '@/lib/supabase'
 import { getProfile }          from '@/lib/auth'
-import type { ScanResults }    from '@/lib/types'
+import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'
 
 const WEIGHTS = {
   c1_robots:          0.175,
@@ -26,7 +30,8 @@ export function calculateScore(results: ScanResults): number {
 }
 
 export async function POST(req: NextRequest) {
-  const { url } = await req.json()
+  const body = await req.json()
+  const { url, industry, region, clientId, sitemapUrls } = body
   if (!url || typeof url !== 'string') {
     return NextResponse.json({ error: 'Invalid URL' }, { status: 400 })
   }
@@ -63,17 +68,67 @@ export async function POST(req: NextRequest) {
 
   const score = calculateScore(results)
 
+  // GEO checks — only run if industry + region context provided
+  let geoScore = 0
+  const geoDetails: Record<string, unknown> = {}
+  let grade = 'F'
+
+  if (industry && region) {
+    const context = { industry: industry as IndustryCode, region: region as RegionCode, clientId }
+    let html = ''
+    try {
+      const htmlRes = await fetch(baseUrl, {
+        headers: { 'User-Agent': 'FimmickAISO/1.0' },
+        signal: AbortSignal.timeout(15_000),
+      })
+      html = await htmlRes.text()
+    } catch {}
+
+    const [c17, c18, c19, c20] = await Promise.allSettled([
+      checkCitationDensity(html, baseUrl, context),
+      checkFactualDensity(html, context),
+      checkTopicalAuthority(sitemapUrls ?? [], clientId ?? '', context.industry),
+      checkChunkability(html, context),
+    ])
+
+    const geoChecks = [c17, c18, c19, c20]
+    const geoWeights = [7, 6, 7, 5]   // 25 pts total matching spec
+    geoChecks.forEach((r, i) => {
+      if (r.status === 'fulfilled') {
+        const pts = r.value.status === 'pass' ? geoWeights[i]! : r.value.status === 'warn' ? geoWeights[i]! * 0.5 : 0
+        geoScore += pts
+        if ('geoDetails' in r.value && r.value.geoDetails) geoDetails[`c${17 + i}`] = r.value.geoDetails
+      }
+    })
+  }
+
+  const totalScore = Math.min(100, score + geoScore)
+  grade =
+    totalScore >= 90 ? 'A+' :
+    totalScore >= 80 ? 'A'  :
+    totalScore >= 70 ? 'B'  :
+    totalScore >= 60 ? 'C'  :
+    totalScore >= 50 ? 'D'  : 'F'
+
   // Attach to user's account if they are logged in
   const profile = await getProfile()
   const account_id = profile?.account_id ?? null
 
   const { data, error } = await supabase
     .from('scans')
-    .insert({ url: baseUrl, domain, score, results, account_id })
+    .insert({
+      url: baseUrl, domain,
+      score: totalScore,
+      results: { ...results, ...geoDetails },
+      industry: industry ?? null,
+      region:   region ?? null,
+      grade,
+      account_id,
+    })
     .select('id')
     .single()
 
   if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 })
 
-  return NextResponse.json({ id: data.id, score, results })
+  return NextResponse.json({ id: data.id, score: totalScore, grade, results: { ...results, ...geoDetails } })
 }

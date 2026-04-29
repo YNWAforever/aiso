@@ -28,3 +28,10 @@ export const supabase: any = new Proxy({} as SupabaseClient, {
     return (getInstance() as any)[prop]
   },
 })
+
+// Server-side factory — returns the singleton client.
+// Named to match the pattern expected by AISO v3 route files.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function createServerSupabaseClient(): any {
+  return getInstance()
+}
