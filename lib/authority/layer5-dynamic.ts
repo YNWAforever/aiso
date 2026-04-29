@@ -32,7 +32,7 @@ export async function scoreLayer5(
     if (!allCitations?.length) return zero
 
     const domainCounts: Record<string, number> = {}
-    for (const c of allCitations) domainCounts[c.cited_domain] = (domainCounts[c.cited_domain] ?? 0) + 1
+    for (const c of allCitations as { cited_domain: string; cited_at: string }[]) domainCounts[c.cited_domain] = (domainCounts[c.cited_domain] ?? 0) + 1
 
     const counts = Object.values(domainCounts)
     const mean = counts.reduce((a, b) => a + b, 0) / counts.length
@@ -49,9 +49,10 @@ export async function scoreLayer5(
     else if (zScore > 0.5) dynamicBoost = 0.5
 
     const midpoint = new Date(Date.now() - 45 * 86_400_000).toISOString()
-    const domainAll = allCitations.filter(c => c.cited_domain === domain)
-    const early  = domainAll.filter(c => c.cited_at <  midpoint).length
-    const recent = domainAll.filter(c => c.cited_at >= midpoint).length
+    type CitationRow = { cited_domain: string; cited_at: string }
+    const domainAll = allCitations.filter((c: CitationRow) => c.cited_domain === domain)
+    const early  = domainAll.filter((c: CitationRow) => c.cited_at <  midpoint).length
+    const recent = domainAll.filter((c: CitationRow) => c.cited_at >= midpoint).length
     const recencyTrend: Layer5Result['recencyTrend'] =
       recent > early * 1.2 ? 'rising' :
       recent < early * 0.8 ? 'declining' : 'stable'
