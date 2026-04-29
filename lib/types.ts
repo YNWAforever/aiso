@@ -128,3 +128,95 @@ export interface Notification {
   scan_week: string | null
   created_at: string
 }
+
+// ── AISO v3.3 Types ──────────────────────────────────────────────
+
+export type IndustryCode =
+  | 'finance' | 'medical' | 'legal' | 'technology'
+  | 'retail_ecommerce' | 'travel_hospitality' | 'education'
+  | 'real_estate' | 'manufacturing' | 'media_entertainment'
+  | 'energy_utilities' | 'general_b2b' | 'general_b2c'
+
+export type RegionCode =
+  | 'HK' | 'TW' | 'SG' | 'JP' | 'KR'
+  | 'US' | 'UK' | 'EU' | 'AU' | 'CA' | 'global'
+
+export type AuthorityTier = 'tier1' | 'tier2' | 'tier3' | 'other' | 'blacklist'
+
+export interface CheckContext {
+  industry: IndustryCode
+  region: RegionCode
+  clientId?: string
+}
+
+export interface AuthorityBreakdown {
+  layer1_tld:      { baseScore: number; category: string }
+  layer2_signals:  { signalScore: number; signals: Record<string, unknown> }
+  layer3_industry: { score: number; tier: AuthorityTier; multiplier: number }
+  layer4_regional: { score: number; tier: AuthorityTier }
+  layer5_dynamic:  { zScore: number; dynamicBoost: number; citationFrequency90d: number } | null
+  finalScore:      number
+  tier:            AuthorityTier
+}
+
+export interface CitationDensityResult {
+  qualityScore:              number
+  totalLinks:                number
+  externalLinks:             number
+  authorityBreakdown:        { tier1: number; tier2: number; tier3: number; other: number }
+  citationsPerThousandWords: number
+  hasStatistics:             boolean
+  statisticsWithSource:      number
+  details: Array<{ url: string; domain: string; tier: AuthorityTier; authorityScore: number }>
+}
+
+export interface FactualDensityResult {
+  qualityScore:       number
+  numberDensity:      number
+  namedEntityDensity: number
+  dateReferences:     number
+  hasComparativeData: boolean
+  hasTimeSeriesData:  boolean
+  uniquenessScore:    number
+  uniqueClaims:       string[]
+}
+
+export interface TopicalAuthorityResult {
+  topicalCoverageScore: number
+  detectedClusters: Array<{
+    topic:               string
+    pillarPageUrl:       string
+    pillarPageWordCount: number
+    clusterArticles:     Array<{ url: string; title: string; wordCount: number }>
+    interlinkCount:      number
+    completenessScore:   number
+  }>
+  totalClusters:  number
+  hasOrphanPages: number
+}
+
+export interface ChunkabilityResult {
+  avgChunkLength:    number
+  optimalChunkRatio: number
+  hasFaqStyle:       boolean
+  totalChunks:       number
+  chunkAnalysis: Array<{
+    heading:             string
+    wordCount:           number
+    tokenEstimate:       number
+    isAnswerFirst:       boolean
+    isSelfContained:     boolean
+    hasDefinition:       boolean
+    hasList:             boolean
+    extractabilityScore: number
+  }>
+}
+
+export interface ScanResultsV3 {
+  c17_citation_density?:  CitationDensityResult
+  c18_factual_density?:   FactualDensityResult
+  c19_topical_authority?: TopicalAuthorityResult
+  c20_chunkability?:      ChunkabilityResult
+  geoScore?: number
+  grade?:    string
+}
