@@ -9,7 +9,24 @@ const PROTECTED_PATHS = ['/dashboard', '/admin']
 const ADMIN_PATHS = ['/admin']
 
 export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl
+  const { pathname, searchParams } = request.nextUrl
+
+  // Supabase magic-link / OAuth fallback: if Supabase couldn't use the
+  // emailRedirectTo (domain not whitelisted), it redirects to the site URL
+  // root with ?code=... appended. The intl middleware then prepends a locale,
+  // giving e.g. /zh-HK?code=... — which no page handles. Catch that here and
+  // forward to /auth/callback so the code is properly exchanged.
+  const authCode = searchParams.get('code')
+  const isAuthCallback = pathname.includes('/auth/callback')
+  if (authCode && !isAuthCallback) {
+    const callbackUrl = request.nextUrl.clone()
+    callbackUrl.pathname = '/auth/callback'
+    callbackUrl.search = ''
+    callbackUrl.searchParams.set('code', authCode)
+    const nextParam = searchParams.get('next')
+    if (nextParam) callbackUrl.searchParams.set('next', nextParam)
+    return NextResponse.redirect(callbackUrl)
+  }
 
   // Strip lang prefix to check path
   const strippedPath = pathname.replace(/^\/(en|zh-HK)/, '') || '/'
