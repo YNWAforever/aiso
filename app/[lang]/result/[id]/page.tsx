@@ -9,7 +9,14 @@ import { FixPackClient }   from '@/components/FixPackClient'
 import { SaveScanButton }  from '@/components/SaveScanButton'
 import type { Scan }       from '@/lib/types'
 
-const CORE_CHECK_KEYS = ['c1_robots', 'c2_llms_txt', 'c3_bot_access', 'c4_structured_data', 'c5_extractability'] as const
+const CORE_CHECK_KEYS = [
+  'c1_robots', 'c2_llms_txt', 'c3_bot_access', 'c4_structured_data', 'c5_extractability',
+] as const
+
+const EXTENDED_CHECK_KEYS = [
+  'c6_llms_full_txt', 'c7_mcp_card', 'c8_sitemap', 'c9_meta_desc', 'c10_headings',
+  'c11_faq', 'c12_canonical', 'c13_render', 'c14_internal_links', 'c15_entity', 'c16_freshness',
+] as const
 
 const GRADE_CONFIG: Record<string, { bg: string; text: string; border: string; label: string }> = {
   'A+': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'Excellent' },
@@ -169,6 +176,29 @@ export default async function ResultPage({ params }: { params: Promise<{ lang: s
               <CheckItem
                 key={key}
                 label={t(`checks.${key}` as Parameters<typeof t>[0])}
+                result={checkResult}
+                message={msg}
+              />
+            )
+          })}
+        </div>
+
+        {/* Extended Checks */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+          <p className="text-xs font-bold text-slate-500 tracking-widest mb-1">{t('result.extended_checks_title')}</p>
+          <p className="text-xs text-slate-400 mb-4">{t('result.extended_checks_subtitle')}</p>
+          {EXTENDED_CHECK_KEYS.map(key => {
+            const checkResult = (s.results as Record<string, unknown>)[key] as import('@/lib/types').CheckResult | undefined
+            if (!checkResult) return null
+            const labelKey = `checks.${key}` as Parameters<typeof t>[0]
+            const msgKey   = `checks.${checkResult.message}` as Parameters<typeof t>[0]
+            let label: string = key, msg = checkResult.message
+            try { label = t(labelKey) } catch { /* use key */ }
+            try { msg   = t(msgKey)   } catch { /* use raw */ }
+            return (
+              <CheckItem
+                key={key}
+                label={label}
                 result={checkResult}
                 message={msg}
               />
