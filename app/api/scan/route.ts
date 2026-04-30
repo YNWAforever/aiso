@@ -111,8 +111,18 @@ export async function POST(req: NextRequest) {
     totalScore >= 50 ? 'D'  : 'F'
 
   // Attach to user's account if they are logged in
-  const profile = await getProfile()
-  const account_id = profile?.account_id ?? null
+  let account_id: string | null = null
+  try {
+    const profile = await getProfile()
+    account_id = profile?.account_id ?? null
+  } catch {
+    // Supabase client unavailable or user not authenticated — continue without account link
+  }
+
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    console.error('[scan] NEXT_PUBLIC_SUPABASE_URL is not configured')
+    return NextResponse.json({ error: 'Server misconfiguration: missing Supabase URL' }, { status: 500 })
+  }
 
   const { data, error } = await supabase
     .from('scans')
@@ -128,7 +138,7 @@ export async function POST(req: NextRequest) {
     .select('id')
     .single()
 
-  if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 })
+  if (error) return NextResponse.json({ error: 'Database error', detail: error.message }, { status: 500 })
 
   return NextResponse.json({ id: data.id, score: totalScore, grade, results: { ...results, ...geoDetails } })
 }
