@@ -132,4 +132,36 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
       fail: 'No date signals found. Add `datePublished` and `dateModified` to your Article/WebPage JSON-LD, and use `<meta property="article:modified_time">` as a fallback.',
     },
   },
+  c17_citation_density: {
+    why: 'AI models weight content that cites authoritative external sources. Pages with tier-1 citations (NIH, Bloomberg, Reuters) are significantly more likely to be quoted verbatim by AI search engines than uncited claims.',
+    fix: {
+      pass: 'Strong citation density — no action needed.',
+      warn: 'Moderate citations found. Add more links to tier-1 sources (government, academic, major publications) and ensure statistics are attributed with inline source links.',
+      fail: 'Very few or no external citations found. Every factual claim should link to an authoritative source. Add at least 3–5 cited references per 1,000 words.',
+    },
+  },
+  c18_factual_density: {
+    why: 'AI systems prefer content with concrete, verifiable data — percentages, named entities, dates, and comparative figures. Vague, superlative-heavy content is rarely cited because it cannot be fact-checked.',
+    fix: {
+      pass: 'Good factual density — no action needed.',
+      warn: 'Some facts found but content could be more data-rich. Add specific numbers, date references, and comparative statements (e.g. "up 23% YoY from $3.4B to $4.2B").',
+      fail: 'Content is too vague or opinion-heavy. Replace generalisations with specific data points, named studies, and measurable outcomes.',
+    },
+  },
+  c19_topical_authority: {
+    why: 'AI models prefer sources that cover a topic deeply across multiple pages (pillar + cluster structure). A single page on a topic ranks lower for AI citation than a site with a pillar guide plus 5+ supporting articles.',
+    fix: {
+      pass: 'Strong topical cluster structure detected — no action needed.',
+      warn: 'Partial topic coverage found. Identify your main topics and create a pillar page for each with at least 3–5 supporting cluster articles linked internally.',
+      fail: 'No clear topical clusters detected. Build content silos: one in-depth pillar page per key topic, surrounded by shorter cluster articles that link back to it.',
+    },
+  },
+  c20_chunkability: {
+    why: 'AI models extract answers in chunks of 100–1,500 tokens. Content structured under clear headings with self-contained, answer-first paragraphs is extracted and cited at a much higher rate than wall-of-text prose.',
+    fix: {
+      pass: 'Content is well-chunked for AI extraction — no action needed.',
+      warn: 'Some sections are hard to extract as standalone answers. Start each H2 section with a direct answer sentence, keep paragraphs under 200 words, and avoid referencing "above" or "below".',
+      fail: 'Content has few or no H2 headings, making chunked extraction impossible. Break your content into clearly labelled H2 sections, each answering one question directly.',
+    },
+  },
 }

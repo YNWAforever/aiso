@@ -19,6 +19,10 @@ const EXTENDED_CHECK_KEYS = [
   'c11_faq', 'c12_canonical', 'c13_render', 'c14_internal_links', 'c15_entity', 'c16_freshness',
 ] as const
 
+const GEO_CHECK_KEYS = [
+  'c17_citation_density', 'c18_factual_density', 'c19_topical_authority', 'c20_chunkability',
+] as const
+
 const GRADE_CONFIG: Record<string, { bg: string; text: string; border: string; label: string }> = {
   'A+': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'Excellent' },
   'A':  { bg: 'bg-green-50',   text: 'text-green-700',   border: 'border-green-200',   label: 'Very Good' },
@@ -61,20 +65,29 @@ export default async function ResultPage({ params }: { params: Promise<{ lang: s
   const canSave = profile && !s.account_id
 
   // Extract GEO check data from results
+  // New format (named keys + _data suffix); fall back to old numeric keys for existing scans
   const r = s.results as Record<string, unknown>
-  const c17 = r['c17'] as { qualityScore?: number; authorityBreakdown?: Record<string, number>; citationsPerThousandWords?: number } | undefined
-  const c18 = r['c18'] as { qualityScore?: number; numberDensity?: number; hasComparativeData?: boolean } | undefined
-  const c19 = r['c19'] as { topicalCoverageScore?: number; totalClusters?: number; hasOrphanPages?: number } | undefined
-  const c20 = r['c20'] as { avgChunkLength?: number; optimalChunkRatio?: number; totalChunks?: number; hasFaqStyle?: boolean } | undefined
-  const hasGeo = !!(c17 || c18 || c19 || c20)
+
+  type C17Data = { qualityScore?: number; authorityBreakdown?: Record<string, number>; citationsPerThousandWords?: number }
+  type C18Data = { qualityScore?: number; numberDensity?: number; hasComparativeData?: boolean }
+  type C19Data = { topicalCoverageScore?: number; totalClusters?: number; hasOrphanPages?: number }
+  type C20Data = { avgChunkLength?: number; optimalChunkRatio?: number; totalChunks?: number; hasFaqStyle?: boolean }
+
+  const c17data = (r['c17_citation_density_data'] ?? r['c17']) as C17Data | undefined
+  const c18data = (r['c18_factual_density_data']  ?? r['c18']) as C18Data | undefined
+  const c19data = (r['c19_topical_authority_data'] ?? r['c19']) as C19Data | undefined
+  const c20data = (r['c20_chunkability_data']      ?? r['c20']) as C20Data | undefined
+  const hasGeo  = !!(c17data || c18data || c19data || c20data ||
+                     r['c17_citation_density'] || r['c18_factual_density'] ||
+                     r['c19_topical_authority'] || r['c20_chunkability'])
 
   // Approximate GEO score from quality scores (weights: c17=7, c18=6, c19=7, c20=5)
   const geoWeights = [7, 6, 7, 5]
   const geoQualityScores = [
-    c17?.qualityScore,
-    c18?.qualityScore,
-    c19?.topicalCoverageScore,
-    c20 ? Math.round(((c20.optimalChunkRatio ?? 0) * 100)) : undefined,
+    c17data?.qualityScore,
+    c18data?.qualityScore,
+    c19data?.topicalCoverageScore,
+    c20data ? Math.round(((c20data.optimalChunkRatio ?? 0) * 100)) : undefined,
   ]
   const geoScore = geoQualityScores.reduce<number>((acc, q, i) => {
     if (q === undefined) return acc
@@ -168,6 +181,7 @@ export default async function ResultPage({ params }: { params: Promise<{ lang: s
           const allChecks = [
             ...CORE_CHECK_KEYS.map(k => s.results[k]).filter(Boolean),
             ...EXTENDED_CHECK_KEYS.map(k => (s.results as Record<string, unknown>)[k] as CheckResult | undefined).filter(Boolean),
+            ...GEO_CHECK_KEYS.map(k => (s.results as Record<string, unknown>)[k] as CheckResult | undefined).filter(Boolean),
           ] as CheckResult[]
           const passes = allChecks.filter(c => c.status === 'pass').length
           const warns  = allChecks.filter(c => c.status === 'warn').length
@@ -232,68 +246,71 @@ export default async function ResultPage({ params }: { params: Promise<{ lang: s
             <p className="text-xs font-bold text-slate-500 tracking-widest mb-1">{t('result.geo_checks_title')}</p>
             <p className="text-xs text-slate-400 mb-4">{t('result.geo_checks_subtitle')}</p>
 
-            {c17 && (
-              <div className="mb-4">
-                <p className="text-sm font-semibold text-slate-700 mb-2">{t('result.geo_c17_label')}</p>
-                <GeoMetricBar label={t('result.geo_quality_score')} score={c17.qualityScore ?? 0} />
-                {c17.authorityBreakdown && (
-                  <div className="flex gap-3 mt-2 text-xs text-slate-500">
-                    <span className="text-emerald-600 font-semibold">T1: {c17.authorityBreakdown['tier1'] ?? 0}</span>
-                    <span className="text-blue-600 font-semibold">T2: {c17.authorityBreakdown['tier2'] ?? 0}</span>
-                    <span className="text-slate-500">T3: {c17.authorityBreakdown['tier3'] ?? 0}</span>
-                    {c17.citationsPerThousandWords !== undefined && (
-                      <span>{c17.citationsPerThousandWords.toFixed(1)} {t('result.geo_cites_per_k')}</span>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+            {GEO_CHECK_KEYS.map(key => {
+              const checkResult = (s.results as Record<string, unknown>)[key] as CheckResult | undefined
+              if (!checkResult) return null
+              let label: string = key, msg = checkResult.message
+              try { label = t(`checks.${key}` as Parameters<typeof t>[0]) } catch { /* key */ }
+              try { msg   = t(`checks.${checkResult.message}` as Parameters<typeof t>[0]) } catch { /* raw */ }
 
-            {c18 && (
-              <div className="mb-4">
-                <p className="text-sm font-semibold text-slate-700 mb-2">{t('result.geo_c18_label')}</p>
-                <GeoMetricBar label={t('result.geo_quality_score')} score={c18.qualityScore ?? 0} />
-                <div className="flex gap-3 mt-2 text-xs text-slate-500">
-                  {c18.numberDensity !== undefined && <span>{t('result.geo_number_density')}: {c18.numberDensity.toFixed(1)}%</span>}
-                  {c18.hasComparativeData && <span className="text-emerald-600">✓ {t('result.geo_has_comparisons')}</span>}
-                </div>
-              </div>
-            )}
+              // Pick the matching rich detail data for inline metrics
+              const isC17 = key === 'c17_citation_density'
+              const isC18 = key === 'c18_factual_density'
+              const isC19 = key === 'c19_topical_authority'
+              const isC20 = key === 'c20_chunkability'
 
-            {c19 && (
-              <div className="mb-4">
-                <p className="text-sm font-semibold text-slate-700 mb-2">{t('result.geo_c19_label')}</p>
-                <GeoMetricBar label={t('result.geo_quality_score')} score={c19.topicalCoverageScore ?? 0} />
-                <div className="flex gap-3 mt-2 text-xs text-slate-500">
-                  <span>{c19.totalClusters ?? 0} {t('result.geo_clusters')}</span>
-                  {(c19.hasOrphanPages ?? 0) > 0 && (
-                    <span className="text-amber-600">{c19.hasOrphanPages} {t('result.geo_orphan_pages')}</span>
+              return (
+                <div key={key}>
+                  <ExpandableCheckItem
+                    label={label}
+                    result={checkResult}
+                    message={msg}
+                    explanation={CHECK_EXPLANATIONS[key]}
+                  />
+                  {/* Inline metric strip shown below each expandable row */}
+                  {isC17 && c17data && (
+                    <div className="flex gap-3 px-2 pb-2 text-xs text-slate-500">
+                      <span className="text-emerald-600 font-semibold">T1: {c17data.authorityBreakdown?.['tier1'] ?? 0}</span>
+                      <span className="text-blue-600 font-semibold">T2: {c17data.authorityBreakdown?.['tier2'] ?? 0}</span>
+                      <span>T3: {c17data.authorityBreakdown?.['tier3'] ?? 0}</span>
+                      {c17data.citationsPerThousandWords !== undefined && (
+                        <span>{c17data.citationsPerThousandWords.toFixed(1)} {t('result.geo_cites_per_k')}</span>
+                      )}
+                      {c17data.qualityScore !== undefined && (
+                        <span className="ml-auto font-semibold">{t('result.geo_quality_score')}: {Math.round(c17data.qualityScore)}/100</span>
+                      )}
+                    </div>
                   )}
-                </div>
-              </div>
-            )}
-
-            {c20 && (
-              <div>
-                <p className="text-sm font-semibold text-slate-700 mb-2">{t('result.geo_c20_label')}</p>
-                <div className="flex gap-4 text-xs text-slate-600 py-2">
-                  <div className="text-center">
-                    <p className="text-lg font-black text-slate-900">{c20.totalChunks ?? 0}</p>
-                    <p>{t('result.geo_chunks')}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-lg font-black text-slate-900">{Math.round((c20.optimalChunkRatio ?? 0) * 100)}%</p>
-                    <p>{t('result.geo_optimal')}</p>
-                  </div>
-                  {c20.hasFaqStyle && (
-                    <div className="text-center">
-                      <p className="text-lg font-black text-emerald-600">✓</p>
-                      <p>{t('result.geo_faq_style')}</p>
+                  {isC18 && c18data && (
+                    <div className="flex gap-3 px-2 pb-2 text-xs text-slate-500">
+                      {c18data.numberDensity !== undefined && <span>{t('result.geo_number_density')}: {c18data.numberDensity.toFixed(1)}%</span>}
+                      {c18data.hasComparativeData && <span className="text-emerald-600">✓ {t('result.geo_has_comparisons')}</span>}
+                      {c18data.qualityScore !== undefined && (
+                        <span className="ml-auto font-semibold">{t('result.geo_quality_score')}: {Math.round(c18data.qualityScore)}/100</span>
+                      )}
+                    </div>
+                  )}
+                  {isC19 && c19data && (
+                    <div className="flex gap-3 px-2 pb-2 text-xs text-slate-500">
+                      <span>{c19data.totalClusters ?? 0} {t('result.geo_clusters')}</span>
+                      {(c19data.hasOrphanPages ?? 0) > 0 && (
+                        <span className="text-amber-600">{c19data.hasOrphanPages} {t('result.geo_orphan_pages')}</span>
+                      )}
+                      {c19data.topicalCoverageScore !== undefined && (
+                        <span className="ml-auto font-semibold">{t('result.geo_quality_score')}: {Math.round(c19data.topicalCoverageScore)}/100</span>
+                      )}
+                    </div>
+                  )}
+                  {isC20 && c20data && (
+                    <div className="flex gap-4 px-2 pb-2 text-xs text-slate-500">
+                      <span>{c20data.totalChunks ?? 0} {t('result.geo_chunks')}</span>
+                      <span>{Math.round((c20data.optimalChunkRatio ?? 0) * 100)}% {t('result.geo_optimal')}</span>
+                      {c20data.hasFaqStyle && <span className="text-emerald-600">✓ {t('result.geo_faq_style')}</span>}
                     </div>
                   )}
                 </div>
-              </div>
-            )}
+              )
+            })}
           </div>
         )}
 

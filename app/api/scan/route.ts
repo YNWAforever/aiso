@@ -149,29 +149,53 @@ export async function POST(req: NextRequest) {
     .reduce((s, k) => s + scorePts(extResults[k],  EXT_PTS[k]),  0)
   const score = coreScore + extScore   // 0–75 before GEO
 
-  // GEO checks — only when industry + region context provided
+  // GEO checks — always run, default to general_b2c / global when not specified
+  const geoIndustry = ((industry as string | undefined) ?? 'general_b2c') as IndustryCode
+  const geoRegion   = ((region   as string | undefined) ?? 'global')       as RegionCode
+  const geoContext  = { industry: geoIndustry, region: geoRegion, clientId: clientId ?? undefined }
+
+  // Fetch sitemap URLs for c19 (Topical Authority) — reuse caller-supplied list or fetch /sitemap.xml
+  let sitemapUrlsForGeo: string[] = (sitemapUrls as string[] | undefined) ?? []
+  if (!sitemapUrlsForGeo.length) {
+    try {
+      const sitemapRes = await fetch(`${baseUrl}/sitemap.xml`, {
+        headers: { 'User-Agent': 'FimmickAISO/1.0' },
+        signal: AbortSignal.timeout(8_000),
+      })
+      if (sitemapRes.ok) {
+        const sitemapXml = await sitemapRes.text()
+        const locMatches = sitemapXml.match(/<loc>([^<]+)<\/loc>/g) ?? []
+        sitemapUrlsForGeo = locMatches
+          .map(m => m.replace(/<\/?loc>/g, '').trim())
+          .slice(0, 200)
+      }
+    } catch { /* sitemap unavailable — c19 will return warn/fail */ }
+  }
+
   let geoScore = 0
   const geoDetails: Record<string, unknown> = {}
 
-  if (industry && region) {
-    const context = { industry: industry as IndustryCode, region: region as RegionCode, clientId }
+  const [c17, c18, c19, c20] = await Promise.allSettled([
+    checkCitationDensity(html, baseUrl, geoContext),
+    checkFactualDensity(html, geoContext),
+    checkTopicalAuthority(sitemapUrlsForGeo, clientId ?? '', geoContext.industry),
+    checkChunkability(html, geoContext),
+  ])
 
-    const [c17, c18, c19, c20] = await Promise.allSettled([
-      checkCitationDensity(html, baseUrl, context),
-      checkFactualDensity(html, context),
-      checkTopicalAuthority(sitemapUrls ?? [], clientId ?? '', context.industry),
-      checkChunkability(html, context),
-    ])
-
-    const geoChecks  = [c17, c18, c19, c20]
-    const geoWeights = [7, 6, 7, 5]
-    geoChecks.forEach((r, i) => {
-      if (r.status === 'fulfilled') {
-        geoScore += r.value.status === 'pass' ? geoWeights[i]! : r.value.status === 'warn' ? geoWeights[i]! * 0.5 : 0
-        if ('geoDetails' in r.value && r.value.geoDetails) geoDetails[`c${17 + i}`] = r.value.geoDetails
+  const geoKeys    = ['c17_citation_density', 'c18_factual_density', 'c19_topical_authority', 'c20_chunkability'] as const
+  const geoChecks  = [c17, c18, c19, c20]
+  const geoWeights = [7, 6, 7, 5]
+  geoChecks.forEach((r, i) => {
+    if (r.status === 'fulfilled') {
+      geoScore += r.value.status === 'pass' ? geoWeights[i]! : r.value.status === 'warn' ? geoWeights[i]! * 0.5 : 0
+      // Store both the CheckResult (for status/message) and the rich geoDetails under named keys
+      const key = geoKeys[i]!
+      geoDetails[key] = { status: r.value.status, message: r.value.message, details: r.value.details }
+      if ('geoDetails' in r.value && r.value.geoDetails) {
+        geoDetails[`${key}_data`] = r.value.geoDetails
       }
-    })
-  }
+    }
+  })
 
   const totalScore = Math.min(100, score + geoScore)
   const grade =
@@ -199,8 +223,8 @@ export async function POST(req: NextRequest) {
       url: baseUrl, domain,
       score: totalScore,
       results: { ...results, ...geoDetails },
-      industry: industry ?? null,
-      region:   region   ?? null,
+      industry: geoIndustry,
+      region:   geoRegion,
       grade,
       account_id,
     })

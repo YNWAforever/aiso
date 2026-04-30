@@ -104,9 +104,12 @@ export default function HomePage() {
   const t      = useTranslations()
   const router = useRouter()
   const params = useParams<{ lang: string }>()
-  const [url, setUrl]         = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState('')
+  const [url, setUrl]               = useState('')
+  const [loading, setLoading]       = useState(false)
+  const [error, setError]           = useState('')
+  const [industry, setIndustry]     = useState('')
+  const [region, setRegion]         = useState('')
+  const [showPersonalise, setShowPersonalise] = useState(false)
 
   async function handleScan(e: React.FormEvent) {
     e.preventDefault()
@@ -116,7 +119,11 @@ export default function HomePage() {
       const res = await fetch('/api/scan', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ url }),
+        body:    JSON.stringify({
+          url,
+          industry: industry || undefined,
+          region:   region   || undefined,
+        }),
       })
       if (!res.ok) throw new Error('Scan failed')
       const data = await res.json()
@@ -201,6 +208,61 @@ export default function HomePage() {
               {!loading && <ChevronRight className="size-4 ml-1" />}
             </Button>
           </form>
+
+          {/* Personalise toggle */}
+          <div className="max-w-xl mx-auto mt-3">
+            <button
+              type="button"
+              onClick={() => setShowPersonalise(v => !v)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mx-auto"
+            >
+              <span className="text-[10px]">{showPersonalise ? '▾' : '▸'}</span>
+              Personalise scan (optional — industry &amp; region)
+            </button>
+
+            {showPersonalise && (
+              <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                <select
+                  value={industry}
+                  onChange={e => setIndustry(e.target.value)}
+                  className="flex-1 h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">Industry (default: General)</option>
+                  <option value="technology">Technology</option>
+                  <option value="finance">Finance &amp; Banking</option>
+                  <option value="medical">Healthcare &amp; Medical</option>
+                  <option value="legal">Legal &amp; Compliance</option>
+                  <option value="retail_ecommerce">Retail &amp; E-Commerce</option>
+                  <option value="education">Education</option>
+                  <option value="real_estate">Real Estate</option>
+                  <option value="travel_hospitality">Travel &amp; Hospitality</option>
+                  <option value="media_entertainment">Media &amp; Entertainment</option>
+                  <option value="manufacturing">Manufacturing</option>
+                  <option value="energy_utilities">Energy &amp; Utilities</option>
+                  <option value="general_b2b">General (B2B)</option>
+                  <option value="general_b2c">General (B2C)</option>
+                </select>
+                <select
+                  value={region}
+                  onChange={e => setRegion(e.target.value)}
+                  className="flex-1 h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">Region (default: Global)</option>
+                  <option value="HK">Hong Kong</option>
+                  <option value="TW">Taiwan</option>
+                  <option value="SG">Singapore</option>
+                  <option value="JP">Japan</option>
+                  <option value="KR">South Korea</option>
+                  <option value="US">United States</option>
+                  <option value="UK">United Kingdom</option>
+                  <option value="EU">European Union</option>
+                  <option value="AU">Australia</option>
+                  <option value="CA">Canada</option>
+                  <option value="global">Global</option>
+                </select>
+              </div>
+            )}
+          </div>
 
           {error && (
             <p className="text-destructive text-sm mt-3">{error}</p>
