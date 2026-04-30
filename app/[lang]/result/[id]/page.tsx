@@ -1,13 +1,14 @@
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
-import { supabase }        from '@/lib/supabase'
-import { getProfile }      from '@/lib/auth'
-import { ScoreRing }       from '@/components/ScoreRing'
-import { CheckItem }       from '@/components/CheckItem'
-import { FixPackClient }   from '@/components/FixPackClient'
-import { SaveScanButton }  from '@/components/SaveScanButton'
-import type { Scan }       from '@/lib/types'
+import { supabase }                from '@/lib/supabase'
+import { getProfile }              from '@/lib/auth'
+import { ScoreRing }               from '@/components/ScoreRing'
+import { FixPackClient }           from '@/components/FixPackClient'
+import { SaveScanButton }          from '@/components/SaveScanButton'
+import { ExpandableCheckItem }     from '@/components/ExpandableCheckItem'
+import { CHECK_EXPLANATIONS }      from '@/lib/checkExplanations'
+import type { Scan, CheckResult }  from '@/lib/types'
 
 const CORE_CHECK_KEYS = [
   'c1_robots', 'c2_llms_txt', 'c3_bot_access', 'c4_structured_data', 'c5_extractability',
@@ -162,22 +163,42 @@ export default async function ResultPage({ params }: { params: Promise<{ lang: s
           </div>
         )}
 
+        {/* Scan summary pill row */}
+        {(() => {
+          const allChecks = [
+            ...CORE_CHECK_KEYS.map(k => s.results[k]).filter(Boolean),
+            ...EXTENDED_CHECK_KEYS.map(k => (s.results as Record<string, unknown>)[k] as CheckResult | undefined).filter(Boolean),
+          ] as CheckResult[]
+          const passes = allChecks.filter(c => c.status === 'pass').length
+          const warns  = allChecks.filter(c => c.status === 'warn').length
+          const fails  = allChecks.filter(c => c.status === 'fail').length
+          return (
+            <div className="flex items-center gap-2 mb-4 text-sm flex-wrap">
+              <span className="text-slate-500 text-xs">{allChecks.length} checks scanned — click any row for details &amp; fix guidance</span>
+              <span className="ml-auto flex gap-2">
+                {passes > 0 && <span className="bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full text-xs">✅ {passes} passing</span>}
+                {warns  > 0 && <span className="bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full text-xs">⚠️ {warns} warnings</span>}
+                {fails  > 0 && <span className="bg-red-100   text-red-700   font-semibold px-2 py-0.5 rounded-full text-xs">❌ {fails} failing</span>}
+              </span>
+            </div>
+          )
+        })()}
+
         {/* Core Checks */}
         <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
           <p className="text-xs font-bold text-slate-500 tracking-widest mb-4">{t('result.checks_title')}</p>
           {CORE_CHECK_KEYS.map(key => {
             const checkResult = s.results[key]
             if (!checkResult) return null
-            const msgKey = `checks.${checkResult.message}` as Parameters<typeof t>[0]
-            const fallbackMsg = checkResult.message
-            let msg = fallbackMsg
-            try { msg = t(msgKey) } catch { msg = fallbackMsg }
+            let msg = checkResult.message
+            try { msg = t(`checks.${checkResult.message}` as Parameters<typeof t>[0]) } catch { /* raw */ }
             return (
-              <CheckItem
+              <ExpandableCheckItem
                 key={key}
                 label={t(`checks.${key}` as Parameters<typeof t>[0])}
                 result={checkResult}
                 message={msg}
+                explanation={CHECK_EXPLANATIONS[key]}
               />
             )
           })}
@@ -188,19 +209,18 @@ export default async function ResultPage({ params }: { params: Promise<{ lang: s
           <p className="text-xs font-bold text-slate-500 tracking-widest mb-1">{t('result.extended_checks_title')}</p>
           <p className="text-xs text-slate-400 mb-4">{t('result.extended_checks_subtitle')}</p>
           {EXTENDED_CHECK_KEYS.map(key => {
-            const checkResult = (s.results as Record<string, unknown>)[key] as import('@/lib/types').CheckResult | undefined
+            const checkResult = (s.results as Record<string, unknown>)[key] as CheckResult | undefined
             if (!checkResult) return null
-            const labelKey = `checks.${key}` as Parameters<typeof t>[0]
-            const msgKey   = `checks.${checkResult.message}` as Parameters<typeof t>[0]
             let label: string = key, msg = checkResult.message
-            try { label = t(labelKey) } catch { /* use key */ }
-            try { msg   = t(msgKey)   } catch { /* use raw */ }
+            try { label = t(`checks.${key}` as Parameters<typeof t>[0]) } catch { /* key */ }
+            try { msg   = t(`checks.${checkResult.message}` as Parameters<typeof t>[0]) } catch { /* raw */ }
             return (
-              <CheckItem
+              <ExpandableCheckItem
                 key={key}
                 label={label}
                 result={checkResult}
                 message={msg}
+                explanation={CHECK_EXPLANATIONS[key]}
               />
             )
           })}
@@ -278,13 +298,25 @@ export default async function ResultPage({ params }: { params: Promise<{ lang: s
         )}
 
         {/* Fix Pack */}
-        <FixPackClient
-          scanId={s.id}
-          fixCta={t('result.fix_cta')}
-          fixSubtitle={t('result.fix_subtitle')}
-          copyLabel={t('result.copy')}
-          copiedLabel={t('result.copied')}
-        />
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <p className="text-xs font-bold text-slate-500 tracking-widest">PHASE 2 — FIX PACK</p>
+            <span className="text-xs text-slate-400">AI-generated files ready to deploy</span>
+          </div>
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-3 text-sm text-slate-600 space-y-1">
+            <p className="font-semibold text-slate-700 mb-2">What gets generated:</p>
+            <p>📄 <strong>llms.txt</strong> — tells AI platforms what your site covers (fixes c2, c6)</p>
+            <p>🤖 <strong>robots.txt patch</strong> — explicitly allows AI crawlers (fixes c1, c3)</p>
+            <p>🗂 <strong>FAQ JSON-LD</strong> — structured Q&amp;As for AI citation (fixes c4, c11)</p>
+          </div>
+          <FixPackClient
+            scanId={s.id}
+            fixCta={t('result.fix_cta')}
+            fixSubtitle={t('result.fix_subtitle')}
+            copyLabel={t('result.copy')}
+            copiedLabel={t('result.copied')}
+          />
+        </div>
 
         {/* Post-scan upsell */}
         <div className="bg-slate-900 rounded-xl p-7 mt-6 text-center">
