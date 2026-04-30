@@ -7,11 +7,24 @@ export interface CheckResult {
 }
 
 export interface ScanResults {
-  c1_robots: CheckResult
-  c2_llms_txt: CheckResult
-  c3_bot_access: CheckResult
+  // Core checks (45 pts)
+  c1_robots:          CheckResult
+  c2_llms_txt:        CheckResult
+  c3_bot_access:      CheckResult
   c4_structured_data: CheckResult
-  c5_extractability: CheckResult
+  c5_extractability:  CheckResult
+  // Extended checks (30 pts)
+  c6_llms_full_txt?:   CheckResult
+  c7_mcp_card?:        CheckResult
+  c8_sitemap?:         CheckResult
+  c9_meta_desc?:       CheckResult
+  c10_headings?:       CheckResult
+  c11_faq?:            CheckResult
+  c12_canonical?:      CheckResult
+  c13_render?:         CheckResult
+  c14_internal_links?: CheckResult
+  c15_entity?:         CheckResult
+  c16_freshness?:      CheckResult
 }
 
 export interface Scan {
