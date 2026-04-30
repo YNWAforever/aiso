@@ -19,7 +19,10 @@ export interface Scan {
   url: string
   domain: string
   score: number
-  results: ScanResults
+  grade?: string | null
+  industry?: string | null
+  region?: string | null
+  results: ScanResults & Record<string, unknown>
   account_id: string | null
   created_at: string
 }
