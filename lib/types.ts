@@ -37,6 +37,7 @@ export interface Scan {
   region?: string | null
   results: ScanResults & Record<string, unknown>
   account_id: string | null
+  agent_status?: AgentStatus | null
   created_at: string
 }
 
@@ -235,4 +236,54 @@ export interface ScanResultsV3 {
   c20_chunkability?:      ChunkabilityResult
   geoScore?: number
   grade?:    string
+}
+
+// ── Agent Dashboard Types ─────────────────────────────────────────
+
+export type AgentStatus = 'pending' | 'running' | 'complete' | 'error'
+
+export interface AgentRecommendation {
+  id: string
+  scan_id: string
+  platform: string
+  category: string
+  priority: 'high' | 'medium' | 'low'
+  recommendation: string
+  impact_score: number
+  created_at: string
+}
+
+export interface AgentProgress {
+  id: string
+  scan_id: string
+  platform: string
+  metric: string
+  current_value: number
+  previous_value: number | null
+  delta: number | null
+  created_at: string
+}
+
+export interface AgentCompetitor {
+  id: string
+  scan_id: string
+  platform: string
+  competitor_domain: string
+  competitor_name: string | null
+  mention_rate: number
+  your_rate: number
+  gap_analysis: string
+  created_at: string
+}
+
+export interface ClientOverview {
+  client: { brand_name: string }
+  latestScan: Scan | null
+  scanHistory: Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'created_at'>[]
+  recommendations: AgentRecommendation[]
+  progress: AgentProgress[]
+  competitors: AgentCompetitor[]
+  pulseSummary: PulseWeeklySummary[]
+  pulseKpi: { sovScore: number; brandMentions: number; totalQueries: number; platformCount: number; scanWeek: string } | null
+  missedOpportunities: Pick<PulseMetric, 'platform' | 'question' | 'competitors_mentioned' | 'scan_week'>[]
 }
