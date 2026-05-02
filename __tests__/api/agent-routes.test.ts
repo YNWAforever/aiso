@@ -101,3 +101,35 @@ describe('POST /api/clients/[clientId]/agents/progress', () => {
     expect(body.count).toBe(2)
   })
 })
+
+import { POST as POST_COMPETITORS } from '@/app/api/clients/[clientId]/agents/competitors/route'
+
+describe('POST /api/clients/[clientId]/agents/competitors', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('rejects when x-cron-secret header is missing', async () => {
+    const req = new Request('http://localhost/api/clients/c-1/agents/competitors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scanId: 'scan-1', competitors: [] }),
+    })
+    const res = await POST_COMPETITORS(req, { params: Promise.resolve({ clientId: 'c-1' }) })
+    expect(res.status).toBe(401)
+  })
+
+  it('upserts competitors and returns count', async () => {
+    const competitors = [
+      { platform: 'openai/gpt-4o', competitorDomain: 'rival.com', competitorName: 'Rival Inc', mentionRate: 45, yourRate: 28, gapAnalysis: 'Rival has FAQ schema' },
+      { platform: 'anthropic/claude-haiku-4-5', competitorDomain: 'other.com', mentionRate: 32, yourRate: 28, gapAnalysis: 'Slight lead in topical authority' },
+    ]
+    const req = new Request('http://localhost/api/clients/c-1/agents/competitors', {
+      method: 'POST',
+      headers: { 'x-cron-secret': 'test-secret', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scanId: 'scan-1', competitors }),
+    })
+    const res = await POST_COMPETITORS(req, { params: Promise.resolve({ clientId: 'c-1' }) })
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.count).toBe(2)
+  })
+})
