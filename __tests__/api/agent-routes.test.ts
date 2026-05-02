@@ -67,3 +67,37 @@ describe('POST /api/clients/[clientId]/agents/recommendations', () => {
     expect(mockUpsert).toHaveBeenCalled()
   })
 })
+
+import { POST as POST_PROGRESS } from '@/app/api/clients/[clientId]/agents/progress/route'
+
+describe('POST /api/clients/[clientId]/agents/progress', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('rejects when x-cron-secret header is missing', async () => {
+    process.env.CRON_SECRET = 'test-secret'
+    const req = new Request('http://localhost/api/clients/c-1/agents/progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scanId: 'scan-1', progress: [] }),
+    })
+    const res = await POST_PROGRESS(req, { params: Promise.resolve({ clientId: 'c-1' }) })
+    expect(res.status).toBe(401)
+  })
+
+  it('upserts progress and returns count', async () => {
+    process.env.CRON_SECRET = 'test-secret'
+    const progressRows = [
+      { platform: 'openai/gpt-4o', metric: 'sov', currentValue: 34, previousValue: 28, delta: 6 },
+      { platform: 'openai/gpt-4o', metric: 'authority_score', currentValue: 7.2, previousValue: 6.8, delta: 0.4 },
+    ]
+    const req = new Request('http://localhost/api/clients/c-1/agents/progress', {
+      method: 'POST',
+      headers: { 'x-cron-secret': 'test-secret', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scanId: 'scan-1', progress: progressRows }),
+    })
+    const res = await POST_PROGRESS(req, { params: Promise.resolve({ clientId: 'c-1' }) })
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.count).toBe(2)
+  })
+})
