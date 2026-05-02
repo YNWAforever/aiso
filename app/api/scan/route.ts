@@ -217,21 +217,57 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Server misconfiguration: missing Supabase URL' }, { status: 500 })
   }
 
+  // Determine if this is a dashboard-triggered scan (has clientId)
+  const isDashboardScan = !!clientId
+
+  const insertPayload: Record<string, unknown> = {
+    url: baseUrl, domain,
+    score: totalScore,
+    results: { ...results, ...geoDetails },
+    industry: geoIndustry,
+    region:   geoRegion,
+    grade,
+    account_id,
+  }
+
+  if (isDashboardScan) {
+    insertPayload.agent_status = 'pending'
+  }
+
   const { data, error } = await supabase
     .from('scans')
-    .insert({
-      url: baseUrl, domain,
-      score: totalScore,
-      results: { ...results, ...geoDetails },
-      industry: geoIndustry,
-      region:   geoRegion,
-      grade,
-      account_id,
-    })
+    .insert(insertPayload)
     .select('id')
     .single()
 
   if (error) return NextResponse.json({ error: 'Database error', detail: error.message }, { status: 500 })
+
+  // Fire agent webhook if dashboard scan and client has webhook configured
+  if (isDashboardScan) {
+    const { data: clientData } = await supabase
+      .from('clients').select('webhook_url,brand_name').eq('id', clientId).single()
+
+    const webhookUrl = clientData?.webhook_url
+
+    if (webhookUrl) {
+      // Fire-and-forget — do not block the response
+      fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId,
+          brandName: clientData?.brand_name ?? '',
+          domain,
+          industry: geoIndustry,
+          scanId: data.id,
+          score: totalScore,
+          grade,
+          results: { ...results, ...geoDetails },
+        }),
+        signal: AbortSignal.timeout(5_000),
+      }).catch(err => console.error('[scan] webhook trigger failed:', err))
+    }
+  }
 
   return NextResponse.json({ id: data.id, score: totalScore, grade, results: { ...results, ...geoDetails } })
 }
