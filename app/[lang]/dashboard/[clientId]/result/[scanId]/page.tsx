@@ -148,7 +148,7 @@ export default async function DashboardResultPage({
               <p className="text-xs text-dash-muted/70 mt-0.5">{s.industry} · {s.region}</p>
             )}
           </div>
-          <div className={`rounded-xl border ${gradeConfig.bg} ${gradeConfig.border} px-4 py-2 text-center min-w-[64px]`}>
+          <div className={`rounded-xl border-2 ${gradeConfig.bg} ${gradeConfig.border} px-4 py-2 text-center min-w-[64px]`}>
             <p className={`text-2xl font-black ${gradeConfig.text}`}>{grade}</p>
             <p className={`text-xs font-semibold ${gradeConfig.text} mt-0.5`}>{gradeConfig.label}</p>
           </div>
