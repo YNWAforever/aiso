@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { ScoreRing } from '@/components/ScoreRing'
+import { FixPackClient } from '@/components/FixPackClient'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
 import { CHECK_EXPLANATIONS } from '@/lib/checkExplanations'
 import type { Scan, CheckResult } from '@/lib/types'
@@ -107,10 +108,10 @@ export default async function DashboardResultPage({
       <div className="flex items-center justify-between px-6 py-3 border-b border-dash-border bg-dash-surface">
         <div className="flex items-center gap-3">
           <Link
-            href={`/${lang}/dashboard/${clientId}?step=scan`}
+            href={`/${lang}/dashboard/${clientId}?step=results`}
             className="text-xs text-dash-muted hover:text-dash-text transition-colors"
           >
-            ← Back to Scan
+            ← Back to Results
           </Link>
           <span className="text-dash-border">|</span>
           <p className="text-sm font-semibold text-dash-text">{s.domain}</p>
@@ -309,13 +310,34 @@ export default async function DashboardResultPage({
           </div>
         )}
 
+        {/* Fix Pack */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <p className="text-xs font-bold text-dash-muted tracking-widest">PHASE 2 — FIX PACK</p>
+            <span className="text-xs text-dash-muted/70">AI-generated files ready to deploy</span>
+          </div>
+          <div className="rounded-xl border border-dash-border bg-dash-elevated p-4 mb-3 text-sm text-dash-muted space-y-1">
+            <p className="font-semibold text-dash-text mb-2">What gets generated:</p>
+            <p>📄 <strong>llms.txt</strong> — tells AI platforms what your site covers (fixes c2, c6)</p>
+            <p>🤖 <strong>robots.txt patch</strong> — explicitly allows AI crawlers (fixes c1, c3)</p>
+            <p>🗂 <strong>FAQ JSON-LD</strong> — structured Q&amp;As for AI citation (fixes c4, c11)</p>
+          </div>
+          <FixPackClient
+            scanId={s.id}
+            fixCta={t('result.fix_cta')}
+            fixSubtitle={t('result.fix_subtitle')}
+            copyLabel={t('result.copy')}
+            copiedLabel={t('result.copied')}
+          />
+        </div>
+
         {/* Bottom nav */}
         <div className="flex items-center justify-between">
           <Link
-            href={`/${lang}/dashboard/${clientId}?step=scan`}
+            href={`/${lang}/dashboard/${clientId}?step=results`}
             className="text-xs text-dash-muted hover:text-dash-text transition-colors"
           >
-            ← Back to Scan
+            ← Back to Results
           </Link>
           <Link
             href={`/${lang}/dashboard/${clientId}?step=improve`}
