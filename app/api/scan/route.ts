@@ -235,13 +235,29 @@ export async function POST(req: NextRequest) {
     insertPayload.agent_status = 'pending'
   }
 
-  const { data, error } = await supabase
+  let insertResult: { data: { id: string } | null; error: unknown } | null = null
+
+  insertResult = await supabase
     .from('scans')
     .insert(insertPayload)
     .select('id')
     .single()
 
-  if (error) return NextResponse.json({ error: 'Database error', detail: error.message }, { status: 500 })
+  // columns from newer migrations may not exist yet on all databases
+  if (insertResult.error) {
+    // This could fail if agent_status column doesn't exist
+    if (isDashboardScan && insertPayload.agent_status) {
+      delete insertPayload.agent_status
+      insertResult = await supabase
+        .from('scans')
+        .insert(insertPayload)
+        .select('id')
+        .single()
+    }
+  }
+
+  const { data, error } = insertResult
+  if (error) return NextResponse.json({ error: 'Database error', detail: (error as { message: string }).message }, { status: 500 })
 
   // Fire agent webhook if dashboard scan and client has webhook configured
   if (isDashboardScan) {
@@ -258,10 +274,12 @@ export async function POST(req: NextRequest) {
       const features = getPlanFeatures(plan)
       const platforms = features.platform_access
 
-      // Record which platforms were triggered
-      await supabase.from('scans')
-        .update({ agent_platforms: platforms })
-        .eq('id', data.id)
+      // Record which platforms were triggered (silently skip if column missing)
+      try {
+        await supabase.from('scans')
+          .update({ agent_platforms: platforms })
+          .eq('id', data.id)
+      } catch { /* agent_platforms column may not exist yet */ }
 
       // Validate webhook URL
       let safe = false
