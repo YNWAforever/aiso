@@ -18,13 +18,13 @@ export async function TopBar({ title, subtitle }: Props) {
         .eq('account_id', profile.account_id).eq('read', false)
       unreadCount = count ?? 0
     }
-  } catch { /* non-critical — bell shows 0 */ }
+  } catch { /* non-critical */ }
 
   return (
-    <header className="bg-card border-b px-6 py-3.5 flex items-center justify-between">
+    <header className="border-b border-[#1e1e30] bg-[#0a0a14] px-6 py-3 flex items-center justify-between shrink-0">
       <div>
-        <h1 className="font-semibold text-foreground text-sm">{title}</h1>
-        {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+        <p className="font-semibold text-[#e0e0ec] text-sm">{title}</p>
+        {subtitle && <p className="text-[11px] text-[#5c5c6e] mt-0.5 font-mono">{subtitle}</p>}
       </div>
       <NotificationBell initialCount={unreadCount} />
     </header>

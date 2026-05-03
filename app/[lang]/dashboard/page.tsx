@@ -1,11 +1,10 @@
 import { requireAuth } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { BrandCard }       from '@/components/dashboard/BrandCard'
-import { TopBar }          from '@/components/dashboard/TopBar'
 import { AddBrandWizard }  from '@/components/dashboard/AddBrandWizard'
 import { RecentScans }     from '@/components/dashboard/RecentScans'
 import { maxBrandsForPlan } from '@/lib/tier'
-import { BarChart2 } from 'lucide-react'
+import { BarChart2, Search } from 'lucide-react'
 import type { Client, PulseWeeklySummary, Scan } from '@/lib/types'
 
 export default async function DashboardPage({
@@ -33,7 +32,6 @@ export default async function DashboardPage({
       .limit(10),
   ])
 
-  // Fetch latest SoV for each client
   const clientIds = (clients ?? []).map((c: Client) => c.id)
   const { data: summaries } = clientIds.length
     ? await supabase
@@ -51,58 +49,62 @@ export default async function DashboardPage({
 
   const plan    = profile.accounts?.plan ?? 'basic'
   const atLimit = (clients?.length ?? 0) >= maxBrandsForPlan(plan)
-
   const hasClients = clients && clients.length > 0
   const hasScans   = scans && scans.length > 0
 
   return (
     <>
-      <TopBar title="My Brands" />
-      <main className="flex-1 px-6 py-8 space-y-8 max-w-4xl">
+      {/* Header */}
+      <div className="pt-6 px-6 pb-4 border-b border-[#1e1e30]">
+        <p className="text-lg font-bold text-[#e0e0ec] mb-1">My Brands</p>
+        <p className="text-[12px] text-[#5c5c6e] leading-relaxed">
+          Each brand gets its own dashboard with scan results, AI agent recommendations, and share-of-voice monitoring. Select a brand below or add your first one.
+        </p>
+      </div>
 
-        {/* ── Brands section ── */}
+      <main className="flex-1 px-6 py-6 space-y-6 max-w-4xl">
+
         {hasClients ? (
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tracked Brands</h2>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-[#5c5c6e] tracking-widest uppercase">Tracked Brands</p>
               {!atLimit && <AddBrandWizard lang={lang} />}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(clients as Client[]).map(c => (
-                <BrandCard
-                  key={c.id}
-                  client={c}
-                  lang={lang}
-                  sovScore={latestSov[c.id]}
-                />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {(clients as Client[]).map((c, i) => (
+                <div key={c.id} className="animate-fade-up" style={{ animationDelay: `${i * 60}ms` }}>
+                  <BrandCard client={c} lang={lang} sovScore={latestSov[c.id]} />
+                </div>
               ))}
             </div>
-            {atLimit && <AddBrandWizard lang={lang} disabled plan={plan} />}
+            {atLimit && (
+              <div className="mt-3">
+                <AddBrandWizard lang={lang} disabled plan={plan} />
+              </div>
+            )}
           </div>
         ) : (
           <div>
-            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Tracked Brands</h2>
-            <div className="bg-card rounded-xl border p-8 text-center">
-              <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                <BarChart2 className="size-5 text-primary" />
+            <p className="text-xs font-semibold text-[#5c5c6e] tracking-widest uppercase mb-3">Tracked Brands</p>
+            <div className="rounded-xl border border-[#1e1e30] bg-[#0d0d18] p-8 text-center">
+              <div className="w-12 h-12 rounded-full bg-[#00d4ff10] flex items-center justify-center mx-auto mb-4">
+                <Search className="w-5 h-5 text-[#00d4ff]" />
               </div>
-              <p className="font-semibold text-foreground">Add your first brand</p>
-              <p className="text-sm text-muted-foreground mt-1 mb-6">
-                Track your Share of Voice across ChatGPT, Perplexity, Claude, and Gemini.
+              <p className="text-sm font-semibold text-[#e0e0ec] mb-1">Add your first brand</p>
+              <p className="text-xs text-[#5c5c6e] mb-5 max-w-sm mx-auto leading-relaxed">
+                Track your Share of Voice across ChatGPT, Perplexity, Claude, and Gemini. Each brand gets a full diagnostic dashboard with 20 AI readiness checks and agent analysis.
               </p>
               <AddBrandWizard lang={lang} />
             </div>
           </div>
         )}
 
-        {/* ── Recent Scans section ── */}
         {hasScans && (
           <div>
-            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Recent AEO Scans</h2>
+            <p className="text-xs font-semibold text-[#5c5c6e] tracking-widest uppercase mb-3">Recent Scans</p>
             <RecentScans scans={scans as Pick<Scan, 'id' | 'domain' | 'score' | 'created_at'>[]} lang={lang} />
           </div>
         )}
-
       </main>
     </>
   )
