@@ -4,9 +4,11 @@ import { createServiceSupabaseClient } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
 
-function getPlan(priceId: string): 'starter' | 'pro' | 'enterprise' {
-  if (priceId === process.env.STRIPE_PRICE_PRO) return 'pro'
-  return 'starter'
+function getPlan(priceId: string): 'basic' | 'pro' | 'enterprise' {
+  if (priceId === process.env.STRIPE_PRICE_ENTERPRISE) return 'enterprise'
+  if (priceId === process.env.STRIPE_PRICE_PRO)        return 'pro'
+  if (priceId === process.env.STRIPE_PRICE_BASIC)      return 'basic'
+  return 'basic'
 }
 
 export async function POST(req: NextRequest) {
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest) {
     const sub = event.data.object as { id: string }
     await supabase
       .from('accounts')
-      .update({ plan: 'starter', status: 'cancelled' })
+      .update({ plan: 'basic', status: 'cancelled' })
       .eq('stripe_subscription_id', sub.id)
   }
 
