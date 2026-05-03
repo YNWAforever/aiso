@@ -18,8 +18,10 @@ export const stripe: Stripe = new Proxy({} as Stripe, {
   },
 })
 
-export const STRIPE_PRICES = {
-  pro: process.env.STRIPE_PRICE_PRO!,
-} as const
+export const STRIPE_PRICES: Record<string, string> = {
+  basic:      process.env.STRIPE_PRICE_BASIC!,
+  pro:        process.env.STRIPE_PRICE_PRO!,
+  enterprise: process.env.STRIPE_PRICE_ENTERPRISE!,
+}
 
 export const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://fimmick-aeo.vercel.app'
