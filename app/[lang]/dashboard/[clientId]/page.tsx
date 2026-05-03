@@ -37,8 +37,8 @@ function StepHeader({ step, plan }: { step: string; plan: string }) {
 
   return (
     <div className="mb-6 pt-6 px-6">
-      <p className="text-lg font-bold text-[#e0e0ec] mb-1.5">{i.title}</p>
-      <p className="text-[12px] text-[#5c5c6e] leading-relaxed max-w-2xl">{i.body}</p>
+      <p className="text-lg font-bold text-dash-text mb-1.5">{i.title}</p>
+      <p className="text-[12px] text-dash-muted leading-relaxed max-w-2xl">{i.body}</p>
     </div>
   )
 }
@@ -48,10 +48,10 @@ export default async function DashboardPage({
   searchParams,
 }: {
   params: Promise<{ lang: string; clientId: string }>
-  searchParams: Promise<{ step?: string }>
+  searchParams: Promise<{ step?: string; scanId?: string }>
 }) {
   const { lang, clientId } = await params
-  const { step = 'scan' } = await searchParams
+  const { step = 'scan', scanId } = await searchParams
   const profile  = await requireAuth(lang)
   const supabase = await createServerSupabaseClient()
   const plan = profile.accounts?.plan ?? 'basic'
@@ -62,12 +62,18 @@ export default async function DashboardPage({
 
   if (!client) notFound()
 
-  const [{ data: latestScan }, { data: scanHistory }, { data: pulseSummary }, { data: pulseMetrics }] =
+  // Fetch a specific scan if scanId is provided
+  const scanIdPromise = scanId
+    ? supabase.from('scans').select('*').eq('id', scanId).eq('account_id', profile.account_id).single()
+    : Promise.resolve({ data: null })
+
+  const [{ data: latestScan }, { data: scanHistory }, { data: specificScan }, { data: pulseSummary }, { data: pulseMetrics }] =
     await Promise.all([
       supabase.from('scans').select('*').eq('account_id', profile.account_id)
         .order('created_at', { ascending: false }).limit(1).single(),
       supabase.from('scans').select('id,domain,score,grade,created_at')
         .eq('account_id', profile.account_id).order('created_at', { ascending: false }).limit(10),
+      scanIdPromise,
       supabase.from('pulse_weekly_summary').select('*')
         .eq('client_id', clientId).order('scan_week').limit(40),
       supabase.from('pulse_metrics')
@@ -76,8 +82,10 @@ export default async function DashboardPage({
         .order('scan_week', { ascending: false }).limit(50),
     ])
 
-  const scan = latestScan as Scan | null
+  // Use specific scan if scanId was provided, otherwise use latest
+  const scan = (scanId ? (specificScan as Scan | null) : (latestScan as Scan | null))
 
+  // Phase 2: agent data for the selected scan
   const [{ data: agentRecs }, { data: agentProg }, { data: agentComps }] = scan
     ? await Promise.all([
         supabase.from('agent_recommendations').select('*').eq('scan_id', scan.id).order('priority').order('impact_score', { ascending: false }),
@@ -94,13 +102,13 @@ export default async function DashboardPage({
       <StepHeader step={step} plan={plan} />
 
       <main className="flex-1 px-6 pb-10 max-w-3xl">
-        {step === 'scan' && <ScanStep lang={lang} scan={scan} scanHistory={(scanHistory ?? []) as Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'created_at'>[]} />}
+        {step === 'scan' && <ScanStep lang={lang} clientId={clientId} scan={scan} scanHistory={(scanHistory ?? []) as Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'created_at'>[]} />}
 
         {step === 'results' && scan && <ResultsStep scan={scan} />}
         {step === 'results' && !scan && (
-          <div className="rounded-xl border border-[#1e1e30] bg-[#0d0d18] p-8 text-center">
-            <p className="text-sm text-[#e0e0ec] mb-1">No scan yet</p>
-            <p className="text-xs text-[#5c5c6e]">Go to the Scan step first to run a diagnostic.</p>
+          <div className="rounded-xl border border-dash-border bg-dash-surface p-8 text-center">
+            <p className="text-sm text-dash-text mb-1">No scan selected</p>
+            <p className="text-xs text-dash-muted">Run a scan from the Scan step or select one from history.</p>
           </div>
         )}
 
@@ -114,9 +122,9 @@ export default async function DashboardPage({
           />
         )}
         {step === 'improve' && !scan && (
-          <div className="rounded-xl border border-[#1e1e30] bg-[#0d0d18] p-8 text-center">
-            <p className="text-sm text-[#e0e0ec] mb-1">No scan yet</p>
-            <p className="text-xs text-[#5c5c6e]">AI agent analysis requires a completed scan. Run one from the Scan step.</p>
+          <div className="rounded-xl border border-dash-border bg-dash-surface p-8 text-center">
+            <p className="text-sm text-dash-text mb-1">No scan yet</p>
+            <p className="text-xs text-dash-muted">AI agent analysis requires a completed scan. Run one from the Scan step.</p>
           </div>
         )}
 
