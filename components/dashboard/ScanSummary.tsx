@@ -113,10 +113,9 @@ export function ScanSummary({ scan }: Props) {
                     <ExpandableCheckItem
                       key={key}
                       label={label}
-                      status={result!.status}
+                      result={result!}
                       message={result!.message}
-                      details={result!.details}
-                      explanation={explanation ? { why: explanation.why, fix: explanation.fix[result!.status] } : undefined}
+                      explanation={explanation}
                     />
                   )
                 })}
