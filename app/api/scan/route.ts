@@ -25,8 +25,9 @@ import { checkFactualDensity }   from '@/lib/checks/factualDensity'
 import { checkTopicalAuthority } from '@/lib/checks/topicalAuthority'
 import { checkChunkability }     from '@/lib/checks/chunkability'
 
-import { supabase }   from '@/lib/supabase'
-import { getProfile } from '@/lib/auth'
+import { supabase }         from '@/lib/supabase'
+import { getProfile }       from '@/lib/auth'
+import { getPlanFeatures }  from '@/lib/tier'
 import type { CheckResult, ScanResults, IndustryCode, RegionCode } from '@/lib/types'
 
 // ── Scoring: Core 45 + Extended 30 + GEO 25 = 100 ────────────────
@@ -250,22 +251,32 @@ export async function POST(req: NextRequest) {
     const webhookUrl = clientData?.webhook_url
 
     if (webhookUrl) {
-      // Validate webhook URL — only allow HTTPS to external hosts
+      // Determine which platforms to include based on plan
+      const plan = account_id
+        ? (await supabase.from('accounts').select('plan').eq('id', account_id).single()).data?.plan ?? 'basic'
+        : 'basic'
+      const features = getPlanFeatures(plan)
+      const platforms = features.platform_access
+
+      // Record which platforms were triggered
+      await supabase.from('scans')
+        .update({ agent_platforms: platforms })
+        .eq('id', data.id)
+
+      // Validate webhook URL
       let safe = false
       try {
         const parsed = new URL(webhookUrl)
         safe = parsed.protocol === 'https:' &&
                parsed.hostname !== 'localhost' &&
                !parsed.hostname.startsWith('127.') &&
-               !parsed.hostname.startsWith('0.') &&
                !parsed.hostname.startsWith('169.254.') &&
                !parsed.hostname.startsWith('10.') &&
                !parsed.hostname.match(/^172\.(1[6-9]|2\d|3[01])\./) &&
                !parsed.hostname.startsWith('192.168.')
-      } catch { /* invalid URL — safe stays false */ }
+      } catch { /* invalid URL */ }
 
       if (safe) {
-        // Fire-and-forget — do not block the response
         fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -277,12 +288,13 @@ export async function POST(req: NextRequest) {
             scanId: data.id,
             score: totalScore,
             grade,
+            platforms,  // only the platforms the user paid for
             results: { ...results, ...geoDetails },
           }),
           signal: AbortSignal.timeout(5_000),
         }).catch(err => console.error('[scan] webhook trigger failed:', err))
       } else {
-        console.error('[scan] invalid webhook URL (must be HTTPS, not private IP):', webhookUrl)
+        console.error('[scan] invalid webhook URL:', webhookUrl)
       }
     }
   }
