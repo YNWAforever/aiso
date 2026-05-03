@@ -17,23 +17,23 @@ export function MonitorStep({ plan, clientId, summary, missed }: Props) {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-[#1e1e30] bg-[#0d0d18] p-5">
-        <p className="text-xs font-semibold text-[#5c5c6e] tracking-widest uppercase mb-4">SoV Trend</p>
+      <div className="rounded-xl border border-dash-border bg-dash-surface p-5">
+        <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-4">SoV Trend</p>
         <SovChart data={summary} />
       </div>
 
       {missed.length > 0 && (
-        <div className="rounded-xl border border-[#1e1e30] bg-[#0d0d18] p-5">
+        <div className="rounded-xl border border-dash-border bg-dash-surface p-5">
           <div className="flex items-center gap-2 mb-4">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444]" />
-            <p className="text-xs font-semibold text-[#5c5c6e] tracking-widest uppercase">Missed Opportunities</p>
+            <span className="w-1.5 h-1.5 rounded-full bg-dash-danger" />
+            <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase">Missed Opportunities</p>
           </div>
           <MissedTable rows={missed.slice(0, 3)} platformLabel="Platform" questionLabel="Query" competitorsLabel="Competitors" />
         </div>
       )}
 
       {features.alerts ? (
-        <div className="rounded-xl border border-[#1e1e30] bg-[#0d0d18] p-5">
+        <div className="rounded-xl border border-dash-border bg-dash-surface p-5">
           <AlertsTab clientId={clientId} />
         </div>
       ) : (
