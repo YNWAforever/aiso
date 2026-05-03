@@ -20,7 +20,7 @@ vi.mock('@/lib/supabase', () => ({
 import { calculateScore } from '@/app/api/scan/route'
 
 describe('calculateScore', () => {
-  it('gives C3 30% weight, others 17.5%', () => {
+  it('scores core checks with correct weights (12+10+10+7+6=45 max)', () => {
     const results = {
       c1_robots:          { status: 'pass' as const, message: '' },
       c2_llms_txt:        { status: 'fail' as const, message: '' },
@@ -28,8 +28,8 @@ describe('calculateScore', () => {
       c4_structured_data: { status: 'pass' as const, message: '' },
       c5_extractability:  { status: 'pass' as const, message: '' },
     }
-    // pass=100: c1(17.5) + c3(30) + c4(17.5) + c5(17.5) = 82.5
-    expect(calculateScore(results)).toBeCloseTo(82.5)
+    // c1(12) + c2(0) + c3(10) + c4(7) + c5(6) = 35
+    expect(calculateScore(results)).toBe(35)
   })
 
   it('returns 0 when all checks fail', () => {
@@ -43,7 +43,7 @@ describe('calculateScore', () => {
     expect(calculateScore(results)).toBe(0)
   })
 
-  it('gives warn 50 points', () => {
+  it('gives warn 50% credit per check (22.5 of 45 max)', () => {
     const results = {
       c1_robots:          { status: 'warn' as const, message: '' },
       c2_llms_txt:        { status: 'warn' as const, message: '' },
@@ -51,6 +51,7 @@ describe('calculateScore', () => {
       c4_structured_data: { status: 'warn' as const, message: '' },
       c5_extractability:  { status: 'warn' as const, message: '' },
     }
-    expect(calculateScore(results)).toBeCloseTo(50)
+    // (12+10+10+7+6) * 0.5 = 22.5
+    expect(calculateScore(results)).toBe(22.5)
   })
 })
