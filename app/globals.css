@@ -125,6 +125,61 @@
   --radius-xl:                      calc(var(--radius) + 0.375rem);
 }
 
+/* ── Dashboard Precision Theme ──────────────────────────────── */
+.dashboard-dark {
+  --db-bg:       #050510;
+  --db-surface:  #0d0d18;
+  --db-elevated: #141422;
+  --db-border:   #1e1e30;
+  --db-text:     #e0e0ec;
+  --db-muted:    #5c5c6e;
+  --db-cyan:     #00d4ff;
+  --db-purple:   #a78bfa;
+  --db-green:    #22c55e;
+  --db-amber:    #f59e0b;
+  --db-red:      #ef4444;
+  --db-glow:     0 0 20px rgba(0, 212, 255, 0.08);
+
+  background: var(--db-bg);
+  color: var(--db-text);
+}
+
+/* ── Keyframes ─────────────────────────────────────────────── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.15); }
+  50%      { box-shadow: 0 0 0 6px rgba(0, 212, 255, 0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s ease-out both;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.03) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* ── Scrollbar styling ─────────────────────────────────────── */
+.dashboard-dark ::-webkit-scrollbar { width: 6px; }
+.dashboard-dark ::-webkit-scrollbar-track { background: transparent; }
+.dashboard-dark ::-webkit-scrollbar-thumb { background: #1e1e30; border-radius: 3px; }
+.dashboard-dark ::-webkit-scrollbar-thumb:hover { background: #2e2e40; }
+
 /* ── Base styles ───────────────────────────────────────────── */
 body {
   background: var(--background);
