@@ -4,23 +4,30 @@ import { getProfile } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
+const VALID_PLANS = ['basic', 'pro', 'enterprise'] as const
+
 export async function POST(req: NextRequest) {
   const { plan } = await req.json()
   const profile = await getProfile()
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  if (plan !== 'pro') {
-    return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
+  if (!VALID_PLANS.includes(plan)) {
+    return NextResponse.json({ error: 'Invalid plan. Use basic, pro, or enterprise.' }, { status: 400 })
+  }
+
+  const priceId = STRIPE_PRICES[plan]
+  if (!priceId) {
+    return NextResponse.json({ error: `Price not configured for plan: ${plan}` }, { status: 500 })
   }
 
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
-      line_items: [{ price: STRIPE_PRICES.pro, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
       customer_email: profile.email ?? undefined,
       metadata: { account_id: profile.account_id },
-      success_url: `${APP_URL}/auth/callback?next=/en/dashboard/settings`,
+      success_url: `${APP_URL}/auth/callback?next=/en/dashboard`,
       cancel_url:  `${APP_URL}/en/pricing`,
     })
     return NextResponse.json({ url: session.url })
