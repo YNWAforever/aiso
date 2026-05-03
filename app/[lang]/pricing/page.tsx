@@ -6,11 +6,11 @@ import { useTranslations } from 'next-intl'
 import { Zap, Check, Minus, ChevronDown, ChevronRight } from 'lucide-react'
 
 /* ── Types ──────────────────────────────────────────────────── */
-type Col = 'starter' | 'pro' | 'enterprise'
+type Col = 'basic' | 'pro' | 'enterprise'
 
 interface FeatureRow {
   label: string
-  starter: string | boolean
+  basic: string | boolean
   pro:     string | boolean
   enterprise: string | boolean
   highlight?: boolean
@@ -47,17 +47,21 @@ export default function PricingPage() {
   const { lang } = useParams<{ lang: string }>()
   const t = useTranslations('pricing')
 
-  const proMonthly = 99
-  const proAnnual  = 79 // ~20% off
+  const basicMonthly = 29
+  const basicAnnual  = 23 // ~20% off
+  const proMonthly = 79
+  const proAnnual  = 63 // ~20% off
+  const enterpriseMonthly = 199
+  const enterpriseAnnual  = 159 // ~20% off
 
-  const startProCheckout = async () => {
+  const startCheckout = async (planName: string) => {
     setLoading(true)
     setCheckoutError('')
     try {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: 'pro', annual }),
+        body: JSON.stringify({ plan: planName, annual }),
       })
       if (res.status === 401) {
         window.location.href = `/${lang}/auth/login?next=/${lang}/pricing`
@@ -81,32 +85,32 @@ export default function PricingPage() {
 
   /* Feature comparison rows */
   const rows: FeatureRow[] = [
-    { label: t('row_scans'),         starter: t('row_scans_s'),      pro: t('row_scans_p'),      enterprise: t('row_scans_e') },
-    { label: t('row_checks'),        starter: true,                   pro: true,                   enterprise: true },
-    { label: t('row_fixpack'),       starter: true,                   pro: true,                   enterprise: true },
-    { label: t('row_fixpack_adv'),   starter: false,                  pro: true,                   enterprise: true, highlight: true },
-    { label: t('row_brands'),        starter: t('row_brands_s'),      pro: t('row_brands_p'),      enterprise: t('row_brands_e') },
-    { label: t('row_history'),       starter: t('row_history_s'),     pro: t('row_history_p'),     enterprise: t('row_history_e') },
-    { label: t('row_prompts'),       starter: false,                  pro: true,                   enterprise: true },
-    { label: t('row_alerts'),        starter: false,                  pro: true,                   enterprise: true },
-    { label: t('row_competitor'),    starter: false,                  pro: true,                   enterprise: true },
-    { label: t('row_authority'),     starter: t('row_authority_s'),   pro: t('row_authority_p'),   enterprise: t('row_authority_e'), highlight: true },
-    { label: t('row_csv'),           starter: false,                  pro: false,                  enterprise: true },
-    { label: t('row_pdf'),           starter: false,                  pro: false,                  enterprise: true },
-    { label: t('row_api'),           starter: false,                  pro: false,                  enterprise: true },
-    { label: t('row_custom_platforms'), starter: false,               pro: false,                  enterprise: true },
-    { label: t('row_support'),       starter: false,                  pro: false,                  enterprise: true },
+    { label: t('row_scans'),         basic: t('row_scans_s'),      pro: t('row_scans_p'),      enterprise: t('row_scans_e') },
+    { label: t('row_checks'),        basic: true,                   pro: true,                   enterprise: true },
+    { label: t('row_fixpack'),       basic: true,                   pro: true,                   enterprise: true },
+    { label: t('row_fixpack_adv'),   basic: false,                  pro: true,                   enterprise: true, highlight: true },
+    { label: t('row_brands'),        basic: t('row_brands_s'),      pro: t('row_brands_p'),      enterprise: t('row_brands_e') },
+    { label: t('row_history'),       basic: t('row_history_s'),     pro: t('row_history_p'),     enterprise: t('row_history_e') },
+    { label: t('row_prompts'),       basic: false,                  pro: true,                   enterprise: true },
+    { label: t('row_alerts'),        basic: false,                  pro: true,                   enterprise: true },
+    { label: t('row_competitor'),    basic: false,                  pro: true,                   enterprise: true },
+    { label: t('row_authority'),     basic: t('row_authority_s'),   pro: t('row_authority_p'),   enterprise: t('row_authority_e'), highlight: true },
+    { label: t('row_csv'),           basic: false,                  pro: false,                  enterprise: true },
+    { label: t('row_pdf'),           basic: false,                  pro: false,                  enterprise: true },
+    { label: t('row_api'),           basic: false,                  pro: false,                  enterprise: true },
+    { label: t('row_custom_platforms'), basic: false,               pro: false,                  enterprise: true },
+    { label: t('row_support'),       basic: false,                  pro: false,                  enterprise: true },
   ]
 
   const plans: { key: Col; name: string; tag: string; price: string; priceSub: string; cta: string; popular?: boolean; ctaAction: () => void }[] = [
     {
-      key: 'starter',
-      name: t('starter_name'),
-      tag:  t('starter_tag'),
-      price: t('free_price'),
-      priceSub: t('no_card'),
-      cta: t('cta_starter'),
-      ctaAction: () => { window.location.href = `/${lang}/auth/login` },
+      key: 'basic',
+      name: t('basic_name'),
+      tag:  t('basic_tag'),
+      price: `$${annual ? basicAnnual : basicMonthly}`,
+      priceSub: annual ? t('per_month_annual') : t('per_month'),
+      cta: loading ? t('cta_loading') : t('cta_basic'),
+      ctaAction: () => startCheckout('basic'),
     },
     {
       key: 'pro',
@@ -116,16 +120,16 @@ export default function PricingPage() {
       priceSub: annual ? t('per_month_annual') : t('per_month'),
       cta: loading ? t('cta_loading') : t('cta_pro'),
       popular: true,
-      ctaAction: startProCheckout,
+      ctaAction: () => startCheckout('pro'),
     },
     {
       key: 'enterprise',
       name: t('enterprise_name'),
       tag:  t('enterprise_tag'),
-      price: t('custom_price'),
-      priceSub: t('custom_sub'),
-      cta: t('cta_enterprise'),
-      ctaAction: () => { window.location.href = 'mailto:aeo@fimmick.com' },
+      price: `$${annual ? enterpriseAnnual : enterpriseMonthly}`,
+      priceSub: annual ? t('per_month_annual') : t('per_month'),
+      cta: loading ? t('cta_loading') : t('cta_enterprise'),
+      ctaAction: () => startCheckout('enterprise'),
     },
   ]
 
@@ -222,17 +226,16 @@ export default function PricingPage() {
                   {/* Price */}
                   <div className="mb-6">
                     <span className="text-4xl font-black text-foreground">{plan.price}</span>
-                    {plan.key !== 'enterprise' && (
+                    {plan.key !== 'enterprise' ? (
                       <span className="text-sm text-muted-foreground ml-1">{plan.priceSub}</span>
-                    )}
-                    {plan.key === 'enterprise' && (
+                    ) : (
                       <p className="text-xs text-muted-foreground mt-1">{plan.priceSub}</p>
                     )}
                   </div>
 
                   {/* Feature highlights for card */}
                   <ul className="space-y-2 text-sm flex-1 mb-7">
-                    {plan.key === 'starter' && [
+                    {plan.key === 'basic' && [
                       t('row_scans_s') + ' ' + t('row_scans'),
                       t('row_checks'),
                       t('row_fixpack'),
@@ -287,7 +290,7 @@ export default function PricingPage() {
                     } disabled:opacity-60`}
                   >
                     {plan.cta}
-                    {!loading && plan.key !== 'enterprise' && <ChevronRight className="size-3.5" />}
+                    {!loading && <ChevronRight className="size-3.5" />}
                   </button>
 
                   {plan.key === 'pro' && checkoutError && (
@@ -309,9 +312,9 @@ export default function PricingPage() {
             {/* Header */}
             <div className="grid grid-cols-4 bg-muted/40 border-b border-border">
               <div className="p-4 text-xs font-bold text-muted-foreground" />
-              {(['starter', 'pro', 'enterprise'] as Col[]).map(col => (
+              {(['basic', 'pro', 'enterprise'] as Col[]).map(col => (
                 <div key={col} className={`p-4 text-center text-xs font-bold tracking-widest ${col === 'pro' ? 'text-primary' : 'text-muted-foreground'}`}>
-                  {col === 'starter' ? t('col_starter') : col === 'pro' ? t('col_pro') : t('col_enterprise')}
+                  {col === 'basic' ? t('col_basic') : col === 'pro' ? t('col_pro') : t('col_enterprise')}
                 </div>
               ))}
             </div>
@@ -323,7 +326,7 @@ export default function PricingPage() {
                 className={`grid grid-cols-4 border-b border-border last:border-0 ${i % 2 === 0 ? '' : 'bg-muted/20'} ${row.highlight ? 'bg-primary/5' : ''}`}
               >
                 <div className="p-3.5 px-4 text-sm text-slate-700">{row.label}</div>
-                <div className="p-3.5 flex items-center justify-center"><Cell value={row.starter} /></div>
+                <div className="p-3.5 flex items-center justify-center"><Cell value={row.basic} /></div>
                 <div className="p-3.5 flex items-center justify-center"><Cell value={row.pro} /></div>
                 <div className="p-3.5 flex items-center justify-center"><Cell value={row.enterprise} /></div>
               </div>
