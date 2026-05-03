@@ -127,7 +127,7 @@ export default async function DashboardPulsePage({
                 badge={g && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase"
                     style={{ color: g.color, background: g.bg }}>
-                    {scan.grade}
+                    {scan!.grade}
                   </span>
                 )}
               />

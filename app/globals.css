@@ -180,6 +180,11 @@
 .dashboard-dark ::-webkit-scrollbar-thumb { background: #1e1e30; border-radius: 3px; }
 .dashboard-dark ::-webkit-scrollbar-thumb:hover { background: #2e2e40; }
 
+/* Chevon rotation on details[open] */
+.dashboard-dark details[open] > summary .chevron-icon {
+  transform: rotate(180deg);
+}
+
 /* ── Base styles ───────────────────────────────────────────── */
 body {
   background: var(--background);

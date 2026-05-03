@@ -100,7 +100,7 @@ export function ScanSummary({ scan }: Props) {
                         background: pct >= 60 ? '#22c55e' : pct >= 30 ? '#f59e0b' : '#ef4444',
                       }} />
                   </div>
-                  <svg className="w-3 h-3 text-[#5c5c6e] transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3 text-[#5c5c6e] transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </div>
