@@ -250,22 +250,40 @@ export async function POST(req: NextRequest) {
     const webhookUrl = clientData?.webhook_url
 
     if (webhookUrl) {
-      // Fire-and-forget — do not block the response
-      fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientId,
-          brandName: clientData?.brand_name ?? '',
-          domain,
-          industry: geoIndustry,
-          scanId: data.id,
-          score: totalScore,
-          grade,
-          results: { ...results, ...geoDetails },
-        }),
-        signal: AbortSignal.timeout(5_000),
-      }).catch(err => console.error('[scan] webhook trigger failed:', err))
+      // Validate webhook URL — only allow HTTPS to external hosts
+      let safe = false
+      try {
+        const parsed = new URL(webhookUrl)
+        safe = parsed.protocol === 'https:' &&
+               parsed.hostname !== 'localhost' &&
+               !parsed.hostname.startsWith('127.') &&
+               !parsed.hostname.startsWith('0.') &&
+               !parsed.hostname.startsWith('169.254.') &&
+               !parsed.hostname.startsWith('10.') &&
+               !parsed.hostname.match(/^172\.(1[6-9]|2\d|3[01])\./) &&
+               !parsed.hostname.startsWith('192.168.')
+      } catch { /* invalid URL — safe stays false */ }
+
+      if (safe) {
+        // Fire-and-forget — do not block the response
+        fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientId,
+            brandName: clientData?.brand_name ?? '',
+            domain,
+            industry: geoIndustry,
+            scanId: data.id,
+            score: totalScore,
+            grade,
+            results: { ...results, ...geoDetails },
+          }),
+          signal: AbortSignal.timeout(5_000),
+        }).catch(err => console.error('[scan] webhook trigger failed:', err))
+      } else {
+        console.error('[scan] invalid webhook URL (must be HTTPS, not private IP):', webhookUrl)
+      }
     }
   }
 

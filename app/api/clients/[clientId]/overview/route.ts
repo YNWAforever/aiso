@@ -61,6 +61,12 @@ export async function GET(
       .order('scan_week', { ascending: false }).limit(10),
   ])
 
+  // Log per-query errors (data still returned as empty arrays for graceful degradation)
+  if (!scanHistory) console.error('[overview] failed to fetch scan history')
+  if (!recommendations && scanId) console.error('[overview] failed to fetch agent recommendations')
+  if (!progress && scanId) console.error('[overview] failed to fetch agent progress')
+  if (!competitors && scanId) console.error('[overview] failed to fetch agent competitors')
+
   const summary = (pulseSummary ?? []) as PulseWeeklySummary[]
   const latestWeek = summary.filter(d => !d.platform).at(-1)?.scan_week
   const kpiRow = summary.find(d => d.scan_week === latestWeek && !d.platform)

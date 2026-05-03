@@ -11,9 +11,20 @@ mockEq.mockReturnValue({ single: vi.fn().mockResolvedValue({ data: { id: 'scan-1
 mockFrom.mockImplementation((table: string) => {
   if (table === 'scans') return {
     select: vi.fn().mockReturnValue({ eq: mockEq }),
-    update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+    update: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue({ error: null }) }) }),
   }
-  if (table === 'agent_recommendations') return { upsert: mockUpsert }
+  if (table === 'agent_recommendations') return {
+    upsert: mockUpsert,
+    select: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ count: 1 }) }),
+  }
+  if (table === 'agent_progress') return {
+    upsert: vi.fn().mockResolvedValue({ error: null }),
+    select: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ count: 1 }) }),
+  }
+  if (table === 'agent_competitors') return {
+    upsert: vi.fn().mockResolvedValue({ error: null }),
+    select: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ count: 1 }) }),
+  }
   return { upsert: vi.fn().mockResolvedValue({ error: null }) }
 })
 mockUpsert.mockResolvedValue({ error: null })
@@ -108,6 +119,7 @@ describe('POST /api/clients/[clientId]/agents/competitors', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
   it('rejects when x-cron-secret header is missing', async () => {
+    process.env.CRON_SECRET = 'test-secret'
     const req = new Request('http://localhost/api/clients/c-1/agents/competitors', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -118,6 +130,7 @@ describe('POST /api/clients/[clientId]/agents/competitors', () => {
   })
 
   it('upserts competitors and returns count', async () => {
+    process.env.CRON_SECRET = 'test-secret'
     const competitors = [
       { platform: 'openai/gpt-4o', competitorDomain: 'rival.com', competitorName: 'Rival Inc', mentionRate: 45, yourRate: 28, gapAnalysis: 'Rival has FAQ schema' },
       { platform: 'anthropic/claude-haiku-4-5', competitorDomain: 'other.com', mentionRate: 32, yourRate: 28, gapAnalysis: 'Slight lead in topical authority' },

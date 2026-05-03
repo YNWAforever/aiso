@@ -8,7 +8,16 @@ type AgentSectionProps = {
 const PLATFORM_ICONS = ['openai/gpt-4o', 'anthropic/claude-haiku-4-5', 'google/gemini-2.0-flash-001', 'perplexity/sonar', 'perplexity/sonar-pro']
 
 export function AgentSection({ status, children }: AgentSectionProps) {
-  if (!status || status === 'error') return null
+  if (!status) return null
+
+  if (status === 'error') {
+    return (
+      <div className="bg-white rounded-xl border border-red-200 p-5">
+        <p className="text-sm font-semibold text-slate-700 mb-1">Agent Analysis</p>
+        <p className="text-xs text-red-600">Agent analysis encountered an error. Try running a new scan.</p>
+      </div>
+    )
+  }
 
   if (status === 'pending' || status === 'running') {
     return (
