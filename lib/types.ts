@@ -92,7 +92,7 @@ export interface Account {
   id: string
   stripe_customer_id: string | null
   stripe_subscription_id: string | null
-  plan: 'starter' | 'pro' | 'enterprise'
+  plan: 'basic' | 'pro' | 'enterprise'
   status: 'active' | 'past_due' | 'cancelled' | 'trialing'
   created_at: string
 }
@@ -286,4 +286,17 @@ export interface ClientOverview {
   pulseSummary: PulseWeeklySummary[]
   pulseKpi: { sovScore: number; brandMentions: number; totalQueries: number; platformCount: number; scanWeek: string } | null
   missedOpportunities: Pick<PulseMetric, 'platform' | 'question' | 'competitors_mentioned' | 'scan_week'>[]
+}
+
+export interface PlanFeatures {
+  plan: 'basic' | 'pro' | 'enterprise'
+  platform_access: string[]
+  agent_recs: boolean
+  agent_progress: boolean
+  agent_competitors: boolean
+  alerts: boolean
+  csv_export: boolean
+  max_brands: number
+  history_weeks: number
+  edit_prompts: boolean
 }

@@ -1,34 +1,38 @@
-export const TIER_FEATURES = {
-  starter: {
-    maxBrands: 1,
-    editPrompts: false,
-    historyWeeks: 4,
-    alerts: false,
+import type { PlanFeatures } from '@/lib/types'
+
+const FEATURES: Record<string, PlanFeatures> = {
+  basic: {
+    plan: 'basic',
+    platform_access: ['gemini'],
+    agent_recs: true, agent_progress: false, agent_competitors: false,
+    alerts: false, csv_export: false,
+    max_brands: 1, history_weeks: 4, edit_prompts: false,
   },
   pro: {
-    maxBrands: 3,
-    editPrompts: true,
-    historyWeeks: 26,
-    alerts: true,
+    plan: 'pro',
+    platform_access: ['gemini', 'gpt4o', 'claude', 'perplexity-s', 'perplexity-p'],
+    agent_recs: true, agent_progress: true, agent_competitors: false,
+    alerts: true, csv_export: false,
+    max_brands: 3, history_weeks: 26, edit_prompts: true,
   },
   enterprise: {
-    maxBrands: 10,
-    editPrompts: true,
-    historyWeeks: 999,
-    alerts: true,
+    plan: 'enterprise',
+    platform_access: ['gemini', 'gpt4o', 'claude', 'perplexity-s', 'perplexity-p'],
+    agent_recs: true, agent_progress: true, agent_competitors: true,
+    alerts: true, csv_export: true,
+    max_brands: 10, history_weeks: 999, edit_prompts: true,
   },
-} as const
+}
 
-type TierFeatures = typeof TIER_FEATURES.starter
-type Plan = keyof typeof TIER_FEATURES
+export function getPlanFeatures(plan: string): PlanFeatures {
+  return FEATURES[plan] ?? FEATURES.basic!
+}
 
-export function planAllows(plan: string, feature: keyof TierFeatures): boolean {
-  const tier = TIER_FEATURES[plan as Plan]
-  if (!tier) return false
-  return Boolean(tier[feature])
+export function planAllows(plan: string, feature: keyof PlanFeatures): boolean {
+  const f = getPlanFeatures(plan)
+  return Boolean(f[feature])
 }
 
 export function maxBrandsForPlan(plan: string): number {
-  const tier = TIER_FEATURES[plan as Plan]
-  return tier?.maxBrands ?? 1
+  return getPlanFeatures(plan).max_brands
 }
