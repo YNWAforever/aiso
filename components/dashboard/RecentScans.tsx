@@ -12,7 +12,7 @@ export function RecentScans({ scans, lang, clientId }: Props) {
     <div className="rounded-xl border border-dash-border bg-dash-surface divide-y divide-dash-border">
       {scans.map(scan => {
         const href = clientId
-          ? `/${lang}/dashboard/${clientId}?step=results&scanId=${scan.id}`
+          ? `/${lang}/dashboard/${clientId}/result/${scan.id}`
           : `/${lang}/result/${scan.id}`
 
         return (
