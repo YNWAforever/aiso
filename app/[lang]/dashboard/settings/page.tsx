@@ -2,9 +2,9 @@ import { requireAuth } from '@/lib/auth'
 import { TopBar } from '@/components/dashboard/TopBar'
 
 const PLAN_LABELS: Record<string, string> = {
-  starter: 'Starter (Free)',
-  pro: 'Pro — $99/month',
-  enterprise: 'Enterprise',
+  basic: 'Basic — $29/month',
+  pro: 'Pro — $79/month',
+  enterprise: 'Enterprise — $199/month',
 }
 
 export default async function SettingsPage({
@@ -52,13 +52,13 @@ export default async function SettingsPage({
             </div>
           )}
 
-          {plan === 'starter' && (
+          {(plan === 'basic' || plan === 'pro') && (
             <div className="border-t border-slate-100 pt-4">
               <a
                 href={`/${lang}/pricing`}
                 className="inline-block bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 transition"
               >
-                Upgrade to Pro →
+                {plan === 'basic' ? 'Upgrade to Pro →' : 'Upgrade to Enterprise →'}
               </a>
             </div>
           )}
