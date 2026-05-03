@@ -104,7 +104,7 @@ export default async function DashboardPage({
       <main className="flex-1 px-6 pb-10 max-w-3xl">
         {step === 'scan' && <ScanStep lang={lang} clientId={clientId} scan={scan} scanHistory={(scanHistory ?? []) as Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'created_at'>[]} />}
 
-        {step === 'results' && scan && <ResultsStep scan={scan} />}
+        {step === 'results' && scan && <ResultsStep scan={scan} lang={lang} clientId={clientId} />}
         {step === 'results' && !scan && (
           <div className="rounded-xl border border-dash-border bg-dash-surface p-8 text-center">
             <p className="text-sm text-dash-text mb-1">No scan selected</p>
