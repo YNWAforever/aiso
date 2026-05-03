@@ -20,7 +20,7 @@ export async function GET() {
 export async function PATCH(req: NextRequest) {
   await requireAdmin()
   const { accountId, plan } = await req.json()
-  if (!['starter', 'pro', 'enterprise'].includes(plan)) {
+  if (!['basic', 'pro', 'enterprise'].includes(plan)) {
     return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
   }
 

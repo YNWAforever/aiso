@@ -49,7 +49,7 @@ export default async function DashboardPage({
     if (!(s.client_id in latestSov)) latestSov[s.client_id] = Number(s.sov_score)
   }
 
-  const plan    = profile.accounts?.plan ?? 'starter'
+  const plan    = profile.accounts?.plan ?? 'basic'
   const atLimit = (clients?.length ?? 0) >= maxBrandsForPlan(plan)
 
   const hasClients = clients && clients.length > 0

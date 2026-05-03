@@ -12,7 +12,7 @@ export default async function PromptsPage({
 }: { params: Promise<{ lang: string; clientId: string }> }) {
   const { lang, clientId } = await params
   const profile  = await requireAuth(lang)
-  const plan     = profile.accounts?.plan ?? 'starter'
+  const plan     = profile.accounts?.plan ?? 'basic'
   const supabase = await createServerSupabaseClient()
 
   const { data: client } = await supabase
@@ -29,7 +29,7 @@ export default async function PromptsPage({
     <>
       <TopBar title={`${client.brand_name} — Prompt Bank`} />
       <main className="flex-1 px-6 py-8 max-w-3xl">
-        <PlanGate allowed={planAllows(plan, 'editPrompts')} lang={lang}>
+        <PlanGate allowed={planAllows(plan, 'edit_prompts')} lang={lang}>
           <PromptBankEditor clientId={clientId} initialPrompts={(promptsRaw ?? []) as PromptBankItem[]} />
         </PlanGate>
       </main>

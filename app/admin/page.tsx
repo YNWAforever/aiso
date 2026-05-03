@@ -66,7 +66,7 @@ export default function AdminPage() {
                     onChange={e => changePlan(a.id, e.target.value)}
                     className="text-xs border border-slate-200 rounded px-2 py-1"
                   >
-                    <option value="starter">Starter</option>
+                    <option value="basic">Basic</option>
                     <option value="pro">Pro</option>
                     <option value="enterprise">Enterprise</option>
                   </select>

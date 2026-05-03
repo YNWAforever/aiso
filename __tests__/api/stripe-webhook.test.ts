@@ -16,13 +16,9 @@ describe('stripe webhook plan mapping', () => {
   it('maps price_pro to pro plan', () => {
     const priceId = process.env.STRIPE_PRICE_PRO ?? 'price_pro'
     const getPlan = (pid: string) =>
-      pid === (process.env.STRIPE_PRICE_PRO ?? 'price_pro') ? 'pro' : 'starter'
-    expect(getPlan(priceId)).toBe('pro')
-  })
+      pid === (process.env.STRIPE_PRICE_PRO ?? 'price_pro') ? 'pro' : 'basic'
 
-  it('maps unknown price to starter', () => {
-    const getPlan = (pid: string) =>
-      pid === (process.env.STRIPE_PRICE_PRO ?? 'price_pro') ? 'pro' : 'starter'
-    expect(getPlan('price_unknown')).toBe('starter')
+    expect(getPlan(process.env.STRIPE_PRICE_PRO ?? 'price_pro')).toBe('pro')
+    expect(getPlan('price_unknown')).toBe('basic')
   })
 })

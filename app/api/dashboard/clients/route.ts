@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   const profile = await getProfile()
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const plan  = profile.accounts?.plan ?? 'starter'
+  const plan  = profile.accounts?.plan ?? 'basic'
   const limit = maxBrandsForPlan(plan)
 
   // Count existing brands for this account

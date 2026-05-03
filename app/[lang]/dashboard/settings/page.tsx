@@ -14,7 +14,7 @@ export default async function SettingsPage({
 }) {
   const { lang } = await params
   const profile = await requireAuth(lang)
-  const plan    = profile.accounts?.plan ?? 'starter'
+  const plan    = profile.accounts?.plan ?? 'basic'
   const status  = profile.accounts?.status ?? 'active'
   const hasStripe = Boolean(profile.accounts?.stripe_customer_id)
 

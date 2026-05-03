@@ -17,7 +17,7 @@ interface Props {
 }
 
 const PLAN_STYLES: Record<string, string> = {
-  starter:    'bg-secondary text-secondary-foreground',
+  basic:      'bg-secondary text-secondary-foreground',
   pro:        'bg-primary/10 text-primary',
   enterprise: 'bg-violet-100 text-violet-700',
 }
@@ -32,7 +32,7 @@ interface NavItem {
 export function Sidebar({ profile, lang, clientId }: Props) {
   const pathname = usePathname()
   const router   = useRouter()
-  const plan     = profile.accounts?.plan ?? 'starter'
+  const plan     = profile.accounts?.plan ?? 'basic'
   const base     = `/${lang}/dashboard`
 
   const supabase = createBrowserClient(
@@ -86,7 +86,7 @@ export function Sidebar({ profile, lang, clientId }: Props) {
             >
               <Icon className="size-4 flex-shrink-0" />
               <span className="flex-1">{label}</span>
-              {proOnly && plan === 'starter' && (
+              {proOnly && plan === 'basic' && (
                 <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-semibold">
                   PRO
                 </span>
@@ -102,7 +102,7 @@ export function Sidebar({ profile, lang, clientId }: Props) {
         <span
           className={cn(
             'text-xs font-semibold px-2 py-1 rounded-full inline-block',
-            PLAN_STYLES[plan] ?? PLAN_STYLES.starter
+            PLAN_STYLES[plan] ?? PLAN_STYLES.basic
           )}
         >
           {plan.toUpperCase()}

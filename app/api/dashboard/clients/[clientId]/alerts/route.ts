@@ -39,7 +39,7 @@ export async function PUT(
   if (!profile) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   // Plan gate — alerts are a Pro+ feature
-  const plan = profile.accounts?.plan ?? 'starter'
+  const plan = profile.accounts?.plan ?? 'basic'
   if (!planAllows(plan, 'alerts')) {
     return Response.json({ error: 'UPGRADE_REQUIRED', feature: 'alerts', plan }, { status: 403 })
   }

@@ -69,7 +69,7 @@ export function AddBrandWizard({ lang, disabled, plan }: Props) {
       <div className="rounded-xl border-2 border-dashed border-border p-8 text-center">
         <p className="text-sm font-semibold text-foreground mb-1">Brand limit reached</p>
         <p className="text-xs text-muted-foreground mb-4">
-          Your {plan ?? 'current'} plan allows {plan === 'starter' ? '1 brand' : plan === 'pro' ? '3 brands' : '10 brands'}.
+          Your {plan ?? 'current'} plan allows {plan === 'basic' ? '1 brand' : plan === 'pro' ? '3 brands' : '10 brands'}.
         </p>
         <Button size="sm" asChild>
           <a href={`/${lang}/pricing`}>Upgrade to Enterprise →</a>

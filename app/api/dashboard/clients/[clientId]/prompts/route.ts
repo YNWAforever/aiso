@@ -48,9 +48,9 @@ export async function POST(
   if (!profile) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   // Plan gate — prompt editing is a Pro+ feature
-  const plan = profile.accounts?.plan ?? 'starter'
-  if (!planAllows(plan, 'editPrompts')) {
-    return Response.json({ error: 'UPGRADE_REQUIRED', feature: 'editPrompts', plan }, { status: 403 })
+  const plan = profile.accounts?.plan ?? 'basic'
+  if (!planAllows(plan, 'edit_prompts')) {
+    return Response.json({ error: 'UPGRADE_REQUIRED', feature: 'edit_prompts', plan }, { status: 403 })
   }
 
   if (!await verifyOwnership(clientId, profile.account_id))
