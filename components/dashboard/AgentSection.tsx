@@ -5,46 +5,55 @@ type AgentSectionProps = {
   children: React.ReactNode
 }
 
-const PLATFORM_ICONS = ['openai/gpt-4o', 'anthropic/claude-haiku-4-5', 'google/gemini-2.0-flash-001', 'perplexity/sonar', 'perplexity/sonar-pro']
+const PLATFORMS = [
+  { id: 'openai/gpt-4o', label: 'GPT-4o' },
+  { id: 'anthropic/claude-haiku-4-5', label: 'Claude' },
+  { id: 'google/gemini-2.0-flash-001', label: 'Gemini' },
+  { id: 'perplexity/sonar', label: 'Perplexity' },
+  { id: 'perplexity/sonar-pro', label: 'Sonar Pro' },
+]
 
 export function AgentSection({ status, children }: AgentSectionProps) {
   if (!status) return null
 
   if (status === 'error') {
     return (
-      <div className="bg-white rounded-xl border border-red-200 p-5">
-        <p className="text-sm font-semibold text-slate-700 mb-1">Agent Analysis</p>
-        <p className="text-xs text-red-600">Agent analysis encountered an error. Try running a new scan.</p>
+      <div className="rounded-xl border border-[#ef444420] bg-[#0d0d18] p-5">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 w-2 h-2 rounded-full bg-[#ef4444] shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-[#e0e0ec] mb-0.5">Agent Analysis</p>
+            <p className="text-[11px] text-[#ef4444]">Agent analysis encountered an error. Try running a new scan.</p>
+          </div>
+        </div>
       </div>
     )
   }
 
   if (status === 'pending' || status === 'running') {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
-        <p className="text-sm font-semibold text-slate-700 mb-4">Agent Analysis</p>
-        <div className="flex items-center gap-3">
-          {PLATFORM_ICONS.map((platform, i) => (
-            <div
-              key={platform}
-              className="flex items-center gap-2 text-xs text-slate-400"
-              style={{ animationDelay: `${i * 300}ms` }}
-            >
-              <span className="inline-block w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-              <span className="truncate max-w-[100px]">{platform.split('/').pop()}</span>
+      <div className="rounded-xl border border-[#1e1e30] bg-[#0d0d18] p-5">
+        <p className="text-xs font-semibold text-[#5c5c6e] tracking-widest uppercase mb-4">Agent Analysis</p>
+        <div className="flex items-center gap-4 flex-wrap">
+          {PLATFORMS.map((p, i) => (
+            <div key={p.id} className="flex items-center gap-2"
+              style={{ animationDelay: `${i * 200}ms`, opacity: 0, animation: 'fade-up 0.4s ease-out forwards' }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00d4ff] animate-pulse"
+                style={{ animationDelay: `${i * 300}ms` }} />
+              <span className="text-[11px] text-[#5c5c6e] font-mono">{p.label}</span>
             </div>
           ))}
         </div>
-        <p className="text-xs text-slate-400 mt-3">
-          {status === 'pending' ? 'Agent analysis will start shortly...' : 'Agents are analyzing your results...'}
+        <p className="text-[11px] text-[#3c3c4e] mt-4 font-mono">
+          {status === 'pending' ? '$ agent_analysis --queue' : '$ agent_analysis --running'}
         </p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm font-semibold text-slate-700">Agent Analysis</p>
+    <div className="space-y-3">
+      <p className="text-xs font-semibold text-[#5c5c6e] tracking-widest uppercase">Agent Analysis</p>
       {children}
     </div>
   )

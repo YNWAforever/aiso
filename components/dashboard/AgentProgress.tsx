@@ -1,31 +1,19 @@
 import type { AgentProgress } from '@/lib/types'
 
-type Props = {
-  progress: AgentProgress[]
-}
-
-function formatDelta(delta: number | null): { text: string; color: string } {
-  if (delta === null || delta === undefined) return { text: '—', color: 'text-slate-400' }
-  if (delta > 0) return { text: `+${delta.toFixed(1)}`, color: 'text-emerald-600' }
-  if (delta < 0) return { text: delta.toFixed(1), color: 'text-red-500' }
-  return { text: '0.0', color: 'text-slate-400' }
-}
+type Props = { progress: AgentProgress[] }
 
 function groupByPlatform(rows: AgentProgress[]): Record<string, AgentProgress[]> {
-  const grouped: Record<string, AgentProgress[]> = {}
-  for (const r of rows) {
-    if (!grouped[r.platform]) grouped[r.platform] = []
-    grouped[r.platform].push(r)
-  }
-  return grouped
+  const g: Record<string, AgentProgress[]> = {}
+  for (const r of rows) { (g[r.platform] ??= []).push(r) }
+  return g
 }
 
 export function AgentProgress({ progress }: Props) {
-  if (progress.length === 0) {
+  if (!progress.length) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-5">
-        <p className="text-sm font-semibold text-slate-700 mb-1">Progress</p>
-        <p className="text-xs text-slate-400">Progress tracking will appear after your next scan.</p>
+      <div className="rounded-xl border border-[#1e1e30] bg-[#0d0d18] p-5">
+        <p className="text-xs font-semibold text-[#5c5c6e] tracking-widest uppercase mb-1.5">Progress</p>
+        <p className="text-[11px] text-[#3c3c4e] font-mono">Progress tracking will appear after your next scan.</p>
       </div>
     )
   }
@@ -33,20 +21,28 @@ export function AgentProgress({ progress }: Props) {
   const grouped = groupByPlatform(progress)
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
-      <p className="text-sm font-semibold text-slate-700 mb-3">Progress</p>
+    <div className="rounded-xl border border-[#1e1e30] bg-[#0d0d18] p-5">
+      <p className="text-xs font-semibold text-[#5c5c6e] tracking-widest uppercase mb-4">Progress</p>
       {Object.entries(grouped).map(([platform, rows]) => (
         <div key={platform} className="mb-3 last:mb-0">
-          <p className="text-xs font-medium text-slate-500 mb-2 uppercase">{platform.split('/').pop()}</p>
+          <p className="text-[10px] font-mono text-[#a78bfa] tracking-wider uppercase mb-2">
+            {platform.split('/').pop()}
+          </p>
           <div className="space-y-1.5">
             {rows.map((r) => {
-              const delta = formatDelta(r.delta)
+              const delta = r.delta
+              const isUp = delta !== null && delta !== undefined && delta > 0
+              const isDown = delta !== null && delta !== undefined && delta < 0
               return (
-                <div key={r.id} className="flex items-center justify-between">
-                  <span className="text-xs text-slate-700 capitalize">{r.metric.replace(/_/g, ' ')}</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-slate-900">{r.current_value}</span>
-                    <span className={`text-[10px] font-medium ${delta.color}`}>{delta.text}</span>
+                <div key={r.id} className="flex items-center justify-between py-1 px-2 rounded hover:bg-[#141422] transition-colors">
+                  <span className="text-[11px] text-[#8c8c9e] font-mono capitalize">{r.metric.replace(/_/g, ' ')}</span>
+                  <div className="flex items-center gap-2 font-mono">
+                    <span className="text-xs font-semibold text-[#e0e0ec]">{r.current_value}</span>
+                    {delta !== null && delta !== undefined && (
+                      <span className="text-[10px] font-medium" style={{ color: isUp ? '#22c55e' : isDown ? '#ef4444' : '#5c5c6e' }}>
+                        {isUp ? '+' : ''}{delta.toFixed(1)}
+                      </span>
+                    )}
                   </div>
                 </div>
               )
