@@ -1,7 +1,8 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { Zap, ChevronRight } from 'lucide-react'
+import { Zap } from 'lucide-react'
+import { TrialCta }         from './TrialCta'
 import { ScoreReveal }      from './ScoreReveal'
 import { TopIssueCard }     from './TopIssueCard'
 import { EmailCaptureGate } from './EmailCaptureGate'
@@ -90,6 +91,7 @@ interface Props { scan: Scan; lang: string }
 
 export function ResultClient({ scan, lang }: Props) {
   const [phase, setPhase] = useState<'locked' | 'unlocked'>('locked')
+  const [unlockedEmail, setUnlockedEmail] = useState('')
 
   const r = scan.results as Record<string, unknown>
   const { pass, warn, fail, total } = countStatuses(r)
@@ -156,7 +158,10 @@ export function ResultClient({ scan, lang }: Props) {
         {phase === 'locked' ? (
           <>
             <LockedPreview checkCount={total} />
-            <EmailCaptureGate scanId={scan.id} onUnlocked={() => setPhase('unlocked')} />
+            <EmailCaptureGate
+              scanId={scan.id}
+              onUnlocked={(email) => { setUnlockedEmail(email); setPhase('unlocked') }}
+            />
           </>
         ) : (
           <>
@@ -178,35 +183,13 @@ export function ResultClient({ scan, lang }: Props) {
             {/* Deep GEO section */}
             <DeepGeoSection c17={c17} c18={c18} c19={c19} c20={c20} />
 
-            {/* Conversion CTA (Fix Pack gated behind signup) */}
-            <div className="bg-slate-900 rounded-2xl p-8 text-center">
-              <p className="text-3xl mb-3">🛠</p>
-              <h2 className="text-white font-black text-xl mb-2">
-                Fix your {fail + warn} issue{fail + warn !== 1 ? 's' : ''} — automatically
-              </h2>
-              <p className="text-slate-400 text-sm mb-6 max-w-sm mx-auto">
-                Sign up to generate your personalised Fix Pack: llms.txt, robots.txt patch, and FAQ schema — ready to deploy.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Link
-                  href={`/${lang}/auth/login`}
-                  className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-semibold px-6 py-3 rounded-xl text-sm hover:bg-primary/90 transition"
-                >
-                  Get my Fix Pack <ChevronRight className="size-4" />
-                </Link>
-                <Link
-                  href={`/${lang}/pricing`}
-                  className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-6 py-3 rounded-xl text-sm hover:bg-white/20 transition"
-                >
-                  See pricing
-                </Link>
-              </div>
-              <p className="mt-5">
-                <Link href={`/${lang}/auth/login`} className="text-slate-500 text-xs hover:text-slate-300 transition">
-                  Already have an account? Sign in
-                </Link>
-              </p>
-            </div>
+            {/* Trial CTA — only shown in unlocked state */}
+            <TrialCta
+              email={unlockedEmail}
+              scanId={scan.id}
+              lang={lang}
+              failCount={fail + warn}
+            />
           </>
         )}
 
