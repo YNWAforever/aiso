@@ -69,7 +69,7 @@ export default async function PulsePage({
   }
 
   const isFirstTimePrompts = prompts.length > 0 &&
-    Math.abs(new Date(prompts[0]!.created_at).getTime() - Date.now()) < 5 * 60 * 1000
+    Math.abs(new Date(prompts.at(-1)!.created_at).getTime() - Date.now()) < 5 * 60 * 1000
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -79,6 +79,7 @@ export default async function PulsePage({
           <span className="ml-2 text-sm font-normal text-slate-500">{clientData.brand_name}</span>
         </span>
         <div className="flex items-center gap-4">
+          <a href="#overview"      className="text-xs text-slate-500 hover:text-slate-900 transition hidden sm:block">Overview</a>
           <a href="#scan-log"      className="text-xs text-slate-500 hover:text-slate-900 transition hidden sm:block">Scan Log</a>
           <a href="#question-bank" className="text-xs text-slate-500 hover:text-slate-900 transition hidden sm:block">Questions</a>
           <span className="text-xs text-slate-400">{kpi?.scan_week ? `Week of ${kpi.scan_week}` : 'No data yet'}</span>
