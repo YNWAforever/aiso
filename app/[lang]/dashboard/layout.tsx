@@ -1,6 +1,8 @@
 import { requireAuth } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar'
+import { TrialBanner } from '@/components/dashboard/TrialBanner'
+import { getTrialStatus } from '@/lib/trial'
 import { headers } from 'next/headers'
 
 export default async function DashboardLayout({
@@ -12,6 +14,7 @@ export default async function DashboardLayout({
 }) {
   const { lang } = await params
   const profile = await requireAuth(lang)
+  const trial = getTrialStatus(profile.accounts)
 
   const headersList = await headers()
   const pathname = headersList.get('x-invoke-path') ?? ''
@@ -29,10 +32,15 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      <DashboardSidebar profile={profile} brandName={brandName} brandId={clientId} />
-      <div className="flex-1 flex flex-col overflow-auto">
-        {children}
+    <div className="flex flex-col h-screen bg-background overflow-hidden">
+      {trial.isTrial && !trial.isExpired && (
+        <TrialBanner daysRemaining={trial.daysRemaining} lang={lang} />
+      )}
+      <div className="flex flex-1 overflow-hidden">
+        <DashboardSidebar profile={profile} brandName={brandName} brandId={clientId} />
+        <div className="flex-1 flex flex-col overflow-auto">
+          {children}
+        </div>
       </div>
     </div>
   )
