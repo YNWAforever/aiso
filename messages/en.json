@@ -1,5 +1,11 @@
 {
-  "nav": { "title": "Fimmick AISO", "en": "EN", "zh": "中文", "sign_in": "Sign in", "get_started": "Get started free" },
+  "nav": {
+    "title": "Fimmick AISO",
+    "en": "EN",
+    "zh": "中文",
+    "sign_in": "Sign in",
+    "get_started": "Get started free"
+  },
   "home": {
     "badge": "FREE AISO PLATFORM SCAN",
     "headline": "Get Found by\nEvery AI Search Engine",
@@ -222,7 +228,11 @@
     "bottom_badge": "FREE SCAN — NO SIGNUP",
     "bottom_title": "Try a full AISO scan before you commit",
     "bottom_body": "Paste your URL. Get all 20 checks, a 100-point score, and a Fix Pack — no account needed.",
-    "bottom_cta": "Run Free Scan →"
+    "bottom_cta": "Run Free Scan →",
+    "basic_name": "Basic",
+    "basic_tag": "For individuals and small teams",
+    "cta_basic": "Start Free Trial",
+    "col_basic": "Basic"
   },
   "pulse": {
     "title": "AI Pulse",

@@ -1,5 +1,11 @@
 {
-  "nav": { "title": "Fimmick AISO", "en": "EN", "zh": "中文", "sign_in": "登入", "get_started": "免費開始" },
+  "nav": {
+    "title": "Fimmick AISO",
+    "en": "EN",
+    "zh": "中文",
+    "sign_in": "登入",
+    "get_started": "免費開始"
+  },
   "home": {
     "badge": "免費 AISO 平台掃描",
     "headline": "讓每個 AI 搜尋\n引擎都搵到你",
@@ -222,7 +228,11 @@
     "bottom_badge": "免費掃描——無需登錄",
     "bottom_title": "先試用完整 AISO 掃描，再決定方案",
     "bottom_body": "貼上您的網址，即可獲得全部 20 項檢測、100 分評分及修復包，無需帳號。",
-    "bottom_cta": "立即免費掃描 →"
+    "bottom_cta": "立即免費掃描 →",
+    "basic_name": "基本版",
+    "basic_tag": "適合個人及小型團隊",
+    "cta_basic": "開始免費試用",
+    "col_basic": "基本版"
   },
   "pulse": {
     "title": "AI Pulse",
