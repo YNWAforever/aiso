@@ -235,9 +235,7 @@ export async function POST(req: NextRequest) {
     insertPayload.agent_status = 'pending'
   }
 
-  let insertResult: { data: { id: string } | null; error: unknown } | null = null
-
-  insertResult = await supabase
+  let insertResult: { data: { id: string } | null; error: unknown } = await supabase
     .from('scans')
     .insert(insertPayload)
     .select('id')
@@ -276,9 +274,11 @@ export async function POST(req: NextRequest) {
 
       // Record which platforms were triggered (silently skip if column missing)
       try {
-        await supabase.from('scans')
-          .update({ agent_platforms: platforms })
-          .eq('id', data.id)
+        if (data) {
+          await supabase.from('scans')
+            .update({ agent_platforms: platforms })
+            .eq('id', data.id)
+        }
       } catch { /* agent_platforms column may not exist yet */ }
 
       // Validate webhook URL
@@ -294,7 +294,7 @@ export async function POST(req: NextRequest) {
                !parsed.hostname.startsWith('192.168.')
       } catch { /* invalid URL */ }
 
-      if (safe) {
+      if (safe && data) {
         fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -317,5 +317,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (!data) return NextResponse.json({ error: 'Insert returned no data' }, { status: 500 })
   return NextResponse.json({ id: data.id, score: totalScore, grade, results: { ...results, ...geoDetails } })
 }

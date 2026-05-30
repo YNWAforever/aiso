@@ -110,11 +110,33 @@ export default function HomePage() {
   const [industry, setIndustry]     = useState('')
   const [region, setRegion]         = useState('')
   const [showPersonalise, setShowPersonalise] = useState(false)
+  const [scanStep, setScanStep]     = useState(0)
+
+  const SCAN_STEPS = [
+    'Checking robots.txt for AI crawlers…',
+    'Reading llms.txt…',
+    'Testing bot accessibility…',
+    'Parsing structured data…',
+    'Analysing content extractability…',
+    'Running extended checks…',
+    'Computing GEO citation density…',
+    'Scoring factual density…',
+    'Mapping topical authority…',
+    'Measuring chunkability…',
+    'Calculating your AISO grade…',
+  ]
 
   async function handleScan(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     setLoading(true)
+    setScanStep(0)
+
+    // Cycle through step labels while waiting
+    const interval = setInterval(() => {
+      setScanStep(prev => (prev + 1 < SCAN_STEPS.length ? prev + 1 : prev))
+    }, 1200)
+
     try {
       const res = await fetch('/api/scan', {
         method:  'POST',
@@ -125,10 +147,12 @@ export default function HomePage() {
           region:   region   || undefined,
         }),
       })
+      clearInterval(interval)
       if (!res.ok) throw new Error('Scan failed')
       const data = await res.json()
       router.push(`/${params.lang}/result/${data.id}`)
     } catch {
+      clearInterval(interval)
       setError(t('home.scan_error'))
       setLoading(false)
     }
@@ -202,12 +226,31 @@ export default function HomePage() {
               placeholder={t('home.placeholder')}
               className="flex-1 h-11 text-sm border-2 border-primary/40 focus-visible:border-primary focus-visible:ring-primary/20"
               required
+              disabled={loading}
             />
             <Button type="submit" disabled={loading} className="h-11 px-7 font-semibold shrink-0">
-              {loading ? '…' : t('home.cta')}
+              {loading ? <span className="animate-pulse">Scanning…</span> : t('home.cta')}
               {!loading && <ChevronRight className="size-4 ml-1" />}
             </Button>
           </form>
+
+          {/* Animated scan progress */}
+          {loading && (
+            <div className="mt-4 max-w-xl mx-auto">
+              <div className="flex items-center gap-2 justify-center text-sm text-muted-foreground">
+                <span className="inline-block size-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="inline-block size-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="inline-block size-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+                <span className="ml-2 text-xs font-medium transition-all duration-300">{SCAN_STEPS[scanStep]}</span>
+              </div>
+              <div className="mt-3 h-1 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-1000"
+                  style={{ width: `${((scanStep + 1) / SCAN_STEPS.length) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Personalise toggle */}
           <div className="max-w-xl mx-auto mt-3">
