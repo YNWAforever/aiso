@@ -318,5 +318,24 @@ export async function POST(req: NextRequest) {
   }
 
   if (!data) return NextResponse.json({ error: 'Insert returned no data' }, { status: 500 })
+
+  // Fire n8n AISO Scan Webhook (fire-and-forget — never blocks the response)
+  const n8nWebhook = process.env.N8N_SCAN_WEBHOOK_URL
+  if (n8nWebhook) {
+    fetch(n8nWebhook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scanId:   data.id,
+        clientId: clientId ?? null,
+        domain,
+        score:    totalScore,
+        grade,
+        results:  { ...results, ...geoDetails },
+      }),
+      signal: AbortSignal.timeout(5_000),
+    }).catch(err => console.error('[scan] n8n webhook failed:', err))
+  }
+
   return NextResponse.json({ id: data.id, score: totalScore, grade, results: { ...results, ...geoDetails } })
 }

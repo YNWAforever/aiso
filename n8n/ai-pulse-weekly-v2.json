@@ -1,0 +1,473 @@
+{
+  "name": "AI Pulse Weekly v2",
+  "nodes": [
+    {
+      "id": "node-schedule",
+      "parameters": {
+        "rule": { "interval": [{ "field": "weeks" }] },
+        "triggerAtHour": 8,
+        "triggerAtMinute": 0,
+        "weekdays": [1]
+      },
+      "name": "Schedule Trigger (Monday 08:00)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "id": "node-init",
+      "parameters": {
+        "values": {
+          "string": [
+            { "name": "run_id", "value": "={{ $now.toISO() }}" },
+            { "name": "scan_week", "value": "={{ $now.minus({ days: 7 }).toFormat('yyyy-MM-dd') }}" }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Init Run Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [200, 0]
+    },
+    {
+      "id": "node-get-prompts",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id as client_id, c.brand_name, c.status as client_status, p.id as prompt_id, p.question, p.language FROM clients c JOIN prompt_bank p ON p.client_id = c.id WHERE c.status = 'active' AND p.is_active = true ORDER BY c.id, p.id",
+        "options": {}
+      },
+      "name": "Get Active Clients + Prompts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [400, 0],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "node-check-empty",
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.length || 0 }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "name": "Has Prompts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [600, 0]
+    },
+    {
+      "id": "node-no-prompts-notify",
+      "parameters": {
+        "url": "https://hooks.slack.com/services/PLACEHOLDER/PLACEHOLDER/PLACEHOLDER",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "text", "value": "⚠️ AI Pulse Weekly: No active prompts found. Skipping run." }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Notify No Prompts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [800, 200],
+      "continueOnFail": true
+    },
+    {
+      "id": "node-split",
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Split by Prompt (1 at a time)",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [800, -200]
+    },
+    {
+      "id": "node-perplexity",
+      "parameters": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $env.OPENROUTER_API_KEY }}" },
+            { "name": "HTTP-Referer", "value": "https://aeo.fimmick.com" },
+            { "name": "X-Title", "value": "Fimmick AI Pulse" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'perplexity/sonar', max_tokens: 1000, messages: [{ role: 'user', content: $json.question }] }) }}",
+        "options": {}
+      },
+      "name": "Query Perplexity Sonar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, -400],
+      "continueOnFail": true
+    },
+    {
+      "id": "node-gpt4o",
+      "parameters": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $env.OPENROUTER_API_KEY }}" },
+            { "name": "HTTP-Referer", "value": "https://aeo.fimmick.com" },
+            { "name": "X-Title", "value": "Fimmick AI Pulse" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'openai/gpt-4o', max_tokens: 1000, messages: [{ role: 'user', content: $json.question }] }) }}",
+        "options": {}
+      },
+      "name": "Query GPT-4o",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, -133],
+      "continueOnFail": true
+    },
+    {
+      "id": "node-claude-haiku",
+      "parameters": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $env.OPENROUTER_API_KEY }}" },
+            { "name": "HTTP-Referer", "value": "https://aeo.fimmick.com" },
+            { "name": "X-Title", "value": "Fimmick AI Pulse" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'anthropic/claude-haiku-4-5', max_tokens: 1000, messages: [{ role: 'user', content: $json.question }] }) }}",
+        "options": {}
+      },
+      "name": "Query Claude Haiku",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 133],
+      "continueOnFail": true
+    },
+    {
+      "id": "node-gemini",
+      "parameters": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $env.OPENROUTER_API_KEY }}" },
+            { "name": "HTTP-Referer", "value": "https://aeo.fimmick.com" },
+            { "name": "X-Title", "value": "Fimmick AI Pulse" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'google/gemini-2.0-flash-001', max_tokens: 1000, messages: [{ role: 'user', content: $json.question }] }) }}",
+        "options": {}
+      },
+      "name": "Query Gemini Flash",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 400],
+      "continueOnFail": true
+    },
+    {
+      "id": "node-merge",
+      "parameters": {
+        "mode": "mergeByPosition",
+        "options": {}
+      },
+      "name": "Merge LLM Responses",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1200, 0]
+    },
+    {
+      "id": "node-extract-answers",
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "platform",
+              "value": "={{ $json.model || 'unknown' }}"
+            },
+            {
+              "name": "raw_answer",
+              "value": "={{ $json.choices && $json.choices[0] ? $json.choices[0].message.content : '' }}"
+            },
+            {
+              "name": "client_id",
+              "value": "={{ $('Split by Prompt (1 at a time)').first().json.client_id }}"
+            },
+            {
+              "name": "brand_name",
+              "value": "={{ $('Split by Prompt (1 at a time)').first().json.brand_name }}"
+            },
+            {
+              "name": "prompt_id",
+              "value": "={{ $('Split by Prompt (1 at a time)').first().json.prompt_id }}"
+            },
+            {
+              "name": "question",
+              "value": "={{ $('Split by Prompt (1 at a time)').first().json.question }}"
+            },
+            {
+              "name": "scan_week",
+              "value": "={{ $('Init Run Context').first().json.scan_week }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Map to Platform Record",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1400, 0]
+    },
+    {
+      "id": "node-analyse",
+      "parameters": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $env.OPENROUTER_API_KEY }}" },
+            { "name": "HTTP-Referer", "value": "https://aeo.fimmick.com" },
+            { "name": "X-Title", "value": "Fimmick AI Pulse Analysis" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'openai/gpt-4o-mini', max_tokens: 300, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: 'You are a brand mention analyser. Return only valid JSON with these exact keys: brand_mentioned (boolean), sentiment (\"positive\", \"neutral\", \"negative\", or \"not_mentioned\"), mention_position (integer position in response or null if not mentioned), competitors_mentioned (array of brand name strings found in the answer, or empty array).' }, { role: 'user', content: 'Brand: ' + $json.brand_name + '\\nQuestion: ' + $json.question + '\\nAI Answer: ' + $json.raw_answer }] }) }}",
+        "options": {}
+      },
+      "name": "Analyse Brand Mention (GPT-4o-mini)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1600, 0],
+      "continueOnFail": true
+    },
+    {
+      "id": "node-parse-analysis",
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const item = $input.item.json;\nlet analysis = { brand_mentioned: false, sentiment: 'not_mentioned', mention_position: null, competitors_mentioned: [] };\ntry {\n  if (item.choices && item.choices[0]) {\n    const raw = item.choices[0].message.content;\n    analysis = JSON.parse(raw);\n  }\n} catch(e) {\n  analysis.parse_error = String(e);\n}\nconst prev = $('Map to Platform Record').first().json;\nreturn {\n  client_id: prev.client_id,\n  prompt_id: prev.prompt_id,\n  platform: prev.platform,\n  question: prev.question,\n  raw_answer: prev.raw_answer,\n  brand_mentioned: analysis.brand_mentioned || false,\n  sentiment: analysis.sentiment || 'not_mentioned',\n  mention_position: analysis.mention_position || null,\n  competitors_mentioned: JSON.stringify(analysis.competitors_mentioned || []),\n  scan_week: prev.scan_week\n};"
+      },
+      "name": "Parse Analysis JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1800, 0]
+    },
+    {
+      "id": "node-write-metrics",
+      "parameters": {
+        "operation": "insert",
+        "table": "pulse_metrics",
+        "columns": "client_id,prompt_id,platform,question,raw_answer,brand_mentioned,sentiment,mention_position,competitors_mentioned,scan_week",
+        "options": {
+          "onConflict": "ignore"
+        }
+      },
+      "name": "Write pulse_metrics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2000, 0],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "node-loop-back",
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $('Split by Prompt (1 at a time)').context.noItemsLeft }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "All Prompts Done?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2200, 0]
+    },
+    {
+      "id": "node-compute-summary",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO pulse_weekly_summary (client_id, scan_week, platform, total_queries, brand_mentions, sov_score) SELECT client_id, scan_week, platform, COUNT(*) as total_queries, SUM(CASE WHEN brand_mentioned THEN 1 ELSE 0 END) as brand_mentions, ROUND(SUM(CASE WHEN brand_mentioned THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0) * 100, 2) as sov_score FROM pulse_metrics WHERE scan_week = (CURRENT_DATE - INTERVAL '7 days')::date GROUP BY client_id, scan_week, platform ON CONFLICT (client_id, scan_week, platform) DO UPDATE SET total_queries = EXCLUDED.total_queries, brand_mentions = EXCLUDED.brand_mentions, sov_score = EXCLUDED.sov_score",
+        "options": {}
+      },
+      "name": "Compute Weekly Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2400, -200],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "node-post-summary",
+      "parameters": {
+        "url": "https://aeo.fimmick.com/api/pulse/summary-complete",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $env.CRON_SECRET }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ scan_week: $('Init Run Context').first().json.scan_week, run_id: $('Init Run Context').first().json.run_id, completed_at: $now.toISO() }) }}",
+        "options": {}
+      },
+      "name": "POST Summary Complete",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2600, -200],
+      "continueOnFail": true
+    },
+    {
+      "id": "node-success-notify",
+      "parameters": {
+        "url": "https://hooks.slack.com/services/PLACEHOLDER/PLACEHOLDER/PLACEHOLDER",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ '✅ AI Pulse Weekly complete\\nRun ID: ' + $('Init Run Context').first().json.run_id + '\\nScan week: ' + $('Init Run Context').first().json.scan_week }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Notify Success",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2800, -200],
+      "continueOnFail": true
+    },
+    {
+      "id": "node-error-notify",
+      "parameters": {
+        "url": "https://hooks.slack.com/services/PLACEHOLDER/PLACEHOLDER/PLACEHOLDER",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ '🔥 AI Pulse Weekly ERROR\\nClient: ' + ($('Split by Prompt (1 at a time)').first().json.client_id || 'unknown') + '\\nPrompt: ' + ($('Split by Prompt (1 at a time)').first().json.prompt_id || 'unknown') + '\\nError: ' + JSON.stringify($json.error || 'unknown') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Notify Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2400, 200],
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (Monday 08:00)": {
+      "main": [[{ "node": "Init Run Context", "type": "main", "index": 0 }]]
+    },
+    "Init Run Context": {
+      "main": [[{ "node": "Get Active Clients + Prompts", "type": "main", "index": 0 }]]
+    },
+    "Get Active Clients + Prompts": {
+      "main": [[{ "node": "Has Prompts?", "type": "main", "index": 0 }]]
+    },
+    "Has Prompts?": {
+      "main": [
+        [{ "node": "Split by Prompt (1 at a time)", "type": "main", "index": 0 }],
+        [{ "node": "Notify No Prompts", "type": "main", "index": 0 }]
+      ]
+    },
+    "Split by Prompt (1 at a time)": {
+      "main": [
+        [
+          { "node": "Query Perplexity Sonar", "type": "main", "index": 0 },
+          { "node": "Query GPT-4o", "type": "main", "index": 0 },
+          { "node": "Query Claude Haiku", "type": "main", "index": 0 },
+          { "node": "Query Gemini Flash", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Query Perplexity Sonar": {
+      "main": [[{ "node": "Merge LLM Responses", "type": "main", "index": 0 }]]
+    },
+    "Query GPT-4o": {
+      "main": [[{ "node": "Merge LLM Responses", "type": "main", "index": 1 }]]
+    },
+    "Query Claude Haiku": {
+      "main": [[{ "node": "Merge LLM Responses", "type": "main", "index": 2 }]]
+    },
+    "Query Gemini Flash": {
+      "main": [[{ "node": "Merge LLM Responses", "type": "main", "index": 3 }]]
+    },
+    "Merge LLM Responses": {
+      "main": [[{ "node": "Map to Platform Record", "type": "main", "index": 0 }]]
+    },
+    "Map to Platform Record": {
+      "main": [[{ "node": "Analyse Brand Mention (GPT-4o-mini)", "type": "main", "index": 0 }]]
+    },
+    "Analyse Brand Mention (GPT-4o-mini)": {
+      "main": [[{ "node": "Parse Analysis JSON", "type": "main", "index": 0 }]]
+    },
+    "Parse Analysis JSON": {
+      "main": [[{ "node": "Write pulse_metrics", "type": "main", "index": 0 }]]
+    },
+    "Write pulse_metrics": {
+      "main": [[{ "node": "All Prompts Done?", "type": "main", "index": 0 }]]
+    },
+    "All Prompts Done?": {
+      "main": [
+        [{ "node": "Compute Weekly Summary", "type": "main", "index": 0 }],
+        [{ "node": "Split by Prompt (1 at a time)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Compute Weekly Summary": {
+      "main": [[{ "node": "POST Summary Complete", "type": "main", "index": 0 }]]
+    },
+    "POST Summary Complete": {
+      "main": [[{ "node": "Notify Success", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["pulse", "weekly", "monitoring"],
+  "pinData": {}
+}

@@ -1,0 +1,221 @@
+{
+  "name": "AISO Scan Webhook",
+  "nodes": [
+    {
+      "id": "node-webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "aiso-scan",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "id": "node-respond-ok",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": true, \"scanId\": $json.body.scanId } }}"
+      },
+      "name": "Respond 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [200, -200]
+    },
+    {
+      "id": "node-check-score",
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.body.score }}",
+              "operation": "smaller",
+              "value2": 50
+            }
+          ]
+        }
+      },
+      "name": "Score < 50?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [400, 0]
+    },
+    {
+      "id": "node-notify-slack",
+      "parameters": {
+        "url": "https://hooks.slack.com/services/PLACEHOLDER/PLACEHOLDER/PLACEHOLDER",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ '🚨 Low AEO Score Alert\\nClient: ' + $json.body.clientId + '\\nDomain: ' + $json.body.domain + '\\nScore: ' + $json.body.score + '/100 (Grade: ' + $json.body.grade + ')\\nScan ID: ' + $json.body.scanId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Notify Slack (Failing Grade)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, -200],
+      "continueOnFail": true
+    },
+    {
+      "id": "node-get-client",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, brand_name, email, webhook_url FROM clients WHERE id = '{{ $json.body.clientId }}' LIMIT 1",
+        "options": {}
+      },
+      "name": "Get Client Details",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [800, 0],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "node-ai-summary",
+      "parameters": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "HTTP-Referer", "value": "https://aeo.fimmick.com" },
+            { "name": "X-Title", "value": "Fimmick AISO Scan" },
+            { "name": "Authorization", "value": "Bearer {{ $env.OPENROUTER_API_KEY }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'openai/gpt-4o-mini', max_tokens: 400, messages: [{ role: 'system', content: 'You are an AEO (Answer Engine Optimisation) expert. Given a scan score, grade, and check results, produce exactly 3 concise bullet points (each starting with •) summarising the top improvements the website owner should make to be better cited by AI search engines. Be specific and actionable. Return only the 3 bullets, no preamble.' }, { role: 'user', content: 'Domain: ' + $('Webhook Trigger').first().json.body.domain + '\\nScore: ' + $('Webhook Trigger').first().json.body.score + '/100\\nGrade: ' + $('Webhook Trigger').first().json.body.grade + '\\nFailed checks: ' + JSON.stringify(($('Webhook Trigger').first().json.body.results || []).filter(r => r.status === \"fail\").map(r => r.message).slice(0, 10)) }] }) }}",
+        "options": {}
+      },
+      "name": "Generate AI Summary (GPT-4o-mini)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 0],
+      "continueOnFail": true
+    },
+    {
+      "id": "node-extract-summary",
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "ai_summary",
+              "value": "={{ $json.choices && $json.choices[0] ? $json.choices[0].message.content : 'AI summary unavailable' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Extract Summary Text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1200, 0]
+    },
+    {
+      "id": "node-update-scan",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE scans SET agent_status = 'completed', ai_summary = '{{ $json.ai_summary.replace(/'/g, \"''\") }}', updated_at = NOW() WHERE id = '{{ $('Webhook Trigger').first().json.body.scanId }}'",
+        "options": {}
+      },
+      "name": "Update Scan (agent_status = completed)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1400, 0],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "node-error-log",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO scan_errors (scan_id, client_id, error_message, node_name, created_at) VALUES ('{{ $('Webhook Trigger').first().json.body.scanId }}', '{{ $('Webhook Trigger').first().json.body.clientId }}', '{{ JSON.stringify($json.error || \"unknown error\").replace(/'/g, \"''\") }}', '{{ $runIndex }}', NOW()) ON CONFLICT DO NOTHING",
+        "options": {}
+      },
+      "name": "Log Error to DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1400, 300],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          { "node": "Respond 200 OK", "type": "main", "index": 0 },
+          { "node": "Score < 50?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Score < 50?": {
+      "main": [
+        [
+          { "node": "Notify Slack (Failing Grade)", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Get Client Details", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Notify Slack (Failing Grade)": {
+      "main": [
+        [
+          { "node": "Get Client Details", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Get Client Details": {
+      "main": [
+        [
+          { "node": "Generate AI Summary (GPT-4o-mini)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Generate AI Summary (GPT-4o-mini)": {
+      "main": [
+        [
+          { "node": "Extract Summary Text", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Extract Summary Text": {
+      "main": [
+        [
+          { "node": "Update Scan (agent_status = completed)", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["aiso", "scan", "webhook"],
+  "pinData": {}
+}
