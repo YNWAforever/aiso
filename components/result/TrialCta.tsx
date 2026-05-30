@@ -23,7 +23,9 @@ export function TrialCta({ email, scanId, lang, failCount }: Props) {
   async function handleStart() {
     setLoading(true)
     setError('')
-    const redirectTo = `${window.location.origin}/${lang}/onboarding?scan=${scanId}`
+    // Route through auth callback so the session cookie is set before the onboarding page loads
+    const next = encodeURIComponent(`/${lang}/onboarding?scan=${scanId}`)
+    const redirectTo = `${window.location.origin}/auth/callback?next=${next}`
     const { error: authError } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: redirectTo },
