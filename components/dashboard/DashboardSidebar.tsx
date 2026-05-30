@@ -2,15 +2,15 @@
 
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
-import { LogOut, Wrench } from 'lucide-react'
+import { LogOut, Wrench, Scan, FileBarChart2, Sparkles, Radio, Brain, Settings } from 'lucide-react'
 import { getPlanFeatures } from '@/lib/tier'
 import { ThemeToggle } from '@/components/dashboard/ThemeToggle'
 
 const STEPS = [
-  { key: 'scan',    label: 'Scan',    num: 1, desc: 'Run an AISO readiness check on any URL' },
-  { key: 'results', label: 'Results', num: 2, desc: 'Review your 20-check diagnostic report' },
-  { key: 'improve', label: 'Improve', num: 3, desc: 'Get AI agent analysis and fix recommendations' },
-  { key: 'monitor', label: 'Monitor', num: 4, desc: 'Track your share of voice across AI platforms' },
+  { key: 'scan',    label: 'Scan',    icon: Scan,          desc: 'Run an AISO check on any URL' },
+  { key: 'results', label: 'Results', icon: FileBarChart2,  desc: 'Review your diagnostic report' },
+  { key: 'improve', label: 'Improve', icon: Sparkles,       desc: 'AI analysis and fix recommendations' },
+  { key: 'monitor', label: 'Monitor', icon: Radio,          desc: 'AI share of voice tracking' },
 ] as const
 
 type Props = {
@@ -32,20 +32,32 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
   const features = getPlanFeatures(plan)
 
   return (
-    <aside className="w-56 shrink-0 border-r border-dash-border bg-sidebar-background flex flex-col min-h-full">
-      {/* Brand context */}
-      {brandName && (
-        <div className="px-4 pt-4 pb-3 border-b border-dash-border">
-          <p className="text-[10px] text-dash-muted tracking-widest uppercase mb-1">Brand</p>
-          <p className="text-sm font-semibold text-dash-text truncate">{brandName}</p>
-        </div>
-      )}
+    <aside className="w-60 shrink-0 border-r border-border bg-white flex flex-col min-h-full">
 
-      {/* Navigation steps */}
+      {/* Logo header */}
+      <div className="px-5 py-4 border-b border-border">
+        <Link href={`/${lang}/dashboard`} className="flex items-center gap-2.5">
+          <div className="size-7 rounded-lg bg-primary flex items-center justify-center shadow-sm">
+            <Brain className="size-4 text-white" />
+          </div>
+          <span className="font-black text-foreground text-sm">
+            Fimmick <span className="text-primary">AISO</span>
+          </span>
+        </Link>
+        {brandName && (
+          <div className="mt-3 px-2 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
+            <p className="text-[10px] text-primary/60 font-semibold tracking-widest uppercase mb-0.5">Brand</p>
+            <p className="text-xs font-semibold text-foreground truncate">{brandName}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        <p className="text-[10px] text-dash-muted tracking-widest uppercase mb-2 px-2">Navigation</p>
+        <p className="text-[10px] text-muted-foreground/60 font-semibold tracking-widest uppercase mb-2 px-2">Workflow</p>
         {STEPS.map((s) => {
           const active = step === s.key
+          const StepIcon = s.icon
           const locked = (s.key === 'improve' && !features.agent_recs) ||
                           (s.key === 'results' && !brandId)
 
@@ -53,47 +65,53 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
             <Link
               key={s.key}
               href={brandId ? `/${lang}/dashboard/${brandId}?step=${s.key}` : `/${lang}/dashboard?step=${s.key}`}
-              className={`flex items-start gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group ${
                 active
-                  ? 'bg-dash-accent/10 border border-dash-accent/20'
+                  ? 'bg-primary text-white shadow-sm'
                   : locked
-                    ? 'opacity-40 pointer-events-none'
-                    : 'hover:bg-dash-elevated border border-transparent'
+                    ? 'opacity-40 pointer-events-none text-muted-foreground'
+                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
               }`}
             >
-              <span className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold font-mono shrink-0 mt-px ${
-                active ? 'bg-dash-accent text-dash-bg' : 'bg-dash-elevated text-dash-muted'
-              }`}>
-                {locked ? '🔒' : s.num}
-              </span>
-              <div className="min-w-0">
-                <p className={`text-xs font-medium ${active ? 'text-dash-text' : 'text-dash-muted'}`}>
-                  {s.label}
-                </p>
-                <p className="text-[10px] text-dash-muted/60 leading-relaxed mt-0.5 line-clamp-2">
+              <StepIcon className={`size-4 shrink-0 ${active ? 'text-white' : ''}`} />
+              <div className="min-w-0 flex-1">
+                <p className={`text-xs font-semibold ${active ? 'text-white' : ''}`}>{s.label}</p>
+                <p className={`text-[10px] leading-tight mt-0.5 truncate ${active ? 'text-white/70' : 'text-muted-foreground/60'}`}>
                   {s.desc}
                 </p>
               </div>
+              {locked && <span className="text-[9px] ml-auto">🔒</span>}
             </Link>
           )
         })}
-      </nav>
 
-      {/* Prompts link */}
-      {brandId && (
-        <div className="px-3 pb-2">
-          <Link
-            href={`/${lang}/dashboard/${brandId}/prompts`}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-dash-muted hover:bg-dash-elevated hover:text-dash-purple transition-colors"
-          >
-            <span className="w-5 h-5 rounded bg-dash-elevated flex items-center justify-center text-[10px] font-mono">P</span>
-            Prompt Bank
-            {!features.edit_prompts && (
-              <span className="ml-auto text-[9px] text-warning bg-warning/10 px-1.5 py-0.5 rounded uppercase font-bold">Pro</span>
-            )}
-          </Link>
-        </div>
-      )}
+        {/* Pulse / Prompt Bank links */}
+        {brandId && (
+          <div className="pt-3 mt-3 border-t border-border space-y-0.5">
+            <p className="text-[10px] text-muted-foreground/60 font-semibold tracking-widest uppercase mb-2 px-2">Tools</p>
+            <Link
+              href={`/${lang}/pulse/${brandId}`}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-secondary hover:text-foreground transition-all"
+            >
+              <Radio className="size-4 shrink-0" />
+              <span className="text-xs font-semibold">AI Pulse</span>
+              {!features.alerts && (
+                <span className="ml-auto text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-full font-bold">Pro</span>
+              )}
+            </Link>
+            <Link
+              href={`/${lang}/pulse/${brandId}#question-bank`}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-secondary hover:text-foreground transition-all"
+            >
+              <Brain className="size-4 shrink-0" />
+              <span className="text-xs font-semibold">Question Bank</span>
+              {!features.edit_prompts && (
+                <span className="ml-auto text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-full font-bold">Pro</span>
+              )}
+            </Link>
+          </div>
+        )}
+      </nav>
 
       {/* Theme toggle */}
       <div className="px-3 pb-2">
@@ -102,34 +120,43 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
 
       {/* Plan badge */}
       <div className="px-3 pb-3">
-        <div className="rounded-lg bg-dash-elevated p-3 border border-dash-border">
-          <p className="text-[10px] text-dash-muted tracking-widest uppercase mb-1">Current Plan</p>
-          <p className={`text-xs font-bold font-mono ${
-            plan === 'enterprise' ? 'text-dash-purple' : plan === 'pro' ? 'text-dash-accent' : 'text-dash-muted'
-          }`}>{plan.charAt(0).toUpperCase() + plan.slice(1)}</p>
-          <Link
-            href={`/${lang}/dashboard/settings`}
-            className="block text-[10px] text-dash-muted hover:text-dash-text mt-1.5 transition-colors"
-          >
-            Manage plan →
+        <div className="rounded-xl bg-gradient-to-br from-primary/5 to-blue-50 p-3 border border-primary/10">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-[10px] text-primary/60 font-semibold tracking-widest uppercase">Plan</p>
+            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+              plan === 'enterprise' ? 'bg-violet-100 text-violet-700' :
+              plan === 'pro' ? 'bg-primary/15 text-primary' :
+              'bg-muted text-muted-foreground'
+            }`}>
+              {plan.charAt(0).toUpperCase() + plan.slice(1)}
+            </span>
+          </div>
+          <Link href={`/${lang}/dashboard/settings`}
+            className="text-[10px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
+            <Settings className="size-2.5" /> Manage plan
           </Link>
         </div>
       </div>
 
       {/* User footer */}
-      <div className="px-3 pb-4 pt-2 border-t border-dash-border">
+      <div className="px-3 pb-4 pt-2 border-t border-border">
         <div className="flex items-center gap-2 px-2">
+          <div className="size-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <span className="text-[10px] font-bold text-primary">
+              {(profile.display_name ?? 'U')[0]?.toUpperCase()}
+            </span>
+          </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] text-dash-muted truncate">{profile.display_name ?? 'User'}</p>
-            <p className="text-[10px] text-dash-muted/60 font-mono">{plan}</p>
+            <p className="text-[11px] font-medium text-foreground truncate">{profile.display_name ?? 'User'}</p>
+            <p className="text-[10px] text-muted-foreground">{plan}</p>
           </div>
           {profile.is_admin && (
-            <Link href={`/${lang}/admin`} className="text-dash-muted hover:text-dash-text transition-colors" title="Admin">
-              <Wrench size={14} />
+            <Link href={`/${lang}/admin`} className="text-muted-foreground hover:text-foreground transition-colors" title="Admin">
+              <Wrench size={13} />
             </Link>
           )}
-          <Link href="/auth/logout" className="text-dash-muted hover:text-dash-danger transition-colors" title="Sign out">
-            <LogOut size={14} />
+          <Link href="/auth/logout" className="text-muted-foreground hover:text-destructive transition-colors" title="Sign out">
+            <LogOut size={13} />
           </Link>
         </div>
       </div>

@@ -137,20 +137,20 @@ export default function PricingPage() {
     <div className="min-h-screen bg-background">
 
       {/* ── Nav ─────────────────────────────────────────────── */}
-      <nav className="bg-card/80 backdrop-blur border-b px-6 py-3.5 flex justify-between items-center sticky top-0 z-50">
-        <Link href={`/${lang}`} className="flex items-center gap-2">
-          <div className="size-6 rounded-md bg-primary flex items-center justify-center">
-            <Zap className="size-3.5 text-primary-foreground" />
+      <nav className="bg-white/90 backdrop-blur-md border-b border-border/60 px-6 py-3 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+        <Link href={`/${lang}`} className="flex items-center gap-2.5">
+          <div className="size-7 rounded-lg bg-primary flex items-center justify-center shadow-sm">
+            <Zap className="size-4 text-white" />
           </div>
-          <span className="font-black text-foreground text-sm tracking-tight">
+          <span className="font-black text-foreground tracking-tight">
             Fimmick <span className="text-primary">{t('nav_brand')}</span>
           </span>
         </Link>
         <div className="flex items-center gap-4">
-          <Link href={`/${lang}/auth/login`} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <Link href={`/${lang}/auth/login`} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             {t('signin')}
           </Link>
-          <Link href={`/${otherLang}/pricing`} className="text-xs text-muted-foreground hover:text-primary transition-colors border rounded px-2 py-1">
+          <Link href={`/${otherLang}/pricing`} className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors border border-border rounded-md px-2 py-1">
             {otherLabel}
           </Link>
         </div>
@@ -160,7 +160,7 @@ export default function PricingPage() {
 
         {/* ── Hero ────────────────────────────────────────────── */}
         <section className="max-w-3xl mx-auto px-6 pt-16 pb-10 text-center">
-          <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-bold tracking-widest px-4 py-1.5 rounded-full mb-5">
+          <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-bold tracking-widest px-4 py-1.5 rounded-full mb-5 border border-primary/20">
             <Zap className="size-3" />
             {t('badge')}
           </span>
@@ -178,17 +178,15 @@ export default function PricingPage() {
             </span>
             <button
               onClick={() => setAnnual(v => !v)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${annual ? 'bg-primary' : 'bg-muted'}`}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shadow-inner ${annual ? 'bg-primary' : 'bg-slate-200'}`}
             >
-              <span
-                className={`inline-block size-4 transform rounded-full bg-white shadow transition-transform ${annual ? 'translate-x-6' : 'translate-x-1'}`}
-              />
+              <span className={`inline-block size-4 transform rounded-full bg-white shadow-md transition-transform ${annual ? 'translate-x-6' : 'translate-x-1'}`} />
             </button>
             <span className={`text-sm font-semibold ${annual ? 'text-foreground' : 'text-muted-foreground'}`}>
               {t('toggle_annual')}
             </span>
             {annual && (
-              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
                 {t('annual_discount')}
               </span>
             )}
@@ -203,15 +201,15 @@ export default function PricingPage() {
               return (
                 <div
                   key={plan.key}
-                  className={`relative rounded-2xl border-2 p-7 flex flex-col ${
+                  className={`relative rounded-2xl p-7 flex flex-col transition-all duration-200 ${
                     isPro
-                      ? 'border-primary bg-card shadow-xl shadow-primary/10'
-                      : 'border-border bg-card'
+                      ? 'border-2 border-primary bg-white shadow-2xl shadow-primary/15 scale-[1.02]'
+                      : 'border border-border bg-white shadow-sm hover:shadow-md'
                   }`}
                 >
                   {isPro && (
-                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                      <span className="bg-primary text-primary-foreground text-[10px] font-black tracking-widest px-3 py-1 rounded-full">
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                      <span className="bg-primary text-white text-[10px] font-black tracking-widest px-4 py-1.5 rounded-full shadow-lg">
                         {t('popular')}
                       </span>
                     </div>
@@ -221,10 +219,10 @@ export default function PricingPage() {
                   <p className={`text-xs font-bold tracking-widest uppercase ${isPro ? 'text-primary' : 'text-muted-foreground'}`}>
                     {plan.name}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1 mb-4 leading-snug">{plan.tag}</p>
+                  <p className="text-xs text-muted-foreground mt-1 mb-5 leading-snug">{plan.tag}</p>
 
                   {/* Price */}
-                  <div className="mb-6">
+                  <div className="mb-6 pb-6 border-b border-border">
                     <span className="text-4xl font-black text-foreground">{plan.price}</span>
                     {plan.key !== 'enterprise' ? (
                       <span className="text-sm text-muted-foreground ml-1">{plan.priceSub}</span>
@@ -234,7 +232,7 @@ export default function PricingPage() {
                   </div>
 
                   {/* Feature highlights for card */}
-                  <ul className="space-y-2 text-sm flex-1 mb-7">
+                  <ul className="space-y-2.5 text-sm flex-1 mb-7">
                     {plan.key === 'basic' && [
                       t('row_scans_s') + ' ' + t('row_scans'),
                       t('row_checks'),
@@ -242,9 +240,9 @@ export default function PricingPage() {
                       t('row_brands_s') + ' ' + t('row_brands').toLowerCase(),
                       t('row_history_s') + ' ' + t('row_history').toLowerCase(),
                     ].map(f => (
-                      <li key={f} className="flex items-start gap-2">
+                      <li key={f} className="flex items-start gap-2.5">
                         <Check className="size-3.5 text-emerald-500 mt-0.5 shrink-0" />
-                        <span className="text-slate-700">{f}</span>
+                        <span className="text-slate-600 text-xs">{f}</span>
                       </li>
                     ))}
                     {plan.key === 'pro' && [
@@ -258,9 +256,9 @@ export default function PricingPage() {
                       t('row_alerts'),
                       t('row_competitor'),
                     ].map(f => (
-                      <li key={f} className="flex items-start gap-2">
+                      <li key={f} className="flex items-start gap-2.5">
                         <Check className="size-3.5 text-primary mt-0.5 shrink-0" />
-                        <span className="text-slate-700">{f}</span>
+                        <span className="text-slate-700 text-xs">{f}</span>
                       </li>
                     ))}
                     {plan.key === 'enterprise' && [
@@ -272,9 +270,9 @@ export default function PricingPage() {
                       t('row_api'),
                       t('row_support'),
                     ].map(f => (
-                      <li key={f} className="flex items-start gap-2">
+                      <li key={f} className="flex items-start gap-2.5">
                         <Check className="size-3.5 text-emerald-500 mt-0.5 shrink-0" />
-                        <span className="text-slate-700">{f}</span>
+                        <span className="text-slate-600 text-xs">{f}</span>
                       </li>
                     ))}
                   </ul>
@@ -282,11 +280,11 @@ export default function PricingPage() {
                   {/* CTA */}
                   <button
                     onClick={plan.ctaAction}
-                    disabled={plan.key === 'pro' && loading}
-                    className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 ${
+                    disabled={loading}
+                    className={`w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150 flex items-center justify-center gap-1.5 shadow-sm ${
                       isPro
-                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                        : 'bg-muted text-foreground hover:bg-muted/80'
+                        ? 'bg-primary text-white hover:bg-primary/90 shadow-primary/20 shadow-md'
+                        : 'bg-secondary text-foreground hover:bg-secondary/80 border border-border'
                     } disabled:opacity-60`}
                   >
                     {plan.cta}
@@ -304,16 +302,16 @@ export default function PricingPage() {
 
         {/* ── Comparison Table ─────────────────────────────────── */}
         <section className="max-w-5xl mx-auto px-6 pb-20">
-          <h2 className="text-xs font-bold text-muted-foreground tracking-widest text-center mb-8">
+          <p className="text-xs font-bold text-muted-foreground tracking-widest text-center mb-8 uppercase">
             {t('section_whats_included')}
-          </h2>
+          </p>
 
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
             {/* Header */}
-            <div className="grid grid-cols-4 bg-muted/40 border-b border-border">
-              <div className="p-4 text-xs font-bold text-muted-foreground" />
+            <div className="grid grid-cols-4 bg-slate-50 border-b border-border">
+              <div className="p-4 text-xs font-semibold text-muted-foreground" />
               {(['basic', 'pro', 'enterprise'] as Col[]).map(col => (
-                <div key={col} className={`p-4 text-center text-xs font-bold tracking-widest ${col === 'pro' ? 'text-primary' : 'text-muted-foreground'}`}>
+                <div key={col} className={`p-4 text-center text-xs font-bold tracking-wide ${col === 'pro' ? 'text-primary bg-primary/5' : 'text-muted-foreground'}`}>
                   {col === 'basic' ? t('col_basic') : col === 'pro' ? t('col_pro') : t('col_enterprise')}
                 </div>
               ))}
@@ -323,11 +321,11 @@ export default function PricingPage() {
             {rows.map((row, i) => (
               <div
                 key={row.label}
-                className={`grid grid-cols-4 border-b border-border last:border-0 ${i % 2 === 0 ? '' : 'bg-muted/20'} ${row.highlight ? 'bg-primary/5' : ''}`}
+                className={`grid grid-cols-4 border-b border-border last:border-0 ${i % 2 !== 0 ? 'bg-slate-50/50' : ''} ${row.highlight ? 'bg-primary/3' : ''}`}
               >
-                <div className="p-3.5 px-4 text-sm text-slate-700">{row.label}</div>
+                <div className="p-3.5 px-4 text-sm text-slate-700 font-medium">{row.label}</div>
                 <div className="p-3.5 flex items-center justify-center"><Cell value={row.basic} /></div>
-                <div className="p-3.5 flex items-center justify-center"><Cell value={row.pro} /></div>
+                <div className="p-3.5 flex items-center justify-center bg-primary/2"><Cell value={row.pro} /></div>
                 <div className="p-3.5 flex items-center justify-center"><Cell value={row.enterprise} /></div>
               </div>
             ))}
@@ -335,10 +333,10 @@ export default function PricingPage() {
         </section>
 
         {/* ── FAQ ─────────────────────────────────────────────── */}
-        <section className="bg-muted/30 border-t py-16">
+        <section className="bg-gradient-to-b from-slate-50 to-white border-t border-border/60 py-16">
           <div className="max-w-2xl mx-auto px-6">
-            <h2 className="text-xl font-black text-foreground text-center mb-8">{t('faq_title')}</h2>
-            <div className="bg-card border border-border rounded-2xl px-6">
+            <h2 className="text-2xl font-black text-foreground text-center mb-8">{t('faq_title')}</h2>
+            <div className="bg-white border border-border rounded-2xl px-6 shadow-sm">
               <FaqItem q={t('faq_1_q')} a={t('faq_1_a')} />
               <FaqItem q={t('faq_2_q')} a={t('faq_2_a')} />
               <FaqItem q={t('faq_3_q')} a={t('faq_3_a')} />
@@ -348,36 +346,35 @@ export default function PricingPage() {
         </section>
 
         {/* ── Bottom CTA ───────────────────────────────────────── */}
-        <section className="max-w-xl mx-auto px-6 py-20 text-center">
-          <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-bold tracking-widest px-4 py-1.5 rounded-full mb-5">
-            <Zap className="size-3" />
-            {t('bottom_badge')}
-          </span>
-          <h2 className="text-3xl font-black text-foreground mb-3">{t('bottom_title')}</h2>
-          <p className="text-muted-foreground text-sm mb-8 leading-relaxed">{t('bottom_body')}</p>
-          <Link
-            href={`/${lang}`}
-            className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-semibold px-8 py-3 rounded-xl hover:bg-primary/90 transition-colors text-sm"
-          >
-            {t('bottom_cta')}
-          </Link>
+        <section className="relative overflow-hidden bg-gradient-to-br from-primary via-blue-600 to-blue-700 py-16">
+          <div className="max-w-xl mx-auto px-6 text-center relative">
+            <h2 className="text-3xl font-black text-white mb-3">{t('bottom_title')}</h2>
+            <p className="text-blue-100 text-sm mb-8 leading-relaxed">{t('bottom_body')}</p>
+            <Link
+              href={`/${lang}`}
+              className="inline-flex items-center gap-2 bg-white text-primary font-semibold px-8 py-3 rounded-xl hover:bg-white/90 transition-colors text-sm shadow-lg"
+            >
+              {t('bottom_cta')} <ChevronRight className="size-4" />
+            </Link>
+            <p className="text-blue-200/60 text-xs mt-4">Free scan · No credit card required</p>
+          </div>
         </section>
 
         {/* ── Footer ───────────────────────────────────────────── */}
-        <footer className="border-t bg-muted/30 py-8 px-6">
+        <footer className="border-t border-border bg-white py-8 px-6">
           <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <div className="size-4 rounded bg-primary flex items-center justify-center">
-                <Zap className="size-2.5 text-primary-foreground" />
+            <div className="flex items-center gap-2">
+              <div className="size-5 rounded-md bg-primary flex items-center justify-center">
+                <Zap className="size-3 text-white" />
               </div>
-              <span className="font-bold text-foreground">Fimmick <span className="text-primary">AISO</span> Platform</span>
+              <span className="font-bold text-foreground">Fimmick <span className="text-primary">AISO</span></span>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-5">
               <Link href={`/${lang}`} className="hover:text-foreground transition-colors">Home</Link>
               <Link href={`/${lang}/auth/login`} className="hover:text-foreground transition-colors">{t('signin')}</Link>
-              <Link href={`/${otherLang}/pricing`} className="hover:text-foreground transition-colors">{otherLabel}</Link>
+              <Link href={`/${otherLang}/pricing`} className="hover:text-foreground transition-colors border border-border rounded px-2 py-0.5">{otherLabel}</Link>
             </div>
-            <span>© 2026 Fimmick. AI Search Optimization.</span>
+            <span>© 2026 Fimmick.</span>
           </div>
         </footer>
 
