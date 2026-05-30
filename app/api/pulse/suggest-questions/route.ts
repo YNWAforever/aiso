@@ -8,15 +8,23 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   if (!body?.clientId) return NextResponse.json({ error: 'clientId required' }, { status: 400 })
 
-  const { clientId, count = 5 } = body as { clientId: string; count?: number }
+  const rawCount = typeof body.count === 'number' ? body.count : 5
+  const count = Math.min(Math.max(1, rawCount), 10)
+  const { clientId } = body as { clientId: string }
 
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
 
-  // Fetch client info + existing questions (to avoid duplication)
+  // Resolve account_id to enforce ownership
+  const { data: profile } = await supabase
+    .from('profiles').select('account_id').eq('id', user.id).single()
+  if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
+
+  // Fetch client info + existing questions — ownership-guarded via account_id
   const [{ data: client }, { data: existing }] = await Promise.all([
-    supabase.from('clients').select('brand_name, industry').eq('id', clientId).single(),
+    supabase.from('clients').select('brand_name, industry')
+      .eq('id', clientId).eq('account_id', profile.account_id).single(),
     supabase.from('prompt_bank').select('question, category').eq('client_id', clientId).limit(50),
   ])
 

@@ -25,13 +25,30 @@ export async function POST(req: NextRequest) {
 
   const accountId = profile.account_id
 
-  // Set trial dates on account (7-day trial)
+  // Guard against double-submit: check if trial already started
+  const { data: account } = await supabase
+    .from('accounts').select('trial_started_at').eq('id', accountId).single()
+  const trialAlreadyStarted = !!account?.trial_started_at
+
+  // Set trial dates on account (7-day trial) — only on first call
   const now = new Date()
-  const trialEndsAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-  await supabase.from('accounts').update({
-    trial_started_at: now.toISOString(),
-    trial_ends_at: trialEndsAt.toISOString(),
-  }).eq('id', accountId)
+  const trialEndsAt = trialAlreadyStarted
+    ? new Date(account!.trial_started_at!)
+    : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+
+  if (!trialAlreadyStarted) {
+    await supabase.from('accounts').update({
+      trial_started_at: now.toISOString(),
+      trial_ends_at: trialEndsAt.toISOString(),
+    }).eq('id', accountId)
+  }
+
+  // Guard against duplicate clients: return existing client if account already has one
+  const { data: existingClient } = await supabase
+    .from('clients').select('id').eq('account_id', accountId).limit(1).single()
+  if (existingClient) {
+    return NextResponse.json({ clientId: existingClient.id, trialEndsAt: trialEndsAt.toISOString() })
+  }
 
   // Create client
   const { data: clientData, error: clientError } = await supabase
