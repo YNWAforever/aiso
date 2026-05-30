@@ -94,6 +94,9 @@ export interface Account {
   stripe_subscription_id: string | null
   plan: 'basic' | 'pro' | 'enterprise'
   status: 'active' | 'past_due' | 'cancelled' | 'trialing'
+  trial_started_at: string | null
+  trial_ends_at: string | null
+  trial_emails_sent: number
   created_at: string
 }
 
