@@ -55,9 +55,9 @@ export default async function DashboardPage({
   return (
     <>
       {/* Header */}
-      <div className="pt-6 px-6 pb-4 border-b border-[#1e1e30]">
-        <p className="text-lg font-bold text-[#e0e0ec] mb-1">My Brands</p>
-        <p className="text-[12px] text-[#5c5c6e] leading-relaxed">
+      <div className="pt-6 px-6 pb-4 border-b border-border">
+        <p className="text-lg font-bold text-foreground mb-1">My Brands</p>
+        <p className="text-2xs text-muted-foreground leading-relaxed">
           Each brand gets its own dashboard with scan results, AI agent recommendations, and share-of-voice monitoring. Select a brand below or add your first one.
         </p>
       </div>
@@ -67,7 +67,7 @@ export default async function DashboardPage({
         {hasClients ? (
           <div>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold text-[#5c5c6e] tracking-widest uppercase">Tracked Brands</p>
+              <p className="text-xs font-semibold text-muted-foreground tracking-widest uppercase">Tracked Brands</p>
               {!atLimit && <AddBrandWizard lang={lang} />}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -85,13 +85,13 @@ export default async function DashboardPage({
           </div>
         ) : (
           <div>
-            <p className="text-xs font-semibold text-[#5c5c6e] tracking-widest uppercase mb-3">Tracked Brands</p>
-            <div className="rounded-xl border border-[#1e1e30] bg-[#0d0d18] p-8 text-center">
-              <div className="w-12 h-12 rounded-full bg-[#00d4ff10] flex items-center justify-center mx-auto mb-4">
-                <Search className="w-5 h-5 text-[#00d4ff]" />
+            <p className="text-xs font-semibold text-muted-foreground tracking-widest uppercase mb-3">Tracked Brands</p>
+            <div className="rounded-xl border border-border bg-muted/30 p-8 text-center">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Search className="w-5 h-5 text-primary" />
               </div>
-              <p className="text-sm font-semibold text-[#e0e0ec] mb-1">Add your first brand</p>
-              <p className="text-xs text-[#5c5c6e] mb-5 max-w-sm mx-auto leading-relaxed">
+              <p className="text-sm font-semibold text-foreground mb-1">Add your first brand</p>
+              <p className="text-xs text-muted-foreground mb-5 max-w-sm mx-auto leading-relaxed">
                 Track your Share of Voice across ChatGPT, Perplexity, Claude, and Gemini. Each brand gets a full diagnostic dashboard with 20 AI readiness checks and agent analysis.
               </p>
               <AddBrandWizard lang={lang} />
@@ -101,7 +101,7 @@ export default async function DashboardPage({
 
         {hasScans && (
           <div>
-            <p className="text-xs font-semibold text-[#5c5c6e] tracking-widest uppercase mb-3">Recent Scans</p>
+            <p className="text-xs font-semibold text-muted-foreground tracking-widest uppercase mb-3">Recent Scans</p>
             <RecentScans scans={scans as Pick<Scan, 'id' | 'domain' | 'score' | 'created_at'>[]} lang={lang} />
           </div>
         )}

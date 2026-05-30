@@ -27,7 +27,7 @@ export function WizardProgress({ current, plan, hasScan }: Props) {
   }
 
   return (
-    <div className="flex items-center justify-center gap-0 py-3 px-6 border-b border-[#1e1e30] bg-[#0d0d18]">
+    <div className="flex items-center justify-center gap-0 py-3 px-6 border-b border-border bg-muted/30">
       {STEPS.map((step, i) => {
         const access = stepAccess[step.key]!
         const isCurrent = step.key === current
@@ -37,27 +37,25 @@ export function WizardProgress({ current, plan, hasScan }: Props) {
         return (
           <div key={step.key} className="flex items-center">
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
-              isCurrent ? 'bg-[#00d4ff12]' : ''
+              isCurrent ? 'bg-primary/10' : ''
             }`}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold font-mono transition-colors ${
                 isCompleted
-                  ? 'bg-[#22c55e] text-white'
+                  ? 'bg-success text-success-foreground'
                   : isCurrent
-                    ? 'bg-[#00d4ff] text-[#050510]'
-                    : isLocked
-                      ? 'bg-[#1e1e30] text-[#5c5c6e]'
-                      : 'bg-[#1e1e30] text-[#5c5c6e]'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
               }`}>
                 {isCompleted ? '✓' : isLocked ? '🔒' : i + 1}
               </div>
-              <span className={`text-[11px] font-medium transition-colors ${
-                isCurrent ? 'text-[#e0e0ec]' : isCompleted ? 'text-[#22c55e]' : 'text-[#5c5c6e]'
+              <span className={`text-xs- font-medium transition-colors ${
+                isCurrent ? 'text-foreground' : isCompleted ? 'text-success' : 'text-muted-foreground'
               }`}>
                 {step.label}
               </span>
             </div>
             {i < STEPS.length - 1 && (
-              <div className={`w-8 h-px mx-1 ${i < currentIdx ? 'bg-[#22c55e]' : 'bg-[#1e1e30]'}`} />
+              <div className={`w-8 h-px mx-1 ${i < currentIdx ? 'bg-success' : 'bg-border'}`} />
             )}
           </div>
         )
