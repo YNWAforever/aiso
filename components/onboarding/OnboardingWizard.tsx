@@ -135,6 +135,12 @@ export function OnboardingWizard({
                 Continue <ChevronRight className="size-4" />
               </button>
             </div>
+            <button
+              onClick={() => setStep(3)}
+              className="w-full text-xs text-muted-foreground hover:text-foreground mt-3 transition"
+            >
+              Skip — I don&apos;t have a domain yet
+            </button>
           </div>
         )}
 

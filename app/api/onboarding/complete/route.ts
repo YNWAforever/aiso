@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
       brand_name: brandName,
       domain: domain ?? null,
       industry: industry ?? null,
+      region: region ?? null,
       competitors: [],
       account_id: accountId,
       status: 'active',
@@ -79,9 +80,9 @@ export async function POST(req: NextRequest) {
       is_active: true,
     }))
     await supabase.from('prompt_bank').insert(rows)
-  } catch {
+  } catch (err) {
     // Prompt generation failure is non-fatal — client still created
-    console.warn('[onboarding] prompt generation failed')
+    console.warn('[onboarding] prompt generation failed:', (err as Error)?.message ?? String(err))
   }
 
   return NextResponse.json({ clientId, trialEndsAt: trialEndsAt.toISOString() })

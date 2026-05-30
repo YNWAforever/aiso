@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 
 export default async function OnboardingPage({
@@ -18,6 +18,7 @@ export default async function OnboardingPage({
   let initialRegion = ''
 
   if (scanId) {
+    const supabase = await createServerSupabaseClient()
     const { data } = await supabase
       .from('scans')
       .select('domain, industry, region')
