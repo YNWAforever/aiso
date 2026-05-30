@@ -8,8 +8,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
 
-  const { brandName, domain, industry, region, scanId } = body as {
-    brandName?: string; domain?: string; industry?: string; region?: string; scanId?: string
+  const { brandName, domain, industry, region, description, competitors, scanId } = body as {
+    brandName?: string; domain?: string; industry?: string; region?: string
+    description?: string; competitors?: string[]; scanId?: string
   }
 
   if (!brandName) return NextResponse.json({ error: 'brandName required' }, { status: 400 })
@@ -58,7 +59,8 @@ export async function POST(req: NextRequest) {
       domain: domain ?? null,
       industry: industry ?? null,
       region: region ?? null,
-      competitors: [],
+      description: description ?? null,
+      competitors: competitors ?? [],
       account_id: accountId,
       status: 'active',
     })
@@ -84,7 +86,7 @@ export async function POST(req: NextRequest) {
       maxTokens: 3000,
       messages: [{
         role: 'user',
-        content: `Brand: ${brandName}\nIndustry: ${industry ?? 'general'}\nDomain: ${domain ?? ''}\n\nGenerate 24 questions in 4 categories (brand_query, category_query, intent_query, pain_point), 6 per category. Return ONLY a JSON array: [{"category":"brand_query","question":"...","language":"en"}]`,
+        content: `Brand: ${brandName}\nIndustry: ${industry ?? 'general'}\nDomain: ${domain ?? ''}\nDescription: ${description ?? ''}\nCompetitors: ${(competitors ?? []).join(', ') || 'none specified'}\n\nGenerate 24 questions in 4 categories (brand_query, category_query, intent_query, pain_point), 6 per category. Return ONLY a JSON array: [{"category":"brand_query","question":"...","language":"en"}]`,
       }],
     })
     const match = raw.match(/\[[\s\S]*\]/)
