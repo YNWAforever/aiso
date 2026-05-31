@@ -239,22 +239,33 @@ export async function POST(req: NextRequest) {
     insertPayload.agent_status = 'pending'
   }
 
-  let insertResult: { data: { id: string } | null; error: unknown } = await supabase
-    .from('scans')
-    .insert(insertPayload)
-    .select('id')
-    .single()
+  let insertResult: { data: { id: string } | null; error: unknown }
+  try {
+    insertResult = await supabase
+      .from('scans')
+      .insert(insertPayload)
+      .select('id')
+      .single()
+  } catch (dbErr) {
+    console.error('[scan] DB insert threw:', (dbErr as Error)?.message ?? String(dbErr))
+    return NextResponse.json({ error: 'Database connection error — check Supabase configuration' }, { status: 500 })
+  }
 
   // columns from newer migrations may not exist yet on all databases
   if (insertResult.error) {
     // This could fail if agent_status column doesn't exist
     if (isDashboardScan && insertPayload.agent_status) {
       delete insertPayload.agent_status
-      insertResult = await supabase
-        .from('scans')
-        .insert(insertPayload)
-        .select('id')
-        .single()
+      try {
+        insertResult = await supabase
+          .from('scans')
+          .insert(insertPayload)
+          .select('id')
+          .single()
+      } catch (retryErr) {
+        console.error('[scan] DB insert retry threw:', (retryErr as Error)?.message ?? String(retryErr))
+        return NextResponse.json({ error: 'Database connection error — check Supabase configuration' }, { status: 500 })
+      }
     }
   }
 
