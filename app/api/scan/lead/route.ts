@@ -5,18 +5,21 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
 
-  const { scanId, email } = body as { scanId?: string; email?: string }
+  const { scanId, email: rawEmail } = body as { scanId?: string; email?: string }
 
   if (!scanId || typeof scanId !== 'string') {
     return NextResponse.json({ error: 'Missing scanId' }, { status: 400 })
   }
-  if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+
+  // Normalise before validation so trailing/leading whitespace is handled gracefully
+  const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : ''
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: 'Invalid email' }, { status: 400 })
   }
 
   const { error } = await supabase
     .from('scans')
-    .update({ lead_email: email.toLowerCase().trim() })
+    .update({ lead_email: email })
     .eq('id', scanId)
 
   if (error) {

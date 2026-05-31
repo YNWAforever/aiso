@@ -58,6 +58,15 @@ function scorePts(result: CheckResult, weight: number): number {
 }
 
 /** Exported for tests — computes score from a full results object */
+export function assignGrade(score: number): string {
+  if (score >= 90) return 'A+'
+  if (score >= 80) return 'A'
+  if (score >= 70) return 'B'
+  if (score >= 60) return 'C'
+  if (score >= 50) return 'D'
+  return 'F'
+}
+
 export function calculateScore(results: ScanResults): number {
   const core = (Object.keys(CORE_PTS) as Array<keyof typeof CORE_PTS>)
     .reduce((s, k) => s + scorePts(results[k], CORE_PTS[k]), 0)
@@ -199,12 +208,7 @@ export async function POST(req: NextRequest) {
   })
 
   const totalScore = Math.min(100, score + geoScore)
-  const grade =
-    totalScore >= 90 ? 'A+' :
-    totalScore >= 80 ? 'A'  :
-    totalScore >= 70 ? 'B'  :
-    totalScore >= 60 ? 'C'  :
-    totalScore >= 50 ? 'D'  : 'F'
+  const grade = assignGrade(totalScore)
 
   // Attach to user account if logged in
   let account_id: string | null = null
