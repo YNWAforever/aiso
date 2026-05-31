@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { Scan } from '@/lib/types'
 
 type Props = {
@@ -12,24 +12,35 @@ type Props = {
 }
 
 export function ScanStep({ lang, clientId, scanHistory }: Props) {
-  const router = useRouter()
-  const [url, setUrl] = useState('')
-  const [industry, setIndustry] = useState('')
-  const [region, setRegion] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const router       = useRouter()
+  const searchParams = useSearchParams()
+  const autoUrl      = searchParams.get('url') ?? ''
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!url.trim()) return
+  const [url, setUrl]           = useState(autoUrl)
+  const [industry, setIndustry] = useState('')
+  const [region, setRegion]     = useState('')
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState('')
+  const autoSubmitted           = useRef(false)
+
+  // Auto-submit when arriving from onboarding with a pre-filled URL
+  useEffect(() => {
+    if (autoUrl && !autoSubmitted.current && !loading) {
+      autoSubmitted.current = true
+      runScan(autoUrl)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoUrl])
+
+  async function runScan(scanUrl: string) {
+    if (!scanUrl.trim()) return
     setLoading(true)
     setError('')
-
     try {
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim(), industry: industry || undefined, region: region || undefined, clientId }),
+        body: JSON.stringify({ url: scanUrl.trim(), industry: industry || undefined, region: region || undefined, clientId }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Scan failed'); setLoading(false); return }
@@ -38,6 +49,30 @@ export function ScanStep({ lang, clientId, scanHistory }: Props) {
       setError('Network error. Please try again.')
       setLoading(false)
     }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    await runScan(url)
+  }
+
+  // If auto-scanning, show a full-screen loading state
+  if (loading && autoUrl) {
+    return (
+      <div className="rounded-xl border border-dash-border bg-dash-surface p-10 text-center space-y-4">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-dash-accent/10 mx-auto">
+          <svg className="w-5 h-5 text-dash-accent animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+        </div>
+        <p className="text-sm font-semibold text-dash-text">Scanning your brand…</p>
+        <p className="text-xs text-dash-muted">Running 20 AI readiness checks on <span className="font-mono text-dash-accent">{autoUrl}</span></p>
+        <div className="max-w-xs mx-auto h-1.5 bg-dash-elevated rounded-full overflow-hidden">
+          <div className="h-full bg-dash-accent rounded-full animate-pulse" style={{ width: '60%' }} />
+        </div>
+      </div>
+    )
   }
 
   return (

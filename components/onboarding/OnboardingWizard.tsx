@@ -107,7 +107,10 @@ export function OnboardingWizard({
     })
     const data = await res.json()
     if (!res.ok) { setError(data.error ?? 'Something went wrong'); setLoading(false); return }
-    router.push(`/${lang}/dashboard/${data.clientId}`)
+    // Go straight to the scan step with the brand domain pre-filled
+    // This triggers an immediate scan (which fires n8n) rather than leaving the user in an empty dashboard
+    const scanUrl = domain ? `?step=scan&url=${encodeURIComponent(domain.startsWith('http') ? domain : `https://${domain}`)}` : '?step=scan'
+    router.push(`/${lang}/dashboard/${data.clientId}${scanUrl}`)
   }
 
   const progress = (step / TOTAL_STEPS) * 100
