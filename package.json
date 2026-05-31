@@ -11,7 +11,10 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:report": "playwright show-report"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
@@ -25,12 +28,14 @@
     "next-intl": "^4.9.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-is": "^19.2.6",
     "recharts": "^3.8.1",
     "resend": "^6.12.2",
     "stripe": "^22.0.2",
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22.19.17",
     "@types/react": "^19",
