@@ -1,5 +1,15 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { checkFactualDensity } from '@/lib/checks/factualDensity'
+
+// Mock OpenRouter — eliminates ~1.5s LLM round-trip per test
+vi.mock('@/lib/openrouter', () => ({
+  callOpenRouter: vi.fn().mockResolvedValue(JSON.stringify({
+    qualityScore: 75,
+    hasComparativeData: true,
+    hasTimeSeriesData: false,
+    uniquenessScore: 60,
+  })),
+}))
 
 const HTML_FACTUAL = `<html><body>
 <p>In Q1 2024, revenue grew 23.4% to $4.2 billion, compared to $3.4 billion in Q1 2023.
@@ -16,9 +26,26 @@ describe('checkFactualDensity', () => {
   it('returns pass for factual content', async () => {
     const r = await checkFactualDensity(HTML_FACTUAL, { industry: 'finance', region: 'US' })
     expect(r.status).toBe('pass')
-  }, 15_000)
-  it('returns fail for vague content', async () => {
+  })
+
+  it('returns fail or warn for vague content', async () => {
     const r = await checkFactualDensity(HTML_VAGUE, { industry: 'finance', region: 'US' })
     expect(['fail', 'warn']).toContain(r.status)
-  }, 15_000)
+  })
+
+  it('result includes geoDetails with numberDensity', async () => {
+    const r = await checkFactualDensity(HTML_FACTUAL, { industry: 'finance', region: 'US' })
+    expect(r).toHaveProperty('geoDetails')
+    expect(typeof r.geoDetails?.numberDensity).toBe('number')
+  })
+
+  it('detects date references in factual content', async () => {
+    const r = await checkFactualDensity(HTML_FACTUAL, { industry: 'technology', region: 'global' })
+    expect((r.geoDetails?.dateReferences ?? 0)).toBeGreaterThan(0)
+  })
+
+  it('handles empty HTML without throwing', async () => {
+    const r = await checkFactualDensity('<html><body></body></html>', { industry: 'technology', region: 'global' })
+    expect(['pass', 'warn', 'fail']).toContain(r.status)
+  })
 })

@@ -34,16 +34,16 @@ const TLD_RULES: Record<string, TldRule> = {
   info: { score: 2,  category: 'commercial' },
 }
 
-export function scoreLayer1(domain: string): { baseScore: number; category: TldCategory } {
+export function scoreLayer1(domain: string): { baseScore: number; category: TldCategory; tld: string } {
   const parts = domain.replace(/^www\./, '').split('.')
   const twoLevel = parts.slice(-2).join('.')
-  const tld = parts[parts.length - 1]
+  const tld = parts[parts.length - 1] ?? ''
 
   // Second-level patterns like gov.hk, edu.sg, ac.uk
   if (/^(gov|edu|ac)\..+/.test(twoLevel)) {
-    return { baseScore: 9, category: 'government' }
+    return { baseScore: 9, category: 'government', tld }
   }
 
   const rule = TLD_RULES[tld] ?? { score: 2, category: 'other' as TldCategory }
-  return { baseScore: rule.score, category: rule.category }
+  return { baseScore: rule.score, category: rule.category, tld }
 }

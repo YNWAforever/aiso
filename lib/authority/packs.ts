@@ -140,8 +140,8 @@ export const INDUSTRY_PACKS: Record<IndustryCode, IndustryPack> = {
 export const REGIONAL_PACKS: Record<RegionCode, RegionalPack> = {
   HK: {
     code: 'HK', displayName: 'Hong Kong',
-    tier1Local: ['hkma.gov.hk','judiciary.hk','legco.gov.hk','hkex.com.hk'],
-    tier2Local: ['scmp.com','hkfp.com','thestandard.com.hk'],
+    tier1Local: ['hkma.gov.hk','judiciary.hk','legco.gov.hk','hkex.com.hk','rthk.hk'],
+    tier2Local: ['scmp.com','hkfp.com','thestandard.com.hk','mingpao.com','hk.on.cc'],
     tier3Local: ['hk01.com','edigest.hk'],
     community: ['reddit.com'],
   },

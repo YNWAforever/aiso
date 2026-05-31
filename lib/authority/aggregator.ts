@@ -50,6 +50,12 @@ export async function computeAuthority(
       : null,
     finalScore,
     tier,
+    // Flat convenience aliases for tests and UI
+    totalScore:  finalScore,
+    layer1Score: l1.baseScore,
+    layer2Score: l2.signalScore,
+    layer3Score: l3.adjustedScore,
+    layer4Score: l4.score,
   }
 
   cacheSet(cacheKey, result, CACHE_TTL.AUTHORITY)

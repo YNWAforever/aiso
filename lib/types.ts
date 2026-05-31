@@ -177,6 +177,12 @@ export interface AuthorityBreakdown {
   layer5_dynamic:  { zScore: number; dynamicBoost: number; citationFrequency90d: number } | null
   finalScore:      number
   tier:            AuthorityTier
+  // Flat aliases for convenient access in tests and UI
+  totalScore?:  number
+  layer1Score?: number
+  layer2Score?: number
+  layer3Score?: number
+  layer4Score?: number
 }
 
 export interface CitationDensityResult {

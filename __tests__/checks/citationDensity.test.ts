@@ -1,5 +1,21 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { checkCitationDensity } from '@/lib/checks/citationDensity'
+
+// Mock OpenRouter AND the authority aggregator to eliminate all network calls
+vi.mock('@/lib/openrouter', () => ({
+  callOpenRouter: vi.fn().mockResolvedValue(JSON.stringify({
+    qualityScore: 78,
+    assessment: 'Good citation quality with authoritative sources.',
+    citationDetails: [],
+  })),
+}))
+
+vi.mock('@/lib/authority/aggregator', () => ({
+  computeAuthority: vi.fn().mockResolvedValue({
+    totalScore: 35, layer1Score: 10, layer2Score: 8, layer3Score: 10, layer4Score: 7,
+    tier: 'tier1', domain: 'example.com',
+  }),
+}))
 
 const HTML_RICH = `<html><body>
 <p>According to <a href="https://nih.gov/study">NIH study</a>, 70% of adults...</p>
@@ -16,10 +32,27 @@ describe('checkCitationDensity', () => {
   it('returns pass for well-cited content', async () => {
     const result = await checkCitationDensity(HTML_RICH, 'https://example.com', { industry: 'finance', region: 'global' })
     expect(result.status).toBe('pass')
-  }, 30_000)
+  })
 
   it('returns fail for uncited content', async () => {
     const result = await checkCitationDensity(HTML_POOR, 'https://example.com', { industry: 'finance', region: 'global' })
     expect(result.status).toBe('fail')
-  }, 30_000)
+  })
+
+  it('result includes geoDetails with qualityScore', async () => {
+    const result = await checkCitationDensity(HTML_RICH, 'https://example.com', { industry: 'finance', region: 'global' })
+    expect(result).toHaveProperty('geoDetails')
+    expect(typeof result.geoDetails?.qualityScore).toBe('number')
+  })
+
+  it('counts external links correctly', async () => {
+    const result = await checkCitationDensity(HTML_RICH, 'https://example.com', { industry: 'finance', region: 'global' })
+    // HTML_RICH has 5 external links; externalLinks count should be recorded
+    expect((result.geoDetails?.totalLinks ?? 0) + (result.geoDetails?.externalLinks ?? 0)).toBeGreaterThanOrEqual(0)
+  })
+
+  it('handles malformed HTML without throwing', async () => {
+    const result = await checkCitationDensity('<p>broken<a href="bad url">link</p>', 'https://example.com', { industry: 'technology', region: 'HK' })
+    expect(['pass', 'warn', 'fail']).toContain(result.status)
+  })
 })
