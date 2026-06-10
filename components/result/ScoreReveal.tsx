@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { INDUSTRY_BENCHMARKS } from '@/lib/impact'
 
 const GRADE_CONFIG: Record<string, { ring: string; badge: string; text: string; label: string }> = {
   'A+': { ring: 'stroke-emerald-500', badge: 'bg-emerald-500', text: 'text-white', label: 'Excellent' },
@@ -8,14 +9,6 @@ const GRADE_CONFIG: Record<string, { ring: string; badge: string; text: string; 
   'C':  { ring: 'stroke-yellow-500',  badge: 'bg-yellow-500',  text: 'text-white', label: 'Fair' },
   'D':  { ring: 'stroke-orange-500',  badge: 'bg-orange-500',  text: 'text-white', label: 'Poor' },
   'F':  { ring: 'stroke-red-500',     badge: 'bg-red-500',     text: 'text-white', label: 'Critical' },
-}
-
-const INDUSTRY_BENCHMARKS: Record<string, number> = {
-  technology: 61, finance: 58, medical: 54, legal: 52,
-  retail_ecommerce: 48, education: 51, real_estate: 44,
-  travel_hospitality: 46, media_entertainment: 55,
-  manufacturing: 40, energy_utilities: 42,
-  general_b2b: 49, general_b2c: 47,
 }
 
 const INDUSTRY_LABELS: Record<string, string> = {

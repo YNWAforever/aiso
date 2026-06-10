@@ -8,6 +8,10 @@ import { TopIssueCard }     from './TopIssueCard'
 import { EmailCaptureGate } from './EmailCaptureGate'
 import { LockedPreview }    from './LockedPreview'
 import { DeepGeoSection }   from './DeepGeoSection'
+import { ImpactTeaser }     from './ImpactTeaser'
+import { ImpactPanel }      from './ImpactPanel'
+import { ShareButton }      from './ShareButton'
+import { computeImpact }    from '@/lib/impact'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
 import { CHECK_EXPLANATIONS }  from '@/lib/checkExplanations'
 import type { Scan, CheckResult, ScanResults } from '@/lib/types'
@@ -73,13 +77,14 @@ function CheckSection({ title, subtitle, keys, results }: {
         const r = getResult(results, key)
         if (!r) return null
         return (
-          <ExpandableCheckItem
-            key={key}
-            label={CHECK_LABELS[key] ?? key}
-            result={r}
-            message={r.message}
-            explanation={CHECK_EXPLANATIONS[key]}
-          />
+          <div key={key} id={key} className="scroll-mt-20">
+            <ExpandableCheckItem
+              label={CHECK_LABELS[key] ?? key}
+              result={r}
+              message={r.message}
+              explanation={CHECK_EXPLANATIONS[key]}
+            />
+          </div>
         )
       })}
     </div>
@@ -95,6 +100,7 @@ export function ResultClient({ scan, lang }: Props) {
 
   const r = scan.results as Record<string, unknown>
   const { pass, warn, fail, total } = countStatuses(r)
+  const impact = computeImpact(r, { score: scan.score, grade: scan.grade ?? 'F', industry: scan.industry })
 
   // GEO rich data
   type C17 = { qualityScore?: number; authorityBreakdown?: Record<string, number>; citationsPerThousandWords?: number; totalLinks?: number; externalLinks?: number }
@@ -121,6 +127,7 @@ export function ResultClient({ scan, lang }: Props) {
           </span>
         </Link>
         <div className="flex items-center gap-3">
+          <ShareButton domain={scan.domain} score={scan.score} grade={scan.grade ?? 'F'} />
           <Link
             href={`/${lang}/pricing`}
             className="text-sm font-semibold bg-primary text-primary-foreground px-4 py-1.5 rounded-lg hover:bg-primary/90 transition"
@@ -157,6 +164,7 @@ export function ResultClient({ scan, lang }: Props) {
         {/* 4. Locked preview or full results */}
         {phase === 'locked' ? (
           <>
+            <ImpactTeaser impact={impact} score={scan.score} />
             <LockedPreview checkCount={total} />
             <EmailCaptureGate
               scanId={scan.id}
@@ -165,6 +173,9 @@ export function ResultClient({ scan, lang }: Props) {
           </>
         ) : (
           <>
+            {/* Impact breakdown */}
+            <ImpactPanel impact={impact} score={scan.score} grade={scan.grade ?? 'F'} />
+
             {/* Full check breakdown */}
             <CheckSection title="CORE CHECKS" keys={CORE_KEYS} results={r} />
             <CheckSection
