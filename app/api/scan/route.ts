@@ -28,52 +28,11 @@ import { checkChunkability }     from '@/lib/checks/chunkability'
 import { supabase }         from '@/lib/supabase'
 import { getProfile }       from '@/lib/auth'
 import { getPlanFeatures }  from '@/lib/tier'
-import type { CheckResult, ScanResults, IndustryCode, RegionCode } from '@/lib/types'
+import { CORE_PTS, EXT_PTS, scorePts, assignGrade, calculateScore } from '@/lib/scoring'
+import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'
 
-// ── Scoring: Core 45 + Extended 30 + GEO 25 = 100 ────────────────
-const CORE_PTS = {
-  c1_robots:          12,
-  c2_llms_txt:        10,
-  c3_bot_access:      10,
-  c4_structured_data:  7,
-  c5_extractability:   6,
-} as const // total 45
-
-const EXT_PTS = {
-  c6_llms_full_txt:    3,
-  c7_mcp_card:         3,
-  c8_sitemap:          3,
-  c9_meta_desc:        2,
-  c10_headings:        3,
-  c11_faq:             3,
-  c12_canonical:       2,
-  c13_render:          3,
-  c14_internal_links:  3,
-  c15_entity:          3,
-  c16_freshness:       2,
-} as const // total 30
-
-function scorePts(result: CheckResult, weight: number): number {
-  return result.status === 'pass' ? weight : result.status === 'warn' ? weight * 0.5 : 0
-}
-
-/** Exported for tests — computes score from a full results object */
-export function assignGrade(score: number): string {
-  if (score >= 90) return 'A+'
-  if (score >= 80) return 'A'
-  if (score >= 70) return 'B'
-  if (score >= 60) return 'C'
-  if (score >= 50) return 'D'
-  return 'F'
-}
-
-export function calculateScore(results: ScanResults): number {
-  const core = (Object.keys(CORE_PTS) as Array<keyof typeof CORE_PTS>)
-    .reduce((s, k) => s + scorePts(results[k], CORE_PTS[k]), 0)
-  const ext  = (Object.keys(EXT_PTS)  as Array<keyof typeof EXT_PTS>)
-    .reduce((s, k) => s + scorePts((results as unknown as Record<string, CheckResult>)[k] ?? { status: 'fail', message: '' }, EXT_PTS[k]), 0)
-  return core + ext
-}
+// Re-exported for existing tests that import scoring from this route
+export { assignGrade, calculateScore }
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
