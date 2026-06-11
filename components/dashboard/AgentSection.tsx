@@ -1,5 +1,7 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
+
 type AgentSectionProps = {
   status: string | null | undefined
   children: React.ReactNode
@@ -14,6 +16,7 @@ const PLATFORMS = [
 ]
 
 export function AgentSection({ status, children }: AgentSectionProps) {
+  const t = useTranslations('dashboard')
   if (!status) return null
 
   if (status === 'error') {
@@ -22,8 +25,8 @@ export function AgentSection({ status, children }: AgentSectionProps) {
         <div className="flex items-start gap-3">
           <span className="mt-0.5 w-2 h-2 rounded-full bg-destructive shrink-0" />
           <div>
-            <p className="text-xs font-semibold text-dash-text mb-0.5">Agent Analysis</p>
-            <p className="text-[11px] text-destructive">Agent analysis encountered an error. Try running a new scan.</p>
+            <p className="text-xs font-semibold text-dash-text mb-0.5">{t('agent_analysis')}</p>
+            <p className="text-[11px] text-destructive">{t('agent_error')}</p>
           </div>
         </div>
       </div>
@@ -33,7 +36,7 @@ export function AgentSection({ status, children }: AgentSectionProps) {
   if (status === 'pending' || status === 'running') {
     return (
       <div className="rounded-xl border border-dash-border bg-dash-surface p-5">
-        <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-4">Agent Analysis</p>
+        <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-4">{t('agent_analysis')}</p>
         <div className="flex items-center gap-4 flex-wrap">
           {PLATFORMS.map((p, i) => (
             <div key={p.id} className="flex items-center gap-2"
@@ -53,7 +56,7 @@ export function AgentSection({ status, children }: AgentSectionProps) {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase">Agent Analysis</p>
+      <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase">{t('agent_analysis')}</p>
       {children}
     </div>
   )

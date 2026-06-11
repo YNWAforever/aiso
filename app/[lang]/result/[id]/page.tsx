@@ -9,17 +9,26 @@ export async function generateMetadata({
 }: {
   params: Promise<{ lang: string; id: string }>
 }): Promise<Metadata> {
-  const { id } = await params
+  const { lang, id } = await params
+  const isZh = lang === 'zh-HK'
   const { data: scan } = await supabase
     .from('scans')
     .select('domain, score, grade')
     .eq('id', id)
     .single()
 
-  if (!scan) return { title: 'AI Visibility Scan — Fimmick AISO' }
+  if (!scan) {
+    return { title: isZh ? 'AI 可見度掃描 — Fimmick AISO' : 'AI Visibility Scan — Fimmick AISO' }
+  }
 
-  const title = `${scan.domain} scored ${Math.round(scan.score)}/100 (${scan.grade ?? 'F'}) on AI visibility`
-  const description = `See how visible ${scan.domain} is to ChatGPT, Perplexity, Claude and Gemini — 20-check AI readiness scan by Fimmick AISO.`
+  const score = Math.round(scan.score)
+  const grade = scan.grade ?? 'F'
+  const title = isZh
+    ? `${scan.domain} 的 AI 可見度得分 ${score}/100（${grade}）`
+    : `${scan.domain} scored ${score}/100 (${grade}) on AI visibility`
+  const description = isZh
+    ? `查看 ${scan.domain} 在 ChatGPT、Perplexity、Claude 及 Gemini 的可見度——由 Fimmick AISO 提供的 20 項 AI 就緒檢查。`
+    : `See how visible ${scan.domain} is to ChatGPT, Perplexity, Claude and Gemini — 20-check AI readiness scan by Fimmick AISO.`
   return {
     title,
     description,

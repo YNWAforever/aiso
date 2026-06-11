@@ -1,6 +1,7 @@
 // components/pulse/QuestionRow.tsx
 'use client'
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import type { PulseMetric } from '@/lib/types'
 
 const PLATFORM_CONFIG: Record<string, { label: string; color: string }> = {
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function QuestionRow({ question, metrics, onEditClick }: Props) {
+  const t = useTranslations('pulse')
   const [expanded, setExpanded] = useState(false)
 
   const mentionCount = metrics.filter(m => m.brand_mentioned).length
@@ -67,7 +69,7 @@ export function QuestionRow({ question, metrics, onEditClick }: Props) {
         {onEditClick && (
           <button
             onClick={e => { e.stopPropagation(); onEditClick() }}
-            title="Edit question"
+            title={t('edit_question')}
             className="text-slate-300 hover:text-slate-600 text-xs shrink-0 px-1 transition-colors"
           >
             ✏️
@@ -84,7 +86,7 @@ export function QuestionRow({ question, metrics, onEditClick }: Props) {
             if (!m) return (
               <div key={platform} className="rounded-xl border border-slate-100 bg-slate-50 p-3 opacity-40">
                 <div className="text-xs font-bold text-slate-400 mb-1">{cfg?.label ?? platform}</div>
-                <div className="text-xs text-slate-400 italic">Not scanned</div>
+                <div className="text-xs text-slate-400 italic">{t('not_scanned')}</div>
               </div>
             )
             const mentioned = m.brand_mentioned
@@ -96,7 +98,7 @@ export function QuestionRow({ question, metrics, onEditClick }: Props) {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold" style={{ color: cfg?.color }}>{cfg?.label ?? platform}</span>
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${mentioned ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
-                    {mentioned ? '✓ Mentioned' : '✗ Not mentioned'}
+                    {mentioned ? t('mentioned') : t('not_mentioned')}
                   </span>
                 </div>
                 {/* Answer snippet with brand highlighted */}
@@ -107,7 +109,7 @@ export function QuestionRow({ question, metrics, onEditClick }: Props) {
                           ? <mark key={i} className="bg-yellow-200 text-yellow-900 px-0.5 rounded not-italic">{part}</mark>
                           : <span key={i}>{part}</span>
                       )
-                    : <span className="italic text-slate-400">No answer recorded</span>
+                    : <span className="italic text-slate-400">{t('no_answer')}</span>
                   }
                 </p>
                 {/* Competitors mentioned */}

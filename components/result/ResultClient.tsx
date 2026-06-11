@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Zap } from 'lucide-react'
+import { useLocale } from 'next-intl'
 import { TrialCta }         from './TrialCta'
 import { ScoreReveal }      from './ScoreReveal'
 import { TopIssueCard }     from './TopIssueCard'
@@ -13,7 +14,7 @@ import { ImpactPanel }      from './ImpactPanel'
 import { ShareButton }      from './ShareButton'
 import { computeImpact }    from '@/lib/impact'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
-import { CHECK_EXPLANATIONS }  from '@/lib/checkExplanations'
+import { getCheckExplanations }  from '@/lib/checkExplanations'
 import type { Scan, CheckResult, ScanResults } from '@/lib/types'
 
 /* ── Check key lists ─────────────────────────────────────────── */
@@ -21,7 +22,7 @@ const CORE_KEYS = ['c1_robots','c2_llms_txt','c3_bot_access','c4_structured_data
 const EXT_KEYS  = ['c6_llms_full_txt','c7_mcp_card','c8_sitemap','c9_meta_desc','c10_headings','c11_faq','c12_canonical','c13_render','c14_internal_links','c15_entity','c16_freshness'] as const
 const GEO_KEYS  = ['c17_citation_density','c18_factual_density','c19_topical_authority','c20_chunkability'] as const
 
-const CHECK_LABELS: Record<string, string> = {
+const CHECK_LABELS_EN: Record<string, string> = {
   c1_robots:            'robots.txt for AI crawlers',
   c2_llms_txt:          'llms.txt present',
   c3_bot_access:        'AI bot accessibility',
@@ -42,6 +43,57 @@ const CHECK_LABELS: Record<string, string> = {
   c18_factual_density:  'Factual density',
   c19_topical_authority:'Topical authority',
   c20_chunkability:     'AI chunkability',
+}
+
+const CHECK_LABELS_ZH_HK: Record<string, string> = {
+  c1_robots:            'robots.txt AI 爬蟲規則',
+  c2_llms_txt:          'llms.txt 是否存在',
+  c3_bot_access:        'AI 機械人可存取性',
+  c4_structured_data:   '結構化數據（JSON-LD）',
+  c5_extractability:    '內容可提取度',
+  c6_llms_full_txt:     'llms-full.txt',
+  c7_mcp_card:          'MCP 伺服器卡片',
+  c8_sitemap:           'XML sitemap',
+  c9_meta_desc:         'Meta description',
+  c10_headings:         '標題結構',
+  c11_faq:              'FAQ schema',
+  c12_canonical:        'canonical 標籤',
+  c13_render:           '伺服器端渲染',
+  c14_internal_links:   '內部連結網絡',
+  c15_entity:           '實體訊號',
+  c16_freshness:        '內容新鮮度',
+  c17_citation_density: '引用密度及權威度',
+  c18_factual_density:  '事實密度',
+  c19_topical_authority:'主題權威',
+  c20_chunkability:     'AI 分塊能力',
+}
+
+const UI_EN = {
+  getFullAccess: 'Get full access',
+  checksScanned: (n: number) => `${n} checks scanned`,
+  passing:  (n: number) => `${n} passing`,
+  warnings: (n: number) => `${n} warnings`,
+  failing:  (n: number) => `${n} failing`,
+  coreTitle: 'CORE CHECKS',
+  extTitle:  'EXTENDED CHECKS',
+  extSubtitle: 'Additional signals that strengthen your AI visibility',
+  geoTitle:  'GEO CHECKS',
+  geoSubtitle: 'Generative Engine Optimisation — content quality for AI citation',
+  scanAnother: '← Scan another URL',
+}
+
+const UI_ZH_HK: typeof UI_EN = {
+  getFullAccess: '解鎖完整版',
+  checksScanned: (n: number) => `已掃描 ${n} 項檢查`,
+  passing:  (n: number) => `${n} 項通過`,
+  warnings: (n: number) => `${n} 項警告`,
+  failing:  (n: number) => `${n} 項不及格`,
+  coreTitle: '核心檢查',
+  extTitle:  '進階檢查',
+  extSubtitle: '進一步強化 AI 可見度的附加訊號',
+  geoTitle:  'GEO 檢查',
+  geoSubtitle: '生成式引擎優化——內容能否被 AI 引用的質素指標',
+  scanAnother: '← 掃描另一個網址',
 }
 
 /* ── Helpers ────────────────────────────────────────────────── */
@@ -68,6 +120,9 @@ function countStatuses(results: Record<string, unknown>) {
 function CheckSection({ title, subtitle, keys, results }: {
   title: string; subtitle?: string; keys: readonly string[]; results: Record<string, unknown>
 }) {
+  const locale = useLocale()
+  const labels = locale === 'zh-HK' ? CHECK_LABELS_ZH_HK : CHECK_LABELS_EN
+  const explanations = getCheckExplanations(locale)
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6">
       <p className="text-xs font-bold text-slate-500 tracking-widest mb-1">{title}</p>
@@ -79,10 +134,10 @@ function CheckSection({ title, subtitle, keys, results }: {
         return (
           <div key={key} id={key} className="scroll-mt-20">
             <ExpandableCheckItem
-              label={CHECK_LABELS[key] ?? key}
+              label={labels[key] ?? key}
               result={r}
               message={r.message}
-              explanation={CHECK_EXPLANATIONS[key]}
+              explanation={explanations[key]}
             />
           </div>
         )
@@ -95,6 +150,8 @@ function CheckSection({ title, subtitle, keys, results }: {
 interface Props { scan: Scan; lang: string }
 
 export function ResultClient({ scan, lang }: Props) {
+  const locale = useLocale()
+  const ui = locale === 'zh-HK' ? UI_ZH_HK : UI_EN
   const [phase, setPhase] = useState<'locked' | 'unlocked'>('locked')
   const [unlockedEmail, setUnlockedEmail] = useState('')
 
@@ -132,7 +189,7 @@ export function ResultClient({ scan, lang }: Props) {
             href={`/${lang}/pricing`}
             className="text-sm font-semibold bg-primary text-primary-foreground px-4 py-1.5 rounded-lg hover:bg-primary/90 transition"
           >
-            Get full access
+            {ui.getFullAccess}
           </Link>
         </div>
       </nav>
@@ -150,11 +207,11 @@ export function ResultClient({ scan, lang }: Props) {
 
         {/* 2. Summary pills */}
         <div className="flex items-center gap-2 flex-wrap text-xs">
-          <span className="text-slate-400">{total} checks scanned</span>
+          <span className="text-slate-400">{ui.checksScanned(total)}</span>
           <span className="ml-auto flex gap-2">
-            {pass > 0 && <span className="bg-emerald-100 text-emerald-700 font-semibold px-2.5 py-1 rounded-full">✅ {pass} passing</span>}
-            {warn > 0 && <span className="bg-amber-100  text-amber-700  font-semibold px-2.5 py-1 rounded-full">⚠️ {warn} warnings</span>}
-            {fail > 0 && <span className="bg-red-100    text-red-700    font-semibold px-2.5 py-1 rounded-full">❌ {fail} failing</span>}
+            {pass > 0 && <span className="bg-emerald-100 text-emerald-700 font-semibold px-2.5 py-1 rounded-full">✅ {ui.passing(pass)}</span>}
+            {warn > 0 && <span className="bg-amber-100  text-amber-700  font-semibold px-2.5 py-1 rounded-full">⚠️ {ui.warnings(warn)}</span>}
+            {fail > 0 && <span className="bg-red-100    text-red-700    font-semibold px-2.5 py-1 rounded-full">❌ {ui.failing(fail)}</span>}
           </span>
         </div>
 
@@ -177,16 +234,16 @@ export function ResultClient({ scan, lang }: Props) {
             <ImpactPanel impact={impact} score={scan.score} grade={scan.grade ?? 'F'} />
 
             {/* Full check breakdown */}
-            <CheckSection title="CORE CHECKS" keys={CORE_KEYS} results={r} />
+            <CheckSection title={ui.coreTitle} keys={CORE_KEYS} results={r} />
             <CheckSection
-              title="EXTENDED CHECKS"
-              subtitle="Additional signals that strengthen your AI visibility"
+              title={ui.extTitle}
+              subtitle={ui.extSubtitle}
               keys={EXT_KEYS}
               results={r}
             />
             <CheckSection
-              title="GEO CHECKS"
-              subtitle="Generative Engine Optimisation — content quality for AI citation"
+              title={ui.geoTitle}
+              subtitle={ui.geoSubtitle}
               keys={GEO_KEYS}
               results={r}
             />
@@ -207,7 +264,7 @@ export function ResultClient({ scan, lang }: Props) {
         {/* Scan another */}
         <div className="text-center pb-4">
           <Link href={`/${lang}`} className="text-sm text-slate-400 hover:text-slate-700 transition underline underline-offset-2">
-            ← Scan another URL
+            {ui.scanAnother}
           </Link>
         </div>
       </main>

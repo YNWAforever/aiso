@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl'
 import { SovChart } from '@/components/pulse/SovChart'
 import { MissedTable } from '@/components/pulse/MissedTable'
 import { LockedFeature } from '@/components/dashboard/LockedFeature'
@@ -13,12 +14,14 @@ type Props = {
 }
 
 export function MonitorStep({ plan, clientId, summary, missed }: Props) {
+  const t = useTranslations('dashboard')
+  const tp = useTranslations('pulse')
   const features = getPlanFeatures(plan)
 
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-dash-border bg-dash-surface p-5">
-        <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-4">SoV Trend</p>
+        <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-4">{t('sov_trend')}</p>
         <SovChart data={summary} />
       </div>
 
@@ -26,9 +29,9 @@ export function MonitorStep({ plan, clientId, summary, missed }: Props) {
         <div className="rounded-xl border border-dash-border bg-dash-surface p-5">
           <div className="flex items-center gap-2 mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-dash-danger" />
-            <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase">Missed Opportunities</p>
+            <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase">{t('missed_opps')}</p>
           </div>
-          <MissedTable rows={missed.slice(0, 3)} platformLabel="Platform" questionLabel="Query" competitorsLabel="Competitors" />
+          <MissedTable rows={missed.slice(0, 3)} platformLabel={tp('missed_platform')} questionLabel={tp('missed_question')} competitorsLabel={tp('missed_competitors')} />
         </div>
       )}
 
@@ -37,7 +40,7 @@ export function MonitorStep({ plan, clientId, summary, missed }: Props) {
           <AlertsTab clientId={clientId} />
         </div>
       ) : (
-        <LockedFeature feature="Weekly Alerts" requiredPlan="Pro" price="$79/month" />
+        <LockedFeature feature={t('feature_alerts')} requiredPlan="Pro" price="$79/month" />
       )}
     </div>
   )

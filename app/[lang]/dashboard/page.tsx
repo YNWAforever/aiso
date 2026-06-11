@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { BrandCard }       from '@/components/dashboard/BrandCard'
@@ -13,6 +14,7 @@ export default async function DashboardPage({
   params: Promise<{ lang: string }>
 }) {
   const { lang } = await params
+  const t = await getTranslations('dashboard')
   const profile  = await requireAuth(lang)
   const supabase = await createServerSupabaseClient()
 
@@ -56,9 +58,9 @@ export default async function DashboardPage({
     <>
       {/* Header */}
       <div className="pt-6 px-6 pb-4 border-b border-border">
-        <p className="text-lg font-bold text-foreground mb-1">My Brands</p>
+        <p className="text-lg font-bold text-foreground mb-1">{t('my_brands')}</p>
         <p className="text-2xs text-muted-foreground leading-relaxed">
-          Each brand gets its own dashboard with scan results, AI agent recommendations, and share-of-voice monitoring. Select a brand below or add your first one.
+          {t('brands_intro')}
         </p>
       </div>
 
@@ -67,7 +69,7 @@ export default async function DashboardPage({
         {hasClients ? (
           <div>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold text-muted-foreground tracking-widest uppercase">Tracked Brands</p>
+              <p className="text-xs font-semibold text-muted-foreground tracking-widest uppercase">{t('tracked_brands')}</p>
               {!atLimit && <AddBrandWizard lang={lang} />}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -85,14 +87,14 @@ export default async function DashboardPage({
           </div>
         ) : (
           <div>
-            <p className="text-xs font-semibold text-muted-foreground tracking-widest uppercase mb-3">Tracked Brands</p>
+            <p className="text-xs font-semibold text-muted-foreground tracking-widest uppercase mb-3">{t('tracked_brands')}</p>
             <div className="rounded-xl border border-border bg-muted/30 p-8 text-center">
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <Search className="w-5 h-5 text-primary" />
               </div>
-              <p className="text-sm font-semibold text-foreground mb-1">Add your first brand</p>
+              <p className="text-sm font-semibold text-foreground mb-1">{t('add_first_brand')}</p>
               <p className="text-xs text-muted-foreground mb-5 max-w-sm mx-auto leading-relaxed">
-                Track your Share of Voice across ChatGPT, Perplexity, Claude, and Gemini. Each brand gets a full diagnostic dashboard with 20 AI readiness checks and agent analysis.
+                {t('add_first_brand_body')}
               </p>
               <AddBrandWizard lang={lang} />
             </div>
@@ -101,7 +103,7 @@ export default async function DashboardPage({
 
         {hasScans && (
           <div>
-            <p className="text-xs font-semibold text-muted-foreground tracking-widest uppercase mb-3">Recent Scans</p>
+            <p className="text-xs font-semibold text-muted-foreground tracking-widest uppercase mb-3">{t('recent_scans')}</p>
             <RecentScans scans={scans as Pick<Scan, 'id' | 'domain' | 'score' | 'created_at'>[]} lang={lang} />
           </div>
         )}

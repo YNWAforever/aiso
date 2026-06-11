@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Input }  from '@/components/ui/input'
 import { Label }  from '@/components/ui/label'
@@ -13,11 +14,18 @@ interface Props {
 }
 
 const INDUSTRIES = [
-  'Marketing & Advertising', 'Technology', 'Finance & Banking',
-  'Healthcare', 'Retail & E-commerce', 'Real Estate', 'Education', 'Other',
-]
+  { value: 'Marketing & Advertising', labelKey: 'marketing_advertising' },
+  { value: 'Technology',              labelKey: 'technology' },
+  { value: 'Finance & Banking',       labelKey: 'finance_banking' },
+  { value: 'Healthcare',              labelKey: 'healthcare' },
+  { value: 'Retail & E-commerce',     labelKey: 'retail_ecommerce' },
+  { value: 'Real Estate',             labelKey: 'real_estate' },
+  { value: 'Education',               labelKey: 'education' },
+  { value: 'Other',                   labelKey: 'other' },
+] as const
 
 export function AddBrandWizard({ lang, disabled, plan }: Props) {
+  const t = useTranslations('dashboard')
   const [open, setOpen]               = useState(false)
   const [step, setStep]               = useState(1)
   const [name, setName]               = useState('')
@@ -57,8 +65,8 @@ export function AddBrandWizard({ lang, disabled, plan }: Props) {
     if (!res.ok) {
       const data = await res.json()
       setError(data.error === 'BRAND_LIMIT_REACHED'
-        ? `You've reached the ${data.limit}-brand limit on your ${data.plan} plan. Upgrade to add more.`
-        : 'Something went wrong. Please try again.')
+        ? t('limit_error', { limit: data.limit, plan: data.plan })
+        : t('generic_error'))
       setLoading(false); return
     }
     router.refresh(); close(); setLoading(false)
@@ -67,12 +75,15 @@ export function AddBrandWizard({ lang, disabled, plan }: Props) {
   if (disabled) {
     return (
       <div className="rounded-xl border-2 border-dashed border-border p-8 text-center">
-        <p className="text-sm font-semibold text-foreground mb-1">Brand limit reached</p>
+        <p className="text-sm font-semibold text-foreground mb-1">{t('limit_title')}</p>
         <p className="text-xs text-muted-foreground mb-4">
-          Your {plan ?? 'current'} plan allows {plan === 'basic' ? '1 brand' : plan === 'pro' ? '3 brands' : '10 brands'}.
+          {t('limit_body', {
+            plan: plan ?? 'current',
+            allowance: plan === 'basic' ? t('allowance_basic') : plan === 'pro' ? t('allowance_pro') : t('allowance_enterprise'),
+          })}
         </p>
         <Button size="sm" asChild>
-          <a href={`/${lang}/pricing`}>Upgrade to Enterprise →</a>
+          <a href={`/${lang}/pricing`}>{t('upgrade_enterprise')}</a>
         </Button>
       </div>
     )
@@ -81,7 +92,7 @@ export function AddBrandWizard({ lang, disabled, plan }: Props) {
   return (
     <>
       <Button variant="ghost" size="sm" onClick={() => setOpen(true)} className="text-primary hover:text-primary">
-        + Add Brand
+        + {t('add_brand')}
       </Button>
 
       {open && (
@@ -97,8 +108,8 @@ export function AddBrandWizard({ lang, disabled, plan }: Props) {
           >
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <div>
-                <h2 id="add-brand-title" className="text-base font-bold text-foreground">Add Brand</h2>
-                <p className="text-xs text-muted-foreground">Step {step} of 2</p>
+                <h2 id="add-brand-title" className="text-base font-bold text-foreground">{t('add_brand')}</h2>
+                <p className="text-xs text-muted-foreground">{t('wizard_step', { step })}</p>
               </div>
               <button onClick={close} className="text-muted-foreground hover:text-foreground text-2xl leading-none transition-colors">×</button>
             </div>
@@ -106,28 +117,28 @@ export function AddBrandWizard({ lang, disabled, plan }: Props) {
             {step === 1 && (
               <form onSubmit={submitStep1} className="px-6 py-5 space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="brand-name">Brand Name *</Label>
+                  <Label htmlFor="brand-name">{t('brand_name_label')}</Label>
                   <Input
                     id="brand-name"
                     autoFocus
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    placeholder="e.g. Fimmick HK"
+                    placeholder={t('brand_name_ph')}
                     required
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="brand-domain">Website Domain</Label>
+                  <Label htmlFor="brand-domain">{t('domain_label')}</Label>
                   <Input
                     id="brand-domain"
                     value={domain}
                     onChange={e => setDomain(e.target.value)}
-                    placeholder="fimmick.com (optional)"
+                    placeholder={t('domain_ph')}
                   />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
-                  <Button type="button" variant="ghost" onClick={close}>Cancel</Button>
-                  <Button type="submit" disabled={!name.trim()}>Next →</Button>
+                  <Button type="button" variant="ghost" onClick={close}>{t('cancel')}</Button>
+                  <Button type="submit" disabled={!name.trim()}>{t('next')}</Button>
                 </div>
               </form>
             )}
@@ -136,7 +147,7 @@ export function AddBrandWizard({ lang, disabled, plan }: Props) {
               <form onSubmit={submitStep2} className="px-6 py-5 space-y-4">
                 {error && <p className="text-destructive text-sm bg-destructive/10 rounded-lg p-3">{error}</p>}
                 <div className="space-y-1.5">
-                  <Label htmlFor="brand-industry">Industry</Label>
+                  <Label htmlFor="brand-industry">{t('industry_label')}</Label>
                   <select
                     id="brand-industry"
                     value={industry}
@@ -146,27 +157,27 @@ export function AddBrandWizard({ lang, disabled, plan }: Props) {
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                     )}
                   >
-                    <option value="">Select industry (optional)</option>
-                    {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+                    <option value="">{t('industry_ph')}</option>
+                    {INDUSTRIES.map(i => <option key={i.value} value={i.value}>{t(`wizard_industries.${i.labelKey}`)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="brand-competitors">Competitors</Label>
+                  <Label htmlFor="brand-competitors">{t('competitors_label')}</Label>
                   <Input
                     id="brand-competitors"
                     value={competitors}
                     onChange={e => setCompetitors(e.target.value)}
-                    placeholder="Ogilvy, McCann, TBWA (comma-separated, optional)"
+                    placeholder={t('competitors_ph')}
                   />
-                  <p className="text-xs text-muted-foreground">Used to track competitor mentions in AI responses.</p>
+                  <p className="text-xs text-muted-foreground">{t('competitors_hint')}</p>
                 </div>
                 <p className="text-xs text-muted-foreground bg-primary/5 rounded-lg p-3">
-                  Weekly AI pulse monitoring will begin automatically on the next scan run.
+                  {t('pulse_note')}
                 </p>
                 <div className="flex justify-between gap-2 pt-2">
-                  <Button type="button" variant="ghost" onClick={() => setStep(1)}>← Back</Button>
+                  <Button type="button" variant="ghost" onClick={() => setStep(1)}>{t('back')}</Button>
                   <Button type="submit" disabled={loading}>
-                    {loading ? 'Adding…' : 'Add Brand →'}
+                    {loading ? t('adding') : t('add_brand_submit')}
                   </Button>
                 </div>
               </form>

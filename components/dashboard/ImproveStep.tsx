@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl'
 import { AgentSection } from '@/components/dashboard/AgentSection'
 import { AgentRecommendations } from '@/components/dashboard/AgentRecommendations'
 import { AgentProgress } from '@/components/dashboard/AgentProgress'
@@ -15,6 +16,7 @@ type Props = {
 }
 
 export function ImproveStep({ scan, plan, recommendations, progress, competitors }: Props) {
+  const t = useTranslations('dashboard')
   const features = getPlanFeatures(plan)
   const allowedRecs = recommendations.filter(r => features.platform_access.includes(r.platform))
 
@@ -24,13 +26,13 @@ export function ImproveStep({ scan, plan, recommendations, progress, competitors
         {features.agent_recs ? (
           <AgentRecommendations recommendations={allowedRecs} />
         ) : (
-          <LockedFeature feature="Agent Recommendations" requiredPlan="Pro" price="$79/month" />
+          <LockedFeature feature={t('feature_recs')} requiredPlan="Pro" price="$79/month" />
         )}
 
         {features.agent_progress ? (
           <AgentProgress progress={progress} />
         ) : (
-          <LockedFeature feature="Progress Tracking" requiredPlan="Pro" price="$79/month">
+          <LockedFeature feature={t('feature_progress')} requiredPlan="Pro" price="$79/month">
             <AgentProgress progress={progress} />
           </LockedFeature>
         )}
@@ -38,7 +40,7 @@ export function ImproveStep({ scan, plan, recommendations, progress, competitors
         {features.agent_competitors ? (
           <AgentCompetitors competitors={competitors} />
         ) : (
-          <LockedFeature feature="Competitor Intelligence" requiredPlan="Enterprise" price="$199/month">
+          <LockedFeature feature={t('feature_competitors')} requiredPlan="Enterprise" price="$199/month">
             <AgentCompetitors competitors={competitors.slice(0, 1)} />
           </LockedFeature>
         )}

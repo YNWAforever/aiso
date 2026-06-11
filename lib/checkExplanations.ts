@@ -165,3 +165,170 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
 }
+
+export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
+  c1_robots: {
+    why: 'GPTBot、ClaudeBot 同 PerplexityBot 等 AI 爬蟲在抓取任何頁面之前，都會先檢查 robots.txt。一旦封鎖它們，你的內容就會在所有 AI 搜尋引擎中完全隱形。',
+    fix: {
+      pass: 'AI 爬蟲已獲明確允許 — 無需任何操作。',
+      warn: '為主要 AI 爬蟲加入明確的 Allow 規則。下方的 Fix Pack 已包含可直接使用的 robots.txt 修補檔。',
+      fail: '建立或更新 /robots.txt 以允許 AI 爬蟲存取。使用下方的 Fix Pack 生成正確的修補檔。',
+    },
+  },
+  c2_llms_txt: {
+    why: 'llms.txt 相當於 AI 世界的 sitemap.xml — 它告訴每個 AI 平台你的網站涵蓋甚麼內容、你是誰，以及哪些頁面最值得引用。',
+    fix: {
+      pass: '你的 llms.txt 已存在 — 無需任何操作。',
+      warn: '你的 llms.txt 存在但沒有內容。使用下方的 Fix Pack 加入標題、描述及關鍵網址。',
+      fail: '在你的網域根目錄建立 /llms.txt。下方的 Fix Pack 會為你的網站生成一份完整的客製化檔案。',
+    },
+  },
+  c3_bot_access: {
+    why: '即使 robots.txt 允許爬蟲存取，網絡層面的封鎖（Cloudflare、WAF 規則、地域限制）仍可能令 AI 爬蟲完全無法抓取你的頁面。',
+    fix: {
+      pass: '所有測試的 AI 爬蟲都能存取你的網站 — 無需任何操作。',
+      warn: '部分 AI 爬蟲在網絡層面被封鎖。請檢查你的 CDN/WAF 規則中的爬蟲管理設定，並將受影響的 user agent 加入白名單。',
+      fail: 'AI 爬蟲無法存取你的網站。請檢查防火牆、Cloudflare Bot Management 或伺服器規則，允許 GPTBot、ClaudeBot 及 PerplexityBot 存取。',
+    },
+  },
+  c4_structured_data: {
+    why: 'JSON-LD schema 標記為 AI 模型提供關於你內容的機器可讀脈絡 — 頁面屬於甚麼類型、由誰撰寫、講述甚麼主題。沒有 schema 的頁面獲引用的機會較低。',
+    fix: {
+      pass: '已找到 JSON-LD schema — 無需任何操作。',
+      warn: '只找到 microdata。請遷移至 JSON-LD，AI 模型解析起來更可靠。Fix Pack 已包含 FAQ JSON-LD 範本作為起點。',
+      fail: '未找到結構化資料。請為頁面加入 JSON-LD schema。下方的 Fix Pack 會生成 FAQ schema 助你開始。',
+    },
+  },
+  c5_extractability: {
+    why: 'AI 模型只能引用它讀得到的文字。如果你的內容被鎖在需要執行才能呈現的 JavaScript 元件之內，便可能永遠不會被索引。',
+    fix: {
+      pass: '內容可被提取 — 無需任何操作。',
+      warn: '可提取的文字有限。請將更多內容放入伺服器端渲染的 HTML，而非依賴客戶端 JavaScript。',
+      fail: '可提取的文字極少。你的頁面很可能高度依賴 JavaScript 渲染。請為關鍵內容改用伺服器端渲染（SSR）。',
+    },
+  },
+  c6_llms_full_txt: {
+    why: '一份只有檔案、沒有實質內容的 llms.txt，能給 AI 模型的訊號很少。一份結構完整、附有描述及多個網址條目的檔案，能大幅提升 AI 平台對你網站的理解。',
+    fix: {
+      pass: '你的 llms.txt 內容充實 — 無需任何操作。',
+      warn: '你的 llms.txt 存在但內容單薄。請加入 `#` 標題行、`>` 描述區塊，以及至少 5 個關鍵頁面網址。',
+      fail: '未找到可用的 llms.txt 內容。使用下方的 Fix Pack 生成一份完整檔案。',
+    },
+  },
+  c7_mcp_card: {
+    why: '新興 AI 平台會檢查 /.well-known/ai.json 以取得你網站的結構化資訊。及早採用代表你已為 AI 做好準備，當這項標準普及時，你便能搶佔先機。',
+    fix: {
+      pass: '已找到 AI 元資料端點 — 無需任何操作。',
+      warn: '找到 AI meta 標籤但沒有正式端點。請建立 /.well-known/ai.json，包含你的網站名稱、描述及聯絡資訊。',
+      fail: '未找到 AI 元資料。請建立 /.well-known/ai.json。參考 Fimmick 文件中的最簡範本。',
+    },
+  },
+  c8_sitemap: {
+    why: 'AI 爬蟲利用你的 sitemap 來發現頁面並決定索引的優先次序。沒有 sitemap，它們可能完全錯過你最重要的內容。',
+    fix: {
+      pass: '已找到 sitemap 且覆蓋良好 — 無需任何操作。',
+      warn: '已找到 sitemap 但網址極少。請確保所有關鍵頁面都已列出，並在 robots.txt 中引用該 sitemap。',
+      fail: '未找到 sitemap。請生成 /sitemap.xml，並在 robots.txt 中以 `Sitemap: https://yourdomain.com/sitemap.xml` 引用。',
+    },
+  },
+  c9_meta_desc: {
+    why: 'AI 平台在概括你的頁面時，經常會原文使用 meta description。一段簡潔準確的描述（50–160 字元）能提高你的摘要獲引用的機會。',
+    fix: {
+      pass: 'Meta description 格式良好 — 無需任何操作。',
+      warn: 'Meta description 長度超出理想範圍。請以 50–160 字元清楚概括頁面用途。',
+      fail: '未找到 meta description。請為每個關鍵頁面加入 `<meta name="description" content="…">`。',
+    },
+  },
+  c10_headings: {
+    why: 'AI 模型靠標題層級理解你的內容結構。一個清晰的 H1 加上多個 H2 副標題，能讓 AI 輕鬆提取出獨立、可引用的資訊區塊。',
+    fix: {
+      pass: '標題層級清晰 — 無需任何操作。',
+      warn: '標題結構過於單薄。請加入 H2 副標題，將內容分成標示清晰的段落。',
+      fail: '未找到 H1。每個頁面必須有且只有一個描述頁面主題的 H1，其後配以 H2 段落標題。',
+    },
+  },
+  c11_faq: {
+    why: '帶有 FAQPage JSON-LD schema 的 FAQ 頁面，被 AI 搜尋引擎引用的頻率高 3 倍，因為它們直接回答問句式查詢。即使只有 3 條寫得好的問答，也能帶來顯著差異。',
+    fix: {
+      pass: '已找到 FAQPage schema — 無需任何操作。',
+      warn: '偵測到 FAQ 內容但沒有 FAQPage JSON-LD schema。請加入 schema 標記，讓 AI 模型能解析並引用你的答案。下方的 Fix Pack 會生成所需程式碼。',
+      fail: '未找到 FAQ 內容或 schema。請至少在首頁及關鍵著陸頁加入 FAQ 部分及 FAQPage JSON-LD。使用 Fix Pack 生成 schema。',
+    },
+  },
+  c12_canonical: {
+    why: 'Canonical 標籤告訴 AI 爬蟲哪個頁面版本是權威版本。沒有它，爬蟲可能將權威分散到重複網址上（例如有/無結尾斜線、http 與 https）。',
+    fix: {
+      pass: 'Canonical 網址設定正確 — 無需任何操作。',
+      warn: 'Canonical 標籤指向不同的來源網域。請確認這是刻意安排（例如跨網域 canonical）。如果不是，請將它更新為指向本頁網址。',
+      fail: '未找到 canonical 標籤。請為每個頁面加入 `<link rel="canonical" href="https://yourdomain.com/page">`。',
+    },
+  },
+  c13_render: {
+    why: 'AI 爬蟲通常不會執行 JavaScript。如果你的頁面文字只在 JS 執行後才出現，爬蟲看到的幾乎是一個空白頁面，根本無從引用。',
+    fix: {
+      pass: '伺服器端渲染的 HTML 內容豐富 — 無需任何操作。',
+      warn: '偵測到中等程度的伺服器端渲染文字。請將更多關鍵內容從客戶端元件移至 SSR/SSG 範本。',
+      fail: '伺服器端渲染的文字極少。請為所有需要被索引及引用的內容改用伺服器端渲染（Next.js SSR/SSG、Nuxt 等）。',
+    },
+  },
+  c14_internal_links: {
+    why: '內部連結向 AI 爬蟲傳遞內容之間的關聯，並協助它們發現你的所有頁面。內部連結密集的網站會被更完整地索引。',
+    fix: {
+      pass: '內部連結結構穩健 — 無需任何操作。',
+      warn: '內部連結偏少。請在相關頁面之間加入上下文連結，尤其是由高流量頁面連到較深層的內容。',
+      fail: '內部連結極少。請刻意建立內部連結結構：由首頁連往關鍵頁面至少 10 條連結，相關文章之間亦應互相連結。',
+    },
+  },
+  c15_entity: {
+    why: 'Organization 及 Person schema 標記告訴 AI 模型內容背後是誰，能加強可信度訊號，並提高被引用時獲得署名的機會。',
+    fix: {
+      pass: '已找到實體 schema — 無需任何操作。',
+      warn: '找到部分實體訊號（og 標籤、author meta）但沒有 JSON-LD。請升級至 Organization 或 Person schema，向 AI 發出更強訊號。',
+      fail: '未找到實體訊號。請在網站 header 加入 `<meta property="og:site_name">` 及 Organization JSON-LD 區塊。',
+    },
+  },
+  c16_freshness: {
+    why: 'AI 模型偏好新近、與時並進的內容。JSON-LD schema 中的 dateModified 及 datePublished 會告訴 AI 平台你的內容最後審閱的時間。',
+    fix: {
+      pass: '內容新鮮度訊號已確認 — 無需任何操作。',
+      warn: '找到日期訊號但內容似乎較舊。每次修訂內容時（即使是小改動）都應更新 dateModified 欄位。',
+      fail: '未找到日期訊號。請在 Article/WebPage JSON-LD 中加入 `datePublished` 及 `dateModified`，並以 `<meta property="article:modified_time">` 作後備。',
+    },
+  },
+  c17_citation_density: {
+    why: 'AI 模型會給予引用權威外部來源的內容更高權重。附有頂級引用來源（NIH、Bloomberg、Reuters）的頁面，被 AI 搜尋引擎原文引述的機會，遠高於沒有引用支持的論述。',
+    fix: {
+      pass: '引用密度良好 — 無需任何操作。',
+      warn: '引用數量一般。請加入更多頂級來源連結（政府、學術機構、主要媒體），並確保所有統計數字都附有內文來源連結。',
+      fail: '外部引用極少或完全沒有。每項事實陳述都應連結至權威來源。每 1,000 字至少加入 3–5 個引用參考。',
+    },
+  },
+  c18_factual_density: {
+    why: 'AI 系統偏好包含具體、可查證資料的內容 — 百分比、具名實體、日期及比較數字。空泛、充斥誇張字眼的內容因為無法核實，極少被引用。',
+    fix: {
+      pass: '事實密度良好 — 無需任何操作。',
+      warn: '找到部分事實，但內容可以更數據化。請加入具體數字、日期參照及比較陳述（例如「按年上升 23%，由 34 億美元增至 42 億美元」）。',
+      fail: '內容過於空泛或偏重個人意見。請以具體數據、具名研究及可量度的成果取代籠統說法。',
+    },
+  },
+  c19_topical_authority: {
+    why: 'AI 模型偏好以多個頁面深入覆蓋同一主題的來源（支柱頁 + 群組文章結構）。單一頁面的主題覆蓋，在 AI 引用排序上遠不及一個擁有支柱指南加 5 篇以上支援文章的網站。',
+    fix: {
+      pass: '偵測到穩健的主題群組結構 — 無需任何操作。',
+      warn: '主題覆蓋不完整。請確定你的核心主題，為每個主題建立一個支柱頁，並配以至少 3–5 篇互相連結的支援群組文章。',
+      fail: '未偵測到清晰的主題群組。請建立內容專區：每個關鍵主題一個深入的支柱頁，周圍配以連結回支柱頁的較短群組文章。',
+    },
+  },
+  c20_chunkability: {
+    why: 'AI 模型以 100–1,500 個 token 為單位提取答案。內容若在清晰標題之下、以自成一體、答案先行的段落組織，被提取及引用的比率遠高於密密麻麻的長篇文字。',
+    fix: {
+      pass: '內容分塊結構良好，便於 AI 提取 — 無需任何操作。',
+      warn: '部分段落難以作為獨立答案被提取。每個 H2 段落應以直接回答的句子開頭，段落保持在 200 字以內，並避免使用「上文」、「下文」等指涉。',
+      fail: '內容的 H2 標題極少或完全沒有，無法進行分塊提取。請將內容拆分為標示清晰的 H2 段落，每段直接回答一條問題。',
+    },
+  },
+}
+
+export function getCheckExplanations(locale: string) {
+  return locale === 'zh-HK' ? CHECK_EXPLANATIONS_ZH_HK : CHECK_EXPLANATIONS
+}

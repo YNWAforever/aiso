@@ -79,10 +79,10 @@ export default async function PulsePage({
           <span className="ml-2 text-sm font-normal text-slate-500">{clientData.brand_name}</span>
         </span>
         <div className="flex items-center gap-4">
-          <a href="#overview"      className="text-xs text-slate-500 hover:text-slate-900 transition hidden sm:block">Overview</a>
-          <a href="#scan-log"      className="text-xs text-slate-500 hover:text-slate-900 transition hidden sm:block">Scan Log</a>
-          <a href="#question-bank" className="text-xs text-slate-500 hover:text-slate-900 transition hidden sm:block">Questions</a>
-          <span className="text-xs text-slate-400">{kpi?.scan_week ? `Week of ${kpi.scan_week}` : 'No data yet'}</span>
+          <a href="#overview"      className="text-xs text-slate-500 hover:text-slate-900 transition hidden sm:block">{t('nav_overview')}</a>
+          <a href="#scan-log"      className="text-xs text-slate-500 hover:text-slate-900 transition hidden sm:block">{t('nav_scan_log')}</a>
+          <a href="#question-bank" className="text-xs text-slate-500 hover:text-slate-900 transition hidden sm:block">{t('nav_questions')}</a>
+          <span className="text-xs text-slate-400">{kpi?.scan_week ? t('week_of', { week: kpi.scan_week }) : t('no_data')}</span>
         </div>
       </nav>
 
@@ -91,7 +91,7 @@ export default async function PulsePage({
         {/* ── Section ①: Overview ─────────────────────────── */}
         <div id="overview" className="space-y-6">
           <div>
-            <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4">Overview</h2>
+            <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4">{t('nav_overview')}</h2>
             <div className="grid grid-cols-3 gap-4">
               {[
                 { label: t('sov'),       value: kpi ? `${kpi.sov_score}%` : '—' },
@@ -144,10 +144,10 @@ export default async function PulsePage({
           />
         ) : (
           <div className="bg-white rounded-2xl border border-slate-200 p-6 text-center">
-            <p className="text-sm font-semibold text-slate-500">Question Bank</p>
+            <p className="text-sm font-semibold text-slate-500">{t('qb_title')}</p>
             <p className="text-xs text-slate-400 mt-1">
-              Upgrade to Pro to edit and customise your scan questions.{' '}
-              <Link href={`/${lang}/pricing`} className="text-primary underline">See plans →</Link>
+              {t('qb_locked_body')}{' '}
+              <Link href={`/${lang}/pricing`} className="text-primary underline">{t('qb_see_plans')}</Link>
             </p>
           </div>
         )}

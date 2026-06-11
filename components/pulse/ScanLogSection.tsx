@@ -1,6 +1,7 @@
 // components/pulse/ScanLogSection.tsx
 'use client'
 import { useState, useMemo } from 'react'
+import { useTranslations } from 'next-intl'
 import { QuestionRow } from './QuestionRow'
 import type { PulseMetric } from '@/lib/types'
 
@@ -14,6 +15,7 @@ interface Props {
 type Filter = 'all' | 'not_mentioned'
 
 export function ScanLogSection({ metrics, scanWeek, brandName, onEditQuestion }: Props) {
+  const t = useTranslations('pulse')
   const [filter, setFilter] = useState<Filter>('all')
 
   // Group metrics by question
@@ -42,8 +44,8 @@ export function ScanLogSection({ metrics, scanWeek, brandName, onEditQuestion }:
   if (metrics.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
-        <p className="text-sm font-semibold text-slate-500">No scan data yet</p>
-        <p className="text-xs text-slate-400 mt-1">Questions will appear here after the next weekly scan runs.</p>
+        <p className="text-sm font-semibold text-slate-500">{t('log_empty_title')}</p>
+        <p className="text-xs text-slate-400 mt-1">{t('log_empty_body')}</p>
       </div>
     )
   }
@@ -52,16 +54,16 @@ export function ScanLogSection({ metrics, scanWeek, brandName, onEditQuestion }:
     <div id="scan-log">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest">This Week's Scans</h2>
-          <p className="text-xs text-slate-400 mt-0.5">Week of {scanWeek} · {totalMentioned}/{total} questions mentioned {brandName}</p>
+          <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest">{t('log_title')}</h2>
+          <p className="text-xs text-slate-400 mt-0.5">{t('log_subtitle', { week: scanWeek, mentioned: totalMentioned, total, brand: brandName })}</p>
         </div>
       </div>
 
       {/* Filters */}
       <div className="flex gap-2 mb-4 flex-wrap">
         {[
-          { key: 'all' as Filter, label: 'All questions' },
-          { key: 'not_mentioned' as Filter, label: 'Not mentioned only' },
+          { key: 'all' as Filter, label: t('filter_all') },
+          { key: 'not_mentioned' as Filter, label: t('filter_not_mentioned') },
         ].map(f => (
           <button
             key={f.key}
@@ -75,7 +77,7 @@ export function ScanLogSection({ metrics, scanWeek, brandName, onEditQuestion }:
 
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         {filteredQuestions.length === 0 ? (
-          <div className="p-6 text-center text-sm text-slate-400">No questions match this filter.</div>
+          <div className="p-6 text-center text-sm text-slate-400">{t('filter_no_match')}</div>
         ) : (
           filteredQuestions.map(([question, ms]) => (
             <QuestionRow

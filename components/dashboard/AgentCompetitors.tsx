@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl'
 import type { AgentCompetitor } from '@/lib/types'
 
 type Props = { competitors: AgentCompetitor[] }
@@ -9,11 +10,12 @@ function groupByPlatform(rows: AgentCompetitor[]): Record<string, AgentCompetito
 }
 
 export function AgentCompetitors({ competitors }: Props) {
+  const t = useTranslations('dashboard')
   if (!competitors.length) {
     return (
       <div className="rounded-xl border border-dash-border bg-dash-surface p-5">
-        <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-1.5">Competitors</p>
-        <p className="text-[11px] text-dash-muted/60 font-mono">Competitor analysis will appear after agent analysis completes.</p>
+        <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-1.5">{t('competitors_title')}</p>
+        <p className="text-[11px] text-dash-muted/60 font-mono">{t('competitors_empty')}</p>
       </div>
     )
   }
@@ -22,7 +24,7 @@ export function AgentCompetitors({ competitors }: Props) {
 
   return (
     <div className="rounded-xl border border-dash-border bg-dash-surface p-5">
-      <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-4">Competitors</p>
+      <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-4">{t('competitors_title')}</p>
       {Object.entries(grouped).map(([platform, rows]) => (
         <div key={platform} className="mb-3 last:mb-0">
           <p className="text-[10px] font-mono text-dash-danger tracking-wider uppercase mb-2">
@@ -39,7 +41,7 @@ export function AgentCompetitors({ competitors }: Props) {
                         {r.competitor_name ?? r.competitor_domain}
                       </span>
                       <span className="text-[10px] font-mono font-semibold text-dash-danger ml-2 shrink-0">
-                        +{gap.toFixed(0)}% gap
+                        {t('gap_label', { gap: gap.toFixed(0) })}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 mb-1">
@@ -51,8 +53,8 @@ export function AgentCompetitors({ competitors }: Props) {
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] text-dash-muted">You {r.your_rate}%</span>
-                      <span className="text-[9px] text-dash-muted">Them {r.mention_rate}%</span>
+                      <span className="text-[9px] text-dash-muted">{t('you_label', { rate: r.your_rate })}</span>
+                      <span className="text-[9px] text-dash-muted">{t('them_label', { rate: r.mention_rate })}</span>
                     </div>
                     <p className="text-[11px] text-dash-muted/80 mt-1.5 leading-relaxed">{r.gap_analysis}</p>
                   </div>

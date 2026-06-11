@@ -1,6 +1,7 @@
 // components/pulse/SuggestQuestionsPanel.tsx
 'use client'
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { X, Sparkles, Check } from 'lucide-react'
 
 interface Suggestion {
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function SuggestQuestionsPanel({ clientId, onClose, onAccepted }: Props) {
+  const t = useTranslations('pulse')
   const [loading, setLoading] = useState(false)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [editing, setEditing] = useState<Record<number, string>>({})
@@ -53,7 +55,7 @@ export function SuggestQuestionsPanel({ clientId, onClose, onAccepted }: Props) 
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2">
           <Sparkles className="size-4 text-primary" />
-          <span className="font-bold text-slate-900 text-sm">AI Question Suggestions</span>
+          <span className="font-bold text-slate-900 text-sm">{t('panel_title')}</span>
         </div>
         <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition-colors">
           <X className="size-4" />
@@ -63,17 +65,17 @@ export function SuggestQuestionsPanel({ clientId, onClose, onAccepted }: Props) 
       <div className="flex-1 overflow-y-auto p-6">
         {!fetched ? (
           <div className="text-center py-8">
-            <p className="text-sm text-slate-500 mb-4">Generate 5 new question ideas based on your brand, industry, and existing questions.</p>
+            <p className="text-sm text-slate-500 mb-4">{t('panel_intro')}</p>
             <button
               onClick={fetchSuggestions}
               disabled={loading}
               className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-semibold px-6 py-2.5 rounded-xl text-sm hover:bg-primary/90 transition disabled:opacity-60"
             >
-              {loading ? 'Generating…' : '✨ Generate suggestions'}
+              {loading ? t('generating') : t('generate_btn')}
             </button>
           </div>
         ) : visible.length === 0 ? (
-          <div className="text-center py-8 text-sm text-slate-400">All suggestions have been accepted or dismissed.</div>
+          <div className="text-center py-8 text-sm text-slate-400">{t('all_done')}</div>
         ) : (
           <div className="space-y-3">
             {suggestions.map((s, i) => {
@@ -93,7 +95,7 @@ export function SuggestQuestionsPanel({ clientId, onClose, onAccepted }: Props) 
                       onClick={() => accept(i)}
                       className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 text-white font-semibold text-xs py-1.5 rounded-lg hover:bg-emerald-600 transition"
                     >
-                      <Check className="size-3" /> Accept
+                      <Check className="size-3" /> {t('accept')}
                     </button>
                     <button
                       onClick={() => setDismissed(prev => new Set([...prev, i]))}

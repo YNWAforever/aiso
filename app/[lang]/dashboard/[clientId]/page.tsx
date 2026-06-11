@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { getPlanFeatures } from '@/lib/tier'
@@ -11,26 +12,25 @@ import {
   AgentCompetitor, PulseWeeklySummary, PulseMetric,
 } from '@/lib/types'
 
-function StepHeader({ step, plan }: { step: string; plan: string }) {
+async function StepHeader({ step, plan }: { step: string; plan: string }) {
+  const t = await getTranslations('dashboard')
   const features = getPlanFeatures(plan)
   const info: Record<string, { title: string; body: string }> = {
     scan: {
-      title: 'Run a scan',
-      body: `Enter any URL to run a 20-check diagnostic. We'll assess how visible your content is to AI search engines like ChatGPT, Claude, and Gemini. Free for everyone — no subscription needed.`,
+      title: t('step_scan_title'),
+      body: t('step_scan_body'),
     },
     results: {
-      title: 'Scan results',
-      body: `Your full diagnostic report. Each of the 20 checks shows a pass, warn, or fail status with an explanation of why it matters and how to fix it. Open any check to see the details.`,
+      title: t('step_results_title'),
+      body: t('step_results_body'),
     },
     improve: {
-      title: 'Improve with AI agents',
-      body: features.agent_recs
-        ? `AI agents analyze your scan and give you specific recommendations. Each platform (Gemini, GPT-4o, Claude, Perplexity) evaluates your content differently — we show you what each one needs.`
-        : `Upgrade to Pro to unlock AI agent analysis. Get platform-specific recommendations from Gemini, GPT-4o, Claude, and Perplexity. Track your progress over time with before-and-after metrics.`,
+      title: t('step_improve_title'),
+      body: features.agent_recs ? t('step_improve_body') : t('step_improve_locked'),
     },
     monitor: {
-      title: 'Monitor your ranking',
-      body: `Track your Share of Voice — how often your brand appears in AI-generated answers across all platforms. See which queries you're missing and where competitors are showing up instead.`,
+      title: t('step_monitor_title'),
+      body: t('step_monitor_body'),
     },
   }
   const i = info[step] ?? info.scan!
@@ -52,6 +52,7 @@ export default async function DashboardPage({
 }) {
   const { lang, clientId } = await params
   const { step = 'scan', scanId } = await searchParams
+  const t = await getTranslations('dashboard')
   const profile  = await requireAuth(lang)
   const supabase = await createServerSupabaseClient()
   const plan = profile.accounts?.plan ?? 'basic'
@@ -107,8 +108,8 @@ export default async function DashboardPage({
         {step === 'results' && scan && <ResultsStep scan={scan} lang={lang} clientId={clientId} />}
         {step === 'results' && !scan && (
           <div className="rounded-xl border border-dash-border bg-dash-surface p-8 text-center">
-            <p className="text-sm text-dash-text mb-1">No scan selected</p>
-            <p className="text-xs text-dash-muted">Run a scan from the Scan step or select one from history.</p>
+            <p className="text-sm text-dash-text mb-1">{t('no_scan_selected')}</p>
+            <p className="text-xs text-dash-muted">{t('no_scan_selected_body')}</p>
           </div>
         )}
 
@@ -123,8 +124,8 @@ export default async function DashboardPage({
         )}
         {step === 'improve' && !scan && (
           <div className="rounded-xl border border-dash-border bg-dash-surface p-8 text-center">
-            <p className="text-sm text-dash-text mb-1">No scan yet</p>
-            <p className="text-xs text-dash-muted">AI agent analysis requires a completed scan. Run one from the Scan step.</p>
+            <p className="text-sm text-dash-text mb-1">{t('no_scan_yet')}</p>
+            <p className="text-xs text-dash-muted">{t('no_scan_yet_body')}</p>
           </div>
         )}
 

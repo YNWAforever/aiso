@@ -4,34 +4,98 @@ import { useRouter } from 'next/navigation'
 import { ChevronRight, Zap, X } from 'lucide-react'
 
 const INDUSTRIES = [
-  { value: 'technology',         label: 'Technology' },
-  { value: 'finance',            label: 'Finance & Banking' },
-  { value: 'medical',            label: 'Healthcare & Medical' },
-  { value: 'legal',              label: 'Legal & Compliance' },
-  { value: 'retail_ecommerce',   label: 'Retail & E-Commerce' },
-  { value: 'education',          label: 'Education' },
-  { value: 'real_estate',        label: 'Real Estate' },
-  { value: 'travel_hospitality', label: 'Travel & Hospitality' },
-  { value: 'media_entertainment',label: 'Media & Entertainment' },
-  { value: 'manufacturing',      label: 'Manufacturing' },
-  { value: 'energy_utilities',   label: 'Energy & Utilities' },
-  { value: 'general_b2b',        label: 'General B2B' },
-  { value: 'general_b2c',        label: 'General B2C' },
+  { value: 'technology',         labelEn: 'Technology',            labelZh: '科技' },
+  { value: 'finance',            labelEn: 'Finance & Banking',     labelZh: '金融及銀行' },
+  { value: 'medical',            labelEn: 'Healthcare & Medical',  labelZh: '醫療保健' },
+  { value: 'legal',              labelEn: 'Legal & Compliance',    labelZh: '法律及合規' },
+  { value: 'retail_ecommerce',   labelEn: 'Retail & E-Commerce',   labelZh: '零售及電商' },
+  { value: 'education',          labelEn: 'Education',             labelZh: '教育' },
+  { value: 'real_estate',        labelEn: 'Real Estate',           labelZh: '地產' },
+  { value: 'travel_hospitality', labelEn: 'Travel & Hospitality',  labelZh: '旅遊及酒店' },
+  { value: 'media_entertainment',labelEn: 'Media & Entertainment', labelZh: '媒體及娛樂' },
+  { value: 'manufacturing',      labelEn: 'Manufacturing',         labelZh: '製造業' },
+  { value: 'energy_utilities',   labelEn: 'Energy & Utilities',    labelZh: '能源及公用事業' },
+  { value: 'general_b2b',        labelEn: 'General B2B',           labelZh: '一般 B2B' },
+  { value: 'general_b2c',        labelEn: 'General B2C',           labelZh: '一般 B2C' },
 ]
 
 const REGIONS = [
-  { value: 'HK',     label: 'Hong Kong' },
-  { value: 'TW',     label: 'Taiwan' },
-  { value: 'SG',     label: 'Singapore' },
-  { value: 'JP',     label: 'Japan' },
-  { value: 'KR',     label: 'South Korea' },
-  { value: 'US',     label: 'United States' },
-  { value: 'UK',     label: 'United Kingdom' },
-  { value: 'EU',     label: 'European Union' },
-  { value: 'AU',     label: 'Australia' },
-  { value: 'CA',     label: 'Canada' },
-  { value: 'global', label: 'Global' },
+  { value: 'HK',     labelEn: 'Hong Kong',      labelZh: '香港' },
+  { value: 'TW',     labelEn: 'Taiwan',         labelZh: '台灣' },
+  { value: 'SG',     labelEn: 'Singapore',      labelZh: '新加坡' },
+  { value: 'JP',     labelEn: 'Japan',          labelZh: '日本' },
+  { value: 'KR',     labelEn: 'South Korea',    labelZh: '南韓' },
+  { value: 'US',     labelEn: 'United States',  labelZh: '美國' },
+  { value: 'UK',     labelEn: 'United Kingdom', labelZh: '英國' },
+  { value: 'EU',     labelEn: 'European Union', labelZh: '歐盟' },
+  { value: 'AU',     labelEn: 'Australia',      labelZh: '澳洲' },
+  { value: 'CA',     labelEn: 'Canada',         labelZh: '加拿大' },
+  { value: 'global', labelEn: 'Global',         labelZh: '全球' },
 ]
+
+const COPY_EN = {
+  stepOf: (step: number, total: number) => `Step ${step} of ${total}`,
+  s1Title: "What's your brand name?",
+  s1Subtitle: 'This is how AI agents will look for you.',
+  s1Placeholder: 'e.g. Fimmick',
+  continue: 'Continue',
+  back: 'Back',
+  s2Title: 'Your website domain',
+  s2Subtitle: 'Enter your domain — no need for www or http.',
+  s2HintPrefix: 'e.g. type',
+  s2HintNot: 'not',
+  s2Skip: "Skip — I don't have a website yet",
+  s3Title: 'Your industry & region',
+  s3Subtitle: 'Personalises your AI authority score and Pulse benchmarks.',
+  industryPlaceholder: 'Industry (optional)',
+  regionPlaceholder: 'Region (optional)',
+  s3Skip: 'Skip — set up later',
+  s4Title: 'Tell AI what you do',
+  s4Subtitle: 'A short description helps us generate better scan questions and improves your AI citation accuracy.',
+  descLabel: 'Brand description',
+  optional: '(optional)',
+  descPlaceholder: (brand: string) => `e.g. ${brand || 'Your brand'} is an AI search optimisation platform that helps businesses improve their visibility in ChatGPT, Perplexity, and Google AI answers.`,
+  competitorsLabel: 'Main competitors',
+  competitorsHint: "AI may mention these brands instead of yours — we'll track that.",
+  competitorsPlaceholder: 'e.g. Semrush, Ahrefs',
+  add: 'Add',
+  settingUp: 'Setting up…',
+  goToDashboard: 'Go to my dashboard',
+  s4Skip: "Skip — I'll set this up later",
+  genericError: 'Something went wrong',
+}
+
+const COPY_ZH_HK: typeof COPY_EN = {
+  stepOf: (step: number, total: number) => `第 ${step} 步，共 ${total} 步`,
+  s1Title: '你的品牌名稱是？',
+  s1Subtitle: 'AI 將以此名稱搜尋你的品牌。',
+  s1Placeholder: '例如 Fimmick',
+  continue: '繼續',
+  back: '返回',
+  s2Title: '你的網站域名',
+  s2Subtitle: '輸入你的域名——無需 www 或 http。',
+  s2HintPrefix: '例如輸入',
+  s2HintNot: '而非',
+  s2Skip: '略過——我暫時未有網站',
+  s3Title: '你的行業及地區',
+  s3Subtitle: '用於個人化你的 AI 權威分數及 Pulse 基準。',
+  industryPlaceholder: '行業（可選）',
+  regionPlaceholder: '地區（可選）',
+  s3Skip: '略過——稍後設定',
+  s4Title: '讓 AI 了解你的業務',
+  s4Subtitle: '一段簡短描述有助我們生成更好的掃描問題，並提升你的 AI 引用準確度。',
+  descLabel: '品牌描述',
+  optional: '（可選）',
+  descPlaceholder: (brand: string) => `例如：${brand || '你的品牌'} 是一個 AI 搜尋優化平台，幫助企業提升在 ChatGPT、Perplexity 及 Google AI 答案中的能見度。`,
+  competitorsLabel: '主要競爭對手',
+  competitorsHint: 'AI 可能會提及這些品牌而非你的品牌——我們會為你追蹤。',
+  competitorsPlaceholder: '例如 Semrush, Ahrefs',
+  add: '新增',
+  settingUp: '設定中…',
+  goToDashboard: '前往我的儀表板',
+  s4Skip: '略過——我稍後再設定',
+  genericError: '發生錯誤，請再試一次',
+}
 
 /** Strip protocol and www prefix so only bare domain is stored */
 function normaliseDomain(raw: string): string {
@@ -59,6 +123,8 @@ export function OnboardingWizard({
   initialIndustry = '', initialRegion = '', scanId,
 }: Props) {
   const router = useRouter()
+  const isZh = lang === 'zh-HK'
+  const c = isZh ? COPY_ZH_HK : COPY_EN
   const [step, setStep] = useState(1)
 
   const [brand, setBrand]           = useState(initialBrand)
@@ -106,7 +172,7 @@ export function OnboardingWizard({
       }),
     })
     const data = await res.json()
-    if (!res.ok) { setError(data.error ?? 'Something went wrong'); setLoading(false); return }
+    if (!res.ok) { setError(data.error ?? c.genericError); setLoading(false); return }
     // Go straight to the scan step with the brand domain pre-filled
     // This triggers an immediate scan (which fires n8n) rather than leaving the user in an empty dashboard
     const scanUrl = domain ? `?step=scan&url=${encodeURIComponent(domain.startsWith('http') ? domain : `https://${domain}`)}` : '?step=scan'
@@ -134,7 +200,7 @@ export function OnboardingWizard({
         {/* Progress */}
         <div className="mb-6">
           <div className="flex justify-between text-xs text-muted-foreground mb-2">
-            <span>Step {step} of {TOTAL_STEPS}</span>
+            <span>{c.stepOf(step, TOTAL_STEPS)}</span>
             <span>{Math.round(progress)}%</span>
           </div>
           <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -145,18 +211,18 @@ export function OnboardingWizard({
         {/* ── Step 1: Brand name ── */}
         {step === 1 && (
           <div>
-            <h1 className="text-xl font-black text-foreground mb-1">What&apos;s your brand name?</h1>
-            <p className="text-sm text-muted-foreground mb-6">This is how AI agents will look for you.</p>
+            <h1 className="text-xl font-black text-foreground mb-1">{c.s1Title}</h1>
+            <p className="text-sm text-muted-foreground mb-6">{c.s1Subtitle}</p>
             <input
               autoFocus
               value={brand}
               onChange={e => setBrand(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && brand.trim() && setStep(2)}
-              placeholder="e.g. Fimmick"
+              placeholder={c.s1Placeholder}
               className={`${inputClass} mb-6`}
             />
             <button onClick={() => setStep(2)} disabled={!brand.trim()} className={btnPrimary}>
-              Continue <ChevronRight className="size-4" />
+              {c.continue} <ChevronRight className="size-4" />
             </button>
           </div>
         )}
@@ -164,9 +230,9 @@ export function OnboardingWizard({
         {/* ── Step 2: Domain ── */}
         {step === 2 && (
           <div>
-            <h1 className="text-xl font-black text-foreground mb-1">Your website domain</h1>
-            <p className="text-sm text-muted-foreground mb-1">Enter your domain — no need for www or http.</p>
-            <p className="text-2xs text-muted-foreground/60 mb-5">e.g. type <span className="font-mono bg-muted px-1 rounded">fimmick.com</span> not <span className="font-mono bg-muted px-1 rounded">https://www.fimmick.com</span></p>
+            <h1 className="text-xl font-black text-foreground mb-1">{c.s2Title}</h1>
+            <p className="text-sm text-muted-foreground mb-1">{c.s2Subtitle}</p>
+            <p className="text-2xs text-muted-foreground/60 mb-5">{c.s2HintPrefix} <span className="font-mono bg-muted px-1 rounded">fimmick.com</span> {c.s2HintNot} <span className="font-mono bg-muted px-1 rounded">https://www.fimmick.com</span></p>
             <div className="relative mb-6">
               <input
                 autoFocus
@@ -183,13 +249,13 @@ export function OnboardingWizard({
               )}
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setStep(1)} className={btnBack}>Back</button>
+              <button onClick={() => setStep(1)} className={btnBack}>{c.back}</button>
               <button onClick={() => setStep(3)} className={btnPrimary}>
-                Continue <ChevronRight className="size-4" />
+                {c.continue} <ChevronRight className="size-4" />
               </button>
             </div>
             <button onClick={() => setStep(3)} className="w-full text-xs text-muted-foreground hover:text-foreground mt-3 transition">
-              Skip — I don&apos;t have a website yet
+              {c.s2Skip}
             </button>
           </div>
         )}
@@ -197,28 +263,28 @@ export function OnboardingWizard({
         {/* ── Step 3: Industry + Region ── */}
         {step === 3 && (
           <div>
-            <h1 className="text-xl font-black text-foreground mb-1">Your industry &amp; region</h1>
-            <p className="text-sm text-muted-foreground mb-6">Personalises your AI authority score and Pulse benchmarks.</p>
+            <h1 className="text-xl font-black text-foreground mb-1">{c.s3Title}</h1>
+            <p className="text-sm text-muted-foreground mb-6">{c.s3Subtitle}</p>
             <div className="space-y-3 mb-6">
               <select value={industry} onChange={e => setIndustry(e.target.value)}
                 className="w-full h-11 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
-                <option value="">Industry (optional)</option>
-                {INDUSTRIES.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
+                <option value="">{c.industryPlaceholder}</option>
+                {INDUSTRIES.map(i => <option key={i.value} value={i.value}>{isZh ? i.labelZh : i.labelEn}</option>)}
               </select>
               <select value={region} onChange={e => setRegion(e.target.value)}
                 className="w-full h-11 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
-                <option value="">Region (optional)</option>
-                {REGIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                <option value="">{c.regionPlaceholder}</option>
+                {REGIONS.map(r => <option key={r.value} value={r.value}>{isZh ? r.labelZh : r.labelEn}</option>)}
               </select>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setStep(2)} className={btnBack}>Back</button>
+              <button onClick={() => setStep(2)} className={btnBack}>{c.back}</button>
               <button onClick={() => setStep(4)} className={btnPrimary}>
-                Continue <ChevronRight className="size-4" />
+                {c.continue} <ChevronRight className="size-4" />
               </button>
             </div>
             <button onClick={() => setStep(4)} className="w-full text-xs text-muted-foreground hover:text-foreground mt-3 transition">
-              Skip — set up later
+              {c.s3Skip}
             </button>
           </div>
         )}
@@ -226,20 +292,20 @@ export function OnboardingWizard({
         {/* ── Step 4: Brand details ── */}
         {step === 4 && (
           <div>
-            <h1 className="text-xl font-black text-foreground mb-1">Tell AI what you do</h1>
+            <h1 className="text-xl font-black text-foreground mb-1">{c.s4Title}</h1>
             <p className="text-sm text-muted-foreground mb-6">
-              A short description helps us generate better scan questions and improves your AI citation accuracy.
+              {c.s4Subtitle}
             </p>
 
             {/* Brand description */}
             <div className="mb-4">
               <label className="block text-xs font-semibold text-foreground mb-1.5">
-                Brand description <span className="text-muted-foreground font-normal">(optional)</span>
+                {c.descLabel} <span className="text-muted-foreground font-normal">{c.optional}</span>
               </label>
               <textarea
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                placeholder={`e.g. ${brand || 'Your brand'} is an AI search optimisation platform that helps businesses improve their visibility in ChatGPT, Perplexity, and Google AI answers.`}
+                placeholder={c.descPlaceholder(brand)}
                 rows={3}
                 className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none leading-relaxed"
               />
@@ -248,9 +314,9 @@ export function OnboardingWizard({
             {/* Competitors */}
             <div className="mb-6">
               <label className="block text-xs font-semibold text-foreground mb-1.5">
-                Main competitors <span className="text-muted-foreground font-normal">(optional)</span>
+                {c.competitorsLabel} <span className="text-muted-foreground font-normal">{c.optional}</span>
               </label>
-              <p className="text-2xs text-muted-foreground mb-2">AI may mention these brands instead of yours — we&apos;ll track that.</p>
+              <p className="text-2xs text-muted-foreground mb-2">{c.competitorsHint}</p>
               <div className="flex gap-2 mb-2">
                 <input
                   value={competitorInput}
@@ -258,7 +324,7 @@ export function OnboardingWizard({
                   onKeyDown={e => {
                     if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addCompetitor() }
                   }}
-                  placeholder="e.g. Semrush, Ahrefs"
+                  placeholder={c.competitorsPlaceholder}
                   className="flex-1 h-9 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
                 <button
@@ -267,7 +333,7 @@ export function OnboardingWizard({
                   disabled={!competitorInput.trim()}
                   className="h-9 px-3 rounded-lg bg-secondary text-foreground text-xs font-semibold border border-input hover:bg-muted transition disabled:opacity-40"
                 >
-                  Add
+                  {c.add}
                 </button>
               </div>
               {competitors.length > 0 && (
@@ -287,14 +353,14 @@ export function OnboardingWizard({
             {error && <p className="text-destructive text-sm mb-4">{error}</p>}
 
             <div className="flex gap-3">
-              <button onClick={() => setStep(3)} className={btnBack}>Back</button>
+              <button onClick={() => setStep(3)} className={btnBack}>{c.back}</button>
               <button onClick={complete} disabled={loading} className={`${btnPrimary} disabled:opacity-60`}>
-                {loading ? 'Setting up…' : 'Go to my dashboard'}
+                {loading ? c.settingUp : c.goToDashboard}
                 {!loading && <ChevronRight className="size-4" />}
               </button>
             </div>
             <button onClick={complete} disabled={loading} className="w-full text-xs text-muted-foreground hover:text-foreground mt-3 transition">
-              Skip — I&apos;ll set this up later
+              {c.s4Skip}
             </button>
           </div>
         )}

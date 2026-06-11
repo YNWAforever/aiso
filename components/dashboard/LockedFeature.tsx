@@ -1,5 +1,7 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
+
 type Props = {
   feature: string
   requiredPlan: string
@@ -8,6 +10,12 @@ type Props = {
 }
 
 export function LockedFeature({ feature, requiredPlan, price, children }: Props) {
+  const t = useTranslations('dashboard')
+  const planLabel = requiredPlan === 'Pro'
+    ? t('plan_pro')
+    : requiredPlan === 'Enterprise'
+      ? t('plan_enterprise')
+      : requiredPlan
   return (
     <div className="relative rounded-xl border border-dash-border bg-dash-surface overflow-hidden group">
       {children && (
@@ -20,7 +28,7 @@ export function LockedFeature({ feature, requiredPlan, price, children }: Props)
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
         </svg>
         <p className="text-sm font-semibold text-dash-text mb-1">{feature}</p>
-        <p className="text-xs text-dash-muted mb-4 font-mono">Available on {requiredPlan} — {price}</p>
+        <p className="text-xs text-dash-muted mb-4 font-mono">{t('locked_available', { plan: planLabel, price })}</p>
         <button
           onClick={async () => {
             const res = await fetch('/api/stripe/checkout', {
@@ -33,7 +41,7 @@ export function LockedFeature({ feature, requiredPlan, price, children }: Props)
           }}
           className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg text-primary-foreground bg-dash-purple hover:opacity-90 transition-opacity"
         >
-          Upgrade to {requiredPlan} →
+          {t('locked_upgrade', { plan: planLabel })}
         </button>
       </div>
     </div>

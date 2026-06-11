@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import type { PromptBankItem } from '@/lib/types'
 
 interface Props {
@@ -33,6 +34,7 @@ function PromptRow({ prompt, onToggle, onEdit, onDelete }: {
   onEdit:   (id: string, question: string)   => Promise<void>
   onDelete: (id: string) => Promise<void>
 }) {
+  const t = useTranslations('pulse')
   const [editing, setEditing] = useState(false)
   const [draft, setDraft]     = useState(prompt.question)
   const [saving, setSaving]   = useState(false)
@@ -56,9 +58,9 @@ function PromptRow({ prompt, onToggle, onEdit, onDelete }: {
             className="flex-1 text-sm border border-blue-400 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" />
           <button onClick={save} disabled={saving}
             className="text-xs bg-blue-600 text-white px-3 py-1 rounded font-semibold disabled:opacity-50">
-            {saving ? '…' : 'Save'}
+            {saving ? '…' : t('save')}
           </button>
-          <button onClick={cancel} className="text-xs border border-slate-200 text-slate-500 px-3 py-1 rounded">Cancel</button>
+          <button onClick={cancel} className="text-xs border border-slate-200 text-slate-500 px-3 py-1 rounded">{t('cancel')}</button>
         </>
       ) : (
         <>
@@ -66,8 +68,8 @@ function PromptRow({ prompt, onToggle, onEdit, onDelete }: {
             {prompt.question}
           </span>
           <span className="text-xs text-slate-300 mr-1">{prompt.language}</span>
-          <button onClick={() => setEditing(true)} className="text-slate-400 hover:text-slate-600 text-xs px-1" title="Edit">✏️</button>
-          <button onClick={() => onDelete(prompt.id)} className="text-red-300 hover:text-red-500 text-xs px-1" title="Delete">🗑</button>
+          <button onClick={() => setEditing(true)} className="text-slate-400 hover:text-slate-600 text-xs px-1" title={t('edit')}>✏️</button>
+          <button onClick={() => onDelete(prompt.id)} className="text-red-300 hover:text-red-500 text-xs px-1" title={t('delete')}>🗑</button>
         </>
       )}
     </div>
@@ -77,6 +79,7 @@ function PromptRow({ prompt, onToggle, onEdit, onDelete }: {
 function AddPromptRow({ category, clientId, onAdd }: {
   category: string; clientId: string; onAdd: (p: PromptBankItem) => void
 }) {
+  const t = useTranslations('pulse')
   const [text, setText]       = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -96,13 +99,14 @@ function AddPromptRow({ category, clientId, onAdd }: {
     <form onSubmit={submit} className="flex items-center gap-2 px-4 py-2 bg-slate-50">
       <div className="w-9 flex-shrink-0" />
       <input value={text} onChange={e => setText(e.target.value)} disabled={loading}
-        placeholder="+ Type a new prompt and press Enter…"
+        placeholder={t('add_prompt_ph')}
         className="flex-1 text-sm border border-dashed border-slate-300 rounded px-2 py-1.5 bg-white text-slate-500 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400" />
     </form>
   )
 }
 
 export function PromptBankEditor({ clientId, initialPrompts }: Props) {
+  const t = useTranslations('pulse')
   const [prompts, setPrompts]     = useState<PromptBankItem[]>(initialPrompts)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
@@ -142,7 +146,7 @@ export function PromptBankEditor({ clientId, initialPrompts }: Props) {
 
   return (
     <div>
-      <p className="text-xs text-slate-400 mb-4">{activeCount} active / {prompts.length} total</p>
+      <p className="text-xs text-slate-400 mb-4">{t('qb_count', { active: activeCount, total: prompts.length })}</p>
       <div className="space-y-4">
         {allCategories.map(cat => {
           const items = grouped[cat] ?? []

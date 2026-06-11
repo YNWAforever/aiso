@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl'
 import { ScoreRing } from '@/components/ScoreRing'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
 import { CHECK_EXPLANATIONS } from '@/lib/checkExplanations'
@@ -20,6 +21,7 @@ const GROUPS: Group[] = [
 ]
 
 export function ScanSummary({ scan }: Props) {
+  const t = useTranslations('dashboard')
   const r = scan.results as Record<string, unknown>
   const date = new Date(scan.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
@@ -35,7 +37,7 @@ export function ScanSummary({ scan }: Props) {
         <div>
           <div className="flex items-center gap-2 mb-0.5">
             <span className="w-1.5 h-1.5 rounded-full bg-dash-success animate-pulse" />
-            <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase">Latest Scan</p>
+            <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase">{t('latest_scan')}</p>
           </div>
           <p className="text-[12px] text-dash-muted/80 font-mono mt-1">{scan.domain}</p>
           <p className="text-[10px] text-dash-muted/60 font-mono mt-0.5">{date}</p>
@@ -54,9 +56,9 @@ export function ScanSummary({ scan }: Props) {
 
       <div className="px-5 py-3 border-b border-dash-border flex items-center gap-3">
         <span className="text-lg font-bold font-mono text-dash-text">
-          Grade <span style={{ color: scoreColor }}>{scan.grade ?? 'F'}</span>
+          {t('grade')} <span style={{ color: scoreColor }}>{scan.grade ?? 'F'}</span>
         </span>
-        <span className="text-[11px] text-dash-muted">Score {scan.score}/100</span>
+        <span className="text-[11px] text-dash-muted">{t('score_outof', { score: scan.score })}</span>
       </div>
 
       <div className="p-4 space-y-1">

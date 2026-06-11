@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl'
 import type { AgentProgress } from '@/lib/types'
 
 type Props = { progress: AgentProgress[] }
@@ -9,11 +10,12 @@ function groupByPlatform(rows: AgentProgress[]): Record<string, AgentProgress[]>
 }
 
 export function AgentProgress({ progress }: Props) {
+  const t = useTranslations('dashboard')
   if (!progress.length) {
     return (
       <div className="rounded-xl border border-dash-border bg-dash-surface p-5">
-        <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-1.5">Progress</p>
-        <p className="text-[11px] text-dash-muted/60 font-mono">Progress tracking will appear after your next scan.</p>
+        <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-1.5">{t('progress_title')}</p>
+        <p className="text-[11px] text-dash-muted/60 font-mono">{t('progress_empty')}</p>
       </div>
     )
   }
@@ -22,7 +24,7 @@ export function AgentProgress({ progress }: Props) {
 
   return (
     <div className="rounded-xl border border-dash-border bg-dash-surface p-5">
-      <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-4">Progress</p>
+      <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-4">{t('progress_title')}</p>
       {Object.entries(grouped).map(([platform, rows]) => (
         <div key={platform} className="mb-3 last:mb-0">
           <p className="text-[10px] font-mono text-dash-purple tracking-wider uppercase mb-2">

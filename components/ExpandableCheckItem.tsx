@@ -1,7 +1,22 @@
 'use client'
 import { useState } from 'react'
+import { useLocale } from 'next-intl'
 import type { CheckResult } from '@/lib/types'
 import type { CheckExplanation } from '@/lib/checkExplanations'
+
+const COPY_EN = {
+  whyItMatters: 'Why it matters',
+  whatWeFound: 'What we found',
+  status: 'Status',
+  howToFix: 'How to fix',
+}
+
+const COPY_ZH_HK: typeof COPY_EN = {
+  whyItMatters: '為何重要',
+  whatWeFound: '掃描發現',
+  status: '狀態',
+  howToFix: '如何修復',
+}
 
 const STATUS_ICON  = { pass: '✅', warn: '⚠️', fail: '❌' } as const
 const STATUS_COLOR = {
@@ -23,6 +38,8 @@ interface Props {
 }
 
 export function ExpandableCheckItem({ label, result, message, explanation }: Props) {
+  const locale = useLocale()
+  const c = locale === 'zh-HK' ? COPY_ZH_HK : COPY_EN
   const [open, setOpen] = useState(false)
 
   return (
@@ -54,14 +71,14 @@ export function ExpandableCheckItem({ label, result, message, explanation }: Pro
         <div className={`mx-1 mb-3 rounded-lg border p-4 text-sm space-y-3 ${STATUS_DETAIL_BG[result.status]}`}>
           {/* Why it matters */}
           <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Why it matters</p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{c.whyItMatters}</p>
             <p className="text-slate-700 leading-relaxed">{explanation.why}</p>
           </div>
 
           {/* What we found */}
           {result.details && (
             <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">What we found</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{c.whatWeFound}</p>
               <p className="text-slate-700 font-mono text-xs bg-white/60 rounded px-2 py-1">{result.details}</p>
             </div>
           )}
@@ -69,7 +86,7 @@ export function ExpandableCheckItem({ label, result, message, explanation }: Pro
           {/* How to fix */}
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">
-              {result.status === 'pass' ? 'Status' : 'How to fix'}
+              {result.status === 'pass' ? c.status : c.howToFix}
             </p>
             <p className="text-slate-700 leading-relaxed">{explanation.fix[result.status]}</p>
           </div>

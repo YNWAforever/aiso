@@ -370,7 +370,7 @@ export default function PricingPage() {
               <span className="font-bold text-foreground">Fimmick <span className="text-primary">AISO</span></span>
             </div>
             <div className="flex items-center gap-5">
-              <Link href={`/${lang}`} className="hover:text-foreground transition-colors">Home</Link>
+              <Link href={`/${lang}`} className="hover:text-foreground transition-colors">{t('home')}</Link>
               <Link href={`/${lang}/auth/login`} className="hover:text-foreground transition-colors">{t('signin')}</Link>
               <Link href={`/${otherLang}/pricing`} className="hover:text-foreground transition-colors border border-border rounded px-2 py-0.5">{otherLabel}</Link>
             </div>

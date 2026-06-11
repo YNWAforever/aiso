@@ -1,3 +1,5 @@
+import { useTranslations } from 'next-intl'
+
 interface Row {
   platform: string
   question: string
@@ -13,6 +15,7 @@ interface Props {
 }
 
 export function MissedTable({ rows, platformLabel, questionLabel, competitorsLabel }: Props) {
+  const t = useTranslations('pulse')
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -32,7 +35,7 @@ export function MissedTable({ rows, platformLabel, questionLabel, competitorsLab
             </tr>
           ))}
           {rows.length === 0 && (
-            <tr><td colSpan={3} className="py-4 text-center text-slate-400">No data yet</td></tr>
+            <tr><td colSpan={3} className="py-4 text-center text-slate-400">{t('no_data')}</td></tr>
           )}
         </tbody>
       </table>

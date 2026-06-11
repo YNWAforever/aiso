@@ -2,15 +2,16 @@
 
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { LogOut, Wrench, Scan, FileBarChart2, Sparkles, Radio, Brain, Settings } from 'lucide-react'
 import { getPlanFeatures } from '@/lib/tier'
 import { ThemeToggle } from '@/components/dashboard/ThemeToggle'
 
 const STEPS = [
-  { key: 'scan',    label: 'Scan',    icon: Scan,          desc: 'Run an AISO check on any URL' },
-  { key: 'results', label: 'Results', icon: FileBarChart2,  desc: 'Review your diagnostic report' },
-  { key: 'improve', label: 'Improve', icon: Sparkles,       desc: 'AI analysis and fix recommendations' },
-  { key: 'monitor', label: 'Monitor', icon: Radio,          desc: 'AI share of voice tracking' },
+  { key: 'scan',    labelKey: 'nav_scan',    icon: Scan,          descKey: 'nav_scan_desc' },
+  { key: 'results', labelKey: 'nav_results', icon: FileBarChart2, descKey: 'nav_results_desc' },
+  { key: 'improve', labelKey: 'nav_improve', icon: Sparkles,      descKey: 'nav_improve_desc' },
+  { key: 'monitor', labelKey: 'nav_monitor', icon: Radio,         descKey: 'nav_monitor_desc' },
 ] as const
 
 type Props = {
@@ -24,6 +25,7 @@ type Props = {
 }
 
 export function DashboardSidebar({ profile, brandName, brandId }: Props) {
+  const t = useTranslations('dashboard')
   const params = useParams<{ lang: string }>()
   const searchParams = useSearchParams()
   const lang = params?.lang ?? 'en'
@@ -46,7 +48,7 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
         </Link>
         {brandName && (
           <div className="mt-3 px-2 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
-            <p className="text-[10px] text-primary/60 font-semibold tracking-widest uppercase mb-0.5">Brand</p>
+            <p className="text-[10px] text-primary/60 font-semibold tracking-widest uppercase mb-0.5">{t('brand_label')}</p>
             <p className="text-xs font-semibold text-foreground truncate">{brandName}</p>
           </div>
         )}
@@ -54,7 +56,7 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        <p className="text-[10px] text-muted-foreground/60 font-semibold tracking-widest uppercase mb-2 px-2">Workflow</p>
+        <p className="text-[10px] text-muted-foreground/60 font-semibold tracking-widest uppercase mb-2 px-2">{t('workflow')}</p>
         {STEPS.map((s) => {
           const active = step === s.key
           const StepIcon = s.icon
@@ -75,9 +77,9 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
             >
               <StepIcon className={`size-4 shrink-0 ${active ? 'text-white' : ''}`} />
               <div className="min-w-0 flex-1">
-                <p className={`text-xs font-semibold ${active ? 'text-white' : ''}`}>{s.label}</p>
+                <p className={`text-xs font-semibold ${active ? 'text-white' : ''}`}>{t(s.labelKey)}</p>
                 <p className={`text-[10px] leading-tight mt-0.5 truncate ${active ? 'text-white/70' : 'text-muted-foreground/60'}`}>
-                  {s.desc}
+                  {t(s.descKey)}
                 </p>
               </div>
               {locked && <span className="text-[9px] ml-auto">🔒</span>}
@@ -88,7 +90,7 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
         {/* Pulse / Prompt Bank links */}
         {brandId && (
           <div className="pt-3 mt-3 border-t border-border space-y-0.5">
-            <p className="text-[10px] text-muted-foreground/60 font-semibold tracking-widest uppercase mb-2 px-2">Tools</p>
+            <p className="text-[10px] text-muted-foreground/60 font-semibold tracking-widest uppercase mb-2 px-2">{t('tools')}</p>
             <Link
               href={`/${lang}/pulse/${brandId}`}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-secondary hover:text-foreground transition-all"
@@ -104,7 +106,7 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-secondary hover:text-foreground transition-all"
             >
               <Brain className="size-4 shrink-0" />
-              <span className="text-xs font-semibold">Question Bank</span>
+              <span className="text-xs font-semibold">{t('question_bank')}</span>
               {!features.edit_prompts && (
                 <span className="ml-auto text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-full font-bold">Pro</span>
               )}
@@ -122,7 +124,7 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
       <div className="px-3 pb-3">
         <div className="rounded-xl bg-gradient-to-br from-primary/5 to-blue-50 p-3 border border-primary/10">
           <div className="flex items-center justify-between mb-1.5">
-            <p className="text-[10px] text-primary/60 font-semibold tracking-widest uppercase">Plan</p>
+            <p className="text-[10px] text-primary/60 font-semibold tracking-widest uppercase">{t('plan_label')}</p>
             <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
               plan === 'enterprise' ? 'bg-violet-100 text-violet-700' :
               plan === 'pro' ? 'bg-primary/15 text-primary' :
@@ -133,7 +135,7 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
           </div>
           <Link href={`/${lang}/dashboard/settings`}
             className="text-[10px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
-            <Settings className="size-2.5" /> Manage plan
+            <Settings className="size-2.5" /> {t('manage_plan')}
           </Link>
         </div>
       </div>
@@ -151,11 +153,11 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
             <p className="text-[10px] text-muted-foreground">{plan}</p>
           </div>
           {profile.is_admin && (
-            <Link href={`/${lang}/admin`} className="text-muted-foreground hover:text-foreground transition-colors" title="Admin">
+            <Link href={`/${lang}/admin`} className="text-muted-foreground hover:text-foreground transition-colors" title={t('admin')}>
               <Wrench size={13} />
             </Link>
           )}
-          <Link href="/auth/logout" className="text-muted-foreground hover:text-destructive transition-colors" title="Sign out">
+          <Link href="/auth/logout" className="text-muted-foreground hover:text-destructive transition-colors" title={t('sign_out')}>
             <LogOut size={13} />
           </Link>
         </div>

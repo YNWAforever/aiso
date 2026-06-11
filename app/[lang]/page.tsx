@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input }  from '@/components/ui/input'
 
-/* ── Static content ─────────────────────────────────────────── */
+/* ── Static content (brand/platform names stay in English) ──── */
 
 const AI_PLATFORMS = [
   { name: 'ChatGPT',    color: '#10a37f' },
@@ -18,84 +18,6 @@ const AI_PLATFORMS = [
   { name: 'Claude',     color: '#d97706' },
   { name: 'Gemini',     color: '#4285f4' },
   { name: 'Google AIO', color: '#34a853' },
-]
-
-const STEPS = [
-  {
-    num: '01',
-    title: 'Enter Your URL',
-    body: 'Paste your website URL. Optionally select your industry and region for a personalised Authority score.',
-  },
-  {
-    num: '02',
-    title: 'Get Your AISO Grade',
-    body: '20 checks run instantly. Receive a 100-point score and an A+→F grade across Core, Extended, and GEO checks.',
-  },
-  {
-    num: '03',
-    title: 'Fix & Track',
-    body: 'Download your Fix Pack — Content Brief, Chunk Rewriter, and Cluster Map. Then track weekly with AI Pulse.',
-  },
-]
-
-const FEATURES = [
-  {
-    icon: Layers,
-    title: '5-Layer Authority Engine',
-    body: 'TLD trust → Wikipedia & Tranco signals → Industry pack (13 sectors) → Regional pack (11 markets) → Dynamic learning from real AI citations.',
-    accent: 'from-violet-500/20 to-purple-500/10',
-    badge: 'Authority Engine',
-  },
-  {
-    icon: Search,
-    title: '20 AI Readiness Checks',
-    body: 'Core technical (45 pts): robots.txt, llms.txt, bot access, schema, extractability. GEO content (25 pts): citation density, factual density, topical authority, chunkability.',
-    accent: 'from-blue-500/20 to-cyan-500/10',
-    badge: '100-Point Score',
-  },
-  {
-    icon: Brain,
-    title: 'Citation Density Analysis',
-    body: 'Scans every external link on your page, scores each source through the Authority Engine, and shows you exactly which citations will earn AI trust.',
-    accent: 'from-emerald-500/20 to-teal-500/10',
-    badge: 'GEO Check #17',
-  },
-  {
-    icon: FileText,
-    title: 'GEO Content Fix Packs',
-    body: 'Three automated outputs: a Content Brief for your next pillar page, a Chunk Rewriter to make existing content AI-citable, and a Topical Cluster Map.',
-    accent: 'from-orange-500/20 to-amber-500/10',
-    badge: 'Fix Pack #8–10',
-  },
-  {
-    icon: BarChart2,
-    title: 'AI Pulse Citation Loop',
-    body: 'Weekly share-of-voice tracking across ChatGPT, Perplexity, Claude, Gemini, and Google AIO. Every citation feeds back into Layer 5 to refine your authority score.',
-    accent: 'from-pink-500/20 to-rose-500/10',
-    badge: 'Closed-Loop',
-  },
-  {
-    icon: Globe,
-    title: 'Industry × Region Intelligence',
-    body: '13 industry packs × 11 regional packs means your authority score is calibrated to what AI actually trusts in your specific market — not a generic benchmark.',
-    accent: 'from-sky-500/20 to-indigo-500/10',
-    badge: '143 Combinations',
-  },
-]
-
-const STATS = [
-  { value: '20',  label: 'AI Readiness Checks' },
-  { value: '5',   label: 'Authority Layers' },
-  { value: '13',  label: 'Industry Packs' },
-  { value: '11',  label: 'Regional Markets' },
-  { value: '6',   label: 'AI Platforms Tracked' },
-  { value: 'A+',  label: 'Highest Grade' },
-]
-
-const SCORE_BREAKDOWN = [
-  { label: 'Core Checks',     pts: 45, color: 'bg-primary',         checks: 'c1–c5' },
-  { label: 'Extended Checks', pts: 30, color: 'bg-violet-500',      checks: 'c6–c16' },
-  { label: 'GEO Checks',      pts: 25, color: 'bg-emerald-500',     checks: 'c17–c20' },
 ]
 
 /* ── Component ──────────────────────────────────────────────── */
@@ -113,17 +35,98 @@ export default function HomePage() {
   const [scanStep, setScanStep]     = useState(0)
 
   const SCAN_STEPS = [
-    'Checking robots.txt for AI crawlers…',
-    'Reading llms.txt…',
-    'Testing bot accessibility…',
-    'Parsing structured data…',
-    'Analysing content extractability…',
-    'Running extended checks…',
-    'Computing GEO citation density…',
-    'Scoring factual density…',
-    'Mapping topical authority…',
-    'Measuring chunkability…',
-    'Calculating your AISO grade…',
+    t('home.scan_step1'),
+    t('home.scan_step2'),
+    t('home.scan_step3'),
+    t('home.scan_step4'),
+    t('home.scan_step5'),
+    t('home.scan_step6'),
+    t('home.scan_step7'),
+    t('home.scan_step8'),
+    t('home.scan_step9'),
+    t('home.scan_step10'),
+    t('home.scan_step11'),
+  ]
+
+  const STEPS = [
+    { num: '01', title: t('home.step1_title'), body: t('home.step1_body') },
+    { num: '02', title: t('home.step2_title'), body: t('home.step2_body') },
+    { num: '03', title: t('home.step3_title'), body: t('home.step3_body') },
+  ]
+
+  const FEATURES = [
+    {
+      icon: Layers,
+      title: t('home.feature_authority_title'),
+      body:  t('home.feature_authority_body'),
+      accent: 'from-violet-500/20 to-purple-500/10',
+      badge: t('home.feature_authority_badge'),
+    },
+    {
+      icon: Search,
+      title: t('home.feature_checks_title'),
+      body:  t('home.feature_checks_body'),
+      accent: 'from-blue-500/20 to-cyan-500/10',
+      badge: t('home.feature_checks_badge'),
+    },
+    {
+      icon: Brain,
+      title: t('home.feature_citation_title'),
+      body:  t('home.feature_citation_body'),
+      accent: 'from-emerald-500/20 to-teal-500/10',
+      badge: t('home.feature_citation_badge'),
+    },
+    {
+      icon: FileText,
+      title: t('home.feature_fixpack_title'),
+      body:  t('home.feature_fixpack_body'),
+      accent: 'from-orange-500/20 to-amber-500/10',
+      badge: t('home.feature_fixpack_badge'),
+    },
+    {
+      icon: BarChart2,
+      title: t('home.feature_pulse_title'),
+      body:  t('home.feature_pulse_body'),
+      accent: 'from-pink-500/20 to-rose-500/10',
+      badge: t('home.feature_pulse_badge'),
+    },
+    {
+      icon: Globe,
+      title: t('home.feature_intel_title'),
+      body:  t('home.feature_intel_body'),
+      accent: 'from-sky-500/20 to-indigo-500/10',
+      badge: t('home.feature_intel_badge'),
+    },
+  ]
+
+  const STATS = [
+    { value: '20',  label: t('home.stat_checks') },
+    { value: '5',   label: t('home.stat_layers') },
+    { value: '13',  label: t('home.stat_industries') },
+    { value: '11',  label: t('home.stat_regions') },
+    { value: '6',   label: t('home.stat_platforms') },
+    { value: 'A+',  label: t('home.stat_grade') },
+  ]
+
+  const SCORE_BREAKDOWN = [
+    { label: t('home.breakdown_core'),     pts: 45, color: 'bg-primary',    checks: 'c1–c5' },
+    { label: t('home.breakdown_extended'), pts: 30, color: 'bg-violet-500', checks: 'c6–c16' },
+    { label: t('home.breakdown_geo'),      pts: 25, color: 'bg-emerald-500', checks: 'c17–c20' },
+  ]
+
+  const AUTHORITY_LAYERS = [
+    { layer: 'L1', name: t('home.layer1_title'), desc: t('home.layer1_desc'), score: t('home.layer1_score') },
+    { layer: 'L2', name: t('home.layer2_title'), desc: t('home.layer2_desc'), score: t('home.layer2_score') },
+    { layer: 'L3', name: t('home.layer3_title'), desc: t('home.layer3_desc'), score: t('home.layer3_score') },
+    { layer: 'L4', name: t('home.layer4_title'), desc: t('home.layer4_desc'), score: t('home.layer4_score') },
+    { layer: 'L5', name: t('home.layer5_title'), desc: t('home.layer5_desc'), score: t('home.layer5_score') },
+  ]
+
+  const PULSE_POINTS = [
+    t('home.pulse_point1'),
+    t('home.pulse_point2'),
+    t('home.pulse_point3'),
+    t('home.pulse_point4'),
   ]
 
   async function handleScan(e: React.FormEvent) {
@@ -227,7 +230,7 @@ export default function HomePage() {
                   disabled={loading}
                 />
                 <Button type="submit" disabled={loading} className="h-12 px-6 font-semibold shrink-0 rounded-xl shadow-sm">
-                  {loading ? <span className="animate-pulse">Scanning…</span> : t('home.cta')}
+                  {loading ? <span className="animate-pulse">{t('home.scanning')}</span> : t('home.cta')}
                   {!loading && <ChevronRight className="size-4 ml-1" />}
                 </Button>
               </form>
@@ -252,41 +255,41 @@ export default function HomePage() {
                 <button type="button" onClick={() => setShowPersonalise(v => !v)}
                   className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
                   <span className="text-[10px]">{showPersonalise ? '▾' : '▸'}</span>
-                  Personalise — add industry &amp; region for better accuracy
+                  {t('home.personalise_toggle')}
                 </button>
                 {showPersonalise && (
                   <div className="mt-2 flex flex-col sm:flex-row gap-2">
                     <select value={industry} onChange={e => setIndustry(e.target.value)}
                       className="flex-1 h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
-                      <option value="">Industry (optional)</option>
-                      <option value="technology">Technology</option>
-                      <option value="finance">Finance &amp; Banking</option>
-                      <option value="medical">Healthcare &amp; Medical</option>
-                      <option value="legal">Legal &amp; Compliance</option>
-                      <option value="retail_ecommerce">Retail &amp; E-Commerce</option>
-                      <option value="education">Education</option>
-                      <option value="real_estate">Real Estate</option>
-                      <option value="travel_hospitality">Travel &amp; Hospitality</option>
-                      <option value="media_entertainment">Media &amp; Entertainment</option>
-                      <option value="manufacturing">Manufacturing</option>
-                      <option value="energy_utilities">Energy &amp; Utilities</option>
-                      <option value="general_b2b">General (B2B)</option>
-                      <option value="general_b2c">General (B2C)</option>
+                      <option value="">{t('home.industry_placeholder')}</option>
+                      <option value="technology">{t('home.industry_technology')}</option>
+                      <option value="finance">{t('home.industry_finance')}</option>
+                      <option value="medical">{t('home.industry_medical')}</option>
+                      <option value="legal">{t('home.industry_legal')}</option>
+                      <option value="retail_ecommerce">{t('home.industry_retail')}</option>
+                      <option value="education">{t('home.industry_education')}</option>
+                      <option value="real_estate">{t('home.industry_real_estate')}</option>
+                      <option value="travel_hospitality">{t('home.industry_travel')}</option>
+                      <option value="media_entertainment">{t('home.industry_media')}</option>
+                      <option value="manufacturing">{t('home.industry_manufacturing')}</option>
+                      <option value="energy_utilities">{t('home.industry_energy')}</option>
+                      <option value="general_b2b">{t('home.industry_general_b2b')}</option>
+                      <option value="general_b2c">{t('home.industry_general_b2c')}</option>
                     </select>
                     <select value={region} onChange={e => setRegion(e.target.value)}
                       className="flex-1 h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
-                      <option value="">Region (optional)</option>
-                      <option value="HK">Hong Kong</option>
-                      <option value="TW">Taiwan</option>
-                      <option value="SG">Singapore</option>
-                      <option value="JP">Japan</option>
-                      <option value="KR">South Korea</option>
-                      <option value="US">United States</option>
-                      <option value="UK">United Kingdom</option>
-                      <option value="EU">European Union</option>
-                      <option value="AU">Australia</option>
-                      <option value="CA">Canada</option>
-                      <option value="global">Global</option>
+                      <option value="">{t('home.region_placeholder')}</option>
+                      <option value="HK">{t('home.region_hk')}</option>
+                      <option value="TW">{t('home.region_tw')}</option>
+                      <option value="SG">{t('home.region_sg')}</option>
+                      <option value="JP">{t('home.region_jp')}</option>
+                      <option value="KR">{t('home.region_kr')}</option>
+                      <option value="US">{t('home.region_us')}</option>
+                      <option value="UK">{t('home.region_uk')}</option>
+                      <option value="EU">{t('home.region_eu')}</option>
+                      <option value="AU">{t('home.region_au')}</option>
+                      <option value="CA">{t('home.region_ca')}</option>
+                      <option value="global">{t('home.region_global')}</option>
                     </select>
                   </div>
                 )}
@@ -305,7 +308,7 @@ export default function HomePage() {
                     </div>
                     <div>
                       <p className="text-xs font-bold text-foreground">fimmick.com</p>
-                      <p className="text-[10px] text-muted-foreground">Technology · Hong Kong</p>
+                      <p className="text-[10px] text-muted-foreground">{t('home.mockup_meta')}</p>
                     </div>
                     <div className="ml-auto bg-blue-600 text-white text-sm font-black px-2 py-1 rounded-lg">B+</div>
                   </div>
@@ -325,14 +328,14 @@ export default function HomePage() {
                     <div className="flex-1 space-y-1.5">
                       <div>
                         <div className="flex justify-between text-[10px] mb-0.5">
-                          <span className="text-muted-foreground">Core Checks</span>
+                          <span className="text-muted-foreground">{t('home.breakdown_core')}</span>
                           <span className="font-semibold">38/45</span>
                         </div>
                         <div className="h-1.5 bg-slate-100 rounded-full"><div className="h-full bg-primary rounded-full" style={{ width:'84%' }} /></div>
                       </div>
                       <div>
                         <div className="flex justify-between text-[10px] mb-0.5">
-                          <span className="text-muted-foreground">GEO Checks</span>
+                          <span className="text-muted-foreground">{t('home.breakdown_geo')}</span>
                           <span className="font-semibold">18/25</span>
                         </div>
                         <div className="h-1.5 bg-slate-100 rounded-full"><div className="h-full bg-emerald-500 rounded-full" style={{ width:'72%' }} /></div>
@@ -340,17 +343,17 @@ export default function HomePage() {
                     </div>
                   </div>
                   <div className="flex gap-1">
-                    <span className="flex-1 text-center text-[10px] font-semibold py-1 rounded-md bg-emerald-50 text-emerald-700">✅ 14 passing</span>
-                    <span className="flex-1 text-center text-[10px] font-semibold py-1 rounded-md bg-amber-50 text-amber-700">⚠ 4 warnings</span>
-                    <span className="flex-1 text-center text-[10px] font-semibold py-1 rounded-md bg-red-50 text-red-700">❌ 2 failing</span>
+                    <span className="flex-1 text-center text-[10px] font-semibold py-1 rounded-md bg-emerald-50 text-emerald-700">{t('home.mockup_passing')}</span>
+                    <span className="flex-1 text-center text-[10px] font-semibold py-1 rounded-md bg-amber-50 text-amber-700">{t('home.mockup_warnings')}</span>
+                    <span className="flex-1 text-center text-[10px] font-semibold py-1 rounded-md bg-red-50 text-red-700">{t('home.mockup_failing')}</span>
                   </div>
                 </div>
                 {/* Floating badges */}
                 <div className="absolute -top-4 -right-4 bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-xl shadow-lg flex items-center gap-1">
-                  <ShieldCheck className="size-3" /> GEO Score: 72
+                  <ShieldCheck className="size-3" /> {t('home.mockup_geo_badge')}
                 </div>
                 <div className="absolute -bottom-4 -left-4 bg-violet-600 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-xl shadow-lg flex items-center gap-1">
-                  <Award className="size-3" /> Authority Tier 1
+                  <Award className="size-3" /> {t('home.mockup_authority_badge')}
                 </div>
               </div>
             </div>
@@ -390,7 +393,7 @@ export default function HomePage() {
         {/* ── How it works ─────────────────────────────────────── */}
         <section className="bg-gradient-to-b from-slate-50 to-white border-y border-border/60 py-16">
           <div className="max-w-4xl mx-auto px-6">
-            <p className="text-xs font-bold text-primary tracking-widest text-center mb-3 uppercase">How it works</p>
+            <p className="text-xs font-bold text-primary tracking-widest text-center mb-3 uppercase">{t('home.how_label')}</p>
             <h2 className="text-3xl font-black text-foreground text-center mb-2">{t('home.how_title')}</h2>
             <p className="text-muted-foreground text-center text-sm mb-12 max-w-lg mx-auto">{t('home.how_subtitle')}</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -432,7 +435,7 @@ export default function HomePage() {
                   <div key={item.label}>
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-xs font-semibold text-foreground">{item.label}</span>
-                      <span className="text-xs text-muted-foreground">{item.pts} pts · {item.checks}</span>
+                      <span className="text-xs text-muted-foreground">{item.pts} {t('home.pts_unit')} · {item.checks}</span>
                     </div>
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
                       <div
@@ -445,8 +448,8 @@ export default function HomePage() {
                 {/* Total bar */}
                 <div className="pt-2 border-t">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-black text-foreground">Total AISO Score</span>
-                    <span className="text-xs font-black text-primary">100 pts</span>
+                    <span className="text-xs font-black text-foreground">{t('home.total_label')}</span>
+                    <span className="text-xs font-black text-primary">{t('home.total_pts')}</span>
                   </div>
                 </div>
               </div>
@@ -457,9 +460,9 @@ export default function HomePage() {
               <div className="relative">
                 {/* Grade card */}
                 <div className="bg-card border-2 border-primary/20 rounded-2xl p-10 text-center shadow-xl w-64">
-                  <div className="text-xs font-bold text-muted-foreground tracking-widest mb-2">AISO GRADE</div>
+                  <div className="text-xs font-bold text-muted-foreground tracking-widest mb-2">{t('home.grade_label')}</div>
                   <div className="text-8xl font-black text-primary leading-none mb-2">A<span className="text-4xl align-top mt-3 inline-block">+</span></div>
-                  <div className="text-xs text-muted-foreground mb-6">Score 90–100 / 100</div>
+                  <div className="text-xs text-muted-foreground mb-6">{t('home.grade_range')}</div>
                   <div className="flex justify-center gap-1">
                     {['A+','A','B','C','D','F'].map((g, i) => (
                       <div
@@ -473,10 +476,10 @@ export default function HomePage() {
                 </div>
                 {/* Floating badges */}
                 <div className="absolute -top-3 -right-4 bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow">
-                  ✓ GEO Pass
+                  {t('home.grade_geo_pass')}
                 </div>
                 <div className="absolute -bottom-3 -left-4 bg-violet-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow">
-                  ✓ Tier 1 Authority
+                  {t('home.grade_tier1')}
                 </div>
               </div>
             </div>
@@ -486,7 +489,7 @@ export default function HomePage() {
         {/* ── Features ─────────────────────────────────────────── */}
         <section className="bg-white border-t border-border/60 py-16">
           <div className="max-w-5xl mx-auto px-6">
-            <p className="text-xs font-bold text-primary tracking-widest text-center mb-3 uppercase">Everything you need</p>
+            <p className="text-xs font-bold text-primary tracking-widest text-center mb-3 uppercase">{t('home.features_label')}</p>
             <h2 className="text-3xl font-black text-foreground text-center mb-2">{t('home.features_title')}</h2>
             <p className="text-muted-foreground text-center text-sm mb-12 max-w-lg mx-auto">{t('home.features_subtitle')}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -515,19 +518,13 @@ export default function HomePage() {
             <div className="px-8 py-6 border-b bg-muted/30">
               <div className="flex items-center gap-2 mb-1">
                 <Layers className="size-4 text-primary" />
-                <span className="text-xs font-bold text-primary tracking-widest">AUTHORITY ENGINE</span>
+                <span className="text-xs font-bold text-primary tracking-widest">{t('home.authority_label')}</span>
               </div>
               <h2 className="text-xl font-black text-foreground">{t('home.authority_title')}</h2>
               <p className="text-sm text-muted-foreground mt-1">{t('home.authority_subtitle')}</p>
             </div>
             <div className="divide-y">
-              {[
-                { layer: 'L1', name: 'TLD Trust',         desc: 'gov · mil · edu · ac · org score higher. Country-code TLDs get regional weight.',      score: '0–10 pts' },
-                { layer: 'L2', name: 'Domain Signals',    desc: 'Wikipedia presence, Tranco traffic rank, editorial policy, HTTPS, author bylines.',     score: '0–10 pts' },
-                { layer: 'L3', name: 'Industry Pack',     desc: '13 curated industry packs with Tier 1/2/3 domain lists and topical keyword matching.',   score: '0–10 pts × multiplier' },
-                { layer: 'L4', name: 'Regional Pack',     desc: '11 regional markets: HK, TW, SG, JP, KR, US, UK, EU, AU, CA, Global.',                  score: '0–10 pts' },
-                { layer: 'L5', name: 'Dynamic Learning',  desc: 'Z-score boost from real AI citation frequency — updated weekly via Pulse.',               score: 'up to +5 pts' },
-              ].map(({ layer, name, desc, score }) => (
+              {AUTHORITY_LAYERS.map(({ layer, name, desc, score }) => (
                 <div key={layer} className="flex items-start gap-4 px-8 py-4 hover:bg-muted/20 transition-colors">
                   <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                     <span className="text-xs font-black text-primary">{layer}</span>
@@ -554,8 +551,8 @@ export default function HomePage() {
                 <div className="bg-card border rounded-2xl p-6 shadow-lg">
                   <div className="flex items-center gap-2 mb-4">
                     <TrendingUp className="size-4 text-primary" />
-                    <span className="text-xs font-bold text-foreground">AI Pulse — Share of Voice</span>
-                    <span className="ml-auto text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">LIVE</span>
+                    <span className="text-xs font-bold text-foreground">{t('home.pulse_chart_title')}</span>
+                    <span className="ml-auto text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">{t('home.pulse_live')}</span>
                   </div>
                   <div className="space-y-2.5">
                     {[
@@ -575,7 +572,7 @@ export default function HomePage() {
                   </div>
                   <div className="mt-4 pt-4 border-t flex items-center gap-2">
                     <Star className="size-3 text-primary" />
-                    <span className="text-xs text-muted-foreground">Citations feed back into Authority Layer 5</span>
+                    <span className="text-xs text-muted-foreground">{t('home.pulse_feedback')}</span>
                   </div>
                 </div>
               </div>
@@ -593,12 +590,7 @@ export default function HomePage() {
                   {t('home.pulse_body')}
                 </p>
                 <ul className="space-y-2">
-                  {[
-                    'Weekly share-of-voice across 6 AI platforms',
-                    'Missed opportunity detection',
-                    'Competitor citation benchmarking',
-                    'Feeds Layer 5 dynamic authority boost',
-                  ].map(item => (
+                  {PULSE_POINTS.map(item => (
                     <li key={item} className="flex items-center gap-2 text-sm text-foreground">
                       <div className="size-1.5 rounded-full bg-primary shrink-0" />
                       {item}
@@ -639,7 +631,7 @@ export default function HomePage() {
               </Button>
             </form>
             {error && <p className="text-red-200 text-sm mt-3">{error}</p>}
-            <p className="text-blue-200/70 text-xs mt-5">Free to scan · No credit card required · Results in ~15 seconds</p>
+            <p className="text-blue-200/70 text-xs mt-5">{t('home.cta_bottom_note')}</p>
           </div>
         </section>
 
@@ -651,11 +643,11 @@ export default function HomePage() {
                 <Zap className="size-3 text-white" />
               </div>
               <span className="font-bold text-foreground">Fimmick <span className="text-primary">AISO</span></span>
-              <span className="text-xs text-muted-foreground">AI Search Optimization</span>
+              <span className="text-xs text-muted-foreground">{t('home.footer_tagline')}</span>
             </div>
             <div className="flex items-center gap-5">
-              <Link href={`/${params.lang}/pricing`} className="hover:text-foreground transition-colors text-xs">Pricing</Link>
-              <Link href={`/${params.lang}/auth/login`} className="hover:text-foreground transition-colors text-xs">Sign in</Link>
+              <Link href={`/${params.lang}/pricing`} className="hover:text-foreground transition-colors text-xs">{t('home.footer_pricing')}</Link>
+              <Link href={`/${params.lang}/auth/login`} className="hover:text-foreground transition-colors text-xs">{t('home.footer_sign_in')}</Link>
               <Link href={`/${otherLang}`} className="hover:text-foreground transition-colors text-xs border border-border rounded px-2 py-0.5">{otherLabel}</Link>
             </div>
             <span className="text-xs">© 2026 Fimmick.</span>

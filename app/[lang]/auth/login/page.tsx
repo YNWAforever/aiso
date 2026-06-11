@@ -2,11 +2,15 @@ import { LoginForm } from '@/components/auth/LoginForm'
 import { Zap } from 'lucide-react'
 
 export default async function LoginPage({
+  params,
   searchParams,
 }: {
+  params: Promise<{ lang: string }>
   searchParams: Promise<{ next?: string }>
 }) {
+  const { lang } = await params
   const { next } = await searchParams
+  const signInText = lang === 'zh-HK' ? '登入你的儀表板' : 'Sign in to your dashboard'
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -18,7 +22,7 @@ export default async function LoginPage({
               Fimmick <span className="text-primary">AEO</span>
             </p>
           </div>
-          <p className="text-muted-foreground text-sm">Sign in to your dashboard</p>
+          <p className="text-muted-foreground text-sm">{signInText}</p>
         </div>
         <LoginForm next={next} />
       </div>

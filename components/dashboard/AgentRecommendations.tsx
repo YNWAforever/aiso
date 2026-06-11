@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl'
 import type { AgentRecommendation } from '@/lib/types'
 
 type Props = { recommendations: AgentRecommendation[] }
@@ -9,11 +10,12 @@ function groupByPlatform(recs: AgentRecommendation[]): Record<string, AgentRecom
 }
 
 export function AgentRecommendations({ recommendations }: Props) {
+  const t = useTranslations('dashboard')
   if (!recommendations.length) {
     return (
       <div className="rounded-xl border border-dash-border bg-dash-surface p-5">
-        <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-1.5">Recommendations</p>
-        <p className="text-[11px] text-dash-muted/60 font-mono">No recommendations yet — agents will provide platform-specific fixes.</p>
+        <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-1.5">{t('recs_title')}</p>
+        <p className="text-[11px] text-dash-muted/60 font-mono">{t('recs_empty')}</p>
       </div>
     )
   }
@@ -22,7 +24,7 @@ export function AgentRecommendations({ recommendations }: Props) {
 
   return (
     <div className="rounded-xl border border-dash-border bg-dash-surface p-5">
-      <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-4">Recommendations</p>
+      <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase mb-4">{t('recs_title')}</p>
       {Object.entries(grouped).map(([platform, recs]) => (
         <div key={platform} className="mb-4 last:mb-0">
           <p className="text-[10px] font-mono text-dash-accent tracking-wider uppercase mb-2.5">
