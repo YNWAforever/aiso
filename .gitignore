@@ -42,6 +42,7 @@ next-env.d.ts
 
 # superpowers
 .superpowers/
+.codex/
 .opencode/superpowers/
 
 # Playwright
