@@ -7,6 +7,7 @@ const STEPS: Step[] = [
   { key: 'results', label: 'Results' },
   { key: 'improve', label: 'Improve' },
   { key: 'monitor', label: 'Monitor' },
+  { key: 'roi', label: 'ROI' },
 ]
 
 type Props = {
@@ -24,6 +25,7 @@ export function WizardProgress({ current, plan, hasScan }: Props) {
     results: { accessible: hasScan },
     improve:  { accessible: hasScan && features.agent_recs, reason: !features.agent_recs ? 'Pro plan required for agent analysis' : undefined },
     monitor:  { accessible: hasScan },
+    roi: { accessible: hasScan && features.local_trust_roi, reason: !features.local_trust_roi ? 'Pro plan required for Local Trust ROI' : undefined },
   }
 
   return (

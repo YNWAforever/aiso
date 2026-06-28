@@ -7,9 +7,11 @@ import { ScanStep } from '@/components/dashboard/ScanStep'
 import { ResultsStep } from '@/components/dashboard/ResultsStep'
 import { ImproveStep } from '@/components/dashboard/ImproveStep'
 import { MonitorStep } from '@/components/dashboard/MonitorStep'
-import {
+import { LocalTrustStep } from '@/components/dashboard/local-trust/LocalTrustStep'
+import { getLocalTrustProfile, getOrCreateLocalTrustSnapshot } from '@/lib/localTrust/store'
+import type {
   Scan, AgentRecommendation, AgentProgress as AgentProgressType,
-  AgentCompetitor, PulseWeeklySummary, PulseMetric,
+  AgentCompetitor, PulseWeeklySummary, PulseMetric, Client,
 } from '@/lib/types'
 
 async function StepHeader({ step, plan }: { step: string; plan: string }) {
@@ -31,6 +33,10 @@ async function StepHeader({ step, plan }: { step: string; plan: string }) {
     monitor: {
       title: t('step_monitor_title'),
       body: t('step_monitor_body'),
+    },
+    roi: {
+      title: t('step_roi_title'),
+      body: features.local_trust_roi ? t('step_roi_body') : t('step_roi_locked'),
     },
   }
   const i = info[step] ?? info.scan!
@@ -56,12 +62,14 @@ export default async function DashboardPage({
   const profile  = await requireAuth(lang)
   const supabase = await createServerSupabaseClient()
   const plan = profile.accounts?.plan ?? 'basic'
+  const features = getPlanFeatures(plan)
 
   const { data: client } = await supabase
-    .from('clients').select('brand_name')
+    .from('clients').select('id, brand_name, domain, industry, competitors, status, created_at')
     .eq('id', clientId).eq('account_id', profile.account_id).single()
 
   if (!client) notFound()
+  const typedClient = client as Client
 
   // Fetch a specific scan if scanId is provided
   const scanIdPromise = scanId
@@ -97,6 +105,21 @@ export default async function DashboardPage({
 
   const summary = (pulseSummary ?? []) as PulseWeeklySummary[]
   const missed  = (pulseMetrics ?? []) as PulseMetric[]
+  const agentCompetitors = (agentComps ?? []) as AgentCompetitor[]
+  const localTrustProfile = step === 'roi'
+    ? await getLocalTrustProfile(clientId, profile.account_id)
+    : null
+  const localTrustData = step === 'roi' && features.local_trust_roi
+    ? await getOrCreateLocalTrustSnapshot({
+        client: typedClient,
+        accountId: profile.account_id,
+        latestScan: scan,
+        profile: localTrustProfile,
+        pulseSummary: summary,
+        missed,
+        competitors: agentCompetitors,
+      })
+    : null
 
   return (
     <>
@@ -119,7 +142,7 @@ export default async function DashboardPage({
             plan={plan}
             recommendations={(agentRecs ?? []) as AgentRecommendation[]}
             progress={(agentProg ?? []) as AgentProgressType[]}
-            competitors={(agentComps ?? []) as AgentCompetitor[]}
+            competitors={agentCompetitors}
           />
         )}
         {step === 'improve' && !scan && (
@@ -131,6 +154,18 @@ export default async function DashboardPage({
 
         {step === 'monitor' && (
           <MonitorStep plan={plan} clientId={clientId} summary={summary} missed={missed} />
+        )}
+
+        {step === 'roi' && (
+          <LocalTrustStep
+            lang={lang}
+            clientId={clientId}
+            plan={plan}
+            profile={localTrustProfile}
+            snapshot={localTrustData?.snapshot ?? null}
+            actions={localTrustData?.actions ?? []}
+            competitors={agentCompetitors}
+          />
         )}
       </main>
     </>
