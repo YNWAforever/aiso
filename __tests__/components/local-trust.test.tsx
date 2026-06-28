@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import type { AgentCompetitor, LocalTrustAction, LocalTrustBucketScore, LocalTrustSnapshot } from '@/lib/types'
 
 const repoRoot = process.cwd()
 
@@ -49,16 +51,18 @@ describe('Local Trust dashboard wiring', () => {
 
   it('uses translated locked preview copy with sample movement and a pricing CTA', () => {
     const step = read('components/dashboard/local-trust/LocalTrustStep.tsx')
+    const preview = read('components/dashboard/local-trust/LocalTrustLockedPreview.tsx')
     const en = read('messages/en.json')
     const zh = read('messages/zh-HK.json')
 
     expect(step).toContain("useTranslations('dashboard')")
+    expect(step).toContain('LocalTrustLockedPreview')
     expect(step).toContain("t('local_trust_preview_body')")
     expect(step).toContain("t('local_trust_upgrade_cta')")
     expect(step).toContain("t('local_trust_sample_score')")
-    expect(step).toContain('62')
-    expect(step).toContain('71')
-    expect(step).toContain('`/${lang}/pricing`')
+    expect(preview).toContain('62')
+    expect(preview).toContain('71')
+    expect(preview).toContain('`/${lang}/pricing`')
     expect(step).not.toContain('Preview how Pro turns')
 
     for (const messages of [en, zh]) {
@@ -92,5 +96,175 @@ describe('Local Trust dashboard wiring', () => {
       expect(messages).toContain('nav_roi_desc')
       expect(messages).toContain('local_trust_score')
     }
+  })
+})
+
+const bucketScores: LocalTrustBucketScore[] = [
+  {
+    key: 'local_visibility',
+    label: 'Local visibility',
+    score: 18,
+    maxScore: 25,
+    explanation: 'Good local service-area signals.',
+    strongestSignal: 'Hong Kong service-area copy',
+    weakestSignal: 'Local schema',
+    topAction: 'Clarify priority services',
+  },
+  {
+    key: 'proof_depth',
+    label: 'Proof depth',
+    score: 14,
+    maxScore: 25,
+    explanation: 'Proof is present but thin.',
+    strongestSignal: 'Director credentials',
+    weakestSignal: 'Client case studies',
+    topAction: 'Add two client proof points',
+  },
+  {
+    key: 'ai_answer_readiness',
+    label: 'AI answer readiness',
+    score: 20,
+    maxScore: 25,
+    explanation: 'Service content is easy to extract.',
+    strongestSignal: 'Readable service pages',
+    weakestSignal: 'Comparison FAQs',
+    topAction: 'Add buyer FAQs',
+  },
+  {
+    key: 'market_authority',
+    label: 'Market authority',
+    score: 19,
+    maxScore: 25,
+    explanation: 'Authority is improving.',
+    strongestSignal: 'Pulse visibility',
+    weakestSignal: 'Industry citations',
+    topAction: 'Earn local citations',
+  },
+]
+
+const snapshot: LocalTrustSnapshot = {
+  id: 'snapshot-1',
+  client_id: 'client-1',
+  account_id: 'account-1',
+  snapshot_month: '2026-06-01',
+  local_trust_score: 71,
+  bucket_scores: bucketScores,
+  trust_gaps: [],
+  roi_estimate: null,
+  source_scan_id: 'scan-1',
+  source_pulse_week: '2026-06-22',
+  created_at: '2026-06-28T00:00:00.000Z',
+}
+
+const actions: LocalTrustAction[] = [
+  {
+    id: 'action-1',
+    client_id: 'client-1',
+    snapshot_id: 'snapshot-1',
+    stable_key: 'proof_depth_case_studies',
+    title: 'Add two client proof points',
+    bucket: 'proof_depth',
+    impact: 'high',
+    effort: 'medium',
+    status: 'open',
+    created_at: '2026-06-28T00:00:00.000Z',
+    updated_at: '2026-06-28T00:00:00.000Z',
+  },
+]
+
+describe('Local Trust read-only UI components', () => {
+  it('renders a Basic locked preview with sample movement and pricing CTA', async () => {
+    const { LocalTrustLockedPreview } = await import('@/components/dashboard/local-trust/LocalTrustLockedPreview')
+
+    const html = renderToStaticMarkup(<LocalTrustLockedPreview lang="en" />)
+
+    expect(html).toContain('Local Trust ROI')
+    expect(html).toContain('62')
+    expect(html).toContain('71')
+    expect(html).toContain('Upgrade to Pro')
+    expect(html).toContain('/en/pricing')
+  })
+
+  it('renders overall score buckets with strongest, weakest, and top actions', async () => {
+    const { LocalTrustScorePanel } = await import('@/components/dashboard/local-trust/LocalTrustScorePanel')
+
+    const html = renderToStaticMarkup(<LocalTrustScorePanel score={71} buckets={bucketScores} />)
+
+    expect(html).toContain('71')
+    expect(html).toContain('Local visibility')
+    expect(html).toContain('Proof depth')
+    expect(html).toContain('Strongest')
+    expect(html).toContain('Client case studies')
+    expect(html).toContain('Add two client proof points')
+  })
+
+  it('summarizes the weakest bucket and first open action for owners', async () => {
+    const { OwnerSummary } = await import('@/components/dashboard/local-trust/OwnerSummary')
+
+    const html = renderToStaticMarkup(<OwnerSummary snapshot={snapshot} actions={actions} />)
+
+    expect(html).toContain('Owner Summary')
+    expect(html).toContain('71/100')
+    expect(html).toContain('biggest gap is proof depth')
+    expect(html).toContain('Next best action: Add two client proof points')
+  })
+
+  it('shows a no-estimate ROI prompt when assumptions are missing', async () => {
+    const { RoiTimeline } = await import('@/components/dashboard/local-trust/RoiTimeline')
+
+    const html = renderToStaticMarkup(<RoiTimeline snapshots={[snapshot]} />)
+
+    expect(html).toContain('ROI Proof Timeline')
+    expect(html).toContain('Jun 2026')
+    expect(html).toContain('Add average lead value and close rate')
+  })
+
+  it('shows cautious ROI estimate ranges when assumptions exist', async () => {
+    const { RoiTimeline } = await import('@/components/dashboard/local-trust/RoiTimeline')
+
+    const html = renderToStaticMarkup(
+      <RoiTimeline
+        snapshots={[
+          {
+            ...snapshot,
+            roi_estimate: {
+              low: 12000,
+              high: 28000,
+              currency: 'HKD',
+              assumptions: {
+                averageLeadValue: 8000,
+                closeRate: 0.2,
+                estimatedExtraEnquiriesLow: 8,
+                estimatedExtraEnquiriesHigh: 18,
+              },
+              confidence: 'directional',
+            },
+          },
+        ]}
+      />,
+    )
+
+    expect(html).toContain('Directional estimate')
+    expect(html).toContain('HKD 12,000-28,000')
+  })
+
+  it('renders competitor rows and a graceful empty state', async () => {
+    const { CompetitorSnapshot } = await import('@/components/dashboard/local-trust/CompetitorSnapshot')
+    const competitors: AgentCompetitor[] = [
+      {
+        id: 'competitor-1',
+        scan_id: 'scan-1',
+        platform: 'perplexity',
+        competitor_domain: 'rival.example',
+        competitor_name: 'Rival Advisory',
+        mention_rate: 44,
+        your_rate: 18,
+        gap_analysis: 'Competitor has stronger local case-study proof.',
+        created_at: '2026-06-28T00:00:00.000Z',
+      },
+    ]
+
+    expect(renderToStaticMarkup(<CompetitorSnapshot competitors={competitors} />)).toContain('Rival Advisory')
+    expect(renderToStaticMarkup(<CompetitorSnapshot competitors={[]} />)).toContain('Add competitors or run agent analysis')
   })
 })

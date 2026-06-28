@@ -1,8 +1,11 @@
-import Link from 'next/link'
-import { LockKeyhole, TrendingUp } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { getPlanFeatures } from '@/lib/tier'
 import type { AgentCompetitor, LocalTrustAction, LocalTrustProfile, LocalTrustSnapshot } from '@/lib/types'
+import { CompetitorSnapshot } from './CompetitorSnapshot'
+import { LocalTrustLockedPreview } from './LocalTrustLockedPreview'
+import { LocalTrustScorePanel } from './LocalTrustScorePanel'
+import { OwnerSummary } from './OwnerSummary'
+import { RoiTimeline } from './RoiTimeline'
 
 type Props = {
   lang: string
@@ -20,73 +23,88 @@ export function LocalTrustStep({ lang, plan, profile, snapshot, actions, competi
 
   if (!features.local_trust_roi) {
     return (
+      <LocalTrustLockedPreview
+        lang={lang}
+        copy={{
+          title: t('local_trust_locked_title'),
+          body: t('local_trust_preview_body'),
+          upgradeCta: t('local_trust_upgrade_cta'),
+          sampleScore: t('local_trust_sample_score'),
+          nextAction: t('local_trust_preview_next_action'),
+          nextActionBody: t('local_trust_preview_next_action_body'),
+          ownerProof: t('local_trust_preview_owner_proof'),
+          ownerProofBody: t('local_trust_preview_owner_proof_body'),
+        }}
+      />
+    )
+  }
+
+  if (!snapshot) {
+    return (
       <div className="rounded-xl border border-dash-border bg-dash-surface p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <LockKeyhole className="size-4 text-dash-muted" aria-hidden="true" />
-              <p className="text-sm font-semibold text-dash-text">{t('local_trust_locked_title')}</p>
-            </div>
-            <p className="mt-2 max-w-xl text-xs leading-relaxed text-dash-muted">
-              {t('local_trust_preview_body')}
-            </p>
-          </div>
-          <Link
-            href={`/${lang}/pricing`}
-            className="shrink-0 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-primary/90"
-          >
-            {t('local_trust_upgrade_cta')}
-          </Link>
-        </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-lg border border-dash-border bg-dash-elevated p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-dash-muted">{t('local_trust_sample_score')}</p>
-            <div className="mt-2 flex items-center gap-2">
-              <span className="font-mono text-lg font-bold text-dash-text">62</span>
-              <TrendingUp className="size-4 text-dash-success" aria-hidden="true" />
-              <span className="font-mono text-lg font-bold text-dash-text">71</span>
-            </div>
-          </div>
-          <div className="rounded-lg border border-dash-border bg-dash-elevated p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-dash-muted">{t('local_trust_preview_next_action')}</p>
-            <p className="mt-2 text-xs leading-snug text-dash-text">{t('local_trust_preview_next_action_body')}</p>
-          </div>
-          <div className="rounded-lg border border-dash-border bg-dash-elevated p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-dash-muted">{t('local_trust_preview_owner_proof')}</p>
-            <p className="mt-2 text-xs leading-snug text-dash-text">{t('local_trust_preview_owner_proof_body')}</p>
-          </div>
-        </div>
+        <p className="text-sm font-semibold text-dash-text">{t('setup_local_trust')}</p>
+        <p className="mt-2 max-w-xl text-xs leading-relaxed text-dash-muted">
+          {t('local_trust_setup_prompt')}
+        </p>
+        {profile && (
+          <p className="mt-4 text-[11px] leading-relaxed text-dash-muted">
+            {t('local_trust_saved_assumptions')}
+          </p>
+        )}
       </div>
     )
   }
 
   return (
-    <div className="rounded-xl border border-dash-border bg-dash-surface p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold text-dash-text">{t('local_trust_locked_title')}</p>
-          <p className="mt-1 text-xs leading-relaxed text-dash-muted">
-            {snapshot
-              ? (
-                  <>
-                    {t('local_trust_actions_ready', { count: actions.length })}
-                    {competitors.length > 0 && ` ${t('local_trust_competitor_signals', { count: competitors.length })}`}
-                  </>
-                )
-              : t('local_trust_setup_prompt')}
+    <div className="space-y-5">
+      <OwnerSummary
+        snapshot={snapshot}
+        actions={actions}
+        copy={{
+          title: t('owner_summary'),
+          scoreLead: t('local_trust_owner_score_lead'),
+          gapLead: t('local_trust_owner_gap_lead'),
+          nextActionLead: t('local_trust_owner_next_action'),
+          noAction: t('local_trust_no_open_action'),
+        }}
+      />
+      <LocalTrustScorePanel
+        score={snapshot.local_trust_score}
+        buckets={snapshot.bucket_scores}
+        copy={{
+          title: t('local_trust_score'),
+          strongest: t('local_trust_bucket_strongest'),
+          weakest: t('local_trust_bucket_weakest'),
+          topAction: t('local_trust_bucket_top_action'),
+        }}
+      />
+      <RoiTimeline
+        snapshots={[snapshot]}
+        locale={lang === 'zh-HK' ? 'zh-HK' : 'en-HK'}
+        copy={{
+          title: t('roi_timeline'),
+          empty: t('local_trust_timeline_empty'),
+          scoreLabel: t('local_trust_score'),
+          estimateLabel: t('local_trust_timeline_estimate'),
+          noEstimate: t('local_trust_timeline_no_estimate'),
+        }}
+      />
+      {features.local_trust_competitors ? (
+        <CompetitorSnapshot
+          competitors={competitors}
+          copy={{
+            title: t('competitor_snapshot'),
+            empty: t('local_trust_competitor_empty'),
+            mentionGap: t('local_trust_competitor_mention_gap'),
+          }}
+        />
+      ) : (
+        <section className="rounded-xl border border-dash-border bg-dash-surface p-5">
+          <p className="text-xs font-semibold uppercase tracking-widest text-dash-muted">{t('competitor_snapshot')}</p>
+          <p className="mt-2 text-xs leading-relaxed text-dash-muted">
+            {t('local_trust_competitor_enterprise_locked')}
           </p>
-        </div>
-        {snapshot && (
-          <div className="shrink-0 rounded-lg border border-dash-border bg-dash-elevated px-3 py-2 text-right">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-dash-muted">{t('local_trust_score')}</p>
-            <p className="font-mono text-lg font-bold text-dash-text">{snapshot.local_trust_score}/100</p>
-          </div>
-        )}
-      </div>
-      {!snapshot && profile && (
-        <p className="mt-4 text-[11px] text-dash-muted">
-          {t('local_trust_saved_assumptions')}
-        </p>
+        </section>
       )}
     </div>
   )
