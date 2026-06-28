@@ -9,7 +9,8 @@ type QueryCall = {
   filters: Array<[string, unknown]>
 }
 
-const { mockGetProfile, mockFrom, tableResults, queryCalls } = vi.hoisted(() => ({
+const { mockCalculateLocalTrust, mockGetProfile, mockFrom, tableResults, queryCalls } = vi.hoisted(() => ({
+  mockCalculateLocalTrust: vi.fn(),
   mockGetProfile: vi.fn(),
   mockFrom: vi.fn(),
   tableResults: new Map<string, TableResult>(),
@@ -64,9 +65,11 @@ vi.mock('@/lib/auth', () => ({ getProfile: mockGetProfile }))
 vi.mock('@/lib/supabase-server', () => ({
   createServerSupabaseClient: vi.fn(async () => ({ from: mockFrom })),
 }))
+vi.mock('@/lib/localTrust/scoring', () => ({ calculateLocalTrust: mockCalculateLocalTrust }))
 
 import { PUT as PUT_PROFILE } from '@/app/api/dashboard/clients/[clientId]/local-trust/profile/route'
 import { PATCH as PATCH_ACTION } from '@/app/api/dashboard/clients/[clientId]/local-trust/actions/[actionId]/route'
+import { getOrCreateLocalTrustSnapshot } from '@/lib/localTrust/store'
 
 function setTable(table: string, data: unknown, error: { message: string } | null = null) {
   tableResults.set(table, { data, error })
@@ -77,6 +80,14 @@ function jsonRequest(url: string, method: string, body: unknown) {
     method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+  })
+}
+
+function rawJsonRequest(url: string, method: string, body: string) {
+  return new Request(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body,
   })
 }
 
@@ -164,6 +175,16 @@ describe('Local Trust profile route', () => {
     expect(mockFrom).toHaveBeenCalledWith('clients')
     expect(mockFrom).not.toHaveBeenCalledWith('local_trust_profiles')
   })
+
+  it('returns 400 for malformed profile JSON', async () => {
+    setTable('clients', { id: 'client-1', account_id: 'account-1' })
+
+    const req = rawJsonRequest('http://localhost/api/dashboard/clients/client-1/local-trust/profile', 'PUT', '{')
+    const res = await PUT_PROFILE(req, { params: Promise.resolve({ clientId: 'client-1' }) })
+
+    expect(res.status).toBe(400)
+    expect(mockFrom).not.toHaveBeenCalledWith('local_trust_profiles')
+  })
 })
 
 describe('Local Trust action route', () => {
@@ -224,5 +245,87 @@ describe('Local Trust action route', () => {
     const res = await PATCH_ACTION(req, { params: Promise.resolve({ clientId: 'client-1', actionId: 'action-404' }) })
 
     expect(res.status).toBe(404)
+  })
+
+  it('returns 400 for malformed action JSON', async () => {
+    setTable('clients', { id: 'client-1', account_id: 'account-1' })
+
+    const req = rawJsonRequest('http://localhost/api/dashboard/clients/client-1/local-trust/actions/action-1', 'PATCH', '{')
+    const res = await PATCH_ACTION(req, { params: Promise.resolve({ clientId: 'client-1', actionId: 'action-1' }) })
+
+    expect(res.status).toBe(400)
+    expect(mockFrom).not.toHaveBeenCalledWith('local_trust_actions')
+  })
+})
+
+describe('Local Trust snapshot store', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    tableResults.clear()
+    queryCalls.length = 0
+    mockFrom.mockImplementation((table: string) => new QueryBuilder(table))
+  })
+
+  it('filters returned actions to the refreshed trust gap keys while preserving existing statuses', async () => {
+    mockCalculateLocalTrust.mockReturnValue({
+      client_id: 'client-1',
+      account_id: 'account-1',
+      snapshot_month: '2026-06-01',
+      local_trust_score: 64,
+      bucket_scores: [],
+      trust_gaps: [{
+        stableKey: 'current-gap',
+        title: 'Current gap',
+        bucket: 'local_visibility',
+        impact: 'high',
+        effort: 'low',
+        rationale: 'Current rationale',
+        suggestedTarget: 'Service page',
+      }],
+      roi_estimate: null,
+      source_scan_id: null,
+      source_pulse_week: null,
+    })
+    setTable('local_trust_snapshots', {
+      id: 'snapshot-1',
+      client_id: 'client-1',
+      account_id: 'account-1',
+      snapshot_month: '2026-06-01',
+      local_trust_score: 64,
+      bucket_scores: [],
+      trust_gaps: [],
+      roi_estimate: null,
+      source_scan_id: null,
+      source_pulse_week: null,
+      created_at: '2026-06-01T00:00:00.000Z',
+    })
+    setTable('local_trust_actions', [
+      { id: 'action-current', snapshot_id: 'snapshot-1', stable_key: 'current-gap', status: 'done' },
+      { id: 'action-stale', snapshot_id: 'snapshot-1', stable_key: 'stale-gap', status: 'open' },
+    ])
+
+    const result = await getOrCreateLocalTrustSnapshot({
+      accountId: 'account-1',
+      client: {
+        id: 'client-1',
+        brand_name: 'Harbour Advisory',
+        domain: 'harbour.example',
+        industry: 'legal',
+        competitors: [],
+        status: 'active',
+        created_at: '2026-06-01T00:00:00.000Z',
+      },
+      latestScan: null,
+      profile: null,
+      pulseSummary: [],
+      missed: [],
+      competitors: [],
+    })
+
+    expect(result.actions).toEqual([
+      expect.objectContaining({ id: 'action-current', stable_key: 'current-gap', status: 'done' }),
+    ])
+    expect(queryCalls.find(call => call.table === 'local_trust_actions' && call.operation === 'upsert')?.options)
+      .toEqual({ onConflict: 'snapshot_id,stable_key', ignoreDuplicates: true })
   })
 })

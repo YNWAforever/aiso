@@ -21,6 +21,15 @@ function nullableNumber(value: unknown): number | null {
   return Number.isFinite(number) && number >= 0 ? number : null
 }
 
+async function parseJson(req: Request): Promise<Record<string, unknown> | null> {
+  try {
+    const body = await req.json()
+    return body && typeof body === 'object' && !Array.isArray(body) ? body as Record<string, unknown> : {}
+  } catch {
+    return null
+  }
+}
+
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ clientId: string }> },
@@ -37,7 +46,9 @@ export async function PUT(
   const client = await verifyClientOwnership(clientId, profile.account_id)
   if (!client) return Response.json({ error: 'Not found' }, { status: 404 })
 
-  const body = await req.json()
+  const body = await parseJson(req)
+  if (!body) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+
   const closeRate = nullableNumber(body.close_rate)
   if (closeRate !== null && closeRate > 1) {
     return Response.json({ error: 'close_rate must be between 0 and 1' }, { status: 400 })

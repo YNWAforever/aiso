@@ -5,6 +5,15 @@ import type { LocalTrustActionStatus } from '@/lib/types'
 
 const VALID_STATUSES = new Set<LocalTrustActionStatus>(['open', 'planned', 'done', 'skipped'])
 
+async function parseJson(req: Request): Promise<Record<string, unknown> | null> {
+  try {
+    const body = await req.json()
+    return body && typeof body === 'object' && !Array.isArray(body) ? body as Record<string, unknown> : {}
+  } catch {
+    return null
+  }
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ clientId: string; actionId: string }> },
@@ -21,13 +30,16 @@ export async function PATCH(
   const client = await verifyClientOwnership(clientId, profile.account_id)
   if (!client) return Response.json({ error: 'Not found' }, { status: 404 })
 
-  const { status } = await req.json()
-  if (!VALID_STATUSES.has(status)) {
+  const body = await parseJson(req)
+  if (!body) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+
+  const status = body.status
+  if (!VALID_STATUSES.has(status as LocalTrustActionStatus)) {
     return Response.json({ error: 'Invalid status' }, { status: 400 })
   }
 
   try {
-    const action = await updateLocalTrustActionStatus({ clientId, actionId, status })
+    const action = await updateLocalTrustActionStatus({ clientId, actionId, status: status as LocalTrustActionStatus })
     if (!action) return Response.json({ error: 'Not found' }, { status: 404 })
     return Response.json({ action })
   } catch (error) {

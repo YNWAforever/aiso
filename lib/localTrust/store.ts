@@ -154,10 +154,13 @@ export async function getOrCreateLocalTrustSnapshot(input: {
     .order('created_at')
 
   if (actionsError) throw new Error(actionsError.message)
+  const currentStableKeys = new Set(draft.trust_gaps.map(gap => gap.stableKey))
+  const currentActions = ((actions ?? []) as LocalTrustAction[])
+    .filter(action => currentStableKeys.has(action.stable_key))
 
   return {
     snapshot: savedSnapshot,
-    actions: (actions ?? []) as LocalTrustAction[],
+    actions: currentActions,
     draft,
   }
 }
