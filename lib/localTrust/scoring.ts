@@ -33,6 +33,12 @@ function latestAggregateSov(input: LocalTrustInput) {
     .at(-1)
 }
 
+function snapshotMonthFrom(value: string | null | undefined) {
+  const fallback = '1970-01'
+  const month = value && value.length >= 7 ? value.slice(0, 7) : fallback
+  return `${month}-01`
+}
+
 function bucket(
   key: LocalTrustBucketKey,
   score: number,
@@ -153,6 +159,7 @@ export function calculateLocalTrust(input: LocalTrustInput): LocalTrustSnapshotD
   const latestSov = latestAggregateSov(input)
   const serviceArea = input.profile?.service_area || input.scan?.region || input.client.industry
   const accountId = input.scan?.account_id ?? input.profile?.account_id ?? null
+  const hasVisibilityBaseline = Boolean(input.scan || latestSov)
 
   const localVisibility = bucket(
     'local_visibility',
@@ -212,7 +219,7 @@ export function calculateLocalTrust(input: LocalTrustInput): LocalTrustSnapshotD
   const draft: LocalTrustSnapshotDraft = {
     client_id: input.client.id,
     account_id: accountId,
-    snapshot_month: new Date().toISOString().slice(0, 7) + '-01',
+    snapshot_month: snapshotMonthFrom(latestSov?.scan_week ?? input.scan?.created_at),
     local_trust_score: score,
     bucket_scores: buckets,
     trust_gaps: [],
@@ -222,10 +229,12 @@ export function calculateLocalTrust(input: LocalTrustInput): LocalTrustSnapshotD
   }
 
   draft.trust_gaps = buildGaps(input, buckets)
-  draft.roi_estimate = estimateRoi({
-    currentSnapshot: draft,
-    averageLeadValue: input.profile?.average_lead_value,
-    closeRate: input.profile?.close_rate,
-  })
+  draft.roi_estimate = hasVisibilityBaseline
+    ? estimateRoi({
+        currentSnapshot: draft,
+        averageLeadValue: input.profile?.average_lead_value,
+        closeRate: input.profile?.close_rate,
+      })
+    : null
   return draft
 }

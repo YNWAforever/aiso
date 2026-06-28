@@ -126,6 +126,23 @@ describe('calculateLocalTrust', () => {
     expect(result.trust_gaps.some(g => g.stableKey === 'run-first-scan')).toBe(true)
     expect(result.roi_estimate).toBeNull()
   })
+
+  it('derives snapshot month from scan data when Pulse is missing', () => {
+    const result = calculateLocalTrust({
+      client,
+      profile,
+      scan: { ...scan, created_at: '2026-05-20T00:00:00.000Z' },
+      pulseSummary: [],
+      missed,
+      competitors,
+    })
+    expect(result.snapshot_month).toBe('2026-05-01')
+  })
+
+  it('keeps ROI null when assumptions exist but no visibility baseline exists', () => {
+    const result = calculateLocalTrust({ client, profile, scan: null, pulseSummary: [], missed: [], competitors: [] })
+    expect(result.roi_estimate).toBeNull()
+  })
 })
 
 describe('estimateRoi', () => {
