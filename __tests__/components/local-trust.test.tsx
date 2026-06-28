@@ -2,8 +2,14 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { NextIntlClientProvider } from 'next-intl'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { AgentCompetitor, LocalTrustAction, LocalTrustBucketScore, LocalTrustProfile, LocalTrustSnapshot } from '@/lib/types'
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    refresh: () => undefined,
+  }),
+}))
 
 const repoRoot = process.cwd()
 
@@ -386,5 +392,46 @@ describe('Local Trust read-only UI components', () => {
     expect(html).toContain('Pulse visibility')
     expect(html).toContain('Found')
     expect(html).toContain('Missing')
+  })
+})
+
+describe('Local Trust interactive controls', () => {
+  it('renders setup form fields', async () => {
+    const { LocalTrustSetupForm } = await import('@/components/dashboard/local-trust/LocalTrustSetupForm')
+
+    const html = renderToStaticMarkup(<LocalTrustSetupForm clientId="client-1" profile={null} />)
+
+    expect(html).toContain('name="primary_services"')
+    expect(html).toContain('name="service_area"')
+    expect(html).toContain('name="average_lead_value"')
+    expect(html).toContain('name="close_rate"')
+    expect(html).toContain('name="competitors"')
+  })
+
+  it('renders action status controls', async () => {
+    const { TrustGapChecklist } = await import('@/components/dashboard/local-trust/TrustGapChecklist')
+
+    const html = renderToStaticMarkup(
+      <TrustGapChecklist
+        clientId="client-1"
+        actions={[{
+          id: 'action-1',
+          client_id: 'client-1',
+          snapshot_id: 'snapshot-1',
+          stable_key: 'add-local-proof',
+          title: 'Add local proof',
+          bucket: 'proof_depth',
+          impact: 'high',
+          effort: 'low',
+          status: 'open',
+          created_at: '',
+          updated_at: '',
+        }]}
+      />,
+    )
+
+    expect(html).toContain('Add local proof')
+    expect(html).toContain('Done')
+    expect(html).toContain('Skip')
   })
 })

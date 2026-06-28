@@ -10,9 +10,11 @@ import type {
 } from '@/lib/types'
 import { CompetitorSnapshot } from './CompetitorSnapshot'
 import { LocalTrustLockedPreview } from './LocalTrustLockedPreview'
+import { LocalTrustSetupForm } from './LocalTrustSetupForm'
 import { LocalTrustScorePanel } from './LocalTrustScorePanel'
 import { OwnerSummary } from './OwnerSummary'
 import { RoiTimeline } from './RoiTimeline'
+import { TrustGapChecklist } from './TrustGapChecklist'
 
 type Props = {
   lang: string
@@ -26,7 +28,7 @@ type Props = {
 
 type BucketDisplayCopy = Pick<LocalTrustBucketScore, 'label' | 'explanation' | 'strongestSignal' | 'weakestSignal' | 'topAction'>
 
-export function LocalTrustStep({ lang, plan, profile, snapshot, actions, competitors }: Props) {
+export function LocalTrustStep({ lang, clientId, plan, profile, snapshot, actions, competitors }: Props) {
   const t = useTranslations('dashboard')
   const features = getPlanFeatures(plan)
   const bucketCopy: Record<LocalTrustBucketKey, BucketDisplayCopy> = {
@@ -176,6 +178,22 @@ export function LocalTrustStep({ lang, plan, profile, snapshot, actions, competi
 
   return (
     <div className="space-y-5">
+      <LocalTrustSetupForm
+        clientId={clientId}
+        profile={profile}
+        copy={{
+          title: t('setup_local_trust'),
+          description: t('setup_local_trust_body'),
+          primaryServicesLabel: t('primary_services'),
+          serviceAreaLabel: t('service_area'),
+          averageLeadValueLabel: t('average_lead_value'),
+          closeRateLabel: t('close_rate'),
+          competitorsLabel: t('competitors'),
+          saveLabel: t('save_assumptions'),
+          savingLabel: t('alerts_saving'),
+          errorMessage: t('generic_error'),
+        }}
+      />
       <OwnerSummary
         title={t('owner_summary')}
         summary={ownerSummary}
@@ -188,6 +206,37 @@ export function LocalTrustStep({ lang, plan, profile, snapshot, actions, competi
           strongest: t('local_trust_bucket_strongest'),
           weakest: t('local_trust_bucket_weakest'),
           topAction: t('local_trust_bucket_top_action'),
+        }}
+      />
+      <TrustGapChecklist
+        clientId={clientId}
+        actions={localizedActions}
+        copy={{
+          title: t('trust_gap_checklist'),
+          empty: t('local_trust_actions_ready', { count: 0 }),
+          impactLabel: t('local_trust_action_impact'),
+          effortLabel: t('local_trust_action_effort'),
+          statusLabel: t('local_trust_action_status'),
+          doneLabel: t('mark_done'),
+          skipLabel: t('mark_skipped'),
+          updatingLabel: t('alerts_saving'),
+          errorMessage: t('generic_error'),
+          impactLabels: {
+            low: t('local_trust_impact_low'),
+            medium: t('local_trust_impact_medium'),
+            high: t('local_trust_impact_high'),
+          },
+          effortLabels: {
+            low: t('local_trust_effort_low'),
+            medium: t('local_trust_effort_medium'),
+            high: t('local_trust_effort_high'),
+          },
+          statusLabels: {
+            open: t('local_trust_status_open'),
+            planned: t('local_trust_status_planned'),
+            done: t('local_trust_status_done'),
+            skipped: t('local_trust_status_skipped'),
+          },
         }}
       />
       <RoiTimeline
