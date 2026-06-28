@@ -92,8 +92,10 @@ describe('Local Trust dashboard wiring', () => {
   it('does not create an integrated Local Trust snapshot without scan or aggregate Pulse baseline', () => {
     const page = read('app/[lang]/dashboard/[clientId]/page.tsx')
 
-    expect(page).toContain('const hasLocalTrustBaseline = Boolean(localTrustScan || summary.length > 0)')
+    expect(page).toContain('const hasAggregatePulseBaseline = summary.some(row => !row.platform)')
+    expect(page).toContain('const hasLocalTrustBaseline = Boolean(localTrustScan || hasAggregatePulseBaseline)')
     expect(page).toContain("step === 'roi' && features.local_trust_roi && hasLocalTrustBaseline")
+    expect(page).not.toContain('const hasLocalTrustBaseline = Boolean(localTrustScan || summary.length > 0)')
     expect(page).toContain('missed,')
     expect(page).toContain('snapshot={hasLocalTrustBaseline ? (localTrustData?.snapshot ?? null) : null}')
     expect(page).toContain('actions={hasLocalTrustBaseline ? (localTrustData?.actions ?? []) : []}')
