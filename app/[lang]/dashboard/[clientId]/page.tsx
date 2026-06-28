@@ -126,7 +126,7 @@ export default async function DashboardPage({
   const agentCompetitors = (agentComps ?? []) as AgentCompetitor[]
   const localTrustScan = domainsMatch(scan?.domain, typedClient.domain) ? scan : null
   const localTrustCompetitors = localTrustScan ? agentCompetitors : []
-  const hasLocalTrustBaseline = Boolean(localTrustScan || summary.length > 0 || missed.length > 0)
+  const hasLocalTrustBaseline = Boolean(localTrustScan || summary.length > 0)
   const localTrustProfile = step === 'roi'
     ? await getLocalTrustProfile(clientId, profile.account_id)
     : null
