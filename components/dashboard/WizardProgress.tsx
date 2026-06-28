@@ -1,4 +1,5 @@
 import { getPlanFeatures } from '@/lib/tier'
+import { Lock } from 'lucide-react'
 
 type Step = { key: string; label: string }
 
@@ -48,7 +49,7 @@ export function WizardProgress({ current, plan, hasScan }: Props) {
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-muted-foreground'
               }`}>
-                {isCompleted ? '✓' : isLocked ? '🔒' : i + 1}
+                {isCompleted ? '✓' : isLocked ? <Lock className="size-3" aria-label={access.reason ?? 'Locked'} /> : i + 1}
               </div>
               <span className={`text-xs- font-medium transition-colors ${
                 isCurrent ? 'text-foreground' : isCompleted ? 'text-success' : 'text-muted-foreground'

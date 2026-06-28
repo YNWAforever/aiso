@@ -14,6 +14,24 @@ import type {
   AgentCompetitor, PulseWeeklySummary, PulseMetric, Client,
 } from '@/lib/types'
 
+function normalizeDomain(domain: string | null | undefined) {
+  const value = domain?.trim().toLowerCase()
+  if (!value) return null
+
+  return value
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .split('/')[0]
+    ?.split(':')[0] || null
+}
+
+function domainsMatch(scanDomain: string | null | undefined, clientDomain: string | null | undefined) {
+  const normalizedScan = normalizeDomain(scanDomain)
+  const normalizedClient = normalizeDomain(clientDomain)
+
+  return Boolean(normalizedScan && normalizedClient && normalizedScan === normalizedClient)
+}
+
 async function StepHeader({ step, plan }: { step: string; plan: string }) {
   const t = await getTranslations('dashboard')
   const features = getPlanFeatures(plan)
@@ -106,6 +124,7 @@ export default async function DashboardPage({
   const summary = (pulseSummary ?? []) as PulseWeeklySummary[]
   const missed  = (pulseMetrics ?? []) as PulseMetric[]
   const agentCompetitors = (agentComps ?? []) as AgentCompetitor[]
+  const localTrustScan = domainsMatch(scan?.domain, typedClient.domain) ? scan : null
   const localTrustProfile = step === 'roi'
     ? await getLocalTrustProfile(clientId, profile.account_id)
     : null
@@ -113,7 +132,7 @@ export default async function DashboardPage({
     ? await getOrCreateLocalTrustSnapshot({
         client: typedClient,
         accountId: profile.account_id,
-        latestScan: scan,
+        latestScan: localTrustScan,
         profile: localTrustProfile,
         pulseSummary: summary,
         missed,

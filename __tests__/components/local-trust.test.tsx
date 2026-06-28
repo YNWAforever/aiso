@@ -1,8 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { LocalTrustStep } from '@/components/dashboard/local-trust/LocalTrustStep'
 
 const repoRoot = process.cwd()
 
@@ -33,25 +31,38 @@ describe('Local Trust dashboard wiring', () => {
     expect(progress).toContain("key: 'roi'")
     expect(progress).toContain('features.local_trust_roi')
     expect(progress).toContain('Local Trust ROI')
+    expect(progress).toContain('Lock')
+    expect(progress).not.toContain('🔒')
   })
 
-  it('renders a Basic locked preview with sample movement and a pricing CTA', () => {
-    const html = renderToStaticMarkup(
-      <LocalTrustStep
-        lang="en"
-        clientId="client_123"
-        plan="basic"
-        profile={null}
-        snapshot={null}
-        actions={[]}
-        competitors={[]}
-      />
-    )
+  it('guards Local Trust snapshot generation to scans matching the current client domain', () => {
+    const page = read('app/[lang]/dashboard/[clientId]/page.tsx')
 
-    expect(html).toContain('62')
-    expect(html).toContain('71')
-    expect(html).toContain('Upgrade to Pro')
-    expect(html).toContain('/en/pricing')
+    expect(page).toContain('normalizeDomain')
+    expect(page).toContain('domainsMatch')
+    expect(page).toContain('const localTrustScan = domainsMatch(scan?.domain, typedClient.domain) ? scan : null')
+    expect(page).toContain('latestScan: localTrustScan')
+  })
+
+  it('uses translated locked preview copy with sample movement and a pricing CTA', () => {
+    const step = read('components/dashboard/local-trust/LocalTrustStep.tsx')
+    const en = read('messages/en.json')
+    const zh = read('messages/zh-HK.json')
+
+    expect(step).toContain("useTranslations('dashboard')")
+    expect(step).toContain("t('local_trust_preview_body')")
+    expect(step).toContain("t('local_trust_upgrade_cta')")
+    expect(step).toContain("t('local_trust_sample_score')")
+    expect(step).toContain('62')
+    expect(step).toContain('71')
+    expect(step).toContain('`/${lang}/pricing`')
+    expect(step).not.toContain('Preview how Pro turns')
+
+    for (const messages of [en, zh]) {
+      expect(messages).toContain('local_trust_preview_body')
+      expect(messages).toContain('local_trust_upgrade_cta')
+      expect(messages).toContain('local_trust_sample_score')
+    }
   })
 
   it('fetches Local Trust data only for the ROI step using account-scoped helpers', () => {
