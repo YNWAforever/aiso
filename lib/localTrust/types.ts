@@ -12,7 +12,7 @@ import type {
 
 export type LocalTrustSnapshotDraft = {
   client_id: string
-  account_id: string | null
+  account_id: string
   snapshot_month: string
   local_trust_score: number
   bucket_scores: LocalTrustBucketScore[]
@@ -23,6 +23,7 @@ export type LocalTrustSnapshotDraft = {
 }
 
 export type LocalTrustInput = {
+  accountId: string
   client: Client
   profile: LocalTrustProfile | null
   scan: Scan | null

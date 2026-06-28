@@ -3,9 +3,14 @@ import type {
   LocalTrustBucketKey,
   LocalTrustBucketScore,
   LocalTrustGap,
+  Scan,
 } from '@/lib/types'
 import { estimateRoi } from './roi'
 import type { LocalTrustInput, LocalTrustSnapshotDraft } from './types'
+
+type ScanResultMap = Partial<Scan['results']> & Record<string, unknown>
+
+const EMPTY_RESULTS: ScanResultMap = {}
 
 const BUCKET_LABELS: Record<LocalTrustBucketKey, string> = {
   local_visibility: 'Local visibility',
@@ -96,7 +101,7 @@ function bucket(
 
 function buildGaps(input: LocalTrustInput, buckets: LocalTrustBucketScore[]): LocalTrustGap[] {
   const gaps: LocalTrustGap[] = []
-  const results = input.scan?.results ?? {}
+  const results: ScanResultMap = input.scan?.results ?? EMPTY_RESULTS
 
   if (!input.scan) {
     gaps.push({
@@ -190,10 +195,9 @@ function buildGaps(input: LocalTrustInput, buckets: LocalTrustBucketScore[]): Lo
 }
 
 export function calculateLocalTrust(input: LocalTrustInput): LocalTrustSnapshotDraft {
-  const results = input.scan?.results ?? {}
+  const results: ScanResultMap = input.scan?.results ?? EMPTY_RESULTS
   const latestSov = latestAggregateSov(input)
   const serviceArea = input.profile?.service_area || input.scan?.region || input.client.industry
-  const accountId = input.scan?.account_id ?? input.profile?.account_id ?? null
   const hasVisibilityBaseline = Boolean(input.scan || latestSov)
   const marketSentimentPoints = sentimentPoints(latestSov?.avg_sentiment_score)
   const marketCompetitorPoints = competitorPressurePoints(input, latestSov)
@@ -255,7 +259,7 @@ export function calculateLocalTrust(input: LocalTrustInput): LocalTrustSnapshotD
   const score = clamp(buckets.reduce((sum, item) => sum + item.score, 0))
   const draft: LocalTrustSnapshotDraft = {
     client_id: input.client.id,
-    account_id: accountId,
+    account_id: input.accountId,
     snapshot_month: snapshotMonthFrom(latestSov?.scan_week ?? input.scan?.created_at),
     local_trust_score: score,
     bucket_scores: buckets,
