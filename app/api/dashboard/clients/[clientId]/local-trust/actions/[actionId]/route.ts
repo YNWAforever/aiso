@@ -42,7 +42,7 @@ export async function PATCH(
     const action = await updateLocalTrustActionStatus({ clientId, actionId, status: status as LocalTrustActionStatus })
     if (!action) return Response.json({ error: 'Not found' }, { status: 404 })
     return Response.json({ action })
-  } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : 'Action update failed' }, { status: 500 })
+  } catch {
+    return Response.json({ error: 'Action update failed' }, { status: 500 })
   }
 }

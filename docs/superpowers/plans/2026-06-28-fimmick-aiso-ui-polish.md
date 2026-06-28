@@ -28,33 +28,33 @@
 
 ### New Files
 
-- `components/ui/app-logo.tsx`  
+- `components/ui/app-logo.tsx`
   Shared Fimmick AISO lockup for public, dashboard, result, and admin shells.
 
-- `components/ui/page-header.tsx`  
+- `components/ui/page-header.tsx`
   Reusable page header with title, description, optional eyebrow/meta/action slot.
 
-- `components/ui/status.tsx`  
+- `components/ui/status.tsx`
   Lucide-backed status icon/chip utilities for pass, warn, fail, locked, pro, live, active, inactive.
 
-- `components/ui/empty-state.tsx`  
+- `components/ui/empty-state.tsx`
   Shared icon/title/body/action empty state.
 
-- `components/ui/table-shell.tsx`  
+- `components/ui/table-shell.tsx`
   Shared responsive table wrapper and header/cell class helpers.
 
-- `__tests__/ui/ui-polish.test.tsx`  
+- `__tests__/ui/ui-polish.test.tsx`
   Static and server-rendered regression tests for shared UI primitives and removal of structural emoji/glyph UI.
 
 ### Modified Foundation Files
 
-- `app/globals.css`  
+- `app/globals.css`
   Update tokens, reduced-motion handling, tabular-number helper, and shared focus/touch utility classes.
 
-- `components/ui/button.tsx`  
+- `components/ui/button.tsx`
   Minimum touch target, stronger focus, stable disabled styling.
 
-- `components/ui/input.tsx`  
+- `components/ui/input.tsx`
   44px default height, clearer focus/disabled states.
 
 ### Modified Page and Component Families

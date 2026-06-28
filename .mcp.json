@@ -1,11 +1,15 @@
 {
   "mcpServers": {
-    "neon": {
+    "supabase": {
       "type": "stdio",
-      "command": "sh",
+      "command": "npx",
       "args": [
-        "scripts/mcp-postgres.sh"
-      ]
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--project-ref",
+        "ankmnirpytvbidyjyujh"
+      ],
+      "env": {}
     },
     "n8n-mcp": {
       "type": "stdio",

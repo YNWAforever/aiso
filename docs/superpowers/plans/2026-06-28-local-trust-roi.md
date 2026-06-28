@@ -23,90 +23,90 @@
 
 ### Create
 
-- `supabase/migrations/021_local_trust_roi.sql`  
+- `supabase/migrations/021_local_trust_roi.sql`
   Adds Local Trust profile, snapshot, and action tables; adds plan feature columns; seeds plan-feature access.
 
-- `lib/localTrust/types.ts`  
+- `lib/localTrust/types.ts`
   Shared Local Trust domain types.
 
-- `lib/localTrust/scoring.ts`  
+- `lib/localTrust/scoring.ts`
   Deterministic Local Trust Score and Trust Gap Checklist logic.
 
-- `lib/localTrust/roi.ts`  
+- `lib/localTrust/roi.ts`
   Deterministic ROI estimate helper.
 
-- `lib/localTrust/store.ts`  
+- `lib/localTrust/store.ts`
   Server-only Supabase read/write helpers for profile, snapshots, and actions.
 
-- `lib/localTrust/index.ts`  
+- `lib/localTrust/index.ts`
   Public exports for the Local Trust module.
 
-- `app/api/dashboard/clients/[clientId]/local-trust/profile/route.ts`  
+- `app/api/dashboard/clients/[clientId]/local-trust/profile/route.ts`
   Authenticated owner profile upsert route.
 
-- `app/api/dashboard/clients/[clientId]/local-trust/actions/[actionId]/route.ts`  
+- `app/api/dashboard/clients/[clientId]/local-trust/actions/[actionId]/route.ts`
   Authenticated action-status update route.
 
-- `app/api/dashboard/clients/[clientId]/local-trust/export/route.ts`  
+- `app/api/dashboard/clients/[clientId]/local-trust/export/route.ts`
   Enterprise-only report export route.
 
-- `components/dashboard/local-trust/LocalTrustStep.tsx`  
+- `components/dashboard/local-trust/LocalTrustStep.tsx`
   Main server-rendered ROI step wrapper.
 
-- `components/dashboard/local-trust/LocalTrustLockedPreview.tsx`  
+- `components/dashboard/local-trust/LocalTrustLockedPreview.tsx`
   Basic/locked preview.
 
-- `components/dashboard/local-trust/OwnerSummary.tsx`  
+- `components/dashboard/local-trust/OwnerSummary.tsx`
   Plain-English owner summary.
 
-- `components/dashboard/local-trust/LocalTrustScorePanel.tsx`  
+- `components/dashboard/local-trust/LocalTrustScorePanel.tsx`
   Overall score and four bucket cards.
 
-- `components/dashboard/local-trust/TrustGapChecklist.tsx`  
+- `components/dashboard/local-trust/TrustGapChecklist.tsx`
   Interactive action list.
 
-- `components/dashboard/local-trust/LocalTrustSetupForm.tsx`  
+- `components/dashboard/local-trust/LocalTrustSetupForm.tsx`
   Owner inputs for services, service area, lead value, close rate, and competitors.
 
-- `components/dashboard/local-trust/RoiTimeline.tsx`  
+- `components/dashboard/local-trust/RoiTimeline.tsx`
   Monthly proof timeline.
 
-- `components/dashboard/local-trust/CompetitorSnapshot.tsx`  
+- `components/dashboard/local-trust/CompetitorSnapshot.tsx`
   Enterprise competitor comparison.
 
-- `components/dashboard/local-trust/ReportActions.tsx`  
+- `components/dashboard/local-trust/ReportActions.tsx`
   Enterprise export/share controls.
 
-- `__tests__/lib/local-trust.test.ts`  
+- `__tests__/lib/local-trust.test.ts`
   Scoring, checklist, and ROI unit tests.
 
-- `__tests__/api/local-trust-routes.test.ts`  
+- `__tests__/api/local-trust-routes.test.ts`
   Route auth, gating, validation, and export tests.
 
-- `__tests__/components/local-trust.test.tsx`  
+- `__tests__/components/local-trust.test.tsx`
   Component rendering tests using `renderToStaticMarkup`.
 
 ### Modify
 
-- `lib/types.ts`  
+- `lib/types.ts`
   Add Local Trust and plan-feature types.
 
-- `lib/tier.ts`  
+- `lib/tier.ts`
   Add Local Trust feature flags for Basic, Pro, Enterprise.
 
-- `app/[lang]/dashboard/[clientId]/page.tsx`  
+- `app/[lang]/dashboard/[clientId]/page.tsx`
   Fetch Local Trust data and render `LocalTrustStep` when `step=roi`.
 
-- `components/dashboard/DashboardSidebar.tsx`  
+- `components/dashboard/DashboardSidebar.tsx`
   Add ROI navigation step and lock behavior.
 
-- `components/dashboard/WizardProgress.tsx`  
+- `components/dashboard/WizardProgress.tsx`
   Add ROI step if this component remains in use during implementation.
 
-- `messages/en.json` and `messages/zh-HK.json`  
+- `messages/en.json` and `messages/zh-HK.json`
   Add dashboard/local-trust copy.
 
-- `__tests__/lib/tier.test.ts`  
+- `__tests__/lib/tier.test.ts`
   Add plan-gating coverage.
 
 ---

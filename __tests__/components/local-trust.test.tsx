@@ -51,10 +51,12 @@ describe('Local Trust dashboard wiring', () => {
   it('guards Local Trust snapshot generation to scans matching the current client domain', () => {
     const page = read('app/[lang]/dashboard/[clientId]/page.tsx')
 
-    expect(page).toContain('normalizeDomain')
-    expect(page).toContain('domainsMatch')
-    expect(page).toContain('const localTrustScan = domainsMatch(scan?.domain, typedClient.domain) ? scan : null')
-    expect(page).toContain('const localTrustCompetitors = localTrustScan ? agentCompetitors : []')
+    expect(page).toContain('findNewestMatchingScan')
+    expect(page).toContain('const localTrustScanRows')
+    expect(page).toContain('findNewestMatchingScan(localTrustScanRows, typedClient.domain)')
+    expect(page).not.toContain('const localTrustScan = domainsMatch(scan?.domain, typedClient.domain) ? scan : null')
+    expect(page).toContain('const localTrustCompetitors = localTrustScan')
+    expect(page).toContain('localTrustScan.id === scan?.id ? agentCompetitors')
     expect(page).toContain('latestScan: localTrustScan')
     expect(page).toContain('competitors: localTrustCompetitors')
     expect(page).toContain('competitors={localTrustCompetitors}')
@@ -475,6 +477,19 @@ describe('Local Trust interactive controls', () => {
     expect(html).toContain('name="competitors"')
   })
 
+  it('renders numeric setup fields with browser validation constraints', async () => {
+    const { LocalTrustSetupForm } = await import('@/components/dashboard/local-trust/LocalTrustSetupForm')
+
+    const html = renderToStaticMarkup(<LocalTrustSetupForm clientId="client-1" profile={localTrustProfile()} />)
+
+    expect(html).toContain('name="average_lead_value"')
+    expect(html).toContain('type="number"')
+    expect(html).toContain('min="0"')
+    expect(html).toContain('step="0.01"')
+    expect(html).toContain('name="close_rate"')
+    expect(html).toContain('max="1"')
+  })
+
   it('submits setup values to the encoded profile route with normalized JSON', async () => {
     const { submitLocalTrustSetup } = await import('@/components/dashboard/local-trust/LocalTrustSetupForm')
     const fetcher = vi.fn().mockResolvedValue(responseJson({ profile: localTrustProfile() }))
@@ -484,7 +499,7 @@ describe('Local Trust interactive controls', () => {
       values: {
         primaryServices: ' AISO consulting, , Local SEO ',
         serviceArea: ' Hong Kong ',
-        averageLeadValue: '-50',
+        averageLeadValue: '15000',
         closeRate: '0.25',
         competitors: ' Rival One, , Rival Two ',
       },
@@ -499,10 +514,37 @@ describe('Local Trust interactive controls', () => {
     expect(JSON.parse(String(init.body))).toEqual({
       primary_services: ['AISO consulting', 'Local SEO'],
       service_area: ' Hong Kong ',
-      average_lead_value: null,
+      average_lead_value: 15000,
       close_rate: 0.25,
       competitors: ['Rival One', 'Rival Two'],
     })
+  })
+
+  it('does not submit invalid numeric setup assumptions', async () => {
+    const { submitLocalTrustSetup } = await import('@/components/dashboard/local-trust/LocalTrustSetupForm')
+    const fetcher = vi.fn()
+    const setError = vi.fn()
+    const setSaving = vi.fn()
+
+    const result = await submitLocalTrustSetup({
+      clientId: 'client-1',
+      values: {
+        primaryServices: 'AISO consulting',
+        serviceArea: 'Hong Kong',
+        averageLeadValue: '-50',
+        closeRate: '1.5',
+        competitors: 'rival.example',
+      },
+      errorMessage: 'Unable to save assumptions.',
+      fetcher,
+      onError: setError,
+      onSavingChange: setSaving,
+    })
+
+    expect(result).toEqual({ ok: false, error: 'Unable to save assumptions.' })
+    expect(fetcher).not.toHaveBeenCalled()
+    expect(setError).toHaveBeenLastCalledWith('Unable to save assumptions.')
+    expect(setSaving.mock.calls).toEqual([[true], [false]])
   })
 
   it('refreshes and reconciles setup fields from the returned saved profile', async () => {
@@ -524,7 +566,7 @@ describe('Local Trust interactive controls', () => {
       values: {
         primaryServices: 'AISO consulting',
         serviceArea: 'Hong Kong',
-        averageLeadValue: 'not persisted',
+        averageLeadValue: '10000',
         closeRate: '0.4',
         competitors: 'rival.example',
       },

@@ -1,4 +1,5 @@
 import { getProfile } from '@/lib/auth'
+import { findNewestMatchingScan } from '@/lib/localTrust'
 import { getLocalTrustProfile, getOrCreateLocalTrustSnapshot, verifyClientOwnership } from '@/lib/localTrust/store'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { planAllows } from '@/lib/tier'
@@ -8,24 +9,6 @@ type QueryError = { message: string; code?: string }
 
 function isNoRowsError(error: unknown) {
   return Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'PGRST116')
-}
-
-function normalizeDomain(domain: string | null | undefined) {
-  const value = domain?.trim().toLowerCase()
-  if (!value) return null
-
-  return value
-    .replace(/^https?:\/\//, '')
-    .replace(/^www\./, '')
-    .split('/')[0]
-    ?.split(':')[0] || null
-}
-
-function domainsMatch(scanDomain: string | null | undefined, clientDomain: string | null | undefined) {
-  const normalizedScan = normalizeDomain(scanDomain)
-  const normalizedClient = normalizeDomain(clientDomain)
-
-  return Boolean(normalizedScan && normalizedClient && normalizedScan === normalizedClient)
 }
 
 function csvCell(value: unknown) {
@@ -70,21 +53,21 @@ export async function GET(
 
   try {
     const supabase = await createServerSupabaseClient()
-    const { data: latestScanRow, error: latestScanError } = await supabase
+    const { data: scanRowsData, error: scanRowsError } = await supabase
       .from('scans')
       .select('*')
       .eq('account_id', profile.account_id)
       .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
+      .limit(25)
 
-    if (latestScanError && !isNoRowsError(latestScanError)) {
+    if (scanRowsError && !isNoRowsError(scanRowsError)) {
       throw new Error('Export query failed')
     }
 
-    const latestScan = domainsMatch((latestScanRow as Scan | null)?.domain, client.domain)
-      ? latestScanRow as Scan
-      : null
+    const scanRows = Array.isArray(scanRowsData)
+      ? scanRowsData as Scan[]
+      : scanRowsData ? [scanRowsData as Scan] : []
+    const latestScan = findNewestMatchingScan(scanRows, client.domain)
 
     const [
       { data: pulseSummary, error: pulseSummaryError },

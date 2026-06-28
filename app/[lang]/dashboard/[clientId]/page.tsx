@@ -8,29 +8,12 @@ import { ResultsStep } from '@/components/dashboard/ResultsStep'
 import { ImproveStep } from '@/components/dashboard/ImproveStep'
 import { MonitorStep } from '@/components/dashboard/MonitorStep'
 import { LocalTrustStep } from '@/components/dashboard/local-trust/LocalTrustStep'
+import { findNewestMatchingScan } from '@/lib/localTrust'
 import { getLocalTrustProfile, getOrCreateLocalTrustSnapshot } from '@/lib/localTrust/store'
 import type {
   Scan, AgentRecommendation, AgentProgress as AgentProgressType,
   AgentCompetitor, PulseWeeklySummary, PulseMetric, Client,
 } from '@/lib/types'
-
-function normalizeDomain(domain: string | null | undefined) {
-  const value = domain?.trim().toLowerCase()
-  if (!value) return null
-
-  return value
-    .replace(/^https?:\/\//, '')
-    .replace(/^www\./, '')
-    .split('/')[0]
-    ?.split(':')[0] || null
-}
-
-function domainsMatch(scanDomain: string | null | undefined, clientDomain: string | null | undefined) {
-  const normalizedScan = normalizeDomain(scanDomain)
-  const normalizedClient = normalizeDomain(clientDomain)
-
-  return Boolean(normalizedScan && normalizedClient && normalizedScan === normalizedClient)
-}
 
 async function StepHeader({ step, plan }: { step: string; plan: string }) {
   const t = await getTranslations('dashboard')
@@ -94,7 +77,19 @@ export default async function DashboardPage({
     ? supabase.from('scans').select('*').eq('id', scanId).eq('account_id', profile.account_id).single()
     : Promise.resolve({ data: null })
 
-  const [{ data: latestScan }, { data: scanHistory }, { data: specificScan }, { data: pulseSummary }, { data: pulseMetrics }] =
+  const localTrustScansPromise = step === 'roi'
+    ? supabase.from('scans').select('*').eq('account_id', profile.account_id)
+      .order('created_at', { ascending: false }).limit(25)
+    : Promise.resolve({ data: [] })
+
+  const [
+    { data: latestScan },
+    { data: scanHistory },
+    { data: specificScan },
+    { data: pulseSummary },
+    { data: pulseMetrics },
+    { data: localTrustScans },
+  ] =
     await Promise.all([
       supabase.from('scans').select('*').eq('account_id', profile.account_id)
         .order('created_at', { ascending: false }).limit(1).single(),
@@ -107,25 +102,40 @@ export default async function DashboardPage({
         .select('platform,question,competitors_mentioned,scan_week')
         .eq('client_id', clientId).eq('brand_mentioned', false)
         .order('scan_week', { ascending: false }).limit(50),
+      localTrustScansPromise,
     ])
 
   // Use specific scan if scanId was provided, otherwise use latest
   const scan = (scanId ? (specificScan as Scan | null) : (latestScan as Scan | null))
 
+  const summary = (pulseSummary ?? []) as PulseWeeklySummary[]
+  const missed  = (pulseMetrics ?? []) as PulseMetric[]
+  const localTrustScanRows = Array.isArray(localTrustScans)
+    ? localTrustScans as Scan[]
+    : localTrustScans ? [localTrustScans as Scan] : []
+  const localTrustScan = findNewestMatchingScan(localTrustScanRows, typedClient.domain)
+
   // Phase 2: agent data for the selected scan
-  const [{ data: agentRecs }, { data: agentProg }, { data: agentComps }] = scan
-    ? await Promise.all([
+  const agentDataPromise = scan
+    ? Promise.all([
         supabase.from('agent_recommendations').select('*').eq('scan_id', scan.id).order('priority').order('impact_score', { ascending: false }),
         supabase.from('agent_progress').select('*').eq('scan_id', scan.id),
         supabase.from('agent_competitors').select('*').eq('scan_id', scan.id).order('mention_rate', { ascending: false }),
       ])
-    : [{ data: null }, { data: null }, { data: null }]
+    : Promise.resolve([{ data: null }, { data: null }, { data: null }])
+  const localTrustCompetitorsPromise = step === 'roi' && localTrustScan && localTrustScan.id !== scan?.id
+    ? supabase.from('agent_competitors').select('*').eq('scan_id', localTrustScan.id).order('mention_rate', { ascending: false })
+    : Promise.resolve({ data: null })
 
-  const summary = (pulseSummary ?? []) as PulseWeeklySummary[]
-  const missed  = (pulseMetrics ?? []) as PulseMetric[]
+  const [
+    [{ data: agentRecs }, { data: agentProg }, { data: agentComps }],
+    { data: localTrustComps },
+  ] = await Promise.all([agentDataPromise, localTrustCompetitorsPromise])
+
   const agentCompetitors = (agentComps ?? []) as AgentCompetitor[]
-  const localTrustScan = domainsMatch(scan?.domain, typedClient.domain) ? scan : null
-  const localTrustCompetitors = localTrustScan ? agentCompetitors : []
+  const localTrustCompetitors = localTrustScan
+    ? (localTrustScan.id === scan?.id ? agentCompetitors : ((localTrustComps ?? []) as AgentCompetitor[]))
+    : []
   const hasAggregatePulseBaseline = summary.some(row => !row.platform)
   const hasLocalTrustBaseline = Boolean(localTrustScan || hasAggregatePulseBaseline)
   const localTrustProfile = step === 'roi'

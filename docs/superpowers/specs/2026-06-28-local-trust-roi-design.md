@@ -1,7 +1,7 @@
 # Design: Local Trust ROI for SME Owners
 
-**Date:** 2026-06-28  
-**Status:** Approved for planning  
+**Date:** 2026-06-28
+**Status:** Approved for planning
 **Project:** Fimmick AISO
 
 ---

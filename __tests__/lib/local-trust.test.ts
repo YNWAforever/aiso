@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calculateLocalTrust, estimateRoi } from '@/lib/localTrust'
+import { calculateLocalTrust, estimateRoi, findNewestMatchingScan } from '@/lib/localTrust'
 import type { Client, Scan, PulseWeeklySummary, PulseMetric, AgentCompetitor, LocalTrustProfile } from '@/lib/types'
 
 const pass = (message = 'pass') => ({ status: 'pass' as const, message })
@@ -222,5 +222,21 @@ describe('estimateRoi', () => {
     })
     expect(estimate!.low).toBeGreaterThan(0)
     expect(estimate!.high).toBeGreaterThan(estimate!.low)
+  })
+})
+
+describe('findNewestMatchingScan', () => {
+  it('selects the newest scan matching the selected client domain from account history', () => {
+    const scans: Scan[] = [
+      { ...scan, id: 'scan-other-newest', domain: 'other.example', created_at: '2026-06-28T00:00:00.000Z' },
+      { ...scan, id: 'scan-harbour-older', domain: 'https://www.harbour.example/path', created_at: '2026-06-20T00:00:00.000Z' },
+      { ...scan, id: 'scan-harbour-oldest', domain: 'harbour.example', created_at: '2026-06-10T00:00:00.000Z' },
+    ]
+
+    expect(findNewestMatchingScan(scans, 'harbour.example')?.id).toBe('scan-harbour-older')
+  })
+
+  it('returns null when no scan matches the selected client domain', () => {
+    expect(findNewestMatchingScan([{ ...scan, domain: 'other.example' }], 'harbour.example')).toBeNull()
   })
 })

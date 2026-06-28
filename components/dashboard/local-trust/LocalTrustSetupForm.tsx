@@ -75,12 +75,17 @@ function commaList(value: string) {
     .filter(Boolean)
 }
 
-function nullableNonNegativeNumber(value: string) {
+type NumberParseResult = { ok: true; value: number | null } | { ok: false }
+
+function nullableNonNegativeNumber(value: string, max?: number): NumberParseResult {
   const trimmed = value.trim()
-  if (!trimmed) return null
+  if (!trimmed) return { ok: true, value: null }
 
   const number = Number(trimmed)
-  return Number.isFinite(number) && number >= 0 ? number : null
+  if (!Number.isFinite(number) || number < 0) return { ok: false }
+  if (max !== undefined && number > max) return { ok: false }
+
+  return { ok: true, value: number }
 }
 
 function profileToFormValues(profile: LocalTrustProfile): LocalTrustSetupValues {
@@ -93,12 +98,16 @@ function profileToFormValues(profile: LocalTrustProfile): LocalTrustSetupValues 
   }
 }
 
-function buildPayload(values: LocalTrustSetupValues): LocalTrustSetupPayload {
+function buildPayload(values: LocalTrustSetupValues): LocalTrustSetupPayload | null {
+  const averageLeadValue = nullableNonNegativeNumber(values.averageLeadValue)
+  const closeRate = nullableNonNegativeNumber(values.closeRate, 1)
+  if (!averageLeadValue.ok || !closeRate.ok) return null
+
   return {
     primary_services: commaList(values.primaryServices),
     service_area: values.serviceArea,
-    average_lead_value: nullableNonNegativeNumber(values.averageLeadValue),
-    close_rate: nullableNonNegativeNumber(values.closeRate),
+    average_lead_value: averageLeadValue.value,
+    close_rate: closeRate.value,
     competitors: commaList(values.competitors),
   }
 }
@@ -127,10 +136,16 @@ export async function submitLocalTrustSetup({
   onError?.(null)
 
   try {
+    const payload = buildPayload(values)
+    if (!payload) {
+      onError?.(errorMessage)
+      return { ok: false, error: errorMessage }
+    }
+
     const response = await fetcher(`/api/dashboard/clients/${encodeURIComponent(clientId)}/local-trust/profile`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(buildPayload(values)),
+      body: JSON.stringify(payload),
     })
 
     if (!response.ok) {
@@ -227,10 +242,13 @@ export function LocalTrustSetupForm({ clientId, profile, copy }: Props) {
             <input
               id="local-trust-average-lead-value"
               name="average_lead_value"
+              type="number"
               className={inputClass}
               value={averageLeadValue}
               onChange={event => setAverageLeadValue(event.target.value)}
               inputMode="decimal"
+              min="0"
+              step="0.01"
               disabled={isSaving}
             />
           </div>
@@ -239,10 +257,14 @@ export function LocalTrustSetupForm({ clientId, profile, copy }: Props) {
             <input
               id="local-trust-close-rate"
               name="close_rate"
+              type="number"
               className={inputClass}
               value={closeRate}
               onChange={event => setCloseRate(event.target.value)}
               inputMode="decimal"
+              min="0"
+              max="1"
+              step="0.01"
               disabled={isSaving}
             />
           </div>

@@ -184,6 +184,46 @@ describe('Local Trust profile route', () => {
     expect(mockFrom).not.toHaveBeenCalledWith('local_trust_profiles')
   })
 
+  it('rejects negative or nonnumeric owner assumptions instead of clearing them', async () => {
+    setTable('clients', { id: 'client-1', account_id: 'account-1' })
+
+    const negativeReq = jsonRequest('http://localhost/api/dashboard/clients/client-1/local-trust/profile', 'PUT', {
+      average_lead_value: '-1',
+    })
+    const negativeRes = await PUT_PROFILE(negativeReq, { params: Promise.resolve({ clientId: 'client-1' }) })
+
+    expect(negativeRes.status).toBe(400)
+    expect(mockFrom).not.toHaveBeenCalledWith('local_trust_profiles')
+
+    vi.clearAllMocks()
+    queryCalls.length = 0
+    mockFrom.mockImplementation((table: string) => new QueryBuilder(table))
+    setTable('clients', { id: 'client-1', account_id: 'account-1' })
+
+    const nonnumericReq = jsonRequest('http://localhost/api/dashboard/clients/client-1/local-trust/profile', 'PUT', {
+      close_rate: 'not-a-number',
+    })
+    const nonnumericRes = await PUT_PROFILE(nonnumericReq, { params: Promise.resolve({ clientId: 'client-1' }) })
+
+    expect(nonnumericRes.status).toBe(400)
+    expect(mockFrom).not.toHaveBeenCalledWith('local_trust_profiles')
+  })
+
+  it('does not leak raw profile store errors in 500 responses', async () => {
+    setTable('clients', { id: 'client-1', account_id: 'account-1' })
+    setTable('local_trust_profiles', null, { message: 'sensitive profile policy failure' })
+
+    const req = jsonRequest('http://localhost/api/dashboard/clients/client-1/local-trust/profile', 'PUT', {
+      average_lead_value: '20000',
+    })
+    const res = await PUT_PROFILE(req, { params: Promise.resolve({ clientId: 'client-1' }) })
+    const body = await res.json()
+
+    expect(res.status).toBe(500)
+    expect(body).toEqual({ error: 'Profile update failed' })
+    expect(JSON.stringify(body)).not.toContain('sensitive profile policy failure')
+  })
+
   it('returns 400 for malformed profile JSON', async () => {
     setTable('clients', { id: 'client-1', account_id: 'account-1' })
 
@@ -253,6 +293,21 @@ describe('Local Trust action route', () => {
     const res = await PATCH_ACTION(req, { params: Promise.resolve({ clientId: 'client-1', actionId: 'action-404' }) })
 
     expect(res.status).toBe(404)
+  })
+
+  it('does not leak raw action store errors in 500 responses', async () => {
+    setTable('clients', { id: 'client-1', account_id: 'account-1' })
+    setTable('local_trust_actions', null, { message: 'sensitive action policy failure' })
+
+    const req = jsonRequest('http://localhost/api/dashboard/clients/client-1/local-trust/actions/action-1', 'PATCH', {
+      status: 'planned',
+    })
+    const res = await PATCH_ACTION(req, { params: Promise.resolve({ clientId: 'client-1', actionId: 'action-1' }) })
+    const body = await res.json()
+
+    expect(res.status).toBe(500)
+    expect(body).toEqual({ error: 'Action update failed' })
+    expect(JSON.stringify(body)).not.toContain('sensitive action policy failure')
   })
 
   it('returns 400 for malformed action JSON', async () => {
@@ -495,7 +550,7 @@ describe('Local Trust export route', () => {
       ['id', 'client-1'],
       ['account_id', 'account-1'],
     ])
-    expect(queryCalls.find(call => call.table === 'scans')?.limitCount).toBe(1)
+    expect(queryCalls.find(call => call.table === 'scans')?.limitCount).toBe(25)
     expect(queryCalls.find(call => call.table === 'agent_competitors')?.filters).toEqual([['scan_id', 'scan-1']])
     expect(mockCalculateLocalTrust).toHaveBeenCalledWith(expect.objectContaining({
       accountId: 'account-1',
@@ -543,6 +598,43 @@ describe('Local Trust export route', () => {
     expect(mockCalculateLocalTrust).toHaveBeenCalledWith(expect.objectContaining({
       scan: null,
       competitors: [],
+    }))
+  })
+
+  it('uses the newest matching client scan instead of the newest scan from another account brand', async () => {
+    setOwnedClient()
+    setTable('scans', [
+      {
+        id: 'scan-other-newest',
+        url: 'https://other.example',
+        domain: 'other.example',
+        score: 91,
+        grade: 'A',
+        results: {},
+        account_id: 'account-1',
+        created_at: '2026-06-28T00:00:00.000Z',
+      },
+      {
+        id: 'scan-harbour-older',
+        url: 'https://harbour.example',
+        domain: 'harbour.example',
+        score: 82,
+        grade: 'A',
+        results: {},
+        account_id: 'account-1',
+        created_at: '2026-06-20T00:00:00.000Z',
+      },
+    ])
+    setTable('pulse_weekly_summary', [])
+    setEmptyExportTables()
+
+    const req = new Request('http://localhost/api/dashboard/clients/client-1/local-trust/export')
+    const res = await GET_EXPORT(req, { params: Promise.resolve({ clientId: 'client-1' }) })
+
+    expect(res.status).toBe(200)
+    expect(queryCalls.find(call => call.table === 'agent_competitors')?.filters).toEqual([['scan_id', 'scan-harbour-older']])
+    expect(mockCalculateLocalTrust).toHaveBeenCalledWith(expect.objectContaining({
+      scan: expect.objectContaining({ id: 'scan-harbour-older' }),
     }))
   })
 

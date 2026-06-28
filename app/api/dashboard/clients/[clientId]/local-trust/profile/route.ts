@@ -15,10 +15,24 @@ function nullableText(value: unknown): string | null {
   return text ? text : null
 }
 
-function nullableNumber(value: unknown): number | null {
-  if (value === null || value === undefined || value === '') return null
+type NumberValidation = { ok: true; value: number | null } | { ok: false; error: string }
+
+function nullableNumber(value: unknown, label: string, max?: number): NumberValidation {
+  if (value === null || value === undefined) return { ok: true, value: null }
+  if (typeof value === 'string' && value.trim() === '') return { ok: true, value: null }
+  if (typeof value !== 'string' && typeof value !== 'number') {
+    return { ok: false, error: `${label} must be a number` }
+  }
+
   const number = Number(value)
-  return Number.isFinite(number) && number >= 0 ? number : null
+  if (!Number.isFinite(number) || number < 0) {
+    return { ok: false, error: `${label} must be a non-negative number` }
+  }
+  if (max !== undefined && number > max) {
+    return { ok: false, error: `${label} must be between 0 and ${max}` }
+  }
+
+  return { ok: true, value: number }
 }
 
 async function parseJson(req: Request): Promise<Record<string, unknown> | null> {
@@ -49,10 +63,11 @@ export async function PUT(
   const body = await parseJson(req)
   if (!body) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
 
-  const closeRate = nullableNumber(body.close_rate)
-  if (closeRate !== null && closeRate > 1) {
-    return Response.json({ error: 'close_rate must be between 0 and 1' }, { status: 400 })
-  }
+  const averageLeadValue = nullableNumber(body.average_lead_value, 'average_lead_value')
+  if (!averageLeadValue.ok) return Response.json({ error: averageLeadValue.error }, { status: 400 })
+
+  const closeRate = nullableNumber(body.close_rate, 'close_rate', 1)
+  if (!closeRate.ok) return Response.json({ error: closeRate.error }, { status: 400 })
 
   try {
     const data = await upsertLocalTrustProfile({
@@ -60,13 +75,13 @@ export async function PUT(
       accountId: profile.account_id,
       primaryServices: textArray(body.primary_services),
       serviceArea: nullableText(body.service_area),
-      averageLeadValue: nullableNumber(body.average_lead_value),
-      closeRate,
+      averageLeadValue: averageLeadValue.value,
+      closeRate: closeRate.value,
       competitors: textArray(body.competitors),
     })
 
     return Response.json({ profile: data })
-  } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : 'Profile update failed' }, { status: 500 })
+  } catch {
+    return Response.json({ error: 'Profile update failed' }, { status: 500 })
   }
 }
