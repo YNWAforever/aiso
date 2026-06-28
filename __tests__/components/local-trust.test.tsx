@@ -308,6 +308,16 @@ describe('Local Trust read-only UI components', () => {
     expect(html).toContain('HKD 12,000-28,000')
   })
 
+  it('renders Enterprise report actions with an encoded export URL', async () => {
+    const { ReportActions } = await import('@/components/dashboard/local-trust/ReportActions')
+
+    const html = renderToStaticMarkup(<ReportActions clientId="client/1 #" />)
+
+    expect(html).toContain('Export report')
+    expect(html).toContain('Print report')
+    expect(html).toContain('/api/dashboard/clients/client%2F1%20%23/local-trust/export')
+  })
+
   it('renders competitor rows and a graceful empty state', async () => {
     const { CompetitorSnapshot } = await import('@/components/dashboard/local-trust/CompetitorSnapshot')
     const competitors: AgentCompetitor[] = [
@@ -373,6 +383,43 @@ describe('Local Trust read-only UI components', () => {
 
     expect(html).not.toContain('Local Competitor Snapshot')
     expect(html).not.toContain('Available on Enterprise')
+  })
+
+  it('renders translated Enterprise report actions only when export is allowed', async () => {
+    const { LocalTrustStep } = await import('@/components/dashboard/local-trust/LocalTrustStep')
+
+    const enterpriseHtml = renderToStaticMarkup(
+      <NextIntlClientProvider locale="zh-HK" messages={messages('zh-HK')} timeZone="Asia/Hong_Kong">
+        <LocalTrustStep
+          lang="zh-HK"
+          clientId="client-1"
+          plan="enterprise"
+          profile={null}
+          snapshot={snapshot}
+          actions={actions}
+          competitors={[]}
+        />
+      </NextIntlClientProvider>,
+    )
+    const proHtml = renderToStaticMarkup(
+      <NextIntlClientProvider locale="en" messages={messages('en')} timeZone="Asia/Hong_Kong">
+        <LocalTrustStep
+          lang="en"
+          clientId="client-1"
+          plan="pro"
+          profile={null}
+          snapshot={snapshot}
+          actions={actions}
+          competitors={[]}
+        />
+      </NextIntlClientProvider>,
+    )
+
+    expect(enterpriseHtml).toContain('匯出報告')
+    expect(enterpriseHtml).toContain('列印報告')
+    expect(enterpriseHtml).toContain('/api/dashboard/clients/client-1/local-trust/export')
+    expect(proHtml).not.toContain('Export report')
+    expect(proHtml).not.toContain('/api/dashboard/clients/client-1/local-trust/export')
   })
 
   it('shows a read-only missing-data checklist when no snapshot exists', async () => {

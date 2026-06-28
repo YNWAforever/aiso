@@ -7,6 +7,7 @@ type QueryCall = {
   payload?: unknown
   options?: unknown
   filters: Array<[string, unknown]>
+  limitCount?: number
 }
 
 const { mockCalculateLocalTrust, mockGetProfile, mockFrom, tableResults, queryCalls } = vi.hoisted(() => ({
@@ -52,6 +53,11 @@ class QueryBuilder {
     return this
   }
 
+  limit(count: number) {
+    this.call.limitCount = count
+    return this
+  }
+
   async single() {
     return tableResults.get(this.call.table) ?? { data: null, error: null }
   }
@@ -69,6 +75,7 @@ vi.mock('@/lib/localTrust/scoring', () => ({ calculateLocalTrust: mockCalculateL
 
 import { PUT as PUT_PROFILE } from '@/app/api/dashboard/clients/[clientId]/local-trust/profile/route'
 import { PATCH as PATCH_ACTION } from '@/app/api/dashboard/clients/[clientId]/local-trust/actions/[actionId]/route'
+import { GET as GET_EXPORT } from '@/app/api/dashboard/clients/[clientId]/local-trust/export/route'
 import { getOrCreateLocalTrustSnapshot } from '@/lib/localTrust/store'
 
 function setTable(table: string, data: unknown, error: { message: string } | null = null) {
@@ -255,6 +262,254 @@ describe('Local Trust action route', () => {
 
     expect(res.status).toBe(400)
     expect(mockFrom).not.toHaveBeenCalledWith('local_trust_actions')
+  })
+})
+
+describe('Local Trust export route', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    tableResults.clear()
+    queryCalls.length = 0
+    mockFrom.mockImplementation((table: string) => new QueryBuilder(table))
+    mockGetProfile.mockResolvedValue({
+      account_id: 'account-1',
+      accounts: { plan: 'enterprise' },
+    })
+    mockCalculateLocalTrust.mockReturnValue({
+      client_id: 'client-1',
+      account_id: 'account-1',
+      snapshot_month: '2026-06-01',
+      local_trust_score: 71,
+      bucket_scores: [],
+      trust_gaps: [{
+        stableKey: 'quoted-proof',
+        title: 'Add "quoted" proof',
+        bucket: 'proof_depth',
+        impact: 'high',
+        effort: 'medium',
+        rationale: 'Proof is thin.',
+        suggestedTarget: 'Case studies',
+      }],
+      roi_estimate: {
+        low: 12000,
+        high: 28000,
+        currency: 'HKD',
+        assumptions: {
+          averageLeadValue: 8000,
+          closeRate: 0.25,
+          estimatedExtraEnquiriesLow: 6,
+          estimatedExtraEnquiriesHigh: 14,
+        },
+        confidence: 'directional',
+      },
+      source_scan_id: 'scan-1',
+      source_pulse_week: '2026-06-22',
+    })
+  })
+
+  it('rejects Pro users because export is Enterprise-only', async () => {
+    mockGetProfile.mockResolvedValue({ account_id: 'account-1', accounts: { plan: 'pro' } })
+
+    const req = new Request('http://localhost/api/dashboard/clients/client-1/local-trust/export')
+    const res = await GET_EXPORT(req, { params: Promise.resolve({ clientId: 'client-1' }) })
+    const body = await res.json()
+
+    expect(res.status).toBe(403)
+    expect(body).toMatchObject({ error: 'UPGRADE_REQUIRED', feature: 'local_trust_export', plan: 'pro' })
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('exports an Enterprise CSV using owned client and Local Trust snapshot data', async () => {
+    setTable('clients', {
+      id: 'client-1',
+      brand_name: 'Harbour Advisory',
+      domain: 'https://www.harbour.example/path',
+      industry: 'legal',
+      competitors: [],
+      status: 'active',
+      created_at: '2026-06-01T00:00:00.000Z',
+    })
+    setTable('scans', {
+      id: 'scan-1',
+      url: 'https://harbour.example',
+      domain: 'harbour.example',
+      score: 82,
+      grade: 'A',
+      results: {},
+      account_id: 'account-1',
+      created_at: '2026-06-28T00:00:00.000Z',
+    })
+    setTable('local_trust_profiles', {
+      id: 'profile-1',
+      client_id: 'client-1',
+      account_id: 'account-1',
+      primary_services: ['AISO consulting'],
+      service_area: 'Hong Kong',
+      average_lead_value: 8000,
+      close_rate: 0.25,
+      competitors: [],
+      created_at: '2026-06-01T00:00:00.000Z',
+      updated_at: '2026-06-01T00:00:00.000Z',
+    })
+    setTable('pulse_weekly_summary', [{
+      id: 'summary-1',
+      client_id: 'client-1',
+      scan_week: '2026-06-22',
+      platform: null,
+      total_queries: 10,
+      brand_mentions: 4,
+      sov_score: 40,
+      avg_sentiment_score: 0.4,
+      top_competitors: {},
+      created_at: '2026-06-22T00:00:00.000Z',
+    }])
+    setTable('pulse_metrics', [{
+      id: 'metric-1',
+      client_id: 'client-1',
+      prompt_id: 'prompt-1',
+      platform: 'gemini',
+      question: 'best local advisor',
+      raw_answer: null,
+      brand_mentioned: false,
+      sentiment: 'not_mentioned',
+      mention_position: null,
+      competitors_mentioned: ['rival.example'],
+      scan_week: '2026-06-22',
+      created_at: '2026-06-22T00:00:00.000Z',
+    }])
+    setTable('agent_competitors', [{
+      id: 'competitor-1',
+      scan_id: 'scan-1',
+      platform: 'perplexity',
+      competitor_domain: 'rival.example',
+      competitor_name: 'Rival Advisory',
+      mention_rate: 52,
+      your_rate: 18,
+      gap_analysis: 'Rival has more local proof.',
+      created_at: '2026-06-28T00:00:00.000Z',
+    }])
+    setTable('local_trust_snapshots', {
+      id: 'snapshot-1',
+      client_id: 'client-1',
+      account_id: 'account-1',
+      snapshot_month: '2026-06-01',
+      local_trust_score: 71,
+      bucket_scores: [],
+      trust_gaps: [],
+      roi_estimate: {
+        low: 12000,
+        high: 28000,
+        currency: 'HKD',
+        assumptions: {
+          averageLeadValue: 8000,
+          closeRate: 0.25,
+          estimatedExtraEnquiriesLow: 6,
+          estimatedExtraEnquiriesHigh: 14,
+        },
+        confidence: 'directional',
+      },
+      source_scan_id: 'scan-1',
+      source_pulse_week: '2026-06-22',
+      created_at: '2026-06-28T00:00:00.000Z',
+    })
+    setTable('local_trust_actions', [{
+      id: 'action-1',
+      client_id: 'client-1',
+      snapshot_id: 'snapshot-1',
+      stable_key: 'quoted-proof',
+      title: 'Old title',
+      bucket: 'proof_depth',
+      impact: 'high',
+      effort: 'medium',
+      status: 'open',
+      created_at: '2026-06-28T00:00:00.000Z',
+      updated_at: '2026-06-28T00:00:00.000Z',
+    }])
+
+    const req = new Request('http://localhost/api/dashboard/clients/client-1/local-trust/export')
+    const res = await GET_EXPORT(req, { params: Promise.resolve({ clientId: 'client-1' }) })
+    const csv = await res.text()
+
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('text/csv; charset=utf-8')
+    expect(res.headers.get('content-disposition')).toBe('attachment; filename="local-trust-client-1.csv"')
+    expect(csv).toContain('Metric,Value')
+    expect(csv).toContain('Local Trust Score,71')
+    expect(csv).toContain('Snapshot Month,2026-06-01')
+    expect(csv).toContain('Top Action,"Add ""quoted"" proof"')
+    expect(csv).toContain('Estimated Value Low,12000')
+    expect(csv).toContain('Estimated Value High,28000')
+    expect(queryCalls.find(call => call.table === 'clients')?.filters).toEqual([
+      ['id', 'client-1'],
+      ['account_id', 'account-1'],
+    ])
+    expect(queryCalls.find(call => call.table === 'scans')?.limitCount).toBe(1)
+    expect(queryCalls.find(call => call.table === 'agent_competitors')?.filters).toEqual([['scan_id', 'scan-1']])
+    expect(mockCalculateLocalTrust).toHaveBeenCalledWith(expect.objectContaining({
+      accountId: 'account-1',
+      scan: expect.objectContaining({ id: 'scan-1' }),
+      competitors: [expect.objectContaining({ id: 'competitor-1' })],
+    }))
+  })
+
+  it('does not use an account latest scan or competitors when the scan domain does not match the client', async () => {
+    setTable('clients', {
+      id: 'client-1',
+      brand_name: 'Harbour Advisory',
+      domain: 'harbour.example',
+      industry: 'legal',
+      competitors: [],
+      status: 'active',
+      created_at: '2026-06-01T00:00:00.000Z',
+    })
+    setTable('scans', {
+      id: 'scan-other',
+      url: 'https://other.example',
+      domain: 'other.example',
+      score: 82,
+      grade: 'A',
+      results: {},
+      account_id: 'account-1',
+      created_at: '2026-06-28T00:00:00.000Z',
+    })
+    setTable('local_trust_profiles', null)
+    setTable('pulse_weekly_summary', [])
+    setTable('pulse_metrics', [])
+    setTable('agent_competitors', [{
+      id: 'competitor-other',
+      scan_id: 'scan-other',
+      platform: 'perplexity',
+      competitor_domain: 'rival.example',
+      competitor_name: 'Rival Advisory',
+      mention_rate: 52,
+      your_rate: 18,
+      gap_analysis: 'Wrong scan.',
+      created_at: '2026-06-28T00:00:00.000Z',
+    }])
+    setTable('local_trust_snapshots', {
+      id: 'snapshot-1',
+      client_id: 'client-1',
+      account_id: 'account-1',
+      snapshot_month: '2026-06-01',
+      local_trust_score: 58,
+      bucket_scores: [],
+      trust_gaps: [],
+      roi_estimate: null,
+      source_scan_id: null,
+      source_pulse_week: null,
+      created_at: '2026-06-28T00:00:00.000Z',
+    })
+    setTable('local_trust_actions', [])
+
+    const req = new Request('http://localhost/api/dashboard/clients/client-1/local-trust/export')
+    const res = await GET_EXPORT(req, { params: Promise.resolve({ clientId: 'client-1' }) })
+
+    expect(res.status).toBe(200)
+    expect(queryCalls.some(call => call.table === 'agent_competitors')).toBe(false)
+    expect(mockCalculateLocalTrust).toHaveBeenCalledWith(expect.objectContaining({
+      scan: null,
+      competitors: [],
+    }))
   })
 })
 

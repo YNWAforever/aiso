@@ -13,6 +13,7 @@ import { LocalTrustLockedPreview } from './LocalTrustLockedPreview'
 import { LocalTrustSetupForm } from './LocalTrustSetupForm'
 import { LocalTrustScorePanel } from './LocalTrustScorePanel'
 import { OwnerSummary } from './OwnerSummary'
+import { ReportActions } from './ReportActions'
 import { RoiTimeline } from './RoiTimeline'
 import { TrustGapChecklist } from './TrustGapChecklist'
 
@@ -194,6 +195,15 @@ export function LocalTrustStep({ lang, clientId, plan, profile, snapshot, action
           errorMessage: t('generic_error'),
         }}
       />
+      {features.local_trust_export ? (
+        <ReportActions
+          clientId={clientId}
+          copy={{
+            exportLabel: t('export_report'),
+            printLabel: t('print_report'),
+          }}
+        />
+      ) : null}
       <OwnerSummary
         title={t('owner_summary')}
         summary={ownerSummary}
