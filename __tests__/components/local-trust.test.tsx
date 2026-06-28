@@ -89,6 +89,15 @@ describe('Local Trust dashboard wiring', () => {
     expect(page).toContain('client: typedClient')
   })
 
+  it('does not create an integrated Local Trust snapshot without a scan or Pulse baseline', () => {
+    const page = read('app/[lang]/dashboard/[clientId]/page.tsx')
+
+    expect(page).toContain('const hasLocalTrustBaseline = Boolean(localTrustScan || summary.length > 0 || missed.length > 0)')
+    expect(page).toContain("step === 'roi' && features.local_trust_roi && hasLocalTrustBaseline")
+    expect(page).toContain('snapshot={hasLocalTrustBaseline ? (localTrustData?.snapshot ?? null) : null}')
+    expect(page).toContain('actions={hasLocalTrustBaseline ? (localTrustData?.actions ?? []) : []}')
+  })
+
   it('contains English and Traditional Chinese Local Trust copy keys', () => {
     const en = read('messages/en.json')
     const zh = read('messages/zh-HK.json')
@@ -210,8 +219,33 @@ describe('Local Trust read-only UI components', () => {
 
     expect(html).toContain('Owner Summary')
     expect(html).toContain('71/100')
-    expect(html).toContain('biggest gap is proof depth')
+    expect(html).toContain('biggest gap is Proof depth')
     expect(html).toContain('Next best action: Add two client proof points')
+  })
+
+  it('shows no-open-action copy and preserves bucket label casing', async () => {
+    const { OwnerSummary } = await import('@/components/dashboard/local-trust/OwnerSummary')
+    const noOpenActions = actions.map(action => ({ ...action, status: 'done' as const }))
+    const aiSnapshot: LocalTrustSnapshot = {
+      ...snapshot,
+      bucket_scores: [
+        { ...bucketScores[2]!, score: 8, label: 'AI answer readiness' },
+        { ...bucketScores[0]!, score: 20 },
+      ],
+    }
+
+    const html = renderToStaticMarkup(
+      <OwnerSummary
+        snapshot={aiSnapshot}
+        actions={noOpenActions}
+        copy={{ noAction: 'No open action available.' }}
+      />,
+    )
+
+    expect(html).toContain('AI answer readiness')
+    expect(html).toContain('No open action available.')
+    expect(html).not.toContain('ai answer readiness')
+    expect(html).not.toContain('Next best action: Add two client proof points')
   })
 
   it('shows a no-estimate ROI prompt when assumptions are missing', async () => {
@@ -296,6 +330,27 @@ describe('Local Trust read-only UI components', () => {
     expect(html).not.toContain('Proof is present but thin')
     expect(html).not.toContain('Director credentials')
     expect(html).not.toContain('Add two client proof points')
+  })
+
+  it('omits the Enterprise competitor placeholder for Pro users', async () => {
+    const { LocalTrustStep } = await import('@/components/dashboard/local-trust/LocalTrustStep')
+
+    const html = renderToStaticMarkup(
+      <NextIntlClientProvider locale="en" messages={messages('en')} timeZone="Asia/Hong_Kong">
+        <LocalTrustStep
+          lang="en"
+          clientId="client-1"
+          plan="pro"
+          profile={null}
+          snapshot={snapshot}
+          actions={actions}
+          competitors={[]}
+        />
+      </NextIntlClientProvider>,
+    )
+
+    expect(html).not.toContain('Local Competitor Snapshot')
+    expect(html).not.toContain('Available on Enterprise')
   })
 
   it('shows a read-only missing-data checklist when no snapshot exists', async () => {

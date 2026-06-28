@@ -199,14 +199,7 @@ export function LocalTrustStep({ lang, plan, profile, snapshot, actions, competi
             mentionGap: t('local_trust_competitor_mention_gap'),
           }}
         />
-      ) : (
-        <section className="rounded-xl border border-dash-border bg-dash-surface p-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-dash-muted">{t('competitor_snapshot')}</p>
-          <p className="mt-2 text-xs leading-relaxed text-dash-muted">
-            {t('local_trust_competitor_enterprise_locked')}
-          </p>
-        </section>
-      )}
+      ) : null}
     </div>
   )
 }

@@ -24,7 +24,7 @@ type Props = {
 
 export function OwnerSummary({ snapshot, actions, copy }: Props) {
   const labels = { ...defaultCopy, ...copy }
-  const topAction = actions.find(action => action.status === 'open') ?? actions[0]
+  const topAction = actions.find(action => action.status === 'open')
   const weakestBucket = [...snapshot.bucket_scores].sort((a, b) => {
     const aRatio = a.maxScore ? a.score / a.maxScore : a.score
     const bRatio = b.maxScore ? b.score / b.maxScore : b.score
@@ -37,7 +37,7 @@ export function OwnerSummary({ snapshot, actions, copy }: Props) {
       <p className="mt-3 text-sm leading-relaxed text-dash-text">
         {labels.scoreLead} <strong>{snapshot.local_trust_score}/100</strong>.
         {weakestBucket
-          ? ` ${labels.gapLead} ${weakestBucket.label.toLowerCase()}: ${weakestBucket.topAction}.`
+          ? ` ${labels.gapLead} ${weakestBucket.label}: ${weakestBucket.topAction}.`
           : ''}
         {topAction
           ? ` ${labels.nextActionLead} ${topAction.title}.`

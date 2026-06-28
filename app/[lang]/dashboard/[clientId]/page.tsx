@@ -126,10 +126,11 @@ export default async function DashboardPage({
   const agentCompetitors = (agentComps ?? []) as AgentCompetitor[]
   const localTrustScan = domainsMatch(scan?.domain, typedClient.domain) ? scan : null
   const localTrustCompetitors = localTrustScan ? agentCompetitors : []
+  const hasLocalTrustBaseline = Boolean(localTrustScan || summary.length > 0 || missed.length > 0)
   const localTrustProfile = step === 'roi'
     ? await getLocalTrustProfile(clientId, profile.account_id)
     : null
-  const localTrustData = step === 'roi' && features.local_trust_roi
+  const localTrustData = step === 'roi' && features.local_trust_roi && hasLocalTrustBaseline
     ? await getOrCreateLocalTrustSnapshot({
         client: typedClient,
         accountId: profile.account_id,
@@ -182,8 +183,8 @@ export default async function DashboardPage({
             clientId={clientId}
             plan={plan}
             profile={localTrustProfile}
-            snapshot={localTrustData?.snapshot ?? null}
-            actions={localTrustData?.actions ?? []}
+            snapshot={hasLocalTrustBaseline ? (localTrustData?.snapshot ?? null) : null}
+            actions={hasLocalTrustBaseline ? (localTrustData?.actions ?? []) : []}
             competitors={localTrustCompetitors}
           />
         )}
