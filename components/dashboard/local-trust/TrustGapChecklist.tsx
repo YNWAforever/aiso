@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { LocalTrustAction, LocalTrustActionStatus, LocalTrustEffort, LocalTrustImpact } from '@/lib/types'
 
 type Copy = {
@@ -30,6 +30,24 @@ type Props = {
   actions: LocalTrustAction[]
   copy?: CopyInput
 }
+
+type PatchTrustGapActionOptions = {
+  clientId: string
+  actionId: string
+  status: LocalTrustActionStatus
+  errorMessage: string
+  fetcher?: (url: string, init: RequestInit) => Promise<Response>
+  isPending: (actionId: string) => boolean
+  setPending: (actionId: string, isPending: boolean) => void
+  setError: (actionId: string, message: string | null) => void
+  setStatus: (actionId: string, status: LocalTrustActionStatus) => void
+  onRefresh?: () => void
+}
+
+type PatchTrustGapActionResult =
+  | { ok: true; status: LocalTrustActionStatus }
+  | { ok: false; error: string }
+  | { ok: false; skipped: true }
 
 const defaultCopy: Copy = {
   title: 'Trust Gap Checklist',
@@ -69,34 +87,103 @@ function mergeCopy(copy?: CopyInput): Copy {
   }
 }
 
+function isLocalTrustActionStatus(value: unknown): value is LocalTrustActionStatus {
+  return value === 'open' || value === 'planned' || value === 'done' || value === 'skipped'
+}
+
+async function readActionStatus(response: Response, fallback: LocalTrustActionStatus): Promise<LocalTrustActionStatus> {
+  try {
+    const body = await response.json()
+    if (!body || typeof body !== 'object' || !('action' in body)) return fallback
+    const action = body.action as { status?: unknown } | null
+    return isLocalTrustActionStatus(action?.status) ? action.status : fallback
+  } catch {
+    return fallback
+  }
+}
+
+export async function patchTrustGapActionStatus({
+  clientId,
+  actionId,
+  status,
+  errorMessage,
+  fetcher = fetch,
+  isPending,
+  setPending,
+  setError,
+  setStatus,
+  onRefresh,
+}: PatchTrustGapActionOptions): Promise<PatchTrustGapActionResult> {
+  if (isPending(actionId)) {
+    return { ok: false, skipped: true }
+  }
+
+  setPending(actionId, true)
+  setError(actionId, null)
+
+  try {
+    const response = await fetcher(`/api/dashboard/clients/${encodeURIComponent(clientId)}/local-trust/actions/${encodeURIComponent(actionId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+
+    if (!response.ok) {
+      setError(actionId, errorMessage)
+      return { ok: false, error: errorMessage }
+    }
+
+    const savedStatus = await readActionStatus(response, status)
+    setStatus(actionId, savedStatus)
+    onRefresh?.()
+
+    return { ok: true, status: savedStatus }
+  } catch {
+    setError(actionId, errorMessage)
+    return { ok: false, error: errorMessage }
+  } finally {
+    setPending(actionId, false)
+  }
+}
+
 export function TrustGapChecklist({ clientId, actions, copy }: Props) {
   const router = useRouter()
   const labels = mergeCopy(copy)
-  const [busyActionId, setBusyActionId] = useState<string | null>(null)
-  const [error, setError] = useState<{ actionId: string; message: string } | null>(null)
+  const pendingActionIdsRef = useRef<Set<string>>(new Set())
+  const [pendingActionIds, setPendingActionIds] = useState<string[]>([])
+  const [actionErrors, setActionErrors] = useState<Record<string, string>>({})
+  const [localStatuses, setLocalStatuses] = useState<Partial<Record<string, LocalTrustActionStatus>>>({})
+
+  function setActionPending(actionId: string, isPending: boolean) {
+    const next = new Set(pendingActionIdsRef.current)
+    if (isPending) next.add(actionId)
+    else next.delete(actionId)
+
+    pendingActionIdsRef.current = next
+    setPendingActionIds([...next])
+  }
+
+  function setActionError(actionId: string, message: string | null) {
+    setActionErrors(previous => {
+      const next = { ...previous }
+      if (message) next[actionId] = message
+      else delete next[actionId]
+      return next
+    })
+  }
 
   async function updateStatus(actionId: string, status: LocalTrustActionStatus) {
-    setBusyActionId(actionId)
-    setError(null)
-
-    try {
-      const response = await fetch(`/api/dashboard/clients/${encodeURIComponent(clientId)}/local-trust/actions/${encodeURIComponent(actionId)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      })
-
-      if (!response.ok) {
-        setError({ actionId, message: labels.errorMessage })
-        return
-      }
-
-      router.refresh()
-    } catch {
-      setError({ actionId, message: labels.errorMessage })
-    } finally {
-      setBusyActionId(null)
-    }
+    await patchTrustGapActionStatus({
+      clientId,
+      actionId,
+      status,
+      errorMessage: labels.errorMessage,
+      isPending: id => pendingActionIdsRef.current.has(id),
+      setPending: setActionPending,
+      setError: setActionError,
+      setStatus: (id, savedStatus) => setLocalStatuses(previous => ({ ...previous, [id]: savedStatus })),
+      onRefresh: () => router.refresh(),
+    })
   }
 
   return (
@@ -107,7 +194,9 @@ export function TrustGapChecklist({ clientId, actions, copy }: Props) {
       ) : (
         <div className="mt-4 grid gap-3">
           {actions.map(action => {
-            const isBusy = busyActionId === action.id
+            const currentStatus = localStatuses[action.id] ?? action.status
+            const isBusy = pendingActionIds.includes(action.id)
+            const isTerminal = currentStatus === 'done' || currentStatus === 'skipped'
 
             return (
               <article key={action.id} className="rounded-lg border border-dash-border bg-dash-elevated p-4">
@@ -125,33 +214,33 @@ export function TrustGapChecklist({ clientId, actions, copy }: Props) {
                       </div>
                       <div className="rounded-full border border-dash-border px-2.5 py-1">
                         <dt className="inline text-dash-text">{labels.statusLabel}: </dt>
-                        <dd className="inline">{labels.statusLabels[action.status]}</dd>
+                        <dd className="inline">{labels.statusLabels[currentStatus]}</dd>
                       </div>
                     </dl>
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
                     <button
                       type="button"
-                      className="min-h-11 rounded-lg bg-primary px-3 py-2.5 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+                      className="min-h-11 rounded-lg bg-primary px-3 py-2.5 text-xs font-semibold text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dash-accent/40 disabled:cursor-not-allowed disabled:opacity-60"
                       onClick={() => updateStatus(action.id, 'done')}
-                      disabled={isBusy || action.status === 'done'}
-                      aria-pressed={action.status === 'done'}
+                      disabled={isBusy || isTerminal}
+                      aria-pressed={currentStatus === 'done'}
                     >
                       {isBusy ? labels.updatingLabel : labels.doneLabel}
                     </button>
                     <button
                       type="button"
-                      className="min-h-11 rounded-lg border border-dash-border px-3 py-2.5 text-xs font-semibold text-dash-text transition hover:bg-dash-surface disabled:cursor-not-allowed disabled:opacity-60"
+                      className="min-h-11 rounded-lg border border-dash-border px-3 py-2.5 text-xs font-semibold text-dash-text transition hover:bg-dash-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dash-accent/40 disabled:cursor-not-allowed disabled:opacity-60"
                       onClick={() => updateStatus(action.id, 'skipped')}
-                      disabled={isBusy || action.status === 'skipped'}
-                      aria-pressed={action.status === 'skipped'}
+                      disabled={isBusy || isTerminal}
+                      aria-pressed={currentStatus === 'skipped'}
                     >
                       {isBusy ? labels.updatingLabel : labels.skipLabel}
                     </button>
                   </div>
                 </div>
-                {error?.actionId === action.id ? (
-                  <p className="mt-3 text-xs font-medium text-dash-danger">{error.message}</p>
+                {actionErrors[action.id] ? (
+                  <p className="mt-3 text-xs font-medium text-dash-danger" role="alert">{actionErrors[action.id]}</p>
                 ) : null}
               </article>
             )

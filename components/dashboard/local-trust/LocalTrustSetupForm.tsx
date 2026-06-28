@@ -24,6 +24,37 @@ type Props = {
   copy?: Partial<Copy>
 }
 
+export type LocalTrustSetupValues = {
+  primaryServices: string
+  serviceArea: string
+  averageLeadValue: string
+  closeRate: string
+  competitors: string
+}
+
+type LocalTrustSetupPayload = {
+  primary_services: string[]
+  service_area: string
+  average_lead_value: number | null
+  close_rate: number | null
+  competitors: string[]
+}
+
+type SubmitLocalTrustSetupOptions = {
+  clientId: string
+  values: LocalTrustSetupValues
+  errorMessage: string
+  fetcher?: (url: string, init: RequestInit) => Promise<Response>
+  onSavingChange?: (isSaving: boolean) => void
+  onError?: (message: string | null) => void
+  onReconcile?: (values: LocalTrustSetupValues) => void
+  onRefresh?: () => void
+}
+
+type SubmitLocalTrustSetupResult =
+  | { ok: true; profile: LocalTrustProfile | null }
+  | { ok: false; error: string }
+
 const defaultCopy: Copy = {
   title: 'Set up Local Trust ROI',
   description: 'Add your services, service area, and lead assumptions to unlock clearer ROI estimates.',
@@ -44,6 +75,84 @@ function commaList(value: string) {
     .filter(Boolean)
 }
 
+function nullableNonNegativeNumber(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  const number = Number(trimmed)
+  return Number.isFinite(number) && number >= 0 ? number : null
+}
+
+function profileToFormValues(profile: LocalTrustProfile): LocalTrustSetupValues {
+  return {
+    primaryServices: profile.primary_services.join(', '),
+    serviceArea: profile.service_area ?? '',
+    averageLeadValue: profile.average_lead_value?.toString() ?? '',
+    closeRate: profile.close_rate?.toString() ?? '',
+    competitors: profile.competitors.join(', '),
+  }
+}
+
+function buildPayload(values: LocalTrustSetupValues): LocalTrustSetupPayload {
+  return {
+    primary_services: commaList(values.primaryServices),
+    service_area: values.serviceArea,
+    average_lead_value: nullableNonNegativeNumber(values.averageLeadValue),
+    close_rate: nullableNonNegativeNumber(values.closeRate),
+    competitors: commaList(values.competitors),
+  }
+}
+
+async function readProfile(response: Response): Promise<LocalTrustProfile | null> {
+  try {
+    const body = await response.json()
+    if (!body || typeof body !== 'object' || !('profile' in body)) return null
+    return body.profile as LocalTrustProfile | null
+  } catch {
+    return null
+  }
+}
+
+export async function submitLocalTrustSetup({
+  clientId,
+  values,
+  errorMessage,
+  fetcher = fetch,
+  onSavingChange,
+  onError,
+  onReconcile,
+  onRefresh,
+}: SubmitLocalTrustSetupOptions): Promise<SubmitLocalTrustSetupResult> {
+  onSavingChange?.(true)
+  onError?.(null)
+
+  try {
+    const response = await fetcher(`/api/dashboard/clients/${encodeURIComponent(clientId)}/local-trust/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildPayload(values)),
+    })
+
+    if (!response.ok) {
+      onError?.(errorMessage)
+      return { ok: false, error: errorMessage }
+    }
+
+    const savedProfile = await readProfile(response)
+    if (savedProfile) {
+      onReconcile?.(profileToFormValues(savedProfile))
+    }
+    onRefresh?.()
+
+    return { ok: true, profile: savedProfile }
+  } catch {
+    onError?.(errorMessage)
+    return { ok: false, error: errorMessage }
+  } finally {
+    onSavingChange?.(false)
+  }
+}
+
 export function LocalTrustSetupForm({ clientId, profile, copy }: Props) {
   const router = useRouter()
   const labels = { ...defaultCopy, ...copy }
@@ -57,36 +166,30 @@ export function LocalTrustSetupForm({ clientId, profile, copy }: Props) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setIsSaving(true)
-    setError(null)
-
-    try {
-      const response = await fetch(`/api/dashboard/clients/${encodeURIComponent(clientId)}/local-trust/profile`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          primary_services: commaList(primaryServices),
-          service_area: serviceArea,
-          average_lead_value: averageLeadValue,
-          close_rate: closeRate,
-          competitors: commaList(competitors),
-        }),
-      })
-
-      if (!response.ok) {
-        setError(labels.errorMessage)
-        return
-      }
-
-      router.refresh()
-    } catch {
-      setError(labels.errorMessage)
-    } finally {
-      setIsSaving(false)
-    }
+    await submitLocalTrustSetup({
+      clientId,
+      values: {
+        primaryServices,
+        serviceArea,
+        averageLeadValue,
+        closeRate,
+        competitors,
+      },
+      errorMessage: labels.errorMessage,
+      onSavingChange: setIsSaving,
+      onError: setError,
+      onReconcile: values => {
+        setPrimaryServices(values.primaryServices)
+        setServiceArea(values.serviceArea)
+        setAverageLeadValue(values.averageLeadValue)
+        setCloseRate(values.closeRate)
+        setCompetitors(values.competitors)
+      },
+      onRefresh: () => router.refresh(),
+    })
   }
 
-  const inputClass = 'min-h-11 rounded-lg border border-dash-border bg-dash-elevated px-3 py-2.5 text-sm text-dash-text outline-none transition focus:border-dash-accent disabled:cursor-not-allowed disabled:opacity-60'
+  const inputClass = 'min-h-11 rounded-lg border border-dash-border bg-dash-elevated px-3 py-2.5 text-sm text-dash-text outline-none transition focus:border-dash-accent focus-visible:border-dash-accent focus-visible:ring-2 focus-visible:ring-dash-accent/30 disabled:cursor-not-allowed disabled:opacity-60'
   const labelClass = 'text-xs font-semibold text-dash-text'
 
   return (
@@ -158,12 +261,12 @@ export function LocalTrustSetupForm({ clientId, profile, copy }: Props) {
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="submit"
-            className="min-h-11 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dash-accent/40 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isSaving}
           >
             {isSaving ? labels.savingLabel : labels.saveLabel}
           </button>
-          {error ? <p className="text-xs font-medium text-dash-danger">{error}</p> : null}
+          {error ? <p className="text-xs font-medium text-dash-danger" role="alert">{error}</p> : null}
         </div>
       </form>
     </section>

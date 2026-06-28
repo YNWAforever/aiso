@@ -195,6 +195,26 @@ const actions: LocalTrustAction[] = [
   },
 ]
 
+function localTrustProfile(overrides: Partial<LocalTrustProfile> = {}): LocalTrustProfile {
+  return {
+    id: 'profile-1',
+    client_id: 'client-1',
+    account_id: 'account-1',
+    primary_services: ['AISO consulting'],
+    service_area: 'Hong Kong',
+    average_lead_value: 8000,
+    close_rate: 0.25,
+    competitors: ['rival.example'],
+    created_at: '2026-06-28T00:00:00.000Z',
+    updated_at: '2026-06-28T00:00:00.000Z',
+    ...overrides,
+  }
+}
+
+function responseJson(body: unknown, status = 200) {
+  return Response.json(body, { status })
+}
+
 describe('Local Trust read-only UI components', () => {
   it('renders a Basic locked preview with sample movement and pricing CTA', async () => {
     const { LocalTrustLockedPreview } = await import('@/components/dashboard/local-trust/LocalTrustLockedPreview')
@@ -408,6 +428,105 @@ describe('Local Trust interactive controls', () => {
     expect(html).toContain('name="competitors"')
   })
 
+  it('submits setup values to the encoded profile route with normalized JSON', async () => {
+    const { submitLocalTrustSetup } = await import('@/components/dashboard/local-trust/LocalTrustSetupForm')
+    const fetcher = vi.fn().mockResolvedValue(responseJson({ profile: localTrustProfile() }))
+
+    await submitLocalTrustSetup({
+      clientId: 'client/1 #',
+      values: {
+        primaryServices: ' AISO consulting, , Local SEO ',
+        serviceArea: ' Hong Kong ',
+        averageLeadValue: '-50',
+        closeRate: '0.25',
+        competitors: ' Rival One, , Rival Two ',
+      },
+      errorMessage: 'Unable to save assumptions.',
+      fetcher,
+    })
+
+    const [[url, init]] = fetcher.mock.calls as Array<[string, RequestInit]>
+    expect(url).toBe('/api/dashboard/clients/client%2F1%20%23/local-trust/profile')
+    expect(init.method).toBe('PUT')
+    expect(init.headers).toEqual({ 'Content-Type': 'application/json' })
+    expect(JSON.parse(String(init.body))).toEqual({
+      primary_services: ['AISO consulting', 'Local SEO'],
+      service_area: ' Hong Kong ',
+      average_lead_value: null,
+      close_rate: 0.25,
+      competitors: ['Rival One', 'Rival Two'],
+    })
+  })
+
+  it('refreshes and reconciles setup fields from the returned saved profile', async () => {
+    const { submitLocalTrustSetup } = await import('@/components/dashboard/local-trust/LocalTrustSetupForm')
+    const refresh = vi.fn()
+    const reconcile = vi.fn()
+    const fetcher = vi.fn().mockResolvedValue(responseJson({
+      profile: localTrustProfile({
+        primary_services: ['AISO consulting'],
+        service_area: null,
+        average_lead_value: null,
+        close_rate: 0.4,
+        competitors: [],
+      }),
+    }))
+
+    const result = await submitLocalTrustSetup({
+      clientId: 'client-1',
+      values: {
+        primaryServices: 'AISO consulting',
+        serviceArea: 'Hong Kong',
+        averageLeadValue: 'not persisted',
+        closeRate: '0.4',
+        competitors: 'rival.example',
+      },
+      errorMessage: 'Unable to save assumptions.',
+      fetcher,
+      onReconcile: reconcile,
+      onRefresh: refresh,
+    })
+
+    expect(result.ok).toBe(true)
+    expect(reconcile).toHaveBeenCalledWith({
+      primaryServices: 'AISO consulting',
+      serviceArea: '',
+      averageLeadValue: '',
+      closeRate: '0.4',
+      competitors: '',
+    })
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports setup non-OK responses and clears saving state', async () => {
+    const { submitLocalTrustSetup } = await import('@/components/dashboard/local-trust/LocalTrustSetupForm')
+    const fetcher = vi.fn().mockResolvedValue(responseJson({ error: 'Nope' }, 500))
+    const setError = vi.fn()
+    const setSaving = vi.fn()
+    const refresh = vi.fn()
+
+    const result = await submitLocalTrustSetup({
+      clientId: 'client-1',
+      values: {
+        primaryServices: '',
+        serviceArea: '',
+        averageLeadValue: '',
+        closeRate: '',
+        competitors: '',
+      },
+      errorMessage: 'Unable to save assumptions.',
+      fetcher,
+      onError: setError,
+      onSavingChange: setSaving,
+      onRefresh: refresh,
+    })
+
+    expect(result.ok).toBe(false)
+    expect(setError).toHaveBeenLastCalledWith('Unable to save assumptions.')
+    expect(setSaving.mock.calls).toEqual([[true], [false]])
+    expect(refresh).not.toHaveBeenCalled()
+  })
+
   it('renders action status controls', async () => {
     const { TrustGapChecklist } = await import('@/components/dashboard/local-trust/TrustGapChecklist')
 
@@ -433,5 +552,116 @@ describe('Local Trust interactive controls', () => {
     expect(html).toContain('Add local proof')
     expect(html).toContain('Done')
     expect(html).toContain('Skip')
+  })
+
+  it('patches an encoded action route with the requested status', async () => {
+    const { patchTrustGapActionStatus } = await import('@/components/dashboard/local-trust/TrustGapChecklist')
+    const fetcher = vi.fn().mockResolvedValue(responseJson({ action: { ...actions[0], id: 'action/1 #', status: 'done' } }))
+    const setPending = vi.fn()
+    const setError = vi.fn()
+    const setStatus = vi.fn()
+    const refresh = vi.fn()
+
+    const result = await patchTrustGapActionStatus({
+      clientId: 'client/1 #',
+      actionId: 'action/1 #',
+      status: 'done',
+      errorMessage: 'Unable to update action.',
+      fetcher,
+      isPending: () => false,
+      setPending,
+      setError,
+      setStatus,
+      onRefresh: refresh,
+    })
+
+    const [[url, init]] = fetcher.mock.calls as Array<[string, RequestInit]>
+    expect(result.ok).toBe(true)
+    expect(url).toBe('/api/dashboard/clients/client%2F1%20%23/local-trust/actions/action%2F1%20%23')
+    expect(init.method).toBe('PATCH')
+    expect(JSON.parse(String(init.body))).toEqual({ status: 'done' })
+    expect(setStatus).toHaveBeenCalledWith('action/1 #', 'done')
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps pending state per action and ignores duplicate clicks for the same action', async () => {
+    const { patchTrustGapActionStatus } = await import('@/components/dashboard/local-trust/TrustGapChecklist')
+    const pending = new Set<string>()
+    const statuses = new Map<string, string>()
+    const resolvers: Array<(response: Response) => void> = []
+    const fetcher = vi.fn().mockImplementation(() => new Promise<Response>(resolve => {
+      resolvers.push(resolve)
+    }))
+
+    const baseOptions = {
+      clientId: 'client-1',
+      status: 'done' as const,
+      errorMessage: 'Unable to update action.',
+      fetcher,
+      isPending: (actionId: string) => pending.has(actionId),
+      setPending: (actionId: string, isPending: boolean) => {
+        if (isPending) pending.add(actionId)
+        else pending.delete(actionId)
+      },
+      setError: vi.fn(),
+      setStatus: (actionId: string, status: string) => {
+        statuses.set(actionId, status)
+      },
+      onRefresh: vi.fn(),
+    }
+
+    const first = patchTrustGapActionStatus({ ...baseOptions, actionId: 'action-1' })
+    const duplicate = patchTrustGapActionStatus({ ...baseOptions, actionId: 'action-1' })
+    const secondAction = patchTrustGapActionStatus({ ...baseOptions, actionId: 'action-2' })
+
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(await duplicate).toEqual({ ok: false, skipped: true })
+
+    resolvers[0](responseJson({ action: { ...actions[0], status: 'done' } }))
+    resolvers[1](responseJson({ action: { ...actions[0], id: 'action-2', status: 'done' } }))
+
+    await Promise.all([first, secondAction])
+
+    expect(pending.size).toBe(0)
+    expect(statuses.get('action-1')).toBe('done')
+    expect(statuses.get('action-2')).toBe('done')
+  })
+
+  it('records action update errors against the failing action only', async () => {
+    const { patchTrustGapActionStatus } = await import('@/components/dashboard/local-trust/TrustGapChecklist')
+    const pending = new Set<string>()
+    const errors = new Map<string, string | null>()
+    const fetcher = vi.fn().mockResolvedValue(responseJson({ error: 'Nope' }, 500))
+
+    const result = await patchTrustGapActionStatus({
+      clientId: 'client-1',
+      actionId: 'action-1',
+      status: 'skipped',
+      errorMessage: 'Unable to update action.',
+      fetcher,
+      isPending: actionId => pending.has(actionId),
+      setPending: (actionId, isPending) => {
+        if (isPending) pending.add(actionId)
+        else pending.delete(actionId)
+      },
+      setError: (actionId, message) => errors.set(actionId, message),
+      setStatus: vi.fn(),
+      onRefresh: vi.fn(),
+    })
+
+    expect(result.ok).toBe(false)
+    expect(errors.get('action-1')).toBe('Unable to update action.')
+    expect(errors.has('action-2')).toBe(false)
+    expect(pending.has('action-1')).toBe(false)
+  })
+
+  it('keeps dynamic errors announced and restores visible focus styles', () => {
+    const setupForm = read('components/dashboard/local-trust/LocalTrustSetupForm.tsx')
+    const checklist = read('components/dashboard/local-trust/TrustGapChecklist.tsx')
+
+    expect(setupForm).toContain('role="alert"')
+    expect(setupForm).toContain('focus-visible:')
+    expect(checklist).toContain('role="alert"')
+    expect(checklist).toContain('focus-visible:')
   })
 })
