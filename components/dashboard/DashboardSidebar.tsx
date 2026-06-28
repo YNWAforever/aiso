@@ -64,6 +64,7 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
           const locked = (s.key === 'improve' && !features.agent_recs) ||
                           (s.key === 'roi' && !features.local_trust_roi) ||
                           (s.key === 'results' && !brandId)
+          const blocksNavigation = locked && s.key !== 'roi'
 
           return (
             <Link
@@ -72,8 +73,10 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group ${
                 active
                   ? 'bg-primary text-white shadow-sm'
-                  : locked
+                  : blocksNavigation
                     ? 'opacity-40 pointer-events-none text-muted-foreground'
+                    : locked
+                      ? 'opacity-55 text-muted-foreground hover:bg-secondary hover:text-foreground'
                     : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
               }`}
             >

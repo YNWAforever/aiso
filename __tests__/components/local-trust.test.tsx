@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import { LocalTrustStep } from '@/components/dashboard/local-trust/LocalTrustStep'
 
 const repoRoot = process.cwd()
 
@@ -26,9 +28,30 @@ describe('Local Trust dashboard wiring', () => {
     const progress = read('components/dashboard/WizardProgress.tsx')
 
     expect(sidebar).toContain("s.key === 'roi' && !features.local_trust_roi")
+    expect(sidebar).toContain("const blocksNavigation = locked && s.key !== 'roi'")
+    expect(sidebar).toContain('blocksNavigation')
     expect(progress).toContain("key: 'roi'")
     expect(progress).toContain('features.local_trust_roi')
     expect(progress).toContain('Local Trust ROI')
+  })
+
+  it('renders a Basic locked preview with sample movement and a pricing CTA', () => {
+    const html = renderToStaticMarkup(
+      <LocalTrustStep
+        lang="en"
+        clientId="client_123"
+        plan="basic"
+        profile={null}
+        snapshot={null}
+        actions={[]}
+        competitors={[]}
+      />
+    )
+
+    expect(html).toContain('62')
+    expect(html).toContain('71')
+    expect(html).toContain('Upgrade to Pro')
+    expect(html).toContain('/en/pricing')
   })
 
   it('fetches Local Trust data only for the ROI step using account-scoped helpers', () => {
