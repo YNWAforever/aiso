@@ -23,4 +23,20 @@ describe('planAllows', () => {
   it('unknown plan returns false', () => {
     expect(planAllows('unknown', 'edit_prompts')).toBe(false)
   })
+
+  it('basic cannot access Local Trust ROI', () => {
+    expect(planAllows('basic', 'local_trust_roi')).toBe(false)
+  })
+
+  it('pro can access Local Trust ROI but not competitor snapshot or export', () => {
+    expect(planAllows('pro', 'local_trust_roi')).toBe(true)
+    expect(planAllows('pro', 'local_trust_competitors')).toBe(false)
+    expect(planAllows('pro', 'local_trust_export')).toBe(false)
+  })
+
+  it('enterprise can access all Local Trust ROI features', () => {
+    expect(planAllows('enterprise', 'local_trust_roi')).toBe(true)
+    expect(planAllows('enterprise', 'local_trust_competitors')).toBe(true)
+    expect(planAllows('enterprise', 'local_trust_export')).toBe(true)
+  })
 })

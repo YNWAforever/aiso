@@ -7,9 +7,12 @@ import { ScanStep } from '@/components/dashboard/ScanStep'
 import { ResultsStep } from '@/components/dashboard/ResultsStep'
 import { ImproveStep } from '@/components/dashboard/ImproveStep'
 import { MonitorStep } from '@/components/dashboard/MonitorStep'
-import {
+import { LocalTrustStep } from '@/components/dashboard/local-trust/LocalTrustStep'
+import { findNewestMatchingScan } from '@/lib/localTrust'
+import { getLocalTrustProfile, getOrCreateLocalTrustSnapshot } from '@/lib/localTrust/store'
+import type {
   Scan, AgentRecommendation, AgentProgress as AgentProgressType,
-  AgentCompetitor, PulseWeeklySummary, PulseMetric,
+  AgentCompetitor, PulseWeeklySummary, PulseMetric, Client,
 } from '@/lib/types'
 
 async function StepHeader({ step, plan }: { step: string; plan: string }) {
@@ -31,6 +34,10 @@ async function StepHeader({ step, plan }: { step: string; plan: string }) {
     monitor: {
       title: t('step_monitor_title'),
       body: t('step_monitor_body'),
+    },
+    roi: {
+      title: t('step_roi_title'),
+      body: features.local_trust_roi ? t('step_roi_body') : t('step_roi_locked'),
     },
   }
   const i = info[step] ?? info.scan!
@@ -56,19 +63,33 @@ export default async function DashboardPage({
   const profile  = await requireAuth(lang)
   const supabase = await createServerSupabaseClient()
   const plan = profile.accounts?.plan ?? 'basic'
+  const features = getPlanFeatures(plan)
 
   const { data: client } = await supabase
-    .from('clients').select('brand_name')
+    .from('clients').select('id, brand_name, domain, industry, competitors, status, created_at')
     .eq('id', clientId).eq('account_id', profile.account_id).single()
 
   if (!client) notFound()
+  const typedClient = client as Client
 
   // Fetch a specific scan if scanId is provided
   const scanIdPromise = scanId
     ? supabase.from('scans').select('*').eq('id', scanId).eq('account_id', profile.account_id).single()
     : Promise.resolve({ data: null })
 
-  const [{ data: latestScan }, { data: scanHistory }, { data: specificScan }, { data: pulseSummary }, { data: pulseMetrics }] =
+  const localTrustScansPromise = step === 'roi'
+    ? supabase.from('scans').select('*').eq('account_id', profile.account_id)
+      .order('created_at', { ascending: false }).limit(25)
+    : Promise.resolve({ data: [] })
+
+  const [
+    { data: latestScan },
+    { data: scanHistory },
+    { data: specificScan },
+    { data: pulseSummary },
+    { data: pulseMetrics },
+    { data: localTrustScans },
+  ] =
     await Promise.all([
       supabase.from('scans').select('*').eq('account_id', profile.account_id)
         .order('created_at', { ascending: false }).limit(1).single(),
@@ -81,22 +102,56 @@ export default async function DashboardPage({
         .select('platform,question,competitors_mentioned,scan_week')
         .eq('client_id', clientId).eq('brand_mentioned', false)
         .order('scan_week', { ascending: false }).limit(50),
+      localTrustScansPromise,
     ])
 
   // Use specific scan if scanId was provided, otherwise use latest
   const scan = (scanId ? (specificScan as Scan | null) : (latestScan as Scan | null))
 
+  const summary = (pulseSummary ?? []) as PulseWeeklySummary[]
+  const missed  = (pulseMetrics ?? []) as PulseMetric[]
+  const localTrustScanRows = Array.isArray(localTrustScans)
+    ? localTrustScans as Scan[]
+    : localTrustScans ? [localTrustScans as Scan] : []
+  const localTrustScan = findNewestMatchingScan(localTrustScanRows, typedClient.domain)
+
   // Phase 2: agent data for the selected scan
-  const [{ data: agentRecs }, { data: agentProg }, { data: agentComps }] = scan
-    ? await Promise.all([
+  const agentDataPromise = scan
+    ? Promise.all([
         supabase.from('agent_recommendations').select('*').eq('scan_id', scan.id).order('priority').order('impact_score', { ascending: false }),
         supabase.from('agent_progress').select('*').eq('scan_id', scan.id),
         supabase.from('agent_competitors').select('*').eq('scan_id', scan.id).order('mention_rate', { ascending: false }),
       ])
-    : [{ data: null }, { data: null }, { data: null }]
+    : Promise.resolve([{ data: null }, { data: null }, { data: null }])
+  const localTrustCompetitorsPromise = step === 'roi' && localTrustScan && localTrustScan.id !== scan?.id
+    ? supabase.from('agent_competitors').select('*').eq('scan_id', localTrustScan.id).order('mention_rate', { ascending: false })
+    : Promise.resolve({ data: null })
 
-  const summary = (pulseSummary ?? []) as PulseWeeklySummary[]
-  const missed  = (pulseMetrics ?? []) as PulseMetric[]
+  const [
+    [{ data: agentRecs }, { data: agentProg }, { data: agentComps }],
+    { data: localTrustComps },
+  ] = await Promise.all([agentDataPromise, localTrustCompetitorsPromise])
+
+  const agentCompetitors = (agentComps ?? []) as AgentCompetitor[]
+  const localTrustCompetitors = localTrustScan
+    ? (localTrustScan.id === scan?.id ? agentCompetitors : ((localTrustComps ?? []) as AgentCompetitor[]))
+    : []
+  const hasAggregatePulseBaseline = summary.some(row => !row.platform)
+  const hasLocalTrustBaseline = Boolean(localTrustScan || hasAggregatePulseBaseline)
+  const localTrustProfile = step === 'roi'
+    ? await getLocalTrustProfile(clientId, profile.account_id)
+    : null
+  const localTrustData = step === 'roi' && features.local_trust_roi && hasLocalTrustBaseline
+    ? await getOrCreateLocalTrustSnapshot({
+        client: typedClient,
+        accountId: profile.account_id,
+        latestScan: localTrustScan,
+        profile: localTrustProfile,
+        pulseSummary: summary,
+        missed,
+        competitors: localTrustCompetitors,
+      })
+    : null
 
   return (
     <>
@@ -119,7 +174,7 @@ export default async function DashboardPage({
             plan={plan}
             recommendations={(agentRecs ?? []) as AgentRecommendation[]}
             progress={(agentProg ?? []) as AgentProgressType[]}
-            competitors={(agentComps ?? []) as AgentCompetitor[]}
+            competitors={agentCompetitors}
           />
         )}
         {step === 'improve' && !scan && (
@@ -131,6 +186,18 @@ export default async function DashboardPage({
 
         {step === 'monitor' && (
           <MonitorStep plan={plan} clientId={clientId} summary={summary} missed={missed} />
+        )}
+
+        {step === 'roi' && (
+          <LocalTrustStep
+            lang={lang}
+            clientId={clientId}
+            plan={plan}
+            profile={localTrustProfile}
+            snapshot={hasLocalTrustBaseline ? (localTrustData?.snapshot ?? null) : null}
+            actions={hasLocalTrustBaseline ? (localTrustData?.actions ?? []) : []}
+            competitors={localTrustCompetitors}
+          />
         )}
       </main>
     </>

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { LogOut, Wrench, Scan, FileBarChart2, Sparkles, Radio, Brain, Settings } from 'lucide-react'
+import { LogOut, Wrench, Scan, FileBarChart2, Sparkles, Radio, Brain, Settings, TrendingUp, Lock } from 'lucide-react'
 import { getPlanFeatures } from '@/lib/tier'
 import { ThemeToggle } from '@/components/dashboard/ThemeToggle'
 
@@ -12,6 +12,7 @@ const STEPS = [
   { key: 'results', labelKey: 'nav_results', icon: FileBarChart2, descKey: 'nav_results_desc' },
   { key: 'improve', labelKey: 'nav_improve', icon: Sparkles,      descKey: 'nav_improve_desc' },
   { key: 'monitor', labelKey: 'nav_monitor', icon: Radio,         descKey: 'nav_monitor_desc' },
+  { key: 'roi',     labelKey: 'nav_roi',     icon: TrendingUp,    descKey: 'nav_roi_desc' },
 ] as const
 
 type Props = {
@@ -61,7 +62,9 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
           const active = step === s.key
           const StepIcon = s.icon
           const locked = (s.key === 'improve' && !features.agent_recs) ||
+                          (s.key === 'roi' && !features.local_trust_roi) ||
                           (s.key === 'results' && !brandId)
+          const blocksNavigation = locked && s.key !== 'roi'
 
           return (
             <Link
@@ -70,8 +73,10 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group ${
                 active
                   ? 'bg-primary text-white shadow-sm'
-                  : locked
+                  : blocksNavigation
                     ? 'opacity-40 pointer-events-none text-muted-foreground'
+                    : locked
+                      ? 'opacity-55 text-muted-foreground hover:bg-secondary hover:text-foreground'
                     : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
               }`}
             >
@@ -82,7 +87,7 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
                   {t(s.descKey)}
                 </p>
               </div>
-              {locked && <span className="text-[9px] ml-auto">🔒</span>}
+              {locked && <Lock className="size-3 ml-auto text-muted-foreground/80" aria-label="Locked" />}
             </Link>
           )
         })}

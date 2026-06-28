@@ -1,4 +1,5 @@
 import { getPlanFeatures } from '@/lib/tier'
+import { Lock } from 'lucide-react'
 
 type Step = { key: string; label: string }
 
@@ -7,6 +8,7 @@ const STEPS: Step[] = [
   { key: 'results', label: 'Results' },
   { key: 'improve', label: 'Improve' },
   { key: 'monitor', label: 'Monitor' },
+  { key: 'roi', label: 'ROI' },
 ]
 
 type Props = {
@@ -24,6 +26,7 @@ export function WizardProgress({ current, plan, hasScan }: Props) {
     results: { accessible: hasScan },
     improve:  { accessible: hasScan && features.agent_recs, reason: !features.agent_recs ? 'Pro plan required for agent analysis' : undefined },
     monitor:  { accessible: hasScan },
+    roi: { accessible: hasScan && features.local_trust_roi, reason: !features.local_trust_roi ? 'Pro plan required for Local Trust ROI' : undefined },
   }
 
   return (
@@ -46,7 +49,7 @@ export function WizardProgress({ current, plan, hasScan }: Props) {
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-muted-foreground'
               }`}>
-                {isCompleted ? '✓' : isLocked ? '🔒' : i + 1}
+                {isCompleted ? '✓' : isLocked ? <Lock className="size-3" aria-label={access.reason ?? 'Locked'} /> : i + 1}
               </div>
               <span className={`text-xs- font-medium transition-colors ${
                 isCurrent ? 'text-foreground' : isCompleted ? 'text-success' : 'text-muted-foreground'

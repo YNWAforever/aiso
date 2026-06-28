@@ -308,4 +308,87 @@ export interface PlanFeatures {
   max_brands: number
   history_weeks: number
   edit_prompts: boolean
+  local_trust_roi: boolean
+  local_trust_competitors: boolean
+  local_trust_export: boolean
+}
+
+export type LocalTrustBucketKey = 'local_visibility' | 'proof_depth' | 'ai_answer_readiness' | 'market_authority'
+export type LocalTrustActionStatus = 'open' | 'planned' | 'done' | 'skipped'
+export type LocalTrustImpact = 'low' | 'medium' | 'high'
+export type LocalTrustEffort = 'low' | 'medium' | 'high'
+
+export interface LocalTrustProfile {
+  id: string
+  client_id: string
+  account_id: string
+  primary_services: string[]
+  service_area: string | null
+  average_lead_value: number | null
+  close_rate: number | null
+  competitors: string[]
+  created_at: string
+  updated_at: string
+}
+
+export interface LocalTrustBucketScore {
+  key: LocalTrustBucketKey
+  label: string
+  score: number
+  maxScore: number
+  explanation: string
+  strongestSignal: string
+  weakestSignal: string
+  topAction: string
+}
+
+export interface LocalTrustGap {
+  stableKey: string
+  title: string
+  bucket: LocalTrustBucketKey
+  impact: LocalTrustImpact
+  effort: LocalTrustEffort
+  rationale: string
+  suggestedTarget: string
+}
+
+export interface LocalTrustRoiEstimate {
+  low: number
+  high: number
+  currency: 'HKD'
+  assumptions: {
+    averageLeadValue: number
+    closeRate: number
+    estimatedExtraEnquiriesLow: number
+    estimatedExtraEnquiriesHigh: number
+  }
+  confidence: 'directional'
+}
+
+export interface LocalTrustSnapshot {
+  id: string
+  client_id: string
+  account_id: string
+  snapshot_month: string
+  local_trust_score: number
+  bucket_scores: LocalTrustBucketScore[]
+  trust_gaps: LocalTrustGap[]
+  roi_estimate: LocalTrustRoiEstimate | null
+  source_scan_id: string | null
+  source_pulse_week: string | null
+  created_at: string
+}
+
+export interface LocalTrustAction {
+  id: string
+  client_id: string
+  snapshot_id: string
+  stable_key: string
+  title: string
+  bucket: LocalTrustBucketKey
+  impact: LocalTrustImpact
+  effort: LocalTrustEffort
+  status: LocalTrustActionStatus
+  created_at: string
+  updated_at: string
 }
