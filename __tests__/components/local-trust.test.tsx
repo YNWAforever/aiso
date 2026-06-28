@@ -1,13 +1,18 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { NextIntlClientProvider } from 'next-intl'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import type { AgentCompetitor, LocalTrustAction, LocalTrustBucketScore, LocalTrustSnapshot } from '@/lib/types'
+import type { AgentCompetitor, LocalTrustAction, LocalTrustBucketScore, LocalTrustProfile, LocalTrustSnapshot } from '@/lib/types'
 
 const repoRoot = process.cwd()
 
 function read(path: string) {
   return readFileSync(join(repoRoot, path), 'utf8')
+}
+
+function messages(locale: 'en' | 'zh-HK') {
+  return JSON.parse(read(`messages/${locale}.json`))
 }
 
 describe('Local Trust dashboard wiring', () => {
@@ -266,5 +271,69 @@ describe('Local Trust read-only UI components', () => {
 
     expect(renderToStaticMarkup(<CompetitorSnapshot competitors={competitors} />)).toContain('Rival Advisory')
     expect(renderToStaticMarkup(<CompetitorSnapshot competitors={[]} />)).toContain('Add competitors or run agent analysis')
+  })
+
+  it('localizes integrated score and owner summary copy instead of raw stored English', async () => {
+    const { LocalTrustStep } = await import('@/components/dashboard/local-trust/LocalTrustStep')
+
+    const html = renderToStaticMarkup(
+      <NextIntlClientProvider locale="zh-HK" messages={messages('zh-HK')} timeZone="Asia/Hong_Kong">
+        <LocalTrustStep
+          lang="zh-HK"
+          clientId="client-1"
+          plan="pro"
+          profile={null}
+          snapshot={snapshot}
+          actions={actions}
+          competitors={[]}
+        />
+      </NextIntlClientProvider>,
+    )
+
+    expect(html).toContain('證明深度')
+    expect(html).toContain('優先補強客戶證明')
+    expect(html).not.toContain('Proof depth')
+    expect(html).not.toContain('Proof is present but thin')
+    expect(html).not.toContain('Director credentials')
+    expect(html).not.toContain('Add two client proof points')
+  })
+
+  it('shows a read-only missing-data checklist when no snapshot exists', async () => {
+    const { LocalTrustStep } = await import('@/components/dashboard/local-trust/LocalTrustStep')
+    const profile: LocalTrustProfile = {
+      id: 'profile-1',
+      client_id: 'client-1',
+      account_id: 'account-1',
+      primary_services: ['AISO consulting'],
+      service_area: null,
+      average_lead_value: 5000,
+      close_rate: null,
+      competitors: ['rival.example'],
+      created_at: '2026-06-28T00:00:00.000Z',
+      updated_at: '2026-06-28T00:00:00.000Z',
+    }
+
+    const html = renderToStaticMarkup(
+      <NextIntlClientProvider locale="en" messages={messages('en')} timeZone="Asia/Hong_Kong">
+        <LocalTrustStep
+          lang="en"
+          clientId="client-1"
+          plan="pro"
+          profile={profile}
+          snapshot={null}
+          actions={[]}
+          competitors={[]}
+        />
+      </NextIntlClientProvider>,
+    )
+
+    expect(html).toContain('Run first scan')
+    expect(html).toContain('Primary services')
+    expect(html).toContain('Service area')
+    expect(html).toContain('Lead value and close rate')
+    expect(html).toContain('Competitors')
+    expect(html).toContain('Pulse visibility')
+    expect(html).toContain('Found')
+    expect(html).toContain('Missing')
   })
 })
