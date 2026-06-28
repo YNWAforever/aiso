@@ -7,6 +7,7 @@ const FEATURES: Record<string, PlanFeatures> = {
     agent_recs: true, agent_progress: false, agent_competitors: false,
     alerts: false, csv_export: false,
     max_brands: 1, history_weeks: 4, edit_prompts: false,
+    local_trust_roi: false, local_trust_competitors: false, local_trust_export: false,
   },
   pro: {
     plan: 'pro',
@@ -14,6 +15,7 @@ const FEATURES: Record<string, PlanFeatures> = {
     agent_recs: true, agent_progress: true, agent_competitors: false,
     alerts: true, csv_export: false,
     max_brands: 3, history_weeks: 26, edit_prompts: true,
+    local_trust_roi: true, local_trust_competitors: false, local_trust_export: false,
   },
   enterprise: {
     plan: 'enterprise',
@@ -21,6 +23,7 @@ const FEATURES: Record<string, PlanFeatures> = {
     agent_recs: true, agent_progress: true, agent_competitors: true,
     alerts: true, csv_export: true,
     max_brands: 10, history_weeks: 999, edit_prompts: true,
+    local_trust_roi: true, local_trust_competitors: true, local_trust_export: true,
   },
 }
 
