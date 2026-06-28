@@ -41,7 +41,10 @@ describe('Local Trust dashboard wiring', () => {
     expect(page).toContain('normalizeDomain')
     expect(page).toContain('domainsMatch')
     expect(page).toContain('const localTrustScan = domainsMatch(scan?.domain, typedClient.domain) ? scan : null')
+    expect(page).toContain('const localTrustCompetitors = localTrustScan ? agentCompetitors : []')
     expect(page).toContain('latestScan: localTrustScan')
+    expect(page).toContain('competitors: localTrustCompetitors')
+    expect(page).toContain('competitors={localTrustCompetitors}')
   })
 
   it('uses translated locked preview copy with sample movement and a pricing CTA', () => {

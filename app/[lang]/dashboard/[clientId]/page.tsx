@@ -125,6 +125,7 @@ export default async function DashboardPage({
   const missed  = (pulseMetrics ?? []) as PulseMetric[]
   const agentCompetitors = (agentComps ?? []) as AgentCompetitor[]
   const localTrustScan = domainsMatch(scan?.domain, typedClient.domain) ? scan : null
+  const localTrustCompetitors = localTrustScan ? agentCompetitors : []
   const localTrustProfile = step === 'roi'
     ? await getLocalTrustProfile(clientId, profile.account_id)
     : null
@@ -136,7 +137,7 @@ export default async function DashboardPage({
         profile: localTrustProfile,
         pulseSummary: summary,
         missed,
-        competitors: agentCompetitors,
+        competitors: localTrustCompetitors,
       })
     : null
 
@@ -183,7 +184,7 @@ export default async function DashboardPage({
             profile={localTrustProfile}
             snapshot={localTrustData?.snapshot ?? null}
             actions={localTrustData?.actions ?? []}
-            competitors={agentCompetitors}
+            competitors={localTrustCompetitors}
           />
         )}
       </main>
