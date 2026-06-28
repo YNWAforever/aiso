@@ -143,6 +143,54 @@ describe('calculateLocalTrust', () => {
     const result = calculateLocalTrust({ client, profile, scan: null, pulseSummary: [], missed: [], competitors: [] })
     expect(result.roi_estimate).toBeNull()
   })
+
+  it('uses aggregate Pulse sentiment in market authority scoring', () => {
+    const positive = calculateLocalTrust({
+      client,
+      profile,
+      scan,
+      pulseSummary: [{ ...pulse[0], avg_sentiment_score: 0.8 }],
+      missed: [],
+      competitors: [],
+    })
+    const negative = calculateLocalTrust({
+      client,
+      profile,
+      scan,
+      pulseSummary: [{ ...pulse[0], avg_sentiment_score: -0.8 }],
+      missed: [],
+      competitors: [],
+    })
+
+    const positiveMarket = positive.bucket_scores.find(b => b.key === 'market_authority')!
+    const negativeMarket = negative.bucket_scores.find(b => b.key === 'market_authority')!
+    expect(positiveMarket.score).toBeGreaterThan(negativeMarket.score)
+    expect(positive.local_trust_score).toBeGreaterThan(negative.local_trust_score)
+  })
+
+  it('uses competitor pressure in market authority scoring', () => {
+    const lowPressure = calculateLocalTrust({
+      client,
+      profile,
+      scan,
+      pulseSummary: [{ ...pulse[0], brand_mentions: 10, top_competitors: { 'rival.example': 2 } }],
+      missed: [],
+      competitors: [{ ...competitors[0], mention_rate: 25, your_rate: 55 }],
+    })
+    const highPressure = calculateLocalTrust({
+      client,
+      profile,
+      scan,
+      pulseSummary: [{ ...pulse[0], brand_mentions: 2, top_competitors: { 'rival.example': 18 } }],
+      missed: [],
+      competitors: [{ ...competitors[0], mention_rate: 70, your_rate: 20 }],
+    })
+
+    const lowPressureMarket = lowPressure.bucket_scores.find(b => b.key === 'market_authority')!
+    const highPressureMarket = highPressure.bucket_scores.find(b => b.key === 'market_authority')!
+    expect(lowPressureMarket.score).toBeGreaterThan(highPressureMarket.score)
+    expect(lowPressure.local_trust_score).toBeGreaterThan(highPressure.local_trust_score)
+  })
 })
 
 describe('estimateRoi', () => {

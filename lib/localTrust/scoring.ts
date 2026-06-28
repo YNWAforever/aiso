@@ -33,6 +33,41 @@ function latestAggregateSov(input: LocalTrustInput) {
     .at(-1)
 }
 
+function sentimentPoints(sentimentScore: number | null | undefined) {
+  if (sentimentScore === null || sentimentScore === undefined) return 0
+  return clamp(((sentimentScore + 1) / 2) * 4, 4)
+}
+
+function competitorPressurePoints(input: LocalTrustInput, latestSov: ReturnType<typeof latestAggregateSov>) {
+  const gaps: number[] = []
+  const topCompetitorMentions = latestSov
+    ? Math.max(0, ...Object.values(latestSov.top_competitors))
+    : null
+
+  if (latestSov && topCompetitorMentions !== null) {
+    gaps.push(topCompetitorMentions - latestSov.brand_mentions)
+  }
+
+  for (const competitor of input.competitors) {
+    gaps.push(competitor.mention_rate - competitor.your_rate)
+  }
+
+  if (gaps.length === 0) return 2
+
+  const worstGap = Math.max(...gaps)
+  const pressureScore = worstGap <= 0
+    ? 4
+    : worstGap <= 10
+      ? 3
+      : worstGap <= 25
+        ? 2
+        : worstGap <= 50
+          ? 1
+          : 0
+
+  return Math.max(0, pressureScore - (input.missed.length ? 1 : 0))
+}
+
 function snapshotMonthFrom(value: string | null | undefined) {
   const fallback = '1970-01'
   const month = value && value.length >= 7 ? value.slice(0, 7) : fallback
@@ -160,6 +195,8 @@ export function calculateLocalTrust(input: LocalTrustInput): LocalTrustSnapshotD
   const serviceArea = input.profile?.service_area || input.scan?.region || input.client.industry
   const accountId = input.scan?.account_id ?? input.profile?.account_id ?? null
   const hasVisibilityBaseline = Boolean(input.scan || latestSov)
+  const marketSentimentPoints = sentimentPoints(latestSov?.avg_sentiment_score)
+  const marketCompetitorPoints = competitorPressurePoints(input, latestSov)
 
   const localVisibility = bucket(
     'local_visibility',
@@ -203,14 +240,14 @@ export function calculateLocalTrust(input: LocalTrustInput): LocalTrustSnapshotD
 
   const marketAuthority = bucket(
     'market_authority',
-    Math.min(8, Math.round((input.scan?.score ?? 0) / 12.5)) +
-      Math.min(8, Math.round((latestSov?.sov_score ?? 0) / 12.5)) +
-      statusPoints(results.c17_citation_density, 5) +
-      (input.competitors.length ? 2 : 0) +
-      (input.missed.length ? 0 : 2),
-    'Market authority combines AISO strength, citations, and whether competitors are winning AI answers.',
-    latestSov ? `Pulse SoV: ${latestSov.sov_score}%` : 'AISO scan score is available',
-    input.missed.length ? 'Competitors are still appearing in missed queries' : 'Pulse data is missing or incomplete',
+    Math.min(7, Math.round((input.scan?.score ?? 0) / 14.3)) +
+      Math.min(6, Math.round((latestSov?.sov_score ?? 0) / 16.7)) +
+      marketSentimentPoints +
+      statusPoints(results.c17_citation_density, 4) +
+      marketCompetitorPoints,
+    'Market authority combines AISO strength, Pulse visibility, sentiment, citations, and competitor pressure.',
+    latestSov ? `Pulse SoV: ${latestSov.sov_score}% and sentiment ${latestSov.avg_sentiment_score}` : 'AISO scan score is available',
+    input.competitors.length || latestSov ? 'Competitor pressure still needs monitoring' : 'Pulse competitor data is missing',
     'Earn more trusted local and industry citations, then close missed Pulse queries',
   )
 
