@@ -147,27 +147,38 @@ export function LocalTrustStep({ lang, plan, profile, snapshot, actions, competi
     ...bucket,
     ...bucketCopy[bucket.key],
   }))
-  const localizedSnapshot = {
-    ...snapshot,
-    bucket_scores: localizedBuckets,
-  }
   const localizedActions = actions.map(action => ({
     ...action,
     title: localizedActionTitle(action),
   }))
+  const topAction = localizedActions.find(action => action.status === 'open')
+  const weakestBucket = [...localizedBuckets].sort((a, b) => {
+    const aRatio = a.maxScore ? a.score / a.maxScore : a.score
+    const bRatio = b.maxScore ? b.score / b.maxScore : b.score
+    return aRatio - bRatio
+  })[0]
+  const ownerSummary = weakestBucket
+    ? topAction
+      ? t('local_trust_owner_summary_with_next_action', {
+          score: snapshot.local_trust_score,
+          bucket: weakestBucket.label,
+          bucketAction: weakestBucket.topAction,
+          nextAction: topAction.title,
+        })
+      : t('local_trust_owner_summary_no_open_action', {
+          score: snapshot.local_trust_score,
+          bucket: weakestBucket.label,
+          bucketAction: weakestBucket.topAction,
+        })
+    : t('local_trust_owner_summary_no_bucket', {
+        score: snapshot.local_trust_score,
+      })
 
   return (
     <div className="space-y-5">
       <OwnerSummary
-        snapshot={localizedSnapshot}
-        actions={localizedActions}
-        copy={{
-          title: t('owner_summary'),
-          scoreLead: t('local_trust_owner_score_lead'),
-          gapLead: t('local_trust_owner_gap_lead'),
-          nextActionLead: t('local_trust_owner_next_action'),
-          noAction: t('local_trust_no_open_action'),
-        }}
+        title={t('owner_summary')}
+        summary={ownerSummary}
       />
       <LocalTrustScorePanel
         score={snapshot.local_trust_score}

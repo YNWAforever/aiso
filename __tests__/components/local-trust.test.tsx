@@ -218,30 +218,22 @@ describe('Local Trust read-only UI components', () => {
   it('summarizes the weakest bucket and first open action for owners', async () => {
     const { OwnerSummary } = await import('@/components/dashboard/local-trust/OwnerSummary')
 
-    const html = renderToStaticMarkup(<OwnerSummary snapshot={snapshot} actions={actions} />)
+    const html = renderToStaticMarkup(
+      <OwnerSummary summary="Local trust score 71/100. Biggest gap: Proof depth - Add two client proof points. Next best action: Add two client proof points." />,
+    )
 
     expect(html).toContain('Owner Summary')
     expect(html).toContain('71/100')
-    expect(html).toContain('biggest gap is Proof depth')
+    expect(html).toContain('Biggest gap: Proof depth')
     expect(html).toContain('Next best action: Add two client proof points')
   })
 
   it('shows no-open-action copy and preserves bucket label casing', async () => {
     const { OwnerSummary } = await import('@/components/dashboard/local-trust/OwnerSummary')
-    const noOpenActions = actions.map(action => ({ ...action, status: 'done' as const }))
-    const aiSnapshot: LocalTrustSnapshot = {
-      ...snapshot,
-      bucket_scores: [
-        { ...bucketScores[2]!, score: 8, label: 'AI answer readiness' },
-        { ...bucketScores[0]!, score: 20 },
-      ],
-    }
 
     const html = renderToStaticMarkup(
       <OwnerSummary
-        snapshot={aiSnapshot}
-        actions={noOpenActions}
-        copy={{ noAction: 'No open action available.' }}
+        summary="Local trust score 71/100. Biggest gap: AI answer readiness - Add buyer FAQs. No open action available."
       />,
     )
 
@@ -329,6 +321,7 @@ describe('Local Trust read-only UI components', () => {
 
     expect(html).toContain('證明深度')
     expect(html).toContain('優先補強客戶證明')
+    expect(html).toContain('本地信任評分 71/100。最大缺口是證明深度：優先補強客戶證明。下一步：優先補強客戶證明。')
     expect(html).not.toContain('Proof depth')
     expect(html).not.toContain('Proof is present but thin')
     expect(html).not.toContain('Director credentials')
