@@ -147,6 +147,22 @@ export async function getOrCreateLocalTrustSnapshot(input: {
     if (actionError) throw new Error(actionError.message)
   }
 
+  const metadataUpdates = await Promise.all(draft.trust_gaps.map(gap => supabase
+    .from('local_trust_actions')
+    .update({
+      title: gap.title,
+      bucket: gap.bucket,
+      impact: gap.impact,
+      effort: gap.effort,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('snapshot_id', savedSnapshot.id)
+    .eq('stable_key', gap.stableKey)))
+
+  for (const { error: metadataError } of metadataUpdates) {
+    if (metadataError) throw new Error(metadataError.message)
+  }
+
   const { data: actions, error: actionsError } = await supabase
     .from('local_trust_actions')
     .select('*')
@@ -154,9 +170,16 @@ export async function getOrCreateLocalTrustSnapshot(input: {
     .order('created_at')
 
   if (actionsError) throw new Error(actionsError.message)
-  const currentStableKeys = new Set(draft.trust_gaps.map(gap => gap.stableKey))
+  const metadataByStableKey = new Map(draft.trust_gaps.map(gap => [gap.stableKey, {
+    title: gap.title,
+    bucket: gap.bucket,
+    impact: gap.impact,
+    effort: gap.effort,
+  }]))
+  const currentStableKeys = new Set(metadataByStableKey.keys())
   const currentActions = ((actions ?? []) as LocalTrustAction[])
     .filter(action => currentStableKeys.has(action.stable_key))
+    .map(action => ({ ...action, ...metadataByStableKey.get(action.stable_key) }))
 
   return {
     snapshot: savedSnapshot,

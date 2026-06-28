@@ -266,7 +266,7 @@ describe('Local Trust snapshot store', () => {
     mockFrom.mockImplementation((table: string) => new QueryBuilder(table))
   })
 
-  it('filters returned actions to the refreshed trust gap keys while preserving existing statuses', async () => {
+  it('filters returned actions to refreshed gap keys and updates metadata while preserving statuses', async () => {
     mockCalculateLocalTrust.mockReturnValue({
       client_id: 'client-1',
       account_id: 'account-1',
@@ -300,8 +300,26 @@ describe('Local Trust snapshot store', () => {
       created_at: '2026-06-01T00:00:00.000Z',
     })
     setTable('local_trust_actions', [
-      { id: 'action-current', snapshot_id: 'snapshot-1', stable_key: 'current-gap', status: 'done' },
-      { id: 'action-stale', snapshot_id: 'snapshot-1', stable_key: 'stale-gap', status: 'open' },
+      {
+        id: 'action-current',
+        snapshot_id: 'snapshot-1',
+        stable_key: 'current-gap',
+        title: 'Old gap title',
+        bucket: 'proof_depth',
+        impact: 'medium',
+        effort: 'medium',
+        status: 'done',
+      },
+      {
+        id: 'action-stale',
+        snapshot_id: 'snapshot-1',
+        stable_key: 'stale-gap',
+        title: 'Stale gap',
+        bucket: 'proof_depth',
+        impact: 'low',
+        effort: 'low',
+        status: 'open',
+      },
     ])
 
     const result = await getOrCreateLocalTrustSnapshot({
@@ -323,9 +341,29 @@ describe('Local Trust snapshot store', () => {
     })
 
     expect(result.actions).toEqual([
-      expect.objectContaining({ id: 'action-current', stable_key: 'current-gap', status: 'done' }),
+      expect.objectContaining({
+        id: 'action-current',
+        stable_key: 'current-gap',
+        title: 'Current gap',
+        bucket: 'local_visibility',
+        impact: 'high',
+        effort: 'low',
+        status: 'done',
+      }),
     ])
     expect(queryCalls.find(call => call.table === 'local_trust_actions' && call.operation === 'upsert')?.options)
       .toEqual({ onConflict: 'snapshot_id,stable_key', ignoreDuplicates: true })
+    const metadataUpdate = queryCalls.find(call =>
+      call.table === 'local_trust_actions' &&
+      call.operation === 'update' &&
+      call.filters.some(([column, value]) => column === 'stable_key' && value === 'current-gap')
+    )
+    expect(metadataUpdate?.payload).toMatchObject({
+      title: 'Current gap',
+      bucket: 'local_visibility',
+      impact: 'high',
+      effort: 'low',
+    })
+    expect(metadataUpdate?.payload).not.toHaveProperty('status')
   })
 })
