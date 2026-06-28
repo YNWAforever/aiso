@@ -4,6 +4,12 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { planAllows } from '@/lib/tier'
 import type { AgentCompetitor, PulseMetric, PulseWeeklySummary, Scan } from '@/lib/types'
 
+type QueryError = { message: string; code?: string }
+
+function isNoRowsError(error: unknown) {
+  return Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'PGRST116')
+}
+
 function normalizeDomain(domain: string | null | undefined) {
   const value = domain?.trim().toLowerCase()
   if (!value) return null
@@ -24,12 +30,26 @@ function domainsMatch(scanDomain: string | null | undefined, clientDomain: strin
 
 function csvCell(value: unknown) {
   const text = String(value ?? '')
-  const escaped = text.replaceAll('"', '""')
+  const safeText = /^[=+\-@]/.test(text.trimStart()) ? `'${text}` : text
+  const escaped = safeText.replaceAll('"', '""')
   return /[",\n\r]/.test(escaped) ? `"${escaped}"` : escaped
 }
 
 function csvRows(rows: Array<[string, unknown]>) {
   return rows.map(row => row.map(csvCell).join(',')).join('\n')
+}
+
+function exportFilename(clientId: string) {
+  const safeClientId = clientId
+    .replace(/[^a-zA-Z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80)
+
+  return `local-trust-${safeClientId || 'client'}.csv`
+}
+
+function assertNoQueryError(error: QueryError | null | undefined) {
+  if (error) throw new Error('Export query failed')
 }
 
 export async function GET(
@@ -50,7 +70,7 @@ export async function GET(
 
   try {
     const supabase = await createServerSupabaseClient()
-    const { data: latestScanRow } = await supabase
+    const { data: latestScanRow, error: latestScanError } = await supabase
       .from('scans')
       .select('*')
       .eq('account_id', profile.account_id)
@@ -58,11 +78,19 @@ export async function GET(
       .limit(1)
       .single()
 
+    if (latestScanError && !isNoRowsError(latestScanError)) {
+      throw new Error('Export query failed')
+    }
+
     const latestScan = domainsMatch((latestScanRow as Scan | null)?.domain, client.domain)
       ? latestScanRow as Scan
       : null
 
-    const [{ data: pulseSummary }, { data: missed }, { data: competitors }, localTrustProfile] = await Promise.all([
+    const [
+      { data: pulseSummary, error: pulseSummaryError },
+      { data: missed, error: missedError },
+      { data: competitors, error: competitorsError },
+    ] = await Promise.all([
       supabase
         .from('pulse_weekly_summary')
         .select('*')
@@ -82,16 +110,27 @@ export async function GET(
             .select('*')
             .eq('scan_id', latestScan.id)
             .order('mention_rate', { ascending: false })
-        : Promise.resolve({ data: [] }),
-      getLocalTrustProfile(clientId, profile.account_id),
+        : Promise.resolve({ data: [], error: null }),
     ])
+
+    assertNoQueryError(pulseSummaryError)
+    assertNoQueryError(missedError)
+    assertNoQueryError(competitorsError)
+
+    const summary = (pulseSummary ?? []) as PulseWeeklySummary[]
+    const hasAggregatePulseBaseline = summary.some(row => !row.platform)
+    if (!latestScan && !hasAggregatePulseBaseline) {
+      return Response.json({ error: 'LOCAL_TRUST_BASELINE_REQUIRED' }, { status: 409 })
+    }
+
+    const localTrustProfile = await getLocalTrustProfile(clientId, profile.account_id)
 
     const { snapshot, actions } = await getOrCreateLocalTrustSnapshot({
       client,
       accountId: profile.account_id,
       latestScan,
       profile: localTrustProfile,
-      pulseSummary: (pulseSummary ?? []) as PulseWeeklySummary[],
+      pulseSummary: summary,
       missed: (missed ?? []) as PulseMetric[],
       competitors: (competitors ?? []) as AgentCompetitor[],
     })
@@ -110,10 +149,10 @@ export async function GET(
       status: 200,
       headers: {
         'content-type': 'text/csv; charset=utf-8',
-        'content-disposition': `attachment; filename="local-trust-${clientId}.csv"`,
+        'content-disposition': `attachment; filename="${exportFilename(clientId)}"`,
       },
     })
-  } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : 'Export failed' }, { status: 500 })
+  } catch {
+    return Response.json({ error: 'Export failed' }, { status: 500 })
   }
 }

