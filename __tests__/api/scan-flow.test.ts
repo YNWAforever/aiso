@@ -6,8 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
 // Set required env vars before any module is loaded
-process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
-process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
+process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test'
 
 // ── Mocks ───────────────────────────────────────────────────────
 // Mock all 20 checks to return known values
@@ -32,23 +31,15 @@ vi.mock('@/lib/checks/factualDensity',  () => ({ checkFactualDensity:  vi.fn().m
 vi.mock('@/lib/checks/topicalAuthority',() => ({ checkTopicalAuthority:vi.fn().mockResolvedValue({ status: 'pass', message: 'authority_ok', details: { topicalCoverageScore: 70, totalClusters: 3 } }) }))
 vi.mock('@/lib/checks/chunkability',    () => ({ checkChunkability:    vi.fn().mockResolvedValue({ status: 'pass', message: 'chunks_ok', details: { optimalChunkRatio: 0.7, totalChunks: 12 } }) }))
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    from: vi.fn().mockReturnValue({
-      insert: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: { id: 'scan-abc' }, error: null }),
-        }),
-      }),
-      update: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ error: null }),
-      }),
-      select: vi.fn().mockReturnThis(),
-      eq:     vi.fn().mockReturnThis(),
-      single: vi.fn().mockResolvedValue({ data: { id: 'scan-abc' }, error: null }),
-    }),
-  },
-}))
+// Tagged-template SQL mock for the Neon client — the scan insert returns the new row id
+vi.mock('@/lib/db', () => {
+  const sql = async (strings: TemplateStringsArray) => {
+    const q = Array.from(strings).join(' ')
+    if (/insert into scans/i.test(q)) return [{ id: 'scan-abc' }]
+    return []
+  }
+  return { db: () => sql }
+})
 
 vi.mock('@/lib/auth', () => ({
   getProfile: vi.fn().mockResolvedValue(null), // anonymous scan

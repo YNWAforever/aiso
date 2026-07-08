@@ -5,23 +5,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
-const updateMock = vi.fn()
-const eqMock     = vi.fn()
+// Tagged-template SQL mock — called as sql`update scans set lead_email = ${email} where id = ${scanId}`
+const sqlMock = vi.fn()
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    from: vi.fn().mockReturnValue({
-      update: updateMock,
-      eq:     eqMock,
-    }),
-  },
+vi.mock('@/lib/db', () => ({
+  db: () => sqlMock,
 }))
 
 describe('POST /api/scan/lead', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    updateMock.mockReturnValue({ eq: eqMock })
-    eqMock.mockResolvedValue({ error: null })
+    sqlMock.mockResolvedValue([])
   })
 
   it('returns 400 when scanId is missing', async () => {
@@ -75,8 +69,10 @@ describe('POST /api/scan/lead', () => {
     const json = await res.json()
     expect(json.ok).toBe(true)
     // email was normalised before storage
-    expect(updateMock).toHaveBeenCalledWith({ lead_email: 'user@example.com' })
-    expect(eqMock).toHaveBeenCalledWith('id', 'scan-abc')
+    expect(sqlMock).toHaveBeenCalledTimes(1)
+    const [strings, ...params] = sqlMock.mock.calls[0]
+    expect((strings as string[]).join('?')).toMatch(/update scans set lead_email = \? where id = \?/i)
+    expect(params).toEqual(['user@example.com', 'scan-abc'])
   })
 
   it('returns 200 with { ok: true } on success', async () => {

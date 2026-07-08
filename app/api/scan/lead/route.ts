@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/lib/db'
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
@@ -17,12 +17,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid email' }, { status: 400 })
   }
 
-  const { error } = await supabase
-    .from('scans')
-    .update({ lead_email: email })
-    .eq('id', scanId)
-
-  if (error) {
+  try {
+    await db()`update scans set lead_email = ${email} where id = ${scanId}`
+  } catch (error) {
     console.error('[scan/lead] db error:', error)
     return NextResponse.json({ error: 'Database error' }, { status: 500 })
   }

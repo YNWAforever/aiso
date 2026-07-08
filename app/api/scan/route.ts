@@ -25,7 +25,7 @@ import { checkFactualDensity }   from '@/lib/checks/factualDensity'
 import { checkTopicalAuthority } from '@/lib/checks/topicalAuthority'
 import { checkChunkability }     from '@/lib/checks/chunkability'
 
-import { supabase }         from '@/lib/supabase'
+import { db }               from '@/lib/db'
 import { getProfile }       from '@/lib/auth'
 import { getPlanFeatures }  from '@/lib/tier'
 import { CORE_PTS, EXT_PTS, scorePts, assignGrade, calculateScore } from '@/lib/scoring'
@@ -176,84 +176,61 @@ export async function POST(req: NextRequest) {
     account_id = profile?.account_id ?? null
   } catch { /* no auth — continue */ }
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    console.error('[scan] NEXT_PUBLIC_SUPABASE_URL is not configured')
-    return NextResponse.json({ error: 'Server misconfiguration: missing Supabase URL' }, { status: 500 })
+  if (!process.env.DATABASE_URL) {
+    console.error('[scan] DATABASE_URL is not configured')
+    return NextResponse.json({ error: 'Server misconfiguration: missing DATABASE_URL' }, { status: 500 })
   }
 
   // Determine if this is a dashboard-triggered scan (has clientId)
   const isDashboardScan = !!clientId
 
-  const insertPayload: Record<string, unknown> = {
-    url: baseUrl, domain,
-    score: totalScore,
-    results: { ...results, ...geoDetails },
-    industry: geoIndustry,
-    region:   geoRegion,
-    grade,
-    account_id,
-  }
-
-  if (isDashboardScan) {
-    insertPayload.agent_status = 'pending'
-  }
-
-  let insertResult: { data: { id: string } | null; error: unknown }
+  const sql = db()
+  let scanId: string
   try {
-    insertResult = await supabase
-      .from('scans')
-      .insert(insertPayload)
-      .select('id')
-      .single()
+    const rows = await sql`
+      insert into scans (url, domain, score, results, industry, region, grade, account_id, agent_status)
+      values (${baseUrl}, ${domain}, ${totalScore},
+              ${JSON.stringify({ ...results, ...geoDetails })}::jsonb,
+              ${geoIndustry}, ${geoRegion}, ${grade}, ${account_id},
+              ${isDashboardScan ? 'pending' : null})
+      returning id
+    `
+    const inserted = rows[0] as { id: string } | undefined
+    if (!inserted) return NextResponse.json({ error: 'Insert returned no data' }, { status: 500 })
+    scanId = inserted.id
   } catch (dbErr) {
-    console.error('[scan] DB insert threw:', (dbErr as Error)?.message ?? String(dbErr))
-    return NextResponse.json({ error: 'Database connection error — check Supabase configuration' }, { status: 500 })
+    console.error('[scan] DB insert failed:', (dbErr as Error)?.message ?? String(dbErr))
+    return NextResponse.json({ error: 'Database error — check Neon configuration' }, { status: 500 })
   }
-
-  // columns from newer migrations may not exist yet on all databases
-  if (insertResult.error) {
-    // This could fail if agent_status column doesn't exist
-    if (isDashboardScan && insertPayload.agent_status) {
-      delete insertPayload.agent_status
-      try {
-        insertResult = await supabase
-          .from('scans')
-          .insert(insertPayload)
-          .select('id')
-          .single()
-      } catch (retryErr) {
-        console.error('[scan] DB insert retry threw:', (retryErr as Error)?.message ?? String(retryErr))
-        return NextResponse.json({ error: 'Database connection error — check Supabase configuration' }, { status: 500 })
-      }
-    }
-  }
-
-  const { data, error } = insertResult
-  if (error) return NextResponse.json({ error: 'Database error', detail: (error as { message: string }).message }, { status: 500 })
 
   // Fire agent webhook if dashboard scan and client has webhook configured
   if (isDashboardScan) {
-    const { data: clientData } = await supabase
-      .from('clients').select('webhook_url,brand_name').eq('id', clientId).single()
+    let clientData: { webhook_url: string | null; brand_name: string | null } | undefined
+    try {
+      const rows = await sql`select webhook_url, brand_name from clients where id = ${clientId} limit 1`
+      clientData = rows[0] as typeof clientData
+    } catch (err) {
+      console.error('[scan] client lookup failed:', (err as Error)?.message ?? String(err))
+    }
 
     const webhookUrl = clientData?.webhook_url
 
     if (webhookUrl) {
       // Determine which platforms to include based on plan
-      const plan = account_id
-        ? (await supabase.from('accounts').select('plan').eq('id', account_id).single()).data?.plan ?? 'basic'
-        : 'basic'
+      let plan = 'basic'
+      if (account_id) {
+        try {
+          const rows = await sql`select plan from accounts where id = ${account_id} limit 1`
+          plan = (rows[0] as { plan: string } | undefined)?.plan ?? 'basic'
+        } catch { /* default to basic */ }
+      }
       const features = getPlanFeatures(plan)
       const platforms = features.platform_access
 
-      // Record which platforms were triggered (silently skip if column missing)
+      // Record which platforms were triggered
       try {
-        if (data) {
-          await supabase.from('scans')
-            .update({ agent_platforms: platforms })
-            .eq('id', data.id)
-        }
-      } catch { /* agent_platforms column may not exist yet */ }
+        await sql`update scans set agent_platforms = ${platforms} where id = ${scanId}`
+      } catch { /* non-fatal — webhook payload still carries platforms */ }
 
       // Validate webhook URL
       let safe = false
@@ -268,7 +245,7 @@ export async function POST(req: NextRequest) {
                !parsed.hostname.startsWith('192.168.')
       } catch { /* invalid URL */ }
 
-      if (safe && data) {
+      if (safe) {
         fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -277,7 +254,7 @@ export async function POST(req: NextRequest) {
             brandName: clientData?.brand_name ?? '',
             domain,
             industry: geoIndustry,
-            scanId: data.id,
+            scanId,
             score: totalScore,
             grade,
             platforms,  // only the platforms the user paid for
@@ -291,8 +268,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  if (!data) return NextResponse.json({ error: 'Insert returned no data' }, { status: 500 })
-
   // Fire n8n AISO Scan Webhook (fire-and-forget — never blocks the response)
   const n8nWebhook = process.env.N8N_SCAN_WEBHOOK_URL
   if (n8nWebhook) {
@@ -300,7 +275,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        scanId:   data.id,
+        scanId,
         clientId: clientId ?? null,
         domain,
         score:    totalScore,
@@ -311,5 +286,5 @@ export async function POST(req: NextRequest) {
     }).catch(err => console.error('[scan] n8n webhook failed:', err))
   }
 
-  return NextResponse.json({ id: data.id, score: totalScore, grade, results: { ...results, ...geoDetails } })
+  return NextResponse.json({ id: scanId, score: totalScore, grade, results: { ...results, ...geoDetails } })
 }

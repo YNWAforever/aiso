@@ -1,5 +1,5 @@
 import { ImageResponse } from 'next/og'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/lib/db'
 
 export const alt = 'AI visibility score — Fimmick AISO'
 export const size = { width: 1200, height: 630 }
@@ -31,21 +31,17 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   let counts = { pass: 0, warn: 0, fail: 0 }
 
   try {
-    const { data: scan } = await supabase
-      .from('scans')
-      .select('domain, score, grade, results')
-      .eq('id', id)
-      .single()
+    const rows = await db()`select domain, score, grade, results from scans where id = ${id} limit 1`
+    const scan = rows[0] as { domain: string; score: string | number | null; grade: string | null; results: unknown } | undefined
     if (scan) {
       domain = scan.domain
-      score = Math.round(scan.score)
+      score = Math.round(Number(scan.score))
       grade = scan.grade ?? 'F'
       counts = countStatuses(scan.results as Record<string, unknown>)
     }
   } catch { /* unknown scan — render generic branded card */ }
 
   const gradeColor = GRADE_COLORS[grade] ?? '#ef4444'
-  const ringPct = score !== null ? Math.min(100, Math.max(0, score)) : 0
 
   return new ImageResponse(
     (
@@ -106,18 +102,14 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         {/* Score ring */}
         {score !== null && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 320 }}>
+            {/* satori (next/og) cannot parse conic-gradient — solid grade-colored ring instead */}
             <div style={{
               width: 280, height: 280, borderRadius: 140, display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-              background: `conic-gradient(${gradeColor} ${ringPct * 3.6}deg, #334155 0deg)`,
+              flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              border: `20px solid ${gradeColor}`, background: '#0f172a',
             }}>
-              <div style={{
-                width: 232, height: 232, borderRadius: 116, background: '#0f172a',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <div style={{ display: 'flex', fontSize: 88, fontWeight: 900, color: 'white', lineHeight: 1 }}>{score}</div>
-                <div style={{ display: 'flex', fontSize: 28, color: '#94a3b8', fontWeight: 600 }}>/100</div>
-              </div>
+              <div style={{ display: 'flex', fontSize: 88, fontWeight: 900, color: 'white', lineHeight: 1 }}>{score}</div>
+              <div style={{ display: 'flex', fontSize: 28, color: '#94a3b8', fontWeight: 600 }}>/100</div>
             </div>
           </div>
         )}
