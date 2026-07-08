@@ -16,7 +16,9 @@ type AuthFixtures = {
 // Extend base test with an authenticatedPage fixture.
 // In CI, credentials come from PLAYWRIGHT_TEST_EMAIL / PLAYWRIGHT_TEST_PASSWORD env vars.
 export const test = base.extend<AuthFixtures>({
-  async authenticatedPage({ page }, use) {
+  // second param renamed from playwright's conventional `use` so eslint's
+  // react-hooks/rules-of-hooks does not mistake the call for the React `use` hook
+  async authenticatedPage({ page }, provide) {
     const email    = process.env.PLAYWRIGHT_TEST_EMAIL    ?? 'test@fimmick.com'
     const password = process.env.PLAYWRIGHT_TEST_PASSWORD ?? ''
 
@@ -29,7 +31,7 @@ export const test = base.extend<AuthFixtures>({
       await page.waitForURL(/\/dashboard/, { timeout: 15_000 })
     }
 
-    await use(page as never)
+    await provide(page as never)
   },
 })
 

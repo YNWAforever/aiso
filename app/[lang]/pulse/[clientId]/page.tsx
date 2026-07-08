@@ -69,6 +69,7 @@ export default async function PulsePage({
   }
 
   const isFirstTimePrompts = prompts.length > 0 &&
+    // eslint-disable-next-line react-hooks/purity -- async server component renders once per request; wall-clock read is intentional
     Math.abs(new Date(prompts.at(-1)!.created_at).getTime() - Date.now()) < 5 * 60 * 1000
 
   return (

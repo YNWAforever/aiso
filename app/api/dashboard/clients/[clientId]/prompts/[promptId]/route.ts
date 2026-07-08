@@ -8,7 +8,7 @@ async function verifyPromptOwnership(promptId: string, clientId: string, account
     .select('id, clients!inner(account_id)')
     .eq('id', promptId).eq('client_id', clientId).single()
   if (!data) return false
-  return (data as any).clients?.account_id === accountId
+  return (data as { clients?: { account_id?: string } }).clients?.account_id === accountId
 }
 
 export async function PATCH(

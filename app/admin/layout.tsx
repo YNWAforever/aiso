@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { requireAdmin } from '@/lib/auth'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -9,9 +10,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           Fimmick <span className="text-blue-400">AEO</span>{' '}
           <span className="text-slate-400 font-normal">Admin</span>
         </span>
-        <a href="/en/dashboard" className="text-xs text-slate-400 hover:text-white ml-auto">
+        <Link href="/en/dashboard" className="text-xs text-slate-400 hover:text-white ml-auto">
           ← Back to Dashboard
-        </a>
+        </Link>
       </nav>
       <main className="max-w-6xl mx-auto px-6 py-8">{children}</main>
     </div>

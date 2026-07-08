@@ -42,6 +42,8 @@ export default async function SettingsPage({
           {hasStripe && (
             <div>
               <p className="text-xs font-semibold text-muted-foreground tracking-widest uppercase mb-3">Billing</p>
+              {/* API-route redirect to Stripe's portal — <Link> cannot navigate to route handlers */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a
                 href="/api/stripe/portal"
                 className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg text-primary-foreground bg-primary hover:bg-primary/90 transition-colors shadow-sm"

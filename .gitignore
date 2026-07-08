@@ -48,3 +48,8 @@ next-env.d.ts
 playwright-report/
 test-results/
 playwright-results.json
+
+# local agent tooling / worktrees
+.codex/
+.worktrees/
+.claude/settings.local.json

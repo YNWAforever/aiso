@@ -33,14 +33,17 @@ export async function POST(req: Request) {
 
   if (!configs?.length) return Response.json({ processed: 0, fired: 0 })
 
+  // Shape of the joined clients relation on each alert config row
+  type CfgClient = { id: string; brand_name: string; account_id: string } | null
+
   // ── 2. Batch pre-fetch to eliminate N+1 queries ─────────────
 
   // Collect unique client IDs and account IDs up front
   const clientIds  = [...new Set(
-    configs.map(c => (c as any).clients?.id).filter(Boolean) as string[]
+    configs.map(c => (c as { clients?: CfgClient }).clients?.id).filter(Boolean) as string[]
   )]
   const accountIds = [...new Set(
-    configs.map(c => (c as any).clients?.account_id).filter(Boolean) as string[]
+    configs.map(c => (c as { clients?: CfgClient }).clients?.account_id).filter(Boolean) as string[]
   )]
 
   // One query for all pulse data we need
@@ -77,7 +80,7 @@ export async function POST(req: Request) {
   let fired = 0
 
   for (const cfg of configs) {
-    const client = (cfg as any).clients
+    const client = (cfg as { clients?: CfgClient }).clients
     if (!client) continue
 
     const { id: clientId, account_id: accountId, brand_name: brandName } = client
