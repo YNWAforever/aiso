@@ -17,6 +17,7 @@
     "e2e:report": "playwright show-report"
   },
   "dependencies": {
+    "@neondatabase/auth": "^0.4.2-beta",
     "@neondatabase/serverless": "^1.1.0",
     "@radix-ui/react-slot": "^1.2.4",
     "@stripe/stripe-js": "^9.3.1",
