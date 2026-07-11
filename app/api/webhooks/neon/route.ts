@@ -8,6 +8,24 @@ type NeonAuthWebhookEvent = {
 
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as NeonAuthWebhookEvent | null
+  // TEMP DIAGNOSTIC: real payload shape was never verified against the actual
+  // Neon Auth webhook delivery — production is 400ing on the first two real
+  // signups. Log structure only (no PII/values) to confirm the true shape,
+  // then remove.
+  if (body && typeof body === 'object') {
+    console.error('[webhooks/neon] DIAGNOSTIC shape:', JSON.stringify({
+      topLevelKeys: Object.keys(body),
+      type: (body as Record<string, unknown>).type,
+      dataKeys: (body as Record<string, unknown>).data && typeof (body as Record<string, unknown>).data === 'object'
+        ? Object.keys((body as Record<string, unknown>).data as object)
+        : typeof (body as Record<string, unknown>).data,
+      userKeys: (body as Record<string, unknown>).user && typeof (body as Record<string, unknown>).user === 'object'
+        ? Object.keys((body as Record<string, unknown>).user as object)
+        : typeof (body as Record<string, unknown>).user,
+    }))
+  } else {
+    console.error('[webhooks/neon] DIAGNOSTIC: body is not an object:', typeof body)
+  }
   if (!body || typeof body.type !== 'string') {
     return NextResponse.json({ error: 'Invalid webhook payload' }, { status: 400 })
   }
