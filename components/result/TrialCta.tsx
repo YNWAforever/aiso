@@ -1,7 +1,7 @@
 'use client'
 import { useState, type ReactNode } from 'react'
 import { useLocale } from 'next-intl'
-import { createBrowserClient } from '@supabase/ssr'
+import { createAuthClient } from '@neondatabase/auth/next'
 import { Zap, ChevronRight, Mail } from 'lucide-react'
 
 const COPY_EN = {
@@ -16,6 +16,7 @@ const COPY_EN = {
   startTrial: (email: string) => `Start free trial — send to ${email}`,
   haveAccount: 'Already have an account?',
   signIn: 'Sign in',
+  sendFailed: 'Could not send the magic link. Please try again.',
 }
 
 const COPY_ZH_HK: typeof COPY_EN = {
@@ -30,7 +31,10 @@ const COPY_ZH_HK: typeof COPY_EN = {
   startTrial: (email: string) => `開始免費試用——發送至 ${email}`,
   haveAccount: '已有帳戶？',
   signIn: '登入',
+  sendFailed: '無法發送登入連結，請再試一次。',
 }
+
+const authClient = createAuthClient()
 
 interface Props {
   email: string        // pre-filled from email gate
@@ -46,23 +50,15 @@ export function TrialCta({ email, scanId, lang, failCount }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-
   async function handleStart() {
     setLoading(true)
     setError('')
-    // Route through auth callback so the session cookie is set before the onboarding page loads
-    const next = encodeURIComponent(`/${lang}/onboarding?scan=${scanId}`)
-    const redirectTo = `${window.location.origin}/auth/callback?next=${next}`
-    const { error: authError } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: redirectTo },
-    })
+    // Neon Auth sets the session cookie before redirecting to callbackURL,
+    // so landing directly on the onboarding page preserves the old behavior.
+    const callbackURL = `${window.location.origin}/${lang}/onboarding?scan=${scanId}`
+    const { error: authError } = await authClient.signIn.magicLink({ email, callbackURL })
     if (authError) {
-      setError(authError.message)
+      setError(authError.message ?? c.sendFailed)
       setLoading(false)
       return
     }

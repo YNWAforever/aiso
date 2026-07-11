@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useLocale } from 'next-intl'
-import { createBrowserClient } from '@supabase/ssr'
+import { createAuthClient } from '@neondatabase/auth/next'
 import { Button } from '@/components/ui/button'
 import { Input }  from '@/components/ui/input'
 
@@ -14,6 +14,8 @@ const COPY_EN = {
   sendMagicLink: 'Send Magic Link',
   emailPlaceholder: 'you@company.com',
   tooManyAttempts: 'Too many attempts. Please wait a few minutes before trying again.',
+  googleFailed: 'Could not start Google sign-in. Please try again.',
+  magicLinkFailed: 'Could not send the magic link. Please try again.',
 }
 
 const COPY_ZH_HK: typeof COPY_EN = {
@@ -25,7 +27,11 @@ const COPY_ZH_HK: typeof COPY_EN = {
   sendMagicLink: '發送登入連結',
   emailPlaceholder: 'you@company.com',
   tooManyAttempts: '嘗試次數過多，請等待幾分鐘後再試。',
+  googleFailed: '無法啟動 Google 登入，請再試一次。',
+  magicLinkFailed: '無法發送登入連結，請再試一次。',
 }
+
+const authClient = createAuthClient()
 
 export function LoginForm({ next }: { next?: string }) {
   const locale = useLocale()
@@ -35,33 +41,24 @@ export function LoginForm({ next }: { next?: string }) {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-
-  const redirectTo = `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ''}`
+  const callbackURL = `${typeof window !== 'undefined' ? window.location.origin : ''}${next ?? '/dashboard'}`
 
   const signInWithGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo },
-    })
+    setErrorMsg('')
+    const { error } = await authClient.signIn.social({ provider: 'google', callbackURL })
+    if (error) setErrorMsg(c.googleFailed)
   }
 
   const signInWithMagicLink = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setErrorMsg('')
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: redirectTo },
-    })
+    const { error } = await authClient.signIn.magicLink({ email, callbackURL })
     if (error) {
       setErrorMsg(
-        error.status === 429
+        error.code === 'TOO_MANY_ATTEMPTS'
           ? c.tooManyAttempts
-          : error.message
+          : (error.message ?? c.magicLinkFailed)
       )
       setLoading(false)
     } else {

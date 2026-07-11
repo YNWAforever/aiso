@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       line_items: [{ price: priceId, quantity: 1 }],
       customer_email: profile.email ?? undefined,
       metadata: { account_id: profile.account_id },
-      success_url: `${APP_URL}/auth/callback?next=/en/dashboard`,
+      success_url: `${APP_URL}/en/dashboard`,
       cancel_url:  `${APP_URL}/en/pricing`,
     })
     return NextResponse.json({ url: session.url })
