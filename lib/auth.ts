@@ -1,21 +1,47 @@
 import { redirect } from 'next/navigation'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { auth } from '@/lib/neon-auth'
+import { db } from '@/lib/db'
 import type { ProfileWithAccount } from '@/lib/types'
 
 export async function getProfile(): Promise<ProfileWithAccount | null> {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  const { data } = await auth().getSession()
+  if (!data?.user) return null
 
-  const { data } = await supabase
-    .from('profiles')
-    .select('*, accounts(*)')
-    .eq('id', user.id)
-    .single()
+  const sql = db()
+  const rows = await sql`
+    select
+      p.id, p.account_id, p.display_name, p.is_admin, p.created_at,
+      a.id as account_id_2, a.plan, a.status, a.stripe_customer_id,
+      a.stripe_subscription_id, a.trial_started_at, a.trial_ends_at,
+      a.trial_emails_sent, a.created_at as account_created_at
+    from profiles p
+    join accounts a on a.id = p.account_id
+    where p.id = ${data.user.id}
+    limit 1
+  `
+  const row = rows[0] as Record<string, unknown> | undefined
+  if (!row) return null
 
-  if (!data) return null
   // Attach the auth email so callers (e.g. Stripe checkout) can use it
-  return { ...data, email: user.email ?? null } as ProfileWithAccount | null
+  return {
+    id: row.id,
+    account_id: row.account_id,
+    display_name: row.display_name,
+    is_admin: row.is_admin,
+    created_at: row.created_at,
+    email: data.user.email ?? null,
+    accounts: {
+      id: row.account_id_2,
+      plan: row.plan,
+      status: row.status,
+      stripe_customer_id: row.stripe_customer_id,
+      stripe_subscription_id: row.stripe_subscription_id,
+      trial_started_at: row.trial_started_at,
+      trial_ends_at: row.trial_ends_at,
+      trial_emails_sent: row.trial_emails_sent,
+      created_at: row.account_created_at,
+    },
+  } as unknown as ProfileWithAccount
 }
 
 export async function requireAuth(lang = 'en'): Promise<ProfileWithAccount> {
