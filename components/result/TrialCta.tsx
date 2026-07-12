@@ -1,7 +1,7 @@
 'use client'
 import { useState, type ReactNode } from 'react'
 import { useLocale } from 'next-intl'
-import { createAuthClient } from '@neondatabase/auth/next'
+import { authClient, buildAuthCompleteUrl } from '@/lib/auth-client'
 import { Zap, ChevronRight, Mail } from 'lucide-react'
 
 const COPY_EN = {
@@ -34,8 +34,6 @@ const COPY_ZH_HK: typeof COPY_EN = {
   sendFailed: '無法發送登入連結，請再試一次。',
 }
 
-const authClient = createAuthClient()
-
 interface Props {
   email: string        // pre-filled from email gate
   scanId: string
@@ -53,9 +51,7 @@ export function TrialCta({ email, scanId, lang, failCount }: Props) {
   async function handleStart() {
     setLoading(true)
     setError('')
-    // Route through /auth/complete so the Neon Auth client can exchange the
-    // session verifier for a cookie on this domain before onboarding loads.
-    const callbackURL = `${window.location.origin}/${lang}/auth/complete?next=${encodeURIComponent(`/${lang}/onboarding?scan=${scanId}`)}`
+    const callbackURL = buildAuthCompleteUrl(lang, `/${lang}/onboarding?scan=${scanId}`)
     const { error: authError } = await authClient.signIn.magicLink({ email, callbackURL })
     if (authError) {
       setError(authError.message ?? c.sendFailed)
