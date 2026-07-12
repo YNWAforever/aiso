@@ -8,12 +8,14 @@ const transactionMock = vi.fn()
 const sqlMock = Object.assign(vi.fn(), { transaction: transactionMock })
 vi.mock('@/lib/db', () => ({ db: () => sqlMock }))
 
-function userCreatedRequest(data: Record<string, unknown> = {}) {
+// Real Neon Auth webhook shape (confirmed from a production delivery):
+// `{ event_type, user: { id, email, name, ... } }`.
+function userCreatedRequest(user: Record<string, unknown> = {}) {
   return new NextRequest('http://localhost/api/webhooks/neon', {
     method: 'POST',
     body: JSON.stringify({
-      type: 'user.created',
-      data: { id: 'user-123', email: 'new@example.com', name: 'New User', ...data },
+      event_type: 'user.created',
+      user: { id: 'user-123', email: 'new@example.com', name: 'New User', ...user },
     }),
     headers: { 'Content-Type': 'application/json' },
   })
@@ -29,22 +31,37 @@ describe('POST /api/webhooks/neon', () => {
     transactionMock.mockResolvedValue([[], []])
   })
 
-  it('returns 400 for an unrecognized event type', async () => {
+  it('returns 200 received/handled:false for an event type it does not handle', async () => {
     const { POST } = await import('@/app/api/webhooks/neon/route')
     const req = new NextRequest('http://localhost/api/webhooks/neon', {
       method: 'POST',
-      body: JSON.stringify({ type: 'something.else', data: {} }),
+      body: JSON.stringify({ event_type: 'user.updated', user: { id: 'u', email: 'e@x.com' } }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const res = await POST(req)
+    // 200 (not a 4xx) so Neon doesn't retry-storm an event we intentionally ignore.
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ received: true, handled: false })
+    expect(sqlMock).not.toHaveBeenCalled()
+    expect(transactionMock).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when event_type is missing entirely', async () => {
+    const { POST } = await import('@/app/api/webhooks/neon/route')
+    const req = new NextRequest('http://localhost/api/webhooks/neon', {
+      method: 'POST',
+      body: JSON.stringify({ user: { id: 'u', email: 'e@x.com' } }), // no event_type
       headers: { 'Content-Type': 'application/json' },
     })
     const res = await POST(req)
     expect(res.status).toBe(400)
   })
 
-  it('returns 400 for user.created with data entirely absent, without throwing', async () => {
+  it('returns 400 for user.created with user entirely absent, without throwing', async () => {
     const { POST } = await import('@/app/api/webhooks/neon/route')
     const req = new NextRequest('http://localhost/api/webhooks/neon', {
       method: 'POST',
-      body: JSON.stringify({ type: 'user.created' }), // no `data` key at all
+      body: JSON.stringify({ event_type: 'user.created' }), // no `user` key at all
       headers: { 'Content-Type': 'application/json' },
     })
     const res = await POST(req)
@@ -99,10 +116,9 @@ describe('POST /api/webhooks/neon', () => {
 
   it('returns 500 without leaking internal error details when provisioning fails', async () => {
     const { POST } = await import('@/app/api/webhooks/neon/route')
-    // Under the old two-round-trip design this represented "accounts insert
-    // succeeded, profiles insert rejected." Now both inserts are submitted as
-    // one atomic transaction, so that failure surfaces as the whole
-    // sql.transaction() call rejecting — and neither row is persisted.
+    // Both inserts are submitted as one atomic transaction, so a failure
+    // surfaces as the whole sql.transaction() call rejecting — neither row is
+    // persisted.
     transactionMock.mockRejectedValueOnce(
       new Error(
         'insert into profiles violates foreign key constraint "profiles_account_id_fkey" detail: Key (account_id)=(account-abc) is not present in table "accounts".'
