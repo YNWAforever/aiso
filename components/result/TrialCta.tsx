@@ -53,9 +53,9 @@ export function TrialCta({ email, scanId, lang, failCount }: Props) {
   async function handleStart() {
     setLoading(true)
     setError('')
-    // Neon Auth sets the session cookie before redirecting to callbackURL,
-    // so landing directly on the onboarding page preserves the old behavior.
-    const callbackURL = `${window.location.origin}/${lang}/onboarding?scan=${scanId}`
+    // Route through /auth/complete so the Neon Auth client can exchange the
+    // session verifier for a cookie on this domain before onboarding loads.
+    const callbackURL = `${window.location.origin}/${lang}/auth/complete?next=${encodeURIComponent(`/${lang}/onboarding?scan=${scanId}`)}`
     const { error: authError } = await authClient.signIn.magicLink({ email, callbackURL })
     if (authError) {
       setError(authError.message ?? c.sendFailed)

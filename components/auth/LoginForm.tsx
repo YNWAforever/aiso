@@ -41,7 +41,13 @@ export function LoginForm({ next }: { next?: string }) {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
-  const callbackURL = `${typeof window !== 'undefined' ? window.location.origin : ''}${next ?? '/dashboard'}`
+  // Route the post-sign-in return through /auth/complete: it mounts the Neon
+  // Auth client, which exchanges the `neon_auth_session_verifier` URL param
+  // for a session cookie on this domain, then forwards to `next`. Landing
+  // directly on a protected page would bounce to login before any exchange
+  // could run (the magic-link flow sets no challenge cookie, so the
+  // server-middleware exchange can't handle it).
+  const callbackURL = `${typeof window !== 'undefined' ? window.location.origin : ''}/${locale}/auth/complete?next=${encodeURIComponent(next ?? `/${locale}/dashboard`)}`
 
   const signInWithGoogle = async () => {
     setErrorMsg('')
