@@ -43,10 +43,21 @@ export function assignGrade(score: number): string {
   return 'F'
 }
 
+// Missing keys score as a fail (0 points) rather than throwing — callers may
+// legitimately pass a partial results object (e.g. tests isolating one check
+// category, or a category whose checks haven't run yet). `object` + internal
+// cast (rather than a `Record` param type) so it accepts ScanResults and any
+// other check-keyed shape without requiring an index signature on each.
+function sumWeightedScore(results: object, pts: Record<string, number>): number {
+  const r = results as Record<string, CheckResult | undefined>
+  return (Object.keys(pts) as Array<keyof typeof pts>)
+    .reduce((s, k) => s + scorePts(r[k as string] ?? { status: 'fail', message: '' }, pts[k]), 0)
+}
+
 export function calculateScore(results: ScanResults): number {
-  const core = (Object.keys(CORE_PTS) as Array<keyof typeof CORE_PTS>)
-    .reduce((s, k) => s + scorePts(results[k], CORE_PTS[k]), 0)
-  const ext  = (Object.keys(EXT_PTS)  as Array<keyof typeof EXT_PTS>)
-    .reduce((s, k) => s + scorePts((results as unknown as Record<string, CheckResult>)[k] ?? { status: 'fail', message: '' }, EXT_PTS[k]), 0)
-  return core + ext
+  return sumWeightedScore(results, CORE_PTS) + sumWeightedScore(results, EXT_PTS)
+}
+
+export function calculateGeoScore(results: Partial<Record<keyof typeof GEO_PTS, CheckResult>>): number {
+  return sumWeightedScore(results, GEO_PTS)
 }

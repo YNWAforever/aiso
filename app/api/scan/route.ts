@@ -28,11 +28,11 @@ import { checkChunkability }     from '@/lib/checks/chunkability'
 import { db }               from '@/lib/db'
 import { getProfile }       from '@/lib/auth'
 import { getPlanFeatures }  from '@/lib/tier'
-import { CORE_PTS, EXT_PTS, scorePts, assignGrade, calculateScore } from '@/lib/scoring'
+import { GEO_PTS, assignGrade, calculateScore, calculateGeoScore } from '@/lib/scoring'
 import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'
 
 // Re-exported for existing tests that import scoring from this route
-export { assignGrade, calculateScore }
+export { assignGrade, calculateScore, calculateGeoScore }
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
@@ -112,11 +112,7 @@ export async function POST(req: NextRequest) {
 
   const results: ScanResults = { ...coreResults, ...extResults }
 
-  const coreScore = (Object.keys(CORE_PTS) as Array<keyof typeof CORE_PTS>)
-    .reduce((s, k) => s + scorePts(coreResults[k], CORE_PTS[k]), 0)
-  const extScore  = (Object.keys(EXT_PTS)  as Array<keyof typeof EXT_PTS>)
-    .reduce((s, k) => s + scorePts(extResults[k],  EXT_PTS[k]),  0)
-  const score = coreScore + extScore   // 0–75 before GEO
+  const score = calculateScore(results)   // 0–75 before GEO
 
   // GEO checks — always run, default to general_b2c / global when not specified
   const geoIndustry = ((industry as string | undefined) ?? 'general_b2c') as IndustryCode
@@ -141,7 +137,6 @@ export async function POST(req: NextRequest) {
     } catch { /* sitemap unavailable — c19 will return warn/fail */ }
   }
 
-  let geoScore = 0
   const geoDetails: Record<string, unknown> = {}
 
   const [c17, c18, c19, c20] = await Promise.allSettled([
@@ -151,20 +146,25 @@ export async function POST(req: NextRequest) {
     checkChunkability(html, geoContext),
   ])
 
-  const geoKeys    = ['c17_citation_density', 'c18_factual_density', 'c19_topical_authority', 'c20_chunkability'] as const
-  const geoChecks  = [c17, c18, c19, c20]
-  const geoWeights = [7, 6, 7, 5]
-  geoChecks.forEach((r, i) => {
-    if (r.status === 'fulfilled') {
-      geoScore += r.value.status === 'pass' ? geoWeights[i]! : r.value.status === 'warn' ? geoWeights[i]! * 0.5 : 0
-      // Store both the CheckResult (for status/message) and the rich geoDetails under named keys
-      const key = geoKeys[i]!
-      geoDetails[key] = { status: r.value.status, message: r.value.message, details: r.value.details }
-      if ('geoDetails' in r.value && r.value.geoDetails) {
-        geoDetails[`${key}_data`] = r.value.geoDetails
-      }
+  // Settle-with-fallback first, same pattern as coreResults/extResults above —
+  // scoring and geoDetails extraction then both read from the same finished object.
+  const geoResults = {
+    c17_citation_density:  get(c17, err),
+    c18_factual_density:   get(c18, err),
+    c19_topical_authority: get(c19, err),
+    c20_chunkability:      get(c20, err),
+  }
+
+  const geoScore = calculateGeoScore(geoResults)
+
+  for (const key of Object.keys(GEO_PTS) as Array<keyof typeof GEO_PTS>) {
+    const r = geoResults[key]
+    // Store both the CheckResult (for status/message) and the rich geoDetails under named keys
+    geoDetails[key] = { status: r.status, message: r.message, details: (r as { details?: unknown }).details }
+    if ('geoDetails' in r && r.geoDetails) {
+      geoDetails[`${key}_data`] = r.geoDetails
     }
-  })
+  }
 
   const totalScore = Math.min(100, score + geoScore)
   const grade = assignGrade(totalScore)
