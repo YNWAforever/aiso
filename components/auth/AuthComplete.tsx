@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createAuthClient } from '@neondatabase/auth/next'
+import { authClient } from '@/lib/auth-client'
 
 const COPY_EN = {
   signingIn: 'Signing you in…',
@@ -14,8 +14,6 @@ const COPY_ZH_HK: typeof COPY_EN = {
   failed: '登入未能完成，請再試一次。',
   backToLogin: '返回登入頁',
 }
-
-const authClient = createAuthClient()
 
 // Only allow same-origin relative paths — `next` comes from the URL and must
 // not become an open redirect.
