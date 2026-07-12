@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useLocale } from 'next-intl'
-import { createAuthClient } from '@neondatabase/auth/next'
+import { authClient, buildAuthCompleteUrl } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
 import { Input }  from '@/components/ui/input'
 
@@ -31,8 +31,6 @@ const COPY_ZH_HK: typeof COPY_EN = {
   magicLinkFailed: '無法發送登入連結，請再試一次。',
 }
 
-const authClient = createAuthClient()
-
 export function LoginForm({ next }: { next?: string }) {
   const locale = useLocale()
   const c = locale === 'zh-HK' ? COPY_ZH_HK : COPY_EN
@@ -41,13 +39,7 @@ export function LoginForm({ next }: { next?: string }) {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
-  // Route the post-sign-in return through /auth/complete: it mounts the Neon
-  // Auth client, which exchanges the `neon_auth_session_verifier` URL param
-  // for a session cookie on this domain, then forwards to `next`. Landing
-  // directly on a protected page would bounce to login before any exchange
-  // could run (the magic-link flow sets no challenge cookie, so the
-  // server-middleware exchange can't handle it).
-  const callbackURL = `${typeof window !== 'undefined' ? window.location.origin : ''}/${locale}/auth/complete?next=${encodeURIComponent(next ?? `/${locale}/dashboard`)}`
+  const callbackURL = buildAuthCompleteUrl(locale, next ?? `/${locale}/dashboard`)
 
   const signInWithGoogle = async () => {
     setErrorMsg('')
