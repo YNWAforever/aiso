@@ -1,5 +1,5 @@
 import { requireAuth } from '@/lib/auth'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { db } from '@/lib/db'
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar'
 import { TrialBanner } from '@/components/dashboard/TrialBanner'
 import { getTrialStatus } from '@/lib/trial'
@@ -24,11 +24,13 @@ export default async function DashboardLayout({
   // Fetch brand name if viewing a specific client
   let brandName: string | undefined
   if (clientId) {
-    const supabase = await createServerSupabaseClient()
-    const { data: client } = await supabase
-      .from('clients').select('brand_name')
-      .eq('id', clientId).eq('account_id', profile.account_id).single()
-    brandName = client?.brand_name ?? undefined
+    const sql = db()
+    const rows = await sql`
+      select brand_name from clients
+      where id = ${clientId} and account_id = ${profile.account_id}
+      limit 1
+    `
+    brandName = (rows[0] as { brand_name: string } | undefined)?.brand_name
   }
 
   return (
