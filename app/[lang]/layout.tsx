@@ -12,6 +12,8 @@ type LangLayoutProps = {
 
 export async function generateMetadata({ params }: LangLayoutProps): Promise<Metadata> {
   const { lang } = await params
+  if (!(routing.locales as readonly string[]).includes(lang)) notFound()
+
   return buildLocalizedMetadata(lang)
 }
 
