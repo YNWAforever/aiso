@@ -9,21 +9,22 @@ export class HomePage {
   readonly urlInput: Locator
   readonly scanButton: Locator
   readonly scanProgress: Locator
-  readonly personaliseToggle: Locator
+  readonly personalizeButton: Locator
+  readonly scanStatus: Locator
   readonly industrySelect: Locator
   readonly regionSelect: Locator
   readonly errorMessage: Locator
 
   constructor(page: Page, private readonly lang = 'en') {
     this.page = page
-    // Use attribute selectors that survive translation changes
-    this.urlInput        = page.locator('input[type="text"][required]').first()
-    this.scanButton      = page.locator('button[type="submit"]').first()
-    this.scanProgress    = page.locator('.animate-bounce').first()
-    this.personaliseToggle = page.locator('button:has-text("Personalise")')
-    this.industrySelect  = page.locator('select').nth(0)
-    this.regionSelect    = page.locator('select').nth(1)
-    this.errorMessage    = page.locator('[role="alert"], .text-destructive, .text-red-500').first()
+    this.urlInput = this.page.getByLabel('Website URL').first()
+    this.scanButton = this.page.getByRole('button', { name: 'Run Free Scan' }).first()
+    this.personalizeButton = this.page.getByRole('button', { name: /Personalise/i }).first()
+    this.scanStatus = this.page.getByRole('status').first()
+    this.scanProgress = this.scanStatus
+    this.industrySelect = this.page.getByLabel('Industry (optional)').first()
+    this.regionSelect = this.page.getByLabel('Region (optional)').first()
+    this.errorMessage = this.scanStatus
   }
 
   async goto() {
@@ -50,7 +51,7 @@ export class HomePage {
   }
 
   async openPersonalise() {
-    await this.personaliseToggle.click()
+    await this.personalizeButton.click()
   }
 
   async selectIndustry(industry: string) {

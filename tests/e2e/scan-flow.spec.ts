@@ -40,6 +40,15 @@ test.describe('Scan → Result journey', () => {
     // intercept it. We rely on the real test scan row seeded by globalSetup.ts.
   })
 
+  test('proof-first homepage makes the free scan the primary action', async ({ page }) => {
+    await page.goto('/en')
+    await expect(page.getByRole('heading', { level: 1, name: /See whether AI recommends your brand/i })).toBeVisible()
+    await expect(home.urlInput).toBeVisible()
+    await expect(home.scanButton).toBeVisible()
+    await expect(page.getByText('No signup to scan')).toBeVisible()
+    await expect(page.getByText('5 AI platforms')).toBeVisible()
+  })
+
   test('homepage loads with a URL input and scan button', async ({ page }) => {
     await home.goto()
     await expect(home.urlInput).toBeVisible()
