@@ -6,10 +6,11 @@ export default async function OnboardingPage({
   searchParams,
 }: {
   params: Promise<{ lang: string }>
-  searchParams: Promise<{ scan?: string }>
+  searchParams: Promise<{ scan?: string | string[] }>
 }) {
   const { lang } = await params
-  const { scan: scanId } = await searchParams
+  const { scan } = await searchParams
+  const scanId = typeof scan === 'string' && scan.trim() ? scan : undefined
 
   // Pre-fill from scan if provided
   let initialBrand = ''

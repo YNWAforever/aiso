@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { callOpenRouter } from '@/lib/openrouter'
+import { getProfile } from '@/lib/auth'
+import { claimScanForAccount } from '@/app/api/scans/[id]/claim/route'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,16 +17,18 @@ export async function POST(req: NextRequest) {
 
   if (!brandName) return NextResponse.json({ error: 'brandName required' }, { status: 400 })
 
+  const profile = await getProfile()
+  if (!profile) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
+
   const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
-
-  // Get account
-  const { data: profile } = await supabase
-    .from('profiles').select('account_id').eq('id', user.id).single()
-  if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
-
   const accountId = profile.account_id
+
+  if (scanId) {
+    const claim = await claimScanForAccount(supabase, scanId, accountId)
+    if (claim.status === 'not-found') return NextResponse.json({ error: 'Scan not found' }, { status: 404 })
+    if (claim.status === 'conflict') return NextResponse.json({ error: 'Scan belongs to another account' }, { status: 409 })
+    if (claim.status === 'error') return NextResponse.json({ error: 'Failed to claim scan' }, { status: 500 })
+  }
 
   // Guard against double-submit: check if trial already started
   const { data: account } = await supabase
@@ -48,7 +52,7 @@ export async function POST(req: NextRequest) {
   const { data: existingClient } = await supabase
     .from('clients').select('id').eq('account_id', accountId).limit(1).single()
   if (existingClient) {
-    return NextResponse.json({ clientId: existingClient.id, trialEndsAt: trialEndsAt.toISOString() })
+    return NextResponse.json({ clientId: existingClient.id, scanId: scanId ?? null, trialEndsAt: trialEndsAt.toISOString() })
   }
 
   // Create client
@@ -71,13 +75,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create client' }, { status: 500 })
   }
   const clientId = clientData.id
-
-  // Link scan to account if provided
-  if (scanId) {
-    await supabase.from('scans')
-      .update({ account_id: accountId })
-      .eq('id', scanId)
-  }
 
   // Generate seed prompts via OpenRouter
   try {
@@ -104,5 +101,5 @@ export async function POST(req: NextRequest) {
     console.warn('[onboarding] prompt generation failed:', (err as Error)?.message ?? String(err))
   }
 
-  return NextResponse.json({ clientId, trialEndsAt: trialEndsAt.toISOString() })
+  return NextResponse.json({ clientId, scanId: scanId ?? null, trialEndsAt: trialEndsAt.toISOString() })
 }
