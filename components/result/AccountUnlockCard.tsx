@@ -42,6 +42,32 @@ type Props = {
   lang: string
 }
 
+type AuthRequestError = { code?: string; message?: string }
+
+type AuthRequestOptions = {
+  request: () => Promise<{ error?: AuthRequestError | null }>
+  onFailure: (error?: AuthRequestError) => void
+  onSuccess: () => void
+  onFinally: () => void
+}
+
+export async function runAccountUnlockRequest({
+  request,
+  onFailure,
+  onSuccess,
+  onFinally,
+}: AuthRequestOptions) {
+  try {
+    const { error } = await request()
+    if (error) onFailure(error)
+    else onSuccess()
+  } catch {
+    onFailure(undefined)
+  } finally {
+    onFinally()
+  }
+}
+
 export function AccountUnlockCard({ scanId, lang }: Props) {
   const c = lang === 'zh-HK' ? COPY_ZH_HK : COPY_EN
   const [email, setEmail] = useState('')
@@ -55,12 +81,15 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
     setLoading('google')
     setStatus('')
     setIsError(false)
-    const { error } = await authClient.signIn.social({ provider: 'google', callbackURL })
-    if (error) {
-      setStatus(c.googleFailed)
-      setIsError(true)
-      setLoading(null)
-    }
+    await runAccountUnlockRequest({
+      request: () => authClient.signIn.social({ provider: 'google', callbackURL }),
+      onFailure: () => {
+        setStatus(c.googleFailed)
+        setIsError(true)
+      },
+      onSuccess: () => undefined,
+      onFinally: () => setLoading(null),
+    })
   }
 
   async function signInWithMagicLink(event: FormEvent<HTMLFormElement>) {
@@ -68,14 +97,15 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
     setLoading('email')
     setStatus('')
     setIsError(false)
-    const { error } = await authClient.signIn.magicLink({ email, callbackURL })
-    if (error) {
-      setStatus(error.code === 'TOO_MANY_ATTEMPTS' ? c.tooManyAttempts : c.magicLinkFailed)
-      setIsError(true)
-    } else {
-      setStatus(c.checkEmail)
-    }
-    setLoading(null)
+    await runAccountUnlockRequest({
+      request: () => authClient.signIn.magicLink({ email, callbackURL }),
+      onFailure: error => {
+        setStatus(error?.code === 'TOO_MANY_ATTEMPTS' ? c.tooManyAttempts : c.magicLinkFailed)
+        setIsError(true)
+      },
+      onSuccess: () => setStatus(c.checkEmail),
+      onFinally: () => setLoading(null),
+    })
   }
 
   return (

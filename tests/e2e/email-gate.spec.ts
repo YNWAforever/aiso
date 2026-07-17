@@ -20,6 +20,7 @@ test.describe('Account unlock', () => {
 
     await expect(result.score).toBeVisible()
     await expect(result.topIssue).toBeVisible()
+    await expect(result.topIssue).toHaveText(/.+/)
     await expect(result.createAccountButton).toBeVisible()
     await expect(result.googleSignupButton).toBeVisible()
     await expect(page.getByText(/No credit card/i)).toBeVisible()

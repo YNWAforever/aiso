@@ -1,5 +1,5 @@
 import { computeImpact } from '@/lib/impact'
-import type { Scan } from '@/lib/types'
+import type { CheckStatus, Scan } from '@/lib/types'
 
 const ISSUE_PRIORITY = [
   'c1_robots', 'c2_llms_txt', 'c3_bot_access', 'c4_structured_data', 'c5_extractability',
@@ -31,6 +31,13 @@ export function buildPublicResultSummary(
       value && typeof value === 'object' && 'status' in value && value.status !== 'pass',
     )
   }) ?? null
+  const topIssueValue = topIssueKey ? results[topIssueKey] : null
+  const topIssueStatus: CheckStatus | null = (
+    topIssueValue
+    && typeof topIssueValue === 'object'
+    && 'status' in topIssueValue
+    && (topIssueValue.status === 'warn' || topIssueValue.status === 'fail')
+  ) ? topIssueValue.status : null
   const impact = computeImpact(results, {
     score: scan.score,
     grade: scan.grade ?? 'F',
@@ -52,6 +59,7 @@ export function buildPublicResultSummary(
       total: statuses.length,
     },
     topIssueKey,
+    topIssueStatus,
     teaser: {
       headlineStat: impact.headlineStat,
       projectedScore: impact.projectedScore,

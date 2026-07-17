@@ -152,8 +152,8 @@ export function ResultClient({ lang, summary, fullScan }: Props) {
     ? computeImpact(r, { score: fullScan.score, grade: fullScan.grade ?? 'F', industry: fullScan.industry })
     : null
   const publicImpact = { ...summary.teaser, aiReadablePercent: null, quickWins: [] }
-  const topIssueResults = summary.topIssueKey
-    ? { [summary.topIssueKey]: { status: 'fail', message: 'public_summary' } }
+  const topIssueResults = summary.topIssueKey && summary.topIssueStatus
+    ? { [summary.topIssueKey]: { status: summary.topIssueStatus, message: 'public_summary' } }
     : {}
 
   // GEO rich data

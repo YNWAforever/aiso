@@ -13,7 +13,7 @@ export class ResultPage {
   constructor(page: Page) {
     this.page = page
     this.score = page.getByTestId('result-score')
-    this.topIssue = page.getByTestId('result-top-issue')
+    this.topIssue = page.getByTestId('result-top-issue').locator('h2')
     this.emailInput = page.locator('input[name="email"]')
     this.createAccountButton = page.getByRole('button', { name: /Create Free Account|免費建立帳戶/i })
     this.googleSignupButton = page.getByRole('button', { name: /Continue with Google|使用 Google 繼續/i })

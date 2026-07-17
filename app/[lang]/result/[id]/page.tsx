@@ -25,6 +25,36 @@ const getScan = cache(async (id: string): Promise<Scan | null> => {
   }
 })
 
+const EXPECTED_PROFILE_FAILURE_PATTERNS = [
+  /NEON_AUTH_BASE_URL/i,
+  /Invalid URL/i,
+  /endsWith/i,
+  /fetch failed/i,
+  /network/i,
+  /ECONNREFUSED/i,
+  /ENOTFOUND/i,
+  /ETIMEDOUT/i,
+  /timeout/i,
+]
+
+function isExpectedProfileLookupFailure(error: unknown) {
+  if (!(error instanceof Error)) return false
+  const cause = 'cause' in error ? String(error.cause) : ''
+  const detail = [error.name, error.message, cause].join(': ')
+  return EXPECTED_PROFILE_FAILURE_PATTERNS.some(pattern => pattern.test(detail))
+}
+
+async function getResultViewerProfile() {
+  try {
+    return await getProfile()
+  } catch (error) {
+    if (!isExpectedProfileLookupFailure(error)) {
+      console.error('[result] Unexpected profile lookup failure', error)
+    }
+    return null
+  }
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -61,10 +91,11 @@ export default async function ResultPage({
 }) {
   const { lang, id } = await params
 
-  const [scan, profile] = await Promise.all([getScan(id), getProfile()])
+  const scan = await getScan(id)
 
   if (!scan) notFound()
 
+  const profile = await getResultViewerProfile()
   const unlocked = canViewFullResult(scan.account_id, profile?.account_id)
   const summary = buildPublicResultSummary(scan)
 

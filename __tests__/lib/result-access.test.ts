@@ -29,6 +29,7 @@ describe('result access', () => {
     expect(summary.domain).toBe('example.com')
     expect(summary.score).toBe(62)
     expect(summary.topIssueKey).toBe('c2_llms_txt')
+    expect(summary.topIssueStatus).toBe('fail')
     expect(summary).not.toHaveProperty('results')
     expect(JSON.stringify(summary)).not.toContain('private remediation detail')
   })
