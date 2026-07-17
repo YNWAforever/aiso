@@ -2,6 +2,8 @@ import { notFound }        from 'next/navigation'
 import { cache }            from 'react'
 import { db }               from '@/lib/db'
 import { ResultClient }     from '@/components/result/ResultClient'
+import { getProfile }       from '@/lib/auth'
+import { buildPublicResultSummary, canViewFullResult } from '@/lib/result-access'
 import type { Scan }        from '@/lib/types'
 import type { Metadata }    from 'next'
 
@@ -59,9 +61,18 @@ export default async function ResultPage({
 }) {
   const { lang, id } = await params
 
-  const scan = await getScan(id)
+  const [scan, profile] = await Promise.all([getScan(id), getProfile()])
 
   if (!scan) notFound()
 
-  return <ResultClient scan={scan} lang={lang} />
+  const unlocked = canViewFullResult(scan.account_id, profile?.account_id)
+  const summary = buildPublicResultSummary(scan)
+
+  return (
+    <ResultClient
+      lang={lang}
+      summary={summary}
+      fullScan={unlocked ? scan : undefined}
+    />
+  )
 }
