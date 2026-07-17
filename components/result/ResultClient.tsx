@@ -10,7 +10,7 @@ import { ImpactTeaser }     from './ImpactTeaser'
 import { ImpactPanel }      from './ImpactPanel'
 import { ShareButton }      from './ShareButton'
 import { AccountUnlockCard } from './AccountUnlockCard'
-import { computeImpact }    from '@/lib/impact'
+import { computeImpact, type PlatformStatus } from '@/lib/impact'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
 import { getCheckExplanations }  from '@/lib/checkExplanations'
 import type { Scan, CheckResult, ScanResults } from '@/lib/types'
@@ -104,6 +104,15 @@ function getResult(results: Record<string, unknown>, key: string): CheckResult |
   const v = results[key]
   if (v && typeof v === 'object' && 'status' in (v as object)) return v as CheckResult
   return undefined
+}
+
+const PLATFORM_STATUS_LABELS: Record<'en' | 'zh-HK', Record<PlatformStatus, string>> = {
+  en: { visible: 'Visible', partial: 'Partial', blocked: 'Hidden' },
+  'zh-HK': { visible: '可見', partial: '部分可見', blocked: '隱藏' },
+}
+
+export function getPlatformStatusLabel(status: PlatformStatus, locale: string) {
+  return PLATFORM_STATUS_LABELS[locale === 'zh-HK' ? 'zh-HK' : 'en'][status]
 }
 
 /* ── Section: check list ─────────────────────────────────────── */
@@ -229,14 +238,18 @@ export function ResultClient({ lang, summary, fullScan }: Props) {
             {summary.teaser.platformVisibility.map(platform => (
               <div key={platform.platform} className="flex items-center justify-between gap-3 text-sm">
                 <span className="font-medium text-slate-700">{platform.label}</span>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                  platform.status === 'visible'
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : platform.status === 'partial'
-                      ? 'bg-amber-100 text-amber-700'
-                      : 'bg-red-100 text-red-700'
-                }`}>
-                  {platform.status}
+                <span
+                  data-status={platform.status}
+                  aria-label={`${platform.label}: ${getPlatformStatusLabel(platform.status, locale)}`}
+                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    platform.status === 'visible'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : platform.status === 'partial'
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-red-100 text-red-700'
+                  }`}
+                >
+                  {getPlatformStatusLabel(platform.status, locale)}
                 </span>
               </div>
             ))}
