@@ -47,6 +47,11 @@ test.describe('Scan → Result journey', () => {
     await expect(home.scanButton).toBeVisible()
     await expect(page.getByText('No signup to scan')).toBeVisible()
     await expect(page.getByText('5 AI platforms')).toBeVisible()
+
+    await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(1)
+    const skipLink = page.getByRole('link', { name: 'Skip to main content' })
+    await expect(skipLink).toHaveAttribute('href', '#main-content')
+    await expect(page.locator('main#main-content')).toHaveCount(1)
   })
 
   test('homepage loads with a URL input and scan button', async ({ page }) => {
@@ -57,12 +62,17 @@ test.describe('Scan → Result journey', () => {
     await page.screenshot({ path: 'playwright-report/homepage.png' })
   })
 
-  test('scan form requires a URL before submitting', async () => {
+  test('scan form focuses and describes an empty URL error', async ({ page }) => {
     await home.goto()
-    // Click submit without filling the URL — HTML5 validation fires
     await home.scanButton.click()
-    // Input should still be visible (page did not navigate)
-    await expect(home.urlInput).toBeVisible()
+
+    await expect(home.urlInput).toBeFocused()
+    await expect(home.urlInput).toHaveAttribute('aria-invalid', 'true')
+    const errorId = await home.urlInput.getAttribute('aria-describedby')
+    expect(errorId).toBeTruthy()
+    await expect(page.locator(`#${errorId}`)).toHaveText('Enter your website URL to start the scan.')
+    await expect(home.scanStatus).toBeEmpty()
+
   })
 
   test('entering a URL and submitting shows progress indicator', async ({ page }) => {

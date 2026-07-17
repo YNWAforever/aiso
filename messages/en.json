@@ -10,7 +10,7 @@
     "badge": "FREE AISO PLATFORM SCAN",
     "headline": "Get Found by\nEvery AI Search Engine",
     "subheadline": "20 checks. 100-point authority score. Grade A+→F in 30 seconds.",
-    "placeholder": "https://yourwebsite.com",
+    "placeholder": "e.g. https://yourwebsite.com…",
     "cta": "Run Free Scan",
     "trust": "20 Checks · 100-Point Score · A+→F Grade · 5 AI Platforms",
     "scan_error": "Could not scan this URL. Please check it and try again.",
@@ -200,7 +200,8 @@
     "proof_bottom_title": "Run the free scan now",
     "proof_bottom_body": "No account or credit card is needed to see your first visibility result.",
     "industry_travel_hospitality": "Travel & Hospitality",
-    "industry_media_entertainment": "Media & Entertainment"
+    "industry_media_entertainment": "Media & Entertainment",
+    "skip_to_main": "Skip to main content"
   },
   "result": {
     "score_label": "AI Readiness Score",

@@ -10,7 +10,7 @@
     "badge": "免費 AISO 平台掃描",
     "headline": "讓每個 AI 搜尋\n引擎都搵到你",
     "subheadline": "20 項檢查。100 分權威評分。A+→F 等級，30 秒出結果。",
-    "placeholder": "https://yourwebsite.com",
+    "placeholder": "例如 https://yourwebsite.com…",
     "cta": "立即免費掃描",
     "trust": "20 項檢查 · 100 分評分 · A+→F 等級 · 5 個 AI 平台",
     "scan_error": "無法掃描此網址，請檢查後再試。",
@@ -200,7 +200,8 @@
     "proof_bottom_title": "立即進行免費掃描",
     "proof_bottom_body": "首次查看可見度結果毋須帳戶或信用卡。",
     "industry_travel_hospitality": "旅遊及款待",
-    "industry_media_entertainment": "媒體及娛樂"
+    "industry_media_entertainment": "媒體及娛樂",
+    "skip_to_main": "跳至主要內容"
   },
   "result": {
     "score_label": "AI 就緒分數",

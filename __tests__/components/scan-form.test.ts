@@ -17,4 +17,8 @@ describe('normalizeSubmittedUrl', () => {
   it('rejects malformed URLs', () => {
     expect(() => normalizeSubmittedUrl('http://')).toThrow()
   })
+
+  it('rejects a non-web URL scheme', () => {
+    expect(() => normalizeSubmittedUrl('mailto:user@example.com')).toThrowError('invalid_protocol')
+  })
 })

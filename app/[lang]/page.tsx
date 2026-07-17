@@ -56,6 +56,13 @@ export default async function HomePage({ params }: HomePageProps) {
         }}
       />
 
+      <a
+        href="#main-content"
+        className="sr-only fixed left-4 top-4 z-[60] rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground shadow-lg focus:not-sr-only focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        {t('skip_to_main')}
+      </a>
+
       <header className="sticky top-0 z-50 border-b border-border/80 bg-background/95 backdrop-blur-md">
         <div className="mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link href={`/${lang}`} className="flex min-h-11 items-center gap-2.5 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
@@ -81,7 +88,7 @@ export default async function HomePage({ params }: HomePageProps) {
         </div>
       </header>
 
-      <main>
+      <main id="main-content">
         <section id="scan" className="relative overflow-hidden border-b border-border/70">
           <div aria-hidden="true" className="absolute inset-x-0 top-0 -z-10 h-[34rem] bg-gradient-to-b from-primary/10 via-primary/5 to-transparent dark:from-primary/15 dark:via-primary/5" />
           <div className="mx-auto grid max-w-6xl gap-10 px-4 pb-14 pt-14 sm:px-6 sm:pb-20 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-14">
@@ -90,10 +97,10 @@ export default async function HomePage({ params }: HomePageProps) {
                 <Bot aria-hidden="true" className="size-3.5" />
                 {t('proof_eyebrow')}
               </div>
-              <h1 className="max-w-3xl text-4xl font-black leading-[1.08] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+              <h1 className="max-w-3xl text-balance text-4xl font-black leading-[1.08] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
                 {t('proof_headline')}
               </h1>
-              <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+              <p className="mt-5 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground">
                 {t('proof_subheadline', { count: PRODUCT_FACTS.checkCount })}
               </p>
 
@@ -162,7 +169,7 @@ export default async function HomePage({ params }: HomePageProps) {
         <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
           <div className="max-w-2xl">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">{t('proof_how_label')}</p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">{t('proof_how_title')}</h2>
+            <h2 className="mt-3 text-balance text-3xl font-black tracking-tight sm:text-4xl">{t('proof_how_title')}</h2>
             <p className="mt-4 text-base leading-relaxed text-muted-foreground">{t('proof_how_body')}</p>
           </div>
           <ol className="mt-10 grid gap-5 md:grid-cols-3">
@@ -180,7 +187,7 @@ export default async function HomePage({ params }: HomePageProps) {
           <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">{t('proof_method_label')}</p>
-              <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">{t('proof_method_title')}</h2>
+              <h2 className="mt-3 text-balance text-3xl font-black tracking-tight text-white sm:text-4xl">{t('proof_method_title')}</h2>
               <p className="mt-5 text-base leading-relaxed text-slate-300">{t('proof_method_body', { count: PRODUCT_FACTS.checkCount })}</p>
               <ul className="mt-7 space-y-3">
                 {[t('proof_method_point1'), t('proof_method_point2'), t('proof_method_point3')].map((item) => (
@@ -204,7 +211,7 @@ export default async function HomePage({ params }: HomePageProps) {
           <div className="mx-auto max-w-3xl rounded-3xl border border-primary/20 bg-card p-5 shadow-xl shadow-primary/5 sm:p-10 dark:shadow-black/30">
             <div className="mx-auto max-w-2xl text-center">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">{t('proof_bottom_label')}</p>
-              <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">{t('proof_bottom_title')}</h2>
+              <h2 className="mt-3 text-balance text-3xl font-black tracking-tight sm:text-4xl">{t('proof_bottom_title')}</h2>
               <p className="mt-4 text-base leading-relaxed text-muted-foreground">{t('proof_bottom_body')}</p>
             </div>
             <div className="mx-auto mt-8 max-w-xl"><ScanForm lang={lang} /></div>

@@ -3,7 +3,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getMessages, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { routing } from '@/i18n/routing'
-import { buildLocalizedMetadata, buildSoftwareApplicationJsonLd } from '@/lib/seo'
+import { buildLocalizedMetadata } from '@/lib/seo'
 
 type LangLayoutProps = {
   children: React.ReactNode
@@ -23,17 +23,6 @@ export default async function LangLayout({ children, params }: LangLayoutProps) 
 
   setRequestLocale(lang)
   const messages = await getMessages()
-  const softwareApplicationJsonLd = buildSoftwareApplicationJsonLd(lang)
 
-  return (
-    <NextIntlClientProvider messages={messages}>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(softwareApplicationJsonLd).replace(/</g, '\\u003c'),
-        }}
-      />
-      {children}
-    </NextIntlClientProvider>
-  )
+  return <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
 }

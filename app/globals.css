@@ -63,6 +63,8 @@
 
 /* ── Dark mode tokens ──────────────────────────────────────── */
 .dark {
+  color-scheme: dark;
+
   --background:             #050510;
   --foreground:             #e0e0ec;
 
