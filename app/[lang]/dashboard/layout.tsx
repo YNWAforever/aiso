@@ -37,7 +37,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
-      {trial.isTrial && !trial.isExpired && (
+      {entitlement.source === 'trial' && trial.isTrial && !trial.isExpired && (
         <TrialBanner daysRemaining={trial.daysRemaining} lang={lang} />
       )}
       <div className="flex flex-1 overflow-hidden">
