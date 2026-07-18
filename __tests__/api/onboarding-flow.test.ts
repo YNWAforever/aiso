@@ -13,6 +13,7 @@ vi.mock('@/lib/auth', () => ({ getProfile: getProfileMock }))
 
 // ── DB state simulation ──────────────────────────────────────────
 let trialStartedAt: string | null = null
+let trialEndsAt: string | null = null
 let clientsInDb: { id: string }[] = []
 let scanResults: Array<{ data: { id: string; account_id: string | null } | null; error: { message: string } | null }> = []
 let tableCalls: string[] = []
@@ -33,7 +34,7 @@ const supabaseMock = {
     limit:   vi.fn().mockReturnThis(),
     single:  vi.fn().mockImplementation(() => {
       if (table === 'profiles') return Promise.resolve({ data: { account_id: 'acc-1' }, error: null })
-      if (table === 'accounts') return Promise.resolve({ data: { trial_started_at: trialStartedAt }, error: null })
+      if (table === 'accounts') return Promise.resolve({ data: { trial_started_at: trialStartedAt, trial_ends_at: trialEndsAt }, error: null })
       if (table === 'clients')  return Promise.resolve({ data: clientsInDb[0] ?? null, error: null })
       return Promise.resolve({ data: null, error: null })
     }),
@@ -58,6 +59,7 @@ describe('POST /api/onboarding/complete', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     trialStartedAt = null
+    trialEndsAt = null
     clientsInDb    = []
 
     // Re-wire mocks after clearAllMocks
@@ -102,7 +104,7 @@ describe('POST /api/onboarding/complete', () => {
           error: accountUpdateError,
         })
         if (table === 'accounts') return Promise.resolve({
-          data: accountLookupError ? null : { trial_started_at: trialStartedAt },
+          data: accountLookupError ? null : { trial_started_at: trialStartedAt, trial_ends_at: trialEndsAt },
           error: accountLookupError,
         })
         if (table === 'clients' && inserted) return Promise.resolve({ data: { id: 'client-new' }, error: null })
@@ -247,6 +249,7 @@ describe('POST /api/onboarding/complete', () => {
 
   it('does NOT reset trial dates on double-submit', async () => {
     trialStartedAt = new Date(Date.now() - 3 * 86400_000).toISOString() // 3 days ago
+    trialEndsAt = new Date(Date.now() + 4 * 86400_000).toISOString()
     clientsInDb    = [{ id: 'client-existing' }]
     const { POST } = await import('@/app/api/onboarding/complete/route')
     const req = new NextRequest('http://localhost/api/onboarding/complete', {
@@ -256,10 +259,7 @@ describe('POST /api/onboarding/complete', () => {
     })
     const res = await POST(req)
     expect(res.status).toBe(200)
-    // trialEndsAt returned should be 4 days from now (7 - 3 already elapsed)
-    // — but actually with current impl it returns trialAlreadyStarted date, just verify status is 200
-    // The key assertion: the account update was NOT called (no new trial dates set)
-    // (This is checked via the mock — update wouldn't be called if trial already started)
+    expect((await res.json()).trialEndsAt).toBe(trialEndsAt)
   })
 
   it('accepts description and competitors without error', async () => {

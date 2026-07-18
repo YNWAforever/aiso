@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
   // Guard against double-submit: check if trial already started
   const { data: account, error: accountError } = await supabase
-    .from('accounts').select('trial_started_at').eq('id', accountId).single()
+    .from('accounts').select('trial_started_at, trial_ends_at').eq('id', accountId).single()
   if (accountError || !account) {
     return NextResponse.json({ error: 'Failed to load account' }, { status: 500 })
   }
@@ -41,7 +41,9 @@ export async function POST(req: NextRequest) {
   // Set trial dates on account (7-day trial) — only on first call
   const now = new Date()
   const trialEndsAt = trialAlreadyStarted
-    ? new Date(account!.trial_started_at!)
+    ? account.trial_ends_at
+      ? new Date(account.trial_ends_at)
+      : new Date(new Date(account.trial_started_at!).getTime() + 7 * 24 * 60 * 60 * 1000)
     : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
   if (!trialAlreadyStarted) {
