@@ -33,7 +33,7 @@ describe('POST /api/stripe/checkout', () => {
   })
 
   it('preserves a supported Hong Kong Chinese locale in checkout return URLs', async () => {
-    const response = await postCheckout({ plan: 'pro', annual: false, lang: 'zh-HK' })
+    const response = await postCheckout({ plan: 'pro', lang: 'zh-HK' })
 
     expect(response.status).toBe(200)
     expect(createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({
@@ -44,7 +44,7 @@ describe('POST /api/stripe/checkout', () => {
   })
 
   it('falls back to English for an unsupported locale', async () => {
-    const response = await postCheckout({ plan: 'enterprise', annual: true, lang: 'javascript:alert(1)' })
+    const response = await postCheckout({ plan: 'enterprise', lang: 'javascript:alert(1)' })
 
     expect(response.status).toBe(200)
     expect(createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({

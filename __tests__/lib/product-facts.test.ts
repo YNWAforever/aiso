@@ -99,12 +99,10 @@ describe('PRODUCT_FACTS', () => {
 
   it('keeps the pricing interaction contract accessible', () => {
     const source = readFileSync(resolve(process.cwd(), 'app/[lang]/pricing/page.tsx'), 'utf8')
-    expect(source).toContain('role="switch"')
-    expect(source).toContain('aria-checked={annual}')
-    expect(source).toContain("aria-label={t('billing_frequency_label')}")
-    expect(source).toContain('h-11 w-16')
+    expect(source).not.toContain('role="switch"')
+    expect(source).not.toMatch(/\bannual\b/i)
+    expect(source).toContain('min-h-11')
     expect(source).toContain('transition-colors')
-    expect(source).toContain('transition-transform')
     expect(source).toContain('role="alert"')
     expect(source).toContain('overflow-x-auto')
     expect(source).toContain("aria-label={t('comparison_label')}")

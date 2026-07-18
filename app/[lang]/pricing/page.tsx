@@ -61,18 +61,10 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 
 /* ── Main component ─────────────────────────────────────────── */
 export default function PricingPage() {
-  const [annual, setAnnual]         = useState(false)
   const [loading, setLoading]       = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
   const { lang } = useParams<{ lang: string }>()
   const t = useTranslations('pricing')
-
-  const basicMonthly = 29
-  const basicAnnual  = 23 // ~20% off
-  const proMonthly = 79
-  const proAnnual  = 63 // ~20% off
-  const enterpriseMonthly = 199
-  const enterpriseAnnual  = 159 // ~20% off
 
   const startCheckout = async (planName: string) => {
     setLoading(true)
@@ -81,7 +73,7 @@ export default function PricingPage() {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planName, annual, lang }),
+        body: JSON.stringify({ plan: planName, lang }),
       })
       if (res.status === 401) {
         window.location.href = `/${lang}/auth/login?next=/${lang}/pricing`
@@ -127,8 +119,8 @@ export default function PricingPage() {
       key: 'basic',
       name: t('basic_name'),
       tag:  t('basic_tag'),
-      price: `$${annual ? basicAnnual : basicMonthly}`,
-      priceSub: annual ? t('per_month_annual') : t('per_month'),
+      price: '$29',
+      priceSub: t('per_month'),
       cta: loading ? t('cta_loading') : t('cta_basic'),
       ctaAction: () => startCheckout('basic'),
     },
@@ -136,8 +128,8 @@ export default function PricingPage() {
       key: 'pro',
       name: t('pro_name'),
       tag:  t('pro_tag'),
-      price: `$${annual ? proAnnual : proMonthly}`,
-      priceSub: annual ? t('per_month_annual') : t('per_month'),
+      price: '$79',
+      priceSub: t('per_month'),
       cta: loading ? t('cta_loading') : t('cta_pro'),
       popular: true,
       ctaAction: () => startCheckout('pro'),
@@ -146,8 +138,8 @@ export default function PricingPage() {
       key: 'enterprise',
       name: t('enterprise_name'),
       tag:  t('enterprise_tag'),
-      price: `$${annual ? enterpriseAnnual : enterpriseMonthly}`,
-      priceSub: annual ? t('per_month_annual') : t('per_month'),
+      price: '$199',
+      priceSub: t('per_month'),
       cta: loading ? t('cta_loading') : t('cta_enterprise'),
       ctaAction: () => startCheckout('enterprise'),
     },
@@ -190,31 +182,6 @@ export default function PricingPage() {
           <p className="text-muted-foreground text-lg max-w-xl mx-auto leading-relaxed">
             {t('subheadline')}
           </p>
-
-          {/* Monthly / Annual toggle */}
-          <div className="flex items-center justify-center gap-3 mt-8">
-            <span className={`text-sm font-semibold ${!annual ? 'text-foreground' : 'text-muted-foreground'}`}>
-              {t('toggle_monthly')}
-            </span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={annual}
-              aria-label={t('billing_frequency_label')}
-              onClick={() => setAnnual(value => !value)}
-              className={`relative inline-flex h-11 w-16 items-center rounded-full shadow-inner transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${annual ? 'bg-primary' : 'bg-slate-200'}`}
-            >
-              <span aria-hidden="true" className={`inline-block size-6 rounded-full bg-white shadow-md transition-transform ${annual ? 'translate-x-8' : 'translate-x-2'}`} />
-            </button>
-            <span className={`text-sm font-semibold ${annual ? 'text-foreground' : 'text-muted-foreground'}`}>
-              {t('toggle_annual')}
-            </span>
-            {annual && (
-              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-                {t('annual_discount')}
-              </span>
-            )}
-          </div>
         </section>
 
         {/* ── Pricing Cards ────────────────────────────────────── */}
