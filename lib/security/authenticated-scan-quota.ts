@@ -16,10 +16,10 @@ export type DurableAuthenticatedScanCounter = (
 const consumeFromNeon: DurableAuthenticatedScanCounter = async (accountId, limit) => {
   const rows = await db()`
     with current_month as (
-      select date_trunc('month', now())::date as month_start
+      select date_trunc('month', now() at time zone 'UTC')::date as month_start
     ), cleanup as (
       delete from authenticated_scan_monthly_usage
-      where month_start < date_trunc('month', now())::date - interval '14 months'
+      where month_start < date_trunc('month', now() at time zone 'UTC')::date - interval '14 months'
     ), consumed as (
       insert into authenticated_scan_monthly_usage (account_id, month_start, request_count)
       select ${accountId}::uuid, month_start, 1 from current_month
@@ -29,7 +29,7 @@ const consumeFromNeon: DurableAuthenticatedScanCounter = async (accountId, limit
     )
     select request_count <= ${limit} as allowed,
       greatest(0, ${limit} - request_count)::int as remaining,
-      extract(epoch from (month_start + interval '1 month'))::bigint as reset_at
+      extract(epoch from ((month_start + interval '1 month')::timestamp at time zone 'UTC'))::bigint as reset_at
     from consumed
   `
   const row = rows[0] as {

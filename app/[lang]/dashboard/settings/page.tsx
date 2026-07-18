@@ -9,6 +9,12 @@ const PLAN_LABELS: Record<string, string> = {
   enterprise: 'Enterprise — $199/month',
 }
 
+const UPGRADE_LABELS: Record<string, string> = {
+  free: 'Upgrade to Basic →',
+  basic: 'Upgrade to Pro →',
+  pro: 'Upgrade to Enterprise →',
+}
+
 export default async function SettingsPage({
   params,
 }: {
@@ -64,7 +70,7 @@ export default async function SettingsPage({
                 href={`/${lang}/pricing`}
                 className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-secondary text-foreground border border-border hover:bg-secondary/80 transition-colors"
               >
-                {plan === 'pro' ? 'Upgrade to Enterprise →' : 'Upgrade to Pro →'}
+                {UPGRADE_LABELS[plan]}
               </Link>
             </div>
           )}

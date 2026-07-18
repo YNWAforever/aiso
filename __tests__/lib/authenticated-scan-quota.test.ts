@@ -27,6 +27,12 @@ describe('authenticated scan quota', () => {
     await expect(consumeAuthenticatedScanQuota('account-1', counter)).rejects.toThrow('database unavailable')
   })
 
+  it('defines calendar-month boundaries in UTC regardless of database session timezone', () => {
+    const source = readFileSync('lib/security/authenticated-scan-quota.ts', 'utf8')
+
+    expect(source.match(/time zone 'UTC'/g)?.length).toBeGreaterThanOrEqual(3)
+  })
+
   it('documents migration 025 as a release prerequisite for authenticated scans', () => {
     const readme = readFileSync('README.md', 'utf8')
 

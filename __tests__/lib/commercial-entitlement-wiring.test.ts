@@ -14,7 +14,9 @@ describe('commercial entitlement runtime wiring', () => {
   it('keeps the pricing upgrade path visible for effective free accounts', () => {
     const settings = readFileSync('app/[lang]/dashboard/settings/page.tsx', 'utf8')
 
-    expect(settings).toContain("plan === 'free'")
+    expect(settings).toContain("free: 'Upgrade to Basic →'")
+    expect(settings).toContain("basic: 'Upgrade to Pro →'")
+    expect(settings).toContain("pro: 'Upgrade to Enterprise →'")
   })
 
   it('does not derive commercial access from the raw stored plan', () => {
