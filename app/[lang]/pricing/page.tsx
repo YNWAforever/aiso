@@ -17,10 +17,26 @@ interface FeatureRow {
 }
 
 /* ── Small helpers ──────────────────────────────────────────── */
-function Cell({ value }: { value: string | boolean }) {
-  if (value === true) return <Check aria-hidden="true" className="size-4 text-emerald-500 mx-auto" />
-  if (value === false) return <Minus aria-hidden="true" className="size-4 text-slate-300 mx-auto" />
-  return <span className="text-sm text-slate-700 text-center block">{value}</span>
+function Cell({
+  value,
+  includedLabel,
+  notIncludedLabel,
+}: {
+  value: string | boolean
+  includedLabel: string
+  notIncludedLabel: string
+}) {
+  if (typeof value === 'boolean') {
+    return (
+      <span className="inline-flex items-center justify-center">
+        {value
+          ? <Check aria-hidden="true" className="size-4 text-emerald-500" />
+          : <Minus aria-hidden="true" className="size-4 text-slate-300" />}
+        <span className="sr-only">{value ? includedLabel : notIncludedLabel}</span>
+      </span>
+    )
+  }
+  return <span className="block text-center text-sm text-slate-700">{value}</span>
 }
 
 function FaqItem({ q, a }: { q: string; a: string }) {
@@ -333,30 +349,44 @@ export default function PricingPage() {
             tabIndex={0}
             className="overflow-x-auto rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <div className="min-w-[720px] overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
-            {/* Header */}
-            <div className="grid grid-cols-4 bg-slate-50 border-b border-border">
-              <div className="p-4 text-xs font-semibold text-muted-foreground" />
-              {(['basic', 'pro', 'enterprise'] as Col[]).map(col => (
-                <div key={col} className={`p-4 text-center text-xs font-bold tracking-wide ${col === 'pro' ? 'text-primary bg-primary/5' : 'text-muted-foreground'}`}>
-                  {col === 'basic' ? t('col_basic') : col === 'pro' ? t('col_pro') : t('col_enterprise')}
-                </div>
-              ))}
-            </div>
-
-            {/* Rows */}
-            {rows.map((row, i) => (
-              <div
-                key={row.label}
-                className={`grid grid-cols-4 border-b border-border last:border-0 ${i % 2 !== 0 ? 'bg-slate-50/50' : ''} ${row.highlight ? 'bg-primary/3' : ''}`}
-              >
-                <div className="p-3.5 px-4 text-sm text-slate-700 font-medium">{row.label}</div>
-                <div className="p-3.5 flex items-center justify-center"><Cell value={row.basic} /></div>
-                <div className="p-3.5 flex items-center justify-center bg-primary/2"><Cell value={row.pro} /></div>
-                <div className="p-3.5 flex items-center justify-center"><Cell value={row.enterprise} /></div>
-              </div>
-            ))}
-            </div>
+            <table className="w-full min-w-[720px] overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+              <thead>
+                <tr className="bg-slate-50">
+                  <th scope="col" className="border-b border-border p-4 text-left text-xs font-semibold text-muted-foreground">
+                    {t('comparison_feature')}
+                  </th>
+                  {(['basic', 'pro', 'enterprise'] as Col[]).map(col => (
+                    <th
+                      key={col}
+                      scope="col"
+                      className={`border-b border-border p-4 text-center text-xs font-bold tracking-wide ${col === 'pro' ? 'bg-primary/5 text-primary' : 'text-muted-foreground'}`}
+                    >
+                      {col === 'basic' ? t('col_basic') : col === 'pro' ? t('col_pro') : t('col_enterprise')}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, i) => {
+                  const borderClass = i === rows.length - 1 ? '' : 'border-b border-border'
+                  const rowClass = row.highlight ? 'bg-primary/3' : i % 2 !== 0 ? 'bg-slate-50/50' : ''
+                  const cellProps = {
+                    includedLabel: t('included'),
+                    notIncludedLabel: t('not_included'),
+                  }
+                  return (
+                    <tr key={row.label} className={rowClass}>
+                      <th scope="row" className={`p-3.5 px-4 text-left text-sm font-medium text-slate-700 ${borderClass}`}>
+                        {row.label}
+                      </th>
+                      <td className={`p-3.5 text-center ${borderClass}`}><Cell value={row.basic} {...cellProps} /></td>
+                      <td className={`bg-primary/2 p-3.5 text-center ${borderClass}`}><Cell value={row.pro} {...cellProps} /></td>
+                      <td className={`p-3.5 text-center ${borderClass}`}><Cell value={row.enterprise} {...cellProps} /></td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         </section>
 

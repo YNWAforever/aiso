@@ -111,4 +111,20 @@ describe('PRODUCT_FACTS', () => {
     expect(source).not.toContain('scale-[1.02]')
   })
 
+
+  it('exposes the pricing comparison as a semantic table', () => {
+    const source = readFileSync(resolve(process.cwd(), 'app/[lang]/pricing/page.tsx'), 'utf8')
+    expect(source).toContain('<table')
+    expect(source).toContain('<thead>')
+    expect(source).toContain('<tbody>')
+    expect(source).toContain('scope="col"')
+    expect(source).toContain('scope="row"')
+    expect(source).toContain('<td')
+    expect(source).toContain('className="sr-only"')
+    expect(enMessages.pricing.included).toBe('Included')
+    expect(enMessages.pricing.not_included).toBe('Not included')
+    expect(zhMessages.pricing.included).toBe('包括')
+    expect(zhMessages.pricing.not_included).toBe('不包括')
+  })
+
 })
