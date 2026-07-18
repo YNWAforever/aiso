@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'node:crypto'
 import { stripe, STRIPE_PRICES } from '@/lib/stripe'
 import { createServiceSupabaseClient } from '@/lib/supabase-server'
 
@@ -6,7 +7,8 @@ export const dynamic = 'force-dynamic'
 
 type Plan = 'basic' | 'pro' | 'enterprise'
 type AccountStatus = 'active' | 'past_due' | 'cancelled' | 'trialing'
-type PersistenceOutcome = 'applied' | 'duplicate' | 'stale' | 'not_found'
+type PersistenceOutcome = 'applied' | 'duplicate' | 'stale' | 'not_found' | 'lease_lost'
+type ServiceSupabaseClient = Awaited<ReturnType<typeof createServiceSupabaseClient>>
 
 type CanonicalSubscription = {
   id: string
@@ -72,6 +74,13 @@ function invalidEvent(message: string) {
   return NextResponse.json({ error: message }, { status: 400 })
 }
 
+function retryableLeaseResponse(message: string) {
+  return NextResponse.json(
+    { error: message },
+    { status: 503, headers: { 'Retry-After': '5' } },
+  )
+}
+
 function getSubscriptionId(eventType: string, object: Record<string, unknown>): string | null {
   if (eventType === 'checkout.session.completed' || eventType === 'invoice.payment_failed') {
     return stripeId(object.subscription)
@@ -80,6 +89,7 @@ function getSubscriptionId(eventType: string, object: Record<string, unknown>): 
 }
 
 async function persistEvent(args: {
+  supabase: ServiceSupabaseClient
   accountId: string | null
   customerId: string
   subscriptionId: string
@@ -88,9 +98,9 @@ async function persistEvent(args: {
   eventCreated: number
   eventId: string
   eventType: string
+  leaseOwner: string
 }) {
-  const supabase = await createServiceSupabaseClient()
-  const { data, error } = await supabase.rpc('apply_stripe_account_event', {
+  const { data, error } = await args.supabase.rpc('apply_stripe_account_event', {
     p_account_id: args.accountId,
     p_subscription_id: args.subscriptionId,
     p_customer_id: args.customerId,
@@ -99,6 +109,7 @@ async function persistEvent(args: {
     p_event_created: args.eventCreated,
     p_event_id: args.eventId,
     p_event_type: args.eventType,
+    p_lease_owner: args.leaseOwner,
   })
 
   if (error) {
@@ -109,6 +120,9 @@ async function persistEvent(args: {
   const outcome = data as PersistenceOutcome
   if (outcome === 'not_found') {
     return NextResponse.json({ error: 'Stripe account linkage is not ready' }, { status: 503 })
+  }
+  if (outcome === 'lease_lost') {
+    return retryableLeaseResponse('Stripe subscription processing lease was lost')
   }
   if (outcome === 'applied' || outcome === 'duplicate' || outcome === 'stale') {
     return null
@@ -160,7 +174,33 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const leaseOwner = randomUUID()
+  let leaseAcquired = false
+  let supabase: ServiceSupabaseClient | null = null
+
   try {
+    supabase = await createServiceSupabaseClient()
+    const { data: acquired, error: acquireError } = await supabase.rpc(
+      'acquire_stripe_subscription_lease',
+      {
+        p_subscription_id: subscriptionId,
+        p_lease_owner: leaseOwner,
+      },
+    )
+
+    if (acquireError) {
+      console.error('[stripe/webhook] lease acquisition failed', acquireError)
+      return NextResponse.json({ error: 'Failed to acquire Stripe processing lease' }, { status: 500 })
+    }
+    if (acquired === false) {
+      return retryableLeaseResponse('Stripe subscription is already being processed')
+    }
+    if (acquired !== true) {
+      console.error('[stripe/webhook] unexpected lease acquisition outcome', acquired)
+      return NextResponse.json({ error: 'Failed to acquire Stripe processing lease' }, { status: 500 })
+    }
+    leaseAcquired = true
+
     const subscription = await stripe.subscriptions.retrieve(subscriptionId) as unknown as CanonicalSubscription
     if (!subscription || subscription.id !== subscriptionId) {
       return invalidEvent('Invalid canonical subscription')
@@ -178,6 +218,7 @@ export async function POST(req: NextRequest) {
     if (!accountState) return invalidEvent('Unsupported subscription status')
 
     const failure = await persistEvent({
+      supabase,
       accountId,
       customerId,
       subscriptionId,
@@ -186,11 +227,29 @@ export async function POST(req: NextRequest) {
       eventCreated: event.created,
       eventId: event.id,
       eventType: event.type,
+      leaseOwner,
     })
     if (failure) return failure
   } catch (error) {
     console.error('[stripe/webhook] processing failed', error)
     return NextResponse.json({ error: 'Failed to process Stripe event' }, { status: 500 })
+  } finally {
+    if (leaseAcquired && supabase) {
+      try {
+        const { error: releaseError } = await supabase.rpc(
+          'release_stripe_subscription_lease',
+          {
+            p_subscription_id: subscriptionId,
+            p_lease_owner: leaseOwner,
+          },
+        )
+        if (releaseError) {
+          console.error('[stripe/webhook] lease release failed', releaseError)
+        }
+      } catch (releaseError) {
+        console.error('[stripe/webhook] lease release failed', releaseError)
+      }
+    }
   }
 
   return NextResponse.json({ ok: true })

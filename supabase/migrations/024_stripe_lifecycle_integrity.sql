@@ -19,6 +19,100 @@ alter table public.stripe_webhook_events enable row level security;
 revoke all on table public.stripe_webhook_events from public, anon, authenticated;
 grant select, insert on table public.stripe_webhook_events to service_role;
 
+-- Serialize canonical Stripe reads and persistence without holding a database
+-- transaction open across the Stripe network request. Expiry allows recovery if
+-- a handler crashes before its best-effort release.
+create table if not exists public.stripe_subscription_processing_leases (
+  subscription_id text primary key check (btrim(subscription_id) <> ''),
+  lease_owner uuid not null,
+  lease_expires_at timestamptz not null
+);
+
+alter table public.stripe_subscription_processing_leases enable row level security;
+revoke all on table public.stripe_subscription_processing_leases from public, anon, authenticated;
+grant select, insert, update, delete
+  on table public.stripe_subscription_processing_leases
+  to service_role;
+
+create or replace function public.acquire_stripe_subscription_lease(
+  p_subscription_id text,
+  p_lease_owner uuid
+)
+returns boolean
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_acquired integer;
+begin
+  if p_subscription_id is null or btrim(p_subscription_id) = '' then
+    raise exception 'subscription id is required';
+  end if;
+  if p_lease_owner is null then
+    raise exception 'lease owner is required';
+  end if;
+
+  insert into public.stripe_subscription_processing_leases (
+    subscription_id,
+    lease_owner,
+    lease_expires_at
+  )
+  values (
+    p_subscription_id,
+    p_lease_owner,
+    clock_timestamp() + interval '300 seconds'
+  )
+  on conflict (subscription_id) do update
+    set lease_owner = excluded.lease_owner,
+        lease_expires_at = excluded.lease_expires_at
+    where public.stripe_subscription_processing_leases.lease_expires_at <= clock_timestamp();
+
+  get diagnostics v_acquired = row_count;
+  return v_acquired = 1;
+end;
+$$;
+
+create or replace function public.release_stripe_subscription_lease(
+  p_subscription_id text,
+  p_lease_owner uuid
+)
+returns boolean
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if p_subscription_id is null or btrim(p_subscription_id) = '' then
+    raise exception 'subscription id is required';
+  end if;
+  if p_lease_owner is null then
+    raise exception 'lease owner is required';
+  end if;
+
+  delete from public.stripe_subscription_processing_leases
+    where subscription_id = p_subscription_id
+      and lease_owner = p_lease_owner;
+
+  return found;
+end;
+$$;
+
+revoke all on function public.acquire_stripe_subscription_lease(text, uuid)
+  from public, anon, authenticated;
+grant execute on function public.acquire_stripe_subscription_lease(text, uuid)
+  to service_role;
+revoke all on function public.release_stripe_subscription_lease(text, uuid)
+  from public, anon, authenticated;
+grant execute on function public.release_stripe_subscription_lease(text, uuid)
+  to service_role;
+
+-- CREATE OR REPLACE with a new argument list creates an overload. Remove the
+-- unfenced legacy signature so every caller must prove current lease ownership.
+drop function if exists public.apply_stripe_account_event(
+  uuid, text, text, text, text, bigint, text, text
+);
+
 create or replace function public.apply_stripe_account_event(
   p_account_id uuid,
   p_subscription_id text,
@@ -27,7 +121,8 @@ create or replace function public.apply_stripe_account_event(
   p_status text,
   p_event_created bigint,
   p_event_id text,
-  p_event_type text
+  p_event_type text,
+  p_lease_owner uuid
 )
 returns text
 language plpgsql
@@ -59,6 +154,23 @@ begin
   end if;
   if p_event_type is null or btrim(p_event_type) = '' then
     raise exception 'event type is required';
+  end if;
+  if p_lease_owner is null then
+    raise exception 'lease owner is required';
+  end if;
+
+  -- Lock and validate the lease in this transaction before touching the event
+  -- ledger or account. An expired lease can be stolen, but its former owner can
+  -- never persist after the takeover.
+  perform 1
+    from public.stripe_subscription_processing_leases
+    where subscription_id = p_subscription_id
+      and lease_owner = p_lease_owner
+      and lease_expires_at > clock_timestamp()
+    for update;
+
+  if not found then
+    return 'lease_lost';
   end if;
 
   if p_account_id is not null then
@@ -103,8 +215,8 @@ begin
     return 'stale';
   end if;
 
-  -- Equal-second events are safe because the handler retrieves canonical Stripe state.
-  -- Event IDs are identity keys only; their lexical order is never treated as chronology.
+  -- The processing lease serializes canonical reads through this update, including
+  -- equal-second events. Event IDs remain identity keys, never chronology.
   update public.accounts
     set stripe_customer_id = p_customer_id,
         stripe_subscription_id = p_subscription_id,
@@ -123,8 +235,8 @@ end;
 $$;
 
 revoke all on function public.apply_stripe_account_event(
-  uuid, text, text, text, text, bigint, text, text
+  uuid, text, text, text, text, bigint, text, text, uuid
 ) from public, anon, authenticated;
 grant execute on function public.apply_stripe_account_event(
-  uuid, text, text, text, text, bigint, text, text
+  uuid, text, text, text, text, bigint, text, text, uuid
 ) to service_role;

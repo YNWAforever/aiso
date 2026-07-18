@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   constructEvent: vi.fn(),
   retrieveSubscription: vi.fn(),
   rpc: vi.fn(),
-  rpcCalls: [] as Array<Record<string, unknown>>,
+  rpcCalls: [] as Array<{ name: string; args: Record<string, unknown> }>,
 }))
 
 vi.mock('@/lib/supabase-server', () => ({
@@ -59,13 +59,23 @@ async function postWebhook(event: object) {
   }))
 }
 
+function applyRpcArgs() {
+  return mocks.rpcCalls.find(call => call.name === 'apply_stripe_account_event')?.args
+}
+
 describe('POST /api/stripe/webhook full lifecycle flow', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.rpcCalls.length = 0
     mocks.retrieveSubscription.mockResolvedValue(subscription())
-    mocks.rpc.mockImplementation(async (_name: string, args: Record<string, unknown>) => {
-      mocks.rpcCalls.push(args)
+    mocks.rpc.mockImplementation(async (name: string, args: Record<string, unknown>) => {
+      mocks.rpcCalls.push({ name, args })
+      if (name === 'acquire_stripe_subscription_lease') {
+        return { data: true, error: null }
+      }
+      if (name === 'release_stripe_subscription_lease') {
+        return { data: true, error: null }
+      }
       return { data: 'applied', error: null }
     })
   })
@@ -95,13 +105,14 @@ describe('POST /api/stripe/webhook full lifecycle flow', () => {
 
     expect(response.status).toBe(200)
     expect(mocks.retrieveSubscription).toHaveBeenCalledWith('sub_xyz')
-    expect(mocks.rpcCalls).toEqual([expect.objectContaining({
+    expect(applyRpcArgs()).toEqual(expect.objectContaining({
       p_account_id: 'acc-123',
       p_customer_id: 'cus_abc',
       p_subscription_id: 'sub_xyz',
       p_plan: 'pro',
       p_status: 'active',
-    })])
+      p_lease_owner: expect.any(String),
+    }))
   })
 
   it('rejects checkout metadata without an account link', async () => {
@@ -126,7 +137,7 @@ describe('POST /api/stripe/webhook full lifecycle flow', () => {
     }))
 
     expect(response.status).toBe(200)
-    expect(mocks.rpcCalls[0]).toMatchObject({ p_plan: 'enterprise', p_status: 'active' })
+    expect(applyRpcArgs()).toMatchObject({ p_plan: 'enterprise', p_status: 'active' })
   })
 
   it('maps a deleted canonical subscription to Basic/cancelled', async () => {
@@ -137,7 +148,7 @@ describe('POST /api/stripe/webhook full lifecycle flow', () => {
     }))
 
     expect(response.status).toBe(200)
-    expect(mocks.rpcCalls[0]).toMatchObject({ p_plan: 'basic', p_status: 'cancelled' })
+    expect(applyRpcArgs()).toMatchObject({ p_plan: 'basic', p_status: 'cancelled' })
   })
 
   it('maps invoice failure through canonical past_due state', async () => {
@@ -148,7 +159,7 @@ describe('POST /api/stripe/webhook full lifecycle flow', () => {
     }))
 
     expect(response.status).toBe(200)
-    expect(mocks.rpcCalls[0]).toMatchObject({ p_plan: 'pro', p_status: 'past_due' })
+    expect(applyRpcArgs()).toMatchObject({ p_plan: 'pro', p_status: 'past_due' })
   })
 
   it('returns 200 without persistence for unknown event types', async () => {
@@ -172,6 +183,6 @@ describe('POST /api/stripe/webhook full lifecycle flow', () => {
     }))
 
     expect(response.status).toBe(400)
-    expect(mocks.rpc).not.toHaveBeenCalled()
+    expect(applyRpcArgs()).toBeUndefined()
   })
 })
