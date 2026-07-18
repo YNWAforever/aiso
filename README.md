@@ -45,6 +45,7 @@ The endpoint fails closed when either invariant is missing.
 Before releasing public scans:
 
 - Apply `supabase/migrations/023_public_scan_rate_limits.sql` to the production database.
+- Apply `supabase/migrations/024_stripe_lifecycle_integrity.sql` before enabling Stripe webhooks.
 - Configure the server-only `PUBLIC_SCAN_RATE_LIMIT_SECRET` with at least 32 random characters.
   Do not expose it through a `NEXT_PUBLIC_` variable or commit its value.
 
