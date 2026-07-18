@@ -88,6 +88,18 @@ describe('PRODUCT_FACTS', () => {
     expect(zhMessages.pricing.free_account_body).toContain('無需信用卡')
   })
 
+  it('keeps Basic and free-account scan allowances consistent in both locales', () => {
+    expect(enMessages.pricing.row_scans_s).toBe('3')
+    expect(enMessages.pricing.faq_1_a).toContain(
+      'Basic includes 3 scans per calendar month',
+    )
+    expect(enMessages.pricing.faq_4_a).toMatch(/saves your first scan/i)
+
+    expect(zhMessages.pricing.row_scans_s).toBe('3 次')
+    expect(zhMessages.pricing.faq_1_a).toContain('基本版每個月包括 3 次掃描')
+    expect(zhMessages.pricing.faq_4_a).toContain('首次掃描')
+  })
+
   it('uses the core Fix Pack outputs in the public promise', () => {
     const englishCopy = enMessages.home.cta_bottom_body + ' ' + enMessages.pricing.bottom_body
     const chineseCopy = zhMessages.home.cta_bottom_body + ' ' + zhMessages.pricing.bottom_body

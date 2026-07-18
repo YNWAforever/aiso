@@ -390,7 +390,7 @@
     "row_support": "Dedicated success manager",
     "faq_title": "Frequently Asked Questions",
     "faq_1_q": "What counts as one scan?",
-    "faq_1_a": "One scan = one URL analysed. Each scan runs all 20 AISO checks, scores your site from 0–100, assigns an A+→F grade, and generates a Fix Pack. Starter plans include 3 scans per calendar month; Pro and Enterprise are unlimited.",
+    "faq_1_a": "One scan = one URL analysed. Each scan runs all 20 AISO checks, scores your site from 0–100, assigns an A+→F grade, and generates a Fix Pack. Basic includes 3 scans per calendar month; Pro and Enterprise are unlimited.",
     "faq_2_q": "What is AI Pulse?",
     "faq_2_a": "AI Pulse is your weekly share-of-voice tracker. We automatically send questions related to your brand to ChatGPT, Google AI, Perplexity, Claude, and Gemini, then record whether your brand was mentioned, cited, or beaten by a competitor.",
     "faq_3_q": "Can I change plans at any time?",
