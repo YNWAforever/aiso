@@ -115,6 +115,18 @@ describe('authenticated scan commercial entitlement', () => {
     fetchMock.mockClear()
   })
 
+  it('fails closed when authentication lookup fails before choosing a limiter', async () => {
+    getProfile.mockRejectedValueOnce(new Error('Neon Auth unavailable'))
+
+    const response = await scan()
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toMatchObject({ error: 'Authentication service unavailable' })
+    expect(consumePublicScanRateLimit).not.toHaveBeenCalled()
+    expect(consumeAuthenticatedScanQuota).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('rejects a free authenticated account before network work', async () => {
     state.profile = {
       account_id: 'account-free',

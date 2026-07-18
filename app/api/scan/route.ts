@@ -77,6 +77,9 @@ export async function POST(req: NextRequest) {
     profileLookupFailed = true
     console.error('[scan] authentication lookup failed:', (error as Error)?.message ?? String(error))
   }
+  if (profileLookupFailed) {
+    return NextResponse.json({ error: 'Authentication service unavailable' }, { status: 503 })
+  }
 
   type OwnedClient = {
     id: string
@@ -88,9 +91,6 @@ export async function POST(req: NextRequest) {
   if (requestedClientId !== undefined && requestedClientId !== null && requestedClientId !== '') {
     if (typeof requestedClientId !== 'string') {
       return NextResponse.json({ error: 'Invalid clientId' }, { status: 400 })
-    }
-    if (profileLookupFailed) {
-      return NextResponse.json({ error: 'Authentication service unavailable' }, { status: 503 })
     }
     if (!profile) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
