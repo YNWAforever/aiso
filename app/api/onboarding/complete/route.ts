@@ -46,11 +46,18 @@ export async function POST(req: NextRequest) {
       : new Date(new Date(account.trial_started_at!).getTime() + 7 * 24 * 60 * 60 * 1000)
     : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
-  if (!trialAlreadyStarted) {
-    const { data: updatedAccount, error: trialUpdateError } = await supabase.from('accounts').update({
-      trial_started_at: now.toISOString(),
-      trial_ends_at: trialEndsAt.toISOString(),
-    }).eq('id', accountId).select('id').maybeSingle()
+  const trialUpdate = !trialAlreadyStarted
+    ? {
+        trial_started_at: now.toISOString(),
+        trial_ends_at: trialEndsAt.toISOString(),
+      }
+    : account.trial_ends_at
+      ? null
+      : { trial_ends_at: trialEndsAt.toISOString() }
+
+  if (trialUpdate) {
+    const { data: updatedAccount, error: trialUpdateError } = await supabase.from('accounts')
+      .update(trialUpdate).eq('id', accountId).select('id').maybeSingle()
     if (trialUpdateError || !updatedAccount) {
       return NextResponse.json({ error: 'Failed to start trial' }, { status: 500 })
     }

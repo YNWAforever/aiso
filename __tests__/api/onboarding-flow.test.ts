@@ -19,6 +19,7 @@ let scanResults: Array<{ data: { id: string; account_id: string | null } | null;
 let tableCalls: string[] = []
 let scanUpdates: Array<Record<string, unknown>> = []
 let scanNullGuards: Array<[string, unknown]> = []
+let accountUpdates: Array<Record<string, unknown>> = []
 let accountLookupError: { message: string } | null = null
 let accountUpdateError: { message: string } | null = null
 let clientLookupError: { message: string } | null = null
@@ -70,6 +71,7 @@ describe('POST /api/onboarding/complete', () => {
     tableCalls = []
     scanUpdates = []
     scanNullGuards = []
+    accountUpdates = []
     accountLookupError = null
     accountUpdateError = null
     clientLookupError = null
@@ -89,6 +91,7 @@ describe('POST /api/onboarding/complete', () => {
       query.update = vi.fn((value: Record<string, unknown>) => {
         updated = true
         if (table === 'scans') scanUpdates.push(value)
+        if (table === 'accounts') accountUpdates.push(value)
         return query
       })
       query.eq = vi.fn(() => query)
@@ -260,6 +263,26 @@ describe('POST /api/onboarding/complete', () => {
     const res = await POST(req)
     expect(res.status).toBe(200)
     expect((await res.json()).trialEndsAt).toBe(trialEndsAt)
+    expect(accountUpdates).toEqual([])
+  })
+
+  it('repairs a missing stored trial expiry without resetting the start date', async () => {
+    trialStartedAt = '2026-07-01T00:00:00.000Z'
+    trialEndsAt = null
+    clientsInDb = [{ id: 'client-existing' }]
+    const expectedTrialEndsAt = '2026-07-08T00:00:00.000Z'
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const req = new NextRequest('http://localhost/api/onboarding/complete', {
+      method: 'POST',
+      body: JSON.stringify({ brandName: 'TestBrand' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const res = await POST(req)
+
+    expect(res.status).toBe(200)
+    expect((await res.json()).trialEndsAt).toBe(expectedTrialEndsAt)
+    expect(accountUpdates).toEqual([{ trial_ends_at: expectedTrialEndsAt }])
   })
 
   it('accepts description and competitors without error', async () => {
