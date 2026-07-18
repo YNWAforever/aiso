@@ -1,9 +1,10 @@
+import type { PublicUrlFetch } from '@/lib/security/public-url'
 import type { CheckResult } from '@/lib/types'
 
-export async function checkLlmsTxt(baseUrl: string): Promise<CheckResult> {
+export async function checkLlmsTxt(baseUrl: string, fetcher: PublicUrlFetch = fetch): Promise<CheckResult> {
   const url = new URL('/llms.txt', baseUrl).toString()
   try {
-    const res = await fetch(url, {
+    const res = await fetcher(url, {
       signal: AbortSignal.timeout(8000),
       headers: { 'User-Agent': 'Fimmick-AEO/1.0' },
     })

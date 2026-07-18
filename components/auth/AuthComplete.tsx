@@ -18,7 +18,7 @@ const COPY_ZH_HK: typeof COPY_EN = {
 // Only allow same-origin relative paths — `next` comes from the URL and must
 // not become an open redirect.
 function safeNext(next: string | undefined, lang: string) {
-  if (next && next.startsWith('/') && !next.startsWith('//')) return next
+  if (next && next.startsWith(`/${lang}/`) && !next.startsWith('//')) return next
   return `/${lang}/dashboard`
 }
 

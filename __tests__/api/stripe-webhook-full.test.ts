@@ -1,276 +1,188 @@
-/**
- * TDD: Stripe webhook — full event flow
- * Tests checkout.session.completed, subscription.updated, subscription.deleted,
- * invoice.payment_failed, and signature verification
- */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
-// ── Env setup ──────────────────────────────────────────────────
-process.env.STRIPE_WEBHOOK_SECRET  = 'whsec_test'
-process.env.STRIPE_PRICE_PRO       = 'price_pro_test'
-process.env.STRIPE_PRICE_BASIC     = 'price_basic_test'
-process.env.STRIPE_PRICE_ENTERPRISE = 'price_enterprise_test'
-
-// ── DB state tracking ──────────────────────────────────────────
-let upsertCalls: unknown[] = []
-let updateCalls: { data: unknown; filter: unknown }[] = []
-
-const supabaseMock = {
-  from: vi.fn().mockReturnValue({
-    upsert: vi.fn().mockImplementation((data: unknown) => {
-      upsertCalls.push(data)
-      return Promise.resolve({ error: null })
-    }),
-    update: vi.fn().mockImplementation((data: unknown) => ({
-      eq: vi.fn().mockImplementation((col: unknown, val: unknown) => {
-        updateCalls.push({ data, filter: { [String(col)]: val } })
-        return Promise.resolve({ error: null })
-      }),
-    })),
-  }),
-}
-
-vi.mock('@/lib/supabase-server', () => ({
-  createServiceSupabaseClient: vi.fn().mockResolvedValue(supabaseMock),
+const mocks = vi.hoisted(() => ({
+  constructEvent: vi.fn(),
+  retrieveSubscription: vi.fn(),
+  rpc: vi.fn(),
+  rpcCalls: [] as Array<{ name: string; args: Record<string, unknown> }>,
 }))
 
-// ── Stripe mock ────────────────────────────────────────────────
-// constructEvent verifies signature — we mock it to return our test events
+vi.mock('@/lib/supabase-server', () => ({
+  createServiceSupabaseClient: vi.fn().mockResolvedValue({
+    rpc: mocks.rpc,
+  }),
+}))
+
 vi.mock('@/lib/stripe', () => ({
   stripe: {
-    webhooks: {
-      constructEvent: vi.fn(),
-    },
+    subscriptions: { retrieve: mocks.retrieveSubscription },
+    webhooks: { constructEvent: mocks.constructEvent },
+  },
+  STRIPE_PRICES: {
+    basic: 'price_basic_test',
+    pro: 'price_pro_test',
+    enterprise: 'price_enterprise_test',
   },
 }))
 
-// ── Helpers ────────────────────────────────────────────────────
-async function postWebhook(event: object) {
-  const { POST } = await import('@/app/api/stripe/webhook/route')
-  const req = new NextRequest('http://localhost/api/stripe/webhook', {
-    method: 'POST',
-    body: JSON.stringify(event),
-    headers: {
-      'Content-Type': 'application/json',
-      'stripe-signature': 'valid-sig',
-    },
-  })
-  return POST(req)
+function subscription({
+  id = 'sub_xyz',
+  customer = 'cus_abc',
+  price = 'price_pro_test',
+  status = 'active',
+} = {}) {
+  return {
+    id,
+    customer,
+    status,
+    items: { data: [{ price: { id: price } }] },
+  }
 }
 
-// ── Tests ──────────────────────────────────────────────────────
-describe('POST /api/stripe/webhook — signature verification', () => {
+function lifecycleEvent(type: string, object: Record<string, unknown>) {
+  return {
+    id: `evt_${type.replaceAll('.', '_')}`,
+    created: 100,
+    type,
+    data: { object },
+  }
+}
+
+async function postWebhook(event: object) {
+  const { POST } = await import('@/app/api/stripe/webhook/route')
+  mocks.constructEvent.mockReturnValueOnce(event)
+  return POST(new NextRequest('http://localhost/api/stripe/webhook', {
+    method: 'POST',
+    body: '{}',
+    headers: { 'stripe-signature': 'valid-sig' },
+  }))
+}
+
+function applyRpcArgs() {
+  return mocks.rpcCalls.find(call => call.name === 'apply_stripe_account_event')?.args
+}
+
+describe('POST /api/stripe/webhook full lifecycle flow', () => {
   beforeEach(() => {
-    upsertCalls = []
-    updateCalls = []
-    supabaseMock.from.mockReturnValue({
-      upsert: vi.fn().mockImplementation((data: unknown) => { upsertCalls.push(data); return Promise.resolve({ error: null }) }),
-      update: vi.fn().mockImplementation((data: unknown) => ({
-        eq: vi.fn().mockImplementation((col: unknown, val: unknown) => {
-          updateCalls.push({ data, filter: { [String(col)]: val } })
-          return Promise.resolve({ error: null })
-        }),
-      })),
+    vi.clearAllMocks()
+    mocks.rpcCalls.length = 0
+    mocks.retrieveSubscription.mockResolvedValue(subscription())
+    mocks.rpc.mockImplementation(async (name: string, args: Record<string, unknown>) => {
+      mocks.rpcCalls.push({ name, args })
+      if (name === 'acquire_stripe_subscription_lease') {
+        return { data: true, error: null }
+      }
+      if (name === 'release_stripe_subscription_lease') {
+        return { data: true, error: null }
+      }
+      return { data: 'applied', error: null }
     })
   })
 
-  it('returns 400 when stripe signature is invalid', async () => {
-    const { stripe } = await import('@/lib/stripe')
-    vi.mocked(stripe.webhooks.constructEvent).mockImplementationOnce(() => {
+  it('returns 400 when the Stripe signature is invalid', async () => {
+    const { POST } = await import('@/app/api/stripe/webhook/route')
+    mocks.constructEvent.mockImplementationOnce(() => {
       throw new Error('Invalid signature')
     })
-    const res = await postWebhook({ type: 'checkout.session.completed' })
-    expect(res.status).toBe(400)
-    const json = await res.json()
-    expect(json.error).toMatch(/signature/i)
-  })
-})
 
-describe('POST /api/stripe/webhook — checkout.session.completed', () => {
-  beforeEach(() => {
-    upsertCalls = []
-    updateCalls = []
-    supabaseMock.from.mockReturnValue({
-      upsert: vi.fn().mockImplementation((data: unknown) => { upsertCalls.push(data); return Promise.resolve({ error: null }) }),
-      update: vi.fn().mockImplementation((data: unknown) => ({
-        eq: vi.fn().mockImplementation((col: unknown, val: unknown) => {
-          updateCalls.push({ data, filter: { [String(col)]: val } })
-          return Promise.resolve({ error: null })
-        }),
-      })),
-    })
+    const response = await POST(new NextRequest('http://localhost/api/stripe/webhook', {
+      method: 'POST',
+      body: '{}',
+      headers: { 'stripe-signature': 'invalid-sig' },
+    }))
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({ error: expect.stringMatching(/signature/i) })
   })
 
-  it('upserts account with pro plan on checkout.session.completed', async () => {
-    const { stripe } = await import('@/lib/stripe')
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValueOnce({
-      type: 'checkout.session.completed',
-      data: {
-        object: {
-          metadata:     { account_id: 'acc-123' },
-          customer:     'cus_abc',
-          subscription: 'sub_xyz',
-        },
-      },
-    } as never)
-    const res = await postWebhook({})
-    expect(res.status).toBe(200)
-    expect(upsertCalls.length).toBeGreaterThan(0)
-    const upserted = upsertCalls[0] as Record<string, unknown>
-    expect(upserted).toMatchObject({
-      id:                    'acc-123',
-      stripe_customer_id:    'cus_abc',
-      stripe_subscription_id:'sub_xyz',
-      plan:                  'pro',
-      status:                'active',
-    })
+  it('links checkout to the account using canonical subscription state', async () => {
+    const response = await postWebhook(lifecycleEvent('checkout.session.completed', {
+      metadata: { account_id: 'acc-123', plan: 'basic' },
+      customer: 'cus_abc',
+      subscription: 'sub_xyz',
+    }))
+
+    expect(response.status).toBe(200)
+    expect(mocks.retrieveSubscription).toHaveBeenCalledWith('sub_xyz')
+    expect(applyRpcArgs()).toEqual(expect.objectContaining({
+      p_account_id: 'acc-123',
+      p_customer_id: 'cus_abc',
+      p_subscription_id: 'sub_xyz',
+      p_plan: 'pro',
+      p_status: 'active',
+      p_lease_owner: expect.any(String),
+    }))
   })
 
-  it('returns 200 and skips upsert when metadata has no account_id', async () => {
-    const { stripe } = await import('@/lib/stripe')
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValueOnce({
-      type: 'checkout.session.completed',
-      data: { object: { metadata: {}, customer: 'cus_abc', subscription: 'sub_xyz' } },
-    } as never)
-    const res = await postWebhook({})
-    expect(res.status).toBe(200)
-    expect(upsertCalls.length).toBe(0) // no upsert without account_id
-  })
-})
+  it('rejects checkout metadata without an account link', async () => {
+    const response = await postWebhook(lifecycleEvent('checkout.session.completed', {
+      metadata: {},
+      customer: 'cus_abc',
+      subscription: 'sub_xyz',
+    }))
 
-describe('POST /api/stripe/webhook — subscription events', () => {
-  beforeEach(() => {
-    upsertCalls = []
-    updateCalls = []
-    supabaseMock.from.mockReturnValue({
-      upsert: vi.fn().mockImplementation((data: unknown) => { upsertCalls.push(data); return Promise.resolve({ error: null }) }),
-      update: vi.fn().mockImplementation((data: unknown) => ({
-        eq: vi.fn().mockImplementation((col: unknown, val: unknown) => {
-          updateCalls.push({ data, filter: { [String(col)]: val } })
-          return Promise.resolve({ error: null })
-        }),
-      })),
-    })
+    expect(response.status).toBe(400)
+    expect(mocks.retrieveSubscription).not.toHaveBeenCalled()
+    expect(mocks.rpc).not.toHaveBeenCalled()
   })
 
-  it('updates plan to pro on subscription.updated with pro price', async () => {
-    const { stripe } = await import('@/lib/stripe')
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValueOnce({
-      type: 'customer.subscription.updated',
-      data: {
-        object: {
-          id:     'sub_xyz',
-          status: 'active',
-          items:  { data: [{ price: { id: 'price_pro_test' } }] },
-        },
-      },
-    } as never)
-    const res = await postWebhook({})
-    expect(res.status).toBe(200)
-    expect(updateCalls.length).toBeGreaterThan(0)
-    const update = updateCalls[0]!.data as Record<string, unknown>
-    expect(update.plan).toBe('pro')
-    expect(update.status).toBe('active')
+  it('applies an updated canonical Enterprise subscription', async () => {
+    mocks.retrieveSubscription.mockResolvedValue(subscription({ price: 'price_enterprise_test' }))
+
+    const response = await postWebhook(lifecycleEvent('customer.subscription.updated', {
+      id: 'sub_xyz',
+      status: 'active',
+      items: { data: [{ price: { id: 'price_basic_test' } }] },
+    }))
+
+    expect(response.status).toBe(200)
+    expect(applyRpcArgs()).toMatchObject({ p_plan: 'enterprise', p_status: 'active' })
   })
 
-  it('updates plan to enterprise on subscription.updated with enterprise price', async () => {
-    const { stripe } = await import('@/lib/stripe')
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValueOnce({
-      type: 'customer.subscription.updated',
-      data: {
-        object: {
-          id:     'sub_xyz',
-          status: 'active',
-          items:  { data: [{ price: { id: 'price_enterprise_test' } }] },
-        },
-      },
-    } as never)
-    const res = await postWebhook({})
-    const update = updateCalls[0]!.data as Record<string, unknown>
-    expect(update.plan).toBe('enterprise')
+  it('maps a deleted canonical subscription to Basic/cancelled', async () => {
+    mocks.retrieveSubscription.mockResolvedValue(subscription({ status: 'canceled' }))
+
+    const response = await postWebhook(lifecycleEvent('customer.subscription.deleted', {
+      id: 'sub_xyz',
+    }))
+
+    expect(response.status).toBe(200)
+    expect(applyRpcArgs()).toMatchObject({ p_plan: 'basic', p_status: 'cancelled' })
   })
 
-  it('sets plan to basic and status to cancelled on subscription.deleted', async () => {
-    const { stripe } = await import('@/lib/stripe')
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValueOnce({
-      type: 'customer.subscription.deleted',
-      data: { object: { id: 'sub_xyz' } },
-    } as never)
-    const res = await postWebhook({})
-    expect(res.status).toBe(200)
-    expect(updateCalls.length).toBeGreaterThan(0)
-    const update = updateCalls[0]!.data as Record<string, unknown>
-    expect(update.plan).toBe('basic')
-    expect(update.status).toBe('cancelled')
+  it('maps invoice failure through canonical past_due state', async () => {
+    mocks.retrieveSubscription.mockResolvedValue(subscription({ status: 'past_due' }))
+
+    const response = await postWebhook(lifecycleEvent('invoice.payment_failed', {
+      subscription: 'sub_xyz',
+    }))
+
+    expect(response.status).toBe(200)
+    expect(applyRpcArgs()).toMatchObject({ p_plan: 'pro', p_status: 'past_due' })
   })
 
-  it('sets status to past_due on invoice.payment_failed', async () => {
-    const { stripe } = await import('@/lib/stripe')
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValueOnce({
-      type: 'invoice.payment_failed',
-      data: { object: { subscription: 'sub_xyz' } },
-    } as never)
-    const res = await postWebhook({})
-    expect(res.status).toBe(200)
-    // Should update status to past_due
-    const update = updateCalls[0]?.data as Record<string, unknown> | undefined
-    if (update) expect(update.status).toBe('past_due')
-  })
-
-  it('returns 200 for unknown event types (idempotent)', async () => {
-    const { stripe } = await import('@/lib/stripe')
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValueOnce({
+  it('returns 200 without persistence for unknown event types', async () => {
+    const response = await postWebhook({
+      id: 'evt_unknown',
+      created: 100,
       type: 'some.unknown.event',
       data: { object: {} },
-    } as never)
-    const res = await postWebhook({})
-    expect(res.status).toBe(200)
-  })
-})
-
-describe('getPlan — price ID to plan mapping', () => {
-  beforeEach(() => {
-    upsertCalls = []
-    updateCalls = []
-    supabaseMock.from.mockReturnValue({
-      upsert: vi.fn().mockImplementation((data: unknown) => { upsertCalls.push(data); return Promise.resolve({ error: null }) }),
-      update: vi.fn().mockImplementation((data: unknown) => ({
-        eq: vi.fn().mockImplementation((col: unknown, val: unknown) => {
-          updateCalls.push({ data, filter: { [String(col)]: val } })
-          return Promise.resolve({ error: null })
-        }),
-      })),
     })
+
+    expect(response.status).toBe(200)
+    expect(mocks.retrieveSubscription).not.toHaveBeenCalled()
+    expect(mocks.rpc).not.toHaveBeenCalled()
   })
 
-  it('maps price_pro to pro', async () => {
-    const { stripe } = await import('@/lib/stripe')
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValueOnce({
-      type: 'customer.subscription.updated',
-      data: { object: { id: 'sub', status: 'active', items: { data: [{ price: { id: 'price_pro_test' } }] } } },
-    } as never)
-    await postWebhook({})
-    expect((updateCalls[0]?.data as Record<string, unknown>).plan).toBe('pro')
-  })
+  it('rejects an unrecognized canonical price without changing entitlement', async () => {
+    mocks.retrieveSubscription.mockResolvedValue(subscription({ price: 'price_unknown' }))
 
-  it('maps price_basic to basic', async () => {
-    const { stripe } = await import('@/lib/stripe')
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValueOnce({
-      type: 'customer.subscription.updated',
-      data: { object: { id: 'sub', status: 'active', items: { data: [{ price: { id: 'price_basic_test' } }] } } },
-    } as never)
-    await postWebhook({})
-    expect((updateCalls[0]?.data as Record<string, unknown>).plan).toBe('basic')
-  })
+    const response = await postWebhook(lifecycleEvent('customer.subscription.updated', {
+      id: 'sub_xyz',
+    }))
 
-  it('defaults to basic for unrecognised price ID', async () => {
-    const { stripe } = await import('@/lib/stripe')
-    vi.mocked(stripe.webhooks.constructEvent).mockReturnValueOnce({
-      type: 'customer.subscription.updated',
-      data: { object: { id: 'sub', status: 'active', items: { data: [{ price: { id: 'price_unknown' } }] } } },
-    } as never)
-    await postWebhook({})
-    expect((updateCalls[0]?.data as Record<string, unknown>).plan).toBe('basic')
+    expect(response.status).toBe(400)
+    expect(applyRpcArgs()).toBeUndefined()
   })
 })

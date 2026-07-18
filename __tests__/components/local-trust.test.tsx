@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentCompetitor, LocalTrustAction, LocalTrustBucketScore, LocalTrustProfile, LocalTrustSnapshot } from '@/lib/types'
+import { getPlanFeatures } from '@/lib/tier'
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -348,7 +349,7 @@ describe('Local Trust read-only UI components', () => {
         <LocalTrustStep
           lang="zh-HK"
           clientId="client-1"
-          plan="pro"
+          features={getPlanFeatures('pro')}
           profile={null}
           snapshot={snapshot}
           actions={actions}
@@ -374,7 +375,7 @@ describe('Local Trust read-only UI components', () => {
         <LocalTrustStep
           lang="en"
           clientId="client-1"
-          plan="pro"
+          features={getPlanFeatures('pro')}
           profile={null}
           snapshot={snapshot}
           actions={actions}
@@ -395,7 +396,7 @@ describe('Local Trust read-only UI components', () => {
         <LocalTrustStep
           lang="zh-HK"
           clientId="client-1"
-          plan="enterprise"
+          features={getPlanFeatures('enterprise')}
           profile={null}
           snapshot={snapshot}
           actions={actions}
@@ -408,7 +409,7 @@ describe('Local Trust read-only UI components', () => {
         <LocalTrustStep
           lang="en"
           clientId="client-1"
-          plan="pro"
+          features={getPlanFeatures('pro')}
           profile={null}
           snapshot={snapshot}
           actions={actions}
@@ -444,7 +445,7 @@ describe('Local Trust read-only UI components', () => {
         <LocalTrustStep
           lang="en"
           clientId="client-1"
-          plan="pro"
+          features={getPlanFeatures('pro')}
           profile={profile}
           snapshot={null}
           actions={[]}

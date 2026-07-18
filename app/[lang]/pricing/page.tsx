@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -17,42 +17,54 @@ interface FeatureRow {
 }
 
 /* ── Small helpers ──────────────────────────────────────────── */
-function Cell({ value }: { value: string | boolean }) {
-  if (value === true)  return <Check className="size-4 text-emerald-500 mx-auto" />
-  if (value === false) return <Minus className="size-4 text-slate-300 mx-auto" />
-  return <span className="text-sm text-slate-700 text-center block">{value}</span>
+function Cell({
+  value,
+  includedLabel,
+  notIncludedLabel,
+}: {
+  value: string | boolean
+  includedLabel: string
+  notIncludedLabel: string
+}) {
+  if (typeof value === 'boolean') {
+    return (
+      <span className="inline-flex items-center justify-center">
+        {value
+          ? <Check aria-hidden="true" className="size-4 text-emerald-500" />
+          : <Minus aria-hidden="true" className="size-4 text-slate-300" />}
+        <span className="sr-only">{value ? includedLabel : notIncludedLabel}</span>
+      </span>
+    )
+  }
+  return <span className="block text-center text-sm text-slate-700">{value}</span>
 }
 
 function FaqItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false)
+  const contentId = useId()
   return (
     <div className="border-b border-slate-100 last:border-0">
       <button
-        onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between py-4 text-left gap-4"
+        type="button"
+        aria-expanded={open}
+        aria-controls={contentId}
+        onClick={() => setOpen(value => !value)}
+        className="flex min-h-11 w-full items-center justify-between gap-4 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
         <span className="text-sm font-semibold text-slate-800">{q}</span>
-        <ChevronDown className={`size-4 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown aria-hidden="true" className={`size-4 shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && <p className="text-sm text-slate-600 leading-relaxed pb-4">{a}</p>}
+      {open && <p id={contentId} className="pb-4 text-sm leading-relaxed text-slate-600">{a}</p>}
     </div>
   )
 }
 
 /* ── Main component ─────────────────────────────────────────── */
 export default function PricingPage() {
-  const [annual, setAnnual]         = useState(false)
   const [loading, setLoading]       = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
   const { lang } = useParams<{ lang: string }>()
   const t = useTranslations('pricing')
-
-  const basicMonthly = 29
-  const basicAnnual  = 23 // ~20% off
-  const proMonthly = 79
-  const proAnnual  = 63 // ~20% off
-  const enterpriseMonthly = 199
-  const enterpriseAnnual  = 159 // ~20% off
 
   const startCheckout = async (planName: string) => {
     setLoading(true)
@@ -61,7 +73,7 @@ export default function PricingPage() {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planName, annual }),
+        body: JSON.stringify({ plan: planName, lang }),
       })
       if (res.status === 401) {
         window.location.href = `/${lang}/auth/login?next=/${lang}/pricing`
@@ -107,8 +119,8 @@ export default function PricingPage() {
       key: 'basic',
       name: t('basic_name'),
       tag:  t('basic_tag'),
-      price: `$${annual ? basicAnnual : basicMonthly}`,
-      priceSub: annual ? t('per_month_annual') : t('per_month'),
+      price: '$29',
+      priceSub: t('per_month'),
       cta: loading ? t('cta_loading') : t('cta_basic'),
       ctaAction: () => startCheckout('basic'),
     },
@@ -116,8 +128,8 @@ export default function PricingPage() {
       key: 'pro',
       name: t('pro_name'),
       tag:  t('pro_tag'),
-      price: `$${annual ? proAnnual : proMonthly}`,
-      priceSub: annual ? t('per_month_annual') : t('per_month'),
+      price: '$79',
+      priceSub: t('per_month'),
       cta: loading ? t('cta_loading') : t('cta_pro'),
       popular: true,
       ctaAction: () => startCheckout('pro'),
@@ -126,8 +138,8 @@ export default function PricingPage() {
       key: 'enterprise',
       name: t('enterprise_name'),
       tag:  t('enterprise_tag'),
-      price: `$${annual ? enterpriseAnnual : enterpriseMonthly}`,
-      priceSub: annual ? t('per_month_annual') : t('per_month'),
+      price: '$199',
+      priceSub: t('per_month'),
       cta: loading ? t('cta_loading') : t('cta_enterprise'),
       ctaAction: () => startCheckout('enterprise'),
     },
@@ -140,7 +152,7 @@ export default function PricingPage() {
       <nav className="bg-white/90 backdrop-blur-md border-b border-border/60 px-6 py-3 flex justify-between items-center sticky top-0 z-50 shadow-sm">
         <Link href={`/${lang}`} className="flex items-center gap-2.5">
           <div className="size-7 rounded-lg bg-primary flex items-center justify-center shadow-sm">
-            <Zap className="size-4 text-white" />
+            <Zap aria-hidden="true" className="size-4 text-white" />
           </div>
           <span className="font-black text-foreground tracking-tight">
             Fimmick <span className="text-primary">{t('nav_brand')}</span>
@@ -161,7 +173,7 @@ export default function PricingPage() {
         {/* ── Hero ────────────────────────────────────────────── */}
         <section className="max-w-3xl mx-auto px-6 pt-16 pb-10 text-center">
           <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-bold tracking-widest px-4 py-1.5 rounded-full mb-5 border border-primary/20">
-            <Zap className="size-3" />
+            <Zap aria-hidden="true" className="size-3" />
             {t('badge')}
           </span>
           <h1 className="text-4xl sm:text-5xl font-black text-foreground leading-tight mb-4">
@@ -170,40 +182,32 @@ export default function PricingPage() {
           <p className="text-muted-foreground text-lg max-w-xl mx-auto leading-relaxed">
             {t('subheadline')}
           </p>
-
-          {/* Monthly / Annual toggle */}
-          <div className="flex items-center justify-center gap-3 mt-8">
-            <span className={`text-sm font-semibold ${!annual ? 'text-foreground' : 'text-muted-foreground'}`}>
-              {t('toggle_monthly')}
-            </span>
-            <button
-              onClick={() => setAnnual(v => !v)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shadow-inner ${annual ? 'bg-primary' : 'bg-slate-200'}`}
-            >
-              <span className={`inline-block size-4 transform rounded-full bg-white shadow-md transition-transform ${annual ? 'translate-x-6' : 'translate-x-1'}`} />
-            </button>
-            <span className={`text-sm font-semibold ${annual ? 'text-foreground' : 'text-muted-foreground'}`}>
-              {t('toggle_annual')}
-            </span>
-            {annual && (
-              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-                {t('annual_discount')}
-              </span>
-            )}
-          </div>
         </section>
 
         {/* ── Pricing Cards ────────────────────────────────────── */}
         <section className="max-w-5xl mx-auto px-6 pb-16">
+          <div className="mb-10 flex flex-col items-start gap-4 rounded-2xl border border-primary/20 bg-primary/5 p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="max-w-3xl">
+              <h2 className="text-lg font-bold text-foreground">{t('free_account_title')}</h2>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{t('free_account_body')}</p>
+            </div>
+            <Link href={`/${lang}`} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-white px-5 text-sm font-semibold text-primary shadow-sm transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+              {t('free_account_cta')} <ChevronRight aria-hidden="true" className="ml-1 size-4" />
+            </Link>
+          </div>
+          <div className="mb-8 text-center">
+            <h2 className="text-2xl font-black text-foreground">{t('paid_plans_title')}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">{t('paid_plans_body')}</p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {plans.map(plan => {
               const isPro = plan.key === 'pro'
               return (
                 <div
                   key={plan.key}
-                  className={`relative rounded-2xl p-7 flex flex-col transition-all duration-200 ${
+                  className={`relative rounded-2xl p-7 flex flex-col transition-colors transition-shadow duration-200 ${
                     isPro
-                      ? 'border-2 border-primary bg-white shadow-2xl shadow-primary/15 scale-[1.02]'
+                      ? 'border-2 border-primary bg-white shadow-2xl shadow-primary/15'
                       : 'border border-border bg-white shadow-sm hover:shadow-md'
                   }`}
                 >
@@ -241,7 +245,7 @@ export default function PricingPage() {
                       t('row_history_s') + ' ' + t('row_history').toLowerCase(),
                     ].map(f => (
                       <li key={f} className="flex items-start gap-2.5">
-                        <Check className="size-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                        <Check aria-hidden="true" className="size-3.5 text-emerald-500 mt-0.5 shrink-0" />
                         <span className="text-slate-600 text-xs">{f}</span>
                       </li>
                     ))}
@@ -257,7 +261,7 @@ export default function PricingPage() {
                       t('row_competitor'),
                     ].map(f => (
                       <li key={f} className="flex items-start gap-2.5">
-                        <Check className="size-3.5 text-primary mt-0.5 shrink-0" />
+                        <Check aria-hidden="true" className="size-3.5 text-primary mt-0.5 shrink-0" />
                         <span className="text-slate-700 text-xs">{f}</span>
                       </li>
                     ))}
@@ -271,7 +275,7 @@ export default function PricingPage() {
                       t('row_support'),
                     ].map(f => (
                       <li key={f} className="flex items-start gap-2.5">
-                        <Check className="size-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                        <Check aria-hidden="true" className="size-3.5 text-emerald-500 mt-0.5 shrink-0" />
                         <span className="text-slate-600 text-xs">{f}</span>
                       </li>
                     ))}
@@ -279,25 +283,25 @@ export default function PricingPage() {
 
                   {/* CTA */}
                   <button
+                    type="button"
                     onClick={plan.ctaAction}
                     disabled={loading}
-                    className={`w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150 flex items-center justify-center gap-1.5 shadow-sm ${
+                    className={`flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-semibold shadow-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                       isPro
                         ? 'bg-primary text-white hover:bg-primary/90 shadow-primary/20 shadow-md'
                         : 'bg-secondary text-foreground hover:bg-secondary/80 border border-border'
                     } disabled:opacity-60`}
                   >
                     {plan.cta}
-                    {!loading && <ChevronRight className="size-3.5" />}
+                    {!loading && <ChevronRight aria-hidden="true" className="size-3.5" />}
                   </button>
-
-                  {plan.key === 'pro' && checkoutError && (
-                    <p className="mt-2 text-destructive text-xs text-center">{checkoutError}</p>
-                  )}
                 </div>
               )
             })}
           </div>
+          {checkoutError && (
+            <p role="alert" className="mt-5 text-center text-sm font-medium text-destructive">{checkoutError}</p>
+          )}
         </section>
 
         {/* ── Comparison Table ─────────────────────────────────── */}
@@ -306,29 +310,50 @@ export default function PricingPage() {
             {t('section_whats_included')}
           </p>
 
-          <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
-            {/* Header */}
-            <div className="grid grid-cols-4 bg-slate-50 border-b border-border">
-              <div className="p-4 text-xs font-semibold text-muted-foreground" />
-              {(['basic', 'pro', 'enterprise'] as Col[]).map(col => (
-                <div key={col} className={`p-4 text-center text-xs font-bold tracking-wide ${col === 'pro' ? 'text-primary bg-primary/5' : 'text-muted-foreground'}`}>
-                  {col === 'basic' ? t('col_basic') : col === 'pro' ? t('col_pro') : t('col_enterprise')}
-                </div>
-              ))}
-            </div>
-
-            {/* Rows */}
-            {rows.map((row, i) => (
-              <div
-                key={row.label}
-                className={`grid grid-cols-4 border-b border-border last:border-0 ${i % 2 !== 0 ? 'bg-slate-50/50' : ''} ${row.highlight ? 'bg-primary/3' : ''}`}
-              >
-                <div className="p-3.5 px-4 text-sm text-slate-700 font-medium">{row.label}</div>
-                <div className="p-3.5 flex items-center justify-center"><Cell value={row.basic} /></div>
-                <div className="p-3.5 flex items-center justify-center bg-primary/2"><Cell value={row.pro} /></div>
-                <div className="p-3.5 flex items-center justify-center"><Cell value={row.enterprise} /></div>
-              </div>
-            ))}
+          <div
+            role="region"
+            aria-label={t('comparison_label')}
+            tabIndex={0}
+            className="overflow-x-auto rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <table className="w-full min-w-[400px] overflow-hidden rounded-2xl sm:min-w-[720px] border border-border bg-white shadow-sm">
+              <thead>
+                <tr className="bg-slate-50">
+                  <th scope="col" className="border-b border-border p-4 text-left text-xs font-semibold text-muted-foreground">
+                    {t('comparison_feature')}
+                  </th>
+                  {(['basic', 'pro', 'enterprise'] as Col[]).map(col => (
+                    <th
+                      key={col}
+                      scope="col"
+                      className={`border-b border-border p-4 text-center text-xs font-bold tracking-wide ${col === 'pro' ? 'bg-primary/5 text-primary' : 'text-muted-foreground'}`}
+                    >
+                      {col === 'basic' ? t('col_basic') : col === 'pro' ? t('col_pro') : t('col_enterprise')}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, i) => {
+                  const borderClass = i === rows.length - 1 ? '' : 'border-b border-border'
+                  const rowClass = row.highlight ? 'bg-primary/3' : i % 2 !== 0 ? 'bg-slate-50/50' : ''
+                  const cellProps = {
+                    includedLabel: t('included'),
+                    notIncludedLabel: t('not_included'),
+                  }
+                  return (
+                    <tr key={row.label} className={rowClass}>
+                      <th scope="row" className={`p-3.5 px-4 text-left text-sm font-medium text-slate-700 ${borderClass}`}>
+                        {row.label}
+                      </th>
+                      <td className={`p-3.5 text-center ${borderClass}`}><Cell value={row.basic} {...cellProps} /></td>
+                      <td className={`bg-primary/2 p-3.5 text-center ${borderClass}`}><Cell value={row.pro} {...cellProps} /></td>
+                      <td className={`p-3.5 text-center ${borderClass}`}><Cell value={row.enterprise} {...cellProps} /></td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         </section>
 
@@ -352,11 +377,11 @@ export default function PricingPage() {
             <p className="text-blue-100 text-sm mb-8 leading-relaxed">{t('bottom_body')}</p>
             <Link
               href={`/${lang}`}
-              className="inline-flex items-center gap-2 bg-white text-primary font-semibold px-8 py-3 rounded-xl hover:bg-white/90 transition-colors text-sm shadow-lg"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-8 py-3 text-sm font-semibold text-primary shadow-lg transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
             >
-              {t('bottom_cta')} <ChevronRight className="size-4" />
+              {t('bottom_cta')} <ChevronRight aria-hidden="true" className="size-4" />
             </Link>
-            <p className="text-blue-200/60 text-xs mt-4">Free scan · No credit card required</p>
+            <p className="mt-4 text-xs text-blue-100/80">{t('bottom_note')}</p>
           </div>
         </section>
 
@@ -365,7 +390,7 @@ export default function PricingPage() {
           <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
               <div className="size-5 rounded-md bg-primary flex items-center justify-center">
-                <Zap className="size-3 text-white" />
+                <Zap aria-hidden="true" className="size-3 text-white" />
               </div>
               <span className="font-bold text-foreground">Fimmick <span className="text-primary">AISO</span></span>
             </div>

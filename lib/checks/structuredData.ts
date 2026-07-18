@@ -1,8 +1,9 @@
+import type { PublicUrlFetch } from '@/lib/security/public-url'
 import type { CheckResult } from '@/lib/types'
 
-export async function checkStructuredData(url: string): Promise<CheckResult> {
+export async function checkStructuredData(url: string, fetcher: PublicUrlFetch = fetch): Promise<CheckResult> {
   try {
-    const res = await fetch(url, {
+    const res = await fetcher(url, {
       headers: { 'User-Agent': 'Fimmick-AEO/1.0' },
       signal: AbortSignal.timeout(10000),
     })

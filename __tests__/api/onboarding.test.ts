@@ -1,6 +1,9 @@
 import { POST } from '@/app/api/onboarding/complete/route'
 import { NextRequest } from 'next/server'
 
+const getProfileMock = vi.hoisted(() => vi.fn().mockResolvedValue({ account_id: 'acc-1' }))
+vi.mock('@/lib/auth', () => ({ getProfile: getProfileMock }))
+
 // Mock Supabase server client
 vi.mock('@/lib/supabase-server', () => ({
   createServerSupabaseClient: vi.fn().mockResolvedValue({
@@ -35,6 +38,7 @@ describe('POST /api/onboarding/complete', () => {
   })
 
   it('returns 401 when unauthenticated', async () => {
+    getProfileMock.mockResolvedValueOnce(null)
     const { createServerSupabaseClient } = await import('@/lib/supabase-server')
     vi.mocked(createServerSupabaseClient).mockResolvedValueOnce({
       auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null } }) },

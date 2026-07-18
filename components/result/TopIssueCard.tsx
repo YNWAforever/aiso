@@ -218,14 +218,18 @@ const ISSUE_MAP_ZH_HK: Record<string, IssueInfo> = {
 const UI_EN = {
   label: 'YOUR #1 AI VISIBILITY ISSUE',
   quickFix: 'Quick fix:',
+  severity: { warn: 'Warning', fail: 'Failed' },
+  severityAria: (label: string) => `Severity: ${label}`,
   more: (n: number) =>
-    `+ ${n} more issue${n > 1 ? 's' : ''} found — enter your email to see the full breakdown ↓`,
+    `+ ${n} more issue${n > 1 ? 's' : ''} found — create a free account to see the full breakdown ↓`,
 }
 
-const UI_ZH_HK = {
+const UI_ZH_HK: typeof UI_EN = {
   label: '你的 #1 AI 可見度問題',
   quickFix: '快速修復：',
-  more: (n: number) => `+ 還發現 ${n} 個問題——輸入電郵查看完整分析 ↓`,
+  severity: { warn: '警告', fail: '不及格' },
+  severityAria: (label: string) => `嚴重程度：${label}`,
+  more: (n: number) => `+ 還發現 ${n} 個問題——免費建立帳戶即可查看完整分析 ↓`,
 }
 
 const CORE_ORDER = ['c1_robots','c2_llms_txt','c3_bot_access','c4_structured_data','c5_extractability']
@@ -256,25 +260,54 @@ export function TopIssueCard({ results, failCount }: Props) {
   const issue = issueMap[topKey]
   if (!issue) return null
 
+  const topResult = results[topKey] as { status: 'warn' | 'fail' }
+  const severity = topResult.status === 'warn' ? 'warn' : 'fail'
+  const severityLabel = ui.severity[severity]
+  const styles = severity === 'warn'
+    ? {
+        card: 'border-amber-200 bg-amber-50',
+        icon: 'bg-amber-500',
+        eyebrow: 'text-amber-600',
+        badge: 'bg-amber-100 text-amber-800 ring-amber-200',
+        quickFix: 'border-amber-100',
+        more: 'text-amber-700',
+      }
+    : {
+        card: 'border-red-200 bg-red-50',
+        icon: 'bg-red-500',
+        eyebrow: 'text-red-500',
+        badge: 'bg-red-100 text-red-800 ring-red-200',
+        quickFix: 'border-red-100',
+        more: 'text-red-600',
+      }
+
   return (
-    <div className="rounded-2xl border-2 border-red-200 bg-red-50 p-6">
+    <div data-severity={severity} className={`rounded-2xl border-2 p-6 ${styles.card}`}>
       <div className="flex items-start gap-3 mb-3">
-        <div className="size-9 rounded-xl bg-red-500 flex items-center justify-center shrink-0 mt-0.5">
+        <div className={`size-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${styles.icon}`}>
           <AlertTriangle className="size-4 text-white" />
         </div>
         <div>
-          <p className="text-xs font-bold text-red-500 tracking-widest mb-1">{ui.label}</p>
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <p className={`text-xs font-bold tracking-widest ${styles.eyebrow}`}>{ui.label}</p>
+            <span
+              aria-label={ui.severityAria(severityLabel)}
+              className={`rounded-full px-2 py-0.5 text-xs font-bold ring-1 ${styles.badge}`}
+            >
+              {severityLabel}
+            </span>
+          </div>
           <h2 className="text-lg font-black text-slate-900 leading-snug">{issue.headline}</h2>
         </div>
       </div>
       <p className="text-sm text-slate-600 leading-relaxed mb-4 pl-12">{issue.why}</p>
       <div className="pl-12">
-        <div className="flex items-center gap-1.5 text-xs text-slate-500 bg-white rounded-lg px-3 py-2 border border-red-100 inline-flex">
+        <div className={`flex items-center gap-1.5 text-xs text-slate-500 bg-white rounded-lg px-3 py-2 border inline-flex ${styles.quickFix}`}>
           <span className="font-semibold text-slate-700">{ui.quickFix}</span> {issue.fix}
         </div>
       </div>
       {failCount > 1 && (
-        <p className="pl-12 mt-4 text-xs text-red-600 font-semibold">
+        <p className={`pl-12 mt-4 text-xs font-semibold ${styles.more}`}>
           {ui.more(failCount - 1)}
         </p>
       )}

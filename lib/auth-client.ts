@@ -1,7 +1,7 @@
 'use client'
 import { createAuthClient } from '@neondatabase/auth/next'
 
-// Shared singleton — LoginForm, TrialCta, and AuthComplete all need the same
+// Shared singleton — LoginForm, AccountUnlockCard, and AuthComplete use the same
 // browser-side Neon Auth client; there's no per-component config to justify
 // separate instances.
 export const authClient = createAuthClient()

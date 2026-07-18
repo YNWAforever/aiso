@@ -1,9 +1,10 @@
+import type { PublicUrlFetch } from '@/lib/security/public-url'
 import type { CheckResult } from '@/lib/types'
 
-async function findSitemapUrl(baseUrl: string): Promise<string> {
+async function findSitemapUrl(baseUrl: string, fetcher: PublicUrlFetch): Promise<string> {
   // Check robots.txt for Sitemap: directive
   try {
-    const res = await fetch(`${baseUrl}/robots.txt`, {
+    const res = await fetcher(`${baseUrl}/robots.txt`, {
       headers: { 'User-Agent': 'FimmickAISO/1.0' },
       signal: AbortSignal.timeout(5_000),
     })
@@ -16,10 +17,10 @@ async function findSitemapUrl(baseUrl: string): Promise<string> {
   return `${baseUrl}/sitemap.xml`
 }
 
-export async function checkSitemap(baseUrl: string): Promise<CheckResult> {
+export async function checkSitemap(baseUrl: string, fetcher: PublicUrlFetch = fetch): Promise<CheckResult> {
   try {
-    const sitemapUrl = await findSitemapUrl(baseUrl)
-    const res = await fetch(sitemapUrl, {
+    const sitemapUrl = await findSitemapUrl(baseUrl, fetcher)
+    const res = await fetcher(sitemapUrl, {
       headers: { 'User-Agent': 'FimmickAISO/1.0' },
       signal: AbortSignal.timeout(10_000),
     })

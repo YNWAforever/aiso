@@ -1,6 +1,6 @@
 import { AuthComplete } from '@/components/auth/AuthComplete'
 
-// Client-side sign-in completion target. LoginForm and TrialCta point their
+// Client-side sign-in completion target. LoginForm and AccountUnlockCard point their
 // Neon Auth `callbackURL` here; the client component exchanges the
 // `neon_auth_session_verifier` URL param for a session cookie, then forwards
 // to `next`.

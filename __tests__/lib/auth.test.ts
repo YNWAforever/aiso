@@ -22,6 +22,15 @@ describe('lib/auth', () => {
     expect(await getProfile()).toBeNull()
   })
 
+  it('getProfile throws when Neon Auth resolves a session error', async () => {
+    const sdkError = { code: 'session_unavailable', message: 'Neon Auth unavailable' }
+    getSessionMock.mockResolvedValue({ data: null, error: sdkError })
+    const { getProfile } = await import('@/lib/auth')
+
+    await expect(getProfile()).rejects.toBe(sdkError)
+    expect(sqlMock).not.toHaveBeenCalled()
+  })
+
   it('getProfile returns null when the session has no matching profile row', async () => {
     getSessionMock.mockResolvedValue({ data: { user: { id: 'user-1', email: 'a@b.com' } }, error: null })
     sqlMock.mockResolvedValue([])

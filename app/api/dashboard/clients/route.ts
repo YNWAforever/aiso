@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProfile } from '@/lib/auth'
 import { supabase }   from '@/lib/supabase'
-import { maxBrandsForPlan } from '@/lib/tier'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,8 +10,9 @@ export async function POST(req: NextRequest) {
   const profile = await getProfile()
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const plan  = profile.accounts?.plan ?? 'basic'
-  const limit = maxBrandsForPlan(plan)
+  const entitlement = resolveCommercialEntitlement(profile.accounts)
+  const { plan } = entitlement
+  const limit = entitlement.features.max_brands
 
   // Count existing brands for this account
   const { count } = await supabase

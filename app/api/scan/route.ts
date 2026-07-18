@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 // Core checks
 import { checkRobots }         from '@/lib/checks/robots'
@@ -27,7 +28,11 @@ import { checkChunkability }     from '@/lib/checks/chunkability'
 
 import { db }               from '@/lib/db'
 import { getProfile }       from '@/lib/auth'
-import { getPlanFeatures }  from '@/lib/tier'
+import { resolveCommercialEntitlement } from '@/lib/tier'
+import { createServiceSupabaseClient } from '@/lib/supabase-server'
+import { fetchPublicUrl, PublicUrlError } from '@/lib/security/public-url'
+import { consumePublicScanRateLimit, rateLimitHeaders } from '@/lib/security/public-scan-rate-limit'
+import { consumeAuthenticatedScanQuota, authenticatedScanQuotaHeaders } from '@/lib/security/authenticated-scan-quota'
 import { GEO_PTS, assignGrade, calculateScore, calculateGeoScore } from '@/lib/scoring'
 import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'
 
@@ -35,8 +40,18 @@ import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'
 export { assignGrade, calculateScore, calculateGeoScore }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json()
-  const { url, industry, region, clientId, sitemapUrls } = body
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+
+  const { url, industry, region, sitemapUrls, clientId: requestedClientId } =
+    body as Record<string, unknown>
   if (!url || typeof url !== 'string') {
     return NextResponse.json({ error: 'Invalid URL' }, { status: 400 })
   }
@@ -44,36 +59,139 @@ export async function POST(req: NextRequest) {
   let baseUrl: string
   let domain: string
   try {
-    const parsed = new URL(url.startsWith('http') ? url : `https://${url}`)
+    const parsed = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : 'https://' + url)
+    if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || parsed.username || parsed.password) {
+      return NextResponse.json({ error: 'URL must use HTTP or HTTPS without credentials' }, { status: 400 })
+    }
     baseUrl = parsed.origin
-    domain  = parsed.hostname
+    domain = parsed.hostname
   } catch {
     return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 })
   }
 
-  // Fetch page HTML once — shared by extended checks + GEO checks
+  let profile: Awaited<ReturnType<typeof getProfile>> = null
+  let profileLookupFailed = false
+  try {
+    profile = await getProfile()
+  } catch (error) {
+    profileLookupFailed = true
+    console.error('[scan] authentication lookup failed:', (error as Error)?.message ?? String(error))
+  }
+  if (profileLookupFailed) {
+    return NextResponse.json({ error: 'Authentication service unavailable' }, { status: 503 })
+  }
+
+  type OwnedClient = {
+    id: string
+    account_id: string
+    webhook_url: string | null
+    brand_name: string | null
+  }
+  let ownedClient: OwnedClient | null = null
+  if (requestedClientId !== undefined && requestedClientId !== null && requestedClientId !== '') {
+    if (typeof requestedClientId !== 'string') {
+      return NextResponse.json({ error: 'Invalid clientId' }, { status: 400 })
+    }
+    if (!profile) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    try {
+      const service = await createServiceSupabaseClient()
+      const { data, error } = await service
+        .from('clients')
+        .select('id, account_id, webhook_url, brand_name')
+        .eq('id', requestedClientId)
+        .maybeSingle()
+      if (error) {
+        console.error('[scan] client ownership lookup failed:', error.message)
+        return NextResponse.json({ error: 'Client lookup failed' }, { status: 500 })
+      }
+      if (!data) return NextResponse.json({ error: 'Client not found' }, { status: 404 })
+      if (data.account_id !== profile.account_id) {
+        return NextResponse.json({ error: 'Client access forbidden' }, { status: 403 })
+      }
+      ownedClient = data as OwnedClient
+    } catch (error) {
+      console.error('[scan] client ownership verification failed:', (error as Error)?.message ?? String(error))
+      return NextResponse.json({ error: 'Client lookup failed' }, { status: 500 })
+    }
+  }
+
+  if (!process.env.DATABASE_URL) {
+    console.error('[scan] DATABASE_URL is not configured')
+    return NextResponse.json({ error: 'Server misconfiguration: missing DATABASE_URL' }, { status: 500 })
+  }
+
+  const entitlement = resolveCommercialEntitlement(profile?.accounts)
+  let scanHeaders: Headers | undefined
+  if (!profile) {
+    try {
+      const decision = await consumePublicScanRateLimit(req)
+      scanHeaders = rateLimitHeaders(decision)
+      if (!decision.allowed) {
+        return NextResponse.json(
+          { error: 'Too many scan requests. Please try again later.' },
+          { status: 429, headers: scanHeaders },
+        )
+      }
+    } catch (error) {
+      console.error('[scan] durable rate limiter failed:', (error as Error)?.message ?? String(error))
+      return NextResponse.json({ error: 'Public scan temporarily unavailable' }, { status: 503 })
+    }
+  } else if (entitlement.plan === 'free') {
+    return NextResponse.json({ error: 'AUTHENTICATED_SCAN_UPGRADE_REQUIRED' }, { status: 403 })
+  } else if (entitlement.monthlyScanLimit !== null) {
+    try {
+      const decision = await consumeAuthenticatedScanQuota(profile.account_id)
+      scanHeaders = authenticatedScanQuotaHeaders(decision)
+      if (!decision.allowed) {
+        return NextResponse.json(
+          { error: 'AUTHENTICATED_SCAN_LIMIT_REACHED' },
+          { status: 429, headers: scanHeaders },
+        )
+      }
+    } catch (error) {
+      console.error('[scan] authenticated quota failed:', (error as Error)?.message ?? String(error))
+      return NextResponse.json({ error: 'Authenticated scan quota unavailable' }, { status: 503 })
+    }
+  }
+
+  const account_id = profile?.account_id ?? null
+  const clientId = ownedClient?.id
+
+  // Fetch page HTML once — shared by extended checks + GEO checks.
+  // The reusable boundary validates DNS and every redirect hop.
   let html = ''
   try {
-    const htmlRes = await fetch(baseUrl, {
+    const htmlRes = await fetchPublicUrl(baseUrl, {
       headers: { 'User-Agent': 'FimmickAISO/1.0' },
       signal: AbortSignal.timeout(15_000),
     })
     html = await htmlRes.text()
-  } catch { /* continue without HTML — checks degrade gracefully */ }
+  } catch (error) {
+    if (error instanceof PublicUrlError) {
+      return NextResponse.json({ error: 'URL must resolve to a public HTTP or HTTPS address' }, {
+        status: 400,
+        headers: scanHeaders,
+      })
+    }
+    // Continue without HTML — checks degrade gracefully for ordinary network failures.
+  }
 
   // Run all 16 checks (5 core + 11 extended) in parallel
   const [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16] =
     await Promise.allSettled([
       // Core (URL-fetch)
-      checkRobots(baseUrl),
-      checkLlmsTxt(baseUrl),
-      checkBotAccess(baseUrl),
-      checkStructuredData(baseUrl),
-      checkExtractability(baseUrl),
+      checkRobots(baseUrl, fetchPublicUrl),
+      checkLlmsTxt(baseUrl, fetchPublicUrl),
+      checkBotAccess(baseUrl, fetchPublicUrl),
+      checkStructuredData(baseUrl, fetchPublicUrl),
+      checkExtractability(baseUrl, fetchPublicUrl),
       // Extended — URL-fetch
-      checkLlmsFullTxt(baseUrl),
+      checkLlmsFullTxt(baseUrl, fetchPublicUrl),
       checkMcpCard(baseUrl, html),
-      checkSitemap(baseUrl),
+      checkSitemap(baseUrl, fetchPublicUrl),
       // Extended — HTML parse (sync, wrapped so allSettled handles uniformly)
       Promise.resolve(checkMetaDescription(html, baseUrl)),
       Promise.resolve(checkHeadingStructure(html, baseUrl)),
@@ -117,13 +235,13 @@ export async function POST(req: NextRequest) {
   // GEO checks — always run, default to general_b2c / global when not specified
   const geoIndustry = ((industry as string | undefined) ?? 'general_b2c') as IndustryCode
   const geoRegion   = ((region   as string | undefined) ?? 'global')       as RegionCode
-  const geoContext  = { industry: geoIndustry, region: geoRegion, clientId: clientId ?? undefined }
+  const geoContext  = { industry: geoIndustry, region: geoRegion, clientId: clientId }
 
   // Fetch sitemap URLs for c19 (Topical Authority) — reuse caller-supplied list or fetch /sitemap.xml
   let sitemapUrlsForGeo: string[] = (sitemapUrls as string[] | undefined) ?? []
   if (!sitemapUrlsForGeo.length) {
     try {
-      const sitemapRes = await fetch(`${baseUrl}/sitemap.xml`, {
+      const sitemapRes = await fetchPublicUrl(new URL('/sitemap.xml', baseUrl), {
         headers: { 'User-Agent': 'FimmickAISO/1.0' },
         signal: AbortSignal.timeout(8_000),
       })
@@ -169,20 +287,8 @@ export async function POST(req: NextRequest) {
   const totalScore = Math.min(100, score + geoScore)
   const grade = assignGrade(totalScore)
 
-  // Attach to user account if logged in
-  let account_id: string | null = null
-  try {
-    const profile = await getProfile()
-    account_id = profile?.account_id ?? null
-  } catch { /* no auth — continue */ }
-
-  if (!process.env.DATABASE_URL) {
-    console.error('[scan] DATABASE_URL is not configured')
-    return NextResponse.json({ error: 'Server misconfiguration: missing DATABASE_URL' }, { status: 500 })
-  }
-
-  // Determine if this is a dashboard-triggered scan (has clientId)
-  const isDashboardScan = !!clientId
+  // Dashboard behavior is enabled only for the already verified owned client.
+  const isDashboardScan = !!ownedClient
 
   const sql = db()
   let scanId: string
@@ -203,68 +309,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Database error — check Neon configuration' }, { status: 500 })
   }
 
-  // Fire agent webhook if dashboard scan and client has webhook configured
-  if (isDashboardScan) {
-    let clientData: { webhook_url: string | null; brand_name: string | null } | undefined
-    try {
-      const rows = await sql`select webhook_url, brand_name from clients where id = ${clientId} limit 1`
-      clientData = rows[0] as typeof clientData
-    } catch (err) {
-      console.error('[scan] client lookup failed:', (err as Error)?.message ?? String(err))
-    }
-
-    const webhookUrl = clientData?.webhook_url
-
+  // Fire agent webhook only for the service-client-verified owned client.
+  if (isDashboardScan && ownedClient) {
+    const webhookUrl = ownedClient.webhook_url
     if (webhookUrl) {
-      // Determine which platforms to include based on plan
-      let plan = 'basic'
-      if (account_id) {
-        try {
-          const rows = await sql`select plan from accounts where id = ${account_id} limit 1`
-          plan = (rows[0] as { plan: string } | undefined)?.plan ?? 'basic'
-        } catch { /* default to basic */ }
-      }
-      const features = getPlanFeatures(plan)
+      const features = entitlement.features
       const platforms = features.platform_access
 
-      // Record which platforms were triggered
       try {
         await sql`update scans set agent_platforms = ${platforms} where id = ${scanId}`
       } catch { /* non-fatal — webhook payload still carries platforms */ }
 
-      // Validate webhook URL
-      let safe = false
-      try {
-        const parsed = new URL(webhookUrl)
-        safe = parsed.protocol === 'https:' &&
-               parsed.hostname !== 'localhost' &&
-               !parsed.hostname.startsWith('127.') &&
-               !parsed.hostname.startsWith('169.254.') &&
-               !parsed.hostname.startsWith('10.') &&
-               !parsed.hostname.match(/^172\.(1[6-9]|2\d|3[01])\./) &&
-               !parsed.hostname.startsWith('192.168.')
-      } catch { /* invalid URL */ }
-
-      if (safe) {
-        fetch(webhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            clientId,
-            brandName: clientData?.brand_name ?? '',
-            domain,
-            industry: geoIndustry,
-            scanId,
-            score: totalScore,
-            grade,
-            platforms,  // only the platforms the user paid for
-            results: { ...results, ...geoDetails },
-          }),
-          signal: AbortSignal.timeout(5_000),
-        }).catch(err => console.error('[scan] webhook trigger failed:', err))
-      } else {
-        console.error('[scan] invalid webhook URL:', webhookUrl)
-      }
+      void fetchPublicUrl(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId,
+          brandName: ownedClient.brand_name ?? '',
+          domain,
+          industry: geoIndustry,
+          scanId,
+          score: totalScore,
+          grade,
+          platforms,
+          results: { ...results, ...geoDetails },
+        }),
+        signal: AbortSignal.timeout(5_000),
+      }).catch(error => console.error('[scan] webhook trigger failed:', error))
     }
   }
 
@@ -286,5 +357,8 @@ export async function POST(req: NextRequest) {
     }).catch(err => console.error('[scan] n8n webhook failed:', err))
   }
 
-  return NextResponse.json({ id: scanId, score: totalScore, grade, results: { ...results, ...geoDetails } })
+  return NextResponse.json(
+    { id: scanId, score: totalScore, grade },
+    { headers: scanHeaders },
+  )
 }
