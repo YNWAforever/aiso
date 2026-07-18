@@ -1,7 +1,7 @@
 # Fimmick AISO Scan-to-Signup Conversion Design
 
-**Date:** 2026-07-16  
-**Status:** Approved in conversation  
+**Date:** 2026-07-16
+**Status:** Approved in conversation
 **Primary objective:** Increase completed website scans and free product-account signups
 
 ## Context
