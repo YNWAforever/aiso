@@ -47,6 +47,14 @@ describe('authenticated scan quota', () => {
     expect(migration).toMatch(/primary key\s*\(account_id,\s*month_start\)/i)
     expect(migration).toMatch(/references accounts\s*\(id\)\s*on delete cascade/i)
     expect(migration).toMatch(/enable row level security/i)
-    expect(migration).toMatch(/revoke all .* anon, authenticated, service_role/i)
+    expect(migration).toMatch(
+      /revoke all on authenticated_scan_monthly_usage from public/i,
+    )
+    for (const role of ['anon', 'authenticated', 'service_role']) {
+      expect(migration).toContain(`if to_regrole('${role}') is not null then`)
+      expect(migration).toContain(
+        `revoke all on authenticated_scan_monthly_usage from ${role}`,
+      )
+    }
   })
 })

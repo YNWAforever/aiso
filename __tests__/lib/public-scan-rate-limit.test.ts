@@ -19,9 +19,11 @@ describe('public scan rate limiter', () => {
     const migration = readFileSync(resolve('supabase/migrations/023_public_scan_rate_limits.sql'), 'utf8')
 
     expect(migration).toMatch(/alter table public_scan_rate_limits enable row level security/i)
-    expect(migration).toMatch(
-      /revoke all on public_scan_rate_limits from public, anon, authenticated, service_role/i,
-    )
+    expect(migration).toMatch(/revoke all on public_scan_rate_limits from public/i)
+    for (const role of ['anon', 'authenticated', 'service_role']) {
+      expect(migration).toContain(`if to_regrole('${role}') is not null then`)
+      expect(migration).toContain(`revoke all on public_scan_rate_limits from ${role}`)
+    }
   })
 
   it('derives a deterministic versioned HMAC without exposing the raw address', () => {

@@ -13,4 +13,18 @@ create index if not exists public_scan_rate_limits_window_start_idx
 -- The app consumes this table only through its direct DATABASE_URL role.
 -- Keep the Data API surface closed even on projects with legacy default grants.
 alter table public_scan_rate_limits enable row level security;
-revoke all on public_scan_rate_limits from public, anon, authenticated, service_role;
+revoke all on public_scan_rate_limits from public;
+
+do $acl$
+begin
+  if to_regrole('anon') is not null then
+    execute 'revoke all on public_scan_rate_limits from anon';
+  end if;
+  if to_regrole('authenticated') is not null then
+    execute 'revoke all on public_scan_rate_limits from authenticated';
+  end if;
+  if to_regrole('service_role') is not null then
+    execute 'revoke all on public_scan_rate_limits from service_role';
+  end if;
+end
+$acl$;

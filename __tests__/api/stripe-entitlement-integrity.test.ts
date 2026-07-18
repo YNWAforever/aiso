@@ -167,7 +167,17 @@ describe('Stripe lifecycle migration', () => {
     expect(migration).toMatch(/set search_path = ''/i)
     expect(migration).toMatch(/alter table public\.stripe_webhook_events enable row level security/i)
     expect(migration).toMatch(
-      /revoke all on table public\.stripe_webhook_events from public, anon, authenticated/i,
+      /revoke all on table public\.stripe_webhook_events from public/i,
+    )
+    for (const role of ['anon', 'authenticated']) {
+      expect(migration).toContain(`if to_regrole('${role}') is not null then`)
+      expect(migration).toContain(
+        `revoke all on table public.stripe_webhook_events from ${role}`,
+      )
+    }
+    expect(migration).toContain("if to_regrole('service_role') is not null then")
+    expect(migration).toContain(
+      'grant select, insert on table public.stripe_webhook_events to service_role',
     )
     expect(migration).not.toMatch(/p_event_id\s*[<>]/i)
   })
