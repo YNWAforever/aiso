@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { PRODUCT_FACTS, getLocalizedProductFacts } from '@/lib/product-facts'
 import enMessages from '@/messages/en.json'
@@ -69,4 +71,44 @@ describe('PRODUCT_FACTS', () => {
       '升級至專業版即可解鎖 AI 代理分析。獲取 ChatGPT、Google AI、Perplexity、Claude 及 Gemini 的平台專屬建議，並以前後對比指標追蹤你的進度。',
     )
   })
+
+  it('does not advertise six tracked platforms', () => {
+    expect(JSON.stringify(enMessages)).not.toMatch(/6 AI platforms|6 AI Platforms/)
+    expect(JSON.stringify(zhMessages)).not.toMatch(/6 個 AI 平台/)
+  })
+
+  it('distinguishes the free account from paid subscriptions', () => {
+    expect(enMessages.pricing.faq_4_a).not.toMatch(/Starter plan is permanently free/i)
+    expect(zhMessages.pricing.faq_4_a).not.toMatch(/入門版永久免費/)
+    expect(enMessages.pricing.free_account_body).toMatch(/saved scan/i)
+    expect(enMessages.pricing.free_account_body).toMatch(/owned report/i)
+    expect(enMessages.pricing.free_account_body).toMatch(/no (credit )?card/i)
+    expect(zhMessages.pricing.free_account_body).toContain('儲存掃描')
+    expect(zhMessages.pricing.free_account_body).toContain('專屬報告')
+    expect(zhMessages.pricing.free_account_body).toContain('無需信用卡')
+  })
+
+  it('uses the core Fix Pack outputs in the public promise', () => {
+    const englishCopy = enMessages.home.cta_bottom_body + ' ' + enMessages.pricing.bottom_body
+    const chineseCopy = zhMessages.home.cta_bottom_body + ' ' + zhMessages.pricing.bottom_body
+    for (const item of PRODUCT_FACTS.fixPack) {
+      expect(englishCopy).toContain(item)
+      expect(chineseCopy).toContain(item)
+    }
+  })
+
+  it('keeps the pricing interaction contract accessible', () => {
+    const source = readFileSync(resolve(process.cwd(), 'app/[lang]/pricing/page.tsx'), 'utf8')
+    expect(source).toContain('role="switch"')
+    expect(source).toContain('aria-checked={annual}')
+    expect(source).toContain("aria-label={t('billing_frequency_label')}")
+    expect(source).toContain('h-11 w-16')
+    expect(source).toContain('transition-colors')
+    expect(source).toContain('transition-transform')
+    expect(source).toContain('role="alert"')
+    expect(source).toContain('overflow-x-auto')
+    expect(source).toContain("aria-label={t('comparison_label')}")
+    expect(source).not.toContain('scale-[1.02]')
+  })
+
 })
