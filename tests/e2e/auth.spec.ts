@@ -55,26 +55,40 @@ test.describe('Auth — login page', () => {
     expect(isInvalid).toBe(true)
   })
 
-  test('submitting a valid email shows sending state or success message', async ({ page }) => {
-    // Stub the local Neon Auth proxy so no real email is sent
-    await page.route('**/sign-in/magic-link*', route => {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({}),
+  const magicLinkCases = [
+    { lang: 'en', checkEmail: 'Check your email' },
+    { lang: 'zh-HK', checkEmail: '請查看你的電郵' },
+  ] as const
+
+  for (const copy of magicLinkCases) {
+    test(`submitting a valid email requests Neon magic link and confirms success in ${copy.lang}`, async ({ page }) => {
+      await page.goto(`/${copy.lang}/auth/login`)
+
+      let routeInvocations = 0
+      await page.route('**/sign-in/magic-link*', async route => {
+        routeInvocations += 1
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({}),
+        })
       })
+
+      const requestPromise = page.waitForRequest(request =>
+        request.method() === 'POST'
+        && new URL(request.url()).pathname.endsWith('/sign-in/magic-link')
+      )
+
+      await page.locator('input[type="email"]').fill('test@example.com')
+      await page.locator('button[type="submit"]').click()
+
+      const request = await requestPromise
+      expect(request.method()).toBe('POST')
+      expect(routeInvocations).toBe(1)
+      await expect(page.getByText(copy.checkEmail, { exact: true })).toBeVisible({ timeout: 8_000 })
     })
+  }
 
-    await page.locator('input[type="email"]').fill('test@example.com')
-    await page.locator('button[type="submit"]').click()
-
-    // After submitting, the button should show a loading/sent state or a success message
-    await expect(
-      page.locator('text=/sent|check|email|magic|success/i').first()
-        .or(page.locator('button:has-text("Sending"), button[disabled]').first())
-    ).toBeVisible({ timeout: 8_000 })
-    await page.screenshot({ path: 'playwright-report/login-magic-sent.png' })
-  })
 })
 
 test.describe('Auth — access control', () => {
