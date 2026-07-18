@@ -43,6 +43,11 @@ vi.mock('@/lib/stripe', () => ({
       constructEvent: vi.fn(),
     },
   },
+  STRIPE_PRICES: {
+    basic: 'price_basic_test',
+    pro: 'price_pro_test',
+    enterprise: 'price_enterprise_test',
+  },
 }))
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -108,7 +113,7 @@ describe('POST /api/stripe/webhook — checkout.session.completed', () => {
       type: 'checkout.session.completed',
       data: {
         object: {
-          metadata:     { account_id: 'acc-123' },
+          metadata:     { account_id: 'acc-123', plan: 'pro' },
           customer:     'cus_abc',
           subscription: 'sub_xyz',
         },
@@ -127,15 +132,15 @@ describe('POST /api/stripe/webhook — checkout.session.completed', () => {
     })
   })
 
-  it('returns 200 and skips upsert when metadata has no account_id', async () => {
+  it('returns 400 and skips upsert when checkout metadata is incomplete', async () => {
     const { stripe } = await import('@/lib/stripe')
     vi.mocked(stripe.webhooks.constructEvent).mockReturnValueOnce({
       type: 'checkout.session.completed',
       data: { object: { metadata: {}, customer: 'cus_abc', subscription: 'sub_xyz' } },
     } as never)
     const res = await postWebhook({})
-    expect(res.status).toBe(200)
-    expect(upsertCalls.length).toBe(0) // no upsert without account_id
+    expect(res.status).toBe(400)
+    expect(upsertCalls.length).toBe(0)
   })
 })
 
@@ -264,13 +269,14 @@ describe('getPlan — price ID to plan mapping', () => {
     expect((updateCalls[0]?.data as Record<string, unknown>).plan).toBe('basic')
   })
 
-  it('defaults to basic for unrecognised price ID', async () => {
+  it('rejects an unrecognised price ID without changing entitlement', async () => {
     const { stripe } = await import('@/lib/stripe')
     vi.mocked(stripe.webhooks.constructEvent).mockReturnValueOnce({
       type: 'customer.subscription.updated',
       data: { object: { id: 'sub', status: 'active', items: { data: [{ price: { id: 'price_unknown' } }] } } },
     } as never)
-    await postWebhook({})
-    expect((updateCalls[0]?.data as Record<string, unknown>).plan).toBe('basic')
+    const res = await postWebhook({})
+    expect(res.status).toBe(400)
+    expect(updateCalls).toHaveLength(0)
   })
 })

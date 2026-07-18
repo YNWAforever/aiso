@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       customer_email: profile.email ?? undefined,
-      metadata: { account_id: profile.account_id },
+      metadata: { account_id: profile.account_id, plan },
       success_url: `${APP_URL}/${supportedLang}/dashboard`,
       cancel_url:  `${APP_URL}/${supportedLang}/pricing`,
     })
