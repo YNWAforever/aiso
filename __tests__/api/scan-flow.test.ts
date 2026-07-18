@@ -41,6 +41,20 @@ vi.mock('@/lib/db', () => {
   return { db: () => sql }
 })
 
+
+vi.mock('@/lib/security/public-url', () => ({
+  PublicUrlError: class PublicUrlError extends Error {},
+  fetchPublicUrl: (input: string | URL | Request, init?: RequestInit) => fetch(input, init),
+}))
+vi.mock('@/lib/security/public-scan-rate-limit', () => ({
+  consumePublicScanRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 4, resetAt: 2_000_000_000 }),
+  rateLimitHeaders: () => new Headers({
+    'RateLimit-Limit': '5',
+    'RateLimit-Remaining': '4',
+    'RateLimit-Reset': '2000000000',
+  }),
+}))
+
 vi.mock('@/lib/auth', () => ({
   getProfile: vi.fn().mockResolvedValue(null), // anonymous scan
 }))
