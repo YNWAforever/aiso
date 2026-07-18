@@ -50,6 +50,9 @@ export async function POST(req: NextRequest) {
   let domain: string
   try {
     const parsed = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : 'https://' + url)
+    if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || parsed.username || parsed.password) {
+      return NextResponse.json({ error: 'URL must use HTTP or HTTPS without credentials' }, { status: 400 })
+    }
     baseUrl = parsed.origin
     domain = parsed.hostname
   } catch {

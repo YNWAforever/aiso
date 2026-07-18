@@ -1,5 +1,5 @@
 -- Durable fixed-window rate limiting for the anonymous /api/scan endpoint.
--- The application stores only a SHA-256 key, never the source address.
+-- The application stores only a versioned HMAC-SHA-256 key, never the source address.
 create table if not exists public_scan_rate_limits (
   key_hash text not null,
   window_start timestamptz not null,

@@ -34,3 +34,19 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+
+## Public scan deployment prerequisites
+
+Production anonymous scans are supported only on Vercel, where the platform overwrites
+`x-vercel-forwarded-for` and exposes the `VERCEL=1` system environment invariant.
+The endpoint fails closed when either invariant is missing.
+
+Before releasing public scans:
+
+- Apply `supabase/migrations/023_public_scan_rate_limits.sql` to the production database.
+- Configure the server-only `PUBLIC_SCAN_RATE_LIMIT_SECRET` with at least 32 random characters.
+  Do not expose it through a `NEXT_PUBLIC_` variable or commit its value.
+
+Local development and tests use a single explicitly isolated identity and development-only
+HMAC key. They ignore forwarding headers and do not claim production proxy security.

@@ -151,8 +151,8 @@ const requestPinnedUrl: PublicUrlRequest = async (url, init, target, maxResponse
         const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
         received += buffer.byteLength
         if (received > maxResponseBytes) {
-          response.destroy()
           reject(new PublicUrlError('Response is too large', 'RESPONSE_TOO_LARGE'))
+          response.destroy()
           return
         }
         chunks.push(buffer)
@@ -174,6 +174,10 @@ const requestPinnedUrl: PublicUrlRequest = async (url, init, target, maxResponse
     request.end(body)
   })
 }
+
+// Exposed only for network-isolated lower-level transport regression tests.
+// Callers must use fetchPublicUrl/createPublicUrlFetcher so validation runs first.
+export const __testOnlyRequestPinnedUrl = requestPinnedUrl
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
 

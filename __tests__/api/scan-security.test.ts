@@ -101,6 +101,19 @@ describe('POST /api/scan security boundaries', () => {
     serviceBuilder.maybeSingle.mockClear()
   })
 
+  it.each([
+    ['file protocol', 'file:///etc/passwd'],
+    ['ftp protocol', 'ftp://example.com/resource'],
+    ['URL credentials', 'https://user:password@example.com'],
+  ])('returns 400 before auth or network work for %s', async (_case, url) => {
+    const response = await scan({ url })
+
+    expect(response.status).toBe(400)
+    expect(getProfileMock).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(state.rateCount).toBe(0)
+  })
+
   it('returns 401 before scanning when an anonymous caller supplies clientId', async () => {
     const response = await scan({ url: 'https://example.com', clientId: '11111111-1111-4111-8111-111111111111' })
 
@@ -109,7 +122,7 @@ describe('POST /api/scan security boundaries', () => {
     expect(createServiceClientMock).not.toHaveBeenCalled()
   })
 
-  it('returns 503 before scanning when client authentication cannot be checked', async () => {
+  it('returns 503 when a surfaced Neon session error rejects profile lookup', async () => {
     getProfileMock.mockRejectedValueOnce(new Error('Neon Auth unavailable'))
 
     const response = await scan({ url: 'https://example.com', clientId: '11111111-1111-4111-8111-111111111111' })
@@ -170,7 +183,8 @@ describe('POST /api/scan security boundaries', () => {
     expect(denied.status).toBe(429)
     expect(denied.headers.get('ratelimit-limit')).toBe('5')
     expect(denied.headers.get('ratelimit-remaining')).toBe('0')
-    expect(denied.headers.get('ratelimit-reset')).toBe('2000000000')
-    expect(denied.headers.get('retry-after')).toBeTruthy()
+    const resetDelay = Number(denied.headers.get('ratelimit-reset'))
+    expect(resetDelay).toBeGreaterThan(0)
+    expect(denied.headers.get('retry-after')).toBe(String(resetDelay))
   })
 })

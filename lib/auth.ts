@@ -4,7 +4,8 @@ import { db } from '@/lib/db'
 import type { ProfileWithAccount } from '@/lib/types'
 
 export async function getProfile(): Promise<ProfileWithAccount | null> {
-  const { data } = await auth().getSession()
+  const { data, error } = await auth().getSession()
+  if (error) throw error
   if (!data?.user) return null
 
   const sql = db()
