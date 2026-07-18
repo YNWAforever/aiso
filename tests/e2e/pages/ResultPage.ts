@@ -1,7 +1,8 @@
 import type { Locator, Page } from '@playwright/test'
 
+type SupportedLang = 'en' | 'zh-HK'
+
 export class ResultPage {
-  readonly page: Page
   readonly score: Locator
   readonly topIssue: Locator
   readonly emailInput: Locator
@@ -10,19 +11,20 @@ export class ResultPage {
   readonly fullCheckBreakdown: Locator
   readonly backLink: Locator
 
-  constructor(page: Page) {
-    this.page = page
+  constructor(readonly page: Page, private readonly lang: SupportedLang = 'en') {
     this.score = page.getByTestId('result-score')
     this.topIssue = page.getByTestId('result-top-issue').locator('h2')
     this.emailInput = page.locator('input[name="email"]')
-    this.createAccountButton = page.getByRole('button', { name: /Create Free Account|免費建立帳戶/i })
-    this.googleSignupButton = page.getByRole('button', { name: /Continue with Google|使用 Google 繼續/i })
+    this.createAccountButton = page.getByTestId('create-account')
+    this.googleSignupButton = page.getByTestId('google-signup')
     this.fullCheckBreakdown = page.getByTestId('full-check-breakdown')
-    this.backLink = page.getByRole('link', { name: /Scan another|掃描另一個/i })
+    this.backLink = page.getByRole('link', {
+      name: lang === 'zh-HK' ? /再次掃描|掃描另一個/ : /Scan another/i,
+    })
   }
 
-  async gotoById(lang: string, scanId: string) {
-    await this.page.goto('/' + lang + '/result/' + scanId)
+  async gotoById(scanId: string) {
+    await this.page.goto('/' + this.lang + '/result/' + scanId)
     await this.page.waitForLoadState('networkidle')
   }
 

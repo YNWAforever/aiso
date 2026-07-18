@@ -14,6 +14,7 @@
 import { test, expect } from '@playwright/test'
 
 const LANG = 'en'
+const hasNeonAuth = Boolean(process.env.NEON_AUTH_BASE_URL)
 
 test.describe('Auth — login page', () => {
   test.beforeEach(async ({ page }) => {
@@ -55,8 +56,8 @@ test.describe('Auth — login page', () => {
   })
 
   test('submitting a valid email shows sending state or success message', async ({ page }) => {
-    // Stub the Supabase magic-link endpoint so no real email is sent
-    await page.route('**/auth/v1/otp*', route => {
+    // Stub the local Neon Auth proxy so no real email is sent
+    await page.route('**/sign-in/magic-link*', route => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -78,6 +79,7 @@ test.describe('Auth — login page', () => {
 
 test.describe('Auth — access control', () => {
   test('dashboard redirects unauthenticated users to login', async ({ page }) => {
+    test.skip(!hasNeonAuth, 'Requires NEON_AUTH_BASE_URL to evaluate the real unauthenticated session boundary.')
     await page.goto(`/${LANG}/dashboard`)
     await page.waitForLoadState('networkidle')
     const url = page.url()

@@ -1,168 +1,195 @@
-/**
- * E2E: Scan → Result flow
- *
- * Critical user journey:
- *   1. Land on homepage
- *   2. Enter a URL and submit
- *   3. See progress indicator
- *   4. Arrive at result page with a score
- *
- * API calls are routed to mocks so tests run offline and fast.
- */
-import { test, expect } from '@playwright/test'
-import { HomePage }   from './pages/HomePage'
+import { existsSync } from 'node:fs'
+import { expect, test } from '@playwright/test'
+import { HomePage } from './pages/HomePage'
 import { ResultPage } from './pages/ResultPage'
 import { TEST_SCAN_ID } from '../constants.js'
 
-// The scan stub returns the seeded test scan ID.
-// The result page SSR fetches this from Supabase (real DB call — not stubbed).
-// Requires: migration 020_scans_public_select.sql applied so anon key can read the row.
-const STUB_SCAN_ID = TEST_SCAN_ID
+const hasSeededResult = Boolean(
+  process.env.NEXT_PUBLIC_SUPABASE_URL &&
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+)
+const authStorageState = process.env.PLAYWRIGHT_AUTH_STORAGE_STATE
+const hasCredentialedFunnel = Boolean(
+  hasSeededResult &&
+  process.env.NEON_AUTH_BASE_URL &&
+  authStorageState &&
+  existsSync(authStorageState),
+)
 
-test.describe('Scan → Result journey', () => {
-  let home:   HomePage
-  let result: ResultPage
+test.describe('Scan to signup journey', () => {
+  test('English homepage exposes the proof-first scan contract', async ({ page }) => {
+    const home = new HomePage(page, 'en')
+    await home.goto()
 
-  test.beforeEach(async ({ page }) => {
-    home   = new HomePage(page)
-    result = new ResultPage(page)
-
-    // Stub POST /api/scan → returns the test scan ID
-    await page.route('**/api/scan', route => {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ id: STUB_SCAN_ID }),
-      })
-    })
-
-    // Note: The result page SSR calls Supabase server-side — page.route() cannot
-    // intercept it. We rely on the real test scan row seeded by globalSetup.ts.
-  })
-
-  test('proof-first homepage makes the free scan the primary action', async ({ page }) => {
-    await page.goto('/en')
-    await expect(page.getByRole('heading', { level: 1, name: /See whether AI recommends your brand/i })).toBeVisible()
+    await expect(home.heading).toBeVisible()
     await expect(home.urlInput).toBeVisible()
     await expect(home.scanButton).toBeVisible()
     await expect(page.getByText('No signup to scan')).toBeVisible()
     await expect(page.getByText('5 AI platforms')).toBeVisible()
-
     await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(1)
-    const skipLink = page.getByRole('link', { name: 'Skip to main content' })
-    await expect(skipLink).toHaveAttribute('href', '#main-content')
+    await expect(page.getByRole('link', { name: 'Skip to main content' })).toHaveAttribute('href', '#main-content')
     await expect(page.locator('main#main-content')).toHaveCount(1)
   })
 
-  test('homepage loads with a URL input and scan button', async ({ page }) => {
+  test('empty URL error is described, announced, and returns focus', async ({ page }) => {
+    const home = new HomePage(page, 'en')
     await home.goto()
-    await expect(home.urlInput).toBeVisible()
-    await expect(home.scanButton).toBeVisible()
-    await expect(page).toHaveTitle(/AISO|AEO|GEO|Fimmick/i)
-    await page.screenshot({ path: 'playwright-report/homepage.png' })
-  })
-
-  test('scan form focuses and describes an empty URL error', async ({ page }) => {
-    await home.goto()
-    await home.scanButton.click()
+    await home.submitScan()
 
     await expect(home.urlInput).toBeFocused()
     await expect(home.urlInput).toHaveAttribute('aria-invalid', 'true')
     const errorId = await home.urlInput.getAttribute('aria-describedby')
     expect(errorId).toBeTruthy()
-    await expect(page.locator(`#${errorId}`)).toHaveText('Enter your website URL to start the scan.')
+    await expect(page.locator('#' + errorId)).toHaveText('Enter your website URL to start the scan.')
     await expect(home.scanStatus).toBeEmpty()
-
   })
 
-  test('entering a URL and submitting shows progress indicator', async ({ page }) => {
+  test('personalisation fields are labeled and keyboard reachable', async ({ page }) => {
+    const home = new HomePage(page, 'en')
     await home.goto()
-    await home.enterUrl('https://example.com')
-    await home.submitScan()
-    // Progress dots or scanning text should appear while the request is in-flight
-    await expect(
-      page.locator('text=Scanning, text=Analysing, [class*="animate-bounce"]').first()
-    ).toBeVisible({ timeout: 5_000 })
-      .catch(() => { /* progress may flash briefly and disappear */ })
+    await home.personalizeButton.focus()
+    await expect(home.personalizeButton).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(home.industrySelect).toBeVisible()
+    await expect(home.regionSelect).toBeVisible()
   })
 
-  test('after scan completes, page navigates to /result/:id', async ({ page }) => {
+  test('zh-HK homepage keeps its localized hierarchy and scan action', async ({ page }) => {
+    const home = new HomePage(page, 'zh-HK')
     await home.goto()
-    await home.scan('https://example.com')
-    await home.waitForNavToResult()
-    expect(page.url()).toContain('/result/')
-    expect(page.url()).toContain(STUB_SCAN_ID)
-    await page.screenshot({ path: 'playwright-report/result-page.png' })
+    await expect(home.heading).toBeVisible()
+    await expect(home.heading).toHaveText('了解 AI 會否推薦你的品牌。')
+    await expect(home.urlInput).toBeVisible()
+    await expect(home.scanButton).toBeVisible()
   })
 
-  // ── Tests that require migration 020_scans_public_select.sql ──────────────
-  // These check result page content. They skip automatically when the anon key
-  // can't read the scan row (RLS blocks it until the migration is applied).
+  test('submits once, preserves scan context, and continues onboarding to the existing report', async ({ page }) => {
+    test.skip(!hasSeededResult, 'Requires Supabase URL, anon key, and service-role key to seed and read the public scan fixture.')
 
-  test('result page loads (not 404) after scan completes', async ({ page, request }) => {
-    // Pre-flight: check if anon key can read the test scan
-    const check = await request.get(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/scans?id=eq.${STUB_SCAN_ID}&select=id`,
-      { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '', Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''}` } }
-    )
-    const rows = await check.json() as unknown[]
-    test.skip(!rows.length, 'Scan not readable by anon — apply migration 020_scans_public_select.sql')
+    const home = new HomePage(page, 'en')
+    const result = new ResultPage(page, 'en')
+    let scanPosts = 0
+    let authRequestBody: Record<string, unknown> | null = null
 
-    await home.goto()
-    await home.scan('https://example.com')
-    await home.waitForNavToResult()
-    await expect(page.locator('body')).not.toContainText('This page could not be found')
-    await page.screenshot({ path: 'playwright-report/result-page.png' })
-  })
-
-  test('result page shows a numeric score when scan is accessible', async ({ page, request }) => {
-    const check = await request.get(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/scans?id=eq.${STUB_SCAN_ID}&select=id`,
-      { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '', Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''}` } }
-    )
-    const rows = await check.json() as unknown[]
-    test.skip(!rows.length, 'Scan not readable by anon — apply migration 020')
+    page.on('request', request => {
+      if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/scan') scanPosts += 1
+    })
+    await page.route('**/api/scan', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ id: TEST_SCAN_ID }),
+    }))
+    await page.route('**/sign-in/magic-link*', route => {
+      authRequestBody = route.request().postDataJSON() as Record<string, unknown>
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+    })
 
     await home.goto()
     await home.scan('https://example.com')
     await home.waitForNavToResult()
-    await page.waitForFunction(
-      () => [...document.querySelectorAll('*')].some(el =>
-        /^\d+$/.test((el.textContent ?? '').trim()) &&
-        (el.textContent?.trim().length ?? 0) <= 3
-      ),
-      undefined,
-      { timeout: 10_000 },
+    expect(scanPosts).toBe(1)
+    await expect(result.score).toBeVisible()
+    await expect(result.topIssue).toBeVisible()
+    await expect(result.fullCheckBreakdown).not.toBeVisible()
+    await expect(result.createAccountButton).toBeVisible()
+
+    await result.submitEmail('unlock@example.com')
+    await expect.poll(() => authRequestBody).not.toBeNull()
+    const callback = new URL(String(authRequestBody?.callbackURL ?? authRequestBody?.callbackUrl ?? ''))
+    expect(callback.pathname).toBe('/en/auth/complete')
+    expect(callback.searchParams.get('next')).toBe('/en/onboarding?scan=' + TEST_SCAN_ID)
+
+    await page.goto('/en/onboarding?scan=' + TEST_SCAN_ID)
+    await expect(page.getByLabel('Industry (optional)')).toBeVisible()
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await page.route('**/api/onboarding/complete', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ clientId: 'client-e2e', scanId: TEST_SCAN_ID, trialEndsAt: null }),
+    }))
+    const reportRequest = page.waitForRequest(request =>
+      new URL(request.url()).pathname === '/en/dashboard/client-e2e/result/' + TEST_SCAN_ID,
     )
-    await expect(page.locator('text=/^\\d{1,3}$/')).toBeVisible()
+    await page.getByRole('button', { name: 'Go to my dashboard' }).click()
+    await reportRequest
+    expect(scanPosts).toBe(1)
   })
 
-  test('result page shows email capture gate before unlock', async ({ page, request }) => {
-    const check = await request.get(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/scans?id=eq.${STUB_SCAN_ID}&select=id`,
-      { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '', Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''}` } }
-    )
-    const rows = await request.get(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/scans?id=eq.${STUB_SCAN_ID}&select=id`,
-      { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '', Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''}` } }
-    ).then(r => r.json() as Promise<unknown[]>)
-    test.skip(!rows.length, 'Scan not readable by anon — apply migration 020')
+  test('zh-HK account unlock preserves locale and scan ID', async ({ page }) => {
+    test.skip(!hasSeededResult, 'Requires the seeded Supabase result fixture for localized account-unlock coverage.')
+    await page.goto('/zh-HK/result/' + TEST_SCAN_ID)
+    const result = new ResultPage(page, 'zh-HK')
+    await expect(result.createAccountButton).toContainText(/免費|帳戶/)
 
+    let body: Record<string, unknown> | null = null
+    await page.route('**/sign-in/magic-link*', route => {
+      body = route.request().postDataJSON() as Record<string, unknown>
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+    })
+    await result.submitEmail('unlock@example.com')
+    await expect.poll(() => body).not.toBeNull()
+    const callback = new URL(String(body?.callbackURL ?? body?.callbackUrl ?? ''))
+    expect(callback.pathname).toBe('/zh-HK/auth/complete')
+    expect(callback.searchParams.get('next')).toBe('/zh-HK/onboarding?scan=' + TEST_SCAN_ID)
+  })
+
+  test('authenticated onboarding claims the scan and renders the full existing report without rescanning', async ({ browser }) => {
+    test.skip(
+      !hasCredentialedFunnel,
+      'Requires seeded Supabase credentials, NEON_AUTH_BASE_URL, and PLAYWRIGHT_AUTH_STORAGE_STATE for a real authenticated claim.',
+    )
+    const context = await browser.newContext({
+      baseURL: process.env.BASE_URL || 'http://localhost:3000',
+      storageState: authStorageState,
+    })
+    const page = await context.newPage()
+    let scanPosts = 0
+    page.on('request', request => {
+      if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/scan') scanPosts += 1
+    })
+    await page.route('**/api/scan', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ id: TEST_SCAN_ID }),
+    }))
+
+    const home = new HomePage(page, 'en')
     await home.goto()
     await home.scan('https://example.com')
     await home.waitForNavToResult()
-    await expect(page.locator('input[type="email"]')).toBeVisible({ timeout: 8_000 })
-    await page.screenshot({ path: 'playwright-report/email-gate.png' })
+    await page.goto('/en/onboarding?scan=' + TEST_SCAN_ID)
+    await expect(page.getByLabel('Industry (optional)')).toBeVisible()
+    await page.getByRole('button', { name: 'Continue' }).click()
+    const onboardingResponse = page.waitForResponse(response =>
+      response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/onboarding/complete',
+    )
+    await page.getByRole('button', { name: 'Go to my dashboard' }).click()
+    const response = await onboardingResponse
+    expect(response.ok()).toBe(true)
+    const data = await response.json() as { clientId: string; scanId: string }
+    expect(data.scanId).toBe(TEST_SCAN_ID)
+    await page.waitForURL('/en/dashboard/' + data.clientId + '/result/' + TEST_SCAN_ID)
+    await expect(page.locator('main')).toContainText(/checks scanned/i)
+    await expect(page.getByTestId('create-account')).toHaveCount(0)
+    expect(scanPosts).toBe(1)
+    await context.close()
   })
 
-  test('personalise panel reveals industry + region selects', async ({ page }) => {
-    await home.goto()
-    // The toggle should be in the DOM
-    const toggle = page.locator('button:has-text("Personalise"), button:has-text("personalise")').first()
-    if (await toggle.isVisible()) {
-      await toggle.click()
-      // After expanding, selects should appear
-      await expect(page.locator('select').first()).toBeVisible()
+  test('pricing comparison stays inside the page and scrolls within its narrow region', async ({ page }) => {
+    await page.goto('/en/pricing', { waitUntil: 'networkidle' })
+    const viewportWidth = page.viewportSize()?.width ?? 0
+    const pageWidth = await page.evaluate(() => ({
+      client: document.documentElement.clientWidth,
+      scroll: document.documentElement.scrollWidth,
+    }))
+    expect(pageWidth.scroll).toBeLessThanOrEqual(pageWidth.client)
+
+    const comparison = page.getByRole('region', { name: 'Compare paid plan features' })
+    await expect(comparison).toBeVisible()
+    if (viewportWidth <= 375) {
+      const widths = await comparison.evaluate(element => ({ client: element.clientWidth, scroll: element.scrollWidth }))
+      expect(widths.scroll).toBeGreaterThan(widths.client)
     }
   })
 })

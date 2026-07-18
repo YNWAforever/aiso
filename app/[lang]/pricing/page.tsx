@@ -349,7 +349,7 @@ export default function PricingPage() {
             tabIndex={0}
             className="overflow-x-auto rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <table className="w-full min-w-[720px] overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+            <table className="w-full min-w-[400px] overflow-hidden rounded-2xl sm:min-w-[720px] border border-border bg-white shadow-sm">
               <thead>
                 <tr className="bg-slate-50">
                   <th scope="col" className="border-b border-border p-4 text-left text-xs font-semibold text-muted-foreground">

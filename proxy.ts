@@ -21,7 +21,7 @@ import { auth } from '@/lib/neon-auth'
 //    login page, killing the sign-in. So we delegate ONLY when both are
 //    present.
 //
-// 2. Client-side (the reliable default): LoginForm/TrialCta point
+// 2. Client-side (the reliable default): LoginForm/AccountUnlockCard point
 //    `callbackURL` at /{lang}/auth/complete, whose Neon Auth client exchanges
 //    the verifier via `getSession()` (the SDK appends the verifier from
 //    window.location to the /api/auth/get-session call). Requests without the

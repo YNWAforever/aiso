@@ -1,23 +1,22 @@
 import { TEST_SCAN_ID } from '../constants.js'
-import { test, expect } from '../fixtures/auth.js'
+import { expect, test } from '@playwright/test'
 import { ResultPage } from './pages/ResultPage.js'
 
 const LANG = 'en'
+const hasSeededResult = Boolean(
+  process.env.NEXT_PUBLIC_SUPABASE_URL &&
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+)
 
-test.describe('Account unlock', () => {
+test.describe('Account unlock on a seeded public result', () => {
   test.beforeEach(async ({ page }) => {
-    const response = await page.goto('/' + LANG + '/result/' + TEST_SCAN_ID, {
-      waitUntil: 'domcontentloaded',
-    })
-    if (response?.status() === 404) {
-      test.skip(true, 'Result page 404 because the seeded scan is unavailable.')
-    }
-    await page.waitForLoadState('networkidle')
+    test.skip(!hasSeededResult, 'Requires Supabase URL, anon key, and service-role key for the seeded result fixture.')
+    await page.goto('/' + LANG + '/result/' + TEST_SCAN_ID, { waitUntil: 'networkidle' })
   })
 
-  test('shows one public account unlock without the private breakdown', async ({ page }) => {
-    const result = new ResultPage(page)
-
+  test('shows one account unlock without the private breakdown', async ({ page }) => {
+    const result = new ResultPage(page, LANG)
     await expect(result.score).toBeVisible()
     await expect(result.topIssue).toBeVisible()
     await expect(result.topIssue).toHaveText(/.+/)
@@ -29,47 +28,30 @@ test.describe('Account unlock', () => {
 
   test('magic-link callback preserves locale and scan ID', async ({ page }) => {
     let requestBody: Record<string, unknown> | null = null
-    await page.route('**/sign-in/magic-link*', async route => {
+    await page.route('**/sign-in/magic-link*', route => {
       requestBody = route.request().postDataJSON() as Record<string, unknown>
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({}),
-      })
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
     })
 
-    const result = new ResultPage(page)
+    const result = new ResultPage(page, LANG)
     await result.submitEmail('unlock@example.com')
     await expect.poll(() => requestBody).not.toBeNull()
-
-    const callbackURL = String(
-      requestBody?.callbackURL ?? requestBody?.callbackUrl ?? '',
-    )
-    const callback = new URL(callbackURL)
+    const callback = new URL(String(requestBody?.callbackURL ?? requestBody?.callbackUrl ?? ''))
     expect(callback.pathname).toBe('/' + LANG + '/auth/complete')
-    expect(callback.searchParams.get('next')).toBe(
-      '/' + LANG + '/onboarding?scan=' + TEST_SCAN_ID,
-    )
+    expect(callback.searchParams.get('next')).toBe('/' + LANG + '/onboarding?scan=' + TEST_SCAN_ID)
   })
 
   test('invalid email format prevents submission', async ({ page }) => {
-    const result = new ResultPage(page)
+    const result = new ResultPage(page, LANG)
     await result.emailInput.fill('not-an-email')
     await result.createAccountButton.click()
-    await expect(result.emailInput).toBeVisible()
-    const isInvalid = await result.emailInput.evaluate(
-      (element: HTMLInputElement) => !element.checkValidity(),
-    )
-    expect(isInvalid).toBe(true)
+    expect(await result.emailInput.evaluate((element: HTMLInputElement) => !element.checkValidity())).toBe(true)
   })
 })
 
-test.describe('Account unlock — unknown scan ID', () => {
-  test('result page returns not-found for unknown scan ID', async ({ page }) => {
-    const response = await page.goto(
-      '/' + LANG + '/result/00000000-dead-beef-0000-000000000000',
-      { waitUntil: 'networkidle' },
-    )
-    expect(response?.status()).toBe(404)
+test('unknown scan ID returns not-found', async ({ page }) => {
+  const response = await page.goto('/' + LANG + '/result/00000000-dead-beef-0000-000000000000', {
+    waitUntil: 'networkidle',
   })
+  expect(response?.status()).toBe(404)
 })
