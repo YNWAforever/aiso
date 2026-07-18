@@ -39,9 +39,18 @@ import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'
 export { assignGrade, calculateScore, calculateGeoScore }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json()
-  const { url, industry, region, sitemapUrls } = body
-  const requestedClientId = body.clientId
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+
+  const { url, industry, region, sitemapUrls, clientId: requestedClientId } =
+    body as Record<string, unknown>
   if (!url || typeof url !== 'string') {
     return NextResponse.json({ error: 'Invalid URL' }, { status: 400 })
   }
@@ -338,7 +347,7 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json(
-    { id: scanId, score: totalScore, grade, results: { ...results, ...geoDetails } },
+    { id: scanId, score: totalScore, grade },
     { headers: anonymousHeaders },
   )
 }

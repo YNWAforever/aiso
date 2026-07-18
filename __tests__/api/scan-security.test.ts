@@ -170,6 +170,11 @@ describe('POST /api/scan security boundaries', () => {
     expect(response.status).toBe(200)
     expect(createServiceClientMock).toHaveBeenCalledTimes(1)
     expect(serviceBuilder.eq).toHaveBeenCalledWith('id', state.client.id)
+    await expect(response.json()).resolves.toEqual({
+      id: 'scan-0',
+      score: expect.any(Number),
+      grade: expect.any(String),
+    })
   })
 
   it('returns a deterministic 429 with standard headers after the anonymous allowance is exhausted', async () => {
