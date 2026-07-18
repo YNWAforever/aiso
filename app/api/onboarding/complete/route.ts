@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServiceSupabaseClient } from '@/lib/supabase-server'
 import { callOpenRouter } from '@/lib/openrouter'
 import { getProfile } from '@/lib/auth'
 import { claimScanForAccount } from '@/app/api/scans/[id]/claim/route'
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   const profile = await getProfile()
   if (!profile) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
 
-  const supabase = await createServerSupabaseClient()
+  const supabase = await createServiceSupabaseClient()
   const accountId = profile.account_id
 
   if (scanId) {
@@ -31,9 +31,12 @@ export async function POST(req: NextRequest) {
   }
 
   // Guard against double-submit: check if trial already started
-  const { data: account } = await supabase
+  const { data: account, error: accountError } = await supabase
     .from('accounts').select('trial_started_at').eq('id', accountId).single()
-  const trialAlreadyStarted = !!account?.trial_started_at
+  if (accountError || !account) {
+    return NextResponse.json({ error: 'Failed to load account' }, { status: 500 })
+  }
+  const trialAlreadyStarted = !!account.trial_started_at
 
   // Set trial dates on account (7-day trial) — only on first call
   const now = new Date()
@@ -42,15 +45,21 @@ export async function POST(req: NextRequest) {
     : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
   if (!trialAlreadyStarted) {
-    await supabase.from('accounts').update({
+    const { data: updatedAccount, error: trialUpdateError } = await supabase.from('accounts').update({
       trial_started_at: now.toISOString(),
       trial_ends_at: trialEndsAt.toISOString(),
-    }).eq('id', accountId)
+    }).eq('id', accountId).select('id').maybeSingle()
+    if (trialUpdateError || !updatedAccount) {
+      return NextResponse.json({ error: 'Failed to start trial' }, { status: 500 })
+    }
   }
 
   // Guard against duplicate clients: return existing client if account already has one
-  const { data: existingClient } = await supabase
-    .from('clients').select('id').eq('account_id', accountId).limit(1).single()
+  const { data: existingClient, error: existingClientError } = await supabase
+    .from('clients').select('id').eq('account_id', accountId).limit(1).maybeSingle()
+  if (existingClientError) {
+    return NextResponse.json({ error: 'Failed to load client' }, { status: 500 })
+  }
   if (existingClient) {
     return NextResponse.json({ clientId: existingClient.id, scanId: scanId ?? null, trialEndsAt: trialEndsAt.toISOString() })
   }
