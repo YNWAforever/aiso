@@ -4,7 +4,15 @@ import { NextRequest } from 'next/server'
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test'
 
 const state = vi.hoisted(() => ({
-  profile: null as null | { account_id: string },
+  profile: null as null | {
+    account_id: string
+    accounts: {
+      plan: 'basic'
+      status: 'active'
+      stripe_subscription_id: string
+      trial_ends_at: null
+    }
+  },
   client: null as null | {
     id: string
     account_id: string
@@ -31,6 +39,18 @@ vi.mock('@/lib/supabase-server', () => ({ createServiceSupabaseClient: createSer
 vi.mock('@/lib/security/public-url', () => ({
   PublicUrlError: class PublicUrlError extends Error {},
   fetchPublicUrl: (input: string | URL | Request, init?: RequestInit) => fetch(input, init),
+}))
+vi.mock('@/lib/security/authenticated-scan-quota', () => ({
+  consumeAuthenticatedScanQuota: vi.fn().mockResolvedValue({
+    allowed: true,
+    remaining: 2,
+    resetAt: 2_000_000_000,
+  }),
+  authenticatedScanQuotaHeaders: () => new Headers({
+    'RateLimit-Limit': '3',
+    'RateLimit-Remaining': '2',
+    'RateLimit-Reset': '1',
+  }),
 }))
 
 const passing = { status: 'pass', message: 'ok' }
@@ -133,7 +153,15 @@ describe('POST /api/scan security boundaries', () => {
   })
 
   it('returns 404 before scanning when the requested client does not exist', async () => {
-    state.profile = { account_id: 'account-a' }
+    state.profile = {
+      account_id: 'account-a',
+      accounts: {
+        plan: 'basic',
+        status: 'active',
+        stripe_subscription_id: 'sub_basic',
+        trial_ends_at: null,
+      },
+    }
 
     const response = await scan({ url: 'https://example.com', clientId: '11111111-1111-4111-8111-111111111111' })
 
@@ -142,7 +170,15 @@ describe('POST /api/scan security boundaries', () => {
   })
 
   it('returns 403 before scanning when the client belongs to another account', async () => {
-    state.profile = { account_id: 'account-a' }
+    state.profile = {
+      account_id: 'account-a',
+      accounts: {
+        plan: 'basic',
+        status: 'active',
+        stripe_subscription_id: 'sub_basic',
+        trial_ends_at: null,
+      },
+    }
     state.client = {
       id: '11111111-1111-4111-8111-111111111111',
       account_id: 'account-b',
@@ -157,7 +193,15 @@ describe('POST /api/scan security boundaries', () => {
   })
 
   it('allows a dashboard scan only after service-client ownership verification', async () => {
-    state.profile = { account_id: 'account-a' }
+    state.profile = {
+      account_id: 'account-a',
+      accounts: {
+        plan: 'basic',
+        status: 'active',
+        stripe_subscription_id: 'sub_basic',
+        trial_ends_at: null,
+      },
+    }
     state.client = {
       id: '11111111-1111-4111-8111-111111111111',
       account_id: 'account-a',

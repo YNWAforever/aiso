@@ -1,4 +1,4 @@
-import { getPlanFeatures } from '@/lib/tier'
+import type { PlanFeatures } from '@/lib/types'
 import { Lock } from 'lucide-react'
 
 type Step = { key: string; label: string }
@@ -13,12 +13,11 @@ const STEPS: Step[] = [
 
 type Props = {
   current: string
-  plan: string
+  features: PlanFeatures
   hasScan: boolean
 }
 
-export function WizardProgress({ current, plan, hasScan }: Props) {
-  const features = getPlanFeatures(plan)
+export function WizardProgress({ current, features, hasScan }: Props) {
   const currentIdx = STEPS.findIndex(s => s.key === current)
 
   const stepAccess: Record<string, { accessible: boolean; reason?: string }> = {

@@ -107,7 +107,7 @@ describe('Local Trust profile route', () => {
     mockFrom.mockImplementation((table: string) => new QueryBuilder(table))
     mockGetProfile.mockResolvedValue({
       account_id: 'account-1',
-      accounts: { plan: 'pro' },
+      accounts: { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_pro', trial_ends_at: null },
     })
   })
 
@@ -122,7 +122,7 @@ describe('Local Trust profile route', () => {
   })
 
   it('rejects Basic users', async () => {
-    mockGetProfile.mockResolvedValue({ account_id: 'account-1', accounts: { plan: 'basic' } })
+    mockGetProfile.mockResolvedValue({ account_id: 'account-1', accounts: { plan: 'basic', status: 'active', stripe_subscription_id: 'sub_basic', trial_ends_at: null } })
 
     const req = jsonRequest('http://localhost/api/dashboard/clients/client-1/local-trust/profile', 'PUT', {})
     const res = await PUT_PROFILE(req, { params: Promise.resolve({ clientId: 'client-1' }) })
@@ -243,7 +243,7 @@ describe('Local Trust action route', () => {
     mockFrom.mockImplementation((table: string) => new QueryBuilder(table))
     mockGetProfile.mockResolvedValue({
       account_id: 'account-1',
-      accounts: { plan: 'pro' },
+      accounts: { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_pro', trial_ends_at: null },
     })
   })
 
@@ -329,7 +329,7 @@ describe('Local Trust export route', () => {
     mockFrom.mockImplementation((table: string) => new QueryBuilder(table))
     mockGetProfile.mockResolvedValue({
       account_id: 'account-1',
-      accounts: { plan: 'enterprise' },
+      accounts: { plan: 'enterprise', status: 'active', stripe_subscription_id: 'sub_enterprise', trial_ends_at: null },
     })
     mockCalculateLocalTrust.mockReturnValue({
       client_id: 'client-1',
@@ -415,7 +415,7 @@ describe('Local Trust export route', () => {
   }
 
   it('rejects Pro users because export is Enterprise-only', async () => {
-    mockGetProfile.mockResolvedValue({ account_id: 'account-1', accounts: { plan: 'pro' } })
+    mockGetProfile.mockResolvedValue({ account_id: 'account-1', accounts: { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_pro', trial_ends_at: null } })
 
     const req = new Request('http://localhost/api/dashboard/clients/client-1/local-trust/export')
     const res = await GET_EXPORT(req, { params: Promise.resolve({ clientId: 'client-1' }) })
@@ -718,7 +718,7 @@ describe('Local Trust export route', () => {
       mockFrom.mockImplementation((name: string) => new QueryBuilder(name))
       mockGetProfile.mockResolvedValue({
         account_id: 'account-1',
-        accounts: { plan: 'enterprise' },
+        accounts: { plan: 'enterprise', status: 'active', stripe_subscription_id: 'sub_enterprise', trial_ends_at: null },
       })
       setOwnedClient()
       setTable('scans', {

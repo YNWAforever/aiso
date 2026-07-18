@@ -298,7 +298,7 @@ export interface ClientOverview {
 }
 
 export interface PlanFeatures {
-  plan: 'basic' | 'pro' | 'enterprise'
+  plan: 'free' | 'basic' | 'pro' | 'enterprise'
   platform_access: string[]
   agent_recs: boolean
   agent_progress: boolean

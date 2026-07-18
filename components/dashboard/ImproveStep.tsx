@@ -4,20 +4,18 @@ import { AgentRecommendations } from '@/components/dashboard/AgentRecommendation
 import { AgentProgress } from '@/components/dashboard/AgentProgress'
 import { AgentCompetitors } from '@/components/dashboard/AgentCompetitors'
 import { LockedFeature } from '@/components/dashboard/LockedFeature'
-import { getPlanFeatures } from '@/lib/tier'
 import type { Scan, AgentRecommendation, AgentProgress as AgentProgressType, AgentCompetitor } from '@/lib/types'
 
 type Props = {
   scan: Scan
-  plan: string
+  features: import('@/lib/types').PlanFeatures
   recommendations: AgentRecommendation[]
   progress: AgentProgressType[]
   competitors: AgentCompetitor[]
 }
 
-export function ImproveStep({ scan, plan, recommendations, progress, competitors }: Props) {
+export function ImproveStep({ scan, features, recommendations, progress, competitors }: Props) {
   const t = useTranslations('dashboard')
-  const features = getPlanFeatures(plan)
   const allowedRecs = recommendations.filter(r => features.platform_access.includes(r.platform))
 
   return (

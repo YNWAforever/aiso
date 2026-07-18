@@ -46,6 +46,9 @@ Before releasing public scans:
 
 - Apply `supabase/migrations/023_public_scan_rate_limits.sql` to the production database.
 - Apply `supabase/migrations/024_stripe_lifecycle_integrity.sql` before enabling Stripe webhooks.
+- Apply `supabase/migrations/025_authenticated_scan_quotas.sql` before releasing authenticated scans.
+  The server-only `DATABASE_URL` role must be able to insert, update, select, and delete rows in
+  `authenticated_scan_monthly_usage`; authenticated scans fail closed if the counter is unavailable.
 - Configure the server-only `PUBLIC_SCAN_RATE_LIMIT_SECRET` with at least 32 random characters.
   Do not expose it through a `NEXT_PUBLIC_` variable or commit its value.
 

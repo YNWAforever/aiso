@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar'
 import { TrialBanner } from '@/components/dashboard/TrialBanner'
 import { getTrialStatus } from '@/lib/trial'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 import { headers } from 'next/headers'
 
 export default async function DashboardLayout({
@@ -15,6 +16,7 @@ export default async function DashboardLayout({
   const { lang } = await params
   const profile = await requireAuth(lang)
   const trial = getTrialStatus(profile.accounts)
+  const entitlement = resolveCommercialEntitlement(profile.accounts)
 
   const headersList = await headers()
   const pathname = headersList.get('x-invoke-path') ?? ''
@@ -39,7 +41,7 @@ export default async function DashboardLayout({
         <TrialBanner daysRemaining={trial.daysRemaining} lang={lang} />
       )}
       <div className="flex flex-1 overflow-hidden">
-        <DashboardSidebar profile={profile} brandName={brandName} brandId={clientId} />
+        <DashboardSidebar profile={profile} entitlement={entitlement} brandName={brandName} brandId={clientId} />
         <div className="flex-1 flex flex-col overflow-auto">
           {children}
         </div>

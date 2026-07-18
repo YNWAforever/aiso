@@ -1,7 +1,9 @@
 import { requireAuth } from '@/lib/auth'
 import Link from 'next/link'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 
 const PLAN_LABELS: Record<string, string> = {
+  free: 'Free',
   basic: 'Basic — $29/month',
   pro: 'Pro — $79/month',
   enterprise: 'Enterprise — $199/month',
@@ -14,7 +16,7 @@ export default async function SettingsPage({
 }) {
   const { lang } = await params
   const profile = await requireAuth(lang)
-  const plan    = profile.accounts?.plan ?? 'basic'
+  const plan    = resolveCommercialEntitlement(profile.accounts).plan
   const status  = profile.accounts?.status ?? 'active'
   const hasStripe = Boolean(profile.accounts?.stripe_customer_id)
 
@@ -56,13 +58,13 @@ export default async function SettingsPage({
             </div>
           )}
 
-          {(plan === 'basic' || plan === 'pro') && (
+          {(plan === 'free' || plan === 'basic' || plan === 'pro') && (
             <div className="border-t border-border pt-4">
               <Link
                 href={`/${lang}/pricing`}
                 className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-secondary text-foreground border border-border hover:bg-secondary/80 transition-colors"
               >
-                {plan === 'basic' ? 'Upgrade to Pro →' : 'Upgrade to Enterprise →'}
+                {plan === 'pro' ? 'Upgrade to Enterprise →' : 'Upgrade to Pro →'}
               </Link>
             </div>
           )}

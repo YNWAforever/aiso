@@ -28,10 +28,11 @@ import { checkChunkability }     from '@/lib/checks/chunkability'
 
 import { db }               from '@/lib/db'
 import { getProfile }       from '@/lib/auth'
-import { getPlanFeatures }  from '@/lib/tier'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 import { createServiceSupabaseClient } from '@/lib/supabase-server'
 import { fetchPublicUrl, PublicUrlError } from '@/lib/security/public-url'
 import { consumePublicScanRateLimit, rateLimitHeaders } from '@/lib/security/public-scan-rate-limit'
+import { consumeAuthenticatedScanQuota, authenticatedScanQuotaHeaders } from '@/lib/security/authenticated-scan-quota'
 import { GEO_PTS, assignGrade, calculateScore, calculateGeoScore } from '@/lib/scoring'
 import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'
 
@@ -122,20 +123,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Server misconfiguration: missing DATABASE_URL' }, { status: 500 })
   }
 
-  let anonymousHeaders: Headers | undefined
+  const entitlement = resolveCommercialEntitlement(profile?.accounts)
+  let scanHeaders: Headers | undefined
   if (!profile) {
     try {
       const decision = await consumePublicScanRateLimit(req)
-      anonymousHeaders = rateLimitHeaders(decision)
+      scanHeaders = rateLimitHeaders(decision)
       if (!decision.allowed) {
         return NextResponse.json(
           { error: 'Too many scan requests. Please try again later.' },
-          { status: 429, headers: anonymousHeaders },
+          { status: 429, headers: scanHeaders },
         )
       }
     } catch (error) {
       console.error('[scan] durable rate limiter failed:', (error as Error)?.message ?? String(error))
       return NextResponse.json({ error: 'Public scan temporarily unavailable' }, { status: 503 })
+    }
+  } else if (entitlement.plan === 'free') {
+    return NextResponse.json({ error: 'AUTHENTICATED_SCAN_UPGRADE_REQUIRED' }, { status: 403 })
+  } else if (entitlement.monthlyScanLimit !== null) {
+    try {
+      const decision = await consumeAuthenticatedScanQuota(profile.account_id)
+      scanHeaders = authenticatedScanQuotaHeaders(decision)
+      if (!decision.allowed) {
+        return NextResponse.json(
+          { error: 'AUTHENTICATED_SCAN_LIMIT_REACHED' },
+          { status: 429, headers: scanHeaders },
+        )
+      }
+    } catch (error) {
+      console.error('[scan] authenticated quota failed:', (error as Error)?.message ?? String(error))
+      return NextResponse.json({ error: 'Authenticated scan quota unavailable' }, { status: 503 })
     }
   }
 
@@ -155,7 +173,7 @@ export async function POST(req: NextRequest) {
     if (error instanceof PublicUrlError) {
       return NextResponse.json({ error: 'URL must resolve to a public HTTP or HTTPS address' }, {
         status: 400,
-        headers: anonymousHeaders,
+        headers: scanHeaders,
       })
     }
     // Continue without HTML — checks degrade gracefully for ordinary network failures.
@@ -295,14 +313,7 @@ export async function POST(req: NextRequest) {
   if (isDashboardScan && ownedClient) {
     const webhookUrl = ownedClient.webhook_url
     if (webhookUrl) {
-      let plan = 'basic'
-      if (account_id) {
-        try {
-          const rows = await sql`select plan from accounts where id = ${account_id} limit 1`
-          plan = (rows[0] as { plan: string } | undefined)?.plan ?? 'basic'
-        } catch { /* default to basic */ }
-      }
-      const features = getPlanFeatures(plan)
+      const features = entitlement.features
       const platforms = features.platform_access
 
       try {
@@ -348,6 +359,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(
     { id: scanId, score: totalScore, grade },
-    { headers: anonymousHeaders },
+    { headers: scanHeaders },
   )
 }

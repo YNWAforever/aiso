@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { LogOut, Wrench, Scan, FileBarChart2, Sparkles, Radio, Brain, Settings, TrendingUp, Lock } from 'lucide-react'
-import { getPlanFeatures } from '@/lib/tier'
+import type { CommercialEntitlement } from '@/lib/tier'
 import { ThemeToggle } from '@/components/dashboard/ThemeToggle'
 
 const STEPS = [
@@ -19,20 +19,19 @@ type Props = {
   profile: {
     display_name?: string | null
     is_admin?: boolean
-    accounts?: { plan?: string } | null
   }
+  entitlement: CommercialEntitlement
   brandName?: string
   brandId?: string
 }
 
-export function DashboardSidebar({ profile, brandName, brandId }: Props) {
+export function DashboardSidebar({ profile, entitlement, brandName, brandId }: Props) {
   const t = useTranslations('dashboard')
   const params = useParams<{ lang: string }>()
   const searchParams = useSearchParams()
   const lang = params?.lang ?? 'en'
   const step = searchParams?.get('step') ?? 'scan'
-  const plan = profile.accounts?.plan ?? 'basic'
-  const features = getPlanFeatures(plan)
+  const { plan, features } = entitlement
 
   return (
     <aside className="w-60 shrink-0 border-r border-border bg-white flex flex-col min-h-full">

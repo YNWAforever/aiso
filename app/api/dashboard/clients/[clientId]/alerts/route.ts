@@ -1,6 +1,6 @@
 import { getProfile } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { planAllows } from '@/lib/tier'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 
 const DEFAULT_CONFIG = {
   enabled_sov: false, sov_threshold: 50,
@@ -39,8 +39,8 @@ export async function PUT(
   if (!profile) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   // Plan gate — alerts are a Pro+ feature
-  const plan = profile.accounts?.plan ?? 'basic'
-  if (!planAllows(plan, 'alerts')) {
+  const { plan, features } = resolveCommercialEntitlement(profile.accounts)
+  if (!features.alerts) {
     return Response.json({ error: 'UPGRADE_REQUIRED', feature: 'alerts', plan }, { status: 403 })
   }
 
