@@ -16,3 +16,21 @@ export function buildAuthCompleteUrl(lang: string, next: string): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
   return `${origin}/${lang}/auth/complete?next=${encodeURIComponent(next)}`
 }
+export function buildGoogleAuthStartUrl(lang: string, next: string): string {
+  return `/${lang}/auth/google?next=${encodeURIComponent(next)}`
+}
+
+type GoogleAuthStartResponse = {
+  data?: unknown
+  error?: { code?: string; message?: string } | null
+}
+
+export async function startGoogleAuthRedirect<T extends GoogleAuthStartResponse>(
+  request: () => Promise<T>,
+): Promise<T | { data: null; error: { code: 'GOOGLE_AUTH_START_FAILED' } }> {
+  try {
+    return await request()
+  } catch {
+    return { data: null, error: { code: 'GOOGLE_AUTH_START_FAILED' } }
+  }
+}

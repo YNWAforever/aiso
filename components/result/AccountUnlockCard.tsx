@@ -1,7 +1,11 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
-import { authClient, buildAuthCompleteUrl } from '@/lib/auth-client'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import {
+  authClient,
+  buildAuthCompleteUrl,
+  buildGoogleAuthStartUrl,
+} from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -51,6 +55,54 @@ type AuthRequestOptions = {
   onFinally: () => void
 }
 
+type GoogleAuthPopup = {
+  opener: unknown
+  readonly closed: boolean
+  focus: () => void
+  close?: () => void
+}
+
+type GoogleAccountUnlockOptions = {
+  embedded: boolean
+  bridgeURL: string
+  activePopup?: GoogleAuthPopup | null
+  openWindow: (url: string, target: string) => GoogleAuthPopup | null
+  request: () => Promise<{ error?: AuthRequestError | null }>
+}
+
+export async function launchGoogleAccountUnlock({
+  embedded,
+  bridgeURL,
+  activePopup,
+  openWindow,
+  request,
+}: GoogleAccountUnlockOptions): Promise<{
+  error?: AuthRequestError | null
+  popup?: GoogleAuthPopup
+}> {
+  if (!embedded) return request()
+
+  if (activePopup && !activePopup.closed) {
+    try {
+      activePopup.focus()
+    } catch {}
+    return { error: null, popup: activePopup }
+  }
+
+  const popup = openWindow(bridgeURL, 'fimmick-google-auth')
+  if (!popup) return { error: { code: 'POPUP_BLOCKED' } }
+
+  try {
+    popup.opener = null
+  } catch {
+    try {
+      popup.close?.()
+    } catch {}
+    return { error: { code: 'OPENER_ISOLATION_FAILED' } }
+  }
+  return { error: null, popup }
+}
+
 export async function runAccountUnlockRequest({
   request,
   onFailure,
@@ -74,22 +126,70 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
   const [loading, setLoading] = useState<'google' | 'email' | null>(null)
   const [status, setStatus] = useState('')
   const [isError, setIsError] = useState(false)
+  const googlePopupRef = useRef<GoogleAuthPopup | null>(null)
+  const googlePopupMonitorRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const googlePopupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const next = `/${lang}/onboarding?scan=${encodeURIComponent(scanId)}`
   const callbackURL = buildAuthCompleteUrl(lang, next)
+
+  function releaseGooglePopup() {
+    if (googlePopupMonitorRef.current) clearInterval(googlePopupMonitorRef.current)
+    if (googlePopupTimeoutRef.current) clearTimeout(googlePopupTimeoutRef.current)
+    googlePopupMonitorRef.current = null
+    googlePopupTimeoutRef.current = null
+    googlePopupRef.current = null
+    setLoading(null)
+  }
+
+  useEffect(() => () => {
+    if (googlePopupMonitorRef.current) clearInterval(googlePopupMonitorRef.current)
+    if (googlePopupTimeoutRef.current) clearTimeout(googlePopupTimeoutRef.current)
+  }, [])
 
   async function signInWithGoogle() {
     setLoading('google')
     setStatus('')
     setIsError(false)
-    await runAccountUnlockRequest({
-      request: () => authClient.signIn.social({ provider: 'google', callbackURL }),
-      onFailure: () => {
+
+    try {
+      const result = await launchGoogleAccountUnlock({
+        embedded: (() => {
+          try {
+            return window.self !== window.top
+          } catch {
+            return true
+          }
+        })(),
+        bridgeURL: buildGoogleAuthStartUrl(lang, next),
+        activePopup: googlePopupRef.current,
+        openWindow: (url, target) => window.open(url, target),
+        request: () => authClient.signIn.social({ provider: 'google', callbackURL }),
+      })
+
+      if (result.error) {
         setStatus(c.googleFailed)
         setIsError(true)
-      },
-      onSuccess: () => undefined,
-      onFinally: () => setLoading(null),
-    })
+        setLoading(null)
+        return
+      }
+
+      if (result.popup) {
+        googlePopupRef.current = result.popup
+        if (!googlePopupMonitorRef.current) {
+          googlePopupMonitorRef.current = setInterval(() => {
+            if (googlePopupRef.current?.closed) releaseGooglePopup()
+          }, 500)
+          googlePopupTimeoutRef.current = setTimeout(releaseGooglePopup, 120_000)
+        }
+        return
+      }
+
+      setLoading(null)
+    } catch {
+      setStatus(c.googleFailed)
+      setIsError(true)
+      setLoading(null)
+    }
   }
 
   async function signInWithMagicLink(event: FormEvent<HTMLFormElement>) {
