@@ -127,7 +127,7 @@ describe('authenticated scan commercial entitlement', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('rejects a free authenticated account before network work', async () => {
+  it('keeps a free authenticated homepage scan on the public limiter', async () => {
     state.profile = {
       account_id: 'account-free',
       accounts: { ...paidAccount('basic'), stripe_subscription_id: null },
@@ -135,10 +135,10 @@ describe('authenticated scan commercial entitlement', () => {
 
     const response = await scan()
 
-    expect(response.status).toBe(403)
-    await expect(response.json()).resolves.toMatchObject({ error: 'AUTHENTICATED_SCAN_UPGRADE_REQUIRED' })
+    expect(response.status).toBe(200)
+    expect(consumePublicScanRateLimit).toHaveBeenCalledTimes(1)
     expect(consumeAuthenticatedScanQuota).not.toHaveBeenCalled()
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalled()
   })
 
   it('consumes quota for an active paid Basic account', async () => {

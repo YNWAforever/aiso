@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
 
   const entitlement = resolveCommercialEntitlement(profile?.accounts)
   let scanHeaders: Headers | undefined
-  if (!profile) {
+  if (!profile || (entitlement.plan === 'free' && !ownedClient)) {
     try {
       const decision = await consumePublicScanRateLimit(req)
       scanHeaders = rateLimitHeaders(decision)
