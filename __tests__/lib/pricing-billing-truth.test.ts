@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { createTranslator } from 'next-intl'
 import { CHECKOUT_PLAN_IDS, PLAN_CATALOG } from '@/lib/plans/catalog'
+import * as catalogModule from '@/lib/plans/catalog'
 import enMessages from '@/messages/en.json'
 import zhMessages from '@/messages/zh-HK.json'
 
@@ -47,10 +49,8 @@ describe('pricing billing truth', () => {
     expect(PLAN_CATALOG.enterprise.release.whiteLabelPdf).toBe('planned')
     expect(enMessages.pricing.coming_soon).toBe('Coming soon')
     expect(zhMessages.pricing.coming_soon).toBe('即將推出')
-    expect(enMessages.pricing.row_scans_p).toContain('Fair-use')
-    expect(enMessages.pricing.row_scans_e).toContain('Fair-use')
-    expect(zhMessages.pricing.row_scans_p).toContain('合理使用')
-    expect(zhMessages.pricing.row_scans_e).toContain('合理使用')
+    expect(enMessages.pricing.allowance_scans_fair_use).toContain('Fair-use')
+    expect(zhMessages.pricing.allowance_scans_fair_use).toContain('合理使用')
   })
 
   it('does not imply an upgrade unlocks Coming soon features', () => {
@@ -60,6 +60,76 @@ describe('pricing billing truth', () => {
     expect(zhMessages.pricing.faq_3_a).toContain('目前已提供')
     expect(zhMessages.pricing.faq_3_a).toContain('即將推出')
     expect(zhMessages.pricing.faq_3_a).not.toContain('新功能即時生效')
+  })
+
+  it('provides one catalog-derived localized allowance projection for pricing', () => {
+    const projection = (
+      catalogModule as unknown as { buildPricingAllowanceProjection?: unknown }
+    ).buildPricingAllowanceProjection
+
+    expect(projection).toBeTypeOf('function')
+  })
+
+  it.each([
+    ['en', enMessages],
+    ['zh-HK', zhMessages],
+  ] as const)('projects every %s checkout allowance from the catalog', (locale, messages) => {
+    const pricing = messages.pricing as Record<string, string>
+    for (const key of [
+      'allowance_scans_monthly',
+      'allowance_scans_fair_use',
+      'allowance_brands',
+      'allowance_history_weeks',
+      'allowance_history_lifetime',
+    ]) {
+      expect(pricing).toHaveProperty(key)
+    }
+
+    const translate = createTranslator({ locale, messages, namespace: 'pricing' })
+    const format: catalogModule.PricingAllowanceFormatter = (key, values) =>
+      translate(key as never, values as never)
+
+    for (const plan of CHECKOUT_PLAN_IDS) {
+      const definition = PLAN_CATALOG[plan]
+      const projection = catalogModule.buildPricingAllowanceProjection(plan, format)
+
+      if (definition.monthlyScanLimit === null) {
+        expect(projection.scans).toBe(pricing.allowance_scans_fair_use)
+      } else {
+        expect(projection.scans).toContain(String(definition.monthlyScanLimit))
+      }
+      expect(projection.brands).toContain(String(definition.maxBrands))
+      if (definition.historyWeeks === null) {
+        expect(projection.history).toBe(pricing.allowance_history_lifetime)
+      } else {
+        expect(projection.history).toContain(String(definition.historyWeeks))
+      }
+    }
+  })
+
+  it('removes per-plan allowance strings and uses the catalog projection on Pricing', () => {
+    for (const messages of [enMessages, zhMessages]) {
+      const pricing = messages.pricing as Record<string, string>
+      for (const key of [
+        'row_scans_s', 'row_scans_p', 'row_scans_e',
+        'row_brands_s', 'row_brands_p', 'row_brands_e',
+        'row_history_s', 'row_history_p', 'row_history_e',
+      ]) {
+        expect(pricing).not.toHaveProperty(key)
+      }
+    }
+    expect(pricingSource).toContain('buildPricingAllowanceProjection')
+    expect(pricingSource).not.toMatch(/row_(scans|brands|history)_[spe]/)
+  })
+
+  it('localizes Enterprise as a starting price while Basic and Pro stay monthly', () => {
+    const enPricing = enMessages.pricing as Record<string, string>
+    const zhPricing = zhMessages.pricing as Record<string, string>
+    expect(enPricing.starting_price_per_month).toBe('/month starting price')
+    expect(zhPricing.starting_price_per_month).toBe('/月起')
+    expect(pricingSource).toContain(
+      "key === 'enterprise' ? t('starting_price_per_month') : t('per_month')",
+    )
   })
 
   it('keeps monthly-only checkout and locale parity', () => {

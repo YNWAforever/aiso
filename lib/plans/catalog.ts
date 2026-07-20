@@ -141,6 +141,40 @@ export function getCheckoutPlanId(value: unknown): CheckoutPlanId | null {
     : null
 }
 
+export type PricingAllowanceMessageKey =
+  | 'allowance_scans_monthly'
+  | 'allowance_scans_fair_use'
+  | 'allowance_brands'
+  | 'allowance_history_weeks'
+  | 'allowance_history_lifetime'
+
+export type PricingAllowanceFormatter = (
+  key: PricingAllowanceMessageKey,
+  values?: Record<string, number>,
+) => string
+
+export interface PricingAllowanceProjection {
+  scans: string
+  brands: string
+  history: string
+}
+
+export function buildPricingAllowanceProjection(
+  plan: CheckoutPlanId,
+  format: PricingAllowanceFormatter,
+): PricingAllowanceProjection {
+  const definition = PLAN_CATALOG[plan]
+  return {
+    scans: definition.monthlyScanLimit === null
+      ? format('allowance_scans_fair_use')
+      : format('allowance_scans_monthly', { count: definition.monthlyScanLimit }),
+    brands: format('allowance_brands', { count: definition.maxBrands }),
+    history: definition.historyWeeks === null
+      ? format('allowance_history_lifetime')
+      : format('allowance_history_weeks', { count: definition.historyWeeks }),
+  }
+}
+
 export function getPlanFromStripePrice(
   priceId: string,
   prices: StripePriceMap,

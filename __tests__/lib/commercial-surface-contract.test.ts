@@ -73,6 +73,22 @@ describe('commercial surface contract', () => {
     )
   })
 
+  it('routes every displayed checkout allowance through the catalog projection', () => {
+    const pricing = source('app/[lang]/pricing/page.tsx')
+    const messages = [source('messages/en.json'), source('messages/zh-HK.json')]
+
+    expect(pricing).toContain('buildPricingAllowanceProjection(key')
+    expect(pricing).not.toMatch(/row_(scans|brands|history)_[spe]/)
+    for (const plan of CHECKOUT_PLAN_IDS) {
+      for (const allowance of ['scans', 'brands', 'history']) {
+        expect(pricing).toContain(`allowances.${plan}.${allowance}`)
+      }
+    }
+    for (const localeMessages of messages) {
+      expect(localeMessages).not.toMatch(/"row_(scans|brands|history)_[spe]"/)
+    }
+  })
+
   it('uses client navigation for localized login and a full-page Stripe redirect', () => {
     const pricing = source('app/[lang]/pricing/page.tsx')
 

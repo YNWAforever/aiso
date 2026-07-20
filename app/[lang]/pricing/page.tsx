@@ -5,9 +5,11 @@ import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Zap, Check, Minus, ChevronDown, ChevronRight } from 'lucide-react'
 import {
+  buildPricingAllowanceProjection,
   CHECKOUT_PLAN_IDS,
   getPlanDefinition,
   type CheckoutPlanId,
+  type PricingAllowanceProjection,
 } from '@/lib/plans/catalog'
 
 /* ── Types ──────────────────────────────────────────────────── */
@@ -104,9 +106,15 @@ export default function PricingPage() {
   /* Feature comparison rows */
   const pro = getPlanDefinition('pro')
   const enterprise = getPlanDefinition('enterprise')
+  const allowances: Record<CheckoutPlanId, PricingAllowanceProjection> = Object.fromEntries(
+    CHECKOUT_PLAN_IDS.map(key => [
+      key,
+      buildPricingAllowanceProjection(key, (message, values) => t(message, values)),
+    ]),
+  ) as Record<CheckoutPlanId, PricingAllowanceProjection>
 
   const rows: FeatureRow[] = [
-    { label: t('row_scans'), basic: t('row_scans_s'), pro: t('row_scans_p'), enterprise: t('row_scans_e') },
+    { label: t('row_scans'), basic: allowances.basic.scans, pro: allowances.pro.scans, enterprise: allowances.enterprise.scans },
     {
       label: t('row_monitoring'),
       basic: false,
@@ -116,8 +124,8 @@ export default function PricingPage() {
     { label: t('row_checks'), basic: true, pro: true, enterprise: true },
     { label: t('row_fixpack'), basic: true, pro: true, enterprise: true },
     { label: t('row_fixpack_adv'), basic: false, pro: true, enterprise: true, highlight: true },
-    { label: t('row_brands'), basic: t('row_brands_s'), pro: t('row_brands_p'), enterprise: t('row_brands_e') },
-    { label: t('row_history'), basic: t('row_history_s'), pro: t('row_history_p'), enterprise: t('row_history_e') },
+    { label: t('row_brands'), basic: allowances.basic.brands, pro: allowances.pro.brands, enterprise: allowances.enterprise.brands },
+    { label: t('row_history'), basic: allowances.basic.history, pro: allowances.pro.history, enterprise: allowances.enterprise.history },
     { label: t('row_prompts'), basic: false, pro: true, enterprise: true },
     { label: t('row_alerts'), basic: false, pro: true, enterprise: true },
     {
@@ -152,7 +160,7 @@ export default function PricingPage() {
       name: key === 'basic' ? t('basic_name') : key === 'pro' ? t('pro_name') : t('enterprise_name'),
       tag: key === 'basic' ? t('basic_tag') : key === 'pro' ? t('pro_tag') : t('enterprise_tag'),
       price: '$' + definition.monthlyPriceUsd,
-      priceSub: t('per_month'),
+      priceSub: key === 'enterprise' ? t('starting_price_per_month') : t('per_month'),
       cta: loading
         ? t('cta_loading')
         : key === 'basic' ? t('cta_basic') : key === 'pro' ? t('cta_pro') : t('cta_enterprise'),
@@ -163,14 +171,16 @@ export default function PricingPage() {
 
   const cardHighlights: Record<CheckoutPlanId, string[]> = {
     basic: [
-      `${t('row_scans_s')} ${t('row_scans')}`,
+      allowances.basic.scans,
+      allowances.basic.brands,
+      allowances.basic.history,
       t('row_checks'),
       t('row_fixpack'),
-      `${t('row_brands_s')} ${t('row_brands').toLowerCase()}`,
-      `${t('row_history_s')} ${t('row_history').toLowerCase()}`,
     ],
     pro: [
-      `${t('row_scans_p')} — ${t('row_scans')}`,
+      allowances.pro.scans,
+      allowances.pro.brands,
+      allowances.pro.history,
       t('row_checks'),
       t('row_fixpack_adv'),
       t('row_prompts'),
@@ -180,8 +190,9 @@ export default function PricingPage() {
       `${t('coming_soon')}: ${t('row_client_report')}`,
     ],
     enterprise: [
-      `${t('row_scans_e')} — ${t('row_scans')}`,
-      `${t('row_brands_e')} ${t('row_brands').toLowerCase()}`,
+      allowances.enterprise.scans,
+      allowances.enterprise.brands,
+      allowances.enterprise.history,
       t('row_competitor'),
       t('row_csv'),
       t('priority_support'),
@@ -341,7 +352,7 @@ export default function PricingPage() {
             tabIndex={0}
             className="w-full max-w-full overflow-x-auto rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <table className="w-full min-w-[400px] overflow-hidden rounded-2xl sm:min-w-[720px] border border-border bg-white shadow-sm">
+            <table className="w-full table-fixed min-w-[400px] overflow-hidden rounded-2xl sm:min-w-[720px] border border-border bg-white shadow-sm">
               <thead>
                 <tr className="bg-slate-50">
                   <th scope="col" className="border-b border-border p-4 text-left text-xs font-semibold text-muted-foreground">
@@ -387,7 +398,14 @@ export default function PricingPage() {
           <div className="max-w-2xl mx-auto px-6">
             <h2 className="text-2xl font-black text-foreground text-center mb-8">{t('faq_title')}</h2>
             <div className="bg-white border border-border rounded-2xl px-6 shadow-sm">
-              <FaqItem q={t('faq_1_q')} a={t('faq_1_a')} />
+              <FaqItem
+                q={t('faq_1_q')}
+                a={t('faq_1_a', {
+                  basicScans: allowances.basic.scans,
+                  proScans: allowances.pro.scans,
+                  enterpriseScans: allowances.enterprise.scans,
+                })}
+              />
               <FaqItem q={t('faq_2_q')} a={t('faq_2_a')} />
               <FaqItem q={t('faq_3_q')} a={t('faq_3_a')} />
               <FaqItem q={t('faq_4_q')} a={t('faq_4_a')} />
