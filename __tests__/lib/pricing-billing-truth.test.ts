@@ -9,6 +9,10 @@ const pricingSource = readFileSync(
   resolve(process.cwd(), 'app/[lang]/pricing/page.tsx'),
   'utf8',
 )
+const cardHighlightsSource = pricingSource.slice(
+  pricingSource.indexOf('const cardHighlights'),
+  pricingSource.indexOf('return (', pricingSource.indexOf('const cardHighlights')),
+)
 
 describe('pricing billing truth', () => {
   it('renders paid prices from the catalog instead of duplicated literals', () => {
@@ -26,8 +30,15 @@ describe('pricing billing truth', () => {
     })
     expect(enMessages.pricing.enterprise_custom_body).toContain('API')
     expect(enMessages.pricing.enterprise_custom_body).toContain('SSO')
+    expect(enMessages.pricing.enterprise_custom_body).toContain('contractual SLA')
+    expect(enMessages.pricing.enterprise_custom_body).toContain('custom quotas')
     expect(zhMessages.pricing.enterprise_custom_body).toContain('API')
     expect(zhMessages.pricing.enterprise_custom_body).toContain('SSO')
+    expect(zhMessages.pricing.enterprise_custom_body).toContain('合約 SLA')
+    expect(zhMessages.pricing.enterprise_custom_body).toContain('客製配額')
+    expect(cardHighlightsSource).not.toMatch(
+      /enterprise_custom|row_api|row_custom_platforms|SSO|API|SLA|quota|dedicated/i,
+    )
     expect(pricingSource).toContain('mailto:aeo@fimmick.com')
   })
 
@@ -40,6 +51,15 @@ describe('pricing billing truth', () => {
     expect(enMessages.pricing.row_scans_e).toContain('Fair-use')
     expect(zhMessages.pricing.row_scans_p).toContain('合理使用')
     expect(zhMessages.pricing.row_scans_e).toContain('合理使用')
+  })
+
+  it('does not imply an upgrade unlocks Coming soon features', () => {
+    expect(enMessages.pricing.faq_3_a).toContain('currently available')
+    expect(enMessages.pricing.faq_3_a).toContain('Coming soon')
+    expect(enMessages.pricing.faq_3_a).not.toContain('new features activate immediately')
+    expect(zhMessages.pricing.faq_3_a).toContain('目前已提供')
+    expect(zhMessages.pricing.faq_3_a).toContain('即將推出')
+    expect(zhMessages.pricing.faq_3_a).not.toContain('新功能即時生效')
   })
 
   it('keeps monthly-only checkout and locale parity', () => {
