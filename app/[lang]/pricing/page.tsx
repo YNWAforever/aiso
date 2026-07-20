@@ -1,7 +1,7 @@
 'use client'
 import { useId, useState } from 'react'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Zap, Check, Minus, ChevronDown, ChevronRight } from 'lucide-react'
 import {
@@ -69,6 +69,7 @@ export default function PricingPage() {
   const [loading, setLoading]       = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
   const { lang } = useParams<{ lang: string }>()
+  const router = useRouter()
   const t = useTranslations('pricing')
 
   const startCheckout = async (planName: CheckoutPlanId) => {
@@ -81,7 +82,7 @@ export default function PricingPage() {
         body: JSON.stringify({ plan: planName, lang }),
       })
       if (res.status === 401) {
-        window.location.href = `/${lang}/auth/login?next=/${lang}/pricing`
+        router.push(`/${lang}/auth/login?next=/${lang}/pricing`)
         return
       }
       const data = await res.json()
@@ -90,7 +91,7 @@ export default function PricingPage() {
         setLoading(false)
         return
       }
-      if (data.url) window.location.href = data.url
+      if (data.url) window.location.assign(data.url)
     } catch {
       setCheckoutError(t('error_network'))
       setLoading(false)
