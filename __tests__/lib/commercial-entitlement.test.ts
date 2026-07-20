@@ -95,7 +95,6 @@ describe('resolveCommercialEntitlement', () => {
     expect(resolveCommercialEntitlement(account({ trial_ends_at: 'not-a-date' }), NOW).plan).toBe('free')
   })
 
-
   it('derives limits and features from the canonical catalog', () => {
     const enterprise = resolveCommercialEntitlement(account({
       plan: 'enterprise',
@@ -107,5 +106,18 @@ describe('resolveCommercialEntitlement', () => {
       monthlyScanLimit: null,
       features: { max_brands: 10, history_weeks: 999 },
     })
+  })
+
+  it.each([
+    ['free', false],
+    ['basic', false],
+    ['pro', true],
+    ['enterprise', true],
+  ] as const)('exposes online client report capability for %s according to the catalog', (plan, expected) => {
+    const entitlement = plan === 'free'
+      ? resolveCommercialEntitlement(null, NOW)
+      : resolveCommercialEntitlement(account({ plan, stripe_subscription_id: 'sub_report' }), NOW)
+
+    expect(entitlement.features.client_reports_online).toBe(expected)
   })
 })

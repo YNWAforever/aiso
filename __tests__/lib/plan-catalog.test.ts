@@ -28,6 +28,15 @@ describe('Plan Catalog', () => {
     }
   })
 
+  it('grants online client reports only to Pro and Enterprise at runtime', () => {
+    expect(PLAN_CATALOG.free.features.client_reports_online).toBe(false)
+    expect(PLAN_CATALOG.basic.features.client_reports_online).toBe(false)
+    expect(PLAN_CATALOG.pro.features.client_reports_online).toBe(true)
+    expect(PLAN_CATALOG.enterprise.features.client_reports_online).toBe(true)
+    expect(PLAN_CATALOG.pro.release.clientReports).toBe('planned')
+    expect(PLAN_CATALOG.enterprise.release.clientReports).toBe('planned')
+  })
+
   it('captures the approved Pro and Enterprise target boundaries without claiming release', () => {
     expect(PLAN_CATALOG.pro).toMatchObject({
       maxBrands: 3,
