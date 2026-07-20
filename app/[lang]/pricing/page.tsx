@@ -4,6 +4,11 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Zap, Check, Minus, ChevronDown, ChevronRight } from 'lucide-react'
+import {
+  CHECKOUT_PLAN_IDS,
+  getPlanDefinition,
+  type CheckoutPlanId,
+} from '@/lib/plans/catalog'
 
 /* ── Types ──────────────────────────────────────────────────── */
 type Col = 'basic' | 'pro' | 'enterprise'
@@ -66,7 +71,7 @@ export default function PricingPage() {
   const { lang } = useParams<{ lang: string }>()
   const t = useTranslations('pricing')
 
-  const startCheckout = async (planName: string) => {
+  const startCheckout = async (planName: CheckoutPlanId) => {
     setLoading(true)
     setCheckoutError('')
     try {
@@ -96,55 +101,94 @@ export default function PricingPage() {
   const otherLabel = lang === 'en' ? '中文' : 'EN'
 
   /* Feature comparison rows */
+  const pro = getPlanDefinition('pro')
+  const enterprise = getPlanDefinition('enterprise')
+
   const rows: FeatureRow[] = [
-    { label: t('row_scans'),         basic: t('row_scans_s'),      pro: t('row_scans_p'),      enterprise: t('row_scans_e') },
-    { label: t('row_checks'),        basic: true,                   pro: true,                   enterprise: true },
-    { label: t('row_fixpack'),       basic: true,                   pro: true,                   enterprise: true },
-    { label: t('row_fixpack_adv'),   basic: false,                  pro: true,                   enterprise: true, highlight: true },
-    { label: t('row_brands'),        basic: t('row_brands_s'),      pro: t('row_brands_p'),      enterprise: t('row_brands_e') },
-    { label: t('row_history'),       basic: t('row_history_s'),     pro: t('row_history_p'),     enterprise: t('row_history_e') },
-    { label: t('row_prompts'),       basic: false,                  pro: true,                   enterprise: true },
-    { label: t('row_alerts'),        basic: false,                  pro: true,                   enterprise: true },
-    { label: t('row_competitor'),    basic: false,                  pro: true,                   enterprise: true },
-    { label: t('row_authority'),     basic: t('row_authority_s'),   pro: t('row_authority_p'),   enterprise: t('row_authority_e'), highlight: true },
-    { label: t('row_csv'),           basic: false,                  pro: false,                  enterprise: true },
-    { label: t('row_pdf'),           basic: false,                  pro: false,                  enterprise: true },
-    { label: t('row_api'),           basic: false,                  pro: false,                  enterprise: true },
-    { label: t('row_custom_platforms'), basic: false,               pro: false,                  enterprise: true },
-    { label: t('row_support'),       basic: false,                  pro: false,                  enterprise: true },
+    { label: t('row_scans'), basic: t('row_scans_s'), pro: t('row_scans_p'), enterprise: t('row_scans_e') },
+    {
+      label: t('row_monitoring'),
+      basic: false,
+      pro: pro.release.monitoring === 'available' ? true : t('coming_soon'),
+      enterprise: enterprise.release.monitoring === 'available' ? true : t('coming_soon'),
+    },
+    { label: t('row_checks'), basic: true, pro: true, enterprise: true },
+    { label: t('row_fixpack'), basic: true, pro: true, enterprise: true },
+    { label: t('row_fixpack_adv'), basic: false, pro: true, enterprise: true, highlight: true },
+    { label: t('row_brands'), basic: t('row_brands_s'), pro: t('row_brands_p'), enterprise: t('row_brands_e') },
+    { label: t('row_history'), basic: t('row_history_s'), pro: t('row_history_p'), enterprise: t('row_history_e') },
+    { label: t('row_prompts'), basic: false, pro: true, enterprise: true },
+    { label: t('row_alerts'), basic: false, pro: true, enterprise: true },
+    {
+      label: t('row_competitor'),
+      basic: false,
+      pro: pro.release.competitorSummary === 'available' ? true : t('coming_soon'),
+      enterprise: enterprise.features.agent_competitors,
+    },
+    { label: t('row_authority'), basic: t('row_authority_s'), pro: t('row_authority_p'), enterprise: t('row_authority_e'), highlight: true },
+    {
+      label: t('row_client_report'),
+      basic: false,
+      pro: pro.release.clientReports === 'available' ? true : t('coming_soon'),
+      enterprise: enterprise.release.clientReports === 'available' ? true : t('coming_soon'),
+    },
+    { label: t('row_csv'), basic: false, pro: false, enterprise: enterprise.features.csv_export },
+    {
+      label: t('row_pdf'),
+      basic: false,
+      pro: false,
+      enterprise: enterprise.release.whiteLabelPdf === 'available' ? true : t('coming_soon'),
+    },
+    { label: t('row_api'), basic: false, pro: false, enterprise: false },
+    { label: t('row_custom_platforms'), basic: false, pro: false, enterprise: false },
+    { label: t('row_support'), basic: false, pro: false, enterprise: t('priority_support') },
   ]
 
-  const plans: { key: Col; name: string; tag: string; price: string; priceSub: string; cta: string; popular?: boolean; ctaAction: () => void }[] = [
-    {
-      key: 'basic',
-      name: t('basic_name'),
-      tag:  t('basic_tag'),
-      price: '$29',
+  const plans = CHECKOUT_PLAN_IDS.map(key => {
+    const definition = getPlanDefinition(key)
+    return {
+      key,
+      name: key === 'basic' ? t('basic_name') : key === 'pro' ? t('pro_name') : t('enterprise_name'),
+      tag: key === 'basic' ? t('basic_tag') : key === 'pro' ? t('pro_tag') : t('enterprise_tag'),
+      price: '$' + definition.monthlyPriceUsd,
       priceSub: t('per_month'),
-      cta: loading ? t('cta_loading') : t('cta_basic'),
-      ctaAction: () => startCheckout('basic'),
-    },
-    {
-      key: 'pro',
-      name: t('pro_name'),
-      tag:  t('pro_tag'),
-      price: '$79',
-      priceSub: t('per_month'),
-      cta: loading ? t('cta_loading') : t('cta_pro'),
-      popular: true,
-      ctaAction: () => startCheckout('pro'),
-    },
-    {
-      key: 'enterprise',
-      name: t('enterprise_name'),
-      tag:  t('enterprise_tag'),
-      price: '$199',
-      priceSub: t('per_month'),
-      cta: loading ? t('cta_loading') : t('cta_enterprise'),
-      ctaAction: () => startCheckout('enterprise'),
-    },
-  ]
+      cta: loading
+        ? t('cta_loading')
+        : key === 'basic' ? t('cta_basic') : key === 'pro' ? t('cta_pro') : t('cta_enterprise'),
+      popular: key === 'pro',
+      ctaAction: () => startCheckout(key),
+    }
+  })
 
+  const cardHighlights: Record<CheckoutPlanId, string[]> = {
+    basic: [
+      `${t('row_scans_s')} ${t('row_scans')}`,
+      t('row_checks'),
+      t('row_fixpack'),
+      `${t('row_brands_s')} ${t('row_brands').toLowerCase()}`,
+      `${t('row_history_s')} ${t('row_history').toLowerCase()}`,
+    ],
+    pro: [
+      `${t('row_scans_p')} — ${t('row_scans')}`,
+      t('row_checks'),
+      t('row_fixpack_adv'),
+      t('row_prompts'),
+      t('row_alerts'),
+      `${t('coming_soon')}: ${t('row_monitoring')}`,
+      `${t('coming_soon')}: ${t('row_competitor')}`,
+      `${t('coming_soon')}: ${t('row_client_report')}`,
+    ],
+    enterprise: [
+      `${t('row_scans_e')} — ${t('row_scans')}`,
+      `${t('row_brands_e')} ${t('row_brands').toLowerCase()}`,
+      t('row_competitor'),
+      t('row_csv'),
+      t('priority_support'),
+      `${t('coming_soon')}: ${t('row_monitoring')}`,
+      `${t('coming_soon')}: ${t('row_client_report')}`,
+      `${t('coming_soon')}: ${t('row_pdf')}`,
+    ],
+  }
   return (
     <div className="min-h-screen bg-background">
 
@@ -236,51 +280,17 @@ export default function PricingPage() {
                   </div>
 
                   {/* Feature highlights for card */}
-                  <ul className="space-y-2.5 text-sm flex-1 mb-7">
-                    {plan.key === 'basic' && [
-                      t('row_scans_s') + ' ' + t('row_scans'),
-                      t('row_checks'),
-                      t('row_fixpack'),
-                      t('row_brands_s') + ' ' + t('row_brands').toLowerCase(),
-                      t('row_history_s') + ' ' + t('row_history').toLowerCase(),
-                    ].map(f => (
-                      <li key={f} className="flex items-start gap-2.5">
-                        <Check aria-hidden="true" className="size-3.5 text-emerald-500 mt-0.5 shrink-0" />
-                        <span className="text-slate-600 text-xs">{f}</span>
-                      </li>
-                    ))}
-                    {plan.key === 'pro' && [
-                      t('row_scans_p') + ' ' + t('row_scans'),
-                      t('row_checks'),
-                      t('row_fixpack'),
-                      t('row_fixpack_adv'),
-                      t('row_brands_p') + ' ' + t('row_brands').toLowerCase(),
-                      t('row_history_p') + ' ' + t('row_history').toLowerCase(),
-                      t('row_prompts'),
-                      t('row_alerts'),
-                      t('row_competitor'),
-                    ].map(f => (
-                      <li key={f} className="flex items-start gap-2.5">
-                        <Check aria-hidden="true" className="size-3.5 text-primary mt-0.5 shrink-0" />
-                        <span className="text-slate-700 text-xs">{f}</span>
-                      </li>
-                    ))}
-                    {plan.key === 'enterprise' && [
-                      t('row_scans_e') + ' ' + t('row_scans'),
-                      t('row_brands_e') + ' ' + t('row_brands').toLowerCase(),
-                      t('row_history_e') + ' ' + t('row_history').toLowerCase(),
-                      t('row_csv'),
-                      t('row_pdf'),
-                      t('row_api'),
-                      t('row_support'),
-                    ].map(f => (
-                      <li key={f} className="flex items-start gap-2.5">
-                        <Check aria-hidden="true" className="size-3.5 text-emerald-500 mt-0.5 shrink-0" />
-                        <span className="text-slate-600 text-xs">{f}</span>
+                  <ul className="mb-7 flex-1 space-y-2.5 text-sm">
+                    {cardHighlights[plan.key].map(feature => (
+                      <li key={feature} className="flex items-start gap-2.5">
+                        <Check
+                          aria-hidden="true"
+                          className={`mt-0.5 size-3.5 shrink-0 ${plan.key === 'pro' ? 'text-primary' : 'text-emerald-500'}`}
+                        />
+                        <span className="text-xs text-slate-700">{feature}</span>
                       </li>
                     ))}
                   </ul>
-
                   {/* CTA */}
                   <button
                     type="button"
@@ -299,6 +309,20 @@ export default function PricingPage() {
               )
             })}
           </div>
+          <aside className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6 sm:flex sm:items-center sm:justify-between sm:gap-6">
+            <div>
+              <h3 className="font-bold text-foreground">{t('enterprise_custom_title')}</h3>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                {t('enterprise_custom_body')}
+              </p>
+            </div>
+            <a
+              href="mailto:aeo@fimmick.com"
+              className="mt-4 inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-border bg-white px-5 text-sm font-semibold text-foreground transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:mt-0"
+            >
+              {t('enterprise_custom_cta')}
+            </a>
+          </aside>
           {checkoutError && (
             <p role="alert" className="mt-5 text-center text-sm font-medium text-destructive">{checkoutError}</p>
           )}
@@ -314,7 +338,7 @@ export default function PricingPage() {
             role="region"
             aria-label={t('comparison_label')}
             tabIndex={0}
-            className="overflow-x-auto rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="w-full max-w-full overflow-x-auto rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <table className="w-full min-w-[400px] overflow-hidden rounded-2xl sm:min-w-[720px] border border-border bg-white shadow-sm">
               <thead>

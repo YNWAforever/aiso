@@ -1,39 +1,52 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { CHECKOUT_PLAN_IDS, PLAN_CATALOG } from '@/lib/plans/catalog'
 import enMessages from '@/messages/en.json'
 import zhMessages from '@/messages/zh-HK.json'
 
+const pricingSource = readFileSync(
+  resolve(process.cwd(), 'app/[lang]/pricing/page.tsx'),
+  'utf8',
+)
+
 describe('pricing billing truth', () => {
-  it('names the current paid tiers in the public pricing FAQ', () => {
-    expect(enMessages.pricing.faq_1_a).not.toMatch(/\bStarter\b/i)
-    expect(zhMessages.pricing.faq_1_a).not.toContain('入門版')
-    expect(enMessages.pricing.faq_1_a).toContain('Basic')
-    expect(zhMessages.pricing.faq_1_a).toContain('基本版')
+  it('renders paid prices from the catalog instead of duplicated literals', () => {
+    expect(CHECKOUT_PLAN_IDS.map(id => PLAN_CATALOG[id].monthlyPriceUsd)).toEqual([29, 79, 199])
+    expect(pricingSource).toContain('getPlanDefinition')
+    expect(pricingSource).not.toMatch(/price:\s*['"]\$(29|79|199)['"]/)
+    expect(pricingSource).toContain("body: JSON.stringify({ plan: planName, lang })")
   })
 
-  it('advertises only the monthly prices supported by the single checkout price per plan', () => {
-    const pricingSource = readFileSync(
-      resolve(process.cwd(), 'app/[lang]/pricing/page.tsx'),
-      'utf8',
-    )
-    const stripeSource = readFileSync(resolve(process.cwd(), 'lib/stripe.ts'), 'utf8')
+  it('does not sell Custom-only capabilities as self-serve Enterprise features', () => {
+    expect(PLAN_CATALOG.enterprise.release).toMatchObject({
+      publicApi: 'custom',
+      customPlatforms: 'custom',
+      dedicatedSuccess: 'custom',
+    })
+    expect(enMessages.pricing.enterprise_custom_body).toContain('API')
+    expect(enMessages.pricing.enterprise_custom_body).toContain('SSO')
+    expect(zhMessages.pricing.enterprise_custom_body).toContain('API')
+    expect(zhMessages.pricing.enterprise_custom_body).toContain('SSO')
+    expect(pricingSource).toContain('mailto:aeo@fimmick.com')
+  })
 
-    expect(pricingSource).toContain("body: JSON.stringify({ plan: planName, lang })")
-    expect(pricingSource).toContain("price: '$29'")
-    expect(pricingSource).toContain("price: '$79'")
-    expect(pricingSource).toContain("price: '$199'")
-    expect(pricingSource).not.toMatch(/\bannual\b/i)
-    expect(pricingSource).not.toContain('role="switch"')
+  it('labels unreleased reports honestly in both locales', () => {
+    expect(PLAN_CATALOG.pro.release.clientReports).toBe('planned')
+    expect(PLAN_CATALOG.enterprise.release.whiteLabelPdf).toBe('planned')
+    expect(enMessages.pricing.coming_soon).toBe('Coming soon')
+    expect(zhMessages.pricing.coming_soon).toBe('即將推出')
+    expect(enMessages.pricing.row_scans_p).toContain('Fair-use')
+    expect(enMessages.pricing.row_scans_e).toContain('Fair-use')
+    expect(zhMessages.pricing.row_scans_p).toContain('合理使用')
+    expect(zhMessages.pricing.row_scans_e).toContain('合理使用')
+  })
 
-    expect(stripeSource.match(/STRIPE_PRICE_(BASIC|PRO|ENTERPRISE)/g)).toEqual([
-      'STRIPE_PRICE_BASIC',
-      'STRIPE_PRICE_PRO',
-      'STRIPE_PRICE_ENTERPRISE',
-    ])
+  it('keeps monthly-only checkout and locale parity', () => {
     expect(enMessages.pricing.per_month).toBe('/mo')
     expect(zhMessages.pricing.per_month).toBe('/月')
     expect(JSON.stringify(enMessages.pricing)).not.toMatch(/annual|yearly/i)
-    expect(JSON.stringify(zhMessages.pricing)).not.toMatch(/按年|年繳/)
+    expect(JSON.stringify(zhMessages.pricing)).not.toMatch(/年繳|按年/)
+    expect(Object.keys(enMessages.pricing).sort()).toEqual(Object.keys(zhMessages.pricing).sort())
   })
 })
