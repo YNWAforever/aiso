@@ -1,41 +1,11 @@
-import type { PlanFeatures } from '@/lib/types'
+import {
+  PLAN_CATALOG,
+  getPlanDefinition,
+  type PlanFeatures,
+  type PlanId,
+} from '@/lib/plans/catalog'
 
-const FEATURES: Record<string, PlanFeatures> = {
-  free: {
-    plan: 'free',
-    platform_access: [],
-    agent_recs: false, agent_progress: false, agent_competitors: false,
-    alerts: false, csv_export: false,
-    max_brands: 1, history_weeks: 0, edit_prompts: false,
-    local_trust_roi: false, local_trust_competitors: false, local_trust_export: false,
-  },
-  basic: {
-    plan: 'basic',
-    platform_access: ['gemini'],
-    agent_recs: true, agent_progress: false, agent_competitors: false,
-    alerts: false, csv_export: false,
-    max_brands: 1, history_weeks: 4, edit_prompts: false,
-    local_trust_roi: false, local_trust_competitors: false, local_trust_export: false,
-  },
-  pro: {
-    plan: 'pro',
-    platform_access: ['gemini', 'gpt4o', 'claude', 'perplexity-s', 'perplexity-p'],
-    agent_recs: true, agent_progress: true, agent_competitors: false,
-    alerts: true, csv_export: false,
-    max_brands: 3, history_weeks: 26, edit_prompts: true,
-    local_trust_roi: true, local_trust_competitors: false, local_trust_export: false,
-  },
-  enterprise: {
-    plan: 'enterprise',
-    platform_access: ['gemini', 'gpt4o', 'claude', 'perplexity-s', 'perplexity-p'],
-    agent_recs: true, agent_progress: true, agent_competitors: true,
-    alerts: true, csv_export: true,
-    max_brands: 10, history_weeks: 999, edit_prompts: true,
-    local_trust_roi: true, local_trust_competitors: true, local_trust_export: true,
-  },
-}
-
-export type EffectivePlan = 'free' | 'basic' | 'pro' | 'enterprise'
+export type EffectivePlan = PlanId
 export type EntitlementSource = 'free' | 'paid' | 'trial' | 'expired-trial' | 'past_due' | 'cancelled'
 
 export type CommercialAccount = {
@@ -55,7 +25,7 @@ export type CommercialEntitlement = {
 const PAID_PLANS = new Set<EffectivePlan>(['basic', 'pro', 'enterprise'])
 
 export function getPlanFeatures(plan: string): PlanFeatures {
-  return FEATURES[plan] ?? FEATURES.free!
+  return getPlanDefinition(plan).features
 }
 
 export function planAllows(plan: string, feature: keyof PlanFeatures): boolean {
@@ -63,7 +33,7 @@ export function planAllows(plan: string, feature: keyof PlanFeatures): boolean {
 }
 
 export function maxBrandsForPlan(plan: string): number {
-  return getPlanFeatures(plan).max_brands
+  return getPlanDefinition(plan).maxBrands
 }
 
 function freeEntitlement(
@@ -72,8 +42,21 @@ function freeEntitlement(
   return {
     plan: 'free',
     source,
-    features: FEATURES.free!,
-    monthlyScanLimit: 0,
+    features: PLAN_CATALOG.free.features,
+    monthlyScanLimit: PLAN_CATALOG.free.monthlyScanLimit,
+  }
+}
+
+function activeEntitlement(
+  plan: Exclude<EffectivePlan, 'free'>,
+  source: Extract<EntitlementSource, 'paid' | 'trial'>,
+): CommercialEntitlement {
+  const definition = PLAN_CATALOG[plan]
+  return {
+    plan,
+    source,
+    features: definition.features,
+    monthlyScanLimit: definition.monthlyScanLimit,
   }
 }
 
@@ -98,21 +81,11 @@ export function resolveCommercialEntitlement(
     && account.stripe_subscription_id.length > 0
 
   if (account.status === 'active' && hasSubscription) {
-    return {
-      plan,
-      source: 'paid',
-      features: FEATURES[plan]!,
-      monthlyScanLimit: plan === 'basic' ? 3 : null,
-    }
+    return activeEntitlement(plan, 'paid')
   }
 
   if (trialIsLive || (account.status === 'trialing' && hasSubscription)) {
-    return {
-      plan,
-      source: 'trial',
-      features: FEATURES[plan]!,
-      monthlyScanLimit: plan === 'basic' ? 3 : null,
-    }
+    return activeEntitlement(plan, 'trial')
   }
 
   return freeEntitlement(
