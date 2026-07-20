@@ -53,4 +53,28 @@ describe('POST /api/stripe/checkout', () => {
       cancel_url: 'https://app.example.com/en/pricing',
     }))
   })
+
+  it.each(['free', 'unexpected', '', null])('rejects non-checkout plan %j', async plan => {
+    const response = await postCheckout({ plan, lang: 'en' })
+
+    expect(response.status).toBe(400)
+    expect(createCheckoutSession).not.toHaveBeenCalled()
+    await expect(response.json()).resolves.toEqual({
+      error: 'Invalid plan. Use basic, pro, or enterprise.',
+    })
+  })
+
+  it.each([
+    ['basic', 'price_basic_test'],
+    ['pro', 'price_pro_test'],
+    ['enterprise', 'price_enterprise_test'],
+  ] as const)('selects the catalog-backed Stripe price for %s', async (plan, price) => {
+    const response = await postCheckout({ plan, lang: 'en' })
+
+    expect(response.status).toBe(200)
+    expect(createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({
+      line_items: [{ price, quantity: 1 }],
+      metadata: { account_id: 'account-1', plan },
+    }))
+  })
 })

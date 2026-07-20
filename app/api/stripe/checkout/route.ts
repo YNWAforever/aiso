@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe, STRIPE_PRICES, APP_URL } from '@/lib/stripe'
 import { getProfile } from '@/lib/auth'
+import { getCheckoutPlanId } from '@/lib/plans/catalog'
 
 export const dynamic = 'force-dynamic'
 
-const VALID_PLANS = ['basic', 'pro', 'enterprise'] as const
 const VALID_LANGS = ['en', 'zh-HK'] as const
 
 function getSupportedLang(lang: unknown): (typeof VALID_LANGS)[number] {
@@ -14,13 +14,17 @@ function getSupportedLang(lang: unknown): (typeof VALID_LANGS)[number] {
 }
 
 export async function POST(req: NextRequest) {
-  const { plan, lang } = await req.json()
-  const supportedLang = getSupportedLang(lang)
+  const body = await req.json() as { plan?: unknown; lang?: unknown }
+  const plan = getCheckoutPlanId(body.plan)
+  const supportedLang = getSupportedLang(body.lang)
   const profile = await getProfile()
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  if (!VALID_PLANS.includes(plan)) {
-    return NextResponse.json({ error: 'Invalid plan. Use basic, pro, or enterprise.' }, { status: 400 })
+  if (!plan) {
+    return NextResponse.json(
+      { error: 'Invalid plan. Use basic, pro, or enterprise.' },
+      { status: 400 },
+    )
   }
 
   const priceId = STRIPE_PRICES[plan]

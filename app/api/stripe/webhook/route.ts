@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
 import { stripe, STRIPE_PRICES } from '@/lib/stripe'
 import { createServiceSupabaseClient } from '@/lib/supabase-server'
+import {
+  getPlanFromStripePrice,
+  type CheckoutPlanId as Plan,
+} from '@/lib/plans/catalog'
 
 export const dynamic = 'force-dynamic'
 
-type Plan = 'basic' | 'pro' | 'enterprise'
 type AccountStatus = 'active' | 'past_due' | 'cancelled' | 'trialing'
 type PersistenceOutcome = 'applied' | 'duplicate' | 'stale' | 'not_found' | 'lease_lost'
 type ServiceSupabaseClient = Awaited<ReturnType<typeof createServiceSupabaseClient>>
@@ -29,17 +32,10 @@ const LIFECYCLE_EVENTS = new Set([
   'invoice.payment_failed',
 ])
 
-function getPlan(priceId: string): Plan | null {
-  if (priceId === STRIPE_PRICES.enterprise) return 'enterprise'
-  if (priceId === STRIPE_PRICES.pro) return 'pro'
-  if (priceId === STRIPE_PRICES.basic) return 'basic'
-  return null
-}
-
 function getPurchasedPlan(subscription: CanonicalSubscription): Plan | null {
   const items = subscription.items?.data
   if (!Array.isArray(items) || items.length !== 1) return null
-  return getPlan(items[0]?.price?.id ?? '')
+  return getPlanFromStripePrice(items[0]?.price?.id ?? '', STRIPE_PRICES)
 }
 
 function getAccountState(
