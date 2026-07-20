@@ -150,7 +150,7 @@
     "url_invalid": "Enter a valid website URL, such as example.com.",
     "scan_loading": "Scanning your website. This can take a few moments.",
     "scan_complete": "Scan complete. Opening your result.",
-    "scan_error_action": "We could not complete the scan. Check the URL and try again.",
+    "scan_error_action": "We could not complete the scan. Please try again shortly.",
     "select_not_specified": "Not specified",
     "industry_retail_ecommerce": "Retail & E-Commerce",
     "proof_public_nav": "Public navigation",

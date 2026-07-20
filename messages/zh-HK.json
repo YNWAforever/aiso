@@ -150,7 +150,7 @@
     "url_invalid": "請輸入有效網站網址，例如 example.com。",
     "scan_loading": "正在掃描網站，可能需要一點時間。",
     "scan_complete": "掃描完成，正在開啟結果。",
-    "scan_error_action": "暫時未能完成掃描，請檢查網址後再試。",
+    "scan_error_action": "暫時未能完成掃描，請稍後再試。",
     "select_not_specified": "未指定",
     "industry_retail_ecommerce": "零售及電商",
     "proof_public_nav": "網站導覽",

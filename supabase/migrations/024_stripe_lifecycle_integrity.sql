@@ -16,8 +16,21 @@ create table if not exists public.stripe_webhook_events (
 );
 
 alter table public.stripe_webhook_events enable row level security;
-revoke all on table public.stripe_webhook_events from public, anon, authenticated;
-grant select, insert on table public.stripe_webhook_events to service_role;
+revoke all on table public.stripe_webhook_events from public;
+
+do $acl$
+begin
+  if to_regrole('anon') is not null then
+    execute 'revoke all on table public.stripe_webhook_events from anon';
+  end if;
+  if to_regrole('authenticated') is not null then
+    execute 'revoke all on table public.stripe_webhook_events from authenticated';
+  end if;
+  if to_regrole('service_role') is not null then
+    execute 'grant select, insert on table public.stripe_webhook_events to service_role';
+  end if;
+end
+$acl$;
 
 -- Serialize canonical Stripe reads and persistence without holding a database
 -- transaction open across the Stripe network request. Expiry allows recovery if
@@ -29,10 +42,21 @@ create table if not exists public.stripe_subscription_processing_leases (
 );
 
 alter table public.stripe_subscription_processing_leases enable row level security;
-revoke all on table public.stripe_subscription_processing_leases from public, anon, authenticated;
-grant select, insert, update, delete
-  on table public.stripe_subscription_processing_leases
-  to service_role;
+revoke all on table public.stripe_subscription_processing_leases from public;
+
+do $acl$
+begin
+  if to_regrole('anon') is not null then
+    execute 'revoke all on table public.stripe_subscription_processing_leases from anon';
+  end if;
+  if to_regrole('authenticated') is not null then
+    execute 'revoke all on table public.stripe_subscription_processing_leases from authenticated';
+  end if;
+  if to_regrole('service_role') is not null then
+    execute 'grant select, insert, update, delete on table public.stripe_subscription_processing_leases to service_role';
+  end if;
+end
+$acl$;
 
 create or replace function public.acquire_stripe_subscription_lease(
   p_subscription_id text,
@@ -98,14 +122,36 @@ begin
 end;
 $$;
 
-revoke all on function public.acquire_stripe_subscription_lease(text, uuid)
-  from public, anon, authenticated;
-grant execute on function public.acquire_stripe_subscription_lease(text, uuid)
-  to service_role;
-revoke all on function public.release_stripe_subscription_lease(text, uuid)
-  from public, anon, authenticated;
-grant execute on function public.release_stripe_subscription_lease(text, uuid)
-  to service_role;
+revoke all on function public.acquire_stripe_subscription_lease(text, uuid) from public;
+
+do $acl$
+begin
+  if to_regrole('anon') is not null then
+    execute 'revoke all on function public.acquire_stripe_subscription_lease(text, uuid) from anon';
+  end if;
+  if to_regrole('authenticated') is not null then
+    execute 'revoke all on function public.acquire_stripe_subscription_lease(text, uuid) from authenticated';
+  end if;
+  if to_regrole('service_role') is not null then
+    execute 'grant execute on function public.acquire_stripe_subscription_lease(text, uuid) to service_role';
+  end if;
+end
+$acl$;
+revoke all on function public.release_stripe_subscription_lease(text, uuid) from public;
+
+do $acl$
+begin
+  if to_regrole('anon') is not null then
+    execute 'revoke all on function public.release_stripe_subscription_lease(text, uuid) from anon';
+  end if;
+  if to_regrole('authenticated') is not null then
+    execute 'revoke all on function public.release_stripe_subscription_lease(text, uuid) from authenticated';
+  end if;
+  if to_regrole('service_role') is not null then
+    execute 'grant execute on function public.release_stripe_subscription_lease(text, uuid) to service_role';
+  end if;
+end
+$acl$;
 
 -- CREATE OR REPLACE with a new argument list creates an overload. Remove the
 -- unfenced legacy signature so every caller must prove current lease ownership.
@@ -236,7 +282,18 @@ $$;
 
 revoke all on function public.apply_stripe_account_event(
   uuid, text, text, text, text, bigint, text, text, uuid
-) from public, anon, authenticated;
-grant execute on function public.apply_stripe_account_event(
-  uuid, text, text, text, text, bigint, text, text, uuid
-) to service_role;
+) from public;
+
+do $acl$
+begin
+  if to_regrole('anon') is not null then
+    execute 'revoke all on function public.apply_stripe_account_event(uuid, text, text, text, text, bigint, text, text, uuid) from anon';
+  end if;
+  if to_regrole('authenticated') is not null then
+    execute 'revoke all on function public.apply_stripe_account_event(uuid, text, text, text, text, bigint, text, text, uuid) from authenticated';
+  end if;
+  if to_regrole('service_role') is not null then
+    execute 'grant execute on function public.apply_stripe_account_event(uuid, text, text, text, text, bigint, text, text, uuid) to service_role';
+  end if;
+end
+$acl$;

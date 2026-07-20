@@ -112,4 +112,15 @@ create trigger enforce_brand_limit
   for each row
   execute function public.check_brand_limit();
 
-revoke all on function public.check_brand_limit() from public, anon, authenticated;
+revoke all on function public.check_brand_limit() from public;
+
+do $acl$
+begin
+  if to_regrole('anon') is not null then
+    execute 'revoke all on function public.check_brand_limit() from anon';
+  end if;
+  if to_regrole('authenticated') is not null then
+    execute 'revoke all on function public.check_brand_limit() from authenticated';
+  end if;
+end
+$acl$;
