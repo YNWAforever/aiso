@@ -17,6 +17,11 @@ const mocks = vi.hoisted(() => ({
   rpcOutcome: 'applied' as RpcOutcome,
   leaseAcquired: true,
   databaseError: null as Error | null,
+  stripePrices: {
+    basic: 'price_basic_test',
+    pro: 'price_pro_test',
+    enterprise: 'price_enterprise_test',
+  },
 }))
 
 vi.mock('@/lib/stripe', () => ({
@@ -25,11 +30,7 @@ vi.mock('@/lib/stripe', () => ({
     subscriptions: { retrieve: mocks.retrieveSubscription },
     webhooks: { constructEvent: mocks.constructEvent },
   },
-  STRIPE_PRICES: {
-    basic: 'price_basic_test',
-    pro: 'price_pro_test',
-    enterprise: 'price_enterprise_test',
-  },
+  STRIPE_PRICES: mocks.stripePrices,
   APP_URL: 'https://app.example.com',
 }))
 
@@ -192,6 +193,11 @@ describe('Stripe entitlement integrity', () => {
     mocks.rpcOutcome = 'applied'
     mocks.leaseAcquired = true
     mocks.databaseError = null
+    Object.assign(mocks.stripePrices, {
+      basic: 'price_basic_test',
+      pro: 'price_pro_test',
+      enterprise: 'price_enterprise_test',
+    })
     mocks.rpc.mockImplementation(async (name: string, args: Record<string, unknown>) => {
       mocks.rpcCalls.push({ name, args })
       mocks.operationOrder.push(name)
@@ -447,6 +453,17 @@ describe('Stripe entitlement integrity', () => {
     mocks.retrieveSubscription.mockResolvedValue(subscription({ price: 'price_unknown' }))
 
     const response = await postWebhook(subscriptionEvent({ eventPrice: 'price_pro_test' }))
+
+    expect(response.status).toBe(400)
+    expect(applyRpcArgs()).toBeUndefined()
+  })
+
+  it('rejects an ambiguous canonical Stripe price without changing entitlement', async () => {
+    mocks.stripePrices.basic = 'duplicate_price'
+    mocks.stripePrices.pro = 'duplicate_price'
+    mocks.retrieveSubscription.mockResolvedValue(subscription({ price: 'duplicate_price' }))
+
+    const response = await postWebhook(subscriptionEvent())
 
     expect(response.status).toBe(400)
     expect(applyRpcArgs()).toBeUndefined()

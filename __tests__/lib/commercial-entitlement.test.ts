@@ -94,4 +94,18 @@ describe('resolveCommercialEntitlement', () => {
     expect(resolveCommercialEntitlement(account({ plan: 'unexpected' }), NOW).plan).toBe('free')
     expect(resolveCommercialEntitlement(account({ trial_ends_at: 'not-a-date' }), NOW).plan).toBe('free')
   })
+
+
+  it('derives limits and features from the canonical catalog', () => {
+    const enterprise = resolveCommercialEntitlement(account({
+      plan: 'enterprise',
+      stripe_subscription_id: 'sub_enterprise',
+    }), NOW)
+
+    expect(enterprise).toMatchObject({
+      plan: 'enterprise',
+      monthlyScanLimit: null,
+      features: { max_brands: 10, history_weeks: 999 },
+    })
+  })
 })

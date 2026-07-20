@@ -297,21 +297,7 @@ export interface ClientOverview {
   missedOpportunities: Pick<PulseMetric, 'platform' | 'question' | 'competitors_mentioned' | 'scan_week'>[]
 }
 
-export interface PlanFeatures {
-  plan: 'free' | 'basic' | 'pro' | 'enterprise'
-  platform_access: string[]
-  agent_recs: boolean
-  agent_progress: boolean
-  agent_competitors: boolean
-  alerts: boolean
-  csv_export: boolean
-  max_brands: number
-  history_weeks: number
-  edit_prompts: boolean
-  local_trust_roi: boolean
-  local_trust_competitors: boolean
-  local_trust_export: boolean
-}
+export type { PlanFeatures } from '@/lib/plans/catalog'
 
 export type LocalTrustBucketKey = 'local_visibility' | 'proof_depth' | 'ai_answer_readiness' | 'market_authority'
 export type LocalTrustActionStatus = 'open' | 'planned' | 'done' | 'skipped'
