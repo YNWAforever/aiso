@@ -57,6 +57,17 @@ describe('report comparison', () => {
     })
   })
 
+
+  it('skips nearer scans with invalid results or non-ISO timestamps', () => {
+    const selected = selectPreviousReportScan(current, [
+      { ...current, createdAt: '2026-07-19T23:00:00.000Z', results: null },
+      { ...current, createdAt: '2026/07/19', results: { c1_robots: { status: 'pass' } } },
+      { ...current, createdAt: '2026-07-19T12:00:00.000Z', score: 68 },
+    ])
+
+    expect(selected?.createdAt).toBe('2026-07-19T12:00:00.000Z')
+  })
+
   it('returns data gaps for missing values and rejects structurally incompatible evidence', () => {
     expect(compareReportEvidence(
       { c1_robots: { status: 'pass' }, c2_llms_txt: null },

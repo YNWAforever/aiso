@@ -88,6 +88,35 @@ describe('client report snapshot', () => {
     expect(serialized).not.toMatch(/account-secret|prompt|model|assignee|<b>secret<\/b>/i)
   })
 
+
+  it('renders truthful zh-HK summary text at runtime', () => {
+    const snapshot = buildClientReportSnapshot({ ...input, locale: 'zh-HK' })
+
+    expect(snapshot.executiveSummary).toBe('\u9019\u662f\u76ee\u524d\u5206\u6578 72 \u7684\u57fa\u6e96\u5831\u544a\uff0c\u5df2\u8a18\u9304 0 \u9805\u53ef\u5831\u544a\u6aa2\u67e5\u7d50\u679c\u3002')
+  })
+
+  it.each([
+    { client: { ...input.client, domain: 'other.example' } },
+    { previousScan: { ...input.currentScan, accountId: 'other-account', createdAt: '2026-07-19T12:00:00.000Z' } },
+    { previousScan: { ...input.currentScan, domain: 'other.example', createdAt: '2026-07-19T12:00:00.000Z' } },
+    { previousScan: { ...input.currentScan, createdAt: '2026-07-20T12:00:00.000Z' } },
+    { previousScan: { ...input.currentScan, createdAt: '2026-07-21T12:00:00.000Z' } },
+    { currentScan: { ...input.currentScan, createdAt: '2026/07/20' } },
+  ])('rejects mismatched account, domain, chronology, and non-ISO scan evidence', overrides => {
+    expect(() => buildClientReportSnapshot({ ...input, ...overrides })).toThrow()
+  })
+
+  it('deduplicates recommendation, regression, and failure fixes for the same reportable check', () => {
+    const snapshot = buildClientReportSnapshot({
+      ...input,
+      currentScan: { ...input.currentScan, results: { c1_robots: { status: 'fail' } } },
+      previousScan: { ...input.currentScan, createdAt: '2026-07-19T12:00:00.000Z', results: { c1_robots: { status: 'pass' } } },
+      recommendations: [{ key: 'c1_robots', title: 'Address robots access', rationale: 'The check requires attention.', expectedImpact: 'high', nextStep: 'Update robots access.' }],
+    })
+
+    expect(snapshot.priorityFixes.filter(fix => fix.key.includes('c1_robots'))).toHaveLength(1)
+  })
+
   it('allows only a normalized 40-1200 character edited summary', () => {
     const snapshot = buildClientReportSnapshot(input)
     const edited = replaceExecutiveSummary(snapshot, `  ${'Clear evidence-based summary. '.repeat(2)}  `)

@@ -1,4 +1,4 @@
-import { compareReportEvidence, normalizeReportDomain, REPORTABLE_CHECKS } from './comparison'
+import { compareReportEvidence, isReportEvidence, normalizeReportDomain, parseReportTimestamp, REPORTABLE_CHECKS } from './comparison'
 import { buildDeterministicReportSummary } from './summary'
 import {
   REPORT_LOCALES,
@@ -36,7 +36,7 @@ function optionalText(value: string | null, field: string): string | null {
 }
 
 function validDate(value: string, field: string): string {
-  if (!Number.isFinite(new Date(value).getTime())) throw new Error(`${field} must be an ISO date`)
+  if (parseReportTimestamp(value) === null) throw new Error(`${field} must be a strict ISO timestamp`)
   return value
 }
 
@@ -60,7 +60,7 @@ function buildFixes(
     return true
   })
   const regressionFixes = changes.filter(change => change.kind === 'regressed').map(change => ({
-    key: `regression:${change.key}`, title: `Address regression: ${change.label}`,
+    key: change.key, title: `Address regression: ${change.label}`,
     rationale: 'This reportable check has regressed since the earlier scan.', expectedImpact: 'high' as const,
     nextStep: `Review and improve ${change.label}.`,
   }))
@@ -70,20 +70,34 @@ function buildFixes(
     .filter(key => typeof resultRecord[key] === 'object' && resultRecord[key] !== null
       && (resultRecord[key] as Record<string, unknown>).status === status)
     .map(key => ({
-      key: `${status}:${key}`, title: `${status === 'fail' ? 'Resolve failure' : 'Review warning'}: ${key}`,
+      key, title: `${status === 'fail' ? 'Resolve failure' : 'Review warning'}: ${key}`,
       rationale: `The current scan reports a ${status} for this check.`, expectedImpact: impact,
       nextStep: `Review ${key} and apply the recommended correction.`,
     }))
-  return [...uniqueRecommendations, ...regressionFixes, ...statusFixes('fail', 'high'), ...statusFixes('warn', 'medium')].slice(0, 5)
+  const allFixes = [...uniqueRecommendations, ...regressionFixes, ...statusFixes('fail', 'high'), ...statusFixes('warn', 'medium')]
+  const usedKeys = new Set<string>()
+  return allFixes.filter(fix => {
+    if (usedKeys.has(fix.key)) return false
+    usedKeys.add(fix.key)
+    return true
+  }).slice(0, 5)
 }
 
 export function buildClientReportSnapshot(input: ClientReportSnapshotInput): ClientReportSnapshotV1 {
   if (!REPORT_LOCALES.includes(input.locale)) throw new Error('Unsupported report locale')
   const domain = normalizeReportDomain(input.client.domain)
   if (!domain) throw new Error('Client domain must be a valid public domain')
+  const currentDomain = normalizeReportDomain(input.currentScan.domain)
+  if (!currentDomain || currentDomain !== domain || !input.currentScan.accountId || !isReportEvidence(input.currentScan.results)) throw new Error('Current scan must match the client evidence scope')
   if (!Number.isFinite(input.currentScan.score)) throw new Error('Current score must be finite')
   const scanDate = validDate(input.currentScan.createdAt, 'Current scan date')
   const previousDate = input.previousScan ? validDate(input.previousScan.createdAt, 'Previous scan date') : null
+  if (input.previousScan) {
+    const previousDomain = normalizeReportDomain(input.previousScan.domain)
+    if (input.previousScan.accountId !== input.currentScan.accountId || previousDomain !== currentDomain || !isReportEvidence(input.previousScan.results) || !Number.isFinite(input.previousScan.score) || parseReportTimestamp(input.previousScan.createdAt)! >= parseReportTimestamp(input.currentScan.createdAt)!) {
+      throw new Error('Previous scan must be earlier evidence for the same account and domain')
+    }
+  }
   const comparison = input.previousScan
     ? compareReportEvidence(input.currentScan.results, input.previousScan.results)
     : { comparisonState: 'baseline' as const, changes: [] }

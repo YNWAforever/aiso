@@ -25,6 +25,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+export function parseReportTimestamp(value: unknown): number | null {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) return null
+  const timestamp = Date.parse(value)
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString() === value ? timestamp : null
+}
+
+export function isReportEvidence(value: unknown): value is Record<string, unknown> {
+  return isRecord(value)
+}
+
 function evidenceValue(value: unknown, present: boolean): EvidenceValue {
   if (!present) return { state: 'absent' }
   if (value === null || value === undefined) return { state: 'gap' }
@@ -55,9 +65,10 @@ function usableScan(value: unknown): value is ReportScanInput {
   if (!isRecord(value)) return false
   return typeof value.accountId === 'string' && value.accountId.length > 0
     && typeof value.domain === 'string' && normalizeReportDomain(value.domain) !== null
-    && typeof value.createdAt === 'string' && Number.isFinite(new Date(value.createdAt).getTime())
+    && parseReportTimestamp(value.createdAt) !== null
     && typeof value.score === 'number' && Number.isFinite(value.score)
     && typeof value.grade === 'string'
+    && isReportEvidence(value.results)
 }
 
 export function selectPreviousReportScan(
@@ -66,12 +77,12 @@ export function selectPreviousReportScan(
 ): ReportScanInput | null {
   if (!usableScan(current)) return null
   const currentDomain = normalizeReportDomain(current.domain)
-  const currentTime = new Date(current.createdAt).getTime()
+  const currentTime = parseReportTimestamp(current.createdAt)!
   return candidates
     .filter(usableScan)
     .filter(candidate => candidate.accountId === current.accountId && normalizeReportDomain(candidate.domain) === currentDomain)
-    .filter(candidate => new Date(candidate.createdAt).getTime() < currentTime)
-    .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0] ?? null
+    .filter(candidate => parseReportTimestamp(candidate.createdAt)! < currentTime)
+    .sort((left, right) => parseReportTimestamp(right.createdAt)! - parseReportTimestamp(left.createdAt)!)[0] ?? null
 }
 
 export interface ReportEvidenceComparison {
