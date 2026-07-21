@@ -10,6 +10,7 @@ type ShareInput = {
 }
 
 const SIGNATURE_PATTERN = /^[A-Za-z0-9_-]{43}$/
+const REPORT_SLUG_PATTERN = /^[A-Za-z0-9_-]{32}$/
 
 function shareSecret(): string {
   const secret = process.env.REPORT_SHARE_SECRET
@@ -23,8 +24,8 @@ function canonicalShareInput(input: ShareInput): string {
   if (!Number.isInteger(input.shareVersion) || input.shareVersion <= 0) {
     throw new Error('Share version must be a positive integer')
   }
-  if (typeof input.slug !== 'string' || input.slug.length === 0) {
-    throw new Error('Report slug is required')
+  if (typeof input.slug !== 'string' || !REPORT_SLUG_PATTERN.test(input.slug)) {
+    throw new Error('Report slug must be 32 base64url characters')
   }
   return `fimmick-report:v1:${input.slug}:${input.shareVersion}`
 }
@@ -40,7 +41,7 @@ export function signReportShare(input: ShareInput): string {
 export function verifyReportShare(input: ShareInput & { readonly signature: string }): boolean {
   const secret = shareSecret()
   if (!Number.isInteger(input.shareVersion) || input.shareVersion <= 0) return false
-  if (typeof input.slug !== 'string' || input.slug.length === 0) return false
+  if (typeof input.slug !== 'string' || !REPORT_SLUG_PATTERN.test(input.slug)) return false
   if (typeof input.signature !== 'string' || !SIGNATURE_PATTERN.test(input.signature)) return false
 
   const received = Buffer.from(input.signature, 'base64url')
@@ -49,12 +50,34 @@ export function verifyReportShare(input: ShareInput & { readonly signature: stri
   return received.length === expected.length && timingSafeEqual(received, expected)
 }
 
+function validatedReportOrigin(value: string): URL {
+  let url: URL
+  try {
+    url = new URL(value)
+  } catch {
+    throw new Error('Report origin must be a credential-free HTTPS origin')
+  }
+  if (
+    url.protocol !== 'https:'
+    || url.origin === 'null'
+    || url.username
+    || url.password
+    || url.pathname !== '/'
+    || url.search
+    || url.hash
+    || /[\\\u0000-\u001f\u007f]/.test(value)
+  ) {
+    throw new Error('Report origin must be a credential-free HTTPS origin')
+  }
+  return url
+}
+
 export function buildReportShareUrl(input: ShareInput & {
   readonly origin: string
   readonly locale: ReportLocale
 }): string {
   if (!REPORT_LOCALES.includes(input.locale)) throw new Error('Unsupported report locale')
-  const url = new URL(input.origin)
+  const url = validatedReportOrigin(input.origin)
   url.pathname = `/${input.locale}/reports/${encodeURIComponent(input.slug)}`
   url.search = ''
   url.hash = ''

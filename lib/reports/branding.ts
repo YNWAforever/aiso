@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { createPublicUrlFetcher, type PublicUrlFetch } from '../security/public-url'
+import { createPublicUrlFetcher } from '../security/public-url'
 import type { ReportBrandingInput, ReportBrandingSnapshot } from './types'
 
 export const REPORT_LOGO_MAX_BYTES = 2 * 1024 * 1024
@@ -10,6 +10,7 @@ const ACCEPTED_LOGO_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp'])
 const CONTROL_CHARACTER = /[\u0000-\u001f\u007f-\u009f]/
 const ENCODED_CONTROL_CHARACTER = /%(?:0[0-9a-f]|1[0-9a-f]|7f|8[0-9a-f]|9[0-9a-f])/i
 const defaultLogoFetcher = createPublicUrlFetcher({
+  allowedProtocols: ['https:'],
   maxResponseBytes: REPORT_LOGO_MAX_BYTES,
   timeoutMs: REPORT_LOGO_TIMEOUT_MS,
 })
@@ -43,6 +44,36 @@ function safeUrl(value: string, field: string): URL {
     return new URL(normalized)
   } catch {
     throw new Error(`${field} is invalid`)
+  }
+}
+
+function hasPrefix(bytes: Uint8Array, signature: ReadonlyArray<number>): boolean {
+  return bytes.length >= signature.length && signature.every((byte, index) => bytes[index] === byte)
+}
+
+function validateLogoSignature(contentType: ReportLogo['contentType'], bytes: Uint8Array): void {
+  if (contentType === 'image/png') {
+    if (!hasPrefix(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) {
+      throw new Error('PNG image signature is missing or truncated')
+    }
+    return
+  }
+  if (contentType === 'image/jpeg') {
+    if (!hasPrefix(bytes, [0xff, 0xd8, 0xff])) {
+      throw new Error('JPEG image signature is missing or truncated')
+    }
+    return
+  }
+  if (
+    bytes.length < 12
+    || !hasPrefix(bytes, [0x52, 0x49, 0x46, 0x46])
+    || !hasPrefix(bytes.subarray(8), [0x57, 0x45, 0x42, 0x50])
+  ) {
+    throw new Error('WebP RIFF container signature is missing or truncated')
+  }
+  const declaredSize = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(4, true)
+  if (declaredSize < 4 || declaredSize + 8 !== bytes.byteLength) {
+    throw new Error('WebP RIFF container length is invalid or truncated')
   }
 }
 
@@ -97,15 +128,12 @@ export function normalizeReportBranding(input: ReportBrandingInput): ReportBrand
   }
 }
 
-export async function fetchReportLogo(
-  value: string,
-  options: { readonly fetcher?: PublicUrlFetch } = {},
-): Promise<ReportLogo> {
+export async function fetchReportLogo(value: string): Promise<ReportLogo> {
   const url = safeUrl(value, 'Logo URL')
   if (url.protocol !== 'https:') throw new Error('Logo URL must use HTTPS')
   if (url.username || url.password) throw new Error('Logo URL credentials are not allowed')
 
-  const response = await (options.fetcher ?? defaultLogoFetcher)(url, {
+  const response = await defaultLogoFetcher(url, {
     method: 'GET',
     headers: {
       accept: 'image/png, image/jpeg, image/webp',
@@ -115,7 +143,10 @@ export async function fetchReportLogo(
     cache: 'no-store',
     signal: AbortSignal.timeout(REPORT_LOGO_TIMEOUT_MS),
   })
-  if (!response.ok) throw new Error(`Logo request failed with status ${response.status}`)
+  if (!response.ok) {
+    await response.body?.cancel()
+    throw new Error(`Logo request failed with status ${response.status}`)
+  }
 
   const rawContentType = response.headers.get('content-type')
   const contentType = rawContentType?.split(';', 1)[0]?.trim().toLowerCase()
@@ -154,6 +185,7 @@ export async function fetchReportLogo(
     bytes.set(chunk, offset)
     offset += chunk.byteLength
   }
+  validateLogoSignature(contentType as ReportLogo['contentType'], bytes)
 
   const rawEtag = response.headers.get('etag')
   const etag = rawEtag && rawEtag.length <= 200 && /^(?:W\/)?"[\x21\x23-\x7e]*"$/.test(rawEtag)

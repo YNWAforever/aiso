@@ -1,6 +1,18 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
+
+const mocks = vi.hoisted(() => {
+  const logoTransport = vi.fn()
+  return {
+    logoTransport,
+    createPublicUrlFetcher: vi.fn(() => logoTransport),
+  }
+})
+
+vi.mock('@/lib/security/public-url', () => ({
+  createPublicUrlFetcher: mocks.createPublicUrlFetcher,
+}))
 
 import {
   fetchReportLogo,
@@ -8,9 +20,12 @@ import {
   REPORT_LOGO_CACHE_CONTROL,
   REPORT_LOGO_MAX_BYTES,
 } from '@/lib/reports/branding'
-import { createPublicUrlFetcher, type PublicUrlFetch } from '@/lib/security/public-url'
 
-const publicDns = async () => [{ address: '93.184.216.34', family: 4 as const }]
+const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+const JPEG = new Uint8Array([0xff, 0xd8, 0xff])
+const WEBP = new Uint8Array([
+  0x52, 0x49, 0x46, 0x46, 0x04, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
+])
 
 function branding(overrides: Partial<Parameters<typeof normalizeReportBranding>[0]> = {}) {
   return {
@@ -22,6 +37,8 @@ function branding(overrides: Partial<Parameters<typeof normalizeReportBranding>[
     ...overrides,
   }
 }
+
+beforeEach(() => mocks.logoTransport.mockReset())
 
 describe('report branding validation', () => {
   it('trims agency branding, normalizes six-digit hex, and keeps exact attribution', () => {
@@ -68,40 +85,28 @@ describe('report branding validation', () => {
 })
 
 describe('report logo fetch', () => {
+  it('constructs a pinned HTTPS-only fetcher with the logo byte and timeout bounds', () => {
+    expect(mocks.createPublicUrlFetcher).toHaveBeenCalledWith({
+      allowedProtocols: ['https:'],
+      maxResponseBytes: REPORT_LOGO_MAX_BYTES,
+      timeoutMs: 10_000,
+    })
+  })
+
   it.each(['http://public.example/logo.png', 'https://user:pass@public.example/logo.png'])(
     'rejects unsafe logo URL %s before transport',
     async url => {
-      const transport = vi.fn()
-      const fetcher = createPublicUrlFetcher({ lookup: publicDns, fetchImpl: transport })
-      await expect(fetchReportLogo(url, { fetcher })).rejects.toThrow(/HTTPS|credentials|safe public/i)
-      expect(transport).not.toHaveBeenCalled()
+      await expect(fetchReportLogo(url)).rejects.toThrow(/HTTPS|credentials|safe public/i)
+      expect(mocks.logoTransport).not.toHaveBeenCalled()
     },
   )
 
-  it.each(['https://127.0.0.1/logo.png', 'https://169.254.169.254/logo.png'])(
-    'rejects private logo host %s through the shared public URL boundary',
-    async url => {
-      const transport = vi.fn()
-      const fetcher = createPublicUrlFetcher({ lookup: publicDns, fetchImpl: transport })
-      await expect(fetchReportLogo(url, { fetcher })).rejects.toMatchObject({ code: 'UNSAFE_URL' })
-      expect(transport).not.toHaveBeenCalled()
-    },
-  )
-
-  it('rejects redirect-to-private through the shared redirect and DNS boundary', async () => {
-    const transport = vi.fn().mockResolvedValueOnce(new Response(null, {
-      status: 302,
-      headers: { location: 'http://169.254.169.254/latest/meta-data' },
-    }))
-    const fetcher = createPublicUrlFetcher({ lookup: publicDns, fetchImpl: transport })
-
-    await expect(fetchReportLogo('https://public.example/logo.png', { fetcher }))
-      .rejects.toMatchObject({ code: 'UNSAFE_URL' })
-    expect(transport).toHaveBeenCalledTimes(1)
-  })
-
-  it.each(['image/png', 'image/jpeg', 'image/webp'])('accepts %s and sends a credential-free image request', async contentType => {
-    const fetcher = vi.fn<PublicUrlFetch>().mockResolvedValue(new Response(new Uint8Array([1, 2, 3]), {
+  it.each([
+    ['image/png', PNG],
+    ['image/jpeg', JPEG],
+    ['image/webp', WEBP],
+  ] as const)('accepts %s with valid magic and sends a credential-free image request', async (contentType, bytes) => {
+    mocks.logoTransport.mockResolvedValue(new Response(bytes, {
       headers: {
         'content-type': `${contentType}; charset=binary`,
         etag: '"safe-etag"',
@@ -112,38 +117,55 @@ describe('report logo fetch', () => {
       },
     }))
 
-    const result = await fetchReportLogo('https://cdn.example/logo', { fetcher })
+    const result = await fetchReportLogo('https://cdn.example/logo')
 
     expect(result).toEqual({
-      bytes: new Uint8Array([1, 2, 3]),
+      bytes,
       contentType,
       etag: '"safe-etag"',
       lastModified: 'Tue, 21 Jul 2026 09:00:00 GMT',
       cacheControl: REPORT_LOGO_CACHE_CONTROL,
     })
-    const init = fetcher.mock.calls[0]?.[1]
-    const headers = new Headers(init?.headers)
+    const init = mocks.logoTransport.mock.calls[0]?.[1] as RequestInit
+    const headers = new Headers(init.headers)
     expect(headers.get('accept')).toBe('image/png, image/jpeg, image/webp')
     expect(headers.get('user-agent')).toMatch(/Fimmick AISO Logo Fetcher/i)
-    expect(init?.credentials).toBe('omit')
-    expect(init?.signal).toBeInstanceOf(AbortSignal)
+    expect(init.credentials).toBe('omit')
+    expect(init.signal).toBeInstanceOf(AbortSignal)
     expect(result).not.toHaveProperty('headers')
   })
 
   it.each(['text/html', 'image/svg+xml', 'application/octet-stream', null])('rejects unapproved content type %s', async contentType => {
     const headers = contentType ? { 'content-type': contentType } : undefined
-    const fetcher = vi.fn<PublicUrlFetch>().mockResolvedValue(new Response('<svg/>', { headers }))
-    await expect(fetchReportLogo('https://cdn.example/logo', { fetcher })).rejects.toThrow(/content type/i)
+    mocks.logoTransport.mockResolvedValue(new Response('<svg/>', { headers }))
+    await expect(fetchReportLogo('https://cdn.example/logo')).rejects.toThrow(/content type/i)
+  })
+
+  it.each([
+    ['empty PNG', 'image/png', new Uint8Array()],
+    ['arbitrary PNG', 'image/png', new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])],
+    ['truncated PNG', 'image/png', PNG.slice(0, 7)],
+    ['truncated JPEG', 'image/jpeg', JPEG.slice(0, 2)],
+    ['mismatched JPEG', 'image/jpeg', PNG],
+    ['truncated WebP container', 'image/webp', new Uint8Array([
+      0x52, 0x49, 0x46, 0x46, 0x20, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
+    ])],
+    ['wrong WebP marker', 'image/webp', new Uint8Array([
+      0x52, 0x49, 0x46, 0x46, 0x04, 0x00, 0x00, 0x00, 0x4e, 0x4f, 0x50, 0x45,
+    ])],
+  ] as const)('rejects %s despite its declared MIME type', async (_label, contentType, bytes) => {
+    mocks.logoTransport.mockResolvedValue(new Response(bytes, { headers: { 'content-type': contentType } }))
+    await expect(fetchReportLogo('https://cdn.example/logo')).rejects.toThrow(/signature|container|truncated|image/i)
   })
 
   it('rejects an oversized declared response before reading it', async () => {
     let pulled = false
     const stream = new ReadableStream<Uint8Array>({ pull() { pulled = true } }, { highWaterMark: 0 })
-    const fetcher = vi.fn<PublicUrlFetch>().mockResolvedValue(new Response(stream, {
+    mocks.logoTransport.mockResolvedValue(new Response(stream, {
       headers: { 'content-type': 'image/png', 'content-length': String(REPORT_LOGO_MAX_BYTES + 1) },
     }))
 
-    await expect(fetchReportLogo('https://cdn.example/logo', { fetcher })).rejects.toThrow(/2 MiB|large/i)
+    await expect(fetchReportLogo('https://cdn.example/logo')).rejects.toThrow(/2 MiB|large/i)
     expect(pulled).toBe(false)
   })
 
@@ -157,15 +179,24 @@ describe('report logo fetch', () => {
         controller.close()
       },
     })
-    const fetcher = vi.fn<PublicUrlFetch>().mockResolvedValue(new Response(stream, {
+    mocks.logoTransport.mockResolvedValue(new Response(stream, {
       headers: { 'content-type': 'image/png' },
     }))
 
-    await expect(fetchReportLogo('https://cdn.example/logo', { fetcher })).rejects.toThrow(/2 MiB|large/i)
+    await expect(fetchReportLogo('https://cdn.example/logo')).rejects.toThrow(/2 MiB|large/i)
+  })
+
+  it('cancels a non-success response body before throwing', async () => {
+    const cancel = vi.fn()
+    const stream = new ReadableStream<Uint8Array>({ cancel }, { highWaterMark: 0 })
+    mocks.logoTransport.mockResolvedValue(new Response(stream, { status: 502 }))
+
+    await expect(fetchReportLogo('https://cdn.example/logo')).rejects.toThrow(/status 502/i)
+    expect(cancel).toHaveBeenCalledTimes(1)
   })
 
   it('drops unsafe validators instead of forwarding arbitrary upstream metadata', async () => {
-    const fetcher = vi.fn<PublicUrlFetch>().mockResolvedValue(new Response(new Uint8Array([1]), {
+    mocks.logoTransport.mockResolvedValue(new Response(PNG, {
       headers: {
         'content-type': 'image/png',
         etag: 'not-an-etag',
@@ -175,8 +206,8 @@ describe('report logo fetch', () => {
       },
     }))
 
-    await expect(fetchReportLogo('https://cdn.example/logo', { fetcher })).resolves.toEqual({
-      bytes: new Uint8Array([1]),
+    await expect(fetchReportLogo('https://cdn.example/logo')).resolves.toEqual({
+      bytes: PNG,
       contentType: 'image/png',
       etag: null,
       lastModified: null,
