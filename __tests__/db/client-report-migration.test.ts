@@ -18,13 +18,45 @@ function updateSetClause(definition: string) {
 }
 
 function publicReportReadViolations(sql: string) {
-  return sql.replace(/\s+/g, ' ').toLowerCase().split(';').filter(statement => {
-    const targetsReportTable = /\bon\s+(?:table\s+)?public\.(?:client_reports|client_report_versions)\b/.test(statement)
-    const grantsRead = /\bgrant\s+(?:select|all)\b/.test(statement)
-    const createsReadPolicy = /\bcreate\s+policy\b/.test(statement) && /\bfor\s+(?:select|all)\b/.test(statement)
-    const roleClause = statement.match(/\bto\s+(.+?)(?:\s+(?:using|with)\b|$)/)?.[1] ?? ''
-    const targetsPublicRole = roleClause.split(',').map(role => role.trim()).some(role => role === 'anon' || role === 'public')
-    return targetsReportTable && targetsPublicRole && (grantsRead || createsReadPolicy)
+  const reportTables = new Set(['public.client_reports', 'public.client_report_versions'])
+  const targetsPublicRole = (roleClause: string) => roleClause
+    .split(',')
+    .map(role => role.trim().replace(/^group\s+/, ''))
+    .some(role => role === 'anon' || role === 'public')
+
+  return sql.replace(/\s+/g, ' ').toLowerCase().split(';').map(statement => statement.trim()).filter(statement => {
+    if (statement.startsWith('create policy ')) {
+      const tableMatch = statement.match(/\bon\s+(?:table\s+)?(public\.[a-z_]+)\b/)
+      if (!tableMatch || !reportTables.has(tableMatch[1])) return false
+
+      const policyTail = statement.slice((tableMatch.index ?? 0) + tableMatch[0].length)
+      const expressionOffsets = [policyTail.indexOf(' using '), policyTail.indexOf(' with check ')]
+        .filter(offset => offset >= 0)
+      const policyHeader = policyTail.slice(0, expressionOffsets.length > 0 ? Math.min(...expressionOffsets) : undefined)
+      const command = policyHeader.match(/\bfor\s+(all|select|insert|update|delete)\b/)?.[1] ?? 'all'
+      const roleClause = policyHeader.match(/\bto\s+(.+)$/)?.[1] ?? 'public'
+      return (command === 'all' || command === 'select') && targetsPublicRole(roleClause)
+    }
+
+    if (!statement.startsWith('grant ')) return false
+    const onOffset = statement.indexOf(' on ')
+    if (onOffset < 0) return false
+
+    const privileges = statement.slice('grant '.length, onOffset)
+      .split(',')
+      .map(privilege => privilege.trim().split(/[\s(]/, 1)[0])
+    if (!privileges.some(privilege => privilege === 'select' || privilege === 'all')) return false
+
+    const grantTarget = statement.slice(onOffset + ' on '.length)
+    const toOffset = grantTarget.indexOf(' to ')
+    if (toOffset < 0) return false
+
+    const tableClause = grantTarget.slice(0, toOffset).replace(/^table\s+/, '')
+    if (!tableClause.split(',').map(table => table.trim()).some(table => reportTables.has(table))) return false
+
+    const roleClause = grantTarget.slice(toOffset + ' to '.length)
+      .split(/\s+(?:with\s+grant\s+option|granted\s+by)\b/, 1)[0]
+    return targetsPublicRole(roleClause)
   })
 }
 
@@ -90,6 +122,24 @@ describe('client report migration contract', () => {
     `
 
     expect(publicReportReadViolations(unsafeSql)).toHaveLength(2)
+  })
+
+  it('detects a report policy whose omitted command and role default to ALL and PUBLIC', () => {
+    const unsafeSql = `
+      CREATE POLICY unsafe_default_report_access
+        ON public.client_reports
+        USING (true);
+    `
+
+    expect(publicReportReadViolations(unsafeSql)).toHaveLength(1)
+  })
+
+  it('detects SELECT anywhere in a direct grant privilege list', () => {
+    const unsafeSql = `
+      GRANT INSERT, SELECT ON public.client_report_versions TO anon;
+    `
+
+    expect(publicReportReadViolations(unsafeSql)).toHaveLength(1)
   })
 
   it('defines locked service-only atomic RPCs with hardened definer scope', () => {
