@@ -265,38 +265,68 @@ as $function$
 declare
   new_report public.client_reports;
   new_version_id uuid;
+  client_domain text;
+  source_domain text;
+  source_created_at timestamptz;
+  previous_domain text;
+  previous_created_at timestamptz;
 begin
-  if not exists (
-    select 1
-    from public.clients
-    where clients.id = p_client_id
-      and clients.account_id = p_account_id
-  ) then
+  select clients.domain
+  into client_domain
+  from public.clients
+  where clients.id = p_client_id
+    and clients.account_id = p_account_id;
+
+  if not found
+    or client_domain is null
+    or pg_catalog.btrim(client_domain) = ''
+    or pg_catalog.strpos(client_domain, '://') > 0
+    or pg_catalog.strpos(client_domain, '/') > 0
+    or pg_catalog.strpos(client_domain, '?') > 0
+    or pg_catalog.strpos(client_domain, '#') > 0
+  then
     raise exception 'CLIENT_REPORT_NOT_FOUND';
   end if;
 
-  if not exists (
-    select 1
-    from public.scans
-    where scans.id = p_source_scan_id
-      and scans.account_id = p_account_id
-  ) then
+  select scans.domain, scans.created_at
+  into source_domain, source_created_at
+  from public.scans
+  where scans.id = p_source_scan_id
+    and scans.account_id = p_account_id;
+
+  if not found
+    or source_domain is null
+    or source_created_at is null
+    or pg_catalog.strpos(source_domain, '://') > 0
+    or pg_catalog.strpos(source_domain, '/') > 0
+    or pg_catalog.strpos(source_domain, '?') > 0
+    or pg_catalog.strpos(source_domain, '#') > 0
+    or pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(source_domain)), '^www\.', '')
+      <> pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(client_domain)), '^www\.', '')
+  then
     raise exception 'CLIENT_REPORT_SCAN_NOT_FOUND';
   end if;
 
-  if p_previous_scan_id is not null and not exists (
-    select 1
+  if p_previous_scan_id is not null then
+    select scans.domain, scans.created_at
+    into previous_domain, previous_created_at
     from public.scans
     where scans.id = p_previous_scan_id
-      and scans.account_id = p_account_id
-      and scans.created_at < (
-        select current_scan.created_at
-        from public.scans as current_scan
-        where current_scan.id = p_source_scan_id
-          and current_scan.account_id = p_account_id
-      )
-  ) then
-    raise exception 'CLIENT_REPORT_PREVIOUS_SCAN_INVALID';
+      and scans.account_id = p_account_id;
+
+    if not found
+      or previous_domain is null
+      or previous_created_at is null
+      or previous_created_at >= source_created_at
+      or pg_catalog.strpos(previous_domain, '://') > 0
+      or pg_catalog.strpos(previous_domain, '/') > 0
+      or pg_catalog.strpos(previous_domain, '?') > 0
+      or pg_catalog.strpos(previous_domain, '#') > 0
+      or pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(previous_domain)), '^www\.', '')
+        <> pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(client_domain)), '^www\.', '')
+    then
+      raise exception 'CLIENT_REPORT_PREVIOUS_SCAN_INVALID';
+    end if;
   end if;
 
   insert into public.client_reports (account_id, client_id, created_by)
@@ -363,6 +393,11 @@ declare
   locked_report public.client_reports;
   new_version_id uuid;
   new_version_number integer;
+  client_domain text;
+  source_domain text;
+  source_created_at timestamptz;
+  previous_domain text;
+  previous_created_at timestamptz;
 begin
   perform pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended(p_report_id::text, 0)
@@ -380,28 +415,62 @@ begin
     raise exception 'CLIENT_REPORT_NOT_FOUND';
   end if;
 
-  if not exists (
-    select 1
-    from public.scans
-    where scans.id = p_source_scan_id
-      and scans.account_id = p_account_id
-  ) then
+  select clients.domain
+  into client_domain
+  from public.clients
+  where clients.id = p_client_id
+    and clients.account_id = p_account_id;
+
+  if not found
+    or client_domain is null
+    or pg_catalog.btrim(client_domain) = ''
+    or pg_catalog.strpos(client_domain, '://') > 0
+    or pg_catalog.strpos(client_domain, '/') > 0
+    or pg_catalog.strpos(client_domain, '?') > 0
+    or pg_catalog.strpos(client_domain, '#') > 0
+  then
+    raise exception 'CLIENT_REPORT_NOT_FOUND';
+  end if;
+
+  select scans.domain, scans.created_at
+  into source_domain, source_created_at
+  from public.scans
+  where scans.id = p_source_scan_id
+    and scans.account_id = p_account_id;
+
+  if not found
+    or source_domain is null
+    or source_created_at is null
+    or pg_catalog.strpos(source_domain, '://') > 0
+    or pg_catalog.strpos(source_domain, '/') > 0
+    or pg_catalog.strpos(source_domain, '?') > 0
+    or pg_catalog.strpos(source_domain, '#') > 0
+    or pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(source_domain)), '^www\.', '')
+      <> pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(client_domain)), '^www\.', '')
+  then
     raise exception 'CLIENT_REPORT_SCAN_NOT_FOUND';
   end if;
 
-  if p_previous_scan_id is not null and not exists (
-    select 1
+  if p_previous_scan_id is not null then
+    select scans.domain, scans.created_at
+    into previous_domain, previous_created_at
     from public.scans
     where scans.id = p_previous_scan_id
-      and scans.account_id = p_account_id
-      and scans.created_at < (
-        select current_scan.created_at
-        from public.scans as current_scan
-        where current_scan.id = p_source_scan_id
-          and current_scan.account_id = p_account_id
-      )
-  ) then
-    raise exception 'CLIENT_REPORT_PREVIOUS_SCAN_INVALID';
+      and scans.account_id = p_account_id;
+
+    if not found
+      or previous_domain is null
+      or previous_created_at is null
+      or previous_created_at >= source_created_at
+      or pg_catalog.strpos(previous_domain, '://') > 0
+      or pg_catalog.strpos(previous_domain, '/') > 0
+      or pg_catalog.strpos(previous_domain, '?') > 0
+      or pg_catalog.strpos(previous_domain, '#') > 0
+      or pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(previous_domain)), '^www\.', '')
+        <> pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(client_domain)), '^www\.', '')
+    then
+      raise exception 'CLIENT_REPORT_PREVIOUS_SCAN_INVALID';
+    end if;
   end if;
 
   select pg_catalog.coalesce(

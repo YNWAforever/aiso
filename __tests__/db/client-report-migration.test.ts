@@ -17,6 +17,17 @@ function updateSetClause(definition: string) {
   return definition.match(/update public\.client_reports set ([\s\S]*?) where/)?.[1] ?? ''
 }
 
+function publicReportReadViolations(sql: string) {
+  return sql.replace(/\s+/g, ' ').toLowerCase().split(';').filter(statement => {
+    const targetsReportTable = /\bon\s+(?:table\s+)?public\.(?:client_reports|client_report_versions)\b/.test(statement)
+    const grantsRead = /\bgrant\s+(?:select|all)\b/.test(statement)
+    const createsReadPolicy = /\bcreate\s+policy\b/.test(statement) && /\bfor\s+(?:select|all)\b/.test(statement)
+    const roleClause = statement.match(/\bto\s+(.+?)(?:\s+(?:using|with)\b|$)/)?.[1] ?? ''
+    const targetsPublicRole = roleClause.split(',').map(role => role.trim()).some(role => role === 'anon' || role === 'public')
+    return targetsReportTable && targetsPublicRole && (grantsRead || createsReadPolicy)
+  })
+}
+
 describe('client report migration contract', () => {
   it('creates the three tenant-owned tables with required data checks', () => {
     const sql = readMigration()
@@ -58,7 +69,7 @@ describe('client report migration contract', () => {
     for (const table of ['account_report_branding', 'client_reports', 'client_report_versions']) {
       expect(sql).toContain(`alter table public.${table} enable row level security`)
     }
-    expect(sql).not.toMatch(/to (anon|public)[^;]*for select/)
+    expect(publicReportReadViolations(sql)).toEqual([])
     expect(sql).not.toMatch(/create policy[^;]+using \(true\)/)
     expect(sql).toMatch(/profiles\.account_id = account_report_branding\.account_id/)
     expect(sql).toMatch(/profiles\.account_id = client_reports\.account_id/)
@@ -69,6 +80,16 @@ describe('client report migration contract', () => {
     expect(sql).toContain('revoke all on table public.client_report_versions from service_role')
     expect(sql).toContain('grant select on table public.client_reports to authenticated')
     expect(sql).toContain('grant select on table public.client_report_versions to authenticated')
+  })
+
+  it('detects canonical anon/public report read policies and grants', () => {
+    const unsafeSql = `
+      CREATE POLICY unsafe_report_read ON public.client_reports
+        FOR SELECT TO anon USING (true);
+      GRANT SELECT ON TABLE public.client_report_versions TO PUBLIC;
+    `
+
+    expect(publicReportReadViolations(unsafeSql)).toHaveLength(2)
   })
 
   it('defines locked service-only atomic RPCs with hardened definer scope', () => {
@@ -100,6 +121,22 @@ describe('client report migration contract', () => {
     expect(append).toMatch(/max\(client_report_versions\.version_number\) \+ 1/)
     expect(append).toMatch(/set latest_version_id = new_version_id,[^;]*updated_at = pg_catalog\.now\(\)/)
     expect(append).not.toMatch(/set[^;]*published_version_id/)
+  })
+
+  it('binds create and append scans to the owned client normalized hostname', () => {
+    const sql = readMigration()
+
+    for (const name of ['create_client_report_with_version', 'append_client_report_version']) {
+      const definition = functionDefinition(sql, name) ?? ''
+      expect(definition).toMatch(/select clients\.domain into client_domain from public\.clients where clients\.id = p_client_id and clients\.account_id = p_account_id/)
+      expect(definition).toMatch(/select scans\.domain, scans\.created_at into source_domain, source_created_at from public\.scans where scans\.id = p_source_scan_id and scans\.account_id = p_account_id/)
+      expect(definition).toContain("pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(client_domain)), '^www\\.', '')")
+      expect(definition).toContain("pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(source_domain)), '^www\\.', '')")
+      expect(definition).toContain("pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(previous_domain)), '^www\\.', '')")
+      expect(definition).toMatch(/previous_created_at >= source_created_at/)
+      expect(definition).toContain("pg_catalog.strpos(client_domain, '://') > 0")
+      expect(definition).not.toContain('pg_catalog.position(')
+    }
   })
 
   it('keeps counters narrow and rotates credentials on revoke, rotate, and revoked publish', () => {

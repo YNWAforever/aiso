@@ -20,6 +20,7 @@ class Query implements PromiseLike<Response> {
 
   select(...args: unknown[]) { return this.call('select', ...args) }
   eq(...args: unknown[]) { return this.call('eq', ...args) }
+  in(...args: unknown[]) { return this.call('in', ...args) }
   lt(...args: unknown[]) { return this.call('lt', ...args) }
   order(...args: unknown[]) { return this.call('order', ...args) }
   limit(...args: unknown[]) { return this.call('limit', ...args) }
@@ -124,21 +125,28 @@ describe('report store tenant boundary', () => {
     ]))
   })
 
-  it('queries only earlier same-account normalized-domain candidates and applies the pure selector', async () => {
+  it('preserves the exact current scan id after strict account and domain checks', async () => {
+    state.responses.set('scans', { data: { id: 'scan-current', account_id: 'account-1', domain: 'www.example.com', created_at: currentScan.createdAt, score: 80, grade: 'A', results: {} }, error: null })
+
+    const result = await loadOwnedReportScan({ accountId: 'account-1', scanId: 'scan-current', clientDomain: 'example.com' })
+
+    expect(result).toMatchObject({ id: 'scan-current', accountId: 'account-1', domain: 'www.example.com' })
+  })
+
+  it('queries stored hostname variants and returns the exact nearest eligible previous scan id', async () => {
     state.responses.set('scans', { data: [
-      { id: 'future', account_id: 'account-1', domain: 'example.com', created_at: '2026-07-22T08:00:00.000Z', score: 99, grade: 'A', results: {} },
-      { id: 'other-account', account_id: 'account-2', domain: 'example.com', created_at: '2026-07-20T08:00:00.000Z', score: 20, grade: 'F', results: {} },
-      { id: 'older', account_id: 'account-1', domain: 'https://www.example.com', created_at: '2026-07-19T08:00:00.000Z', score: 70, grade: 'B', results: {} },
-      { id: 'newer', account_id: 'account-1', domain: 'example.com', created_at: '2026-07-20T08:00:00.000Z', score: 75, grade: 'B', results: {} },
+      { id: 'older-www', account_id: 'account-1', domain: 'www.example.com', created_at: '2026-07-19T08:00:00.000Z', score: 70, grade: 'B', results: {} },
+      { id: 'nearest-www', account_id: 'account-1', domain: 'www.example.com', created_at: '2026-07-20T08:00:00.000Z', score: 75, grade: 'B', results: {} },
     ], error: null })
 
     const result = await loadPreviousReportScan({ accountId: 'account-1', currentScan })
+    const appendInput = { previousScanId: result?.id ?? null }
 
-    expect(result?.createdAt).toBe('2026-07-20T08:00:00.000Z')
-    expect(callsFor('scans', 'eq')).toEqual(expect.arrayContaining([
-      expect.objectContaining({ args: ['account_id', 'account-1'] }),
-      expect.objectContaining({ args: ['domain', 'example.com'] }),
-    ]))
+    expect(result).toMatchObject({ id: 'nearest-www', createdAt: '2026-07-20T08:00:00.000Z' })
+    expect(appendInput.previousScanId).toBe('nearest-www')
+    expect(callsFor('scans', 'eq')).toContainEqual(expect.objectContaining({ args: ['account_id', 'account-1'] }))
+    expect(callsFor('scans', 'eq')).not.toContainEqual(expect.objectContaining({ args: ['domain', 'example.com'] }))
+    expect(callsFor('scans', 'in')).toContainEqual(expect.objectContaining({ args: ['domain', ['example.com', 'www.example.com']] }))
     expect(callsFor('scans', 'lt')).toContainEqual(expect.objectContaining({ args: ['created_at', currentScan.createdAt] }))
     expect(callsFor('scans', 'order')).toContainEqual(expect.objectContaining({ args: ['created_at', { ascending: false }] }))
   })

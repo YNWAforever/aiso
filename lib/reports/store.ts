@@ -30,6 +30,10 @@ export interface OwnedReportClient {
   readonly domain: string
 }
 
+export interface StoredReportScanInput extends ReportScanInput {
+  readonly id: string
+}
+
 export interface ReportBrandingRow extends ReportBrandingInput {
   readonly accountId: string
   readonly updatedBy: string | null
@@ -106,10 +110,11 @@ function firstRow<T>(value: unknown): T | null {
   return (value as T | null) ?? null
 }
 
-function mapScan(value: unknown): ReportScanInput | null {
+function mapScan(value: unknown): StoredReportScanInput | null {
   if (!isRecord(value)) return null
   if (
-    typeof value.account_id !== 'string'
+    typeof value.id !== 'string'
+    || typeof value.account_id !== 'string'
     || typeof value.domain !== 'string'
     || typeof value.created_at !== 'string'
     || typeof value.score !== 'number'
@@ -117,6 +122,7 @@ function mapScan(value: unknown): ReportScanInput | null {
   ) return null
 
   return {
+    id: value.id,
     accountId: value.account_id,
     domain: value.domain,
     createdAt: value.created_at,
@@ -168,7 +174,7 @@ export async function loadOwnedReportScan(input: {
   accountId: string
   scanId: string
   clientDomain: string
-}): Promise<ReportScanInput | null> {
+}): Promise<StoredReportScanInput | null> {
   const expectedDomain = normalizeReportDomain(input.clientDomain)
   if (!expectedDomain) return null
 
@@ -191,7 +197,7 @@ export async function loadOwnedReportScan(input: {
 export async function loadPreviousReportScan(input: {
   accountId: string
   currentScan: ReportScanInput
-}): Promise<ReportScanInput | null> {
+}): Promise<StoredReportScanInput | null> {
   const normalizedDomain = normalizeReportDomain(input.currentScan.domain)
   if (!normalizedDomain || input.currentScan.accountId !== input.accountId) return null
 
@@ -200,14 +206,15 @@ export async function loadPreviousReportScan(input: {
     .from('scans')
     .select('id,account_id,domain,created_at,score,grade,results')
     .eq('account_id', input.accountId)
-    .eq('domain', normalizedDomain)
+    .in('domain', [normalizedDomain, `www.${normalizedDomain}`])
     .lt('created_at', input.currentScan.createdAt)
     .order('created_at', { ascending: false })
     .limit(25)
 
   throwOnError(error)
   const candidates = Array.isArray(data) ? data.map(mapScan).filter(scan => scan !== null) : []
-  return selectPreviousReportScan(input.currentScan, candidates)
+  const selected = selectPreviousReportScan(input.currentScan, candidates)
+  return candidates.find(candidate => candidate === selected) ?? null
 }
 
 export async function loadReportRecommendations(input: {
