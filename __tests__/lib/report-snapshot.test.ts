@@ -124,5 +124,7 @@ describe('client report snapshot', () => {
     expect(edited.executiveSummary).toBe('Clear evidence-based summary. Clear evidence-based summary.')
     expect(() => replaceExecutiveSummary(snapshot, 'too short')).toThrow()
     expect(() => replaceExecutiveSummary(snapshot, `${'x'.repeat(40)}\u0001`)).toThrow()
+    expect(() => replaceExecutiveSummary(snapshot, `${'x'.repeat(40)}\u0080`)).toThrow()
+    expect(() => replaceExecutiveSummary(snapshot, `${'x'.repeat(40)}\u009f`)).toThrow()
   })
 })

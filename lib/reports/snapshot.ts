@@ -137,7 +137,7 @@ export function buildClientReportSnapshot(input: ClientReportSnapshotInput): Cli
 }
 
 export function replaceExecutiveSummary(snapshot: ClientReportSnapshotV1, summary: string): ClientReportSnapshotV1 {
-  if (/[\u0000-\u001f\u007f]/.test(summary)) throw new Error('Summary must not contain control characters')
+  if (/[\u0000-\u001f\u007f-\u009f]/.test(summary)) throw new Error('Summary must not contain control characters')
   const normalized = normalizeText(summary)
   if (normalized.length < 40 || normalized.length > 1200) throw new Error('Summary must be between 40 and 1200 characters')
   return { ...snapshot, executiveSummary: normalized }
