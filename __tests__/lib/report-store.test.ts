@@ -66,6 +66,7 @@ import {
   incrementClientReportView,
   listClientReportVersions,
   listClientReports,
+  loadOwnedClientReportById,
   loadOwnedReportClient,
   loadOwnedReportScan,
   loadPreviousReportScan,
@@ -213,6 +214,19 @@ describe('report store tenant boundary', () => {
       expect.objectContaining({ args: ['account_id', 'account-1'] }),
       expect.objectContaining({ args: ['client_id', 'client-1'] }),
       expect.objectContaining({ args: ['report_id', 'report-1'] }),
+    ]))
+  })
+
+  it('discovers an owned report tuple with account and report filters before downstream full-tuple checks', async () => {
+    state.responses.set('client_reports', { data: {
+      id: 'report-1', account_id: 'account-1', client_id: 'client-1', status: 'draft',
+    }, error: null })
+
+    await expect(loadOwnedClientReportById({ accountId: 'account-1', reportId: 'report-1' }))
+      .resolves.toMatchObject({ id: 'report-1', account_id: 'account-1', client_id: 'client-1' })
+    expect(callsFor('client_reports', 'eq')).toEqual(expect.arrayContaining([
+      expect.objectContaining({ args: ['account_id', 'account-1'] }),
+      expect.objectContaining({ args: ['id', 'report-1'] }),
     ]))
   })
 

@@ -358,6 +358,35 @@ export function rotateClientReportLink(input: { accountId: string; clientId: str
   return tenantReportRpc('rotate_client_report_link', input)
 }
 
+function exactOwnedReport(
+  data: unknown,
+  expected: { accountId: string; reportId: string; clientId?: string },
+): ClientReportRow | null {
+  const report = firstRow<ClientReportRow>(data)
+  if (!report
+    || report.account_id !== expected.accountId
+    || report.id !== expected.reportId
+    || typeof report.client_id !== 'string'
+    || (expected.clientId !== undefined && report.client_id !== expected.clientId)) return null
+  return report
+}
+
+export async function loadOwnedClientReportById(input: {
+  accountId: string
+  reportId: string
+}): Promise<ClientReportRow | null> {
+  const supabase = await createServiceSupabaseClient()
+  const { data, error } = await supabase
+    .from('client_reports')
+    .select('*')
+    .eq('account_id', input.accountId)
+    .eq('id', input.reportId)
+    .maybeSingle()
+
+  throwOnError(error)
+  return exactOwnedReport(data, input)
+}
+
 export async function loadOwnedClientReport(input: {
   accountId: string
   clientId: string
@@ -373,7 +402,7 @@ export async function loadOwnedClientReport(input: {
     .maybeSingle()
 
   throwOnError(error)
-  return firstRow<ClientReportRow>(data)
+  return exactOwnedReport(data, input)
 }
 
 export async function listClientReports(input: {
