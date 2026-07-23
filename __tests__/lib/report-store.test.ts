@@ -92,6 +92,42 @@ const currentScan = {
   results: { c1_robots: { status: 'pass' } },
 }
 
+const validReportRow = {
+  id: 'report-1',
+  account_id: 'account-1',
+  client_id: 'client-1',
+  status: 'published' as const,
+  public_slug: 'a'.repeat(32),
+  share_version: 2,
+  latest_version_id: 'version-2',
+  published_version_id: 'version-1',
+  view_count: 0,
+  cta_click_count: 0,
+  first_viewed_at: null,
+  last_viewed_at: null,
+  published_at: '2026-07-21T09:00:00.000Z',
+  revoked_at: null,
+  created_by: 'profile-1',
+  created_at: '2026-07-21T08:00:00.000Z',
+  updated_at: '2026-07-21T09:00:00.000Z',
+}
+
+const validVersionRow = {
+  id: 'version-1',
+  report_id: 'report-1',
+  account_id: 'account-1',
+  client_id: 'client-1',
+  version_number: 1,
+  source_scan_id: 'scan-1',
+  previous_scan_id: null,
+  locale: 'en' as const,
+  executive_summary: 'A deterministic report summary with enough content for the stored version row.',
+  snapshot_schema_version: 1 as const,
+  snapshot: { snapshotSchemaVersion: 1 },
+  created_by: 'profile-1',
+  created_at: '2026-07-21T08:00:00.000Z',
+}
+
 describe('report store tenant boundary', () => {
   beforeEach(() => {
     state.calls.length = 0
@@ -211,33 +247,82 @@ describe('report store tenant boundary', () => {
     expect(state.calls.find(call => call.method === 'rpc:append_client_report_version')?.args[0]).toMatchObject({ p_report_id: 'report-1' })
   })
 
-  it('returns the report and inserted version from create and append RPC payloads', async () => {
-    const report = { id: 'report-1', account_id: 'account-1', client_id: 'client-1', latest_version_id: 'version-1' }
-    const versionRow = {
-      id: 'version-1', report_id: 'report-1', account_id: 'account-1', client_id: 'client-1',
-      version_number: 1, locale: 'en',
+  it('returns strictly validated authoritative payloads from every lifecycle RPC', async () => {
+    const createReport = {
+      ...validReportRow,
+      status: 'draft' as const,
+      latest_version_id: 'version-1',
+      published_version_id: null,
+      published_at: null,
     }
-    state.responses.set('rpc:create_client_report_with_version', {
-      data: { report, version: versionRow },
-      error: null,
-    })
+    const appendedVersion = { ...validVersionRow, id: 'version-2', version_number: 2 }
+    const publishedReport = { ...validReportRow, published_version_id: 'version-2' }
+    const revokedReport = {
+      ...validReportRow,
+      status: 'revoked' as const,
+      public_slug: 'b'.repeat(32),
+      share_version: 3,
+      revoked_at: '2026-07-21T10:00:00.000Z',
+    }
+    const rotatedReport = { ...validReportRow, public_slug: 'c'.repeat(32), share_version: 3 }
+    state.responses.set('rpc:create_client_report_with_version', { data: { report: createReport, version: validVersionRow }, error: null })
     state.responses.set('rpc:append_client_report_version', {
-      data: { report: { ...report, latest_version_id: 'version-2' }, version: { ...versionRow, id: 'version-2', version_number: 2 } },
-      error: null,
+      data: { report: validReportRow, version: appendedVersion, published_version: validVersionRow }, error: null,
+    })
+    state.responses.set('rpc:publish_client_report_latest', {
+      data: { report: publishedReport, published_version: appendedVersion }, error: null,
+    })
+    state.responses.set('rpc:revoke_client_report', { data: { report: revokedReport }, error: null })
+    state.responses.set('rpc:rotate_client_report_link', {
+      data: { report: rotatedReport, published_version: validVersionRow }, error: null,
     })
     const input = {
       accountId: 'account-1', clientId: 'client-1', sourceScanId: 'scan-1', previousScanId: null,
       locale: 'en' as const, executiveSummary: 'Summary', snapshotSchemaVersion: 1 as const,
       snapshot: { snapshotSchemaVersion: 1 } as never, createdBy: 'profile-1',
     }
+    const tuple = { accountId: 'account-1', clientId: 'client-1', reportId: 'report-1' }
 
-    await expect(createClientReport(input)).resolves.toEqual({ report, version: versionRow })
-    await expect(appendClientReportVersion({ ...input, reportId: 'report-1' })).resolves.toMatchObject({
-      report: { latest_version_id: 'version-2' },
-      version: { id: 'version-2', version_number: 2 },
+    await expect(createClientReport(input)).resolves.toEqual({ report: createReport, version: validVersionRow })
+    await expect(appendClientReportVersion({ ...input, reportId: 'report-1' })).resolves.toEqual({
+      report: validReportRow,
+      version: appendedVersion,
+      publishedVersion: validVersionRow,
     })
+    await expect(publishClientReportLatest(tuple)).resolves.toEqual({ report: publishedReport, publishedVersion: appendedVersion })
+    await expect(revokeClientReport(tuple)).resolves.toEqual({ report: revokedReport })
+    await expect(rotateClientReportLink(tuple)).resolves.toEqual({ report: rotatedReport, publishedVersion: validVersionRow })
   })
 
+  it.each([
+    ['create account mismatch', 'create_client_report_with_version', () => createClientReport({
+      accountId: 'account-1', clientId: 'client-1', sourceScanId: 'scan-1', previousScanId: null,
+      locale: 'en', executiveSummary: 'Summary', snapshotSchemaVersion: 1,
+      snapshot: { snapshotSchemaVersion: 1 } as never, createdBy: 'profile-1',
+    }), { report: { ...validReportRow, status: 'draft', account_id: 'account-2', latest_version_id: 'version-1', published_version_id: null, published_at: null }, version: validVersionRow }],
+    ['append version tuple mismatch', 'append_client_report_version', () => appendClientReportVersion({
+      reportId: 'report-1', accountId: 'account-1', clientId: 'client-1', sourceScanId: 'scan-1', previousScanId: null,
+      locale: 'en', executiveSummary: 'Summary', snapshotSchemaVersion: 1,
+      snapshot: { snapshotSchemaVersion: 1 } as never, createdBy: 'profile-1',
+    }), { report: validReportRow, version: { ...validVersionRow, id: 'version-2', version_number: 2, client_id: 'client-2' }, published_version: validVersionRow }],
+    ['append published pointer mismatch', 'append_client_report_version', () => appendClientReportVersion({
+      reportId: 'report-1', accountId: 'account-1', clientId: 'client-1', sourceScanId: 'scan-1', previousScanId: null,
+      locale: 'en', executiveSummary: 'Summary', snapshotSchemaVersion: 1,
+      snapshot: { snapshotSchemaVersion: 1 } as never, createdBy: 'profile-1',
+    }), { report: validReportRow, version: { ...validVersionRow, id: 'version-2', version_number: 2 }, published_version: { ...validVersionRow, id: 'version-other' } }],
+    ['append draft publication state', 'append_client_report_version', () => appendClientReportVersion({
+      reportId: 'report-1', accountId: 'account-1', clientId: 'client-1', sourceScanId: 'scan-1', previousScanId: null,
+      locale: 'en', executiveSummary: 'Summary', snapshotSchemaVersion: 1,
+      snapshot: { snapshotSchemaVersion: 1 } as never, createdBy: 'profile-1',
+    }), { report: { ...validReportRow, status: 'draft' }, version: { ...validVersionRow, id: 'version-2', version_number: 2 }, published_version: validVersionRow }],
+    ['publish invalid locale', 'publish_client_report_latest', () => publishClientReportLatest({ accountId: 'account-1', clientId: 'client-1', reportId: 'report-1' }), { report: { ...validReportRow, published_version_id: 'version-2' }, published_version: { ...validVersionRow, id: 'version-2', version_number: 2, locale: 'fr' } }],
+    ['revoke malformed slug', 'revoke_client_report', () => revokeClientReport({ accountId: 'account-1', clientId: 'client-1', reportId: 'report-1' }), { report: { ...validReportRow, status: 'revoked', public_slug: 'short', revoked_at: '2026-07-21T10:00:00.000Z' } }],
+    ['rotate non-published report', 'rotate_client_report_link', () => rotateClientReportLink({ accountId: 'account-1', clientId: 'client-1', reportId: 'report-1' }), { report: { ...validReportRow, status: 'revoked', revoked_at: '2026-07-21T10:00:00.000Z' }, published_version: validVersionRow }],
+  ] as const)('fails closed for an unauthorized or malformed RPC result: %s', async (_label, rpcName, invoke, data) => {
+    state.responses.set(`rpc:${rpcName}`, { data, error: null })
+
+    await expect(invoke()).resolves.toBeNull()
+  })
   it('filters account/client/report on report and version lists', async () => {
     state.responses.set('client_reports', { data: [], error: null })
     state.responses.set('client_report_versions', { data: [], error: null })

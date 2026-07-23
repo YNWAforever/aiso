@@ -178,8 +178,42 @@ describe('client report migration contract', () => {
       expect(definition).toContain('returns jsonb')
       expect(definition).toContain('new_version public.client_report_versions')
       expect(definition).toMatch(/returning \* into new_version/)
-      expect(definition).toMatch(/pg_catalog\.jsonb_build_object\(\s*'report',\s*pg_catalog\.to_jsonb\([^)]*\),\s*'version',\s*pg_catalog\.to_jsonb\(new_version\)\s*\)/)
+      expect(definition).toMatch(/pg_catalog\.jsonb_build_object\(\s*'report',\s*pg_catalog\.to_jsonb\([^)]*\),\s*'version',\s*pg_catalog\.to_jsonb\(new_version\)/)
     }
+
+    const lifecycleNames = [
+      'append_client_report_version',
+      'publish_client_report_latest',
+      'revoke_client_report',
+      'rotate_client_report_link',
+    ]
+    for (const name of lifecycleNames) {
+      const definition = functionDefinition(sql, name) ?? ''
+      const advisoryLock = definition.indexOf('pg_catalog.pg_advisory_xact_lock')
+      const rowLock = definition.indexOf('for update')
+      expect(advisoryLock, `${name} advisory lock`).toBeGreaterThanOrEqual(0)
+      expect(rowLock, `${name} row lock`).toBeGreaterThan(advisoryLock)
+    }
+
+    expect(append).toMatch(/published_version public\.client_report_versions/)
+    expect(append).toMatch(/where client_report_versions\.id = locked_report\.published_version_id/)
+    expect(append).toMatch(/'published_version',\s*pg_catalog\.to_jsonb\(published_version\)/)
+
+    for (const name of ['publish_client_report_latest', 'rotate_client_report_link']) {
+      const definition = functionDefinition(sql, name) ?? ''
+      expect(definition).toContain('returns jsonb')
+      expect(definition).toMatch(/published_version public\.client_report_versions/)
+      expect(definition).toMatch(/where client_report_versions\.id = locked_report\.published_version_id/)
+      expect(definition).toMatch(/jsonb_build_object\(\s*'report',\s*pg_catalog\.to_jsonb\(locked_report\),\s*'published_version',\s*pg_catalog\.to_jsonb\(published_version\)/)
+    }
+
+    const revoke = functionDefinition(sql, 'revoke_client_report') ?? ''
+    expect(revoke).toContain('returns jsonb')
+    expect(revoke).toMatch(/jsonb_build_object\(\s*'report',\s*pg_catalog\.to_jsonb\(locked_report\)/)
+
+    const rotate = functionDefinition(sql, 'rotate_client_report_link') ?? ''
+    expect(rotate).toMatch(/locked_report\.status <> 'published'/)
+    expect(rotate).toMatch(/locked_report\.published_version_id is null/)
   })
 
   it('binds create and append scans to the owned client normalized hostname', () => {

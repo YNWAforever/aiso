@@ -326,6 +326,131 @@ async function versionsFor(report: ClientReportRow) {
   return exactVersions(versions, report)
 }
 
+const LIFECYCLE_SLUG_PATTERN = /^[A-Za-z0-9_-]{32}$/
+const LIFECYCLE_STATUSES = new Set(['draft', 'published', 'revoked'])
+
+type LifecycleTuple = {
+  readonly accountId: string
+  readonly clientId: string
+  readonly reportId?: string
+}
+
+function lifecycleReport(value: unknown, expected: LifecycleTuple): ClientReportRow | null {
+  if (!isRecord(value)
+    || typeof value.id !== 'string'
+    || value.id.length === 0
+    || value.account_id !== expected.accountId
+    || value.client_id !== expected.clientId
+    || (expected.reportId !== undefined && value.id !== expected.reportId)
+    || typeof value.status !== 'string'
+    || !LIFECYCLE_STATUSES.has(value.status)
+    || typeof value.public_slug !== 'string'
+    || !LIFECYCLE_SLUG_PATTERN.test(value.public_slug)
+    || typeof value.share_version !== 'number'
+    || !Number.isInteger(value.share_version)
+    || value.share_version <= 0
+    || typeof value.latest_version_id !== 'string'
+    || value.latest_version_id.length === 0
+    || !isNullableString(value.published_version_id)
+    || (typeof value.published_version_id === 'string' && value.published_version_id.length === 0)
+    || typeof value.view_count !== 'number'
+    || !Number.isInteger(value.view_count)
+    || value.view_count < 0
+    || typeof value.cta_click_count !== 'number'
+    || !Number.isInteger(value.cta_click_count)
+    || value.cta_click_count < 0
+    || !isNullableString(value.first_viewed_at)
+    || !isNullableString(value.last_viewed_at)
+    || !isNullableString(value.published_at)
+    || !isNullableString(value.revoked_at)
+    || !isNullableString(value.created_by)
+    || typeof value.created_at !== 'string'
+    || typeof value.updated_at !== 'string') return null
+
+  const hasPublishedVersion = value.published_version_id !== null
+  const hasPublishedAt = value.published_at !== null
+  if (hasPublishedVersion !== hasPublishedAt
+    || (value.status === 'draft' && (hasPublishedVersion || value.revoked_at !== null))
+    || (value.status === 'published' && (!hasPublishedVersion || value.revoked_at !== null))
+    || (value.status === 'revoked' && value.revoked_at === null)) return null
+  return value as unknown as ClientReportRow
+}
+
+function lifecycleVersion(value: unknown, report: ClientReportRow): ClientReportVersionRow | null {
+  if (!isRecord(value)
+    || typeof value.id !== 'string'
+    || value.id.length === 0
+    || value.report_id !== report.id
+    || value.account_id !== report.account_id
+    || value.client_id !== report.client_id
+    || typeof value.version_number !== 'number'
+    || !Number.isInteger(value.version_number)
+    || value.version_number <= 0
+    || !isNullableString(value.source_scan_id)
+    || !isNullableString(value.previous_scan_id)
+    || (value.locale !== 'en' && value.locale !== 'zh-HK')
+    || typeof value.executive_summary !== 'string'
+    || value.snapshot_schema_version !== 1
+    || !isRecord(value.snapshot)
+    || !isNullableString(value.created_by)
+    || typeof value.created_at !== 'string') return null
+  return value as unknown as ClientReportVersionRow
+}
+
+function lifecycleResult(value: unknown): Record<string, unknown> | null {
+  return isRecord(value) ? value : null
+}
+
+function authoritativeCreateResult(value: unknown, expected: LifecycleTuple) {
+  const result = lifecycleResult(value)
+  const report = lifecycleReport(result?.report, expected)
+  const version = report ? lifecycleVersion(result?.version, report) : null
+  if (!report
+    || !version
+    || report.status !== 'draft'
+    || report.published_version_id !== null
+    || report.latest_version_id !== version.id) return null
+  return { report, version }
+}
+
+function authoritativeAppendResult(value: unknown, expected: Required<LifecycleTuple>) {
+  const result = lifecycleResult(value)
+  const report = lifecycleReport(result?.report, expected)
+  const version = report ? lifecycleVersion(result?.version, report) : null
+  if (!report || !version || report.latest_version_id !== version.id) return null
+
+  let publishedVersion: ClientReportVersionRow | null = null
+  if (report.published_version_id === null) {
+    if (result?.publishedVersion !== null) return null
+  } else {
+    publishedVersion = lifecycleVersion(result?.publishedVersion, report)
+    if (!publishedVersion || publishedVersion.id !== report.published_version_id) return null
+  }
+  return { report, version, publishedVersion }
+}
+
+function authoritativePublishedResult(
+  value: unknown,
+  expected: Required<LifecycleTuple>,
+  requireLatestPublished: boolean,
+) {
+  const result = lifecycleResult(value)
+  const report = lifecycleReport(result?.report, expected)
+  const publishedVersion = report ? lifecycleVersion(result?.publishedVersion, report) : null
+  if (!report
+    || report.status !== 'published'
+    || !publishedVersion
+    || publishedVersion.id !== report.published_version_id
+    || (requireLatestPublished && publishedVersion.id !== report.latest_version_id)) return null
+  return { report, publishedVersion }
+}
+
+function authoritativeRevokeResult(value: unknown, expected: Required<LifecycleTuple>) {
+  const result = lifecycleResult(value)
+  const report = lifecycleReport(result?.report, expected)
+  return report?.status === 'revoked' ? { report } : null
+}
+
 export async function getAuthenticatedReportBranding() {
   return serviceOperation(async () => {
     const profile = await authenticatedProfile()
@@ -388,7 +513,7 @@ export async function createAuthenticatedClientReport(input: {
     const profile = await authenticatedProfile()
     const client = await ownedClient(profile, input.clientId)
     const built = await reportSnapshot({ profile, client, ...input })
-    const created = await createClientReport({
+    const created = authoritativeCreateResult(await createClientReport({
       accountId: profile.account_id,
       clientId: client.id,
       sourceScanId: built.sourceScanId,
@@ -398,7 +523,7 @@ export async function createAuthenticatedClientReport(input: {
       snapshotSchemaVersion: built.snapshot.snapshotSchemaVersion,
       snapshot: built.snapshot,
       createdBy: profile.id,
-    })
+    }), { accountId: profile.account_id, clientId: client.id })
     if (!created) throw new ReportServiceError('service_unavailable')
     return {
       report: reportDto(created.report, { latest: created.version, published: null }),
@@ -417,13 +542,7 @@ export async function appendAuthenticatedClientReportVersion(input: {
     const latest = versions.latest
     if (!latest?.source_scan_id) throw new ReportServiceError('conflict')
 
-    const existingSignedUrl = context.report.status === 'published' && versions.published
-      ? prepareReportShareUrl(reportOrigin())({
-          locale: versions.published.locale,
-          slug: context.report.public_slug,
-          shareVersion: context.report.share_version,
-        })
-      : undefined
+    const shareUrlBuilder = prepareReportShareUrl(reportOrigin())
     const built = await reportSnapshot({
       profile,
       client: context.client,
@@ -431,7 +550,12 @@ export async function appendAuthenticatedClientReportVersion(input: {
       locale: input.locale,
       executiveSummary: input.executiveSummary,
     })
-    const updated = await appendClientReportVersion({
+    const expected = {
+      accountId: profile.account_id,
+      clientId: context.client.id,
+      reportId: context.report.id,
+    }
+    const updated = authoritativeAppendResult(await appendClientReportVersion({
       reportId: context.report.id,
       accountId: profile.account_id,
       clientId: context.client.id,
@@ -442,13 +566,21 @@ export async function appendAuthenticatedClientReportVersion(input: {
       snapshotSchemaVersion: built.snapshot.snapshotSchemaVersion,
       snapshot: built.snapshot,
       createdBy: profile.id,
-    })
+    }), expected)
     if (!updated) throw new ReportServiceError('service_unavailable')
+
+    const signedUrl = updated.report.status === 'published' && updated.publishedVersion
+      ? shareUrlBuilder({
+          locale: updated.publishedVersion.locale,
+          slug: updated.report.public_slug,
+          shareVersion: updated.report.share_version,
+        })
+      : undefined
     return {
       report: reportDto(
         updated.report,
-        { latest: updated.version, published: versions.published },
-        existingSignedUrl,
+        { latest: updated.version, published: updated.publishedVersion },
+        signedUrl,
       ),
     }
   })
@@ -570,40 +702,33 @@ export async function polishAuthenticatedClientReportSummary(reportId: string) {
 
 async function mutateReport(
   reportId: string,
-  mutation: (input: { accountId: string; clientId: string; reportId: string }) => Promise<ClientReportRow | null>,
+  mutation: (input: { accountId: string; clientId: string; reportId: string }) => Promise<unknown>,
   mode: 'publish' | 'revoke' | 'rotate',
 ) {
   return serviceOperation(async () => {
     const profile = await authenticatedProfile()
     const context = await ownedReport(profile, reportId)
-    const versions = resolvedReportVersions(context.report, await versionsFor(context.report))
-    let responseVersions = versions
-    let shareUrlBuilder: ReturnType<typeof prepareReportShareUrl> | undefined
+    const shareUrlBuilder = mode === 'revoke' ? undefined : prepareReportShareUrl(reportOrigin())
+    const tuple = { accountId: profile.account_id, clientId: context.client.id, reportId: context.report.id }
+    const result = await mutation(tuple)
 
-    if (mode === 'publish') {
-      if (!versions.latest) throw new ReportServiceError('conflict')
-      shareUrlBuilder = prepareReportShareUrl(reportOrigin())
-      responseVersions = { latest: versions.latest, published: versions.latest }
-    } else if (mode === 'rotate') {
-      if (context.report.status !== 'published' || !versions.published) {
-        throw new ReportServiceError('conflict')
-      }
-      shareUrlBuilder = prepareReportShareUrl(reportOrigin())
+    if (mode === 'revoke') {
+      const revoked = authoritativeRevokeResult(result, tuple)
+      if (!revoked) throw new ReportServiceError('service_unavailable')
+      return { report: reportDto(revoked.report, { latest: null, published: null }) }
     }
 
-    const tuple = { accountId: profile.account_id, clientId: context.client.id, reportId: context.report.id }
-    const report = await mutation(tuple)
-    if (!report) throw new ReportServiceError('service_unavailable')
-    const safe = reportDto(report, responseVersions)
-    if (mode === 'revoke') return { report: safe }
-
-    const published = responseVersions.published!
+    const published = authoritativePublishedResult(result, tuple, mode === 'publish')
+    if (!published) throw new ReportServiceError('service_unavailable')
+    const latest = published.report.latest_version_id === published.publishedVersion.id
+      ? published.publishedVersion
+      : null
     return {
-      report: safe,
+      report: reportDto(published.report, { latest, published: published.publishedVersion }),
       signedUrl: shareUrlBuilder!({
-        locale: published.locale,
-        slug: report.public_slug,
-        shareVersion: report.share_version,
+        locale: published.publishedVersion.locale,
+        slug: published.report.public_slug,
+        shareVersion: published.report.share_version,
       }),
     }
   })

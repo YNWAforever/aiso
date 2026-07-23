@@ -82,6 +82,19 @@ export interface ClientReportVersionMutationResult {
   readonly version: ClientReportVersionRow
 }
 
+export interface AppendClientReportVersionMutationResult extends ClientReportVersionMutationResult {
+  readonly publishedVersion: ClientReportVersionRow | null
+}
+
+export interface PublishedClientReportMutationResult {
+  readonly report: ClientReportRow
+  readonly publishedVersion: ClientReportVersionRow
+}
+
+export interface ClientReportMutationResult {
+  readonly report: ClientReportRow
+}
+
 export interface ReportAccountCommercialState {
   readonly id: string
   readonly plan: string
@@ -325,62 +338,200 @@ export async function upsertReportBranding(input: {
   }
 }
 
-async function callReportRpc(name: string, args: Record<string, unknown>): Promise<ClientReportRow | null> {
-  const supabase = await createServiceSupabaseClient()
-  const { data, error } = await supabase.rpc(name, args)
-  throwOnError(error)
-  return firstRow<ClientReportRow>(data)
+const REPORT_SLUG_PATTERN = /^[A-Za-z0-9_-]{32}$/
+const REPORT_STATUSES = new Set<ReportStatus>(['draft', 'published', 'revoked'])
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === 'string'
 }
 
-async function callReportVersionRpc(
-  name: 'create_client_report_with_version' | 'append_client_report_version',
-  args: Record<string, unknown>,
-): Promise<ClientReportVersionMutationResult | null> {
-  const supabase = await createServiceSupabaseClient()
-  const { data, error } = await supabase.rpc(name, args)
-  throwOnError(error)
-  const result = firstRow<unknown>(data)
-  if (!isRecord(result) || !isRecord(result.report) || !isRecord(result.version)) return null
-  return {
-    report: result.report as unknown as ClientReportRow,
-    version: result.version as unknown as ClientReportVersionRow,
+function validatedRpcReport(
+  value: unknown,
+  expected: { accountId: string; clientId: string; reportId?: string },
+): ClientReportRow | null {
+  if (!isRecord(value)
+    || typeof value.id !== 'string'
+    || value.id.length === 0
+    || value.account_id !== expected.accountId
+    || value.client_id !== expected.clientId
+    || (expected.reportId !== undefined && value.id !== expected.reportId)
+    || typeof value.status !== 'string'
+    || !REPORT_STATUSES.has(value.status as ReportStatus)
+    || typeof value.public_slug !== 'string'
+    || !REPORT_SLUG_PATTERN.test(value.public_slug)
+    || typeof value.share_version !== 'number'
+    || !Number.isInteger(value.share_version)
+    || value.share_version <= 0
+    || typeof value.latest_version_id !== 'string'
+    || value.latest_version_id.length === 0
+    || !isNullableString(value.published_version_id)
+    || (typeof value.published_version_id === 'string' && value.published_version_id.length === 0)
+    || typeof value.view_count !== 'number'
+    || !Number.isInteger(value.view_count)
+    || value.view_count < 0
+    || typeof value.cta_click_count !== 'number'
+    || !Number.isInteger(value.cta_click_count)
+    || value.cta_click_count < 0
+    || !isNullableString(value.first_viewed_at)
+    || !isNullableString(value.last_viewed_at)
+    || !isNullableString(value.published_at)
+    || !isNullableString(value.revoked_at)
+    || !isNullableString(value.created_by)
+    || typeof value.created_at !== 'string'
+    || typeof value.updated_at !== 'string') return null
+
+  const hasPublishedVersion = value.published_version_id !== null
+  const hasPublishedAt = value.published_at !== null
+  if (hasPublishedVersion !== hasPublishedAt
+    || (value.status === 'draft' && (hasPublishedVersion || value.revoked_at !== null))
+    || (value.status === 'published' && (!hasPublishedVersion || value.revoked_at !== null))
+    || (value.status === 'revoked' && value.revoked_at === null)) return null
+  return value as unknown as ClientReportRow
+}
+
+function validatedRpcVersion(
+  value: unknown,
+  report: ClientReportRow,
+): ClientReportVersionRow | null {
+  if (!isRecord(value)
+    || typeof value.id !== 'string'
+    || value.report_id !== report.id
+    || value.account_id !== report.account_id
+    || value.client_id !== report.client_id
+    || typeof value.version_number !== 'number'
+    || !Number.isInteger(value.version_number)
+    || value.version_number <= 0
+    || !isNullableString(value.source_scan_id)
+    || !isNullableString(value.previous_scan_id)
+    || (value.locale !== 'en' && value.locale !== 'zh-HK')
+    || typeof value.executive_summary !== 'string'
+    || value.snapshot_schema_version !== 1
+    || !isRecord(value.snapshot)
+    || !isNullableString(value.created_by)
+    || typeof value.created_at !== 'string') return null
+  return value as unknown as ClientReportVersionRow
+}
+
+function rpcPayload(value: unknown): Record<string, unknown> | null {
+  const result = firstRow<unknown>(value)
+  return isRecord(result) ? result : null
+}
+
+export function validateCreateClientReportResult(
+  value: unknown,
+  expected: { accountId: string; clientId: string },
+): ClientReportVersionMutationResult | null {
+  const result = rpcPayload(value)
+  if (!result) return null
+  const report = validatedRpcReport(result.report, expected)
+  if (!report || report.status !== 'draft' || report.published_version_id !== null || report.published_at !== null) return null
+  const version = validatedRpcVersion(result.version, report)
+  if (!version || report.latest_version_id !== version.id) return null
+  return { report, version }
+}
+
+export function validateAppendClientReportResult(
+  value: unknown,
+  expected: { accountId: string; clientId: string; reportId: string },
+): AppendClientReportVersionMutationResult | null {
+  const result = rpcPayload(value)
+  if (!result || !Object.hasOwn(result, 'published_version')) return null
+  const report = validatedRpcReport(result.report, expected)
+  if (!report) return null
+  const version = validatedRpcVersion(result.version, report)
+  if (!version || report.latest_version_id !== version.id) return null
+
+  let publishedVersion: ClientReportVersionRow | null = null
+  if (report.published_version_id === null) {
+    if (result.published_version !== null) return null
+  } else {
+    publishedVersion = validatedRpcVersion(result.published_version, report)
+    if (!publishedVersion || publishedVersion.id !== report.published_version_id) return null
   }
+  return { report, version, publishedVersion }
 }
 
-export function createClientReport(input: ReportVersionWriteInput) {
-  return callReportVersionRpc('create_client_report_with_version', versionRpcArgs(input))
+function validatePublishedClientReportResult(
+  value: unknown,
+  expected: { accountId: string; clientId: string; reportId: string },
+  requireLatestPublished: boolean,
+): PublishedClientReportMutationResult | null {
+  const result = rpcPayload(value)
+  if (!result) return null
+  const report = validatedRpcReport(result.report, expected)
+  if (!report || report.status !== 'published' || report.published_version_id === null) return null
+  const publishedVersion = validatedRpcVersion(result.published_version, report)
+  if (!publishedVersion || publishedVersion.id !== report.published_version_id) return null
+  if (requireLatestPublished && report.latest_version_id !== publishedVersion.id) return null
+  return { report, publishedVersion }
 }
 
-export function appendClientReportVersion(input: ReportVersionWriteInput & { reportId: string }) {
-  return callReportVersionRpc('append_client_report_version', {
+export function validatePublishClientReportResult(
+  value: unknown,
+  expected: { accountId: string; clientId: string; reportId: string },
+): PublishedClientReportMutationResult | null {
+  return validatePublishedClientReportResult(value, expected, true)
+}
+
+export function validateRotateClientReportResult(
+  value: unknown,
+  expected: { accountId: string; clientId: string; reportId: string },
+): PublishedClientReportMutationResult | null {
+  return validatePublishedClientReportResult(value, expected, false)
+}
+
+export function validateRevokeClientReportResult(
+  value: unknown,
+  expected: { accountId: string; clientId: string; reportId: string },
+): ClientReportMutationResult | null {
+  const result = rpcPayload(value)
+  if (!result) return null
+  const report = validatedRpcReport(result.report, expected)
+  return report?.status === 'revoked' ? { report } : null
+}
+
+async function reportRpcData(name: string, args: Record<string, unknown>): Promise<unknown> {
+  const supabase = await createServiceSupabaseClient()
+  const { data, error } = await supabase.rpc(name, args)
+  throwOnError(error)
+  return data
+}
+
+export async function createClientReport(input: ReportVersionWriteInput) {
+  const data = await reportRpcData('create_client_report_with_version', versionRpcArgs(input))
+  return validateCreateClientReportResult(data, input)
+}
+
+export async function appendClientReportVersion(input: ReportVersionWriteInput & { reportId: string }) {
+  const data = await reportRpcData('append_client_report_version', {
     p_report_id: input.reportId,
     ...versionRpcArgs(input),
   })
+  return validateAppendClientReportResult(data, input)
 }
 
-function tenantReportRpc(
-  name: 'publish_client_report_latest' | 'revoke_client_report' | 'rotate_client_report_link',
-  input: { accountId: string; clientId: string; reportId: string },
-) {
-  return callReportRpc(name, {
+function tenantReportRpcArgs(input: { accountId: string; clientId: string; reportId: string }) {
+  return {
     p_report_id: input.reportId,
     p_account_id: input.accountId,
     p_client_id: input.clientId,
-  })
+  }
 }
 
-export function publishClientReportLatest(input: { accountId: string; clientId: string; reportId: string }) {
-  return tenantReportRpc('publish_client_report_latest', input)
+export async function publishClientReportLatest(input: { accountId: string; clientId: string; reportId: string }) {
+  const data = await reportRpcData('publish_client_report_latest', tenantReportRpcArgs(input))
+  return validatePublishClientReportResult(data, input)
 }
 
-export function revokeClientReport(input: { accountId: string; clientId: string; reportId: string }) {
-  return tenantReportRpc('revoke_client_report', input)
+export async function revokeClientReport(input: { accountId: string; clientId: string; reportId: string }) {
+  const data = await reportRpcData('revoke_client_report', tenantReportRpcArgs(input))
+  return validateRevokeClientReportResult(data, input)
 }
 
-export function rotateClientReportLink(input: { accountId: string; clientId: string; reportId: string }) {
-  return tenantReportRpc('rotate_client_report_link', input)
+export async function rotateClientReportLink(input: { accountId: string; clientId: string; reportId: string }) {
+  const data = await reportRpcData('rotate_client_report_link', tenantReportRpcArgs(input))
+  return validateRotateClientReportResult(data, input)
 }
-
 function exactOwnedReport(
   data: unknown,
   expected: { accountId: string; reportId: string; clientId?: string },

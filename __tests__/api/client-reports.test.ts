@@ -168,12 +168,21 @@ describe('authenticated client report APIs', () => {
       version: versions[1],
     })
     h.appendClientReportVersion.mockResolvedValue({
-      report,
+      report: { ...report, latest_version_id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc3' },
       version: { ...versions[0], id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc3', version_number: 3 },
+      publishedVersion: versions[1],
     })
-    h.publishClientReportLatest.mockResolvedValue(report)
-    h.revokeClientReport.mockResolvedValue({ ...report, status: 'revoked', public_slug: 'b'.repeat(32), share_version: 3, revoked_at: '2026-07-21T11:00:00.000Z' })
-    h.rotateClientReportLink.mockResolvedValue({ ...report, public_slug: 'c'.repeat(32), share_version: 3 })
+    h.publishClientReportLatest.mockResolvedValue({
+      report: { ...report, published_version_id: report.latest_version_id },
+      publishedVersion: versions[0],
+    })
+    h.revokeClientReport.mockResolvedValue({
+      report: { ...report, status: 'revoked', public_slug: 'b'.repeat(32), share_version: 3, revoked_at: '2026-07-21T11:00:00.000Z' },
+    })
+    h.rotateClientReportLink.mockResolvedValue({
+      report: { ...report, public_slug: 'c'.repeat(32), share_version: 3 },
+      publishedVersion: versions[1],
+    })
   })
 
   it.each(validInvocations())('returns 401 and no-store for unauthenticated %s requests', async (_name, invoke) => {
@@ -344,6 +353,7 @@ describe('authenticated client report APIs', () => {
     h.appendClientReportVersion.mockResolvedValue({
       report: { ...report, latest_version_id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc3', published_version_id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc1' },
       version: nextVersion,
+      publishedVersion: versions[1],
     })
 
     const response = await POST_VERSION(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/versions', {
@@ -465,26 +475,108 @@ describe('authenticated client report APIs', () => {
     ['publish', POST_PUBLISH],
     ['revoke', POST_REVOKE],
     ['rotate', POST_ROTATE],
-  ] as const)('%s performs its only fallible version read before the RPC', async (_name, handler) => {
-    h.listClientReportVersions
-      .mockResolvedValueOnce(versions)
-      .mockRejectedValue(new Error('post-write read failed'))
+  ] as const)('%s uses no pre-lock version rows for lifecycle response composition', async (_name, handler) => {
+    h.listClientReportVersions.mockRejectedValue(new Error('pre-lock version state must not be read'))
 
     const response = await handler(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/action', {}), reportContext)
 
     expect(response.status).toBe(200)
-    expect(h.listClientReportVersions).toHaveBeenCalledTimes(1)
+    expect(h.listClientReportVersions).not.toHaveBeenCalled()
   })
 
-  it('validates the full report/version tuple before publishing and performs no fallible read after the RPC', async () => {
+  it.each([
+    ['create report tuple', () => h.createClientReport.mockResolvedValue({
+      report: { ...report, status: 'draft', account_id: '22222222-2222-4222-8222-222222222223', latest_version_id: versions[1].id, published_version_id: null, published_at: null },
+      version: versions[1],
+    }), () => POST_REPORTS(request('/api/clients/33333333-3333-4333-8333-333333333333/reports', { scanId: currentScan.id, locale: 'en' }), reportsContext)],
+    ['append published pointer', () => h.appendClientReportVersion.mockResolvedValue({
+      report: { ...report, latest_version_id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc3' },
+      version: { ...versions[0], id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc3', version_number: 3 },
+      publishedVersion: { ...versions[1], id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc9' },
+    }), () => POST_VERSION(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/versions', { locale: 'en', executiveSummary: snapshot.executiveSummary }), reportContext)],
+    ['publish version tuple', () => h.publishClientReportLatest.mockResolvedValue({
+      report: { ...report, published_version_id: report.latest_version_id },
+      publishedVersion: { ...versions[0], client_id: '33333333-3333-4333-8333-333333333334' },
+    }), () => POST_PUBLISH(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/publish', {}), reportContext)],
+    ['revoke report shape', () => h.revokeClientReport.mockResolvedValue({
+      report: { ...report, status: 'revoked', public_slug: 'short', revoked_at: '2026-07-21T11:00:00.000Z' },
+    }), () => POST_REVOKE(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/revoke', {}), reportContext)],
+    ['rotate version locale', () => h.rotateClientReportLink.mockResolvedValue({
+      report: { ...report, public_slug: 'c'.repeat(32), share_version: 3 },
+      publishedVersion: { ...versions[1], locale: 'fr' },
+    }), () => POST_ROTATE(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/rotate-link', {}), reportContext)],
+  ] as const)('fails closed for a mismatched service RPC fixture: %s', async (_name, arrange, invoke) => {
+    arrange()
+
+    const response = await invoke()
+    const body = await response.json()
+
+    expect(response.status).toBe(503)
+    expect(body).toEqual({ error: 'service_unavailable' })
+    expect(JSON.stringify(body)).not.toMatch(/signedUrl|public_slug|share_version/)
+  })
+
+  it('models rotate-before-append by using only the locked append payload for version metadata and signing', async () => {
+    const appendedVersion = { ...versions[0], id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc4', version_number: 4 }
+    const lockedPublished = { ...versions[1], locale: 'zh-HK' as const }
+    h.appendClientReportVersion.mockResolvedValue({
+      report: {
+        ...report,
+        public_slug: 'd'.repeat(32),
+        share_version: 6,
+        latest_version_id: appendedVersion.id,
+        published_version_id: lockedPublished.id,
+      },
+      version: appendedVersion,
+      publishedVersion: lockedPublished,
+    })
+
+    const response = await POST_VERSION(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/versions', {
+      locale: 'en',
+      executiveSummary: snapshot.executiveSummary,
+    }), reportContext)
+    const body = await response.json()
+
+    expect(response.status).toBe(201)
+    expect(body.report).toMatchObject({ latestVersionNumber: 4, publishedVersionNumber: 1 })
+    expect(body.report.signedUrl).toContain('/zh-HK/reports/' + 'd'.repeat(32))
+    expect(body.report.signedUrl).toContain('version=6')
+  })
+
+  it('models append-before-publish by returning and signing the authoritative latest version selected under lock', async () => {
+    const lockedPublished = { ...versions[0], id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc3', version_number: 3, locale: 'zh-HK' as const }
+    h.publishClientReportLatest.mockResolvedValue({
+      report: {
+        ...report,
+        public_slug: 'e'.repeat(32),
+        share_version: 4,
+        latest_version_id: lockedPublished.id,
+        published_version_id: lockedPublished.id,
+      },
+      publishedVersion: lockedPublished,
+    })
+
     const response = await POST_PUBLISH(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/publish', {}), reportContext)
+    const body = await response.json()
 
     expect(response.status).toBe(200)
-    expect(h.listClientReportVersions).toHaveBeenCalledTimes(1)
-    expect(h.listClientReportVersions.mock.invocationCallOrder[0])
-      .toBeLessThan(h.publishClientReportLatest.mock.invocationCallOrder[0])
+    expect(body.report).toMatchObject({ latestVersionNumber: 3, publishedVersionNumber: 3 })
+    expect(body.signedUrl).toContain('/zh-HK/reports/' + 'e'.repeat(32))
+    expect(body.signedUrl).toContain('version=4')
+    expect(h.listClientReportVersions).not.toHaveBeenCalled()
   })
 
+  it('models rotate losing to revoke by failing closed without signing stale publication state', async () => {
+    h.rotateClientReportLink.mockResolvedValue(null)
+
+    const response = await POST_ROTATE(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/rotate-link', {}), reportContext)
+    const body = await response.json()
+
+    expect(response.status).toBe(503)
+    expect(body).toEqual({ error: 'service_unavailable' })
+    expect(JSON.stringify(body)).not.toContain('signedUrl')
+    expect(h.listClientReportVersions).not.toHaveBeenCalled()
+  })
   it.each([
     ['publish', POST_PUBLISH, h.publishClientReportLatest, 'a'],
     ['rotate', POST_ROTATE, h.rotateClientReportLink, 'c'],
