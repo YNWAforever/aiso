@@ -5,8 +5,9 @@ import { resolveCommercialEntitlement } from '@/lib/tier'
 import type { ProfileWithAccount } from '@/lib/types'
 import { normalizeReportBranding } from './branding'
 import { polishReportSummary } from './ai'
-import { buildReportShareUrl } from './share'
+import { buildReportShareUrl, prepareReportShareUrl } from './share'
 import { buildClientReportSnapshot, replaceExecutiveSummary } from './snapshot'
+import { buildDeterministicReportSummary } from './summary'
 import {
   ReportStoreError,
   appendClientReportVersion,
@@ -157,25 +158,36 @@ function versionDto(version: ClientReportVersionRow | null) {
   }
 }
 
-function safeReportDto(
+type ReportVersionState = {
+  readonly latest: ClientReportVersionRow | null
+  readonly published: ClientReportVersionRow | null
+}
+
+function resolvedReportVersions(
   report: ClientReportRow,
   versionsInput: ReadonlyArray<ClientReportVersionRow>,
-  includeSignedUrl: boolean,
-) {
+): ReportVersionState {
   const versions = exactVersions(versionsInput, report)
   const latest = versionById(versions, report.latest_version_id)
   const published = versionById(versions, report.published_version_id)
   if ((report.latest_version_id && !latest) || (report.published_version_id && !published)) {
     throw new ReportServiceError('conflict')
   }
+  return { latest, published }
+}
 
+function reportDto(
+  report: ClientReportRow,
+  versions: ReportVersionState,
+  signedUrl?: string,
+) {
   const dto: Record<string, unknown> = {
     id: report.id,
     clientId: report.client_id,
     status: report.status,
-    latestVersionNumber: latest?.version_number ?? null,
-    publishedVersionNumber: published?.version_number ?? null,
-    latestVersion: versionDto(latest),
+    latestVersionNumber: versions.latest?.version_number ?? null,
+    publishedVersionNumber: versions.published?.version_number ?? null,
+    latestVersion: versionDto(versions.latest),
     publishedAt: report.published_at,
     revokedAt: report.revoked_at,
     firstViewedAt: report.first_viewed_at,
@@ -185,18 +197,26 @@ function safeReportDto(
     createdAt: report.created_at,
     updatedAt: report.updated_at,
   }
-
-  if (includeSignedUrl && report.status === 'published' && published) {
-    dto.signedUrl = buildReportShareUrl({
-      origin: reportOrigin(),
-      locale: published.locale,
-      slug: report.public_slug,
-      shareVersion: report.share_version,
-    })
-  }
+  if (signedUrl) dto.signedUrl = signedUrl
   return dto
 }
 
+function safeReportDto(
+  report: ClientReportRow,
+  versionsInput: ReadonlyArray<ClientReportVersionRow>,
+  includeSignedUrl: boolean,
+) {
+  const versions = resolvedReportVersions(report, versionsInput)
+  const signedUrl = includeSignedUrl && report.status === 'published' && versions.published
+    ? buildReportShareUrl({
+        origin: reportOrigin(),
+        locale: versions.published.locale,
+        slug: report.public_slug,
+        shareVersion: report.share_version,
+      })
+    : undefined
+  return reportDto(report, versions, signedUrl)
+}
 async function ownedClient(profile: ProfileWithAccount, clientId: string): Promise<OwnedReportClient> {
   const client = await loadOwnedReportClient({ accountId: profile.account_id, clientId })
   if (!client || client.accountId !== profile.account_id || client.id !== clientId) {
@@ -368,7 +388,7 @@ export async function createAuthenticatedClientReport(input: {
     const profile = await authenticatedProfile()
     const client = await ownedClient(profile, input.clientId)
     const built = await reportSnapshot({ profile, client, ...input })
-    const report = await createClientReport({
+    const created = await createClientReport({
       accountId: profile.account_id,
       clientId: client.id,
       sourceScanId: built.sourceScanId,
@@ -379,13 +399,12 @@ export async function createAuthenticatedClientReport(input: {
       snapshot: built.snapshot,
       createdBy: profile.id,
     })
-    if (!report
-      || report.account_id !== profile.account_id
-      || report.client_id !== client.id) throw new ReportServiceError('service_unavailable')
-    return { report: safeReportDto(report, await versionsFor(report), true) }
+    if (!created) throw new ReportServiceError('service_unavailable')
+    return {
+      report: reportDto(created.report, { latest: created.version, published: null }),
+    }
   })
 }
-
 export async function appendAuthenticatedClientReportVersion(input: {
   reportId: string
   locale: ReportLocale
@@ -394,10 +413,17 @@ export async function appendAuthenticatedClientReportVersion(input: {
   return serviceOperation(async () => {
     const profile = await authenticatedProfile()
     const context = await ownedReport(profile, input.reportId)
-    const versions = await versionsFor(context.report)
-    const latest = versionById(versions, context.report.latest_version_id)
+    const versions = resolvedReportVersions(context.report, await versionsFor(context.report))
+    const latest = versions.latest
     if (!latest?.source_scan_id) throw new ReportServiceError('conflict')
 
+    const existingSignedUrl = context.report.status === 'published' && versions.published
+      ? prepareReportShareUrl(reportOrigin())({
+          locale: versions.published.locale,
+          slug: context.report.public_slug,
+          shareVersion: context.report.share_version,
+        })
+      : undefined
     const built = await reportSnapshot({
       profile,
       client: context.client,
@@ -405,7 +431,7 @@ export async function appendAuthenticatedClientReportVersion(input: {
       locale: input.locale,
       executiveSummary: input.executiveSummary,
     })
-    const report = await appendClientReportVersion({
+    const updated = await appendClientReportVersion({
       reportId: context.report.id,
       accountId: profile.account_id,
       clientId: context.client.id,
@@ -417,25 +443,85 @@ export async function appendAuthenticatedClientReportVersion(input: {
       snapshot: built.snapshot,
       createdBy: profile.id,
     })
-    if (!report
-      || report.account_id !== profile.account_id
-      || report.client_id !== context.client.id
-      || report.id !== context.report.id) throw new ReportServiceError('not_found')
-    return { report: safeReportDto(report, await versionsFor(report), true) }
+    if (!updated) throw new ReportServiceError('service_unavailable')
+    return {
+      report: reportDto(
+        updated.report,
+        { latest: updated.version, published: versions.published },
+        existingSignedUrl,
+      ),
+    }
   })
 }
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === 'string'
+}
+
+const COMPARISON_STATES = new Set(['baseline', 'comparable', 'not_comparable'])
+const CHANGE_KINDS = new Set<ChangeKind>(['improved', 'regressed', 'unchanged', 'added_coverage', 'lost_coverage', 'data_gap'])
+const IMPACT_LEVELS = new Set(['high', 'medium', 'low'])
 
 function isSnapshot(value: unknown): value is ClientReportSnapshotV1 {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const snapshot = value as Partial<ClientReportSnapshotV1>
-  return snapshot.snapshotSchemaVersion === 1
-    && (snapshot.locale === 'en' || snapshot.locale === 'zh-HK')
-    && typeof snapshot.executiveSummary === 'string'
-    && typeof snapshot.score === 'object'
-    && snapshot.score !== null
-    && typeof snapshot.score.current === 'number'
-    && typeof snapshot.score.comparisonState === 'string'
-    && Array.isArray(snapshot.changes)
+  if (!isRecord(value)
+    || value.snapshotSchemaVersion !== 1
+    || (value.locale !== 'en' && value.locale !== 'zh-HK')
+    || !isRecord(value.branding)
+    || typeof value.branding.agencyName !== 'string'
+    || !isNullableString(value.branding.logoUrl)
+    || typeof value.branding.primaryColor !== 'string'
+    || !isNullableString(value.branding.contactLabel)
+    || !isNullableString(value.branding.contactUrl)
+    || value.branding.attribution !== 'Powered by Fimmick AISO'
+    || !isRecord(value.client)
+    || typeof value.client.name !== 'string'
+    || typeof value.client.domain !== 'string'
+    || !isRecord(value.evidence)
+    || typeof value.evidence.scanDate !== 'string'
+    || typeof value.evidence.evidenceTimestamp !== 'string'
+    || !isRecord(value.score)
+    || typeof value.score.current !== 'number'
+    || !Number.isFinite(value.score.current)
+    || typeof value.score.grade !== 'string'
+    || typeof value.score.comparisonState !== 'string'
+    || !COMPARISON_STATES.has(value.score.comparisonState)
+    || (value.score.previous !== undefined && (typeof value.score.previous !== 'number' || !Number.isFinite(value.score.previous)))
+    || (value.score.delta !== undefined && (typeof value.score.delta !== 'number' || !Number.isFinite(value.score.delta)))
+    || (value.score.previousScanDate !== undefined && typeof value.score.previousScanDate !== 'string')
+    || !Array.isArray(value.changes)
+    || !value.changes.every(change => isRecord(change)
+      && typeof change.key === 'string'
+      && typeof change.label === 'string'
+      && typeof change.kind === 'string'
+      && CHANGE_KINDS.has(change.kind as ChangeKind))
+    || !Array.isArray(value.priorityFixes)
+    || !value.priorityFixes.every(fix => isRecord(fix)
+      && typeof fix.key === 'string'
+      && typeof fix.title === 'string'
+      && typeof fix.rationale === 'string'
+      && typeof fix.expectedImpact === 'string'
+      && IMPACT_LEVELS.has(fix.expectedImpact)
+      && typeof fix.nextStep === 'string')
+    || typeof value.executiveSummary !== 'string'
+    || typeof value.methodology !== 'string') return false
+
+  const score = value.score as {
+    current: number
+    comparisonState: string
+    previous?: number
+    delta?: number
+    previousScanDate?: string
+  }
+  if (score.comparisonState === 'comparable') {
+    return typeof score.previous === 'number'
+      && typeof score.delta === 'number'
+      && typeof score.previousScanDate === 'string'
+      && score.delta === score.current - score.previous
+  }
+  return score.previous === undefined && score.delta === undefined && score.previousScanDate === undefined
 }
 
 function aiFacts(snapshot: ClientReportSnapshotV1) {
@@ -447,13 +533,17 @@ function aiFacts(snapshot: ClientReportSnapshotV1) {
     lost_coverage: 0,
     data_gap: 0,
   }
-  for (const change of snapshot.changes) {
-    if (Object.hasOwn(counts, change.kind)) counts[change.kind] += 1
-  }
+  for (const change of snapshot.changes) counts[change.kind] += 1
   const delta = snapshot.score.delta
   return {
     locale: snapshot.locale,
-    deterministicSummary: snapshot.executiveSummary,
+    deterministicSummary: buildDeterministicReportSummary({
+      locale: snapshot.locale,
+      comparisonState: snapshot.score.comparisonState,
+      currentScore: snapshot.score.current,
+      delta,
+      changes: snapshot.changes,
+    }),
     currentScore: snapshot.score.current,
     previousScore: snapshot.score.previous,
     signedDelta: typeof delta === 'number' ? (delta >= 0 ? '+' : '') + String(delta) : undefined,
@@ -468,7 +558,6 @@ function aiFacts(snapshot: ClientReportSnapshotV1) {
     },
   }
 }
-
 export async function polishAuthenticatedClientReportSummary(reportId: string) {
   return serviceOperation(async () => {
     const profile = await authenticatedProfile()
@@ -482,26 +571,36 @@ export async function polishAuthenticatedClientReportSummary(reportId: string) {
 async function mutateReport(
   reportId: string,
   mutation: (input: { accountId: string; clientId: string; reportId: string }) => Promise<ClientReportRow | null>,
-  mode: 'link' | 'revoke',
+  mode: 'publish' | 'revoke' | 'rotate',
 ) {
   return serviceOperation(async () => {
     const profile = await authenticatedProfile()
     const context = await ownedReport(profile, reportId)
-    const versions = await versionsFor(context.report)
+    const versions = resolvedReportVersions(context.report, await versionsFor(context.report))
+    let responseVersions = versions
+    let shareUrlBuilder: ReturnType<typeof prepareReportShareUrl> | undefined
+
+    if (mode === 'publish') {
+      if (!versions.latest) throw new ReportServiceError('conflict')
+      shareUrlBuilder = prepareReportShareUrl(reportOrigin())
+      responseVersions = { latest: versions.latest, published: versions.latest }
+    } else if (mode === 'rotate') {
+      if (context.report.status !== 'published' || !versions.published) {
+        throw new ReportServiceError('conflict')
+      }
+      shareUrlBuilder = prepareReportShareUrl(reportOrigin())
+    }
+
     const tuple = { accountId: profile.account_id, clientId: context.client.id, reportId: context.report.id }
     const report = await mutation(tuple)
-    if (!report
-      || report.account_id !== tuple.accountId
-      || report.client_id !== tuple.clientId
-      || report.id !== tuple.reportId) throw new ReportServiceError('not_found')
-    const safe = safeReportDto(report, versions, false)
+    if (!report) throw new ReportServiceError('service_unavailable')
+    const safe = reportDto(report, responseVersions)
     if (mode === 'revoke') return { report: safe }
-    const published = versionById(versions, report.published_version_id)
-    if (report.status !== 'published' || !published) throw new ReportServiceError('conflict')
+
+    const published = responseVersions.published!
     return {
       report: safe,
-      signedUrl: buildReportShareUrl({
-        origin: reportOrigin(),
+      signedUrl: shareUrlBuilder!({
         locale: published.locale,
         slug: report.public_slug,
         shareVersion: report.share_version,
@@ -509,9 +608,8 @@ async function mutateReport(
     }
   })
 }
-
 export function publishAuthenticatedClientReport(reportId: string) {
-  return mutateReport(reportId, publishClientReportLatest, 'link')
+  return mutateReport(reportId, publishClientReportLatest, 'publish')
 }
 
 export function revokeAuthenticatedClientReport(reportId: string) {
@@ -519,5 +617,5 @@ export function revokeAuthenticatedClientReport(reportId: string) {
 }
 
 export function rotateAuthenticatedClientReportLink(reportId: string) {
-  return mutateReport(reportId, rotateClientReportLink, 'link')
+  return mutateReport(reportId, rotateClientReportLink, 'rotate')
 }

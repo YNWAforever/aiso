@@ -72,16 +72,27 @@ function validatedReportOrigin(value: string): URL {
   return url
 }
 
+export function prepareReportShareUrl(origin: string): (input: ShareInput & { readonly locale: ReportLocale }) => string {
+  const validatedOrigin = validatedReportOrigin(origin)
+  const secret = shareSecret()
+  return input => {
+    if (!REPORT_LOCALES.includes(input.locale)) throw new Error('Unsupported report locale')
+    const url = new URL(validatedOrigin)
+    url.pathname = `/${input.locale}/reports/${encodeURIComponent(input.slug)}`
+    url.search = ''
+    url.hash = ''
+    url.searchParams.set('version', String(input.shareVersion))
+    url.searchParams.set(
+      'signature',
+      createHmac('sha256', secret).update(canonicalShareInput(input)).digest('base64url'),
+    )
+    return url.toString()
+  }
+}
+
 export function buildReportShareUrl(input: ShareInput & {
   readonly origin: string
   readonly locale: ReportLocale
 }): string {
-  if (!REPORT_LOCALES.includes(input.locale)) throw new Error('Unsupported report locale')
-  const url = validatedReportOrigin(input.origin)
-  url.pathname = `/${input.locale}/reports/${encodeURIComponent(input.slug)}`
-  url.search = ''
-  url.hash = ''
-  url.searchParams.set('version', String(input.shareVersion))
-  url.searchParams.set('signature', signReportShare(input))
-  return url.toString()
+  return prepareReportShareUrl(input.origin)(input)
 }

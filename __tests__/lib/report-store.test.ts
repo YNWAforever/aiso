@@ -179,6 +179,18 @@ describe('report store tenant boundary', () => {
     expect(callsFor('account_report_branding', 'upsert')[0]?.args[0]).toMatchObject({ account_id: 'account-1', updated_by: 'profile-1' })
   })
 
+  it('rejects an upsert response for another account instead of synthesizing the requested account id', async () => {
+    state.responses.set('account_report_branding', {
+      data: { account_id: 'account-2', agency_name: 'Other Agency', logo_url: null, primary_color: '#123ABC', contact_label: null, contact_url: null },
+      error: null,
+    })
+
+    await expect(upsertReportBranding({
+      accountId: 'account-1',
+      updatedBy: 'profile-1',
+      branding: { agencyName: 'Agency', logoUrl: null, primaryColor: '#123ABC', contactLabel: null, contactUrl: null },
+    })).resolves.toBeNull()
+  })
   it('passes full tenant tuples to create, append, publish, revoke, and rotate RPCs', async () => {
     const version = {
       accountId: 'account-1', clientId: 'client-1', sourceScanId: 'scan-1', previousScanId: null,
@@ -197,6 +209,33 @@ describe('report store tenant boundary', () => {
       expect(call?.args[0]).toMatchObject({ p_account_id: 'account-1', p_client_id: 'client-1' })
     }
     expect(state.calls.find(call => call.method === 'rpc:append_client_report_version')?.args[0]).toMatchObject({ p_report_id: 'report-1' })
+  })
+
+  it('returns the report and inserted version from create and append RPC payloads', async () => {
+    const report = { id: 'report-1', account_id: 'account-1', client_id: 'client-1', latest_version_id: 'version-1' }
+    const versionRow = {
+      id: 'version-1', report_id: 'report-1', account_id: 'account-1', client_id: 'client-1',
+      version_number: 1, locale: 'en',
+    }
+    state.responses.set('rpc:create_client_report_with_version', {
+      data: { report, version: versionRow },
+      error: null,
+    })
+    state.responses.set('rpc:append_client_report_version', {
+      data: { report: { ...report, latest_version_id: 'version-2' }, version: { ...versionRow, id: 'version-2', version_number: 2 } },
+      error: null,
+    })
+    const input = {
+      accountId: 'account-1', clientId: 'client-1', sourceScanId: 'scan-1', previousScanId: null,
+      locale: 'en' as const, executiveSummary: 'Summary', snapshotSchemaVersion: 1 as const,
+      snapshot: { snapshotSchemaVersion: 1 } as never, createdBy: 'profile-1',
+    }
+
+    await expect(createClientReport(input)).resolves.toEqual({ report, version: versionRow })
+    await expect(appendClientReportVersion({ ...input, reportId: 'report-1' })).resolves.toMatchObject({
+      report: { latest_version_id: 'version-2' },
+      version: { id: 'version-2', version_number: 2 },
+    })
   })
 
   it('filters account/client/report on report and version lists', async () => {

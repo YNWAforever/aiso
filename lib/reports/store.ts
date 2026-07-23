@@ -77,6 +77,11 @@ export interface ClientReportVersionRow {
   readonly created_at: string
 }
 
+export interface ClientReportVersionMutationResult {
+  readonly report: ClientReportRow
+  readonly version: ClientReportVersionRow
+}
+
 export interface ReportAccountCommercialState {
   readonly id: string
   readonly plan: string
@@ -269,7 +274,7 @@ export async function loadReportBranding(input: {
     || typeof data.primary_color !== 'string') return null
 
   return {
-    accountId: input.accountId,
+    accountId: data.account_id,
     agencyName: data.agency_name,
     logoUrl: typeof data.logo_url === 'string' ? data.logo_url : null,
     primaryColor: data.primary_color,
@@ -303,12 +308,15 @@ export async function upsertReportBranding(input: {
     .single()
 
   throwOnError(error)
-  if (!isRecord(data)) return null
+  if (!isRecord(data)
+    || data.account_id !== input.accountId
+    || typeof data.agency_name !== 'string'
+    || typeof data.primary_color !== 'string') return null
   return {
-    accountId: input.accountId,
-    agencyName: String(data.agency_name),
+    accountId: data.account_id,
+    agencyName: data.agency_name,
     logoUrl: typeof data.logo_url === 'string' ? data.logo_url : null,
-    primaryColor: String(data.primary_color),
+    primaryColor: data.primary_color,
     contactLabel: typeof data.contact_label === 'string' ? data.contact_label : null,
     contactUrl: typeof data.contact_url === 'string' ? data.contact_url : null,
     updatedBy: typeof data.updated_by === 'string' ? data.updated_by : null,
@@ -324,12 +332,27 @@ async function callReportRpc(name: string, args: Record<string, unknown>): Promi
   return firstRow<ClientReportRow>(data)
 }
 
+async function callReportVersionRpc(
+  name: 'create_client_report_with_version' | 'append_client_report_version',
+  args: Record<string, unknown>,
+): Promise<ClientReportVersionMutationResult | null> {
+  const supabase = await createServiceSupabaseClient()
+  const { data, error } = await supabase.rpc(name, args)
+  throwOnError(error)
+  const result = firstRow<unknown>(data)
+  if (!isRecord(result) || !isRecord(result.report) || !isRecord(result.version)) return null
+  return {
+    report: result.report as unknown as ClientReportRow,
+    version: result.version as unknown as ClientReportVersionRow,
+  }
+}
+
 export function createClientReport(input: ReportVersionWriteInput) {
-  return callReportRpc('create_client_report_with_version', versionRpcArgs(input))
+  return callReportVersionRpc('create_client_report_with_version', versionRpcArgs(input))
 }
 
 export function appendClientReportVersion(input: ReportVersionWriteInput & { reportId: string }) {
-  return callReportRpc('append_client_report_version', {
+  return callReportVersionRpc('append_client_report_version', {
     p_report_id: input.reportId,
     ...versionRpcArgs(input),
   })

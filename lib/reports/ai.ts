@@ -28,11 +28,21 @@ export type ReportAiResult = Readonly<{
 
 const MODEL = 'anthropic/claude-haiku-4-5'
 const NUMERIC_TOKEN = /[+-]?\d+(?:[.,]\d+)*/g
-const UNSUPPORTED_CLAIM = /[$£€¥₹%]|\b(?:USD|HKD|CNY|RMB|EUR|GBP|JPY|percent(?:age)?|traffic|revenue|ranking?|ranked|competitors?)\b/i
-const MARKUP = /<[^>]+>|https?:\/\/|www\.|\[[^\]]+\]\([^)]+\)|(^|\n)\s{0,3}#{1,6}\s|(^|\n)\s*[-*+]\s|\*\*|__|\*[^*\n]+\*|_[^_\n]+_|\x60/
+const NON_ASCII_NUMBER = /[^\x00-\x7f]*\p{N}[^\x00-\x7f]*/u
+const UNSUPPORTED_SYMBOL = /[\p{Sc}%\u066a\u2030\u2031\u2212\uff0b\uff0d\ufe62\u207a\u207b\u208a\u208b]/u
+const UNSUPPORTED_CLAIM = /\b(?:USD|HKD|CNY|RMB|EUR|GBP|JPY|percent(?:age)?|traffic|revenue|ranking?|ranked|competitors?)\b|收入|營收|收益|流量|排名|競爭對手|競爭者|百分比|百分率|港元|美元|人民幣|英鎊|日圓|歐元/i
+const MARKUP = /<[^>]+>|https?:\/\/|www\.|\[[^\]]+\]\([^)]+\)|^\s*(?:>|#{1,6}(?:\s|$)|[-*+]\s|\d+[.)]\s)|\*\*|__|\*[^*\n]+\*|_[^_\n]+_|`/m
+
+function containsNonAsciiNumber(value: string): boolean {
+  return [...value].some(character => NON_ASCII_NUMBER.test(character) && !/[0-9]/.test(character))
+}
 
 function normalizePlainText(value: unknown): string | null {
-  if (typeof value !== 'string' || MARKUP.test(value) || UNSUPPORTED_CLAIM.test(value)) return null
+  if (typeof value !== 'string'
+    || MARKUP.test(value)
+    || UNSUPPORTED_SYMBOL.test(value)
+    || UNSUPPORTED_CLAIM.test(value)
+    || containsNonAsciiNumber(value)) return null
   const normalized = value.trim().replace(/\s+/g, ' ')
   if (normalized.length < 40 || normalized.length > 1200) return null
   return normalized

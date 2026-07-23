@@ -69,6 +69,7 @@ describe('client report migration contract', () => {
     expect(sql).toContain('create table public.client_report_versions')
     expect(sql).toMatch(/check \(status in \('draft',\s*'published',\s*'revoked'\)\)/)
     expect(sql).toContain('check (share_version > 0)')
+    expect(sql).toContain("constraint client_reports_public_slug_format_check check (public_slug ~ '^[a-za-z0-9_-]{32}$')")
     expect(sql).toContain('check (view_count >= 0)')
     expect(sql).toContain('check (cta_click_count >= 0)')
     expect(sql).toMatch(/char_length\(btrim\(agency_name\)\) between 1 and 120/)
@@ -169,8 +170,16 @@ describe('client report migration contract', () => {
     expect(append).toContain('pg_catalog.pg_advisory_xact_lock')
     expect(append).toMatch(/from public\.client_reports[\s\S]*for update/)
     expect(append).toMatch(/max\(client_report_versions\.version_number\) \+ 1/)
-    expect(append).toMatch(/set latest_version_id = new_version_id,[^;]*updated_at = pg_catalog\.now\(\)/)
+    expect(append).toMatch(/set latest_version_id = new_version\.id,[^;]*updated_at = pg_catalog\.now\(\)/)
     expect(append).not.toMatch(/set[^;]*published_version_id/)
+
+    for (const name of ['create_client_report_with_version', 'append_client_report_version']) {
+      const definition = functionDefinition(sql, name) ?? ''
+      expect(definition).toContain('returns jsonb')
+      expect(definition).toContain('new_version public.client_report_versions')
+      expect(definition).toMatch(/returning \* into new_version/)
+      expect(definition).toMatch(/pg_catalog\.jsonb_build_object\(\s*'report',\s*pg_catalog\.to_jsonb\([^)]*\),\s*'version',\s*pg_catalog\.to_jsonb\(new_version\)\s*\)/)
+    }
   })
 
   it('binds create and append scans to the owned client normalized hostname', () => {

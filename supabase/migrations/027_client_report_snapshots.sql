@@ -64,6 +64,8 @@ create table public.client_reports (
   created_by uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  constraint client_reports_public_slug_format_check
+    check (public_slug ~ '^[A-Za-z0-9_-]{32}$'),
   constraint client_reports_client_tenant_fkey
     foreign key (client_id, account_id)
     references public.clients (id, account_id)
@@ -257,14 +259,14 @@ create or replace function public.create_client_report_with_version(
   p_snapshot jsonb,
   p_created_by uuid
 )
-returns public.client_reports
+returns jsonb
 language plpgsql
 security definer
 set search_path = ''
 as $function$
 declare
   new_report public.client_reports;
-  new_version_id uuid;
+  new_version public.client_report_versions;
   client_domain text;
   source_domain text;
   source_created_at timestamptz;
@@ -358,17 +360,20 @@ begin
     p_snapshot,
     p_created_by
   )
-  returning id into new_version_id;
+  returning * into new_version;
 
   update public.client_reports
-  set latest_version_id = new_version_id,
+  set latest_version_id = new_version.id,
       updated_at = pg_catalog.now()
   where client_reports.id = new_report.id
     and client_reports.account_id = p_account_id
     and client_reports.client_id = p_client_id
   returning * into new_report;
 
-  return new_report;
+  return pg_catalog.jsonb_build_object(
+    'report', pg_catalog.to_jsonb(new_report),
+    'version', pg_catalog.to_jsonb(new_version)
+  );
 end;
 $function$;
 
@@ -384,14 +389,14 @@ create or replace function public.append_client_report_version(
   p_snapshot jsonb,
   p_created_by uuid
 )
-returns public.client_reports
+returns jsonb
 language plpgsql
 security definer
 set search_path = ''
 as $function$
 declare
   locked_report public.client_reports;
-  new_version_id uuid;
+  new_version public.client_report_versions;
   new_version_number integer;
   client_domain text;
   source_domain text;
@@ -508,17 +513,20 @@ begin
     p_snapshot,
     p_created_by
   )
-  returning id into new_version_id;
+  returning * into new_version;
 
   update public.client_reports
-  set latest_version_id = new_version_id,
+  set latest_version_id = new_version.id,
       updated_at = pg_catalog.now()
   where client_reports.id = p_report_id
     and client_reports.account_id = p_account_id
     and client_reports.client_id = p_client_id
   returning * into locked_report;
 
-  return locked_report;
+  return pg_catalog.jsonb_build_object(
+    'report', pg_catalog.to_jsonb(locked_report),
+    'version', pg_catalog.to_jsonb(new_version)
+  );
 end;
 $function$;
 

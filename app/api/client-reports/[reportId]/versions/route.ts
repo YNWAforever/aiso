@@ -6,8 +6,10 @@ import {
 } from '@/lib/reports/service'
 import type { ReportLocale } from '@/lib/reports/types'
 
+const CANONICAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+
 function identifier(value: unknown): string {
-  if (typeof value !== 'string' || value.length < 1 || value.length > 128 || /[\u0000-\u001f\u007f]/.test(value)) {
+  if (typeof value !== 'string' || !CANONICAL_UUID.test(value)) {
     throw new ReportServiceError('invalid_request')
   }
   return value
