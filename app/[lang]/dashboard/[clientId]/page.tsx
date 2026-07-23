@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
@@ -60,6 +61,7 @@ export default async function DashboardPage({
   const { lang, clientId } = await params
   const { step = 'scan', scanId } = await searchParams
   const t = await getTranslations('dashboard')
+  const reportT = await getTranslations('reports')
   const profile  = await requireAuth(lang)
   const supabase = await createServerSupabaseClient()
   const { features } = resolveCommercialEntitlement(profile.accounts)
@@ -155,6 +157,21 @@ export default async function DashboardPage({
   return (
     <>
       <StepHeader step={step} features={features} />
+
+      <div className="px-6 pt-5">
+        <Link
+          href={`/${lang}/dashboard/${clientId}/reports`}
+          className="flex min-h-11 items-center justify-between gap-4 rounded-xl border border-dash-border bg-dash-surface px-4 py-3 text-sm transition-colors hover:bg-dash-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span>
+            <span className="block font-semibold text-dash-text">{reportT('list_title')}</span>
+            <span className="block text-xs text-dash-muted">{reportT('dashboard_entry_body')}</span>
+          </span>
+          <span className="shrink-0 font-semibold text-primary">
+            {features.client_reports_online ? reportT('open_reports') : reportT('upgrade_badge')}
+          </span>
+        </Link>
+      </div>
 
       <main className="flex-1 px-6 pb-10 max-w-3xl">
         {step === 'scan' && <ScanStep lang={lang} clientId={clientId} scan={scan} scanHistory={(scanHistory ?? []) as Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'created_at'>[]} />}

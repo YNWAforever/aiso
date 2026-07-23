@@ -105,8 +105,8 @@ export default async function DashboardResultPage({
   return (
     <>
       {/* Top nav bar */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-dash-border bg-dash-surface">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 border-b border-dash-border bg-dash-surface px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
           <Link
             href={`/${lang}/dashboard/${clientId}?step=results`}
             className="text-xs text-dash-muted hover:text-dash-text transition-colors"
@@ -114,23 +114,29 @@ export default async function DashboardResultPage({
             ← Back to Results
           </Link>
           <span className="text-dash-border">|</span>
-          <p className="text-sm font-semibold text-dash-text">{s.domain}</p>
+          <p className="break-all text-sm font-semibold text-dash-text">{s.domain}</p>
           {pending && (
             <span className="text-[10px] font-medium bg-dash-warning/10 text-dash-warning px-2 py-0.5 rounded-full border border-dash-warning/20">
               Agent analysis pending
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <Link
+            href={`/${lang}/dashboard/${clientId}/reports/new?scanId=${encodeURIComponent(scanId)}`}
+            className="inline-flex min-h-11 items-center px-4 py-2 text-xs font-semibold rounded-lg text-primary-foreground bg-primary hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t('reports.create_client_report')}
+          </Link>
           <Link
             href={`/${lang}/dashboard/${clientId}?step=improve`}
-            className="inline-flex items-center px-4 py-1.5 text-xs font-medium rounded-lg text-primary-foreground bg-dash-accent hover:opacity-90 transition-opacity"
+            className="inline-flex min-h-11 items-center px-4 py-2 text-xs font-medium rounded-lg text-primary-foreground bg-dash-accent hover:opacity-90 transition-opacity"
           >
             Improve with AI agents →
           </Link>
           <Link
             href={`/${lang}/dashboard/${clientId}?step=scan`}
-            className="inline-flex items-center px-4 py-1.5 text-xs font-medium rounded-lg text-dash-muted bg-dash-elevated border border-dash-border hover:bg-dash-border transition-colors"
+            className="inline-flex min-h-11 items-center px-4 py-2 text-xs font-medium rounded-lg text-dash-muted bg-dash-elevated border border-dash-border hover:bg-dash-border transition-colors"
           >
             Full History
           </Link>
