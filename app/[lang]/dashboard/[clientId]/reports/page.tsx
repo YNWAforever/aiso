@@ -10,8 +10,9 @@ import { listAuthenticatedClientReports } from '@/lib/reports/service'
 import { loadOwnedReportClient } from '@/lib/reports/store'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 
-function isNullableNumber(value: unknown): value is number | null {
-  return value === null || typeof value === 'number'
+function isNullableNonNegativeInteger(value: unknown): value is number | null {
+  return value === null
+    || (typeof value === 'number' && Number.isInteger(value) && value >= 0)
 }
 
 function isNullableString(value: unknown): value is string | null {
@@ -22,14 +23,15 @@ function toReportsListItem(value: Record<string, unknown>): ReportsListItem | nu
   if (
     typeof value.id !== 'string'
     || (value.status !== 'draft' && value.status !== 'published' && value.status !== 'revoked')
-    || !isNullableNumber(value.latestVersionNumber)
-    || !isNullableNumber(value.publishedVersionNumber)
+    || !isNullableNonNegativeInteger(value.latestVersionNumber)
+    || !isNullableNonNegativeInteger(value.publishedVersionNumber)
     || !isNullableString(value.publishedAt)
-    || !isNullableString(value.firstViewedAt)
-    || !isNullableString(value.lastViewedAt)
-    || !isNullableNumber(value.viewCount)
-    || !isNullableNumber(value.ctaClickCount)
   ) return null
+
+  const metricsUnavailable = !isNullableString(value.firstViewedAt)
+    || !isNullableString(value.lastViewedAt)
+    || !isNullableNonNegativeInteger(value.viewCount)
+    || !isNullableNonNegativeInteger(value.ctaClickCount)
 
   return {
     id: value.id,
@@ -37,10 +39,11 @@ function toReportsListItem(value: Record<string, unknown>): ReportsListItem | nu
     latestVersionNumber: value.latestVersionNumber,
     publishedVersionNumber: value.publishedVersionNumber,
     publishedAt: value.publishedAt,
-    firstViewedAt: value.firstViewedAt,
-    lastViewedAt: value.lastViewedAt,
-    viewCount: value.viewCount,
-    ctaClickCount: value.ctaClickCount,
+    firstViewedAt: isNullableString(value.firstViewedAt) ? value.firstViewedAt : null,
+    lastViewedAt: isNullableString(value.lastViewedAt) ? value.lastViewedAt : null,
+    viewCount: isNullableNonNegativeInteger(value.viewCount) ? value.viewCount : null,
+    ctaClickCount: isNullableNonNegativeInteger(value.ctaClickCount) ? value.ctaClickCount : null,
+    metricsUnavailable,
     signedUrl: typeof value.signedUrl === 'string' ? value.signedUrl : undefined,
   }
 }

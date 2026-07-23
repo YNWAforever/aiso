@@ -210,6 +210,11 @@ describe('client report migration contract', () => {
       expect(definition).toMatch(/jsonb_build_object\(\s*'report',\s*pg_catalog\.to_jsonb\(locked_report\),\s*'published_version',\s*pg_catalog\.to_jsonb\(published_version\)/)
     }
 
+    const publish = functionDefinition(sql, 'publish_client_report_latest') ?? ''
+    expect(publish).toContain('p_reviewed_version_id uuid')
+    expect(publish).toMatch(/locked_report\.latest_version_id is distinct from p_reviewed_version_id/)
+    expect(publish).toMatch(/raise exception 'reviewed version is stale'/)
+
     const revoke = functionDefinition(sql, 'revoke_client_report') ?? ''
     expect(revoke).toContain('returns jsonb')
     expect(revoke).toMatch(/jsonb_build_object\(\s*'report',\s*pg_catalog\.to_jsonb\(locked_report\)/)

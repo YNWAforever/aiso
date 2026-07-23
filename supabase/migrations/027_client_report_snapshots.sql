@@ -557,7 +557,8 @@ $function$;
 create or replace function public.publish_client_report_latest(
   p_report_id uuid,
   p_account_id uuid,
-  p_client_id uuid
+  p_client_id uuid,
+  p_reviewed_version_id uuid
 )
 returns jsonb
 language plpgsql
@@ -582,6 +583,10 @@ begin
 
   if not found or locked_report.latest_version_id is null then
     raise exception 'CLIENT_REPORT_NOT_FOUND';
+  end if;
+
+  if locked_report.latest_version_id is distinct from p_reviewed_version_id then
+    raise exception 'reviewed version is stale';
   end if;
 
   update public.client_reports
@@ -840,10 +845,10 @@ revoke execute on function public.append_client_report_version(uuid, uuid, uuid,
 revoke execute on function public.append_client_report_version(uuid, uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid) from authenticated;
 grant execute on function public.append_client_report_version(uuid, uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid) to service_role;
 
-revoke execute on function public.publish_client_report_latest(uuid, uuid, uuid) from public;
-revoke execute on function public.publish_client_report_latest(uuid, uuid, uuid) from anon;
-revoke execute on function public.publish_client_report_latest(uuid, uuid, uuid) from authenticated;
-grant execute on function public.publish_client_report_latest(uuid, uuid, uuid) to service_role;
+revoke execute on function public.publish_client_report_latest(uuid, uuid, uuid, uuid) from public;
+revoke execute on function public.publish_client_report_latest(uuid, uuid, uuid, uuid) from anon;
+revoke execute on function public.publish_client_report_latest(uuid, uuid, uuid, uuid) from authenticated;
+grant execute on function public.publish_client_report_latest(uuid, uuid, uuid, uuid) to service_role;
 
 revoke execute on function public.revoke_client_report(uuid, uuid, uuid) from public;
 revoke execute on function public.revoke_client_report(uuid, uuid, uuid) from anon;

@@ -130,13 +130,13 @@ export default async function DashboardResultPage({
           </Link>
           <Link
             href={`/${lang}/dashboard/${clientId}?step=improve`}
-            className="inline-flex min-h-11 items-center px-4 py-2 text-xs font-medium rounded-lg text-primary-foreground bg-dash-accent hover:opacity-90 transition-opacity"
+            className="inline-flex min-h-11 items-center rounded-lg border border-dash-border bg-transparent px-4 py-2 text-xs font-semibold text-dash-text transition-colors hover:bg-dash-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Improve with AI agents →
           </Link>
           <Link
             href={`/${lang}/dashboard/${clientId}?step=scan`}
-            className="inline-flex min-h-11 items-center px-4 py-2 text-xs font-medium rounded-lg text-dash-muted bg-dash-elevated border border-dash-border hover:bg-dash-border transition-colors"
+            className="inline-flex min-h-11 items-center rounded-lg px-4 py-2 text-xs font-medium text-dash-muted transition-colors hover:bg-dash-elevated hover:text-dash-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Full History
           </Link>

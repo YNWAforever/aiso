@@ -2,26 +2,13 @@ import { getTranslations } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { ReportBuilder, type ReportWorkspaceReport } from '@/components/reports/ReportBuilder'
 import { requireAuth } from '@/lib/auth'
+import { parseClientReportSnapshot } from '@/lib/reports/client-dto'
 import { listAuthenticatedClientReports } from '@/lib/reports/service'
 import {
   listClientReportVersions,
   loadOwnedClientReport,
 } from '@/lib/reports/store'
-import type { ClientReportSnapshotV1 } from '@/lib/reports/types'
 import { resolveCommercialEntitlement } from '@/lib/tier'
-
-function isSnapshot(value: unknown): value is ClientReportSnapshotV1 {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
-  const row = value as Record<string, unknown>
-  return row.snapshotSchemaVersion === 1
-    && (row.locale === 'en' || row.locale === 'zh-HK')
-    && typeof row.executiveSummary === 'string'
-    && typeof row.branding === 'object'
-    && typeof row.client === 'object'
-    && typeof row.score === 'object'
-    && Array.isArray(row.changes)
-    && Array.isArray(row.priorityFixes)
-}
 
 export default async function EditClientReportPage({
   params,
@@ -48,7 +35,8 @@ export default async function EditClientReportPage({
     reportId,
   })
   const latest = versions.find(version => version.id === report.latest_version_id)
-  if (!latest?.source_scan_id || !isSnapshot(latest.snapshot)) notFound()
+  const latestSnapshot = parseClientReportSnapshot(latest?.snapshot)
+  if (!latest?.source_scan_id || !latestSnapshot) notFound()
 
   const listed = await listAuthenticatedClientReports(clientId)
   const reportDto = listed.reports.find(item => item.id === reportId) as ReportWorkspaceReport | undefined
@@ -57,7 +45,7 @@ export default async function EditClientReportPage({
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
       <div className="mb-6">
-        <p className="text-sm font-medium text-primary">{latest.snapshot.client.name}</p>
+        <p className="text-sm font-medium text-primary">{latestSnapshot.client.name}</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">{t('edit_title')}</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{t('edit_body')}</p>
       </div>
@@ -66,7 +54,12 @@ export default async function EditClientReportPage({
         clientId={clientId}
         scanId={latest.source_scan_id}
         initialReport={reportDto}
-        initialSnapshot={latest.snapshot}
+        initialSnapshot={latestSnapshot}
+        initialReviewArtifact={{
+          versionId: latest.id,
+          versionNumber: latest.version_number,
+          snapshot: latestSnapshot,
+        }}
       />
     </main>
   )

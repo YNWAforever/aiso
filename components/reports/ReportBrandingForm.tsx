@@ -6,7 +6,9 @@ import { Check, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { parseBrandingResponse } from '@/lib/reports/client-dto'
 import type { ReportBrandingInput } from '@/lib/reports/types'
+import { reportInitialsForeground } from './ReportPreview'
 
 type BrandingValues = {
   agencyName: string
@@ -112,9 +114,9 @@ export function ReportBrandingForm({
           contactUrl: values.contactUrl.trim() || null,
         }),
       })
-      if (!response.ok) throw new Error('request failed')
-      const body = await response.json() as { branding?: ReportBrandingInput }
-      if (body.branding) setValues(toValues(body.branding))
+      const body = parseBrandingResponse(await response.json().catch(() => null))
+      if (!response.ok || !body) throw new Error('Invalid branding response')
+      setValues(toValues(body.branding))
       setNotice(t('saved'))
     } catch {
       setNotice(t('save_error'))
@@ -124,6 +126,10 @@ export function ReportBrandingForm({
   }
 
   const fieldClass = 'min-h-11 focus-visible:ring-2 focus-visible:ring-ring'
+  const previewPrimaryColor = /^#[0-9A-Fa-f]{6}$/.test(values.primaryColor)
+    ? values.primaryColor
+    : '#1D4ED8'
+  const previewForeground = reportInitialsForeground(previewPrimaryColor)
   const errorText = (field: keyof BrandingValues) =>
     errors[field] ? <p id={`${field}-error`} role="alert" className="mt-1 text-sm text-destructive">{t(`error_${errors[field]}`)}</p> : null
 
@@ -250,8 +256,8 @@ export function ReportBrandingForm({
                 />
               ) : (
                 <div
-                  className="flex size-12 items-center justify-center rounded-xl text-sm font-bold text-white"
-                  style={{ backgroundColor: /^#[0-9A-Fa-f]{6}$/.test(values.primaryColor) ? values.primaryColor : '#1D4ED8' }}
+                  className="flex size-12 items-center justify-center rounded-xl text-sm font-bold"
+                  style={{ backgroundColor: previewPrimaryColor, color: previewForeground }}
                   aria-label={t('initials_fallback')}
                 >
                   {initials(values.agencyName)}

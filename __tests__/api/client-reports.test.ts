@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
@@ -141,7 +141,7 @@ function validInvocations() {
     ['create', () => POST_REPORTS(request('/api/clients/33333333-3333-4333-8333-333333333333/reports', { scanId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', locale: 'en' }), reportsContext)],
     ['version', () => POST_VERSION(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/versions', { locale: 'en', executiveSummary: snapshot.executiveSummary }), reportContext)],
     ['AI', () => POST_AI(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/ai-summary', {}), reportContext)],
-    ['publish', () => POST_PUBLISH(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/publish', {}), reportContext)],
+    ['publish', () => POST_PUBLISH(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/publish', { reviewedVersionId: versions[0].id }), reportContext)],
     ['revoke', () => POST_REVOKE(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/revoke', {}), reportContext)],
     ['rotate', () => POST_ROTATE(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/rotate-link', {}), reportContext)],
   ] as const
@@ -242,7 +242,7 @@ describe('authenticated client report APIs', () => {
   it('treats a cross-account report row as a neutral 404 before any full-tuple read or mutation', async () => {
     h.loadOwnedClientReportById.mockResolvedValue({ ...report, account_id: '22222222-2222-4222-8222-222222222223' })
 
-    const response = await POST_PUBLISH(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/publish', {}), reportContext)
+    const response = await POST_PUBLISH(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/publish', { reviewedVersionId: versions[0].id }), reportContext)
 
     expect(response.status).toBe(404)
     expect(await response.json()).toEqual({ error: 'not_found' })
@@ -459,7 +459,7 @@ describe('authenticated client report APIs', () => {
   ] as const)('rejects invalid share origin before the %s RPC', async (_name, handler, mutation) => {
     process.env.NEXT_PUBLIC_APP_URL = 'http://reports.example'
 
-    const response = await handler(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/action', {}), reportContext)
+    const response = await handler(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/action', _name === 'publish' ? { reviewedVersionId: versions[0].id } : {}), reportContext)
 
     expect(response.status).toBe(503)
     expect(mutation).not.toHaveBeenCalled()
@@ -471,7 +471,7 @@ describe('authenticated client report APIs', () => {
   ] as const)('rejects missing share secret before the %s RPC', async (_name, handler, mutation) => {
     delete process.env.REPORT_SHARE_SECRET
 
-    const response = await handler(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/action', {}), reportContext)
+    const response = await handler(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/action', _name === 'publish' ? { reviewedVersionId: versions[0].id } : {}), reportContext)
 
     expect(response.status).toBe(503)
     expect(mutation).not.toHaveBeenCalled()
@@ -484,7 +484,7 @@ describe('authenticated client report APIs', () => {
   ] as const)('%s uses no pre-lock version rows for lifecycle response composition', async (_name, handler) => {
     h.listClientReportVersions.mockRejectedValue(new Error('pre-lock version state must not be read'))
 
-    const response = await handler(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/action', {}), reportContext)
+    const response = await handler(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/action', _name === 'publish' ? { reviewedVersionId: versions[0].id } : {}), reportContext)
 
     expect(response.status).toBe(200)
     expect(h.listClientReportVersions).not.toHaveBeenCalled()
@@ -503,7 +503,7 @@ describe('authenticated client report APIs', () => {
     ['publish version tuple', () => h.publishClientReportLatest.mockResolvedValue({
       report: { ...report, published_version_id: report.latest_version_id },
       publishedVersion: { ...versions[0], client_id: '33333333-3333-4333-8333-333333333334' },
-    }), () => POST_PUBLISH(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/publish', {}), reportContext)],
+    }), () => POST_PUBLISH(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/publish', { reviewedVersionId: versions[0].id }), reportContext)],
     ['revoke report shape', () => h.revokeClientReport.mockResolvedValue({
       report: { ...report, status: 'revoked', public_slug: 'short', revoked_at: '2026-07-21T11:00:00.000Z' },
     }), () => POST_REVOKE(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/revoke', {}), reportContext)],
@@ -622,7 +622,7 @@ describe('authenticated client report APIs', () => {
       publishedVersion: lockedPublished,
     })
 
-    const response = await POST_PUBLISH(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/publish', {}), reportContext)
+    const response = await POST_PUBLISH(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/publish', { reviewedVersionId: versions[0].id }), reportContext)
     const body = await response.json()
 
     expect(response.status).toBe(200)
@@ -630,6 +630,21 @@ describe('authenticated client report APIs', () => {
     expect(body.signedUrl).toContain('/zh-HK/reports/' + 'e'.repeat(32))
     expect(body.signedUrl).toContain('version=4')
     expect(h.listClientReportVersions).not.toHaveBeenCalled()
+  })
+
+  it('publishes only the exact version that the author reviewed', async () => {
+    const response = await POST_PUBLISH(request(
+      '/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/publish',
+      { reviewedVersionId: versions[0].id },
+    ), reportContext)
+
+    expect(response.status).toBe(200)
+    expect(h.publishClientReportLatest).toHaveBeenCalledWith({
+      accountId: proProfile.account_id,
+      clientId: client.id,
+      reportId: report.id,
+      reviewedVersionId: versions[0].id,
+    })
   })
 
   it('models rotate losing to revoke by failing closed without signing stale publication state', async () => {
@@ -647,11 +662,16 @@ describe('authenticated client report APIs', () => {
     ['publish', POST_PUBLISH, h.publishClientReportLatest, 'a'],
     ['rotate', POST_ROTATE, h.rotateClientReportLink, 'c'],
   ] as const)('%s returns a newly signed URL and safe metadata without raw share fields', async (name, handler, mutation, slugChar) => {
-    const response = await handler(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/' + name, {}), reportContext)
+    const response = await handler(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/' + name, name === 'publish' ? { reviewedVersionId: versions[0].id } : {}), reportContext)
     const body = await response.json()
 
     expect(response.status).toBe(200)
-    expect(mutation).toHaveBeenCalledWith({ accountId: '22222222-2222-4222-8222-222222222222', clientId: '33333333-3333-4333-8333-333333333333', reportId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1' })
+    expect(mutation).toHaveBeenCalledWith({
+      accountId: '22222222-2222-4222-8222-222222222222',
+      clientId: '33333333-3333-4333-8333-333333333333',
+      reportId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
+      ...(name === 'publish' ? { reviewedVersionId: versions[0].id } : {}),
+    })
     expect(body.signedUrl).toContain('/en/reports/' + slugChar.repeat(32))
     expect(body.report).not.toHaveProperty('publicSlug')
     expect(body.report).not.toHaveProperty('shareVersion')

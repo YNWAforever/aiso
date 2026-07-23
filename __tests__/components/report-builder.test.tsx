@@ -82,6 +82,8 @@ describe('ReportBuilder', () => {
     expect(html).toContain('Review report')
     expect(html).toContain('min-h-11')
     expect(html).toContain('focus-visible:')
+    expect(html).toContain('aria-disabled="true"')
+    expect(html).toContain('disabled=""')
   })
 
   it('distinguishes unsaved summaries and first-publish/update confirmations', async () => {
@@ -107,6 +109,8 @@ describe('ReportBuilder', () => {
 
     expect(source).toContain('aria-live="polite"')
     expect(source).toContain('beforeunload')
+    expect(source).toContain('popstate')
+    expect(source).toContain('onNavigate')
     expect(source).toContain('navigator.clipboard.writeText')
     expect(source).toContain('window.open')
     expect(source).toContain("confirm(t('confirm_first_publish'))")
@@ -117,11 +121,50 @@ describe('ReportBuilder', () => {
     expect(source).toContain("t('unsaved_warning')")
   })
 
+  it('binds review and publication to the same immutable saved version', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'components/reports/ReportBuilder.tsx'),
+      'utf8',
+    )
+
+    expect(source).toContain('reviewArtifact')
+    expect(source).toContain('reviewedVersionId')
+    expect(source).toContain('reviewedVersionId: reviewedArtifact.versionId')
+    expect(source).not.toContain('const preview = withSummary(initialSnapshot, summary)')
+  })
+
+  it('preserves edits made while AI polish is in flight', async () => {
+    const { shouldApplyAiSummary } = await import('@/components/reports/ReportBuilder')
+
+    expect(shouldApplyAiSummary({
+      startingSummary: 'Saved summary',
+      currentSummary: 'Typed while waiting',
+      startingRevision: 2,
+      currentRevision: 3,
+    })).toBe(false)
+    expect(shouldApplyAiSummary({
+      startingSummary: 'Saved summary',
+      currentSummary: 'Saved summary',
+      startingRevision: 2,
+      currentRevision: 2,
+    })).toBe(true)
+  })
+
   it('renders the public-layout review from the API-safe snapshot', async () => {
     const { ReportPreview } = await import('@/components/reports/ReportPreview')
 
     const html = renderToStaticMarkup(provider(
-      <ReportPreview snapshot={snapshot} />,
+      <ReportPreview
+        snapshot={{
+          ...snapshot,
+          branding: {
+            ...snapshot.branding,
+            logoUrl: 'https://agency.example/private-logo.png',
+          },
+        }}
+        logoProxyUrl="/api/client-reports/report-1/versions/version-1/logo"
+        contactProxyUrl="/api/client-reports/report-1/versions/version-1/contact"
+      />,
     ))
 
     expect(html).toContain('Example Client')
@@ -130,6 +173,10 @@ describe('ReportBuilder', () => {
     expect(html).toContain('+7')
     expect(html).toContain('Clarify crawler access')
     expect(html).toContain('Powered by Fimmick AISO')
+    expect(html).toContain('src="/api/client-reports/report-1/versions/version-1/logo"')
+    expect(html).toContain('href="/api/client-reports/report-1/versions/version-1/contact"')
+    expect(html).toContain('>Contact us<')
+    expect(html).not.toContain('agency.example')
     expect(html).not.toMatch(/download|PDF|white-label/i)
   })
 })

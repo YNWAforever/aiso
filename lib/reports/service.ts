@@ -95,6 +95,9 @@ async function authenticatedProfile(): Promise<ProfileWithAccount> {
 }
 
 function mapStoreError(error: ReportStoreError): ReportServiceError {
+  if (/reviewed version is stale/i.test(error.message)) {
+    return new ReportServiceError('conflict')
+  }
   if (/CLIENT_REPORT_(?:NOT_FOUND|SCAN_NOT_FOUND|PREVIOUS_SCAN_INVALID)/.test(error.message)) {
     return new ReportServiceError('not_found')
   }
@@ -549,6 +552,7 @@ export async function createAuthenticatedClientReport(input: {
     if (!created) throw new ReportServiceError('service_unavailable')
     return {
       report: reportDto(created.report, { latest: created.version, published: null }),
+      reviewArtifact: reviewArtifact(created.version),
     }
   })
 }
@@ -604,6 +608,7 @@ export async function appendAuthenticatedClientReportVersion(input: {
         { latest: updated.version, published: updated.publishedVersion },
         signedUrl,
       ),
+      reviewArtifact: reviewArtifact(updated.version),
     }
   })
 }
@@ -678,6 +683,15 @@ function isSnapshot(value: unknown): value is ClientReportSnapshotV1 {
   return score.previous === undefined && score.delta === undefined && score.previousScanDate === undefined
 }
 
+function reviewArtifact(version: ClientReportVersionRow) {
+  if (!isSnapshot(version.snapshot)) throw new ReportServiceError('conflict')
+  return {
+    versionId: version.id,
+    versionNumber: version.version_number,
+    snapshot: version.snapshot,
+  }
+}
+
 function aiFacts(snapshot: ClientReportSnapshotV1) {
   const counts: Record<ChangeKind, number> = {
     improved: 0,
@@ -722,6 +736,20 @@ export async function polishAuthenticatedClientReportSummary(reportId: string) {
   })
 }
 
+export async function loadAuthenticatedClientReportPreviewVersion(
+  reportId: string,
+  versionId: string,
+) {
+  return serviceOperation(async () => {
+    const profile = await authenticatedProfile()
+    const context = await ownedReport(profile, reportId)
+    const version = versionById(await versionsFor(context.report), versionId)
+    if (!version) throw new ReportServiceError('not_found')
+    if (!isSnapshot(version.snapshot)) throw new ReportServiceError('conflict')
+    return { snapshot: version.snapshot }
+  })
+}
+
 async function mutateReport(
   reportId: string,
   mutation: (input: { accountId: string; clientId: string; reportId: string }) => Promise<unknown>,
@@ -760,8 +788,12 @@ async function mutateReport(
     }
   })
 }
-export function publishAuthenticatedClientReport(reportId: string) {
-  return mutateReport(reportId, publishClientReportLatest, 'publish')
+export function publishAuthenticatedClientReport(reportId: string, reviewedVersionId: string) {
+  return mutateReport(
+    reportId,
+    input => publishClientReportLatest({ ...input, reviewedVersionId }),
+    'publish',
+  )
 }
 
 export function revokeAuthenticatedClientReport(reportId: string) {

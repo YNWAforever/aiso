@@ -549,8 +549,16 @@ function tenantReportRpcArgs(input: { accountId: string; clientId: string; repor
   }
 }
 
-export async function publishClientReportLatest(input: { accountId: string; clientId: string; reportId: string }) {
-  const data = await reportRpcData('publish_client_report_latest', tenantReportRpcArgs(input))
+export async function publishClientReportLatest(input: {
+  accountId: string
+  clientId: string
+  reportId: string
+  reviewedVersionId: string
+}) {
+  const data = await reportRpcData('publish_client_report_latest', {
+    ...tenantReportRpcArgs(input),
+    p_reviewed_version_id: input.reviewedVersionId,
+  })
   return validatePublishClientReportResult(data, input)
 }
 

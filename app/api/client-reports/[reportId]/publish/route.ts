@@ -14,16 +14,19 @@ function identifier(value: unknown): string {
   return value
 }
 
-async function requireEmptyBody(req: Request) {
+async function reviewedVersionId(req: Request) {
   let value: unknown
   try {
     value = await req.json()
   } catch {
     throw new ReportServiceError('invalid_request')
   }
-  if (typeof value !== 'object' || value === null || Array.isArray(value) || Object.keys(value).length !== 0) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)
+    || Object.keys(value).length !== 1
+    || !Object.hasOwn(value, 'reviewedVersionId')) {
     throw new ReportServiceError('invalid_request')
   }
+  return identifier((value as { reviewedVersionId?: unknown }).reviewedVersionId)
 }
 
 export async function POST(
@@ -32,8 +35,8 @@ export async function POST(
 ) {
   try {
     const { reportId } = await ctx.params
-    await requireEmptyBody(req)
-    return reportJson(await publishAuthenticatedClientReport(identifier(reportId)))
+    const versionId = await reviewedVersionId(req)
+    return reportJson(await publishAuthenticatedClientReport(identifier(reportId), versionId))
   } catch (error) {
     return reportErrorResponse(error)
   }

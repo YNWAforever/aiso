@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   ArrowDownRight,
@@ -16,7 +17,7 @@ import { cn } from '@/lib/utils'
 
 const SYSTEM_PRIMARY = '#1D4ED8'
 
-function contrastRatio(hex: string, against = '#FFFFFF'): number {
+export function contrastRatio(hex: string, against = '#FFFFFF'): number {
   const luminance = (value: string) => {
     const channels = value.slice(1).match(/.{2}/g)
     if (!channels || channels.length !== 3) return 0
@@ -37,6 +38,21 @@ export function accessibleReportPrimaryColor(color: string): string {
   return /^#[0-9A-Fa-f]{6}$/.test(color) && contrastRatio(color) >= 4.5
     ? color
     : SYSTEM_PRIMARY
+}
+
+export function reportInitialsForeground(color: string): '#000000' | '#FFFFFF' {
+  if (!/^#[0-9A-Fa-f]{6}$/.test(color)) return '#FFFFFF'
+  return contrastRatio(color, '#000000') >= contrastRatio(color, '#FFFFFF')
+    ? '#000000'
+    : '#FFFFFF'
+}
+
+function safeDashboardProxyPath(value: string | null | undefined): string | null {
+  return value
+    && value.startsWith('/api/client-reports/')
+    && !value.startsWith('//')
+    ? value
+    : null
 }
 
 function changeIcon(kind: ChangeKind) {
@@ -61,10 +77,22 @@ function initials(name: string): string {
     .join('') || 'FA'
 }
 
-export function ReportPreview({ snapshot }: { snapshot: ClientReportSnapshotV1 }) {
+export function ReportPreview({
+  snapshot,
+  logoProxyUrl,
+  contactProxyUrl,
+}: {
+  snapshot: ClientReportSnapshotV1
+  logoProxyUrl?: string | null
+  contactProxyUrl?: string | null
+}) {
   const t = useTranslations('reports')
   const locale = useLocale()
+  const [logoFailed, setLogoFailed] = useState(false)
   const primaryColor = accessibleReportPrimaryColor(snapshot.branding.primaryColor)
+  const initialsForeground = reportInitialsForeground(primaryColor)
+  const safeLogoProxyUrl = safeDashboardProxyPath(logoProxyUrl)
+  const safeContactProxyUrl = safeDashboardProxyPath(contactProxyUrl)
   const dateFormatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' })
   const delta = snapshot.score.delta
 
@@ -73,13 +101,26 @@ export function ReportPreview({ snapshot }: { snapshot: ClientReportSnapshotV1 }
       <header className="border-b border-border p-6 sm:p-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <div
-              className="flex size-12 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
-              style={{ backgroundColor: primaryColor }}
-              aria-hidden="true"
-            >
-              {initials(snapshot.branding.agencyName)}
-            </div>
+            {snapshot.branding.logoUrl && safeLogoProxyUrl && !logoFailed ? (
+              // Version-scoped same-origin proxy URLs intentionally bypass the build-time host allowlist.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={safeLogoProxyUrl}
+                width={48}
+                height={48}
+                alt={t('agency_logo_alt', { agency: snapshot.branding.agencyName })}
+                className="size-12 shrink-0 rounded-xl object-contain"
+                onError={() => setLogoFailed(true)}
+              />
+            ) : (
+              <div
+                className="flex size-12 shrink-0 items-center justify-center rounded-xl text-sm font-bold"
+                style={{ backgroundColor: primaryColor, color: initialsForeground }}
+                aria-hidden="true"
+              >
+                {initials(snapshot.branding.agencyName)}
+              </div>
+            )}
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{snapshot.branding.agencyName}</p>
               <p className="text-sm text-muted-foreground">{t('prepared_for', { client: snapshot.client.name })}</p>
@@ -183,8 +224,15 @@ export function ReportPreview({ snapshot }: { snapshot: ClientReportSnapshotV1 }
 
       <footer className="flex flex-col gap-3 border-t border-border bg-muted/20 px-6 py-5 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-8">
         <p className="font-semibold">{snapshot.branding.attribution}</p>
-        {snapshot.branding.contactLabel && snapshot.branding.contactUrl && (
-          <span className="text-muted-foreground">{snapshot.branding.contactLabel}</span>
+        {snapshot.branding.contactLabel && snapshot.branding.contactUrl && safeContactProxyUrl && (
+          <a
+            href={safeContactProxyUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 py-2 font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            {snapshot.branding.contactLabel}
+          </a>
         )}
       </footer>
     </article>

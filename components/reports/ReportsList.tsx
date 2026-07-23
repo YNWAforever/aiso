@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { parseReportLifecycleResponse } from '@/lib/reports/client-dto'
 import type { ReportStatus } from '@/lib/reports/types'
 import { ReportStatusBadge } from './ReportStatusBadge'
 
@@ -76,8 +77,8 @@ export function ReportsList({
 
   async function lifecycle(report: ReportsListItem, action: 'rotate-link' | 'revoke') {
     const confirmed = action === 'rotate-link'
-      ? confirm(t('confirm_rotate'))
-      : confirm(t('confirm_revoke'))
+      ? window.confirm(t('confirm_rotate'))
+      : window.confirm(t('confirm_revoke'))
     if (!confirmed) return
     setPending(`${report.id}:${action}`)
     setNotice(action === 'rotate-link' ? t('rotating') : t('revoking'))
@@ -87,11 +88,11 @@ export function ReportsList({
         headers: { 'Content-Type': 'application/json' },
         body: '{}',
       })
-      const body = await response.json() as {
-        report?: ReportsListItem
-        signedUrl?: string
-      }
-      if (!response.ok || !body.report) throw new Error('request failed')
+      const body = parseReportLifecycleResponse(
+        await response.json().catch(() => null),
+        action === 'rotate-link',
+      )
+      if (!response.ok || !body) throw new Error('Invalid lifecycle response')
       setReports(current => updateItem(current, {
         ...report,
         ...body.report,
