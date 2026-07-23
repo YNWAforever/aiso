@@ -78,6 +78,9 @@ describe('report AI polish', () => {
     ['Markdown setext heading', () => callOpenRouter.mockResolvedValue('Measured evidence summary heading\n================================='), 'ai_invalid_output'],
     ['Markdown four-space code block', () => callOpenRouter.mockResolvedValue('The measured evidence remains bounded and factual.\n    const unsupported = 82'), 'ai_invalid_output'],
     ['Markdown tab code block', () => callOpenRouter.mockResolvedValue('The measured evidence remains bounded and factual.\n\tconst unsupported = 82'), 'ai_invalid_output'],
+    ['Markdown tilde code fence', () => callOpenRouter.mockResolvedValue('~~~\nThe current score is 82 and the measured evidence remains bounded.\n~~~'), 'ai_invalid_output'],
+    ['GFM table', () => callOpenRouter.mockResolvedValue('Metric | Value\n--- | ---\nCurrent measured score | 82'), 'ai_invalid_output'],
+    ['GFM strikethrough', () => callOpenRouter.mockResolvedValue('The current score is 82 and ~~unsupported text~~ remains otherwise factual.'), 'ai_invalid_output'],
     ['unsupported numeric claim', () => callOpenRouter.mockResolvedValue('The current evidence is improving, and the business should expect 999 new visits from this work.'), 'ai_invalid_output'],
     ['fullwidth numeric bypass', () => callOpenRouter.mockResolvedValue('The current evidence is improving, and the business should expect ９９９ new visits from this work.'), 'ai_invalid_output'],
     ['Arabic numeric bypass', () => callOpenRouter.mockResolvedValue('The current evidence is improving, and the business should expect ٩٩٩ new visits from this work.'), 'ai_invalid_output'],
@@ -102,6 +105,8 @@ describe('report AI polish', () => {
   it.each([
     ['plus sign on unsigned score', 'The current +82 score is presented with a sign that is not present in the structured facts.'],
     ['minus sign on unsigned score', 'The current -82 score is presented with a sign that is not present in the structured facts.'],
+    ['spaced plus sign on unsigned score', 'The current + 82 score is presented with a sign that is not present in the structured facts.'],
+    ['spaced minus sign on unsigned score', 'The current - 82 score is presented with a sign that is not present in the structured facts.'],
     ['opposite delta sign', 'The score is 82, but an unsupported signed change of -7 is claimed in this summary.'],
   ])('preserves exact numeric signs and rejects %s', async (_label, output) => {
     callOpenRouter.mockResolvedValue(output)

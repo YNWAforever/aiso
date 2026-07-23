@@ -398,6 +398,7 @@ declare
   locked_report public.client_reports;
   new_version public.client_report_versions;
   published_version public.client_report_versions;
+  published_version_id_before_append uuid;
   new_version_number integer;
   client_domain text;
   source_domain text;
@@ -420,6 +421,8 @@ begin
   if not found then
     raise exception 'CLIENT_REPORT_NOT_FOUND';
   end if;
+
+  published_version_id_before_append := locked_report.published_version_id;
 
   select clients.domain
   into client_domain
@@ -524,6 +527,10 @@ begin
     and client_reports.client_id = p_client_id
   returning * into locked_report;
 
+  if locked_report.published_version_id is distinct from published_version_id_before_append then
+    raise exception 'CLIENT_REPORT_NOT_FOUND';
+  end if;
+
   if locked_report.published_version_id is not null then
     select client_report_versions.*
     into published_version
@@ -541,6 +548,7 @@ begin
   return pg_catalog.jsonb_build_object(
     'report', pg_catalog.to_jsonb(locked_report),
     'version', pg_catalog.to_jsonb(new_version),
+    'previous_published_version_id', published_version_id_before_append,
     'published_version', pg_catalog.to_jsonb(published_version)
   );
 end;
@@ -607,7 +615,8 @@ begin
 
   return pg_catalog.jsonb_build_object(
     'report', pg_catalog.to_jsonb(locked_report),
-    'published_version', pg_catalog.to_jsonb(published_version)
+    'published_version', pg_catalog.to_jsonb(published_version),
+    'latest_version', pg_catalog.to_jsonb(published_version)
   );
 end;
 $function$;
@@ -624,6 +633,8 @@ set search_path = ''
 as $function$
 declare
   locked_report public.client_reports;
+  latest_version public.client_report_versions;
+  published_version public.client_report_versions;
 begin
   perform pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended(p_report_id::text, 0)
@@ -656,8 +667,36 @@ begin
     and client_reports.client_id = p_client_id
   returning * into locked_report;
 
+  select client_report_versions.*
+  into latest_version
+  from public.client_report_versions
+  where client_report_versions.id = locked_report.latest_version_id
+    and client_report_versions.report_id = locked_report.id
+    and client_report_versions.account_id = locked_report.account_id
+    and client_report_versions.client_id = locked_report.client_id;
+
+  if not found then
+    raise exception 'CLIENT_REPORT_NOT_FOUND';
+  end if;
+
+  if locked_report.published_version_id is not null then
+    select client_report_versions.*
+    into published_version
+    from public.client_report_versions
+    where client_report_versions.id = locked_report.published_version_id
+      and client_report_versions.report_id = locked_report.id
+      and client_report_versions.account_id = locked_report.account_id
+      and client_report_versions.client_id = locked_report.client_id;
+
+    if not found then
+      raise exception 'CLIENT_REPORT_NOT_FOUND';
+    end if;
+  end if;
+
   return pg_catalog.jsonb_build_object(
-    'report', pg_catalog.to_jsonb(locked_report)
+    'report', pg_catalog.to_jsonb(locked_report),
+    'latest_version', pg_catalog.to_jsonb(latest_version),
+    'published_version', pg_catalog.to_jsonb(published_version)
   );
 end;
 $function$;
@@ -674,6 +713,7 @@ set search_path = ''
 as $function$
 declare
   locked_report public.client_reports;
+  latest_version public.client_report_versions;
   published_version public.client_report_versions;
 begin
   perform pg_catalog.pg_advisory_xact_lock(
@@ -709,6 +749,18 @@ begin
   returning * into locked_report;
 
   select client_report_versions.*
+  into latest_version
+  from public.client_report_versions
+  where client_report_versions.id = locked_report.latest_version_id
+    and client_report_versions.report_id = locked_report.id
+    and client_report_versions.account_id = locked_report.account_id
+    and client_report_versions.client_id = locked_report.client_id;
+
+  if not found then
+    raise exception 'CLIENT_REPORT_NOT_FOUND';
+  end if;
+
+  select client_report_versions.*
   into published_version
   from public.client_report_versions
   where client_report_versions.id = locked_report.published_version_id
@@ -722,7 +774,8 @@ begin
 
   return pg_catalog.jsonb_build_object(
     'report', pg_catalog.to_jsonb(locked_report),
-    'published_version', pg_catalog.to_jsonb(published_version)
+    'published_version', pg_catalog.to_jsonb(published_version),
+    'latest_version', pg_catalog.to_jsonb(latest_version)
   );
 end;
 $function$;

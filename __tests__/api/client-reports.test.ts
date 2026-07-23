@@ -171,16 +171,21 @@ describe('authenticated client report APIs', () => {
       report: { ...report, latest_version_id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc3' },
       version: { ...versions[0], id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc3', version_number: 3 },
       publishedVersion: versions[1],
+      previousPublishedVersionId: versions[1].id,
     })
     h.publishClientReportLatest.mockResolvedValue({
       report: { ...report, published_version_id: report.latest_version_id },
+      latestVersion: versions[0],
       publishedVersion: versions[0],
     })
     h.revokeClientReport.mockResolvedValue({
       report: { ...report, status: 'revoked', public_slug: 'b'.repeat(32), share_version: 3, revoked_at: '2026-07-21T11:00:00.000Z' },
+      latestVersion: versions[0],
+      publishedVersion: versions[1],
     })
     h.rotateClientReportLink.mockResolvedValue({
       report: { ...report, public_slug: 'c'.repeat(32), share_version: 3 },
+      latestVersion: versions[0],
       publishedVersion: versions[1],
     })
   })
@@ -354,6 +359,7 @@ describe('authenticated client report APIs', () => {
       report: { ...report, latest_version_id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc3', published_version_id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc1' },
       version: nextVersion,
       publishedVersion: versions[1],
+      previousPublishedVersionId: versions[1].id,
     })
 
     const response = await POST_VERSION(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/versions', {
@@ -516,6 +522,64 @@ describe('authenticated client report APIs', () => {
     expect(JSON.stringify(body)).not.toMatch(/signedUrl|public_slug|share_version/)
   })
 
+  it('rejects an append result that aliases the newly appended version as the prior published version', async () => {
+    const appendedVersion = { ...versions[0], id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc4', version_number: 4 }
+    h.appendClientReportVersion.mockResolvedValue({
+      report: {
+        ...report,
+        latest_version_id: appendedVersion.id,
+        published_version_id: appendedVersion.id,
+      },
+      version: appendedVersion,
+      publishedVersion: appendedVersion,
+      previousPublishedVersionId: versions[1].id,
+    })
+
+    const response = await POST_VERSION(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/versions', {
+      locale: 'en',
+      executiveSummary: snapshot.executiveSummary,
+    }), reportContext)
+
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ error: 'service_unavailable' })
+  })
+
+  it('returns locked latest and published metadata when rotate preserves an older publication', async () => {
+    h.rotateClientReportLink.mockResolvedValue({
+      report: { ...report, public_slug: 'c'.repeat(32), share_version: 3 },
+      latestVersion: versions[0],
+      publishedVersion: versions[1],
+    })
+
+    const response = await POST_ROTATE(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/rotate-link', {}), reportContext)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.report).toMatchObject({
+      status: 'published',
+      latestVersionNumber: 2,
+      publishedVersionNumber: 1,
+    })
+  })
+
+  it('returns locked latest and published metadata when revoke preserves their pointers', async () => {
+    h.revokeClientReport.mockResolvedValue({
+      report: { ...report, status: 'revoked', public_slug: 'b'.repeat(32), share_version: 3, revoked_at: '2026-07-21T11:00:00.000Z' },
+      latestVersion: versions[0],
+      publishedVersion: versions[1],
+    })
+
+    const response = await POST_REVOKE(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/revoke', {}), reportContext)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.report).toMatchObject({
+      status: 'revoked',
+      latestVersionNumber: 2,
+      publishedVersionNumber: 1,
+    })
+  })
+
   it('models rotate-before-append by using only the locked append payload for version metadata and signing', async () => {
     const appendedVersion = { ...versions[0], id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc4', version_number: 4 }
     const lockedPublished = { ...versions[1], locale: 'zh-HK' as const }
@@ -529,6 +593,7 @@ describe('authenticated client report APIs', () => {
       },
       version: appendedVersion,
       publishedVersion: lockedPublished,
+      previousPublishedVersionId: lockedPublished.id,
     })
 
     const response = await POST_VERSION(request('/api/client-reports/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/versions', {
@@ -553,6 +618,7 @@ describe('authenticated client report APIs', () => {
         latest_version_id: lockedPublished.id,
         published_version_id: lockedPublished.id,
       },
+      latestVersion: lockedPublished,
       publishedVersion: lockedPublished,
     })
 

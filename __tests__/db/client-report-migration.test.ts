@@ -197,6 +197,9 @@ describe('client report migration contract', () => {
 
     expect(append).toMatch(/published_version public\.client_report_versions/)
     expect(append).toMatch(/where client_report_versions\.id = locked_report\.published_version_id/)
+    expect(append).toMatch(/published_version_id_before_append uuid/)
+    expect(append).toMatch(/published_version_id_before_append := locked_report\.published_version_id/)
+    expect(append).toMatch(/'previous_published_version_id',\s*published_version_id_before_append/)
     expect(append).toMatch(/'published_version',\s*pg_catalog\.to_jsonb\(published_version\)/)
 
     for (const name of ['publish_client_report_latest', 'rotate_client_report_link']) {
@@ -210,6 +213,16 @@ describe('client report migration contract', () => {
     const revoke = functionDefinition(sql, 'revoke_client_report') ?? ''
     expect(revoke).toContain('returns jsonb')
     expect(revoke).toMatch(/jsonb_build_object\(\s*'report',\s*pg_catalog\.to_jsonb\(locked_report\)/)
+
+    for (const name of ['revoke_client_report', 'rotate_client_report_link']) {
+      const definition = functionDefinition(sql, name) ?? ''
+      expect(definition).toMatch(/latest_version public\.client_report_versions/)
+      expect(definition).toMatch(/published_version public\.client_report_versions/)
+      expect(definition).toMatch(/where client_report_versions\.id = locked_report\.latest_version_id/)
+      expect(definition).toMatch(/where client_report_versions\.id = locked_report\.published_version_id/)
+      expect(definition).toMatch(/'latest_version',\s*pg_catalog\.to_jsonb\(latest_version\)/)
+      expect(definition).toMatch(/'published_version',\s*pg_catalog\.to_jsonb\(published_version\)/)
+    }
 
     const rotate = functionDefinition(sql, 'rotate_client_report_link') ?? ''
     expect(rotate).toMatch(/locked_report\.status <> 'published'/)

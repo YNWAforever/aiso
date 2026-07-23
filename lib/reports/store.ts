@@ -84,15 +84,19 @@ export interface ClientReportVersionMutationResult {
 
 export interface AppendClientReportVersionMutationResult extends ClientReportVersionMutationResult {
   readonly publishedVersion: ClientReportVersionRow | null
+  readonly previousPublishedVersionId: string | null
 }
 
 export interface PublishedClientReportMutationResult {
   readonly report: ClientReportRow
+  readonly latestVersion: ClientReportVersionRow
   readonly publishedVersion: ClientReportVersionRow
 }
 
 export interface ClientReportMutationResult {
   readonly report: ClientReportRow
+  readonly latestVersion: ClientReportVersionRow
+  readonly publishedVersion: ClientReportVersionRow | null
 }
 
 export interface ReportAccountCommercialState {
@@ -435,11 +439,19 @@ export function validateAppendClientReportResult(
   expected: { accountId: string; clientId: string; reportId: string },
 ): AppendClientReportVersionMutationResult | null {
   const result = rpcPayload(value)
-  if (!result || !Object.hasOwn(result, 'published_version')) return null
+  if (!result
+    || !Object.hasOwn(result, 'published_version')
+    || !Object.hasOwn(result, 'previous_published_version_id')
+    || !isNullableString(result.previous_published_version_id)
+    || (typeof result.previous_published_version_id === 'string' && result.previous_published_version_id.length === 0)) return null
   const report = validatedRpcReport(result.report, expected)
   if (!report) return null
   const version = validatedRpcVersion(result.version, report)
-  if (!version || report.latest_version_id !== version.id) return null
+  const previousPublishedVersionId = result.previous_published_version_id
+  if (!version
+    || report.latest_version_id !== version.id
+    || report.published_version_id !== previousPublishedVersionId
+    || previousPublishedVersionId === version.id) return null
 
   let publishedVersion: ClientReportVersionRow | null = null
   if (report.published_version_id === null) {
@@ -448,7 +460,7 @@ export function validateAppendClientReportResult(
     publishedVersion = validatedRpcVersion(result.published_version, report)
     if (!publishedVersion || publishedVersion.id !== report.published_version_id) return null
   }
-  return { report, version, publishedVersion }
+  return { report, version, publishedVersion, previousPublishedVersionId }
 }
 
 function validatePublishedClientReportResult(
@@ -457,13 +469,19 @@ function validatePublishedClientReportResult(
   requireLatestPublished: boolean,
 ): PublishedClientReportMutationResult | null {
   const result = rpcPayload(value)
-  if (!result) return null
+  if (!result
+    || !Object.hasOwn(result, 'latest_version')
+    || !Object.hasOwn(result, 'published_version')) return null
   const report = validatedRpcReport(result.report, expected)
   if (!report || report.status !== 'published' || report.published_version_id === null) return null
+  const latestVersion = validatedRpcVersion(result.latest_version, report)
   const publishedVersion = validatedRpcVersion(result.published_version, report)
-  if (!publishedVersion || publishedVersion.id !== report.published_version_id) return null
-  if (requireLatestPublished && report.latest_version_id !== publishedVersion.id) return null
-  return { report, publishedVersion }
+  if (!latestVersion
+    || latestVersion.id !== report.latest_version_id
+    || !publishedVersion
+    || publishedVersion.id !== report.published_version_id
+    || (requireLatestPublished && latestVersion.id !== publishedVersion.id)) return null
+  return { report, latestVersion, publishedVersion }
 }
 
 export function validatePublishClientReportResult(
@@ -485,9 +503,22 @@ export function validateRevokeClientReportResult(
   expected: { accountId: string; clientId: string; reportId: string },
 ): ClientReportMutationResult | null {
   const result = rpcPayload(value)
-  if (!result) return null
+  if (!result
+    || !Object.hasOwn(result, 'latest_version')
+    || !Object.hasOwn(result, 'published_version')) return null
   const report = validatedRpcReport(result.report, expected)
-  return report?.status === 'revoked' ? { report } : null
+  if (!report || report.status !== 'revoked') return null
+  const latestVersion = validatedRpcVersion(result.latest_version, report)
+  if (!latestVersion || latestVersion.id !== report.latest_version_id) return null
+
+  let publishedVersion: ClientReportVersionRow | null = null
+  if (report.published_version_id === null) {
+    if (result.published_version !== null) return null
+  } else {
+    publishedVersion = validatedRpcVersion(result.published_version, report)
+    if (!publishedVersion || publishedVersion.id !== report.published_version_id) return null
+  }
+  return { report, latestVersion, publishedVersion }
 }
 
 async function reportRpcData(name: string, args: Record<string, unknown>): Promise<unknown> {

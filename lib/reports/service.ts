@@ -415,15 +415,23 @@ function authoritativeCreateResult(value: unknown, expected: LifecycleTuple) {
 
 function authoritativeAppendResult(value: unknown, expected: Required<LifecycleTuple>) {
   const result = lifecycleResult(value)
-  const report = lifecycleReport(result?.report, expected)
-  const version = report ? lifecycleVersion(result?.version, report) : null
-  if (!report || !version || report.latest_version_id !== version.id) return null
+  if (!result
+    || !Object.hasOwn(result, 'previousPublishedVersionId')
+    || !isNullableString(result.previousPublishedVersionId)
+    || (typeof result.previousPublishedVersionId === 'string' && result.previousPublishedVersionId.length === 0)) return null
+  const report = lifecycleReport(result.report, expected)
+  const version = report ? lifecycleVersion(result.version, report) : null
+  if (!report
+    || !version
+    || report.latest_version_id !== version.id
+    || report.published_version_id !== result.previousPublishedVersionId
+    || result.previousPublishedVersionId === version.id) return null
 
   let publishedVersion: ClientReportVersionRow | null = null
   if (report.published_version_id === null) {
-    if (result?.publishedVersion !== null) return null
+    if (result.publishedVersion !== null) return null
   } else {
-    publishedVersion = lifecycleVersion(result?.publishedVersion, report)
+    publishedVersion = lifecycleVersion(result.publishedVersion, report)
     if (!publishedVersion || publishedVersion.id !== report.published_version_id) return null
   }
   return { report, version, publishedVersion }
@@ -436,19 +444,33 @@ function authoritativePublishedResult(
 ) {
   const result = lifecycleResult(value)
   const report = lifecycleReport(result?.report, expected)
+  const latestVersion = report ? lifecycleVersion(result?.latestVersion, report) : null
   const publishedVersion = report ? lifecycleVersion(result?.publishedVersion, report) : null
   if (!report
     || report.status !== 'published'
+    || !latestVersion
+    || latestVersion.id !== report.latest_version_id
     || !publishedVersion
     || publishedVersion.id !== report.published_version_id
-    || (requireLatestPublished && publishedVersion.id !== report.latest_version_id)) return null
-  return { report, publishedVersion }
+    || (requireLatestPublished && latestVersion.id !== publishedVersion.id)) return null
+  return { report, latestVersion, publishedVersion }
 }
 
 function authoritativeRevokeResult(value: unknown, expected: Required<LifecycleTuple>) {
   const result = lifecycleResult(value)
   const report = lifecycleReport(result?.report, expected)
-  return report?.status === 'revoked' ? { report } : null
+  if (!report || report.status !== 'revoked') return null
+  const latestVersion = lifecycleVersion(result?.latestVersion, report)
+  if (!latestVersion || latestVersion.id !== report.latest_version_id) return null
+
+  let publishedVersion: ClientReportVersionRow | null = null
+  if (report.published_version_id === null) {
+    if (result?.publishedVersion !== null) return null
+  } else {
+    publishedVersion = lifecycleVersion(result?.publishedVersion, report)
+    if (!publishedVersion || publishedVersion.id !== report.published_version_id) return null
+  }
+  return { report, latestVersion, publishedVersion }
 }
 
 export async function getAuthenticatedReportBranding() {
@@ -715,16 +737,21 @@ async function mutateReport(
     if (mode === 'revoke') {
       const revoked = authoritativeRevokeResult(result, tuple)
       if (!revoked) throw new ReportServiceError('service_unavailable')
-      return { report: reportDto(revoked.report, { latest: null, published: null }) }
+      return {
+        report: reportDto(revoked.report, {
+          latest: revoked.latestVersion,
+          published: revoked.publishedVersion,
+        }),
+      }
     }
 
     const published = authoritativePublishedResult(result, tuple, mode === 'publish')
     if (!published) throw new ReportServiceError('service_unavailable')
-    const latest = published.report.latest_version_id === published.publishedVersion.id
-      ? published.publishedVersion
-      : null
     return {
-      report: reportDto(published.report, { latest, published: published.publishedVersion }),
+      report: reportDto(published.report, {
+        latest: published.latestVersion,
+        published: published.publishedVersion,
+      }),
       signedUrl: shareUrlBuilder!({
         locale: published.publishedVersion.locale,
         slug: published.report.public_slug,

@@ -267,14 +267,22 @@ describe('report store tenant boundary', () => {
     const rotatedReport = { ...validReportRow, public_slug: 'c'.repeat(32), share_version: 3 }
     state.responses.set('rpc:create_client_report_with_version', { data: { report: createReport, version: validVersionRow }, error: null })
     state.responses.set('rpc:append_client_report_version', {
-      data: { report: validReportRow, version: appendedVersion, published_version: validVersionRow }, error: null,
+      data: {
+        report: validReportRow,
+        version: appendedVersion,
+        previous_published_version_id: validVersionRow.id,
+        published_version: validVersionRow,
+      },
+      error: null,
     })
     state.responses.set('rpc:publish_client_report_latest', {
-      data: { report: publishedReport, published_version: appendedVersion }, error: null,
+      data: { report: publishedReport, latest_version: appendedVersion, published_version: appendedVersion }, error: null,
     })
-    state.responses.set('rpc:revoke_client_report', { data: { report: revokedReport }, error: null })
+    state.responses.set('rpc:revoke_client_report', {
+      data: { report: revokedReport, latest_version: appendedVersion, published_version: validVersionRow }, error: null,
+    })
     state.responses.set('rpc:rotate_client_report_link', {
-      data: { report: rotatedReport, published_version: validVersionRow }, error: null,
+      data: { report: rotatedReport, latest_version: appendedVersion, published_version: validVersionRow }, error: null,
     })
     const input = {
       accountId: 'account-1', clientId: 'client-1', sourceScanId: 'scan-1', previousScanId: null,
@@ -288,10 +296,42 @@ describe('report store tenant boundary', () => {
       report: validReportRow,
       version: appendedVersion,
       publishedVersion: validVersionRow,
+      previousPublishedVersionId: validVersionRow.id,
     })
-    await expect(publishClientReportLatest(tuple)).resolves.toEqual({ report: publishedReport, publishedVersion: appendedVersion })
-    await expect(revokeClientReport(tuple)).resolves.toEqual({ report: revokedReport })
-    await expect(rotateClientReportLink(tuple)).resolves.toEqual({ report: rotatedReport, publishedVersion: validVersionRow })
+    await expect(publishClientReportLatest(tuple)).resolves.toEqual({
+      report: publishedReport,
+      latestVersion: appendedVersion,
+      publishedVersion: appendedVersion,
+    })
+    await expect(revokeClientReport(tuple)).resolves.toEqual({
+      report: revokedReport,
+      latestVersion: appendedVersion,
+      publishedVersion: validVersionRow,
+    })
+    await expect(rotateClientReportLink(tuple)).resolves.toEqual({
+      report: rotatedReport,
+      latestVersion: appendedVersion,
+      publishedVersion: validVersionRow,
+    })
+  })
+
+  it('rejects an append payload that aliases the new version as the pre-existing publication', async () => {
+    const appendedVersion = { ...validVersionRow, id: 'version-2', version_number: 2 }
+    state.responses.set('rpc:append_client_report_version', {
+      data: {
+        report: { ...validReportRow, published_version_id: appendedVersion.id },
+        version: appendedVersion,
+        published_version: appendedVersion,
+        previous_published_version_id: validVersionRow.id,
+      },
+      error: null,
+    })
+
+    await expect(appendClientReportVersion({
+      reportId: 'report-1', accountId: 'account-1', clientId: 'client-1', sourceScanId: 'scan-1', previousScanId: null,
+      locale: 'en', executiveSummary: 'Summary', snapshotSchemaVersion: 1,
+      snapshot: { snapshotSchemaVersion: 1 } as never, createdBy: 'profile-1',
+    })).resolves.toBeNull()
   })
 
   it.each([
