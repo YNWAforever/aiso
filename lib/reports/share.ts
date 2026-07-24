@@ -78,12 +78,12 @@ export function prepareReportShareUrl(origin: string): (input: ShareInput & { re
   return input => {
     if (!REPORT_LOCALES.includes(input.locale)) throw new Error('Unsupported report locale')
     const url = new URL(validatedOrigin)
-    url.pathname = `/${input.locale}/reports/${encodeURIComponent(input.slug)}`
+    url.pathname = `/${input.locale}/r/${encodeURIComponent(input.slug)}`
     url.search = ''
     url.hash = ''
-    url.searchParams.set('version', String(input.shareVersion))
+    url.searchParams.set('v', String(input.shareVersion))
     url.searchParams.set(
-      'signature',
+      's',
       createHmac('sha256', secret).update(canonicalShareInput(input)).digest('base64url'),
     )
     return url.toString()

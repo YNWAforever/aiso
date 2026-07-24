@@ -77,9 +77,12 @@ describe('report share signing', () => {
     }))
 
     expect(url.origin).toBe('https://reports.example')
-    expect(url.pathname).toBe(`/${locale}/reports/${SLUG}`)
-    expect(url.searchParams.get('version')).toBe('2')
-    expect(url.searchParams.get('signature')).toBe(signReportShare({ slug: SLUG, shareVersion: 2 }))
+    expect(url.pathname).toBe(`/${locale}/r/${SLUG}`)
+    expect(url.searchParams.get('v')).toBe('2')
+    expect(url.searchParams.get('s')).toBe(signReportShare({ slug: SLUG, shareVersion: 2 }))
+    expect(url.pathname).not.toContain('/reports/')
+    expect(url.searchParams.has('version')).toBe(false)
+    expect(url.searchParams.has('signature')).toBe(false)
   })
 
   it.each(['EN', 'zh', 'zh-hk', 'en\r\nX-Test: injected'])('rejects invalid locale %j instead of reflecting it', locale => {

@@ -26,8 +26,10 @@ vi.mock('@/lib/reports/store', () => ({
 vi.mock('next/navigation', () => ({ notFound: h.notFound }))
 
 import PublicReportPage, {
+  dynamic,
   generateMetadata,
 } from '@/app/[lang]/r/[slug]/page'
+import PublicReportNotFound from '@/app/[lang]/r/[slug]/not-found'
 
 const slug = 'a'.repeat(32)
 const signature = 'b'.repeat(43)
@@ -192,6 +194,33 @@ describe('public client report page', () => {
     await expect(PublicReportPage(props())).rejects.toThrow('NEXT_NOT_FOUND')
     expect(h.notFound).toHaveBeenCalledOnce()
     expect(h.incrementClientReportView).not.toHaveBeenCalled()
+  })
+
+  it('waits for the resolver before selecting the non-streamed not-found path', async () => {
+    let release!: (value: typeof resolved | null) => void
+    h.resolvePublishedClientReport.mockReturnValueOnce(new Promise(resolve => {
+      release = resolve
+    }))
+
+    const pendingPage = PublicReportPage(props())
+    await Promise.resolve()
+
+    expect(h.notFound).not.toHaveBeenCalled()
+    expect(h.incrementClientReportView).not.toHaveBeenCalled()
+
+    release(null)
+    await expect(pendingPage).rejects.toThrow('NEXT_NOT_FOUND')
+    expect(h.incrementClientReportView).not.toHaveBeenCalled()
+  })
+
+  it('forces request-time rendering and exposes only the neutral visible not-found message', () => {
+    const markup = renderToStaticMarkup(<PublicReportNotFound />)
+    const visibleText = markup.replace(/<[^>]+>/g, '')
+
+    expect(dynamic).toBe('force-dynamic')
+    expect(visibleText).toBe('Not Found')
+    expect(markup).toContain('<h1')
+    expect(markup).not.toMatch(/report|Fimmick|href|zh-HK/i)
   })
 
   it.each([

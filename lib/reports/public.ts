@@ -1,6 +1,8 @@
 import 'server-only'
 
 import { parseClientReportSnapshot } from './client-dto'
+import { publicReportHeaders } from './public-security'
+export { PUBLIC_REPORT_CSP, publicReportHeaders } from './public-security'
 import { verifyReportShare } from './share'
 import { resolvePublicClientReport } from './store'
 import { resolveCommercialEntitlement } from '@/lib/tier'
@@ -8,26 +10,6 @@ import type {
   ClientReportSnapshotV1,
   PublicClientReportDto,
 } from './types'
-
-export const PUBLIC_REPORT_CSP = [
-  "default-src 'none'",
-  "img-src 'self' data:",
-  "style-src 'self' 'unsafe-inline'",
-  "font-src 'self'",
-  "script-src 'none'",
-  "connect-src 'none'",
-  "base-uri 'none'",
-  "form-action 'none'",
-  "frame-ancestors 'none'",
-].join('; ')
-
-const PUBLIC_REPORT_HEADERS = {
-  'Cache-Control': 'no-store',
-  'Content-Security-Policy': PUBLIC_REPORT_CSP,
-  'Referrer-Policy': 'no-referrer',
-  'X-Content-Type-Options': 'nosniff',
-  'X-Robots-Tag': 'noindex, nofollow',
-} as const
 
 type PublicReportAsset = 'contact' | 'logo'
 
@@ -38,14 +20,6 @@ export type ResolvedPublishedClientReport = Readonly<{
     contactUrl: string | null
   }>
 }>
-
-export function publicReportHeaders(extra?: HeadersInit): Headers {
-  const headers = new Headers(PUBLIC_REPORT_HEADERS)
-  if (extra) {
-    new Headers(extra).forEach((value, key) => headers.set(key, value))
-  }
-  return headers
-}
 
 export function neutralPublicReportNotFound(): Response {
   return new Response('Not Found', {

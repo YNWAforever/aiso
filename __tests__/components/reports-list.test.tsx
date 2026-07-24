@@ -41,7 +41,7 @@ describe('ReportsList', () => {
               lastViewedAt: '2026-07-21T10:00:00.000Z',
               viewCount: 8,
               ctaClickCount: 3,
-              signedUrl: 'https://reports.example/en/reports/share',
+              signedUrl: 'https://reports.example/en/r/share?v=1&s=signature',
             },
             {
               id: 'changed',
@@ -54,7 +54,7 @@ describe('ReportsList', () => {
               viewCount: null,
               ctaClickCount: null,
               metricsUnavailable: true,
-              signedUrl: 'https://reports.example/en/reports/share',
+              signedUrl: 'https://reports.example/en/r/share?v=1&s=signature',
             },
             {
               id: 'revoked',

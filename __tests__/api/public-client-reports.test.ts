@@ -20,9 +20,14 @@ vi.mock('@/lib/reports/branding', async importOriginal => {
   return { ...actual, fetchReportLogo: h.fetchReportLogo }
 })
 
-import { signReportShare } from '@/lib/reports/share'
+import nextConfig from '@/next.config'
+import {
+  buildReportShareUrl,
+  signReportShare,
+} from '@/lib/reports/share'
 import {
   PUBLIC_REPORT_CSP,
+  publicReportHeaders,
   resolvePublishedClientReport,
 } from '@/lib/reports/public'
 import { GET as GET_LOGO } from '@/app/api/public/client-reports/[slug]/logo/route'
@@ -142,6 +147,7 @@ function expectNeutralNotFound(response: Response) {
   expect(response.headers.get('cache-control')).toBe('no-store')
   expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow')
   expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+  expect(response.headers.get('x-content-type-options')).toBe('nosniff')
   expect(response.headers.get('content-security-policy')).toBe(PUBLIC_REPORT_CSP)
 }
 
@@ -164,6 +170,25 @@ describe('published client report resolver', () => {
     })).resolves.toBeNull()
 
     expect(h.resolvePublicClientReport).not.toHaveBeenCalled()
+  })
+
+  it('accepts the canonical generated signed URL directly as public page resolver input', async () => {
+    const signedUrl = new URL(buildReportShareUrl({
+      origin: 'https://reports.example',
+      locale: 'zh-HK',
+      slug,
+      shareVersion,
+    }))
+    const [, lang, route, routeSlug] = signedUrl.pathname.split('/')
+
+    expect({ lang, route, routeSlug }).toEqual({ lang: 'zh-HK', route: 'r', routeSlug: slug })
+    expect(signedUrl.pathname).not.toContain('/reports/')
+    expect([...signedUrl.searchParams.keys()].sort()).toEqual(['s', 'v'])
+    await expect(resolvePublishedClientReport({
+      slug: routeSlug,
+      version: signedUrl.searchParams.get('v'),
+      signature: signedUrl.searchParams.get('s'),
+    })).resolves.toMatchObject({ dto: { report: { client: { domain: 'example.com' } } } })
   })
 
   it('maps only the published immutable snapshot allowlist and ignores a newer draft pointer', async () => {
@@ -250,6 +275,29 @@ describe('published client report resolver', () => {
   })
 })
 
+describe('public report HTML security policy', () => {
+  it('applies the same public security headers to valid and invalid localized HTML routes', async () => {
+    expect(nextConfig.headers).toBeTypeOf('function')
+    const rules = await nextConfig.headers?.()
+    const publicHtmlRule = rules?.find(rule => rule.source === '/:lang(en|zh-HK)/r/:slug')
+    const configuredHeaders = Object.fromEntries(
+      (publicHtmlRule?.headers ?? []).map(({ key, value }) => [key.toLowerCase(), value]),
+    )
+
+    expect(publicHtmlRule).toBeDefined()
+    expect(configuredHeaders).toEqual(Object.fromEntries(publicReportHeaders()))
+  })
+
+  it('allows only the same-origin Next runtime, CSS, fonts, and report logo transport', () => {
+    expect(PUBLIC_REPORT_CSP).toContain("script-src 'self' 'unsafe-inline'")
+    expect(PUBLIC_REPORT_CSP).toContain("connect-src 'self'")
+    expect(PUBLIC_REPORT_CSP).toContain("img-src 'self' data:")
+    expect(PUBLIC_REPORT_CSP).not.toMatch(/\bhttps?:/)
+    expect(PUBLIC_REPORT_CSP).toContain("object-src 'none'")
+    expect(PUBLIC_REPORT_CSP).toContain("frame-ancestors 'none'")
+  })
+})
+
 describe('public report asset handlers', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -323,7 +371,8 @@ describe('public report asset handlers', () => {
     const logo = await GET_LOGO(publicRequest('logo', { signature: 'bad' }), context())
     const contact = await GET_CONTACT(publicRequest('contact', { signature: 'bad' }), context())
 
-    expect(await logo.text()).toBe(await contact.text())
+    expect(await logo.text()).toBe('Not Found')
+    expect(await contact.text()).toBe('Not Found')
     expect([...logo.headers]).toEqual([...contact.headers])
   })
 })

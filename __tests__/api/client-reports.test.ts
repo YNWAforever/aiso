@@ -311,7 +311,7 @@ describe('authenticated client report APIs', () => {
       lastViewedAt: report.last_viewed_at,
       publishedAt: report.published_at,
     })
-    expect(body.reports[0].signedUrl).toMatch(/^https:\/\/reports\.example\/en\/reports\//)
+    expect(body.reports[0].signedUrl).toMatch(/^https:\/\/reports\.example\/en\/r\/[A-Za-z0-9_-]{32}\?v=\d+&s=[A-Za-z0-9_-]{43}$/)
     expect(body.reports[0]).not.toHaveProperty('publicSlug')
     expect(body.reports[0]).not.toHaveProperty('shareVersion')
   })
@@ -377,7 +377,7 @@ describe('authenticated client report APIs', () => {
       previousScanId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
     }))
     expect(body.report).toMatchObject({ latestVersionNumber: 3, publishedVersionNumber: 1 })
-    expect(body.report.signedUrl).toMatch(/^https:\/\/reports\.example\/en\/reports\//)
+    expect(body.report.signedUrl).toMatch(/^https:\/\/reports\.example\/en\/r\/[A-Za-z0-9_-]{32}\?v=\d+&s=[A-Za-z0-9_-]{43}$/)
   })
 
   it('uses the atomic create RPC result and performs no fallible version read after commit', async () => {
@@ -604,8 +604,8 @@ describe('authenticated client report APIs', () => {
 
     expect(response.status).toBe(201)
     expect(body.report).toMatchObject({ latestVersionNumber: 4, publishedVersionNumber: 1 })
-    expect(body.report.signedUrl).toContain('/zh-HK/reports/' + 'd'.repeat(32))
-    expect(body.report.signedUrl).toContain('version=6')
+    expect(body.report.signedUrl).toContain('/zh-HK/r/' + 'd'.repeat(32))
+    expect(body.report.signedUrl).toContain('?v=6&s=')
   })
 
   it('models append-before-publish by returning and signing the authoritative latest version selected under lock', async () => {
@@ -627,8 +627,8 @@ describe('authenticated client report APIs', () => {
 
     expect(response.status).toBe(200)
     expect(body.report).toMatchObject({ latestVersionNumber: 3, publishedVersionNumber: 3 })
-    expect(body.signedUrl).toContain('/zh-HK/reports/' + 'e'.repeat(32))
-    expect(body.signedUrl).toContain('version=4')
+    expect(body.signedUrl).toContain('/zh-HK/r/' + 'e'.repeat(32))
+    expect(body.signedUrl).toContain('?v=4&s=')
     expect(h.listClientReportVersions).not.toHaveBeenCalled()
   })
 
@@ -672,7 +672,7 @@ describe('authenticated client report APIs', () => {
       reportId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
       ...(name === 'publish' ? { reviewedVersionId: versions[0].id } : {}),
     })
-    expect(body.signedUrl).toContain('/en/reports/' + slugChar.repeat(32))
+    expect(body.signedUrl).toContain('/en/r/' + slugChar.repeat(32))
     expect(body.report).not.toHaveProperty('publicSlug')
     expect(body.report).not.toHaveProperty('shareVersion')
   })

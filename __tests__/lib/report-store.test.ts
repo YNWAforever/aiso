@@ -415,11 +415,42 @@ describe('report store tenant boundary', () => {
     expect(callsFor('accounts', 'eq')).toContainEqual(expect.objectContaining({ args: ['id', 'account-1'] }))
   })
 
-  it('increments public counters best-effort without surfacing RPC failures', async () => {
-    state.responses.set('rpc:increment_client_report_view', { data: null, error: { message: 'temporary failure' } })
-    state.responses.set('rpc:increment_client_report_cta_click', { data: null, error: { message: 'temporary failure' } })
+  it('logs one coarse sanitized RPC-error reason without blocking the public view', async () => {
+    const publicSlug = 'a'.repeat(32)
+    const sensitive = `${publicSlug} signature-secret https://agency.example/contact snapshot-1 account-1 report-1`
+    state.responses.set('rpc:increment_client_report_view', {
+      data: null,
+      error: { message: sensitive },
+    })
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
-    await expect(incrementClientReportView({ publicSlug: 'slug', shareVersion: 3 })).resolves.toBeUndefined()
-    await expect(incrementClientReportCtaClick({ publicSlug: 'slug', shareVersion: 3 })).resolves.toBeUndefined()
+    try {
+      await expect(incrementClientReportView({ publicSlug, shareVersion: 3 })).resolves.toBeUndefined()
+
+      expect(warning).toHaveBeenCalledOnce()
+      expect(warning).toHaveBeenCalledWith('[public-report] counter update failed', { reason: 'rpc' })
+      const logged = JSON.stringify(warning.mock.calls)
+      for (const token of sensitive.split(' ')) expect(logged).not.toContain(token)
+    } finally {
+      warning.mockRestore()
+    }
+  })
+
+  it('logs one coarse sanitized exception reason without blocking the public redirect', async () => {
+    const publicSlug = 'b'.repeat(32)
+    const sensitive = `${publicSlug} signature-secret https://agency.example/contact snapshot-2 account-2 report-2`
+    rpc.mockRejectedValueOnce(new Error(sensitive))
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+
+    try {
+      await expect(incrementClientReportCtaClick({ publicSlug, shareVersion: 4 })).resolves.toBeUndefined()
+
+      expect(warning).toHaveBeenCalledOnce()
+      expect(warning).toHaveBeenCalledWith('[public-report] counter update failed', { reason: 'exception' })
+      const logged = JSON.stringify(warning.mock.calls)
+      for (const token of sensitive.split(' ')) expect(logged).not.toContain(token)
+    } finally {
+      warning.mockRestore()
+    }
   })
 })

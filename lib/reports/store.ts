@@ -699,18 +699,23 @@ export async function resolvePublicClientReport(input: {
   return account ? { report, version, account } : null
 }
 
+function logPublicCounterFailure(reason: 'rpc' | 'exception') {
+  console.warn('[public-report] counter update failed', { reason })
+}
+
 async function incrementPublicCounter(
   name: 'increment_client_report_view' | 'increment_client_report_cta_click',
   input: { publicSlug: string; shareVersion: number },
 ) {
   try {
     const supabase = await createServiceSupabaseClient()
-    await supabase.rpc(name, {
+    const { error } = await supabase.rpc(name, {
       p_public_slug: input.publicSlug,
       p_share_version: input.shareVersion,
     })
+    if (error) logPublicCounterFailure('rpc')
   } catch {
-    // Public analytics are deliberately best-effort and never block rendering/redirects.
+    logPublicCounterFailure('exception')
   }
 }
 

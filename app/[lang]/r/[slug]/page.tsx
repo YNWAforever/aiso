@@ -19,6 +19,8 @@ type PublicReportPageProps = {
   searchParams: Promise<{ v?: string | string[]; s?: string | string[] }>
 }
 
+export const dynamic = 'force-dynamic'
+
 const copy = {
   en: {
     title: 'Client report — Fimmick AISO',
