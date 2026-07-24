@@ -57,8 +57,8 @@ export function installReportNavigationBlocker({
     ?? `report-navigation-${Date.now()}-${++reportNavigationOwnerSequence}`
   let activePoint: 0 | 1
 
-  if (existingMarker?.point === 1) {
-    activePoint = 1
+  if (existingMarker) {
+    activePoint = existingMarker.point
   } else {
     const baseMarker: ReportNavigationState = { owner, point: 0, url, version: 1 }
     if (!existingMarker) {
@@ -96,7 +96,15 @@ export function installReportNavigationBlocker({
       return
     }
 
-    if (!marker || marker.owner !== owner || marker.point === activePoint) return
+    if (!marker || marker.owner !== owner) {
+      if (!shouldBlock() || confirmLeave()) return
+      expectedRestorationPoint = activePoint
+      event.stopImmediatePropagation()
+      browser.history.go(activePoint === 0 ? 1 : -1)
+      return
+    }
+
+    if (marker.point === activePoint) return
 
     const direction = marker.point - activePoint
     activePoint = marker.point
