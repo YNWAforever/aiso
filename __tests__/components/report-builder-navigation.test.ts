@@ -25,12 +25,42 @@ class RuntimeBrowser {
   private index: number
   private readonly captureListeners: PopStateListener[] = []
   private readonly bubbleListeners: PopStateListener[] = []
+  private readonly fullNavigationListeners: Array<() => void> = []
   private pendingTraversals = 0
+  private timerSequence = 0
+  private readonly timers = new Map<number, ReturnType<typeof setTimeout>>()
 
-  readonly location = { href: '' }
+  readonly location = {
+    href: '',
+    assign: (url: string | URL) => {
+      this.location.href = new URL(url, this.location.href).href
+      for (const listener of this.fullNavigationListeners) listener()
+    },
+  }
+
+  readonly navigation?: { currentEntry: { index: number } }
+
+  readonly setTimeout = (handler: () => void, timeout?: number) => {
+    void timeout
+    const id = ++this.timerSequence
+    const timer = setTimeout(() => {
+      this.timers.delete(id)
+      handler()
+    }, 0)
+    this.timers.set(id, timer)
+    return id
+  }
+
+  readonly clearTimeout = (id: number) => {
+    const timer = this.timers.get(id)
+    if (!timer) return
+    clearTimeout(timer)
+    this.timers.delete(id)
+  }
 
   readonly history = {
     state: null as unknown,
+    length: 0,
     replaceState: (state: unknown, _unused: string, url?: string | URL | null) => {
       const currentUrl = url === undefined || url === null
         ? this.location.href
@@ -46,6 +76,8 @@ class RuntimeBrowser {
       this.entries.splice(this.index + 1)
       this.entries.push({ state, url: currentUrl })
       this.index = this.entries.length - 1
+      this.history.length = this.entries.length
+      this.syncNavigationIndex()
       this.history.state = state
       this.location.href = currentUrl
     },
@@ -55,6 +87,7 @@ class RuntimeBrowser {
       this.pendingTraversals += 1
       queueMicrotask(() => {
         this.index = targetIndex
+        this.syncNavigationIndex()
         const entry = this.entries[this.index]
         this.history.state = entry.state
         this.location.href = entry.url
@@ -66,11 +99,23 @@ class RuntimeBrowser {
     forward: () => this.history.go(1),
   }
 
-  constructor(entries: Array<{ state: unknown; url: string }>, index: number) {
+  constructor(
+    entries: Array<{ state: unknown; url: string }>,
+    index: number,
+    supportsNavigation = true,
+  ) {
     this.entries = entries.map(entry => ({ ...entry }))
     this.index = index
+    if (supportsNavigation) {
+      this.navigation = { currentEntry: { index } }
+    }
+    this.history.length = this.entries.length
     this.history.state = this.entries[index].state
     this.location.href = this.entries[index].url
+  }
+
+  addFullNavigationListener(listener: () => void) {
+    this.fullNavigationListeners.push(listener)
   }
 
   addEventListener(
@@ -98,7 +143,7 @@ class RuntimeBrowser {
   async settle() {
     do {
       await new Promise<void>(resolve => setImmediate(resolve))
-    } while (this.pendingTraversals > 0)
+    } while (this.pendingTraversals > 0 || this.timers.size > 0)
   }
 
   snapshot() {
@@ -106,6 +151,15 @@ class RuntimeBrowser {
       entries: this.entries.map(entry => ({ ...entry })),
       index: this.index,
     }
+  }
+
+  replaceEntryState(index: number, state: unknown) {
+    this.entries[index] = { ...this.entries[index], state }
+    if (index === this.index) this.history.state = state
+  }
+
+  private syncNavigationIndex() {
+    if (this.navigation) this.navigation.currentEntry.index = this.index
   }
 
   private dispatchPopState(event: RuntimePopStateEvent) {
@@ -138,7 +192,7 @@ function createMountedBuilderRuntime() {
   const runtime = new RuntimeBrowser([
     { state: { __NA: true }, url: 'https://app.example/en/dashboard/client-1/reports' },
     { state: { __NA: true }, url: reportUrl },
-  ], 1)
+  ], 1, false)
   const builder = {
     edit: 'Saved executive summary',
     mounted: true,
@@ -167,9 +221,11 @@ function reportNavigationPoint(state: unknown): 0 | 1 | null {
 function createRemountingBuilderRuntime({
   confirmLeave,
   installReportNavigationBlocker,
+  supportsNavigation = true,
 }: {
   confirmLeave: () => boolean
   installReportNavigationBlocker: NavigationBlockerInstaller
+  supportsNavigation?: boolean
 }) {
   const previousUrl = 'https://app.example/en/dashboard/client-1/reports'
   const reportUrl = 'https://app.example/en/dashboard/client-1/reports/new'
@@ -177,7 +233,7 @@ function createRemountingBuilderRuntime({
   const runtime = new RuntimeBrowser([
     { state: { __NA: true, route: 'A' }, url: previousUrl },
     { state: { __NA: true, route: 'B' }, url: reportUrl },
-  ], 1)
+  ], 1, supportsNavigation)
   const builder = {
     dirty: false,
     edit: 'Saved executive summary',
@@ -185,6 +241,7 @@ function createRemountingBuilderRuntime({
     mounts: 0,
     routeLeaves: 0,
   }
+  const nextPopstateUrls: string[] = []
   let removeNavigationBlocker: (() => void) | null = null
 
   const mount = () => {
@@ -207,12 +264,14 @@ function createRemountingBuilderRuntime({
 
   // Next's popstate listener is registered before the component effect.
   runtime.addEventListener('popstate', () => {
+    nextPopstateUrls.push(runtime.location.href)
     if (runtime.location.href === reportUrl) {
       mount()
       return
     }
     unmount()
   })
+  runtime.addFullNavigationListener(unmount)
   mount()
 
   return {
@@ -223,6 +282,7 @@ function createRemountingBuilderRuntime({
       unmount()
     },
     nextUrl,
+    nextPopstateUrls,
     previousUrl,
     reportUrl,
     runtime,
@@ -369,6 +429,7 @@ describe('ReportBuilder browser-history navigation guard', () => {
         prompts += 1
         return false
       },
+      supportsNavigation: false,
     })
 
     navigateToNextRoute()
@@ -433,6 +494,320 @@ describe('ReportBuilder browser-history navigation guard', () => {
     expect(builder).toEqual({
       dirty: true,
       edit: 'Confirmed Forward edit',
+      mounted: false,
+      mounts: 2,
+      routeLeaves: 2,
+    })
+    cleanup()
+  })
+
+  it('cancels a direct B1-to-A jump and restores the exact report entry', async () => {
+    const installReportNavigationBlocker = await loadNavigationBlocker()
+    if (!installReportNavigationBlocker) return
+    let prompts = 0
+    const {
+      builder,
+      cleanup,
+      navigateToNextRoute,
+      nextPopstateUrls,
+      previousUrl,
+      reportUrl,
+      runtime,
+    } = createRemountingBuilderRuntime({
+      installReportNavigationBlocker,
+      confirmLeave: () => {
+        prompts += 1
+        return false
+      },
+      supportsNavigation: false,
+    })
+
+    navigateToNextRoute()
+    runtime.history.back()
+    await runtime.settle()
+    nextPopstateUrls.length = 0
+    builder.edit = 'Unsaved B1 edit before direct A jump'
+    builder.dirty = true
+
+    runtime.history.go(-2)
+    await runtime.settle()
+
+    const history = runtime.snapshot()
+    expect(prompts).toBe(1)
+    expect(nextPopstateUrls).toEqual([])
+    expect(runtime.location.href).toBe(reportUrl)
+    expect(history.index).toBe(2)
+    expect(history.entries.map(entry => entry.url)).toEqual([
+      previousUrl,
+      reportUrl,
+      reportUrl,
+      'https://app.example/en/dashboard/client-1/overview',
+    ])
+    expect(history.entries.map(entry => reportNavigationPoint(entry.state))).toEqual([
+      null,
+      0,
+      1,
+      null,
+    ])
+    expect(builder).toEqual({
+      dirty: true,
+      edit: 'Unsaved B1 edit before direct A jump',
+      mounted: true,
+      mounts: 2,
+      routeLeaves: 1,
+    })
+    cleanup()
+  })
+
+  it('confirms a direct B1-to-A jump and exposes A to Next exactly once', async () => {
+    const installReportNavigationBlocker = await loadNavigationBlocker()
+    if (!installReportNavigationBlocker) return
+    let prompts = 0
+    const {
+      builder,
+      cleanup,
+      navigateToNextRoute,
+      nextPopstateUrls,
+      previousUrl,
+      runtime,
+    } = createRemountingBuilderRuntime({
+      installReportNavigationBlocker,
+      confirmLeave: () => {
+        prompts += 1
+        return true
+      },
+    })
+
+    navigateToNextRoute()
+    runtime.history.back()
+    await runtime.settle()
+    nextPopstateUrls.length = 0
+    builder.edit = 'Confirmed direct A jump'
+    builder.dirty = true
+
+    runtime.history.go(-2)
+    await runtime.settle()
+
+    expect(prompts).toBe(1)
+    expect(nextPopstateUrls).toEqual([previousUrl])
+    expect(runtime.location.href).toBe(previousUrl)
+    expect(runtime.snapshot().index).toBe(0)
+    expect(builder).toEqual({
+      dirty: true,
+      edit: 'Confirmed direct A jump',
+      mounted: false,
+      mounts: 2,
+      routeLeaves: 2,
+    })
+    cleanup()
+  })
+
+  it('cancels a direct B0-to-C jump and restores the exact report entry', async () => {
+    const installReportNavigationBlocker = await loadNavigationBlocker()
+    if (!installReportNavigationBlocker) return
+    let prompts = 0
+    const {
+      builder,
+      cleanup,
+      navigateToNextRoute,
+      nextPopstateUrls,
+      nextUrl,
+      previousUrl,
+      reportUrl,
+      runtime,
+    } = createRemountingBuilderRuntime({
+      installReportNavigationBlocker,
+      confirmLeave: () => {
+        prompts += 1
+        return false
+      },
+      supportsNavigation: false,
+    })
+
+    navigateToNextRoute()
+    runtime.history.go(-2)
+    await runtime.settle()
+    nextPopstateUrls.length = 0
+    builder.edit = 'Unsaved B0 edit before direct C jump'
+    builder.dirty = true
+
+    runtime.history.go(2)
+    await runtime.settle()
+
+    const history = runtime.snapshot()
+    expect(prompts).toBe(1)
+    expect(nextPopstateUrls).toEqual([])
+    expect(runtime.location.href).toBe(reportUrl)
+    expect(history.index).toBe(1)
+    expect(history.entries.map(entry => entry.url)).toEqual([
+      previousUrl,
+      reportUrl,
+      reportUrl,
+      nextUrl,
+    ])
+    expect(history.entries.map(entry => reportNavigationPoint(entry.state))).toEqual([
+      null,
+      0,
+      1,
+      null,
+    ])
+    expect(builder).toEqual({
+      dirty: true,
+      edit: 'Unsaved B0 edit before direct C jump',
+      mounted: true,
+      mounts: 2,
+      routeLeaves: 1,
+    })
+    cleanup()
+  })
+
+  it('confirms a direct B0-to-C jump and exposes C to Next exactly once', async () => {
+    const installReportNavigationBlocker = await loadNavigationBlocker()
+    if (!installReportNavigationBlocker) return
+    let prompts = 0
+    const {
+      builder,
+      cleanup,
+      navigateToNextRoute,
+      nextPopstateUrls,
+      nextUrl,
+      runtime,
+    } = createRemountingBuilderRuntime({
+      installReportNavigationBlocker,
+      confirmLeave: () => {
+        prompts += 1
+        return true
+      },
+    })
+
+    navigateToNextRoute()
+    runtime.history.go(-2)
+    await runtime.settle()
+    nextPopstateUrls.length = 0
+    builder.edit = 'Confirmed direct C jump'
+    builder.dirty = true
+
+    runtime.history.go(2)
+    await runtime.settle()
+
+    expect(prompts).toBe(1)
+    expect(nextPopstateUrls).toEqual([nextUrl])
+    expect(runtime.location.href).toBe(nextUrl)
+    expect(runtime.snapshot().index).toBe(3)
+    expect(builder).toEqual({
+      dirty: true,
+      edit: 'Confirmed direct C jump',
+      mounted: false,
+      mounts: 2,
+      routeLeaves: 2,
+    })
+    cleanup()
+  })
+
+  it('restores B0 across four entries without exposing intermediate routes', async () => {
+    const installReportNavigationBlocker = await loadNavigationBlocker()
+    if (!installReportNavigationBlocker) return
+    let prompts = 0
+    const {
+      builder,
+      cleanup,
+      navigateToNextRoute,
+      nextPopstateUrls,
+      nextUrl,
+      previousUrl,
+      reportUrl,
+      runtime,
+    } = createRemountingBuilderRuntime({
+      installReportNavigationBlocker,
+      confirmLeave: () => {
+        prompts += 1
+        return false
+      },
+      supportsNavigation: false,
+    })
+    const detailUrl = 'https://app.example/en/dashboard/client-1/detail'
+    const settingsUrl = 'https://app.example/en/dashboard/client-1/settings'
+
+    navigateToNextRoute()
+    runtime.history.pushState({ __NA: true, route: 'D' }, '', detailUrl)
+    runtime.history.pushState({ __NA: true, route: 'E' }, '', settingsUrl)
+    runtime.history.go(-4)
+    await runtime.settle()
+    nextPopstateUrls.length = 0
+    builder.edit = 'Unsaved long-jump edit'
+    builder.dirty = true
+
+    runtime.history.go(4)
+    await runtime.settle()
+
+    const history = runtime.snapshot()
+    expect(prompts).toBe(1)
+    expect(nextPopstateUrls).toEqual([])
+    expect(runtime.location.href).toBe(reportUrl)
+    expect(history.index).toBe(1)
+    expect(history.entries.map(entry => entry.url)).toEqual([
+      previousUrl,
+      reportUrl,
+      reportUrl,
+      nextUrl,
+      detailUrl,
+      settingsUrl,
+    ])
+    expect(history.entries.map(entry => reportNavigationPoint(entry.state))).toEqual([
+      null,
+      0,
+      1,
+      null,
+      null,
+      null,
+    ])
+    expect(builder).toEqual({
+      dirty: true,
+      edit: 'Unsaved long-jump edit',
+      mounted: true,
+      mounts: 2,
+      routeLeaves: 1,
+    })
+    cleanup()
+  })
+
+  it('fails open with a full navigation when the owned restoration point disappears', async () => {
+    const installReportNavigationBlocker = await loadNavigationBlocker()
+    if (!installReportNavigationBlocker) return
+    let prompts = 0
+    const {
+      builder,
+      cleanup,
+      navigateToNextRoute,
+      nextPopstateUrls,
+      nextUrl,
+      runtime,
+    } = createRemountingBuilderRuntime({
+      installReportNavigationBlocker,
+      confirmLeave: () => {
+        prompts += 1
+        return false
+      },
+      supportsNavigation: true,
+    })
+
+    navigateToNextRoute()
+    runtime.history.back()
+    await runtime.settle()
+    runtime.replaceEntryState(2, { __NA: true, route: 'BROKEN-B1' })
+    nextPopstateUrls.length = 0
+    builder.edit = 'Unsaved edit with broken history invariant'
+    builder.dirty = true
+
+    runtime.history.go(-2)
+    await runtime.settle()
+
+    expect(prompts).toBe(1)
+    expect(nextPopstateUrls).toEqual([])
+    expect(runtime.location.href).toBe(nextUrl)
+    expect(builder).toEqual({
+      dirty: true,
+      edit: 'Unsaved edit with broken history invariant',
       mounted: false,
       mounts: 2,
       routeLeaves: 2,

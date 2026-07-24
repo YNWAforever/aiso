@@ -1,4 +1,6 @@
 const REPORT_NAVIGATION_STATE_KEY = '__geoscanner_report_navigation'
+const REPORT_NAVIGATION_RESTORATION_TIMEOUT_MS = 1_000
+const REPORT_NAVIGATION_MAX_RESTORATION_HOPS = 512
 let reportNavigationOwnerSequence = 0
 
 type ReportNavigationState = {
@@ -10,10 +12,24 @@ type ReportNavigationState = {
 
 type ReportNavigationBrowser = Pick<
   Window,
-  'addEventListener' | 'removeEventListener'
+  'addEventListener' | 'clearTimeout' | 'removeEventListener' | 'setTimeout'
 > & {
-  history: Pick<History, 'go' | 'pushState' | 'replaceState' | 'state'>
-  location: Pick<Location, 'href'>
+  history: Pick<
+    History,
+    'go' | 'length' | 'pushState' | 'replaceState' | 'state'
+  >
+  location: Pick<Location, 'assign' | 'href'>
+  navigation?: {
+    currentEntry: { index: number } | null
+  }
+}
+
+type ReportNavigationRestoration = {
+  canReverse: boolean
+  direction: -1 | 1
+  point: 0 | 1
+  remainingHops: number
+  timeoutId: number | null
 }
 
 function reportNavigationState(
@@ -42,6 +58,25 @@ function withReportNavigationState(
   return { ...currentState, [REPORT_NAVIGATION_STATE_KEY]: marker }
 }
 
+function reportNavigationEntryIndex(
+  browser: ReportNavigationBrowser,
+): number | null {
+  const index = browser.navigation?.currentEntry?.index
+  return typeof index === 'number' && Number.isSafeInteger(index) && index >= 0
+    ? index
+    : null
+}
+
+function reportNavigationRestorationHopBudget(historyLength: number): number {
+  const boundedLength = Number.isSafeInteger(historyLength) && historyLength > 0
+    ? historyLength
+    : 1
+  return Math.min(
+    boundedLength * 2 + 2,
+    REPORT_NAVIGATION_MAX_RESTORATION_HOPS,
+  )
+}
+
 export function installReportNavigationBlocker({
   browser,
   confirmLeave,
@@ -61,13 +96,11 @@ export function installReportNavigationBlocker({
     activePoint = existingMarker.point
   } else {
     const baseMarker: ReportNavigationState = { owner, point: 0, url, version: 1 }
-    if (!existingMarker) {
-      browser.history.replaceState(
-        withReportNavigationState(browser.history.state, baseMarker),
-        '',
-        url,
-      )
-    }
+    browser.history.replaceState(
+      withReportNavigationState(browser.history.state, baseMarker),
+      '',
+      url,
+    )
     browser.history.pushState(
       withReportNavigationState(browser.history.state, { ...baseMarker, point: 1 }),
       '',
@@ -76,18 +109,88 @@ export function installReportNavigationBlocker({
     activePoint = 1
   }
 
-  let expectedRestorationPoint: 0 | 1 | null = null
+  let activeEntryIndex = reportNavigationEntryIndex(browser)
+  let restoration: ReportNavigationRestoration | null = null
   let passingOwnedBoundary = false
+
+  const stopRestoration = () => {
+    if (restoration && restoration.timeoutId !== null) {
+      browser.clearTimeout(restoration.timeoutId)
+    }
+    restoration = null
+  }
+
+  const failOpenRestoration = () => {
+    if (!restoration) return
+    stopRestoration()
+    // A full navigation keeps the visible URL and rendered route aligned even
+    // if another script removed or rewrote the owned history entry.
+    browser.location.assign(browser.location.href)
+  }
+
+  const continueRestoration = () => {
+    if (!restoration) return
+    if (restoration.remainingHops <= 0) {
+      failOpenRestoration()
+      return
+    }
+
+    restoration.remainingHops -= 1
+    restoration.timeoutId = browser.setTimeout(() => {
+      if (!restoration) return
+      restoration.timeoutId = null
+      if (!restoration.canReverse) {
+        failOpenRestoration()
+        return
+      }
+
+      // Classic PopStateEvent has no delta. If the adjacent-direction probe
+      // made no progress, reverse once and scan the other side of the stack.
+      restoration.canReverse = false
+      restoration.direction = restoration.direction === 1 ? -1 : 1
+      continueRestoration()
+    }, REPORT_NAVIGATION_RESTORATION_TIMEOUT_MS)
+    browser.history.go(restoration.direction)
+  }
+
+  const startRestoration = (
+    point: 0 | 1,
+    direction: -1 | 1,
+    canReverse = false,
+  ) => {
+    stopRestoration()
+    restoration = {
+      canReverse,
+      direction,
+      point,
+      remainingHops: reportNavigationRestorationHopBudget(browser.history.length),
+      timeoutId: null,
+    }
+    continueRestoration()
+  }
 
   const guardBrowserTraversal = (event: PopStateEvent) => {
     const marker = reportNavigationState(event.state, url)
+    const currentEntryIndex = reportNavigationEntryIndex(browser)
 
-    if (expectedRestorationPoint !== null
-      && marker?.owner === owner
-      && marker.point === expectedRestorationPoint) {
-      activePoint = marker.point
-      expectedRestorationPoint = null
+    if (restoration) {
+      if (restoration.timeoutId !== null) {
+        browser.clearTimeout(restoration.timeoutId)
+        restoration.timeoutId = null
+      }
+
+      if (marker?.owner === owner && marker.point === restoration.point) {
+        activePoint = marker.point
+        activeEntryIndex = currentEntryIndex
+        stopRestoration()
+        event.stopImmediatePropagation()
+        return
+      }
+
+      // Neither unowned routes nor the other sentinel point may reach Next
+      // while restoration walks toward the exact active owned entry.
       event.stopImmediatePropagation()
+      continueRestoration()
       return
     }
 
@@ -98,21 +201,32 @@ export function installReportNavigationBlocker({
 
     if (!marker || marker.owner !== owner) {
       if (!shouldBlock() || confirmLeave()) return
-      expectedRestorationPoint = activePoint
+
+      const indexedDirection = activeEntryIndex !== null
+        && currentEntryIndex !== null
+        && activeEntryIndex !== currentEntryIndex
+        ? activeEntryIndex > currentEntryIndex ? 1 : -1
+        : null
+      const direction = indexedDirection
+        // Classic History exposes no traversal delta. Start with the established
+        // adjacent direction, then reverse once on bounded no-progress.
+        ?? (activePoint === 0 ? 1 : -1)
+
       event.stopImmediatePropagation()
-      browser.history.go(activePoint === 0 ? 1 : -1)
+      startRestoration(activePoint, direction, indexedDirection === null)
       return
     }
 
     if (marker.point === activePoint) return
 
+    const previousPoint = activePoint
     const direction = marker.point - activePoint
     activePoint = marker.point
+    activeEntryIndex = currentEntryIndex
     event.stopImmediatePropagation()
 
     if (shouldBlock() && !confirmLeave()) {
-      expectedRestorationPoint = direction < 0 ? 1 : 0
-      browser.history.go(-direction)
+      startRestoration(previousPoint, direction < 0 ? 1 : -1)
       return
     }
 
@@ -125,5 +239,8 @@ export function installReportNavigationBlocker({
   // Capture runs before Next's router listener even though the router mounted
   // first. Canceled/intermediate traversals therefore cannot unmount the builder.
   browser.addEventListener('popstate', guardBrowserTraversal, true)
-  return () => browser.removeEventListener('popstate', guardBrowserTraversal, true)
+  return () => {
+    stopRestoration()
+    browser.removeEventListener('popstate', guardBrowserTraversal, true)
+  }
 }
