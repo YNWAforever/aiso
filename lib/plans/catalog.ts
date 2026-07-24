@@ -98,7 +98,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
     exportFormats: [], supportLevel: 'standard',
     release: {
       ...unavailableRelease,
-      monitoring: 'planned', competitorSummary: 'planned', clientReports: 'planned',
+      monitoring: 'planned', competitorSummary: 'planned', clientReports: 'available',
     },
     features: {
       plan: 'pro',
@@ -112,10 +112,10 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
   enterprise: {
     id: 'enterprise', checkout: true, monthlyPriceUsd: 199,
     maxBrands: 10, historyWeeks: null, monthlyScanLimit: null,
-    monitoringCadence: 'weekly', competitorMode: 'full', reportBranding: 'white-label',
+    monitoringCadence: 'weekly', competitorMode: 'full', reportBranding: 'fimmick',
     exportFormats: ['csv'], supportLevel: 'priority',
     release: {
-      monitoring: 'planned', competitorSummary: 'available', clientReports: 'planned',
+      monitoring: 'planned', competitorSummary: 'available', clientReports: 'available',
       whiteLabelPdf: 'planned', publicApi: 'custom', customPlatforms: 'custom',
       dedicatedSuccess: 'custom',
     },

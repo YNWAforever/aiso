@@ -28,16 +28,20 @@ describe('Plan Catalog', () => {
     }
   })
 
-  it('grants online client reports only to Pro and Enterprise at runtime', () => {
+  it('releases powered online client reports only for Pro and Enterprise', () => {
     expect(PLAN_CATALOG.free.features.client_reports_online).toBe(false)
     expect(PLAN_CATALOG.basic.features.client_reports_online).toBe(false)
     expect(PLAN_CATALOG.pro.features.client_reports_online).toBe(true)
     expect(PLAN_CATALOG.enterprise.features.client_reports_online).toBe(true)
-    expect(PLAN_CATALOG.pro.release.clientReports).toBe('planned')
-    expect(PLAN_CATALOG.enterprise.release.clientReports).toBe('planned')
+    expect(PLAN_CATALOG.pro.release.clientReports).toBe('available')
+    expect(PLAN_CATALOG.enterprise.release.clientReports).toBe('available')
+    expect(PLAN_CATALOG.pro.reportBranding).toBe('fimmick')
+    expect(PLAN_CATALOG.enterprise.reportBranding).toBe('fimmick')
+    expect(PLAN_CATALOG.enterprise.release.whiteLabelPdf).toBe('planned')
+    expect(PLAN_CATALOG.enterprise.exportFormats).not.toContain('pdf')
   })
 
-  it('captures the approved Pro and Enterprise target boundaries without claiming release', () => {
+  it('captures the approved Pro and Enterprise boundaries without claiming future capabilities', () => {
     expect(PLAN_CATALOG.pro).toMatchObject({
       maxBrands: 3,
       historyWeeks: 26,
@@ -49,13 +53,13 @@ describe('Plan Catalog', () => {
     expect(PLAN_CATALOG.pro.release).toMatchObject({
       monitoring: 'planned',
       competitorSummary: 'planned',
-      clientReports: 'planned',
+      clientReports: 'available',
     })
     expect(PLAN_CATALOG.enterprise).toMatchObject({
       maxBrands: 10,
       historyWeeks: null,
       competitorMode: 'full',
-      reportBranding: 'white-label',
+      reportBranding: 'fimmick',
       supportLevel: 'priority',
     })
     expect(PLAN_CATALOG.enterprise.release).toMatchObject({

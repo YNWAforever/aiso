@@ -44,6 +44,17 @@ describe('PRODUCT_FACTS', () => {
     )
   })
 
+  it('describes the released report as an attributed online report in both locales', () => {
+    expect(enMessages.pricing.row_client_report).toBe(
+      'Online client report with Fimmick AISO attribution',
+    )
+    expect(zhMessages.pricing.row_client_report).toBe(
+      '附 Fimmick AISO 署名的網上客戶報告',
+    )
+    expect(enMessages.pricing.row_client_report).not.toMatch(/pdf|white[- ]label/i)
+    expect(zhMessages.pricing.row_client_report).not.toMatch(/PDF|白標/i)
+  })
+
   it('uses the approved platform list in conversion and dashboard copy', () => {
     expect(enMessages.upsell.body).toBe(
       'See your Share of Voice across ChatGPT, Google AI, Perplexity, Claude, and Gemini — automatically.',
@@ -129,8 +140,50 @@ describe('PRODUCT_FACTS', () => {
     expect(source).toContain('table-fixed')
     expect(source).toContain("aria-label={t('comparison_label')}")
     expect(source).not.toContain('scale-[1.02]')
+    expect(source).not.toContain("`${t('coming_soon')}: ${t('row_client_report')}`")
+    expect(source).not.toContain("t('row_pdf')")
   })
 
+
+  it('defines the complete client-report browser contract', () => {
+    const source = readFileSync(resolve(process.cwd(), 'e2e/client-reports.spec.ts'), 'utf8')
+
+    for (const contract of [
+      'eligible scan CTA',
+      'ineligible scan CTA',
+      'branding save and initials fallback',
+      'baseline draft',
+      'comparable draft with improvement and regression',
+      'AI failure preserves editable deterministic summary',
+      'manual edit, preview, first publish, copy, and open',
+      'newer draft leaves published version unchanged',
+      'publish update changes public content',
+      'counters and contact redirect',
+      'rotate and revoke invalidate old links',
+      'invalid public link is a neutral 404',
+      'Free and Basic API denial and upgrade state',
+      'keyboard focus, live announcements, and target sizes',
+      'no console errors or horizontal overflow',
+      'client payload excludes private fields and secrets',
+    ]) {
+      expect(source).toContain(contract)
+    }
+
+    expect(source).toContain("['en', 'zh-HK']")
+    expect(source).toContain('width: 375, height: 812')
+    expect(source).toContain('width: 1440, height: 900')
+    expect(source).toContain('const redirectPromise = publicPage.waitForResponse')
+    expect(source).toContain('await contactLink.click()')
+    expect(source).not.toContain('const redirect = await context.request.get(new URL(contactHref!')
+  })
+
+  it('keeps both E2E roots discoverable by the repository Playwright config', () => {
+    const source = readFileSync(resolve(process.cwd(), 'playwright.config.ts'), 'utf8')
+    expect(source).toContain("testDir: '.'")
+    expect(source).toContain("'tests/e2e/**/*.spec.ts'")
+    expect(source).toContain("'e2e/**/*.spec.ts'")
+    expect(source).toContain("testIgnore: 'e2e/**/*.spec.ts'")
+  })
 
   it('exposes the pricing comparison as a semantic table', () => {
     const source = readFileSync(resolve(process.cwd(), 'app/[lang]/pricing/page.tsx'), 'utf8')

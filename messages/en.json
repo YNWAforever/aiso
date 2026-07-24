@@ -378,7 +378,7 @@
     "row_prompts": "Custom prompt bank",
     "row_alerts": "Share-of-Voice alerts",
     "row_competitor": "Competitor citation benchmarking",
-    "row_client_report": "Client-ready report",
+    "row_client_report": "Online client report with Fimmick AISO attribution",
     "row_authority": "5-Layer Authority Engine",
     "row_authority_s": "Basic",
     "row_authority_p": "Full (13 industries × 11 regions)",

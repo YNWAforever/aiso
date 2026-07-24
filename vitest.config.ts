@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
-    exclude: ['**/node_modules/**', 'tests/e2e/**', '**/.worktrees/**'],
+    exclude: ['**/node_modules/**', 'tests/e2e/**', 'e2e/**', '**/.worktrees/**', '**/.superpowers/**'],
     // Inline @neondatabase/auth so Vite transforms it and applies the `next/headers`
     // alias below inside its compiled source (Vitest externalizes node_modules by
     // default, which bypasses resolve.alias for bare imports inside the package).

@@ -10,6 +10,7 @@ import {
   getPlanDefinition,
   type CheckoutPlanId,
   type PricingAllowanceProjection,
+  type ReleaseState,
 } from '@/lib/plans/catalog'
 
 /* ── Types ──────────────────────────────────────────────────── */
@@ -113,6 +114,9 @@ export default function PricingPage() {
     ]),
   ) as Record<CheckoutPlanId, PricingAllowanceProjection>
 
+  const releaseHighlight = (state: ReleaseState, label: string) =>
+    state === 'available' ? label : `${t('coming_soon')}: ${label}`
+
   const rows: FeatureRow[] = [
     { label: t('row_scans'), basic: allowances.basic.scans, pro: allowances.pro.scans, enterprise: allowances.enterprise.scans },
     {
@@ -142,12 +146,6 @@ export default function PricingPage() {
       enterprise: enterprise.release.clientReports === 'available' ? true : t('coming_soon'),
     },
     { label: t('row_csv'), basic: false, pro: false, enterprise: enterprise.features.csv_export },
-    {
-      label: t('row_pdf'),
-      basic: false,
-      pro: false,
-      enterprise: enterprise.release.whiteLabelPdf === 'available' ? true : t('coming_soon'),
-    },
     { label: t('row_api'), basic: false, pro: false, enterprise: false },
     { label: t('row_custom_platforms'), basic: false, pro: false, enterprise: false },
     { label: t('row_support'), basic: false, pro: false, enterprise: t('priority_support') },
@@ -185,9 +183,9 @@ export default function PricingPage() {
       t('row_fixpack_adv'),
       t('row_prompts'),
       t('row_alerts'),
-      `${t('coming_soon')}: ${t('row_monitoring')}`,
-      `${t('coming_soon')}: ${t('row_competitor')}`,
-      `${t('coming_soon')}: ${t('row_client_report')}`,
+      releaseHighlight(pro.release.monitoring, t('row_monitoring')),
+      releaseHighlight(pro.release.competitorSummary, t('row_competitor')),
+      releaseHighlight(pro.release.clientReports, t('row_client_report')),
     ],
     enterprise: [
       allowances.enterprise.scans,
@@ -196,9 +194,8 @@ export default function PricingPage() {
       t('row_competitor'),
       t('row_csv'),
       t('priority_support'),
-      `${t('coming_soon')}: ${t('row_monitoring')}`,
-      `${t('coming_soon')}: ${t('row_client_report')}`,
-      `${t('coming_soon')}: ${t('row_pdf')}`,
+      releaseHighlight(enterprise.release.monitoring, t('row_monitoring')),
+      releaseHighlight(enterprise.release.clientReports, t('row_client_report')),
     ],
   }
   return (
