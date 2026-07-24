@@ -92,11 +92,28 @@ export function ReportBuilder({
   const [pending, setPending] = useState<string | null>(null)
   const summaryRef = useRef(initialSnapshot.executiveSummary)
   const revisionRef = useRef(0)
+  const allowUnloadRef = useRef(false)
   const dirty = hasUnsavedReportChanges(savedSummary, summary)
 
   useEffect(() => {
+    let rearmUnloadGuardTimeout: number | null = null
+    const restoreUnloadGuard = () => {
+      if (rearmUnloadGuardTimeout !== null) {
+        window.clearTimeout(rearmUnloadGuardTimeout)
+        rearmUnloadGuardTimeout = null
+      }
+      allowUnloadRef.current = false
+    }
+    const prepareFailOpen = () => {
+      allowUnloadRef.current = true
+      rearmUnloadGuardTimeout = window.setTimeout(() => {
+        rearmUnloadGuardTimeout = null
+        allowUnloadRef.current = false
+      }, 1_000)
+      return restoreUnloadGuard
+    }
     const warn = (event: BeforeUnloadEvent) => {
-      if (!dirty) return
+      if (!dirty || allowUnloadRef.current) return
       event.preventDefault()
       event.returnValue = t('unsaved_warning')
     }
@@ -126,12 +143,14 @@ export function ReportBuilder({
       browser: window,
       shouldBlock: () => dirty,
       confirmLeave: () => window.confirm(t('unsaved_warning')),
+      prepareFailOpen,
     })
     document.addEventListener('click', guardSameAppNavigation, true)
     return () => {
       window.removeEventListener('beforeunload', warn)
       removeReportNavigationBlocker()
       document.removeEventListener('click', guardSameAppNavigation, true)
+      restoreUnloadGuard()
     }
   }, [dirty, t])
 

@@ -4,6 +4,7 @@ type PopStateListener = (event: RuntimePopStateEvent) => void
 type NavigationBlockerInstaller = (options: {
   browser: RuntimeBrowser
   confirmLeave: () => boolean
+  prepareFailOpen?: () => () => void
   shouldBlock: () => boolean
 }) => () => void
 
@@ -25,15 +26,41 @@ class RuntimeBrowser {
   private index: number
   private readonly captureListeners: PopStateListener[] = []
   private readonly bubbleListeners: PopStateListener[] = []
+  private readonly beforeUnloadListeners: EventListener[] = []
   private readonly fullNavigationListeners: Array<() => void> = []
   private pendingTraversals = 0
   private timerSequence = 0
+  private abandonNextNavigation = false
+  private nextNavigationError: Error | null = null
   private readonly timers = new Map<number, ReturnType<typeof setTimeout>>()
+
+  fullNavigations = 0
+  fullNavigationThrows = 0
+  nativeUnloadPrompts = 0
+  readonly timerErrors: unknown[] = []
 
   readonly location = {
     href: '',
     assign: (url: string | URL) => {
-      this.location.href = new URL(url, this.location.href).href
+      const destination = new URL(url, this.location.href).href
+      const beforeUnload = new Event('beforeunload', { cancelable: true })
+      for (const listener of this.beforeUnloadListeners) listener(beforeUnload)
+      if (beforeUnload.defaultPrevented) {
+        this.nativeUnloadPrompts += 1
+        return
+      }
+      if (this.nextNavigationError) {
+        const error = this.nextNavigationError
+        this.nextNavigationError = null
+        this.fullNavigationThrows += 1
+        throw error
+      }
+      if (this.abandonNextNavigation) {
+        this.abandonNextNavigation = false
+        return
+      }
+      this.location.href = destination
+      this.fullNavigations += 1
       for (const listener of this.fullNavigationListeners) listener()
     },
   }
@@ -45,7 +72,11 @@ class RuntimeBrowser {
     const id = ++this.timerSequence
     const timer = setTimeout(() => {
       this.timers.delete(id)
-      handler()
+      try {
+        handler()
+      } catch (error) {
+        this.timerErrors.push(error)
+      }
     }, 0)
     this.timers.set(id, timer)
     return id
@@ -118,12 +149,25 @@ class RuntimeBrowser {
     this.fullNavigationListeners.push(listener)
   }
 
+  abandonNextFullNavigation() {
+    this.abandonNextNavigation = true
+  }
+
+  throwOnNextFullNavigation(error: Error) {
+    this.nextNavigationError = error
+  }
+
   addEventListener(
     type: string,
     listener: EventListenerOrEventListenerObject,
     options?: boolean | AddEventListenerOptions,
   ) {
-    if (type !== 'popstate' || typeof listener !== 'function') return
+    if (typeof listener !== 'function') return
+    if (type === 'beforeunload') {
+      this.beforeUnloadListeners.push(listener)
+      return
+    }
+    if (type !== 'popstate') return
     const capture = typeof options === 'boolean' ? options : options?.capture === true
     ;(capture ? this.captureListeners : this.bubbleListeners).push(listener as PopStateListener)
   }
@@ -133,7 +177,13 @@ class RuntimeBrowser {
     listener: EventListenerOrEventListenerObject,
     options?: boolean | EventListenerOptions,
   ) {
-    if (type !== 'popstate' || typeof listener !== 'function') return
+    if (typeof listener !== 'function') return
+    if (type === 'beforeunload') {
+      const index = this.beforeUnloadListeners.indexOf(listener)
+      if (index !== -1) this.beforeUnloadListeners.splice(index, 1)
+      return
+    }
+    if (type !== 'popstate') return
     const capture = typeof options === 'boolean' ? options : options?.capture === true
     const listeners = capture ? this.captureListeners : this.bubbleListeners
     const index = listeners.indexOf(listener as PopStateListener)
@@ -243,14 +293,35 @@ function createRemountingBuilderRuntime({
   }
   const nextPopstateUrls: string[] = []
   let removeNavigationBlocker: (() => void) | null = null
+  let allowUnload = false
+  let rearmUnloadGuardTimeout: number | null = null
+
+  const warnBeforeUnload = (event: Event) => {
+    if (!builder.dirty || allowUnload) return
+    event.preventDefault()
+  }
+  const restoreUnloadGuard = () => {
+    if (rearmUnloadGuardTimeout !== null) {
+      runtime.clearTimeout(rearmUnloadGuardTimeout)
+      rearmUnloadGuardTimeout = null
+    }
+    allowUnload = false
+  }
+  const prepareFailOpen = () => {
+    allowUnload = true
+    rearmUnloadGuardTimeout = runtime.setTimeout(restoreUnloadGuard, 1_000)
+    return restoreUnloadGuard
+  }
 
   const mount = () => {
     if (builder.mounted) return
     builder.mounted = true
     builder.mounts += 1
+    runtime.addEventListener('beforeunload', warnBeforeUnload)
     removeNavigationBlocker = installReportNavigationBlocker({
       browser: runtime,
       confirmLeave,
+      prepareFailOpen,
       shouldBlock: () => builder.dirty,
     })
   }
@@ -258,6 +329,8 @@ function createRemountingBuilderRuntime({
     if (!builder.mounted) return
     removeNavigationBlocker?.()
     removeNavigationBlocker = null
+    runtime.removeEventListener('beforeunload', warnBeforeUnload)
+    restoreUnloadGuard()
     builder.mounted = false
     builder.routeLeaves += 1
   }
@@ -803,6 +876,8 @@ describe('ReportBuilder browser-history navigation guard', () => {
     await runtime.settle()
 
     expect(prompts).toBe(1)
+    expect(runtime.nativeUnloadPrompts).toBe(0)
+    expect(runtime.fullNavigations).toBe(1)
     expect(nextPopstateUrls).toEqual([])
     expect(runtime.location.href).toBe(nextUrl)
     expect(builder).toEqual({
@@ -812,6 +887,93 @@ describe('ReportBuilder browser-history navigation guard', () => {
       mounts: 2,
       routeLeaves: 2,
     })
+    cleanup()
+  })
+
+  it('restores dirty unload protection when fail-open full navigation throws', async () => {
+    const installReportNavigationBlocker = await loadNavigationBlocker()
+    if (!installReportNavigationBlocker) return
+    let prompts = 0
+    const {
+      builder,
+      cleanup,
+      navigateToNextRoute,
+      runtime,
+    } = createRemountingBuilderRuntime({
+      installReportNavigationBlocker,
+      confirmLeave: () => {
+        prompts += 1
+        return false
+      },
+      supportsNavigation: true,
+    })
+
+    navigateToNextRoute()
+    runtime.history.back()
+    await runtime.settle()
+    runtime.replaceEntryState(2, { __NA: true, route: 'BROKEN-B1' })
+    builder.edit = 'Unsaved edit before assign throws'
+    builder.dirty = true
+    const assignError = new Error('assign failed')
+    runtime.throwOnNextFullNavigation(assignError)
+
+    runtime.history.go(-2)
+    await runtime.settle()
+
+    expect(prompts).toBe(1)
+    expect(runtime.fullNavigationThrows).toBe(1)
+    expect(runtime.nativeUnloadPrompts).toBe(0)
+    expect(runtime.fullNavigations).toBe(0)
+    expect(builder.mounted).toBe(true)
+    expect(runtime.timerErrors).toEqual([assignError])
+
+    runtime.location.assign(runtime.location.href)
+
+    expect(runtime.nativeUnloadPrompts).toBe(1)
+    expect(runtime.fullNavigations).toBe(0)
+    expect(builder.mounted).toBe(true)
+    cleanup()
+  })
+
+  it('re-arms dirty unload protection when fail-open navigation does not complete', async () => {
+    const installReportNavigationBlocker = await loadNavigationBlocker()
+    if (!installReportNavigationBlocker) return
+    let prompts = 0
+    const {
+      builder,
+      cleanup,
+      navigateToNextRoute,
+      runtime,
+    } = createRemountingBuilderRuntime({
+      installReportNavigationBlocker,
+      confirmLeave: () => {
+        prompts += 1
+        return false
+      },
+      supportsNavigation: true,
+    })
+
+    navigateToNextRoute()
+    runtime.history.back()
+    await runtime.settle()
+    runtime.replaceEntryState(2, { __NA: true, route: 'BROKEN-B1' })
+    builder.edit = 'Unsaved edit before navigation stalls'
+    builder.dirty = true
+    runtime.abandonNextFullNavigation()
+
+    runtime.history.go(-2)
+    await runtime.settle()
+
+    expect(prompts).toBe(1)
+    expect(runtime.nativeUnloadPrompts).toBe(0)
+    expect(runtime.fullNavigations).toBe(0)
+    expect(builder.mounted).toBe(true)
+
+    runtime.location.assign(runtime.location.href)
+
+    expect(runtime.nativeUnloadPrompts).toBe(1)
+    expect(runtime.fullNavigations).toBe(0)
+    expect(builder.mounted).toBe(true)
     cleanup()
   })
 })

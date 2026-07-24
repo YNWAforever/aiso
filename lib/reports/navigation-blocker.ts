@@ -80,10 +80,12 @@ function reportNavigationRestorationHopBudget(historyLength: number): number {
 export function installReportNavigationBlocker({
   browser,
   confirmLeave,
+  prepareFailOpen,
   shouldBlock,
 }: {
   browser: ReportNavigationBrowser
   confirmLeave: () => boolean
+  prepareFailOpen?: () => () => void
   shouldBlock: () => boolean
 }): () => void {
   const url = browser.location.href
@@ -122,10 +124,16 @@ export function installReportNavigationBlocker({
 
   const failOpenRestoration = () => {
     if (!restoration) return
+    const restoreUnloadGuard = prepareFailOpen?.()
     stopRestoration()
     // A full navigation keeps the visible URL and rendered route aligned even
     // if another script removed or rewrote the owned history entry.
-    browser.location.assign(browser.location.href)
+    try {
+      browser.location.assign(browser.location.href)
+    } catch (error) {
+      restoreUnloadGuard?.()
+      throw error
+    }
   }
 
   const continueRestoration = () => {
