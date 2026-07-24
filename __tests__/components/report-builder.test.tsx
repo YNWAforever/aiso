@@ -106,10 +106,15 @@ describe('ReportBuilder', () => {
       join(process.cwd(), 'components/reports/ReportBuilder.tsx'),
       'utf8',
     )
+    const navigationSource = readFileSync(
+      join(process.cwd(), 'lib/reports/navigation-blocker.ts'),
+      'utf8',
+    )
 
     expect(source).toContain('aria-live="polite"')
     expect(source).toContain('beforeunload')
-    expect(source).toContain('popstate')
+    expect(source).toContain('installReportNavigationBlocker')
+    expect(navigationSource).toContain('popstate')
     expect(source).toContain('onNavigate')
     expect(source).toContain('navigator.clipboard.writeText')
     expect(source).toContain('window.open')

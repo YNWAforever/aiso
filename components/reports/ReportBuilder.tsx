@@ -26,11 +26,13 @@ import {
   type ReportSaveResponse,
   type ReportWorkspaceReport,
 } from '@/lib/reports/client-dto'
+import { installReportNavigationBlocker } from '@/lib/reports/navigation-blocker'
 import type { ClientReportSnapshotV1 } from '@/lib/reports/types'
 import { ReportPreview } from './ReportPreview'
 import { ReportStatusBadge } from './ReportStatusBadge'
 
 export type { ReportWorkspaceReport } from '@/lib/reports/client-dto'
+export { installReportNavigationBlocker } from '@/lib/reports/navigation-blocker'
 
 type BuilderStep = 'compose' | 'review' | 'publish'
 type NoticeKind = 'idle' | 'loading' | 'success' | 'warning' | 'error'
@@ -119,16 +121,16 @@ export function ReportBuilder({
       event.preventDefault()
       event.stopPropagation()
     }
-    const guardBrowserBack = () => {
-      if (dirty && !window.confirm(t('unsaved_warning'))) window.history.forward()
-    }
-
     window.addEventListener('beforeunload', warn)
-    window.addEventListener('popstate', guardBrowserBack)
+    const removeReportNavigationBlocker = installReportNavigationBlocker({
+      browser: window,
+      shouldBlock: () => dirty,
+      confirmLeave: () => window.confirm(t('unsaved_warning')),
+    })
     document.addEventListener('click', guardSameAppNavigation, true)
     return () => {
       window.removeEventListener('beforeunload', warn)
-      window.removeEventListener('popstate', guardBrowserBack)
+      removeReportNavigationBlocker()
       document.removeEventListener('click', guardSameAppNavigation, true)
     }
   }, [dirty, t])
