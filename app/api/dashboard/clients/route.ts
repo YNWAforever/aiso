@@ -52,6 +52,12 @@ export async function POST(req: NextRequest) {
     if (error.message?.includes('BRAND_LIMIT_REACHED')) {
       return NextResponse.json({ error: 'BRAND_LIMIT_REACHED', plan, limit }, { status: 403 })
     }
+    console.error('[dashboard/clients] insert failed', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    })
     return NextResponse.json({ error: 'Failed to create brand' }, { status: 500 })
   }
 
