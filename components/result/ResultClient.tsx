@@ -1,21 +1,20 @@
 'use client'
-import { useState } from 'react'
 import Link from 'next/link'
 import { Zap } from 'lucide-react'
 import { useLocale } from 'next-intl'
-import { TrialCta }         from './TrialCta'
 import { ScoreReveal }      from './ScoreReveal'
 import { TopIssueCard }     from './TopIssueCard'
-import { EmailCaptureGate } from './EmailCaptureGate'
 import { LockedPreview }    from './LockedPreview'
 import { DeepGeoSection }   from './DeepGeoSection'
 import { ImpactTeaser }     from './ImpactTeaser'
 import { ImpactPanel }      from './ImpactPanel'
 import { ShareButton }      from './ShareButton'
-import { computeImpact }    from '@/lib/impact'
+import { AccountUnlockCard } from './AccountUnlockCard'
+import { computeImpact, type PlatformStatus } from '@/lib/impact'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
 import { getCheckExplanations }  from '@/lib/checkExplanations'
 import type { Scan, CheckResult, ScanResults } from '@/lib/types'
+import type { PublicResultSummary } from '@/lib/result-access'
 
 /* ── Check key lists ─────────────────────────────────────────── */
 const CORE_KEYS = ['c1_robots','c2_llms_txt','c3_bot_access','c4_structured_data','c5_extractability'] as const
@@ -80,6 +79,8 @@ const UI_EN = {
   geoTitle:  'GEO CHECKS',
   geoSubtitle: 'Generative Engine Optimisation — content quality for AI citation',
   scanAnother: '← Scan another URL',
+  platforms: 'AI platform visibility',
+  openFixPack: 'Open your Fix Pack',
 }
 
 const UI_ZH_HK: typeof UI_EN = {
@@ -94,6 +95,8 @@ const UI_ZH_HK: typeof UI_EN = {
   geoTitle:  'GEO 檢查',
   geoSubtitle: '生成式引擎優化——內容能否被 AI 引用的質素指標',
   scanAnother: '← 掃描另一個網址',
+  platforms: 'AI 平台可見度',
+  openFixPack: '開啟你的 Fix Pack',
 }
 
 /* ── Helpers ────────────────────────────────────────────────── */
@@ -103,17 +106,13 @@ function getResult(results: Record<string, unknown>, key: string): CheckResult |
   return undefined
 }
 
-function countStatuses(results: Record<string, unknown>) {
-  const allKeys = [...CORE_KEYS, ...EXT_KEYS, ...GEO_KEYS]
-  let pass = 0, warn = 0, fail = 0
-  for (const k of allKeys) {
-    const r = getResult(results, k)
-    if (!r) continue
-    if (r.status === 'pass') pass++
-    else if (r.status === 'warn') warn++
-    else fail++
-  }
-  return { pass, warn, fail, total: pass + warn + fail }
+const PLATFORM_STATUS_LABELS: Record<'en' | 'zh-HK', Record<PlatformStatus, string>> = {
+  en: { visible: 'Visible', partial: 'Partial', blocked: 'Hidden' },
+  'zh-HK': { visible: '可見', partial: '部分可見', blocked: '隱藏' },
+}
+
+export function getPlatformStatusLabel(status: PlatformStatus, locale: string) {
+  return PLATFORM_STATUS_LABELS[locale === 'zh-HK' ? 'zh-HK' : 'en'][status]
 }
 
 /* ── Section: check list ─────────────────────────────────────── */
@@ -147,17 +146,24 @@ function CheckSection({ title, subtitle, keys, results }: {
 }
 
 /* ── Main component ──────────────────────────────────────────── */
-interface Props { scan: Scan; lang: string }
+type Props = {
+  lang: string
+  summary: PublicResultSummary
+  fullScan?: Scan
+}
 
-export function ResultClient({ scan, lang }: Props) {
+export function ResultClient({ lang, summary, fullScan }: Props) {
   const locale = useLocale()
   const ui = locale === 'zh-HK' ? UI_ZH_HK : UI_EN
-  const [phase, setPhase] = useState<'locked' | 'unlocked'>('locked')
-  const [unlockedEmail, setUnlockedEmail] = useState('')
-
-  const r = scan.results as Record<string, unknown>
-  const { pass, warn, fail, total } = countStatuses(r)
-  const impact = computeImpact(r, { score: scan.score, grade: scan.grade ?? 'F', industry: scan.industry })
+  const { pass, warn, fail, total } = summary.counts
+  const r = (fullScan?.results ?? {}) as Record<string, unknown>
+  const impact = fullScan
+    ? computeImpact(r, { score: fullScan.score, grade: fullScan.grade ?? 'F', industry: fullScan.industry })
+    : null
+  const publicImpact = { ...summary.teaser, aiReadablePercent: null, quickWins: [] }
+  const topIssueResults = summary.topIssueKey && summary.topIssueStatus
+    ? { [summary.topIssueKey]: { status: summary.topIssueStatus, message: 'public_summary' } }
+    : {}
 
   // GEO rich data
   type C17 = { qualityScore?: number; authorityBreakdown?: Record<string, number>; citationsPerThousandWords?: number; totalLinks?: number; externalLinks?: number }
@@ -184,7 +190,7 @@ export function ResultClient({ scan, lang }: Props) {
           </span>
         </Link>
         <div className="flex items-center gap-3">
-          <ShareButton domain={scan.domain} score={scan.score} grade={scan.grade ?? 'F'} />
+          <ShareButton domain={summary.domain} score={summary.score} grade={summary.grade} />
           <Link
             href={`/${lang}/pricing`}
             className="text-sm font-semibold bg-primary text-primary-foreground px-4 py-1.5 rounded-lg hover:bg-primary/90 transition"
@@ -197,13 +203,15 @@ export function ResultClient({ scan, lang }: Props) {
       <main className="max-w-2xl mx-auto px-4 py-10 space-y-5">
 
         {/* 1. Score reveal */}
-        <ScoreReveal
-          score={scan.score}
-          grade={scan.grade ?? 'F'}
-          domain={scan.domain}
-          industry={scan.industry}
-          region={scan.region}
-        />
+        <div data-testid="result-score">
+          <ScoreReveal
+            score={summary.score}
+            grade={summary.grade}
+            domain={summary.domain}
+            industry={summary.industry}
+            region={summary.region}
+          />
+        </div>
 
         {/* 2. Summary pills */}
         <div className="flex items-center gap-2 flex-wrap text-xs">
@@ -216,48 +224,72 @@ export function ResultClient({ scan, lang }: Props) {
         </div>
 
         {/* 3. #1 Issue card */}
-        <TopIssueCard results={scan.results as ScanResults & Record<string, unknown>} failCount={fail + warn} />
+        <div data-testid="result-top-issue">
+          <TopIssueCard
+            results={topIssueResults as ScanResults & Record<string, unknown>}
+            failCount={fail + warn}
+          />
+        </div>
 
-        {/* 4. Locked preview or full results */}
-        {phase === 'locked' ? (
+        {/* 4. Public teaser or owner-only full results */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <p className="text-xs font-bold text-slate-500 tracking-widest mb-3">{ui.platforms}</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {summary.teaser.platformVisibility.map(platform => (
+              <div key={platform.platform} className="flex items-center justify-between gap-3 text-sm">
+                <span className="font-medium text-slate-700">{platform.label}</span>
+                <span
+                  data-status={platform.status}
+                  aria-label={`${platform.label}: ${getPlatformStatusLabel(platform.status, locale)}`}
+                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    platform.status === 'visible'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : platform.status === 'partial'
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-red-100 text-red-700'
+                  }`}
+                >
+                  {getPlatformStatusLabel(platform.status, locale)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {fullScan && impact ? (
           <>
-            <ImpactTeaser impact={impact} score={scan.score} />
-            <LockedPreview checkCount={total} />
-            <EmailCaptureGate
-              scanId={scan.id}
-              onUnlocked={(email) => { setUnlockedEmail(email); setPhase('unlocked') }}
-            />
+            <ImpactPanel impact={impact} score={fullScan.score} grade={fullScan.grade ?? 'F'} />
+
+            <div data-testid="full-check-breakdown" className="space-y-5">
+              <CheckSection title={ui.coreTitle} keys={CORE_KEYS} results={r} />
+              <CheckSection
+                title={ui.extTitle}
+                subtitle={ui.extSubtitle}
+                keys={EXT_KEYS}
+                results={r}
+              />
+              <CheckSection
+                title={ui.geoTitle}
+                subtitle={ui.geoSubtitle}
+                keys={GEO_KEYS}
+                results={r}
+              />
+              <DeepGeoSection c17={c17} c18={c18} c19={c19} c20={c20} />
+            </div>
+
+            <Link
+              href={`/${lang}/dashboard`}
+              data-testid="fix-pack-action"
+              className="block rounded-2xl bg-slate-900 px-6 py-4 text-center text-sm font-bold text-white hover:bg-slate-800 transition"
+            >
+              {ui.openFixPack}
+            </Link>
           </>
         ) : (
           <>
-            {/* Impact breakdown */}
-            <ImpactPanel impact={impact} score={scan.score} grade={scan.grade ?? 'F'} />
-
-            {/* Full check breakdown */}
-            <CheckSection title={ui.coreTitle} keys={CORE_KEYS} results={r} />
-            <CheckSection
-              title={ui.extTitle}
-              subtitle={ui.extSubtitle}
-              keys={EXT_KEYS}
-              results={r}
-            />
-            <CheckSection
-              title={ui.geoTitle}
-              subtitle={ui.geoSubtitle}
-              keys={GEO_KEYS}
-              results={r}
-            />
-
-            {/* Deep GEO section */}
-            <DeepGeoSection c17={c17} c18={c18} c19={c19} c20={c20} />
-
-            {/* Trial CTA — only shown in unlocked state */}
-            <TrialCta
-              email={unlockedEmail}
-              scanId={scan.id}
-              lang={lang}
-              failCount={fail + warn}
-            />
+            <ImpactTeaser impact={publicImpact} score={summary.score} />
+            <LockedPreview checkCount={total} />
+            <AccountUnlockCard scanId={summary.id} lang={lang} />
           </>
         )}
 

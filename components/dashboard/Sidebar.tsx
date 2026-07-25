@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ProfileWithAccount } from '@/lib/types'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 
 interface Props {
   profile: ProfileWithAccount
@@ -17,6 +18,7 @@ interface Props {
 }
 
 const PLAN_STYLES: Record<string, string> = {
+  free:       'bg-muted text-muted-foreground',
   basic:      'bg-secondary text-secondary-foreground',
   pro:        'bg-primary/10 text-primary',
   enterprise: 'bg-violet-100 text-violet-700',
@@ -32,7 +34,7 @@ interface NavItem {
 export function Sidebar({ profile, lang, clientId }: Props) {
   const pathname = usePathname()
   const router   = useRouter()
-  const plan     = profile.accounts?.plan ?? 'basic'
+  const { plan, features } = resolveCommercialEntitlement(profile.accounts)
   const base     = `/${lang}/dashboard`
 
   const supabase = createBrowserClient(
@@ -86,7 +88,7 @@ export function Sidebar({ profile, lang, clientId }: Props) {
             >
               <Icon className="size-4 flex-shrink-0" />
               <span className="flex-1">{label}</span>
-              {proOnly && plan === 'basic' && (
+              {proOnly && !features.edit_prompts && (
                 <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-semibold">
                   PRO
                 </span>

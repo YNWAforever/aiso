@@ -1,10 +1,10 @@
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { db } from '@/lib/db'
 import { BrandCard }       from '@/components/dashboard/BrandCard'
 import { AddBrandWizard }  from '@/components/dashboard/AddBrandWizard'
 import { RecentScans }     from '@/components/dashboard/RecentScans'
-import { maxBrandsForPlan } from '@/lib/tier'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 import { BarChart2, Search } from 'lucide-react'
 import type { Client, PulseWeeklySummary, Scan } from '@/lib/types'
 
@@ -16,41 +16,38 @@ export default async function DashboardPage({
   const { lang } = await params
   const t = await getTranslations('dashboard')
   const profile  = await requireAuth(lang)
-  const supabase = await createServerSupabaseClient()
+  const sql = db()
 
-  const [{ data: clients }, { data: scans }] = await Promise.all([
-    supabase
-      .from('clients')
-      .select('*')
-      .eq('account_id', profile.account_id)
-      .eq('status', 'active')
-      .order('created_at'),
+  const [clients, scans] = await Promise.all([
+    sql`
+      select * from clients
+      where account_id = ${profile.account_id} and status = 'active'
+      order by created_at
+    `,
+    sql`
+      select id, domain, score, created_at from scans
+      where account_id = ${profile.account_id}
+      order by created_at desc
+      limit 10
+    `,
+  ]) as [Client[], Pick<Scan, 'id' | 'domain' | 'score' | 'created_at'>[]]
 
-    supabase
-      .from('scans')
-      .select('id, domain, score, created_at')
-      .eq('account_id', profile.account_id)
-      .order('created_at', { ascending: false })
-      .limit(10),
-  ])
-
-  const clientIds = (clients ?? []).map((c: Client) => c.id)
-  const { data: summaries } = clientIds.length
-    ? await supabase
-        .from('pulse_weekly_summary')
-        .select('client_id, sov_score, scan_week')
-        .in('client_id', clientIds)
-        .is('platform', null)
-        .order('scan_week', { ascending: false })
-    : { data: [] }
+  const clientIds = clients.map(c => c.id)
+  const summaries = clientIds.length
+    ? await sql`
+        select client_id, sov_score, scan_week from pulse_weekly_summary
+        where client_id = any(${clientIds}::uuid[]) and platform is null
+        order by scan_week desc
+      ` as Pick<PulseWeeklySummary, 'client_id' | 'sov_score' | 'scan_week'>[]
+    : []
 
   const latestSov: Record<string, number> = {}
-  for (const s of (summaries ?? []) as PulseWeeklySummary[]) {
+  for (const s of summaries) {
     if (!(s.client_id in latestSov)) latestSov[s.client_id] = Number(s.sov_score)
   }
 
-  const plan    = profile.accounts?.plan ?? 'basic'
-  const atLimit = (clients?.length ?? 0) >= maxBrandsForPlan(plan)
+  const entitlement = resolveCommercialEntitlement(profile.accounts)
+  const atLimit = (clients?.length ?? 0) >= entitlement.features.max_brands
   const hasClients = clients && clients.length > 0
   const hasScans   = scans && scans.length > 0
 
@@ -73,7 +70,7 @@ export default async function DashboardPage({
               {!atLimit && <AddBrandWizard lang={lang} />}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {(clients as Client[]).map((c, i) => (
+              {clients.map((c, i) => (
                 <div key={c.id} className="animate-fade-up" style={{ animationDelay: `${i * 60}ms` }}>
                   <BrandCard client={c} lang={lang} sovScore={latestSov[c.id]} />
                 </div>
@@ -81,7 +78,7 @@ export default async function DashboardPage({
             </div>
             {atLimit && (
               <div className="mt-3">
-                <AddBrandWizard lang={lang} disabled plan={plan} />
+                <AddBrandWizard lang={lang} disabled plan={entitlement.plan} />
               </div>
             )}
           </div>
@@ -104,7 +101,7 @@ export default async function DashboardPage({
         {hasScans && (
           <div>
             <p className="text-xs font-semibold text-muted-foreground tracking-widest uppercase mb-3">{t('recent_scans')}</p>
-            <RecentScans scans={scans as Pick<Scan, 'id' | 'domain' | 'score' | 'created_at'>[]} lang={lang} />
+            <RecentScans scans={scans} lang={lang} />
           </div>
         )}
       </main>

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { authClient } from '@/lib/auth-client'
+import { normalizeAuthNext } from '@/lib/auth-navigation'
 
 const COPY_EN = {
   signingIn: 'Signing you in…',
@@ -13,13 +14,6 @@ const COPY_ZH_HK: typeof COPY_EN = {
   signingIn: '正在為你登入…',
   failed: '登入未能完成，請再試一次。',
   backToLogin: '返回登入頁',
-}
-
-// Only allow same-origin relative paths — `next` comes from the URL and must
-// not become an open redirect.
-function safeNext(next: string | undefined, lang: string) {
-  if (next && next.startsWith('/') && !next.startsWith('//')) return next
-  return `/${lang}/dashboard`
 }
 
 /**
@@ -47,7 +41,7 @@ export function AuthComplete({ lang, next }: { lang: string; next?: string }) {
       .getSession()
       .then(({ data }) => {
         if (data?.session) {
-          router.replace(safeNext(next, lang))
+          router.replace(normalizeAuthNext(lang, next))
         } else {
           setFailed(true)
         }

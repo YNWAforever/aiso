@@ -1,11 +1,11 @@
 import { useTranslations } from 'next-intl'
-import { getPlanFeatures } from '@/lib/tier'
 import type {
   AgentCompetitor,
   LocalTrustAction,
   LocalTrustBucketKey,
   LocalTrustBucketScore,
   LocalTrustProfile,
+  PlanFeatures,
   LocalTrustSnapshot,
 } from '@/lib/types'
 import { CompetitorSnapshot } from './CompetitorSnapshot'
@@ -20,7 +20,7 @@ import { TrustGapChecklist } from './TrustGapChecklist'
 type Props = {
   lang: string
   clientId: string
-  plan: string
+  features: PlanFeatures
   profile: LocalTrustProfile | null
   snapshot: LocalTrustSnapshot | null
   actions: LocalTrustAction[]
@@ -29,9 +29,8 @@ type Props = {
 
 type BucketDisplayCopy = Pick<LocalTrustBucketScore, 'label' | 'explanation' | 'strongestSignal' | 'weakestSignal' | 'topAction'>
 
-export function LocalTrustStep({ lang, clientId, plan, profile, snapshot, actions, competitors }: Props) {
+export function LocalTrustStep({ lang, clientId, features, profile, snapshot, actions, competitors }: Props) {
   const t = useTranslations('dashboard')
-  const features = getPlanFeatures(plan)
   const bucketCopy: Record<LocalTrustBucketKey, BucketDisplayCopy> = {
     local_visibility: {
       label: t('local_trust_bucket_local_visibility'),

@@ -3,20 +3,18 @@ import { SovChart } from '@/components/pulse/SovChart'
 import { MissedTable } from '@/components/pulse/MissedTable'
 import { LockedFeature } from '@/components/dashboard/LockedFeature'
 import { AlertsTab } from '@/components/pulse/AlertsTab'
-import { getPlanFeatures } from '@/lib/tier'
 import type { PulseWeeklySummary, PulseMetric } from '@/lib/types'
 
 type Props = {
-  plan: string
+  features: import('@/lib/types').PlanFeatures
   clientId: string
   summary: PulseWeeklySummary[]
   missed: PulseMetric[]
 }
 
-export function MonitorStep({ plan, clientId, summary, missed }: Props) {
+export function MonitorStep({ features, clientId, summary, missed }: Props) {
   const t = useTranslations('dashboard')
   const tp = useTranslations('pulse')
-  const features = getPlanFeatures(plan)
 
   return (
     <div className="space-y-5">

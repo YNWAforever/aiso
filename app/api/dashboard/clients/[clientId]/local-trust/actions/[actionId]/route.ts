@@ -1,6 +1,6 @@
 import { getProfile } from '@/lib/auth'
 import { updateLocalTrustActionStatus, verifyClientOwnership } from '@/lib/localTrust/store'
-import { planAllows } from '@/lib/tier'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 import type { LocalTrustActionStatus } from '@/lib/types'
 
 const VALID_STATUSES = new Set<LocalTrustActionStatus>(['open', 'planned', 'done', 'skipped'])
@@ -22,8 +22,8 @@ export async function PATCH(
   const profile = await getProfile()
   if (!profile) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const plan = profile.accounts?.plan ?? 'basic'
-  if (!planAllows(plan, 'local_trust_roi')) {
+  const { plan, features } = resolveCommercialEntitlement(profile.accounts)
+  if (!features.local_trust_roi) {
     return Response.json({ error: 'UPGRADE_REQUIRED', feature: 'local_trust_roi', plan }, { status: 403 })
   }
 

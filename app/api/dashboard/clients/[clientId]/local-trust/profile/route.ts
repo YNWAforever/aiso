@@ -1,6 +1,6 @@
 import { getProfile } from '@/lib/auth'
 import { upsertLocalTrustProfile, verifyClientOwnership } from '@/lib/localTrust/store'
-import { planAllows } from '@/lib/tier'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 
 function textArray(value: unknown): string[] {
   if (!Array.isArray(value)) return []
@@ -52,8 +52,8 @@ export async function PUT(
   const profile = await getProfile()
   if (!profile) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const plan = profile.accounts?.plan ?? 'basic'
-  if (!planAllows(plan, 'local_trust_roi')) {
+  const { plan, features } = resolveCommercialEntitlement(profile.accounts)
+  if (!features.local_trust_roi) {
     return Response.json({ error: 'UPGRADE_REQUIRED', feature: 'local_trust_roi', plan }, { status: 403 })
   }
 

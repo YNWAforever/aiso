@@ -2,7 +2,7 @@ import { getProfile } from '@/lib/auth'
 import { findNewestMatchingScan } from '@/lib/localTrust'
 import { getLocalTrustProfile, getOrCreateLocalTrustSnapshot, verifyClientOwnership } from '@/lib/localTrust/store'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { planAllows } from '@/lib/tier'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 import type { AgentCompetitor, PulseMetric, PulseWeeklySummary, Scan } from '@/lib/types'
 
 type QueryError = { message: string; code?: string }
@@ -43,8 +43,8 @@ export async function GET(
   const profile = await getProfile()
   if (!profile) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const plan = profile.accounts?.plan ?? 'basic'
-  if (!planAllows(plan, 'local_trust_export')) {
+  const { plan, features } = resolveCommercialEntitlement(profile.accounts)
+  if (!features.local_trust_export) {
     return Response.json({ error: 'UPGRADE_REQUIRED', feature: 'local_trust_export', plan }, { status: 403 })
   }
 

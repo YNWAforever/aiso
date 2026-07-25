@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServiceSupabaseClient } from '@/lib/supabase-server'
 import { callOpenRouter } from '@/lib/openrouter'
 import { getProfile } from '@/lib/auth'
-import { db } from '@/lib/db'
-import { maxBrandsForPlan } from '@/lib/tier'
+import { claimScanForAccount } from '@/app/api/scans/[id]/claim/route'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
-  const profile = await getProfile()
-  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
   const body = await req.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
 
@@ -21,55 +17,60 @@ export async function POST(req: NextRequest) {
 
   if (!brandName) return NextResponse.json({ error: 'brandName required' }, { status: 400 })
 
-  // Tenant key always comes from the session — never from the request body
-  const accountId = profile.account_id
-  const plan  = profile.accounts?.plan ?? 'basic'
-  const limit = maxBrandsForPlan(plan)
+  const profile = await getProfile()
+  if (!profile) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
 
-  const sql = db()
+  const supabase = await createServiceSupabaseClient()
+  const accountId = profile.account_id
+
+  if (scanId) {
+    const claim = await claimScanForAccount(supabase, scanId, accountId)
+    if (claim.status === 'not-found') return NextResponse.json({ error: 'Scan not found' }, { status: 404 })
+    if (claim.status === 'conflict') return NextResponse.json({ error: 'Scan belongs to another account' }, { status: 409 })
+    if (claim.status === 'error') return NextResponse.json({ error: 'Failed to claim scan' }, { status: 500 })
+  }
 
   // Guard against double-submit: check if trial already started
-  const trialAlreadyStarted = !!profile.accounts?.trial_started_at
+  const { data: account, error: accountError } = await supabase
+    .from('accounts').select('trial_started_at, trial_ends_at').eq('id', accountId).single()
+  if (accountError || !account) {
+    return NextResponse.json({ error: 'Failed to load account' }, { status: 500 })
+  }
+  const trialAlreadyStarted = !!account.trial_started_at
 
   // Set trial dates on account (7-day trial) — only on first call
   const now = new Date()
   const trialEndsAt = trialAlreadyStarted
-    ? new Date(profile.accounts!.trial_started_at!)
+    ? account.trial_ends_at
+      ? new Date(account.trial_ends_at)
+      : new Date(new Date(account.trial_started_at!).getTime() + 7 * 24 * 60 * 60 * 1000)
     : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
-  const supabase = await createServerSupabaseClient()
+  const trialUpdate = !trialAlreadyStarted
+    ? {
+        trial_started_at: now.toISOString(),
+        trial_ends_at: trialEndsAt.toISOString(),
+      }
+    : account.trial_ends_at
+      ? null
+      : { trial_ends_at: trialEndsAt.toISOString() }
 
-  if (!trialAlreadyStarted) {
-    await supabase.from('accounts').update({
-      trial_started_at: now.toISOString(),
-      trial_ends_at: trialEndsAt.toISOString(),
-    }).eq('id', accountId)
-  }
-
-  // Existing brands for THIS account only (no RLS — always filter by account_id)
-  let existingClients: { id: string }[] = []
-  try {
-    existingClients = await sql`
-      select id from clients where account_id = ${accountId} order by created_at asc
-    ` as { id: string }[]
-  } catch (err) {
-    console.warn('[onboarding] client lookup failed:', (err as Error)?.message ?? String(err))
-    return NextResponse.json({ error: 'Failed to create client' }, { status: 500 })
+  if (trialUpdate) {
+    const { data: updatedAccount, error: trialUpdateError } = await supabase.from('accounts')
+      .update(trialUpdate).eq('id', accountId).select('id').maybeSingle()
+    if (trialUpdateError || !updatedAccount) {
+      return NextResponse.json({ error: 'Failed to start trial' }, { status: 500 })
+    }
   }
 
   // Guard against duplicate clients: return existing client if account already has one
-  if (existingClients[0]) {
-    return NextResponse.json({ clientId: existingClients[0].id, trialEndsAt: trialEndsAt.toISOString() })
+  const { data: existingClient, error: existingClientError } = await supabase
+    .from('clients').select('id').eq('account_id', accountId).limit(1).maybeSingle()
+  if (existingClientError) {
+    return NextResponse.json({ error: 'Failed to load client' }, { status: 500 })
   }
-
-  // Per-plan brand cap — same shape as POST /api/dashboard/clients.
-  // Defence in depth: the idempotency guard above already caps onboarding at one
-  // brand per account, so this only bites if that guard is ever relaxed.
-  if (existingClients.length >= limit) {
-    return NextResponse.json(
-      { error: 'BRAND_LIMIT_REACHED', plan, limit },
-      { status: 403 }
-    )
+  if (existingClient) {
+    return NextResponse.json({ clientId: existingClient.id, scanId: scanId ?? null, trialEndsAt: trialEndsAt.toISOString() })
   }
 
   // Create client
@@ -92,20 +93,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create client' }, { status: 500 })
   }
   const clientId = clientData.id
-
-  // Link scan to account if provided — only claimable scans (unclaimed, or
-  // already owned by this account). Silently a no-op for anyone else's scan
-  // so the endpoint does not leak whether that scan exists.
-  if (scanId) {
-    try {
-      await sql`
-        update scans set account_id = ${accountId}
-        where id = ${scanId} and (account_id is null or account_id = ${accountId})
-      `
-    } catch (err) {
-      console.warn('[onboarding] scan link failed:', (err as Error)?.message ?? String(err))
-    }
-  }
 
   // Generate seed prompts via OpenRouter
   try {
@@ -132,5 +119,5 @@ export async function POST(req: NextRequest) {
     console.warn('[onboarding] prompt generation failed:', (err as Error)?.message ?? String(err))
   }
 
-  return NextResponse.json({ clientId, trialEndsAt: trialEndsAt.toISOString() })
+  return NextResponse.json({ clientId, scanId: scanId ?? null, trialEndsAt: trialEndsAt.toISOString() })
 }

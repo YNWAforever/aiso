@@ -1,33 +1,52 @@
-import type { Page, Locator } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
-/**
- * Page Object Model for the AEOGEO homepage (scan entry point).
- * Supports both English (/en) and Traditional Chinese (/zh-HK) locales.
- */
+type SupportedLang = 'en' | 'zh-HK'
+
+const COPY = {
+  en: {
+    heading: 'See whether AI recommends your brand.',
+    url: 'Website URL',
+    scan: 'Run Free Scan',
+    personalise: /Personalise/i,
+    industry: 'Industry (optional)',
+    region: 'Region (optional)',
+  },
+  'zh-HK': {
+    heading: '了解 AI 會否推薦你的品牌。',
+    url: '網站網址',
+    scan: '立即免費掃描',
+    personalise: /個人化/,
+    industry: '行業（可選）',
+    region: '地區（可選）',
+  },
+} as const
+
 export class HomePage {
-  readonly page: Page
+  readonly heading: Locator
   readonly urlInput: Locator
   readonly scanButton: Locator
+  readonly personalizeButton: Locator
+  readonly scanStatus: Locator
   readonly scanProgress: Locator
-  readonly personaliseToggle: Locator
   readonly industrySelect: Locator
   readonly regionSelect: Locator
   readonly errorMessage: Locator
 
-  constructor(page: Page, private readonly lang = 'en') {
-    this.page = page
-    // Use attribute selectors that survive translation changes
-    this.urlInput        = page.locator('input[type="text"][required]').first()
-    this.scanButton      = page.locator('button[type="submit"]').first()
-    this.scanProgress    = page.locator('.animate-bounce').first()
-    this.personaliseToggle = page.locator('button:has-text("Personalise")')
-    this.industrySelect  = page.locator('select').nth(0)
-    this.regionSelect    = page.locator('select').nth(1)
-    this.errorMessage    = page.locator('[role="alert"], .text-destructive, .text-red-500').first()
+  constructor(readonly page: Page, private readonly lang: SupportedLang = 'en') {
+    const copy = COPY[lang]
+    this.heading = page.getByRole('heading', { level: 1, name: copy.heading })
+    this.urlInput = page.getByLabel(copy.url).first()
+    this.scanButton = page.getByRole('button', { name: copy.scan }).first()
+    this.personalizeButton = page.getByRole('button', { name: copy.personalise }).first()
+    this.scanStatus = page.getByRole('status').first()
+    this.scanProgress = this.scanStatus
+    this.industrySelect = page.getByLabel(copy.industry).first()
+    this.regionSelect = page.getByLabel(copy.region).first()
+    this.errorMessage = this.scanStatus
   }
 
   async goto() {
-    await this.page.goto(`/${this.lang}`)
+    await this.page.goto('/' + this.lang)
     await this.page.waitForLoadState('networkidle')
   }
 
@@ -45,20 +64,7 @@ export class HomePage {
   }
 
   async waitForNavToResult() {
-    // Result page URL pattern: /<lang>/result/<uuid>
-    await this.page.waitForURL(/\/result\/[a-f0-9-]{36}/, { timeout: 30_000 })
-  }
-
-  async openPersonalise() {
-    await this.personaliseToggle.click()
-  }
-
-  async selectIndustry(industry: string) {
-    await this.industrySelect.selectOption(industry)
-  }
-
-  async selectRegion(region: string) {
-    await this.regionSelect.selectOption(region)
+    await this.page.waitForURL(new RegExp('/' + this.lang + '/result/[a-z0-9-]+$'), { timeout: 30_000 })
   }
 
   get currentUrl() {

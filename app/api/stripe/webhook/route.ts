@@ -1,61 +1,133 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
-import { db } from '@/lib/db'
+import { randomUUID } from 'node:crypto'
+import { stripe, STRIPE_PRICES } from '@/lib/stripe'
+import { createServiceSupabaseClient } from '@/lib/supabase-server'
+import {
+  getPlanFromStripePrice,
+  type CheckoutPlanId as Plan,
+} from '@/lib/plans/catalog'
 
 export const dynamic = 'force-dynamic'
 
-function getPlan(priceId: string): 'basic' | 'pro' | 'enterprise' {
-  if (priceId === process.env.STRIPE_PRICE_ENTERPRISE) return 'enterprise'
-  if (priceId === process.env.STRIPE_PRICE_PRO)        return 'pro'
-  if (priceId === process.env.STRIPE_PRICE_BASIC)      return 'basic'
-  return 'basic'
-}
+type AccountStatus = 'active' | 'past_due' | 'cancelled' | 'trialing'
+type PersistenceOutcome = 'applied' | 'duplicate' | 'stale' | 'not_found' | 'lease_lost'
+type ServiceSupabaseClient = Awaited<ReturnType<typeof createServiceSupabaseClient>>
 
-// accounts.status has a CHECK constraint allowing exactly:
-//   'active' | 'past_due' | 'cancelled' | 'trialing'
-// Stripe's Subscription.Status has EIGHT values, five of which violate it —
-// note especially Stripe's `canceled` (one L) vs our `cancelled` (two L).
-// Writing sub.status straight through raises a CheckViolation, which the
-// handler now (correctly) turns into a 500 — so Stripe would retry a
-// `customer.subscription.updated` for ~3 days and fail every single time.
-// `incomplete` fires on essentially every SCA/3DS signup and `canceled` on
-// every cancellation, so this is a routine path, not an edge case.
-function getStatus(stripeStatus: string): 'active' | 'past_due' | 'cancelled' | 'trialing' {
-  switch (stripeStatus) {
-    case 'active':
-    case 'past_due':
-    case 'trialing':
-      return stripeStatus
-    // Owes money / initial payment never completed — not entitled, not dead.
-    case 'incomplete':
-    case 'unpaid':
-      return 'past_due'
-    // Terminal or access-suspended states collapse to cancelled: the schema
-    // has no 'paused', and denying access is the fail-safe direction.
-    case 'canceled':
-    case 'incomplete_expired':
-    case 'paused':
-      return 'cancelled'
-    default:
-      // Unknown future Stripe status — never let it reach the CHECK.
-      console.warn(`[stripe/webhook] unmapped subscription status "${stripeStatus}" — storing as past_due`)
-      return 'past_due'
+type CanonicalSubscription = {
+  id: string
+  customer?: unknown
+  status: string
+  items?: {
+    data?: Array<{
+      price?: { id?: string }
+    }>
   }
 }
 
-// Retry contract with Stripe (this is the whole point of the handler):
-//   400 — signature could not be verified. Stripe does not retry; correct,
-//         because a forged/misconfigured delivery will never become valid.
-//   200 — the event was applied, OR it is well-formed but deliberately
-//         ignored (unknown event.type, checkout session without an
-//         account_id, subscription event with no subscription id). Stripe
-//         stops delivering. Never return 200 for a write we could not make.
-//   500 — the database write failed. Stripe retries with backoff for ~3 days,
-//         which is what saves a paid upgrade from being silently dropped.
-//
-// The previous implementation used supabase-js, which resolves to
-// `{ data, error }` instead of throwing. The result was discarded, so every
-// failed write still fell through to a 200 and Stripe never retried.
+const LIFECYCLE_EVENTS = new Set([
+  'checkout.session.completed',
+  'customer.subscription.created',
+  'customer.subscription.updated',
+  'customer.subscription.deleted',
+  'invoice.payment_failed',
+])
+
+function getPurchasedPlan(subscription: CanonicalSubscription): Plan | null {
+  const items = subscription.items?.data
+  if (!Array.isArray(items) || items.length !== 1) return null
+  return getPlanFromStripePrice(items[0]?.price?.id ?? '', STRIPE_PRICES)
+}
+
+function getAccountState(
+  stripeStatus: string,
+  purchasedPlan: Plan,
+): { plan: Plan; status: AccountStatus } | null {
+  if (stripeStatus === 'active') return { plan: purchasedPlan, status: 'active' }
+  if (stripeStatus === 'trialing') return { plan: purchasedPlan, status: 'trialing' }
+  if (stripeStatus === 'past_due' || stripeStatus === 'incomplete') {
+    return { plan: purchasedPlan, status: 'past_due' }
+  }
+  if (
+    stripeStatus === 'incomplete_expired'
+    || stripeStatus === 'canceled'
+    || stripeStatus === 'unpaid'
+    || stripeStatus === 'paused'
+  ) {
+    return { plan: 'basic', status: 'cancelled' }
+  }
+  return null
+}
+
+function stripeId(value: unknown): string | null {
+  if (typeof value === 'string' && value) return value
+  if (value && typeof value === 'object' && 'id' in value && typeof value.id === 'string') {
+    return value.id
+  }
+  return null
+}
+
+function invalidEvent(message: string) {
+  return NextResponse.json({ error: message }, { status: 400 })
+}
+
+function retryableLeaseResponse(message: string) {
+  return NextResponse.json(
+    { error: message },
+    { status: 503, headers: { 'Retry-After': '5' } },
+  )
+}
+
+function getSubscriptionId(eventType: string, object: Record<string, unknown>): string | null {
+  if (eventType === 'checkout.session.completed' || eventType === 'invoice.payment_failed') {
+    return stripeId(object.subscription)
+  }
+  return stripeId(object.id)
+}
+
+async function persistEvent(args: {
+  supabase: ServiceSupabaseClient
+  accountId: string | null
+  customerId: string
+  subscriptionId: string
+  plan: Plan
+  status: AccountStatus
+  eventCreated: number
+  eventId: string
+  eventType: string
+  leaseOwner: string
+}) {
+  const { data, error } = await args.supabase.rpc('apply_stripe_account_event', {
+    p_account_id: args.accountId,
+    p_subscription_id: args.subscriptionId,
+    p_customer_id: args.customerId,
+    p_plan: args.plan,
+    p_status: args.status,
+    p_event_created: args.eventCreated,
+    p_event_id: args.eventId,
+    p_event_type: args.eventType,
+    p_lease_owner: args.leaseOwner,
+  })
+
+  if (error) {
+    console.error('[stripe/webhook] persistence failed', error)
+    return NextResponse.json({ error: 'Failed to persist Stripe event' }, { status: 500 })
+  }
+
+  const outcome = data as PersistenceOutcome
+  if (outcome === 'not_found') {
+    return NextResponse.json({ error: 'Stripe account linkage is not ready' }, { status: 503 })
+  }
+  if (outcome === 'lease_lost') {
+    return retryableLeaseResponse('Stripe subscription processing lease was lost')
+  }
+  if (outcome === 'applied' || outcome === 'duplicate' || outcome === 'stale') {
+    return null
+  }
+
+  console.error('[stripe/webhook] unexpected persistence outcome', data)
+  return NextResponse.json({ error: 'Failed to persist Stripe event' }, { status: 500 })
+}
+
 export async function POST(req: NextRequest) {
   const rawBody = await req.text()
   const sig = req.headers.get('stripe-signature') ?? ''
@@ -67,108 +139,114 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
-  const sql = db()
-
-  try {
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object as {
-        metadata?: { account_id?: string } | null
-        customer?: string | null
-        subscription?: string | null
-      }
-      const accountId = session.metadata?.account_id
-      if (!accountId) {
-        // Well-formed event we cannot act on (e.g. a checkout not started by
-        // this app). Retrying would never help, so ack it.
-        console.warn(`[stripe/webhook] ${event.id} ${event.type}: session has no account_id metadata — ignoring`)
-        return NextResponse.json({ ok: true, handled: false })
-      }
-
-      // Upsert keyed on the account id makes a Stripe redelivery of this
-      // event a no-op rewrite of identical values, so at-least-once delivery
-      // is safe here.
-      await sql`
-        insert into accounts (id, stripe_customer_id, stripe_subscription_id, plan, status)
-        values (${accountId}, ${session.customer ?? null}, ${session.subscription ?? null}, 'pro', 'active')
-        on conflict (id) do update set
-          stripe_customer_id     = excluded.stripe_customer_id,
-          stripe_subscription_id = excluded.stripe_subscription_id,
-          plan                   = excluded.plan,
-          status                 = excluded.status
-      `
-      return NextResponse.json({ ok: true })
-    }
-
-    if (event.type === 'customer.subscription.updated') {
-      const sub = event.data.object as {
-        id: string
-        status: string
-        items?: { data?: { price?: { id?: string } }[] }
-      }
-      const priceId = sub.items?.data?.[0]?.price?.id ?? ''
-      const rows = await sql`
-        update accounts
-           set plan = ${getPlan(priceId)}, status = ${getStatus(sub.status)}
-         where stripe_subscription_id = ${sub.id}
-        returning id
-      `
-      if (rows.length === 0) {
-        console.warn(`[stripe/webhook] ${event.id} ${event.type}: no account for subscription ${sub.id}`)
-      }
-      return NextResponse.json({ ok: true })
-    }
-
-    if (event.type === 'customer.subscription.deleted') {
-      const sub = event.data.object as { id: string }
-      const rows = await sql`
-        update accounts
-           set plan = 'basic', status = 'cancelled'
-         where stripe_subscription_id = ${sub.id}
-        returning id
-      `
-      if (rows.length === 0) {
-        console.warn(`[stripe/webhook] ${event.id} ${event.type}: no account for subscription ${sub.id}`)
-      }
-      return NextResponse.json({ ok: true })
-    }
-
-    if (event.type === 'invoice.payment_failed') {
-      const inv = event.data.object as unknown as { subscription?: string | null }
-      const subscriptionId = inv.subscription
-      if (!subscriptionId) {
-        // One-off (non-subscription) invoice — nothing to downgrade. Ack it.
-        console.warn(`[stripe/webhook] ${event.id} ${event.type}: invoice has no subscription — ignoring`)
-        return NextResponse.json({ ok: true, handled: false })
-      }
-      const rows = await sql`
-        update accounts
-           set status = 'past_due'
-         where stripe_subscription_id = ${subscriptionId}
-        returning id
-      `
-      if (rows.length === 0) {
-        console.warn(`[stripe/webhook] ${event.id} ${event.type}: no account for subscription ${subscriptionId}`)
-      }
-      return NextResponse.json({ ok: true })
-    }
-  } catch (err) {
-    // The only path that must return 5xx: the event was valid and we intended
-    // to write, but the write failed. Stripe will redeliver.
-    console.error(`[stripe/webhook] db write failed for event ${event.id} (${event.type}):`, err)
-    return NextResponse.json({ error: 'Database error' }, { status: 500 })
+  if (!LIFECYCLE_EVENTS.has(event.type)) {
+    return NextResponse.json({ ok: true })
   }
 
-  // Residual idempotency risk (deliberately not solved with a new table):
-  // Stripe does not guarantee ordering, and these writes are last-write-wins
-  // with no event-timestamp guard. A redelivered or out-of-order
-  // `checkout.session.completed` can therefore re-assert plan='pro' /
-  // status='active' over a newer `customer.subscription.updated` or
-  // `.deleted`. Each handler is individually idempotent (upsert on id;
-  // UPDATEs set constant/event-derived values), so replaying the *same* event
-  // is safe — only cross-event ordering can regress state. Fixing that
-  // properly needs a monotonic guard (e.g. `where excluded.event_created_at >
-  // accounts.stripe_event_created_at`), which is a schema change outside this
-  // fix's scope.
-  console.warn(`[stripe/webhook] unhandled event type ${event.type} (${event.id}) — acking`)
-  return NextResponse.json({ ok: true, handled: false })
+  if (
+    typeof event.id !== 'string'
+    || !event.id
+    || typeof event.created !== 'number'
+    || !Number.isInteger(event.created)
+    || event.created < 0
+  ) {
+    return invalidEvent('Invalid Stripe event metadata')
+  }
+
+  const object = event.data.object as unknown as Record<string, unknown>
+  const subscriptionId = getSubscriptionId(event.type, object)
+  if (!subscriptionId) return invalidEvent('Invalid event subscription')
+
+  let accountId: string | null = null
+  let checkoutCustomerId: string | null = null
+  if (event.type === 'checkout.session.completed') {
+    const metadata = object.metadata as { account_id?: unknown } | null | undefined
+    accountId = typeof metadata?.account_id === 'string' && metadata.account_id
+      ? metadata.account_id
+      : null
+    checkoutCustomerId = stripeId(object.customer)
+    if (!accountId || !checkoutCustomerId) {
+      return invalidEvent('Invalid checkout metadata')
+    }
+  }
+
+  const leaseOwner = randomUUID()
+  let leaseAcquired = false
+  let supabase: ServiceSupabaseClient | null = null
+
+  try {
+    supabase = await createServiceSupabaseClient()
+    const { data: acquired, error: acquireError } = await supabase.rpc(
+      'acquire_stripe_subscription_lease',
+      {
+        p_subscription_id: subscriptionId,
+        p_lease_owner: leaseOwner,
+      },
+    )
+
+    if (acquireError) {
+      console.error('[stripe/webhook] lease acquisition failed', acquireError)
+      return NextResponse.json({ error: 'Failed to acquire Stripe processing lease' }, { status: 500 })
+    }
+    if (acquired === false) {
+      return retryableLeaseResponse('Stripe subscription is already being processed')
+    }
+    if (acquired !== true) {
+      console.error('[stripe/webhook] unexpected lease acquisition outcome', acquired)
+      return NextResponse.json({ error: 'Failed to acquire Stripe processing lease' }, { status: 500 })
+    }
+    leaseAcquired = true
+
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId) as unknown as CanonicalSubscription
+    if (!subscription || subscription.id !== subscriptionId) {
+      return invalidEvent('Invalid canonical subscription')
+    }
+
+    const customerId = stripeId(subscription.customer)
+    if (!customerId || (checkoutCustomerId && checkoutCustomerId !== customerId)) {
+      return invalidEvent('Invalid subscription customer')
+    }
+
+    const purchasedPlan = getPurchasedPlan(subscription)
+    if (!purchasedPlan) return invalidEvent('Unsupported subscription price')
+
+    const accountState = getAccountState(subscription.status, purchasedPlan)
+    if (!accountState) return invalidEvent('Unsupported subscription status')
+
+    const failure = await persistEvent({
+      supabase,
+      accountId,
+      customerId,
+      subscriptionId,
+      plan: accountState.plan,
+      status: accountState.status,
+      eventCreated: event.created,
+      eventId: event.id,
+      eventType: event.type,
+      leaseOwner,
+    })
+    if (failure) return failure
+  } catch (error) {
+    console.error('[stripe/webhook] processing failed', error)
+    return NextResponse.json({ error: 'Failed to process Stripe event' }, { status: 500 })
+  } finally {
+    if (leaseAcquired && supabase) {
+      try {
+        const { error: releaseError } = await supabase.rpc(
+          'release_stripe_subscription_lease',
+          {
+            p_subscription_id: subscriptionId,
+            p_lease_owner: leaseOwner,
+          },
+        )
+        if (releaseError) {
+          console.error('[stripe/webhook] lease release failed', releaseError)
+        }
+      } catch (releaseError) {
+        console.error('[stripe/webhook] lease release failed', releaseError)
+      }
+    }
+  }
+
+  return NextResponse.json({ ok: true })
 }

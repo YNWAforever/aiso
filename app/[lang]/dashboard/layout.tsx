@@ -1,8 +1,9 @@
 import { requireAuth } from '@/lib/auth'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { db } from '@/lib/db'
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar'
 import { TrialBanner } from '@/components/dashboard/TrialBanner'
 import { getTrialStatus } from '@/lib/trial'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 import { headers } from 'next/headers'
 
 export default async function DashboardLayout({
@@ -15,6 +16,7 @@ export default async function DashboardLayout({
   const { lang } = await params
   const profile = await requireAuth(lang)
   const trial = getTrialStatus(profile.accounts)
+  const entitlement = resolveCommercialEntitlement(profile.accounts)
 
   const headersList = await headers()
   const pathname = headersList.get('x-invoke-path') ?? ''
@@ -24,20 +26,22 @@ export default async function DashboardLayout({
   // Fetch brand name if viewing a specific client
   let brandName: string | undefined
   if (clientId) {
-    const supabase = await createServerSupabaseClient()
-    const { data: client } = await supabase
-      .from('clients').select('brand_name')
-      .eq('id', clientId).eq('account_id', profile.account_id).single()
-    brandName = client?.brand_name ?? undefined
+    const sql = db()
+    const rows = await sql`
+      select brand_name from clients
+      where id = ${clientId} and account_id = ${profile.account_id}
+      limit 1
+    `
+    brandName = (rows[0] as { brand_name: string } | undefined)?.brand_name
   }
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
-      {trial.isTrial && !trial.isExpired && (
+      {entitlement.source === 'trial' && trial.isTrial && !trial.isExpired && (
         <TrialBanner daysRemaining={trial.daysRemaining} lang={lang} />
       )}
       <div className="flex flex-1 overflow-hidden">
-        <DashboardSidebar profile={profile} brandName={brandName} brandId={clientId} />
+        <DashboardSidebar profile={profile} entitlement={entitlement} brandName={brandName} brandId={clientId} />
         <div className="flex-1 flex flex-col overflow-auto">
           {children}
         </div>

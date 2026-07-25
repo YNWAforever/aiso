@@ -9,7 +9,7 @@ import { MissedTable }           from '@/components/pulse/MissedTable'
 import { ScanLogSection }        from '@/components/pulse/ScanLogSection'
 import { QuestionBankSection }   from '@/components/pulse/QuestionBankSection'
 import { requireAuth }           from '@/lib/auth'
-import { planAllows }            from '@/lib/tier'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 import type { PulseWeeklySummary, PulseMetric, PromptBankItem } from '@/lib/types'
 
 export default async function PulsePage({
@@ -21,8 +21,8 @@ export default async function PulsePage({
   const t = await getTranslations('pulse')
 
   const profile  = await requireAuth(lang)
-  const plan     = profile.accounts?.plan ?? 'basic'
-  const canEditPrompts = planAllows(plan, 'edit_prompts')
+  const entitlement = resolveCommercialEntitlement(profile.accounts)
+  const canEditPrompts = entitlement.features.edit_prompts
 
   const supabase = await createServerSupabaseClient()
 

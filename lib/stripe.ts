@@ -1,4 +1,5 @@
 import Stripe from 'stripe'
+import type { StripePriceMap } from '@/lib/plans/catalog'
 
 // Lazy singleton — defer new Stripe() until first use so that
 // module evaluation at Next.js build time (when STRIPE_SECRET_KEY
@@ -17,7 +18,7 @@ export const stripe: Stripe = new Proxy({} as Stripe, {
   },
 })
 
-export const STRIPE_PRICES: Record<string, string> = {
+export const STRIPE_PRICES: StripePriceMap = {
   basic:      process.env.STRIPE_PRICE_BASIC!,
   pro:        process.env.STRIPE_PRICE_PRO!,
   enterprise: process.env.STRIPE_PRICE_ENTERPRISE!,

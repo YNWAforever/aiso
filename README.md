@@ -87,3 +87,24 @@ file existing is not evidence it has been run.
 
 - [`CLAUDE.md`](./CLAUDE.md) — architecture, auth model, checks engine, DB notes, gotchas
 - [`docs/`](./docs) — historical plans and specs
+
+## Public scan deployment prerequisites
+
+Production anonymous scans are supported only on Vercel, where the platform overwrites
+`x-vercel-forwarded-for` and exposes the `VERCEL=1` system environment invariant.
+The endpoint fails closed when either invariant is missing.
+
+Before releasing public scans:
+
+- Apply `supabase/migrations/023_public_scan_rate_limits.sql` to the production database.
+- Apply `supabase/migrations/024_stripe_lifecycle_integrity.sql` before enabling Stripe webhooks.
+- Apply `supabase/migrations/025_authenticated_scan_quotas.sql` before releasing authenticated scans.
+  The server-only `DATABASE_URL` role must be able to insert, update, select, and delete rows in
+  `authenticated_scan_monthly_usage`; authenticated scans fail closed if the counter is unavailable.
+- Apply `supabase/migrations/026_effective_brand_limit.sql` before releasing self-service brand creation.
+  It replaces the legacy raw-plan trigger with serialized, effective-entitlement enforcement.
+- Configure the server-only `PUBLIC_SCAN_RATE_LIMIT_SECRET` with at least 32 random characters.
+  Do not expose it through a `NEXT_PUBLIC_` variable or commit its value.
+
+Local development and tests use a single explicitly isolated identity and development-only
+HMAC key. They ignore forwarding headers and do not claim production proxy security.

@@ -1,8 +1,10 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { getPlanFeatures } from '@/lib/tier'
+import { resolveCommercialEntitlement } from '@/lib/tier'
+import type { PlanFeatures } from '@/lib/types'
 import { ScanStep } from '@/components/dashboard/ScanStep'
 import { ResultsStep } from '@/components/dashboard/ResultsStep'
 import { ImproveStep } from '@/components/dashboard/ImproveStep'
@@ -15,9 +17,8 @@ import type {
   AgentCompetitor, PulseWeeklySummary, PulseMetric, Client,
 } from '@/lib/types'
 
-async function StepHeader({ step, plan }: { step: string; plan: string }) {
+async function StepHeader({ step, features }: { step: string; features: PlanFeatures }) {
   const t = await getTranslations('dashboard')
-  const features = getPlanFeatures(plan)
   const info: Record<string, { title: string; body: string }> = {
     scan: {
       title: t('step_scan_title'),
@@ -60,10 +61,10 @@ export default async function DashboardPage({
   const { lang, clientId } = await params
   const { step = 'scan', scanId } = await searchParams
   const t = await getTranslations('dashboard')
+  const reportT = await getTranslations('reports')
   const profile  = await requireAuth(lang)
   const supabase = await createServerSupabaseClient()
-  const plan = profile.accounts?.plan ?? 'basic'
-  const features = getPlanFeatures(plan)
+  const { features } = resolveCommercialEntitlement(profile.accounts)
 
   const { data: client } = await supabase
     .from('clients').select('id, brand_name, domain, industry, competitors, status, created_at')
@@ -155,7 +156,22 @@ export default async function DashboardPage({
 
   return (
     <>
-      <StepHeader step={step} plan={plan} />
+      <StepHeader step={step} features={features} />
+
+      <div className="px-6 pt-5">
+        <Link
+          href={`/${lang}/dashboard/${clientId}/reports`}
+          className="flex min-h-11 items-center justify-between gap-4 rounded-xl border border-dash-border bg-dash-surface px-4 py-3 text-sm transition-colors hover:bg-dash-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span>
+            <span className="block font-semibold text-dash-text">{reportT('list_title')}</span>
+            <span className="block text-xs text-dash-muted">{reportT('dashboard_entry_body')}</span>
+          </span>
+          <span className="shrink-0 font-semibold text-primary">
+            {features.client_reports_online ? reportT('open_reports') : reportT('upgrade_badge')}
+          </span>
+        </Link>
+      </div>
 
       <main className="flex-1 px-6 pb-10 max-w-3xl">
         {step === 'scan' && <ScanStep lang={lang} clientId={clientId} scan={scan} scanHistory={(scanHistory ?? []) as Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'created_at'>[]} />}
@@ -171,7 +187,7 @@ export default async function DashboardPage({
         {step === 'improve' && scan && (
           <ImproveStep
             scan={scan}
-            plan={plan}
+            features={features}
             recommendations={(agentRecs ?? []) as AgentRecommendation[]}
             progress={(agentProg ?? []) as AgentProgressType[]}
             competitors={agentCompetitors}
@@ -185,14 +201,14 @@ export default async function DashboardPage({
         )}
 
         {step === 'monitor' && (
-          <MonitorStep plan={plan} clientId={clientId} summary={summary} missed={missed} />
+          <MonitorStep features={features} clientId={clientId} summary={summary} missed={missed} />
         )}
 
         {step === 'roi' && (
           <LocalTrustStep
             lang={lang}
             clientId={clientId}
-            plan={plan}
+            features={features}
             profile={localTrustProfile}
             snapshot={hasLocalTrustBaseline ? (localTrustData?.snapshot ?? null) : null}
             actions={hasLocalTrustBaseline ? (localTrustData?.actions ?? []) : []}

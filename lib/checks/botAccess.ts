@@ -1,3 +1,4 @@
+import type { PublicUrlFetch } from '@/lib/security/public-url'
 import type { CheckResult } from '@/lib/types'
 
 const BOTS = [
@@ -6,10 +7,10 @@ const BOTS = [
   { name: 'PerplexityBot', ua: 'Mozilla/5.0 (compatible; PerplexityBot/1.0; +https://perplexity.ai/)' },
 ]
 
-export async function checkBotAccess(url: string): Promise<CheckResult> {
+export async function checkBotAccess(url: string, fetcher: PublicUrlFetch = fetch): Promise<CheckResult> {
   const results = await Promise.allSettled(
     BOTS.map(bot =>
-      fetch(url, {
+      fetcher(url, {
         headers: { 'User-Agent': bot.ua },
         redirect: 'follow',
         signal: AbortSignal.timeout(8000),

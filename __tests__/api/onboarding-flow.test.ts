@@ -1,40 +1,50 @@
 /**
  * TDD: Onboarding flow — expanded
- * Covers: auth gate, tenant binding, plan brand cap, trial setup,
- * domain/region/description/competitors, idempotency
+ * Covers: trial setup, domain/region/description/competitors, idempotency
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
+import { readFileSync } from 'node:fs'
+
+const getProfileMock = vi.hoisted(() => vi.fn())
+const createServerSupabaseClientMock = vi.hoisted(() => vi.fn())
+const createServiceSupabaseClientMock = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/auth', () => ({ getProfile: getProfileMock }))
 
 // ── DB state simulation ──────────────────────────────────────────
+let trialStartedAt: string | null = null
+let trialEndsAt: string | null = null
 let clientsInDb: { id: string }[] = []
+let scanResults: Array<{ data: { id: string; account_id: string | null } | null; error: { message: string } | null }> = []
+let tableCalls: string[] = []
+let scanUpdates: Array<Record<string, unknown>> = []
+let scanNullGuards: Array<[string, unknown]> = []
+let accountUpdates: Array<Record<string, unknown>> = []
+let accountLookupError: { message: string } | null = null
+let accountUpdateError: { message: string } | null = null
+let clientLookupError: { message: string } | null = null
+let clientInsertCalls = 0
 
-const { mockGetProfile, sqlMock, inserts, updates } = vi.hoisted(() => ({
-  mockGetProfile: vi.fn(),
-  sqlMock: vi.fn(),
-  inserts: [] as Array<{ table: string; payload: unknown }>,
-  updates: [] as Array<{ table: string; payload: unknown }>,
-}))
-
-vi.mock('@/lib/auth', () => ({ getProfile: mockGetProfile }))
-
-vi.mock('@/lib/db', () => ({ db: () => sqlMock }))
+const supabaseMock = {
+  auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } } }) },
+  from: vi.fn((table: string) => ({
+    select:  vi.fn().mockReturnThis(),
+    insert:  vi.fn().mockReturnThis(),
+    update:  vi.fn().mockReturnThis(),
+    eq:      vi.fn().mockReturnThis(),
+    limit:   vi.fn().mockReturnThis(),
+    single:  vi.fn().mockImplementation(() => {
+      if (table === 'profiles') return Promise.resolve({ data: { account_id: 'acc-1' }, error: null })
+      if (table === 'accounts') return Promise.resolve({ data: { trial_started_at: trialStartedAt, trial_ends_at: trialEndsAt }, error: null })
+      if (table === 'clients')  return Promise.resolve({ data: clientsInDb[0] ?? null, error: null })
+      return Promise.resolve({ data: null, error: null })
+    }),
+  })),
+}
 
 vi.mock('@/lib/supabase-server', () => ({
-  createServerSupabaseClient: vi.fn().mockResolvedValue({
-    from: (table: string) => ({
-      insert: (payload: unknown) => {
-        inserts.push({ table, payload })
-        return {
-          select: () => ({ single: () => Promise.resolve({ data: { id: 'client-new' }, error: null }) }),
-        }
-      },
-      update: (payload: unknown) => {
-        updates.push({ table, payload })
-        return { eq: () => Promise.resolve({ error: null }) }
-      },
-    }),
-  }),
+  createServerSupabaseClient: createServerSupabaseClientMock,
+  createServiceSupabaseClient: createServiceSupabaseClientMock,
 }))
 
 vi.mock('@/lib/openrouter', () => ({
@@ -46,78 +56,179 @@ vi.mock('@/lib/openrouter', () => ({
   ),
 }))
 
-function profileFixture(overrides: { plan?: string; trial_started_at?: string | null } = {}) {
-  return {
-    id: 'user-1',
-    account_id: 'acc-1',
-    display_name: 'Tester',
-    email: 'tester@example.com',
-    is_admin: false,
-    created_at: '2026-01-01T00:00:00.000Z',
-    accounts: {
-      id: 'acc-1',
-      stripe_customer_id: null,
-      stripe_subscription_id: null,
-      plan: overrides.plan ?? 'basic',
-      status: 'trialing',
-      trial_started_at: overrides.trial_started_at ?? null,
-      trial_ends_at: null,
-      trial_emails_sent: 0,
-      created_at: '2026-01-01T00:00:00.000Z',
-    },
-  }
-}
-
-function post(body: unknown) {
-  return new NextRequest('http://localhost/api/onboarding/complete', {
-    method: 'POST',
-    body: JSON.stringify(body),
-    headers: { 'Content-Type': 'application/json' },
-  })
-}
-
 describe('POST /api/onboarding/complete', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    clientsInDb = []
-    inserts.length = 0
-    updates.length = 0
+    trialStartedAt = null
+    trialEndsAt = null
+    clientsInDb    = []
 
-    mockGetProfile.mockResolvedValue(profileFixture())
-    sqlMock.mockImplementation((strings: TemplateStringsArray) => {
-      const query = strings.join('?')
-      if (query.includes('from clients')) return Promise.resolve(clientsInDb)
-      return Promise.resolve([])
+    // Re-wire mocks after clearAllMocks
+    getProfileMock.mockResolvedValue({ account_id: 'acc-1' })
+    createServerSupabaseClientMock.mockResolvedValue(supabaseMock)
+    createServiceSupabaseClientMock.mockResolvedValue(supabaseMock)
+    scanResults = []
+    tableCalls = []
+    scanUpdates = []
+    scanNullGuards = []
+    accountUpdates = []
+    accountLookupError = null
+    accountUpdateError = null
+    clientLookupError = null
+    clientInsertCalls = 0
+    supabaseMock.auth.getUser = vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    supabaseMock.from = vi.fn((table: string) => {
+      tableCalls.push(table)
+      let inserted = false
+      let updated = false
+      const query: Record<string, unknown> = {}
+      query.select = vi.fn(() => query)
+      query.insert = vi.fn(() => {
+        inserted = true
+        if (table === 'clients') clientInsertCalls += 1
+        return query
+      })
+      query.update = vi.fn((value: Record<string, unknown>) => {
+        updated = true
+        if (table === 'scans') scanUpdates.push(value)
+        if (table === 'accounts') accountUpdates.push(value)
+        return query
+      })
+      query.eq = vi.fn(() => query)
+      query.is = vi.fn((column: string, value: unknown) => {
+        if (table === 'scans') scanNullGuards.push([column, value])
+        return query
+      })
+      query.limit = vi.fn(() => query)
+      const result = () => {
+        if (table === 'profiles') return Promise.resolve({ data: { account_id: 'acc-1' }, error: null })
+        if (table === 'accounts' && updated) return Promise.resolve({
+          data: accountUpdateError ? null : { id: 'acc-1' },
+          error: accountUpdateError,
+        })
+        if (table === 'accounts') return Promise.resolve({
+          data: accountLookupError ? null : { trial_started_at: trialStartedAt, trial_ends_at: trialEndsAt },
+          error: accountLookupError,
+        })
+        if (table === 'clients' && inserted) return Promise.resolve({ data: { id: 'client-new' }, error: null })
+        if (table === 'clients') return Promise.resolve({
+          data: clientLookupError ? null : clientsInDb[0] ?? null,
+          error: clientLookupError,
+        })
+        if (table === 'scans') return Promise.resolve(scanResults.shift() ?? { data: null, error: null })
+        if (updated) return Promise.resolve({ data: null, error: null })
+        return Promise.resolve({ data: null, error: null })
+      }
+      query.single = vi.fn(result)
+      query.maybeSingle = vi.fn(result)
+      return query
     })
   })
 
   it('returns 400 when brandName is missing', async () => {
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(post({ domain: 'example.com' }))
+    const req = new NextRequest('http://localhost/api/onboarding/complete', {
+      method: 'POST',
+      body: JSON.stringify({ domain: 'example.com' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const res = await POST(req)
     expect(res.status).toBe(400)
     expect((await res.json()).error).toBe('brandName required')
   })
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetProfile.mockResolvedValue(null)
+    supabaseMock.auth.getUser = vi.fn().mockResolvedValue({ data: { user: null } })
+    getProfileMock.mockResolvedValue(null)
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(post({ brandName: 'TestBrand' }))
+    const req = new NextRequest('http://localhost/api/onboarding/complete', {
+      method: 'POST',
+      body: JSON.stringify({ brandName: 'TestBrand' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const res = await POST(req)
     expect(res.status).toBe(401)
-    expect((await res.json()).error).toBe('Unauthorized')
+    expect(createServiceSupabaseClientMock).not.toHaveBeenCalled()
+    expect(createServerSupabaseClientMock).not.toHaveBeenCalled()
   })
 
+  it('uses the service client only after Neon authentication succeeds', async () => {
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const req = new NextRequest('http://localhost/api/onboarding/complete', {
+      method: 'POST',
+      body: JSON.stringify({ brandName: 'TestBrand' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const res = await POST(req)
+
+    expect(res.status).toBe(200)
+    expect(createServiceSupabaseClientMock).toHaveBeenCalledTimes(1)
+    expect(createServerSupabaseClientMock).not.toHaveBeenCalled()
+  })
+
+  it('returns 500 without querying clients when the account lookup fails', async () => {
+    accountLookupError = { message: 'account read failed' }
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const req = new NextRequest('http://localhost/api/onboarding/complete', {
+      method: 'POST',
+      body: JSON.stringify({ brandName: 'TestBrand' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const res = await POST(req)
+
+    expect(res.status).toBe(500)
+    expect(tableCalls).not.toContain('clients')
+  })
+
+  it('returns 500 without querying clients when the trial update fails', async () => {
+    accountUpdateError = { message: 'account update failed' }
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const req = new NextRequest('http://localhost/api/onboarding/complete', {
+      method: 'POST',
+      body: JSON.stringify({ brandName: 'TestBrand' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const res = await POST(req)
+
+    expect(res.status).toBe(500)
+    expect(tableCalls).not.toContain('clients')
+  })
+
+  it('treats a client lookup error differently from no existing client', async () => {
+    clientLookupError = { message: 'client read failed' }
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const req = new NextRequest('http://localhost/api/onboarding/complete', {
+      method: 'POST',
+      body: JSON.stringify({ brandName: 'TestBrand' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const res = await POST(req)
+
+    expect(res.status).toBe(500)
+    expect(clientInsertCalls).toBe(0)
+  })
   it('returns { clientId, trialEndsAt } on success', async () => {
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(post({
-      brandName: 'TestBrand',
-      domain:    'testbrand.com',
-      industry:  'technology',
-      region:    'HK',
-    }))
+    const req = new NextRequest('http://localhost/api/onboarding/complete', {
+      method: 'POST',
+      body: JSON.stringify({
+        brandName: 'TestBrand',
+        domain:    'testbrand.com',
+        industry:  'technology',
+        region:    'HK',
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const res = await POST(req)
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(json).toHaveProperty('clientId')
     expect(json).toHaveProperty('trialEndsAt')
+    expect(json.scanId).toBeNull()
     // trialEndsAt should be ~7 days from now
     const endsAt = new Date(json.trialEndsAt).getTime()
     const sevenDays = 7 * 24 * 60 * 60 * 1000
@@ -125,47 +236,148 @@ describe('POST /api/onboarding/complete', () => {
     expect(endsAt).toBeLessThan(Date.now()  + sevenDays + 60_000)
   })
 
-  it('scopes the existing-brand lookup to the session account', async () => {
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    await POST(post({ brandName: 'TestBrand' }))
-    const lookup = sqlMock.mock.calls.find(
-      ([strings]: [TemplateStringsArray]) => strings.join('?').includes('from clients')
-    )
-    expect(lookup).toBeDefined()
-    expect((lookup![0] as TemplateStringsArray).join('?')).toContain('account_id =')
-    expect(lookup!.slice(1)).toEqual(['acc-1'])
-  })
-
   it('returns existing clientId on double-submit (idempotent)', async () => {
     clientsInDb = [{ id: 'client-existing' }]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(post({ brandName: 'TestBrand', domain: 'testbrand.com' }))
+    const req = new NextRequest('http://localhost/api/onboarding/complete', {
+      method: 'POST',
+      body: JSON.stringify({ brandName: 'TestBrand', domain: 'testbrand.com' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const res = await POST(req)
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(json.clientId).toBe('client-existing')
-    expect(inserts.find(i => i.table === 'clients')).toBeUndefined()
   })
 
   it('does NOT reset trial dates on double-submit', async () => {
-    mockGetProfile.mockResolvedValue(
-      profileFixture({ trial_started_at: new Date(Date.now() - 3 * 86400_000).toISOString() })
-    )
-    clientsInDb = [{ id: 'client-existing' }]
+    trialStartedAt = new Date(Date.now() - 3 * 86400_000).toISOString() // 3 days ago
+    trialEndsAt = new Date(Date.now() + 4 * 86400_000).toISOString()
+    clientsInDb    = [{ id: 'client-existing' }]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(post({ brandName: 'TestBrand' }))
+    const req = new NextRequest('http://localhost/api/onboarding/complete', {
+      method: 'POST',
+      body: JSON.stringify({ brandName: 'TestBrand' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const res = await POST(req)
     expect(res.status).toBe(200)
-    // The accounts row must not be re-stamped with fresh trial dates
-    expect(updates.find(u => u.table === 'accounts')).toBeUndefined()
+    expect((await res.json()).trialEndsAt).toBe(trialEndsAt)
+    expect(accountUpdates).toEqual([])
+  })
+
+  it('repairs a missing stored trial expiry without resetting the start date', async () => {
+    trialStartedAt = '2026-07-01T00:00:00.000Z'
+    trialEndsAt = null
+    clientsInDb = [{ id: 'client-existing' }]
+    const expectedTrialEndsAt = '2026-07-08T00:00:00.000Z'
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const req = new NextRequest('http://localhost/api/onboarding/complete', {
+      method: 'POST',
+      body: JSON.stringify({ brandName: 'TestBrand' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const res = await POST(req)
+
+    expect(res.status).toBe(200)
+    expect((await res.json()).trialEndsAt).toBe(expectedTrialEndsAt)
+    expect(accountUpdates).toEqual([{ trial_ends_at: expectedTrialEndsAt }])
   })
 
   it('accepts description and competitors without error', async () => {
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(post({
-      brandName:   'TestBrand',
-      domain:      'testbrand.com',
-      description: 'TestBrand is an AI SEO platform.',
-      competitors: ['Semrush', 'Ahrefs', 'Moz'],
-    }))
+    const req = new NextRequest('http://localhost/api/onboarding/complete', {
+      method: 'POST',
+      body: JSON.stringify({
+        brandName:   'TestBrand',
+        domain:      'testbrand.com',
+        description: 'TestBrand is an AI SEO platform.',
+        competitors: ['Semrush', 'Ahrefs', 'Moz'],
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const res = await POST(req)
     expect(res.status).toBe(200)
+  })
+
+  it('claims a supplied scan before returning an existing client', async () => {
+    clientsInDb = [{ id: 'client-existing' }]
+    scanResults = [
+      { data: { id: 'scan-1', account_id: null }, error: null },
+      { data: { id: 'scan-1', account_id: 'acc-1' }, error: null },
+    ]
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const req = new NextRequest('http://localhost/api/onboarding/complete', {
+      method: 'POST',
+      body: JSON.stringify({ brandName: 'TestBrand', scanId: 'scan-1' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const res = await POST(req)
+    const json = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(json).toMatchObject({ clientId: 'client-existing', scanId: 'scan-1' })
+    expect(tableCalls.indexOf('scans')).toBeLessThan(tableCalls.indexOf('clients'))
+    expect(scanUpdates).toContainEqual({ account_id: 'acc-1' })
+    expect(scanNullGuards).toContainEqual(['account_id', null])
+  })
+
+  it('returns 409 without querying clients when a supplied scan has another owner', async () => {
+    scanResults = [{ data: { id: 'scan-1', account_id: 'acc-2' }, error: null }]
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const req = new NextRequest('http://localhost/api/onboarding/complete', {
+      method: 'POST',
+      body: JSON.stringify({ brandName: 'TestBrand', scanId: 'scan-1' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const res = await POST(req)
+
+    expect(res.status).toBe(409)
+    expect(tableCalls).not.toContain('clients')
+  })
+
+  it('returns 404 when a supplied scan is missing', async () => {
+    scanResults = [{ data: null, error: null }]
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const req = new NextRequest('http://localhost/api/onboarding/complete', {
+      method: 'POST',
+      body: JSON.stringify({ brandName: 'TestBrand', scanId: 'missing-scan' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const res = await POST(req)
+
+    expect(res.status).toBe(404)
+    expect(tableCalls).not.toContain('clients')
+  })
+
+  it('returns 500 when an unowned scan cannot be persisted', async () => {
+    scanResults = [
+      { data: { id: 'scan-1', account_id: null }, error: null },
+      { data: null, error: null },
+      { data: { id: 'scan-1', account_id: null }, error: null },
+    ]
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const req = new NextRequest('http://localhost/api/onboarding/complete', {
+      method: 'POST',
+      body: JSON.stringify({ brandName: 'TestBrand', scanId: 'scan-1' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const res = await POST(req)
+
+    expect(res.status).toBe(500)
+    expect(tableCalls).not.toContain('clients')
+  })
+
+  it('starts a pre-filled scan onboarding at step 3 and reuses the completed report', () => {
+    const wizard = readFileSync('components/onboarding/OnboardingWizard.tsx', 'utf8')
+    expect(wizard).toContain('const hasScanPrefill = Boolean(scanId && initialBrand && initialDomain)')
+    expect(wizard).toContain('useState(hasScanPrefill ? 3 : 1)')
+    expect(wizard).toContain('/result/')
+    expect(wizard).not.toContain("fetch('/api/scan'")
   })
 })
