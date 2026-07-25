@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase }       from '@/lib/supabase'
 import { callOpenRouter } from '@/lib/openrouter'
+import { getProfile }     from '@/lib/auth'
+import { db }             from '@/lib/db'
 import type { Scan }      from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -10,9 +12,35 @@ export function parseFixPack(raw: string): { llms_txt: string; robots_patch: str
   return JSON.parse(match?.[0] ?? raw)
 }
 
+// Ownership is checked via Neon because lib/supabase points at a deleted project.
+// Anonymous scans (account_id is null) are public by design, so any signed-in
+// user may generate a fix pack for one; owned scans are tenant-scoped.
+async function canAccessScan(scanId: string, accountId: string): Promise<boolean> {
+  const rows = await db()`
+    select id from scans
+    where id = ${scanId}
+      and (account_id is null or account_id = ${accountId})
+    limit 1
+  `
+  return rows.length > 0
+}
+
 export async function POST(req: NextRequest) {
+  const profile = await getProfile()
+  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { scanId } = await req.json()
   if (!scanId) return NextResponse.json({ error: 'Missing scanId' }, { status: 400 })
+
+  let allowed = false
+  try {
+    allowed = await canAccessScan(scanId, profile.account_id)
+  } catch (error) {
+    console.error('[fix] ownership check failed:', error)
+    return NextResponse.json({ error: 'Database error' }, { status: 500 })
+  }
+  // 404 rather than 403 so the endpoint does not leak scan existence
+  if (!allowed) return NextResponse.json({ error: 'Scan not found' }, { status: 404 })
 
   // Return cached result if exists
   const { data: existing } = await supabase

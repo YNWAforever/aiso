@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { callOpenRouter } from '@/lib/openrouter'
+import { getProfile } from '@/lib/auth'
+import { db } from '@/lib/db'
+import { maxBrandsForPlan } from '@/lib/tier'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
+  const profile = await getProfile()
+  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const body = await req.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
 
@@ -15,27 +21,23 @@ export async function POST(req: NextRequest) {
 
   if (!brandName) return NextResponse.json({ error: 'brandName required' }, { status: 400 })
 
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
-
-  // Get account
-  const { data: profile } = await supabase
-    .from('profiles').select('account_id').eq('id', user.id).single()
-  if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
-
+  // Tenant key always comes from the session — never from the request body
   const accountId = profile.account_id
+  const plan  = profile.accounts?.plan ?? 'basic'
+  const limit = maxBrandsForPlan(plan)
+
+  const sql = db()
 
   // Guard against double-submit: check if trial already started
-  const { data: account } = await supabase
-    .from('accounts').select('trial_started_at').eq('id', accountId).single()
-  const trialAlreadyStarted = !!account?.trial_started_at
+  const trialAlreadyStarted = !!profile.accounts?.trial_started_at
 
   // Set trial dates on account (7-day trial) — only on first call
   const now = new Date()
   const trialEndsAt = trialAlreadyStarted
-    ? new Date(account!.trial_started_at!)
+    ? new Date(profile.accounts!.trial_started_at!)
     : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+
+  const supabase = await createServerSupabaseClient()
 
   if (!trialAlreadyStarted) {
     await supabase.from('accounts').update({
@@ -44,11 +46,30 @@ export async function POST(req: NextRequest) {
     }).eq('id', accountId)
   }
 
+  // Existing brands for THIS account only (no RLS — always filter by account_id)
+  let existingClients: { id: string }[] = []
+  try {
+    existingClients = await sql`
+      select id from clients where account_id = ${accountId} order by created_at asc
+    ` as { id: string }[]
+  } catch (err) {
+    console.warn('[onboarding] client lookup failed:', (err as Error)?.message ?? String(err))
+    return NextResponse.json({ error: 'Failed to create client' }, { status: 500 })
+  }
+
   // Guard against duplicate clients: return existing client if account already has one
-  const { data: existingClient } = await supabase
-    .from('clients').select('id').eq('account_id', accountId).limit(1).single()
-  if (existingClient) {
-    return NextResponse.json({ clientId: existingClient.id, trialEndsAt: trialEndsAt.toISOString() })
+  if (existingClients[0]) {
+    return NextResponse.json({ clientId: existingClients[0].id, trialEndsAt: trialEndsAt.toISOString() })
+  }
+
+  // Per-plan brand cap — same shape as POST /api/dashboard/clients.
+  // Defence in depth: the idempotency guard above already caps onboarding at one
+  // brand per account, so this only bites if that guard is ever relaxed.
+  if (existingClients.length >= limit) {
+    return NextResponse.json(
+      { error: 'BRAND_LIMIT_REACHED', plan, limit },
+      { status: 403 }
+    )
   }
 
   // Create client
@@ -72,11 +93,18 @@ export async function POST(req: NextRequest) {
   }
   const clientId = clientData.id
 
-  // Link scan to account if provided
+  // Link scan to account if provided — only claimable scans (unclaimed, or
+  // already owned by this account). Silently a no-op for anyone else's scan
+  // so the endpoint does not leak whether that scan exists.
   if (scanId) {
-    await supabase.from('scans')
-      .update({ account_id: accountId })
-      .eq('id', scanId)
+    try {
+      await sql`
+        update scans set account_id = ${accountId}
+        where id = ${scanId} and (account_id is null or account_id = ${accountId})
+      `
+    } catch (err) {
+      console.warn('[onboarding] scan link failed:', (err as Error)?.message ?? String(err))
+    }
   }
 
   // Generate seed prompts via OpenRouter

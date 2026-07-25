@@ -1,17 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase }       from '@/lib/supabase'
 import { callOpenRouter } from '@/lib/openrouter'
+import { getProfile }     from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
-  const { brandName, industry, competitors } = await req.json()
+  // Auth gate first — anonymous callers must not be able to create clients or
+  // burn OpenRouter budget.
+  const profile = await getProfile()
+  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await req.json().catch(() => null)
+  const { brandName, industry, competitors } = (body ?? {}) as {
+    brandName?: string
+    industry?: string
+    competitors?: string[]
+  }
 
   if (!brandName) return NextResponse.json({ error: 'brandName required' }, { status: 400 })
 
   const { data: clientData, error: clientError } = await supabase
     .from('clients')
-    .insert({ brand_name: brandName, industry: industry ?? null, competitors: competitors ?? [] })
+    .insert({
+      account_id: profile.account_id,
+      brand_name: brandName,
+      industry: industry ?? null,
+      competitors: competitors ?? [],
+    })
     .select('id')
     .single()
   const client = clientData as { id: string } | null

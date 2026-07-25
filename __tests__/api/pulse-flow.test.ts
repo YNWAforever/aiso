@@ -17,8 +17,37 @@ const h = vi.hoisted(() => {
   const promptInserts:      unknown[] = []
   const pulseMetricInserts: unknown[] = []
   const citationInserts:    unknown[] = []
-  return { clientInserts, promptInserts, pulseMetricInserts, citationInserts }
+  // Signed-in caller; tests reassign this to simulate anon / other tenants
+  const state = {
+    profile: { id: 'u1', account_id: 'acct-A', is_admin: false } as
+      { id: string; account_id: string; is_admin: boolean } | null,
+  }
+  // clientId → owning account_id (the tenancy table the Neon gate queries)
+  const clientOwners = new Map<string, string>([
+    ['client-1', 'acct-A'],
+    ['client-b', 'acct-B'],
+  ])
+  return { clientInserts, promptInserts, pulseMetricInserts, citationInserts, state, clientOwners }
 })
+
+// ── Auth mock ────────────────────────────────────────────────────
+vi.mock('@/lib/auth', () => ({
+  getProfile: vi.fn(async () => h.state.profile),
+}))
+
+// ── Neon tagged-template mock (ownership gate) ───────────────────
+vi.mock('@/lib/db', () => ({
+  db: () => (strings: TemplateStringsArray, ...params: unknown[]) => {
+    const text = strings.join('?')
+    if (/from clients/i.test(text)) {
+      const [clientId, accountId] = params as [string, string]
+      return Promise.resolve(
+        h.clientOwners.get(clientId) === accountId ? [{ id: clientId }] : [],
+      )
+    }
+    return Promise.resolve([])
+  },
+}))
 
 // ── Supabase mock (server client used by pulse/run) ──────────────
 vi.mock('@/lib/supabase', () => ({
@@ -154,6 +183,25 @@ describe('POST /api/pulse/onboard', () => {
   beforeEach(() => {
     h.clientInserts.length  = 0
     h.promptInserts.length  = 0
+    h.state.profile = { id: 'u1', account_id: 'acct-A', is_admin: false }
+  })
+
+  it('returns 401 when unauthenticated — before any LLM spend', async () => {
+    const { callOpenRouter } = await import('@/lib/openrouter')
+    vi.mocked(callOpenRouter).mockClear()
+    h.state.profile = null
+    const { POST } = await import('@/app/api/pulse/onboard/route')
+    const res = await POST(makeJsonReq('/api/pulse/onboard', { brandName: 'AcmeCo' }))
+    expect(res.status).toBe(401)
+    expect(h.clientInserts.length).toBe(0)
+    expect(vi.mocked(callOpenRouter)).not.toHaveBeenCalled()
+  })
+
+  it('stamps the new client with the caller account_id', async () => {
+    const { POST } = await import('@/app/api/pulse/onboard/route')
+    await POST(makeJsonReq('/api/pulse/onboard', { brandName: 'AcmeCo' }))
+    const inserted = h.clientInserts[0] as Record<string, unknown>
+    expect(inserted.account_id).toBe('acct-A')
   })
 
   it('returns 400 when brandName is missing', async () => {
@@ -350,6 +398,29 @@ describe('POST /api/pulse/run — weekly scan', () => {
 // GET /api/pulse/[clientId]/summary
 // ════════════════════════════════════════════════════════════════
 describe('GET /api/pulse/[clientId]/summary', () => {
+  beforeEach(() => {
+    h.state.profile = { id: 'u1', account_id: 'acct-A', is_admin: false }
+  })
+
+  it('returns 401 when unauthenticated', async () => {
+    h.state.profile = null
+    const { GET } = await import('@/app/api/pulse/[clientId]/summary/route')
+    const params = Promise.resolve({ clientId: 'client-1' })
+    const res = await GET(makeGetReq('/api/pulse/client-1/summary'), { params })
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 404 when the clientId belongs to another account (no cross-tenant read)', async () => {
+    // Caller is in acct-A; client-b belongs to acct-B
+    const { GET } = await import('@/app/api/pulse/[clientId]/summary/route')
+    const params = Promise.resolve({ clientId: 'client-b' })
+    const res = await GET(makeGetReq('/api/pulse/client-b/summary'), { params })
+    expect(res.status).toBe(404)
+    const json = await res.json()
+    // 404, not 403 — must not confirm the client exists
+    expect(Array.isArray(json)).toBe(false)
+  })
+
   it('returns 200 with weekly summary array', async () => {
     const { GET } = await import('@/app/api/pulse/[clientId]/summary/route')
     const params = Promise.resolve({ clientId: 'client-1' })
@@ -376,6 +447,27 @@ describe('GET /api/pulse/[clientId]/summary', () => {
 // GET /api/pulse/[clientId]/missed
 // ════════════════════════════════════════════════════════════════
 describe('GET /api/pulse/[clientId]/missed', () => {
+  beforeEach(() => {
+    h.state.profile = { id: 'u1', account_id: 'acct-A', is_admin: false }
+  })
+
+  it('returns 401 when unauthenticated', async () => {
+    h.state.profile = null
+    const { GET } = await import('@/app/api/pulse/[clientId]/missed/route')
+    const params = Promise.resolve({ clientId: 'client-1' })
+    const res = await GET(makeGetReq('/api/pulse/client-1/missed'), { params })
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 404 when the clientId belongs to another account (no cross-tenant read)', async () => {
+    const { GET } = await import('@/app/api/pulse/[clientId]/missed/route')
+    const params = Promise.resolve({ clientId: 'client-b' })
+    const res = await GET(makeGetReq('/api/pulse/client-b/missed'), { params })
+    expect(res.status).toBe(404)
+    const json = await res.json()
+    expect(Array.isArray(json)).toBe(false)
+  })
+
   it('returns 200 with missed-mention records', async () => {
     const { GET } = await import('@/app/api/pulse/[clientId]/missed/route')
     const params = Promise.resolve({ clientId: 'client-1' })
