@@ -48,7 +48,7 @@ create table public.client_reports (
   status text not null default 'draft'
     check (status in ('draft', 'published', 'revoked')),
   public_slug text not null default pg_catalog.translate(
-    pg_catalog.rtrim(pg_catalog.encode(extensions.gen_random_bytes(24), 'base64'), '='),
+    pg_catalog.rtrim(pg_catalog.encode(public.gen_random_bytes(24), 'base64'), '='),
     '+/',
     '-_'
   ),
@@ -593,7 +593,7 @@ begin
   set published_version_id = locked_report.latest_version_id,
       status = 'published',
       public_slug = case when locked_report.status = 'revoked' then pg_catalog.translate(
-        pg_catalog.rtrim(pg_catalog.encode(extensions.gen_random_bytes(24), 'base64'), '='),
+        pg_catalog.rtrim(pg_catalog.encode(public.gen_random_bytes(24), 'base64'), '='),
         '+/',
         '-_'
       ) else locked_report.public_slug end,
@@ -661,7 +661,7 @@ begin
   set status = 'revoked',
       share_version = locked_report.share_version + 1,
       public_slug = pg_catalog.translate(
-        pg_catalog.rtrim(pg_catalog.encode(extensions.gen_random_bytes(24), 'base64'), '='),
+        pg_catalog.rtrim(pg_catalog.encode(public.gen_random_bytes(24), 'base64'), '='),
         '+/',
         '-_'
       ),
@@ -743,7 +743,7 @@ begin
   update public.client_reports
   set share_version = locked_report.share_version + 1,
       public_slug = pg_catalog.translate(
-        pg_catalog.rtrim(pg_catalog.encode(extensions.gen_random_bytes(24), 'base64'), '='),
+        pg_catalog.rtrim(pg_catalog.encode(public.gen_random_bytes(24), 'base64'), '='),
         '+/',
         '-_'
       ),

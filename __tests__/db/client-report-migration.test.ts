@@ -81,6 +81,13 @@ describe('client report migration contract', () => {
     expect(sql).toContain('check (version_number > 0)')
   })
 
+  it('uses the pgcrypto namespace installed by the Neon production database', () => {
+    const sql = readMigration()
+
+    expect(sql.match(/public\.gen_random_bytes\(24\)/g)).toHaveLength(4)
+    expect(sql).not.toContain('extensions.gen_random_bytes')
+  })
+
   it('uses composite tenant constraints and separate latest and published pointers', () => {
     const sql = readMigration()
 
