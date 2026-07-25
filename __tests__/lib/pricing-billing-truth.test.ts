@@ -44,8 +44,9 @@ describe('pricing billing truth', () => {
     expect(pricingSource).toContain('mailto:aeo@fimmick.com')
   })
 
-  it('labels unreleased reports honestly in both locales', () => {
-    expect(PLAN_CATALOG.pro.release.clientReports).toBe('planned')
+  it('labels released online reports and unreleased PDF honestly in both locales', () => {
+    expect(PLAN_CATALOG.pro.release.clientReports).toBe('available')
+    expect(PLAN_CATALOG.enterprise.release.clientReports).toBe('available')
     expect(PLAN_CATALOG.enterprise.release.whiteLabelPdf).toBe('planned')
     expect(enMessages.pricing.coming_soon).toBe('Coming soon')
     expect(zhMessages.pricing.coming_soon).toBe('即將推出')

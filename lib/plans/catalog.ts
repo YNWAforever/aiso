@@ -25,6 +25,7 @@ export interface PlanFeatures {
   local_trust_roi: boolean
   local_trust_competitors: boolean
   local_trust_export: boolean
+  client_reports_online: boolean
 }
 
 export interface PlanReleaseState {
@@ -74,7 +75,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       agent_recs: false, agent_progress: false, agent_competitors: false,
       alerts: false, csv_export: false, max_brands: 1, history_weeks: 0,
       edit_prompts: false, local_trust_roi: false,
-      local_trust_competitors: false, local_trust_export: false,
+      local_trust_competitors: false, local_trust_export: false, client_reports_online: false,
     },
   },
   basic: {
@@ -87,7 +88,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       agent_recs: true, agent_progress: false, agent_competitors: false,
       alerts: false, csv_export: false, max_brands: 1, history_weeks: 4,
       edit_prompts: false, local_trust_roi: false,
-      local_trust_competitors: false, local_trust_export: false,
+      local_trust_competitors: false, local_trust_export: false, client_reports_online: false,
     },
   },
   pro: {
@@ -97,7 +98,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
     exportFormats: [], supportLevel: 'standard',
     release: {
       ...unavailableRelease,
-      monitoring: 'planned', competitorSummary: 'planned', clientReports: 'planned',
+      monitoring: 'planned', competitorSummary: 'planned', clientReports: 'available',
     },
     features: {
       plan: 'pro',
@@ -105,16 +106,16 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       agent_recs: true, agent_progress: true, agent_competitors: false,
       alerts: true, csv_export: false, max_brands: 3, history_weeks: 26,
       edit_prompts: true, local_trust_roi: true,
-      local_trust_competitors: false, local_trust_export: false,
+      local_trust_competitors: false, local_trust_export: false, client_reports_online: true,
     },
   },
   enterprise: {
     id: 'enterprise', checkout: true, monthlyPriceUsd: 199,
     maxBrands: 10, historyWeeks: null, monthlyScanLimit: null,
-    monitoringCadence: 'weekly', competitorMode: 'full', reportBranding: 'white-label',
+    monitoringCadence: 'weekly', competitorMode: 'full', reportBranding: 'fimmick',
     exportFormats: ['csv'], supportLevel: 'priority',
     release: {
-      monitoring: 'planned', competitorSummary: 'available', clientReports: 'planned',
+      monitoring: 'planned', competitorSummary: 'available', clientReports: 'available',
       whiteLabelPdf: 'planned', publicApi: 'custom', customPlatforms: 'custom',
       dedicatedSuccess: 'custom',
     },
@@ -124,7 +125,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       agent_recs: true, agent_progress: true, agent_competitors: true,
       alerts: true, csv_export: true, max_brands: 10, history_weeks: 999,
       edit_prompts: true, local_trust_roi: true,
-      local_trust_competitors: true, local_trust_export: true,
+      local_trust_competitors: true, local_trust_export: true, client_reports_online: true,
     },
   },
 }
