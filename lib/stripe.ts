@@ -5,7 +5,6 @@ import Stripe from 'stripe'
 // may be absent) does not throw "Neither apiKey nor config.authenticator provided".
 let _stripe: Stripe | null = null
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const stripe: Stripe = new Proxy({} as Stripe, {
   get(_target, prop: string | symbol) {
     if (!_stripe) {
