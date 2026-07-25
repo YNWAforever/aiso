@@ -5,7 +5,39 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
+// ── Hoisted auth / tenancy state ────────────────────────────────
+const h = vi.hoisted(() => {
+  const state = {
+    profile: { id: 'u1', account_id: 'acct-A', is_admin: false } as
+      { id: string; account_id: string; is_admin: boolean } | null,
+  }
+  // clientId → owning account_id
+  const clientOwners = new Map<string, string>([
+    ['client-1', 'acct-A'],
+    ['client-b', 'acct-B'],
+  ])
+  return { state, clientOwners }
+})
+
 // ── Mocks ───────────────────────────────────────────────────────
+vi.mock('@/lib/auth', () => ({
+  getProfile: vi.fn(async () => h.state.profile),
+}))
+
+// Neon tagged-template mock — backs the ownership gate
+vi.mock('@/lib/db', () => ({
+  db: () => (strings: TemplateStringsArray, ...params: unknown[]) => {
+    const text = strings.join('?')
+    if (/from clients/i.test(text)) {
+      const [clientId, accountId] = params as [string, string]
+      return Promise.resolve(
+        h.clientOwners.get(clientId) === accountId ? [{ id: clientId }] : [],
+      )
+    }
+    return Promise.resolve([])
+  },
+}))
+
 vi.mock('@/lib/supabase-server', () => ({
   createServerSupabaseClient: vi.fn().mockResolvedValue({
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'u1' } } }) },
@@ -42,7 +74,10 @@ vi.mock('@/lib/openrouter', () => ({
 
 // ── Suggest Questions API ────────────────────────────────────────
 describe('POST /api/pulse/suggest-questions', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    h.state.profile = { id: 'u1', account_id: 'acct-A', is_admin: false }
+  })
 
   it('returns 400 when clientId is missing', async () => {
     const { POST } = await import('@/app/api/pulse/suggest-questions/route')
@@ -101,11 +136,9 @@ describe('POST /api/pulse/suggest-questions', () => {
     expect(json.suggestions.length).toBeLessThanOrEqual(10)
   })
 
-  it('returns 401 when unauthenticated', async () => {
-    const { createServerSupabaseClient } = await import('@/lib/supabase-server')
-    vi.mocked(createServerSupabaseClient).mockResolvedValueOnce({
-      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null } }) },
-    } as never)
+  it('returns 401 when unauthenticated — before any LLM spend', async () => {
+    h.state.profile = null
+    const { callOpenRouter } = await import('@/lib/openrouter')
     const { POST } = await import('@/app/api/pulse/suggest-questions/route')
     const req = new NextRequest('http://localhost/api/pulse/suggest-questions', {
       method: 'POST',
@@ -114,19 +147,24 @@ describe('POST /api/pulse/suggest-questions', () => {
     })
     const res = await POST(req)
     expect(res.status).toBe(401)
+    expect(vi.mocked(callOpenRouter)).not.toHaveBeenCalled()
   })
 
-  it('returns 404 when client not found for this user', async () => {
-    const { createServerSupabaseClient } = await import('@/lib/supabase-server')
-    vi.mocked(createServerSupabaseClient).mockResolvedValueOnce({
-      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'u1' } } }) },
-      from: vi.fn().mockReturnValue({
-        select:  vi.fn().mockReturnThis(),
-        eq:      vi.fn().mockReturnThis(),
-        limit:   vi.fn().mockResolvedValue({ data: [] }),
-        single:  vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
-      }),
-    } as never)
+  it('returns 404 when the clientId belongs to another account (no cross-tenant read)', async () => {
+    // Caller is in acct-A; client-b belongs to acct-B
+    const { callOpenRouter } = await import('@/lib/openrouter')
+    const { POST } = await import('@/app/api/pulse/suggest-questions/route')
+    const req = new NextRequest('http://localhost/api/pulse/suggest-questions', {
+      method: 'POST',
+      body: JSON.stringify({ clientId: 'client-b' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const res = await POST(req)
+    expect(res.status).toBe(404)
+    expect(vi.mocked(callOpenRouter)).not.toHaveBeenCalled()
+  })
+
+  it('returns 404 for a clientId that does not exist at all', async () => {
     const { POST } = await import('@/app/api/pulse/suggest-questions/route')
     const req = new NextRequest('http://localhost/api/pulse/suggest-questions', {
       method: 'POST',

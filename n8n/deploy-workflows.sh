@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # ============================================================
 # n8n Workflow Deployer
-# Usage: N8N_API_KEY=<your-key> bash n8n/deploy-workflows.sh
+# Usage: N8N_API_KEY=<your-key> DATABASE_URL=<neon-connection-string> \
+#          bash n8n/deploy-workflows.sh
+#
+# DATABASE_URL is the same Neon connection string the app uses (.env.local).
+# Load it without echoing it, e.g.:
+#   set -a; . ./.env.local; set +a
 # ============================================================
 
 set -euo pipefail
@@ -14,6 +19,13 @@ if [[ -z "${N8N_API_KEY:-}" ]]; then
   echo "Get it from: https://anfield-n8n.zeabur.app/settings/api"
   exit 1
 fi
+
+if [[ -z "${DATABASE_URL:-}" ]]; then
+  echo "ERROR: DATABASE_URL environment variable is required (Neon Postgres)."
+  echo "Get it from .env.local or the Neon console."
+  exit 1
+fi
+export DATABASE_URL
 
 AUTH_HEADER="X-N8N-API-KEY: ${N8N_API_KEY}"
 
@@ -48,13 +60,25 @@ create_workflow "${SCRIPT_DIR}/ai-pulse-weekly-v2.json" "AI Pulse Weekly v2"
 
 echo ""
 echo "==> Done. Next steps:"
-echo "    1. In n8n UI, create a credential named 'Supabase Postgres':"
-echo "       Host: db.ankmnirpytvbidyjyujh.supabase.co"
-echo "       Port: 5432"
-echo "       Database: postgres"
-echo "       User: postgres"
-echo "       Password: <your Supabase DB password>"
-echo "       SSL: require"
+echo "    1. In n8n UI, create a credential named 'Neon Postgres'"
+echo "       (or run: bash ${SCRIPT_DIR}/configure-credentials.sh)"
+# Print the non-secret parts of DATABASE_URL only — never the password.
+python3 - <<'PY'
+import os, sys
+from urllib.parse import parse_qs, unquote, urlparse
+
+url = urlparse(os.environ['DATABASE_URL'])
+if url.scheme not in ('postgres', 'postgresql') or not url.hostname or not url.username:
+    sys.exit('ERROR: DATABASE_URL is not a valid postgres:// connection string')
+
+sslmode = (parse_qs(url.query).get('sslmode') or ['require'])[0]
+print(f"       Host: {url.hostname}")
+print(f"       Port: {url.port or 5432}")
+print(f"       Database: {unquote(url.path.lstrip('/')) or 'neondb'}")
+print(f"       User: {unquote(url.username)}")
+print("       Password: <password from DATABASE_URL — not printed>")
+print(f"       SSL: {'disable' if sslmode == 'disable' else 'require'}")
+PY
 echo ""
 echo "    2. Set environment variable OPENROUTER_API_KEY in n8n settings"
 echo "       (Settings > Environment Variables)"

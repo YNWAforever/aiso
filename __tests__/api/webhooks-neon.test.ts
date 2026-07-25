@@ -1,12 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
-// The route calls `sql\`...\`` directly (for the idempotency check, and to
-// build each query it hands to `sql.transaction()`), plus `sql.transaction()`
-// itself to submit the accounts + profiles inserts as one atomic batch.
+// The route calls `sql\`...\`` directly (to look the claimed user up in
+// `neon_auth.user`, for the idempotency check, and to build each query it
+// hands to `sql.transaction()`), plus `sql.transaction()` itself to submit the
+// accounts + profiles inserts as one atomic batch.
 const transactionMock = vi.fn()
 const sqlMock = Object.assign(vi.fn(), { transaction: transactionMock })
 vi.mock('@/lib/db', () => ({ db: () => sqlMock }))
+
+// Rows the fake `sql` hands back, keyed by which query is being run. Tests
+// mutate these rather than relying on call ordering, so the assertions stay
+// valid if the route reorders its queries.
+let authUserRows: Array<{ id: string; email: string | null }> = []
+let profileRows: Array<{ id: string }> = []
+let authLookupError: Error | null = null
 
 // Real Neon Auth webhook shape (confirmed from a production delivery):
 // `{ event_type, user: { id, email, name, ... } }`.
@@ -21,13 +29,28 @@ function userCreatedRequest(user: Record<string, unknown> = {}) {
   })
 }
 
+function queryText(strings: unknown) {
+  return Array.isArray(strings) ? (strings as string[]).join('?') : String(strings)
+}
+
 describe('POST /api/webhooks/neon', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // No existing profile by default (idempotency check "misses"); the
-    // return value of the two insert-building calls inside the transaction
-    // array is never read by the route, so an empty array is a safe default.
-    sqlMock.mockResolvedValue([])
+    // Default: the claimed user really does exist in the auth DB with the
+    // email the payload claims, and has not been provisioned yet.
+    authUserRows = [{ id: 'user-123', email: 'new@example.com' }]
+    profileRows = []
+    authLookupError = null
+
+    sqlMock.mockImplementation((strings: unknown) => {
+      const text = queryText(strings)
+      if (/neon_auth\.user/i.test(text)) {
+        return authLookupError ? Promise.reject(authLookupError) : Promise.resolve(authUserRows)
+      }
+      if (/from profiles/i.test(text)) return Promise.resolve(profileRows)
+      // Return value of the insert-building calls is never read by the route.
+      return Promise.resolve([])
+    })
     transactionMock.mockResolvedValue([[], []])
   })
 
@@ -73,26 +96,92 @@ describe('POST /api/webhooks/neon', () => {
     expect(transactionMock).not.toHaveBeenCalled()
   })
 
+  // --- Authenticity gate -------------------------------------------------
+  // This endpoint is publicly reachable and has no signature to verify, so
+  // validating the payload against `neon_auth.user` is its only authentication.
+
+  it('rejects a forged payload whose user id does not exist in neon_auth.user, provisioning nothing', async () => {
+    const { POST } = await import('@/app/api/webhooks/neon/route')
+    authUserRows = [] // attacker-invented user id
+    const res = await POST(userCreatedRequest({ id: 'attacker-made-up-id' }))
+    expect(res.status).toBe(404)
+
+    // Only the auth-DB lookup ran — no profile probe, no inserts.
+    expect(sqlMock).toHaveBeenCalledTimes(1)
+    expect(queryText(sqlMock.mock.calls[0][0])).toMatch(/neon_auth\.user/i)
+    expect(sqlMock.mock.calls[0][1]).toBe('attacker-made-up-id')
+    expect(transactionMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects a payload that binds a real user id to a different email, provisioning nothing', async () => {
+    const { POST } = await import('@/app/api/webhooks/neon/route')
+    // Real row exists, but Neon Auth has a different email on record than the
+    // payload claims — i.e. someone is trying to attach an address they control.
+    authUserRows = [{ id: 'user-123', email: 'real-owner@example.com' }]
+    const res = await POST(userCreatedRequest({ email: 'attacker@evil.test' }))
+    expect(res.status).toBe(404)
+    expect(sqlMock).toHaveBeenCalledTimes(1)
+    expect(transactionMock).not.toHaveBeenCalled()
+  })
+
+  it('returns the same opaque response for an unknown id and a mismatched email', async () => {
+    const { POST } = await import('@/app/api/webhooks/neon/route')
+
+    authUserRows = []
+    const unknownRes = await POST(userCreatedRequest())
+    const unknownBody = await unknownRes.json()
+
+    authUserRows = [{ id: 'user-123', email: 'real-owner@example.com' }]
+    const mismatchRes = await POST(userCreatedRequest({ email: 'attacker@evil.test' }))
+    const mismatchBody = await mismatchRes.json()
+
+    // No existence oracle: the two rejections are indistinguishable.
+    expect(mismatchRes.status).toBe(unknownRes.status)
+    expect(mismatchBody).toEqual(unknownBody)
+  })
+
+  it('accepts an email that differs only by case/whitespace from the auth-DB record', async () => {
+    const { POST } = await import('@/app/api/webhooks/neon/route')
+    authUserRows = [{ id: 'user-123', email: 'New@Example.com' }]
+    const res = await POST(userCreatedRequest({ email: ' new@example.com ' }))
+    expect(res.status).toBe(200)
+    expect(transactionMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns 500 (so Neon retries) when the auth-DB lookup itself fails', async () => {
+    const { POST } = await import('@/app/api/webhooks/neon/route')
+    authLookupError = new Error('connection terminated unexpectedly')
+    const res = await POST(userCreatedRequest())
+    // Fail closed but retryable — a lookup failure is not proof of a forgery,
+    // and must not be treated as a successful no-op.
+    expect(res.status).toBe(500)
+    expect(transactionMock).not.toHaveBeenCalled()
+  })
+
   it('provisions an account and profile on user.created, linking them via the same account id', async () => {
     const { POST } = await import('@/app/api/webhooks/neon/route')
     const res = await POST(userCreatedRequest())
     expect(res.status).toBe(200)
     expect((await res.json()).ok).toBe(true)
 
-    // 1 idempotency check + 2 queries built for the transaction batch.
-    expect(sqlMock).toHaveBeenCalledTimes(3)
+    // 1 auth-DB lookup + 1 idempotency check + 2 queries built for the batch.
+    expect(sqlMock).toHaveBeenCalledTimes(4)
     expect(transactionMock).toHaveBeenCalledTimes(1)
 
-    const [, checkedUserId] = sqlMock.mock.calls[0]
+    const [authStrings, authUserId] = sqlMock.mock.calls[0]
+    expect(queryText(authStrings)).toMatch(/neon_auth\.user/i)
+    expect(authUserId).toBe('user-123')
+
+    const [, checkedUserId] = sqlMock.mock.calls[1]
     expect(checkedUserId).toBe('user-123')
 
-    const [accountStrings, accountId] = sqlMock.mock.calls[1]
-    expect((accountStrings as string[]).join('?')).toMatch(/insert into accounts/i)
+    const [accountStrings, accountId] = sqlMock.mock.calls[2]
+    expect(queryText(accountStrings)).toMatch(/insert into accounts/i)
     expect(typeof accountId).toBe('string')
     expect((accountId as string).length).toBeGreaterThan(0)
 
-    const [profileStrings, profileUserId, profileAccountId, profileName] = sqlMock.mock.calls[2]
-    expect((profileStrings as string[]).join('?')).toMatch(/insert into profiles/i)
+    const [profileStrings, profileUserId, profileAccountId, profileName] = sqlMock.mock.calls[3]
+    expect(queryText(profileStrings)).toMatch(/insert into profiles/i)
     expect(profileUserId).toBe('user-123')
     expect(profileName).toBe('New User')
     // The profile must link to the exact account id created alongside it.
@@ -105,12 +194,12 @@ describe('POST /api/webhooks/neon', () => {
 
   it('short-circuits to 200 without provisioning when the profile already exists (redelivered webhook)', async () => {
     const { POST } = await import('@/app/api/webhooks/neon/route')
-    sqlMock.mockResolvedValueOnce([{ id: 'user-123' }]) // idempotency check finds an existing profile
+    profileRows = [{ id: 'user-123' }] // idempotency check finds an existing profile
     const res = await POST(userCreatedRequest())
     expect(res.status).toBe(200)
     expect((await res.json()).ok).toBe(true)
-    // Only the idempotency check ran — no second, orphaned accounts row.
-    expect(sqlMock).toHaveBeenCalledTimes(1)
+    // Only the auth lookup + idempotency check ran — no second, orphaned accounts row.
+    expect(sqlMock).toHaveBeenCalledTimes(2)
     expect(transactionMock).not.toHaveBeenCalled()
   })
 

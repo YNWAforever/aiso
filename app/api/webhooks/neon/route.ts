@@ -35,6 +35,55 @@ export async function POST(req: NextRequest) {
   }
 
   const sql = db()
+
+  // ---------------------------------------------------------------------
+  // Authenticity gate — DO NOT REMOVE.
+  //
+  // This route is publicly reachable: `proxy.ts`'s matcher excludes `/api`
+  // entirely and layouts never run for route handlers, so nothing else stands
+  // between an anonymous POST and the provisioning below. Without this gate,
+  // anyone can mint real `accounts` + `profiles` rows by POSTing a made-up
+  // `user.created` payload.
+  //
+  // `@neondatabase/auth` ships NO webhook signing support — no svix, no
+  // signing secret, no verify helper — so HMAC signature verification is not
+  // available to us. Instead we validate the payload against the auth database
+  // itself, which is the one thing an attacker cannot forge: only Neon Auth
+  // writes to `neon_auth.user`. A payload naming a user id that does not exist
+  // there, or one that binds a real user id to a different email than Neon Auth
+  // has on record, is rejected and provisions nothing.
+  //
+  // If you are tempted to "simplify" this away because it looks like a
+  // redundant round-trip: it is the *only* authentication this endpoint has.
+  // ---------------------------------------------------------------------
+  let authUser: { id: string; email: string | null } | undefined
+  try {
+    const rows = (await sql`
+      select id, email from neon_auth.user where id = ${userId}
+    `) as Array<{ id: string; email: string | null }>
+    authUser = rows[0]
+  } catch (err) {
+    // A lookup failure is not proof of a forgery — fail closed with a 500 so
+    // Neon retries a legitimate event rather than silently dropping it.
+    console.error(
+      `[webhooks/neon] auth-user lookup failed for user ${userId}:`,
+      (err as Error)?.message ?? String(err)
+    )
+    return NextResponse.json({ error: 'Verification failed' }, { status: 500 })
+  }
+
+  // One shared response for "no such user" and "email mismatch" so the
+  // endpoint does not double as an oracle for which user ids/emails are real.
+  const claimedEmail = email.trim().toLowerCase()
+  const knownEmail = (authUser?.email ?? '').trim().toLowerCase()
+  if (!authUser || !knownEmail || knownEmail !== claimedEmail) {
+    console.warn(
+      `[webhooks/neon] rejecting unverifiable user.created payload for user ${userId} — ` +
+        (authUser ? 'email does not match neon_auth.user' : 'no such row in neon_auth.user')
+    )
+    return NextResponse.json({ error: 'Unknown user' }, { status: 404 })
+  }
+
   try {
     // Idempotency guard: webhook providers (Neon Auth included) commonly
     // redeliver events at-least-once, and `user.created` only fires once per

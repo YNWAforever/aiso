@@ -1,10 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { callOpenRouter } from '@/lib/openrouter'
+import { getProfile } from '@/lib/auth'
+import { db } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
+// There is no RLS in effect — the caller-supplied clientId must be proven to
+// belong to the caller's account before we spend any LLM budget on it.
+// Fails closed on error.
+async function ownsClient(clientId: string, accountId: string): Promise<boolean> {
+  try {
+    const sql = db()
+    const rows = await sql`
+      select id from clients
+      where id = ${clientId} and account_id = ${accountId}
+      limit 1
+    `
+    return rows.length > 0
+  } catch {
+    return false
+  }
+}
+
 export async function POST(req: NextRequest) {
+  // Auth gate first — anonymous callers must not reach the OpenRouter call.
+  const profile = await getProfile()
+  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const body = await req.json().catch(() => null)
   if (!body?.clientId) return NextResponse.json({ error: 'clientId required' }, { status: 400 })
 
@@ -12,16 +35,12 @@ export async function POST(req: NextRequest) {
   const count = Math.min(Math.max(1, rawCount), 10)
   const { clientId } = body as { clientId: string }
 
+  // 404 rather than 403 so the endpoint does not leak which clientIds exist
+  if (!await ownsClient(clientId, profile.account_id))
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // Fetch client info + existing questions — ownership already enforced above
   const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
-
-  // Resolve account_id to enforce ownership
-  const { data: profile } = await supabase
-    .from('profiles').select('account_id').eq('id', user.id).single()
-  if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
-
-  // Fetch client info + existing questions — ownership-guarded via account_id
   const [{ data: client }, { data: existing }] = await Promise.all([
     supabase.from('clients').select('brand_name, industry')
       .eq('id', clientId).eq('account_id', profile.account_id).single(),
