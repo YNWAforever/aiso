@@ -53,6 +53,17 @@ export function proxy(request: NextRequest) {
   return intlMiddleware(request)
 }
 
+// `admin` is excluded alongside `api`: the admin surface lives at app/admin/,
+// deliberately OUTSIDE the [lang] tree. next-intl's default localePrefix is
+// 'always', so any /admin request that reaches the intl middleware is rewritten
+// to /en/admin — a path with no page — turning the whole admin area into a
+// 307-then-404. Keeping it out of the matcher lets /admin fall straight through
+// to app/admin/layout.tsx and its requireAdmin() gate.
+//
+// The negative lookahead is anchored right after the leading slash, so this
+// only excludes TOP-LEVEL /admin. Localised admin pages such as
+// /en/admin/authority (app/[lang]/admin/authority/page.tsx) start with the
+// locale segment and still go through intl routing.
 export const config = {
-  matcher: ['/((?!api|_next|.*\\..*).*)'],
+  matcher: ['/((?!api|admin|_next|.*\\..*).*)'],
 }
