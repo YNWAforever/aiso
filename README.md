@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Fimmick AEO
 
-## Getting Started
+Multi-tenant SaaS that scores websites on **AEO / GEO** — how well AI answer engines
+(ChatGPT, Perplexity, Google AI Overviews, …) can crawl, parse, and cite them.
 
-First, run the development server:
+- **Scan** — 20 checks across three buckets (Core 45 pts, Extended 30 pts, GEO 25 pts)
+  produce a 0–100 score and a letter grade (`A+` → `F`). Entry point: `POST /api/scan`.
+- **Fix packs** — AI-generated, prioritised remediation for the failing checks, via
+  OpenRouter (`app/api/fix/`).
+- **Pulse** — weekly monitoring of how often a brand is surfaced by LLM platforms
+  (`app/api/pulse/`, `app/[lang]/pulse/[clientId]/`).
+- Bilingual **en / zh-HK** (`next-intl`), billed through **Stripe**, deployed on **Vercel**.
+
+Stack: Next.js 16 (App Router) · TypeScript 5.9 · Neon Postgres + Neon Auth · Tailwind v4 ·
+shadcn/ui · Vitest · Playwright.
+
+## Project status — read before you touch anything
+
+This repo is **mid-migration from Supabase to Neon**. The Supabase project has been deleted
+and its hostname no longer resolves, so roughly 37 files that still import
+`lib/supabase.ts` / `lib/supabase-server.ts` fail or hang at runtime. Only the public scan
+funnel, the result page, the Neon signup webhook, and `lib/auth.ts` run on Neon today —
+most dashboard and admin routes are broken. This is expected, not a bad checkout.
+
+Read [`CLAUDE.md`](./CLAUDE.md) before writing code. It is the real architecture document
+and it enumerates the working paths, the broken ones, and the rules for new work
+(use `db()` from `@/lib/db`; never add a new Supabase import; every query filters by
+`account_id` because RLS is inert).
+
+## Prerequisites
+
+- **Node 24.x** (enforced by `engines` in `package.json`)
+- npm
+- Access to the Neon project (`DATABASE_URL`)
+
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+touch .env.local   # then fill in the variables below
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+There is no `.env.example`. Populate `.env.local` with:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable | Notes |
+|---|---|
+| `DATABASE_URL` | Neon connection string |
+| `NEON_AUTH_BASE_URL` | Neon Auth issuer (runtime) |
+| `NEON_AUTH_COOKIE_SECRET` | ≥32 chars, required at **build** time — `next build` fails without it |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | |
+| `STRIPE_PRICE_BASIC` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE` | absent locally → checkout sends an undefined price id and tiers fall through to `basic` |
+| `RESEND_API_KEY` | transactional email |
+| `OPENROUTER_API_KEY` | LLM calls (`lib/openrouter.ts`) |
+| `NEXT_PUBLIC_APP_URL` | absolute base URL for links in emails / OG images |
+| `N8N_SCAN_WEBHOOK_URL` | n8n scan automation |
+| `CRON_SECRET` | guards `/api/cron/*` |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Optional (have fallbacks): `RESEND_FROM_EMAIL`, `WIKIPEDIA_USER_AGENT`.
+E2E only: `BASE_URL`, `START_DEV_SERVER`, `PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_TEST_PASSWORD`.
 
-## Learn More
+Legacy `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and
+`SUPABASE_SERVICE_ROLE_KEY` are still *read* by unmigrated code. Setting them does not help —
+the project behind them is gone. `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` is dead; checkout is
+server-side only.
 
-To learn more about Next.js, take a look at the following resources:
+## Commands
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run dev         # dev server on localhost:3000
+npm run build       # production build
+npm run start       # serve the production build
+npm run lint        # ESLint
+npm run test        # Vitest, single run
+npm run test:watch  # Vitest watch mode
+npm run e2e         # Playwright E2E (needs a dev server, or START_DEV_SERVER=1)
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`npm run e2e:ui` and `npm run e2e:report` are also available. There is **no CI** — run
+`build`, `lint`, and `test` locally before opening a PR.
 
-## Deploy on Vercel
+Database migrations live in `supabase/migrations/` (the directory name is legacy — they are
+applied against Neon). **No migration runner is wired up**; they are applied by hand, so a
+file existing is not evidence it has been run.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Further reading
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [`CLAUDE.md`](./CLAUDE.md) — architecture, auth model, checks engine, DB notes, gotchas
+- [`docs/`](./docs) — historical plans and specs

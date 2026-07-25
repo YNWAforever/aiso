@@ -1,5 +1,21 @@
 # Plan: Result Page Redesign — Email Gate + Deep GEO
 
+> **HISTORICAL — completed 2026-05-30. Retained for context; do not execute.**
+>
+> This plan shipped in commit `c0bdb72` ("feat(result): email-gate + deep GEO redesign").
+> Everything below exists in the repo today: `components/result/*`, `app/api/scan/lead/`,
+> and `supabase/migrations/015_scan_lead_email.sql`. It was moved out of the repo root
+> (`PLAN.md`) so it is not mistaken for pending work.
+>
+> **Dead instruction:** Task 1 tells you to run `supabase db push`. That command cannot
+> work — the Supabase project has been deleted and the project is migrating to Neon.
+> Migrations still live in `supabase/migrations/` (legacy directory name) but are applied
+> against Neon **by hand**; no migration runner is wired up. See `CLAUDE.md`.
+>
+> **Also stale:** the Verification section's `npm run build` gate predates the Playwright
+> E2E suite (`npm run e2e`) and the current lint/test scripts — see the README for the
+> commands actually in use.
+
 ## Goal
 Transform the post-scan result page from a technical audit dump into a
 conversion-optimised experience:
@@ -14,7 +30,8 @@ conversion-optimised experience:
 ### Task 1 — Migration: add lead_email to scans
 - Create `supabase/migrations/015_scan_lead_email.sql`
   - `ALTER TABLE scans ADD COLUMN IF NOT EXISTS lead_email text;`
-- Run `supabase db push`
+- ~~Run `supabase db push`~~ — **dead**: Supabase is gone. The migration file exists and
+  the `lead_email` column is live on Neon; apply future migrations against Neon by hand.
 
 ### Task 2 — API: lead capture endpoint
 - Create `app/api/scan/lead/route.ts`
