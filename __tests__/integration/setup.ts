@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { Pool, neonConfig } from '@neondatabase/serverless'
-import { createTestBranch, deleteTestBranch } from '../helpers/neon-branch'
+import { createTestBranch, deleteTestBranch, PROJECT_ID } from '../helpers/neon-branch'
 
 let branchId: string | null = null
 
@@ -29,6 +29,10 @@ export async function setup(): Promise<void> {
   const name = `test-${process.pid}-${Date.now()}`
   const branch = createTestBranch(name)
   branchId = branch.id
+  // Logged before anything that could fail, so a crash mid-setup still
+  // leaves a trail: `neonctl branches delete <id> --project-id <PROJECT_ID>`
+  // finds and removes it even if teardown() never runs.
+  console.log(`Provisioned test branch ${branch.id} (${name}, project ${PROJECT_ID})`)
   process.env.TEST_DATABASE_URL = branch.connectionUri
 
   await resetPublicSchema(branch.connectionUri)
@@ -43,5 +47,18 @@ export async function setup(): Promise<void> {
 }
 
 export async function teardown(): Promise<void> {
-  if (branchId) deleteTestBranch(branchId)
+  if (!branchId) return
+  try {
+    deleteTestBranch(branchId)
+    console.log(`Deleted test branch ${branchId}`)
+  } catch (err) {
+    // Surface the id prominently rather than letting the branch vanish into
+    // the noise of a stack trace — this is the one thing an operator needs
+    // to clean up by hand if the automatic delete itself fails.
+    console.error(
+      `Failed to delete test branch ${branchId} — it is now orphaned.\n` +
+      `Clean it up manually: neonctl branches delete ${branchId} --project-id ${PROJECT_ID}`,
+    )
+    throw err
+  }
 }

@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 
-const PROJECT_ID = 'red-firefly-93523049'
+export const PROJECT_ID = 'red-firefly-93523049'
 
 function neonctl(args: string[]): string {
   try {
