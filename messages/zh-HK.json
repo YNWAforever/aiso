@@ -8,7 +8,8 @@
   },
   "auth": {
     "signing_out": "登出中…",
-    "continue_to_sign_in": "返回登入"
+    "sign_out_failed": "未能為你登出，你可能仍在登入狀態。",
+    "try_again": "再試一次"
   },
   "home": {
     "badge": "免費 AISO 平台掃描",

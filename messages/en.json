@@ -8,7 +8,8 @@
   },
   "auth": {
     "signing_out": "Signing out…",
-    "continue_to_sign_in": "Continue to sign in"
+    "sign_out_failed": "We could not sign you out. You may still be signed in.",
+    "try_again": "Try again"
   },
   "home": {
     "badge": "FREE AISO PLATFORM SCAN",
