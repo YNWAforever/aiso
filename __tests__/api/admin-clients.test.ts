@@ -76,3 +76,101 @@ describe('GET /api/admin/clients', () => {
     expect(queryText(sqlMock.mock.calls[0][0]).toLowerCase()).toContain('from accounts')
   })
 })
+
+import { NextRequest } from 'next/server'
+
+function patchRequest(body: Record<string, unknown>) {
+  return new NextRequest('http://localhost/api/admin/clients', {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+async function patch(body: Record<string, unknown>) {
+  const { PATCH } = await import('@/app/api/admin/clients/route')
+  return PATCH(patchRequest(body))
+}
+
+describe('PATCH /api/admin/clients', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.resetModules()
+    getProfileMock.mockReturnValue(ADMIN)
+    sqlMock.mockResolvedValue([{ id: 'acc-1' }])
+  })
+
+  it('returns 403 for a non-admin', async () => {
+    getProfileMock.mockReturnValue({ ...ADMIN, is_admin: false })
+    expect((await patch({ accountId: 'acc-1', action: 'revoke' })).status).toBe(403)
+  })
+
+  it('grants an override and never writes accounts.plan', async () => {
+    const res = await patch({
+      accountId: 'acc-1', action: 'grant', plan: 'enterprise', reason: 'partner deal',
+    })
+    expect(res.status).toBe(200)
+    const text = queryText(sqlMock.mock.calls[0][0]).toLowerCase()
+    expect(text).toContain('override_plan')
+    expect(text).not.toMatch(/set\s+plan\s*=/)
+  })
+
+  it('takes override_set_by from the session, not the body', async () => {
+    await patch({
+      accountId: 'acc-1', action: 'grant', plan: 'pro', reason: 'support',
+      override_set_by: 'attacker', set_by: 'attacker',
+    })
+    const params = sqlMock.mock.calls[0].slice(1)
+    expect(params).toContain('admin-1')
+    expect(params).not.toContain('attacker')
+  })
+
+  it('accepts free as a downgrade comp', async () => {
+    const res = await patch({
+      accountId: 'acc-1', action: 'grant', plan: 'free', reason: 'abuse',
+    })
+    expect(res.status).toBe(200)
+  })
+
+  it('rejects a plan outside PLAN_IDS', async () => {
+    const res = await patch({
+      accountId: 'acc-1', action: 'grant', plan: 'platinum', reason: 'x',
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects a grant with no reason', async () => {
+    const res = await patch({ accountId: 'acc-1', action: 'grant', plan: 'pro', reason: '  ' })
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects an expiry in the past', async () => {
+    const res = await patch({
+      accountId: 'acc-1', action: 'grant', plan: 'pro', reason: 'x',
+      expiresAt: '2020-01-01T00:00:00Z',
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('revokes by nulling all four override columns', async () => {
+    const res = await patch({ accountId: 'acc-1', action: 'revoke' })
+    expect(res.status).toBe(200)
+    const text = queryText(sqlMock.mock.calls[0][0]).toLowerCase()
+    expect(text).toContain('override_plan = null')
+    expect(text).toContain('override_reason = null')
+    expect(text).toContain('override_set_by = null')
+    expect(text).toContain('override_expires_at = null')
+  })
+
+  it('returns 404 when the account does not exist', async () => {
+    sqlMock.mockResolvedValue([])
+    const res = await patch({ accountId: 'nope', action: 'revoke' })
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 5xx when the write fails', async () => {
+    sqlMock.mockRejectedValue(new Error('connection failed'))
+    const res = await patch({ accountId: 'acc-1', action: 'revoke' })
+    expect(res.status).toBeGreaterThanOrEqual(500)
+  })
+})

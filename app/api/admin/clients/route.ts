@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth'
-import { createServiceSupabaseClient } from '@/lib/supabase-server'
 import { requireApiAdmin } from '@/lib/admin-guard'
 import { db } from '@/lib/db'
 import { resolveCommercialEntitlement } from '@/lib/tier'
+import { PLAN_IDS, type PlanId } from '@/lib/plans/catalog'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,19 +74,93 @@ export async function GET() {
   }
 }
 
+function isPlanId(value: unknown): value is PlanId {
+  return typeof value === 'string' && (PLAN_IDS as readonly string[]).includes(value)
+}
+
 export async function PATCH(req: NextRequest) {
-  await requireAdmin()
-  const { accountId, plan } = await req.json()
-  if (!['basic', 'pro', 'enterprise'].includes(plan)) {
-    return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
+  const admin = await requireApiAdmin()
+  if (!admin.ok) return admin.response
+
+  const body = await req.json().catch(() => null)
+  if (!body || typeof body !== 'object') {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const supabase = await createServiceSupabaseClient()
-  const { error } = await supabase
-    .from('accounts')
-    .update({ plan })
-    .eq('id', accountId)
+  const { accountId, action } = body as { accountId?: unknown; action?: unknown }
+  if (typeof accountId !== 'string' || !accountId) {
+    return NextResponse.json({ error: 'accountId required' }, { status: 400 })
+  }
+  if (action !== 'grant' && action !== 'revoke') {
+    return NextResponse.json({ error: "action must be 'grant' or 'revoke'" }, { status: 400 })
+  }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+  const sql = db()
+
+  if (action === 'revoke') {
+    try {
+      const rows = await sql`
+        update accounts
+           set override_plan = null,
+               override_reason = null,
+               override_set_by = null,
+               override_expires_at = null
+         where id = ${accountId}
+        returning id
+      `
+      if (!rows.length) return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+      return NextResponse.json({ ok: true })
+    } catch (err) {
+      console.error('[admin/clients] revoke failed:', (err as Error)?.message ?? String(err))
+      return NextResponse.json({ error: 'Failed to revoke override' }, { status: 500 })
+    }
+  }
+
+  const { plan, reason, expiresAt } = body as {
+    plan?: unknown; reason?: unknown; expiresAt?: unknown
+  }
+
+  // Validated against the catalog, not a hardcoded list — this is what allows
+  // 'free' as a downgrade comp and keeps the endpoint correct as plans change.
+  if (!isPlanId(plan)) {
+    return NextResponse.json(
+      { error: 'Invalid plan', valid: PLAN_IDS }, { status: 400 },
+    )
+  }
+
+  const trimmedReason = typeof reason === 'string' ? reason.trim() : ''
+  if (!trimmedReason) {
+    return NextResponse.json({ error: 'reason required' }, { status: 400 })
+  }
+
+  // null expiry = permanent comp. A past timestamp is rejected rather than
+  // stored, because an already-expired override is a silent no-op that reads as
+  // success in the UI.
+  let expiry: string | null = null
+  if (expiresAt !== undefined && expiresAt !== null && expiresAt !== '') {
+    if (typeof expiresAt !== 'string' || Number.isNaN(new Date(expiresAt).getTime())) {
+      return NextResponse.json({ error: 'expiresAt must be an ISO-8601 timestamp' }, { status: 400 })
+    }
+    if (new Date(expiresAt).getTime() <= Date.now()) {
+      return NextResponse.json({ error: 'expiresAt must be in the future' }, { status: 400 })
+    }
+    expiry = expiresAt
+  }
+
+  try {
+    const rows = await sql`
+      update accounts
+         set override_plan = ${plan},
+             override_reason = ${trimmedReason},
+             override_set_by = ${admin.profile.id},
+             override_expires_at = ${expiry}
+       where id = ${accountId}
+      returning id
+    `
+    if (!rows.length) return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('[admin/clients] grant failed:', (err as Error)?.message ?? String(err))
+    return NextResponse.json({ error: 'Failed to grant override' }, { status: 500 })
+  }
 }
