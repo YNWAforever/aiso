@@ -3,10 +3,24 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
+import { findUnguardedRoleStatements } from '../helpers/migration-role-guards.mjs'
+
 const migrationPath = resolve(process.cwd(), 'supabase/migrations/027_client_report_snapshots.sql')
 
 function readMigration() {
   return readFileSync(migrationPath, 'utf8').replace(/\s+/g, ' ').toLowerCase()
+}
+
+/**
+ * Same, minus `--` comments — for assertions about what the migration does
+ * *not* do, which a comment explaining why it no longer does it would
+ * otherwise defeat.
+ */
+function readMigrationCode() {
+  return readFileSync(migrationPath, 'utf8')
+    .replace(/--[^\n]*/g, '')
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
 }
 
 function functionDefinition(sql: string, name: string) {
@@ -103,23 +117,40 @@ describe('client report migration contract', () => {
     expect(sql).toContain('revoke update, delete on table public.client_report_versions from service_role')
   })
 
-  it('enables RLS and only grants tenant-bound collaborator reads', () => {
+  it('enables RLS with no policies, so the report tables are default-deny', () => {
     const sql = readMigration()
 
     for (const table of ['account_report_branding', 'client_reports', 'client_report_versions']) {
       expect(sql).toContain(`alter table public.${table} enable row level security`)
     }
     expect(publicReportReadViolations(sql)).toEqual([])
-    expect(sql).not.toMatch(/create policy[^;]+using \(true\)/)
-    expect(sql).toMatch(/profiles\.account_id = account_report_branding\.account_id/)
-    expect(sql).toMatch(/profiles\.account_id = client_reports\.account_id/)
-    expect(sql).toMatch(/profiles\.account_id = client_report_versions\.account_id/)
-    expect(sql).toContain('revoke all on table public.client_reports from anon, authenticated')
-    expect(sql).toContain('revoke all on table public.client_report_versions from anon, authenticated')
-    expect(sql).toContain('revoke all on table public.client_reports from service_role')
-    expect(sql).toContain('revoke all on table public.client_report_versions from service_role')
-    expect(sql).toContain('grant select on table public.client_reports to authenticated')
-    expect(sql).toContain('grant select on table public.client_report_versions to authenticated')
+
+    // RLS on + zero policies is default-deny. The Supabase original scoped six
+    // policies with auth.uid(), which under Neon Auth is a leftover shim that
+    // always returns null — the policies could never match, and depending on
+    // the dead `auth` schema would make this still-pending migration fail to
+    // apply the moment that schema is cleaned up (see CLAUDE.md). Dropping the
+    // `to authenticated` clause instead would have widened them to PUBLIC,
+    // which would also bind neondb_owner under FORCE ROW LEVEL SECURITY.
+    const code = readMigrationCode()
+    expect(code).not.toContain('create policy')
+    expect(code).not.toMatch(/auth\.uid\(\)/)
+
+    // Tenant isolation is therefore the application's job, not the database's.
+    expect(sql).toContain('revoke all on table public.account_report_branding from public')
+    expect(sql).toContain('revoke all on table public.client_reports from public')
+    expect(sql).toContain('revoke all on table public.client_report_versions from public')
+
+    // The Supabase-role ACLs survive verbatim, but only inside to_regrole
+    // guards so they no-op on Neon and still apply if the roles are created.
+    for (const table of ['client_reports', 'client_report_versions']) {
+      expect(sql).toContain(`revoke all on table public.${table} from anon`)
+      expect(sql).toContain(`revoke all on table public.${table} from authenticated`)
+      expect(sql).toContain(`revoke all on table public.${table} from service_role`)
+      expect(sql).toContain(`grant select on table public.${table} to authenticated`)
+      expect(sql).toContain(`grant select on table public.${table} to service_role`)
+    }
+    expect(findUnguardedRoleStatements(readFileSync(migrationPath, 'utf8'))).toEqual([])
   })
 
   it('detects canonical anon/public report read policies and grants', () => {
@@ -168,10 +199,16 @@ describe('client report migration contract', () => {
       expect(definition).toContain('security definer')
       expect(definition).toContain("set search_path = ''")
       expect(sql).toMatch(new RegExp(`revoke execute on function public\\.${name}\\([^;]+ from public`))
-      expect(sql).toMatch(new RegExp(`revoke execute on function public\\.${name}\\([^;]+ from anon`))
-      expect(sql).toMatch(new RegExp(`revoke execute on function public\\.${name}\\([^;]+ from authenticated`))
-      expect(sql).toMatch(new RegExp(`grant execute on function public\\.${name}\\([^;]+ to service_role`))
+      // The anon/authenticated/service_role execute ACLs are applied by the
+      // guarded loop at the end of the file rather than statement-by-statement,
+      // so assert this signature is one of the signatures that loop covers.
+      expect(sql).toMatch(new RegExp(`'public\\.${name}\\([^']+\\)',?`))
     }
+
+    // …and that the loop still applies all three ACLs it is responsible for.
+    expect(sql).toContain("execute pg_catalog.format('revoke execute on function %s from anon', fn)")
+    expect(sql).toContain("execute pg_catalog.format('revoke execute on function %s from authenticated', fn)")
+    expect(sql).toContain("execute pg_catalog.format('grant execute on function %s to service_role', fn)")
 
     const append = functionDefinition(sql, 'append_client_report_version')
     expect(append).toContain('pg_catalog.pg_advisory_xact_lock')

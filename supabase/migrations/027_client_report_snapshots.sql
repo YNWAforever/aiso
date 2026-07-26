@@ -165,91 +165,32 @@ alter table public.account_report_branding enable row level security;
 alter table public.client_reports enable row level security;
 alter table public.client_report_versions enable row level security;
 
--- No "to authenticated": Supabase's anon/authenticated/service_role roles do not
--- exist under Neon (021's policies in this same migration set follow the same
--- convention), and RLS never fires for this app anyway — it connects as
--- neondb_owner, which bypasses RLS. The using()/with check() scoping below is
--- kept as-is so these policies are correct if a least-privilege role is ever
--- introduced.
-create policy account_report_branding_select_own
-  on public.account_report_branding
-  for select
-  using (
-    exists (
-      select 1
-      from public.profiles
-      where profiles.id = (select auth.uid())
-        and profiles.account_id = account_report_branding.account_id
-    )
-  );
-
-create policy account_report_branding_insert_own
-  on public.account_report_branding
-  for insert
-  with check (
-    exists (
-      select 1
-      from public.profiles
-      where profiles.id = (select auth.uid())
-        and profiles.account_id = account_report_branding.account_id
-    )
-  );
-
-create policy account_report_branding_update_own
-  on public.account_report_branding
-  for update
-  using (
-    exists (
-      select 1
-      from public.profiles
-      where profiles.id = (select auth.uid())
-        and profiles.account_id = account_report_branding.account_id
-    )
-  )
-  with check (
-    exists (
-      select 1
-      from public.profiles
-      where profiles.id = (select auth.uid())
-        and profiles.account_id = account_report_branding.account_id
-    )
-  );
-
-create policy account_report_branding_delete_own
-  on public.account_report_branding
-  for delete
-  using (
-    exists (
-      select 1
-      from public.profiles
-      where profiles.id = (select auth.uid())
-        and profiles.account_id = account_report_branding.account_id
-    )
-  );
-
-create policy client_reports_select_own
-  on public.client_reports
-  for select
-  using (
-    exists (
-      select 1
-      from public.profiles
-      where profiles.id = (select auth.uid())
-        and profiles.account_id = client_reports.account_id
-    )
-  );
-
-create policy client_report_versions_select_own
-  on public.client_report_versions
-  for select
-  using (
-    exists (
-      select 1
-      from public.profiles
-      where profiles.id = (select auth.uid())
-        and profiles.account_id = client_report_versions.account_id
-    )
-  );
+-- RLS is enabled above but deliberately carries NO policies. RLS with zero
+-- policies is default-deny, which is the safest posture available here.
+--
+-- This migration was written for Supabase and originally created six
+-- `to authenticated` policies scoped by `(select auth.uid())`. Neither half of
+-- that survives the move to Neon:
+--
+--  * The `authenticated` role does not exist, so `to authenticated` cannot even
+--    be parsed. Dropping the role clause would make each policy apply to PUBLIC
+--    instead — a strict broadening. It would then also bind neondb_owner the
+--    moment anyone sets FORCE ROW LEVEL SECURITY, which `to authenticated`
+--    never would have.
+--  * `auth.uid()` is a leftover Supabase artifact
+--    (`select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid`).
+--    Neon Auth never sets that PostgREST GUC, so it returns NULL and every
+--    policy matches nothing. Depending on it would also make this migration
+--    un-appliable the moment the dead `auth` schema is cleaned up — see the RLS
+--    section of CLAUDE.md, which calls for exactly that cleanup. This migration
+--    is still pending, so that ordering is a live risk, not a hypothetical.
+--
+-- Default-deny is behaviourally identical to a policy that never matches, minus
+-- the false signal that tenant isolation is enforced in the database. It is not:
+-- every query must filter by account_id explicitly, and the RPCs below are
+-- SECURITY DEFINER with their own explicit account_id/client_id predicates.
+-- Reintroduce policies here only alongside a real least-privilege role and a
+-- tenant-identity function that actually resolves under Neon Auth.
 
 -- Supabase's anon/authenticated/service_role roles do not exist under Neon.
 -- Guard every grant/revoke that names them, matching the do $acl$ pattern used
