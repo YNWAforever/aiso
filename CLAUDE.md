@@ -231,13 +231,21 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 
 ## Database (Neon Postgres)
 
-- Migrations in `supabase/migrations/` — numbered `001_`–`022_` (directory name is legacy;
+- Migrations in `supabase/migrations/` — numbered `001_`–`028_` (directory name is legacy;
   the target is now Neon)
-- **No migration runner is wired up.** Migrations are applied by hand — the file existing
-  does not mean it ran. Verify against `information_schema` before assuming a table exists.
-- **Known drift:** `021_local_trust_roi.sql` has *not* been applied — `local_trust_profiles`,
-  `local_trust_actions`, `local_trust_snapshots` do not exist in Neon. The Local Trust
-  feature cannot work until it is run.
+- **A migration runner now exists:** `scripts/migrate.ts`, run via `npm run migrate`. It
+  applies every file absent from the `schema_migrations` ledger, in filename order, each in
+  its own transaction. `--dry-run` previews; `--baseline --except <file>` records existing
+  migrations as applied without running them.
+  **It refuses to run against a populated database with an empty ledger** — that guard is
+  what stops it re-applying the migrations that were applied by hand before it existed.
+  Baseline production once (`--baseline --except 027_client_report_snapshots.sql`) before
+  the first real run.
+- Applied as of 2026-07-26: `001`–`026` and `028`. **`027_client_report_snapshots.sql` is
+  the sole pending migration**, and Slice 6 (client reports) applies it. It was edited to
+  apply cleanly — it previously duplicated `021`'s `clients_id_account_id_unique`
+  constraint, used `gen_random_bytes()` without enabling `pgcrypto`, and granted to the
+  Supabase roles `anon` / `authenticated` / `service_role`, which do not exist under Neon.
 - Neon also has tables with no migration file (`stripe_webhook_events`,
   `public_scan_rate_limits`, `authenticated_scan_monthly_usage`,
   `stripe_subscription_processing_leases`) — added out-of-band.
