@@ -6,8 +6,11 @@
 --
 -- override_expires_at IS NULL means a permanent comp (internal/partner accounts).
 --
--- override_set_by deliberately carries no foreign key: attribution must outlive
--- the actor it names. profiles.id cascade-deletes from neon_auth.user (022) and
+-- override_set_by deliberately carries no foreign key. The design spec
+-- (docs/superpowers/specs/2026-07-26-admin-plan-override-design.md) specifies
+-- `references public.profiles(id)`; that is not carried over here, on purpose.
+-- Attribution must outlive the actor it names, and
+-- profiles.id cascade-deletes from neon_auth.user (022) and
 -- profiles.account_id cascade-deletes from accounts (003), so an FK here would
 -- block deleting an admin's Neon Auth user — or their account — on a constraint
 -- naming a table the caller never touched. accounts_override_complete still
@@ -30,6 +33,7 @@ alter table public.accounts
   add constraint accounts_override_complete
     check (override_plan is null
            or (override_set_by is not null
+               and override_reason is not null
                and char_length(btrim(override_reason)) between 1 and 500));
 
 -- Orphaned third definition of plan entitlements: three rows, read by zero
