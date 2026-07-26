@@ -54,7 +54,13 @@ export function OverrideControls({
         disabled={busy || !reason.trim()}
         onClick={() => onGrant(
           accountId, plan, reason.trim(),
-          expiresAt ? new Date(`${expiresAt}T23:59:59Z`).toISOString() : null,
+          // End of the chosen day in the ADMIN's timezone, not UTC. A `Z` suffix
+          // here would anchor to 23:59:59 UTC, which for any timezone east of UTC
+          // (this team is UTC+8) has already rolled into the next local day — so
+          // AccountRow's toLocaleDateString() would display the day after the one
+          // picked. It also lets a far-west admin pick "today" and have the API
+          // reject it as already past. Omitting `Z` parses as local time per spec.
+          expiresAt ? new Date(`${expiresAt}T23:59:59`).toISOString() : null,
         )}
         className="text-xs rounded bg-slate-900 text-white px-2 py-1 disabled:opacity-40"
       >

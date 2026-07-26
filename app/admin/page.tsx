@@ -22,9 +22,14 @@ export default function AdminPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
+    // .catch matters: fetch rejects outright on a network failure rather than
+    // resolving non-2xx, and without this the spinner would never clear.
     fetchAccounts().then(data => {
       if (data === null) setError('Failed to load accounts.')
       else setAccounts(data)
+      setLoading(false)
+    }).catch(() => {
+      setError('Failed to load accounts.')
       setLoading(false)
     })
   }, [])
@@ -34,20 +39,27 @@ export default function AdminPage() {
   const send = async (body: Record<string, unknown>, accountId: string) => {
     setBusyId(accountId)
     setError('')
-    const res = await fetch('/api/admin/clients', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      setError(data.error ?? 'Request failed.')
-    } else {
-      const data = await fetchAccounts()
-      if (data === null) setError('Failed to load accounts.')
-      else setAccounts(data)
+    try {
+      const res = await fetch('/api/admin/clients', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error ?? 'Request failed.')
+      } else {
+        const data = await fetchAccounts()
+        if (data === null) setError('Failed to load accounts.')
+        else setAccounts(data)
+      }
+    } catch {
+      // A network failure rejects rather than resolving non-2xx. Without this
+      // the row would stay disabled with no explanation.
+      setError('Request failed.')
+    } finally {
+      setBusyId(null)
     }
-    setBusyId(null)
   }
 
   const onGrant = (accountId: string, plan: PlanId, reason: string, expiresAt: string | null) =>
