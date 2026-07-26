@@ -12,6 +12,7 @@
     "lint": "eslint . --ignore-pattern '.worktrees/' --ignore-pattern '.codex/' --ignore-pattern '.opencode/' --ignore-pattern '.claude/' --ignore-pattern '.superpowers/' --ignore-pattern 'coverage/'",
     "test": "vitest run",
     "test:watch": "vitest",
+    "migrate": "node --env-file=.env.local scripts/migrate.ts",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "e2e:report": "playwright show-report"
