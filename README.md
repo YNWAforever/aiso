@@ -103,6 +103,9 @@ Before releasing public scans:
   `authenticated_scan_monthly_usage`; authenticated scans fail closed if the counter is unavailable.
 - Apply `supabase/migrations/026_effective_brand_limit.sql` before releasing self-service brand creation.
   It replaces the legacy raw-plan trigger with serialized, effective-entitlement enforcement.
+- Apply `supabase/migrations/028_account_plan_overrides.sql` before using admin plan comps.
+  It adds the override columns and replaces `check_brand_limit()` so a comp is honoured by
+  the database as well as the application.
 - Configure the server-only `PUBLIC_SCAN_RATE_LIMIT_SECRET` with at least 32 random characters.
   Do not expose it through a `NEXT_PUBLIC_` variable or commit its value.
 
