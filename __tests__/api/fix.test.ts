@@ -142,55 +142,28 @@ describe('POST /api/fix', () => {
   })
 })
 
+// Fenced during the Supabase to Neon migration — see lib/unavailable.ts and
+// __tests__/api/fenced-routes.test.ts for the full fenced-route contract.
 describe('POST /api/fix/cluster-map', () => {
-  it('rejects an anonymous caller with 401 and never calls OpenRouter', async () => {
-    vi.mocked(getProfile).mockResolvedValue(null)
+  it('returns 503 FEATURE_UNAVAILABLE and never calls OpenRouter', async () => {
     const { POST } = await import('@/app/api/fix/cluster-map/route')
 
-    const res = await POST(post('/api/fix/cluster-map', { clientId: 'c-1', industry: 'retail' }))
+    const res = await POST()
 
-    expect(res.status).toBe(401)
+    expect(res.status).toBe(503)
+    expect(await res.json()).toEqual({ error: 'FEATURE_UNAVAILABLE', feature: 'content-tools' })
     expect(callOpenRouter).not.toHaveBeenCalled()
-  })
-
-  it('returns 404 when the client belongs to another account', async () => {
-    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
-    sqlMock.mockResolvedValue([])
-    const { POST } = await import('@/app/api/fix/cluster-map/route')
-
-    const res = await POST(post('/api/fix/cluster-map', { clientId: 'c-other', industry: 'retail' }))
-
-    expect(res.status).toBe(404)
-    expect(callOpenRouter).not.toHaveBeenCalled()
-    const [strings, ...params] = sqlMock.mock.calls[0]
-    expect((strings as string[]).join('?')).toMatch(/from clients/i)
-    expect(params).toEqual(['c-other', 'acc-1'])
   })
 })
 
 describe('POST /api/fix/content-brief', () => {
-  it('rejects an anonymous caller with 401 and never calls OpenRouter', async () => {
-    vi.mocked(getProfile).mockResolvedValue(null)
+  it('returns 503 FEATURE_UNAVAILABLE and never calls OpenRouter', async () => {
     const { POST } = await import('@/app/api/fix/content-brief/route')
 
-    const res = await POST(post('/api/fix/content-brief', {
-      clientId: 'c-1', targetTopic: 'aeo', industry: 'retail',
-    }))
+    const res = await POST()
 
-    expect(res.status).toBe(401)
-    expect(callOpenRouter).not.toHaveBeenCalled()
-  })
-
-  it('returns 404 when the client belongs to another account', async () => {
-    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
-    sqlMock.mockResolvedValue([])
-    const { POST } = await import('@/app/api/fix/content-brief/route')
-
-    const res = await POST(post('/api/fix/content-brief', {
-      clientId: 'c-other', targetTopic: 'aeo', industry: 'retail',
-    }))
-
-    expect(res.status).toBe(404)
+    expect(res.status).toBe(503)
+    expect(await res.json()).toEqual({ error: 'FEATURE_UNAVAILABLE', feature: 'content-tools' })
     expect(callOpenRouter).not.toHaveBeenCalled()
   })
 })
