@@ -94,10 +94,13 @@ export interface Account {
   stripe_subscription_id: string | null
   plan: 'basic' | 'pro' | 'enterprise'
   status: 'active' | 'past_due' | 'cancelled' | 'trialing'
-  trial_started_at: string | null
-  trial_ends_at: string | null
+  // These four are `timestamptz`, and the Neon driver returns those as a JS
+  // `Date`. They were typed `string` only, which is why lib/tier.ts's
+  // `typeof … === 'string'` trial check silently never matched.
+  trial_started_at: string | Date | null
+  trial_ends_at: string | Date | null
   trial_emails_sent: number
-  created_at: string
+  created_at: string | Date
   override_plan: string | null
   override_expires_at: string | Date | null
 }

@@ -76,6 +76,17 @@ function activeEntitlement(
 // of a no-op.
 const OVERRIDE_PLANS = new Set<PlanId>(PLAN_IDS)
 
+// Every timestamp on `accounts` is a `timestamptz`, and the Neon driver returns
+// those as a JS `Date` — verified against the live database. ISO strings still
+// arrive from test fixtures and from rows written by the Supabase-era code, so
+// accept both. Anything else yields NaN, which every caller treats as "absent"
+// so a bad value fails closed rather than granting entitlement.
+function timestampMs(raw: unknown): number {
+  if (raw instanceof Date) return raw.getTime()
+  if (typeof raw === 'string') return new Date(raw).getTime()
+  return Number.NaN
+}
+
 // Returns the override plan when one is set and unexpired, else null.
 // A null expiry means permanent; a malformed expiry voids the whole override
 // rather than being treated as permanent, so a bad write fails closed.
@@ -89,9 +100,7 @@ function liveOverridePlan(account: NonNullable<CommercialAccount>, now: Date): E
   const raw = account.override_expires_at
   if (raw === null || raw === undefined) return plan
 
-  const expiry = raw instanceof Date ? raw.getTime()
-    : typeof raw === 'string' ? new Date(raw).getTime()
-      : Number.NaN
+  const expiry = timestampMs(raw)
   if (!Number.isFinite(expiry)) return null
 
   return expiry > now.getTime() ? plan : null
@@ -118,9 +127,7 @@ export function resolveCommercialEntitlement(
     : null
   if (!plan) return freeEntitlement('free')
 
-  const trialExpiry = typeof account.trial_ends_at === 'string'
-    ? new Date(account.trial_ends_at).getTime()
-    : Number.NaN
+  const trialExpiry = timestampMs(account.trial_ends_at)
   const trialIsLive = Number.isFinite(trialExpiry) && trialExpiry > now.getTime()
   const hasSubscription = typeof account.stripe_subscription_id === 'string'
     && account.stripe_subscription_id.length > 0
@@ -133,9 +140,8 @@ export function resolveCommercialEntitlement(
     return activeEntitlement(plan, 'trial')
   }
 
-  return freeEntitlement(
-    typeof account.trial_ends_at === 'string' && Number.isFinite(trialExpiry)
-      ? 'expired-trial'
-      : 'free',
-  )
+  // A parseable expiry that is not live means the trial ended. The `typeof
+  // === 'string'` gate this replaces made a Date-valued expiry report 'free',
+  // losing the distinction entirely.
+  return freeEntitlement(Number.isFinite(trialExpiry) ? 'expired-trial' : 'free')
 }
