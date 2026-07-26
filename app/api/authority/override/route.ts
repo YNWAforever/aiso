@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getProfile } from '@/lib/auth'
+import { requireApiAdmin } from '@/lib/admin-guard'
 import { db } from '@/lib/db'
 
 const OVERRIDE_TIERS = ['tier1', 'tier2', 'tier3', 'other', 'blacklist']
 
-// Route-handler flavour of requireAdmin(): returns a JSON response to bail out
-// with, or null when the caller is a signed-in admin.
-async function requireAdmin() {
-  const profile = await getProfile()
-  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!profile.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  return null
-}
-
 export async function POST(req: NextRequest) {
-  const denied = await requireAdmin()
-  if (denied) return denied
+  const admin = await requireApiAdmin()
+  if (!admin.ok) return admin.response
 
   let body: {
     domain?: string; overrideTier?: string; overrideScore?: number
@@ -54,8 +45,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(_req: NextRequest) {
-  const denied = await requireAdmin()
-  if (denied) return denied
+  const admin = await requireApiAdmin()
+  if (!admin.ok) return admin.response
 
   try {
     const sql = db()

@@ -287,7 +287,15 @@ describe('client report migration contract', () => {
     expect(sql).toMatch(/create index scans_account_domain_created_idx on public\.scans \(account_id, domain, created_at desc\)/)
   })
 
-  it('does not modify migrations 001 through 026 from the task base', () => {
+  // 021 is deliberately exempt. The intent of this guard is that an APPLIED
+  // migration must never be rewritten, because the file would stop describing
+  // the database. 021_local_trust_roi.sql has never been applied — no
+  // local_trust_* table exists in Neon, and CLAUDE.md lists it as known drift —
+  // so it is pending work, not history. Migration 028 drops the orphaned
+  // plan_features table that 021 opened by ALTERing, so 021 had to lose those
+  // six statements or it would fail at its first statement forever. Everything
+  // else in 001-026 stays locked.
+  it('does not modify applied migrations 001 through 026 from the task base', () => {
     const changedMigrations = execFileSync('git', [
       'diff',
       '--name-only',
@@ -296,8 +304,26 @@ describe('client report migration contract', () => {
       'supabase/migrations',
     ], { cwd: process.cwd(), encoding: 'utf8' })
       .split(/\r?\n/)
-      .filter(path => /^supabase\/migrations\/0(?:0[1-9]|1[0-9]|2[0-6])_/.test(path))
+      .filter(path => /^supabase\/migrations\/0(?:0[1-9]|1[0-9]|2[02-6])_/.test(path))
 
     expect(changedMigrations).toEqual([])
+  })
+
+  it('keeps 021 free of plan_features statements, since 028 drops that table', () => {
+    const sql = readFileSync(
+      resolve(process.cwd(), 'supabase/migrations/021_local_trust_roi.sql'),
+      'utf8',
+    )
+    // Comments may still explain the removal; no executable statement may reference it.
+    const executable = sql
+      .split(/\r?\n/)
+      .filter(line => !line.trimStart().startsWith('--'))
+      .join('\n')
+
+    expect(executable).not.toContain('plan_features')
+    // The part that actually matters must survive.
+    expect(sql).toContain('create table if not exists local_trust_profiles')
+    expect(sql).toContain('create table if not exists local_trust_snapshots')
+    expect(sql).toContain('create table if not exists local_trust_actions')
   })
 })
