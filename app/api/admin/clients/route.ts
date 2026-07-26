@@ -78,6 +78,14 @@ function isPlanId(value: unknown): value is PlanId {
   return typeof value === 'string' && (PLAN_IDS as readonly string[]).includes(value)
 }
 
+// accounts.id is `uuid primary key` — a malformed value makes Postgres raise
+// 22P02 (invalid input syntax for type uuid), which would otherwise surface as
+// an opaque 500 indistinguishable from a real query failure. Reject the shape
+// up front, before either query, so a bad request reads as 400 not 500 and the
+// not-found branch below only ever fires for a well-formed id that just
+// doesn't exist.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function PATCH(req: NextRequest) {
   const admin = await requireApiAdmin()
   if (!admin.ok) return admin.response
@@ -90,6 +98,9 @@ export async function PATCH(req: NextRequest) {
   const { accountId, action } = body as { accountId?: unknown; action?: unknown }
   if (typeof accountId !== 'string' || !accountId) {
     return NextResponse.json({ error: 'accountId required' }, { status: 400 })
+  }
+  if (!UUID_RE.test(accountId)) {
+    return NextResponse.json({ error: 'accountId must be a uuid' }, { status: 400 })
   }
   if (action !== 'grant' && action !== 'revoke') {
     return NextResponse.json({ error: "action must be 'grant' or 'revoke'" }, { status: 400 })
@@ -132,19 +143,32 @@ export async function PATCH(req: NextRequest) {
   if (!trimmedReason) {
     return NextResponse.json({ error: 'reason required' }, { status: 400 })
   }
+  // Mirrors accounts_override_complete's char_length(btrim(override_reason))
+  // between 1 and 500 constraint (migration 028) so a too-long reason gets a
+  // real message here instead of an opaque constraint-violation 500.
+  if (trimmedReason.length > 500) {
+    return NextResponse.json({ error: 'reason must be 500 characters or fewer' }, { status: 400 })
+  }
 
   // null expiry = permanent comp. A past timestamp is rejected rather than
   // stored, because an already-expired override is a silent no-op that reads as
   // success in the UI.
   let expiry: string | null = null
   if (expiresAt !== undefined && expiresAt !== null && expiresAt !== '') {
-    if (typeof expiresAt !== 'string' || Number.isNaN(new Date(expiresAt).getTime())) {
+    if (typeof expiresAt !== 'string') {
       return NextResponse.json({ error: 'expiresAt must be an ISO-8601 timestamp' }, { status: 400 })
     }
-    if (new Date(expiresAt).getTime() <= Date.now()) {
+    // Parsed once and stored normalised: a timezone-less value would otherwise
+    // be validated with Node's local-time parse but re-parsed by Postgres
+    // under the server's TimeZone, which can disagree by hours.
+    const parsed = new Date(expiresAt)
+    if (Number.isNaN(parsed.getTime())) {
+      return NextResponse.json({ error: 'expiresAt must be an ISO-8601 timestamp' }, { status: 400 })
+    }
+    if (parsed.getTime() <= Date.now()) {
       return NextResponse.json({ error: 'expiresAt must be in the future' }, { status: 400 })
     }
-    expiry = expiresAt
+    expiry = parsed.toISOString()
   }
 
   try {
