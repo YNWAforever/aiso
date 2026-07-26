@@ -17,6 +17,8 @@ const FENCED: { path: string; feature: string; methods: string[] }[] = [
   { path: '@/app/api/dashboard/clients/[clientId]/prompts/route', feature: 'prompt-bank', methods: ['GET', 'POST'] },
   { path: '@/app/api/dashboard/clients/[clientId]/prompts/[promptId]/route', feature: 'prompt-bank', methods: ['PATCH', 'DELETE'] },
   { path: '@/app/api/dashboard/clients/[clientId]/local-trust/export/route', feature: 'local-trust', methods: ['GET'] },
+  { path: '@/app/api/dashboard/clients/[clientId]/local-trust/profile/route', feature: 'local-trust', methods: ['PUT'] },
+  { path: '@/app/api/dashboard/clients/[clientId]/local-trust/actions/[actionId]/route', feature: 'local-trust', methods: ['PATCH'] },
   { path: '@/app/api/cron/trial-emails/route', feature: 'trial-emails', methods: ['GET'] },
   { path: '@/app/api/cron/evaluate-alerts/route', feature: 'alerts', methods: ['POST'] },
 ]
