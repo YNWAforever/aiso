@@ -6,6 +6,11 @@
     "sign_in": "Sign in",
     "get_started": "Get started free"
   },
+  "auth": {
+    "signing_out": "Signing out…",
+    "sign_out_failed": "We could not sign you out. You may still be signed in.",
+    "try_again": "Try again"
+  },
   "home": {
     "badge": "FREE AISO PLATFORM SCAN",
     "headline": "Get Found by\nEvery AI Search Engine",
@@ -883,5 +888,10 @@
     "upgrade_title": "Report branding is available on Pro",
     "upgrade_body": "Upgrade to configure Agency branding and create online client reports.",
     "upgrade_cta": "View Pro plans"
+  },
+  "unavailable": {
+    "title": "Temporarily unavailable",
+    "body": "This feature is being migrated and is not available right now. Everything else in your workspace works normally.",
+    "back": "Back to dashboard"
   }
 }

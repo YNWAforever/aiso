@@ -9,6 +9,8 @@ const MIGRATIONS = [
   '024_stripe_lifecycle_integrity.sql',
   '025_authenticated_scan_quotas.sql',
   '026_effective_brand_limit.sql',
+  '027_client_report_snapshots.sql',
+  '028_account_plan_overrides.sql',
 ]
 
 describe('Neon migration role portability', () => {

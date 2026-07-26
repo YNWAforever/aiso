@@ -6,6 +6,11 @@
     "sign_in": "登入",
     "get_started": "免費開始"
   },
+  "auth": {
+    "signing_out": "登出中…",
+    "sign_out_failed": "未能為你登出，你可能仍在登入狀態。",
+    "try_again": "再試一次"
+  },
   "home": {
     "badge": "免費 AISO 平台掃描",
     "headline": "讓每個 AI 搜尋\n引擎都搵到你",
@@ -883,5 +888,10 @@
     "upgrade_title": "Pro 方案提供報告品牌設定",
     "upgrade_body": "升級後即可設定 Agency 品牌並建立網上客戶報告。",
     "upgrade_cta": "查看 Pro 方案"
+  },
+  "unavailable": {
+    "title": "暫時無法使用",
+    "body": "此功能正在移轉中，暫時無法使用。工作區的其他功能不受影響。",
+    "back": "返回儀表板"
   }
 }

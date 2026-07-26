@@ -2,11 +2,5 @@
   "functions": {
     "app/api/scan/route.ts": { "maxDuration": 60 },
     "app/api/fix/route.ts":  { "maxDuration": 30 }
-  },
-  "crons": [
-    {
-      "path": "/api/cron/trial-emails",
-      "schedule": "0 9 * * *"
-    }
-  ]
+  }
 }
