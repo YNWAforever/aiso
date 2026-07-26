@@ -6,6 +6,10 @@
     "sign_in": "登入",
     "get_started": "免費開始"
   },
+  "auth": {
+    "signing_out": "登出中…",
+    "continue_to_sign_in": "返回登入"
+  },
   "home": {
     "badge": "免費 AISO 平台掃描",
     "headline": "讓每個 AI 搜尋\n引擎都搵到你",
