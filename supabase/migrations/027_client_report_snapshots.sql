@@ -1,7 +1,27 @@
 -- Immutable, tenant-owned client report snapshots and service-only mutation RPCs.
 
-alter table public.clients
-  add constraint clients_id_account_id_unique unique (id, account_id);
+-- public_slug generation below calls public.gen_random_bytes(), which is part of
+-- pgcrypto. No earlier migration enables it — this project's Supabase origin had
+-- it on by default, but a fresh Neon database does not. `if not exists` makes
+-- this safe to run whether or not some out-of-band process already enabled it.
+create extension if not exists pgcrypto with schema public;
+
+-- 021_local_trust_roi.sql already creates this constraint (its local_trust_*
+-- tables reference clients(id, account_id)). Production has 021 applied and this
+-- migration not yet applied; a fresh sequential run applies both. Either order
+-- must work, so create it only when absent rather than unconditionally.
+do $clients_tenant_unique$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'clients_id_account_id_unique'
+      and conrelid = 'public.clients'::regclass
+  ) then
+    alter table public.clients
+      add constraint clients_id_account_id_unique unique (id, account_id);
+  end if;
+end
+$clients_tenant_unique$;
 
 alter table public.scans
   add constraint scans_id_account_id_unique unique (id, account_id);
@@ -145,10 +165,15 @@ alter table public.account_report_branding enable row level security;
 alter table public.client_reports enable row level security;
 alter table public.client_report_versions enable row level security;
 
+-- No "to authenticated": Supabase's anon/authenticated/service_role roles do not
+-- exist under Neon (021's policies in this same migration set follow the same
+-- convention), and RLS never fires for this app anyway — it connects as
+-- neondb_owner, which bypasses RLS. The using()/with check() scoping below is
+-- kept as-is so these policies are correct if a least-privilege role is ever
+-- introduced.
 create policy account_report_branding_select_own
   on public.account_report_branding
   for select
-  to authenticated
   using (
     exists (
       select 1
@@ -161,7 +186,6 @@ create policy account_report_branding_select_own
 create policy account_report_branding_insert_own
   on public.account_report_branding
   for insert
-  to authenticated
   with check (
     exists (
       select 1
@@ -174,7 +198,6 @@ create policy account_report_branding_insert_own
 create policy account_report_branding_update_own
   on public.account_report_branding
   for update
-  to authenticated
   using (
     exists (
       select 1
@@ -195,7 +218,6 @@ create policy account_report_branding_update_own
 create policy account_report_branding_delete_own
   on public.account_report_branding
   for delete
-  to authenticated
   using (
     exists (
       select 1
@@ -208,7 +230,6 @@ create policy account_report_branding_delete_own
 create policy client_reports_select_own
   on public.client_reports
   for select
-  to authenticated
   using (
     exists (
       select 1
@@ -221,7 +242,6 @@ create policy client_reports_select_own
 create policy client_report_versions_select_own
   on public.client_report_versions
   for select
-  to authenticated
   using (
     exists (
       select 1
@@ -231,22 +251,60 @@ create policy client_report_versions_select_own
     )
   );
 
-revoke all on table public.account_report_branding from public, anon, authenticated;
-grant select, insert, update, delete on table public.account_report_branding to authenticated;
-grant select, insert, update, delete on table public.account_report_branding to service_role;
+-- Supabase's anon/authenticated/service_role roles do not exist under Neon.
+-- Guard every grant/revoke that names them, matching the do $acl$ pattern used
+-- in 023-026 and 028, so the privilege lockdown still takes effect if those
+-- roles are ever created (e.g. a future least-privilege application role).
+revoke all on table public.account_report_branding from public;
+do $acl$
+begin
+  if to_regrole('anon') is not null then
+    execute 'revoke all on table public.account_report_branding from anon';
+  end if;
+  if to_regrole('authenticated') is not null then
+    execute 'revoke all on table public.account_report_branding from authenticated';
+    execute 'grant select, insert, update, delete on table public.account_report_branding to authenticated';
+  end if;
+  if to_regrole('service_role') is not null then
+    execute 'grant select, insert, update, delete on table public.account_report_branding to service_role';
+  end if;
+end
+$acl$;
 
 revoke all on table public.client_reports from public;
-revoke all on table public.client_reports from anon, authenticated;
-revoke all on table public.client_reports from service_role;
-grant select on table public.client_reports to authenticated;
-grant select on table public.client_reports to service_role;
+do $acl$
+begin
+  if to_regrole('anon') is not null then
+    execute 'revoke all on table public.client_reports from anon';
+  end if;
+  if to_regrole('authenticated') is not null then
+    execute 'revoke all on table public.client_reports from authenticated';
+    execute 'grant select on table public.client_reports to authenticated';
+  end if;
+  if to_regrole('service_role') is not null then
+    execute 'revoke all on table public.client_reports from service_role';
+    execute 'grant select on table public.client_reports to service_role';
+  end if;
+end
+$acl$;
 
 revoke all on table public.client_report_versions from public;
-revoke all on table public.client_report_versions from anon, authenticated;
-revoke all on table public.client_report_versions from service_role;
-grant select on table public.client_report_versions to authenticated;
-grant select on table public.client_report_versions to service_role;
-revoke update, delete on table public.client_report_versions from service_role;
+do $acl$
+begin
+  if to_regrole('anon') is not null then
+    execute 'revoke all on table public.client_report_versions from anon';
+  end if;
+  if to_regrole('authenticated') is not null then
+    execute 'revoke all on table public.client_report_versions from authenticated';
+    execute 'grant select on table public.client_report_versions to authenticated';
+  end if;
+  if to_regrole('service_role') is not null then
+    execute 'revoke all on table public.client_report_versions from service_role';
+    execute 'grant select on table public.client_report_versions to service_role';
+    execute 'revoke update, delete on table public.client_report_versions from service_role';
+  end if;
+end
+$acl$;
 
 create or replace function public.create_client_report_with_version(
   p_account_id uuid,
@@ -836,36 +894,39 @@ end;
 $function$;
 
 revoke execute on function public.create_client_report_with_version(uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid) from public;
-revoke execute on function public.create_client_report_with_version(uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid) from anon;
-revoke execute on function public.create_client_report_with_version(uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid) from authenticated;
-grant execute on function public.create_client_report_with_version(uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid) to service_role;
-
 revoke execute on function public.append_client_report_version(uuid, uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid) from public;
-revoke execute on function public.append_client_report_version(uuid, uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid) from anon;
-revoke execute on function public.append_client_report_version(uuid, uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid) from authenticated;
-grant execute on function public.append_client_report_version(uuid, uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid) to service_role;
-
 revoke execute on function public.publish_client_report_latest(uuid, uuid, uuid, uuid) from public;
-revoke execute on function public.publish_client_report_latest(uuid, uuid, uuid, uuid) from anon;
-revoke execute on function public.publish_client_report_latest(uuid, uuid, uuid, uuid) from authenticated;
-grant execute on function public.publish_client_report_latest(uuid, uuid, uuid, uuid) to service_role;
-
 revoke execute on function public.revoke_client_report(uuid, uuid, uuid) from public;
-revoke execute on function public.revoke_client_report(uuid, uuid, uuid) from anon;
-revoke execute on function public.revoke_client_report(uuid, uuid, uuid) from authenticated;
-grant execute on function public.revoke_client_report(uuid, uuid, uuid) to service_role;
-
 revoke execute on function public.rotate_client_report_link(uuid, uuid, uuid) from public;
-revoke execute on function public.rotate_client_report_link(uuid, uuid, uuid) from anon;
-revoke execute on function public.rotate_client_report_link(uuid, uuid, uuid) from authenticated;
-grant execute on function public.rotate_client_report_link(uuid, uuid, uuid) to service_role;
-
 revoke execute on function public.increment_client_report_view(text, integer) from public;
-revoke execute on function public.increment_client_report_view(text, integer) from anon;
-revoke execute on function public.increment_client_report_view(text, integer) from authenticated;
-grant execute on function public.increment_client_report_view(text, integer) to service_role;
-
 revoke execute on function public.increment_client_report_cta_click(text, integer) from public;
-revoke execute on function public.increment_client_report_cta_click(text, integer) from anon;
-revoke execute on function public.increment_client_report_cta_click(text, integer) from authenticated;
-grant execute on function public.increment_client_report_cta_click(text, integer) to service_role;
+
+-- Supabase's anon/authenticated/service_role roles do not exist under Neon.
+-- Guard the role-specific execute grants, matching the do $acl$ pattern used
+-- elsewhere in this migration and in 023-026 and 028.
+do $acl$
+declare
+  fn text;
+begin
+  foreach fn in array array[
+    'public.create_client_report_with_version(uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid)',
+    'public.append_client_report_version(uuid, uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid)',
+    'public.publish_client_report_latest(uuid, uuid, uuid, uuid)',
+    'public.revoke_client_report(uuid, uuid, uuid)',
+    'public.rotate_client_report_link(uuid, uuid, uuid)',
+    'public.increment_client_report_view(text, integer)',
+    'public.increment_client_report_cta_click(text, integer)'
+  ]
+  loop
+    if to_regrole('anon') is not null then
+      execute pg_catalog.format('revoke execute on function %s from anon', fn);
+    end if;
+    if to_regrole('authenticated') is not null then
+      execute pg_catalog.format('revoke execute on function %s from authenticated', fn);
+    end if;
+    if to_regrole('service_role') is not null then
+      execute pg_catalog.format('grant execute on function %s to service_role', fn);
+    end if;
+  end loop;
+end
+$acl$;
