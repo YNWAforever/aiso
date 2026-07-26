@@ -30,6 +30,12 @@ export interface AccountRowProps {
 export function AccountRow({ account, busy, onGrant, onRevoke }: AccountRowProps) {
   const { entitlement: ent } = account
   const overridden = ent.source === 'override'
+  // A time-boxed comp that has passed its expiry still has override_plan set —
+  // nothing sweeps expired rows — but no longer wins resolution. Track that
+  // separately from `overridden`, because the Revoke button is gated on
+  // override_plan: without this the row would show a plain grey badge with no
+  // trace a comp ever existed, next to a Revoke button with no visible referent.
+  const lapsed = account.override_plan !== null && !overridden
 
   return (
     <tr className="border-b border-slate-100 align-top">
@@ -55,12 +61,17 @@ export function AccountRow({ account, busy, onGrant, onRevoke }: AccountRowProps
         }`}>
           {ent.plan} ({ent.source})
         </span>
-        {overridden && (
+        {lapsed && (
+          <span className="ml-1 px-2 py-0.5 rounded font-medium bg-slate-100 text-slate-500">
+            {account.override_plan} comp expired
+          </span>
+        )}
+        {(overridden || lapsed) && (
           <div className="mt-1 text-[11px] text-slate-500">
             {account.override_reason}
             {account.override_set_by_name ? ` · by ${account.override_set_by_name}` : ''}
             {account.override_expires_at
-              ? ` · until ${new Date(account.override_expires_at).toLocaleDateString()}`
+              ? ` · ${lapsed ? 'expired' : 'until'} ${new Date(account.override_expires_at).toLocaleDateString()}`
               : ' · permanent'}
           </div>
         )}

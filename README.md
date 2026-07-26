@@ -103,7 +103,15 @@ Before releasing public scans:
   `authenticated_scan_monthly_usage`; authenticated scans fail closed if the counter is unavailable.
 - Apply `supabase/migrations/026_effective_brand_limit.sql` before releasing self-service brand creation.
   It replaces the legacy raw-plan trigger with serialized, effective-entitlement enforcement.
-- Apply `supabase/migrations/028_account_plan_overrides.sql` before using admin plan comps.
+- **Apply `supabase/migrations/028_account_plan_overrides.sql` BEFORE deploying the code that
+  expects it — not before first using admin plan comps.** `getProfile()` in `lib/auth.ts`
+  selects `override_plan` and `override_expires_at` on every authenticated request, and the
+  Neon driver throws on a missing column. Deploying the code against a pre-028 schema returns
+  500 for every signed-in request (dashboard, admin, pulse, reports, authenticated scans)
+  while anonymous traffic keeps working — so the public funnel smoke-tests green while every
+  logged-in customer is down. The migration is additive (`add column if not exists`) and its
+  only destructive statement drops the orphaned `plan_features` table, so migration-first is
+  always the safe order. Apply it before, or atomically with, the deploy.
   It adds the override columns and replaces `check_brand_limit()` so a comp is honoured by
   the database as well as the application.
 - Configure the server-only `PUBLIC_SCAN_RATE_LIMIT_SECRET` with at least 32 random characters.
