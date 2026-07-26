@@ -7,9 +7,11 @@ const PAST = '2026-01-01T00:00:00Z'
 
 // A comped account: no Stripe subscription at all. This is the case that fails
 // without the override branch, because the paid path requires has_subscription.
+// Expiry defaults to FUTURE (not null) so the dedicated null-expiry test below
+// exercises a genuinely different input rather than repeating this one.
 const COMPED = {
   plan: 'basic', status: 'active', stripe_subscription_id: null, trial_ends_at: null,
-  override_plan: 'enterprise', override_expires_at: null,
+  override_plan: 'enterprise', override_expires_at: FUTURE,
 }
 
 describe('resolveCommercialEntitlement — admin override', () => {
@@ -85,5 +87,70 @@ describe('resolveCommercialEntitlement — admin override', () => {
     }, NOW)
     expect(result.plan).toBe('pro')
     expect(result.source).toBe('paid')
+  })
+
+  it('voids an override whose expiry equals the current instant exactly', () => {
+    // Strict '>' agrees with the SQL side's `override_expires_at > pg_catalog.now()` —
+    // equality must NOT count as still-live on either side of the contract.
+    const result = resolveCommercialEntitlement({
+      plan: 'pro', status: 'active', stripe_subscription_id: 'sub_1',
+      trial_ends_at: null, override_plan: 'enterprise', override_expires_at: NOW,
+    }, NOW)
+    expect(result.plan).toBe('pro')
+    expect(result.source).toBe('paid')
+  })
+
+  it('voids an override with an unparseable expiry string', () => {
+    const result = resolveCommercialEntitlement({
+      plan: 'basic', status: 'active', stripe_subscription_id: 'sub_1',
+      trial_ends_at: null, override_plan: 'enterprise', override_expires_at: 'not-a-date',
+    }, NOW)
+    expect(result.plan).toBe('basic')
+    expect(result.source).toBe('paid')
+  })
+
+  it('voids an override with a numeric epoch expiry instead of a Date or ISO string', () => {
+    const result = resolveCommercialEntitlement({
+      plan: 'basic', status: 'active', stripe_subscription_id: 'sub_1',
+      trial_ends_at: null, override_plan: 'enterprise', override_expires_at: Date.parse(FUTURE),
+    }, NOW)
+    expect(result.plan).toBe('basic')
+    expect(result.source).toBe('paid')
+  })
+
+  it('voids an override backed by an Invalid Date object', () => {
+    const result = resolveCommercialEntitlement({
+      plan: 'basic', status: 'active', stripe_subscription_id: 'sub_1',
+      trial_ends_at: null, override_plan: 'enterprise', override_expires_at: new Date('nonsense'),
+    }, NOW)
+    expect(result.plan).toBe('basic')
+    expect(result.source).toBe('paid')
+  })
+
+  it('voids an override with a past Date object', () => {
+    const result = resolveCommercialEntitlement({
+      plan: 'basic', status: 'active', stripe_subscription_id: 'sub_1',
+      trial_ends_at: null, override_plan: 'enterprise', override_expires_at: new Date(PAST),
+    }, NOW)
+    expect(result.plan).toBe('basic')
+    expect(result.source).toBe('paid')
+  })
+
+  it('rescues a cancelled account via a live override', () => {
+    const result = resolveCommercialEntitlement({
+      plan: 'basic', status: 'cancelled', stripe_subscription_id: null,
+      trial_ends_at: null, override_plan: 'pro', override_expires_at: null,
+    }, NOW)
+    expect(result.plan).toBe('pro')
+    expect(result.source).toBe('override')
+  })
+
+  it('falls back to a live Stripe trial when the override has expired', () => {
+    const result = resolveCommercialEntitlement({
+      plan: 'pro', status: 'trialing', stripe_subscription_id: 'sub_1',
+      trial_ends_at: null, override_plan: 'enterprise', override_expires_at: PAST,
+    }, NOW)
+    expect(result.plan).toBe('pro')
+    expect(result.source).toBe('trial')
   })
 })

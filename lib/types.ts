@@ -98,6 +98,8 @@ export interface Account {
   trial_ends_at: string | null
   trial_emails_sent: number
   created_at: string
+  override_plan: string | null
+  override_expires_at: string | Date | null
 }
 
 export interface Profile {

@@ -1,5 +1,6 @@
 import {
   PLAN_CATALOG,
+  PLAN_IDS,
   getPlanDefinition,
   type PlanFeatures,
   type PlanId,
@@ -39,34 +40,12 @@ export function maxBrandsForPlan(plan: string): number {
   return getPlanDefinition(plan).maxBrands
 }
 
-function freeEntitlement(
-  source: Extract<EntitlementSource, 'free' | 'expired-trial' | 'past_due' | 'cancelled'>,
-): CommercialEntitlement {
-  return {
-    plan: 'free',
-    source,
-    features: PLAN_CATALOG.free.features,
-    monthlyScanLimit: PLAN_CATALOG.free.monthlyScanLimit,
-  }
-}
-
-function activeEntitlement(
-  plan: Exclude<EffectivePlan, 'free'>,
-  source: Extract<EntitlementSource, 'paid' | 'trial'>,
-): CommercialEntitlement {
-  const definition = PLAN_CATALOG[plan]
-  return {
-    plan,
-    source,
-    features: definition.features,
-    monthlyScanLimit: definition.monthlyScanLimit,
-  }
-}
-
-const OVERRIDE_PLANS = new Set<EffectivePlan>(['free', 'basic', 'pro', 'enterprise'])
-
-// Unified builder: unlike activeEntitlement/freeEntitlement it accepts any plan
-// with any source, which the override branch needs (a comp can be 'free').
+// Single builder behind freeEntitlement, activeEntitlement, and the override
+// branch in resolveCommercialEntitlement. freeEntitlement/activeEntitlement
+// keep their own narrower signatures on purpose — that's what stops a call
+// like freeEntitlement('paid') or activeEntitlement('free', 'trial') from
+// typechecking. The override branch needs the unrestricted form because a
+// comp can legitimately be 'free' with source 'override'.
 function entitlementFor(plan: EffectivePlan, source: EntitlementSource): CommercialEntitlement {
   const definition = PLAN_CATALOG[plan]
   return {
@@ -77,9 +56,29 @@ function entitlementFor(plan: EffectivePlan, source: EntitlementSource): Commerc
   }
 }
 
+function freeEntitlement(
+  source: Extract<EntitlementSource, 'free' | 'expired-trial' | 'past_due' | 'cancelled'>,
+): CommercialEntitlement {
+  return entitlementFor('free', source)
+}
+
+function activeEntitlement(
+  plan: Exclude<EffectivePlan, 'free'>,
+  source: Extract<EntitlementSource, 'paid' | 'trial'>,
+): CommercialEntitlement {
+  return entitlementFor(plan, source)
+}
+
+// The catalog's own plan-id list — not a hardcoded copy of it — so this set
+// can never drift from PLAN_CATALOG's keys. Deliberately not getPlanDefinition():
+// that helper falls back to PLAN_CATALOG.free for an unrecognized id, which
+// would silently turn a typo'd override_plan into a *downgrade* comp instead
+// of a no-op.
+const OVERRIDE_PLANS = new Set<PlanId>(PLAN_IDS)
+
 // Returns the override plan when one is set and unexpired, else null.
-// A null expiry means permanent; a malformed expiry is ignored rather than
-// treated as permanent, so a bad write fails closed.
+// A null expiry means permanent; a malformed expiry voids the whole override
+// rather than being treated as permanent, so a bad write fails closed.
 function liveOverridePlan(account: NonNullable<CommercialAccount>, now: Date): EffectivePlan | null {
   const plan = typeof account.override_plan === 'string'
     && OVERRIDE_PLANS.has(account.override_plan as EffectivePlan)

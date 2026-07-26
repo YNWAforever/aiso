@@ -105,6 +105,8 @@ export interface ReportAccountCommercialState {
   readonly status: string
   readonly stripe_subscription_id: string | null
   readonly trial_ends_at: string | null
+  readonly override_plan: string | null
+  readonly override_expires_at: string | Date | null
 }
 
 export interface ReportVersionWriteInput {
@@ -690,7 +692,7 @@ export async function resolvePublicClientReport(input: {
 
   const { data: accountData, error: accountError } = await supabase
     .from('accounts')
-    .select('id,plan,status,stripe_subscription_id,trial_ends_at')
+    .select('id,plan,status,stripe_subscription_id,trial_ends_at,override_plan,override_expires_at')
     .eq('id', report.account_id)
     .maybeSingle()
 
