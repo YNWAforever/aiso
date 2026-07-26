@@ -49,4 +49,15 @@ describe('commercial entitlement runtime wiring', () => {
     expect(auth).toContain('override_plan: row.override_plan')
     expect(auth).toContain('override_expires_at: row.override_expires_at')
   })
+
+  it('loads the admin override columns on the public report path too', () => {
+    // The second place an account object is built for resolveCommercialEntitlement.
+    // Drop these and a comped account's published report silently resolves
+    // client_reports_online: false — the same silent regression as above, on a
+    // path getProfile() does not cover.
+    const store = readFileSync('lib/reports/store.ts', 'utf8')
+
+    expect(store).toContain('override_plan')
+    expect(store).toContain('override_expires_at')
+  })
 })
