@@ -38,4 +38,33 @@ describe('assertNoTransactionControl', () => {
   it('does not mistake a column named begin_at for transaction control', () => {
     expect(() => assertNoTransactionControl('x.sql', 'create table t(begin_at timestamptz);')).not.toThrow()
   })
+
+  it('accepts a named dollar-quote tag (not just $$) whose body contains a bare begin;', () => {
+    const sql = `create or replace function f() returns trigger as $function$
+      begin;
+      return new;
+      end;
+    $function$ language plpgsql;`
+    expect(() => assertNoTransactionControl('x.sql', sql)).not.toThrow()
+  })
+
+  it('still catches a real commit; sitting between two same-tagged dollar-quoted blocks', () => {
+    // Verifies the lazy match closes each $acl$ span at its *nearest* matching
+    // delimiter rather than overshooting to the second block's closing tag,
+    // which would otherwise also swallow (and hide) the commit; in between.
+    const sql = `do $acl$ null; end $acl$;
+    commit;
+    do $acl$ null; end $acl$;`
+    expect(() => assertNoTransactionControl('x.sql', sql)).toThrow(/transaction control/i)
+  })
+
+  it('rejects a bare begin; even when a line comment sits directly above it', () => {
+    const sql = 'create table t();\n-- start a block\nbegin;\ncreate table u();'
+    expect(() => assertNoTransactionControl('x.sql', sql)).toThrow(/transaction control/i)
+  })
+
+  it('rejects a bare commit; even when a block comment sits directly above it', () => {
+    const sql = 'create table t();\n/* wrap up */\ncommit;'
+    expect(() => assertNoTransactionControl('x.sql', sql)).toThrow(/transaction control/i)
+  })
 })
