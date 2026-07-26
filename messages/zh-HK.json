@@ -883,5 +883,10 @@
     "upgrade_title": "Pro 方案提供報告品牌設定",
     "upgrade_body": "升級後即可設定 Agency 品牌並建立網上客戶報告。",
     "upgrade_cta": "查看 Pro 方案"
+  },
+  "unavailable": {
+    "title": "暫時無法使用",
+    "body": "此功能正在移轉中，暫時無法使用。工作區的其他功能不受影響。",
+    "back": "返回儀表板"
   }
 }

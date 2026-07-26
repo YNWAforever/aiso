@@ -23,25 +23,20 @@ function messages(locale: 'en' | 'zh-HK') {
 }
 
 describe('Local Trust dashboard wiring', () => {
-  it('adds ROI as the fifth dashboard workflow step', () => {
-    const sidebar = read('components/dashboard/DashboardSidebar.tsx')
+  it('wires the ROI step into the client dashboard page', () => {
+    // DashboardSidebar no longer lists 'roi' as a top-level nav step (it was
+    // removed along with the Pulse links during the Supabase-to-Neon
+    // migration cleanup); the wizard step itself lives on within the
+    // dashboard page and WizardProgress, tested below and separately.
     const page = read('app/[lang]/dashboard/[clientId]/page.tsx')
 
-    expect(sidebar).toContain("key: 'roi'")
-    expect(sidebar.indexOf("key: 'monitor'")).toBeLessThan(sidebar.indexOf("key: 'roi'"))
-    expect(sidebar).toContain('nav_roi')
-    expect(sidebar).toContain('TrendingUp')
     expect(page).toContain("step === 'roi'")
     expect(page).toContain('LocalTrustStep')
   })
 
   it('keeps Local Trust ROI visible but locked for plans without access', () => {
-    const sidebar = read('components/dashboard/DashboardSidebar.tsx')
     const progress = read('components/dashboard/WizardProgress.tsx')
 
-    expect(sidebar).toContain("s.key === 'roi' && !features.local_trust_roi")
-    expect(sidebar).toContain("const blocksNavigation = locked && s.key !== 'roi'")
-    expect(sidebar).toContain('blocksNavigation')
     expect(progress).toContain("key: 'roi'")
     expect(progress).toContain('features.local_trust_roi')
     expect(progress).toContain('Local Trust ROI')

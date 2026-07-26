@@ -883,5 +883,10 @@
     "upgrade_title": "Report branding is available on Pro",
     "upgrade_body": "Upgrade to configure Agency branding and create online client reports.",
     "upgrade_cta": "View Pro plans"
+  },
+  "unavailable": {
+    "title": "Temporarily unavailable",
+    "body": "This feature is being migrated and is not available right now. Everything else in your workspace works normally.",
+    "back": "Back to dashboard"
   }
 }
