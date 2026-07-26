@@ -24,10 +24,13 @@ alter table public.accounts
 
 -- accounts_override_plan_check restricts a comp to a known plan; accounts_override_complete
 -- makes an unattributed comp impossible at the database level — a grant cannot exist
--- without both a reason and a person.
+-- without both a reason and a person; accounts_override_expiry_finite rejects
+-- 'infinity'/'-infinity', which this trigger's `> pg_catalog.now()` would treat as
+-- permanently live while a TypeScript reader receiving a non-finite value would not.
 alter table public.accounts
   drop constraint if exists accounts_override_plan_check,
   drop constraint if exists accounts_override_complete,
+  drop constraint if exists accounts_override_expiry_finite,
   add constraint accounts_override_plan_check
     check (override_plan is null
            or override_plan in ('free', 'basic', 'pro', 'enterprise')),
@@ -35,7 +38,11 @@ alter table public.accounts
     check (override_plan is null
            or (override_set_by is not null
                and override_reason is not null
-               and char_length(btrim(override_reason)) between 1 and 500));
+               and char_length(btrim(override_reason)) between 1 and 500)),
+  add constraint accounts_override_expiry_finite
+    check (override_expires_at is null
+           or (override_expires_at > '-infinity'::timestamptz
+               and override_expires_at < 'infinity'::timestamptz));
 
 -- Replaces the definition from 026. A live override is evaluated FIRST, before
 -- the stored-plan validation and before has_subscription: a comped account has

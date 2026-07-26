@@ -12,7 +12,14 @@ function migrationSql() {
 
 describe('effective brand-limit migration', () => {
   it('serializes inserts for the same account before counting brands', () => {
-    expect(migrationSql()).toMatch(/pg_advisory_xact_lock/i)
+    const sql = migrationSql()
+    const lockPosition = sql.search(/pg_advisory_xact_lock\s*\([^;]*new\.account_id/is)
+    const countPosition = sql.search(/select\s+count\s*\(\s*\*\s*\)[\s\S]*from\s+public\.clients/is)
+
+    expect(lockPosition).toBeGreaterThanOrEqual(0)
+    expect(countPosition).toBeGreaterThan(lockPosition)
+    expect(sql).toMatch(/create\s+or\s+replace\s+function\s+public\.check_brand_limit\s*\(/i)
+    expect(sql).toMatch(/create\s+trigger\s+enforce_brand_limit[\s\S]*execute\s+function\s+public\.check_brand_limit\s*\(\s*\)/i)
   })
 
   it('derives entitlement from status, subscription, and trial expiry', () => {
@@ -46,6 +53,25 @@ describe('effective brand-limit migration', () => {
   // The real drift guard: derived from PLAN_CATALOG, not hardcoded.
   it('keeps SQL brand limits in sync with PLAN_CATALOG', () => {
     const sql = migrationSql()
+    const expectedIdList = PLAN_IDS.map(id => `'${id}'`).join(', ')
+
+    // 028 hardcodes the plan-id set three times: the accounts_override_plan_check
+    // constraint, the override_is_live allow-list, and the brand_limit CASE (guarded
+    // by the loop below). Both `override_plan in (...)` lists must equal PLAN_IDS
+    // exactly, or a plan missing from one list is accepted by one guard and silently
+    // rejected by the other.
+    const allowListMatches = [...sql.matchAll(/override_plan\s+in\s*\(([^)]*)\)/gi)]
+    expect(
+      allowListMatches.length,
+      'expected exactly two hardcoded override plan-id lists (accounts_override_plan_check + override_is_live)',
+    ).toBe(2)
+    for (const match of allowListMatches) {
+      expect(
+        match[1].trim(),
+        `override plan-id list must match PLAN_IDS ('${expectedIdList}'); got '${match[1].trim()}'`,
+      ).toBe(expectedIdList)
+    }
+
     for (const id of PLAN_IDS) {
       const expected = PLAN_CATALOG[id].maxBrands
       const match = sql.match(new RegExp(`when\\s+'${id}'\\s+then\\s+(\\d+)`, 'i'))
