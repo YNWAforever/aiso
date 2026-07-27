@@ -23,19 +23,9 @@ const state = vi.hoisted(() => ({
 }))
 
 const getProfileMock = vi.hoisted(() => vi.fn(async () => state.profile))
-const serviceBuilder = vi.hoisted(() => {
-  const builder: Record<string, ReturnType<typeof vi.fn>> = {}
-  builder.select = vi.fn(() => builder)
-  builder.eq = vi.fn(() => builder)
-  builder.maybeSingle = vi.fn(async () => ({ data: state.client, error: null }))
-  return builder
-})
-const createServiceClientMock = vi.hoisted(() => vi.fn(async () => ({
-  from: vi.fn(() => serviceBuilder),
-})))
+const clientLookupMock = vi.hoisted(() => vi.fn((id: string) => (state.client && state.client.id === id ? [state.client] : [])))
 
 vi.mock('@/lib/auth', () => ({ getProfile: getProfileMock }))
-vi.mock('@/lib/supabase-server', () => ({ createServiceSupabaseClient: createServiceClientMock }))
 vi.mock('@/lib/security/public-url', () => ({
   PublicUrlError: class PublicUrlError extends Error {},
   fetchPublicUrl: (input: string | URL | Request, init?: RequestInit) => fetch(input, init),
@@ -76,7 +66,7 @@ vi.mock('@/lib/checks/topicalAuthority',() => ({ checkTopicalAuthority:vi.fn().m
 vi.mock('@/lib/checks/chunkability',    () => ({ checkChunkability:    vi.fn().mockResolvedValue(passing) }))
 
 vi.mock('@/lib/db', () => {
-  const sql = async (strings: TemplateStringsArray) => {
+  const sql = async (strings: TemplateStringsArray, ...values: unknown[]) => {
     const query = Array.from(strings).join(' ')
     if (/public_scan_rate_limits/i.test(query)) {
       state.rateCount += 1
@@ -88,7 +78,7 @@ vi.mock('@/lib/db', () => {
     }
     if (/insert into scans/i.test(query)) return [{ id: `scan-${state.rateCount}` }]
     if (/select plan from accounts/i.test(query)) return [{ plan: 'basic' }]
-    if (/select webhook_url, brand_name from clients/i.test(query)) return state.client ? [state.client] : []
+    if (/from clients/i.test(query)) return clientLookupMock(values[0] as string)
     return []
   }
   return { db: () => sql }
@@ -115,10 +105,7 @@ describe('POST /api/scan security boundaries', () => {
     state.rateCount = 0
     fetchMock.mockClear()
     getProfileMock.mockClear()
-    createServiceClientMock.mockClear()
-    serviceBuilder.select.mockClear()
-    serviceBuilder.eq.mockClear()
-    serviceBuilder.maybeSingle.mockClear()
+    clientLookupMock.mockClear()
   })
 
   it.each([
@@ -139,7 +126,7 @@ describe('POST /api/scan security boundaries', () => {
 
     expect(response.status).toBe(401)
     expect(fetchMock).not.toHaveBeenCalled()
-    expect(createServiceClientMock).not.toHaveBeenCalled()
+    expect(clientLookupMock).not.toHaveBeenCalled()
   })
 
   it('returns 503 when a surfaced Neon session error rejects profile lookup', async () => {
@@ -149,7 +136,7 @@ describe('POST /api/scan security boundaries', () => {
 
     expect(response.status).toBe(503)
     expect(fetchMock).not.toHaveBeenCalled()
-    expect(createServiceClientMock).not.toHaveBeenCalled()
+    expect(clientLookupMock).not.toHaveBeenCalled()
   })
 
   it('returns 404 before scanning when the requested client does not exist', async () => {
@@ -192,7 +179,7 @@ describe('POST /api/scan security boundaries', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('allows a dashboard scan only after service-client ownership verification', async () => {
+  it('allows a dashboard scan only after db ownership verification', async () => {
     state.profile = {
       account_id: 'account-a',
       accounts: {
@@ -212,8 +199,8 @@ describe('POST /api/scan security boundaries', () => {
     const response = await scan({ url: 'https://example.com', clientId: state.client.id })
 
     expect(response.status).toBe(200)
-    expect(createServiceClientMock).toHaveBeenCalledTimes(1)
-    expect(serviceBuilder.eq).toHaveBeenCalledWith('id', state.client.id)
+    expect(clientLookupMock).toHaveBeenCalledTimes(1)
+    expect(clientLookupMock).toHaveBeenCalledWith(state.client.id)
     await expect(response.json()).resolves.toEqual({
       id: 'scan-0',
       score: expect.any(Number),
