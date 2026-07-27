@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { db } from '@/lib/db'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import type { PlanFeatures } from '@/lib/types'
 import { ScanStep } from '@/components/dashboard/ScanStep'
@@ -10,7 +10,6 @@ import { ResultsStep } from '@/components/dashboard/ResultsStep'
 import { ImproveStep } from '@/components/dashboard/ImproveStep'
 import { MonitorStep } from '@/components/dashboard/MonitorStep'
 import { LocalTrustStep } from '@/components/dashboard/local-trust/LocalTrustStep'
-import { findNewestMatchingScan } from '@/lib/localTrust'
 import { getLocalTrustProfile, getOrCreateLocalTrustSnapshot } from '@/lib/localTrust/store'
 import type {
   Scan, AgentRecommendation, AgentProgress as AgentProgressType,
@@ -51,6 +50,19 @@ async function StepHeader({ step, features }: { step: string; features: PlanFeat
   )
 }
 
+type Workspace = {
+  typedClient: Client
+  scan: Scan | null
+  scanHistory: Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'created_at'>[]
+  summary: PulseWeeklySummary[]
+  missed: PulseMetric[]
+  agentRecs: AgentRecommendation[]
+  agentProg: AgentProgressType[]
+  agentCompetitors: AgentCompetitor[]
+  localTrustScan: Scan | null
+  localTrustCompetitors: AgentCompetitor[]
+}
+
 export default async function DashboardPage({
   params,
   searchParams,
@@ -63,80 +75,130 @@ export default async function DashboardPage({
   const t = await getTranslations('dashboard')
   const reportT = await getTranslations('reports')
   const profile  = await requireAuth(lang)
-  const supabase = await createServerSupabaseClient()
   const { features } = resolveCommercialEntitlement(profile.accounts)
 
-  const { data: client } = await supabase
-    .from('clients').select('id, brand_name, domain, industry, competitors, status, created_at')
-    .eq('id', clientId).eq('account_id', profile.account_id).single()
+  const sql = db()
 
-  if (!client) notFound()
-  const typedClient = client as Client
+  let workspace: Workspace | null = null
+  let clientMissing = false
+  let loadError = false
 
-  // Fetch a specific scan if scanId is provided
-  const scanIdPromise = scanId
-    ? supabase.from('scans').select('*').eq('id', scanId).eq('account_id', profile.account_id).single()
-    : Promise.resolve({ data: null })
+  try {
+    const clientRows = await sql`
+      select id, brand_name, domain, industry, competitors, status, created_at
+      from clients
+      where id = ${clientId} and account_id = ${profile.account_id}
+      limit 1
+    `
+    const client = clientRows[0] as Client | undefined
 
-  const localTrustScansPromise = step === 'roi'
-    ? supabase.from('scans').select('*').eq('account_id', profile.account_id)
-      .order('created_at', { ascending: false }).limit(25)
-    : Promise.resolve({ data: [] })
+    if (!client) {
+      clientMissing = true
+    } else {
+      const typedClient = client as Client
 
-  const [
-    { data: latestScan },
-    { data: scanHistory },
-    { data: specificScan },
-    { data: pulseSummary },
-    { data: pulseMetrics },
-    { data: localTrustScans },
-  ] =
-    await Promise.all([
-      supabase.from('scans').select('*').eq('account_id', profile.account_id)
-        .order('created_at', { ascending: false }).limit(1).single(),
-      supabase.from('scans').select('id,domain,score,grade,created_at')
-        .eq('account_id', profile.account_id).order('created_at', { ascending: false }).limit(10),
-      scanIdPromise,
-      supabase.from('pulse_weekly_summary').select('*')
-        .eq('client_id', clientId).order('scan_week').limit(40),
-      supabase.from('pulse_metrics')
-        .select('platform,question,competitors_mentioned,scan_week')
-        .eq('client_id', clientId).eq('brand_mentioned', false)
-        .order('scan_week', { ascending: false }).limit(50),
-      localTrustScansPromise,
-    ])
+      // Fetch a specific scan if scanId is provided — matched on id, account_id,
+      // AND client_id, so a scan id from another brand cannot render here.
+      const specificScanPromise = scanId
+        ? sql`select * from scans where id = ${scanId} and account_id = ${profile.account_id} and client_id = ${clientId} limit 1`
+        : Promise.resolve([])
 
-  // Use specific scan if scanId was provided, otherwise use latest
-  const scan = (scanId ? (specificScan as Scan | null) : (latestScan as Scan | null))
+      const localTrustScansPromise = step === 'roi'
+        ? sql`select * from scans where client_id = ${clientId} and account_id = ${profile.account_id}
+              order by created_at desc limit 25`
+        : Promise.resolve([])
 
-  const summary = (pulseSummary ?? []) as PulseWeeklySummary[]
-  const missed  = (pulseMetrics ?? []) as PulseMetric[]
-  const localTrustScanRows = Array.isArray(localTrustScans)
-    ? localTrustScans as Scan[]
-    : localTrustScans ? [localTrustScans as Scan] : []
-  const localTrustScan = findNewestMatchingScan(localTrustScanRows, typedClient.domain)
+      const [
+        latestRows,
+        scanHistoryRows,
+        specificRows,
+        pulseSummaryRows,
+        pulseMetricsRows,
+        localTrustRows,
+      ] =
+        await Promise.all([
+          sql`select * from scans where client_id = ${clientId} and account_id = ${profile.account_id}
+              order by created_at desc limit 1`,
+          sql`select id, domain, score, grade, created_at from scans
+              where client_id = ${clientId} and account_id = ${profile.account_id}
+              order by created_at desc limit 10`,
+          specificScanPromise,
+          sql`select * from pulse_weekly_summary
+              where client_id = ${clientId} order by scan_week limit 40`,
+          sql`select platform, question, competitors_mentioned, scan_week
+              from pulse_metrics
+              where client_id = ${clientId} and brand_mentioned = false
+              order by scan_week desc limit 50`,
+          localTrustScansPromise,
+        ])
 
-  // Phase 2: agent data for the selected scan
-  const agentDataPromise = scan
-    ? Promise.all([
-        supabase.from('agent_recommendations').select('*').eq('scan_id', scan.id).order('priority').order('impact_score', { ascending: false }),
-        supabase.from('agent_progress').select('*').eq('scan_id', scan.id),
-        supabase.from('agent_competitors').select('*').eq('scan_id', scan.id).order('mention_rate', { ascending: false }),
-      ])
-    : Promise.resolve([{ data: null }, { data: null }, { data: null }])
-  const localTrustCompetitorsPromise = step === 'roi' && localTrustScan && localTrustScan.id !== scan?.id
-    ? supabase.from('agent_competitors').select('*').eq('scan_id', localTrustScan.id).order('mention_rate', { ascending: false })
-    : Promise.resolve({ data: null })
+      const latestScan = (latestRows[0] ?? null) as Scan | null
+      const specificScan = (specificRows[0] ?? null) as Scan | null
 
-  const [
-    [{ data: agentRecs }, { data: agentProg }, { data: agentComps }],
-    { data: localTrustComps },
-  ] = await Promise.all([agentDataPromise, localTrustCompetitorsPromise])
+      // Use specific scan if scanId was provided, otherwise use latest
+      const scan = (scanId ? specificScan : latestScan)
 
-  const agentCompetitors = (agentComps ?? []) as AgentCompetitor[]
-  const localTrustCompetitors = localTrustScan
-    ? (localTrustScan.id === scan?.id ? agentCompetitors : ((localTrustComps ?? []) as AgentCompetitor[]))
-    : []
+      const scanHistory = scanHistoryRows as unknown as Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'created_at'>[]
+      const summary = pulseSummaryRows as unknown as PulseWeeklySummary[]
+      const missed  = pulseMetricsRows as unknown as PulseMetric[]
+
+      // The list is already scoped to this brand's client_id (and tenant-checked
+      // by the scans_client_tenant_fkey composite FK), so the newest row — the
+      // list is ordered created_at desc — is the answer. No domain-matching
+      // heuristic needed now that client_id ties each scan to its brand.
+      const localTrustScanRows = localTrustRows as unknown as Scan[]
+      const localTrustScan = localTrustScanRows[0] ?? null
+
+      // Phase 2: agent data for the selected scan
+      const [agentRecRows, agentProgRows, agentCompRows] = scan
+        ? await Promise.all([
+            sql`select * from agent_recommendations where scan_id = ${scan.id} order by priority, impact_score desc`,
+            sql`select * from agent_progress where scan_id = ${scan.id}`,
+            sql`select * from agent_competitors where scan_id = ${scan.id} order by mention_rate desc`,
+          ])
+        : [[], [], []]
+
+      const agentRecs = agentRecRows as unknown as AgentRecommendation[]
+      const agentProg = agentProgRows as unknown as AgentProgressType[]
+      const agentCompetitors = agentCompRows as unknown as AgentCompetitor[]
+
+      const localTrustComps = (step === 'roi' && localTrustScan && localTrustScan.id !== scan?.id)
+        ? await sql`select * from agent_competitors where scan_id = ${localTrustScan.id} order by mention_rate desc`
+        : []
+
+      const localTrustCompetitors = localTrustScan
+        ? (localTrustScan.id === scan?.id ? agentCompetitors : (localTrustComps as unknown as AgentCompetitor[]))
+        : []
+
+      workspace = {
+        typedClient, scan, scanHistory, summary, missed,
+        agentRecs, agentProg, agentCompetitors,
+        localTrustScan, localTrustCompetitors,
+      }
+    }
+  } catch (err) {
+    loadError = true
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[dashboard] workspace query failed:', message.replace(/postgresql:\/\/\S+/g, '[redacted]'))
+  }
+
+  // A database failure must not look like a brand that does not exist.
+  if (clientMissing) notFound()
+  if (loadError || !workspace) {
+    return (
+      <div className="flex-1 px-6 py-16 text-center">
+        <p className="text-lg font-bold text-dash-text mb-1.5">{t('workspace_load_error_title')}</p>
+        <p className="text-sm text-dash-muted max-w-md mx-auto">{t('workspace_load_error_body')}</p>
+      </div>
+    )
+  }
+
+  const {
+    typedClient, scan, scanHistory, summary, missed,
+    agentRecs, agentProg, agentCompetitors,
+    localTrustScan, localTrustCompetitors,
+  } = workspace
+
   const hasAggregatePulseBaseline = summary.some(row => !row.platform)
   const hasLocalTrustBaseline = Boolean(localTrustScan || hasAggregatePulseBaseline)
   const localTrustProfile = step === 'roi'
@@ -174,7 +236,7 @@ export default async function DashboardPage({
       </div>
 
       <main className="flex-1 px-6 pb-10 max-w-3xl">
-        {step === 'scan' && <ScanStep lang={lang} clientId={clientId} scan={scan} scanHistory={(scanHistory ?? []) as Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'created_at'>[]} />}
+        {step === 'scan' && <ScanStep lang={lang} clientId={clientId} scan={scan} scanHistory={scanHistory} />}
 
         {step === 'results' && scan && <ResultsStep scan={scan} lang={lang} clientId={clientId} />}
         {step === 'results' && !scan && (
@@ -188,8 +250,8 @@ export default async function DashboardPage({
           <ImproveStep
             scan={scan}
             features={features}
-            recommendations={(agentRecs ?? []) as AgentRecommendation[]}
-            progress={(agentProg ?? []) as AgentProgressType[]}
+            recommendations={agentRecs}
+            progress={agentProg}
             competitors={agentCompetitors}
           />
         )}
