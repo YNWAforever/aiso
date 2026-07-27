@@ -198,22 +198,17 @@ describe('client report lifecycle functions, called with named arguments', () =>
     expect(v1Rows[0].executive_summary).toBe('Published summary')
   })
 
-  // FINDING, not a store.ts bug: append_client_report_version's body computes
-  // its next version_number with `pg_catalog.coalesce(pg_catalog.max(...) + 1,
-  // 1)`. COALESCE is a parser-level special form, not a real pg_proc entry —
-  // unlike aggregates such as pg_catalog.max() or pg_catalog.now(), it has no
-  // schema-qualified form on this Neon Postgres (18.4), so the qualified call
-  // fails with "function pg_catalog.coalesce(integer, integer) does not
-  // exist" on every invocation, unconditionally. Confirmed directly: bare
-  // `coalesce(1,2)` succeeds, `pg_catalog.coalesce(1,2)` does not. The same
-  // pattern appears in increment_client_report_view (027 line ~804), which is
-  // covered separately below. lib/reports/store.ts's named-argument call is
-  // correct — appendClientReportVersion reaches this line and the function
-  // itself throws before returning. This is supabase/migrations/027, which
-  // this task is not permitted to modify; a follow-up must patch both
-  // occurrences (drop the `pg_catalog.` prefix — COALESCE needs none) and
-  // this test should then be rewritten to assert success and immutability.
-  it('appendClientReportVersion currently fails — migration 027 calls pg_catalog.coalesce, which does not exist', async () => {
+  // append_client_report_version's body computes its next version_number with
+  // `coalesce(pg_catalog.max(...) + 1, 1)`. COALESCE is a parser-level special
+  // form, not a real pg_proc entry — unlike aggregates such as pg_catalog.max()
+  // or pg_catalog.now(), it has no schema-qualified form, so it must stay bare
+  // under `set search_path = ''`. This exercises the fixed migration end to
+  // end: a second version is appended, and the already-published first
+  // version is proven byte-identical afterward — both via the RPC's own
+  // returned jsonb and via a fresh re-read of the row from the table, so the
+  // "immutable" claim rests on what is actually in Postgres, not just on what
+  // one function call reported back.
+  it('appending a version succeeds, creates a new version row, and leaves the published version byte-identical', async () => {
     const clientId = await seedClient(ACCOUNT, DOMAIN)
     const scanId = await seedScan(ACCOUNT, DOMAIN, 80, '2026-07-20T00:00:00.000Z')
     const created = await createReport({
@@ -222,28 +217,58 @@ describe('client report lifecycle functions, called with named arguments', () =>
     })
     await publish({ accountId: ACCOUNT, clientId, reportId: created.report.id, reviewedVersionId: created.version.id })
 
+    // Snapshot the published row as jsonb — the same representation the RPCs
+    // themselves return — so the "byte-identical" comparison below compares
+    // like with like instead of tripping over the serverless driver's own
+    // type coercion for timestamptz/jsonb columns.
+    const beforeRows = await sql`
+      select to_jsonb(client_report_versions) as row
+      from client_report_versions where id = ${created.version.id}
+    `
+    const publishedBefore = beforeRows[0].row
+
     const laterScanId = await seedScan(ACCOUNT, DOMAIN, 85, '2026-07-21T00:00:00.000Z')
-    await expect(appendVersion({
+    const appended = await appendVersion({
       accountId: ACCOUNT, clientId, reportId: created.report.id,
       sourceScanId: laterScanId, previousScanId: scanId,
       locale: 'en', executiveSummary: 'Second version summary', snapshot: snapshot('v2'), createdBy: null,
-    })).rejects.toThrow(/pg_catalog\.coalesce\(integer, integer\) does not exist/)
+    })
 
-    // Because the append never committed, the published version is
-    // (trivially, but truthfully) still unmutated.
-    const v1Rows = await sql`select executive_summary from client_report_versions where id = ${created.version.id}`
-    expect(v1Rows[0].executive_summary).toBe('Published summary')
+    // A genuinely new row was appended, not a mutation of the published one.
+    expect(appended.version.id).not.toBe(created.version.id)
+    expect(appended.version.version_number).toBe(2)
+    expect(appended.version.executive_summary).toBe('Second version summary')
+    expect(appended.report.latest_version_id).toBe(appended.version.id)
+
+    // The publish pointer is untouched by append — still the first version.
+    expect(appended.report.published_version_id).toBe(created.version.id)
+    expect(appended.previous_published_version_id).toBe(created.version.id)
+
+    // The published version is immutable: byte-identical in the RPC's own
+    // return value, and byte-identical when re-read fresh from the table.
+    expect(appended.published_version).toEqual(publishedBefore)
+    const afterRows = await sql`
+      select to_jsonb(client_report_versions) as row
+      from client_report_versions where id = ${created.version.id}
+    `
+    expect(afterRows[0].row).toEqual(publishedBefore)
+
+    // Two distinct version rows now exist for this report.
+    const versions = await sql`
+      select version_number from client_report_versions
+      where report_id = ${created.report.id} order by version_number
+    `
+    expect(versions.map((r) => r.version_number)).toEqual([1, 2])
   })
 
-  // Same pg_catalog.coalesce defect, a second occurrence (027 line ~804:
-  // `first_viewed_at = pg_catalog.coalesce(client_reports.first_viewed_at,
-  // pg_catalog.now())`). lib/reports/store.ts's incrementClientReportView
-  // wraps this exact call in a try/catch that swallows any error — this
-  // proves that design choice is load-bearing today, not defensive
-  // boilerplate: without it, a public report viewer would get a 500 purely
-  // because the view counter is broken. cta_click has no coalesce call and
-  // increments normally, confirmed against the same report row.
-  it('increment_client_report_view fails on the same pg_catalog.coalesce defect; increment_client_report_cta_click is unaffected', async () => {
+  // increment_client_report_view has the same coalesce shape a second time
+  // (027 line ~804: `first_viewed_at = coalesce(client_reports.first_viewed_at,
+  // pg_catalog.now())`), which is exactly what should make first_viewed_at
+  // sticky: set once on the first view, never overwritten by later views,
+  // while view_count keeps incrementing and last_viewed_at keeps moving.
+  // cta_click has no coalesce call at all and is checked as an unaffected
+  // control on the same report row.
+  it('increment_client_report_view increments the counter and sets first_viewed_at once, unchanged by later views', async () => {
     const clientId = await seedClient(ACCOUNT, DOMAIN)
     const scanId = await seedScan(ACCOUNT, DOMAIN, 80, '2026-07-20T00:00:00.000Z')
     const created = await createReport({
@@ -256,12 +281,33 @@ describe('client report lifecycle functions, called with named arguments', () =>
     const slug = published.report.public_slug as string
     const shareVersion = published.report.share_version as number
 
-    await expect(sql`
-      select increment_client_report_view(p_public_slug => ${slug}, p_share_version => ${shareVersion}::int)
-    `).rejects.toThrow(/pg_catalog\.coalesce\(.*\) does not exist/)
-    const afterView = await sql`select view_count from client_reports where id = ${created.report.id}`
-    expect(Number(afterView[0].view_count)).toBe(0)
+    const before = await sql`
+      select view_count, first_viewed_at from client_reports where id = ${created.report.id}
+    `
+    expect(Number(before[0].view_count)).toBe(0)
+    expect(before[0].first_viewed_at).toBeNull()
 
+    // Same call shape lib/reports/store.ts's incrementClientReportView uses.
+    await sql`select increment_client_report_view(p_public_slug => ${slug}, p_share_version => ${shareVersion}::int)`
+
+    const afterFirst = await sql`
+      select view_count, first_viewed_at from client_reports where id = ${created.report.id}
+    `
+    expect(Number(afterFirst[0].view_count)).toBe(1)
+    expect(afterFirst[0].first_viewed_at).not.toBeNull()
+    const firstViewedAt = afterFirst[0].first_viewed_at
+
+    await sql`select increment_client_report_view(p_public_slug => ${slug}, p_share_version => ${shareVersion}::int)`
+
+    const afterSecond = await sql`
+      select view_count, first_viewed_at from client_reports where id = ${created.report.id}
+    `
+    expect(Number(afterSecond[0].view_count)).toBe(2)
+    // COALESCE(first_viewed_at, now()) is exactly what keeps this stable
+    // across repeat views — confirm it actually does.
+    expect(afterSecond[0].first_viewed_at).toEqual(firstViewedAt)
+
+    // cta_click has no coalesce call and increments independently.
     await sql`select increment_client_report_cta_click(p_public_slug => ${slug}, p_share_version => ${shareVersion}::int)`
     const afterCta = await sql`select cta_click_count from client_reports where id = ${created.report.id}`
     expect(Number(afterCta[0].cta_click_count)).toBe(1)

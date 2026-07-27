@@ -301,7 +301,10 @@ describe('client report migration contract', () => {
     const viewSet = updateSetClause(view)
     const ctaSet = updateSetClause(cta)
 
-    expect(viewSet).toMatch(/view_count = client_reports\.view_count \+ 1,[^;]*first_viewed_at = pg_catalog\.coalesce\([^;]*last_viewed_at = pg_catalog\.now\(\)/)
+    // coalesce is deliberately bare, not pg_catalog-qualified: COALESCE is a
+    // parser-level special form, not a pg_proc entry, so it has no qualified
+    // form to begin with — see supabase/migrations/027_client_report_snapshots.sql.
+    expect(viewSet).toMatch(/view_count = client_reports\.view_count \+ 1,[^;]*first_viewed_at = coalesce\([^;]*last_viewed_at = pg_catalog\.now\(\)/)
     expect(viewSet).not.toMatch(/status\s*=|published_version_id\s*=|public_slug\s*=|share_version\s*=/)
     expect(ctaSet).toMatch(/cta_click_count = client_reports\.cta_click_count \+ 1/)
     expect(ctaSet).not.toMatch(/status\s*=|published_version_id\s*=|public_slug\s*=|share_version\s*=/)
