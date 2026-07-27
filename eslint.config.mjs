@@ -15,9 +15,6 @@ const SUPABASE_MIGRATION_DEBT = [
   // Slice 4 — scan results.
   "app/\\[lang\\]/dashboard/\\[clientId\\]/result/\\[scanId\\]/page.tsx",
   "app/api/fix/route.ts",
-  // Slice 6 — client reports. Porting this one file clears the most entry
-  // points: 11 report routes are dead only transitively through it.
-  "lib/reports/store.ts",
   // Fenced feature; its routes return 503 but the dashboard page still imports
   // the store. Migrate when Local Trust is unfenced.
   "lib/localTrust/store.ts",
