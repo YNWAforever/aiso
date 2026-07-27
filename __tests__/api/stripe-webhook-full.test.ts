@@ -4,15 +4,11 @@ import { NextRequest } from 'next/server'
 const mocks = vi.hoisted(() => ({
   constructEvent: vi.fn(),
   retrieveSubscription: vi.fn(),
-  rpc: vi.fn(),
-  rpcCalls: [] as Array<{ name: string; args: Record<string, unknown> }>,
+  sql: vi.fn(),
+  calls: [] as Array<{ name: string; args: Record<string, unknown> }>,
 }))
 
-vi.mock('@/lib/supabase-server', () => ({
-  createServiceSupabaseClient: vi.fn().mockResolvedValue({
-    rpc: mocks.rpc,
-  }),
-}))
+vi.mock('@/lib/db', () => ({ db: () => mocks.sql }))
 
 vi.mock('@/lib/stripe', () => ({
   stripe: {
@@ -25,6 +21,27 @@ vi.mock('@/lib/stripe', () => ({
     enterprise: 'price_enterprise_test',
   },
 }))
+
+// Reconstructs `p_foo => value` named-argument bindings from a tagged-template
+// call so assertions can verify each Postgres parameter got the right JS
+// value, the same way the real `sql\`... p_foo => ${x} ...\`` call site works.
+// A mock that only inspected the raw query string would happily accept a
+// transposed argument order — this is what makes that class of bug visible
+// at the unit-test layer (an integration test against real Postgres is the
+// other, stronger proof).
+function functionName(strings: TemplateStringsArray): string | null {
+  const match = strings.join('?').match(/select\s+(\w+)\s*\(/i)
+  return match ? match[1] : null
+}
+
+function parseNamedArgs(strings: TemplateStringsArray, values: unknown[]): Record<string, unknown> {
+  const args: Record<string, unknown> = {}
+  for (let i = 0; i < values.length; i++) {
+    const match = strings[i].match(/(\w+)\s*=>\s*$/)
+    if (match) args[match[1]] = values[i]
+  }
+  return args
+}
 
 function subscription({
   id = 'sub_xyz',
@@ -60,23 +77,21 @@ async function postWebhook(event: object) {
 }
 
 function applyRpcArgs() {
-  return mocks.rpcCalls.find(call => call.name === 'apply_stripe_account_event')?.args
+  return mocks.calls.find(call => call.name === 'apply_stripe_account_event')?.args
 }
 
 describe('POST /api/stripe/webhook full lifecycle flow', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.rpcCalls.length = 0
+    mocks.calls.length = 0
     mocks.retrieveSubscription.mockResolvedValue(subscription())
-    mocks.rpc.mockImplementation(async (name: string, args: Record<string, unknown>) => {
-      mocks.rpcCalls.push({ name, args })
-      if (name === 'acquire_stripe_subscription_lease') {
-        return { data: true, error: null }
-      }
-      if (name === 'release_stripe_subscription_lease') {
-        return { data: true, error: null }
-      }
-      return { data: 'applied', error: null }
+    mocks.sql.mockImplementation(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const name = functionName(strings)
+      if (!name) return []
+      mocks.calls.push({ name, args: parseNamedArgs(strings, values) })
+      if (name === 'acquire_stripe_subscription_lease') return [{ acquired: true }]
+      if (name === 'release_stripe_subscription_lease') return [{ released: true }]
+      return [{ result: 'applied' }]
     })
   })
 
@@ -124,7 +139,7 @@ describe('POST /api/stripe/webhook full lifecycle flow', () => {
 
     expect(response.status).toBe(400)
     expect(mocks.retrieveSubscription).not.toHaveBeenCalled()
-    expect(mocks.rpc).not.toHaveBeenCalled()
+    expect(mocks.sql).not.toHaveBeenCalled()
   })
 
   it('applies an updated canonical Enterprise subscription', async () => {
@@ -172,7 +187,7 @@ describe('POST /api/stripe/webhook full lifecycle flow', () => {
 
     expect(response.status).toBe(200)
     expect(mocks.retrieveSubscription).not.toHaveBeenCalled()
-    expect(mocks.rpc).not.toHaveBeenCalled()
+    expect(mocks.sql).not.toHaveBeenCalled()
   })
 
   it('rejects an unrecognized canonical price without changing entitlement', async () => {

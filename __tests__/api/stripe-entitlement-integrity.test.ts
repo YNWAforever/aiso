@@ -10,13 +10,14 @@ const mocks = vi.hoisted(() => ({
   createCheckoutSession: vi.fn(),
   retrieveSubscription: vi.fn(),
   getProfile: vi.fn(),
-  rpc: vi.fn(),
+  sql: vi.fn(),
   rpcCalls: [] as Array<{ name: string; args: Record<string, unknown> }>,
   operationOrder: [] as string[],
-  legacyWrites: [] as Array<Record<string, unknown>>,
   rpcOutcome: 'applied' as RpcOutcome,
   leaseAcquired: true,
-  databaseError: null as Error | null,
+  // Simulates a thrown Neon query error (Neon throws on failure, unlike
+  // supabase-js's `{ data, error }` shape), not a resolved-with-error value.
+  applyThrows: null as Error | null,
   stripePrices: {
     basic: 'price_basic_test',
     pro: 'price_pro_test',
@@ -36,23 +37,28 @@ vi.mock('@/lib/stripe', () => ({
 
 vi.mock('@/lib/auth', () => ({ getProfile: mocks.getProfile }))
 
-vi.mock('@/lib/supabase-server', () => ({
-  createServiceSupabaseClient: vi.fn().mockResolvedValue({
-    rpc: mocks.rpc,
-    from: vi.fn().mockReturnValue({
-      upsert: vi.fn().mockImplementation(async (data: Record<string, unknown>) => {
-        mocks.legacyWrites.push(data)
-        return { error: mocks.databaseError }
-      }),
-      update: vi.fn().mockImplementation((data: Record<string, unknown>) => ({
-        eq: vi.fn().mockImplementation(async () => {
-          mocks.legacyWrites.push(data)
-          return { error: mocks.databaseError }
-        }),
-      })),
-    }),
-  }),
-}))
+vi.mock('@/lib/db', () => ({ db: () => mocks.sql }))
+
+// Reconstructs `p_foo => value` named-argument bindings from a tagged-template
+// call so assertions can verify each Postgres parameter got the right JS
+// value — the same binding the real `sql\`... p_foo => ${x} ...\`` call site
+// performs. A mock that only inspected the raw query string would happily
+// accept a transposed argument order; this is what makes that class of bug
+// visible at the unit-test layer (the integration test is the stronger proof,
+// since it runs the real functions).
+function functionName(strings: TemplateStringsArray): string | null {
+  const match = strings.join('?').match(/select\s+(\w+)\s*\(/i)
+  return match ? match[1] : null
+}
+
+function parseNamedArgs(strings: TemplateStringsArray, values: unknown[]): Record<string, unknown> {
+  const args: Record<string, unknown> = {}
+  for (let i = 0; i < values.length; i++) {
+    const match = strings[i].match(/(\w+)\s*=>\s*$/)
+    if (match) args[match[1]] = values[i]
+  }
+  return args
+}
 
 async function postCheckout(plan: string) {
   const { POST } = await import('@/app/api/stripe/checkout/route')
@@ -189,25 +195,29 @@ describe('Stripe entitlement integrity', () => {
     vi.clearAllMocks()
     mocks.rpcCalls.length = 0
     mocks.operationOrder.length = 0
-    mocks.legacyWrites.length = 0
     mocks.rpcOutcome = 'applied'
     mocks.leaseAcquired = true
-    mocks.databaseError = null
+    mocks.applyThrows = null
     Object.assign(mocks.stripePrices, {
       basic: 'price_basic_test',
       pro: 'price_pro_test',
       enterprise: 'price_enterprise_test',
     })
-    mocks.rpc.mockImplementation(async (name: string, args: Record<string, unknown>) => {
+    mocks.sql.mockImplementation(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const name = functionName(strings)
+      if (!name) return []
+      const args = parseNamedArgs(strings, values)
       mocks.rpcCalls.push({ name, args })
       mocks.operationOrder.push(name)
       if (name === 'acquire_stripe_subscription_lease') {
-        return { data: mocks.leaseAcquired, error: null }
+        return [{ acquired: mocks.leaseAcquired }]
       }
       if (name === 'release_stripe_subscription_lease') {
-        return { data: true, error: null }
+        return [{ released: true }]
       }
-      return { data: mocks.rpcOutcome, error: mocks.databaseError }
+      // apply_stripe_account_event
+      if (mocks.applyThrows) throw mocks.applyThrows
+      return [{ result: mocks.rpcOutcome }]
     })
     mocks.getProfile.mockResolvedValue({ account_id: 'account-1', email: 'owner@example.com' })
     mocks.createCheckoutSession.mockResolvedValue({ url: 'https://checkout.stripe.test/session' })
@@ -305,25 +315,28 @@ describe('Stripe entitlement integrity', () => {
       resolveStalledRetrieval = resolve
     })
 
-    mocks.rpc.mockImplementation(async (name: string, args: Record<string, unknown>) => {
+    mocks.sql.mockImplementation(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const name = functionName(strings)
+      if (!name) return []
+      const args = parseNamedArgs(strings, values)
       mocks.rpcCalls.push({ name, args })
       if (name === 'acquire_stripe_subscription_lease') {
         // The second acquire models crash recovery after the first 300-second lease expires.
         currentLeaseOwner = args.p_lease_owner
-        return { data: true, error: null }
+        return [{ acquired: true }]
       }
       if (name === 'apply_stripe_account_event') {
         if (args.p_lease_owner !== currentLeaseOwner) {
-          return { data: 'lease_lost', error: null }
+          return [{ result: 'lease_lost' }]
         }
         appliedStatuses.push(args.p_status)
-        return { data: 'applied', error: null }
+        return [{ result: 'applied' }]
       }
       if (name === 'release_stripe_subscription_lease') {
         if (args.p_lease_owner === currentLeaseOwner) currentLeaseOwner = null
-        return { data: true, error: null }
+        return [{ released: true }]
       }
-      throw new Error(`Unexpected RPC: ${name}`)
+      throw new Error(`Unexpected function call: ${name}`)
     })
     mocks.retrieveSubscription
       .mockImplementationOnce(() => stalledRetrieval)
@@ -404,18 +417,22 @@ describe('Stripe entitlement integrity', () => {
     })
   })
 
-  it.each(['duplicate', 'stale'] as const)('acknowledges an atomically detected %s event', async outcome => {
-    mocks.rpcOutcome = outcome
+  it.each(['duplicate', 'stale'] as const)(
+    'acknowledges an atomically detected %s event without regressing subscription state — an idempotent replay (duplicate) or an out-of-order delivery (stale) both must not overwrite current state',
+    async outcome => {
+      mocks.rpcOutcome = outcome
 
-    const response = await postWebhook(subscriptionEvent())
+      const response = await postWebhook(subscriptionEvent())
 
-    expect(response.status).toBe(200)
-    expect(rpcNames()).toEqual([
-      'acquire_stripe_subscription_lease',
-      'apply_stripe_account_event',
-      'release_stripe_subscription_lease',
-    ])
-  })
+      expect(response.status).toBe(200)
+      await expect(response.json()).resolves.toEqual({ ok: true })
+      expect(rpcNames()).toEqual([
+        'acquire_stripe_subscription_lease',
+        'apply_stripe_account_event',
+        'release_stripe_subscription_lease',
+      ])
+    },
+  )
 
   it('returns retryable 503 when account linkage does not exist yet', async () => {
     mocks.rpcOutcome = 'not_found'
@@ -441,12 +458,26 @@ describe('Stripe entitlement integrity', () => {
     ])
   })
 
-  it('returns 500 when atomic persistence fails so Stripe retries', async () => {
-    mocks.databaseError = new Error('database unavailable')
+  it('returns 500 — never { ok: true } — when the database throws persisting the event, and still releases the lease', async () => {
+    // Neon throws on a failed query; it does not resolve `{ data, error }`
+    // the way supabase-js did. This is the exact bug the migration fixes:
+    // a discarded `error` field used to fall through to `{ ok: true }`,
+    // which told Stripe the event was handled when the write never happened.
+    mocks.applyThrows = new Error('connection terminated unexpectedly')
 
     const response = await postWebhook(subscriptionEvent())
 
     expect(response.status).toBe(500)
+    const body = await response.json()
+    expect(body).not.toEqual({ ok: true })
+    expect(body).toMatchObject({ error: expect.any(String) })
+    // The lease must not leak just because the write threw: the failed
+    // apply attempt is followed by a release, not skipped straight to it.
+    expect(rpcNames()).toEqual([
+      'acquire_stripe_subscription_lease',
+      'apply_stripe_account_event',
+      'release_stripe_subscription_lease',
+    ])
   })
 
   it('rejects an unknown canonical price even when the event snapshot has a known price', async () => {
