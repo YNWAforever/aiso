@@ -2,24 +2,6 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
-// Files that still legitimately import the dead Supabase clients, pending their
-// migration to db() in the remaining slices. This list must only ever shrink;
-// when it is empty, delete it along with lib/supabase.ts and
-// lib/supabase-server.ts and uninstall @supabase/ssr and @supabase/supabase-js.
-// See docs/superpowers/specs/2026-07-26-critical-path-to-production-design.md
-//
-// NOTE: these are globs, so Next.js dynamic segments need their brackets
-// escaped. An unescaped [lang] is a character class matching one of l/a/n/g,
-// so it silently never matches the literal directory and the rule fires anyway.
-const SUPABASE_MIGRATION_DEBT = [
-  // Fenced feature; its routes return 503 but the dashboard page still imports
-  // the store. Migrate when Local Trust is unfenced.
-  "lib/localTrust/store.ts",
-  // The shims themselves — they exist only to keep the files above compiling.
-  "lib/supabase.ts",
-  "lib/supabase-server.ts",
-];
-
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -42,7 +24,6 @@ const eslintConfig = defineConfig([
       "components/**/*.{ts,tsx}",
       "scripts/**/*.{ts,tsx}",
     ],
-    ignores: SUPABASE_MIGRATION_DEBT,
     rules: {
       "no-restricted-imports": [
         "error",

@@ -41,7 +41,7 @@ The Supabase → Neon migration is done. `db()` from `@/lib/db` (a lazy
 | Node | **24.x** (`engines`) | required |
 | Deploy | Vercel | `vercel.json` |
 
-Legacy `@supabase/*` packages are still installed — see the migration note above.
+No `@supabase/*` packages remain — see the migration note above.
 
 ## Build & Run
 
@@ -129,12 +129,13 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
 - Tier/feature gates: use `getPlanFeatures(plan)` from `lib/tier.ts` before exposing paid features
 - Error handling: `try/catch` with graceful fallbacks — checks degrade rather than throw, each
   with its own domain-specific message (see Checks Architecture; don't emit `check_error`).
-- **Beware silent failure.** `supabase-js` does not throw on a dead host — it resolves to
-  `{ data: null, error }`. Several routes discard that `error` and return HTTP 200, so
-  failures look like successes: `/api/cron/trial-emails` reports `{sent:0}` daily with a green
-  cron log, and `app/api/stripe/webhook/route.ts` returns `{ok:true}` while dropping every
-  write — **Stripe marks the event delivered and never retries, so paid upgrades are lost.**
-  Always check the `error` field, or migrate the route to `db()` (which does throw).
+- **Never return a success over a failed write.** This bit hard: `supabase-js` resolved to
+  `{ data: null, error }` instead of throwing, and routes that discarded that `error`
+  returned HTTP 200 over a dead database. The Stripe webhook returned `{ok:true}` while
+  dropping every write, so Stripe marked each event delivered and never retried — paid
+  upgrades were lost silently for months. `db()` throws, which is why every handler wraps
+  its queries in `try/catch` and returns 5xx. Keep it that way: a 2xx must mean the write
+  happened.
 - Deployment config lives outside the code and is easy to miss: `vercel.json` sets
   `maxDuration` (60s scan, 30s fix) and one cron; its `functions` keys are **literal paths,
   not prefixes**, so `fix/`'s subroutes inherit nothing despite also calling OpenRouter.
