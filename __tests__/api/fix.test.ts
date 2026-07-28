@@ -6,26 +6,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
-const supabaseQuery = () => {
-  const q: Record<string, unknown> = {}
-  q.select      = vi.fn(() => q)
-  q.eq          = vi.fn(() => q)
-  q.insert      = vi.fn(() => q)
-  q.maybeSingle = vi.fn(async () => ({ data: null, error: null }))
-  q.single      = vi.fn(async () => ({
-    data: {
-      id: 'scan-1', url: 'https://example.com', domain: 'example.com',
-      results: { c2_llms_txt: { status: 'fail', message: 'llms_txt_missing' } },
-    },
-    error: null,
-  }))
-  return q
-}
+// Tagged-template SQL mock — db() returns the template function itself.
+// Queries are queued in call order: ownership check, cache read, scan read,
+// cache write.
+const queries: string[] = []
+let nextResults: unknown[][] = []
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: { from: vi.fn(() => supabaseQuery()) },
-  createServerSupabaseClient: vi.fn(() => ({ from: vi.fn(() => supabaseQuery()) })),
-}))
+const sqlMock = vi.fn((strings: TemplateStringsArray) => {
+  queries.push(strings.join('?'))
+  const result = nextResults.shift()
+  if (result instanceof Error) return Promise.reject(result)
+  return Promise.resolve(result ?? [])
+})
+
+vi.mock('@/lib/db', () => ({ db: () => sqlMock }))
 
 vi.mock('@/lib/openrouter', () => ({
   callOpenRouter: vi.fn(),
@@ -33,12 +27,6 @@ vi.mock('@/lib/openrouter', () => ({
 
 vi.mock('@/lib/auth', () => ({
   getProfile: vi.fn(),
-}))
-
-// Tagged-template SQL mock — db() returns the template function itself
-const sqlMock = vi.fn()
-vi.mock('@/lib/db', () => ({
-  db: () => sqlMock,
 }))
 
 vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -52,6 +40,11 @@ import { callOpenRouter } from '@/lib/openrouter'
 
 const PROFILE = { id: 'profile-1', account_id: 'acc-1', is_admin: false }
 
+const SCAN_ROW = {
+  id: 'scan-1', url: 'https://example.com', domain: 'example.com',
+  results: { c2_llms_txt: { status: 'fail', message: 'llms_txt_missing' } },
+}
+
 const post = (path: string, body: unknown) =>
   new NextRequest(`http://localhost${path}`, {
     method: 'POST',
@@ -61,7 +54,8 @@ const post = (path: string, body: unknown) =>
 
 beforeEach(() => {
   vi.clearAllMocks()
-  sqlMock.mockResolvedValue([])
+  queries.length = 0
+  nextResults = []
   vi.mocked(callOpenRouter).mockResolvedValue(
     '{"llms_txt":"# About","robots_patch":"Allow: /","faq_schema":"{}"}'
   )
@@ -94,7 +88,7 @@ describe('POST /api/fix', () => {
 
   it('returns 404 (not 403) when the scan belongs to another account', async () => {
     vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
-    sqlMock.mockResolvedValue([])
+    nextResults = [[]] // ownership check: no rows
     const { POST } = await import('@/app/api/fix/route')
 
     const res = await POST(post('/api/fix', { scanId: 'scan-other' }))
@@ -105,22 +99,43 @@ describe('POST /api/fix', () => {
 
   it('scopes the ownership query to the caller account and allows anonymous scans', async () => {
     vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
-    sqlMock.mockResolvedValue([{ id: 'scan-1' }])
+    nextResults = [[{ id: 'scan-1' }], [{ llms_txt: 'cached', robots_patch: 'x', faq_schema: 'y' }]]
     const { POST } = await import('@/app/api/fix/route')
 
     await POST(post('/api/fix', { scanId: 'scan-1' }))
 
-    expect(sqlMock).toHaveBeenCalledTimes(1)
-    const [strings, ...params] = sqlMock.mock.calls[0]
-    const query = (strings as string[]).join('?')
+    const query = queries[0]!
     expect(query).toMatch(/from scans/i)
     expect(query).toMatch(/account_id is null or account_id = \?/i)
+    const [strings, ...params] = sqlMock.mock.calls[0]!
+    void strings
     expect(params).toEqual(['scan-1', 'acc-1'])
   })
 
-  it('generates the fix pack for an owned scan', async () => {
+  it('returns the cached fix pack without calling OpenRouter', async () => {
     vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
-    sqlMock.mockResolvedValue([{ id: 'scan-1' }])
+    nextResults = [
+      [{ id: 'scan-1' }], // ownership check
+      [{ llms_txt: 'cached', robots_patch: 'cached-robots', faq_schema: 'cached-faq' }], // cache hit
+    ]
+    const { POST } = await import('@/app/api/fix/route')
+
+    const res = await POST(post('/api/fix', { scanId: 'scan-1' }))
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ llms_txt: 'cached', robots_patch: 'cached-robots', faq_schema: 'cached-faq' })
+    expect(callOpenRouter).not.toHaveBeenCalled()
+    expect(queries).toHaveLength(2) // ownership + cache read only, no scan read, no insert
+  })
+
+  it('generates the fix pack for an owned scan on a cache miss', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    nextResults = [
+      [{ id: 'scan-1' }], // ownership check
+      [], // cache miss
+      [SCAN_ROW], // scan read
+      [{ id: 'fp-1' }], // cache write
+    ]
     const { POST } = await import('@/app/api/fix/route')
 
     const res = await POST(post('/api/fix', { scanId: 'scan-1' }))
@@ -128,6 +143,8 @@ describe('POST /api/fix', () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ llms_txt: '# About', robots_patch: 'Allow: /', faq_schema: '{}' })
     expect(callOpenRouter).toHaveBeenCalledTimes(1)
+    expect(queries).toHaveLength(4)
+    expect(queries[3]).toMatch(/insert into fix_packs/i)
   })
 
   it('returns 400 for a missing scanId without touching the DB', async () => {
@@ -139,6 +156,51 @@ describe('POST /api/fix', () => {
     expect(res.status).toBe(400)
     expect(sqlMock).not.toHaveBeenCalled()
     expect(callOpenRouter).not.toHaveBeenCalled()
+  })
+
+  it('returns 500 when the ownership check fails, not a silent success', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    nextResults = [new Error('connection terminated') as never]
+    const { POST } = await import('@/app/api/fix/route')
+
+    const res = await POST(post('/api/fix', { scanId: 'scan-1' }))
+
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'Database error' })
+    expect(callOpenRouter).not.toHaveBeenCalled()
+  })
+
+  it('returns 500 when the cache/scan lookup fails, not a silent success', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    nextResults = [
+      [{ id: 'scan-1' }], // ownership check succeeds
+      new Error('connection terminated') as never, // cache read fails
+    ]
+    const { POST } = await import('@/app/api/fix/route')
+
+    const res = await POST(post('/api/fix', { scanId: 'scan-1' }))
+
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'Database error' })
+    expect(callOpenRouter).not.toHaveBeenCalled()
+  })
+
+  it('still returns the generated fix pack when the cache write fails', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    nextResults = [
+      [{ id: 'scan-1' }], // ownership check
+      [], // cache miss
+      [SCAN_ROW], // scan read
+      new Error('connection terminated') as never, // cache write fails
+    ]
+    const { POST } = await import('@/app/api/fix/route')
+
+    const res = await POST(post('/api/fix', { scanId: 'scan-1' }))
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ llms_txt: '# About', robots_patch: 'Allow: /', faq_schema: '{}' })
+    consoleError.mockRestore()
   })
 })
 
