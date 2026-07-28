@@ -4,27 +4,22 @@
 >
 > Next.js 16 renames `middleware.ts` → **`proxy.ts`** (exporting `proxy`, not `middleware`). This repo uses `proxy.ts` at the root. Do not create a `middleware.ts`.
 
-## ⚠️ Migration in progress: Supabase → Neon
+## ✅ Migration complete: Supabase → Neon
 
-**The Supabase project is deleted. Its hostname no longer resolves.** Any code path that
-touches `lib/supabase.ts` or `lib/supabase-server.ts` fails or hangs at runtime.
+The Supabase → Neon migration is done. `db()` from `@/lib/db` (a lazy
+`@neondatabase/serverless` singleton) is the only database client in the codebase — the
+`lib/supabase.ts` / `lib/supabase-server.ts` shims are deleted and `@supabase/supabase-js` /
+`@supabase/ssr` are uninstalled.
 
-The migration is **partial** — roughly 37 runtime files under `app/` `lib/` `components/`
-still import the dead Supabase clients. Only these paths run on Neon today:
-
-- `app/api/scan/`, `app/api/scan/lead/` — the public scan funnel
-- `app/[lang]/result/[id]/` — public result page
-- `app/api/webhooks/neon/` — signup provisioning
-- `lib/auth.ts` — `getProfile()` / `requireAuth()` / `requireAdmin()`
-
-**Rules for new work:**
-- Never add a new import of `@/lib/supabase` or `@/lib/supabase-server`.
-- Use `db()` from `@/lib/db` — a lazy `@neondatabase/serverless` singleton.
 - Neon's driver is **tagged-template only**: `` sql`select … where id = ${id}` ``.
   Calling `sql(someString)` throws. Interpolations are parameterised, not string-concatenated.
-- Touching a file that still uses Supabase? Migrate that file's queries to `db()` as you go.
-- `lib/supabase.ts` / `lib/supabase-server.ts` exist only to keep unmigrated files
-  compiling. Delete them once the last consumer is migrated.
+- An ESLint `no-restricted-imports` rule in `eslint.config.mjs` blocks any new import of
+  `@supabase/*`, `@/lib/supabase`, or `@/lib/supabase-server` — reintroducing one is a lint
+  error, not just a convention.
+- Local Trust (`lib/localTrust/store.ts` and its routes under
+  `app/api/dashboard/clients/[clientId]/local-trust/`) runs on `db()` but stays
+  **intentionally fenced**: those routes return `503 FEATURE_UNAVAILABLE` regardless of the
+  store working. Don't unfence them as part of unrelated work.
 
 ## Tech Stack
 
