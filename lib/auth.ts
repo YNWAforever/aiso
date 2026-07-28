@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/lib/neon-auth'
 import { db } from '@/lib/db'
 import type { ProfileWithAccount } from '@/lib/types'
+import { isAllowlistedAdminEmail } from '@/lib/admin/allowlist'
 
 export async function getProfile(): Promise<ProfileWithAccount | null> {
   const { data, error } = await auth().getSession()
@@ -29,7 +30,14 @@ export async function getProfile(): Promise<ProfileWithAccount | null> {
     id: row.id,
     account_id: row.account_id,
     display_name: row.display_name,
-    is_admin: row.is_admin,
+    // Derived, not persisted: removing an address from ADMIN_EMAILS revokes on
+    // the next request. The column remains the durable record for grants made
+    // by other means.
+    is_admin: Boolean(row.is_admin) || isAllowlistedAdminEmail(
+      data.user.email,
+      Boolean(data.user.emailVerified),
+      process.env.ADMIN_EMAILS,
+    ),
     created_at: row.created_at,
     email: data.user.email ?? null,
     accounts: {
