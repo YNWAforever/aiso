@@ -12,9 +12,6 @@ import nextTs from "eslint-config-next/typescript";
 // escaped. An unescaped [lang] is a character class matching one of l/a/n/g,
 // so it silently never matches the literal directory and the rule fires anyway.
 const SUPABASE_MIGRATION_DEBT = [
-  // Slice 4 — scan results.
-  "app/\\[lang\\]/dashboard/\\[clientId\\]/result/\\[scanId\\]/page.tsx",
-  "app/api/fix/route.ts",
   // Fenced feature; its routes return 503 but the dashboard page still imports
   // the store. Migrate when Local Trust is unfenced.
   "lib/localTrust/store.ts",
