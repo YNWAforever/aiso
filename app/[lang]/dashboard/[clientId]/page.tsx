@@ -13,7 +13,7 @@ import { LocalTrustStep } from '@/components/dashboard/local-trust/LocalTrustSte
 import { getLocalTrustProfile, getOrCreateLocalTrustSnapshot } from '@/lib/localTrust/store'
 import type {
   Scan, AgentRecommendation, AgentProgress as AgentProgressType,
-  AgentCompetitor, PulseWeeklySummary, PulseMetric, Client,
+  AgentCompetitor, PulseWeeklySummary, PulseMetric, Client, LocalTrustProfile,
 } from '@/lib/types'
 
 async function StepHeader({ step, features }: { step: string; features: PlanFeatures }) {
@@ -61,6 +61,8 @@ type Workspace = {
   agentCompetitors: AgentCompetitor[]
   localTrustScan: Scan | null
   localTrustCompetitors: AgentCompetitor[]
+  localTrustProfile: LocalTrustProfile | null
+  localTrustData: Awaited<ReturnType<typeof getOrCreateLocalTrustSnapshot>> | null
 }
 
 export default async function DashboardPage({
@@ -170,10 +172,31 @@ export default async function DashboardPage({
         ? (localTrustScan.id === scan?.id ? agentCompetitors : (localTrustComps as unknown as AgentCompetitor[]))
         : []
 
+      // Local Trust reads belong inside this try/catch like every other
+      // workspace query — a failure here must render the same
+      // workspace_load_error_* state, not throw past the page boundary.
+      const hasAggregatePulseBaseline = summary.some(row => !row.platform)
+      const hasLocalTrustBaseline = Boolean(localTrustScan || hasAggregatePulseBaseline)
+      const localTrustProfile = step === 'roi'
+        ? await getLocalTrustProfile(clientId, profile.account_id)
+        : null
+      const localTrustData = step === 'roi' && features.local_trust_roi && hasLocalTrustBaseline
+        ? await getOrCreateLocalTrustSnapshot({
+            client: typedClient,
+            accountId: profile.account_id,
+            latestScan: localTrustScan,
+            profile: localTrustProfile,
+            pulseSummary: summary,
+            missed,
+            competitors: localTrustCompetitors,
+          })
+        : null
+
       workspace = {
         typedClient, scan, scanHistory, summary, missed,
         agentRecs, agentProg, agentCompetitors,
         localTrustScan, localTrustCompetitors,
+        localTrustProfile, localTrustData,
       }
     }
   } catch (err) {
@@ -194,27 +217,14 @@ export default async function DashboardPage({
   }
 
   const {
-    typedClient, scan, scanHistory, summary, missed,
+    scan, scanHistory, summary, missed,
     agentRecs, agentProg, agentCompetitors,
     localTrustScan, localTrustCompetitors,
+    localTrustProfile, localTrustData,
   } = workspace
 
   const hasAggregatePulseBaseline = summary.some(row => !row.platform)
   const hasLocalTrustBaseline = Boolean(localTrustScan || hasAggregatePulseBaseline)
-  const localTrustProfile = step === 'roi'
-    ? await getLocalTrustProfile(clientId, profile.account_id)
-    : null
-  const localTrustData = step === 'roi' && features.local_trust_roi && hasLocalTrustBaseline
-    ? await getOrCreateLocalTrustSnapshot({
-        client: typedClient,
-        accountId: profile.account_id,
-        latestScan: localTrustScan,
-        profile: localTrustProfile,
-        pulseSummary: summary,
-        missed,
-        competitors: localTrustCompetitors,
-      })
-    : null
 
   return (
     <>
