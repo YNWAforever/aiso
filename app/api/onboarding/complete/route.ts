@@ -3,23 +3,10 @@ import { callOpenRouter } from '@/lib/openrouter'
 import { getProfile } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { claimScanForAccount } from '@/app/api/scans/[id]/claim/route'
+import { ensureTrialForAccount } from '@/lib/brands/trial'
+import { createBrandForAccount } from '@/lib/brands/create'
 
 export const dynamic = 'force-dynamic'
-
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
-
-// accounts.trial_started_at / trial_ends_at are timestamptz — the Neon driver
-// returns those as Date objects, not ISO strings (see fix(tier): accept a
-// Date trial expiry). Test fixtures and any row written by the old
-// Supabase-era code may still hand us a string, so accept both.
-function toDate(raw: unknown): Date | null {
-  if (raw instanceof Date) return raw
-  if (typeof raw === 'string' && raw) {
-    const parsed = new Date(raw)
-    return Number.isNaN(parsed.getTime()) ? null : parsed
-  }
-  return null
-}
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
@@ -45,53 +32,17 @@ export async function POST(req: NextRequest) {
     if (claim.status === 'error') return NextResponse.json({ error: 'Failed to claim scan' }, { status: 500 })
   }
 
-  // Guard against double-submit: check if trial already started
-  let account: { trial_started_at: unknown; trial_ends_at: unknown } | undefined
+  // Runs BEFORE the existing-client guard below, deliberately: an account
+  // that already has a brand but no trial can self-rescue by re-submitting
+  // onboarding — app/[lang]/onboarding/page.tsx has no requireAuth, so the
+  // page is reachable by any signed-in user. Moving this after the guard
+  // would remove that path and make stranding strictly worse than today.
+  let trialEndsAt: Date
   try {
-    const rows = await sql`
-      select trial_started_at, trial_ends_at from accounts where id = ${accountId} limit 1
-    `
-    account = rows[0] as { trial_started_at: unknown; trial_ends_at: unknown } | undefined
-  } catch {
-    return NextResponse.json({ error: 'Failed to load account' }, { status: 500 })
-  }
-  if (!account) {
-    return NextResponse.json({ error: 'Failed to load account' }, { status: 500 })
-  }
-
-  const trialStartedAt = toDate(account.trial_started_at)
-  const trialAlreadyStarted = !!trialStartedAt
-  const storedTrialEndsAt = toDate(account.trial_ends_at)
-  const now = new Date()
-
-  // Set trial dates on account (7-day trial) — only on first call
-  const trialEndsAt = trialAlreadyStarted
-    ? (storedTrialEndsAt ?? new Date(trialStartedAt!.getTime() + SEVEN_DAYS_MS))
-    : new Date(now.getTime() + SEVEN_DAYS_MS)
-
-  if (!trialAlreadyStarted) {
-    try {
-      const updated = await sql`
-        update accounts
-        set trial_started_at = ${now.toISOString()}, trial_ends_at = ${trialEndsAt.toISOString()}
-        where id = ${accountId}
-        returning id
-      `
-      if (!updated[0]) return NextResponse.json({ error: 'Failed to start trial' }, { status: 500 })
-    } catch {
-      return NextResponse.json({ error: 'Failed to start trial' }, { status: 500 })
-    }
-  } else if (!storedTrialEndsAt) {
-    try {
-      const updated = await sql`
-        update accounts set trial_ends_at = ${trialEndsAt.toISOString()}
-        where id = ${accountId}
-        returning id
-      `
-      if (!updated[0]) return NextResponse.json({ error: 'Failed to start trial' }, { status: 500 })
-    } catch {
-      return NextResponse.json({ error: 'Failed to start trial' }, { status: 500 })
-    }
+    trialEndsAt = await ensureTrialForAccount(accountId)
+  } catch (err) {
+    console.error('[onboarding] failed to start trial:', (err as Error)?.message ?? String(err))
+    return NextResponse.json({ error: 'Failed to start trial' }, { status: 500 })
   }
 
   // Guard against duplicate clients: return existing client if account already has one
@@ -124,31 +75,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ clientId: existingClientId, scanId: scanId ?? null, trialEndsAt: trialEndsAt.toISOString() })
   }
 
-  // Create client. competitors is text[], not jsonb — pass the array
-  // straight through with an explicit cast, no JSON.stringify.
+  // Create the client and confirm/repair its trial atomically via the same
+  // service the dashboard route uses.
   let clientId: string
   try {
-    const rows = await sql`
-      insert into clients (brand_name, domain, industry, region, description, competitors, account_id, status)
-      values (
-        ${brandName},
-        ${domain ?? null},
-        ${industry ?? null},
-        ${region ?? null},
-        ${description ?? null},
-        ${(Array.isArray(competitors) ? competitors : []) as string[]}::text[],
-        ${accountId},
-        'active'
+    const created = await createBrandForAccount({
+      accountId,
+      brandName,
+      domain,
+      industry,
+      region,
+      description,
+      competitors,
+    })
+    if (!created.ok) {
+      // Canonical 403 body, matching POST /api/dashboard/clients. This route
+      // previously returned a bare { error } with no plan or limit.
+      return NextResponse.json(
+        { error: created.reason, plan: created.plan, limit: created.limit },
+        { status: 403 },
       )
-      returning id
-    `
-    if (!rows[0]) return NextResponse.json({ error: 'Failed to create client' }, { status: 500 })
-    clientId = rows[0].id as string
+    }
+    clientId = created.clientId
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    if (message.includes('BRAND_LIMIT_REACHED')) {
-      return NextResponse.json({ error: 'BRAND_LIMIT_REACHED' }, { status: 403 })
-    }
+    console.error('[onboarding] failed to create client:', message.replace(/postgresql:\/\/\S+/g, '[redacted]'))
     return NextResponse.json({ error: 'Failed to create client' }, { status: 500 })
   }
 
