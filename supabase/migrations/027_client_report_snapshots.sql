@@ -481,7 +481,7 @@ begin
     end if;
   end if;
 
-  select pg_catalog.coalesce(
+  select coalesce(
     pg_catalog.max(client_report_versions.version_number) + 1,
     1
   )
@@ -801,7 +801,7 @@ begin
   return query
   update public.client_reports
   set view_count = client_reports.view_count + 1,
-      first_viewed_at = pg_catalog.coalesce(client_reports.first_viewed_at, pg_catalog.now()),
+      first_viewed_at = coalesce(client_reports.first_viewed_at, pg_catalog.now()),
       last_viewed_at = pg_catalog.now()
   where client_reports.public_slug = p_public_slug
     and client_reports.share_version = p_share_version

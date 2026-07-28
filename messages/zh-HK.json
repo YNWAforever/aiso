@@ -513,6 +513,8 @@
     "step_roi_title": "證明本地信任及 ROI",
     "step_roi_body": "向老闆展示本地信任、AI 能見度、已完成修復及預估查詢價值如何隨時間改善。",
     "step_roi_locked": "升級至專業版即可解鎖 Local Trust ROI：老闆易明的信任評分、行動優先次序及進度證明。",
+    "workspace_load_error_title": "無法載入此品牌",
+    "workspace_load_error_body": "資料庫暫時無法使用。你的品牌沒有問題，請稍後重新整理再試。",
     "no_scan_selected": "未選擇掃描",
     "no_scan_selected_body": "請在掃描步驟執行掃描，或從歷史記錄中選擇一次掃描。",
     "no_scan_yet": "尚未有掃描",

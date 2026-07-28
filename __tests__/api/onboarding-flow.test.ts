@@ -1,376 +1,318 @@
 /**
  * TDD: Onboarding flow — expanded
- * Covers: trial setup, domain/region/description/competitors, idempotency
+ * Covers: trial setup, domain/region/description/competitors, idempotency,
+ * scan claiming, and the scan -> brand association added alongside
+ * scans.client_id (both the new-client and existing-client paths).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import { readFileSync } from 'node:fs'
 
 const getProfileMock = vi.hoisted(() => vi.fn())
-const createServerSupabaseClientMock = vi.hoisted(() => vi.fn())
-const createServiceSupabaseClientMock = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/auth', () => ({ getProfile: getProfileMock }))
 
-// ── DB state simulation ──────────────────────────────────────────
-let trialStartedAt: string | null = null
-let trialEndsAt: string | null = null
-let clientsInDb: { id: string }[] = []
-let scanResults: Array<{ data: { id: string; account_id: string | null } | null; error: { message: string } | null }> = []
-let tableCalls: string[] = []
-let scanUpdates: Array<Record<string, unknown>> = []
-let scanNullGuards: Array<[string, unknown]> = []
-let accountUpdates: Array<Record<string, unknown>> = []
-let accountLookupError: { message: string } | null = null
-let accountUpdateError: { message: string } | null = null
-let clientLookupError: { message: string } | null = null
-let clientInsertCalls = 0
+// Queued-result tagged-template mock, matching __tests__/api/dashboard-clients.test.ts.
+// Each call to sql`...` records the query text and shifts the next queued
+// result off nextResults; queuing an Error makes that call throw, matching
+// how the Neon driver throws in place of supabase-js's { data, error }.
+const queries: string[] = []
+let nextResults: unknown[][] = []
 
-const supabaseMock = {
-  auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } } }) },
-  from: vi.fn((table: string) => ({
-    select:  vi.fn().mockReturnThis(),
-    insert:  vi.fn().mockReturnThis(),
-    update:  vi.fn().mockReturnThis(),
-    eq:      vi.fn().mockReturnThis(),
-    limit:   vi.fn().mockReturnThis(),
-    single:  vi.fn().mockImplementation(() => {
-      if (table === 'profiles') return Promise.resolve({ data: { account_id: 'acc-1' }, error: null })
-      if (table === 'accounts') return Promise.resolve({ data: { trial_started_at: trialStartedAt, trial_ends_at: trialEndsAt }, error: null })
-      if (table === 'clients')  return Promise.resolve({ data: clientsInDb[0] ?? null, error: null })
-      return Promise.resolve({ data: null, error: null })
-    }),
-  })),
-}
+const mockSql = vi.fn((strings: TemplateStringsArray) => {
+  queries.push(strings.join('?'))
+  const result = nextResults.shift()
+  if (result instanceof Error) throw result
+  return Promise.resolve(result ?? [])
+})
 
-vi.mock('@/lib/supabase-server', () => ({
-  createServerSupabaseClient: createServerSupabaseClientMock,
-  createServiceSupabaseClient: createServiceSupabaseClientMock,
-}))
+vi.mock('@/lib/db', () => ({ db: () => mockSql }))
 
 vi.mock('@/lib/openrouter', () => ({
   callOpenRouter: vi.fn().mockResolvedValue(
     JSON.stringify([
       { category: 'brand_query', question: 'What is TestBrand?', language: 'en' },
-      { category: 'pain_point',  question: 'How does TestBrand help with SEO?', language: 'en' },
+      { category: 'pain_point', question: 'How does TestBrand help with SEO?', language: 'en' },
     ])
   ),
 }))
 
+function request(body: unknown) {
+  return new NextRequest('http://localhost/api/onboarding/complete', {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
+
 describe('POST /api/onboarding/complete', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    trialStartedAt = null
-    trialEndsAt = null
-    clientsInDb    = []
-
-    // Re-wire mocks after clearAllMocks
+    queries.length = 0
+    nextResults = []
     getProfileMock.mockResolvedValue({ account_id: 'acc-1' })
-    createServerSupabaseClientMock.mockResolvedValue(supabaseMock)
-    createServiceSupabaseClientMock.mockResolvedValue(supabaseMock)
-    scanResults = []
-    tableCalls = []
-    scanUpdates = []
-    scanNullGuards = []
-    accountUpdates = []
-    accountLookupError = null
-    accountUpdateError = null
-    clientLookupError = null
-    clientInsertCalls = 0
-    supabaseMock.auth.getUser = vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } } })
-    supabaseMock.from = vi.fn((table: string) => {
-      tableCalls.push(table)
-      let inserted = false
-      let updated = false
-      const query: Record<string, unknown> = {}
-      query.select = vi.fn(() => query)
-      query.insert = vi.fn(() => {
-        inserted = true
-        if (table === 'clients') clientInsertCalls += 1
-        return query
-      })
-      query.update = vi.fn((value: Record<string, unknown>) => {
-        updated = true
-        if (table === 'scans') scanUpdates.push(value)
-        if (table === 'accounts') accountUpdates.push(value)
-        return query
-      })
-      query.eq = vi.fn(() => query)
-      query.is = vi.fn((column: string, value: unknown) => {
-        if (table === 'scans') scanNullGuards.push([column, value])
-        return query
-      })
-      query.limit = vi.fn(() => query)
-      const result = () => {
-        if (table === 'profiles') return Promise.resolve({ data: { account_id: 'acc-1' }, error: null })
-        if (table === 'accounts' && updated) return Promise.resolve({
-          data: accountUpdateError ? null : { id: 'acc-1' },
-          error: accountUpdateError,
-        })
-        if (table === 'accounts') return Promise.resolve({
-          data: accountLookupError ? null : { trial_started_at: trialStartedAt, trial_ends_at: trialEndsAt },
-          error: accountLookupError,
-        })
-        if (table === 'clients' && inserted) return Promise.resolve({ data: { id: 'client-new' }, error: null })
-        if (table === 'clients') return Promise.resolve({
-          data: clientLookupError ? null : clientsInDb[0] ?? null,
-          error: clientLookupError,
-        })
-        if (table === 'scans') return Promise.resolve(scanResults.shift() ?? { data: null, error: null })
-        if (updated) return Promise.resolve({ data: null, error: null })
-        return Promise.resolve({ data: null, error: null })
-      }
-      query.single = vi.fn(result)
-      query.maybeSingle = vi.fn(result)
-      return query
-    })
   })
 
   it('returns 400 when brandName is missing', async () => {
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const req = new NextRequest('http://localhost/api/onboarding/complete', {
-      method: 'POST',
-      body: JSON.stringify({ domain: 'example.com' }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-    const res = await POST(req)
+    const res = await POST(request({ domain: 'example.com' }))
     expect(res.status).toBe(400)
     expect((await res.json()).error).toBe('brandName required')
+    expect(mockSql).not.toHaveBeenCalled()
   })
 
   it('returns 401 when unauthenticated', async () => {
-    supabaseMock.auth.getUser = vi.fn().mockResolvedValue({ data: { user: null } })
     getProfileMock.mockResolvedValue(null)
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const req = new NextRequest('http://localhost/api/onboarding/complete', {
-      method: 'POST',
-      body: JSON.stringify({ brandName: 'TestBrand' }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-    const res = await POST(req)
+    const res = await POST(request({ brandName: 'TestBrand' }))
     expect(res.status).toBe(401)
-    expect(createServiceSupabaseClientMock).not.toHaveBeenCalled()
-    expect(createServerSupabaseClientMock).not.toHaveBeenCalled()
-  })
-
-  it('uses the service client only after Neon authentication succeeds', async () => {
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const req = new NextRequest('http://localhost/api/onboarding/complete', {
-      method: 'POST',
-      body: JSON.stringify({ brandName: 'TestBrand' }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-
-    const res = await POST(req)
-
-    expect(res.status).toBe(200)
-    expect(createServiceSupabaseClientMock).toHaveBeenCalledTimes(1)
-    expect(createServerSupabaseClientMock).not.toHaveBeenCalled()
+    expect(mockSql).not.toHaveBeenCalled()
   })
 
   it('returns 500 without querying clients when the account lookup fails', async () => {
-    accountLookupError = { message: 'account read failed' }
+    nextResults = [new Error('connection terminated') as never]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const req = new NextRequest('http://localhost/api/onboarding/complete', {
-      method: 'POST',
-      body: JSON.stringify({ brandName: 'TestBrand' }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-
-    const res = await POST(req)
-
+    const res = await POST(request({ brandName: 'TestBrand' }))
     expect(res.status).toBe(500)
-    expect(tableCalls).not.toContain('clients')
+    expect((await res.json()).error).toBe('Failed to load account')
+    expect(queries.some(q => q.includes('clients'))).toBe(false)
   })
 
   it('returns 500 without querying clients when the trial update fails', async () => {
-    accountUpdateError = { message: 'account update failed' }
+    nextResults = [
+      [{ trial_started_at: null, trial_ends_at: null }],
+      new Error('account update failed') as never,
+    ]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const req = new NextRequest('http://localhost/api/onboarding/complete', {
-      method: 'POST',
-      body: JSON.stringify({ brandName: 'TestBrand' }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-
-    const res = await POST(req)
-
+    const res = await POST(request({ brandName: 'TestBrand' }))
     expect(res.status).toBe(500)
-    expect(tableCalls).not.toContain('clients')
+    expect((await res.json()).error).toBe('Failed to start trial')
+    expect(queries.some(q => q.includes('clients'))).toBe(false)
   })
 
   it('treats a client lookup error differently from no existing client', async () => {
-    clientLookupError = { message: 'client read failed' }
+    nextResults = [
+      [{ trial_started_at: null, trial_ends_at: null }],
+      [{ id: 'acc-1' }],
+      new Error('client read failed') as never,
+    ]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const req = new NextRequest('http://localhost/api/onboarding/complete', {
-      method: 'POST',
-      body: JSON.stringify({ brandName: 'TestBrand' }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-
-    const res = await POST(req)
-
+    const res = await POST(request({ brandName: 'TestBrand' }))
     expect(res.status).toBe(500)
-    expect(clientInsertCalls).toBe(0)
+    expect((await res.json()).error).toBe('Failed to load client')
+    expect(queries.some(q => q.includes('insert into clients'))).toBe(false)
   })
+
   it('returns { clientId, trialEndsAt } on success', async () => {
+    nextResults = [
+      [{ trial_started_at: null, trial_ends_at: null }],
+      [{ id: 'acc-1' }],
+      [],
+      [{ id: 'client-new' }],
+    ]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const req = new NextRequest('http://localhost/api/onboarding/complete', {
-      method: 'POST',
-      body: JSON.stringify({
-        brandName: 'TestBrand',
-        domain:    'testbrand.com',
-        industry:  'technology',
-        region:    'HK',
-      }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-    const res = await POST(req)
+    const res = await POST(request({
+      brandName: 'TestBrand', domain: 'testbrand.com', industry: 'technology', region: 'HK',
+    }))
     expect(res.status).toBe(200)
     const json = await res.json()
-    expect(json).toHaveProperty('clientId')
-    expect(json).toHaveProperty('trialEndsAt')
+    expect(json.clientId).toBe('client-new')
     expect(json.scanId).toBeNull()
-    // trialEndsAt should be ~7 days from now
     const endsAt = new Date(json.trialEndsAt).getTime()
-    const sevenDays = 7 * 24 * 60 * 60 * 1000
-    expect(endsAt).toBeGreaterThan(Date.now() + sevenDays - 60_000)
-    expect(endsAt).toBeLessThan(Date.now()  + sevenDays + 60_000)
+    expect(endsAt).toBeGreaterThan(Date.now() + SEVEN_DAYS_MS - 60_000)
+    expect(endsAt).toBeLessThan(Date.now() + SEVEN_DAYS_MS + 60_000)
   })
 
   it('returns existing clientId on double-submit (idempotent)', async () => {
-    clientsInDb = [{ id: 'client-existing' }]
+    nextResults = [
+      [{ trial_started_at: new Date(), trial_ends_at: new Date(Date.now() + 4 * 86_400_000) }],
+      [{ id: 'client-existing' }],
+    ]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const req = new NextRequest('http://localhost/api/onboarding/complete', {
-      method: 'POST',
-      body: JSON.stringify({ brandName: 'TestBrand', domain: 'testbrand.com' }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-    const res = await POST(req)
+    const res = await POST(request({ brandName: 'TestBrand', domain: 'testbrand.com' }))
     expect(res.status).toBe(200)
-    const json = await res.json()
-    expect(json.clientId).toBe('client-existing')
+    expect((await res.json()).clientId).toBe('client-existing')
   })
 
   it('does NOT reset trial dates on double-submit', async () => {
-    trialStartedAt = new Date(Date.now() - 3 * 86400_000).toISOString() // 3 days ago
-    trialEndsAt = new Date(Date.now() + 4 * 86400_000).toISOString()
-    clientsInDb    = [{ id: 'client-existing' }]
+    const trialEndsAt = new Date(Date.now() + 4 * 86_400_000)
+    nextResults = [
+      [{ trial_started_at: new Date(Date.now() - 3 * 86_400_000), trial_ends_at: trialEndsAt }],
+      [{ id: 'client-existing' }],
+    ]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const req = new NextRequest('http://localhost/api/onboarding/complete', {
-      method: 'POST',
-      body: JSON.stringify({ brandName: 'TestBrand' }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-    const res = await POST(req)
+    const res = await POST(request({ brandName: 'TestBrand' }))
     expect(res.status).toBe(200)
-    expect((await res.json()).trialEndsAt).toBe(trialEndsAt)
-    expect(accountUpdates).toEqual([])
+    expect((await res.json()).trialEndsAt).toBe(trialEndsAt.toISOString())
+    expect(queries.some(q => q.includes('update accounts'))).toBe(false)
   })
 
   it('repairs a missing stored trial expiry without resetting the start date', async () => {
-    trialStartedAt = '2026-07-01T00:00:00.000Z'
-    trialEndsAt = null
-    clientsInDb = [{ id: 'client-existing' }]
+    const trialStartedAt = new Date('2026-07-01T00:00:00.000Z')
     const expectedTrialEndsAt = '2026-07-08T00:00:00.000Z'
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const req = new NextRequest('http://localhost/api/onboarding/complete', {
-      method: 'POST',
-      body: JSON.stringify({ brandName: 'TestBrand' }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-
-    const res = await POST(req)
-
-    expect(res.status).toBe(200)
-    expect((await res.json()).trialEndsAt).toBe(expectedTrialEndsAt)
-    expect(accountUpdates).toEqual([{ trial_ends_at: expectedTrialEndsAt }])
-  })
-
-  it('accepts description and competitors without error', async () => {
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const req = new NextRequest('http://localhost/api/onboarding/complete', {
-      method: 'POST',
-      body: JSON.stringify({
-        brandName:   'TestBrand',
-        domain:      'testbrand.com',
-        description: 'TestBrand is an AI SEO platform.',
-        competitors: ['Semrush', 'Ahrefs', 'Moz'],
-      }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-    const res = await POST(req)
-    expect(res.status).toBe(200)
-  })
-
-  it('claims a supplied scan before returning an existing client', async () => {
-    clientsInDb = [{ id: 'client-existing' }]
-    scanResults = [
-      { data: { id: 'scan-1', account_id: null }, error: null },
-      { data: { id: 'scan-1', account_id: 'acc-1' }, error: null },
+    nextResults = [
+      [{ trial_started_at: trialStartedAt, trial_ends_at: null }],
+      [{ id: 'acc-1' }],
+      [{ id: 'client-existing' }],
     ]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const req = new NextRequest('http://localhost/api/onboarding/complete', {
-      method: 'POST',
-      body: JSON.stringify({ brandName: 'TestBrand', scanId: 'scan-1' }),
-      headers: { 'Content-Type': 'application/json' },
-    })
+    const res = await POST(request({ brandName: 'TestBrand' }))
+    expect(res.status).toBe(200)
+    expect((await res.json()).trialEndsAt).toBe(expectedTrialEndsAt)
+    expect(queries.filter(q => q.includes('update accounts'))).toHaveLength(1)
+  })
 
-    const res = await POST(req)
+  it('accepts a stored trial expiry given as an ISO string, not just a Date', async () => {
+    // The Neon driver returns timestamptz as a Date, but a row written before
+    // the migration (or a test fixture) may still hand back a plain string.
+    nextResults = [
+      [{ trial_started_at: '2026-07-01T00:00:00.000Z', trial_ends_at: '2026-07-08T00:00:00.000Z' }],
+      [{ id: 'client-existing' }],
+    ]
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const res = await POST(request({ brandName: 'TestBrand' }))
+    expect(res.status).toBe(200)
+    expect((await res.json()).trialEndsAt).toBe('2026-07-08T00:00:00.000Z')
+    expect(queries.some(q => q.includes('update accounts'))).toBe(false)
+  })
+
+  it('maps a BRAND_LIMIT_REACHED trigger error to 403, matching dashboard/clients', async () => {
+    nextResults = [
+      [{ trial_started_at: new Date(), trial_ends_at: new Date(Date.now() + 4 * 86_400_000) }],
+      [],
+      new Error('BRAND_LIMIT_REACHED') as never,
+    ]
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const res = await POST(request({ brandName: 'Fourth Brand' }))
+    expect(res.status).toBe(403)
+    expect((await res.json()).error).toBe('BRAND_LIMIT_REACHED')
+  })
+
+  it('returns 500, not a silent success, when client creation fails for another reason', async () => {
+    nextResults = [
+      [{ trial_started_at: new Date(), trial_ends_at: new Date(Date.now() + 4 * 86_400_000) }],
+      [],
+      new Error('connection terminated') as never,
+    ]
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const res = await POST(request({ brandName: 'TestBrand' }))
+    expect(res.status).toBe(500)
+    expect((await res.json()).error).toBe('Failed to create client')
+  })
+
+  it('accepts description and competitors without error, passed as text[] not jsonb', async () => {
+    nextResults = [
+      [{ trial_started_at: null, trial_ends_at: null }],
+      [{ id: 'acc-1' }],
+      [],
+      [{ id: 'client-new' }],
+    ]
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const res = await POST(request({
+      brandName: 'TestBrand',
+      domain: 'testbrand.com',
+      description: 'TestBrand is an AI SEO platform.',
+      competitors: ['Semrush', 'Ahrefs', 'Moz'],
+    }))
+    expect(res.status).toBe(200)
+    const insertQuery = queries.find(q => q.includes('insert into clients'))
+    expect(insertQuery).toContain('::text[]')
+  })
+
+  it('claims a supplied scan before returning an existing client, and associates it with the brand', async () => {
+    nextResults = [
+      [{ id: 'scan-1' }], // claim: update matched -> claimed
+      [{ trial_started_at: new Date(), trial_ends_at: new Date(Date.now() + 4 * 86_400_000) }],
+      [{ id: 'client-existing' }],
+      [], // scan -> client_id association update
+    ]
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const res = await POST(request({ brandName: 'TestBrand', scanId: 'scan-1' }))
     const json = await res.json()
 
     expect(res.status).toBe(200)
     expect(json).toMatchObject({ clientId: 'client-existing', scanId: 'scan-1' })
-    expect(tableCalls.indexOf('scans')).toBeLessThan(tableCalls.indexOf('clients'))
-    expect(scanUpdates).toContainEqual({ account_id: 'acc-1' })
-    expect(scanNullGuards).toContainEqual(['account_id', null])
+    const assocQuery = queries.find(q => q.includes('update scans set client_id'))
+    expect(assocQuery).toBeDefined()
+    expect(assocQuery).toContain('client_id is null')
+  })
+
+  it('associates a supplied scan with a newly-created brand too', async () => {
+    nextResults = [
+      [{ id: 'scan-1' }], // claim: update matched -> claimed
+      [{ trial_started_at: null, trial_ends_at: null }],
+      [{ id: 'acc-1' }],
+      [], // no existing client
+      [{ id: 'client-new' }], // insert clients
+      [], // scan -> client_id association update
+    ]
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const res = await POST(request({ brandName: 'TestBrand', scanId: 'scan-1' }))
+    const json = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(json).toMatchObject({ clientId: 'client-new', scanId: 'scan-1' })
+    const assocIdx = queries.findIndex(q => q.includes('update scans set client_id'))
+    const insertIdx = queries.findIndex(q => q.includes('insert into clients'))
+    expect(assocIdx).toBeGreaterThan(insertIdx)
   })
 
   it('returns 409 without querying clients when a supplied scan has another owner', async () => {
-    scanResults = [{ data: { id: 'scan-1', account_id: 'acc-2' }, error: null }]
+    nextResults = [
+      [], // claim: update matched nothing
+      [{ account_id: 'acc-2' }], // claim: re-read shows a different owner
+    ]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const req = new NextRequest('http://localhost/api/onboarding/complete', {
-      method: 'POST',
-      body: JSON.stringify({ brandName: 'TestBrand', scanId: 'scan-1' }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-
-    const res = await POST(req)
-
+    const res = await POST(request({ brandName: 'TestBrand', scanId: 'scan-1' }))
     expect(res.status).toBe(409)
-    expect(tableCalls).not.toContain('clients')
+    expect(queries.some(q => q.includes('clients'))).toBe(false)
   })
 
   it('returns 404 when a supplied scan is missing', async () => {
-    scanResults = [{ data: null, error: null }]
+    nextResults = [[], []]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const req = new NextRequest('http://localhost/api/onboarding/complete', {
-      method: 'POST',
-      body: JSON.stringify({ brandName: 'TestBrand', scanId: 'missing-scan' }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-
-    const res = await POST(req)
-
+    const res = await POST(request({ brandName: 'TestBrand', scanId: 'missing-scan' }))
     expect(res.status).toBe(404)
-    expect(tableCalls).not.toContain('clients')
+    expect(queries.some(q => q.includes('clients'))).toBe(false)
   })
 
-  it('returns 500 when an unowned scan cannot be persisted', async () => {
-    scanResults = [
-      { data: { id: 'scan-1', account_id: null }, error: null },
-      { data: null, error: null },
-      { data: { id: 'scan-1', account_id: null }, error: null },
+  it('returns 500 when the scan claim query itself throws', async () => {
+    nextResults = [new Error('connection terminated') as never]
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const res = await POST(request({ brandName: 'TestBrand', scanId: 'scan-1' }))
+    expect(res.status).toBe(500)
+    expect((await res.json()).error).toBe('Failed to claim scan')
+  })
+
+  it('returns 500 (the tenant FK rejecting a mismatch) when a new client cannot be associated with the scan', async () => {
+    nextResults = [
+      [{ id: 'scan-1' }],
+      [{ trial_started_at: null, trial_ends_at: null }],
+      [{ id: 'acc-1' }],
+      [],
+      [{ id: 'client-new' }],
+      new Error('violates foreign key constraint "scans_client_tenant_fkey"') as never,
     ]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const req = new NextRequest('http://localhost/api/onboarding/complete', {
-      method: 'POST',
-      body: JSON.stringify({ brandName: 'TestBrand', scanId: 'scan-1' }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-
-    const res = await POST(req)
-
+    const res = await POST(request({ brandName: 'TestBrand', scanId: 'scan-1' }))
     expect(res.status).toBe(500)
-    expect(tableCalls).not.toContain('clients')
+    expect((await res.json()).error).toBe('Failed to associate scan with client')
+  })
+
+  it('a failed OpenRouter call still returns the created client', async () => {
+    const { callOpenRouter } = await import('@/lib/openrouter')
+    vi.mocked(callOpenRouter).mockRejectedValueOnce(new Error('OpenRouter 500'))
+    nextResults = [
+      [{ trial_started_at: null, trial_ends_at: null }],
+      [{ id: 'acc-1' }],
+      [],
+      [{ id: 'client-new' }],
+    ]
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const res = await POST(request({ brandName: 'TestBrand' }))
+    expect(res.status).toBe(200)
+    expect((await res.json()).clientId).toBe('client-new')
   })
 
   it('starts a pre-filled scan onboarding at step 3 and reuses the completed report', () => {

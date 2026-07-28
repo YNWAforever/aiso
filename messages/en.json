@@ -513,6 +513,8 @@
     "step_roi_title": "Prove local trust and ROI",
     "step_roi_body": "Show owners how local trust, AI visibility, completed fixes, and estimated enquiry value are moving over time.",
     "step_roi_locked": "Upgrade to Pro to unlock Local Trust ROI: owner-friendly trust scoring, action priorities, and proof of progress.",
+    "workspace_load_error_title": "We couldn't load this brand",
+    "workspace_load_error_body": "The database is temporarily unavailable. Your brand is fine — try refreshing in a moment.",
     "no_scan_selected": "No scan selected",
     "no_scan_selected_body": "Run a scan from the Scan step or select one from history.",
     "no_scan_yet": "No scan yet",

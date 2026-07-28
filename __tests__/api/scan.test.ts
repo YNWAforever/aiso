@@ -5,17 +5,6 @@ vi.mock('@/lib/checks/llmsTxt',        () => ({ checkLlmsTxt:        vi.fn().moc
 vi.mock('@/lib/checks/botAccess',      () => ({ checkBotAccess:      vi.fn().mockResolvedValue({ status: 'pass', message: 'bots_all_accessible' }) }))
 vi.mock('@/lib/checks/structuredData', () => ({ checkStructuredData: vi.fn().mockResolvedValue({ status: 'pass', message: 'structured_data_found' }) }))
 vi.mock('@/lib/checks/extractability', () => ({ checkExtractability: vi.fn().mockResolvedValue({ status: 'pass', message: 'extractability_good' }) }))
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    from: vi.fn().mockReturnValue({
-      insert: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: { id: 'test-uuid' }, error: null }),
-        }),
-      }),
-    }),
-  },
-}))
 
 import { calculateScore, calculateGeoScore } from '@/app/api/scan/route'
 

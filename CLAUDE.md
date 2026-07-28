@@ -4,27 +4,22 @@
 >
 > Next.js 16 renames `middleware.ts` → **`proxy.ts`** (exporting `proxy`, not `middleware`). This repo uses `proxy.ts` at the root. Do not create a `middleware.ts`.
 
-## ⚠️ Migration in progress: Supabase → Neon
+## ✅ Migration complete: Supabase → Neon
 
-**The Supabase project is deleted. Its hostname no longer resolves.** Any code path that
-touches `lib/supabase.ts` or `lib/supabase-server.ts` fails or hangs at runtime.
+The Supabase → Neon migration is done. `db()` from `@/lib/db` (a lazy
+`@neondatabase/serverless` singleton) is the only database client in the codebase — the
+`lib/supabase.ts` / `lib/supabase-server.ts` shims are deleted and `@supabase/supabase-js` /
+`@supabase/ssr` are uninstalled.
 
-The migration is **partial** — roughly 37 runtime files under `app/` `lib/` `components/`
-still import the dead Supabase clients. Only these paths run on Neon today:
-
-- `app/api/scan/`, `app/api/scan/lead/` — the public scan funnel
-- `app/[lang]/result/[id]/` — public result page
-- `app/api/webhooks/neon/` — signup provisioning
-- `lib/auth.ts` — `getProfile()` / `requireAuth()` / `requireAdmin()`
-
-**Rules for new work:**
-- Never add a new import of `@/lib/supabase` or `@/lib/supabase-server`.
-- Use `db()` from `@/lib/db` — a lazy `@neondatabase/serverless` singleton.
 - Neon's driver is **tagged-template only**: `` sql`select … where id = ${id}` ``.
   Calling `sql(someString)` throws. Interpolations are parameterised, not string-concatenated.
-- Touching a file that still uses Supabase? Migrate that file's queries to `db()` as you go.
-- `lib/supabase.ts` / `lib/supabase-server.ts` exist only to keep unmigrated files
-  compiling. Delete them once the last consumer is migrated.
+- An ESLint `no-restricted-imports` rule in `eslint.config.mjs` blocks any new import of
+  `@supabase/*`, `@/lib/supabase`, or `@/lib/supabase-server` — reintroducing one is a lint
+  error, not just a convention.
+- Local Trust (`lib/localTrust/store.ts` and its routes under
+  `app/api/dashboard/clients/[clientId]/local-trust/`) runs on `db()` but stays
+  **intentionally fenced**: those routes return `503 FEATURE_UNAVAILABLE` regardless of the
+  store working. Don't unfence them as part of unrelated work.
 
 ## Tech Stack
 
@@ -46,7 +41,7 @@ still import the dead Supabase clients. Only these paths run on Neon today:
 | Node | **24.x** (`engines`) | required |
 | Deploy | Vercel | `vercel.json` |
 
-Legacy `@supabase/*` packages are still installed — see the migration note above.
+No `@supabase/*` packages remain — see the migration note above.
 
 ## Build & Run
 
@@ -134,12 +129,13 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
 - Tier/feature gates: use `getPlanFeatures(plan)` from `lib/tier.ts` before exposing paid features
 - Error handling: `try/catch` with graceful fallbacks — checks degrade rather than throw, each
   with its own domain-specific message (see Checks Architecture; don't emit `check_error`).
-- **Beware silent failure.** `supabase-js` does not throw on a dead host — it resolves to
-  `{ data: null, error }`. Several routes discard that `error` and return HTTP 200, so
-  failures look like successes: `/api/cron/trial-emails` reports `{sent:0}` daily with a green
-  cron log, and `app/api/stripe/webhook/route.ts` returns `{ok:true}` while dropping every
-  write — **Stripe marks the event delivered and never retries, so paid upgrades are lost.**
-  Always check the `error` field, or migrate the route to `db()` (which does throw).
+- **Never return a success over a failed write.** This bit hard: `supabase-js` resolved to
+  `{ data: null, error }` instead of throwing, and routes that discarded that `error`
+  returned HTTP 200 over a dead database. The Stripe webhook returned `{ok:true}` while
+  dropping every write, so Stripe marked each event delivered and never retried — paid
+  upgrades were lost silently for months. `db()` throws, which is why every handler wraps
+  its queries in `try/catch` and returns 5xx. Keep it that way: a 2xx must mean the write
+  happened.
 - Deployment config lives outside the code and is easy to miss: `vercel.json` sets
   `maxDuration` (60s scan, 30s fix) and one cron; its `functions` keys are **literal paths,
   not prefixes**, so `fix/`'s subroutes inherit nothing despite also calling OpenRouter.

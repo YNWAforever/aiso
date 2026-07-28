@@ -1,42 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
-import type { SupabaseClient } from '@supabase/supabase-js'
 import { getProfile } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
 export type ScanClaimResult = { status: 'claimed' | 'already-owned' | 'not-found' | 'conflict' | 'error' }
-type ScanClaimClient = Pick<SupabaseClient, 'from'>
 
-export async function claimScanForAccount(client: ScanClaimClient, scanId: string, accountId: string): Promise<ScanClaimResult> {
-  const readScan = () => client.from('scans').select('id, account_id').eq('id', scanId).maybeSingle()
-  const { data: scan, error: readError } = await readScan()
-  if (readError) return { status: 'error' }
-  if (!scan) return { status: 'not-found' }
-  if (scan.account_id === accountId) return { status: 'already-owned' }
-  if (scan.account_id !== null) return { status: 'conflict' }
+// Race-safe: the UPDATE's WHERE clause is re-evaluated against the committed
+// row under lock, so of two concurrent claims for the same unowned scan only
+// one UPDATE can ever match — the loser falls through to the re-read below
+// and reports 'already-owned' (same account) or 'conflict' (different one).
+export async function claimScanForAccount(scanId: string, accountId: string): Promise<ScanClaimResult> {
+  try {
+    const sql = db()
+    const claimed = await sql`
+      update scans set account_id = ${accountId}
+      where id = ${scanId} and account_id is null
+      returning id
+    `
+    if (claimed.length > 0) return { status: 'claimed' }
 
-  const { data: claimed, error: claimError } = await client.from('scans')
-    .update({ account_id: accountId })
-    .eq('id', scanId)
-    .is('account_id', null)
-    .select('id, account_id').maybeSingle()
-  if (claimError) return { status: 'error' }
-  if (claimed?.account_id === accountId) return { status: 'claimed' }
-
-  const { data: current, error: currentError } = await readScan()
-  if (currentError) return { status: 'error' }
-  if (!current) return { status: 'not-found' }
-  if (current.account_id === accountId) return { status: 'already-owned' }
-  if (current.account_id !== null) return { status: 'conflict' }
-  return { status: 'error' }
+    // Nothing updated: classify why.
+    const rows = await sql`select account_id from scans where id = ${scanId} limit 1`
+    if (!rows[0]) return { status: 'not-found' }
+    if (rows[0].account_id === accountId) return { status: 'already-owned' }
+    return { status: 'conflict' }
+  } catch {
+    return { status: 'error' }
+  }
 }
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const profile = await getProfile()
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
-  const result = await claimScanForAccount(supabase, id, profile.account_id)
+  const result = await claimScanForAccount(id, profile.account_id)
   if (result.status === 'not-found') return NextResponse.json({ error: 'Scan not found' }, { status: 404 })
   if (result.status === 'conflict') return NextResponse.json({ error: 'Scan belongs to another account' }, { status: 409 })
   if (result.status === 'error') return NextResponse.json({ error: 'Failed to claim scan' }, { status: 500 })
