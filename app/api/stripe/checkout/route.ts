@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
   const priceId = STRIPE_PRICES[plan]
   if (!priceId) {
-    return NextResponse.json({ error: `Price not configured for plan: ${plan}` }, { status: 500 })
+    return NextResponse.json({ error: 'PLAN_UNAVAILABLE', plan }, { status: 503 })
   }
 
   try {
