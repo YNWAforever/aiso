@@ -130,7 +130,7 @@ describe('PRODUCT_FACTS', () => {
   })
 
   it('keeps the pricing interaction contract accessible', () => {
-    const source = readFileSync(resolve(process.cwd(), 'app/[lang]/pricing/page.tsx'), 'utf8')
+    const source = readFileSync(resolve(process.cwd(), 'components/pricing/PricingPage.tsx'), 'utf8')
     expect(source).not.toContain('role="switch"')
     expect(source).not.toMatch(/\bannual\b/i)
     expect(source).toContain('min-h-11')
@@ -186,7 +186,7 @@ describe('PRODUCT_FACTS', () => {
   })
 
   it('exposes the pricing comparison as a semantic table', () => {
-    const source = readFileSync(resolve(process.cwd(), 'app/[lang]/pricing/page.tsx'), 'utf8')
+    const source = readFileSync(resolve(process.cwd(), 'components/pricing/PricingPage.tsx'), 'utf8')
     expect(source).toContain('<table')
     expect(source).toContain('<thead>')
     expect(source).toContain('<tbody>')

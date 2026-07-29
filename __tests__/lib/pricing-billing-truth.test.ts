@@ -8,7 +8,7 @@ import enMessages from '@/messages/en.json'
 import zhMessages from '@/messages/zh-HK.json'
 
 const pricingSource = readFileSync(
-  resolve(process.cwd(), 'app/[lang]/pricing/page.tsx'),
+  resolve(process.cwd(), 'components/pricing/PricingPage.tsx'),
   'utf8',
 )
 const cardHighlightsSource = pricingSource.slice(

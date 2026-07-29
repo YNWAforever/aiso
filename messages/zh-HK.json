@@ -357,6 +357,8 @@
     "cta_pro": "立即升級 Pro →",
     "cta_enterprise": "開始企業版",
     "cta_loading": "處理中…",
+    "cta_unavailable": "暫未開放購買",
+    "plan_unavailable_note": "此方案暫時未開放購買，歡迎聯絡我們為你開通。",
     "starter_name": "入門版",
     "starter_tag": "適合個人及小型業務試用",
     "pro_name": "專業版",

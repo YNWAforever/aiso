@@ -357,6 +357,8 @@
     "cta_pro": "Start Pro →",
     "cta_enterprise": "Start Enterprise",
     "cta_loading": "Loading…",
+    "cta_unavailable": "Not Available Yet",
+    "plan_unavailable_note": "This plan isn't open for purchase yet — contact us and we'll get you set up.",
     "starter_name": "Starter",
     "starter_tag": "For individuals testing AI readiness",
     "pro_name": "Pro",
