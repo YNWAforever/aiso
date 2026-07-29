@@ -227,7 +227,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 
 ## Database (Neon Postgres)
 
-- Migrations in `supabase/migrations/` — numbered `001_`–`028_` (directory name is legacy;
+- Migrations in `supabase/migrations/` — numbered `001_`–`029_` (directory name is legacy;
   the target is now Neon)
 - **A migration runner now exists:** `scripts/migrate.ts`, run via `npm run migrate`. It
   applies every file absent from the `schema_migrations` ledger, in filename order, each in
@@ -237,11 +237,12 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   what stops it re-applying the migrations that were applied by hand before it existed.
   Baseline production once (`--baseline --except 027_client_report_snapshots.sql`) before
   the first real run.
-- Applied as of 2026-07-26: `001`–`026` and `028`. **`027_client_report_snapshots.sql` is
-  the sole pending migration**, and Slice 6 (client reports) applies it. It was edited to
-  apply cleanly — it previously duplicated `021`'s `clients_id_account_id_unique`
-  constraint, used `gen_random_bytes()` without enabling `pgcrypto`, and granted to the
-  Supabase roles `anon` / `authenticated` / `service_role`, which do not exist under Neon.
+- Applied as of 2026-07-30: `001`–`029`, including `027_client_report_snapshots.sql` (Slice 6,
+  client reports) and `029_scans_client_id.sql`. `027` was edited to apply cleanly — it
+  previously duplicated `021`'s `clients_id_account_id_unique` constraint, used
+  `gen_random_bytes()` without enabling `pgcrypto`, and granted to the Supabase roles
+  `anon` / `authenticated` / `service_role`, which do not exist under Neon. No migration is
+  currently pending.
 - Neon also has tables with no migration file (`stripe_webhook_events`,
   `public_scan_rate_limits`, `authenticated_scan_monthly_usage`,
   `stripe_subscription_processing_leases`) — added out-of-band.

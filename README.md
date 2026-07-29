@@ -41,15 +41,23 @@ touch .env.local   # then fill in the variables below
 npm run dev        # http://localhost:3000
 ```
 
-There is no `.env.example`. Populate `.env.local` with:
+`.env.example` is tracked in the repo — copy it and fill in values (names and gating comments
+only live in the example file; never commit real values):
+
+```bash
+cp .env.example .env.local
+```
 
 | Variable | Notes |
 |---|---|
 | `DATABASE_URL` | Neon connection string |
 | `NEON_AUTH_BASE_URL` | Neon Auth issuer (runtime) |
 | `NEON_AUTH_COOKIE_SECRET` | ≥32 chars, required at **build** time — `next build` fails without it |
+| `ADMIN_EMAILS` | comma-separated, verified-email admin bootstrap allowlist — Production only |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | |
-| `STRIPE_PRICE_BASIC` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE` | absent locally → checkout sends an undefined price id and tiers fall through to `basic` |
+| `STRIPE_PRICE_BASIC` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE` | absent locally → that plan renders as unavailable on the pricing page and `POST /api/stripe/checkout` returns `503 PLAN_UNAVAILABLE` for it (checkout already guards this; nothing falls through to `basic`) |
+| `REPORT_SHARE_SECRET` | ≥32 chars, signs client report share links |
+| `PUBLIC_SCAN_RATE_LIMIT_SECRET` | ≥32 random chars, public scan endpoint fails closed without it |
 | `RESEND_API_KEY` | transactional email |
 | `OPENROUTER_API_KEY` | LLM calls (`lib/openrouter.ts`) |
 | `NEXT_PUBLIC_APP_URL` | absolute base URL for links in emails / OG images |
