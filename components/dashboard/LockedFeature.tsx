@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 type Props = {
@@ -11,6 +12,7 @@ type Props = {
 
 export function LockedFeature({ feature, requiredPlan, price, children }: Props) {
   const t = useTranslations('dashboard')
+  const [checkoutError, setCheckoutError] = useState(false)
   const planLabel = requiredPlan === 'Pro'
     ? t('plan_pro')
     : requiredPlan === 'Enterprise'
@@ -31,18 +33,36 @@ export function LockedFeature({ feature, requiredPlan, price, children }: Props)
         <p className="text-xs text-dash-muted mb-4 font-mono">{t('locked_available', { plan: planLabel, price })}</p>
         <button
           onClick={async () => {
-            const res = await fetch('/api/stripe/checkout', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ plan: requiredPlan.toLowerCase() }),
-            })
-            const data = await res.json()
-            if (data.url) window.location.href = data.url
+            setCheckoutError(false)
+            try {
+              const res = await fetch('/api/stripe/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plan: requiredPlan.toLowerCase() }),
+              })
+              if (!res.ok) {
+                setCheckoutError(true)
+                return
+              }
+              const data = await res.json()
+              if (data.url) {
+                window.location.href = data.url
+              } else {
+                setCheckoutError(true)
+              }
+            } catch {
+              setCheckoutError(true)
+            }
           }}
           className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg text-primary-foreground bg-dash-purple hover:opacity-90 transition-opacity"
         >
           {t('locked_upgrade', { plan: planLabel })}
         </button>
+        {checkoutError && (
+          <p role="alert" className="mt-3 text-xs font-medium text-destructive">
+            {t('locked_checkout_failed')}
+          </p>
+        )}
       </div>
     </div>
   )

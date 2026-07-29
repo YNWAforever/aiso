@@ -681,6 +681,7 @@
     "missed_opps": "錯失機會",
     "locked_available": "{plan}方案提供 — {price}",
     "locked_upgrade": "升級至{plan} →",
+    "locked_checkout_failed": "未能開始付款程序，請重試或聯絡支援。",
     "feature_alerts": "每週警示",
     "feature_recs": "代理建議",
     "feature_progress": "進度追蹤",

@@ -681,6 +681,7 @@
     "missed_opps": "Missed Opportunities",
     "locked_available": "Available on {plan} — {price}",
     "locked_upgrade": "Upgrade to {plan} →",
+    "locked_checkout_failed": "Couldn't start checkout. Please try again or contact support.",
     "feature_alerts": "Weekly Alerts",
     "feature_recs": "Agent Recommendations",
     "feature_progress": "Progress Tracking",
