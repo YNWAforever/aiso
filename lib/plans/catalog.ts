@@ -178,7 +178,7 @@ export function buildPricingAllowanceProjection(
 
 export function getPlanFromStripePrice(
   priceId: string,
-  prices: StripePriceMap,
+  prices: Partial<StripePriceMap>,
 ): CheckoutPlanId | null {
   if (!priceId) return null
   const matches = CHECKOUT_PLAN_IDS.filter(plan => prices[plan] === priceId)
