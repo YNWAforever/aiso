@@ -6,6 +6,11 @@
     "sign_in": "登入",
     "get_started": "免費開始"
   },
+  "auth": {
+    "signing_out": "登出中…",
+    "sign_out_failed": "未能為你登出，你可能仍在登入狀態。",
+    "try_again": "再試一次"
+  },
   "home": {
     "badge": "免費 AISO 平台掃描",
     "headline": "讓每個 AI 搜尋\n引擎都搵到你",
@@ -508,6 +513,8 @@
     "step_roi_title": "證明本地信任及 ROI",
     "step_roi_body": "向老闆展示本地信任、AI 能見度、已完成修復及預估查詢價值如何隨時間改善。",
     "step_roi_locked": "升級至專業版即可解鎖 Local Trust ROI：老闆易明的信任評分、行動優先次序及進度證明。",
+    "workspace_load_error_title": "無法載入此品牌",
+    "workspace_load_error_body": "資料庫暫時無法使用。你的品牌沒有問題，請稍後重新整理再試。",
     "no_scan_selected": "未選擇掃描",
     "no_scan_selected_body": "請在掃描步驟執行掃描，或從歷史記錄中選擇一次掃描。",
     "no_scan_yet": "尚未有掃描",
@@ -883,5 +890,10 @@
     "upgrade_title": "Pro 方案提供報告品牌設定",
     "upgrade_body": "升級後即可設定 Agency 品牌並建立網上客戶報告。",
     "upgrade_cta": "查看 Pro 方案"
+  },
+  "unavailable": {
+    "title": "暫時無法使用",
+    "body": "此功能正在移轉中，暫時無法使用。工作區的其他功能不受影響。",
+    "back": "返回儀表板"
   }
 }

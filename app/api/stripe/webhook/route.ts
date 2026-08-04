@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
 import { stripe, STRIPE_PRICES } from '@/lib/stripe'
-import { createServiceSupabaseClient } from '@/lib/supabase-server'
+import { db } from '@/lib/db'
 import {
   getPlanFromStripePrice,
   type CheckoutPlanId as Plan,
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 
 type AccountStatus = 'active' | 'past_due' | 'cancelled' | 'trialing'
 type PersistenceOutcome = 'applied' | 'duplicate' | 'stale' | 'not_found' | 'lease_lost'
-type ServiceSupabaseClient = Awaited<ReturnType<typeof createServiceSupabaseClient>>
+type Sql = ReturnType<typeof db>
 
 type CanonicalSubscription = {
   id: string
@@ -85,7 +85,7 @@ function getSubscriptionId(eventType: string, object: Record<string, unknown>): 
 }
 
 async function persistEvent(args: {
-  supabase: ServiceSupabaseClient
+  sql: Sql
   accountId: string | null
   customerId: string
   subscriptionId: string
@@ -96,24 +96,21 @@ async function persistEvent(args: {
   eventType: string
   leaseOwner: string
 }) {
-  const { data, error } = await args.supabase.rpc('apply_stripe_account_event', {
-    p_account_id: args.accountId,
-    p_subscription_id: args.subscriptionId,
-    p_customer_id: args.customerId,
-    p_plan: args.plan,
-    p_status: args.status,
-    p_event_created: args.eventCreated,
-    p_event_id: args.eventId,
-    p_event_type: args.eventType,
-    p_lease_owner: args.leaseOwner,
-  })
+  const rows = await args.sql`
+    select apply_stripe_account_event(
+      p_account_id      => ${args.accountId}::uuid,
+      p_subscription_id => ${args.subscriptionId},
+      p_customer_id     => ${args.customerId},
+      p_plan            => ${args.plan},
+      p_status          => ${args.status},
+      p_event_created   => ${args.eventCreated}::bigint,
+      p_event_id        => ${args.eventId},
+      p_event_type      => ${args.eventType},
+      p_lease_owner     => ${args.leaseOwner}::uuid
+    ) as result
+  `
+  const outcome = rows[0]?.result as PersistenceOutcome | undefined
 
-  if (error) {
-    console.error('[stripe/webhook] persistence failed', error)
-    return NextResponse.json({ error: 'Failed to persist Stripe event' }, { status: 500 })
-  }
-
-  const outcome = data as PersistenceOutcome
   if (outcome === 'not_found') {
     return NextResponse.json({ error: 'Stripe account linkage is not ready' }, { status: 503 })
   }
@@ -124,7 +121,7 @@ async function persistEvent(args: {
     return null
   }
 
-  console.error('[stripe/webhook] unexpected persistence outcome', data)
+  console.error('[stripe/webhook] unexpected persistence outcome', outcome)
   return NextResponse.json({ error: 'Failed to persist Stripe event' }, { status: 500 })
 }
 
@@ -172,22 +169,18 @@ export async function POST(req: NextRequest) {
 
   const leaseOwner = randomUUID()
   let leaseAcquired = false
-  let supabase: ServiceSupabaseClient | null = null
+  let sql: Sql | null = null
 
   try {
-    supabase = await createServiceSupabaseClient()
-    const { data: acquired, error: acquireError } = await supabase.rpc(
-      'acquire_stripe_subscription_lease',
-      {
-        p_subscription_id: subscriptionId,
-        p_lease_owner: leaseOwner,
-      },
-    )
+    sql = db()
+    const acquireRows = await sql`
+      select acquire_stripe_subscription_lease(
+        p_subscription_id => ${subscriptionId},
+        p_lease_owner     => ${leaseOwner}::uuid
+      ) as acquired
+    `
+    const acquired = acquireRows[0]?.acquired
 
-    if (acquireError) {
-      console.error('[stripe/webhook] lease acquisition failed', acquireError)
-      return NextResponse.json({ error: 'Failed to acquire Stripe processing lease' }, { status: 500 })
-    }
     if (acquired === false) {
       return retryableLeaseResponse('Stripe subscription is already being processed')
     }
@@ -214,7 +207,7 @@ export async function POST(req: NextRequest) {
     if (!accountState) return invalidEvent('Unsupported subscription status')
 
     const failure = await persistEvent({
-      supabase,
+      sql,
       accountId,
       customerId,
       subscriptionId,
@@ -230,18 +223,14 @@ export async function POST(req: NextRequest) {
     console.error('[stripe/webhook] processing failed', error)
     return NextResponse.json({ error: 'Failed to process Stripe event' }, { status: 500 })
   } finally {
-    if (leaseAcquired && supabase) {
+    if (leaseAcquired && sql) {
       try {
-        const { error: releaseError } = await supabase.rpc(
-          'release_stripe_subscription_lease',
-          {
-            p_subscription_id: subscriptionId,
-            p_lease_owner: leaseOwner,
-          },
-        )
-        if (releaseError) {
-          console.error('[stripe/webhook] lease release failed', releaseError)
-        }
+        await sql`
+          select release_stripe_subscription_lease(
+            p_subscription_id => ${subscriptionId},
+            p_lease_owner     => ${leaseOwner}::uuid
+          ) as released
+        `
       } catch (releaseError) {
         console.error('[stripe/webhook] lease release failed', releaseError)
       }

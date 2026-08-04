@@ -29,7 +29,6 @@ import { checkChunkability }     from '@/lib/checks/chunkability'
 import { db }               from '@/lib/db'
 import { getProfile }       from '@/lib/auth'
 import { resolveCommercialEntitlement } from '@/lib/tier'
-import { createServiceSupabaseClient } from '@/lib/supabase-server'
 import { fetchPublicUrl, PublicUrlError } from '@/lib/security/public-url'
 import { consumePublicScanRateLimit, rateLimitHeaders } from '@/lib/security/public-scan-rate-limit'
 import { consumeAuthenticatedScanQuota, authenticatedScanQuotaHeaders } from '@/lib/security/authenticated-scan-quota'
@@ -87,6 +86,7 @@ export async function POST(req: NextRequest) {
     webhook_url: string | null
     brand_name: string | null
   }
+  const sql = db()
   let ownedClient: OwnedClient | null = null
   if (requestedClientId !== undefined && requestedClientId !== null && requestedClientId !== '') {
     if (typeof requestedClientId !== 'string') {
@@ -97,21 +97,21 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const service = await createServiceSupabaseClient()
-      const { data, error } = await service
-        .from('clients')
-        .select('id, account_id, webhook_url, brand_name')
-        .eq('id', requestedClientId)
-        .maybeSingle()
-      if (error) {
-        console.error('[scan] client ownership lookup failed:', error.message)
-        return NextResponse.json({ error: 'Client lookup failed' }, { status: 500 })
-      }
-      if (!data) return NextResponse.json({ error: 'Client not found' }, { status: 404 })
-      if (data.account_id !== profile.account_id) {
+      // Filter by id only here — account ownership is verified explicitly
+      // below so a not-found id (404) stays distinguishable from a client
+      // that exists but belongs to another account (403).
+      const rows = await sql`
+        select id, account_id, webhook_url, brand_name
+        from clients
+        where id = ${requestedClientId}
+        limit 1
+      `
+      const clientRow = rows[0] as OwnedClient | undefined
+      if (!clientRow) return NextResponse.json({ error: 'Client not found' }, { status: 404 })
+      if (clientRow.account_id !== profile.account_id) {
         return NextResponse.json({ error: 'Client access forbidden' }, { status: 403 })
       }
-      ownedClient = data as OwnedClient
+      ownedClient = clientRow
     } catch (error) {
       console.error('[scan] client ownership verification failed:', (error as Error)?.message ?? String(error))
       return NextResponse.json({ error: 'Client lookup failed' }, { status: 500 })
@@ -290,15 +290,14 @@ export async function POST(req: NextRequest) {
   // Dashboard behavior is enabled only for the already verified owned client.
   const isDashboardScan = !!ownedClient
 
-  const sql = db()
   let scanId: string
   try {
     const rows = await sql`
-      insert into scans (url, domain, score, results, industry, region, grade, account_id, agent_status)
+      insert into scans (url, domain, score, results, industry, region, grade, account_id, agent_status, client_id)
       values (${baseUrl}, ${domain}, ${totalScore},
               ${JSON.stringify({ ...results, ...geoDetails })}::jsonb,
               ${geoIndustry}, ${geoRegion}, ${grade}, ${account_id},
-              ${isDashboardScan ? 'pending' : null})
+              ${isDashboardScan ? 'pending' : null}, ${clientId ?? null})
       returning id
     `
     const inserted = rows[0] as { id: string } | undefined

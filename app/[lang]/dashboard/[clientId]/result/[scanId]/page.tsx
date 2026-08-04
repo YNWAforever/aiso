@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { db } from '@/lib/db'
 import { ScoreRing } from '@/components/ScoreRing'
 import { FixPackClient } from '@/components/FixPackClient'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
@@ -39,18 +39,40 @@ export default async function DashboardResultPage({
   const { lang, clientId, scanId } = await params
   const t = await getTranslations()
   const profile = await requireAuth(lang)
-  const supabase = await createServerSupabaseClient()
 
-  const { data: scan } = await supabase
-    .from('scans')
-    .select('*')
-    .eq('id', scanId)
-    .eq('account_id', profile.account_id)
-    .single()
+  let scan: Scan | null = null
+  let loadError = false
+
+  try {
+    const sql = db()
+    // Matched on id, account_id, AND client_id — a scan id from another
+    // brand (or an anonymous scan with client_id null) cannot render inside
+    // this workspace. See app/[lang]/dashboard/[clientId]/page.tsx.
+    const rows = await sql`
+      select * from scans
+      where id = ${scanId} and account_id = ${profile.account_id} and client_id = ${clientId}
+      limit 1
+    `
+    scan = (rows[0] ?? null) as Scan | null
+  } catch (err) {
+    loadError = true
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[dashboard-result] scan query failed:', message.replace(/postgresql:\/\/\S+/g, '[redacted]'))
+  }
+
+  // A database failure must not look like a scan that does not exist.
+  if (loadError) {
+    return (
+      <div className="flex-1 px-6 py-16 text-center">
+        <p className="text-lg font-bold text-dash-text mb-1.5">{t('dashboard.workspace_load_error_title')}</p>
+        <p className="text-sm text-dash-muted max-w-md mx-auto">{t('dashboard.workspace_load_error_body')}</p>
+      </div>
+    )
+  }
 
   if (!scan) notFound()
 
-  const s = scan as Scan
+  const s = scan
   const grade = s.grade ?? 'F'
   const gradeConfig = GRADE_CONFIG[grade] ?? GRADE_CONFIG['F']!
   const scoreLabel = s.score >= 80

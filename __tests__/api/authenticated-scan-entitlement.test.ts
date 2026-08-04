@@ -41,15 +41,6 @@ vi.mock('@/lib/security/public-scan-rate-limit', () => ({
     'RateLimit-Reset': '600',
   }),
 }))
-vi.mock('@/lib/supabase-server', () => ({
-  createServiceSupabaseClient: vi.fn(async () => ({
-    from: vi.fn(() => ({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      maybeSingle: vi.fn(async () => ({ data: null, error: null })),
-    })),
-  })),
-}))
 vi.mock('@/lib/security/public-url', () => ({
   PublicUrlError: class PublicUrlError extends Error {},
   fetchPublicUrl: (input: string | URL | Request, init?: RequestInit) => fetch(input, init),

@@ -23,25 +23,59 @@ function messages(locale: 'en' | 'zh-HK') {
 }
 
 describe('Local Trust dashboard wiring', () => {
-  it('adds ROI as the fifth dashboard workflow step', () => {
-    const sidebar = read('components/dashboard/DashboardSidebar.tsx')
+  it('wires the ROI step into the client dashboard page', () => {
+    // DashboardSidebar no longer lists 'roi' as a top-level nav step (it was
+    // removed along with the Pulse links during the Supabase-to-Neon
+    // migration cleanup); the wizard step itself lives on within the
+    // dashboard page and WizardProgress, tested below and separately.
     const page = read('app/[lang]/dashboard/[clientId]/page.tsx')
 
-    expect(sidebar).toContain("key: 'roi'")
-    expect(sidebar.indexOf("key: 'monitor'")).toBeLessThan(sidebar.indexOf("key: 'roi'"))
-    expect(sidebar).toContain('nav_roi')
-    expect(sidebar).toContain('TrendingUp')
     expect(page).toContain("step === 'roi'")
     expect(page).toContain('LocalTrustStep')
   })
 
+  it('scopes every scan query on the workspace page by client_id, not account_id alone', () => {
+    const page = read('app/[lang]/dashboard/[clientId]/page.tsx')
+
+    expect(page).toContain("import { db } from '@/lib/db'")
+    expect(page).not.toContain('supabase-server')
+
+    // Every "from scans" query must carry both client_id and account_id — an
+    // account-only filter would show whichever scan ran most recently
+    // anywhere on the account, not this brand's scan.
+    const scanQueryBlocks = page.split('from scans').slice(1)
+    expect(scanQueryBlocks.length).toBeGreaterThanOrEqual(4)
+    for (const block of scanQueryBlocks) {
+      const clause = block.slice(0, block.indexOf('`'))
+      expect(clause).toContain('client_id = ${clientId}')
+      expect(clause).toContain('account_id = ${profile.account_id}')
+    }
+
+    // The ?scanId= deep link must also be brand-scoped, or a scan id from
+    // another brand could render inside this workspace.
+    expect(page).toContain('where id = ${scanId} and account_id = ${profile.account_id} and client_id = ${clientId}')
+  })
+
+  it('renders an error state instead of notFound() when the database fails', () => {
+    const page = read('app/[lang]/dashboard/[clientId]/page.tsx')
+
+    expect(page).toContain('let loadError = false')
+    expect(page).toContain('if (clientMissing) notFound()')
+    expect(page).toContain('if (loadError || !workspace)')
+    expect(page).toContain("t('workspace_load_error_title')")
+    expect(page).toContain("t('workspace_load_error_body')")
+
+    const en = read('messages/en.json')
+    const zh = read('messages/zh-HK.json')
+    for (const messages of [en, zh]) {
+      expect(messages).toContain('workspace_load_error_title')
+      expect(messages).toContain('workspace_load_error_body')
+    }
+  })
+
   it('keeps Local Trust ROI visible but locked for plans without access', () => {
-    const sidebar = read('components/dashboard/DashboardSidebar.tsx')
     const progress = read('components/dashboard/WizardProgress.tsx')
 
-    expect(sidebar).toContain("s.key === 'roi' && !features.local_trust_roi")
-    expect(sidebar).toContain("const blocksNavigation = locked && s.key !== 'roi'")
-    expect(sidebar).toContain('blocksNavigation')
     expect(progress).toContain("key: 'roi'")
     expect(progress).toContain('features.local_trust_roi')
     expect(progress).toContain('Local Trust ROI')
@@ -49,12 +83,15 @@ describe('Local Trust dashboard wiring', () => {
     expect(progress).not.toContain('🔒')
   })
 
-  it('guards Local Trust snapshot generation to scans matching the current client domain', () => {
+  it('guards Local Trust snapshot generation to scans belonging to this brand', () => {
     const page = read('app/[lang]/dashboard/[clientId]/page.tsx')
 
-    expect(page).toContain('findNewestMatchingScan')
+    // The ROI scan list is fetched scoped to client_id (and account_id), so the
+    // newest row is already this brand's scan — no domain-matching heuristic is
+    // needed now that client_id ties each scan to its brand.
     expect(page).toContain('const localTrustScanRows')
-    expect(page).toContain('findNewestMatchingScan(localTrustScanRows, typedClient.domain)')
+    expect(page).toContain('const localTrustScan = localTrustScanRows[0] ?? null')
+    expect(page).not.toContain('findNewestMatchingScan')
     expect(page).not.toContain('const localTrustScan = domainsMatch(scan?.domain, typedClient.domain) ? scan : null')
     expect(page).toContain('const localTrustCompetitors = localTrustScan')
     expect(page).toContain('localTrustScan.id === scan?.id ? agentCompetitors')
@@ -89,7 +126,7 @@ describe('Local Trust dashboard wiring', () => {
   it('fetches Local Trust data only for the ROI step using account-scoped helpers', () => {
     const page = read('app/[lang]/dashboard/[clientId]/page.tsx')
 
-    expect(page).toContain("select('id, brand_name, domain, industry, competitors, status, created_at')")
+    expect(page).toContain('select id, brand_name, domain, industry, competitors, status, created_at')
     expect(page).toContain("getLocalTrustProfile(clientId, profile.account_id)")
     expect(page).toContain("step === 'roi' && features.local_trust_roi")
     expect(page).toContain('getOrCreateLocalTrustSnapshot')

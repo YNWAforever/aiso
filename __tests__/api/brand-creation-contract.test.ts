@@ -12,11 +12,18 @@ type Profile = {
 
 const state = vi.hoisted(() => ({
   profile: null as Profile | null,
-  from: vi.fn(),
+  queries: [] as string[],
+  nextResults: [] as unknown[][],
+  sql: vi.fn((strings: TemplateStringsArray) => {
+    state.queries.push(strings.join('?'))
+    const result = state.nextResults.shift()
+    if (result instanceof Error) throw result
+    return Promise.resolve(result ?? [])
+  }),
 }))
 
 vi.mock('@/lib/auth', () => ({ getProfile: vi.fn(async () => state.profile) }))
-vi.mock('@/lib/supabase', () => ({ supabase: { from: state.from } }))
+vi.mock('@/lib/db', () => ({ db: () => state.sql }))
 
 async function postBrand(body: object) {
   const { POST } = await import('@/app/api/dashboard/clients/route')
@@ -38,27 +45,14 @@ function paidProfile(plan: Profile['accounts']['plan'] = 'pro'): Profile {
   }
 }
 
-function countQuery(count: number) {
-  return {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockResolvedValue({ count }),
-  }
-}
-
-function insertQuery(result: { data: unknown; error: unknown }) {
-  return {
-    insert: vi.fn().mockReturnThis(),
-    select: vi.fn().mockReturnThis(),
-    single: vi.fn().mockResolvedValue(result),
-  }
-}
-
 describe('POST /api/dashboard/clients contract', () => {
   let consoleError: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
     state.profile = paidProfile()
-    state.from.mockReset()
+    state.queries.length = 0
+    state.nextResults = []
+    state.sql.mockClear()
     consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
   })
 
@@ -67,9 +61,7 @@ describe('POST /api/dashboard/clients contract', () => {
   })
 
   it('creates a brand and returns only the new id', async () => {
-    const count = countQuery(0)
-    const insert = insertQuery({ data: { id: 'client-1' }, error: null })
-    state.from.mockReturnValueOnce(count).mockReturnValueOnce(insert)
+    state.nextResults = [[{ n: 0 }], [{ id: 'client-1' }]]
 
     const response = await postBrand({
       brand_name: 'Acme',
@@ -80,14 +72,9 @@ describe('POST /api/dashboard/clients contract', () => {
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ id: 'client-1' })
-    expect(insert.insert).toHaveBeenCalledWith({
-      brand_name: 'Acme',
-      domain: 'acme.example',
-      industry: 'Retail',
-      competitors: ['Other Co'],
-      account_id: 'account-contract',
-      status: 'active',
-    })
+    expect(state.queries[0]).toContain('account_id')
+    expect(state.queries[1]).toContain('insert into clients')
+    expect(state.queries[1]).toContain('competitors')
     expect(consoleError).not.toHaveBeenCalled()
   })
 
@@ -98,12 +85,12 @@ describe('POST /api/dashboard/clients contract', () => {
 
     expect(response.status).toBe(401)
     await expect(response.json()).resolves.toEqual({ error: 'Unauthorized' })
-    expect(state.from).not.toHaveBeenCalled()
+    expect(state.sql).not.toHaveBeenCalled()
   })
 
   it('returns the plan limit contract when the account is exhausted', async () => {
     state.profile = paidProfile('basic')
-    state.from.mockReturnValueOnce(countQuery(1))
+    state.nextResults = [[{ n: 1 }]]
 
     const response = await postBrand({ brand_name: 'Acme' })
 
@@ -113,35 +100,29 @@ describe('POST /api/dashboard/clients contract', () => {
       plan: 'basic',
       limit: 1,
     })
-    expect(state.from).toHaveBeenCalledTimes(1)
+    expect(state.sql).toHaveBeenCalledTimes(1)
   })
 
-  it('rejects malformed input before attempting an insert', async () => {
-    state.from.mockReturnValueOnce(countQuery(0))
-
+  it('rejects malformed input before attempting a database query', async () => {
     const response = await postBrand({ domain: 'acme.example' })
 
     expect(response.status).toBe(400)
     await expect(response.json()).resolves.toEqual({ error: 'brand_name required' })
-    expect(state.from).toHaveBeenCalledTimes(1)
+    expect(state.sql).not.toHaveBeenCalled()
   })
 
   it('keeps database failures generic and logs only the allowlisted diagnostic', async () => {
     const tenantBrand = ['Foto', 'max'].join('')
     const tenantAccountId = ['account', 'contract'].join('-')
     const databaseMessage = `duplicate key value for ${tenantBrand}`
-    const insert = insertQuery({
-      data: null,
-      error: {
-        code: '23505',
-        message: databaseMessage,
-        details: `account_id=${tenantAccountId}`,
-        hint: 'private hint',
-        query: `insert into clients (${tenantBrand})`,
-        stack: `Error: ${databaseMessage}`,
-      },
+    const sql = `insert into clients (${tenantBrand})`
+    const databaseError = Object.assign(new Error(databaseMessage), {
+      code: '23505',
+      details: `account_id=${tenantAccountId}`,
+      hint: 'private hint',
+      query: sql,
     })
-    state.from.mockReturnValueOnce(countQuery(0)).mockReturnValueOnce(insert)
+    state.nextResults = [[{ n: 0 }], databaseError as never]
 
     const response = await postBrand({ brand_name: tenantBrand })
 
@@ -162,6 +143,6 @@ describe('POST /api/dashboard/clients contract', () => {
     expect(serializedLog).not.toContain(tenantAccountId)
     expect(serializedLog).not.toContain(databaseMessage)
     expect(serializedLog).not.toContain('private hint')
-    expect(serializedLog).not.toContain('insert into clients')
+    expect(serializedLog).not.toContain(sql)
   })
 })

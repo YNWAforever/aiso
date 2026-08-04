@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { db } from '@/lib/db'
 import type {
   AgentCompetitor,
   Client,
@@ -13,33 +13,36 @@ import type {
 import { calculateLocalTrust } from './scoring'
 import type { LocalTrustSnapshotDraft } from './types'
 
-function isNoRowsError(error: unknown) {
-  return Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'PGRST116')
+// Neon throws on a failed query where supabase-js resolved { data, error } —
+// every query in this module runs through here so a thrown query becomes a
+// plain Error the caller can catch, instead of an empty/`null` result that
+// would be indistinguishable from "no row".
+async function runQuery<T>(query: () => Promise<T>): Promise<T> {
+  try {
+    return await query()
+  } catch (err) {
+    throw err instanceof Error ? err : new Error(String(err))
+  }
 }
 
 export async function verifyClientOwnership(clientId: string, accountId: string): Promise<Client | null> {
-  const supabase = await createServerSupabaseClient()
-  const { data } = await supabase
-    .from('clients')
-    .select('*')
-    .eq('id', clientId)
-    .eq('account_id', accountId)
-    .single()
-
-  return (data ?? null) as Client | null
+  const sql = db()
+  const rows = await runQuery(() => sql`
+    select * from clients
+    where id = ${clientId} and account_id = ${accountId}
+    limit 1
+  `)
+  return (rows[0] ?? null) as Client | null
 }
 
 export async function getLocalTrustProfile(clientId: string, accountId: string): Promise<LocalTrustProfile | null> {
-  const supabase = await createServerSupabaseClient()
-  const { data, error } = await supabase
-    .from('local_trust_profiles')
-    .select('*')
-    .eq('client_id', clientId)
-    .eq('account_id', accountId)
-    .single()
-
-  if (error && !isNoRowsError(error)) throw new Error(error.message)
-  return (data ?? null) as LocalTrustProfile | null
+  const sql = db()
+  const rows = await runQuery(() => sql`
+    select * from local_trust_profiles
+    where client_id = ${clientId} and account_id = ${accountId}
+    limit 1
+  `)
+  return (rows[0] ?? null) as LocalTrustProfile | null
 }
 
 export async function upsertLocalTrustProfile(input: {
@@ -51,42 +54,61 @@ export async function upsertLocalTrustProfile(input: {
   closeRate: number | null
   competitors: string[]
 }): Promise<LocalTrustProfile> {
-  const supabase = await createServerSupabaseClient()
-  const { data, error } = await supabase
-    .from('local_trust_profiles')
-    .upsert({
-      client_id: input.clientId,
-      account_id: input.accountId,
-      primary_services: input.primaryServices,
-      service_area: input.serviceArea,
-      average_lead_value: input.averageLeadValue,
-      close_rate: input.closeRate,
-      competitors: input.competitors,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'client_id' })
-    .select()
-    .single()
-
-  if (error) throw new Error(error.message)
-  return data as LocalTrustProfile
+  const sql = db()
+  // client_id is unique on this table, and local_trust_profiles carries a
+  // composite FK (client_id, account_id) -> clients(id, account_id) — an
+  // accountId that does not actually own clientId fails the insert/update at
+  // the database level, so this can't be used to take over another
+  // account's profile even without an extra WHERE on the conflict path.
+  const rows = await runQuery(() => sql`
+    insert into local_trust_profiles (
+      client_id, account_id, primary_services, service_area,
+      average_lead_value, close_rate, competitors, updated_at
+    ) values (
+      ${input.clientId}, ${input.accountId}, ${input.primaryServices}, ${input.serviceArea},
+      ${input.averageLeadValue}, ${input.closeRate}, ${input.competitors}, now()
+    )
+    on conflict (client_id) do update set
+      account_id         = excluded.account_id,
+      primary_services    = excluded.primary_services,
+      service_area        = excluded.service_area,
+      average_lead_value  = excluded.average_lead_value,
+      close_rate           = excluded.close_rate,
+      competitors          = excluded.competitors,
+      updated_at           = excluded.updated_at
+    returning *
+  `)
+  const row = rows[0]
+  if (!row) throw new Error('local_trust_profiles upsert returned no row')
+  return row as LocalTrustProfile
 }
 
+// NOTE on scoping: this function's exported signature (clientId + actionId,
+// no accountId) predates this migration and callers depend on it — the sole
+// caller today is the fenced PATCH route in
+// app/api/dashboard/clients/[clientId]/local-trust/actions/[actionId]/route.ts,
+// which returns 503 before ever reaching this code. local_trust_actions also
+// carries no account_id column of its own (only client_id + snapshot_id), so
+// there is no account_id value available here to filter on even if the
+// signature were changed. Tenant safety for this table is therefore enforced
+// one layer up: local_trust_actions(snapshot_id, client_id) FKs to
+// local_trust_snapshots(id, client_id), and every snapshot is written by
+// getOrCreateLocalTrustSnapshot below with an account-verified accountId. If
+// this route is ever unfenced, add an accountId parameter here and join
+// through local_trust_snapshots to check it before restoring live traffic.
 export async function updateLocalTrustActionStatus(input: {
   clientId: string
   actionId: string
   status: LocalTrustActionStatus
 }): Promise<LocalTrustAction | null> {
-  const supabase = await createServerSupabaseClient()
-  const { data, error } = await supabase
-    .from('local_trust_actions')
-    .update({ status: input.status, updated_at: new Date().toISOString() })
-    .eq('id', input.actionId)
-    .eq('client_id', input.clientId)
-    .select()
-    .single()
-
-  if (error && !isNoRowsError(error)) throw new Error(error.message)
-  return (data ?? null) as LocalTrustAction | null
+  const sql = db()
+  const rows = await runQuery(() => sql`
+    update local_trust_actions
+    set status = ${input.status}, updated_at = now()
+    where id = ${input.actionId} and client_id = ${input.clientId}
+    returning *
+  `)
+  return (rows[0] ?? null) as LocalTrustAction | null
 }
 
 export async function getOrCreateLocalTrustSnapshot(input: {
@@ -98,7 +120,7 @@ export async function getOrCreateLocalTrustSnapshot(input: {
   missed: PulseMetric[]
   competitors: AgentCompetitor[]
 }): Promise<{ snapshot: LocalTrustSnapshot; actions: LocalTrustAction[]; draft: LocalTrustSnapshotDraft }> {
-  const supabase = await createServerSupabaseClient()
+  const sql = db()
   const draft = calculateLocalTrust({
     accountId: input.accountId,
     client: input.client,
@@ -109,25 +131,34 @@ export async function getOrCreateLocalTrustSnapshot(input: {
     competitors: input.competitors,
   })
 
-  const { data: snapshot, error } = await supabase
-    .from('local_trust_snapshots')
-    .upsert({
-      client_id: input.client.id,
-      account_id: draft.account_id || input.accountId,
-      snapshot_month: draft.snapshot_month,
-      local_trust_score: draft.local_trust_score,
-      bucket_scores: draft.bucket_scores,
-      trust_gaps: draft.trust_gaps,
-      roi_estimate: draft.roi_estimate,
-      source_scan_id: draft.source_scan_id,
-      source_pulse_week: draft.source_pulse_week,
-    }, { onConflict: 'client_id,snapshot_month' })
-    .select()
-    .single()
+  const accountId = draft.account_id || input.accountId
 
-  if (error) throw new Error(error.message)
+  // Same tenant backstop as upsertLocalTrustProfile: local_trust_snapshots
+  // carries the composite FK (client_id, account_id) -> clients(id, account_id).
+  const snapshotRows = await runQuery(() => sql`
+    insert into local_trust_snapshots (
+      client_id, account_id, snapshot_month, local_trust_score,
+      bucket_scores, trust_gaps, roi_estimate, source_scan_id, source_pulse_week
+    ) values (
+      ${input.client.id}, ${accountId}, ${draft.snapshot_month}, ${draft.local_trust_score},
+      ${JSON.stringify(draft.bucket_scores)}::jsonb, ${JSON.stringify(draft.trust_gaps)}::jsonb,
+      ${draft.roi_estimate ? JSON.stringify(draft.roi_estimate) : null}::jsonb,
+      ${draft.source_scan_id}, ${draft.source_pulse_week}
+    )
+    on conflict (client_id, snapshot_month) do update set
+      account_id        = excluded.account_id,
+      local_trust_score  = excluded.local_trust_score,
+      bucket_scores       = excluded.bucket_scores,
+      trust_gaps           = excluded.trust_gaps,
+      roi_estimate         = excluded.roi_estimate,
+      source_scan_id       = excluded.source_scan_id,
+      source_pulse_week    = excluded.source_pulse_week
+    returning *
+  `)
 
-  const savedSnapshot = snapshot as LocalTrustSnapshot
+  const savedSnapshot = snapshotRows[0] as LocalTrustSnapshot | undefined
+  if (!savedSnapshot) throw new Error('local_trust_snapshots upsert returned no row')
+
   const actionRows = draft.trust_gaps.map(gap => ({
     client_id: input.client.id,
     snapshot_id: savedSnapshot.id,
@@ -140,36 +171,33 @@ export async function getOrCreateLocalTrustSnapshot(input: {
   }))
 
   if (actionRows.length > 0) {
-    const { error: actionError } = await supabase
-      .from('local_trust_actions')
-      .upsert(actionRows, { onConflict: 'snapshot_id,stable_key', ignoreDuplicates: true })
-
-    if (actionError) throw new Error(actionError.message)
+    // do nothing on conflict — an action that already exists keeps its
+    // status (open/planned/done/skipped); the metadata refresh below still
+    // updates its title/bucket/impact/effort.
+    await runQuery(() => Promise.all(actionRows.map(row => sql`
+      insert into local_trust_actions (
+        client_id, snapshot_id, stable_key, title, bucket, impact, effort, status
+      ) values (
+        ${row.client_id}, ${row.snapshot_id}, ${row.stable_key}, ${row.title},
+        ${row.bucket}, ${row.impact}, ${row.effort}, ${row.status}
+      )
+      on conflict (snapshot_id, stable_key) do nothing
+    `)))
   }
 
-  const metadataUpdates = await Promise.all(draft.trust_gaps.map(gap => supabase
-    .from('local_trust_actions')
-    .update({
-      title: gap.title,
-      bucket: gap.bucket,
-      impact: gap.impact,
-      effort: gap.effort,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('snapshot_id', savedSnapshot.id)
-    .eq('stable_key', gap.stableKey)))
+  await runQuery(() => Promise.all(draft.trust_gaps.map(gap => sql`
+    update local_trust_actions
+    set title = ${gap.title}, bucket = ${gap.bucket}, impact = ${gap.impact},
+        effort = ${gap.effort}, updated_at = now()
+    where snapshot_id = ${savedSnapshot.id} and stable_key = ${gap.stableKey}
+  `)))
 
-  for (const { error: metadataError } of metadataUpdates) {
-    if (metadataError) throw new Error(metadataError.message)
-  }
+  const actionsRows = await runQuery(() => sql`
+    select * from local_trust_actions
+    where snapshot_id = ${savedSnapshot.id}
+    order by created_at
+  `)
 
-  const { data: actions, error: actionsError } = await supabase
-    .from('local_trust_actions')
-    .select('*')
-    .eq('snapshot_id', savedSnapshot.id)
-    .order('created_at')
-
-  if (actionsError) throw new Error(actionsError.message)
   const metadataByStableKey = new Map(draft.trust_gaps.map(gap => [gap.stableKey, {
     title: gap.title,
     bucket: gap.bucket,
@@ -177,7 +205,7 @@ export async function getOrCreateLocalTrustSnapshot(input: {
     effort: gap.effort,
   }]))
   const currentStableKeys = new Set(metadataByStableKey.keys())
-  const currentActions = ((actions ?? []) as LocalTrustAction[])
+  const currentActions = (actionsRows as unknown as LocalTrustAction[])
     .filter(action => currentStableKeys.has(action.stable_key))
     .map(action => ({ ...action, ...metadataByStableKey.get(action.stable_key) }))
 

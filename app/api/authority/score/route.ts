@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getProfile } from '@/lib/auth'
 import { computeAuthority } from '@/lib/authority/aggregator'
 import type { IndustryCode, RegionCode } from '@/lib/types'
 
 export async function POST(req: NextRequest) {
-  const body = await req.json() as { url?: string; industry?: string; region?: string }
+  const profile = await getProfile()
+  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  let body: { url?: string; industry?: string; region?: string }
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+
   const { url, industry = 'general_b2c', region = 'global' } = body
   if (!url) return NextResponse.json({ error: 'url required' }, { status: 400 })
 
