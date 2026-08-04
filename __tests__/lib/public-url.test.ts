@@ -221,6 +221,33 @@ describe('public URL network boundary', () => {
     })
   })
 
+  it('enforces an HTTPS-only policy on every public redirect hop', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(new Response(null, {
+      status: 302,
+      headers: { location: 'http://other-public.example/logo.png' },
+    }))
+    const safeFetch = createPublicUrlFetcher({
+      lookup: publicDns,
+      fetchImpl,
+      allowedProtocols: ['https:'],
+    })
+
+    await expect(safeFetch('https://public.example/logo.png')).rejects.toMatchObject({ code: 'UNSAFE_URL' })
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('times out a DNS resolver that never settles within the total request bound', async () => {
+    const fetchImpl = vi.fn()
+    const safeFetch = createPublicUrlFetcher({
+      lookup: () => new Promise(() => {}),
+      fetchImpl,
+      timeoutMs: 25,
+    })
+
+    await expect(safeFetch('https://never-resolves.example')).rejects.toMatchObject({ name: 'TimeoutError' })
+    expect(fetchImpl).not.toHaveBeenCalled()
+  }, 500)
+
   it.each([
     'https://93.184.216.34/path',
     'https://[2606:4700:4700::1111]/',

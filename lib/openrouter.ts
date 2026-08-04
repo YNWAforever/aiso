@@ -9,9 +9,10 @@ interface CallOptions {
   model: string
   messages: Message[]
   maxTokens?: number
+  signal?: AbortSignal
 }
 
-export async function callOpenRouter({ model, messages, maxTokens = 2000 }: CallOptions): Promise<string> {
+export async function callOpenRouter({ model, messages, maxTokens = 2000, signal }: CallOptions): Promise<string> {
   const res = await fetch(BASE, {
     method: 'POST',
     headers: {
@@ -21,6 +22,7 @@ export async function callOpenRouter({ model, messages, maxTokens = 2000 }: Call
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ model, max_tokens: maxTokens, messages }),
+    signal,
   })
 
   if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${await res.text()}`)

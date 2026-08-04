@@ -22,6 +22,7 @@ type PublicUrlFetcherOptions = {
   maxRedirects?: number
   maxResponseBytes?: number
   timeoutMs?: number
+  allowedProtocols?: ReadonlyArray<'http:' | 'https:'>
 }
 
 export class PublicUrlError extends Error {
@@ -66,9 +67,42 @@ async function defaultLookup(hostname: string) {
   return answers.map(answer => ({ address: answer.address, family: answer.family as 4 | 6 }))
 }
 
-async function resolvePublicUrl(url: URL, lookup: LookupAll): Promise<ResolvedAddress> {
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new PublicUrlError('Only HTTP and HTTPS URLs are allowed', 'UNSAFE_URL')
+function awaitWithAbort<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
+  signal.throwIfAborted()
+  return new Promise<T>((resolve, reject) => {
+    const cleanup = () => signal.removeEventListener('abort', onAbort)
+    const onAbort = () => {
+      cleanup()
+      reject(signal.reason ?? new DOMException('The operation was aborted', 'AbortError'))
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+    if (signal.aborted) {
+      onAbort()
+      return
+    }
+    operation.then(
+      value => {
+        cleanup()
+        if (signal.aborted) reject(signal.reason)
+        else resolve(value)
+      },
+      error => { cleanup(); reject(error) },
+    )
+  })
+}
+
+async function resolvePublicUrl(
+  url: URL,
+  lookup: LookupAll,
+  allowedProtocols: ReadonlySet<string>,
+  signal: AbortSignal,
+): Promise<ResolvedAddress> {
+  signal.throwIfAborted()
+  if (
+    (url.protocol !== 'http:' && url.protocol !== 'https:')
+    || !allowedProtocols.has(url.protocol)
+  ) {
+    throw new PublicUrlError('URL protocol is not allowed', 'UNSAFE_URL')
   }
   if (url.username || url.password) throw new PublicUrlError('URL credentials are not allowed', 'UNSAFE_URL')
 
@@ -80,7 +114,8 @@ async function resolvePublicUrl(url: URL, lookup: LookupAll): Promise<ResolvedAd
   const literalFamily = isIP(hostname)
   const answers: ReadonlyArray<ResolvedAddress> = literalFamily
     ? [{ address: hostname, family: literalFamily as 4 | 6 }]
-    : await lookup(hostname)
+    : await awaitWithAbort(lookup(hostname), signal)
+  signal.throwIfAborted()
   if (
     answers.length === 0
     || answers.some(answer => answer.family !== isIP(unbracket(answer.address)) || !isPublicAddress(answer.address))
@@ -210,20 +245,23 @@ export function createPublicUrlFetcher(options: PublicUrlFetcherOptions = {}): P
   const maxRedirects = options.maxRedirects ?? 5
   const maxResponseBytes = options.maxResponseBytes ?? 5 * 1024 * 1024
   const timeoutMs = options.timeoutMs ?? 15_000
+  const allowedProtocols = new Set(options.allowedProtocols ?? ['http:', 'https:'])
 
   return async (input, init = {}) => {
     let currentUrl = new URL(input instanceof Request ? input.url : input)
-    let currentInit = { ...init }
+    const timeoutSignal = AbortSignal.timeout(timeoutMs)
+    const requestSignal = init.signal
+      ? AbortSignal.any([timeoutSignal, init.signal])
+      : timeoutSignal
+    let currentInit: RequestInit = { ...init, signal: requestSignal }
     for (let redirects = 0; ; redirects += 1) {
-      const target = await resolvePublicUrl(currentUrl, lookup)
-      const signals = [AbortSignal.timeout(timeoutMs)]
-      if (currentInit.signal) signals.push(currentInit.signal)
+      const target = await resolvePublicUrl(currentUrl, lookup, allowedProtocols, requestSignal)
       const response = await requestImpl(
         currentUrl,
         {
           ...currentInit,
           redirect: 'manual',
-          signal: signals.length === 1 ? signals[0] : AbortSignal.any(signals),
+          signal: requestSignal,
         },
         target,
         maxResponseBytes,
