@@ -89,6 +89,41 @@ test.describe('Auth — login page', () => {
     })
   }
 
+  const magicLinkErrorCases = [
+    {
+      lang: 'en',
+      error: 'Could not send the magic link. Please try again.',
+    },
+    {
+      lang: 'zh-HK',
+      error: '無法發送登入連結，請再試一次。',
+    },
+  ] as const
+
+  for (const copy of magicLinkErrorCases) {
+    test(`provider error recovery renders localized generic copy in ${copy.lang}`, async ({ page }) => {
+      const providerSecret = 'provider-token-and-message-must-not-render'
+      await page.goto(`/${copy.lang}/auth/login`)
+      await page.route('**/sign-in/magic-link*', async route => {
+        await route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            code: 'PROVIDER_UNAVAILABLE',
+            message: providerSecret,
+          }),
+        })
+      })
+
+      await page.locator('input[type="email"]').fill('test@example.com')
+      await page.locator('button[type="submit"]').click()
+
+      await expect(page.getByText(copy.error, { exact: true })).toBeVisible({ timeout: 8_000 })
+      await expect(page.locator('button[type="submit"]')).toBeEnabled()
+      await expect(page.getByText(providerSecret, { exact: true })).not.toBeVisible()
+    })
+  }
+
 })
 
 test.describe('Auth — access control', () => {

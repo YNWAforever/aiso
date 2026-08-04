@@ -9,11 +9,16 @@ function read(relativePath: string) {
 describe('funnel verification contracts', () => {
   it('proves the Neon magic-link request and exact localized success state', () => {
     const source = read('tests/e2e/auth.spec.ts')
+    const loginSource = read('components/auth/LoginForm.tsx')
 
     expect(source).toContain("page.waitForRequest")
     expect(source).toContain("new URL(request.url()).pathname.endsWith('/sign-in/magic-link')")
     expect(source).toContain("getByText(copy.checkEmail, { exact: true })")
     expect(source).not.toContain("text=/sent|check|email|magic|success/i")
+    expect(source).toContain('provider error recovery')
+    expect(loginSource).toContain('error.code === \'TOO_MANY_ATTEMPTS\'')
+    expect(loginSource).toContain('c.magicLinkFailed')
+    expect(loginSource).not.toContain('error.message')
   })
 
   it('runs the pricing containment regression at exactly 375px', () => {
@@ -33,5 +38,15 @@ describe('funnel verification contracts', () => {
     expect(setup).toContain('resolution=merge-duplicates,return=representation')
     expect(teardown).toContain('id=eq.${TEST_SCAN_ID}')
     expect(teardown).toContain("method: 'DELETE'")
+  })
+
+  it('keeps the live scan smoke release-gated instead of silently skipping it', () => {
+    const source = read('tests/e2e/live-scan-smoke.spec.ts')
+
+    expect(source).toContain("const target = process.env.LIVE_SCAN_TARGET")
+    expect(source).toContain("throw new Error('LIVE_SCAN_TARGET is required for the release scan gate')")
+    expect(source).not.toContain('test.skip')
+    expect(source).toContain("page.goto('/en')")
+    expect(source).toContain("/\\/en\\/result\\/[A-Za-z0-9-]+/")
   })
 })
