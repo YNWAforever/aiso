@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getProfile } from '@/lib/auth'
 import { supabase }   from '@/lib/supabase'
 import { resolveCommercialEntitlement } from '@/lib/tier'
+import { sanitizeDatabaseError } from '@/lib/observability/database-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,6 +53,18 @@ export async function POST(req: NextRequest) {
     if (error.message?.includes('BRAND_LIMIT_REACHED')) {
       return NextResponse.json({ error: 'BRAND_LIMIT_REACHED', plan, limit }, { status: 403 })
     }
+    const diagnostic = sanitizeDatabaseError(error, {
+      correlationId: crypto.randomUUID(),
+      route: '/api/dashboard/clients',
+    })
+    console.error({
+      event: 'brand_create_database_error',
+      correlationId: diagnostic.correlationId,
+      database: {
+        code: diagnostic.code,
+        category: diagnostic.category,
+      },
+    })
     return NextResponse.json({ error: 'Failed to create brand' }, { status: 500 })
   }
 
