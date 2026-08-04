@@ -39,7 +39,7 @@ async function parseBody(req: Request): Promise<{ locale: ReportLocale; executiv
 
 export async function POST(
   req: Request,
-  ctx: RouteContext<'/api/client-reports/[reportId]/versions'>,
+  ctx: { params: Promise<{ reportId: string }> },
 ) {
   try {
     const { reportId } = await ctx.params

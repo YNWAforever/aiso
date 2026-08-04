@@ -55,7 +55,7 @@ async function parseCreate(req: Request) {
 
 export async function GET(
   _req: Request,
-  ctx: RouteContext<'/api/clients/[clientId]/reports'>,
+  ctx: { params: Promise<{ clientId: string }> },
 ) {
   try {
     const { clientId } = await ctx.params
@@ -67,7 +67,7 @@ export async function GET(
 
 export async function POST(
   req: Request,
-  ctx: RouteContext<'/api/clients/[clientId]/reports'>,
+  ctx: { params: Promise<{ clientId: string }> },
 ) {
   try {
     const { clientId } = await ctx.params

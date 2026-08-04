@@ -637,4 +637,3 @@ After preview is verified and before integration, use `superpowers:finishing-a-d
 - 375px and 1440px layouts, keyboard use, focus, contrast-independent status, and target sizes are verified.
 - Focused tests, full Vitest, typecheck, lint, build, browser suite, diff check, secret scan, and preview smoke tests have recorded evidence.
 - Production migration, production secret, and production deployment remain blocked until explicit approval.
-

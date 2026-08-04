@@ -1,5 +1,6 @@
 'use client'
 import { createAuthClient } from '@neondatabase/auth/next'
+import { normalizeAuthNext } from '@/lib/auth-navigation'
 
 // Shared singleton — LoginForm, AccountUnlockCard, and AuthComplete use the same
 // browser-side Neon Auth client; there's no per-component config to justify
@@ -14,10 +15,12 @@ export const authClient = createAuthClient()
  */
 export function buildAuthCompleteUrl(lang: string, next: string): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
-  return `${origin}/${lang}/auth/complete?next=${encodeURIComponent(next)}`
+  const safeNext = normalizeAuthNext(lang, next)
+  return `${origin}/${lang}/auth/complete?next=${encodeURIComponent(safeNext)}`
 }
 export function buildGoogleAuthStartUrl(lang: string, next: string): string {
-  return `/${lang}/auth/google?next=${encodeURIComponent(next)}`
+  const safeNext = normalizeAuthNext(lang, next)
+  return `/${lang}/auth/google?next=${encodeURIComponent(safeNext)}`
 }
 
 type GoogleAuthStartResponse = {

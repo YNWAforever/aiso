@@ -43,24 +43,28 @@ export function LoginForm({ next }: { next?: string }) {
 
   const signInWithGoogle = async () => {
     setErrorMsg('')
-    const { error } = await authClient.signIn.social({ provider: 'google', callbackURL })
-    if (error) setErrorMsg(c.googleFailed)
+    try {
+      const { error } = await authClient.signIn.social({ provider: 'google', callbackURL })
+      if (error) setErrorMsg(c.googleFailed)
+    } catch {
+      setErrorMsg(c.googleFailed)
+    }
   }
 
   const signInWithMagicLink = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setErrorMsg('')
-    const { error } = await authClient.signIn.magicLink({ email, callbackURL })
-    if (error) {
-      setErrorMsg(
-        error.code === 'TOO_MANY_ATTEMPTS'
-          ? c.tooManyAttempts
-          : (error.message ?? c.magicLinkFailed)
-      )
-      setLoading(false)
-    } else {
-      setSent(true)
+    try {
+      const { error } = await authClient.signIn.magicLink({ email, callbackURL })
+      if (error) {
+        setErrorMsg(error.code === 'TOO_MANY_ATTEMPTS' ? c.tooManyAttempts : c.magicLinkFailed)
+      } else {
+        setSent(true)
+      }
+    } catch {
+      setErrorMsg(c.magicLinkFailed)
+    } finally {
       setLoading(false)
     }
   }

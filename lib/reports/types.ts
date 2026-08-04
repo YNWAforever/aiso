@@ -36,8 +36,17 @@ export interface ClientReportSnapshotV1 {
   methodology: string
 }
 
+export type PublicReportBrandingSnapshot = Omit<ReportBrandingSnapshot, 'logoUrl' | 'contactUrl'> & {
+  logoUrl: null
+  contactUrl: null
+}
+
+export type PublicClientReportSnapshot = Omit<ClientReportSnapshotV1, 'branding'> & {
+  branding: PublicReportBrandingSnapshot
+}
+
 export type PublicClientReportDto = Readonly<{
-  report: ClientReportSnapshotV1
+  report: PublicClientReportSnapshot
   publishedAt: string
   logoProxyUrl: string | null
   contactProxyUrl: string | null

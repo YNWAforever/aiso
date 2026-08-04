@@ -205,6 +205,8 @@ describe('published client report resolver', () => {
     expect(resolved?.dto.publishedAt).toBe(published.report.published_at)
     expect(resolved?.dto.report.executiveSummary).toBe(snapshot.executiveSummary)
     expect(resolved?.dto.report.priorityFixes).toHaveLength(1)
+    expect(resolved?.dto.report.branding.logoUrl).toBeNull()
+    expect(resolved?.dto.report.branding.contactUrl).toBeNull()
     expect(resolved?.assets).toEqual({
       logoUrl: snapshot.branding.logoUrl,
       contactUrl: snapshot.branding.contactUrl,
@@ -220,6 +222,8 @@ describe('published client report resolver', () => {
       published.report.account_id,
       published.report.client_id,
       published.report.latest_version_id,
+      snapshot.branding.logoUrl,
+      snapshot.branding.contactUrl,
     ]) {
       expect(serialized).not.toContain(sentinel)
     }

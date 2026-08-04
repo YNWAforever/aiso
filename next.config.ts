@@ -5,6 +5,11 @@ import { PUBLIC_REPORT_SECURITY_HEADER_VALUES } from './lib/reports/public-secur
 const withNextIntl = createNextIntlPlugin()
 
 const nextConfig: NextConfig = {
+  // Keep Turbopack inside this checkout when a parent directory contains an
+  // unrelated lockfile (common on local Windows workspaces and worktrees).
+  turbopack: {
+    root: process.cwd(),
+  },
   async headers() {
     return [
       {

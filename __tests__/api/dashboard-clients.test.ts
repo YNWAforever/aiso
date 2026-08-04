@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const queries: string[] = []
 let nextResults: unknown[][] = []
@@ -34,10 +34,18 @@ const PRO_PROFILE = {
 }
 
 describe('POST /api/dashboard/clients', () => {
+  let consoleError: ReturnType<typeof vi.spyOn>
+
   beforeEach(() => {
+    vi.clearAllMocks()
     queries.length = 0
     nextResults = []
+    consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     vi.mocked(getProfile).mockResolvedValue(PRO_PROFILE as never)
+  })
+
+  afterEach(() => {
+    consoleError.mockRestore()
   })
 
   it('creates a brand and returns its id', async () => {
@@ -71,6 +79,45 @@ describe('POST /api/dashboard/clients', () => {
     const res = await POST(request({ brand_name: 'Acme' }))
     expect(res.status).toBe(500)
     await expect(res.json()).resolves.toEqual({ error: 'Failed to create brand' })
+  })
+
+  it('keeps the generic response while logging one exact sanitized database diagnostic', async () => {
+    const tenantBrand = ['Foto', 'max'].join('')
+    const tenantAccountId = ['account', '1'].join('-')
+    const databaseMessage = `duplicate key value violates unique constraint for ${tenantBrand}`
+    const sql = `insert into clients (account_id, brand_name) values ('${tenantAccountId}', '${tenantBrand}')`
+    const databaseError = Object.assign(new Error(databaseMessage), {
+      code: '23505',
+      details: `account_id=${tenantAccountId}`,
+      hint: sql,
+      query: sql,
+    })
+    nextResults = [[{ n: 0 }], databaseError as never]
+
+    const response = await POST(request({ brand_name: tenantBrand }))
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: 'Failed to create brand' })
+
+    const expectedDiagnostic = {
+      event: 'brand_create_database_error',
+      correlationId: expect.any(String),
+      database: {
+        code: '23505',
+        category: 'unique_violation',
+      },
+    }
+
+    expect(consoleError.mock.calls).toHaveLength(1)
+    expect(consoleError.mock.calls[0]).toHaveLength(1)
+    expect(consoleError.mock.calls[0][0]).toEqual(expectedDiagnostic)
+
+    const serializedArguments = JSON.stringify(consoleError.mock.calls)
+    expect(serializedArguments).not.toContain(databaseMessage)
+    expect(serializedArguments).not.toContain(sql)
+    expect(serializedArguments).not.toContain(tenantBrand)
+    expect(serializedArguments).not.toContain(tenantAccountId)
+    expect(serializedArguments).not.toContain(databaseError.stack ?? '')
   })
 
   it('rejects a missing brand_name before touching the database', async () => {

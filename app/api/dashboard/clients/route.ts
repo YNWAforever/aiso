@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProfile } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { sanitizeDatabaseError } from '@/lib/observability/database-error'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 
 export const dynamic = 'force-dynamic'
@@ -55,7 +56,19 @@ export async function POST(req: NextRequest) {
     if (message.includes('BRAND_LIMIT_REACHED')) {
       return NextResponse.json({ error: 'BRAND_LIMIT_REACHED', plan, limit }, { status: 403 })
     }
-    console.error('Brand creation failed:', message.replace(/postgresql:\/\/\S+/g, '[redacted]'))
+
+    const diagnostic = sanitizeDatabaseError(err, {
+      correlationId: crypto.randomUUID(),
+      route: '/api/dashboard/clients',
+    })
+    console.error({
+      event: 'brand_create_database_error',
+      correlationId: diagnostic.correlationId,
+      database: {
+        code: diagnostic.code,
+        category: diagnostic.category,
+      },
+    })
     return NextResponse.json({ error: 'Failed to create brand' }, { status: 500 })
   }
 }
