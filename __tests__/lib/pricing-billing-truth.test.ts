@@ -18,9 +18,9 @@ const cardHighlightsSource = pricingSource.slice(
 
 describe('pricing billing truth', () => {
   it('renders paid prices from the catalog instead of duplicated literals', () => {
-    expect(CHECKOUT_PLAN_IDS.map(id => PLAN_CATALOG[id].monthlyPriceUsd)).toEqual([29, 79, 199])
+    expect(CHECKOUT_PLAN_IDS.map(id => PLAN_CATALOG[id].monthlyPriceUsd)).toEqual([199, 599, 999])
     expect(pricingSource).toContain('getPlanDefinition')
-    expect(pricingSource).not.toMatch(/price:\s*['"]\$(29|79|199)['"]/)
+    expect(pricingSource).not.toMatch(/price:\s*['"]\$\d+(?:\.\d+)?['"]/)
     expect(pricingSource).toContain("body: JSON.stringify({ plan: planName, lang })")
   })
 

@@ -3,13 +3,14 @@ import { ReportBrandingForm } from '@/components/reports/ReportBrandingForm'
 import { requireAuth } from '@/lib/auth'
 import { loadReportBranding } from '@/lib/reports/store'
 import Link from 'next/link'
+import { getPlanDefinition } from '@/lib/plans/catalog'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 
 const PLAN_LABELS: Record<string, string> = {
   free: 'Free',
-  basic: 'Basic — $29/month',
-  pro: 'Pro — $79/month',
-  enterprise: 'Enterprise — $199/month',
+  basic: `Basic — $${getPlanDefinition('basic').monthlyPriceUsd}/month`,
+  pro: `Pro — $${getPlanDefinition('pro').monthlyPriceUsd}/month`,
+  enterprise: `Enterprise — $${getPlanDefinition('enterprise').monthlyPriceUsd}/month`,
 }
 
 const UPGRADE_LABELS: Record<string, string> = {

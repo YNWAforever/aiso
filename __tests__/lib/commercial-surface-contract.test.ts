@@ -67,7 +67,7 @@ describe('commercial surface contract', () => {
 
     expect(plans).toContain('getPlanDefinition(key)')
     expect(plans).toContain('definition.monthlyPriceUsd')
-    expect(pricing).not.toMatch(/price:\s*['\"]\$(29|79|199)['\"]/)
+    expect(pricing).not.toMatch(/price:\s*['\"]\$\d+(?:\.\d+)?['\"]/)
     expect(cardHighlights).not.toMatch(
       /enterprise_custom|row_api|row_custom_platforms|\b(API|SSO|SLA|quota|dedicated customer success|custom AI platforms)\b/i,
     )
