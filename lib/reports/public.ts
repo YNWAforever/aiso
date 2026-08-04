@@ -8,6 +8,7 @@ import { resolvePublicClientReport } from './store'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import type {
   ClientReportSnapshotV1,
+  PublicClientReportSnapshot,
   PublicClientReportDto,
 } from './types'
 
@@ -48,16 +49,18 @@ function publicAssetUrl(
   return `/api/public/client-reports/${encodeURIComponent(slug)}/${asset}?${query}`
 }
 
-function copyPublishedSnapshot(snapshot: ClientReportSnapshotV1): ClientReportSnapshotV1 {
+function copyPublishedSnapshot(snapshot: ClientReportSnapshotV1): PublicClientReportSnapshot {
   return {
     snapshotSchemaVersion: 1,
     locale: snapshot.locale,
     branding: {
       agencyName: snapshot.branding.agencyName,
-      logoUrl: snapshot.branding.logoUrl,
+      // Raw asset destinations stay server-only in `assets`; the public DTO
+      // exposes only same-origin proxy URLs.
+      logoUrl: null,
       primaryColor: snapshot.branding.primaryColor,
       contactLabel: snapshot.branding.contactLabel,
-      contactUrl: snapshot.branding.contactUrl,
+      contactUrl: null,
       attribution: 'Powered by Fimmick AISO',
     },
     client: {
@@ -160,9 +163,9 @@ export async function resolvePublishedClientReport(input: {
     ) return unavailable('snapshot')
 
     const publishedSnapshot = copyPublishedSnapshot(parsed)
-    const hasLogo = publishedSnapshot.branding.logoUrl !== null
-    const hasContact = publishedSnapshot.branding.contactLabel !== null
-      && publishedSnapshot.branding.contactUrl !== null
+    const hasLogo = parsed.branding.logoUrl !== null
+    const hasContact = parsed.branding.contactLabel !== null
+      && parsed.branding.contactUrl !== null
 
     return {
       dto: {
@@ -176,8 +179,8 @@ export async function resolvePublishedClientReport(input: {
           : null,
       },
       assets: {
-        logoUrl: publishedSnapshot.branding.logoUrl,
-        contactUrl: hasContact ? publishedSnapshot.branding.contactUrl : null,
+        logoUrl: parsed.branding.logoUrl,
+        contactUrl: hasContact ? parsed.branding.contactUrl : null,
       },
     }
   } catch {
