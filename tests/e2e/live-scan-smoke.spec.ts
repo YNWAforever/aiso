@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test'
 
+const baseUrl = process.env.BASE_URL
+if (!baseUrl) {
+  throw new Error('BASE_URL is required for the release scan gate')
+}
+
 const target = process.env.LIVE_SCAN_TARGET
 if (!target) {
   throw new Error('LIVE_SCAN_TARGET is required for the release scan gate')

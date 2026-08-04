@@ -43,6 +43,8 @@ describe('funnel verification contracts', () => {
   it('keeps the live scan smoke release-gated instead of silently skipping it', () => {
     const source = read('tests/e2e/live-scan-smoke.spec.ts')
 
+    expect(source).toContain("const baseUrl = process.env.BASE_URL")
+    expect(source).toContain("throw new Error('BASE_URL is required for the release scan gate')")
     expect(source).toContain("const target = process.env.LIVE_SCAN_TARGET")
     expect(source).toContain("throw new Error('LIVE_SCAN_TARGET is required for the release scan gate')")
     expect(source).not.toContain('test.skip')
