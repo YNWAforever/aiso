@@ -28,7 +28,7 @@ async function requireEmptyBody(req: Request) {
 
 export async function POST(
   req: Request,
-  ctx: RouteContext<'/api/client-reports/[reportId]/ai-summary'>,
+  ctx: { params: Promise<{ reportId: string }> },
 ) {
   try {
     const { reportId } = await ctx.params

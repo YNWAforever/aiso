@@ -16,7 +16,7 @@ function identifier(value: unknown): string {
 
 export async function GET(
   _req: Request,
-  ctx: RouteContext<'/api/client-reports/[reportId]/versions/[versionId]/logo'>,
+  ctx: { params: Promise<{ reportId: string; versionId: string }> },
 ) {
   try {
     const { reportId, versionId } = await ctx.params

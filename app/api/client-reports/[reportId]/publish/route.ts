@@ -31,7 +31,7 @@ async function reviewedVersionId(req: Request) {
 
 export async function POST(
   req: Request,
-  ctx: RouteContext<'/api/client-reports/[reportId]/publish'>,
+  ctx: { params: Promise<{ reportId: string }> },
 ) {
   try {
     const { reportId } = await ctx.params
