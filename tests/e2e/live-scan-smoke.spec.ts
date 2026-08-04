@@ -7,7 +7,7 @@ if (!target) {
 
 test('homepage completes one controlled live scan', async ({ page }) => {
   await page.goto('/en')
-  await page.getByLabel('Website URL', { exact: true }).fill(target)
+  await page.getByLabel('Website URL', { exact: true }).first().fill(target)
   await page.getByRole('button', { name: /scan/i }).first().click()
 
   await expect(page).toHaveURL(/\/en\/result\/[A-Za-z0-9-]+/, { timeout: 90_000 })
