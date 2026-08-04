@@ -3,6 +3,7 @@ import { SovChart } from '@/components/pulse/SovChart'
 import { MissedTable } from '@/components/pulse/MissedTable'
 import { LockedFeature } from '@/components/dashboard/LockedFeature'
 import { AlertsTab } from '@/components/pulse/AlertsTab'
+import { PLAN_CATALOG } from '@/lib/plans/catalog'
 import type { PulseWeeklySummary, PulseMetric } from '@/lib/types'
 
 type Props = {
@@ -15,6 +16,7 @@ type Props = {
 export function MonitorStep({ features, clientId, summary, missed }: Props) {
   const t = useTranslations('dashboard')
   const tp = useTranslations('pulse')
+  const proPrice = `$${PLAN_CATALOG.pro.monthlyPriceUsd}/month`
 
   return (
     <div className="space-y-5">
@@ -38,7 +40,7 @@ export function MonitorStep({ features, clientId, summary, missed }: Props) {
           <AlertsTab clientId={clientId} />
         </div>
       ) : (
-        <LockedFeature feature={t('feature_alerts')} requiredPlan="Pro" price="$79/month" />
+        <LockedFeature feature={t('feature_alerts')} requiredPlan="Pro" price={proPrice} />
       )}
     </div>
   )

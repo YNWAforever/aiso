@@ -79,7 +79,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
     },
   },
   basic: {
-    id: 'basic', checkout: true, monthlyPriceUsd: 29,
+    id: 'basic', checkout: true, monthlyPriceUsd: 199,
     maxBrands: 1, historyWeeks: 4, monthlyScanLimit: 3,
     monitoringCadence: 'manual', competitorMode: 'none', reportBranding: 'none',
     exportFormats: [], supportLevel: 'standard', release: unavailableRelease,
@@ -92,7 +92,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
     },
   },
   pro: {
-    id: 'pro', checkout: true, monthlyPriceUsd: 79,
+    id: 'pro', checkout: true, monthlyPriceUsd: 599,
     maxBrands: 3, historyWeeks: 26, monthlyScanLimit: null,
     monitoringCadence: 'weekly', competitorMode: 'summary', reportBranding: 'fimmick',
     exportFormats: [], supportLevel: 'standard',
@@ -110,7 +110,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
     },
   },
   enterprise: {
-    id: 'enterprise', checkout: true, monthlyPriceUsd: 199,
+    id: 'enterprise', checkout: true, monthlyPriceUsd: 999,
     maxBrands: 10, historyWeeks: null, monthlyScanLimit: null,
     monitoringCadence: 'weekly', competitorMode: 'full', reportBranding: 'fimmick',
     exportFormats: ['csv'], supportLevel: 'priority',

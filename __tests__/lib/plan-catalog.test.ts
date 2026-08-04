@@ -17,7 +17,7 @@ const prices: StripePriceMap = {
 describe('Plan Catalog', () => {
   it('defines the three self-serve paid plans in display order', () => {
     expect(CHECKOUT_PLAN_IDS).toEqual(['basic', 'pro', 'enterprise'])
-    expect(CHECKOUT_PLAN_IDS.map(id => PLAN_CATALOG[id].monthlyPriceUsd)).toEqual([29, 79, 199])
+    expect(CHECKOUT_PLAN_IDS.map(id => PLAN_CATALOG[id].monthlyPriceUsd)).toEqual([199, 599, 999])
   })
 
   it('keeps canonical allowances aligned with legacy feature fields', () => {
