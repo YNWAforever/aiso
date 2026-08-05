@@ -196,10 +196,10 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > route is open.
 >
 > Routes whose feature is fenced return `503 FEATURE_UNAVAILABLE` via `lib/unavailable.ts`:
-> `pulse/*`, `fix/cluster-map`, `fix/content-brief`, `notifications/*`, `prompts/*`,
-> `agents/*`, `cron/*` (both trial-emails and evaluate-alerts). **Local Trust and the alerts
-> *config* route are restored**; `cron/evaluate-alerts` deliberately is not — nothing writes
-> the aggregate `pulse_weekly_summary` rows it reads, and there is no scheduler.
+> `pulse/*` **except `pulse/run`**, `fix/cluster-map`, `fix/content-brief`, `notifications/*`,
+> `prompts/*`, `agents/*`, `cron/*` (both trial-emails and evaluate-alerts). **Local Trust,
+> the alerts *config* route and the Pulse producer (`pulse/run`) are restored**;
+> `cron/evaluate-alerts` deliberately is not — it needs a scheduler, and none exists.
 > `__tests__/api/fenced-routes.test.ts` is the canonical list and asserts each still 503s, so
 > restoring a route means deleting its entry there too.
 >
@@ -207,7 +207,11 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > `featureUnavailable` call.** The shape to copy is `lib/localTrust/guard.ts`: auth →
 > entitlement → ownership, in that order, in one place so a route cannot do two of the three.
 > Ownership failure is `404` (the id came from the caller); a failed ownership *lookup* is
-> `503`, so a database incident cannot read as "not yours".
+> `503`, so a database incident cannot read as "not yours". `pulse/run` inverts that order
+> deliberately and is the one documented exception: it is cron-authenticated with no session,
+> so the account is resolved *through* the client. The entitlement check survives the
+> inversion and doubles as cost control — a plan granting no platforms is refused `403`
+> before any LLM spend.
 
 Sign-in completes **client-side**: `LoginForm` / `TrialCta` set `callbackURL` to
 `/{lang}/auth/complete`, and `components/auth/AuthComplete.tsx` exchanges the session
@@ -359,8 +363,12 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `PLAYWRIGHT_TEST_PASSWORD`
 - **Dead:** `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — read by zero source files; checkout is
   server-side only. `@stripe/stripe-js` is installed but never imported.
-- **Dead:** `CRON_SECRET` (zero readers — both `/api/cron` routes are 503 stubs with no
-  secret check) and `RESEND_API_KEY` (`sendAlertEmail` has no callers). Legacy Supabase
+- `CRON_SECRET` — **live since the Pulse producer landed**, and ≥16 chars or `POST
+  /api/pulse/run` returns 500 instead of running. It is that route's *only* authentication:
+  the route is machine-invoked, so there is no session and the account is resolved through
+  the client rather than the caller. Both `/api/cron` routes are still 503 stubs that read
+  no secret, and nothing schedules the producer — `vercel.json` declares no `crons`.
+- **Dead:** `RESEND_API_KEY` (`sendAlertEmail` has no callers). Legacy Supabase
   (`NEXT_PUBLIC_SUPABASE_URL`, `..._ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) is also fully
   dead: no application code reads them. The ESLint rule that bans `@supabase/*` now covers
   `.mjs`/`.js`/`.cjs` as well as TS — it previously did not, which is how an orphaned

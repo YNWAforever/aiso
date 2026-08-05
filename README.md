@@ -14,9 +14,10 @@ Multi-tenant SaaS that scores websites on **AEO / GEO** — how well AI answer e
 - Bilingual **en / zh-HK** (`next-intl`), billed through **Stripe**, deployed on **Vercel**.
 
 Several features are **fenced**: their routes return `503 FEATURE_UNAVAILABLE` via
-`lib/unavailable.ts`, and `__tests__/api/fenced-routes.test.ts` is the canonical list. Pulse,
-the prompt bank, agents, notifications, content tools, trial emails and the alert *evaluator*
-are all still fenced; Local Trust and alert *configuration* are live. A fence is not a gate —
+`lib/unavailable.ts`, and `__tests__/api/fenced-routes.test.ts` is the canonical list. The
+Pulse *read* routes, the prompt bank, agents, notifications, content tools, trial emails and
+the alert *evaluator* are all still fenced; Local Trust, alert *configuration* and the Pulse
+producer (`POST /api/pulse/run`) are live. A fence is not a gate —
 restoring one means adding a real auth/entitlement/ownership gate, not just deleting the
 `featureUnavailable` call. `lib/localTrust/guard.ts` is the shape to copy.
 
@@ -69,8 +70,11 @@ entry there says what breaks when it is missing. The highlights:
 Optional (have fallbacks): `RESEND_FROM_EMAIL`, `WIKIPEDIA_USER_AGENT`.
 E2E only: `BASE_URL`, `START_DEV_SERVER`, `PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_TEST_PASSWORD`.
 
+`CRON_SECRET` (≥16 chars) authenticates `POST /api/pulse/run`, which is machine-invoked and has
+no session — the route returns 500 rather than running when it is unset. Nothing schedules it;
+the two `/api/cron` routes remain 503 stubs and still read no secret.
+
 Dead — read by nothing, listed so nobody re-adds them expecting an effect:
-`CRON_SECRET` (both `/api/cron` routes are 503 stubs with no secret check),
 `RESEND_API_KEY` (`sendAlertEmail` has no callers), `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
 (checkout is server-side only), and the legacy `NEXT_PUBLIC_SUPABASE_URL`,
 `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — the Neon migration is complete

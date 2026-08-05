@@ -43,12 +43,28 @@ const PLATFORMS = [
   { platform: 'gemini-flash',         model: 'google/gemini-flash-2.0' },
 ]
 
+export const PLATFORM_KEYS = PLATFORMS.map(p => p.platform)
+
+/**
+ * Fans a prompt out across platforms, concurrently.
+ *
+ * `only` restricts the set, so a plan is billed for the platforms it actually
+ * grants. It takes the keys in PLATFORM_KEYS — **not** an account's
+ * `features.platform_access`, which is a different vocabulary sharing no key
+ * with this one, so passing it raw selects nothing and the caller silently does
+ * no work. Translate with `runtimePlatformsFor` in lib/pulse/platforms.ts.
+ *
+ * Omitting `only` queries all five, which is the right default for callers that
+ * are not per-account.
+ */
 export async function callMultiPlatform(
   messages: Message[],
   maxTokens = 1000,
+  only?: readonly string[],
 ): Promise<Array<{ platform: string; answer: string }>> {
+  const selected = only ? PLATFORMS.filter(p => only.includes(p.platform)) : PLATFORMS
   const results = await Promise.allSettled(
-    PLATFORMS.map(async ({ platform, model }) => ({
+    selected.map(async ({ platform, model }) => ({
       platform,
       answer: await callOpenRouter({ model, messages, maxTokens }),
     })),
