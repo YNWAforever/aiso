@@ -18,6 +18,12 @@ export type FunnelEventInput = {
 
 const ATTEMPT_ID_KEY = 'fimmick_funnel_attempt_id'
 
+export function consumeOneTimeFunnelEvent(guard: { current: boolean }): boolean {
+  if (guard.current) return false
+  guard.current = true
+  return true
+}
+
 function fallbackAttemptId() {
   const bytes = new Uint8Array(16)
   globalThis.crypto?.getRandomValues?.(bytes)

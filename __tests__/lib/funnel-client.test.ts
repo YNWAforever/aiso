@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
-import { trackFunnelEvent } from '@/lib/funnel-client'
+import { consumeOneTimeFunnelEvent, trackFunnelEvent } from '@/lib/funnel-client'
 
 describe('trackFunnelEvent', () => {
+  it('consumes a mount-scoped event guard only once', () => {
+    const guard = { current: false }
+
+    expect(consumeOneTimeFunnelEvent(guard)).toBe(true)
+    expect(consumeOneTimeFunnelEvent(guard)).toBe(false)
+  })
+
   it('sends an allowlisted event with a reusable session attempt id', () => {
     const storage = new Map<string, string>()
     const fetchMock = vi.fn(() => Promise.resolve(new Response()))

@@ -27,11 +27,20 @@ export function classifyClaimResponse(
   return 'error'
 }
 
+export function getClaimReturnFunnelEvents(status: number, body: unknown) {
+  const result = classifyClaimResponse(status, body)
+  const events: Array<'signup_succeeded' | 'scan_claim_succeeded' | 'scan_claim_failed'> = []
+  if (status !== 401 && status !== 403) events.push('signup_succeeded')
+  events.push(result === 'claimed' || result === 'already-owned' ? 'scan_claim_succeeded' : 'scan_claim_failed')
+  return events
+}
+
 export function ClaimScanOnReturn({ scanId, lang }: { scanId: string; lang: string }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const t = useTranslations('home')
   const attempted = useRef(false)
+  const signupTracked = useRef(false)
   const replaceFrame = useRef<number | null>(null)
   const [state, setState] = useState<ClaimReturnState>('idle')
   const locale = lang === 'zh-HK' ? 'zh-HK' : 'en'
@@ -45,9 +54,13 @@ export function ClaimScanOnReturn({ scanId, lang }: { scanId: string; lang: stri
         body = await response.json()
       } catch {}
       const result = classifyClaimResponse(response.status, body)
+      const funnelEvents = getClaimReturnFunnelEvents(response.status, body)
       setState(result)
-      if (result === 'claimed' || result === 'already-owned') {
+      if (funnelEvents.includes('signup_succeeded') && !signupTracked.current) {
+        signupTracked.current = true
         trackFunnelEvent({ name: 'signup_succeeded', locale, scanId })
+      }
+      if (result === 'claimed' || result === 'already-owned') {
         trackFunnelEvent({ name: 'scan_claim_succeeded', locale, scanId })
         replaceFrame.current = window.requestAnimationFrame(() => {
           router.replace(`/${lang}/result/${encodeURIComponent(scanId)}`)

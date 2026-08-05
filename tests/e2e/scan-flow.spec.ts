@@ -153,7 +153,7 @@ test.describe('Scan to signup journey', () => {
       expect(callback.pathname).toBe('/en/auth/complete')
       expect(callback.searchParams.get('next')).toBe('/en/result/' + TEST_SCAN_ID + '?claim=1')
 
-      expect((await context.cookies()).some(cookie => cookie.name === 'scan_claim_intent')).toBe(false)
+      expect((await context.cookies()).some(cookie => cookie.name === 'fimmick_scan_claim_intent')).toBe(false)
       await page.goto('/en/result/' + TEST_SCAN_ID + '?claim=1')
       await page.waitForURL('/en/result/' + TEST_SCAN_ID)
       expect(new URL(page.url()).search).toBe('')
