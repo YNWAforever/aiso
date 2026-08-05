@@ -61,3 +61,24 @@
 - Component/event regression suite passed: 7 files, 34 tests.
 - `npm.cmd exec -- tsc --noEmit` passed.
 - `git diff --check` passed.
+
+## Review fix 2: object-graph privacy traversal and logger contract
+
+### Findings and root cause
+
+- The recursive sensitive-key walker stopped at non-plain object prototypes, so a class instance with an enumerable `email`, `url`, `results`, or `competitors` field could evade rejection.
+- A prior route simplification changed `logFunnelEvent` to return a redacted record, which broke its required `void` public contract and coupled route validation to the logging wrapper.
+
+### Fix
+
+- `containsSensitiveKey` now walks all enumerable own properties of every object and array with `WeakSet` cycle protection. Property enumeration and reads are guarded; inaccessible/throwing properties are rejected rather than risking an unsafe log.
+- `logFunnelEvent(input: FunnelEventInput): void` is restored as the public safe wrapper. `logRedactedFunnelEvent(redacted)` is the separate redacted-only logger used by the route after one `redactFunnelEvent` validation, so raw input never reaches `console.info`.
+- Added regression tests for an enumerable class-instance email, a cyclic payload containing competitors, and the `void` logger result.
+
+### Verification
+
+- RED observed: `npm.cmd exec vitest run __tests__/lib/funnel-events.test.ts` failed because a class-instance email was accepted.
+- Focused funnel suites: 2 files, 8 tests passed.
+- Related funnel/component suites: 7 files, 36 tests passed.
+- `npm.cmd exec -- tsc --noEmit` passed.
+- `git diff --check` and `git diff --cached --check` passed.

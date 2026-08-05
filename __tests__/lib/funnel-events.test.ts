@@ -38,9 +38,29 @@ describe('redactFunnelEvent', () => {
     })).toBeNull()
   })
 
+  it('rejects sensitive keys stored in class instances', () => {
+    class RequestMetadata {
+      email = 'person@example.com'
+    }
+
+    expect(redactFunnelEvent({
+      name: 'scan_completed', attemptId: 'attempt-1', locale: 'en', metadata: new RequestMetadata(),
+    })).toBeNull()
+  })
+
+  it('terminates safely and rejects cyclic payloads containing sensitive keys', () => {
+    const metadata: Record<string, unknown> = { competitors: ['Acme'] }
+    metadata.self = metadata
+
+    expect(redactFunnelEvent({
+      name: 'scan_completed', attemptId: 'attempt-1', locale: 'en', metadata,
+    })).toBeNull()
+  })
+
   it('logs only the redacted payload', () => {
     const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
-    logFunnelEvent({ name: 'scan_completed', attemptId: 'attempt-1', locale: 'zh-HK', scanId: 'scan-1' })
+    const result = logFunnelEvent({ name: 'scan_completed', attemptId: 'attempt-1', locale: 'zh-HK', scanId: 'scan-1' })
+    expect(result).toBeUndefined()
     expect(info).toHaveBeenCalledWith('[funnel]', JSON.stringify({
       name: 'scan_completed', attemptId: 'attempt-1', locale: 'zh-HK',
       scanHash: createHash('sha256').update('scan-1').digest('hex').slice(0, 16),

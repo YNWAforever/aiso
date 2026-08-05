@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { logFunnelEvent } from '@/lib/observability/funnel'
+import { logRedactedFunnelEvent, redactFunnelEvent } from '@/lib/observability/funnel'
 
 const MAX_BODY_BYTES = 2 * 1024
 const INVALID_EVENT = { error: 'Invalid funnel event' }
@@ -21,6 +21,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(INVALID_EVENT, { status: 400 })
   }
 
-  if (!logFunnelEvent(body)) return NextResponse.json(INVALID_EVENT, { status: 400 })
+  const redacted = redactFunnelEvent(body)
+  if (!redacted) return NextResponse.json(INVALID_EVENT, { status: 400 })
+  logRedactedFunnelEvent(redacted)
   return NextResponse.json({ ok: true })
 }
