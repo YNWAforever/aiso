@@ -7,9 +7,18 @@ Multi-tenant SaaS that scores websites on **AEO / GEO** — how well AI answer e
   produce a 0–100 score and a letter grade (`A+` → `F`). Entry point: `POST /api/scan`.
 - **Fix packs** — AI-generated, prioritised remediation for the failing checks, via
   OpenRouter (`app/api/fix/`).
+- **Local Trust** — trust/ROI scoring per brand, with a CSV export
+  (`app/api/dashboard/clients/[clientId]/local-trust/`, `lib/localTrust/`).
 - **Pulse** — weekly monitoring of how often a brand is surfaced by LLM platforms
-  (`app/api/pulse/`, `app/[lang]/pulse/[clientId]/`).
+  (`app/api/pulse/`, `app/[lang]/pulse/[clientId]/`). **Not shipped** — see below.
 - Bilingual **en / zh-HK** (`next-intl`), billed through **Stripe**, deployed on **Vercel**.
+
+Several features are **fenced**: their routes return `503 FEATURE_UNAVAILABLE` via
+`lib/unavailable.ts`, and `__tests__/api/fenced-routes.test.ts` is the canonical list. Pulse,
+the prompt bank, agents, notifications, content tools, trial emails and the alert *evaluator*
+are all still fenced; Local Trust and alert *configuration* are live. A fence is not a gate —
+restoring one means adding a real auth/entitlement/ownership gate, not just deleting the
+`featureUnavailable` call. `lib/localTrust/guard.ts` is the shape to copy.
 
 Stack: Next.js 16 (App Router) · TypeScript 5.9 · Neon Postgres + Neon Auth · Tailwind v4 ·
 shadcn/ui · Vitest · Playwright.

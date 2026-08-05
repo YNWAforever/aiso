@@ -16,10 +16,10 @@ The Supabase → Neon migration is done. `db()` from `@/lib/db` (a lazy
 - An ESLint `no-restricted-imports` rule in `eslint.config.mjs` blocks any new import of
   `@supabase/*`, `@/lib/supabase`, or `@/lib/supabase-server` — reintroducing one is a lint
   error, not just a convention.
-- Local Trust (`lib/localTrust/store.ts` and its routes under
-  `app/api/dashboard/clients/[clientId]/local-trust/`) runs on `db()` but stays
-  **intentionally fenced**: those routes return `503 FEATURE_UNAVAILABLE` regardless of the
-  store working. Don't unfence them as part of unrelated work.
+- Local Trust is **restored and live** (`lib/localTrust/`): profile, actions and export all
+  run on `db()` and gate through `lib/localTrust/guard.ts`. Its store was the only feature
+  store ever ported to Neon — the other fenced features have no `db()` data layer at all, so
+  restoring one means writing its queries, not just deleting the fence.
 
 ## Tech Stack
 
@@ -102,7 +102,7 @@ lib/
   neon-auth.ts     # auth() — server-side Neon Auth singleton
   auth-client.ts   # authClient + buildAuthCompleteUrl() (browser)
   scoring.ts       # CORE_PTS / EXT_PTS / GEO_PTS, calculateScore, assignGrade
-  tier.ts          # getPlanFeatures() — plan feature flags
+  tier.ts          # resolveCommercialEntitlement() — the real gate; getPlanFeatures() ignores status
   types.ts         # Hub for shared types. NOT exhaustive - ImpactReport lives in
                    # lib/impact.ts, CheckExplanation in lib/checkExplanations.ts
   openrouter.ts    # LLM calls via OpenRouter
@@ -128,7 +128,11 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
 - DB access: `const sql = db()` from `@/lib/db`, then tagged-template queries
 - Auth pattern: call `getProfile()` from `lib/auth.ts` — returns `null` for unauthenticated
   requests (don't throw). Use `requireAuth(lang)` / `requireAdmin(lang)` in layouts to redirect.
-- Tier/feature gates: use `getPlanFeatures(plan)` from `lib/tier.ts` before exposing paid features
+- Tier/feature gates: use **`resolveCommercialEntitlement(profile.accounts)`** from
+  `lib/tier.ts`, never `getPlanFeatures(plan)`. The latter takes a plan string and so ignores
+  subscription status, trial expiry and admin overrides — it will happily report Pro features
+  for a `cancelled` account. `resolveCommercialEntitlement` resolves override → past_due →
+  cancelled → trial → paid and fails closed to `free`.
 - Error handling: `try/catch` with graceful fallbacks — checks degrade rather than throw, each
   with its own domain-specific message (see Checks Architecture; don't emit `check_error`).
 - **Never return a success over a failed write.** This bit hard: `supabase-js` resolved to
@@ -191,10 +195,19 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > which calls `getProfile()` and filters by `account_id`. Read the callee before concluding a
 > route is open.
 >
-> Routes whose feature is fenced return `503 FEATURE_UNAVAILABLE` via `lib/unavailable.ts`
-> (all of `pulse/*`, `fix/cluster-map`, `fix/content-brief`, `notifications/*`, `cron/*`,
-> `local-trust/*`, `prompts/*`, `agents/*`). A fence is not a gate — **restoring one of these
-> means adding a real gate, not just deleting the `featureUnavailable` call.**
+> Routes whose feature is fenced return `503 FEATURE_UNAVAILABLE` via `lib/unavailable.ts`:
+> `pulse/*`, `fix/cluster-map`, `fix/content-brief`, `notifications/*`, `prompts/*`,
+> `agents/*`, `cron/*` (both trial-emails and evaluate-alerts). **Local Trust and the alerts
+> *config* route are restored**; `cron/evaluate-alerts` deliberately is not — nothing writes
+> the aggregate `pulse_weekly_summary` rows it reads, and there is no scheduler.
+> `__tests__/api/fenced-routes.test.ts` is the canonical list and asserts each still 503s, so
+> restoring a route means deleting its entry there too.
+>
+> A fence is not a gate — **restoring one means adding a real gate, not just deleting the
+> `featureUnavailable` call.** The shape to copy is `lib/localTrust/guard.ts`: auth →
+> entitlement → ownership, in that order, in one place so a route cannot do two of the three.
+> Ownership failure is `404` (the id came from the caller); a failed ownership *lookup* is
+> `503`, so a database incident cannot read as "not yours".
 
 Sign-in completes **client-side**: `LoginForm` / `TrialCta` set `callbackURL` to
 `/{lang}/auth/complete`, and `components/auth/AuthComplete.tsx` exchanges the session
