@@ -20,7 +20,8 @@ describe('scan claim return', () => {
     [409, { error: 'Scan belongs to another account' }, 'conflict'],
     [500, { error: 'Failed to claim scan' }, 'error'],
     [200, { ok: false }, 'error'],
-    [401, { error: 'Unauthorized' }, 'error'],
+    [401, { error: 'Unauthorized' }, 'unauthorized'],
+    [403, { error: 'Forbidden' }, 'unauthorized'],
   ] as const)('classifies claim response %s', (status, body, expected) => {
     expect(classifyClaimResponse(status, body)).toBe(expected)
   })

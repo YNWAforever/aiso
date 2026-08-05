@@ -11,6 +11,7 @@ export class ResultPage {
   readonly saveReportCta: Locator
   readonly claimStatus: Locator
   readonly retrySaving: Locator
+  readonly dashboardLink: Locator
   readonly fullCheckBreakdown: Locator
   readonly backLink: Locator
 
@@ -23,6 +24,7 @@ export class ResultPage {
     this.saveReportCta = page.getByTestId('save-report-cta')
     this.claimStatus = page.getByTestId('claim-status')
     this.retrySaving = this.claimStatus.getByRole('button')
+    this.dashboardLink = this.claimStatus.getByRole('link')
     this.fullCheckBreakdown = page.getByTestId('full-check-breakdown')
     this.backLink = page.getByRole('link', {
       name: lang === 'zh-HK' ? /再次掃描|掃描另一個/ : /Scan another/i,

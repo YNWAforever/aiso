@@ -84,7 +84,7 @@ test.describe('Scan to signup journey', () => {
     await expect(home.scanButton).toBeVisible()
   })
 
-  test('submits once, returns from Google, and unlocks the full report after signup', async ({ browser }) => {
+  test('submits once, returns without a claim-intent cookie, and unlocks the full report after signup', async ({ browser }) => {
     test.skip(
       !hasCredentialedFunnel,
       'Requires the seeded Supabase fixture, Neon Auth, and an authenticated storage state to verify ownership-backed return claiming.',
@@ -142,6 +142,7 @@ test.describe('Scan to signup journey', () => {
       await expect(result.googleSignupButton).toBeVisible()
       await expect(result.googleSignupButton).toBeEnabled()
       await expect(result.createAccountButton).toBeVisible()
+      await expect(result.createAccountButton).toHaveText('Use Email Magic Link instead')
       await expect(page.getByRole('link', { name: /Get full access/i })).toHaveCount(0)
       await expect.poll(() => claimIntentPosts).toBe(1)
 
@@ -152,10 +153,14 @@ test.describe('Scan to signup journey', () => {
       expect(callback.pathname).toBe('/en/auth/complete')
       expect(callback.searchParams.get('next')).toBe('/en/result/' + TEST_SCAN_ID + '?claim=1')
 
+      expect((await context.cookies()).some(cookie => cookie.name === 'scan_claim_intent')).toBe(false)
       await page.goto('/en/result/' + TEST_SCAN_ID + '?claim=1')
       await page.waitForURL('/en/result/' + TEST_SCAN_ID)
       expect(new URL(page.url()).search).toBe('')
       await expect(result.fullCheckBreakdown).toBeVisible()
+      await expect(result.claimStatus).toContainText('Report saved to your workspace')
+      await expect(result.dashboardLink).toHaveText('Go to dashboard')
+      await expect(result.dashboardLink).toHaveAttribute('href', '/en/dashboard')
       await expect(result.saveReportCta).toHaveCount(0)
       expect(scanPosts).toBe(1)
     } finally {
@@ -268,11 +273,11 @@ test.describe('Scan to signup journey', () => {
     }
   })
 
-  test('zh-HK account unlock preserves locale and scan ID', async ({ page }) => {
+  test('zh-HK Magic Link uses the approved copy and preserves locale and scan ID', async ({ page }) => {
     test.skip(!hasSeededResult, 'Requires the seeded Supabase result fixture for localized account-unlock coverage.')
     await page.goto('/zh-HK/result/' + TEST_SCAN_ID)
     const result = new ResultPage(page, 'zh-HK')
-    await expect(result.createAccountButton).toContainText(/免費|帳戶/)
+    await expect(result.createAccountButton).toHaveText('改用 Email Magic Link')
 
     let body: Record<string, unknown> | null = null
     await page.route('**/sign-in/magic-link*', route => {

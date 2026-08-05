@@ -1,13 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { trackFunnelEvent } from '@/lib/funnel-client'
 
 export type ClaimReturnState =
   | 'idle' | 'claiming' | 'claimed' | 'already-owned'
-  | 'not-found' | 'conflict' | 'error'
+  | 'not-found' | 'conflict' | 'unauthorized' | 'error'
 
 export function buildScanClaimNext(lang: string, scanId: string): string {
   return `/${lang}/result/${encodeURIComponent(scanId)}?claim=1`
@@ -22,6 +23,7 @@ export function classifyClaimResponse(
   }
   if (status === 404) return 'not-found'
   if (status === 409) return 'conflict'
+  if (status === 401 || status === 403) return 'unauthorized'
   return 'error'
 }
 
@@ -55,7 +57,13 @@ export function ClaimScanOnReturn({ scanId, lang }: { scanId: string; lang: stri
           name: 'scan_claim_failed',
           locale,
           scanId,
-          errorCode: result === 'not-found' ? 'not_found' : result === 'conflict' ? 'conflict' : 'temporary',
+          errorCode: result === 'not-found'
+            ? 'not_found'
+            : result === 'conflict'
+              ? 'conflict'
+              : result === 'unauthorized'
+                ? 'unauthorized'
+                : 'temporary',
         })
       }
     } catch {
@@ -74,16 +82,20 @@ export function ClaimScanOnReturn({ scanId, lang }: { scanId: string; lang: stri
     if (replaceFrame.current !== null) window.cancelAnimationFrame(replaceFrame.current)
   }, [])
 
-  if (searchParams.get('claim') !== '1') return null
+  const hasClaimParam = searchParams.get('claim') === '1'
+  const isSaved = state === 'claimed' || state === 'already-owned'
+  if (!hasClaimParam && !isSaved) return null
 
   const message = state === 'claiming'
     ? t('claiming_report')
-    : state === 'claimed' || state === 'already-owned'
+    : isSaved
       ? t('report_saved')
       : state === 'not-found'
         ? t('scan_not_found')
         : state === 'conflict'
           ? t('scan_conflict')
+          : state === 'unauthorized'
+            ? t('claim_unauthorized')
           : state === 'error'
             ? t('claim_failed')
             : ''
@@ -105,6 +117,14 @@ export function ClaimScanOnReturn({ scanId, lang }: { scanId: string; lang: stri
         >
           {t('retry_saving')}
         </button>
+      ) : null}
+      {isSaved ? (
+        <Link
+          href={`/${lang}/dashboard`}
+          className="mt-2 inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-bold text-primary underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          {t('go_to_dashboard')}
+        </Link>
       ) : null}
     </div>
   )
