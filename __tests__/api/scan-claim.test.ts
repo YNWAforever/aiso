@@ -45,13 +45,15 @@ describe('POST /api/scans/[id]/claim', () => {
     process.env.REPORT_SHARE_SECRET = 'x'.repeat(32)
   })
 
-  it('returns a fixed response without querying when the intent cookie is missing', async () => {
+  it('claims an unowned scan after authentication when the intent cookie is absent', async () => {
+    nextResults = [[{ id: 'scan-1' }]]
+
     const response = await claim()
 
-    expect(response.status).toBe(403)
-    expect(await response.json()).toEqual({ error: 'Claim unavailable' })
-    expect(getProfileMock).not.toHaveBeenCalled()
-    expect(mockSql).not.toHaveBeenCalled()
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ ok: true, alreadyOwned: false })
+    expect(getProfileMock).toHaveBeenCalledOnce()
+    expect(mockSql).toHaveBeenCalledOnce()
   })
 
   it('returns a fixed response without querying when the intent cookie is tampered', async () => {
@@ -72,6 +74,15 @@ describe('POST /api/scans/[id]/claim', () => {
 
     expect(expiredResponse.status).toBe(403)
     expect(mismatchResponse.status).toBe(403)
+    expect(mockSql).not.toHaveBeenCalled()
+  })
+
+  it('rejects an intent whose canonical return path does not match the scan', async () => {
+    const mismatchedReturnPath = claimIntent('scan-1', { returnPath: '/en/result/scan-2?claim=1' })
+
+    const response = await claim('scan-1', mismatchedReturnPath)
+
+    expect(response.status).toBe(403)
     expect(mockSql).not.toHaveBeenCalled()
   })
 

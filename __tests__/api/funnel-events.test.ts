@@ -11,7 +11,7 @@ async function post(body: string, headers: HeadersInit = { 'Content-Type': 'appl
 describe('POST /api/funnel-events', () => {
   it('accepts a redacted event without echoing its input', async () => {
     const response = await post(JSON.stringify({
-      name: 'scan_completed', attemptId: 'attempt-1', locale: 'en', scanId: 'scan-1',
+      name: 'scan_completed', attemptId: '550e8400-e29b-41d4-a716-446655440000', locale: 'en', scanId: 'scan-1',
     }))
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ ok: true })
@@ -21,9 +21,9 @@ describe('POST /api/funnel-events', () => {
   it('rejects malformed, PII, and oversized payloads without echoing them', async () => {
     for (const body of [
       '{',
-      JSON.stringify({ name: 'scan_completed', attemptId: 'attempt-1', locale: 'en', email: 'person@example.com' }),
-      JSON.stringify({ name: 'scan_completed', attemptId: 'attempt-1', locale: 'en', metadata: { url: 'https://example.com' } }),
-      JSON.stringify({ name: 'scan_completed', attemptId: 'attempt-1', locale: 'en', metadata: [{ results: ['raw report'] }] }),
+      JSON.stringify({ name: 'scan_completed', attemptId: '550e8400-e29b-41d4-a716-446655440000', locale: 'en', email: 'person@example.com' }),
+      JSON.stringify({ name: 'scan_completed', attemptId: '550e8400-e29b-41d4-a716-446655440000', locale: 'en', metadata: { url: 'https://example.com' } }),
+      JSON.stringify({ name: 'scan_completed', attemptId: '550e8400-e29b-41d4-a716-446655440000', locale: 'en', metadata: [{ results: ['raw report'] }] }),
       JSON.stringify({ name: 'scan_completed', attemptId: 'a'.repeat(2100), locale: 'en' }),
     ]) {
       const response = await post(body)

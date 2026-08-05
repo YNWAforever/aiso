@@ -21,6 +21,7 @@ const PROVIDERS = new Set<FunnelEventInput['provider']>(['google', 'magic_link']
 const ERROR_CODES = new Set<NonNullable<FunnelEventInput['errorCode']>>([
   'not_found', 'conflict', 'unauthorized', 'rate_limited', 'temporary',
 ])
+const UUID_COMPATIBLE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0
@@ -58,6 +59,7 @@ export function redactFunnelEvent(input: unknown): Record<string, string> | null
   if (
     !FUNNEL_EVENTS.includes(candidate.name as FunnelEventName)
     || !isNonEmptyString(candidate.attemptId)
+    || !UUID_COMPATIBLE.test(candidate.attemptId)
     || (candidate.locale !== 'en' && candidate.locale !== 'zh-HK')
   ) return null
   if (candidate.provider !== undefined && (!isNonEmptyString(candidate.provider) || !PROVIDERS.has(candidate.provider as FunnelEventInput['provider']))) return null

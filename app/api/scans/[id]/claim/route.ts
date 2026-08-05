@@ -47,12 +47,16 @@ function claimResponse(result: ScanClaimResult) {
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const intent = verifyScanClaimIntent(req.cookies.get(CLAIM_INTENT_COOKIE)?.value ?? '')
-  const expectedReturnPath = intent ? `/${intent.lang}/result/${encodeURIComponent(id)}?claim=1` : ''
-  if (!intent || intent.scanId !== id || intent.returnPath !== expectedReturnPath) return claimUnavailable()
-
   const profile = await getProfile()
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const token = req.cookies.get(CLAIM_INTENT_COOKIE)?.value
+  if (token) {
+    const intent = verifyScanClaimIntent(token)
+    const expectedReturnPath = intent ? `/${intent.lang}/result/${encodeURIComponent(id)}?claim=1` : ''
+    if (!intent || intent.scanId !== id || intent.returnPath !== expectedReturnPath) return claimUnavailable()
+  }
+
   const result = await claimScanForAccount(id, profile.account_id)
   if (result.status === 'error') return NextResponse.json({ error: 'Failed to claim scan' }, { status: 500 })
   return claimResponse(result)
