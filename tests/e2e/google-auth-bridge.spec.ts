@@ -25,14 +25,14 @@ test.describe('top-level Google auth bridge', () => {
   test('starts once and preserves locale plus scan target in the callback', async ({ page }) => {
     const requests = await mockGoogleRedirect(page)
 
-    await page.goto('/en/auth/google?next=%2Fen%2Fonboarding%3Fscan%3Dscan-123')
+    await page.goto('/en/auth/google?next=%2Fen%2Fresult%2Fscan-123%3Fclaim%3D1')
     await expect(page).toHaveURL(url => url.hostname === 'accounts.google.com')
 
     expect(requests).toHaveLength(1)
     expect(requests[0].provider).toBe('google')
     const callback = new URL(String(requests[0].callbackURL))
     expect(callback.pathname).toBe('/en/auth/complete')
-    expect(callback.searchParams.get('next')).toBe('/en/onboarding?scan=scan-123')
+    expect(callback.searchParams.get('next')).toBe('/en/result/scan-123?claim=1')
   })
 
   test('normalizes a hostile next target before starting Google auth', async ({ page }) => {

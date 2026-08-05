@@ -64,13 +64,14 @@ test.describe('Scan to signup journey', () => {
     await expect(home.scanButton).toBeVisible()
   })
 
-  test('submits once, preserves scan context, and continues onboarding to the existing report', async ({ page }) => {
+  test('submits once, preserves scan context, and saves the report after signup', async ({ page }) => {
     test.skip(!hasSeededResult, 'Requires Supabase URL, anon key, and service-role key to seed and read the public scan fixture.')
 
     const home = new HomePage(page, 'en')
     const result = new ResultPage(page, 'en')
     let scanPosts = 0
     let authRequestBody: Record<string, unknown> | null = null
+    let claimIntentPosts = 0
 
     page.on('request', request => {
       if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/scan') scanPosts += 1
@@ -80,6 +81,10 @@ test.describe('Scan to signup journey', () => {
       contentType: 'application/json',
       body: JSON.stringify({ id: TEST_SCAN_ID }),
     }))
+    await page.route(`**/api/scans/${TEST_SCAN_ID}/claim-intent`, route => {
+      claimIntentPosts += 1
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) })
+    })
     await page.route('**/sign-in/magic-link*', route => {
       authRequestBody = route.request().postDataJSON() as Record<string, unknown>
       return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
@@ -92,27 +97,25 @@ test.describe('Scan to signup journey', () => {
     await expect(result.score).toBeVisible()
     await expect(result.topIssue).toBeVisible()
     await expect(result.fullCheckBreakdown).not.toBeVisible()
+    await expect(result.saveReportCta).toBeVisible()
     await expect(result.createAccountButton).toBeVisible()
+    await expect(page.getByRole('link', { name: /Get full access/i })).toHaveCount(0)
+    await expect.poll(() => claimIntentPosts).toBe(1)
 
     await result.submitEmail('unlock@example.com')
     await expect.poll(() => authRequestBody).not.toBeNull()
     const callback = new URL(String(authRequestBody?.callbackURL ?? authRequestBody?.callbackUrl ?? ''))
     expect(callback.pathname).toBe('/en/auth/complete')
-    expect(callback.searchParams.get('next')).toBe('/en/onboarding?scan=' + TEST_SCAN_ID)
+    expect(callback.searchParams.get('next')).toBe('/en/result/' + TEST_SCAN_ID + '?claim=1')
 
-    await page.goto('/en/onboarding?scan=' + TEST_SCAN_ID)
-    await expect(page.getByLabel('Industry (optional)')).toBeVisible()
-    await page.getByRole('button', { name: 'Continue' }).click()
-    await page.route('**/api/onboarding/complete', route => route.fulfill({
+    await page.route(`**/api/scans/${TEST_SCAN_ID}/claim`, route => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ clientId: 'client-e2e', scanId: TEST_SCAN_ID, trialEndsAt: null }),
+      body: JSON.stringify({ ok: true, alreadyOwned: false }),
     }))
-    const reportRequest = page.waitForRequest(request =>
-      new URL(request.url()).pathname === '/en/dashboard/client-e2e/result/' + TEST_SCAN_ID,
-    )
-    await page.getByRole('button', { name: 'Go to my dashboard' }).click()
-    await reportRequest
+    await page.goto('/en/result/' + TEST_SCAN_ID + '?claim=1')
+    await expect(result.claimStatus).toBeVisible()
+    await expect(result.claimStatus).toContainText(/report saved/i)
     expect(scanPosts).toBe(1)
   })
 
@@ -131,7 +134,7 @@ test.describe('Scan to signup journey', () => {
     await expect.poll(() => body).not.toBeNull()
     const callback = new URL(String(body?.callbackURL ?? body?.callbackUrl ?? ''))
     expect(callback.pathname).toBe('/zh-HK/auth/complete')
-    expect(callback.searchParams.get('next')).toBe('/zh-HK/onboarding?scan=' + TEST_SCAN_ID)
+    expect(callback.searchParams.get('next')).toBe('/zh-HK/result/' + TEST_SCAN_ID + '?claim=1')
   })
 
   test('authenticated onboarding claims the scan and renders the full existing report without rescanning', async ({ browser }) => {
