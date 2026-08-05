@@ -216,6 +216,58 @@ test.describe('Scan to signup journey', () => {
     }
   })
 
+  test('zh-HK retries a failed return claim without rescanning and keeps the retry UI localized', async ({ browser }) => {
+    test.skip(
+      !hasCredentialedFunnel,
+      'Requires the seeded Supabase fixture, Neon Auth, and an authenticated storage state to verify localized retry ownership claiming.',
+    )
+
+    const context = await browser.newContext({
+      baseURL: process.env.BASE_URL || 'http://localhost:3000',
+      storageState: authStorageState,
+    })
+    const page = await context.newPage()
+    await resetSeededScanOwnership()
+    const result = new ResultPage(page, 'zh-HK')
+    let scanPosts = 0
+    let claimPosts = 0
+
+    page.on('request', request => {
+      const parsed = new URL(request.url())
+      if (request.method() === 'POST' && parsed.pathname === '/api/scan') scanPosts += 1
+      if (request.method() === 'POST' && parsed.pathname === `/api/scans/${TEST_SCAN_ID}/claim`) claimPosts += 1
+    })
+    await page.route(`**/api/scans/${TEST_SCAN_ID}/claim`, async route => {
+      if (claimPosts === 1) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Failed to claim scan' }),
+        })
+        return
+      }
+      await route.fallback()
+    })
+
+    try {
+      await page.goto('/zh-HK/result/' + TEST_SCAN_ID + '?claim=1')
+      await expect(result.claimStatus).toContainText('暫時未能保存報告，請再試一次。')
+      await expect(result.retrySaving).toHaveText('重試保存')
+      expect(claimPosts).toBe(1)
+
+      await result.retrySaving.click()
+      await expect.poll(() => claimPosts).toBe(2)
+      await page.waitForURL('/zh-HK/result/' + TEST_SCAN_ID)
+      expect(new URL(page.url()).search).toBe('')
+      await expect(result.fullCheckBreakdown).toBeVisible()
+      await expect(result.saveReportCta).toHaveCount(0)
+      expect(scanPosts).toBe(0)
+    } finally {
+      await resetSeededScanOwnership()
+      await context.close()
+    }
+  })
+
   test('zh-HK account unlock preserves locale and scan ID', async ({ page }) => {
     test.skip(!hasSeededResult, 'Requires the seeded Supabase result fixture for localized account-unlock coverage.')
     await page.goto('/zh-HK/result/' + TEST_SCAN_ID)
