@@ -13,7 +13,6 @@ const FENCED: { path: string; feature: string; methods: string[] }[] = [
   { path: '@/app/api/clients/[clientId]/agents/recommendations/route', feature: 'agents', methods: ['POST'] },
   { path: '@/app/api/notifications/route', feature: 'notifications', methods: ['GET'] },
   { path: '@/app/api/notifications/read-all/route', feature: 'notifications', methods: ['PUT'] },
-  { path: '@/app/api/dashboard/clients/[clientId]/alerts/route', feature: 'alerts', methods: ['GET', 'PUT'] },
   { path: '@/app/api/dashboard/clients/[clientId]/prompts/route', feature: 'prompt-bank', methods: ['GET', 'POST'] },
   { path: '@/app/api/dashboard/clients/[clientId]/prompts/[promptId]/route', feature: 'prompt-bank', methods: ['PATCH', 'DELETE'] },
   { path: '@/app/api/cron/trial-emails/route', feature: 'trial-emails', methods: ['GET'] },
