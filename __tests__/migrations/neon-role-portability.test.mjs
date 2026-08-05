@@ -15,6 +15,7 @@ const MIGRATIONS = [
   '028_account_plan_overrides.sql',
   '029_scans_client_id.sql',
   '030_accounts_plan_default_basic.sql',
+  '031_pulse_weekly_summary_unique.sql',
 ]
 
 describe('Neon migration role portability', () => {

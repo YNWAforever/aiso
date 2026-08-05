@@ -110,7 +110,7 @@ proxy.ts           # Next 16 proxy (was middleware) — intl routing + auth veri
 i18n/              # next-intl routing + request config
 messages/          # en.json / zh-HK.json translation strings
 supabase/
-  migrations/      # 27 SQL migrations, 001_-030_ (no 005/006) - dir name is legacy
+  migrations/      # 28 SQL migrations, 001_-031_ (no 005/006) - dir name is legacy
 __tests__/         # Vitest tests mirroring lib/app structure
 tests/e2e/         # Playwright specs + page objects
 scripts/           # migrate.ts (npm run migrate), run-tests.mjs (npm test), seed-packs.ts
@@ -269,7 +269,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 
 ## Database (Neon Postgres)
 
-- Migrations in `supabase/migrations/` — 27 files, `001_`–`030_` (no 005/006; directory name is legacy;
+- Migrations in `supabase/migrations/` — 28 files, `001_`–`031_` (no 005/006; directory name is legacy;
   the target is now Neon)
 - **A migration runner now exists:** `scripts/migrate.ts`, run via `npm run migrate`. It
   applies every file absent from the `schema_migrations` ledger, in filename order, each in
@@ -279,9 +279,10 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   what stops it re-applying the migrations that were applied by hand before it existed.
   Baseline production once before the first real run, excepting **every** migration that has
   not actually been applied yet — currently `--baseline --except 027_client_report_snapshots.sql
-  --except 029_scans_client_id.sql --except 030_accounts_plan_default_basic.sql`. Anything you
+  --except 029_scans_client_id.sql --except 030_accounts_plan_default_basic.sql
+  --except 031_pulse_weekly_summary_unique.sql`. Anything you
   forget to except is recorded as applied without ever running.
-- Applied as of 2026-07-26: `001`–`026` and `028`. **Pending: `027`, `029`, `030`** — confirm
+- Applied as of 2026-07-26: `001`–`026` and `028`. **Pending: `027`, `029`, `030`, `031`** — confirm
   against `select filename from schema_migrations` before baselining, since that snapshot is
   only as fresh as this line. Slice 6 (client reports) applies `027`. It was edited to
   apply cleanly — it previously duplicated `021`'s `clients_id_account_id_unique`
