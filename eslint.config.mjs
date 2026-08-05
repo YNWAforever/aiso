@@ -18,11 +18,14 @@ const eslintConfig = defineConfig([
     // longer resolves. supabase-js does not throw on a dead host — it resolves
     // to { data: null, error } — so a new import here fails silently in
     // production rather than loudly in review.
+    // Includes .mjs/.js/.cjs deliberately. Scoped to {ts,tsx}, this rule never
+    // read scripts/run-pulse.mjs, which imported @supabase/supabase-js the whole
+    // time the rule was supposedly preventing exactly that.
     files: [
-      "app/**/*.{ts,tsx}",
-      "lib/**/*.{ts,tsx}",
-      "components/**/*.{ts,tsx}",
-      "scripts/**/*.{ts,tsx}",
+      "app/**/*.{ts,tsx,mjs,js,cjs}",
+      "lib/**/*.{ts,tsx,mjs,js,cjs}",
+      "components/**/*.{ts,tsx,mjs,js,cjs}",
+      "scripts/**/*.{ts,tsx,mjs,js,cjs}",
     ],
     rules: {
       "no-restricted-imports": [
@@ -40,6 +43,25 @@ const eslintConfig = defineConfig([
                 "These shims point at a deleted project. Use db() from @/lib/db (tagged templates only).",
             },
           ],
+        },
+      ],
+    },
+  },
+  {
+    // A check that reaches the network with the global fetch bypasses
+    // lib/security/public-url.ts entirely: no DNS pinning, and redirects are
+    // followed with no revalidation, so a 302 to 169.254.169.254 lands. Every
+    // check takes a PublicUrlFetch precisely so the scan route can inject the
+    // guarded one — checkMcpCard silently did not, which is the bug this rule
+    // exists to stop recurring.
+    files: ["lib/checks/**/*.ts"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          name: "fetch",
+          message:
+            "Checks must use the injected PublicUrlFetch. Bare fetch() skips the SSRF boundary in lib/security/public-url.ts and follows redirects unvalidated.",
         },
       ],
     },

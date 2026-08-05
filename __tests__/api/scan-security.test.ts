@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
+import { checkRobots } from '@/lib/checks/robots'
+import { checkLlmsTxt } from '@/lib/checks/llmsTxt'
+import { checkBotAccess } from '@/lib/checks/botAccess'
+import { checkStructuredData } from '@/lib/checks/structuredData'
+import { checkExtractability } from '@/lib/checks/extractability'
+import { checkLlmsFullTxt } from '@/lib/checks/llmsFullTxt'
+import { checkMcpCard } from '@/lib/checks/mcpCard'
+import { checkSitemap } from '@/lib/checks/sitemap'
+import { checkTopicalAuthority } from '@/lib/checks/topicalAuthority'
 
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test'
 
@@ -25,10 +34,13 @@ const state = vi.hoisted(() => ({
 const getProfileMock = vi.hoisted(() => vi.fn(async () => state.profile))
 const clientLookupMock = vi.hoisted(() => vi.fn((id: string) => (state.client && state.client.id === id ? [state.client] : [])))
 
+const fetchPublicUrlMock = vi.hoisted(() =>
+  vi.fn((input: string | URL | Request, init?: RequestInit) => fetch(input, init)))
+
 vi.mock('@/lib/auth', () => ({ getProfile: getProfileMock }))
 vi.mock('@/lib/security/public-url', () => ({
   PublicUrlError: class PublicUrlError extends Error {},
-  fetchPublicUrl: (input: string | URL | Request, init?: RequestInit) => fetch(input, init),
+  fetchPublicUrl: fetchPublicUrlMock,
 }))
 vi.mock('@/lib/security/authenticated-scan-quota', () => ({
   consumeAuthenticatedScanQuota: vi.fn().mockResolvedValue({
@@ -43,7 +55,10 @@ vi.mock('@/lib/security/authenticated-scan-quota', () => ({
   }),
 }))
 
-const passing = { status: 'pass', message: 'ok' }
+// Hoisted: the vi.mock factories below close over this, and importing the check
+// modules at the top of the file makes those factories run before a plain const
+// would be initialised.
+const passing = vi.hoisted(() => ({ status: 'pass', message: 'ok' }))
 vi.mock('@/lib/checks/robots',          () => ({ checkRobots:          vi.fn().mockResolvedValue(passing) }))
 vi.mock('@/lib/checks/llmsTxt',         () => ({ checkLlmsTxt:         vi.fn().mockResolvedValue(passing) }))
 vi.mock('@/lib/checks/botAccess',       () => ({ checkBotAccess:       vi.fn().mockResolvedValue(passing) }))
@@ -104,8 +119,25 @@ describe('POST /api/scan security boundaries', () => {
     state.client = null
     state.rateCount = 0
     fetchMock.mockClear()
+    fetchPublicUrlMock.mockClear()
     getProfileMock.mockClear()
     clientLookupMock.mockClear()
+    // The check mocks are module-level, so without this their calls accumulate
+    // across every test in the file and any per-test assertion about what a
+    // check received reads some earlier test's invocation instead.
+    for (const check of [
+      checkRobots,
+      checkLlmsTxt,
+      checkBotAccess,
+      checkStructuredData,
+      checkExtractability,
+      checkLlmsFullTxt,
+      checkMcpCard,
+      checkSitemap,
+      checkTopicalAuthority,
+    ]) {
+      vi.mocked(check).mockClear()
+    }
   })
 
   it.each([
@@ -222,5 +254,66 @@ describe('POST /api/scan security boundaries', () => {
     const resetDelay = Number(denied.headers.get('ratelimit-reset'))
     expect(resetDelay).toBeGreaterThan(0)
     expect(denied.headers.get('retry-after')).toBe(String(resetDelay))
+  })
+
+  describe('sitemapUrls validation', () => {
+    it.each([
+      // A bare string has .length, so it passed the route's emptiness check,
+      // skipped the sitemap fetch, and reached checkTopicalAuthority as a string.
+      ['a bare string', 'https://example.com/sitemap.xml'],
+      ['a non-string element', [123]],
+      ['an unparseable element', ['not a url']],
+      ['a file: url', ['file:///etc/passwd']],
+      ['more than 200 entries', Array.from({ length: 201 }, (_, i) => `https://example.com/${i}`)],
+    ])('rejects %s with 400 before running any check', async (_label, sitemapUrls) => {
+      const response = await scan({ url: 'https://example.com', sitemapUrls })
+
+      expect(response.status).toBe(400)
+      await expect(response.json()).resolves.toEqual({ error: 'Invalid sitemapUrls' })
+      expect(vi.mocked(checkTopicalAuthority)).not.toHaveBeenCalled()
+    })
+
+    it('rejects before consuming the anonymous rate-limit allowance', async () => {
+      // Validation sits at the body-parsing boundary precisely so a malformed
+      // request cannot buy a session lookup, a DB query, or an allowance slot.
+      const before = state.rateCount
+      await scan({ url: 'https://example.com', sitemapUrls: 'nope' })
+
+      expect(state.rateCount).toBe(before)
+    })
+
+    it('passes a valid list straight through without fetching /sitemap.xml', async () => {
+      const sitemapUrls = ['https://example.com/a/b', 'https://example.com/c/d']
+      const response = await scan({ url: 'https://example.com', sitemapUrls })
+
+      expect(response.status).toBe(200)
+      expect(vi.mocked(checkTopicalAuthority).mock.calls[0][0]).toEqual(sitemapUrls)
+      expect(fetchPublicUrlMock.mock.calls.map(call => String(call[0])))
+        .not.toContain('https://example.com/sitemap.xml')
+    })
+  })
+
+  // The bug this guards against lived here, not inside any one check: every
+  // network check took a fetcher, the route injected the guarded one into
+  // seven of them, and checkMcpCard was simply left out of the wiring. A test
+  // of mcpCard alone cannot see that; only the call site can.
+  it('injects the guarded fetcher into every network check', async () => {
+    const response = await scan({ url: 'https://example.com' })
+    expect(response.status).toBe(200)
+
+    // checkMcpCard takes (baseUrl, html, fetcher) — the fetcher is third.
+    expect(vi.mocked(checkMcpCard).mock.calls[0][2]).toBe(fetchPublicUrlMock)
+
+    for (const check of [
+      checkRobots,
+      checkLlmsTxt,
+      checkBotAccess,
+      checkStructuredData,
+      checkExtractability,
+      checkLlmsFullTxt,
+      checkSitemap,
+    ]) {
+      expect(vi.mocked(check).mock.calls[0][1]).toBe(fetchPublicUrlMock)
+    }
   })
 })

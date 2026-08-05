@@ -3,11 +3,17 @@
  * Covers: llmsFullTxt, sitemap, metaDescription, headingStructure, faqDetection,
  *         canonical, serverText, internalLinks, entitySignals, contentFreshness, mcpCard
  */
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
+import { forbidGlobalFetch } from '../helpers/forbid-global-fetch'
 
-// Mock fetch for any URL-fetching checks
+// Injected into every network check, exactly as the scan route injects
+// fetchPublicUrl. The global is made hostile so a check that reaches for it
+// instead of its fetcher parameter fails loudly rather than hitting the network.
 const fetchMock = vi.fn()
-vi.stubGlobal('fetch', fetchMock)
+beforeEach(() => {
+  fetchMock.mockReset()
+  forbidGlobalFetch()
+})
 
 // ── HTML fixtures ──────────────────────────────────────────────
 const currentYear = new Date().getFullYear()
@@ -243,21 +249,21 @@ describe('checkLlmsFullTxt', () => {
       '# Fimmick AISO\n> AI search optimisation platform\n\nhttps://fimmick.com/guide\nhttps://fimmick.com/pricing\nhttps://fimmick.com/blog\nhttps://fimmick.com/docs\nhttps://fimmick.com/about',
       { status: 200 }
     ))
-    const r = await checkLlmsFullTxt('https://example.com')
+    const r = await checkLlmsFullTxt('https://example.com', fetchMock)
     expect(r.status).toBe('pass')
   })
 
   it('returns fail when llms-full.txt not found (404)', async () => {
     const { checkLlmsFullTxt } = await import('@/lib/checks/llmsFullTxt')
     fetchMock.mockResolvedValueOnce(new Response('Not Found', { status: 404 }))
-    const r = await checkLlmsFullTxt('https://example.com')
+    const r = await checkLlmsFullTxt('https://example.com', fetchMock)
     expect(r.status).toBe('fail')
   })
 
   it('returns fail for empty llms-full.txt', async () => {
     const { checkLlmsFullTxt } = await import('@/lib/checks/llmsFullTxt')
     fetchMock.mockResolvedValueOnce(new Response('', { status: 200 }))
-    const r = await checkLlmsFullTxt('https://example.com')
+    const r = await checkLlmsFullTxt('https://example.com', fetchMock)
     expect(r.status).toBe('fail')
   })
 })
@@ -270,14 +276,14 @@ describe('checkMcpCard', () => {
       JSON.stringify({ mcpVersion: '1.0', name: 'Fimmick AISO', tools: [] }),
       { status: 200, headers: { 'content-type': 'application/json' } }
     ))
-    const r = await checkMcpCard('https://example.com', HTML_BARE)
+    const r = await checkMcpCard('https://example.com', HTML_BARE, fetchMock)
     expect(['pass', 'warn']).toContain(r.status)
   })
 
   it('returns fail when no MCP card found', async () => {
     const { checkMcpCard } = await import('@/lib/checks/mcpCard')
     fetchMock.mockResolvedValue(new Response('Not Found', { status: 404 }))
-    const r = await checkMcpCard('https://example.com', HTML_BARE)
+    const r = await checkMcpCard('https://example.com', HTML_BARE, fetchMock)
     expect(r.status).toBe('fail')
   })
 })
@@ -297,14 +303,14 @@ describe('checkSitemap', () => {
     fetchMock.mockResolvedValueOnce(new Response('User-agent: *\nSitemap: https://example.com/sitemap.xml\n', { status: 200 }))
     // sitemap.xml itself
     fetchMock.mockResolvedValueOnce(new Response(sitemapXml, { status: 200 }))
-    const r = await checkSitemap('https://example.com')
+    const r = await checkSitemap('https://example.com', fetchMock)
     expect(['pass', 'warn']).toContain(r.status)
   })
 
   it('returns fail when all sitemap locations return 404', async () => {
     const { checkSitemap } = await import('@/lib/checks/sitemap')
     fetchMock.mockResolvedValue(new Response('Not Found', { status: 404 }))
-    const r = await checkSitemap('https://example.com')
+    const r = await checkSitemap('https://example.com', fetchMock)
     expect(r.status).toBe('fail')
   })
 })

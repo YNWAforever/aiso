@@ -1,7 +1,7 @@
 import type { PublicUrlFetch } from '@/lib/security/public-url'
 import type { CheckResult } from '@/lib/types'
 
-export async function checkExtractability(url: string, fetcher: PublicUrlFetch = fetch): Promise<CheckResult> {
+export async function checkExtractability(url: string, fetcher: PublicUrlFetch): Promise<CheckResult> {
   try {
     const res = await fetcher(url, {
       headers: { 'User-Agent': 'Fimmick-AEO/1.0' },

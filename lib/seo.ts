@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
+import { appOrigin } from '@/lib/app-origin'
 import { PRODUCT_FACTS } from '@/lib/product-facts'
 
-export const SITE_URL = new URL(
-  process.env.NEXT_PUBLIC_APP_URL ?? 'https://fimmick-aeo-oitb.vercel.app',
-)
+export const SITE_URL = new URL(appOrigin())
 
 export function localizedUrl(locale: string, path = ''): string {
   const suffix = path ? `/${path.replace(/^\//, '')}` : ''

@@ -47,7 +47,12 @@ describe('POST /api/webhooks/neon', () => {
       if (/neon_auth\.user/i.test(text)) {
         return authLookupError ? Promise.reject(authLookupError) : Promise.resolve(authUserRows)
       }
-      if (/from profiles/i.test(text)) return Promise.resolve(profileRows)
+      // Must exclude the inserts before matching the probe: the accounts insert
+      // also mentions `from profiles`, in the `not exists` subquery that makes
+      // it idempotent. The route never reads these return values, so routing
+      // them to profileRows was harmless but misleading.
+      if (/insert into/i.test(text)) return Promise.resolve([])
+      if (/select id\s+from profiles/i.test(text)) return Promise.resolve(profileRows)
       // Return value of the insert-building calls is never read by the route.
       return Promise.resolve([])
     })
@@ -164,8 +169,8 @@ describe('POST /api/webhooks/neon', () => {
     expect(res.status).toBe(200)
     expect((await res.json()).ok).toBe(true)
 
-    // 1 auth-DB lookup + 1 idempotency check + 2 queries built for the batch.
-    expect(sqlMock).toHaveBeenCalledTimes(4)
+    // 1 auth-DB lookup + 1 idempotency check + 3 queries built for the batch.
+    expect(sqlMock).toHaveBeenCalledTimes(5)
     expect(transactionMock).toHaveBeenCalledTimes(1)
 
     const [authStrings, authUserId] = sqlMock.mock.calls[0]
@@ -175,21 +180,50 @@ describe('POST /api/webhooks/neon', () => {
     const [, checkedUserId] = sqlMock.mock.calls[1]
     expect(checkedUserId).toBe('user-123')
 
-    const [accountStrings, accountId] = sqlMock.mock.calls[2]
+    // The lock has to come first in the batch; taking it after the accounts
+    // insert would leave the very window it exists to close.
+    const [lockStrings, lockUserId] = sqlMock.mock.calls[2]
+    expect(queryText(lockStrings)).toMatch(/pg_advisory_xact_lock/i)
+    expect(lockUserId).toBe('user-123')
+
+    const [accountStrings, accountId] = sqlMock.mock.calls[3]
     expect(queryText(accountStrings)).toMatch(/insert into accounts/i)
     expect(typeof accountId).toBe('string')
     expect((accountId as string).length).toBeGreaterThan(0)
 
-    const [profileStrings, profileUserId, profileAccountId, profileName] = sqlMock.mock.calls[3]
+    const [profileStrings, profileUserId, profileAccountId, profileName] = sqlMock.mock.calls[4]
     expect(queryText(profileStrings)).toMatch(/insert into profiles/i)
     expect(profileUserId).toBe('user-123')
     expect(profileName).toBe('New User')
     // The profile must link to the exact account id created alongside it.
     expect(profileAccountId).toBe(accountId)
 
-    // Both inserts were submitted together as a single atomic transaction.
+    // Lock + both inserts submitted together as a single atomic transaction.
     const [txnQueries] = transactionMock.mock.calls[0]
-    expect(txnQueries).toHaveLength(2)
+    expect(txnQueries).toHaveLength(3)
+  })
+
+  // Shape assertions, not a real race — the mock harness has one shared
+  // profileRows array with no per-call sequencing, so it cannot express two
+  // interleaved deliveries. __tests__/integration/webhook-provisioning-race
+  // proves the actual behaviour against a live branch.
+  it('guards the accounts insert on no profile having been provisioned', async () => {
+    const { POST } = await import('@/app/api/webhooks/neon/route')
+    await POST(userCreatedRequest())
+
+    const accountsInsert = queryText(sqlMock.mock.calls[3][0])
+    expect(accountsInsert).toMatch(/where not exists/i)
+    expect(accountsInsert).toMatch(/from profiles/i)
+    expect(accountsInsert).toMatch(/account_id is not null/i)
+  })
+
+  it('guards the profiles insert on the account it just created', async () => {
+    const { POST } = await import('@/app/api/webhooks/neon/route')
+    await POST(userCreatedRequest())
+
+    // Without this the FK could see a dangling account_id when the accounts
+    // insert was suppressed by the guard above.
+    expect(queryText(sqlMock.mock.calls[4][0])).toMatch(/where exists/i)
   })
 
   it('short-circuits to 200 without provisioning when the profile already exists (redelivered webhook)', async () => {

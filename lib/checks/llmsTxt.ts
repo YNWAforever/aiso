@@ -1,7 +1,7 @@
 import type { PublicUrlFetch } from '@/lib/security/public-url'
 import type { CheckResult } from '@/lib/types'
 
-export async function checkLlmsTxt(baseUrl: string, fetcher: PublicUrlFetch = fetch): Promise<CheckResult> {
+export async function checkLlmsTxt(baseUrl: string, fetcher: PublicUrlFetch): Promise<CheckResult> {
   const url = new URL('/llms.txt', baseUrl).toString()
   try {
     const res = await fetcher(url, {

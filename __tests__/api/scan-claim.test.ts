@@ -152,4 +152,19 @@ describe('POST /api/scans/[id]/claim', () => {
 
     expect(response.status).toBe(500)
   })
+
+  it('degrades to a fixed response when the signing secret is unusable', async () => {
+    // verifyScanClaimIntent calls the secret accessor inside its own try/catch
+    // and returns null, so a missing or too-short REPORT_SHARE_SECRET can never
+    // escape this handler as an unhandled 500. Pinned because the route calls it
+    // unwrapped — if a refactor ever lets it throw, that becomes a crash.
+    const token = claimIntent()
+    process.env.REPORT_SHARE_SECRET = 'too-short'
+
+    const response = await claim('scan-1', token)
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'Claim unavailable' })
+    expect(mockSql).not.toHaveBeenCalled()
+  })
 })

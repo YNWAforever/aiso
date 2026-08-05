@@ -50,7 +50,9 @@ npm run dev        # start dev server (localhost:3000)
 npm run build      # production build
 npm run start      # serve production build
 npm run lint       # ESLint (warnings only today; 0 errors)
-npm run test       # Vitest (single run)
+npm run test       # unit + integration (integration skips loudly without neonctl)
+npm run test:unit  # unit only
+npm run test:integration  # integration only — always requires neonctl
 npm run test:watch # Vitest watch mode
 npm run e2e        # Playwright E2E (needs a dev server, or START_DEV_SERVER=1)
 ```
@@ -80,9 +82,9 @@ app/
     authority/     # Domain authority scoring
     cron/          # Cron job triggers
   admin/           # Internal admin pages (app/admin/layout.tsx -> requireAdmin).
-                   # WARNING - UNREACHABLE today: proxy.ts's matcher does not exclude
-                   # /admin and next-intl defaults localePrefix to 'always', so
-                   # GET /admin 307s to /en/admin, which has no page -> 404.
+                   # Reachable: proxy.ts's matcher now excludes /admin, so it no
+                   # longer 307s to a non-existent /en/admin. A separate localised
+                   # app/[lang]/admin/authority/ page DOES go through intl routing.
 components/        # React UI components
   ui/              # shadcn/ui base components
   dashboard/       # Dashboard-specific components (+ local-trust/)
@@ -92,8 +94,8 @@ components/        # React UI components
 lib/
   checks/          # 20 AEO check modules, named by domain (robots.ts, llmsTxt.ts, ...)
                    # NOT c1.ts-c20.ts - see Checks Architecture below
-  authority/       # Domain authority engine: 5 layer modules, but computeAuthority()
-                   # wires only layers 1-4. Layer 5 is an optional arg no caller passes.
+  authority/       # Domain authority engine: 4 layer modules. computeAuthority()'s
+                   # 5th "dynamicBoost" slot is an optional arg no caller passes.
   localTrust/      # Local trust scoring + ROI engine
   db.ts            # db() — Neon serverless SQL singleton  ← use this
   auth.ts          # getProfile() — reads Neon Auth session server-side
@@ -108,10 +110,10 @@ proxy.ts           # Next 16 proxy (was middleware) — intl routing + auth veri
 i18n/              # next-intl routing + request config
 messages/          # en.json / zh-HK.json translation strings
 supabase/
-  migrations/      # 20 SQL migrations, 001_-022_ (no 005/006) - dir name is legacy
+  migrations/      # 27 SQL migrations, 001_-030_ (no 005/006) - dir name is legacy
 __tests__/         # Vitest tests mirroring lib/app structure
 tests/e2e/         # Playwright specs + page objects
-scripts/           # Utility scripts (seed, pulse runner)
+scripts/           # migrate.ts (npm run migrate), run-tests.mjs (npm test), seed-packs.ts
 n8n/               # n8n workflow exports (JSON) + deploy/credential shell scripts
 ```
 
@@ -137,13 +139,13 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   its queries in `try/catch` and returns 5xx. Keep it that way: a 2xx must mean the write
   happened.
 - Deployment config lives outside the code and is easy to miss: `vercel.json` sets
-  `maxDuration` (60s scan, 30s fix) and one cron; its `functions` keys are **literal paths,
+  `maxDuration` (60s scan, 30s fix) and nothing else — no cron. Its `functions` keys are **literal paths,
   not prefixes**, so `fix/`'s subroutes inherit nothing despite also calling OpenRouter.
   `next.config.ts` declares two permanent redirects that fire *before* `proxy.ts`.
-- `.worktrees/` holds four live git worktrees (gitignored, so `git status` hides them;
-  `codex/ui-polish` is 18 commits ahead and unmerged — don't prune). Raw `grep`/`find` need
-  `--exclude-dir=.worktrees` or they return ~5× duplicates. Also note `npm run lint` ≠
-  `npx eslint .` — the ignores are CLI flags in `package.json`, not in `eslint.config.mjs`.
+- `npm run lint` ≠ `npx eslint .` — the ignores are CLI flags in `package.json`, not in
+  `eslint.config.mjs`. Several of those flags (`.worktrees/`, `.codex/`, `.opencode/`) are
+  vestigial: no such directories exist any more, and `git worktree list` shows a single
+  worktree. The same dead paths linger in `tsconfig.json` and `vitest.config.ts` excludes.
 - Lazy singletons: `db()` and `auth()` defer client construction. This genuinely protects the
   build for `db()` — `next build` succeeds with `DATABASE_URL` unset. It does **not** protect
   `auth()`: `app/api/auth/[...path]/route.ts` calls `auth().handler()` at module scope, so
@@ -159,29 +161,40 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
 
 **A new page or API route is unprotected unless it gates itself.** There is no global gate.
 
-`proxy.ts` runs intl routing only, and its matcher `['/((?!api|_next|.*\\..*).*)']` **skips
-`/api` entirely**. (Sole exception: a sign-in return carrying *both* the verifier param and
-the challenge cookie is delegated to the SDK middleware.) Layouts never run for `app/api/**`.
+`proxy.ts` runs intl routing only, and its matcher `['/((?!api|admin|_next|.*\\..*).*)']`
+**skips `/api` entirely** (and `/admin`, so that unlocalised subtree is reachable rather than
+307ing to a non-existent `/en/admin`). Sole exception: a sign-in return carrying *both* the
+verifier param and the challenge cookie is delegated to the SDK middleware. Layouts never run
+for `app/api/**`.
 
 Enforcement lives in three places, all via `lib/auth.ts`:
 1. **Route-group layouts** — `app/[lang]/dashboard/layout.tsx` → `requireAuth(lang)`;
    `app/admin/layout.tsx` → `requireAdmin()`. A layout covers only its own subtree.
-2. **Per-page** outside those subtrees — e.g. `app/[lang]/pulse/[clientId]/page.tsx`.
-   Dashboard pages also re-call `requireAuth` on top of the layout; keep doing that.
+2. **Per-page** outside those subtrees — e.g. `app/[lang]/admin/authority/page.tsx`, which is
+   localised and so does go through intl routing. Dashboard pages also re-call `requireAuth`
+   on top of the layout; keep doing that.
 3. **Per-route-handler** — every handler must gate itself with `requireAuth()`,
-   `requireAdmin()`, `getProfile()` + null-check, a `CRON_SECRET` check, or webhook-signature
-   verification — **and filter by `profile.account_id`, never a caller-supplied id.**
+   `requireAdmin()`, `requireApiAdmin()` (`lib/admin-guard.ts`, the API-shaped variant that
+   returns a response instead of redirecting), `getProfile()` + null-check, or
+   webhook-payload verification — **and filter by `profile.account_id`, never a
+   caller-supplied id.**
 
-> ⚠️ **13 API routes are currently ungated** (excluding `auth/[...path]` and `scan/lead`,
-> which are public by design): `authority/score`, `authority/score-bulk`,
-> `authority/diagnostics/[domain]`, `fix`, `fix/cluster-map`, `fix/content-brief`,
-> `fix/rewrite-chunks`, `onboarding/complete`, `pulse/onboard`, `pulse/suggest-questions`,
-> `pulse/[clientId]/summary`, `pulse/[clientId]/missed`, `webhooks/neon`.
-> `webhooks/neon` is **live on Neon and verifies no signature** — any POST can provision
-> `accounts` + `profiles` rows. `fix/*` and `authority/score*` are live and call OpenRouter
-> unmetered. The rest currently fail closed only by accident, because they hit the dead
-> Supabase host — **migrating one to Neon without adding a gate turns it into a real hole**
-> (e.g. `pulse/[clientId]/summary` reads by `clientId` with no ownership check).
+> **Three routes are intentionally public**, and no others: `auth/[...path]` (the Neon Auth
+> catch-all), `funnel-events` (redacted telemetry only, 2 KiB body cap, rate-limited), and
+> `scans/[id]/claim-intent` (rate-limited, issues a signed cookie). `webhooks/neon` is public
+> in the sense that anyone can POST it, but it authenticates every payload against
+> `neon_auth.user` — `@neondatabase/auth` ships no webhook signing, so that lookup is the
+> only authentication it has. Do not remove it.
+>
+> **Grep is not a reliable gate check here.** `app/api/client-reports/**` and
+> `report-branding` look ungated in their own files: they delegate to `lib/reports/service.ts`,
+> which calls `getProfile()` and filters by `account_id`. Read the callee before concluding a
+> route is open.
+>
+> Routes whose feature is fenced return `503 FEATURE_UNAVAILABLE` via `lib/unavailable.ts`
+> (all of `pulse/*`, `fix/cluster-map`, `fix/content-brief`, `notifications/*`, `cron/*`,
+> `local-trust/*`, `prompts/*`, `agents/*`). A fence is not a gate — **restoring one of these
+> means adding a real gate, not just deleting the `featureUnavailable` call.**
 
 Sign-in completes **client-side**: `LoginForm` / `TrialCta` set `callbackURL` to
 `/{lang}/auth/complete`, and `components/auth/AuthComplete.tsx` exchanges the session
@@ -212,9 +225,25 @@ checks are concurrent. A new GEO check inherits two blocking fetches on its crit
 Each check returns `CheckResult`. The four GEO checks return `CheckResult & { geoDetails? }`;
 the route stores that as `<key>_data` in the `scans.results` JSONB — omit it and the payload
 is silently lost. **Argument shapes are not uniform** — read the signature before calling:
-c1–c5 and c6/c8 take `(baseUrl)`; c7 is `(baseUrl, html)`; c9–c16 are `(html, baseUrl)`;
-c17 is `(html, baseUrl, ctx)`; c18/c20 are `(html, ctx)`; c19 is `(sitemapUrls, clientId,
-industry)`. `checkMcpCard`'s reversed order typechecks fine and fails silently.
+c1–c6 and c8 are `(baseUrl, fetcher)`; c7 is `(baseUrl, html, fetcher)`; c9–c16 are sync
+`(html, baseUrl)` with no fetcher; c17 is `(html, baseUrl, ctx)`; c18/c20 are `(html, ctx)`;
+c19 is `(sitemapUrls, clientId, industry)`.
+
+**Every network check takes a required `PublicUrlFetch` last — there is no default.** The scan
+route injects `fetchPublicUrl` (`lib/security/public-url.ts`), which pins DNS and revalidates
+every redirect hop. A bare `fetch()` inside a check is blind SSRF: `checkMcpCard` did exactly
+that, and a public host answering `302 → 169.254.169.254` reached link-local space. Two guards
+now exist — an ESLint `no-restricted-globals` rule over `lib/checks/**`, and a wiring assertion
+in `__tests__/api/scan-security.test.ts` that every check received the injected fetcher, which
+is the level the bug actually lived at.
+
+`checkMcpCard`'s reversed order still typechecks fine and still fails silently — `baseUrl` and
+`html` are both bare `string`, and swapping them makes all four probes throw inside their own
+`catch`, so the check returns a plausible `mcp_card_missing` with no error anywhere. The
+fetcher parameter does not mitigate this; it is third.
+
+c19 defends itself: it normalises its first argument through `lib/security/sitemap-urls.ts`
+rather than trusting the caller, because that value originates in the request body.
 
 Checks degrade rather than throw, using **domain-specific** messages
 (`headings_missing`, …). `{ status: 'fail', message: 'check_error' }` is the route's own
@@ -227,7 +256,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 
 ## Database (Neon Postgres)
 
-- Migrations in `supabase/migrations/` — numbered `001_`–`028_` (directory name is legacy;
+- Migrations in `supabase/migrations/` — 27 files, `001_`–`030_` (no 005/006; directory name is legacy;
   the target is now Neon)
 - **A migration runner now exists:** `scripts/migrate.ts`, run via `npm run migrate`. It
   applies every file absent from the `schema_migrations` ledger, in filename order, each in
@@ -235,21 +264,26 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   migrations as applied without running them.
   **It refuses to run against a populated database with an empty ledger** — that guard is
   what stops it re-applying the migrations that were applied by hand before it existed.
-  Baseline production once (`--baseline --except 027_client_report_snapshots.sql`) before
-  the first real run.
-- Applied as of 2026-07-26: `001`–`026` and `028`. **`027_client_report_snapshots.sql` is
-  the sole pending migration**, and Slice 6 (client reports) applies it. It was edited to
+  Baseline production once before the first real run, excepting **every** migration that has
+  not actually been applied yet — currently `--baseline --except 027_client_report_snapshots.sql
+  --except 029_scans_client_id.sql --except 030_accounts_plan_default_basic.sql`. Anything you
+  forget to except is recorded as applied without ever running.
+- Applied as of 2026-07-26: `001`–`026` and `028`. **Pending: `027`, `029`, `030`** — confirm
+  against `select filename from schema_migrations` before baselining, since that snapshot is
+  only as fresh as this line. Slice 6 (client reports) applies `027`. It was edited to
   apply cleanly — it previously duplicated `021`'s `clients_id_account_id_unique`
   constraint, used `gen_random_bytes()` without enabling `pgcrypto`, and granted to the
   Supabase roles `anon` / `authenticated` / `service_role`, which do not exist under Neon.
-- Neon also has tables with no migration file (`stripe_webhook_events`,
+- The four tables that once had no migration file (`stripe_webhook_events`,
   `public_scan_rate_limits`, `authenticated_scan_monthly_usage`,
-  `stripe_subscription_processing_leases`) — added out-of-band.
+  `stripe_subscription_processing_leases`) were backfilled into `023`–`025`.
 - Key tables: `scans`, `clients`, `accounts`, `profiles`, `pulse_weekly_summary` (**singular**),
   `pulse_metrics`, `notifications`, `prompt_bank`
 - Neon Auth owns the `neon_auth` schema (`neon_auth.user`, `.session`, …). `profiles.id` FKs
   to `neon_auth.user` (migration `022`).
-- **RLS is enabled but inert — never rely on it.** 22 of 27 public tables still have
+- **RLS is enabled but inert — never rely on it.** *(Counts below are unverified — they need
+  a live connection to check `pg_class.relrowsecurity`, `pg_policies` and `pg_roles`. The
+  conclusion holds regardless: nothing here is a backstop.)* 22 of 27 public tables still have
   `relrowsecurity = true` carrying 21 leftover Supabase-era policies that call `auth.uid()`.
   They never fire: the app connects as `neondb_owner`, which has `rolbypassrls = true`, and
   no table sets FORCE ROW LEVEL SECURITY — so `row_security_active()` is false everywhere.
@@ -262,15 +296,24 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 ## Testing
 
 - Framework: **Vitest** with `globals: true`, `environment: node`
-- Test files: `__tests__/**/*.test.ts` plus one `.tsx`. Mirroring is inconsistent:
-  `__tests__/checks/` -> `lib/checks/`, `__tests__/api/` -> `app/api/`, and
-  `__tests__/config/` mirrors no source at all.
+- Test files: `__tests__/**/*.test.ts`, plus 7 `.tsx` and 5 `.mjs`. Mirroring is inconsistent:
+  `__tests__/checks/` -> `lib/checks/`, `__tests__/api/` -> `app/api/`, while
+  `__tests__/config/`, `__tests__/migrations/` and `__tests__/scripts/` assert on config,
+  SQL files and the test runner rather than mirroring a source module.
 - **Nothing typechecks the tests.** `tsconfig.json` excludes them and there is no
   `typecheck` script - a type error in a test compiles, runs, and passes green.
-- Run: `npm test` (313 tests / 40 files currently pass)
-- Tests mock the DB client and `fetch` — do not hit the real DB in tests
-- **Caveat:** many suites mock the *Supabase* client, so they pass for routes that are
-  broken in production. A green suite is not evidence a Supabase-backed route works.
+- Run: `npm test` (unit: 106 files / 1141 tests currently pass)
+- **`npm test` runs two projects**, unit then integration, via `scripts/run-tests.mjs`. The
+  integration project provisions a real Neon branch and needs `neonctl` on PATH and
+  authenticated. Without it that project is **skipped**, with a banner printed after the run
+  so it cannot scroll out of view — a skip is not a pass. Naming an integration test
+  explicitly, or setting `REQUIRE_INTEGRATION_TESTS=1`, fails instead of skipping.
+  **`REQUIRE_INTEGRATION_TESTS=1 npm test` is the command that proves the full suite ran.**
+- Unit tests mock the DB client and `fetch` — do not hit the real DB in the unit project
+- **Caveat:** a suite that mocks the thing it is testing proves little. Two live examples of
+  the failure mode: the funnel-events route test passed via the rate limiter's fail-open path
+  until the limiter was mocked explicitly, and the scan-security suite reused module-level
+  check mocks across tests, so per-test argument assertions read an earlier test's call.
 - `vitest.config.ts` stubs `next/headers` and inlines `@neondatabase/auth` so its compiled
   server module loads under Node — see `__tests__/stubs/next-headers.ts`
 - E2E: Playwright in `tests/e2e/` with page objects; `npm run e2e`
@@ -292,35 +335,41 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `lib/stripe.ts` and `app/api/stripe/webhook/route.ts`. **Not in `.env.local`** — locally,
   checkout sends an undefined price id and webhook tier resolution falls through to `basic`.
 - `RESEND_API_KEY` · `OPENROUTER_API_KEY` · `NEXT_PUBLIC_APP_URL` · `N8N_SCAN_WEBHOOK_URL`
-- `CRON_SECRET` — guards `/api/cron/*`. Note the two cron routes disagree on how:
-  `trial-emails` is GET + `Authorization: Bearer`; `evaluate-alerts` is POST +
-  `x-cron-secret` and is scheduled by nothing. Prefer `x-cron-secret` for new routes.
+- `PUBLIC_SCAN_RATE_LIMIT_SECRET` / `REPORT_SHARE_SECRET` — both ≥32 chars. The first has no
+  production fallback, so unset it takes **every anonymous scan to 503**; the second signs
+  report share links *and* the scan-claim cookie.
+- **`.env.example` is the authoritative list** — it documents every variable and what breaks
+  without it.
 - Optional, with fallbacks: `RESEND_FROM_EMAIL`, `WIKIPEDIA_USER_AGENT`
 - E2E only: `BASE_URL`, `START_DEV_SERVER`, `CI`, `PLAYWRIGHT_TEST_EMAIL`,
   `PLAYWRIGHT_TEST_PASSWORD`
 - **Dead:** `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — read by zero source files; checkout is
   server-side only. `@stripe/stripe-js` is installed but never imported.
-- Legacy Supabase (`NEXT_PUBLIC_SUPABASE_URL`, `..._ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) —
-  the project is gone, but these are still **read by live code**, so those paths are broken,
-  not dormant. Note 4 files bypass the shims and import `@supabase/*` directly
-  (`cron/trial-emails`, `cron/evaluate-alerts`, `components/dashboard/Sidebar.tsx`).
+- **Dead:** `CRON_SECRET` (zero readers — both `/api/cron` routes are 503 stubs with no
+  secret check) and `RESEND_API_KEY` (`sendAlertEmail` has no callers). Legacy Supabase
+  (`NEXT_PUBLIC_SUPABASE_URL`, `..._ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) is also fully
+  dead: no application code reads them. The ESLint rule that bans `@supabase/*` now covers
+  `.mjs`/`.js`/`.cjs` as well as TS — it previously did not, which is how an orphaned
+  `scripts/run-pulse.mjs` kept a live import past it.
 
 ## Secrets Hygiene
 
-- **`.mcp.json` is git-tracked and contains a hardcoded n8n bearer JWT with no `exp` claim.**
-  It never self-expires. Rotate in n8n first (it is already in git history — gitignoring
-  achieves nothing), then reference an env var instead.
-- `n8n/configure-credentials.sh` hardcodes an n8n API JWT (expired 2026-06-06, repo private —
-  no live exposure, but purge the pattern). `n8n/deploy-workflows.sh` does it correctly:
-  read from env, exit if unset. Copy that.
+- **`.mcp.json` is git-tracked. It no longer contains a literal token** — it interpolates
+  `${N8N_MCP_TOKEN}` and `${DATABASE_URL}` — but the old n8n bearer JWT is still reachable in
+  history at `bcbe9dc`, and it carries no `exp` claim, so it never self-expires. **Rotating it
+  in n8n is still owed**; removing it from HEAD achieved nothing on its own.
+- `n8n/configure-credentials.sh` and `n8n/deploy-workflows.sh` both now read from env and exit
+  if unset. `configure-credentials.sh` goes further and is the pattern to copy: it builds the
+  Postgres credential payload through a `python3` heredoc so the password never lands in a
+  shell argument, posts it with `--data-binary @tempfile`, and cleans up with `trap … EXIT`.
 - Never paste a connection string into a shell command — the `@neondatabase/serverless`
   driver echoes the **full URL including the password** in its error messages. Pipe through
   `2>&1 | grep -v "postgresql://"` when scripting against it.
 
 ## Git Conventions
 
-- Branch naming: `feat/`, `fix/`, `refactor/`, `codex/` are the live prefixes. `claude/`
-  branches exist on origin but none has ever been merged.
+- Branch naming: `feat/`, `fix/`, `refactor/`, `codex/`, `claude/` are the live prefixes —
+  `claude/` branches do get merged (PRs #35–#37).
 - Commits: lowercase imperative with scope (`feat(auth): …`, `fix(scan): …`, `refactor(scoring): …`)
 - Recent work lands as PR merge commits (no squash). But older history was committed
   straight to `main`, so `git log --first-parent` is NOT a list of PRs.

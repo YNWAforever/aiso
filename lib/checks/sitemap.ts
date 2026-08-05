@@ -4,7 +4,7 @@ import type { CheckResult } from '@/lib/types'
 async function findSitemapUrl(baseUrl: string, fetcher: PublicUrlFetch): Promise<string> {
   // Check robots.txt for Sitemap: directive
   try {
-    const res = await fetcher(`${baseUrl}/robots.txt`, {
+    const res = await fetcher(new URL('/robots.txt', baseUrl).toString(), {
       headers: { 'User-Agent': 'FimmickAISO/1.0' },
       signal: AbortSignal.timeout(5_000),
     })
@@ -14,10 +14,10 @@ async function findSitemapUrl(baseUrl: string, fetcher: PublicUrlFetch): Promise
       if (match?.[1]) return match[1].trim()
     }
   } catch { /* fall through */ }
-  return `${baseUrl}/sitemap.xml`
+  return new URL('/sitemap.xml', baseUrl).toString()
 }
 
-export async function checkSitemap(baseUrl: string, fetcher: PublicUrlFetch = fetch): Promise<CheckResult> {
+export async function checkSitemap(baseUrl: string, fetcher: PublicUrlFetch): Promise<CheckResult> {
   try {
     const sitemapUrl = await findSitemapUrl(baseUrl, fetcher)
     const res = await fetcher(sitemapUrl, {

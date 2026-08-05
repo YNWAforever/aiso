@@ -41,28 +41,31 @@ touch .env.local   # then fill in the variables below
 npm run dev        # http://localhost:3000
 ```
 
-There is no `.env.example`. Populate `.env.local` with:
+**`.env.example` is the authoritative list** — copy it to `.env.local` and fill it in. Each
+entry there says what breaks when it is missing. The highlights:
 
 | Variable | Notes |
 |---|---|
 | `DATABASE_URL` | Neon connection string |
 | `NEON_AUTH_BASE_URL` | Neon Auth issuer (runtime) |
 | `NEON_AUTH_COOKIE_SECRET` | ≥32 chars, required at **build** time — `next build` fails without it |
-| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | |
-| `STRIPE_PRICE_BASIC` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE` | absent locally → checkout sends an undefined price id and tiers fall through to `basic` |
-| `RESEND_API_KEY` | transactional email |
+| `PUBLIC_SCAN_RATE_LIMIT_SECRET` | ≥32 chars. **Unset in production, every anonymous scan returns 503** — no local fallback is used there |
+| `REPORT_SHARE_SECRET` | ≥32 chars. Signs report share links **and** the scan-claim cookie |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | without the webhook secret every Stripe event 400s and no subscription provisions |
+| `STRIPE_PRICE_BASIC` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE` | checkout guards these and 500s per plan; the **webhook** does not, so tiers resolve wrongly |
 | `OPENROUTER_API_KEY` | LLM calls (`lib/openrouter.ts`) |
-| `NEXT_PUBLIC_APP_URL` | absolute base URL for links in emails / OG images |
-| `N8N_SCAN_WEBHOOK_URL` | n8n scan automation |
-| `CRON_SECRET` | guards `/api/cron/*` |
+| `NEXT_PUBLIC_APP_URL` | public origin; falls back to `https://aeo.fimmick.com` (`lib/app-origin.ts`) |
+| `N8N_SCAN_WEBHOOK_URL` | n8n scan automation; unset = feature off |
 
 Optional (have fallbacks): `RESEND_FROM_EMAIL`, `WIKIPEDIA_USER_AGENT`.
 E2E only: `BASE_URL`, `START_DEV_SERVER`, `PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_TEST_PASSWORD`.
 
-Legacy `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and
-`SUPABASE_SERVICE_ROLE_KEY` are still *read* by unmigrated code. Setting them does not help —
-the project behind them is gone. `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` is dead; checkout is
-server-side only.
+Dead — read by nothing, listed so nobody re-adds them expecting an effect:
+`CRON_SECRET` (both `/api/cron` routes are 503 stubs with no secret check),
+`RESEND_API_KEY` (`sendAlertEmail` has no callers), `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+(checkout is server-side only), and the legacy `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — the Neon migration is complete
+and no application code reads them.
 
 ## Commands
 
@@ -71,7 +74,9 @@ npm run dev         # dev server on localhost:3000
 npm run build       # production build
 npm run start       # serve the production build
 npm run lint        # ESLint
-npm run test        # Vitest, single run
+npm run test        # unit + integration (see below)
+npm run test:unit   # unit only
+npm run test:integration  # integration only — always requires neonctl
 npm run test:watch  # Vitest watch mode
 npm run e2e         # Playwright E2E (needs a dev server, or START_DEV_SERVER=1)
 ```
@@ -79,9 +84,24 @@ npm run e2e         # Playwright E2E (needs a dev server, or START_DEV_SERVER=1)
 `npm run e2e:ui` and `npm run e2e:report` are also available. There is **no CI** — run
 `build`, `lint`, and `test` locally before opening a PR.
 
+### Integration tests need `neonctl`
+
+The integration suite provisions a real, disposable Neon branch per run, so it needs
+`neonctl` on PATH and authenticated (`npm i -g neonctl && neonctl auth`, or `NEON_API_KEY`).
+
+Without it, `npm run test` runs the unit suite and **skips** integration, printing a banner
+that says so — twice, the second time after the run, so it cannot scroll out of view. A skip
+is not a pass. Two cases never skip:
+
+- naming an integration test explicitly (`npm run test __tests__/integration/x.test.ts`), and
+- `REQUIRE_INTEGRATION_TESTS=1 npm run test` — **this is the command that proves the full
+  suite ran**, and the one to use before merging anything with integration coverage.
+
+`SKIP_INTEGRATION_TESTS=1` opts out deliberately, with the same loud banner.
+
 Database migrations live in `supabase/migrations/` (the directory name is legacy — they are
-applied against Neon). **No migration runner is wired up**; they are applied by hand, so a
-file existing is not evidence it has been run.
+applied against Neon). Apply them with `npm run migrate` (`scripts/migrate.ts`), which tracks
+what has run in a `schema_migrations` ledger; `--dry-run` previews.
 
 ## Further reading
 

@@ -2,6 +2,7 @@ import 'server-only'
 
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
+import { shareSigningSecret } from '@/lib/security/share-secret'
 import { REPORT_LOCALES, type ReportLocale } from './types'
 
 type ShareInput = {
@@ -12,13 +13,7 @@ type ShareInput = {
 const SIGNATURE_PATTERN = /^[A-Za-z0-9_-]{43}$/
 const REPORT_SLUG_PATTERN = /^[A-Za-z0-9_-]{32}$/
 
-function shareSecret(): string {
-  const secret = process.env.REPORT_SHARE_SECRET
-  if (typeof secret !== 'string' || secret.length < 32) {
-    throw new Error('REPORT_SHARE_SECRET must contain at least 32 random characters')
-  }
-  return secret
-}
+const shareSecret = shareSigningSecret
 
 function canonicalShareInput(input: ShareInput): string {
   if (!Number.isInteger(input.shareVersion) || input.shareVersion <= 0) {

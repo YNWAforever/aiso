@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { appOrigin } from '@/lib/app-origin'
 import { getProfile } from '@/lib/auth'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import type { ProfileWithAccount } from '@/lib/types'
@@ -125,7 +126,7 @@ function brandingDto(row: ReportBrandingRow) {
 }
 
 function reportOrigin(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? 'https://aeo.fimmick.com'
+  return appOrigin()
 }
 
 function exactVersions(

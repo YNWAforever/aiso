@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { normalizeAuthNext } from '@/lib/auth-navigation'
+import { shareSigningSecret } from '@/lib/security/share-secret'
 
 export type ScanClaimIntent = {
   scanId: string
@@ -15,13 +16,7 @@ const TTL_MS = 15 * 60 * 1000
 const DOMAIN = 'fimmick-scan-claim-intent:v1'
 const SIGNATURE_LENGTH = 43
 
-function claimIntentSecret() {
-  const secret = process.env.REPORT_SHARE_SECRET
-  if (!secret || secret.length < 32) {
-    throw new Error('REPORT_SHARE_SECRET must contain at least 32 characters')
-  }
-  return secret
-}
+const claimIntentSecret = shareSigningSecret
 
 function canonical(payload: ScanClaimIntent) {
   return `${DOMAIN}:${payload.scanId}:${payload.lang}:${payload.returnPath}:${payload.attemptId}:${payload.exp}`

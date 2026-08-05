@@ -12,6 +12,11 @@ interface CallOptions {
   signal?: AbortSignal
 }
 
+// Callers that pass no signal would otherwise wait indefinitely. vercel.json
+// caps the scan route at 60s and fix at 30s, so an unbounded call can consume
+// the whole budget and take the surrounding request down with it.
+const DEFAULT_TIMEOUT_MS = 30_000
+
 export async function callOpenRouter({ model, messages, maxTokens = 2000, signal }: CallOptions): Promise<string> {
   const res = await fetch(BASE, {
     method: 'POST',
@@ -22,7 +27,7 @@ export async function callOpenRouter({ model, messages, maxTokens = 2000, signal
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ model, max_tokens: maxTokens, messages }),
-    signal,
+    signal: signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
   })
 
   if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${await res.text()}`)

@@ -7,7 +7,7 @@ const BOTS = [
   { name: 'PerplexityBot', ua: 'Mozilla/5.0 (compatible; PerplexityBot/1.0; +https://perplexity.ai/)' },
 ]
 
-export async function checkBotAccess(url: string, fetcher: PublicUrlFetch = fetch): Promise<CheckResult> {
+export async function checkBotAccess(url: string, fetcher: PublicUrlFetch): Promise<CheckResult> {
   const results = await Promise.allSettled(
     BOTS.map(bot =>
       fetcher(url, {

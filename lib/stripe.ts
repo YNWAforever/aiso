@@ -1,4 +1,5 @@
 import Stripe from 'stripe'
+import { appOrigin } from '@/lib/app-origin'
 import type { StripePriceMap } from '@/lib/plans/catalog'
 
 // Lazy singleton — defer new Stripe() until first use so that
@@ -24,4 +25,4 @@ export const STRIPE_PRICES: StripePriceMap = {
   enterprise: process.env.STRIPE_PRICE_ENTERPRISE!,
 }
 
-export const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://fimmick-aeo.vercel.app'
+export const APP_URL = appOrigin()

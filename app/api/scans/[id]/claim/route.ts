@@ -52,6 +52,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const token = req.cookies.get(CLAIM_INTENT_COOKIE)?.value
   if (token) {
+    // No try/catch needed: verifyScanClaimIntent swallows its own failures —
+    // including a missing or too-short REPORT_SHARE_SECRET — and returns null,
+    // so a misconfigured deploy degrades to claimUnavailable() rather than
+    // crashing. Covered by a test, so a future refactor that starts throwing
+    // out of it does not silently become an unhandled 500.
     const intent = verifyScanClaimIntent(token)
     const expectedReturnPath = intent ? `/${intent.lang}/result/${encodeURIComponent(id)}?claim=1` : ''
     if (!intent || intent.scanId !== id || intent.returnPath !== expectedReturnPath) return claimUnavailable()

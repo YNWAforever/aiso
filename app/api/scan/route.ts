@@ -31,6 +31,7 @@ import { getProfile }       from '@/lib/auth'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { fetchPublicUrl, PublicUrlError } from '@/lib/security/public-url'
 import { consumePublicScanRateLimit, rateLimitHeaders } from '@/lib/security/public-scan-rate-limit'
+import { parseSitemapUrls } from '@/lib/security/sitemap-urls'
 import { consumeAuthenticatedScanQuota, authenticatedScanQuotaHeaders } from '@/lib/security/authenticated-scan-quota'
 import { GEO_PTS, assignGrade, calculateScore, calculateGeoScore } from '@/lib/scoring'
 import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'
@@ -66,6 +67,16 @@ export async function POST(req: NextRequest) {
     domain = parsed.hostname
   } catch {
     return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 })
+  }
+
+  // Validated here, at the trust boundary, rather than where it is consumed:
+  // everything between this point and the GEO batch — the session lookup, the
+  // client-ownership query, rate-limit consumption, the blocking page fetch —
+  // is work a malformed body should never buy. These URLs also reach an LLM
+  // prompt in checkTopicalAuthority, on a route anonymous callers can reach.
+  const parsedSitemapUrls = parseSitemapUrls(sitemapUrls)
+  if (!parsedSitemapUrls.ok) {
+    return NextResponse.json({ error: 'Invalid sitemapUrls' }, { status: 400 })
   }
 
   let profile: Awaited<ReturnType<typeof getProfile>> = null
@@ -190,7 +201,7 @@ export async function POST(req: NextRequest) {
       checkExtractability(baseUrl, fetchPublicUrl),
       // Extended — URL-fetch
       checkLlmsFullTxt(baseUrl, fetchPublicUrl),
-      checkMcpCard(baseUrl, html),
+      checkMcpCard(baseUrl, html, fetchPublicUrl),
       checkSitemap(baseUrl, fetchPublicUrl),
       // Extended — HTML parse (sync, wrapped so allSettled handles uniformly)
       Promise.resolve(checkMetaDescription(html, baseUrl)),
@@ -238,7 +249,7 @@ export async function POST(req: NextRequest) {
   const geoContext  = { industry: geoIndustry, region: geoRegion, clientId: clientId }
 
   // Fetch sitemap URLs for c19 (Topical Authority) — reuse caller-supplied list or fetch /sitemap.xml
-  let sitemapUrlsForGeo: string[] = (sitemapUrls as string[] | undefined) ?? []
+  let sitemapUrlsForGeo: string[] = parsedSitemapUrls.urls
   if (!sitemapUrlsForGeo.length) {
     try {
       const sitemapRes = await fetchPublicUrl(new URL('/sitemap.xml', baseUrl), {

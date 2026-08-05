@@ -4,17 +4,39 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import {
+  PUBLIC_SCAN_KEY_DOMAIN,
   PUBLIC_SCAN_LIMIT,
   PUBLIC_SCAN_WINDOW_SECONDS,
   consumePublicScanRateLimit,
   derivePublicScanRateLimitKey,
   rateLimitHeaders,
 } from '@/lib/security/public-scan-rate-limit'
+import { FUNNEL_EVENT_KEY_DOMAIN } from '@/lib/security/funnel-rate-limit'
 
 const secretA = 'a'.repeat(32)
 const secretB = 'b'.repeat(32)
 
 describe('public scan rate limiter', () => {
+  it('pins the key domain, which is effectively the live counter table version', () => {
+    // Every stored key is an HMAC over this string. Changing it rehashes all of
+    // them, so every rate-limited caller in production silently gets a fresh
+    // allowance. The other assertions here pin only the key's *format*, so
+    // nothing else in this file would notice.
+    expect(PUBLIC_SCAN_KEY_DOMAIN).toBe('geoscanner:public-scan-rate-limit:key:v1')
+  })
+
+  it('derives the exact digest it did before the limiter was generalised', () => {
+    // A golden value, computed from the pre-refactor implementation. Format
+    // assertions cannot catch a changed domain, separator, or hash input order —
+    // all of which would orphan every counter row already in production.
+    expect(derivePublicScanRateLimitKey('ip:203.0.113.9', secretA))
+      .toBe('v1:11dc140272bdfb6292f6d7d8b15aca29fe54ae9043d091a4da585e01e432e5e2')
+  })
+
+  it('cannot collide with another limiter sharing the counter table', () => {
+    expect(FUNNEL_EVENT_KEY_DOMAIN).not.toBe(PUBLIC_SCAN_KEY_DOMAIN)
+  })
+
   it('keeps the counter table private behind RLS and explicit privilege revocation', () => {
     const migration = readFileSync(resolve('supabase/migrations/023_public_scan_rate_limits.sql'), 'utf8')
 

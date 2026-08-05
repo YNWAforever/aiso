@@ -3,7 +3,7 @@ import type { CheckResult } from '@/lib/types'
 
 const AI_BOTS = ['gptbot', 'claudebot', 'perplexitybot', 'anthropic-ai', 'google-extended']
 
-export async function checkRobots(baseUrl: string, fetcher: PublicUrlFetch = fetch): Promise<CheckResult> {
+export async function checkRobots(baseUrl: string, fetcher: PublicUrlFetch): Promise<CheckResult> {
   const robotsUrl = new URL('/robots.txt', baseUrl).toString()
 
   try {

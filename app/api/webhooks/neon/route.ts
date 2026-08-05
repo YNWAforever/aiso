@@ -11,6 +11,66 @@ type NeonAuthWebhookEvent = {
   user?: { id?: string; email?: string; name?: string | null } | null
 }
 
+type Sql = ReturnType<typeof db>
+
+/**
+ * Provision the `accounts` + `profiles` pair for a newly created auth user.
+ *
+ * Exported so the concurrency behaviour can be exercised directly against a
+ * real branch, without having to satisfy the authenticity gate in POST.
+ *
+ * Concurrency: the caller's profile probe is racy by construction — two
+ * `user.created` deliveries in flight together both observe no profile. The old
+ * code then had both insert an `accounts` row with its own freshly generated
+ * uuid; only one `profiles` insert could win (`on conflict (id) do nothing`),
+ * so the loser's account row survived with nothing pointing at it. `accounts`
+ * has no column derived from the user, so there is no arbiter an ON CONFLICT
+ * could use to dedupe — hence the advisory lock, the same tool
+ * check_brand_limit() uses in 028_account_plan_overrides.sql.
+ *
+ * Why three separate statements and not one CTE: `sql.transaction()` submits a
+ * *non-interactive* batch, so no statement can consume an earlier one's
+ * RETURNING — but each is still its own statement, and under READ COMMITTED
+ * each takes a fresh snapshot. Statement 1 blocks until the delivery we raced
+ * commits; statement 2 then *sees* that commit and inserts nothing. Folding
+ * these into a single CTE would break exactly that: one statement means one
+ * snapshot, taken before pg_advisory_xact_lock inside it acquires, so it would
+ * be blind to the winner and insert the duplicate anyway.
+ */
+export async function provisionAccountForUser(
+  sql: Sql,
+  { userId, name }: { userId: string; name: string | null },
+): Promise<void> {
+  const accountId = crypto.randomUUID()
+
+  await sql.transaction([
+    // Serializes provisioning for this user id. Released at COMMIT of the batch.
+    sql`
+      select pg_catalog.pg_advisory_xact_lock(
+        pg_catalog.hashtextextended('webhooks/neon:user.created:' || ${userId}, 0)
+      )
+    `,
+    sql`
+      insert into accounts (id, plan, status)
+      select ${accountId}, 'basic', 'active'
+      where not exists (
+        select 1 from profiles where id = ${userId} and account_id is not null
+      )
+    `,
+    // Guarded on the account above actually having been inserted, so the FK can
+    // never see a dangling account_id: either both rows land or neither does.
+    // The DO UPDATE heals a profile the legacy trigger left with a null account.
+    sql`
+      insert into profiles (id, account_id, display_name)
+      select ${userId}, ${accountId}, ${name}
+      where exists (select 1 from accounts where id = ${accountId})
+      on conflict (id) do update
+        set account_id = excluded.account_id
+        where profiles.account_id is null
+    `,
+  ])
+}
+
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as NeonAuthWebhookEvent | null
   if (!body || typeof body.event_type !== 'string') {
@@ -85,39 +145,24 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Idempotency guard: webhook providers (Neon Auth included) commonly
-    // redeliver events at-least-once, and `user.created` only fires once per
-    // signup — so a redelivery must not create a second, orphaned `accounts`
-    // row. If a profile already exists for this user, provisioning already
-    // happened on an earlier delivery; short-circuit as a no-op success.
-    // A small race window between this check and the transaction below is
-    // acceptable — this is a low-concurrency, once-per-user event, not a hot
-    // path that needs row-locking.
-    const existingProfile = await sql`select id from profiles where id = ${userId}`
+    // Fast path for the common case: webhook providers (Neon Auth included)
+    // redeliver at-least-once, and `user.created` fires once per signup, so a
+    // redelivery must not provision again. This is an optimisation, not the
+    // correctness guarantee — two deliveries in flight at once both see no
+    // profile here. The advisory lock below is what actually makes it safe.
+    //
+    // `account_id is not null` matters: a profile left behind by the legacy
+    // handle_new_user() trigger can have a null account_id, and short-circuiting
+    // on that would strand the user with no account forever. Falling through
+    // lets the provisioning batch heal it.
+    const existingProfile = await sql`
+      select id from profiles where id = ${userId} and account_id is not null
+    `
     if (existingProfile.length > 0) {
       return NextResponse.json({ ok: true })
     }
 
-    // Provision the account + profile atomically. `sql.transaction()` submits
-    // a *non-interactive* batch: every query passed to it is built up front,
-    // so a later query can't consume a value `returning`ed by an earlier one
-    // in the same call. To keep both inserts as independent statements (and
-    // avoid the old two-round-trip design, where a failure between them left
-    // a permanently orphaned `accounts` row with no linked profile), the
-    // account id is generated client-side and reused in both inserts.
-    const accountId = crypto.randomUUID()
-
-    await sql.transaction([
-      sql`
-        insert into accounts (id, plan, status)
-        values (${accountId}, 'basic', 'active')
-      `,
-      sql`
-        insert into profiles (id, account_id, display_name)
-        values (${userId}, ${accountId}, ${name ?? null})
-        on conflict (id) do nothing
-      `,
-    ])
+    await provisionAccountForUser(sql, { userId, name: name ?? null })
   } catch (err) {
     console.error(
       `[webhooks/neon] provisioning failed for user ${userId} (${email}):`,
