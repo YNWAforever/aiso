@@ -108,6 +108,27 @@ describe('local trust route gating', () => {
     expect((await call()).status).toBe(503)
   })
 
+  it.each(ROUTES)('$name never echoes raw store error text in a 500', async ({ call }) => {
+    // A Neon error message can carry the connection string, password included —
+    // CLAUDE.md warns about exactly this. The handlers return fixed strings; this
+    // pins that they keep doing so.
+    vi.mocked(getProfile).mockResolvedValue(account('enterprise') as never)
+    const secret = 'postgresql://user:hunter2@ep-secret.neon.tech/db'
+    for (const mock of [
+      storeMocks.upsertLocalTrustProfile,
+      storeMocks.updateLocalTrustActionStatus,
+      storeMocks.getOrCreateLocalTrustSnapshot,
+    ]) mock.mockRejectedValue(new Error(secret))
+    nextResults = [[], [{ platform: null }], []]
+
+    const res = await call()
+    const body = JSON.stringify(await res.json())
+
+    expect(res.status).toBeGreaterThanOrEqual(500)
+    expect(body).not.toContain(secret)
+    expect(body).not.toContain('hunter2')
+  })
+
   it('scopes ownership to the caller account, never a caller-supplied id', async () => {
     vi.mocked(getProfile).mockResolvedValue(account('pro') as never)
     storeMocks.upsertLocalTrustProfile.mockResolvedValue({ client_id: 'client-1' })
@@ -181,6 +202,19 @@ describe('PATCH local-trust/actions/[actionId]', () => {
 describe('GET local-trust/export', () => {
   beforeEach(() => vi.mocked(getProfile).mockResolvedValue(account('enterprise') as never))
 
+  it('refuses Pro — export is Enterprise-only, unlike profile and actions', async () => {
+    // The commercially interesting split: Pro carries local_trust_roi but not
+    // local_trust_export. The shared 403 case above only exercises Basic, which
+    // has neither, so it cannot tell the two flags apart.
+    vi.mocked(getProfile).mockResolvedValue(account('pro') as never)
+
+    const res = await get()
+
+    expect(res.status).toBe(403)
+    await expect(res.json()).resolves.toMatchObject({ feature: 'local_trust_export' })
+    expect(queries).toHaveLength(0)
+  })
+
   it('returns 409 rather than an empty CSV when there is no baseline', async () => {
     nextResults = [[], [], []]   // no scans, no pulse summary, no missed rows
 
@@ -188,6 +222,37 @@ describe('GET local-trust/export', () => {
 
     expect(res.status).toBe(409)
     await expect(res.json()).resolves.toEqual({ error: 'LOCAL_TRUST_BASELINE_REQUIRED' })
+  })
+
+  it('does not accept platform-only pulse rows as an aggregate baseline', async () => {
+    // hasAggregatePulseBaseline looks for `platform IS NULL` rows specifically.
+    // Per-platform rows are the only kind anything has ever written, so without
+    // this assertion the 409 above could pass for the wrong reason — and it
+    // becomes load-bearing the moment the summary producer writes both kinds.
+    nextResults = [[], [{ platform: 'gpt-4o', scan_week: '2026-01-05' }], []]
+
+    const res = await get()
+
+    expect(res.status).toBe(409)
+    expect(storeMocks.getOrCreateLocalTrustSnapshot).not.toHaveBeenCalled()
+  })
+
+  it('sanitises the client id in the download filename', async () => {
+    nextResults = [[], [{ platform: null }], []]
+    storeMocks.getOrCreateLocalTrustSnapshot.mockResolvedValue({
+      snapshot: { local_trust_score: 70, snapshot_month: '2026-01', roi_estimate: null },
+      actions: [],
+    })
+
+    const res = await GET(
+      new Request('http://localhost'),
+      { params: Promise.resolve({ clientId: '../../etc/passwd' }) },
+    )
+
+    const disposition = res.headers.get('content-disposition') ?? ''
+    expect(disposition).not.toContain('..')
+    expect(disposition).not.toContain('/')
+    expect(disposition).toMatch(/filename="local-trust-[A-Za-z0-9_-]*\.csv"/)
   })
 
   it('scopes the scan read by account_id and the pulse reads by client_id', async () => {
