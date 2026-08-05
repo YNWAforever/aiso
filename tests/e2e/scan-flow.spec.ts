@@ -17,7 +17,27 @@ const hasCredentialedFunnel = Boolean(
   existsSync(authStorageState),
 )
 
+async function resetSeededScanOwnership() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !serviceRoleKey) throw new Error('Seeded scan ownership reset requires Supabase test credentials.')
+
+  const response = await fetch(`${url}/rest/v1/scans?id=eq.${TEST_SCAN_ID}`, {
+    method: 'PATCH',
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ account_id: null }),
+  })
+  if (!response.ok) throw new Error(`Could not reset seeded scan ownership: ${response.status}`)
+}
+
 test.describe('Scan to signup journey', () => {
+  // The credentialed return contracts update the shared seeded scan to the test account.
+  test.describe.configure({ mode: 'serial' })
+
   test('English homepage exposes the proof-first scan contract', async ({ page }) => {
     const home = new HomePage(page, 'en')
     await home.goto()
@@ -64,13 +84,23 @@ test.describe('Scan to signup journey', () => {
     await expect(home.scanButton).toBeVisible()
   })
 
-  test('submits once, preserves scan context, and saves the report after signup', async ({ page }) => {
-    test.skip(!hasSeededResult, 'Requires Supabase URL, anon key, and service-role key to seed and read the public scan fixture.')
+  test('submits once, returns from Google, and unlocks the full report after signup', async ({ browser }) => {
+    test.skip(
+      !hasCredentialedFunnel,
+      'Requires the seeded Supabase fixture, Neon Auth, and an authenticated storage state to verify ownership-backed return claiming.',
+    )
+
+    const context = await browser.newContext({
+      baseURL: process.env.BASE_URL || 'http://localhost:3000',
+      storageState: authStorageState,
+    })
+    const page = await context.newPage()
+    await resetSeededScanOwnership()
 
     const home = new HomePage(page, 'en')
     const result = new ResultPage(page, 'en')
     let scanPosts = 0
-    let authRequestBody: Record<string, unknown> | null = null
+    let googleRequestBody: Record<string, unknown> | null = null
     let claimIntentPosts = 0
 
     page.on('request', request => {
@@ -85,38 +115,105 @@ test.describe('Scan to signup journey', () => {
       claimIntentPosts += 1
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) })
     })
-    await page.route('**/sign-in/magic-link*', route => {
-      authRequestBody = route.request().postDataJSON() as Record<string, unknown>
-      return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+    await page.route('**/sign-in/social*', route => {
+      googleRequestBody = route.request().postDataJSON() as Record<string, unknown>
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          url: 'https://accounts.google.com/o/oauth2/v2/auth?client_id=e2e',
+          redirect: true,
+        }),
+      })
+    })
+    await page.route('https://accounts.google.com/**', route =>
+      route.fulfill({ status: 200, contentType: 'text/html', body: '<h1>Google sign-in</h1>' }),
+    )
+
+    try {
+      await home.goto()
+      await home.scan('https://example.com')
+      await home.waitForNavToResult()
+      expect(scanPosts).toBe(1)
+      await expect(result.score).toBeVisible()
+      await expect(result.topIssue).toBeVisible()
+      await expect(result.fullCheckBreakdown).not.toBeVisible()
+      await expect(result.saveReportCta).toBeVisible()
+      await expect(result.googleSignupButton).toBeVisible()
+      await expect(result.googleSignupButton).toBeEnabled()
+      await expect(result.createAccountButton).toBeVisible()
+      await expect(page.getByRole('link', { name: /Get full access/i })).toHaveCount(0)
+      await expect.poll(() => claimIntentPosts).toBe(1)
+
+      await result.googleSignupButton.click()
+      await expect.poll(() => googleRequestBody).not.toBeNull()
+      expect(googleRequestBody?.provider).toBe('google')
+      const callback = new URL(String(googleRequestBody?.callbackURL ?? googleRequestBody?.callbackUrl ?? ''))
+      expect(callback.pathname).toBe('/en/auth/complete')
+      expect(callback.searchParams.get('next')).toBe('/en/result/' + TEST_SCAN_ID + '?claim=1')
+
+      await page.goto('/en/result/' + TEST_SCAN_ID + '?claim=1')
+      await page.waitForURL('/en/result/' + TEST_SCAN_ID)
+      expect(new URL(page.url()).search).toBe('')
+      await expect(result.fullCheckBreakdown).toBeVisible()
+      await expect(result.saveReportCta).toHaveCount(0)
+      expect(scanPosts).toBe(1)
+    } finally {
+      await resetSeededScanOwnership()
+      await context.close()
+    }
+  })
+
+  test('retries a failed return claim once without rescanning and then unlocks the report', async ({ browser }) => {
+    test.skip(
+      !hasCredentialedFunnel,
+      'Requires the seeded Supabase fixture, Neon Auth, and an authenticated storage state to verify retry ownership claiming.',
+    )
+
+    const context = await browser.newContext({
+      baseURL: process.env.BASE_URL || 'http://localhost:3000',
+      storageState: authStorageState,
+    })
+    const page = await context.newPage()
+    await resetSeededScanOwnership()
+    const result = new ResultPage(page, 'en')
+    let scanPosts = 0
+    let claimPosts = 0
+
+    page.on('request', request => {
+      const parsed = new URL(request.url())
+      if (request.method() === 'POST' && parsed.pathname === '/api/scan') scanPosts += 1
+      if (request.method() === 'POST' && parsed.pathname === `/api/scans/${TEST_SCAN_ID}/claim`) claimPosts += 1
+    })
+    await page.route(`**/api/scans/${TEST_SCAN_ID}/claim`, async route => {
+      if (claimPosts === 1) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Failed to claim scan' }),
+        })
+        return
+      }
+      await route.fallback()
     })
 
-    await home.goto()
-    await home.scan('https://example.com')
-    await home.waitForNavToResult()
-    expect(scanPosts).toBe(1)
-    await expect(result.score).toBeVisible()
-    await expect(result.topIssue).toBeVisible()
-    await expect(result.fullCheckBreakdown).not.toBeVisible()
-    await expect(result.saveReportCta).toBeVisible()
-    await expect(result.createAccountButton).toBeVisible()
-    await expect(page.getByRole('link', { name: /Get full access/i })).toHaveCount(0)
-    await expect.poll(() => claimIntentPosts).toBe(1)
+    try {
+      await page.goto('/en/result/' + TEST_SCAN_ID + '?claim=1')
+      await expect(result.claimStatus).toContainText(/could not save/i)
+      await expect(result.retrySaving).toBeVisible()
+      expect(claimPosts).toBe(1)
 
-    await result.submitEmail('unlock@example.com')
-    await expect.poll(() => authRequestBody).not.toBeNull()
-    const callback = new URL(String(authRequestBody?.callbackURL ?? authRequestBody?.callbackUrl ?? ''))
-    expect(callback.pathname).toBe('/en/auth/complete')
-    expect(callback.searchParams.get('next')).toBe('/en/result/' + TEST_SCAN_ID + '?claim=1')
-
-    await page.route(`**/api/scans/${TEST_SCAN_ID}/claim`, route => route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ ok: true, alreadyOwned: false }),
-    }))
-    await page.goto('/en/result/' + TEST_SCAN_ID + '?claim=1')
-    await expect(result.claimStatus).toBeVisible()
-    await expect(result.claimStatus).toContainText(/report saved/i)
-    expect(scanPosts).toBe(1)
+      await result.retrySaving.click()
+      await expect.poll(() => claimPosts).toBe(2)
+      await page.waitForURL('/en/result/' + TEST_SCAN_ID)
+      expect(new URL(page.url()).search).toBe('')
+      await expect(result.fullCheckBreakdown).toBeVisible()
+      await expect(result.saveReportCta).toHaveCount(0)
+      expect(scanPosts).toBe(0)
+    } finally {
+      await resetSeededScanOwnership()
+      await context.close()
+    }
   })
 
   test('zh-HK account unlock preserves locale and scan ID', async ({ page }) => {

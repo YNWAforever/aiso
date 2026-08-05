@@ -138,6 +138,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
   const googlePopupRef = useRef<GoogleAuthPopup | null>(null)
   const googlePopupMonitorRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const googlePopupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hasStartedClaimIntent = useRef(false)
   const next = buildScanClaimNext(lang, scanId)
   const callbackURL = buildAuthCompleteUrl(lang, next)
 
@@ -155,8 +156,8 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
     if (googlePopupTimeoutRef.current) clearTimeout(googlePopupTimeoutRef.current)
   }, [])
 
-  const prepareClaimIntent = useCallback(async () => {
-    setIntentState('preparing')
+  const prepareClaimIntent = useCallback(async (showPreparing = true) => {
+    if (showPreparing) setIntentState('preparing')
     try {
       const response = await fetch(`/api/scans/${encodeURIComponent(scanId)}/claim-intent`, {
         method: 'POST',
@@ -170,8 +171,10 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
     }
   }, [lang, scanId])
 
-  useEffect(() => {
-    void prepareClaimIntent()
+  const startClaimIntentOnMount = useCallback((node: HTMLElement | null) => {
+    if (!node || hasStartedClaimIntent.current) return
+    hasStartedClaimIntent.current = true
+    void prepareClaimIntent(false)
   }, [prepareClaimIntent])
 
   async function signInWithGoogle() {
@@ -239,7 +242,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
   }
 
   return (
-    <section data-testid="save-report-cta" className="rounded-2xl border-2 border-primary/30 bg-slate-900 p-6 sm:p-8">
+    <section ref={startClaimIntentOnMount} data-testid="save-report-cta" className="rounded-2xl border-2 border-primary/30 bg-slate-900 p-6 sm:p-8">
       <div className="mx-auto max-w-md text-center">
         <h2 className="text-xl font-black text-white">{c.title}</h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-300">{c.body}</p>
