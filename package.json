@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ignore-pattern '.worktrees/' --ignore-pattern '.codex/' --ignore-pattern '.opencode/' --ignore-pattern '.claude/' --ignore-pattern '.superpowers/' --ignore-pattern 'coverage/'",
-    "test": "vitest run --exclude '__tests__/integration/**' && vitest run --config vitest.integration.config.ts",
+    "test": "node scripts/run-tests.mjs",
     "test:unit": "vitest run --exclude '__tests__/integration/**'",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:watch": "vitest",
