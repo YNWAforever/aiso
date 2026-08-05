@@ -20,13 +20,13 @@ describe('account unlock auth requests', () => {
 
     const result = await accountUnlock.launchGoogleAccountUnlock({
       embedded: true,
-      bridgeURL: '/en/auth/google?next=%2Fen%2Fonboarding%3Fscan%3Dscan-123',
+      bridgeURL: '/en/auth/google?next=%2Fen%2Fresult%2Fscan-123%3Fclaim%3D1',
       openWindow,
       request,
     })
 
     expect(openWindow).toHaveBeenCalledWith(
-      '/en/auth/google?next=%2Fen%2Fonboarding%3Fscan%3Dscan-123',
+      '/en/auth/google?next=%2Fen%2Fresult%2Fscan-123%3Fclaim%3D1',
       'fimmick-google-auth',
     )
     expect(popup.opener).toBeNull()

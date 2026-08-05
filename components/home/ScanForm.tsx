@@ -4,6 +4,7 @@ import { useId, useRef, useState } from 'react'
 import { ChevronDown, LoaderCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
+import { trackFunnelEvent } from '@/lib/funnel-client'
 
 export type ScanFormProps = { lang: string }
 
@@ -15,6 +16,10 @@ export function normalizeSubmittedUrl(value: string): string {
   const parsed = new URL(withProtocol)
   if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('invalid_protocol')
   return parsed.toString()
+}
+
+export function getScanSubmitLabelKey(hasFailed: boolean): 'cta' | 'retry_scan' {
+  return hasFailed ? 'retry_scan' : 'cta'
 }
 
 const INDUSTRIES = [
@@ -67,9 +72,11 @@ export function ScanForm({ lang }: ScanFormProps) {
   const [urlError, setUrlError] = useState('')
   const [status, setStatus] = useState('')
   const [statusIsError, setStatusIsError] = useState(false)
+  const [hasFailed, setHasFailed] = useState(false)
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (hasFailed) trackFunnelEvent({ name: 'scan_retry_clicked', locale: lang === 'zh-HK' ? 'zh-HK' : 'en' })
     setUrlError('')
     setStatus('')
     setStatusIsError(false)
@@ -79,6 +86,7 @@ export function ScanForm({ lang }: ScanFormProps) {
       normalizedUrl = normalizeSubmittedUrl(url)
     } catch (error) {
       setUrlError(error instanceof Error && error.message === 'empty_url' ? t('url_required') : t('url_invalid'))
+      setHasFailed(true)
       urlInputRef.current?.focus()
       return
     }
@@ -103,11 +111,17 @@ export function ScanForm({ lang }: ScanFormProps) {
       if (!data || typeof data !== 'object' || !('id' in data) || typeof data.id !== 'string') {
         throw new Error('invalid_response')
       }
+      trackFunnelEvent({
+        name: 'scan_completed',
+        locale: lang === 'zh-HK' ? 'zh-HK' : 'en',
+        scanId: data.id,
+      })
       setStatus(t('scan_complete'))
       router.push(`/${lang}/result/${data.id}`)
     } catch {
       setStatusIsError(true)
       setStatus(t('scan_error_action'))
+      setHasFailed(true)
       setIsSubmitting(false)
     }
   }
@@ -142,7 +156,7 @@ export function ScanForm({ lang }: ScanFormProps) {
           className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:translate-y-0 disabled:cursor-wait disabled:opacity-70"
         >
           {isSubmitting ? <LoaderCircle aria-hidden="true" className="size-4 animate-spin" /> : null}
-          {isSubmitting ? t('scanning') : t('cta')}
+          {isSubmitting ? t('scanning') : t(getScanSubmitLabelKey(hasFailed))}
         </button>
       </div>
       <p id={urlErrorId} className="mt-2 min-h-6 text-sm font-medium text-destructive">

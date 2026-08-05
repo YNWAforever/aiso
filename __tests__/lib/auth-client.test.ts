@@ -14,15 +14,15 @@ describe('Google auth navigation', () => {
     ['/zh-HK/dashboard', '/en/dashboard'],
     ['/en/../zh-HK/dashboard', '/en/dashboard'],
     ['/en/dashboard#section', '/en/dashboard#section'],
-    ['/en/onboarding?scan=scan-123', '/en/onboarding?scan=scan-123'],
+    ['/en/result/scan-123?claim=1', '/en/result/scan-123?claim=1'],
   ])('normalizes the post-auth target %s', (next, expected) => {
     expect(normalizeAuthNext('en', next)).toBe(expected)
   })
 
 
   it.each([
-    ['en', '/en/onboarding?scan=scan-en'],
-    ['zh-HK', '/zh-HK/onboarding?scan=scan-zh'],
+    ['en', '/en/result/scan-en?claim=1'],
+    ['zh-HK', '/zh-HK/result/scan-zh?claim=1'],
   ])('preserves a valid locale-local continuation for %s', (lang, next) => {
     expect(normalizeAuthNext(lang, next)).toBe(next)
   })
@@ -35,9 +35,9 @@ describe('Google auth navigation', () => {
     expect(normalizeAuthNext(lang, next)).toBe(`/${lang}/dashboard`)
   })
 
-  it('builds a same-origin top-level bridge URL that preserves the scan onboarding target', () => {
-    expect(authModule.buildGoogleAuthStartUrl('en', '/en/onboarding?scan=scan-123')).toBe(
-      '/en/auth/google?next=%2Fen%2Fonboarding%3Fscan%3Dscan-123',
+  it('builds a same-origin top-level bridge URL that preserves the scan result target', () => {
+    expect(authModule.buildGoogleAuthStartUrl('en', '/en/result/scan-123?claim=1')).toBe(
+      '/en/auth/google?next=%2Fen%2Fresult%2Fscan-123%3Fclaim%3D1',
     )
   })
 
@@ -58,14 +58,14 @@ describe('Google auth navigation', () => {
       value: { location: { origin: 'https://preview.example.test' } },
     })
 
-    expect(authModule.buildAuthCompleteUrl('en', '/en/onboarding?scan=scan-1')).toBe(
-      'https://preview.example.test/en/auth/complete?next=%2Fen%2Fonboarding%3Fscan%3Dscan-1',
+    expect(authModule.buildAuthCompleteUrl('en', '/en/result/scan-1?claim=1')).toBe(
+      'https://preview.example.test/en/auth/complete?next=%2Fen%2Fresult%2Fscan-1%3Fclaim%3D1',
     )
     expect(authModule.buildAuthCompleteUrl('en', 'https://attacker.example/phish')).toBe(
       'https://preview.example.test/en/auth/complete?next=%2Fen%2Fdashboard',
     )
-    expect(authModule.buildAuthCompleteUrl('zh-HK', '/zh-HK/onboarding?scan=scan-zh')).toBe(
-      'https://preview.example.test/zh-HK/auth/complete?next=%2Fzh-HK%2Fonboarding%3Fscan%3Dscan-zh',
+    expect(authModule.buildAuthCompleteUrl('zh-HK', '/zh-HK/result/scan-zh?claim=1')).toBe(
+      'https://preview.example.test/zh-HK/auth/complete?next=%2Fzh-HK%2Fresult%2Fscan-zh%3Fclaim%3D1',
     )
 
     Object.defineProperty(globalThis, 'window', { configurable: true, value: previousWindow })

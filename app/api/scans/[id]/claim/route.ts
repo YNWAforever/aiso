@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProfile } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { CLAIM_INTENT_COOKIE, verifyScanClaimIntent } from '@/lib/security/scan-claim-intent'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,13 +31,33 @@ export async function claimScanForAccount(scanId: string, accountId: string): Pr
   }
 }
 
-export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+function claimUnavailable() {
+  return NextResponse.json({ error: 'Claim unavailable' }, { status: 403 })
+}
+
+function claimResponse(result: ScanClaimResult) {
+  const response = result.status === 'not-found'
+    ? NextResponse.json({ error: 'Scan not found' }, { status: 404 })
+    : result.status === 'conflict'
+      ? NextResponse.json({ error: 'Scan belongs to another account' }, { status: 409 })
+      : NextResponse.json({ ok: true, alreadyOwned: result.status === 'already-owned' })
+  response.cookies.delete(CLAIM_INTENT_COOKIE)
+  return response
+}
+
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const profile = await getProfile()
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { id } = await params
+
+  const token = req.cookies.get(CLAIM_INTENT_COOKIE)?.value
+  if (token) {
+    const intent = verifyScanClaimIntent(token)
+    const expectedReturnPath = intent ? `/${intent.lang}/result/${encodeURIComponent(id)}?claim=1` : ''
+    if (!intent || intent.scanId !== id || intent.returnPath !== expectedReturnPath) return claimUnavailable()
+  }
+
   const result = await claimScanForAccount(id, profile.account_id)
-  if (result.status === 'not-found') return NextResponse.json({ error: 'Scan not found' }, { status: 404 })
-  if (result.status === 'conflict') return NextResponse.json({ error: 'Scan belongs to another account' }, { status: 409 })
   if (result.status === 'error') return NextResponse.json({ error: 'Failed to claim scan' }, { status: 500 })
-  return NextResponse.json({ ok: true, alreadyOwned: result.status === 'already-owned' })
+  return claimResponse(result)
 }

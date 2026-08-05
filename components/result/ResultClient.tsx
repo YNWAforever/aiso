@@ -1,4 +1,5 @@
 'use client'
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Zap } from 'lucide-react'
 import { useLocale } from 'next-intl'
@@ -10,11 +11,13 @@ import { ImpactTeaser }     from './ImpactTeaser'
 import { ImpactPanel }      from './ImpactPanel'
 import { ShareButton }      from './ShareButton'
 import { AccountUnlockCard } from './AccountUnlockCard'
+import { ClaimScanOnReturn } from './ClaimScanOnReturn'
 import { computeImpact, type PlatformStatus } from '@/lib/impact'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
 import { getCheckExplanations }  from '@/lib/checkExplanations'
 import type { Scan, CheckResult, ScanResults } from '@/lib/types'
 import type { PublicResultSummary } from '@/lib/result-access'
+import { consumeOneTimeFunnelEvent, trackFunnelEvent } from '@/lib/funnel-client'
 
 /* ── Check key lists ─────────────────────────────────────────── */
 const CORE_KEYS = ['c1_robots','c2_llms_txt','c3_bot_access','c4_structured_data','c5_extractability'] as const
@@ -154,6 +157,8 @@ type Props = {
 
 export function ResultClient({ lang, summary, fullScan }: Props) {
   const locale = useLocale()
+  const resultViewTracked = useRef(false)
+  const signupCtaTracked = useRef(false)
   const ui = locale === 'zh-HK' ? UI_ZH_HK : UI_EN
   const { pass, warn, fail, total } = summary.counts
   const r = (fullScan?.results ?? {}) as Record<string, unknown>
@@ -164,6 +169,18 @@ export function ResultClient({ lang, summary, fullScan }: Props) {
   const topIssueResults = summary.topIssueKey && summary.topIssueStatus
     ? { [summary.topIssueKey]: { status: summary.topIssueStatus, message: 'public_summary' } }
     : {}
+
+  useEffect(() => {
+    if (!consumeOneTimeFunnelEvent(resultViewTracked)) return
+    const locale = lang === 'zh-HK' ? 'zh-HK' : 'en'
+    trackFunnelEvent({ name: 'scan_result_viewed', locale, scanId: summary.id })
+  }, [lang, summary.id])
+
+  useEffect(() => {
+    if (fullScan || !consumeOneTimeFunnelEvent(signupCtaTracked)) return
+    const locale = lang === 'zh-HK' ? 'zh-HK' : 'en'
+    trackFunnelEvent({ name: 'signup_cta_viewed', locale, scanId: summary.id })
+  }, [fullScan, lang, summary.id])
 
   // GEO rich data
   type C17 = { qualityScore?: number; authorityBreakdown?: Record<string, number>; citationsPerThousandWords?: number; totalLinks?: number; externalLinks?: number }
@@ -191,16 +208,19 @@ export function ResultClient({ lang, summary, fullScan }: Props) {
         </Link>
         <div className="flex items-center gap-3">
           <ShareButton domain={summary.domain} score={summary.score} grade={summary.grade} />
-          <Link
-            href={`/${lang}/pricing`}
-            className="text-sm font-semibold bg-primary text-primary-foreground px-4 py-1.5 rounded-lg hover:bg-primary/90 transition"
-          >
-            {ui.getFullAccess}
-          </Link>
+          {fullScan ? (
+            <Link
+              href={`/${lang}/pricing`}
+              className="text-sm font-semibold bg-primary text-primary-foreground px-4 py-1.5 rounded-lg hover:bg-primary/90 transition"
+            >
+              {ui.getFullAccess}
+            </Link>
+          ) : null}
         </div>
       </nav>
 
       <main className="max-w-2xl mx-auto px-4 py-10 space-y-5">
+        <ClaimScanOnReturn scanId={summary.id} lang={lang} />
 
         {/* 1. Score reveal */}
         <div data-testid="result-score">
