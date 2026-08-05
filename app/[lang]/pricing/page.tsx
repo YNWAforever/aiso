@@ -130,8 +130,21 @@ export default function PricingPage() {
     { label: t('row_fixpack_adv'), basic: false, pro: true, enterprise: true, highlight: true },
     { label: t('row_brands'), basic: allowances.basic.brands, pro: allowances.pro.brands, enterprise: allowances.enterprise.brands },
     { label: t('row_history'), basic: allowances.basic.history, pro: allowances.pro.history, enterprise: allowances.enterprise.history },
-    { label: t('row_prompts'), basic: false, pro: true, enterprise: true },
-    { label: t('row_alerts'), basic: false, pro: true, enterprise: true },
+    // Entitled on Pro/Enterprise, but neither has shipped — the prompt-bank and
+    // alert routes still return 503. These two rows used to render a plain ✓,
+    // which sold a paying customer a feature that answers with an error.
+    {
+      label: t('row_prompts'),
+      basic: false,
+      pro: pro.release.promptBank === 'available' ? true : t('coming_soon'),
+      enterprise: enterprise.release.promptBank === 'available' ? true : t('coming_soon'),
+    },
+    {
+      label: t('row_alerts'),
+      basic: false,
+      pro: pro.release.sovAlerts === 'available' ? true : t('coming_soon'),
+      enterprise: enterprise.release.sovAlerts === 'available' ? true : t('coming_soon'),
+    },
     {
       label: t('row_competitor'),
       basic: false,
@@ -181,8 +194,8 @@ export default function PricingPage() {
       allowances.pro.history,
       t('row_checks'),
       t('row_fixpack_adv'),
-      t('row_prompts'),
-      t('row_alerts'),
+      releaseHighlight(pro.release.promptBank, t('row_prompts')),
+      releaseHighlight(pro.release.sovAlerts, t('row_alerts')),
       releaseHighlight(pro.release.monitoring, t('row_monitoring')),
       releaseHighlight(pro.release.competitorSummary, t('row_competitor')),
       releaseHighlight(pro.release.clientReports, t('row_client_report')),
