@@ -4,6 +4,7 @@ import { useId, useRef, useState } from 'react'
 import { ChevronDown, LoaderCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
+import { trackFunnelEvent } from '@/lib/funnel-client'
 
 export type ScanFormProps = { lang: string }
 
@@ -75,6 +76,7 @@ export function ScanForm({ lang }: ScanFormProps) {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (hasFailed) trackFunnelEvent({ name: 'scan_retry_clicked', locale: lang === 'zh-HK' ? 'zh-HK' : 'en' })
     setUrlError('')
     setStatus('')
     setStatusIsError(false)
@@ -84,6 +86,7 @@ export function ScanForm({ lang }: ScanFormProps) {
       normalizedUrl = normalizeSubmittedUrl(url)
     } catch (error) {
       setUrlError(error instanceof Error && error.message === 'empty_url' ? t('url_required') : t('url_invalid'))
+      setHasFailed(true)
       urlInputRef.current?.focus()
       return
     }

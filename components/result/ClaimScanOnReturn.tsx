@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { trackFunnelEvent } from '@/lib/funnel-client'
 
 export type ClaimReturnState =
   | 'idle' | 'claiming' | 'claimed' | 'already-owned'
@@ -29,7 +30,9 @@ export function ClaimScanOnReturn({ scanId, lang }: { scanId: string; lang: stri
   const searchParams = useSearchParams()
   const t = useTranslations('home')
   const attempted = useRef(false)
+  const replaceFrame = useRef<number | null>(null)
   const [state, setState] = useState<ClaimReturnState>('idle')
+  const locale = lang === 'zh-HK' ? 'zh-HK' : 'en'
 
   const claim = useCallback(async () => {
     setState('claiming')
@@ -42,18 +45,34 @@ export function ClaimScanOnReturn({ scanId, lang }: { scanId: string; lang: stri
       const result = classifyClaimResponse(response.status, body)
       setState(result)
       if (result === 'claimed' || result === 'already-owned') {
-        router.replace(`/${lang}/result/${encodeURIComponent(scanId)}`)
+        trackFunnelEvent({ name: 'signup_succeeded', locale, scanId })
+        trackFunnelEvent({ name: 'scan_claim_succeeded', locale, scanId })
+        replaceFrame.current = window.requestAnimationFrame(() => {
+          router.replace(`/${lang}/result/${encodeURIComponent(scanId)}`)
+        })
+      } else {
+        trackFunnelEvent({
+          name: 'scan_claim_failed',
+          locale,
+          scanId,
+          errorCode: result === 'not-found' ? 'not_found' : result === 'conflict' ? 'conflict' : 'temporary',
+        })
       }
     } catch {
       setState('error')
+      trackFunnelEvent({ name: 'scan_claim_failed', locale, scanId, errorCode: 'temporary' })
     }
-  }, [lang, router, scanId])
+  }, [lang, locale, router, scanId])
 
   useEffect(() => {
     if (searchParams.get('claim') !== '1' || attempted.current) return
     attempted.current = true
     void claim()
   }, [claim, searchParams, scanId])
+
+  useEffect(() => () => {
+    if (replaceFrame.current !== null) window.cancelAnimationFrame(replaceFrame.current)
+  }, [])
 
   if (searchParams.get('claim') !== '1') return null
 
@@ -78,7 +97,10 @@ export function ClaimScanOnReturn({ scanId, lang }: { scanId: string; lang: stri
       {retryable ? (
         <button
           type="button"
-          onClick={() => void claim()}
+          onClick={() => {
+            trackFunnelEvent({ name: 'scan_retry_clicked', locale, scanId })
+            void claim()
+          }}
           className="mt-2 min-h-11 rounded-lg px-3 text-sm font-bold text-primary underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           {t('retry_saving')}

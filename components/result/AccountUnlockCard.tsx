@@ -7,6 +7,7 @@ import {
   buildGoogleAuthStartUrl,
 } from '@/lib/auth-client'
 import { buildScanClaimNext } from './ClaimScanOnReturn'
+import { trackFunnelEvent } from '@/lib/funnel-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -174,6 +175,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
   }, [prepareClaimIntent])
 
   async function signInWithGoogle() {
+    trackFunnelEvent({ name: 'signup_started', locale: lang === 'zh-HK' ? 'zh-HK' : 'en', provider: 'google', scanId })
     setLoading('google')
     setStatus('')
     setIsError(false)
@@ -221,6 +223,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
 
   async function signInWithMagicLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    trackFunnelEvent({ name: 'signup_started', locale: lang === 'zh-HK' ? 'zh-HK' : 'en', provider: 'magic_link', scanId })
     setLoading('email')
     setStatus('')
     setIsError(false)
