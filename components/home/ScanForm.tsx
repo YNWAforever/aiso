@@ -111,6 +111,11 @@ export function ScanForm({ lang }: ScanFormProps) {
       if (!data || typeof data !== 'object' || !('id' in data) || typeof data.id !== 'string') {
         throw new Error('invalid_response')
       }
+      trackFunnelEvent({
+        name: 'scan_completed',
+        locale: lang === 'zh-HK' ? 'zh-HK' : 'en',
+        scanId: data.id,
+      })
       setStatus(t('scan_complete'))
       router.push(`/${lang}/result/${data.id}`)
     } catch {

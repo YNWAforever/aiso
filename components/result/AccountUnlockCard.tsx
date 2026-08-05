@@ -307,7 +307,10 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
             <p className="text-xs text-red-300">{c.intentFailed}</p>
             <button
               type="button"
-              onClick={() => void prepareClaimIntent()}
+              onClick={() => {
+                trackFunnelEvent({ name: 'scan_retry_clicked', locale: lang === 'zh-HK' ? 'zh-HK' : 'en', scanId })
+                void prepareClaimIntent()
+              }}
               className="min-h-11 text-sm font-semibold text-white underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               {c.retrySaving}

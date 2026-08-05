@@ -1,4 +1,5 @@
 'use client'
+import { useEffect } from 'react'
 import Link from 'next/link'
 import { Zap } from 'lucide-react'
 import { useLocale } from 'next-intl'
@@ -16,6 +17,7 @@ import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
 import { getCheckExplanations }  from '@/lib/checkExplanations'
 import type { Scan, CheckResult, ScanResults } from '@/lib/types'
 import type { PublicResultSummary } from '@/lib/result-access'
+import { trackFunnelEvent } from '@/lib/funnel-client'
 
 /* ── Check key lists ─────────────────────────────────────────── */
 const CORE_KEYS = ['c1_robots','c2_llms_txt','c3_bot_access','c4_structured_data','c5_extractability'] as const
@@ -165,6 +167,12 @@ export function ResultClient({ lang, summary, fullScan }: Props) {
   const topIssueResults = summary.topIssueKey && summary.topIssueStatus
     ? { [summary.topIssueKey]: { status: summary.topIssueStatus, message: 'public_summary' } }
     : {}
+
+  useEffect(() => {
+    const locale = lang === 'zh-HK' ? 'zh-HK' : 'en'
+    trackFunnelEvent({ name: 'scan_result_viewed', locale, scanId: summary.id })
+    if (!fullScan) trackFunnelEvent({ name: 'signup_cta_viewed', locale, scanId: summary.id })
+  }, [fullScan, lang, summary.id])
 
   // GEO rich data
   type C17 = { qualityScore?: number; authorityBreakdown?: Record<string, number>; citationsPerThousandWords?: number; totalLinks?: number; externalLinks?: number }
