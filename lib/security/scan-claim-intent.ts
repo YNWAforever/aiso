@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import { normalizeAuthNext } from '@/lib/auth-navigation'
 
 export type ScanClaimIntent = {
   scanId: string
@@ -31,7 +32,10 @@ function isValidIntent(payload: unknown): payload is ScanClaimIntent {
   const intent = payload as Record<string, unknown>
   if (typeof intent.scanId !== 'string' || intent.scanId.length === 0) return false
   if (intent.lang !== 'en' && intent.lang !== 'zh-HK') return false
-  if (typeof intent.returnPath !== 'string' || !intent.returnPath.startsWith(`/${intent.lang}/`)) return false
+  if (
+    typeof intent.returnPath !== 'string'
+    || normalizeAuthNext(intent.lang, intent.returnPath) !== intent.returnPath
+  ) return false
   if (typeof intent.attemptId !== 'string' || intent.attemptId.length === 0) return false
   return typeof intent.exp === 'number' && Number.isSafeInteger(intent.exp)
 }
@@ -49,7 +53,12 @@ export function signScanClaimIntent(input: Omit<ScanClaimIntent, 'exp'>, nowMs =
 
 export function verifyScanClaimIntent(token: string, nowMs = Date.now()): ScanClaimIntent | null {
   const [encodedPayload, encodedSignature, ...rest] = token.split('.')
-  if (!encodedPayload || !encodedSignature || rest.length !== 0 || !/^[A-Za-z0-9_-]{43}$/.test(encodedSignature)) return null
+  if (
+    !encodedPayload
+    || !encodedSignature
+    || rest.length !== 0
+    || !new RegExp(`^[A-Za-z0-9_-]{${SIGNATURE_LENGTH}}$`).test(encodedSignature)
+  ) return null
 
   let payload: unknown
   try {
