@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { buildTestRunPlan, classifyTestArgs, runTestPlan } from '../../scripts/run-tests.mjs'
+import { buildTestRunPlan, classifyTestArgs, createVitestInvocation, runTestPlan } from '../../scripts/run-tests.mjs'
 
 const unitBase = ['run', '--exclude', '__tests__/integration/**']
 const integrationBase = ['run', '--config', 'vitest.integration.config.ts']
@@ -62,5 +62,17 @@ describe('runTestPlan', () => {
       { runner: 'integration', args: integrationBase },
     ], execute)).resolves.toBe(7)
     expect(execute).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('createVitestInvocation', () => {
+  it('uses Node and Vitest\'s JavaScript entry without a shell on Windows', () => {
+    expect(createVitestInvocation(
+      { runner: 'unit', args: [...unitBase, 'path with spaces.test.ts', '&'] },
+    )).toEqual({
+      executable: process.execPath,
+      args: [expect.stringMatching(/[\\/]vitest[\\/]vitest\.mjs$/), ...unitBase, 'path with spaces.test.ts', '&'],
+      options: { shell: false, stdio: 'inherit' },
+    })
   })
 })

@@ -4,6 +4,7 @@ import path from 'node:path'
 
 const UNIT_BASE_ARGS = ['run', '--exclude', '__tests__/integration/**']
 const INTEGRATION_BASE_ARGS = ['run', '--config', 'vitest.integration.config.ts']
+const VITEST_ENTRY = fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url))
 
 export function classifyTestArgs(args) {
   const sharedArgs = []
@@ -56,13 +57,18 @@ export async function runTestPlan(plan, execute) {
   return 0
 }
 
+export function createVitestInvocation(run) {
+  return {
+    executable: process.execPath,
+    args: [VITEST_ENTRY, ...run.args],
+    options: { shell: false, stdio: 'inherit' },
+  }
+}
+
 function executeVitest(run) {
-  const executable = process.platform === 'win32' ? 'vitest.cmd' : 'vitest'
+  const invocation = createVitestInvocation(run)
   return new Promise((resolve) => {
-    const child = spawn(executable, run.args, {
-      shell: process.platform === 'win32',
-      stdio: 'inherit',
-    })
+    const child = spawn(invocation.executable, invocation.args, invocation.options)
     child.once('error', () => resolve(1))
     child.once('close', (code) => resolve(code ?? 1))
   })
