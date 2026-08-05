@@ -22,6 +22,8 @@ describe('POST /api/funnel-events', () => {
     for (const body of [
       '{',
       JSON.stringify({ name: 'scan_completed', attemptId: 'attempt-1', locale: 'en', email: 'person@example.com' }),
+      JSON.stringify({ name: 'scan_completed', attemptId: 'attempt-1', locale: 'en', metadata: { url: 'https://example.com' } }),
+      JSON.stringify({ name: 'scan_completed', attemptId: 'attempt-1', locale: 'en', metadata: [{ results: ['raw report'] }] }),
       JSON.stringify({ name: 'scan_completed', attemptId: 'a'.repeat(2100), locale: 'en' }),
     ]) {
       const response = await post(body)

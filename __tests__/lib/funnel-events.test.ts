@@ -27,6 +27,17 @@ describe('redactFunnelEvent', () => {
     expect(redactFunnelEvent({ name: 'scan_completed', attemptId: 'attempt-1', locale: 'en', competitors: [] })).toBeNull()
   })
 
+  it('rejects sensitive keys nested in unknown objects and arrays', () => {
+    expect(redactFunnelEvent({
+      name: 'scan_completed', attemptId: 'attempt-1', locale: 'en',
+      metadata: { context: { email: 'person@example.com' } },
+    })).toBeNull()
+    expect(redactFunnelEvent({
+      name: 'scan_completed', attemptId: 'attempt-1', locale: 'en',
+      metadata: [{ competitors: ['Acme'] }],
+    })).toBeNull()
+  })
+
   it('logs only the redacted payload', () => {
     const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
     logFunnelEvent({ name: 'scan_completed', attemptId: 'attempt-1', locale: 'zh-HK', scanId: 'scan-1' })

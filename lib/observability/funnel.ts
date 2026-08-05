@@ -26,10 +26,25 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0
 }
 
+function containsSensitiveKey(value: unknown, visited = new WeakSet<object>()): boolean {
+  if (!value || typeof value !== 'object') return false
+  if (visited.has(value)) return false
+  visited.add(value)
+
+  if (Array.isArray(value)) return value.some(item => containsSensitiveKey(item, visited))
+
+  const prototype = Object.getPrototypeOf(value)
+  if (prototype !== Object.prototype && prototype !== null) return false
+
+  return Object.entries(value).some(([key, nestedValue]) => (
+    SENSITIVE_KEYS.has(key) || containsSensitiveKey(nestedValue, visited)
+  ))
+}
+
 export function redactFunnelEvent(input: unknown): Record<string, string> | null {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return null
   const candidate = input as Record<string, unknown>
-  if (Object.keys(candidate).some(key => SENSITIVE_KEYS.has(key))) return null
+  if (containsSensitiveKey(candidate)) return null
   if (
     !FUNNEL_EVENTS.includes(candidate.name as FunnelEventName)
     || !isNonEmptyString(candidate.attemptId)
@@ -50,7 +65,8 @@ export function redactFunnelEvent(input: unknown): Record<string, string> | null
   return redacted
 }
 
-export function logFunnelEvent(input: FunnelEventInput): void {
+export function logFunnelEvent(input: unknown): Record<string, string> | null {
   const redacted = redactFunnelEvent(input)
   if (redacted) console.info('[funnel]', JSON.stringify(redacted))
+  return redacted
 }
