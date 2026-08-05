@@ -17,6 +17,10 @@ export function normalizeSubmittedUrl(value: string): string {
   return parsed.toString()
 }
 
+export function getScanSubmitLabelKey(hasFailed: boolean): 'cta' | 'retry_scan' {
+  return hasFailed ? 'retry_scan' : 'cta'
+}
+
 const INDUSTRIES = [
   'technology',
   'finance',
@@ -67,6 +71,7 @@ export function ScanForm({ lang }: ScanFormProps) {
   const [urlError, setUrlError] = useState('')
   const [status, setStatus] = useState('')
   const [statusIsError, setStatusIsError] = useState(false)
+  const [hasFailed, setHasFailed] = useState(false)
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -108,6 +113,7 @@ export function ScanForm({ lang }: ScanFormProps) {
     } catch {
       setStatusIsError(true)
       setStatus(t('scan_error_action'))
+      setHasFailed(true)
       setIsSubmitting(false)
     }
   }
@@ -142,7 +148,7 @@ export function ScanForm({ lang }: ScanFormProps) {
           className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:translate-y-0 disabled:cursor-wait disabled:opacity-70"
         >
           {isSubmitting ? <LoaderCircle aria-hidden="true" className="size-4 animate-spin" /> : null}
-          {isSubmitting ? t('scanning') : t('cta')}
+          {isSubmitting ? t('scanning') : t(getScanSubmitLabelKey(hasFailed))}
         </button>
       </div>
       <p id={urlErrorId} className="mt-2 min-h-6 text-sm font-medium text-destructive">

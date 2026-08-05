@@ -1,44 +1,51 @@
 'use client'
 
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   authClient,
   buildAuthCompleteUrl,
   buildGoogleAuthStartUrl,
 } from '@/lib/auth-client'
+import { buildScanClaimNext } from './ClaimScanOnReturn'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
 const COPY_EN = {
-  title: 'Save your scan and unlock the full report',
-  body: 'Create a free account to view all checks, private remediation details, and your Fix Pack.',
+  title: 'Save your full report',
+  body: 'Your report stays available after you sign in.',
   emailLabel: 'Work email',
   emailPlaceholder: 'you@company.com',
-  createAccount: 'Create Free Account',
-  continueGoogle: 'Continue with Google',
+  createAccount: 'Use Email Magic Link instead',
+  continueGoogle: 'Continue with Google to save your full report',
   or: 'or',
   sending: 'Sending magic link…',
   checkEmail: 'Check your inbox for your secure sign-in link.',
   tooManyAttempts: 'Too many attempts. Please wait a few minutes before trying again.',
   googleFailed: 'Could not start Google sign-in. Please try again.',
   magicLinkFailed: 'Could not send the magic link. Please try again.',
-  finePrint: 'No credit card · Your scan will be saved automatically.',
+  finePrint: 'No credit card · Save this scan for free',
+  preparing: 'Preparing your report save…',
+  intentFailed: 'Could not prepare your report save. Please try again.',
+  retrySaving: 'Retry saving',
 }
 
 const COPY_ZH_HK: typeof COPY_EN = {
-  title: '儲存掃描並解鎖完整報告',
-  body: '免費建立帳戶，即可查看全部檢查、私人修復詳情及你的 Fix Pack。',
+  title: '保存你的完整報告',
+  body: '登入後可隨時查看這份報告。',
   emailLabel: '工作電郵',
   emailPlaceholder: 'you@company.com',
-  createAccount: '免費建立帳戶',
-  continueGoogle: '使用 Google 繼續',
+  createAccount: '改用 Email Magic Link',
+  continueGoogle: '使用 Google 免費保存完整報告',
   or: '或',
   sending: '正在發送登入連結…',
   checkEmail: '請查看收件箱內的安全登入連結。',
   tooManyAttempts: '嘗試次數過多，請等待幾分鐘後再試。',
   googleFailed: '無法啟動 Google 登入，請再試一次。',
   magicLinkFailed: '無法發送登入連結，請再試一次。',
-  finePrint: '毋須信用卡 · 你的掃描會自動儲存。',
+  finePrint: '無需信用卡 · 免費保存此掃描',
+  preparing: '正在準備保存報告…',
+  intentFailed: '暫時未能準備保存報告，請再試一次。',
+  retrySaving: '重試保存',
 }
 
 type Props = {
@@ -126,10 +133,11 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
   const [loading, setLoading] = useState<'google' | 'email' | null>(null)
   const [status, setStatus] = useState('')
   const [isError, setIsError] = useState(false)
+  const [intentState, setIntentState] = useState<'preparing' | 'ready' | 'error'>('preparing')
   const googlePopupRef = useRef<GoogleAuthPopup | null>(null)
   const googlePopupMonitorRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const googlePopupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const next = `/${lang}/onboarding?scan=${encodeURIComponent(scanId)}`
+  const next = buildScanClaimNext(lang, scanId)
   const callbackURL = buildAuthCompleteUrl(lang, next)
 
   function releaseGooglePopup() {
@@ -145,6 +153,25 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
     if (googlePopupMonitorRef.current) clearInterval(googlePopupMonitorRef.current)
     if (googlePopupTimeoutRef.current) clearTimeout(googlePopupTimeoutRef.current)
   }, [])
+
+  const prepareClaimIntent = useCallback(async () => {
+    setIntentState('preparing')
+    try {
+      const response = await fetch(`/api/scans/${encodeURIComponent(scanId)}/claim-intent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lang }),
+      })
+      if (!response.ok) throw new Error('claim_intent_failed')
+      setIntentState('ready')
+    } catch {
+      setIntentState('error')
+    }
+  }, [lang, scanId])
+
+  useEffect(() => {
+    void prepareClaimIntent()
+  }, [prepareClaimIntent])
 
   async function signInWithGoogle() {
     setLoading('google')
@@ -209,7 +236,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
   }
 
   return (
-    <section className="rounded-2xl border-2 border-primary/30 bg-slate-900 p-6 sm:p-8">
+    <section data-testid="save-report-cta" className="rounded-2xl border-2 border-primary/30 bg-slate-900 p-6 sm:p-8">
       <div className="mx-auto max-w-md text-center">
         <h2 className="text-xl font-black text-white">{c.title}</h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-300">{c.body}</p>
@@ -218,7 +245,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
           type="button"
           variant="outline"
           onClick={signInWithGoogle}
-          disabled={loading !== null}
+          disabled={loading !== null || intentState !== 'ready'}
           data-testid="google-signup"
           className="mt-6 w-full justify-center gap-3 bg-white text-slate-900 hover:bg-slate-100"
         >
@@ -255,7 +282,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
           />
           <Button
             type="submit"
-            disabled={loading !== null}
+            disabled={loading !== null || intentState !== 'ready'}
             data-testid="create-account"
             className="mt-3 w-full"
           >
@@ -271,6 +298,19 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
           {status}
         </p>
         <p className="mt-2 text-xs text-slate-400">{c.finePrint}</p>
+        {intentState === 'preparing' ? <p className="mt-2 text-xs text-slate-400">{c.preparing}</p> : null}
+        {intentState === 'error' ? (
+          <div className="mt-2">
+            <p className="text-xs text-red-300">{c.intentFailed}</p>
+            <button
+              type="button"
+              onClick={() => void prepareClaimIntent()}
+              className="min-h-11 text-sm font-semibold text-white underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              {c.retrySaving}
+            </button>
+          </div>
+        ) : null}
       </div>
     </section>
   )

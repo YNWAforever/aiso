@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeSubmittedUrl } from '@/components/home/ScanForm'
+import { getScanSubmitLabelKey, normalizeSubmittedUrl } from '@/components/home/ScanForm'
 
 describe('normalizeSubmittedUrl', () => {
   it('trims a URL and adds https when the protocol is omitted', () => {
@@ -20,5 +20,12 @@ describe('normalizeSubmittedUrl', () => {
 
   it('rejects a non-web URL scheme', () => {
     expect(() => normalizeSubmittedUrl('mailto:user@example.com')).toThrowError('invalid_protocol')
+  })
+})
+
+describe('scan form retry label', () => {
+  it('switches to the localized retry key after a scan failure', () => {
+    expect(getScanSubmitLabelKey(false)).toBe('cta')
+    expect(getScanSubmitLabelKey(true)).toBe('retry_scan')
   })
 })

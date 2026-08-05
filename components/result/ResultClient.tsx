@@ -10,6 +10,7 @@ import { ImpactTeaser }     from './ImpactTeaser'
 import { ImpactPanel }      from './ImpactPanel'
 import { ShareButton }      from './ShareButton'
 import { AccountUnlockCard } from './AccountUnlockCard'
+import { ClaimScanOnReturn } from './ClaimScanOnReturn'
 import { computeImpact, type PlatformStatus } from '@/lib/impact'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
 import { getCheckExplanations }  from '@/lib/checkExplanations'
@@ -191,16 +192,19 @@ export function ResultClient({ lang, summary, fullScan }: Props) {
         </Link>
         <div className="flex items-center gap-3">
           <ShareButton domain={summary.domain} score={summary.score} grade={summary.grade} />
-          <Link
-            href={`/${lang}/pricing`}
-            className="text-sm font-semibold bg-primary text-primary-foreground px-4 py-1.5 rounded-lg hover:bg-primary/90 transition"
-          >
-            {ui.getFullAccess}
-          </Link>
+          {fullScan ? (
+            <Link
+              href={`/${lang}/pricing`}
+              className="text-sm font-semibold bg-primary text-primary-foreground px-4 py-1.5 rounded-lg hover:bg-primary/90 transition"
+            >
+              {ui.getFullAccess}
+            </Link>
+          ) : null}
         </div>
       </nav>
 
       <main className="max-w-2xl mx-auto px-4 py-10 space-y-5">
+        <ClaimScanOnReturn scanId={summary.id} lang={lang} />
 
         {/* 1. Score reveal */}
         <div data-testid="result-score">
