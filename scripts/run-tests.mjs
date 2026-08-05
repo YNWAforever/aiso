@@ -5,15 +5,54 @@ import path from 'node:path'
 const UNIT_BASE_ARGS = ['run', '--exclude', '__tests__/integration/**']
 const INTEGRATION_BASE_ARGS = ['run', '--config', 'vitest.integration.config.ts']
 const VITEST_ENTRY = fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url))
+const OPTIONS_WITH_REQUIRED_VALUE = new Set([
+  '-r',
+  '--root',
+  '-c',
+  '--config',
+  '-t',
+  '--testNamePattern',
+  '--dir',
+  '--reporter',
+  '--outputFile',
+  '--mode',
+  '--browser',
+  '--pool',
+  '--execArgv',
+  '--vmMemoryLimit',
+  '--maxWorkers',
+  '--environment',
+  '--shard',
+  '--testTimeout',
+  '--hookTimeout',
+  '--bail',
+  '--retry',
+  '--diff',
+  '--exclude',
+  '--project',
+  '--slowTestThreshold',
+  '--teardownTimeout',
+  '--maxConcurrency',
+  '--attachmentsDir',
+  '--configLoader',
+  '--mergeReports',
+  '--tagsFilter',
+  '--experimental',
+])
 
 export function classifyTestArgs(args) {
   const sharedArgs = []
   const unitPaths = []
   const integrationPaths = []
 
-  for (const arg of args) {
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index]
     if (arg.startsWith('-')) {
       sharedArgs.push(arg)
+      if (OPTIONS_WITH_REQUIRED_VALUE.has(arg) && index + 1 < args.length) {
+        sharedArgs.push(args[index + 1])
+        index += 1
+      }
       continue
     }
 
@@ -65,11 +104,20 @@ export function createVitestInvocation(run) {
   }
 }
 
-function executeVitest(run) {
+function formatSpawnError(error) {
+  const code = typeof error?.code === 'string' ? error.code : 'unknown'
+  const sanitizedCode = code.replace(/[^a-zA-Z0-9_-]/g, '') || 'unknown'
+  return `Vitest failed to start (${sanitizedCode}).\n`
+}
+
+export function executeVitest(run, { spawnProcess = spawn, stderr = process.stderr } = {}) {
   const invocation = createVitestInvocation(run)
   return new Promise((resolve) => {
-    const child = spawn(invocation.executable, invocation.args, invocation.options)
-    child.once('error', () => resolve(1))
+    const child = spawnProcess(invocation.executable, invocation.args, invocation.options)
+    child.once('error', (error) => {
+      stderr.write(formatSpawnError(error))
+      resolve(1)
+    })
     child.once('close', (code) => resolve(code ?? 1))
   })
 }

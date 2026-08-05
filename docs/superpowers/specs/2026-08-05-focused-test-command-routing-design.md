@@ -70,4 +70,3 @@ The implementation is complete only when all of the following are true on the sa
 1. **Change the release plan to call `test:unit` only.** This avoids the false failure but leaves the widely documented `npm test -- <path>` contract broken and makes future focused commands misleading.
 2. **Use a shell-specific conditional in `package.json`.** This is shorter but is not reliably portable across PowerShell, cmd.exe, Bash, and CI runners.
 3. **Make `test` run only unit tests and add a separate full-suite script.** This would weaken the existing safety contract that `npm test` includes the Neon-backed integration suite.
-
