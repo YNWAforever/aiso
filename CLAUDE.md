@@ -85,7 +85,13 @@ app/
                    # Reachable: proxy.ts's matcher now excludes /admin, so it no
                    # longer 307s to a non-existent /en/admin. A separate localised
                    # app/[lang]/admin/authority/ page DOES go through intl routing.
-components/        # React UI components
+components/        # React UI components. 12 are orphaned — nothing renders them,
+                   # mostly the UI of fenced features. The inventory and the
+                   # reason for each is __tests__/components/orphaned-components.test.ts,
+                   # which fails both when a new one appears and when a listed
+                   # one becomes reachable. Reachability there is transitive from
+                   # app/: three Pulse components are imported only by other
+                   # orphans, so "is it imported" would call them live.
   ui/              # shadcn/ui base components
   dashboard/       # Dashboard-specific components (+ local-trust/)
   pulse/           # Pulse report components
