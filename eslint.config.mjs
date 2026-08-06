@@ -14,6 +14,25 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
   ]),
   {
+    // The repo already writes `_baseUrl` / `_context` / `_req` for parameters a
+    // signature requires but the body does not use — nine of them, all
+    // deliberate. Nothing told ESLint that, so they were reported alongside
+    // genuinely dead code and the real findings hid in the noise. Honour the
+    // convention so an unused name that is NOT underscore-prefixed means
+    // something is actually wrong.
+    files: ["**/*.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
+  {
     // The Supabase project backing this app was deleted and its hostname no
     // longer resolves. supabase-js does not throw on a dead host — it resolves
     // to { data: null, error } — so a new import here fails silently in

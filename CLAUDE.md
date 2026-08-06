@@ -16,10 +16,10 @@ The Supabase → Neon migration is done. `db()` from `@/lib/db` (a lazy
 - An ESLint `no-restricted-imports` rule in `eslint.config.mjs` blocks any new import of
   `@supabase/*`, `@/lib/supabase`, or `@/lib/supabase-server` — reintroducing one is a lint
   error, not just a convention.
-- Local Trust (`lib/localTrust/store.ts` and its routes under
-  `app/api/dashboard/clients/[clientId]/local-trust/`) runs on `db()` but stays
-  **intentionally fenced**: those routes return `503 FEATURE_UNAVAILABLE` regardless of the
-  store working. Don't unfence them as part of unrelated work.
+- Local Trust is **restored and live** (`lib/localTrust/`): profile, actions and export all
+  run on `db()` and gate through `lib/localTrust/guard.ts`. Its store was the only feature
+  store ever ported to Neon — the other fenced features have no `db()` data layer at all, so
+  restoring one means writing its queries, not just deleting the fence.
 
 ## Tech Stack
 
@@ -49,7 +49,7 @@ No `@supabase/*` packages remain — see the migration note above.
 npm run dev        # start dev server (localhost:3000)
 npm run build      # production build
 npm run start      # serve production build
-npm run lint       # ESLint (warnings only today; 0 errors)
+npm run lint       # ESLint — clean: 0 errors, 0 warnings. Keep it there.
 npm run test       # unit + integration (integration skips loudly without neonctl)
 npm run test:unit  # unit only
 npm run test:integration  # integration only — always requires neonctl
@@ -85,7 +85,13 @@ app/
                    # Reachable: proxy.ts's matcher now excludes /admin, so it no
                    # longer 307s to a non-existent /en/admin. A separate localised
                    # app/[lang]/admin/authority/ page DOES go through intl routing.
-components/        # React UI components
+components/        # React UI components. 10 are orphaned — nothing renders them,
+                   # mostly the UI of fenced features. The inventory and the
+                   # reason for each is __tests__/components/orphaned-components.test.ts,
+                   # which fails both when a new one appears and when a listed
+                   # one becomes reachable. Reachability there is transitive from
+                   # app/: three Pulse components are imported only by other
+                   # orphans, so "is it imported" would call them live.
   ui/              # shadcn/ui base components
   dashboard/       # Dashboard-specific components (+ local-trust/)
   pulse/           # Pulse report components
@@ -97,12 +103,20 @@ lib/
   authority/       # Domain authority engine: 4 layer modules. computeAuthority()'s
                    # 5th "dynamicBoost" slot is an optional arg no caller passes.
   localTrust/      # Local trust scoring + ROI engine
+  prompts/         # Question-bank vocabulary + gate. categories.ts is the single
+                   # source of truth for the four category keys — the column has
+                   # no CHECK and its writers are LLMs, so validate on the way in
+                   # and stay permissive on the way out.
+  pulse/           # Pulse producer: summary rollup, answer analysis, platform
+                   # vocabularies, and limits.ts. MAX_PROMPTS is shared — pulse/run
+                   # scans `limit MAX_PROMPTS`, so the writer must cap at the same
+                   # number or the excess is silently never scanned.
   db.ts            # db() — Neon serverless SQL singleton  ← use this
   auth.ts          # getProfile() — reads Neon Auth session server-side
   neon-auth.ts     # auth() — server-side Neon Auth singleton
   auth-client.ts   # authClient + buildAuthCompleteUrl() (browser)
   scoring.ts       # CORE_PTS / EXT_PTS / GEO_PTS, calculateScore, assignGrade
-  tier.ts          # getPlanFeatures() — plan feature flags
+  tier.ts          # resolveCommercialEntitlement() — the real gate; getPlanFeatures() ignores status
   types.ts         # Hub for shared types. NOT exhaustive - ImpactReport lives in
                    # lib/impact.ts, CheckExplanation in lib/checkExplanations.ts
   openrouter.ts    # LLM calls via OpenRouter
@@ -110,7 +124,7 @@ proxy.ts           # Next 16 proxy (was middleware) — intl routing + auth veri
 i18n/              # next-intl routing + request config
 messages/          # en.json / zh-HK.json translation strings
 supabase/
-  migrations/      # 27 SQL migrations, 001_-030_ (no 005/006) - dir name is legacy
+  migrations/      # 30 SQL migrations, 001_-032_ (no 005/006) - dir name is legacy
 __tests__/         # Vitest tests mirroring lib/app structure
 tests/e2e/         # Playwright specs + page objects
 scripts/           # migrate.ts (npm run migrate), run-tests.mjs (npm test), seed-packs.ts
@@ -128,7 +142,11 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
 - DB access: `const sql = db()` from `@/lib/db`, then tagged-template queries
 - Auth pattern: call `getProfile()` from `lib/auth.ts` — returns `null` for unauthenticated
   requests (don't throw). Use `requireAuth(lang)` / `requireAdmin(lang)` in layouts to redirect.
-- Tier/feature gates: use `getPlanFeatures(plan)` from `lib/tier.ts` before exposing paid features
+- Tier/feature gates: use **`resolveCommercialEntitlement(profile.accounts)`** from
+  `lib/tier.ts`, never `getPlanFeatures(plan)`. The latter takes a plan string and so ignores
+  subscription status, trial expiry and admin overrides — it will happily report Pro features
+  for a `cancelled` account. `resolveCommercialEntitlement` resolves override → past_due →
+  cancelled → trial → paid and fails closed to `free`.
 - Error handling: `try/catch` with graceful fallbacks — checks degrade rather than throw, each
   with its own domain-specific message (see Checks Architecture; don't emit `check_error`).
 - **Never return a success over a failed write.** This bit hard: `supabase-js` resolved to
@@ -191,10 +209,31 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > which calls `getProfile()` and filters by `account_id`. Read the callee before concluding a
 > route is open.
 >
-> Routes whose feature is fenced return `503 FEATURE_UNAVAILABLE` via `lib/unavailable.ts`
-> (all of `pulse/*`, `fix/cluster-map`, `fix/content-brief`, `notifications/*`, `cron/*`,
-> `local-trust/*`, `prompts/*`, `agents/*`). A fence is not a gate — **restoring one of these
-> means adding a real gate, not just deleting the `featureUnavailable` call.**
+> Routes whose feature is fenced return `503 FEATURE_UNAVAILABLE` via `lib/unavailable.ts`:
+> `pulse/onboard`, `pulse/[clientId]/*`, `fix/cluster-map`, `fix/content-brief`,
+> `notifications/*`, `agents/*`, `cron/*` (both trial-emails and evaluate-alerts). **Local
+> Trust, the alerts *config* route, the Pulse producer (`pulse/run`), the whole prompt bank
+> and `pulse/suggest-questions` are restored**;
+> `cron/evaluate-alerts` deliberately is not — it needs a scheduler, and none exists.
+> `__tests__/api/fenced-routes.test.ts` is the canonical list and asserts each still 503s, so
+> restoring a route means deleting its entry there too.
+>
+> Three of the remaining fences should be **deleted rather than restored**, and it is worth
+> not re-litigating that: `pulse/[clientId]/summary` and `/missed` are redundant —
+> `clients/[clientId]/overview` is unfenced and already serves both datasets with larger
+> limits — `pulse/onboard` is superseded by `onboarding/complete`, and `notifications/*` has
+> never had a producer in any commit, so restoring it surfaces a permanently empty list whose
+> only consumer (`NotificationBell`) has no importer either.
+>
+> A fence is not a gate — **restoring one means adding a real gate, not just deleting the
+> `featureUnavailable` call.** The shape to copy is `lib/localTrust/guard.ts`: auth →
+> entitlement → ownership, in that order, in one place so a route cannot do two of the three.
+> Ownership failure is `404` (the id came from the caller); a failed ownership *lookup* is
+> `503`, so a database incident cannot read as "not yours". `pulse/run` inverts that order
+> deliberately and is the one documented exception: it is cron-authenticated with no session,
+> so the account is resolved *through* the client. The entitlement check survives the
+> inversion and doubles as cost control — a plan granting no platforms is refused `403`
+> before any LLM spend.
 
 Sign-in completes **client-side**: `LoginForm` / `TrialCta` set `callbackURL` to
 `/{lang}/auth/complete`, and `components/auth/AuthComplete.tsx` exchanges the session
@@ -256,7 +295,23 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 
 ## Database (Neon Postgres)
 
-- Migrations in `supabase/migrations/` — 27 files, `001_`–`030_` (no 005/006; directory name is legacy;
+- **`pulse_metrics` has no unique key**, and `total_queries` in the weekly rollup is a count
+  over its rows — so writing a prompt twice inflates `sov_score`, the number the whole feature
+  reports. `pulse/run` therefore deletes a prompt's rows for the week before writing them,
+  in application code rather than via a constraint, so it stays correct whether or not the
+  pending migrations ever land. Any new writer of that table needs the same discipline.
+- **Never `returning *` on a statement that joins another table.** The Neon HTTP driver builds
+  each row with `Object.fromEntries(...)`, so duplicate column names **silently overwrite —
+  last wins** — and the joined relation's columns come *after* the target's. `update prompt_bank
+  p … from clients c … returning *` returns 11 columns that collapse to 9 keys, with `row.id`
+  holding the **client's** id, because both tables have `id` and `created_at`. It typechecks,
+  it reads correctly in review, and the caller then addresses an id that never existed. Name
+  the columns explicitly (`returning p.id, p.question, …`). Verified against PostgreSQL 16.
+- Putting tenancy *inside* a write (`update … from clients c where … and c.account_id = ${id}`)
+  rather than checking first is the preferred shape — one statement, no TOCTOU window, and zero
+  rows means 404 without distinguishing "absent" from "not yours". See
+  `app/api/dashboard/clients/[clientId]/prompts/[promptId]/route.ts`.
+- Migrations in `supabase/migrations/` — 30 files, `001_`–`032_` (no 005/006; directory name is legacy;
   the target is now Neon)
 - **A migration runner now exists:** `scripts/migrate.ts`, run via `npm run migrate`. It
   applies every file absent from the `schema_migrations` ledger, in filename order, each in
@@ -264,13 +319,21 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   migrations as applied without running them.
   **It refuses to run against a populated database with an empty ledger** — that guard is
   what stops it re-applying the migrations that were applied by hand before it existed.
-  Baseline production once before the first real run, excepting **every** migration that has
-  not actually been applied yet — currently `--baseline --except 027_client_report_snapshots.sql
-  --except 029_scans_client_id.sql --except 030_accounts_plan_default_basic.sql`. Anything you
-  forget to except is recorded as applied without ever running.
-- Applied as of 2026-07-26: `001`–`026` and `028`. **Pending: `027`, `029`, `030`** — confirm
-  against `select filename from schema_migrations` before baselining, since that snapshot is
-  only as fresh as this line. Slice 6 (client reports) applies `027`. It was edited to
+- **Run `npm run migrate -- --verify` first, and trust it over this file.** It reports, per
+  migration, whether the tables that migration creates actually exist. `--baseline` now refuses
+  to record any migration whose tables are missing, because recording one is unrecoverable: it
+  removes the only path by which its objects would ever be created. Baseline excepting **every**
+  migration that has not run — anything you forget is recorded as applied without ever running.
+- ⚠️ **`021` is disputed and must be settled before baselining.** `021_local_trust_roi.sql:3`
+  says of itself *"This migration has never been applied (no local_trust_* table exists in
+  Neon)"*, while the line below claimed `001`–`026` were applied and `027:10` asserts
+  "Production has 021 applied". They cannot all be true. 021 is the sole creator of
+  `local_trust_profiles` / `_snapshots` / `_actions`, which `lib/localTrust/store.ts` queries
+  directly — so if it never ran, **Local Trust is broken in production**, and baselining
+  without excepting it strands those tables permanently. `--verify` answers this in one command.
+- Believed applied: `001`–`026` (**except possibly `021`**) and `028`. **Pending: `027`, `029`,
+  `030`, `031`, `032`.** Verify before baselining; this line is only as fresh as the last person to
+  edit it, and it has been wrong. Slice 6 (client reports) applies `027`. It was edited to
   apply cleanly — it previously duplicated `021`'s `clients_id_account_id_unique`
   constraint, used `gen_random_bytes()` without enabling `pgcrypto`, and granted to the
   Supabase roles `anon` / `authenticated` / `service_role`, which do not exist under Neon.
@@ -345,8 +408,14 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `PLAYWRIGHT_TEST_PASSWORD`
 - **Dead:** `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — read by zero source files; checkout is
   server-side only. `@stripe/stripe-js` is installed but never imported.
-- **Dead:** `CRON_SECRET` (zero readers — both `/api/cron` routes are 503 stubs with no
-  secret check) and `RESEND_API_KEY` (`sendAlertEmail` has no callers). Legacy Supabase
+- `CRON_SECRET` — ≥16 chars, read by **two** routes in the same request chain, in two
+  different header shapes, which looks like a bug and is not. Vercel Cron sends
+  `Authorization: Bearer $CRON_SECRET` to `GET /api/cron/pulse`; that driver then sends
+  `x-cron-secret` to `POST /api/pulse/run`. Neither shape is ours to choose — the first is
+  Vercel's, the second is the producer's. Both return 500 rather than running if the secret
+  is unset or short. `vercel.json` now schedules the driver weekly; `cron/trial-emails` and
+  `cron/evaluate-alerts` remain 503 stubs that read no secret.
+- **Dead:** `RESEND_API_KEY` (`sendAlertEmail` has no callers). Legacy Supabase
   (`NEXT_PUBLIC_SUPABASE_URL`, `..._ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) is also fully
   dead: no application code reads them. The ESLint rule that bans `@supabase/*` now covers
   `.mjs`/`.js`/`.cjs` as well as TS — it previously did not, which is how an orphaned

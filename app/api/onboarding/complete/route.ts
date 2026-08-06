@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { callOpenRouter } from '@/lib/openrouter'
 import { getProfile } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { isPromptCategory } from '@/lib/prompts/categories'
 import { claimScanForAccount } from '@/app/api/scans/[id]/claim/route'
 
 export const dynamic = 'force-dynamic'
@@ -175,12 +176,31 @@ export async function POST(req: NextRequest) {
       }],
     })
     const match = raw.match(/\[[\s\S]*\]/)
-    const prompts = JSON.parse(match?.[0] ?? raw) as Array<{ category: string; question: string; language: string }>
+    const parsed = JSON.parse(match?.[0] ?? raw) as Array<{ category: string; question: string; language: string }>
+
+    // The model is asked for four specific categories, but nothing made it
+    // comply: the column has no CHECK and these values went straight into the
+    // insert. A category outside the vocabulary is not a cosmetic problem — the
+    // question bank groups by it, so an invented one lands in a section the
+    // editor cannot offer an add row for, and a missing one becomes NULL.
+    // Dropping the row is right: this call is already non-fatal, and a
+    // question filed under a category nothing recognises is worse than one
+    // fewer question.
+    const prompts = parsed.filter(p =>
+      p && isPromptCategory(p.category) && typeof p.question === 'string' && p.question.trim(),
+    )
+    if (prompts.length < parsed.length) {
+      console.warn(
+        `[onboarding] dropped ${parsed.length - prompts.length} of ${parsed.length} generated `
+        + 'prompts with an unrecognised category',
+      )
+    }
+
     if (prompts.length > 0) {
       // Neon's driver is tagged-template only, so a ~24-row bulk insert is
       // built with unnest() over parallel arrays rather than string concat.
       const categories = prompts.map(p => p.category)
-      const questions = prompts.map(p => p.question)
+      const questions = prompts.map(p => p.question.trim())
       const languages = prompts.map(p => p.language ?? 'en')
       await sql`
         insert into prompt_bank (client_id, category, question, language, is_active)

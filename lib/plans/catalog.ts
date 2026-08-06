@@ -28,10 +28,21 @@ export interface PlanFeatures {
   client_reports_online: boolean
 }
 
+/**
+ * Marketing release state — what the pricing page is allowed to claim.
+ *
+ * Read only by app/[lang]/pricing/page.tsx. **Never gate a route on this.**
+ * Runtime entitlement is PlanFeatures via resolveCommercialEntitlement(); a
+ * feature can be entitled on a plan and still be 'planned' here because it has
+ * not shipped. `sovAlerts` is deliberately not named `alerts`, so it cannot be
+ * mistaken for the `features.alerts` entitlement flag.
+ */
 export interface PlanReleaseState {
   monitoring: ReleaseState
   competitorSummary: ReleaseState
   clientReports: ReleaseState
+  promptBank: ReleaseState
+  sovAlerts: ReleaseState
   whiteLabelPdf: ReleaseState
   publicApi: ReleaseState
   customPlatforms: ReleaseState
@@ -58,6 +69,8 @@ const unavailableRelease: PlanReleaseState = {
   monitoring: 'unavailable',
   competitorSummary: 'unavailable',
   clientReports: 'unavailable',
+  promptBank: 'unavailable',
+  sovAlerts: 'unavailable',
   whiteLabelPdf: 'unavailable',
   publicApi: 'unavailable',
   customPlatforms: 'unavailable',
@@ -99,6 +112,11 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
     release: {
       ...unavailableRelease,
       monitoring: 'planned', competitorSummary: 'planned', clientReports: 'available',
+      // promptBank shipped: the four routes are live and the editor is reachable
+      // at /{lang}/dashboard/{clientId}/prompts. sovAlerts is still entitled but
+      // unshipped — the evaluator has no scheduler and no source for the rows it
+      // reads.
+      promptBank: 'available', sovAlerts: 'planned',
     },
     features: {
       plan: 'pro',
@@ -116,6 +134,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
     exportFormats: ['csv'], supportLevel: 'priority',
     release: {
       monitoring: 'planned', competitorSummary: 'available', clientReports: 'available',
+      promptBank: 'available', sovAlerts: 'planned',
       whiteLabelPdf: 'planned', publicApi: 'custom', customPlatforms: 'custom',
       dedicatedSuccess: 'custom',
     },

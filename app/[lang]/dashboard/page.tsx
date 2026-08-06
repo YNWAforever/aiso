@@ -5,7 +5,7 @@ import { BrandCard }       from '@/components/dashboard/BrandCard'
 import { AddBrandWizard }  from '@/components/dashboard/AddBrandWizard'
 import { RecentScans }     from '@/components/dashboard/RecentScans'
 import { resolveCommercialEntitlement } from '@/lib/tier'
-import { BarChart2, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import type { Client, PulseWeeklySummary, Scan } from '@/lib/types'
 
 export default async function DashboardPage({

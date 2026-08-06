@@ -63,6 +63,68 @@ describe('pricing billing truth', () => {
     expect(zhMessages.pricing.faq_3_a).not.toContain('新功能即時生效')
   })
 
+  it('never renders a bare tick for a capability that is entitled but not shipped', () => {
+    // The gap this pins: a plan can grant an entitlement flag while the feature
+    // itself has not shipped. Prompt bank and Share-of-Voice alerts were both
+    // entitled on Pro/Enterprise and hardcoded `pro: true, enterprise: true` in
+    // the comparison table, so a paying customer saw a green tick for two route
+    // families that answered 503. Entitlement is not availability.
+    for (const plan of ['pro', 'enterprise'] as const) {
+      expect(PLAN_CATALOG[plan].features.edit_prompts).toBe(true)
+      expect(PLAN_CATALOG[plan].features.alerts).toBe(true)
+      // promptBank has since shipped — the four routes are live and the editor
+      // is reachable — so it is now legitimately 'available'. sovAlerts is
+      // still entitled without a shipped evaluator, and remains the live case
+      // this assertion guards.
+      expect(PLAN_CATALOG[plan].release.sovAlerts).not.toBe('available')
+    }
+
+    // …and the page must derive those two rows from release state rather than a
+    // literal, so flipping the catalog to 'available' is the only way to tick them.
+    for (const [row, releaseKey] of [
+      ['row_prompts', 'promptBank'],
+      ['row_alerts', 'sovAlerts'],
+    ] as const) {
+      const cell = pricingSource.slice(
+        pricingSource.indexOf(`label: t('${row}')`),
+        pricingSource.indexOf('}', pricingSource.indexOf(`label: t('${row}')`)),
+      )
+      expect(cell).toContain(`release.${releaseKey}`)
+      expect(cell).not.toMatch(/pro:\s*true/)
+      expect(cell).not.toMatch(/enterprise:\s*true/)
+    }
+
+    // The Pro card highlight has to be gated too — it listed both unqualified.
+    expect(cardHighlightsSource).toContain('releaseHighlight(pro.release.promptBank')
+    expect(cardHighlightsSource).toContain('releaseHighlight(pro.release.sovAlerts')
+  })
+
+  it('only claims the prompt bank is available while it is actually reachable', () => {
+    // The tick is honest only because a page renders the editor. If that page
+    // ever goes back to redirecting at the "unavailable" placeholder — which is
+    // exactly what it did before — this claim silently becomes a lie again.
+    // Ties the marketing state to the implementation rather than to a comment.
+    const claimsAvailable = (['pro', 'enterprise'] as const)
+      .some(plan => PLAN_CATALOG[plan].release.promptBank === 'available')
+    if (!claimsAvailable) return
+
+    const page = readFileSync(
+      resolve(process.cwd(), 'app/[lang]/dashboard/[clientId]/prompts/page.tsx'), 'utf8',
+    ).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+
+    // Asserts the property, not the component: the page must render the bank
+    // rather than redirect. Naming one component pinned an implementation
+    // detail and broke when the suggest panel was wired back in.
+    expect(page).toMatch(/PromptBankEditor|QuestionBankSection/)
+    expect(page).not.toContain('redirect(')
+
+    // And the routes serving it must not be fenced.
+    const fenced = readFileSync(
+      resolve(process.cwd(), '__tests__/api/fenced-routes.test.ts'), 'utf8',
+    )
+    expect(fenced).not.toContain("feature: 'prompt-bank'")
+  })
+
   it('provides one catalog-derived localized allowance projection for pricing', () => {
     const projection = (
       catalogModule as unknown as { buildPricingAllowanceProjection?: unknown }

@@ -273,7 +273,7 @@ export default async function DashboardPage({
         )}
 
         {step === 'monitor' && (
-          <MonitorStep features={features} clientId={clientId} summary={summary} missed={missed} />
+          <MonitorStep features={features} lang={lang} clientId={clientId} summary={summary} missed={missed} />
         )}
 
         {step === 'roi' && (

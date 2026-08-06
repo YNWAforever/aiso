@@ -7,25 +7,45 @@ Multi-tenant SaaS that scores websites on **AEO / GEO** — how well AI answer e
   produce a 0–100 score and a letter grade (`A+` → `F`). Entry point: `POST /api/scan`.
 - **Fix packs** — AI-generated, prioritised remediation for the failing checks, via
   OpenRouter (`app/api/fix/`).
+- **Local Trust** — trust/ROI scoring per brand, with a CSV export
+  (`app/api/dashboard/clients/[clientId]/local-trust/`, `lib/localTrust/`).
 - **Pulse** — weekly monitoring of how often a brand is surfaced by LLM platforms
-  (`app/api/pulse/`, `app/[lang]/pulse/[clientId]/`).
+  (`app/api/pulse/`, `app/[lang]/pulse/[clientId]/`). **Not shipped** — see below.
 - Bilingual **en / zh-HK** (`next-intl`), billed through **Stripe**, deployed on **Vercel**.
+
+Several features are **fenced**: their routes return `503 FEATURE_UNAVAILABLE` via
+`lib/unavailable.ts`, and `__tests__/api/fenced-routes.test.ts` is the canonical list. The
+Pulse *read* routes, agents, notifications, content tools, trial emails and the alert
+*evaluator* are all still fenced; Local Trust, alert *configuration*, the Pulse producer
+(`POST /api/pulse/run`) and the question bank — including AI question suggestions — are live. A fence is not a gate —
+restoring one means adding a real auth/entitlement/ownership gate, not just deleting the
+`featureUnavailable` call. `lib/localTrust/guard.ts` is the shape to copy.
 
 Stack: Next.js 16 (App Router) · TypeScript 5.9 · Neon Postgres + Neon Auth · Tailwind v4 ·
 shadcn/ui · Vitest · Playwright.
 
 ## Project status — read before you touch anything
 
-This repo is **mid-migration from Supabase to Neon**. The Supabase project has been deleted
-and its hostname no longer resolves, so roughly 37 files that still import
-`lib/supabase.ts` / `lib/supabase-server.ts` fail or hang at runtime. Only the public scan
-funnel, the result page, the Neon signup webhook, and `lib/auth.ts` run on Neon today —
-most dashboard and admin routes are broken. This is expected, not a bad checkout.
+**The Supabase → Neon migration is complete.** `db()` from `@/lib/db` is the only database
+client: zero files import `lib/supabase.ts` / `lib/supabase-server.ts` (both deleted), no
+`@supabase/*` package remains, and an ESLint rule makes re-adding one an error rather than a
+convention. The dashboard and admin routes run on Neon.
 
-Read [`CLAUDE.md`](./CLAUDE.md) before writing code. It is the real architecture document
-and it enumerates the working paths, the broken ones, and the rules for new work
-(use `db()` from `@/lib/db`; never add a new Supabase import; every query filters by
-`account_id` because RLS is inert).
+What is *not* done is a separate thing, and it is tracked above: several features are fenced
+to `503` because their queries were never ported, not because anything is broken.
+
+Two live caveats worth knowing before you touch the database:
+
+- **Migrations `027`, `029`, `030`, `031` are unapplied**, and `021` is disputed — its own
+  header says it never ran while `CLAUDE.md` and `027` say it did. 021 creates the three
+  `local_trust_*` tables that Local Trust queries, so this matters. Run
+  `npm run migrate -- --verify` against the target database before baselining anything; it
+  reports which migrations' tables actually exist.
+- **RLS is enabled but inert.** The app connects as `neondb_owner`, which bypasses it, and the
+  leftover policies call a Supabase function that no longer exists. Every query must filter by
+  `account_id` explicitly — there is no backstop.
+
+Read [`CLAUDE.md`](./CLAUDE.md) before writing code. It is the real architecture document.
 
 ## Prerequisites
 
@@ -60,8 +80,12 @@ entry there says what breaks when it is missing. The highlights:
 Optional (have fallbacks): `RESEND_FROM_EMAIL`, `WIKIPEDIA_USER_AGENT`.
 E2E only: `BASE_URL`, `START_DEV_SERVER`, `PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_TEST_PASSWORD`.
 
+`CRON_SECRET` (≥16 chars) authenticates the weekly Pulse chain: Vercel Cron calls
+`GET /api/cron/pulse` with `Authorization: Bearer`, and that driver calls
+`POST /api/pulse/run` with `x-cron-secret`. Both return 500 rather than running when it is
+unset. The two older `/api/cron` routes remain 503 stubs and still read no secret.
+
 Dead — read by nothing, listed so nobody re-adds them expecting an effect:
-`CRON_SECRET` (both `/api/cron` routes are 503 stubs with no secret check),
 `RESEND_API_KEY` (`sendAlertEmail` has no callers), `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
 (checkout is server-side only), and the legacy `NEXT_PUBLIC_SUPABASE_URL`,
 `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — the Neon migration is complete

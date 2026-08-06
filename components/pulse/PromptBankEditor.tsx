@@ -1,20 +1,42 @@
 'use client'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { PROMPT_CATEGORIES, promptCategoryLabelKey } from '@/lib/prompts/categories'
 import type { PromptBankItem } from '@/lib/types'
 
 interface Props {
   clientId: string
-  initialPrompts: PromptBankItem[]
+  /**
+   * Controlled. This used to be `initialPrompts` seeding a useState, which meant
+   * a parent that also tracked the list (QuestionBankSection, so its suggest
+   * panel could append) had a second copy the editor never re-read — accepting a
+   * suggestion moved the header count and nothing else. One array, one owner.
+   */
+  prompts: PromptBankItem[]
+  onPromptsChange: (next: PromptBankItem[]) => void
 }
 
-const CATEGORY_ORDER = ['Brand Queries', 'Pain Points', 'Category Queries', 'Intent Queries']
+// Sections are keyed on the value actually stored in prompt_bank.category. This
+// used to be a list of display labels ('Brand Queries'), which shared no member
+// with the stored vocabulary — so the four sections rendered empty, the real
+// categories appeared beneath them labelled with raw snake_case, and the add row
+// POSTed the label, filing new questions under a category nothing else used.
+// Sentinel for rows whose category is outside the vocabulary or absent. Cannot
+// collide with a real category — POST validates those against PROMPT_CATEGORIES.
+const UNCATEGORISED = '__other__'
+
+function categoryKey(category: string | null): string {
+  return category && (PROMPT_CATEGORIES as readonly string[]).includes(category)
+    ? category
+    : UNCATEGORISED
+}
 
 function groupByCategory(prompts: PromptBankItem[]): Record<string, PromptBankItem[]> {
   const result: Record<string, PromptBankItem[]> = {}
   for (const p of prompts) {
-    if (!result[p.category]) result[p.category] = []
-    result[p.category].push(p)
+    const key = categoryKey(p.category)
+    if (!result[key]) result[key] = []
+    result[key].push(p)
   }
   return result
 }
@@ -76,8 +98,11 @@ function PromptRow({ prompt, onToggle, onEdit, onDelete }: {
   )
 }
 
-function AddPromptRow({ category, clientId, onAdd }: {
-  category: string; clientId: string; onAdd: (p: PromptBankItem) => void
+function AddPromptRow({ category, clientId, onAdd, onError }: {
+  category: string
+  clientId: string
+  onAdd: (p: PromptBankItem) => void
+  onError: (message: string) => void
 }) {
   const t = useTranslations('pulse')
   const [text, setText]       = useState('')
@@ -87,11 +112,21 @@ function AddPromptRow({ category, clientId, onAdd }: {
     e.preventDefault()
     if (!text.trim()) return
     setLoading(true)
+    // `category` is the stored value, not a display label — the route validates
+    // it against the vocabulary and 400s otherwise.
     const res = await fetch(`/api/dashboard/clients/${clientId}/prompts`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ category, question: text.trim(), language: 'en' }),
     })
-    if (res.ok) { const { prompt } = await res.json(); onAdd(prompt); setText('') }
+    if (res.ok) {
+      const { prompt } = await res.json()
+      onAdd(prompt); setText('')
+    } else if (res.status === 409) {
+      const body = await res.json().catch(() => ({}))
+      onError(t('qb_limit_reached', { max: body.max ?? 50 }))
+    } else {
+      onError(t('qb_save_failed'))
+    }
     setLoading(false)
   }
 
@@ -105,39 +140,74 @@ function AddPromptRow({ category, clientId, onAdd }: {
   )
 }
 
-export function PromptBankEditor({ clientId, initialPrompts }: Props) {
+export function PromptBankEditor({ clientId, prompts, onPromptsChange }: Props) {
   const t = useTranslations('pulse')
-  const [prompts, setPrompts]     = useState<PromptBankItem[]>(initialPrompts)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [error, setError]         = useState<string | null>(null)
+
+  // Keeps the existing updater-function call sites working against a controlled
+  // list, so the optimistic-update-and-revert logic below is unchanged.
+  const setPrompts = (update: (current: PromptBankItem[]) => PromptBankItem[]) =>
+    onPromptsChange(update(prompts))
 
   const grouped = groupByCategory(prompts)
+  // The canonical four always render, in order, even when empty — they are what
+  // a user adds into. Anything else present (a legacy value, or NULL) gets a
+  // trailing section so those rows stay visible and editable.
   const allCategories = [
-    ...CATEGORY_ORDER,
-    ...Object.keys(grouped).filter(c => !CATEGORY_ORDER.includes(c)),
+    ...PROMPT_CATEGORIES,
+    ...(grouped[UNCATEGORISED] ? [UNCATEGORISED] : []),
   ]
 
   const toggleSection = (cat: string) =>
     setCollapsed(prev => ({ ...prev, [cat]: !prev[cat] }))
 
+  // Every mutation reverts its optimistic update when the server refuses.
+  // Without this a refused write — an unentitled plan, a lost session, a lookup
+  // failure — leaves the UI showing a change that was never persisted, and the
+  // next reload silently undoes it.
+  const revertOn = async (res: Response, undo: () => void) => {
+    if (res.ok) return true
+    undo()
+    setError(t('qb_save_failed'))
+    return false
+  }
+
   const handleToggle = async (id: string, is_active: boolean) => {
+    setError(null)
     setPrompts(ps => ps.map(p => p.id === id ? { ...p, is_active } : p))
-    await fetch(`/api/dashboard/clients/${clientId}/prompts/${id}`, {
+    const res = await fetch(`/api/dashboard/clients/${clientId}/prompts/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_active }),
     })
+    await revertOn(res, () =>
+      setPrompts(ps => ps.map(p => p.id === id ? { ...p, is_active: !is_active } : p)))
   }
 
   const handleEdit = async (id: string, question: string) => {
+    setError(null)
+    const previous = prompts.find(p => p.id === id)?.question
     setPrompts(ps => ps.map(p => p.id === id ? { ...p, question } : p))
-    await fetch(`/api/dashboard/clients/${clientId}/prompts/${id}`, {
+    const res = await fetch(`/api/dashboard/clients/${clientId}/prompts/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question }),
     })
+    await revertOn(res, () => setPrompts(ps => ps.map(p =>
+      p.id === id && previous !== undefined ? { ...p, question: previous } : p)))
   }
 
   const handleDelete = async (id: string) => {
+    setError(null)
+    const removed = prompts.find(p => p.id === id)
+    const at = prompts.findIndex(p => p.id === id)
     setPrompts(ps => ps.filter(p => p.id !== id))
-    await fetch(`/api/dashboard/clients/${clientId}/prompts/${id}`, { method: 'DELETE' })
+    const res = await fetch(`/api/dashboard/clients/${clientId}/prompts/${id}`, { method: 'DELETE' })
+    await revertOn(res, () => setPrompts(ps => {
+      if (!removed) return ps
+      const next = [...ps]
+      next.splice(at, 0, removed)
+      return next
+    }))
   }
 
   const handleAdd = (prompt: PromptBankItem) => setPrompts(ps => [...ps, prompt])
@@ -147,14 +217,20 @@ export function PromptBankEditor({ clientId, initialPrompts }: Props) {
   return (
     <div>
       <p className="text-xs text-slate-400 mb-4">{t('qb_count', { active: activeCount, total: prompts.length })}</p>
+      {error && (
+        <p role="alert" className="text-xs text-red-600 mb-4">{error}</p>
+      )}
       <div className="space-y-4">
         {allCategories.map(cat => {
           const items = grouped[cat] ?? []
           const isCollapsed = collapsed[cat]
+          const canAdd = cat !== UNCATEGORISED
           return (
             <div key={cat}>
               <button onClick={() => toggleSection(cat)} className="flex items-center gap-2 mb-2 w-full text-left">
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">{cat}</span>
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                  {t(promptCategoryLabelKey(canAdd ? cat : null))}
+                </span>
                 <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{items.length}</span>
                 <span className="text-xs text-slate-400 ml-auto">{isCollapsed ? '▶' : '▼'}</span>
               </button>
@@ -164,7 +240,12 @@ export function PromptBankEditor({ clientId, initialPrompts }: Props) {
                     <PromptRow key={p.id} prompt={p}
                       onToggle={handleToggle} onEdit={handleEdit} onDelete={handleDelete} />
                   ))}
-                  <AddPromptRow category={cat} clientId={clientId} onAdd={handleAdd} />
+                  {/* No add row for the uncategorised section — POST validates
+                      against the vocabulary, so adding there would 400. */}
+                  {canAdd && (
+                    <AddPromptRow category={cat} clientId={clientId}
+                      onAdd={handleAdd} onError={setError} />
+                  )}
                 </div>
               )}
             </div>
