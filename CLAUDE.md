@@ -97,6 +97,14 @@ lib/
   authority/       # Domain authority engine: 4 layer modules. computeAuthority()'s
                    # 5th "dynamicBoost" slot is an optional arg no caller passes.
   localTrust/      # Local trust scoring + ROI engine
+  prompts/         # Question-bank vocabulary + gate. categories.ts is the single
+                   # source of truth for the four category keys — the column has
+                   # no CHECK and its writers are LLMs, so validate on the way in
+                   # and stay permissive on the way out.
+  pulse/           # Pulse producer: summary rollup, answer analysis, platform
+                   # vocabularies, and limits.ts. MAX_PROMPTS is shared — pulse/run
+                   # scans `limit MAX_PROMPTS`, so the writer must cap at the same
+                   # number or the excess is silently never scanned.
   db.ts            # db() — Neon serverless SQL singleton  ← use this
   auth.ts          # getProfile() — reads Neon Auth session server-side
   neon-auth.ts     # auth() — server-side Neon Auth singleton
@@ -197,11 +205,18 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 >
 > Routes whose feature is fenced return `503 FEATURE_UNAVAILABLE` via `lib/unavailable.ts`:
 > `pulse/*` **except `pulse/run`**, `fix/cluster-map`, `fix/content-brief`, `notifications/*`,
-> `prompts/*`, `agents/*`, `cron/*` (both trial-emails and evaluate-alerts). **Local Trust,
-> the alerts *config* route and the Pulse producer (`pulse/run`) are restored**;
+> `agents/*`, `cron/*` (both trial-emails and evaluate-alerts). **Local Trust, the alerts
+> *config* route, the Pulse producer (`pulse/run`) and the whole prompt bank are restored**;
 > `cron/evaluate-alerts` deliberately is not — it needs a scheduler, and none exists.
 > `__tests__/api/fenced-routes.test.ts` is the canonical list and asserts each still 503s, so
 > restoring a route means deleting its entry there too.
+>
+> Three of the remaining fences should be **deleted rather than restored**, and it is worth
+> not re-litigating that: `pulse/[clientId]/summary` and `/missed` are redundant —
+> `clients/[clientId]/overview` is unfenced and already serves both datasets with larger
+> limits — `pulse/onboard` is superseded by `onboarding/complete`, and `notifications/*` has
+> never had a producer in any commit, so restoring it surfaces a permanently empty list whose
+> only consumer (`NotificationBell`) has no importer either.
 >
 > A fence is not a gate — **restoring one means adding a real gate, not just deleting the
 > `featureUnavailable` call.** The shape to copy is `lib/localTrust/guard.ts`: auth →
@@ -273,6 +288,17 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 
 ## Database (Neon Postgres)
 
+- **Never `returning *` on a statement that joins another table.** The Neon HTTP driver builds
+  each row with `Object.fromEntries(...)`, so duplicate column names **silently overwrite —
+  last wins** — and the joined relation's columns come *after* the target's. `update prompt_bank
+  p … from clients c … returning *` returns 11 columns that collapse to 9 keys, with `row.id`
+  holding the **client's** id, because both tables have `id` and `created_at`. It typechecks,
+  it reads correctly in review, and the caller then addresses an id that never existed. Name
+  the columns explicitly (`returning p.id, p.question, …`). Verified against PostgreSQL 16.
+- Putting tenancy *inside* a write (`update … from clients c where … and c.account_id = ${id}`)
+  rather than checking first is the preferred shape — one statement, no TOCTOU window, and zero
+  rows means 404 without distinguishing "absent" from "not yours". See
+  `app/api/dashboard/clients/[clientId]/prompts/[promptId]/route.ts`.
 - Migrations in `supabase/migrations/` — 28 files, `001_`–`031_` (no 005/006; directory name is legacy;
   the target is now Neon)
 - **A migration runner now exists:** `scripts/migrate.ts`, run via `npm run migrate`. It
