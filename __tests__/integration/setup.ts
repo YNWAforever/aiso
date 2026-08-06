@@ -17,11 +17,29 @@ import {
  * already carries every table but no `schema_migrations` ledger. Left as
  * is, migrate.ts's assertBaselined() guard (correctly) refuses to touch it.
  * Drop and recreate `public` so the branch is genuinely empty before
- * migrating. Safe: no migration under supabase/migrations creates a
- * Postgres extension, and Neon Auth's `neon_auth` schema — which migration
- * 022's FK into `profiles` depends on — lives outside `public` and survives.
+ * migrating. What makes that safe is that the schemas the migrations depend
+ * on live OUTSIDE `public` and therefore survive the cascade — there are two,
+ * not one, and both are load-bearing:
+ *
+ *   neon_auth — provisioned by Neon Auth, never by SQL in this repo. Migration
+ *               022 FKs profiles.id into neon_auth.user.
+ *   auth      — the DEAD Supabase schema. Migration 003 FKs auth.users and
+ *               there are 31 auth.uid() call sites across 8 files. Nothing
+ *               here creates it either.
+ *
+ * That second one is a trap: CLAUDE.md calls for dropping the dead `auth`
+ * schema and its inert policies. Doing so would stop this harness being able
+ * to provision a branch at all, because setup re-runs 003 from scratch every
+ * time. Retiring `auth` means shimming it here first.
+ *
  * (Creating a fresh, empty *database* instead would avoid the drop entirely,
- * but it would not carry `neon_auth`, so 022 could not apply.)
+ * but it would carry neither schema, so 003 and 022 could not apply.)
+ *
+ * NOTE: this used to justify itself with "no migration creates a Postgres
+ * extension". That stopped being true when 027 added
+ * `create extension if not exists pgcrypto with schema public`. The conclusion
+ * survives — a public-schema pgcrypto is dropped by the cascade and recreated
+ * by 027 — but the reason does not, so do not lean on it.
  *
  * `drop schema public cascade` against production would destroy the business,
  * so this runs only after three independent proofs that it will not:

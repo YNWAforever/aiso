@@ -49,7 +49,7 @@ No `@supabase/*` packages remain — see the migration note above.
 npm run dev        # start dev server (localhost:3000)
 npm run build      # production build
 npm run start      # serve production build
-npm run lint       # ESLint (warnings only today; 0 errors)
+npm run lint       # ESLint — clean: 0 errors, 0 warnings. Keep it there.
 npm run test       # unit + integration (integration skips loudly without neonctl)
 npm run test:unit  # unit only
 npm run test:integration  # integration only — always requires neonctl

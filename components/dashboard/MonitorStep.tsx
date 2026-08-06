@@ -25,8 +25,9 @@ export function MonitorStep({ features, lang, clientId, summary, missed }: Props
       <div className="rounded-xl border border-dash-border bg-dash-surface p-5">
         <div className="flex items-center justify-between mb-4">
           <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase">{t('sov_trend')}</p>
-          {/* The only entry point to the question bank. What this chart plots is
-              decided entirely by which questions are active there. */}
+          {/* What this chart plots is decided entirely by which questions are
+              active in the bank, so it is worth reaching from here. The sidebar
+              carries the primary entry point. */}
           <Link
             href={`/${lang}/dashboard/${clientId}/prompts`}
             className="text-xs font-semibold text-primary hover:underline"
