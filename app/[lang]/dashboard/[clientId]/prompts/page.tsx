@@ -5,7 +5,7 @@ import { LockKeyhole } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { PromptBankEditor } from '@/components/pulse/PromptBankEditor'
+import { QuestionBankSection } from '@/components/pulse/QuestionBankSection'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { MAX_PROMPTS } from '@/lib/pulse/limits'
@@ -23,10 +23,10 @@ export const dynamic = 'force-dynamic'
  * This replaces a redirect to /{lang}/pulse/{clientId}, which resolves to an
  * "unavailable" placeholder — so the fully-built editor was unreachable.
  *
- * Deliberately renders PromptBankEditor rather than QuestionBankSection: the
- * latter wraps it with a "Suggest more" button wired to
- * /api/pulse/suggest-questions, which is still fenced, and its accept handler
- * updates its own copy of the list that the editor never re-reads.
+ * Renders QuestionBankSection, which adds the "Suggest more" panel on top of the
+ * editor. That wrapper was skipped while /api/pulse/suggest-questions was fenced
+ * and while its accept handler wrote to a second copy of the list the editor
+ * never re-read; both are fixed, so the full surface is live.
  */
 export default async function PromptsPage({
   params,
@@ -93,7 +93,7 @@ export default async function PromptsPage({
         <p className="text-sm font-medium text-primary">{client.brand_name}</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">{t('qb_title')}</h1>
       </div>
-      <PromptBankEditor clientId={clientId} initialPrompts={prompts} />
+      <QuestionBankSection clientId={clientId} initialPrompts={prompts} isFirstTime={false} />
     </main>
   )
 }

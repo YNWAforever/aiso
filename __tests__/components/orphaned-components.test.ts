@@ -31,14 +31,6 @@ const ORPHANS: Record<string, string> = {
   'pulse/QuestionRow': 'only rendered by the orphaned ScanLogSection',
   'pulse/PlatformBar': 'only rendered by the orphaned Pulse read surface',
 
-  // Question bank. QuestionBankSection wraps the now-live PromptBankEditor with
-  // a "Suggest more" button wired to /api/pulse/suggest-questions, which is
-  // still fenced — and its accept handler updates its own copy of the list the
-  // editor never re-reads. The prompts page renders the editor directly for
-  // exactly those two reasons. Both become reachable when that route returns.
-  'pulse/QuestionBankSection': 'needs pulse/suggest-questions, still fenced',
-  'pulse/SuggestQuestionsPanel': 'only rendered by QuestionBankSection',
-
   // Notifications has never had a producer in any commit, so this would render a
   // permanently empty list. CLAUDE.md records the routes as delete-rather-than-
   // restore; this is their only consumer and goes with them.

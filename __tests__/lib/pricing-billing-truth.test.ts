@@ -112,7 +112,10 @@ describe('pricing billing truth', () => {
       resolve(process.cwd(), 'app/[lang]/dashboard/[clientId]/prompts/page.tsx'), 'utf8',
     ).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
 
-    expect(page).toContain('PromptBankEditor')
+    // Asserts the property, not the component: the page must render the bank
+    // rather than redirect. Naming one component pinned an implementation
+    // detail and broke when the suggest panel was wired back in.
+    expect(page).toMatch(/PromptBankEditor|QuestionBankSection/)
     expect(page).not.toContain('redirect(')
 
     // And the routes serving it must not be fenced.

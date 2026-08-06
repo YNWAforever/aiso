@@ -6,7 +6,14 @@ import type { PromptBankItem } from '@/lib/types'
 
 interface Props {
   clientId: string
-  initialPrompts: PromptBankItem[]
+  /**
+   * Controlled. This used to be `initialPrompts` seeding a useState, which meant
+   * a parent that also tracked the list (QuestionBankSection, so its suggest
+   * panel could append) had a second copy the editor never re-read — accepting a
+   * suggestion moved the header count and nothing else. One array, one owner.
+   */
+  prompts: PromptBankItem[]
+  onPromptsChange: (next: PromptBankItem[]) => void
 }
 
 // Sections are keyed on the value actually stored in prompt_bank.category. This
@@ -133,11 +140,15 @@ function AddPromptRow({ category, clientId, onAdd, onError }: {
   )
 }
 
-export function PromptBankEditor({ clientId, initialPrompts }: Props) {
+export function PromptBankEditor({ clientId, prompts, onPromptsChange }: Props) {
   const t = useTranslations('pulse')
-  const [prompts, setPrompts]     = useState<PromptBankItem[]>(initialPrompts)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [error, setError]         = useState<string | null>(null)
+
+  // Keeps the existing updater-function call sites working against a controlled
+  // list, so the optimistic-update-and-revert logic below is unchanged.
+  const setPrompts = (update: (current: PromptBankItem[]) => PromptBankItem[]) =>
+    onPromptsChange(update(prompts))
 
   const grouped = groupByCategory(prompts)
   // The canonical four always render, in order, even when empty — they are what

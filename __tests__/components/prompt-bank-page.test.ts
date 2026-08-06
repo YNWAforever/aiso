@@ -3,6 +3,8 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
+const resolvePath = (p: string) => join(process.cwd(), p)
+
 function read(path: string) {
   return readFileSync(join(process.cwd(), path), 'utf8')
 }
@@ -33,15 +35,21 @@ describe('question bank page', () => {
     // The old redirect target specifically — not any /pulse/ path, since the
     // editor itself lives under components/pulse/.
     expect(page).not.toContain('/pulse/${clientId}')
-    expect(page).toContain('PromptBankEditor')
+    expect(page).toContain('QuestionBankSection')
   })
 
-  it('does not mount the wrapper whose suggest button hits a fenced route', () => {
-    // QuestionBankSection renders SuggestQuestionsPanel, wired to
-    // /api/pulse/suggest-questions, which still returns 503.
+  it('mounts the suggest panel now that its route is restored', () => {
+    // The page rendered PromptBankEditor directly while
+    // /api/pulse/suggest-questions returned 503 and while the panel's accept
+    // handler wrote to a second copy of the list. Both are fixed, so the
+    // wrapper — and the only entry point to suggestions — is mounted.
     const page = code(PAGE)
+    const section = readFileSync(
+      resolvePath('components/pulse/QuestionBankSection.tsx'), 'utf8',
+    )
 
-    expect(page).not.toContain('QuestionBankSection')
+    expect(page).toContain('QuestionBankSection')
+    expect(section).toContain('SuggestQuestionsPanel')
   })
 
   it('gates on auth, then ownership, then entitlement', () => {

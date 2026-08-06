@@ -4,7 +4,6 @@ const FENCED: { path: string; feature: string; methods: string[] }[] = [
   { path: '@/app/api/pulse/onboard/route', feature: 'pulse', methods: ['POST'] },
   // pulse/run is restored — see __tests__/api/pulse-run.test.ts. The rest of
   // Pulse stays fenced: they are read routes with no producer-side work done.
-  { path: '@/app/api/pulse/suggest-questions/route', feature: 'pulse', methods: ['POST'] },
   { path: '@/app/api/pulse/[clientId]/summary/route', feature: 'pulse', methods: ['GET'] },
   { path: '@/app/api/pulse/[clientId]/missed/route', feature: 'pulse', methods: ['GET'] },
   { path: '@/app/api/fix/cluster-map/route', feature: 'content-tools', methods: ['POST'] },

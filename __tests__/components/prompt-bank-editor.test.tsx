@@ -24,7 +24,7 @@ function prompt(overrides: Partial<PromptBankItem> = {}): PromptBankItem {
 function render(prompts: PromptBankItem[], locale: 'en' | 'zh-HK' = 'en') {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale={locale} messages={messages(locale)}>
-      <PromptBankEditor clientId="client-1" initialPrompts={prompts} />
+      <PromptBankEditor clientId="client-1" prompts={prompts} onPromptsChange={() => {}} />
     </NextIntlClientProvider>,
   )
 }
@@ -126,9 +126,52 @@ describe('PromptBankEditor failure handling', () => {
     )
 
     expect(source).toContain('revertOn')
+    expect(source).toContain('onPromptsChange')
     // All three mutations must go through it, not just the one that is easy.
     expect(source.match(/await revertOn\(/g) ?? []).toHaveLength(3)
     expect(source).toContain("t('qb_save_failed')")
+  })
+
+  it('only dismisses an accepted suggestion when the write actually happened', () => {
+    // It used to fire-and-forget the POST and dismiss unconditionally, so a
+    // refused write made the suggestion disappear having been saved nowhere.
+    const panel = readFileSync(
+      join(process.cwd(), 'components/pulse/SuggestQuestionsPanel.tsx'), 'utf8',
+    )
+    const accept = panel.slice(panel.indexOf('async function accept'))
+
+    expect(accept).toContain('if (!res.ok)')
+    // The early return must come before the dismissal, not after it.
+    expect(accept.indexOf('return')).toBeLessThan(accept.indexOf('setDismissed'))
+    expect(accept).toContain("t('qb_limit_reached'")
+  })
+
+  it('hands back the row the server created, not the text that was sent', () => {
+    // The parent used to fabricate a `temp-` id from the strings, so the new
+    // question could never be edited or deleted — no such prompt existed.
+    const panel = readFileSync(
+      join(process.cwd(), 'components/pulse/SuggestQuestionsPanel.tsx'), 'utf8',
+    )
+    // Comments stripped: the fix is explained in a comment that names the very
+    // string this asserts is gone, and prose must not fail a behavioural check.
+    const section = readFileSync(
+      join(process.cwd(), 'components/pulse/QuestionBankSection.tsx'), 'utf8',
+    ).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+
+    expect(panel).toContain('const { prompt } = await res.json()')
+    expect(panel).toContain('onAccepted(prompt)')
+    expect(section).not.toContain('temp-')
+  })
+
+  it('keeps one list, so the panel and the editor cannot disagree', () => {
+    // QuestionBankSection owned a copy and PromptBankEditor seeded its own from
+    // it, so accepting a suggestion moved the header count and nothing else.
+    const section = readFileSync(
+      join(process.cwd(), 'components/pulse/QuestionBankSection.tsx'), 'utf8',
+    )
+
+    expect(section).toContain('onPromptsChange={setPrompts}')
+    expect(section).toContain('prompts={prompts}')
   })
 
   it('reports the cap distinctly from a generic failure', () => {

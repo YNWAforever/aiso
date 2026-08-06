@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { X, Sparkles, Check } from 'lucide-react'
+import type { PromptBankItem } from '@/lib/types'
 
 interface Suggestion {
   question: string
@@ -12,10 +13,17 @@ interface Suggestion {
 interface Props {
   clientId: string
   onClose: () => void
-  onAccepted: (question: string, category: string) => void
+  /**
+   * Receives the row the server actually created, not the text that was sent.
+   * It used to pass the strings back and let the parent fabricate a `temp-` id,
+   * which could never be edited or deleted afterwards because no such prompt
+   * existed.
+   */
+  onAccepted: (prompt: PromptBankItem) => void
+  onError: (message: string) => void
 }
 
-export function SuggestQuestionsPanel({ clientId, onClose, onAccepted }: Props) {
+export function SuggestQuestionsPanel({ clientId, onClose, onAccepted, onError }: Props) {
   const t = useTranslations('pulse')
   const [loading, setLoading] = useState(false)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
@@ -30,6 +38,11 @@ export function SuggestQuestionsPanel({ clientId, onClose, onAccepted }: Props) 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ clientId, count: 5 }),
     })
+    if (!res.ok) {
+      onError(t('qb_save_failed'))
+      setLoading(false)
+      return
+    }
     const data = await res.json()
     setSuggestions(data.suggestions ?? [])
     setFetched(true)
@@ -39,12 +52,22 @@ export function SuggestQuestionsPanel({ clientId, onClose, onAccepted }: Props) 
   async function accept(i: number) {
     const question = editing[i] ?? suggestions[i]?.question ?? ''
     const category = suggestions[i]?.category ?? 'brand_query'
-    await fetch(`/api/dashboard/clients/${clientId}/prompts`, {
+    const res = await fetch(`/api/dashboard/clients/${clientId}/prompts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question, category, language: 'en' }),
     })
-    onAccepted(question, category)
+    // Only dismiss on a write that actually happened. Dismissing regardless is
+    // how an accepted suggestion could vanish having been saved nowhere.
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      onError(res.status === 409
+        ? t('qb_limit_reached', { max: body.max ?? 50 })
+        : t('qb_save_failed'))
+      return
+    }
+    const { prompt } = await res.json()
+    onAccepted(prompt)
     setDismissed(prev => new Set([...prev, i]))
   }
 

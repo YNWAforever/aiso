@@ -33,7 +33,7 @@ function entries(files: string[]) {
 
 /**
  * Every table the full migration set creates, verified by actually applying all
- * 29 files to a throwaway PostgreSQL 16 and reading information_schema. Kept as
+ * 30 files to a throwaway PostgreSQL 16 and reading information_schema. Kept as
  * a literal so the guard can be exercised without a database.
  */
 const ALL_TABLES = [
@@ -76,10 +76,12 @@ describe('migrationCreatedTables', () => {
  * Tables from a real PG16 run, plus the index names the extractor reports.
  *
  * Asymmetric on purpose. The table half is independent evidence — it came out of
- * information_schema after applying all 29 files. The index half is derived, so
+ * information_schema after applying all 30 files. The index half is derived, so
  * it cannot by itself prove the extractor right; that was checked separately
- * against pg_indexes on the same cluster (11 migrations create indexes, all 72
- * names present, no false positives) and is spot-checked below with real names.
+ * against pg_indexes on the same cluster — 12 migrations create indexes, the
+ * extractor reports 25 distinct names, and every one is present among the 74
+ * indexes Postgres ends up with, no false positives. Spot-checked below with
+ * real names.
  */
 function allRelations() {
   return new Set([
@@ -133,7 +135,7 @@ describe('unappliedBaselineClaims', () => {
 
 describe('migrationCreatedIndexes', () => {
   it('finds the real index names, in every spelling the repo uses', () => {
-    // Names spot-checked against pg_indexes after applying all 29 migrations to
+    // Names spot-checked against pg_indexes after applying all 30 migrations to
     // a throwaway PostgreSQL 16.
     expect(migrationCreatedIndexes(sqlFor('031_pulse_weekly_summary_unique.sql')))
       .toEqual(['pulse_weekly_summary_client_week_platform_unique'])

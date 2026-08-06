@@ -17,7 +17,7 @@ Several features are **fenced**: their routes return `503 FEATURE_UNAVAILABLE` v
 `lib/unavailable.ts`, and `__tests__/api/fenced-routes.test.ts` is the canonical list. The
 Pulse *read* routes, agents, notifications, content tools, trial emails and the alert
 *evaluator* are all still fenced; Local Trust, alert *configuration*, the Pulse producer
-(`POST /api/pulse/run`) and the question bank are live. A fence is not a gate —
+(`POST /api/pulse/run`) and the question bank — including AI question suggestions — are live. A fence is not a gate —
 restoring one means adding a real auth/entitlement/ownership gate, not just deleting the
 `featureUnavailable` call. `lib/localTrust/guard.ts` is the shape to copy.
 

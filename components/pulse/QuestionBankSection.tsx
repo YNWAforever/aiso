@@ -16,23 +16,20 @@ interface Props {
 export function QuestionBankSection({ clientId, initialPrompts, isFirstTime }: Props) {
   const t = useTranslations('pulse')
   const [showPanel, setShowPanel] = useState(false)
+  // The single owner of the list. PromptBankEditor is controlled from here, so
+  // a suggestion accepted in the panel and a question added in the editor land
+  // in the same array — they used to be two, and only one of them rendered.
   const [prompts, setPrompts] = useState<PromptBankItem[]>(initialPrompts)
+  const [error, setError] = useState<string | null>(null)
   const [bannerDismissed, setBannerDismissed] = useState(false)
 
   const activeCount = prompts.filter(p => p.is_active).length
 
-  function handleAccepted(question: string, category: string) {
-    // Optimistically add to prompt list
-    const newPrompt: PromptBankItem = {
-      id: `temp-${Date.now()}`,
-      client_id: clientId,
-      category,
-      question,
-      language: 'en',
-      is_active: true,
-      created_at: new Date().toISOString(),
-    }
-    setPrompts(prev => [...prev, newPrompt])
+  // Takes the row the server created, so the new question is immediately
+  // editable and deletable like any other. It used to fabricate a `temp-` id
+  // that matched no row, so the first edit of it would 404.
+  function handleAccepted(prompt: PromptBankItem) {
+    setPrompts(prev => [...prev, prompt])
   }
 
   return (
@@ -71,7 +68,9 @@ export function QuestionBankSection({ clientId, initialPrompts, isFirstTime }: P
         </div>
       </div>
 
-      <PromptBankEditor clientId={clientId} initialPrompts={prompts} />
+      {error && <p role="alert" className="text-xs text-red-600 mb-3">{error}</p>}
+
+      <PromptBankEditor clientId={clientId} prompts={prompts} onPromptsChange={setPrompts} />
 
       {/* Slide-in suggest panel */}
       {showPanel && (
@@ -81,6 +80,7 @@ export function QuestionBankSection({ clientId, initialPrompts, isFirstTime }: P
             clientId={clientId}
             onClose={() => setShowPanel(false)}
             onAccepted={handleAccepted}
+            onError={setError}
           />
         </>
       )}

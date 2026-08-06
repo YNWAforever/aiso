@@ -85,7 +85,7 @@ app/
                    # Reachable: proxy.ts's matcher now excludes /admin, so it no
                    # longer 307s to a non-existent /en/admin. A separate localised
                    # app/[lang]/admin/authority/ page DOES go through intl routing.
-components/        # React UI components. 12 are orphaned — nothing renders them,
+components/        # React UI components. 10 are orphaned — nothing renders them,
                    # mostly the UI of fenced features. The inventory and the
                    # reason for each is __tests__/components/orphaned-components.test.ts,
                    # which fails both when a new one appears and when a listed
@@ -210,9 +210,10 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > route is open.
 >
 > Routes whose feature is fenced return `503 FEATURE_UNAVAILABLE` via `lib/unavailable.ts`:
-> `pulse/*` **except `pulse/run`**, `fix/cluster-map`, `fix/content-brief`, `notifications/*`,
-> `agents/*`, `cron/*` (both trial-emails and evaluate-alerts). **Local Trust, the alerts
-> *config* route, the Pulse producer (`pulse/run`) and the whole prompt bank are restored**;
+> `pulse/onboard`, `pulse/[clientId]/*`, `fix/cluster-map`, `fix/content-brief`,
+> `notifications/*`, `agents/*`, `cron/*` (both trial-emails and evaluate-alerts). **Local
+> Trust, the alerts *config* route, the Pulse producer (`pulse/run`), the whole prompt bank
+> and `pulse/suggest-questions` are restored**;
 > `cron/evaluate-alerts` deliberately is not — it needs a scheduler, and none exists.
 > `__tests__/api/fenced-routes.test.ts` is the canonical list and asserts each still 503s, so
 > restoring a route means deleting its entry there too.
