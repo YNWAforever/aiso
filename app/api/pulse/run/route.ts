@@ -11,14 +11,26 @@ export const dynamic = 'force-dynamic'
 /**
  * How many prompts one invocation processes.
  *
- * A full bank is 50 prompts × up to 5 platforms = 250 LLM calls, plus one
- * analysis call each. Strictly sequential that is minutes, and it fits no Vercel
- * function limit (Hobby 60s; Pro 300s max) — and vercel.json grants this route
- * no maxDuration at all. So the route is a chunk: the caller drives it with a
- * cursor until nextCursor comes back null, and the summary is computed on that
- * final chunk only.
+ * A full bank is 50 prompts × up to 5 platforms, and every platform answer costs
+ * a second LLM call to analyse. That is far more than any Vercel function limit
+ * allows (Hobby 60s; Pro 300s), so the route is a chunk: the caller drives it
+ * with a cursor until nextCursor comes back null, and the summary is computed on
+ * that final chunk only.
+ *
+ * The budget this size is derived from — read it before raising the chunk:
+ *
+ *   per prompt = platform fan-out (concurrent, bounded by the slowest platform,
+ *                30s timeout in callOpenRouter)
+ *              + analysis  (concurrent across responses, 15s timeout each)
+ *              + writes    (one insert per response, plus citations)
+ *              ≈ 10s + 3s + 1s typical, ≈ 45s worst case
+ *
+ * 3 × ~13s ≈ 40s, inside the 60s vercel.json grants this route with margin for
+ * one slow platform. MAX_CHUNK stays higher for a caller that knows its own
+ * plan's ceiling. Raising DEFAULT_CHUNK without raising maxDuration reintroduces
+ * the timeout this replaced.
  */
-const DEFAULT_CHUNK = 8
+const DEFAULT_CHUNK = 3
 const MAX_CHUNK = 12
 const MAX_PROMPTS = 50
 
@@ -153,7 +165,12 @@ export async function POST(req: NextRequest) {
         platforms,
       ).catch(() => [])
 
-      for (const response of responses) {
+      // Concurrent across responses, not sequential. Each analysis is its own
+      // LLM round trip; awaiting them one after another made a single prompt
+      // cost the sum of five latencies rather than the largest, which is what
+      // put a chunk far outside any function limit. Five platforms is the
+      // ceiling, so the added concurrency is bounded.
+      const written = await Promise.all(responses.map(async response => {
         // Degrades to a substring match rather than losing the row; see
         // lib/pulse/analysis.ts.
         const analysis = await analyseAnswer({
@@ -174,7 +191,9 @@ export async function POST(req: NextRequest) {
         `
 
         const citationPlatform = citationPlatformFor(response.platform)
-        if (!citationPlatform) continue
+        if (!citationPlatform) return 0
+
+        let logged = 0
         for (const url of extractCitedUrls(response.answer)) {
           let domain: string
           try { domain = new URL(url).hostname } catch { continue }
@@ -187,9 +206,14 @@ export async function POST(req: NextRequest) {
               ${client.industry}, ${prompt.category}, ${prompt.question}, now()
             )
           `
-          citations += 1
+          logged += 1
         }
-      }
+        return logged
+      }))
+
+      // Summed from the returned counts rather than mutated inside the callbacks,
+      // so the total cannot depend on the interleaving.
+      citations += written.reduce((total, n) => total + n, 0)
     }
   } catch {
     // A 2xx must mean the writes happened — the pre-fence route destructured no

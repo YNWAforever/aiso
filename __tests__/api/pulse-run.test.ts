@@ -297,6 +297,45 @@ describe('POST /api/pulse/run — writes', () => {
   })
 })
 
+describe('POST /api/pulse/run — execution budget', () => {
+  it('analyses the platform responses concurrently, not one after another', async () => {
+    // A call-count assertion passes whether these run in series or in parallel.
+    // Only the peak number in flight at once tells them apart: sequential peaks
+    // at 1, concurrent peaks at the number of platforms.
+    llm.callMultiPlatform.mockResolvedValue(
+      ['gemini-flash', 'gpt-4o', 'claude-haiku', 'perplexity-sonar', 'perplexity-sonar-pro']
+        .map(platform => ({ platform, answer: 'AcmeCo is great.' })),
+    )
+    let inFlight = 0
+    let peak = 0
+    llm.callOpenRouter.mockImplementation(async () => {
+      inFlight += 1
+      peak = Math.max(peak, inFlight)
+      await new Promise(resolve => setTimeout(resolve, 0))
+      inFlight -= 1
+      return JSON.stringify({
+        brand_mentioned: true, sentiment: 'positive',
+        mention_position: 0, competitors_mentioned: [],
+      })
+    })
+
+    await post({ clientId: 'client-1', limit: 1 })
+
+    expect(peak).toBe(5)
+  })
+
+  it('defaults to a chunk that fits the maxDuration vercel.json grants', async () => {
+    // 3 x ~13s ≈ 40s against a 60s budget. Raising this without raising
+    // maxDuration reintroduces the timeout it was lowered to avoid.
+    promptRows = Array.from({ length: 20 }, (_, i) => (
+      { id: `p${i}`, question: `q${i}`, category: 'brand_query' }
+    ))
+    const res = await post({ clientId: 'client-1' })
+
+    expect((await res.json()).processed).toBe(3)
+  })
+})
+
 describe('POST /api/pulse/run — chunking', () => {
   it('processes a bounded slice and reports where to resume', async () => {
     const res = await post({ clientId: 'client-1', limit: 2 })
