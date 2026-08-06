@@ -70,9 +70,10 @@ entry there says what breaks when it is missing. The highlights:
 Optional (have fallbacks): `RESEND_FROM_EMAIL`, `WIKIPEDIA_USER_AGENT`.
 E2E only: `BASE_URL`, `START_DEV_SERVER`, `PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_TEST_PASSWORD`.
 
-`CRON_SECRET` (≥16 chars) authenticates `POST /api/pulse/run`, which is machine-invoked and has
-no session — the route returns 500 rather than running when it is unset. Nothing schedules it;
-the two `/api/cron` routes remain 503 stubs and still read no secret.
+`CRON_SECRET` (≥16 chars) authenticates the weekly Pulse chain: Vercel Cron calls
+`GET /api/cron/pulse` with `Authorization: Bearer`, and that driver calls
+`POST /api/pulse/run` with `x-cron-secret`. Both return 500 rather than running when it is
+unset. The two older `/api/cron` routes remain 503 stubs and still read no secret.
 
 Dead — read by nothing, listed so nobody re-adds them expecting an effect:
 `RESEND_API_KEY` (`sendAlertEmail` has no callers), `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`

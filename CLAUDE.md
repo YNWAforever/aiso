@@ -396,11 +396,13 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `PLAYWRIGHT_TEST_PASSWORD`
 - **Dead:** `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — read by zero source files; checkout is
   server-side only. `@stripe/stripe-js` is installed but never imported.
-- `CRON_SECRET` — **live since the Pulse producer landed**, and ≥16 chars or `POST
-  /api/pulse/run` returns 500 instead of running. It is that route's *only* authentication:
-  the route is machine-invoked, so there is no session and the account is resolved through
-  the client rather than the caller. Both `/api/cron` routes are still 503 stubs that read
-  no secret, and nothing schedules the producer — `vercel.json` declares no `crons`.
+- `CRON_SECRET` — ≥16 chars, read by **two** routes in the same request chain, in two
+  different header shapes, which looks like a bug and is not. Vercel Cron sends
+  `Authorization: Bearer $CRON_SECRET` to `GET /api/cron/pulse`; that driver then sends
+  `x-cron-secret` to `POST /api/pulse/run`. Neither shape is ours to choose — the first is
+  Vercel's, the second is the producer's. Both return 500 rather than running if the secret
+  is unset or short. `vercel.json` now schedules the driver weekly; `cron/trial-emails` and
+  `cron/evaluate-alerts` remain 503 stubs that read no secret.
 - **Dead:** `RESEND_API_KEY` (`sendAlertEmail` has no callers). Legacy Supabase
   (`NEXT_PUBLIC_SUPABASE_URL`, `..._ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) is also fully
   dead: no application code reads them. The ESLint rule that bans `@supabase/*` now covers
