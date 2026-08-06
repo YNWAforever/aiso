@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { callMultiPlatform } from '@/lib/openrouter'
 import { analyseAnswer } from '@/lib/pulse/analysis'
 import { citationPlatformFor, runtimePlatformsFor } from '@/lib/pulse/platforms'
+import { MAX_PROMPTS } from '@/lib/pulse/limits'
 import { computeWeeklySummary } from '@/lib/pulse/summary'
 import { resolveCommercialEntitlement, type CommercialAccount } from '@/lib/tier'
 
@@ -32,7 +33,6 @@ export const dynamic = 'force-dynamic'
  */
 const DEFAULT_CHUNK = 3
 const MAX_CHUNK = 12
-const MAX_PROMPTS = 50
 
 function extractCitedUrls(text: string): string[] {
   const urlPattern = /https?:\/\/[^\s<>"',)]+/g
