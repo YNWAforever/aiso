@@ -118,7 +118,7 @@ proxy.ts           # Next 16 proxy (was middleware) — intl routing + auth veri
 i18n/              # next-intl routing + request config
 messages/          # en.json / zh-HK.json translation strings
 supabase/
-  migrations/      # 29 SQL migrations, 001_-031_ (no 005/006) - dir name is legacy
+  migrations/      # 30 SQL migrations, 001_-032_ (no 005/006) - dir name is legacy
 __tests__/         # Vitest tests mirroring lib/app structure
 tests/e2e/         # Playwright specs + page objects
 scripts/           # migrate.ts (npm run migrate), run-tests.mjs (npm test), seed-packs.ts
@@ -304,7 +304,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   rather than checking first is the preferred shape — one statement, no TOCTOU window, and zero
   rows means 404 without distinguishing "absent" from "not yours". See
   `app/api/dashboard/clients/[clientId]/prompts/[promptId]/route.ts`.
-- Migrations in `supabase/migrations/` — 29 files, `001_`–`031_` (no 005/006; directory name is legacy;
+- Migrations in `supabase/migrations/` — 30 files, `001_`–`032_` (no 005/006; directory name is legacy;
   the target is now Neon)
 - **A migration runner now exists:** `scripts/migrate.ts`, run via `npm run migrate`. It
   applies every file absent from the `schema_migrations` ledger, in filename order, each in
@@ -325,7 +325,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   directly — so if it never ran, **Local Trust is broken in production**, and baselining
   without excepting it strands those tables permanently. `--verify` answers this in one command.
 - Believed applied: `001`–`026` (**except possibly `021`**) and `028`. **Pending: `027`, `029`,
-  `030`, `031`.** Verify before baselining; this line is only as fresh as the last person to
+  `030`, `031`, `032`.** Verify before baselining; this line is only as fresh as the last person to
   edit it, and it has been wrong. Slice 6 (client reports) applies `027`. It was edited to
   apply cleanly — it previously duplicated `021`'s `clients_id_account_id_unique`
   constraint, used `gen_random_bytes()` without enabling `pgcrypto`, and granted to the

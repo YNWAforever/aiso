@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest'
 import {
   assertBaselined,
   listMigrationFiles,
+  migrationCreatedIndexes,
+  migrationCreatedRelations,
   migrationCreatedTables,
   migrationDroppedTables,
   planMigrations,
@@ -23,7 +25,7 @@ function entries(files: string[]) {
     const sql = sqlFor(filename)
     return {
       filename,
-      creates: migrationCreatedTables(sql),
+      creates: migrationCreatedRelations(sql),
       drops: migrationDroppedTables(sql),
     }
   })
@@ -70,11 +72,27 @@ describe('migrationCreatedTables', () => {
   })
 })
 
+/**
+ * Tables from a real PG16 run, plus the index names the extractor reports.
+ *
+ * Asymmetric on purpose. The table half is independent evidence — it came out of
+ * information_schema after applying all 29 files. The index half is derived, so
+ * it cannot by itself prove the extractor right; that was checked separately
+ * against pg_indexes on the same cluster (11 migrations create indexes, all 72
+ * names present, no false positives) and is spot-checked below with real names.
+ */
+function allRelations() {
+  return new Set([
+    ...ALL_TABLES,
+    ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
+  ])
+}
+
 describe('unappliedBaselineClaims', () => {
-  it('passes a baseline whose tables all exist', () => {
+  it('passes a baseline whose objects all exist', () => {
     const files = listMigrationFiles()
 
-    expect(unappliedBaselineClaims(entries(files), new Set(ALL_TABLES))).toEqual([])
+    expect(unappliedBaselineClaims(entries(files), allRelations())).toEqual([])
   })
 
   it('refuses to record 021 when the local_trust tables are absent', () => {
@@ -83,12 +101,14 @@ describe('unappliedBaselineClaims', () => {
     // command excepted only 027/029/030/031 — so following the docs verbatim
     // would have recorded 021 as applied and permanently stranded these three
     // tables, which lib/localTrust/store.ts queries directly.
-    const without021 = new Set(ALL_TABLES.filter(t => !t.startsWith('local_trust')))
+    const without021 = new Set([...allRelations()].filter(t => !t.startsWith('local_trust')))
     const claims = unappliedBaselineClaims(entries(listMigrationFiles()), without021)
 
     expect(claims.map(c => c.filename)).toEqual(['021_local_trust_roi.sql'])
     expect(claims[0].missing.sort()).toEqual([
-      'local_trust_actions', 'local_trust_profiles', 'local_trust_snapshots',
+      'local_trust_actions', 'local_trust_actions_snapshot_idx',
+      'local_trust_profiles', 'local_trust_profiles_account_idx',
+      'local_trust_snapshots', 'local_trust_snapshots_client_month_idx',
     ])
   })
 
@@ -96,7 +116,7 @@ describe('unappliedBaselineClaims', () => {
     // Pending migrations legitimately have no tables yet; excepting them is the
     // correct action, so they must not be reported.
     const files = listMigrationFiles().filter(f => f !== '027_client_report_snapshots.sql')
-    const without027 = new Set(ALL_TABLES.filter(t => !t.startsWith('client_report')))
+    const without027 = new Set([...allRelations()].filter(t => !t.startsWith('client_report')))
 
     expect(unappliedBaselineClaims(entries(files), without027)).toEqual([])
   })
@@ -111,20 +131,52 @@ describe('unappliedBaselineClaims', () => {
   })
 })
 
+describe('migrationCreatedIndexes', () => {
+  it('finds the real index names, in every spelling the repo uses', () => {
+    // Names spot-checked against pg_indexes after applying all 29 migrations to
+    // a throwaway PostgreSQL 16.
+    expect(migrationCreatedIndexes(sqlFor('031_pulse_weekly_summary_unique.sql')))
+      .toEqual(['pulse_weekly_summary_client_week_platform_unique'])
+    expect(migrationCreatedIndexes(sqlFor('021_local_trust_roi.sql'))).toEqual([
+      'local_trust_profiles_account_idx',
+      'local_trust_snapshots_client_month_idx',
+      'local_trust_actions_snapshot_idx',
+    ])
+  })
+
+  it('ignores an index mentioned only in a comment', () => {
+    expect(migrationCreatedIndexes('-- create index ghost_idx on t (a)')).toEqual([])
+  })
+
+  it('makes an index-only migration judgeable, which tables alone could not', () => {
+    // 031 creates no table at all, so the table-only check had nothing to test
+    // and would have waved a false baseline claim straight through. Two of the
+    // four pending migrations are this shape.
+    const sql = sqlFor('031_pulse_weekly_summary_unique.sql')
+
+    expect(migrationCreatedTables(sql)).toEqual([])
+    expect(migrationCreatedRelations(sql)).toHaveLength(1)
+
+    const claims = unappliedBaselineClaims(
+      entries(['031_pulse_weekly_summary_unique.sql']), new Set<string>(),
+    )
+    expect(claims.map(c => c.filename)).toEqual(['031_pulse_weekly_summary_unique.sql'])
+  })
+})
+
 describe('planMigrations', () => {
   it('returns the documented pending set given the documented ledger', () => {
     const files = listMigrationFiles()
-    const claimedApplied = files.filter(f => ![
-      '027_client_report_snapshots.sql', '029_scans_client_id.sql',
-      '030_accounts_plan_default_basic.sql', '031_pulse_weekly_summary_unique.sql',
-    ].includes(f))
-
-    expect(planMigrations(files, claimedApplied)).toEqual([
+    const pending = [
       '027_client_report_snapshots.sql',
       '029_scans_client_id.sql',
       '030_accounts_plan_default_basic.sql',
       '031_pulse_weekly_summary_unique.sql',
-    ])
+      '032_pulse_metrics_indexes.sql',
+    ]
+    const claimedApplied = files.filter(f => !pending.includes(f))
+
+    expect(planMigrations(files, claimedApplied)).toEqual(pending)
   })
 })
 

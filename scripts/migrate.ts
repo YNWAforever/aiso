@@ -61,6 +61,28 @@ export function migrationCreatedTables(sql: string): string[] {
   return [...new Set([...stripped.matchAll(pattern)].map((m) => m[1].toLowerCase()))]
 }
 
+/** Every index a migration creates, by name, lowercased. */
+export function migrationCreatedIndexes(sql: string): string[] {
+  const stripped = stripNonStatements(sql)
+  const pattern =
+    /create\s+(?:unique\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*)/gi
+  return [...new Set([...stripped.matchAll(pattern)].map((m) => m[1].toLowerCase()))]
+}
+
+/**
+ * Everything a migration creates that can be probed for afterwards.
+ *
+ * Tables alone were not enough. A migration that only adds an index or changes a
+ * column default creates no table, so the baseline check had nothing to test and
+ * waved it through — and two of the four currently-pending migrations are
+ * exactly that shape (031 is index-only, 030 sets a default). Indexes close half
+ * that gap; a migration that creates neither is still unverifiable this way and
+ * is deliberately left alone rather than guessed at.
+ */
+export function migrationCreatedRelations(sql: string): string[] {
+  return [...new Set([...migrationCreatedTables(sql), ...migrationCreatedIndexes(sql)])]
+}
+
 /** Every table a migration drops, unqualified and lowercased. */
 export function migrationDroppedTables(sql: string): string[] {
   const stripped = stripNonStatements(sql)
@@ -69,15 +91,15 @@ export function migrationDroppedTables(sql: string): string[] {
 }
 
 /**
- * Baseline entries that cannot be true, i.e. migrations whose tables are absent.
+ * Baseline entries that cannot be true, i.e. migrations whose objects are absent.
  *
  * `entries` must be in apply order. A table created by one migration and dropped
  * by a later one is legitimately absent — 028 drops `plan_features`, which 014
  * creates — so a create is only evidence of anything until something later
  * removes it. Ignoring that would accuse 014 of never having run.
  *
- * `existingTables` is the set actually present in the database. A migration
- * creating no tables is unverifiable this way and is deliberately left alone:
+ * `existing` is the set of table and index names actually present. A migration
+ * creating neither is unverifiable this way and is deliberately left alone:
  * absence of evidence must not read as evidence of absence.
  */
 export function unappliedBaselineClaims(
@@ -200,13 +222,13 @@ async function main(): Promise<void> {
       // Recording a migration as applied removes the only path by which its
       // objects would ever be created, so prove the claim before writing it.
       // This is the check that catches a migration everyone believes ran.
-      const existing = await existingTableNames(pool)
+      const existing = await existingRelationNames(pool)
       const impossible = unappliedBaselineClaims(
         toRecord.map((filename) => {
           const sql = readFileSync(join(MIGRATIONS_DIR, filename), 'utf8')
           return {
             filename,
-            creates: migrationCreatedTables(sql),
+            creates: migrationCreatedRelations(sql),
             drops: migrationDroppedTables(sql),
           }
         }),
@@ -214,7 +236,7 @@ async function main(): Promise<void> {
       )
       if (impossible.length) {
         throw new Error(
-          'Refusing to baseline — these migrations create tables that do not exist, so they\n' +
+          'Refusing to baseline — these migrations create objects that do not exist, so they\n' +
           'cannot already have been applied. Recording them would strand their objects with\n' +
           'no way to create them:\n' +
           impossible.map((e) => `  ${e.filename} → missing ${e.missing.join(', ')}`).join('\n') +
@@ -279,12 +301,19 @@ async function main(): Promise<void> {
   }
 }
 
-/** Every table name in the public schema, lowercased. */
-async function existingTableNames(pool: Pool): Promise<Set<string>> {
-  const { rows } = await pool.query(
-    `select table_name from information_schema.tables where table_schema = 'public'`,
-  )
-  return new Set(rows.map((r: { table_name: string }) => r.table_name.toLowerCase()))
+/**
+ * Every table AND index name in the public schema, lowercased.
+ *
+ * One set rather than two: both live in pg_class, the names cannot collide, and
+ * a migration's baseline claim is judged the same way whichever it created.
+ */
+async function existingRelationNames(pool: Pool): Promise<Set<string>> {
+  const { rows } = await pool.query(`
+    select table_name as name from information_schema.tables where table_schema = 'public'
+    union
+    select indexname as name from pg_indexes where schemaname = 'public'
+  `)
+  return new Set(rows.map((r: { name: string }) => r.name.toLowerCase()))
 }
 
 /**
@@ -297,13 +326,13 @@ async function existingTableNames(pool: Pool): Promise<Set<string>> {
  * nobody could run. It is read-only.
  */
 async function reportAppliedState(pool: Pool, files: string[]): Promise<void> {
-  const existing = await existingTableNames(pool)
+  const existing = await existingRelationNames(pool)
   const { rows } = await pool.query('select filename from schema_migrations')
   const ledger = new Set(rows.map((r: { filename: string }) => r.filename))
 
-  console.log('migration                                  tables      ledger')
+  console.log('migration                                  objects     ledger')
   for (const filename of files) {
-    const creates = migrationCreatedTables(readFileSync(join(MIGRATIONS_DIR, filename), 'utf8'))
+    const creates = migrationCreatedRelations(readFileSync(join(MIGRATIONS_DIR, filename), 'utf8'))
     const missing = creates.filter((t) => !existing.has(t))
     const state = creates.length === 0
       ? 'n/a       '
