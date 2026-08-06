@@ -315,6 +315,77 @@ describe('POST /api/onboarding/complete', () => {
     expect((await res.json()).clientId).toBe('client-new')
   })
 
+  // The generated bank is the only thing that ever writes prompt_bank.category,
+  // and the column has no CHECK, so whatever the model returns used to become
+  // the vocabulary. A category outside the four lands in a section the question
+  // bank editor cannot offer an add row for.
+  describe('generated prompt categories', () => {
+    async function runWithGenerated(generated: unknown) {
+      const { callOpenRouter } = await import('@/lib/openrouter')
+      vi.mocked(callOpenRouter).mockResolvedValueOnce(JSON.stringify(generated))
+      nextResults = [
+        [{ trial_started_at: null, trial_ends_at: null }],
+        [{ id: 'acc-1' }],
+        [],
+        [{ id: 'client-new' }],
+      ]
+      const { POST } = await import('@/app/api/onboarding/complete/route')
+      await POST(request({ brandName: 'TestBrand' }))
+      const insert = mockSql.mock.calls.find(
+        ([strings]) => /insert into prompt_bank/i.test((strings as TemplateStringsArray).join('?')),
+      )
+      // Params are (clientId, categories[], questions[], languages[]) — the
+      // categories array is the second interpolation, not the first.
+      return insert ? (insert[2] as string[]) : null
+    }
+
+    it('drops a category the model invented rather than storing it', async () => {
+      const categories = await runWithGenerated([
+        { category: 'brand_query', question: 'Kept?', language: 'en' },
+        { category: 'Brand Queries', question: 'Invented label', language: 'en' },
+        { category: 'competitor_query', question: 'Invented category', language: 'en' },
+        { category: 'pain_point', question: 'Also kept?', language: 'en' },
+      ])
+
+      expect(categories).toEqual(['brand_query', 'pain_point'])
+    })
+
+    it('drops a row with a missing category rather than writing NULL', async () => {
+      const categories = await runWithGenerated([
+        { question: 'No category', language: 'en' },
+        { category: 'intent_query', question: 'Kept?', language: 'en' },
+      ])
+
+      expect(categories).toEqual(['intent_query'])
+    })
+
+    it('writes nothing at all when every generated row is unusable', async () => {
+      const categories = await runWithGenerated([
+        { category: 'nonsense', question: 'q', language: 'en' },
+      ])
+
+      expect(categories).toBeNull()
+    })
+
+    it('still returns the created client when the whole bank is dropped', async () => {
+      const { callOpenRouter } = await import('@/lib/openrouter')
+      vi.mocked(callOpenRouter).mockResolvedValueOnce(
+        JSON.stringify([{ category: 'nonsense', question: 'q', language: 'en' }]),
+      )
+      nextResults = [
+        [{ trial_started_at: null, trial_ends_at: null }],
+        [{ id: 'acc-1' }],
+        [],
+        [{ id: 'client-new' }],
+      ]
+      const { POST } = await import('@/app/api/onboarding/complete/route')
+      const res = await POST(request({ brandName: 'TestBrand' }))
+
+      expect(res.status).toBe(200)
+      expect((await res.json()).clientId).toBe('client-new')
+    })
+  })
+
   it('starts a pre-filled scan onboarding at step 3 and reuses the completed report', () => {
     const wizard = readFileSync('components/onboarding/OnboardingWizard.tsx', 'utf8')
     expect(wizard).toContain('const hasScanPrefill = Boolean(scanId && initialBrand && initialDomain)')
