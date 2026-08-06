@@ -165,6 +165,24 @@ export async function POST(req: NextRequest) {
         platforms,
       ).catch(() => [])
 
+      // Clear this prompt's rows for the week before writing them, so
+      // reprocessing it replaces rather than accumulates.
+      //
+      // pulse_metrics has no unique key, so nothing at the schema level stops a
+      // second pass doubling a prompt's rows — and total_queries is a count over
+      // exactly those rows, so a duplicate inflates sov_score, the number the
+      // whole feature reports. That was survivable while nothing invoked this
+      // route; with a scheduler driving it, reprocessing is routine (a retried
+      // chunk, an explicit cursor, a prompt deactivated mid-week moving the
+      // derived cursor back). Doing it here rather than in a migration keeps
+      // this correct whether or not the pending ledger ever gets a unique index.
+      await sql`
+        delete from pulse_metrics
+        where client_id = ${clientId}
+          and prompt_id = ${prompt.id}
+          and scan_week = ${scanWeek}::date
+      `
+
       // Concurrent across responses, not sequential. Each analysis is its own
       // LLM round trip; awaiting them one after another made a single prompt
       // cost the sum of five latencies rather than the largest, which is what

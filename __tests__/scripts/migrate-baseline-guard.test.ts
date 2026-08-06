@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import {
+  assertBaselined,
   listMigrationFiles,
   migrationCreatedTables,
   migrationDroppedTables,
@@ -124,5 +125,41 @@ describe('planMigrations', () => {
       '030_accounts_plan_default_basic.sql',
       '031_pulse_weekly_summary_unique.sql',
     ])
+  })
+})
+
+describe('assertBaselined', () => {
+  // The one function here that can destroy production, and it had no coverage
+  // of any kind. It is an AND of exactly two facts, and both edges matter.
+  function pool(ledgerRows: number, hasAccounts: number) {
+    return { query: async () => ({ rows: [{ ledger_rows: ledgerRows, has_accounts: hasAccounts }] }) }
+  }
+
+  it('refuses a populated database with an empty ledger', async () => {
+    // Production before the runner existed: tables applied by hand, no ledger.
+    // Proceeding would replay 001 onward over live data.
+    await expect(assertBaselined(pool(0, 1) as never)).rejects.toThrow(/empty schema_migrations/)
+  })
+
+  it('allows a genuinely fresh database', async () => {
+    // No accounts table and no ledger is the bootstrap path, not production.
+    await expect(assertBaselined(pool(0, 0) as never)).resolves.toBeUndefined()
+  })
+
+  it('allows a database that has already been baselined', async () => {
+    await expect(assertBaselined(pool(29, 1) as never)).resolves.toBeUndefined()
+  })
+
+  it('is disarmed by a single ledger row — which is why baselining is one statement', async () => {
+    // Pins the sharp edge rather than pretending it away: the guard checks that
+    // the ledger is EMPTY, so one row from a half-finished baseline lets a run
+    // proceed against production. That is the reason --baseline inserts in a
+    // single statement instead of a loop.
+    await expect(assertBaselined(pool(1, 1) as never)).resolves.toBeUndefined()
+  })
+
+  it('points the operator at --verify rather than at a stale --except list', async () => {
+    // The old message named only 027, which would have buried 029, 030 and 031.
+    await expect(assertBaselined(pool(0, 1) as never)).rejects.toThrow(/--verify/)
   })
 })

@@ -318,7 +318,7 @@ async function reportAppliedState(pool: Pool, files: string[]): Promise<void> {
  * migrations were applied by hand. Running them again would be destructive, so
  * stop and make the operator baseline it deliberately.
  */
-async function assertBaselined(pool: Pool): Promise<void> {
+export async function assertBaselined(pool: Pick<Pool, 'query'>): Promise<void> {
   const { rows } = await pool.query(`
     select
       (select count(*) from schema_migrations) as ledger_rows,

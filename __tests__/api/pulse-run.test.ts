@@ -288,6 +288,31 @@ describe('POST /api/pulse/run — writes', () => {
     expect(inserts('pulse_metrics')).toHaveLength(3)
   })
 
+  it('clears a prompt\'s existing rows for the week before writing them', async () => {
+    // pulse_metrics has no unique key and total_queries is a count over its
+    // rows, so reprocessing a prompt would inflate sov_score — the number the
+    // whole feature reports. With a scheduler driving this, reprocessing is
+    // routine rather than exceptional.
+    await post({ clientId: 'client-1', limit: 1 })
+
+    const deletes = calls.filter(c => /delete from pulse_metrics/i.test(c.text))
+    expect(deletes).toHaveLength(1)
+    expect(deletes[0].params).toEqual(['client-1', 'p1', '2026-08-03'])
+
+    // And it must happen before the insert, or it deletes what it just wrote.
+    const delIndex = calls.findIndex(c => /delete from pulse_metrics/i.test(c.text))
+    const insIndex = calls.findIndex(c => /insert into pulse_metrics/i.test(c.text))
+    expect(delIndex).toBeLessThan(insIndex)
+  })
+
+  it('scopes that delete to the one prompt, never the whole client-week', async () => {
+    await post({ clientId: 'client-1', limit: 1 })
+    const [del] = calls.filter(c => /delete from pulse_metrics/i.test(c.text))
+
+    expect(del.text).toMatch(/prompt_id =/)
+    expect(del.text).toMatch(/scan_week =/)
+  })
+
   it('returns 5xx rather than a success carrying counts it never persisted', async () => {
     failOn = /insert into pulse_metrics/i
     const res = await post({ clientId: 'client-1' })

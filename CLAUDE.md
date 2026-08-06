@@ -288,6 +288,11 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 
 ## Database (Neon Postgres)
 
+- **`pulse_metrics` has no unique key**, and `total_queries` in the weekly rollup is a count
+  over its rows — so writing a prompt twice inflates `sov_score`, the number the whole feature
+  reports. `pulse/run` therefore deletes a prompt's rows for the week before writing them,
+  in application code rather than via a constraint, so it stays correct whether or not the
+  pending migrations ever land. Any new writer of that table needs the same discipline.
 - **Never `returning *` on a statement that joins another table.** The Neon HTTP driver builds
   each row with `Object.fromEntries(...)`, so duplicate column names **silently overwrite —
   last wins** — and the joined relation's columns come *after* the target's. `update prompt_bank
