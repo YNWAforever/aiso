@@ -118,7 +118,7 @@ proxy.ts           # Next 16 proxy (was middleware) — intl routing + auth veri
 i18n/              # next-intl routing + request config
 messages/          # en.json / zh-HK.json translation strings
 supabase/
-  migrations/      # 28 SQL migrations, 001_-031_ (no 005/006) - dir name is legacy
+  migrations/      # 29 SQL migrations, 001_-031_ (no 005/006) - dir name is legacy
 __tests__/         # Vitest tests mirroring lib/app structure
 tests/e2e/         # Playwright specs + page objects
 scripts/           # migrate.ts (npm run migrate), run-tests.mjs (npm test), seed-packs.ts
@@ -299,7 +299,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   rather than checking first is the preferred shape — one statement, no TOCTOU window, and zero
   rows means 404 without distinguishing "absent" from "not yours". See
   `app/api/dashboard/clients/[clientId]/prompts/[promptId]/route.ts`.
-- Migrations in `supabase/migrations/` — 28 files, `001_`–`031_` (no 005/006; directory name is legacy;
+- Migrations in `supabase/migrations/` — 29 files, `001_`–`031_` (no 005/006; directory name is legacy;
   the target is now Neon)
 - **A migration runner now exists:** `scripts/migrate.ts`, run via `npm run migrate`. It
   applies every file absent from the `schema_migrations` ledger, in filename order, each in
@@ -307,14 +307,21 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   migrations as applied without running them.
   **It refuses to run against a populated database with an empty ledger** — that guard is
   what stops it re-applying the migrations that were applied by hand before it existed.
-  Baseline production once before the first real run, excepting **every** migration that has
-  not actually been applied yet — currently `--baseline --except 027_client_report_snapshots.sql
-  --except 029_scans_client_id.sql --except 030_accounts_plan_default_basic.sql
-  --except 031_pulse_weekly_summary_unique.sql`. Anything you
-  forget to except is recorded as applied without ever running.
-- Applied as of 2026-07-26: `001`–`026` and `028`. **Pending: `027`, `029`, `030`, `031`** — confirm
-  against `select filename from schema_migrations` before baselining, since that snapshot is
-  only as fresh as this line. Slice 6 (client reports) applies `027`. It was edited to
+- **Run `npm run migrate -- --verify` first, and trust it over this file.** It reports, per
+  migration, whether the tables that migration creates actually exist. `--baseline` now refuses
+  to record any migration whose tables are missing, because recording one is unrecoverable: it
+  removes the only path by which its objects would ever be created. Baseline excepting **every**
+  migration that has not run — anything you forget is recorded as applied without ever running.
+- ⚠️ **`021` is disputed and must be settled before baselining.** `021_local_trust_roi.sql:3`
+  says of itself *"This migration has never been applied (no local_trust_* table exists in
+  Neon)"*, while the line below claimed `001`–`026` were applied and `027:10` asserts
+  "Production has 021 applied". They cannot all be true. 021 is the sole creator of
+  `local_trust_profiles` / `_snapshots` / `_actions`, which `lib/localTrust/store.ts` queries
+  directly — so if it never ran, **Local Trust is broken in production**, and baselining
+  without excepting it strands those tables permanently. `--verify` answers this in one command.
+- Believed applied: `001`–`026` (**except possibly `021`**) and `028`. **Pending: `027`, `029`,
+  `030`, `031`.** Verify before baselining; this line is only as fresh as the last person to
+  edit it, and it has been wrong. Slice 6 (client reports) applies `027`. It was edited to
   apply cleanly — it previously duplicated `021`'s `clients_id_account_id_unique`
   constraint, used `gen_random_bytes()` without enabling `pgcrypto`, and granted to the
   Supabase roles `anon` / `authenticated` / `service_role`, which do not exist under Neon.

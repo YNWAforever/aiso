@@ -1,9 +1,15 @@
 /**
  * Ledger-backed migration runner for the Neon database.
  *
+ *   npm run migrate -- --verify     # what is actually applied here?
  *   npm run migrate -- --dry-run
  *   npm run migrate
- *   npm run migrate -- --baseline --except 027_client_report_snapshots.sql
+ *   npm run migrate -- --baseline --except <file> [--except <file> ...]
+ *
+ * Run --verify FIRST on any database whose ledger does not exist yet. It reports
+ * which migrations' tables are present, which is the only reliable answer to
+ * what has actually been applied — the ledger cannot tell you, and the prose in
+ * CLAUDE.md has been wrong about it before.
  *
  * Applies every file in supabase/migrations/ that is absent from the
  * schema_migrations ledger, each inside its own transaction, in filename order.
@@ -33,6 +39,60 @@ const MIGRATIONS_DIR = join(process.cwd(), 'supabase', 'migrations')
 export function planMigrations(files: string[], applied: string[]): string[] {
   const done = new Set(applied)
   return [...files].sort().filter((f) => !done.has(f))
+}
+
+/**
+ * Every table a migration creates, unqualified and lowercased.
+ *
+ * Used to check a baseline claim against reality: recording a migration as
+ * applied is irreversible in practice — it permanently removes the only path by
+ * which its objects would ever be created — so before writing that row the
+ * runner confirms the tables actually exist.
+ *
+ * This is not a general SQL parser and does not need to be. It reads its own
+ * repo's migrations, which use `create table [if not exists] [public.]name`
+ * uniformly. A table it fails to spot merely goes unchecked; it cannot produce
+ * a false accusation, because every name it returns is one the file really does
+ * create.
+ */
+export function migrationCreatedTables(sql: string): string[] {
+  const stripped = stripNonStatements(sql)
+  const pattern = /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?([a-z_][a-z0-9_]*)/gi
+  return [...new Set([...stripped.matchAll(pattern)].map((m) => m[1].toLowerCase()))]
+}
+
+/** Every table a migration drops, unqualified and lowercased. */
+export function migrationDroppedTables(sql: string): string[] {
+  const stripped = stripNonStatements(sql)
+  const pattern = /drop\s+table\s+(?:if\s+exists\s+)?(?:public\.)?([a-z_][a-z0-9_]*)/gi
+  return [...new Set([...stripped.matchAll(pattern)].map((m) => m[1].toLowerCase()))]
+}
+
+/**
+ * Baseline entries that cannot be true, i.e. migrations whose tables are absent.
+ *
+ * `entries` must be in apply order. A table created by one migration and dropped
+ * by a later one is legitimately absent — 028 drops `plan_features`, which 014
+ * creates — so a create is only evidence of anything until something later
+ * removes it. Ignoring that would accuse 014 of never having run.
+ *
+ * `existingTables` is the set actually present in the database. A migration
+ * creating no tables is unverifiable this way and is deliberately left alone:
+ * absence of evidence must not read as evidence of absence.
+ */
+export function unappliedBaselineClaims(
+  entries: Array<{ filename: string; creates: string[]; drops: string[] }>,
+  existingTables: Set<string>,
+): Array<{ filename: string; missing: string[] }> {
+  return entries
+    .map(({ filename, creates }, index) => {
+      const droppedLater = new Set(entries.slice(index + 1).flatMap((e) => e.drops))
+      return {
+        filename,
+        missing: creates.filter((t) => !existingTables.has(t) && !droppedLater.has(t)),
+      }
+    })
+    .filter((e) => e.missing.length > 0)
 }
 
 /**
@@ -95,8 +155,28 @@ async function main(): Promise<void> {
   const argv = process.argv.slice(2)
   const dryRun = argv.includes('--dry-run')
   const baseline = argv.includes('--baseline')
+  const verify = argv.includes('--verify')
   const exceptIndex = argv.indexOf('--except')
   const except = exceptIndex === -1 ? [] : argv.slice(exceptIndex + 1).filter((a) => !a.startsWith('--'))
+
+  const files = listMigrationFiles()
+
+  // A misspelt --except silently baselines the file it was meant to exclude,
+  // which is unrecoverable: the ledger then says a migration ran that never did,
+  // and nothing will ever create its objects. Check the names before connecting.
+  const unknown = except.filter((f) => !files.includes(f))
+  if (unknown.length) {
+    throw new Error(
+      `--except names no such migration: ${unknown.join(', ')}\n` +
+      'Check the spelling against supabase/migrations/.',
+    )
+  }
+  // --except is only consumed by the baseline branch. Without this, passing it
+  // alone silently APPLIES everything it was meant to hold back.
+  if (except.length && !baseline) {
+    throw new Error('--except only applies to --baseline. Refusing to run, since without ' +
+      '--baseline it would apply the migrations you asked to exclude.')
+  }
 
   neonConfig.webSocketConstructor = globalThis.WebSocket
   const pool = new Pool({ connectionString: connectionString() })
@@ -109,18 +189,53 @@ async function main(): Promise<void> {
       )
     `)
 
-    const files = listMigrationFiles()
+    if (verify) {
+      await reportAppliedState(pool, files)
+      return
+    }
 
     if (baseline) {
       const toRecord = files.filter((f) => !except.includes(f))
+
+      // Recording a migration as applied removes the only path by which its
+      // objects would ever be created, so prove the claim before writing it.
+      // This is the check that catches a migration everyone believes ran.
+      const existing = await existingTableNames(pool)
+      const impossible = unappliedBaselineClaims(
+        toRecord.map((filename) => {
+          const sql = readFileSync(join(MIGRATIONS_DIR, filename), 'utf8')
+          return {
+            filename,
+            creates: migrationCreatedTables(sql),
+            drops: migrationDroppedTables(sql),
+          }
+        }),
+        existing,
+      )
+      if (impossible.length) {
+        throw new Error(
+          'Refusing to baseline — these migrations create tables that do not exist, so they\n' +
+          'cannot already have been applied. Recording them would strand their objects with\n' +
+          'no way to create them:\n' +
+          impossible.map((e) => `  ${e.filename} → missing ${e.missing.join(', ')}`).join('\n') +
+          '\n\nAdd each to --except so it stays pending and gets applied normally.',
+        )
+      }
+
       if (dryRun) {
         console.log(`Would baseline ${toRecord.length} migration(s) as already applied.`)
         if (except.length) console.log(`Would leave pending: ${except.join(', ')}`)
         return
       }
-      for (const f of toRecord) {
-        await pool.query('insert into schema_migrations (filename) values ($1) on conflict do nothing', [f])
-      }
+      // One transaction. A partial baseline is worse than none: assertBaselined
+      // only checks that the ledger is empty, so a single stray row disarms it
+      // permanently and the next run replays applied migrations against
+      // production.
+      const values = toRecord.map((_, i) => `($${i + 1})`).join(', ')
+      await pool.query(
+        `insert into schema_migrations (filename) values ${values} on conflict do nothing`,
+        toRecord,
+      )
       console.log(`Baselined ${toRecord.length} migration(s) as already applied.`)
       if (except.length) console.log(`Left pending: ${except.join(', ')}`)
       return
@@ -164,6 +279,40 @@ async function main(): Promise<void> {
   }
 }
 
+/** Every table name in the public schema, lowercased. */
+async function existingTableNames(pool: Pool): Promise<Set<string>> {
+  const { rows } = await pool.query(
+    `select table_name from information_schema.tables where table_schema = 'public'`,
+  )
+  return new Set(rows.map((r: { table_name: string }) => r.table_name.toLowerCase()))
+}
+
+/**
+ * Reports, per migration, whether the tables it creates are present — the
+ * answer to "what is actually applied here?" when the ledger does not exist yet
+ * or is not trusted.
+ *
+ * This exists because three places in this repo disagreed about whether
+ * migration 021 had been applied, and the only way to settle it was a query
+ * nobody could run. It is read-only.
+ */
+async function reportAppliedState(pool: Pool, files: string[]): Promise<void> {
+  const existing = await existingTableNames(pool)
+  const { rows } = await pool.query('select filename from schema_migrations')
+  const ledger = new Set(rows.map((r: { filename: string }) => r.filename))
+
+  console.log('migration                                  tables      ledger')
+  for (const filename of files) {
+    const creates = migrationCreatedTables(readFileSync(join(MIGRATIONS_DIR, filename), 'utf8'))
+    const missing = creates.filter((t) => !existing.has(t))
+    const state = creates.length === 0
+      ? 'n/a       '
+      : missing.length === 0 ? 'all present' : `MISSING ${missing.length}`.padEnd(11)
+    console.log(`${filename.padEnd(42)} ${state} ${ledger.has(filename) ? 'recorded' : '-'}`)
+    if (missing.length) console.log(`${' '.repeat(42)}   ↳ ${missing.join(', ')}`)
+  }
+}
+
 /**
  * A populated database with no ledger is almost certainly production, where the
  * migrations were applied by hand. Running them again would be destructive, so
@@ -181,9 +330,12 @@ async function assertBaselined(pool: Pool): Promise<void> {
   if (ledgerRows === 0 && hasAccounts) {
     throw new Error(
       'This database has application tables but an empty schema_migrations ledger.\n' +
-      'Applying migrations now would re-run migrations that were applied by hand.\n' +
-      'Baseline it first, e.g.:\n' +
-      '  npm run migrate -- --baseline --except 027_client_report_snapshots.sql',
+      'Applying migrations now would re-run migrations that were applied by hand.\n\n' +
+      'First find out what is actually applied:\n' +
+      '  npm run migrate -- --verify\n\n' +
+      'Then baseline, excepting EVERY migration that has not run — anything you\n' +
+      'forget is recorded as applied without ever running:\n' +
+      '  npm run migrate -- --baseline --except <file> [--except <file> ...]',
     )
   }
 }
