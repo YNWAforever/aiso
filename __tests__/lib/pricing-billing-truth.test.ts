@@ -72,7 +72,10 @@ describe('pricing billing truth', () => {
     for (const plan of ['pro', 'enterprise'] as const) {
       expect(PLAN_CATALOG[plan].features.edit_prompts).toBe(true)
       expect(PLAN_CATALOG[plan].features.alerts).toBe(true)
-      expect(PLAN_CATALOG[plan].release.promptBank).not.toBe('available')
+      // promptBank has since shipped — the four routes are live and the editor
+      // is reachable — so it is now legitimately 'available'. sovAlerts is
+      // still entitled without a shipped evaluator, and remains the live case
+      // this assertion guards.
       expect(PLAN_CATALOG[plan].release.sovAlerts).not.toBe('available')
     }
 
@@ -94,6 +97,29 @@ describe('pricing billing truth', () => {
     // The Pro card highlight has to be gated too — it listed both unqualified.
     expect(cardHighlightsSource).toContain('releaseHighlight(pro.release.promptBank')
     expect(cardHighlightsSource).toContain('releaseHighlight(pro.release.sovAlerts')
+  })
+
+  it('only claims the prompt bank is available while it is actually reachable', () => {
+    // The tick is honest only because a page renders the editor. If that page
+    // ever goes back to redirecting at the "unavailable" placeholder — which is
+    // exactly what it did before — this claim silently becomes a lie again.
+    // Ties the marketing state to the implementation rather than to a comment.
+    const claimsAvailable = (['pro', 'enterprise'] as const)
+      .some(plan => PLAN_CATALOG[plan].release.promptBank === 'available')
+    if (!claimsAvailable) return
+
+    const page = readFileSync(
+      resolve(process.cwd(), 'app/[lang]/dashboard/[clientId]/prompts/page.tsx'), 'utf8',
+    ).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+
+    expect(page).toContain('PromptBankEditor')
+    expect(page).not.toContain('redirect(')
+
+    // And the routes serving it must not be fenced.
+    const fenced = readFileSync(
+      resolve(process.cwd(), '__tests__/api/fenced-routes.test.ts'), 'utf8',
+    )
+    expect(fenced).not.toContain("feature: 'prompt-bank'")
   })
 
   it('provides one catalog-derived localized allowance projection for pricing', () => {

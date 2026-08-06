@@ -112,10 +112,11 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
     release: {
       ...unavailableRelease,
       monitoring: 'planned', competitorSummary: 'planned', clientReports: 'available',
-      // Entitled on Pro (features.edit_prompts / features.alerts) but not shipped:
-      // both route families still return 503, and the alert evaluator has no
-      // scheduler and no source for the rows it reads.
-      promptBank: 'planned', sovAlerts: 'planned',
+      // promptBank shipped: the four routes are live and the editor is reachable
+      // at /{lang}/dashboard/{clientId}/prompts. sovAlerts is still entitled but
+      // unshipped — the evaluator has no scheduler and no source for the rows it
+      // reads.
+      promptBank: 'available', sovAlerts: 'planned',
     },
     features: {
       plan: 'pro',
@@ -133,7 +134,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
     exportFormats: ['csv'], supportLevel: 'priority',
     release: {
       monitoring: 'planned', competitorSummary: 'available', clientReports: 'available',
-      promptBank: 'planned', sovAlerts: 'planned',
+      promptBank: 'available', sovAlerts: 'planned',
       whiteLabelPdf: 'planned', publicApi: 'custom', customPlatforms: 'custom',
       dedicatedSuccess: 'custom',
     },
