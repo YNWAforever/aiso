@@ -121,7 +121,10 @@ export interface ProfileWithAccount extends Profile {
 export interface PromptBankItem {
   id: string
   client_id: string
-  category: string
+  // Nullable in the database (002_phase2.sql:13) and written by an LLM, so a row
+  // may carry no category at all. Typing this `string` let grouping code index
+  // by null and produce a section literally keyed "null".
+  category: string | null
   question: string
   language: string
   is_active: boolean
