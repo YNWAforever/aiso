@@ -518,6 +518,43 @@ describe('POST /api/cron/evaluate-alerts', () => {
     ])
   })
 
+  it('preserves newest-first RPC ordering when one client has duplicate same-week snapshot rows', async () => {
+    h.createClient.mockImplementation(() => {
+      const { client, state } = makeSupabaseStub({
+        weeklySnapshotRows: [
+          { client_id: 'client-1', scan_week: '2026-08-07', sov_score: 41 },
+          { client_id: 'client-1', scan_week: '2026-08-07', sov_score: 40 },
+          { client_id: 'client-1', scan_week: '2026-07-31', sov_score: 55 },
+          { client_id: 'client-2', scan_week: '2026-08-07', sov_score: 61 },
+          { client_id: 'client-2', scan_week: '2026-07-31', sov_score: 63 },
+          { client_id: 'client-3', scan_week: '2026-08-07', sov_score: 52 },
+        ],
+      })
+      h.supabaseState = state
+      return client
+    })
+    h.runAlertEvaluation.mockImplementation(async (ports: AlertEvaluationPorts) => {
+      const snapshot = await ports.loadSnapshot()
+
+      expect(snapshot.weeksByClient['client-1']).toEqual([
+        { client_id: 'client-1', scan_week: '2026-08-07', sov_score: 41 },
+        { client_id: 'client-1', scan_week: '2026-08-07', sov_score: 40 },
+      ])
+      expect(snapshot.weeksByClient['client-2']).toEqual([
+        { client_id: 'client-2', scan_week: '2026-08-07', sov_score: 61 },
+        { client_id: 'client-2', scan_week: '2026-07-31', sov_score: 63 },
+      ])
+
+      return { processed: snapshot.configs.length, fired: 0 }
+    })
+
+    const { POST } = await importRoute()
+    const response = await POST(makeRequest('test-cron-secret'))
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ processed: 3, fired: 0 })
+  })
+
   it('preserves the route failure behavior when snapshot loading throws', async () => {
     const snapshotError = new Error('snapshot unavailable')
     h.createClient.mockImplementation(() => {

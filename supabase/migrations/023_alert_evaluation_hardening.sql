@@ -55,7 +55,7 @@ AS $$
     ranked.sov_score
   FROM ranked
   WHERE ranked.row_number <= 2
-  ORDER BY ranked.client_id, ranked.scan_week DESC;
+  ORDER BY ranked.client_id, ranked.row_number ASC;
 $$;
 
 REVOKE ALL ON FUNCTION public.get_alert_weekly_snapshot(uuid[]) FROM PUBLIC;
