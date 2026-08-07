@@ -13,7 +13,10 @@ describe('023_alert_evaluation_hardening.sql', () => {
       /DISTINCT ON\s*\(\s*summary\.client_id,\s*summary\.scan_week\s*\)/si,
     )
     expect(migrationSql).toMatch(
-      /ORDER BY\s+summary\.client_id,\s*summary\.scan_week DESC,\s*summary\.id DESC/si,
+      /CREATE INDEX IF NOT EXISTS pulse_weekly_summary_alert_snapshot_idx\s+ON public\.pulse_weekly_summary\s*\(\s*client_id,\s*scan_week DESC,\s*created_at DESC NULLS LAST,\s*id DESC\s*\)\s+WHERE platform IS NULL;/si,
+    )
+    expect(migrationSql).toMatch(
+      /ORDER BY\s+summary\.client_id,\s*summary\.scan_week DESC,\s*summary\.created_at DESC NULLS LAST,\s*summary\.id DESC/si,
     )
     expect(migrationSql).toMatch(
       /row_number\(\)\s+OVER\s*\(\s*PARTITION BY latest_distinct_weeks\.client_id\s+ORDER BY latest_distinct_weeks\.scan_week DESC\s*\)\s+AS row_number/si,

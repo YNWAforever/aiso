@@ -19,7 +19,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS notifications_dedup_idx
 -- Bound alert snapshot reads to the latest two aggregate weeks per requested
 -- client inside PostgreSQL, before the Data API returns rows.
 CREATE INDEX IF NOT EXISTS pulse_weekly_summary_alert_snapshot_idx
-  ON public.pulse_weekly_summary (client_id, scan_week DESC, id DESC)
+  ON public.pulse_weekly_summary (client_id, scan_week DESC, created_at DESC NULLS LAST, id DESC)
   WHERE platform IS NULL;
 
 CREATE OR REPLACE FUNCTION public.get_alert_weekly_snapshot(p_client_ids uuid[])
@@ -44,7 +44,7 @@ AS $$
     INNER JOIN requested_clients
       ON requested_clients.client_id = summary.client_id
     WHERE summary.platform IS NULL
-    ORDER BY summary.client_id, summary.scan_week DESC, summary.id DESC
+    ORDER BY summary.client_id, summary.scan_week DESC, summary.created_at DESC NULLS LAST, summary.id DESC
   ),
   ranked AS (
     SELECT

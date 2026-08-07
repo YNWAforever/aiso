@@ -24,6 +24,8 @@ type PagedQuery<T> = {
 }
 
 const PAGE_SIZE = 1000
+const PROFILE_ACCOUNT_CHUNK_SIZE = 100
+const PROFILE_QUERY_CONCURRENCY_LIMIT = 4
 const AUTH_LOOKUP_CONCURRENCY_LIMIT = 16
 
 function serviceClient() {
@@ -89,13 +91,7 @@ async function loadSnapshot(supabase: ServiceClient): Promise<AlertSnapshot> {
       supabase.rpc('get_alert_weekly_snapshot', { p_client_ids: clientIds }),
     ),
     accountIds.length
-      ? fetchPagedRows<ProfileRow>(() =>
-          supabase
-            .from('profiles')
-            .select('id, account_id')
-            .in('account_id', accountIds)
-            .order('id', { ascending: true }),
-        )
+      ? loadProfilesByAccountIds(supabase, accountIds)
       : Promise.resolve([] as ProfileRow[]),
   ])
 
@@ -118,19 +114,49 @@ async function loadSnapshot(supabase: ServiceClient): Promise<AlertSnapshot> {
 
 async function fetchPagedRows<T>(makeQuery: () => PagedQuery<T>): Promise<T[]> {
   const rows: T[] = []
+  let from = 0
 
-  for (let from = 0; ; from += PAGE_SIZE) {
+  for (;;) {
     const to = from + PAGE_SIZE - 1
     const { data, error } = await makeQuery().range(from, to)
     if (error) throw error
 
     const page = data ?? []
-    rows.push(...page)
+    if (!page.length) break
 
-    if (page.length < PAGE_SIZE) break
+    rows.push(...page)
+    from += page.length
   }
 
   return rows
+}
+
+async function loadProfilesByAccountIds(supabase: ServiceClient, accountIds: string[]) {
+  const chunks = chunkArray(accountIds, PROFILE_ACCOUNT_CHUNK_SIZE)
+  const chunkResults: ProfileRow[][] = Array.from({ length: chunks.length }, () => [])
+  const indexedChunks = chunks.map((accountIdChunk, index) => ({ accountIdChunk, index }))
+
+  await runWithConcurrency(indexedChunks, PROFILE_QUERY_CONCURRENCY_LIMIT, async ({ accountIdChunk, index }) => {
+    chunkResults[index] = await fetchPagedRows<ProfileRow>(() =>
+      supabase
+        .from('profiles')
+        .select('id, account_id')
+        .in('account_id', accountIdChunk)
+        .order('id', { ascending: true }),
+    )
+  })
+
+  return chunkResults.flat()
+}
+
+function chunkArray<T>(items: T[], size: number) {
+  const chunks: T[][] = []
+
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size))
+  }
+
+  return chunks
 }
 
 function buildWeeksByClient(weeks: AlertWeekSnapshot[]) {

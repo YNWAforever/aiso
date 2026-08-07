@@ -14,7 +14,7 @@ export interface AlertConfigWithClient extends AlertConfig {
 export interface AlertWeekSnapshot {
   client_id: string
   scan_week: string
-  sov_score: number
+  sov_score: number | null
 }
 
 export interface AlertSnapshot {
@@ -58,30 +58,40 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
 
     const latest = weeks[0]
     const previous = weeks[1]
+    const latestScore = latest.sov_score
+    if (latestScore === null) continue
 
-    if (config.enabled_sov && latest.sov_score < config.sov_threshold) {
-      const wasAboveThreshold = !previous || previous.sov_score >= config.sov_threshold
+    const previousScore = previous?.sov_score
+
+    if (config.enabled_sov && latestScore < config.sov_threshold) {
+      const wasAboveThreshold = !previous || (
+        previousScore !== null &&
+        previousScore !== undefined &&
+        previousScore >= config.sov_threshold
+      )
       if (wasAboveThreshold) {
         actions.push(buildAction({
           config,
           latest,
-          previous,
+          currentSov: latestScore,
+          previousSov: previousScore ?? undefined,
           snapshot,
           type: 'sov_threshold',
           title: `SoV Alert — ${config.client.brand_name}`,
-          message: `SoV fell below ${config.sov_threshold}% threshold (current: ${latest.sov_score}%).`,
+          message: `SoV fell below ${config.sov_threshold}% threshold (current: ${latestScore}%).`,
           threshold: config.sov_threshold,
         }))
       }
     }
 
-    if (config.enabled_wow && previous) {
-      const drop = previous.sov_score - latest.sov_score
+    if (config.enabled_wow && previous && previousScore !== null && previousScore !== undefined) {
+      const drop = previousScore - latestScore
       if (drop >= config.wow_threshold) {
         actions.push(buildAction({
           config,
           latest,
-          previous,
+          currentSov: latestScore,
+          previousSov: previousScore,
           snapshot,
           type: 'sov_wow_drop',
           title: `SoV Alert — ${config.client.brand_name}`,
@@ -93,18 +103,20 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
 
     if (
       config.enabled_sov &&
-      previous &&
-      latest.sov_score >= config.sov_threshold &&
-      previous.sov_score < config.sov_threshold
+      previousScore !== null &&
+      previousScore !== undefined &&
+      latestScore >= config.sov_threshold &&
+      previousScore < config.sov_threshold
     ) {
       actions.push(buildAction({
         config,
         latest,
-        previous,
+        currentSov: latestScore,
+        previousSov: previousScore,
         snapshot,
         type: 'sov_recovery',
         title: `SoV Recovered — ${config.client.brand_name}`,
-        message: `SoV back above ${config.sov_threshold}% threshold (current: ${latest.sov_score}%).`,
+        message: `SoV back above ${config.sov_threshold}% threshold (current: ${latestScore}%).`,
         threshold: config.sov_threshold,
       }))
     }
@@ -137,7 +149,8 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
 function buildAction({
   config,
   latest,
-  previous,
+  currentSov,
+  previousSov,
   snapshot,
   type,
   title,
@@ -146,7 +159,8 @@ function buildAction({
 }: {
   config: AlertConfigWithClient
   latest: AlertWeekSnapshot
-  previous?: AlertWeekSnapshot
+  currentSov: number
+  previousSov?: number
   snapshot: AlertSnapshot
   type: AlertType
   title: string
@@ -175,8 +189,8 @@ function buildAction({
             clientId: config.client_id,
             brandName: config.client.brand_name,
             type,
-            currentSov: latest.sov_score,
-            previousSov: previous?.sov_score,
+            currentSov,
+            previousSov,
             threshold,
             dashboardUrl,
           }

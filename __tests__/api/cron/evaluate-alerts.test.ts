@@ -22,10 +22,13 @@ type SupabaseState = {
 type SupabaseFixture = {
   configRows?: Record<string, unknown>[]
   configError?: Error | null
-  weeklySnapshotRows?: Array<{ client_id: string; scan_week: string; sov_score: number }>
+  alertConfigPageCap?: number
+  weeklySnapshotRows?: Array<{ client_id: string; scan_week: string; sov_score: number | null }>
   weeklySnapshotError?: Error | null
+  weeklySnapshotPageCap?: number
   profileRows?: Array<{ id: string; account_id: string }>
   profileError?: Error | null
+  profilePageCap?: number
   emailsByProfileId?: Record<string, string | null>
   authErrorsByProfileId?: Record<string, Error>
   authUserLookup?: (profileId: string) => Promise<{ data: { user: { email: string | null } | null }; error: Error | null }>
@@ -143,6 +146,32 @@ function defaultProfileRows() {
   ]
 }
 
+function uuidFor(index: number) {
+  return `00000000-0000-4000-8000-${index.toString().padStart(12, '0')}`
+}
+
+function expectedPagedRanges(totalRows: number, providerCap = Number.POSITIVE_INFINITY) {
+  const ranges: Array<{ from: number; to: number }> = []
+  let from = 0
+
+  for (;;) {
+    ranges.push({ from, to: from + 999 })
+    const pageLength = Math.min(1000, providerCap, Math.max(totalRows - from, 0))
+    if (pageLength === 0) return ranges
+    from += pageLength
+  }
+}
+
+function distinctProfileFilterCalls(calls: Array<{ column: string; values: string[] }>) {
+  const seen = new Set<string>()
+  return calls.filter(call => {
+    const key = call.values.join(',')
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
 function makeSupabaseStub(fixture: SupabaseFixture = {}) {
   const state: SupabaseState = {
     alertConfigReads: [],
@@ -173,6 +202,7 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
     error: Error | null,
     rangeCalls: Array<{ from: number; to: number }>,
     orderCalls?: Array<{ column: string; options: { ascending: boolean } }>,
+    providerPageCap = Number.POSITIVE_INFINITY,
   ) {
     const query = {
       order: vi.fn((column: string, options: { ascending: boolean }) => {
@@ -181,8 +211,9 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
       }),
       range: vi.fn((from: number, to: number) => {
         rangeCalls.push({ from, to })
+        const cappedToExclusive = Math.min(to + 1, from + providerPageCap)
         return Promise.resolve({
-          data: rows.slice(from, to + 1),
+          data: rows.slice(from, cappedToExclusive),
           error,
         })
       }),
@@ -204,6 +235,7 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
                   fixture.configError ?? null,
                   state.alertConfigRangeCalls,
                   state.alertConfigOrderCalls,
+                  fixture.alertConfigPageCap,
                 )
               }),
             }
@@ -218,11 +250,13 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
             return {
               in: vi.fn((column: string, values: string[]) => {
                 state.profileInCalls.push({ column, values })
+                const filteredProfileRows = profileRows.filter(row => values.includes(row.account_id))
                 return pageRows(
-                  profileRows,
+                  filteredProfileRows,
                   fixture.profileError ?? null,
                   state.profileRangeCalls,
                   state.profileOrderCalls,
+                  fixture.profilePageCap,
                 )
               }),
             }
@@ -264,10 +298,13 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
     },
     rpc: vi.fn((functionName: string, args: { p_client_ids: string[] }) => {
       state.weeklySnapshotRpcCalls.push({ functionName, args })
+      const filteredWeeklySnapshotRows = weeklySnapshotRows.filter(row => args.p_client_ids.includes(row.client_id))
       return pageRows(
-        weeklySnapshotRows,
+        filteredWeeklySnapshotRows,
         fixture.weeklySnapshotError ?? null,
         state.weeklySnapshotRangeCalls,
+        undefined,
+        fixture.weeklySnapshotPageCap,
       )
     }),
   }
@@ -393,23 +430,40 @@ describe('POST /api/cron/evaluate-alerts', () => {
     await expect(response.json()).resolves.toEqual({ processed: 3, fired: 1 })
 
     expect(state).not.toBeNull()
-    expect(state?.alertConfigReads).toEqual(['*, clients(id, brand_name, account_id)'])
-    expect(state?.alertConfigFilters).toEqual(['enabled_sov.eq.true,enabled_wow.eq.true'])
-    expect(state?.alertConfigOrderCalls).toEqual([{ column: 'id', options: { ascending: true } }])
-    expect(state?.alertConfigRangeCalls).toEqual([{ from: 0, to: 999 }])
+    expect(state?.alertConfigReads).toEqual([
+      '*, clients(id, brand_name, account_id)',
+      '*, clients(id, brand_name, account_id)',
+    ])
+    expect(state?.alertConfigFilters).toEqual([
+      'enabled_sov.eq.true,enabled_wow.eq.true',
+      'enabled_sov.eq.true,enabled_wow.eq.true',
+    ])
+    expect(state?.alertConfigOrderCalls).toEqual([
+      { column: 'id', options: { ascending: true } },
+      { column: 'id', options: { ascending: true } },
+    ])
+    expect(state?.alertConfigRangeCalls).toEqual(expectedPagedRanges(3))
     expect(state?.weeklySnapshotRpcCalls).toEqual([
       {
         functionName: 'get_alert_weekly_snapshot',
         args: { p_client_ids: ['client-1', 'client-2', 'client-3'] },
       },
+      {
+        functionName: 'get_alert_weekly_snapshot',
+        args: { p_client_ids: ['client-1', 'client-2', 'client-3'] },
+      },
     ])
-    expect(state?.weeklySnapshotRangeCalls).toEqual([{ from: 0, to: 999 }])
-    expect(state?.profileReads).toEqual(['id, account_id'])
+    expect(state?.weeklySnapshotRangeCalls).toEqual(expectedPagedRanges(6))
+    expect(state?.profileReads).toEqual(['id, account_id', 'id, account_id'])
     expect(state?.profileInCalls).toEqual([
       { column: 'account_id', values: ['account-1', 'account-2'] },
+      { column: 'account_id', values: ['account-1', 'account-2'] },
     ])
-    expect(state?.profileOrderCalls).toEqual([{ column: 'id', options: { ascending: true } }])
-    expect(state?.profileRangeCalls).toEqual([{ from: 0, to: 999 }])
+    expect(state?.profileOrderCalls).toEqual([
+      { column: 'id', options: { ascending: true } },
+      { column: 'id', options: { ascending: true } },
+    ])
+    expect(state?.profileRangeCalls).toEqual(expectedPagedRanges(3))
     expect(state?.authUserLookups).toEqual(['profile-1a', 'profile-2a'])
 
     expect(seenSnapshots).toHaveLength(1)
@@ -564,27 +618,172 @@ describe('POST /api/cron/evaluate-alerts', () => {
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ processed: 1001, fired: 0 })
-    expect(h.supabaseState?.alertConfigRangeCalls).toEqual([
-      { from: 0, to: 999 },
-      { from: 1000, to: 1999 },
+    expect(h.supabaseState?.alertConfigRangeCalls).toEqual(expectedPagedRanges(1001))
+    expect(h.supabaseState?.alertConfigOrderCalls).toHaveLength(expectedPagedRanges(1001).length)
+    expect(h.supabaseState?.weeklySnapshotRangeCalls).toEqual(expectedPagedRanges(2002))
+
+    const profileInCalls = h.supabaseState?.profileInCalls ?? []
+    const distinctProfileChunks = distinctProfileFilterCalls(profileInCalls)
+    expect(profileInCalls.every(call => call.values.length <= 100)).toBe(true)
+    expect(distinctProfileChunks).toHaveLength(11)
+    expect(distinctProfileChunks.flatMap(call => call.values)).toEqual(
+      configRows.map(row => String(row.clients.account_id)),
+    )
+    expect(h.supabaseState?.profileRangeCalls).toHaveLength(
+      Array.from({ length: 10 }, () => expectedPagedRanges(100))
+        .concat([expectedPagedRanges(1)])
+        .flat()
+        .length,
+    )
+    expect(h.supabaseState?.profileOrderCalls).toHaveLength(h.supabaseState?.profileRangeCalls.length ?? 0)
+  })
+
+  it('continues after short non-empty provider-capped pages and retains all config, profile, and RPC rows', async () => {
+    const configRows = Array.from({ length: 5 }, (_, index) => {
+      const ordinal = index + 1
+      const id = uuidFor(ordinal)
+      return {
+        id: `alert-${ordinal}`,
+        client_id: id,
+        enabled_sov: true,
+        sov_threshold: 50,
+        enabled_wow: true,
+        wow_threshold: 10,
+        notify_email: true,
+        notify_inapp: true,
+        clients: {
+          id,
+          brand_name: `Brand ${ordinal}`,
+          account_id: uuidFor(100 + ordinal),
+        },
+      }
+    })
+    const weeklySnapshotRows = configRows.flatMap(row => [
+      { client_id: String(row.client_id), scan_week: '2026-08-07', sov_score: 40 },
+      { client_id: String(row.client_id), scan_week: '2026-07-31', sov_score: 55 },
     ])
-    expect(h.supabaseState?.alertConfigOrderCalls).toEqual([
-      { column: 'id', options: { ascending: true } },
-      { column: 'id', options: { ascending: true } },
-    ])
-    expect(h.supabaseState?.weeklySnapshotRangeCalls).toEqual([
-      { from: 0, to: 999 },
-      { from: 1000, to: 1999 },
-      { from: 2000, to: 2999 },
-    ])
-    expect(h.supabaseState?.profileRangeCalls).toEqual([
-      { from: 0, to: 999 },
-      { from: 1000, to: 1999 },
-    ])
-    expect(h.supabaseState?.profileOrderCalls).toEqual([
-      { column: 'id', options: { ascending: true } },
-      { column: 'id', options: { ascending: true } },
-    ])
+    const profileRows = configRows.map((row, index) => ({
+      id: uuidFor(200 + index + 1),
+      account_id: String(row.clients.account_id),
+    }))
+    const emailsByProfileId = Object.fromEntries(
+      profileRows.map((profile, index) => [profile.id, `capped-${index + 1}@example.com`]),
+    )
+
+    h.createClient.mockImplementation(() => {
+      const { client, state } = makeSupabaseStub({
+        configRows,
+        alertConfigPageCap: 2,
+        weeklySnapshotRows,
+        weeklySnapshotPageCap: 2,
+        profileRows,
+        profilePageCap: 2,
+        emailsByProfileId,
+      })
+      h.supabaseState = state
+      return client
+    })
+    h.runAlertEvaluation.mockImplementation(async (ports: AlertEvaluationPorts) => {
+      const snapshot = await ports.loadSnapshot()
+      expect(snapshot.configs).toHaveLength(5)
+      expect(Object.values(snapshot.weeksByClient).flat()).toHaveLength(10)
+      expect(Object.keys(snapshot.emailsByAccount)).toHaveLength(5)
+      expect(snapshot.emailsByAccount[uuidFor(105)]).toBe('capped-5@example.com')
+      return { processed: snapshot.configs.length, fired: 0 }
+    })
+
+    const { POST } = await importRoute()
+    const response = await POST(makeRequest('test-cron-secret'))
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ processed: 5, fired: 0 })
+    expect(h.supabaseState?.alertConfigRangeCalls).toEqual(expectedPagedRanges(5, 2))
+    expect(h.supabaseState?.weeklySnapshotRangeCalls).toEqual(expectedPagedRanges(10, 2))
+    expect(h.supabaseState?.profileRangeCalls).toEqual(expectedPagedRanges(5, 2))
+  })
+
+  it('chunks UUID-shaped profile account filters and still performs one auth lookup per unique account', async () => {
+    const accountCount = 205
+    const accountIds = Array.from({ length: accountCount }, (_, index) => uuidFor(300 + index + 1))
+    const configRows = accountIds.map((accountId, index) => {
+      const ordinal = index + 1
+      const clientId = uuidFor(600 + ordinal)
+      return {
+        id: `alert-${ordinal}`,
+        client_id: clientId,
+        enabled_sov: true,
+        sov_threshold: 50,
+        enabled_wow: false,
+        wow_threshold: 10,
+        notify_email: true,
+        notify_inapp: true,
+        clients: {
+          id: clientId,
+          brand_name: `Brand ${ordinal}`,
+          account_id: accountId,
+        },
+      }
+    })
+    configRows.push({
+      ...configRows[0],
+      id: 'alert-duplicate-account',
+      client_id: uuidFor(999),
+      clients: {
+        ...configRows[0].clients,
+        id: uuidFor(999),
+      },
+    })
+    const weeklySnapshotRows = configRows.map(row => ({
+      client_id: String(row.client_id),
+      scan_week: '2026-08-07',
+      sov_score: 40,
+    }))
+    const profileRows = accountIds.flatMap((accountId, index) => {
+      const ordinal = index + 1
+      return ordinal === 1
+        ? [
+            { id: uuidFor(900 + ordinal), account_id: accountId },
+            { id: uuidFor(1200 + ordinal), account_id: accountId },
+          ]
+        : [{ id: uuidFor(900 + ordinal), account_id: accountId }]
+    })
+    const emailsByProfileId = Object.fromEntries(
+      profileRows.map(profile => [profile.id, `${profile.id}@example.com`]),
+    )
+
+    h.createClient.mockImplementation(() => {
+      const { client, state } = makeSupabaseStub({
+        configRows,
+        weeklySnapshotRows,
+        profileRows,
+        emailsByProfileId,
+      })
+      h.supabaseState = state
+      return client
+    })
+    h.runAlertEvaluation.mockImplementation(async (ports: AlertEvaluationPorts) => {
+      const snapshot = await ports.loadSnapshot()
+      expect(snapshot.configs).toHaveLength(accountCount + 1)
+      expect(Object.keys(snapshot.emailsByAccount)).toHaveLength(accountCount)
+      return { processed: snapshot.configs.length, fired: 0 }
+    })
+
+    const { POST } = await importRoute()
+    const response = await POST(makeRequest('test-cron-secret'))
+    const profileInCalls = h.supabaseState?.profileInCalls ?? []
+    const distinctProfileChunks = distinctProfileFilterCalls(profileInCalls)
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ processed: accountCount + 1, fired: 0 })
+    expect(profileInCalls.every(call => call.values.length <= 100)).toBe(true)
+    expect(profileInCalls.flatMap(call => call.values).every(value =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/.test(value),
+    )).toBe(true)
+    expect(distinctProfileChunks.map(call => call.values.length)).toEqual([100, 100, 5])
+    expect(distinctProfileChunks.flatMap(call => call.values)).toEqual(accountIds)
+    expect(h.supabaseState?.authUserLookups).toHaveLength(accountCount)
+    expect(new Set(h.supabaseState?.authUserLookups).size).toBe(accountCount)
+    expect(h.supabaseState?.authUserLookups).not.toContain(uuidFor(1201))
   })
 
   it('bounds auth admin email lookups while preserving one lookup per unique account', async () => {

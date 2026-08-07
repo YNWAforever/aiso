@@ -58,6 +58,54 @@ describe('runAlertEvaluation', () => {
     expect(ports.upsertNotification).toHaveBeenNthCalledWith(2, expect.objectContaining({ type: 'sov_wow_drop' }))
   })
 
+  it('does not fire threshold, week-over-week, or recovery policies when the latest score is null', async () => {
+    const data = snapshot()
+    data.weeksByClient['client-1'] = [
+      { client_id: 'client-1', scan_week: '2026-08-08', sov_score: null },
+      { client_id: 'client-1', scan_week: '2026-08-01', sov_score: 60 },
+    ]
+    const { ports } = portsFor(data)
+
+    const result = await runAlertEvaluation(ports)
+
+    expect(result).toEqual({ processed: 1, fired: 0 })
+    expect(ports.upsertNotification).not.toHaveBeenCalled()
+    expect(ports.sendAlertEmail).not.toHaveBeenCalled()
+  })
+
+  it('treats a null previous score as unknown instead of firing threshold, week-over-week, or recovery policies', async () => {
+    const data = snapshot()
+    data.weeksByClient['client-1'] = [
+      { client_id: 'client-1', scan_week: '2026-08-08', sov_score: 40 },
+      { client_id: 'client-1', scan_week: '2026-08-01', sov_score: null },
+    ]
+    const { ports } = portsFor(data)
+
+    const result = await runAlertEvaluation(ports)
+
+    expect(result).toEqual({ processed: 1, fired: 0 })
+    expect(ports.upsertNotification).not.toHaveBeenCalled()
+    expect(ports.sendAlertEmail).not.toHaveBeenCalled()
+  })
+
+  it('still fires a threshold action for a first observed below-threshold score when no previous week exists', async () => {
+    const data = snapshot()
+    data.weeksByClient['client-1'] = [
+      { client_id: 'client-1', scan_week: '2026-08-08', sov_score: 40 },
+    ]
+    const { ports } = portsFor(data)
+
+    const result = await runAlertEvaluation(ports)
+
+    expect(result).toEqual({ processed: 1, fired: 1 })
+    expect(ports.upsertNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'sov_threshold' }))
+    expect(ports.sendAlertEmail).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'sov_threshold',
+      currentSov: 40,
+      previousSov: undefined,
+    }))
+  })
+
   it('creates an independent recovery action when sov returns to the threshold', async () => {
     const recoveryConfig = config({
       id: 'alert-recovery',
