@@ -58,15 +58,93 @@ describe('runAlertEvaluation', () => {
     expect(ports.upsertNotification).toHaveBeenNthCalledWith(2, expect.objectContaining({ type: 'sov_wow_drop' }))
   })
 
+  it('creates an independent recovery action when sov returns to the threshold', async () => {
+    const recoveryConfig = config({
+      id: 'alert-recovery',
+      client_id: 'client-recovery',
+      enabled_wow: false,
+      client: { id: 'client-recovery', brand_name: 'Recovered Co', account_id: 'account-recovery' },
+    })
+    const recoverySnapshot: AlertSnapshot = {
+      configs: [recoveryConfig],
+      weeksByClient: {
+        'client-recovery': [
+          { client_id: 'client-recovery', scan_week: '2026-08-08', sov_score: 50 },
+          { client_id: 'client-recovery', scan_week: '2026-08-01', sov_score: 45 },
+        ],
+      },
+      emailsByAccount: { 'account-recovery': 'recovery@example.com' },
+      dashboardUrlByClient: { 'client-recovery': 'https://app.example/en/dashboard/client-recovery' },
+    }
+    const { ports } = portsFor(recoverySnapshot)
+
+    const result = await runAlertEvaluation(ports)
+
+    expect(result).toEqual({ processed: 1, fired: 1 })
+    expect(ports.upsertNotification).toHaveBeenCalledTimes(1)
+    expect(ports.sendAlertEmail).toHaveBeenCalledTimes(1)
+    expect(ports.upsertNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'sov_recovery' }))
+    expect(ports.sendAlertEmail).toHaveBeenCalledWith(expect.objectContaining({ type: 'sov_recovery' }))
+  })
+
   it('evaluates all actions before delivering them in deterministic order', async () => {
-    const { ports, order } = portsFor()
+    const secondConfigWeeks = [
+      { client_id: 'client-2', scan_week: '2026-08-08', sov_score: 60 },
+      { client_id: 'client-2', scan_week: '2026-08-01', sov_score: 75 },
+    ]
+    const data: AlertSnapshot = {
+      configs: [
+        config({ enabled_wow: false }),
+        config({
+          id: 'alert-2',
+          client_id: 'client-2',
+          enabled_sov: false,
+          wow_threshold: 10,
+          client: { id: 'client-2', brand_name: 'Bravo', account_id: 'account-2' },
+        }),
+      ],
+      weeksByClient: {
+        'client-1': [
+          { client_id: 'client-1', scan_week: '2026-08-08', sov_score: 40 },
+          { client_id: 'client-1', scan_week: '2026-08-01', sov_score: 60 },
+        ],
+        'client-2': secondConfigWeeks,
+      },
+      emailsByAccount: {
+        'account-1': 'owner@example.com',
+        'account-2': 'bravo@example.com',
+      },
+      dashboardUrlByClient: {
+        'client-1': 'https://app.example/en/dashboard/client-1',
+        'client-2': 'https://app.example/en/dashboard/client-2',
+      },
+    }
+    const { ports, order } = portsFor(data)
+    vi.mocked(ports.upsertNotification).mockImplementation(async notification => {
+      order.push(`notification:${notification.type}:${notification.client_id}`)
+      if (notification.client_id === 'client-1') {
+        secondConfigWeeks[0].sov_score = 74
+        secondConfigWeeks[1].sov_score = 75
+      }
+    })
+    vi.mocked(ports.sendAlertEmail).mockImplementation(async email => {
+      order.push(`email:${email.type}:${email.clientId}`)
+    })
 
     await runAlertEvaluation(ports)
 
     expect(order).toEqual([
-      'notification:sov_threshold', 'email:sov_threshold',
-      'notification:sov_wow_drop', 'email:sov_wow_drop',
+      'notification:sov_threshold:client-1', 'email:sov_threshold:client-1',
+      'notification:sov_wow_drop:client-2', 'email:sov_wow_drop:client-2',
     ])
+    expect(ports.upsertNotification).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ type: 'sov_wow_drop', client_id: 'client-2' }),
+    )
+    expect(ports.sendAlertEmail).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ type: 'sov_wow_drop', clientId: 'client-2' }),
+    )
   })
 
   it('continues after notification or email adapter failures', async () => {
