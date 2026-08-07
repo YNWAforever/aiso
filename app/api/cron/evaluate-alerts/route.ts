@@ -214,16 +214,25 @@ async function loadEmailsByAccount(supabase: ServiceClient, profiles: ProfileRow
 
   const accountProfileEntries = [...profileIdsByAccount.entries()]
   await runWithConcurrency(accountProfileEntries, AUTH_LOOKUP_CONCURRENCY_LIMIT, async ([accountId, profileId]) => {
-    const { data, error } = await supabase.auth.admin.getUserById(profileId)
-    if (error) {
+    try {
+      const { data, error } = await supabase.auth.admin.getUserById(profileId)
+      if (error) {
+        console.error('evaluate-alerts: auth admin getUserById failed for profile', {
+          profileId,
+          error: formatErrorMessage(error),
+        })
+        emailsByAccount[accountId] = null
+        return
+      }
+
+      emailsByAccount[accountId] = data.user?.email ?? null
+    } catch (error) {
       console.error('evaluate-alerts: auth admin getUserById failed for profile', {
         profileId,
         error: formatErrorMessage(error),
       })
       emailsByAccount[accountId] = null
-      return
     }
-    emailsByAccount[accountId] = data.user?.email ?? null
   })
 
   return emailsByAccount

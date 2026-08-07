@@ -652,6 +652,97 @@ describe('POST /api/cron/evaluate-alerts', () => {
     }
   })
 
+  it('uses the real evaluator and skips only the affected email when one Auth Admin lookup rejects', async () => {
+    const authRejection = new Error('auth admin transport rejected')
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const actualEvaluator = await vi.importActual<typeof import('@/lib/alerts/evaluate')>('@/lib/alerts/evaluate')
+    const configRows = [
+      {
+        id: uuidFor(11),
+        client_id: 'client-11',
+        enabled_sov: true,
+        sov_threshold: 50,
+        enabled_wow: false,
+        wow_threshold: 10,
+        notify_email: true,
+        notify_inapp: true,
+        clients: { id: 'client-11', brand_name: 'Delta', account_id: 'account-11' },
+      },
+      {
+        id: uuidFor(12),
+        client_id: 'client-12',
+        enabled_sov: true,
+        sov_threshold: 50,
+        enabled_wow: false,
+        wow_threshold: 10,
+        notify_email: true,
+        notify_inapp: true,
+        clients: { id: 'client-12', brand_name: 'Echo', account_id: 'account-12' },
+      },
+    ]
+    h.createClient.mockImplementation(() => {
+      const { client, state } = makeSupabaseStub({
+        configRows,
+        weeklySnapshotRows: [
+          { client_id: 'client-11', scan_week: '2026-08-07', sov_score: 40 },
+          { client_id: 'client-11', scan_week: '2026-07-31', sov_score: 55 },
+          { client_id: 'client-12', scan_week: '2026-08-07', sov_score: 39 },
+          { client_id: 'client-12', scan_week: '2026-07-31', sov_score: 56 },
+        ],
+        profileRows: [
+          { id: 'profile-11', account_id: 'account-11' },
+          { id: 'profile-12', account_id: 'account-12' },
+        ],
+        authUserLookup: profileId => {
+          if (profileId === 'profile-11') {
+            return Promise.reject(authRejection)
+          }
+
+          return Promise.resolve({
+            data: { user: { email: 'echo@example.com' } },
+            error: null,
+          })
+        },
+      })
+      h.supabaseState = state
+      return client
+    })
+    h.runAlertEvaluation.mockImplementation(ports => actualEvaluator.runAlertEvaluation(ports))
+
+    try {
+      const { POST } = await importRoute()
+      const response = await POST(makeRequest('test-cron-secret'))
+
+      expect(response.status).toBe(200)
+      await expect(response.json()).resolves.toEqual({ processed: 2, fired: 2 })
+      expect(h.supabaseState?.authUserLookups).toEqual(['profile-11', 'profile-12'])
+      expect(h.supabaseState?.notificationUpserts).toHaveLength(2)
+      expect(h.supabaseState?.notificationUpserts.map(upsert => upsert.value.account_id)).toEqual([
+        'account-11',
+        'account-12',
+      ])
+      expect(h.sendAlertEmail).toHaveBeenCalledTimes(1)
+      expect(h.sendAlertEmail).toHaveBeenCalledWith({
+        to: 'echo@example.com',
+        brandName: 'Echo',
+        type: 'sov_threshold',
+        currentSov: 39,
+        previousSov: 56,
+        threshold: 50,
+        dashboardUrl: 'https://app.example/en/dashboard/client-12',
+      })
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'evaluate-alerts: auth admin getUserById failed for profile',
+        expect.objectContaining({
+          profileId: 'profile-11',
+          error: 'auth admin transport rejected',
+        }),
+      )
+    } finally {
+      consoleErrorSpy.mockRestore()
+    }
+  })
+
   it('keyset-pages config/profile reads and chunks the weekly snapshot RPC below the Data API cap', async () => {
     const configRows = Array.from({ length: 1001 }, (_, index) => {
       const ordinal = index + 1
