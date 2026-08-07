@@ -5,13 +5,14 @@ type SupabaseState = {
   alertConfigReads: string[]
   alertConfigFilters: string[]
   alertConfigOrderCalls: Array<{ column: string; options: { ascending: boolean } }>
-  alertConfigRangeCalls: Array<{ from: number; to: number }>
+  alertConfigLimitCalls: number[]
+  alertConfigGtCalls: Array<{ column: string; value: string }>
   weeklySnapshotRpcCalls: Array<{ functionName: string; args: { p_client_ids: string[] } }>
-  weeklySnapshotRangeCalls: Array<{ from: number; to: number }>
   profileReads: string[]
   profileInCalls: Array<{ column: string; values: string[] }>
   profileOrderCalls: Array<{ column: string; options: { ascending: boolean } }>
-  profileRangeCalls: Array<{ from: number; to: number }>
+  profileLimitCalls: number[]
+  profileGtCalls: Array<{ column: string; value: string }>
   notificationUpserts: Array<{
     value: Record<string, unknown>
     options: { onConflict: string; ignoreDuplicates: boolean }
@@ -25,7 +26,6 @@ type SupabaseFixture = {
   alertConfigPageCap?: number
   weeklySnapshotRows?: Array<{ client_id: string; scan_week: string; sov_score: number | null }>
   weeklySnapshotError?: Error | null
-  weeklySnapshotPageCap?: number
   profileRows?: Array<{ id: string; account_id: string }>
   profileError?: Error | null
   profilePageCap?: number
@@ -150,15 +150,15 @@ function uuidFor(index: number) {
   return `00000000-0000-4000-8000-${index.toString().padStart(12, '0')}`
 }
 
-function expectedPagedRanges(totalRows: number, providerCap = Number.POSITIVE_INFINITY) {
-  const ranges: Array<{ from: number; to: number }> = []
-  let from = 0
+function expectedKeysetLimitCalls(totalRows: number, providerCap = Number.POSITIVE_INFINITY) {
+  const calls: number[] = []
+  let remainingRows = totalRows
 
   for (;;) {
-    ranges.push({ from, to: from + 999 })
-    const pageLength = Math.min(1000, providerCap, Math.max(totalRows - from, 0))
-    if (pageLength === 0) return ranges
-    from += pageLength
+    calls.push(1000)
+    const pageLength = Math.min(1000, providerCap, Math.max(remainingRows, 0))
+    if (pageLength === 0) return calls
+    remainingRows -= pageLength
   }
 }
 
@@ -177,13 +177,14 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
     alertConfigReads: [],
     alertConfigFilters: [],
     alertConfigOrderCalls: [],
-    alertConfigRangeCalls: [],
+    alertConfigLimitCalls: [],
+    alertConfigGtCalls: [],
     weeklySnapshotRpcCalls: [],
-    weeklySnapshotRangeCalls: [],
     profileReads: [],
     profileInCalls: [],
     profileOrderCalls: [],
-    profileRangeCalls: [],
+    profileLimitCalls: [],
+    profileGtCalls: [],
     notificationUpserts: [],
     authUserLookups: [],
   }
@@ -197,23 +198,34 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
     'profile-2a': 'ops@example.com',
   }
 
-  function pageRows<T>(
+  function keysetRows<T extends { id?: unknown }>(
     rows: T[],
     error: Error | null,
-    rangeCalls: Array<{ from: number; to: number }>,
+    limitCalls: number[],
+    gtCalls: Array<{ column: string; value: string }>,
     orderCalls?: Array<{ column: string; options: { ascending: boolean } }>,
     providerPageCap = Number.POSITIVE_INFINITY,
   ) {
+    let idCursor: string | null = null
     const query = {
+      gt: vi.fn((column: string, value: string) => {
+        gtCalls.push({ column, value })
+        idCursor = value
+        return query
+      }),
       order: vi.fn((column: string, options: { ascending: boolean }) => {
         orderCalls?.push({ column, options })
         return query
       }),
-      range: vi.fn((from: number, to: number) => {
-        rangeCalls.push({ from, to })
-        const cappedToExclusive = Math.min(to + 1, from + providerPageCap)
+      limit: vi.fn((count: number) => {
+        limitCalls.push(count)
+        const sortedRows = [...rows].sort((left, right) => String(left.id).localeCompare(String(right.id)))
+        const filteredRows = idCursor
+          ? sortedRows.filter(row => String(row.id) > idCursor)
+          : sortedRows
+        const cappedToExclusive = Math.min(count, providerPageCap)
         return Promise.resolve({
-          data: rows.slice(from, cappedToExclusive),
+          data: filteredRows.slice(0, cappedToExclusive),
           error,
         })
       }),
@@ -230,10 +242,11 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
             return {
               or: vi.fn((filter: string) => {
                 state.alertConfigFilters.push(filter)
-                return pageRows(
+                return keysetRows(
                   configRows,
                   fixture.configError ?? null,
-                  state.alertConfigRangeCalls,
+                  state.alertConfigLimitCalls,
+                  state.alertConfigGtCalls,
                   state.alertConfigOrderCalls,
                   fixture.alertConfigPageCap,
                 )
@@ -251,10 +264,11 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
               in: vi.fn((column: string, values: string[]) => {
                 state.profileInCalls.push({ column, values })
                 const filteredProfileRows = profileRows.filter(row => values.includes(row.account_id))
-                return pageRows(
+                return keysetRows(
                   filteredProfileRows,
                   fixture.profileError ?? null,
-                  state.profileRangeCalls,
+                  state.profileLimitCalls,
+                  state.profileGtCalls,
                   state.profileOrderCalls,
                   fixture.profilePageCap,
                 )
@@ -299,13 +313,10 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
     rpc: vi.fn((functionName: string, args: { p_client_ids: string[] }) => {
       state.weeklySnapshotRpcCalls.push({ functionName, args })
       const filteredWeeklySnapshotRows = weeklySnapshotRows.filter(row => args.p_client_ids.includes(row.client_id))
-      return pageRows(
-        filteredWeeklySnapshotRows,
-        fixture.weeklySnapshotError ?? null,
-        state.weeklySnapshotRangeCalls,
-        undefined,
-        fixture.weeklySnapshotPageCap,
-      )
+      return Promise.resolve({
+        data: filteredWeeklySnapshotRows,
+        error: fixture.weeklySnapshotError ?? null,
+      })
     }),
   }
 
@@ -442,18 +453,14 @@ describe('POST /api/cron/evaluate-alerts', () => {
       { column: 'id', options: { ascending: true } },
       { column: 'id', options: { ascending: true } },
     ])
-    expect(state?.alertConfigRangeCalls).toEqual(expectedPagedRanges(3))
+    expect(state?.alertConfigLimitCalls).toEqual(expectedKeysetLimitCalls(3))
+    expect(state?.alertConfigGtCalls).toEqual([{ column: 'id', value: 'alert-3' }])
     expect(state?.weeklySnapshotRpcCalls).toEqual([
       {
         functionName: 'get_alert_weekly_snapshot',
         args: { p_client_ids: ['client-1', 'client-2', 'client-3'] },
       },
-      {
-        functionName: 'get_alert_weekly_snapshot',
-        args: { p_client_ids: ['client-1', 'client-2', 'client-3'] },
-      },
     ])
-    expect(state?.weeklySnapshotRangeCalls).toEqual(expectedPagedRanges(6))
     expect(state?.profileReads).toEqual(['id, account_id', 'id, account_id'])
     expect(state?.profileInCalls).toEqual([
       { column: 'account_id', values: ['account-1', 'account-2'] },
@@ -463,7 +470,8 @@ describe('POST /api/cron/evaluate-alerts', () => {
       { column: 'id', options: { ascending: true } },
       { column: 'id', options: { ascending: true } },
     ])
-    expect(state?.profileRangeCalls).toEqual(expectedPagedRanges(3))
+    expect(state?.profileLimitCalls).toEqual(expectedKeysetLimitCalls(3))
+    expect(state?.profileGtCalls).toEqual([{ column: 'id', value: 'profile-2a' }])
     expect(state?.authUserLookups).toEqual(['profile-1a', 'profile-2a'])
 
     expect(seenSnapshots).toHaveLength(1)
@@ -557,11 +565,98 @@ describe('POST /api/cron/evaluate-alerts', () => {
     })
   })
 
-  it('pages config/profile/RPC reads so capped provider responses do not truncate the snapshot', async () => {
+  it('uses the real evaluator and skips only the affected email when one Auth Admin lookup fails', async () => {
+    const authError = new Error('provider secret exploded')
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const actualEvaluator = await vi.importActual<typeof import('@/lib/alerts/evaluate')>('@/lib/alerts/evaluate')
+    const configRows = [
+      {
+        id: uuidFor(1),
+        client_id: 'client-1',
+        enabled_sov: true,
+        sov_threshold: 50,
+        enabled_wow: false,
+        wow_threshold: 10,
+        notify_email: true,
+        notify_inapp: true,
+        clients: { id: 'client-1', brand_name: 'Acme', account_id: 'account-1' },
+      },
+      {
+        id: uuidFor(2),
+        client_id: 'client-2',
+        enabled_sov: true,
+        sov_threshold: 50,
+        enabled_wow: false,
+        wow_threshold: 10,
+        notify_email: true,
+        notify_inapp: true,
+        clients: { id: 'client-2', brand_name: 'Bravo', account_id: 'account-2' },
+      },
+    ]
+    h.createClient.mockImplementation(() => {
+      const { client, state } = makeSupabaseStub({
+        configRows,
+        weeklySnapshotRows: [
+          { client_id: 'client-1', scan_week: '2026-08-07', sov_score: 40 },
+          { client_id: 'client-1', scan_week: '2026-07-31', sov_score: 55 },
+          { client_id: 'client-2', scan_week: '2026-08-07', sov_score: 39 },
+          { client_id: 'client-2', scan_week: '2026-07-31', sov_score: 56 },
+        ],
+        profileRows: [
+          { id: 'profile-1', account_id: 'account-1' },
+          { id: 'profile-2', account_id: 'account-2' },
+        ],
+        emailsByProfileId: {
+          'profile-2': 'ops@example.com',
+        },
+        authErrorsByProfileId: {
+          'profile-1': authError,
+        },
+      })
+      h.supabaseState = state
+      return client
+    })
+    h.runAlertEvaluation.mockImplementation(ports => actualEvaluator.runAlertEvaluation(ports))
+
+    try {
+      const { POST } = await importRoute()
+      const response = await POST(makeRequest('test-cron-secret'))
+
+      expect(response.status).toBe(200)
+      await expect(response.json()).resolves.toEqual({ processed: 2, fired: 2 })
+      expect(h.supabaseState?.authUserLookups).toEqual(['profile-1', 'profile-2'])
+      expect(h.supabaseState?.notificationUpserts).toHaveLength(2)
+      expect(h.supabaseState?.notificationUpserts.map(upsert => upsert.value.account_id)).toEqual([
+        'account-1',
+        'account-2',
+      ])
+      expect(h.sendAlertEmail).toHaveBeenCalledTimes(1)
+      expect(h.sendAlertEmail).toHaveBeenCalledWith({
+        to: 'ops@example.com',
+        brandName: 'Bravo',
+        type: 'sov_threshold',
+        currentSov: 39,
+        previousSov: 56,
+        threshold: 50,
+        dashboardUrl: 'https://app.example/en/dashboard/client-2',
+      })
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'evaluate-alerts: auth admin getUserById failed for profile',
+        expect.objectContaining({
+          profileId: 'profile-1',
+          error: 'provider secret exploded',
+        }),
+      )
+    } finally {
+      consoleErrorSpy.mockRestore()
+    }
+  })
+
+  it('keyset-pages config/profile reads and chunks the weekly snapshot RPC below the Data API cap', async () => {
     const configRows = Array.from({ length: 1001 }, (_, index) => {
       const ordinal = index + 1
       return {
-        id: `alert-${ordinal}`,
+        id: uuidFor(ordinal),
         client_id: `client-${ordinal}`,
         enabled_sov: true,
         sov_threshold: 50,
@@ -618,9 +713,26 @@ describe('POST /api/cron/evaluate-alerts', () => {
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ processed: 1001, fired: 0 })
-    expect(h.supabaseState?.alertConfigRangeCalls).toEqual(expectedPagedRanges(1001))
-    expect(h.supabaseState?.alertConfigOrderCalls).toHaveLength(expectedPagedRanges(1001).length)
-    expect(h.supabaseState?.weeklySnapshotRangeCalls).toEqual(expectedPagedRanges(2002))
+    expect(h.supabaseState?.alertConfigLimitCalls).toEqual(expectedKeysetLimitCalls(1001))
+    expect(h.supabaseState?.alertConfigOrderCalls).toHaveLength(expectedKeysetLimitCalls(1001).length)
+    expect(h.supabaseState?.alertConfigGtCalls).toEqual([
+      { column: 'id', value: uuidFor(1000) },
+      { column: 'id', value: uuidFor(1001) },
+    ])
+    expect(h.supabaseState?.weeklySnapshotRpcCalls).toEqual([
+      {
+        functionName: 'get_alert_weekly_snapshot',
+        args: { p_client_ids: configRows.slice(0, 400).map(row => String(row.client_id)) },
+      },
+      {
+        functionName: 'get_alert_weekly_snapshot',
+        args: { p_client_ids: configRows.slice(400, 800).map(row => String(row.client_id)) },
+      },
+      {
+        functionName: 'get_alert_weekly_snapshot',
+        args: { p_client_ids: configRows.slice(800).map(row => String(row.client_id)) },
+      },
+    ])
 
     const profileInCalls = h.supabaseState?.profileInCalls ?? []
     const distinctProfileChunks = distinctProfileFilterCalls(profileInCalls)
@@ -629,13 +741,13 @@ describe('POST /api/cron/evaluate-alerts', () => {
     expect(distinctProfileChunks.flatMap(call => call.values)).toEqual(
       configRows.map(row => String(row.clients.account_id)),
     )
-    expect(h.supabaseState?.profileRangeCalls).toHaveLength(
-      Array.from({ length: 10 }, () => expectedPagedRanges(100))
-        .concat([expectedPagedRanges(1)])
+    expect(h.supabaseState?.profileLimitCalls).toHaveLength(
+      Array.from({ length: 10 }, () => expectedKeysetLimitCalls(100))
+        .concat([expectedKeysetLimitCalls(1)])
         .flat()
         .length,
     )
-    expect(h.supabaseState?.profileOrderCalls).toHaveLength(h.supabaseState?.profileRangeCalls.length ?? 0)
+    expect(h.supabaseState?.profileOrderCalls).toHaveLength(h.supabaseState?.profileLimitCalls.length ?? 0)
   })
 
   it('continues after short non-empty provider-capped pages and retains all config, profile, and RPC rows', async () => {
@@ -643,7 +755,7 @@ describe('POST /api/cron/evaluate-alerts', () => {
       const ordinal = index + 1
       const id = uuidFor(ordinal)
       return {
-        id: `alert-${ordinal}`,
+        id: uuidFor(ordinal),
         client_id: id,
         enabled_sov: true,
         sov_threshold: 50,
@@ -675,7 +787,6 @@ describe('POST /api/cron/evaluate-alerts', () => {
         configRows,
         alertConfigPageCap: 2,
         weeklySnapshotRows,
-        weeklySnapshotPageCap: 2,
         profileRows,
         profilePageCap: 2,
         emailsByProfileId,
@@ -697,9 +808,19 @@ describe('POST /api/cron/evaluate-alerts', () => {
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ processed: 5, fired: 0 })
-    expect(h.supabaseState?.alertConfigRangeCalls).toEqual(expectedPagedRanges(5, 2))
-    expect(h.supabaseState?.weeklySnapshotRangeCalls).toEqual(expectedPagedRanges(10, 2))
-    expect(h.supabaseState?.profileRangeCalls).toEqual(expectedPagedRanges(5, 2))
+    expect(h.supabaseState?.alertConfigLimitCalls).toEqual(expectedKeysetLimitCalls(5, 2))
+    expect(h.supabaseState?.alertConfigGtCalls).toEqual([
+      { column: 'id', value: uuidFor(2) },
+      { column: 'id', value: uuidFor(4) },
+      { column: 'id', value: uuidFor(5) },
+    ])
+    expect(h.supabaseState?.weeklySnapshotRpcCalls).toHaveLength(1)
+    expect(h.supabaseState?.profileLimitCalls).toEqual(expectedKeysetLimitCalls(5, 2))
+    expect(h.supabaseState?.profileGtCalls).toEqual([
+      { column: 'id', value: uuidFor(202) },
+      { column: 'id', value: uuidFor(204) },
+      { column: 'id', value: uuidFor(205) },
+    ])
   })
 
   it('chunks UUID-shaped profile account filters and still performs one auth lookup per unique account', async () => {
@@ -709,7 +830,7 @@ describe('POST /api/cron/evaluate-alerts', () => {
       const ordinal = index + 1
       const clientId = uuidFor(600 + ordinal)
       return {
-        id: `alert-${ordinal}`,
+        id: uuidFor(ordinal),
         client_id: clientId,
         enabled_sov: true,
         sov_threshold: 50,

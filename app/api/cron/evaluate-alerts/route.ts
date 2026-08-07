@@ -19,11 +19,8 @@ type AlertConfigRow = Omit<AlertConfigWithClient, 'client'> & {
 
 type ProfileRow = Pick<Profile, 'id' | 'account_id'>
 
-type PagedQuery<T> = {
-  range: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
-}
-
 const PAGE_SIZE = 1000
+const WEEKLY_SNAPSHOT_CLIENT_CHUNK_SIZE = 400
 const PROFILE_ACCOUNT_CHUNK_SIZE = 100
 const PROFILE_QUERY_CONCURRENCY_LIMIT = 4
 const AUTH_LOOKUP_CONCURRENCY_LIMIT = 16
@@ -60,13 +57,20 @@ function createAlertEvaluationPorts(supabase: ServiceClient): AlertEvaluationPor
 }
 
 async function loadSnapshot(supabase: ServiceClient): Promise<AlertSnapshot> {
-  const configRows = await fetchPagedRows<AlertConfigRow>(() =>
-    supabase
+  const configRows = await fetchKeysetRows<AlertConfigRow>(lastId => {
+    let query = supabase
       .from('alert_configs')
       .select('*, clients(id, brand_name, account_id)')
       .or('enabled_sov.eq.true,enabled_wow.eq.true')
-      .order('id', { ascending: true }),
-  )
+
+    if (lastId) {
+      query = query.gt('id', lastId)
+    }
+
+    return query
+      .order('id', { ascending: true })
+      .limit(PAGE_SIZE)
+  }, row => row.id)
 
   const configs: AlertConfigWithClient[] = (configRows ?? [])
     .flatMap((row: AlertConfigRow) => {
@@ -87,9 +91,7 @@ async function loadSnapshot(supabase: ServiceClient): Promise<AlertSnapshot> {
   const accountIds = [...new Set(configs.map(config => config.client.account_id))]
 
   const [weeksResult, profilesResult] = await Promise.all([
-    fetchPagedRows<AlertWeekSnapshot>(() =>
-      supabase.rpc('get_alert_weekly_snapshot', { p_client_ids: clientIds }),
-    ),
+    loadWeeklySnapshotsByClientIds(supabase, clientIds),
     accountIds.length
       ? loadProfilesByAccountIds(supabase, accountIds)
       : Promise.resolve([] as ProfileRow[]),
@@ -112,20 +114,36 @@ async function loadSnapshot(supabase: ServiceClient): Promise<AlertSnapshot> {
   }
 }
 
-async function fetchPagedRows<T>(makeQuery: () => PagedQuery<T>): Promise<T[]> {
+async function fetchKeysetRows<T>(
+  makeQuery: (lastId: string | null) => PromiseLike<{ data: T[] | null; error: unknown }>,
+  getId: (row: T) => string,
+): Promise<T[]> {
   const rows: T[] = []
-  let from = 0
+  let lastId: string | null = null
 
   for (;;) {
-    const to = from + PAGE_SIZE - 1
-    const { data, error } = await makeQuery().range(from, to)
+    const { data, error } = await makeQuery(lastId)
     if (error) throw error
 
     const page = data ?? []
     if (!page.length) break
 
     rows.push(...page)
-    from += page.length
+    lastId = getId(page[page.length - 1])
+  }
+
+  return rows
+}
+
+async function loadWeeklySnapshotsByClientIds(supabase: ServiceClient, clientIds: string[]) {
+  const rows: AlertWeekSnapshot[] = []
+
+  for (const clientIdChunk of chunkArray(clientIds, WEEKLY_SNAPSHOT_CLIENT_CHUNK_SIZE)) {
+    const { data, error } = await supabase.rpc('get_alert_weekly_snapshot', {
+      p_client_ids: clientIdChunk,
+    })
+    if (error) throw error
+    rows.push(...(data ?? []))
   }
 
   return rows
@@ -137,13 +155,20 @@ async function loadProfilesByAccountIds(supabase: ServiceClient, accountIds: str
   const indexedChunks = chunks.map((accountIdChunk, index) => ({ accountIdChunk, index }))
 
   await runWithConcurrency(indexedChunks, PROFILE_QUERY_CONCURRENCY_LIMIT, async ({ accountIdChunk, index }) => {
-    chunkResults[index] = await fetchPagedRows<ProfileRow>(() =>
-      supabase
+    chunkResults[index] = await fetchKeysetRows<ProfileRow>(lastId => {
+      let query = supabase
         .from('profiles')
         .select('id, account_id')
         .in('account_id', accountIdChunk)
-        .order('id', { ascending: true }),
-    )
+
+      if (lastId) {
+        query = query.gt('id', lastId)
+      }
+
+      return query
+        .order('id', { ascending: true })
+        .limit(PAGE_SIZE)
+    }, row => row.id)
   })
 
   return chunkResults.flat()
@@ -190,11 +215,22 @@ async function loadEmailsByAccount(supabase: ServiceClient, profiles: ProfileRow
   const accountProfileEntries = [...profileIdsByAccount.entries()]
   await runWithConcurrency(accountProfileEntries, AUTH_LOOKUP_CONCURRENCY_LIMIT, async ([accountId, profileId]) => {
     const { data, error } = await supabase.auth.admin.getUserById(profileId)
-    if (error) throw error
+    if (error) {
+      console.error('evaluate-alerts: auth admin getUserById failed for profile', {
+        profileId,
+        error: formatErrorMessage(error),
+      })
+      emailsByAccount[accountId] = null
+      return
+    }
     emailsByAccount[accountId] = data.user?.email ?? null
   })
 
   return emailsByAccount
+}
+
+function formatErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error)
 }
 
 async function runWithConcurrency<T>(
