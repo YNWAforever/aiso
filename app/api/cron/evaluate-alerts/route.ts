@@ -19,6 +19,12 @@ type AlertConfigRow = Omit<AlertConfigWithClient, 'client'> & {
 
 type ProfileRow = Pick<Profile, 'id' | 'account_id'>
 
+type PagedQuery<T> = {
+  range: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
+}
+
+const PAGE_SIZE = 1000
+
 function serviceClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -51,15 +57,18 @@ function createAlertEvaluationPorts(supabase: ServiceClient): AlertEvaluationPor
 }
 
 async function loadSnapshot(supabase: ServiceClient): Promise<AlertSnapshot> {
-  const { data: configRows, error: configError } = await supabase
-    .from('alert_configs')
-    .select('*, clients(id, brand_name, account_id)')
-    .or('enabled_sov.eq.true,enabled_wow.eq.true')
-
-  if (configError) throw configError
+  const configRows = await fetchPagedRows<AlertConfigRow>(() =>
+    supabase
+      .from('alert_configs')
+      .select('*, clients(id, brand_name, account_id)')
+      .or('enabled_sov.eq.true,enabled_wow.eq.true'),
+  )
 
   const configs: AlertConfigWithClient[] = (configRows ?? [])
-    .flatMap((row: AlertConfigRow) => (row.clients ? [{ ...row, client: row.clients }] : []))
+    .flatMap((row: AlertConfigRow) => {
+      const { clients, ...config } = row
+      return clients ? [{ ...config, client: clients }] : []
+    })
 
   if (!configs.length) {
     return {
@@ -74,25 +83,21 @@ async function loadSnapshot(supabase: ServiceClient): Promise<AlertSnapshot> {
   const accountIds = [...new Set(configs.map(config => config.client.account_id))]
 
   const [weeksResult, profilesResult] = await Promise.all([
-    supabase
-      .from('pulse_weekly_summary')
-      .select('client_id, scan_week, sov_score')
-      .in('client_id', clientIds)
-      .is('platform', null)
-      .order('scan_week', { ascending: false }),
+    fetchPagedRows<AlertWeekSnapshot>(() =>
+      supabase.rpc('get_alert_weekly_snapshot', { p_client_ids: clientIds }),
+    ),
     accountIds.length
-      ? supabase
-          .from('profiles')
-          .select('id, account_id')
-          .in('account_id', accountIds)
-      : Promise.resolve({ data: [] as ProfileRow[], error: null }),
+      ? fetchPagedRows<ProfileRow>(() =>
+          supabase
+            .from('profiles')
+            .select('id, account_id')
+            .in('account_id', accountIds),
+        )
+      : Promise.resolve([] as ProfileRow[]),
   ])
 
-  if (weeksResult.error) throw weeksResult.error
-  if (profilesResult.error) throw profilesResult.error
-
-  const weeksByClient = buildWeeksByClient(weeksResult.data ?? [])
-  const emailsByAccount = await loadEmailsByAccount(supabase, profilesResult.data ?? [])
+  const weeksByClient = buildWeeksByClient(weeksResult)
+  const emailsByAccount = await loadEmailsByAccount(supabase, profilesResult)
   const dashboardUrlByClient = Object.fromEntries(
     configs.map(config => [
       config.client_id,
@@ -106,6 +111,23 @@ async function loadSnapshot(supabase: ServiceClient): Promise<AlertSnapshot> {
     emailsByAccount,
     dashboardUrlByClient,
   }
+}
+
+async function fetchPagedRows<T>(makeQuery: () => PagedQuery<T>): Promise<T[]> {
+  const rows: T[] = []
+
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const to = from + PAGE_SIZE - 1
+    const { data, error } = await makeQuery().range(from, to)
+    if (error) throw error
+
+    const page = data ?? []
+    rows.push(...page)
+
+    if (page.length < PAGE_SIZE) break
+  }
+
+  return rows
 }
 
 function buildWeeksByClient(weeks: AlertWeekSnapshot[]) {

@@ -29,10 +29,14 @@ export async function sendAlertEmail({
     ? `${brandName} SoV dropped ${previousSov !== undefined ? previousSov - currentSov : '?'} points this week.\nCurrent: ${currentSov}% (was ${previousSov}%)\nThreshold: ${threshold} points\nView dashboard: ${dashboardUrl}`
     : `${brandName} SoV recovered above ${threshold}%.\nCurrent: ${currentSov}%\nView dashboard: ${dashboardUrl}`
 
-  await resend.emails.send({
+  const { error } = await resend.emails.send({
     from:    process.env.RESEND_FROM_EMAIL ?? 'alerts@fimmick-aeo.com',
     to,
     subject,
     text: body,
   })
+
+  if (error) {
+    throw new Error('Resend alert email failed', { cause: error })
+  }
 }

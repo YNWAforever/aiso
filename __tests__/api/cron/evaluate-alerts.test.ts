@@ -4,12 +4,12 @@ import type { AlertEvaluationPorts } from '@/lib/alerts/evaluate'
 type SupabaseState = {
   alertConfigReads: string[]
   alertConfigFilters: string[]
-  weekReads: string[]
-  weekInCalls: Array<{ column: string; values: string[] }>
-  weekIsCalls: Array<{ column: string; value: null }>
-  weekOrderCalls: Array<{ column: string; options: { ascending: boolean } }>
+  alertConfigRangeCalls: Array<{ from: number; to: number }>
+  weeklySnapshotRpcCalls: Array<{ functionName: string; args: { p_client_ids: string[] } }>
+  weeklySnapshotRangeCalls: Array<{ from: number; to: number }>
   profileReads: string[]
   profileInCalls: Array<{ column: string; values: string[] }>
+  profileRangeCalls: Array<{ from: number; to: number }>
   notificationUpserts: Array<{
     value: Record<string, unknown>
     options: { onConflict: string; ignoreDuplicates: boolean }
@@ -20,8 +20,8 @@ type SupabaseState = {
 type SupabaseFixture = {
   configRows?: Record<string, unknown>[]
   configError?: Error | null
-  weekRows?: Array<{ client_id: string; scan_week: string; sov_score: number }>
-  weekError?: Error | null
+  weeklySnapshotRows?: Array<{ client_id: string; scan_week: string; sov_score: number }>
+  weeklySnapshotError?: Error | null
   profileRows?: Array<{ id: string; account_id: string }>
   profileError?: Error | null
   emailsByProfileId?: Record<string, string | null>
@@ -109,23 +109,39 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
   const state: SupabaseState = {
     alertConfigReads: [],
     alertConfigFilters: [],
-    weekReads: [],
-    weekInCalls: [],
-    weekIsCalls: [],
-    weekOrderCalls: [],
+    alertConfigRangeCalls: [],
+    weeklySnapshotRpcCalls: [],
+    weeklySnapshotRangeCalls: [],
     profileReads: [],
     profileInCalls: [],
+    profileRangeCalls: [],
     notificationUpserts: [],
     authUserLookups: [],
   }
 
   const configRows = fixture.configRows ?? defaultConfigRows()
-  const weekRows = fixture.weekRows ?? defaultWeekRows()
+  const weeklySnapshotRows = fixture.weeklySnapshotRows ?? defaultWeekRows()
   const profileRows = fixture.profileRows ?? defaultProfileRows()
   const emailsByProfileId = fixture.emailsByProfileId ?? {
     'profile-1a': 'owner@example.com',
     'profile-1b': 'duplicate@example.com',
     'profile-2a': 'ops@example.com',
+  }
+
+  function pageRows<T>(
+    rows: T[],
+    error: Error | null,
+    rangeCalls: Array<{ from: number; to: number }>,
+  ) {
+    return {
+      range: vi.fn((from: number, to: number) => {
+        rangeCalls.push({ from, to })
+        return Promise.resolve({
+          data: rows.slice(from, to + 1),
+          error,
+        })
+      }),
+    }
   }
 
   const client = {
@@ -137,37 +153,7 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
             return {
               or: vi.fn((filter: string) => {
                 state.alertConfigFilters.push(filter)
-                return Promise.resolve({
-                  data: configRows,
-                  error: fixture.configError ?? null,
-                })
-              }),
-            }
-          }),
-        }
-      }
-
-      if (table === 'pulse_weekly_summary') {
-        return {
-          select: vi.fn((selection: string) => {
-            state.weekReads.push(selection)
-            return {
-              in: vi.fn((column: string, values: string[]) => {
-                state.weekInCalls.push({ column, values })
-                return {
-                  is: vi.fn((isColumn: string, value: null) => {
-                    state.weekIsCalls.push({ column: isColumn, value })
-                    return {
-                      order: vi.fn((orderColumn: string, options: { ascending: boolean }) => {
-                        state.weekOrderCalls.push({ column: orderColumn, options })
-                        return Promise.resolve({
-                          data: weekRows,
-                          error: fixture.weekError ?? null,
-                        })
-                      }),
-                    }
-                  }),
-                }
+                return pageRows(configRows, fixture.configError ?? null, state.alertConfigRangeCalls)
               }),
             }
           }),
@@ -181,10 +167,7 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
             return {
               in: vi.fn((column: string, values: string[]) => {
                 state.profileInCalls.push({ column, values })
-                return Promise.resolve({
-                  data: profileRows,
-                  error: fixture.profileError ?? null,
-                })
+                return pageRows(profileRows, fixture.profileError ?? null, state.profileRangeCalls)
               }),
             }
           }),
@@ -220,6 +203,14 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
         }),
       },
     },
+    rpc: vi.fn((functionName: string, args: { p_client_ids: string[] }) => {
+      state.weeklySnapshotRpcCalls.push({ functionName, args })
+      return pageRows(
+        weeklySnapshotRows,
+        fixture.weeklySnapshotError ?? null,
+        state.weeklySnapshotRangeCalls,
+      )
+    }),
   }
 
   return { client, state }
@@ -345,25 +336,58 @@ describe('POST /api/cron/evaluate-alerts', () => {
     expect(state).not.toBeNull()
     expect(state?.alertConfigReads).toEqual(['*, clients(id, brand_name, account_id)'])
     expect(state?.alertConfigFilters).toEqual(['enabled_sov.eq.true,enabled_wow.eq.true'])
-    expect(state?.weekReads).toEqual(['client_id, scan_week, sov_score'])
-    expect(state?.weekInCalls).toEqual([
-      { column: 'client_id', values: ['client-1', 'client-2', 'client-3'] },
+    expect(state?.alertConfigRangeCalls).toEqual([{ from: 0, to: 999 }])
+    expect(state?.weeklySnapshotRpcCalls).toEqual([
+      {
+        functionName: 'get_alert_weekly_snapshot',
+        args: { p_client_ids: ['client-1', 'client-2', 'client-3'] },
+      },
     ])
-    expect(state?.weekIsCalls).toEqual([{ column: 'platform', value: null }])
-    expect(state?.weekOrderCalls).toEqual([{ column: 'scan_week', options: { ascending: false } }])
+    expect(state?.weeklySnapshotRangeCalls).toEqual([{ from: 0, to: 999 }])
     expect(state?.profileReads).toEqual(['id, account_id'])
     expect(state?.profileInCalls).toEqual([
       { column: 'account_id', values: ['account-1', 'account-2'] },
     ])
+    expect(state?.profileRangeCalls).toEqual([{ from: 0, to: 999 }])
     expect(state?.authUserLookups).toEqual(['profile-1a', 'profile-2a'])
 
     expect(seenSnapshots).toHaveLength(1)
     expect(seenSnapshots[0]).toEqual({
-      configs: expect.arrayContaining([
-        expect.objectContaining({ client_id: 'client-1' }),
-        expect.objectContaining({ client_id: 'client-2' }),
-        expect.objectContaining({ client_id: 'client-3' }),
-      ]),
+      configs: [
+        {
+          id: 'alert-1',
+          client_id: 'client-1',
+          enabled_sov: true,
+          sov_threshold: 50,
+          enabled_wow: true,
+          wow_threshold: 10,
+          notify_email: true,
+          notify_inapp: true,
+          client: { id: 'client-1', brand_name: 'Acme', account_id: 'account-1' },
+        },
+        {
+          id: 'alert-2',
+          client_id: 'client-2',
+          enabled_sov: true,
+          sov_threshold: 40,
+          enabled_wow: false,
+          wow_threshold: 10,
+          notify_email: true,
+          notify_inapp: true,
+          client: { id: 'client-2', brand_name: 'Bravo', account_id: 'account-1' },
+        },
+        {
+          id: 'alert-3',
+          client_id: 'client-3',
+          enabled_sov: false,
+          sov_threshold: 55,
+          enabled_wow: true,
+          wow_threshold: 8,
+          notify_email: false,
+          notify_inapp: true,
+          client: { id: 'client-3', brand_name: 'Charlie', account_id: 'account-2' },
+        },
+      ],
       weeksByClient: {
         'client-1': [
           { client_id: 'client-1', scan_week: '2026-08-07', sov_score: 40 },
@@ -418,10 +442,86 @@ describe('POST /api/cron/evaluate-alerts', () => {
     })
   })
 
+  it('pages config/profile/RPC reads so capped provider responses do not truncate the snapshot', async () => {
+    const configRows = Array.from({ length: 1001 }, (_, index) => {
+      const ordinal = index + 1
+      return {
+        id: `alert-${ordinal}`,
+        client_id: `client-${ordinal}`,
+        enabled_sov: true,
+        sov_threshold: 50,
+        enabled_wow: true,
+        wow_threshold: 10,
+        notify_email: true,
+        notify_inapp: true,
+        clients: {
+          id: `client-${ordinal}`,
+          brand_name: `Brand ${ordinal}`,
+          account_id: `account-${ordinal}`,
+        },
+      }
+    })
+    const weeklySnapshotRows = configRows.flatMap(row => [
+      { client_id: String(row.client_id), scan_week: '2026-08-07', sov_score: 40 },
+      { client_id: String(row.client_id), scan_week: '2026-07-31', sov_score: 55 },
+    ])
+    const profileRows = configRows.map((row, index) => ({
+      id: `profile-${index + 1}`,
+      account_id: String(row.clients.account_id),
+    }))
+    const emailsByProfileId = Object.fromEntries(
+      profileRows.map((profile, index) => [profile.id, `owner-${index + 1}@example.com`]),
+    )
+
+    h.createClient.mockImplementation(() => {
+      const { client, state } = makeSupabaseStub({
+        configRows,
+        weeklySnapshotRows,
+        profileRows,
+        emailsByProfileId,
+      })
+      h.supabaseState = state
+      return client
+    })
+    h.runAlertEvaluation.mockImplementation(async (ports: AlertEvaluationPorts) => {
+      const snapshot = await ports.loadSnapshot()
+      expect(snapshot.configs).toHaveLength(1001)
+      expect(snapshot.weeksByClient['client-1']).toEqual([
+        { client_id: 'client-1', scan_week: '2026-08-07', sov_score: 40 },
+        { client_id: 'client-1', scan_week: '2026-07-31', sov_score: 55 },
+      ])
+      expect(snapshot.weeksByClient['client-1001']).toEqual([
+        { client_id: 'client-1001', scan_week: '2026-08-07', sov_score: 40 },
+        { client_id: 'client-1001', scan_week: '2026-07-31', sov_score: 55 },
+      ])
+      expect(snapshot.emailsByAccount['account-1001']).toBe('owner-1001@example.com')
+      return { processed: snapshot.configs.length, fired: 0 }
+    })
+
+    const { POST } = await importRoute()
+    const response = await POST(makeRequest('test-cron-secret'))
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ processed: 1001, fired: 0 })
+    expect(h.supabaseState?.alertConfigRangeCalls).toEqual([
+      { from: 0, to: 999 },
+      { from: 1000, to: 1999 },
+    ])
+    expect(h.supabaseState?.weeklySnapshotRangeCalls).toEqual([
+      { from: 0, to: 999 },
+      { from: 1000, to: 1999 },
+      { from: 2000, to: 2999 },
+    ])
+    expect(h.supabaseState?.profileRangeCalls).toEqual([
+      { from: 0, to: 999 },
+      { from: 1000, to: 1999 },
+    ])
+  })
+
   it('preserves the route failure behavior when snapshot loading throws', async () => {
     const snapshotError = new Error('snapshot unavailable')
     h.createClient.mockImplementation(() => {
-      const { client, state } = makeSupabaseStub({ weekError: snapshotError })
+      const { client, state } = makeSupabaseStub({ weeklySnapshotError: snapshotError })
       h.supabaseState = state
       return client
     })
