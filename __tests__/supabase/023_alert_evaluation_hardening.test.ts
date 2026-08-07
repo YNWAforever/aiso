@@ -25,6 +25,15 @@ describe('023_alert_evaluation_hardening.sql', () => {
       /FROM ranked\s+WHERE ranked\.row_number <= 2\s+ORDER BY ranked\.client_id,\s*ranked\.scan_week DESC;/si,
     )
     expect(migrationSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.get_alert_weekly_snapshot\(uuid\[\]\) FROM PUBLIC;/si,
+    )
+    expect(migrationSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.get_alert_weekly_snapshot\(uuid\[\]\) FROM anon;/si,
+    )
+    expect(migrationSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.get_alert_weekly_snapshot\(uuid\[\]\) FROM authenticated;/si,
+    )
+    expect(migrationSql).toMatch(
       /GRANT EXECUTE ON FUNCTION public\.get_alert_weekly_snapshot\(uuid\[\]\) TO service_role;/si,
     )
   })

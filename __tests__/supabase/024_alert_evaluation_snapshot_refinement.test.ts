@@ -28,6 +28,15 @@ describe('024_alert_evaluation_snapshot_refinement.sql', () => {
       /FROM ranked\s+WHERE ranked\.row_number <= 2\s+ORDER BY ranked\.client_id,\s*ranked\.row_number ASC;/si,
     )
     expect(migrationSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.get_alert_weekly_snapshot\(uuid\[\]\) FROM PUBLIC;/si,
+    )
+    expect(migrationSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.get_alert_weekly_snapshot\(uuid\[\]\) FROM anon;/si,
+    )
+    expect(migrationSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.get_alert_weekly_snapshot\(uuid\[\]\) FROM authenticated;/si,
+    )
+    expect(migrationSql).toMatch(
       /GRANT EXECUTE ON FUNCTION public\.get_alert_weekly_snapshot\(uuid\[\]\) TO service_role;/si,
     )
   })
