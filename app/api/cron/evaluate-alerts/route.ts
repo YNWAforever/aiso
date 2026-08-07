@@ -37,7 +37,15 @@ function createAlertEvaluationPorts(supabase: ServiceClient): AlertEvaluationPor
       if (error) throw error
     },
     sendAlertEmail: async email => {
-      await deliverAlertEmail(email)
+      await deliverAlertEmail({
+        to: email.to,
+        brandName: email.brandName,
+        type: email.type,
+        currentSov: email.currentSov,
+        previousSov: email.previousSov,
+        threshold: email.threshold,
+        dashboardUrl: email.dashboardUrl,
+      })
     },
   }
 }
