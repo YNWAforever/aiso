@@ -35,19 +35,27 @@ AS $$
   WITH requested_clients AS (
     SELECT DISTINCT unnest(p_client_ids) AS client_id
   ),
-  ranked AS (
-    SELECT
+  latest_distinct_weeks AS (
+    SELECT DISTINCT ON (summary.client_id, summary.scan_week)
       summary.client_id,
       summary.scan_week,
-      summary.sov_score,
-      row_number() OVER (
-        PARTITION BY summary.client_id
-        ORDER BY summary.scan_week DESC, summary.id DESC
-      ) AS row_number
+      summary.sov_score
     FROM public.pulse_weekly_summary AS summary
     INNER JOIN requested_clients
       ON requested_clients.client_id = summary.client_id
     WHERE summary.platform IS NULL
+    ORDER BY summary.client_id, summary.scan_week DESC, summary.id DESC
+  ),
+  ranked AS (
+    SELECT
+      latest_distinct_weeks.client_id,
+      latest_distinct_weeks.scan_week,
+      latest_distinct_weeks.sov_score,
+      row_number() OVER (
+        PARTITION BY latest_distinct_weeks.client_id
+        ORDER BY latest_distinct_weeks.scan_week DESC
+      ) AS row_number
+    FROM latest_distinct_weeks
   )
   SELECT
     ranked.client_id,

@@ -4,11 +4,13 @@ import type { AlertEvaluationPorts } from '@/lib/alerts/evaluate'
 type SupabaseState = {
   alertConfigReads: string[]
   alertConfigFilters: string[]
+  alertConfigOrderCalls: Array<{ column: string; options: { ascending: boolean } }>
   alertConfigRangeCalls: Array<{ from: number; to: number }>
   weeklySnapshotRpcCalls: Array<{ functionName: string; args: { p_client_ids: string[] } }>
   weeklySnapshotRangeCalls: Array<{ from: number; to: number }>
   profileReads: string[]
   profileInCalls: Array<{ column: string; values: string[] }>
+  profileOrderCalls: Array<{ column: string; options: { ascending: boolean } }>
   profileRangeCalls: Array<{ from: number; to: number }>
   notificationUpserts: Array<{
     value: Record<string, unknown>
@@ -26,7 +28,43 @@ type SupabaseFixture = {
   profileError?: Error | null
   emailsByProfileId?: Record<string, string | null>
   authErrorsByProfileId?: Record<string, Error>
+  authUserLookup?: (profileId: string) => Promise<{ data: { user: { email: string | null } | null }; error: Error | null }>
   notificationError?: Error | null
+}
+
+type Deferred<T> = {
+  promise: Promise<T>
+  resolve: (value: T) => void
+  reject: (reason?: unknown) => void
+  settled: boolean
+}
+
+function createDeferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const deferred: Deferred<T> = {
+    promise: new Promise<T>((promiseResolve, promiseReject) => {
+      resolve = value => {
+        deferred.settled = true
+        promiseResolve(value)
+      }
+      reject = reason => {
+        deferred.settled = true
+        promiseReject(reason)
+      }
+    }),
+    resolve: value => resolve(value),
+    reject: reason => reject(reason),
+    settled: false,
+  }
+  return deferred
+}
+
+async function flushUntil(condition: () => boolean, maxTicks = 20) {
+  for (let tick = 0; tick < maxTicks; tick += 1) {
+    if (condition()) return
+    await Promise.resolve()
+  }
 }
 
 const h = vi.hoisted(() => ({
@@ -109,11 +147,13 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
   const state: SupabaseState = {
     alertConfigReads: [],
     alertConfigFilters: [],
+    alertConfigOrderCalls: [],
     alertConfigRangeCalls: [],
     weeklySnapshotRpcCalls: [],
     weeklySnapshotRangeCalls: [],
     profileReads: [],
     profileInCalls: [],
+    profileOrderCalls: [],
     profileRangeCalls: [],
     notificationUpserts: [],
     authUserLookups: [],
@@ -132,8 +172,13 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
     rows: T[],
     error: Error | null,
     rangeCalls: Array<{ from: number; to: number }>,
+    orderCalls?: Array<{ column: string; options: { ascending: boolean } }>,
   ) {
-    return {
+    const query = {
+      order: vi.fn((column: string, options: { ascending: boolean }) => {
+        orderCalls?.push({ column, options })
+        return query
+      }),
       range: vi.fn((from: number, to: number) => {
         rangeCalls.push({ from, to })
         return Promise.resolve({
@@ -142,6 +187,7 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
         })
       }),
     }
+    return query
   }
 
   const client = {
@@ -153,7 +199,12 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
             return {
               or: vi.fn((filter: string) => {
                 state.alertConfigFilters.push(filter)
-                return pageRows(configRows, fixture.configError ?? null, state.alertConfigRangeCalls)
+                return pageRows(
+                  configRows,
+                  fixture.configError ?? null,
+                  state.alertConfigRangeCalls,
+                  state.alertConfigOrderCalls,
+                )
               }),
             }
           }),
@@ -167,7 +218,12 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
             return {
               in: vi.fn((column: string, values: string[]) => {
                 state.profileInCalls.push({ column, values })
-                return pageRows(profileRows, fixture.profileError ?? null, state.profileRangeCalls)
+                return pageRows(
+                  profileRows,
+                  fixture.profileError ?? null,
+                  state.profileRangeCalls,
+                  state.profileOrderCalls,
+                )
               }),
             }
           }),
@@ -189,6 +245,9 @@ function makeSupabaseStub(fixture: SupabaseFixture = {}) {
       admin: {
         getUserById: vi.fn((profileId: string) => {
           state.authUserLookups.push(profileId)
+          if (fixture.authUserLookup) {
+            return fixture.authUserLookup(profileId)
+          }
           const error = fixture.authErrorsByProfileId?.[profileId] ?? null
           return Promise.resolve(
             error
@@ -336,6 +395,7 @@ describe('POST /api/cron/evaluate-alerts', () => {
     expect(state).not.toBeNull()
     expect(state?.alertConfigReads).toEqual(['*, clients(id, brand_name, account_id)'])
     expect(state?.alertConfigFilters).toEqual(['enabled_sov.eq.true,enabled_wow.eq.true'])
+    expect(state?.alertConfigOrderCalls).toEqual([{ column: 'id', options: { ascending: true } }])
     expect(state?.alertConfigRangeCalls).toEqual([{ from: 0, to: 999 }])
     expect(state?.weeklySnapshotRpcCalls).toEqual([
       {
@@ -348,6 +408,7 @@ describe('POST /api/cron/evaluate-alerts', () => {
     expect(state?.profileInCalls).toEqual([
       { column: 'account_id', values: ['account-1', 'account-2'] },
     ])
+    expect(state?.profileOrderCalls).toEqual([{ column: 'id', options: { ascending: true } }])
     expect(state?.profileRangeCalls).toEqual([{ from: 0, to: 999 }])
     expect(state?.authUserLookups).toEqual(['profile-1a', 'profile-2a'])
 
@@ -507,6 +568,10 @@ describe('POST /api/cron/evaluate-alerts', () => {
       { from: 0, to: 999 },
       { from: 1000, to: 1999 },
     ])
+    expect(h.supabaseState?.alertConfigOrderCalls).toEqual([
+      { column: 'id', options: { ascending: true } },
+      { column: 'id', options: { ascending: true } },
+    ])
     expect(h.supabaseState?.weeklySnapshotRangeCalls).toEqual([
       { from: 0, to: 999 },
       { from: 1000, to: 1999 },
@@ -516,6 +581,119 @@ describe('POST /api/cron/evaluate-alerts', () => {
       { from: 0, to: 999 },
       { from: 1000, to: 1999 },
     ])
+    expect(h.supabaseState?.profileOrderCalls).toEqual([
+      { column: 'id', options: { ascending: true } },
+      { column: 'id', options: { ascending: true } },
+    ])
+  })
+
+  it('bounds auth admin email lookups while preserving one lookup per unique account', async () => {
+    const concurrencyLimit = 16
+    const accountCount = 40
+    const configRows = Array.from({ length: accountCount }, (_, index) => {
+      const ordinal = index + 1
+      return {
+        id: `alert-${ordinal}`,
+        client_id: `client-${ordinal}`,
+        enabled_sov: true,
+        sov_threshold: 50,
+        enabled_wow: false,
+        wow_threshold: 10,
+        notify_email: true,
+        notify_inapp: true,
+        clients: {
+          id: `client-${ordinal}`,
+          brand_name: `Brand ${ordinal}`,
+          account_id: `account-${ordinal}`,
+        },
+      }
+    })
+    const weeklySnapshotRows = configRows.map(row => ({
+      client_id: String(row.client_id),
+      scan_week: '2026-08-07',
+      sov_score: 40,
+    }))
+    const profileRows = configRows.flatMap((row, index) => {
+      const ordinal = index + 1
+      return [
+        { id: `profile-${ordinal}a`, account_id: String(row.clients.account_id) },
+        { id: `profile-${ordinal}b`, account_id: String(row.clients.account_id) },
+      ]
+    })
+    const deferredLookups = new Map<string, Deferred<{
+      data: { user: { email: string | null } | null }
+      error: Error | null
+    }>>()
+    let inFlight = 0
+    let maxInFlight = 0
+
+    h.createClient.mockImplementation(() => {
+      const { client, state } = makeSupabaseStub({
+        configRows,
+        weeklySnapshotRows,
+        profileRows,
+        authUserLookup: profileId => {
+          const deferred = createDeferred<{
+            data: { user: { email: string | null } | null }
+            error: Error | null
+          }>()
+          deferredLookups.set(profileId, deferred)
+          inFlight += 1
+          maxInFlight = Math.max(maxInFlight, inFlight)
+          deferred.promise.finally(() => {
+            inFlight -= 1
+          })
+          return deferred.promise
+        },
+      })
+      h.supabaseState = state
+      return client
+    })
+    h.runAlertEvaluation.mockImplementation(async (ports: AlertEvaluationPorts) => {
+      const snapshot = await ports.loadSnapshot()
+      expect(Object.keys(snapshot.emailsByAccount)).toHaveLength(accountCount)
+      expect(snapshot.emailsByAccount['account-40']).toBe('profile-40a@example.com')
+      return { processed: snapshot.configs.length, fired: 0 }
+    })
+
+    const { POST } = await importRoute()
+    const responsePromise = POST(makeRequest('test-cron-secret'))
+    await flushUntil(() => (h.supabaseState?.authUserLookups.length ?? 0) > 0)
+
+    expect(h.supabaseState?.authUserLookups).toHaveLength(concurrencyLimit)
+    expect(maxInFlight).toBe(concurrencyLimit)
+
+    while ((h.supabaseState?.authUserLookups.length ?? 0) < accountCount) {
+      expect(inFlight).toBeLessThanOrEqual(concurrencyLimit)
+      const currentBatch = [...deferredLookups.entries()].filter(([, deferred]) => !deferred.settled)
+      expect(currentBatch).toHaveLength(concurrencyLimit)
+      for (const [profileId, deferred] of currentBatch) {
+        deferred.resolve({
+          data: { user: { email: `${profileId}@example.com` } },
+          error: null,
+        })
+      }
+      await Promise.all(currentBatch.map(([, deferred]) => deferred.promise))
+      await Promise.resolve()
+    }
+
+    expect(h.supabaseState?.authUserLookups).toHaveLength(accountCount)
+    expect(new Set(h.supabaseState?.authUserLookups).size).toBe(accountCount)
+    expect(h.supabaseState?.authUserLookups).not.toContain('profile-1b')
+    expect(maxInFlight).toBe(concurrencyLimit)
+
+    const finalBatch = [...deferredLookups.entries()].filter(([, deferred]) => !deferred.settled)
+    expect(finalBatch.length).toBeLessThanOrEqual(concurrencyLimit)
+    for (const [profileId, deferred] of finalBatch) {
+      deferred.resolve({
+        data: { user: { email: `${profileId}@example.com` } },
+        error: null,
+      })
+    }
+
+    const response = await responsePromise
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ processed: accountCount, fired: 0 })
   })
 
   it('preserves newest-first RPC ordering when one client has duplicate same-week snapshot rows', async () => {
@@ -538,7 +716,7 @@ describe('POST /api/cron/evaluate-alerts', () => {
 
       expect(snapshot.weeksByClient['client-1']).toEqual([
         { client_id: 'client-1', scan_week: '2026-08-07', sov_score: 41 },
-        { client_id: 'client-1', scan_week: '2026-08-07', sov_score: 40 },
+        { client_id: 'client-1', scan_week: '2026-07-31', sov_score: 55 },
       ])
       expect(snapshot.weeksByClient['client-2']).toEqual([
         { client_id: 'client-2', scan_week: '2026-08-07', sov_score: 61 },

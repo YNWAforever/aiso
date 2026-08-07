@@ -24,6 +24,7 @@ type PagedQuery<T> = {
 }
 
 const PAGE_SIZE = 1000
+const AUTH_LOOKUP_CONCURRENCY_LIMIT = 16
 
 function serviceClient() {
   return createClient(
@@ -61,7 +62,8 @@ async function loadSnapshot(supabase: ServiceClient): Promise<AlertSnapshot> {
     supabase
       .from('alert_configs')
       .select('*, clients(id, brand_name, account_id)')
-      .or('enabled_sov.eq.true,enabled_wow.eq.true'),
+      .or('enabled_sov.eq.true,enabled_wow.eq.true')
+      .order('id', { ascending: true }),
   )
 
   const configs: AlertConfigWithClient[] = (configRows ?? [])
@@ -91,7 +93,8 @@ async function loadSnapshot(supabase: ServiceClient): Promise<AlertSnapshot> {
           supabase
             .from('profiles')
             .select('id, account_id')
-            .in('account_id', accountIds),
+            .in('account_id', accountIds)
+            .order('id', { ascending: true }),
         )
       : Promise.resolve([] as ProfileRow[]),
   ])
@@ -132,10 +135,15 @@ async function fetchPagedRows<T>(makeQuery: () => PagedQuery<T>): Promise<T[]> {
 
 function buildWeeksByClient(weeks: AlertWeekSnapshot[]) {
   const weeksByClient: Record<string, AlertWeekSnapshot[]> = {}
+  const seenScanWeeksByClient = new Map<string, Set<string>>()
 
   for (const week of weeks) {
     const clientWeeks = weeksByClient[week.client_id] ?? []
     if (clientWeeks.length >= 2) continue
+    const seenScanWeeks = seenScanWeeksByClient.get(week.client_id) ?? new Set<string>()
+    if (seenScanWeeks.has(week.scan_week)) continue
+    seenScanWeeks.add(week.scan_week)
+    seenScanWeeksByClient.set(week.client_id, seenScanWeeks)
     clientWeeks.push(week)
     weeksByClient[week.client_id] = clientWeeks
   }
@@ -153,13 +161,32 @@ async function loadEmailsByAccount(supabase: ServiceClient, profiles: ProfileRow
     }
   }
 
-  for (const [accountId, profileId] of profileIdsByAccount) {
+  const accountProfileEntries = [...profileIdsByAccount.entries()]
+  await runWithConcurrency(accountProfileEntries, AUTH_LOOKUP_CONCURRENCY_LIMIT, async ([accountId, profileId]) => {
     const { data, error } = await supabase.auth.admin.getUserById(profileId)
     if (error) throw error
     emailsByAccount[accountId] = data.user?.email ?? null
-  }
+  })
 
   return emailsByAccount
+}
+
+async function runWithConcurrency<T>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<void>,
+) {
+  let nextIndex = 0
+  const workerCount = Math.min(limit, items.length)
+
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    for (;;) {
+      const item = items[nextIndex]
+      nextIndex += 1
+      if (item === undefined) return
+      await worker(item)
+    }
+  }))
 }
 
 export async function POST(req: Request) {
