@@ -55,9 +55,11 @@ describe('POST /api/cron/evaluate-alerts', () => {
   it('returns 401 for a missing or incorrect cron secret', async () => {
     const { POST } = await importRoute()
 
-    const response = await POST(request('wrong-secret'))
+    const incorrectSecretResponse = await POST(request('wrong-secret'))
+    const missingSecretResponse = await POST(request())
 
-    expect(response.status).toBe(401)
+    expect(incorrectSecretResponse.status).toBe(401)
+    expect(missingSecretResponse.status).toBe(401)
     expect(h.db).not.toHaveBeenCalled()
     expect(h.runAlertEvaluation).not.toHaveBeenCalled()
   })
