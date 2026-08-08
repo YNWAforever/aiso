@@ -1,18 +1,15 @@
-import { getProfile } from '@/lib/auth'
+import { db } from '@/lib/db'
 import { findNewestMatchingScan } from '@/lib/localTrust'
-import { getLocalTrustProfile, getOrCreateLocalTrustSnapshot, verifyClientOwnership } from '@/lib/localTrust/store'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { planAllows } from '@/lib/tier'
+import { authorizeLocalTrustClient } from '@/lib/localTrust/guard'
+import { getLocalTrustProfile, getOrCreateLocalTrustSnapshot } from '@/lib/localTrust/store'
 import type { AgentCompetitor, PulseMetric, PulseWeeklySummary, Scan } from '@/lib/types'
 
-type QueryError = { message: string; code?: string }
-
-function isNoRowsError(error: unknown) {
-  return Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'PGRST116')
-}
+export const dynamic = 'force-dynamic'
 
 function csvCell(value: unknown) {
   const text = String(value ?? '')
+  // Formula injection: a cell opening with = + - @ is executed by Excel and
+  // Sheets on open. Prefixing an apostrophe forces it to be read as text.
   const safeText = /^[=+\-@]/.test(text.trimStart()) ? `'${text}` : text
   const escaped = safeText.replaceAll('"', '""')
   return /[",\n\r]/.test(escaped) ? `"${escaped}"` : escaped
@@ -31,76 +28,53 @@ function exportFilename(clientId: string) {
   return `local-trust-${safeClientId || 'client'}.csv`
 }
 
-function assertNoQueryError(error: QueryError | null | undefined) {
-  if (error) throw new Error('Export query failed')
-}
-
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ clientId: string }> },
 ) {
   const { clientId } = await params
-  const profile = await getProfile()
-  if (!profile) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const access = await authorizeLocalTrustClient(clientId, 'local_trust_export')
+  if (!access.ok) return access.response
 
-  const plan = profile.accounts?.plan ?? 'basic'
-  if (!planAllows(plan, 'local_trust_export')) {
-    return Response.json({ error: 'UPGRADE_REQUIRED', feature: 'local_trust_export', plan }, { status: 403 })
-  }
-
-  const client = await verifyClientOwnership(clientId, profile.account_id)
-  if (!client) return Response.json({ error: 'Not found' }, { status: 404 })
+  const { profile, client } = access
 
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: scanRowsData, error: scanRowsError } = await supabase
-      .from('scans')
-      .select('*')
-      .eq('account_id', profile.account_id)
-      .order('created_at', { ascending: false })
-      .limit(25)
+    const sql = db()
 
-    if (scanRowsError && !isNoRowsError(scanRowsError)) {
-      throw new Error('Export query failed')
-    }
-
-    const scanRows = Array.isArray(scanRowsData)
-      ? scanRowsData as Scan[]
-      : scanRowsData ? [scanRowsData as Scan] : []
+    // Account-scoped, then narrowed to this brand's domain in memory — the
+    // client was proven owned above, so the pulse reads below inherit that.
+    const scanRows = await sql`
+      select * from scans
+      where account_id = ${profile.account_id}
+      order by created_at desc
+      limit 25
+    ` as unknown as Scan[]
     const latestScan = findNewestMatchingScan(scanRows, client.domain)
 
-    const [
-      { data: pulseSummary, error: pulseSummaryError },
-      { data: missed, error: missedError },
-      { data: competitors, error: competitorsError },
-    ] = await Promise.all([
-      supabase
-        .from('pulse_weekly_summary')
-        .select('*')
-        .eq('client_id', clientId)
-        .order('scan_week')
-        .limit(40),
-      supabase
-        .from('pulse_metrics')
-        .select('*')
-        .eq('client_id', clientId)
-        .eq('brand_mentioned', false)
-        .order('scan_week', { ascending: false })
-        .limit(50),
+    const [summary, missed, competitors] = await Promise.all([
+      sql`
+        select * from pulse_weekly_summary
+        where client_id = ${clientId}
+        order by scan_week
+        limit 40
+      ` as unknown as Promise<PulseWeeklySummary[]>,
+      sql`
+        select * from pulse_metrics
+        where client_id = ${clientId} and brand_mentioned = false
+        order by scan_week desc
+        limit 50
+      ` as unknown as Promise<PulseMetric[]>,
       latestScan
-        ? supabase
-            .from('agent_competitors')
-            .select('*')
-            .eq('scan_id', latestScan.id)
-            .order('mention_rate', { ascending: false })
-        : Promise.resolve({ data: [], error: null }),
+        ? sql`
+            select * from agent_competitors
+            where scan_id = ${latestScan.id}
+            order by mention_rate desc
+          ` as unknown as Promise<AgentCompetitor[]>
+        : Promise.resolve([] as AgentCompetitor[]),
     ])
 
-    assertNoQueryError(pulseSummaryError)
-    assertNoQueryError(missedError)
-    assertNoQueryError(competitorsError)
-
-    const summary = (pulseSummary ?? []) as PulseWeeklySummary[]
+    // Nothing to report on yet. A 409 rather than an empty CSV, so the UI can
+    // tell "no baseline" apart from "score of zero".
     const hasAggregatePulseBaseline = summary.some(row => !row.platform)
     if (!latestScan && !hasAggregatePulseBaseline) {
       return Response.json({ error: 'LOCAL_TRUST_BASELINE_REQUIRED' }, { status: 409 })
@@ -114,8 +88,8 @@ export async function GET(
       latestScan,
       profile: localTrustProfile,
       pulseSummary: summary,
-      missed: (missed ?? []) as PulseMetric[],
-      competitors: (competitors ?? []) as AgentCompetitor[],
+      missed,
+      competitors,
     })
 
     const topAction = actions.find(action => action.status === 'open') ?? actions[0]

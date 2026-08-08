@@ -1,38 +1,51 @@
 'use client'
 
 import Link from 'next/link'
-import { useParams, useSearchParams } from 'next/navigation'
+import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { LogOut, Wrench, Scan, FileBarChart2, Sparkles, Radio, Brain, Settings, TrendingUp, Lock } from 'lucide-react'
-import { getPlanFeatures } from '@/lib/tier'
+import { LogOut, Wrench, Scan, FileBarChart2, Sparkles, Brain, Settings, Lock, ListChecks } from 'lucide-react'
+import type { CommercialEntitlement } from '@/lib/tier'
 import { ThemeToggle } from '@/components/dashboard/ThemeToggle'
 
 const STEPS = [
   { key: 'scan',    labelKey: 'nav_scan',    icon: Scan,          descKey: 'nav_scan_desc' },
   { key: 'results', labelKey: 'nav_results', icon: FileBarChart2, descKey: 'nav_results_desc' },
   { key: 'improve', labelKey: 'nav_improve', icon: Sparkles,      descKey: 'nav_improve_desc' },
-  { key: 'monitor', labelKey: 'nav_monitor', icon: Radio,         descKey: 'nav_monitor_desc' },
-  { key: 'roi',     labelKey: 'nav_roi',     icon: TrendingUp,    descKey: 'nav_roi_desc' },
 ] as const
 
 type Props = {
   profile: {
     display_name?: string | null
     is_admin?: boolean
-    accounts?: { plan?: string } | null
   }
-  brandName?: string
+  entitlement: CommercialEntitlement
+  /**
+   * Optional fallback only. The layout above cannot see the [clientId] segment,
+   * so nothing supplies this today — the id comes from useParams below.
+   */
   brandId?: string
 }
 
-export function DashboardSidebar({ profile, brandName, brandId }: Props) {
+export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
   const t = useTranslations('dashboard')
-  const params = useParams<{ lang: string }>()
+  const params = useParams<{ lang: string; clientId?: string }>()
   const searchParams = useSearchParams()
+  const pathname = usePathname()
   const lang = params?.lang ?? 'en'
+  // Read the brand from the route rather than trusting the prop. The layout
+  // derives it from an `x-invoke-path` header that Next 13 set and Next 16 does
+  // not — nothing in the app or the framework sets it — so `brandId` has been
+  // permanently undefined. Every link therefore dropped the brand and pointed at
+  // the brand-less dashboard, and `results` was locked and unclickable forever.
+  // A layout cannot see a child segment's params, but this is a client component
+  // rendered inside the route, so useParams can.
+  const clientId = params?.clientId ?? brandId
   const step = searchParams?.get('step') ?? 'scan'
-  const plan = profile.accounts?.plan ?? 'basic'
-  const features = getPlanFeatures(plan)
+  const { plan, features } = entitlement
+
+  // Sub-routes carry no ?step=, so without this the Scan entry would render as
+  // active while the user is on the question bank.
+  const onSubRoute = Boolean(pathname && /\/dashboard\/[^/]+\/[^/]+/.test(pathname))
 
   return (
     <aside className="w-60 shrink-0 border-r border-border bg-white flex flex-col min-h-full">
@@ -47,29 +60,22 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
             Fimmick <span className="text-primary">AISO</span>
           </span>
         </Link>
-        {brandName && (
-          <div className="mt-3 px-2 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
-            <p className="text-[10px] text-primary/60 font-semibold tracking-widest uppercase mb-0.5">{t('brand_label')}</p>
-            <p className="text-xs font-semibold text-foreground truncate">{brandName}</p>
-          </div>
-        )}
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         <p className="text-[10px] text-muted-foreground/60 font-semibold tracking-widest uppercase mb-2 px-2">{t('workflow')}</p>
         {STEPS.map((s) => {
-          const active = step === s.key
+          const active = !onSubRoute && step === s.key
           const StepIcon = s.icon
           const locked = (s.key === 'improve' && !features.agent_recs) ||
-                          (s.key === 'roi' && !features.local_trust_roi) ||
-                          (s.key === 'results' && !brandId)
-          const blocksNavigation = locked && s.key !== 'roi'
+                          (s.key === 'results' && !clientId)
+          const blocksNavigation = locked
 
           return (
             <Link
               key={s.key}
-              href={brandId ? `/${lang}/dashboard/${brandId}?step=${s.key}` : `/${lang}/dashboard?step=${s.key}`}
+              href={clientId ? `/${lang}/dashboard/${clientId}?step=${s.key}` : `/${lang}/dashboard?step=${s.key}`}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group ${
                 active
                   ? 'bg-primary text-white shadow-sm'
@@ -92,31 +98,36 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
           )
         })}
 
-        {/* Pulse / Prompt Bank links */}
-        {brandId && (
-          <div className="pt-3 mt-3 border-t border-border space-y-0.5">
-            <p className="text-[10px] text-muted-foreground/60 font-semibold tracking-widest uppercase mb-2 px-2">{t('tools')}</p>
+        {/* Tools — real sub-routes rather than ?step= values. This block and its
+            two translation keys existed before 7b0cb9d removed them, which it did
+            because the question bank's target was fenced, not because the shape
+            was wrong. The target now exists.
+
+            Deliberately NOT pointer-events-none when unentitled: the page renders
+            its own locked card and a link to pricing, so blocking navigation
+            would make that unreachable. Same carve-out the roi entry had. */}
+        {clientId && (
+          <>
+            <p className="text-[10px] text-muted-foreground/60 font-semibold tracking-widest uppercase mb-2 mt-5 px-2">
+              {t('tools')}
+            </p>
             <Link
-              href={`/${lang}/pulse/${brandId}`}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-secondary hover:text-foreground transition-all"
+              href={`/${lang}/dashboard/${clientId}/prompts`}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 ${
+                pathname?.endsWith('/prompts')
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+              }`}
             >
-              <Radio className="size-4 shrink-0" />
-              <span className="text-xs font-semibold">AI Pulse</span>
-              {!features.alerts && (
-                <span className="ml-auto text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-full font-bold">Pro</span>
-              )}
-            </Link>
-            <Link
-              href={`/${lang}/pulse/${brandId}#question-bank`}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-secondary hover:text-foreground transition-all"
-            >
-              <Brain className="size-4 shrink-0" />
+              <ListChecks className={`size-4 shrink-0 ${pathname?.endsWith('/prompts') ? 'text-white' : ''}`} />
               <span className="text-xs font-semibold">{t('question_bank')}</span>
               {!features.edit_prompts && (
-                <span className="ml-auto text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-full font-bold">Pro</span>
+                <span className="ml-auto text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-full font-bold">
+                  Pro
+                </span>
               )}
             </Link>
-          </div>
+          </>
         )}
       </nav>
 
@@ -162,7 +173,7 @@ export function DashboardSidebar({ profile, brandName, brandId }: Props) {
               <Wrench size={13} />
             </Link>
           )}
-          <Link href="/auth/logout" className="text-muted-foreground hover:text-destructive transition-colors" title={t('sign_out')}>
+          <Link href={`/${lang}/auth/logout`} className="text-muted-foreground hover:text-destructive transition-colors" title={t('sign_out')}>
             <LogOut size={13} />
           </Link>
         </div>

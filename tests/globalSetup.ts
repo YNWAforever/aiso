@@ -14,6 +14,8 @@ import { TEST_SCAN_ID } from './constants'
 export { TEST_SCAN_ID }
 
 export default async function globalSetup() {
+  if (process.env.SKIP_E2E_SEED === '1') return
+
   // Load env vars from .env.local if not already in environment
   const envPath = path.join(process.cwd(), '.env.local')
   let serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -48,6 +50,7 @@ export default async function globalSetup() {
     },
     body: JSON.stringify([{
       id:         TEST_SCAN_ID,
+      account_id: null,
       url:        'https://e2e-test.example.com',
       domain:     'e2e-test.example.com',
       score:      63.50,

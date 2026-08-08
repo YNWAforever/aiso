@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { callOpenRouter } from '@/lib/openrouter'
+import { getProfile } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
+  // No id in the body — nothing to own-check, but the LLM call is still paid-for
+  const profile = await getProfile()
+  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { chunkText, heading, targetLength = '600-1000 tokens' } = await req.json()
   if (!chunkText) return NextResponse.json({ error: 'chunkText required' }, { status: 400 })
 

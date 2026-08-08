@@ -17,17 +17,17 @@
 - Join `profiles` to `neon_auth."user"` on the server; choose the first profile per account by `profiles.id ASC`.
 - Insert notifications with `ON CONFLICT (client_id, type, scan_week) DO NOTHING`.
 - Preserve cron-secret authentication, `{ processed, fired }`, evaluator action ordering, fail-soft notification/email delivery, and hard snapshot-read failures.
-- Rewrite unapplied migrations 023 and 024 in place. They may create/drop indexes, but must not create functions or reference `PUBLIC`, `anon`, `authenticated`, or `service_role`.
+- Rewrite unapplied migrations 033 and 034 in place. They may create/drop indexes, but must not create functions or reference `PUBLIC`, `anon`, `authenticated`, or `service_role`.
 - Leave unrelated Supabase modules and dependencies unchanged.
 - Do not send email, invoke the cron, or mutate a production database during local verification.
 - Use `npm.cmd`, local project binaries, and absolute worktree paths in Windows commands.
 
 ## File Map
 
-- Modify `C:\Users\laich\Documents\geoscanner\.worktrees\neon-alert-evaluation\supabase\migrations\023_alert_evaluation_hardening.sql`: retain notification and initial snapshot indexes only.
-- Modify `C:\Users\laich\Documents\geoscanner\.worktrees\neon-alert-evaluation\supabase\migrations\024_alert_evaluation_snapshot_refinement.sql`: retain the refined snapshot index only.
-- Modify `C:\Users\laich\Documents\geoscanner\.worktrees\neon-alert-evaluation\__tests__\supabase\023_alert_evaluation_hardening.test.ts`: assert index-only 023 SQL.
-- Modify `C:\Users\laich\Documents\geoscanner\.worktrees\neon-alert-evaluation\__tests__\supabase\024_alert_evaluation_snapshot_refinement.test.ts`: assert index-only 024 SQL.
+- Modify `C:\Users\laich\Documents\geoscanner\.worktrees\neon-alert-evaluation\supabase\migrations\033_alert_evaluation_hardening.sql`: retain notification and initial snapshot indexes only.
+- Modify `C:\Users\laich\Documents\geoscanner\.worktrees\neon-alert-evaluation\supabase\migrations\034_alert_evaluation_snapshot_refinement.sql`: retain the refined snapshot index only.
+- Modify `C:\Users\laich\Documents\geoscanner\.worktrees\neon-alert-evaluation\__tests__\supabase\033_alert_evaluation_hardening.test.ts`: assert index-only 033 SQL.
+- Modify `C:\Users\laich\Documents\geoscanner\.worktrees\neon-alert-evaluation\__tests__\supabase\034_alert_evaluation_snapshot_refinement.test.ts`: assert index-only 034 SQL.
 - Create `C:\Users\laich\Documents\geoscanner\.worktrees\neon-alert-evaluation\lib\alerts\neon-store.ts`: implement the Neon-backed storage ports.
 - Create `C:\Users\laich\Documents\geoscanner\.worktrees\neon-alert-evaluation\__tests__\lib\alerts\neon-store.test.ts`: test the adapter with a tagged-template SQL mock.
 - Modify `C:\Users\laich\Documents\geoscanner\.worktrees\neon-alert-evaluation\app\api\cron\evaluate-alerts\route.ts`: compose `db()`, the Neon store, Resend, and the evaluator.
@@ -40,18 +40,18 @@
 
 **Files:**
 
-- Modify: `__tests__/supabase/023_alert_evaluation_hardening.test.ts`
-- Modify: `__tests__/supabase/024_alert_evaluation_snapshot_refinement.test.ts`
+- Modify: `__tests__/supabase/033_alert_evaluation_hardening.test.ts`
+- Modify: `__tests__/supabase/034_alert_evaluation_snapshot_refinement.test.ts`
 
 **Interfaces:**
 
 - Consumes: the current migration files under `supabase/migrations`.
 - Produces: failing tests that require the two indexes and reject the removed Supabase function/role statements.
 
-- [ ] **Step 1: Replace the 023 test assertions.** Keep the existing `readFileSync`/`resolve` setup and use this complete test body:
+- [ ] **Step 1: Replace the 033 test assertions.** Keep the existing `readFileSync`/`resolve` setup and use this complete test body:
 
 ```ts
-describe('023_alert_evaluation_hardening.sql', () => {
+describe('033_alert_evaluation_hardening.sql', () => {
   it('creates only the notification deduplication and initial snapshot indexes', () => {
     expect(migrationSql).toMatch(
       /DROP INDEX IF EXISTS public\.notifications_dedup_idx;/si,
@@ -69,10 +69,10 @@ describe('023_alert_evaluation_hardening.sql', () => {
 })
 ```
 
-- [ ] **Step 2: Replace the 024 test assertions.** Use this complete test body:
+- [ ] **Step 2: Replace the 034 test assertions.** Use this complete test body:
 
 ```ts
-describe('024_alert_evaluation_snapshot_refinement.sql', () => {
+describe('034_alert_evaluation_snapshot_refinement.sql', () => {
   it('rebuilds only the refined weekly snapshot index', () => {
     expect(migrationSql).toMatch(
       /DROP INDEX IF EXISTS public\.pulse_weekly_summary_alert_snapshot_idx;/si,
@@ -92,7 +92,7 @@ describe('024_alert_evaluation_snapshot_refinement.sql', () => {
 Run:
 
 ```powershell
-npm.cmd test -- __tests__/supabase/023_alert_evaluation_hardening.test.ts __tests__/supabase/024_alert_evaluation_snapshot_refinement.test.ts
+npm.cmd test -- __tests__/supabase/033_alert_evaluation_hardening.test.ts __tests__/supabase/034_alert_evaluation_snapshot_refinement.test.ts
 ```
 
 Expected: FAIL because the current files still contain `get_alert_weekly_snapshot` and Supabase role grants.
@@ -100,26 +100,26 @@ Expected: FAIL because the current files still contain `get_alert_weekly_snapsho
 - [ ] **Step 4: Commit the red tests.**
 
 ```powershell
-git add -- __tests__/supabase/023_alert_evaluation_hardening.test.ts __tests__/supabase/024_alert_evaluation_snapshot_refinement.test.ts
+git add -- __tests__/supabase/033_alert_evaluation_hardening.test.ts __tests__/supabase/034_alert_evaluation_snapshot_refinement.test.ts
 git commit -m "test: require Neon-safe alert migrations"
 ```
 
-### Task 2: Rewrite migrations 023 and 024 as index-only SQL
+### Task 2: Rewrite migrations 033 and 034 as index-only SQL
 
 **Files:**
 
-- Modify: `supabase/migrations/023_alert_evaluation_hardening.sql`
-- Modify: `supabase/migrations/024_alert_evaluation_snapshot_refinement.sql`
+- Modify: `supabase/migrations/033_alert_evaluation_hardening.sql`
+- Modify: `supabase/migrations/034_alert_evaluation_snapshot_refinement.sql`
 
 **Interfaces:**
 
 - Consumes: the failing static assertions from Task 1.
 - Produces: idempotent PostgreSQL index migrations with no alert RPC or Supabase grants.
 
-- [ ] **Step 1: Replace migration 023 with the complete SQL below.**
+- [ ] **Step 1: Replace migration 033 with the complete SQL below.**
 
 ```sql
--- 023_alert_evaluation_hardening.sql
+-- 033_alert_evaluation_hardening.sql
 -- Neon-safe alert indexes. Alert snapshot reads execute in the server adapter.
 
 DROP INDEX IF EXISTS public.notifications_dedup_idx;
@@ -132,10 +132,10 @@ CREATE INDEX IF NOT EXISTS pulse_weekly_summary_alert_snapshot_idx
   WHERE platform IS NULL;
 ```
 
-- [ ] **Step 2: Replace migration 024 with the complete SQL below.**
+- [ ] **Step 2: Replace migration 034 with the complete SQL below.**
 
 ```sql
--- 024_alert_evaluation_snapshot_refinement.sql
+-- 034_alert_evaluation_snapshot_refinement.sql
 -- Refine the Neon alert snapshot index with deterministic tie-break columns.
 
 DROP INDEX IF EXISTS public.pulse_weekly_summary_alert_snapshot_idx;
@@ -155,7 +155,7 @@ CREATE INDEX IF NOT EXISTS pulse_weekly_summary_alert_snapshot_idx
 Run:
 
 ```powershell
-npm.cmd test -- __tests__/supabase/023_alert_evaluation_hardening.test.ts __tests__/supabase/024_alert_evaluation_snapshot_refinement.test.ts
+npm.cmd test -- __tests__/supabase/033_alert_evaluation_hardening.test.ts __tests__/supabase/034_alert_evaluation_snapshot_refinement.test.ts
 ```
 
 Expected: PASS with both files asserting the required indexes and zero forbidden function/role matches.
@@ -163,7 +163,7 @@ Expected: PASS with both files asserting the required indexes and zero forbidden
 - [ ] **Step 4: Commit the migration correction.**
 
 ```powershell
-git add -- supabase/migrations/023_alert_evaluation_hardening.sql supabase/migrations/024_alert_evaluation_snapshot_refinement.sql
+git add -- supabase/migrations/033_alert_evaluation_hardening.sql supabase/migrations/034_alert_evaluation_snapshot_refinement.sql
 git commit -m "fix: make alert migrations Neon-safe"
 ```
 
@@ -771,7 +771,7 @@ git commit -m "fix: compose alert evaluation through Neon"
 - [ ] **Step 1: Run the focused alert test set.**
 
 ```powershell
-npm.cmd test -- __tests__/api/cron/evaluate-alerts.test.ts __tests__/lib/alerts/neon-store.test.ts __tests__/lib/alerts/evaluate.test.ts __tests__/supabase/023_alert_evaluation_hardening.test.ts __tests__/supabase/024_alert_evaluation_snapshot_refinement.test.ts
+npm.cmd test -- __tests__/api/cron/evaluate-alerts.test.ts __tests__/lib/alerts/neon-store.test.ts __tests__/lib/alerts/evaluate.test.ts __tests__/supabase/033_alert_evaluation_hardening.test.ts __tests__/supabase/034_alert_evaluation_snapshot_refinement.test.ts
 ```
 
 Expected: PASS for all focused files.
@@ -808,7 +808,7 @@ Expected: the final `rg` command returns no alert-path Supabase references; impl
 - [ ] **Step 5: Commit the verified implementation.**
 
 ```powershell
-git add -- app/api/cron/evaluate-alerts/route.ts lib/alerts/neon-store.ts __tests__/api/cron/evaluate-alerts.test.ts __tests__/lib/alerts/neon-store.test.ts __tests__/supabase/023_alert_evaluation_hardening.test.ts __tests__/supabase/024_alert_evaluation_snapshot_refinement.test.ts supabase/migrations/023_alert_evaluation_hardening.sql supabase/migrations/024_alert_evaluation_snapshot_refinement.sql
+git add -- app/api/cron/evaluate-alerts/route.ts lib/alerts/neon-store.ts __tests__/api/cron/evaluate-alerts.test.ts __tests__/lib/alerts/neon-store.test.ts __tests__/supabase/033_alert_evaluation_hardening.test.ts __tests__/supabase/034_alert_evaluation_snapshot_refinement.test.ts supabase/migrations/033_alert_evaluation_hardening.sql supabase/migrations/034_alert_evaluation_snapshot_refinement.sql
 git commit -m "fix: migrate alert evaluation to Neon"
 ```
 
@@ -816,8 +816,8 @@ git commit -m "fix: migrate alert evaluation to Neon"
 
 **Files:**
 
-- Read: `supabase/migrations/023_alert_evaluation_hardening.sql`
-- Read: `supabase/migrations/024_alert_evaluation_snapshot_refinement.sql`
+- Read: `supabase/migrations/033_alert_evaluation_hardening.sql`
+- Read: `supabase/migrations/034_alert_evaluation_snapshot_refinement.sql`
 - Do not modify repository files or production data in this task.
 
 **Interfaces:**
@@ -839,7 +839,7 @@ await tools.mcp__neon__create_branch({
 
 Record the returned branch ID and database name. If a branch with that name already exists, inspect it with `describe_branch` and stop rather than deleting or reusing it without user direction.
 
-- [ ] **Step 3: Apply migration 023, then 024, to that branch only.** Use `mcp__neon__run_sql_transaction` with the exact statements from 023 in order, then a separate transaction with the exact statements from 024. Pass the dedicated `branchId`, project ID, and database name on every call. Obtain user confirmation for the DDL execution before invoking either transaction.
+- [ ] **Step 3: Apply migration 033, then 034, to that branch only.** Use `mcp__neon__run_sql_transaction` with the exact statements from 033 in order, then a separate transaction with the exact statements from 034. Pass the dedicated `branchId`, project ID, and database name on every call. Obtain user confirmation for the DDL execution before invoking either transaction.
 
 - [ ] **Step 4: Verify schema and behavior with read-only SQL.** Use `mcp__neon__run_sql` against the dedicated branch for these checks:
 

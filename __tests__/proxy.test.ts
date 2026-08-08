@@ -74,3 +74,39 @@ describe('proxy', () => {
     expect(middlewareFactory).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * The matcher decides which requests reach `proxy` at all. Admin lives at
+ * app/admin/ — outside the [lang] tree — so it must NOT reach next-intl, whose
+ * default localePrefix 'always' would rewrite /admin to the nonexistent
+ * /en/admin (307 → 404). Localised admin pages under app/[lang]/admin/ must
+ * keep going through intl.
+ *
+ * Next.js compiles the matcher string with path-to-regexp; anchoring it here is
+ * a faithful enough approximation to assert which paths are in/out of scope.
+ */
+describe('proxy matcher', () => {
+  async function matches(pathname: string) {
+    const { config } = await import('@/proxy')
+    return new RegExp(`^${config.matcher[0]}$`).test(pathname)
+  }
+
+  it('excludes top-level /admin so it bypasses intl locale redirection', async () => {
+    expect(await matches('/admin')).toBe(false)
+    expect(await matches('/admin/authority')).toBe(false)
+  })
+
+  it('still routes localised admin pages through intl', async () => {
+    expect(await matches('/en/admin/authority')).toBe(true)
+    expect(await matches('/zh-HK/admin/authority')).toBe(true)
+  })
+
+  it('keeps the pre-existing exclusions and passes ordinary pages through', async () => {
+    expect(await matches('/api/scan')).toBe(false)
+    expect(await matches('/_next/static/chunk.js')).toBe(false)
+    expect(await matches('/favicon.ico')).toBe(false)
+    expect(await matches('/')).toBe(true)
+    expect(await matches('/en/pricing')).toBe(true)
+    expect(await matches('/en/dashboard/abc')).toBe(true)
+  })
+})

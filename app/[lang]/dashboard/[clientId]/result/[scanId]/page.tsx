@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { db } from '@/lib/db'
 import { ScoreRing } from '@/components/ScoreRing'
 import { FixPackClient } from '@/components/FixPackClient'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
@@ -39,18 +39,40 @@ export default async function DashboardResultPage({
   const { lang, clientId, scanId } = await params
   const t = await getTranslations()
   const profile = await requireAuth(lang)
-  const supabase = await createServerSupabaseClient()
 
-  const { data: scan } = await supabase
-    .from('scans')
-    .select('*')
-    .eq('id', scanId)
-    .eq('account_id', profile.account_id)
-    .single()
+  let scan: Scan | null = null
+  let loadError = false
+
+  try {
+    const sql = db()
+    // Matched on id, account_id, AND client_id — a scan id from another
+    // brand (or an anonymous scan with client_id null) cannot render inside
+    // this workspace. See app/[lang]/dashboard/[clientId]/page.tsx.
+    const rows = await sql`
+      select * from scans
+      where id = ${scanId} and account_id = ${profile.account_id} and client_id = ${clientId}
+      limit 1
+    `
+    scan = (rows[0] ?? null) as Scan | null
+  } catch (err) {
+    loadError = true
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[dashboard-result] scan query failed:', message.replace(/postgresql:\/\/\S+/g, '[redacted]'))
+  }
+
+  // A database failure must not look like a scan that does not exist.
+  if (loadError) {
+    return (
+      <div className="flex-1 px-6 py-16 text-center">
+        <p className="text-lg font-bold text-dash-text mb-1.5">{t('dashboard.workspace_load_error_title')}</p>
+        <p className="text-sm text-dash-muted max-w-md mx-auto">{t('dashboard.workspace_load_error_body')}</p>
+      </div>
+    )
+  }
 
   if (!scan) notFound()
 
-  const s = scan as Scan
+  const s = scan
   const grade = s.grade ?? 'F'
   const gradeConfig = GRADE_CONFIG[grade] ?? GRADE_CONFIG['F']!
   const scoreLabel = s.score >= 80
@@ -105,8 +127,8 @@ export default async function DashboardResultPage({
   return (
     <>
       {/* Top nav bar */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-dash-border bg-dash-surface">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 border-b border-dash-border bg-dash-surface px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
           <Link
             href={`/${lang}/dashboard/${clientId}?step=results`}
             className="text-xs text-dash-muted hover:text-dash-text transition-colors"
@@ -114,23 +136,29 @@ export default async function DashboardResultPage({
             ← Back to Results
           </Link>
           <span className="text-dash-border">|</span>
-          <p className="text-sm font-semibold text-dash-text">{s.domain}</p>
+          <p className="break-all text-sm font-semibold text-dash-text">{s.domain}</p>
           {pending && (
             <span className="text-[10px] font-medium bg-dash-warning/10 text-dash-warning px-2 py-0.5 rounded-full border border-dash-warning/20">
               Agent analysis pending
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <Link
+            href={`/${lang}/dashboard/${clientId}/reports/new?scanId=${encodeURIComponent(scanId)}`}
+            className="inline-flex min-h-11 items-center px-4 py-2 text-xs font-semibold rounded-lg text-primary-foreground bg-primary hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t('reports.create_client_report')}
+          </Link>
           <Link
             href={`/${lang}/dashboard/${clientId}?step=improve`}
-            className="inline-flex items-center px-4 py-1.5 text-xs font-medium rounded-lg text-primary-foreground bg-dash-accent hover:opacity-90 transition-opacity"
+            className="inline-flex min-h-11 items-center rounded-lg border border-dash-border bg-transparent px-4 py-2 text-xs font-semibold text-dash-text transition-colors hover:bg-dash-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Improve with AI agents →
           </Link>
           <Link
             href={`/${lang}/dashboard/${clientId}?step=scan`}
-            className="inline-flex items-center px-4 py-1.5 text-xs font-medium rounded-lg text-dash-muted bg-dash-elevated border border-dash-border hover:bg-dash-border transition-colors"
+            className="inline-flex min-h-11 items-center rounded-lg px-4 py-2 text-xs font-medium text-dash-muted transition-colors hover:bg-dash-elevated hover:text-dash-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Full History
           </Link>

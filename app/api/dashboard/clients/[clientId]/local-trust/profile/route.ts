@@ -1,6 +1,7 @@
-import { getProfile } from '@/lib/auth'
-import { upsertLocalTrustProfile, verifyClientOwnership } from '@/lib/localTrust/store'
-import { planAllows } from '@/lib/tier'
+import { authorizeLocalTrustClient } from '@/lib/localTrust/guard'
+import { upsertLocalTrustProfile } from '@/lib/localTrust/store'
+
+export const dynamic = 'force-dynamic'
 
 function textArray(value: unknown): string[] {
   if (!Array.isArray(value)) return []
@@ -49,16 +50,8 @@ export async function PUT(
   { params }: { params: Promise<{ clientId: string }> },
 ) {
   const { clientId } = await params
-  const profile = await getProfile()
-  if (!profile) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const plan = profile.accounts?.plan ?? 'basic'
-  if (!planAllows(plan, 'local_trust_roi')) {
-    return Response.json({ error: 'UPGRADE_REQUIRED', feature: 'local_trust_roi', plan }, { status: 403 })
-  }
-
-  const client = await verifyClientOwnership(clientId, profile.account_id)
-  if (!client) return Response.json({ error: 'Not found' }, { status: 404 })
+  const access = await authorizeLocalTrustClient(clientId, 'local_trust_roi')
+  if (!access.ok) return access.response
 
   const body = await parseJson(req)
   if (!body) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
@@ -72,7 +65,7 @@ export async function PUT(
   try {
     const data = await upsertLocalTrustProfile({
       clientId,
-      accountId: profile.account_id,
+      accountId: access.profile.account_id,
       primaryServices: textArray(body.primary_services),
       serviceArea: nullableText(body.service_area),
       averageLeadValue: averageLeadValue.value,
@@ -82,6 +75,7 @@ export async function PUT(
 
     return Response.json({ profile: data })
   } catch {
+    // 5xx, never a 2xx over a failed write.
     return Response.json({ error: 'Profile update failed' }, { status: 500 })
   }
 }

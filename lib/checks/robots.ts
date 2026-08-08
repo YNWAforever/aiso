@@ -1,12 +1,13 @@
+import type { PublicUrlFetch } from '@/lib/security/public-url'
 import type { CheckResult } from '@/lib/types'
 
 const AI_BOTS = ['gptbot', 'claudebot', 'perplexitybot', 'anthropic-ai', 'google-extended']
 
-export async function checkRobots(baseUrl: string): Promise<CheckResult> {
+export async function checkRobots(baseUrl: string, fetcher: PublicUrlFetch): Promise<CheckResult> {
   const robotsUrl = new URL('/robots.txt', baseUrl).toString()
 
   try {
-    const res = await fetch(robotsUrl, {
+    const res = await fetcher(robotsUrl, {
       signal: AbortSignal.timeout(8000),
       headers: { 'User-Agent': 'Fimmick-AEO/1.0' },
     })

@@ -1,16 +1,8 @@
-import { getProfile } from '@/lib/auth'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { featureUnavailable } from '@/lib/unavailable'
 
+// Fenced during the Supabase to Neon migration. The Supabase implementation is
+// in git history at the parent of this commit. Restoring it means porting the
+// queries to db(), not reviving code that targets a deleted project.
 export async function GET() {
-  const profile = await getProfile()
-  if (!profile) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const supabase = await createServerSupabaseClient()
-  const { data, error } = await supabase
-    .from('notifications').select('*')
-    .eq('account_id', profile.account_id)
-    .order('created_at', { ascending: false }).limit(20)
-
-  if (error) return Response.json({ error: error.message }, { status: 500 })
-  return Response.json({ notifications: data ?? [] })
+  return featureUnavailable('notifications')
 }

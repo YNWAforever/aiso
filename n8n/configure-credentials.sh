@@ -2,50 +2,83 @@
 # ============================================================
 # n8n Credential Configurator for Fimmick AISO
 # Usage:
-#   DB_PASS="<supabase-db-password>" \
+#   N8N_API_KEY="<n8n-public-api-key>" \
+#   DATABASE_URL="<neon-postgres-connection-string>" \
 #   OPENROUTER_KEY="<openrouter-api-key>" \
 #   bash n8n/configure-credentials.sh
+#
+# DATABASE_URL is the same Neon connection string the app uses (.env.local).
+# Load it without echoing it, e.g.:
+#   set -a; . ./.env.local; set +a
 # ============================================================
 
 set -euo pipefail
 
 N8N_BASE="https://anfield-n8n.zeabur.app/api/v1"
-N8N_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhYTdlYWY5NC1lYjg1LTQ4NmItYTY0NC04ZDRmN2JjOGQzZDkiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiYTRmNDYzNWMtMDIxNC00NjE5LWJkZTEtMmM1YmI4YmE0NjJhIiwiaWF0IjoxNzgwMTcwMjQ4LCJleHAiOjE3ODA3NjE2MDB9.Fvp8PlyddIy__C8vDLVqomCoHCMIALiHH7NyWqLLLnA"
-AUTH="-H \"X-N8N-API-KEY: $N8N_KEY\""
 
-if [[ -z "${DB_PASS:-}" ]]; then
-  echo "ERROR: DB_PASS env var required (Supabase DB password)"
+if [[ -z "${N8N_API_KEY:-}" ]]; then
+  echo "ERROR: N8N_API_KEY environment variable is required."
+  echo "Get it from: https://anfield-n8n.zeabur.app/settings/api"
   exit 1
 fi
+
+AUTH_HEADER="X-N8N-API-KEY: ${N8N_API_KEY}"
+
+if [[ -z "${DATABASE_URL:-}" ]]; then
+  echo "ERROR: DATABASE_URL env var required (Neon Postgres connection string)."
+  echo "Get it from .env.local or the Neon console."
+  exit 1
+fi
+export DATABASE_URL
+
 if [[ -z "${OPENROUTER_KEY:-}" ]]; then
   echo "ERROR: OPENROUTER_KEY env var required"
   exit 1
 fi
 
 echo "==> Step 1: Update Postgres credential (ID: RVz4K04NALUIPrf4)"
+# Build the credential payload with python3 so the connection string is parsed
+# and JSON-escaped safely, and the password never lands in a shell argument.
+PG_PAYLOAD_FILE=$(mktemp)
+trap 'rm -f "$PG_PAYLOAD_FILE"' EXIT
+
+python3 - "$PG_PAYLOAD_FILE" <<'PY'
+import json, os, sys
+from urllib.parse import parse_qs, unquote, urlparse
+
+url = urlparse(os.environ['DATABASE_URL'])
+if url.scheme not in ('postgres', 'postgresql') or not url.hostname or not url.username:
+    sys.exit('ERROR: DATABASE_URL is not a valid postgres:// connection string')
+
+sslmode = (parse_qs(url.query).get('sslmode') or ['require'])[0]
+payload = {
+    'name': 'Neon Postgres',
+    'type': 'postgres',
+    'data': {
+        'host': url.hostname,
+        'port': url.port or 5432,
+        'database': unquote(url.path.lstrip('/')) or 'neondb',
+        'user': unquote(url.username),
+        'password': unquote(url.password or ''),
+        'ssl': 'disable' if sslmode == 'disable' else 'require',
+        'allowUnauthorizedCerts': False,
+    },
+}
+with open(sys.argv[1], 'w') as fh:
+    json.dump(payload, fh)
+PY
+
 POSTGRES_RESP=$(curl -s -X PATCH "$N8N_BASE/credentials/RVz4K04NALUIPrf4" \
-  -H "X-N8N-API-KEY: $N8N_KEY" \
+  -H "${AUTH_HEADER}" \
   -H "Content-Type: application/json" \
-  --data-raw "{
-    \"name\": \"Supabase Postgres\",
-    \"type\": \"postgres\",
-    \"data\": {
-      \"host\": \"db.ankmnirpytvbidyjyujh.supabase.co\",
-      \"port\": 5432,
-      \"database\": \"postgres\",
-      \"user\": \"postgres\",
-      \"password\": \"$DB_PASS\",
-      \"ssl\": \"require\",
-      \"allowUnauthorizedCerts\": false
-    }
-  }")
+  --data-binary @"$PG_PAYLOAD_FILE")
 PG_ID=$(echo "$POSTGRES_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id','ERROR: '+str(d.get('message',d))))")
 echo "    Postgres credential ID: $PG_ID"
 
 echo ""
 echo "==> Step 2: Create OpenRouter HTTP Header credential"
 OR_RESP=$(curl -s -X POST "$N8N_BASE/credentials" \
-  -H "X-N8N-API-KEY: $N8N_KEY" \
+  -H "${AUTH_HEADER}" \
   -H "Content-Type: application/json" \
   --data-raw "{
     \"name\": \"OpenRouter API\",
@@ -66,7 +99,7 @@ patch_workflow() {
   local WF_ID="$1"
   local WF_NAME="$2"
 
-  WF=$(curl -s "$N8N_BASE/workflows/$WF_ID" -H "X-N8N-API-KEY: $N8N_KEY")
+  WF=$(curl -s "$N8N_BASE/workflows/$WF_ID" -H "${AUTH_HEADER}")
 
   # Replace credential references in nodes
   PATCHED=$(echo "$WF" | python3 -c "
@@ -77,7 +110,7 @@ or_id = '$OR_ID'
 for node in d.get('nodes', []):
     creds = node.get('credentials', {})
     if 'postgres' in creds:
-        creds['postgres'] = {'id': pg_id, 'name': 'Supabase Postgres'}
+        creds['postgres'] = {'id': pg_id, 'name': 'Neon Postgres'}
     if 'httpHeaderAuth' in creds:
         creds['httpHeaderAuth'] = {'id': or_id, 'name': 'OpenRouter API'}
     node['credentials'] = creds
@@ -87,7 +120,7 @@ print(json.dumps(allowed))
 ")
 
   PUT_RESP=$(curl -s -X PUT "$N8N_BASE/workflows/$WF_ID" \
-    -H "X-N8N-API-KEY: $N8N_KEY" \
+    -H "${AUTH_HEADER}" \
     -H "Content-Type: application/json" \
     -d "$PATCHED")
   echo "    $WF_NAME: $(echo "$PUT_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print('Updated' if 'id' in d else 'ERROR: '+str(d.get('message','')))")"
@@ -100,7 +133,7 @@ echo ""
 echo "==> Step 4: Activate both workflows"
 for ID in "fKyeS2AEBpdTlwsr" "AN4OUG1YnJnzbuxA"; do
   ACT=$(curl -s -X POST "$N8N_BASE/workflows/$ID/activate" \
-    -H "X-N8N-API-KEY: $N8N_KEY")
+    -H "${AUTH_HEADER}")
   echo "    $ID: $(echo "$ACT" | python3 -c "import sys,json; d=json.load(sys.stdin); print('Active ✓' if d.get('active') else 'Response: '+str(d.get('message',''))[:80])")"
 done
 

@@ -6,6 +6,8 @@ import path from 'path'
 import { TEST_SCAN_ID } from './constants'
 
 export default async function globalTeardown() {
+  if (process.env.SKIP_E2E_SEED === '1') return
+
   const envPath = path.join(process.cwd(), '.env.local')
   let serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL

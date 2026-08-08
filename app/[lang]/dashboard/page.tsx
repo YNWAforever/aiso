@@ -4,8 +4,8 @@ import { db } from '@/lib/db'
 import { BrandCard }       from '@/components/dashboard/BrandCard'
 import { AddBrandWizard }  from '@/components/dashboard/AddBrandWizard'
 import { RecentScans }     from '@/components/dashboard/RecentScans'
-import { maxBrandsForPlan } from '@/lib/tier'
-import { BarChart2, Search } from 'lucide-react'
+import { resolveCommercialEntitlement } from '@/lib/tier'
+import { Search } from 'lucide-react'
 import type { Client, PulseWeeklySummary, Scan } from '@/lib/types'
 
 export default async function DashboardPage({
@@ -46,8 +46,8 @@ export default async function DashboardPage({
     if (!(s.client_id in latestSov)) latestSov[s.client_id] = Number(s.sov_score)
   }
 
-  const plan    = profile.accounts?.plan ?? 'basic'
-  const atLimit = (clients?.length ?? 0) >= maxBrandsForPlan(plan)
+  const entitlement = resolveCommercialEntitlement(profile.accounts)
+  const atLimit = (clients?.length ?? 0) >= entitlement.features.max_brands
   const hasClients = clients && clients.length > 0
   const hasScans   = scans && scans.length > 0
 
@@ -78,7 +78,7 @@ export default async function DashboardPage({
             </div>
             {atLimit && (
               <div className="mt-3">
-                <AddBrandWizard lang={lang} disabled plan={plan} />
+                <AddBrandWizard lang={lang} disabled plan={entitlement.plan} />
               </div>
             )}
           </div>

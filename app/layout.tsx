@@ -1,14 +1,19 @@
 import type { Metadata } from 'next'
+import { getLocale } from 'next-intl/server'
+import { SITE_URL } from '@/lib/seo'
 import './globals.css'
 
 export const metadata: Metadata = {
+  metadataBase: SITE_URL,
   title: 'Fimmick AEO — AI Search Readiness Check',
   description: 'Check if your website is visible to AI search engines. Free Fix Pack included.',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale()
+
   return (
-    <html className="h-full antialiased" suppressHydrationWarning>
+    <html lang={locale} className="h-full antialiased" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {

@@ -1,19 +1,11 @@
 import { POST } from '@/app/api/onboarding/complete/route'
 import { NextRequest } from 'next/server'
 
-// Mock Supabase server client
-vi.mock('@/lib/supabase-server', () => ({
-  createServerSupabaseClient: vi.fn().mockResolvedValue({
-    auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } } }) },
-    from: vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnThis(),
-      insert: vi.fn().mockReturnThis(),
-      update: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      single: vi.fn().mockResolvedValue({ data: { id: 'acc-1', plan: 'basic' }, error: null }),
-    }),
-  }),
-}))
+const getProfileMock = vi.hoisted(() => vi.fn().mockResolvedValue({ account_id: 'acc-1' }))
+vi.mock('@/lib/auth', () => ({ getProfile: getProfileMock }))
+
+const mockSql = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/db', () => ({ db: () => mockSql }))
 
 vi.mock('@/lib/openrouter', () => ({
   callOpenRouter: vi.fn().mockResolvedValue(
@@ -22,6 +14,12 @@ vi.mock('@/lib/openrouter', () => ({
 }))
 
 describe('POST /api/onboarding/complete', () => {
+  beforeEach(() => {
+    mockSql.mockClear()
+    getProfileMock.mockClear()
+    getProfileMock.mockResolvedValue({ account_id: 'acc-1' })
+  })
+
   it('returns 400 when brandName is missing', async () => {
     const req = new NextRequest('http://localhost/api/onboarding/complete', {
       method: 'POST',
@@ -32,13 +30,12 @@ describe('POST /api/onboarding/complete', () => {
     expect(res.status).toBe(400)
     const json = await res.json()
     expect(json.error).toBe('brandName required')
+    // Body validation happens before any database work.
+    expect(mockSql).not.toHaveBeenCalled()
   })
 
   it('returns 401 when unauthenticated', async () => {
-    const { createServerSupabaseClient } = await import('@/lib/supabase-server')
-    vi.mocked(createServerSupabaseClient).mockResolvedValueOnce({
-      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null } }) },
-    } as never)
+    getProfileMock.mockResolvedValue(null)
     const req = new NextRequest('http://localhost/api/onboarding/complete', {
       method: 'POST',
       body: JSON.stringify({ brandName: 'Test', domain: 'test.com' }),
@@ -46,5 +43,6 @@ describe('POST /api/onboarding/complete', () => {
     })
     const res = await POST(req)
     expect(res.status).toBe(401)
+    expect(mockSql).not.toHaveBeenCalled()
   })
 })

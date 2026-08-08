@@ -21,7 +21,11 @@ if (fs.existsSync(envPath)) {
  * Set BASE_URL env var to target staging / production.
  */
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: '.',
+  testMatch: [
+    'tests/e2e/**/*.spec.ts',
+    'e2e/**/*.spec.ts',
+  ],
   globalSetup: './tests/globalSetup.ts',
   globalTeardown: './tests/globalTeardown.ts',
   fullyParallel: true,
@@ -48,6 +52,7 @@ export default defineConfig({
     },
     {
       name: 'mobile',
+      testIgnore: 'e2e/**/*.spec.ts',
       use: { ...devices['Pixel 5'] },
     },
   ],

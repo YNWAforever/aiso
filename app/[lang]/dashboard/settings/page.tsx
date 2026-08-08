@@ -1,10 +1,22 @@
+import { getTranslations } from 'next-intl/server'
+import { ReportBrandingForm } from '@/components/reports/ReportBrandingForm'
 import { requireAuth } from '@/lib/auth'
+import { loadReportBranding } from '@/lib/reports/store'
 import Link from 'next/link'
+import { getPlanDefinition } from '@/lib/plans/catalog'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 
 const PLAN_LABELS: Record<string, string> = {
-  basic: 'Basic — $29/month',
-  pro: 'Pro — $79/month',
-  enterprise: 'Enterprise — $199/month',
+  free: 'Free',
+  basic: `Basic — $${getPlanDefinition('basic').monthlyPriceUsd}/month`,
+  pro: `Pro — $${getPlanDefinition('pro').monthlyPriceUsd}/month`,
+  enterprise: `Enterprise — $${getPlanDefinition('enterprise').monthlyPriceUsd}/month`,
+}
+
+const UPGRADE_LABELS: Record<string, string> = {
+  free: 'Upgrade to Basic →',
+  basic: 'Upgrade to Pro →',
+  pro: 'Upgrade to Enterprise →',
 }
 
 export default async function SettingsPage({
@@ -14,7 +26,12 @@ export default async function SettingsPage({
 }) {
   const { lang } = await params
   const profile = await requireAuth(lang)
-  const plan    = profile.accounts?.plan ?? 'basic'
+  const reportT = await getTranslations('reportBranding')
+  const entitlement = resolveCommercialEntitlement(profile.accounts)
+  const plan = entitlement.plan
+  const reportBranding = entitlement.features.client_reports_online
+    ? await loadReportBranding({ accountId: profile.account_id })
+    : null
   const status  = profile.accounts?.status ?? 'active'
   const hasStripe = Boolean(profile.accounts?.stripe_customer_id)
 
@@ -25,7 +42,7 @@ export default async function SettingsPage({
         <p className="text-2xs text-muted-foreground">Manage your subscription plan and billing.</p>
       </div>
 
-      <main className="flex-1 px-6 py-6 max-w-lg">
+      <main className="flex-1 px-6 py-6 max-w-5xl space-y-8">
         <div className="rounded-xl border border-border bg-card p-6 space-y-5 shadow-sm">
           <div>
             <p className="text-xs font-semibold text-muted-foreground tracking-widest uppercase mb-3">Current Plan</p>
@@ -56,17 +73,46 @@ export default async function SettingsPage({
             </div>
           )}
 
-          {(plan === 'basic' || plan === 'pro') && (
+          {(plan === 'free' || plan === 'basic' || plan === 'pro') && (
             <div className="border-t border-border pt-4">
               <Link
                 href={`/${lang}/pricing`}
                 className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-secondary text-foreground border border-border hover:bg-secondary/80 transition-colors"
               >
-                {plan === 'basic' ? 'Upgrade to Pro →' : 'Upgrade to Enterprise →'}
+                {UPGRADE_LABELS[plan]}
               </Link>
             </div>
           )}
         </div>
+        <section id="report-branding" className="scroll-mt-6">
+          <div className="mb-4">
+            <h2 className="text-lg font-bold text-foreground">{reportT('title')}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{reportT('settings_body')}</p>
+          </div>
+          {entitlement.features.client_reports_online ? (
+            <ReportBrandingForm
+              initialBranding={reportBranding ?? {
+                agencyName: '',
+                logoUrl: null,
+                primaryColor: '#1D4ED8',
+                contactLabel: null,
+                contactUrl: null,
+              }}
+            />
+          ) : (
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+              <p className="font-semibold text-foreground">{reportT('upgrade_title')}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{reportT('upgrade_body')}</p>
+              <Link
+                href={`/${lang}/pricing`}
+                className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {reportT('upgrade_cta')}
+              </Link>
+            </div>
+          )}
+        </section>
+
       </main>
     </>
   )

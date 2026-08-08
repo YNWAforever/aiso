@@ -8,9 +8,19 @@ import { NextRequest } from 'next/server'
 // Set required env vars before any module is loaded
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test'
 
+const dbState = vi.hoisted(() => ({ insertValues: [] as unknown[] }))
+
 // ── Mocks ───────────────────────────────────────────────────────
 // Mock all 20 checks to return known values
-vi.mock('@/lib/checks/robots',          () => ({ checkRobots:          vi.fn().mockResolvedValue({ status: 'pass', message: 'robots_ai_allowed' }) }))
+vi.mock('@/lib/checks/robots',          () => ({ checkRobots:          vi.fn().mockResolvedValue({
+  status: 'pass',
+  message: 'robots_ai_allowed',
+  raw: 'PRIVATE_RAW_SENTINEL',
+  details: {
+    private: 'PRIVATE_DETAIL_SENTINEL',
+    url: 'https://private.example.test/internal',
+  },
+}) }))
 vi.mock('@/lib/checks/llmsTxt',         () => ({ checkLlmsTxt:         vi.fn().mockResolvedValue({ status: 'fail', message: 'llms_txt_missing' }) }))
 vi.mock('@/lib/checks/botAccess',       () => ({ checkBotAccess:       vi.fn().mockResolvedValue({ status: 'pass', message: 'bots_all_accessible' }) }))
 vi.mock('@/lib/checks/structuredData',  () => ({ checkStructuredData:  vi.fn().mockResolvedValue({ status: 'warn', message: 'structured_data_found' }) }))
@@ -33,13 +43,30 @@ vi.mock('@/lib/checks/chunkability',    () => ({ checkChunkability:    vi.fn().m
 
 // Tagged-template SQL mock for the Neon client — the scan insert returns the new row id
 vi.mock('@/lib/db', () => {
-  const sql = async (strings: TemplateStringsArray) => {
+  const sql = async (strings: TemplateStringsArray, ...values: unknown[]) => {
     const q = Array.from(strings).join(' ')
-    if (/insert into scans/i.test(q)) return [{ id: 'scan-abc' }]
+    if (/insert into scans/i.test(q)) {
+      dbState.insertValues = values
+      return [{ id: 'scan-abc' }]
+    }
     return []
   }
   return { db: () => sql }
 })
+
+
+vi.mock('@/lib/security/public-url', () => ({
+  PublicUrlError: class PublicUrlError extends Error {},
+  fetchPublicUrl: (input: string | URL | Request, init?: RequestInit) => fetch(input, init),
+}))
+vi.mock('@/lib/security/public-scan-rate-limit', () => ({
+  consumePublicScanRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 4, resetAt: 2_000_000_000 }),
+  rateLimitHeaders: () => new Headers({
+    'RateLimit-Limit': '5',
+    'RateLimit-Remaining': '4',
+    'RateLimit-Reset': '2000000000',
+  }),
+}))
 
 vi.mock('@/lib/auth', () => ({
   getProfile: vi.fn().mockResolvedValue(null), // anonymous scan
@@ -55,6 +82,7 @@ describe('POST /api/scan — full scan flow', () => {
     // Clear call history only — don't wipe mock implementations
     fetchMock.mockClear()
     fetchMock.mockResolvedValue(new Response('ok', { status: 200 }))
+    dbState.insertValues = []
   })
 
   it('returns 400 when URL is missing', async () => {
@@ -68,6 +96,20 @@ describe('POST /api/scan — full scan flow', () => {
     expect(res.status).toBe(400)
     const json = await res.json()
     expect(json.error).toMatch(/url/i)
+  })
+
+  it('returns 400 for malformed JSON', async () => {
+    const { POST } = await import('@/app/api/scan/route')
+    const req = new NextRequest('http://localhost/api/scan', {
+      method: 'POST',
+      body: '{"url":',
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const res = await POST(req)
+
+    expect(res.status).toBe(400)
+    await expect(res.json()).resolves.toEqual({ error: 'Invalid JSON body' })
   })
 
   it('returns scan id, score, and grade on success', async () => {
@@ -148,7 +190,7 @@ describe('POST /api/scan — full scan flow', () => {
     expect(n8nCall).toBeUndefined()
   })
 
-  it('includes all 20 check results in response', async () => {
+  it('returns only anonymous scan continuation fields without private scan details', async () => {
     const { POST } = await import('@/app/api/scan/route')
     const req = new NextRequest('http://localhost/api/scan', {
       method: 'POST',
@@ -157,10 +199,32 @@ describe('POST /api/scan — full scan flow', () => {
     })
     const res = await POST(req)
     const json = await res.json()
-    const resultKeys = Object.keys(json.results ?? {})
-    // At minimum the core checks should be present
-    expect(resultKeys).toContain('c1_robots')
-    expect(resultKeys).toContain('c2_llms_txt')
-    expect(resultKeys).toContain('c5_extractability')
+
+    expect(Object.keys(json).sort()).toEqual(['grade', 'id', 'score'])
+    expect(json).not.toHaveProperty('results')
+    expect(json).not.toHaveProperty('raw')
+    expect(json).not.toHaveProperty('details')
+    expect(json).not.toHaveProperty('url')
+    expect(json).not.toHaveProperty('private')
+    expect(JSON.stringify(json)).not.toContain('PRIVATE_RAW_SENTINEL')
+    expect(JSON.stringify(json)).not.toContain('PRIVATE_DETAIL_SENTINEL')
+    expect(JSON.stringify(json)).not.toContain('private.example.test')
+  })
+
+  it('persists full scan details even though the response is gated', async () => {
+    const { POST } = await import('@/app/api/scan/route')
+    const req = new NextRequest('http://localhost/api/scan', {
+      method: 'POST',
+      body: JSON.stringify({ url: 'https://example.com' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    await POST(req)
+
+    const persistedResults = dbState.insertValues[3]
+    expect(typeof persistedResults).toBe('string')
+    expect(persistedResults).toContain('PRIVATE_RAW_SENTINEL')
+    expect(persistedResults).toContain('PRIVATE_DETAIL_SENTINEL')
+    expect(persistedResults).toContain('private.example.test')
   })
 })

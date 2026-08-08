@@ -94,10 +94,15 @@ export interface Account {
   stripe_subscription_id: string | null
   plan: 'basic' | 'pro' | 'enterprise'
   status: 'active' | 'past_due' | 'cancelled' | 'trialing'
-  trial_started_at: string | null
-  trial_ends_at: string | null
+  // These four are `timestamptz`, and the Neon driver returns those as a JS
+  // `Date`. They were typed `string` only, which is why lib/tier.ts's
+  // `typeof … === 'string'` trial check silently never matched.
+  trial_started_at: string | Date | null
+  trial_ends_at: string | Date | null
   trial_emails_sent: number
-  created_at: string
+  created_at: string | Date
+  override_plan: string | null
+  override_expires_at: string | Date | null
 }
 
 export interface Profile {
@@ -116,7 +121,10 @@ export interface ProfileWithAccount extends Profile {
 export interface PromptBankItem {
   id: string
   client_id: string
-  category: string
+  // Nullable in the database (002_phase2.sql:13) and written by an LLM, so a row
+  // may carry no category at all. Typing this `string` let grouping code index
+  // by null and produce a section literally keyed "null".
+  category: string | null
   question: string
   language: string
   is_active: boolean
@@ -297,21 +305,7 @@ export interface ClientOverview {
   missedOpportunities: Pick<PulseMetric, 'platform' | 'question' | 'competitors_mentioned' | 'scan_week'>[]
 }
 
-export interface PlanFeatures {
-  plan: 'basic' | 'pro' | 'enterprise'
-  platform_access: string[]
-  agent_recs: boolean
-  agent_progress: boolean
-  agent_competitors: boolean
-  alerts: boolean
-  csv_export: boolean
-  max_brands: number
-  history_weeks: number
-  edit_prompts: boolean
-  local_trust_roi: boolean
-  local_trust_competitors: boolean
-  local_trust_export: boolean
-}
+export type { PlanFeatures } from '@/lib/plans/catalog'
 
 export type LocalTrustBucketKey = 'local_visibility' | 'proof_depth' | 'ai_answer_readiness' | 'market_authority'
 export type LocalTrustActionStatus = 'open' | 'planned' | 'done' | 'skipped'

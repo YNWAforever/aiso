@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronRight, Zap, X } from 'lucide-react'
 
@@ -125,7 +125,24 @@ export function OnboardingWizard({
   const router = useRouter()
   const isZh = lang === 'zh-HK'
   const c = isZh ? COPY_ZH_HK : COPY_EN
-  const [step, setStep] = useState(1)
+  const hasScanPrefill = Boolean(scanId && initialBrand && initialDomain)
+  const [step, setStep] = useState(hasScanPrefill ? 3 : 1)
+  const previousStepRef = useRef(step)
+  const brandInputRef = useRef<HTMLInputElement>(null)
+  const domainInputRef = useRef<HTMLInputElement>(null)
+  const industrySelectRef = useRef<HTMLSelectElement>(null)
+  const descriptionInputRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (previousStepRef.current === step) return
+    previousStepRef.current = step
+    if (!window.matchMedia('(min-width: 768px)').matches) return
+    const target = step === 1 ? brandInputRef.current
+      : step === 2 ? domainInputRef.current
+        : step === 3 ? industrySelectRef.current
+          : descriptionInputRef.current
+    target?.focus()
+  }, [step])
 
   const [brand, setBrand]           = useState(initialBrand)
   const [domain, setDomain]         = useState(normaliseDomain(initialDomain))
@@ -173,9 +190,13 @@ export function OnboardingWizard({
     })
     const data = await res.json()
     if (!res.ok) { setError(data.error ?? c.genericError); setLoading(false); return }
-    // Go straight to the scan step with the brand domain pre-filled
-    // This triggers an immediate scan (which fires n8n) rather than leaving the user in an empty dashboard
-    const scanUrl = domain ? `?step=scan&url=${encodeURIComponent(domain.startsWith('http') ? domain : `https://${domain}`)}` : '?step=scan'
+    if (scanId) {
+      router.push(`/${lang}/dashboard/${data.clientId}/result/${scanId}`)
+      return
+    }
+    const scanUrl = domain
+      ? `?step=scan&url=${encodeURIComponent(domain.startsWith('http') ? domain : `https://${domain}`)}`
+      : '?step=scan'
     router.push(`/${lang}/dashboard/${data.clientId}${scanUrl}`)
   }
 
@@ -211,10 +232,12 @@ export function OnboardingWizard({
         {/* ── Step 1: Brand name ── */}
         {step === 1 && (
           <div>
-            <h1 className="text-xl font-black text-foreground mb-1">{c.s1Title}</h1>
+            <label htmlFor="onboarding-brand" className="block text-xl font-black text-foreground mb-1">{c.s1Title}</label>
             <p className="text-sm text-muted-foreground mb-6">{c.s1Subtitle}</p>
             <input
-              autoFocus
+              id="onboarding-brand"
+              name="brandName"
+              ref={brandInputRef}
               value={brand}
               onChange={e => setBrand(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && brand.trim() && setStep(2)}
@@ -230,12 +253,14 @@ export function OnboardingWizard({
         {/* ── Step 2: Domain ── */}
         {step === 2 && (
           <div>
-            <h1 className="text-xl font-black text-foreground mb-1">{c.s2Title}</h1>
+            <label htmlFor="onboarding-domain" className="block text-xl font-black text-foreground mb-1">{c.s2Title}</label>
             <p className="text-sm text-muted-foreground mb-1">{c.s2Subtitle}</p>
             <p className="text-2xs text-muted-foreground/60 mb-5">{c.s2HintPrefix} <span className="font-mono bg-muted px-1 rounded">fimmick.com</span> {c.s2HintNot} <span className="font-mono bg-muted px-1 rounded">https://www.fimmick.com</span></p>
             <div className="relative mb-6">
               <input
-                autoFocus
+                id="onboarding-domain"
+                name="domain"
+                ref={domainInputRef}
                 value={domain}
                 onChange={e => handleDomainChange(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && setStep(3)}
@@ -266,16 +291,22 @@ export function OnboardingWizard({
             <h1 className="text-xl font-black text-foreground mb-1">{c.s3Title}</h1>
             <p className="text-sm text-muted-foreground mb-6">{c.s3Subtitle}</p>
             <div className="space-y-3 mb-6">
-              <select value={industry} onChange={e => setIndustry(e.target.value)}
-                className="w-full h-11 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
-                <option value="">{c.industryPlaceholder}</option>
-                {INDUSTRIES.map(i => <option key={i.value} value={i.value}>{isZh ? i.labelZh : i.labelEn}</option>)}
-              </select>
-              <select value={region} onChange={e => setRegion(e.target.value)}
-                className="w-full h-11 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
-                <option value="">{c.regionPlaceholder}</option>
-                {REGIONS.map(r => <option key={r.value} value={r.value}>{isZh ? r.labelZh : r.labelEn}</option>)}
-              </select>
+              <div>
+                <label htmlFor="onboarding-industry" className="block text-xs font-semibold text-foreground mb-1.5">{c.industryPlaceholder}</label>
+                <select id="onboarding-industry" name="industry" ref={industrySelectRef} value={industry} onChange={e => setIndustry(e.target.value)}
+                  className="w-full h-11 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
+                  <option value="">{c.industryPlaceholder}</option>
+                  {INDUSTRIES.map(i => <option key={i.value} value={i.value}>{isZh ? i.labelZh : i.labelEn}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="onboarding-region" className="block text-xs font-semibold text-foreground mb-1.5">{c.regionPlaceholder}</label>
+                <select id="onboarding-region" name="region" value={region} onChange={e => setRegion(e.target.value)}
+                  className="w-full h-11 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
+                  <option value="">{c.regionPlaceholder}</option>
+                  {REGIONS.map(r => <option key={r.value} value={r.value}>{isZh ? r.labelZh : r.labelEn}</option>)}
+                </select>
+              </div>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setStep(2)} className={btnBack}>{c.back}</button>
@@ -299,10 +330,13 @@ export function OnboardingWizard({
 
             {/* Brand description */}
             <div className="mb-4">
-              <label className="block text-xs font-semibold text-foreground mb-1.5">
+              <label htmlFor="onboarding-description" className="block text-xs font-semibold text-foreground mb-1.5">
                 {c.descLabel} <span className="text-muted-foreground font-normal">{c.optional}</span>
               </label>
               <textarea
+                id="onboarding-description"
+                name="description"
+                ref={descriptionInputRef}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 placeholder={c.descPlaceholder(brand)}
@@ -313,12 +347,14 @@ export function OnboardingWizard({
 
             {/* Competitors */}
             <div className="mb-6">
-              <label className="block text-xs font-semibold text-foreground mb-1.5">
+              <label htmlFor="onboarding-competitor" className="block text-xs font-semibold text-foreground mb-1.5">
                 {c.competitorsLabel} <span className="text-muted-foreground font-normal">{c.optional}</span>
               </label>
               <p className="text-2xs text-muted-foreground mb-2">{c.competitorsHint}</p>
               <div className="flex gap-2 mb-2">
                 <input
+                  id="onboarding-competitor"
+                  name="competitor"
                   value={competitorInput}
                   onChange={e => setCompetitorInput(e.target.value)}
                   onKeyDown={e => {

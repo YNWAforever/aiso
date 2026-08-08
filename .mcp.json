@@ -1,15 +1,13 @@
 {
   "mcpServers": {
-    "supabase": {
+    "neon": {
       "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
-        "@supabase/mcp-server-supabase@latest",
-        "--project-ref",
-        "ankmnirpytvbidyjyujh"
-      ],
-      "env": {}
+        "@modelcontextprotocol/server-postgres@0.6.2",
+        "${DATABASE_URL}"
+      ]
     },
     "n8n-mcp": {
       "type": "stdio",
@@ -20,7 +18,7 @@
         "--streamableHttp",
         "https://anfield-n8n.zeabur.app/mcp-server/http",
         "--header",
-        "authorization:Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhYTdlYWY5NC1lYjg1LTQ4NmItYTY0NC04ZDRmN2JjOGQzZDkiLCJpc3MiOiJuOG4iLCJhdWQiOiJtY3Atc2VydmVyLWFwaSIsImp0aSI6ImQ4N2MyNzlkLTUxZjgtNDIzNS04YjY3LTZlOTc1YzQ4MzJlMyIsImlhdCI6MTc4MDE3MTE2N30._W2PbYsR_EA5rHIJpdTH-Qk7Yu7RaOquT2QCg5uHb9E"
+        "authorization:Bearer ${N8N_MCP_TOKEN}"
       ]
     }
   }

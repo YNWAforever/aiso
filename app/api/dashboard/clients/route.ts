@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProfile } from '@/lib/auth'
-import { supabase }   from '@/lib/supabase'
-import { maxBrandsForPlan } from '@/lib/tier'
+import { db } from '@/lib/db'
+import { sanitizeDatabaseError } from '@/lib/observability/database-error'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,21 +11,9 @@ export async function POST(req: NextRequest) {
   const profile = await getProfile()
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const plan  = profile.accounts?.plan ?? 'basic'
-  const limit = maxBrandsForPlan(plan)
-
-  // Count existing brands for this account
-  const { count } = await supabase
-    .from('clients')
-    .select('*', { count: 'exact', head: true })
-    .eq('account_id', profile.account_id)
-
-  if ((count ?? 0) >= limit) {
-    return NextResponse.json(
-      { error: 'BRAND_LIMIT_REACHED', plan, limit },
-      { status: 403 }
-    )
-  }
+  const entitlement = resolveCommercialEntitlement(profile.accounts)
+  const { plan } = entitlement
+  const limit = entitlement.features.max_brands
 
   const body = await req.json()
   const { brand_name, domain, industry, competitors } = body
@@ -33,26 +22,53 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'brand_name required' }, { status: 400 })
   }
 
-  const { data, error } = await supabase
-    .from('clients')
-    .insert({
-      brand_name:  brand_name.trim(),
-      domain:      domain?.trim()     ?? null,
-      industry:    industry           ?? null,
-      competitors: Array.isArray(competitors) ? competitors : [],
-      account_id:  profile.account_id,
-      status:      'active',
-    })
-    .select('id')
-    .single()
+  const sql = db()
 
-  if (error) {
-    // DB trigger raises BRAND_LIMIT_REACHED if a concurrent request won the race
-    if (error.message?.includes('BRAND_LIMIT_REACHED')) {
+  try {
+    // Application-level check for a clear error before hitting the database.
+    // The check_brand_limit() trigger is the authority and catches the race.
+    const counted = await sql`
+      select count(*)::int as n from clients where account_id = ${profile.account_id}
+    `
+    if ((counted[0]?.n ?? 0) >= limit) {
       return NextResponse.json({ error: 'BRAND_LIMIT_REACHED', plan, limit }, { status: 403 })
     }
+
+    // clients.competitors is text[], not jsonb — pass the array straight
+    // through and let the driver serialize it as a Postgres array literal.
+    const rows = await sql`
+      insert into clients (brand_name, domain, industry, competitors, account_id, status)
+      values (
+        ${brand_name.trim()},
+        ${domain?.trim() ?? null},
+        ${industry ?? null},
+        ${(Array.isArray(competitors) ? competitors : []) as string[]}::text[],
+        ${profile.account_id},
+        'active'
+      )
+      returning id
+    `
+    return NextResponse.json({ id: rows[0].id })
+  } catch (err) {
+    // Neon throws where supabase-js resolved { data, error }. The trigger raises
+    // BRAND_LIMIT_REACHED when a concurrent request won the race.
+    const message = err instanceof Error ? err.message : String(err)
+    if (message.includes('BRAND_LIMIT_REACHED')) {
+      return NextResponse.json({ error: 'BRAND_LIMIT_REACHED', plan, limit }, { status: 403 })
+    }
+
+    const diagnostic = sanitizeDatabaseError(err, {
+      correlationId: crypto.randomUUID(),
+      route: '/api/dashboard/clients',
+    })
+    console.error({
+      event: 'brand_create_database_error',
+      correlationId: diagnostic.correlationId,
+      database: {
+        code: diagnostic.code,
+        category: diagnostic.category,
+      },
+    })
     return NextResponse.json({ error: 'Failed to create brand' }, { status: 500 })
   }
-
-  return NextResponse.json({ id: data.id })
 }

@@ -63,6 +63,8 @@
 
 /* ── Dark mode tokens ──────────────────────────────────────── */
 .dark {
+  color-scheme: dark;
+
   --background:             #050510;
   --foreground:             #e0e0ec;
 
@@ -228,4 +230,16 @@ body {
 *::before,
 *::after {
   border-color: var(--border);
+}
+
+html { scroll-behavior: smooth; }
+[id] { scroll-margin-top: 5rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

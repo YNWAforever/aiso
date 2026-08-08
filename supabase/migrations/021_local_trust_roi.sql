@@ -1,27 +1,27 @@
 -- Local Trust ROI
+--
+-- This migration has never been applied (no local_trust_* table exists in Neon).
+--
+-- It originally opened by adding three local_trust_* entitlement flags to
+-- public.plan_features and backfilling them per plan. Those six statements have
+-- been removed, because migration 028 drops plan_features: it was an orphaned
+-- third definition of plan entitlements, read by zero application code. Keeping
+-- them would make this file fail at its first statement with
+-- `relation "plan_features" does not exist` once 028 is applied, blocking the
+-- local-trust tables below — which are the part that actually matters.
+--
+-- The flags themselves are not lost. PLAN_CATALOG in lib/plans/catalog.ts is the
+-- live source of truth and already carries local_trust_roi,
+-- local_trust_competitors and local_trust_export as PlanFeatures fields, which
+-- lib/tier.ts resolves via getPlanFeatures(). Nothing later in this file
+-- referenced the removed columns, so the rest is unchanged.
+--
+-- See git history for the removed statements.
 
-alter table plan_features add column if not exists local_trust_roi boolean not null default false;
-alter table plan_features add column if not exists local_trust_competitors boolean not null default false;
-alter table plan_features add column if not exists local_trust_export boolean not null default false;
-
-update plan_features set
-  local_trust_roi = false,
-  local_trust_competitors = false,
-  local_trust_export = false
-where plan = 'basic';
-
-update plan_features set
-  local_trust_roi = true,
-  local_trust_competitors = false,
-  local_trust_export = false
-where plan = 'pro';
-
-update plan_features set
-  local_trust_roi = true,
-  local_trust_competitors = true,
-  local_trust_export = true
-where plan = 'enterprise';
-
+-- Guarded so a partially-applied run can be retried. Everything else in this
+-- file already uses `if not exists` / `drop ... if exists`; this lone bare
+-- `add constraint` would abort a re-run and leave the operator stuck.
+alter table clients drop constraint if exists clients_id_account_id_unique;
 alter table clients add constraint clients_id_account_id_unique unique (id, account_id);
 
 create table if not exists local_trust_profiles (

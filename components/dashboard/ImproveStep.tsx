@@ -4,21 +4,22 @@ import { AgentRecommendations } from '@/components/dashboard/AgentRecommendation
 import { AgentProgress } from '@/components/dashboard/AgentProgress'
 import { AgentCompetitors } from '@/components/dashboard/AgentCompetitors'
 import { LockedFeature } from '@/components/dashboard/LockedFeature'
-import { getPlanFeatures } from '@/lib/tier'
+import { PLAN_CATALOG } from '@/lib/plans/catalog'
 import type { Scan, AgentRecommendation, AgentProgress as AgentProgressType, AgentCompetitor } from '@/lib/types'
 
 type Props = {
   scan: Scan
-  plan: string
+  features: import('@/lib/types').PlanFeatures
   recommendations: AgentRecommendation[]
   progress: AgentProgressType[]
   competitors: AgentCompetitor[]
 }
 
-export function ImproveStep({ scan, plan, recommendations, progress, competitors }: Props) {
+export function ImproveStep({ scan, features, recommendations, progress, competitors }: Props) {
   const t = useTranslations('dashboard')
-  const features = getPlanFeatures(plan)
   const allowedRecs = recommendations.filter(r => features.platform_access.includes(r.platform))
+  const proPrice = `$${PLAN_CATALOG.pro.monthlyPriceUsd}/month`
+  const enterprisePrice = `$${PLAN_CATALOG.enterprise.monthlyPriceUsd}/month`
 
   return (
     <AgentSection status={scan.agent_status}>
@@ -26,13 +27,13 @@ export function ImproveStep({ scan, plan, recommendations, progress, competitors
         {features.agent_recs ? (
           <AgentRecommendations recommendations={allowedRecs} />
         ) : (
-          <LockedFeature feature={t('feature_recs')} requiredPlan="Pro" price="$79/month" />
+          <LockedFeature feature={t('feature_recs')} requiredPlan="Pro" price={proPrice} />
         )}
 
         {features.agent_progress ? (
           <AgentProgress progress={progress} />
         ) : (
-          <LockedFeature feature={t('feature_progress')} requiredPlan="Pro" price="$79/month">
+          <LockedFeature feature={t('feature_progress')} requiredPlan="Pro" price={proPrice}>
             <AgentProgress progress={progress} />
           </LockedFeature>
         )}
@@ -40,7 +41,7 @@ export function ImproveStep({ scan, plan, recommendations, progress, competitors
         {features.agent_competitors ? (
           <AgentCompetitors competitors={competitors} />
         ) : (
-          <LockedFeature feature={t('feature_competitors')} requiredPlan="Enterprise" price="$199/month">
+          <LockedFeature feature={t('feature_competitors')} requiredPlan="Enterprise" price={enterprisePrice}>
             <AgentCompetitors competitors={competitors.slice(0, 1)} />
           </LockedFeature>
         )}

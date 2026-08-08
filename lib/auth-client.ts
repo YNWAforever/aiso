@@ -1,7 +1,8 @@
 'use client'
 import { createAuthClient } from '@neondatabase/auth/next'
+import { normalizeAuthNext } from '@/lib/auth-navigation'
 
-// Shared singleton — LoginForm, TrialCta, and AuthComplete all need the same
+// Shared singleton — LoginForm, AccountUnlockCard, and AuthComplete use the same
 // browser-side Neon Auth client; there's no per-component config to justify
 // separate instances.
 export const authClient = createAuthClient()
@@ -14,5 +15,25 @@ export const authClient = createAuthClient()
  */
 export function buildAuthCompleteUrl(lang: string, next: string): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
-  return `${origin}/${lang}/auth/complete?next=${encodeURIComponent(next)}`
+  const safeNext = normalizeAuthNext(lang, next)
+  return `${origin}/${lang}/auth/complete?next=${encodeURIComponent(safeNext)}`
+}
+export function buildGoogleAuthStartUrl(lang: string, next: string): string {
+  const safeNext = normalizeAuthNext(lang, next)
+  return `/${lang}/auth/google?next=${encodeURIComponent(safeNext)}`
+}
+
+type GoogleAuthStartResponse = {
+  data?: unknown
+  error?: { code?: string; message?: string } | null
+}
+
+export async function startGoogleAuthRedirect<T extends GoogleAuthStartResponse>(
+  request: () => Promise<T>,
+): Promise<T | { data: null; error: { code: 'GOOGLE_AUTH_START_FAILED' } }> {
+  try {
+    return await request()
+  } catch {
+    return { data: null, error: { code: 'GOOGLE_AUTH_START_FAILED' } }
+  }
 }

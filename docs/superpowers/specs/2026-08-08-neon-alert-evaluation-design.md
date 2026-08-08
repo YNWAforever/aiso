@@ -7,14 +7,14 @@ Status: design approved; implementation pending written-spec review
 
 The alert-evaluation domain logic is already isolated in `lib/alerts/evaluate.ts`, but the cron adapter currently uses Supabase PostgREST, Supabase service-role authentication lookups, and a Supabase RPC. This repository's active application database and authentication source are Neon and Neon Auth. Migration 022 already points `profiles.id` at `neon_auth.user(id)`.
 
-Migrations 023 and 024 have not been applied. They currently mix useful PostgreSQL indexes with a Supabase-specific `get_alert_weekly_snapshot` function and Supabase role grants. The correction must make the alert path Neon-native without attempting a live migration or changing unrelated legacy Supabase modules.
+Migrations 033 and 034 have not been applied. They currently mix useful PostgreSQL indexes with a Supabase-specific `get_alert_weekly_snapshot` function and Supabase role grants. The correction must make the alert path Neon-native without attempting a live migration or changing unrelated legacy Supabase modules.
 
 ## Goals
 
 - Make the alert cron route use the existing Neon `db()` connection and the Neon Auth database tables.
 - Keep the evaluator provider-agnostic and preserve its existing alert semantics and `{ processed, fired }` response.
 - Preserve bounded reads, deterministic snapshot selection, and notification idempotency.
-- Replace the unapplied 023/024 SQL with ordinary PostgreSQL index migrations that work on Neon.
+- Replace the unapplied 033/034 SQL with ordinary PostgreSQL index migrations that work on Neon.
 - Add focused tests that exercise the adapter contract and migration safety before any database branch verification.
 
 ## Non-goals
@@ -74,16 +74,16 @@ The evaluator first computes all actions from the loaded snapshot. For each fire
 
 ## Migration design
 
-Because 023 and 024 are unapplied, rewrite them in place rather than adding a third corrective migration.
+Because 033 and 034 are unapplied, rewrite them in place rather than adding a third corrective migration.
 
-### 023: alert evaluation hardening
+### 033: alert evaluation hardening
 
 - Drop the old `public.notifications_dedup_idx` if present.
 - Create the non-partial unique index `notifications_dedup_idx` on `public.notifications (client_id, type, scan_week)`.
 - Create the initial `pulse_weekly_summary_alert_snapshot_idx` on `(client_id, scan_week DESC, id DESC)` with `WHERE platform IS NULL`.
 - Remove the `get_alert_weekly_snapshot` function, `SECURITY DEFINER`, `SET search_path`, and all `PUBLIC`, `anon`, `authenticated`, and `service_role` grants/revokes.
 
-### 024: snapshot refinement
+### 034: snapshot refinement
 
 - Drop `public.pulse_weekly_summary_alert_snapshot_idx` if present.
 - Recreate it on `(client_id, scan_week DESC, created_at DESC NULLS LAST, id DESC)` with `WHERE platform IS NULL`.
@@ -116,7 +116,7 @@ Replace the Supabase-specific alert route fixtures with Neon adapter tests that 
 - Snapshot failures prevent evaluation; notification and email failures remain isolated per action.
 - The route preserves cron authentication, response counts, and error handling.
 
-Keep the existing evaluator tests unchanged except where the corrected adapter contract requires fixture naming updates. Add static migration assertions proving that 023/024 contain the required indexes and contain none of the removed Supabase RPC or role-grant statements.
+Keep the existing evaluator tests unchanged except where the corrected adapter contract requires fixture naming updates. Add static migration assertions proving that 033/034 contain the required indexes and contain none of the removed Supabase RPC or role-grant statements.
 
 ### Verification commands
 
@@ -129,7 +129,7 @@ After implementation and local verification, use a dedicated non-production Neon
 On the dedicated branch only:
 
 1. Prepare or create the branch for migration verification.
-2. Apply 023 and then 024 through the Neon migration workflow.
+2. Apply 033 and then 034 through the Neon migration workflow.
 3. Verify the indexes, absence of the alert RPC, latest-two-distinct-week behavior, notification deduplication, and Neon Auth email join with read-only SQL.
 4. Stop before production migration or cron invocation and request a separate explicit approval for any production action.
 
@@ -138,6 +138,6 @@ If the branch cannot be created or the Neon connection is unavailable, preserve 
 ## Risks and mitigations
 
 - Legacy Supabase modules may still be present. Scope checks must be limited to the alert route and adapter so those modules remain unchanged.
-- Migration 022 must already be present for the `profiles` to `neon_auth.user` relationship. Branch verification must confirm the prerequisite before applying 023/024.
+- Migration 022 must already be present for the `profiles` to `neon_auth.user` relationship. Branch verification must confirm the prerequisite before applying 033/034.
 - Neon Auth schema details can differ between local fixtures and the branch. The branch read-only verification must validate the actual `neon_auth.user` columns before claiming the join works.
 - Direct SQL can become expensive if the alert population grows. The 1,000-row keyset pagination and covering snapshot index keep reads bounded and make the query plan inspectable.
