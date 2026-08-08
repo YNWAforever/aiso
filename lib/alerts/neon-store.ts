@@ -96,7 +96,7 @@ async function loadConfigs(sql: Sql): Promise<AlertConfigWithClient[]> {
   let lastId: string | null = null
 
   for (;;) {
-    const rows = await sql<AlertConfigRow>`
+    const rows = (await sql`
       SELECT
         ac.id,
         ac.client_id,
@@ -117,7 +117,7 @@ async function loadConfigs(sql: Sql): Promise<AlertConfigWithClient[]> {
         AND (${lastId === null} OR ac.id > ${lastId})
       ORDER BY ac.id ASC
       LIMIT ${PAGE_SIZE}
-    `
+    `) as AlertConfigRow[]
     if (!rows.length) break
 
     for (const row of rows) {
@@ -146,7 +146,7 @@ async function loadConfigs(sql: Sql): Promise<AlertConfigWithClient[]> {
 }
 
 async function loadWeeklyRows(sql: Sql, clientIds: string[]): Promise<WeeklyRow[]> {
-  return sql<WeeklyRow>`
+  return (await sql`
     WITH latest_distinct_weeks AS (
       SELECT DISTINCT ON (summary.client_id, summary.scan_week)
         summary.client_id,
@@ -175,11 +175,11 @@ async function loadWeeklyRows(sql: Sql, clientIds: string[]): Promise<WeeklyRow[
     FROM ranked
     WHERE row_number <= 2
     ORDER BY client_id, row_number ASC
-  `
+  `) as WeeklyRow[]
 }
 
 async function loadEmailRows(sql: Sql, accountIds: string[]): Promise<EmailRow[]> {
-  return sql<EmailRow>`
+  return (await sql`
     SELECT DISTINCT ON (p.account_id)
       p.account_id,
       u.email
@@ -187,7 +187,7 @@ async function loadEmailRows(sql: Sql, accountIds: string[]): Promise<EmailRow[]
     LEFT JOIN neon_auth."user" AS u ON u.id = p.id
     WHERE p.account_id = ANY(${accountIds}::uuid[])
     ORDER BY p.account_id ASC, p.id ASC
-  `
+  `) as EmailRow[]
 }
 
 async function upsertNotification(sql: Sql, notification: AlertNotificationInput) {
