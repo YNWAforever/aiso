@@ -81,6 +81,9 @@ describe('createNeonAlertStore', () => {
     expect(configSqlCalls.every(call => call.params.length > 0)).toBe(true)
     expect(configSqlCalls[0].params).toContain(1000)
     expect(configSqlCalls[1].params).toContain('alert-1000')
+    expect(configSqlCalls[0].text).toMatch(/ORDER BY\s+ac\.id\s+ASC/i)
+    expect(configSqlCalls[1].text).toMatch(/ac\.id\s*>\s*\$\d+/i)
+    expect(configSqlCalls[1].text).toMatch(/ORDER BY\s+ac\.id\s+ASC/i)
   })
 
   it('normalizes numeric scores, preserves null scores, and joins Neon Auth email deterministically', async () => {
