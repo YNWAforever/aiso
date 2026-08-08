@@ -87,9 +87,13 @@ describe('createNeonAlertStore', () => {
   })
 
   it('normalizes numeric scores, preserves null scores, and joins Neon Auth email deterministically', async () => {
+    let configCalls = 0
     const { sql, calls } = makeSql(({ text }) => {
       const normalized = text.toLowerCase()
-      if (normalized.includes('from public.alert_configs')) return [configRow()]
+      if (normalized.includes('from public.alert_configs')) {
+        configCalls += 1
+        return configCalls === 1 ? [configRow()] : []
+      }
       if (normalized.includes('from public.pulse_weekly_summary')) {
         return [
           { client_id: 'client-1', scan_week: '2026-08-08', sov_score: '41.5' },
@@ -138,9 +142,14 @@ describe('createNeonAlertStore', () => {
   })
 
   it('propagates weekly snapshot read failures', async () => {
+    let configCalls = 0
     const { sql } = makeSql(({ text }) => {
-      if (text.toLowerCase().includes('from public.alert_configs')) return [configRow()]
-      if (text.toLowerCase().includes('from public.pulse_weekly_summary')) {
+      const normalized = text.toLowerCase()
+      if (normalized.includes('from public.alert_configs')) {
+        configCalls += 1
+        return configCalls === 1 ? [configRow()] : []
+      }
+      if (normalized.includes('from public.pulse_weekly_summary')) {
         throw new Error('snapshot unavailable')
       }
       return []
