@@ -8,7 +8,7 @@ const migrationSql = readFileSync(
 )
 
 describe('023_alert_evaluation_hardening.sql', () => {
-  it('keeps the original bounded snapshot index and initial latest-two-weeks RPC shape', () => {
+  it('creates only the notification deduplication and initial snapshot indexes', () => {
     expect(migrationSql).toMatch(
       /DROP INDEX IF EXISTS public\.notifications_dedup_idx;/si,
     )
@@ -18,23 +18,8 @@ describe('023_alert_evaluation_hardening.sql', () => {
     expect(migrationSql).toMatch(
       /CREATE INDEX IF NOT EXISTS pulse_weekly_summary_alert_snapshot_idx\s+ON public\.pulse_weekly_summary\s*\(\s*client_id,\s*scan_week DESC,\s*id DESC\s*\)\s+WHERE platform IS NULL;/si,
     )
-    expect(migrationSql).toMatch(
-      /row_number\(\)\s+OVER\s*\(\s*PARTITION BY summary\.client_id\s+ORDER BY summary\.scan_week DESC,\s*summary\.id DESC\s*\)\s+AS row_number/si,
-    )
-    expect(migrationSql).toMatch(
-      /FROM ranked\s+WHERE ranked\.row_number <= 2\s+ORDER BY ranked\.client_id,\s*ranked\.scan_week DESC;/si,
-    )
-    expect(migrationSql).toMatch(
-      /REVOKE ALL ON FUNCTION public\.get_alert_weekly_snapshot\(uuid\[\]\) FROM PUBLIC;/si,
-    )
-    expect(migrationSql).toMatch(
-      /REVOKE ALL ON FUNCTION public\.get_alert_weekly_snapshot\(uuid\[\]\) FROM anon;/si,
-    )
-    expect(migrationSql).toMatch(
-      /REVOKE ALL ON FUNCTION public\.get_alert_weekly_snapshot\(uuid\[\]\) FROM authenticated;/si,
-    )
-    expect(migrationSql).toMatch(
-      /GRANT EXECUTE ON FUNCTION public\.get_alert_weekly_snapshot\(uuid\[\]\) TO service_role;/si,
+    expect(migrationSql).not.toMatch(
+      /get_alert_weekly_snapshot|CREATE OR REPLACE FUNCTION|SECURITY DEFINER|SET search_path|\bGRANT\b|\bREVOKE\b|\banon\b|\bauthenticated\b|\bservice_role\b/i,
     )
   })
 })
