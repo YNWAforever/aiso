@@ -49,3 +49,18 @@ Focused verification:
 
 - The shared worktree already contains an untracked plan file at `docs/superpowers/plans/2026-08-08-alert-evaluation.md`; it was left untouched and not staged.
 - Dashboard URLs still depend on `NEXT_PUBLIC_APP_URL`, matching the prior route behavior.
+
+---
+
+## Accessibility coverage implementation
+
+- Added `@axe-core/playwright` and `tests/e2e/accessibility.spec.ts` for the English home, login, and fixture-result flows, including pre- and post-email-unlock scans and keyboard tab reachability assertions.
+- Added stable IDs and visually-hidden localized labels for the login, result, hero, and bottom scan inputs, plus the home industry and region selectors.
+- Associated conditional login/result errors with their inputs and announced them with `role="alert"` and `aria-live="polite"`.
+
+### Verification
+
+- Red: the new Playwright suite initially failed because `@axe-core/playwright` was absent.
+- Green local checks: `npm.cmd test -- __tests__/ci/e2e-fixtures.test.ts --run` (3 passed) and `npm.cmd run typecheck` passed.
+- Browser accessibility execution was attempted with `E2E_FIXTURE_MODE=1` and `START_DEV_SERVER=1`, but Next/Turbopack crashed before serving due to the sandbox-inaccessible inferred workspace root (`C:\Users\laich`).
+- `git diff --check` passed.
