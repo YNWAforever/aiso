@@ -1,5 +1,5 @@
 import { readFile, stat } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const requiredLayers = ['static', 'unit-contract', 'e2e-accessibility', 'build']
@@ -17,6 +17,7 @@ const requiredEntries = new Map([
 
 export async function validateTestManifest({ manifestPath = 'ci/pr-gate-manifest.json', cwd = process.cwd() } = {}) {
   const errors = []
+  const repositoryRoot = resolve(cwd)
   let manifest
 
   try {
@@ -70,11 +71,36 @@ export async function validateTestManifest({ manifestPath = 'ci/pr-gate-manifest
         errors.push(`invalid test file for ${entry?.id ?? 'unknown'}`)
         continue
       }
+
+      const resolvedFile = resolve(repositoryRoot, file)
+      const repositoryRelativePath = relative(repositoryRoot, resolvedFile)
+      const pathSegments = file.replaceAll('\\', '/').split('/')
+      if (
+        isAbsolute(file)
+        || pathSegments.includes('..')
+        || repositoryRelativePath === ''
+        || repositoryRelativePath === '..'
+        || repositoryRelativePath.startsWith(`..${sep}`)
+        || isAbsolute(repositoryRelativePath)
+      ) {
+        errors.push(`referenced manifest file must be a relative path inside the repository: ${file}`)
+        continue
+      }
+
       try {
-        const fileStat = await stat(resolve(cwd, file))
-        if (!fileStat.isFile()) errors.push(`referenced test path is not a regular file: ${file}`)
+        const fileStat = await stat(resolvedFile)
+        if (!fileStat.isFile()) {
+          errors.push(`referenced test path is not a regular file: ${file}`)
+          continue
+        }
       } catch {
         errors.push(`missing referenced test file: ${file}`)
+        continue
+      }
+
+      const testRelativePath = repositoryRelativePath.replaceAll('\\', '/')
+      if (!testRelativePath.startsWith('__tests__/') && !testRelativePath.startsWith('tests/')) {
+        errors.push(`referenced manifest file is not under __tests__/ or tests/: ${file}`)
       }
     }
   }

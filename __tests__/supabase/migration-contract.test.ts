@@ -5,7 +5,20 @@ import { describe, expect, it } from 'vitest'
 const migrationsDirectory = resolve(__dirname, '../../supabase/migrations')
 const alertSnapshotFunction = 'public.get_alert_weekly_snapshot'
 const alertSnapshotRpc = `${alertSnapshotFunction}(uuid[])`
-const escapedAlertSnapshotRpc = alertSnapshotRpc.replace(/[()[\].]/g, '\\$&')
+const escapedAlertSnapshotFunction = alertSnapshotFunction.replace(/[.[\]]/g, '\\$&')
+
+function alertSnapshotGrants(sql: string) {
+  return [...sql.matchAll(new RegExp(
+    `GRANT\\s+[^;]*?\\s+ON\\s+FUNCTION\\s+${escapedAlertSnapshotFunction}\\s*\\(\\s*uuid\\s*\\[\\s*]\\s*\\)\\s+TO\\s+([^;]+);`,
+    'gi',
+  ))]
+}
+
+function expectOnlyServiceRoleAlertSnapshotGrants(sql: string) {
+  const grants = alertSnapshotGrants(sql)
+  expect(grants).toHaveLength(1)
+  expect(grants[0]?.[1]?.trim()).toBe('service_role')
+}
 
 async function migrationFiles() {
   return (await readdir(migrationsDirectory)).filter(file => file.endsWith('.sql'))
@@ -39,14 +52,18 @@ describe('Supabase migration contracts', () => {
     for (const prefix of ['023', '024']) {
       const sql = await migrationSql(prefix)
       expect(sql).toContain(`GRANT EXECUTE ON FUNCTION ${alertSnapshotRpc} TO service_role;`)
-      const grants = [...sql.matchAll(new RegExp(`GRANT\\s+EXECUTE\\s+ON\\s+FUNCTION\\s+${escapedAlertSnapshotRpc}\\s+TO\\s+([^;]+);`, 'gi'))]
-
-      expect(grants).toHaveLength(1)
-      expect(grants[0]?.[1]?.trim()).toBe('service_role')
+      expectOnlyServiceRoleAlertSnapshotGrants(sql)
       expect(sql).toContain(`REVOKE EXECUTE ON FUNCTION ${alertSnapshotRpc} FROM PUBLIC;`)
       expect(sql).toContain(`REVOKE EXECUTE ON FUNCTION ${alertSnapshotRpc} FROM anon;`)
       expect(sql).toContain(`REVOKE EXECUTE ON FUNCTION ${alertSnapshotRpc} FROM authenticated;`)
     }
+  })
+
+  it('rejects an unauthorized GRANT ALL on the alert snapshot RPC', () => {
+    expect(() => expectOnlyServiceRoleAlertSnapshotGrants(
+      `GRANT EXECUTE ON FUNCTION ${alertSnapshotRpc} TO service_role;
+       GRANT ALL PRIVILEGES ON FUNCTION ${alertSnapshotRpc} TO authenticated;`,
+    )).toThrow()
   })
 
   it('contains no transaction control statements', async () => {

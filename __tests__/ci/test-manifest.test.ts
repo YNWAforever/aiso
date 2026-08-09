@@ -122,6 +122,29 @@ describe('pr-gate test manifest', () => {
     expect(errors).toContain('missing required manifest entry: CITATION-P1')
   })
 
+  it('rejects a regular non-test file', async () => {
+    const errors = await validateMalformedManifest(manifest => ({
+      ...manifest,
+      entries: manifest.entries.map(entry => entry.id === 'MIGRATION-P0'
+        ? { ...entry, files: ['package.json'] }
+        : entry),
+    }))
+
+    expect(errors).toContain('referenced manifest file is not under __tests__/ or tests/: package.json')
+  })
+
+  it('rejects absolute and escaping file paths', async () => {
+    const errors = await validateMalformedManifest(manifest => ({
+      ...manifest,
+      entries: manifest.entries.map(entry => entry.id === 'MIGRATION-P0'
+        ? { ...entry, files: [resolve(root, '__tests__/supabase/migration-contract.test.ts'), '../geoscanner/__tests__/supabase/migration-contract.test.ts'] }
+        : entry),
+    }))
+
+    expect(errors).toContain(`referenced manifest file must be a relative path inside the repository: ${resolve(root, '__tests__/supabase/migration-contract.test.ts')}`)
+    expect(errors).toContain('referenced manifest file must be a relative path inside the repository: ../geoscanner/__tests__/supabase/migration-contract.test.ts')
+  })
+
   it('rejects a named entry with the wrong contract priority', async () => {
     const errors = await validateMalformedManifest(manifest => ({
       ...manifest,

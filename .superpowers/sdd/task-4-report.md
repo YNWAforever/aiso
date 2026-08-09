@@ -56,6 +56,25 @@ Commit message: `feat: unlock scan reports with one free account gate`
 
 ---
 
+## Task 4: Review gate-scope and privilege fix
+
+- Broadened the alert snapshot SQL contract to inspect every `GRANT ... ON FUNCTION` form and added a negative `GRANT ALL PRIVILEGES` fixture for an unauthorized grantee; explicit `PUBLIC`, `anon`, and `authenticated` revokes remain required.
+- Restricted manifest traceability entries to repository-relative regular files beneath `__tests__/` or `tests/`, with regressions for a root regular file, absolute paths, traversal paths, and directories.
+- Restored the pre-Task 4 runtime behavior in the pulse route and citation-density check. Their focused tests now cover that existing behavior; no production behavior is required for the test-boundary changes.
+
+### Verification
+
+- TDD RED: malformed root-file, absolute-path, and traversal-path manifests failed against the previous validator.
+- `npm.cmd test -- __tests__/ci/test-manifest.test.ts __tests__/supabase/migration-contract.test.ts --run` passed: 2 files, 16 tests.
+- `npm.cmd test -- __tests__/checks/citationDensity.test.ts __tests__/api/pulse-flow.test.ts --run` passed: 2 files, 25 tests.
+- `node scripts/ci/validate-test-manifest.mjs`, `npm.cmd run typecheck`, and `git diff --check` passed.
+
+### Residual environment blockers
+
+- Live database, authenticated browser, provider-canary, staging WCAG, and external CI evidence remain intentionally out of scope and were not attempted.
+
+---
+
 ## Task 4: Gate contract fail-closed fix
 
 - Hardened the standalone manifest validator and its contract tests: manifest roles are limited to evidenced `anonymous`, `authenticated`, and `admin`; file entries must resolve to regular files; and all six required IDs must carry their contract priorities.
