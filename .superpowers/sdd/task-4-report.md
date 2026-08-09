@@ -119,3 +119,19 @@ Commit message: `feat: unlock scan reports with one free account gate`
 - TDD RED: the new explicit `PUBLIC` revoke expectation failed against the prior `REVOKE ALL` SQL.
 - `npm.cmd test -- __tests__/ci/test-manifest.test.ts __tests__/supabase/migration-contract.test.ts --run` passed: 2 files, 8 tests.
 - `node scripts/ci/validate-test-manifest.mjs`, `npm.cmd run typecheck`, and `git diff --check` passed.
+
+---
+
+## Task 4: Strict manifest schema fix
+
+- Required layers now form the exact duplicate-free recognized set, and entry IDs require uppercase alphanumeric hyphen-separated segments.
+- Added malformed-manifest coverage for whitespace-only IDs, duplicate layers, and unknown layers.
+
+### Verification
+
+- `npm.cmd test -- __tests__/ci/test-manifest.test.ts __tests__/supabase/migration-contract.test.ts --run` passed: 2 files, 22 tests.
+- `node scripts/ci/validate-test-manifest.mjs`, `npm.cmd run typecheck`, and `git diff --check` passed.
+
+### Residual environment blockers
+
+- Live database, authenticated browser, provider-canary, staging WCAG, and external CI evidence remain intentionally out of scope and were not attempted.

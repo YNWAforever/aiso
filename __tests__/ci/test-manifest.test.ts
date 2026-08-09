@@ -108,6 +108,35 @@ describe('pr-gate test manifest', () => {
     expect(errors).toContain('invalid role for AUTH-TENANT-P0: analyst')
   })
 
+  it('rejects a whitespace-only entry ID', async () => {
+    const errors = await validateMalformedManifest(manifest => ({
+      ...manifest,
+      entries: manifest.entries.map(entry => entry.id === 'CITATION-P1'
+        ? { ...entry, id: '   ' }
+        : entry),
+    }))
+
+    expect(errors).toContain('invalid entry ID:    ')
+  })
+
+  it('rejects a duplicate required layer', async () => {
+    const errors = await validateMalformedManifest(manifest => ({
+      ...manifest,
+      requiredLayers: [...manifest.requiredLayers, 'build'],
+    }))
+
+    expect(errors).toContain('duplicate required layer: build')
+  })
+
+  it('rejects an unknown required layer', async () => {
+    const errors = await validateMalformedManifest(manifest => ({
+      ...manifest,
+      requiredLayers: [...manifest.requiredLayers, 'integration'],
+    }))
+
+    expect(errors).toContain('unknown required layer: integration')
+  })
+
   it('rejects directory paths and missing named entry priorities', async () => {
     const errors = await validateMalformedManifest(manifest => ({
       ...manifest,
