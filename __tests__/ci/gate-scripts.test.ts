@@ -219,6 +219,49 @@ describe('PR merge-gate evidence contracts', () => {
     expect(result.summary.failurePriorities).toContain('P0')
   })
 
+  it('fails closed when a required summary commit SHA differs from the aggregate SHA', () => {
+    const result = aggregateGate({
+      results: {
+        STATIC_RESULT: 'success',
+        UNIT_CONTRACT_RESULT: 'success',
+        E2E_ACCESSIBILITY_RESULT: 'success',
+        BUILD_RESULT: 'success',
+      },
+      summaries: [
+        createJobSummary({ job: 'static', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'aggregate-sha' }),
+        createJobSummary({ job: 'unit-contract', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'different-sha' }),
+        createJobSummary({ job: 'e2e-accessibility', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'aggregate-sha' }),
+        createJobSummary({ job: 'build', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'aggregate-sha' }),
+      ],
+      commitSha: 'aggregate-sha',
+    })
+
+    expect(result.exitCode).toBe(1)
+    expect(result.summary.failurePriorities).toContain('P0')
+  })
+
+  it('preserves deduplicated advisory priorities without blocking the aggregate', () => {
+    const result = aggregateGate({
+      results: {
+        STATIC_RESULT: 'success',
+        UNIT_CONTRACT_RESULT: 'success',
+        E2E_ACCESSIBILITY_RESULT: 'success',
+        BUILD_RESULT: 'success',
+      },
+      summaries: [
+        createJobSummary({ job: 'static', status: 'success', executed: 1, skipped: 0, priorities: ['P1'], artifacts: [], commitSha: 'aggregate-sha' }),
+        createJobSummary({ job: 'unit-contract', status: 'success', executed: 1, skipped: 0, priorities: ['P1', 'P2'], artifacts: [], commitSha: 'aggregate-sha' }),
+        createJobSummary({ job: 'e2e-accessibility', status: 'success', executed: 1, skipped: 0, priorities: ['P2'], artifacts: [], commitSha: 'aggregate-sha' }),
+        createJobSummary({ job: 'build', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'aggregate-sha' }),
+      ],
+      commitSha: 'aggregate-sha',
+    })
+
+    expect(result.exitCode).toBe(0)
+    expect(result.summary.status).toBe('success')
+    expect(result.summary.failurePriorities).toEqual(['P1', 'P2'])
+  })
+
   it('blocks an aggregate that contains a skipped required test', () => {
     const result = aggregateGate({
       results: {

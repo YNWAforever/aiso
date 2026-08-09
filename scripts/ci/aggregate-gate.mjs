@@ -14,10 +14,16 @@ const REQUIRED_SUMMARY_FILES = [
 export function aggregateGate({ results, summaries, commitSha = '' }) {
   const dependencyFailure = REQUIRED_RESULTS.some((name) => results[name] !== 'success')
   const missingRequiredSummary = REQUIRED_JOBS.some((job) => !summaries.some((summary) => summary.job === job))
+  const commitShaMismatch = REQUIRED_JOBS.some((job) =>
+    summaries.some((summary) => summary.job === job && summary.commitSha !== commitSha),
+  )
   const summaryFailure = summaries.some((summary) =>
     summary.status !== 'success' || summary.skipped > 0 || summary.failurePriorities?.includes('P0'),
   )
-  const blocking = dependencyFailure || missingRequiredSummary || summaryFailure
+  const blocking = dependencyFailure || missingRequiredSummary || commitShaMismatch || summaryFailure
+  const advisoryPriorities = ['P1', 'P2'].filter((priority) =>
+    summaries.some((summary) => summary.failurePriorities?.includes(priority)),
+  )
   return {
     exitCode: blocking ? 1 : 0,
     summary: {
@@ -27,7 +33,7 @@ export function aggregateGate({ results, summaries, commitSha = '' }) {
       status: blocking ? 'failure' : 'success',
       executed: summaries.length,
       skipped: summaries.reduce((count, summary) => count + Number(summary.skipped ?? 0), 0),
-      failurePriorities: blocking ? ['P0'] : [],
+      failurePriorities: blocking ? ['P0', ...advisoryPriorities] : advisoryPriorities,
       artifacts: ['gate-summary.json'],
     },
   }
