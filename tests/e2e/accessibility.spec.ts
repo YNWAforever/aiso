@@ -24,6 +24,13 @@ async function expectNoBlockingA11y(page: Page, testInfo: TestInfo, flow: string
   ).toEqual([])
 }
 
+async function waitForResultAnimation(page: Page) {
+  await page.waitForFunction(() => {
+    const element = document.querySelector('[data-testid="score-reveal"]')
+    return element instanceof HTMLElement && getComputedStyle(element).opacity === '1'
+  })
+}
+
 async function expectReachableByTab(page: Page, target: Locator) {
   await page.locator('body').focus()
 
@@ -68,10 +75,12 @@ test('fixture result page has no blocking accessibility violations before and af
   }))
   await page.goto(`/en/result/${TEST_SCAN_ID}`, { waitUntil: 'networkidle' })
 
+  await waitForResultAnimation(page)
   await expectNoBlockingA11y(page, testInfo, 'result-before-unlock')
 
   await page.locator('#result-email').fill('accessibility@example.com')
   await page.getByRole('button', { name: /unlock report/i }).click()
   await expect(page.locator('#result-email')).not.toBeVisible()
+  await waitForResultAnimation(page)
   await expectNoBlockingA11y(page, testInfo, 'result-after-unlock')
 })

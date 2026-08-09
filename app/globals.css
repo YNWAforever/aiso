@@ -13,6 +13,7 @@
 
   --primary:                #2563eb;
   --primary-foreground:     #ffffff;
+  --primary-accessible:     #1d4ed8;
 
   --secondary:              #f1f5f9;
   --secondary-foreground:   #0f172a;
@@ -76,6 +77,7 @@
 
   --primary:                #00d4ff;
   --primary-foreground:     #050510;
+  --primary-accessible:     #7dd3fc;
 
   --secondary:              #141422;
   --secondary-foreground:   #e0e0ec;
@@ -128,6 +130,7 @@
   --color-card-foreground:      var(--card-foreground);
   --color-primary:              var(--primary);
   --color-primary-foreground:   var(--primary-foreground);
+  --color-primary-accessible:   var(--primary-accessible);
   --color-secondary:            var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted:                var(--muted);

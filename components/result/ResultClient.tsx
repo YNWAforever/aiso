@@ -128,7 +128,7 @@ function CheckSection({ title, subtitle, keys, results }: {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6">
       <p className="text-xs font-bold text-slate-500 tracking-widest mb-1">{title}</p>
-      {subtitle && <p className="text-xs text-slate-400 mb-4">{subtitle}</p>}
+      {subtitle && <p className="text-xs text-slate-500 mb-4">{subtitle}</p>}
       {!subtitle && <div className="mb-4" />}
       {keys.map(key => {
         const r = getResult(results, key)
@@ -235,7 +235,7 @@ export function ResultClient({ lang, summary, fullScan }: Props) {
 
         {/* 2. Summary pills */}
         <div className="flex items-center gap-2 flex-wrap text-xs">
-          <span className="text-slate-400">{ui.checksScanned(total)}</span>
+          <span className="text-slate-500">{ui.checksScanned(total)}</span>
           <span className="ml-auto flex gap-2">
             {pass > 0 && <span className="bg-emerald-100 text-emerald-700 font-semibold px-2.5 py-1 rounded-full">✅ {ui.passing(pass)}</span>}
             {warn > 0 && <span className="bg-amber-100  text-amber-700  font-semibold px-2.5 py-1 rounded-full">⚠️ {ui.warnings(warn)}</span>}
@@ -315,7 +315,7 @@ export function ResultClient({ lang, summary, fullScan }: Props) {
 
         {/* Scan another */}
         <div className="text-center pb-4">
-          <Link href={`/${lang}`} className="text-sm text-slate-400 hover:text-slate-700 transition underline underline-offset-2">
+          <Link href={`/${lang}`} className="text-sm text-slate-500 hover:text-slate-700 transition underline underline-offset-2">
             {ui.scanAnother}
           </Link>
         </div>

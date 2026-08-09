@@ -91,7 +91,7 @@ export function ImpactPanel({ impact, score, grade }: Props) {
     <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6">
       <div>
         <p className="text-xs font-bold text-slate-500 tracking-widest mb-1">{ui.title}</p>
-        <p className="text-xs text-slate-400">{ui.subtitle}</p>
+        <p className="text-xs text-slate-600">{ui.subtitle}</p>
       </div>
 
       {/* Platform visibility */}
@@ -111,7 +111,7 @@ export function ImpactPanel({ impact, score, grade }: Props) {
             })}
           </div>
           {platformVisibility.some(p => p.status !== 'visible') && (
-            <p className="text-2xs text-slate-400 mt-1.5">
+            <p className="text-2xs text-slate-600 mt-1.5">
               {platformVisibility.find(p => p.status === 'blocked')?.reason
                 ?? platformVisibility.find(p => p.status === 'partial')?.reason}
             </p>
@@ -125,7 +125,7 @@ export function ImpactPanel({ impact, score, grade }: Props) {
           <div className="flex items-baseline justify-between mb-1.5">
             <p className="text-xs font-semibold text-slate-600">{ui.aiReadable}</p>
             <p className={`text-sm font-black tabular-nums ${
-              aiReadablePercent >= 75 ? 'text-emerald-600' : aiReadablePercent >= 50 ? 'text-amber-600' : 'text-red-600'
+              aiReadablePercent >= 75 ? 'text-emerald-700' : aiReadablePercent >= 50 ? 'text-amber-700' : 'text-red-700'
             }`}>{aiReadablePercent}%</p>
           </div>
           <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -144,12 +144,12 @@ export function ImpactPanel({ impact, score, grade }: Props) {
         <div className="flex items-center justify-center gap-4 rounded-xl bg-slate-50 border border-slate-100 py-4">
           <div className="text-center">
             <p className="text-2xl font-black text-slate-900 tabular-nums leading-none">{score}</p>
-            <p className="text-2xs text-slate-400 font-semibold mt-1">{ui.now} · {grade}</p>
+            <p className="text-2xs text-slate-600 font-semibold mt-1">{ui.now} · {grade}</p>
           </div>
           <ArrowRight className="size-4 text-slate-300" />
           <div className="text-center">
-            <p className="text-2xl font-black text-emerald-600 tabular-nums leading-none">{projectedScore}</p>
-            <p className="text-2xs text-emerald-600/70 font-semibold mt-1">{ui.after} · {projectedGrade}</p>
+            <p className="text-2xl font-black text-emerald-700 tabular-nums leading-none">{projectedScore}</p>
+            <p className="text-2xs text-emerald-700 font-semibold mt-1">{ui.after} · {projectedGrade}</p>
           </div>
           <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">{ui.pts(delta)}</span>
         </div>

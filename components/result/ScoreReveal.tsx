@@ -8,7 +8,7 @@ const GRADE_CONFIG: Record<string, { ring: string; badge: string; text: string; 
   'A':  { ring: 'stroke-green-500',   badge: 'bg-green-500',   text: 'text-white', label: 'Very Good' },
   'B':  { ring: 'stroke-blue-500',    badge: 'bg-blue-500',    text: 'text-white', label: 'Good' },
   'C':  { ring: 'stroke-yellow-500',  badge: 'bg-yellow-500',  text: 'text-white', label: 'Fair' },
-  'D':  { ring: 'stroke-orange-500',  badge: 'bg-orange-500',  text: 'text-white', label: 'Poor' },
+  'D':  { ring: 'stroke-orange-500',  badge: 'bg-orange-700',  text: 'text-white', label: 'Poor' },
   'F':  { ring: 'stroke-red-500',     badge: 'bg-red-500',     text: 'text-white', label: 'Critical' },
 }
 
@@ -91,7 +91,7 @@ export function ScoreReveal({ score, grade, domain, industry, region }: Props) {
   }, [visible, score])
 
   return (
-    <div className={`transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+    <div data-testid="score-reveal" className={`transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
       <div className="flex flex-col sm:flex-row items-center gap-8 bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
 
         {/* Animated ring */}
@@ -108,7 +108,7 @@ export function ScoreReveal({ score, grade, domain, industry, region }: Props) {
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-4xl font-black text-slate-900 tabular-nums leading-none">{displayed}</span>
-            <span className="text-xs text-slate-400 font-medium">/100</span>
+            <span className="text-xs text-slate-500 font-medium">/100</span>
           </div>
         </div>
 
@@ -116,7 +116,7 @@ export function ScoreReveal({ score, grade, domain, industry, region }: Props) {
         <div className="flex-1 text-center sm:text-left">
           <p className="text-xl font-black text-slate-900 mb-1 truncate">{domain}</p>
           {(industryLabel || region) && (
-            <p className="text-xs text-slate-400 mb-3">
+            <p className="text-xs text-slate-500 mb-3">
               {[industryLabel, region].filter(Boolean).join(' · ')}
             </p>
           )}
@@ -124,7 +124,7 @@ export function ScoreReveal({ score, grade, domain, industry, region }: Props) {
           {/* Grade badge */}
           <div className="inline-flex items-center gap-2 mb-4">
             <span className={`inline-flex items-center gap-1.5 ${cfg.badge} ${cfg.text} font-black text-lg px-4 py-1.5 rounded-xl`}>
-              {grade} <span className="text-sm font-semibold opacity-80">— {gradeLabel}</span>
+              {grade} <span className="text-sm font-semibold">— {gradeLabel}</span>
             </span>
           </div>
 
