@@ -162,6 +162,17 @@ describe('pr-gate test manifest', () => {
     expect(errors).toContain('referenced manifest file is not under __tests__/ or tests/: package.json')
   })
 
+  it('rejects a helper or fixture that does not use a test filename', async () => {
+    const errors = await validateMalformedManifest(manifest => ({
+      ...manifest,
+      entries: manifest.entries.map(entry => entry.id === 'MIGRATION-P0'
+        ? { ...entry, files: ['tests/fixtures/auth.ts'] }
+        : entry),
+    }))
+
+    expect(errors).toContain('referenced manifest file is not a test file: tests/fixtures/auth.ts')
+  })
+
   it('rejects symbolic-link metadata without following the link', async () => {
     const temporaryDirectory = await mkdtemp(resolve(root, '__tests__', '.manifest-link-'))
     const linkedFile = resolve(temporaryDirectory, 'migration-contract.test.ts')

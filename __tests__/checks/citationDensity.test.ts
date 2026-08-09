@@ -65,32 +65,51 @@ describe('checkCitationDensity', () => {
     expect(['pass', 'warn', 'fail']).toContain(result.status)
   })
 
-  it('normalizes and de-duplicates canonical citation URLs before authority aggregation', async () => {
+  it('uses URL parsing normalization while preserving citation fragments', async () => {
     const result = await checkCitationDensity(
       '<a href="https://NIH.gov:443/study#finding">one</a><a href="https://nih.gov/study">two</a>',
       'https://example.com',
       { industry: 'finance', region: 'global' },
     )
 
-    expect(result.geoDetails?.totalLinks).toBe(1)
-    expect(result.geoDetails?.details).toEqual([
-      expect.objectContaining({ url: 'https://nih.gov/study', domain: 'nih.gov' }),
-    ])
+    expect(result.geoDetails?.totalLinks).toBe(2)
+    expect(result.geoDetails?.details).toEqual([expect.objectContaining({
+      url: 'https://nih.gov/study#finding',
+      domain: 'nih.gov',
+    })])
     expect(computeAuthority).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps authority aggregation scoped to unique external domains', async () => {
+  it('counts duplicate canonical citation URLs while aggregating authority by domain', async () => {
     const result = await checkCitationDensity(
-      '<a href="https://one.example/a">one</a><a href="https://one.example/b">two</a>',
+      '<a href="https://one.example/a">one</a><a href="https://one.example/a">two</a>',
       'https://example.com',
       { industry: 'finance', region: 'global' },
     )
 
+    expect(result.geoDetails?.totalLinks).toBe(2)
     expect(result.geoDetails?.authorityBreakdown).toEqual({ tier1: 1, tier2: 0, tier3: 0, other: 0 })
     expect(result.geoDetails?.details).toHaveLength(1)
+    expect(computeAuthority).toHaveBeenCalledTimes(1)
   })
 
-  it('discards malformed provider output instead of emitting invalid citation details', async () => {
+  it('aggregates authority tiers for unique external domains', async () => {
+    vi.mocked(computeAuthority)
+      .mockResolvedValueOnce({ tier: 'tier1', finalScore: 40 } as never)
+      .mockResolvedValueOnce({ tier: 'tier2', finalScore: 20 } as never)
+      .mockResolvedValueOnce({ tier: 'tier3', finalScore: 10 } as never)
+
+    const result = await checkCitationDensity(
+      '<a href="https://one.example/a">one</a><a href="https://two.example/a">two</a><a href="https://three.example/a">three</a>',
+      'https://example.com',
+      { industry: 'finance', region: 'global' },
+    )
+
+    expect(result.geoDetails?.authorityBreakdown).toEqual({ tier1: 1, tier2: 1, tier3: 1, other: 0 })
+    expect(result.geoDetails?.details).toHaveLength(3)
+  })
+
+  it('settles malformed provider output at the existing citation boundary', async () => {
     vi.mocked(computeAuthority).mockResolvedValue({ malformed: true } as never)
 
     const result = await checkCitationDensity(
@@ -100,6 +119,9 @@ describe('checkCitationDensity', () => {
     )
 
     expect(result.geoDetails?.authorityBreakdown).toEqual({ tier1: 0, tier2: 0, tier3: 0, other: 0 })
-    expect(result.geoDetails?.details).toEqual([])
+    expect(result.geoDetails?.details).toEqual([expect.objectContaining({
+      url: 'https://nih.gov/study',
+      domain: 'nih.gov',
+    })])
   })
 })

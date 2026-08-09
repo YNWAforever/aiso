@@ -34,6 +34,24 @@
 
 ---
 
+## Task 4: Final traceability corrective fix
+
+- Restored `lib/checks/citationDensity.ts` exactly to Task 4 base `c8669d9`; no runtime URL canonicalization, duplicate filtering, or provider-shape filtering remains in this task.
+- Added boundary coverage for URL-parser normalization with fragment preservation, duplicate citation counting with per-domain authority aggregation, tier aggregation, and malformed provider values. The malformed-value assertion records the existing `Promise.allSettled` boundary; validating/filtering provider object shapes requires a runtime-contract change and is intentionally out of scope.
+- Required manifest references to be test files under `__tests__/` or `tests/` with `.test.*` or `.spec.*` names, including a fixture/helper rejection regression.
+- Made alert snapshot grant detection recognize qualified, unqualified, and SQL-quoted identifiers in comma-separated function lists, and added unauthorized unqualified/quoted grant regressions.
+
+### Verification
+
+- Focused citation, manifest, and migration suites; standalone manifest validator; typecheck; and whitespace diff checks were run after the fix.
+- `git diff --exit-code c8669d9d75ece574aed42e3c87867cb9bc07829f -- lib/checks/citationDensity.ts` passed.
+
+### Residual blocker
+
+- No source blocker. Live database, authenticated browser, provider-canary, staging WCAG, and external CI evidence remain intentionally out of scope.
+
+---
+
 ## Task 4: Review gate-scope and privilege fix
 
 - Broadened the alert snapshot SQL contract to inspect every `GRANT ... ON FUNCTION` form and added a negative `GRANT ALL PRIVILEGES` fixture for an unauthorized grantee; explicit `PUBLIC`, `anon`, and `authenticated` revokes remain required.

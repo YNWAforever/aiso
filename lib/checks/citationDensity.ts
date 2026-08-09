@@ -2,7 +2,6 @@ import type { CheckResult, IndustryCode, RegionCode, CitationDensityResult, Auth
 import { computeAuthority } from '@/lib/authority/aggregator'
 
 interface Context { industry: IndustryCode; region: RegionCode; clientId?: string }
-const authorityTiers = new Set<AuthorityTier>(['tier1', 'tier2', 'tier3', 'other'])
 
 export async function checkCitationDensity(
   html: string,
@@ -12,19 +11,12 @@ export async function checkCitationDensity(
   const base = new URL(baseUrl)
   const linkPattern = /<a\s[^>]*href=["']([^"']+)["'][^>]*>/gi
   const externalLinks: string[] = []
-  const canonicalLinks = new Set<string>()
   let m: RegExpExecArray | null
 
   while ((m = linkPattern.exec(html)) !== null) {
     try {
       const href = new URL(m[1], baseUrl)
-      if (href.hostname !== base.hostname) {
-        href.hash = ''
-        if (!canonicalLinks.has(href.href)) {
-          canonicalLinks.add(href.href)
-          externalLinks.push(href.href)
-        }
-      }
+      if (href.hostname !== base.hostname) externalLinks.push(href.href)
     } catch {}
   }
 
@@ -55,7 +47,6 @@ export async function checkCitationDensity(
   authorityResults.forEach((res, i) => {
     if (res.status === 'fulfilled') {
       const { tier, finalScore } = res.value
-      if (!authorityTiers.has(tier) || typeof finalScore !== 'number' || !Number.isFinite(finalScore)) return
       tierCounts[tier] = (tierCounts[tier] ?? 0) + 1
       linkDetails.push({ url: externalLinks[i] ?? '', domain: domainsToScore[i] ?? '', tier: tier as AuthorityTier, authorityScore: finalScore })
     }

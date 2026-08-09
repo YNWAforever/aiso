@@ -5,15 +5,12 @@ import { describe, expect, it } from 'vitest'
 const migrationsDirectory = resolve(__dirname, '../../supabase/migrations')
 const alertSnapshotFunction = 'public.get_alert_weekly_snapshot'
 const alertSnapshotRpc = `${alertSnapshotFunction}(uuid[])`
-const escapedAlertSnapshotFunction = alertSnapshotFunction.replace(/[.[\]]/g, '\\$&')
+const alertSnapshotTarget = /(?:(?:"public"|public)\s*\.\s*)?(?:"get_alert_weekly_snapshot"|get_alert_weekly_snapshot)\s*\(\s*uuid\s*\[\s*]\s*\)/i
 
 export function alertSnapshotGrants(sql: string) {
   const grantStatements = sql.matchAll(/GRANT\s+(.+?)\s+ON\s+FUNCTION\s+(.+?)\s+TO\s+([^;]+);/gis)
 
-  return [...grantStatements].filter(([, , functions]) => new RegExp(
-    `${escapedAlertSnapshotFunction}\\s*\\(\\s*uuid\\s*\\[\\s*]\\s*\\)`,
-    'i',
-  ).test(functions ?? ''))
+  return [...grantStatements].filter(([, , functions]) => alertSnapshotTarget.test(functions ?? ''))
 }
 
 function expectOnlyServiceRoleAlertSnapshotGrants(sql: string) {
@@ -80,6 +77,21 @@ describe('Supabase migration contracts', () => {
 
     expect(alertSnapshotGrants(sql)).toHaveLength(1)
     expect(() => expectOnlyServiceRoleAlertSnapshotGrants(sql)).toThrow()
+  })
+
+  it.each([
+    'GRANT EXECUTE ON FUNCTION get_alert_weekly_snapshot(uuid[]) TO authenticated;',
+    'GRANT ALL PRIVILEGES ON FUNCTION "public"."get_alert_weekly_snapshot"(uuid[]) TO anon;',
+  ])('rejects unauthorized unqualified or quoted target grants', sql => {
+    expect(alertSnapshotGrants(sql)).toHaveLength(1)
+    expect(() => expectOnlyServiceRoleAlertSnapshotGrants(sql)).toThrow()
+  })
+
+  it('finds a quoted target among comma-separated function grants', () => {
+    const sql = 'GRANT EXECUTE ON FUNCTION public.refresh_alert_cache(), "public"."get_alert_weekly_snapshot"(uuid[]) TO service_role;'
+
+    expect(alertSnapshotGrants(sql)).toHaveLength(1)
+    expectOnlyServiceRoleAlertSnapshotGrants(sql)
   })
 
   it('contains no transaction control statements', async () => {

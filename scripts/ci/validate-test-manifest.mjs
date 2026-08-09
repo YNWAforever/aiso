@@ -8,6 +8,7 @@ const requiredP0Domains = ['ENTITLEMENT', 'AUTH-TENANT', 'ALERT-INTEGRITY', 'MIG
 const validPriorities = new Set(['P0', 'P1', 'P2'])
 const validRoles = new Set(['anonymous', 'authenticated', 'admin'])
 const entryIdPattern = /^[A-Z0-9]+(?:-[A-Z0-9]+)*$/
+const testFilePattern = /^(?:__tests__|tests)\/.+\.(?:test|spec)\.(?:[cm]?[jt]sx?)$/i
 const requiredEntries = new Map([
   ['ENTITLEMENT-P0', 'P0'],
   ['AUTH-TENANT-P0', 'P0'],
@@ -62,6 +63,9 @@ export async function validateManifestFilePath({ file, repositoryRoot, lstatFile
   const testRelativePath = repositoryRelativePath.replaceAll('\\', '/')
   if (!testRelativePath.startsWith('__tests__/') && !testRelativePath.startsWith('tests/')) {
     return `referenced manifest file is not under __tests__/ or tests/: ${file}`
+  }
+  if (!testFilePattern.test(testRelativePath)) {
+    return `referenced manifest file is not a test file: ${file}`
   }
 }
 
