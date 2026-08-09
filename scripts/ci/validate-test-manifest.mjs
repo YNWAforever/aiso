@@ -82,7 +82,16 @@ export async function validateTestManifest({ manifestPath = 'ci/pr-gate-manifest
     return [`Unable to read ${manifestPath}: ${error instanceof Error ? error.message : String(error)}`]
   }
 
-  for (const property of Object.keys(manifest ?? {})) {
+  if (
+    manifest === null
+    || Array.isArray(manifest)
+    || typeof manifest !== 'object'
+    || Object.getPrototypeOf(manifest) !== Object.prototype
+  ) {
+    return ['manifest root must be a non-null plain object']
+  }
+
+  for (const property of Object.keys(manifest)) {
     if (!rootManifestKeys.has(property)) errors.push(`unknown root manifest property: ${property}`)
   }
 

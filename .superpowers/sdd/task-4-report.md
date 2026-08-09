@@ -166,3 +166,20 @@
 ### Residual environment blockers
 
 - Live database, authenticated browser, provider-canary, staging WCAG, and external CI evidence remain intentionally out of scope and were not attempted.
+
+---
+
+## Task 4: Invalid manifest-root robustness fix
+
+- Rejected null, array, and other non-plain-object JSON manifest roots before property access, returning a validation error array instead of throwing.
+- Added focused null-root and array-root manifest regressions; existing strict key allowlists and entry checks remain unchanged.
+
+### Verification
+
+- TDD RED: null root threw on `schemaVersion`; array root returned unrelated field errors.
+- Focused manifest, migration, and citation suites passed: 3 files, 40 tests.
+- Standalone validator, typecheck, whitespace diff, and the `c8669d9` runtime-base comparison for citation density and pulse route passed.
+
+### Residual blocker
+
+- Live database, authenticated browser, provider-canary, staging WCAG, and external CI evidence remain intentionally out of scope.

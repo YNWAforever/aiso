@@ -33,11 +33,15 @@ type Manifest = {
 }
 
 async function validateMalformedManifest(transform: (manifest: Manifest) => Manifest) {
+  return validateMalformedManifestValue(transform(await readManifest()))
+}
+
+async function validateMalformedManifestValue(manifest: unknown) {
   const temporaryDirectory = await mkdtemp(resolve(tmpdir(), 'geoscanner-test-manifest-'))
   const manifestPath = resolve(temporaryDirectory, 'manifest.json')
 
   try {
-    await writeFile(manifestPath, JSON.stringify(transform(await readManifest())), 'utf8')
+    await writeFile(manifestPath, JSON.stringify(manifest), 'utf8')
     return await validateTestManifest({ manifestPath, cwd: root })
   } finally {
     await rm(temporaryDirectory, { recursive: true, force: true })
@@ -95,6 +99,14 @@ describe('pr-gate test manifest', () => {
 
   it('accepts the checked-in manifest with the standalone validator', async () => {
     await expect(validateTestManifest({ cwd: root })).resolves.toEqual([])
+  })
+
+  it('rejects a null manifest root without throwing', async () => {
+    await expect(validateMalformedManifestValue(null)).resolves.toContain('manifest root must be a non-null plain object')
+  })
+
+  it('rejects an array manifest root without throwing', async () => {
+    await expect(validateMalformedManifestValue([])).resolves.toContain('manifest root must be a non-null plain object')
   })
 
   it('rejects unknown root-level manifest properties', async () => {
