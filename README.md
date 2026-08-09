@@ -16,7 +16,7 @@ Multi-tenant SaaS that scores websites on **AEO / GEO** — how well AI answer e
 Several features are **fenced**: their routes return `503 FEATURE_UNAVAILABLE` via
 `lib/unavailable.ts`, and `__tests__/api/fenced-routes.test.ts` is the canonical list. The
 Pulse *read* routes, agents, notifications, content tools, trial emails and the alert
-*evaluator* are all still fenced; Local Trust, alert *configuration*, the Pulse producer
+*evaluator* is implemented on Neon but not scheduled by Vercel yet; Local Trust, alert *configuration*, the Pulse producer
 (`POST /api/pulse/run`) and the question bank — including AI question suggestions — are live. A fence is not a gate —
 restoring one means adding a real auth/entitlement/ownership gate, not just deleting the
 `featureUnavailable` call. `lib/localTrust/guard.ts` is the shape to copy.
@@ -83,11 +83,12 @@ E2E only: `BASE_URL`, `START_DEV_SERVER`, `PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_T
 `CRON_SECRET` (≥16 chars) authenticates the weekly Pulse chain: Vercel Cron calls
 `GET /api/cron/pulse` with `Authorization: Bearer`, and that driver calls
 `POST /api/pulse/run` with `x-cron-secret`. Both return 500 rather than running when it is
-unset. The two older `/api/cron` routes remain 503 stubs and still read no secret.
+unset. `/api/cron/trial-emails` remains a 503 stub; the Neon alert evaluator is
+release-gated until its migrations are applied.
 
 Dead — read by nothing, listed so nobody re-adds them expecting an effect:
-`RESEND_API_KEY` (`sendAlertEmail` has no callers), `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
-(checkout is server-side only), and the legacy `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (checkout is server-side only). `RESEND_API_KEY`
+is used by the Neon alert evaluator. The legacy `NEXT_PUBLIC_SUPABASE_URL`,
 `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — the Neon migration is complete
 and no application code reads them.
 

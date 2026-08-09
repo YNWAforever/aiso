@@ -211,10 +211,11 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 >
 > Routes whose feature is fenced return `503 FEATURE_UNAVAILABLE` via `lib/unavailable.ts`:
 > `pulse/onboard`, `pulse/[clientId]/*`, `fix/cluster-map`, `fix/content-brief`,
-> `notifications/*`, `agents/*`, `cron/*` (both trial-emails and evaluate-alerts). **Local
+> `notifications/*`, `agents/*`, `cron/trial-emails`. **Local
 > Trust, the alerts *config* route, the Pulse producer (`pulse/run`), the whole prompt bank
-> and `pulse/suggest-questions` are restored**;
-> `cron/evaluate-alerts` deliberately is not — it needs a scheduler, and none exists.
+> and `pulse/suggest-questions` are restored**. `cron/evaluate-alerts` is now Neon-backed
+> with route-level authentication, but `vercel.json` does not schedule it yet; follow
+> `docs/alert-evaluation-release.md` before enabling production traffic.
 > `__tests__/api/fenced-routes.test.ts` is the canonical list and asserts each still 503s, so
 > restoring a route means deleting its entry there too.
 >
@@ -414,8 +415,9 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `x-cron-secret` to `POST /api/pulse/run`. Neither shape is ours to choose — the first is
   Vercel's, the second is the producer's. Both return 500 rather than running if the secret
   is unset or short. `vercel.json` now schedules the driver weekly; `cron/trial-emails` and
-  `cron/evaluate-alerts` remain 503 stubs that read no secret.
-- **Dead:** `RESEND_API_KEY` (`sendAlertEmail` has no callers). Legacy Supabase
+  `cron/trial-emails` remains a 503 stub that reads no secret; `cron/evaluate-alerts`
+  is Neon-backed but currently unscheduled.
+- **Used by alert evaluation:** `RESEND_API_KEY` is consumed by `sendAlertEmail`. Legacy Supabase
   (`NEXT_PUBLIC_SUPABASE_URL`, `..._ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) is also fully
   dead: no application code reads them. The ESLint rule that bans `@supabase/*` now covers
   `.mjs`/`.js`/`.cjs` as well as TS — it previously did not, which is how an orphaned

@@ -14,7 +14,6 @@ const FENCED: { path: string; feature: string; methods: string[] }[] = [
   { path: '@/app/api/notifications/route', feature: 'notifications', methods: ['GET'] },
   { path: '@/app/api/notifications/read-all/route', feature: 'notifications', methods: ['PUT'] },
   { path: '@/app/api/cron/trial-emails/route', feature: 'trial-emails', methods: ['GET'] },
-  { path: '@/app/api/cron/evaluate-alerts/route', feature: 'alerts', methods: ['POST'] },
 ]
 
 describe('fenced routes', () => {

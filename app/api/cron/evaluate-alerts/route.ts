@@ -1,8 +1,28 @@
-import { featureUnavailable } from '@/lib/unavailable'
+import {
+  runAlertEvaluation,
+  type AlertEvaluationPorts,
+} from '@/lib/alerts/evaluate'
+import { createNeonAlertStore } from '@/lib/alerts/neon-store'
+import { db } from '@/lib/db'
+import { sendAlertEmail as deliverAlertEmail } from '@/lib/resend'
 
-// Fenced during the Supabase to Neon migration. The Supabase implementation is
-// in git history at the parent of this commit. Restoring it means porting the
-// queries to db(), not reviving code that targets a deleted project.
-export async function POST() {
-  return featureUnavailable('alerts')
+export async function POST(req: Request) {
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret) {
+    console.error('evaluate-alerts: CRON_SECRET env var is not set')
+    return Response.json({ error: 'Cron not configured' }, { status: 500 })
+  }
+
+  const incomingSecret = req.headers.get('x-cron-secret')
+  if (!incomingSecret || incomingSecret !== cronSecret) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const ports: AlertEvaluationPorts = {
+    ...createNeonAlertStore(db()),
+    sendAlertEmail: deliverAlertEmail,
+  }
+  const result = await runAlertEvaluation(ports)
+
+  return Response.json(result)
 }

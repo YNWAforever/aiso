@@ -11,7 +11,6 @@ const mockSql = vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => {
   if (result instanceof Error) throw result
   return Promise.resolve(result ?? [])
 })
-
 vi.mock('@/lib/db', () => ({ db: () => mockSql }))
 vi.mock('@/lib/auth', () => ({ getProfile: vi.fn() }))
 
@@ -165,16 +164,5 @@ describe('PUT /api/dashboard/clients/[clientId]/alerts', () => {
 
     expect(params[params.length - 1]).toContain('client-1')
     expect(params[params.length - 1]).not.toContain('someone-elses-brand')
-  })
-})
-
-// Guards the scope boundary: the evaluator is deliberately still fenced, because
-// nothing writes the aggregate pulse rows it reads and there is no scheduler.
-describe('the alert evaluator stays fenced', () => {
-  it('cron/evaluate-alerts still returns 503', async () => {
-    const mod = await import('@/app/api/cron/evaluate-alerts/route')
-    const res = await mod.POST()
-
-    expect(res.status).toBe(503)
   })
 })
