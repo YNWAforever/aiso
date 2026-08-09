@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 const migrationsDirectory = resolve(__dirname, '../../supabase/migrations')
 const alertSnapshotFunction = 'public.get_alert_weekly_snapshot'
 const alertSnapshotRpc = `${alertSnapshotFunction}(uuid[])`
+const escapedAlertSnapshotRpc = alertSnapshotRpc.replace(/[()[\].]/g, '\\$&')
 
 async function migrationFiles() {
   return (await readdir(migrationsDirectory)).filter(file => file.endsWith('.sql'))
@@ -38,7 +39,10 @@ describe('Supabase migration contracts', () => {
     for (const prefix of ['023', '024']) {
       const sql = await migrationSql(prefix)
       expect(sql).toContain(`GRANT EXECUTE ON FUNCTION ${alertSnapshotRpc} TO service_role;`)
-      expect(sql).not.toMatch(new RegExp(`GRANT\\s+EXECUTE\\s+ON\\s+FUNCTION\\s+${alertSnapshotRpc.replace(/[()[\].]/g, '\\$&')}\\s+TO\\s+(PUBLIC|anon|authenticated)`, 'i'))
+      const grants = [...sql.matchAll(new RegExp(`GRANT\\s+EXECUTE\\s+ON\\s+FUNCTION\\s+${escapedAlertSnapshotRpc}\\s+TO\\s+([^;]+);`, 'gi'))]
+
+      expect(grants).toHaveLength(1)
+      expect(grants[0]?.[1]?.trim()).toBe('service_role')
       expect(sql).toContain(`REVOKE EXECUTE ON FUNCTION ${alertSnapshotRpc} FROM PUBLIC;`)
       expect(sql).toContain(`REVOKE EXECUTE ON FUNCTION ${alertSnapshotRpc} FROM anon;`)
       expect(sql).toContain(`REVOKE EXECUTE ON FUNCTION ${alertSnapshotRpc} FROM authenticated;`)

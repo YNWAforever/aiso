@@ -1,10 +1,19 @@
-import { access, readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const requiredLayers = ['static', 'unit-contract', 'e2e-accessibility', 'build']
 const requiredP0Domains = ['ENTITLEMENT', 'AUTH-TENANT', 'ALERT-INTEGRITY', 'MIGRATION']
 const validPriorities = new Set(['P0', 'P1', 'P2'])
+const validRoles = new Set(['anonymous', 'authenticated', 'admin'])
+const requiredEntries = new Map([
+  ['ENTITLEMENT-P0', 'P0'],
+  ['AUTH-TENANT-P0', 'P0'],
+  ['ALERT-INTEGRITY-P0', 'P0'],
+  ['MIGRATION-P0', 'P0'],
+  ['CITATION-P1', 'P1'],
+  ['ACCESSIBILITY-P0', 'P0'],
+])
 
 export async function validateTestManifest({ manifestPath = 'ci/pr-gate-manifest.json', cwd = process.cwd() } = {}) {
   const errors = []
@@ -42,7 +51,15 @@ export async function validateTestManifest({ manifestPath = 'ci/pr-gate-manifest
 
     if (!validPriorities.has(entry?.priority)) errors.push(`invalid priority for ${entry?.id ?? 'unknown'}: ${entry?.priority ?? 'missing'}`)
     if (typeof entry?.fixture !== 'string' || !entry.fixture.trim()) errors.push(`empty fixture for ${entry?.id ?? 'unknown'}`)
-    if (!Array.isArray(entry?.roles) || entry.roles.length === 0) errors.push(`empty roles for ${entry?.id ?? 'unknown'}`)
+    if (!Array.isArray(entry?.roles) || entry.roles.length === 0) {
+      errors.push(`empty roles for ${entry?.id ?? 'unknown'}`)
+    } else {
+      for (const role of entry.roles) {
+        if (typeof role !== 'string' || !validRoles.has(role)) {
+          errors.push(`invalid role for ${entry?.id ?? 'unknown'}: ${String(role)}`)
+        }
+      }
+    }
     if (!Array.isArray(entry?.files) || entry.files.length === 0) {
       errors.push(`empty files for ${entry?.id ?? 'unknown'}`)
       continue
@@ -54,10 +71,20 @@ export async function validateTestManifest({ manifestPath = 'ci/pr-gate-manifest
         continue
       }
       try {
-        await access(resolve(cwd, file))
+        const fileStat = await stat(resolve(cwd, file))
+        if (!fileStat.isFile()) errors.push(`referenced test path is not a regular file: ${file}`)
       } catch {
         errors.push(`missing referenced test file: ${file}`)
       }
+    }
+  }
+
+  for (const [id, priority] of requiredEntries) {
+    const entry = manifest.entries.find(candidate => candidate?.id === id)
+    if (!entry) {
+      errors.push(`missing required manifest entry: ${id}`)
+    } else if (entry.priority !== priority) {
+      errors.push(`required manifest entry must have priority ${priority}: ${id}`)
     }
   }
 
