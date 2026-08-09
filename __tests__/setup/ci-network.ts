@@ -1,7 +1,11 @@
-import { vi } from 'vitest'
+import { beforeEach, vi } from 'vitest'
 
-if (process.env.CI) {
+export function installCiNetworkGuard() {
   vi.stubGlobal('fetch', () => {
     throw new Error('Network access is disabled in CI unit tests')
   })
+}
+
+if (process.env.CI) {
+  beforeEach(installCiNetworkGuard)
 }

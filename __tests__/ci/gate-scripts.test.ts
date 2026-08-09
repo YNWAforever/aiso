@@ -1,7 +1,27 @@
-import { describe, expect, it } from 'vitest'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { aggregateGate, readRequiredSummaries } from '../../scripts/ci/aggregate-gate.mjs'
+import { installCiNetworkGuard } from '../setup/ci-network'
 import { classifyVitestReport } from '../../scripts/ci/classify-vitest.mjs'
-import { aggregateGate } from '../../scripts/ci/aggregate-gate.mjs'
 import { createJobSummary } from '../../scripts/ci/write-job-summary.mjs'
+
+const temporaryDirectories: string[] = []
+
+afterEach(async () => {
+  vi.unstubAllGlobals()
+  await Promise.all(temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })))
+})
+
+async function createSummaryDirectory(files: Record<string, unknown>) {
+  const directory = await mkdtemp(join(tmpdir(), 'geoscanner-gate-'))
+  temporaryDirectories.push(directory)
+  await Promise.all(Object.entries(files).map(([name, summary]) =>
+    writeFile(join(directory, name), JSON.stringify(summary), 'utf8'),
+  ))
+  return directory
+}
 
 const manifest = {
   schemaVersion: 1,
@@ -38,6 +58,17 @@ function vitestReport(testFile: string, assertionResults: Array<Record<string, u
 }
 
 describe('PR merge-gate evidence contracts', () => {
+  it('reinstalls the CI network guard without preventing a test-local fetch mock', async () => {
+    installCiNetworkGuard()
+    expect(() => fetch('https://example.test')).toThrow('Network access is disabled in CI unit tests')
+
+    const mockedFetch = vi.fn().mockResolvedValue(new Response('fixture'))
+    vi.stubGlobal('fetch', mockedFetch)
+
+    await expect(fetch('https://example.test')).resolves.toBeInstanceOf(Response)
+    expect(mockedFetch).toHaveBeenCalledWith('https://example.test')
+  })
+
   it('preserves the summary schema and fixture-only artifact paths on success', () => {
     const summary = createJobSummary({
       job: 'unit-contract',
@@ -126,6 +157,43 @@ describe('PR merge-gate evidence contracts', () => {
         BUILD_RESULT: 'success',
       },
       summaries: [],
+      commitSha: 'fixture-sha',
+    })
+
+    expect(result.exitCode).toBe(1)
+    expect(result.summary.failurePriorities).toContain('P0')
+    expect(result.summary.commitSha).toBe('fixture-sha')
+  })
+
+  it('keeps only the four expected job summaries during aggregate discovery', async () => {
+    const directory = await createSummaryDirectory({
+      'static-summary.json': createJobSummary({ job: 'static', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
+      'unit-contract-summary.json': createJobSummary({ job: 'unit-contract', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
+      'e2e-accessibility-summary.json': createJobSummary({ job: 'e2e-accessibility', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
+      'build-summary.json': createJobSummary({ job: 'build', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
+      'untrusted-summary.json': createJobSummary({ job: 'untrusted', status: 'failure', executed: 0, skipped: 1, artifacts: [], commitSha: 'fixture-sha' }),
+    })
+
+    await expect(readRequiredSummaries(directory)).resolves.toHaveLength(4)
+  })
+
+  it('fails closed when an expected static summary file is missing', async () => {
+    const directory = await createSummaryDirectory({
+      'unit-contract-summary.json': createJobSummary({ job: 'unit-contract', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
+      'e2e-accessibility-summary.json': createJobSummary({ job: 'e2e-accessibility', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
+      'build-summary.json': createJobSummary({ job: 'build', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
+    })
+
+    const summaries = await readRequiredSummaries(directory)
+    const result = aggregateGate({
+      results: {
+        STATIC_RESULT: 'success',
+        UNIT_CONTRACT_RESULT: 'success',
+        E2E_ACCESSIBILITY_RESULT: 'success',
+        BUILD_RESULT: 'success',
+      },
+      summaries,
+      commitSha: 'fixture-sha',
     })
 
     expect(result.exitCode).toBe(1)
