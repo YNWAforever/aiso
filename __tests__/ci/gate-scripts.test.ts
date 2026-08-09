@@ -64,6 +64,7 @@ describe('PR merge-gate evidence contracts', () => {
 
     const mockedFetch = vi.fn().mockResolvedValue(new Response('fixture'))
     vi.stubGlobal('fetch', mockedFetch)
+    installCiNetworkGuard()
 
     await expect(fetch('https://example.test')).resolves.toBeInstanceOf(Response)
     expect(mockedFetch).toHaveBeenCalledWith('https://example.test')

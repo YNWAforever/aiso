@@ -17,3 +17,9 @@
 - `npm.cmd run typecheck` passed.
 - `npm.cmd test -- __tests__/ci/gate-scripts.test.ts __tests__/ci/pr-gate-workflow.test.ts --run` passed: 2 files, 15 tests.
 - `git diff --check` passed.
+
+## Fetch harness final-verification fix
+
+- Set `unstubGlobals: false` so module-level deterministic fetch stubs survive their suite's first test; the CI guard now preserves explicit Vitest mock functions while continuing to install its throwing guard for unmocked fetch.
+- Added regression coverage for reinstalling the guard after a test-local fetch mock. Fresh verification passed: the three affected suites (61 tests), CI-gate suites (15 tests), full local suite (52 files, 399 tests), `npm.cmd run typecheck`, and `git diff --check`.
+- No live providers or GitHub Actions were run.

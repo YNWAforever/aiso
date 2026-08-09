@@ -6,7 +6,9 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     setupFiles: ['./__tests__/setup/ci-network.ts'],
-    unstubGlobals: true,
+    // Some deterministic suites install a shared fetch mock at module scope.
+    // Keeping stubs avoids restoring that mock after their first test.
+    unstubGlobals: false,
     exclude: ['**/node_modules/**', 'tests/e2e/**', 'e2e/**', '**/.worktrees/**', '**/.superpowers/**'],
     coverage: {
       provider: 'v8',
