@@ -5,12 +5,14 @@ import { describe, expect, it } from 'vitest'
 const migrationsDirectory = resolve(__dirname, '../../supabase/migrations')
 const alertSnapshotFunction = 'public.get_alert_weekly_snapshot'
 const alertSnapshotRpc = `${alertSnapshotFunction}(uuid[])`
-const alertSnapshotTarget = /(?:(?:"public"|public)\s*\.\s*)?(?:"get_alert_weekly_snapshot"|get_alert_weekly_snapshot)\s*\(\s*uuid\s*\[\s*]\s*\)/i
+const alertSnapshotTarget = /^(?:(?:"[^"]+"|[A-Za-z_][A-Za-z0-9_$]*)\s*\.\s*)?(?:"get_alert_weekly_snapshot"|get_alert_weekly_snapshot)\s*\(\s*uuid\s*\[\s*]\s*\)$/i
 
 export function alertSnapshotGrants(sql: string) {
   const grantStatements = sql.matchAll(/GRANT\s+(.+?)\s+ON\s+FUNCTION\s+(.+?)\s+TO\s+([^;]+);/gis)
 
-  return [...grantStatements].filter(([, , functions]) => alertSnapshotTarget.test(functions ?? ''))
+  return [...grantStatements].filter(([, , functions]) => (
+    (functions ?? '').split(',').some(functionTarget => alertSnapshotTarget.test(functionTarget.trim()))
+  ))
 }
 
 function expectOnlyServiceRoleAlertSnapshotGrants(sql: string) {
@@ -92,6 +94,12 @@ describe('Supabase migration contracts', () => {
 
     expect(alertSnapshotGrants(sql)).toHaveLength(1)
     expectOnlyServiceRoleAlertSnapshotGrants(sql)
+  })
+
+  it('does not treat a near-name function as the alert snapshot RPC', () => {
+    const sql = 'GRANT EXECUTE ON FUNCTION public.other_get_alert_weekly_snapshot(uuid[]) TO authenticated;'
+
+    expect(alertSnapshotGrants(sql)).toHaveLength(0)
   })
 
   it('contains no transaction control statements', async () => {

@@ -66,6 +66,23 @@
 
 ---
 
+## Task 4: Bound alert RPC matcher
+
+- Tokenized comma-separated `GRANT ... ON FUNCTION` target lists and anchored the alert snapshot target matcher, so only an exact `get_alert_weekly_snapshot(uuid[])` function target is recognized with optional schema qualification and SQL quoting.
+- Added a focused regression proving `public.other_get_alert_weekly_snapshot(uuid[])` is not treated as the alert snapshot RPC. No production runtime files changed.
+
+### Verification
+
+- TDD RED: the near-name target was incorrectly detected by the prior unanchored matcher.
+- `npm.cmd test -- --run __tests__/ci/test-manifest.test.ts __tests__/supabase/migration-contract.test.ts __tests__/checks/citationDensity.test.ts` passed: 3 files, 41 tests.
+- `node scripts/ci/validate-test-manifest.mjs`, `npm.cmd run typecheck`, `git diff --check`, and the `c8669d9` runtime-base comparison for citation density and pulse route passed.
+
+### Residual blocker
+
+- Live database, authenticated browser, provider-canary, staging WCAG, and external CI evidence remain intentionally out of scope.
+
+---
+
 ## Task 4: Final traceability corrective fix
 
 - Restored `lib/checks/citationDensity.ts` exactly to Task 4 base `c8669d9`; no runtime URL canonicalization, duplicate filtering, or provider-shape filtering remains in this task.
