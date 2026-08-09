@@ -6,6 +6,11 @@
 - Fresh local verification: `npm.cmd run lint`, `npm.cmd run typecheck`, the two CI contract test files, and `git diff --check` were run after the change.
 - GitHub Actions, browser acceptance, and live-provider checks were intentionally not run.
 
+## Migration revoke compatibility fix
+
+- Added `REVOKE ALL` for `PUBLIC`, `anon`, and `authenticated` in migrations 023/024 while retaining explicit `REVOKE EXECUTE` lines and the sole `service_role` execute grant.
+- Fresh verification: the two migration tests plus `migration-contract.test.ts` passed (15 tests); `npm.cmd run typecheck` and `git diff --check` passed. No live DB or provider checks were run.
+
 ## Final local verification
 
 - `npm.cmd run lint` passed with 0 errors and 19 pre-existing warnings.
