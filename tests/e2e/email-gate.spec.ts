@@ -58,8 +58,8 @@ test.describe('Email capture gate', () => {
 test.describe('Email gate unknown scan ID', () => {
   test('result page returns not-found for an unknown scan ID', async ({ page }) => {
     const response = await page.goto(`/${LANG}/result/00000000-dead-beef-0000-000000000000`, { waitUntil: 'networkidle' })
-    const status = response?.status() ?? 0
-    if (status === 404) expect(status).toBe(404)
-    else await expect(page.locator('text=/not found|404|could not be found/i').first()).toBeVisible({ timeout: 5_000 })
+    expect(response).not.toBeNull()
+    expect(response?.status()).toBe(404)
+    await expect(page.locator('text=/not found|404|could not be found/i').first()).toBeVisible({ timeout: 5_000 })
   })
 })
