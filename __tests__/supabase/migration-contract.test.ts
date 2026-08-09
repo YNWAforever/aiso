@@ -8,11 +8,15 @@ const alertSnapshotRpc = `${alertSnapshotFunction}(uuid[])`
 const alertSnapshotTarget = /^(?:(?:"[^"]+"|[A-Za-z_][A-Za-z0-9_$]*)\s*\.\s*)?(?:"get_alert_weekly_snapshot"|get_alert_weekly_snapshot)\s*\(\s*uuid\s*\[\s*]\s*\)$/i
 
 export function alertSnapshotGrants(sql: string) {
-  const grantStatements = sql.matchAll(/GRANT\s+(.+?)\s+ON\s+FUNCTION\s+(.+?)\s+TO\s+([^;]+);/gis)
+  const functionGrantStatements = sql.matchAll(/GRANT\s+(.+?)\s+ON\s+FUNCTION\s+(.+?)\s+TO\s+([^;]+);/gis)
+  const broadPublicSchemaGrantStatements = sql.matchAll(/GRANT\s+(.+?)\s+ON\s+ALL\s+FUNCTIONS\s+IN\s+SCHEMA\s+(?:public|"public")\s+TO\s+([^;]+);/gis)
 
-  return [...grantStatements].filter(([, , functions]) => (
-    (functions ?? '').split(',').some(functionTarget => alertSnapshotTarget.test(functionTarget.trim()))
-  ))
+  return [
+    ...[...functionGrantStatements].filter(([, , functions]) => (
+      (functions ?? '').split(',').some(functionTarget => alertSnapshotTarget.test(functionTarget.trim()))
+    )),
+    ...[...broadPublicSchemaGrantStatements].map(([, privileges, grantee]) => ['', privileges, '', grantee]),
+  ]
 }
 
 function expectOnlyServiceRoleAlertSnapshotGrants(sql: string) {
@@ -85,6 +89,14 @@ describe('Supabase migration contracts', () => {
     'GRANT EXECUTE ON FUNCTION get_alert_weekly_snapshot(uuid[]) TO authenticated;',
     'GRANT ALL PRIVILEGES ON FUNCTION "public"."get_alert_weekly_snapshot"(uuid[]) TO anon;',
   ])('rejects unauthorized unqualified or quoted target grants', sql => {
+    expect(alertSnapshotGrants(sql)).toHaveLength(1)
+    expect(() => expectOnlyServiceRoleAlertSnapshotGrants(sql)).toThrow()
+  })
+
+  it.each([
+    'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;',
+    'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA "public" TO authenticated;',
+  ])('rejects unauthorized broad public-schema function grants', sql => {
     expect(alertSnapshotGrants(sql)).toHaveLength(1)
     expect(() => expectOnlyServiceRoleAlertSnapshotGrants(sql)).toThrow()
   })

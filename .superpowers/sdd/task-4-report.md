@@ -34,6 +34,23 @@
 
 ---
 
+## Task 4: Broad alert-function grant contract fix
+
+- Extended the alert snapshot grant matcher to recognize `GRANT ... ON ALL FUNCTIONS IN SCHEMA public`, including the SQL-quoted schema form, and route matching grants through the existing exact `service_role` and `EXECUTE` checks.
+- Added negative regressions for `authenticated` broad grants in both schema forms. No production runtime files changed.
+
+### Verification
+
+- TDD RED: both unauthorized broad grants were previously missed by the function-only matcher.
+- Focused manifest, migration, and citation suites passed: 3 files, 43 tests.
+- Standalone manifest validator, typecheck, whitespace diff, and the `c8669d9` runtime-base comparison for citation density and pulse route passed.
+
+### Residual blocker
+
+- Live database, authenticated browser, provider-canary, staging WCAG, and external CI evidence remain intentionally out of scope.
+
+---
+
 ## Task 4: Manifest and SQL parser hardening
 
 - Changed manifest path validation to use `lstat`, reject symbolic links, and retain repository-relative regular-file checks beneath `__tests__/` or `tests/`; the regression uses a real temporary link when Windows permits it and metadata injection otherwise.
