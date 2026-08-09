@@ -1,4 +1,4 @@
-import { lstat, readFile } from 'node:fs/promises'
+import { lstat, readFile, realpath } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -17,7 +17,7 @@ const requiredEntries = new Map([
   ['ACCESSIBILITY-P0', 'P0'],
 ])
 
-export async function validateManifestFilePath({ file, repositoryRoot, lstatFile = lstat }) {
+export async function validateManifestFilePath({ file, repositoryRoot, lstatFile = lstat, realpathFile = realpath }) {
   if (typeof file !== 'string' || !file.trim()) return 'invalid test file'
 
   const resolvedFile = resolve(repositoryRoot, file)
@@ -35,9 +35,26 @@ export async function validateManifestFilePath({ file, repositoryRoot, lstatFile
   }
 
   try {
+    let componentPath = resolve(repositoryRoot)
+    const rootStatus = await lstatFile(componentPath)
+    if (rootStatus.isSymbolicLink()) return `referenced manifest path must not traverse a symbolic link: ${file}`
+
+    for (const component of repositoryRelativePath.split(sep).slice(0, -1)) {
+      componentPath = resolve(componentPath, component)
+      const componentStatus = await lstatFile(componentPath)
+      if (componentStatus.isSymbolicLink()) return `referenced manifest path must not traverse a symbolic link: ${file}`
+    }
+
     const fileStatus = await lstatFile(resolvedFile)
     if (fileStatus.isSymbolicLink()) return `referenced manifest file must not be a symbolic link: ${file}`
     if (!fileStatus.isFile()) return `referenced test path is not a regular file: ${file}`
+
+    const realRepositoryRoot = await realpathFile(repositoryRoot)
+    const realFilePath = await realpathFile(resolvedFile)
+    const realRelativePath = relative(realRepositoryRoot, realFilePath)
+    if (realRelativePath === '..' || realRelativePath.startsWith(`..${sep}`) || isAbsolute(realRelativePath)) {
+      return `referenced manifest file must resolve inside the repository: ${file}`
+    }
   } catch {
     return `missing referenced test file: ${file}`
   }

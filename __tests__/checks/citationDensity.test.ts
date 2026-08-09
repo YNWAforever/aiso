@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { checkCitationDensity } from '@/lib/checks/citationDensity'
+import { computeAuthority } from '@/lib/authority/aggregator'
 
 // Mock OpenRouter AND the authority aggregator to eliminate all network calls
 vi.mock('@/lib/openrouter', () => ({
@@ -29,6 +30,14 @@ const HTML_RICH = `<html><body>
 const HTML_POOR = `<html><body><p>This page has no external links.</p></body></html>`
 
 describe('checkCitationDensity', () => {
+  beforeEach(() => {
+    vi.mocked(computeAuthority).mockReset()
+    vi.mocked(computeAuthority).mockResolvedValue({
+      totalScore: 35, layer1Score: 10, layer2Score: 8, layer3Score: 10, layer4Score: 7,
+      tier: 'tier1', domain: 'example.com', finalScore: 35,
+    })
+  })
+
   it('returns pass for well-cited content', async () => {
     const result = await checkCitationDensity(HTML_RICH, 'https://example.com', { industry: 'finance', region: 'global' })
     expect(result.status).toBe('pass')
@@ -56,17 +65,18 @@ describe('checkCitationDensity', () => {
     expect(['pass', 'warn', 'fail']).toContain(result.status)
   })
 
-  it('retains individual citation occurrences and source URL fragments', async () => {
+  it('normalizes and de-duplicates canonical citation URLs before authority aggregation', async () => {
     const result = await checkCitationDensity(
-      '<a href="https://NIH.gov/study#finding">one</a><a href="https://nih.gov/study">two</a>',
+      '<a href="https://NIH.gov:443/study#finding">one</a><a href="https://nih.gov/study">two</a>',
       'https://example.com',
       { industry: 'finance', region: 'global' },
     )
 
-    expect(result.geoDetails?.totalLinks).toBe(2)
+    expect(result.geoDetails?.totalLinks).toBe(1)
     expect(result.geoDetails?.details).toEqual([
-      expect.objectContaining({ url: 'https://nih.gov/study#finding', domain: 'nih.gov' }),
+      expect.objectContaining({ url: 'https://nih.gov/study', domain: 'nih.gov' }),
     ])
+    expect(computeAuthority).toHaveBeenCalledTimes(1)
   })
 
   it('keeps authority aggregation scoped to unique external domains', async () => {
@@ -78,5 +88,18 @@ describe('checkCitationDensity', () => {
 
     expect(result.geoDetails?.authorityBreakdown).toEqual({ tier1: 1, tier2: 0, tier3: 0, other: 0 })
     expect(result.geoDetails?.details).toHaveLength(1)
+  })
+
+  it('discards malformed provider output instead of emitting invalid citation details', async () => {
+    vi.mocked(computeAuthority).mockResolvedValue({ malformed: true } as never)
+
+    const result = await checkCitationDensity(
+      '<a href="https://nih.gov/study">NIH study</a>',
+      'https://example.com',
+      { industry: 'finance', region: 'global' },
+    )
+
+    expect(result.geoDetails?.authorityBreakdown).toEqual({ tier1: 0, tier2: 0, tier3: 0, other: 0 })
+    expect(result.geoDetails?.details).toEqual([])
   })
 })

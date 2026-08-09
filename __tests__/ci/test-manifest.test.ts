@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises'
+import { lstat, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { relative, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -175,14 +175,26 @@ describe('pr-gate test manifest', () => {
       await expect(validateManifestFilePath({
         file: manifestFile,
         repositoryRoot: root,
-        lstatFile: async () => ({
-          isFile: () => false,
-          isSymbolicLink: () => true,
-        }),
+        lstatFile: async path => path === linkedFile
+          ? { isFile: () => false, isSymbolicLink: () => true }
+          : lstat(path),
       })).resolves.toBe(expectedError)
     } finally {
       await rm(temporaryDirectory, { recursive: true, force: true })
     }
+  })
+
+  it('rejects symbolic-link metadata on an ancestor directory without following it', async () => {
+    const manifestFile = '__tests__/supabase/migration-contract.test.ts'
+    const linkedAncestor = resolve(root, '__tests__')
+
+    await expect(validateManifestFilePath({
+      file: manifestFile,
+      repositoryRoot: root,
+      lstatFile: async path => path === linkedAncestor
+        ? { isFile: () => false, isSymbolicLink: () => true }
+        : lstat(path),
+    })).resolves.toBe(`referenced manifest path must not traverse a symbolic link: ${manifestFile}`)
   })
 
   it('rejects absolute and escaping file paths', async () => {
