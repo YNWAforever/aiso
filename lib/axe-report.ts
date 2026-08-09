@@ -1,7 +1,3 @@
-type AxeNode = {
-  target?: unknown
-}
-
 type AxeRule = {
   id?: unknown
   impact?: unknown
@@ -16,6 +12,7 @@ type AxeResult = {
   violations?: unknown
   passes?: unknown
   incomplete?: unknown
+  inapplicable?: unknown
 }
 
 export type SanitizedAxeRule = {
@@ -26,13 +23,13 @@ export type SanitizedAxeRule = {
   helpUrl: string
   tags: string[]
   nodeCount: number
-  targets: string[][]
 }
 
 export type SanitizedAxeResults = {
   violations: SanitizedAxeRule[]
   passes: SanitizedAxeRule[]
   incomplete: SanitizedAxeRule[]
+  inapplicable: SanitizedAxeRule[]
 }
 
 function stringOrEmpty(value: unknown): string {
@@ -44,7 +41,7 @@ function stringArray(value: unknown): string[] {
 }
 
 function sanitizeRule(rule: AxeRule): SanitizedAxeRule {
-  const nodes = Array.isArray(rule.nodes) ? rule.nodes as AxeNode[] : []
+  const nodes = Array.isArray(rule.nodes) ? rule.nodes : []
 
   return {
     id: stringOrEmpty(rule.id),
@@ -54,7 +51,6 @@ function sanitizeRule(rule: AxeRule): SanitizedAxeRule {
     helpUrl: stringOrEmpty(rule.helpUrl),
     tags: stringArray(rule.tags),
     nodeCount: nodes.length,
-    targets: nodes.map(node => stringArray(node.target)),
   }
 }
 
@@ -63,13 +59,15 @@ function sanitizeRules(value: unknown): SanitizedAxeRule[] {
 }
 
 /**
- * Preserves axe rule diagnostics while excluding document URLs, HTML, failure
- * summaries, timestamps, and arbitrary check data that can contain page content.
+ * Preserves axe rule diagnostics while excluding document URLs, HTML, selector
+ * targets, failure summaries, timestamps, and arbitrary check data that can
+ * contain page content.
  */
 export function sanitizeAxeResults(results: AxeResult): SanitizedAxeResults {
   return {
     violations: sanitizeRules(results.violations),
     passes: sanitizeRules(results.passes),
     incomplete: sanitizeRules(results.incomplete),
+    inapplicable: sanitizeRules(results.inapplicable),
   }
 }

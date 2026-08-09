@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { sanitizeAxeResults } from '@/lib/axe-report'
 
 describe('sanitizeAxeResults', () => {
-  it('keeps diagnostic rule and selector data without page content or arbitrary axe data', () => {
+  it('keeps diagnostic rule metadata without page content, selectors, or arbitrary axe data', () => {
     const result = sanitizeAxeResults({
       url: 'https://example.test/private?email=person@example.test',
       timestamp: '2026-08-10T00:00:00.000Z',
@@ -14,7 +14,7 @@ describe('sanitizeAxeResults', () => {
         helpUrl: 'https://dequeuniversity.com/rules/axe/4.10/label',
         tags: ['cat.forms'],
         nodes: [{
-          target: ['#email'],
+          target: ['#email-person@example.test'],
           html: '<input id="email" value="person@example.test">',
           failureSummary: 'Fix any of the following: page content',
           any: [{ id: 'label', impact: 'critical', message: 'Needs label', data: { secret: 'nope' } }],
@@ -29,7 +29,7 @@ describe('sanitizeAxeResults', () => {
         help: 'Buttons must have discernible text',
         helpUrl: 'https://dequeuniversity.com/rules/axe/4.10/button-name',
         tags: ['cat.name-role-value'],
-        nodes: [{ target: ['button[type="submit"]'], any: [], all: [], none: [] }],
+        nodes: [{ target: ['button[data-account="person@example.test"]'], any: [], all: [], none: [] }],
       }],
       incomplete: [{
         id: 'color-contrast',
@@ -38,9 +38,17 @@ describe('sanitizeAxeResults', () => {
         help: 'Elements must meet minimum contrast ratio',
         helpUrl: 'https://dequeuniversity.com/rules/axe/4.10/color-contrast',
         tags: ['cat.color'],
-        nodes: [{ target: ['.muted-copy'], any: [], all: [], none: [] }],
+        nodes: [{ target: ['.muted-copy[data-private="person@example.test"]'], any: [], all: [], none: [] }],
       }],
-      inapplicable: [],
+      inapplicable: [{
+        id: 'aria-hidden-focus',
+        impact: null,
+        description: 'Ensure aria-hidden elements do not contain focusable elements',
+        help: 'Aria-hidden elements do not contain focusable elements',
+        helpUrl: 'https://dequeuniversity.com/rules/axe/4.10/aria-hidden-focus',
+        tags: ['cat.name-role-value'],
+        nodes: [{ target: ['#private-person@example.test'], any: [], all: [], none: [] }],
+      }],
       testEngine: { name: 'axe-core' },
     })
 
@@ -53,7 +61,6 @@ describe('sanitizeAxeResults', () => {
         helpUrl: 'https://dequeuniversity.com/rules/axe/4.10/label',
         tags: ['cat.forms'],
         nodeCount: 1,
-        targets: [['#email']],
       }],
       passes: [{
         id: 'button-name',
@@ -63,7 +70,6 @@ describe('sanitizeAxeResults', () => {
         helpUrl: 'https://dequeuniversity.com/rules/axe/4.10/button-name',
         tags: ['cat.name-role-value'],
         nodeCount: 1,
-        targets: [['button[type="submit"]']],
       }],
       incomplete: [{
         id: 'color-contrast',
@@ -73,11 +79,21 @@ describe('sanitizeAxeResults', () => {
         helpUrl: 'https://dequeuniversity.com/rules/axe/4.10/color-contrast',
         tags: ['cat.color'],
         nodeCount: 1,
-        targets: [['.muted-copy']],
+      }],
+      inapplicable: [{
+        id: 'aria-hidden-focus',
+        impact: null,
+        description: 'Ensure aria-hidden elements do not contain focusable elements',
+        help: 'Aria-hidden elements do not contain focusable elements',
+        helpUrl: 'https://dequeuniversity.com/rules/axe/4.10/aria-hidden-focus',
+        tags: ['cat.name-role-value'],
+        nodeCount: 1,
       }],
     })
-    expect(JSON.stringify(result)).not.toContain('person@example.test')
-    expect(JSON.stringify(result)).not.toContain('page content')
-    expect(JSON.stringify(result)).not.toContain('secret')
+    const serialized = JSON.stringify(result)
+    expect(serialized).not.toContain('person@example.test')
+    expect(serialized).not.toContain('targets')
+    expect(serialized).not.toContain('page content')
+    expect(serialized).not.toContain('secret')
   })
 })

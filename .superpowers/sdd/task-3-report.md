@@ -79,3 +79,19 @@ Focused verification:
 - `npm.cmd run typecheck` passed.
 - `npx.cmd playwright test tests/e2e/accessibility.spec.ts --list` listed 6 project/test entries without executing browser E2E.
 - `git diff --check` passed.
+
+---
+
+## Review fix: redact axe selectors and retain inapplicable results
+
+- Removed raw axe node selector targets from every sanitized result category; per-rule `nodeCount` preserves safe diagnostic shape.
+- Added `inapplicable` to the attached sanitized report with the same metadata and node-count shape as violations, passes, and incomplete results.
+- Expanded the sanitizer regression test with page-derived selector values and an inapplicable rule, proving selector data is absent while inapplicable results remain attached.
+
+### Verification
+
+- Red: `npm.cmd test -- --run __tests__/lib/axe-report.test.ts` failed before implementation because selector targets were serialized and `inapplicable` was absent.
+- Green: `npm.cmd test -- --run __tests__/lib/axe-report.test.ts __tests__/ci/e2e-fixtures.test.ts` (2 files, 4 tests passed).
+- `npm.cmd run typecheck` passed.
+- `git diff --check` passed.
+- Browser E2E was not run. The existing sandbox/Turbopack inferred-workspace-root access failure remains the environment blocker.
