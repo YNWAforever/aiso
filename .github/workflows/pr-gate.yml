@@ -1,0 +1,205 @@
+name: PR gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - name: Run static checks
+        shell: bash
+        run: |
+          mkdir -p artifacts/static
+          set +e
+          npm run lint 2>&1 | tee artifacts/static/lint.log
+          lint_exit=${PIPESTATUS[0]}
+          npm run typecheck 2>&1 | tee artifacts/static/typecheck.log
+          typecheck_exit=${PIPESTATUS[0]}
+          set -e
+          if [ "$lint_exit" -eq 0 ] && [ "$typecheck_exit" -eq 0 ]; then status=success; else status=failure; fi
+          node scripts/ci/write-job-summary.mjs --job static --status "$status" --executed 2 --skipped 0 --artifact static/lint.log --artifact static/typecheck.log --output artifacts/static-summary.json
+          if [ "$status" != success ]; then exit 1; fi
+      - name: Upload static diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-diagnostics
+          if-no-files-found: warn
+          path: |
+            artifacts/static/
+            artifacts/static-summary.json
+
+  unit-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - name: Run unit contract suite
+        shell: bash
+        run: |
+          mkdir -p artifacts/unit-contract coverage
+          set +e
+          npm test -- --coverage --reporter=json --reporter=junit --outputFile.json=artifacts/unit-contract/vitest.json --outputFile.junit=artifacts/unit-contract/vitest.junit.xml 2>&1 | tee artifacts/unit-contract/vitest.log
+          vitest_exit=${PIPESTATUS[0]}
+          set -e
+          set +e
+          node scripts/ci/classify-vitest.mjs --report artifacts/unit-contract/vitest.json --manifest ci/pr-gate-manifest.json --exit-code "$vitest_exit" --output artifacts/unit-contract-summary.json
+          classifier_exit=$?
+          set -e
+          exit "$classifier_exit"
+        env:
+          CI: 'true'
+      - name: Upload unit-contract diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-contract-diagnostics
+          if-no-files-found: warn
+          path: |
+            artifacts/unit-contract/
+            artifacts/unit-contract-summary.json
+            coverage/
+
+  e2e-accessibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run E2E and accessibility suite
+        shell: bash
+        run: |
+          mkdir -p artifacts/e2e-accessibility
+          set +e
+          npm run e2e -- --reporter=html --reporter=json --reporter=junit 2>&1 | tee artifacts/e2e-accessibility/playwright.log
+          e2e_exit=${PIPESTATUS[0]}
+          set -e
+          if [ "$e2e_exit" -eq 0 ]; then status=success; else status=failure; fi
+          node scripts/ci/write-job-summary.mjs --job e2e-accessibility --status "$status" --executed 1 --skipped 0 --artifact e2e-accessibility/playwright.log --artifact e2e-accessibility/playwright-results.json --artifact e2e-accessibility/playwright.junit.xml --output artifacts/e2e-accessibility-summary.json
+          exit "$e2e_exit"
+        env:
+          CI: 'true'
+          E2E_FIXTURE_MODE: 1
+          START_DEV_SERVER: 1
+          BASE_URL: http://127.0.0.1:3000
+          DATABASE_URL: postgresql://fixture:fixture@127.0.0.1:5432/fixture
+          NEON_AUTH_BASE_URL: https://fixture.invalid
+          NEON_AUTH_COOKIE_SECRET: fixture-cookie-secret
+          NEXT_PUBLIC_SUPABASE_URL: https://fixture.invalid
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: fixture-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: fixture-service-key
+          NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+          PLAYWRIGHT_JSON_OUTPUT_NAME: artifacts/e2e-accessibility/playwright-results.json
+          PLAYWRIGHT_JUNIT_OUTPUT_NAME: artifacts/e2e-accessibility/playwright.junit.xml
+      - name: Upload e2e-accessibility diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-accessibility-diagnostics
+          if-no-files-found: warn
+          path: |
+            artifacts/e2e-accessibility/
+            artifacts/e2e-accessibility-summary.json
+            playwright-report/
+            test-results/
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - name: Build fixture application
+        shell: bash
+        run: |
+          mkdir -p artifacts/build
+          set +e
+          npm run build 2>&1 | tee artifacts/build/build.log
+          build_exit=${PIPESTATUS[0]}
+          set -e
+          if [ "$build_exit" -eq 0 ]; then status=success; else status=failure; fi
+          node scripts/ci/write-job-summary.mjs --job build --status "$status" --executed 1 --skipped 0 --artifact build/build.log --output artifacts/build-summary.json
+          exit "$build_exit"
+        env:
+          CI: 'true'
+          DATABASE_URL: postgresql://fixture:fixture@127.0.0.1:5432/fixture
+          NEXT_PUBLIC_SUPABASE_URL: https://fixture.invalid
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: fixture-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: fixture-service-key
+          NEON_AUTH_BASE_URL: https://fixture.invalid
+          NEON_AUTH_COOKIE_SECRET: fixture-cookie-secret
+          NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-diagnostics
+          if-no-files-found: warn
+          path: |
+            artifacts/build/
+            artifacts/build-summary.json
+
+  pr-gate:
+    if: ${{ always() }}
+    needs: [static, unit-contract, e2e-accessibility, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - name: Download job summaries
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: '*-diagnostics'
+          merge-multiple: true
+      - name: Aggregate gate evidence
+        run: node scripts/ci/aggregate-gate.mjs
+        env:
+          STATIC_RESULT: ${{ needs.static.result }}
+          UNIT_CONTRACT_RESULT: ${{ needs.unit-contract.result }}
+          E2E_ACCESSIBILITY_RESULT: ${{ needs.e2e-accessibility.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+      - name: Upload PR gate diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-gate-diagnostics
+          if-no-files-found: warn
+          path: artifacts/gate-summary.json
