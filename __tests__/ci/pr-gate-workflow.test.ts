@@ -31,7 +31,7 @@ describe('PR gate workflow contract', () => {
     expect(workflow).toContain('npm run lint')
     expect(workflow).toContain('npm run typecheck')
     expect(workflow).toContain('npm test -- --coverage')
-    expect(workflow).toContain('npm run e2e')
+    expect(workflow).toContain('npm run e2e -- --reporter=html,json,junit')
     expect(workflow).toContain('npm run build')
     expect(workflow).toContain('E2E_FIXTURE_MODE: 1')
     expect(workflow).toContain('BASE_URL: http://127.0.0.1:3000')

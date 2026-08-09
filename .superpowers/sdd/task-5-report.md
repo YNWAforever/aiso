@@ -48,3 +48,8 @@ Implemented on `codex/scan-to-signup-impl`.
 ## Residual environment blockers
 
 - No GitHub Actions run was triggered or observed locally; real runner, Playwright dependency-installation, and artifact evidence remain pending GitHub-hosted execution.
+
+## Fix follow-up: preserve E2E diagnostics
+
+- Changed the E2E invocation to one supported multi-reporter option: `--reporter=html,json,junit`, preserving the existing HTML, JSON, JUnit, artifact, fixture-only environment, `if: always()`, and failure-propagation behavior.
+- Strengthened the workflow contract to require that exact multi-reporter command. Local workflow contract test, gate-script test, typecheck, and diff check passed; GitHub Actions/Playwright browser execution remains intentionally unrun.
