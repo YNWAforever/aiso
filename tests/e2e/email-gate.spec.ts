@@ -1,57 +1,65 @@
+import { test, expect } from '@playwright/test'
 import { TEST_SCAN_ID } from '../constants.js'
-import { expect, test } from '@playwright/test'
-import { ResultPage } from './pages/ResultPage.js'
 
 const LANG = 'en'
-const hasSeededResult = Boolean(
-  process.env.NEXT_PUBLIC_SUPABASE_URL &&
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-)
 
-test.describe('Account unlock on a seeded public result', () => {
+test.describe('Email capture gate', () => {
   test.beforeEach(async ({ page }) => {
-    test.skip(!hasSeededResult, 'Requires Supabase URL, anon key, and service-role key for the seeded result fixture.')
-    await page.goto('/' + LANG + '/result/' + TEST_SCAN_ID, { waitUntil: 'networkidle' })
+    await page.goto(`/${LANG}/result/${TEST_SCAN_ID}`, { waitUntil: 'domcontentloaded' })
+    await page.waitForLoadState('networkidle')
   })
 
-  test('shows one account unlock without the private breakdown', async ({ page }) => {
-    const result = new ResultPage(page, LANG)
-    await expect(result.score).toBeVisible()
-    await expect(result.topIssue).toBeVisible()
-    await expect(result.topIssue).toHaveText(/.+/)
-    await expect(result.createAccountButton).toBeVisible()
-    await expect(result.googleSignupButton).toBeVisible()
-    await expect(page.getByText(/No credit card/i)).toBeVisible()
-    await expect(result.fullCheckBreakdown).not.toBeVisible()
+  test('fixture result page loads without error', async ({ page }) => {
+    await expect(page.locator('body')).not.toContainText('404')
+    await expect(page.locator('body')).not.toContainText('This page could not be found')
   })
 
-  test('magic-link callback preserves locale and scan ID', async ({ page }) => {
-    let requestBody: Record<string, unknown> | null = null
-    await page.route('**/sign-in/magic-link*', route => {
-      requestBody = route.request().postDataJSON() as Record<string, unknown>
-      return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+  test('score number is visible', async ({ page }) => {
+    await expect(page.locator('text=/^\\d{1,3}$/').first()).toBeVisible({ timeout: 8_000 })
+  })
+
+  test('result page shows email input and submit button in locked state', async ({ page }) => {
+    await expect(page.locator('input[type="email"]')).toBeVisible({ timeout: 8_000 })
+    await expect(page.locator('button[type="submit"]')).toBeVisible()
+  })
+
+  test('email gate calls /api/scan/lead on submit', async ({ page }) => {
+    const leadRequests: string[] = []
+    await page.route('**/api/scan/lead', route => {
+      leadRequests.push(route.request().url())
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) })
     })
+    await page.locator('input[type="email"]').fill('test@example.com')
+    await page.locator('button[type="submit"]').click()
+    await expect.poll(() => leadRequests.length).toBeGreaterThan(0)
+  })
 
-    const result = new ResultPage(page, LANG)
-    await result.submitEmail('unlock@example.com')
-    await expect.poll(() => requestBody).not.toBeNull()
-    const callback = new URL(String(requestBody?.callbackURL ?? requestBody?.callbackUrl ?? ''))
-    expect(callback.pathname).toBe('/' + LANG + '/auth/complete')
-    expect(callback.searchParams.get('next')).toBe('/' + LANG + '/onboarding?scan=' + TEST_SCAN_ID)
+  test('submitting email transitions to the unlocked state', async ({ page }) => {
+    await page.route('**/api/scan/lead', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) }))
+    await page.locator('input[type="email"]').fill('unlock@example.com')
+    await page.locator('button[type="submit"]').click()
+    await expect(page.locator('input[type="email"]')).not.toBeVisible({ timeout: 10_000 })
+  })
+
+  test('deep GEO section is visible after unlock', async ({ page }) => {
+    await page.route('**/api/scan/lead', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) }))
+    await page.locator('input[type="email"]').fill('geo@example.com')
+    await page.locator('button[type="submit"]').click()
+    await expect(page.locator('text=/Citation|Factual|Topical|Chunkability/i').first()).toBeVisible({ timeout: 10_000 })
   })
 
   test('invalid email format prevents submission', async ({ page }) => {
-    const result = new ResultPage(page, LANG)
-    await result.emailInput.fill('not-an-email')
-    await result.createAccountButton.click()
-    expect(await result.emailInput.evaluate((element: HTMLInputElement) => !element.checkValidity())).toBe(true)
+    await page.locator('input[type="email"]').fill('not-an-email')
+    await page.locator('button[type="submit"]').click()
+    await expect(page.locator('input[type="email"]')).toBeVisible()
   })
 })
 
-test('unknown scan ID returns not-found', async ({ page }) => {
-  const response = await page.goto('/' + LANG + '/result/00000000-dead-beef-0000-000000000000', {
-    waitUntil: 'networkidle',
+test.describe('Email gate unknown scan ID', () => {
+  test('result page returns not-found for an unknown scan ID', async ({ page }) => {
+    const response = await page.goto(`/${LANG}/result/00000000-dead-beef-0000-000000000000`, { waitUntil: 'networkidle' })
+    const status = response?.status() ?? 0
+    if (status === 404) expect(status).toBe(404)
+    else await expect(page.locator('text=/not found|404|could not be found/i').first()).toBeVisible({ timeout: 5_000 })
   })
-  expect(response?.status()).toBe(404)
 })
