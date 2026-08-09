@@ -119,6 +119,20 @@ describe('PR merge-gate evidence contracts', () => {
     expect(result.summary.status).toBe('failure')
   })
 
+  it('fails closed when a failed test is absent from the manifest', () => {
+    const result = classifyVitestReport({
+      report: vitestReport('__tests__/unit/unrepresented.test.ts', [{ status: 'failed', title: 'missing traceability', fullName: 'missing traceability' }]),
+      exitCode: 1,
+      manifest,
+      artifactPaths: ['unit-contract/vitest.json'],
+      commitSha: 'fixture-sha',
+    })
+
+    expect(result.exitCode).toBe(1)
+    expect(result.summary.status).toBe('failure')
+    expect(result.summary.failurePriorities).toContain('P0')
+  })
+
   it('fails closed when the Vitest report is missing', () => {
     const result = classifyVitestReport({
       report: undefined,

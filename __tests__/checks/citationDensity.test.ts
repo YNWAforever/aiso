@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { checkCitationDensity } from '@/lib/checks/citationDensity'
+import { computeAuthority } from '@/lib/authority/aggregator'
 
 // Mock OpenRouter AND the authority aggregator to eliminate all network calls
 vi.mock('@/lib/openrouter', () => ({
@@ -28,6 +29,13 @@ const HTML_RICH = `<html><body>
 
 const HTML_POOR = `<html><body><p>This page has no external links.</p></body></html>`
 
+beforeEach(() => {
+  vi.mocked(computeAuthority).mockResolvedValue({
+    totalScore: 35, layer1Score: 10, layer2Score: 8, layer3Score: 10, layer4Score: 7,
+    tier: 'tier1', domain: 'example.com', finalScore: 35,
+  })
+})
+
 describe('checkCitationDensity', () => {
   it('returns pass for well-cited content', async () => {
     const result = await checkCitationDensity(HTML_RICH, 'https://example.com', { industry: 'finance', region: 'global' })
@@ -54,5 +62,34 @@ describe('checkCitationDensity', () => {
   it('handles malformed HTML without throwing', async () => {
     const result = await checkCitationDensity('<p>broken<a href="bad url">link</p>', 'https://example.com', { industry: 'technology', region: 'HK' })
     expect(['pass', 'warn', 'fail']).toContain(result.status)
+  })
+
+  it('normalizes fragment variants and counts a canonical external URL once', async () => {
+    const result = await checkCitationDensity(
+      '<a href="https://NIH.gov/study#finding">one</a><a href="https://nih.gov/study">two</a>',
+      'https://example.com',
+      { industry: 'finance', region: 'global' },
+    )
+
+    expect(result.geoDetails?.totalLinks).toBe(1)
+    expect(result.geoDetails?.details).toEqual([
+      expect.objectContaining({ url: 'https://nih.gov/study', domain: 'nih.gov' }),
+    ])
+  })
+
+  it('aggregates valid authority tiers and contains malformed authority output', async () => {
+    vi.mocked(computeAuthority)
+      .mockResolvedValueOnce({ tier: 'tier1', finalScore: 35 } as never)
+      .mockResolvedValueOnce({ tier: 'tier2', finalScore: 20 } as never)
+      .mockResolvedValueOnce({ tier: 'unexpected', finalScore: Number.NaN } as never)
+
+    const result = await checkCitationDensity(
+      '<a href="https://one.example/a">one</a><a href="https://two.example/b">two</a><a href="https://three.example/c">three</a>',
+      'https://example.com',
+      { industry: 'finance', region: 'global' },
+    )
+
+    expect(result.geoDetails?.authorityBreakdown).toEqual({ tier1: 1, tier2: 1, tier3: 0, other: 1 })
+    expect(result.geoDetails?.details[2]).toEqual(expect.objectContaining({ tier: 'other', authorityScore: 0 }))
   })
 })
