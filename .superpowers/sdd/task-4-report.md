@@ -56,6 +56,22 @@ Commit message: `feat: unlock scan reports with one free account gate`
 
 ---
 
+## Task 4: Manifest and SQL parser hardening
+
+- Changed manifest path validation to use `lstat`, reject symbolic links, and retain repository-relative regular-file checks beneath `__tests__/` or `tests/`; the regression uses a real temporary link when Windows permits it and metadata injection otherwise.
+- Updated the migration contract parser to inspect every `GRANT ... ON FUNCTION` list for the alert snapshot RPC, including comma-separated targets, and require `EXECUTE` for exactly `service_role` while rejecting `ALL`/`ALL PRIVILEGES` and unauthorized grantees.
+
+### Verification
+
+- `npm.cmd test -- __tests__/ci/test-manifest.test.ts __tests__/supabase/migration-contract.test.ts --run` passed: 2 files, 19 tests.
+- `node scripts/ci/validate-test-manifest.mjs`, `npm.cmd run typecheck`, and `git diff --check` passed.
+
+### Residual environment blockers
+
+- Live database, authenticated browser, provider-canary, staging WCAG, and external CI evidence remain intentionally out of scope and were not attempted.
+
+---
+
 ## Task 4: Review gate-scope and privilege fix
 
 - Broadened the alert snapshot SQL contract to inspect every `GRANT ... ON FUNCTION` form and added a negative `GRANT ALL PRIVILEGES` fixture for an unauthorized grantee; explicit `PUBLIC`, `anon`, and `authenticated` revokes remain required.

@@ -7,17 +7,20 @@ const alertSnapshotFunction = 'public.get_alert_weekly_snapshot'
 const alertSnapshotRpc = `${alertSnapshotFunction}(uuid[])`
 const escapedAlertSnapshotFunction = alertSnapshotFunction.replace(/[.[\]]/g, '\\$&')
 
-function alertSnapshotGrants(sql: string) {
-  return [...sql.matchAll(new RegExp(
-    `GRANT\\s+[^;]*?\\s+ON\\s+FUNCTION\\s+${escapedAlertSnapshotFunction}\\s*\\(\\s*uuid\\s*\\[\\s*]\\s*\\)\\s+TO\\s+([^;]+);`,
-    'gi',
-  ))]
+export function alertSnapshotGrants(sql: string) {
+  const grantStatements = sql.matchAll(/GRANT\s+(.+?)\s+ON\s+FUNCTION\s+(.+?)\s+TO\s+([^;]+);/gis)
+
+  return [...grantStatements].filter(([, , functions]) => new RegExp(
+    `${escapedAlertSnapshotFunction}\\s*\\(\\s*uuid\\s*\\[\\s*]\\s*\\)`,
+    'i',
+  ).test(functions ?? ''))
 }
 
 function expectOnlyServiceRoleAlertSnapshotGrants(sql: string) {
   const grants = alertSnapshotGrants(sql)
   expect(grants).toHaveLength(1)
-  expect(grants[0]?.[1]?.trim()).toBe('service_role')
+  expect(grants[0]?.[1]?.trim()).not.toMatch(/^ALL(?:\s+PRIVILEGES)?$/i)
+  expect(grants[0]?.[3]?.trim()).toBe('service_role')
 }
 
 async function migrationFiles() {
@@ -64,6 +67,19 @@ describe('Supabase migration contracts', () => {
       `GRANT EXECUTE ON FUNCTION ${alertSnapshotRpc} TO service_role;
        GRANT ALL PRIVILEGES ON FUNCTION ${alertSnapshotRpc} TO authenticated;`,
     )).toThrow()
+  })
+
+  it('rejects GRANT ALL PRIVILEGES even for service_role', () => {
+    expect(() => expectOnlyServiceRoleAlertSnapshotGrants(
+      `GRANT ALL PRIVILEGES ON FUNCTION ${alertSnapshotRpc} TO service_role;`,
+    )).toThrow()
+  })
+
+  it('rejects an alert snapshot grant when it follows another function in the same grant list', () => {
+    const sql = `GRANT EXECUTE ON FUNCTION public.refresh_alert_cache(), ${alertSnapshotRpc} TO authenticated;`
+
+    expect(alertSnapshotGrants(sql)).toHaveLength(1)
+    expect(() => expectOnlyServiceRoleAlertSnapshotGrants(sql)).toThrow()
   })
 
   it('contains no transaction control statements', async () => {

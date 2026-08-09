@@ -1,4 +1,4 @@
-import { readFile, stat } from 'node:fs/promises'
+import { lstat, readFile } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -14,6 +14,37 @@ const requiredEntries = new Map([
   ['CITATION-P1', 'P1'],
   ['ACCESSIBILITY-P0', 'P0'],
 ])
+
+export async function validateManifestFilePath({ file, repositoryRoot, lstatFile = lstat }) {
+  if (typeof file !== 'string' || !file.trim()) return 'invalid test file'
+
+  const resolvedFile = resolve(repositoryRoot, file)
+  const repositoryRelativePath = relative(repositoryRoot, resolvedFile)
+  const pathSegments = file.replaceAll('\\', '/').split('/')
+  if (
+    isAbsolute(file)
+    || pathSegments.includes('..')
+    || repositoryRelativePath === ''
+    || repositoryRelativePath === '..'
+    || repositoryRelativePath.startsWith(`..${sep}`)
+    || isAbsolute(repositoryRelativePath)
+  ) {
+    return `referenced manifest file must be a relative path inside the repository: ${file}`
+  }
+
+  try {
+    const fileStatus = await lstatFile(resolvedFile)
+    if (fileStatus.isSymbolicLink()) return `referenced manifest file must not be a symbolic link: ${file}`
+    if (!fileStatus.isFile()) return `referenced test path is not a regular file: ${file}`
+  } catch {
+    return `missing referenced test file: ${file}`
+  }
+
+  const testRelativePath = repositoryRelativePath.replaceAll('\\', '/')
+  if (!testRelativePath.startsWith('__tests__/') && !testRelativePath.startsWith('tests/')) {
+    return `referenced manifest file is not under __tests__/ or tests/: ${file}`
+  }
+}
 
 export async function validateTestManifest({ manifestPath = 'ci/pr-gate-manifest.json', cwd = process.cwd() } = {}) {
   const errors = []
@@ -67,41 +98,8 @@ export async function validateTestManifest({ manifestPath = 'ci/pr-gate-manifest
     }
 
     for (const file of entry.files) {
-      if (typeof file !== 'string' || !file.trim()) {
-        errors.push(`invalid test file for ${entry?.id ?? 'unknown'}`)
-        continue
-      }
-
-      const resolvedFile = resolve(repositoryRoot, file)
-      const repositoryRelativePath = relative(repositoryRoot, resolvedFile)
-      const pathSegments = file.replaceAll('\\', '/').split('/')
-      if (
-        isAbsolute(file)
-        || pathSegments.includes('..')
-        || repositoryRelativePath === ''
-        || repositoryRelativePath === '..'
-        || repositoryRelativePath.startsWith(`..${sep}`)
-        || isAbsolute(repositoryRelativePath)
-      ) {
-        errors.push(`referenced manifest file must be a relative path inside the repository: ${file}`)
-        continue
-      }
-
-      try {
-        const fileStat = await stat(resolvedFile)
-        if (!fileStat.isFile()) {
-          errors.push(`referenced test path is not a regular file: ${file}`)
-          continue
-        }
-      } catch {
-        errors.push(`missing referenced test file: ${file}`)
-        continue
-      }
-
-      const testRelativePath = repositoryRelativePath.replaceAll('\\', '/')
-      if (!testRelativePath.startsWith('__tests__/') && !testRelativePath.startsWith('tests/')) {
-        errors.push(`referenced manifest file is not under __tests__/ or tests/: ${file}`)
-      }
+      const fileError = await validateManifestFilePath({ file, repositoryRoot })
+      if (fileError) errors.push(`${fileError}${fileError === 'invalid test file' ? ` for ${entry?.id ?? 'unknown'}` : ''}`)
     }
   }
 

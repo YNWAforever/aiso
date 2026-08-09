@@ -1,8 +1,8 @@
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { resolve } from 'node:path'
+import { relative, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { validateTestManifest } from '../../scripts/ci/validate-test-manifest.mjs'
+import { validateManifestFilePath, validateTestManifest } from '../../scripts/ci/validate-test-manifest.mjs'
 
 const root = resolve(__dirname, '../..')
 const requiredLayers = ['static', 'unit-contract', 'e2e-accessibility', 'build']
@@ -131,6 +131,29 @@ describe('pr-gate test manifest', () => {
     }))
 
     expect(errors).toContain('referenced manifest file is not under __tests__/ or tests/: package.json')
+  })
+
+  it('rejects symbolic-link metadata without following the link', async () => {
+    const temporaryDirectory = await mkdtemp(resolve(root, '__tests__', '.manifest-link-'))
+    const linkedFile = resolve(temporaryDirectory, 'migration-contract.test.ts')
+    const manifestFile = relative(root, linkedFile).replaceAll('\\', '/')
+    const expectedError = `referenced manifest file must not be a symbolic link: ${manifestFile}`
+
+    try {
+      await symlink(resolve(root, '__tests__/supabase/migration-contract.test.ts'), linkedFile, 'file')
+      await expect(validateManifestFilePath({ file: manifestFile, repositoryRoot: root })).resolves.toBe(expectedError)
+    } catch {
+      await expect(validateManifestFilePath({
+        file: manifestFile,
+        repositoryRoot: root,
+        lstatFile: async () => ({
+          isFile: () => false,
+          isSymbolicLink: () => true,
+        }),
+      })).resolves.toBe(expectedError)
+    } finally {
+      await rm(temporaryDirectory, { recursive: true, force: true })
+    }
   })
 
   it('rejects absolute and escaping file paths', async () => {
