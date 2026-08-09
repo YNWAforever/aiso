@@ -38,9 +38,10 @@ describe('Supabase migration contracts', () => {
     for (const prefix of ['023', '024']) {
       const sql = await migrationSql(prefix)
       expect(sql).toContain(`GRANT EXECUTE ON FUNCTION ${alertSnapshotRpc} TO service_role;`)
-      expect(sql).not.toMatch(new RegExp(`GRANT\\s+EXECUTE\\s+ON\\s+FUNCTION\\s+${alertSnapshotRpc.replace(/[()[\].]/g, '\\$&')}\\s+TO\\s+(anon|authenticated)`, 'i'))
-      expect(sql).toContain(`REVOKE ALL ON FUNCTION ${alertSnapshotRpc} FROM anon;`)
-      expect(sql).toContain(`REVOKE ALL ON FUNCTION ${alertSnapshotRpc} FROM authenticated;`)
+      expect(sql).not.toMatch(new RegExp(`GRANT\\s+EXECUTE\\s+ON\\s+FUNCTION\\s+${alertSnapshotRpc.replace(/[()[\].]/g, '\\$&')}\\s+TO\\s+(PUBLIC|anon|authenticated)`, 'i'))
+      expect(sql).toContain(`REVOKE EXECUTE ON FUNCTION ${alertSnapshotRpc} FROM PUBLIC;`)
+      expect(sql).toContain(`REVOKE EXECUTE ON FUNCTION ${alertSnapshotRpc} FROM anon;`)
+      expect(sql).toContain(`REVOKE EXECUTE ON FUNCTION ${alertSnapshotRpc} FROM authenticated;`)
     }
   })
 
