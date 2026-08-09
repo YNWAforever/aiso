@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- This launcher is intentionally CommonJS for direct Node execution. */
 const { cpSync, mkdirSync, readdirSync, rmSync } = require('node:fs')
 const { basename, resolve } = require('node:path')
 const { spawn } = require('node:child_process')

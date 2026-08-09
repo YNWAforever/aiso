@@ -4,11 +4,9 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
+import { createIsolatedWorkspace } from '../../scripts/start-playwright-ci-server.cjs'
 
 const root = resolve(__dirname, '../..')
-const { createIsolatedWorkspace } = require(resolve(root, 'scripts/start-playwright-ci-server.cjs')) as {
-  createIsolatedWorkspace: (repositoryRoot: string, isolatedRoot: string) => void
-}
 
 describe('Playwright CI server isolation', () => {
   it('uses the isolated launcher with the required CI Playwright settings', async () => {
