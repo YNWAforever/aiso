@@ -1,9 +1,15 @@
 import AxeBuilder from '@axe-core/playwright'
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test'
+import { sanitizeAxeResults } from '@/lib/axe-report'
 import { TEST_SCAN_ID } from '../constants.js'
 
-async function expectNoBlockingA11y(page: Page) {
+async function expectNoBlockingA11y(page: Page, testInfo: TestInfo, flow: string) {
   const results = await new AxeBuilder({ page }).analyze()
+  const report = sanitizeAxeResults(results)
+  await testInfo.attach(`axe-report-${flow}`, {
+    body: Buffer.from(JSON.stringify(report, null, 2)),
+    contentType: 'application/json',
+  })
   const blocking = results.violations.filter(
     violation => violation.impact === 'critical' || violation.impact === 'serious',
   )
@@ -32,17 +38,17 @@ async function expectReachableByTab(page: Page, target: Locator) {
   throw new Error('Expected control to be reachable by keyboard tabbing')
 }
 
-test('English home page has no blocking accessibility violations and keyboard-reachable scan controls', async ({ page }) => {
+test('English home page has no blocking accessibility violations and keyboard-reachable scan controls', async ({ page }, testInfo) => {
   await page.goto('/en', { waitUntil: 'networkidle' })
 
   const scanInput = page.locator('#home-scan-url')
   const scanButton = page.locator('form').first().getByRole('button')
   await expectReachableByTab(page, scanInput)
   await expectReachableByTab(page, scanButton)
-  await expectNoBlockingA11y(page)
+  await expectNoBlockingA11y(page, testInfo, 'home')
 })
 
-test('English login page has no blocking accessibility violations and keyboard-reachable primary controls', async ({ page }) => {
+test('English login page has no blocking accessibility violations and keyboard-reachable primary controls', async ({ page }, testInfo) => {
   await page.goto('/en/auth/login', { waitUntil: 'networkidle' })
 
   const googleButton = page.getByRole('button', { name: /continue with google/i })
@@ -51,10 +57,10 @@ test('English login page has no blocking accessibility violations and keyboard-r
   await expectReachableByTab(page, googleButton)
   await expectReachableByTab(page, emailInput)
   await expectReachableByTab(page, magicLinkButton)
-  await expectNoBlockingA11y(page)
+  await expectNoBlockingA11y(page, testInfo, 'login')
 })
 
-test('fixture result page has no blocking accessibility violations before and after email unlock', async ({ page }) => {
+test('fixture result page has no blocking accessibility violations before and after email unlock', async ({ page }, testInfo) => {
   await page.route('**/api/scan/lead', route => route.fulfill({
     status: 200,
     contentType: 'application/json',
@@ -62,10 +68,10 @@ test('fixture result page has no blocking accessibility violations before and af
   }))
   await page.goto(`/en/result/${TEST_SCAN_ID}`, { waitUntil: 'networkidle' })
 
-  await expectNoBlockingA11y(page)
+  await expectNoBlockingA11y(page, testInfo, 'result-before-unlock')
 
   await page.locator('#result-email').fill('accessibility@example.com')
   await page.getByRole('button', { name: /unlock report/i }).click()
   await expect(page.locator('#result-email')).not.toBeVisible()
-  await expectNoBlockingA11y(page)
+  await expectNoBlockingA11y(page, testInfo, 'result-after-unlock')
 })

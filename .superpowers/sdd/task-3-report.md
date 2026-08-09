@@ -64,3 +64,18 @@ Focused verification:
 - Green local checks: `npm.cmd test -- __tests__/ci/e2e-fixtures.test.ts --run` (3 passed) and `npm.cmd run typecheck` passed.
 - Browser accessibility execution was attempted with `E2E_FIXTURE_MODE=1` and `START_DEV_SERVER=1`, but Next/Turbopack crashed before serving due to the sandbox-inaccessible inferred workspace root (`C:\Users\laich`).
 - `git diff --check` passed.
+
+---
+
+## Review fix: attach sanitized axe reports
+
+- Added `lib/axe-report.ts`, a serializable sanitizer that retains rule metadata, node counts, and selector targets for axe `violations`, `passes`, and `incomplete` findings while omitting URLs, HTML, timestamps, failure summaries, and arbitrary check data.
+- Each audited accessibility flow now attaches its complete sanitized JSON result to the Playwright report with `application/json`; the assertion still fails only on serious or critical violations and keeps the existing compact blocking summary.
+- Added unit coverage for the sanitizer's diagnostic shape and content exclusion.
+
+### Verification
+
+- `npm.cmd test -- --run __tests__/lib/axe-report.test.ts __tests__/ci/e2e-fixtures.test.ts` (2 files, 4 tests passed)
+- `npm.cmd run typecheck` passed.
+- `npx.cmd playwright test tests/e2e/accessibility.spec.ts --list` listed 6 project/test entries without executing browser E2E.
+- `git diff --check` passed.
