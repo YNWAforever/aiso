@@ -82,15 +82,19 @@ describe('checkCitationDensity', () => {
 
   it('counts duplicate canonical citation URLs while aggregating authority by domain', async () => {
     const result = await checkCitationDensity(
-      '<a href="https://one.example/a">one</a><a href="https://one.example/a">two</a>',
+      '<a href="https://NIH.gov:443/study">one</a><a href="https://nih.gov/study">two</a>',
       'https://example.com',
       { industry: 'finance', region: 'global' },
     )
 
     expect(result.geoDetails?.totalLinks).toBe(2)
     expect(result.geoDetails?.authorityBreakdown).toEqual({ tier1: 1, tier2: 0, tier3: 0, other: 0 })
-    expect(result.geoDetails?.details).toHaveLength(1)
+    expect(result.geoDetails?.details).toEqual([expect.objectContaining({
+      url: 'https://nih.gov/study',
+      domain: 'nih.gov',
+    })])
     expect(computeAuthority).toHaveBeenCalledTimes(1)
+    expect(computeAuthority).toHaveBeenCalledWith('nih.gov', 'finance', 'global')
   })
 
   it('aggregates authority tiers for unique external domains', async () => {

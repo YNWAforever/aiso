@@ -34,6 +34,22 @@
 
 ---
 
+## Task 4: Canonical citation-variant regression fix
+
+- Replaced the byte-identical duplicate fixture with `https://NIH.gov:443/study` and `https://nih.gov/study`, proving URL normalization, duplicate link-occurrence counting, and one authority lookup for canonical `nih.gov` without runtime changes.
+
+### Verification
+
+- Focused citation, manifest, and migration suites passed: 3 files, 36 tests.
+- `node scripts/ci/validate-test-manifest.mjs`, `npm.cmd run typecheck`, and `git diff --check` passed.
+- `lib/checks/citationDensity.ts` has no diff from Task 4 production base `84df3b0e33571d531e5cefbba496ea22e191b75d`.
+
+### Residual blocker
+
+- Live database, authenticated browser, provider-canary, staging WCAG, and external CI evidence remain intentionally out of scope.
+
+---
+
 ## Task 4: Final traceability corrective fix
 
 - Restored `lib/checks/citationDensity.ts` exactly to Task 4 base `c8669d9`; no runtime URL canonicalization, duplicate filtering, or provider-shape filtering remains in this task.
