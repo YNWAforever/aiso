@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 
 const getSessionMock = vi.fn()
 vi.mock('@/lib/neon-auth', () => ({
@@ -11,9 +11,44 @@ vi.mock('@/lib/db', () => ({ db: () => sqlMock }))
 const redirectMock = vi.fn((url: string) => { throw new Error(`REDIRECT:${url}`) })
 vi.mock('next/navigation', () => ({ redirect: redirectMock }))
 
+const originalFixtureMode = process.env.E2E_FIXTURE_MODE
+
 describe('lib/auth', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    if (originalFixtureMode === undefined) {
+      delete process.env.E2E_FIXTURE_MODE
+      return
+    }
+
+    process.env.E2E_FIXTURE_MODE = originalFixtureMode
+  })
+
+  it('getProfile avoids Neon Auth and the database in E2E fixture mode', async () => {
+    process.env.E2E_FIXTURE_MODE = '1'
+    getSessionMock.mockRejectedValue(new Error('Neon Auth should not be called in fixture mode'))
+    sqlMock.mockRejectedValue(new Error('Database should not be called in fixture mode'))
+
+    const { getProfile } = await import('@/lib/auth')
+
+    await expect(getProfile()).resolves.toBeNull()
+    expect(getSessionMock).not.toHaveBeenCalled()
+    expect(sqlMock).not.toHaveBeenCalled()
+  })
+
+  it('requireAuth redirects fixture dashboard requests to login without provider calls', async () => {
+    process.env.E2E_FIXTURE_MODE = '1'
+    getSessionMock.mockRejectedValue(new Error('Neon Auth should not be called in fixture mode'))
+    sqlMock.mockRejectedValue(new Error('Database should not be called in fixture mode'))
+
+    const { requireAuth } = await import('@/lib/auth')
+
+    await expect(requireAuth('en')).rejects.toThrow('REDIRECT:/en/auth/login')
+    expect(getSessionMock).not.toHaveBeenCalled()
+    expect(sqlMock).not.toHaveBeenCalled()
   })
 
   it('getProfile returns null when there is no session', async () => {

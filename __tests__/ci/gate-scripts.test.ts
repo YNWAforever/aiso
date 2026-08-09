@@ -1,6 +1,6 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { aggregateGate, readRequiredSummaries } from '../../scripts/ci/aggregate-gate.mjs'
 import { installCiNetworkGuard } from '../setup/ci-network'
@@ -58,6 +58,12 @@ function vitestReport(testFile: string, assertionResults: Array<Record<string, u
 }
 
 describe('PR merge-gate evidence contracts', () => {
+  it('restores global stubs between tests so the CI network guard is reinstalled', async () => {
+    const config = await readFile(resolve(process.cwd(), 'vitest.config.ts'), 'utf8')
+
+    expect(config).toContain('unstubGlobals: true')
+  })
+
   it('reinstalls the CI network guard without preventing a test-local fetch mock', async () => {
     installCiNetworkGuard()
     expect(() => fetch('https://example.test')).toThrow('Network access is disabled in CI unit tests')

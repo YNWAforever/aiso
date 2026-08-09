@@ -74,11 +74,11 @@ vi.mock('@/lib/auth', () => ({
 
 // Track fetch calls (for n8n webhook)
 const fetchMock = vi.fn().mockResolvedValue(new Response('ok', { status: 200 }))
-vi.stubGlobal('fetch', fetchMock)
 
 // ── Tests ────────────────────────────────────────────────────────
 describe('POST /api/scan — full scan flow', () => {
   beforeEach(() => {
+    vi.stubGlobal('fetch', fetchMock)
     // Clear call history only — don't wipe mock implementations
     fetchMock.mockClear()
     fetchMock.mockResolvedValue(new Response('ok', { status: 200 }))
