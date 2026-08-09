@@ -9,6 +9,8 @@ const validPriorities = new Set(['P0', 'P1', 'P2'])
 const validRoles = new Set(['anonymous', 'authenticated', 'admin'])
 const entryIdPattern = /^[A-Z0-9]+(?:-[A-Z0-9]+)*$/
 const testFilePattern = /^(?:__tests__|tests)\/.+\.(?:test|spec)\.(?:[cm]?[jt]sx?)$/i
+const rootManifestKeys = new Set(['schemaVersion', 'requiredLayers', 'entries'])
+const manifestEntryKeys = new Set(['id', 'priority', 'fixture', 'roles', 'files'])
 const requiredEntries = new Map([
   ['ENTITLEMENT-P0', 'P0'],
   ['AUTH-TENANT-P0', 'P0'],
@@ -80,6 +82,10 @@ export async function validateTestManifest({ manifestPath = 'ci/pr-gate-manifest
     return [`Unable to read ${manifestPath}: ${error instanceof Error ? error.message : String(error)}`]
   }
 
+  for (const property of Object.keys(manifest ?? {})) {
+    if (!rootManifestKeys.has(property)) errors.push(`unknown root manifest property: ${property}`)
+  }
+
   if (manifest.schemaVersion !== 1) errors.push('schemaVersion must be 1')
   if (!Array.isArray(manifest.requiredLayers)) {
     errors.push('requiredLayers must be an array')
@@ -106,6 +112,12 @@ export async function validateTestManifest({ manifestPath = 'ci/pr-gate-manifest
 
   const ids = new Set()
   for (const entry of manifest.entries) {
+    for (const property of Object.keys(entry ?? {})) {
+      if (!manifestEntryKeys.has(property)) {
+        errors.push(`unknown manifest entry property for ${entry?.id ?? 'unknown'}: ${property}`)
+      }
+    }
+
     if (typeof entry?.id !== 'string' || !entryIdPattern.test(entry.id)) {
       errors.push(`invalid entry ID: ${String(entry?.id)}`)
     } else if (ids.has(entry.id)) {

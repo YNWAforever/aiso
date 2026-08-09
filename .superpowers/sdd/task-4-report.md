@@ -18,6 +18,22 @@
 
 ---
 
+## Task 4: Strict manifest property-schema fix
+
+- Rejected unknown root manifest properties and unknown properties on every manifest entry, while retaining the existing field, path, layer, role, and required-entry contracts.
+- Added fail-closed regressions for malformed root and entry keys; no runtime production files changed.
+
+### Verification
+
+- Focused manifest, migration, and citation suites passed: 3 files, 38 tests.
+- Standalone validator, typecheck, whitespace diff, and the `c8669d9` runtime-base comparison for citation density and pulse route passed.
+
+### Residual blocker
+
+- Live database, authenticated browser, provider-canary, staging WCAG, and external CI evidence remain intentionally out of scope.
+
+---
+
 ## Task 4: Manifest and SQL parser hardening
 
 - Changed manifest path validation to use `lstat`, reject symbolic links, and retain repository-relative regular-file checks beneath `__tests__/` or `tests/`; the regression uses a real temporary link when Windows permits it and metadata injection otherwise.

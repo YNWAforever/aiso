@@ -97,6 +97,26 @@ describe('pr-gate test manifest', () => {
     await expect(validateTestManifest({ cwd: root })).resolves.toEqual([])
   })
 
+  it('rejects unknown root-level manifest properties', async () => {
+    const errors = await validateMalformedManifest(manifest => ({
+      ...manifest,
+      unexpectedRootProperty: true,
+    }))
+
+    expect(errors).toContain('unknown root manifest property: unexpectedRootProperty')
+  })
+
+  it('rejects unknown manifest entry properties', async () => {
+    const errors = await validateMalformedManifest(manifest => ({
+      ...manifest,
+      entries: manifest.entries.map(entry => entry.id === 'CITATION-P1'
+        ? { ...entry, unexpectedEntryProperty: true }
+        : entry),
+    }))
+
+    expect(errors).toContain('unknown manifest entry property for CITATION-P1: unexpectedEntryProperty')
+  })
+
   it('rejects role members outside the evidenced role set', async () => {
     const errors = await validateMalformedManifest(manifest => ({
       ...manifest,
