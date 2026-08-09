@@ -61,7 +61,7 @@ function run() {
     const nextBinary = require.resolve('next/dist/bin/next')
     server = spawn(
       process.execPath,
-      [nextBinary, 'dev', isolatedRoot, '--hostname', '127.0.0.1'],
+      [nextBinary, 'dev', isolatedRoot, '--hostname', '127.0.0.1', '--webpack'],
       { cwd: isolatedRoot, env: process.env, stdio: 'inherit' },
     )
   } catch (error) {

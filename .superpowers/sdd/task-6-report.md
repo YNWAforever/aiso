@@ -23,3 +23,8 @@
 - Set `unstubGlobals: false` so module-level deterministic fetch stubs survive their suite's first test; the CI guard now preserves explicit Vitest mock functions while continuing to install its throwing guard for unmocked fetch.
 - Added regression coverage for reinstalling the guard after a test-local fetch mock. Fresh verification passed: the three affected suites (61 tests), CI-gate suites (15 tests), full local suite (52 files, 399 tests), `npm.cmd run typecheck`, and `git diff --check`.
 - No live providers or GitHub Actions were run.
+
+## Fixture browser-server stability fix
+
+- Added the supported `--webpack` opt-out to the isolated CI Playwright Next dev launcher and a source-contract assertion for it.
+- Verification: focused Playwright config/fixture tests (2 files, 5 tests), `npm.cmd run typecheck`, and `git diff --check` passed. Browser E2E remains for the parent to rerun; no providers or GitHub were mutated.

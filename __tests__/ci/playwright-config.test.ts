@@ -11,12 +11,14 @@ const root = resolve(__dirname, '../..')
 describe('Playwright CI server isolation', () => {
   it('uses the isolated launcher with the required CI Playwright settings', async () => {
     const config = await readFile(resolve(root, 'playwright.config.ts'), 'utf8')
+    const launcher = await readFile(resolve(root, 'scripts/start-playwright-ci-server.cjs'), 'utf8')
 
     expect(config).toContain("isCi ? 'node scripts/start-playwright-ci-server.cjs' : 'npm run dev'")
     expect(config).toContain("url: 'http://127.0.0.1:3000'")
     expect(config).toContain('retries: 0')
     expect(config).toContain("trace: 'retain-on-failure'")
     expect(config).toContain('reuseExistingServer: false')
+    expect(launcher).toContain("[nextBinary, 'dev', isolatedRoot, '--hostname', '127.0.0.1', '--webpack']")
   })
 
   it('copies ordinary project files while excluding local environment files', async () => {
