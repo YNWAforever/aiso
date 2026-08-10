@@ -2,35 +2,38 @@ import { NextRequest } from 'next/server'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { getPlanFeatures, maxBrandsForPlan } from '@/lib/tier'
 
-const h = vi.hoisted(() => ({
-  getProfile: vi.fn(),
-  count: 0,
-  inserts: [] as Array<Record<string, unknown>>,
-}))
+const h = vi.hoisted(() => {
+  const state = {
+    getProfile: vi.fn(),
+    count: 0,
+    inserts: [] as Array<Record<string, unknown>>,
+    sql: vi.fn(),
+  }
+
+  state.sql.mockImplementation((strings: TemplateStringsArray, ...values: unknown[]) => {
+    const query = Array.from(strings).join(' ')
+    if (/select count\(\*\)::int as n/i.test(query)) return Promise.resolve([{ n: state.count }])
+    if (/insert into clients/i.test(query)) {
+      state.inserts.push({ query, values })
+      return Promise.resolve([{ id: 'client-created' }])
+    }
+    return Promise.resolve([])
+  })
+
+  return state
+})
 
 vi.mock('@/lib/auth', () => ({ getProfile: h.getProfile }))
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(async () => ({ count: h.count })),
-      })),
-      insert: vi.fn((value: Record<string, unknown>) => {
-        h.inserts.push(value)
-        return {
-          select: vi.fn(() => ({
-            single: vi.fn(async () => ({ data: { id: 'client-created' }, error: null })),
-          })),
-        }
-      }),
-    })),
-  },
-}))
+vi.mock('@/lib/db', () => ({ db: () => h.sql }))
 
 beforeEach(() => {
   h.count = 0
   h.inserts.length = 0
-  h.getProfile.mockResolvedValue({ account_id: 'account-1', accounts: { plan: 'pro' } })
+  h.sql.mockClear()
+  h.getProfile.mockResolvedValue({
+    account_id: 'account-1',
+    accounts: { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_pro' },
+  })
 })
 
 test('pro plan allows 3 brands', () => {

@@ -48,8 +48,8 @@ async function expectReachableByTab(page: Page, target: Locator) {
 test('English home page has no blocking accessibility violations and keyboard-reachable scan controls', async ({ page }, testInfo) => {
   await page.goto('/en', { waitUntil: 'networkidle' })
 
-  const scanInput = page.locator('#home-scan-url')
-  const scanButton = page.locator('form').first().getByRole('button')
+  const scanInput = page.getByRole('textbox', { name: 'Website URL' }).first()
+  const scanButton = page.getByRole('button', { name: 'Run Free Scan' }).first()
   await expectReachableByTab(page, scanInput)
   await expectReachableByTab(page, scanButton)
   await expectNoBlockingA11y(page, testInfo, 'home')
@@ -68,19 +68,20 @@ test('English login page has no blocking accessibility violations and keyboard-r
 })
 
 test('fixture result page has no blocking accessibility violations before and after email unlock', async ({ page }, testInfo) => {
-  await page.route('**/api/scan/lead', route => route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: JSON.stringify({ ok: true }),
-  }))
   await page.goto(`/en/result/${TEST_SCAN_ID}`, { waitUntil: 'networkidle' })
 
   await waitForResultAnimation(page)
   await expectNoBlockingA11y(page, testInfo, 'result-before-unlock')
 
-  await page.locator('#result-email').fill('accessibility@example.com')
-  await page.getByRole('button', { name: /unlock report/i }).click()
-  await expect(page.locator('#result-email')).not.toBeVisible()
+  await page.route('**/sign-in/magic-link*', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({}),
+  }))
+  const emailInput = page.getByRole('textbox', { name: 'Work email' })
+  await emailInput.fill('accessibility@example.com')
+  await page.getByRole('button', { name: /use email magic link/i }).click()
+  await expect(page.getByRole('status')).toContainText(/check your inbox/i)
   await waitForResultAnimation(page)
-  await expectNoBlockingA11y(page, testInfo, 'result-after-unlock')
+  await expectNoBlockingA11y(page, testInfo, 'result-after-magic-link')
 })

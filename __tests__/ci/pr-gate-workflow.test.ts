@@ -40,6 +40,8 @@ describe('PR gate workflow contract', () => {
     expect(workflow).toContain('BASE_URL: http://127.0.0.1:3000')
     expect(workflow).toContain('DATABASE_URL: postgresql://fixture:fixture@127.0.0.1:5432/fixture')
     expect(workflow).toContain('NEXT_PUBLIC_SUPABASE_URL: https://fixture.invalid')
+    expect(workflow).toContain('REPORT_SHARE_SECRET: fixture-report-share-secret-for-ci-only-00000001')
+    expect(workflow).toContain('NEON_AUTH_COOKIE_SECRET: fixture-neon-auth-cookie-secret-for-ci-only-00000001')
 
     expect(workflow).toContain('actions/checkout@v4')
     expect(workflow).toContain('actions/setup-node@v4')

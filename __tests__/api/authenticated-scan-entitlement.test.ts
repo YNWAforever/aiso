@@ -104,6 +104,7 @@ describe('authenticated scan commercial entitlement', () => {
     consumeAuthenticatedScanQuota.mockClear()
     consumePublicScanRateLimit.mockClear()
     fetchMock.mockClear()
+    vi.stubGlobal('fetch', fetchMock)
   })
 
   it('fails closed when authentication lookup fails before choosing a limiter', async () => {

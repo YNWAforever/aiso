@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { CLAIM_INTENT_COOKIE, verifyScanClaimIntent } from '@/lib/security/scan-claim-intent'
+import { E2E_FIXTURE_SCAN_ID } from '@/lib/e2e-fixtures'
 
 const consumePublicScanRateLimit = vi.hoisted(() => vi.fn())
 const nextRows = vi.hoisted(() => ({ value: [] as unknown[][] }))
@@ -38,6 +39,23 @@ describe('POST /api/scans/[id]/claim-intent', () => {
     expect(response.status).toBe(400)
     expect(consumePublicScanRateLimit).not.toHaveBeenCalled()
     expect(mockSql).not.toHaveBeenCalled()
+  })
+
+  it('returns a signed intent for the deterministic E2E fixture without provider work', async () => {
+    vi.stubEnv('E2E_FIXTURE_MODE', '1')
+
+    const response = await post(E2E_FIXTURE_SCAN_ID, { lang: 'en' })
+
+    expect(response.status).toBe(200)
+    expect(consumePublicScanRateLimit).not.toHaveBeenCalled()
+    expect(mockSql).not.toHaveBeenCalled()
+    const setCookie = response.headers.get('set-cookie') ?? ''
+    const token = setCookie.split(`${CLAIM_INTENT_COOKIE}=`)[1].split(';')[0]
+    expect(verifyScanClaimIntent(token)).toMatchObject({
+      scanId: E2E_FIXTURE_SCAN_ID,
+      lang: 'en',
+      returnPath: `/en/result/${E2E_FIXTURE_SCAN_ID}?claim=1`,
+    })
   })
 
   it('returns 404 when the scan does not exist', async () => {

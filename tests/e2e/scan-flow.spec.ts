@@ -69,3 +69,24 @@ test.describe('Scan to result journey', () => {
     }
   })
 })
+
+test.describe('375px pricing containment', () => {
+  test.use({ viewport: { width: 375, height: 812 } })
+
+  test('pricing comparison stays inside the page and scrolls within its narrow region', async ({ page }) => {
+    await page.goto('/en/pricing', { waitUntil: 'networkidle' })
+    const pageWidth = await page.evaluate(() => ({
+      client: document.documentElement.clientWidth,
+      scroll: document.documentElement.scrollWidth,
+    }))
+    expect(pageWidth.scroll).toBeLessThanOrEqual(pageWidth.client)
+
+    const comparison = page.getByRole('region', { name: 'Compare paid plan features' })
+    await expect(comparison).toBeVisible()
+    const widths = await comparison.evaluate(element => ({
+      client: element.clientWidth,
+      scroll: element.scrollWidth,
+    }))
+    expect(widths.scroll).toBeGreaterThan(widths.client)
+  })
+})

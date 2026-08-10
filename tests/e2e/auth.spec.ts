@@ -14,6 +14,7 @@
 import { test, expect } from '@playwright/test'
 
 const LANG = 'en'
+const hasNeonAuth = Boolean(process.env.NEON_AUTH_BASE_URL)
 
 test.describe('Auth — login page', () => {
   test.beforeEach(async ({ page }) => {
@@ -54,30 +55,80 @@ test.describe('Auth — login page', () => {
     expect(isInvalid).toBe(true)
   })
 
-  test('submitting a valid email shows sending state or success message', async ({ page }) => {
-    // Stub the Neon Auth proxy so no real email is sent.
-    await page.route('**/api/auth/**', route => {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({}),
+  const magicLinkCases = [
+    { lang: 'en', checkEmail: 'Check your email' },
+    { lang: 'zh-HK', checkEmail: '請查看你的電郵' },
+  ] as const
+
+  for (const copy of magicLinkCases) {
+    test(`submitting a valid email requests Neon magic link and confirms success in ${copy.lang}`, async ({ page }) => {
+      await page.goto(`/${copy.lang}/auth/login`)
+
+      let routeInvocations = 0
+      await page.route('**/sign-in/magic-link*', async route => {
+        routeInvocations += 1
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({}),
+        })
       })
+
+      const requestPromise = page.waitForRequest(request =>
+        request.method() === 'POST'
+        && new URL(request.url()).pathname.endsWith('/sign-in/magic-link')
+      )
+
+      await page.locator('input[type="email"]').fill('test@example.com')
+      await page.locator('button[type="submit"]').click()
+
+      const request = await requestPromise
+      expect(request.method()).toBe('POST')
+      expect(routeInvocations).toBe(1)
+      await expect(page.getByText(copy.checkEmail, { exact: true })).toBeVisible({ timeout: 8_000 })
     })
+  }
 
-    await page.locator('input[type="email"]').fill('test@example.com')
-    await page.locator('button[type="submit"]').click()
+  const magicLinkErrorCases = [
+    {
+      lang: 'en',
+      error: 'Could not send the magic link. Please try again.',
+    },
+    {
+      lang: 'zh-HK',
+      error: '無法發送登入連結，請再試一次。',
+    },
+  ] as const
 
-    // After submitting, the button should show a loading/sent state or a success message
-    await expect(
-      page.locator('text=/sent|check|email|magic|success/i').first()
-        .or(page.locator('button:has-text("Sending"), button[disabled]').first())
-    ).toBeVisible({ timeout: 8_000 })
-    await page.screenshot({ path: 'playwright-report/login-magic-sent.png' })
-  })
+  for (const copy of magicLinkErrorCases) {
+    test(`provider error recovery renders localized generic copy in ${copy.lang}`, async ({ page }) => {
+      const providerSecret = 'provider-token-and-message-must-not-render'
+      await page.goto(`/${copy.lang}/auth/login`)
+      await page.route('**/sign-in/magic-link*', async route => {
+        await route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            code: 'PROVIDER_UNAVAILABLE',
+            message: providerSecret,
+          }),
+        })
+      })
+
+      await page.locator('input[type="email"]').fill('test@example.com')
+      await page.locator('button[type="submit"]').click()
+
+      await expect(page.getByText(copy.error, { exact: true })).toBeVisible({ timeout: 8_000 })
+      await expect(page.locator('button[type="submit"]')).toBeEnabled()
+      await expect(page.getByText(providerSecret, { exact: true })).not.toBeVisible()
+    })
+  }
+
 })
 
 test.describe('Auth — access control', () => {
   test('dashboard redirects unauthenticated users to login', async ({ page }) => {
+    test.skip(!hasNeonAuth, 'Requires NEON_AUTH_BASE_URL to evaluate the real unauthenticated session boundary.')
     await page.goto(`/${LANG}/dashboard`)
     await page.waitForLoadState('networkidle')
     const url = page.url()

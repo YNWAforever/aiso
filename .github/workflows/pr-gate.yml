@@ -114,11 +114,12 @@ jobs:
           BASE_URL: http://127.0.0.1:3000
           DATABASE_URL: postgresql://fixture:fixture@127.0.0.1:5432/fixture
           NEON_AUTH_BASE_URL: https://fixture.invalid
-          NEON_AUTH_COOKIE_SECRET: fixture-cookie-secret
+          NEON_AUTH_COOKIE_SECRET: fixture-neon-auth-cookie-secret-for-ci-only-00000001
           NEXT_PUBLIC_SUPABASE_URL: https://fixture.invalid
           NEXT_PUBLIC_SUPABASE_ANON_KEY: fixture-anon-key
           SUPABASE_SERVICE_ROLE_KEY: fixture-service-key
           NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+          REPORT_SHARE_SECRET: fixture-report-share-secret-for-ci-only-00000001
           PLAYWRIGHT_JSON_OUTPUT_NAME: artifacts/e2e-accessibility/playwright-results.json
           PLAYWRIGHT_JUNIT_OUTPUT_NAME: artifacts/e2e-accessibility/playwright.junit.xml
       - name: Upload e2e-accessibility diagnostics
@@ -161,7 +162,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: fixture-anon-key
           SUPABASE_SERVICE_ROLE_KEY: fixture-service-key
           NEON_AUTH_BASE_URL: https://fixture.invalid
-          NEON_AUTH_COOKIE_SECRET: fixture-cookie-secret
+          NEON_AUTH_COOKIE_SECRET: fixture-neon-auth-cookie-secret-for-ci-only-00000001
           NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
       - name: Upload build diagnostics
         if: always()
