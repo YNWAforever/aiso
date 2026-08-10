@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -261,6 +261,25 @@ describe('PR merge-gate evidence contracts', () => {
       'build-summary.json': createJobSummary({ job: 'build', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
       'untrusted-summary.json': createJobSummary({ job: 'untrusted', status: 'failure', executed: 0, skipped: 1, artifacts: [], commitSha: 'fixture-sha' }),
     })
+
+    await expect(readRequiredSummaries(directory)).resolves.toHaveLength(4)
+  })
+
+  it('discovers summaries nested under the artifact packaging directory', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'geoscanner-gate-'))
+    temporaryDirectories.push(directory)
+    const artifactDirectory = join(directory, 'artifacts')
+    await mkdir(artifactDirectory, { recursive: true })
+    await Promise.all([
+      ['static-summary.json', 'static'],
+      ['unit-contract-summary.json', 'unit-contract'],
+      ['e2e-accessibility-summary.json', 'e2e-accessibility'],
+      ['build-summary.json', 'build'],
+    ].map(([fileName, job]) => writeFile(
+      join(artifactDirectory, fileName),
+      JSON.stringify(createJobSummary({ job, status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' })),
+      'utf8',
+    )))
 
     await expect(readRequiredSummaries(directory)).resolves.toHaveLength(4)
   })

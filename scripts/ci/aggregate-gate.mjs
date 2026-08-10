@@ -41,11 +41,14 @@ export function aggregateGate({ results, summaries, commitSha = '' }) {
 
 export async function readRequiredSummaries(directory) {
   const summaries = await Promise.all(REQUIRED_SUMMARY_FILES.map(async (fileName) => {
-    try {
-      return JSON.parse(await readFile(join(directory, fileName), 'utf8'))
-    } catch {
-      return null
+    for (const candidate of [join(directory, fileName), join(directory, 'artifacts', fileName)]) {
+      try {
+        return JSON.parse(await readFile(candidate, 'utf8'))
+      } catch {
+        // The artifact downloader may preserve the producing job's artifacts/ directory.
+      }
     }
+    return null
   }))
   return summaries.filter(Boolean)
 }
