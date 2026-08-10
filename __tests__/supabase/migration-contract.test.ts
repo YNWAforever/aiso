@@ -46,22 +46,16 @@ describe('Supabase migration contracts', () => {
     expect(prefixes).toEqual([...prefixes].sort((left, right) => left - right))
   })
 
-  it('defines the alert snapshot RPC in migrations 023 and 024', async () => {
-    for (const prefix of ['023', '024']) {
-      await expect(migrationSql(prefix)).resolves.toMatch(
-        new RegExp(`CREATE\\s+OR\\s+REPLACE\\s+FUNCTION\\s+${alertSnapshotFunction}\\s*\\(\\s*p_client_ids\\s+uuid\\[\\]\\s*\\)`, 'i'),
-      )
-    }
+  it('keeps the Neon alert index migrations checked in', async () => {
+    await expect(migrationSql('033')).resolves.toMatch(/notifications_dedup_idx/i)
+    await expect(migrationSql('033')).resolves.toMatch(/pulse_weekly_summary_alert_snapshot_idx/i)
+    await expect(migrationSql('034')).resolves.toMatch(/created_at DESC NULLS LAST/i)
   })
 
-  it('grants alert snapshot execution only to service_role', async () => {
-    for (const prefix of ['023', '024']) {
+  it('does not add privilege-bearing alert RPCs to migrations', async () => {
+    for (const prefix of ['033', '034']) {
       const sql = await migrationSql(prefix)
-      expect(sql).toContain(`GRANT EXECUTE ON FUNCTION ${alertSnapshotRpc} TO service_role;`)
-      expectOnlyServiceRoleAlertSnapshotGrants(sql)
-      expect(sql).toContain(`REVOKE EXECUTE ON FUNCTION ${alertSnapshotRpc} FROM PUBLIC;`)
-      expect(sql).toContain(`REVOKE EXECUTE ON FUNCTION ${alertSnapshotRpc} FROM anon;`)
-      expect(sql).toContain(`REVOKE EXECUTE ON FUNCTION ${alertSnapshotRpc} FROM authenticated;`)
+      expect(sql).not.toMatch(/get_alert_weekly_snapshot|CREATE\\s+OR\\s+REPLACE\\s+FUNCTION|\\bGRANT\\b|\\bREVOKE\\b|\\bSECURITY\\s+DEFINER\\b/i)
     }
   })
 

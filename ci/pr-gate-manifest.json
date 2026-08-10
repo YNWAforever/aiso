@@ -28,14 +28,14 @@
       "priority": "P0",
       "fixture": "checked-in-supabase-migration-sql",
       "roles": ["admin"],
-      "files": ["__tests__/supabase/migration-contract.test.ts"]
+      "files": ["__tests__/supabase/033_alert_evaluation_hardening.test.ts", "__tests__/supabase/034_alert_evaluation_snapshot_refinement.test.ts"]
     },
     {
       "id": "CITATION-P1",
       "priority": "P1",
       "fixture": "fixed-provider-response-citation-records",
       "roles": ["authenticated"],
-      "files": ["__tests__/checks/citationDensity.test.ts", "__tests__/api/pulse-flow.test.ts"]
+      "files": ["__tests__/checks/citationDensity.test.ts", "__tests__/api/pulse-run.test.ts"]
     },
     {
       "id": "ACCESSIBILITY-P0",
