@@ -1,6 +1,7 @@
 import { readFile, readdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { assertNoTransactionControl } from '../../scripts/migrate'
 
 const migrationsDirectory = resolve(__dirname, '../../supabase/migrations')
 const alertSnapshotFunction = 'public.get_alert_weekly_snapshot'
@@ -109,9 +110,10 @@ describe('Supabase migration contracts', () => {
   })
 
   it('contains no transaction control statements', async () => {
-    const sql = await Promise.all((await migrationFiles()).map(file => readFile(resolve(migrationsDirectory, file), 'utf8')))
-    const runnerSql = sql.join('\n').replace(/\$[A-Za-z_]*\$[\s\S]*?\$[A-Za-z_]*\$/g, '')
-
-    expect(runnerSql).not.toMatch(/^\s*(BEGIN|COMMIT|ROLLBACK|START\s+TRANSACTION)\b/im)
+    const files = await migrationFiles()
+    await Promise.all(files.map(async file => {
+      const sql = await readFile(resolve(migrationsDirectory, file), 'utf8')
+      expect(() => assertNoTransactionControl(file, sql)).not.toThrow()
+    }))
   })
 })
