@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { aggregateGate, readRequiredSummaries } from '../../scripts/ci/aggregate-gate.mjs'
 import { installCiNetworkGuard } from '../setup/ci-network'
 import { classifyVitestReport } from '../../scripts/ci/classify-vitest.mjs'
+import { classifyPlaywrightReport } from '../../scripts/ci/classify-playwright.mjs'
 import { createJobSummary } from '../../scripts/ci/write-job-summary.mjs'
 
 const temporaryDirectories: string[] = []
@@ -55,6 +56,10 @@ function vitestReport(testFile: string, assertionResults: Array<Record<string, u
     numPendingTests: skipped,
     testResults: [{ name: testFile, filepath, assertionResults }],
   }
+}
+
+function playwrightReport(stats: Record<string, number>) {
+  return { stats }
 }
 
 describe('PR merge-gate evidence contracts', () => {
@@ -181,6 +186,54 @@ describe('PR merge-gate evidence contracts', () => {
     expect(result.summary.status).toBe('failure')
     expect(result.summary.skipped).toBe(1)
     expect(result.summary.failurePriorities).toContain('P0')
+  })
+
+  it('records a passing Playwright report with executed counts', () => {
+    const result = classifyPlaywrightReport({
+      report: playwrightReport({ expected: 3, unexpected: 0, flaky: 0, skipped: 0 }),
+      exitCode: 0,
+      artifactPaths: ['e2e-accessibility/playwright-results.json'],
+      commitSha: 'fixture-sha',
+    })
+
+    expect(result.exitCode).toBe(0)
+    expect(result.summary).toMatchObject({
+      job: 'e2e-accessibility',
+      status: 'success',
+      executed: 3,
+      skipped: 0,
+      failurePriorities: [],
+    })
+  })
+
+  it('blocks a Playwright report containing skipped tests even when the runner exits successfully', () => {
+    const result = classifyPlaywrightReport({
+      report: playwrightReport({ expected: 2, unexpected: 0, flaky: 0, skipped: 1 }),
+      exitCode: 0,
+      artifactPaths: ['e2e-accessibility/playwright-results.json'],
+      commitSha: 'fixture-sha',
+    })
+
+    expect(result.exitCode).toBe(1)
+    expect(result.summary).toMatchObject({
+      job: 'e2e-accessibility',
+      status: 'failure',
+      executed: 2,
+      skipped: 1,
+      failurePriorities: ['P0'],
+    })
+  })
+
+  it('fails closed when the Playwright report is missing or empty', () => {
+    const result = classifyPlaywrightReport({
+      report: undefined,
+      exitCode: 0,
+      artifactPaths: ['e2e-accessibility/playwright-results.json'],
+      commitSha: 'fixture-sha',
+    })
+
+    expect(result.exitCode).toBe(1)
+    expect(result.summary).toMatchObject({ status: 'failure', executed: 0, skipped: 0, failurePriorities: ['P0'] })
   })
 
   it('blocks an aggregate when a required job is not successful', () => {

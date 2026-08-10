@@ -102,9 +102,11 @@ jobs:
           npm run e2e -- --reporter=html,json,junit 2>&1 | tee artifacts/e2e-accessibility/playwright.log
           e2e_exit=${PIPESTATUS[0]}
           set -e
-          if [ "$e2e_exit" -eq 0 ]; then status=success; else status=failure; fi
-          node scripts/ci/write-job-summary.mjs --job e2e-accessibility --status "$status" --executed 1 --skipped 0 --artifact e2e-accessibility/playwright.log --artifact e2e-accessibility/playwright-results.json --artifact e2e-accessibility/playwright.junit.xml --output artifacts/e2e-accessibility-summary.json
-          exit "$e2e_exit"
+          set +e
+          node scripts/ci/classify-playwright.mjs --report "$PLAYWRIGHT_JSON_OUTPUT_NAME" --exit-code "$e2e_exit" --artifact e2e-accessibility/playwright.log --artifact e2e-accessibility/playwright-results.json --artifact e2e-accessibility/playwright.junit.xml --output artifacts/e2e-accessibility-summary.json
+          classifier_exit=$?
+          set -e
+          exit "$classifier_exit"
         env:
           CI: 'true'
           E2E_FIXTURE_MODE: 1
