@@ -1,5 +1,5 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { dirname, resolve } from 'node:path'
+import { dirname, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createJobSummary } from './write-job-summary.mjs'
 
@@ -7,11 +7,16 @@ function priorityForFile(manifest, testFile) {
   return manifest.entries?.find((entry) => entry.files?.includes(testFile))?.priority
 }
 
+function normalizeTestFile(testFile, repoRoot = process.cwd()) {
+  if (typeof testFile !== 'string') return testFile
+  return relative(repoRoot, resolve(repoRoot, testFile)).split(sep).join('/')
+}
+
 function failuresFrom(report) {
   return (report.testResults ?? []).flatMap((testResult) =>
     (testResult.assertionResults ?? [])
       .filter((assertion) => assertion.status === 'failed')
-      .map(() => testResult.name),
+      .map(() => normalizeTestFile(testResult.filepath ?? testResult.name)),
   )
 }
 

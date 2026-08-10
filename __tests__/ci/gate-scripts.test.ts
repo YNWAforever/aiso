@@ -44,7 +44,7 @@ const manifest = {
   ],
 }
 
-function vitestReport(testFile: string, assertionResults: Array<Record<string, unknown>>) {
+function vitestReport(testFile: string, assertionResults: Array<Record<string, unknown>>, filepath = testFile) {
   const failed = assertionResults.filter(({ status }) => status === 'failed').length
   const skipped = assertionResults.filter(({ status }) => status === 'pending').length
 
@@ -53,7 +53,7 @@ function vitestReport(testFile: string, assertionResults: Array<Record<string, u
     numPassedTests: assertionResults.length - failed - skipped,
     numFailedTests: failed,
     numPendingTests: skipped,
-    testResults: [{ name: testFile, assertionResults }],
+    testResults: [{ name: testFile, filepath, assertionResults }],
   }
 }
 
@@ -101,6 +101,20 @@ describe('PR merge-gate evidence contracts', () => {
   it('records a P1 test failure as advisory', () => {
     const result = classifyVitestReport({
       report: vitestReport('__tests__/unit/p1.test.ts', [{ status: 'failed', title: 'advisory', fullName: 'advisory' }]),
+      exitCode: 1,
+      manifest,
+      artifactPaths: ['unit-contract/vitest.json'],
+      commitSha: 'fixture-sha',
+    })
+
+    expect(result.exitCode).toBe(0)
+    expect(result.summary.failurePriorities).toEqual(['P1'])
+    expect(result.summary.status).toBe('success')
+  })
+
+  it('normalizes absolute Vitest filepaths before manifest lookup', () => {
+    const result = classifyVitestReport({
+      report: vitestReport('p1.test.ts', [{ status: 'failed', title: 'advisory', fullName: 'advisory' }], resolve(process.cwd(), '__tests__/unit/p1.test.ts')),
       exitCode: 1,
       manifest,
       artifactPaths: ['unit-contract/vitest.json'],
