@@ -3,10 +3,12 @@ import { defineConfig, devices } from '@playwright/test'
 const isCi = Boolean(process.env.CI)
 const baseURL = isCi ? 'http://127.0.0.1:3000' : (process.env.BASE_URL || 'http://localhost:3000')
 const releaseScanConfigured = Boolean(process.env.BASE_URL && process.env.LIVE_SCAN_TARGET)
+const clientReportFixtureConfigured = Boolean(process.env.PLAYWRIGHT_CLIENT_REPORT_FIXTURE)
 const testIgnore = [
   '**/.worktrees/**',
   '**/.playwright-ci-server/**',
   ...(releaseScanConfigured ? [] : ['tests/e2e/live-scan-smoke.spec.ts']),
+  ...(clientReportFixtureConfigured ? [] : ['e2e/client-reports.spec.ts']),
 ]
 
 export default defineConfig({

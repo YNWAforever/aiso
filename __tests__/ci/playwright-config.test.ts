@@ -21,6 +21,13 @@ describe('Playwright CI server isolation', () => {
     expect(launcher).toContain("[nextBinary, 'dev', isolatedRoot, '--hostname', '127.0.0.1', '--webpack']")
   })
 
+  it('keeps stateful client-report browser coverage release-fixture gated', async () => {
+    const config = await readFile(resolve(root, 'playwright.config.ts'), 'utf8')
+
+    expect(config).toContain('PLAYWRIGHT_CLIENT_REPORT_FIXTURE')
+    expect(config).toContain("['e2e/client-reports.spec.ts']")
+  })
+
   it('copies ordinary project files while excluding local environment files', async () => {
     const fixtureRoot = await mkdtemp(join(tmpdir(), 'playwright-ci-source-'))
     const isolatedRoot = await mkdtemp(join(tmpdir(), 'playwright-ci-target-'))

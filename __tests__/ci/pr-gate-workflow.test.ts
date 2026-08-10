@@ -50,4 +50,11 @@ describe('PR gate workflow contract', () => {
     expect(workflow).toContain('node scripts/ci/aggregate-gate.mjs')
     expect(workflow).toMatch(/name:\s+Upload [^\n]+\n\s+if:\s+always\(\)/g)
   })
+
+  it('fetches full history for the migration baseline guard', async () => {
+    const workflow = await readWorkflow()
+    const unitJob = workflow.slice(workflow.indexOf('  unit-contract:'), workflow.indexOf('\n  e2e-accessibility:'))
+
+    expect(unitJob).toMatch(/uses: actions\/checkout@v4\s*\n\s+with:\s*\n\s+fetch-depth:\s+0/)
+  })
 })
