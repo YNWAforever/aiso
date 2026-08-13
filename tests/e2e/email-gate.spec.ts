@@ -38,7 +38,7 @@ test.describe('Account unlock on a seeded public result', () => {
     await expect.poll(() => requestBody).not.toBeNull()
     const callback = new URL(String(requestBody?.callbackURL ?? requestBody?.callbackUrl ?? ''))
     expect(callback.pathname).toBe('/' + LANG + '/auth/complete')
-    expect(callback.searchParams.get('next')).toBe('/' + LANG + '/onboarding?scan=' + TEST_SCAN_ID)
+    expect(callback.searchParams.get('next')).toBe('/' + LANG + '/result/' + TEST_SCAN_ID + '?claim=1')
   })
 
   test('invalid email format prevents submission', async ({ page }) => {

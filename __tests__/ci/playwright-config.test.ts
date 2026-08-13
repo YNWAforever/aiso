@@ -1,0 +1,50 @@
+import { existsSync } from 'node:fs'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+
+import { describe, expect, it } from 'vitest'
+import { createIsolatedWorkspace } from '../../scripts/start-playwright-ci-server.cjs'
+
+const root = resolve(__dirname, '../..')
+
+describe('Playwright CI server isolation', () => {
+  it('uses the isolated launcher with the required CI Playwright settings', async () => {
+    const config = await readFile(resolve(root, 'playwright.config.ts'), 'utf8')
+    const launcher = await readFile(resolve(root, 'scripts/start-playwright-ci-server.cjs'), 'utf8')
+
+    expect(config).toContain("isCi ? 'node scripts/start-playwright-ci-server.cjs' : 'npm run dev'")
+    expect(config).toContain("url: 'http://127.0.0.1:3000'")
+    expect(config).toContain('retries: 0')
+    expect(config).toContain("trace: 'retain-on-failure'")
+    expect(config).toContain('reuseExistingServer: false')
+    expect(launcher).toContain("[nextBinary, 'dev', isolatedRoot, '--hostname', '127.0.0.1', '--webpack']")
+  })
+
+  it('keeps stateful client-report browser coverage release-fixture gated', async () => {
+    const config = await readFile(resolve(root, 'playwright.config.ts'), 'utf8')
+
+    expect(config).toContain('PLAYWRIGHT_CLIENT_REPORT_FIXTURE')
+    expect(config).toContain("['e2e/client-reports.spec.ts']")
+  })
+
+  it('copies ordinary project files while excluding local environment files', async () => {
+    const fixtureRoot = await mkdtemp(join(tmpdir(), 'playwright-ci-source-'))
+    const isolatedRoot = await mkdtemp(join(tmpdir(), 'playwright-ci-target-'))
+
+    try {
+      await writeFile(join(fixtureRoot, 'package.json'), '{"name":"fixture"}')
+      await writeFile(join(fixtureRoot, '.env.local'), 'SENTINEL_ENV=must-not-copy')
+      await writeFile(join(fixtureRoot, 'settings.local'), 'SENTINEL_LOCAL=must-not-copy')
+
+      createIsolatedWorkspace(fixtureRoot, isolatedRoot)
+
+      await expect(readFile(join(isolatedRoot, 'package.json'), 'utf8')).resolves.toContain('fixture')
+      expect(existsSync(join(isolatedRoot, '.env.local'))).toBe(false)
+      expect(existsSync(join(isolatedRoot, 'settings.local'))).toBe(false)
+    } finally {
+      await rm(fixtureRoot, { force: true, recursive: true })
+      await rm(isolatedRoot, { force: true, recursive: true })
+    }
+  })
+})

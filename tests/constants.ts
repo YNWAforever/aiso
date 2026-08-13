@@ -1,2 +1,2 @@
-/** Deterministic UUID for the E2E test scan row seeded by globalSetup. */
-export const TEST_SCAN_ID = 'e2e00000-0000-4000-a000-000000000001'
+/** Deterministic UUID for the in-memory E2E fixture scan. */
+export { E2E_FIXTURE_SCAN_ID as TEST_SCAN_ID } from '../lib/e2e-fixtures'

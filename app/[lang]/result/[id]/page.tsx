@@ -1,6 +1,7 @@
 import { notFound }        from 'next/navigation'
 import { cache }            from 'react'
 import { db }               from '@/lib/db'
+import { getE2EScanFixture } from '@/lib/e2e-fixtures'
 import { ResultClient }     from '@/components/result/ResultClient'
 import { getProfile }       from '@/lib/auth'
 import { buildPublicResultSummary, canViewFullResult } from '@/lib/result-access'
@@ -10,6 +11,9 @@ import type { Metadata }    from 'next'
 // Deduped across generateMetadata + page render for the same request.
 // Returns null for unknown ids AND malformed ids (invalid uuid input).
 const getScan = cache(async (id: string): Promise<Scan | null> => {
+  const fixture = getE2EScanFixture(id)
+  if (fixture) return fixture
+
   try {
     const rows = await db()`select * from scans where id = ${id} limit 1`
     const row = rows[0] as Record<string, unknown> | undefined

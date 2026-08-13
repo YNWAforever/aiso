@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { checkCitationDensity } from '@/lib/checks/citationDensity'
+import { computeAuthority } from '@/lib/authority/aggregator'
 
 // Mock OpenRouter AND the authority aggregator to eliminate all network calls
 vi.mock('@/lib/openrouter', () => ({
@@ -29,6 +30,14 @@ const HTML_RICH = `<html><body>
 const HTML_POOR = `<html><body><p>This page has no external links.</p></body></html>`
 
 describe('checkCitationDensity', () => {
+  beforeEach(() => {
+    vi.mocked(computeAuthority).mockReset()
+    vi.mocked(computeAuthority).mockResolvedValue({
+      totalScore: 35, layer1Score: 10, layer2Score: 8, layer3Score: 10, layer4Score: 7,
+      tier: 'tier1', domain: 'example.com', finalScore: 35,
+    })
+  })
+
   it('returns pass for well-cited content', async () => {
     const result = await checkCitationDensity(HTML_RICH, 'https://example.com', { industry: 'finance', region: 'global' })
     expect(result.status).toBe('pass')
@@ -54,5 +63,69 @@ describe('checkCitationDensity', () => {
   it('handles malformed HTML without throwing', async () => {
     const result = await checkCitationDensity('<p>broken<a href="bad url">link</p>', 'https://example.com', { industry: 'technology', region: 'HK' })
     expect(['pass', 'warn', 'fail']).toContain(result.status)
+  })
+
+  it('uses URL parsing normalization while preserving citation fragments', async () => {
+    const result = await checkCitationDensity(
+      '<a href="https://NIH.gov:443/study#finding">one</a><a href="https://nih.gov/study">two</a>',
+      'https://example.com',
+      { industry: 'finance', region: 'global' },
+    )
+
+    expect(result.geoDetails?.totalLinks).toBe(2)
+    expect(result.geoDetails?.details).toEqual([expect.objectContaining({
+      url: 'https://nih.gov/study#finding',
+      domain: 'nih.gov',
+    })])
+    expect(computeAuthority).toHaveBeenCalledTimes(1)
+  })
+
+  it('counts duplicate canonical citation URLs while aggregating authority by domain', async () => {
+    const result = await checkCitationDensity(
+      '<a href="https://NIH.gov:443/study">one</a><a href="https://nih.gov/study">two</a>',
+      'https://example.com',
+      { industry: 'finance', region: 'global' },
+    )
+
+    expect(result.geoDetails?.totalLinks).toBe(2)
+    expect(result.geoDetails?.authorityBreakdown).toEqual({ tier1: 1, tier2: 0, tier3: 0, other: 0 })
+    expect(result.geoDetails?.details).toEqual([expect.objectContaining({
+      url: 'https://nih.gov/study',
+      domain: 'nih.gov',
+    })])
+    expect(computeAuthority).toHaveBeenCalledTimes(1)
+    expect(computeAuthority).toHaveBeenCalledWith('nih.gov', 'finance', 'global')
+  })
+
+  it('aggregates authority tiers for unique external domains', async () => {
+    vi.mocked(computeAuthority)
+      .mockResolvedValueOnce({ tier: 'tier1', finalScore: 40 } as never)
+      .mockResolvedValueOnce({ tier: 'tier2', finalScore: 20 } as never)
+      .mockResolvedValueOnce({ tier: 'tier3', finalScore: 10 } as never)
+
+    const result = await checkCitationDensity(
+      '<a href="https://one.example/a">one</a><a href="https://two.example/a">two</a><a href="https://three.example/a">three</a>',
+      'https://example.com',
+      { industry: 'finance', region: 'global' },
+    )
+
+    expect(result.geoDetails?.authorityBreakdown).toEqual({ tier1: 1, tier2: 1, tier3: 1, other: 0 })
+    expect(result.geoDetails?.details).toHaveLength(3)
+  })
+
+  it('settles malformed provider output at the existing citation boundary', async () => {
+    vi.mocked(computeAuthority).mockResolvedValue({ malformed: true } as never)
+
+    const result = await checkCitationDensity(
+      '<a href="https://nih.gov/study">NIH study</a>',
+      'https://example.com',
+      { industry: 'finance', region: 'global' },
+    )
+
+    expect(result.geoDetails?.authorityBreakdown).toEqual({ tier1: 0, tier2: 0, tier3: 0, other: 0 })
+    expect(result.geoDetails?.details).toEqual([expect.objectContaining({
+      url: 'https://nih.gov/study',
+      domain: 'nih.gov',
+    })])
   })
 })

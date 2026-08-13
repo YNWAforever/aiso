@@ -2,11 +2,15 @@
  * TDD: Authority engine layers 1–4 + aggregator
  * Layer 2 fetches Wikipedia/Tranco — mocked to stay fast
  */
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 
 // Mock fetch used by layer2-signals
 const fetchMock = vi.fn()
-vi.stubGlobal('fetch', fetchMock)
+
+beforeEach(() => {
+  fetchMock.mockReset()
+  vi.stubGlobal('fetch', fetchMock)
+})
 
 // ── Layer 1: TLD trust ─────────────────────────────────────────
 describe('Layer 1 — TLD trust (extended)', () => {

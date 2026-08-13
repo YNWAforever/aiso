@@ -30,14 +30,17 @@ describe('funnel verification contracts', () => {
     expect(source).not.toContain('if (viewportWidth <= 375)')
   })
 
-  it('always reseeds the fixed scan as anonymous and keeps teardown deterministic', () => {
+  it('requires the in-memory fixture and keeps teardown side-effect free', () => {
     const setup = read('tests/globalSetup.ts')
     const teardown = read('tests/globalTeardown.ts')
 
-    expect(setup).toMatch(/account_id:\s+null/)
-    expect(setup).toContain('resolution=merge-duplicates,return=representation')
-    expect(teardown).toContain('id=eq.${TEST_SCAN_ID}')
-    expect(teardown).toContain("method: 'DELETE'")
+    expect(setup).toContain("process.env.E2E_FIXTURE_MODE !== '1'")
+    expect(setup).toContain('E2E_FIXTURE_MODE=1 is required for CI E2E tests')
+    expect(setup).toContain('In-memory E2E fixture ready')
+    expect(setup).not.toContain('SUPABASE_SERVICE_ROLE_KEY')
+    expect(setup).not.toContain('resolution=merge-duplicates,return=representation')
+    expect(teardown).toContain('In-memory E2E fixture has no cleanup side effect.')
+    expect(teardown).not.toContain("method: 'DELETE'")
   })
 
   it('keeps the live scan smoke release-gated instead of silently skipping it', () => {

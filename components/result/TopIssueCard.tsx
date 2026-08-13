@@ -275,10 +275,10 @@ export function TopIssueCard({ results, failCount }: Props) {
     : {
         card: 'border-red-200 bg-red-50',
         icon: 'bg-red-500',
-        eyebrow: 'text-red-500',
+        eyebrow: 'text-red-700',
         badge: 'bg-red-100 text-red-800 ring-red-200',
         quickFix: 'border-red-100',
-        more: 'text-red-600',
+        more: 'text-red-700',
       }
 
   return (

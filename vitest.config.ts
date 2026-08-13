@@ -5,7 +5,20 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    setupFiles: ['./__tests__/setup/ci-network.ts'],
+    unstubGlobals: true,
     exclude: ['**/node_modules/**', 'tests/e2e/**', 'e2e/**', '**/.worktrees/**', '**/.superpowers/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary', 'html'],
+    },
+    reporters: process.env.CI ? ['default', 'json', 'junit'] : ['default'],
+    outputFile: process.env.CI
+      ? {
+          json: 'artifacts/unit-contract/vitest.json',
+          junit: 'artifacts/unit-contract/vitest.junit.xml',
+        }
+      : undefined,
     // Inline @neondatabase/auth so Vite transforms it and applies the `next/headers`
     // alias below inside its compiled source (Vitest externalizes node_modules by
     // default, which bypasses resolve.alias for bare imports inside the package).

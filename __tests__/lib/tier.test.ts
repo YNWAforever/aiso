@@ -39,4 +39,17 @@ describe('planAllows', () => {
     expect(planAllows('enterprise', 'local_trust_competitors')).toBe(true)
     expect(planAllows('enterprise', 'local_trust_export')).toBe(true)
   })
+
+  it('keeps basic, pro, and enterprise feature boundaries explicit', () => {
+    expect(planAllows('basic', 'agent_recs')).toBe(true)
+    expect(planAllows('basic', 'alerts')).toBe(false)
+    expect(planAllows('basic', 'csv_export')).toBe(false)
+
+    expect(planAllows('pro', 'agent_progress')).toBe(true)
+    expect(planAllows('pro', 'agent_competitors')).toBe(false)
+    expect(planAllows('pro', 'csv_export')).toBe(false)
+
+    expect(planAllows('enterprise', 'agent_competitors')).toBe(true)
+    expect(planAllows('enterprise', 'csv_export')).toBe(true)
+  })
 })

@@ -96,18 +96,21 @@ export function LoginForm({ next }: { next?: string }) {
       </div>
 
       <form onSubmit={signInWithMagicLink} className="space-y-3">
+        <label className="sr-only" htmlFor="login-email">{c.emailPlaceholder}</label>
         <Input
+          id="login-email"
           type="email"
           value={email}
           onChange={e => setEmail(e.target.value)}
           placeholder={c.emailPlaceholder}
           required
+          aria-describedby={errorMsg ? 'login-email-error' : undefined}
         />
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? c.sending : c.sendMagicLink}
         </Button>
         {errorMsg && (
-          <p className="text-destructive text-sm mt-2">{errorMsg}</p>
+          <p id="login-email-error" role="alert" aria-live="polite" className="text-destructive text-sm mt-2">{errorMsg}</p>
         )}
       </form>
     </div>
