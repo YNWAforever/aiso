@@ -17,6 +17,7 @@ function code(path: string) {
 
 const SIDEBAR = 'components/dashboard/DashboardSidebar.tsx'
 const LAYOUT = 'app/[lang]/dashboard/layout.tsx'
+const PAGE = 'app/[lang]/dashboard/[clientId]/page.tsx'
 
 describe('dashboard sidebar brand resolution', () => {
   it('no longer depends on the header Next 16 does not set', () => {
@@ -45,7 +46,51 @@ describe('dashboard sidebar brand resolution', () => {
   })
 
   it('unlocks results once a brand is in the route', () => {
-    expect(code(SIDEBAR)).toContain("(s.key === 'results' && !clientId)")
+    // results was the first step to need this; monitor and roi joined it on
+    // restore, so the rule reads off BRAND_STEPS instead of naming one key.
+    const sidebar = code(SIDEBAR)
+
+    expect(sidebar).toContain("new Set(['results', 'monitor', 'roi'])")
+    expect(sidebar).toContain('BRAND_STEPS.has(s.key) && !clientId')
+  })
+})
+
+describe('monitor and roi navigation', () => {
+  it('leaves no step the page renders but the sidebar cannot reach', () => {
+    // The regression this catches shipped for real: 7b0cb9d removed the monitor
+    // and roi entries while their targets were fenced, the page's step switch
+    // went on rendering both, and MonitorStep and LocalTrustStep spent that
+    // whole window reachable only by hand-typing ?step=. Derived from source on
+    // both sides so adding a step to either file alone fails here.
+    const rendered = new Set(
+      [...code(PAGE).matchAll(/step === '(\w+)'/g)].map((m) => m[1]),
+    )
+    const linked = new Set(
+      [...code(SIDEBAR).matchAll(/\{ key: '(\w+)'/g)].map((m) => m[1]),
+    )
+
+    expect([...linked].sort()).toEqual([...rendered].sort())
+  })
+
+  it('reuses the copy that outlived the removal in both locales', () => {
+    // Same story as the question bank below: the keys were never deleted, so
+    // restoring the entries needed no new translations.
+    for (const locale of ['en', 'zh-HK'] as const) {
+      const dashboard = JSON.parse(read(`messages/${locale}.json`)).dashboard
+      for (const key of ['nav_monitor', 'nav_monitor_desc', 'nav_roi', 'nav_roi_desc']) {
+        expect(dashboard[key], `${locale} ${key}`).toBeTruthy()
+      }
+    }
+  })
+
+  it('blocks navigation for a missing brand but not for a plan limit', () => {
+    // A brand-less step has no target to reach; an unentitled one renders its
+    // own locked card and pricing link, which pointer-events-none would hide.
+    const sidebar = code(SIDEBAR)
+
+    expect(sidebar).toContain('const blocksNavigation = unreachable')
+    expect(sidebar).toContain('BRAND_STEPS.has(s.key) && !clientId')
+    expect(sidebar).toContain("(s.key === 'roi' && !features.local_trust_roi)")
   })
 })
 
@@ -71,8 +116,8 @@ describe('question bank navigation', () => {
 
   it('stays clickable for a plan without edit_prompts', () => {
     // The page renders its own locked card and a pricing link, so blocking
-    // navigation would make that unreachable — the same carve-out the roi entry
-    // had before it was removed. A Pro pill marks it instead.
+    // navigation would make that unreachable — the same carve-out the workflow
+    // steps make for a plan limit. A Pro pill marks it instead.
     const sidebar = code(SIDEBAR)
     const tools = sidebar.slice(sidebar.indexOf("t('tools')"))
 

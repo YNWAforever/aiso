@@ -3,15 +3,27 @@
 import Link from 'next/link'
 import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { LogOut, Wrench, Scan, FileBarChart2, Sparkles, Brain, Settings, Lock, ListChecks } from 'lucide-react'
+import { LogOut, Wrench, Scan, FileBarChart2, Sparkles, Radio, TrendingUp, Brain, Settings, Lock, ListChecks } from 'lucide-react'
 import type { CommercialEntitlement } from '@/lib/tier'
 import { ThemeToggle } from '@/components/dashboard/ThemeToggle'
 
+// monitor and roi were dropped in 7b0cb9d because their targets were fenced
+// during the Supabase-to-Neon cleanup, not because the shape was wrong — the
+// same reason the question bank below lost its link. Both targets are live
+// again (the Pulse producer runs weekly and Local Trust is restored), and the
+// dashboard page has never stopped rendering these two steps, so without these
+// entries MonitorStep and LocalTrustStep were reachable only by hand-typing
+// ?step=. Their four translation keys survived the removal in both locales.
 const STEPS = [
   { key: 'scan',    labelKey: 'nav_scan',    icon: Scan,          descKey: 'nav_scan_desc' },
   { key: 'results', labelKey: 'nav_results', icon: FileBarChart2, descKey: 'nav_results_desc' },
   { key: 'improve', labelKey: 'nav_improve', icon: Sparkles,      descKey: 'nav_improve_desc' },
+  { key: 'monitor', labelKey: 'nav_monitor', icon: Radio,         descKey: 'nav_monitor_desc' },
+  { key: 'roi',     labelKey: 'nav_roi',     icon: TrendingUp,    descKey: 'nav_roi_desc' },
 ] as const
+
+/** Steps that render brand data, so their target does not exist without one. */
+const BRAND_STEPS: ReadonlySet<string> = new Set(['results', 'monitor', 'roi'])
 
 type Props = {
   profile: {
@@ -68,9 +80,17 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
         {STEPS.map((s) => {
           const active = !onSubRoute && step === s.key
           const StepIcon = s.icon
-          const locked = (s.key === 'improve' && !features.agent_recs) ||
-                          (s.key === 'results' && !clientId)
-          const blocksNavigation = locked
+          // Two reasons an entry locks, handled differently. Without a brand in
+          // the route the target does not exist, so navigation is blocked. A
+          // plan limit is not that: those steps render their own locked card and
+          // a pricing link, so blocking would put the upgrade path behind the
+          // very lock advertising it — the carve-out the question bank documents
+          // below, applied to every entry rather than just that one.
+          const unreachable = BRAND_STEPS.has(s.key) && !clientId
+          const unentitled = (s.key === 'improve' && !features.agent_recs) ||
+                             (s.key === 'roi' && !features.local_trust_roi)
+          const locked = unreachable || unentitled
+          const blocksNavigation = unreachable
 
           return (
             <Link
@@ -105,7 +125,8 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
 
             Deliberately NOT pointer-events-none when unentitled: the page renders
             its own locked card and a link to pricing, so blocking navigation
-            would make that unreachable. Same carve-out the roi entry had. */}
+            would make that unreachable. Same carve-out the workflow steps above
+            make for a plan limit. */}
         {clientId && (
           <>
             <p className="text-[10px] text-muted-foreground/60 font-semibold tracking-widest uppercase mb-2 mt-5 px-2">

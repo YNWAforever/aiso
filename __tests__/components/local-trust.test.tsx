@@ -24,10 +24,10 @@ function messages(locale: 'en' | 'zh-HK') {
 
 describe('Local Trust dashboard wiring', () => {
   it('wires the ROI step into the client dashboard page', () => {
-    // DashboardSidebar no longer lists 'roi' as a top-level nav step (it was
-    // removed along with the Pulse links during the Supabase-to-Neon
-    // migration cleanup); the wizard step itself lives on within the
-    // dashboard page and WizardProgress, tested below and separately.
+    // DashboardSidebar lists 'roi' as a top-level nav step again — it and the
+    // Pulse links were removed during the Supabase-to-Neon cleanup and restored
+    // once their targets came back, covered in dashboard-sidebar.test.ts. The
+    // wizard step itself never moved and lives on in the dashboard page.
     const page = read('app/[lang]/dashboard/[clientId]/page.tsx')
 
     expect(page).toContain("step === 'roi'")
