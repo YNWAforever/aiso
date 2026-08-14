@@ -31,15 +31,16 @@ const ORPHANS: Record<string, string> = {
   'pulse/QuestionRow': 'only rendered by the orphaned ScanLogSection',
   'pulse/PlatformBar': 'only rendered by the orphaned Pulse read surface',
 
-  // Notifications has never had a producer in any commit, so this would render a
-  // permanently empty list. CLAUDE.md records the routes as delete-rather-than-
-  // restore; this is their only consumer and goes with them.
-  'dashboard/NotificationBell': 'no producer has ever written notifications',
+  // The "no producer in any commit" reason for deleting this expired: alert
+  // evaluation writes notifications now (upsertNotification in
+  // lib/alerts/neon-store.ts). The routes serving the bell are still fenced
+  // though, so it stays orphaned until restore-vs-delete is re-decided.
+  'dashboard/NotificationBell': 'notifications routes still fenced, so nothing feeds it',
 
   // Superseded rather than fenced. The dashboard page renders its own step
-  // switch; WizardProgress still lists all five steps including two the sidebar
-  // dropped. Two assertions in local-trust.test.tsx read its source, so it
-  // cannot be deleted without deciding what those should pin instead.
+  // switch and the sidebar links all five steps again, so WizardProgress now
+  // duplicates both. Two assertions in local-trust.test.tsx read its source, so
+  // it cannot be deleted without deciding what those should pin instead.
   'dashboard/WizardProgress': 'superseded by the dashboard page step switch',
 
   'dashboard/PlanGate': 'entitlement wrapper superseded by LockedFeature',

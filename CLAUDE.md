@@ -57,8 +57,10 @@ npm run test:watch # Vitest watch mode
 npm run e2e        # Playwright E2E (needs a dev server, or START_DEV_SERVER=1)
 ```
 
-There is **no CI** — no `.github/workflows/`. Run `build`, `lint`, and `test` locally
-before opening a PR.
+CI is `.github/workflows/pr-gate.yml` — a deterministic merge gate on every PR, running
+four jobs (`static`, `unit-contract`, `e2e-accessibility`, `build`) that a final `pr-gate`
+job aggregates from their uploaded summaries via `scripts/ci/aggregate-gate.mjs`. Still run
+`build`, `lint`, and `test` locally first; the gate is the backstop, not the first signal.
 
 ## Project Structure
 
@@ -85,7 +87,7 @@ app/
                    # Reachable: proxy.ts's matcher now excludes /admin, so it no
                    # longer 307s to a non-existent /en/admin. A separate localised
                    # app/[lang]/admin/authority/ page DOES go through intl routing.
-components/        # React UI components. 10 are orphaned — nothing renders them,
+components/        # React UI components. 11 are orphaned — nothing renders them,
                    # mostly the UI of fenced features. The inventory and the
                    # reason for each is __tests__/components/orphaned-components.test.ts,
                    # which fails both when a new one appears and when a listed
@@ -124,7 +126,7 @@ proxy.ts           # Next 16 proxy (was middleware) — intl routing + auth veri
 i18n/              # next-intl routing + request config
 messages/          # en.json / zh-HK.json translation strings
 supabase/
-  migrations/      # 30 SQL migrations, 001_-032_ (no 005/006) - dir name is legacy
+  migrations/      # 32 SQL migrations, 001_-034_ (no 005/006) - dir name is legacy
 __tests__/         # Vitest tests mirroring lib/app structure
 tests/e2e/         # Playwright specs + page objects
 scripts/           # migrate.ts (npm run migrate), run-tests.mjs (npm test), seed-packs.ts
@@ -157,8 +159,11 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   its queries in `try/catch` and returns 5xx. Keep it that way: a 2xx must mean the write
   happened.
 - Deployment config lives outside the code and is easy to miss: `vercel.json` sets
-  `maxDuration` (60s scan, 30s fix) and nothing else — no cron. Its `functions` keys are **literal paths,
+  `maxDuration` (60s scan, 30s fix, 60s each for `pulse/run` and `cron/pulse`) **and one
+  weekly cron** — `17 4 * * 1` → `/api/cron/pulse`. Its `functions` keys are **literal paths,
   not prefixes**, so `fix/`'s subroutes inherit nothing despite also calling OpenRouter.
+  `__tests__/config/function-durations.test.ts` pins the whole `crons` array and requires
+  every scheduled path to export `GET`, so adding a cron is a deliberate, tested change.
   `next.config.ts` declares two permanent redirects that fire *before* `proxy.ts`.
 - `npm run lint` ≠ `npx eslint .` — the ignores are CLI flags in `package.json`, not in
   `eslint.config.mjs`. Several of those flags (`.worktrees/`, `.codex/`, `.opencode/`) are
@@ -222,9 +227,14 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > Three of the remaining fences should be **deleted rather than restored**, and it is worth
 > not re-litigating that: `pulse/[clientId]/summary` and `/missed` are redundant —
 > `clients/[clientId]/overview` is unfenced and already serves both datasets with larger
-> limits — `pulse/onboard` is superseded by `onboarding/complete`, and `notifications/*` has
-> never had a producer in any commit, so restoring it surfaces a permanently empty list whose
-> only consumer (`NotificationBell`) has no importer either.
+> limits — and `pulse/onboard` is superseded by `onboarding/complete`.
+>
+> `notifications/*` **used to be a fourth**, on the grounds that no producer had ever written
+> that table. **That rationale expired**: alert evaluation writes it now (`upsertNotification`
+> in `lib/alerts/neon-store.ts`, deduped by `033`'s unique index on
+> `(client_id, type, scan_week)`), so restore-vs-delete needs deciding on the new facts
+> rather than inheriting the old conclusion. Its only consumer, `NotificationBell`, still has
+> no importer.
 >
 > A fence is not a gate — **restoring one means adding a real gate, not just deleting the
 > `featureUnavailable` call.** The shape to copy is `lib/localTrust/guard.ts`: auth →
@@ -312,7 +322,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   rather than checking first is the preferred shape — one statement, no TOCTOU window, and zero
   rows means 404 without distinguishing "absent" from "not yours". See
   `app/api/dashboard/clients/[clientId]/prompts/[promptId]/route.ts`.
-- Migrations in `supabase/migrations/` — 30 files, `001_`–`032_` (no 005/006; directory name is legacy;
+- Migrations in `supabase/migrations/` — 32 files, `001_`–`034_` (no 005/006; directory name is legacy;
   the target is now Neon)
 - **A migration runner now exists:** `scripts/migrate.ts`, run via `npm run migrate`. It
   applies every file absent from the `schema_migrations` ledger, in filename order, each in
@@ -333,8 +343,10 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   directly — so if it never ran, **Local Trust is broken in production**, and baselining
   without excepting it strands those tables permanently. `--verify` answers this in one command.
 - Believed applied: `001`–`026` (**except possibly `021`**) and `028`. **Pending: `027`, `029`,
-  `030`, `031`, `032`.** Verify before baselining; this line is only as fresh as the last person to
-  edit it, and it has been wrong. Slice 6 (client reports) applies `027`. It was edited to
+  `030`, `031`, `032`, `033`, `034`.** `033`/`034` landed with #44 and are a hard pre-deploy
+  gate for `cron/evaluate-alerts` — apply them in order and follow
+  `docs/alert-evaluation-release.md` before any production alert traffic. Verify before
+  baselining; this line is only as fresh as the last person to edit it, and it has been wrong. Slice 6 (client reports) applies `027`. It was edited to
   apply cleanly — it previously duplicated `021`'s `clients_id_account_id_unique`
   constraint, used `gen_random_bytes()` without enabling `pgcrypto`, and granted to the
   Supabase roles `anon` / `authenticated` / `service_role`, which do not exist under Neon.
@@ -364,9 +376,10 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `__tests__/checks/` -> `lib/checks/`, `__tests__/api/` -> `app/api/`, while
   `__tests__/config/`, `__tests__/migrations/` and `__tests__/scripts/` assert on config,
   SQL files and the test runner rather than mirroring a source module.
-- **Nothing typechecks the tests.** `tsconfig.json` excludes them and there is no
-  `typecheck` script - a type error in a test compiles, runs, and passes green.
-- Run: `npm test` (unit: 106 files / 1141 tests currently pass)
+- **Nothing typechecks the tests.** `npm run typecheck` (`tsc --noEmit`) exists, but
+  `tsconfig.json` excludes `__tests__` and `tests` from it - a type error in a test
+  compiles, runs, and passes green.
+- Run: `npm test` (unit: 134 files / 1485 tests currently pass)
 - **`npm test` runs two projects**, unit then integration, via `scripts/run-tests.mjs`. The
   integration project provisions a real Neon branch and needs `neonctl` on PATH and
   authenticated. Without it that project is **skipped**, with a banner printed after the run
@@ -414,9 +427,11 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `Authorization: Bearer $CRON_SECRET` to `GET /api/cron/pulse`; that driver then sends
   `x-cron-secret` to `POST /api/pulse/run`. Neither shape is ours to choose — the first is
   Vercel's, the second is the producer's. Both return 500 rather than running if the secret
-  is unset or short. `vercel.json` now schedules the driver weekly; `cron/trial-emails` and
-  `cron/trial-emails` remains a 503 stub that reads no secret; `cron/evaluate-alerts`
-  is Neon-backed but currently unscheduled.
+  is unset or short. `vercel.json` now schedules the driver weekly; `cron/trial-emails`
+  remains a 503 stub that reads no secret; `cron/evaluate-alerts` is Neon-backed and
+  authenticated but unscheduled — and it is **POST-only, reading `x-cron-secret`**, so
+  Vercel Cron (GET + `Authorization: Bearer`) cannot call it directly and it needs a driver
+  hop of its own, the same shape as `cron/pulse` → `pulse/run`.
 - **Used by alert evaluation:** `RESEND_API_KEY` is consumed by `sendAlertEmail`. Legacy Supabase
   (`NEXT_PUBLIC_SUPABASE_URL`, `..._ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) is also fully
   dead: no application code reads them. The ESLint rule that bans `@supabase/*` now covers

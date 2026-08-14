@@ -10,16 +10,22 @@ Multi-tenant SaaS that scores websites on **AEO / GEO** — how well AI answer e
 - **Local Trust** — trust/ROI scoring per brand, with a CSV export
   (`app/api/dashboard/clients/[clientId]/local-trust/`, `lib/localTrust/`).
 - **Pulse** — weekly monitoring of how often a brand is surfaced by LLM platforms
-  (`app/api/pulse/`, `app/[lang]/pulse/[clientId]/`). **Not shipped** — see below.
+  (`app/api/pulse/`, `lib/pulse/`). The producer is **live and scheduled**: Vercel Cron
+  runs `/api/cron/pulse` weekly, which drives `POST /api/pulse/run` across five platforms,
+  and the dashboard's Monitor step renders the results. Only the standalone Pulse page and
+  its read routes remain fenced — see below.
 - Bilingual **en / zh-HK** (`next-intl`), billed through **Stripe**, deployed on **Vercel**.
 
 Several features are **fenced**: their routes return `503 FEATURE_UNAVAILABLE` via
-`lib/unavailable.ts`, and `__tests__/api/fenced-routes.test.ts` is the canonical list. The
-Pulse *read* routes, agents, notifications, content tools, trial emails and the alert
-*evaluator* is implemented on Neon but not scheduled by Vercel yet; Local Trust, alert *configuration*, the Pulse producer
-(`POST /api/pulse/run`) and the question bank — including AI question suggestions — are live. A fence is not a gate —
-restoring one means adding a real auth/entitlement/ownership gate, not just deleting the
-`featureUnavailable` call. `lib/localTrust/guard.ts` is the shape to copy.
+`lib/unavailable.ts`, and `__tests__/api/fenced-routes.test.ts` is the canonical list of the
+eleven. Still fenced: the Pulse *read* routes, agents, notifications, content tools and
+trial emails. Live: Local Trust, alert *configuration*, the Pulse producer
+(`POST /api/pulse/run`) and the question bank, including AI question suggestions. The alert
+*evaluator* is neither — it is implemented on Neon and authenticated but not yet scheduled
+by Vercel, and migrations `033`/`034` gate its deploy (see
+[`docs/alert-evaluation-release.md`](./docs/alert-evaluation-release.md)). A fence is not a
+gate — restoring one means adding a real auth/entitlement/ownership gate, not just deleting
+the `featureUnavailable` call. `lib/localTrust/guard.ts` is the shape to copy.
 
 Stack: Next.js 16 (App Router) · TypeScript 5.9 · Neon Postgres + Neon Auth · Tailwind v4 ·
 shadcn/ui · Vitest · Playwright.
@@ -36,7 +42,7 @@ to `503` because their queries were never ported, not because anything is broken
 
 Two live caveats worth knowing before you touch the database:
 
-- **Migrations `027`, `029`, `030`, `031` are unapplied**, and `021` is disputed — its own
+- **Migrations `027` and `029`–`034` are unapplied**, and `021` is disputed — its own
   header says it never ran while `CLAUDE.md` and `027` say it did. 021 creates the three
   `local_trust_*` tables that Local Trust queries, so this matters. Run
   `npm run migrate -- --verify` against the target database before baselining anything; it
