@@ -18,7 +18,13 @@ const MIGRATIONS = readdirSync(new URL('../../supabase/migrations', import.meta.
 const read = (name) =>
   readFileSync(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8')
 
-const numberOf = (name) => Number(name.slice(0, 3))
+const numberOf = (name) => {
+  const prefix = /^(\d+)_/.exec(name)?.[1]
+  if (prefix === undefined) {
+    throw new Error(`migration ${name} has no numeric prefix, so the >035 guard cannot classify it`)
+  }
+  return Number(prefix)
+}
 
 const createdBeforeCleanup = () =>
   MIGRATIONS.filter((m) => m !== CLEANUP).flatMap((m) => findCreatedPolicies(read(m)))
