@@ -24,6 +24,12 @@ row is ever produced, and every alert run reports `{processed: N, fired: 0, emai
 emailFailures: 0}` — a perfect green while the feature is entirely dead upstream of the
 evaluator. Apply 031 before 033/034/035; nothing here depends on ordering it after them.
 
+Verified on 2026-08-15: this is a real hazard but it is **not** why production has no
+rollup rows. `prompt_bank` is empty, `selectPendingClients` requires an active prompt, so
+no client is ever selected and the producer never reaches the rollup at all. `031` is now
+applied; the rollup is unproven in production rather than known-broken, and stays that way
+until a workspace has prompts.
+
 Pre-deploy smoke checks:
 
 1. Apply migration 031 through the normal approved Neon migration process.

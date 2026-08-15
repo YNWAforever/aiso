@@ -314,6 +314,16 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   reports. `pulse/run` therefore deletes a prompt's rows for the week before writing them,
   in application code rather than via a constraint, so it stays correct whether or not the
   pending migrations ever land. Any new writer of that table needs the same discipline.
+- **The Pulse weekly rollup has never written a row in production, and the cause sits
+  upstream of the rollup — verified 2026-08-15: `prompt_bank` is empty, so
+  `selectPendingClients` (`lib/pulse/schedule.ts`) returns no client and the producer
+  never runs.** The driver answered a bare `200 {done: true, processed: 0}` every Monday,
+  which is why six weeks of dead runs looked healthy; it now also returns
+  `configuredClients`, and `configuredClients: 0` is the "nothing was ever set up"
+  signal. `031` (the `on conflict (client_id, scan_week, platform)` arbiter the rollup
+  needs) was also unapplied until 2026-08-15 and would have broken the write had it been
+  reached — a second fault, not the cause. Nothing about this changes until a client has
+  an active prompt bank.
 - **Never `returning *` on a statement that joins another table.** The Neon HTTP driver builds
   each row with `Object.fromEntries(...)`, so duplicate column names **silently overwrite —
   last wins** — and the joined relation's columns come *after* the target's. `update prompt_bank
