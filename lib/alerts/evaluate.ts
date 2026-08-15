@@ -75,6 +75,7 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
   fired: number
   emailed: number
   emailFailures: number
+  notificationFailures: number
 }> {
   const snapshot = await ports.loadSnapshot()
   const actions: AlertAction[] = []
@@ -151,6 +152,7 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
 
   let emailed = 0
   let emailFailures = 0
+  let notificationFailures = 0
 
   for (const action of actions) {
     if (action.notification) {
@@ -158,6 +160,7 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
         await ports.upsertNotification(action.notification)
       } catch (error) {
         console.error('[alerts] notification failed:', error)
+        notificationFailures++
       }
     }
 
@@ -175,6 +178,7 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
     fired: actions.length,
     emailed,
     emailFailures,
+    notificationFailures,
   }
 }
 

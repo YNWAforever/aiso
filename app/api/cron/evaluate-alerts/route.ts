@@ -34,6 +34,24 @@ function evaluateAlerts() {
 }
 
 /**
+ * A run with any delivery failure must not read as a green cron.
+ *
+ * `emailFailures` and `notificationFailures` exist specifically to distinguish
+ * an outage (migration 035 unapplied, RESEND_API_KEY revoked, migration 033's
+ * ON CONFLICT arbiter missing, ...) from a healthy re-run. Vercel Cron surfaces
+ * status codes, not response bodies, so a totally failed run that still
+ * returns 200 is invisible in the deployment logs -- every Monday shows green
+ * while zero alerts go out. One function decides the status for both GET and
+ * POST so they cannot drift apart.
+ */
+function evaluationStatus(result: {
+  emailFailures: number
+  notificationFailures: number
+}): number {
+  return result.emailFailures > 0 || result.notificationFailures > 0 ? 502 : 200
+}
+
+/**
  * Read the secret, or null when it is missing or too short to be one.
  *
  * Compared against a known-present value at both call sites, so an unset var
@@ -57,7 +75,8 @@ export async function GET(req: Request) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  return Response.json(await evaluateAlerts())
+  const result = await evaluateAlerts()
+  return Response.json(result, { status: evaluationStatus(result) })
 }
 
 export async function POST(req: Request) {
@@ -72,5 +91,6 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  return Response.json(await evaluateAlerts())
+  const result = await evaluateAlerts()
+  return Response.json(result, { status: evaluationStatus(result) })
 }

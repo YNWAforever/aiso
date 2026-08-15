@@ -221,8 +221,9 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > `notifications/*`, `agents/*`, `cron/trial-emails`. **Local
 > Trust, the alerts *config* route, the Pulse producer (`pulse/run`), the whole prompt bank
 > and `pulse/suggest-questions` are restored**. `cron/evaluate-alerts` is now Neon-backed
-> with route-level authentication, but `vercel.json` does not schedule it yet; follow
-> `docs/alert-evaluation-release.md` before enabling production traffic.
+> with route-level authentication, and `vercel.json` schedules it weekly at `47 7 * * 1`,
+> after the Pulse driver; follow `docs/alert-evaluation-release.md` as the pre-deploy
+> migration gate before it carries production traffic.
 > `__tests__/api/fenced-routes.test.ts` is the canonical list and asserts each still 503s, so
 > restoring a route means deleting its entry there too.
 >
@@ -425,17 +426,18 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `PLAYWRIGHT_TEST_PASSWORD`
 - **Dead:** `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — read by zero source files; checkout is
   server-side only. `@stripe/stripe-js` is installed but never imported.
-- `CRON_SECRET` — ≥16 chars, read by **two** routes in the same request chain, in two
-  different header shapes, which looks like a bug and is not. Vercel Cron sends
-  `Authorization: Bearer $CRON_SECRET` to `GET /api/cron/pulse`; that driver then sends
-  `x-cron-secret` to `POST /api/pulse/run`. Neither shape is ours to choose — the first is
-  Vercel's, the second is the producer's. Both return 500 rather than running if the secret
-  is unset or short. `vercel.json` now schedules the driver weekly; `cron/trial-emails`
-  remains a 503 stub that reads no secret; `cron/evaluate-alerts` is **scheduled weekly**
-  and accepts **both** shapes — `GET` with `Authorization: Bearer` for Vercel Cron, `POST`
-  with `x-cron-secret` for the smoke checks in `docs/alert-evaluation-release.md`. It needs
-  **no** driver hop, because unlike `pulse/run` it is one bounded pass rather than a
-  chunked producer.
+- `CRON_SECRET` — ≥16 chars, read by **three** routes in two header shapes. Two of the
+  three form a single request chain, which is why they use different shapes: Vercel Cron
+  sends `Authorization: Bearer $CRON_SECRET` to `GET /api/cron/pulse`; that driver then
+  sends `x-cron-secret` to `POST /api/pulse/run`. Neither shape is ours to choose — the
+  first is Vercel's, the second is the producer's. Both return 500 rather than running if
+  the secret is unset or short. `vercel.json` now schedules the driver weekly;
+  `cron/trial-emails` remains a 503 stub that reads no secret. The third route,
+  `cron/evaluate-alerts`, is **scheduled weekly** on its own and is not part of that
+  chain — it accepts **both** shapes directly on its own handlers: `GET` with
+  `Authorization: Bearer` for Vercel Cron, `POST` with `x-cron-secret` for the smoke
+  checks in `docs/alert-evaluation-release.md`. It needs **no** driver hop, because
+  unlike `pulse/run` it is one bounded pass rather than a chunked producer.
 - **Used by alert evaluation:** `RESEND_API_KEY` is consumed by `sendAlertEmail`. Legacy Supabase
   (`NEXT_PUBLIC_SUPABASE_URL`, `..._ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) is also fully
   dead: no application code reads them. The ESLint rule that bans `@supabase/*` now covers

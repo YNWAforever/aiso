@@ -42,7 +42,7 @@ describe('POST /api/cron/evaluate-alerts', () => {
       claimEmailDelivery: vi.fn(),
       releaseEmailDelivery: vi.fn(),
     })
-    h.runAlertEvaluation.mockResolvedValue({ processed: 3, fired: 2 })
+    h.runAlertEvaluation.mockResolvedValue({ processed: 3, fired: 2, emailed: 2, emailFailures: 0, notificationFailures: 0 })
   })
 
   afterEach(() => {
@@ -97,13 +97,59 @@ describe('POST /api/cron/evaluate-alerts', () => {
     const response = await POST(request('test-cron-secret'))
 
     expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toEqual({ processed: 3, fired: 2 })
+    await expect(response.json()).resolves.toEqual({
+      processed: 3,
+      fired: 2,
+      emailed: 2,
+      emailFailures: 0,
+      notificationFailures: 0,
+    })
     expect(h.db).toHaveBeenCalledOnce()
     expect(h.createNeonAlertStore).toHaveBeenCalledWith('sql')
     expect(h.runAlertEvaluation).toHaveBeenCalledWith({
       ...store,
       sendAlertEmail: h.sendAlertEmail,
     })
+  })
+
+  it('returns 502 when emailFailures is greater than zero, so Vercel Cron sees a red run', async () => {
+    // emailFailures exists specifically to distinguish an outage from a healthy
+    // re-run, but Vercel Cron surfaces status codes, not bodies -- a 200 here
+    // would read as a green cron while zero alerts were delivered.
+    h.runAlertEvaluation.mockResolvedValue({
+      processed: 3,
+      fired: 2,
+      emailed: 0,
+      emailFailures: 2,
+      notificationFailures: 0,
+    })
+    const { POST } = await importRoute()
+
+    const response = await POST(request('test-cron-secret'))
+
+    expect(response.status).toBe(502)
+    await expect(response.json()).resolves.toEqual({
+      processed: 3,
+      fired: 2,
+      emailed: 0,
+      emailFailures: 2,
+      notificationFailures: 0,
+    })
+  })
+
+  it('returns 502 when notificationFailures is greater than zero, even with no email failures', async () => {
+    h.runAlertEvaluation.mockResolvedValue({
+      processed: 3,
+      fired: 2,
+      emailed: 2,
+      emailFailures: 0,
+      notificationFailures: 2,
+    })
+    const { POST } = await importRoute()
+
+    const response = await POST(request('test-cron-secret'))
+
+    expect(response.status).toBe(502)
   })
 })
 
@@ -120,7 +166,7 @@ describe('GET /api/cron/evaluate-alerts', () => {
       claimEmailDelivery: vi.fn(),
       releaseEmailDelivery: vi.fn(),
     })
-    h.runAlertEvaluation.mockResolvedValue({ processed: 3, fired: 2 })
+    h.runAlertEvaluation.mockResolvedValue({ processed: 3, fired: 2, emailed: 2, emailFailures: 0, notificationFailures: 0 })
   })
 
   afterEach(() => {
@@ -137,8 +183,51 @@ describe('GET /api/cron/evaluate-alerts', () => {
     const response = await GET(cronRequest('test-cron-secret'))
 
     expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toEqual({ processed: 3, fired: 2 })
+    await expect(response.json()).resolves.toEqual({
+      processed: 3,
+      fired: 2,
+      emailed: 2,
+      emailFailures: 0,
+      notificationFailures: 0,
+    })
     expect(h.runAlertEvaluation).toHaveBeenCalledOnce()
+  })
+
+  it('returns 502 when emailFailures is greater than zero, matching the POST handler', async () => {
+    h.runAlertEvaluation.mockResolvedValue({
+      processed: 3,
+      fired: 2,
+      emailed: 0,
+      emailFailures: 2,
+      notificationFailures: 0,
+    })
+    const { GET } = await importRoute()
+
+    const response = await GET(cronRequest('test-cron-secret'))
+
+    expect(response.status).toBe(502)
+    await expect(response.json()).resolves.toEqual({
+      processed: 3,
+      fired: 2,
+      emailed: 0,
+      emailFailures: 2,
+      notificationFailures: 0,
+    })
+  })
+
+  it('returns 502 when notificationFailures is greater than zero, even with no email failures', async () => {
+    h.runAlertEvaluation.mockResolvedValue({
+      processed: 3,
+      fired: 2,
+      emailed: 2,
+      emailFailures: 0,
+      notificationFailures: 2,
+    })
+    const { GET } = await importRoute()
+
+    const response = await GET(cronRequest('test-cron-secret'))
+
+    expect(response.status).toBe(502)
   })
 
   it('rejects a missing or wrong Bearer token', async () => {

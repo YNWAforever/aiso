@@ -62,7 +62,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 2, emailed: 2, emailFailures: 0 })
+    expect(result).toEqual({ processed: 1, fired: 2, emailed: 2, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).toHaveBeenCalledTimes(2)
     expect(ports.sendAlertEmail).toHaveBeenCalledTimes(2)
     expect(ports.upsertNotification).toHaveBeenNthCalledWith(1, expect.objectContaining({ type: 'sov_threshold' }))
@@ -79,7 +79,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 0, emailed: 0, emailFailures: 0 })
+    expect(result).toEqual({ processed: 1, fired: 0, emailed: 0, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).not.toHaveBeenCalled()
     expect(ports.sendAlertEmail).not.toHaveBeenCalled()
   })
@@ -94,7 +94,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 0, emailed: 0, emailFailures: 0 })
+    expect(result).toEqual({ processed: 1, fired: 0, emailed: 0, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).not.toHaveBeenCalled()
     expect(ports.sendAlertEmail).not.toHaveBeenCalled()
   })
@@ -108,7 +108,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 1, emailed: 1, emailFailures: 0 })
+    expect(result).toEqual({ processed: 1, fired: 1, emailed: 1, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'sov_threshold' }))
     expect(ports.sendAlertEmail).toHaveBeenCalledWith(expect.objectContaining({
       type: 'sov_threshold',
@@ -139,7 +139,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 1, emailed: 1, emailFailures: 0 })
+    expect(result).toEqual({ processed: 1, fired: 1, emailed: 1, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).toHaveBeenCalledTimes(1)
     expect(ports.sendAlertEmail).toHaveBeenCalledTimes(1)
     expect(ports.upsertNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'sov_recovery' }))
@@ -216,7 +216,23 @@ describe('runAlertEvaluation', () => {
       fired: 2,
       emailed: 1,
       emailFailures: 1,
+      notificationFailures: 1,
     })
+    expect(ports.upsertNotification).toHaveBeenCalledTimes(2)
+    expect(ports.sendAlertEmail).toHaveBeenCalledTimes(2)
+  })
+
+  it('counts a failing upsertNotification independently of email delivery, which still reflects successful sends', async () => {
+    // The bug this closes: emailFailures had no counterpart, so a notification
+    // write that fails on every run (e.g. migration 033's index missing, so the
+    // ON CONFLICT arbiter 42P10s) was invisible -- emails kept sending and the
+    // run looked fully healthy.
+    const { ports } = portsFor()
+    vi.mocked(ports.upsertNotification).mockRejectedValueOnce(new Error('42P10 no unique or exclusion constraint'))
+
+    const result = await runAlertEvaluation(ports)
+
+    expect(result).toEqual({ processed: 1, fired: 2, emailed: 2, emailFailures: 0, notificationFailures: 1 })
     expect(ports.upsertNotification).toHaveBeenCalledTimes(2)
     expect(ports.sendAlertEmail).toHaveBeenCalledTimes(2)
   })

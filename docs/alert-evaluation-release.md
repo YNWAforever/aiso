@@ -13,27 +13,41 @@ migration 035 creates `alert_email_deliveries` with a unique index on
 `(client_id, type, scan_week)`, which `claimEmailDelivery` uses to send each alert email
 at most once per client, type and week.
 
+**`supabase/migrations/031_pulse_weekly_summary_unique.sql` is also required, but for a
+different reason than 033/034/035 above.** Those three are required for the evaluator's
+own writes; 031 is required for its *data source*. The evaluator reads
+`pulse_weekly_summary` rows that `computeWeeklySummary` (`lib/pulse/summary.ts`) writes
+with `on conflict (client_id, scan_week, platform)` — an arbiter that only exists once
+031 creates the matching unique index (031's own header names `cron/evaluate-alerts` as
+the reason it exists). Without 031, that write 42P10s, no `platform IS NULL` aggregate
+row is ever produced, and every alert run reports `{processed: N, fired: 0, emailed: 0,
+emailFailures: 0}` — a perfect green while the feature is entirely dead upstream of the
+evaluator. Apply 031 before 033/034/035; nothing here depends on ordering it after them.
+
 Pre-deploy smoke checks:
 
-1. Apply migration 033 through the normal approved Neon migration process.
-2. Apply migration 034 through the normal approved Neon migration process after 033.
-3. Apply migration 035 through the normal approved Neon migration process after 034.
-4. Verify `pg_indexes` contains:
+1. Apply migration 031 through the normal approved Neon migration process.
+2. Apply migration 033 through the normal approved Neon migration process.
+3. Apply migration 034 through the normal approved Neon migration process after 033.
+4. Apply migration 035 through the normal approved Neon migration process after 034.
+5. Verify `pg_indexes` contains:
+   - the unique `pulse_weekly_summary_client_week_platform_unique` on `(client_id,
+     scan_week, platform)`;
    - the unique `notifications_dedup_idx` on `(client_id, type, scan_week)`;
    - the partial `pulse_weekly_summary_alert_snapshot_idx` with the `created_at` and `id`
      tie-break columns.
-5. Run a bounded Neon SQL smoke check with a small known client-id sample and verify
+6. Run a bounded Neon SQL smoke check with a small known client-id sample and verify
    the snapshot returns at most the latest two aggregate (`platform IS NULL`) weeks per
    client in deterministic order.
-6. Verify notification insertion remains idempotent for the same
+7. Verify notification insertion remains idempotent for the same
    `(client_id, type, scan_week)`.
-7. Verify a second invocation in the same week sends no further email: invoke the route
+8. Verify a second invocation in the same week sends no further email: invoke the route
    twice with `POST` + `x-cron-secret` against a seeded threshold breach and confirm
    `alert_email_deliveries` holds exactly one row for that `(client_id, type, scan_week)`
    and the mailbox received exactly one message. The response body distinguishes the
    cases: a healthy re-run reports `emailed: 0` with `emailFailures: 0`, while a ledger
    outage reports `emailFailures` greater than zero.
-8. Verify the schedule: `vercel.json` runs `/api/cron/evaluate-alerts` at `47 7 * * 1`,
+9. Verify the schedule: `vercel.json` runs `/api/cron/evaluate-alerts` at `47 7 * * 1`,
    after the Pulse driver's `17 4 * * 1`. Vercel Cron calls it with `GET` and
    `Authorization: Bearer $CRON_SECRET`; confirm one 200 in the deployment logs on the
    first Monday after release.
@@ -67,3 +81,15 @@ development machine.
   client's genuine current-week alert is dropped. The durable fix is a staleness guard
   in the evaluator (require the latest aggregate week to be the current week, and skip
   or defer otherwise) rather than a wider gap between cron times.
+- **`emailed: 0, emailFailures: 0` has a third meaning this doc did not previously cover:
+  no email was ever attempted.** `buildAction` (`lib/alerts/evaluate.ts`) only builds an
+  `email` when `config.notify_email` is true *and* a recipient address resolves *and* a
+  dashboard URL resolves. The recipient comes from `emailsByAccount`, keyed off a join
+  through `profiles` to `neon_auth."user"` — a missing `profiles` row for the account, or
+  a `profiles` row whose `neon_auth."user"` join misses, resolves to no address. When
+  that happens the action's `email` and `emailKey` are both `null`, `deliverEmail` is
+  never called, and the alert is dropped with no counter movement at all: not `emailed`,
+  not `emailFailures`. This is silent by design (`notify_email` false is the same shape,
+  and a customer legitimately opted out looks identical to one whose join is broken), so
+  do not treat a run with zero email counts as proof every fired alert reached an inbox —
+  cross-check against `fired` and, if it looks wrong, against `emailsByAccount` directly.
