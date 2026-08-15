@@ -2,7 +2,7 @@ import { NextResponse, after, type NextRequest } from 'next/server'
 
 import { appOrigin } from '@/lib/app-origin'
 import { db } from '@/lib/db'
-import { selectPendingClients } from '@/lib/pulse/schedule'
+import { countConfiguredClients, selectPendingClients } from '@/lib/pulse/schedule'
 
 export const dynamic = 'force-dynamic'
 
@@ -76,7 +76,23 @@ export async function GET(req: NextRequest) {
   }
 
   if (pending.length === 0) {
-    return NextResponse.json({ done: true, hop, processed: 0 })
+    // An empty pending list is ambiguous: selectPendingClients excludes clients
+    // already rolled up this week, so it is also empty when every client is
+    // done. configuredClients separates "nothing left to do" from "nothing was
+    // ever set up" -- the latter is how this cron returned a healthy 200 every
+    // Monday for six weeks while prompt_bank was empty.
+    let configuredClients = 0
+    try {
+      configuredClients = await countConfiguredClients(db())
+    } catch {
+      configuredClients = -1
+    }
+
+    if (configuredClients === 0) {
+      console.error('[cron/pulse] no client has an active prompt bank; nothing will ever be scanned')
+    }
+
+    return NextResponse.json({ done: true, hop, processed: 0, configuredClients })
   }
 
   const target = pending[0]

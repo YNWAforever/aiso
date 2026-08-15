@@ -4,11 +4,18 @@ const CRON_SECRET = 'test-cron-secret-0123'
 
 const calls: Array<{ text: string; params: unknown[] }> = []
 let candidateRows: unknown[]
+// Separate from candidateRows because the two queries answer different
+// questions: candidateRows is who is still pending this week, configuredCount
+// is who was ever set up at all. A finished week has an empty first and a
+// nonzero second; an unconfigured feature has both empty.
+let configuredCount = 0
 let lookupFails = false
 
 const mockSql = vi.fn((strings: TemplateStringsArray, ...params: unknown[]) => {
-  calls.push({ text: strings.join('?'), params })
+  const text = strings.join('?')
+  calls.push({ text, params })
   if (lookupFails) return Promise.reject(new Error('boom'))
+  if (text.includes('count(*)::int as n')) return Promise.resolve([{ n: configuredCount }])
   return Promise.resolve(candidateRows)
 })
 vi.mock('@/lib/db', () => ({ db: () => mockSql }))
@@ -48,6 +55,7 @@ beforeEach(() => {
   afterCallbacks.length = 0
   lookupFails = false
   candidateRows = [account('pro')]
+  configuredCount = 0
   fetchMock.mockReset()
   fetchMock.mockResolvedValue({
     ok: true, status: 200,
@@ -131,12 +139,39 @@ describe('GET /api/cron/pulse — driving the producer', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('reports done when nothing is pending', async () => {
+  it('reports zero configured clients when the feature was never set up', async () => {
     candidateRows = []
+    configuredCount = 0
     const res = await get()
+    const body = await res.json()
 
-    expect(await res.json()).toMatchObject({ done: true, processed: 0 })
+    expect(body).toMatchObject({ done: true, processed: 0 })
+    // With an empty prompt_bank, selectPendingClients never returns a client, so
+    // {done:true, processed:0} alone was byte-identical to a genuinely finished
+    // week -- six weekly cron runs reported success while nothing had ever been
+    // scanned. configuredClients makes that distinguishable. Assert it directly
+    // rather than folding it into the toMatchObject above: that call only
+    // checks the keys it lists, so it would not notice this field disappearing.
+    expect(body.configuredClients).toBe(0)
     expect(afterCallbacks).toHaveLength(0)
+  })
+
+  it('reports the real client count when the week is already finished, not zero', async () => {
+    // selectPendingClients excludes clients already rolled up this week, so a
+    // completed week and a never-configured feature both leave pending empty --
+    // that ambiguity is exactly what configuredClients exists to resolve. Here
+    // clients exist and finished, so the zero-clients alarm must stay silent.
+    candidateRows = []
+    configuredCount = 3
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    const res = await get()
+    const body = await res.json()
+
+    expect(body).toMatchObject({ done: true, processed: 0, configuredClients: 3 })
+    expect(consoleError).not.toHaveBeenCalled()
+
+    consoleError.mockRestore()
   })
 
   it('returns 503 when the pending lookup fails', async () => {

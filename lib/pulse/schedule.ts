@@ -89,3 +89,23 @@ export async function selectPendingClients(sql: Sql, limit: number): Promise<Pen
     }))
     .filter(c => c.promptCount > 0)
 }
+
+/**
+ * Clients with at least one active prompt, regardless of whether this week is
+ * already rolled up.
+ *
+ * selectPendingClients deliberately excludes clients already finished for the
+ * week, so an empty pending list means either "everyone is done" or "nobody was
+ * ever configured". Only this count separates them.
+ */
+export async function countConfiguredClients(sql: Sql): Promise<number> {
+  const rows = await sql`
+    select count(*)::int as n
+    from clients c
+    where exists (
+      select 1 from prompt_bank pb
+      where pb.client_id = c.id and pb.is_active
+    )
+  `
+  return Number((rows as unknown as Array<{ n: number }>)[0]?.n ?? 0)
+}
