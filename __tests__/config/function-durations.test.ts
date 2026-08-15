@@ -26,6 +26,8 @@ const LLM_ROUTES = [
   'app/api/pulse/run/route.ts',
   // Not an LLM caller itself, but it awaits one, so it needs the same headroom.
   'app/api/cron/pulse/route.ts',
+  // Not an LLM caller either — it awaits a Resend send per fired alert, serially.
+  'app/api/cron/evaluate-alerts/route.ts',
 ]
 
 describe('Vercel function durations', () => {
@@ -48,6 +50,7 @@ describe('Vercel function durations', () => {
     // silent one.
     expect(config.crons).toEqual([
       { path: '/api/cron/pulse', schedule: '17 4 * * 1' },
+      { path: '/api/cron/evaluate-alerts', schedule: '47 7 * * 1' },
     ])
 
     for (const cron of config.crons ?? []) {
@@ -58,6 +61,24 @@ describe('Vercel function durations', () => {
       // not have been scheduled directly.
       expect(readFileSync(route, 'utf8')).toMatch(/export async function GET\b/)
     }
+  })
+
+  it('evaluates alerts after the rollup they read, on the same day', () => {
+    // Alerts compare the latest two aggregate weeks. Run before the week's
+    // rollup lands and the comparison is last week against the week before --
+    // it would not error, it would just be quietly a week stale, every week.
+    const at = (schedule: string) => {
+      const [minute, hour, , , weekday] = schedule.split(' ')
+      return { weekday, minutes: Number(hour) * 60 + Number(minute) }
+    }
+
+    const pulse = config.crons?.find(cron => cron.path === '/api/cron/pulse')
+    const alerts = config.crons?.find(cron => cron.path === '/api/cron/evaluate-alerts')
+    expect(pulse, 'the Pulse driver is not scheduled').toBeDefined()
+    expect(alerts, 'alert evaluation is not scheduled').toBeDefined()
+
+    expect(at(alerts!.schedule).weekday).toBe(at(pulse!.schedule).weekday)
+    expect(at(alerts!.schedule).minutes).toBeGreaterThan(at(pulse!.schedule).minutes)
   })
 
   it('keeps the schedule inside what a Hobby project can actually run', () => {
