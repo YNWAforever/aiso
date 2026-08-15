@@ -20,9 +20,11 @@ Several features are **fenced**: their routes return `503 FEATURE_UNAVAILABLE` v
 `lib/unavailable.ts`, and `__tests__/api/fenced-routes.test.ts` is the canonical list of the
 eleven. Still fenced: the Pulse *read* routes, agents, notifications, content tools and
 trial emails. Live: Local Trust, alert *configuration*, the Pulse producer
-(`POST /api/pulse/run`) and the question bank, including AI question suggestions. The alert
-*evaluator* is neither — it is implemented on Neon and authenticated but not yet scheduled
-by Vercel, and migrations `033`/`034` gate its deploy (see
+(`POST /api/pulse/run`) and the question bank, including AI question suggestions. Alert
+*evaluation* is also live: it runs weekly through Vercel Cron and emails threshold,
+week-over-week and recovery alerts, deduped to one per client, type and week — while its
+in-app notifications are written but not yet readable, because the `notifications` routes
+are still fenced. Migrations `033`–`035` gate its deploy (see
 [`docs/alert-evaluation-release.md`](./docs/alert-evaluation-release.md)). A fence is not a
 gate — restoring one means adding a real auth/entitlement/ownership gate, not just deleting
 the `featureUnavailable` call. `lib/localTrust/guard.ts` is the shape to copy.
@@ -42,7 +44,7 @@ to `503` because their queries were never ported, not because anything is broken
 
 Two live caveats worth knowing before you touch the database:
 
-- **Migrations `027` and `029`–`034` are unapplied**, and `021` is disputed — its own
+- **Migrations `027` and `029`–`035` are unapplied**, and `021` is disputed — its own
   header says it never ran while `CLAUDE.md` and `027` say it did. 021 creates the three
   `local_trust_*` tables that Local Trust queries, so this matters. Run
   `npm run migrate -- --verify` against the target database before baselining anything; it

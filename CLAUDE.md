@@ -126,7 +126,7 @@ proxy.ts           # Next 16 proxy (was middleware) — intl routing + auth veri
 i18n/              # next-intl routing + request config
 messages/          # en.json / zh-HK.json translation strings
 supabase/
-  migrations/      # 32 SQL migrations, 001_-034_ (no 005/006) - dir name is legacy
+  migrations/      # 33 SQL migrations, 001_-035_ (no 005/006) - dir name is legacy
 __tests__/         # Vitest tests mirroring lib/app structure
 tests/e2e/         # Playwright specs + page objects
 scripts/           # migrate.ts (npm run migrate), run-tests.mjs (npm test), seed-packs.ts
@@ -159,9 +159,11 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   its queries in `try/catch` and returns 5xx. Keep it that way: a 2xx must mean the write
   happened.
 - Deployment config lives outside the code and is easy to miss: `vercel.json` sets
-  `maxDuration` (60s scan, 30s fix, 60s each for `pulse/run` and `cron/pulse`) **and one
-  weekly cron** — `17 4 * * 1` → `/api/cron/pulse`. Its `functions` keys are **literal paths,
-  not prefixes**, so `fix/`'s subroutes inherit nothing despite also calling OpenRouter.
+  `maxDuration` (60s scan, 30s fix, 60s each for `pulse/run`, `cron/pulse` and
+  `cron/evaluate-alerts`) **and two weekly crons, in that order** — `17 4 * * 1` →
+  `/api/cron/pulse`, then `47 7 * * 1` → `/api/cron/evaluate-alerts`, because alerts read
+  the rollup Pulse writes. Its `functions` keys are **literal paths, not prefixes**, so
+  `fix/`'s subroutes inherit nothing despite also calling OpenRouter.
   `__tests__/config/function-durations.test.ts` pins the whole `crons` array and requires
   every scheduled path to export `GET`, so adding a cron is a deliberate, tested change.
   `next.config.ts` declares two permanent redirects that fire *before* `proxy.ts`.
@@ -322,7 +324,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   rather than checking first is the preferred shape — one statement, no TOCTOU window, and zero
   rows means 404 without distinguishing "absent" from "not yours". See
   `app/api/dashboard/clients/[clientId]/prompts/[promptId]/route.ts`.
-- Migrations in `supabase/migrations/` — 32 files, `001_`–`034_` (no 005/006; directory name is legacy;
+- Migrations in `supabase/migrations/` — 33 files, `001_`–`035_` (no 005/006; directory name is legacy;
   the target is now Neon)
 - **A migration runner now exists:** `scripts/migrate.ts`, run via `npm run migrate`. It
   applies every file absent from the `schema_migrations` ledger, in filename order, each in
@@ -343,10 +345,11 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   directly — so if it never ran, **Local Trust is broken in production**, and baselining
   without excepting it strands those tables permanently. `--verify` answers this in one command.
 - Believed applied: `001`–`026` (**except possibly `021`**) and `028`. **Pending: `027`, `029`,
-  `030`, `031`, `032`, `033`, `034`.** `033`/`034` landed with #44 and are a hard pre-deploy
-  gate for `cron/evaluate-alerts` — apply them in order and follow
-  `docs/alert-evaluation-release.md` before any production alert traffic. Verify before
-  baselining; this line is only as fresh as the last person to edit it, and it has been wrong. Slice 6 (client reports) applies `027`. It was edited to
+  `030`, `031`, `032`, `033`, `034`, `035`.** `033`/`034` landed with #44, `035` landed in
+  this branch; all three are a hard pre-deploy gate for `cron/evaluate-alerts` — apply them
+  in order and follow `docs/alert-evaluation-release.md` before any production alert
+  traffic. Verify before baselining; this line is only as fresh as the last person to edit
+  it, and it has been wrong. Slice 6 (client reports) applies `027`. It was edited to
   apply cleanly — it previously duplicated `021`'s `clients_id_account_id_unique`
   constraint, used `gen_random_bytes()` without enabling `pgcrypto`, and granted to the
   Supabase roles `anon` / `authenticated` / `service_role`, which do not exist under Neon.
@@ -379,7 +382,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 - **Nothing typechecks the tests.** `npm run typecheck` (`tsc --noEmit`) exists, but
   `tsconfig.json` excludes `__tests__` and `tests` from it - a type error in a test
   compiles, runs, and passes green.
-- Run: `npm test` (unit: 134 files / 1485 tests currently pass)
+- Run: `npm test` (unit: 136 files / 1510 tests currently pass)
 - **`npm test` runs two projects**, unit then integration, via `scripts/run-tests.mjs`. The
   integration project provisions a real Neon branch and needs `neonctl` on PATH and
   authenticated. Without it that project is **skipped**, with a banner printed after the run
@@ -428,10 +431,11 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `x-cron-secret` to `POST /api/pulse/run`. Neither shape is ours to choose — the first is
   Vercel's, the second is the producer's. Both return 500 rather than running if the secret
   is unset or short. `vercel.json` now schedules the driver weekly; `cron/trial-emails`
-  remains a 503 stub that reads no secret; `cron/evaluate-alerts` is Neon-backed and
-  authenticated but unscheduled — and it is **POST-only, reading `x-cron-secret`**, so
-  Vercel Cron (GET + `Authorization: Bearer`) cannot call it directly and it needs a driver
-  hop of its own, the same shape as `cron/pulse` → `pulse/run`.
+  remains a 503 stub that reads no secret; `cron/evaluate-alerts` is **scheduled weekly**
+  and accepts **both** shapes — `GET` with `Authorization: Bearer` for Vercel Cron, `POST`
+  with `x-cron-secret` for the smoke checks in `docs/alert-evaluation-release.md`. It needs
+  **no** driver hop, because unlike `pulse/run` it is one bounded pass rather than a
+  chunked producer.
 - **Used by alert evaluation:** `RESEND_API_KEY` is consumed by `sendAlertEmail`. Legacy Supabase
   (`NEXT_PUBLIC_SUPABASE_URL`, `..._ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) is also fully
   dead: no application code reads them. The ESLint rule that bans `@supabase/*` now covers

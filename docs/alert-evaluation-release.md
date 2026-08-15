@@ -1,27 +1,69 @@
 # Alert evaluation release gate
 
-Migrations `supabase/migrations/033_alert_evaluation_hardening.sql` and
-`supabase/migrations/034_alert_evaluation_snapshot_refinement.sql` must be applied,
+Migrations `supabase/migrations/033_alert_evaluation_hardening.sql`,
+`supabase/migrations/034_alert_evaluation_snapshot_refinement.sql`, and
+`supabase/migrations/035_alert_email_delivery_ledger.sql` must be applied,
 in order, to the target Neon database before deploying
 `app/api/cron/evaluate-alerts`.
 
 The route uses direct Neon SQL rather than a Supabase RPC. Migration 033 creates the
-notification deduplication constraint required by the `ON CONFLICT` write, and migration
-034 creates the deterministic aggregate-snapshot index used by keyset pagination.
+notification deduplication constraint required by the `ON CONFLICT` write, migration
+034 creates the deterministic aggregate-snapshot index used by keyset pagination, and
+migration 035 creates `alert_email_deliveries` with a unique index on
+`(client_id, type, scan_week)`, which `claimEmailDelivery` uses to send each alert email
+at most once per client, type and week.
 
 Pre-deploy smoke checks:
 
 1. Apply migration 033 through the normal approved Neon migration process.
 2. Apply migration 034 through the normal approved Neon migration process after 033.
-3. Verify `pg_indexes` contains:
+3. Apply migration 035 through the normal approved Neon migration process after 034.
+4. Verify `pg_indexes` contains:
    - the unique `notifications_dedup_idx` on `(client_id, type, scan_week)`;
    - the partial `pulse_weekly_summary_alert_snapshot_idx` with the `created_at` and `id`
      tie-break columns.
-4. Run a bounded Neon SQL smoke check with a small known client-id sample and verify
+5. Run a bounded Neon SQL smoke check with a small known client-id sample and verify
    the snapshot returns at most the latest two aggregate (`platform IS NULL`) weeks per
    client in deterministic order.
-5. Verify notification insertion remains idempotent for the same
+6. Verify notification insertion remains idempotent for the same
    `(client_id, type, scan_week)`.
+7. Verify a second invocation in the same week sends no further email: invoke the route
+   twice with `POST` + `x-cron-secret` against a seeded threshold breach and confirm
+   `alert_email_deliveries` holds exactly one row for that `(client_id, type, scan_week)`
+   and the mailbox received exactly one message. The response body distinguishes the
+   cases: a healthy re-run reports `emailed: 0` with `emailFailures: 0`, while a ledger
+   outage reports `emailFailures` greater than zero.
+8. Verify the schedule: `vercel.json` runs `/api/cron/evaluate-alerts` at `47 7 * * 1`,
+   after the Pulse driver's `17 4 * * 1`. Vercel Cron calls it with `GET` and
+   `Authorization: Bearer $CRON_SECRET`; confirm one 200 in the deployment logs on the
+   first Monday after release.
 
-This note is only a release gate. Do not apply production migrations, invoke the cron
-route, or send notification/email traffic from local review.
+This note is only a release gate. The numbered checks above are a deliberate pre-deploy
+procedure, run against the target environment as the last step before enabling
+production alert traffic. Outside that procedure, do not apply production migrations,
+invoke the cron route, or send notification/email traffic from local review or a
+development machine.
+
+## Known limitations to accept or mitigate before enabling production traffic
+
+- **The delivery loop is serial and bounded by wall clock, not by row count.**
+  `runAlertEvaluation` awaits one notification insert, one ledger claim and one Resend
+  send per fired alert, in series. At typical round-trip latencies that truncates
+  somewhere around 100-150 fired alerts against the 60s `maxDuration`. The failure is
+  silent and threefold: an alert whose claim landed but whose send was in flight when
+  the function was killed is stranded for that `scan_week` (the unique index blocks
+  re-claiming); configs past the cut are never evaluated, and since ordering is by
+  `alert_configs.id`, it is the same suffix of customers every week; and Vercel Cron
+  does not retry, so the next firing is seven days later. The correlated case — a
+  platform-wide SoV shift pushing many clients below threshold in one week — is exactly
+  when this bites. Mitigation if it becomes real: the chunk-and-chain shape `cron/pulse`
+  already uses, or a lease/TTL on the claim.
+- **Nothing enforces that the week's Pulse rollup landed before alerts read it.** The
+  ordering rests on two independent cron times three and a half hours apart. If the
+  rollup has not landed for a client, nothing errors: the evaluator re-derives last
+  week's action, whose ledger row was already claimed by last week's run, so the claim
+  returns false, the outcome is `suppressed`, and the run reports `emailed: 0` with
+  `emailFailures: 0` — indistinguishable from a healthy idempotent re-run, while that
+  client's genuine current-week alert is dropped. The durable fix is a staleness guard
+  in the evaluator (require the latest aggregate week to be the current week, and skip
+  or defer otherwise) rather than a wider gap between cron times.
