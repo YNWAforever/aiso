@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { redactSecrets } from '@/lib/security/redact-secrets'
 import { ScoreRing } from '@/components/ScoreRing'
 import { FixPackClient } from '@/components/FixPackClient'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
@@ -57,7 +58,7 @@ export default async function DashboardResultPage({
   } catch (err) {
     loadError = true
     const message = err instanceof Error ? err.message : String(err)
-    console.error('[dashboard-result] scan query failed:', message.replace(/postgresql:\/\/\S+/g, '[redacted]'))
+    console.error('[dashboard-result] scan query failed:', redactSecrets(message))
   }
 
   // A database failure must not look like a scan that does not exist.

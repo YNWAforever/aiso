@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { redactSecrets } from '@/lib/security/redact-secrets'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import type { PlanFeatures } from '@/lib/types'
 import { ScanStep } from '@/components/dashboard/ScanStep'
@@ -202,7 +203,7 @@ export default async function DashboardPage({
   } catch (err) {
     loadError = true
     const message = err instanceof Error ? err.message : String(err)
-    console.error('[dashboard] workspace query failed:', message.replace(/postgresql:\/\/\S+/g, '[redacted]'))
+    console.error('[dashboard] workspace query failed:', redactSecrets(message))
   }
 
   // A database failure must not look like a brand that does not exist.

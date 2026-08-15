@@ -32,6 +32,13 @@ import { readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Pool, neonConfig } from '@neondatabase/serverless'
+// node needs the explicit .ts extension to resolve this relative import when
+// running this file directly (plain node, no bundler); tsc rejects that
+// extension under moduleResolution "bundler" without repo-wide
+// allowImportingTsExtensions, which would also loosen next build's check on
+// app/, lib/ and components/. Suppress narrowly instead of widening globally.
+// @ts-expect-error -- see comment above; node requires the extension, tsc forbids it
+import { redactSecrets } from '../lib/security/redact-secrets.ts'
 
 const MIGRATIONS_DIR = join(process.cwd(), 'supabase', 'migrations')
 
@@ -392,7 +399,7 @@ if (isDirectInvocation()) {
   main().catch((err) => {
     // Never print the raw error: the driver embeds the full connection string,
     // password included, in its messages.
-    console.error('Migration failed:', String(err.message).replace(/postgresql:\/\/\S+/g, '[redacted]'))
+    console.error('Migration failed:', redactSecrets(String(err.message)))
     process.exit(1)
   })
 }

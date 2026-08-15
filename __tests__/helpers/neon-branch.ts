@@ -2,6 +2,8 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { redactSecrets } from '@/lib/security/redact-secrets'
+
 export const PROJECT_ID = 'red-firefly-93523049'
 
 /**
@@ -19,10 +21,6 @@ export const PRODUCTION_BRANCH_ID = 'br-rough-butterfly-aojtgi92'
 const BRANCH_TTL_MS = 2 * 60 * 60 * 1000
 
 const BRANCH_ID = /^br-[a-z0-9-]+$/
-
-function redact(text: string): string {
-  return text.replace(/postgres(?:ql)?:\/\/\S+/g, '[redacted]')
-}
 
 function neonctl(args: string[]): string {
   try {
@@ -42,7 +40,7 @@ function neonctl(args: string[]): string {
         ? 'neonctl is not on PATH. Install it (`npm i -g neonctl`) and run `neonctl auth`.'
         : 'Integration tests need an authenticated neonctl. Run `neonctl auth` (or set ' +
           'NEON_API_KEY) and retry.'
-    throw new Error(`neonctl ${args.slice(0, 2).join(' ')} failed: ${redact(detail)}\n${hint}`)
+    throw new Error(`neonctl ${args.slice(0, 2).join(' ')} failed: ${redactSecrets(detail)}\n${hint}`)
   }
 }
 

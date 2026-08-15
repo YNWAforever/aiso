@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProfile } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { redactSecrets } from '@/lib/security/redact-secrets'
 import type { ClientOverview, Scan, AgentRecommendation, AgentProgress, AgentCompetitor, PulseWeeklySummary, PulseMetric } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -91,7 +92,7 @@ export async function GET(
     return NextResponse.json(overview)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    console.error('[overview] query failed:', message.replace(/postgresql:\/\/\S+/g, '[redacted]'))
+    console.error('[overview] query failed:', redactSecrets(message))
     return NextResponse.json({ error: 'Failed to load overview' }, { status: 500 })
   }
 }

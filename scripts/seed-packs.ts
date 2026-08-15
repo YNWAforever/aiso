@@ -1,5 +1,12 @@
 import { db } from '@/lib/db'
 import { INDUSTRY_PACKS, REGIONAL_PACKS } from '../lib/authority/packs'
+// node needs the explicit .ts extension to resolve this relative import when
+// running this file directly (plain node, no bundler); tsc rejects that
+// extension under moduleResolution "bundler" without repo-wide
+// allowImportingTsExtensions, which would also loosen next build's check on
+// app/, lib/ and components/. Suppress narrowly instead of widening globally.
+// @ts-expect-error -- see comment above; node requires the extension, tsc forbids it
+import { redactSecrets } from '../lib/security/redact-secrets.ts'
 
 async function seed() {
   const sql = db()
@@ -49,6 +56,6 @@ async function seed() {
 }
 
 seed().catch((err) => {
-  console.error(String(err.message).replace(/postgresql:\/\/\S+/g, '[redacted]'))
+  console.error(redactSecrets(String(err.message)))
   process.exit(1)
 })
