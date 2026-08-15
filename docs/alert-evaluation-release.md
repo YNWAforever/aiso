@@ -41,22 +41,56 @@ Pre-deploy smoke checks:
    client in deterministic order.
 7. Verify notification insertion remains idempotent for the same
    `(client_id, type, scan_week)`.
-8. Verify a second invocation in the same week sends no further email: invoke the route
-   twice with `POST` + `x-cron-secret` against a seeded threshold breach and confirm
-   `alert_email_deliveries` holds exactly one row for that `(client_id, type, scan_week)`
-   and the mailbox received exactly one message. The response body distinguishes the
-   cases: a healthy re-run reports `emailed: 0` with `emailFailures: 0`, while a ledger
-   outage reports `emailFailures` greater than zero.
-9. Verify the schedule: `vercel.json` runs `/api/cron/evaluate-alerts` at `47 7 * * 1`,
-   after the Pulse driver's `17 4 * * 1`. Vercel Cron calls it with `GET` and
-   `Authorization: Bearer $CRON_SECRET`; confirm one 200 in the deployment logs on the
-   first Monday after release.
+8. Verify a second invocation in the same week sends no further email. **Run this against
+   a throwaway Neon branch, never production** — it seeds an alert config and two weeks of
+   aggregate rows. Procedure, which has been executed and passes:
+   - Create a branch off production and derive its DSN by taking the production
+     `DATABASE_URL` and replacing only the hostname with the new branch's endpoint.
+     **Do not use `neonctl connection-string --branch-id` to get it** — see the tooling
+     warning below.
+   - Assert the resulting host is *not* the production endpoint before writing anything.
+     This assertion is not ceremony; it is what caught the tooling bug below.
+   - Seed one client with two consecutive aggregate (`platform IS NULL`) weeks scoring
+     60 then 40, and an `alert_configs` row with `sov_threshold` 50 and `wow_threshold`
+     10. That fires two independent actions: a threshold crossing and a week-over-week
+     drop.
+   - Call `runAlertEvaluation` twice with the real `createNeonAlertStore` and a stubbed
+     `sendAlertEmail` that records rather than delivers. Nothing is mailed, and the
+     property under test — the ledger, not Resend — is exercised for real.
+   - Expect run 1 `{fired: 2, emailed: 2, emailFailures: 0}` with two
+     `alert_email_deliveries` rows and two `notifications` rows; expect run 2
+     `{fired: 2, emailed: 0, emailFailures: 0}` with both counts unchanged. `fired`
+     staying at 2 while `emailed` falls to 0 is the healthy-re-run signature; a ledger
+     outage instead reports `emailFailures` greater than zero.
+9. Verify the Vercel Cron entry point pre-deploy, against the same throwaway branch:
+   import the route's `GET` and call it with `Authorization: Bearer $CRON_SECRET`. Expect
+   `200` and a JSON body carrying `processed`, `fired`, `emailed` and `emailFailures`;
+   expect `401` for a wrong token. Run it after check 8 so the week is already delivered —
+   the response must then report `emailed: 0`, which also proves the claim short-circuits
+   before Resend is ever reached. `vercel.json` scheduling `/api/cron/evaluate-alerts` at
+   `47 7 * * 1` after the Pulse driver's `17 4 * * 1` is pinned by
+   `__tests__/config/function-durations.test.ts`, so it needs no manual check.
+10. **Post-deploy only:** confirm one `200` for `/api/cron/evaluate-alerts` in the
+    deployment logs on the first Monday after release. This is the one step that cannot be
+    performed before deploying, and it is an observation rather than a gate.
 
 This note is only a release gate. The numbered checks above are a deliberate pre-deploy
-procedure, run against the target environment as the last step before enabling
-production alert traffic. Outside that procedure, do not apply production migrations,
-invoke the cron route, or send notification/email traffic from local review or a
-development machine.
+procedure. Checks 1-7 run against the target database; checks 8 and 9 run against a
+throwaway branch and must never be pointed at production; check 10 happens after deploy.
+Outside that procedure, do not apply production migrations, invoke the cron route, or send
+notification/email traffic from local review or a development machine.
+
+### Tooling warnings for this procedure
+
+- **`neonctl connection-string --branch-id <id>` returns the parent's endpoint, not the
+  branch's.** Observed directly: asked for a freshly created branch's DSN, it returned the
+  production endpoint host. Anything seeded with that DSN lands in production. Derive the
+  branch DSN by hostname substitution instead, and keep the not-production assertion in the
+  harness.
+- **`neonctl branches create` prints the full connection URI, password included, to
+  stdout.** Redirect or discard its output. Branch roles are inherited from the parent, so
+  that password is the parent's too — treat any such disclosure as a production credential
+  exposure and rotate `neondb_owner`.
 
 ## Known limitations to accept or mitigate before enabling production traffic
 
