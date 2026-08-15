@@ -30,6 +30,14 @@ function conflictTargets(source: string): string[][] {
  * guard exists to catch, missed. It reads correctly today only because 033 also
  * supplies a full index over the same columns; nothing here would notice if that
  * coincidence stopped holding.
+ *
+ * Arbiters are also pooled across every table, not scoped to the one the
+ * statement targets: `sameColumns` compares column sets only, so a target
+ * passes if ANY table anywhere has that column set. Live example: `(client_id,
+ * type, scan_week)` matches both `notifications` (033) and
+ * `alert_email_deliveries` (035) -- a future writer aimed at the wrong table
+ * would pass this guard silently. Not fixed here; recorded so it is not
+ * mistaken for coverage it does not provide.
  */
 function uniqueIndexes(): string[][] {
   const dir = join(process.cwd(), 'supabase/migrations')
@@ -85,8 +93,8 @@ describe('ON CONFLICT arbiters exist', () => {
     }
   })
 
-  it('every ON CONFLICT under lib/ has a matching unique index', () => {
-    const libDir = join(process.cwd(), 'lib')
+  it('every ON CONFLICT under lib/, app/ and scripts/ has a matching unique index', () => {
+    const dirs = ['lib', 'app', 'scripts'].map(name => join(process.cwd(), name))
     const indexes = uniqueIndexes()
     const files: string[] = []
 
@@ -97,7 +105,7 @@ describe('ON CONFLICT arbiters exist', () => {
         else if (entry.name.endsWith('.ts')) files.push(path)
       }
     }
-    walk(libDir)
+    dirs.forEach(walk)
 
     for (const file of files) {
       for (const target of conflictTargets(readFileSync(file, 'utf8'))) {
