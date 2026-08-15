@@ -8,11 +8,14 @@
  * not register as a real one. Policy names in this repo are always
  * double-quoted; table names appear both bare (`clients`) and schema-qualified
  * (`public.clients`), so the schema is normalised away and every result is
- * reported as `table.policy name`.
+ * reported as `table.policy name`. A third export, findDisabledRlsTables,
+ * finds `alter table ... disable row level security` statements and reports
+ * the bare table name.
  */
 
 const CREATE_POLICY = /create\s+policy\s+"([^"]+)"\s+on\s+([a-z0-9_."]+)/gi
 const DROP_POLICY = /drop\s+policy\s+if\s+exists\s+"([^"]+)"\s+on\s+([a-z0-9_."]+)/gi
+const DISABLE_RLS = /alter\s+table\s+(?:if\s+exists\s+)?([a-z0-9_."]+)\s+disable\s+row\s+level\s+security/gi
 
 function stripLineComments(sql) {
   return sql
@@ -36,4 +39,9 @@ export function findCreatedPolicies(sql) {
 
 export function findDroppedPolicies(sql) {
   return collect(sql, DROP_POLICY)
+}
+
+export function findDisabledRlsTables(sql) {
+  const stripped = stripLineComments(sql)
+  return [...stripped.matchAll(DISABLE_RLS)].map((match) => bareTable(match[1]))
 }

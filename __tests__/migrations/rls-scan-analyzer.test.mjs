@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { findCreatedPolicies, findDroppedPolicies } from '../helpers/migration-rls-scan.mjs'
+import {
+  findCreatedPolicies,
+  findDisabledRlsTables,
+  findDroppedPolicies,
+} from '../helpers/migration-rls-scan.mjs'
 
 describe('migration RLS scanner', () => {
   it('finds a created policy and normalises the schema prefix', () => {
@@ -64,5 +68,19 @@ describe('migration RLS scanner', () => {
 
   it('lowercases the table name so casing cannot split one table into two', () => {
     expect(findCreatedPolicies('create policy "p" on ACCOUNTS for all using (true);')).toEqual(['accounts.p'])
+  })
+
+  it('finds a disabled table with or without the if exists clause', () => {
+    const withClause = 'alter table if exists public.scans disable row level security;'
+    const without = 'alter table scans disable row level security;'
+
+    expect(findDisabledRlsTables(withClause)).toEqual(['scans'])
+    expect(findDisabledRlsTables(without)).toEqual(['scans'])
+  })
+
+  it('does not mistake enabling RLS for disabling it', () => {
+    const sql = 'alter table public.client_reports enable row level security;'
+
+    expect(findDisabledRlsTables(sql)).toEqual([])
   })
 })
