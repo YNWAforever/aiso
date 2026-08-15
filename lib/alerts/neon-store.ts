@@ -1,6 +1,7 @@
 import type { NeonQueryFunction } from '@neondatabase/serverless'
 import {
   type AlertConfigWithClient,
+  type AlertEmailDeliveryKey,
   type AlertEvaluationPorts,
   type AlertNotificationInput,
   type AlertSnapshot,
@@ -37,12 +38,17 @@ type EmailRow = {
   email: string | null
 }
 
-export type NeonAlertStore = Pick<AlertEvaluationPorts, 'loadSnapshot' | 'upsertNotification'>
+export type NeonAlertStore = Pick<
+  AlertEvaluationPorts,
+  'loadSnapshot' | 'upsertNotification' | 'claimEmailDelivery' | 'releaseEmailDelivery'
+>
 
 export function createNeonAlertStore(sql: Sql): NeonAlertStore {
   return {
     loadSnapshot: () => loadSnapshot(sql),
     upsertNotification: notification => upsertNotification(sql, notification),
+    claimEmailDelivery: key => claimEmailDelivery(sql, key),
+    releaseEmailDelivery: key => releaseEmailDelivery(sql, key),
   }
 }
 
@@ -210,5 +216,43 @@ async function upsertNotification(sql: Sql, notification: AlertNotificationInput
       ${notification.scan_week}
     )
     ON CONFLICT (client_id, type, scan_week) DO NOTHING
+  `
+}
+
+/**
+ * Reserve this week's email for one client and alert type.
+ *
+ * RETURNING on a single-table insert is safe. The rule against `returning *`
+ * applies to statements that join — the HTTP driver builds rows with
+ * Object.fromEntries, so duplicate column names across joined tables silently
+ * overwrite, last wins. There is no join here and the column is named.
+ */
+async function claimEmailDelivery(sql: Sql, key: AlertEmailDeliveryKey): Promise<boolean> {
+  const rows = (await sql`
+    INSERT INTO public.alert_email_deliveries (client_id, type, scan_week, recipient)
+    VALUES (${key.client_id}, ${key.type}, ${key.scan_week}, ${key.recipient})
+    ON CONFLICT (client_id, type, scan_week) DO NOTHING
+    RETURNING id
+  `) as Array<{ id: string }>
+
+  return rows.length > 0
+}
+
+/**
+ * Hand a claim back after a failed send so a later run retries this week.
+ *
+ * Deliberately does not filter on recipient: (client_id, type, scan_week) is
+ * the whole natural key, and recipient is only insert payload. Adding
+ * `AND recipient = ...` here would make the delete a no-op whenever the
+ * account's email changed between the claim and this release, permanently
+ * stranding the claimed row — no later run could re-claim it, so no email
+ * would go out for that client/type for the rest of the week.
+ */
+async function releaseEmailDelivery(sql: Sql, key: AlertEmailDeliveryKey): Promise<void> {
+  await sql`
+    DELETE FROM public.alert_email_deliveries
+    WHERE client_id = ${key.client_id}
+      AND type = ${key.type}
+      AND scan_week = ${key.scan_week}
   `
 }

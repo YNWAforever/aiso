@@ -37,9 +37,30 @@ export interface AlertEmailInput {
   dashboardUrl: string
 }
 
+/**
+ * Identity of one alert email for the delivery ledger.
+ *
+ * The natural key is (client_id, type, scan_week) — that's the ledger's
+ * unique index. recipient is not part of the key: it's payload recorded on
+ * insert, not used to match an existing row.
+ *
+ * Separate from AlertEmailInput because the ledger keys on the week while the
+ * email body does not mention it.
+ */
+export interface AlertEmailDeliveryKey {
+  client_id: string
+  type: AlertType
+  scan_week: string
+  recipient: string
+}
+
 export interface AlertEvaluationPorts {
   loadSnapshot: () => Promise<AlertSnapshot>
   upsertNotification: (notification: AlertNotificationInput) => Promise<void>
+  /** Insert the ledger row. Returns false when a row for this key already exists. */
+  claimEmailDelivery: (key: AlertEmailDeliveryKey) => Promise<boolean>
+  /** Undo a claim whose send then failed, so a later run can retry it. */
+  releaseEmailDelivery: (key: AlertEmailDeliveryKey) => Promise<void>
   sendAlertEmail: (email: AlertEmailInput) => Promise<void>
 }
 

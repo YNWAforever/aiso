@@ -51,6 +51,15 @@ function notification(): AlertNotificationInput {
   }
 }
 
+function deliveryKey() {
+  return {
+    client_id: 'client-1',
+    type: 'sov_threshold' as const,
+    scan_week: '2026-08-08',
+    recipient: 'owner@example.com',
+  }
+}
+
 describe('createNeonAlertStore', () => {
   it('pages config rows at 1000 using the last returned id', async () => {
     let configCalls = 0
@@ -156,5 +165,49 @@ describe('createNeonAlertStore', () => {
     })
 
     await expect(createNeonAlertStore(sql).loadSnapshot()).rejects.toThrow('snapshot unavailable')
+  })
+})
+
+describe('email delivery ledger', () => {
+  it('claims a delivery by inserting, and reports the insert happened', async () => {
+    const { sql, calls } = makeSql(() => [{ id: 'delivery-1' }])
+
+    const claimed = await createNeonAlertStore(sql).claimEmailDelivery(deliveryKey())
+
+    expect(claimed).toBe(true)
+    expect(calls).toHaveLength(1)
+    expect(calls[0].text).toMatch(
+      /ON CONFLICT\s*\(client_id,\s*type,\s*scan_week\)\s*DO NOTHING/i,
+    )
+    // RETURNING is what makes the claim observable: without it the driver
+    // reports nothing and a re-run cannot tell a fresh insert from a no-op.
+    expect(calls[0].text).toMatch(/RETURNING id/i)
+    expect(calls[0].params).toEqual([
+      'client-1',
+      'sov_threshold',
+      '2026-08-08',
+      'owner@example.com',
+    ])
+  })
+
+  it('reports no claim when the row already exists', async () => {
+    // ON CONFLICT DO NOTHING returns zero rows, which is the whole dedupe
+    // signal — this is the case that must stop a second email going out.
+    const { sql, calls } = makeSql(() => [])
+
+    const claimed = await createNeonAlertStore(sql).claimEmailDelivery(deliveryKey())
+
+    expect(claimed).toBe(false)
+    expect(calls).toHaveLength(1)
+  })
+
+  it('releases a claim by deleting exactly that week row', async () => {
+    const { sql, calls } = makeSql(() => [])
+
+    await createNeonAlertStore(sql).releaseEmailDelivery(deliveryKey())
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0].text).toMatch(/DELETE FROM public\.alert_email_deliveries/i)
+    expect(calls[0].params).toEqual(['client-1', 'sov_threshold', '2026-08-08'])
   })
 })
