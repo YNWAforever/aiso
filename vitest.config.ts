@@ -7,6 +7,22 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./__tests__/setup/ci-network.ts'],
     unstubGlobals: true,
+    // Vitest's 5s default is not enough headroom for this suite on a contended
+    // machine, and the failure is a flaky red gate rather than an honest one.
+    // Two kinds of test sit close to the limit: `__tests__/api/scan-security.ts`
+    // has a single rate-limit case that takes ~2.5s on an idle laptop, and the
+    // `__tests__/scripts/**` tests each spawn a real `node` child process. None
+    // of them hang — they are merely slow — so under load they cross 5s and a
+    // different arbitrary subset fails each run. Reproduced deliberately by
+    // running two full unit suites concurrently.
+    //
+    // This matters most where it is least visible: CI runners have 2 cores, so
+    // they are more contended than the machine this was diagnosed on, and an
+    // intermittently red merge gate teaches people to re-run rather than read.
+    // Raise the ceiling rather than the concurrency, so genuinely hung tests
+    // still fail instead of stalling the run.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
     exclude: ['**/node_modules/**', 'tests/e2e/**', 'e2e/**', '**/.worktrees/**', '**/.superpowers/**'],
     coverage: {
       provider: 'v8',
