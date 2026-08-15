@@ -81,10 +81,29 @@ what any current query returns. That is why it ships without touching `app/`, `l
 **In scope**
 
 - Drop all 30 policies.
-- `DISABLE ROW LEVEL SECURITY` on all 28 tables that currently have it enabled.
-- A static guard preventing a new migration from reintroducing either.
+- `DISABLE ROW LEVEL SECURITY` on the **21** tables that carried them.
+- A static guard preventing a new migration from creating a policy.
 - An integration assertion proving the end state on a real database.
 - Correct `CLAUDE.md`; correct the stale comment in `__tests__/integration/setup.ts`.
+
+### The 7 zero-policy tables keep RLS — deliberately
+
+Failure mode 2 below describes 7 tables with RLS enabled and no policy. For three of them
+this is **not an accident**: `027` chose it, and
+`__tests__/db/client-report-migration.test.ts:120` pins it —
+*"enables RLS with no policies, so the report tables are default-deny"*. That decision is
+respected here. RLS is disabled only on the 21 tables that carried a policy; the 7 keep
+their posture and that test stays green.
+
+The counter-argument, recorded so it is not rediscovered from scratch: `027` also does
+`revoke all on table … from public`, so a least-privilege role without grants gets a **loud**
+permission error before RLS is consulted, and a role *with* grants gets a silent empty result
+instead of a loud one. The REVOKEs appear to be doing the real work. This was raised on
+2026-08-16 and the deliberate posture was kept — reversing it is a separate decision for
+whoever owns `027`, on tables holding customer reports and Stripe state.
+
+This narrowing costs nothing against the stated goal: those 7 tables were already
+policy-free, so nothing about them blocks a least-privilege role.
 
 **Out of scope, deliberately**
 
@@ -113,11 +132,20 @@ One forward migration, two tests, two documentation corrections. No application 
 
 | File | Change |
 |---|---|
-| `supabase/migrations/036_drop_dead_rls_policies.sql` | **new** — 30 drops, 28 disables, fail-closed assertion |
-| `__tests__/migrations/no-new-rls-policies.test.ts` | **new** — static guard over the SQL files |
-| `__tests__/integration/rls-end-state.test.ts` | **new** — end-state assertion on a provisioned branch |
+| `supabase/migrations/036_drop_dead_rls_policies.sql` | **new** — 30 drops, 21 disables, fail-closed assertion |
+| `__tests__/migrations/rls-policy-freeze.test.mjs` | **new** — static guard over the SQL files |
+| `__tests__/integration/migrate.test.ts` | **modify** — add the end-state assertions |
 | `CLAUDE.md` | corrected RLS section |
 | `__tests__/integration/setup.ts` | comment at `:30` updated to record the decision |
+
+Two structural choices, both to match existing repo patterns rather than invent new ones:
+
+- The guard is `.mjs` and lives beside `neon-role-portability.test.mjs` /
+  `role-guard-analyzer.test.mjs`, which are the existing migration-scanning tests.
+- The end-state assertions are **added to `__tests__/integration/migrate.test.ts`** rather
+  than given a new file. That suite is already "migration runner against a real branch" and
+  already asserts post-migration schema state (`027`'s tables, `028`'s columns). Adding a
+  file would provision a second Neon branch for no benefit.
 
 ### The migration
 
@@ -155,8 +183,11 @@ Structure:
 drop policy if exists "users see own account" on public.accounts;
 -- ... 29 more, one per line, ordered by table then policy name
 
-alter table if exists public.account_report_branding disable row level security;
--- ... 27 more, ordered by table name
+-- Only the 21 tables that carried a policy. The 7 that have RLS on with no
+-- policy at all are left alone on purpose: 027 chose default-deny for the
+-- report tables and __tests__/db/client-report-migration.test.ts pins it.
+alter table if exists public.accounts disable row level security;
+-- ... 20 more, ordered by table name
 
 do $$
 declare leftover text;
@@ -175,7 +206,7 @@ end $$;
 `DROP POLICY IF EXISTS` and `ALTER TABLE IF EXISTS` keep the file replay-safe on a branch
 where an object is absent.
 
-The complete 30 `drop policy` lines and 28 `alter table` lines are in **Appendix A** below,
+The complete 30 `drop policy` lines and 21 `alter table` lines are in **Appendix A** below,
 generated from the verified production inventory rather than retyped.
 
 ### Error handling
@@ -190,7 +221,8 @@ return a success over a failed write".
 ### Migration ordering and replay
 
 `036` runs last. On a fresh Neon test branch the harness drops `public`, replays `001`–`035`
-(which create all 30 policies and enable RLS on 28 tables), then `036` removes them. The end
+(which create all 30 policies and enable RLS on 28 tables), then `036` drops all 30 policies
+and disables RLS on 21 of those tables, leaving the 7 default-deny ones enabled. The end
 state matches production. `auth` is untouched, so `003` still resolves `auth.users` and
 `auth.uid()` during replay.
 
@@ -198,34 +230,47 @@ state matches production. `auth` is untouched, so `003` still resolves `auth.use
 
 ## Testing
 
-### Static guard — `__tests__/migrations/no-new-rls-policies.test.ts`
+### Static guard — `__tests__/migrations/rls-policy-freeze.test.mjs`
 
 Runs in the unit project, needs no database, so it never skips.
 
-Scans `supabase/migrations/*.sql` for `create policy` and `enable row level security`
-(case-insensitive). Migrations `001`–`035` legitimately contain both — they are history and
-must stay readable — so the test holds a **frozen allowlist** of those filenames. It fails
-in both directions:
+**It bans `create policy` only — not `enable row level security`.** Enabling RLS with no
+policy is now an endorsed pattern in this codebase (`027`), so banning it would contradict
+the decision recorded above. A *policy* is the thing that silently denies, and is the
+regression worth blocking.
 
-- a **new** migration containing either statement fails, naming the file and line;
-- an allowlisted file that no longer contains one fails too, so the list cannot rot.
+Scope is derived from the filename number, **not from a hand-maintained allowlist**.
+`__tests__/migrations/neon-role-portability.test.mjs:8` records why: an earlier
+hand-maintained array of migration names rotted, "which is how 029 went unregistered", and
+was replaced by reading the directory. So:
 
-This two-way shape is copied from `__tests__/components/orphaned-components.test.ts`.
+- every migration numbered **> 035** must contain no `create policy`, and a new migration is
+  in scope automatically, with nothing to remember;
+- the historical files are pinned by exact list — `create policy` appears in exactly
+  `003`, `004`, `008`, `010`, `012`, `020`, `021` — which is safe to freeze because applied
+  migrations are immutable. This is the second direction: it fails if the scanner stops
+  detecting, so the guard cannot silently become a no-op.
 
-The guard must not match the word inside a comment such as `-- no RLS policy here`; it
-strips `--` line comments before matching.
+`--` line comments are stripped before matching, so prose mentioning a policy does not trip
+it. Note `\benable\s+row\s+level\s+security\b` does not match inside `disable row level
+security` (`disable` does not contain `enable`), verified — but the guard does not use that
+pattern anyway.
 
-### Integration assertion — `__tests__/integration/rls-end-state.test.ts`
+### Integration assertions — added to `__tests__/integration/migrate.test.ts`
 
-Provisions a disposable Neon branch through the existing harness, runs the full migration
-set, and asserts:
+That suite already provisions a disposable branch and replays every migration. Two
+assertions are added:
 
 - `select count(*) from pg_policies where schemaname = 'public'` is `0`;
-- no `pg_class` entry in `public` with `relkind = 'r'` has `relrowsecurity = true`.
+- the set of `public` tables with `relrowsecurity = true` is **exactly** the 7 deliberate
+  default-deny tables.
 
-This proves the migration reaches the intended end state — including that its own assertion
-block passed — rather than proving only that its text looks correct. Per `CLAUDE.md` this
-project skips without `neonctl`; the static guard is the one that always runs.
+The second is stronger than "no RLS anywhere": it pins the kept posture, so both a
+regression (a table losing default-deny) and an unreviewed addition (a new table quietly
+enabling RLS) fail. Together they prove the migration reached its end state — including that
+its own fail-closed assertion passed — rather than that its text merely looks right. Per
+`CLAUDE.md` this project skips without `neonctl`; the static guard is the one that always
+runs.
 
 ---
 
@@ -313,19 +358,15 @@ drop policy if exists "public_read_scan_by_id" on public.scans;
 drop policy if exists "topical_clusters_own_client" on public.topical_clusters;
 ```
 
-### The 28 RLS-enabled tables
+### The 21 tables to disable (each carried at least one policy)
 
 ```sql
-alter table if exists public.account_report_branding disable row level security;
 alter table if exists public.accounts disable row level security;
 alter table if exists public.ai_citation_log disable row level security;
 alter table if exists public.alert_configs disable row level security;
-alter table if exists public.authenticated_scan_monthly_usage disable row level security;
 alter table if exists public.authority_overrides disable row level security;
 alter table if exists public.authority_scores disable row level security;
 alter table if exists public.chunk_analysis disable row level security;
-alter table if exists public.client_report_versions disable row level security;
-alter table if exists public.client_reports disable row level security;
 alter table if exists public.clients disable row level security;
 alter table if exists public.content_briefs disable row level security;
 alter table if exists public.domain_signals disable row level security;
@@ -336,20 +377,28 @@ alter table if exists public.local_trust_snapshots disable row level security;
 alter table if exists public.notifications disable row level security;
 alter table if exists public.profiles disable row level security;
 alter table if exists public.prompt_bank disable row level security;
-alter table if exists public.public_scan_rate_limits disable row level security;
 alter table if exists public.pulse_metrics disable row level security;
 alter table if exists public.pulse_weekly_summary disable row level security;
 alter table if exists public.regional_packs disable row level security;
 alter table if exists public.scans disable row level security;
-alter table if exists public.stripe_subscription_processing_leases disable row level security;
-alter table if exists public.stripe_webhook_events disable row level security;
 alter table if exists public.topical_clusters disable row level security;
 ```
+
+### The 7 tables that KEEP RLS — do not add `alter table` lines for these
+
+`account_report_branding`, `authenticated_scan_monthly_usage`, `client_report_versions`,
+`client_reports`, `public_scan_rate_limits`,
+`stripe_subscription_processing_leases`, `stripe_webhook_events`.
+
+RLS on, zero policies, default-deny — deliberate for the `027` report tables and left
+consistent across all seven. This is the exact set the integration assertion pins.
 
 ### The 6 tables that already have RLS off
 
 `agent_competitors`, `agent_progress`, `agent_recommendations`, `alert_email_deliveries`,
 `fix_packs`, `schema_migrations`. They need no `alter table` line and must not gain one.
+
+21 disabled + 7 kept = the 28 that had RLS on; plus these 6 = 34 public tables.
 
 ### Login roles
 
