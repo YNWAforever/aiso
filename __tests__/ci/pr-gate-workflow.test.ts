@@ -57,4 +57,43 @@ describe('PR gate workflow contract', () => {
 
     expect(unitJob).toMatch(/uses: actions\/checkout@v4\s*\n\s+with:\s*\n\s+fetch-depth:\s+0/)
   })
+
+  it('omits the integration project on purpose, and gates every job it does define', async () => {
+    // The integration project provisions a real Neon branch, which requires a
+    // NEON_API_KEY repository secret. The repository has none — `gh api
+    // repos/YNWAforever/fimmick-aeo/actions/secrets` reports total_count 0 — so an
+    // integration job would fail on every PR and leave the merge gate permanently
+    // red. It is therefore left out deliberately.
+    //
+    // Write the cost down rather than forget it: this omission is the structural
+    // reason the `031` ON CONFLICT gap survived to production. The only suite that
+    // runs real SQL against a real Postgres has never run on any pull request, so
+    // nothing in CI could have caught it.
+    //
+    // Two controls compensate, and this assertion is what keeps them load-bearing:
+    //   - __tests__/lib/pulse-conflict-arbiter.test.ts — a static guard for the
+    //     ON CONFLICT-without-a-matching-unique-index class. It needs no database,
+    //     so unlike the integration project it does run on every PR.
+    //   - docs/runbooks/verify-pulse-rollup.md — the manual procedure for running
+    //     the integration suite against a throwaway Neon branch.
+    //
+    // Adding an integration job fails this test on purpose. That failure is the
+    // prompt to confirm NEON_API_KEY actually exists before relying on the job,
+    // and to add it to the pr-gate `needs` list so the gate can see it fail.
+    const workflow = await readWorkflow()
+    const jobsSection = workflow.slice(workflow.indexOf('\njobs:\n'))
+    const jobNames = [...jobsSection.matchAll(/^ {2}([\w-]+):$/gm)].map((match) => match[1])
+
+    expect(jobNames.filter((name) => /integration/i.test(name))).toEqual([])
+    expect(jobNames).toEqual(['static', 'unit-contract', 'e2e-accessibility', 'build', 'pr-gate'])
+
+    // Every job other than the aggregator itself must appear in `needs`, or that
+    // job can fail while the gate still reports success.
+    const gateJob = jobsSection.slice(jobsSection.indexOf('\n  pr-gate:'))
+    const needed = (gateJob.match(/needs:\s+\[([^\]]+)\]/)?.[1] ?? '')
+      .split(',')
+      .map((name) => name.trim())
+
+    expect(needed).toEqual(jobNames.filter((name) => name !== 'pr-gate'))
+  })
 })
