@@ -21,6 +21,29 @@ export type WeeklySummaryResult = {
 }
 
 /**
+ * Renders whatever the driver returned for a `date` column as `YYYY-MM-DD`.
+ *
+ * The two drivers in play disagree: the HTTP driver hands a `date` back as a
+ * string, but the WebSocket/`Client` driver parses it into a `Date`. This
+ * returned straight out of `POST /api/pulse/run`, so under the second driver
+ * the response carried `String(new Date(...))` — `"Mon Jan 05 2026 00:00:00
+ * GMT+0800 (Hong Kong Standard Time)"` — a sentence whose *content* varies with
+ * the server's timezone and locale, in a field the type declares as a date.
+ *
+ * Read the local components, not `toISOString()`. A Postgres `date` carries no
+ * time or zone and the driver builds the Date at **local** midnight, so at any
+ * positive UTC offset `toISOString()` reports the previous day.
+ */
+function isoDate(value: unknown, fallback: string): string {
+  if (value instanceof Date) {
+    const month = String(value.getMonth() + 1).padStart(2, '0')
+    const day = String(value.getDate()).padStart(2, '0')
+    return `${value.getFullYear()}-${month}-${day}`
+  }
+  return typeof value === 'string' && value !== '' ? value : fallback
+}
+
+/**
  * Rolls raw `pulse_metrics` up into `pulse_weekly_summary` for one client-week.
  *
  * Writes **both** kinds of row the table was designed for — one per platform and
@@ -111,9 +134,9 @@ export async function computeWeeklySummary(
     returning scan_week, platform
   `
 
-  const written = rows as unknown as Array<{ scan_week: string; platform: string | null }>
+  const written = rows as unknown as Array<{ scan_week: string | Date; platform: string | null }>
   return {
-    scanWeek: String(written[0]?.scan_week ?? scanWeek),
+    scanWeek: isoDate(written[0]?.scan_week, scanWeek),
     platformRows: written.filter(row => row.platform !== null).length,
     aggregateRows: written.filter(row => row.platform === null).length,
   }

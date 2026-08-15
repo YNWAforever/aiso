@@ -72,6 +72,25 @@ describe('computeWeeklySummary', () => {
     expect(result).toEqual({ scanWeek: '2026-01-05', platformRows: 2, aggregateRows: 1 })
   })
 
+  it('renders a driver-supplied Date as an ISO date, not a locale sentence', async () => {
+    // Why this fake had to change: the HTTP driver returns a `date` as a string,
+    // but the WebSocket/`Client` driver parses it into a Date, and this value is
+    // returned straight out of POST /api/pulse/run. `String(new Date(...))` gave
+    // "Mon Jan 05 2026 00:00:00 GMT+0800 (Hong Kong Standard Time)" — a field
+    // whose content moved with the server's timezone and locale. The integration
+    // suite caught it because it runs the driver that parses; this suite could
+    // not, because the fake only ever returned what the other driver returns.
+    //
+    // `new Date(y, m, d)` is local midnight, which is what the driver builds for
+    // a zoneless Postgres `date`. The shape assertion is the timezone-independent
+    // half; the equality additionally pins that we read local components rather
+    // than `toISOString()`, which reports the previous day at any positive offset.
+    const result = await run([{ scan_week: new Date(2026, 0, 5), platform: null }])
+
+    expect(result.scanWeek).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(result.scanWeek).toBe('2026-01-05')
+  })
+
   it('reports zero rather than throwing when the week has no metrics', async () => {
     const result = await run([])
 
