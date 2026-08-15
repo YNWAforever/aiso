@@ -61,4 +61,8 @@ describe('migration RLS scanner', () => {
     expect(findDroppedPolicies(sql)).toEqual(['clients.users insert own clients'])
     expect(findCreatedPolicies(sql)).toEqual(['clients.users insert own clients'])
   })
+
+  it('lowercases the table name so casing cannot split one table into two', () => {
+    expect(findCreatedPolicies('create policy "p" on ACCOUNTS for all using (true);')).toEqual(['accounts.p'])
+  })
 })
