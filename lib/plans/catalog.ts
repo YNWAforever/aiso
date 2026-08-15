@@ -113,10 +113,11 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       ...unavailableRelease,
       monitoring: 'planned', competitorSummary: 'planned', clientReports: 'available',
       // promptBank shipped: the four routes are live and the editor is reachable
-      // at /{lang}/dashboard/{clientId}/prompts. sovAlerts is still entitled but
-      // unshipped — the evaluator has no scheduler and no source for the rows it
-      // reads.
-      promptBank: 'available', sovAlerts: 'planned',
+      // at /{lang}/dashboard/{clientId}/prompts. sovAlerts shipped once
+      // evaluate-alerts got a GET handler and a weekly cron in vercel.json — a
+      // test guards that pairing, so pulling the cron while this still says
+      // available should turn it red.
+      promptBank: 'available', sovAlerts: 'available',
     },
     features: {
       plan: 'pro',
@@ -134,7 +135,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
     exportFormats: ['csv'], supportLevel: 'priority',
     release: {
       monitoring: 'planned', competitorSummary: 'available', clientReports: 'available',
-      promptBank: 'available', sovAlerts: 'planned',
+      promptBank: 'available', sovAlerts: 'available',
       whiteLabelPdf: 'planned', publicApi: 'custom', customPlatforms: 'custom',
       dedicatedSuccess: 'custom',
     },

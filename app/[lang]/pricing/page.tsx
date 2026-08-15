@@ -130,9 +130,11 @@ export default function PricingPage() {
     { label: t('row_fixpack_adv'), basic: false, pro: true, enterprise: true, highlight: true },
     { label: t('row_brands'), basic: allowances.basic.brands, pro: allowances.pro.brands, enterprise: allowances.enterprise.brands },
     { label: t('row_history'), basic: allowances.basic.history, pro: allowances.pro.history, enterprise: allowances.enterprise.history },
-    // Entitled on Pro/Enterprise, but neither has shipped — the prompt-bank and
-    // alert routes still return 503. These two rows used to render a plain ✓,
-    // which sold a paying customer a feature that answers with an error.
+    // Entitled on Pro/Enterprise; both have since shipped (prompt-bank editor
+    // and evaluate-alerts cron are live). These two rows used to render a
+    // hardcoded ✓ regardless of release state, which would have sold a paying
+    // customer a feature that answered with an error — so they stay derived
+    // from release.promptBank / release.sovAlerts rather than a literal.
     {
       label: t('row_prompts'),
       basic: false,

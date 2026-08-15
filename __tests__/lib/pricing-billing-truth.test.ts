@@ -72,26 +72,45 @@ describe('pricing billing truth', () => {
     for (const plan of ['pro', 'enterprise'] as const) {
       expect(PLAN_CATALOG[plan].features.edit_prompts).toBe(true)
       expect(PLAN_CATALOG[plan].features.alerts).toBe(true)
-      // promptBank has since shipped — the four routes are live and the editor
-      // is reachable — so it is now legitimately 'available'. sovAlerts is
-      // still entitled without a shipped evaluator, and remains the live case
-      // this assertion guards.
-      expect(PLAN_CATALOG[plan].release.sovAlerts).not.toBe('available')
+      // sovAlerts has since shipped: evaluate-alerts now has a GET handler and
+      // a weekly cron (vercel.json), so it is legitimately 'available'. (promptBank
+      // shipped earlier and is pinned by the dedicated test below instead of here.)
+      // The structural checks below still guard the actual invariant this test
+      // is named for — the page must derive each tick from release state rather
+      // than a hardcoded literal — so a future entitled-but-unshipped capability
+      // is still caught.
+      expect(PLAN_CATALOG[plan].release.sovAlerts).toBe('available')
     }
 
-    // …and the page must derive those two rows from release state rather than a
-    // literal, so flipping the catalog to 'available' is the only way to tick them.
-    for (const [row, releaseKey] of [
-      ['row_prompts', 'promptBank'],
-      ['row_alerts', 'sovAlerts'],
-    ] as const) {
+    // …and the page must derive each row from release state rather than a
+    // literal, so flipping the catalog is the only way to tick them. Prompt
+    // bank and Share-of-Voice alerts are now both 'available' on Pro, so this
+    // loop also covers row_monitoring and row_competitor — both still
+    // 'planned' on Pro — to keep exercising a row whose current claim is
+    // "not available" rather than one that would coincidentally pass even if
+    // someone hardcoded it.
+    const guardedRows: ReadonlyArray<{
+      row: string
+      releaseKey: string
+      checkPro: boolean
+      checkEnterprise: boolean
+    }> = [
+      { row: 'row_prompts', releaseKey: 'promptBank', checkPro: true, checkEnterprise: true },
+      { row: 'row_alerts', releaseKey: 'sovAlerts', checkPro: true, checkEnterprise: true },
+      { row: 'row_monitoring', releaseKey: 'monitoring', checkPro: true, checkEnterprise: true },
+      // row_competitor's Enterprise cell reads features.agent_competitors (an
+      // entitlement flag), not a release key — only Pro is release-gated here.
+      { row: 'row_competitor', releaseKey: 'competitorSummary', checkPro: true, checkEnterprise: false },
+    ]
+
+    for (const { row, releaseKey, checkPro, checkEnterprise } of guardedRows) {
       const cell = pricingSource.slice(
         pricingSource.indexOf(`label: t('${row}')`),
         pricingSource.indexOf('}', pricingSource.indexOf(`label: t('${row}')`)),
       )
       expect(cell).toContain(`release.${releaseKey}`)
-      expect(cell).not.toMatch(/pro:\s*true/)
-      expect(cell).not.toMatch(/enterprise:\s*true/)
+      if (checkPro) expect(cell).not.toMatch(/pro:\s*true/)
+      if (checkEnterprise) expect(cell).not.toMatch(/enterprise:\s*true/)
     }
 
     // The Pro card highlight has to be gated too — it listed both unqualified.
