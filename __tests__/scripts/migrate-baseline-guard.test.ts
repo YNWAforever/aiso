@@ -32,13 +32,19 @@ function entries(files: string[]) {
 }
 
 /**
- * Every table the full migration set creates, verified by actually applying all
- * 30 files to a throwaway PostgreSQL 16 and reading information_schema. Kept as
- * a literal so the guard can be exercised without a database.
+ * Every table the full migration set creates. 33 of these 34 entries were
+ * verified by actually applying the 30 files that existed at the time
+ * (001-032, no 005/006) to a throwaway PostgreSQL 16 and reading
+ * information_schema; 033 and 034 arrived after that run but create no
+ * tables, so nothing in the verified set went stale. alert_email_deliveries
+ * (035) is the one entry added since -- asserted straight from that
+ * migration's CREATE TABLE statement, not re-verified against a live
+ * database. Kept as a literal so the guard can be exercised without a
+ * database.
  */
 const ALL_TABLES = [
   'account_report_branding', 'accounts', 'agent_competitors', 'agent_progress',
-  'agent_recommendations', 'ai_citation_log', 'alert_configs',
+  'agent_recommendations', 'ai_citation_log', 'alert_configs', 'alert_email_deliveries',
   'authenticated_scan_monthly_usage', 'authority_overrides', 'authority_scores',
   'chunk_analysis', 'client_report_versions', 'client_reports', 'clients', 'content_briefs',
   'domain_signals', 'fix_packs', 'industry_packs', 'local_trust_actions', 'local_trust_profiles',
