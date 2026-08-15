@@ -44,11 +44,12 @@ to `503` because their queries were never ported, not because anything is broken
 
 Two live caveats worth knowing before you touch the database:
 
-- **Migrations `027` and `029`–`035` are unapplied**, and `021` is disputed — its own
-  header says it never ran while `CLAUDE.md` and `027` say it did. 021 creates the three
-  `local_trust_*` tables that Local Trust queries, so this matters. Run
-  `npm run migrate -- --verify` against the target database before baselining anything; it
-  reports which migrations' tables actually exist.
+- **All migrations `001`–`035` are applied** as of a `--verify` run against production on
+  2026-08-15, which also settled the long-running `021` dispute: it *did* run, its three
+  `local_trust_*` tables exist, and `021`'s own "never been applied" header comment is the
+  thing that was wrong. Run `npm run migrate -- --verify` against the target database before
+  believing any of this — it reports which migrations' objects actually exist, and this line
+  is only as fresh as its date.
 - **RLS is enabled but inert.** The app connects as `neondb_owner`, which bypasses it, and the
   leftover policies call a Supabase function that no longer exists. Every query must filter by
   `account_id` explicitly — there is no backstop.

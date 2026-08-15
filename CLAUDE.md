@@ -338,19 +338,20 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   to record any migration whose tables are missing, because recording one is unrecoverable: it
   removes the only path by which its objects would ever be created. Baseline excepting **every**
   migration that has not run — anything you forget is recorded as applied without ever running.
-- ⚠️ **`021` is disputed and must be settled before baselining.** `021_local_trust_roi.sql:3`
-  says of itself *"This migration has never been applied (no local_trust_* table exists in
-  Neon)"*, while the line below claimed `001`–`026` were applied and `027:10` asserts
-  "Production has 021 applied". They cannot all be true. 021 is the sole creator of
-  `local_trust_profiles` / `_snapshots` / `_actions`, which `lib/localTrust/store.ts` queries
-  directly — so if it never ran, **Local Trust is broken in production**, and baselining
-  without excepting it strands those tables permanently. `--verify` answers this in one command.
-- Believed applied: `001`–`026` (**except possibly `021`**) and `028`. **Pending: `027`, `029`,
-  `030`, `031`, `032`, `033`, `034`, `035`.** `033`/`034` landed with #44, `035` landed in
-  this branch; all three are a hard pre-deploy gate for `cron/evaluate-alerts` — apply them
-  in order and follow `docs/alert-evaluation-release.md` before any production alert
-  traffic. Verify before baselining; this line is only as fresh as the last person to edit
-  it, and it has been wrong. Slice 6 (client reports) applies `027`. It was edited to
+- ✅ **`021` is settled — it ran.** `npm run migrate -- --verify` against production on
+  **2026-08-15** reports `021_local_trust_roi.sql  all present  recorded`: the
+  `local_trust_profiles` / `_snapshots` / `_actions` tables exist and the ledger has it. So
+  `021`'s own header comment (*"This migration has never been applied"*) is the line that was
+  wrong, and `027:10`'s "Production has 021 applied" was right. **Local Trust is not broken in
+  production.** Do not re-open this from the file comments alone.
+- **Verified state (`--verify`, production, 2026-08-15): `001`–`035` are all applied and
+  recorded.** Nothing is pending. `030`–`035` were applied that day in one run; `033`/`034`
+  landed with #44 and `035` with the alert-scheduling branch. Two entries look alarming in
+  `--verify` output and are not: `014` reports `MISSING plan_features` because `028` drops
+  that table on purpose, and `004`/`007`/`009` and other column-only migrations report `n/a`
+  because they create no objects to check. Re-run `--verify` rather than trusting this line —
+  it has been wrong before, and it is only as fresh as the date on it. Slice 6 (client
+  reports) applies `027`. It was edited to
   apply cleanly — it previously duplicated `021`'s `clients_id_account_id_unique`
   constraint, used `gen_random_bytes()` without enabling `pgcrypto`, and granted to the
   Supabase roles `anon` / `authenticated` / `service_role`, which do not exist under Neon.
