@@ -67,9 +67,15 @@ export interface AlertEvaluationPorts {
 interface AlertAction {
   notification: AlertNotificationInput | null
   email: AlertEmailInput | null
+  emailKey: AlertEmailDeliveryKey | null
 }
 
-export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{ processed: number; fired: number }> {
+export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
+  processed: number
+  fired: number
+  emailed: number
+  emailFailures: number
+}> {
   const snapshot = await ports.loadSnapshot()
   const actions: AlertAction[] = []
 
@@ -143,6 +149,9 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
     }
   }
 
+  let emailed = 0
+  let emailFailures = 0
+
   for (const action of actions) {
     if (action.notification) {
       try {
@@ -152,18 +161,74 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
       }
     }
 
-    if (action.email) {
-      try {
-        await ports.sendAlertEmail(action.email)
-      } catch (error) {
-        console.error('[alerts] email failed:', error)
-      }
+    if (action.email && action.emailKey) {
+      const outcome = await deliverEmail(ports, action.email, action.emailKey)
+      if (outcome === 'sent') emailed++
+      else if (outcome === 'failed') emailFailures++
+      // 'suppressed' means this key was already delivered this scan_week —
+      // a healthy re-run, not a failure, so it counts toward neither total.
     }
   }
 
   return {
     processed: snapshot.configs.length,
     fired: actions.length,
+    emailed,
+    emailFailures,
+  }
+}
+
+type EmailDeliveryOutcome = 'sent' | 'suppressed' | 'failed'
+
+/**
+ * Send one alert email at most once per client, type and week.
+ *
+ * Claim first, then send. The reverse order would re-send every alert whenever
+ * a run was retried, which is what happened before the ledger existed: the
+ * notification insert deduped through its unique index while the email did not.
+ *
+ * The guarantee below covers only sends that raise an exception inside this
+ * process: the claim is handed back so a later run can retry, turning the
+ * loss into a delayed email rather than a permanently swallowed one. It does
+ * NOT cover a process death between a successful claim and the send call
+ * (function timeout, redeploy, host crash) — the claim row is left behind
+ * with no compensating release, the unique index then blocks re-claiming it,
+ * and that one alert goes permanently unsent for the rest of that scan_week.
+ * That is the correct, inherent behaviour of claim-then-send without a lease;
+ * fixing it would mean adding a lease/TTL, which is out of scope here.
+ *
+ * A failed claim sends nothing at all -- a dead ledger cannot record what
+ * went out, so proceeding would reintroduce the same duplicate-send bug with
+ * no record to stop it. The caller must surface 'failed' outcomes rather than
+ * treat them as silently equivalent to 'suppressed': an outage and a healthy
+ * re-run both send zero emails, and only the outcome distinguishes them.
+ */
+async function deliverEmail(
+  ports: AlertEvaluationPorts,
+  email: AlertEmailInput,
+  key: AlertEmailDeliveryKey,
+): Promise<EmailDeliveryOutcome> {
+  let claimed = false
+  try {
+    claimed = await ports.claimEmailDelivery(key)
+  } catch (error) {
+    console.error('[alerts] email claim failed:', error)
+    return 'failed'
+  }
+
+  if (!claimed) return 'suppressed'
+
+  try {
+    await ports.sendAlertEmail(email)
+    return 'sent'
+  } catch (error) {
+    console.error('[alerts] email failed:', error)
+    try {
+      await ports.releaseEmailDelivery(key)
+    } catch (releaseError) {
+      console.error('[alerts] email claim release failed:', releaseError)
+    }
+    return 'failed'
   }
 }
 
@@ -191,6 +256,20 @@ function buildAction({
   const userEmail = snapshot.emailsByAccount[config.client.account_id] ?? null
   const dashboardUrl = snapshot.dashboardUrlByClient[config.client_id]
 
+  const email: AlertEmailInput | null =
+    config.notify_email && userEmail && dashboardUrl
+      ? {
+          to: userEmail,
+          clientId: config.client_id,
+          brandName: config.client.brand_name,
+          type,
+          currentSov,
+          previousSov,
+          threshold,
+          dashboardUrl,
+        }
+      : null
+
   return {
     notification: config.notify_inapp
       ? {
@@ -203,18 +282,14 @@ function buildAction({
           scan_week: latest.scan_week,
         }
       : null,
-    email:
-      config.notify_email && userEmail && dashboardUrl
-        ? {
-            to: userEmail,
-            clientId: config.client_id,
-            brandName: config.client.brand_name,
-            type,
-            currentSov,
-            previousSov,
-            threshold,
-            dashboardUrl,
-          }
-        : null,
+    email,
+    emailKey: email
+      ? {
+          client_id: config.client_id,
+          type,
+          scan_week: latest.scan_week,
+          recipient: email.to,
+        }
+      : null,
   }
 }

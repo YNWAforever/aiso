@@ -33,16 +33,27 @@ const snapshot = (configs: AlertConfigWithClient[] = [config()]): AlertSnapshot 
 
 function portsFor(data: AlertSnapshot = snapshot()) {
   const order: string[] = []
+  const claimed = new Set<string>()
   const ports: AlertEvaluationPorts = {
     loadSnapshot: vi.fn().mockResolvedValue(data),
     upsertNotification: vi.fn(async notification => {
       order.push(`notification:${notification.type}`)
     }),
+    // Fake the unique index: the first claim for a key wins, later ones do not.
+    claimEmailDelivery: vi.fn(async key => {
+      const id = `${key.client_id}:${key.type}:${key.scan_week}`
+      if (claimed.has(id)) return false
+      claimed.add(id)
+      return true
+    }),
+    releaseEmailDelivery: vi.fn(async key => {
+      claimed.delete(`${key.client_id}:${key.type}:${key.scan_week}`)
+    }),
     sendAlertEmail: vi.fn(async email => {
       order.push(`email:${email.type}`)
     }),
   }
-  return { ports, order }
+  return { ports, order, claimed }
 }
 
 describe('runAlertEvaluation', () => {
@@ -51,7 +62,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 2 })
+    expect(result).toEqual({ processed: 1, fired: 2, emailed: 2, emailFailures: 0 })
     expect(ports.upsertNotification).toHaveBeenCalledTimes(2)
     expect(ports.sendAlertEmail).toHaveBeenCalledTimes(2)
     expect(ports.upsertNotification).toHaveBeenNthCalledWith(1, expect.objectContaining({ type: 'sov_threshold' }))
@@ -68,7 +79,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 0 })
+    expect(result).toEqual({ processed: 1, fired: 0, emailed: 0, emailFailures: 0 })
     expect(ports.upsertNotification).not.toHaveBeenCalled()
     expect(ports.sendAlertEmail).not.toHaveBeenCalled()
   })
@@ -83,7 +94,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 0 })
+    expect(result).toEqual({ processed: 1, fired: 0, emailed: 0, emailFailures: 0 })
     expect(ports.upsertNotification).not.toHaveBeenCalled()
     expect(ports.sendAlertEmail).not.toHaveBeenCalled()
   })
@@ -97,7 +108,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 1 })
+    expect(result).toEqual({ processed: 1, fired: 1, emailed: 1, emailFailures: 0 })
     expect(ports.upsertNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'sov_threshold' }))
     expect(ports.sendAlertEmail).toHaveBeenCalledWith(expect.objectContaining({
       type: 'sov_threshold',
@@ -128,7 +139,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 1 })
+    expect(result).toEqual({ processed: 1, fired: 1, emailed: 1, emailFailures: 0 })
     expect(ports.upsertNotification).toHaveBeenCalledTimes(1)
     expect(ports.sendAlertEmail).toHaveBeenCalledTimes(1)
     expect(ports.upsertNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'sov_recovery' }))
@@ -200,7 +211,12 @@ describe('runAlertEvaluation', () => {
     vi.mocked(ports.upsertNotification).mockRejectedValueOnce(new Error('notification unavailable'))
     vi.mocked(ports.sendAlertEmail).mockRejectedValueOnce(new Error('email unavailable'))
 
-    await expect(runAlertEvaluation(ports)).resolves.toEqual({ processed: 1, fired: 2 })
+    await expect(runAlertEvaluation(ports)).resolves.toEqual({
+      processed: 1,
+      fired: 2,
+      emailed: 1,
+      emailFailures: 1,
+    })
     expect(ports.upsertNotification).toHaveBeenCalledTimes(2)
     expect(ports.sendAlertEmail).toHaveBeenCalledTimes(2)
   })
@@ -212,5 +228,90 @@ describe('runAlertEvaluation', () => {
     await expect(runAlertEvaluation(ports)).rejects.toThrow('snapshot unavailable')
     expect(ports.upsertNotification).not.toHaveBeenCalled()
     expect(ports.sendAlertEmail).not.toHaveBeenCalled()
+  })
+})
+
+describe('email idempotence', () => {
+  it('sends nothing on a second run over the same week', async () => {
+    // The bug this closes: the notification insert dedupes through its unique
+    // index, so a re-run wrote no duplicate row but still sent every email.
+    const { ports } = portsFor()
+
+    const first = await runAlertEvaluation(ports)
+    const firstRunSends = (ports.sendAlertEmail as ReturnType<typeof vi.fn>).mock.calls.length
+    const second = await runAlertEvaluation(ports)
+
+    expect(firstRunSends).toBe(2)
+    expect(ports.sendAlertEmail).toHaveBeenCalledTimes(2)
+    expect(first).toMatchObject({ emailed: 2, emailFailures: 0 })
+    expect(second).toMatchObject({ emailed: 0, emailFailures: 0 })
+    // A suppressed re-send is not a failure and must never trigger a release.
+    expect(ports.releaseEmailDelivery).not.toHaveBeenCalled()
+  })
+
+  it('claims before sending, matching the order that makes the send-once test above hold', async () => {
+    const { ports } = portsFor()
+
+    await runAlertEvaluation(ports)
+
+    const claimOrder = (ports.claimEmailDelivery as ReturnType<typeof vi.fn>)
+      .mock.invocationCallOrder[0]
+    const sendOrder = (ports.sendAlertEmail as ReturnType<typeof vi.fn>)
+      .mock.invocationCallOrder[0]
+    expect(claimOrder).toBeLessThan(sendOrder)
+  })
+
+  it('releases the claim when the send fails, so the next run retries', async () => {
+    const { ports } = portsFor()
+    ;(ports.sendAlertEmail as ReturnType<typeof vi.fn>)
+      .mockRejectedValueOnce(new Error('resend is down'))
+
+    await runAlertEvaluation(ports)
+
+    expect(ports.releaseEmailDelivery).toHaveBeenCalledTimes(1)
+    expect(ports.releaseEmailDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'sov_threshold', scan_week: '2026-08-08' }),
+    )
+
+    // Prove the release actually enables a retry, not just that it was called.
+    await runAlertEvaluation(ports)
+    expect(ports.sendAlertEmail).toHaveBeenCalledTimes(3)
+    expect(ports.sendAlertEmail).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ type: 'sov_threshold' }),
+    )
+  })
+
+  it('does not send when the claim itself fails', async () => {
+    // A dead ledger must fail closed. Sending anyway would be the old bug with
+    // extra steps: no record written, so every subsequent run re-sends.
+    const { ports } = portsFor()
+    ;(ports.claimEmailDelivery as ReturnType<typeof vi.fn>)
+      .mockRejectedValue(new Error('ledger unavailable'))
+
+    const result = await runAlertEvaluation(ports)
+
+    expect(ports.sendAlertEmail).not.toHaveBeenCalled()
+    // Notifications are independent of the email ledger and still land.
+    expect(ports.upsertNotification).toHaveBeenCalledTimes(2)
+    expect(result.fired).toBe(2)
+    // The outage must be visible to the caller, not silently equivalent to a
+    // healthy suppressed re-run — that's the whole point of emailFailures.
+    expect(result.emailed).toBe(0)
+    expect(result.emailFailures).toBe(2)
+  })
+
+  it('passes the recipient as ledger payload', async () => {
+    const { ports } = portsFor()
+
+    await runAlertEvaluation(ports)
+
+    expect(ports.claimEmailDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        client_id: 'client-1',
+        recipient: 'owner@example.com',
+        scan_week: '2026-08-08',
+      }),
+    )
   })
 })
