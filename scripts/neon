@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# neonctl, with every byte of output run through the secret redactor.
+#
+# Use this instead of bare `neonctl`. `neonctl branches create` prints a full
+# connection URI including the password to stdout, and because Neon branch roles
+# are inherited from the parent, that password is the parent's -- so a single
+# unredacted branch creation discloses the production credential.
+#
+# Known neonctl hazard this does NOT fix: `connection-string --branch-id <id>`
+# returns the PARENT's endpoint, not the branch's. Always assert the host you
+# got is the one you meant before writing anything.
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+neonctl "$@" 2>&1 | node "${here}/redact.mjs"
