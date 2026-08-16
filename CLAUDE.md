@@ -372,17 +372,33 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `pulse_metrics`, `notifications`, `prompt_bank`
 - Neon Auth owns the `neon_auth` schema (`neon_auth.user`, `.session`, …). `profiles.id` FKs
   to `neon_auth.user` (migration `022`).
-- **RLS is enabled but inert — never rely on it.** *(Counts below are unverified — they need
-  a live connection to check `pg_class.relrowsecurity`, `pg_policies` and `pg_roles`. The
-  conclusion holds regardless: nothing here is a backstop.)* 22 of 27 public tables still have
-  `relrowsecurity = true` carrying 21 leftover Supabase-era policies that call `auth.uid()`.
-  They never fire: the app connects as `neondb_owner`, which has `rolbypassrls = true`, and
-  no table sets FORCE ROW LEVEL SECURITY — so `row_security_active()` is false everywhere.
-  **Every query must filter by `account_id` explicitly.** There is no effective backstop.
-- **Latent hazard:** point the app at a non-owner Neon role (or `ALTER ROLE … NOBYPASSRLS`)
-  and those 21 policies activate. `auth.uid()` is a Supabase function that does not exist
-  under Neon Auth, so nearly every query silently returns zero rows. Drop the dead policies
-  before introducing a least-privilege role.
+- **There is no database-level tenancy backstop. Every query must filter by `account_id`
+  explicitly.** Migration `036` dropped all 30 Supabase-era policies and disabled RLS on the
+  21 tables that carried them. `__tests__/migrations/rls-policy-freeze.test.mjs` fails if a
+  migration after `035` creates a policy, so this cannot grow back by accident; it also
+  asserts `036` disables RLS on exactly the tables whose policies it drops.
+- **Seven tables keep RLS enabled with no policies, on purpose** —
+  `account_report_branding`, `authenticated_scan_monthly_usage`, `client_report_versions`,
+  `client_reports`, `public_scan_rate_limits`, `stripe_subscription_processing_leases`,
+  `stripe_webhook_events`. `027` chose that default-deny posture and
+  `__tests__/db/client-report-migration.test.ts` pins it; `__tests__/integration/migrate.test.ts`
+  pins the exact set against a real database, so an eighth is a deliberate, reviewed change.
+  Note it buys little on its own: `027` also revokes table privileges, and a role without
+  grants gets a loud permission error before RLS is ever consulted.
+- **`auth.uid()` exists — it does not error, it returns NULL.** An earlier version of this
+  file claimed the function was absent under Neon. It is present:
+  `select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid`, and nothing sets
+  that GUC. That is why the dead policies were a *silent* hazard rather than a loud one — a
+  non-bypass role would have returned zero rows, not raised — and why they were removed
+  rather than left inert. Among them `scans.auth_update_own_scan` was an `UPDATE` policy
+  granted to `public` whose qualifier was literally `true`.
+- **The dead `auth` schema is deliberately retained.** It holds an empty `auth.users` and
+  `auth.uid()`. Integration branches replay every migration from `001`, and `003` needs both
+  to exist — see `__tests__/integration/setup.ts`. Retiring it means shimming that harness
+  first, and is its own change.
+- Verified against production on 2026-08-16: 34 public tables, `neondb_owner` has
+  `rolbypassrls = true`, and no table sets FORCE ROW LEVEL SECURITY. `neon_auth` is the one
+  login role that does **not** bypass RLS.
 
 ## Testing
 
