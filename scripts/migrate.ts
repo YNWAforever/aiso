@@ -174,9 +174,24 @@ export function listMigrationFiles(): string[] {
   return files
 }
 
+/**
+ * Migrations run as the OWNER, not as the application role.
+ *
+ * The app connects as aeo_app (migration 037), which deliberately cannot
+ * perform DDL. Deliberately no fallback to DATABASE_URL: falling back would run
+ * migrations as the app role, fail partway through the first DDL statement, and
+ * leave the operator staring at a permission error with no clue why. Failing
+ * here, by name, is strictly better.
+ */
 function connectionString(): string {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL is not set')
+  const url = process.env.MIGRATE_DATABASE_URL
+  if (!url) {
+    throw new Error(
+      'MIGRATE_DATABASE_URL is not set. Migrations run as the database owner, not as the ' +
+      'least-privilege application role in DATABASE_URL. Set MIGRATE_DATABASE_URL to the ' +
+      'owner connection string.',
+    )
+  }
   return url
 }
 

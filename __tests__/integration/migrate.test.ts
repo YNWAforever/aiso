@@ -86,7 +86,7 @@ describe('migration runner against a real branch', () => {
     const before = await sql`select count(*)::int as n from schema_migrations`
 
     const output = execFileSync('node', ['scripts/migrate.ts'], {
-      env: { ...process.env, DATABASE_URL: process.env.TEST_DATABASE_URL },
+      env: { ...process.env, MIGRATE_DATABASE_URL: process.env.TEST_DATABASE_URL },
       encoding: 'utf8',
     })
     expect(output).toContain('Nothing to apply')

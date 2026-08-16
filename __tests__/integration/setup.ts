@@ -134,7 +134,7 @@ export async function setup(): Promise<void> {
     // fires, so every migration, including 027, is applied.
     // Node 24 strips TypeScript natively; no flag is needed.
     execFileSync('node', ['scripts/migrate.ts'], {
-      env: { ...process.env, DATABASE_URL: branch.connectionUri },
+      env: { ...process.env, MIGRATE_DATABASE_URL: branch.connectionUri },
       stdio: 'inherit',
     })
   } catch (err) {
