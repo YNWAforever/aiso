@@ -335,7 +335,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   rather than checking first is the preferred shape — one statement, no TOCTOU window, and zero
   rows means 404 without distinguishing "absent" from "not yours". See
   `app/api/dashboard/clients/[clientId]/prompts/[promptId]/route.ts`.
-- Migrations in `supabase/migrations/` — 33 files, `001_`–`035_` (no 005/006; directory name is legacy;
+- Migrations in `supabase/migrations/` — 35 files, `001_`–`037_` (no 005/006; directory name is legacy;
   the target is now Neon)
 - **A migration runner now exists:** `scripts/migrate.ts`, run via `npm run migrate`. It
   applies every file absent from the `schema_migrations` ledger, in filename order, each in
