@@ -50,6 +50,38 @@ describe('migration runner against a real branch', () => {
     expect(rows.map((r) => r.column_name)).toEqual(['override_expires_at', 'override_plan'])
   })
 
+  it('leaves no RLS policies in the public schema after 036', async () => {
+    const rows = await sql`
+      select tablename, policyname from pg_policies
+      where schemaname = 'public'
+      order by tablename, policyname
+    `
+    expect(rows).toEqual([])
+  })
+
+  it('keeps RLS enabled on exactly the deliberate default-deny tables', async () => {
+    // 027 chose RLS-on-with-no-policies for the report tables as default-deny,
+    // pinned by __tests__/db/client-report-migration.test.ts. 036 leaves these
+    // alone. Pinning the exact set fails both ways: a table losing the posture,
+    // and a new table quietly enabling RLS without review.
+    const rows = await sql`
+      select c.relname as table_name
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity
+      order by c.relname
+    `
+    expect(rows.map((r) => r.table_name)).toEqual([
+      'account_report_branding',
+      'authenticated_scan_monthly_usage',
+      'client_report_versions',
+      'client_reports',
+      'public_scan_rate_limits',
+      'stripe_subscription_processing_leases',
+      'stripe_webhook_events',
+    ])
+  })
+
   it('is idempotent — running it again applies nothing', async () => {
     const before = await sql`select count(*)::int as n from schema_migrations`
 
