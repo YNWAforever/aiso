@@ -377,14 +377,18 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   21 tables that carried them. `__tests__/migrations/rls-policy-freeze.test.mjs` fails if a
   migration after `035` creates a policy, so this cannot grow back by accident; it also
   asserts `036` disables RLS on exactly the tables whose policies it drops.
-- **Seven tables keep RLS enabled with no policies, on purpose** —
-  `account_report_branding`, `authenticated_scan_monthly_usage`, `client_report_versions`,
-  `client_reports`, `public_scan_rate_limits`, `stripe_subscription_processing_leases`,
-  `stripe_webhook_events`. `027` chose that default-deny posture and
-  `__tests__/db/client-report-migration.test.ts` pins it; `__tests__/integration/migrate.test.ts`
-  pins the exact set against a real database, so an eighth is a deliberate, reviewed change.
-  Note it buys little on its own: `027` also revokes table privileges, and a role without
-  grants gets a loud permission error before RLS is ever consulted.
+- **Seven tables keep RLS enabled with no policies, on purpose.** Each was given that
+  default-deny posture by the migration that *created* it — this is a convergent convention
+  across four migrations, **not one decision in `027`**: `public_scan_rate_limits` (`023`),
+  `stripe_subscription_processing_leases` and `stripe_webhook_events` (`024`),
+  `authenticated_scan_monthly_usage` (`025`), and `account_report_branding`,
+  `client_reports`, `client_report_versions` (`027`). Look in the creating migration, not in
+  `027`, when changing any of the first four.
+  `__tests__/db/client-report-migration.test.ts` pins the posture for `027`'s three only;
+  `__tests__/integration/migrate.test.ts` pins the exact set of all seven against a real
+  database, so an eighth is a deliberate, reviewed change. Note the posture buys little on
+  its own: each creating migration also revokes table privileges, and a role without grants
+  gets a loud permission error before RLS is ever consulted.
 - **`auth.uid()` exists — it does not error, it returns NULL.** An earlier version of this
   file claimed the function was absent under Neon. It is present:
   `select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid`, and nothing sets
