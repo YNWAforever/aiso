@@ -372,6 +372,18 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `pulse_metrics`, `notifications`, `prompt_bank`
 - Neon Auth owns the `neon_auth` schema (`neon_auth.user`, `.session`, …). `profiles.id` FKs
   to `neon_auth.user` (migration `022`).
+- **The app connects as `aeo_app`, not `neondb_owner`** (migration `037`). It has blanket DML on
+  `public`, `USAGE`/`SELECT` on sequences, and `SELECT` on `neon_auth."user"` — nothing else. It
+  cannot run DDL, cannot create roles, and cannot write Neon Auth's tables.
+  `__tests__/integration/least-privilege-role.test.ts` asserts each denial by its specific error
+  message, because a bare "it threw" would also pass on a wrong password.
+- **`aeo_app` keeps `BYPASSRLS`, deliberately.** The seven RLS-enabled, zero-policy tables would
+  otherwise return **zero rows silently** to every app query. A freshly created role defaults to
+  `rolbypassrls = false`, so `037` states the keyword and then fails closed if it did not take.
+  Least privilege here is about *grants*, not RLS.
+- **Migrations run through `MIGRATE_DATABASE_URL`, not `DATABASE_URL`** — `aeo_app` cannot perform
+  DDL. `scripts/migrate.ts` does **not** fall back; unset, it fails immediately and names the
+  variable. `__tests__/scripts/migrate-connection-source.test.ts` pins the absence of that fallback.
 - **There is no database-level tenancy backstop. Every query must filter by `account_id`
   explicitly.** Migration `036` dropped all 30 Supabase-era policies and disabled RLS on the
   21 tables that carried them. `__tests__/migrations/rls-policy-freeze.test.mjs` fails if a
@@ -440,7 +452,9 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 
 ## Environment Variables
 
-- `DATABASE_URL` — Neon connection string
+- `DATABASE_URL` — Neon connection string, for the least-privilege `aeo_app` role the app runs as.
+  `MIGRATE_DATABASE_URL` is the separate owner connection string, used only by `npm run migrate`;
+  see `.env.example` for the full split.
 - `NEON_AUTH_BASE_URL` / `NEON_AUTH_COOKIE_SECRET` (the latter is **build-time** — see above)
 - `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET`
 - `STRIPE_PRICE_BASIC` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE` — read by
