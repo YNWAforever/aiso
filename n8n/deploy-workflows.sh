@@ -4,7 +4,8 @@
 # Usage: N8N_API_KEY=<your-key> DATABASE_URL=<neon-connection-string> \
 #          bash n8n/deploy-workflows.sh
 #
-# DATABASE_URL is the same Neon connection string the app uses (.env.local).
+# DATABASE_URL is the app's least-privilege connection string (aeo_app, migration
+# 037) — the same one in .env.local's DATABASE_URL, NOT MIGRATE_DATABASE_URL.
 # Load it without echoing it, e.g.:
 #   set -a; . ./.env.local; set +a
 # ============================================================

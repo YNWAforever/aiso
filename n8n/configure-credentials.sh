@@ -7,7 +7,9 @@
 #   OPENROUTER_KEY="<openrouter-api-key>" \
 #   bash n8n/configure-credentials.sh
 #
-# DATABASE_URL is the same Neon connection string the app uses (.env.local).
+# DATABASE_URL is the app's least-privilege connection string (aeo_app, migration
+# 037) — the same one in .env.local's DATABASE_URL, NOT MIGRATE_DATABASE_URL.
+# n8n's queries here are plain SELECT/INSERT/UPDATE; nothing here needs DDL.
 # Load it without echoing it, e.g.:
 #   set -a; . ./.env.local; set +a
 # ============================================================
