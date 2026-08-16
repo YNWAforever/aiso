@@ -666,7 +666,22 @@ git commit -m "docs: correct the RLS section against the verified state"
 
 Run: `npm run test:unit`
 
-Expected: PASS, every file. Two new unit files were added, totalling **+14 tests** over your Task 1 baseline: `rls-scan-analyzer.test.mjs` has 9, and `rls-policy-freeze.test.mjs` has 5 (3 written in Task 3, 2 added in Task 4). The two integration tests from Task 5 are in the other project and do not count here. If the total moved by any other amount, work out why before continuing.
+Expected: PASS, every file — **143 files / 1570 tests**, up from the 141 / 1551 baseline.
+
+That is **+19**, not the +14 a naive count of the tests written here suggests. The arithmetic, because it caught out the original draft of this plan:
+
+| Source | Files | Tests |
+|---|---|---|
+| Task 1 baseline | 141 | 1551 |
+| `rls-scan-analyzer.test.mjs` (Task 2, +1 from review) | +1 | +10 |
+| `rls-policy-freeze.test.mjs` (Task 3) | +1 | +3 |
+| `neon-role-portability.test.mjs` — **auto-generated** | — | **+1** |
+| Task 4 guards + review-driven additions | — | +5 |
+| **Total** | **143** | **1570** |
+
+The auto-generated one is the trap: `neon-role-portability.test.mjs` uses `it.each(MIGRATIONS)` over a `readdirSync`, so **adding any migration file adds a test** without anyone writing one. Expect that whenever you add a migration.
+
+The two integration tests from Task 5 live in the other project and do not count here.
 
 - [ ] **Step 2: Confirm the pre-existing RLS test still passes**
 
@@ -735,6 +750,18 @@ Expected: `036` reports `recorded`.
 - [ ] **Step 5: Confirm the end state directly**
 
 Confirm against the database that `select count(*) from pg_policies where schemaname = 'public'` is `0`, and that the tables with `relrowsecurity = true` are exactly the seven default-deny ones. Do not paste a connection string into a shell command — the driver echoes the full URL including the password in its error messages.
+
+---
+
+## Deviations from this plan, as executed on 2026-08-16
+
+Recorded so the plan stays an honest record rather than a description of what was intended.
+
+1. **Task 4 grew a third assertion**, at a code reviewer's request. Nothing checked that `036`'s 21 `alter table … disable row level security` lines matched the 21 distinct tables in its `drop policy` lines — so deleting one `alter table` line would have left that table silently default-deny with every test still green. Closed by adding `findDisabledRlsTables` to the scanner and the test ``{CLEANUP} disables RLS on exactly the tables whose policies it drops``.
+2. **`numberOf` was rewritten** to parse the real numeric prefix via `/^(\d+)_/` and throw when absent, instead of `Number(name.slice(0, 3))`. The original silently returned `NaN` for a two-digit prefix above 35 — `Number('40_')` — and `NaN > 35` is false, so `40_something.sql` would have escaped the guard entirely.
+3. **Task 2 gained a tenth test** covering `bareTable`'s lowercasing, after a reviewer proved by mutation that deleting `.toLowerCase()` broke nothing.
+4. **Tasks 5 and 6 were completed by the controller rather than a fresh implementer** — Task 5's subagent died mid-run to a transient API error having already written the correct code, and Task 6 is a documentation edit. Both were still verified end to end.
+5. **Three historical plans still state the old, wrong claim** that `auth.uid()` does not exist under Neon: `2026-07-26-critical-path-slices-0-2.md:23`, `2026-08-15-schedule-alert-evaluation.md:147`, `2026-08-15-rotate-neon-credential.md:786`. Left alone deliberately — completed plans are point-in-time records, and `CLAUDE.md` is the live guidance.
 
 ---
 
