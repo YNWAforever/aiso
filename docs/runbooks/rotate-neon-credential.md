@@ -3,72 +3,49 @@
 **When to run this:** the connection string has been disclosed — pasted into a
 transcript, a log, a ticket, a screenshot — or on a scheduled rotation.
 
-**Who runs it:** a human with Neon console access and Vercel project access.
-An agent must not perform any step that reads or types the password.
+**Who runs it:** a human with Neon console access. An agent must not perform any
+step that reads or types the password.
 
-**Blast radius:** every consumer below breaks the moment the old password is
-revoked, and stays broken until updated. Do the whole list in one sitting.
+**Precondition — read this first:** this runbook assumes every consumer that
+doesn't need DDL has already moved to `aeo_app` (migration `037`). If you're not
+sure that's true, stop and run the consumer-migration steps in
+`docs/superpowers/plans/2026-08-16-rotate-neon-credential-least-privilege.md`
+(Task 3) first. Rotating before that reproduces the old, much larger blast
+radius — every consumer still on the old password breaks the moment it's reset.
 
-## Consumer inventory
+**Blast radius, once the precondition holds:** exactly one place —
+`MIGRATE_DATABASE_URL` in `.env.local`, used only by `npm run migrate`. Nothing
+else references `neondb_owner`. In particular:
 
-| Consumer | Where | How it is updated |
-|---|---|---|
-| Vercel deployment | `DATABASE_URL` env var, **per project and per environment** (production / preview / development) | Vercel dashboard, or `vercel env` |
-| Local development | `.env.local` at the repo root | Edit the file |
-| MCP servers | `.mcp.json` interpolates `${DATABASE_URL}` from the shell | Whatever exports it (shell profile / direnv) |
-| n8n | A stored **Postgres credential** built from this DSN by `n8n/configure-credentials.sh` | Re-run that script with the new `DATABASE_URL` |
-| Integration tests | Read `DATABASE_URL` at run time | Inherited from `.env.local`; nothing separate |
-
-> There may be **more than one Vercel project** bound to this database. One is
-> `fimmick-aeo-oitb`; the project backing the live domain has historically been
-> under a different login. Enumerate projects before you start, and update every
-> one — a project you forget is a production outage you find out about later.
+- **Vercel is not touched.** Production connects as `aeo_app`, not
+  `neondb_owner`, and always has since `037`'s cutover.
+- **No deployment needs redeploying**, and no per-deployment verification is
+  needed as part of this runbook.
+- **Crons are not affected.** `/api/cron/pulse` and `/api/cron/evaluate-alerts`
+  run inside the same deployed app, as `aeo_app`.
 
 ## Procedure
 
-1. **Record the pre-rotation baseline.**
-
-       node --env-file=.env.local scripts/verify-db-connection.mjs
-
-   Save the output. The schema counts must be identical afterwards; only the
-   credential is changing.
-
-2. **Enumerate every Vercel project bound to this database**, and for each, every
-   environment that defines `DATABASE_URL`. Write the list down before changing
-   anything.
-
-3. **Reset the password** in the Neon console: project `AEOGEO`
+1. **Reset the password** in the Neon console: project `AEOGEO`
    (`red-firefly-93523049`), branch `production`, role `neondb_owner` → reset
    password. Copy the new connection string into your password manager first, not
    into a terminal, a chat, or a file you will forget.
 
    Do not use `neonctl` for this step. Use the console — `neonctl` prints
-   connection URIs to stdout, which is the failure mode that caused this
-   rotation.
+   connection URIs to stdout, which is the failure mode that caused the original
+   leak this rotation exists to remedy.
 
-4. **Update every consumer from the inventory**, in this order so the window
-   where things are broken is shortest:
-   - Vercel env vars for every project and environment, then redeploy each.
-   - `.env.local`.
-   - Whatever exports `DATABASE_URL` into your shell for `.mcp.json`.
-   - Re-run `n8n/configure-credentials.sh` with the new `DATABASE_URL`.
+2. **Update `MIGRATE_DATABASE_URL`** in `.env.local`. This is the only consumer.
 
-5. **Verify locally.**
+3. **Verify.**
 
-       node --env-file=.env.local scripts/verify-db-connection.mjs
+       node --env-file=.env.local scripts/migrate.ts --verify
 
-   Expect `connected: yes` and the same schema counts as step 1.
+   Expect every migration to report `recorded`. This single command proves the
+   new credential both authenticates and holds DDL rights — no separate check is
+   needed.
 
-6. **Verify each deployment** by exercising a route that touches the database and
-   confirming a 200 rather than a 500.
-
-7. **Verify both crons still authenticate and run.** They are the consumers least
-   likely to be noticed if broken, because they fire weekly:
-   `/api/cron/pulse` (Mondays 04:17 UTC) and `/api/cron/evaluate-alerts`
-   (Mondays 07:47 UTC). Either wait for the next Monday and confirm a 200 in the
-   deployment logs, or trigger each once manually with its documented auth shape.
-
-8. **Confirm the old password is dead.** Attempt a connection with the previous
+4. **Confirm the old password is dead.** Attempt a connection with the previous
    DSN and expect authentication failure. If it still works, the reset did not
    take effect and you are not rotated.
 
