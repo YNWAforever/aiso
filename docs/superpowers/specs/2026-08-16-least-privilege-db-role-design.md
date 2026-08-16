@@ -73,12 +73,31 @@ the same reasoning `2026-08-15-rotate-neon-credential.md` gives for not bundling
 | Role | Used by | Rights |
 |---|---|---|
 | `neondb_owner` | `scripts/migrate.ts` only | unchanged |
-| `aeo_app` (new) | the running application | `USAGE` on schema `public`; `SELECT, INSERT, UPDATE, DELETE` on all tables in `public`; `USAGE, SELECT` on all sequences. Nothing else. |
+| `aeo_app` (new) | the running application | `USAGE` on schema `public`; `SELECT, INSERT, UPDATE, DELETE` on all tables in `public`; `USAGE, SELECT` on all sequences; **`USAGE` on schema `neon_auth` and `SELECT` on `neon_auth."user"`**. Nothing else. |
 
-`aeo_app` gets no `CREATE` on any schema, no rights on `auth` or `neon_auth`, no `CREATEROLE`, and
+`aeo_app` gets no `CREATE` on any schema, no rights on the dead `auth` schema, no `CREATEROLE`, and
 no ownership. A compromised app credential can read and write application data — which the app can
-do anyway, so this matches the real trust boundary — but cannot destroy or restructure the database,
-escalate to a new role, or reach Neon Auth's tables.
+do anyway, so this matches the real trust boundary — but cannot destroy or restructure the database
+or escalate to a new role.
+
+### The `neon_auth` grant is required, not optional
+
+Two runtime files read Neon Auth's table directly:
+
+- `app/api/webhooks/neon/route.ts:122` — `select id, email from neon_auth.user where id = ${userId}`.
+  `@neondatabase/auth` ships no webhook signing, so **this lookup is the only authentication that
+  endpoint has**. Without the grant, every `user.created` webhook fails and no profile or account is
+  ever provisioned.
+- `lib/alerts/neon-store.ts:193` — `LEFT JOIN neon_auth."user"` to resolve recipient emails. Without
+  the grant, alert evaluation stops emailing.
+
+`SELECT` on `neon_auth."user"` only. No write access, and no access to `neon_auth.session` or any
+other Neon Auth table.
+
+**Open question the plan must resolve first:** the `neon_auth` schema is owned by Neon Auth, not by
+`neondb_owner`, so `neondb_owner` may lack the authority to grant on it. If so the grant has to be
+issued by whoever owns that schema, and it may not belong in a migration at all. Verify on a branch
+before building anything on top of it.
 
 ### Blanket DML, not per-table
 
@@ -123,16 +142,18 @@ migration. The new suite runs there, connecting **as `aeo_app`** rather than as 
 asserts both directions:
 
 **Positive** — the app role can do its job:
-- `SELECT`, `INSERT`, `UPDATE`, `DELETE` on a representative table succeed
-- the 7 default-deny tables return **real rows, not zero** — the specific regression this design
-  exists to avoid, and the reason `BYPASSRLS` is retained
+- `SELECT`, `INSERT`, `UPDATE`, `DELETE` on `clients` succeed
+- `SELECT` on `client_reports` returns **real rows, not zero** — the specific regression this design
+  exists to avoid, and the reason `BYPASSRLS` is retained. Assert against a seeded row, since an
+  empty table returns zero rows either way and would pass vacuously.
+- `SELECT id, email FROM neon_auth."user"` succeeds — the webhook's only authentication path
 - a table created by a migration applied *after* the grants is readable, proving
   `ALTER DEFAULT PRIVILEGES` works
 
 **Negative** — asserting the privilege is actually absent is the whole point, so each must raise:
-- `CREATE TABLE`, `DROP TABLE`, `ALTER TABLE`
+- `CREATE TABLE`, `DROP TABLE`, `ALTER TABLE` on a `public` table
 - `CREATE ROLE`
-- reading a `neon_auth` table
+- `INSERT` into `neon_auth."user"` — read access must not have carried write access with it
 
 A test that only proves the role *works* would pass just as happily against `neondb_owner` and
 prove nothing about least privilege.
@@ -151,7 +172,8 @@ Runbook only. A human executes it, as with `036` and the credential rotation.
    full URL including the password in its error messages.
 3. Set `MIGRATE_DATABASE_URL` (owner DSN) locally and anywhere migrations run.
 4. Set `DATABASE_URL` to the `aeo_app` DSN in each Vercel environment, then redeploy.
-5. Verify: a scan, a dashboard load, a report read, and a Stripe webhook replay.
+5. Verify: a scan, a dashboard load, a report read, a Stripe webhook replay, **and a real `user.created`
+   signup** — the Neon Auth webhook depends on the `neon_auth` grant and fails silently otherwise.
 6. Rollback is a single env-var swap back to the owner DSN — keep it to hand until step 5 passes.
 
 Do not run any of this against production while building the change.
@@ -167,6 +189,8 @@ Do not run any of this against production while building the change.
 | Someone reintroduces the `DATABASE_URL` fallback in `migrate.ts` | Static test pins it |
 | A future role is added without `BYPASSRLS` and hits the 7 default-deny tables | Documented in `CLAUDE.md`; out of scope to prevent mechanically |
 | Neon's pooler rejects a SQL-created role | `neon_auth` is already a non-owner login role here, so this is expected to work — but the plan's first verification step must confirm it on a branch before anything else is built on it |
+| `neondb_owner` cannot grant on the `neon_auth` schema it does not own | **Resolve this first.** If the grant fails, the webhook loses its only authentication and alert emails stop. Fallbacks, in order of preference: issue the grant as the `neon_auth` owner out of band and document it in the runbook; or, failing that, treat this as blocking and stop — do not ship a role that silently breaks user provisioning. |
+| Cutover verification misses the webhook, since it fires only on real signup | Step 5 of the runbook must include an actual `user.created` replay, not just a page load. This is the path most likely to break and least likely to be noticed. |
 
 ---
 
