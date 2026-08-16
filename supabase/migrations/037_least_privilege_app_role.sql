@@ -9,11 +9,12 @@
 -- BYPASSRLS is DELIBERATE and must stay. Seven tables in public have RLS
 -- enabled with zero policies; 023, 024, 025 and 027 each chose that
 -- default-deny posture for the tables it created. A NOBYPASSRLS role granted
--- SELECT on those returns ZERO ROWS SILENTLY -- precisely the failure migration
--- 036 existed to remove. Verified on a disposable branch 2026-08-16: a freshly
--- created role defaults to rolbypassrls = false, so omitting the keyword
--- reintroduces that failure quietly. This is a grants change, not an RLS
--- change.
+-- SELECT on those returns ZERO ROWS SILENTLY -- the same class of failure 036
+-- eliminated on the 21 policy-carrying tables (036 does not touch these seven;
+-- its own header says not to). Verified on a disposable branch 2026-08-16: a
+-- freshly created role defaults to rolbypassrls = false, so omitting the
+-- keyword reintroduces that failure quietly. This is a grants change, not an
+-- RLS change.
 --
 -- The role is created NOLOGIN. A human sets the password out of band so it
 -- never enters git:
@@ -32,7 +33,12 @@ begin
   if to_regrole('aeo_app') is null then
     create role aeo_app nologin bypassrls;
   else
-    alter role aeo_app nologin bypassrls;
+    -- NOLOGIN only matters at creation, to keep the role unusable before a
+    -- password is set. Re-asserting it here would silently strip LOGIN from
+    -- a role a human has already completed cutover on -- e.g. a branch cut
+    -- from a post-cutover parent, or this file re-applied for any reason --
+    -- and the app's next connection as aeo_app would fail authentication.
+    alter role aeo_app bypassrls;
   end if;
 end $$;
 
