@@ -1,7 +1,7 @@
 # Least-Privilege Database Role — Design
 
 **Date:** 2026-08-16
-**Status:** approved, not yet planned
+**Status:** approved; feasibility verified on a branch 2026-08-16; not yet planned
 **Depends on:** migration `036` (dropped the dead RLS policies) — applied to production 2026-08-16
 
 ---
@@ -94,10 +94,18 @@ Two runtime files read Neon Auth's table directly:
 `SELECT` on `neon_auth."user"` only. No write access, and no access to `neon_auth.session` or any
 other Neon Auth table.
 
-**Open question the plan must resolve first:** the `neon_auth` schema is owned by Neon Auth, not by
-`neondb_owner`, so `neondb_owner` may lack the authority to grant on it. If so the grant has to be
-issued by whoever owns that schema, and it may not belong in a migration at all. Verify on a branch
-before building anything on top of it.
+**RESOLVED — verified on a disposable Neon branch, 2026-08-16.** The schema is owned by the
+`neon_auth` role, but **`neondb_owner` is a member of `neon_auth`** (and of `neon_superuser`), so it
+inherits the authority to grant on it. Both statements succeed as `neondb_owner`:
+
+```
+grant usage on schema neon_auth to aeo_app        -- OK
+grant select on neon_auth."user" to aeo_app       -- OK
+```
+
+No out-of-band step and no schema-owner involvement is needed; these belong in `037` with the rest.
+A `set role neon_auth; …; reset role` workaround was also tried and is *not* available — the Neon
+HTTP driver rejects multiple commands in one statement — but it is not needed.
 
 ### Blanket DML, not per-table
 
@@ -119,10 +127,20 @@ directly.
 
 ### Role creation: `NOLOGIN` in the migration, password out of band
 
-`037` runs `CREATE ROLE aeo_app NOLOGIN` (idempotent, guarded on `to_regrole`) plus all grants. A
-human then runs `ALTER ROLE aeo_app LOGIN PASSWORD …` separately, so no password ever enters git —
-the same discipline that made the current leak worth fixing rather than repeating it in a migration
-file.
+`037` runs `CREATE ROLE aeo_app NOLOGIN BYPASSRLS` (idempotent, guarded on `to_regrole`) plus all
+grants. A human then runs `ALTER ROLE aeo_app LOGIN PASSWORD …` separately, so no password ever
+enters git — the same discipline that made the current leak worth fixing rather than repeating it in
+a migration file.
+
+**`BYPASSRLS` must be stated explicitly.** Verified on a branch: a SQL-created role defaults to
+`rolbypassrls = false`. The whole reason this design keeps `BYPASSRLS` is that the 7 default-deny
+tables would otherwise return zero rows silently — so omitting the keyword produces exactly the
+failure this design exists to avoid, and produces it *quietly*.
+
+**Write the DDL without bind parameters.** Neon's driver parameterises every tagged-template
+interpolation, and PostgreSQL rejects parameters in DDL — `` sql`create role aeo_app password
+${pw}` `` fails with `syntax error at or near "$1"`. This bit during the spike. Migration files are
+plain SQL text so they are unaffected, but any script doing this must use `sql.query(text)`.
 
 ### Two connection strings
 
@@ -158,6 +176,29 @@ asserts both directions:
 A test that only proves the role *works* would pass just as happily against `neondb_owner` and
 prove nothing about least privilege.
 
+### Feasibility already proven on a branch (2026-08-16)
+
+A throwaway spike against a disposable branch confirmed every mechanic before planning:
+
+| Check | Result |
+|---|---|
+| SQL-created role can log in to a Neon endpoint | **OK** |
+| `grant usage on schema neon_auth` / `select on neon_auth."user"` | **OK** — blocker resolved |
+| `aeo_app` reads `clients`, `client_reports`, `neon_auth."user"` | **OK** |
+| `create table` | denied — *permission denied for schema public* |
+| `drop table clients` | denied — *must be owner of table clients* |
+| `create role` | denied — *permission denied to create role* |
+| `insert into neon_auth."user"` | denied — *permission denied for table user* |
+| `rolbypassrls` on a freshly created role | **false** — must be set explicitly |
+
+The four denials come back as four *distinct* errors, which is worth preserving in the real tests:
+asserting merely "it threw" would pass even if the role failed for an unrelated reason, such as the
+password being wrong.
+
+One trap the spike walked into and the real suite must not: `select count(*) from client_reports`
+succeeded against an **empty** table, which proves nothing about RLS visibility. Seed a row first,
+or the assertion passes vacuously whether or not `BYPASSRLS` is set.
+
 **Static** — a unit test pinning that `scripts/migrate.ts` reads `MIGRATE_DATABASE_URL` and does not
 fall back to `DATABASE_URL`, so the fallback cannot be reintroduced by a later refactor.
 
@@ -189,7 +230,8 @@ Do not run any of this against production while building the change.
 | Someone reintroduces the `DATABASE_URL` fallback in `migrate.ts` | Static test pins it |
 | A future role is added without `BYPASSRLS` and hits the 7 default-deny tables | Documented in `CLAUDE.md`; out of scope to prevent mechanically |
 | Neon's pooler rejects a SQL-created role | `neon_auth` is already a non-owner login role here, so this is expected to work — but the plan's first verification step must confirm it on a branch before anything else is built on it |
-| `neondb_owner` cannot grant on the `neon_auth` schema it does not own | **Resolve this first.** If the grant fails, the webhook loses its only authentication and alert emails stop. Fallbacks, in order of preference: issue the grant as the `neon_auth` owner out of band and document it in the runbook; or, failing that, treat this as blocking and stop — do not ship a role that silently breaks user provisioning. |
+| ~~`neondb_owner` cannot grant on `neon_auth`~~ | **Resolved 2026-08-16** — `neondb_owner` is a member of the `neon_auth` role and both grants succeed. No longer a risk. |
+| `BYPASSRLS` omitted from `CREATE ROLE` | A fresh role defaults to `rolbypassrls = false`, and the 7 default-deny tables would then return zero rows *silently*. The migration must state it, and the branch test must seed a row before asserting visibility — an empty table passes either way. |
 | Cutover verification misses the webhook, since it fires only on real signup | Step 5 of the runbook must include an actual `user.created` replay, not just a page load. This is the path most likely to break and least likely to be noticed. |
 
 ---
