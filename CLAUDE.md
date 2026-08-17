@@ -495,6 +495,16 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `${N8N_MCP_TOKEN}` and `${DATABASE_URL}` — but the old n8n bearer JWT is still reachable in
   history at `bcbe9dc`, and it carries no `exp` claim, so it never self-expires. **Rotating it
   in n8n is still owed**; removing it from HEAD achieved nothing on its own.
+- **`neondb_owner`'s password was rotated on 2026-08-16.** The new password lives in
+  `MIGRATE_DATABASE_URL` in `.env.local`, verified via `npm run migrate -- --verify` (all 37
+  migrations `recorded`); the old password was confirmed dead before the rotation was
+  considered complete. **Local dev's `DATABASE_URL`, n8n's stored Postgres credential, and the
+  MCP Postgres server's shell-exported `DATABASE_URL` still connect as `neondb_owner`** — the
+  new password was applied to them too, so nothing is broken, but none of the three were moved
+  to the least-privilege `aeo_app` role (migration `037`). That move — same DSN already live in
+  Vercel's production `DATABASE_URL` — is a deliberately deferred follow-up, not a gap in the
+  rotation itself. Don't assume it's done without checking `role:` in
+  `scripts/verify-db-connection.mjs`'s output first.
 - `n8n/configure-credentials.sh` and `n8n/deploy-workflows.sh` both now read from env and exit
   if unset. `configure-credentials.sh` goes further and is the pattern to copy: it builds the
   Postgres credential payload through a `python3` heredoc so the password never lands in a
