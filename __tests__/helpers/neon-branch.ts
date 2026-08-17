@@ -14,6 +14,14 @@ export const PROJECT_ID = 'red-firefly-93523049'
 export const PRODUCTION_BRANCH_ID = 'br-rough-butterfly-aojtgi92'
 
 /**
+ * The role migrations run as. Passed explicitly to `connection-string`
+ * because every branch created off main now inherits two roles (this one and
+ * `aeo_app`, since migration 037), and neonctl refuses to pick one on its own
+ * once a branch has more than one.
+ */
+const OWNER_ROLE = 'neondb_owner'
+
+/**
  * A hard crash (SIGKILL, closed laptop, CI runner reaped) runs neither
  * teardown() nor setup()'s cleanup path. Neon deletes an expired branch on its
  * own, so a branch lost that way cannot linger.
@@ -104,7 +112,6 @@ export function createTestBranch(name: string): TestBranch {
   let parsed: {
     branch?: Record<string, unknown>
     endpoints?: { host?: string; branch_id?: string }[]
-    connection_uris?: { connection_uri?: string }[]
   }
   try {
     parsed = JSON.parse(out)
@@ -127,11 +134,20 @@ export function createTestBranch(name: string): TestBranch {
   // deleted by the caller's cleanup rather than orphaned.
   created.set(id, '')
 
+  // `branches create`'s response carries no connection string once a branch
+  // has more than one role (ambiguous which role to hand back), which is now
+  // every branch created off main. Fetched separately, naming the role, and
+  // trimmed because the CLI's stdout ends in a newline.
+  const uri = neonctl([
+    'connection-string', id,
+    '--project-id', PROJECT_ID,
+    '--role-name', OWNER_ROLE,
+  ]).trim()
+
   // Everything the destructive path later relies on is asserted here rather
-  // than inferred, so a change to neonctl's JSON shape fails loudly instead of
+  // than inferred, so a change to neonctl's output fails loudly instead of
   // quietly handing back another branch's identity or connection uri.
-  const uri = parsed.connection_uris?.[0]?.connection_uri
-  const uriHost = typeof uri === 'string' ? hostOf(uri) : null
+  const uriHost = uri ? hostOf(uri) : null
   const problems: string[] = []
   if (branch.project_id !== PROJECT_ID) problems.push(`project_id is ${String(branch.project_id)}`)
   if (branch.name !== name) problems.push(`name is ${String(branch.name)}, expected ${name}`)
@@ -156,8 +172,8 @@ export function createTestBranch(name: string): TestBranch {
     )
   }
 
-  created.set(id, uri as string)
-  return { id, connectionUri: uri as string }
+  created.set(id, uri)
+  return { id, connectionUri: uri }
 }
 
 /**

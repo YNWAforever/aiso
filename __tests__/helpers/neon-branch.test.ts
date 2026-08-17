@@ -8,6 +8,7 @@ vi.mock('node:child_process', () => ({ execFileSync }))
 
 const PROJECT_ID = 'red-firefly-93523049'
 const PRODUCTION_BRANCH_ID = 'br-rough-butterfly-aojtgi92'
+const OWNER_ROLE = 'neondb_owner'
 const HOST = 'ep-fake-test-aaa11111.c-2.ap-southeast-1.aws.neon.tech'
 const URI = `postgresql://neondb_owner:pw@${HOST}/neondb?sslmode=require`
 
@@ -23,7 +24,24 @@ function createResponse(overrides: Record<string, unknown> = {}, name = 'test-br
       ...overrides,
     },
     endpoints: [{ id: 'ep-fake-test-aaa11111', host: HOST, branch_id: 'br-fake-child-bbb22222' }],
-    connection_uris: [{ connection_uri: URI }],
+  })
+}
+
+// `branches create` no longer carries a connection string once a branch has
+// more than one role — every real branch does now (aeo_app + neondb_owner,
+// migration 037) — so createTestBranch() makes a second, separate neonctl
+// call. Real neonctl also ignores --output json for `connection-string` and
+// prints the bare URI with a trailing newline; mocks match that shape.
+function mockNeonctl({
+  create = createResponse(),
+  connectionString = `${URI}\n`,
+  del = '{}',
+}: { create?: string; connectionString?: string; del?: string } = {}) {
+  execFileSync.mockImplementation((_cmd: string, args: string[]) => {
+    if (args[0] === 'branches' && args[1] === 'create') return create
+    if (args[0] === 'connection-string') return connectionString
+    if (args[0] === 'branches' && args[1] === 'delete') return del
+    throw new Error(`neon-branch.test.ts: unmocked neonctl invocation: ${args.join(' ')}`)
   })
 }
 
@@ -38,7 +56,7 @@ beforeEach(() => {
 
 describe('createTestBranch', () => {
   it('returns the branch when neonctl reports a child branch matching the request', async () => {
-    execFileSync.mockReturnValue(createResponse())
+    mockNeonctl()
     const { createTestBranch } = await load()
 
     expect(createTestBranch('test-branch')).toEqual({
@@ -47,8 +65,15 @@ describe('createTestBranch', () => {
     })
   })
 
+  it('trims trailing whitespace from the connection-string response', async () => {
+    mockNeonctl({ connectionString: `${URI}\n` })
+    const { createTestBranch } = await load()
+
+    expect(createTestBranch('test-branch').connectionUri).toBe(URI)
+  })
+
   it('sets an expiry so a hard crash cannot leak the branch forever', async () => {
-    execFileSync.mockReturnValue(createResponse())
+    mockNeonctl()
     const { createTestBranch } = await load()
     createTestBranch('test-branch')
 
@@ -58,33 +83,45 @@ describe('createTestBranch', () => {
     expect(expiry).toBeGreaterThan(Date.now())
   })
 
+  it('names the DDL role explicitly so a multi-role branch is not ambiguous', async () => {
+    mockNeonctl()
+    const { createTestBranch } = await load()
+    createTestBranch('test-branch')
+
+    const args = execFileSync.mock.calls[1][1] as string[]
+    expect(args[0]).toBe('connection-string')
+    expect(args).toContain('br-fake-child-bbb22222')
+    expect(args).toContain('--role-name')
+    expect(args[args.indexOf('--role-name') + 1]).toBe(OWNER_ROLE)
+  })
+
   it('rejects a response naming a different branch than the one requested', async () => {
-    execFileSync.mockReturnValue(createResponse({}, 'someone-elses-branch'))
+    mockNeonctl({ create: createResponse({}, 'someone-elses-branch') })
     const { createTestBranch } = await load()
 
     expect(() => createTestBranch('test-branch')).toThrow(/name is someone-elses-branch/)
   })
 
   it('rejects the default branch even if neonctl returns it', async () => {
-    execFileSync.mockReturnValue(
-      createResponse({ id: PRODUCTION_BRANCH_ID, default: true, primary: true, parent_id: undefined }),
-    )
+    mockNeonctl({
+      create: createResponse({ id: PRODUCTION_BRANCH_ID, default: true, primary: true, parent_id: undefined }),
+    })
     const { createTestBranch } = await load()
 
     expect(() => createTestBranch('test-branch')).toThrow(/default branch/)
   })
 
   it('rejects a connection uri that belongs to no endpoint of the branch', async () => {
-    const body = JSON.parse(createResponse())
-    body.connection_uris[0].connection_uri = 'postgresql://u:p@ep-somewhere-else.neon.tech/neondb'
-    execFileSync.mockReturnValue(JSON.stringify(body))
+    // The exact hazard scripts/neon documents: connection-string returning a
+    // different branch's (e.g. the parent's) endpoint.
+    mockNeonctl({ connectionString: 'postgresql://u:p@ep-somewhere-else.neon.tech/neondb' })
     const { createTestBranch } = await load()
 
     expect(() => createTestBranch('test-branch')).toThrow(/does not match any endpoint/)
   })
 
   it('records a rejected branch so the caller can still delete it', async () => {
-    execFileSync.mockReturnValue(createResponse({}, 'someone-elses-branch'))
+    mockNeonctl({ create: createResponse({}, 'someone-elses-branch') })
     const { createTestBranch, createdBranchIds } = await load()
 
     expect(() => createTestBranch('test-branch')).toThrow()
@@ -101,7 +138,7 @@ describe('createTestBranch', () => {
 
 describe('assertDisposableTestBranch', () => {
   it('accepts the branch this process just created', async () => {
-    execFileSync.mockReturnValue(createResponse())
+    mockNeonctl()
     const { createTestBranch, assertDisposableTestBranch } = await load()
     const branch = createTestBranch('test-branch')
 
@@ -125,7 +162,7 @@ describe('assertDisposableTestBranch', () => {
   })
 
   it('rejects a real branch id carrying a swapped-in connection uri', async () => {
-    execFileSync.mockReturnValue(createResponse())
+    mockNeonctl()
     const { createTestBranch, assertDisposableTestBranch } = await load()
     const branch = createTestBranch('test-branch')
 
@@ -142,8 +179,10 @@ describe('assertDisposableTestBranch', () => {
     vi.stubEnv('DATABASE_URL', `postgresql://u:p@${prodHost.replace('.c-2', '-pooler.c-2')}/neondb`)
     const body = JSON.parse(createResponse())
     body.endpoints[0].host = prodHost
-    body.connection_uris[0].connection_uri = `postgresql://u:p@${prodHost}/neondb`
-    execFileSync.mockReturnValue(JSON.stringify(body))
+    mockNeonctl({
+      create: JSON.stringify(body),
+      connectionString: `postgresql://u:p@${prodHost}/neondb`,
+    })
 
     const { createTestBranch, assertDisposableTestBranch } = await load()
     const branch = createTestBranch('test-branch')
@@ -155,7 +194,7 @@ describe('assertDisposableTestBranch', () => {
 
 describe('deleteTestBranch', () => {
   it('drops the branch from the created registry once neonctl succeeds', async () => {
-    execFileSync.mockReturnValue(createResponse())
+    mockNeonctl()
     const { createTestBranch, deleteTestBranch, createdBranchIds } = await load()
     const branch = createTestBranch('test-branch')
 
@@ -165,7 +204,7 @@ describe('deleteTestBranch', () => {
   })
 
   it('keeps the branch registered when neonctl fails, so cleanup can retry', async () => {
-    execFileSync.mockReturnValue(createResponse())
+    mockNeonctl()
     const { createTestBranch, deleteTestBranch, createdBranchIds } = await load()
     const branch = createTestBranch('test-branch')
 
