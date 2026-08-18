@@ -174,9 +174,24 @@ export function listMigrationFiles(): string[] {
   return files
 }
 
+/**
+ * Migrations run as the OWNER, not as the application role.
+ *
+ * The app connects as aeo_app (migration 037), which deliberately cannot
+ * perform DDL. Deliberately no fallback to DATABASE_URL: falling back would run
+ * migrations as the app role, fail partway through the first DDL statement, and
+ * leave the operator staring at a permission error with no clue why. Failing
+ * here, by name, is strictly better.
+ */
 function connectionString(): string {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL is not set')
+  const url = process.env.MIGRATE_DATABASE_URL
+  if (!url) {
+    throw new Error(
+      'MIGRATE_DATABASE_URL is not set. Migrations run as the database owner, not as the ' +
+      'least-privilege application role in DATABASE_URL. Set MIGRATE_DATABASE_URL to the ' +
+      'owner connection string.',
+    )
+  }
   return url
 }
 
@@ -395,11 +410,102 @@ function isDirectInvocation(): boolean {
   }
 }
 
+/** A thrown value's `.message`, trimmed, or '' when it has none worth printing. */
+function messageOf(value: unknown): string {
+  if (typeof value !== 'object' || value === null) return ''
+  const { message } = value as { message?: unknown }
+  return typeof message === 'string' ? message.trim() : ''
+}
+
+/**
+ * Name a thrown value that carries no message, so output is never empty.
+ *
+ * Prefers `name`, falling back to the constructor, and appends `code`/`type`
+ * when present — for a WebSocket failure those are the only fields with any
+ * signal in them.
+ */
+function errorLabel(value: unknown): string {
+  if (value === null) return 'null'
+  if (value === undefined) return 'undefined'
+  if (typeof value !== 'object') return `${typeof value} ${String(value)}`
+
+  const e = value as { name?: unknown; code?: unknown; type?: unknown; constructor?: { name?: string } }
+  const bits = [
+    typeof e.name === 'string' && e.name ? e.name : e.constructor?.name,
+    typeof e.code === 'string' || typeof e.code === 'number' ? `code=${e.code}` : undefined,
+    typeof e.type === 'string' && e.type ? `type=${e.type}` : undefined,
+  ].filter(Boolean) as string[]
+
+  return bits.length ? bits.join(' ') : 'unknown error'
+}
+
+/**
+ * Render a thrown value as something an operator can act on, always redacted.
+ *
+ * `String(err.message)` was not enough, and the failure was silent: a suspended
+ * Neon compute makes the WebSocket Pool reject with an ErrorEvent-shaped object
+ * whose `.message` is the empty string, so the runner printed a bare
+ * `Migration failed:` with nothing after it — indistinguishable from a broken
+ * migration runner. Observed against production on 2026-08-16; re-running once
+ * the compute woke worked unchanged. It also threw a second error outright when
+ * the rejection was `null`, since `null.message` is a TypeError.
+ *
+ * Every branch goes through redactSecrets rather than only the message. The
+ * driver embeds the full connection string, password included, in some of these
+ * fields, and this is the last point before a live credential reaches a terminal
+ * — so the redaction is applied once, at the end, over everything assembled.
+ */
+export function describeError(err: unknown): string {
+  const parts: string[] = []
+
+  const message = messageOf(err)
+  parts.push(message || `${errorLabel(err)} (no message)`)
+
+  const cause = typeof err === 'object' && err !== null ? (err as { cause?: unknown }).cause : undefined
+  if (cause !== undefined && cause !== null) {
+    parts.push(`cause: ${messageOf(cause) || errorLabel(cause)}`)
+  }
+
+  // AggregateError — what a Pool raises when every connection attempt fails.
+  const aggregate = typeof err === 'object' && err !== null ? (err as { errors?: unknown }).errors : undefined
+  if (Array.isArray(aggregate)) {
+    aggregate.slice(0, 5).forEach((inner, index) => {
+      parts.push(`errors[${index}]: ${messageOf(inner) || errorLabel(inner)}`)
+    })
+  }
+
+  return redactSecrets(parts.join(' | '))
+}
+
+/**
+ * The actionable hint for the one failure mode that reads as a bug but is not.
+ *
+ * Deliberately narrow: only an empty-message ErrorEvent-shaped rejection, which
+ * is what an auto-suspended compute produces. A real failure carries a message
+ * and must not be dressed up as a cold start.
+ */
+export function coldStartHint(err: unknown): string | undefined {
+  if (messageOf(err)) return undefined
+
+  const label = errorLabel(err).toLowerCase()
+  const looksLikeSocket = label.includes('errorevent') || label.includes('type=error') ||
+    label.includes('websocket') || label.includes('econnreset')
+  if (!looksLikeSocket) return undefined
+
+  return 'The Neon compute may be auto-suspended. A cold start rejects with an empty-message ' +
+    'ErrorEvent like this one, and it is usually transient — re-run the same command. ' +
+    'Confirm the outcome with `--verify` rather than assuming; if it repeats against a warm ' +
+    'compute, the failure is real.'
+}
+
 if (isDirectInvocation()) {
   main().catch((err) => {
     // Never print the raw error: the driver embeds the full connection string,
-    // password included, in its messages.
-    console.error('Migration failed:', redactSecrets(String(err.message)))
+    // password included, in its messages. describeError redacts every branch it
+    // walks, not just the message.
+    console.error('Migration failed:', describeError(err))
+    const hint = coldStartHint(err)
+    if (hint) console.error(hint)
     process.exit(1)
   })
 }

@@ -129,10 +129,10 @@
       "id": "node-update-scan",
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE scans SET agent_status = 'completed', ai_summary = '{{ $json.ai_summary.replace(/'/g, \"''\") }}', updated_at = NOW() WHERE id = '{{ $('Webhook Trigger').first().json.body.scanId }}'",
+        "query": "UPDATE scans SET agent_status = 'complete', ai_summary = '{{ $json.ai_summary.replace(/'/g, \"''\") }}', updated_at = NOW() WHERE id = '{{ $('Webhook Trigger').first().json.body.scanId }}'",
         "options": {}
       },
-      "name": "Update Scan (agent_status = completed)",
+      "name": "Update Scan (agent_status = complete)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [1400, 0],
@@ -142,23 +142,6 @@
         }
       },
       "continueOnFail": true
-    },
-    {
-      "id": "node-error-log",
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO scan_errors (scan_id, client_id, error_message, node_name, created_at) VALUES ('{{ $('Webhook Trigger').first().json.body.scanId }}', '{{ $('Webhook Trigger').first().json.body.clientId }}', '{{ JSON.stringify($json.error || \"unknown error\").replace(/'/g, \"''\") }}', '{{ $runIndex }}', NOW()) ON CONFLICT DO NOTHING",
-        "options": {}
-      },
-      "name": "Log Error to DB",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [1400, 300],
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres"
-        }
-      }
     }
   ],
   "connections": {
@@ -204,7 +187,7 @@
     "Extract Summary Text": {
       "main": [
         [
-          { "node": "Update Scan (agent_status = completed)", "type": "main", "index": 0 }
+          { "node": "Update Scan (agent_status = complete)", "type": "main", "index": 0 }
         ]
       ]
     }
