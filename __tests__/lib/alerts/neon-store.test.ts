@@ -68,6 +68,14 @@ function deliveryKey() {
 }
 
 describe('createNeonAlertStore', () => {
+  it('runs under the pinned timezone the date assertions depend on', () => {
+    // If this fails, process.env.TZ above did not take effect -- Node worker
+    // threads ignore a runtime mutation, so under Vitest's `threads` pool the
+    // pin is a no-op and the Date-fixture test below silently degrades to the
+    // UTC-blind version this file was written to catch. -480 is UTC+8.
+    expect(new Date(2026, 7, 10).getTimezoneOffset()).toBe(-480)
+  })
+
   it('pages config rows at 1000 using the last returned id', async () => {
     let configCalls = 0
     const { sql, calls } = makeSql(({ text }) => {

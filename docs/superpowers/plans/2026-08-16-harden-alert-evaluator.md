@@ -81,13 +81,15 @@ This is currently latent, not active: `db()` is the HTTP driver, which returns `
 | File | Responsibility | Change |
 |---|---|---|
 | `lib/iso-date.ts` | One definition of "render a driver date column as `YYYY-MM-DD`". Currently duplicated as a private helper in `lib/pulse/summary.ts` and mis-implemented in `lib/alerts/neon-store.ts`. | Create |
-| `__tests__/lib/iso-date.test.ts` | Pins the local-vs-UTC behaviour that makes the two call sites correct | Create |
+| `__tests__/lib/iso-date.test.ts` | Pins the local-vs-UTC behaviour that makes the two call sites correct, and a precondition test that fails loudly if the file's TZ pin goes inert | Create |
 | `lib/pulse/summary.ts` | Drop its private copy, import the shared one | Modify |
 | `lib/alerts/neon-store.ts` | Use the shared one; load and return `currentScanWeek` | Modify |
 | `lib/alerts/evaluate.ts` | Carry `currentScanWeek` on the snapshot; skip stale clients; bound the delivery loop | Modify |
 | `app/api/cron/evaluate-alerts/route.ts` | Surface `stale` and `deferred` in the status decision | Modify |
 | `__tests__/lib/alerts/evaluate.test.ts` | Cover staleness and truncation; absorb the return-shape change | Modify |
-| `__tests__/lib/alerts/neon-store.test.ts` | Cover `currentScanWeek` loading | Modify |
+| `__tests__/lib/pulse-summary.test.ts` | Task 1: regression test for `computeWeeklySummary` rendering a driver-supplied `Date` through the shared `isoDate()` | Modify |
+| `__tests__/lib/alerts/neon-store.test.ts` | Task 1: Date-fixture regression proving `loadSnapshot` uses the shared `isoDate()`, plus its own TZ-pin precondition test. Task 2 (pending): cover `currentScanWeek` loading | Modify |
+| `vitest.config.ts` | Task 1: pin `pool: 'forks'` so the TZ-pin preconditions above cannot go silently inert under `threads` | Modify |
 | `__tests__/api/cron/evaluate-alerts.test.ts` | Cover the new status rules | Modify |
 | `__tests__/integration/alert-staleness.test.ts` | Prove the guard against real SQL | Create |
 | `docs/alert-evaluation-release.md` | Replace two "known limitation" bullets with what now happens | Modify |
@@ -121,6 +123,9 @@ Baseline before this plan: **141 files / 1551 unit tests** and **7 files / 36 in
 - Create: `__tests__/lib/iso-date.test.ts`
 - Modify: `lib/pulse/summary.ts:23-44` (remove the private `isoDate`, import the shared one)
 - Modify: `lib/alerts/neon-store.ts:77-79` (replace the `toISOString().slice(0, 10)` call)
+- Modify: `__tests__/lib/pulse-summary.test.ts` (correct a comment that overclaimed what its equality assertion pins)
+- Modify: `__tests__/lib/alerts/neon-store.test.ts` (Date-fixture regression for the `loadSnapshot` call site, plus a TZ-pin precondition test)
+- Modify: `vitest.config.ts` (pin `pool: 'forks'` so the TZ-pin preconditions cannot go silently inert)
 
 - [x] **Step 1: Write the failing test**
 
@@ -138,6 +143,14 @@ import { isoDate } from '@/lib/iso-date'
 process.env.TZ = 'Asia/Hong_Kong'
 
 describe('isoDate', () => {
+  it('runs under the pinned timezone the date assertions depend on', () => {
+    // If this fails, process.env.TZ above did not take effect -- Node worker
+    // threads ignore a runtime mutation, so under Vitest's `threads` pool the
+    // pin is a no-op and every assertion below silently degrades to the
+    // UTC-blind version this file was written to replace. -480 is UTC+8.
+    expect(new Date(2026, 7, 10).getTimezoneOffset()).toBe(-480)
+  })
+
   it('passes a string date through unchanged', () => {
     // The HTTP driver returns `date` columns as 'YYYY-MM-DD' strings already.
     expect(isoDate('2026-08-10', 'fallback')).toBe('2026-08-10')
@@ -164,6 +177,13 @@ describe('isoDate', () => {
     expect(isoDate(undefined, '2026-01-01')).toBe('2026-01-01')
     expect(isoDate(null, '2026-01-01')).toBe('2026-01-01')
     expect(isoDate('', '2026-01-01')).toBe('2026-01-01')
+  })
+
+  it('falls back on an invalid Date rather than rendering NaN-NaN-NaN', () => {
+    // An unparseable Date still passes `instanceof Date` -- only getTime()
+    // reveals it's invalid. Without the guard this renders 'NaN-NaN-NaN', a
+    // string that typechecks as a date but is garbage as a dedup key.
+    expect(isoDate(new Date('garbage'), '2026-01-01')).toBe('2026-01-01')
   })
 })
 ```
@@ -196,8 +216,12 @@ Create `lib/iso-date.ts`:
  * `alert_email_deliveries (client_id, type, scan_week)` -- being one day off
  * does not throw. It silently stops deduplicating.
  */
-export function isoDate(value: unknown, fallback: string): string {
+export function isoDate(value: string | Date | null | undefined, fallback: string): string {
   if (value instanceof Date) {
+    // An invalid Date (e.g. new Date('garbage')) must fall back rather than
+    // render 'NaN-NaN-NaN' -- a string that typechecks as a date but is
+    // garbage as a dedup key.
+    if (Number.isNaN(value.getTime())) return fallback
     const month = String(value.getMonth() + 1).padStart(2, '0')
     const day = String(value.getDate()).padStart(2, '0')
     return `${value.getFullYear()}-${month}-${day}`
@@ -210,7 +234,7 @@ export function isoDate(value: unknown, fallback: string): string {
 
 Run: `npx vitest run __tests__/lib/iso-date.test.ts`
 
-Expected: PASS, 4 tests.
+Expected: PASS, 6 tests.
 
 - [x] **Step 5: Route `lib/pulse/summary.ts` through the shared helper**
 
@@ -245,8 +269,10 @@ Then replace the `scan_week` normalisation inside `loadSnapshot` (currently line
 with:
 
 ```ts
-      // Not toISOString(): that reports the previous day at any positive UTC
-      // offset, and this value is the scan_week half of both dedup keys.
+      // This value is the scan_week half of both dedup keys. The '' fallback
+      // is unreachable in practice -- pulse_weekly_summary.scan_week is
+      // `date not null` -- and deliberate: a missing value should degrade to
+      // a counted failure downstream, not a wrong-but-plausible date string.
       scan_week: isoDate(row.scan_week, ''),
 ```
 
@@ -254,7 +280,7 @@ with:
 
 Run: `npx vitest run __tests__/lib/iso-date.test.ts __tests__/lib/pulse-summary.test.ts __tests__/lib/alerts/`
 
-Expected: PASS, all files. `__tests__/lib/pulse-summary.test.ts` includes a test named `'renders a driver-supplied Date as an ISO date, not a locale sentence'` which must still pass — it is the regression test for `d243eb5` and proves the extraction did not change behaviour.
+Expected: PASS, all files. `__tests__/lib/pulse-summary.test.ts` includes a test named `'renders a driver-supplied Date as an ISO date, not a locale sentence'` which must still pass — it is the regression test for `d243eb5` and pins that `computeWeeklySummary` renders a driver-supplied `Date` as the expected `YYYY-MM-DD` string via the shared `isoDate()`. It does **not** by itself distinguish local components from `toISOString()`: at TZ=UTC (CI's ambient default, since nothing pins TZ for that file) the two implementations agree exactly. That distinction is what `__tests__/lib/iso-date.test.ts` guards, and that file pins TZ itself so the two implementations are made to diverge. `__tests__/lib/alerts/neon-store.test.ts` carries the equivalent regression and pin for the `loadSnapshot` call site.
 
 - [x] **Step 8: Commit**
 
