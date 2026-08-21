@@ -44,7 +44,7 @@ export function NotificationBell({ initialCount }: { initialCount: number }) {
     await fetch('/api/notifications/read-all', { method: 'PUT' })
     setNotifs(n => n.map(x => ({ ...x, read: true })))
     setCount(0)
-    // Re-render the server component so the TopBar badge count is also cleared
+    // Re-render the layout so its server-computed unread count is also cleared
     router.refresh()
   }
 
