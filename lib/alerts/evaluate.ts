@@ -22,6 +22,19 @@ export interface AlertSnapshot {
   weeksByClient: Record<string, AlertWeekSnapshot[]>
   emailsByAccount: Record<string, string | null | undefined>
   dashboardUrlByClient: Record<string, string | undefined>
+  /**
+   * The ISO Monday of the week the DATABASE believes it is now.
+   *
+   * Required, not optional, so the TypeScript compiler forces every
+   * application construction site to supply it -- an optional field would let
+   * a caller omit it and silently disable the staleness guard, which is the
+   * one thing this field exists to prevent. That guarantee stops at the
+   * `tsc --noEmit` boundary: `tsconfig.json` excludes `__tests__` from
+   * typechecking, so a hand-rolled `: AlertSnapshot` test fixture that omits
+   * this field still compiles and runs. Fixtures must be kept in sync by
+   * hand -- see `__tests__/lib/alerts/evaluate.test.ts`.
+   */
+  currentScanWeek: string
 }
 
 export type AlertNotificationInput = Omit<Notification, 'id' | 'created_at'>
@@ -70,24 +83,86 @@ interface AlertAction {
   emailKey: AlertEmailDeliveryKey | null
 }
 
-export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
+export interface AlertEvaluationOptions {
+  /**
+   * How many CLIENTS to deliver concurrently. Not alerts: a client's own
+   * alerts stay sequential so a threshold crossing cannot overtake the
+   * week-over-week drop that accompanies it.
+   */
+  concurrency?: number
+  /**
+   * Wall-clock budget for the delivery phase. Below `vercel.json`'s 60s
+   * maxDuration for this route, so the run stops itself and says what it
+   * skipped instead of being killed mid-send with nothing reported.
+   */
+  budgetMs?: number
+  /** Injected so the budget is testable without a real clock. */
+  now?: () => number
+}
+
+export async function runAlertEvaluation(
+  ports: AlertEvaluationPorts,
+  options: AlertEvaluationOptions = {},
+): Promise<{
   processed: number
+  stale: number
+  evaluated: number
   fired: number
   emailed: number
+  deferred: number
   emailFailures: number
   notificationFailures: number
 }> {
   const snapshot = await ports.loadSnapshot()
   const actions: AlertAction[] = []
+  let stale = 0
+  let evaluated = 0
 
   for (const config of snapshot.configs) {
     const weeks = snapshot.weeksByClient[config.client_id] ?? []
+    // A client with no rollup rows at all -- brand new, or the Pulse rollup
+    // has never written for this account -- is skipped here, before the
+    // staleness check below. It is not counted in `stale` (a new workspace is
+    // not a fault) and it is not counted in `evaluated` either. That second
+    // omission used to be invisible: `stale === processed` was the only
+    // escalation rule, and a client that never reaches the staleness check
+    // trips neither counter. `evaluated` exists specifically to catch this.
     if (!weeks.length) continue
 
     const latest = weeks[0]
     const previous = weeks[1]
+
+    // Evaluate only the current week. Without this the run re-derives last
+    // week's action, the ledger claim for it already exists, and the outcome is
+    // 'suppressed' -- indistinguishable from a healthy re-run while this
+    // client's real alert is dropped. Nothing orders the Pulse rollup before
+    // this cron except two schedule times three and a half hours apart.
+    //
+    // console.warn, not console.error: a lagging rollup 3.5 hours after
+    // schedule is the expected transient case, not a code fault -- matching
+    // how onboarding/complete already draws this line (warn for
+    // degraded-but-non-fatal, error for real failures like a failed query or
+    // an unset CRON_SECRET). The systemic case -- nobody evaluated, whether
+    // from staleness, an empty rollup, or a mix of the two -- is what
+    // escalates to a 502 downstream, via `evaluated === 0` in
+    // app/api/cron/evaluate-alerts/route.ts.
+    if (latest.scan_week !== snapshot.currentScanWeek) {
+      console.warn(
+        `[alerts] client ${config.client_id}: latest aggregate week is ` +
+        `${latest.scan_week}, expected ${snapshot.currentScanWeek} — skipping. ` +
+        'The Pulse rollup has not landed for this client this week.',
+      )
+      stale++
+      continue
+    }
+
     const latestScore = latest.sov_score
     if (latestScore === null) continue
+
+    // Every skip condition above this line has been checked: this client has
+    // rollup rows, its latest row is the current week, and that row's score
+    // is not null. Its alert policies are about to be assessed for real.
+    evaluated++
 
     const previousScore = previous?.sov_score
 
@@ -150,11 +225,21 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
     }
   }
 
+  const { concurrency = 8, budgetMs = 45_000, now = Date.now } = options
+
   let emailed = 0
   let emailFailures = 0
   let notificationFailures = 0
+  let deferred = 0
 
+  // Group first, so the unit of concurrency is the client.
+  const byClient = new Map<string, AlertAction[]>()
   for (const action of actions) {
+    const key = action.notification?.client_id ?? action.emailKey?.client_id ?? ''
+    byClient.set(key, [...(byClient.get(key) ?? []), action])
+  }
+
+  const deliverOne = async (action: AlertAction) => {
     if (action.notification) {
       try {
         await ports.upsertNotification(action.notification)
@@ -173,10 +258,37 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
     }
   }
 
+  const groups = [...byClient.values()]
+  const startedAt = now()
+
+  for (let index = 0; index < groups.length; index += concurrency) {
+    const batch = groups.slice(index, index + concurrency)
+
+    // Checked per batch rather than per alert: one batch is bounded work, and
+    // stopping here leaves the ledger consistent -- an alert is either fully
+    // delivered or never claimed.
+    if (now() - startedAt > budgetMs) {
+      const remaining = groups.slice(index)
+      deferred = remaining.reduce((total, group) => total + group.length, 0)
+      console.error(
+        `[alerts] time budget exhausted after ${index} of ${groups.length} clients; ` +
+        `${deferred} alert(s) deferred. Vercel Cron does not retry — these wait a week.`,
+      )
+      break
+    }
+
+    await Promise.all(batch.map(async group => {
+      for (const action of group) await deliverOne(action)
+    }))
+  }
+
   return {
     processed: snapshot.configs.length,
+    stale,
+    evaluated,
     fired: actions.length,
     emailed,
+    deferred,
     emailFailures,
     notificationFailures,
   }

@@ -19,10 +19,16 @@ own writes; 031 is required for its *data source*. The evaluator reads
 `pulse_weekly_summary` rows that `computeWeeklySummary` (`lib/pulse/summary.ts`) writes
 with `on conflict (client_id, scan_week, platform)` — an arbiter that only exists once
 031 creates the matching unique index (031's own header names `cron/evaluate-alerts` as
-the reason it exists). Without 031, that write 42P10s, no `platform IS NULL` aggregate
-row is ever produced, and every alert run reports `{processed: N, fired: 0, emailed: 0,
-emailFailures: 0}` — a perfect green while the feature is entirely dead upstream of the
-evaluator. Apply 031 before 033/034/035; nothing here depends on ordering it after them.
+the reason it exists). Without 031, that write 42P10s and no `platform IS NULL`
+aggregate row is ever produced. **Before 2026-08-16 this read as a perfect green:** every
+configured client would have zero rollup rows, none would be counted `stale` (a client
+with no weeks at all is skipped before that counter), the then-only escalation rule
+`stale === processed` would read `0 === N` as healthy, and the run would report
+`{processed: N, stale: 0, fired: 0, emailed: 0, emailFailures: 0}` while the feature was
+entirely dead upstream of the evaluator. `cron/evaluate-alerts`'s `evaluated === 0`
+escalation (see "Known limitations" below) now catches exactly this case and returns
+`502` instead of `200`. Apply 031 before 033/034/035 regardless; nothing here depends on
+ordering it after them.
 
 Verified on 2026-08-15: this is a real hazard but it is **not** why production has no
 rollup rows. `prompt_bank` is empty, `selectPendingClients` requires an active prompt, so
@@ -70,8 +76,9 @@ Pre-deploy smoke checks:
      outage instead reports `emailFailures` greater than zero.
 9. Verify the Vercel Cron entry point pre-deploy, against the same throwaway branch:
    import the route's `GET` and call it with `Authorization: Bearer $CRON_SECRET`. Expect
-   `200` and a JSON body carrying `processed`, `fired`, `emailed` and `emailFailures`;
-   expect `401` for a wrong token. Run it after check 8 so the week is already delivered —
+   `200` and a JSON body carrying `processed`, `stale`, `evaluated`, `fired`, `emailed`,
+   `deferred`, `emailFailures` and `notificationFailures`; expect `401` for a wrong
+   token. Run it after check 8 so the week is already delivered —
    the response must then report `emailed: 0`, which also proves the claim short-circuits
    before Resend is ever reached. `vercel.json` scheduling `/api/cron/evaluate-alerts` at
    `47 7 * * 1` after the Pulse driver's `17 4 * * 1` is pinned by
@@ -110,17 +117,48 @@ notification/email traffic from local review or a development machine.
   `alert_configs.id`, it is the same suffix of customers every week; and Vercel Cron
   does not retry, so the next firing is seven days later. The correlated case — a
   platform-wide SoV shift pushing many clients below threshold in one week — is exactly
-  when this bites. Mitigation if it becomes real: the chunk-and-chain shape `cron/pulse`
-  already uses, or a lease/TTL on the claim.
-- **Nothing enforces that the week's Pulse rollup landed before alerts read it.** The
-  ordering rests on two independent cron times three and a half hours apart. If the
-  rollup has not landed for a client, nothing errors: the evaluator re-derives last
-  week's action, whose ledger row was already claimed by last week's run, so the claim
-  returns false, the outcome is `suppressed`, and the run reports `emailed: 0` with
-  `emailFailures: 0` — indistinguishable from a healthy idempotent re-run, while that
-  client's genuine current-week alert is dropped. The durable fix is a staleness guard
-  in the evaluator (require the latest aggregate week to be the current week, and skip
-  or defer otherwise) rather than a wider gap between cron times.
+  when this bites. **Mitigated, not solved (2026-08-16).** Delivery now runs 8 clients
+  concurrently — per client, not per alert, so one brand's threshold and week-over-week
+  alerts stay ordered — and stops itself at a 45s budget against the route's 60s
+  `maxDuration`, rather than waiting to be killed by it. That moves the ceiling roughly
+  an order of magnitude and, more importantly, makes hitting it loud: the run reports
+  `deferred > 0` and the route answers 502, so a truncated run is recorded instead of
+  vanishing mid-loop with nothing reported. The residual risk `deliverEmail` already
+  documents — a process death between a successful claim and the send strands that
+  alert for the week, because the unique index then blocks re-claiming it — is
+  unaffected: the budget makes hitting Vercel's own timeout unlikely, but a redeploy or
+  host crash can still trigger it. The underlying serial-per-client shape is otherwise
+  unchanged, so at genuine scale the answer is still the chunk-and-chain shape
+  `cron/pulse` already uses, or a lease/TTL on the claim. There are zero `alert_configs`
+  rows today, so that work would be speculative.
+- **The evaluator now refuses to read a stale week (2026-08-16).** Nothing still
+  enforces that the week's Pulse rollup lands before this cron runs — the ordering still
+  rests on two independent cron times three and a half hours apart (`17 4 * * 1` for
+  `cron/pulse`, then `47 7 * * 1` for this route, both in `vercel.json`) — but the
+  consequence has changed. Previously, when a client's rollup had not landed, nothing
+  errored: the evaluator re-derived last week's action, whose ledger row last week's run
+  had already claimed, so the claim returned `false`, the outcome was `suppressed`, and
+  the run reported `emailed: 0` with `emailFailures: 0` — indistinguishable from a
+  healthy idempotent re-run, while that client's genuine current-week alert was silently
+  dropped. `runAlertEvaluation` now compares each client's latest aggregate `scan_week`
+  against `snapshot.currentScanWeek`, which `lib/alerts/neon-store.ts` reads via
+  `SELECT date_trunc('week', now())::date` on Postgres itself — never the app clock,
+  since a JS clock reading `now()` could disagree with Postgres's own and make a healthy
+  client look stale, or worse, the reverse. A client whose latest week is behind is
+  skipped, counted in `stale`, and logged per-client with `console.warn` (a lagging
+  rollup 3.5 hours after schedule is an expected transient, not a fault). A client with
+  **no** rollup rows at all is not counted `stale` either — it is skipped before the
+  staleness check even runs, and a new workspace is not a fault. Partial staleness stays
+  a `200`, relying on that per-client warn line rather than failing the whole cron for
+  one lagging client. The escalation that matters is `evaluated === 0` (when
+  `processed > 0`), added after this guard: it supersedes an earlier `stale === processed`
+  rule that missed the case production is actually in. `prompt_bank` is empty, so
+  `selectPendingClients` never selects a client and the Pulse rollup has never written a
+  row in production (see `CLAUDE.md`); every client then has zero rollup rows, which are
+  skipped *before* the `stale` counter, so on the first Monday after anyone creates an
+  `alert_config` that run reports `stale: 0` and `evaluated: 0` together. `stale ===
+  processed` would have read `0 === 1` as healthy and returned `200`; `evaluated === 0`
+  (with `processed` now `1`) catches it and returns `502` instead.
 - **`emailed: 0, emailFailures: 0` has a third meaning this doc did not previously cover:
   no email was ever attempted.** `buildAction` (`lib/alerts/evaluate.ts`) only builds an
   `email` when `config.notify_email` is true *and* a recipient address resolves *and* a

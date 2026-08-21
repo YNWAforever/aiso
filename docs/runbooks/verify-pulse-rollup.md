@@ -84,7 +84,29 @@ scripts/neon branches list --project-id red-firefly-93523049
 - **`neonctl connection-string --branch-id <id>` returns the *parent's* endpoint, not
   the branch's.** Observed directly: asked for a freshly created branch's DSN, it
   returned the production host. Anything seeded with that DSN lands in production.
-  This is the concrete reason the manual-DSN approach was abandoned.
+  This is the concrete reason the manual-DSN approach was abandoned. The branch
+  identifier on this command is a POSITIONAL argument (`neonctl connection-string
+  <id> ...`), not `--branch-id` — that flag is not declared on the command, so
+  yargs silently drops it and the command falls back to the project's default
+  branch (production). `__tests__/helpers/neon-branch.ts`'s `createTestBranch()`
+  uses the positional form for exactly this reason, and its endpoint↔uri identity
+  check would still catch a `--branch-id` regression even if someone reintroduced
+  it.
+- **`branches create` omits `connection_uris` from its response whenever the
+  project has more than one Postgres role and it cannot pick one unambiguously.**
+  Migration `037` added a second role, `aeo_app` (the least-privilege application
+  role — see `docs/superpowers/plans/2026-08-16-least-privilege-db-role.md`),
+  alongside the original `neondb_owner`, and every branch created off `main`
+  since inherits both — so this project's `branches create` response is now
+  reliably `{branch, endpoints}` with no `connection_uris` key at all, and
+  `neonctl connection-string` without `--role-name` errors outright with
+  "Multiple roles found for the branch". `createTestBranch()` fetches the uri
+  with a second, explicit `connection-string` call naming `neondb_owner` (the
+  `OWNER_ROLE` constant) — the role migrations need DDL rights to run as, and
+  the only role this harness has ever used the branch's connection string for.
+  This was fixed independently in two places at once (this branch and PR #48)
+  after `037` landed; PR #48's version shipped, since it carries its own test
+  coverage in `__tests__/helpers/neon-branch.test.ts`.
 
 ## What a green run proves
 

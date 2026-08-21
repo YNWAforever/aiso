@@ -23,12 +23,14 @@ const snapshot = (configs: AlertConfigWithClient[] = [config()]): AlertSnapshot 
   configs,
   weeksByClient: {
     'client-1': [
-      { client_id: 'client-1', scan_week: '2026-08-08', sov_score: 40 },
-      { client_id: 'client-1', scan_week: '2026-08-01', sov_score: 60 },
+      { client_id: 'client-1', scan_week: '2026-08-10', sov_score: 40 },
+      { client_id: 'client-1', scan_week: '2026-08-03', sov_score: 60 },
     ],
   },
   emailsByAccount: { 'account-1': 'owner@example.com' },
   dashboardUrlByClient: { 'client-1': 'https://app.example/en/dashboard/client-1' },
+  // Matches weeksByClient[0] so the default fixture is fresh, not stale.
+  currentScanWeek: '2026-08-10',
 })
 
 function portsFor(data: AlertSnapshot = snapshot()) {
@@ -62,7 +64,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 2, emailed: 2, emailFailures: 0, notificationFailures: 0 })
+    expect(result).toEqual({ processed: 1, stale: 0, evaluated: 1, fired: 2, emailed: 2, deferred: 0, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).toHaveBeenCalledTimes(2)
     expect(ports.sendAlertEmail).toHaveBeenCalledTimes(2)
     expect(ports.upsertNotification).toHaveBeenNthCalledWith(1, expect.objectContaining({ type: 'sov_threshold' }))
@@ -72,14 +74,17 @@ describe('runAlertEvaluation', () => {
   it('does not fire threshold, week-over-week, or recovery policies when the latest score is null', async () => {
     const data = snapshot()
     data.weeksByClient['client-1'] = [
-      { client_id: 'client-1', scan_week: '2026-08-08', sov_score: null },
-      { client_id: 'client-1', scan_week: '2026-08-01', sov_score: 60 },
+      { client_id: 'client-1', scan_week: '2026-08-10', sov_score: null },
+      { client_id: 'client-1', scan_week: '2026-08-03', sov_score: 60 },
     ]
     const { ports } = portsFor(data)
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 0, emailed: 0, emailFailures: 0, notificationFailures: 0 })
+    // evaluated: 0, not 1 -- a null latest score fails the check that gates
+    // `evaluated++`, same as a stale or no-weeks client. This client's alert
+    // policies were never assessed, so it must not count as evaluated.
+    expect(result).toEqual({ processed: 1, stale: 0, evaluated: 0, fired: 0, emailed: 0, deferred: 0, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).not.toHaveBeenCalled()
     expect(ports.sendAlertEmail).not.toHaveBeenCalled()
   })
@@ -87,14 +92,16 @@ describe('runAlertEvaluation', () => {
   it('treats a null previous score as unknown instead of firing threshold, week-over-week, or recovery policies', async () => {
     const data = snapshot()
     data.weeksByClient['client-1'] = [
-      { client_id: 'client-1', scan_week: '2026-08-08', sov_score: 40 },
-      { client_id: 'client-1', scan_week: '2026-08-01', sov_score: null },
+      { client_id: 'client-1', scan_week: '2026-08-10', sov_score: 40 },
+      { client_id: 'client-1', scan_week: '2026-08-03', sov_score: null },
     ]
     const { ports } = portsFor(data)
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 0, emailed: 0, emailFailures: 0, notificationFailures: 0 })
+    // evaluated: 1 here, unlike the test above -- the LATEST score (40) is
+    // what gates evaluation; only the previous score is null.
+    expect(result).toEqual({ processed: 1, stale: 0, evaluated: 1, fired: 0, emailed: 0, deferred: 0, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).not.toHaveBeenCalled()
     expect(ports.sendAlertEmail).not.toHaveBeenCalled()
   })
@@ -102,13 +109,13 @@ describe('runAlertEvaluation', () => {
   it('still fires a threshold action for a first observed below-threshold score when no previous week exists', async () => {
     const data = snapshot()
     data.weeksByClient['client-1'] = [
-      { client_id: 'client-1', scan_week: '2026-08-08', sov_score: 40 },
+      { client_id: 'client-1', scan_week: '2026-08-10', sov_score: 40 },
     ]
     const { ports } = portsFor(data)
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 1, emailed: 1, emailFailures: 0, notificationFailures: 0 })
+    expect(result).toEqual({ processed: 1, stale: 0, evaluated: 1, fired: 1, emailed: 1, deferred: 0, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'sov_threshold' }))
     expect(ports.sendAlertEmail).toHaveBeenCalledWith(expect.objectContaining({
       type: 'sov_threshold',
@@ -128,18 +135,20 @@ describe('runAlertEvaluation', () => {
       configs: [recoveryConfig],
       weeksByClient: {
         'client-recovery': [
-          { client_id: 'client-recovery', scan_week: '2026-08-08', sov_score: 50 },
-          { client_id: 'client-recovery', scan_week: '2026-08-01', sov_score: 45 },
+          { client_id: 'client-recovery', scan_week: '2026-08-10', sov_score: 50 },
+          { client_id: 'client-recovery', scan_week: '2026-08-03', sov_score: 45 },
         ],
       },
       emailsByAccount: { 'account-recovery': 'recovery@example.com' },
       dashboardUrlByClient: { 'client-recovery': 'https://app.example/en/dashboard/client-recovery' },
+      // Matches weeksByClient['client-recovery'][0] so this fixture is fresh.
+      currentScanWeek: '2026-08-10',
     }
     const { ports } = portsFor(recoverySnapshot)
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 1, emailed: 1, emailFailures: 0, notificationFailures: 0 })
+    expect(result).toEqual({ processed: 1, stale: 0, evaluated: 1, fired: 1, emailed: 1, deferred: 0, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).toHaveBeenCalledTimes(1)
     expect(ports.sendAlertEmail).toHaveBeenCalledTimes(1)
     expect(ports.upsertNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'sov_recovery' }))
@@ -148,8 +157,8 @@ describe('runAlertEvaluation', () => {
 
   it('evaluates all actions before delivering them in deterministic order', async () => {
     const secondConfigWeeks = [
-      { client_id: 'client-2', scan_week: '2026-08-08', sov_score: 60 },
-      { client_id: 'client-2', scan_week: '2026-08-01', sov_score: 75 },
+      { client_id: 'client-2', scan_week: '2026-08-10', sov_score: 60 },
+      { client_id: 'client-2', scan_week: '2026-08-03', sov_score: 75 },
     ]
     const data: AlertSnapshot = {
       configs: [
@@ -164,8 +173,8 @@ describe('runAlertEvaluation', () => {
       ],
       weeksByClient: {
         'client-1': [
-          { client_id: 'client-1', scan_week: '2026-08-08', sov_score: 40 },
-          { client_id: 'client-1', scan_week: '2026-08-01', sov_score: 60 },
+          { client_id: 'client-1', scan_week: '2026-08-10', sov_score: 40 },
+          { client_id: 'client-1', scan_week: '2026-08-03', sov_score: 60 },
         ],
         'client-2': secondConfigWeeks,
       },
@@ -177,6 +186,8 @@ describe('runAlertEvaluation', () => {
         'client-1': 'https://app.example/en/dashboard/client-1',
         'client-2': 'https://app.example/en/dashboard/client-2',
       },
+      // Matches both clients' weeksByClient[0] so this fixture is fresh.
+      currentScanWeek: '2026-08-10',
     }
     const { ports, order } = portsFor(data)
     vi.mocked(ports.upsertNotification).mockImplementation(async notification => {
@@ -190,7 +201,13 @@ describe('runAlertEvaluation', () => {
       order.push(`email:${email.type}:${email.clientId}`)
     })
 
-    await runAlertEvaluation(ports)
+    // concurrency: 1 keeps clients strictly sequential so the assertion below
+    // stays a precise order check. Delivery concurrency is otherwise per-client
+    // (see "keeps one client's alerts in order..."), not a claim that
+    // evaluation itself happens client by client — the mutation above proves
+    // evaluation for every client is already done before delivery starts,
+    // which holds at any concurrency.
+    await runAlertEvaluation(ports, { concurrency: 1 })
 
     expect(order).toEqual([
       'notification:sov_threshold:client-1', 'email:sov_threshold:client-1',
@@ -213,8 +230,11 @@ describe('runAlertEvaluation', () => {
 
     await expect(runAlertEvaluation(ports)).resolves.toEqual({
       processed: 1,
+      stale: 0,
+      evaluated: 1,
       fired: 2,
       emailed: 1,
+      deferred: 0,
       emailFailures: 1,
       notificationFailures: 1,
     })
@@ -232,7 +252,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 2, emailed: 2, emailFailures: 0, notificationFailures: 1 })
+    expect(result).toEqual({ processed: 1, stale: 0, evaluated: 1, fired: 2, emailed: 2, deferred: 0, emailFailures: 0, notificationFailures: 1 })
     expect(ports.upsertNotification).toHaveBeenCalledTimes(2)
     expect(ports.sendAlertEmail).toHaveBeenCalledTimes(2)
   })
@@ -244,6 +264,167 @@ describe('runAlertEvaluation', () => {
     await expect(runAlertEvaluation(ports)).rejects.toThrow('snapshot unavailable')
     expect(ports.upsertNotification).not.toHaveBeenCalled()
     expect(ports.sendAlertEmail).not.toHaveBeenCalled()
+  })
+
+  it('skips a client whose latest aggregate week is not the current week', async () => {
+    // The silent drop this closes. With the rollup not yet landed, weeks[0] is
+    // LAST week's row. The evaluator used to re-derive last week's action,
+    // whose ledger row last week's run already claimed, so the claim returned
+    // false and the outcome was 'suppressed' -- reported as
+    // {fired: 1, emailed: 0, emailFailures: 0}, which is byte-identical to a
+    // healthy idempotent re-run. The client's real current-week alert was never
+    // computed and nothing anywhere said so.
+    const data = snapshot()
+    data.currentScanWeek = '2026-08-17'   // a week later than the fixture rows
+
+    const { ports } = portsFor(data)
+
+    const result = await runAlertEvaluation(ports)
+
+    expect(result).toEqual({
+      processed: 1,
+      stale: 1,
+      evaluated: 0,
+      fired: 0,
+      emailed: 0,
+      deferred: 0,
+      emailFailures: 0,
+      notificationFailures: 0,
+    })
+    expect(ports.upsertNotification).not.toHaveBeenCalled()
+    expect(ports.claimEmailDelivery).not.toHaveBeenCalled()
+    expect(ports.sendAlertEmail).not.toHaveBeenCalled()
+  })
+
+  it('does not count a client with no weeks at all as stale, or as evaluated', async () => {
+    // A brand new client has never had a rollup. That is not the same fault as
+    // a client whose rollup stopped landing, and conflating them would make the
+    // stale counter fire on every legitimately new workspace. It is also not
+    // `evaluated`: the `!weeks.length` check runs before evaluated++ can ever
+    // be reached, which is the exact gap `evaluationStatus`'s old
+    // `stale === processed` rule missed -- this client trips neither counter.
+    const data = snapshot()
+    data.weeksByClient['client-1'] = []
+
+    const { ports } = portsFor(data)
+
+    const result = await runAlertEvaluation(ports)
+
+    expect(result.stale).toBe(0)
+    expect(result.evaluated).toBe(0)
+    expect(result.fired).toBe(0)
+  })
+
+  it('counts a healthy fresh client as evaluated even when no alert fires', async () => {
+    // Guards against conflating `evaluated` with `fired`: a client can be
+    // fully assessed and legitimately trigger nothing. That is the healthy
+    // common case and must not look like the client was skipped.
+    const data = snapshot()
+    data.weeksByClient['client-1'] = [
+      // Above threshold both weeks, and the week-over-week move (2 points) is
+      // well under the 10-point wow_threshold from the default config -- no
+      // threshold crossing, no wow drop, no recovery.
+      { client_id: 'client-1', scan_week: '2026-08-10', sov_score: 70 },
+      { client_id: 'client-1', scan_week: '2026-08-03', sov_score: 72 },
+    ]
+    const { ports } = portsFor(data)
+
+    const result = await runAlertEvaluation(ports)
+
+    expect(result.evaluated).toBe(1)
+    expect(result.fired).toBe(0)
+    expect(ports.upsertNotification).not.toHaveBeenCalled()
+    expect(ports.sendAlertEmail).not.toHaveBeenCalled()
+  })
+
+  it('skips a stale client while a fresh client in the same run still fires', async () => {
+    const staleConfig = config({
+      id: 'alert-stale', client_id: 'client-stale',
+      client: { id: 'client-stale', brand_name: 'Stale Co', account_id: 'account-stale' },
+    })
+    const freshConfig = config({
+      id: 'alert-fresh', client_id: 'client-fresh',
+      client: { id: 'client-fresh', brand_name: 'Fresh Co', account_id: 'account-fresh' },
+    })
+    const data: AlertSnapshot = {
+      configs: [staleConfig, freshConfig],
+      weeksByClient: {
+        // Rollup never landed this week for this client -- weeks[0] is last week's row.
+        'client-stale': [{ client_id: 'client-stale', scan_week: '2026-08-03', sov_score: 40 }],
+        'client-fresh': [
+          { client_id: 'client-fresh', scan_week: '2026-08-10', sov_score: 40 },
+          { client_id: 'client-fresh', scan_week: '2026-08-03', sov_score: 60 },
+        ],
+      },
+      emailsByAccount: { 'account-stale': 'stale@example.com', 'account-fresh': 'fresh@example.com' },
+      dashboardUrlByClient: {
+        'client-stale': 'https://app.example/en/dashboard/client-stale',
+        'client-fresh': 'https://app.example/en/dashboard/client-fresh',
+      },
+      currentScanWeek: '2026-08-10',
+    }
+    const { ports } = portsFor(data)
+
+    const result = await runAlertEvaluation(ports)
+
+    // client-fresh drops from 60 to 40 across the 50% threshold, which fires
+    // both the threshold-crossing and week-over-week policies -- fired/emailed
+    // are 2, not 1, for that one fresh client's two independent alerts.
+    expect(result).toEqual({
+      processed: 2, stale: 1, evaluated: 1, fired: 2, emailed: 2, deferred: 0,
+      emailFailures: 0, notificationFailures: 0,
+    })
+    expect(ports.upsertNotification).toHaveBeenCalledTimes(2)
+    expect(ports.upsertNotification).toHaveBeenCalledWith(expect.objectContaining({ client_id: 'client-fresh' }))
+  })
+
+  it('stops on the time budget and reports the alerts it did not reach', async () => {
+    // Truncation used to be silent: the function was killed mid-loop at
+    // maxDuration, and because loadConfigs orders by ac.id ASC it was the same
+    // suffix of customers every week, with no cron retry for seven days.
+    const configs = Array.from({ length: 4 }, (_, index) =>
+      config({
+        id: `alert-${index}`,
+        client_id: `client-${index}`,
+        client: { id: `client-${index}`, brand_name: `Brand ${index}`, account_id: `account-${index}` },
+      }),
+    )
+    const data = snapshot(configs)
+    for (const item of configs) {
+      data.weeksByClient[item.client_id] = [
+        { client_id: item.client_id, scan_week: '2026-08-10', sov_score: 40 },
+        { client_id: item.client_id, scan_week: '2026-08-03', sov_score: 60 },
+      ]
+      data.emailsByAccount[item.client.account_id] = 'owner@example.com'
+      data.dashboardUrlByClient[item.client_id] = 'https://app.example/d'
+    }
+
+    const { ports } = portsFor(data)
+
+    // A clock that jumps a full budget on its second read, so the first group
+    // of clients is delivered and everything after it is deferred.
+    let reads = 0
+    const now = () => (reads++ === 0 ? 0 : 999_999)
+
+    const result = await runAlertEvaluation(ports, { concurrency: 1, budgetMs: 1_000, now })
+
+    expect(result.deferred).toBeGreaterThan(0)
+    expect(result.emailed + result.deferred).toBe(result.fired)
+  })
+
+  it('keeps one client\'s alerts in order while running clients concurrently', async () => {
+    // Concurrency is per client, never per alert: a threshold crossing and a
+    // week-over-week drop for the same brand must arrive in that order.
+    const { ports, order } = portsFor()
+
+    await runAlertEvaluation(ports, { concurrency: 8 })
+
+    expect(order).toEqual([
+      'notification:sov_threshold',
+      'email:sov_threshold',
+      'notification:sov_wow_drop',
+      'email:sov_wow_drop',
+    ])
   })
 })
 
@@ -286,7 +467,7 @@ describe('email idempotence', () => {
 
     expect(ports.releaseEmailDelivery).toHaveBeenCalledTimes(1)
     expect(ports.releaseEmailDelivery).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'sov_threshold', scan_week: '2026-08-08' }),
+      expect.objectContaining({ type: 'sov_threshold', scan_week: '2026-08-10' }),
     )
 
     // Prove the release actually enables a retry, not just that it was called.
@@ -326,7 +507,7 @@ describe('email idempotence', () => {
       expect.objectContaining({
         client_id: 'client-1',
         recipient: 'owner@example.com',
-        scan_week: '2026-08-08',
+        scan_week: '2026-08-10',
       }),
     )
   })

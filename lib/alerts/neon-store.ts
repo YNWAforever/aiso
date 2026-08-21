@@ -7,6 +7,7 @@ import {
   type AlertSnapshot,
   type AlertWeekSnapshot,
 } from '@/lib/alerts/evaluate'
+import { isoDate } from '@/lib/iso-date'
 
 const PAGE_SIZE = 1000
 type Sql = NeonQueryFunction<false, false>
@@ -53,13 +54,17 @@ export function createNeonAlertStore(sql: Sql): NeonAlertStore {
 }
 
 async function loadSnapshot(sql: Sql): Promise<AlertSnapshot> {
-  const configs = await loadConfigs(sql)
+  const [configs, currentScanWeek] = await Promise.all([
+    loadConfigs(sql),
+    loadCurrentScanWeek(sql),
+  ])
   if (!configs.length) {
     return {
       configs: [],
       weeksByClient: {},
       emailsByAccount: {},
       dashboardUrlByClient: {},
+      currentScanWeek,
     }
   }
 
@@ -74,9 +79,11 @@ async function loadSnapshot(sql: Sql): Promise<AlertSnapshot> {
   for (const row of weeklyRows) {
     const week = {
       client_id: row.client_id,
-      scan_week: row.scan_week instanceof Date
-        ? row.scan_week.toISOString().slice(0, 10)
-        : row.scan_week,
+      // This value is the scan_week half of both dedup keys. The '' fallback
+      // is unreachable in practice -- pulse_weekly_summary.scan_week is
+      // `date not null` -- and deliberate: a missing value should degrade to
+      // a counted failure downstream, not a wrong-but-plausible date string.
+      scan_week: isoDate(row.scan_week, ''),
       sov_score: row.sov_score === null ? null : Number(row.sov_score),
     }
     weeksByClient[row.client_id] = [...(weeksByClient[row.client_id] ?? []), week]
@@ -94,6 +101,7 @@ async function loadSnapshot(sql: Sql): Promise<AlertSnapshot> {
         `${process.env.NEXT_PUBLIC_APP_URL}/en/dashboard/${config.client_id}`,
       ]),
     ),
+    currentScanWeek,
   }
 }
 
@@ -182,6 +190,46 @@ async function loadWeeklyRows(sql: Sql, clientIds: string[]): Promise<WeeklyRow[
     WHERE row_number <= 2
     ORDER BY client_id, row_number ASC
   `) as WeeklyRow[]
+}
+
+/**
+ * The Monday that starts the current ISO week, as Postgres reckons it.
+ *
+ * Deliberately a database round-trip rather than a `new Date()` call: the rows
+ * this is compared against were written by `computeWeeklySummary` using
+ * `date_trunc('week', ...)` on the same server, and two clocks that disagree
+ * would make a healthy client look stale (or worse, the reverse).
+ *
+ * Throws rather than falling back to `''` when the query returns no row --
+ * deliberately the opposite choice from the `scan_week: isoDate(row.scan_week,
+ * '')` fallback above, and the distinction is load-bearing. There, `''` flows
+ * into an INSERT against `date`-typed columns, so it raises and is *counted*,
+ * as a notification or email failure that surfaces as a 502. Here, `''` would
+ * instead flow into the staleness guard's `latest.scan_week !==
+ * snapshot.currentScanWeek` comparison: no client's latest week could ever
+ * equal `''`, so every client would be silently skipped as stale --
+ * `fired: 0`, with nothing in `emailFailures` or `notificationFailures` to
+ * flag it. `evaluationStatus` would still catch it today, via `evaluated ===
+ * 0` (a wholly stale run evaluates nobody), and return 502 rather than 200 --
+ * but only because that guard exists. Throwing here surfaces the outage as a
+ * loud 500 instead, one step earlier and without depending on that guard,
+ * matching this store's existing contract test `'propagates weekly snapshot
+ * read failures'`.
+ *
+ * `app/api/pulse/run/route.ts` (~line 146) runs the same
+ * `date_trunc('week', now())::date` query, under a different alias, and
+ * normalises the result with a bare `String()` rather than `isoDate()` -- the
+ * locale-sentence bug fixed here in `d243eb5`. Left as a known duplication;
+ * unifying the two call sites is a separate task.
+ */
+async function loadCurrentScanWeek(sql: Sql): Promise<string> {
+  const rows = (await sql`
+    SELECT date_trunc('week', now())::date AS current_scan_week
+  `) as Array<{ current_scan_week: string | Date }>
+
+  const week = isoDate(rows[0]?.current_scan_week, '')
+  if (!week) throw new Error('[alerts] could not read the current scan week from Postgres')
+  return week
 }
 
 async function loadEmailRows(sql: Sql, accountIds: string[]): Promise<EmailRow[]> {

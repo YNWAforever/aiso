@@ -30,7 +30,10 @@ function evaluateAlerts() {
     ...createNeonAlertStore(db()),
     sendAlertEmail: deliverAlertEmail,
   }
-  return runAlertEvaluation(ports)
+  // vercel.json gives this route maxDuration 60. Stop at 45s so the run
+  // reports what it deferred instead of being killed mid-loop, which reports
+  // nothing at all.
+  return runAlertEvaluation(ports, { budgetMs: 45_000 })
 }
 
 /**
@@ -42,13 +45,68 @@ function evaluateAlerts() {
  * status codes, not response bodies, so a totally failed run that still
  * returns 200 is invisible in the deployment logs -- every Monday shows green
  * while zero alerts go out. One function decides the status for both GET and
- * POST so they cannot drift apart.
+ * POST so they cannot drift apart, and it logs which rule tripped before
+ * returning 502 -- the same reason applies to the cause, not just the
+ * failure: the deployment log has only the status code, never the body.
+ *
+ * Two non-delivery faults join them, for the same reason:
+ *
+ *   deferred > 0     the run hit its time budget and stopped. Work remains
+ *                    undone and Vercel Cron does not retry, so the next
+ *                    attempt is seven days away. `runAlertEvaluation` groups
+ *                    fired alerts by client and delivers a batch of clients
+ *                    at a time (`AlertEvaluationOptions.concurrency`,
+ *                    `budgetMs` -- see `lib/alerts/evaluate.ts`); whatever is
+ *                    left in the queue when the budget is exceeded is counted
+ *                    here instead of being run until the platform kills the
+ *                    function.
+ *
+ *   evaluated === 0  the evaluator ran against at least one configured client
+ *                    and evaluated none of them.
+ *
+ * That second rule used to be phrased as "every client stale"
+ * (`stale === processed`), which missed the case production is actually in.
+ * `runAlertEvaluation`'s `!weeks.length` check runs BEFORE the staleness
+ * check, so a client with no `pulse_weekly_summary` rows at all is skipped
+ * without being counted in `stale` and without any log line. CLAUDE.md
+ * records that the Pulse weekly rollup has never written a row in
+ * production, so the first Monday after anyone creates an `alert_config`,
+ * the old rule would have stayed 200 while zero clients were ever evaluated
+ * -- silent-green in exactly the way this plan exists to close. `evaluated
+ * === 0` catches that case, an all-stale run, a mix of the two, and every
+ * client having a null latest score alike: anything that leaves the run
+ * having assessed nobody's alert policies.
+ *
+ * Partial staleness -- or any run that evaluated at least one client -- stays
+ * 200 deliberately: one client's rollup lagging is a data gap rather than a
+ * system fault, and failing the cron for it would train whoever reads these
+ * logs to ignore the alarm. That case is reported by the per-client
+ * console.warn in runAlertEvaluation.
  */
 function evaluationStatus(result: {
+  processed: number
+  evaluated: number
+  deferred: number
   emailFailures: number
   notificationFailures: number
 }): number {
-  return result.emailFailures > 0 || result.notificationFailures > 0 ? 502 : 200
+  if (result.emailFailures > 0 || result.notificationFailures > 0) {
+    console.error(
+      `[cron/evaluate-alerts] 502: emailFailures=${result.emailFailures} notificationFailures=${result.notificationFailures}`,
+    )
+    return 502
+  }
+  if (result.deferred > 0) {
+    console.error(`[cron/evaluate-alerts] 502: deferred=${result.deferred} alert(s) past the time budget`)
+    return 502
+  }
+  if (result.processed > 0 && result.evaluated === 0) {
+    console.error(
+      `[cron/evaluate-alerts] 502: evaluated 0 of ${result.processed} configured client(s) -- the Pulse rollup likely never landed`,
+    )
+    return 502
+  }
+  return 200
 }
 
 /**

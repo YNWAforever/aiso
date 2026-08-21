@@ -3,6 +3,13 @@ import type { NeonQueryFunction } from '@neondatabase/serverless'
 import type { AlertNotificationInput } from '@/lib/alerts/evaluate'
 import { createNeonAlertStore } from '@/lib/alerts/neon-store'
 
+// Pin a positive-offset zone before the Date-valued fixture below is
+// constructed: at TZ=UTC (CI's default) a toISOString() implementation and a
+// local-components one agree exactly, so without this pin the regression
+// test that fixture exists for would pass green against either -- same gap
+// __tests__/lib/iso-date.test.ts pins TZ to close.
+process.env.TZ = 'Asia/Hong_Kong'
+
 type SqlCall = { text: string; params: unknown[] }
 type SqlResponder = (call: SqlCall) => unknown[] | Promise<unknown[]>
 
@@ -61,6 +68,14 @@ function deliveryKey() {
 }
 
 describe('createNeonAlertStore', () => {
+  it('runs under the pinned timezone the date assertions depend on', () => {
+    // If this fails, process.env.TZ above did not take effect -- Node worker
+    // threads ignore a runtime mutation, so under Vitest's `threads` pool the
+    // pin is a no-op and the Date-fixture test below silently degrades to the
+    // UTC-blind version this file was written to catch. -480 is UTC+8.
+    expect(new Date(2026, 7, 10).getTimezoneOffset()).toBe(-480)
+  })
+
   it('pages config rows at 1000 using the last returned id', async () => {
     let configCalls = 0
     const { sql, calls } = makeSql(({ text }) => {
@@ -78,6 +93,9 @@ describe('createNeonAlertStore', () => {
       }
       if (normalized.includes('from public.profiles')) {
         return [{ account_id: 'account-1', email: 'owner@example.com' }]
+      }
+      if (normalized.includes('current_scan_week')) {
+        return [{ current_scan_week: '2026-08-08' }]
       }
       throw new Error(`unexpected SQL: ${text}`)
     })
@@ -112,6 +130,9 @@ describe('createNeonAlertStore', () => {
       if (normalized.includes('from public.profiles')) {
         return [{ account_id: 'account-1', email: 'owner@example.com' }]
       }
+      if (normalized.includes('current_scan_week')) {
+        return [{ current_scan_week: '2026-08-08' }]
+      }
       throw new Error(`unexpected SQL: ${text}`)
     })
 
@@ -128,6 +149,36 @@ describe('createNeonAlertStore', () => {
     expect(weeklySql?.text).toMatch(/created_at DESC NULLS LAST,\s*summary\.id DESC/i)
     expect(profileSql?.text).toMatch(/neon_auth\."user"/i)
     expect(profileSql?.text).toMatch(/DISTINCT ON\s*\(p\.account_id\)/i)
+  })
+
+  it('normalizes a driver-supplied Date scan_week to its local ISO day', async () => {
+    // The Date-valued fixture is the point, not incidental: the HTTP driver
+    // returns scan_week as a string already, so every other fixture in this
+    // file that uses a plain string cannot exercise the Date branch of
+    // isoDate() at all -- reverting lib/alerts/neon-store.ts to the old
+    // `toISOString()` ternary would leave this whole file green without it.
+    let configCalls = 0
+    const { sql } = makeSql(({ text }) => {
+      const normalized = text.toLowerCase()
+      if (normalized.includes('from public.alert_configs')) {
+        configCalls += 1
+        return configCalls === 1 ? [configRow()] : []
+      }
+      if (normalized.includes('from public.pulse_weekly_summary')) {
+        return [{ client_id: 'client-1', scan_week: new Date(2026, 7, 10), sov_score: '40' }]
+      }
+      if (normalized.includes('from public.profiles')) {
+        return [{ account_id: 'account-1', email: 'owner@example.com' }]
+      }
+      if (normalized.includes('current_scan_week')) {
+        return [{ current_scan_week: '2026-08-10' }]
+      }
+      throw new Error(`unexpected SQL: ${text}`)
+    })
+
+    const snapshot = await createNeonAlertStore(sql).loadSnapshot()
+
+    expect(snapshot.weeksByClient['client-1'][0].scan_week).toBe('2026-08-10')
   })
 
   it('uses the notification conflict target and treats the insert as a no-op result', async () => {
@@ -150,6 +201,29 @@ describe('createNeonAlertStore', () => {
     ]))
   })
 
+  it('reads the current scan week from Postgres rather than the app clock', async () => {
+    // Every other writer and reader derives the week in SQL
+    // (lib/pulse/schedule.ts:56, :68; lib/pulse/summary.ts WEEK_START_SQL).
+    // Deriving it from new Date() here would create a second definition of
+    // "this week" that disagrees whenever the app server's timezone differs
+    // from the database's -- and this value decides whether a client's alert
+    // is evaluated at all.
+    // A Date fixture, not a string: the HTTP driver returns date columns as
+    // strings already, so a string fixture here cannot exercise the Date
+    // branch of isoDate() at all -- see the neighbouring Date-fixture test
+    // above for why that gap matters.
+    const isWeekQuery = (text: string) => /date_trunc\('week', now\(\)\)/.test(text)
+
+    const { sql, calls } = makeSql(call =>
+      isWeekQuery(call.text) ? [{ current_scan_week: new Date(2026, 7, 10) }] : [],
+    )
+
+    const snapshot = await createNeonAlertStore(sql).loadSnapshot()
+
+    expect(snapshot.currentScanWeek).toBe('2026-08-10')
+    expect(calls.some(call => isWeekQuery(call.text))).toBe(true)
+  })
+
   it('propagates weekly snapshot read failures', async () => {
     let configCalls = 0
     const { sql } = makeSql(({ text }) => {
@@ -161,10 +235,39 @@ describe('createNeonAlertStore', () => {
       if (normalized.includes('from public.pulse_weekly_summary')) {
         throw new Error('snapshot unavailable')
       }
+      // Must resolve, not fall through to the empty default: this test's
+      // failure has to come from loadWeeklyRows, not from loadCurrentScanWeek
+      // rejecting in the earlier Promise.all, which would abort loadSnapshot
+      // before loadWeeklyRows is ever called.
+      if (normalized.includes('current_scan_week')) {
+        return [{ current_scan_week: '2026-08-10' }]
+      }
       return []
     })
 
     await expect(createNeonAlertStore(sql).loadSnapshot()).rejects.toThrow('snapshot unavailable')
+  })
+
+  it('throws rather than defaulting to an empty current scan week when the query returns no row', async () => {
+    // If this ever fell back to '' instead, the staleness guard's
+    // `latest.scan_week !== snapshot.currentScanWeek` comparison would treat
+    // every client as stale -- fired: 0, with nothing in emailFailures or
+    // notificationFailures to flag it, so evaluationStatus would still return
+    // 200. Throwing here surfaces the outage as a loud 500 instead.
+    let configCalls = 0
+    const { sql } = makeSql(({ text }) => {
+      const normalized = text.toLowerCase()
+      if (normalized.includes('from public.alert_configs')) {
+        configCalls += 1
+        return configCalls === 1 ? [configRow()] : []
+      }
+      if (normalized.includes('current_scan_week')) return []
+      return []
+    })
+
+    await expect(createNeonAlertStore(sql).loadSnapshot()).rejects.toThrow(
+      '[alerts] could not read the current scan week from Postgres',
+    )
   })
 })
 

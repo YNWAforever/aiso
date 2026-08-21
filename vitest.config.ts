@@ -23,6 +23,16 @@ export default defineConfig({
     // still fail instead of stalling the run.
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    // __tests__/lib/iso-date.test.ts and __tests__/lib/alerts/neon-store.test.ts
+    // both pin `process.env.TZ` at module scope to make a UTC-shift regression
+    // observable regardless of the machine's ambient timezone. That mutation
+    // only reaches Date's internal clock in the process Vitest itself runs in
+    // -- Node worker threads do not inherit a runtime TZ change, so under the
+    // `threads` pool the pin is silently inert and those guards go green
+    // against the exact bug they exist to catch. Pin the pool here rather than
+    // relying on every TZ-sensitive test file remembering to check for it, so
+    // a future one inherits the protection automatically.
+    pool: 'forks',
     exclude: ['**/node_modules/**', 'tests/e2e/**', 'e2e/**', '**/.worktrees/**', '**/.superpowers/**'],
     coverage: {
       provider: 'v8',
