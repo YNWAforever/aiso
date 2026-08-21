@@ -42,7 +42,7 @@ describe('POST /api/cron/evaluate-alerts', () => {
       claimEmailDelivery: vi.fn(),
       releaseEmailDelivery: vi.fn(),
     })
-    h.runAlertEvaluation.mockResolvedValue({ processed: 3, stale: 0, fired: 2, emailed: 2, deferred: 0, emailFailures: 0, notificationFailures: 0 })
+    h.runAlertEvaluation.mockResolvedValue({ processed: 3, stale: 0, evaluated: 3, fired: 2, emailed: 2, deferred: 0, emailFailures: 0, notificationFailures: 0 })
   })
 
   afterEach(() => {
@@ -100,6 +100,7 @@ describe('POST /api/cron/evaluate-alerts', () => {
     await expect(response.json()).resolves.toEqual({
       processed: 3,
       stale: 0,
+      evaluated: 3,
       fired: 2,
       emailed: 2,
       deferred: 0,
@@ -121,6 +122,7 @@ describe('POST /api/cron/evaluate-alerts', () => {
     h.runAlertEvaluation.mockResolvedValue({
       processed: 3,
       stale: 0,
+      evaluated: 3,
       fired: 2,
       emailed: 0,
       deferred: 0,
@@ -135,6 +137,7 @@ describe('POST /api/cron/evaluate-alerts', () => {
     await expect(response.json()).resolves.toEqual({
       processed: 3,
       stale: 0,
+      evaluated: 3,
       fired: 2,
       emailed: 0,
       deferred: 0,
@@ -147,11 +150,26 @@ describe('POST /api/cron/evaluate-alerts', () => {
     h.runAlertEvaluation.mockResolvedValue({
       processed: 3,
       stale: 0,
+      evaluated: 3,
       fired: 2,
       emailed: 2,
       deferred: 0,
       emailFailures: 0,
       notificationFailures: 2,
+    })
+    const { POST } = await importRoute()
+
+    const response = await POST(request('test-cron-secret'))
+
+    expect(response.status).toBe(502)
+  })
+
+  it('returns 502 when the run evaluated nobody, mirroring the GET handler', async () => {
+    // Both entry points share evaluationStatus, so the never-written-a-row
+    // case must fail the same way regardless of which handler ran it.
+    h.runAlertEvaluation.mockResolvedValue({
+      processed: 2, stale: 0, evaluated: 0, fired: 0, emailed: 0,
+      deferred: 0, emailFailures: 0, notificationFailures: 0,
     })
     const { POST } = await importRoute()
 
@@ -174,7 +192,7 @@ describe('GET /api/cron/evaluate-alerts', () => {
       claimEmailDelivery: vi.fn(),
       releaseEmailDelivery: vi.fn(),
     })
-    h.runAlertEvaluation.mockResolvedValue({ processed: 3, stale: 0, fired: 2, emailed: 2, deferred: 0, emailFailures: 0, notificationFailures: 0 })
+    h.runAlertEvaluation.mockResolvedValue({ processed: 3, stale: 0, evaluated: 3, fired: 2, emailed: 2, deferred: 0, emailFailures: 0, notificationFailures: 0 })
   })
 
   afterEach(() => {
@@ -194,6 +212,7 @@ describe('GET /api/cron/evaluate-alerts', () => {
     await expect(response.json()).resolves.toEqual({
       processed: 3,
       stale: 0,
+      evaluated: 3,
       fired: 2,
       emailed: 2,
       deferred: 0,
@@ -207,6 +226,7 @@ describe('GET /api/cron/evaluate-alerts', () => {
     h.runAlertEvaluation.mockResolvedValue({
       processed: 3,
       stale: 0,
+      evaluated: 3,
       fired: 2,
       emailed: 0,
       deferred: 0,
@@ -221,6 +241,7 @@ describe('GET /api/cron/evaluate-alerts', () => {
     await expect(response.json()).resolves.toEqual({
       processed: 3,
       stale: 0,
+      evaluated: 3,
       fired: 2,
       emailed: 0,
       deferred: 0,
@@ -233,6 +254,7 @@ describe('GET /api/cron/evaluate-alerts', () => {
     h.runAlertEvaluation.mockResolvedValue({
       processed: 3,
       stale: 0,
+      evaluated: 3,
       fired: 2,
       emailed: 2,
       deferred: 0,
@@ -304,11 +326,33 @@ describe('GET /api/cron/evaluate-alerts', () => {
 
   it('returns 502 when every configured client was stale', async () => {
     // Not a partial data gap -- this is "the evaluator ran and could not
-    // evaluate anybody", which in practice means the Pulse rollup did not land
-    // at all. A 200 here would show green in the Vercel Cron log every Monday
-    // while no alert was ever computed.
+    // evaluate anybody". All-stale is one way to reach evaluated: 0 (see the
+    // never-written-a-row test below for the other, more likely, way). A 200
+    // here would show green in the Vercel Cron log every Monday while no
+    // alert was ever computed.
     h.runAlertEvaluation.mockResolvedValue({
-      processed: 3, stale: 3, fired: 0, emailed: 0,
+      processed: 3, stale: 3, evaluated: 0, fired: 0, emailed: 0,
+      deferred: 0, emailFailures: 0, notificationFailures: 0,
+    })
+    const { GET } = await importRoute()
+
+    const response = await GET(cronRequest('test-cron-secret') as never)
+
+    expect(response.status).toBe(502)
+  })
+
+  it('returns 502 when the evaluator ran but evaluated nobody, even with zero stale clients', async () => {
+    // This is the case Task 4's `stale === processed` rule missed, and the one
+    // production is actually in. `runAlertEvaluation`'s `!weeks.length` check
+    // runs BEFORE the staleness check, so a client with no
+    // pulse_weekly_summary rows at all is skipped without ever being counted
+    // in `stale` and without any log line. CLAUDE.md records that the Pulse
+    // weekly rollup has never written a row in production, so the first
+    // Monday after anyone creates an alert_config this is exactly
+    // {processed: N, stale: 0, evaluated: 0, fired: 0} -- which the old rule
+    // read as 200, green, invisible.
+    h.runAlertEvaluation.mockResolvedValue({
+      processed: 2, stale: 0, evaluated: 0, fired: 0, emailed: 0,
       deferred: 0, emailFailures: 0, notificationFailures: 0,
     })
     const { GET } = await importRoute()
@@ -323,7 +367,21 @@ describe('GET /api/cron/evaluate-alerts', () => {
     // and failing the whole cron for it would train people to ignore the alarm.
     // The per-client console.warn in the evaluator is the signal for this case.
     h.runAlertEvaluation.mockResolvedValue({
-      processed: 3, stale: 1, fired: 2, emailed: 2,
+      processed: 3, stale: 1, evaluated: 2, fired: 2, emailed: 2,
+      deferred: 0, emailFailures: 0, notificationFailures: 0,
+    })
+    const { GET } = await importRoute()
+
+    const response = await GET(cronRequest('test-cron-secret') as never)
+
+    expect(response.status).toBe(200)
+  })
+
+  it('stays 200 when some clients were stale but at least one was evaluated', async () => {
+    // The mixed case: one stale client and one genuinely evaluated client.
+    // evaluated > 0 is what keeps this 200, independent of how many were stale.
+    h.runAlertEvaluation.mockResolvedValue({
+      processed: 2, stale: 1, evaluated: 1, fired: 0, emailed: 0,
       deferred: 0, emailFailures: 0, notificationFailures: 0,
     })
     const { GET } = await importRoute()
@@ -335,7 +393,7 @@ describe('GET /api/cron/evaluate-alerts', () => {
 
   it('returns 502 when the run was truncated before finishing', async () => {
     h.runAlertEvaluation.mockResolvedValue({
-      processed: 400, stale: 0, fired: 300, emailed: 120,
+      processed: 400, stale: 0, evaluated: 220, fired: 300, emailed: 120,
       deferred: 180, emailFailures: 0, notificationFailures: 0,
     })
     const { GET } = await importRoute()
@@ -346,12 +404,13 @@ describe('GET /api/cron/evaluate-alerts', () => {
   })
 
   it('stays 200 for an empty run with zero configured clients', async () => {
-    // The current production state: zero alert_configs rows, so processed and
-    // stale are both 0. Without the `processed > 0` guard, `0 === 0` would
-    // make an empty-but-healthy run report 502 forever -- this pins that the
-    // guard is actually load-bearing, not just documented as such.
+    // The current production state: zero alert_configs rows, so processed,
+    // stale and evaluated are all 0. Without the `processed > 0` guard,
+    // `evaluated === 0` alone would make an empty-but-healthy run report 502
+    // forever -- this pins that the guard is actually load-bearing, not just
+    // documented as such.
     h.runAlertEvaluation.mockResolvedValue({
-      processed: 0, stale: 0, fired: 0, emailed: 0,
+      processed: 0, stale: 0, evaluated: 0, fired: 0, emailed: 0,
       deferred: 0, emailFailures: 0, notificationFailures: 0,
     })
     const { GET } = await importRoute()

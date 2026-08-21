@@ -553,8 +553,15 @@ Then, in the `for (const config of snapshot.configs)` loop, insert the guard imm
     // 'suppressed' -- indistinguishable from a healthy re-run while this
     // client's real alert is dropped. Nothing orders the Pulse rollup before
     // this cron except two schedule times three and a half hours apart.
+    //
+    // console.warn, not console.error: a lagging rollup 3.5 hours after
+    // schedule is the expected transient case, not a code fault -- matching
+    // how onboarding/complete already draws this line (warn for
+    // degraded-but-non-fatal, error for real failures like a failed query or
+    // an unset CRON_SECRET). The systemic case -- every client stale -- is
+    // what escalates to a 502 downstream.
     if (latest.scan_week !== snapshot.currentScanWeek) {
-      console.error(
+      console.warn(
         `[alerts] client ${config.client_id}: latest aggregate week is ` +
         `${latest.scan_week}, expected ${snapshot.currentScanWeek} — skipping. ` +
         'The Pulse rollup has not landed for this client this week.',
@@ -635,6 +642,20 @@ git commit -m "fix(alerts): skip stale clients rather than silently re-deriving 
 **Files:**
 - Modify: `app/api/cron/evaluate-alerts/route.ts:47-52` (`evaluationStatus`)
 - Test: `__tests__/api/cron/evaluate-alerts.test.ts`
+
+> **Superseded by Task 4b (2026-08-21).** The steps below shipped as written and are left
+> intact as the historical record, but the rule they implement --
+> `result.stale === result.processed` -- and this doc comment's claim that "every client
+> stale ... means the Pulse rollup did not land at all" are **no longer what the code does**.
+> A code review caught that `!weeks.length` (a client with no `pulse_weekly_summary` rows at
+> all) is checked *before* the staleness comparison and `continue`s without incrementing
+> `stale`, so that client trips neither counter. Since the Pulse rollup has never written a
+> row in production (see CLAUDE.md), the case this task's own tests call "the systemic
+> failure" -- a rollup that hasn't landed for anyone -- was exactly the case the
+> `stale === processed` rule failed to catch: `{processed: N, stale: 0, fired: 0}` stayed
+> 200. Task 4b replaces the rule with a separate `evaluated` counter and rewrites this doc
+> comment for real. Read Task 4b for the current behaviour; treat everything below as "what
+> shipped on 2026-08-16", not "what the route does today".
 
 The route's own comment says it: *"Vercel Cron surfaces status codes, not response bodies"*. A `stale` counter that only appears in the JSON body is invisible in the deployment logs, which is the exact failure this plan exists to fix.
 
@@ -748,6 +769,165 @@ Expected: PASS, every test in the file.
 git add app/api/cron/evaluate-alerts/route.ts __tests__/api/cron/evaluate-alerts.test.ts
 git commit -m "feat(alerts): fail the cron when a run was wholly stale or truncated"
 ```
+
+---
+
+### Task 4b: Count clients actually evaluated, not just clients not stale
+
+**Files:**
+- Modify: `lib/alerts/evaluate.ts` (`runAlertEvaluation`)
+- Modify: `app/api/cron/evaluate-alerts/route.ts` (`evaluationStatus`, `GET`, `POST`)
+- Test: `__tests__/lib/alerts/evaluate.test.ts`
+- Test: `__tests__/api/cron/evaluate-alerts.test.ts`
+
+Added in response to a code review finding against Task 4. `runAlertEvaluation` (`lib/alerts/evaluate.ts:102`) does `if (!weeks.length) continue` **before** the staleness check. A client with no `pulse_weekly_summary` rows at all is therefore skipped silently -- not counted in `stale`, and with no log line at all. Driving `runAlertEvaluation` directly with a no-weeks client and a mixed no-weeks/stale pair proved it:
+
+```
+NO-WEEKS RESULT:   {"processed":2,"stale":0,"fired":0,...}  -> 200
+MIXED-SKIP RESULT: {"processed":2,"stale":1,"fired":0,...}  -> 200
+```
+
+Per CLAUDE.md, the Pulse weekly rollup has never written a row in production. So the first Monday after anyone creates an `alert_config`, the cron produces exactly the first case above -- `processed: N, stale: 0, fired: 0` -- 200, green, invisible in both the status code and the logs. That is the silent-green failure this whole plan exists to close, in its most probable form. Task 4's doc comment claim that all-stale "means the Pulse rollup did not land at all" was therefore inverted: the total-non-landing case is the one that did *not* trip it.
+
+The fix is not to fold no-weeks clients into `stale` -- that conflates a brand-new client that has never had a rollup with a client whose rollup stopped landing, and would fire the stale counter on every new workspace (`__tests__/lib/alerts/evaluate.test.ts`'s `'does not count a client with no weeks at all as stale, or as evaluated'` pins the distinction). The fix is a separate counter for "did we evaluate anybody at all".
+
+- [x] **Step 1: Add the `evaluated` counter**
+
+In `lib/alerts/evaluate.ts`, widen the return type (`evaluated` sits next to `processed` and `stale` so the shape reads in pipeline order) and increment the counter only after every skip condition has passed:
+
+```ts
+export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
+  processed: number
+  stale: number
+  evaluated: number
+  fired: number
+  emailed: number
+  deferred: number
+  emailFailures: number
+  notificationFailures: number
+}> {
+  const snapshot = await ports.loadSnapshot()
+  const actions: AlertAction[] = []
+  let stale = 0
+  let evaluated = 0
+
+  for (const config of snapshot.configs) {
+    const weeks = snapshot.weeksByClient[config.client_id] ?? []
+    if (!weeks.length) continue          // not stale, not evaluated
+
+    const latest = weeks[0]
+    const previous = weeks[1]
+
+    if (latest.scan_week !== snapshot.currentScanWeek) {
+      console.warn(/* ... */)
+      stale++
+      continue                            // stale, not evaluated
+    }
+
+    const latestScore = latest.sov_score
+    if (latestScore === null) continue    // not stale, not evaluated
+
+    evaluated++                           // every skip condition passed
+
+    const previousScore = previous?.sov_score
+    // ... policy checks, unchanged ...
+  }
+
+  // ...
+  return {
+    processed: snapshot.configs.length,
+    stale,
+    evaluated,
+    fired: actions.length,
+    emailed,
+    deferred: 0,
+    emailFailures,
+    notificationFailures,
+  }
+}
+```
+
+`evaluated` is deliberately not `fired`: a client can be fully evaluated and legitimately trigger no alert. That is the healthy common case and must stay 200 (`'counts a healthy fresh client as evaluated even when no alert fires'`).
+
+- [x] **Step 2: Replace the status rule**
+
+In `app/api/cron/evaluate-alerts/route.ts`:
+
+```ts
+function evaluationStatus(result: {
+  processed: number
+  evaluated: number
+  deferred: number
+  emailFailures: number
+  notificationFailures: number
+}): number {
+  if (result.emailFailures > 0 || result.notificationFailures > 0) {
+    console.error(`[cron/evaluate-alerts] 502: emailFailures=${result.emailFailures} notificationFailures=${result.notificationFailures}`)
+    return 502
+  }
+  if (result.deferred > 0) {
+    console.error(`[cron/evaluate-alerts] 502: deferred=${result.deferred} alert(s) past the time budget`)
+    return 502
+  }
+  if (result.processed > 0 && result.evaluated === 0) {
+    console.error(`[cron/evaluate-alerts] 502: evaluated 0 of ${result.processed} configured client(s) -- the Pulse rollup likely never landed`)
+    return 502
+  }
+  return 200
+}
+```
+
+`stale` is dropped from the parameter type -- `evaluationStatus` no longer reads it, so keeping it in the signature would be a lying type. It stays in `runAlertEvaluation`'s return shape and the JSON body; only the status decision stopped using it directly. The rule is now "the evaluator ran against at least one config and evaluated none of them", which covers a rollup that is a week behind (all stale), a rollup that has never written a row (all no-weeks -- the case production is actually in), a mix of the two, and every client having a null score, uniformly.
+
+Each 502 branch also gets one `console.error` naming which rule tripped, addressing the route's own comment -- *"Vercel Cron surfaces status codes, not response bodies"* -- applying to the cause as much as the failure. The per-client detail still lives in `evaluate.ts`'s `console.warn`; this is one line per run, not a re-dump.
+
+- [x] **Step 3: Update the doc comment**
+
+Rewrote `evaluationStatus`'s JSDoc to state the corrected rule plainly (see the function in `app/api/cron/evaluate-alerts/route.ts` for the shipped text) and added half a line noting that `deferred > 0` is currently unreachable -- `runAlertEvaluation` returns the literal `0` until Task 5 adds the producer that gives it a real value, so a reader does not go hunting for a time budget that does not exist yet.
+
+- [x] **Step 4: Tests**
+
+`__tests__/lib/alerts/evaluate.test.ts`:
+- `'does not count a client with no weeks at all as stale, or as evaluated'` (extended from Task 3's test) -- `evaluated: 0` while `stale` stays `0`, pinning the exact distinction that motivated this task.
+- `'counts a healthy fresh client as evaluated even when no alert fires'` -- `evaluated: 1` with `fired: 0`, guarding against conflating the two counters.
+- Every pre-existing full-shape `toEqual`/`resolves.toEqual` assertion on the result (9 sites, not the 7 originally estimated -- two were added by Task 3's own follow-up commit `dac061e` after this plan's count was written) gained `evaluated` at its correct value for that fixture.
+
+`__tests__/api/cron/evaluate-alerts.test.ts`:
+- `{processed: 2, evaluated: 0, stale: 0, ...}` -> **502**, both GET and POST (the never-written-a-row case; this is the one that used to be green). Task 4's own tests only exercised GET; this task adds the mirrored POST case per the file's convention of covering every 502 rule on both handlers.
+- `{processed: 2, evaluated: 1, stale: 1, ...}` -> **200** (mixed: one stale, one evaluated).
+- `{processed: 0, ...}` empty run still -> **200** (unchanged, reconfirmed with `evaluated: 0` added).
+- All 13 `mockResolvedValue` payloads (not 7 -- three were added by Task 4's own tests after this plan's estimate, and this task adds two more) gained `evaluated` at a value consistent with their scenario.
+
+- [x] **Step 5: Run the whole unit suite, lint, typecheck**
+
+Run: `npm run test:unit && npm run lint && npm run typecheck`
+
+Result: **142 files / 1572 tests** passed (up from the 142/1568 baseline this task started from -- 4 new tests). Lint: 0 errors, 0 warnings. Typecheck: exit 0.
+
+- [x] **Step 6: Prove it bites**
+
+Temporarily reverted `evaluationStatus` to the old `result.stale === result.processed` rule (re-adding `stale: number` to its parameter type) and re-ran the two new "evaluated nobody" tests:
+
+```
+ FAIL  __tests__/api/cron/evaluate-alerts.test.ts > POST /api/cron/evaluate-alerts > returns 502 when the run evaluated nobody, mirroring the GET handler
+AssertionError: expected 200 to be 502
+
+ FAIL  __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when the evaluator ran but evaluated nobody, even with zero stale clients
+AssertionError: expected 200 to be 502
+```
+
+Both fail with 200 under the old rule, confirming `{processed: 2, stale: 0, evaluated: 0}` is exactly the case it missed. Restored by re-editing back to `result.evaluated === 0` (not `git checkout`, to avoid discarding other uncommitted work in the same file) and confirmed the restored file is byte-identical to the pre-revert version before re-running the full suite green.
+
+- [x] **Step 7: Commit**
+
+```bash
+git add lib/alerts/evaluate.ts app/api/cron/evaluate-alerts/route.ts \
+  __tests__/lib/alerts/evaluate.test.ts __tests__/api/cron/evaluate-alerts.test.ts \
+  docs/superpowers/plans/2026-08-16-harden-alert-evaluator.md
+git commit -m "fix(alerts): fail the cron when it evaluated nobody, not just when all were stale"
+```
+
+Deliberately out of scope, matching this plan's Task 5/6 boundary: no concurrency, no time budget, and `deferred` stays the literal `0` -- that is Task 5's work, untouched here.
 
 ---
 

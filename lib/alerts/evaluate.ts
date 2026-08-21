@@ -86,6 +86,7 @@ interface AlertAction {
 export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
   processed: number
   stale: number
+  evaluated: number
   fired: number
   emailed: number
   deferred: number
@@ -95,9 +96,17 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
   const snapshot = await ports.loadSnapshot()
   const actions: AlertAction[] = []
   let stale = 0
+  let evaluated = 0
 
   for (const config of snapshot.configs) {
     const weeks = snapshot.weeksByClient[config.client_id] ?? []
+    // A client with no rollup rows at all -- brand new, or the Pulse rollup
+    // has never written for this account -- is skipped here, before the
+    // staleness check below. It is not counted in `stale` (a new workspace is
+    // not a fault) and it is not counted in `evaluated` either. That second
+    // omission used to be invisible: `stale === processed` was the only
+    // escalation rule, and a client that never reaches the staleness check
+    // trips neither counter. `evaluated` exists specifically to catch this.
     if (!weeks.length) continue
 
     const latest = weeks[0]
@@ -113,8 +122,10 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
     // schedule is the expected transient case, not a code fault -- matching
     // how onboarding/complete already draws this line (warn for
     // degraded-but-non-fatal, error for real failures like a failed query or
-    // an unset CRON_SECRET). The systemic case -- every client stale -- is
-    // what escalates to a 502 downstream.
+    // an unset CRON_SECRET). The systemic case -- nobody evaluated, whether
+    // from staleness, an empty rollup, or a mix of the two -- is what
+    // escalates to a 502 downstream, via `evaluated === 0` in
+    // app/api/cron/evaluate-alerts/route.ts.
     if (latest.scan_week !== snapshot.currentScanWeek) {
       console.warn(
         `[alerts] client ${config.client_id}: latest aggregate week is ` +
@@ -127,6 +138,11 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
 
     const latestScore = latest.sov_score
     if (latestScore === null) continue
+
+    // Every skip condition above this line has been checked: this client has
+    // rollup rows, its latest row is the current week, and that row's score
+    // is not null. Its alert policies are about to be assessed for real.
+    evaluated++
 
     const previousScore = previous?.sov_score
 
@@ -215,6 +231,7 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
   return {
     processed: snapshot.configs.length,
     stale,
+    evaluated,
     fired: actions.length,
     emailed,
     deferred: 0,

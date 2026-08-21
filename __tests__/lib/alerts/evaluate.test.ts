@@ -64,7 +64,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, stale: 0, fired: 2, emailed: 2, deferred: 0, emailFailures: 0, notificationFailures: 0 })
+    expect(result).toEqual({ processed: 1, stale: 0, evaluated: 1, fired: 2, emailed: 2, deferred: 0, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).toHaveBeenCalledTimes(2)
     expect(ports.sendAlertEmail).toHaveBeenCalledTimes(2)
     expect(ports.upsertNotification).toHaveBeenNthCalledWith(1, expect.objectContaining({ type: 'sov_threshold' }))
@@ -81,7 +81,10 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, stale: 0, fired: 0, emailed: 0, deferred: 0, emailFailures: 0, notificationFailures: 0 })
+    // evaluated: 0, not 1 -- a null latest score fails the check that gates
+    // `evaluated++`, same as a stale or no-weeks client. This client's alert
+    // policies were never assessed, so it must not count as evaluated.
+    expect(result).toEqual({ processed: 1, stale: 0, evaluated: 0, fired: 0, emailed: 0, deferred: 0, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).not.toHaveBeenCalled()
     expect(ports.sendAlertEmail).not.toHaveBeenCalled()
   })
@@ -96,7 +99,9 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, stale: 0, fired: 0, emailed: 0, deferred: 0, emailFailures: 0, notificationFailures: 0 })
+    // evaluated: 1 here, unlike the test above -- the LATEST score (40) is
+    // what gates evaluation; only the previous score is null.
+    expect(result).toEqual({ processed: 1, stale: 0, evaluated: 1, fired: 0, emailed: 0, deferred: 0, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).not.toHaveBeenCalled()
     expect(ports.sendAlertEmail).not.toHaveBeenCalled()
   })
@@ -110,7 +115,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, stale: 0, fired: 1, emailed: 1, deferred: 0, emailFailures: 0, notificationFailures: 0 })
+    expect(result).toEqual({ processed: 1, stale: 0, evaluated: 1, fired: 1, emailed: 1, deferred: 0, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'sov_threshold' }))
     expect(ports.sendAlertEmail).toHaveBeenCalledWith(expect.objectContaining({
       type: 'sov_threshold',
@@ -143,7 +148,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, stale: 0, fired: 1, emailed: 1, deferred: 0, emailFailures: 0, notificationFailures: 0 })
+    expect(result).toEqual({ processed: 1, stale: 0, evaluated: 1, fired: 1, emailed: 1, deferred: 0, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).toHaveBeenCalledTimes(1)
     expect(ports.sendAlertEmail).toHaveBeenCalledTimes(1)
     expect(ports.upsertNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'sov_recovery' }))
@@ -220,6 +225,7 @@ describe('runAlertEvaluation', () => {
     await expect(runAlertEvaluation(ports)).resolves.toEqual({
       processed: 1,
       stale: 0,
+      evaluated: 1,
       fired: 2,
       emailed: 1,
       deferred: 0,
@@ -240,7 +246,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, stale: 0, fired: 2, emailed: 2, deferred: 0, emailFailures: 0, notificationFailures: 1 })
+    expect(result).toEqual({ processed: 1, stale: 0, evaluated: 1, fired: 2, emailed: 2, deferred: 0, emailFailures: 0, notificationFailures: 1 })
     expect(ports.upsertNotification).toHaveBeenCalledTimes(2)
     expect(ports.sendAlertEmail).toHaveBeenCalledTimes(2)
   })
@@ -272,6 +278,7 @@ describe('runAlertEvaluation', () => {
     expect(result).toEqual({
       processed: 1,
       stale: 1,
+      evaluated: 0,
       fired: 0,
       emailed: 0,
       deferred: 0,
@@ -283,10 +290,13 @@ describe('runAlertEvaluation', () => {
     expect(ports.sendAlertEmail).not.toHaveBeenCalled()
   })
 
-  it('does not count a client with no weeks at all as stale', async () => {
+  it('does not count a client with no weeks at all as stale, or as evaluated', async () => {
     // A brand new client has never had a rollup. That is not the same fault as
     // a client whose rollup stopped landing, and conflating them would make the
-    // stale counter fire on every legitimately new workspace.
+    // stale counter fire on every legitimately new workspace. It is also not
+    // `evaluated`: the `!weeks.length` check runs before evaluated++ can ever
+    // be reached, which is the exact gap `evaluationStatus`'s old
+    // `stale === processed` rule missed -- this client trips neither counter.
     const data = snapshot()
     data.weeksByClient['client-1'] = []
 
@@ -295,7 +305,30 @@ describe('runAlertEvaluation', () => {
     const result = await runAlertEvaluation(ports)
 
     expect(result.stale).toBe(0)
+    expect(result.evaluated).toBe(0)
     expect(result.fired).toBe(0)
+  })
+
+  it('counts a healthy fresh client as evaluated even when no alert fires', async () => {
+    // Guards against conflating `evaluated` with `fired`: a client can be
+    // fully assessed and legitimately trigger nothing. That is the healthy
+    // common case and must not look like the client was skipped.
+    const data = snapshot()
+    data.weeksByClient['client-1'] = [
+      // Above threshold both weeks, and the week-over-week move (2 points) is
+      // well under the 10-point wow_threshold from the default config -- no
+      // threshold crossing, no wow drop, no recovery.
+      { client_id: 'client-1', scan_week: '2026-08-10', sov_score: 70 },
+      { client_id: 'client-1', scan_week: '2026-08-03', sov_score: 72 },
+    ]
+    const { ports } = portsFor(data)
+
+    const result = await runAlertEvaluation(ports)
+
+    expect(result.evaluated).toBe(1)
+    expect(result.fired).toBe(0)
+    expect(ports.upsertNotification).not.toHaveBeenCalled()
+    expect(ports.sendAlertEmail).not.toHaveBeenCalled()
   })
 
   it('skips a stale client while a fresh client in the same run still fires', async () => {
@@ -332,7 +365,7 @@ describe('runAlertEvaluation', () => {
     // both the threshold-crossing and week-over-week policies -- fired/emailed
     // are 2, not 1, for that one fresh client's two independent alerts.
     expect(result).toEqual({
-      processed: 2, stale: 1, fired: 2, emailed: 2, deferred: 0,
+      processed: 2, stale: 1, evaluated: 1, fired: 2, emailed: 2, deferred: 0,
       emailFailures: 0, notificationFailures: 0,
     })
     expect(ports.upsertNotification).toHaveBeenCalledTimes(2)
