@@ -1150,7 +1150,7 @@ git commit -m "feat(alerts): deliver clients concurrently under a time budget"
 
 Two of the three bullets there describe behaviour this plan changed. Leaving them is the same failure Task 5 of the Pulse plan fixed — documentation asserting a defect that no longer exists sends the next person to the wrong place.
 
-- [ ] **Step 1: Replace the truncation bullet**
+- [x] **Step 1: Replace the truncation bullet**
 
 Find the bullet beginning **"The delivery loop is serial and bounded by wall clock, not by row count."** Keep the analysis — it is accurate about why the shape is dangerous — and replace its final sentence (`Mitigation if it becomes real: ...`) with:
 
@@ -1166,7 +1166,7 @@ Find the bullet beginning **"The delivery loop is serial and bounded by wall clo
   rows today, so that work would be speculative.
 ```
 
-- [ ] **Step 2: Replace the staleness bullet**
+- [x] **Step 2: Replace the staleness bullet**
 
 Find the bullet beginning **"Nothing enforces that the week's Pulse rollup landed before alerts read it."** Replace the whole bullet with:
 
@@ -1188,7 +1188,7 @@ Find the bullet beginning **"Nothing enforces that the week's Pulse rollup lande
   per-client log line.
 ```
 
-- [ ] **Step 3: Verify no other doc still states the old behaviour**
+- [x] **Step 3: Verify no other doc still states the old behaviour**
 
 Run:
 
@@ -1198,7 +1198,7 @@ grep -rn "emailed: 0\|serial and bounded\|staleness guard" docs/*.md | grep -v s
 
 Report every hit and fix any that now misdescribe the code. Do **not** edit anything under `docs/superpowers/plans/` — those are historical records of what was believed at the time.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/alert-evaluation-release.md
