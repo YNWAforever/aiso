@@ -24,13 +24,14 @@ import {
  *   neon_auth — provisioned by Neon Auth, never by SQL in this repo. Migration
  *               022 FKs profiles.id into neon_auth.user.
  *   auth      — the DEAD Supabase schema. Migration 003 FKs auth.users and
- *               there are 31 auth.uid() call sites across 8 files. Nothing
- *               here creates it either.
+ *               calls auth.uid() in the policies it creates. Nothing here
+ *               creates the schema either.
  *
- * That second one is a trap: CLAUDE.md calls for dropping the dead `auth`
- * schema and its inert policies. Doing so would stop this harness being able
- * to provision a branch at all, because setup re-runs 003 from scratch every
- * time. Retiring `auth` means shimming it here first.
+ * That second one is a trap, and it is why `auth` is still here. Migration 036
+ * dropped the inert policies, but deliberately did NOT drop this schema: doing
+ * so would stop this harness provisioning a branch at all, because setup
+ * re-runs 003 from scratch every time and 003 needs auth.users and auth.uid()
+ * to exist. Retiring `auth` means shimming it here first, and is its own change.
  *
  * (Creating a fresh, empty *database* instead would avoid the drop entirely,
  * but it would carry neither schema, so 003 and 022 could not apply.)
@@ -133,7 +134,7 @@ export async function setup(): Promise<void> {
     // fires, so every migration, including 027, is applied.
     // Node 24 strips TypeScript natively; no flag is needed.
     execFileSync('node', ['scripts/migrate.ts'], {
-      env: { ...process.env, DATABASE_URL: branch.connectionUri },
+      env: { ...process.env, MIGRATE_DATABASE_URL: branch.connectionUri },
       stdio: 'inherit',
     })
   } catch (err) {

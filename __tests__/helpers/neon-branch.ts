@@ -14,6 +14,14 @@ export const PROJECT_ID = 'red-firefly-93523049'
 export const PRODUCTION_BRANCH_ID = 'br-rough-butterfly-aojtgi92'
 
 /**
+ * The role migrations run as. Passed explicitly to `connection-string`
+ * because every branch created off main now inherits two roles (this one and
+ * `aeo_app`, since migration 037), and neonctl refuses to pick one on its own
+ * once a branch has more than one.
+ */
+const OWNER_ROLE = 'neondb_owner'
+
+/**
  * A hard crash (SIGKILL, closed laptop, CI runner reaped) runs neither
  * teardown() nor setup()'s cleanup path. Neon deletes an expired branch on its
  * own, so a branch lost that way cannot linger.
@@ -104,7 +112,6 @@ export function createTestBranch(name: string): TestBranch {
   let parsed: {
     branch?: Record<string, unknown>
     endpoints?: { host?: string; branch_id?: string }[]
-    connection_uris?: { connection_uri?: string }[]
   }
   try {
     parsed = JSON.parse(out)
@@ -127,34 +134,20 @@ export function createTestBranch(name: string): TestBranch {
   // deleted by the caller's cleanup rather than orphaned.
   created.set(id, '')
 
+  // `branches create`'s response carries no connection string once a branch
+  // has more than one role (ambiguous which role to hand back), which is now
+  // every branch created off main. Fetched separately, naming the role, and
+  // trimmed because the CLI's stdout ends in a newline.
+  const uri = neonctl([
+    'connection-string', id,
+    '--project-id', PROJECT_ID,
+    '--role-name', OWNER_ROLE,
+  ]).trim()
+
   // Everything the destructive path later relies on is asserted here rather
-  // than inferred, so a change to neonctl's JSON shape fails loudly instead of
+  // than inferred, so a change to neonctl's output fails loudly instead of
   // quietly handing back another branch's identity or connection uri.
-  //
-  // As of 2026-08 this key is reliably absent: the production branch acquired
-  // a second Postgres role, `aeo_app`, created out-of-band on 2026-08-16
-  // (likely early least-privilege work — see docs/runbooks/verify-pulse-rollup.md
-  // for the neonctl hazards this file already routes around). Every branch
-  // created off production inherits both roles, and `branches create` omits
-  // `connection_uris` from its response whenever it cannot disambiguate which
-  // role to hand back a uri for — confirmed empirically (6/6 fresh branches:
-  // the response has exactly `{branch, endpoints}`, no `connection_uris` key).
-  // `branches create` is the only neonctl command that would have put a uri
-  // here for free, so when it doesn't, fetch one explicitly rather than fail —
-  // pinned to `neondb_owner`, the role every other piece of this codebase's
-  // tooling already uses (DATABASE_URL, scripts/verify-db-connection.mjs, …).
-  // Deleting the new `aeo_app` role instead would remove the ambiguity too,
-  // but deleting a production role is out of scope for this harness fix.
-  // Checked as "missing" rather than assumed absent, so this keeps working
-  // unmodified if Neon ever starts populating the field again.
-  let uri = parsed.connection_uris?.[0]?.connection_uri
-  let fetchFailure: string | undefined
-  if (typeof uri !== 'string' || !uri) {
-    const fetched = fetchConnectionUriByRole(id)
-    uri = fetched.uri
-    fetchFailure = fetched.error
-  }
-  const uriHost = typeof uri === 'string' ? hostOf(uri) : null
+  const uriHost = uri ? hostOf(uri) : null
   const problems: string[] = []
   if (branch.project_id !== PROJECT_ID) problems.push(`project_id is ${String(branch.project_id)}`)
   if (branch.name !== name) problems.push(`name is ${String(branch.name)}, expected ${name}`)
@@ -163,20 +156,9 @@ export function createTestBranch(name: string): TestBranch {
   }
   if (branch.default === true || branch.primary === true) problems.push('it is the default branch')
   if (id === PRODUCTION_BRANCH_ID) problems.push('it is the production branch')
-  if (!uriHost) {
-    problems.push(
-      fetchFailure
-        ? 'it has no usable connection uri (branches create omitted connection_uris, and the ' +
-          `fallback neonctl connection-string fetch failed: ${fetchFailure})`
-        : 'it has no usable connection uri',
-    )
-  }
+  if (!uriHost) problems.push('it has no usable connection uri')
   // The uri must belong to an endpoint of this same branch — proof that the
-  // connection uri and the branch id in the response describe one thing. This
-  // is also what would catch a `--branch-id` regression in
-  // fetchConnectionUriByRole below: that flag is silently dropped by yargs and
-  // falls back to the project's default (production) branch, whose host does
-  // not match any endpoint returned for this branch.
+  // connection uri and the branch id in the response describe one thing.
   const endpointMatches = parsed.endpoints?.some(
     (e) => e.branch_id === id && typeof e.host === 'string' && hostOf(`postgresql://x@${e.host}/d`) === uriHost,
   )
@@ -190,59 +172,8 @@ export function createTestBranch(name: string): TestBranch {
     )
   }
 
-  created.set(id, uri as string)
-  return { id, connectionUri: uri as string }
-}
-
-/**
- * Fetches an existing branch's connection uri by role, for the now-default
- * case where `branches create`'s response omits `connection_uris` outright
- * (see the comment above this function's call site).
- *
- * The branch identifier is a POSITIONAL argument to `neonctl connection-string`,
- * never `--branch-id` — that flag is not declared on this command, so yargs
- * silently drops it and the command falls back to the project's DEFAULT
- * branch, which here is production. That is exactly the hazard every guard in
- * this file exists to catch, so getting this one call wrong would defeat the
- * entire point of this function. Verified against `neonctl connection-string
- * --help` before writing this call (its only positional is `[branch]`, with
- * no `--branch-id` among its options) — do not "simplify" this into the
- * `--branch-id` form.
- */
-function fetchConnectionUriByRole(id: string): { uri?: string; error?: string } {
-  let out: string
-  try {
-    out = neonctl([
-      'connection-string', id,
-      '--project-id', PROJECT_ID,
-      '--role-name', 'neondb_owner',
-      '--database-name', 'neondb',
-    ])
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) }
-  }
-
-  // `--output json` on this command does not reliably emit JSON — observed
-  // empirically: it printed the bare uri as plain text, not even
-  // quoted. Try JSON first (a string, or an object carrying the uri under a
-  // plausible key) and fall back to the trimmed raw text when it looks like a
-  // postgres uri, rather than assuming either shape.
-  const trimmed = out.trim()
-  try {
-    const parsed: unknown = JSON.parse(trimmed)
-    if (typeof parsed === 'string' && parsed) return { uri: parsed }
-    if (parsed && typeof parsed === 'object') {
-      const candidate =
-        (parsed as Record<string, unknown>).connection_uri ?? (parsed as Record<string, unknown>).uri
-      if (typeof candidate === 'string' && candidate) return { uri: candidate }
-    }
-  } catch {
-    // Not JSON — fall through to the plain-text case below.
-  }
-  if (trimmed.startsWith('postgres://') || trimmed.startsWith('postgresql://')) {
-    return { uri: trimmed }
-  }
-  return { error: 'neonctl connection-string returned no usable uri' }
+  created.set(id, uri)
+  return { id, connectionUri: uri }
 }
 
 /**

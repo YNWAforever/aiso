@@ -335,7 +335,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   rather than checking first is the preferred shape — one statement, no TOCTOU window, and zero
   rows means 404 without distinguishing "absent" from "not yours". See
   `app/api/dashboard/clients/[clientId]/prompts/[promptId]/route.ts`.
-- Migrations in `supabase/migrations/` — 33 files, `001_`–`035_` (no 005/006; directory name is legacy;
+- Migrations in `supabase/migrations/` — 35 files, `001_`–`037_` (no 005/006; directory name is legacy;
   the target is now Neon)
 - **A migration runner now exists:** `scripts/migrate.ts`, run via `npm run migrate`. It
   applies every file absent from the `schema_migrations` ledger, in filename order, each in
@@ -372,17 +372,49 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `pulse_metrics`, `notifications`, `prompt_bank`
 - Neon Auth owns the `neon_auth` schema (`neon_auth.user`, `.session`, …). `profiles.id` FKs
   to `neon_auth.user` (migration `022`).
-- **RLS is enabled but inert — never rely on it.** *(Counts below are unverified — they need
-  a live connection to check `pg_class.relrowsecurity`, `pg_policies` and `pg_roles`. The
-  conclusion holds regardless: nothing here is a backstop.)* 22 of 27 public tables still have
-  `relrowsecurity = true` carrying 21 leftover Supabase-era policies that call `auth.uid()`.
-  They never fire: the app connects as `neondb_owner`, which has `rolbypassrls = true`, and
-  no table sets FORCE ROW LEVEL SECURITY — so `row_security_active()` is false everywhere.
-  **Every query must filter by `account_id` explicitly.** There is no effective backstop.
-- **Latent hazard:** point the app at a non-owner Neon role (or `ALTER ROLE … NOBYPASSRLS`)
-  and those 21 policies activate. `auth.uid()` is a Supabase function that does not exist
-  under Neon Auth, so nearly every query silently returns zero rows. Drop the dead policies
-  before introducing a least-privilege role.
+- **The app connects as `aeo_app`, not `neondb_owner`** (migration `037`). It has blanket DML on
+  `public`, `USAGE`/`SELECT` on sequences, and `SELECT` on `neon_auth."user"` — nothing else. It
+  cannot run DDL, cannot create roles, and cannot write Neon Auth's tables.
+  `__tests__/integration/least-privilege-role.test.ts` asserts each denial by its specific error
+  message, because a bare "it threw" would also pass on a wrong password.
+- **`aeo_app` keeps `BYPASSRLS`, deliberately.** The seven RLS-enabled, zero-policy tables would
+  otherwise return **zero rows silently** to every app query. A freshly created role defaults to
+  `rolbypassrls = false`, so `037` states the keyword and then fails closed if it did not take.
+  Least privilege here is about *grants*, not RLS.
+- **Migrations run through `MIGRATE_DATABASE_URL`, not `DATABASE_URL`** — `aeo_app` cannot perform
+  DDL. `scripts/migrate.ts` does **not** fall back; unset, it fails immediately and names the
+  variable. `__tests__/scripts/migrate-connection-source.test.ts` pins the absence of that fallback.
+- **There is no database-level tenancy backstop. Every query must filter by `account_id`
+  explicitly.** Migration `036` dropped all 30 Supabase-era policies and disabled RLS on the
+  21 tables that carried them. `__tests__/migrations/rls-policy-freeze.test.mjs` fails if a
+  migration after `035` creates a policy, so this cannot grow back by accident; it also
+  asserts `036` disables RLS on exactly the tables whose policies it drops.
+- **Seven tables keep RLS enabled with no policies, on purpose.** Each was given that
+  default-deny posture by the migration that *created* it — this is a convergent convention
+  across four migrations, **not one decision in `027`**: `public_scan_rate_limits` (`023`),
+  `stripe_subscription_processing_leases` and `stripe_webhook_events` (`024`),
+  `authenticated_scan_monthly_usage` (`025`), and `account_report_branding`,
+  `client_reports`, `client_report_versions` (`027`). Look in the creating migration, not in
+  `027`, when changing any of the first four.
+  `__tests__/db/client-report-migration.test.ts` pins the posture for `027`'s three only;
+  `__tests__/integration/migrate.test.ts` pins the exact set of all seven against a real
+  database, so an eighth is a deliberate, reviewed change. Note the posture buys little on
+  its own: each creating migration also revokes table privileges, and a role without grants
+  gets a loud permission error before RLS is ever consulted.
+- **`auth.uid()` exists — it does not error, it returns NULL.** An earlier version of this
+  file claimed the function was absent under Neon. It is present:
+  `select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid`, and nothing sets
+  that GUC. That is why the dead policies were a *silent* hazard rather than a loud one — a
+  non-bypass role would have returned zero rows, not raised — and why they were removed
+  rather than left inert. Among them `scans.auth_update_own_scan` was an `UPDATE` policy
+  granted to `public` whose qualifier was literally `true`.
+- **The dead `auth` schema is deliberately retained.** It holds an empty `auth.users` and
+  `auth.uid()`. Integration branches replay every migration from `001`, and `003` needs both
+  to exist — see `__tests__/integration/setup.ts`. Retiring it means shimming that harness
+  first, and is its own change.
+- Verified against production on 2026-08-16: 34 public tables, `neondb_owner` has
+  `rolbypassrls = true`, and no table sets FORCE ROW LEVEL SECURITY. `neon_auth` is the one
+  login role that does **not** bypass RLS.
 
 ## Testing
 
@@ -420,7 +452,9 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 
 ## Environment Variables
 
-- `DATABASE_URL` — Neon connection string
+- `DATABASE_URL` — Neon connection string, for the least-privilege `aeo_app` role the app runs as.
+  `MIGRATE_DATABASE_URL` is the separate owner connection string, used only by `npm run migrate`;
+  see `.env.example` for the full split.
 - `NEON_AUTH_BASE_URL` / `NEON_AUTH_COOKIE_SECRET` (the latter is **build-time** — see above)
 - `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET`
 - `STRIPE_PRICE_BASIC` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE` — read by
@@ -461,6 +495,16 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `${N8N_MCP_TOKEN}` and `${DATABASE_URL}` — but the old n8n bearer JWT is still reachable in
   history at `bcbe9dc`, and it carries no `exp` claim, so it never self-expires. **Rotating it
   in n8n is still owed**; removing it from HEAD achieved nothing on its own.
+- **`neondb_owner`'s password was rotated on 2026-08-16.** The new password lives in
+  `MIGRATE_DATABASE_URL` in `.env.local`, verified via `npm run migrate -- --verify` (all 37
+  migrations `recorded`); the old password was confirmed dead before the rotation was
+  considered complete. **Local dev's `DATABASE_URL`, n8n's stored Postgres credential, and the
+  MCP Postgres server's shell-exported `DATABASE_URL` still connect as `neondb_owner`** — the
+  new password was applied to them too, so nothing is broken, but none of the three were moved
+  to the least-privilege `aeo_app` role (migration `037`). That move — same DSN already live in
+  Vercel's production `DATABASE_URL` — is a deliberately deferred follow-up, not a gap in the
+  rotation itself. Don't assume it's done without checking `role:` in
+  `scripts/verify-db-connection.mjs`'s output first.
 - `n8n/configure-credentials.sh` and `n8n/deploy-workflows.sh` both now read from env and exit
   if unset. `configure-credentials.sh` goes further and is the pattern to copy: it builds the
   Postgres credential payload through a `python3` heredoc so the password never lands in a
