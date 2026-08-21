@@ -47,6 +47,7 @@ describe('PUT /api/notifications/read-all', () => {
     expect(queries[0]).toContain('read')
     expect(params[0]).toContain('acc-1')
     expect(params[0]).toContain(false)
+    expect(queries[0]).toMatch(/where\s+account_id\s*=\s*\?\s+and\s+read\s*=\s*\?/i)
   })
 
   it('returns ok on success', async () => {
