@@ -236,7 +236,7 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > on the grounds that no producer had ever written that table, but that rationale expired once
 > alert evaluation started writing it (`upsertNotification` in `lib/alerts/neon-store.ts`,
 > deduped by `033`'s unique index on `(client_id, type, scan_week)`). `NotificationBell` is
-> mounted in `app/[lang]/dashboard/layout.tsx`'s header row, so it has an importer now.
+> mounted in `app/[lang]/dashboard/layout.tsx`'s header row, giving it an importer.
 >
 > A fence is not a gate — **restoring one means adding a real gate, not just deleting the
 > `featureUnavailable` call.** The shape to copy is `lib/localTrust/guard.ts`: auth →
