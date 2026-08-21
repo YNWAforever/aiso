@@ -1216,7 +1216,7 @@ The unit tests use a hand-built snapshot, so they prove the evaluator's logic bu
 
 Follow `docs/runbooks/verify-pulse-rollup.md`: the harness provisions and deletes its own branch. **Never set `TEST_DATABASE_URL` yourself.**
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test**
 
 Create `__tests__/integration/alert-staleness.test.ts`:
 
@@ -1283,7 +1283,7 @@ describe('alert snapshot staleness', () => {
 })
 ```
 
-- [ ] **Step 2: Run the integration suite**
+- [x] **Step 2: Run the integration suite**
 
 Run: `REQUIRE_INTEGRATION_TESTS=1 npm run test:integration`
 
@@ -1291,7 +1291,7 @@ Expected: PASS, 8 files / 38 tests (7 files / 36 before this task).
 
 `REQUIRE_INTEGRATION_TESTS=1` turns a skip into a failure — without it, a missing `neonctl` reports success having run nothing.
 
-- [ ] **Step 3: Prove the first test can fail**
+- [x] **Step 3: Prove the first test can fail**
 
 That test is the one that would catch a timezone disagreement, so confirm it bites. In `lib/alerts/neon-store.ts`, temporarily break `loadCurrentScanWeek` by shifting the week:
 
@@ -1311,7 +1311,7 @@ git checkout lib/alerts/neon-store.ts
 
 Re-run and confirm green, and that `git status --short` shows no change to that file.
 
-- [ ] **Step 4: Full verification**
+- [x] **Step 4: Full verification**
 
 ```bash
 npm run lint && npm run typecheck && npm run test:unit
@@ -1325,7 +1325,7 @@ REQUIRE_INTEGRATION_TESTS=1 npm run test:integration
 
 Expected: lint 0 errors / 0 warnings, typecheck exit 0, both suites green. Report all counts.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add __tests__/integration/alert-staleness.test.ts
