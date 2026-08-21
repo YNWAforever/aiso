@@ -7,6 +7,7 @@ import {
   type AlertSnapshot,
   type AlertWeekSnapshot,
 } from '@/lib/alerts/evaluate'
+import { isoDate } from '@/lib/iso-date'
 
 const PAGE_SIZE = 1000
 type Sql = NeonQueryFunction<false, false>
@@ -74,9 +75,9 @@ async function loadSnapshot(sql: Sql): Promise<AlertSnapshot> {
   for (const row of weeklyRows) {
     const week = {
       client_id: row.client_id,
-      scan_week: row.scan_week instanceof Date
-        ? row.scan_week.toISOString().slice(0, 10)
-        : row.scan_week,
+      // Not toISOString(): that reports the previous day at any positive UTC
+      // offset, and this value is the scan_week half of both dedup keys.
+      scan_week: isoDate(row.scan_week, ''),
       sov_score: row.sov_score === null ? null : Number(row.sov_score),
     }
     weeksByClient[row.client_id] = [...(weeksByClient[row.client_id] ?? []), week]
