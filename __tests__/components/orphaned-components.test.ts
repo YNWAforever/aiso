@@ -19,9 +19,9 @@ import { describe, expect, it } from 'vitest'
  * to restore it. What was missing was the decision being visible.
  */
 const ORPHANS: Record<string, string> = {
-  // Pulse read surface. The routes feeding these return 503, and CLAUDE.md
-  // records summary/missed as redundant against clients/[clientId]/overview.
-  // Kept because restoring the standalone /pulse page is still on the table.
+  // Pulse read surface. Kept as the only implementation of this UI, though a
+  // rebuild would need new data routes -- summary/missed were deleted, not
+  // fenced, in the 2026-08-22 pulse-fence cleanup (see CLAUDE.md).
   'pulse/ScanLogSection': 'renders the weekly scan log; its route is fenced',
   'pulse/CompetitorTab': 'competitor view for the fenced Pulse read routes',
   'dashboard/PulseTabs': 'tab chrome for the fenced standalone Pulse page',
