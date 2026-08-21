@@ -237,7 +237,8 @@ describe('createNeonAlertStore', () => {
       }
       // Must resolve, not fall through to the empty default: this test's
       // failure has to come from loadWeeklyRows, not from loadCurrentScanWeek
-      // rejecting first inside the same Promise.all.
+      // rejecting in the earlier Promise.all, which would abort loadSnapshot
+      // before loadWeeklyRows is ever called.
       if (normalized.includes('current_scan_week')) {
         return [{ current_scan_week: '2026-08-10' }]
       }

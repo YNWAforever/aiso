@@ -64,7 +64,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 2, emailed: 2, emailFailures: 0, notificationFailures: 0 })
+    expect(result).toEqual({ processed: 1, stale: 0, fired: 2, emailed: 2, deferred: 0, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).toHaveBeenCalledTimes(2)
     expect(ports.sendAlertEmail).toHaveBeenCalledTimes(2)
     expect(ports.upsertNotification).toHaveBeenNthCalledWith(1, expect.objectContaining({ type: 'sov_threshold' }))
@@ -81,7 +81,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 0, emailed: 0, emailFailures: 0, notificationFailures: 0 })
+    expect(result).toEqual({ processed: 1, stale: 0, fired: 0, emailed: 0, deferred: 0, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).not.toHaveBeenCalled()
     expect(ports.sendAlertEmail).not.toHaveBeenCalled()
   })
@@ -96,7 +96,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 0, emailed: 0, emailFailures: 0, notificationFailures: 0 })
+    expect(result).toEqual({ processed: 1, stale: 0, fired: 0, emailed: 0, deferred: 0, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).not.toHaveBeenCalled()
     expect(ports.sendAlertEmail).not.toHaveBeenCalled()
   })
@@ -110,7 +110,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 1, emailed: 1, emailFailures: 0, notificationFailures: 0 })
+    expect(result).toEqual({ processed: 1, stale: 0, fired: 1, emailed: 1, deferred: 0, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'sov_threshold' }))
     expect(ports.sendAlertEmail).toHaveBeenCalledWith(expect.objectContaining({
       type: 'sov_threshold',
@@ -143,7 +143,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 1, emailed: 1, emailFailures: 0, notificationFailures: 0 })
+    expect(result).toEqual({ processed: 1, stale: 0, fired: 1, emailed: 1, deferred: 0, emailFailures: 0, notificationFailures: 0 })
     expect(ports.upsertNotification).toHaveBeenCalledTimes(1)
     expect(ports.sendAlertEmail).toHaveBeenCalledTimes(1)
     expect(ports.upsertNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'sov_recovery' }))
@@ -219,8 +219,10 @@ describe('runAlertEvaluation', () => {
 
     await expect(runAlertEvaluation(ports)).resolves.toEqual({
       processed: 1,
+      stale: 0,
       fired: 2,
       emailed: 1,
+      deferred: 0,
       emailFailures: 1,
       notificationFailures: 1,
     })
@@ -238,7 +240,7 @@ describe('runAlertEvaluation', () => {
 
     const result = await runAlertEvaluation(ports)
 
-    expect(result).toEqual({ processed: 1, fired: 2, emailed: 2, emailFailures: 0, notificationFailures: 1 })
+    expect(result).toEqual({ processed: 1, stale: 0, fired: 2, emailed: 2, deferred: 0, emailFailures: 0, notificationFailures: 1 })
     expect(ports.upsertNotification).toHaveBeenCalledTimes(2)
     expect(ports.sendAlertEmail).toHaveBeenCalledTimes(2)
   })
@@ -250,6 +252,50 @@ describe('runAlertEvaluation', () => {
     await expect(runAlertEvaluation(ports)).rejects.toThrow('snapshot unavailable')
     expect(ports.upsertNotification).not.toHaveBeenCalled()
     expect(ports.sendAlertEmail).not.toHaveBeenCalled()
+  })
+
+  it('skips a client whose latest aggregate week is not the current week', async () => {
+    // The silent drop this closes. With the rollup not yet landed, weeks[0] is
+    // LAST week's row. The evaluator used to re-derive last week's action,
+    // whose ledger row last week's run already claimed, so the claim returned
+    // false and the outcome was 'suppressed' -- reported as
+    // {fired: 1, emailed: 0, emailFailures: 0}, which is byte-identical to a
+    // healthy idempotent re-run. The client's real current-week alert was never
+    // computed and nothing anywhere said so.
+    const data = snapshot()
+    data.currentScanWeek = '2026-08-17'   // a week later than the fixture rows
+
+    const { ports } = portsFor(data)
+
+    const result = await runAlertEvaluation(ports)
+
+    expect(result).toEqual({
+      processed: 1,
+      stale: 1,
+      fired: 0,
+      emailed: 0,
+      deferred: 0,
+      emailFailures: 0,
+      notificationFailures: 0,
+    })
+    expect(ports.upsertNotification).not.toHaveBeenCalled()
+    expect(ports.claimEmailDelivery).not.toHaveBeenCalled()
+    expect(ports.sendAlertEmail).not.toHaveBeenCalled()
+  })
+
+  it('does not count a client with no weeks at all as stale', async () => {
+    // A brand new client has never had a rollup. That is not the same fault as
+    // a client whose rollup stopped landing, and conflating them would make the
+    // stale counter fire on every legitimately new workspace.
+    const data = snapshot()
+    data.weeksByClient['client-1'] = []
+
+    const { ports } = portsFor(data)
+
+    const result = await runAlertEvaluation(ports)
+
+    expect(result.stale).toBe(0)
+    expect(result.fired).toBe(0)
   })
 })
 

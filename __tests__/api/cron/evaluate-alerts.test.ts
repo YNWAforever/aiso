@@ -42,7 +42,7 @@ describe('POST /api/cron/evaluate-alerts', () => {
       claimEmailDelivery: vi.fn(),
       releaseEmailDelivery: vi.fn(),
     })
-    h.runAlertEvaluation.mockResolvedValue({ processed: 3, fired: 2, emailed: 2, emailFailures: 0, notificationFailures: 0 })
+    h.runAlertEvaluation.mockResolvedValue({ processed: 3, stale: 0, fired: 2, emailed: 2, deferred: 0, emailFailures: 0, notificationFailures: 0 })
   })
 
   afterEach(() => {
@@ -99,8 +99,10 @@ describe('POST /api/cron/evaluate-alerts', () => {
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({
       processed: 3,
+      stale: 0,
       fired: 2,
       emailed: 2,
+      deferred: 0,
       emailFailures: 0,
       notificationFailures: 0,
     })
@@ -118,8 +120,10 @@ describe('POST /api/cron/evaluate-alerts', () => {
     // would read as a green cron while zero alerts were delivered.
     h.runAlertEvaluation.mockResolvedValue({
       processed: 3,
+      stale: 0,
       fired: 2,
       emailed: 0,
+      deferred: 0,
       emailFailures: 2,
       notificationFailures: 0,
     })
@@ -130,8 +134,10 @@ describe('POST /api/cron/evaluate-alerts', () => {
     expect(response.status).toBe(502)
     await expect(response.json()).resolves.toEqual({
       processed: 3,
+      stale: 0,
       fired: 2,
       emailed: 0,
+      deferred: 0,
       emailFailures: 2,
       notificationFailures: 0,
     })
@@ -140,8 +146,10 @@ describe('POST /api/cron/evaluate-alerts', () => {
   it('returns 502 when notificationFailures is greater than zero, even with no email failures', async () => {
     h.runAlertEvaluation.mockResolvedValue({
       processed: 3,
+      stale: 0,
       fired: 2,
       emailed: 2,
+      deferred: 0,
       emailFailures: 0,
       notificationFailures: 2,
     })
@@ -166,7 +174,7 @@ describe('GET /api/cron/evaluate-alerts', () => {
       claimEmailDelivery: vi.fn(),
       releaseEmailDelivery: vi.fn(),
     })
-    h.runAlertEvaluation.mockResolvedValue({ processed: 3, fired: 2, emailed: 2, emailFailures: 0, notificationFailures: 0 })
+    h.runAlertEvaluation.mockResolvedValue({ processed: 3, stale: 0, fired: 2, emailed: 2, deferred: 0, emailFailures: 0, notificationFailures: 0 })
   })
 
   afterEach(() => {
@@ -185,8 +193,10 @@ describe('GET /api/cron/evaluate-alerts', () => {
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({
       processed: 3,
+      stale: 0,
       fired: 2,
       emailed: 2,
+      deferred: 0,
       emailFailures: 0,
       notificationFailures: 0,
     })
@@ -196,8 +206,10 @@ describe('GET /api/cron/evaluate-alerts', () => {
   it('returns 502 when emailFailures is greater than zero, matching the POST handler', async () => {
     h.runAlertEvaluation.mockResolvedValue({
       processed: 3,
+      stale: 0,
       fired: 2,
       emailed: 0,
+      deferred: 0,
       emailFailures: 2,
       notificationFailures: 0,
     })
@@ -208,8 +220,10 @@ describe('GET /api/cron/evaluate-alerts', () => {
     expect(response.status).toBe(502)
     await expect(response.json()).resolves.toEqual({
       processed: 3,
+      stale: 0,
       fired: 2,
       emailed: 0,
+      deferred: 0,
       emailFailures: 2,
       notificationFailures: 0,
     })
@@ -218,8 +232,10 @@ describe('GET /api/cron/evaluate-alerts', () => {
   it('returns 502 when notificationFailures is greater than zero, even with no email failures', async () => {
     h.runAlertEvaluation.mockResolvedValue({
       processed: 3,
+      stale: 0,
       fired: 2,
       emailed: 2,
+      deferred: 0,
       emailFailures: 0,
       notificationFailures: 2,
     })

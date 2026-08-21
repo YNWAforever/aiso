@@ -462,7 +462,7 @@ git commit -m "feat(alerts): carry the database's current scan week on the snaps
 - Modify: `lib/alerts/evaluate.ts:73-183` (`runAlertEvaluation`)
 - Test: `__tests__/lib/alerts/evaluate.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add these two tests to `__tests__/lib/alerts/evaluate.test.ts` inside `describe('runAlertEvaluation', ...)`:
 
@@ -512,13 +512,13 @@ Add these two tests to `__tests__/lib/alerts/evaluate.test.ts` inside `describe(
   })
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `npx vitest run __tests__/lib/alerts/evaluate.test.ts`
 
 Expected: FAIL. The first new test reports `fired: 1, emailed: 1` and no `stale` key — that failing output *is* the bug, printed. Several pre-existing tests also fail now because the expected object gained `stale` and `deferred`; Step 4 fixes them.
 
-- [ ] **Step 3: Implement the guard**
+- [x] **Step 3: Implement the guard**
 
 In `lib/alerts/evaluate.ts`, widen the return type of `runAlertEvaluation`:
 
@@ -583,7 +583,7 @@ Finally add `stale` to the returned object (leave `deferred: 0` out for now — 
 
 > `deferred` is returned as a literal `0` here on purpose, so the return shape settles in one commit rather than churning every `toEqual` in the suite twice. Task 5 gives it a real value.
 
-- [ ] **Step 4: Update the six exact-shape assertions**
+- [x] **Step 4: Update the six exact-shape assertions**
 
 `__tests__/lib/alerts/evaluate.test.ts` asserts the result with `toEqual` in **6** places (search for `result).toEqual({ processed`). Add `stale: 0` and `deferred: 0` to each — every one of those tests uses the default fresh fixture, so both are zero.
 
@@ -603,25 +603,25 @@ For example, the first one becomes:
 
 **Keep `toEqual`.** Do not weaken these to `toMatchObject` — exact-shape assertions are what would catch an unintended field appearing in an API response, and this result object is serialised straight to the cron's JSON body.
 
-- [ ] **Step 5: Run it to verify it passes**
+- [x] **Step 5: Run it to verify it passes**
 
 Run: `npx vitest run __tests__/lib/alerts/evaluate.test.ts`
 
 Expected: PASS, 16 tests.
 
-- [ ] **Step 6: Refresh the route test's mock payloads**
+- [x] **Step 6: Refresh the route test's mock payloads**
 
 `__tests__/api/cron/evaluate-alerts.test.ts` stubs the evaluator with **6** `h.runAlertEvaluation.mockResolvedValue({...})` calls (lines 45, 119, 141, 169, 197, 219). These are *inputs*, not assertions, so they will not fail when the return type grows — they will quietly keep returning the old five-key object.
 
 Add `stale: 0, deferred: 0` to every one of them. This matters more than it looks: Task 4 makes `evaluationStatus` read both keys, and a mock that omits them yields `undefined`. `undefined > 0` is `false` and `undefined === 3` is `false`, so every test would still pass — for the wrong reason, against a payload the real evaluator can no longer produce. That is a mock proving the absence of a behaviour it simply never exercises.
 
-- [ ] **Step 7: Run the whole unit suite**
+- [x] **Step 7: Run the whole unit suite**
 
 Run: `npm run test:unit`
 
 Expected: PASS. Report the file and test counts.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add lib/alerts/evaluate.ts __tests__/lib/alerts/evaluate.test.ts __tests__/api/cron/evaluate-alerts.test.ts

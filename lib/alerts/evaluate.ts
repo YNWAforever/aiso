@@ -85,13 +85,16 @@ interface AlertAction {
 
 export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
   processed: number
+  stale: number
   fired: number
   emailed: number
+  deferred: number
   emailFailures: number
   notificationFailures: number
 }> {
   const snapshot = await ports.loadSnapshot()
   const actions: AlertAction[] = []
+  let stale = 0
 
   for (const config of snapshot.configs) {
     const weeks = snapshot.weeksByClient[config.client_id] ?? []
@@ -99,6 +102,22 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
 
     const latest = weeks[0]
     const previous = weeks[1]
+
+    // Evaluate only the current week. Without this the run re-derives last
+    // week's action, the ledger claim for it already exists, and the outcome is
+    // 'suppressed' -- indistinguishable from a healthy re-run while this
+    // client's real alert is dropped. Nothing orders the Pulse rollup before
+    // this cron except two schedule times three and a half hours apart.
+    if (latest.scan_week !== snapshot.currentScanWeek) {
+      console.error(
+        `[alerts] client ${config.client_id}: latest aggregate week is ` +
+        `${latest.scan_week}, expected ${snapshot.currentScanWeek} — skipping. ` +
+        'The Pulse rollup has not landed for this client this week.',
+      )
+      stale++
+      continue
+    }
+
     const latestScore = latest.sov_score
     if (latestScore === null) continue
 
@@ -188,8 +207,10 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
 
   return {
     processed: snapshot.configs.length,
+    stale,
     fired: actions.length,
     emailed,
+    deferred: 0,
     emailFailures,
     notificationFailures,
   }
