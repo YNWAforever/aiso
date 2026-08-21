@@ -201,7 +201,13 @@ describe('runAlertEvaluation', () => {
       order.push(`email:${email.type}:${email.clientId}`)
     })
 
-    await runAlertEvaluation(ports)
+    // concurrency: 1 keeps clients strictly sequential so the assertion below
+    // stays a precise order check. Delivery concurrency is otherwise per-client
+    // (see "keeps one client's alerts in order..."), not a claim that
+    // evaluation itself happens client by client — the mutation above proves
+    // evaluation for every client is already done before delivery starts,
+    // which holds at any concurrency.
+    await runAlertEvaluation(ports, { concurrency: 1 })
 
     expect(order).toEqual([
       'notification:sov_threshold:client-1', 'email:sov_threshold:client-1',
@@ -370,6 +376,55 @@ describe('runAlertEvaluation', () => {
     })
     expect(ports.upsertNotification).toHaveBeenCalledTimes(2)
     expect(ports.upsertNotification).toHaveBeenCalledWith(expect.objectContaining({ client_id: 'client-fresh' }))
+  })
+
+  it('stops on the time budget and reports the alerts it did not reach', async () => {
+    // Truncation used to be silent: the function was killed mid-loop at
+    // maxDuration, and because loadConfigs orders by ac.id ASC it was the same
+    // suffix of customers every week, with no cron retry for seven days.
+    const configs = Array.from({ length: 4 }, (_, index) =>
+      config({
+        id: `alert-${index}`,
+        client_id: `client-${index}`,
+        client: { id: `client-${index}`, brand_name: `Brand ${index}`, account_id: `account-${index}` },
+      }),
+    )
+    const data = snapshot(configs)
+    for (const item of configs) {
+      data.weeksByClient[item.client_id] = [
+        { client_id: item.client_id, scan_week: '2026-08-10', sov_score: 40 },
+        { client_id: item.client_id, scan_week: '2026-08-03', sov_score: 60 },
+      ]
+      data.emailsByAccount[item.client.account_id] = 'owner@example.com'
+      data.dashboardUrlByClient[item.client_id] = 'https://app.example/d'
+    }
+
+    const { ports } = portsFor(data)
+
+    // A clock that jumps a full budget on its second read, so the first group
+    // of clients is delivered and everything after it is deferred.
+    let reads = 0
+    const now = () => (reads++ === 0 ? 0 : 999_999)
+
+    const result = await runAlertEvaluation(ports, { concurrency: 1, budgetMs: 1_000, now })
+
+    expect(result.deferred).toBeGreaterThan(0)
+    expect(result.emailed + result.deferred).toBe(result.fired)
+  })
+
+  it('keeps one client\'s alerts in order while running clients concurrently', async () => {
+    // Concurrency is per client, never per alert: a threshold crossing and a
+    // week-over-week drop for the same brand must arrive in that order.
+    const { ports, order } = portsFor()
+
+    await runAlertEvaluation(ports, { concurrency: 8 })
+
+    expect(order).toEqual([
+      'notification:sov_threshold',
+      'email:sov_threshold',
+      'notification:sov_wow_drop',
+      'email:sov_wow_drop',
+    ])
   })
 })
 

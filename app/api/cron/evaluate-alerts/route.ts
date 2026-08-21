@@ -30,7 +30,10 @@ function evaluateAlerts() {
     ...createNeonAlertStore(db()),
     sendAlertEmail: deliverAlertEmail,
   }
-  return runAlertEvaluation(ports)
+  // vercel.json gives this route maxDuration 60. Stop at 45s so the run
+  // reports what it deferred instead of being killed mid-loop, which reports
+  // nothing at all.
+  return runAlertEvaluation(ports, { budgetMs: 45_000 })
 }
 
 /**
@@ -50,12 +53,13 @@ function evaluateAlerts() {
  *
  *   deferred > 0     the run hit its time budget and stopped. Work remains
  *                    undone and Vercel Cron does not retry, so the next
- *                    attempt is seven days away. `runAlertEvaluation` returns
- *                    the literal 0 for this today -- Task 5 of
- *                    docs/superpowers/plans/2026-08-16-harden-alert-evaluator.md
- *                    adds the producer that gives it a real value, so this
- *                    branch is currently unreachable. Do not go looking for a
- *                    time budget that does not exist yet.
+ *                    attempt is seven days away. `runAlertEvaluation` groups
+ *                    fired alerts by client and delivers a batch of clients
+ *                    at a time (`AlertEvaluationOptions.concurrency`,
+ *                    `budgetMs` -- see `lib/alerts/evaluate.ts`); whatever is
+ *                    left in the queue when the budget is exceeded is counted
+ *                    here instead of being run until the platform kills the
+ *                    function.
  *
  *   evaluated === 0  the evaluator ran against at least one configured client
  *                    and evaluated none of them.

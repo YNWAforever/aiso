@@ -941,7 +941,7 @@ Two changes, both narrow. Run **clients** concurrently rather than alerts, and s
 
 Grouping by client is not incidental. Two actions for the same client (a threshold crossing and a week-over-week drop) must stay ordered — `__tests__/lib/alerts/evaluate.test.ts` asserts `toHaveBeenNthCalledWith(1, ... 'sov_threshold')` then `(2, ... 'sov_wow_drop')`, and that ordering is what makes the emails read sensibly. Parallelising across clients preserves it; parallelising across actions destroys it.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `__tests__/lib/alerts/evaluate.test.ts`:
 
@@ -996,13 +996,13 @@ Add to `__tests__/lib/alerts/evaluate.test.ts`:
   })
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `npx vitest run __tests__/lib/alerts/evaluate.test.ts`
 
 Expected: FAIL — `runAlertEvaluation` takes one argument, so the options are ignored and `deferred` is the literal `0` from Task 3.
 
-- [ ] **Step 3: Implement it**
+- [x] **Step 3: Implement it**
 
 In `lib/alerts/evaluate.ts`, add the options type above `runAlertEvaluation`:
 
@@ -1105,13 +1105,13 @@ Then replace the whole delivery loop — everything from `let emailed = 0` down 
   }
 ```
 
-- [ ] **Step 4: Run it to verify it passes**
+- [x] **Step 4: Run it to verify it passes**
 
 Run: `npx vitest run __tests__/lib/alerts/evaluate.test.ts`
 
 Expected: PASS, 18 tests.
 
-- [ ] **Step 5: Pass the real budget from the route**
+- [x] **Step 5: Pass the real budget from the route**
 
 In `app/api/cron/evaluate-alerts/route.ts`, change `evaluateAlerts` so the budget is stated where the timeout it defends against is configured:
 
@@ -1128,13 +1128,13 @@ function evaluateAlerts() {
 }
 ```
 
-- [ ] **Step 6: Run the whole unit suite**
+- [x] **Step 6: Run the whole unit suite**
 
 Run: `npm run test:unit`
 
 Expected: PASS, all files. Report the counts.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add lib/alerts/evaluate.ts app/api/cron/evaluate-alerts/route.ts __tests__/lib/alerts/evaluate.test.ts

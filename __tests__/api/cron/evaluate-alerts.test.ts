@@ -109,10 +109,13 @@ describe('POST /api/cron/evaluate-alerts', () => {
     })
     expect(h.db).toHaveBeenCalledOnce()
     expect(h.createNeonAlertStore).toHaveBeenCalledWith('sql')
-    expect(h.runAlertEvaluation).toHaveBeenCalledWith({
-      ...store,
-      sendAlertEmail: h.sendAlertEmail,
-    })
+    expect(h.runAlertEvaluation).toHaveBeenCalledWith(
+      {
+        ...store,
+        sendAlertEmail: h.sendAlertEmail,
+      },
+      { budgetMs: 45_000 },
+    )
   })
 
   it('returns 502 when emailFailures is greater than zero, so Vercel Cron sees a red run', async () => {
@@ -318,10 +321,13 @@ describe('GET /api/cron/evaluate-alerts', () => {
     await GET(cronRequest('test-cron-secret'))
 
     expect(h.createNeonAlertStore).toHaveBeenCalledWith('sql')
-    expect(h.runAlertEvaluation).toHaveBeenCalledWith({
-      ...store,
-      sendAlertEmail: h.sendAlertEmail,
-    })
+    expect(h.runAlertEvaluation).toHaveBeenCalledWith(
+      {
+        ...store,
+        sendAlertEmail: h.sendAlertEmail,
+      },
+      { budgetMs: 45_000 },
+    )
   })
 
   it('returns 502 when every configured client was stale', async () => {

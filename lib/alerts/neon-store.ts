@@ -209,8 +209,10 @@ async function loadWeeklyRows(sql: Sql, clientIds: string[]): Promise<WeeklyRow[
  * snapshot.currentScanWeek` comparison: no client's latest week could ever
  * equal `''`, so every client would be silently skipped as stale --
  * `fired: 0`, with nothing in `emailFailures` or `notificationFailures` to
- * flag it, so `evaluationStatus` would still return 200. Same token, opposite
- * failure mode. Throwing here surfaces the outage as a loud 500 instead,
+ * flag it. `evaluationStatus` would still catch it today, via `evaluated ===
+ * 0` (a wholly stale run evaluates nobody), and return 502 rather than 200 --
+ * but only because that guard exists. Throwing here surfaces the outage as a
+ * loud 500 instead, one step earlier and without depending on that guard,
  * matching this store's existing contract test `'propagates weekly snapshot
  * read failures'`.
  *

@@ -83,7 +83,27 @@ interface AlertAction {
   emailKey: AlertEmailDeliveryKey | null
 }
 
-export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
+export interface AlertEvaluationOptions {
+  /**
+   * How many CLIENTS to deliver concurrently. Not alerts: a client's own
+   * alerts stay sequential so a threshold crossing cannot overtake the
+   * week-over-week drop that accompanies it.
+   */
+  concurrency?: number
+  /**
+   * Wall-clock budget for the delivery phase. Below `vercel.json`'s 60s
+   * maxDuration for this route, so the run stops itself and says what it
+   * skipped instead of being killed mid-send with nothing reported.
+   */
+  budgetMs?: number
+  /** Injected so the budget is testable without a real clock. */
+  now?: () => number
+}
+
+export async function runAlertEvaluation(
+  ports: AlertEvaluationPorts,
+  options: AlertEvaluationOptions = {},
+): Promise<{
   processed: number
   stale: number
   evaluated: number
@@ -205,11 +225,21 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
     }
   }
 
+  const { concurrency = 8, budgetMs = 45_000, now = Date.now } = options
+
   let emailed = 0
   let emailFailures = 0
   let notificationFailures = 0
+  let deferred = 0
 
+  // Group first, so the unit of concurrency is the client.
+  const byClient = new Map<string, AlertAction[]>()
   for (const action of actions) {
+    const key = action.notification?.client_id ?? action.emailKey?.client_id ?? ''
+    byClient.set(key, [...(byClient.get(key) ?? []), action])
+  }
+
+  const deliverOne = async (action: AlertAction) => {
     if (action.notification) {
       try {
         await ports.upsertNotification(action.notification)
@@ -228,13 +258,37 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
     }
   }
 
+  const groups = [...byClient.values()]
+  const startedAt = now()
+
+  for (let index = 0; index < groups.length; index += concurrency) {
+    const batch = groups.slice(index, index + concurrency)
+
+    // Checked per batch rather than per alert: one batch is bounded work, and
+    // stopping here leaves the ledger consistent -- an alert is either fully
+    // delivered or never claimed.
+    if (now() - startedAt > budgetMs) {
+      const remaining = groups.slice(index)
+      deferred = remaining.reduce((total, group) => total + group.length, 0)
+      console.error(
+        `[alerts] time budget exhausted after ${index} of ${groups.length} clients; ` +
+        `${deferred} alert(s) deferred. Vercel Cron does not retry — these wait a week.`,
+      )
+      break
+    }
+
+    await Promise.all(batch.map(async group => {
+      for (const action of group) await deliverOne(action)
+    }))
+  }
+
   return {
     processed: snapshot.configs.length,
     stale,
     evaluated,
     fired: actions.length,
     emailed,
-    deferred: 0,
+    deferred,
     emailFailures,
     notificationFailures,
   }
