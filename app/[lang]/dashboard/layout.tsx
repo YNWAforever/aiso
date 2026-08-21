@@ -34,8 +34,13 @@ export default async function DashboardLayout({
       where account_id = ${profile.account_id} and read = false
     `
     unreadCount = rows[0]?.n ?? 0
-  } catch {
-    // non-critical -- the bell shows 0 rather than breaking the page
+  } catch (error) {
+    // Non-critical -- the bell shows 0 rather than breaking the page. But a
+    // silent catch here means a future regression in this query (a typo'd
+    // column, a broken index) would sit invisible forever: the count always
+    // reads 0 and nothing distinguishes that from "genuinely no unread
+    // notifications." Logging is the only signal anyone gets.
+    console.error('[dashboard] unread notification count failed:', error)
   }
 
   return (
