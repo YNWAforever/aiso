@@ -20,10 +20,10 @@ import { describe, expect, it } from 'vitest'
  */
 const ORPHANS: Record<string, string> = {
   // Pulse read surface. Kept as the only implementation of this UI, though a
-  // rebuild would need new data routes -- summary/missed were deleted, not
+  // rebuild would need new data routes — summary/missed were deleted, not
   // fenced, in the 2026-08-22 pulse-fence cleanup (see CLAUDE.md).
-  'pulse/ScanLogSection': 'renders the weekly scan log; its route is fenced',
-  'pulse/CompetitorTab': 'competitor view for the fenced Pulse read routes',
+  'pulse/ScanLogSection': 'renders the weekly scan log; its data routes are deleted',
+  'pulse/CompetitorTab': 'competitor view for the deleted Pulse read routes',
   'dashboard/PulseTabs': 'tab chrome for the fenced standalone Pulse page',
   // Reachable only through the three above, so orphaned with them. A check that
   // asked "does anything import this" would have called all three live.
