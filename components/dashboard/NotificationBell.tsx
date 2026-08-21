@@ -73,7 +73,7 @@ export function NotificationBell({ initialCount }: { initialCount: number }) {
           {notifications.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">{loaded ? 'No notifications yet.' : 'Loading…'}</div>
           ) : (
-            <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
+            <div className="max-h-80 overflow-y-auto divide-y divide-border">
               {notifications.map(n => (
                 <div key={n.id} className={`px-4 py-3 flex gap-3 ${!n.read ? 'bg-primary/10' : 'opacity-60'}`}>
                   <span className="text-base mt-0.5 flex-shrink-0">{TYPE_ICON[n.type] ?? '🔔'}</span>
