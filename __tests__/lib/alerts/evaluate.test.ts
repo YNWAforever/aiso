@@ -29,6 +29,8 @@ const snapshot = (configs: AlertConfigWithClient[] = [config()]): AlertSnapshot 
   },
   emailsByAccount: { 'account-1': 'owner@example.com' },
   dashboardUrlByClient: { 'client-1': 'https://app.example/en/dashboard/client-1' },
+  // Matches weeksByClient[0] so the default fixture is fresh, not stale.
+  currentScanWeek: '2026-08-08',
 })
 
 function portsFor(data: AlertSnapshot = snapshot()) {

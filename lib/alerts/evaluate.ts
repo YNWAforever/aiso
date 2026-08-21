@@ -22,6 +22,14 @@ export interface AlertSnapshot {
   weeksByClient: Record<string, AlertWeekSnapshot[]>
   emailsByAccount: Record<string, string | null | undefined>
   dashboardUrlByClient: Record<string, string | undefined>
+  /**
+   * The ISO Monday of the week the DATABASE believes it is now.
+   *
+   * Required, not optional, so every construction site is forced to supply it.
+   * An optional field would let a caller omit it and silently disable the
+   * staleness guard, which is the one thing this field exists to prevent.
+   */
+  currentScanWeek: string
 }
 
 export type AlertNotificationInput = Omit<Notification, 'id' | 'created_at'>

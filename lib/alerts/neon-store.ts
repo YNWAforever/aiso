@@ -54,13 +54,17 @@ export function createNeonAlertStore(sql: Sql): NeonAlertStore {
 }
 
 async function loadSnapshot(sql: Sql): Promise<AlertSnapshot> {
-  const configs = await loadConfigs(sql)
+  const [configs, currentScanWeek] = await Promise.all([
+    loadConfigs(sql),
+    loadCurrentScanWeek(sql),
+  ])
   if (!configs.length) {
     return {
       configs: [],
       weeksByClient: {},
       emailsByAccount: {},
       dashboardUrlByClient: {},
+      currentScanWeek,
     }
   }
 
@@ -97,6 +101,7 @@ async function loadSnapshot(sql: Sql): Promise<AlertSnapshot> {
         `${process.env.NEXT_PUBLIC_APP_URL}/en/dashboard/${config.client_id}`,
       ]),
     ),
+    currentScanWeek,
   }
 }
 
@@ -185,6 +190,22 @@ async function loadWeeklyRows(sql: Sql, clientIds: string[]): Promise<WeeklyRow[
     WHERE row_number <= 2
     ORDER BY client_id, row_number ASC
   `) as WeeklyRow[]
+}
+
+/**
+ * The Monday that starts the current ISO week, as Postgres reckons it.
+ *
+ * Deliberately a database round-trip rather than a `new Date()` call: the rows
+ * this is compared against were written by `computeWeeklySummary` using
+ * `date_trunc('week', ...)` on the same server, and two clocks that disagree
+ * would make a healthy client look stale (or worse, the reverse).
+ */
+async function loadCurrentScanWeek(sql: Sql): Promise<string> {
+  const rows = (await sql`
+    SELECT date_trunc('week', now())::date AS current_scan_week
+  `) as Array<{ current_scan_week: string | Date }>
+
+  return isoDate(rows[0]?.current_scan_week, '')
 }
 
 async function loadEmailRows(sql: Sql, accountIds: string[]): Promise<EmailRow[]> {

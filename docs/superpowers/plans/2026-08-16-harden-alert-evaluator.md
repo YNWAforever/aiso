@@ -298,7 +298,7 @@ git commit -m "refactor(dates): share one ISO-date normaliser and fix the alert 
 - Modify: `lib/alerts/neon-store.ts:55-98` (`loadSnapshot`)
 - Test: `__tests__/lib/alerts/neon-store.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add this to `__tests__/lib/alerts/neon-store.test.ts`, inside the existing top-level `describe`.
 
@@ -327,13 +327,13 @@ That file already has the mocking helper you need — `makeSql(respond)` at the 
 
 Note the responder returns `[]` for every other query, which drives `loadConfigs` down its zero-config early return. That is the path this test wants — it isolates the week lookup from config loading, and proves the week is fetched even when there are no configs (the early return must still carry it, per Step 4).
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `npx vitest run __tests__/lib/alerts/neon-store.test.ts`
 
 Expected: FAIL — `currentScanWeek` is `undefined`, and TypeScript would also reject the property if tests were typechecked (they are excluded from `tsc --noEmit` in this repo, so the failure surfaces at runtime only).
 
-- [ ] **Step 3: Add the field to the snapshot type**
+- [x] **Step 3: Add the field to the snapshot type**
 
 In `lib/alerts/evaluate.ts`, change the `AlertSnapshot` interface:
 
@@ -354,7 +354,7 @@ export interface AlertSnapshot {
 }
 ```
 
-- [ ] **Step 4: Load it in the store**
+- [x] **Step 4: Load it in the store**
 
 In `lib/alerts/neon-store.ts`, add this function next to `loadEmailRows`:
 
@@ -415,13 +415,13 @@ and add `currentScanWeek` to the final return object alongside `dashboardUrlByCl
 }
 ```
 
-- [ ] **Step 5: Run it to verify it passes**
+- [x] **Step 5: Run it to verify it passes**
 
 Run: `npx vitest run __tests__/lib/alerts/neon-store.test.ts`
 
 Expected: PASS, all tests in the file.
 
-- [ ] **Step 6: Fix the unit-test snapshot helper**
+- [x] **Step 6: Fix the unit-test snapshot helper**
 
 `__tests__/lib/alerts/evaluate.test.ts` builds snapshots with a `snapshot()` helper (line 22). Add the field so its fixtures stay valid — use the same week as the fixture's latest row, so existing tests keep firing their alerts:
 
@@ -441,13 +441,13 @@ const snapshot = (configs: AlertConfigWithClient[] = [config()]): AlertSnapshot 
 })
 ```
 
-- [ ] **Step 7: Run the alert suites**
+- [x] **Step 7: Run the alert suites**
 
 Run: `npx vitest run __tests__/lib/alerts/ __tests__/api/cron/evaluate-alerts.test.ts`
 
 Expected: PASS. The evaluator does not read `currentScanWeek` yet, so behaviour is unchanged — this task only makes the value available.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add lib/alerts/evaluate.ts lib/alerts/neon-store.ts __tests__/lib/alerts/neon-store.test.ts __tests__/lib/alerts/evaluate.test.ts

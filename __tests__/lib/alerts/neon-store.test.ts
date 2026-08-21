@@ -94,6 +94,9 @@ describe('createNeonAlertStore', () => {
       if (normalized.includes('from public.profiles')) {
         return [{ account_id: 'account-1', email: 'owner@example.com' }]
       }
+      if (normalized.includes('current_scan_week')) {
+        return [{ current_scan_week: '2026-08-08' }]
+      }
       throw new Error(`unexpected SQL: ${text}`)
     })
 
@@ -126,6 +129,9 @@ describe('createNeonAlertStore', () => {
       }
       if (normalized.includes('from public.profiles')) {
         return [{ account_id: 'account-1', email: 'owner@example.com' }]
+      }
+      if (normalized.includes('current_scan_week')) {
+        return [{ current_scan_week: '2026-08-08' }]
       }
       throw new Error(`unexpected SQL: ${text}`)
     })
@@ -164,6 +170,9 @@ describe('createNeonAlertStore', () => {
       if (normalized.includes('from public.profiles')) {
         return [{ account_id: 'account-1', email: 'owner@example.com' }]
       }
+      if (normalized.includes('current_scan_week')) {
+        return [{ current_scan_week: '2026-08-10' }]
+      }
       throw new Error(`unexpected SQL: ${text}`)
     })
 
@@ -190,6 +199,25 @@ describe('createNeonAlertStore', () => {
       false,
       '2026-08-08',
     ]))
+  })
+
+  it('reads the current scan week from Postgres rather than the app clock', async () => {
+    // Every other writer and reader derives the week in SQL
+    // (lib/pulse/schedule.ts:56, :68; lib/pulse/summary.ts WEEK_START_SQL).
+    // Deriving it from new Date() here would create a second definition of
+    // "this week" that disagrees whenever the app server's timezone differs
+    // from the database's -- and this value decides whether a client's alert
+    // is evaluated at all.
+    const isWeekQuery = (text: string) => /date_trunc\('week', now\(\)\)/.test(text)
+
+    const { sql, calls } = makeSql(call =>
+      isWeekQuery(call.text) ? [{ current_scan_week: '2026-08-10' }] : [],
+    )
+
+    const snapshot = await createNeonAlertStore(sql).loadSnapshot()
+
+    expect(snapshot.currentScanWeek).toBe('2026-08-10')
+    expect(calls.some(call => isWeekQuery(call.text))).toBe(true)
   })
 
   it('propagates weekly snapshot read failures', async () => {
