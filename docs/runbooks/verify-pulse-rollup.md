@@ -84,7 +84,26 @@ scripts/neon branches list --project-id red-firefly-93523049
 - **`neonctl connection-string --branch-id <id>` returns the *parent's* endpoint, not
   the branch's.** Observed directly: asked for a freshly created branch's DSN, it
   returned the production host. Anything seeded with that DSN lands in production.
-  This is the concrete reason the manual-DSN approach was abandoned.
+  This is the concrete reason the manual-DSN approach was abandoned. The branch
+  identifier on this command is a POSITIONAL argument (`neonctl connection-string
+  <id> ...`), not `--branch-id` — that flag is not declared on the command, so
+  yargs silently drops it and the command falls back to the project's default
+  branch (production). `__tests__/helpers/neon-branch.ts`'s
+  `fetchConnectionUriByRole()` uses the positional form for exactly this reason,
+  and its endpoint↔uri identity check would still catch a `--branch-id` regression
+  even if someone reintroduced it — verified directly as part of hardening that fix.
+- **`branches create` omits `connection_uris` from its response whenever the
+  project has more than one Postgres role and it cannot pick one unambiguously.**
+  The production branch acquired a second role, `aeo_app`, out-of-band on
+  2026-08-16 (alongside the original `neondb_owner`), and every branch created
+  off it since inherits both — so this project's `branches create` response is
+  now reliably `{branch, endpoints}` with no `connection_uris` key at all
+  (confirmed empirically, 6/6 fresh branches). `createTestBranch()` fetches the
+  uri explicitly instead, pinned to `neondb_owner` — the role every other piece
+  of this codebase's tooling already uses — via the positional
+  `connection-string` form above. Deleting the `aeo_app` role would remove the
+  ambiguity too, but that is a production change and out of scope for this
+  harness.
 
 ## What a green run proves
 
