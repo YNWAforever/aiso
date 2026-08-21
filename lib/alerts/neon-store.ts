@@ -75,8 +75,10 @@ async function loadSnapshot(sql: Sql): Promise<AlertSnapshot> {
   for (const row of weeklyRows) {
     const week = {
       client_id: row.client_id,
-      // Not toISOString(): that reports the previous day at any positive UTC
-      // offset, and this value is the scan_week half of both dedup keys.
+      // This value is the scan_week half of both dedup keys. The '' fallback
+      // is unreachable in practice -- pulse_weekly_summary.scan_week is
+      // `date not null` -- and deliberate: a missing value should degrade to
+      // a counted failure downstream, not a wrong-but-plausible date string.
       scan_week: isoDate(row.scan_week, ''),
       sov_score: row.sov_score === null ? null : Number(row.sov_score),
     }

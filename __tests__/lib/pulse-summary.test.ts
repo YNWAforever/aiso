@@ -83,8 +83,11 @@ describe('computeWeeklySummary', () => {
     //
     // `new Date(y, m, d)` is local midnight, which is what the driver builds for
     // a zoneless Postgres `date`. The shape assertion is the timezone-independent
-    // half; the equality additionally pins that we read local components rather
-    // than `toISOString()`, which reports the previous day at any positive offset.
+    // half; the equality pins that isoDate() renders that Date as the expected
+    // calendar-day string. It does NOT by itself distinguish local components
+    // from `toISOString()` -- at TZ=UTC (this suite's default, and CI's) the two
+    // agree exactly. The positive-offset shift is what __tests__/lib/iso-date.test.ts
+    // guards, and that file pins TZ itself so the two implementations diverge.
     const result = await run([{ scan_week: new Date(2026, 0, 5), platform: null }])
 
     expect(result.scanWeek).toMatch(/^\d{4}-\d{2}-\d{2}$/)

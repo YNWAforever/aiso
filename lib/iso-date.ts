@@ -15,8 +15,12 @@
  * `alert_email_deliveries (client_id, type, scan_week)` -- being one day off
  * does not throw. It silently stops deduplicating.
  */
-export function isoDate(value: unknown, fallback: string): string {
+export function isoDate(value: string | Date | null | undefined, fallback: string): string {
   if (value instanceof Date) {
+    // An invalid Date (e.g. new Date('garbage')) must fall back rather than
+    // render 'NaN-NaN-NaN' -- a string that typechecks as a date but is
+    // garbage as a dedup key.
+    if (Number.isNaN(value.getTime())) return fallback
     const month = String(value.getMonth() + 1).padStart(2, '0')
     const day = String(value.getDate()).padStart(2, '0')
     return `${value.getFullYear()}-${month}-${day}`

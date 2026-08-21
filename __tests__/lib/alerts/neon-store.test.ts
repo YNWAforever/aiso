@@ -3,6 +3,13 @@ import type { NeonQueryFunction } from '@neondatabase/serverless'
 import type { AlertNotificationInput } from '@/lib/alerts/evaluate'
 import { createNeonAlertStore } from '@/lib/alerts/neon-store'
 
+// Pin a positive-offset zone before the Date-valued fixture below is
+// constructed: at TZ=UTC (CI's default) a toISOString() implementation and a
+// local-components one agree exactly, so without this pin the regression
+// test that fixture exists for would pass green against either -- same gap
+// __tests__/lib/iso-date.test.ts pins TZ to close.
+process.env.TZ = 'Asia/Hong_Kong'
+
 type SqlCall = { text: string; params: unknown[] }
 type SqlResponder = (call: SqlCall) => unknown[] | Promise<unknown[]>
 
@@ -128,6 +135,33 @@ describe('createNeonAlertStore', () => {
     expect(weeklySql?.text).toMatch(/created_at DESC NULLS LAST,\s*summary\.id DESC/i)
     expect(profileSql?.text).toMatch(/neon_auth\."user"/i)
     expect(profileSql?.text).toMatch(/DISTINCT ON\s*\(p\.account_id\)/i)
+  })
+
+  it('normalizes a driver-supplied Date scan_week to its local ISO day', async () => {
+    // The Date-valued fixture is the point, not incidental: the HTTP driver
+    // returns scan_week as a string already, so every other fixture in this
+    // file that uses a plain string cannot exercise the Date branch of
+    // isoDate() at all -- reverting lib/alerts/neon-store.ts to the old
+    // `toISOString()` ternary would leave this whole file green without it.
+    let configCalls = 0
+    const { sql } = makeSql(({ text }) => {
+      const normalized = text.toLowerCase()
+      if (normalized.includes('from public.alert_configs')) {
+        configCalls += 1
+        return configCalls === 1 ? [configRow()] : []
+      }
+      if (normalized.includes('from public.pulse_weekly_summary')) {
+        return [{ client_id: 'client-1', scan_week: new Date(2026, 7, 10), sov_score: '40' }]
+      }
+      if (normalized.includes('from public.profiles')) {
+        return [{ account_id: 'account-1', email: 'owner@example.com' }]
+      }
+      throw new Error(`unexpected SQL: ${text}`)
+    })
+
+    const snapshot = await createNeonAlertStore(sql).loadSnapshot()
+
+    expect(snapshot.weeksByClient['client-1'][0].scan_week).toBe('2026-08-10')
   })
 
   it('uses the notification conflict target and treats the insert as a no-op result', async () => {

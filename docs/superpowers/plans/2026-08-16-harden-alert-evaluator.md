@@ -122,7 +122,7 @@ Baseline before this plan: **141 files / 1551 unit tests** and **7 files / 36 in
 - Modify: `lib/pulse/summary.ts:23-44` (remove the private `isoDate`, import the shared one)
 - Modify: `lib/alerts/neon-store.ts:77-79` (replace the `toISOString().slice(0, 10)` call)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `__tests__/lib/iso-date.test.ts`:
 
@@ -168,13 +168,13 @@ describe('isoDate', () => {
 })
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `npx vitest run __tests__/lib/iso-date.test.ts`
 
 Expected: FAIL — `Failed to resolve import "@/lib/iso-date"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/iso-date.ts`:
 
@@ -206,13 +206,13 @@ export function isoDate(value: unknown, fallback: string): string {
 }
 ```
 
-- [ ] **Step 4: Run it to verify it passes**
+- [x] **Step 4: Run it to verify it passes**
 
 Run: `npx vitest run __tests__/lib/iso-date.test.ts`
 
 Expected: PASS, 4 tests.
 
-- [ ] **Step 5: Route `lib/pulse/summary.ts` through the shared helper**
+- [x] **Step 5: Route `lib/pulse/summary.ts` through the shared helper**
 
 In `lib/pulse/summary.ts`, **delete** the private `isoDate` function and its doc comment (added in `d243eb5`, currently lines 23–44), and add the import at the top of the file:
 
@@ -226,7 +226,7 @@ Leave the call site at the bottom of `computeWeeklySummary` exactly as it is:
     scanWeek: isoDate(written[0]?.scan_week, scanWeek),
 ```
 
-- [ ] **Step 6: Fix the week-shift in the alert store**
+- [x] **Step 6: Fix the week-shift in the alert store**
 
 In `lib/alerts/neon-store.ts`, add to the imports:
 
@@ -250,13 +250,13 @@ with:
       scan_week: isoDate(row.scan_week, ''),
 ```
 
-- [ ] **Step 7: Run the affected suites**
+- [x] **Step 7: Run the affected suites**
 
 Run: `npx vitest run __tests__/lib/iso-date.test.ts __tests__/lib/pulse-summary.test.ts __tests__/lib/alerts/`
 
 Expected: PASS, all files. `__tests__/lib/pulse-summary.test.ts` includes a test named `'renders a driver-supplied Date as an ISO date, not a locale sentence'` which must still pass — it is the regression test for `d243eb5` and proves the extraction did not change behaviour.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add lib/iso-date.ts __tests__/lib/iso-date.test.ts lib/pulse/summary.ts lib/alerts/neon-store.ts

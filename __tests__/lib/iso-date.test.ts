@@ -9,6 +9,14 @@ import { isoDate } from '@/lib/iso-date'
 process.env.TZ = 'Asia/Hong_Kong'
 
 describe('isoDate', () => {
+  it('runs under the pinned timezone the date assertions depend on', () => {
+    // If this fails, process.env.TZ above did not take effect -- Node worker
+    // threads ignore a runtime mutation, so under Vitest's `threads` pool the
+    // pin is a no-op and every assertion below silently degrades to the
+    // UTC-blind version this file was written to replace. -480 is UTC+8.
+    expect(new Date(2026, 7, 10).getTimezoneOffset()).toBe(-480)
+  })
+
   it('passes a string date through unchanged', () => {
     // The HTTP driver returns `date` columns as 'YYYY-MM-DD' strings already.
     expect(isoDate('2026-08-10', 'fallback')).toBe('2026-08-10')
@@ -35,5 +43,12 @@ describe('isoDate', () => {
     expect(isoDate(undefined, '2026-01-01')).toBe('2026-01-01')
     expect(isoDate(null, '2026-01-01')).toBe('2026-01-01')
     expect(isoDate('', '2026-01-01')).toBe('2026-01-01')
+  })
+
+  it('falls back on an invalid Date rather than rendering NaN-NaN-NaN', () => {
+    // An unparseable Date still passes `instanceof Date` -- only getTime()
+    // reveals it's invalid. Without the guard this renders 'NaN-NaN-NaN', a
+    // string that typechecks as a date but is garbage as a dedup key.
+    expect(isoDate(new Date('garbage'), '2026-01-01')).toBe('2026-01-01')
   })
 })
