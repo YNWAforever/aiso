@@ -476,7 +476,7 @@ Add these two tests to `__tests__/lib/alerts/evaluate.test.ts` inside `describe(
     // healthy idempotent re-run. The client's real current-week alert was never
     // computed and nothing anywhere said so.
     const data = snapshot()
-    data.currentScanWeek = '2026-08-15'   // a week later than the fixture rows
+    data.currentScanWeek = '2026-08-17'   // a week later than the fixture rows
 
     const { ports } = portsFor(data)
 

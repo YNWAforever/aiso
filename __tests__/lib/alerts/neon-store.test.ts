@@ -208,10 +208,14 @@ describe('createNeonAlertStore', () => {
     // "this week" that disagrees whenever the app server's timezone differs
     // from the database's -- and this value decides whether a client's alert
     // is evaluated at all.
+    // A Date fixture, not a string: the HTTP driver returns date columns as
+    // strings already, so a string fixture here cannot exercise the Date
+    // branch of isoDate() at all -- see the neighbouring Date-fixture test
+    // above for why that gap matters.
     const isWeekQuery = (text: string) => /date_trunc\('week', now\(\)\)/.test(text)
 
     const { sql, calls } = makeSql(call =>
-      isWeekQuery(call.text) ? [{ current_scan_week: '2026-08-10' }] : [],
+      isWeekQuery(call.text) ? [{ current_scan_week: new Date(2026, 7, 10) }] : [],
     )
 
     const snapshot = await createNeonAlertStore(sql).loadSnapshot()
@@ -231,10 +235,38 @@ describe('createNeonAlertStore', () => {
       if (normalized.includes('from public.pulse_weekly_summary')) {
         throw new Error('snapshot unavailable')
       }
+      // Must resolve, not fall through to the empty default: this test's
+      // failure has to come from loadWeeklyRows, not from loadCurrentScanWeek
+      // rejecting first inside the same Promise.all.
+      if (normalized.includes('current_scan_week')) {
+        return [{ current_scan_week: '2026-08-10' }]
+      }
       return []
     })
 
     await expect(createNeonAlertStore(sql).loadSnapshot()).rejects.toThrow('snapshot unavailable')
+  })
+
+  it('throws rather than defaulting to an empty current scan week when the query returns no row', async () => {
+    // If this ever fell back to '' instead, the staleness guard's
+    // `latest.scan_week !== snapshot.currentScanWeek` comparison would treat
+    // every client as stale -- fired: 0, with nothing in emailFailures or
+    // notificationFailures to flag it, so evaluationStatus would still return
+    // 200. Throwing here surfaces the outage as a loud 500 instead.
+    let configCalls = 0
+    const { sql } = makeSql(({ text }) => {
+      const normalized = text.toLowerCase()
+      if (normalized.includes('from public.alert_configs')) {
+        configCalls += 1
+        return configCalls === 1 ? [configRow()] : []
+      }
+      if (normalized.includes('current_scan_week')) return []
+      return []
+    })
+
+    await expect(createNeonAlertStore(sql).loadSnapshot()).rejects.toThrow(
+      '[alerts] could not read the current scan week from Postgres',
+    )
   })
 })
 

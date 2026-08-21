@@ -199,13 +199,35 @@ async function loadWeeklyRows(sql: Sql, clientIds: string[]): Promise<WeeklyRow[
  * this is compared against were written by `computeWeeklySummary` using
  * `date_trunc('week', ...)` on the same server, and two clocks that disagree
  * would make a healthy client look stale (or worse, the reverse).
+ *
+ * Throws rather than falling back to `''` when the query returns no row --
+ * deliberately the opposite choice from the `scan_week: isoDate(row.scan_week,
+ * '')` fallback above, and the distinction is load-bearing. There, `''` flows
+ * into an INSERT against `date`-typed columns, so it raises and is *counted*,
+ * as a notification or email failure that surfaces as a 502. Here, `''` would
+ * instead flow into the staleness guard's `latest.scan_week !==
+ * snapshot.currentScanWeek` comparison: no client's latest week could ever
+ * equal `''`, so every client would be silently skipped as stale --
+ * `fired: 0`, with nothing in `emailFailures` or `notificationFailures` to
+ * flag it, so `evaluationStatus` would still return 200. Same token, opposite
+ * failure mode. Throwing here surfaces the outage as a loud 500 instead,
+ * matching this store's existing contract test `'propagates weekly snapshot
+ * read failures'`.
+ *
+ * `app/api/pulse/run/route.ts` (~line 146) runs the same
+ * `date_trunc('week', now())::date` query, under a different alias, and
+ * normalises the result with a bare `String()` rather than `isoDate()` -- the
+ * locale-sentence bug fixed here in `d243eb5`. Left as a known duplication;
+ * unifying the two call sites is a separate task.
  */
 async function loadCurrentScanWeek(sql: Sql): Promise<string> {
   const rows = (await sql`
     SELECT date_trunc('week', now())::date AS current_scan_week
   `) as Array<{ current_scan_week: string | Date }>
 
-  return isoDate(rows[0]?.current_scan_week, '')
+  const week = isoDate(rows[0]?.current_scan_week, '')
+  if (!week) throw new Error('[alerts] could not read the current scan week from Postgres')
+  return week
 }
 
 async function loadEmailRows(sql: Sql, accountIds: string[]): Promise<EmailRow[]> {

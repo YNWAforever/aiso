@@ -23,14 +23,14 @@ const snapshot = (configs: AlertConfigWithClient[] = [config()]): AlertSnapshot 
   configs,
   weeksByClient: {
     'client-1': [
-      { client_id: 'client-1', scan_week: '2026-08-08', sov_score: 40 },
-      { client_id: 'client-1', scan_week: '2026-08-01', sov_score: 60 },
+      { client_id: 'client-1', scan_week: '2026-08-10', sov_score: 40 },
+      { client_id: 'client-1', scan_week: '2026-08-03', sov_score: 60 },
     ],
   },
   emailsByAccount: { 'account-1': 'owner@example.com' },
   dashboardUrlByClient: { 'client-1': 'https://app.example/en/dashboard/client-1' },
   // Matches weeksByClient[0] so the default fixture is fresh, not stale.
-  currentScanWeek: '2026-08-08',
+  currentScanWeek: '2026-08-10',
 })
 
 function portsFor(data: AlertSnapshot = snapshot()) {
@@ -74,8 +74,8 @@ describe('runAlertEvaluation', () => {
   it('does not fire threshold, week-over-week, or recovery policies when the latest score is null', async () => {
     const data = snapshot()
     data.weeksByClient['client-1'] = [
-      { client_id: 'client-1', scan_week: '2026-08-08', sov_score: null },
-      { client_id: 'client-1', scan_week: '2026-08-01', sov_score: 60 },
+      { client_id: 'client-1', scan_week: '2026-08-10', sov_score: null },
+      { client_id: 'client-1', scan_week: '2026-08-03', sov_score: 60 },
     ]
     const { ports } = portsFor(data)
 
@@ -89,8 +89,8 @@ describe('runAlertEvaluation', () => {
   it('treats a null previous score as unknown instead of firing threshold, week-over-week, or recovery policies', async () => {
     const data = snapshot()
     data.weeksByClient['client-1'] = [
-      { client_id: 'client-1', scan_week: '2026-08-08', sov_score: 40 },
-      { client_id: 'client-1', scan_week: '2026-08-01', sov_score: null },
+      { client_id: 'client-1', scan_week: '2026-08-10', sov_score: 40 },
+      { client_id: 'client-1', scan_week: '2026-08-03', sov_score: null },
     ]
     const { ports } = portsFor(data)
 
@@ -104,7 +104,7 @@ describe('runAlertEvaluation', () => {
   it('still fires a threshold action for a first observed below-threshold score when no previous week exists', async () => {
     const data = snapshot()
     data.weeksByClient['client-1'] = [
-      { client_id: 'client-1', scan_week: '2026-08-08', sov_score: 40 },
+      { client_id: 'client-1', scan_week: '2026-08-10', sov_score: 40 },
     ]
     const { ports } = portsFor(data)
 
@@ -130,12 +130,14 @@ describe('runAlertEvaluation', () => {
       configs: [recoveryConfig],
       weeksByClient: {
         'client-recovery': [
-          { client_id: 'client-recovery', scan_week: '2026-08-08', sov_score: 50 },
-          { client_id: 'client-recovery', scan_week: '2026-08-01', sov_score: 45 },
+          { client_id: 'client-recovery', scan_week: '2026-08-10', sov_score: 50 },
+          { client_id: 'client-recovery', scan_week: '2026-08-03', sov_score: 45 },
         ],
       },
       emailsByAccount: { 'account-recovery': 'recovery@example.com' },
       dashboardUrlByClient: { 'client-recovery': 'https://app.example/en/dashboard/client-recovery' },
+      // Matches weeksByClient['client-recovery'][0] so this fixture is fresh.
+      currentScanWeek: '2026-08-10',
     }
     const { ports } = portsFor(recoverySnapshot)
 
@@ -150,8 +152,8 @@ describe('runAlertEvaluation', () => {
 
   it('evaluates all actions before delivering them in deterministic order', async () => {
     const secondConfigWeeks = [
-      { client_id: 'client-2', scan_week: '2026-08-08', sov_score: 60 },
-      { client_id: 'client-2', scan_week: '2026-08-01', sov_score: 75 },
+      { client_id: 'client-2', scan_week: '2026-08-10', sov_score: 60 },
+      { client_id: 'client-2', scan_week: '2026-08-03', sov_score: 75 },
     ]
     const data: AlertSnapshot = {
       configs: [
@@ -166,8 +168,8 @@ describe('runAlertEvaluation', () => {
       ],
       weeksByClient: {
         'client-1': [
-          { client_id: 'client-1', scan_week: '2026-08-08', sov_score: 40 },
-          { client_id: 'client-1', scan_week: '2026-08-01', sov_score: 60 },
+          { client_id: 'client-1', scan_week: '2026-08-10', sov_score: 40 },
+          { client_id: 'client-1', scan_week: '2026-08-03', sov_score: 60 },
         ],
         'client-2': secondConfigWeeks,
       },
@@ -179,6 +181,8 @@ describe('runAlertEvaluation', () => {
         'client-1': 'https://app.example/en/dashboard/client-1',
         'client-2': 'https://app.example/en/dashboard/client-2',
       },
+      // Matches both clients' weeksByClient[0] so this fixture is fresh.
+      currentScanWeek: '2026-08-10',
     }
     const { ports, order } = portsFor(data)
     vi.mocked(ports.upsertNotification).mockImplementation(async notification => {
@@ -288,7 +292,7 @@ describe('email idempotence', () => {
 
     expect(ports.releaseEmailDelivery).toHaveBeenCalledTimes(1)
     expect(ports.releaseEmailDelivery).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'sov_threshold', scan_week: '2026-08-08' }),
+      expect.objectContaining({ type: 'sov_threshold', scan_week: '2026-08-10' }),
     )
 
     // Prove the release actually enables a retry, not just that it was called.
@@ -328,7 +332,7 @@ describe('email idempotence', () => {
       expect.objectContaining({
         client_id: 'client-1',
         recipient: 'owner@example.com',
-        scan_week: '2026-08-08',
+        scan_week: '2026-08-10',
       }),
     )
   })

@@ -25,9 +25,14 @@ export interface AlertSnapshot {
   /**
    * The ISO Monday of the week the DATABASE believes it is now.
    *
-   * Required, not optional, so every construction site is forced to supply it.
-   * An optional field would let a caller omit it and silently disable the
-   * staleness guard, which is the one thing this field exists to prevent.
+   * Required, not optional, so the TypeScript compiler forces every
+   * application construction site to supply it -- an optional field would let
+   * a caller omit it and silently disable the staleness guard, which is the
+   * one thing this field exists to prevent. That guarantee stops at the
+   * `tsc --noEmit` boundary: `tsconfig.json` excludes `__tests__` from
+   * typechecking, so a hand-rolled `: AlertSnapshot` test fixture that omits
+   * this field still compiles and runs. Fixtures must be kept in sync by
+   * hand -- see `__tests__/lib/alerts/evaluate.test.ts`.
    */
   currentScanWeek: string
 }
