@@ -43,12 +43,31 @@ function evaluateAlerts() {
  * returns 200 is invisible in the deployment logs -- every Monday shows green
  * while zero alerts go out. One function decides the status for both GET and
  * POST so they cannot drift apart.
+ *
+ * Two non-delivery faults join them, for the same reason:
+ *
+ *   deferred > 0        the run hit its time budget and stopped. Work remains
+ *                       undone and Vercel Cron does not retry, so the next
+ *                       attempt is seven days away.
+ *   every client stale  the evaluator ran and could not evaluate anybody,
+ *                       which means the Pulse rollup did not land at all.
+ *
+ * Partial staleness stays 200 deliberately: one client's rollup lagging is a
+ * data gap rather than a system fault, and failing the cron for it would train
+ * whoever reads these logs to ignore the alarm. That case is reported by the
+ * per-client console.warn in runAlertEvaluation.
  */
 function evaluationStatus(result: {
+  processed: number
+  stale: number
+  deferred: number
   emailFailures: number
   notificationFailures: number
 }): number {
-  return result.emailFailures > 0 || result.notificationFailures > 0 ? 502 : 200
+  if (result.emailFailures > 0 || result.notificationFailures > 0) return 502
+  if (result.deferred > 0) return 502
+  if (result.processed > 0 && result.stale === result.processed) return 502
+  return 200
 }
 
 /**

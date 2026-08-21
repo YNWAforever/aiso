@@ -301,4 +301,63 @@ describe('GET /api/cron/evaluate-alerts', () => {
       sendAlertEmail: h.sendAlertEmail,
     })
   })
+
+  it('returns 502 when every configured client was stale', async () => {
+    // Not a partial data gap -- this is "the evaluator ran and could not
+    // evaluate anybody", which in practice means the Pulse rollup did not land
+    // at all. A 200 here would show green in the Vercel Cron log every Monday
+    // while no alert was ever computed.
+    h.runAlertEvaluation.mockResolvedValue({
+      processed: 3, stale: 3, fired: 0, emailed: 0,
+      deferred: 0, emailFailures: 0, notificationFailures: 0,
+    })
+    const { GET } = await importRoute()
+
+    const response = await GET(cronRequest('test-cron-secret') as never)
+
+    expect(response.status).toBe(502)
+  })
+
+  it('stays 200 when only some clients were stale', async () => {
+    // One client's rollup lagging is a per-client data gap, not a system fault,
+    // and failing the whole cron for it would train people to ignore the alarm.
+    // The per-client console.warn in the evaluator is the signal for this case.
+    h.runAlertEvaluation.mockResolvedValue({
+      processed: 3, stale: 1, fired: 2, emailed: 2,
+      deferred: 0, emailFailures: 0, notificationFailures: 0,
+    })
+    const { GET } = await importRoute()
+
+    const response = await GET(cronRequest('test-cron-secret') as never)
+
+    expect(response.status).toBe(200)
+  })
+
+  it('returns 502 when the run was truncated before finishing', async () => {
+    h.runAlertEvaluation.mockResolvedValue({
+      processed: 400, stale: 0, fired: 300, emailed: 120,
+      deferred: 180, emailFailures: 0, notificationFailures: 0,
+    })
+    const { GET } = await importRoute()
+
+    const response = await GET(cronRequest('test-cron-secret') as never)
+
+    expect(response.status).toBe(502)
+  })
+
+  it('stays 200 for an empty run with zero configured clients', async () => {
+    // The current production state: zero alert_configs rows, so processed and
+    // stale are both 0. Without the `processed > 0` guard, `0 === 0` would
+    // make an empty-but-healthy run report 502 forever -- this pins that the
+    // guard is actually load-bearing, not just documented as such.
+    h.runAlertEvaluation.mockResolvedValue({
+      processed: 0, stale: 0, fired: 0, emailed: 0,
+      deferred: 0, emailFailures: 0, notificationFailures: 0,
+    })
+    const { GET } = await importRoute()
+
+    const response = await GET(cronRequest('test-cron-secret') as never)
+
+    expect(response.status).toBe(200)
+  })
 })

@@ -638,7 +638,7 @@ git commit -m "fix(alerts): skip stale clients rather than silently re-deriving 
 
 The route's own comment says it: *"Vercel Cron surfaces status codes, not response bodies"*. A `stale` counter that only appears in the JSON body is invisible in the deployment logs, which is the exact failure this plan exists to fix.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `__tests__/api/cron/evaluate-alerts.test.ts`. Read the file first and match its existing mocking idiom for `runAlertEvaluation`.
 
@@ -662,7 +662,7 @@ Add to `__tests__/api/cron/evaluate-alerts.test.ts`. Read the file first and mat
   it('stays 200 when only some clients were stale', async () => {
     // One client's rollup lagging is a per-client data gap, not a system fault,
     // and failing the whole cron for it would train people to ignore the alarm.
-    // The per-client console.error in the evaluator is the signal for this case.
+    // The per-client console.warn in the evaluator is the signal for this case.
     h.runAlertEvaluation.mockResolvedValue({
       processed: 3, stale: 1, fired: 2, emailed: 2,
       deferred: 0, emailFailures: 0, notificationFailures: 0,
@@ -687,13 +687,13 @@ Add to `__tests__/api/cron/evaluate-alerts.test.ts`. Read the file first and mat
   })
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `npx vitest run __tests__/api/cron/evaluate-alerts.test.ts`
 
 Expected: FAIL — all three new tests get `200`, because `evaluationStatus` reads only `emailFailures` and `notificationFailures`.
 
-- [ ] **Step 3: Implement the status rule**
+- [x] **Step 3: Implement the status rule**
 
 In `app/api/cron/evaluate-alerts/route.ts`, replace `evaluationStatus` and extend its doc comment:
 
@@ -720,7 +720,7 @@ In `app/api/cron/evaluate-alerts/route.ts`, replace `evaluationStatus` and exten
  * Partial staleness stays 200 deliberately: one client's rollup lagging is a
  * data gap rather than a system fault, and failing the cron for it would train
  * whoever reads these logs to ignore the alarm. That case is reported by the
- * per-client console.error in runAlertEvaluation.
+ * per-client console.warn in runAlertEvaluation.
  */
 function evaluationStatus(result: {
   processed: number
@@ -736,13 +736,13 @@ function evaluationStatus(result: {
 }
 ```
 
-- [ ] **Step 4: Run it to verify it passes**
+- [x] **Step 4: Run it to verify it passes**
 
 Run: `npx vitest run __tests__/api/cron/evaluate-alerts.test.ts`
 
 Expected: PASS, every test in the file.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/api/cron/evaluate-alerts/route.ts __tests__/api/cron/evaluate-alerts.test.ts
