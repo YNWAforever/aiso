@@ -108,8 +108,15 @@ export async function runAlertEvaluation(ports: AlertEvaluationPorts): Promise<{
     // 'suppressed' -- indistinguishable from a healthy re-run while this
     // client's real alert is dropped. Nothing orders the Pulse rollup before
     // this cron except two schedule times three and a half hours apart.
+    //
+    // console.warn, not console.error: a lagging rollup 3.5 hours after
+    // schedule is the expected transient case, not a code fault -- matching
+    // how onboarding/complete already draws this line (warn for
+    // degraded-but-non-fatal, error for real failures like a failed query or
+    // an unset CRON_SECRET). The systemic case -- every client stale -- is
+    // what escalates to a 502 downstream.
     if (latest.scan_week !== snapshot.currentScanWeek) {
-      console.error(
+      console.warn(
         `[alerts] client ${config.client_id}: latest aggregate week is ` +
         `${latest.scan_week}, expected ${snapshot.currentScanWeek} — skipping. ` +
         'The Pulse rollup has not landed for this client this week.',

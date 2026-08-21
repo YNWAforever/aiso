@@ -297,6 +297,47 @@ describe('runAlertEvaluation', () => {
     expect(result.stale).toBe(0)
     expect(result.fired).toBe(0)
   })
+
+  it('skips a stale client while a fresh client in the same run still fires', async () => {
+    const staleConfig = config({
+      id: 'alert-stale', client_id: 'client-stale',
+      client: { id: 'client-stale', brand_name: 'Stale Co', account_id: 'account-stale' },
+    })
+    const freshConfig = config({
+      id: 'alert-fresh', client_id: 'client-fresh',
+      client: { id: 'client-fresh', brand_name: 'Fresh Co', account_id: 'account-fresh' },
+    })
+    const data: AlertSnapshot = {
+      configs: [staleConfig, freshConfig],
+      weeksByClient: {
+        // Rollup never landed this week for this client -- weeks[0] is last week's row.
+        'client-stale': [{ client_id: 'client-stale', scan_week: '2026-08-03', sov_score: 40 }],
+        'client-fresh': [
+          { client_id: 'client-fresh', scan_week: '2026-08-10', sov_score: 40 },
+          { client_id: 'client-fresh', scan_week: '2026-08-03', sov_score: 60 },
+        ],
+      },
+      emailsByAccount: { 'account-stale': 'stale@example.com', 'account-fresh': 'fresh@example.com' },
+      dashboardUrlByClient: {
+        'client-stale': 'https://app.example/en/dashboard/client-stale',
+        'client-fresh': 'https://app.example/en/dashboard/client-fresh',
+      },
+      currentScanWeek: '2026-08-10',
+    }
+    const { ports } = portsFor(data)
+
+    const result = await runAlertEvaluation(ports)
+
+    // client-fresh drops from 60 to 40 across the 50% threshold, which fires
+    // both the threshold-crossing and week-over-week policies -- fired/emailed
+    // are 2, not 1, for that one fresh client's two independent alerts.
+    expect(result).toEqual({
+      processed: 2, stale: 1, fired: 2, emailed: 2, deferred: 0,
+      emailFailures: 0, notificationFailures: 0,
+    })
+    expect(ports.upsertNotification).toHaveBeenCalledTimes(2)
+    expect(ports.upsertNotification).toHaveBeenCalledWith(expect.objectContaining({ client_id: 'client-fresh' }))
+  })
 })
 
 describe('email idempotence', () => {
