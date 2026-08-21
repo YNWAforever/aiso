@@ -1,8 +1,21 @@
-import { featureUnavailable } from '@/lib/unavailable'
+import { getProfile } from '@/lib/auth'
+import { db } from '@/lib/db'
 
-// Fenced during the Supabase to Neon migration. The Supabase implementation is
-// in git history at the parent of this commit. Restoring it means porting the
-// queries to db(), not reviving code that targets a deleted project.
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
-  return featureUnavailable('notifications')
+  const profile = await getProfile()
+  if (!profile) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+  try {
+    const notifications = await db()`
+      select * from notifications
+      where account_id = ${profile.account_id}
+      order by created_at desc
+      limit 20
+    `
+    return Response.json({ notifications })
+  } catch {
+    return Response.json({ error: 'Notification lookup failed' }, { status: 503 })
+  }
 }
