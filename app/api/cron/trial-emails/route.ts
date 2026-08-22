@@ -47,11 +47,13 @@ export async function GET(req: Request) {
     JOIN profiles p ON p.account_id = a.id
     LEFT JOIN neon_auth."user" u ON u.id = p.id
     WHERE a.trial_started_at IS NOT NULL
+      AND (a.stripe_subscription_id IS NULL OR a.stripe_subscription_id = '')
     ORDER BY a.id ASC, p.id ASC
   `) as TrialAccountRow[]
 
   const appUrl = appOrigin()
   let sent = 0
+  let failed = 0
 
   for (const row of rows) {
     if (!row.email) continue
@@ -61,6 +63,11 @@ export async function GET(req: Request) {
     const due = pendingTrialEmails(days, mask, appUrl)
 
     for (const email of due) {
+      // Send-then-persist, not claim-then-send (contrast lib/alerts/evaluate.ts's
+      // deliverEmail). If the UPDATE below throws after a successful send, the
+      // bit is lost and the next cron run resends this one email — accepted here
+      // because these are low-stakes marketing emails, not billing-critical
+      // alerts, and a full claim/release ledger would be disproportionate.
       try {
         await sendTrialEmail({ to: row.email, subject: email.subject, text: email.text })
         mask |= email.bit
@@ -68,9 +75,10 @@ export async function GET(req: Request) {
         sent++
       } catch (err) {
         console.error(`[cron/trial-emails] failed to send to account ${row.id}:`, err)
+        failed++
       }
     }
   }
 
-  return Response.json({ sent })
+  return Response.json({ sent, failed }, { status: failed > 0 ? 502 : 200 })
 }

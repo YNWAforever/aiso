@@ -217,7 +217,7 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > route is open.
 >
 > Routes whose feature is fenced return `503 FEATURE_UNAVAILABLE` via `lib/unavailable.ts`:
-> `fix/cluster-map`, `fix/content-brief`, `agents/*`, `cron/trial-emails`. **Local
+> `fix/cluster-map`, `fix/content-brief`, `agents/*`. **Local
 > Trust, the alerts *config* route, `notifications/*`, the Pulse producer (`pulse/run`), the
 > whole prompt bank and `pulse/suggest-questions` are restored**. `cron/evaluate-alerts` is now Neon-backed
 > with route-level authentication, and `vercel.json` schedules it weekly at `47 7 * * 1`,
@@ -475,8 +475,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   sends `Authorization: Bearer $CRON_SECRET` to `GET /api/cron/pulse`; that driver then
   sends `x-cron-secret` to `POST /api/pulse/run`. Neither shape is ours to choose — the
   first is Vercel's, the second is the producer's. Both return 500 rather than running if
-  the secret is unset or short. `vercel.json` now schedules the driver weekly;
-  `cron/trial-emails` remains a 503 stub that reads no secret. The third route,
+  the secret is unset or short. `vercel.json` now schedules the driver weekly. `cron/trial-emails` is also restored (2026-08-22), reading CRON_SECRET with the same length-checked comparison as `cron/pulse`. The third route,
   `cron/evaluate-alerts`, is **scheduled weekly** on its own and is not part of that
   chain — it accepts **both** shapes directly on its own handlers: `GET` with
   `Authorization: Bearer` for Vercel Cron, `POST` with `x-cron-secret` for the smoke

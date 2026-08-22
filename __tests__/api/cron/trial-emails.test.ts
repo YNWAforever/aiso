@@ -76,7 +76,7 @@ describe('GET /api/cron/trial-emails', () => {
     const res = await GET(request('test-cron-secret-0123'))
 
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ sent: 4 })
+    expect(await res.json()).toEqual({ sent: 4, failed: 0 })
     expect(h.sendTrialEmail).toHaveBeenCalledTimes(4)
   })
 
@@ -95,7 +95,7 @@ describe('GET /api/cron/trial-emails', () => {
 
     const res = await GET(request('test-cron-secret-0123'))
 
-    expect(await res.json()).toEqual({ sent: 0 })
+    expect(await res.json()).toEqual({ sent: 0, failed: 0 })
     expect(h.sendTrialEmail).not.toHaveBeenCalled()
   })
 
@@ -140,13 +140,40 @@ describe('GET /api/cron/trial-emails', () => {
     const res = await GET(request('test-cron-secret-0123'))
 
     expect(h.sendTrialEmail).toHaveBeenCalledTimes(8)
-    expect(await res.json()).toEqual({ sent: 7 })
+    expect(res.status).toBe(502)
+    expect(await res.json()).toEqual({ sent: 7, failed: 1 })
     expect(consoleError).toHaveBeenCalledWith(
       expect.stringContaining('account-1'),
       expect.any(Error),
     )
 
     consoleError.mockRestore()
+  })
+
+  it('all attempts fail — returns 502 with failed count', async () => {
+    rows = [accountRow({ id: 'account-1' }), accountRow({ id: 'account-2' })]
+    h.sendTrialEmail.mockRejectedValue(new Error('Resend permanently down'))
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const { GET } = await importRoute()
+
+    const res = await GET(request('test-cron-secret-0123'))
+
+    expect(res.status).toBe(502)
+    expect(await res.json()).toEqual({ sent: 0, failed: 8 })
+    expect(h.sendTrialEmail).toHaveBeenCalledTimes(8)
+
+    consoleError.mockRestore()
+  })
+
+  it('happy path (no failures) returns status 200', async () => {
+    const { GET } = await importRoute()
+
+    const res = await GET(request('test-cron-secret-0123'))
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.sent).toBeGreaterThan(0)
+    expect(body.failed).toBe(0)
   })
 
   it('never selects both accounts.id and profiles.id unaliased', async () => {
@@ -163,5 +190,16 @@ describe('GET /api/cron/trial-emails', () => {
     // FROM before checking it for a bare p.id.
     const selectClause = text.slice(text.search(/select/i), text.search(/from/i))
     expect(selectClause).not.toMatch(/\bp\.id\b/i)
+  })
+
+  it('filters out accounts with stripe_subscription_id (converted customers)', async () => {
+    const { GET } = await importRoute()
+    await GET(request('test-cron-secret-0123'))
+
+    const [selectCall] = mockSql.mock.calls
+    const text = (selectCall[0] as TemplateStringsArray).join('?')
+    // Should have the filter in the WHERE clause
+    expect(text).toMatch(/stripe_subscription_id/i)
+    expect(text).toMatch(/WHERE.*stripe_subscription_id/is)
   })
 })
