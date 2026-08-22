@@ -92,8 +92,9 @@ E2E only: `BASE_URL`, `START_DEV_SERVER`, `PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_T
 `CRON_SECRET` (≥16 chars) authenticates the weekly Pulse chain: Vercel Cron calls
 `GET /api/cron/pulse` with `Authorization: Bearer`, and that driver calls
 `POST /api/pulse/run` with `x-cron-secret`. Both return 500 rather than running when it is
-unset. `/api/cron/trial-emails` remains a 503 stub; the Neon alert evaluator is
-release-gated until its migrations are applied.
+unset. `/api/cron/trial-emails` is restored (2026-08-22) and validates the same
+`Authorization: Bearer` shape; `/api/cron/evaluate-alerts` is Neon-backed and scheduled
+weekly, accepting both header shapes on its own handlers.
 
 Dead — read by nothing, listed so nobody re-adds them expecting an effect:
 `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (checkout is server-side only). `RESEND_API_KEY`
