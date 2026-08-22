@@ -31,12 +31,6 @@ const ORPHANS: Record<string, string> = {
   'pulse/QuestionRow': 'only rendered by the orphaned ScanLogSection',
   'pulse/PlatformBar': 'only rendered by the orphaned Pulse read surface',
 
-  // The "no producer in any commit" reason for deleting this expired: alert
-  // evaluation writes notifications now (upsertNotification in
-  // lib/alerts/neon-store.ts). The routes serving the bell are still fenced
-  // though, so it stays orphaned until restore-vs-delete is re-decided.
-  'dashboard/NotificationBell': 'notifications routes still fenced, so nothing feeds it',
-
   // Superseded rather than fenced. The dashboard page renders its own step
   // switch and the sidebar links all five steps again, so WizardProgress now
   // duplicates both. Two assertions in local-trust.test.tsx read its source, so

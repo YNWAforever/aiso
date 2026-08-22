@@ -217,10 +217,9 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > route is open.
 >
 > Routes whose feature is fenced return `503 FEATURE_UNAVAILABLE` via `lib/unavailable.ts`:
-> `fix/cluster-map`, `fix/content-brief`,
-> `notifications/*`, `agents/*`, `cron/trial-emails`. **Local
-> Trust, the alerts *config* route, the Pulse producer (`pulse/run`), the whole prompt bank
-> and `pulse/suggest-questions` are restored**. `cron/evaluate-alerts` is now Neon-backed
+> `fix/cluster-map`, `fix/content-brief`, `agents/*`, `cron/trial-emails`. **Local
+> Trust, the alerts *config* route, `notifications/*`, the Pulse producer (`pulse/run`), the
+> whole prompt bank and `pulse/suggest-questions` are restored**. `cron/evaluate-alerts` is now Neon-backed
 > with route-level authentication, and `vercel.json` schedules it weekly at `47 7 * * 1`,
 > after the Pulse driver; follow `docs/alert-evaluation-release.md` as the pre-deploy
 > migration gate before it carries production traffic.
@@ -233,12 +232,11 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > `onboarding/complete`. All three route files, and their entries in
 > `__tests__/api/fenced-routes.test.ts`, are gone.
 >
-> `notifications/*` **used to be a fourth**, on the grounds that no producer had ever written
-> that table. **That rationale expired**: alert evaluation writes it now (`upsertNotification`
-> in `lib/alerts/neon-store.ts`, deduped by `033`'s unique index on
-> `(client_id, type, scan_week)`), so restore-vs-delete needs deciding on the new facts
-> rather than inheriting the old conclusion. Its only consumer, `NotificationBell`, still has
-> no importer.
+> `notifications/*` **was restored, not deleted** (2026-08-21): it used to be a fourth fence,
+> on the grounds that no producer had ever written that table, but that rationale expired once
+> alert evaluation started writing it (`upsertNotification` in `lib/alerts/neon-store.ts`,
+> deduped by `033`'s unique index on `(client_id, type, scan_week)`). `NotificationBell` is
+> mounted in `app/[lang]/dashboard/layout.tsx`'s header row, giving it an importer.
 >
 > A fence is not a gate — **restoring one means adding a real gate, not just deleting the
 > `featureUnavailable` call.** The shape to copy is `lib/localTrust/guard.ts`: auth →

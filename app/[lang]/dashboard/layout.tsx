@@ -1,6 +1,8 @@
 import { requireAuth } from '@/lib/auth'
+import { db } from '@/lib/db'
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar'
 import { TrialBanner } from '@/components/dashboard/TrialBanner'
+import { NotificationBell } from '@/components/dashboard/NotificationBell'
 import { getTrialStatus } from '@/lib/trial'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 
@@ -25,6 +27,22 @@ export default async function DashboardLayout({
   // the id from useParams instead, which works because it renders inside the
   // route rather than above it.
 
+  let unreadCount = 0
+  try {
+    const rows = await db()`
+      select count(*)::int as n from notifications
+      where account_id = ${profile.account_id} and read = false
+    `
+    unreadCount = rows[0]?.n ?? 0
+  } catch (error) {
+    // Non-critical -- the bell shows 0 rather than breaking the page. But a
+    // silent catch here means a future regression in this query (a typo'd
+    // column, a broken index) would sit invisible forever: the count always
+    // reads 0 and nothing distinguishes that from "genuinely no unread
+    // notifications." Logging is the only signal anyone gets.
+    console.error('[dashboard] unread notification count failed:', error)
+  }
+
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       {entitlement.source === 'trial' && trial.isTrial && !trial.isExpired && (
@@ -33,6 +51,9 @@ export default async function DashboardLayout({
       <div className="flex flex-1 overflow-hidden">
         <DashboardSidebar profile={profile} entitlement={entitlement} />
         <div className="flex-1 flex flex-col overflow-auto">
+          <header className="flex justify-end px-6 py-3 border-b border-border">
+            <NotificationBell initialCount={unreadCount} />
+          </header>
           {children}
         </div>
       </div>
