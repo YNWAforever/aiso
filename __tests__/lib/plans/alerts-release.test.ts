@@ -5,8 +5,6 @@ import { describe, expect, it } from 'vitest'
 
 import { PLAN_CATALOG } from '@/lib/plans/catalog'
 
-type VercelConfig = { crons?: Array<{ path: string }> }
-
 describe('sovAlerts release state', () => {
   it('is available exactly on the plans entitled to alerts', () => {
     expect(PLAN_CATALOG.pro.release.sovAlerts).toBe('available')
@@ -54,9 +52,11 @@ describe('sovAlerts release state', () => {
     const withoutComments = wranglerRaw.replace(/^\s*\/\/.*$/gm, '')
     const workerConfig = JSON.parse(withoutComments) as WranglerConfig
 
-    // The Worker's crons[1] is evaluate-alerts (after pulse at crons[0]).
-    // Both are scheduled; check it's there.
-    const scheduled = (workerConfig.triggers?.crons ?? []).length >= 2
+    // '47 7 * * 1' is evaluate-alerts's schedule — the same constant pinned in
+    // __tests__/config/function-durations.test.ts. Check the actual schedule
+    // is present, not just "the array has enough entries" — a length check
+    // would still pass if evaluate-alerts's entry specifically were removed.
+    const scheduled = (workerConfig.triggers?.crons ?? []).includes('47 7 * * 1')
 
     expect(
       scheduled,
