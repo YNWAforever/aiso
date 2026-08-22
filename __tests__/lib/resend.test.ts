@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { sendAlertEmail } from '@/lib/resend'
+import { sendAlertEmail, sendTrialEmail } from '@/lib/resend'
 
 const h = vi.hoisted(() => ({
   send: vi.fn(),
@@ -55,6 +55,43 @@ describe('sendAlertEmail', () => {
     expect(thrown).toBeInstanceOf(Error)
     expect(thrown).toMatchObject({
       message: 'Resend alert email failed',
+      cause: providerError,
+    })
+  })
+})
+
+describe('sendTrialEmail', () => {
+  beforeEach(() => {
+    h.send.mockReset()
+    process.env.RESEND_API_KEY = 'test-resend-key'
+  })
+
+  it('sends with the trial-emails default from-address when unset', async () => {
+    delete process.env.RESEND_FROM_EMAIL
+    h.send.mockResolvedValue({ data: { id: 'email-1' }, error: null })
+
+    await sendTrialEmail({ to: 'user@example.com', subject: 'Hi', text: 'Body' })
+
+    expect(h.send).toHaveBeenCalledWith({
+      from: 'hello@fimmick-aeo.com',
+      to: 'user@example.com',
+      subject: 'Hi',
+      text: 'Body',
+    })
+  })
+
+  it('rejects when Resend resolves with a provider error object', async () => {
+    const providerError = { message: 'Invalid API key', name: 'validation_error' }
+    h.send.mockResolvedValue({ data: null, error: providerError })
+
+    let thrown: unknown
+    await sendTrialEmail({ to: 'user@example.com', subject: 'Hi', text: 'Body' }).catch(error => {
+      thrown = error
+    })
+
+    expect(thrown).toBeInstanceOf(Error)
+    expect(thrown).toMatchObject({
+      message: 'Resend trial email failed',
       cause: providerError,
     })
   })
