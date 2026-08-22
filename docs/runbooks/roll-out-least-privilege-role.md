@@ -36,8 +36,8 @@ whether the script is correct.
    and both bash and zsh record that full line to shell history by default, the
    same exposure this runbook already routes `DATABASE_URL` around:
 
-       read -rs -p "N8N_API_KEY: " N8N_API_KEY && echo
-       read -rs -p "OPENROUTER_KEY: " OPENROUTER_KEY && echo
+       printf "%s" "N8N_API_KEY: "; read -rs N8N_API_KEY; echo
+       printf "%s" "OPENROUTER_KEY: "; read -rs OPENROUTER_KEY; echo
        export N8N_API_KEY OPENROUTER_KEY
        bash n8n/configure-credentials.sh
 
