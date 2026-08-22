@@ -74,13 +74,14 @@ describe('Local Trust dashboard wiring', () => {
   })
 
   it('keeps Local Trust ROI visible but locked for plans without access', () => {
-    const progress = read('components/dashboard/WizardProgress.tsx')
+    // WizardProgress duplicated this and was deleted (2026-08-22 orphan
+    // cleanup) — DashboardSidebar is the live implementation of the roi step.
+    const sidebar = read('components/dashboard/DashboardSidebar.tsx')
 
-    expect(progress).toContain("key: 'roi'")
-    expect(progress).toContain('features.local_trust_roi')
-    expect(progress).toContain('Local Trust ROI')
-    expect(progress).toContain('Lock')
-    expect(progress).not.toContain('🔒')
+    expect(sidebar).toContain("key: 'roi'")
+    expect(sidebar).toContain('features.local_trust_roi')
+    expect(sidebar).toContain('<Lock')
+    expect(sidebar).not.toContain('🔒')
   })
 
   it('guards Local Trust snapshot generation to scans belonging to this brand', () => {
