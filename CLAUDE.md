@@ -217,8 +217,7 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > route is open.
 >
 > Routes whose feature is fenced return `503 FEATURE_UNAVAILABLE` via `lib/unavailable.ts`:
-> `pulse/onboard`, `pulse/[clientId]/*`, `fix/cluster-map`, `fix/content-brief`,
-> `agents/*`, `cron/trial-emails`. **Local
+> `fix/cluster-map`, `fix/content-brief`, `agents/*`, `cron/trial-emails`. **Local
 > Trust, the alerts *config* route, `notifications/*`, the Pulse producer (`pulse/run`), the
 > whole prompt bank and `pulse/suggest-questions` are restored**. `cron/evaluate-alerts` is now Neon-backed
 > with route-level authentication, and `vercel.json` schedules it weekly at `47 7 * * 1`,
@@ -227,10 +226,11 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > `__tests__/api/fenced-routes.test.ts` is the canonical list and asserts each still 503s, so
 > restoring a route means deleting its entry there too.
 >
-> Three of the remaining fences should be **deleted rather than restored**, and it is worth
-> not re-litigating that: `pulse/[clientId]/summary` and `/missed` are redundant —
-> `clients/[clientId]/overview` is unfenced and already serves both datasets with larger
-> limits — and `pulse/onboard` is superseded by `onboarding/complete`.
+> Three fences **were deleted rather than restored** (2026-08-22): `pulse/[clientId]/summary`
+> and `/missed` were redundant — `clients/[clientId]/overview` is unfenced and already serves
+> both datasets with larger limits — and `pulse/onboard` was superseded by
+> `onboarding/complete`. All three route files, and their entries in
+> `__tests__/api/fenced-routes.test.ts`, are gone.
 >
 > `notifications/*` **was restored, not deleted** (2026-08-21): it used to be a fourth fence,
 > on the grounds that no producer had ever written that table, but that rationale expired once
