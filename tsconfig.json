@@ -36,6 +36,7 @@
     "tests",
     ".worktrees",
     ".codex",
-    ".opencode"
+    ".opencode",
+    "cloudflare"
   ]
 }

@@ -53,3 +53,7 @@ playwright-results.json
 .codex/
 .worktrees/
 .claude/settings.local.json
+
+# Cloudflare Worker
+/cloudflare/cron-worker/node_modules
+/cloudflare/cron-worker/.wrangler

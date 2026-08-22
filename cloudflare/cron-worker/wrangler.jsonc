@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fimmick-aeo-cron-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-22",
+  // Matches lib/app-origin.ts's own DEFAULT_APP_ORIGIN fallback, so a fresh
+  // deploy works without any extra setup step. Override here (or with
+  // `wrangler deploy --var APP_BASE_URL:...`) only when targeting a
+  // non-production environment.
+  "vars": {
+    "APP_BASE_URL": "https://aeo.fimmick.com"
+  },
+  // Vercel Cron's exact three schedules, moved here because Vercel Hobby caps
+  // at 2 crons/day-granularity and Cloudflare's free tier allows 3 per Worker.
+  "triggers": {
+    "crons": [
+      "17 4 * * 1",
+      "47 7 * * 1",
+      "0 9 * * *"
+    ]
+  }
+}
