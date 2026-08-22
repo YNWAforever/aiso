@@ -306,14 +306,100 @@ describe('POST /api/fix/cluster-map', () => {
 })
 
 describe('POST /api/fix/content-brief', () => {
-  it('returns 503 FEATURE_UNAVAILABLE and never calls OpenRouter', async () => {
+  const BRIEF_JSON = '{"titleSuggestions":["A"],"sections":[],"requiredOriginalDataPoints":[],"suggestedFaq":[],"recommendedSchema":{"@type":"Article"},"chunkabilityRequirements":{"idealChunkLength":"600-1000 tokens","answerFirst":true,"selfContained":true}}'
+
+  it('rejects an anonymous caller with 401 and never calls OpenRouter', async () => {
+    vi.mocked(getProfile).mockResolvedValue(null)
     const { POST } = await import('@/app/api/fix/content-brief/route')
 
-    const res = await POST()
+    const res = await POST(post('/api/fix/content-brief', { clientId: 'client-1', targetTopic: 'mortgage rates', industry: 'finance' }))
 
-    expect(res.status).toBe(503)
-    expect(await res.json()).toEqual({ error: 'FEATURE_UNAVAILABLE', feature: 'content-tools' })
+    expect(res.status).toBe(401)
     expect(callOpenRouter).not.toHaveBeenCalled()
+    expect(sqlMock).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 for missing required fields without touching the DB', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    const { POST } = await import('@/app/api/fix/content-brief/route')
+
+    const res = await POST(post('/api/fix/content-brief', { clientId: 'client-1' }))
+
+    expect(res.status).toBe(400)
+    expect(sqlMock).not.toHaveBeenCalled()
+  })
+
+  it('returns 404 (not 403) when the client belongs to another account', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    nextResults = [[]]
+    const { POST } = await import('@/app/api/fix/content-brief/route')
+
+    const res = await POST(post('/api/fix/content-brief', { clientId: 'client-1', targetTopic: 'mortgage rates', industry: 'finance' }))
+
+    expect(res.status).toBe(404)
+    expect(callOpenRouter).not.toHaveBeenCalled()
+  })
+
+  it('returns 500 when the ownership check fails, not a silent success', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    nextResults = [new Error('connection terminated') as never]
+    const { POST } = await import('@/app/api/fix/content-brief/route')
+
+    const res = await POST(post('/api/fix/content-brief', { clientId: 'client-1', targetTopic: 'mortgage rates', industry: 'finance' }))
+
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'Database error' })
+    expect(callOpenRouter).not.toHaveBeenCalled()
+  })
+
+  it('generates a content brief and persists it with the industry authority domains', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    nextResults = [
+      [{ id: 'client-1' }], // ownership check
+      [{ id: 'brief-1' }], // insert
+    ]
+    vi.mocked(callOpenRouter).mockResolvedValue(BRIEF_JSON)
+    const { POST } = await import('@/app/api/fix/content-brief/route')
+
+    const res = await POST(post('/api/fix/content-brief', { clientId: 'client-1', targetTopic: 'mortgage rates', industry: 'finance' }))
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.id).toBe('brief-1')
+    expect(body.brief.targetTopic).toBe('mortgage rates')
+    expect(body.brief.titleSuggestions).toEqual(['A'])
+    expect(body.brief.requiredAuthorities.length).toBeGreaterThan(0)
+    expect(callOpenRouter).toHaveBeenCalledTimes(1)
+    const query = queries[1]!
+    expect(query).toMatch(/insert into content_briefs/i)
+  })
+
+  it('returns 500 when the LLM response is not parseable JSON', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    nextResults = [[{ id: 'client-1' }]]
+    vi.mocked(callOpenRouter).mockResolvedValue('not json at all')
+    const { POST } = await import('@/app/api/fix/content-brief/route')
+
+    const res = await POST(post('/api/fix/content-brief', { clientId: 'client-1', targetTopic: 'mortgage rates', industry: 'finance' }))
+
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'Failed to parse LLM response' })
+    expect(sqlMock).toHaveBeenCalledTimes(1) // ownership check only, no insert attempted
+  })
+
+  it('returns 500 when the content_briefs insert fails, not a response with a missing id', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    nextResults = [
+      [{ id: 'client-1' }], // ownership check
+      new Error('connection terminated') as never, // insert fails
+    ]
+    vi.mocked(callOpenRouter).mockResolvedValue(BRIEF_JSON)
+    const { POST } = await import('@/app/api/fix/content-brief/route')
+
+    const res = await POST(post('/api/fix/content-brief', { clientId: 'client-1', targetTopic: 'mortgage rates', industry: 'finance' }))
+
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'Database error' })
   })
 })
 
