@@ -204,8 +204,9 @@ describe('POST /api/fix', () => {
   })
 })
 
-// Fenced during the Supabase to Neon migration — see lib/unavailable.ts and
-// __tests__/api/fenced-routes.test.ts for the full fenced-route contract.
+// Restored from the Supabase-to-Neon fence (2026-08-23) — was
+// featureUnavailable('content-tools'); see __tests__/api/fenced-routes.test.ts
+// for the still-fenced routes and lib/unavailable.ts for the fence mechanism.
 describe('POST /api/fix/cluster-map', () => {
   const CLUSTER_ROW = { topic: 'mortgage rates', pillar_page_url: 'https://example.com/mortgages', completeness_score: 0.6 }
 
