@@ -207,14 +207,101 @@ describe('POST /api/fix', () => {
 // Fenced during the Supabase to Neon migration — see lib/unavailable.ts and
 // __tests__/api/fenced-routes.test.ts for the full fenced-route contract.
 describe('POST /api/fix/cluster-map', () => {
-  it('returns 503 FEATURE_UNAVAILABLE and never calls OpenRouter', async () => {
+  const CLUSTER_ROW = { topic: 'mortgage rates', pillar_page_url: 'https://example.com/mortgages', completeness_score: 0.6 }
+
+  it('rejects an anonymous caller with 401 and never calls OpenRouter', async () => {
+    vi.mocked(getProfile).mockResolvedValue(null)
     const { POST } = await import('@/app/api/fix/cluster-map/route')
 
-    const res = await POST()
+    const res = await POST(post('/api/fix/cluster-map', { clientId: 'client-1', industry: 'finance' }))
 
-    expect(res.status).toBe(503)
-    expect(await res.json()).toEqual({ error: 'FEATURE_UNAVAILABLE', feature: 'content-tools' })
+    expect(res.status).toBe(401)
     expect(callOpenRouter).not.toHaveBeenCalled()
+    expect(sqlMock).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 for a missing clientId or industry without touching the DB', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    const { POST } = await import('@/app/api/fix/cluster-map/route')
+
+    const res = await POST(post('/api/fix/cluster-map', { clientId: 'client-1' }))
+
+    expect(res.status).toBe(400)
+    expect(sqlMock).not.toHaveBeenCalled()
+  })
+
+  it('returns 404 (not 403) when the client belongs to another account', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    nextResults = [[]] // ownership check: no rows
+    const { POST } = await import('@/app/api/fix/cluster-map/route')
+
+    const res = await POST(post('/api/fix/cluster-map', { clientId: 'client-1', industry: 'finance' }))
+
+    expect(res.status).toBe(404)
+    expect(callOpenRouter).not.toHaveBeenCalled()
+  })
+
+  it('returns 500 when the ownership check fails, not a silent success', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    nextResults = [new Error('connection terminated') as never]
+    const { POST } = await import('@/app/api/fix/cluster-map/route')
+
+    const res = await POST(post('/api/fix/cluster-map', { clientId: 'client-1', industry: 'finance' }))
+
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'Database error' })
+    expect(callOpenRouter).not.toHaveBeenCalled()
+  })
+
+  it('returns 500 when the cluster lookup fails, not a silent success', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    nextResults = [
+      [{ id: 'client-1' }], // ownership check
+      new Error('connection terminated') as never, // cluster lookup fails
+    ]
+    const { POST } = await import('@/app/api/fix/cluster-map/route')
+
+    const res = await POST(post('/api/fix/cluster-map', { clientId: 'client-1', industry: 'finance' }))
+
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'Database error' })
+    expect(callOpenRouter).not.toHaveBeenCalled()
+  })
+
+  it('generates a cluster map for an owned client, scoped to that client', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    nextResults = [
+      [{ id: 'client-1' }], // ownership check
+      [CLUSTER_ROW], // existing clusters
+    ]
+    vi.mocked(callOpenRouter).mockResolvedValue(
+      '{"clientClusters":[],"recommendedNewClusters":[],"priorityOrder":[],"competitorGaps":[]}'
+    )
+    const { POST } = await import('@/app/api/fix/cluster-map/route')
+
+    const res = await POST(post('/api/fix/cluster-map', { clientId: 'client-1', industry: 'finance' }))
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      clusterMap: { clientClusters: [], recommendedNewClusters: [], priorityOrder: [], competitorGaps: [] },
+    })
+    expect(callOpenRouter).toHaveBeenCalledTimes(1)
+    const query = queries[1]!
+    expect(query).toMatch(/from topical_clusters/i)
+    const [, ...params] = sqlMock.mock.calls[1]!
+    expect(params).toEqual(['client-1'])
+  })
+
+  it('returns 500 when the LLM response is not parseable JSON', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    nextResults = [[{ id: 'client-1' }], []]
+    vi.mocked(callOpenRouter).mockResolvedValue('not json at all')
+    const { POST } = await import('@/app/api/fix/cluster-map/route')
+
+    const res = await POST(post('/api/fix/cluster-map', { clientId: 'client-1', industry: 'finance' }))
+
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'Failed to parse LLM response' })
   })
 })
 
