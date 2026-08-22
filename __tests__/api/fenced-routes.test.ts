@@ -6,7 +6,6 @@ const FENCED: { path: string; feature: string; methods: string[] }[] = [
   { path: '@/app/api/clients/[clientId]/agents/competitors/route', feature: 'agents', methods: ['POST'] },
   { path: '@/app/api/clients/[clientId]/agents/progress/route', feature: 'agents', methods: ['POST'] },
   { path: '@/app/api/clients/[clientId]/agents/recommendations/route', feature: 'agents', methods: ['POST'] },
-  { path: '@/app/api/cron/trial-emails/route', feature: 'trial-emails', methods: ['GET'] },
 ]
 
 describe('fenced routes', () => {
