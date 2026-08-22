@@ -31,12 +31,6 @@ const ORPHANS: Record<string, string> = {
   'pulse/QuestionRow': 'only rendered by the orphaned ScanLogSection',
   'pulse/PlatformBar': 'only rendered by the orphaned Pulse read surface',
 
-  // Superseded rather than fenced. The dashboard page renders its own step
-  // switch and the sidebar links all five steps again, so WizardProgress now
-  // duplicates both. Two assertions in local-trust.test.tsx read its source, so
-  // it cannot be deleted without deciding what those should pin instead.
-  'dashboard/WizardProgress': 'superseded by the dashboard page step switch',
-
   'dashboard/PlanGate': 'entitlement wrapper superseded by LockedFeature',
   'CheckItem': 'superseded by the result page check rendering',
   'SaveScanButton': 'superseded by the scan-claim funnel',
