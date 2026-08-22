@@ -74,7 +74,7 @@ describe('Local Trust dashboard wiring', () => {
   })
 
   it('keeps Local Trust ROI visible but locked for plans without access', () => {
-    // WizardProgress duplicates this and will be deleted as part of the orphan
+    // WizardProgress duplicated this and was deleted as part of the orphan
     // cleanup (see orphaned-components.test.ts) — DashboardSidebar is the live
     // implementation of the roi step.
     const sidebar = read('components/dashboard/DashboardSidebar.tsx')
