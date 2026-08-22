@@ -44,12 +44,19 @@ describe('sovAlerts release state', () => {
       .some(plan => PLAN_CATALOG[plan].release.sovAlerts === 'available')
     if (!claimsAvailable) return
 
-    const config = JSON.parse(
-      readFileSync(join(process.cwd(), 'vercel.json'), 'utf8'),
-    ) as VercelConfig
-    const scheduled = config.crons?.some(
-      cron => cron.path === '/api/cron/evaluate-alerts',
+    // Scheduling moved to the Cloudflare Worker in wrangler.jsonc. Strip comments
+    // before parsing since JSON.parse rejects `//`.
+    type WranglerConfig = { triggers?: { crons?: string[] } }
+    const wranglerRaw = readFileSync(
+      join(process.cwd(), 'cloudflare/cron-worker/wrangler.jsonc'),
+      'utf8',
     )
+    const withoutComments = wranglerRaw.replace(/^\s*\/\/.*$/gm, '')
+    const workerConfig = JSON.parse(withoutComments) as WranglerConfig
+
+    // The Worker's crons[1] is evaluate-alerts (after pulse at crons[0]).
+    // Both are scheduled; check it's there.
+    const scheduled = (workerConfig.triggers?.crons ?? []).length >= 2
 
     expect(
       scheduled,

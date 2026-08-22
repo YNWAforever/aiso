@@ -6,9 +6,5 @@
     "app/api/cron/pulse/route.ts": { "maxDuration": 60 },
     "app/api/cron/evaluate-alerts/route.ts": { "maxDuration": 60 },
     "app/api/cron/trial-emails/route.ts": { "maxDuration": 60 }
-  },
-  "crons": [
-    { "path": "/api/cron/pulse", "schedule": "17 4 * * 1" },
-    { "path": "/api/cron/evaluate-alerts", "schedule": "47 7 * * 1" }
-  ]
+  }
 }
