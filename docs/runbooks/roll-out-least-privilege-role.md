@@ -31,13 +31,24 @@ whether the script is correct.
 
 2. Re-run the credential configurator. It needs `N8N_API_KEY` (from
    `https://anfield-n8n.zeabur.app/settings/api`) and `OPENROUTER_KEY` in addition
-   to the `DATABASE_URL` you just loaded:
+   to the `DATABASE_URL` you just loaded. Prompt for both instead of typing them as
+   inline assignments — `VAR=value cmd` puts the literal value on the command line,
+   and both bash and zsh record that full line to shell history by default, the
+   same exposure this runbook already routes `DATABASE_URL` around:
 
-       N8N_API_KEY="<n8n api key>" OPENROUTER_KEY="<openrouter key>" \
-         bash n8n/configure-credentials.sh
+       read -rs -p "N8N_API_KEY: " N8N_API_KEY && echo
+       read -rs -p "OPENROUTER_KEY: " OPENROUTER_KEY && echo
+       export N8N_API_KEY OPENROUTER_KEY
+       bash n8n/configure-credentials.sh
 
-   This is idempotent — re-running it against an already-correct credential is a
-   no-op, so there's no harm in running it even if you're not sure it's needed.
+   The Postgres credential this creates is idempotent -- it's a PATCH to a fixed
+   credential ID, so re-running it safely refreshes an already-correct value.
+   The OpenRouter credential is NOT idempotent: the script POSTs a new credential
+   object on every run and repoints both workflows at it, orphaning whichever one
+   it replaces. Only run this if you have a specific reason to believe the
+   Postgres credential is stale -- don't run it speculatively "just in case," and
+   if you do run it, expect a duplicate OpenRouter credential to appear in the
+   n8n UI afterward, which you can delete by hand.
 
 3. In the n8n UI (`https://anfield-n8n.zeabur.app`), open any workflow using the
    "Neon Postgres" credential and execute a single read-only node manually (a
@@ -70,11 +81,26 @@ still be the old `neondb_owner` value.
    see it there; the constraint is specifically about never printing it to a
    terminal, where it can end up in scrollback, a shared session, or a recording.
 
+   The grep above only catches an unindented, single-line `export VAR=...` — it
+   misses the two-line style (`DATABASE_URL=...` followed by a separate `export
+   DATABASE_URL`) and indented exports inside conditional blocks, both common in
+   real dotfiles. A no-print check that a value is set at all, regardless of
+   source, is:
+
+       [ -n "$DATABASE_URL" ] && echo "DATABASE_URL is set in this shell (source not shown)"
+
+   On macOS specifically, a GUI-launched terminal or an IDE's integrated terminal
+   can inherit `DATABASE_URL` from `launchctl setenv` or a LaunchAgent plist,
+   with no shell rc file involved at all -- if the four grep targets above and
+   the fallbacks already listed all come up empty, that's worth checking too.
+
 2. Update that export to the same `aeo_app` connection string already in
    `.env.local`'s `DATABASE_URL`. Copy the value directly between the two files
    (e.g. `pbcopy < <(grep '^DATABASE_URL=' .env.local | cut -d= -f2-)` on macOS,
    piped straight into your clipboard, never printed to the terminal) rather than
    retyping it by hand.
+
+   (On Linux, use `xclip -selection clipboard` or `wl-copy` in place of `pbcopy`.)
 
 3. Restart Claude Code (or whatever process launches the MCP client) so it
    re-reads the updated shell environment — MCP servers are spawned once at
