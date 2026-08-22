@@ -470,12 +470,14 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `PLAYWRIGHT_TEST_PASSWORD`
 - **Dead:** `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — read by zero source files; checkout is
   server-side only. `@stripe/stripe-js` is installed but never imported.
-- `CRON_SECRET` — ≥16 chars, read by **three** routes in two header shapes. Two of the
-  three form a single request chain, which is why they use different shapes: Vercel Cron
-  sends `Authorization: Bearer $CRON_SECRET` to `GET /api/cron/pulse`; that driver then
-  sends `x-cron-secret` to `POST /api/pulse/run`. Neither shape is ours to choose — the
-  first is Vercel's, the second is the producer's. Both return 500 rather than running if
-  the secret is unset or short. `vercel.json` now schedules the driver weekly. `cron/trial-emails` is also restored (2026-08-22), reading CRON_SECRET with the same length-checked comparison as `cron/pulse`. The third route,
+- `CRON_SECRET` — ≥16 chars, read by **four** routes in two header shapes. `cron/pulse` and
+  `cron/trial-emails` (restored 2026-08-22) both take Vercel Cron's own shape directly: `GET`
+  with `Authorization: Bearer $CRON_SECRET`. `pulse/run` isn't cron-invoked at all — the
+  pulse driver calls it internally with `x-cron-secret` instead, which is why that second
+  shape exists. Neither shape is ours to choose — the first is Vercel's, the second is the
+  producer's. All four return 500 rather than running if the secret is unset or short.
+  `vercel.json` schedules `cron/pulse` weekly; `cron/trial-emails` validates the secret
+  identically but is not yet wired to any scheduler. The fourth route,
   `cron/evaluate-alerts`, is **scheduled weekly** on its own and is not part of that
   chain — it accepts **both** shapes directly on its own handlers: `GET` with
   `Authorization: Bearer` for Vercel Cron, `POST` with `x-cron-secret` for the smoke
