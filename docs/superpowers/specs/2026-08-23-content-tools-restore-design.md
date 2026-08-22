@@ -79,13 +79,17 @@ than discovered as a production timeout.
 **5. `__tests__/api/fenced-routes.test.ts`** — remove both `content-tools` entries from
 `FENCED`. After this, the array holds only the three `agents/*` entries.
 
-**6. New test files** — `__tests__/api/fix-cluster-map.test.ts` and
-`__tests__/api/fix-content-brief.test.ts`, mirroring `__tests__/api/fix.test.ts`'s existing
-mock scaffold exactly: a queued `db()` mock (`sqlMock` pushing query text, popping queued
-results in call order), `callOpenRouter` and `getProfile` mocked directly. Covers: 401 with no
-profile, 404 for an unowned/nonexistent client, 500 on a failed ownership lookup, 500 on
-unparseable LLM output, the happy path (200 with the expected shape), and for `content-brief`
-specifically, 500 when the `content_briefs` insert itself fails after a successful LLM call.
+**6. `__tests__/api/fix.test.ts`** — this file already exists and already contains a
+`describe('POST /api/fix/cluster-map', ...)` and a `describe('POST /api/fix/content-brief',
+...)` block, each currently asserting only the fenced 503 behavior (it also covers the live
+`POST /api/fix` and `POST /api/fix/rewrite-chunks` routes in the same file, with the same mock
+scaffold). No new test file is created — both blocks are replaced with real behavioral
+coverage using the file's existing scaffold (queued `db()` mock via `sqlMock`, `callOpenRouter`
+and `getProfile` mocked directly, same as `POST /api/fix`'s own tests just above them). Covers:
+401 with no profile, 404 for an unowned/nonexistent client, 500 on a failed ownership lookup,
+500 on unparseable LLM output, the happy path (200 with the expected shape), and for
+`content-brief` specifically, 500 when the `content_briefs` insert itself fails after a
+successful LLM call.
 
 ## What this design deliberately does not do
 
@@ -101,8 +105,8 @@ specifically, 500 when the `content_briefs` insert itself fails after a successf
 
 ## Testing
 
-- New test files above, run via `npx vitest run __tests__/api/fix-cluster-map.test.ts
-  __tests__/api/fix-content-brief.test.ts`.
+- `__tests__/api/fix.test.ts`'s two updated `describe` blocks, run via `npx vitest run
+  __tests__/api/fix.test.ts`.
 - `__tests__/config/function-durations.test.ts` and `__tests__/api/fenced-routes.test.ts` after
   their respective edits.
 - Full `npm run test:unit`, `npm run lint`, `npm run typecheck` once all changes land.
