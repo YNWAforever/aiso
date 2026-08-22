@@ -4,10 +4,9 @@ export interface Env {
 }
 
 // The exact three schedules Vercel Cron used to run. Keep this in sync with
-// wrangler.jsonc's triggers.crons — each key here must have a matching entry
-// there, and __tests__/config/function-durations.test.ts (main repo) pins
-// wrangler.jsonc against the routes that actually exist.
-const ROUTES: Record<string, string> = {
+// wrangler.jsonc's triggers.crons — a test in test/scheduled.test.ts asserts
+// the two stay in sync, since nothing at the type level enforces it.
+export const ROUTES: Record<string, string> = {
   '17 4 * * 1': '/api/cron/pulse',
   '47 7 * * 1': '/api/cron/evaluate-alerts',
   '0 9 * * *': '/api/cron/trial-emails',
@@ -18,7 +17,7 @@ export default {
     const path = ROUTES[controller.cron]
     if (!path) {
       console.error(`[cron-worker] no route mapped for cron "${controller.cron}"`)
-      return
+      throw new Error(`[cron-worker] no route mapped for cron "${controller.cron}"`)
     }
 
     const res = await fetch(`${env.APP_BASE_URL}${path}`, {

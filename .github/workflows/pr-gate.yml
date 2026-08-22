@@ -176,9 +176,40 @@ jobs:
             artifacts/build/
             artifacts/build-summary.json
 
+  cloudflare-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+          cache-dependency-path: cloudflare/cron-worker/package-lock.json
+      - name: Install and run Worker checks
+        shell: bash
+        run: |
+          mkdir -p artifacts/cloudflare-worker
+          set +e
+          (cd cloudflare/cron-worker && npm ci && npm test && npm run typecheck) 2>&1 | tee artifacts/cloudflare-worker/output.log
+          worker_exit=${PIPESTATUS[0]}
+          set -e
+          if [ "$worker_exit" -eq 0 ]; then status=success; else status=failure; fi
+          node scripts/ci/write-job-summary.mjs --job cloudflare-worker --status "$status" --executed 1 --skipped 0 --artifact cloudflare-worker/output.log --output artifacts/cloudflare-worker-summary.json
+          exit "$worker_exit"
+      - name: Upload cloudflare-worker diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-worker-diagnostics
+          if-no-files-found: warn
+          path: |
+            artifacts/cloudflare-worker/
+            artifacts/cloudflare-worker-summary.json
+
   pr-gate:
     if: ${{ always() }}
-    needs: [static, unit-contract, e2e-accessibility, build]
+    needs: [static, unit-contract, e2e-accessibility, build, cloudflare-worker]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -201,6 +232,7 @@ jobs:
           UNIT_CONTRACT_RESULT: ${{ needs.unit-contract.result }}
           E2E_ACCESSIBILITY_RESULT: ${{ needs.e2e-accessibility.result }}
           BUILD_RESULT: ${{ needs.build.result }}
+          CLOUDFLARE_WORKER_RESULT: ${{ needs.cloudflare-worker.result }}
       - name: Upload PR gate diagnostics
         if: always()
         uses: actions/upload-artifact@v4

@@ -2,13 +2,14 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const REQUIRED_RESULTS = ['STATIC_RESULT', 'UNIT_CONTRACT_RESULT', 'E2E_ACCESSIBILITY_RESULT', 'BUILD_RESULT']
-const REQUIRED_JOBS = ['static', 'unit-contract', 'e2e-accessibility', 'build']
+const REQUIRED_RESULTS = ['STATIC_RESULT', 'UNIT_CONTRACT_RESULT', 'E2E_ACCESSIBILITY_RESULT', 'BUILD_RESULT', 'CLOUDFLARE_WORKER_RESULT']
+const REQUIRED_JOBS = ['static', 'unit-contract', 'e2e-accessibility', 'build', 'cloudflare-worker']
 const REQUIRED_SUMMARY_FILES = [
   'static-summary.json',
   'unit-contract-summary.json',
   'e2e-accessibility-summary.json',
   'build-summary.json',
+  'cloudflare-worker-summary.json',
 ]
 
 export function aggregateGate({ results, summaries, commitSha = '' }) {
