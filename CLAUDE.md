@@ -226,9 +226,10 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > route is open.
 >
 > Routes whose feature is fenced return `503 FEATURE_UNAVAILABLE` via `lib/unavailable.ts`:
-> `fix/cluster-map`, `fix/content-brief`, `agents/*`. **Local
+> `agents/*`. **Local
 > Trust, the alerts *config* route, `notifications/*`, the Pulse producer (`pulse/run`), the
-> whole prompt bank and `pulse/suggest-questions` are restored**. `cron/evaluate-alerts` is now Neon-backed
+> whole prompt bank, `pulse/suggest-questions` and `content-tools` (`fix/cluster-map`,
+> `fix/content-brief`, restored 2026-08-23) are restored**. `cron/evaluate-alerts` is now Neon-backed
 > with route-level authentication, and `cloudflare/cron-worker/` schedules it weekly at
 > `47 7 * * 1`, after the Pulse driver (see `docs/runbooks/deploy-cron-worker.md`); follow
 > `docs/alert-evaluation-release.md` as the pre-deploy migration gate before it carries
