@@ -55,15 +55,20 @@ profile (`.zshrc`, `.bashrc`, or equivalent) exports `DATABASE_URL` separately
 from `.env.local`, that export is what the MCP server actually uses, and it may
 still be the old `neondb_owner` value.
 
-1. Find where `DATABASE_URL` is exported for your interactive shell:
+1. Find where `DATABASE_URL` is exported for your interactive shell, without ever
+   printing the matched line's content — `grep -l` lists only filenames, never the
+   line itself, which is the property that actually matters here (an ordinary
+   `grep -n` would print the whole line, password included, if the profile embeds
+   the connection string directly in the `export` statement):
 
-       grep -rn "export DATABASE_URL" ~/.zshrc ~/.bashrc ~/.zprofile ~/.bash_profile 2>/dev/null
+       grep -l "^export DATABASE_URL" ~/.zshrc ~/.bashrc ~/.zprofile ~/.bash_profile 2>/dev/null
 
    If nothing is found, the MCP server may be inheriting `DATABASE_URL` some other
    way (a `direnv` `.envrc`, a launcher script, an IDE-level environment setting) —
-   locate it before continuing. Do not print the matched line's value; the grep
-   above only shows *which file* sets it, not what it's set to, which is enough to
-   know where to edit.
+   locate it before continuing. Once you know which file, open it in your own
+   editor to make the edit in Step 2 — editing in an editor is fine, since only you
+   see it there; the constraint is specifically about never printing it to a
+   terminal, where it can end up in scrollback, a shared session, or a recording.
 
 2. Update that export to the same `aeo_app` connection string already in
    `.env.local`'s `DATABASE_URL`. Copy the value directly between the two files
