@@ -497,13 +497,18 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 - **`neondb_owner`'s password was rotated on 2026-08-16.** The new password lives in
   `MIGRATE_DATABASE_URL` in `.env.local`, verified via `npm run migrate -- --verify` (all 37
   migrations `recorded`); the old password was confirmed dead before the rotation was
-  considered complete. **Local dev's `DATABASE_URL`, n8n's stored Postgres credential, and the
-  MCP Postgres server's shell-exported `DATABASE_URL` still connect as `neondb_owner`** — the
-  new password was applied to them too, so nothing is broken, but none of the three were moved
-  to the least-privilege `aeo_app` role (migration `037`). That move — same DSN already live in
-  Vercel's production `DATABASE_URL` — is a deliberately deferred follow-up, not a gap in the
-  rotation itself. Don't assume it's done without checking `role:` in
-  `scripts/verify-db-connection.mjs`'s output first.
+  considered complete.
+- **Move to `aeo_app` (migration `037`, PR #47, merged 2026-08-18): Vercel production and
+  local dev are both done and verified — this line used to say otherwise and was wrong.**
+  Vercel: cut over, redeployed, and confirmed via a real scan against
+  `fimmick-aeo-oitb.vercel.app` writing through the new role (200 response); local dev:
+  confirmed directly on 2026-08-22, `.env.local`'s `DATABASE_URL` connects as `aeo_app`
+  against real production data. **Still genuinely unconfirmed: n8n's stored Postgres
+  credential and the MCP Postgres server's shell-exported `DATABASE_URL`** — follow
+  `docs/runbooks/roll-out-least-privilege-role.md` for both. Don't assume either is done
+  without checking `role:` in `scripts/verify-db-connection.mjs`'s output first (that script
+  doesn't apply directly to the MCP server itself — the runbook has the equivalent check for
+  that one).
 - `n8n/configure-credentials.sh` and `n8n/deploy-workflows.sh` both now read from env and exit
   if unset. `configure-credentials.sh` goes further and is the pattern to copy: it builds the
   Postgres credential payload through a `python3` heredoc so the password never lands in a
