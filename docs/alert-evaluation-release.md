@@ -80,9 +80,9 @@ Pre-deploy smoke checks:
    `deferred`, `emailFailures` and `notificationFailures`; expect `401` for a wrong
    token. Run it after check 8 so the week is already delivered —
    the response must then report `emailed: 0`, which also proves the claim short-circuits
-   before Resend is ever reached. `vercel.json` scheduling `/api/cron/evaluate-alerts` at
-   `47 7 * * 1` after the Pulse driver's `17 4 * * 1` is pinned by
-   `__tests__/config/function-durations.test.ts`, so it needs no manual check.
+   before Resend is ever reached. `cloudflare/cron-worker/wrangler.jsonc` scheduling
+   `/api/cron/evaluate-alerts` at `47 7 * * 1` after the Pulse driver's `17 4 * * 1` is pinned
+   by `__tests__/config/function-durations.test.ts`, so it needs no manual check.
 10. **Post-deploy only:** confirm one `200` for `/api/cron/evaluate-alerts` in the
     deployment logs on the first Monday after release. This is the one step that cannot be
     performed before deploying, and it is an observation rather than a gate.
@@ -134,7 +134,8 @@ notification/email traffic from local review or a development machine.
 - **The evaluator now refuses to read a stale week (2026-08-16).** Nothing still
   enforces that the week's Pulse rollup lands before this cron runs — the ordering still
   rests on two independent cron times three and a half hours apart (`17 4 * * 1` for
-  `cron/pulse`, then `47 7 * * 1` for this route, both in `vercel.json`) — but the
+  `cron/pulse`, then `47 7 * * 1` for this route, both in `cloudflare/cron-worker/wrangler.jsonc`)
+  — but the
   consequence has changed. Previously, when a client's rollup had not landed, nothing
   errored: the evaluator re-derived last week's action, whose ledger row last week's run
   had already claimed, so the claim returned `false`, the outcome was `suppressed`, and

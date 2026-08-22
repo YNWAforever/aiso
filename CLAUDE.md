@@ -229,9 +229,10 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > `fix/cluster-map`, `fix/content-brief`, `agents/*`. **Local
 > Trust, the alerts *config* route, `notifications/*`, the Pulse producer (`pulse/run`), the
 > whole prompt bank and `pulse/suggest-questions` are restored**. `cron/evaluate-alerts` is now Neon-backed
-> with route-level authentication, and `vercel.json` schedules it weekly at `47 7 * * 1`,
-> after the Pulse driver; follow `docs/alert-evaluation-release.md` as the pre-deploy
-> migration gate before it carries production traffic.
+> with route-level authentication, and `cloudflare/cron-worker/` schedules it weekly at
+> `47 7 * * 1`, after the Pulse driver (see `docs/runbooks/deploy-cron-worker.md`); follow
+> `docs/alert-evaluation-release.md` as the pre-deploy migration gate before it carries
+> production traffic.
 > `__tests__/api/fenced-routes.test.ts` is the canonical list and asserts each still 503s, so
 > restoring a route means deleting its entry there too.
 >
@@ -485,8 +486,9 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   pulse driver calls it internally with `x-cron-secret` instead, which is why that second
   shape exists. Neither shape is ours to choose — the first is Vercel's, the second is the
   producer's. All four return 500 rather than running if the secret is unset or short.
-  `vercel.json` schedules `cron/pulse` weekly; `cron/trial-emails` validates the secret
-  identically but is not yet wired to any scheduler. The fourth route,
+  `cloudflare/cron-worker/` schedules `cron/pulse` and `cron/trial-emails` (2026-08-22,
+  see above and `docs/runbooks/deploy-cron-worker.md`) — `vercel.json` no longer schedules
+  anything. The fourth route,
   `cron/evaluate-alerts`, is **scheduled weekly** on its own and is not part of that
   chain — it accepts **both** shapes directly on its own handlers: `GET` with
   `Authorization: Bearer` for Vercel Cron, `POST` with `x-cron-secret` for the smoke
