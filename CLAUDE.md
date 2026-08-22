@@ -159,13 +159,22 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   its queries in `try/catch` and returns 5xx. Keep it that way: a 2xx must mean the write
   happened.
 - Deployment config lives outside the code and is easy to miss: `vercel.json` sets
-  `maxDuration` (60s scan, 30s fix, 60s each for `pulse/run`, `cron/pulse` and
-  `cron/evaluate-alerts`) **and two weekly crons, in that order** — `17 4 * * 1` →
-  `/api/cron/pulse`, then `47 7 * * 1` → `/api/cron/evaluate-alerts`, because alerts read
-  the rollup Pulse writes. Its `functions` keys are **literal paths, not prefixes**, so
-  `fix/`'s subroutes inherit nothing despite also calling OpenRouter.
-  `__tests__/config/function-durations.test.ts` pins the whole `crons` array and requires
-  every scheduled path to export `GET`, so adding a cron is a deliberate, tested change.
+  `maxDuration` (60s scan, 30s fix, 60s each for `pulse/run`, `cron/pulse`,
+  `cron/evaluate-alerts` and `cron/trial-emails`) but **no longer schedules anything itself**
+  (2026-08-22) — its `crons` array was removed. Scheduling now belongs to
+  `cloudflare/cron-worker/`, a standalone Cloudflare Worker (own `package.json`/toolchain,
+  excluded from this repo's root `tsconfig.json`/`vitest.config.ts`/lint) whose
+  `wrangler.jsonc` holds the same three schedules in order — `17 4 * * 1` →
+  `/api/cron/pulse`, `47 7 * * 1` → `/api/cron/evaluate-alerts` (after pulse, because alerts
+  read the rollup Pulse writes), `0 9 * * *` → `/api/cron/trial-emails` — calling each with
+  the exact `Authorization: Bearer $CRON_SECRET` header Vercel Cron used to send, so none of
+  the three routes needed code changes. Follow `docs/runbooks/deploy-cron-worker.md` to
+  actually deploy and verify it; until that runs, nothing schedules these three routes at
+  all. `vercel.json`'s `functions` keys are **literal paths, not prefixes**, so `fix/`'s
+  subroutes inherit nothing despite also calling OpenRouter.
+  `__tests__/config/function-durations.test.ts` now pins `wrangler.jsonc`'s `triggers.crons`
+  (not `vercel.json.crons`) and requires every scheduled path to export `GET`, so adding a
+  cron is still a deliberate, tested change.
   `next.config.ts` declares two permanent redirects that fire *before* `proxy.ts`.
 - `npm run lint` ≠ `npx eslint .` — the ignores are CLI flags in `package.json`, not in
   `eslint.config.mjs`. Several of those flags (`.worktrees/`, `.codex/`, `.opencode/`) are
@@ -217,12 +226,13 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > route is open.
 >
 > Routes whose feature is fenced return `503 FEATURE_UNAVAILABLE` via `lib/unavailable.ts`:
-> `fix/cluster-map`, `fix/content-brief`, `agents/*`, `cron/trial-emails`. **Local
+> `fix/cluster-map`, `fix/content-brief`, `agents/*`. **Local
 > Trust, the alerts *config* route, `notifications/*`, the Pulse producer (`pulse/run`), the
 > whole prompt bank and `pulse/suggest-questions` are restored**. `cron/evaluate-alerts` is now Neon-backed
-> with route-level authentication, and `vercel.json` schedules it weekly at `47 7 * * 1`,
-> after the Pulse driver; follow `docs/alert-evaluation-release.md` as the pre-deploy
-> migration gate before it carries production traffic.
+> with route-level authentication, and `cloudflare/cron-worker/` schedules it weekly at
+> `47 7 * * 1`, after the Pulse driver (see `docs/runbooks/deploy-cron-worker.md`); follow
+> `docs/alert-evaluation-release.md` as the pre-deploy migration gate before it carries
+> production traffic.
 > `__tests__/api/fenced-routes.test.ts` is the canonical list and asserts each still 503s, so
 > restoring a route means deleting its entry there too.
 >
@@ -470,13 +480,15 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `PLAYWRIGHT_TEST_PASSWORD`
 - **Dead:** `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — read by zero source files; checkout is
   server-side only. `@stripe/stripe-js` is installed but never imported.
-- `CRON_SECRET` — ≥16 chars, read by **three** routes in two header shapes. Two of the
-  three form a single request chain, which is why they use different shapes: Vercel Cron
-  sends `Authorization: Bearer $CRON_SECRET` to `GET /api/cron/pulse`; that driver then
-  sends `x-cron-secret` to `POST /api/pulse/run`. Neither shape is ours to choose — the
-  first is Vercel's, the second is the producer's. Both return 500 rather than running if
-  the secret is unset or short. `vercel.json` now schedules the driver weekly;
-  `cron/trial-emails` remains a 503 stub that reads no secret. The third route,
+- `CRON_SECRET` — ≥16 chars, read by **four** routes in two header shapes. `cron/pulse` and
+  `cron/trial-emails` (restored 2026-08-22) both take Vercel Cron's own shape directly: `GET`
+  with `Authorization: Bearer $CRON_SECRET`. `pulse/run` isn't cron-invoked at all — the
+  pulse driver calls it internally with `x-cron-secret` instead, which is why that second
+  shape exists. Neither shape is ours to choose — the first is Vercel's, the second is the
+  producer's. All four return 500 rather than running if the secret is unset or short.
+  `cloudflare/cron-worker/` schedules `cron/pulse` and `cron/trial-emails` (2026-08-22,
+  see above and `docs/runbooks/deploy-cron-worker.md`) — `vercel.json` no longer schedules
+  anything. The fourth route,
   `cron/evaluate-alerts`, is **scheduled weekly** on its own and is not part of that
   chain — it accepts **both** shapes directly on its own handlers: `GET` with
   `Authorization: Bearer` for Vercel Cron, `POST` with `x-cron-secret` for the smoke

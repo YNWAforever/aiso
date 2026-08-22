@@ -10,21 +10,20 @@ Multi-tenant SaaS that scores websites on **AEO / GEO** — how well AI answer e
 - **Local Trust** — trust/ROI scoring per brand, with a CSV export
   (`app/api/dashboard/clients/[clientId]/local-trust/`, `lib/localTrust/`).
 - **Pulse** — weekly monitoring of how often a brand is surfaced by LLM platforms
-  (`app/api/pulse/`, `lib/pulse/`). The producer is **live and scheduled**: Vercel Cron
-  runs `/api/cron/pulse` weekly, which drives `POST /api/pulse/run` across five platforms,
-  and the dashboard's Monitor step renders the results. Only the standalone Pulse page and
-  its read routes remain fenced — see below.
+  (`app/api/pulse/`, `lib/pulse/`). The producer is **live**: `/api/cron/pulse` drives
+  `POST /api/pulse/run` across five platforms weekly, and the dashboard's Monitor step
+  renders the results. Scheduling is via `cloudflare/cron-worker/`, not Vercel Cron (see
+  `docs/runbooks/deploy-cron-worker.md`).
 - Bilingual **en / zh-HK** (`next-intl`), billed through **Stripe**, deployed on **Vercel**.
 
 Several features are **fenced**: their routes return `503 FEATURE_UNAVAILABLE` via
-`lib/unavailable.ts`, and `__tests__/api/fenced-routes.test.ts` is the canonical list of the
-eleven. Still fenced: the Pulse *read* routes, agents, notifications, content tools and
-trial emails. Live: Local Trust, alert *configuration*, the Pulse producer
-(`POST /api/pulse/run`) and the question bank, including AI question suggestions. Alert
-*evaluation* is also live: it runs weekly through Vercel Cron and emails threshold,
-week-over-week and recovery alerts, deduped to one per client, type and week — while its
-in-app notifications are written but not yet readable, because the `notifications` routes
-are still fenced. Migrations `033`–`035` gate its deploy (see
+`lib/unavailable.ts`, and `__tests__/api/fenced-routes.test.ts` is the canonical list. Still
+fenced: agents and content tools. Live: Local Trust, alert *configuration*, the Pulse
+producer (`POST /api/pulse/run`), the question bank (including AI question suggestions),
+`notifications` (restored), and `cron/trial-emails` (restored 2026-08-22). Alert *evaluation*
+is also live: it runs weekly (scheduled via `cloudflare/cron-worker/`, not Vercel Cron) and
+emails threshold, week-over-week and recovery alerts, deduped to one per client, type and
+week, with in-app notifications written and readable. Migrations `033`–`035` gate its deploy (see
 [`docs/alert-evaluation-release.md`](./docs/alert-evaluation-release.md)). A fence is not a
 gate — restoring one means adding a real auth/entitlement/ownership gate, not just deleting
 the `featureUnavailable` call. `lib/localTrust/guard.ts` is the shape to copy.
@@ -89,11 +88,12 @@ entry there says what breaks when it is missing. The highlights:
 Optional (have fallbacks): `RESEND_FROM_EMAIL`, `WIKIPEDIA_USER_AGENT`.
 E2E only: `BASE_URL`, `START_DEV_SERVER`, `PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_TEST_PASSWORD`.
 
-`CRON_SECRET` (≥16 chars) authenticates the weekly Pulse chain: Vercel Cron calls
-`GET /api/cron/pulse` with `Authorization: Bearer`, and that driver calls
-`POST /api/pulse/run` with `x-cron-secret`. Both return 500 rather than running when it is
-unset. `/api/cron/trial-emails` remains a 503 stub; the Neon alert evaluator is
-release-gated until its migrations are applied.
+`CRON_SECRET` (≥16 chars) authenticates the weekly Pulse chain: the Cloudflare Worker
+(`cloudflare/cron-worker/`, not Vercel Cron) calls `GET /api/cron/pulse` with
+`Authorization: Bearer`, and that driver calls `POST /api/pulse/run` with `x-cron-secret`.
+Both return 500 rather than running when it is unset. `/api/cron/trial-emails` is restored
+(2026-08-22) and validates the same `Authorization: Bearer` shape; `/api/cron/evaluate-alerts`
+is Neon-backed and scheduled weekly, accepting both header shapes on its own handlers.
 
 Dead — read by nothing, listed so nobody re-adds them expecting an effect:
 `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (checkout is server-side only). `RESEND_API_KEY`

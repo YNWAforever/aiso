@@ -5,8 +5,6 @@ import { describe, expect, it } from 'vitest'
 
 import { PLAN_CATALOG } from '@/lib/plans/catalog'
 
-type VercelConfig = { crons?: Array<{ path: string }> }
-
 describe('sovAlerts release state', () => {
   it('is available exactly on the plans entitled to alerts', () => {
     expect(PLAN_CATALOG.pro.release.sovAlerts).toBe('available')
@@ -44,12 +42,21 @@ describe('sovAlerts release state', () => {
       .some(plan => PLAN_CATALOG[plan].release.sovAlerts === 'available')
     if (!claimsAvailable) return
 
-    const config = JSON.parse(
-      readFileSync(join(process.cwd(), 'vercel.json'), 'utf8'),
-    ) as VercelConfig
-    const scheduled = config.crons?.some(
-      cron => cron.path === '/api/cron/evaluate-alerts',
+    // Scheduling moved to the Cloudflare Worker in wrangler.jsonc. Strip comments
+    // before parsing since JSON.parse rejects `//`.
+    type WranglerConfig = { triggers?: { crons?: string[] } }
+    const wranglerRaw = readFileSync(
+      join(process.cwd(), 'cloudflare/cron-worker/wrangler.jsonc'),
+      'utf8',
     )
+    const withoutComments = wranglerRaw.replace(/^\s*\/\/.*$/gm, '')
+    const workerConfig = JSON.parse(withoutComments) as WranglerConfig
+
+    // '47 7 * * 1' is evaluate-alerts's schedule — the same constant pinned in
+    // __tests__/config/function-durations.test.ts. Check the actual schedule
+    // is present, not just "the array has enough entries" — a length check
+    // would still pass if evaluate-alerts's entry specifically were removed.
+    const scheduled = (workerConfig.triggers?.crons ?? []).includes('47 7 * * 1')
 
     expect(
       scheduled,

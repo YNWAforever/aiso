@@ -21,10 +21,10 @@ describe('PR gate workflow contract', () => {
     expect(workflow).toMatch(/group:\s+pr-gate-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}/)
     expect(workflow).toMatch(/cancel-in-progress:\s+true/)
 
-    for (const job of ['static', 'unit-contract', 'e2e-accessibility', 'build', 'pr-gate']) {
+    for (const job of ['static', 'unit-contract', 'e2e-accessibility', 'build', 'cloudflare-worker', 'pr-gate']) {
       expect(workflow).toMatch(new RegExp(`^  ${job}:\\s*$`, 'm'))
     }
-    expect(workflow).toMatch(/pr-gate:\s*\n\s+if:\s+\$\{\{ always\(\) \}\}\s*\n\s+needs:\s+\[static, unit-contract, e2e-accessibility, build\]/)
+    expect(workflow).toMatch(/pr-gate:\s*\n\s+if:\s+\$\{\{ always\(\) \}\}\s*\n\s+needs:\s+\[static, unit-contract, e2e-accessibility, build, cloudflare-worker\]/)
 
     expect(workflow).toMatch(/node-version:\s+24\.x/)
     expect(workflow).toContain('npm ci')
@@ -85,7 +85,7 @@ describe('PR gate workflow contract', () => {
     const jobNames = [...jobsSection.matchAll(/^ {2}([\w-]+):$/gm)].map((match) => match[1])
 
     expect(jobNames.filter((name) => /integration/i.test(name))).toEqual([])
-    expect(jobNames).toEqual(['static', 'unit-contract', 'e2e-accessibility', 'build', 'pr-gate'])
+    expect(jobNames).toEqual(['static', 'unit-contract', 'e2e-accessibility', 'build', 'cloudflare-worker', 'pr-gate'])
 
     // Every job other than the aggregator itself must appear in `needs`, or that
     // job can fail while the gate still reports success.

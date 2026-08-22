@@ -40,3 +40,26 @@ export async function sendAlertEmail({
     throw new Error('Resend alert email failed', { cause: error })
   }
 }
+
+export async function sendTrialEmail({
+  to,
+  subject,
+  text,
+}: {
+  to: string
+  subject: string
+  text: string
+}) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
+
+  const { error } = await resend.emails.send({
+    from: process.env.RESEND_TRIAL_FROM_EMAIL ?? 'hello@fimmick-aeo.com',
+    to,
+    subject,
+    text,
+  })
+
+  if (error) {
+    throw new Error('Resend trial email failed', { cause: error })
+  }
+}

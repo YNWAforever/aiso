@@ -4,12 +4,27 @@ import { describe, expect, it } from 'vitest'
 
 type VercelConfig = {
   functions?: Record<string, { maxDuration?: number }>
-  crons?: Array<{ path: string; schedule: string }>
+}
+
+type WranglerConfig = {
+  triggers?: { crons?: string[] }
 }
 
 const config = JSON.parse(
   readFileSync(join(process.cwd(), 'vercel.json'), 'utf8'),
 ) as VercelConfig
+
+// wrangler.jsonc allows `//` comments, which JSON.parse rejects — strip them
+// before parsing. Only strips a `//` that starts a line (after whitespace) or
+// follows a comma/brace, so it can't misfire inside a string value like a URL.
+function parseWranglerJsonc(raw: string): WranglerConfig {
+  const withoutComments = raw.replace(/^\s*\/\/.*$/gm, '')
+  return JSON.parse(withoutComments) as WranglerConfig
+}
+
+const workerConfig = parseWranglerJsonc(
+  readFileSync(join(process.cwd(), 'cloudflare/cron-worker/wrangler.jsonc'), 'utf8'),
+)
 
 /**
  * Every route that fans out to an LLM needs a declared maxDuration, because the
@@ -28,6 +43,8 @@ const LLM_ROUTES = [
   'app/api/cron/pulse/route.ts',
   // Not an LLM caller either — it awaits a Resend send per fired alert, serially.
   'app/api/cron/evaluate-alerts/route.ts',
+  // Same shape as evaluate-alerts: a Resend send per due email, serially.
+  'app/api/cron/trial-emails/route.ts',
 ]
 
 describe('Vercel function durations', () => {
@@ -44,21 +61,24 @@ describe('Vercel function durations', () => {
     }
   })
 
-  it('schedules the Pulse driver, and every cron path is a route that exists', () => {
-    // Replaces the assertion that there were no crons at all, which existed so
-    // that adding a scheduler had to be a deliberate change here rather than a
-    // silent one.
-    expect(config.crons).toEqual([
-      { path: '/api/cron/pulse', schedule: '17 4 * * 1' },
-      { path: '/api/cron/evaluate-alerts', schedule: '47 7 * * 1' },
+  it('no longer schedules anything from vercel.json — Cloudflare owns that now', () => {
+    expect((config as { crons?: unknown[] }).crons ?? []).toEqual([])
+  })
+})
+
+describe('Cloudflare cron-worker schedule', () => {
+  it('schedules exactly the three cron routes, and every one exists', () => {
+    expect(workerConfig.triggers?.crons).toEqual([
+      '17 4 * * 1',
+      '47 7 * * 1',
+      '0 9 * * *',
     ])
 
-    for (const cron of config.crons ?? []) {
-      const route = join(process.cwd(), 'app', `${cron.path}/route.ts`)
-      expect(existsSync(route), `${cron.path} has no route file`).toBe(true)
-      // Vercel Cron issues GET. A cron pointed at a route that exports only POST
-      // gets a 405 forever, silently — which is how the producer itself could
-      // not have been scheduled directly.
+    const paths = ['/api/cron/pulse', '/api/cron/evaluate-alerts', '/api/cron/trial-emails']
+    for (const path of paths) {
+      const route = join(process.cwd(), 'app', `${path}/route.ts`)
+      expect(existsSync(route), `${path} has no route file`).toBe(true)
+      // The Worker calls with GET, mirroring what Vercel Cron used to send.
       expect(readFileSync(route, 'utf8')).toMatch(/export async function GET\b/)
     }
   })
@@ -72,26 +92,15 @@ describe('Vercel function durations', () => {
       return { weekday, minutes: Number(hour) * 60 + Number(minute) }
     }
 
-    const pulse = config.crons?.find(cron => cron.path === '/api/cron/pulse')
-    const alerts = config.crons?.find(cron => cron.path === '/api/cron/evaluate-alerts')
-    expect(pulse, 'the Pulse driver is not scheduled').toBeDefined()
-    expect(alerts, 'alert evaluation is not scheduled').toBeDefined()
+    const crons = workerConfig.triggers?.crons ?? []
+    const pulse = at(crons[0])
+    const alerts = at(crons[1])
 
-    expect(at(alerts!.schedule).weekday).toBe(at(pulse!.schedule).weekday)
-    expect(at(alerts!.schedule).minutes).toBeGreaterThan(at(pulse!.schedule).minutes)
+    expect(alerts.weekday).toBe(pulse.weekday)
+    expect(alerts.minutes).toBeGreaterThan(pulse.minutes)
   })
 
-  it('keeps the schedule inside what a Hobby project can actually run', () => {
-    // Hobby allows 2 cron jobs at once-per-day granularity; Pro allows 40 at
-    // per-minute. Staying daily-or-less keeps this deployable without knowing
-    // the plan — which nothing in the repo records. Throughput comes from the
-    // driver chaining itself, not from a tighter schedule.
-    expect(config.crons?.length ?? 0).toBeLessThanOrEqual(2)
-
-    for (const cron of config.crons ?? []) {
-      const [minute, hour] = cron.schedule.split(' ')
-      expect(minute, 'a wildcard minute runs every minute — Pro only').not.toMatch(/[*/]/)
-      expect(hour, 'a wildcard hour runs hourly — Pro only').not.toMatch(/[*/]/)
-    }
+  it('stays within the Cloudflare free tier of 3 triggers per Worker', () => {
+    expect(workerConfig.triggers?.crons?.length ?? 0).toBeLessThanOrEqual(3)
   })
 })

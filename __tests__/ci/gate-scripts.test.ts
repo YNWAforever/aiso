@@ -243,6 +243,7 @@ describe('PR merge-gate evidence contracts', () => {
         UNIT_CONTRACT_RESULT: 'failure',
         E2E_ACCESSIBILITY_RESULT: 'success',
         BUILD_RESULT: 'success',
+        CLOUDFLARE_WORKER_RESULT: 'success',
       },
       summaries: [],
       commitSha: 'fixture-sha',
@@ -253,16 +254,17 @@ describe('PR merge-gate evidence contracts', () => {
     expect(result.summary.commitSha).toBe('fixture-sha')
   })
 
-  it('keeps only the four expected job summaries during aggregate discovery', async () => {
+  it('keeps only the five expected job summaries during aggregate discovery', async () => {
     const directory = await createSummaryDirectory({
       'static-summary.json': createJobSummary({ job: 'static', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
       'unit-contract-summary.json': createJobSummary({ job: 'unit-contract', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
       'e2e-accessibility-summary.json': createJobSummary({ job: 'e2e-accessibility', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
       'build-summary.json': createJobSummary({ job: 'build', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
+      'cloudflare-worker-summary.json': createJobSummary({ job: 'cloudflare-worker', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
       'untrusted-summary.json': createJobSummary({ job: 'untrusted', status: 'failure', executed: 0, skipped: 1, artifacts: [], commitSha: 'fixture-sha' }),
     })
 
-    await expect(readRequiredSummaries(directory)).resolves.toHaveLength(4)
+    await expect(readRequiredSummaries(directory)).resolves.toHaveLength(5)
   })
 
   it('discovers summaries nested under the artifact packaging directory', async () => {
@@ -275,13 +277,14 @@ describe('PR merge-gate evidence contracts', () => {
       ['unit-contract-summary.json', 'unit-contract'],
       ['e2e-accessibility-summary.json', 'e2e-accessibility'],
       ['build-summary.json', 'build'],
+      ['cloudflare-worker-summary.json', 'cloudflare-worker'],
     ].map(([fileName, job]) => writeFile(
       join(artifactDirectory, fileName),
       JSON.stringify(createJobSummary({ job, status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' })),
       'utf8',
     )))
 
-    await expect(readRequiredSummaries(directory)).resolves.toHaveLength(4)
+    await expect(readRequiredSummaries(directory)).resolves.toHaveLength(5)
   })
 
   it('fails closed when an expected static summary file is missing', async () => {
@@ -289,6 +292,7 @@ describe('PR merge-gate evidence contracts', () => {
       'unit-contract-summary.json': createJobSummary({ job: 'unit-contract', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
       'e2e-accessibility-summary.json': createJobSummary({ job: 'e2e-accessibility', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
       'build-summary.json': createJobSummary({ job: 'build', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
+      'cloudflare-worker-summary.json': createJobSummary({ job: 'cloudflare-worker', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
     })
 
     const summaries = await readRequiredSummaries(directory)
@@ -298,6 +302,7 @@ describe('PR merge-gate evidence contracts', () => {
         UNIT_CONTRACT_RESULT: 'success',
         E2E_ACCESSIBILITY_RESULT: 'success',
         BUILD_RESULT: 'success',
+        CLOUDFLARE_WORKER_RESULT: 'success',
       },
       summaries,
       commitSha: 'fixture-sha',
@@ -314,6 +319,7 @@ describe('PR merge-gate evidence contracts', () => {
         UNIT_CONTRACT_RESULT: 'success',
         E2E_ACCESSIBILITY_RESULT: 'success',
         BUILD_RESULT: 'success',
+        CLOUDFLARE_WORKER_RESULT: 'success',
       },
       summaries: [
         createJobSummary({ job: 'static', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
@@ -333,12 +339,14 @@ describe('PR merge-gate evidence contracts', () => {
         UNIT_CONTRACT_RESULT: 'success',
         E2E_ACCESSIBILITY_RESULT: 'success',
         BUILD_RESULT: 'success',
+        CLOUDFLARE_WORKER_RESULT: 'success',
       },
       summaries: [
         createJobSummary({ job: 'static', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'aggregate-sha' }),
         createJobSummary({ job: 'unit-contract', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'different-sha' }),
         createJobSummary({ job: 'e2e-accessibility', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'aggregate-sha' }),
         createJobSummary({ job: 'build', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'aggregate-sha' }),
+        createJobSummary({ job: 'cloudflare-worker', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'aggregate-sha' }),
       ],
       commitSha: 'aggregate-sha',
     })
@@ -354,12 +362,14 @@ describe('PR merge-gate evidence contracts', () => {
         UNIT_CONTRACT_RESULT: 'success',
         E2E_ACCESSIBILITY_RESULT: 'success',
         BUILD_RESULT: 'success',
+        CLOUDFLARE_WORKER_RESULT: 'success',
       },
       summaries: [
         createJobSummary({ job: 'static', status: 'success', executed: 1, skipped: 0, priorities: ['P1'], artifacts: [], commitSha: 'aggregate-sha' }),
         createJobSummary({ job: 'unit-contract', status: 'success', executed: 1, skipped: 0, priorities: ['P1', 'P2'], artifacts: [], commitSha: 'aggregate-sha' }),
         createJobSummary({ job: 'e2e-accessibility', status: 'success', executed: 1, skipped: 0, priorities: ['P2'], artifacts: [], commitSha: 'aggregate-sha' }),
         createJobSummary({ job: 'build', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'aggregate-sha' }),
+        createJobSummary({ job: 'cloudflare-worker', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'aggregate-sha' }),
       ],
       commitSha: 'aggregate-sha',
     })
@@ -376,6 +386,7 @@ describe('PR merge-gate evidence contracts', () => {
         UNIT_CONTRACT_RESULT: 'success',
         E2E_ACCESSIBILITY_RESULT: 'success',
         BUILD_RESULT: 'success',
+        CLOUDFLARE_WORKER_RESULT: 'success',
       },
       summaries: [
         createJobSummary({
