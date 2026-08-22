@@ -53,7 +53,7 @@ export async function sendTrialEmail({
   const resend = new Resend(process.env.RESEND_API_KEY)
 
   const { error } = await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL ?? 'hello@fimmick-aeo.com',
+    from: process.env.RESEND_TRIAL_FROM_EMAIL ?? 'hello@fimmick-aeo.com',
     to,
     subject,
     text,

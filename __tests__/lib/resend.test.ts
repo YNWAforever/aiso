@@ -80,6 +80,17 @@ describe('sendTrialEmail', () => {
     })
   })
 
+  it('honours RESEND_TRIAL_FROM_EMAIL independently of RESEND_FROM_EMAIL', async () => {
+    process.env.RESEND_FROM_EMAIL = 'alerts@example.com'
+    process.env.RESEND_TRIAL_FROM_EMAIL = 'trial@example.com'
+    h.send.mockResolvedValue({ data: { id: 'email-1' }, error: null })
+
+    await sendTrialEmail({ to: 'user@example.com', subject: 'Hi', text: 'Body' })
+
+    expect(h.send).toHaveBeenCalledWith(expect.objectContaining({ from: 'trial@example.com' }))
+    delete process.env.RESEND_TRIAL_FROM_EMAIL
+  })
+
   it('rejects when Resend resolves with a provider error object', async () => {
     const providerError = { message: 'Invalid API key', name: 'validation_error' }
     h.send.mockResolvedValue({ data: null, error: providerError })
