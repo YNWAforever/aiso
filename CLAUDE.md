@@ -159,13 +159,22 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   its queries in `try/catch` and returns 5xx. Keep it that way: a 2xx must mean the write
   happened.
 - Deployment config lives outside the code and is easy to miss: `vercel.json` sets
-  `maxDuration` (60s scan, 30s fix, 60s each for `pulse/run`, `cron/pulse` and
-  `cron/evaluate-alerts`) **and two weekly crons, in that order** — `17 4 * * 1` →
-  `/api/cron/pulse`, then `47 7 * * 1` → `/api/cron/evaluate-alerts`, because alerts read
-  the rollup Pulse writes. Its `functions` keys are **literal paths, not prefixes**, so
-  `fix/`'s subroutes inherit nothing despite also calling OpenRouter.
-  `__tests__/config/function-durations.test.ts` pins the whole `crons` array and requires
-  every scheduled path to export `GET`, so adding a cron is a deliberate, tested change.
+  `maxDuration` (60s scan, 30s fix, 60s each for `pulse/run`, `cron/pulse`,
+  `cron/evaluate-alerts` and `cron/trial-emails`) but **no longer schedules anything itself**
+  (2026-08-22) — its `crons` array was removed. Scheduling now belongs to
+  `cloudflare/cron-worker/`, a standalone Cloudflare Worker (own `package.json`/toolchain,
+  excluded from this repo's root `tsconfig.json`/`vitest.config.ts`/lint) whose
+  `wrangler.jsonc` holds the same three schedules in order — `17 4 * * 1` →
+  `/api/cron/pulse`, `47 7 * * 1` → `/api/cron/evaluate-alerts` (after pulse, because alerts
+  read the rollup Pulse writes), `0 9 * * *` → `/api/cron/trial-emails` — calling each with
+  the exact `Authorization: Bearer $CRON_SECRET` header Vercel Cron used to send, so none of
+  the three routes needed code changes. Follow `docs/runbooks/deploy-cron-worker.md` to
+  actually deploy and verify it; until that runs, nothing schedules these three routes at
+  all. `vercel.json`'s `functions` keys are **literal paths, not prefixes**, so `fix/`'s
+  subroutes inherit nothing despite also calling OpenRouter.
+  `__tests__/config/function-durations.test.ts` now pins `wrangler.jsonc`'s `triggers.crons`
+  (not `vercel.json.crons`) and requires every scheduled path to export `GET`, so adding a
+  cron is still a deliberate, tested change.
   `next.config.ts` declares two permanent redirects that fire *before* `proxy.ts`.
 - `npm run lint` ≠ `npx eslint .` — the ignores are CLI flags in `package.json`, not in
   `eslint.config.mjs`. Several of those flags (`.worktrees/`, `.codex/`, `.opencode/`) are
