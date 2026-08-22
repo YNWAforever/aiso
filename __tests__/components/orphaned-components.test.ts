@@ -30,10 +30,6 @@ const ORPHANS: Record<string, string> = {
   'pulse/CompetitorChart': 'only rendered by the orphaned CompetitorTab',
   'pulse/QuestionRow': 'only rendered by the orphaned ScanLogSection',
   'pulse/PlatformBar': 'only rendered by the orphaned Pulse read surface',
-
-  'dashboard/PlanGate': 'entitlement wrapper superseded by LockedFeature',
-  'CheckItem': 'superseded by the result page check rendering',
-  'SaveScanButton': 'superseded by the scan-claim funnel',
 }
 
 /** Component files, excluding shadcn/ui primitives (lowercase by convention). */
