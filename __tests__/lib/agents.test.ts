@@ -25,6 +25,14 @@ describe('markCompleteIfAllPresent', () => {
     expect(sql).toHaveBeenCalledTimes(3) // only the 3 existence checks, no update call
   })
 
+  it('does not update when only competitors has no rows yet', async () => {
+    const sql = makeSql([[{ exists: 1 }], [{ exists: 1 }], []])
+
+    await markCompleteIfAllPresent(sql as never, 'scan-1')
+
+    expect(sql).toHaveBeenCalledTimes(3) // only the 3 existence checks, no update call
+  })
+
   it('does not update when none of the tables have rows yet', async () => {
     const sql = makeSql([[], [], []])
 
