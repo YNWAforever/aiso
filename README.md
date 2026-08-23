@@ -16,12 +16,13 @@ Multi-tenant SaaS that scores websites on **AEO / GEO** — how well AI answer e
   `docs/runbooks/deploy-cron-worker.md`).
 - Bilingual **en / zh-HK** (`next-intl`), billed through **Stripe**, deployed on **Vercel**.
 
-Several features are **fenced**: their routes return `503 FEATURE_UNAVAILABLE` via
-`lib/unavailable.ts`, and `__tests__/api/fenced-routes.test.ts` is the canonical list. Still
-fenced: agents. Live: Local Trust, alert *configuration*, the Pulse
+**No features are currently fenced.** Routes used to return `503 FEATURE_UNAVAILABLE` via
+`lib/unavailable.ts`, and `__tests__/api/fenced-routes.test.ts` is the canonical list (now empty).
+Restored: Local Trust, alert *configuration*, the Pulse
 producer (`POST /api/pulse/run`), the question bank (including AI question suggestions),
-`notifications` (restored), `cron/trial-emails` (restored 2026-08-22), and content tools
-(`fix/cluster-map`, `fix/content-brief`, restored 2026-08-23). Alert *evaluation*
+`notifications` (restored), `cron/trial-emails` (restored 2026-08-22), content tools
+(`fix/cluster-map`, `fix/content-brief`, restored 2026-08-23), and `agents/*` (`competitors`,
+`progress`, `recommendations`, restored 2026-08-23). Alert *evaluation*
 is also live: it runs weekly (scheduled via `cloudflare/cron-worker/`, not Vercel Cron) and
 emails threshold, week-over-week and recovery alerts, deduped to one per client, type and
 week, with in-app notifications written and readable. Migrations `033`–`035` gate its deploy (see
