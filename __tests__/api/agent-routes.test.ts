@@ -331,7 +331,7 @@ describe('POST /api/clients/[clientId]/agents/recommendations', () => {
   })
 
   const ROUTE = '@/app/api/clients/[clientId]/agents/recommendations/route'
-  const REC = { platform: 'chatgpt', priority: 'high', recommendation: 'Add FAQ schema', category: 'schema' }
+  const REC = { platform: 'chatgpt', priority: 'high', recommendation: 'Add FAQ schema', category: 'schema', impactScore: 7 }
 
   it('returns 500 when CRON_SECRET is unset', async () => {
     delete process.env.CRON_SECRET
@@ -405,7 +405,7 @@ describe('POST /api/clients/[clientId]/agents/recommendations', () => {
 
     expect(res.status).toBe(500)
     expect(queries[1]).toMatch(/insert into agent_recommendations/i)
-    expect(queries[1]).toMatch(/on conflict \(scan_id, platform, recommendation\)/i)
+    expect(queries[1]).toMatch(/on conflict \(scan_id, platform, category\)/i)
   })
 
   it('flips agent_status from pending/null to running only on first write, before checking completion', async () => {

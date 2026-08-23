@@ -9,6 +9,7 @@ type Recommendation = {
   priority: string
   recommendation: string
   category: string
+  impactScore: number
 }
 
 export async function POST(
@@ -65,11 +66,12 @@ export async function POST(
   try {
     for (const r of recommendations) {
       await sql`
-        insert into agent_recommendations (scan_id, platform, priority, recommendation, category)
-        values (${scanId}, ${r.platform}, ${r.priority}, ${r.recommendation}, ${r.category})
-        on conflict (scan_id, platform, recommendation) do update set
+        insert into agent_recommendations (scan_id, platform, priority, recommendation, category, impact_score)
+        values (${scanId}, ${r.platform}, ${r.priority}, ${r.recommendation}, ${r.category}, ${r.impactScore})
+        on conflict (scan_id, platform, category) do update set
           priority = excluded.priority,
-          category = excluded.category
+          recommendation = excluded.recommendation,
+          impact_score = excluded.impact_score
       `
     }
   } catch (error) {
