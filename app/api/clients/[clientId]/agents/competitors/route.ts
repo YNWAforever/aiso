@@ -1,28 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { markCompleteIfAllPresent } from '@/lib/agents'
+import { cronSecret, markCompleteIfAllPresent } from '@/lib/agents'
 
 export const dynamic = 'force-dynamic'
 
 type Competitor = {
   platform: string
   competitorDomain: string
-  competitorName?: string
+  competitorName: string
   mentionRate: number
   yourRate: number
   gapAnalysis: string
-}
-
-/**
- * Read the secret, or null when it is missing or too short to be one.
- *
- * Compared against a known-present value, mirroring pulse/run's guard — an
- * unset var can never make an absent header match.
- */
-function cronSecret(): string | null {
-  const secret = process.env.CRON_SECRET
-  if (!secret || secret.length < 16) return null
-  return secret
 }
 
 export async function POST(
@@ -57,9 +45,6 @@ export async function POST(
 
   const sql = db()
 
-  // Scoped to both scanId and the URL's clientId — the pre-fence version only
-  // checked scanId, so a stale/wrong client mapping would silently write into
-  // the wrong place with no signal anything was off.
   let scanFound: boolean
   try {
     const rows = await sql`
@@ -67,8 +52,6 @@ export async function POST(
     `
     scanFound = rows.length > 0
   } catch (error) {
-    // A failed lookup is a database incident, not "no such scan" — never let
-    // an outage read as a 404.
     console.error('[agents/competitors] scan lookup failed:', error)
     return NextResponse.json({ error: 'Scan lookup failed' }, { status: 503 })
   }
@@ -80,7 +63,7 @@ export async function POST(
     for (const c of competitors) {
       await sql`
         insert into agent_competitors (scan_id, platform, competitor_domain, competitor_name, mention_rate, your_rate, gap_analysis)
-        values (${scanId}, ${c.platform}, ${c.competitorDomain}, ${c.competitorName ?? null}, ${c.mentionRate}, ${c.yourRate}, ${c.gapAnalysis})
+        values (${scanId}, ${c.platform}, ${c.competitorDomain}, ${c.competitorName}, ${c.mentionRate}, ${c.yourRate}, ${c.gapAnalysis})
         on conflict (scan_id, platform, competitor_domain) do update set
           competitor_name = excluded.competitor_name,
           mention_rate = excluded.mention_rate,

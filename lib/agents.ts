@@ -3,6 +3,18 @@ import type { NeonQueryFunction } from '@neondatabase/serverless'
 type Sql = NeonQueryFunction<false, false>
 
 /**
+ * Read the secret, or null when it is missing or too short to be one.
+ *
+ * Compared against a known-present value, mirroring pulse/run's guard — an
+ * unset var can never make an absent header match.
+ */
+export function cronSecret(): string | null {
+  const secret = process.env.CRON_SECRET
+  if (!secret || secret.length < 16) return null
+  return secret
+}
+
+/**
  * Sets scans.agent_status = 'complete' once agent_recommendations, agent_progress,
  * and agent_competitors each have at least one row for this scan.
  *

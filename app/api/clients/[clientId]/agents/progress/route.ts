@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { markCompleteIfAllPresent } from '@/lib/agents'
+import { cronSecret, markCompleteIfAllPresent } from '@/lib/agents'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,12 +10,6 @@ type Metric = {
   currentValue: number
   previousValue?: number | null
   delta?: number | null
-}
-
-function cronSecret(): string | null {
-  const secret = process.env.CRON_SECRET
-  if (!secret || secret.length < 16) return null
-  return secret
 }
 
 export async function POST(
