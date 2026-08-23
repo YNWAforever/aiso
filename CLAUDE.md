@@ -225,11 +225,15 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > which calls `getProfile()` and filters by `account_id`. Read the callee before concluding a
 > route is open.
 >
-> Routes whose feature is fenced return `503 FEATURE_UNAVAILABLE` via `lib/unavailable.ts`:
-> `agents/*`. **Local
-> Trust, the alerts *config* route, `notifications/*`, the Pulse producer (`pulse/run`), the
-> whole prompt bank, `pulse/suggest-questions` and `content-tools` (`fix/cluster-map`,
-> `fix/content-brief`, restored 2026-08-23) are restored**. `cron/evaluate-alerts` is now Neon-backed
+> **No route is currently fenced.** `agents/*` (`competitors`, `progress`, `recommendations`)
+> was the last one, restored 2026-08-23; `__tests__/api/fenced-routes.test.ts`'s `FENCED`
+> array is empty, and asserts it stays that way unless a route is deliberately re-fenced. The
+> mechanism (`lib/unavailable.ts`'s `featureUnavailable()`, and the canonical-list test) stays
+> in place for the next time a feature needs it. **Local Trust, the alerts *config* route,
+> `notifications/*`, the Pulse producer (`pulse/run`), the whole prompt bank,
+> `pulse/suggest-questions`, `content-tools` (`fix/cluster-map`, `fix/content-brief`, restored
+> 2026-08-23) and `agents/*` were all restored** the same way: a real gate, not just deleting
+> `featureUnavailable`. `cron/evaluate-alerts` is now Neon-backed
 > with route-level authentication, and `cloudflare/cron-worker/` schedules it weekly at
 > `47 7 * * 1`, after the Pulse driver (see `docs/runbooks/deploy-cron-worker.md`); follow
 > `docs/alert-evaluation-release.md` as the pre-deploy migration gate before it carries
