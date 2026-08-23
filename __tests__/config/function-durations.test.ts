@@ -38,6 +38,9 @@ const workerConfig = parseWranglerJsonc(
 const LLM_ROUTES = [
   'app/api/scan/route.ts',
   'app/api/fix/route.ts',
+  // Same shape as fix/route.ts: one OpenRouter call each, comparable token budget.
+  'app/api/fix/cluster-map/route.ts',
+  'app/api/fix/content-brief/route.ts',
   'app/api/pulse/run/route.ts',
   // Not an LLM caller itself, but it awaits one, so it needs the same headroom.
   'app/api/cron/pulse/route.ts',

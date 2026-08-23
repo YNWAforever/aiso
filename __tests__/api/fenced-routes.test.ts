@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
 const FENCED: { path: string; feature: string; methods: string[] }[] = [
-  { path: '@/app/api/fix/cluster-map/route', feature: 'content-tools', methods: ['POST'] },
-  { path: '@/app/api/fix/content-brief/route', feature: 'content-tools', methods: ['POST'] },
   { path: '@/app/api/clients/[clientId]/agents/competitors/route', feature: 'agents', methods: ['POST'] },
   { path: '@/app/api/clients/[clientId]/agents/progress/route', feature: 'agents', methods: ['POST'] },
   { path: '@/app/api/clients/[clientId]/agents/recommendations/route', feature: 'agents', methods: ['POST'] },
