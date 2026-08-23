@@ -49,20 +49,27 @@ way each route's own ownership check differs by table) — worth extracting once
 all three routes after their own upsert succeeds.
 
 **2. `app/api/clients/[clientId]/agents/competitors/route.ts`** and **`.../progress/route.ts`**
-— restored, both following the identical shape:
-- `CRON_SECRET` check mirroring `pulse/run`: unset/short → 500 `'Server misconfiguration'`;
-  wrong/missing `x-cron-secret` header → 401.
+— restored, both following the identical shape. Status codes here match `pulse/run`'s pattern
+exactly (confirmed by reading it directly, not assumed) — that route's own comments spell out
+why: *"a failed lookup is a database incident, not 'no such client' — never let an outage read
+as a 404,"* which is why a failed **lookup** and a **not-found** result get different codes
+below, and why *write* failures get a third, different code:
+- `CRON_SECRET` check: unset/short → 500 `'Server misconfiguration'`; wrong/missing
+  `x-cron-secret` header → 401.
 - Parse and validate the body (`scanId` + an array) → 400 if missing/malformed.
 - **Improvement over the original**: look up the scan by *both* `id` and `client_id` (the URL
-  param), not `id` alone — 404 if the scan doesn't exist or belongs to a different client. The
+  param), not `id` alone. The lookup itself is wrapped in try/catch: if the query throws, 503
+  `'Scan lookup failed'` (never let an outage read as "not yours"); if it succeeds but returns
+  no row (scan doesn't exist, or belongs to a different client), 404 `'Not found'`. The
   original silently accepted any `scanId` regardless of the URL's `clientId`, which isn't a
   security hole given the single shared `CRON_SECRET` already has full access, but does mean a
   caller with a stale/wrong client mapping would silently write into the wrong place with no
   signal anything was off.
 - Upsert each row into its table (`insert ... on conflict (scan_id, platform, <col>) do update
   set ...`, looped per row — Neon's driver has no Supabase-style bulk `.upsert()`), wrapped in
-  try/catch → 500 `'Database error'` on failure, matching this codebase's "never return success
-  over a failed write" rule.
+  its own try/catch → 500 `'Database error'` on failure (a write failure, not a lookup failure
+  — `pulse/run` uses 500 for exactly this case, e.g. `'Pulse run failed'`), matching this
+  codebase's "never return success over a failed write" rule.
 - Call `markCompleteIfAllPresent` after a successful upsert.
 - Return `{ count: rows.length }`.
 
@@ -75,12 +82,13 @@ all-three-present check. This route-specific ordering assumption (recommendation
 first) is inherited behavior, not something this restoration changes.
 
 **4. `__tests__/api/agent-routes.test.ts` (new)** — covers, per route: 500 on unset/short
-`CRON_SECRET`, 401 on wrong/missing header, 400 on missing `scanId`/array, 404 on
-scan-not-found and scan-belongs-to-another-client, a successful upsert asserting the exact
-upserted row shape and `{ count }` response, and that `markCompleteIfAllPresent` only fires
-`scans.agent_status = 'complete'` when all three tables report data (not just this route's own
-table). `recommendations`' test additionally covers the `pending`/`null` → `running` transition
-firing only on first write.
+`CRON_SECRET`, 401 on wrong/missing header, 400 on missing `scanId`/array, 503 when the scan
+lookup itself throws, 404 on scan-not-found and scan-belongs-to-another-client, 500 when the
+upsert write itself throws, a successful upsert asserting the exact upserted row shape and
+`{ count }` response, and that `markCompleteIfAllPresent` only fires `scans.agent_status =
+'complete'` when all three tables report data (not just this route's own table).
+`recommendations`' test additionally covers the `pending`/`null` → `running` transition firing
+only on first write.
 
 **5. `__tests__/api/fenced-routes.test.ts`** — remove all three `agents/*` entries. `FENCED`
 becomes an empty array. The file and its mechanism stay (not deleted) — it's designed to catch
