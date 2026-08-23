@@ -152,6 +152,22 @@ describe('POST /api/clients/[clientId]/agents/competitors', () => {
     const [, ...upsertParams] = mockSql.mock.calls[1]!
     expect(upsertParams).toEqual(['scan-1', 'chatgpt', 'rival.com', 'Rival Co', 42, 10, 'They rank for X, you do not'])
   })
+
+  it('accepts a competitor with no competitorName, inserting null', async () => {
+    nextResults = [
+      [{ id: 'scan-1' }],
+      [],
+      [{ exists: 1 }], [], [{ exists: 1 }],
+    ]
+    const { POST } = await importRoute(ROUTE)
+    const noName = { platform: 'chatgpt', competitorDomain: 'rival.com', mentionRate: 42, yourRate: 10, gapAnalysis: 'gap' }
+
+    const res = await POST(request({ scanId: 'scan-1', competitors: [noName] }, 'test-cron-secret-0123'), { params })
+
+    expect(res.status).toBe(200)
+    const [, ...upsertParams] = mockSql.mock.calls[1]!
+    expect(upsertParams).toEqual(['scan-1', 'chatgpt', 'rival.com', null, 42, 10, 'gap'])
+  })
 })
 
 describe('POST /api/clients/[clientId]/agents/progress', () => {

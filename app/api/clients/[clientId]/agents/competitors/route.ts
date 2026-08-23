@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 type Competitor = {
   platform: string
   competitorDomain: string
-  competitorName: string
+  competitorName?: string
   mentionRate: number
   yourRate: number
   gapAnalysis: string
@@ -45,6 +45,9 @@ export async function POST(
 
   const sql = db()
 
+  // Scoped to both scanId and the URL's clientId — the pre-fence version only
+  // checked scanId, so a stale/wrong client mapping would silently write into
+  // the wrong place with no signal anything was off.
   let scanFound: boolean
   try {
     const rows = await sql`
@@ -52,6 +55,8 @@ export async function POST(
     `
     scanFound = rows.length > 0
   } catch (error) {
+    // A failed lookup is a database incident, not "no such scan" — never let
+    // an outage read as a 404.
     console.error('[agents/competitors] scan lookup failed:', error)
     return NextResponse.json({ error: 'Scan lookup failed' }, { status: 503 })
   }
@@ -63,7 +68,7 @@ export async function POST(
     for (const c of competitors) {
       await sql`
         insert into agent_competitors (scan_id, platform, competitor_domain, competitor_name, mention_rate, your_rate, gap_analysis)
-        values (${scanId}, ${c.platform}, ${c.competitorDomain}, ${c.competitorName}, ${c.mentionRate}, ${c.yourRate}, ${c.gapAnalysis})
+        values (${scanId}, ${c.platform}, ${c.competitorDomain}, ${c.competitorName ?? null}, ${c.mentionRate}, ${c.yourRate}, ${c.gapAnalysis})
         on conflict (scan_id, platform, competitor_domain) do update set
           competitor_name = excluded.competitor_name,
           mention_rate = excluded.mention_rate,
