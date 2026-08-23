@@ -42,7 +42,11 @@ export async function POST(
 
   let body: { scanId?: string; competitors?: Competitor[] }
   try {
-    body = await req.json()
+    const parsed = await req.json()
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    }
+    body = parsed
   } catch {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }

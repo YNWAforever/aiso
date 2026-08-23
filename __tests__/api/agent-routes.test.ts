@@ -76,6 +76,15 @@ describe('POST /api/clients/[clientId]/agents/competitors', () => {
     expect(mockSql).not.toHaveBeenCalled()
   })
 
+  it('returns 400 for a null or non-object JSON body, not an unhandled crash', async () => {
+    const { POST } = await importRoute(ROUTE)
+
+    const res = await POST(request(null, 'test-cron-secret-0123'), { params })
+
+    expect(res.status).toBe(400)
+    expect(mockSql).not.toHaveBeenCalled()
+  })
+
   it('returns 503 when the scan lookup itself fails', async () => {
     nextResults = [new Error('connection terminated') as never]
     const { POST } = await importRoute(ROUTE)
