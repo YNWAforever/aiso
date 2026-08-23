@@ -3,11 +3,11 @@ import { describe, it, expect } from 'vitest'
 const FENCED: { path: string; feature: string; methods: string[] }[] = []
 
 describe('fenced routes', () => {
+  // Vitest v4 fails a describe block with zero registered `it()` calls
+  // ("No test found in suite"), so an empty FENCED needs its own vacuous
+  // test rather than just letting the loop below register nothing.
   if (FENCED.length === 0) {
-    it('all fenced features have been restored', () => {
-      // The FENCED array is empty, confirming that all previously fenced features
-      // (agents) have been restored with real implementations and no longer need
-      // the 503 FEATURE_UNAVAILABLE response. This test passes vacuously.
+    it('FENCED is empty — no route is currently fenced', () => {
       expect(FENCED).toEqual([])
     })
   } else {
