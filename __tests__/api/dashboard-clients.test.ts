@@ -74,6 +74,13 @@ describe('POST /api/dashboard/clients', () => {
     expect(res.status).toBe(403)
   })
 
+  it('returns 409 when the trigger raises ACCOUNT_ENTITLEMENT_INVALID', async () => {
+    nextResults = [[{ n: 0 }], new Error('ACCOUNT_ENTITLEMENT_INVALID') as never]
+    const res = await POST(request({ brand_name: 'Acme' }))
+    expect(res.status).toBe(409)
+    await expect(res.json()).resolves.toEqual({ error: 'ACCOUNT_ENTITLEMENT_INVALID' })
+  })
+
   it('returns 500 when the database fails, not a silent success', async () => {
     nextResults = [new Error('connection terminated') as never]
     const res = await POST(request({ brand_name: 'Acme' }))
