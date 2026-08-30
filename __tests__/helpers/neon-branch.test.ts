@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // The guard these tests cover stands between `npm test` and
 // `drop schema public cascade`. Everything is exercised against a mocked
@@ -50,8 +50,26 @@ async function load() {
   return import('./neon-branch')
 }
 
+// This file's fixtures assume the hardcoded PROJECT_ID/PRODUCTION_BRANCH_ID/OWNER_ROLE
+// above — clear any ambient NEON_TEST_* override so a developer rehearsing the greenfield
+// migration in the same shell (item 0.7/0.8) can't make these tests fail confusingly by
+// having the real module diverge from these mocked fixtures.
+const NEON_TEST_ENV_KEYS = ['NEON_TEST_PROJECT_ID', 'NEON_TEST_PRODUCTION_BRANCH_ID', 'NEON_TEST_OWNER_ROLE'] as const
+const originalNeonTestEnv: Record<string, string | undefined> = {}
+
 beforeEach(() => {
   execFileSync.mockReset()
+  for (const key of NEON_TEST_ENV_KEYS) {
+    originalNeonTestEnv[key] = process.env[key]
+    delete process.env[key]
+  }
+})
+
+afterEach(() => {
+  for (const key of NEON_TEST_ENV_KEYS) {
+    if (originalNeonTestEnv[key] === undefined) delete process.env[key]
+    else process.env[key] = originalNeonTestEnv[key]
+  }
 })
 
 describe('createTestBranch', () => {
