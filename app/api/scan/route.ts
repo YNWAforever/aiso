@@ -33,7 +33,7 @@ import { fetchPublicUrl, PublicUrlError } from '@/lib/security/public-url'
 import { consumePublicScanRateLimit, rateLimitHeaders } from '@/lib/security/public-scan-rate-limit'
 import { parseSitemapUrls } from '@/lib/security/sitemap-urls'
 import { consumeAuthenticatedScanQuota, authenticatedScanQuotaHeaders } from '@/lib/security/authenticated-scan-quota'
-import { GEO_PTS, assignGrade, calculateScore, calculateGeoScore } from '@/lib/scoring'
+import { GEO_PTS, assignGrade, calculateScore, calculateGeoScore, capScore } from '@/lib/scoring'
 import { calculatePillarScores } from '@/lib/pillar-scores'
 import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'
 
@@ -296,7 +296,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const totalScore = Math.min(100, score + geoScore)
+  const totalScore = capScore(score + geoScore)
   const grade = assignGrade(totalScore)
 
   // Dashboard behavior is enabled only for the already verified owned client.
