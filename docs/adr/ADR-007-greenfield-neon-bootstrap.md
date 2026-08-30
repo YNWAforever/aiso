@@ -1,6 +1,6 @@
 # ADR-007 — Greenfield Neon bootstrap
 
-- **Status:** Proposed — pending §24 decision 3
+- **Status:** Accepted — §24 decision 3 approved 2026-08-31 (docs/decisions/2026-08-31-phase0-stakeholder-decisions.md)
 - **Date:** 2026-08-30
 - **Source:** base plan §7 ADR-7, which defers wholly to plan §15
 

@@ -1,6 +1,6 @@
 # ADR-006 — Scoring and methodology
 
-- **Status:** Proposed — pending §24 decision 7
+- **Status:** Accepted — §24 decision 7 approved 2026-08-31 (docs/decisions/2026-08-31-phase0-stakeholder-decisions.md)
 - **Date:** 2026-08-30
 - **Source:** base plan §7 ADR-6; see also plan §13
 

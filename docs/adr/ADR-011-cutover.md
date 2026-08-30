@@ -1,6 +1,6 @@
 # ADR-011 — Cutover
 
-- **Status:** Proposed — pending §24 decisions 11 and 12
+- **Status:** Accepted — §24 decisions 11 and 12 approved 2026-08-31 (docs/decisions/2026-08-31-phase0-stakeholder-decisions.md)
 - **Date:** 2026-08-30
 - **Source:** base plan §7 ADR-11; see also plan §21
 

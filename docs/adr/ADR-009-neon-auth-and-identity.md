@@ -1,6 +1,6 @@
 # ADR-009 — Neon Auth and identity
 
-- **Status:** Proposed — pending §24 decision 4
+- **Status:** Accepted — §24 decision 4 approved 2026-08-31 (docs/decisions/2026-08-31-phase0-stakeholder-decisions.md)
 - **Date:** 2026-08-30
 - **Source:** base plan §7 ADR-9; see also plan §17.1–§17.2
 

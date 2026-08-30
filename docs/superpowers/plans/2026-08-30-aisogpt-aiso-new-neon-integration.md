@@ -1216,3 +1216,15 @@ The integration is done when all of the following hold:
 | 20 | Quality bar; five pre-finish checks | Citations throughout; inference labelled in §5.2; §15 and §13.2 both present |
 | 21 | Final response format | Delivered in the chat response accompanying this plan |
 | 22 | Primary external references | §16, §17.1, E11–E14 |
+
+---
+
+## Changelog
+
+### 2026-08-31 — D14 (stale, resolved)
+
+`README.md` claimed "There is no CI" and "The app connects as `neondb_owner`", both
+contradicted by `.github/workflows/pr-gate.yml` (a real four-job merge gate) and migration
+`037` (the app connects as `aeo_app`). Found during item 0.2's execution; not one of the
+original D1–D13 rows. Classified `stale`. Fix: `README.md`'s "Project status" section
+corrected in the same commit as this changelog entry.

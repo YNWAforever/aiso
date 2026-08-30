@@ -1,6 +1,6 @@
 # ADR-008 — Tenant isolation and RLS
 
-- **Status:** Proposed — pending §24 decision 6
+- **Status:** Accepted — §24 decision 6 approved 2026-08-31 (docs/decisions/2026-08-31-phase0-stakeholder-decisions.md)
 - **Date:** 2026-08-30
 - **Source:** base plan §7 ADR-8; see also plan §17.3
 

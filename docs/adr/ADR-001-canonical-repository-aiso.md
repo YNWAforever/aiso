@@ -1,6 +1,6 @@
 # ADR-001 — Canonical repository: `aiso`
 
-- **Status:** Proposed — pending §24 decision 1
+- **Status:** Accepted — §24 decision 1 approved 2026-08-31 (docs/decisions/2026-08-31-phase0-stakeholder-decisions.md)
 - **Date:** 2026-08-30
 - **Source:** base plan §7 ADR-1 (`docs/superpowers/plans/2026-08-30-aisogpt-aiso-new-neon-integration.md`)
 
