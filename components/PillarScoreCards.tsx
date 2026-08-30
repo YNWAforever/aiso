@@ -1,4 +1,4 @@
-import { resolvePillarScores, type PillarKey } from '@/lib/pillar-scores'
+import { resolvePillarScores, isPillarScoreStored, type PillarKey } from '@/lib/pillar-scores'
 
 type Tone = 'light' | 'dashboard'
 
@@ -12,6 +12,7 @@ const COPY = {
   en: {
     aria: 'SEO, AEO and GEO diagnostic scores',
     note: 'These diagnostic pillars overlap by design and do not add together. The overall AISO score remains the 100-point benchmark.',
+    recalculated: 'Recalculated with current methodology — not the original scan result.',
     pass: 'pass',
     warn: 'warn',
     fail: 'fail',
@@ -33,6 +34,7 @@ const COPY = {
   'zh-HK': {
     aria: 'SEO、AEO 及 GEO 診斷分數',
     note: '三個診斷維度刻意包含重疊訊號，不應相加；整體 AISO 分數仍以 100 分為基準。',
+    recalculated: '此分數已按目前方法重新計算，並非原始掃描結果。',
     pass: '通過',
     warn: '警告',
     fail: '不及格',
@@ -59,6 +61,7 @@ export function PillarScoreCards({ results, locale = 'en', tone = 'light' }: Pro
   const language = locale === 'zh-HK' ? 'zh-HK' : 'en'
   const copy = COPY[language]
   const snapshot = resolvePillarScores(results)
+  const stored = isPillarScoreStored(results)
   const dashboard = tone === 'dashboard'
 
   const cardClass = dashboard
@@ -73,6 +76,7 @@ export function PillarScoreCards({ results, locale = 'en', tone = 'light' }: Pro
       aria-label={copy.aria}
       data-testid="pillar-score-cards"
       data-methodology-version={snapshot.methodologyVersion}
+      data-recalculated={!stored}
     >
       <div className="grid gap-3 sm:grid-cols-3">
         {PILLAR_ORDER.map((key) => {
@@ -118,6 +122,11 @@ export function PillarScoreCards({ results, locale = 'en', tone = 'light' }: Pro
         })}
       </div>
 
+      {!stored && (
+        <p className={`mt-2 text-[10px] font-semibold ${mutedClass}`}>
+          {copy.recalculated}
+        </p>
+      )}
       <p className={`mt-3 text-[10px] leading-relaxed ${mutedClass}`}>
         {copy.note}
       </p>

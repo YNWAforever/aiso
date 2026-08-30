@@ -227,4 +227,22 @@ describe('POST /api/scan — full scan flow', () => {
     expect(persistedResults).toContain('PRIVATE_DETAIL_SENTINEL')
     expect(persistedResults).toContain('private.example.test')
   })
+
+  it('persists a versioned pillar snapshot alongside the check results', async () => {
+    const { POST } = await import('@/app/api/scan/route')
+    const req = new NextRequest('http://localhost/api/scan', {
+      method: 'POST',
+      body: JSON.stringify({ url: 'https://example.com' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    await POST(req)
+
+    const persistedResults = JSON.parse(dbState.insertValues[3] as string)
+    expect(persistedResults.pillarScores).toBeDefined()
+    expect(persistedResults.pillarScores.methodologyVersion).toBe('2026-08-26.v1')
+    expect(persistedResults.pillarScores.seo.score).toBeGreaterThanOrEqual(0)
+    expect(persistedResults.pillarScores.aeo.score).toBeGreaterThanOrEqual(0)
+    expect(persistedResults.pillarScores.geo.score).toBeGreaterThanOrEqual(0)
+  })
 })

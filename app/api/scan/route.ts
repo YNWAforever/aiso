@@ -34,6 +34,7 @@ import { consumePublicScanRateLimit, rateLimitHeaders } from '@/lib/security/pub
 import { parseSitemapUrls } from '@/lib/security/sitemap-urls'
 import { consumeAuthenticatedScanQuota, authenticatedScanQuotaHeaders } from '@/lib/security/authenticated-scan-quota'
 import { GEO_PTS, assignGrade, calculateScore, calculateGeoScore } from '@/lib/scoring'
+import { calculatePillarScores } from '@/lib/pillar-scores'
 import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'
 
 // Re-exported for existing tests that import scoring from this route
@@ -303,10 +304,12 @@ export async function POST(req: NextRequest) {
 
   let scanId: string
   try {
+    const combinedResults = { ...results, ...geoDetails }
+    const pillarScores = calculatePillarScores(combinedResults)
     const rows = await sql`
       insert into scans (url, domain, score, results, industry, region, grade, account_id, agent_status, client_id)
       values (${baseUrl}, ${domain}, ${totalScore},
-              ${JSON.stringify({ ...results, ...geoDetails })}::jsonb,
+              ${JSON.stringify({ ...combinedResults, pillarScores })}::jsonb,
               ${geoIndustry}, ${geoRegion}, ${grade}, ${account_id},
               ${isDashboardScan ? 'pending' : null}, ${clientId ?? null})
       returning id

@@ -162,3 +162,11 @@ export function resolvePillarScores(results: Record<string, unknown>): PillarSco
     ? results.pillarScores
     : calculatePillarScores(results)
 }
+
+/**
+ * True when `results.pillarScores` is a valid stored snapshot — i.e. the value
+ * `resolvePillarScores` will return unmodified rather than recalculate.
+ */
+export function isPillarScoreStored(results: Record<string, unknown>): boolean {
+  return isPillarScoreSnapshot(results.pillarScores)
+}

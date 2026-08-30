@@ -4,6 +4,7 @@ import {
   PILLAR_WEIGHTS,
   calculatePillarScores,
   isPillarScoreSnapshot,
+  isPillarScoreStored,
   resolvePillarScores,
 } from '@/lib/pillar-scores'
 
@@ -75,5 +76,14 @@ describe('resolvePillarScores', () => {
     const resolved = resolvePillarScores(results)
     expect(resolved.methodologyVersion).toBe(PILLAR_SCORE_VERSION)
     expect(resolved.seo.score).toBe(100)
+  })
+
+  it('reports whether the snapshot came from storage or was recalculated', () => {
+    const results = resultsWithStatus('pass')
+    const stored = calculatePillarScores(results)
+
+    expect(isPillarScoreStored({ pillarScores: stored })).toBe(true)
+    expect(isPillarScoreStored(results)).toBe(false)
+    expect(isPillarScoreStored({ pillarScores: { methodologyVersion: 'broken' } })).toBe(false)
   })
 })
