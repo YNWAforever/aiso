@@ -254,6 +254,36 @@ describe('PR merge-gate evidence contracts', () => {
     expect(result.summary.commitSha).toBe('fixture-sha')
   })
 
+  it('requires the integration job before the gate can pass', () => {
+    // Every other required job is fully green (matching summary, matching commit
+    // SHA) so this fixture would pass on its own merits — the only thing missing
+    // is INTEGRATION_RESULT and an 'integration' job summary. That isolates the
+    // assertion to the new requirement rather than piggybacking on an already-
+    // blocking empty `summaries: []` fixture.
+    const result = aggregateGate({
+      results: {
+        STATIC_RESULT: 'success',
+        UNIT_CONTRACT_RESULT: 'success',
+        E2E_ACCESSIBILITY_RESULT: 'success',
+        BUILD_RESULT: 'success',
+        CLOUDFLARE_WORKER_RESULT: 'success',
+        // INTEGRATION_RESULT deliberately omitted
+      },
+      summaries: [
+        createJobSummary({ job: 'static', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
+        createJobSummary({ job: 'unit-contract', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
+        createJobSummary({ job: 'e2e-accessibility', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
+        createJobSummary({ job: 'build', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
+        createJobSummary({ job: 'cloudflare-worker', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
+        // no summary for job 'integration'
+      ],
+      commitSha: 'fixture-sha',
+    })
+
+    expect(result.exitCode).toBe(1)
+    expect(result.summary.status).toBe('failure')
+  })
+
   it('keeps only the five expected job summaries during aggregate discovery', async () => {
     const directory = await createSummaryDirectory({
       'static-summary.json': createJobSummary({ job: 'static', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'fixture-sha' }),
@@ -360,6 +390,7 @@ describe('PR merge-gate evidence contracts', () => {
       results: {
         STATIC_RESULT: 'success',
         UNIT_CONTRACT_RESULT: 'success',
+        INTEGRATION_RESULT: 'success',
         E2E_ACCESSIBILITY_RESULT: 'success',
         BUILD_RESULT: 'success',
         CLOUDFLARE_WORKER_RESULT: 'success',
@@ -367,6 +398,7 @@ describe('PR merge-gate evidence contracts', () => {
       summaries: [
         createJobSummary({ job: 'static', status: 'success', executed: 1, skipped: 0, priorities: ['P1'], artifacts: [], commitSha: 'aggregate-sha' }),
         createJobSummary({ job: 'unit-contract', status: 'success', executed: 1, skipped: 0, priorities: ['P1', 'P2'], artifacts: [], commitSha: 'aggregate-sha' }),
+        createJobSummary({ job: 'integration', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'aggregate-sha' }),
         createJobSummary({ job: 'e2e-accessibility', status: 'success', executed: 1, skipped: 0, priorities: ['P2'], artifacts: [], commitSha: 'aggregate-sha' }),
         createJobSummary({ job: 'build', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'aggregate-sha' }),
         createJobSummary({ job: 'cloudflare-worker', status: 'success', executed: 1, skipped: 0, artifacts: [], commitSha: 'aggregate-sha' }),
