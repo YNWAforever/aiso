@@ -13,7 +13,7 @@
     "test": "node scripts/run-tests.mjs",
     "test:unit": "vitest run --exclude '__tests__/integration/**'",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test:watch": "vitest",
     "migrate": "node --env-file=.env.local scripts/migrate.ts",
     "e2e": "playwright test",

@@ -3,7 +3,9 @@ import { markCompleteIfAllPresent } from '@/lib/agents'
 
 function makeSql(results: unknown[][]) {
   let i = 0
-  return vi.fn(() => Promise.resolve(results[i++] ?? []))
+  return vi.fn<(strings: TemplateStringsArray, ...values: unknown[]) => Promise<unknown[]>>(
+    () => Promise.resolve(results[i++] ?? []),
+  )
 }
 
 describe('markCompleteIfAllPresent', () => {

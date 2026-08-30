@@ -13,8 +13,13 @@ vi.mock('@/lib/openrouter', () => ({
 
 vi.mock('@/lib/authority/aggregator', () => ({
   computeAuthority: vi.fn().mockResolvedValue({
+    layer1_tld: { baseScore: 0, category: 'other' },
+    layer2_signals: { signalScore: 0, signals: {} },
+    layer3_industry: { score: 0, tier: 'tier1', multiplier: 1 },
+    layer4_regional: { score: 0, tier: 'tier1' },
+    layer5_dynamic: null,
     totalScore: 35, layer1Score: 10, layer2Score: 8, layer3Score: 10, layer4Score: 7,
-    tier: 'tier1', domain: 'example.com',
+    tier: 'tier1',
   }),
 }))
 
@@ -33,8 +38,13 @@ describe('checkCitationDensity', () => {
   beforeEach(() => {
     vi.mocked(computeAuthority).mockReset()
     vi.mocked(computeAuthority).mockResolvedValue({
+      layer1_tld: { baseScore: 0, category: 'other' },
+      layer2_signals: { signalScore: 0, signals: {} },
+      layer3_industry: { score: 0, tier: 'tier1', multiplier: 1 },
+      layer4_regional: { score: 0, tier: 'tier1' },
+      layer5_dynamic: null,
       totalScore: 35, layer1Score: 10, layer2Score: 8, layer3Score: 10, layer4Score: 7,
-      tier: 'tier1', domain: 'example.com', finalScore: 35,
+      tier: 'tier1', finalScore: 35,
     })
   })
 

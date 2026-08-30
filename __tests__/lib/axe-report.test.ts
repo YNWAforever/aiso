@@ -4,8 +4,6 @@ import { sanitizeAxeResults } from '@/lib/axe-report'
 describe('sanitizeAxeResults', () => {
   it('keeps diagnostic rule metadata without page content, selectors, or arbitrary axe data', () => {
     const result = sanitizeAxeResults({
-      url: 'https://example.test/private?email=person@example.test',
-      timestamp: '2026-08-10T00:00:00.000Z',
       violations: [{
         id: 'label',
         impact: 'critical',
@@ -49,7 +47,6 @@ describe('sanitizeAxeResults', () => {
         tags: ['cat.name-role-value'],
         nodes: [{ target: ['#private-person@example.test'], any: [], all: [], none: [] }],
       }],
-      testEngine: { name: 'axe-core' },
     })
 
     expect(result).toEqual({

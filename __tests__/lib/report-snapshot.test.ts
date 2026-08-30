@@ -82,7 +82,7 @@ describe('client report snapshot', () => {
     const snapshot = buildClientReportSnapshot({
       ...input,
       currentScan: { ...input.currentScan, results: { c1_robots: { status: 'pass', raw: '<b>secret</b>' }, prompt: 'secret', model: 'model', assignee: 'person' } },
-    }) as Record<string, unknown>
+    }) as unknown as Record<string, unknown>
 
     const serialized = JSON.stringify(snapshot)
     expect(serialized).not.toMatch(/account-secret|prompt|model|assignee|<b>secret<\/b>/i)

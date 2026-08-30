@@ -18,7 +18,7 @@ vi.mock('@/lib/auth', () => ({ getProfile: getProfileMock }))
 const queries: string[] = []
 let nextResults: unknown[][] = []
 
-const mockSql = vi.fn((strings: TemplateStringsArray) => {
+const mockSql = vi.fn((strings: TemplateStringsArray, ..._values: unknown[]) => {
   queries.push(strings.join('?'))
   const result = nextResults.shift()
   if (result instanceof Error) throw result

@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest'
 import { getTrialStatus } from '@/lib/trial'
 import type { Account } from '@/lib/types'
 
@@ -12,6 +13,8 @@ function makeAccount(overrides: Partial<Account> = {}): Account {
     trial_ends_at: null,
     trial_emails_sent: 0,
     created_at: new Date().toISOString(),
+    override_plan: null,
+    override_expires_at: null,
     ...overrides,
   }
 }

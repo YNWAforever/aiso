@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { checkMcpCard } from '@/lib/checks/mcpCard'
-import { createPublicUrlFetcher } from '@/lib/security/public-url'
+import { createPublicUrlFetcher, type PublicUrlFetch } from '@/lib/security/public-url'
 import { forbidGlobalFetch } from '../helpers/forbid-global-fetch'
 
 const BARE_HTML = '<html><body><p>nothing to see</p></body></html>'
 const AI_META_HTML = '<html><head><link rel="mcp" href="/mcp.json"></head><body></body></html>'
 
-const notFound = () => Promise.resolve(new Response('Not Found', { status: 404 }))
+const notFound: PublicUrlFetch = () => Promise.resolve(new Response('Not Found', { status: 404 }))
 
 beforeEach(() => {
   vi.restoreAllMocks()
@@ -15,7 +15,7 @@ beforeEach(() => {
 
 describe('checkMcpCard', () => {
   it('probes every well-known AI endpoint through the injected fetcher', async () => {
-    const fetcher = vi.fn(notFound)
+    const fetcher = vi.fn<PublicUrlFetch>(notFound)
 
     await checkMcpCard('https://example.com', BARE_HTML, fetcher)
 
@@ -31,7 +31,7 @@ describe('checkMcpCard', () => {
     // The regression this file exists for: checkMcpCard used to call bare
     // fetch(), skipping the SSRF boundary every other check routes through.
     // forbidGlobalFetch() makes the global throw, so a relapse fails here.
-    const fetcher = vi.fn(notFound)
+    const fetcher = vi.fn<PublicUrlFetch>(notFound)
 
     await expect(checkMcpCard('https://example.com', BARE_HTML, fetcher))
       .resolves.toMatchObject({ status: 'fail' })
@@ -40,7 +40,7 @@ describe('checkMcpCard', () => {
   })
 
   it('resolves endpoints against the origin rather than concatenating', async () => {
-    const fetcher = vi.fn(notFound)
+    const fetcher = vi.fn<PublicUrlFetch>(notFound)
 
     await checkMcpCard('https://example.com/en/', BARE_HTML, fetcher)
 
@@ -74,7 +74,7 @@ describe('checkMcpCard', () => {
   })
 
   it('warns when only AI meta tags are present', async () => {
-    const result = await checkMcpCard('https://example.com', AI_META_HTML, vi.fn(notFound))
+    const result = await checkMcpCard('https://example.com', AI_META_HTML, vi.fn<PublicUrlFetch>(notFound))
 
     expect(result).toEqual({ status: 'warn', message: 'mcp_card_meta_only' })
   })

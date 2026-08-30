@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { POST } from '@/app/api/onboarding/complete/route'
 import { NextRequest } from 'next/server'
 
