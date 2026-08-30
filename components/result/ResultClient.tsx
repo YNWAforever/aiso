@@ -12,6 +12,7 @@ import { ImpactPanel }      from './ImpactPanel'
 import { ShareButton }      from './ShareButton'
 import { AccountUnlockCard } from './AccountUnlockCard'
 import { ClaimScanOnReturn } from './ClaimScanOnReturn'
+import { PillarScoreCards } from '@/components/PillarScoreCards'
 import { computeImpact, type PlatformStatus } from '@/lib/impact'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
 import { getCheckExplanations }  from '@/lib/checkExplanations'
@@ -278,6 +279,7 @@ export function ResultClient({ lang, summary, fullScan }: Props) {
 
         {fullScan && impact ? (
           <>
+            <PillarScoreCards results={r} locale={locale} />
             <ImpactPanel impact={impact} score={fullScan.score} grade={fullScan.grade ?? 'F'} />
 
             <div data-testid="full-check-breakdown" className="space-y-5">

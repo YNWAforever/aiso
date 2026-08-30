@@ -1,6 +1,7 @@
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { ScoreRing } from '@/components/ScoreRing'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
+import { PillarScoreCards } from '@/components/PillarScoreCards'
 import { CHECK_EXPLANATIONS } from '@/lib/checkExplanations'
 import type { Scan, CheckResult } from '@/lib/types'
 
@@ -22,6 +23,7 @@ const GROUPS: Group[] = [
 
 export function ScanSummary({ scan }: Props) {
   const t = useTranslations('dashboard')
+  const locale = useLocale()
   const r = scan.results as Record<string, unknown>
   const date = new Date(scan.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
@@ -59,6 +61,10 @@ export function ScanSummary({ scan }: Props) {
           {t('grade')} <span style={{ color: scoreColor }}>{scan.grade ?? 'F'}</span>
         </span>
         <span className="text-[11px] text-dash-muted">{t('score_outof', { score: scan.score })}</span>
+      </div>
+
+      <div className="border-b border-dash-border p-5">
+        <PillarScoreCards results={r} locale={locale} tone="dashboard" />
       </div>
 
       <div className="p-4 space-y-1">
