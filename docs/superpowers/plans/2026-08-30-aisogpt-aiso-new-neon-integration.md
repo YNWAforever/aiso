@@ -455,6 +455,11 @@ sequenceDiagram
 
 **Reconciliation.** The matrix in §9.2 carries **49 rows**: 33 donor public families + 16 workspace families (`/dashboard/demo`, `/dashboard/portfolio`, 12 sections, `entities/[entityId]`, `entities/[entityId]/[tab]`). Locale variants are collapsed into one row per family and are **not** double-counted; 33 × 2 = 66 and 16 families → 54 concrete workspace URLs are accounted for by the family rows. Redirects are handled in the "Redirect/compatibility rule" column rather than as separate rows. Intentional exclusions, itemised: `/result/demo-scan` (aliased to `/result/demo`, no independent page), `/platform/search-visibility` (alias only, never in `publicRoutes`), `/handoff` (donor doc states it is not exposed), and the 5 concrete demo entity ids (fixture data, not routes).
 
+> **Counts revised 2026-08-31 — see Changelog D15.** The §9.2 table as committed has 53 rows
+> (32 public + 21 workspace), not the 49/33+16 above. `docs/contracts/routes.md` (item 0.3)
+> carries the corrected counts as the authoritative reference; the paragraph above is left
+> unedited as the original analysis narrative.
+
 ### 9.2 Route parity matrix
 
 Target actions: `reuse` · `restyle` · `port-onto-data` · `adapter` · `new-api` · `new-schema` · `redirect` · `fixture-only` · `defer` · `retire`.
@@ -1195,7 +1200,7 @@ The integration is done when all of the following hold:
 | 5 | Verify current-state facts, don't assume | §3, §4; corrections recorded in §6 |
 | 6 | Required integration direction; excluded donor elements | §1, §2 non-goals table, §7 ADR-1/3/4 |
 | 7 | Eleven ADRs | §7 ADR-1 … ADR-11 |
-| 8 | Route manifests, reconciliation, parity matrix | §9.1 manifests A/B/C, §9.1 reconciliation, §9.2 matrix (49 rows) |
+| 8 | Route manifests, reconciliation, parity matrix | §9.1 manifests A/B/C, §9.1 reconciliation, §9.2 matrix (53 rows — see D15) |
 | 9 | Feature and field mapping matrices | §10.1, §10.2 (+ separate static-claims inventory) |
 | 10 | Scan credibility, scoring, pillar-snapshot gap, Phase 0 acceptance | §13, §13.2, §13.3, §13.4, §13.6 |
 | 11 | Frontend integration requirements (10 items) | §11 items 1–10 |
@@ -1228,3 +1233,18 @@ contradicted by `.github/workflows/pr-gate.yml` (a real four-job merge gate) and
 `037` (the app connects as `aeo_app`). Found during item 0.2's execution; not one of the
 original D1–D13 rows. Classified `stale`. Fix: `README.md`'s "Project status" section
 corrected in the same commit as this changelog entry.
+
+### 2026-08-31 — D15 (stale, resolved)
+
+§9.1's reconciliation prose states the §9.2 route parity matrix has "49 rows — 33 donor
+public families + 16 workspace families." Counted directly against the committed §9.2 table
+during item 0.3's execution: it actually has 53 rows — 32 public families + 21 workspace
+families. The prose apparently went stale relative to the table as the table grew during the
+same document's authoring. Classified `stale`, internal to this document (not a cross-file
+contradiction like D1–D14). Appendix A's traceability table (row 8) independently cited the
+same stale "49 rows" figure and has been corrected in place, since a one-line index citation
+is not the kind of dated analysis narrative this changelog otherwise avoids rewriting. Fix:
+`docs/contracts/routes.md` (item 0.3's frozen route contract) records the correct 53/32/21
+counts, with a note pointing back to this entry; §9.1's reconciliation *prose* above is left
+as-is since amending that narrative after the fact reads as rewriting history — this
+changelog entry is the correction of record for it.
