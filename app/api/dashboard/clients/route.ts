@@ -56,6 +56,14 @@ export async function POST(req: NextRequest) {
     if (message.includes('BRAND_LIMIT_REACHED')) {
       return NextResponse.json({ error: 'BRAND_LIMIT_REACHED', plan, limit }, { status: 403 })
     }
+    if (message.includes('ACCOUNT_ENTITLEMENT_INVALID')) {
+      // The account's own stored plan/status is malformed and no live admin
+      // override rescues it (see the admin-plan-override design doc). This is
+      // a diagnosable account-state fault, not a generic database error — it
+      // must not be folded into the sanitizeDatabaseError/500 path below.
+      console.error(`[dashboard/clients] entitlement invalid for account ${profile.account_id}`)
+      return NextResponse.json({ error: 'ACCOUNT_ENTITLEMENT_INVALID' }, { status: 409 })
+    }
 
     const diagnostic = sanitizeDatabaseError(err, {
       correlationId: crypto.randomUUID(),
