@@ -9,7 +9,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --ignore-pattern \"**/.worktrees/**\" --ignore-pattern \".codex/\" --ignore-pattern \".opencode/\" --ignore-pattern \".claude/\" --ignore-pattern \".superpowers/\" --ignore-pattern \".codebase-memory/**\" --ignore-pattern \"coverage/\" --ignore-pattern \"cloudflare/**\"",
+    "lint": "eslint . --ignore-pattern \".claude/\" --ignore-pattern \".superpowers/\" --ignore-pattern \".codebase-memory/**\" --ignore-pattern \"coverage/\" --ignore-pattern \"cloudflare/**\"",
     "test": "node scripts/run-tests.mjs",
     "test:unit": "vitest run --exclude '__tests__/integration/**'",
     "test:integration": "vitest run --config vitest.integration.config.ts",

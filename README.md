@@ -47,8 +47,8 @@ Two live caveats worth knowing before you touch the database:
 
 - **All migrations `001`–`035` are applied** as of a `--verify` run against production on
   2026-08-15, which also settled the long-running `021` dispute: it *did* run, its three
-  `local_trust_*` tables exist, and `021`'s own "never been applied" header comment is the
-  thing that was wrong. Run `npm run migrate -- --verify` against the target database before
+  `local_trust_*` tables exist, and `021`'s own "never been applied" header comment (since
+  corrected) was the thing that was wrong. Run `npm run migrate -- --verify` against the target database before
   believing any of this — it reports which migrations' objects actually exist, and this line
   is only as fresh as its date.
 - **RLS is enabled but inert.** The app connects as `neondb_owner`, which bypasses it, and the
