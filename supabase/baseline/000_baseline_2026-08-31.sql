@@ -1843,3 +1843,1253 @@ alter table public.public_scan_rate_limits enable row level security;
 alter table public.authenticated_scan_monthly_usage enable row level security;
 alter table public.stripe_webhook_events enable row level security;
 alter table public.stripe_subscription_processing_leases enable row level security;
+
+
+-- ============================================================================
+-- Slice 6 -- the 037 layer: migration ledger, functions, trigger, role, grants
+--
+-- Everything in this slice is schema that is NOT a table of application data,
+-- and it comes last for one load-bearing reason: 037 ends with
+--
+--     grant select, insert, update, delete on all tables in schema public
+--
+-- which is a point-in-time grant over the tables that exist WHEN IT RUNS, not a
+-- standing rule. Every `create table` in this file -- slices 1-5 and
+-- schema_migrations immediately below -- must therefore already have executed by
+-- the time the grants block at the end of this slice is reached. Moving that
+-- block earlier, or adding a table after it, silently produces a table the
+-- application role cannot read.
+--
+-- Contents, in execution order:
+--   1. schema_migrations       the migration runner's ledger
+--   2. the 12 functions        007/017, 011/026/028, 024, 027 -- final forms only
+--   3. enforce_brand_limit     the one trigger in `public`
+--   4. aeo_app                 role, BYPASSRLS, grants, default privileges
+--
+-- WHAT THE EQUIVALENCE PROOF CANNOT SEE HERE -- read this before editing:
+--   * Function BODIES. The differ compares each function by
+--     `returns | volatility | security_definer` only. A mistranscribed body
+--     passes green. The twelve below are transcribed verbatim from their final
+--     source migration, deliberately keeping that migration's own casing and
+--     dollar-quote tag, so a reviewer can diff them against the migration
+--     character-for-character rather than re-reading them for meaning.
+--   * Function-level ACLs (`revoke ... on function ... from public`). The
+--     grants class reads information_schema.role_table_grants -- TABLES, for
+--     aeo_app. Function privileges are invisible to it. They are carried over
+--     anyway: unlike the table-level `revoke ... from public` statements in
+--     023/024/027 (omitted from slices 1-5 because PUBLIC never holds table
+--     privileges on a stock cluster, so those were no-ops), EXECUTE *is*
+--     granted to PUBLIC by default, so these revokes are real ACL changes and
+--     dropping them would hand every role execute rights the legacy chain took
+--     away.
+--   * `alter default privileges`. Same blind spot -- see the comment on those
+--     statements at the end of the file.
+--
+-- The `anon` / `authenticated` / `service_role` branches that guard the ACL
+-- statements in 023-028 are NOT carried over. Those three roles are Supabase's
+-- and do not exist on Neon, so every one of those `do $acl$` blocks is a no-op
+-- on both paths -- which is exactly why 027 wrapped them in a to_regrole() test
+-- in the first place.
+-- ============================================================================
+
+
+-- ----------------------------------------------------------------------------
+-- schema_migrations -- the migration runner's ledger: one row per applied file.
+--
+-- Not created by any migration. scripts/migrate.ts creates it itself, before it
+-- applies anything, which is why it has no numbered source file -- and why the
+-- baseline has to create it too. A greenfield database built from this file and
+-- nothing else would otherwise have no ledger at all, and the first
+-- `npm run migrate` against it would be the thing that created it.
+--
+-- The shape below is a verbatim copy of the `create table if not exists` in
+-- scripts/migrate.ts. These two declarations are the same table reached by two
+-- paths and must not drift: change one, change the other, and re-run
+-- `npm run schema:equivalence`.
+-- ----------------------------------------------------------------------------
+create table if not exists schema_migrations (
+  filename text primary key,
+  applied_at timestamptz not null default now()
+);
+
+
+-- ============================================================================
+-- Functions -- final definitions only
+--
+-- Two of these were rewritten in place across the chain. Only the last version
+-- exists after a replay, so only the last version is here:
+--
+--   handle_new_user()    003 -> 007 -> 017   (017 is final)
+--   check_brand_limit()  011 -> 026 -> 028   (028 is final)
+--
+-- The other ten were written once, by 024 and 027, and never revised.
+-- ============================================================================
+
+
+-- ----------------------------------------------------------------------------
+-- handle_new_user() -- provisions an account + profile for a newly created user.
+--
+-- Final form from 017. 003 wrote the first version and attached it to a trigger
+-- on `auth.users`; 007 gave it the account insert; 017 changed the seeded plan
+-- from 'starter' to 'basic' after 014's CHECK made 'starter' unrepresentable --
+-- until then every new signup failed accounts_plan_check.
+--
+-- The FUNCTION is carried over; its TRIGGER is not. `on_auth_user_created` fires
+-- on auth.users, and this file deliberately does not create the dead Supabase
+-- `auth` schema (see DELIBERATE OMISSIONS at the top). Provisioning on a
+-- greenfield database is done by app/api/webhooks/neon/route.ts on Neon Auth's
+-- user.created event, not by a database trigger. The function is kept because
+-- the legacy path has it and equivalence is the claim this file makes -- it is
+-- unreachable here, not live.
+--
+-- SECURITY DEFINER with `SET search_path = public`, so the two unqualified table
+-- names below resolve to public.accounts / public.profiles. Note the contrast
+-- with check_brand_limit(), which pins `search_path = ''` and qualifies
+-- everything including pg_catalog builtins -- the two conventions arrived ten
+-- migrations apart and are carried over as written.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_account_id uuid;
+BEGIN
+  INSERT INTO accounts (plan, status)
+  VALUES ('basic', 'active')
+  RETURNING id INTO v_account_id;
+
+  INSERT INTO profiles (id, display_name, account_id)
+  VALUES (new.id, new.raw_user_meta_data->>'full_name', v_account_id)
+  ON CONFLICT (id) DO UPDATE
+    SET account_id = EXCLUDED.account_id
+    WHERE profiles.account_id IS NULL;
+
+  RETURN new;
+END;
+$$;
+
+
+-- ----------------------------------------------------------------------------
+-- check_brand_limit() -- enforces the per-plan brand cap on insert into clients.
+--
+-- Final form from 028. 011 wrote the first version against accounts.plan alone;
+-- 026 replaced it with full entitlement resolution (status, Stripe subscription,
+-- trial window); 028 added the admin override, evaluated FIRST -- before the
+-- stored-plan validation and before has_subscription, because a comped account
+-- has no Stripe subscription, and an account with malformed Stripe state is
+-- exactly the case a comp exists to rescue.
+--
+-- This is the only place in the database that enforces a commercial limit, and
+-- it enforces on INSERT only. lib/tier.ts resolveCommercialEntitlement() is the
+-- application-side mirror; the brand_limit numbers below are pinned against
+-- PLAN_CATALOG by __tests__/db/brand-limit-entitlement.test.ts.
+--
+-- The advisory lock is what makes the count correct under concurrency: without
+-- it two simultaneous inserts for one account both read count = limit - 1 and
+-- both succeed.
+-- ----------------------------------------------------------------------------
+create or replace function public.check_brand_limit()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  stored_plan text;
+  account_status text;
+  stripe_subscription_id text;
+  trial_ends_at timestamptz;
+  override_plan text;
+  override_expires_at timestamptz;
+  override_is_live boolean;
+  has_subscription boolean;
+  trial_is_live boolean;
+  effective_plan text;
+  brand_limit integer;
+  current_count integer;
+begin
+  if new.account_id is null then
+    raise exception 'ACCOUNT_ENTITLEMENT_INVALID'
+      using detail = 'account_id is required';
+  end if;
+
+  -- Serialize every brand insert for one account before reading account state or counting.
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(new.account_id::text, 0)
+  );
+
+  select
+    accounts.plan,
+    accounts.status,
+    accounts.stripe_subscription_id,
+    accounts.trial_ends_at,
+    accounts.override_plan,
+    accounts.override_expires_at
+  into
+    stored_plan,
+    account_status,
+    stripe_subscription_id,
+    trial_ends_at,
+    override_plan,
+    override_expires_at
+  from public.accounts
+  where accounts.id = new.account_id;
+
+  if not found then
+    raise exception 'ACCOUNT_ENTITLEMENT_INVALID'
+      using detail = 'account does not exist';
+  end if;
+
+  override_is_live := override_plan is not null
+    and override_plan in ('free', 'basic', 'pro', 'enterprise')
+    and (override_expires_at is null or override_expires_at > pg_catalog.now());
+
+  if override_is_live then
+    effective_plan := override_plan;
+  else
+    if stored_plan is null
+      or stored_plan not in ('basic', 'pro', 'enterprise')
+      or account_status is null
+      or account_status not in ('active', 'past_due', 'cancelled', 'trialing')
+    then
+      raise exception 'ACCOUNT_ENTITLEMENT_INVALID'
+        using detail = 'account plan or status is malformed';
+    end if;
+
+    if stripe_subscription_id is not null
+      and pg_catalog.btrim(stripe_subscription_id) = ''
+    then
+      raise exception 'ACCOUNT_ENTITLEMENT_INVALID'
+        using detail = 'subscription id is malformed';
+    end if;
+
+    has_subscription := stripe_subscription_id is not null;
+    trial_is_live := trial_ends_at is not null
+      and trial_ends_at > pg_catalog.now();
+
+    effective_plan := case
+      when account_status in ('past_due', 'cancelled') then 'free'
+      when account_status = 'active' and has_subscription then stored_plan
+      when trial_is_live
+        or (account_status = 'trialing' and has_subscription)
+        then stored_plan
+      else 'free'
+    end;
+  end if;
+
+  -- Keep these in sync with PLAN_CATALOG[*].maxBrands in lib/plans/catalog.ts.
+  -- __tests__/db/brand-limit-entitlement.test.ts fails if they diverge.
+  brand_limit := case effective_plan
+    when 'free' then 1
+    when 'basic' then 1
+    when 'pro' then 3
+    when 'enterprise' then 10
+    else null
+  end;
+
+  if brand_limit is null then
+    raise exception 'ACCOUNT_ENTITLEMENT_INVALID'
+      using detail = 'effective plan is malformed';
+  end if;
+
+  select count(*)
+  into current_count
+  from public.clients
+  where clients.account_id = new.account_id;
+
+  if current_count >= brand_limit then
+    raise exception 'BRAND_LIMIT_REACHED'
+      using detail = pg_catalog.format(
+        'effective_plan=%s limit=%s',
+        effective_plan,
+        brand_limit
+      );
+  end if;
+
+  return new;
+end;
+$$;
+
+-- 028. Invisible to the differ (function ACLs are not compared) and carried over
+-- anyway -- see the slice header. Harmless for the trigger itself: PostgreSQL
+-- checks EXECUTE on a trigger function when the trigger is CREATED, not each
+-- time it fires.
+revoke all on function public.check_brand_limit() from public;
+
+
+-- ----------------------------------------------------------------------------
+-- acquire_stripe_subscription_lease / release_stripe_subscription_lease
+--
+-- From 024, unrevised. These serialize canonical Stripe reads and persistence
+-- WITHOUT holding a database transaction open across the Stripe network call --
+-- the lease is a row, not a lock, so a crashed handler expires rather than
+-- wedging the subscription. `lease_expires_at <= clock_timestamp()` in the
+-- on-conflict WHERE is the whole steal-an-expired-lease rule; acquire returns
+-- false rather than raising when someone else holds a live lease.
+--
+-- SECURITY INVOKER, unlike 027's RPCs: these carry no tenancy predicate of their
+-- own and are not meant to widen the caller's rights.
+-- ----------------------------------------------------------------------------
+create or replace function public.acquire_stripe_subscription_lease(
+  p_subscription_id text,
+  p_lease_owner uuid
+)
+returns boolean
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_acquired integer;
+begin
+  if p_subscription_id is null or btrim(p_subscription_id) = '' then
+    raise exception 'subscription id is required';
+  end if;
+  if p_lease_owner is null then
+    raise exception 'lease owner is required';
+  end if;
+
+  insert into public.stripe_subscription_processing_leases (
+    subscription_id,
+    lease_owner,
+    lease_expires_at
+  )
+  values (
+    p_subscription_id,
+    p_lease_owner,
+    clock_timestamp() + interval '300 seconds'
+  )
+  on conflict (subscription_id) do update
+    set lease_owner = excluded.lease_owner,
+        lease_expires_at = excluded.lease_expires_at
+    where public.stripe_subscription_processing_leases.lease_expires_at <= clock_timestamp();
+
+  get diagnostics v_acquired = row_count;
+  return v_acquired = 1;
+end;
+$$;
+
+create or replace function public.release_stripe_subscription_lease(
+  p_subscription_id text,
+  p_lease_owner uuid
+)
+returns boolean
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if p_subscription_id is null or btrim(p_subscription_id) = '' then
+    raise exception 'subscription id is required';
+  end if;
+  if p_lease_owner is null then
+    raise exception 'lease owner is required';
+  end if;
+
+  delete from public.stripe_subscription_processing_leases
+    where subscription_id = p_subscription_id
+      and lease_owner = p_lease_owner;
+
+  return found;
+end;
+$$;
+
+revoke all on function public.acquire_stripe_subscription_lease(text, uuid) from public;
+revoke all on function public.release_stripe_subscription_lease(text, uuid) from public;
+
+
+-- ----------------------------------------------------------------------------
+-- apply_stripe_account_event() -- the whole Stripe webhook write path, in one
+-- statement: lease check, event-ledger insert, ordering check, account update.
+--
+-- From 024, unrevised. 024 dropped the earlier eight-argument signature on
+-- purpose (`create or replace` with a new argument list creates an OVERLOAD, it
+-- does not replace), so that no caller can reach a version that does not prove
+-- current lease ownership. A greenfield database never had that signature, so
+-- there is nothing here to drop -- only the nine-argument form exists.
+--
+-- The four string returns are the contract app/api/stripe/webhook/route.ts
+-- switches on: 'lease_lost', 'not_found', 'duplicate', 'stale', 'applied'. Note
+-- that 'not_found' is deliberately returned BEFORE the ledger insert -- an event
+-- that arrives before Checkout has linked the subscription must not be consumed,
+-- or the retry would be swallowed as a duplicate.
+-- ----------------------------------------------------------------------------
+create or replace function public.apply_stripe_account_event(
+  p_account_id uuid,
+  p_subscription_id text,
+  p_customer_id text,
+  p_plan text,
+  p_status text,
+  p_event_created bigint,
+  p_event_id text,
+  p_event_type text,
+  p_lease_owner uuid
+)
+returns text
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_account_id uuid;
+  v_last_event_created bigint;
+  v_inserted integer;
+begin
+  if p_subscription_id is null or btrim(p_subscription_id) = '' then
+    raise exception 'subscription id is required';
+  end if;
+  if p_customer_id is null or btrim(p_customer_id) = '' then
+    raise exception 'customer id is required';
+  end if;
+  if p_plan not in ('basic', 'pro', 'enterprise') then
+    raise exception 'unsupported account plan: %', p_plan;
+  end if;
+  if p_status not in ('active', 'past_due', 'cancelled', 'trialing') then
+    raise exception 'unsupported account status: %', p_status;
+  end if;
+  if p_event_created is null or p_event_created < 0 then
+    raise exception 'invalid Stripe event creation time';
+  end if;
+  if p_event_id is null or btrim(p_event_id) = '' then
+    raise exception 'event id is required';
+  end if;
+  if p_event_type is null or btrim(p_event_type) = '' then
+    raise exception 'event type is required';
+  end if;
+  if p_lease_owner is null then
+    raise exception 'lease owner is required';
+  end if;
+
+  -- Lock and validate the lease in this transaction before touching the event
+  -- ledger or account. An expired lease can be stolen, but its former owner can
+  -- never persist after the takeover.
+  perform 1
+    from public.stripe_subscription_processing_leases
+    where subscription_id = p_subscription_id
+      and lease_owner = p_lease_owner
+      and lease_expires_at > clock_timestamp()
+    for update;
+
+  if not found then
+    return 'lease_lost';
+  end if;
+
+  if p_account_id is not null then
+    select accounts.id, accounts.stripe_event_created_at
+      into v_account_id, v_last_event_created
+      from public.accounts
+      where accounts.id = p_account_id
+      for update;
+  else
+    select accounts.id, accounts.stripe_event_created_at
+      into v_account_id, v_last_event_created
+      from public.accounts
+      where accounts.stripe_subscription_id = p_subscription_id
+      for update;
+  end if;
+
+  -- Do not consume the event before Checkout has linked the subscription.
+  if v_account_id is null then
+    return 'not_found';
+  end if;
+
+  insert into public.stripe_webhook_events (
+    event_id,
+    event_created,
+    event_type,
+    account_id
+  )
+  values (
+    p_event_id,
+    p_event_created,
+    p_event_type,
+    v_account_id
+  )
+  on conflict (event_id) do nothing;
+
+  get diagnostics v_inserted = row_count;
+  if v_inserted = 0 then
+    return 'duplicate';
+  end if;
+
+  if p_event_created < v_last_event_created then
+    return 'stale';
+  end if;
+
+  -- The processing lease serializes canonical reads through this update, including
+  -- equal-second events. Event IDs remain identity keys, never chronology.
+  update public.accounts
+    set stripe_customer_id = p_customer_id,
+        stripe_subscription_id = p_subscription_id,
+        plan = p_plan,
+        status = p_status,
+        stripe_event_created_at = greatest(stripe_event_created_at, p_event_created),
+        stripe_event_id = p_event_id
+    where id = v_account_id;
+
+  if not found then
+    raise exception 'account disappeared during Stripe event update';
+  end if;
+
+  return 'applied';
+end;
+$$;
+
+revoke all on function public.apply_stripe_account_event(
+  uuid, text, text, text, text, bigint, text, text, uuid
+) from public;
+
+
+-- ============================================================================
+-- The seven client-report RPCs -- 027, unrevised
+--
+-- All seven are SECURITY DEFINER with `set search_path = ''`. That combination
+-- is the point: they run as the owner, so every table reference is fully
+-- qualified and every builtin is called through pg_catalog, leaving no name for
+-- a caller-controlled search_path to capture. Tenancy is not delegated to RLS
+-- (client_reports and client_report_versions are default-deny with zero
+-- policies, and 036 removed the dead policy layer everywhere else) -- each
+-- function carries `account_id` and `client_id` in its own WHERE clauses
+-- instead, and raises CLIENT_REPORT_NOT_FOUND rather than distinguishing
+-- "absent" from "not yours".
+--
+-- The domain checks repeated in the first two are not decoration: a report
+-- snapshot is published at a public URL, so a scan for some other domain must
+-- never be attachable to a client. `strpos(..., '://')` and friends reject a
+-- stored value that is a URL rather than a hostname; the regexp_replace pair
+-- compares hosts with a leading `www.` folded away.
+--
+-- public_slug is regenerated from public.gen_random_bytes(24) by publish (only
+-- when resurrecting a revoked report), revoke and rotate -- pgcrypto lives in
+-- `public` (slice 4), which is why the call is schema-qualified that way and not
+-- through pg_catalog.
+-- ============================================================================
+
+
+create or replace function public.create_client_report_with_version(
+  p_account_id uuid,
+  p_client_id uuid,
+  p_source_scan_id uuid,
+  p_previous_scan_id uuid,
+  p_locale text,
+  p_executive_summary text,
+  p_snapshot_schema_version integer,
+  p_snapshot jsonb,
+  p_created_by uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  new_report public.client_reports;
+  new_version public.client_report_versions;
+  client_domain text;
+  source_domain text;
+  source_created_at timestamptz;
+  previous_domain text;
+  previous_created_at timestamptz;
+begin
+  select clients.domain
+  into client_domain
+  from public.clients
+  where clients.id = p_client_id
+    and clients.account_id = p_account_id;
+
+  if not found
+    or client_domain is null
+    or pg_catalog.btrim(client_domain) = ''
+    or pg_catalog.strpos(client_domain, '://') > 0
+    or pg_catalog.strpos(client_domain, '/') > 0
+    or pg_catalog.strpos(client_domain, '?') > 0
+    or pg_catalog.strpos(client_domain, '#') > 0
+  then
+    raise exception 'CLIENT_REPORT_NOT_FOUND';
+  end if;
+
+  select scans.domain, scans.created_at
+  into source_domain, source_created_at
+  from public.scans
+  where scans.id = p_source_scan_id
+    and scans.account_id = p_account_id;
+
+  if not found
+    or source_domain is null
+    or source_created_at is null
+    or pg_catalog.strpos(source_domain, '://') > 0
+    or pg_catalog.strpos(source_domain, '/') > 0
+    or pg_catalog.strpos(source_domain, '?') > 0
+    or pg_catalog.strpos(source_domain, '#') > 0
+    or pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(source_domain)), '^www\.', '')
+      <> pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(client_domain)), '^www\.', '')
+  then
+    raise exception 'CLIENT_REPORT_SCAN_NOT_FOUND';
+  end if;
+
+  if p_previous_scan_id is not null then
+    select scans.domain, scans.created_at
+    into previous_domain, previous_created_at
+    from public.scans
+    where scans.id = p_previous_scan_id
+      and scans.account_id = p_account_id;
+
+    if not found
+      or previous_domain is null
+      or previous_created_at is null
+      or previous_created_at >= source_created_at
+      or pg_catalog.strpos(previous_domain, '://') > 0
+      or pg_catalog.strpos(previous_domain, '/') > 0
+      or pg_catalog.strpos(previous_domain, '?') > 0
+      or pg_catalog.strpos(previous_domain, '#') > 0
+      or pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(previous_domain)), '^www\.', '')
+        <> pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(client_domain)), '^www\.', '')
+    then
+      raise exception 'CLIENT_REPORT_PREVIOUS_SCAN_INVALID';
+    end if;
+  end if;
+
+  insert into public.client_reports (account_id, client_id, created_by)
+  values (p_account_id, p_client_id, p_created_by)
+  returning * into new_report;
+
+  insert into public.client_report_versions (
+    report_id,
+    account_id,
+    client_id,
+    version_number,
+    source_scan_id,
+    previous_scan_id,
+    locale,
+    executive_summary,
+    snapshot_schema_version,
+    snapshot,
+    created_by
+  ) values (
+    new_report.id,
+    p_account_id,
+    p_client_id,
+    1,
+    p_source_scan_id,
+    p_previous_scan_id,
+    p_locale,
+    p_executive_summary,
+    p_snapshot_schema_version,
+    p_snapshot,
+    p_created_by
+  )
+  returning * into new_version;
+
+  update public.client_reports
+  set latest_version_id = new_version.id,
+      updated_at = pg_catalog.now()
+  where client_reports.id = new_report.id
+    and client_reports.account_id = p_account_id
+    and client_reports.client_id = p_client_id
+  returning * into new_report;
+
+  return pg_catalog.jsonb_build_object(
+    'report', pg_catalog.to_jsonb(new_report),
+    'version', pg_catalog.to_jsonb(new_version)
+  );
+end;
+$function$;
+
+create or replace function public.append_client_report_version(
+  p_report_id uuid,
+  p_account_id uuid,
+  p_client_id uuid,
+  p_source_scan_id uuid,
+  p_previous_scan_id uuid,
+  p_locale text,
+  p_executive_summary text,
+  p_snapshot_schema_version integer,
+  p_snapshot jsonb,
+  p_created_by uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  locked_report public.client_reports;
+  new_version public.client_report_versions;
+  published_version public.client_report_versions;
+  published_version_id_before_append uuid;
+  new_version_number integer;
+  client_domain text;
+  source_domain text;
+  source_created_at timestamptz;
+  previous_domain text;
+  previous_created_at timestamptz;
+begin
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_report_id::text, 0)
+  );
+
+  select client_reports.*
+  into locked_report
+  from public.client_reports
+  where client_reports.id = p_report_id
+    and client_reports.account_id = p_account_id
+    and client_reports.client_id = p_client_id
+  for update;
+
+  if not found then
+    raise exception 'CLIENT_REPORT_NOT_FOUND';
+  end if;
+
+  published_version_id_before_append := locked_report.published_version_id;
+
+  select clients.domain
+  into client_domain
+  from public.clients
+  where clients.id = p_client_id
+    and clients.account_id = p_account_id;
+
+  if not found
+    or client_domain is null
+    or pg_catalog.btrim(client_domain) = ''
+    or pg_catalog.strpos(client_domain, '://') > 0
+    or pg_catalog.strpos(client_domain, '/') > 0
+    or pg_catalog.strpos(client_domain, '?') > 0
+    or pg_catalog.strpos(client_domain, '#') > 0
+  then
+    raise exception 'CLIENT_REPORT_NOT_FOUND';
+  end if;
+
+  select scans.domain, scans.created_at
+  into source_domain, source_created_at
+  from public.scans
+  where scans.id = p_source_scan_id
+    and scans.account_id = p_account_id;
+
+  if not found
+    or source_domain is null
+    or source_created_at is null
+    or pg_catalog.strpos(source_domain, '://') > 0
+    or pg_catalog.strpos(source_domain, '/') > 0
+    or pg_catalog.strpos(source_domain, '?') > 0
+    or pg_catalog.strpos(source_domain, '#') > 0
+    or pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(source_domain)), '^www\.', '')
+      <> pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(client_domain)), '^www\.', '')
+  then
+    raise exception 'CLIENT_REPORT_SCAN_NOT_FOUND';
+  end if;
+
+  if p_previous_scan_id is not null then
+    select scans.domain, scans.created_at
+    into previous_domain, previous_created_at
+    from public.scans
+    where scans.id = p_previous_scan_id
+      and scans.account_id = p_account_id;
+
+    if not found
+      or previous_domain is null
+      or previous_created_at is null
+      or previous_created_at >= source_created_at
+      or pg_catalog.strpos(previous_domain, '://') > 0
+      or pg_catalog.strpos(previous_domain, '/') > 0
+      or pg_catalog.strpos(previous_domain, '?') > 0
+      or pg_catalog.strpos(previous_domain, '#') > 0
+      or pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(previous_domain)), '^www\.', '')
+        <> pg_catalog.regexp_replace(pg_catalog.lower(pg_catalog.btrim(client_domain)), '^www\.', '')
+    then
+      raise exception 'CLIENT_REPORT_PREVIOUS_SCAN_INVALID';
+    end if;
+  end if;
+
+  select coalesce(
+    pg_catalog.max(client_report_versions.version_number) + 1,
+    1
+  )
+  into new_version_number
+  from public.client_report_versions
+  where client_report_versions.report_id = p_report_id
+    and client_report_versions.account_id = p_account_id
+    and client_report_versions.client_id = p_client_id;
+
+  insert into public.client_report_versions (
+    report_id,
+    account_id,
+    client_id,
+    version_number,
+    source_scan_id,
+    previous_scan_id,
+    locale,
+    executive_summary,
+    snapshot_schema_version,
+    snapshot,
+    created_by
+  ) values (
+    p_report_id,
+    p_account_id,
+    p_client_id,
+    new_version_number,
+    p_source_scan_id,
+    p_previous_scan_id,
+    p_locale,
+    p_executive_summary,
+    p_snapshot_schema_version,
+    p_snapshot,
+    p_created_by
+  )
+  returning * into new_version;
+
+  update public.client_reports
+  set latest_version_id = new_version.id,
+      updated_at = pg_catalog.now()
+  where client_reports.id = p_report_id
+    and client_reports.account_id = p_account_id
+    and client_reports.client_id = p_client_id
+  returning * into locked_report;
+
+  if locked_report.published_version_id is distinct from published_version_id_before_append then
+    raise exception 'CLIENT_REPORT_NOT_FOUND';
+  end if;
+
+  if locked_report.published_version_id is not null then
+    select client_report_versions.*
+    into published_version
+    from public.client_report_versions
+    where client_report_versions.id = locked_report.published_version_id
+      and client_report_versions.report_id = locked_report.id
+      and client_report_versions.account_id = locked_report.account_id
+      and client_report_versions.client_id = locked_report.client_id;
+
+    if not found then
+      raise exception 'CLIENT_REPORT_NOT_FOUND';
+    end if;
+  end if;
+
+  return pg_catalog.jsonb_build_object(
+    'report', pg_catalog.to_jsonb(locked_report),
+    'version', pg_catalog.to_jsonb(new_version),
+    'previous_published_version_id', published_version_id_before_append,
+    'published_version', pg_catalog.to_jsonb(published_version)
+  );
+end;
+$function$;
+
+create or replace function public.publish_client_report_latest(
+  p_report_id uuid,
+  p_account_id uuid,
+  p_client_id uuid,
+  p_reviewed_version_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  locked_report public.client_reports;
+  published_version public.client_report_versions;
+begin
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_report_id::text, 0)
+  );
+
+  select client_reports.*
+  into locked_report
+  from public.client_reports
+  where client_reports.id = p_report_id
+    and client_reports.account_id = p_account_id
+    and client_reports.client_id = p_client_id
+  for update;
+
+  if not found or locked_report.latest_version_id is null then
+    raise exception 'CLIENT_REPORT_NOT_FOUND';
+  end if;
+
+  if locked_report.latest_version_id is distinct from p_reviewed_version_id then
+    raise exception 'reviewed version is stale';
+  end if;
+
+  update public.client_reports
+  set published_version_id = locked_report.latest_version_id,
+      status = 'published',
+      public_slug = case when locked_report.status = 'revoked' then pg_catalog.translate(
+        pg_catalog.rtrim(pg_catalog.encode(public.gen_random_bytes(24), 'base64'), '='),
+        '+/',
+        '-_'
+      ) else locked_report.public_slug end,
+      share_version = case when locked_report.status = 'revoked' then locked_report.share_version + 1 else locked_report.share_version end,
+      published_at = pg_catalog.now(),
+      revoked_at = null,
+      updated_at = pg_catalog.now()
+  where client_reports.id = p_report_id
+    and client_reports.account_id = p_account_id
+    and client_reports.client_id = p_client_id
+  returning * into locked_report;
+
+  select client_report_versions.*
+  into published_version
+  from public.client_report_versions
+  where client_report_versions.id = locked_report.published_version_id
+    and client_report_versions.report_id = locked_report.id
+    and client_report_versions.account_id = locked_report.account_id
+    and client_report_versions.client_id = locked_report.client_id;
+
+  if not found then
+    raise exception 'CLIENT_REPORT_NOT_FOUND';
+  end if;
+
+  return pg_catalog.jsonb_build_object(
+    'report', pg_catalog.to_jsonb(locked_report),
+    'published_version', pg_catalog.to_jsonb(published_version),
+    'latest_version', pg_catalog.to_jsonb(published_version)
+  );
+end;
+$function$;
+
+create or replace function public.revoke_client_report(
+  p_report_id uuid,
+  p_account_id uuid,
+  p_client_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  locked_report public.client_reports;
+  latest_version public.client_report_versions;
+  published_version public.client_report_versions;
+begin
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_report_id::text, 0)
+  );
+
+  select client_reports.*
+  into locked_report
+  from public.client_reports
+  where client_reports.id = p_report_id
+    and client_reports.account_id = p_account_id
+    and client_reports.client_id = p_client_id
+  for update;
+
+  if not found then
+    raise exception 'CLIENT_REPORT_NOT_FOUND';
+  end if;
+
+  update public.client_reports
+  set status = 'revoked',
+      share_version = locked_report.share_version + 1,
+      public_slug = pg_catalog.translate(
+        pg_catalog.rtrim(pg_catalog.encode(public.gen_random_bytes(24), 'base64'), '='),
+        '+/',
+        '-_'
+      ),
+      revoked_at = pg_catalog.now(),
+      updated_at = pg_catalog.now()
+  where client_reports.id = p_report_id
+    and client_reports.account_id = p_account_id
+    and client_reports.client_id = p_client_id
+  returning * into locked_report;
+
+  select client_report_versions.*
+  into latest_version
+  from public.client_report_versions
+  where client_report_versions.id = locked_report.latest_version_id
+    and client_report_versions.report_id = locked_report.id
+    and client_report_versions.account_id = locked_report.account_id
+    and client_report_versions.client_id = locked_report.client_id;
+
+  if not found then
+    raise exception 'CLIENT_REPORT_NOT_FOUND';
+  end if;
+
+  if locked_report.published_version_id is not null then
+    select client_report_versions.*
+    into published_version
+    from public.client_report_versions
+    where client_report_versions.id = locked_report.published_version_id
+      and client_report_versions.report_id = locked_report.id
+      and client_report_versions.account_id = locked_report.account_id
+      and client_report_versions.client_id = locked_report.client_id;
+
+    if not found then
+      raise exception 'CLIENT_REPORT_NOT_FOUND';
+    end if;
+  end if;
+
+  return pg_catalog.jsonb_build_object(
+    'report', pg_catalog.to_jsonb(locked_report),
+    'latest_version', pg_catalog.to_jsonb(latest_version),
+    'published_version', pg_catalog.to_jsonb(published_version)
+  );
+end;
+$function$;
+
+create or replace function public.rotate_client_report_link(
+  p_report_id uuid,
+  p_account_id uuid,
+  p_client_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  locked_report public.client_reports;
+  latest_version public.client_report_versions;
+  published_version public.client_report_versions;
+begin
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_report_id::text, 0)
+  );
+
+  select client_reports.*
+  into locked_report
+  from public.client_reports
+  where client_reports.id = p_report_id
+    and client_reports.account_id = p_account_id
+    and client_reports.client_id = p_client_id
+  for update;
+
+  if not found
+    or locked_report.status <> 'published'
+    or locked_report.published_version_id is null
+  then
+    raise exception 'CLIENT_REPORT_NOT_FOUND';
+  end if;
+
+  update public.client_reports
+  set share_version = locked_report.share_version + 1,
+      public_slug = pg_catalog.translate(
+        pg_catalog.rtrim(pg_catalog.encode(public.gen_random_bytes(24), 'base64'), '='),
+        '+/',
+        '-_'
+      ),
+      updated_at = pg_catalog.now()
+  where client_reports.id = p_report_id
+    and client_reports.account_id = p_account_id
+    and client_reports.client_id = p_client_id
+  returning * into locked_report;
+
+  select client_report_versions.*
+  into latest_version
+  from public.client_report_versions
+  where client_report_versions.id = locked_report.latest_version_id
+    and client_report_versions.report_id = locked_report.id
+    and client_report_versions.account_id = locked_report.account_id
+    and client_report_versions.client_id = locked_report.client_id;
+
+  if not found then
+    raise exception 'CLIENT_REPORT_NOT_FOUND';
+  end if;
+
+  select client_report_versions.*
+  into published_version
+  from public.client_report_versions
+  where client_report_versions.id = locked_report.published_version_id
+    and client_report_versions.report_id = locked_report.id
+    and client_report_versions.account_id = locked_report.account_id
+    and client_report_versions.client_id = locked_report.client_id;
+
+  if not found then
+    raise exception 'CLIENT_REPORT_NOT_FOUND';
+  end if;
+
+  return pg_catalog.jsonb_build_object(
+    'report', pg_catalog.to_jsonb(locked_report),
+    'published_version', pg_catalog.to_jsonb(published_version),
+    'latest_version', pg_catalog.to_jsonb(latest_version)
+  );
+end;
+$function$;
+
+create or replace function public.increment_client_report_view(
+  p_public_slug text,
+  p_share_version integer
+)
+returns table (
+  view_count bigint,
+  first_viewed_at timestamptz,
+  last_viewed_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+begin
+  return query
+  update public.client_reports
+  set view_count = client_reports.view_count + 1,
+      first_viewed_at = coalesce(client_reports.first_viewed_at, pg_catalog.now()),
+      last_viewed_at = pg_catalog.now()
+  where client_reports.public_slug = p_public_slug
+    and client_reports.share_version = p_share_version
+    and client_reports.status = 'published'
+    and client_reports.published_version_id is not null
+  returning client_reports.view_count,
+            client_reports.first_viewed_at,
+            client_reports.last_viewed_at;
+end;
+$function$;
+
+create or replace function public.increment_client_report_cta_click(
+  p_public_slug text,
+  p_share_version integer
+)
+returns table (cta_click_count bigint)
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+begin
+  return query
+  update public.client_reports
+  set cta_click_count = client_reports.cta_click_count + 1
+  where client_reports.public_slug = p_public_slug
+    and client_reports.share_version = p_share_version
+    and client_reports.status = 'published'
+    and client_reports.published_version_id is not null
+  returning client_reports.cta_click_count;
+end;
+$function$;
+
+-- 027. Invisible to the differ, carried over for the same reason as the ones
+-- above: EXECUTE on a new function is granted to PUBLIC by default, so leaving
+-- these out would silently open seven SECURITY DEFINER functions on a
+-- greenfield database that the legacy chain closes.
+revoke execute on function public.create_client_report_with_version(uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid) from public;
+revoke execute on function public.append_client_report_version(uuid, uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid) from public;
+revoke execute on function public.publish_client_report_latest(uuid, uuid, uuid, uuid) from public;
+revoke execute on function public.revoke_client_report(uuid, uuid, uuid) from public;
+revoke execute on function public.rotate_client_report_link(uuid, uuid, uuid) from public;
+revoke execute on function public.increment_client_report_view(text, integer) from public;
+revoke execute on function public.increment_client_report_cta_click(text, integer) from public;
+
+
+-- ============================================================================
+-- Triggers
+--
+-- One, and only one, in `public`. The chain's other trigger --
+-- `on_auth_user_created` on auth.users, from 003 -- is not carried over; see the
+-- note on handle_new_user() above.
+-- ============================================================================
+
+
+-- Final form from 028, which recreated it after replacing check_brand_limit()
+-- (026 had done the same after its own rewrite). BEFORE INSERT FOR EACH ROW:
+-- there is no UPDATE arm, so moving a client between accounts is not gated by
+-- this trigger.
+create trigger enforce_brand_limit
+  before insert on public.clients
+  for each row
+  execute function public.check_brand_limit();
+
+
+-- ============================================================================
+-- Slice 6, part 4 -- the application role. THIS MUST BE THE LAST THING IN THE
+-- FILE.
+--
+-- Verbatim in effect from 037. The app connects as aeo_app, not as the database
+-- owner: a leaked owner credential IS the database (it can drop any table, alter
+-- any schema, create roles), whereas aeo_app can read and write application data
+-- -- which the app does anyway -- and nothing else. It cannot run DDL, cannot
+-- create roles, and cannot write Neon Auth's tables.
+--
+-- `grant ... on all tables in schema public` is a point-in-time loop over the
+-- tables that exist right now, NOT a rule. That is why it is last, and why
+-- adding a `create table` below it would produce a table the application cannot
+-- read -- with the failure surfacing at runtime in whichever route touches it
+-- first, long after this file looked like it succeeded.
+--
+-- The role is created NOLOGIN. A human sets the password out of band so it never
+-- enters git:
+--     alter role aeo_app login password '<generated>';
+-- ============================================================================
+
+
+-- 037 guards the create because `create role` is not idempotent and this file
+-- may run on a branch cut from a parent that already has the role. The asymmetry
+-- in the else branch is deliberate and is carried over exactly: NOLOGIN is only
+-- re-asserted at creation. Re-asserting it on an existing role would silently
+-- strip LOGIN from a role a human has already completed cutover on, and the
+-- app's next connection would fail authentication.
+--
+-- BYPASSRLS is DELIBERATE and must stay. Seven tables in `public` have RLS
+-- enabled with zero policies (023, 024, 025 and 027 each chose that posture for
+-- the tables it created -- see the notes in slices 4 and 5). A NOBYPASSRLS role
+-- granted SELECT on those returns ZERO ROWS SILENTLY. A freshly created role
+-- defaults to rolbypassrls = false, so omitting the keyword reintroduces that
+-- failure quietly. This is a grants decision, not an RLS decision.
+do $$
+begin
+  if to_regrole('aeo_app') is null then
+    create role aeo_app nologin bypassrls;
+  else
+    alter role aeo_app bypassrls;
+  end if;
+end $$;
+
+grant usage on schema public to aeo_app;
+grant select, insert, update, delete on all tables in schema public to aeo_app;
+grant usage, select on all sequences in schema public to aeo_app;
+
+-- Carried over from 037 and INVISIBLE TO THE EQUIVALENCE PROOF: the differ's
+-- grants class reads information_schema.role_table_grants, which lists existing
+-- tables only, so pg_default_acl is never compared. Omitting these would pass
+-- green and then bite on the first migration applied after this baseline --
+-- 038 would create a table aeo_app cannot read. Applies to objects created by
+-- the role that runs migrations, which is the owner in MIGRATE_DATABASE_URL.
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to aeo_app;
+alter default privileges in schema public
+  grant usage, select on sequences to aeo_app;
+
+-- The neon_auth grants are required, not optional:
+--   * app/api/webhooks/neon/route.ts authenticates every payload against
+--     neon_auth."user", and @neondatabase/auth ships no webhook signing, so that
+--     lookup is the ONLY authentication that endpoint has;
+--   * lib/alerts/neon-store.ts joins it to resolve recipient emails.
+--
+-- Guarded on the schema's existence for one reason: Neon provisions neon_auth
+-- out of band and this file must never CREATE it (see DELIBERATE OMISSIONS at
+-- the top of the file). On a real greenfield project Neon Auth is enabled before
+-- the baseline runs (ADR-009) and the schema is there; on the disposable
+-- equivalence branch it is inherited from the parent. But an ungated `grant
+-- usage on schema neon_auth` would abort the entire baseline on a database where
+-- it is genuinely absent, taking all 33 application tables with it -- a total
+-- failure over an optional dependency. Skipping instead leaves exactly two
+-- endpoints degraded, loudly, at the point they are used.
+--
+-- The owner may issue these: it is a member of the neon_auth role that owns the
+-- schema.
+do $$
+begin
+  if exists (select 1 from pg_namespace where nspname = 'neon_auth') then
+    execute 'grant usage on schema neon_auth to aeo_app';
+    execute 'grant select on neon_auth."user" to aeo_app';
+  else
+    raise warning
+      'neon_auth schema absent -- skipped the aeo_app grants on neon_auth."user". '
+      'Enable Neon Auth, then run: grant usage on schema neon_auth to aeo_app; '
+      'grant select on neon_auth."user" to aeo_app;';
+  end if;
+end $$;
+
+-- Fail closed. If BYPASSRLS did not take, the seven default-deny tables would
+-- return zero rows for every app query, silently. Raising here aborts the
+-- baseline rather than leaving a database that looks built and reads empty.
+do $$
+declare
+  bypasses boolean;
+begin
+  select rolbypassrls into bypasses from pg_roles where rolname = 'aeo_app';
+
+  if bypasses is distinct from true then
+    raise exception
+      'aeo_app must have BYPASSRLS: without it the seven RLS-enabled, zero-policy '
+      'tables silently return no rows to the application';
+  end if;
+end $$;
