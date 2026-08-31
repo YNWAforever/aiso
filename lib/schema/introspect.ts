@@ -28,12 +28,31 @@ function index<T extends Record<string, string>>(
  * runner's diff converging to empty.
  */
 export async function introspectSchema(client: Client): Promise<SchemaSnapshot> {
+  // pg_attribute + format_type, NOT information_schema.columns: the latter
+  // reports bare `numeric` for numeric(4,2) and bare `ARRAY` for text[], so a
+  // wrong precision or element type would pass this gate silently — and the
+  // schema is dense with numeric(n,m) (authority scores, pulse metrics, local
+  // trust). format_type renders the exact declared type.
+  //
+  // Column ordinal position is deliberately NOT compared: the legacy chain
+  // appends columns via ALTER across 35 migrations while the baseline declares
+  // them inline, so ordinals legitimately differ and comparing them would
+  // report guaranteed false failures.
   const columns = index(
     await rows(client, `
-      select table_name, column_name, data_type, is_nullable,
-             coalesce(column_default, '') as column_default
-      from information_schema.columns
-      where table_schema = 'public'
+      select cls.relname as table_name,
+             att.attname as column_name,
+             format_type(att.atttypid, att.atttypmod) as data_type,
+             case when att.attnotnull then 'NO' else 'YES' end as is_nullable,
+             coalesce(pg_get_expr(def.adbin, def.adrelid), '') as column_default
+      from pg_attribute att
+      join pg_class cls on cls.oid = att.attrelid
+      join pg_namespace nsp on nsp.oid = cls.relnamespace
+      left join pg_attrdef def on def.adrelid = att.attrelid and def.adnum = att.attnum
+      where nsp.nspname = 'public'
+        and cls.relkind = 'r'
+        and att.attnum > 0
+        and not att.attisdropped
     `),
     (r) => `${r.table_name}.${r.column_name}`,
     (r) => `${r.data_type}|${r.is_nullable}|${r.column_default}`,
