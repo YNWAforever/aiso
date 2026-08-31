@@ -439,9 +439,12 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `__tests__/checks/` -> `lib/checks/`, `__tests__/api/` -> `app/api/`, while
   `__tests__/config/`, `__tests__/migrations/` and `__tests__/scripts/` assert on config,
   SQL files and the test runner rather than mirroring a source module.
-- **Nothing typechecks the tests.** `npm run typecheck` (`tsc --noEmit`) exists, but
-  `tsconfig.json` excludes `__tests__` and `tests` from it - a type error in a test
-  compiles, runs, and passes green.
+- **Tests ARE typechecked** (since item 0.10, 2026-08-31). `npm run typecheck` is
+  `next typegen && tsc --noEmit`, and `tsconfig.json`'s `exclude` is now only
+  `node_modules` + `cloudflare` — `__tests__` and `tests` are covered. Removing that
+  exclusion surfaced 74 pre-existing type errors across 21 files, all fixed in one pass.
+  The `next typegen` prefix is required: Next 16's `RouteContext<'…'>` is codegen'd into
+  `.next/types/`, so a fresh checkout cannot typecheck route tests without it.
 - Run: `npm test` (unit: 136 files / 1510 tests currently pass)
 - **`npm test` runs two projects**, unit then integration, via `scripts/run-tests.mjs`. The
   integration project provisions a real Neon branch and needs `neonctl` on PATH and
