@@ -1071,8 +1071,11 @@ create index client_report_versions_previous_scan_idx
 create index client_report_versions_created_by_idx
   on public.client_report_versions (created_by);
 
--- 027. RLS enabled with deliberately ZERO policies -- default-deny, and the one
--- place in this file where an `enable row level security` appears at all.
+-- 027. RLS enabled with deliberately ZERO policies -- default-deny. Three of the
+-- seven tables in this file that carry that posture; slice 5 has the other four
+-- (public_scan_rate_limits, authenticated_scan_monthly_usage,
+-- stripe_webhook_events, stripe_subscription_processing_leases), each from its
+-- own creating migration rather than from 027.
 --
 -- This is not an oversight and not a leftover: 036 disabled RLS on the 21 tables
 -- that carried a (dead) policy and pointedly left these three alone, because
@@ -1492,3 +1495,351 @@ create table public.agent_competitors (
   constraint agent_competitors_scan_id_platform_competitor_domain_key
     unique (scan_id, platform, competitor_domain)
 );
+
+
+-- ============================================================================
+-- Slice 5 -- infrastructure ledgers and reference packs
+--
+-- Two unrelated groups, put together because both are leaves: nothing in the
+-- schema references anything below, and everything below references only
+-- slice 1's accounts and clients.
+--
+--   public_scan_rate_limits                anonymous /api/scan fixed-window counter
+--   authenticated_scan_monthly_usage       calendar-month quota for signed-in scans
+--   stripe_webhook_events                  Stripe event ledger, the idempotency key
+--   stripe_subscription_processing_leases  serialises concurrent webhook handlers
+--   industry_packs, regional_packs         authority-engine reference data
+--   topical_clusters, content_briefs       GEO content-tool outputs, per client
+--   ai_citation_log                        shared citation feed (Pulse -> authority L5)
+--
+-- The four infrastructure tables keep RLS enabled with zero policies -- see the
+-- note above their `enable row level security` statements at the end of this
+-- slice. The five 012 tables do NOT: 012 enabled RLS and wrote policies for them,
+-- 036 dropped those policies and disabled RLS again, so they carry
+-- rowsecurity = false here, which is simply the default for a fresh table.
+-- ============================================================================
+
+
+-- ----------------------------------------------------------------------------
+-- public_scan_rate_limits -- durable fixed-window rate limiting for the
+-- anonymous /api/scan endpoint.
+--
+-- Consolidates: 023 (create).
+--
+-- 023's own opening line is the important one: the application stores only a
+-- versioned HMAC-SHA-256 key, never the source address. Two consequences worth
+-- keeping in view -- the table is not a log and cannot be used as one, and the
+-- hashing secret (PUBLIC_SCAN_RATE_LIMIT_SECRET) has no production fallback, so
+-- unset it takes every anonymous scan to 503 rather than silently degrading to
+-- an unlimited one.
+-- ----------------------------------------------------------------------------
+create table public.public_scan_rate_limits (
+  key_hash text not null,
+  window_start timestamptz not null,
+
+  -- Fixed window rather than sliding: one row per (key, window), incremented in
+  -- place. `> 0` rather than `>= 0` because a row only comes into existence once
+  -- a request has been counted -- a zero row would be a bug, not an idle window.
+  request_count integer not null
+    constraint public_scan_rate_limits_request_count_check
+    check (request_count > 0),
+
+  constraint public_scan_rate_limits_pkey primary key (key_hash, window_start)
+);
+
+-- Sweeping expired windows scans by age, and the primary key leads with the
+-- hash, so it cannot serve that scan.
+create index public_scan_rate_limits_window_start_idx
+  on public.public_scan_rate_limits (window_start);
+
+
+-- ----------------------------------------------------------------------------
+-- authenticated_scan_monthly_usage -- durable calendar-month scan quota for
+-- signed-in accounts. The counterpart to public_scan_rate_limits, one tier up.
+--
+-- Consolidates: 025 (create).
+--
+-- Note the deliberate asymmetry with the anonymous limiter: that one keys on an
+-- opaque hash because there is no account to name, this one keys on account_id
+-- directly and cascades with the account. The quota is calendar-month, not
+-- rolling-30-day, which is why month_start is a plain `date` -- the reset
+-- boundary is part of the key and needs no window arithmetic at read time.
+-- ----------------------------------------------------------------------------
+create table public.authenticated_scan_monthly_usage (
+  account_id uuid not null
+    constraint authenticated_scan_monthly_usage_account_id_fkey
+      references public.accounts(id) on delete cascade,
+
+  month_start date not null,
+
+  request_count integer not null
+    constraint authenticated_scan_monthly_usage_request_count_check
+    check (request_count > 0),
+
+  constraint authenticated_scan_monthly_usage_pkey
+    primary key (account_id, month_start)
+);
+
+create index authenticated_scan_monthly_usage_month_start_idx
+  on public.authenticated_scan_monthly_usage (month_start);
+
+
+-- ----------------------------------------------------------------------------
+-- stripe_webhook_events -- one row per Stripe event this application has
+-- consumed. The idempotency ledger behind /api/stripe/webhook.
+--
+-- Consolidates: 024 (create).
+--
+-- event_id is Stripe's own id and is the primary key, which is the whole point:
+-- apply_stripe_account_event() inserts here `on conflict (event_id) do nothing`
+-- and treats a zero row count as `duplicate`, so a redelivered event cannot
+-- apply twice. Note that event_id is an identity key and never a chronology --
+-- ordering is accounts.stripe_event_created_at's job (slice 1), because webhook
+-- delivery order is not event order.
+--
+-- event_created is Stripe's epoch-seconds timestamp, hence bigint; processed_at
+-- is when we consumed it. Both are kept: the gap between them is the only
+-- evidence of a delayed delivery.
+-- ----------------------------------------------------------------------------
+create table public.stripe_webhook_events (
+  event_id text
+    constraint stripe_webhook_events_pkey primary key,
+
+  event_created bigint not null
+    constraint stripe_webhook_events_event_created_check
+    check (event_created >= 0),
+  event_type text not null,
+
+  account_id uuid not null
+    constraint stripe_webhook_events_account_id_fkey
+      references public.accounts(id) on delete cascade,
+
+  processed_at timestamptz not null default now()
+);
+
+
+-- ----------------------------------------------------------------------------
+-- stripe_subscription_processing_leases -- a short-lived exclusive lease per
+-- Stripe subscription id, held while a webhook handler reads Stripe and writes
+-- the account.
+--
+-- Consolidates: 024 (create).
+--
+-- 024's reason for it: serialize canonical Stripe reads and persistence without
+-- holding a database transaction open across the Stripe network request. The
+-- expiry is what makes that recoverable -- a handler that crashes before its
+-- best-effort release would otherwise wedge that subscription permanently.
+-- acquire_stripe_subscription_lease() takes a 300-second lease and re-acquires
+-- only where lease_expires_at <= clock_timestamp(); apply_stripe_account_event()
+-- re-validates ownership `for update` before touching anything, so an expired
+-- lease can be stolen but its former owner can never persist after the takeover.
+--
+-- The btrim() check exists because the subscription id arrives from a webhook
+-- payload, and a whitespace-only id would otherwise be a perfectly valid lease
+-- on nothing.
+-- ----------------------------------------------------------------------------
+create table public.stripe_subscription_processing_leases (
+  subscription_id text
+    constraint stripe_subscription_processing_leases_pkey primary key
+    constraint stripe_subscription_processing_leases_subscription_id_check
+      check (btrim(subscription_id) <> ''),
+
+  -- A caller-minted uuid, not a user or account id: it identifies the handler
+  -- invocation holding the lease, so no foreign key applies.
+  lease_owner uuid not null,
+  lease_expires_at timestamptz not null
+);
+
+
+-- ----------------------------------------------------------------------------
+-- industry_packs -- per-industry reference data for the authority engine: which
+-- domains count as authoritative in that industry, and the vocabulary that
+-- identifies its topics.
+--
+-- Consolidates: 012 (create).
+--
+-- Keyed by `code` (the industry slug) rather than a surrogate id -- these are
+-- seeded reference rows, not user data; scripts/seed-packs.ts writes them.
+-- 012 enabled RLS with a `using (true)` public-read policy; 036 dropped that
+-- policy and disabled RLS, so nothing about read access is expressed here.
+--
+-- multiplier is numeric(3,2), so 0..9.99, taken verbatim from 012. It scales an
+-- industry's computed authority, and no pack has ever needed a factor near that
+-- ceiling.
+-- ----------------------------------------------------------------------------
+create table public.industry_packs (
+  code text
+    constraint industry_packs_pkey primary key,
+
+  display_name text not null,
+
+  multiplier numeric(3,2) not null default 1.0,
+
+  -- Both default to empty rather than NULL so a half-seeded pack reads as "no
+  -- authorities yet" instead of forcing every caller to null-check.
+  authority_domains jsonb not null default '{}',
+  topical_keywords text[] not null default '{}',
+
+  -- No trigger maintains updated_at anywhere in this schema; the seeder sets it.
+  updated_at timestamptz default now()
+);
+
+
+-- ----------------------------------------------------------------------------
+-- regional_packs -- per-region reference data: the tier assignment a domain gets
+-- in that region.
+--
+-- Consolidates: 012 (create).
+--
+-- The sibling of industry_packs and shaped the same way -- `code` primary key,
+-- one jsonb payload, a seeder-maintained updated_at. Authority is scored as
+-- (industry x region), which is why the two packs are separate tables rather
+-- than one: authority_scores' unique key in slice 4 is (domain, industry,
+-- region).
+-- ----------------------------------------------------------------------------
+create table public.regional_packs (
+  code text
+    constraint regional_packs_pkey primary key,
+
+  display_name text not null,
+  tiers jsonb not null default '{}',
+
+  updated_at timestamptz default now()
+);
+
+
+-- ----------------------------------------------------------------------------
+-- ai_citation_log -- every URL an AI platform cited during a Pulse run, kept as
+-- the shared feed the authority engine's L5 layer reads.
+--
+-- Consolidates: 012 (create).
+--
+-- 012 describes it as the GEO Pulse -> Authority L5 bridge, and the two ends
+-- explain both of its odd columns. pulse_run_id carries NO foreign key: there is
+-- no table of Pulse runs to point at, it is a correlation id minted by the
+-- producer. client_id is nullable and ON DELETE SET NULL rather than CASCADE --
+-- a citation is evidence about a *domain*, and stays useful to the authority
+-- engine long after the brand that happened to surface it is gone.
+--
+-- platform is a closed vocabulary here, unlike prompt_bank.category in slice 3:
+-- these values select code paths in lib/pulse/, so an unknown one is a bug
+-- rather than a display string.
+-- ----------------------------------------------------------------------------
+create table public.ai_citation_log (
+  id uuid default gen_random_uuid()
+    constraint ai_citation_log_pkey primary key,
+
+  pulse_run_id uuid,
+
+  client_id uuid
+    constraint ai_citation_log_client_id_fkey
+      references public.clients(id) on delete set null,
+
+  cited_url text not null,
+  cited_domain text not null,
+
+  platform text not null
+    constraint ai_citation_log_platform_check
+    check (platform in ('perplexity_sonar', 'perplexity_sonar_pro', 'chatgpt',
+                        'claude', 'gemini', 'google_aio')),
+
+  -- The prompt context that produced the citation, denormalised. Nullable
+  -- throughout: a citation is worth recording even when the producer cannot
+  -- attribute it to an industry or a region.
+  prompt_industry text,
+  prompt_region text,
+  prompt_topic text,
+  prompt_text text,
+
+  cited_at timestamptz default now()
+);
+
+-- The three read paths, and the one place in this file where index names take an
+-- `idx_` prefix instead of the `_idx` suffix used everywhere else. 012 named
+-- them; the names are compared by the equivalence differ, so they stay as
+-- written rather than being tidied.
+create index idx_citation_domain_industry
+  on public.ai_citation_log (cited_domain, prompt_industry);
+create index idx_citation_recent
+  on public.ai_citation_log (cited_at desc);
+create index idx_citation_industry_recent
+  on public.ai_citation_log (prompt_industry, cited_at desc);
+
+
+-- ----------------------------------------------------------------------------
+-- topical_clusters -- a detected pillar-page-plus-supporting-articles cluster
+-- for one brand, and how complete it looks.
+--
+-- Consolidates: 012 (create).
+--
+-- Read by /api/fix/cluster-map. cluster_articles defaults to '[]' for the same
+-- reason chunk_analysis.chunks does in slice 2 -- "detected nothing" and "not
+-- yet detected" should not be distinguishable by a reader who does not care.
+-- completeness_score is numeric(4,2), so 0..99.99, matching authority_scores.
+-- ----------------------------------------------------------------------------
+create table public.topical_clusters (
+  id uuid default gen_random_uuid()
+    constraint topical_clusters_pkey primary key,
+
+  client_id uuid not null
+    constraint topical_clusters_client_id_fkey
+      references public.clients(id) on delete cascade,
+
+  topic text not null,
+  pillar_page_url text,
+  cluster_articles jsonb not null default '[]',
+  completeness_score numeric(4,2),
+
+  detected_at timestamptz default now()
+);
+
+
+-- ----------------------------------------------------------------------------
+-- content_briefs -- one generated content brief for a brand and target topic.
+--
+-- Consolidates: 012 (create).
+--
+-- Written by /api/fix/content-brief. The brief itself is markdown in a text
+-- column, not structured -- it is LLM output rendered straight to the user.
+-- recommended_authorities is nullable jsonb rather than defaulting to '[]',
+-- unlike its neighbours above: 012 wrote it that way, and a brief generated
+-- before the authority engine had anything to say genuinely has no list rather
+-- than an empty one.
+-- ----------------------------------------------------------------------------
+create table public.content_briefs (
+  id uuid default gen_random_uuid()
+    constraint content_briefs_pkey primary key,
+
+  client_id uuid not null
+    constraint content_briefs_client_id_fkey
+      references public.clients(id) on delete cascade,
+
+  target_topic text not null,
+  brief_markdown text not null,
+  recommended_authorities jsonb,
+
+  created_at timestamptz default now()
+);
+
+
+-- The other four default-deny tables -- RLS enabled, deliberately ZERO policies.
+-- Read the long note in slice 4 for why the posture is kept at all; what matters
+-- here is that this is NOT 027's decision applied more widely. It is a
+-- convention three separate migrations arrived at independently, and each one is
+-- the place to look when changing its own table:
+--
+--   023  public_scan_rate_limits
+--   024  stripe_subscription_processing_leases, stripe_webhook_events
+--   025  authenticated_scan_monthly_usage
+--
+-- All three give the same reason: these tables are consumed only through the
+-- application's direct database role, so the Data API surface is kept closed
+-- even on a project carrying legacy default grants. 036 pointedly does not
+-- disable RLS here -- it touched only the 21 tables that carried a policy -- so
+-- omitting these four would leave the baseline visibly divergent.
+--
+-- Do NOT add policies. Zero policies is the mechanism, not a gap in it.
+alter table public.public_scan_rate_limits enable row level security;
+alter table public.authenticated_scan_monthly_usage enable row level security;
+alter table public.stripe_webhook_events enable row level security;
+alter table public.stripe_subscription_processing_leases enable row level security;
