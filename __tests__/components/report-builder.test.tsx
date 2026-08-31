@@ -39,6 +39,7 @@ const snapshot: ClientReportSnapshotV1 = {
   ],
   priorityFixes: [
     {
+      key: 'crawler-access',
       title: 'Clarify crawler access',
       rationale: 'Make crawler guidance explicit.',
       expectedImpact: 'high',

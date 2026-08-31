@@ -43,6 +43,10 @@ export function assignGrade(score: number): string {
   return 'F'
 }
 
+export function capScore(value: number): number {
+  return Math.min(100, value)
+}
+
 // Missing keys score as a fail (0 points) rather than throwing — callers may
 // legitimately pass a partial results object (e.g. tests isolating one check
 // category, or a category whose checks haven't run yet). `object` + internal

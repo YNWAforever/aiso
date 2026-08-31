@@ -1,6 +1,10 @@
 -- Local Trust ROI
 --
--- This migration has never been applied (no local_trust_* table exists in Neon).
+-- Applied: `npm run migrate -- --verify` against production (2026-08-15) reports
+-- `021_local_trust_roi.sql  all present  recorded` — the local_trust_* tables
+-- exist and the ledger records this migration. (This header previously claimed
+-- the migration had never been applied; that claim was wrong. Corrected
+-- 2026-08-31. Do not re-apply.)
 --
 -- It originally opened by adding three local_trust_* entitlement flags to
 -- public.plan_features and backfilling them per plan. Those six statements have

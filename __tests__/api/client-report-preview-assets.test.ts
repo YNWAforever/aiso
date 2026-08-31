@@ -88,7 +88,7 @@ describe('authenticated client report preview assets', () => {
   it('revalidates and redirects the saved contact destination without referrer leakage', async () => {
     const response = await GET_CONTACT(
       new Request('https://app.example/contact'),
-      context as RouteContext<'/api/client-reports/[reportId]/versions/[versionId]/contact'>,
+      context as unknown as RouteContext<'/api/client-reports/[reportId]/versions/[versionId]/contact'>,
     )
 
     expect(response.status).toBe(303)

@@ -36,7 +36,8 @@ test.describe('Account unlock on a seeded public result', () => {
     const result = new ResultPage(page, LANG)
     await result.submitEmail('unlock@example.com')
     await expect.poll(() => requestBody).not.toBeNull()
-    const callback = new URL(String(requestBody?.callbackURL ?? requestBody?.callbackUrl ?? ''))
+    const body: Record<string, unknown> = requestBody ?? {}
+    const callback = new URL(String(body.callbackURL ?? body.callbackUrl ?? ''))
     expect(callback.pathname).toBe('/' + LANG + '/auth/complete')
     expect(callback.searchParams.get('next')).toBe('/' + LANG + '/result/' + TEST_SCAN_ID + '?claim=1')
   })

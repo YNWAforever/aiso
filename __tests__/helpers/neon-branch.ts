@@ -4,14 +4,19 @@ import { join } from 'node:path'
 
 import { redactSecrets } from '@/lib/security/redact-secrets'
 
-export const PROJECT_ID = 'red-firefly-93523049'
+// `?.trim() || fallback` rather than `??`: nullish coalescing only falls back on
+// null/undefined, not on '' — and GitHub Actions substitutes '' for a `${{ secrets.X }}`
+// reference whose secret doesn't exist. An empty PRODUCTION_BRANCH_ID would otherwise
+// silently disable this file's two identity comparisons against it (real branch ids never
+// equal ''), rather than falling back to the real production id the guards exist to reject.
+export const PROJECT_ID = process.env.NEON_TEST_PROJECT_ID?.trim() || 'red-firefly-93523049'
 
 /**
  * The project's default branch. Production data lives on it. It is named here
  * so the guards below can reject it by identity rather than merely avoiding it
  * by construction.
  */
-export const PRODUCTION_BRANCH_ID = 'br-rough-butterfly-aojtgi92'
+export const PRODUCTION_BRANCH_ID = process.env.NEON_TEST_PRODUCTION_BRANCH_ID?.trim() || 'br-rough-butterfly-aojtgi92'
 
 /**
  * The role migrations run as. Passed explicitly to `connection-string`
@@ -19,7 +24,7 @@ export const PRODUCTION_BRANCH_ID = 'br-rough-butterfly-aojtgi92'
  * `aeo_app`, since migration 037), and neonctl refuses to pick one on its own
  * once a branch has more than one.
  */
-const OWNER_ROLE = 'neondb_owner'
+const OWNER_ROLE = process.env.NEON_TEST_OWNER_ROLE?.trim() || 'neondb_owner'
 
 /**
  * A hard crash (SIGKILL, closed laptop, CI runner reaped) runs neither

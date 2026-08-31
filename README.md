@@ -47,13 +47,14 @@ Two live caveats worth knowing before you touch the database:
 
 - **All migrations `001`–`035` are applied** as of a `--verify` run against production on
   2026-08-15, which also settled the long-running `021` dispute: it *did* run, its three
-  `local_trust_*` tables exist, and `021`'s own "never been applied" header comment is the
-  thing that was wrong. Run `npm run migrate -- --verify` against the target database before
+  `local_trust_*` tables exist, and `021`'s own "never been applied" header comment (since
+  corrected) was the thing that was wrong. Run `npm run migrate -- --verify` against the target database before
   believing any of this — it reports which migrations' objects actually exist, and this line
   is only as fresh as its date.
-- **RLS is enabled but inert.** The app connects as `neondb_owner`, which bypasses it, and the
-  leftover policies call a Supabase function that no longer exists. Every query must filter by
-  `account_id` explicitly — there is no backstop.
+- **RLS is enabled but inert.** The app connects as `aeo_app` (migration `037` moved it off
+  `neondb_owner` to a least-privilege role), and the leftover policies call a Supabase function
+  that no longer exists. Every query must filter by `account_id` explicitly — there is no
+  backstop.
 
 Read [`CLAUDE.md`](./CLAUDE.md) before writing code. It is the real architecture document.
 
@@ -117,8 +118,11 @@ npm run test:watch  # Vitest watch mode
 npm run e2e         # Playwright E2E (needs a dev server, or START_DEV_SERVER=1)
 ```
 
-`npm run e2e:ui` and `npm run e2e:report` are also available. There is **no CI** — run
-`build`, `lint`, and `test` locally before opening a PR.
+`npm run e2e:ui` and `npm run e2e:report` are also available. CI is
+`.github/workflows/pr-gate.yml` — a deterministic merge gate on every PR, running four jobs
+(`static`, `unit-contract`, `e2e-accessibility`, `build`) that a final `pr-gate` job aggregates,
+plus a separate `cloudflare-worker` job. Still run `build`, `lint`, and `test` locally first;
+the gate is the backstop, not the first signal.
 
 ### Integration tests need `neonctl`
 

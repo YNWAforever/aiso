@@ -4,6 +4,7 @@ import {
   PILLAR_WEIGHTS,
   calculatePillarScores,
   isPillarScoreSnapshot,
+  isPillarScoreStored,
   resolvePillarScores,
 } from '@/lib/pillar-scores'
 
@@ -35,17 +36,22 @@ describe('calculatePillarScores', () => {
     expect(scores.geo).toMatchObject({ score: 50, earned: 15, warnings: 6 })
   })
 
-  it('treats missing or malformed check results as failures', () => {
+  it('excludes missing or malformed check results from coverage rather than scoring them as failures', () => {
     const scores = calculatePillarScores({
       c1_robots: { status: 'pass', message: 'ok' },
       c2_llms_txt: { status: 'unknown', message: 'invalid' },
     })
 
-    expect(scores.seo.score).toBe(24)
+    expect(scores.seo.score).toBe(100)
     expect(scores.seo.passing).toBe(1)
-    expect(scores.seo.failing).toBe(10)
+    expect(scores.seo.failing).toBe(0)
+    expect(scores.seo.covered).toBe(1)
+    expect(scores.seo.checks).toBe(11)
+    expect(scores.seo.coverage).toBeCloseTo(12 / 50, 2)
     expect(scores.aeo.score).toBe(0)
+    expect(scores.aeo.covered).toBe(0)
     expect(scores.geo.score).toBe(0)
+    expect(scores.geo.covered).toBe(0)
   })
 })
 
@@ -75,5 +81,14 @@ describe('resolvePillarScores', () => {
     const resolved = resolvePillarScores(results)
     expect(resolved.methodologyVersion).toBe(PILLAR_SCORE_VERSION)
     expect(resolved.seo.score).toBe(100)
+  })
+
+  it('reports whether the snapshot came from storage or was recalculated', () => {
+    const results = resultsWithStatus('pass')
+    const stored = calculatePillarScores(results)
+
+    expect(isPillarScoreStored({ pillarScores: stored })).toBe(true)
+    expect(isPillarScoreStored(results)).toBe(false)
+    expect(isPillarScoreStored({ pillarScores: { methodologyVersion: 'broken' } })).toBe(false)
   })
 })

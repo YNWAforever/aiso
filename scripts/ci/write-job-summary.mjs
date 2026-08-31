@@ -9,6 +9,17 @@ function assertSafeArtifactPath(path) {
   if (!SAFE_ARTIFACT_PATH.test(path) || path.includes('..')) throw new Error(`Invalid artifact path: ${path}`)
 }
 
+/**
+ * @param {{
+ *   job: string,
+ *   status: string,
+ *   executed: number,
+ *   skipped: number,
+ *   priorities?: string[],
+ *   artifacts?: string[],
+ *   commitSha?: string,
+ * }} params
+ */
 export function createJobSummary({ job, status, executed, skipped, priorities = [], artifacts = [], commitSha = '' }) {
   for (const artifact of artifacts) assertSafeArtifactPath(artifact)
   return {

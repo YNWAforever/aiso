@@ -21,10 +21,10 @@ describe('PR gate workflow contract', () => {
     expect(workflow).toMatch(/group:\s+pr-gate-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}/)
     expect(workflow).toMatch(/cancel-in-progress:\s+true/)
 
-    for (const job of ['static', 'unit-contract', 'e2e-accessibility', 'build', 'cloudflare-worker', 'pr-gate']) {
+    for (const job of ['static', 'unit-contract', 'integration', 'e2e-accessibility', 'build', 'cloudflare-worker', 'pr-gate']) {
       expect(workflow).toMatch(new RegExp(`^  ${job}:\\s*$`, 'm'))
     }
-    expect(workflow).toMatch(/pr-gate:\s*\n\s+if:\s+\$\{\{ always\(\) \}\}\s*\n\s+needs:\s+\[static, unit-contract, e2e-accessibility, build, cloudflare-worker\]/)
+    expect(workflow).toMatch(/pr-gate:\s*\n\s+if:\s+\$\{\{ always\(\) \}\}\s*\n\s+needs:\s+\[static, unit-contract, integration, e2e-accessibility, build, cloudflare-worker\]/)
 
     expect(workflow).toMatch(/node-version:\s+24\.x/)
     expect(workflow).toContain('npm ci')
@@ -58,34 +58,21 @@ describe('PR gate workflow contract', () => {
     expect(unitJob).toMatch(/uses: actions\/checkout@v4\s*\n\s+with:\s*\n\s+fetch-depth:\s+0/)
   })
 
-  it('omits the integration project on purpose, and gates every job it does define', async () => {
-    // The integration project provisions a real Neon branch, which requires a
-    // NEON_API_KEY repository secret. The repository has none — `gh api
-    // repos/YNWAforever/fimmick-aeo/actions/secrets` reports total_count 0 — so an
-    // integration job would fail on every PR and leave the merge gate permanently
-    // red. It is therefore left out deliberately.
-    //
-    // Write the cost down rather than forget it: this omission is the structural
-    // reason the `031` ON CONFLICT gap survived to production. The only suite that
-    // runs real SQL against a real Postgres has never run on any pull request, so
-    // nothing in CI could have caught it.
-    //
-    // Two controls compensate, and this assertion is what keeps them load-bearing:
-    //   - __tests__/lib/pulse-conflict-arbiter.test.ts — a static guard for the
-    //     ON CONFLICT-without-a-matching-unique-index class. It needs no database,
-    //     so unlike the integration project it does run on every PR.
-    //   - docs/runbooks/verify-pulse-rollup.md — the manual procedure for running
-    //     the integration suite against a throwaway Neon branch.
-    //
-    // Adding an integration job fails this test on purpose. That failure is the
-    // prompt to confirm NEON_API_KEY actually exists before relying on the job,
-    // and to add it to the pr-gate `needs` list so the gate can see it fail.
+  it('defines the expected job list and gates every job it does define', async () => {
+    // The integration job now exists (item 0.11). This test's remaining job is to keep
+    // `pr-gate`'s `needs` list honest — every job other than the aggregator itself must
+    // appear there, or that job can fail while the gate still reports success.
     const workflow = await readWorkflow()
-    const jobsSection = workflow.slice(workflow.indexOf('\njobs:\n'))
-    const jobNames = [...jobsSection.matchAll(/^ {2}([\w-]+):$/gm)].map((match) => match[1])
+    // Search for '\njobs:' without a trailing '\n' — on a Windows checkout with
+    // core.autocrlf=true the line is '\njobs:\r\n', so a trailing '\n' would never
+    // match, indexOf would return -1, and slice(-1) would silently collapse
+    // jobsSection down to the workflow's last character.
+    const jobsSection = workflow.slice(workflow.indexOf('\njobs:'))
+    // The `$` anchor alone doesn't match a line ending in `\r\n` (e.g. on a Windows
+    // checkout with core.autocrlf=true), which would silently parse jobNames as [].
+    const jobNames = [...jobsSection.matchAll(/^ {2}([\w-]+):\r?$/gm)].map((match) => match[1])
 
-    expect(jobNames.filter((name) => /integration/i.test(name))).toEqual([])
-    expect(jobNames).toEqual(['static', 'unit-contract', 'e2e-accessibility', 'build', 'cloudflare-worker', 'pr-gate'])
+    expect(jobNames).toEqual(['static', 'unit-contract', 'integration', 'e2e-accessibility', 'build', 'cloudflare-worker', 'pr-gate'])
 
     // Every job other than the aggregator itself must appear in `needs`, or that
     // job can fail while the gate still reports success.

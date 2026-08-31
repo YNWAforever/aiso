@@ -84,6 +84,56 @@ jobs:
             artifacts/unit-contract-summary.json
             coverage/
 
+  integration:
+    runs-on: ubuntu-latest
+    # 30, matching e2e-accessibility rather than unit-contract's 20: this job is the
+    # other network/external-process-bound one in the gate (branch create, 37 real
+    # migrations, sequential real-Postgres round-trips, branch teardown) — unlike
+    # unit-contract's mocked, in-memory suite, which has no comparable I/O.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - name: Install neonctl
+        run: npm i -g neonctl
+      - name: Run integration suite
+        shell: bash
+        run: |
+          mkdir -p artifacts/integration
+          set +e
+          REQUIRE_INTEGRATION_TESTS=1 npx vitest run --config vitest.integration.config.ts --reporter=json --reporter=junit --outputFile.json=artifacts/integration/vitest.json --outputFile.junit=artifacts/integration/vitest.junit.xml 2>&1 | node scripts/redact.mjs | tee artifacts/integration/vitest.log
+          vitest_exit=${PIPESTATUS[0]}
+          set -e
+          # vitest's json/junit reporters write straight to disk, bypassing the piped
+          # stdout above — redact those in place too. This is the only job in the gate
+          # that touches a real Neon connection string; @neondatabase/serverless echoes
+          # the full URL, password included, in its own error messages (see CLAUDE.md's
+          # Secrets Hygiene section), and this repo is public.
+          for report in artifacts/integration/vitest.json artifacts/integration/vitest.junit.xml; do
+            if [ -f "$report" ]; then
+              node scripts/redact.mjs < "$report" > "$report.redacted" && mv "$report.redacted" "$report"
+            fi
+          done
+          if [ "$vitest_exit" -eq 0 ]; then status=success; else status=failure; fi
+          node scripts/ci/write-job-summary.mjs --job integration --status "$status" --executed 1 --skipped 0 --artifact integration/vitest.log --output artifacts/integration-summary.json
+          exit "$vitest_exit"
+        env:
+          CI: 'true'
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      - name: Upload integration diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-diagnostics
+          if-no-files-found: warn
+          path: |
+            artifacts/integration/
+            artifacts/integration-summary.json
+
   e2e-accessibility:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -209,7 +259,7 @@ jobs:
 
   pr-gate:
     if: ${{ always() }}
-    needs: [static, unit-contract, e2e-accessibility, build, cloudflare-worker]
+    needs: [static, unit-contract, integration, e2e-accessibility, build, cloudflare-worker]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -230,6 +280,7 @@ jobs:
         env:
           STATIC_RESULT: ${{ needs.static.result }}
           UNIT_CONTRACT_RESULT: ${{ needs.unit-contract.result }}
+          INTEGRATION_RESULT: ${{ needs.integration.result }}
           E2E_ACCESSIBILITY_RESULT: ${{ needs.e2e-accessibility.result }}
           BUILD_RESULT: ${{ needs.build.result }}
           CLOUDFLARE_WORKER_RESULT: ${{ needs.cloudflare-worker.result }}

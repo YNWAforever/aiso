@@ -1,4 +1,4 @@
-import { neon } from '@neondatabase/serverless'
+import { neon, type NeonQueryFunction } from '@neondatabase/serverless'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 /**
@@ -9,12 +9,12 @@ import { beforeAll, describe, expect, it } from 'vitest'
  * message, because a bare "it threw" would also pass if the password were
  * simply wrong.
  */
-const owner = neon(process.env.TEST_DATABASE_URL!)
+const owner: NeonQueryFunction<false, false> = neon<false, false>(process.env.TEST_DATABASE_URL!)
 
 /** Generated per run, never logged, never committed. */
 const PASSWORD = `t${Math.random().toString(36).slice(2)}${Date.now()}`
 
-let app: ReturnType<typeof neon>
+let app: NeonQueryFunction<false, false>
 
 beforeAll(async () => {
   if (!process.env.TEST_DATABASE_URL) {
@@ -28,7 +28,7 @@ beforeAll(async () => {
   const url = new URL(process.env.TEST_DATABASE_URL)
   url.username = 'aeo_app'
   url.password = PASSWORD
-  app = neon(url.toString())
+  app = neon<false, false>(url.toString())
 
   // Seed an account, a client and a client_reports row so the RLS visibility
   // assertion below cannot pass vacuously: an empty table returns zero rows

@@ -2,11 +2,12 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const REQUIRED_RESULTS = ['STATIC_RESULT', 'UNIT_CONTRACT_RESULT', 'E2E_ACCESSIBILITY_RESULT', 'BUILD_RESULT', 'CLOUDFLARE_WORKER_RESULT']
-const REQUIRED_JOBS = ['static', 'unit-contract', 'e2e-accessibility', 'build', 'cloudflare-worker']
+const REQUIRED_RESULTS = ['STATIC_RESULT', 'UNIT_CONTRACT_RESULT', 'INTEGRATION_RESULT', 'E2E_ACCESSIBILITY_RESULT', 'BUILD_RESULT', 'CLOUDFLARE_WORKER_RESULT']
+const REQUIRED_JOBS = ['static', 'unit-contract', 'integration', 'e2e-accessibility', 'build', 'cloudflare-worker']
 const REQUIRED_SUMMARY_FILES = [
   'static-summary.json',
   'unit-contract-summary.json',
+  'integration-summary.json',
   'e2e-accessibility-summary.json',
   'build-summary.json',
   'cloudflare-worker-summary.json',

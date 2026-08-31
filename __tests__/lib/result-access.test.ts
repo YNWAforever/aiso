@@ -13,8 +13,11 @@ const scan = {
   results: {
     c1_robots: { status: 'pass', message: 'robots_ai_allowed', details: 'private raw evidence' },
     c2_llms_txt: { status: 'fail', message: 'llms_txt_missing', details: 'private remediation detail' },
+    c3_bot_access: { status: 'pass', message: 'bots_all_accessible' },
+    c4_structured_data: { status: 'pass', message: 'structured_data_found' },
+    c5_extractability: { status: 'pass', message: 'extractability_good' },
   },
-}
+} as const
 
 describe('result access', () => {
   it('unlocks only for the owning account', () => {

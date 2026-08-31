@@ -33,7 +33,7 @@ export default defineConfig({
     // relying on every TZ-sensitive test file remembering to check for it, so
     // a future one inherits the protection automatically.
     pool: 'forks',
-    exclude: ['**/node_modules/**', 'tests/e2e/**', 'e2e/**', '**/.worktrees/**', '**/.superpowers/**', 'cloudflare/**'],
+    exclude: ['**/node_modules/**', 'tests/e2e/**', 'e2e/**', '**/.superpowers/**', 'cloudflare/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary', 'html'],

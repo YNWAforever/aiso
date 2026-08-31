@@ -20,6 +20,14 @@ const requiredEntries = new Map([
   ['ACCESSIBILITY-P0', 'P0'],
 ])
 
+/**
+ * @param {{
+ *   file: string,
+ *   repositoryRoot: string,
+ *   lstatFile?: (path: string) => Promise<{ isFile: () => boolean, isSymbolicLink: () => boolean }>,
+ *   realpathFile?: (path: string) => Promise<string>,
+ * }} params
+ */
 export async function validateManifestFilePath({ file, repositoryRoot, lstatFile = lstat, realpathFile = realpath }) {
   if (typeof file !== 'string' || !file.trim()) return 'invalid test file'
 

@@ -126,7 +126,7 @@ proxy.ts           # Next 16 proxy (was middleware) — intl routing + auth veri
 i18n/              # next-intl routing + request config
 messages/          # en.json / zh-HK.json translation strings
 supabase/
-  migrations/      # 33 SQL migrations, 001_-035_ (no 005/006) - dir name is legacy
+  migrations/      # 35 SQL migrations, 001_-037_ (no 005/006) - dir name is legacy
 __tests__/         # Vitest tests mirroring lib/app structure
 tests/e2e/         # Playwright specs + page objects
 scripts/           # migrate.ts (npm run migrate), run-tests.mjs (npm test), seed-packs.ts
@@ -177,9 +177,10 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   cron is still a deliberate, tested change.
   `next.config.ts` declares two permanent redirects that fire *before* `proxy.ts`.
 - `npm run lint` ≠ `npx eslint .` — the ignores are CLI flags in `package.json`, not in
-  `eslint.config.mjs`. Several of those flags (`.worktrees/`, `.codex/`, `.opencode/`) are
-  vestigial: no such directories exist any more, and `git worktree list` shows a single
-  worktree. The same dead paths linger in `tsconfig.json` and `vitest.config.ts` excludes.
+  `eslint.config.mjs`. (The vestigial `.worktrees/` / `.codex/` / `.opencode/` flags, and the
+  same dead paths in `tsconfig.json`'s and `vitest.config.ts`'s excludes, were removed
+  2026-08-31 — no such directories exist and `git worktree list` shows a single worktree.
+  `playwright.config.ts` still carries a `**/.worktrees/**` exclude.)
 - Lazy singletons: `db()` and `auth()` defer client construction. This genuinely protects the
   build for `db()` — `next build` succeeds with `DATABASE_URL` unset. It does **not** protect
   `auth()`: `app/api/auth/[...path]/route.ts` calls `auth().handler()` at module scope, so
@@ -365,8 +366,9 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 - ✅ **`021` is settled — it ran.** `npm run migrate -- --verify` against production on
   **2026-08-15** reports `021_local_trust_roi.sql  all present  recorded`: the
   `local_trust_profiles` / `_snapshots` / `_actions` tables exist and the ledger has it. So
-  `021`'s own header comment (*"This migration has never been applied"*) is the line that was
-  wrong, and `027:10`'s "Production has 021 applied" was right. **Local Trust is not broken in
+  `021`'s own header comment (which claimed *"This migration has never been applied"* until
+  it was corrected on 2026-08-31) was the line that was wrong, and `027:10`'s "Production has
+  021 applied" was right. **Local Trust is not broken in
   production.** Do not re-open this from the file comments alone.
 - **Verified state (`--verify`, production, 2026-08-15): `001`–`035` are all applied and
   recorded.** Nothing is pending. `030`–`035` were applied that day in one run; `033`/`034`
@@ -541,4 +543,5 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 - Commits: lowercase imperative with scope (`feat(auth): …`, `fix(scan): …`, `refactor(scoring): …`)
 - Recent work lands as PR merge commits (no squash). But older history was committed
   straight to `main`, so `git log --first-parent` is NOT a list of PRs.
-- Main branch: `main` — remote `github.com/YNWAforever/fimmick-aeo`
+- Main branch: `main` — remote `github.com/YNWAforever/aiso` (the `fimmick-aeo` name
+  survives only as the npm package name in `package.json`)

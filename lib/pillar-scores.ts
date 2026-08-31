@@ -49,7 +49,9 @@ export interface PillarScore {
   score: number
   earned: number
   maximum: number
+  coverage: number
   checks: number
+  covered: number
   passing: number
   warnings: number
   failing: number
@@ -64,7 +66,7 @@ export interface PillarScoreSnapshot {
 
 const CHECK_STATUSES: readonly CheckStatus[] = ['pass', 'warn', 'fail']
 
-function asCheckResult(value: unknown): CheckResult {
+function asCheckResult(value: unknown): CheckResult | null {
   if (
     value &&
     typeof value === 'object' &&
@@ -78,7 +80,7 @@ function asCheckResult(value: unknown): CheckResult {
     }
   }
 
-  return { status: 'fail', message: 'missing_check_result' }
+  return null
 }
 
 function calculatePillar(
@@ -86,12 +88,18 @@ function calculatePillar(
   weights: Readonly<Record<string, number>>,
 ): PillarScore {
   let earned = 0
+  let coveredWeight = 0
+  let covered = 0
   let passing = 0
   let warnings = 0
   let failing = 0
 
   for (const [key, weight] of Object.entries(weights)) {
     const result = asCheckResult(results[key])
+    if (result === null) continue
+
+    coveredWeight += weight
+    covered += 1
     earned += scorePts(result, weight)
 
     if (result.status === 'pass') passing += 1
@@ -102,10 +110,12 @@ function calculatePillar(
   const maximum = Object.values(weights).reduce((total, weight) => total + weight, 0)
 
   return {
-    score: maximum > 0 ? Math.round((earned / maximum) * 100) : 0,
+    score: coveredWeight > 0 ? Math.round((earned / coveredWeight) * 100) : 0,
     earned: Number(earned.toFixed(1)),
     maximum,
+    coverage: maximum > 0 ? Number((coveredWeight / maximum).toFixed(2)) : 0,
     checks: Object.keys(weights).length,
+    covered,
     passing,
     warnings,
     failing,
@@ -133,7 +143,9 @@ function isPillarScore(value: unknown): value is PillarScore {
     isFiniteNumber(score.score) &&
     isFiniteNumber(score.earned) &&
     isFiniteNumber(score.maximum) &&
+    isFiniteNumber(score.coverage) &&
     isFiniteNumber(score.checks) &&
+    isFiniteNumber(score.covered) &&
     isFiniteNumber(score.passing) &&
     isFiniteNumber(score.warnings) &&
     isFiniteNumber(score.failing)
@@ -161,4 +173,12 @@ export function resolvePillarScores(results: Record<string, unknown>): PillarSco
   return isPillarScoreSnapshot(results.pillarScores)
     ? results.pillarScores
     : calculatePillarScores(results)
+}
+
+/**
+ * True when `results.pillarScores` is a valid stored snapshot — i.e. the value
+ * `resolvePillarScores` will return unmodified rather than recalculate.
+ */
+export function isPillarScoreStored(results: Record<string, unknown>): boolean {
+  return isPillarScoreSnapshot(results.pillarScores)
 }

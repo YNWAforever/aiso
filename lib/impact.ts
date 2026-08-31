@@ -3,7 +3,7 @@
  * the check results already stored in scans.results. Never throws; missing
  * or legacy data degrades by omitting the affected stat.
  */
-import { CORE_PTS, EXT_PTS, GEO_PTS, assignGrade } from '@/lib/scoring'
+import { CORE_PTS, EXT_PTS, GEO_PTS, assignGrade, capScore } from '@/lib/scoring'
 import type { CheckResult } from '@/lib/types'
 
 /* ── Types ───────────────────────────────────────────────────── */
@@ -228,7 +228,7 @@ export function computeImpact(
   const uplift = quickWins
     .filter(w => w.effort !== 'days')
     .reduce((s, w) => s + w.pointsGain, 0)
-  const projectedScore = Math.min(100, Math.round((score + uplift) * 10) / 10)
+  const projectedScore = capScore(Math.round((score + uplift) * 10) / 10)
   const projectedGrade = assignGrade(projectedScore)
 
   // Headline: blocked platforms > low readable > benchmark gap > uplift

@@ -386,3 +386,15 @@ export interface LocalTrustAction {
   created_at: string
   updated_at: string
 }
+
+// ── Versioning contract (docs/contracts/versioning.md) ─────────────
+/**
+ * Bumped whenever check-engine detection logic changes for any of c1-c20.
+ * Not yet stored per scan — lands with the evidence envelope (plan item 3.3).
+ */
+export const SCANNER_VERSION = '2026-08-31.v1'
+
+export interface ScanVersionInfo {
+  scannerVersion: string
+  methodologyVersion: string
+}
