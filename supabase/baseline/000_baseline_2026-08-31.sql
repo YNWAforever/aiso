@@ -736,3 +736,759 @@ create table public.alert_email_deliveries (
 -- written after the fact.
 create unique index alert_email_deliveries_dedup_idx
   on public.alert_email_deliveries (client_id, type, scan_week);
+
+
+-- ============================================================================
+-- Slice 4 -- features: client reports, local trust, authority, agents
+--
+-- Four independent feature areas, grouped because none of them is depended on
+-- by anything outside itself: they are all leaves hanging off slice 1's
+-- accounts/clients/profiles and slice 2's scans.
+--
+--   client_reports*     the shareable snapshot a agency sends its client
+--   local_trust_*       local-visibility scoring and its ROI model
+--   authority_*         domain authority scoring and its per-client overrides
+--   agent_*             the agent-dashboard outputs, one row per scan/platform
+--
+-- Three of these tables -- account_report_branding, client_reports and
+-- client_report_versions -- are the only ones in this slice that keep RLS
+-- enabled; see the note above the `enable row level security` statements below.
+-- ============================================================================
+
+
+-- ----------------------------------------------------------------------------
+-- pgcrypto. Created HERE rather than alongside the rest of the extension /
+-- grant / function work, because it is load-bearing for the very next statement
+-- but one: client_reports.public_slug's DEFAULT calls public.gen_random_bytes(),
+-- and a column default is resolved to a function OID at CREATE TABLE time, not
+-- on first insert. Without the extension in place first, `create table
+-- public.client_reports` fails outright with "function public.gen_random_bytes
+-- (integer) does not exist".
+--
+-- 027 does exactly this, for exactly this reason, and its comment is worth
+-- repeating: this project's Supabase origin had pgcrypto on by default, a fresh
+-- Neon database does not. `if not exists` keeps it idempotent either way.
+--
+-- Note that gen_random_uuid(), used as a default all over this file, is NOT
+-- from here -- it has been core PostgreSQL since 13.
+create extension if not exists pgcrypto with schema public;
+
+
+-- ----------------------------------------------------------------------------
+-- account_report_branding -- the agency's white-label header on every report it
+-- shares. One row per account, so account_id IS the primary key.
+--
+-- Consolidates: 027 (create).
+--
+-- The four CHECKs are all length/format bounds, and they exist because this
+-- content is rendered into a public page: an unbounded agency_name or logo_url
+-- is a layout break at best. primary_color is pinned to a six-digit hex literal
+-- rather than "any CSS colour" for the same reason -- it is interpolated into
+-- inline styles.
+-- ----------------------------------------------------------------------------
+create table public.account_report_branding (
+  account_id uuid
+    constraint account_report_branding_pkey primary key
+    constraint account_report_branding_account_id_fkey
+      references public.accounts(id) on delete cascade,
+
+  agency_name text not null,
+  logo_url text,
+  primary_color text not null default '#111827',
+
+  -- Contact block: both halves or neither, enforced by
+  -- account_report_branding_contact_pair_check below. A label with no url
+  -- renders as dead text on the shared report.
+  contact_label text,
+  contact_url text,
+
+  -- Attribution for the last edit. Nullable, and the composite foreign key
+  -- below sets only this column to NULL when the profile goes -- the branding
+  -- row itself must survive, because the account still owns it.
+  updated_by uuid,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  constraint account_report_branding_agency_name_check
+    check (char_length(btrim(agency_name)) between 1 and 120),
+  constraint account_report_branding_logo_url_check
+    check (logo_url is null or char_length(logo_url) between 1 and 2048),
+  constraint account_report_branding_primary_color_check
+    check (primary_color ~ '^#[0-9A-Fa-f]{6}$'),
+  constraint account_report_branding_contact_pair_check
+    check (
+      (contact_label is null and contact_url is null)
+      or (
+        contact_label is not null
+        and contact_url is not null
+        and char_length(btrim(contact_label)) between 1 and 80
+        and char_length(contact_url) between 1 and 2048
+      )
+    ),
+
+  -- (updated_by, account_id) rather than just updated_by: this is the composite
+  -- key profiles_id_account_id_unique (027, slice 1) exists to make expressible.
+  -- It makes it physically impossible to credit an edit to a profile belonging
+  -- to a different tenant. `on delete set null (updated_by)` is PostgreSQL 15+
+  -- column-list SET NULL -- it nulls the attribution column alone and leaves
+  -- account_id, which is the primary key, untouched. A bare SET NULL would try
+  -- to null the primary key and fail.
+  constraint account_report_branding_updated_by_tenant_fkey
+    foreign key (updated_by, account_id)
+    references public.profiles (id, account_id)
+    on delete set null (updated_by)
+);
+
+-- 027. The reverse lookup for "what did this person last touch", and the index
+-- that keeps the SET NULL above from scanning the table on profile deletion.
+create index account_report_branding_updated_by_idx
+  on public.account_report_branding (updated_by);
+
+
+-- ----------------------------------------------------------------------------
+-- client_reports -- one shareable report per (account, client). The row holds
+-- the share link and its lifecycle; the content lives in
+-- client_report_versions, which is append-only.
+--
+-- Consolidates: 027 (create, plus the two back-references added immediately
+-- after client_report_versions exists -- see below).
+--
+-- Every mutation of this table goes through one of 027's SECURITY DEFINER RPCs
+-- (create_client_report_with_version, append_client_report_version,
+-- publish_client_report_latest, revoke_client_report,
+-- rotate_client_report_link), each of which takes an advisory lock on the report
+-- id and re-checks account_id and client_id. Those functions are not part of
+-- this slice.
+-- ----------------------------------------------------------------------------
+create table public.client_reports (
+  id uuid default gen_random_uuid()
+    constraint client_reports_pkey primary key,
+
+  -- Both NOT NULL and carried together into client_reports_client_tenant_fkey
+  -- below: a report is always owned by a tenant and always about one of that
+  -- tenant's brands.
+  account_id uuid not null,
+  client_id uuid not null,
+
+  status text not null default 'draft'
+    constraint client_reports_status_check
+    check (status in ('draft', 'published', 'revoked')),
+
+  -- The public URL segment. 24 random bytes, base64 with padding stripped and
+  -- rendered url-safe -- 32 characters, which is what
+  -- client_reports_public_slug_format_check pins. Generated in the DEFAULT
+  -- rather than by the application so a report is never briefly shareable under
+  -- a predictable slug, and regenerated by the revoke and rotate RPCs.
+  public_slug text not null default pg_catalog.translate(
+    pg_catalog.rtrim(pg_catalog.encode(public.gen_random_bytes(24), 'base64'), '='),
+    '+/',
+    '-_'
+  ),
+
+  -- Bumped every time public_slug is regenerated. The public page carries both,
+  -- so a link captured before a rotation fails on the version even if the slug
+  -- were somehow guessed.
+  share_version integer not null default 1
+    constraint client_reports_share_version_check check (share_version > 0),
+
+  -- The two pointers into client_report_versions. Their foreign keys cannot be
+  -- declared here -- the target table does not exist yet -- so they are added
+  -- immediately below, which is the same shape 027 used and the one place in
+  -- this file where create-then-alter is unavoidable rather than untidy.
+  latest_version_id uuid,
+  published_version_id uuid,
+
+  -- Public-page telemetry, incremented by increment_client_report_view /
+  -- _cta_click. bigint because these only ever grow and are never reset.
+  view_count bigint not null default 0
+    constraint client_reports_view_count_check check (view_count >= 0),
+  cta_click_count bigint not null default 0
+    constraint client_reports_cta_click_count_check check (cta_click_count >= 0),
+
+  first_viewed_at timestamptz,
+  last_viewed_at timestamptz,
+  published_at timestamptz,
+  revoked_at timestamptz,
+
+  created_by uuid,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  constraint client_reports_public_slug_format_check
+    check (public_slug ~ '^[A-Za-z0-9_-]{32}$'),
+
+  -- Tenancy, twice over. The client FK cascades: deleting a brand deletes its
+  -- reports. The created_by FK nulls only the attribution column, for the same
+  -- reason as account_report_branding.updated_by above.
+  constraint client_reports_client_tenant_fkey
+    foreign key (client_id, account_id)
+    references public.clients (id, account_id)
+    on delete cascade,
+  constraint client_reports_created_by_tenant_fkey
+    foreign key (created_by, account_id)
+    references public.profiles (id, account_id)
+    on delete set null (created_by),
+
+  -- The composite key client_report_versions_report_tenant_fkey references, so
+  -- a version row cannot attach itself to a report under a different tenant or
+  -- a different brand than the one it claims.
+  constraint client_reports_id_account_id_client_id_key
+    unique (id, account_id, client_id)
+);
+
+
+-- ----------------------------------------------------------------------------
+-- client_report_versions -- the append-only content of a report. One row per
+-- generated snapshot; publishing points client_reports.published_version_id at
+-- one of them rather than mutating anything.
+--
+-- Consolidates: 027 (create).
+--
+-- snapshot is the whole rendered payload, frozen at generation time. That is the
+-- point of the table: a report already sent to a client must keep saying what it
+-- said, even after the scans behind it are re-run or deleted -- which is why
+-- both scan foreign keys are SET NULL rather than CASCADE.
+-- ----------------------------------------------------------------------------
+create table public.client_report_versions (
+  id uuid default gen_random_uuid()
+    constraint client_report_versions_pkey primary key,
+
+  report_id uuid not null,
+  account_id uuid not null,
+  client_id uuid not null,
+
+  -- Dense from 1 within a report, allocated by append_client_report_version
+  -- under an advisory lock and pinned by the (report_id, version_number) unique
+  -- key below.
+  version_number integer not null
+    constraint client_report_versions_version_number_check check (version_number > 0),
+
+  -- The scan this version reports on, and the earlier scan it is compared
+  -- against. Both nullable: a first report has nothing to compare to, and
+  -- either scan may later be deleted.
+  source_scan_id uuid,
+  previous_scan_id uuid,
+
+  -- The two locales the app ships (see i18n/). Unlike prompt_bank.language, this
+  -- one IS constrained -- the value picks a renderer, not a hint.
+  locale text not null
+    constraint client_report_versions_locale_check check (locale in ('en', 'zh-HK')),
+
+  executive_summary text not null
+    constraint client_report_versions_executive_summary_check
+    check (char_length(executive_summary) between 1 and 1200),
+
+  -- Pinned to exactly 1. Not a range: the reader in lib/reports/ understands one
+  -- snapshot shape, so a row it cannot render must be impossible to write rather
+  -- than merely unexpected. Widening this is a migration plus a reader that
+  -- branches on the value.
+  snapshot_schema_version integer not null
+    constraint client_report_versions_snapshot_schema_version_check
+    check (snapshot_schema_version = 1),
+  snapshot jsonb not null,
+
+  created_by uuid,
+  created_at timestamptz not null default now(),
+
+  -- The three-column tenancy FK, matching client_reports_id_account_id_client_id_key.
+  constraint client_report_versions_report_tenant_fkey
+    foreign key (report_id, account_id, client_id)
+    references public.client_reports (id, account_id, client_id)
+    on delete cascade,
+
+  -- Both scan references are tenant-composite against scans_id_account_id_unique
+  -- (027, slice 2), and both null only their own column: a deleted scan must not
+  -- take a published report version with it.
+  constraint client_report_versions_source_scan_tenant_fkey
+    foreign key (source_scan_id, account_id)
+    references public.scans (id, account_id)
+    on delete set null (source_scan_id),
+  constraint client_report_versions_previous_scan_tenant_fkey
+    foreign key (previous_scan_id, account_id)
+    references public.scans (id, account_id)
+    on delete set null (previous_scan_id),
+  constraint client_report_versions_created_by_tenant_fkey
+    foreign key (created_by, account_id)
+    references public.profiles (id, account_id)
+    on delete set null (created_by),
+
+  constraint client_report_versions_report_id_version_number_key
+    unique (report_id, version_number),
+
+  -- The key client_reports' two back-references point at. Including report_id
+  -- means client_reports.latest_version_id cannot name a version of some other
+  -- report.
+  constraint client_report_versions_id_report_id_key
+    unique (id, report_id)
+);
+
+-- The cycle, closed. client_reports points at client_report_versions and
+-- client_report_versions points back, so one of the two directions has to be
+-- added after both tables exist -- there is no ordering that avoids it.
+--
+-- DEFERRABLE INITIALLY DEFERRED is what makes create_client_report_with_version
+-- work at all: it inserts the report, then the version, then updates the report
+-- to point at it, all in one transaction. Checked immediately, the first insert
+-- would fail against a version row that does not exist yet.
+alter table public.client_reports
+  add constraint client_reports_latest_version_id_fkey
+    foreign key (latest_version_id, id)
+    references public.client_report_versions (id, report_id)
+    deferrable initially deferred,
+  add constraint client_reports_published_version_id_fkey
+    foreign key (published_version_id, id)
+    references public.client_report_versions (id, report_id)
+    deferrable initially deferred;
+
+-- 027. The dashboard list: one tenant's reports for one brand, newest first.
+create index client_reports_account_client_created_idx
+  on public.client_reports (account_id, client_id, created_at desc);
+
+-- The public page's only lookup, and the uniqueness that makes a slug an
+-- identifier rather than a hint. Unique as an index rather than a constraint
+-- because that is how 027 wrote it.
+create unique index client_reports_public_slug_idx
+  on public.client_reports (public_slug);
+
+-- Support for the created_by / updated_by SET NULL cascades, same as
+-- account_report_branding_updated_by_idx above.
+create index client_reports_created_by_idx
+  on public.client_reports (created_by);
+
+-- 027. The version list for one report, newest version first, already narrowed
+-- by tenant so the index serves the ownership check and the read at once.
+create index client_report_versions_tenant_report_idx
+  on public.client_report_versions (account_id, client_id, report_id, version_number desc);
+
+-- The two scan back-references. Leading with the scan id makes these the
+-- lookup a scan deletion needs in order to null the citing versions.
+create index client_report_versions_source_scan_idx
+  on public.client_report_versions (source_scan_id, account_id);
+create index client_report_versions_previous_scan_idx
+  on public.client_report_versions (previous_scan_id, account_id);
+
+create index client_report_versions_created_by_idx
+  on public.client_report_versions (created_by);
+
+-- 027. RLS enabled with deliberately ZERO policies -- default-deny, and the one
+-- place in this file where an `enable row level security` appears at all.
+--
+-- This is not an oversight and not a leftover: 036 disabled RLS on the 21 tables
+-- that carried a (dead) policy and pointedly left these three alone, because
+-- their posture was chosen rather than inherited. 027 originally wrote six
+-- `to authenticated` policies scoped by auth.uid(); neither half survives Neon
+-- (the role does not exist, and auth.uid() reads a PostgREST GUC nothing sets,
+-- so it returns NULL and every policy matches nothing). Default-deny is
+-- behaviourally identical to a policy that never matches, minus the false signal
+-- that the database is enforcing tenant isolation. It is not -- every query
+-- filters by account_id in application code, and 027's RPCs are SECURITY
+-- DEFINER with their own explicit predicates.
+--
+-- Note what this actually buys on its own: very little. aeo_app holds BYPASSRLS
+-- (037), and 027 revokes table privileges from PUBLIC anyway, so a role without
+-- grants gets a permission error long before RLS is consulted. It is kept
+-- because it is pinned -- __tests__/db/client-report-migration.test.ts asserts
+-- these three, __tests__/integration/migrate.test.ts asserts the full set of
+-- seven against a real database -- so an eighth default-deny table is a
+-- deliberate, reviewed change rather than a drift.
+--
+-- Do NOT add policies here. Zero policies is the mechanism, not a gap in it.
+alter table public.account_report_branding enable row level security;
+alter table public.client_reports enable row level security;
+alter table public.client_report_versions enable row level security;
+
+
+-- ----------------------------------------------------------------------------
+-- local_trust_profiles -- the owner-maintained inputs to local trust scoring:
+-- what a brand sells, where, and what a lead is worth to it.
+--
+-- Consolidates: 021 (create).
+--
+-- 021 originally opened by adding three local_trust_* entitlement flags to
+-- plan_features and backfilling them. Those statements were removed from 021
+-- itself, because 028 drops plan_features -- it was an orphaned third definition
+-- of plan entitlements that no application code read. The flags live in
+-- PLAN_CATALOG (lib/plans/catalog.ts) and resolve through lib/tier.ts. Nothing
+-- schema-shaped was lost, and nothing here recreates them.
+--
+-- Every local_trust_* table carries client_id AND account_id and keys the pair
+-- into clients (id, account_id). That is the 021 pattern lib/localTrust/guard.ts
+-- mirrors in application code: auth, then entitlement, then ownership.
+-- ----------------------------------------------------------------------------
+create table public.local_trust_profiles (
+  id uuid default gen_random_uuid()
+    constraint local_trust_profiles_pkey primary key,
+
+  -- client_id carries no FK of its own; the composite one below covers it.
+  client_id uuid not null,
+  account_id uuid not null
+    constraint local_trust_profiles_account_id_fkey
+      references public.accounts(id) on delete cascade,
+
+  primary_services text[] not null default '{}',
+  service_area text,
+
+  -- The two ROI inputs. Both nullable -- the profile is useful before an owner
+  -- has supplied either -- and both checks are written to permit NULL
+  -- explicitly rather than relying on NULL-propagation to satisfy them.
+  -- close_rate is a fraction, not a percentage: 0..1.
+  average_lead_value numeric
+    constraint local_trust_profiles_average_lead_value_check
+    check (average_lead_value is null or average_lead_value >= 0),
+  close_rate numeric
+    constraint local_trust_profiles_close_rate_check
+    check (close_rate is null or (close_rate >= 0 and close_rate <= 1)),
+
+  competitors text[] not null default '{}',
+
+  -- No trigger maintains updated_at. The Local Trust routes set it explicitly
+  -- when owner-maintained fields change, exactly as alert_configs does.
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  constraint local_trust_profiles_client_id_account_id_fkey
+    foreign key (client_id, account_id)
+    references public.clients (id, account_id)
+    on delete cascade,
+
+  -- At most one profile per brand.
+  constraint local_trust_profiles_client_id_key unique (client_id)
+);
+
+
+-- ----------------------------------------------------------------------------
+-- local_trust_snapshots -- one computed local-trust score per brand per month,
+-- with the bucket breakdown and gap list the dashboard renders.
+--
+-- Consolidates: 021 (create).
+-- ----------------------------------------------------------------------------
+create table public.local_trust_snapshots (
+  id uuid default gen_random_uuid()
+    constraint local_trust_snapshots_pkey primary key,
+
+  client_id uuid not null,
+  account_id uuid not null
+    constraint local_trust_snapshots_account_id_fkey
+      references public.accounts(id) on delete cascade,
+
+  snapshot_month date not null,
+
+  local_trust_score numeric not null
+    constraint local_trust_snapshots_local_trust_score_check
+    check (local_trust_score >= 0 and local_trust_score <= 100),
+
+  -- Both default to an empty array so a reader never has to distinguish "not
+  -- computed" from "computed, nothing found" -- the same reasoning as
+  -- chunk_analysis.chunks in slice 2.
+  bucket_scores jsonb not null default '[]'::jsonb,
+  trust_gaps jsonb not null default '[]'::jsonb,
+  roi_estimate jsonb,
+
+  -- Provenance. The scan reference is ON DELETE SET NULL, not CASCADE: a
+  -- snapshot is a historical record and must outlive the scan it was derived
+  -- from. source_pulse_week is a plain date rather than a foreign key because
+  -- pulse_weekly_summary has no natural single-column key to point at.
+  source_scan_id uuid
+    constraint local_trust_snapshots_source_scan_id_fkey
+      references public.scans(id) on delete set null,
+  source_pulse_week date,
+
+  created_at timestamptz not null default now(),
+
+  constraint local_trust_snapshots_client_id_account_id_fkey
+    foreign key (client_id, account_id)
+    references public.clients (id, account_id)
+    on delete cascade,
+
+  -- (id, client_id) exists purely so local_trust_actions can carry a composite
+  -- FK back here and stay pinned to the same brand.
+  constraint local_trust_snapshots_id_client_id_key unique (id, client_id),
+
+  -- One snapshot per brand per month -- the recompute path upserts on this.
+  constraint local_trust_snapshots_client_id_snapshot_month_key
+    unique (client_id, snapshot_month)
+);
+
+
+-- ----------------------------------------------------------------------------
+-- local_trust_actions -- the recommended fixes a snapshot produced, and the
+-- owner's progress through them.
+--
+-- Consolidates: 021 (create).
+--
+-- stable_key is what makes a re-computed snapshot able to carry a status
+-- forward: the generator derives the same key for the same underlying gap, so
+-- (snapshot_id, stable_key) identifies an action across regenerations rather
+-- than minting a new uuid each time.
+-- ----------------------------------------------------------------------------
+create table public.local_trust_actions (
+  id uuid default gen_random_uuid()
+    constraint local_trust_actions_pkey primary key,
+
+  -- Both columns feed the composite FK below; neither has an FK of its own.
+  client_id uuid not null,
+  snapshot_id uuid not null,
+
+  stable_key text not null,
+  title text not null,
+
+  -- The four scoring buckets, the impact/effort grid the dashboard sorts on,
+  -- and the owner's status. All four are closed vocabularies rendered directly
+  -- as UI, so unlike prompt_bank.category they are constrained here.
+  bucket text not null
+    constraint local_trust_actions_bucket_check
+    check (bucket in ('local_visibility', 'proof_depth', 'ai_answer_readiness', 'market_authority')),
+  impact text not null
+    constraint local_trust_actions_impact_check
+    check (impact in ('low', 'medium', 'high')),
+  effort text not null
+    constraint local_trust_actions_effort_check
+    check (effort in ('low', 'medium', 'high')),
+  status text not null default 'open'
+    constraint local_trust_actions_status_check
+    check (status in ('open', 'planned', 'done', 'skipped')),
+
+  -- As on local_trust_profiles: no trigger, the routes set updated_at when an
+  -- action's status changes.
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  -- (snapshot_id, client_id) into local_trust_snapshots_id_client_id_key -- an
+  -- action physically cannot attach to a snapshot of a different brand.
+  constraint local_trust_actions_snapshot_id_client_id_fkey
+    foreign key (snapshot_id, client_id)
+    references public.local_trust_snapshots (id, client_id)
+    on delete cascade,
+
+  constraint local_trust_actions_snapshot_id_stable_key_key
+    unique (snapshot_id, stable_key)
+);
+
+-- 021. One index per read: the account's profiles, a brand's snapshot history
+-- newest month first, and one snapshot's action list.
+create index local_trust_profiles_account_idx
+  on public.local_trust_profiles (account_id);
+create index local_trust_snapshots_client_month_idx
+  on public.local_trust_snapshots (client_id, snapshot_month desc);
+create index local_trust_actions_snapshot_idx
+  on public.local_trust_actions (snapshot_id);
+
+
+-- ----------------------------------------------------------------------------
+-- authority_scores -- the cached output of lib/authority/'s layered engine for
+-- one (domain, industry, region).
+--
+-- Consolidates: 012 (create).
+--
+-- This is a cache, not a ledger: expires_at defaults to seven days out and the
+-- engine recomputes past it. Nothing enforces the expiry in the database -- no
+-- trigger, no partial index -- the reader checks it.
+--
+-- Note numeric(4,2): the scale is 0..99.99, not 0..100.00. Taken verbatim from
+-- 012 rather than widened; a 100.00 would fail this column, and that is the
+-- shape production has carried since 012.
+-- ----------------------------------------------------------------------------
+create table public.authority_scores (
+  id uuid default gen_random_uuid()
+    constraint authority_scores_pkey primary key,
+
+  domain text not null,
+  industry text not null,
+  region text not null,
+
+  final_score numeric(4,2) not null,
+
+  tier text not null
+    constraint authority_scores_tier_check
+    check (tier in ('tier1', 'tier2', 'tier3', 'other')),
+
+  category text not null,
+
+  -- The per-layer contributions computeAuthority() produced, kept so a score can
+  -- be explained after the fact.
+  breakdown jsonb not null default '{}',
+
+  computed_at timestamptz default now(),
+  expires_at timestamptz default now() + interval '7 days',
+
+  -- The cache key. One score per domain per industry per region -- the same
+  -- domain legitimately scores differently under a different industry pack.
+  constraint authority_scores_domain_industry_region_key
+    unique (domain, industry, region)
+);
+
+
+-- ----------------------------------------------------------------------------
+-- domain_signals -- the raw external signals collected for one domain, cached
+-- far longer than the score derived from them (30 days vs 7).
+--
+-- Consolidates: 012 (create).
+--
+-- Keyed by domain itself rather than a surrogate id: signals are a property of
+-- the domain, independent of any industry or region, and there is exactly one
+-- row per domain by construction.
+-- ----------------------------------------------------------------------------
+create table public.domain_signals (
+  domain text
+    constraint domain_signals_pkey primary key,
+
+  signals jsonb not null default '{}',
+  signal_score numeric(4,2) not null default 0,
+
+  fetched_at timestamptz default now(),
+  expires_at timestamptz default now() + interval '30 days'
+);
+
+
+-- ----------------------------------------------------------------------------
+-- authority_overrides -- a manual correction to a domain's authority, scoped to
+-- one client. The admin escape hatch behind app/[lang]/admin/authority/.
+--
+-- Consolidates: 012 (create).
+--
+-- override_tier admits a fifth value the engine's own tier column does not:
+-- 'blacklist', which suppresses a domain outright rather than re-ranking it.
+-- Both override columns are nullable -- an override may adjust the tier, the
+-- score, or both.
+-- ----------------------------------------------------------------------------
+create table public.authority_overrides (
+  id uuid default gen_random_uuid()
+    constraint authority_overrides_pkey primary key,
+
+  -- Nullable as created in 012 and never tightened; cascading, so removing a
+  -- brand removes its overrides.
+  client_id uuid
+    constraint authority_overrides_client_id_fkey
+      references public.clients(id) on delete cascade,
+
+  domain text not null,
+
+  override_tier text
+    constraint authority_overrides_override_tier_check
+    check (override_tier in ('tier1', 'tier2', 'tier3', 'other', 'blacklist')),
+  override_score numeric(4,2),
+
+  reason text,
+  created_at timestamptz default now()
+);
+
+
+-- ----------------------------------------------------------------------------
+-- agent_recommendations -- per-platform, per-category fix suggestions produced
+-- by an agent run over one scan.
+--
+-- Consolidates: 013 (create).
+--
+-- All three agent_* tables share a shape: NOT NULL scan_id cascading from scans,
+-- a platform column, and a unique key that makes a re-run idempotent per
+-- (scan, platform, <dimension>). None of them carries account_id -- tenancy is
+-- reached through scan_id, which is why every route reading them joins scans and
+-- filters on profile.account_id there.
+--
+-- None of the three has RLS enabled: 013 simply never enabled it, unlike 012's
+-- tables. They are therefore absent from 036 as well, and correctly carry
+-- rowsecurity = false here -- the default for a fresh table.
+-- ----------------------------------------------------------------------------
+create table public.agent_recommendations (
+  id uuid default gen_random_uuid()
+    constraint agent_recommendations_pkey primary key,
+
+  scan_id uuid not null
+    constraint agent_recommendations_scan_id_fkey
+      references public.scans(id) on delete cascade,
+
+  platform text not null,
+  category text not null,
+
+  priority text not null
+    constraint agent_recommendations_priority_check
+    check (priority in ('high', 'medium', 'low')),
+
+  recommendation text not null,
+
+  -- 1..10, smallint. The dashboard orders on it, so it is bounded rather than
+  -- free-form.
+  impact_score smallint not null
+    constraint agent_recommendations_impact_score_check
+    check (impact_score >= 1 and impact_score <= 10),
+
+  created_at timestamptz default now(),
+
+  constraint agent_recommendations_scan_id_platform_category_key
+    unique (scan_id, platform, category)
+);
+
+
+-- ----------------------------------------------------------------------------
+-- agent_progress -- before/after metric snapshots for one scan and platform.
+--
+-- Consolidates: 013 (create). 014 mentions it only as a plan_features flag
+-- column, which 028 later dropped along with the whole table.
+--
+-- The three value columns are bare `numeric` -- unconstrained precision and
+-- scale, as 013 wrote them. A metric here may be a percentage, a count or a
+-- score, so no single numeric(n,m) fits.
+-- ----------------------------------------------------------------------------
+create table public.agent_progress (
+  id uuid default gen_random_uuid()
+    constraint agent_progress_pkey primary key,
+
+  scan_id uuid not null
+    constraint agent_progress_scan_id_fkey
+      references public.scans(id) on delete cascade,
+
+  platform text not null,
+  metric text not null,
+
+  -- previous_value and delta are nullable: the first observation of a metric has
+  -- nothing to compare against.
+  current_value numeric not null,
+  previous_value numeric,
+  delta numeric,
+
+  created_at timestamptz default now(),
+
+  constraint agent_progress_scan_id_platform_metric_key
+    unique (scan_id, platform, metric)
+);
+
+
+-- ----------------------------------------------------------------------------
+-- agent_competitors -- per-platform competitor gap analysis for one scan.
+--
+-- Consolidates: 013 (create). As with agent_progress, 014's reference is to the
+-- since-dropped plan_features flag, not to this table's shape.
+--
+-- Both rate columns are percentages bounded 0..100 -- note that these are
+-- percentages while local_trust_profiles.close_rate is a 0..1 fraction. The
+-- inconsistency is real and preserved; both are read by code written against
+-- their own convention.
+-- ----------------------------------------------------------------------------
+create table public.agent_competitors (
+  id uuid default gen_random_uuid()
+    constraint agent_competitors_pkey primary key,
+
+  scan_id uuid not null
+    constraint agent_competitors_scan_id_fkey
+      references public.scans(id) on delete cascade,
+
+  platform text not null,
+  competitor_domain text not null,
+  competitor_name text,
+
+  mention_rate numeric not null
+    constraint agent_competitors_mention_rate_check
+    check (mention_rate >= 0 and mention_rate <= 100),
+  your_rate numeric not null
+    constraint agent_competitors_your_rate_check
+    check (your_rate >= 0 and your_rate <= 100),
+
+  gap_analysis text not null,
+  created_at timestamptz default now(),
+
+  -- Keyed on the domain, not the display name: competitor_name is nullable and
+  -- cosmetic.
+  constraint agent_competitors_scan_id_platform_competitor_domain_key
+    unique (scan_id, platform, competitor_domain)
+);
