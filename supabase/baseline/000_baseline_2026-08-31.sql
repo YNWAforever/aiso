@@ -399,3 +399,340 @@ create table public.chunk_analysis (
   avg_extractability numeric(4,2),
   analyzed_at timestamptz default now()
 );
+
+
+-- ============================================================================
+-- Slice 3 -- monitoring: prompt bank, Pulse metrics, alerting
+--
+-- The weekly AI-visibility loop, in the order it runs. prompt_bank holds the
+-- questions a brand is monitored against; pulse_metrics stores one row per
+-- (prompt, platform) answer; pulse_weekly_summary is the rollup those rows are
+-- aggregated into; and alert_configs / notifications / alert_email_deliveries
+-- are the alerting that reads that rollup a few hours later -- which is why
+-- cloudflare/cron-worker schedules /api/cron/pulse at 17 4 * * 1 and
+-- /api/cron/evaluate-alerts at 47 7 * * 1, in that order.
+--
+-- Everything here hangs off clients (slice 1). notifications is the one table
+-- that also references accounts directly: its client_id is ON DELETE SET NULL,
+-- so a notification outlives the brand it was raised for and still needs an
+-- inbox to belong to.
+-- ============================================================================
+
+
+-- ----------------------------------------------------------------------------
+-- prompt_bank -- the questions one brand is monitored against.
+--
+-- Consolidates: 002 (create). Nothing later changed its shape -- 004 added an
+-- RLS policy over it and 036 dropped that policy again.
+--
+-- Note what is deliberately absent: `category` carries no CHECK.
+-- lib/prompts/categories.ts is the single source of truth for the four category
+-- keys, and the writers here are LLMs -- so the value is validated on the way
+-- in, in application code, and read permissively on the way out. A constraint
+-- here would turn a rejected suggestion into a failed generation run.
+--
+-- is_active is what selectPendingClients() in lib/pulse/schedule.ts filters on,
+-- and an empty prompt_bank is the whole reason the Pulse rollup has never
+-- written a production row: no active prompt, no candidate client, no producer
+-- run.
+-- ----------------------------------------------------------------------------
+create table public.prompt_bank (
+  id uuid default gen_random_uuid()
+    constraint prompt_bank_pkey primary key,
+
+  -- Nullable as created in 002 and never tightened; the delete rule cascades,
+  -- so removing a brand removes its bank.
+  client_id uuid
+    constraint prompt_bank_client_id_fkey references public.clients(id) on delete cascade,
+
+  category text,
+  question text not null,
+
+  -- The bank was built for a Hong Kong client base, so a row that does not say
+  -- otherwise is Cantonese.
+  language text default 'zh-HK',
+
+  is_active boolean default true,
+  created_at timestamptz default now()
+);
+
+
+-- ----------------------------------------------------------------------------
+-- pulse_metrics -- one raw answer: what one platform said to one prompt in one
+-- scan week.
+--
+-- Consolidates: 002 (create), 032 (the table's first two indexes -- it carried
+-- none at all for the thirty migrations in between).
+--
+-- There is no unique key, and the baseline keeps it that way rather than
+-- quietly fixing it. total_queries in the weekly rollup is a COUNT over these
+-- rows, so writing one prompt twice inflates sov_score -- the single number the
+-- whole feature reports. 032 declined to make the second index below unique
+-- because a unique index cannot be built while duplicate rows may already
+-- exist, and whether production carried any was unknowable without a live
+-- connection. Correctness therefore lives in app/api/pulse/run, which deletes a
+-- prompt's rows for the week before writing them. Any new writer of this table
+-- needs the same discipline; tightening the schema instead is a migration with
+-- its own data-cleanup step, not something a baseline gets to decide.
+-- ----------------------------------------------------------------------------
+create table public.pulse_metrics (
+  id uuid default gen_random_uuid()
+    constraint pulse_metrics_pkey primary key,
+
+  -- Neither foreign key carries an ON DELETE action, unlike prompt_bank's
+  -- above: deleting a client or a prompt that still has metrics raises rather
+  -- than discarding the history.
+  client_id uuid
+    constraint pulse_metrics_client_id_fkey references public.clients(id),
+  prompt_id uuid
+    constraint pulse_metrics_prompt_id_fkey references public.prompt_bank(id),
+
+  -- Which assistant answered. The vocabularies live in lib/pulse/, not in a
+  -- CHECK -- the set of platforms a plan grants is an entitlement question.
+  platform text not null,
+
+  -- The question as actually asked, stored here as well as in prompt_bank, so a
+  -- row stays readable after the prompt behind it is edited or deactivated.
+  question text not null,
+
+  -- The answer, and what lib/pulse/'s analysis extracted from it.
+  raw_answer text,
+  brand_mentioned boolean,
+  sentiment text,
+  mention_position integer,
+  competitors_mentioned text[],
+
+  -- date_trunc('week', now())::date. Every read of this table is keyed on it.
+  scan_week date not null,
+
+  created_at timestamptz default now()
+);
+
+-- 032. Two indexes matching the two access patterns exactly, on a table that
+-- carried none at all from 002 until then and only ever grows -- prompts x
+-- platforms x clients x weeks:
+--
+--   (client_id, scan_week)            the weekly driver's cursor derivation
+--                                     (count distinct prompt_id for this week)
+--                                     and the dashboard's missed-opportunity
+--                                     read
+--   (client_id, prompt_id, scan_week) the producer's delete-before-insert
+--
+-- Both were sequential scans over every row the table had ever accumulated.
+create index pulse_metrics_client_week_idx
+  on public.pulse_metrics (client_id, scan_week);
+
+create index pulse_metrics_client_prompt_week_idx
+  on public.pulse_metrics (client_id, prompt_id, scan_week);
+
+
+-- ----------------------------------------------------------------------------
+-- pulse_weekly_summary -- singular, not _summaries -- the weekly rollup of
+-- pulse_metrics: one row per (client, week, platform), plus one aggregate row
+-- per (client, week) carrying platform IS NULL.
+--
+-- Consolidates: 002 (create), 031 (the NULLS NOT DISTINCT unique key the
+-- rollup's ON CONFLICT needs), 033 (the alert snapshot index), 034 (that same
+-- index, refined with deterministic tie-breaks).
+-- ----------------------------------------------------------------------------
+create table public.pulse_weekly_summary (
+  id uuid default gen_random_uuid()
+    constraint pulse_weekly_summary_pkey primary key,
+
+  -- No ON DELETE action, matching pulse_metrics.
+  client_id uuid
+    constraint pulse_weekly_summary_client_id_fkey references public.clients(id),
+
+  scan_week date not null,
+
+  -- A NULL platform is not missing data: it is the cross-platform aggregate row
+  -- for that client-week, and it is the row cron/evaluate-alerts reads. The
+  -- unique index below and the snapshot index both depend on that meaning.
+  platform text,
+
+  -- total_queries is a COUNT over pulse_metrics rows, which is how a
+  -- double-written prompt surfaces here as an inflated sov_score.
+  total_queries integer,
+  brand_mentions integer,
+  sov_score numeric(5,2),
+  avg_sentiment_score numeric(3,2),
+  top_competitors jsonb,
+
+  created_at timestamptz default now()
+);
+
+-- 031. The arbiter `on conflict (client_id, scan_week, platform)` needs. The
+-- table carried no uniqueness at all from 002 until then, so every rollup
+-- appended instead of refreshing and no ON CONFLICT clause was even expressible
+-- (42P10).
+--
+-- NULLS NOT DISTINCT is the load-bearing part, not incidental. Under a plain
+-- unique index NULLs compare distinct, so two aggregate rows for the same
+-- client-week coexist happily -- verified on PostgreSQL 16, a plain index
+-- leaves 2 rows where this leaves 1. cron/evaluate-alerts reads the last two
+-- aggregate weeks and computes a week-over-week delta; handed two copies of the
+-- same week it computes 0% and never fires. Requires PostgreSQL 15+; Neon is
+-- 16/17.
+create unique index pulse_weekly_summary_client_week_platform_unique
+  on public.pulse_weekly_summary (client_id, scan_week, platform)
+  nulls not distinct;
+
+-- 033, refined by 034. The alert snapshot read: the newest aggregate weeks for
+-- one client. 033 ordered by (client_id, scan_week DESC, id DESC); 034 added
+-- created_at DESC NULLS LAST ahead of the id tie-break so the ordering between
+-- two rows sharing a week is deterministic rather than decided by a random uuid.
+create index pulse_weekly_summary_alert_snapshot_idx
+  on public.pulse_weekly_summary (
+    client_id,
+    scan_week desc,
+    created_at desc nulls last,
+    id desc
+  )
+  where platform is null;
+
+
+-- ----------------------------------------------------------------------------
+-- alert_configs -- per-client alert settings, at most one row per client.
+--
+-- Consolidates: 010 (create). Unchanged since; 036 dropped its RLS policy.
+--
+-- Both alerts default OFF while both delivery channels default ON: arming an
+-- alert is a deliberate act, and once armed it goes out over every channel the
+-- user has not switched off. notify_inapp = false is exactly why notifications
+-- cannot double as the email ledger -- see alert_email_deliveries below.
+--
+-- No trigger maintains updated_at; the dashboard alerts route sets it to now()
+-- in its own upsert. Triggers are not omitted here by accident -- there simply
+-- is not one.
+-- ----------------------------------------------------------------------------
+create table public.alert_configs (
+  id uuid default gen_random_uuid()
+    constraint alert_configs_pkey primary key,
+
+  client_id uuid not null
+    constraint alert_configs_client_id_fkey references public.clients(id) on delete cascade,
+
+  -- Absolute floor: lib/alerts/evaluate.ts fires sov_threshold when the latest
+  -- aggregate sov_score is below sov_threshold, and sov_recovery when it climbs
+  -- back above it.
+  enabled_sov boolean not null default false,
+  sov_threshold integer not null default 50,
+
+  -- Week-over-week fall, in percentage points rather than percent: sov_wow_drop
+  -- fires when (previous - latest) >= wow_threshold.
+  enabled_wow boolean not null default false,
+  wow_threshold integer not null default 10,
+
+  notify_email boolean not null default true,
+  notify_inapp boolean not null default true,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  -- 010 wrote this as a bare UNIQUE (client_id); the name below is the one
+  -- Postgres generated for it, and it is the arbiter the alerts route upserts
+  -- against.
+  constraint alert_configs_client_id_key unique (client_id)
+);
+
+
+-- ----------------------------------------------------------------------------
+-- notifications -- the in-app alert inbox. NotificationBell in the dashboard
+-- layout header is the reader; upsertNotification in lib/alerts/neon-store.ts
+-- is the only writer.
+--
+-- Consolidates: 010 (create + the inbox index), 011 (scan_week and a partial
+-- dedup index), 033 (that dedup index rebuilt without its WHERE clause).
+-- ----------------------------------------------------------------------------
+create table public.notifications (
+  id uuid default gen_random_uuid()
+    constraint notifications_pkey primary key,
+
+  -- The inbox this belongs to. NOT NULL and cascading -- an account's
+  -- notifications go with it.
+  account_id uuid not null
+    constraint notifications_account_id_fkey references public.accounts(id) on delete cascade,
+
+  -- The brand the alert was raised about. Nullable, and SET NULL rather than
+  -- CASCADE: deleting a brand must not empty an inbox of alerts already
+  -- delivered to a human.
+  client_id uuid
+    constraint notifications_client_id_fkey references public.clients(id) on delete set null,
+
+  -- The same three alert types lib/alerts/evaluate.ts emits and
+  -- alert_email_deliveries records.
+  type text not null
+    constraint notifications_type_check
+    check (type in ('sov_threshold', 'sov_wow_drop', 'sov_recovery')),
+
+  title text not null,
+  message text not null,
+  read boolean not null default false,
+
+  -- 011. The week the alert is about, and the third column of the dedup key
+  -- below. Nullable: a recovery or manually raised notification need not name a
+  -- week.
+  scan_week date,
+
+  created_at timestamptz not null default now()
+);
+
+-- 010. The inbox query: one account's notifications, narrowed by read state,
+-- newest first.
+create index notifications_account_read_idx
+  on public.notifications (account_id, read, created_at desc);
+
+-- 011, rebuilt by 033. One in-app alert per (client, type, week).
+--
+-- 011 made this partial -- WHERE client_id IS NOT NULL AND scan_week IS NOT
+-- NULL -- which reads like a tightening and buys nothing: a plain unique index
+-- already treats NULLs as distinct, so those rows were never deduplicated
+-- either way. What the predicate did cost is the ON CONFLICT: Postgres will not
+-- infer a partial index as the arbiter for a bare
+-- `on conflict (client_id, type, scan_week)` unless the statement repeats the
+-- same predicate, and that bare clause is exactly what upsertNotification
+-- writes. 033 dropped the WHERE clause -- same dedup behaviour, an arbiter that
+-- can actually be named.
+create unique index notifications_dedup_idx
+  on public.notifications (client_id, type, scan_week);
+
+
+-- ----------------------------------------------------------------------------
+-- alert_email_deliveries -- the ledger that makes an alert email at-most-once
+-- per (client, type, scan_week).
+--
+-- Consolidates: 035 (create).
+--
+-- notifications already deduplicated in-app rows through notifications_dedup_idx
+-- (033), but email had no equivalent: runAlertEvaluation called sendAlertEmail
+-- for every fired action, so re-running evaluation inside the same week re-sent
+-- every email while the notification insert correctly no-opped. notifications
+-- cannot serve as that ledger even when it is present, because an alert config
+-- may set notify_inapp = false and then no notifications row is written at all.
+-- ----------------------------------------------------------------------------
+create table public.alert_email_deliveries (
+  id uuid default gen_random_uuid()
+    constraint alert_email_deliveries_pkey primary key,
+
+  client_id uuid not null
+    constraint alert_email_deliveries_client_id_fkey references public.clients(id) on delete cascade,
+
+  type text not null
+    constraint alert_email_deliveries_type_check
+    check (type in ('sov_threshold', 'sov_wow_drop', 'sov_recovery')),
+
+  scan_week date not null,
+
+  -- Who it went to, recorded at claim time rather than after the send, so a
+  -- Resend failure cannot produce a second attempt.
+  recipient text not null,
+
+  created_at timestamptz not null default now()
+);
+
+-- 035. The claim itself. claimEmailDelivery inserts here with
+-- `on conflict do nothing returning id` and sends only when a row comes back,
+-- which is what turns this table into a send-once gate rather than a log
+-- written after the fact.
+create unique index alert_email_deliveries_dedup_idx
+  on public.alert_email_deliveries (client_id, type, scan_week);
