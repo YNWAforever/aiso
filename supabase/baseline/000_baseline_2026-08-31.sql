@@ -3044,6 +3044,42 @@ grant usage on schema public to aeo_app;
 grant select, insert, update, delete on all tables in schema public to aeo_app;
 grant usage, select on all sequences in schema public to aeo_app;
 
+-- Mirrors 038_app_role_function_execute.sql -- CHANGE ONE, CHANGE THE OTHER, or
+-- the two paths stop being the same database.
+--
+-- This file reproduces 024's and 027's function bodies, and therefore inherits
+-- the hole they left: both revoke EXECUTE from PUBLIC unconditionally and grant
+-- it back only to `service_role`, a Supabase role that does not exist under Neon,
+-- so the regrant silently no-ops and nothing else ever grants EXECUTE to the
+-- application role. Without the ten statements below, every RPC in
+-- app/api/stripe/webhook/route.ts and lib/reports/store.ts fails at runtime with
+-- `permission denied for function`.
+--
+-- Enumerated one by one rather than `grant execute on all functions in schema
+-- public`, deliberately. That shorter form would also grant check_brand_limit()
+-- and handle_new_user(), which 038 does not: the first is a trigger function
+-- (PostgreSQL checks EXECUTE at CREATE TRIGGER time, not per fire) and the second
+-- was never revoked. The two paths would then hold genuinely different ACLs while
+-- the differ -- whose functions class compares returns/volatility/
+-- security_definer, never privileges -- went on reporting EQUIVALENT.
+grant execute on function public.acquire_stripe_subscription_lease(text, uuid) to aeo_app;
+grant execute on function public.release_stripe_subscription_lease(text, uuid) to aeo_app;
+grant execute on function public.apply_stripe_account_event(
+  uuid, text, text, text, text, bigint, text, text, uuid
+) to aeo_app;
+
+grant execute on function public.create_client_report_with_version(
+  uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid
+) to aeo_app;
+grant execute on function public.append_client_report_version(
+  uuid, uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid
+) to aeo_app;
+grant execute on function public.publish_client_report_latest(uuid, uuid, uuid, uuid) to aeo_app;
+grant execute on function public.revoke_client_report(uuid, uuid, uuid) to aeo_app;
+grant execute on function public.rotate_client_report_link(uuid, uuid, uuid) to aeo_app;
+grant execute on function public.increment_client_report_view(text, integer) to aeo_app;
+grant execute on function public.increment_client_report_cta_click(text, integer) to aeo_app;
+
 -- Carried over from 037 and INVISIBLE TO THE EQUIVALENCE PROOF: the differ's
 -- grants class reads information_schema.role_table_grants, which lists existing
 -- tables only, so pg_default_acl is never compared. Omitting these would pass
@@ -3054,6 +3090,13 @@ alter default privileges in schema public
   grant select, insert, update, delete on tables to aeo_app;
 alter default privileges in schema public
   grant usage, select on sequences to aeo_app;
+
+-- Also mirrors 038, and invisible to the proof for the same reason. 037 set
+-- default privileges for tables and sequences but not for functions, which is
+-- exactly how 024's and 027's functions came to be missed. This line is the half
+-- of 038 that stops 039 shipping a function aeo_app cannot execute.
+alter default privileges in schema public
+  grant execute on functions to aeo_app;
 
 -- The neon_auth grants are required, not optional:
 --   * app/api/webhooks/neon/route.ts authenticates every payload against
