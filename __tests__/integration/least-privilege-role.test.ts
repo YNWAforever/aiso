@@ -131,3 +131,45 @@ describe('default privileges cover tables created later', () => {
     }
   })
 })
+
+describe('aeo_app can execute the RPCs the application calls', () => {
+  // The negative assertions elsewhere in this file are only half the contract.
+  // 024 and 027 revoked EXECUTE from PUBLIC and granted it back only to
+  // `service_role`, which does not exist under Neon, so after 037's cutover the
+  // application connected as a role that could not run its own RPCs. Migration
+  // 038 fixes that; this asserts it stays fixed. Adding an RPC without granting
+  // it fails here.
+  const CALLED_RPCS = [
+    'public.acquire_stripe_subscription_lease(text, uuid)',
+    'public.release_stripe_subscription_lease(text, uuid)',
+    'public.apply_stripe_account_event(uuid, text, text, text, text, bigint, text, text, uuid)',
+    'public.create_client_report_with_version(uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid)',
+    'public.append_client_report_version(uuid, uuid, uuid, uuid, uuid, text, text, integer, jsonb, uuid)',
+    'public.publish_client_report_latest(uuid, uuid, uuid, uuid)',
+    'public.revoke_client_report(uuid, uuid, uuid)',
+    'public.rotate_client_report_link(uuid, uuid, uuid)',
+    'public.increment_client_report_view(text, integer)',
+    'public.increment_client_report_cta_click(text, integer)',
+  ]
+
+  it.each(CALLED_RPCS)('grants EXECUTE on %s', async (signature) => {
+    // Asked of the app connection itself, so this proves the privilege the
+    // running application actually has -- not what the owner believes it granted.
+    const rows = await app.query(
+      "select has_function_privilege($1::text, 'EXECUTE') as can_execute",
+      [signature],
+    )
+    expect(rows[0]?.can_execute).toBe(true)
+  })
+
+  it('does not grant EXECUTE on the trigger function, which needs none', async () => {
+    // PostgreSQL checks EXECUTE on a trigger function at CREATE TRIGGER time,
+    // not per fire, so check_brand_limit works unprivileged. Asserting the
+    // absence keeps 038 from being widened without a reason.
+    const rows = await app.query(
+      "select has_function_privilege($1::text, 'EXECUTE') as can_execute",
+      ['public.check_brand_limit()'],
+    )
+    expect(rows[0]?.can_execute).toBe(false)
+  })
+})
