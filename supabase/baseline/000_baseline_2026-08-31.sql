@@ -1905,11 +1905,19 @@ alter table public.stripe_subscription_processing_leases enable row level securi
 -- The shape below is a verbatim copy of the `create table if not exists` in
 -- scripts/migrate.ts. These two declarations are the same table reached by two
 -- paths and must not drift: change one, change the other, and re-run
--- `npm run schema:equivalence`.
+-- `npm run schema:equivalence` -- the differ's `columns` class compares them
+-- directly, so a column added to only one side reports as a divergence.
+--
+-- `checksum` carries the baseline's own digest (see the seed row at the end of
+-- this file). The chain never populates it: migrate.ts's inserts name only
+-- `filename`, because a migration applied from the chain still has its file in
+-- the repo. The baseline is the one row whose source is a single consolidated
+-- artefact, so it is the one row worth pinning.
 -- ----------------------------------------------------------------------------
 create table if not exists schema_migrations (
   filename text primary key,
-  applied_at timestamptz not null default now()
+  applied_at timestamptz not null default now(),
+  checksum text
 );
 
 
@@ -3093,3 +3101,66 @@ begin
       'tables silently return no rows to the application';
   end if;
 end $$;
+
+
+-- ============================================================================
+-- The ledger seed -- LAST STATEMENT IN THE FILE, deliberately
+--
+-- A greenfield database's migration lineage starts here. Without this row the
+-- ledger would be empty, and the first `npm run migrate` against a database
+-- built from this file would trip assertBaselined() -- application tables
+-- present, ledger empty -- which is that guard working exactly as designed, but
+-- it leaves the operator with no record of where the schema came from. This row
+-- is that record: one line naming one artefact, with the digest of the bytes
+-- that produced it.
+--
+-- Note what is NOT recorded: 001-037 individually. They are not "applied" here
+-- and claiming they were would be a lie the runner would then act on. The
+-- lineage is one row naming one artefact -- that is the whole point of ADR-007's
+-- consolidated baseline. It follows that this file must never be re-run against
+-- a database the chain built, and conversely that a chain-built database must
+-- never be baselined with this filename.
+--
+-- READ THIS BEFORE RUNNING `npm run migrate` ON A BASELINED DATABASE. This row
+-- satisfies assertBaselined(), but it does NOT by itself make the runner skip
+-- the chain. planMigrations() is `files.filter(f => !applied.has(f))` over the
+-- contents of supabase/migrations/, and this row names none of those 35 files --
+-- so on a database built from this baseline the runner reports all of 001-037 as
+-- pending and starts applying them against a schema that already has every one
+-- of their objects. 001 aborts on the first `create table` of a table that
+-- exists, so the failure is loud and its transaction rolls back rather than
+-- corrupting anything -- but it is a failure, not a no-op, and it is why ADR-007
+-- says to NEVER apply the historical chain blindly to the new project.
+--
+-- Closing that gap is a separate change, not something this row can do: either
+-- the chain files are retired from supabase/migrations/ once the new project is
+-- the only one being migrated, or the runner learns to treat a baseline row as
+-- superseding every filename that sorts before it. Until one of those lands,
+-- `npm run migrate -- --dry-run` is the check to run first, and the first
+-- genuinely new migration to author is 038.
+--
+-- It is last because everything above it must have succeeded for the claim to
+-- be true. Postgres does not wrap a multi-statement string in an implicit
+-- transaction over the simple query protocol, so an abort partway through leaves
+-- the statements before it committed -- but this row, being last, is not among
+-- them. A half-built database therefore has no lineage row, which is the honest
+-- outcome: `npm run migrate` will refuse it rather than continue from 038 over a
+-- schema that is missing tables.
+--
+-- :'baseline_checksum' is substituted by scripts/schema-equivalence.mjs, which
+-- hashes this file's raw bytes with SHA-256 before executing it. .gitattributes
+-- pins supabase/baseline/*.sql to `eol=lf`, so the digest is the same on Windows
+-- and on CI for byte-identical SQL. Editing this file changes the digest, which
+-- is the point: the row records what was actually run, so a lineage claiming
+-- this baseline can be checked against the file that supposedly produced it.
+-- Anything applying this file by another route must perform the same
+-- substitution -- psql does it natively with
+-- `-v baseline_checksum="$(sha256sum ...)"`.
+--
+-- `on conflict do nothing` because the row is the claim, not a counter: re-running
+-- the file on a database that already has the lineage must not rewrite a digest
+-- that was recorded from different bytes.
+-- ============================================================================
+insert into schema_migrations (filename, checksum)
+values ('000_baseline_2026-08-31.sql', :'baseline_checksum')
+on conflict (filename) do nothing;
