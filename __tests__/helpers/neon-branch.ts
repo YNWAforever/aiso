@@ -35,9 +35,37 @@ const BRANCH_TTL_MS = 2 * 60 * 60 * 1000
 
 const BRANCH_ID = /^br-[a-z0-9-]+$/
 
+/**
+ * How to spawn neonctl on this platform. Returns [command, leadingArgs].
+ *
+ * On Linux — CI, and the only platform this harness ever ran on until now — the
+ * global `neonctl` is a shell script and execFileSync spawns it directly. That
+ * branch is byte-identical in behaviour to what this file did before, so CI is
+ * unaffected.
+ *
+ * On Windows it is a `.cmd` shim, and Node deliberately refuses to spawn
+ * `.cmd`/`.bat` from execFileSync without `shell: true` — a security change
+ * guarding against argument injection through cmd.exe. Rather than re-open that
+ * hole, resolve neonctl's own JS entry point and run it under this same node
+ * binary: no shim, no shell, arguments still passed as an array.
+ */
+function neonctlCommand(): [string, string[]] {
+  if (process.platform !== 'win32') return ['neonctl', []]
+
+  const appData = process.env.APPDATA
+  if (!appData) {
+    throw new Error(
+      'Cannot locate neonctl on Windows: APPDATA is unset, so the global npm prefix ' +
+      'cannot be derived. Install neonctl (`npm i -g neonctl`).',
+    )
+  }
+  return [process.execPath, [join(appData, 'npm', 'node_modules', 'neonctl', 'bin', 'cli.js')]]
+}
+
 function neonctl(args: string[]): string {
+  const [command, leadingArgs] = neonctlCommand()
   try {
-    return execFileSync('neonctl', [...args, '--output', 'json'], {
+    return execFileSync(command, [...leadingArgs, ...args, '--output', 'json'], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       // An unauthenticated neonctl tries to start an interactive browser
