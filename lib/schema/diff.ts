@@ -1,5 +1,12 @@
 import type { ClassDiff, SchemaClass, SchemaDiff, SchemaSnapshot } from './types'
-import { SCHEMA_CLASSES } from './types'
+// scripts/schema-equivalence.mjs imports this module under plain node (no
+// bundler), where a relative import of a .ts file needs the explicit extension.
+// The type-only import above is erased before node resolves anything, so only
+// this value import needs it. tsc rejects the extension under moduleResolution
+// "bundler" without repo-wide allowImportingTsExtensions; suppress narrowly
+// instead of widening it, exactly as scripts/migrate.ts does.
+// @ts-expect-error -- see comment above; node requires the extension, tsc forbids it
+import { SCHEMA_CLASSES } from './types.ts'
 
 /**
  * Compares one class of objects. Keys are sorted so a report is byte-stable

@@ -2,7 +2,15 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { redactSecrets } from '@/lib/security/redact-secrets'
+// Relative, with the explicit .ts extension, rather than the '@/' alias: this
+// module is imported by scripts/schema-equivalence.mjs under plain node, which
+// resolves neither tsconfig path aliases nor extensionless .ts files. Vitest
+// resolves this form too, so the integration harness is unaffected. tsc rejects
+// the extension under moduleResolution "bundler" without repo-wide
+// allowImportingTsExtensions; suppress narrowly rather than widening it, exactly
+// as scripts/migrate.ts does.
+// @ts-expect-error -- see comment above; node requires the extension, tsc forbids it
+import { redactSecrets } from '../../lib/security/redact-secrets.ts'
 
 // `?.trim() || fallback` rather than `??`: nullish coalescing only falls back on
 // null/undefined, not on '' — and GitHub Actions substitutes '' for a `${{ secrets.X }}`
