@@ -231,3 +231,171 @@ create table public.clients (
   -- because production had 021 applied and 027 not; either order had to work.
   constraint clients_id_account_id_unique unique (id, account_id)
 );
+
+
+-- ============================================================================
+-- Slice 2 -- scan engine: scans, fix_packs, chunk_analysis
+--
+-- `scans` is the oldest table in the schema (001) and the one most later
+-- migrations reached back into: it started life as an anonymous, tenant-less
+-- record of one public URL scan and accreted tenancy (008, 027), brand
+-- ownership (029), GEO context (012), agent tracking (013, 014) and lead
+-- capture (015) over the following twenty-one migrations. Both other tables in
+-- this slice hang off it by scan_id.
+--
+-- It sits after slice 1 because scans_client_tenant_fkey references
+-- clients (id, account_id) -- the composite key 021 exists to provide.
+-- ============================================================================
+
+
+-- ----------------------------------------------------------------------------
+-- scans -- one AEO scan of one URL. Read by the public result page, the
+-- dashboard, and the report snapshot RPCs.
+--
+-- Consolidates: 001 (create), 008 (account_id + its index), 012 (industry,
+-- region, grade), 013 (agent_status), 014 (agent_platforms), 015 (lead_email),
+-- 027 (tenant-composite unique key + account/domain index), 029 (client_id and
+-- both of its foreign keys + index).
+--
+-- Every column added after 001 is nullable, and deliberately so: a scan can be
+-- anonymous (no account_id), unattached to a brand (no client_id), and never
+-- put through the agent pipeline (no agent_status). The public funnel writes
+-- rows in exactly that state.
+-- ----------------------------------------------------------------------------
+create table public.scans (
+  id uuid default gen_random_uuid()
+    constraint scans_pkey primary key,
+
+  -- 001. The scanned page and the host extracted from it. domain is stored
+  -- separately rather than derived on read because 027's
+  -- scans_account_domain_created_idx orders a tenant's scan history by it.
+  url text not null,
+  domain text not null,
+
+  -- 001 score (the 0-100 composite lib/scoring.ts computes); 012 added grade,
+  -- the letter assignGrade() derives from it. Both nullable -- a scan row is
+  -- written before either is known.
+  score numeric(5,2),
+  grade text,
+
+  -- 001. The per-check payload: c1..c20 keys plus the four <key>_data GEO
+  -- blobs. NOT NULL from the start -- a scan with no results is not a scan.
+  results jsonb not null,
+
+  -- 008. Nullable because anonymous public-funnel scans belong to no account.
+  -- No ON DELETE action, unlike almost every other account_id in this schema:
+  -- deleting an account with scan history raises rather than silently
+  -- discarding it.
+  account_id uuid
+    constraint scans_account_id_fkey references public.accounts(id),
+
+  -- 029. Scans carried only account_id, so a brand workspace could not
+  -- distinguish its own scans from any other brand's on the same account.
+  -- Nullable for the same reason as account_id.
+  client_id uuid,
+
+  -- 012. GEO context captured at scan time, so a re-scored scan is compared
+  -- against the industry/region pack it actually ran under.
+  industry text,
+  region text,
+
+  -- 013. Agent-dashboard pipeline state. The check is written to permit NULL
+  -- explicitly because the column is nullable and NULL is the normal state for
+  -- every scan that never entered the pipeline.
+  agent_status text default null
+    constraint scans_agent_status_check
+    check (agent_status is null
+           or agent_status in ('pending', 'running', 'complete', 'error')),
+
+  -- 014. Which AI platforms the agent run covered.
+  agent_platforms text[] default null,
+
+  -- 015. Post-scan email capture on the public result page.
+  lead_email text,
+
+  created_at timestamptz default now(),
+
+  -- 027. The mirror of clients_id_account_id_unique: it lets
+  -- client_report_versions carry composite (scan, account_id) foreign keys into
+  -- scans, so a report version physically cannot cite a scan from another
+  -- tenant.
+  constraint scans_id_account_id_unique unique (id, account_id),
+
+  -- 029. Two foreign keys, not one. scans_client_id_fkey is ordinary
+  -- referential integrity; scans_client_tenant_fkey is the tenancy guarantee --
+  -- a scan must not point at a brand owned by a different account, and clients
+  -- carries a (id, account_id) unique constraint (021) precisely so this
+  -- composite FK is expressible. ON DELETE SET NULL on both: deleting a brand
+  -- must not delete its scan history.
+  constraint scans_client_id_fkey
+    foreign key (client_id) references public.clients (id) on delete set null,
+  constraint scans_client_tenant_fkey
+    foreign key (client_id, account_id) references public.clients (id, account_id)
+    on delete set null
+);
+
+-- 008. Scan history for a logged-in account.
+create index scans_account_id_idx on public.scans (account_id);
+
+-- 027. Scan history for one tenant's domain, newest first -- the ordering the
+-- report snapshot RPCs and the dashboard both read in.
+create index scans_account_domain_created_idx
+  on public.scans (account_id, domain, created_at desc);
+
+-- 029. The same, narrowed to one brand workspace.
+create index scans_client_created_idx
+  on public.scans (client_id, created_at desc);
+
+
+-- ----------------------------------------------------------------------------
+-- fix_packs -- the generated remediation bundle for one scan (/api/fix).
+--
+-- Consolidates: 001 (create), 012 (the three GEO outputs).
+--
+-- scan_id is nullable as created in 001 and was never tightened; the delete
+-- rule still cascades, so a deleted scan takes its fix pack with it.
+-- ----------------------------------------------------------------------------
+create table public.fix_packs (
+  id uuid default gen_random_uuid()
+    constraint fix_packs_pkey primary key,
+
+  scan_id uuid
+    constraint fix_packs_scan_id_fkey references public.scans(id) on delete cascade,
+
+  -- 001. The three original fix-pack artefacts.
+  llms_txt text,
+  robots_patch text,
+  faq_schema text,
+
+  -- 012. GEO-era additions, generated by the fix/ subroutes rather than the
+  -- main fix handler.
+  geo_content_brief text,
+  chunk_rewriter text,
+  cluster_map text,
+
+  created_at timestamptz default now()
+);
+
+
+-- ----------------------------------------------------------------------------
+-- chunk_analysis -- per-page chunk extractability for one scan (012, GEO).
+--
+-- Unlike fix_packs, scan_id is NOT NULL: a chunk analysis is meaningless
+-- detached from the scan that produced it.
+-- ----------------------------------------------------------------------------
+create table public.chunk_analysis (
+  id uuid default gen_random_uuid()
+    constraint chunk_analysis_pkey primary key,
+
+  scan_id uuid not null
+    constraint chunk_analysis_scan_id_fkey references public.scans(id) on delete cascade,
+
+  page_url text not null,
+
+  -- One entry per extracted chunk. Defaults to an empty array so a reader never
+  -- has to distinguish "not analysed yet" from "analysed, no chunks".
+  chunks jsonb not null default '[]',
+
+  avg_extractability numeric(4,2),
+  analyzed_at timestamptz default now()
+);
