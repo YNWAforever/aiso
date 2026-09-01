@@ -56,8 +56,14 @@ const BRANCH_ID = /^br-[a-z0-9-]+$/
  * guarding against argument injection through cmd.exe. Rather than re-open that
  * hole, resolve neonctl's own JS entry point and run it under this same node
  * binary: no shim, no shell, arguments still passed as an array.
+ *
+ * Exported because scripts/run-tests.mjs's integration preflight has to spawn
+ * neonctl the same way: a bare execFileSync('neonctl') there reported "neonctl
+ * is not on PATH" on every Windows machine, including ones where it was
+ * installed and authenticated. Duplicating the resolution would let the two
+ * copies drift on a decision that is about security, not convenience.
  */
-function neonctlCommand(): [string, string[]] {
+export function neonctlCommand(): [string, string[]] {
   if (process.platform !== 'win32') return ['neonctl', []]
 
   const appData = process.env.APPDATA
