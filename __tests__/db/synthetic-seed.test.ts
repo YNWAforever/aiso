@@ -2,7 +2,20 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const SEED = readFileSync(join(process.cwd(), 'supabase', 'seeds', '001_synthetic.sql'), 'utf8')
+const RAW = readFileSync(join(process.cwd(), 'supabase', 'seeds', '001_synthetic.sql'), 'utf8')
+
+/**
+ * The seed's own comments explain the traps by naming them -- "ON CONFLICT",
+ * "trial_ends_at" -- so a regex over the raw text matches the documentation as
+ * well as the SQL. Strip comments first, exactly as scripts/migrate.ts's
+ * stripNonStatements does, so the prose that prevents the bug cannot trip the
+ * test that detects it.
+ */
+function statementsOnly(sql: string): string {
+  return sql.replace(/--.*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
+}
+
+const SEED = statementsOnly(RAW)
 
 /** Brand limits, mirroring check_brand_limit() in the baseline. */
 const BRAND_LIMIT: Record<string, number> = { free: 1, basic: 1, pro: 3, enterprise: 10 }

@@ -15,12 +15,12 @@
 -- status = 'active' AND stripe_subscription_id is not null. Hence pro + active
 -- + a synthetic subscription id, which is limit 3.
 --
--- Do NOT reach for the trial-expiry column instead: check_brand_limit() compares
+-- Do NOT reach for trial_ends_at instead: check_brand_limit() compares
 -- it to pg_catalog.now(), so a hardcoded timestamp is a time bomb that starts
 -- failing after that date.
 --
 -- WHY EXACTLY TWO CLIENTS. Postgres fires BEFORE INSERT row triggers BEFORE the
--- conflict-skip clause below is evaluated, so a trailing `do nothing` guard does
+-- ON CONFLICT arbiter is evaluated, so `on conflict do nothing` does
 -- not by itself make a client insert idempotent: on a second run the trigger
 -- counts the rows already there and raises BRAND_LIMIT_REACHED before the guard
 -- can skip anything. Re-runs are safe only while the seeded count stays
