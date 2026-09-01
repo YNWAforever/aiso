@@ -88,7 +88,19 @@ describe('assertEmptyPublicSchema', () => {
     expect(() => assertEmptyPublicSchema(34)).toThrow(/drop schema public cascade/)
   })
 
-  it('refuses an unreadable count rather than assuming zero', () => {
-    expect(() => assertEmptyPublicSchema(undefined)).toThrow(/could not read/i)
+  // Number() is the trap: Number(null), Number(''), Number([]) and
+  // Number(false) are all 0, so without an explicit type check each of these
+  // would read as "empty schema" and let the baseline apply over a database
+  // that was never actually inspected. undefined is the only one Number()
+  // rejects on its own.
+  it.each([
+    ['undefined', undefined],
+    ['null', null],
+    ['an empty string', ''],
+    ['an array', []],
+    ['false', false],
+    ['a non-numeric string', 'many'],
+  ])('refuses %s rather than assuming zero', (_label, value) => {
+    expect(() => assertEmptyPublicSchema(value)).toThrow(/could not read/i)
   })
 })

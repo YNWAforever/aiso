@@ -25,9 +25,9 @@ export const PRODUCTION_PROJECT_ID = 'red-firefly-93523049'
  * variable that is declared but has no value, and '' is not a target.
  */
 export function resolveTarget(env = process.env) {
-  const projectId = env.BOOTSTRAP_PROJECT_ID?.trim() || ''
-  const branchId = env.BOOTSTRAP_BRANCH_ID?.trim() || ''
-  const connectionUri = env.BOOTSTRAP_DATABASE_URL?.trim() || ''
+  const projectId = String(env.BOOTSTRAP_PROJECT_ID ?? '').trim()
+  const branchId = String(env.BOOTSTRAP_BRANCH_ID ?? '').trim()
+  const connectionUri = String(env.BOOTSTRAP_DATABASE_URL ?? '').trim()
 
   const missing = [
     !projectId && 'BOOTSTRAP_PROJECT_ID',
@@ -82,6 +82,24 @@ export function assertTargetIdentity(target, reported) {
  * recovery procedure.
  */
 export function assertEmptyPublicSchema(tableCount) {
+  // Number() is far too permissive for a "did we actually read a value" check:
+  // Number(null), Number(''), Number([]) and Number(false) are all 0, so an
+  // unreadable count would sail through as "empty" and the caller would apply
+  // the whole baseline over a database it never actually inspected. Reject
+  // anything that is not a string or a number before coercing -- and reject
+  // an empty (or whitespace-only) string explicitly, because it is still a
+  // `string` and Number('') is *also* 0, so the typeof check alone does not
+  // catch it.
+  if (typeof tableCount !== 'string' && typeof tableCount !== 'number') {
+    throw new Error(
+      `Refusing to act: could not read the public table count (got ${JSON.stringify(tableCount)}).`,
+    )
+  }
+  if (typeof tableCount === 'string' && tableCount.trim() === '') {
+    throw new Error(
+      `Refusing to act: could not read the public table count (got ${JSON.stringify(tableCount)}).`,
+    )
+  }
   const count = Number(tableCount)
   if (!Number.isInteger(count)) {
     throw new Error(
