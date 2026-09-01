@@ -263,7 +263,7 @@ export function assertEmptyPublicSchema(tableCount) {
 
 Run: `npx vitest run __tests__/scripts/bootstrap-project.test.mjs`
 
-Expected: **14 passed**.
+Expected: **15 passed**.
 
 - [ ] **Step 5: Lint and typecheck**
 
@@ -474,7 +474,7 @@ Expected: `Types generated successfully`.
 ```bash
 npx vitest run __tests__/scripts/bootstrap-project.test.mjs
 ```
-Expected: **14 passed** (unchanged — the guards were not modified).
+Expected: **15 passed** (unchanged — the guards were not modified).
 
 - [ ] **Step 5: Commit**
 
