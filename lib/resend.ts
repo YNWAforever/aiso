@@ -30,7 +30,12 @@ export async function sendAlertEmail({
     : `${brandName} SoV recovered above ${threshold}%.\nCurrent: ${currentSov}%\nView dashboard: ${dashboardUrl}`
 
   const { error } = await resend.emails.send({
-    from:    process.env.RESEND_FROM_EMAIL ?? 'alerts@fimmick-aeo.com',
+    // `?.trim() ||`, not `??`: nullish coalescing keeps '', and a deploy
+    // environment declaring the variable without a value supplies exactly that.
+    // An empty `from` is not a degraded send, it is a rejected one -- and this
+    // is the alert path, so the failure would be invisible until someone
+    // noticed alerts had stopped. Same reasoning as lib/app-origin.ts.
+    from:    process.env.RESEND_FROM_EMAIL?.trim() || 'alerts@fimmick-aeo.com',
     to,
     subject,
     text: body,
@@ -53,7 +58,8 @@ export async function sendTrialEmail({
   const resend = new Resend(process.env.RESEND_API_KEY)
 
   const { error } = await resend.emails.send({
-    from: process.env.RESEND_TRIAL_FROM_EMAIL ?? 'hello@fimmick-aeo.com',
+    // See sendAlertEmail above: `??` keeps '', which Resend rejects.
+    from: process.env.RESEND_TRIAL_FROM_EMAIL?.trim() || 'hello@fimmick-aeo.com',
     to,
     subject,
     text,
