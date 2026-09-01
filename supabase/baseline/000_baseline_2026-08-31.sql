@@ -3157,38 +3157,43 @@ end $$;
 -- is that record: one line naming one artefact, with the digest of the bytes
 -- that produced it.
 --
--- Note what is NOT recorded: 001-037 individually. They are not "applied" here
--- and claiming they were would be a lie the runner would then act on. The
--- lineage is one row naming one artefact -- that is the whole point of ADR-007's
--- consolidated baseline. It follows that this file must never be re-run against
--- a database the chain built, and conversely that a chain-built database must
--- never be baselined with this filename.
+-- Also recorded: the 36 chain migrations this file subsumes, 001-004 and
+-- 007-038. That is NOT a claim that those files executed here. The ledger's
+-- meaning is "the objects of this migration are present, do not apply it
+-- again" -- exactly the claim `npm run migrate -- --baseline` writes for a
+-- database whose objects were created by hand, which is how production itself
+-- was baselined. `npm run schema:equivalence` is what earns the claim: it
+-- proves this file produces what replaying the chain produces.
 --
--- READ THIS BEFORE RUNNING `npm run migrate` ON A BASELINED DATABASE. This row
--- satisfies assertBaselined(), but it does NOT by itself make the runner skip
--- the chain. planMigrations() is `files.filter(f => !applied.has(f))` over the
--- contents of supabase/migrations/, and this row names none of those 35 files --
--- so on a database built from this baseline the runner reports all of 001-037 as
+-- An earlier version of this comment called recording them "a lie the runner
+-- would then act on". That was wrong, and it left a real defect in place.
+-- planMigrations() is `files.filter(f => !applied.has(f))` over the contents of
+-- supabase/migrations/, so a lineage naming only this file reports all 36 as
 -- pending and starts applying them against a schema that already has every one
 -- of their objects. 001 aborts on the first `create table` of a table that
--- exists, so the failure is loud and its transaction rolls back rather than
--- corrupting anything -- but it is a failure, not a no-op, and it is why ADR-007
--- says to NEVER apply the historical chain blindly to the new project.
+-- exists -- loud, and its transaction rolls back rather than corrupting
+-- anything, but a failure, not a no-op. A greenfield database could not be
+-- brought to head at all.
 --
--- Closing that gap is a separate change, not something this row can do: either
--- the chain files are retired from supabase/migrations/ once the new project is
--- the only one being migrated, or the runner learns to treat a baseline row as
--- superseding every filename that sorts before it. Until one of those lands,
--- `npm run migrate -- --dry-run` is the check to run first, and the first
--- genuinely new migration to author is 038.
+-- The chain rows carry no checksum, deliberately: `checksum` means "these bytes
+-- produced this lineage", and only this file's bytes were hashed. It also makes
+-- them byte-identical in shape to what scripts/migrate.ts writes on the legacy
+-- path, which names only `filename`.
 --
--- It is last because everything above it must have succeeded for the claim to
--- be true. Postgres does not wrap a multi-statement string in an implicit
--- transaction over the simple query protocol, so an abort partway through leaves
--- the statements before it committed -- but this row, being last, is not among
--- them. A half-built database therefore has no lineage row, which is the honest
--- outcome: `npm run migrate` will refuse it rather than continue from 038 over a
--- schema that is missing tables.
+-- Migration 039 and later are listed nowhere here and must not be: they apply
+-- to both lineages normally. __tests__/db/baseline-ledger.test.ts pins the
+-- recorded list to a PREFIX of supabase/migrations/ so that stays true, and
+-- scripts/schema-equivalence.mjs runs `migrate --dry-run` against the baselined
+-- branch and requires "Nothing to apply", so the replay defect cannot return
+-- unnoticed.
+--
+-- The lineage row is last because everything above it must have succeeded for
+-- the claim to be true. Postgres does not wrap a multi-statement string in an
+-- implicit transaction over the simple query protocol, so an abort partway
+-- through leaves earlier statements committed -- but that row, being last, is
+-- not among them. A half-built database therefore has no lineage row, which is
+-- the honest outcome: `npm run migrate` refuses it rather than continuing from
+-- 039 over a schema that is missing tables.
 --
 -- :'baseline_checksum' is substituted by scripts/schema-equivalence.mjs, which
 -- hashes this file's raw bytes with SHA-256 before executing it. .gitattributes
@@ -3200,10 +3205,50 @@ end $$;
 -- substitution -- psql does it natively with
 -- `-v baseline_checksum="$(sha256sum ...)"`.
 --
--- `on conflict do nothing` because the row is the claim, not a counter: re-running
--- the file on a database that already has the lineage must not rewrite a digest
--- that was recorded from different bytes.
+-- `on conflict do nothing` on both inserts because a row is a claim, not a
+-- counter: re-running the file on a database that already has the lineage must
+-- not rewrite a digest that was recorded from different bytes.
 -- ============================================================================
+insert into schema_migrations (filename)
+values
+  ('001_phase1.sql'),
+  ('002_phase2.sql'),
+  ('003_phase3a_accounts.sql'),
+  ('004_phase3a_clients_fk.sql'),
+  ('007_fix_handle_new_user_with_account.sql'),
+  ('008_scans_account_id.sql'),
+  ('009_clients_domain.sql'),
+  ('010_phase3b.sql'),
+  ('011_phase3b_hardening.sql'),
+  ('012_aiso_v3.sql'),
+  ('013_agent_dashboard.sql'),
+  ('014_subscription_tiers.sql'),
+  ('015_scan_lead_email.sql'),
+  ('016_trial_columns.sql'),
+  ('017_fix_handle_new_user_plan.sql'),
+  ('018_clients_region.sql'),
+  ('019_clients_description.sql'),
+  ('020_scans_public_select.sql'),
+  ('021_local_trust_roi.sql'),
+  ('022_profiles_neon_auth_fk.sql'),
+  ('023_public_scan_rate_limits.sql'),
+  ('024_stripe_lifecycle_integrity.sql'),
+  ('025_authenticated_scan_quotas.sql'),
+  ('026_effective_brand_limit.sql'),
+  ('027_client_report_snapshots.sql'),
+  ('028_account_plan_overrides.sql'),
+  ('029_scans_client_id.sql'),
+  ('030_accounts_plan_default_basic.sql'),
+  ('031_pulse_weekly_summary_unique.sql'),
+  ('032_pulse_metrics_indexes.sql'),
+  ('033_alert_evaluation_hardening.sql'),
+  ('034_alert_evaluation_snapshot_refinement.sql'),
+  ('035_alert_email_delivery_ledger.sql'),
+  ('036_drop_dead_rls_policies.sql'),
+  ('037_least_privilege_app_role.sql'),
+  ('038_app_role_function_execute.sql')
+on conflict (filename) do nothing;
+
 insert into schema_migrations (filename, checksum)
 values ('000_baseline_2026-08-31.sql', :'baseline_checksum')
 on conflict (filename) do nothing;
