@@ -142,8 +142,20 @@ describe('assertEmptyPublicSchema', () => {
     expect(() => assertEmptyPublicSchema(34)).toThrow(/drop schema public cascade/)
   })
 
-  it('refuses an unreadable count rather than assuming zero', () => {
-    expect(() => assertEmptyPublicSchema(undefined)).toThrow(/could not read/i)
+  // Number() is the trap: Number(null), Number(''), Number([]) and
+  // Number(false) are all 0, so without an explicit type check each of these
+  // would read as "empty schema" and let the baseline apply over a database
+  // that was never actually inspected. undefined is the only one Number()
+  // rejects on its own.
+  it.each([
+    ['undefined', undefined],
+    ['null', null],
+    ['an empty string', ''],
+    ['an array', []],
+    ['false', false],
+    ['a non-numeric string', 'many'],
+  ])('refuses %s rather than assuming zero', (_label, value) => {
+    expect(() => assertEmptyPublicSchema(value)).toThrow(/could not read/i)
   })
 })
 ```
@@ -186,9 +198,12 @@ export const PRODUCTION_PROJECT_ID = 'red-firefly-93523049'
  * variable that is declared but has no value, and '' is not a target.
  */
 export function resolveTarget(env = process.env) {
-  const projectId = env.BOOTSTRAP_PROJECT_ID?.trim() || ''
-  const branchId = env.BOOTSTRAP_BRANCH_ID?.trim() || ''
-  const connectionUri = env.BOOTSTRAP_DATABASE_URL?.trim() || ''
+  // String(... ?? '') rather than `?.trim()`: optional chaining short-circuits
+  // only on null/undefined, so a non-string value would reach .trim() and throw
+  // a raw TypeError instead of this guard's message.
+  const projectId = String(env.BOOTSTRAP_PROJECT_ID ?? '').trim()
+  const branchId = String(env.BOOTSTRAP_BRANCH_ID ?? '').trim()
+  const connectionUri = String(env.BOOTSTRAP_DATABASE_URL ?? '').trim()
 
   const missing = [
     !projectId && 'BOOTSTRAP_PROJECT_ID',
@@ -243,6 +258,16 @@ export function assertTargetIdentity(target, reported) {
  * recovery procedure.
  */
 export function assertEmptyPublicSchema(tableCount) {
+  // Number() is far too permissive for a "did we actually read a value" check:
+  // Number(null), Number(''), Number([]) and Number(false) are all 0, so an
+  // unreadable count would sail through as "empty" and the caller would apply
+  // the whole baseline over a database it never actually inspected. Reject
+  // anything that is not a string or a number before coercing.
+  if (typeof tableCount !== 'string' && typeof tableCount !== 'number') {
+    throw new Error(
+      `Refusing to act: could not read the public table count (got ${JSON.stringify(tableCount)}).`,
+    )
+  }
   const count = Number(tableCount)
   if (!Number.isInteger(count)) {
     throw new Error(
@@ -263,7 +288,7 @@ export function assertEmptyPublicSchema(tableCount) {
 
 Run: `npx vitest run __tests__/scripts/bootstrap-project.test.mjs`
 
-Expected: **15 passed**.
+Expected: **20 passed**.
 
 - [ ] **Step 5: Lint and typecheck**
 
@@ -474,7 +499,7 @@ Expected: `Types generated successfully`.
 ```bash
 npx vitest run __tests__/scripts/bootstrap-project.test.mjs
 ```
-Expected: **15 passed** (unchanged — the guards were not modified).
+Expected: **20 passed** (unchanged — the guards were not modified).
 
 - [ ] **Step 5: Commit**
 
