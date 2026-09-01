@@ -81,6 +81,28 @@ function reportClass(name, classDiff) {
   }
 }
 
+/**
+ * `migrate --dry-run` against a branch, as text.
+ *
+ * Captures stdout rather than inheriting it so the caller can assert on the
+ * result. A non-zero exit makes execFileSync throw with the output on the error
+ * object, which is a legitimate outcome to report rather than crash on -- but
+ * the driver embeds the full connection URL, password included, in some error
+ * fields, so everything on that path goes through redactSecrets.
+ */
+function runMigrateDryRun(connectionUri) {
+  try {
+    return execFileSync('node', ['scripts/migrate.ts', '--dry-run'], {
+      env: { ...process.env, MIGRATE_DATABASE_URL: connectionUri },
+      encoding: 'utf8',
+    })
+  } catch (err) {
+    const stdout = typeof err?.stdout === 'string' ? err.stdout : ''
+    const stderr = typeof err?.stderr === 'string' ? err.stderr : ''
+    return redactSecrets(`${stdout}${stderr}` || String(err?.message ?? err))
+  }
+}
+
 async function main() {
   const name = `equiv-${process.pid}-${Date.now()}-${randomUUID().slice(0, 8)}`
   try {
@@ -103,14 +125,26 @@ async function main() {
     await withBranchClient(branch, (client) => client.query(baselineSql))
     const baseline = await withBranchClient(branch, introspectSchema)
 
+    // Bootstrap proof. Equivalence alone does not make the baseline usable: the
+    // runner reads supabase/migrations/ and, without the chain rows, reports
+    // every one of them pending on a baselined database, so 001 aborts on an
+    // already-existing table and a greenfield project cannot reach head.
+    // Runs AFTER introspection so the compared snapshot is unaffected either
+    // way, and --dry-run so it cannot mutate the branch. When it fails it names
+    // exactly which migrations it would have replayed.
+    const bootstrap = runMigrateDryRun(branch.connectionUri)
+    const bootstrapOk = bootstrap.includes('Nothing to apply')
+    console.log(`\nBootstrap proof: ${bootstrapOk ? 'ok — runner finds nothing pending' : 'FAILED'}`)
+    if (!bootstrapOk) console.log(bootstrap.trim())
+
     const diff = diffSchemas(legacy, baseline)
-    console.log('\nSchema equivalence (legacy 001-037 vs baseline):')
+    console.log('\nSchema equivalence (legacy 001-038 vs baseline):')
     for (const [className, classDiff] of Object.entries(diff.classes)) {
       reportClass(className, classDiff)
     }
 
     console.log(diff.equivalent ? '\nEQUIVALENT' : '\nDIVERGENT')
-    process.exitCode = diff.equivalent ? 0 : 1
+    process.exitCode = diff.equivalent && bootstrapOk ? 0 : 1
   } finally {
     for (const id of createdBranchIds()) {
       try {
