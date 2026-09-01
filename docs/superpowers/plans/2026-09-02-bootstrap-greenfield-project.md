@@ -262,8 +262,16 @@ export function assertEmptyPublicSchema(tableCount) {
   // Number(null), Number(''), Number([]) and Number(false) are all 0, so an
   // unreadable count would sail through as "empty" and the caller would apply
   // the whole baseline over a database it never actually inspected. Reject
-  // anything that is not a string or a number before coercing.
+  // anything that is not a string or a number before coercing -- and reject
+  // an empty (or whitespace-only) string explicitly, because it is still a
+  // `string` and Number('') is *also* 0, so the typeof check alone does not
+  // catch it.
   if (typeof tableCount !== 'string' && typeof tableCount !== 'number') {
+    throw new Error(
+      `Refusing to act: could not read the public table count (got ${JSON.stringify(tableCount)}).`,
+    )
+  }
+  if (typeof tableCount === 'string' && tableCount.trim() === '') {
     throw new Error(
       `Refusing to act: could not read the public table count (got ${JSON.stringify(tableCount)}).`,
     )
