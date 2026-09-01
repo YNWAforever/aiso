@@ -557,16 +557,23 @@ Applying baseline (sha256 ...)
 
 Verification:
   tables                 34
-  functions              12
+  functions              49
   ledger_rows            37
   aeo_app                1
   aeo_app_bypassrls      true
-  aeo_app_table_grants   <non-zero>
+  aeo_app_table_grants   136
 
 Bootstrap proof: ok -- runner finds nothing pending
 ```
 
-Exit code 0. Record the actual counts — Task 6 compares the production-branch run against them.
+Exit code 0. **These are the real numbers, measured on rehearsal branch
+`br-rapid-dream-az60yun3` on 2026-09-02**, not estimates. Task 6 compares the
+production-branch run against them.
+
+`functions` is 49, not the 11 the baseline defines itself: `verify()` counts
+every function in schema `public`, and the baseline creates `pgcrypto` **with
+schema public** (baseline `:774`), which contributes the rest. A count of 11
+would mean the extension did not land.
 
 - [ ] **Step 4: Prove the empty-schema guard is load-bearing**
 
