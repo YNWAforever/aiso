@@ -10,6 +10,7 @@ import { Client, neonConfig } from '@neondatabase/serverless'
 import { redactSecrets } from '../lib/security/redact-secrets.ts'
 
 const BASELINE_FILE = join(process.cwd(), 'supabase', 'baseline', '000_baseline_2026-08-31.sql')
+const SEED_FILE = join(process.cwd(), 'supabase', 'seeds', '001_synthetic.sql')
 
 /**
  * Installs the greenfield schema baseline onto ONE named, empty target.
@@ -237,6 +238,23 @@ async function main() {
       throw new Error('aeo_app exists without BYPASSRLS. The seven RLS-enabled, zero-policy ' +
         'tables would return zero rows silently to every app query.')
     }
+
+    // Applied inside the same session, after verification: a seed over an
+    // unverified schema tells you nothing about either.
+    console.log('\nApplying synthetic seed')
+    await client.query(readFileSync(SEED_FILE, 'utf8'))
+
+    // Re-run it immediately. `on conflict do nothing` does NOT make the client
+    // insert idempotent on its own -- the BEFORE INSERT brand-limit trigger runs
+    // before the arbiter -- so the only honest check is to do it twice here,
+    // where a failure is loud, rather than discover it on someone's second run.
+    await client.query(readFileSync(SEED_FILE, 'utf8'))
+    const seeded = await client.query(
+      'select (select count(*) from accounts) as accounts, ' +
+      '(select count(*) from clients) as clients, ' +
+      '(select count(*) from scans) as scans',
+    )
+    console.log(`Seed applied twice: ${JSON.stringify(seeded.rows[0])}`)
   })
 
   // Outside the session on purpose: this shells out to the real runner, which
