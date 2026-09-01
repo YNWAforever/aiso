@@ -68,12 +68,25 @@ schema-diff and contract tests in item 1.7.
 
 ## Migration ledger and checksum (item 1.5)
 
-`schema_migrations` in the new project starts with a single baseline record (e.g.
-`000_baseline_2026-08-30.sql`) plus an immutable checksum of that file, recorded the same way
-`scripts/migrate.ts` already records every other migration's checksum. Two existing guards in
+`schema_migrations` in the new project starts with the baseline record (e.g.
+`000_baseline_2026-08-30.sql`) plus an immutable checksum of that file, **and one row for each
+migration the baseline subsumes**. Two existing guards in
 `scripts/migrate.ts` are preserved unchanged, not reimplemented: it already refuses to run
 against a populated database with an empty ledger, and `--baseline` already refuses to record
-a migration whose tables are missing. Future migrations continue in filename order from `038`.
+a migration whose tables are missing. Future migrations continue in filename order from `039`.
+
+> **Amended 2026-09-01.** Three corrections. (1) "A single baseline record" left the database
+> **unbootstrappable**: `planMigrations` (`scripts/migrate.ts:46`) filters the contents of
+> `supabase/migrations/` against the ledger, so a lineage naming only the baseline reports all
+> 36 chain files pending and `001` aborts on an already-existing table. The baseline therefore
+> records the chain it subsumes — the same claim `--baseline` mode writes for objects created
+> by hand, earned by `npm run schema:equivalence`. (2) The original text said the checksum is
+> "recorded the same way `scripts/migrate.ts` already records every other migration's
+> checksum". It does not: `scripts/migrate.ts:329` inserts `filename` only, so every row the
+> chain writes leaves `checksum` null. The checksum column exists **for the baseline**, and the
+> subsumed rows deliberately carry none — only the baseline file's bytes were hashed.
+> (3) `038` has since been authored and folded into the baseline, so the next new migration is
+> `039`. See `docs/superpowers/specs/2026-09-01-greenfield-bootstrap-gap-design.md`.
 No new tooling is needed for this item — it is a data-entry step (baseline SQL file → one
 ledger row → checksum) exercised for real during the item 1.11 rehearsal below, not a design
 decision requiring its own procedure.
