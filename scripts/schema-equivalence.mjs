@@ -88,14 +88,15 @@ function reportClass(name, classDiff) {
  * result. A non-zero exit makes execFileSync throw with the output on the error
  * object, which is a legitimate outcome to report rather than crash on -- but
  * the driver embeds the full connection URL, password included, in some error
- * fields, so everything on that path goes through redactSecrets.
+ * fields, so both paths go through redactSecrets -- not just the error one,
+ * so stdout safety does not depend on migrate.ts never changing what it prints.
  */
 function runMigrateDryRun(connectionUri) {
   try {
-    return execFileSync('node', ['scripts/migrate.ts', '--dry-run'], {
+    return redactSecrets(execFileSync('node', ['scripts/migrate.ts', '--dry-run'], {
       env: { ...process.env, MIGRATE_DATABASE_URL: connectionUri },
       encoding: 'utf8',
-    })
+    }))
   } catch (err) {
     const stdout = typeof err?.stdout === 'string' ? err.stdout : ''
     const stderr = typeof err?.stderr === 'string' ? err.stderr : ''
@@ -130,8 +131,8 @@ async function main() {
     // every one of them pending on a baselined database, so 001 aborts on an
     // already-existing table and a greenfield project cannot reach head.
     // Runs AFTER introspection so the compared snapshot is unaffected either
-    // way, and --dry-run so it cannot mutate the branch. When it fails it names
-    // exactly which migrations it would have replayed.
+    // way, and --dry-run so it cannot mutate the branch. When it fails it prints
+    // either the pending-migration list or the runner's own error.
     const bootstrap = runMigrateDryRun(branch.connectionUri)
     const bootstrapOk = bootstrap.includes('Nothing to apply')
     console.log(`\nBootstrap proof: ${bootstrapOk ? 'ok — runner finds nothing pending' : 'FAILED'}`)
