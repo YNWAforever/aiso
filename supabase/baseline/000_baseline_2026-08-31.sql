@@ -3188,12 +3188,23 @@ end $$;
 -- unnoticed.
 --
 -- The lineage row is last because everything above it must have succeeded for
--- the claim to be true. Postgres does not wrap a multi-statement string in an
--- implicit transaction over the simple query protocol, so an abort partway
--- through leaves earlier statements committed -- but that row, being last, is
--- not among them. A half-built database therefore has no lineage row, which is
--- the honest outcome: `npm run migrate` refuses it rather than continuing from
--- 039 over a schema that is missing tables.
+-- the claim to be true. Postgres DOES wrap a multi-statement string sent as one
+-- simple Query message in an implicit transaction block, absent explicit
+-- BEGIN/COMMIT, so an abort anywhere in this file rolls back everything sent in
+-- that one call -- partial DDL included. Applying this file is therefore
+-- all-or-nothing, and the lineage row cannot survive a failure above it.
+-- A half-built database has no lineage row and no half-built schema either,
+-- which is the honest outcome: `npm run migrate` refuses it rather than
+-- continuing from 039 over a schema that is missing tables.
+--
+-- An earlier version of this comment asserted the opposite -- that Postgres
+-- does NOT wrap such a string, so earlier statements stay committed. That was
+-- wrong. Settled empirically on 2026-09-01 against a disposable branch: a
+-- `create table t(i int); insert ...; select 1/0;` sent as one query left
+-- to_regclass('public.t') null afterwards, and `select 1; create index
+-- concurrently ...` failed with "CREATE INDEX CONCURRENTLY cannot run inside a
+-- transaction block" -- which also means no CONCURRENTLY statement can ever be
+-- added to this file.
 --
 -- :'baseline_checksum' is substituted by scripts/schema-equivalence.mjs, which
 -- hashes this file's raw bytes with SHA-256 before executing it. .gitattributes
