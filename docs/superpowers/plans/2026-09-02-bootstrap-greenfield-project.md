@@ -194,13 +194,13 @@ export const PRODUCTION_PROJECT_ID = 'red-firefly-93523049'
  * never be one: a defaulted target is how a stale variable reaches a database
  * nobody meant to touch.
  *
- * `?.trim() ||` rather than `??` -- deploy environments substitute '' for a
- * variable that is declared but has no value, and '' is not a target.
+ * Deploy environments substitute '' for a variable that is declared but has no
+ * value, and '' is not a target -- so every read is coerced, trimmed, and then
+ * tested for emptiness. `String(... ?? '')` rather than `?.trim()`: optional
+ * chaining short-circuits only on null/undefined, so a non-string value would
+ * reach .trim() and throw a raw TypeError instead of this guard's message.
  */
 export function resolveTarget(env = process.env) {
-  // String(... ?? '') rather than `?.trim()`: optional chaining short-circuits
-  // only on null/undefined, so a non-string value would reach .trim() and throw
-  // a raw TypeError instead of this guard's message.
   const projectId = String(env.BOOTSTRAP_PROJECT_ID ?? '').trim()
   const branchId = String(env.BOOTSTRAP_BRANCH_ID ?? '').trim()
   const connectionUri = String(env.BOOTSTRAP_DATABASE_URL ?? '').trim()
