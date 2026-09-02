@@ -5,13 +5,17 @@ import type { CheckResult } from '@/lib/types'
 import type { CheckExplanation } from '@/lib/checkExplanations'
 
 const COPY_EN = {
+  question: 'What this checks',
   whyItMatters: 'Why it matters',
   whatWeFound: 'What we found',
   status: 'Status',
   howToFix: 'How to fix',
 }
 
+// Typed `typeof COPY_EN` deliberately: adding a key above forces it here too,
+// so a label cannot ship untranslated.
 const COPY_ZH_HK: typeof COPY_EN = {
+  question: '這項檢查甚麼',
   whyItMatters: '為何重要',
   whatWeFound: '掃描發現',
   status: '狀態',
@@ -69,6 +73,12 @@ export function ExpandableCheckItem({ label, result, message, explanation }: Pro
       {/* Expanded detail */}
       {open && explanation && (
         <div className={`mx-1 mb-3 rounded-lg border p-4 text-sm space-y-3 ${STATUS_DETAIL_BG[result.status]}`}>
+          {/* What this checks */}
+          <div>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{c.question}</p>
+            <p className="text-slate-700 leading-relaxed">{explanation.question}</p>
+          </div>
+
           {/* Why it matters */}
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{c.whyItMatters}</p>
