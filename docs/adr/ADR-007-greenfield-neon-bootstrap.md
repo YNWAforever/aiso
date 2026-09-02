@@ -59,10 +59,20 @@ that `003` just created, removal is a further risky step, and the harness's depe
 
 - The baseline is a new artefact requiring careful review; equivalence must be demonstrated,
   not assumed.
-- `schema_migrations` in the new project starts with a single baseline record (e.g.
-  `000_baseline_2026-08-30.sql`) plus its checksum. `scripts/migrate.ts`'s two guards — it
-  refuses to run against a populated database with an empty ledger, and `--baseline` refuses
-  to record a migration whose tables are missing — are preserved.
+- `schema_migrations` in the new project starts with the baseline record (e.g.
+  `000_baseline_2026-08-30.sql`) **plus one row for each migration the baseline subsumes**.
+  **Amended 2026-09-01**: this clause originally said "a single baseline record". A single
+  record leaves the database unbootstrappable — `planMigrations` reads `supabase/migrations/`,
+  so it reports every chain file pending and `001` aborts on an already-existing table. The
+  amendment serves this ADR's own requirement of "exactly one incremental migration line after
+  the baseline", which is unachievable while the runner replays the chain first. The subsumed
+  rows carry no checksum and assert only what `--baseline` mode asserts: the objects are
+  present, do not apply these again. `npm run schema:equivalence` earns that claim and now also
+  proves the runner finds nothing pending. See
+  `docs/superpowers/specs/2026-09-01-greenfield-bootstrap-gap-design.md`.
+  `scripts/migrate.ts`'s two guards — it refuses to run against a populated database with an
+  empty ledger, and `--baseline` refuses to record a migration whose tables are missing — are
+  preserved and unmodified.
 - Harness parameterisation (work item 0.8): `PROJECT_ID`, `PRODUCTION_BRANCH_ID`, and
   `OWNER_ROLE` become injected configuration, preserving every destructive-operation guard,
   especially the in-band `neon.project_id` / `neon.branch_id` GUC identity check that fails

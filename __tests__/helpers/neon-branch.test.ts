@@ -32,12 +32,26 @@ function createResponse(overrides: Record<string, unknown> = {}, name = 'test-br
 // migration 037) — so createTestBranch() makes a second, separate neonctl
 // call. Real neonctl also ignores --output json for `connection-string` and
 // prints the bare URI with a trailing newline; mocks match that shape.
+/**
+ * The neonctl argv, with any platform prefix removed.
+ *
+ * On Windows the helper spawns `node <neonctl>/bin/cli.js …` rather than the
+ * `.cmd` shim (Node refuses to spawn .cmd without shell: true), so the real
+ * subcommand starts one argument later. Everything below reads argv through
+ * this, which keeps these assertions meaningful on both platforms rather than
+ * silently passing on one.
+ */
+function neonctlArgv(args: string[]): string[] {
+  return args[0]?.endsWith('cli.js') ? args.slice(1) : args
+}
+
 function mockNeonctl({
   create = createResponse(),
   connectionString = `${URI}\n`,
   del = '{}',
 }: { create?: string; connectionString?: string; del?: string } = {}) {
-  execFileSync.mockImplementation((_cmd: string, args: string[]) => {
+  execFileSync.mockImplementation((_cmd: string, rawArgs: string[]) => {
+    const args = neonctlArgv(rawArgs)
     if (args[0] === 'branches' && args[1] === 'create') return create
     if (args[0] === 'connection-string') return connectionString
     if (args[0] === 'branches' && args[1] === 'delete') return del
@@ -95,7 +109,7 @@ describe('createTestBranch', () => {
     const { createTestBranch } = await load()
     createTestBranch('test-branch')
 
-    const args = execFileSync.mock.calls[0][1] as string[]
+    const args = neonctlArgv(execFileSync.mock.calls[0][1] as string[])
     expect(args).toContain('--expires-at')
     const expiry = Date.parse(args[args.indexOf('--expires-at') + 1])
     expect(expiry).toBeGreaterThan(Date.now())
@@ -106,7 +120,7 @@ describe('createTestBranch', () => {
     const { createTestBranch } = await load()
     createTestBranch('test-branch')
 
-    const args = execFileSync.mock.calls[1][1] as string[]
+    const args = neonctlArgv(execFileSync.mock.calls[1][1] as string[])
     expect(args[0]).toBe('connection-string')
     expect(args).toContain('br-fake-child-bbb22222')
     expect(args).toContain('--role-name')

@@ -226,10 +226,23 @@ async function main(): Promise<void> {
   const pool = new Pool({ connectionString: connectionString() })
 
   try {
+    // `checksum` exists for the greenfield baseline, not for this runner. The
+    // baseline (supabase/baseline/000_baseline_*.sql) records its own SHA-256
+    // digest in its single ledger row, so a lineage that starts from the
+    // consolidated file is tamper-evident. This runner never populates it: the
+    // inserts below name only `filename`, so every row the chain writes leaves
+    // it null.
+    //
+    // On a database that already has this table `create table if not exists` is
+    // a no-op, so the column simply will not be there. That is harmless: nothing
+    // reads it. Keep this declaration byte-identical to the baseline's copy —
+    // they are one table reached by two paths, and the schema equivalence proof
+    // compares them column for column.
     await pool.query(`
       create table if not exists schema_migrations (
         filename text primary key,
-        applied_at timestamptz not null default now()
+        applied_at timestamptz not null default now(),
+        checksum text
       )
     `)
 

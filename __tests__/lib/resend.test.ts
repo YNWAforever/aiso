@@ -30,6 +30,21 @@ describe('sendAlertEmail', () => {
     process.env.RESEND_FROM_EMAIL = 'alerts@example.com'
   })
 
+  // `??` falls back only on null/undefined, so a RESEND_FROM_EMAIL that a
+  // deploy environment declared without a value produced an empty sender and
+  // Resend rejected the send. On the alert path that is invisible until
+  // somebody notices alerts stopped arriving.
+  it('falls back to the default sender when RESEND_FROM_EMAIL is empty', async () => {
+    process.env.RESEND_FROM_EMAIL = ''
+    h.send.mockResolvedValue({ data: { id: 'email-1' }, error: null })
+
+    await sendAlertEmail(emailPayload)
+
+    expect(h.send).toHaveBeenCalledWith(
+      expect.objectContaining({ from: 'alerts@fimmick-aeo.com' }),
+    )
+  })
+
   it('preserves successful Resend sends', async () => {
     h.send.mockResolvedValue({ data: { id: 'email-1' }, error: null })
 

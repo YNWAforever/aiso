@@ -1,0 +1,11 @@
+# The greenfield baseline's checksum is recorded in schema_migrations and is meant
+# to be immutable and tamper-evident. scripts/schema-equivalence.mjs hashes the
+# file's RAW BYTES, so without this pin a Windows checkout (core.autocrlf=true)
+# would produce CRLF — and therefore a different digest than Linux/CI for
+# byte-identical SQL, making the "immutable" checksum platform-dependent and
+# defeating its purpose.
+supabase/baseline/*.sql text eol=lf
+
+# Same reasoning for the migration chain: several tests read these files and
+# assert on their contents.
+supabase/migrations/*.sql text eol=lf

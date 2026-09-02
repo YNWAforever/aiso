@@ -1,6 +1,11 @@
 const WIKIPEDIA_API = 'https://en.wikipedia.org/api/rest_v1'
 const TRANCO_API = 'https://tranco-list.eu/api/ranks/domain'
-const UA = process.env.WIKIPEDIA_USER_AGENT ?? 'FimmickAISO/1.0 (https://fimmick.com)'
+// `?.trim() ||`, not `??`: nullish coalescing keeps '', which a deploy
+// environment supplies for a declared-but-valueless variable. Wikipedia's API
+// policy requires an identifying User-Agent and rate-limits or blocks requests
+// without one, so an empty string would degrade this check silently rather than
+// falling back as intended. Same reasoning as lib/app-origin.ts.
+const UA = process.env.WIKIPEDIA_USER_AGENT?.trim() || 'FimmickAISO/1.0 (https://fimmick.com)'
 
 export interface SignalResult {
   signalScore: number

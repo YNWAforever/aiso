@@ -2,7 +2,15 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { redactSecrets } from '@/lib/security/redact-secrets'
+// Relative, with the explicit .ts extension, rather than the '@/' alias: this
+// module is imported by scripts/schema-equivalence.mjs under plain node, which
+// resolves neither tsconfig path aliases nor extensionless .ts files. Vitest
+// resolves this form too, so the integration harness is unaffected. tsc rejects
+// the extension under moduleResolution "bundler" without repo-wide
+// allowImportingTsExtensions; suppress narrowly rather than widening it, exactly
+// as scripts/migrate.ts does.
+// @ts-expect-error -- see comment above; node requires the extension, tsc forbids it
+import { redactSecrets } from '../../lib/security/redact-secrets.ts'
 
 // `?.trim() || fallback` rather than `??`: nullish coalescing only falls back on
 // null/undefined, not on '' — and GitHub Actions substitutes '' for a `${{ secrets.X }}`
@@ -35,9 +43,43 @@ const BRANCH_TTL_MS = 2 * 60 * 60 * 1000
 
 const BRANCH_ID = /^br-[a-z0-9-]+$/
 
+/**
+ * How to spawn neonctl on this platform. Returns [command, leadingArgs].
+ *
+ * On Linux — CI, and the only platform this harness ever ran on until now — the
+ * global `neonctl` is a shell script and execFileSync spawns it directly. That
+ * branch is byte-identical in behaviour to what this file did before, so CI is
+ * unaffected.
+ *
+ * On Windows it is a `.cmd` shim, and Node deliberately refuses to spawn
+ * `.cmd`/`.bat` from execFileSync without `shell: true` — a security change
+ * guarding against argument injection through cmd.exe. Rather than re-open that
+ * hole, resolve neonctl's own JS entry point and run it under this same node
+ * binary: no shim, no shell, arguments still passed as an array.
+ *
+ * Exported because scripts/run-tests.mjs's integration preflight has to spawn
+ * neonctl the same way: a bare execFileSync('neonctl') there reported "neonctl
+ * is not on PATH" on every Windows machine, including ones where it was
+ * installed and authenticated. Duplicating the resolution would let the two
+ * copies drift on a decision that is about security, not convenience.
+ */
+export function neonctlCommand(): [string, string[]] {
+  if (process.platform !== 'win32') return ['neonctl', []]
+
+  const appData = process.env.APPDATA
+  if (!appData) {
+    throw new Error(
+      'Cannot locate neonctl on Windows: APPDATA is unset, so the global npm prefix ' +
+      'cannot be derived. Install neonctl (`npm i -g neonctl`).',
+    )
+  }
+  return [process.execPath, [join(appData, 'npm', 'node_modules', 'neonctl', 'bin', 'cli.js')]]
+}
+
 function neonctl(args: string[]): string {
+  const [command, leadingArgs] = neonctlCommand()
   try {
-    return execFileSync('neonctl', [...args, '--output', 'json'], {
+    return execFileSync(command, [...leadingArgs, ...args, '--output', 'json'], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       // An unauthenticated neonctl tries to start an interactive browser

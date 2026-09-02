@@ -125,25 +125,94 @@ const missing = {
   remedy: 'npm i -g neonctl && neonctl auth',
 }
 
+// Both platform shapes are driven explicitly rather than read off
+// process.platform, so each case runs everywhere. Leaving them implicit would
+// mean the Windows branch -- the one that was broken -- is never exercised in
+// CI, which is Linux.
+const CLI_JS = '/fake/prefix/npm/node_modules/neonctl/bin/cli.js'
+const onPosix = () => ['neonctl', []]
+const onWindows = () => ['/fake/node.exe', [CLI_JS]]
+const isInstalled = () => true
+
 describe('probeIntegrationCapability', () => {
   it('reports availability when neonctl answers --version', () => {
     const execFile = vi.fn()
-    expect(probeIntegrationCapability({ execFile, env: {} })).toEqual(available)
+    expect(
+      probeIntegrationCapability({ execFile, env: {}, resolveCommand: onPosix }),
+    ).toEqual(available)
     expect(execFile).toHaveBeenCalledWith('neonctl', ['--version'], expect.any(Object))
+  })
+
+  // The regression this whole seam exists for. Windows' global neonctl is a
+  // .cmd shim that execFile refuses to spawn without shell: true, so probing
+  // the bare name reported "not on PATH" on machines where neonctl was
+  // installed and authenticated, and took REQUIRE_INTEGRATION_TESTS=1 with it.
+  it('runs the resolved JS entry point under node rather than the .cmd shim', () => {
+    const execFile = vi.fn()
+    const capability = probeIntegrationCapability({
+      execFile,
+      env: {},
+      resolveCommand: onWindows,
+      fileExists: isInstalled,
+    })
+
+    expect(capability).toEqual(available)
+    expect(execFile).toHaveBeenCalledWith(
+      '/fake/node.exe',
+      [CLI_JS, '--version'],
+      expect.any(Object),
+    )
+  })
+
+  // node always exists, so on Windows a missing neonctl cannot arrive as
+  // ENOENT -- node starts and exits 1 with "Cannot find module". Without the
+  // existence check that reads as "present but unusable", answered with
+  // `neonctl auth`, which cannot fix an install that is not there.
+  it('still calls a missing Windows neonctl an absence, not a misconfiguration', () => {
+    const execFile = vi.fn()
+    const capability = probeIntegrationCapability({
+      execFile,
+      env: {},
+      resolveCommand: onWindows,
+      fileExists: () => false,
+    })
+
+    expect(capability).toEqual(missing)
+    expect(execFile).not.toHaveBeenCalled()
+  })
+
+  it('treats an unlocatable neonctl (APPDATA unset) as an absence', () => {
+    const execFile = vi.fn()
+    const capability = probeIntegrationCapability({
+      execFile,
+      env: {},
+      resolveCommand: () => {
+        throw new Error('Cannot locate neonctl on Windows: APPDATA is unset')
+      },
+    })
+
+    expect(capability).toEqual(missing)
+    expect(execFile).not.toHaveBeenCalled()
   })
 
   it('reports the install remedy when neonctl is not on PATH', () => {
     const execFile = vi.fn(() => {
       throw Object.assign(new Error('spawnSync neonctl ENOENT'), { code: 'ENOENT' })
     })
-    expect(probeIntegrationCapability({ execFile, env: {} })).toEqual(missing)
+    expect(
+      probeIntegrationCapability({ execFile, env: {}, resolveCommand: onPosix }),
+    ).toEqual(missing)
   })
 
   it('does not leak raw error detail when neonctl is present but unusable', () => {
     const execFile = vi.fn(() => {
       throw Object.assign(new Error('sensitive-path-detail'), { code: 'EACCES' })
     })
-    const capability = probeIntegrationCapability({ execFile, env: {} })
+    const capability = probeIntegrationCapability({
+      execFile,
+      env: {},
+      resolveCommand: onPosix,
+    })
 
     expect(capability.available).toBe(false)
     expect(capability.reason).toBe('neonctl is present but unusable (EACCES)')

@@ -1,6 +1,12 @@
 import { execFileSync, spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+
+// Relative, with the explicit .ts extension, as scripts/schema-equivalence.mjs
+// already imports this same module: `npm test` runs this file under plain node,
+// which resolves neither tsconfig path aliases nor extensionless .ts.
+import { neonctlCommand } from '../__tests__/helpers/neon-branch.ts'
 
 const UNIT_BASE_ARGS = ['run', '--exclude', '__tests__/integration/**']
 const INTEGRATION_BASE_ARGS = ['run', '--config', 'vitest.integration.config.ts']
@@ -119,7 +125,18 @@ export function buildTestRunPlan(args) {
 
 const BANNER_RULE = '='.repeat(64)
 
-export function probeIntegrationCapability({ execFile = execFileSync, env = process.env } = {}) {
+const absent = () => ({
+  available: false,
+  reason: 'neonctl is not on PATH',
+  remedy: 'npm i -g neonctl && neonctl auth',
+})
+
+export function probeIntegrationCapability({
+  execFile = execFileSync,
+  env = process.env,
+  resolveCommand = neonctlCommand,
+  fileExists = existsSync,
+} = {}) {
   if (env.SKIP_INTEGRATION_TESTS === '1') {
     return {
       available: false,
@@ -128,23 +145,44 @@ export function probeIntegrationCapability({ execFile = execFileSync, env = proc
     }
   }
 
+  // Spawn neonctl exactly as the harness that will provision the branch does.
+  // A bare execFile('neonctl', ...) here was wrong on Windows: the global
+  // install is a .cmd shim, execFile without shell: true refuses to run one, so
+  // this preflight reported "not on PATH" on machines where neonctl was
+  // installed and authenticated -- taking REQUIRE_INTEGRATION_TESTS=1 npm test,
+  // the command that is supposed to prove the full suite ran, down with it.
+  let command
+  let leadingArgs
+  try {
+    ;[command, leadingArgs] = resolveCommand()
+  } catch {
+    // Windows with APPDATA unset: the global npm prefix cannot be derived, so
+    // neonctl cannot be located at all. That is an absence, not a
+    // misconfiguration -- neon-branch.ts's own message says "Install neonctl".
+    return absent()
+  }
+
+  // On Windows `command` is this node binary, which always exists, so a missing
+  // neonctl no longer surfaces as ENOENT: node starts fine and exits 1 with
+  // "Cannot find module". That would be classified below as "present but
+  // unusable" and answered with `neonctl auth`, which cannot fix an install
+  // that isn't there. Test the resolved entry point instead, so absence stays
+  // absence on both platforms.
+  if (leadingArgs.length > 0 && !fileExists(leadingArgs[0])) return absent()
+
   try {
     // `--version` rather than a network call on purpose: an installed but
     // unauthenticated neonctl is a misconfiguration, not an absence, and
     // __tests__/helpers/neon-branch.ts already fails loudly with the right
     // hint for that case. Probing auth here would swallow it into a skip.
-    execFile('neonctl', ['--version'], { stdio: 'ignore', timeout: 20_000 })
+    execFile(command, [...leadingArgs, '--version'], { stdio: 'ignore', timeout: 20_000 })
     return { available: true, reason: null, remedy: null }
   } catch (error) {
     // Same sanitisation as formatSpawnError — the raw error can carry paths.
     const rawCode = typeof error?.code === 'string' ? error.code : 'unknown'
     const code = rawCode.replace(/[^a-zA-Z0-9_-]/g, '') || 'unknown'
     return code === 'ENOENT'
-      ? {
-          available: false,
-          reason: 'neonctl is not on PATH',
-          remedy: 'npm i -g neonctl && neonctl auth',
-        }
+      ? absent()
       : {
           available: false,
           reason: `neonctl is present but unusable (${code})`,
