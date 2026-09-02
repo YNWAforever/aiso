@@ -1,76 +1,67 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  compareToBaseline,
-  violationSignature,
-  type A11yFinding,
-} from '../../tests/e2e/a11y/baseline'
+import { cellId, compareCounts } from '../../tests/e2e/a11y/baseline'
 
-const finding = (over: Partial<A11yFinding> = {}): A11yFinding => ({
-  rule: 'color-contrast',
-  route: '/en',
-  theme: 'light',
-  target: 'button.cta',
-  ...over,
-})
-
-describe('violationSignature', () => {
-  it('is stable across runs for the same finding', () => {
-    expect(violationSignature(finding())).toBe(violationSignature(finding()))
+describe('cellId', () => {
+  it('identifies a route, theme and viewport', () => {
+    expect(cellId('/en', 'dark', '375')).toBe('/en | dark | 375')
   })
 
-  it('distinguishes rule, route, theme and target', () => {
-    const base = violationSignature(finding())
-    expect(violationSignature(finding({ rule: 'region' }))).not.toBe(base)
-    expect(violationSignature(finding({ route: '/zh-HK' }))).not.toBe(base)
-    expect(violationSignature(finding({ theme: 'dark' }))).not.toBe(base)
-    expect(violationSignature(finding({ target: 'a.link' }))).not.toBe(base)
+  // Viewport is part of the identity because a responsive layout can hide at
+  // 375 what it shows at 1440, so the same rule legitimately has different
+  // counts per width.
+  it('distinguishes viewports', () => {
+    expect(cellId('/en', 'dark', '375')).not.toBe(cellId('/en', 'dark', '1440'))
+  })
+
+  it('distinguishes themes and routes', () => {
+    expect(cellId('/en', 'dark', '375')).not.toBe(cellId('/en', 'light', '375'))
+    expect(cellId('/en', 'dark', '375')).not.toBe(cellId('/zh-HK', 'dark', '375'))
   })
 })
 
-describe('compareToBaseline', () => {
-  it('passes when observed exactly matches the baseline', () => {
-    const observed = [finding()]
-    const baseline = observed.map(violationSignature)
-    expect(compareToBaseline(observed, baseline)).toEqual({
-      unexpected: [],
-      stale: [],
+describe('compareCounts', () => {
+  it('passes when counts match exactly', () => {
+    expect(compareCounts({ 'color-contrast': 3 }, { 'color-contrast': 3 })).toEqual({
+      exceeded: [],
+      improved: [],
     })
   })
 
   // The gate.
-  it('reports a violation that is not in the baseline', () => {
-    const result = compareToBaseline([finding()], [])
-    expect(result.unexpected).toHaveLength(1)
-    expect(result.stale).toEqual([])
+  it('fails when a count rises', () => {
+    const result = compareCounts({ 'color-contrast': 4 }, { 'color-contrast': 3 })
+    expect(result.exceeded).toEqual([{ rule: 'color-contrast', accepted: 3, observed: 4 }])
+    expect(result.improved).toEqual([])
   })
 
-  // The anti-rot rule. Without this the file accumulates dead exemptions and
-  // becomes the same permanent amnesty as the critical||serious filter it
-  // replaced.
-  it('reports a baseline entry that no longer fires', () => {
-    const stale = violationSignature(finding({ rule: 'region' }))
-    const result = compareToBaseline([finding()], [violationSignature(finding()), stale])
-    expect(result.unexpected).toEqual([])
-    expect(result.stale).toEqual([stale])
+  it('fails when a rule is entirely new', () => {
+    const result = compareCounts({ region: 1 }, {})
+    expect(result.exceeded).toEqual([{ rule: 'region', accepted: 0, observed: 1 }])
+  })
+
+  // The anti-rot half. A baseline that never shrinks becomes a blanket amnesty.
+  it('fails when a count falls', () => {
+    const result = compareCounts({ 'color-contrast': 2 }, { 'color-contrast': 3 })
+    expect(result.improved).toEqual([{ rule: 'color-contrast', accepted: 3, observed: 2 }])
+    expect(result.exceeded).toEqual([])
+  })
+
+  it('fails when a rule stops firing entirely', () => {
+    const result = compareCounts({}, { region: 4 })
+    expect(result.improved).toEqual([{ rule: 'region', accepted: 4, observed: 0 }])
   })
 
   it('reports both directions at once', () => {
-    const stale = violationSignature(finding({ rule: 'region' }))
-    const result = compareToBaseline([finding()], [stale])
-    expect(result.unexpected).toHaveLength(1)
-    expect(result.stale).toEqual([stale])
+    const result = compareCounts(
+      { 'color-contrast': 5, region: 1 },
+      { 'color-contrast': 3, region: 4 },
+    )
+    expect(result.exceeded).toEqual([{ rule: 'color-contrast', accepted: 3, observed: 5 }])
+    expect(result.improved).toEqual([{ rule: 'region', accepted: 4, observed: 1 }])
   })
 
-  // A run that scanned nothing must not read as "everything was fixed".
-  it('does not report stale entries when nothing was scanned', () => {
-    const result = compareToBaseline([], [violationSignature(finding())], { scanned: false })
-    expect(result.stale).toEqual([])
-  })
-
-  it('does report stale entries when a scan genuinely found nothing', () => {
-    const entry = violationSignature(finding())
-    const result = compareToBaseline([], [entry], { scanned: true })
-    expect(result.stale).toEqual([entry])
+  it('is empty for two empty inputs', () => {
+    expect(compareCounts({}, {})).toEqual({ exceeded: [], improved: [] })
   })
 })

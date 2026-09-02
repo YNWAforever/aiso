@@ -4,17 +4,17 @@ import { join } from 'node:path'
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 
-import { compareToBaseline, violationSignature, type A11yFinding, type A11yTheme } from './baseline'
+import { cellId, compareCounts, type A11yTheme, type Baseline, type RuleCounts } from './baseline'
 import { A11Y_LOCALES, A11Y_ROUTES, A11Y_THEMES } from './matrix'
 
 const BASELINE_PATH = join(process.cwd(), 'tests', 'e2e', 'a11y', 'baseline.json')
 
 /**
- * Reads the accepted list. Throws rather than defaulting to [] -- an unreadable
- * baseline must never be treated as "no accepted violations", which would let a
- * broken file pass vacuously.
+ * Reads the accepted counts. Throws rather than defaulting to {} -- an
+ * unreadable baseline must never be treated as "no accepted violations",
+ * which would let a broken file pass vacuously.
  */
-function readBaseline(): string[] {
+function readBaseline(): Baseline {
   let parsed: unknown
   try {
     parsed = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'))
@@ -27,40 +27,22 @@ function readBaseline(): string[] {
   }
   if (
     typeof parsed !== 'object' || parsed === null
-    || !Array.isArray((parsed as { accepted?: unknown }).accepted)
+    || typeof (parsed as { accepted?: unknown }).accepted !== 'object'
+    || (parsed as { accepted?: unknown }).accepted === null
+    || Array.isArray((parsed as { accepted?: unknown }).accepted)
   ) {
-    throw new Error(`${BASELINE_PATH} is malformed: expected { "accepted": string[] }`)
+    throw new Error(`${BASELINE_PATH} is malformed: expected { "accepted": Record<string, RuleCounts> }`)
   }
-  return (parsed as { accepted: string[] }).accepted
+  return (parsed as { accepted: Baseline }).accepted
 }
 
 type AxeViolations = Awaited<ReturnType<AxeBuilder['analyze']>>['violations']
 
-/**
- * React's useId() output is stable only while the render tree is unchanged --
- * it encodes tree position, not element identity. A signature carrying one
- * would go stale (and reappear as new) whenever an unrelated component earlier
- * in the tree starts or stops calling useId, firing both halves of the ratchet
- * on a PR that touched no accessibility at all. Collapse it to a placeholder so
- * the entry tracks the element rather than its render position.
- */
-function stableTarget(target: string): string {
-  return target.replace(/_R_[0-9a-z]+_/gi, '_R_')
-}
-
-/**
- * `target` is the axe node's own target array joined -- the closest thing axe
- * gives to a stable element identity, and not a hand-written DOM selector.
- */
-function toFindings(violations: AxeViolations, route: string, theme: A11yTheme): A11yFinding[] {
-  return violations.flatMap((violation) =>
-    violation.nodes.map((node) => ({
-      rule: violation.id,
-      route,
-      theme,
-      target: stableTarget(node.target.join(' ')),
-    })),
-  )
+/** axe violations reduced to rule -> number of violating nodes. */
+function toRuleCounts(violations: AxeViolations): RuleCounts {
+  const counts: RuleCounts = {}
+  for (const violation of violations) counts[violation.id] = violation.nodes.length
+  return counts
 }
 
 async function scan(page: Page, path: string, theme: A11yTheme) {
@@ -81,7 +63,7 @@ async function scan(page: Page, path: string, theme: A11yTheme) {
   const results = await new AxeBuilder({ page })
     .options({ rules: { 'target-size': { enabled: true } } })
     .analyze()
-  return toFindings(results.violations, path, theme)
+  return toRuleCounts(results.violations)
 }
 
 for (const locale of A11Y_LOCALES) {
@@ -91,18 +73,26 @@ for (const locale of A11Y_LOCALES) {
 
       test(`a11y ${route.id} ${locale} ${theme}`, async ({ page }, testInfo) => {
         const observed = await scan(page, path, theme)
+        const viewport = testInfo.project.name.replace(/^a11y-/, '')
+        const id = cellId(path, theme, viewport)
 
         await testInfo.attach(`axe-${route.id}-${locale}-${theme}`, {
-          body: Buffer.from(JSON.stringify(observed.map(violationSignature), null, 2)),
+          body: Buffer.from(JSON.stringify(observed, null, 2)),
           contentType: 'application/json',
         })
 
-        const { unexpected } = compareToBaseline(observed, readBaseline())
+        const { exceeded, improved } = compareCounts(observed, readBaseline()[id] ?? {})
 
         expect(
-          unexpected.map(violationSignature),
-          `New accessibility violations at ${path} (${theme}). Fix them, or add these `
-          + 'signatures to tests/e2e/a11y/baseline.json with a reason.',
+          exceeded,
+          `New accessibility violations at ${id}. Fix them, or raise the count in `
+          + 'tests/e2e/a11y/baseline.json.',
+        ).toEqual([])
+
+        expect(
+          improved,
+          `Accessibility improved at ${id} -- lower these counts in `
+          + 'tests/e2e/a11y/baseline.json. A baseline that only grows is an amnesty.',
         ).toEqual([])
       })
     }

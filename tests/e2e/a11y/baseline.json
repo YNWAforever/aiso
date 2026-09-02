@@ -1,155 +1,316 @@
 {
-  "accepted": [
-    "color-contrast | /en | dark | .content-center.transition-colors[href$=\"login\"]",
-    "color-contrast | /en | dark | .content-center.transition-colors[href$=\"pricing\"]",
-    "color-contrast | /en | dark | .content-center.transition-colors[href$=\"zh-HK\"]",
-    "color-contrast | /en | dark | .gap-1\\.5.inline-flex:nth-child(1)",
-    "color-contrast | /en | dark | .gap-1\\.5.inline-flex:nth-child(2)",
-    "color-contrast | /en | dark | .gap-1\\.5.inline-flex:nth-child(3)",
-    "color-contrast | /en | dark | .gap-5.sm\\:flex-row.flex-col > span",
-    "color-contrast | /en | dark | .lg\\:flex-row > .font-semibold.text-muted-foreground",
-    "color-contrast | /en | dark | .max-w-2xl.text-center.mx-auto > .text-base.mt-4.leading-relaxed",
-    "color-contrast | /en | dark | .mb-5",
-    "color-contrast | /en | dark | .md\\:inline-flex",
-    "color-contrast | /en | dark | .p-6.shadow-sm.rounded-2xl:nth-child(1) > .mt-2.leading-relaxed.text-muted-foreground",
-    "color-contrast | /en | dark | .p-6.shadow-sm.rounded-2xl:nth-child(2) > .mt-2.leading-relaxed.text-muted-foreground",
-    "color-contrast | /en | dark | .p-6.shadow-sm.rounded-2xl:nth-child(3) > .mt-2.leading-relaxed.text-muted-foreground",
-    "color-contrast | /en | dark | .px-2",
-    "color-contrast | /en | dark | .py-16.sm\\:py-24:nth-child(3) > .max-w-2xl > .text-base.mt-4.leading-relaxed",
-    "color-contrast | /en | dark | .sm\\:inline-flex",
-    "color-contrast | /en | dark | .text-pretty",
-    "color-contrast | /en | dark | button[aria-controls=\"scan-options-_R_\"]",
-    "color-contrast | /en/auth/login | dark | .text-center > p",
-    "color-contrast | /en/auth/login | dark | .text-xs",
-    "color-contrast | /en/onboarding | dark | .justify-between > span:nth-child(1)",
-    "color-contrast | /en/onboarding | dark | .justify-between > span:nth-child(2)",
-    "color-contrast | /en/onboarding | dark | p",
-    "color-contrast | /en/pricing | dark | .bg-primary\\/5.tracking-wide.p-4",
-    "color-contrast | /en/pricing | dark | .border-2 > .mb-6.pb-6 > .text-4xl.font-black.text-foreground",
-    "color-contrast | /en/pricing | dark | .border-2 > .uppercase.tracking-widest.font-bold",
-    "color-contrast | /en/pricing | dark | .font-bold.text-foreground > .text-primary",
-    "color-contrast | /en/pricing | dark | .gap-2 > .font-bold.text-foreground",
-    "color-contrast | /en/pricing | dark | .hover\\:bg-primary\\/10",
-    "color-contrast | /en/pricing | dark | .hover\\:bg-primary\\/90",
-    "color-contrast | /en/pricing | dark | .hover\\:bg-slate-100",
-    "color-contrast | /en/pricing | dark | .hover\\:shadow-md.p-7.transition-shadow:nth-child(1) > .mb-6.pb-6 > .text-4xl.font-black.text-foreground",
-    "color-contrast | /en/pricing | dark | .hover\\:shadow-md.p-7.transition-shadow:nth-child(3) > .mb-6.pb-6 > .text-4xl.font-black.text-foreground",
-    "color-contrast | /en/pricing | dark | .max-w-3xl > .leading-relaxed.mt-1",
-    "color-contrast | /en/pricing | dark | .mb-8.uppercase.tracking-widest",
-    "color-contrast | /en/pricing | dark | .mt-2",
-    "color-contrast | /en/pricing | dark | .px-8",
-    "color-contrast | /en/pricing | dark | .text-\\[10px\\]",
-    "color-contrast | /en/pricing | dark | .text-lg.max-w-xl.leading-relaxed",
-    "color-contrast | /en/pricing | dark | .tracking-tight",
-    "color-contrast | /en/pricing | dark | .tracking-tight > .text-primary",
-    "color-contrast | /en/pricing | dark | h3",
-    "color-contrast | /en/pricing | light | .bg-primary\\/10",
-    "color-contrast | /en/pricing | light | .max-w-3xl > .leading-relaxed.mt-1",
-    "color-contrast | /en/result/e2e00000-0000-4000-a000-000000000001 | dark | .text-primary",
-    "color-contrast | /zh-HK | dark | .content-center.transition-colors[href$=\"login\"]",
-    "color-contrast | /zh-HK | dark | .content-center.transition-colors[href$=\"pricing\"]",
-    "color-contrast | /zh-HK | dark | .content-center.transition-colors[href=\"/en\"]",
-    "color-contrast | /zh-HK | dark | .gap-1\\.5.inline-flex:nth-child(1)",
-    "color-contrast | /zh-HK | dark | .gap-1\\.5.inline-flex:nth-child(2)",
-    "color-contrast | /zh-HK | dark | .gap-1\\.5.inline-flex:nth-child(3)",
-    "color-contrast | /zh-HK | dark | .gap-5.sm\\:flex-row.flex-col > span",
-    "color-contrast | /zh-HK | dark | .lg\\:flex-row > .font-semibold.text-muted-foreground",
-    "color-contrast | /zh-HK | dark | .max-w-2xl.text-center.mx-auto > .text-base.mt-4.leading-relaxed",
-    "color-contrast | /zh-HK | dark | .mb-5",
-    "color-contrast | /zh-HK | dark | .md\\:inline-flex",
-    "color-contrast | /zh-HK | dark | .p-6.shadow-sm.rounded-2xl:nth-child(1) > .mt-2.leading-relaxed.text-muted-foreground",
-    "color-contrast | /zh-HK | dark | .p-6.shadow-sm.rounded-2xl:nth-child(2) > .mt-2.leading-relaxed.text-muted-foreground",
-    "color-contrast | /zh-HK | dark | .p-6.shadow-sm.rounded-2xl:nth-child(3) > .mt-2.leading-relaxed.text-muted-foreground",
-    "color-contrast | /zh-HK | dark | .px-2",
-    "color-contrast | /zh-HK | dark | .py-16.sm\\:py-24:nth-child(3) > .max-w-2xl > .text-base.mt-4.leading-relaxed",
-    "color-contrast | /zh-HK | dark | .sm\\:inline-flex",
-    "color-contrast | /zh-HK | dark | .text-pretty",
-    "color-contrast | /zh-HK | dark | button[aria-controls=\"scan-options-_R_\"]",
-    "color-contrast | /zh-HK/auth/login | dark | .text-center > p",
-    "color-contrast | /zh-HK/onboarding | dark | .justify-between > span:nth-child(1)",
-    "color-contrast | /zh-HK/onboarding | dark | .justify-between > span:nth-child(2)",
-    "color-contrast | /zh-HK/onboarding | dark | p",
-    "color-contrast | /zh-HK/pricing | dark | .bg-primary\\/5.tracking-wide.p-4",
-    "color-contrast | /zh-HK/pricing | dark | .border-2 > .mb-6.pb-6 > .text-4xl.font-black.text-foreground",
-    "color-contrast | /zh-HK/pricing | dark | .border-2 > .uppercase.tracking-widest.font-bold",
-    "color-contrast | /zh-HK/pricing | dark | .font-bold.text-foreground > .text-primary",
-    "color-contrast | /zh-HK/pricing | dark | .gap-2 > .font-bold.text-foreground",
-    "color-contrast | /zh-HK/pricing | dark | .hover\\:bg-primary\\/10",
-    "color-contrast | /zh-HK/pricing | dark | .hover\\:bg-primary\\/90",
-    "color-contrast | /zh-HK/pricing | dark | .hover\\:bg-slate-100",
-    "color-contrast | /zh-HK/pricing | dark | .hover\\:shadow-md.p-7.transition-shadow:nth-child(1) > .mb-6.pb-6 > .text-4xl.font-black.text-foreground",
-    "color-contrast | /zh-HK/pricing | dark | .hover\\:shadow-md.p-7.transition-shadow:nth-child(3) > .mb-6.pb-6 > .text-4xl.font-black.text-foreground",
-    "color-contrast | /zh-HK/pricing | dark | .max-w-3xl > .leading-relaxed.mt-1",
-    "color-contrast | /zh-HK/pricing | dark | .mb-8.uppercase.tracking-widest",
-    "color-contrast | /zh-HK/pricing | dark | .mt-2",
-    "color-contrast | /zh-HK/pricing | dark | .px-8",
-    "color-contrast | /zh-HK/pricing | dark | .text-\\[10px\\]",
-    "color-contrast | /zh-HK/pricing | dark | .text-lg.max-w-xl.leading-relaxed",
-    "color-contrast | /zh-HK/pricing | dark | .tracking-tight",
-    "color-contrast | /zh-HK/pricing | dark | .tracking-tight > .text-primary",
-    "color-contrast | /zh-HK/pricing | dark | h3",
-    "color-contrast | /zh-HK/pricing | light | .bg-primary\\/10",
-    "color-contrast | /zh-HK/pricing | light | .max-w-3xl > .leading-relaxed.mt-1",
-    "color-contrast | /zh-HK/result/e2e00000-0000-4000-a000-000000000001 | dark | .text-primary",
-    "landmark-one-main | /en/auth/login | dark | html",
-    "landmark-one-main | /en/auth/login | light | html",
-    "landmark-one-main | /en/onboarding | dark | html",
-    "landmark-one-main | /en/onboarding | light | html",
-    "landmark-one-main | /zh-HK/auth/login | dark | html",
-    "landmark-one-main | /zh-HK/auth/login | light | html",
-    "landmark-one-main | /zh-HK/onboarding | dark | html",
-    "landmark-one-main | /zh-HK/onboarding | light | html",
-    "page-has-heading-one | /en/auth/login | dark | html",
-    "page-has-heading-one | /en/auth/login | light | html",
-    "page-has-heading-one | /en/onboarding | dark | html",
-    "page-has-heading-one | /en/onboarding | light | html",
-    "page-has-heading-one | /en/result/e2e00000-0000-4000-a000-000000000001 | dark | html",
-    "page-has-heading-one | /en/result/e2e00000-0000-4000-a000-000000000001 | light | html",
-    "page-has-heading-one | /zh-HK/auth/login | dark | html",
-    "page-has-heading-one | /zh-HK/auth/login | light | html",
-    "page-has-heading-one | /zh-HK/onboarding | dark | html",
-    "page-has-heading-one | /zh-HK/onboarding | light | html",
-    "page-has-heading-one | /zh-HK/result/e2e00000-0000-4000-a000-000000000001 | dark | html",
-    "page-has-heading-one | /zh-HK/result/e2e00000-0000-4000-a000-000000000001 | light | html",
-    "region | /en/auth/login | dark | #login-email",
-    "region | /en/auth/login | dark | .font-black",
-    "region | /en/auth/login | dark | .gap-3.flex.items-center",
-    "region | /en/auth/login | dark | .text-center > p",
-    "region | /en/auth/login | dark | label",
-    "region | /en/auth/login | light | #login-email",
-    "region | /en/auth/login | light | .font-black",
-    "region | /en/auth/login | light | .gap-3.flex.items-center",
-    "region | /en/auth/login | light | .text-center > p",
-    "region | /en/auth/login | light | label",
-    "region | /en/onboarding | dark | #onboarding-brand",
-    "region | /en/onboarding | dark | .bg-card > .mb-6",
-    "region | /en/onboarding | dark | .mb-7 > .font-black.text-foreground",
-    "region | /en/onboarding | dark | label",
-    "region | /en/onboarding | dark | p",
-    "region | /en/onboarding | light | #onboarding-brand",
-    "region | /en/onboarding | light | .bg-card > .mb-6",
-    "region | /en/onboarding | light | .mb-7 > .font-black.text-foreground",
-    "region | /en/onboarding | light | label",
-    "region | /en/onboarding | light | p",
-    "region | /zh-HK/auth/login | dark | #login-email",
-    "region | /zh-HK/auth/login | dark | .font-black",
-    "region | /zh-HK/auth/login | dark | .gap-3.flex.items-center",
-    "region | /zh-HK/auth/login | dark | .text-center > p",
-    "region | /zh-HK/auth/login | dark | label",
-    "region | /zh-HK/auth/login | light | #login-email",
-    "region | /zh-HK/auth/login | light | .font-black",
-    "region | /zh-HK/auth/login | light | .gap-3.flex.items-center",
-    "region | /zh-HK/auth/login | light | .text-center > p",
-    "region | /zh-HK/auth/login | light | label",
-    "region | /zh-HK/onboarding | dark | #onboarding-brand",
-    "region | /zh-HK/onboarding | dark | .bg-card > .mb-6",
-    "region | /zh-HK/onboarding | dark | .mb-7 > .font-black.text-foreground",
-    "region | /zh-HK/onboarding | dark | label",
-    "region | /zh-HK/onboarding | dark | p",
-    "region | /zh-HK/onboarding | light | #onboarding-brand",
-    "region | /zh-HK/onboarding | light | .bg-card > .mb-6",
-    "region | /zh-HK/onboarding | light | .mb-7 > .font-black.text-foreground",
-    "region | /zh-HK/onboarding | light | label",
-    "region | /zh-HK/onboarding | light | p"
-  ]
+  "accepted": {
+    "/en | dark | 1024": {
+      "color-contrast": 20
+    },
+    "/en | dark | 1440": {
+      "color-contrast": 20
+    },
+    "/en | dark | 375": {
+      "color-contrast": 18
+    },
+    "/en | dark | 768": {
+      "color-contrast": 20
+    },
+    "/en | light | 1024": {},
+    "/en | light | 1440": {},
+    "/en | light | 375": {},
+    "/en | light | 768": {},
+    "/en/auth/login | dark | 1024": {
+      "color-contrast": 2,
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/en/auth/login | dark | 1440": {
+      "color-contrast": 2,
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/en/auth/login | dark | 375": {
+      "color-contrast": 2,
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/en/auth/login | dark | 768": {
+      "color-contrast": 2,
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/en/auth/login | light | 1024": {
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/en/auth/login | light | 1440": {
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/en/auth/login | light | 375": {
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/en/auth/login | light | 768": {
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/en/onboarding | dark | 1024": {
+      "color-contrast": 3,
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/en/onboarding | dark | 1440": {
+      "color-contrast": 3,
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/en/onboarding | dark | 375": {
+      "color-contrast": 3,
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/en/onboarding | dark | 768": {
+      "color-contrast": 3,
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/en/onboarding | light | 1024": {
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/en/onboarding | light | 1440": {
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/en/onboarding | light | 375": {
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/en/onboarding | light | 768": {
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/en/pricing | dark | 1024": {
+      "color-contrast": 19
+    },
+    "/en/pricing | dark | 1440": {
+      "color-contrast": 19
+    },
+    "/en/pricing | dark | 375": {
+      "color-contrast": 19
+    },
+    "/en/pricing | dark | 768": {
+      "color-contrast": 19
+    },
+    "/en/pricing | light | 1024": {
+      "color-contrast": 2
+    },
+    "/en/pricing | light | 1440": {
+      "color-contrast": 2
+    },
+    "/en/pricing | light | 375": {
+      "color-contrast": 2
+    },
+    "/en/pricing | light | 768": {
+      "color-contrast": 2
+    },
+    "/en/result/e2e00000-0000-4000-a000-000000000001 | dark | 1024": {
+      "color-contrast": 1,
+      "page-has-heading-one": 1
+    },
+    "/en/result/e2e00000-0000-4000-a000-000000000001 | dark | 1440": {
+      "color-contrast": 1,
+      "page-has-heading-one": 1
+    },
+    "/en/result/e2e00000-0000-4000-a000-000000000001 | dark | 375": {
+      "color-contrast": 1,
+      "page-has-heading-one": 1
+    },
+    "/en/result/e2e00000-0000-4000-a000-000000000001 | dark | 768": {
+      "color-contrast": 1,
+      "page-has-heading-one": 1
+    },
+    "/en/result/e2e00000-0000-4000-a000-000000000001 | light | 1024": {
+      "page-has-heading-one": 1
+    },
+    "/en/result/e2e00000-0000-4000-a000-000000000001 | light | 1440": {
+      "page-has-heading-one": 1
+    },
+    "/en/result/e2e00000-0000-4000-a000-000000000001 | light | 375": {
+      "page-has-heading-one": 1
+    },
+    "/en/result/e2e00000-0000-4000-a000-000000000001 | light | 768": {
+      "page-has-heading-one": 1
+    },
+    "/zh-HK | dark | 1024": {
+      "color-contrast": 20
+    },
+    "/zh-HK | dark | 1440": {
+      "color-contrast": 20
+    },
+    "/zh-HK | dark | 375": {
+      "color-contrast": 18
+    },
+    "/zh-HK | dark | 768": {
+      "color-contrast": 20
+    },
+    "/zh-HK | light | 1024": {},
+    "/zh-HK | light | 1440": {},
+    "/zh-HK | light | 375": {},
+    "/zh-HK | light | 768": {},
+    "/zh-HK/auth/login | dark | 1024": {
+      "color-contrast": 1,
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/zh-HK/auth/login | dark | 1440": {
+      "color-contrast": 1,
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/zh-HK/auth/login | dark | 375": {
+      "color-contrast": 1,
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/zh-HK/auth/login | dark | 768": {
+      "color-contrast": 1,
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/zh-HK/auth/login | light | 1024": {
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/zh-HK/auth/login | light | 1440": {
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/zh-HK/auth/login | light | 375": {
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/zh-HK/auth/login | light | 768": {
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/zh-HK/onboarding | dark | 1024": {
+      "color-contrast": 3,
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/zh-HK/onboarding | dark | 1440": {
+      "color-contrast": 3,
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/zh-HK/onboarding | dark | 375": {
+      "color-contrast": 3,
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/zh-HK/onboarding | dark | 768": {
+      "color-contrast": 3,
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/zh-HK/onboarding | light | 1024": {
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/zh-HK/onboarding | light | 1440": {
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/zh-HK/onboarding | light | 375": {
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/zh-HK/onboarding | light | 768": {
+      "landmark-one-main": 1,
+      "page-has-heading-one": 1,
+      "region": 5
+    },
+    "/zh-HK/pricing | dark | 1024": {
+      "color-contrast": 19
+    },
+    "/zh-HK/pricing | dark | 1440": {
+      "color-contrast": 19
+    },
+    "/zh-HK/pricing | dark | 375": {
+      "color-contrast": 19
+    },
+    "/zh-HK/pricing | dark | 768": {
+      "color-contrast": 19
+    },
+    "/zh-HK/pricing | light | 1024": {
+      "color-contrast": 2
+    },
+    "/zh-HK/pricing | light | 1440": {
+      "color-contrast": 2
+    },
+    "/zh-HK/pricing | light | 375": {
+      "color-contrast": 2
+    },
+    "/zh-HK/pricing | light | 768": {
+      "color-contrast": 2
+    },
+    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | dark | 1024": {
+      "color-contrast": 1,
+      "page-has-heading-one": 1
+    },
+    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | dark | 1440": {
+      "color-contrast": 1,
+      "page-has-heading-one": 1
+    },
+    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | dark | 375": {
+      "color-contrast": 1,
+      "page-has-heading-one": 1
+    },
+    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | dark | 768": {
+      "color-contrast": 1,
+      "page-has-heading-one": 1
+    },
+    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | light | 1024": {
+      "page-has-heading-one": 1
+    },
+    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | light | 1440": {
+      "page-has-heading-one": 1
+    },
+    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | light | 375": {
+      "page-has-heading-one": 1
+    },
+    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | light | 768": {
+      "page-has-heading-one": 1
+    }
+  }
 }
