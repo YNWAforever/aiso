@@ -25,6 +25,28 @@
 
 **Routes are constrained by fixture mode.** `lib/auth.ts:7` returns `null` from `getProfile()` when `E2E_FIXTURE_MODE === '1'`, which CI sets. `requireAuth` therefore always redirects, so **every dashboard and admin URL resolves to the login page** under this environment. Authenticated surfaces are unreachable, not merely unscanned. `/[lang]/r/[slug]` needs a live DB and an HMAC and is not visitable. `/auth/complete`, `/auth/google` and `/auth/logout` render but mutate their own DOM on mount, so they are unstable to scan.
 
+**Two sources of flakiness were found during Task 4, and both are fixed in `scan()`.**
+
+1. *Animations race the scan.* `waitUntil: 'networkidle'` waits for the network, not for CSS
+   transitions. The onboarding progress bar has a 500ms `transition-all`
+   (`components/onboarding/OnboardingWizard.tsx:228`), and axe scanned it mid-flight on roughly
+   half of runs, reporting a different node each time. `emulateMedia({ reducedMotion: 'reduce' })`
+   settles it — `app/globals.css:241` already forces `transition-duration: 0.01ms` under that
+   media query — and it also exercises the reduced-motion state the base plan requires, which
+   nothing else in the matrix covered.
+
+2. *Cold compilation serves a page without its layout.* Both local runs and CI serve the suite
+   from `next dev` (`scripts/start-playwright-ci-server.cjs:64`; the e2e job never builds first),
+   which compiles a route on first request. One run in six produced 32 simultaneous `region` and
+   `landmark-one-main` violations across every `login` and `result` cell, on generic nodes like
+   `html` and a bare `h1` — the shape of a layout-less render. A `test.beforeAll` warms every
+   route once so the first asserted scan is a warm one.
+
+Neither is cosmetic. **An intermittent violation is unrepresentable in this design**: inside the
+baseline the stale check fails on runs where it does not fire, outside it the unexpected check
+fails on runs where it does. The anti-rot rule is what makes flakiness intolerable rather than
+merely annoying, so flakiness has to be removed at the source.
+
 **Codebase conventions to match** (from `tests/e2e/auth.spec.ts` and `tests/e2e/pages/HomePage.ts`): no semicolons, single quotes, 2-space indent, numeric separators (`8_000`). Locale matrices are `as const` arrays iterated with a plain `for` loop, not `test.each`. Relative imports inside `tests/` carry a `.js` extension (`'../constants.js'`); `@/` resolves for lib imports.
 
 ---
