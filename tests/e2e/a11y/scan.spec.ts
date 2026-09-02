@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import AxeBuilder from '@axe-core/playwright'
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 import { compareToBaseline, violationSignature, type A11yFinding, type A11yTheme } from './baseline'
 import { A11Y_LOCALES, A11Y_ROUTES, A11Y_THEMES } from './matrix'
@@ -15,7 +15,16 @@ const BASELINE_PATH = join(process.cwd(), 'tests', 'e2e', 'a11y', 'baseline.json
  * broken file pass vacuously.
  */
 function readBaseline(): string[] {
-  const parsed: unknown = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'))
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'))
+  } catch (error) {
+    // A bare SyntaxError from JSON.parse names neither the file nor the fix.
+    // Both failure modes here must be equally legible -- see the shape check below.
+    throw new Error(
+      `${BASELINE_PATH} could not be read or parsed: ${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
   if (
     typeof parsed !== 'object' || parsed === null
     || !Array.isArray((parsed as { accepted?: unknown }).accepted)
@@ -42,7 +51,7 @@ function toFindings(violations: AxeViolations, route: string, theme: A11yTheme):
   )
 }
 
-async function scan(page: import('@playwright/test').Page, path: string, theme: A11yTheme) {
+async function scan(page: Page, path: string, theme: A11yTheme) {
   await page.emulateMedia({ colorScheme: theme })
   await page.goto(path, { waitUntil: 'networkidle' })
   // options({rules}) rather than withRules(): withRules runs ONLY the named
