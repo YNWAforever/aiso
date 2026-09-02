@@ -13,11 +13,16 @@ export type SupportedLang = 'en' | 'zh-HK'
  *  - /[lang]/r/[slug]: needs a live database row and an HMAC signature.
  *  - /[lang]/auth/{complete,google,logout}: each mutates its own DOM on mount
  *    (session exchange, social redirect, sign-out), so a scan races the page.
+ *  - /[lang]/admin/authority and /[lang]/pulse/[clientId]: featureUnavailable
+ *    stubs that render a translated heading and a link. They are public and
+ *    would scan cleanly, but 32 extra matrix cells for two-element pages buys
+ *    no coverage. Add them if either ever becomes a real page.
  */
 export const A11Y_ROUTES = [
   { id: 'home', path: (lang: SupportedLang) => `/${lang}` },
   { id: 'pricing', path: (lang: SupportedLang) => `/${lang}/pricing` },
   { id: 'login', path: (lang: SupportedLang) => `/${lang}/auth/login` },
+  { id: 'onboarding', path: (lang: SupportedLang) => `/${lang}/onboarding` },
   { id: 'result', path: (lang: SupportedLang) => `/${lang}/result/${TEST_SCAN_ID}` },
 ] as const
 
