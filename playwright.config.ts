@@ -27,7 +27,12 @@ export default defineConfig({
     // live-scan-smoke.spec.ts and e2e/client-reports.spec.ts whenever their
     // env gates are unset.
     { name: 'chromium', testIgnore: [...testIgnore, 'tests/e2e/a11y/**'], use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile', testIgnore: [...testIgnore, 'e2e/**/*.spec.ts', 'tests/e2e/a11y/**'], use: { ...devices['Pixel 5'] } },
+    // `testIgnore` globs are matched against the ABSOLUTE path, so the previous
+    // entry for the repository-root e2e/ directory also matched the tail of
+    // '.../tests/e2e/scan-flow.spec.ts' and excluded everything. This project
+    // discovered ZERO tests from the day it was added. An allow-list cannot
+    // fail that way, and matches how the a11y projects below are written.
+    { name: 'mobile', testMatch: 'tests/e2e/**/*.spec.ts', testIgnore: [...testIgnore, 'tests/e2e/a11y/**'], use: { ...devices['Pixel 5'] } },
     // The a11y matrix runs at the four widths the base plan's responsive
     // acceptance names, and ONLY there. Without the testIgnore entries above,
     // every a11y test would also run under chromium and mobile -- six passes
