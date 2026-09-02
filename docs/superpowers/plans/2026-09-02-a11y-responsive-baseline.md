@@ -264,9 +264,10 @@ export type SupportedLang = 'en' | 'zh-HK'
  *  - /[lang]/auth/{complete,google,logout}: each mutates its own DOM on mount
  *    (session exchange, social redirect, sign-out), so a scan races the page.
  *  - /[lang]/admin/authority and /[lang]/pulse/[clientId]: featureUnavailable
- *    stubs that render a translated heading and a link. They are public and
- *    would scan cleanly, but 32 extra matrix cells for two-element pages buys
- *    no coverage. Add them if either ever becomes a real page.
+ *    stubs that render a translated heading, one body paragraph and a back
+ *    link. They are public and would scan cleanly, but 32 extra matrix cells
+ *    for three static elements buys no coverage. Add them if either ever
+ *    becomes a real page.
  */
 export const A11Y_ROUTES = [
   { id: 'home', path: (lang: SupportedLang) => `/${lang}` },
