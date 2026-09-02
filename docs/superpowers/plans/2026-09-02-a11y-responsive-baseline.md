@@ -263,11 +263,16 @@ export type SupportedLang = 'en' | 'zh-HK'
  *  - /[lang]/r/[slug]: needs a live database row and an HMAC signature.
  *  - /[lang]/auth/{complete,google,logout}: each mutates its own DOM on mount
  *    (session exchange, social redirect, sign-out), so a scan races the page.
+ *  - /[lang]/admin/authority and /[lang]/pulse/[clientId]: featureUnavailable
+ *    stubs that render a translated heading and a link. They are public and
+ *    would scan cleanly, but 32 extra matrix cells for two-element pages buys
+ *    no coverage. Add them if either ever becomes a real page.
  */
 export const A11Y_ROUTES = [
   { id: 'home', path: (lang: SupportedLang) => `/${lang}` },
   { id: 'pricing', path: (lang: SupportedLang) => `/${lang}/pricing` },
   { id: 'login', path: (lang: SupportedLang) => `/${lang}/auth/login` },
+  { id: 'onboarding', path: (lang: SupportedLang) => `/${lang}/onboarding` },
   { id: 'result', path: (lang: SupportedLang) => `/${lang}/result/${TEST_SCAN_ID}` },
 ] as const
 
@@ -459,7 +464,7 @@ In `playwright.config.ts`, replace the `projects` array (lines 22-25) with:
 START_DEV_SERVER=1 E2E_FIXTURE_MODE=1 npx playwright test tests/e2e/a11y --reporter=list
 ```
 
-Expected: **failures**, and that is the point of this step. The baseline is empty, so every existing violation is reported as unexpected. 4 routes × 2 locales × 2 themes × 4 viewports = **64 tests**.
+Expected: **failures**, and that is the point of this step. The baseline is empty, so every existing violation is reported as unexpected. 5 routes × 2 locales × 2 themes × 4 viewports = **80 tests**.
 
 **Record the actual number of failing tests and of distinct signatures.** This is the first measurement anyone has taken of moderate-impact, dark-theme, or zh-HK accessibility on this codebase, and the number is a result worth reporting on its own.
 
@@ -483,7 +488,7 @@ Sort the array so future diffs stay readable. Do **not** hand-edit signatures �
 START_DEV_SERVER=1 E2E_FIXTURE_MODE=1 npx playwright test tests/e2e/a11y --reporter=list
 ```
 
-Expected: **64 passed**. If any test still fails, a signature in the baseline does not match the one emitted — compare them character by character rather than loosening the comparison.
+Expected: **80 passed**. If any test still fails, a signature in the baseline does not match the one emitted — compare them character by character rather than loosening the comparison.
 
 - [ ] **Step 5: Confirm the other suites are unaffected**
 
@@ -552,7 +557,7 @@ test('no accepted violation has been fixed without being removed from the baseli
 START_DEV_SERVER=1 E2E_FIXTURE_MODE=1 npx playwright test tests/e2e/a11y --reporter=list
 ```
 
-Expected: **68 passed** — 64 matrix tests plus the stale check once per viewport project. The stale test appearing four times is expected and harmless.
+Expected: **84 passed** — 80 matrix tests plus the stale check once per viewport project. The stale test appearing four times is expected and harmless.
 
 - [ ] **Step 3: Prove the gate catches a NEW violation**
 
