@@ -31,6 +31,7 @@ const PLAYWRIGHT_CLI = join(process.cwd(), 'node_modules', '@playwright', 'test'
  */
 function listAllProjects(): PlaywrightListReport {
   let stdout: string
+  let stderr = ''
   try {
     stdout = execFileSync(
       process.execPath,
@@ -38,15 +39,41 @@ function listAllProjects(): PlaywrightListReport {
       {
         encoding: 'utf8',
         cwd: process.cwd(),
-        maxBuffer: 64 * 1024 * 1024,
-        stdio: ['ignore', 'pipe', 'ignore'],
+        // ~64 KB measured for this repo's six projects (`wc -c` on the raw
+        // stdout). 8 MiB is deliberate headroom for a much larger future
+        // project matrix, not a cargo-culted default.
+        maxBuffer: 8 * 1024 * 1024,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        // execFileSync is synchronous and blocks the worker's event loop, so
+        // Vitest's own (timer-based) test timeout can never preempt it -- a
+        // hung child would wedge the test forever without this. Same guard,
+        // same reasoning, as neonctl() in __tests__/helpers/neon-branch.ts.
+        timeout: 60_000,
       },
     )
   } catch (error) {
-    stdout = (error as { stdout?: string }).stdout ?? ''
+    const err = error as { stdout?: string; stderr?: string; killed?: boolean; code?: string; signal?: string }
+    if (err.killed || err.code === 'ETIMEDOUT' || err.signal === 'SIGTERM') {
+      // On a timeout, `stdout` may hold partial JSON from the killed process.
+      // Report the timeout explicitly rather than falling through to
+      // JSON.parse, which would otherwise surface it as a confusing syntax
+      // error instead of naming the actual cause.
+      throw new Error(
+        'playwright --list timed out after 60s; project discovery cannot be verified. ' +
+        `Partial stderr: ${(err.stderr ?? '').trim() || '(none)'}`,
+      )
+    }
+    stdout = err.stdout ?? ''
+    stderr = err.stderr ?? ''
   }
   if (!stdout.trim()) {
-    throw new Error('playwright --list produced no output; project discovery cannot be verified')
+    // stderr is exactly where a genuine failure (missing entry point, a
+    // config that throws during evaluation) leaves its diagnostic -- fold it
+    // in so the failure is self-diagnosing instead of just "no output".
+    throw new Error(
+      'playwright --list produced no output; project discovery cannot be verified.' +
+      (stderr.trim() ? ` stderr: ${stderr.trim()}` : ' (stderr was also empty)'),
+    )
   }
   return JSON.parse(stdout) as PlaywrightListReport
 }
