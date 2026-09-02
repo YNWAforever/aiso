@@ -35,12 +35,23 @@
    media query — and it also exercises the reduced-motion state the base plan requires, which
    nothing else in the matrix covered.
 
-2. *Cold compilation serves a page without its layout.* Both local runs and CI serve the suite
-   from `next dev` (`scripts/start-playwright-ci-server.cjs:64`; the e2e job never builds first),
-   which compiles a route on first request. One run in six produced 32 simultaneous `region` and
-   `landmark-one-main` violations across every `login` and `result` cell, on generic nodes like
-   `html` and a bare `h1` — the shape of a layout-less render. A `test.beforeAll` warms every
-   route once so the first asserted scan is a warm one.
+2. *Cold compilation serves a page without its layout.* **KNOWN, ACCEPTED, NOT FIXED.** Both
+   local runs and CI serve the suite from `next dev` (`scripts/start-playwright-ci-server.cjs:64`;
+   the e2e job never builds first), which compiles a route on first request. One local run in six
+   produced 32 simultaneous `region` and `landmark-one-main` violations across every `login` and
+   `result` cell, on generic nodes like `html` and a bare `h1` — the shape of a layout-less render.
+
+   A `test.beforeAll` warmup was tried and **reverted**. `beforeAll` inherits Playwright's 30s
+   default timeout and runs once per worker, so six workers each firing ten cold `networkidle`
+   navigations at one dev server timed out five of them and left **36 of 80 tests never running**,
+   while doubling wall-clock from 1.3m to 3.1m. It traded a rare failure for a deterministic one.
+
+   It is accepted rather than fixed because the trigger is local parallelism, not CI: `workers:
+   isCi ? 1 : undefined` (`playwright.config.ts:19`) serialises CI requests, so the first
+   navigation to a route blocks until its compile finishes and no second request races a
+   half-built page. If this ever does fire in CI, the cheap next thing to try is warming the
+   routes with plain `fetch` in `globalSetup` — once in total, no browser, no per-worker
+   duplication — rather than a per-worker hook.
 
 Neither is cosmetic. **An intermittent violation is unrepresentable in this design**: inside the
 baseline the stale check fails on runs where it does not fire, outside it the unexpected check
