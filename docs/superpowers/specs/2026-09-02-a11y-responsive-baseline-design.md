@@ -87,7 +87,7 @@ Two failure directions, both required:
 ### 3. Viewport matrix in `playwright.config.ts`
 
 Named projects for the four widths, applied to the a11y specs only. The existing `chromium` and
-`mobile` projects keep their current behaviour so the other 24 E2E tests are unaffected.
+`mobile` projects keep their current behaviour, so every non-a11y E2E spec is unaffected.
 
 ## Error handling
 
