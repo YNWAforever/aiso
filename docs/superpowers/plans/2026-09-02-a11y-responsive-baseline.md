@@ -12,6 +12,34 @@
 
 ---
 
+---
+
+## Amended 2026-09-02 after execution — read this before following Tasks 1, 3 or 5
+
+**Tasks 1, 3, 4 and 5 as written below are superseded.** They describe a baseline keyed on
+`rule + route + theme + an element signature` taken from axe's `node.target`. Measurement
+disproved that: axe emits only as much selector specificity as it needs, so the same three
+elements appeared as `.gap-1\.5.inline-flex:nth-child(1..3)` on eight runs and
+`.gap-1\.5.inline-flex.items-center:nth-child(1..3)` on the ninth, and React `useId()` had
+already required its own normalisation patch. Roughly one run in nine failed on unrelated
+changes, which is how a gate gets switched off.
+
+**What shipped instead** (`292e14e`): counts per rule per cell, where a cell is
+`` `${route} | ${theme} | ${viewport}` ``. No selector is stored, so nothing can drift. Viewport
+joins the cell id because counts differ by width, and that lets a single test check both
+directions — so **Task 5's separate whole-matrix stale pass was not needed and does not exist**.
+
+Verified: 10 unit tests, four consecutive clean matrix runs of 80 tests each, and both directions
+proven by raising and lowering a real count and watching each message fire. 80 cells, 608
+violating nodes — consistent with the 151 element-level entries, which did not include viewport.
+
+**Task 6 still applies as written, and it earned its keep**: it caught that
+`__tests__/lib/product-facts.test.ts` pinned the literal `testIgnore: 'e2e/**/*.spec.ts'`, which
+Task 4's config change replaced with an array spread. The assertion was rewritten to test intent
+rather than syntax, and proven load-bearing.
+
+---
+
 ## Read this first
 
 **One deviation from the spec, deliberate.** The spec says `tests/e2e/a11y/` "replaces the single spec". It does **not**. `tests/e2e/accessibility.spec.ts` carries keyboard-reachability assertions (`expectReachableByTab`, which checks tab order *and* accessible name) and one interaction state — the result page after magic-link unlock. Axe checks neither, and a matrix over static routes cannot reach the second. Deleting it would trade real coverage for a tidier file layout. It stays, and is excluded from the new viewport projects so it does not multiply.
