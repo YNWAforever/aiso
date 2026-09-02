@@ -460,6 +460,14 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 - `vitest.config.ts` stubs `next/headers` and inlines `@neondatabase/auth` so its compiled
   server module loads under Node — see `__tests__/stubs/next-headers.ts`
 - E2E: Playwright in `tests/e2e/` with page objects; `npm run e2e`
+- **The `mobile` (Pixel 5) project discovered ZERO tests from the day it was added until
+  2026-09-03**, so there has never been mobile E2E coverage before that date — do not read the
+  older config as evidence otherwise. Its `testIgnore` entry for the repository-root `e2e/`
+  directory also matched the tail of `tests/e2e/scan-flow.spec.ts`, because Playwright matches
+  those globs against the **absolute** path. It now uses an allow-list `testMatch`.
+  `__tests__/config/playwright-projects.test.ts` asks Playwright how many tests each configured
+  project resolves to and fails if any resolves to none — a configured-but-empty project is
+  otherwise invisible, because the suite goes green having run nothing.
 - Coverage: `@vitest/coverage-v8` available
 
 ## i18n
