@@ -74,15 +74,36 @@ slice** — they need a signed-in fixture, which is its own piece of work.
 
 ### 2. `tests/e2e/a11y/baseline.json`
 
-Accepted violations, keyed by `rule + route + a stable element signature`. **Not the DOM selector** —
-selectors change whenever markup does, which would make the baseline churn on unrelated edits.
+**Counts per rule per cell — not selectors.** A cell is one `{route, theme, viewport}`; its id is
+`` `${route} | ${theme} | ${viewport}` ``, and route already carries the locale prefix.
+
+```json
+{ "accepted": { "/en | dark | 375": { "color-contrast": 20, "region": 7 } } }
+```
+
+**Amended 2026-09-02, after measurement.** This was originally keyed on
+`rule + route + theme + a stable element signature` derived from axe's `node.target`. That does
+not work: axe generates only as much selector specificity as it needs to disambiguate, so the
+same three elements were observed as `.gap-1\.5.inline-flex:nth-child(1..3)` on eight runs and
+`.gap-1\.5.inline-flex.items-center:nth-child(1..3)` on the ninth. An earlier patch had already
+been needed for React `useId()` appearing in a target. A gate that fails roughly one run in nine
+on unrelated PRs gets switched off, and then all 151 measured violations go back to being
+invisible. Storing a count cannot drift, because it never records a selector.
+
+Viewport is part of the cell id because counts legitimately differ by width — a responsive layout
+can hide at 375 what it shows at 1440. That has a useful consequence: each cell fully owns its
+keys, so **one test checks both directions**, and the separate whole-matrix stale pass the
+original design needed is unnecessary.
 
 Two failure directions, both required:
 
-- A violation **not** in the baseline fails. That is the gate.
-- A baseline entry that **no longer fires** also fails, with "remove this entry". Without this, dead
-  exemptions accumulate silently and the file rots into a permanent amnesty — the same shape as the
-  filter it replaces.
+- A rule whose count **rose**, or that is absent from the cell's accepted map, fails. That is the gate.
+- A rule whose count **fell**, or that stopped firing, also fails, with "lower the number". Without
+  this the file only ever grows and becomes a blanket amnesty — the same shape as the
+  `critical || serious` filter it replaces.
+
+The cost is that a failure names the rule and the cell rather than the element. The attached axe
+report has the element.
 
 ### 3. Viewport matrix in `playwright.config.ts`
 
