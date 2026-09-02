@@ -13,6 +13,17 @@
  * off. Storing a count per rule per cell cannot drift, because it never records
  * a selector at all. The cost is that a failure names the rule and the cell
  * rather than the element -- the attached axe report has the element.
+ *
+ * The baseline is recorded from CI, and CI is the authority. Counts are not
+ * fully portable across operating systems: measured 2026-09-03, `color-contrast`
+ * at `/en/pricing | dark | 768` is 18 on CI's Linux runner and 19 on Windows,
+ * reproducibly -- two independent CI runs on the same commit gave 18 both times,
+ * so this is a rendering difference, not flake. Only that one cell of eighty
+ * differs; the other seven `pricing | dark` cells agree at 19 on both platforms.
+ * The practical consequence is that a Windows developer running the matrix
+ * locally will see that single cell fail as "exceeded". Do not "fix" it by
+ * raising the number -- that would turn the cell red on CI, which is the run
+ * that gates merges. Re-record baselines from a CI run, not a local one.
  */
 
 export type A11yTheme = 'light' | 'dark'
