@@ -127,6 +127,11 @@ check missing from one locale, an empty string, or a `question` that was never a
 asserting, for both locale records: every check id is present, and every field (`question`, `why`,
 `fix.pass`, `fix.warn`, `fix.fail`) is a non-empty string.
 
+**The expected id list must come from `lib/types.ts`, not from `Object.keys(CHECK_EXPLANATIONS)`.**
+Deriving the expected set from the object under test makes the guard circular: it would pass happily
+with a check missing from *both* locales, which is precisely the case worth catching. `lib/types.ts`
+is where `c1`–`c20` are declared and is the independent source of truth.
+
 The guard must be watched failing before it is trusted — delete one locale's entry, see it fail,
 restore.
 
