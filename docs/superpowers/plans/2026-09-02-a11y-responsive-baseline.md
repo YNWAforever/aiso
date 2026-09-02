@@ -445,8 +445,14 @@ In `playwright.config.ts`, replace the `projects` array (lines 22-25) with:
 
 ```ts
   projects: [
-    { name: 'chromium', testIgnore: 'tests/e2e/a11y/**', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile', testIgnore: ['e2e/**/*.spec.ts', 'tests/e2e/a11y/**'], use: { ...devices['Pixel 5'] } },
+    // Project-level testIgnore REPLACES the top-level testIgnore rather than
+    // merging with it, so each project must re-spread the base `testIgnore`
+    // array (worktrees, the CI server dir, and the BASE_URL/fixture gates)
+    // alongside its own additions -- omitting it would silently re-enable
+    // live-scan-smoke.spec.ts and e2e/client-reports.spec.ts whenever their
+    // env gates are unset.
+    { name: 'chromium', testIgnore: [...testIgnore, 'tests/e2e/a11y/**'], use: { ...devices['Desktop Chrome'] } },
+    { name: 'mobile', testIgnore: [...testIgnore, 'e2e/**/*.spec.ts', 'tests/e2e/a11y/**'], use: { ...devices['Pixel 5'] } },
     // The a11y matrix runs at the four widths the base plan's responsive
     // acceptance names, and ONLY there. Without the testIgnore entries above,
     // every a11y test would also run under chromium and mobile -- six passes
