@@ -78,8 +78,19 @@ applied. Every local `npm run e2e` therefore dirties a tracked file (observed: a
 
 Assert that the `mobile` project discovers more than zero tests. This is the part that matters most:
 the bug survived because nothing ever checked, and "configured but running nothing" is invisible by
-construction — a green job proved nothing about it. The test must key on *discovery count*, not on
-config text, so that any future change producing the same silent outcome fails.
+construction — a green job proved nothing about it.
+
+**It must key on discovery count, not on config text.** A test asserting that `playwright.config.ts`
+contains a particular string would have passed throughout the entire period the bug existed — the
+config was always exactly what its author intended; the *matching semantics* were the surprise. The
+only way to observe the real property is to ask Playwright: spawn
+`npx playwright test --list --project=mobile --reporter=json` and assert the test count is greater
+than zero. That costs a few seconds of process startup, which is why it belongs in
+`__tests__/config/` alongside `function-durations.test.ts` — assertions about configuration rather
+than about a source module — and not in a hot unit path.
+
+Assert `> 0`, not `=== 29`. Pinning the exact number would fail on every legitimate spec addition,
+which is how a guard gets deleted.
 
 ### 5. CLAUDE.md note
 
