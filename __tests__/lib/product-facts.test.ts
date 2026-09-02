@@ -182,7 +182,12 @@ describe('PRODUCT_FACTS', () => {
     expect(source).toContain("testDir: '.'")
     expect(source).toContain("'tests/e2e/**/*.spec.ts'")
     expect(source).toContain("'e2e/**/*.spec.ts'")
-    expect(source).toContain("testIgnore: 'e2e/**/*.spec.ts'")
+    // The mobile project must still exclude the ROOT e2e/ directory. This was a
+    // literal `testIgnore: 'e2e/**/*.spec.ts'` until the a11y viewport projects
+    // landed: project-level testIgnore REPLACES the top-level one rather than
+    // merging, so each project now spreads the base array and the bare-string
+    // form no longer exists. Assert the intent, not the syntax.
+    expect(source).toMatch(/testIgnore: \[[^\]]*'e2e\/\*\*\/\*\.spec\.ts'/)
   })
 
   it('exposes the pricing comparison as a semantic table', () => {
