@@ -255,6 +255,35 @@ export interface ScanResultsV3 {
   grade?:    string
 }
 
+/**
+ * The 20 check result keys.
+ *
+ * Unions BOTH result interfaces: `ScanResults` declares c1-c16 and
+ * `ScanResultsV3` declares the four GEO checks c17-c20. Reading only the first
+ * would silently omit a fifth of the checks from anything derived from this.
+ * The template-literal filter excludes the non-check members `geoScore` and
+ * `grade`, so a bare `keyof` is not equivalent.
+ */
+export type CheckKey =
+  | Extract<keyof ScanResults, `c${number}_${string}`>
+  | Extract<keyof ScanResultsV3, `c${number}_${string}`>
+
+// Typed Record<CheckKey, true> so the compiler rejects this object if any check
+// key is missing -- the array below therefore cannot drift from the interfaces.
+// Deliberately NOT derived from CHECK_EXPLANATIONS: a guard that takes its
+// expected set from the thing it checks is circular and would pass with a check
+// absent from every locale.
+const CHECK_KEY_PRESENCE: Record<CheckKey, true> = {
+  c1_robots: true, c2_llms_txt: true, c3_bot_access: true, c4_structured_data: true,
+  c5_extractability: true, c6_llms_full_txt: true, c7_mcp_card: true, c8_sitemap: true,
+  c9_meta_desc: true, c10_headings: true, c11_faq: true, c12_canonical: true,
+  c13_render: true, c14_internal_links: true, c15_entity: true, c16_freshness: true,
+  c17_citation_density: true, c18_factual_density: true, c19_topical_authority: true,
+  c20_chunkability: true,
+}
+
+export const CHECK_KEYS = Object.keys(CHECK_KEY_PRESENCE) as CheckKey[]
+
 // ── Agent Dashboard Types ─────────────────────────────────────────
 
 export type AgentStatus = 'pending' | 'running' | 'complete' | 'error'
