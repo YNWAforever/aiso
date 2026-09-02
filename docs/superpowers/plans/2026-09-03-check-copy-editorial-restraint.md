@@ -41,6 +41,12 @@ Its `app/repo-scan-truth.ts` holds `REPO_SCAN_CHECKS`, whose 20 ids match this r
 (verified id-by-id, no gaps either direction). Each entry's array fields are ordered `[zh, en]` —
 **zh first**, which is the reverse of what you will assume.
 
+**Never run `git add -A` or `git add .` in this repository.** A directory named
+`.playwright-ci-server/` may be present in the working tree — it is a full generated copy of the
+repo produced by `scripts/start-playwright-ci-server.cjs`. The `.gitignore` rule covering it is in
+an unmerged pull request, so on this branch it is untracked *and* unignored, and a blanket add would
+commit thousands of files. Every commit step below names its files explicitly; keep it that way.
+
 ---
 
 ## File structure
@@ -352,7 +358,7 @@ Expected: all exit 0.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add -A && git commit -F- <<'EOF'
+git add "app/[lang]/dashboard/[clientId]/result/[scanId]/page.tsx" components/dashboard/ScanSummary.tsx components/ExpandableCheckItem.tsx && git commit -F- <<'EOF'
 fix(dashboard): show check explanations in the user's locale
 
 The dashboard result page and ScanSummary both imported CHECK_EXPLANATIONS --
@@ -472,7 +478,7 @@ nobody has watched fail is not known to work.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add -A && git commit -F- <<'EOF'
+git add __tests__/lib/check-explanations-parity.test.ts lib/types.ts && git commit -F- <<'EOF'
 test(checks): guard locale parity and non-empty check copy
 
 Nothing referenced CHECK_EXPLANATIONS in __tests__/, so a check missing from one
