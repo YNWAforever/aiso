@@ -46,6 +46,24 @@ Every meaningful token pair, both themes, computed from `app/globals.css`:
 `#5c5c6e` is both `--muted-foreground` and `--dash-muted` in dark; `#64748b` is both in light. So the
 whole problem is **two colours under two names each — four declarations.**
 
+> **Addendum, 2026-09-04 — this count was wrong, and the audit method is why.** Spec review during
+> implementation found a **third** name for the same two colours: `--sidebar-muted-fg`, `#64748b` in
+> `:root` and `#5c5c6e` in `.dark`, registered in `@theme` as `--color-sidebar-muted-fg`. On the
+> sidebar surfaces it gives **3.01** and **2.79** in dark and **4.34** against `--sidebar-accent` in
+> light — the identical failure.
+>
+> So it is two colours under **three** names each: **six declarations, not four.**
+>
+> The cause is the audit method above, not an oversight in a single row. It enumerated token
+> *pairs by name* and computed a ratio for each. A colour reachable under a name the audit never
+> listed is invisible to that approach, however carefully each listed row is checked. Auditing by
+> **value** — group every declaration sharing a hex, then check each group against the surfaces it
+> can land on — would have caught all six in one pass.
+>
+> `--sidebar-muted-fg` was latent rather than rendered: nothing outside `globals.css` referenced it,
+> so no user ever saw it fail. That is why fixing it cost two lines instead of a regression, and it
+> is luck rather than diligence.
+
 ## Design
 
 | token | mode | from | to | worst-case ratio after |
