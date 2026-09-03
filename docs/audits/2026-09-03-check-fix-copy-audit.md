@@ -69,3 +69,34 @@ applied consistently rather than string by string.
 
 Recommendation: treat the 6 causal/magnitude strings as a small copy fix, and the 10 threshold
 strings as a separate decision needing sign-off.
+
+---
+
+## Addendum, 2026-09-03: the category-4 conclusion above was wrong
+
+The audit called all five numeric thresholds "invented" and recommended one decision "made once and
+applied consistently". Both claims are incorrect, and the error came from judging the copy without
+reading the checks it describes.
+
+Each threshold was compared against its own check implementation:
+
+| claim | what the check does | verdict |
+|---|---|---|
+| `c6` "at least **5** key page URLs" | `lib/checks/llmsFullTxt.ts` passes at `>= 5` | **Grounded.** 5 *is* the pass threshold |
+| `c14` "at least **10** links from your homepage" | `lib/checks/internalLinks.ts` passes at `>= 10` | **Grounded.** 10 *is* the pass threshold |
+| `c17` "**3–5** citations per 1,000 words" | `lib/checks/citationDensity.ts:24` computes `citationsPerK` in that exact unit, scored `min(10, citationsPerK * 5)` — saturating at **2** | Overshoots. Defensible number is 2 |
+| `c20` "keep paragraphs **under 200 words**" | `lib/checks/chunkability.ts:45` rewards `tokenEstimate` 100–1500; at 1.3 tokens/word that is **≈77–1,154 words** | **Contradicts the check** |
+| `c19` "at least **3–5** supporting cluster articles" | `lib/checks/topicalAuthority.ts:121` scores `topicalCoverageScore >= 60`; no article-count threshold exists | **Not derivable** |
+
+So two of the five were legitimate and were wrongly flagged; one overshot; one **actively contradicted
+the scoring** — a 400-word section was penalised by the advice and rewarded by the check; and one had
+no basis.
+
+**The lesson is the framing error, not the individual numbers.** "Decide once, apply consistently"
+assumed the five were the same kind of problem. They were five different problems, and the correct
+answer differed per check. An audit of copy that never reads the code the copy describes cannot tell
+an invented number from a documented threshold — they look identical on the page.
+
+**Resolution applied:** `c6` and `c14` keep their numbers and now attribute them to the check;
+`c17` becomes 2; `c19` and `c20` drop their numbers entirely. All 16 strings, including the 6
+causal/magnitude findings, are rewritten in both locales.

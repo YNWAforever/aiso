@@ -42,7 +42,7 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     why: "JSON-LD schema markup gives AI models machine-readable context about your content — what type of page it is, who wrote it, and what it's about. Without it, that context has to be inferred from the prose.",
     fix: {
       pass: 'JSON-LD schema found — no action needed.',
-      warn: 'Only microdata was found. Migrate to JSON-LD, which AI models parse more reliably. The Fix Pack includes a FAQ JSON-LD starting point.',
+      warn: 'Only microdata was found. Migrate to JSON-LD, the format this check looks for. The Fix Pack includes a FAQ JSON-LD starting point.',
       fail: 'No structured data found. Add JSON-LD schema to your pages. The Fix Pack below generates a FAQ schema to get you started.',
     },
   },
@@ -60,7 +60,7 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     why: 'A minimal llms.txt — the file with no real content — carries almost no information. A structured file with a description and multiple URL entries describes your site to any tool that reads it.',
     fix: {
       pass: 'Your llms.txt has good depth — no action needed.',
-      warn: 'Your llms.txt exists but is sparse. Add a `#` title line, a `>` description block, and at least 5 key page URLs.',
+      warn: 'Your llms.txt exists but is sparse. Add a `#` title line, a `>` description block, and at least 5 key page URLs — 5 is where this check passes.',
       fail: 'No usable llms.txt content found. Use the Fix Pack below to generate a complete file.',
     },
   },
@@ -105,7 +105,7 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     why: 'FAQPage JSON-LD marks a question and its answer as a discrete, machine-readable pair. That makes each answer easier to extract on its own, without a model having to infer where the answer starts and ends.',
     fix: {
       pass: 'FAQPage schema found — no action needed.',
-      warn: 'FAQ content detected but no FAQPage JSON-LD schema. Add schema markup so AI models can parse and cite your answers. The Fix Pack below generates the code.',
+      warn: 'FAQ content detected but no FAQPage JSON-LD schema. Add schema markup so each question and its answer form a discrete, machine-readable pair. The Fix Pack below generates the code.',
       fail: 'No FAQ content or schema found. Add a FAQ section and FAQPage JSON-LD to at least your homepage and key landing pages. Use the Fix Pack to generate the schema.',
     },
   },
@@ -133,7 +133,7 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     fix: {
       pass: 'Strong internal linking — no action needed.',
       warn: 'Few internal links found. Add contextual links between related pages, especially from high-traffic pages to deeper content.',
-      fail: 'Very few internal links. Build a deliberate internal linking structure: at least 10 links from your homepage to key pages, and cross-links between related articles.',
+      fail: 'Very few internal links. Build a deliberate internal linking structure: this check passes at 10 or more links from your homepage to key pages. Cross-link related articles too.',
     },
   },
   c15_entity: {
@@ -141,7 +141,7 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     why: 'Organization and Person schema states who is behind the content in a machine-readable form, rather than leaving authorship to be inferred from the page.',
     fix: {
       pass: 'Entity schema found — no action needed.',
-      warn: 'Some entity signals found (og tags, author meta) but no JSON-LD. Upgrade to Organization or Person schema for stronger AI signals.',
+      warn: 'Some entity signals found (og tags, author meta) but no JSON-LD. Upgrade to Organization or Person schema so authorship is stated in machine-readable form.',
       fail: 'No entity signals found. Add `<meta property="og:site_name">` and an Organization JSON-LD block to your site header.',
     },
   },
@@ -160,7 +160,7 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     fix: {
       pass: 'Strong citation density — no action needed.',
       warn: 'Moderate citations found. Add more links to tier-1 sources (government, academic, major publications) and ensure statistics are attributed with inline source links.',
-      fail: 'Very few or no external citations found. Every factual claim should link to an authoritative source. Add at least 3–5 cited references per 1,000 words.',
+      fail: 'Very few or no external citations found. Every factual claim should link to an authoritative source. This check stops rewarding additional citations at roughly 2 per 1,000 words.',
     },
   },
   c18_factual_density: {
@@ -177,7 +177,7 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     why: 'Covering a topic across a pillar page and linked supporting articles gives a reader more than one place to land, and makes the relationship between those pages explicit. A single isolated page states less about its own context.',
     fix: {
       pass: 'Strong topical cluster structure detected — no action needed.',
-      warn: 'Partial topic coverage found. Identify your main topics and create a pillar page for each with at least 3–5 supporting cluster articles linked internally.',
+      warn: 'Partial topic coverage found. Identify your main topics and create a pillar page for each, with supporting articles linked to it.',
       fail: 'No clear topical clusters detected. Build content silos: one in-depth pillar page per key topic, surrounded by shorter cluster articles that link back to it.',
     },
   },
@@ -186,7 +186,7 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     why: 'AI models extract answers in chunks of roughly 100–1,500 tokens. Content organised under clear headings, with self-contained answer-first paragraphs, gives them a natural place to cut.',
     fix: {
       pass: 'Content is well-chunked for AI extraction — no action needed.',
-      warn: 'Some sections are hard to extract as standalone answers. Start each H2 section with a direct answer sentence, keep paragraphs under 200 words, and avoid referencing "above" or "below".',
+      warn: 'Some sections are hard to extract as standalone answers. Start each H2 section with a direct answer sentence, keep each section self-contained, and avoid referencing "above" or "below".',
       fail: 'Content has few or no H2 headings, making chunked extraction impossible. Break your content into clearly labelled H2 sections, each answering one question directly.',
     },
   },
@@ -225,7 +225,7 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     why: 'JSON-LD schema 標記為 AI 模型提供關於你內容的機器可讀脈絡 — 頁面屬於甚麼類型、由誰撰寫、講述甚麼主題。沒有它，這些脈絡只能從文字中推斷。',
     fix: {
       pass: '已找到 JSON-LD schema — 無需任何操作。',
-      warn: '只找到 microdata。請遷移至 JSON-LD，AI 模型解析起來更可靠。Fix Pack 已包含 FAQ JSON-LD 範本作為起點。',
+      warn: '只找到 microdata。請遷移至 JSON-LD，即本檢查所尋找的格式。Fix Pack 已包含 FAQ JSON-LD 範本作為起點。',
       fail: '未找到結構化資料。請為頁面加入 JSON-LD schema。下方的 Fix Pack 會生成 FAQ schema 助你開始。',
     },
   },
@@ -243,7 +243,7 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     why: '一份只有檔案、沒有實質內容的 llms.txt 幾乎不帶任何資訊。一份結構完整、附有描述及多個網址條目的檔案，能向任何會讀取它的工具說明你的網站。',
     fix: {
       pass: '你的 llms.txt 內容充實 — 無需任何操作。',
-      warn: '你的 llms.txt 存在但內容單薄。請加入 `#` 標題行、`>` 描述區塊，以及至少 5 個關鍵頁面網址。',
+      warn: '你的 llms.txt 存在但內容單薄。請加入 `#` 標題行、`>` 描述區塊，以及至少 5 個關鍵頁面網址 — 本檢查以 5 個為通過門檻。',
       fail: '未找到可用的 llms.txt 內容。使用下方的 Fix Pack 生成一份完整檔案。',
     },
   },
@@ -288,7 +288,7 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     why: 'FAQPage JSON-LD 把問題與答案標記為獨立、機器可讀的一組。這讓每個答案更容易被單獨提取，模型無須自行推斷答案的起訖位置。',
     fix: {
       pass: '已找到 FAQPage schema — 無需任何操作。',
-      warn: '偵測到 FAQ 內容但沒有 FAQPage JSON-LD schema。請加入 schema 標記，讓 AI 模型能解析並引用你的答案。下方的 Fix Pack 會生成所需程式碼。',
+      warn: '偵測到 FAQ 內容但沒有 FAQPage JSON-LD schema。請加入 schema 標記，讓每組問題與答案成為獨立、機器可讀的一對。下方的 Fix Pack 會生成所需程式碼。',
       fail: '未找到 FAQ 內容或 schema。請至少在首頁及關鍵著陸頁加入 FAQ 部分及 FAQPage JSON-LD。使用 Fix Pack 生成 schema。',
     },
   },
@@ -316,7 +316,7 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     fix: {
       pass: '內部連結結構穩健 — 無需任何操作。',
       warn: '內部連結偏少。請在相關頁面之間加入上下文連結，尤其是由高流量頁面連到較深層的內容。',
-      fail: '內部連結極少。請刻意建立內部連結結構：由首頁連往關鍵頁面至少 10 條連結，相關文章之間亦應互相連結。',
+      fail: '內部連結極少。請刻意建立內部連結結構：本檢查以由首頁連往關鍵頁面 10 條連結為通過門檻。相關文章之間亦應互相連結。',
     },
   },
   c15_entity: {
@@ -324,7 +324,7 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     why: 'Organization 及 Person schema 以機器可讀的方式說明內容背後是誰，而非讓署名資訊只能從頁面內容推斷。',
     fix: {
       pass: '已找到實體 schema — 無需任何操作。',
-      warn: '找到部分實體訊號（og 標籤、author meta）但沒有 JSON-LD。請升級至 Organization 或 Person schema，向 AI 發出更強訊號。',
+      warn: '找到部分實體訊號（og 標籤、author meta）但沒有 JSON-LD。請升級至 Organization 或 Person schema，以機器可讀的方式說明署名。',
       fail: '未找到實體訊號。請在網站 header 加入 `<meta property="og:site_name">` 及 Organization JSON-LD 區塊。',
     },
   },
@@ -343,7 +343,7 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     fix: {
       pass: '引用密度良好 — 無需任何操作。',
       warn: '引用數量一般。請加入更多頂級來源連結（政府、學術機構、主要媒體），並確保所有統計數字都附有內文來源連結。',
-      fail: '外部引用極少或完全沒有。每項事實陳述都應連結至權威來源。每 1,000 字至少加入 3–5 個引用參考。',
+      fail: '外部引用極少或完全沒有。每項事實陳述都應連結至權威來源。本檢查的評分在每 1,000 字約 2 個引用之後便不再提升。',
     },
   },
   c18_factual_density: {
@@ -360,7 +360,7 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     why: '以支柱頁加上互相連結的支援文章覆蓋同一主題，能為讀者提供多個入口，也讓頁面之間的關係更明確。單一孤立的頁面能交代的脈絡較少。',
     fix: {
       pass: '偵測到穩健的主題群組結構 — 無需任何操作。',
-      warn: '主題覆蓋不完整。請確定你的核心主題，為每個主題建立一個支柱頁，並配以至少 3–5 篇互相連結的支援群組文章。',
+      warn: '主題覆蓋不完整。請確定你的核心主題，為每個主題建立一個支柱頁，並配以互相連結的支援文章。',
       fail: '未偵測到清晰的主題群組。請建立內容專區：每個關鍵主題一個深入的支柱頁，周圍配以連結回支柱頁的較短群組文章。',
     },
   },
@@ -369,7 +369,7 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     why: 'AI 模型以大約 100–1,500 個 token 為單位提取答案。內容若在清晰標題之下、以自成一體、答案先行的段落組織，便有自然的切分位置。',
     fix: {
       pass: '內容分塊結構良好，便於 AI 提取 — 無需任何操作。',
-      warn: '部分段落難以作為獨立答案被提取。每個 H2 段落應以直接回答的句子開頭，段落保持在 200 字以內，並避免使用「上文」、「下文」等指涉。',
+      warn: '部分段落難以作為獨立答案被提取。每個 H2 段落應以直接回答的句子開頭，內容自成一體，並避免使用「上文」、「下文」等指涉。',
       fail: '內容的 H2 標題極少或完全沒有，無法進行分塊提取。請將內容拆分為標示清晰的 H2 段落，每段直接回答一條問題。',
     },
   },
