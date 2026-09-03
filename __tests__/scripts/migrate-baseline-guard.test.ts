@@ -41,12 +41,19 @@ function entries(files: string[]) {
  * migration's CREATE TABLE statement, not re-verified against a live
  * database. Kept as a literal so the guard can be exercised without a
  * database.
+ *
+ * cron_runs (039) WAS verified against a live database: 039 was applied to a
+ * throwaway Neon branch on PostgreSQL 16, and the table, its index and
+ * aeo_app's select/insert/update grants were all read back before the branch
+ * was deleted. So this entry has the same standing as the original 33, not the
+ * weaker from-the-SQL standing of alert_email_deliveries.
  */
 const ALL_TABLES = [
   'account_report_branding', 'accounts', 'agent_competitors', 'agent_progress',
   'agent_recommendations', 'ai_citation_log', 'alert_configs', 'alert_email_deliveries',
   'authenticated_scan_monthly_usage', 'authority_overrides', 'authority_scores',
   'chunk_analysis', 'client_report_versions', 'client_reports', 'clients', 'content_briefs',
+  'cron_runs',
   'domain_signals', 'fix_packs', 'industry_packs', 'local_trust_actions', 'local_trust_profiles',
   'local_trust_snapshots', 'notifications', 'profiles', 'prompt_bank', 'public_scan_rate_limits',
   'pulse_metrics', 'pulse_weekly_summary', 'regional_packs', 'scans', 'schema_migrations',
