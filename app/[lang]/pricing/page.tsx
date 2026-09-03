@@ -51,7 +51,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false)
   const contentId = useId()
   return (
-    <div className="border-b border-slate-100 last:border-0">
+    <div className="border-b border-border last:border-0">
       <button
         type="button"
         aria-expanded={open}
@@ -333,7 +333,7 @@ export default function PricingPage() {
               )
             })}
           </div>
-          <aside className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6 sm:flex sm:items-center sm:justify-between sm:gap-6">
+          <aside className="mt-8 rounded-2xl border border-border bg-muted p-6 sm:flex sm:items-center sm:justify-between sm:gap-6">
             <div>
               <h3 className="font-bold text-foreground">{t('enterprise_custom_title')}</h3>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
@@ -342,7 +342,7 @@ export default function PricingPage() {
             </div>
             <a
               href="mailto:aeo@fimmick.com"
-              className="mt-4 inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card px-5 text-sm font-semibold text-foreground transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:mt-0"
+              className="mt-4 inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card px-5 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:mt-0"
             >
               {t('enterprise_custom_cta')}
             </a>
@@ -366,7 +366,7 @@ export default function PricingPage() {
           >
             <table className="w-full table-fixed min-w-[400px] overflow-hidden rounded-2xl sm:min-w-[720px] border border-border bg-card shadow-sm">
               <thead>
-                <tr className="bg-slate-50">
+                <tr className="bg-muted">
                   <th scope="col" className="border-b border-border p-4 text-left text-xs font-semibold text-muted-foreground">
                     {t('comparison_feature')}
                   </th>
@@ -384,7 +384,7 @@ export default function PricingPage() {
               <tbody>
                 {rows.map((row, i) => {
                   const borderClass = i === rows.length - 1 ? '' : 'border-b border-border'
-                  const rowClass = row.highlight ? 'bg-primary/3' : i % 2 !== 0 ? 'bg-slate-50/50' : ''
+                  const rowClass = row.highlight ? 'bg-primary/3' : i % 2 !== 0 ? 'bg-muted/50' : ''
                   const cellProps = {
                     includedLabel: t('included'),
                     notIncludedLabel: t('not_included'),
