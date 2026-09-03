@@ -60,6 +60,48 @@
   --dash-success:  #16a34a;
   --dash-warning:  #d97706;
   --dash-danger:   #dc2626;
+
+  /* ── Donor brand palette (aisogpt @ 52cbcb4) ───────────────────
+     Added additively. Nothing here is referenced yet; these exist so a later
+     slice porting a donor CSS rule can use var(--paper) etc. verbatim rather
+     than translating names at every point of use.
+     The donor ships NO dark-mode values, so none of these have a .dark
+     counterpart. Do not invent one -- authoring that ramp is its own slice. */
+  --paper:        #f7f8f3;
+  --paper-deep:   #eef1ea;
+  --ink:          #10233f;
+  --ink-soft:     #354762;
+  --cobalt:       #2457e6;
+  --cobalt-dark:  #1742b9;
+  --lime:         #c8ee63;
+  --lime-soft:    #effbd0;
+  --white:        #ffffff;
+  --line:         #dce2df;
+  --line-strong:  #c8d0cd;
+  --danger:       #bd3d45;
+  --danger-soft:  #fff0f1;
+  --info:         #6f4bc4;
+  --info-soft:    #f2edff;
+  --success-soft: #e7f7ef;
+  --warning-soft: #fff4d8;
+
+  /* These three collide with existing tokens, so they are prefixed rather than
+     overwritten -- writing them bare would repaint the application.
+
+     --brand-muted is the dangerous one. The donor's --muted is a FOREGROUND
+     grey; this repo's --muted (#f1f5f9) is a SURFACE. The real equivalent of
+     the donor's --muted here is --muted-foreground (#64748b), NOT --muted.
+     The donor itself sidesteps this at its globals.css:65, registering
+     --color-muted: var(--paper-deep) rather than var(--muted) -- which is why
+     the Tailwind utilities agree across both repos while the raw variable does
+     not, and why the trap is quiet.
+
+     --brand-success (#0b724b) and --brand-warning (#945700) are the same role
+     as the existing --success (#16a34a) and --warning (#d97706), just darker.
+     Overwriting would recolour every success and warning affordance. */
+  --brand-muted:   #5f6b7e;
+  --brand-success: #0b724b;
+  --brand-warning: #945700;
 }
 
 /* ── Dark mode tokens ──────────────────────────────────────── */
@@ -128,6 +170,8 @@
   --color-foreground:           var(--foreground);
   --color-card:                 var(--card);
   --color-card-foreground:      var(--card-foreground);
+  --color-popover:              var(--popover);
+  --color-popover-foreground:   var(--popover-foreground);
   --color-primary:              var(--primary);
   --color-primary-foreground:   var(--primary-foreground);
   --color-primary-accessible:   var(--primary-accessible);
@@ -168,8 +212,8 @@
   --color-dash-warning:   var(--dash-warning);
   --color-dash-danger:    var(--dash-danger);
 
-  --font-sans:                  var(--font-geist-sans);
-  --font-mono:                  var(--font-geist-mono);
+  --font-sans:                  Inter, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", Arial, sans-serif;
+  --font-mono:                  "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --radius-sm:                  calc(var(--radius) - 0.25rem);
   --radius-md:                  var(--radius);
   --radius-lg:                  calc(var(--radius) + 0.125rem);
@@ -225,7 +269,7 @@ details[open] > summary .chevron-icon {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
