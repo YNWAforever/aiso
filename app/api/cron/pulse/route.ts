@@ -1,6 +1,7 @@
 import { NextResponse, after, type NextRequest } from 'next/server'
 
 import { appOrigin } from '@/lib/app-origin'
+import { startCronRun, finishCronRun } from '@/lib/cron/recordRun'
 import { db } from '@/lib/db'
 import { countConfiguredClients, selectPendingClients } from '@/lib/pulse/schedule'
 
@@ -60,89 +61,104 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const url = new URL(req.url)
-  const hop = Number(url.searchParams.get('hop') ?? '0')
-  if (!Number.isFinite(hop) || hop < 0 || hop >= MAX_CHAIN) {
-    return NextResponse.json({ error: 'Chain limit reached', hop }, { status: 200 })
-  }
-
-  const startedAt = Date.now()
-  let pending: Awaited<ReturnType<typeof selectPendingClients>>
+  const runId = await startCronRun('/api/cron/pulse')
   try {
-    pending = await selectPendingClients(db(), 1)
-  } catch {
-    console.error('[cron/pulse] pending-client lookup failed')
-    return NextResponse.json({ error: 'Lookup failed' }, { status: 503 })
-  }
+    const url = new URL(req.url)
+    const hop = Number(url.searchParams.get('hop') ?? '0')
+    if (!Number.isFinite(hop) || hop < 0 || hop >= MAX_CHAIN) {
+      const payload = { error: 'Chain limit reached', hop }
+      await finishCronRun(runId, 'ok', payload)
+      return NextResponse.json(payload, { status: 200 })
+    }
 
-  if (pending.length === 0) {
-    // An empty pending list is ambiguous: selectPendingClients excludes clients
-    // already rolled up this week, so it is also empty when every client is
-    // done. configuredClients separates "nothing left to do" from "nothing was
-    // ever set up" -- the latter is how this cron returned a healthy 200 every
-    // Monday for six weeks while prompt_bank was empty.
-    let configuredClients = 0
+    const startedAt = Date.now()
+    let pending: Awaited<ReturnType<typeof selectPendingClients>>
     try {
-      configuredClients = await countConfiguredClients(db())
+      pending = await selectPendingClients(db(), 1)
     } catch {
-      configuredClients = -1
+      console.error('[cron/pulse] pending-client lookup failed')
+      const payload = { error: 'Lookup failed' }
+      await finishCronRun(runId, 'ok', payload)
+      return NextResponse.json(payload, { status: 503 })
     }
 
-    if (configuredClients === 0) {
-      console.error('[cron/pulse] no client has an active prompt bank; nothing will ever be scanned')
-    }
-
-    return NextResponse.json({ done: true, hop, processed: 0, configuredClients })
-  }
-
-  const target = pending[0]
-  let result: { processed?: number; nextCursor?: number | null } = {}
-  try {
-    const res = await fetch(`${appOrigin()}/api/pulse/run`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-cron-secret': cronSecret },
-      body: JSON.stringify({ clientId: target.clientId, cursor: target.cursor }),
-    })
-    if (!res.ok) {
-      // Do not chain past a failing client — it would spin the whole budget on
-      // the same error. The next firing retries it from the same derived cursor.
-      console.error(`[cron/pulse] producer returned ${res.status} for ${target.clientId}`)
-      return NextResponse.json(
-        { error: 'Producer failed', status: res.status, clientId: target.clientId },
-        { status: 502 },
-      )
-    }
-    result = await res.json()
-  } catch {
-    console.error('[cron/pulse] producer call failed')
-    return NextResponse.json({ error: 'Producer unreachable' }, { status: 502 })
-  }
-
-  // Chain only if there is budget left to be worth another hop. `after()` runs
-  // once the response is sent, so this invocation is not holding the connection
-  // open for its successor.
-  const moreWork = result.nextCursor !== null || pending.length > 0
-  const chained = moreWork && Date.now() - startedAt < BUDGET_MS
-  if (chained) {
-    const next = new URL('/api/cron/pulse', appOrigin())
-    next.searchParams.set('hop', String(hop + 1))
-    after(async () => {
+    if (pending.length === 0) {
+      // An empty pending list is ambiguous: selectPendingClients excludes clients
+      // already rolled up this week, so it is also empty when every client is
+      // done. configuredClients separates "nothing left to do" from "nothing was
+      // ever set up" -- the latter is how this cron returned a healthy 200 every
+      // Monday for six weeks while prompt_bank was empty.
+      let configuredClients = 0
       try {
-        await fetch(next, { headers: { authorization: `Bearer ${cronSecret}` } })
+        configuredClients = await countConfiguredClients(db())
       } catch {
-        // A dropped link costs throughput, not correctness: the next scheduled
-        // firing resumes from the same derived progress.
-        console.error('[cron/pulse] chain hop failed')
+        configuredClients = -1
       }
-    })
-  }
 
-  return NextResponse.json({
-    hop,
-    clientId: target.clientId,
-    cursor: target.cursor,
-    processed: result.processed ?? 0,
-    nextCursor: result.nextCursor ?? null,
-    chained,
-  })
+      if (configuredClients === 0) {
+        console.error('[cron/pulse] no client has an active prompt bank; nothing will ever be scanned')
+      }
+
+      const payload = { done: true, hop, processed: 0, configuredClients }
+      await finishCronRun(runId, 'ok', payload)
+      return NextResponse.json(payload)
+    }
+
+    const target = pending[0]
+    let result: { processed?: number; nextCursor?: number | null } = {}
+    try {
+      const res = await fetch(`${appOrigin()}/api/pulse/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-cron-secret': cronSecret },
+        body: JSON.stringify({ clientId: target.clientId, cursor: target.cursor }),
+      })
+      if (!res.ok) {
+        // Do not chain past a failing client — it would spin the whole budget on
+        // the same error. The next firing retries it from the same derived cursor.
+        console.error(`[cron/pulse] producer returned ${res.status} for ${target.clientId}`)
+        const payload = { error: 'Producer failed', status: res.status, clientId: target.clientId }
+        await finishCronRun(runId, 'ok', payload)
+        return NextResponse.json(payload, { status: 502 })
+      }
+      result = await res.json()
+    } catch {
+      console.error('[cron/pulse] producer call failed')
+      const payload = { error: 'Producer unreachable' }
+      await finishCronRun(runId, 'ok', payload)
+      return NextResponse.json(payload, { status: 502 })
+    }
+
+    // Chain only if there is budget left to be worth another hop. `after()` runs
+    // once the response is sent, so this invocation is not holding the connection
+    // open for its successor.
+    const moreWork = result.nextCursor !== null || pending.length > 0
+    const chained = moreWork && Date.now() - startedAt < BUDGET_MS
+    if (chained) {
+      const next = new URL('/api/cron/pulse', appOrigin())
+      next.searchParams.set('hop', String(hop + 1))
+      after(async () => {
+        try {
+          await fetch(next, { headers: { authorization: `Bearer ${cronSecret}` } })
+        } catch {
+          // A dropped link costs throughput, not correctness: the next scheduled
+          // firing resumes from the same derived progress.
+          console.error('[cron/pulse] chain hop failed')
+        }
+      })
+    }
+
+    const payload = {
+      hop,
+      clientId: target.clientId,
+      cursor: target.cursor,
+      processed: result.processed ?? 0,
+      nextCursor: result.nextCursor ?? null,
+      chained,
+    }
+    await finishCronRun(runId, 'ok', payload)
+    return NextResponse.json(payload)
+  } catch (err) {
+    await finishCronRun(runId, 'error', undefined, err instanceof Error ? err.message : String(err))
+    throw err
+  }
 }

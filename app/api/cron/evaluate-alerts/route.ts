@@ -20,6 +20,7 @@ import {
   type AlertEvaluationPorts,
 } from '@/lib/alerts/evaluate'
 import { createNeonAlertStore } from '@/lib/alerts/neon-store'
+import { startCronRun, finishCronRun } from '@/lib/cron/recordRun'
 import { db } from '@/lib/db'
 import { sendAlertEmail as deliverAlertEmail } from '@/lib/resend'
 
@@ -133,8 +134,15 @@ export async function GET(req: Request) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const result = await evaluateAlerts()
-  return Response.json(result, { status: evaluationStatus(result) })
+  const runId = await startCronRun('/api/cron/evaluate-alerts')
+  try {
+    const result = await evaluateAlerts()
+    await finishCronRun(runId, 'ok', result)
+    return Response.json(result, { status: evaluationStatus(result) })
+  } catch (err) {
+    await finishCronRun(runId, 'error', undefined, err instanceof Error ? err.message : String(err))
+    throw err
+  }
 }
 
 export async function POST(req: Request) {
