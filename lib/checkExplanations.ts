@@ -1,11 +1,18 @@
 export interface CheckExplanation {
+  /**
+   * The plain-language thing this check is asking, in the user's locale.
+   * Required, not optional: an optional field lets a check ship without one
+   * and nothing notices until a user sees a blank row.
+   */
+  question: string
   why: string
   fix: { pass: string; warn: string; fail: string }
 }
 
 export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
   c1_robots: {
-    why: 'AI crawlers like GPTBot, ClaudeBot and PerplexityBot check robots.txt before fetching any page. Blocking them means your content is invisible to every AI search engine.',
+    question: 'Are public pages available to declared crawlers?',
+    why: 'AI crawlers like GPTBot, ClaudeBot and PerplexityBot read robots.txt before fetching a page. Blocking rules there can prevent an allowed crawler from retrieving your content.',
     fix: {
       pass: 'AI bots are explicitly permitted — no action needed.',
       warn: 'Add explicit Allow rules for the major AI bots. The Fix Pack below includes a ready-to-use robots.txt patch.',
@@ -13,7 +20,8 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c2_llms_txt: {
-    why: 'llms.txt is the AI equivalent of sitemap.xml — it tells every AI platform what your site covers, who you are, and which pages are most important to cite.',
+    question: 'Is an optional concise site summary available?',
+    why: 'llms.txt is an emerging content-map convention, not a ranking or citation requirement. Where it is read, it describes what your site covers and which pages matter most.',
     fix: {
       pass: 'Your llms.txt is present — no action needed.',
       warn: 'Your llms.txt exists but has no content. Add a title, description and key URLs using the Fix Pack below.',
@@ -21,6 +29,7 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c3_bot_access: {
+    question: 'Do declared crawler requests receive a normal response?',
     why: 'Even if robots.txt allows bots, network-level blocks (Cloudflare, WAF rules, geo-fencing) can prevent AI crawlers from fetching your pages at all.',
     fix: {
       pass: 'All tested AI bots can access your site — no action needed.',
@@ -29,7 +38,8 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c4_structured_data: {
-    why: 'JSON-LD schema markup gives AI models machine-readable context about your content — what type of page it is, who wrote it, and what it\'s about. Pages without schema are cited less often.',
+    question: 'Can systems identify the business, page and product type?',
+    why: "JSON-LD schema markup gives AI models machine-readable context about your content — what type of page it is, who wrote it, and what it's about. Without it, that context has to be inferred from the prose.",
     fix: {
       pass: 'JSON-LD schema found — no action needed.',
       warn: 'Only microdata was found. Migrate to JSON-LD, which AI models parse more reliably. The Fix Pack includes a FAQ JSON-LD starting point.',
@@ -37,6 +47,7 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c5_extractability: {
+    question: 'Is the key customer answer present in page text?',
     why: 'AI models can only cite text they can read. If your content is locked inside JavaScript components that require execution to render, it may never be indexed.',
     fix: {
       pass: 'Content is extractable — no action needed.',
@@ -45,7 +56,8 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c6_llms_full_txt: {
-    why: 'A minimal llms.txt (just the file, no real content) gives AI models little signal. A well-structured file with a description and multiple URL entries significantly improves how AI platforms understand your site.',
+    question: 'Does the optional summary cover key pages?',
+    why: 'A minimal llms.txt — the file with no real content — carries almost no information. A structured file with a description and multiple URL entries describes your site to any tool that reads it.',
     fix: {
       pass: 'Your llms.txt has good depth — no action needed.',
       warn: 'Your llms.txt exists but is sparse. Add a `#` title line, a `>` description block, and at least 5 key page URLs.',
@@ -53,7 +65,8 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c7_mcp_card: {
-    why: 'Emerging AI platforms check /.well-known/ai.json for structured information about your site. Early adoption signals AI-readiness and may give you an edge as this standard becomes mainstream.',
+    question: 'Is optional machine-readable service metadata present?',
+    why: 'Some emerging AI tools look for /.well-known/ai.json for structured information about your site. Adoption is early and the convention is not settled, so treat this as optional rather than foundational.',
     fix: {
       pass: 'AI metadata endpoint found — no action needed.',
       warn: 'AI meta tags were found but no formal endpoint. Create /.well-known/ai.json with your site name, description and contact.',
@@ -61,6 +74,7 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c8_sitemap: {
+    question: 'Can systems discover the important public pages?',
     why: 'AI crawlers use your sitemap to discover and prioritise which pages to index. Without one, they may miss your most important content entirely.',
     fix: {
       pass: 'Sitemap found with good coverage — no action needed.',
@@ -69,7 +83,8 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c9_meta_desc: {
-    why: 'The meta description is often used verbatim by AI platforms when summarising your page. A concise, accurate description (50–160 characters) increases the chance of your summary being cited.',
+    question: 'Does each key page explain its purpose?',
+    why: 'The meta description is the page summary you control. Search and AI tools may use it when presenting your page, so a concise, accurate description (50–160 characters) is worth writing deliberately.',
     fix: {
       pass: 'Meta description is well-formed — no action needed.',
       warn: 'Meta description length is outside the ideal range. Target 50–160 characters that clearly summarise the page\'s purpose.',
@@ -77,6 +92,7 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c10_headings: {
+    question: 'Can a customer scan the page and find the answer?',
     why: 'AI models use heading hierarchy to understand the structure of your content. One clear H1 and multiple H2 subheadings make it easy to extract distinct, citable chunks of information.',
     fix: {
       pass: 'Heading hierarchy is clear — no action needed.',
@@ -85,7 +101,8 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c11_faq: {
-    why: 'FAQ pages with FAQPage JSON-LD schema are cited 3× more often by AI search engines because they directly answer question-format queries. Even 3 well-written Q&As make a significant difference.',
+    question: 'Does the page answer common buying questions directly?',
+    why: 'FAQPage JSON-LD marks a question and its answer as a discrete, machine-readable pair. That makes each answer easier to extract on its own, without a model having to infer where the answer starts and ends.',
     fix: {
       pass: 'FAQPage schema found — no action needed.',
       warn: 'FAQ content detected but no FAQPage JSON-LD schema. Add schema markup so AI models can parse and cite your answers. The Fix Pack below generates the code.',
@@ -93,6 +110,7 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c12_canonical: {
+    question: 'Is the intended page version unambiguous?',
     why: 'Canonical tags tell AI crawlers which version of a page is authoritative. Without them, crawlers may split authority across duplicate URLs (e.g. with/without trailing slash, http vs https).',
     fix: {
       pass: 'Canonical URL is correctly set — no action needed.',
@@ -101,6 +119,7 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c13_render: {
+    question: 'Is useful content available before complex scripts run?',
     why: 'AI crawlers typically do not execute JavaScript. If your page text only appears after JS runs, crawlers see a near-empty page and have nothing to cite.',
     fix: {
       pass: 'Content is rich in server-rendered HTML — no action needed.',
@@ -109,7 +128,8 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c14_internal_links: {
-    why: 'Internal links signal content relationships to AI crawlers and help them discover all your pages. Sites with dense internal linking are indexed more completely.',
+    question: 'Do relevant pages lead customers to the intended answer?',
+    why: 'Internal links are how a crawler moves between your pages. A page with no inbound internal link can only be found through the sitemap or an external link.',
     fix: {
       pass: 'Strong internal linking — no action needed.',
       warn: 'Few internal links found. Add contextual links between related pages, especially from high-traffic pages to deeper content.',
@@ -117,7 +137,8 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c15_entity: {
-    why: 'Organization and Person schema markup tells AI models who is behind the content, increasing trustworthiness signals and the likelihood of attribution when cited.',
+    question: 'Is it clear which company and product the page describes?',
+    why: 'Organization and Person schema states who is behind the content in a machine-readable form, rather than leaving authorship to be inferred from the page.',
     fix: {
       pass: 'Entity schema found — no action needed.',
       warn: 'Some entity signals found (og tags, author meta) but no JSON-LD. Upgrade to Organization or Person schema for stronger AI signals.',
@@ -125,7 +146,8 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c16_freshness: {
-    why: 'AI models prefer recent, up-to-date content. dateModified and datePublished in your JSON-LD schema tell AI platforms when your content was last reviewed.',
+    question: 'Can customers tell whether the information is current?',
+    why: 'dateModified and datePublished in your JSON-LD state when the content was last reviewed. Without them, age has to be guessed from the content itself.',
     fix: {
       pass: 'Content freshness signals confirmed — no action needed.',
       warn: 'Date signals found but content appears old. Update your dateModified field whenever you revise content, even minor updates.',
@@ -133,7 +155,8 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c17_citation_density: {
-    why: 'AI models weight content that cites authoritative external sources. Pages with tier-1 citations (NIH, Bloomberg, Reuters) are significantly more likely to be quoted verbatim by AI search engines than uncited claims.',
+    question: 'Can important claims be traced to a credible source?',
+    why: 'Citing authoritative external sources lets a reader — or a model — verify a claim. Citation density supports verification; it does not by itself produce an AI citation.',
     fix: {
       pass: 'Strong citation density — no action needed.',
       warn: 'Moderate citations found. Add more links to tier-1 sources (government, academic, major publications) and ensure statistics are attributed with inline source links.',
@@ -141,7 +164,8 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c18_factual_density: {
-    why: 'AI systems prefer content with concrete, verifiable data — percentages, named entities, dates, and comparative figures. Vague, superlative-heavy content is rarely cited because it cannot be fact-checked.',
+    question: 'Does the answer include useful facts rather than vague claims?',
+    why: 'Concrete data — percentages, named entities, dates, comparative figures — can be checked against a source. Vague or superlative-heavy claims cannot, by anyone.',
     fix: {
       pass: 'Good factual density — no action needed.',
       warn: 'Some facts found but content could be more data-rich. Add specific numbers, date references, and comparative statements (e.g. "up 23% YoY from $3.4B to $4.2B").',
@@ -149,7 +173,8 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c19_topical_authority: {
-    why: 'AI models prefer sources that cover a topic deeply across multiple pages (pillar + cluster structure). A single page on a topic ranks lower for AI citation than a site with a pillar guide plus 5+ supporting articles.',
+    question: 'Does the site cover the main questions around the offer?',
+    why: 'Covering a topic across a pillar page and linked supporting articles gives a reader more than one place to land, and makes the relationship between those pages explicit. A single isolated page states less about its own context.',
     fix: {
       pass: 'Strong topical cluster structure detected — no action needed.',
       warn: 'Partial topic coverage found. Identify your main topics and create a pillar page for each with at least 3–5 supporting cluster articles linked internally.',
@@ -157,7 +182,8 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     },
   },
   c20_chunkability: {
-    why: 'AI models extract answers in chunks of 100–1,500 tokens. Content structured under clear headings with self-contained, answer-first paragraphs is extracted and cited at a much higher rate than wall-of-text prose.',
+    question: 'Can each section answer one question on its own?',
+    why: 'AI models extract answers in chunks of roughly 100–1,500 tokens. Content organised under clear headings, with self-contained answer-first paragraphs, gives them a natural place to cut.',
     fix: {
       pass: 'Content is well-chunked for AI extraction — no action needed.',
       warn: 'Some sections are hard to extract as standalone answers. Start each H2 section with a direct answer sentence, keep paragraphs under 200 words, and avoid referencing "above" or "below".',
@@ -168,7 +194,8 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
 
 export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
   c1_robots: {
-    why: 'GPTBot、ClaudeBot 同 PerplexityBot 等 AI 爬蟲在抓取任何頁面之前，都會先檢查 robots.txt。一旦封鎖它們，你的內容就會在所有 AI 搜尋引擎中完全隱形。',
+    question: '搜尋系統是否獲准讀取公開頁面？',
+    why: 'GPTBot、ClaudeBot 與 PerplexityBot 等 AI 爬蟲在讀取頁面前會先查看 robots.txt。當中的封鎖規則可能令獲准的爬蟲無法讀取你的內容。',
     fix: {
       pass: 'AI 爬蟲已獲明確允許 — 無需任何操作。',
       warn: '為主要 AI 爬蟲加入明確的 Allow 規則。下方的 Fix Pack 已包含可直接使用的 robots.txt 修補檔。',
@@ -176,7 +203,8 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c2_llms_txt: {
-    why: 'llms.txt 相當於 AI 世界的 sitemap.xml — 它告訴每個 AI 平台你的網站涵蓋甚麼內容、你是誰，以及哪些頁面最值得引用。',
+    question: '網站是否提供可選的簡潔內容摘要？',
+    why: 'llms.txt 是新興的內容地圖慣例，並非排名或引用的必要條件。在有讀取的情況下，它說明你的網站涵蓋什麼內容，以及哪些頁面最重要。',
     fix: {
       pass: '你的 llms.txt 已存在 — 無需任何操作。',
       warn: '你的 llms.txt 存在但沒有內容。使用下方的 Fix Pack 加入標題、描述及關鍵網址。',
@@ -184,6 +212,7 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c3_bot_access: {
+    question: '申報的搜尋系統請求能否取得正常回應？',
     why: '即使 robots.txt 允許爬蟲存取，網絡層面的封鎖（Cloudflare、WAF 規則、地域限制）仍可能令 AI 爬蟲完全無法抓取你的頁面。',
     fix: {
       pass: '所有測試的 AI 爬蟲都能存取你的網站 — 無需任何操作。',
@@ -192,7 +221,8 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c4_structured_data: {
-    why: 'JSON-LD schema 標記為 AI 模型提供關於你內容的機器可讀脈絡 — 頁面屬於甚麼類型、由誰撰寫、講述甚麼主題。沒有 schema 的頁面獲引用的機會較低。',
+    question: '系統能否分辨公司、頁面及產品類型？',
+    why: 'JSON-LD schema 標記為 AI 模型提供關於你內容的機器可讀脈絡 — 頁面屬於甚麼類型、由誰撰寫、講述甚麼主題。沒有它，這些脈絡只能從文字中推斷。',
     fix: {
       pass: '已找到 JSON-LD schema — 無需任何操作。',
       warn: '只找到 microdata。請遷移至 JSON-LD，AI 模型解析起來更可靠。Fix Pack 已包含 FAQ JSON-LD 範本作為起點。',
@@ -200,6 +230,7 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c5_extractability: {
+    question: '主要客戶答案是否直接出現在頁面？',
     why: 'AI 模型只能引用它讀得到的文字。如果你的內容被鎖在需要執行才能呈現的 JavaScript 元件之內，便可能永遠不會被索引。',
     fix: {
       pass: '內容可被提取 — 無需任何操作。',
@@ -208,7 +239,8 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c6_llms_full_txt: {
-    why: '一份只有檔案、沒有實質內容的 llms.txt，能給 AI 模型的訊號很少。一份結構完整、附有描述及多個網址條目的檔案，能大幅提升 AI 平台對你網站的理解。',
+    question: '可選網站摘要是否涵蓋主要頁面？',
+    why: '一份只有檔案、沒有實質內容的 llms.txt 幾乎不帶任何資訊。一份結構完整、附有描述及多個網址條目的檔案，能向任何會讀取它的工具說明你的網站。',
     fix: {
       pass: '你的 llms.txt 內容充實 — 無需任何操作。',
       warn: '你的 llms.txt 存在但內容單薄。請加入 `#` 標題行、`>` 描述區塊，以及至少 5 個關鍵頁面網址。',
@@ -216,7 +248,8 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c7_mcp_card: {
-    why: '新興 AI 平台會檢查 /.well-known/ai.json 以取得你網站的結構化資訊。及早採用代表你已為 AI 做好準備，當這項標準普及時，你便能搶佔先機。',
+    question: '是否有機器可讀的服務資料？',
+    why: '部分新興 AI 工具會檢查 /.well-known/ai.json 以取得你網站的結構化資訊。此慣例仍在早期階段、尚未定型，宜視為可選項目而非基礎工作。',
     fix: {
       pass: '已找到 AI 元資料端點 — 無需任何操作。',
       warn: '找到 AI meta 標籤但沒有正式端點。請建立 /.well-known/ai.json，包含你的網站名稱、描述及聯絡資訊。',
@@ -224,6 +257,7 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c8_sitemap: {
+    question: '系統能否找到重要公開頁面？',
     why: 'AI 爬蟲利用你的 sitemap 來發現頁面並決定索引的優先次序。沒有 sitemap，它們可能完全錯過你最重要的內容。',
     fix: {
       pass: '已找到 sitemap 且覆蓋良好 — 無需任何操作。',
@@ -232,7 +266,8 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c9_meta_desc: {
-    why: 'AI 平台在概括你的頁面時，經常會原文使用 meta description。一段簡潔準確的描述（50–160 字元）能提高你的摘要獲引用的機會。',
+    question: '每個主要頁面有否清楚說明用途？',
+    why: 'Meta description 是你能自行控制的頁面摘要。搜尋及 AI 工具在呈現你的頁面時可能會採用它，因此值得認真撰寫一段簡潔準確的描述（50–160 字元）。',
     fix: {
       pass: 'Meta description 格式良好 — 無需任何操作。',
       warn: 'Meta description 長度超出理想範圍。請以 50–160 字元清楚概括頁面用途。',
@@ -240,6 +275,7 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c10_headings: {
+    question: '客戶能否快速找到答案？',
     why: 'AI 模型靠標題層級理解你的內容結構。一個清晰的 H1 加上多個 H2 副標題，能讓 AI 輕鬆提取出獨立、可引用的資訊區塊。',
     fix: {
       pass: '標題層級清晰 — 無需任何操作。',
@@ -248,7 +284,8 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c11_faq: {
-    why: '帶有 FAQPage JSON-LD schema 的 FAQ 頁面，被 AI 搜尋引擎引用的頻率高 3 倍，因為它們直接回答問句式查詢。即使只有 3 條寫得好的問答，也能帶來顯著差異。',
+    question: '頁面有否直接回答常見購買問題？',
+    why: 'FAQPage JSON-LD 把問題與答案標記為獨立、機器可讀的一組。這讓每個答案更容易被單獨提取，模型無須自行推斷答案的起訖位置。',
     fix: {
       pass: '已找到 FAQPage schema — 無需任何操作。',
       warn: '偵測到 FAQ 內容但沒有 FAQPage JSON-LD schema。請加入 schema 標記，讓 AI 模型能解析並引用你的答案。下方的 Fix Pack 會生成所需程式碼。',
@@ -256,6 +293,7 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c12_canonical: {
+    question: '哪個網址是主要版本是否清楚？',
     why: 'Canonical 標籤告訴 AI 爬蟲哪個頁面版本是權威版本。沒有它，爬蟲可能將權威分散到重複網址上（例如有/無結尾斜線、http 與 https）。',
     fix: {
       pass: 'Canonical 網址設定正確 — 無需任何操作。',
@@ -264,6 +302,7 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c13_render: {
+    question: '毋須複雜程式是否已有實用內容？',
     why: 'AI 爬蟲通常不會執行 JavaScript。如果你的頁面文字只在 JS 執行後才出現，爬蟲看到的幾乎是一個空白頁面，根本無從引用。',
     fix: {
       pass: '伺服器端渲染的 HTML 內容豐富 — 無需任何操作。',
@@ -272,7 +311,8 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c14_internal_links: {
-    why: '內部連結向 AI 爬蟲傳遞內容之間的關聯，並協助它們發現你的所有頁面。內部連結密集的網站會被更完整地索引。',
+    question: '相關頁面有否帶客戶前往正確答案？',
+    why: '內部連結是爬蟲在你的頁面之間移動的途徑。一個沒有任何內部連結指向它的頁面，只能透過 sitemap 或外部連結被發現。',
     fix: {
       pass: '內部連結結構穩健 — 無需任何操作。',
       warn: '內部連結偏少。請在相關頁面之間加入上下文連結，尤其是由高流量頁面連到較深層的內容。',
@@ -280,7 +320,8 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c15_entity: {
-    why: 'Organization 及 Person schema 標記告訴 AI 模型內容背後是誰，能加強可信度訊號，並提高被引用時獲得署名的機會。',
+    question: '頁面有否清楚說明公司及產品？',
+    why: 'Organization 及 Person schema 以機器可讀的方式說明內容背後是誰，而非讓署名資訊只能從頁面內容推斷。',
     fix: {
       pass: '已找到實體 schema — 無需任何操作。',
       warn: '找到部分實體訊號（og 標籤、author meta）但沒有 JSON-LD。請升級至 Organization 或 Person schema，向 AI 發出更強訊號。',
@@ -288,7 +329,8 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c16_freshness: {
-    why: 'AI 模型偏好新近、與時並進的內容。JSON-LD schema 中的 dateModified 及 datePublished 會告訴 AI 平台你的內容最後審閱的時間。',
+    question: '客戶能否知道資料是否仍然有效？',
+    why: 'JSON-LD 中的 dateModified 及 datePublished 說明內容最後審閱的時間。沒有這些欄位，內容的新舊只能從內文推斷。',
     fix: {
       pass: '內容新鮮度訊號已確認 — 無需任何操作。',
       warn: '找到日期訊號但內容似乎較舊。每次修訂內容時（即使是小改動）都應更新 dateModified 欄位。',
@@ -296,7 +338,8 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c17_citation_density: {
-    why: 'AI 模型會給予引用權威外部來源的內容更高權重。附有頂級引用來源（NIH、Bloomberg、Reuters）的頁面，被 AI 搜尋引擎原文引述的機會，遠高於沒有引用支持的論述。',
+    question: '重要聲稱能否追溯到可信來源？',
+    why: '引用權威外部來源，讓讀者或模型能夠核實論述。引用密度有助查證，但本身並不代表會獲 AI 引用。',
     fix: {
       pass: '引用密度良好 — 無需任何操作。',
       warn: '引用數量一般。請加入更多頂級來源連結（政府、學術機構、主要媒體），並確保所有統計數字都附有內文來源連結。',
@@ -304,7 +347,8 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c18_factual_density: {
-    why: 'AI 系統偏好包含具體、可查證資料的內容 — 百分比、具名實體、日期及比較數字。空泛、充斥誇張字眼的內容因為無法核實，極少被引用。',
+    question: '答案有否提供實用事實而非空泛宣傳？',
+    why: '具體資料 — 百分比、具名實體、日期、比較數字 — 可以對照來源查證。空泛或充斥誇張字眼的說法，任何人都無從核實。',
     fix: {
       pass: '事實密度良好 — 無需任何操作。',
       warn: '找到部分事實，但內容可以更數據化。請加入具體數字、日期參照及比較陳述（例如「按年上升 23%，由 34 億美元增至 42 億美元」）。',
@@ -312,7 +356,8 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c19_topical_authority: {
-    why: 'AI 模型偏好以多個頁面深入覆蓋同一主題的來源（支柱頁 + 群組文章結構）。單一頁面的主題覆蓋，在 AI 引用排序上遠不及一個擁有支柱指南加 5 篇以上支援文章的網站。',
+    question: '網站有否回答產品的主要問題？',
+    why: '以支柱頁加上互相連結的支援文章覆蓋同一主題，能為讀者提供多個入口，也讓頁面之間的關係更明確。單一孤立的頁面能交代的脈絡較少。',
     fix: {
       pass: '偵測到穩健的主題群組結構 — 無需任何操作。',
       warn: '主題覆蓋不完整。請確定你的核心主題，為每個主題建立一個支柱頁，並配以至少 3–5 篇互相連結的支援群組文章。',
@@ -320,7 +365,8 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     },
   },
   c20_chunkability: {
-    why: 'AI 模型以 100–1,500 個 token 為單位提取答案。內容若在清晰標題之下、以自成一體、答案先行的段落組織，被提取及引用的比率遠高於密密麻麻的長篇文字。',
+    question: '每個分段能否獨立回答一個問題？',
+    why: 'AI 模型以大約 100–1,500 個 token 為單位提取答案。內容若在清晰標題之下、以自成一體、答案先行的段落組織，便有自然的切分位置。',
     fix: {
       pass: '內容分塊結構良好，便於 AI 提取 — 無需任何操作。',
       warn: '部分段落難以作為獨立答案被提取。每個 H2 段落應以直接回答的句子開頭，段落保持在 200 字以內，並避免使用「上文」、「下文」等指涉。',

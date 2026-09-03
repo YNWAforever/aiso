@@ -2,7 +2,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { ScoreRing } from '@/components/ScoreRing'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
 import { PillarScoreCards } from '@/components/PillarScoreCards'
-import { CHECK_EXPLANATIONS } from '@/lib/checkExplanations'
+import { getCheckExplanations } from '@/lib/checkExplanations'
 import type { Scan, CheckResult } from '@/lib/types'
 
 type Props = {
@@ -24,6 +24,9 @@ const GROUPS: Group[] = [
 export function ScanSummary({ scan }: Props) {
   const t = useTranslations('dashboard')
   const locale = useLocale()
+  // Resolved once, not per check. Reading CHECK_EXPLANATIONS directly showed
+  // English copy to zh-HK users even though the translations existed.
+  const explanations = getCheckExplanations(locale)
   const r = scan.results as Record<string, unknown>
   const date = new Date(scan.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
@@ -94,7 +97,7 @@ export function ScanSummary({ scan }: Props) {
               </summary>
               <div className="mt-1 space-y-0.5 pl-7 pr-2">
                 {checks.map(({ key, result }) => {
-                  const explanation = CHECK_EXPLANATIONS[key]
+                  const explanation = explanations[key]
                   const label = key.replace(/^c\d+_/, '').replace(/_/g, ' ')
                   return (
                     <ExpandableCheckItem key={key} label={label} result={result!} message={result!.message} explanation={explanation} />

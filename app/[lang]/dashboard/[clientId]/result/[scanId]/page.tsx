@@ -7,7 +7,7 @@ import { redactSecrets } from '@/lib/security/redact-secrets'
 import { ScoreRing } from '@/components/ScoreRing'
 import { FixPackClient } from '@/components/FixPackClient'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
-import { CHECK_EXPLANATIONS } from '@/lib/checkExplanations'
+import { getCheckExplanations } from '@/lib/checkExplanations'
 import type { Scan, CheckResult } from '@/lib/types'
 
 const CORE_CHECK_KEYS = [
@@ -40,6 +40,9 @@ export default async function DashboardResultPage({
   const { lang, clientId, scanId } = await params
   const t = await getTranslations()
   const profile = await requireAuth(lang)
+  // Resolved from the route locale. Reading CHECK_EXPLANATIONS directly showed
+  // English copy to zh-HK users even though the translations existed.
+  const explanations = getCheckExplanations(lang)
 
   let scan: Scan | null = null
   let loadError = false
@@ -238,7 +241,7 @@ export default async function DashboardResultPage({
                 label={t(`checks.${key}` as Parameters<typeof t>[0])}
                 result={checkResult}
                 message={msg}
-                explanation={CHECK_EXPLANATIONS[key]}
+                explanation={explanations[key]}
               />
             )
           })}
@@ -260,7 +263,7 @@ export default async function DashboardResultPage({
                 label={label}
                 result={checkResult}
                 message={msg}
-                explanation={CHECK_EXPLANATIONS[key]}
+                explanation={explanations[key]}
               />
             )
           })}
@@ -290,7 +293,7 @@ export default async function DashboardResultPage({
                     label={label}
                     result={checkResult}
                     message={msg}
-                    explanation={CHECK_EXPLANATIONS[key]}
+                    explanation={explanations[key]}
                   />
                   {/* Inline metric strip shown below each expandable row */}
                   {isC17 && c17data && (
