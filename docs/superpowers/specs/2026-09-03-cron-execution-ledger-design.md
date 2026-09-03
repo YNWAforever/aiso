@@ -73,9 +73,16 @@ exact blind spot this slice exists to close. With a start row, a run that dies l
 `finished_at IS NULL`, which is itself the signal. `vercel.json` caps these functions at 60s, so a
 timeout is a real scenario rather than a hypothetical.
 
-**Posture.** RLS enabled with no policies, matching the convention the seven existing tables follow —
-each was given that default-deny posture by the migration that created it, not by one central
-decision. This is operational data, not tenant data, so no policy is wanted.
+**Posture: no RLS.** An earlier draft of this spec said to enable RLS with no policies, "matching the
+convention". That was wrong, and the correction matters. Those seven default-deny tables were created
+by migrations `023`-`027`; since then `036` dropped all 30 Supabase-era policies and disabled RLS on
+21 tables, and `035` -- the most recent migration to create a table -- states plainly: *"No RLS. […]
+enabling it here would add a dead policy rather than a control."*
+
+`aeo_app` holds `BYPASSRLS` deliberately (`037`), so a policy here would be inert whichever way it
+was written. `cron_runs` is operational data with no tenant column, and
+`__tests__/migrations/rls-policy-freeze.test.mjs` fails if any migration after `035` creates a
+policy. Follow `035`: no RLS, and say why in the migration header.
 
 **Grants must be verified, not assumed.** Migration `037` sets default privileges in schema `public`
 for tables and sequences, so `039`'s table should reach `aeo_app` automatically. Migration `038`
