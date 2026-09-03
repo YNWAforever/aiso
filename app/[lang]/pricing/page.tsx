@@ -44,7 +44,7 @@ function Cell({
       </span>
     )
   }
-  return <span className="block text-center text-sm text-slate-700">{value}</span>
+  return <span className="block text-center text-sm text-foreground">{value}</span>
 }
 
 function FaqItem({ q, a }: { q: string; a: string }) {
@@ -59,10 +59,10 @@ function FaqItem({ q, a }: { q: string; a: string }) {
         onClick={() => setOpen(value => !value)}
         className="flex min-h-11 w-full items-center justify-between gap-4 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
-        <span className="text-sm font-semibold text-slate-800">{q}</span>
+        <span className="text-sm font-semibold text-foreground">{q}</span>
         <ChevronDown aria-hidden="true" className={`size-4 shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && <p id={contentId} className="pb-4 text-sm leading-relaxed text-slate-600">{a}</p>}
+      {open && <p id={contentId} className="pb-4 text-sm leading-relaxed text-muted-foreground">{a}</p>}
     </div>
   )
 }
@@ -311,7 +311,7 @@ export default function PricingPage() {
                           aria-hidden="true"
                           className={`mt-0.5 size-3.5 shrink-0 ${plan.key === 'pro' ? 'text-primary' : 'text-emerald-500'}`}
                         />
-                        <span className="text-xs text-slate-700">{feature}</span>
+                        <span className="text-xs text-foreground">{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -391,7 +391,7 @@ export default function PricingPage() {
                   }
                   return (
                     <tr key={row.label} className={rowClass}>
-                      <th scope="row" className={`p-3.5 px-4 text-left text-sm font-medium text-slate-700 ${borderClass}`}>
+                      <th scope="row" className={`p-3.5 px-4 text-left text-sm font-medium text-foreground ${borderClass}`}>
                         {row.label}
                       </th>
                       <td className={`p-3.5 text-center ${borderClass}`}><Cell value={row.basic} {...cellProps} /></td>
