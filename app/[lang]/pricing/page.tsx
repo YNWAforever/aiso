@@ -217,7 +217,7 @@ export default function PricingPage() {
     <div className="min-h-screen bg-background">
 
       {/* ── Nav ─────────────────────────────────────────────── */}
-      <nav className="bg-white/90 backdrop-blur-md border-b border-border/60 px-6 py-3 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+      <nav className="bg-background/90 backdrop-blur-md border-b border-border/60 px-6 py-3 flex justify-between items-center sticky top-0 z-50 shadow-sm">
         <Link href={`/${lang}`} className="flex items-center gap-2.5">
           <div className="size-7 rounded-lg bg-primary flex items-center justify-center shadow-sm">
             <Zap aria-hidden="true" className="size-4 text-white" />
@@ -259,7 +259,7 @@ export default function PricingPage() {
               <h2 className="text-lg font-bold text-foreground">{t('free_account_title')}</h2>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{t('free_account_body')}</p>
             </div>
-            <Link href={`/${lang}`} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-white px-5 text-sm font-semibold text-primary shadow-sm transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            <Link href={`/${lang}`} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-card px-5 text-sm font-semibold text-primary shadow-sm transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
               {t('free_account_cta')} <ChevronRight aria-hidden="true" className="ml-1 size-4" />
             </Link>
           </div>
@@ -275,8 +275,8 @@ export default function PricingPage() {
                   key={plan.key}
                   className={`relative rounded-2xl p-7 flex flex-col transition-colors transition-shadow duration-200 ${
                     isPro
-                      ? 'border-2 border-primary bg-white shadow-2xl shadow-primary/15'
-                      : 'border border-border bg-white shadow-sm hover:shadow-md'
+                      ? 'border-2 border-primary bg-card shadow-2xl shadow-primary/15'
+                      : 'border border-border bg-card shadow-sm hover:shadow-md'
                   }`}
                 >
                   {isPro && (
@@ -342,7 +342,7 @@ export default function PricingPage() {
             </div>
             <a
               href="mailto:aeo@fimmick.com"
-              className="mt-4 inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-border bg-white px-5 text-sm font-semibold text-foreground transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:mt-0"
+              className="mt-4 inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card px-5 text-sm font-semibold text-foreground transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:mt-0"
             >
               {t('enterprise_custom_cta')}
             </a>
@@ -364,7 +364,7 @@ export default function PricingPage() {
             tabIndex={0}
             className="w-full max-w-full overflow-x-auto rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <table className="w-full table-fixed min-w-[400px] overflow-hidden rounded-2xl sm:min-w-[720px] border border-border bg-white shadow-sm">
+            <table className="w-full table-fixed min-w-[400px] overflow-hidden rounded-2xl sm:min-w-[720px] border border-border bg-card shadow-sm">
               <thead>
                 <tr className="bg-slate-50">
                   <th scope="col" className="border-b border-border p-4 text-left text-xs font-semibold text-muted-foreground">
@@ -406,10 +406,10 @@ export default function PricingPage() {
         </section>
 
         {/* ── FAQ ─────────────────────────────────────────────── */}
-        <section className="bg-gradient-to-b from-slate-50 to-white border-t border-border/60 py-16">
+        <section className="bg-gradient-to-b from-muted to-background border-t border-border/60 py-16">
           <div className="max-w-2xl mx-auto px-6">
             <h2 className="text-2xl font-black text-foreground text-center mb-8">{t('faq_title')}</h2>
-            <div className="bg-white border border-border rounded-2xl px-6 shadow-sm">
+            <div className="bg-card border border-border rounded-2xl px-6 shadow-sm">
               <FaqItem
                 q={t('faq_1_q')}
                 a={t('faq_1_a', {
@@ -432,7 +432,7 @@ export default function PricingPage() {
             <p className="text-blue-100 text-sm mb-8 leading-relaxed">{t('bottom_body')}</p>
             <Link
               href={`/${lang}`}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-8 py-3 text-sm font-semibold text-primary shadow-lg transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-card px-8 py-3 text-sm font-semibold text-primary shadow-lg transition-colors hover:bg-card/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
             >
               {t('bottom_cta')} <ChevronRight aria-hidden="true" className="size-4" />
             </Link>
@@ -441,7 +441,7 @@ export default function PricingPage() {
         </section>
 
         {/* ── Footer ───────────────────────────────────────────── */}
-        <footer className="border-t border-border bg-white py-8 px-6">
+        <footer className="border-t border-border bg-card py-8 px-6">
           <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
               <div className="size-5 rounded-md bg-primary flex items-center justify-center">
