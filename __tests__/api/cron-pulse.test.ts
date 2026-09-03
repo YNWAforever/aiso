@@ -20,6 +20,15 @@ const mockSql = vi.fn((strings: TemplateStringsArray, ...params: unknown[]) => {
 })
 vi.mock('@/lib/db', () => ({ db: () => mockSql }))
 
+// The route's own queries are what this file exercises. Ledger recording is
+// tested separately in cron-ledger-wiring.test.ts; stub it here so its own
+// db() calls don't interleave with (and shift the indices of) the calls
+// this file asserts on.
+vi.mock('@/lib/cron/recordRun', () => ({
+  startCronRun: vi.fn(async () => 'test-run-id'),
+  finishCronRun: vi.fn(async () => undefined),
+}))
+
 // after() runs the callback immediately here so the chain hop is observable.
 const afterCallbacks: Array<() => unknown> = []
 vi.mock('next/server', async (importOriginal) => ({

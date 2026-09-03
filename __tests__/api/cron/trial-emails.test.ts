@@ -7,6 +7,13 @@ const h = vi.hoisted(() => ({
 
 vi.mock('@/lib/db', () => ({ db: h.db }))
 vi.mock('@/lib/resend', () => ({ sendTrialEmail: h.sendTrialEmail }))
+// The route's own queries are what this file exercises. Ledger recording is
+// tested separately in cron-ledger-wiring.test.ts; stub it here so its own
+// db() calls don't interleave with (and shift the indices of) mockSql.mock.calls.
+vi.mock('@/lib/cron/recordRun', () => ({
+  startCronRun: vi.fn(async () => 'test-run-id'),
+  finishCronRun: vi.fn(async () => undefined),
+}))
 
 async function importRoute() {
   vi.resetModules()
