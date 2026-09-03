@@ -202,9 +202,9 @@ export function OnboardingWizard({
 
   const progress = (step / TOTAL_STEPS) * 100
 
-  const inputClass = "w-full h-11 rounded-lg border border-input bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+  const inputClass = "w-full h-11 rounded-lg border border-border bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
   const btnPrimary = "flex-1 h-11 bg-primary text-primary-foreground font-semibold rounded-lg text-sm hover:bg-primary/90 transition disabled:opacity-40 flex items-center justify-center gap-2"
-  const btnBack    = "flex-1 h-11 border border-input text-foreground font-semibold rounded-lg text-sm hover:bg-muted transition"
+  const btnBack    = "flex-1 h-11 border border-border text-foreground font-semibold rounded-lg text-sm hover:bg-muted transition"
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -294,7 +294,7 @@ export function OnboardingWizard({
               <div>
                 <label htmlFor="onboarding-industry" className="block text-xs font-semibold text-foreground mb-1.5">{c.industryPlaceholder}</label>
                 <select id="onboarding-industry" name="industry" ref={industrySelectRef} value={industry} onChange={e => setIndustry(e.target.value)}
-                  className="w-full h-11 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
+                  className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
                   <option value="">{c.industryPlaceholder}</option>
                   {INDUSTRIES.map(i => <option key={i.value} value={i.value}>{isZh ? i.labelZh : i.labelEn}</option>)}
                 </select>
@@ -302,7 +302,7 @@ export function OnboardingWizard({
               <div>
                 <label htmlFor="onboarding-region" className="block text-xs font-semibold text-foreground mb-1.5">{c.regionPlaceholder}</label>
                 <select id="onboarding-region" name="region" value={region} onChange={e => setRegion(e.target.value)}
-                  className="w-full h-11 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
+                  className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
                   <option value="">{c.regionPlaceholder}</option>
                   {REGIONS.map(r => <option key={r.value} value={r.value}>{isZh ? r.labelZh : r.labelEn}</option>)}
                 </select>
@@ -341,7 +341,7 @@ export function OnboardingWizard({
                 onChange={e => setDescription(e.target.value)}
                 placeholder={c.descPlaceholder(brand)}
                 rows={3}
-                className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none leading-relaxed"
+                className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none leading-relaxed"
               />
             </div>
 
@@ -361,13 +361,13 @@ export function OnboardingWizard({
                     if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addCompetitor() }
                   }}
                   placeholder={c.competitorsPlaceholder}
-                  className="flex-1 h-9 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="flex-1 h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
                 <button
                   type="button"
                   onClick={addCompetitor}
                   disabled={!competitorInput.trim()}
-                  className="h-9 px-3 rounded-lg bg-secondary text-foreground text-xs font-semibold border border-input hover:bg-muted transition disabled:opacity-40"
+                  className="h-9 px-3 rounded-lg bg-secondary text-foreground text-xs font-semibold border border-border hover:bg-muted transition disabled:opacity-40"
                 >
                   {c.add}
                 </button>

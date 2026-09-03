@@ -148,7 +148,7 @@ export function ScanForm({ lang }: ScanFormProps) {
           disabled={isSubmitting}
           aria-invalid={Boolean(urlError)}
           aria-describedby={urlError ? urlErrorId : undefined}
-          className="h-12 min-w-0 flex-1 rounded-xl border-2 border-input bg-card px-4 text-base text-foreground shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-wait disabled:opacity-70"
+          className="h-12 min-w-0 flex-1 rounded-xl border-2 border-border bg-card px-4 text-base text-foreground shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-wait disabled:opacity-70"
         />
         <button
           type="submit"
@@ -188,7 +188,7 @@ export function ScanForm({ lang }: ScanFormProps) {
             value={industry}
             onChange={(event) => setIndustry(event.target.value)}
             disabled={isSubmitting}
-            className="h-12 w-full rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition-shadow focus:border-primary focus:ring-4 focus:ring-primary/15"
+            className="h-12 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none transition-shadow focus:border-primary focus:ring-4 focus:ring-primary/15"
           >
             <option value="">{t('select_not_specified')}</option>
             {INDUSTRIES.map((value) => (
@@ -206,7 +206,7 @@ export function ScanForm({ lang }: ScanFormProps) {
             value={region}
             onChange={(event) => setRegion(event.target.value)}
             disabled={isSubmitting}
-            className="h-12 w-full rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition-shadow focus:border-primary focus:ring-4 focus:ring-primary/15"
+            className="h-12 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none transition-shadow focus:border-primary focus:ring-4 focus:ring-primary/15"
           >
             <option value="">{t('select_not_specified')}</option>
             {REGIONS.map((value) => (
