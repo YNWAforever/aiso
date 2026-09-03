@@ -11,8 +11,15 @@
  * operating systems (see the header of tests/e2e/a11y/baseline.ts).
  *
  * Usage:
+ *   rm -rf tests/e2e/a11y/.observed                             # see below
  *   A11Y_UPDATE_BASELINE=1 npx playwright test tests/e2e/a11y   # all 4 projects
  *   node scripts/a11y/rebuild-baseline.mjs [--dry-run]
+ *
+ * Clear .observed first. The all-80 check below catches a cell that is MISSING,
+ * but a leftover file from an earlier run is not missing -- it still counts
+ * toward 80 and merges its stale numbers. Nothing clears the directory on your
+ * behalf: the four viewport projects run in parallel, so any worker that wiped
+ * it would delete the cells its siblings had already written.
  */
 
 import { readdir, readFile, writeFile } from 'node:fs/promises'
