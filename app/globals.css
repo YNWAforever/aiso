@@ -49,7 +49,7 @@
   --sidebar-primary-fg:     #ffffff;
   --sidebar-accent:         #f1f5f9;
   --sidebar-accent-fg:      #0f172a;
-  --sidebar-muted-fg:       #64748b;
+  --sidebar-muted-fg:       #5e6e85;
   --sidebar-border:         #e2e8f0;
 
   /* Dashboard-specific tokens */
@@ -94,7 +94,7 @@
 
      --brand-muted is the dangerous one. The donor's --muted is a FOREGROUND
      grey; this repo's --muted (#f1f5f9) is a SURFACE. The real equivalent of
-     the donor's --muted here is --muted-foreground (#64748b), NOT --muted.
+     the donor's --muted here is --muted-foreground (#5e6e85), NOT --muted.
      The donor itself sidesteps this at its globals.css:65, registering
      --color-muted: var(--paper-deep) rather than var(--muted) -- which is why
      the Tailwind utilities agree across both repos while the raw variable does
@@ -152,7 +152,7 @@
   --sidebar-foreground:     #e0e0ec;
   --sidebar-accent:         #141422;
   --sidebar-accent-fg:      #e0e0ec;
-  --sidebar-muted-fg:       #5c5c6e;
+  --sidebar-muted-fg:       #88889a;
   --sidebar-border:         #1e1e30;
 
   /* Dashboard-specific tokens */
