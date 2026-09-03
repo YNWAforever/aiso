@@ -210,8 +210,8 @@
   --color-dash-warning:   var(--dash-warning);
   --color-dash-danger:    var(--dash-danger);
 
-  --font-sans:                  var(--font-geist-sans);
-  --font-mono:                  var(--font-geist-mono);
+  --font-sans:                  Inter, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", Arial, sans-serif;
+  --font-mono:                  "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --radius-sm:                  calc(var(--radius) - 0.25rem);
   --radius-md:                  var(--radius);
   --radius-lg:                  calc(var(--radius) + 0.125rem);
@@ -267,7 +267,7 @@ details[open] > summary .chevron-icon {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
