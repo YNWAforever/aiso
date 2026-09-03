@@ -182,7 +182,16 @@ describe('PRODUCT_FACTS', () => {
     expect(source).toContain("testDir: '.'")
     expect(source).toContain("'tests/e2e/**/*.spec.ts'")
     expect(source).toContain("'e2e/**/*.spec.ts'")
-    expect(source).toContain("testIgnore: 'e2e/**/*.spec.ts'")
+    // Whether the `mobile` project actually excludes the root e2e/ tree (as
+    // opposed to merely appearing to, per the config text) is asserted
+    // behaviourally in __tests__/config/playwright-projects.test.ts, by
+    // asking Playwright's own project resolution rather than pattern-matching
+    // the config source. A previous version of this test required the exact
+    // string `testIgnore: [...testIgnore, 'e2e/**/*.spec.ts'` here -- which
+    // was precisely the bug: that testIgnore pattern matches the ABSOLUTE
+    // path, so it also excluded every spec under tests/e2e/, and the
+    // `mobile` project discovered zero tests for its entire existence while
+    // this assertion passed the whole time.
   })
 
   it('exposes the pricing comparison as a semantic table', () => {

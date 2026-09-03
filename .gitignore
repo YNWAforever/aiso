@@ -48,6 +48,7 @@ next-env.d.ts
 playwright-report/
 test-results/
 playwright-results.json
+.playwright-ci-server/
 
 # local agent tooling / worktrees
 .codex/
