@@ -34,6 +34,10 @@
   --warning-foreground:     #0f172a;
 
   --border:                 #e2e8f0;
+  /* Input FILL only -- never a border. Byte-identical to --card in both
+     themes, so using it as a border colour renders one the exact colour of
+     the surface under it: invisible, silently. Use --border for borders.
+     Guarded by __tests__/config/input-token-role.test.ts. */
   --input:                  #ffffff;
   --ring:                   #2563eb;
   --radius:                 0.625rem;
@@ -98,6 +102,7 @@
   --warning-foreground:     #1a1a2e;
 
   --border:                 #1e1e30;
+  /* Fill only -- see the note in :root. Same value as --card here too. */
   --input:                  #0d0d18;
   --ring:                   #00d4ff;
 
