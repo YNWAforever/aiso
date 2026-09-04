@@ -17,7 +17,7 @@ Applied 2026-09-02, and verified from a second, independent connection:
 | tables | 34 |
 | functions | 49 (11 from the baseline, the rest from `pgcrypto`, created into `public`) |
 | `schema_migrations` rows | 37 (36 subsumed migrations + the baseline's own lineage row, checksum present) |
-| `aeo_app` | exists, `rolbypassrls = true`, **`rolcanlogin = false`** |
+| `aeo_app` | exists, `rolbypassrls = true`, `rolcanlogin = true` (since 2026-09-05; step 1 is done) |
 | synthetic seed | 1 account, 2 clients, 1 scan |
 | `migrate --dry-run` | reports `Nothing to apply` |
 
@@ -29,13 +29,30 @@ design: `Refusing to act: schema public already has 34 table(s)`.
 ## 1. Give `aeo_app` a password
 
 The baseline creates the role `NOLOGIN` on purpose, so that no secret ever lands
-in a tracked file. Connect as the owner and run:
+in a tracked file.
 
-    alter role aeo_app login password '<generated>';
-
-Generate it with a password manager. Do not reuse the owner password, and do not
-paste it into a shell command — the Neon driver echoes full connection URLs,
+**Set the password through Neon, not through SQL:** Neon Console → this project →
+Roles → `aeo_app` → Reset password. That grants `LOGIN` as well, so no
+`alter role` is needed. Do not reuse the owner password, and do not paste the
+value into a shell command — the Neon driver echoes full connection URLs,
 password included, in its error messages.
+
+> **This step used to say `alter role aeo_app login password '<generated>'`, and
+> that produces a role which works on the direct endpoint and fails on the pooled
+> one.** Learned the hard way on 2026-09-05. Neon's proxy authenticates pooled
+> connections against the credential its control plane holds; `alter role` changes
+> only Postgres's copy, and the two then disagree.
+>
+> The failure misdirects: `password authentication failed for user 'aeo_app'`
+> blames the password when the password is correct and the *endpoint* is the
+> variable. The tell is that `…azxacr80.c-3…` connects while
+> `…azxacr80-pooler.c-3…` refuses the same value.
+>
+> SQL remains fine if you only ever connect directly. The application does not —
+> `@neondatabase/serverless` wants the pooled endpoint, because direct connections
+> have a far lower cap that serverless invocations exhaust. Setting the password
+> through Neon makes both endpoint forms work, which is why it is the instruction
+> here rather than one of two options.
 
 ## 2. Bind the application to it
 

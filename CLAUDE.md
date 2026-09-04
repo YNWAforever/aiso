@@ -532,8 +532,20 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   local dev are both done and verified — this line used to say otherwise and was wrong.**
   Vercel: cut over, redeployed, and confirmed via a real scan against
   `fimmick-aeo-oitb.vercel.app` writing through the new role (200 response); local dev:
-  confirmed directly on 2026-08-22, `.env.local`'s `DATABASE_URL` connects as `aeo_app`
-  against real production data. **Still genuinely unconfirmed: n8n's stored Postgres
+  confirmed directly on 2026-08-22, `.env.local`'s `DATABASE_URL` connected as `aeo_app`
+  against real production data. **That local-dev claim has gone stale and no longer
+  describes `.env.local`** — it was repointed at the AISO project when that was
+  bootstrapped (2026-09-02), and on 2026-09-05 it was found there connecting as
+  **`neondb_owner`** with a password that had since been rotated, so it was failing
+  outright rather than merely over-privileged. Now fixed: `DATABASE_URL` is `aeo_app`
+  on AISO's **pooled** endpoint, `MIGRATE_DATABASE_URL` is `neondb_owner` on the
+  **direct** one (that variable was *empty*, not stale — `npm run migrate` failed
+  immediately and named it). Verify with
+  `node --env-file=.env.local scripts/verify-db-connection.mjs` and read the **`server`**
+  line, which is the database answering `current_user`; the `role` line is only parsed
+  out of the URL and proves nothing. **Vercel still points at the production project and
+  was deliberately left alone** — repointing it at AISO is a cutover decision, not part
+  of repairing local dev. **Still genuinely unconfirmed: n8n's stored Postgres
   credential and the MCP Postgres server's shell-exported `DATABASE_URL`** — follow
   `docs/runbooks/roll-out-least-privilege-role.md` for both. Don't assume either is done
   without checking `role:` in `scripts/verify-db-connection.mjs`'s output first (that script
