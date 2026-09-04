@@ -87,15 +87,20 @@ meant to gate.
 
 Project id, branch id, `current_user`, `current_database()`.
 
-> **Unverified, and the first implementation step must settle it.** §16.1 asserts that Neon exposes
-> `neon.project_id` and `neon.branch_id` as in-band GUCs. That has **not** been confirmed against
-> AISO. Step one of this slice is to run `select current_setting('neon.project_id', true)` and see
-> whether a value comes back.
+> **Settled 2026-09-05 — the GUCs exist, and this repo already depends on them.** This was written
+> as an open question to be resolved by querying AISO. It did not need querying:
+> `__tests__/integration/setup.ts` has been using `current_setting('neon.branch_id', true)` and the
+> project-id equivalent since the harness was written. Its `resetPublicSchema` refuses to drop
+> schema `public` unless both report the branch and project the harness itself created — the same
+> identity check this slice needs, already working against Neon.
 >
-> If it does not, the tuple falls back to **endpoint host + role + database**, all obtainable
-> without a control-plane call. §16.1 explicitly permits this — *"or an immutable environment
-> sentinel."* The design is unchanged either way; only the tuple's contents differ. Do not build on
-> the GUCs before checking.
+> **That file is the precedent to mirror.** Slice B should follow its shape rather than invent a
+> second one, and the fallback to endpoint host + role + database is therefore not needed and
+> should not be built. Speculative fallbacks for conditions that do not occur are dead code that
+> nobody can test.
+>
+> The lesson worth keeping: the answer was in the repository, and the spec proposed a live query to
+> find out. Search the codebase before designing an investigation.
 
 In-band settings are preferred to control-plane metadata deliberately: no API key, no network
 dependency, and nothing external flaky enough to take a fail-closed guard down.
