@@ -61,7 +61,7 @@ describe('commercial surface contract', () => {
   })
 
   it('constructs self-serve pricing from catalog definitions and excludes Custom-only card promises', () => {
-    const pricing = source('app/[lang]/pricing/page.tsx')
+    const pricing = source('app/[lang]/(marketing)/pricing/page.tsx')
     const plans = sourceSection(pricing, 'const plans = CHECKOUT_PLAN_IDS.map', 'const cardHighlights')
     const cardHighlights = sourceSection(pricing, 'const cardHighlights', 'return (')
 
@@ -74,7 +74,7 @@ describe('commercial surface contract', () => {
   })
 
   it('routes every displayed checkout allowance through the catalog projection', () => {
-    const pricing = source('app/[lang]/pricing/page.tsx')
+    const pricing = source('app/[lang]/(marketing)/pricing/page.tsx')
     const messages = [source('messages/en.json'), source('messages/zh-HK.json')]
 
     expect(pricing).toContain('buildPricingAllowanceProjection(key')
@@ -90,7 +90,7 @@ describe('commercial surface contract', () => {
   })
 
   it('uses client navigation for localized login and a full-page Stripe redirect', () => {
-    const pricing = source('app/[lang]/pricing/page.tsx')
+    const pricing = source('app/[lang]/(marketing)/pricing/page.tsx')
 
     expect(pricing).toContain("import { useParams, useRouter } from 'next/navigation'")
     expect(pricing).toContain('const router = useRouter()')
