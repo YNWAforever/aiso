@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import robots from '@/app/robots'
+import { NAV } from '@/lib/navigation'
+import { routing } from '@/i18n/routing'
+import { localizedUrl } from '@/lib/seo'
 import sitemap from '@/app/sitemap'
 import { GET as getLlmsTxt } from '@/app/llms.txt/route'
 import { buildLocalizedMetadata, buildSoftwareApplicationJsonLd } from '@/lib/seo'
@@ -11,16 +14,48 @@ describe('public discovery', () => {
     expect(value.sitemap).toMatch(/\/sitemap\.xml$/)
   })
 
-  it('lists both locales and public acquisition routes', () => {
-    const urls = sitemap().map((entry) => entry.url)
-    expect(urls).toEqual(expect.arrayContaining([
-      expect.stringMatching(/\/en$/),
-      expect.stringMatching(/\/zh-HK$/),
-      expect.stringMatching(/\/en\/pricing$/),
-      expect.stringMatching(/\/zh-HK\/pricing$/),
-    ]))
+  it('lists exactly available routes across configured locales without duplicates', () => {
+    const entries = sitemap()
+    const urls = entries.map((entry) => entry.url)
+    const expected = routing.locales.flatMap((locale) =>
+      NAV.filter((route) => route.available).map((route) => localizedUrl(locale, route.href === '/' ? '' : route.href)),
+    )
+    expect([...urls].sort()).toEqual([...expected].sort())
+    expect(new Set(urls).size).toBe(urls.length)
+    for (const locale of routing.locales) {
+      expect(entries.find((entry) => entry.url === localizedUrl(locale))).toEqual({
+        url: localizedUrl(locale), changeFrequency: 'weekly', priority: 1,
+      })
+      expect(entries.find((entry) => entry.url === localizedUrl(locale, 'pricing'))).toEqual({
+        url: localizedUrl(locale, 'pricing'), changeFrequency: 'monthly', priority: 0.8,
+      })
+      for (const route of NAV.filter((entry) => !entry.available)) {
+        expect(urls).not.toContain(localizedUrl(locale, route.href))
+      }
+    }
   })
 
+  it('follows navigation availability changes', () => {
+    const route = NAV.find((entry) => !entry.available)!
+    route.available = true
+    try {
+      expect(sitemap().map((entry) => entry.url)).toContain(localizedUrl('en', route.href))
+    } finally {
+      route.available = false
+    }
+  })
+
+  it('follows the configured locale set', () => {
+    const locales = routing.locales
+    Reflect.set(routing, 'locales', ['en'])
+    try {
+      expect(sitemap().map((entry) => entry.url)).toEqual(
+        NAV.filter((entry) => entry.available).map((entry) => localizedUrl('en', entry.href === '/' ? '' : entry.href)),
+      )
+    } finally {
+      Reflect.set(routing, 'locales', locales)
+    }
+  })
   it('serves a useful plain-text llms.txt', async () => {
     const response = await getLlmsTxt()
     expect(response.headers.get('content-type')).toContain('text/plain')

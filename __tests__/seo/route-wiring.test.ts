@@ -34,6 +34,13 @@ async function expectLocalizedRoute(
 }
 
 describe('localized metadata route wiring', () => {
+  it.each(['en', 'zh-HK'] as const)('gives %s home and pricing distinct metadata', async (lang) => {
+    const home = await generateHomeMetadata(metadataProps(lang))
+    const pricing = await generatePricingMetadata(metadataProps(lang))
+    expect(pricing.title).not.toEqual(home.title)
+    expect(pricing.description).not.toEqual(home.description)
+  })
+
   it.each(['en', 'zh-HK'] as const)('wires %s home metadata to the localized home', async (lang) => {
     await expectLocalizedRoute(generateHomeMetadata, lang, '')
   })

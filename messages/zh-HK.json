@@ -1,4 +1,14 @@
 {
+  "seo": {
+    "home": {
+      "title": "Fimmick AISO｜AI 搜尋能見度掃描",
+      "description": "檢查 AI 平台是否容易發現、理解及引用你的網站，並取得按優先次序排列的改善建議。"
+    },
+    "pricing": {
+      "title": "方案及收費｜Fimmick AISO",
+      "description": "比較 Fimmick AISO 的網站檢查、AI 搜尋能見度監察及改善建議方案。"
+    }
+  },
   "nav": {
     "title": "Fimmick AISO",
     "brand_name": "Fimmick",
