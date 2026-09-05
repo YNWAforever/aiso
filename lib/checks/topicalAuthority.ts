@@ -72,6 +72,7 @@ export async function checkTopicalAuthority(
   if (!sitemapUrls.length) {
     return {
       status: 'warn', message: 'topical_authority_no_sitemap',
+      diagnostic: { collection: 'unsupported', reason: 'no-input' },
       geoDetails: { topicalCoverageScore: 0, detectedClusters: [], totalClusters: 0, hasOrphanPages: 0 },
     }
   }
@@ -88,6 +89,7 @@ export async function checkTopicalAuthority(
   }
 
   const industryKeywords = INDUSTRY_PACKS[industry]?.topicalKeywords?.slice(0, 10) ?? []
+  let providerFallback = false
   let detectedClusters: TopicalAuthorityResult['detectedClusters'] = []
 
   try {
@@ -114,13 +116,15 @@ Return JSON array: [{"topic":"string","pillarPageUrl":"string or null","pillarPa
       signal: AbortSignal.timeout(OPENROUTER_TIMEOUT_MS),
     })
     detectedClusters = parseClusters(res)
-  } catch {}
+    try { providerFallback = !Array.isArray(JSON.parse(res.match(/\[[\s\S]*\]/)?.[0] ?? 'null')) } catch { providerFallback = true }
+  } catch { providerFallback = true }
 
   const orphanPages = sitemapUrls.filter(u => { try { return new URL(u).pathname.split('/').filter(Boolean).length === 1 } catch { return false } }).length
   const topicalCoverageScore = Math.min(100, detectedClusters.length * 15 + Math.max(0, 20 - orphanPages * 2))
   const status = topicalCoverageScore >= 60 ? 'pass' : topicalCoverageScore >= 30 ? 'warn' : 'fail'
 
   return {
+    diagnostic: { collection: 'partial', reason: providerFallback ? 'provider-fallback' : 'inferred-only' },
     status, message: `topical_authority_${status}`,
     details: `${detectedClusters.length} clusters detected`,
     geoDetails: { topicalCoverageScore, detectedClusters, totalClusters: detectedClusters.length, hasOrphanPages: orphanPages },

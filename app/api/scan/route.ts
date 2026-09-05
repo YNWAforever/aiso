@@ -35,6 +35,8 @@ import { parseSitemapUrls } from '@/lib/security/sitemap-urls'
 import { consumeAuthenticatedScanQuota, authenticatedScanQuotaHeaders } from '@/lib/security/authenticated-scan-quota'
 import { GEO_PTS, assignGrade, calculateScore, calculateGeoScore, capScore } from '@/lib/scoring'
 import { calculatePillarScores } from '@/lib/pillar-scores'
+import { buildScanEvidence, CHECK_VERSIONS, type EvidenceCheckKey } from '@/lib/scan-evidence'
+import { createScanEvidenceCapture } from '@/lib/scan-evidence-capture'
 import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'
 
 // Re-exported for existing tests that import scoring from this route
@@ -174,9 +176,10 @@ export async function POST(req: NextRequest) {
 
   // Fetch page HTML once — shared by extended checks + GEO checks.
   // The reusable boundary validates DNS and every redirect hop.
+  const capture = createScanEvidenceCapture(fetchPublicUrl)
   let html = ''
   try {
-    const htmlRes = await fetchPublicUrl(baseUrl, {
+    const htmlRes = await capture.forCheck('page')(baseUrl, {
       headers: { 'User-Agent': 'FimmickAISO/1.0' },
       signal: AbortSignal.timeout(15_000),
     })
@@ -188,6 +191,7 @@ export async function POST(req: NextRequest) {
         headers: scanHeaders,
       })
     }
+    capture.failedRead('page')
     // Continue without HTML — checks degrade gracefully for ordinary network failures.
   }
 
@@ -195,15 +199,15 @@ export async function POST(req: NextRequest) {
   const [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16] =
     await Promise.allSettled([
       // Core (URL-fetch)
-      checkRobots(baseUrl, fetchPublicUrl),
-      checkLlmsTxt(baseUrl, fetchPublicUrl),
-      checkBotAccess(baseUrl, fetchPublicUrl),
-      checkStructuredData(baseUrl, fetchPublicUrl),
-      checkExtractability(baseUrl, fetchPublicUrl),
+      checkRobots(baseUrl, capture.forCheck('c1_robots')),
+      checkLlmsTxt(baseUrl, capture.forCheck('c2_llms_txt')),
+      checkBotAccess(baseUrl, capture.forCheck('c3_bot_access')),
+      checkStructuredData(baseUrl, capture.forCheck('c4_structured_data')),
+      checkExtractability(baseUrl, capture.forCheck('c5_extractability')),
       // Extended — URL-fetch
-      checkLlmsFullTxt(baseUrl, fetchPublicUrl),
-      checkMcpCard(baseUrl, html, fetchPublicUrl),
-      checkSitemap(baseUrl, fetchPublicUrl),
+      checkLlmsFullTxt(baseUrl, capture.forCheck('c6_llms_full_txt')),
+      checkMcpCard(baseUrl, html, capture.forCheck('c7_mcp_card')),
+      checkSitemap(baseUrl, capture.forCheck('c8_sitemap')),
       // Extended — HTML parse (sync, wrapped so allSettled handles uniformly)
       Promise.resolve(checkMetaDescription(html, baseUrl)),
       Promise.resolve(checkHeadingStructure(html, baseUrl)),
@@ -253,7 +257,7 @@ export async function POST(req: NextRequest) {
   let sitemapUrlsForGeo: string[] = parsedSitemapUrls.urls
   if (!sitemapUrlsForGeo.length) {
     try {
-      const sitemapRes = await fetchPublicUrl(new URL('/sitemap.xml', baseUrl), {
+      const sitemapRes = await capture.forCheck('sitemap')(new URL('/sitemap.xml', baseUrl), {
         headers: { 'User-Agent': 'FimmickAISO/1.0' },
         signal: AbortSignal.timeout(8_000),
       })
@@ -264,7 +268,7 @@ export async function POST(req: NextRequest) {
           .map(m => m.replace(/<\/?loc>/g, '').trim())
           .slice(0, 200)
       }
-    } catch { /* sitemap unavailable — c19 will return warn/fail */ }
+    } catch { capture.failedRead('sitemap') /* sitemap unavailable — c19 will return warn/fail */ }
   }
 
   const geoDetails: Record<string, unknown> = {}
@@ -306,10 +310,17 @@ export async function POST(req: NextRequest) {
   try {
     const combinedResults = { ...results, ...geoDetails }
     const pillarScores = calculatePillarScores(combinedResults)
+    const evidence = buildScanEvidence({
+      requestedUrl: /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : 'https://' + url,
+      evaluatedUrl: baseUrl, industry: geoIndustry, region: geoRegion,
+      sitemapSource: parsedSitemapUrls.urls.length ? 'caller' : 'fetched',
+      checks: capture.checks([c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16,c17,c18,c19,c20], Object.keys(CHECK_VERSIONS) as EvidenceCheckKey[]),
+      observations: capture.observations, limited: capture.limited, collectedAt: new Date().toISOString(),
+    })
     const rows = await sql`
       insert into scans (url, domain, score, results, industry, region, grade, account_id, agent_status, client_id)
       values (${baseUrl}, ${domain}, ${totalScore},
-              ${JSON.stringify({ ...combinedResults, pillarScores })}::jsonb,
+              ${JSON.stringify({ ...combinedResults, pillarScores, evidence })}::jsonb,
               ${geoIndustry}, ${geoRegion}, ${grade}, ${account_id},
               ${isDashboardScan ? 'pending' : null}, ${clientId ?? null})
       returning id
