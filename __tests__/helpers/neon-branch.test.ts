@@ -6,8 +6,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 const execFileSync = vi.hoisted(() => vi.fn())
 vi.mock('node:child_process', () => ({ execFileSync }))
 
-const PROJECT_ID = 'red-firefly-93523049'
-const PRODUCTION_BRANCH_ID = 'br-rough-butterfly-aojtgi92'
+// These must agree with neon-branch.ts's defaults: createTestBranch() rejects a
+// response whose project_id differs from PROJECT_ID, so a stale value here
+// fails every fixture rather than testing anything. The values themselves are
+// pinned by neon-branch-config.test.ts; this file only needs them to match.
+const PROJECT_ID = 'weathered-wave-50814522'
+const PRODUCTION_BRANCH_ID = 'br-square-mountain-az6f82vi'
 const OWNER_ROLE = 'neondb_owner'
 const HOST = 'ep-fake-test-aaa11111.c-2.ap-southeast-1.aws.neon.tech'
 const URI = `postgresql://neondb_owner:pw@${HOST}/neondb?sslmode=require`

@@ -21,8 +21,31 @@ describe('neon-branch harness configuration', () => {
     vi.resetModules()
     const mod = await import('../helpers/neon-branch')
 
-    expect(mod.PROJECT_ID).toBe('red-firefly-93523049')
-    expect(mod.PRODUCTION_BRANCH_ID).toBe('br-rough-butterfly-aojtgi92')
+    expect(mod.PROJECT_ID).toBe('weathered-wave-50814522')
+    expect(mod.PRODUCTION_BRANCH_ID).toBe('br-square-mountain-az6f82vi')
+  })
+
+  /**
+   * The rule rather than the values, so this keeps its meaning if the ids ever
+   * change — which the test above does not.
+   *
+   * createTestBranch() passes no --parent, so a branch's parent is whatever the
+   * project's default branch is, and a Neon branch is a copy-on-write snapshot
+   * of its parent rather than an empty database. The harness then runs
+   * `drop schema public cascade` against that copy. Defaulting PROJECT_ID to a
+   * project whose default branch holds customer data therefore snapshots real
+   * data on every unconfigured run — which is what this defaulted to until
+   * 2026-09-05. Section 16.1: never create a preview or test branch from a
+   * branch that has held customer data.
+   */
+  it('never defaults to a project or branch that has held customer data', async () => {
+    delete process.env.NEON_TEST_PROJECT_ID
+    delete process.env.NEON_TEST_PRODUCTION_BRANCH_ID
+    vi.resetModules()
+    const mod = await import('../helpers/neon-branch')
+
+    expect(mod.PROJECT_ID).not.toBe('red-firefly-93523049')
+    expect(mod.PRODUCTION_BRANCH_ID).not.toBe('br-rough-butterfly-aojtgi92')
   })
 
   it('reads an injected project id when set', async () => {
@@ -43,7 +66,7 @@ describe('neon-branch harness configuration', () => {
     vi.resetModules()
     const mod = await import('../helpers/neon-branch')
 
-    expect(mod.PROJECT_ID).toBe('red-firefly-93523049')
-    expect(mod.PRODUCTION_BRANCH_ID).toBe('br-rough-butterfly-aojtgi92')
+    expect(mod.PROJECT_ID).toBe('weathered-wave-50814522')
+    expect(mod.PRODUCTION_BRANCH_ID).toBe('br-square-mountain-az6f82vi')
   })
 })
