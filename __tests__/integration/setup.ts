@@ -128,6 +128,23 @@ export async function setup(): Promise<void> {
     console.log(`Provisioned test branch ${branch.id} (${name}, project ${PROJECT_ID})`)
     process.env.TEST_DATABASE_URL = branch.connectionUri
 
+    // Arm lib/db.ts's binding guard for the workers this process forks.
+    //
+    // The guard throws when EXPECTED_NEON_PROJECT_ID is unset — deliberately,
+    // so a process that cannot prove which database it reaches does not serve —
+    // which means every environment that runs a query has to set it, this one
+    // included. PROJECT_ID is the same constant the identity check above
+    // compares against, so the harness cannot arm the guard against a project
+    // other than the one it provisioned into.
+    //
+    // EXPECTED_NEON_BRANCH_ID is left unset ON PURPOSE, and this is the case
+    // the guard's optional-when-unset rule exists for: every run creates a new
+    // ephemeral branch inside this same project, so a pinned branch id would be
+    // wrong on the second run and every run after it. The project id still
+    // holds, and it is the half that would have caught the 2026-09-05 incident.
+    process.env.EXPECTED_NEON_PROJECT_ID = PROJECT_ID
+    delete process.env.EXPECTED_NEON_BRANCH_ID
+
     await resetPublicSchema(branch)
 
     // Migrate the now-empty branch — the runner's baseline guard no longer
