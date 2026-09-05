@@ -84,6 +84,27 @@ async function resetPublicSchema(branch: TestBranch): Promise<void> {
       )
     }
     await client.query('drop schema public cascade; create schema public;')
+
+    // Migration 003 FKs auth.users and calls auth.uid() in the policies it
+    // creates, and this harness replays every migration from 001. On the legacy
+    // project that dead Supabase schema already existed on the parent branch, so
+    // nothing here ever had to provide it — the header above says exactly that,
+    // and predicted that retiring `auth` would mean shimming it here first.
+    //
+    // That is now the case. AISO's baseline is squashed and carries no dead
+    // schema, so once PROJECT_ID moved to AISO (2026-09-05) replaying 003
+    // against a fresh branch failed with `schema "auth" does not exist`.
+    //
+    // Deliberately minimal: exactly what 003 references and nothing more.
+    // `if not exists` so a parent that does carry a real auth schema keeps it.
+    // This runs after the identity check above, on that same verified session,
+    // so it can only ever touch the branch this harness created.
+    await client.query(
+      'create schema if not exists auth; '
+      + 'create table if not exists auth.users (id uuid primary key); '
+      + 'create or replace function auth.uid() returns uuid language sql stable as '
+      + "$$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;",
+    )
   } finally {
     await client.end()
   }
