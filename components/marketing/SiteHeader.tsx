@@ -54,8 +54,19 @@ export function SiteHeader() {
     entries: available.filter((entry) => entry.section === section),
   })).filter((group) => group.entries.length > 0)
 
+  // Deliberately carries NO display utility. It used to begin with
+  // `inline-flex`, which silently defeated every responsive `hidden` at the
+  // call sites below: `hidden ${linkClass} sm:inline-flex` emits both `hidden`
+  // and `inline-flex`, they have equal specificity, and Tailwind's source order
+  // makes `inline-flex` win. The links marked hidden therefore rendered at
+  // every width, producing a 196px nav and 117px of horizontal overflow on
+  // every marketing page at 375px.
+  //
+  // Each call site now states its own display, so `hidden` has nothing to lose
+  // to. Keep it that way: a display utility here is invisible at desktop width
+  // and only shows up as overflow on mobile.
   const linkClass =
-    'inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+    'min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 
   return (
     <>
@@ -103,14 +114,14 @@ export function SiteHeader() {
               {groups.map(({ section, entries }) => (
                 <details key={section} className="group relative hidden lg:block">
                   <summary
-                    className={`${linkClass} cursor-pointer list-none marker:content-none`}
+                    className={`inline-flex ${linkClass} cursor-pointer list-none marker:content-none`}
                   >
                     {t(`sections.${section}`)}
                   </summary>
                   <ul className="absolute left-0 top-full z-50 mt-1 min-w-56 rounded-xl border border-border bg-card p-2 shadow-lg">
                     {entries.map((entry) => (
                       <li key={entry.href}>
-                        <Link href={`/${locale}${entry.href}`} className={`w-full ${linkClass}`}>
+                        <Link href={`/${locale}${entry.href}`} className={`inline-flex w-full ${linkClass}`}>
                           {t(entry.labelKey.replace(/^nav\./, ''))}
                         </Link>
                       </li>
