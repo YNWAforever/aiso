@@ -193,8 +193,18 @@ export function createTestBranch(name: string): TestBranch {
       `A branch may still exist: check \`neonctl branches list --project-id ${PROJECT_ID}\`.`,
     )
   }
-  // Register before validating the rest, so a branch rejected below is still
-  // deleted by the caller's cleanup rather than orphaned.
+  // Only an identity matching this requested child is eligible for cleanup.
+  // Rejected default/foreign responses must never become deletion candidates.
+  const identityProblems: string[] = []
+  if (branch.project_id !== PROJECT_ID) identityProblems.push('project_id does not match')
+  if (branch.name !== name) identityProblems.push(`name is ${String(branch.name)}, expected ${name}`)
+  if (typeof branch.parent_id !== 'string' || !branch.parent_id) identityProblems.push('it has no parent_id')
+  if (branch.default === true || branch.primary === true) identityProblems.push('it is the default branch')
+  if (id === PRODUCTION_BRANCH_ID) identityProblems.push('it is the production branch')
+  if (identityProblems.length) {
+    throw new Error(`Refusing unproven branch identity (${identityProblems.join('; ')}). No automatic cleanup is allowed; inspect the requested project.`)
+  }
+  // A safe child remains cleanable if retrieving its connection subsequently fails.
   created.set(id, '')
 
   // `branches create`'s response carries no connection string once a branch
@@ -212,13 +222,6 @@ export function createTestBranch(name: string): TestBranch {
   // quietly handing back another branch's identity or connection uri.
   const uriHost = uri ? hostOf(uri) : null
   const problems: string[] = []
-  if (branch.project_id !== PROJECT_ID) problems.push(`project_id is ${String(branch.project_id)}`)
-  if (branch.name !== name) problems.push(`name is ${String(branch.name)}, expected ${name}`)
-  if (typeof branch.parent_id !== 'string' || !branch.parent_id) {
-    problems.push('it has no parent_id, so it is a root branch rather than a child')
-  }
-  if (branch.default === true || branch.primary === true) problems.push('it is the default branch')
-  if (id === PRODUCTION_BRANCH_ID) problems.push('it is the production branch')
   if (!uriHost) problems.push('it has no usable connection uri')
   // The uri must belong to an endpoint of this same branch — proof that the
   // connection uri and the branch id in the response describe one thing.
@@ -278,6 +281,9 @@ export function assertDisposableTestBranch(branch: TestBranch): void {
 }
 
 export function deleteTestBranch(id: string): void {
+  if (!BRANCH_ID.test(id) || id === PRODUCTION_BRANCH_ID || !created.has(id)) {
+    throw new Error('Refusing to delete a protected, invalid or unregistered branch.')
+  }
   neonctl(['branches', 'delete', id, '--project-id', PROJECT_ID])
   created.delete(id)
 }

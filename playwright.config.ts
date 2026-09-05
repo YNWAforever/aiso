@@ -13,6 +13,8 @@ const testIgnore = [
 
 export default defineConfig({
   testDir: '.',
+  // Skip ignored build/fixture trees during traversal, not only after collecting files.
+  respectGitIgnore: true,
   testMatch: ['tests/e2e/**/*.spec.ts', 'e2e/**/*.spec.ts'],
   testIgnore,
   globalSetup: './tests/globalSetup.ts', globalTeardown: './tests/globalTeardown.ts', fullyParallel: true,

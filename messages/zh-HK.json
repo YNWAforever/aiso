@@ -922,7 +922,8 @@
     "nav_home": "工作區總覽",
     "nav_home_desc": "觀察、證據與下一步",
     "workspace_navigation": "工作區導覽",
-    "toggle_navigation": "切換工作區導覽"
+    "toggle_navigation": "切換工作區導覽",
+    "entity": "品牌識別資料"
   },
   "reports": {
     "create_client_report": "建立客戶報告",
@@ -1494,5 +1495,27 @@
     "loadFailed": "未能載入提示設定，請重試。",
     "saveFailed": "未能確認提示設定已儲存。你的修改仍然保留，請重試。",
     "retry": "重試"
+  },
+  "entities": {
+    "title": "品牌識別資料",
+    "description": "為此客戶保留一份私人品牌識別資料。這些名稱尚未驗證，不會更改品牌名稱或掃描結果。",
+    "privateLabel": "私人工作區",
+    "unverified": "尚未驗證",
+    "unsaved": "尚未儲存的草稿",
+    "saved": "已私人儲存",
+    "displayName": "顯示名稱",
+    "aliases": "別名",
+    "aliasesHelp": "每行一個別名，最多 20 個，每個名稱最多 120 個字元。",
+    "save": "儲存識別資料",
+    "saving": "儲存中…",
+    "reload": "捨棄草稿並重新載入最新版本",
+    "reloading": "重新載入中…",
+    "conflict": "其他人已儲存較新版本。你的草稿已保留。再次儲存前請重新載入最新版本；重新載入將捨棄此草稿。",
+    "saveError": "無法儲存變更。你的草稿已保留，請再次嘗試儲存。",
+    "loadError": "無法載入識別資料，請重試。",
+    "retry": "重試",
+    "invalid": "請輸入顯示名稱及最多 20 個別名。每個名稱須為 1–120 個字元，且不可包含控制字元。",
+    "unauthenticated": "登入階段已結束，請重新登入以繼續。你的草稿仍保留在此。",
+    "unavailable": "此客戶已無法存取，你的草稿尚未儲存。"
   }
 }

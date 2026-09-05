@@ -99,6 +99,8 @@ describe('migrationCreatedTables', () => {
 function allRelations() {
   return new Set([
     ...ALL_TABLES,
+    // Migration 040 is an authored contract fixture, not part of the historical PG16 run.
+    'client_entities',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
@@ -229,4 +231,11 @@ describe('assertBaselined', () => {
     // The old message named only 027, which would have buried 029, 030 and 031.
     await expect(assertBaselined(pool(0, 1) as never)).rejects.toThrow(/--verify/)
   })
+})
+
+it('refuses to baseline 040 when its private entity table is absent', () => {
+  const relations = allRelations()
+  relations.delete('client_entities')
+  expect(unappliedBaselineClaims(entries(['040_client_entities.sql']), relations))
+    .toEqual([{ filename: '040_client_entities.sql', missing: ['client_entities'] }])
 })
