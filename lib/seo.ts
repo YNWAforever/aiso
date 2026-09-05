@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import en from '@/messages/en.json'
+import zhHK from '@/messages/zh-HK.json'
 import { appOrigin } from '@/lib/app-origin'
 import { PRODUCT_FACTS } from '@/lib/product-facts'
 
@@ -9,12 +11,27 @@ export function localizedUrl(locale: string, path = ''): string {
   return new URL(`/${locale}${suffix}`, SITE_URL).toString().replace(/\/$/, '')
 }
 
+export function seoMessageKey(path: string): string {
+  const key = path.replace(/^\/+|\/+$/g, '').replaceAll('/', '.') || 'home'
+  return `seo.${key}`
+}
+
+function metadataMessage(catalog: unknown, key: string, locale: string): string {
+  const value = key.split('.').reduce<unknown>((node, segment) =>
+    node && typeof node === 'object' ? (node as Record<string, unknown>)[segment] : undefined,
+  catalog)
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error(`${locale}: missing ${key}`)
+  }
+  return value
+}
+
 export function buildLocalizedMetadata(locale: string, path = ''): Metadata {
   const isZh = locale === 'zh-HK'
-  const title = isZh ? 'Fimmick AISO｜AI 搜尋能見度掃描' : 'Fimmick AISO | AI Visibility Scan'
-  const description = isZh
-    ? '免費檢查網站是否容易被主要 AI 平台發現、理解及引用，並取得可執行的修復建議。'
-    : 'Check whether leading AI platforms can find, understand, and cite your website, then get prioritized fixes.'
+  const catalog = isZh ? zhHK : en
+  const key = seoMessageKey(path)
+  const title = metadataMessage(catalog, `${key}.title`, locale)
+  const description = metadataMessage(catalog, `${key}.description`, locale)
 
   return {
     title,

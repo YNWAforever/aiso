@@ -1,4 +1,14 @@
 {
+  "seo": {
+    "home": {
+      "title": "Fimmick AISO | AI Visibility Scan",
+      "description": "Check how easily AI platforms can find, understand and cite your website, and get prioritized fixes."
+    },
+    "pricing": {
+      "title": "Plans and Pricing | Fimmick AISO",
+      "description": "Compare Fimmick AISO plans for website checks, AI visibility monitoring and actionable fixes."
+    }
+  },
   "nav": {
     "title": "Fimmick AISO",
     "brand_name": "Fimmick",
