@@ -151,7 +151,9 @@ jobs:
         run: |
           mkdir -p artifacts/e2e-accessibility
           set +e
-          npm run e2e -- --reporter=html,json,junit 2>&1 | tee artifacts/e2e-accessibility/playwright.log
+          # Keep the full desktop/mobile/a11y matrix within the job budget.
+          # Two workers share the fixture server; list output identifies slow tests.
+          npm run e2e -- --workers=2 --reporter=list,html,json,junit 2>&1 | tee artifacts/e2e-accessibility/playwright.log
           e2e_exit=${PIPESTATUS[0]}
           set -e
           set +e
