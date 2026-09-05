@@ -84,6 +84,27 @@ async function resetPublicSchema(branch: TestBranch): Promise<void> {
       )
     }
     await client.query('drop schema public cascade; create schema public;')
+
+    // Migration 003 FKs auth.users and calls auth.uid() in the policies it
+    // creates, and this harness replays every migration from 001. On the legacy
+    // project that dead Supabase schema already existed on the parent branch, so
+    // nothing here ever had to provide it — the header above says exactly that,
+    // and predicted that retiring `auth` would mean shimming it here first.
+    //
+    // That is now the case. AISO's baseline is squashed and carries no dead
+    // schema, so once PROJECT_ID moved to AISO (2026-09-05) replaying 003
+    // against a fresh branch failed with `schema "auth" does not exist`.
+    //
+    // Deliberately minimal: exactly what 003 references and nothing more.
+    // `if not exists` so a parent that does carry a real auth schema keeps it.
+    // This runs after the identity check above, on that same verified session,
+    // so it can only ever touch the branch this harness created.
+    await client.query(
+      'create schema if not exists auth; '
+      + 'create table if not exists auth.users (id uuid primary key); '
+      + 'create or replace function auth.uid() returns uuid language sql stable as '
+      + "$$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;",
+    )
   } finally {
     await client.end()
   }
@@ -127,6 +148,23 @@ export async function setup(): Promise<void> {
     // finds and removes it even if no cleanup path runs.
     console.log(`Provisioned test branch ${branch.id} (${name}, project ${PROJECT_ID})`)
     process.env.TEST_DATABASE_URL = branch.connectionUri
+
+    // Arm lib/db.ts's binding guard for the workers this process forks.
+    //
+    // The guard throws when EXPECTED_NEON_PROJECT_ID is unset — deliberately,
+    // so a process that cannot prove which database it reaches does not serve —
+    // which means every environment that runs a query has to set it, this one
+    // included. PROJECT_ID is the same constant the identity check above
+    // compares against, so the harness cannot arm the guard against a project
+    // other than the one it provisioned into.
+    //
+    // EXPECTED_NEON_BRANCH_ID is left unset ON PURPOSE, and this is the case
+    // the guard's optional-when-unset rule exists for: every run creates a new
+    // ephemeral branch inside this same project, so a pinned branch id would be
+    // wrong on the second run and every run after it. The project id still
+    // holds, and it is the half that would have caught the 2026-09-05 incident.
+    process.env.EXPECTED_NEON_PROJECT_ID = PROJECT_ID
+    delete process.env.EXPECTED_NEON_BRANCH_ID
 
     await resetPublicSchema(branch)
 

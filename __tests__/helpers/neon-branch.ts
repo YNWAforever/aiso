@@ -17,14 +17,30 @@ import { redactSecrets } from '../../lib/security/redact-secrets.ts'
 // reference whose secret doesn't exist. An empty PRODUCTION_BRANCH_ID would otherwise
 // silently disable this file's two identity comparisons against it (real branch ids never
 // equal ''), rather than falling back to the real production id the guards exist to reject.
-export const PROJECT_ID = process.env.NEON_TEST_PROJECT_ID?.trim() || 'red-firefly-93523049'
+//
+// The default is AISO, never the legacy project. createTestBranch() passes no
+// --parent, so a branch's parent is whatever the project's default branch is,
+// and a Neon branch is a copy-on-write snapshot of its parent rather than an
+// empty database — resetPublicSchema() then drops and recreates public on that
+// copy. Defaulting to a project whose default branch holds customer data
+// therefore snapshots real data on every unconfigured run. This defaulted to
+// red-firefly-93523049 until 2026-09-05; §16.1 of the integration plan is
+// explicit that one must never create a preview or test branch from a branch
+// that has held customer data. AISO's default branch has held only the
+// synthetic seed.
+export const PROJECT_ID = process.env.NEON_TEST_PROJECT_ID?.trim() || 'weathered-wave-50814522'
 
 /**
- * The project's default branch. Production data lives on it. It is named here
- * so the guards below can reject it by identity rather than merely avoiding it
- * by construction.
+ * The default branch of whichever project PROJECT_ID names — so the two must
+ * always move together. It is named here so the guards below can reject it by
+ * identity rather than merely avoiding it by construction.
+ *
+ * This is a blocklist entry, not a parent selector: nothing passes it to
+ * `branches create`. createTestBranch() additionally rejects any branch
+ * reporting `default` or `primary`, which catches the default branch
+ * structurally even if this id were stale.
  */
-export const PRODUCTION_BRANCH_ID = process.env.NEON_TEST_PRODUCTION_BRANCH_ID?.trim() || 'br-rough-butterfly-aojtgi92'
+export const PRODUCTION_BRANCH_ID = process.env.NEON_TEST_PRODUCTION_BRANCH_ID?.trim() || 'br-square-mountain-az6f82vi'
 
 /**
  * The role migrations run as. Passed explicitly to `connection-string`
