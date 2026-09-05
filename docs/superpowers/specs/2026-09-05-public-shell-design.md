@@ -58,6 +58,27 @@ Declaring the full IA now, rather than adding entries slice by slice, is deliber
 structure that nine platform pages must fit is decided once, cheaply, before fourteen pages depend on
 the header's shape.
 
+> **Measured 2026-09-05: this prediction was wrong, and wrong on its premise.**
+> `region` went 160 → 160 and `landmark-one-main` 32 → 32. Not a single node moved.
+>
+> Every one of those 192 violations comes from `/auth/login` and `/onboarding` — 16
+> `landmark-one-main` and 80 `region` each, across two locales and four viewports, which is
+> exactly 32 and 160. **Home and pricing carried zero of them**, because home's chrome was
+> already structurally correct and the shell inherited its landmarks rather than introducing
+> them.
+>
+> The a11y matrix covers five routes and only two are marketing. I attributed the backlog to
+> "a missing shell" without checking which routes carried it. The section below is left
+> unedited as the original reasoning; treat its arithmetic as sound and its attribution as
+> false.
+>
+> **What this does tell us**, and it is worth more than the wrong prediction: the accessibility
+> backlog lives in `/auth/login` and `/onboarding`, which have their own layouts and are
+> deliberately outside this slice. That is where the next a11y work belongs, and it is now
+> measured rather than assumed.
+>
+> The baseline was **not** regenerated. Nothing improved, so there was nothing to record.
+
 ## This slice should burn down most of the remaining accessibility backlog
 
 The baseline stands at **288** violating nodes:
