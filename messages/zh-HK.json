@@ -1367,5 +1367,28 @@
     "pricing": "查看方案",
     "openScan": "查看掃描",
     "status": "網站狀態"
+  },
+  "portfolio": {
+    "title": "你的品牌組合",
+    "intro": "查看啟用中的品牌及已儲存的觀察。資料新鮮度仍屬未知；這些記錄未能證明可比較的表現變化。",
+    "brands": "啟用中的品牌",
+    "emptyBrands": "暫時沒有啟用中的品牌。",
+    "capacity": "所有持有的品牌",
+    "capacityUnknown": "暫時無法核實新增品牌的可用額度，請稍後重新整理再試。",
+    "capacityLimit": "你目前的品牌額度已滿。",
+    "pricing": "查看方案",
+    "history": "最近掃描",
+    "historyEmpty": "暫時沒有已儲存的掃描。",
+    "historyError": "暫時無法載入掃描記錄，請稍後重新整理再試。",
+    "visibility": "最新觀察到的可見度",
+    "visibilityEmpty": "暫時沒有可用的可見度觀察。",
+    "visibilityError": "暫時無法載入可見度觀察。",
+    "freshnessUnknown": "資料新鮮度：未知",
+    "observedAt": "觀察週期",
+    "dateUnknown": "日期暫時無法取得",
+    "dateZone": "日期以 UTC 顯示。",
+    "grade": "評級",
+    "loadErrorTitle": "未能載入你的品牌組合",
+    "loadErrorBody": "暫時無法取得你持有的品牌，請稍後重新整理再試。"
   }
 }

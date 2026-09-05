@@ -1,42 +1,23 @@
 import Link from 'next/link'
 import { BarChart2 } from 'lucide-react'
-import type { Client } from '@/lib/types'
+import type { Portfolio } from '@/lib/view-models/portfolio'
+import { formatScanDate } from '@/components/dashboard/RecentScans'
+import en from '@/messages/en.json'
+import zhHK from '@/messages/zh-HK.json'
 
-interface Props {
-  client: Client
-  lang: string
-  sovScore?: number
-}
-
-export function BrandCard({ client, lang, sovScore }: Props) {
-  return (
-    <Link href={`/${lang}/dashboard/${client.id}`} className="group block">
-      <div className="rounded-xl border border-dash-border bg-dash-surface p-5 hover:border-dash-accent/20 hover:bg-dash-elevated transition-all duration-200">
-        <div className="flex items-start justify-between mb-3">
-          <div className="w-9 h-9 rounded-lg bg-dash-accent/10 flex items-center justify-center">
-            <BarChart2 className="w-4 h-4 text-dash-accent" />
-          </div>
-          {client.industry && (
-            <span className="text-[10px] font-medium text-dash-muted bg-dash-elevated px-2 py-0.5 rounded border border-dash-border">
-              {client.industry}
-            </span>
-          )}
-        </div>
-        <p className="font-semibold text-dash-text text-sm group-hover:text-dash-accent transition-colors">
-          {client.brand_name}
-        </p>
-        {client.domain && (
-          <p className="text-[11px] text-dash-muted mt-0.5 font-mono">{client.domain}</p>
-        )}
-        {sovScore !== undefined && (
-          <div className="mt-4 pt-3 border-t border-dash-border">
-            <p className="text-2xl font-bold font-mono text-dash-purple">
-              {sovScore}%
-              <span className="text-[10px] font-normal text-dash-muted ml-1">SoV</span>
-            </p>
-          </div>
-        )}
-      </div>
-    </Link>
-  )
+type Props = { client: Portfolio['clients'][number]; lang: string }
+export function BrandCard({client,lang}: Props) {
+  const copy = (lang === 'zh-HK' ? zhHK : en).portfolio
+  const visibility = client.visibility
+  return <Link href={`/${lang}/dashboard/${client.id}`} className="group block h-full min-w-0 rounded-xl border border-border bg-card p-5 transition-colors hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2">
+    <div className="mb-3 flex items-start justify-between gap-3"><BarChart2 aria-hidden="true" className="size-5 shrink-0 text-primary-accessible" />{client.industry && <span className="break-words text-xs text-muted-foreground">{client.industry}</span>}</div>
+    <h3 className="break-words text-base font-semibold text-foreground">{client.brand_name}</h3>
+    {client.domain && <p className="mt-1 break-words text-xs text-muted-foreground">{client.domain}</p>}
+    <div className="mt-4 border-t border-border pt-3">
+      <p className="text-xs font-semibold text-muted-foreground">{copy.visibility}</p>
+      {visibility.state === 'ready' && visibility.data ? <p className="mt-2 text-2xl font-bold text-foreground">{visibility.data.sovScore}%</p> : <p className="mt-2 text-sm text-muted-foreground">{visibility.state === 'error' ? copy.visibilityError : copy.visibilityEmpty}</p>}
+      <p className="mt-2 text-xs text-muted-foreground">{copy.observedAt}: {formatScanDate(visibility.observedAt,lang)}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{copy.freshnessUnknown}</p>
+    </div>
+  </Link>
 }

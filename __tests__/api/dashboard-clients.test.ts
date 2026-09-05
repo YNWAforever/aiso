@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const queries: string[] = []
+const bindings: unknown[][] = []
 let nextResults: unknown[][] = []
 
-const mockSql = vi.fn((strings: TemplateStringsArray) => {
+const mockSql = vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => {
+  bindings.push(values)
   queries.push(strings.join('?'))
   const result = nextResults.shift()
   if (result instanceof Error) throw result
@@ -39,6 +41,7 @@ describe('POST /api/dashboard/clients', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queries.length = 0
+    bindings.length = 0
     nextResults = []
     consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     vi.mocked(getProfile).mockResolvedValue(PRO_PROFILE as never)
@@ -55,10 +58,14 @@ describe('POST /api/dashboard/clients', () => {
     await expect(res.json()).resolves.toEqual({ id: 'client-1' })
   })
 
-  it('scopes the brand count to the caller account', async () => {
+  it('counts all owned clients using session tenancy, regardless of requested account or status', async () => {
     nextResults = [[{ n: 0 }], [{ id: 'client-1' }]]
-    await POST(request({ brand_name: 'Acme' }))
+    await POST(request({ brand_name: 'Acme', account_id: 'other-account', status: 'active' }))
     expect(queries[0]).toContain('account_id')
+    expect(queries[0]).not.toMatch(/\bstatus\b/i)
+    expect(bindings[0]).toEqual(['acc-1'])
+    expect(bindings[1]).toContain('acc-1')
+    expect(bindings.flat()).not.toContain('other-account')
   })
 
   it('returns 403 when the plan limit is already reached', async () => {

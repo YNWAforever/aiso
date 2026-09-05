@@ -1367,5 +1367,28 @@
     "pricing": "Review plan",
     "openScan": "Open scan",
     "status": "Site status"
+  },
+  "portfolio": {
+    "title": "Your brand portfolio",
+    "intro": "Review active brands and their saved observations. Freshness remains unknown; these records do not establish comparable changes in performance.",
+    "brands": "Active brands",
+    "emptyBrands": "No active brands yet.",
+    "capacity": "All owned brands",
+    "capacityUnknown": "Brand creation availability could not be verified. Refresh later to try again.",
+    "capacityLimit": "Your current brand allowance is full.",
+    "pricing": "Review plan",
+    "history": "Recent scans",
+    "historyEmpty": "No saved scans yet.",
+    "historyError": "Recent scan history could not load. Refresh later to try again.",
+    "visibility": "Latest observed visibility",
+    "visibilityEmpty": "No usable visibility observation is available.",
+    "visibilityError": "Visibility observations could not load.",
+    "freshnessUnknown": "Freshness: unknown",
+    "observedAt": "Observed week",
+    "dateUnknown": "Date unavailable",
+    "dateZone": "Dates shown in UTC.",
+    "grade": "Grade",
+    "loadErrorTitle": "Your portfolio could not load",
+    "loadErrorBody": "We could not retrieve your owned brands. Refresh later to try again."
   }
 }
