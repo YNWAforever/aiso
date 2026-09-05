@@ -283,3 +283,27 @@ describe('GET /api/cron/pulse — chaining', () => {
     expect(res.status).toBe(200)
   })
 })
+
+describe('Pulse failure ledger classification', () => {
+  it.each(['lookup', 'producer-response', 'producer-network'] as const)(
+    'records %s as an error with unchanged HTTP failure',
+    async failure => {
+      const { finishCronRun } = await import('@/lib/cron/recordRun')
+      vi.mocked(finishCronRun).mockClear()
+      if (failure === 'lookup') lookupFails = true
+      if (failure === 'producer-response') fetchMock.mockResolvedValue({ ok: false, status: 503 })
+      if (failure === 'producer-network') fetchMock.mockRejectedValue(new Error('synthetic-network-failure'))
+
+      const response = await get()
+      const expected = failure === 'lookup'
+        ? { error: 'Lookup failed' }
+        : failure === 'producer-response'
+          ? { error: 'Producer failed', status: 503, clientId: 'client-1' }
+          : { error: 'Producer unreachable' }
+      expect(response.status).toBe(failure === 'lookup' ? 503 : 502)
+      expect(await response.json()).toEqual(expected)
+      expect(finishCronRun).toHaveBeenLastCalledWith('test-run-id', 'error', expected)
+      expect(afterCallbacks).toHaveLength(0)
+    },
+  )
+})

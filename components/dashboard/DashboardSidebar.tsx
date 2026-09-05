@@ -144,6 +144,15 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
               {t('tools')}
             </p>
             <Link
+              href={`/${lang}/dashboard/${clientId}/entities`}
+              aria-current={pathname === `/${lang}/dashboard/${clientId}/entities` ? 'page' : undefined}
+              onClick={() => setNavigationOpen(false)}
+              className={`flex min-h-11 items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 ${pathname === `/${lang}/dashboard/${clientId}/entities` ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
+            >
+              <Brain className="size-4 shrink-0" aria-hidden="true" />
+              <span className="text-xs font-semibold">{t('entity')}</span>
+            </Link>
+            <Link
               href={`/${lang}/dashboard/${clientId}/prompts`}
               onClick={() => setNavigationOpen(false)}
               className={`flex min-h-11 items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 ${

@@ -80,3 +80,8 @@ describe('selectPrunableBranches', () => {
     expect(() => selectPrunableBranches(branches, { now: NOW })).toThrow(/productionBranchId/)
   })
 })
+
+it.each(['default','primary'])('refuses structural %s branches when configured id is stale',flag=>{
+  const branches=[{id:'br-other-default',name:'preview-old',created_at:'2020-01-01T00:00:00Z',[flag]:true}]
+  expect(selectPrunableBranches(branches,opts)).toEqual([])
+})

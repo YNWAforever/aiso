@@ -106,3 +106,24 @@ These adapters preserve authenticated ownership and existing mutation contracts.
 | C8g settings | Existing commercial resolver, catalogue prices, persisted status and account-scoped branding gate | Missing/unrecognized status is unknown. Catalogue prices are not an invoice or actual billing state. Existing ordinary portal link and branding/onboarding permissions remain unchanged. |
 
 Unit and offline-renderer evidence does not establish real authentication, Neon data equivalence, Stripe behavior, provider availability, delivery or production readiness. C9–C11 retain their separate material decisions and external approval gates.
+
+## C9a private entities (2026-09-06)
+
+One private canonical brand record per existing client, with at most20 aliases. Names are organizational user input; the DTO always labels verification as unverified. No public profile, discovery route or verification badge is activated.
+
+| Field / operation | Source and tenant boundary | Semantics |
+|---|---|---|
+| Suggested display name | Owned clients.id/brand_name/account_id lookup | Used only when stored entity is null; GET never inserts, and suggestion is visibly unsaved |
+| Stored identity | client_entities joined to clients on id AND account_id | Narrow DTO: clientId,displayName,aliases,revision,verification,updatedAt; no account/actor ids |
+| Write | Authenticated account + profile actor; tenant-scoped INSERT SELECT or UPDATE with expected revision | One mutation and separate READ COMMITTED replay query in a transaction; concurrent winner can be seen safely, different stale/future payload conflicts |
+| Retry | Same normalized values and older expected revision | Returns stored record without increment; not approval/publication evidence |
+| Aliases | Trimmed/NFC-normalized labels, case-insensitive deduplication, display name excluded | Input bounded by16KiB body,20 alias labels and120 Unicode codepoints per label; no provider lookup or scan |
+| Failure | Missing/foreign owned client, invalid input, conflict, database/auth outage | Explicit401/400/404/409/500; no failed read presented as empty or failed write as saved |
+
+Migration040 is additive source only, not applied in this task. It carries owned-client and same-account actor foreign keys and explicitly narrows inherited app-role privileges to SELECT/INSERT/UPDATE. Existing brand quotas and roles are unchanged. Live concurrency/SQL/grant proof remains a separately authorized exact-target integration gate.
+
+## C10 local hardening (2026-09-06)
+
+Cron-ledger write failures now emit allowlisted database diagnostics while preserving existing null/no-throw behavior. Three Pulse lookup/producer error responses record ledger status error; HTTP503/502 payloads and job flow remain unchanged. No new no-op/partial taxonomy or scheduler retry guarantee is introduced.
+
+Disposable helper cleanup may only use structurally validated child identities created in the current process. Protected/default/primary/wrong-project/name/root responses cannot enter the cleanup registry; connection lookup failure after valid child identity still permits cleanup. Deletion independently rejects unregistered/protected/invalid ids. The pure pruner excludes default/primary metadata even if its configured protected id is stale. These are locally mocked safeguards, not evidence that any provider cleanup ran.

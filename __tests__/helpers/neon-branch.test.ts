@@ -156,12 +156,12 @@ describe('createTestBranch', () => {
     expect(() => createTestBranch('test-branch')).toThrow(/does not match any endpoint/)
   })
 
-  it('records a rejected branch so the caller can still delete it', async () => {
+  it('does not register an identity-mismatched branch for cleanup', async () => {
     mockNeonctl({ create: createResponse({}, 'someone-elses-branch') })
     const { createTestBranch, createdBranchIds } = await load()
 
     expect(() => createTestBranch('test-branch')).toThrow()
-    expect(createdBranchIds()).toEqual(['br-fake-child-bbb22222'])
+    expect(createdBranchIds()).toEqual([])
   })
 
   it('fails loudly when the JSON shape no longer carries a branch id', async () => {
@@ -249,5 +249,37 @@ describe('deleteTestBranch', () => {
     })
     expect(() => deleteTestBranch(branch.id)).toThrow(/neonctl branches delete failed/)
     expect(createdBranchIds()).toEqual([branch.id])
+  })
+})
+
+describe('cleanup cannot bypass create identity guards',()=>{
+  it.each([{id:PRODUCTION_BRANCH_ID},{default:true},{primary:true},{project_id:'wrong-project'},{parent_id:null},{name:'someone-elses-branch'}])('does not register an unproven branch %j',async overrides=>{
+    mockNeonctl({create:createResponse(overrides)})
+    const {createTestBranch,createdBranchIds,deleteTestBranch}=await load()
+    expect(()=>createTestBranch('test-branch')).toThrow()
+    for(const id of createdBranchIds()) deleteTestBranch(id)
+    expect(createdBranchIds()).toEqual([])
+    const invoked=execFileSync.mock.calls.map(call=>neonctlArgv(call[1]))
+    expect(invoked.some(args=>args[0]==='connection-string')).toBe(false)
+    expect(invoked.some(args=>args[0]==='branches'&&args[1]==='delete')).toBe(false)
+  })
+  it.each([PRODUCTION_BRANCH_ID,'br-unregistered-child','not-a-branch'])('refuses direct deletion of %s',async id=>{
+    mockNeonctl()
+    const {deleteTestBranch}=await load()
+    expect(()=>deleteTestBranch(id)).toThrow(/Refusing/)
+    expect(execFileSync).not.toHaveBeenCalled()
+  })
+  it('retains a validated child for cleanup if connection retrieval fails',async()=>{
+    mockNeonctl()
+    const original=execFileSync.getMockImplementation()!
+    execFileSync.mockImplementation((...args)=>{
+      if(neonctlArgv(args[1])[0]==='connection-string')throw new Error('synthetic lookup failed')
+      return original(...args)
+    })
+    const {createTestBranch,createdBranchIds,deleteTestBranch}=await load()
+    expect(()=>createTestBranch('test-branch')).toThrow()
+    expect(createdBranchIds()).toEqual(['br-fake-child-bbb22222'])
+    deleteTestBranch('br-fake-child-bbb22222')
+    expect(createdBranchIds()).toEqual([])
   })
 })

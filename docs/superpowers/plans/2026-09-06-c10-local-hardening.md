@@ -1,0 +1,13 @@
+# C10 local failure hardening plan — 2026-09-06
+
+Scope: demonstrated defects from the approved read-only C10 audit. No new provider, scheduler, credential, database or remote setting operation. Preserve C9a separate files and API behavior. Use TDD and independent review.
+
+1. Cron ledger: lib/cron/recordRun.ts catch paths pass raw DB errors to logs. Replace with existing sanitizeDatabaseError plus internal operation/correlation fields; retain null/no-throw/null-id behavior. Add __tests__/lib/cron-ledger.test.ts using synthetic secret-bearing errors and assert allowlisted diagnostics only. Do not change stored detail/error payload contracts.
+2. Pulse: app/api/cron/pulse/route.ts records three lookup/producer failure branches as ok despite returning503/502. Change those three statuses to error; add assertions in existing cron-pulse tests preserving response bodies/status and no chaining on failure. Leave no-op/partial taxonomy and retry policy unchanged.
+3. Disposable helper: __tests__/helpers/neon-branch.ts registers branch id before rejecting protected/default/primary/wrong-project/name/root identities. Validate returned structural identity before registration or connection-string lookup; register safe child identity before fetching URI so later connection failures remain cleanable. deleteTestBranch independently rejects protected/invalid/unregistered ids. Never suggest deleting an unproven/protected target in errors. Add mocked create-rejection then cleanup regression, valid cleanup and CLI-error cleanup cases. Do not run helper against Neon.
+4. Pruner: scripts/prune-preview-branches.mjs must exclude returned default/primary metadata even if configured production id is stale, before TTL/name selection. Extend existing pure tests; no pruning invocation.
+5. Review exact local patch; focused tests and full root units, lint/types/build where affected. Existing Worker mock tests are separate (root installed Vitest fallback if worker dependencies absent); no claim of actual retries/idempotency or deployed health. Retain C1 bootstrap/equivalence proof as separate and unexecuted.
+
+Files are a distinct C10 review manifest/patch, while overall handoff may include C9a and C11 documentation. No external action is prepared as executable until exact target/owner/diff/validation/rollback is available.
+
+6. Local test discovery: explicit Playwright testDir disables default Git-ignore traversal. Two discovery regressions timed out after scanning ignored build and patch fixtures. Enable respectGitIgnore without changing matches, projects or timeouts. Before/after inventories contain550/450 entries; the100 removed entries are only ignored .codex/patch-temp/after duplicates. No actual source test is removed; both discovery checks now pass.
