@@ -19,7 +19,7 @@
   --secondary-foreground:   #0f172a;
 
   --muted:                  #f1f5f9;
-  --muted-foreground:       #64748b;
+  --muted-foreground:       #5e6e85;
 
   --accent:                 #eff6ff;
   --accent-foreground:      #1e40af;
@@ -49,7 +49,7 @@
   --sidebar-primary-fg:     #ffffff;
   --sidebar-accent:         #f1f5f9;
   --sidebar-accent-fg:      #0f172a;
-  --sidebar-muted-fg:       #64748b;
+  --sidebar-muted-fg:       #5e6e85;
   --sidebar-border:         #e2e8f0;
 
   /* Dashboard-specific tokens */
@@ -58,7 +58,7 @@
   --dash-elevated: #f1f5f9;
   --dash-border:   #e2e8f0;
   --dash-text:     #0f172a;
-  --dash-muted:    #64748b;
+  --dash-muted:    #5e6e85;
   --dash-accent:   #2563eb;
   --dash-purple:   #7c3aed;
   --dash-success:  #16a34a;
@@ -94,7 +94,7 @@
 
      --brand-muted is the dangerous one. The donor's --muted is a FOREGROUND
      grey; this repo's --muted (#f1f5f9) is a SURFACE. The real equivalent of
-     the donor's --muted here is --muted-foreground (#64748b), NOT --muted.
+     the donor's --muted here is --muted-foreground (#5e6e85), NOT --muted.
      The donor itself sidesteps this at its globals.css:65, registering
      --color-muted: var(--paper-deep) rather than var(--muted) -- which is why
      the Tailwind utilities agree across both repos while the raw variable does
@@ -129,7 +129,7 @@
   --secondary-foreground:   #e0e0ec;
 
   --muted:                  #141422;
-  --muted-foreground:       #5c5c6e;
+  --muted-foreground:       #88889a;
 
   --accent:                 #141422;
   --accent-foreground:      #e0e0ec;
@@ -152,7 +152,7 @@
   --sidebar-foreground:     #e0e0ec;
   --sidebar-accent:         #141422;
   --sidebar-accent-fg:      #e0e0ec;
-  --sidebar-muted-fg:       #5c5c6e;
+  --sidebar-muted-fg:       #88889a;
   --sidebar-border:         #1e1e30;
 
   /* Dashboard-specific tokens */
@@ -161,7 +161,7 @@
   --dash-elevated: #141422;
   --dash-border:   #1e1e30;
   --dash-text:     #e0e0ec;
-  --dash-muted:    #5c5c6e;
+  --dash-muted:    #88889a;
   --dash-accent:   #00d4ff;
   --dash-purple:   #a78bfa;
   --dash-success:  #22c55e;

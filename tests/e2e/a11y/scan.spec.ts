@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import AxeBuilder from '@axe-core/playwright'
@@ -8,6 +8,45 @@ import { cellId, compareCounts, type A11yTheme, type Baseline, type RuleCounts }
 import { A11Y_LOCALES, A11Y_ROUTES, A11Y_THEMES } from './matrix'
 
 const BASELINE_PATH = join(process.cwd(), 'tests', 'e2e', 'a11y', 'baseline.json')
+
+/**
+ * Where A11Y_UPDATE_BASELINE=1 drops one file per cell, for
+ * scripts/a11y/rebuild-baseline.mjs to merge. Git-ignored: it is a scratch
+ * area, and a half-written one committed by accident would look like a
+ * baseline.
+ */
+const OBSERVED_DIR = join(process.cwd(), 'tests', 'e2e', 'a11y', '.observed')
+
+/**
+ * Opt-in, and only on the exact string '1'.
+ *
+ * The guard fails in both directions by design, so a genuine improvement fails
+ * the gate and the numbers have to be re-recorded. This is the recording path.
+ * It must never be the default: an update mode that can fire on a stray
+ * truthy value is a mechanism for silently absorbing regressions, which is the
+ * one thing this ratchet exists to prevent.
+ */
+const UPDATE_BASELINE = process.env.A11Y_UPDATE_BASELINE === '1'
+
+/**
+ * One file per cell, named from the cell id with everything outside
+ * [A-Za-z0-9_-] flattened to '_'. The four viewport projects run in parallel,
+ * so a single shared file would race and lose cells -- and a lost cell merges
+ * as "no accepted violations", which the gate would then accept forever.
+ *
+ * The id is written INSIDE the file as well, so the merge step never has to
+ * reverse the sanitisation (which is lossy: '|' and ' ' both become '_').
+ */
+function writeObserved(id: string, counts: RuleCounts): void {
+  // Workers race to create this; recursive makes that a no-op, not EEXIST.
+  mkdirSync(OBSERVED_DIR, { recursive: true })
+  const safeName = id.replace(/[^A-Za-z0-9_-]/g, '_')
+  writeFileSync(
+    join(OBSERVED_DIR, `${safeName}.json`),
+    `${JSON.stringify({ cell: id, counts }, null, 2)}\n`,
+    'utf8',
+  )
+}
 
 /**
  * Reads the accepted counts. Throws rather than defaulting to {} -- an
@@ -75,6 +114,15 @@ for (const locale of A11Y_LOCALES) {
         const observed = await scan(page, path, theme)
         const viewport = testInfo.project.name.replace(/^a11y-/, '')
         const id = cellId(path, theme, viewport)
+
+        if (UPDATE_BASELINE) {
+          writeObserved(id, observed)
+          const total = Object.values(observed).reduce((sum, count) => sum + count, 0)
+          // One line per cell, so a regeneration run is auditable in CI output
+          // rather than only in the files it leaves behind.
+          console.log(`[a11y:update] ${id} -> ${total} violating node(s)`)
+          return
+        }
 
         await testInfo.attach(`axe-${route.id}-${locale}-${theme}`, {
           body: Buffer.from(JSON.stringify(observed, null, 2)),
