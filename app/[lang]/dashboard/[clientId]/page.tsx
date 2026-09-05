@@ -1,4 +1,7 @@
 import Link from 'next/link'
+import { WorkspaceHome } from '@/components/dashboard/WorkspaceHome'
+import { loadOwnedWorkspace } from '@/lib/workspace/load-owned-workspace'
+import { buildWorkspaceHome } from '@/lib/view-models/workspace-home'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
@@ -74,11 +77,25 @@ export default async function DashboardPage({
   searchParams: Promise<{ step?: string; scanId?: string }>
 }) {
   const { lang, clientId } = await params
-  const { step = 'scan', scanId } = await searchParams
+  const { step = 'home', scanId } = await searchParams
   const t = await getTranslations('dashboard')
   const reportT = await getTranslations('reports')
   const profile  = await requireAuth(lang)
   const { features } = resolveCommercialEntitlement(profile.accounts)
+
+  if (step === 'home') {
+    let owned
+    try {
+      owned = await loadOwnedWorkspace({ clientId, profile, scanId })
+    } catch {
+      return <div className="flex-1 px-6 py-16 text-center">
+        <h1 className="mb-2 text-lg font-bold text-dash-text">{t('workspace_load_error_title')}</h1>
+        <p className="text-sm text-dash-muted">{t('workspace_load_error_body')}</p>
+      </div>
+    }
+    if (!owned) notFound()
+    return <WorkspaceHome workspace={buildWorkspaceHome(owned)} lang={lang} />
+  }
 
   const sql = db()
 
@@ -152,20 +169,29 @@ export default async function DashboardPage({
       const localTrustScanRows = localTrustRows as unknown as Scan[]
       const localTrustScan = localTrustScanRows[0] ?? null
 
+      // Enforce existing permissions before data reaches client component props.
+      // ROI has its own competitor permission; it never unlocks ImproveStep.
+      const allowRoiCompetitors = step === 'roi' && features.local_trust_roi
       // Phase 2: agent data for the selected scan
       const [agentRecRows, agentProgRows, agentCompRows] = scan
         ? await Promise.all([
-            sql`select * from agent_recommendations where scan_id = ${scan.id} order by priority, impact_score desc`,
-            sql`select * from agent_progress where scan_id = ${scan.id}`,
-            sql`select * from agent_competitors where scan_id = ${scan.id} order by mention_rate desc`,
+            features.agent_recs
+              ? sql`select * from agent_recommendations where scan_id = ${scan.id} order by priority, impact_score desc`
+              : Promise.resolve([]),
+            features.agent_progress
+              ? sql`select * from agent_progress where scan_id = ${scan.id}`
+              : Promise.resolve([]),
+            features.agent_competitors || allowRoiCompetitors
+              ? sql`select * from agent_competitors where scan_id = ${scan.id} order by mention_rate desc`
+              : Promise.resolve([]),
           ])
         : [[], [], []]
 
-      const agentRecs = agentRecRows as unknown as AgentRecommendation[]
+      const agentRecs = (agentRecRows as unknown as AgentRecommendation[]).filter(row => features.platform_access.includes(row.platform))
       const agentProg = agentProgRows as unknown as AgentProgressType[]
       const agentCompetitors = agentCompRows as unknown as AgentCompetitor[]
 
-      const localTrustComps = (step === 'roi' && localTrustScan && localTrustScan.id !== scan?.id)
+      const localTrustComps = (allowRoiCompetitors && localTrustScan && localTrustScan.id !== scan?.id)
         ? await sql`select * from agent_competitors where scan_id = ${localTrustScan.id} order by mention_rate desc`
         : []
 

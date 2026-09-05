@@ -126,19 +126,21 @@ describe('dashboard notification bell', () => {
     dbNextResults.push([{ n: 3 }])
 
     const layout = await renderLayout(account())
-    const bell = findElementOfType<{ initialCount: number }>(layout, NotificationBell)
+    const bell = findElementOfType<{ initialCount: number | null }>(layout, NotificationBell)
 
     expect(bell).toBeDefined()
     expect(bell?.props.initialCount).toBe(3)
+    expect(String(bell?.key).endsWith('3')).toBe(true)
   })
 
-  it('degrades to a zero count rather than failing the page when the query throws', async () => {
+  it('preserves an unknown count without failing the page when the query throws', async () => {
     dbNextResults.push(new Error('connection terminated'))
 
     const layout = await renderLayout(account())
-    const bell = findElementOfType<{ initialCount: number }>(layout, NotificationBell)
+    const bell = findElementOfType<{ initialCount: number | null }>(layout, NotificationBell)
 
     expect(bell).toBeDefined()
-    expect(bell?.props.initialCount).toBe(0)
+    expect(bell?.props.initialCount).toBeNull()
+    expect(String(bell?.key).endsWith('unknown')).toBe(true)
   })
 })

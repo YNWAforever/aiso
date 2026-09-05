@@ -914,7 +914,11 @@
     "alerts_inapp": "應用內通知",
     "alerts_saving": "儲存中…",
     "alerts_saved": "✓ 已儲存",
-    "alerts_save": "儲存警示設定"
+    "alerts_save": "儲存警示設定",
+    "nav_home": "工作區總覽",
+    "nav_home_desc": "觀察、證據與下一步",
+    "workspace_navigation": "工作區導覽",
+    "toggle_navigation": "切換工作區導覽"
   },
   "reports": {
     "create_client_report": "建立客戶報告",
@@ -1330,5 +1334,38 @@
       "title": "資料收集與比較限制",
       "body": "供應商服務中斷、請求被阻擋及收集缺失均可能降低覆蓋率。結果中的證據經過清理，並受存取權限限制。目前經刪減且僅保留來源網域的證據無法證明改善，因為未建立可比較的前後測量。預估影響仍屬估算。"
     }
+  },
+  "workspaceHome": {
+    "title": "工作區總覽",
+    "summary": "查看已儲存的觀察與待處理工作。這些資料不代表已交付的改善或可歸因的成效。",
+    "siteHealth": "網站健康",
+    "visibility": "最新觀察到的 AI 可見度",
+    "recommendations": "生成的建議",
+    "history": "掃描記錄",
+    "tools": "現有工具",
+    "freshnessUnknown": "資料新鮮度：未知",
+    "observedAt": "觀察時間",
+    "noDate": "沒有可用的觀察日期",
+    "draft": "草稿建議，尚未交付",
+    "noPillars": "這次掃描沒有已儲存的支柱診斷。",
+    "score": "已儲存的 AISO 分數",
+    "mentions": "品牌提及",
+    "queries": "查詢",
+    "platforms": "平台",
+    "states": {
+      "empty": "尚未有可用觀察。",
+      "error": "暫時無法載入此部分，請稍後重新整理。",
+      "locked": "你目前的方案未包含此部分。"
+    },
+    "scan": "掃描網站",
+    "results": "查看結果",
+    "improve": "查看改善工具",
+    "monitor": "查看監測",
+    "roi": "查看 Local Trust／ROI",
+    "reports": "報告",
+    "prompts": "問題庫",
+    "pricing": "查看方案",
+    "openScan": "查看掃描",
+    "status": "網站狀態"
   }
 }

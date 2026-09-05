@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { LogOut, Wrench, Scan, FileBarChart2, Sparkles, Radio, TrendingUp, Brain, Settings, Lock, ListChecks } from 'lucide-react'
@@ -15,6 +16,7 @@ import { ThemeToggle } from '@/components/dashboard/ThemeToggle'
 // entries MonitorStep and LocalTrustStep were reachable only by hand-typing
 // ?step=. Their four translation keys survived the removal in both locales.
 const STEPS = [
+  { key: 'home',    labelKey: 'nav_home',    icon: Brain,         descKey: 'nav_home_desc' },
   { key: 'scan',    labelKey: 'nav_scan',    icon: Scan,          descKey: 'nav_scan_desc' },
   { key: 'results', labelKey: 'nav_results', icon: FileBarChart2, descKey: 'nav_results_desc' },
   { key: 'improve', labelKey: 'nav_improve', icon: Sparkles,      descKey: 'nav_improve_desc' },
@@ -40,6 +42,7 @@ type Props = {
 
 export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
   const t = useTranslations('dashboard')
+  const [navigationOpen, setNavigationOpen] = useState(false)
   const params = useParams<{ lang: string; clientId?: string }>()
   const searchParams = useSearchParams()
   const pathname = usePathname()
@@ -52,7 +55,7 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
   // A layout cannot see a child segment's params, but this is a client component
   // rendered inside the route, so useParams can.
   const clientId = params?.clientId ?? brandId
-  const step = searchParams?.get('step') ?? 'scan'
+  const step = searchParams?.get('step') ?? 'home'
   const { plan, features } = entitlement
 
   // Sub-routes carry no ?step=, so without this the Scan entry would render as
@@ -60,11 +63,11 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
   const onSubRoute = Boolean(pathname && /\/dashboard\/[^/]+\/[^/]+/.test(pathname))
 
   return (
-    <aside className="w-60 shrink-0 border-r border-border bg-white flex flex-col min-h-full">
+    <aside className="w-full md:w-60 shrink-0 border-b md:border-b-0 md:border-r border-border bg-card flex flex-col md:min-h-full">
 
       {/* Logo header */}
       <div className="px-5 py-4 border-b border-border">
-        <Link href={`/${lang}/dashboard`} className="flex items-center gap-2.5">
+        <Link href={`/${lang}/dashboard`} className="flex min-h-11 items-center gap-2.5">
           <div className="size-7 rounded-lg bg-primary flex items-center justify-center shadow-sm">
             <Brain className="size-4 text-white" />
           </div>
@@ -74,8 +77,12 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
         </Link>
       </div>
 
+      <button type="button" aria-expanded={navigationOpen} aria-controls="workspace-sidebar-navigation" onClick={() => setNavigationOpen(open => !open)} className="mx-3 my-2 min-h-11 rounded-lg border border-border px-3 text-left text-sm font-semibold text-foreground md:hidden">
+        {t('toggle_navigation')}
+      </button>
+      <div id="workspace-sidebar-navigation" className={`${navigationOpen ? 'flex' : 'hidden'} min-w-0 flex-1 flex-col max-h-[60dvh] overflow-y-auto md:max-h-none md:flex`}>
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+      <nav aria-label={t('workspace_navigation')} className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         <p className="text-[10px] text-muted-foreground/60 font-semibold tracking-widest uppercase mb-2 px-2">{t('workflow')}</p>
         {STEPS.map((s) => {
           const active = !onSubRoute && step === s.key
@@ -95,8 +102,12 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
           return (
             <Link
               key={s.key}
+              aria-current={active ? 'page' : undefined}
+              aria-disabled={blocksNavigation || undefined}
+              tabIndex={blocksNavigation ? -1 : undefined}
+              onClick={() => setNavigationOpen(false)}
               href={clientId ? `/${lang}/dashboard/${clientId}?step=${s.key}` : `/${lang}/dashboard?step=${s.key}`}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group ${
+              className={`flex min-h-11 items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group ${
                 active
                   ? 'bg-primary text-white shadow-sm'
                   : blocksNavigation
@@ -134,7 +145,8 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
             </p>
             <Link
               href={`/${lang}/dashboard/${clientId}/prompts`}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 ${
+              onClick={() => setNavigationOpen(false)}
+              className={`flex min-h-11 items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 ${
                 pathname?.endsWith('/prompts')
                   ? 'bg-primary text-white shadow-sm'
                   : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
@@ -170,8 +182,8 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
               {plan.charAt(0).toUpperCase() + plan.slice(1)}
             </span>
           </div>
-          <Link href={`/${lang}/dashboard/settings`}
-            className="text-[10px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
+          <Link href={`/${lang}/dashboard/settings`} onClick={() => setNavigationOpen(false)}
+            className="min-h-11 text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
             <Settings className="size-2.5" /> {t('manage_plan')}
           </Link>
         </div>
@@ -190,14 +202,15 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
             <p className="text-[10px] text-muted-foreground">{plan}</p>
           </div>
           {profile.is_admin && (
-            <Link href={`/${lang}/admin`} className="text-muted-foreground hover:text-foreground transition-colors" title={t('admin')}>
+            <Link href={`/${lang}/admin`} className="inline-flex size-11 items-center justify-center text-muted-foreground hover:text-foreground transition-colors" title={t('admin')}>
               <Wrench size={13} />
             </Link>
           )}
-          <Link href={`/${lang}/auth/logout`} className="text-muted-foreground hover:text-destructive transition-colors" title={t('sign_out')}>
+          <Link href={`/${lang}/auth/logout`} className="inline-flex size-11 items-center justify-center text-muted-foreground hover:text-destructive transition-colors" title={t('sign_out')}>
             <LogOut size={13} />
           </Link>
         </div>
+      </div>
       </div>
     </aside>
   )

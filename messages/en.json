@@ -914,7 +914,11 @@
     "alerts_inapp": "In-app notification",
     "alerts_saving": "Saving…",
     "alerts_saved": "✓ Saved",
-    "alerts_save": "Save Alerts"
+    "alerts_save": "Save Alerts",
+    "nav_home": "Home",
+    "nav_home_desc": "Observations, evidence and next steps",
+    "workspace_navigation": "Workspace navigation",
+    "toggle_navigation": "Toggle workspace navigation"
   },
   "reports": {
     "create_client_report": "Create client report",
@@ -1330,5 +1334,38 @@
       "title": "Collection and comparison limits",
       "body": "Provider outages, blocked requests and missing collection can reduce coverage. Evidence displayed in results is sanitized and subject to access controls. Current redacted, origin-only evidence cannot substantiate an improvement comparison: it does not establish comparable before-and-after measurements. Estimated impact remains an estimate."
     }
+  },
+  "workspaceHome": {
+    "title": "Workspace home",
+    "summary": "Review saved observations and work to consider. These records do not establish delivered improvements or attributed outcomes.",
+    "siteHealth": "Site health",
+    "visibility": "Latest observed AI visibility",
+    "recommendations": "Generated recommendations",
+    "history": "Scan history",
+    "tools": "Existing tools",
+    "freshnessUnknown": "Freshness: unknown",
+    "observedAt": "Observed at",
+    "noDate": "No observation date available",
+    "draft": "Draft recommendation, not delivered",
+    "noPillars": "No stored pillar diagnostics are available for this scan.",
+    "score": "Stored AISO score",
+    "mentions": "Brand mentions",
+    "queries": "Queries",
+    "platforms": "Platforms",
+    "states": {
+      "empty": "No usable observations yet.",
+      "error": "This section could not load. Refresh the page later to try again.",
+      "locked": "This section is not included in your current plan."
+    },
+    "scan": "Scan website",
+    "results": "View results",
+    "improve": "Open improvement tools",
+    "monitor": "Open monitoring",
+    "roi": "Open Local Trust / ROI",
+    "reports": "Reports",
+    "prompts": "Question bank",
+    "pricing": "Review plan",
+    "openScan": "Open scan",
+    "status": "Site status"
   }
 }
