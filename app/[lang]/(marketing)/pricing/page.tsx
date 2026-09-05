@@ -256,7 +256,7 @@ export default function PricingPage() {
                 >
                   {isPro && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                      <span className="bg-primary text-white text-[10px] font-black tracking-widest px-4 py-1.5 rounded-full shadow-lg">
+                      <span className="bg-primary text-primary-foreground text-[10px] font-black tracking-widest px-4 py-1.5 rounded-full shadow-lg">
                         {t('popular')}
                       </span>
                     </div>
@@ -297,7 +297,7 @@ export default function PricingPage() {
                     disabled={loading}
                     className={`flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-semibold shadow-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                       isPro
-                        ? 'bg-primary text-white hover:bg-primary/90 shadow-primary/20 shadow-md'
+                        ? 'bg-primary text-primary-foreground hover:brightness-95 shadow-primary/20 shadow-md'
                         : 'bg-secondary text-foreground hover:bg-secondary/80 border border-border'
                     } disabled:opacity-60`}
                   >

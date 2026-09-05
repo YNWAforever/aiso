@@ -32,18 +32,10 @@
     "/en/onboarding | light | 1440": {},
     "/en/onboarding | light | 375": {},
     "/en/onboarding | light | 768": {},
-    "/en/pricing | dark | 1024": {
-      "color-contrast": 2
-    },
-    "/en/pricing | dark | 1440": {
-      "color-contrast": 2
-    },
-    "/en/pricing | dark | 375": {
-      "color-contrast": 2
-    },
-    "/en/pricing | dark | 768": {
-      "color-contrast": 1
-    },
+    "/en/pricing | dark | 1024": {},
+    "/en/pricing | dark | 1440": {},
+    "/en/pricing | dark | 375": {},
+    "/en/pricing | dark | 768": {},
     "/en/pricing | light | 1024": {
       "color-contrast": 2
     },
@@ -116,18 +108,10 @@
     "/zh-HK/onboarding | light | 1440": {},
     "/zh-HK/onboarding | light | 375": {},
     "/zh-HK/onboarding | light | 768": {},
-    "/zh-HK/pricing | dark | 1024": {
-      "color-contrast": 2
-    },
-    "/zh-HK/pricing | dark | 1440": {
-      "color-contrast": 2
-    },
-    "/zh-HK/pricing | dark | 375": {
-      "color-contrast": 2
-    },
-    "/zh-HK/pricing | dark | 768": {
-      "color-contrast": 2
-    },
+    "/zh-HK/pricing | dark | 1024": {},
+    "/zh-HK/pricing | dark | 1440": {},
+    "/zh-HK/pricing | dark | 375": {},
+    "/zh-HK/pricing | dark | 768": {},
     "/zh-HK/pricing | light | 1024": {
       "color-contrast": 2
     },
