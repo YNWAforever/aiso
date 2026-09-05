@@ -130,6 +130,23 @@ describe('default privileges cover tables created later', () => {
       await owner.query('drop table lp_future_table')
     }
   })
+
+  it('grants USAGE on a sequence created after 037, so an identity insert works', async () => {
+    // 037 grants USAGE and SELECT on sequences as well as DML on tables, and
+    // §16.2 lists sequence usage among the operations that must be proven.
+    // Without USAGE a new table stays readable and writable right up until a
+    // column defaults to nextval(), at which point the insert fails — and
+    // nothing else in this file would have caught it, because every other case
+    // uses an explicitly supplied key.
+    await owner.query('create table lp_future_serial (id serial primary key, note text)')
+    try {
+      await expect(
+        app`insert into lp_future_serial (note) values ('probe') returning id`,
+      ).resolves.toBeDefined()
+    } finally {
+      await owner.query('drop table lp_future_serial')
+    }
+  })
 })
 
 describe('aeo_app can execute the RPCs the application calls', () => {
