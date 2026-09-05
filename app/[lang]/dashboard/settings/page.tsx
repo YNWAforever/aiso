@@ -3,21 +3,8 @@ import { ReportBrandingForm } from '@/components/reports/ReportBrandingForm'
 import { requireAuth } from '@/lib/auth'
 import { loadReportBranding } from '@/lib/reports/store'
 import Link from 'next/link'
-import { getPlanDefinition } from '@/lib/plans/catalog'
+import { SettingsView, normalizeSettingsStatus } from '@/components/dashboard/SettingsView'
 import { resolveCommercialEntitlement } from '@/lib/tier'
-
-const PLAN_LABELS: Record<string, string> = {
-  free: 'Free',
-  basic: `Basic — $${getPlanDefinition('basic').monthlyPriceUsd}/month`,
-  pro: `Pro — $${getPlanDefinition('pro').monthlyPriceUsd}/month`,
-  enterprise: `Enterprise — $${getPlanDefinition('enterprise').monthlyPriceUsd}/month`,
-}
-
-const UPGRADE_LABELS: Record<string, string> = {
-  free: 'Upgrade to Basic →',
-  basic: 'Upgrade to Pro →',
-  pro: 'Upgrade to Enterprise →',
-}
 
 export default async function SettingsPage({
   params,
@@ -32,58 +19,11 @@ export default async function SettingsPage({
   const reportBranding = entitlement.features.client_reports_online
     ? await loadReportBranding({ accountId: profile.account_id })
     : null
-  const status  = profile.accounts?.status ?? 'active'
+  const status = normalizeSettingsStatus(profile.accounts?.status)
   const hasStripe = Boolean(profile.accounts?.stripe_customer_id)
 
   return (
-    <>
-      <div className="pt-6 px-6 pb-4 border-b border-border">
-        <p className="text-lg font-bold text-foreground mb-1">Settings</p>
-        <p className="text-2xs text-muted-foreground">Manage your subscription plan and billing.</p>
-      </div>
-
-      <main className="flex-1 px-6 py-6 max-w-5xl space-y-8">
-        <div className="rounded-xl border border-border bg-card p-6 space-y-5 shadow-sm">
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground tracking-widest uppercase mb-3">Current Plan</p>
-            <div className="flex items-center gap-3">
-              <span className="text-base font-bold text-foreground">{PLAN_LABELS[plan] ?? plan}</span>
-              {status !== 'active' && (
-                <span className="text-2xs bg-destructive/10 text-destructive px-2 py-0.5 rounded border border-destructive/20">
-                  {status.replace('_', ' ')}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {hasStripe && (
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground tracking-widest uppercase mb-3">Billing</p>
-              {/* API-route redirect to Stripe's portal — <Link> cannot navigate to route handlers */}
-              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-              <a
-                href="/api/stripe/portal"
-                className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg text-primary-foreground bg-primary hover:bg-primary/90 transition-colors shadow-sm"
-              >
-                Manage Billing →
-              </a>
-              <p className="text-xs- text-muted-foreground mt-2">
-                Update payment method, view invoices, or cancel subscription.
-              </p>
-            </div>
-          )}
-
-          {(plan === 'free' || plan === 'basic' || plan === 'pro') && (
-            <div className="border-t border-border pt-4">
-              <Link
-                href={`/${lang}/pricing`}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-secondary text-foreground border border-border hover:bg-secondary/80 transition-colors"
-              >
-                {UPGRADE_LABELS[plan]}
-              </Link>
-            </div>
-          )}
-        </div>
+    <SettingsView lang={lang} plan={plan} status={status} hasStripe={hasStripe}>
         <section id="report-branding" className="scroll-mt-6">
           <div className="mb-4">
             <h2 className="text-lg font-bold text-foreground">{reportT('title')}</h2>
@@ -112,8 +52,6 @@ export default async function SettingsPage({
             </div>
           )}
         </section>
-
-      </main>
-    </>
+    </SettingsView>
   )
 }

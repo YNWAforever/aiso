@@ -23,6 +23,8 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      { source: '/r/demo', destination: '/en/sample-report', permanent: false },
+      { source: '/:lang(en|zh-HK)/r/demo', destination: '/:lang/sample-report', permanent: false },
       // Redirect bare (non-lang) legacy URLs to the English equivalents
       { source: '/pricing',    destination: '/en/pricing',    permanent: true },
       { source: '/auth/login', destination: '/en/auth/login', permanent: true },

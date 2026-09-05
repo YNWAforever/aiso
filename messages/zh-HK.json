@@ -95,6 +95,10 @@
     "methodology": {
       "title": "如何解讀掃描證據 | Fimmick AISO",
       "description": "支柱診斷說明掃描背後的證據。覆蓋率反映可核實的資料，不承諾搜尋排名、AI 引用或業務成效。"
+    },
+    "sample-report": {
+      "title": "AI 搜尋報告示範 | Fimmick AISO",
+      "description": "查看清楚標示的合成報告，了解網站檢查示例、草稿建議及證據限制。"
     }
   },
   "nav": {
@@ -1390,5 +1394,105 @@
     "grade": "評級",
     "loadErrorTitle": "未能載入你的品牌組合",
     "loadErrorBody": "暫時無法取得你持有的品牌，請稍後重新整理再試。"
+  },
+  "settings": {
+    "title": "設定",
+    "intro": "管理你的訂閱權限及帳單。",
+    "currentPlan": "目前可用方案",
+    "cataloguePrice": "方案標準價格",
+    "perMonth": "每月",
+    "free": "免費",
+    "status": "訂閱狀態",
+    "statusLabels": {
+      "active": "使用中",
+      "trialing": "試用中",
+      "past_due": "付款逾期",
+      "cancelled": "已取消",
+      "unknown": "未知"
+    },
+    "billing": "帳單",
+    "manageBilling": "管理帳單",
+    "billingBody": "更新付款方式、查看發票或取消訂閱。",
+    "billingUnavailable": "此帳戶未連結帳單管理入口。",
+    "pricing": "比較方案",
+    "pricingNote": "標準價格用於說明方案；實際訂閱費用請查看帳單管理入口。"
+  },
+  "pulseView": {
+    "title": "AI 可見度觀測",
+    "intro": "已儲存的答案觀測，並非供應商請求成功率或歸因改善成效。",
+    "empty": "未有可用的觀測資料。",
+    "error": "此部分暫時無法載入，請稍後重新整理。",
+    "freshness": "資料新鮮度：未知",
+    "week": "觀測週期",
+    "unknown": "未能取得",
+    "aggregate": "所有已觀測平台",
+    "platforms": "平台觀測",
+    "prompts": "監察問題",
+    "missed": "未提及品牌的問題",
+    "back": "返回工作空間",
+    "full": "開啟 Pulse 報告",
+    "loadError": "未能載入 Pulse",
+    "gaps": "沒有資料的週期會保留空缺，不會推算中間數值。",
+    "value": "已觀測聲量佔比",
+    "question": "問題",
+    "platform": "平台",
+    "competitors": "其他獲提及品牌",
+    "active": "啟用",
+    "inactive": "停用"
+  },
+  "sampleReport": {
+    "eyebrow": "合成示範 — 不含客戶資料",
+    "title": "了解以證據為本的報告內容",
+    "intro": "這個靜態示例展示報告格式。以下品牌、分數、檢查及建議均為虛構；本頁沒有為此掃描任何網站。",
+    "brand": "示範品牌",
+    "score": "示例分數",
+    "grade": "評級",
+    "date": "示例觀察日期",
+    "checks": "檢查示例",
+    "subset": "這三項示例只展示部分報告格式，並非用來計算示例分數的輸入資料。",
+    "robots": "爬蟲存取",
+    "robotsBody": "示例：受檢查的爬蟲獲准存取網站。",
+    "schema": "結構化資訊",
+    "schemaBody": "示例：已有機構資料，但仍需審核。",
+    "content": "可擷取內容",
+    "contentBody": "示例：已擷取文字缺少重要服務資料。",
+    "pass": "通過",
+    "warn": "需要審核",
+    "fail": "需要處理",
+    "work": "草稿建議",
+    "workBody": "補充簡明的服務說明，並在發布任何變更前審核機構資料。",
+    "draftOnly": "這項示範建議尚未獲批准、交付或發布。",
+    "comparison": "沒有可比較的基準",
+    "comparisonBody": "此示例沒有較早的觀察、交付記錄或重新檢查，因此不聲稱有改善或可歸因的成效。",
+    "limits": "證據限制",
+    "limitsBody": "實際報告使用已儲存的快照及獲准提供的證據。分享連結可撤銷或輪替。本示範只是公開示例，不會建立分享連結或儲存報告。",
+    "scan": "掃描你的網站",
+    "methodology": "了解評估方法"
+  },
+  "generatedWork": {
+    "title": "已生成的建議",
+    "draftNotice": "生成的建議屬草稿，請先審閱。複製草稿不會將內容發佈到你的網站。",
+    "storageNotice": "請自行保存所需草稿。此回應未能確認草稿已儲存。",
+    "generationFailed": "修復包暫時無法使用或未能生成。請重試；目前不會顯示已完成的草稿。",
+    "generating": "正在生成草稿…",
+    "retry": "重試",
+    "copying": "正在複製…",
+    "copyFailed": "未能複製草稿。請重試，或選取文字後手動複製。",
+    "pending": "草稿生成已排隊，目前未有已完成的內容。",
+    "running": "正在生成草稿，目前未有已完成的內容。",
+    "error": "未能完成生成內容，請稍後重新整理查看狀態。",
+    "unavailable": "此掃描暫時未有已完成的生成內容。",
+    "packTitle": "修復包草稿",
+    "packSubtitle": "套用修改前請先審閱",
+    "packContents": "可生成的草稿檔案：",
+    "llmsDescription": "供審閱的網站內容摘要建議。",
+    "robotsDescription": "請按你的存取政策核對爬蟲規則建議。",
+    "faqDescription": "使用前請核實的結構化問答建議。",
+    "packCta": "生成草稿檔案"
+  },
+  "alertFeedback": {
+    "loadFailed": "未能載入提示設定，請重試。",
+    "saveFailed": "未能確認提示設定已儲存。你的修改仍然保留，請重試。",
+    "retry": "重試"
   }
 }

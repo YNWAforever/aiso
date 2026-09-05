@@ -95,6 +95,10 @@
     "methodology": {
       "title": "How to read your scan evidence | Fimmick AISO",
       "description": "Pillar diagnostics explain the evidence behind a scan. Coverage describes what we could verify; it does not promise rankings, AI citations or business outcomes."
+    },
+    "sample-report": {
+      "title": "Sample AI search report | Fimmick AISO",
+      "description": "Explore a clearly labelled synthetic report with illustrative website checks, draft recommendations and evidence limitations."
     }
   },
   "nav": {
@@ -1390,5 +1394,105 @@
     "grade": "Grade",
     "loadErrorTitle": "Your portfolio could not load",
     "loadErrorBody": "We could not retrieve your owned brands. Refresh later to try again."
+  },
+  "settings": {
+    "title": "Settings",
+    "intro": "Manage your subscription access and billing.",
+    "currentPlan": "Current access plan",
+    "cataloguePrice": "Catalogue price",
+    "perMonth": "per month",
+    "free": "Free",
+    "status": "Subscription status",
+    "statusLabels": {
+      "active": "Active",
+      "trialing": "Trial",
+      "past_due": "Payment overdue",
+      "cancelled": "Cancelled",
+      "unknown": "Unknown"
+    },
+    "billing": "Billing",
+    "manageBilling": "Manage billing",
+    "billingBody": "Update your payment method, view invoices or cancel your subscription.",
+    "billingUnavailable": "No billing portal is linked to this account.",
+    "pricing": "Compare plans",
+    "pricingNote": "Catalogue prices describe plans; your billing portal shows your actual subscription charges."
+  },
+  "pulseView": {
+    "title": "Observed AI visibility",
+    "intro": "Stored answer observations, not provider attempt-success rates or attributed improvements.",
+    "empty": "No usable observations are available.",
+    "error": "This section could not load. Refresh later to try again.",
+    "freshness": "Freshness: unknown",
+    "week": "Observed week",
+    "unknown": "Unavailable",
+    "aggregate": "All observed platforms",
+    "platforms": "Platform observations",
+    "prompts": "Monitored questions",
+    "missed": "Questions without a brand mention",
+    "back": "Back to workspace",
+    "full": "Open Pulse report",
+    "loadError": "Pulse could not load",
+    "gaps": "Unavailable weeks remain gaps; no values are inferred between observations.",
+    "value": "Observed share of voice",
+    "question": "Question",
+    "platform": "Platform",
+    "competitors": "Other mentioned brands",
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "sampleReport": {
+    "eyebrow": "Synthetic sample — no customer data",
+    "title": "See what an evidence-led report looks like",
+    "intro": "This static example illustrates the report format. The brand, score, checks and recommendations below are invented; no website was scanned to produce this page.",
+    "brand": "Example Brand",
+    "score": "Illustrative score",
+    "grade": "Grade",
+    "date": "Example observation date",
+    "checks": "Illustrative checks",
+    "subset": "These three examples are a subset of the report format, not the inputs used to calculate this illustrative score.",
+    "robots": "Crawler access",
+    "robotsBody": "Example: the checked crawler is allowed to request the site.",
+    "schema": "Structured information",
+    "schemaBody": "Example: organization details are present but need review.",
+    "content": "Extractable content",
+    "contentBody": "Example: important service details are missing from the retrieved text.",
+    "pass": "Pass",
+    "warn": "Needs review",
+    "fail": "Needs attention",
+    "work": "Draft suggestion",
+    "workBody": "Add a concise explanation of the service and review the organization information before publishing any changes.",
+    "draftOnly": "This sample suggestion has not been approved, delivered or published.",
+    "comparison": "No comparable baseline",
+    "comparisonBody": "This example has no earlier observation, delivery record or recheck. It does not claim an improvement or attributed outcome.",
+    "limits": "Evidence limitations",
+    "limitsBody": "A live report uses its stored snapshot and permitted evidence. Share links can be revoked or rotated. This sample is a public illustration and does not create a share link or a saved report.",
+    "scan": "Scan your website",
+    "methodology": "Read the methodology"
+  },
+  "generatedWork": {
+    "title": "Generated work",
+    "draftNotice": "Generated suggestions are drafts for your review. Copying a draft does not publish it to your website.",
+    "storageNotice": "Keep a local copy of the drafts you need. This response does not confirm storage.",
+    "generationFailed": "The Fix Pack is unavailable or could not be generated. Try again; no draft is shown as completed.",
+    "generating": "Generating drafts…",
+    "retry": "Try again",
+    "copying": "Copying…",
+    "copyFailed": "The draft could not be copied. Try again or select and copy the text manually.",
+    "pending": "Draft generation is queued. No completed work is available yet.",
+    "running": "Draft generation is in progress. No completed work is available yet.",
+    "error": "Generated work could not be completed. Refresh later to check its status.",
+    "unavailable": "No completed generated work is available for this scan.",
+    "packTitle": "Fix Pack drafts",
+    "packSubtitle": "Review before applying changes",
+    "packContents": "Draft files available to generate:",
+    "llmsDescription": "A proposed summary of your site for review.",
+    "robotsDescription": "Proposed crawler rules to check against your access policy.",
+    "faqDescription": "Proposed structured questions and answers to verify before use.",
+    "packCta": "Generate draft files"
+  },
+  "alertFeedback": {
+    "loadFailed": "Alert settings could not be loaded. Try again.",
+    "saveFailed": "Alert settings were not confirmed as saved. Your changes are still here; try again.",
+    "retry": "Try again"
   }
 }

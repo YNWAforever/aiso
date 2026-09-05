@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { WorkspaceHome } from '@/components/dashboard/WorkspaceHome'
+import { loadOwnedPulse } from '@/lib/workspace/load-owned-pulse'
+import { buildPulseView } from '@/lib/view-models/pulse'
 import { loadOwnedWorkspace } from '@/lib/workspace/load-owned-workspace'
 import { buildWorkspaceHome } from '@/lib/view-models/workspace-home'
 import { notFound } from 'next/navigation'
@@ -95,6 +97,15 @@ export default async function DashboardPage({
     }
     if (!owned) notFound()
     return <WorkspaceHome workspace={buildWorkspaceHome(owned)} lang={lang} />
+  }
+
+  if (step === 'monitor') {
+    let owned
+    try { owned = await loadOwnedPulse({ clientId, profile }) } catch {
+      return <main className="px-6 py-12"><h1 className="text-xl font-bold">{t('workspace_load_error_title')}</h1><p className="mt-3">{t('workspace_load_error_body')}</p></main>
+    }
+    if (!owned) notFound()
+    return <main className="mx-auto w-full min-w-0 max-w-4xl px-4 py-8 sm:px-6"><h1 className="mb-5 text-2xl font-bold">{t('step_monitor_title')}</h1><MonitorStep features={features} lang={lang} clientId={clientId} view={buildPulseView(owned)} /></main>
   }
 
   const sql = db()
@@ -244,7 +255,7 @@ export default async function DashboardPage({
   }
 
   const {
-    scan, scanHistory, summary, missed,
+    scan, scanHistory, summary, missed: _missed,
     agentRecs, agentProg, agentCompetitors,
     localTrustScan, localTrustCompetitors,
     localTrustProfile, localTrustData,
@@ -299,9 +310,6 @@ export default async function DashboardPage({
           </div>
         )}
 
-        {step === 'monitor' && (
-          <MonitorStep features={features} lang={lang} clientId={clientId} summary={summary} missed={missed} />
-        )}
 
         {step === 'roi' && (
           <LocalTrustStep

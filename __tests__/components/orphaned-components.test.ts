@@ -22,6 +22,7 @@ const ORPHANS: Record<string, string> = {
   // Pulse read surface. Kept as the only implementation of this UI, though a
   // rebuild would need new data routes — summary/missed were deleted, not
   // fenced, in the 2026-08-22 pulse-fence cleanup (see CLAUDE.md).
+  'pulse/MissedTable': 'legacy missed-query table retained; C8c ObservedPulseView renders validated owned observations instead',
   'pulse/ScanLogSection': 'renders the weekly scan log; its data routes are deleted',
   'pulse/CompetitorTab': 'competitor view for the deleted Pulse read routes',
   'dashboard/PulseTabs': 'tab chrome for the fenced standalone Pulse page',

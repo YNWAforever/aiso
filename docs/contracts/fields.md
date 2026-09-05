@@ -90,3 +90,19 @@ The pure `buildWorkspaceHome` projection emits section `state: ready | empty | e
 | `capacity.limit,plan,canCreate` | `resolveCommercialEntitlement(profile.accounts).features.max_brands` and effective plan | Known count below limit yields true; reached limit false; unknown count yields null. API and database trigger remain independent final authorities, including concurrent creation races. |
 
 The pure `buildPortfolio` returns only clients, history and capacity. Optional history/Pulse failures are section errors, while unavailable count is `capacity.state='unknown'`; none converts an incident into measured zero or promised capacity. No provider attempt-success rate is asserted. Existing C8a DTO shape and historical diagnostic handling remain unchanged by the extracted pure Pulse helper. No database, provider or Local Trust write, migration or creation-API behavior change belongs to C8b.
+
+## C8c–g existing workspace adaptations (2026-09-06)
+
+These adapters preserve authenticated ownership and existing mutation contracts. They do not introduce provider calls, roles, delivery approval, migrations or a new entitlement resolver.
+
+| Slice / displayed field | Source and boundary | Interpretation |
+|---|---|---|
+| C8c Pulse identity | `loadOwnedPulse` validates the UUID before `db()`, then binds client id and account id; missing ownership returns null | Page authenticates separately; malformed/missing/foreign client is 404, lookup outage is a generic load error. |
+| C8c observations and chart | At most 40 distinct stored weeks from owned summary/raw observations; per-week/platform counts use the shared observed-summary validator | Chart spans at most 40 calendar weeks ending at the latest observed week. Missing or invalid points are null gaps; genuine zero survives. No interpolation, old KPI fallback, current-provider or causation claim. Freshness remains unknown. |
+| C8c prompts / missed opportunities | Three bounded independent owned reads; prompts expose the existing narrow editable fields, missed rows require a nonblank answer and false brand mention | No raw answers in the DTO. Independent ready/empty/error states. Prompt mutation endpoints, categories, quota and feature guards remain authoritative; failed network mutations roll back or preserve the pending draft. |
+| C8d Fix Pack / agents | Existing guarded API and three validated nonempty generated strings; existing agent status | Generated content is a draft. API generation success does not prove cache persistence, approval or publication. Failed generation/copy cannot show success; scan changes cannot retain another scan's draft. |
+| C8e sample report | Separate static `SAMPLE_REPORT`, synthetic flag, reserved `example.invalid` domain | Illustrative score and three example checks are not customer evidence or calculation inputs. No report resolver, signature, view counter or provider call. Existing signed-report lifecycle is unchanged. Localized metadata and derived sitemap include both sample routes; exact demo redirects are temporary 307. |
+| C8f alert settings | Existing GET/PUT config DTO and server guards | A failed/malformed response never means Saved; retries and client-switch failures remain visible. Existing Local Trust explicit write boundary, no-snapshot states and notification deduplication remain unchanged. |
+| C8g settings | Existing commercial resolver, catalogue prices, persisted status and account-scoped branding gate | Missing/unrecognized status is unknown. Catalogue prices are not an invoice or actual billing state. Existing ordinary portal link and branding/onboarding permissions remain unchanged. |
+
+Unit and offline-renderer evidence does not establish real authentication, Neon data equivalence, Stripe behavior, provider availability, delivery or production readiness. C9–C11 retain their separate material decisions and external approval gates.

@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), load: vi.fn(), project: vi.fn(), sql: vi.fn(), roi: vi.fn() }))
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), load: vi.fn(), project: vi.fn(), sql: vi.fn(), roi: vi.fn(), pulse: vi.fn() }))
+vi.mock('@/lib/workspace/load-owned-pulse', () => ({ loadOwnedPulse: mocks.pulse }))
 vi.mock('@/lib/auth', () => ({ requireAuth: mocks.auth }))
 vi.mock('@/lib/workspace/load-owned-workspace', () => ({ loadOwnedWorkspace: mocks.load }))
 vi.mock('@/lib/view-models/workspace-home', () => ({ buildWorkspaceHome: mocks.project }))
@@ -14,7 +15,7 @@ import type { ReactElement } from 'react'
 import Page from '@/app/[lang]/dashboard/[clientId]/page'
 const profile = { account_id: 'account-a', accounts: { plan: 'free' } }
 const render = (search = {}) => Page({ params: Promise.resolve({ lang: 'en', clientId: 'client-a' }), searchParams: Promise.resolve(search) })
-beforeEach(() => { vi.clearAllMocks(); mocks.auth.mockResolvedValue(profile); mocks.load.mockResolvedValue({ client: {} }); mocks.project.mockReturnValue({ client: { id: 'client-a' } }); mocks.sql.mockResolvedValue([]) })
+beforeEach(() => { vi.clearAllMocks(); mocks.auth.mockResolvedValue(profile); mocks.load.mockResolvedValue({ client: {} }); mocks.project.mockReturnValue({ client: { id: 'client-a' } }); mocks.sql.mockResolvedValue([]); mocks.pulse.mockResolvedValue(null) })
 it('defaults to the independently authenticated read-only home and preserves selected scan', async () => {
   const page = await render({ scanId: 'selected-scan' })
   expect(mocks.auth).toHaveBeenCalledWith('en')
@@ -36,7 +37,7 @@ it('retains owned missing versus whole-page load failure', async () => {
   expect(JSON.stringify(page)).toContain('workspace_load_error_title')
   expect(JSON.stringify(page)).not.toContain('private-database-details')
 })
-it.each(['scan', 'results', 'improve', 'monitor', 'roi'])('preserves explicit legacy %s routing', async step => {
+it.each(['scan', 'results', 'improve', 'roi'])('preserves explicit legacy %s routing', async step => {
   await expect(render({ step })).rejects.toThrow('NOT_FOUND')
   expect(mocks.load).not.toHaveBeenCalled()
   expect(mocks.sql).toHaveBeenCalled()
@@ -84,4 +85,12 @@ it.each([
   expect(queries.some(query => query.includes('agent_recommendations'))).toBe(recCount > 0)
   expect(queries.some(query => query.includes('agent_progress'))).toBe(progressCount > 0)
   expect(queries.some(query => query.includes('agent_competitors'))).toBe(false)
+})
+
+it('routes explicit monitor through the owned Pulse loader before legacy reads', async () => {
+  await expect(render({step:'monitor'})).rejects.toThrow('NOT_FOUND')
+  expect(mocks.pulse).toHaveBeenCalledWith({clientId:'client-a',profile})
+  expect(mocks.load).not.toHaveBeenCalled()
+  expect(mocks.sql).not.toHaveBeenCalled()
+  expect(mocks.roi).not.toHaveBeenCalled()
 })

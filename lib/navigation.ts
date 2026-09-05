@@ -39,7 +39,7 @@ export const NAV: NavEntry[] = [
   { section: 'top', labelKey: 'nav.pricing', href: '/pricing', available: true },
   { section: 'top', labelKey: 'nav.scan', href: '/scan', available: true },
   { section: 'top', labelKey: 'nav.demo', href: '/demo', available: false },
-  { section: 'top', labelKey: 'nav.sample_report', href: '/sample-report', available: false },
+  { section: 'top', labelKey: 'nav.sample_report', href: '/sample-report', available: true },
 
   // Platform — nine pages: the overview plus eight capabilities.
   { section: 'platform', labelKey: 'nav.platform.overview', href: '/platform', available: true },
