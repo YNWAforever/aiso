@@ -9,3 +9,15 @@ supabase/baseline/*.sql text eol=lf
 # Same reasoning for the migration chain: several tests read these files and
 # assert on their contents.
 supabase/migrations/*.sql text eol=lf
+
+# A third case of the same hazard, found 2026-09-05. An .mjs script that begins
+# with a shebang and is imported by a Vitest test fails to parse when the file
+# has CRLF, and the suite reports only `SyntaxError: Invalid or unexpected
+# token` with no line number and no stack.
+#
+# CI never sees it: CI runs on Linux, where the file keeps LF. So
+# scripts/prune-preview-branches.mjs passed the merge gate and then failed on
+# every Windows checkout, including the one that created it -- it passed before
+# the commit and broke after, because the commit is where the conversion
+# happened.
+scripts/*.mjs text eol=lf

@@ -31,7 +31,7 @@ export interface PlanFeatures {
 /**
  * Marketing release state — what the pricing page is allowed to claim.
  *
- * Read only by app/[lang]/pricing/page.tsx. **Never gate a route on this.**
+ * Read only by app/[lang]/(marketing)/pricing/page.tsx. **Never gate a route on this.**
  * Runtime entitlement is PlanFeatures via resolveCommercialEntitlement(); a
  * feature can be entitled on a plan and still be 'planned' here because it has
  * not shipped. `sovAlerts` is deliberately not named `alerts`, so it cannot be

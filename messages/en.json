@@ -1,10 +1,58 @@
 {
   "nav": {
     "title": "Fimmick AISO",
+    "brand_name": "Fimmick",
+    "brand_product": "AISO",
+    "tagline": "AI Search Optimization",
+    "copyright": "© 2026 Fimmick.",
+    "skip_to_main": "Skip to main content",
+    "primary_label": "Public navigation",
+    "footer_label": "Footer navigation",
+    "locale_label": "Language",
+    "sections": {
+      "platform": "Platform",
+      "solutions": "Solutions",
+      "company": "Company"
+    },
     "en": "EN",
     "zh": "中文",
     "sign_in": "Sign in",
-    "get_started": "Get started free"
+    "get_started": "Get started free",
+    "home": "Home",
+    "pricing": "Pricing",
+    "scan": "Free scan",
+    "demo": "Demo",
+    "sample_report": "Sample report",
+    "platform": {
+      "overview": "Platform",
+      "search_intelligence": "Search intelligence",
+      "site_health": "Site health",
+      "demand_intelligence": "Demand intelligence",
+      "brand_product_discovery": "Brand & product discovery",
+      "ai_visibility": "AI visibility",
+      "action_studio": "Action Studio",
+      "governed_agents": "Governed agents",
+      "proof": "Proof"
+    },
+    "solutions": {
+      "overview": "Solutions",
+      "sme": "Small & medium business",
+      "agencies": "Agencies",
+      "enterprise": "Enterprise",
+      "regulated_industries": "Regulated industries"
+    },
+    "company": {
+      "how_it_works": "How it works",
+      "methodology": "Methodology",
+      "integrations": "Integrations",
+      "discover": "Discover",
+      "resources": "Resources",
+      "security": "Security",
+      "trust": "Trust",
+      "privacy": "Privacy",
+      "terms": "Terms",
+      "contact": "Contact"
+    }
   },
   "auth": {
     "signing_out": "Signing out…",

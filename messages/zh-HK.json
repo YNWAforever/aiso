@@ -1,10 +1,58 @@
 {
   "nav": {
     "title": "Fimmick AISO",
+    "brand_name": "Fimmick",
+    "brand_product": "AISO",
+    "tagline": "AI 搜尋優化",
+    "copyright": "© 2026 Fimmick.",
+    "skip_to_main": "跳至主要內容",
+    "primary_label": "網站導覽",
+    "footer_label": "頁尾導覽",
+    "locale_label": "語言",
+    "sections": {
+      "platform": "平台",
+      "solutions": "解決方案",
+      "company": "公司"
+    },
     "en": "EN",
     "zh": "中文",
     "sign_in": "登入",
-    "get_started": "免費開始"
+    "get_started": "免費開始",
+    "home": "首頁",
+    "pricing": "定價",
+    "scan": "免費掃描",
+    "demo": "示範",
+    "sample_report": "範例報告",
+    "platform": {
+      "overview": "平台",
+      "search_intelligence": "搜尋情報",
+      "site_health": "網站健康",
+      "demand_intelligence": "需求情報",
+      "brand_product_discovery": "品牌與產品發現",
+      "ai_visibility": "AI 能見度",
+      "action_studio": "Action Studio",
+      "governed_agents": "受管治代理",
+      "proof": "佐證"
+    },
+    "solutions": {
+      "overview": "解決方案",
+      "sme": "中小企",
+      "agencies": "代理商",
+      "enterprise": "企業",
+      "regulated_industries": "受規管行業"
+    },
+    "company": {
+      "how_it_works": "運作方式",
+      "methodology": "方法論",
+      "integrations": "整合",
+      "discover": "探索",
+      "resources": "資源",
+      "security": "保安",
+      "trust": "信任",
+      "privacy": "私隱",
+      "terms": "條款",
+      "contact": "聯絡我們"
+    }
   },
   "auth": {
     "signing_out": "登出中…",

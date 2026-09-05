@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { generateMetadata as generateHomeMetadata } from '@/app/[lang]/layout'
-import { generateMetadata as generatePricingMetadata } from '@/app/[lang]/pricing/layout'
+import { generateMetadata as generatePricingMetadata } from '@/app/[lang]/(marketing)/pricing/layout'
 import { GET as getLlmsTxt } from '@/app/llms.txt/route'
 
 type MetadataGenerator = typeof generateHomeMetadata

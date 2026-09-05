@@ -101,8 +101,6 @@ export default function PricingPage() {
     }
   }
 
-  const otherLang  = lang === 'en' ? 'zh-HK' : 'en'
-  const otherLabel = lang === 'en' ? '中文' : 'EN'
 
   /* Feature comparison rows */
   const pro = getPlanDefinition('pro')
@@ -214,30 +212,7 @@ export default function PricingPage() {
     ],
   }
   return (
-    <div className="min-h-screen bg-background">
-
-      {/* ── Nav ─────────────────────────────────────────────── */}
-      <nav className="bg-background/90 backdrop-blur-md border-b border-border/60 px-6 py-3 flex justify-between items-center sticky top-0 z-50 shadow-sm">
-        <Link href={`/${lang}`} className="flex items-center gap-2.5">
-          <div className="size-7 rounded-lg bg-primary flex items-center justify-center shadow-sm">
-            <Zap aria-hidden="true" className="size-4 text-white" />
-          </div>
-          <span className="font-black text-foreground tracking-tight">
-            Fimmick <span className="text-primary">{t('nav_brand')}</span>
-          </span>
-        </Link>
-        <div className="flex items-center gap-4">
-          <Link href={`/${lang}/auth/login`} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            {t('signin')}
-          </Link>
-          <Link href={`/${otherLang}/pricing`} className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors border border-border rounded-md px-2 py-1">
-            {otherLabel}
-          </Link>
-        </div>
-      </nav>
-
-      <main>
-
+    <div className="bg-background">
         {/* ── Hero ────────────────────────────────────────────── */}
         <section className="max-w-3xl mx-auto px-6 pt-16 pb-10 text-center">
           <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-bold tracking-widest px-4 py-1.5 rounded-full mb-5 border border-primary/20">
@@ -440,25 +415,6 @@ export default function PricingPage() {
           </div>
         </section>
 
-        {/* ── Footer ───────────────────────────────────────────── */}
-        <footer className="border-t border-border bg-card py-8 px-6">
-          <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="size-5 rounded-md bg-primary flex items-center justify-center">
-                <Zap aria-hidden="true" className="size-3 text-white" />
-              </div>
-              <span className="font-bold text-foreground">Fimmick <span className="text-primary">AISO</span></span>
-            </div>
-            <div className="flex items-center gap-5">
-              <Link href={`/${lang}`} className="hover:text-foreground transition-colors">{t('home')}</Link>
-              <Link href={`/${lang}/auth/login`} className="hover:text-foreground transition-colors">{t('signin')}</Link>
-              <Link href={`/${otherLang}/pricing`} className="hover:text-foreground transition-colors border border-border rounded px-2 py-0.5">{otherLabel}</Link>
-            </div>
-            <span>© 2026 Fimmick.</span>
-          </div>
-        </footer>
-
-      </main>
     </div>
   )
 }
