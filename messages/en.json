@@ -1,6 +1,19 @@
 {
   "nav": {
     "title": "Fimmick AISO",
+    "brand_name": "Fimmick",
+    "brand_product": "AISO",
+    "tagline": "AI Search Optimization",
+    "copyright": "© 2026 Fimmick.",
+    "skip_to_main": "Skip to main content",
+    "primary_label": "Public navigation",
+    "footer_label": "Footer navigation",
+    "locale_label": "Language",
+    "sections": {
+      "platform": "Platform",
+      "solutions": "Solutions",
+      "company": "Company"
+    },
     "en": "EN",
     "zh": "中文",
     "sign_in": "Sign in",

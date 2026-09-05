@@ -1,6 +1,19 @@
 {
   "nav": {
     "title": "Fimmick AISO",
+    "brand_name": "Fimmick",
+    "brand_product": "AISO",
+    "tagline": "AI 搜尋優化",
+    "copyright": "© 2026 Fimmick.",
+    "skip_to_main": "跳至主要內容",
+    "primary_label": "網站導覽",
+    "footer_label": "頁尾導覽",
+    "locale_label": "語言",
+    "sections": {
+      "platform": "平台",
+      "solutions": "解決方案",
+      "company": "公司"
+    },
     "en": "EN",
     "zh": "中文",
     "sign_in": "登入",
