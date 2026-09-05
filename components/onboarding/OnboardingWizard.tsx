@@ -63,6 +63,8 @@ const COPY_EN = {
   goToDashboard: 'Go to my dashboard',
   s4Skip: "Skip — I'll set this up later",
   genericError: 'Something went wrong',
+  skipToMain: 'Skip to main content',
+  removeCompetitor: (name: string) => `Remove ${name}`,
 }
 
 const COPY_ZH_HK: typeof COPY_EN = {
@@ -95,6 +97,8 @@ const COPY_ZH_HK: typeof COPY_EN = {
   goToDashboard: '前往我的儀表板',
   s4Skip: '略過——我稍後再設定',
   genericError: '發生錯誤，請再試一次',
+  skipToMain: '跳至主要內容',
+  removeCompetitor: (name: string) => `移除${name}`,
 }
 
 /** Strip protocol and www prefix so only bare domain is stored */
@@ -128,20 +132,14 @@ export function OnboardingWizard({
   const hasScanPrefill = Boolean(scanId && initialBrand && initialDomain)
   const [step, setStep] = useState(hasScanPrefill ? 3 : 1)
   const previousStepRef = useRef(step)
-  const brandInputRef = useRef<HTMLInputElement>(null)
-  const domainInputRef = useRef<HTMLInputElement>(null)
-  const industrySelectRef = useRef<HTMLSelectElement>(null)
-  const descriptionInputRef = useRef<HTMLTextAreaElement>(null)
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null)
 
   useEffect(() => {
     if (previousStepRef.current === step) return
     previousStepRef.current = step
-    if (!window.matchMedia('(min-width: 768px)').matches) return
-    const target = step === 1 ? brandInputRef.current
-      : step === 2 ? domainInputRef.current
-        : step === 3 ? industrySelectRef.current
-          : descriptionInputRef.current
-    target?.focus()
+    // Announce the new step without opening the mobile keyboard. The next Tab
+    // reaches its first field at every viewport width.
+    stepHeadingRef.current?.focus()
   }, [step])
 
   const [brand, setBrand]           = useState(initialBrand)
@@ -203,12 +201,14 @@ export function OnboardingWizard({
   const progress = (step / TOTAL_STEPS) * 100
 
   const inputClass = "w-full h-11 rounded-lg border border-border bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-  const btnPrimary = "flex-1 h-11 bg-primary text-primary-foreground font-semibold rounded-lg text-sm hover:bg-primary/90 transition disabled:opacity-40 flex items-center justify-center gap-2"
-  const btnBack    = "flex-1 h-11 border border-border text-foreground font-semibold rounded-lg text-sm hover:bg-muted transition"
+  const btnPrimary = "min-w-0 flex-1 basis-28 min-h-11 px-2 py-2 [overflow-wrap:anywhere] bg-primary text-primary-foreground font-semibold rounded-lg text-sm hover:bg-primary/90 transition disabled:opacity-40 flex items-center justify-center gap-2"
+  const btnBack    = "flex-1 basis-28 min-h-11 border border-border text-foreground font-semibold rounded-lg text-sm hover:bg-muted transition"
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="bg-card rounded-2xl border p-8 w-full max-w-md shadow-sm">
+    <>
+      <a href="#main-content" className="sr-only fixed left-4 top-4 z-[60] rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground shadow-lg focus:not-sr-only focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{c.skipToMain}</a>
+      <main id="main-content" tabIndex={-1} className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="bg-card rounded-2xl border p-4 sm:p-8 w-full max-w-md shadow-sm">
 
         {/* Logo */}
         <div className="flex items-center gap-2 mb-7">
@@ -232,12 +232,11 @@ export function OnboardingWizard({
         {/* ── Step 1: Brand name ── */}
         {step === 1 && (
           <div>
-            <label htmlFor="onboarding-brand" className="block text-xl font-black text-foreground mb-1">{c.s1Title}</label>
+            <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-1 focus-visible:outline-2 focus-visible:outline-primary"><label htmlFor="onboarding-brand">{c.s1Title}</label></h1>
             <p className="text-sm text-muted-foreground mb-6">{c.s1Subtitle}</p>
             <input
               id="onboarding-brand"
               name="brandName"
-              ref={brandInputRef}
               value={brand}
               onChange={e => setBrand(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && brand.trim() && setStep(2)}
@@ -253,14 +252,13 @@ export function OnboardingWizard({
         {/* ── Step 2: Domain ── */}
         {step === 2 && (
           <div>
-            <label htmlFor="onboarding-domain" className="block text-xl font-black text-foreground mb-1">{c.s2Title}</label>
+            <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-1 focus-visible:outline-2 focus-visible:outline-primary"><label htmlFor="onboarding-domain">{c.s2Title}</label></h1>
             <p className="text-sm text-muted-foreground mb-1">{c.s2Subtitle}</p>
             <p className="text-2xs text-muted-foreground/60 mb-5">{c.s2HintPrefix} <span className="font-mono bg-muted px-1 rounded">fimmick.com</span> {c.s2HintNot} <span className="font-mono bg-muted px-1 rounded">https://www.fimmick.com</span></p>
             <div className="relative mb-6">
               <input
                 id="onboarding-domain"
                 name="domain"
-                ref={domainInputRef}
                 value={domain}
                 onChange={e => handleDomainChange(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && setStep(3)}
@@ -273,7 +271,7 @@ export function OnboardingWizard({
                 </span>
               )}
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <button onClick={() => setStep(1)} className={btnBack}>{c.back}</button>
               <button onClick={() => setStep(3)} className={btnPrimary}>
                 {c.continue} <ChevronRight className="size-4" />
@@ -288,12 +286,12 @@ export function OnboardingWizard({
         {/* ── Step 3: Industry + Region ── */}
         {step === 3 && (
           <div>
-            <h1 className="text-xl font-black text-foreground mb-1">{c.s3Title}</h1>
+            <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-1 focus-visible:outline-2 focus-visible:outline-primary">{c.s3Title}</h1>
             <p className="text-sm text-muted-foreground mb-6">{c.s3Subtitle}</p>
             <div className="space-y-3 mb-6">
               <div>
                 <label htmlFor="onboarding-industry" className="block text-xs font-semibold text-foreground mb-1.5">{c.industryPlaceholder}</label>
-                <select id="onboarding-industry" name="industry" ref={industrySelectRef} value={industry} onChange={e => setIndustry(e.target.value)}
+                <select id="onboarding-industry" name="industry" value={industry} onChange={e => setIndustry(e.target.value)}
                   className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
                   <option value="">{c.industryPlaceholder}</option>
                   {INDUSTRIES.map(i => <option key={i.value} value={i.value}>{isZh ? i.labelZh : i.labelEn}</option>)}
@@ -308,7 +306,7 @@ export function OnboardingWizard({
                 </select>
               </div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <button onClick={() => setStep(2)} className={btnBack}>{c.back}</button>
               <button onClick={() => setStep(4)} className={btnPrimary}>
                 {c.continue} <ChevronRight className="size-4" />
@@ -323,7 +321,7 @@ export function OnboardingWizard({
         {/* ── Step 4: Brand details ── */}
         {step === 4 && (
           <div>
-            <h1 className="text-xl font-black text-foreground mb-1">{c.s4Title}</h1>
+            <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-1 focus-visible:outline-2 focus-visible:outline-primary">{c.s4Title}</h1>
             <p className="text-sm text-muted-foreground mb-6">
               {c.s4Subtitle}
             </p>
@@ -336,7 +334,6 @@ export function OnboardingWizard({
               <textarea
                 id="onboarding-description"
                 name="description"
-                ref={descriptionInputRef}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 placeholder={c.descPlaceholder(brand)}
@@ -361,7 +358,7 @@ export function OnboardingWizard({
                     if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addCompetitor() }
                   }}
                   placeholder={c.competitorsPlaceholder}
-                  className="flex-1 h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="min-w-0 flex-1 h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
                 <button
                   type="button"
@@ -374,10 +371,10 @@ export function OnboardingWizard({
               </div>
               {competitors.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                  {competitors.map(c => (
-                    <span key={c} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 px-2 py-1 rounded-full font-medium">
-                      {c}
-                      <button type="button" onClick={() => removeCompetitor(c)} className="hover:text-destructive transition">
+                  {competitors.map(competitor => (
+                    <span key={competitor} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 px-2 py-1 rounded-full font-medium">
+                      {competitor}
+                      <button type="button" onClick={() => removeCompetitor(competitor)} aria-label={c.removeCompetitor(competitor)} className="min-h-6 min-w-6 inline-flex items-center justify-center hover:text-destructive transition">
                         <X className="size-2.5" />
                       </button>
                     </span>
@@ -386,9 +383,9 @@ export function OnboardingWizard({
               )}
             </div>
 
-            {error && <p className="text-destructive text-sm mb-4">{error}</p>}
+            {error && <p role="alert" className="text-destructive text-sm mb-4">{error}</p>}
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <button onClick={() => setStep(3)} className={btnBack}>{c.back}</button>
               <button onClick={complete} disabled={loading} className={`${btnPrimary} disabled:opacity-60`}>
                 {loading ? c.settingUp : c.goToDashboard}
@@ -402,6 +399,7 @@ export function OnboardingWizard({
         )}
 
       </div>
-    </div>
+      </main>
+    </>
   )
 }
