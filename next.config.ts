@@ -26,6 +26,23 @@ const nextConfig: NextConfig = {
       // Redirect bare (non-lang) legacy URLs to the English equivalents
       { source: '/pricing',    destination: '/en/pricing',    permanent: true },
       { source: '/auth/login', destination: '/en/auth/login', permanent: true },
+      { source: '/how-it-works', destination: '/en/how-it-works', permanent: true },
+      // Frozen public capability aliases; locale prefixes are explicit because
+      // next-intl routing is handled by proxy.ts, after config redirects.
+      ...[
+        ['/platform/search-visibility', '/platform/search-intelligence'],
+        ['/foundation', '/platform/site-health'],
+        ['/answer-readiness', '/platform/demand-intelligence'],
+        ['/citation-readiness', '/platform/ai-visibility'],
+        ['/ai-pulse', '/platform/ai-visibility'],
+      ].flatMap(([source, destination]) => [
+        { source, destination: `/en${destination}`, permanent: true },
+        {
+          source: `/:lang(en|zh-HK)${source}`,
+          destination: `/:lang${destination}`,
+          permanent: true,
+        },
+      ]),
     ]
   },
 }

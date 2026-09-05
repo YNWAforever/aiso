@@ -118,6 +118,7 @@ describe('POST /api/scan security boundaries', () => {
     state.profile = null
     state.client = null
     state.rateCount = 0
+    vi.stubGlobal('fetch', fetchMock)
     fetchMock.mockClear()
     fetchPublicUrlMock.mockClear()
     getProfileMock.mockClear()
@@ -302,7 +303,9 @@ describe('POST /api/scan security boundaries', () => {
     expect(response.status).toBe(200)
 
     // checkMcpCard takes (baseUrl, html, fetcher) — the fetcher is third.
-    expect(vi.mocked(checkMcpCard).mock.calls[0][2]).toBe(fetchPublicUrlMock)
+    const mcpFetcher = vi.mocked(checkMcpCard).mock.calls[0][2]
+    await mcpFetcher('https://guarded.example/mcp')
+    expect(fetchPublicUrlMock).toHaveBeenLastCalledWith('https://guarded.example/mcp', undefined)
 
     for (const check of [
       checkRobots,
@@ -313,7 +316,8 @@ describe('POST /api/scan security boundaries', () => {
       checkLlmsFullTxt,
       checkSitemap,
     ]) {
-      expect(vi.mocked(check).mock.calls[0][1]).toBe(fetchPublicUrlMock)
+      await vi.mocked(check).mock.calls[0][1]('https://guarded.example/check')
+      expect(fetchPublicUrlMock).toHaveBeenLastCalledWith('https://guarded.example/check', undefined)
     }
   })
 })

@@ -8,7 +8,7 @@ import { NextRequest } from 'next/server'
 // Set required env vars before any module is loaded
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test'
 
-const dbState = vi.hoisted(() => ({ insertValues: [] as unknown[] }))
+const dbState = vi.hoisted(() => ({ insertValues: [] as unknown[], failInsert: false }))
 
 // ── Mocks ───────────────────────────────────────────────────────
 // Mock all 20 checks to return known values
@@ -46,6 +46,7 @@ vi.mock('@/lib/db', () => {
   const sql = async (strings: TemplateStringsArray, ...values: unknown[]) => {
     const q = Array.from(strings).join(' ')
     if (/insert into scans/i.test(q)) {
+      if (dbState.failInsert) throw new Error('mock database write failure')
       dbState.insertValues = values
       return [{ id: 'scan-abc' }]
     }
@@ -83,6 +84,7 @@ describe('POST /api/scan — full scan flow', () => {
     fetchMock.mockClear()
     fetchMock.mockResolvedValue(new Response('ok', { status: 200 }))
     dbState.insertValues = []
+    dbState.failInsert = false
   })
 
   it('returns 400 when URL is missing', async () => {
@@ -170,6 +172,7 @@ describe('POST /api/scan — full scan flow', () => {
     expect(body).toHaveProperty('scanId')
     expect(body).toHaveProperty('score')
     expect(body).toHaveProperty('grade')
+    expect(body.results).not.toHaveProperty('evidence')
     delete process.env.N8N_SCAN_WEBHOOK_URL
   })
 
@@ -239,10 +242,43 @@ describe('POST /api/scan — full scan flow', () => {
     await POST(req)
 
     const persistedResults = JSON.parse(dbState.insertValues[3] as string)
+    const { readScanEvidence } = await import('@/lib/scan-evidence')
+    expect(readScanEvidence(persistedResults.evidence)).toEqual(persistedResults.evidence)
+    expect(Object.keys(persistedResults.evidence.checks)).toHaveLength(20)
+    expect(JSON.stringify(persistedResults.evidence)).not.toMatch(/PRIVATE_RAW_SENTINEL|PRIVATE_DETAIL_SENTINEL|private.example.test/)
     expect(persistedResults.pillarScores).toBeDefined()
     expect(persistedResults.pillarScores.methodologyVersion).toBe('2026-08-26.v1')
     expect(persistedResults.pillarScores.seo.score).toBeGreaterThanOrEqual(0)
     expect(persistedResults.pillarScores.aeo.score).toBeGreaterThanOrEqual(0)
     expect(persistedResults.pillarScores.geo.score).toBeGreaterThanOrEqual(0)
   })
+  it('keeps write failure non-success and does not dispatch a webhook', async () => {
+    dbState.failInsert = true
+    process.env.N8N_SCAN_WEBHOOK_URL = 'https://n8n.example.com/webhook/aiso-scan'
+    const { POST } = await import('@/app/api/scan/route')
+    const res = await POST(new NextRequest('http://localhost/api/scan', { method:'POST', body:JSON.stringify({url:'https://example.com'}) }))
+    expect(res.status).toBe(500)
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('n8n.example.com'))).toBe(false)
+    delete process.env.N8N_SCAN_WEBHOOK_URL
+  })
+  it('does not insert evidence for a blocked input and preserves 400', async () => {
+    const { PublicUrlError } = await import('@/lib/security/public-url')
+    fetchMock.mockRejectedValueOnce(new PublicUrlError('blocked', 'UNSAFE_URL'))
+    const { POST } = await import('@/app/api/scan/route')
+    const res = await POST(new NextRequest('http://localhost/api/scan', { method:'POST', body:JSON.stringify({url:'https://example.com'}) }))
+    expect(res.status).toBe(400)
+    expect(dbState.insertValues).toEqual([])
+  })
+  it('preserves a rejected check benchmark while recording failed collection', async () => {
+    const { checkLlmsTxt } = await import('@/lib/checks/llmsTxt')
+    vi.mocked(checkLlmsTxt).mockRejectedValueOnce(new Error('private rejection'))
+    const { POST } = await import('@/app/api/scan/route')
+    const res = await POST(new NextRequest('http://localhost/api/scan', { method:'POST', body:JSON.stringify({url:'https://example.com/private?secret'}) }))
+    expect(res.status).toBe(200)
+    const result = JSON.parse(dbState.insertValues[3] as string)
+    expect(result.c2_llms_txt).toEqual({status:'fail',message:'check_error'})
+    expect(result.evidence.checks.c2_llms_txt.collection).toBe('failed')
+    expect(JSON.stringify(result.evidence)).not.toMatch(/private|secret/)
+  })
+
 })

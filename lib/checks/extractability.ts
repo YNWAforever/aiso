@@ -7,7 +7,7 @@ export async function checkExtractability(url: string, fetcher: PublicUrlFetch):
       headers: { 'User-Agent': 'Fimmick-AEO/1.0' },
       signal: AbortSignal.timeout(10000),
     })
-    if (!res.ok) return { status: 'fail', message: 'extractability_fetch_error' }
+    if (!res.ok) return { diagnostic: { collection: 'failed', reason: 'fetch-failed' }, status: 'fail', message: 'extractability_fetch_error' }
 
     const html = await res.text()
     const stripped = html
@@ -23,6 +23,6 @@ export async function checkExtractability(url: string, fetcher: PublicUrlFetch):
     if (wordCount >= 50)  return { status: 'warn', message: 'extractability_low',  details: `~${wordCount} words` }
     return { status: 'fail', message: 'extractability_poor', details: `~${wordCount} words` }
   } catch {
-    return { status: 'fail', message: 'extractability_fetch_error' }
+    return { diagnostic: { collection: 'failed', reason: 'fetch-failed' }, status: 'fail', message: 'extractability_fetch_error' }
   }
 }

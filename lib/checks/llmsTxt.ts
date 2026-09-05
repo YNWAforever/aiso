@@ -13,6 +13,6 @@ export async function checkLlmsTxt(baseUrl: string, fetcher: PublicUrlFetch): Pr
     if (text.trim().length === 0) return { status: 'warn', message: 'llms_txt_empty' }
     return { status: 'pass', message: 'llms_txt_found' }
   } catch {
-    return { status: 'fail', message: 'llms_txt_fetch_error' }
+    return { diagnostic: { collection: 'failed', reason: 'fetch-failed' }, status: 'fail', message: 'llms_txt_fetch_error' }
   }
 }

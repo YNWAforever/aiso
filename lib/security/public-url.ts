@@ -1,3 +1,5 @@
+import { emitFetchEvidence } from '@/lib/scan-evidence-context'
+import { describeEvidenceUrl, parsedHeaderSignals } from '@/lib/scan-evidence'
 import { lookup as nodeLookup } from 'node:dns/promises'
 import { request as httpRequest, type IncomingHttpHeaders } from 'node:http'
 import { request as httpsRequest, type RequestOptions } from 'node:https'
@@ -254,30 +256,37 @@ export function createPublicUrlFetcher(options: PublicUrlFetcherOptions = {}): P
       ? AbortSignal.any([timeoutSignal, init.signal])
       : timeoutSignal
     let currentInit: RequestInit = { ...init, signal: requestSignal }
-    for (let redirects = 0; ; redirects += 1) {
-      const target = await resolvePublicUrl(currentUrl, lookup, allowedProtocols, requestSignal)
-      const response = await requestImpl(
-        currentUrl,
-        {
-          ...currentInit,
-          redirect: 'manual',
-          signal: requestSignal,
-        },
-        target,
-        maxResponseBytes,
-        timeoutMs,
-      )
-      if (!REDIRECT_STATUSES.has(response.status)) return response
-      const location = response.headers.get('location')
-      if (!location) return response
-      if (redirects >= maxRedirects) {
+    try {
+      for (let redirects = 0; ; redirects += 1) {
+        const target = await resolvePublicUrl(currentUrl, lookup, allowedProtocols, requestSignal)
+        const response = await requestImpl(
+          currentUrl,
+          {
+            ...currentInit,
+            redirect: 'manual',
+            signal: requestSignal,
+          },
+          target,
+          maxResponseBytes,
+          timeoutMs,
+        )
+        const location = response.headers.get('location')
+        if (!REDIRECT_STATUSES.has(response.status) || !location) {
+          emitFetchEvidence({ observedAt: new Date().toISOString(), provenance: 'validated-fetch', target: describeEvidenceUrl(currentUrl.href), collection: response.ok || response.status === 404 || response.status === 410 ? 'complete' : 'failed', httpStatus: response.status, signals: parsedHeaderSignals(response.headers) })
+          return response
+        }
+        if (redirects >= maxRedirects) {
+          await response.body?.cancel()
+          throw new PublicUrlError('Too many redirects', 'TOO_MANY_REDIRECTS')
+        }
+        const nextUrl = new URL(location, currentUrl)
         await response.body?.cancel()
-        throw new PublicUrlError('Too many redirects', 'TOO_MANY_REDIRECTS')
+        currentInit = redirectInit(response.status, currentInit, currentUrl, nextUrl)
+        currentUrl = nextUrl
       }
-      const nextUrl = new URL(location, currentUrl)
-      await response.body?.cancel()
-      currentInit = redirectInit(response.status, currentInit, currentUrl, nextUrl)
-      currentUrl = nextUrl
+    } catch (error) {
+      emitFetchEvidence({ observedAt: new Date().toISOString(), provenance: 'validated-fetch', target: describeEvidenceUrl(''), collection: error instanceof PublicUrlError && error.code === 'UNSAFE_URL' ? 'blocked' : 'failed' })
+      throw error
     }
   }
 }

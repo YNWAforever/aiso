@@ -28,6 +28,6 @@ export async function checkLlmsFullTxt(baseUrl: string, fetcher: PublicUrlFetch)
     }
     return { status: 'warn', message: 'llms_full_txt_sparse', details: `${urlCount} URLs, ${lineCount} lines` }
   } catch {
-    return { status: 'fail', message: 'llms_full_txt_fetch_error' }
+    return { diagnostic: { collection: 'failed', reason: 'fetch-failed' }, status: 'fail', message: 'llms_full_txt_fetch_error' }
   }
 }
