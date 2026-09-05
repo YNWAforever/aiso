@@ -256,7 +256,7 @@ export default function PricingPage() {
                 >
                   {isPro && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                      <span className="bg-primary text-primary-foreground text-[10px] font-black tracking-widest px-4 py-1.5 rounded-full shadow-lg">
+                      <span className="inline-flex whitespace-nowrap bg-primary text-primary-foreground text-[10px] font-black tracking-widest px-4 py-1.5 rounded-full shadow-lg">
                         {t('popular')}
                       </span>
                     </div>
