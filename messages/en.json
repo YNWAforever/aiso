@@ -87,6 +87,14 @@
     "integrations": {
       "title": "Understand where services support the product. | Fimmick AISO",
       "description": "The application uses external services for authentication, data, AI processing, billing and email. Those dependencies are distinct from integrations you connect yourself."
+    },
+    "scan": {
+      "title": "Scan your website for AI search readiness | Fimmick AISO",
+      "description": "Run the existing website checks and review a saved result with evidence coverage and collection limits."
+    },
+    "methodology": {
+      "title": "How to read your scan evidence | Fimmick AISO",
+      "description": "Pillar diagnostics explain the evidence behind a scan. Coverage describes what we could verify; it does not promise rankings, AI citations or business outcomes."
     }
   },
   "nav": {
@@ -354,7 +362,14 @@
     "proof_bottom_body": "No account or credit card is needed to see your first visibility result.",
     "industry_travel_hospitality": "Travel & Hospitality",
     "industry_media_entertainment": "Media & Entertainment",
-    "skip_to_main": "Skip to main content"
+    "skip_to_main": "Skip to main content",
+    "scan_auth_unavailable": "Sign-in verification is temporarily unavailable. Please try again later.",
+    "scan_unavailable": "Scanning is temporarily unavailable. Please try again later.",
+    "scan_quota_unavailable": "We could not verify your scan allowance. Please try again later.",
+    "scan_upgrade_required": "Your current plan does not include authenticated scans. Review your plan before trying again.",
+    "scan_quota_reached": "You have reached your plan’s scan allowance. Wait for it to reset or review your plan.",
+    "scan_rate_limited": "Too many scan requests. Please wait before trying again.",
+    "scan_save_failed": "We could not save this scan. Please try again; no saved result is available."
   },
   "result": {
     "score_label": "AI Readiness Score",
@@ -1282,6 +1297,38 @@
       ],
       "evidence": "The source uses Neon for authentication and database access, OpenRouter for AI calls, Stripe for billing and Resend for email. These describe application dependencies.",
       "limitations": "This is not a connection dashboard. No live provider status, user-connected Search Console account or one-click integration setup is claimed here."
+    }
+  },
+  "scanPage": {
+    "title": "Scan your website for AI search readiness",
+    "summary": "Run the existing website checks and review a saved result with evidence coverage and collection limits.",
+    "formLabel": "Website scan",
+    "limitations": "A scan is a point-in-time diagnostic. Missing or unavailable collection can leave partial evidence; a successful submission does not guarantee complete coverage or visibility in AI answers.",
+    "methodology": "Read the scoring methodology"
+  },
+  "methodologyPage": {
+    "title": "How to read your scan evidence",
+    "summary": "Pillar diagnostics explain the evidence behind a scan. Coverage describes what we could verify; it does not promise rankings, AI citations or business outcomes.",
+    "scan": "Scan your website",
+    "pillars": {
+      "title": "Overlapping pillars, unchanged headline",
+      "body": "Pillars group related checks and can overlap: one check may inform more than one pillar. Do not add pillar scores together. The stored headline score, grade and existing scoring weights remain unchanged; pillar diagnostics are a separate interpretation."
+    },
+    "coverage": {
+      "title": "Weighted evidence coverage",
+      "body": "Coverage is verified observed weight divided by applicable weight. Explicitly not-applicable checks are excluded from both numerator and denominator. Missing, failed, unknown or unverifiable collection stays in the denominator and adds no observed coverage. Ambiguous partial assessment does not count as fully verified. If applicable weight is zero, evidence is insufficient, never a perfect score."
+    },
+    "gates": {
+      "title": "Coverage gates before rounding",
+      "body": "Coverage below 0.67 suppresses the numeric pillar score and shows insufficient evidence. From 0.67 to below 0.85 the score is provisional. At least 0.85 is scored. These decisions use unrounded weighted coverage, even if a displayed percentage rounds up to a boundary. A scored pillar is not a guarantee of complete collection."
+    },
+    "history": {
+      "title": "Method versions and historical results",
+      "body": "Newly calculated diagnostics record their methodology version. Stored legacy snapshots retain their original version and are not rewritten. Historical diagnostics recalculated using a newer method are labelled as recalculated; old scans without collection evidence cannot be treated as verified observations. Compare method versions before interpreting differences."
+    },
+    "limits": {
+      "title": "Collection and comparison limits",
+      "body": "Provider outages, blocked requests and missing collection can reduce coverage. Evidence displayed in results is sanitized and subject to access controls. Current redacted, origin-only evidence cannot substantiate an improvement comparison: it does not establish comparable before-and-after measurements. Estimated impact remains an estimate."
     }
   }
 }

@@ -37,7 +37,7 @@ export const NAV: NavEntry[] = [
   // Top level — the two that exist today, plus the public entry points.
   { section: 'top', labelKey: 'nav.home', href: '/', available: true },
   { section: 'top', labelKey: 'nav.pricing', href: '/pricing', available: true },
-  { section: 'top', labelKey: 'nav.scan', href: '/scan', available: false },
+  { section: 'top', labelKey: 'nav.scan', href: '/scan', available: true },
   { section: 'top', labelKey: 'nav.demo', href: '/demo', available: false },
   { section: 'top', labelKey: 'nav.sample_report', href: '/sample-report', available: false },
 
@@ -61,7 +61,7 @@ export const NAV: NavEntry[] = [
 
   // Company, trust and legal.
   { section: 'company', labelKey: 'nav.company.how_it_works', href: '/how-it-works', available: true },
-  { section: 'company', labelKey: 'nav.company.methodology', href: '/methodology', available: false },
+  { section: 'company', labelKey: 'nav.company.methodology', href: '/methodology', available: true },
   { section: 'company', labelKey: 'nav.company.integrations', href: '/integrations', available: true },
   { section: 'company', labelKey: 'nav.company.discover', href: '/discover', available: false },
   { section: 'company', labelKey: 'nav.company.resources', href: '/resources', available: true },

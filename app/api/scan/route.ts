@@ -309,7 +309,6 @@ export async function POST(req: NextRequest) {
   let scanId: string
   try {
     const combinedResults = { ...results, ...geoDetails }
-    const pillarScores = calculatePillarScores(combinedResults)
     const evidence = buildScanEvidence({
       requestedUrl: /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : 'https://' + url,
       evaluatedUrl: baseUrl, industry: geoIndustry, region: geoRegion,
@@ -317,6 +316,7 @@ export async function POST(req: NextRequest) {
       checks: capture.checks([c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16,c17,c18,c19,c20], Object.keys(CHECK_VERSIONS) as EvidenceCheckKey[]),
       observations: capture.observations, limited: capture.limited, collectedAt: new Date().toISOString(),
     })
+    const pillarScores = calculatePillarScores(combinedResults, evidence.checks)
     const rows = await sql`
       insert into scans (url, domain, score, results, industry, region, grade, account_id, agent_status, client_id)
       values (${baseUrl}, ${domain}, ${totalScore},

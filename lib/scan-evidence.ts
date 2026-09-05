@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { PILLAR_SCORE_VERSION } from '@/lib/pillar-scores'
+import { PILLAR_SCORE_VERSION, type PillarEvidenceInputs } from '@/lib/pillar-scores'
 import { SCANNER_VERSION } from '@/lib/types'
 
 export const EVIDENCE_SCHEMA_VERSION = 1
@@ -73,7 +73,11 @@ export interface EvidenceInput {
   sitemapSource: unknown; checks: Partial<Record<EvidenceCheckKey, { assessment?: unknown; collection?: unknown; reason?: unknown }>>;
   observations?: unknown[]; collectedAt?: string; limited?: boolean;
 }
+const supportedPillarMethods = ['2026-08-26.v1', PILLAR_SCORE_VERSION] as const
 export function buildScanEvidence(input: EvidenceInput) {
+  return buildEvidenceForMethod(input, PILLAR_SCORE_VERSION)
+}
+function buildEvidenceForMethod(input: EvidenceInput, pillarMethod: string) {
   const requested = describeEvidenceUrl(input.requestedUrl), evaluated = describeEvidenceUrl(input.evaluatedUrl)
   const checks = {} as Record<EvidenceCheckKey, CheckEvidence>
   for (const key of Object.keys(CHECK_VERSIONS) as EvidenceCheckKey[]) {
@@ -98,12 +102,12 @@ export function buildScanEvidence(input: EvidenceInput) {
   const region = typeof input.region === 'string' && ['HK','TW','SG','JP','KR','US','UK','EU','AU','CA','global'].includes(input.region) ? input.region : 'unknown'
   const final = observations.find(o => o.check === 'page' && o.httpStatus !== undefined)?.target ?? null
   const sitemapSource = input.sitemapSource === 'caller' || input.sitemapSource === 'fetched' ? input.sitemapSource : 'unknown'
-  const comparison = { scope: 'single-origin-page' as const, evaluatedOrigin: evaluated.origin, finalOrigin: final?.origin ?? null, industry, region, sitemapSource, urlPolicy: URL_REDACTION_VERSION, scannerVersion: SCANNER_VERSION, checkVersions: CHECK_VERSIONS, headlineMethod: HEADLINE_METHOD_VERSION, pillarMethod: PILLAR_SCORE_VERSION }
+  const comparison = { scope: 'single-origin-page' as const, evaluatedOrigin: evaluated.origin, finalOrigin: final?.origin ?? null, industry, region, sitemapSource, urlPolicy: URL_REDACTION_VERSION, scannerVersion: SCANNER_VERSION, checkVersions: CHECK_VERSIONS, headlineMethod: HEADLINE_METHOD_VERSION, pillarMethod }
   const collectedAt = typeof input.collectedAt === 'string' && Number.isFinite(Date.parse(input.collectedAt)) ? new Date(input.collectedAt).toISOString() : null
   const page = observations.find(o => o.check === 'page')
   const completedPages = page?.collection === 'complete' && page.httpStatus !== undefined && page.httpStatus < 400 ? 1 : 0
   const collection: CollectionState = Object.values(checks).every(c => c.collection === 'complete') && completedPages === 1 ? 'complete' : Object.values(checks).some(c => c.collection === 'complete' || c.collection === 'partial') || completedPages === 1 ? 'partial' : page?.collection ?? 'unknown'
-  const evidence = { collection, completedPages, schemaVersion: EVIDENCE_SCHEMA_VERSION, scannerVersion: SCANNER_VERSION, headlineMethod: HEADLINE_METHOD_VERSION, pillarMethod: PILLAR_SCORE_VERSION, requestedScope: 'single-origin-page' as const, completedScope: completedPages === 1 ? 'single-origin-page' as const : 'none' as const, requested, evaluated, final, collectedAt, checks, observations, comparison, comparisonSignature: createHash('sha256').update(JSON.stringify(comparison)).digest('hex'), limited: input.limited === true || (input.observations?.length ?? 0) > 40, limitations: ['origin-only-identity', 'no-page-or-provider-excerpts', 'sampled-single-page', 'scan-record-retention'] }
+  const evidence = { collection, completedPages, schemaVersion: EVIDENCE_SCHEMA_VERSION, scannerVersion: SCANNER_VERSION, headlineMethod: HEADLINE_METHOD_VERSION, pillarMethod, requestedScope: 'single-origin-page' as const, completedScope: completedPages === 1 ? 'single-origin-page' as const : 'none' as const, requested, evaluated, final, collectedAt, checks, observations, comparison, comparisonSignature: createHash('sha256').update(JSON.stringify(comparison)).digest('hex'), limited: input.limited === true || (input.observations?.length ?? 0) > 40, limitations: ['origin-only-identity', 'no-page-or-provider-excerpts', 'sampled-single-page', 'scan-record-retention'] }
   while (bytes(evidence) > 32768 && evidence.observations.length) { evidence.observations.pop(); evidence.limited = true }
   if (bytes(evidence) > 32768 || Object.values(checks).some(record => bytes(record) > 1024)) {
     throw new RangeError('Evidence exceeds its storage budget')
@@ -112,14 +116,15 @@ export function buildScanEvidence(input: EvidenceInput) {
 }
 export type ScanEvidence = ReturnType<typeof buildScanEvidence>
 
-/** Unknown/old/malformed envelopes fail closed; never reinterpret them as current evidence. */
+/** Unsupported or malformed envelopes fail closed; registered historical methods retain their identity. */
 export function readScanEvidence(value: unknown): ScanEvidence | null {
   try {
     const data = object(value)
     if (bytes(data) > 32768 || data.schemaVersion !== EVIDENCE_SCHEMA_VERSION) return null
     const candidate = data as unknown as ScanEvidence
     if (!candidate.requested || !candidate.evaluated || !candidate.comparison || !Array.isArray(candidate.observations)) return null
-    const rebuilt = buildScanEvidence({ requestedUrl: candidate.requested.origin ?? '', evaluatedUrl: candidate.evaluated.origin ?? '', industry: candidate.comparison.industry, region: candidate.comparison.region, sitemapSource: candidate.comparison.sitemapSource, checks: candidate.checks, observations: candidate.observations, collectedAt: candidate.collectedAt ?? undefined, limited: candidate.limited })
+    if (!supportedPillarMethods.includes(candidate.pillarMethod as typeof supportedPillarMethods[number])) return null
+    const rebuilt = buildEvidenceForMethod({ requestedUrl: candidate.requested.origin ?? '', evaluatedUrl: candidate.evaluated.origin ?? '', industry: candidate.comparison.industry, region: candidate.comparison.region, sitemapSource: candidate.comparison.sitemapSource, checks: candidate.checks, observations: candidate.observations, collectedAt: candidate.collectedAt ?? undefined, limited: candidate.limited }, candidate.pillarMethod)
     // Descriptors carry redaction history which cannot be reconstructed from an origin.
     rebuilt.requested = normalizeDescriptor(candidate.requested)
     rebuilt.evaluated = normalizeDescriptor(candidate.evaluated)
@@ -133,4 +138,13 @@ export function compareScanEvidence(before: unknown, after: unknown) {
   if ([a,b].some(e => Object.values(e.checks).some(c => c.collection !== 'complete'))) return { comparable: false, reason: 'incomplete-collection' }
   // v1 deliberately withholds final path identity, even for root targets.
   return { comparable: false, reason: 'final-path-identity-withheld' }
+}
+
+/** Server-only validation; return a minimal serializable seam for pure diagnostic consumers. */
+export function pillarInputsFromEvidence(value: unknown): PillarEvidenceInputs {
+  const evidence = readScanEvidence(value)
+  if (!evidence) return {}
+  return Object.fromEntries(Object.entries(evidence.checks).map(([key, check]) => [key, {
+    applicability: check.applicability, collection: check.collection, assessment: check.assessment,
+  }]))
 }

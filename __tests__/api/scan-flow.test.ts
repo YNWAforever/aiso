@@ -247,10 +247,9 @@ describe('POST /api/scan — full scan flow', () => {
     expect(Object.keys(persistedResults.evidence.checks)).toHaveLength(20)
     expect(JSON.stringify(persistedResults.evidence)).not.toMatch(/PRIVATE_RAW_SENTINEL|PRIVATE_DETAIL_SENTINEL|private.example.test/)
     expect(persistedResults.pillarScores).toBeDefined()
-    expect(persistedResults.pillarScores.methodologyVersion).toBe('2026-08-26.v1')
-    expect(persistedResults.pillarScores.seo.score).toBeGreaterThanOrEqual(0)
-    expect(persistedResults.pillarScores.aeo.score).toBeGreaterThanOrEqual(0)
-    expect(persistedResults.pillarScores.geo.score).toBeGreaterThanOrEqual(0)
+    expect(persistedResults.pillarScores.methodologyVersion).toBe('2026-09-05.v2')
+    const { calculatePillarScores } = await import('@/lib/pillar-scores')
+    expect(persistedResults.pillarScores).toEqual(calculatePillarScores(persistedResults, persistedResults.evidence.checks))
   })
   it('keeps write failure non-success and does not dispatch a webhook', async () => {
     dbState.failInsert = true

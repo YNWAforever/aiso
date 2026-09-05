@@ -6,7 +6,7 @@ import type { CheckResult, CheckStatus } from '@/lib/types'
  * They intentionally overlap and never replace or add to the established
  * 100-point AISO score.
  */
-export const PILLAR_SCORE_VERSION = '2026-08-26.v1'
+export const PILLAR_SCORE_VERSION = '2026-09-05.v2'
 
 export const PILLAR_WEIGHTS = {
   seo: {
@@ -45,8 +45,7 @@ export const PILLAR_WEIGHTS = {
 
 export type PillarKey = keyof typeof PILLAR_WEIGHTS
 
-export interface PillarScore {
-  score: number
+interface PillarMetrics {
   earned: number
   maximum: number
   coverage: number
@@ -55,6 +54,20 @@ export interface PillarScore {
   passing: number
   warnings: number
   failing: number
+}
+
+/** Pure normalized input: only pass checks from validated collection evidence. */
+export type PillarEvidenceInputs = Readonly<Record<string, {
+  applicability: string; collection: string; assessment: string
+}>>
+export type PillarState = 'insufficient_evidence' | 'provisional' | 'scored'
+export type PillarScore = PillarMetrics & (
+  | { state: 'insufficient_evidence'; score: null }
+  | { state: 'provisional' | 'scored'; score: number }
+  | { state?: undefined; score: number } // Historical immutable v1 snapshots.
+)
+export function pillarStateForCoverage(coverage: number): PillarState {
+  return coverage < 0.67 ? 'insufficient_evidence' : coverage < 0.85 ? 'provisional' : 'scored'
 }
 
 export interface PillarScoreSnapshot {
@@ -86,7 +99,9 @@ function asCheckResult(value: unknown): CheckResult | null {
 function calculatePillar(
   results: Record<string, unknown>,
   weights: Readonly<Record<string, number>>,
+  evidence: PillarEvidenceInputs,
 ): PillarScore {
+  let maximum = 0
   let earned = 0
   let coveredWeight = 0
   let covered = 0
@@ -95,8 +110,12 @@ function calculatePillar(
   let failing = 0
 
   for (const [key, weight] of Object.entries(weights)) {
+    const observation = evidence[key]
+    if (observation?.applicability === 'not-applicable' && observation.assessment === 'not-applicable') continue
+    maximum += weight
     const result = asCheckResult(results[key])
-    if (result === null) continue
+    if (result === null || observation?.collection !== 'complete' ||
+      observation.applicability !== 'applicable' || observation.assessment !== result.status) continue
 
     coveredWeight += weight
     covered += 1
@@ -107,13 +126,16 @@ function calculatePillar(
     else failing += 1
   }
 
-  const maximum = Object.values(weights).reduce((total, weight) => total + weight, 0)
+  const coverage = maximum > 0 ? coveredWeight / maximum : 0
+  const state = pillarStateForCoverage(coverage)
 
   return {
-    score: coveredWeight > 0 ? Math.round((earned / coveredWeight) * 100) : 0,
+    ...(state === 'insufficient_evidence'
+      ? { state, score: null }
+      : { state, score: Math.round((earned / coveredWeight) * 100) }),
     earned: Number(earned.toFixed(1)),
     maximum,
-    coverage: maximum > 0 ? Number((coveredWeight / maximum).toFixed(2)) : 0,
+    coverage,
     checks: Object.keys(weights).length,
     covered,
     passing,
@@ -122,12 +144,12 @@ function calculatePillar(
   }
 }
 
-export function calculatePillarScores(results: Record<string, unknown>): PillarScoreSnapshot {
+export function calculatePillarScores(results: Record<string, unknown>, evidence: PillarEvidenceInputs = {}): PillarScoreSnapshot {
   return {
     methodologyVersion: PILLAR_SCORE_VERSION,
-    seo: calculatePillar(results, PILLAR_WEIGHTS.seo),
-    aeo: calculatePillar(results, PILLAR_WEIGHTS.aeo),
-    geo: calculatePillar(results, PILLAR_WEIGHTS.geo),
+    seo: calculatePillar(results, PILLAR_WEIGHTS.seo, evidence),
+    aeo: calculatePillar(results, PILLAR_WEIGHTS.aeo, evidence),
+    geo: calculatePillar(results, PILLAR_WEIGHTS.geo, evidence),
   }
 }
 
@@ -135,12 +157,19 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
 
-function isPillarScore(value: unknown): value is PillarScore {
+function isPillarScore(value: unknown, current: boolean): value is PillarScore {
   if (!value || typeof value !== 'object') return false
   const score = value as Record<string, unknown>
 
+  if (current) {
+    if (!isFiniteNumber(score.coverage) || score.coverage < 0 || score.coverage > 1 ||
+      score.state !== pillarStateForCoverage(score.coverage)) return false
+    if (score.score !== null && (!isFiniteNumber(score.score) || score.score < 0 || score.score > 100)) return false
+    if (score.maximum === 0 && (score.coverage !== 0 || score.score !== null)) return false
+  }
   return (
-    isFiniteNumber(score.score) &&
+    (score.state === 'insufficient_evidence' ? score.score === null : isFiniteNumber(score.score)) &&
+    (score.state === undefined || score.state === 'insufficient_evidence' || score.state === 'provisional' || score.state === 'scored') &&
     isFiniteNumber(score.earned) &&
     isFiniteNumber(score.maximum) &&
     isFiniteNumber(score.coverage) &&
@@ -158,9 +187,9 @@ export function isPillarScoreSnapshot(value: unknown): value is PillarScoreSnaps
 
   return (
     typeof snapshot.methodologyVersion === 'string' &&
-    isPillarScore(snapshot.seo) &&
-    isPillarScore(snapshot.aeo) &&
-    isPillarScore(snapshot.geo)
+    isPillarScore(snapshot.seo, snapshot.methodologyVersion === PILLAR_SCORE_VERSION) &&
+    isPillarScore(snapshot.aeo, snapshot.methodologyVersion === PILLAR_SCORE_VERSION) &&
+    isPillarScore(snapshot.geo, snapshot.methodologyVersion === PILLAR_SCORE_VERSION)
   )
 }
 
@@ -169,10 +198,10 @@ export function isPillarScoreSnapshot(value: unknown): value is PillarScoreSnaps
  * without one calculate the current diagnostic view from their stored check
  * results, keeping the UI backward compatible without a database migration.
  */
-export function resolvePillarScores(results: Record<string, unknown>): PillarScoreSnapshot {
+export function resolvePillarScores(results: Record<string, unknown>, evidence: PillarEvidenceInputs = {}): PillarScoreSnapshot {
   return isPillarScoreSnapshot(results.pillarScores)
     ? results.pillarScores
-    : calculatePillarScores(results)
+    : calculatePillarScores(results, evidence)
 }
 
 /**

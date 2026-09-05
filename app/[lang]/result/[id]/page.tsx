@@ -4,6 +4,7 @@ import { db }               from '@/lib/db'
 import { getE2EScanFixture } from '@/lib/e2e-fixtures'
 import { ResultClient }     from '@/components/result/ResultClient'
 import { getProfile }       from '@/lib/auth'
+import { buildOwnedResultEvidence } from '@/lib/result-evidence'
 import { buildPublicResultSummary, canViewFullResult } from '@/lib/result-access'
 import type { Scan }        from '@/lib/types'
 import type { Metadata }    from 'next'
@@ -108,6 +109,7 @@ export default async function ResultPage({
       lang={lang}
       summary={summary}
       fullScan={unlocked ? scan : undefined}
+      ownedEvidence={unlocked ? buildOwnedResultEvidence((scan.results as Record<string, unknown>).evidence) : undefined}
     />
   )
 }
