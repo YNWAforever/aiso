@@ -16,11 +16,11 @@ export async function prepareComponentFixtures(root, environment = process.env, 
   await mkdir(output,{recursive:true})
   await writeFile(join(output,'build.css'),(await Promise.all(cssFiles.map(file=>readFile(join(chunks,file),'utf8')))).join('\n'))
   const env = {...environment}
-  for(const slice of ['C8A','C8B','C8C','C8G','C9A']) {
+  for(const slice of ['C8A','C8B','C8C','C8G','C9A','C9B','C9C','C9C_DRAFT']) {
     env[`${slice}_HTML_DIR`] = join(output,slice)
     env[`${slice}_CSS_PATH`] = join(output,'build.css')
   }
-  const files = ['workspace-home','portfolio','pulse-view','settings','entity'].map(name=>`__tests__/components/${name}-render.test.tsx`)
+  const files = ['workspace-home','portfolio','pulse-view','settings','entity','observation','opportunity','draft'].map(name=>`__tests__/components/${name}-render.test.tsx`)
   const result = run(process.execPath,[join(root,'node_modules/vitest/vitest.mjs'),'run',...files,'--maxWorkers=1'],{cwd:root,env,stdio:'inherit'})
   if(result.error || result.status !== 0) throw new Error('Component fixture renderer failed')
 }

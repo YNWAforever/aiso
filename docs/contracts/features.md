@@ -48,3 +48,16 @@ Status: `live` · `partial` · `fixture` · `roadmap` · `absent`.
 ## C9a amendment — 2026-09-06
 
 Private entity organizational records and aliases are implemented locally for existing owned clients, one canonical brand record per client. Public discovery/verified entities, products/sub-entities, new approval roles, delivery attestations and outcome attribution remain outside this vertical. Migration040 is authored locally; no live feature availability is inferred before migration/activation approval.
+
+## C9b amendment — 2026-09-06
+
+Private monitored questions and retained AI observations are implemented locally for existing owned clients at `/[lang]/dashboard/[clientId]/observations` and `GET /api/clients/[clientId]/observations`. This extends the existing partial `pulse_metrics` source into an authenticated, account-scoped read projection; it does not make search observations available or claim an immutable provider-attempt ledger. Raw answers remain private to the source query, legacy collection/model/market provenance remains unknown, and current prompt metadata is labelled separately from historical observation text. No entity row, paid read entitlement, schema migration, provider call, collection change, public verification, backfill or new KPI is introduced. Live Neon equivalence and provider behavior remain unproved by this local checkpoint.
+## C9c evidence-linked drafts — 2026-09-06
+
+C9c is locally complete for private, draft-only work derived deterministically from retained Pulse brand-absence evidence and the newest scan's validated check gaps. Existing account members can view suggestions and explicitly save/edit organizational drafts. Viewing is side-effect-free; no approval, role assignment, delivery, publication, dismissal/archive, outcome or impact-attribution lifecycle is introduced. Existing paid generation, prompt-write, recommendation-read and provider gates are unchanged.
+
+The release source contract is `pulse-brand-absent.v1 | scan-check-gap.v1`, with public source state limited to `pulse | scan`. Recommendation-derived drafts are deferred by the user's finish scope and are neither implemented nor a pending C9c decision. The additive migration may reserve `agent-recommendation`, but application reads/writes reject or exclude it.
+
+Migration `041_evidence_work_items.sql` is authored and unapplied. Activation remains a separate external gate requiring an exact target, SQL/application SHA review, application-role validation and approved rollback. Local mocks and browser fixtures prove application behavior only; live PostgreSQL concurrency, grants, schema state, real authentication, providers and customer data remain unverified.
+
+Source rollback may remove C9c routes, navigation, services, components and tests while retaining C9b observations. If schema/data is ever activated, rollback disables the C9c application surface while retaining the additive table and saved drafts; customer evidence is not dropped.

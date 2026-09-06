@@ -189,6 +189,12 @@ jobs:
           C8G_CSS_PATH: .next/component-fixtures/build.css
           C9A_HTML_DIR: .next/component-fixtures/C9A
           C9A_CSS_PATH: .next/component-fixtures/build.css
+          C9B_HTML_DIR: .next/component-fixtures/C9B
+          C9B_CSS_PATH: .next/component-fixtures/build.css
+          C9C_HTML_DIR: .next/component-fixtures/C9C
+          C9C_CSS_PATH: .next/component-fixtures/build.css
+          C9C_DRAFT_HTML_DIR: .next/component-fixtures/C9C_DRAFT
+          C9C_DRAFT_CSS_PATH: .next/component-fixtures/build.css
           PLAYWRIGHT_JSON_OUTPUT_NAME: artifacts/e2e-accessibility/playwright-results.json
           PLAYWRIGHT_JUNIT_OUTPUT_NAME: artifacts/e2e-accessibility/playwright.junit.xml
       - name: Upload e2e-accessibility diagnostics
