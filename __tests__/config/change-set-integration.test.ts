@@ -15,3 +15,13 @@ it('requires exact dedicated identities before fixture writes', () => {
   for (const key of ['C9D_DISPOSABLE_PROJECT_ID','C9D_DISPOSABLE_BRANCH_ID','C9D_TEST_DATABASE_URL',"current_setting('neon.project_id'", "current_setting('neon.branch_id'"]) expect(source).toContain(key)
   expect(source).not.toMatch(/globalSetup|execSync|dotenv|process\.env\.TEST_DATABASE_URL/)
 })
+it('keeps actual-store proofs in their dedicated configuration without generic provisioning', () => {
+  const storeSuite='__tests__/integration/change-set-stores.test.ts'
+  const config=readFileSync('vitest.change-set-stores-integration.config.ts','utf8')
+  expect(config).toContain(`include: ['${storeSuite}']`)
+  expect(config).not.toMatch(/\b(?:setupFiles|globalSetup)\s*:/)
+  expect(readFileSync('vitest.integration.config.ts','utf8').split('exclude:')[1]?.split('globalSetup:')[0]).toContain(storeSuite)
+  const source=readFileSync(storeSuite,'utf8')
+  for(const key of ['C9D_DISPOSABLE_PROJECT_ID','C9D_DISPOSABLE_BRANCH_ID','C9D_TEST_DATABASE_URL','C9D_TEST_APP_DATABASE_URL',"identity.role !== 'aeo_app'",'C9D_STORE_TARGET_NOT_VERIFIED']) expect(source).toContain(key)
+  expect(source).not.toMatch(/execSync|dotenv|process\.env\.TEST_DATABASE_URL/)
+})
