@@ -13,6 +13,7 @@ export async function writeC9cFixture(
     string,
     { props: object; html: (lang: string) => string }
   > = {},
+  namespace: 'opportunities' | 'changeSets' | 'approverAccess' = 'opportunities',
 ) {
   const dir = process.env[`${slice}_HTML_DIR`]
   if (!dir) return
@@ -21,7 +22,7 @@ export async function writeC9cFixture(
     const messages = lang === 'en' ? en : zh
     writeFileSync(
       join(dir, `${lang}-copy.json`),
-      JSON.stringify(messages.opportunities),
+      JSON.stringify(messages[namespace]),
     )
     writeFileSync(join(dir, `${lang}-data.json`), JSON.stringify(props))
     writeFileSync(

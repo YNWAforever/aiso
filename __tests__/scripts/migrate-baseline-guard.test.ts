@@ -101,6 +101,8 @@ function allRelations() {
     ...ALL_TABLES,
     // Migrations 040 and 041 are authored contract fixtures, not part of the historical PG16 run.
     'client_entities', 'evidence_work_items',
+    // 042 is authored only; this is a synthetic inventory, not a live proof.
+    'work_item_versions', 'work_item_decisions', 'account_approver_state', 'account_approver_events',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
@@ -245,4 +247,12 @@ it('refuses to baseline 041 when its private draft table is absent', () => {
   relations.delete('evidence_work_items')
   expect(unappliedBaselineClaims(entries(['041_evidence_work_items.sql']), relations))
     .toEqual([{ filename: '041_evidence_work_items.sql', missing: ['evidence_work_items'] }])
+})
+
+it('refuses to baseline 042 when immutable review and audit relations are absent', () => {
+  const tables = ['work_item_versions','work_item_decisions','account_approver_state','account_approver_events']
+  const relations = allRelations()
+  tables.forEach(table => relations.delete(table))
+  expect(unappliedBaselineClaims(entries(['042_change_set_approvals.sql']), relations).map(claim => ({...claim,missing:[...claim.missing].sort()})))
+    .toEqual([{filename:'042_change_set_approvals.sql', missing:[...tables].sort()}])
 })

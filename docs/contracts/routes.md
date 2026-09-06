@@ -104,3 +104,18 @@ The query accepts optional `promptId`, `platform`, `week`, `result`, `limit` and
 `GET /api/clients/[clientId]/work-items` returns `{items,nextCursor}` in descending `(createdAt,id)` order. `limit` defaults to 50 and is capped at 100; `cursor` is a validated lossless timestamp/UUID pair. `GET /api/clients/[clientId]/work-items/[workItemId]` returns `{item}`. Missing and foreign items share `404 WORK_ITEM_NOT_FOUND`; unavailable reads use `503 WORK_ITEMS_UNAVAILABLE`.
 
 `PATCH /api/clients/[clientId]/work-items/[workItemId]` accepts exactly `{title,action,notes,expectedRevision}` and has a 32 KiB streamed-body cap. It performs an account/client/item revision compare-and-swap. A successful edit increments revision; an identical normalized retry at an older revision replays the stored item; differing stale or future revisions return `409 WORK_ITEM_CONFLICT`. It cannot change source, evidence snapshot, locale or status. All successful and error responses are no-store.
+
+## C9d immutable review API — 2026-09-07
+
+| Method and route | Scope and request | Success |
+|---|---|---|
+| `GET /api/clients/[clientId]/work-items/[workItemId]/versions` | Authenticated member; owned client/item; only `limit` (default 20, max 50) and opaque `cursor` | `200` summaries, `nextCursor`, `latestVersionId` |
+| `POST` same `/versions` | Same ownership; exactly `{expectedRevision}`; server freezes saved draft | `201` new; `200` identical replay |
+| `GET .../versions/[versionId]` | Same ownership; immutable retained version | `200 {version}` |
+| `POST .../versions/[versionId]/decision` | Current account approver, independent of submitter; exactly `{decision,reason,requestId}` | `201` terminal decision; `200` identical replay |
+| `GET /api/admin/accounts/[accountId]/approvers` | Independently authenticated current platform admin; `limit`, `memberCursor`, `eventCursor` | `200` bounded members, grants and audit events |
+| `POST` same `/approvers` | Same admin check; exactly `{profileId,action,reason,expectedRevision,requestId}` | `201` event; `200` identical replay |
+
+Routes return service responses directly and expose only these GET/POST methods; immutable records have no PATCH/DELETE route. Every response is `Cache-Control: no-store`. Services authenticate before disclosure, query parsing or body parsing. Callers cannot supply account, actor, admin status, role, hash, validation or timestamps. Actual streamed limits are 4 KiB for submission and 16 KiB for decision/access mutation; overflow is `413 CHANGE_SET_BODY_TOO_LARGE` or `413 APPROVAL_BODY_TOO_LARGE`.
+
+Stable change-set errors are `400 INVALID_CHANGE_SET_INPUT`, `401 UNAUTHENTICATED`, `403 CHANGE_SET_DENIED`, `404 CHANGE_SET_NOT_FOUND`, `409 CHANGE_SET_CONFLICT`, `413 CHANGE_SET_BODY_TOO_LARGE`, `422 CHANGE_SET_VALIDATION_FAILED`, and `503 CHANGE_SET_UNAVAILABLE`. Approver errors preserve the admin guard's `401`/`403`, plus `400 INVALID_APPROVAL_INPUT` or `APPROVAL_VALIDATION_FAILED`, `403 APPROVAL_DENIED`, `404 APPROVAL_NOT_FOUND`, `409 APPROVAL_CONFLICT`, `413 APPROVAL_BODY_TOO_LARGE`, and `503 APPROVAL_UNAVAILABLE`. Raw exceptions are never returned.

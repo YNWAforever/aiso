@@ -6,7 +6,7 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['__tests__/integration/**/*.test.ts'],
-    exclude: ['__tests__/integration/client-entities.test.ts', '__tests__/integration/evidence-work-items.test.ts'],
+    exclude: ['__tests__/integration/change-set-stores.test.ts', '__tests__/integration/change-set-approvals.test.ts', '__tests__/integration/client-entities.test.ts', '__tests__/integration/evidence-work-items.test.ts'],
     globalSetup: ['__tests__/integration/setup.ts'],
     // One shared branch per run: parallel files would race on the same schema.
     fileParallelism: false,
