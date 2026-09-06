@@ -125,3 +125,19 @@ export interface DraftSnapshotV1 {
   initialTitle: string
   initialAction: string
 }
+
+export type OpportunitySourceState = 'ok' | 'empty' | 'unavailable'
+export interface OpportunityWindow {
+  pulseWeek: string | null
+  pulseLimit: 200
+  pulseTruncated: boolean
+  scanId: string | null
+}
+export interface OpportunityResponse {
+  schemaVersion: 1
+  window: OpportunityWindow
+  sourceStates: { pulse: OpportunitySourceState; scan: OpportunitySourceState }
+  savedDraftsState: 'ok' | 'unavailable'
+  partial: boolean
+  suggestions: (Suggestion & { savedState: 'saved' | 'unsaved' | 'unavailable' })[]
+}
