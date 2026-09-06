@@ -1,6 +1,6 @@
 'use client'
 import { useId, useRef, useState, type FormEvent } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { parseDraftEdit } from '@/lib/work-items/edit-input'
 import type { WorkItem } from '@/lib/work-items/schema'
 import { EvidenceDetails } from '@/components/opportunities/EvidenceDetails'
@@ -13,6 +13,7 @@ export function DraftEditor({
   item: WorkItem
   onSaved: (item: WorkItem) => void
 }) {
+  const lang = useLocale()
   const fieldId = useId()
   const t = useTranslations('opportunities'),
     [saved, setSaved] = useState(item)
@@ -94,6 +95,8 @@ export function DraftEditor({
       setBusy(false)
     }
   }
+  const dirty =
+    title !== saved.title || action !== saved.action || notes !== saved.notes
   const field =
     'w-full rounded-lg border border-border bg-background p-3 text-foreground'
   const button =
@@ -105,6 +108,16 @@ export function DraftEditor({
     >
       <h2 className="text-xl font-semibold">{t('savedDraft')}</h2>
       <p>{t('draftOnly')}</p>
+      {dirty || busy ? (
+        <p>{t('saveBeforeVersions')}</p>
+      ) : (
+        <a
+          className="inline-flex min-h-11 items-center underline"
+          href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(saved.id)}/versions`}
+        >
+          {t('versionHistory')}
+        </a>
+      )}
       <p>
         {t('draftLanguage')}:{' '}
         {saved.locale === 'en' ? 'English' : '繁體中文（香港）'}

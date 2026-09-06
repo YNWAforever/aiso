@@ -74,6 +74,17 @@ export default function AdminPage() {
     <div>
       <h1 className="text-xl font-black text-slate-900 mb-6">All Accounts</h1>
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      <nav aria-label="Account approvers" className="mb-4 flex flex-wrap gap-4">
+        {accounts.map(a => (
+          <a
+            key={a.id}
+            className="inline-flex min-h-11 items-center underline"
+            href={`/admin/accounts/${encodeURIComponent(a.id)}/approvers?lang=en`}
+          >
+            Approvers · {a.id}
+          </a>
+        ))}
+      </nav>
       <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
