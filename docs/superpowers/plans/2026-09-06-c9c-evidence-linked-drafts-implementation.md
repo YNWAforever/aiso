@@ -169,3 +169,11 @@ Intercept API failures and assert edited inputs survive; reloading conflicting d
 ## Plan review
 
 Spec mapping: derivation/provenance Task1; scopes/windows/partial failures Task2; additive schema/limits Task3; evidence CAS/replay/immutable edits Task4; bilingual user flow/CI wiring Task5; verification and rollback Task6. Shared interfaces are declared at task boundaries. All commands and test counts are planned until executed. The conditional SQL example is deliberately a shape to translate into explicit tagged statements using actual source columns; implementation review must reject omitted comparison fields.
+
+## Approved scope amendment — 2026-09-06
+
+The user explicitly requested: "complete and finish C9c with Pulse and scan-check evidence". This supersedes recommendation-related implementation requirements in the earlier design and plan.
+
+This release implements only `pulse-brand-absent.v1` and `scan-check-gap.v1`. It does not query agent recommendations or expose recommendation suggestions, source availability, snapshots or create inputs. Public source states cover `pulse` and `scan` only. Recommendation-derived drafts and their paid-access/downgrade policy are deferred, not an unresolved blocker for this release. Existing paid recommendation generation/read/platform gates remain unchanged. Reserved source types or additive SQL allowances may remain inert; the create API must reject recommendation inputs.
+
+All other evidence, ownership, source-window, byte-limit, immutable snapshot, conditional-save/replay, edit conflict, localization, verification and external-action limits still apply. Finish Tasks 2, 4, 5 and 6 on the reviewed Task 1 and Task 3 foundations. No production or database activation is authorized.

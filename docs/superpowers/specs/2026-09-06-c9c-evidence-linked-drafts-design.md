@@ -53,3 +53,11 @@ Rollback removes the new route/navigation code and retains the additive table an
 ## Specification review record
 
 Reviewed against C9b: source identity, null provenance, immutable saved evidence, conditional creation, duplicate retries, draft-only edits and rollback agree. Source-window limits are deliberate initial bounds, not commercial quotas. Tests above are planned, not executed. No application source or schema was changed by this design commit.
+
+## Approved scope amendment — 2026-09-06
+
+The user explicitly requested: "complete and finish C9c with Pulse and scan-check evidence". This supersedes recommendation-related implementation requirements in the earlier design and plan.
+
+This release implements only `pulse-brand-absent.v1` and `scan-check-gap.v1`. It does not query agent recommendations or expose recommendation suggestions, source availability, snapshots or create inputs. Public source states cover `pulse` and `scan` only. Recommendation-derived drafts and their paid-access/downgrade policy are deferred, not an unresolved blocker for this release. Existing paid recommendation generation/read/platform gates remain unchanged. Reserved source types or additive SQL allowances may remain inert; the create API must reject recommendation inputs.
+
+All other evidence, ownership, source-window, byte-limit, immutable snapshot, conditional-save/replay, edit conflict, localization, verification and external-action limits still apply. Finish Tasks 2, 4, 5 and 6 on the reviewed Task 1 and Task 3 foundations. No production or database activation is authorized.
