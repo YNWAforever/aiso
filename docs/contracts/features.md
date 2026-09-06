@@ -61,3 +61,11 @@ The release source contract is `pulse-brand-absent.v1 | scan-check-gap.v1`, with
 Migration `041_evidence_work_items.sql` is authored and unapplied. Activation remains a separate external gate requiring an exact target, SQL/application SHA review, application-role validation and approved rollback. Local mocks and browser fixtures prove application behavior only; live PostgreSQL concurrency, grants, schema state, real authentication, providers and customer data remain unverified.
 
 Source rollback may remove C9c routes, navigation, services, components and tests while retaining C9b observations. If schema/data is ever activated, rollback disables the C9c application surface while retaining the additive table and saved drafts; customer evidence is not dropped.
+
+## C9d immutable review and audited approvers — 2026-09-07
+
+C9d adds locally implemented immutable versions alongside the unchanged C9c draft API. Members submit an exact saved revision; the server freezes allowlisted content/evidence and deterministic validation. Draft editing remains separate. Only the latest version can receive one terminal Approve or Request changes decision from a currently designated account approver who did not submit it.
+
+Existing platform admins manage designated approvers for an explicit account through an independently guarded API. Grants/revocations use optimistic revisions and immutable audit events; admin status does not grant review authority or bypass client ownership. DTOs omit email/auth/account internals. Routes fail closed with stable no-store errors and preserve 201-new/200-identical replay semantics.
+
+This local checkpoint does not apply migration 042, grant a live role, write customer data, deliver/publish content, establish factual or regulatory approval, or prove impact. Live PostgreSQL constraints, grants, rollback and concurrency remain a separate exact-target gate. Recommendation sources, general roles, invitations/account reassignment, delivery attestations and outcome windows remain outside C9d.
