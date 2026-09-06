@@ -99,8 +99,8 @@ describe('migrationCreatedTables', () => {
 function allRelations() {
   return new Set([
     ...ALL_TABLES,
-    // Migration 040 is an authored contract fixture, not part of the historical PG16 run.
-    'client_entities',
+    // Migrations 040 and 041 are authored contract fixtures, not part of the historical PG16 run.
+    'client_entities', 'evidence_work_items',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
@@ -238,4 +238,11 @@ it('refuses to baseline 040 when its private entity table is absent', () => {
   relations.delete('client_entities')
   expect(unappliedBaselineClaims(entries(['040_client_entities.sql']), relations))
     .toEqual([{ filename: '040_client_entities.sql', missing: ['client_entities'] }])
+})
+
+it('refuses to baseline 041 when its private draft table is absent', () => {
+  const relations = allRelations()
+  relations.delete('evidence_work_items')
+  expect(unappliedBaselineClaims(entries(['041_evidence_work_items.sql']), relations))
+    .toEqual([{ filename: '041_evidence_work_items.sql', missing: ['evidence_work_items'] }])
 })
