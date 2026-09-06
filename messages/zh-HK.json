@@ -1679,6 +1679,7 @@
       "no-page-or-provider-excerpts": "沒有保留頁面或供應商摘錄",
       "sampled-single-page": "只抽樣一個頁面",
       "scan-record-retention": "以保留的掃描記錄為依據"
-    }
+    },
+    "initialLoadError": "無法載入建議，請重試。"
   }
 }

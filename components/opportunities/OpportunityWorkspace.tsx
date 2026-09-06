@@ -26,6 +26,9 @@ export function OpportunityWorkspace({
   const [selected, setSelected] = useState<WorkItem | null>(null),
     [opening, setOpening] = useState(false),
     [openError, setOpenError] = useState(false)
+  const [evidenceChangedKeys, setEvidenceChangedKeys] = useState<Set<string>>(
+    () => new Set(),
+  )
   const [saving, setSaving] = useState<string | null>(null),
     [saveError, setSaveError] = useState<{
       key: string
@@ -90,7 +93,7 @@ export function OpportunityWorkspace({
     if (!listed && !listLock.current) void list()
   }
   async function refresh() {
-    if (refreshLock.current) return
+    if (refreshLock.current || savingLock.current) return
     refreshLock.current = true
     setRefreshing(true)
     setLoadError(false)
@@ -100,6 +103,7 @@ export function OpportunityWorkspace({
       })
       if (!response.ok) throw new Error()
       setData(await response.json())
+      setEvidenceChangedKeys(new Set())
       setSaveError(null)
       setStatus(t('refreshed'))
     } catch {
@@ -133,7 +137,12 @@ export function OpportunityWorkspace({
     }
   }
   async function save(suggestion: OpportunityResponse['suggestions'][number]) {
-    if (savingLock.current) return
+    if (
+      savingLock.current ||
+      refreshLock.current ||
+      evidenceChangedKeys.has(suggestion.key)
+    )
+      return
     savingLock.current = true
     setSaving(suggestion.key)
     setSaveError(null)
@@ -151,10 +160,13 @@ export function OpportunityWorkspace({
       })
       const result = await response.json()
       if (!response.ok) {
-        setSaveError({
-          key: suggestion.key,
-          message: response.status === 409 ? 'evidenceChanged' : 'saveError',
-        })
+        if (response.status === 409) {
+          setEvidenceChangedKeys((previous) =>
+            new Set(previous).add(suggestion.key),
+          )
+        } else {
+          setSaveError({ key: suggestion.key, message: 'saveError' })
+        }
         return
       }
       const item = result.item as WorkItem
@@ -270,17 +282,18 @@ export function OpportunityWorkspace({
               <p>{t('limitedEvidence')}</p>
             )}
             {saveError?.key === suggestion.key && (
+              <p role="alert">{t(saveError.message)}</p>
+            )}
+            {evidenceChangedKeys.has(suggestion.key) && (
               <div role="alert">
-                <p>{t(saveError.message)}</p>
-                {saveError.message === 'evidenceChanged' && (
-                  <button
-                    className={button}
-                    disabled={refreshing}
-                    onClick={refresh}
-                  >
-                    {t('refresh')}
-                  </button>
-                )}
+                <p>{t('evidenceChanged')}</p>
+                <button
+                  className={button}
+                  disabled={refreshing || saving !== null}
+                  onClick={refresh}
+                >
+                  {t('refresh')}
+                </button>
               </div>
             )}
             {suggestion.savedDraftId ? (
@@ -299,8 +312,7 @@ export function OpportunityWorkspace({
                   opening ||
                   saving !== null ||
                   suggestion.saveAvailability === 'limited-evidence' ||
-                  (saveError?.key === suggestion.key &&
-                    saveError.message === 'evidenceChanged')
+                  evidenceChangedKeys.has(suggestion.key)
                 }
                 onClick={() => save(suggestion)}
               >

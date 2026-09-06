@@ -28,7 +28,7 @@ export default async function OpportunitiesPage({
     return (
       <main className="space-y-4 p-8">
         <h1>{t('title')}</h1>
-        <p role="alert">{t('loadError')}</p>
+        <p role="alert">{t('initialLoadError')}</p>
         <a className="inline-flex min-h-11 items-center underline" href={href}>
           {t('refresh')}
         </a>

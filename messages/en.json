@@ -1679,6 +1679,7 @@
       "no-page-or-provider-excerpts": "No page or provider excerpts are retained",
       "sampled-single-page": "One sampled page only",
       "scan-record-retention": "Based on retained scan records"
-    }
+    },
+    "initialLoadError": "Suggestions could not be loaded. Please try again."
   }
 }

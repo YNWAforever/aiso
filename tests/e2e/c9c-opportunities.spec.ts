@@ -428,4 +428,95 @@ for (const lang of ['en', 'zh-HK']) {
       await expect(page.getByText(copy.pulseWhy, { exact: true })).toBeVisible()
     },
   )
+  for (const otherSaveStatus of [200, 503]) {
+    test(
+      'C9c two candidate evidence conflict survives other save ' +
+        otherSaveStatus +
+        ' in ' +
+        lang,
+      async ({ page }) => {
+        const { copy, data, draft } = await fixture(page, lang)
+        const twoCandidates = {
+          ...data.initial,
+          suggestions: [data.initial.suggestions[0], scanSuggestion],
+        }
+        let refreshStatus = 200,
+          posts = 0
+        await page.route('**/api/clients/*/opportunities', (route) =>
+          route.fulfill(
+            refreshStatus === 200
+              ? { json: twoCandidates }
+              : { status: 503, json: { error: 'OPPORTUNITIES_UNAVAILABLE' } },
+          ),
+        )
+        await page.route('**/api/clients/*/work-items', (route) => {
+          if (route.request().method() === 'GET')
+            return route.fulfill({ json: { items: [], nextCursor: null } })
+          posts++
+          const source = route.request().postDataJSON().source
+          return route.fulfill(
+            source.kind === 'pulse-metric'
+              ? { status: 409, json: { error: 'EVIDENCE_CHANGED' } }
+              : otherSaveStatus === 200
+                ? { json: { item: draft } }
+                : { status: 503, json: { error: 'WORK_ITEMS_UNAVAILABLE' } },
+          )
+        })
+        await page
+          .getByRole('button', { name: copy.refresh, exact: true })
+          .click()
+        const first = page.locator('article').filter({ hasText: copy.pulseWhy })
+        const second = page.locator('article').filter({ hasText: copy.scanWhy })
+        const firstSave = first.getByRole('button', {
+          name: copy.saveDraft,
+          exact: true,
+        })
+        await firstSave.click()
+        await expect(firstSave).toBeDisabled()
+        await second
+          .getByRole('button', { name: copy.saveDraft, exact: true })
+          .click()
+        if (otherSaveStatus === 200)
+          await expect(
+            page.getByRole('heading', { name: copy.savedDraft, exact: true }),
+          ).toBeVisible()
+        else {
+          await expect(second.getByRole('alert')).toHaveText(copy.saveError)
+          await page
+            .getByRole('button', { name: copy.savedDrafts, exact: true })
+            .click()
+        }
+        await page
+          .getByRole('button', { name: copy.suggestions, exact: true })
+          .click()
+        await expect(firstSave).toBeDisabled()
+        await expect(
+          first.getByText(copy.evidenceChanged, { exact: true }),
+        ).toBeVisible()
+        expect(posts).toBe(2)
+        refreshStatus = 503
+        await first
+          .getByRole('alert')
+          .getByRole('button', { name: copy.refresh })
+          .click()
+        await expect(
+          page.getByText(copy.loadError, { exact: true }),
+        ).toBeVisible()
+        await expect(firstSave).toBeDisabled()
+        await expect(
+          first.getByText(copy.evidenceChanged, { exact: true }),
+        ).toBeVisible()
+        refreshStatus = 200
+        await first
+          .getByRole('alert')
+          .getByRole('button', { name: copy.refresh })
+          .click()
+        await expect(firstSave).toBeEnabled()
+        await expect(
+          first.getByText(copy.evidenceChanged, { exact: true }),
+        ).toHaveCount(0)
+        expect(posts).toBe(2)
+      },
+    )
+  }
 }
