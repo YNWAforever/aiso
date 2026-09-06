@@ -25,8 +25,8 @@ describe('CI component fixture preparation',()=>{
    await writeFile(join(root,'.next/static/chunks/a.css'),'a{}')
    await writeFile(join(root,'.next/static/chunks/b.css'),'b{}')
    await prepareComponentFixtures(root,{NODE_ENV: 'test'},(_bin:string,args:string[],options:{env:NodeJS.ProcessEnv})=>{
-    expect(args.filter(a=>a.endsWith('.test.tsx'))).toHaveLength(5)
-    for(const slice of ['C8A','C8B','C8C','C8G','C9A'])expect(options.env[`${slice}_HTML_DIR`]).toBe(join(root,'.next/component-fixtures',slice))
+    expect(args.filter(a=>a.endsWith('.test.tsx'))).toHaveLength(6)
+    for(const slice of ['C8A','C8B','C8C','C8G','C9A','C9B'])expect(options.env[`${slice}_HTML_DIR`]).toBe(join(root,'.next/component-fixtures',slice))
     return {status:0}
    })
    expect(await readFile(join(root,'.next/component-fixtures/build.css'),'utf8')).toBe('a{}\nb{}')
