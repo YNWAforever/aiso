@@ -73,11 +73,32 @@ describe.skipIf(!optedIn)('change-set schema on an exact disposable target', () 
   it.each([null,{}, {profileId:null,displayName:null,role:'account_member'}])('rejects invalid submitter %j', async submitter => {
     await expect(insertVersion({submitter}).query).rejects.toMatchObject({code:'23514'})
   })
-  it('enforces evidence and package byte limits separately', async () => {
-    for (const patch of [{evidenceSnapshot:{padding:'x'.repeat(65536)}},{extra:'x'.repeat(131072)}]) {
-      const content = {...frozen(revision+1).content,...patch}
-      await expect(insertVersion({content}).query).rejects.toMatchObject({code:'23514'})
+  it('enforces the evidence byte limit independently of schema and package size', async () => {
+    const withEvidencePadding = (length: number) => {
+      const content = frozen(revision+1).content
+      return {...content,evidenceSnapshot:{...content.evidenceSnapshot,padding:'x'.repeat(length)}}
     }
+    const sizes = async (content: unknown) => {
+      const [row] = await sql`select octet_length((${JSON.stringify(content)}::jsonb->'evidenceSnapshot')::text) evidence_bytes, octet_length(${JSON.stringify(content)}::jsonb::text) content_bytes`
+      return row
+    }
+    const control = withEvidencePadding(63000)
+    const controlSizes = await sizes(control)
+    expect(controlSizes.evidence_bytes).toBeLessThanOrEqual(65536)
+    expect(controlSizes.content_bytes).toBeLessThan(131072)
+    expect(await insertVersion({content:control}).query).toHaveLength(1)
+
+    const oversized = withEvidencePadding(65536)
+    const oversizedSizes = await sizes(oversized)
+    expect(oversizedSizes.evidence_bytes).toBeGreaterThan(65536)
+    expect(oversizedSizes.content_bytes).toBeLessThan(131072)
+    // 042 names the combined content CHECK; the valid control and byte assertions
+    // isolate its evidence-size clause without changing the production schema.
+    await expect(insertVersion({content:oversized}).query).rejects.toMatchObject({code:'23514',constraint:'work_item_versions_content_check'})
+  })
+  it('enforces the overall package byte limit with valid evidence', async () => {
+    const content = {...frozen(revision+1).content,extra:'x'.repeat(131072)}
+    await expect(insertVersion({content}).query).rejects.toMatchObject({code:'23514',constraint:'work_item_versions_content_check'})
   })
   it('has immutable role grants, including no truncate or inherited public writes', async () => {
     for (const table of ['work_item_versions','work_item_decisions','account_approver_events','account_approver_state']) {
