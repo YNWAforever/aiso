@@ -89,3 +89,9 @@ Target actions: `reuse` · `restyle` · `port-onto-data` · `adapter` · `new-ap
 ## C9a amendment — 2026-09-06
 
 New private entity page: /[lang]/dashboard/[clientId]/entities. New GET/PUT /api/clients/[clientId]/entity. Both require independent authentication and owned client lookup; no public route or cross-tenant admin bypass. GET is read-only; PUT uses the approved revisioned entity contract. Entity absence is distinct from an unavailable database/missing migration. Existing routes and aliases are unchanged.
+
+## C9b amendment — 2026-09-06
+
+`/[lang]/dashboard/[clientId]/observations` and `GET /api/clients/[clientId]/observations` are implemented as a private, read-only evidence view. The page and service authenticate independently. The service binds every read to `profile.account_id`; a missing or foreign client is the same `404 CLIENT_NOT_FOUND`, unauthenticated access is `401 UNAUTHENTICATED`, invalid bounded input is `400 INVALID_OBSERVATION_QUERY`, and a failed source read is `503 OBSERVATIONS_UNAVAILABLE` rather than a successful empty result. Responses use `Cache-Control: no-store`; GET performs no write, provider call, scheduler action or prompt mutation.
+
+The query accepts optional `promptId`, `platform`, `week`, `result`, `limit` and `cursor`. `promptId` and cursor IDs are UUIDs; platform is 1–80 Unicode codepoints; week is a valid ISO calendar date; result is `success | incomplete`; limit defaults to 50 and is capped at 100. A cursor is accepted only with an explicit week and carries the descending `(recordedAt,id)` position. Omitted week resolves once to the latest of at most 40 retained metric weeks and the client pins the returned `selectedWeek` for later requests.
