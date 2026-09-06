@@ -1,6 +1,6 @@
 # C9c: evidence-linked opportunities and saved drafts
 
-Date: 2026-09-06. Status: scope and interaction approved in conversation; written specification awaiting user review. Depends on [C9b](2026-09-06-c9b-observation-provenance-design.md). This is proposed local implementation scope, not permission for migration, deployment or customer writes.
+Date: 2026-09-06. Status: written specification approved by the user on 2026-09-06; implementation planning authorized. Depends on [C9b](2026-09-06-c9b-observation-provenance-design.md). This is proposed local implementation scope, not permission for migration, deployment or customer writes.
 
 ## Decision and user flow
 

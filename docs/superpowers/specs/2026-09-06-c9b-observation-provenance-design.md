@@ -1,6 +1,6 @@
 # C9b: monitored questions and observation provenance
 
-Date: 2026-09-06. Status: scope and interaction approved in conversation; written specification awaiting user review. This document specifies proposed behavior, not implementation evidence or external authorization.
+Date: 2026-09-06. Status: written specification approved by the user on 2026-09-06; implementation planning authorized. This document specifies proposed behavior, not implementation evidence or external authorization.
 
 ## Context and delivery boundary
 
