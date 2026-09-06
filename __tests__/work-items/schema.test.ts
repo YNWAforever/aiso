@@ -12,13 +12,14 @@ describe('work item input contracts', () => {
   it.each([
     [{kind:'pulse-metric',id:ID}, 'pulse-brand-absent.v1'],
     [{kind:'scan-check',id:ID,checkKey:'c1_robots'}, 'scan-check-gap.v1'],
-    [{kind:'agent-recommendation',id:ID}, 'stored-recommendation.v1'],
-  ] as const)('accepts the reserved %j source/rule pair', (source, ruleVersion) => {
+
+  ] as const)('accepts the supported %j source/rule pair', (source, ruleVersion) => {
     expect(parseCreateDraft({source,ruleVersion,fingerprint:HASH,locale:'en'})).toEqual({source,ruleVersion,fingerprint:HASH,locale:'en'})
   })
 
   it.each([
     {},
+    {source:{kind:'agent-recommendation',id:ID},ruleVersion:'stored-recommendation.v1',fingerprint:HASH,locale:'en'},
     {source:{kind:'pulse-metric',id:ID},ruleVersion:'scan-check-gap.v1',fingerprint:HASH,locale:'en'},
     {source:{kind:'pulse-metric',id:ID,checkKey:'c1_robots'},ruleVersion:'pulse-brand-absent.v1',fingerprint:HASH,locale:'en'},
     {source:{kind:'scan-check',id:ID},ruleVersion:'scan-check-gap.v1',fingerprint:HASH,locale:'en'},

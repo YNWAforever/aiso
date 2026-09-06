@@ -52,3 +52,16 @@ it('derives only healthy source groups and records secret-safe diagnostics', asy
   expect(result.partial).toBe(true)
   expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toMatch(/SECRET|password|account/)
 })
+it('reports candidate save eligibility independently from saved mapping availability',async()=>{
+ mocks.saved.mockRejectedValue(new Error('table missing'))
+ const result=await loadAuthenticatedOpportunities(client)
+ expect(result.suggestions[0]).toMatchObject({saveAvailability:'available',savedState:'unavailable'})
+})
+it('marks a derived but invalid snapshot as limited evidence rather than offering repeatable save conflicts',async()=>{
+ const window=sourceWindow()
+ window.sources[0].observation.scanWeek='invalid-date'
+ mocks.load.mockResolvedValue(window)
+ const result=await loadAuthenticatedOpportunities(client)
+ expect(result.suggestions[0]).toMatchObject({saveAvailability:'limited-evidence',savedState:'unsaved'})
+ expect(result.partial).toBe(true)
+})

@@ -53,6 +53,7 @@ export function parseCreateDraft(value: unknown): CreateDraftInput {
   const input = record(value)
   exactKeys(input, ['source', 'ruleVersion', 'fingerprint', 'locale'])
   const source = record(input.source)
+  if (source.kind === 'agent-recommendation') invalid()
   if (typeof source.kind !== 'string' || !Object.hasOwn(SOURCE_RULE, source.kind)) invalid()
   const kind = source.kind as OpportunitySourceKind
   exactKeys(source, kind === 'scan-check' ? ['kind', 'id', 'checkKey'] : ['kind', 'id'])

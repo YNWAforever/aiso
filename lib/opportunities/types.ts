@@ -139,5 +139,5 @@ export interface OpportunityResponse {
   sourceStates: { pulse: OpportunitySourceState; scan: OpportunitySourceState }
   savedDraftsState: 'ok' | 'unavailable'
   partial: boolean
-  suggestions: (Suggestion & { savedState: 'saved' | 'unsaved' | 'unavailable' })[]
+  suggestions: (Suggestion & { savedState: 'saved' | 'unsaved' | 'unavailable'; saveAvailability: 'available' | 'limited-evidence' })[]
 }

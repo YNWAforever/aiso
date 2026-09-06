@@ -1,3 +1,4 @@
+import { buildInitialDraftSnapshot } from '@/lib/work-items/snapshot'
 import 'server-only'
 import { getProfile } from '@/lib/auth'
 import { deriveSuggestions } from '@/lib/opportunities/rules'
@@ -35,6 +36,17 @@ export async function loadAuthenticatedOpportunities(clientId: string): Promise<
         || compare(a.source.id, b.source.id)
         || compare(a.source.checkKey ?? '', b.source.checkKey ?? '')
     })
+    const saveAvailability = new Map<string, 'available' | 'limited-evidence'>()
+    for (const source of snapshot.sources) {
+      for (const suggestion of deriveSuggestions(source)) {
+        try {
+          buildInitialDraftSnapshot(suggestion, source, 'en')
+          buildInitialDraftSnapshot(suggestion, source, 'zh-HK')
+          saveAvailability.set(suggestion.key, 'available')
+        } catch { saveAvailability.set(suggestion.key, 'limited-evidence') }
+      }
+    }
+    const limitedEvidence = suggestions.some(item => saveAvailability.get(item.key) !== 'available')
     let savedDraftsState: OpportunityResponse['savedDraftsState'] = 'ok'
     let saved = new Map<string, string>()
     try { saved = await loadSavedDraftMapping(profile.account_id, clientId, suggestions.map(item => item.key)) }
@@ -42,8 +54,8 @@ export async function loadAuthenticatedOpportunities(clientId: string): Promise<
     return {
       schemaVersion: 1,
       window: { pulseWeek: snapshot.window.pulseWeek, pulseLimit: 200, pulseTruncated: snapshot.window.pulseTruncated, scanId: snapshot.window.scanId },
-      sourceStates, savedDraftsState, partial: partial || savedDraftsState === 'unavailable',
-      suggestions: suggestions.map(item => ({ ...item, savedDraftId: saved.get(item.key) ?? null,
+      sourceStates, savedDraftsState, partial: partial || limitedEvidence || savedDraftsState === 'unavailable',
+      suggestions: suggestions.map(item => ({ ...item, saveAvailability: saveAvailability.get(item.key) ?? 'limited-evidence', savedDraftId: saved.get(item.key) ?? null,
         savedState: savedDraftsState === 'unavailable' ? 'unavailable' : saved.has(item.key) ? 'saved' : 'unsaved' })),
     }
   } catch (error) {
