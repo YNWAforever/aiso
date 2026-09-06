@@ -2,7 +2,7 @@ import { CHECK_VERSIONS, type EvidenceCheckKey } from '@/lib/scan-evidence'
 import type { DraftSnapshotV1, OpportunityLocale, OpportunitySourceKind, SourceRef } from '@/lib/opportunities/types'
 
 export const CREATE_DRAFT_BODY_LIMIT = 4 * 1024
-export const EDIT_DRAFT_BODY_LIMIT = 32 * 1024
+export { EDIT_DRAFT_BODY_LIMIT, parseDraftEdit, type DraftEditInput } from './edit-input'
 export const EVIDENCE_SNAPSHOT_LIMIT = 64 * 1024
 
 export type CreateDraftInput = {
@@ -11,7 +11,6 @@ export type CreateDraftInput = {
   fingerprint: string
   locale: OpportunityLocale
 }
-export type DraftEditInput = { title: string; action: string; notes: string; expectedRevision: number }
 export type WorkItem = {
   id: string; clientId: string; status: 'draft'; title: string; action: string; notes: string
   locale: OpportunityLocale; revision: number; createdAt: string; updatedAt: string
@@ -41,13 +40,6 @@ function uuid(value: unknown): string {
   if (typeof value !== 'string' || !UUID.test(value)) invalid()
   return value.toLowerCase()
 }
-function text(value: unknown, min: number, max: number): string {
-  if (typeof value !== 'string') invalid()
-  const normalized = value.trim().normalize('NFC')
-  const length = Array.from(normalized).length
-  if (length < min || length > max || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\uD800-\uDFFF]/u.test(normalized)) invalid()
-  return normalized
-}
 export function parseCreateDraft(value: unknown): CreateDraftInput {
   boundedBytes(value, CREATE_DRAFT_BODY_LIMIT)
   const input = record(value)
@@ -66,12 +58,4 @@ export function parseCreateDraft(value: unknown): CreateDraftInput {
     parsedSource.checkKey = source.checkKey as EvidenceCheckKey
   }
   return { source: parsedSource, ruleVersion: input.ruleVersion as CreateDraftInput['ruleVersion'], fingerprint: input.fingerprint, locale: input.locale }
-}
-
-export function parseDraftEdit(value: unknown): DraftEditInput {
-  boundedBytes(value, EDIT_DRAFT_BODY_LIMIT)
-  const input = record(value)
-  exactKeys(input, ['title', 'action', 'notes', 'expectedRevision'])
-  if (!Number.isSafeInteger(input.expectedRevision) || (input.expectedRevision as number) <= 0) invalid()
-  return { title: text(input.title, 1, 160), action: text(input.action, 1, 4000), notes: text(input.notes, 0, 8000), expectedRevision: input.expectedRevision as number }
 }
