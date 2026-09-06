@@ -97,6 +97,21 @@ const unavailableProps = {
   initialVersion: null,
   initialError: 'unavailable',
 }
+const selectionProps = {
+  ...fixtureProps,
+  initialVersion: { ...version, versionNumber: 2 },
+  initial: {
+    ...initial,
+    versions: [
+      { ...version, versionNumber: 2 },
+      {
+        ...version,
+        id: '66666666-6666-4666-8666-666666666666',
+        capabilities: { canDecide: false },
+      },
+    ],
+  },
+}
 const revokedProps = {
   ...fixtureProps,
   initialVersion: { ...version, capabilities: { canDecide: false } },
@@ -109,6 +124,10 @@ afterAll(() =>
     fixtureProps,
     (lang) => render(<VersionWorkspace {...fixtureProps} />, lang),
     {
+      selection: {
+        props: selectionProps,
+        html: (lang) => render(<VersionWorkspace {...selectionProps} />, lang),
+      },
       unavailable: {
         props: unavailableProps,
         html: (lang) =>

@@ -35,6 +35,8 @@ export function VersionWorkspace({
     [status, setStatus] = useState(''),
     [busy, setBusy] = useState(false),
     [dirty, setDirty] = useState(false)
+  const dirtyRef = useRef(false),
+    versionReadGeneration = useRef(0)
   const lock = useRef(false),
     statusRef = useRef<HTMLParagraphElement>(null)
   const base = `/api/clients/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(workItemId)}`,
@@ -44,18 +46,21 @@ export function VersionWorkspace({
   async function run(operation: () => Promise<void>) {
     if (lock.current) return
     lock.current = true
+    const generation = versionReadGeneration.current
     setBusy(true)
     setError('')
     try {
       await operation()
     } catch {
-      setError('unavailable')
+      if (generation === versionReadGeneration.current) setError('unavailable')
     } finally {
       setBusy(false)
       lock.current = false
     }
   }
   function upsert(version: VersionDetail) {
+    // A confirmed mutation outranks every version read started before it.
+    versionReadGeneration.current++
     setSelected(version)
     setPage((previous) => ({
       versions: [
@@ -106,6 +111,7 @@ export function VersionWorkspace({
   }
   async function history(more = false) {
     await run(async () => {
+      const generation = versionReadGeneration.current
       const res = await fetch(
         endpoint +
           (more && page?.nextCursor
@@ -115,6 +121,7 @@ export function VersionWorkspace({
       )
       if (!res.ok) throw Error()
       const next: VersionPageDTO = await res.json()
+      if (generation !== versionReadGeneration.current) return
       setSelected((current) => {
         if (!current) return current
         const summary = next.versions.find((value) => value.id === current.id)
@@ -144,13 +151,19 @@ export function VersionWorkspace({
     })
   }
   async function select(id: string) {
-    if (dirty) return
+    if (dirtyRef.current) return
     await run(async () => {
+      const generation = versionReadGeneration.current
       const res = await fetch(endpoint + '/' + encodeURIComponent(id), {
         cache: 'no-store',
       })
       if (!res.ok) throw Error()
-      setSelected((await res.json()).version)
+      const next: { version: VersionDetail } = await res.json()
+      // The existing form stays editable during this read. Do not remount it
+      // if the user has entered a reason or a mutation has since completed.
+      if (dirtyRef.current || generation !== versionReadGeneration.current)
+        return
+      setSelected(next.version)
     })
   }
   return (
@@ -238,7 +251,10 @@ export function VersionWorkspace({
               endpoint={
                 endpoint + '/' + encodeURIComponent(selected.id) + '/decision'
               }
-              onDirty={setDirty}
+              onDirty={(next) => {
+                dirtyRef.current = next
+                setDirty(next)
+              }}
               onCompleted={(value) => {
                 upsert(value)
                 setStatus('decisionRecorded')

@@ -435,3 +435,120 @@ for (const lang of ['en', 'zh-HK'])
       page.getByRole('button', { name: c.recordDecision, exact: true }),
     ).toBeDisabled()
   })
+
+for (const lang of ['en', 'zh-HK']) {
+  test(`C9d deferred history cannot undo a confirmed decision ${lang}`, async ({
+    page,
+  }) => {
+    const { changeSets: c } = await fixture(page, lang)
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let reads = 0,
+      writes = 0
+    const reason = 'Confirmed independent review'
+    await page.route('**/work-items/*/versions', async (route) => {
+      reads++
+      await gate
+      await route.fulfill({ json: initial })
+    })
+    await page.route('**/versions/*/decision', (route) => {
+      writes++
+      expect(route.request().postDataJSON()).toEqual({
+        decision: 'approved',
+        reason,
+        requestId: expect.any(String),
+      })
+      return route.fulfill({
+        status: 201,
+        json: {
+          version: {
+            ...version,
+            decision: {
+              decision: 'approved',
+              reason,
+              decidedBy: {
+                profileId: clientId,
+                displayName: 'Independent reviewer',
+                role: 'account_approver',
+              },
+              decidedAt: '2026-09-07T00:00:00Z',
+            },
+            capabilities: { canDecide: false },
+          },
+        },
+      })
+    })
+    await page
+      .getByRole('button', { name: c.reloadHistory, exact: true })
+      .click()
+    await expect.poll(() => reads).toBe(1)
+    try {
+      await page.getByLabel(c.reason, { exact: true }).fill(reason)
+      await page
+        .getByRole('button', { name: c.recordDecision, exact: true })
+        .click()
+      await expect(page.getByText(reason, { exact: true })).toBeVisible()
+    } finally {
+      release()
+    }
+    await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false')
+    await expect(page.getByRole('status')).toHaveText(c.decisionRecorded)
+    await expect(page.getByText(reason, { exact: true })).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: c.recordDecision, exact: true }),
+    ).toHaveCount(0)
+    await expect(
+      page.getByRole('button', {
+        name: new RegExp(
+          (lang === 'en' ? 'Version 1' : '版本 1') + ' · ' + c.approved,
+        ),
+      }),
+    ).toBeVisible()
+    expect(writes).toBe(1)
+  })
+  test(`C9d deferred selection retains a reason typed during the read ${lang}`, async ({
+    page,
+  }) => {
+    const { changeSets: c } = await fixture(page, lang, 'C9D', 'selection')
+    const older = {
+      ...version,
+      id: '66666666-6666-4666-8666-666666666666',
+      title: 'Older immutable title',
+      capabilities: { canDecide: false },
+    }
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let reads = 0
+    await page.route('**/versions/' + older.id, async (route) => {
+      reads++
+      await gate
+      await route.fulfill({ json: { version: older } })
+    })
+    await page
+      .getByRole('button', {
+        name: new RegExp((lang === 'en' ? 'Version 1' : '版本 1') + ' ·'),
+      })
+      .click()
+    await expect.poll(() => reads).toBe(1)
+    try {
+      await page
+        .getByLabel(c.reason, { exact: true })
+        .fill('Typed while older version loads')
+    } finally {
+      release()
+    }
+    await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false')
+    await expect(page.getByLabel(c.reason, { exact: true })).toHaveValue(
+      'Typed while older version loads',
+    )
+    await expect(page.getByText(version.title, { exact: true })).toBeVisible()
+    await expect(page.getByText(older.title, { exact: true })).toHaveCount(0)
+    await expect(
+      page.getByRole('button', { name: c.recordDecision, exact: true }),
+    ).toBeEnabled()
+  })
+}
