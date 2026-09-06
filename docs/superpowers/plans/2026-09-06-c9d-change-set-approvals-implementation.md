@@ -86,7 +86,7 @@ export type FrozenReview = {
 
 Functions: parseSubmission(unknown):{expectedRevision:number}; parseReviewDecision(unknown):ReviewDecisionInput; parseApproverAccess(unknown):ApproverAccessInput; parseVersionQuery(URLSearchParams):{limit:number,cursor:string|null}; freezeReview(WorkItem):FrozenReview. Define VersionSummary/VersionDetail and DecisionDTO as explicit allowlists in types.ts using the specification's fields. Store actor snapshots in new DTOs only. Reject unsupported locales even if a TypeScript caller has asserted a WorkItem type.
 
-- [ ] Write failing tests for extra/missing keys, arrays/null, Unicode reason boundaries, negative/fractional/unsafe revisions, malformed UUID, unknown query keys, supported source restrictions and nested evidence corruption.
+- [x] Write failing tests for extra/missing keys, arrays/null, Unicode reason boundaries, negative/fractional/unsafe revisions, malformed UUID, unknown query keys, supported source restrictions and nested evidence corruption.
 
 ```ts
 expect(() => parseSubmission({expectedRevision: 1, accountId: 'forged'})).toThrow()
@@ -94,9 +94,9 @@ expect(() => parseReviewDecision({decision:'approved',reason:' ',requestId:crypt
 expect(() => parseApproverAccess({profileId:crypto.randomUUID(),action:'grant',reason:'Review duty',expectedRevision:-1,requestId:crypto.randomUUID()})).toThrow()
 ```
 
-- [ ] Run the three Task 1 test files with the focused prefix; expect missing implementation or assertion failures, not configuration errors.
-- [ ] Implement exact-key parsing using Object.hasOwn and Object.keys, NFC/trim, Array.from length and TextEncoder byte counts. Reuse existing UUID policy. Submission revision must be positive; grant revision may be zero. Do not silently coerce strings to numbers.
-- [ ] Implement freezeReview by validating stored text with parseDraftEdit, requiring normalized values to equal the stored values, round-tripping serializeDraftSnapshot, and building only ReviewContent fields. Restrict evidence to C9c's two released rules. SHA-256 hash a recursively key-sorted representation preserving arrays; reuse an existing exported canonical serializer if suitable, otherwise a narrowly scoped validated-content serializer. Enforce <=131072 bytes using a conservative formatted JSON size and retain SQL JSONB-size backstop.
+- [x] Run the three Task 1 test files with the focused prefix; expect missing implementation or assertion failures, not configuration errors.
+- [x] Implement exact-key parsing using Object.hasOwn and Object.keys, NFC/trim, Array.from length and TextEncoder byte counts. Reuse existing UUID policy. Submission revision must be positive; grant revision may be zero. Do not silently coerce strings to numbers.
+- [x] Implement freezeReview by validating stored text with parseDraftEdit, requiring normalized values to equal the stored values, round-tripping serializeDraftSnapshot, and building only ReviewContent fields. Restrict evidence to C9c's two released rules. SHA-256 hash a recursively key-sorted representation preserving arrays; reuse an existing exported canonical serializer if suitable, otherwise a narrowly scoped validated-content serializer. Enforce <=131072 bytes using a conservative formatted JSON size and retain SQL JSONB-size backstop.
 
 ```ts
 const edit = parseDraftEdit({title:item.title,action:item.action,notes:item.notes,expectedRevision:item.revision})
@@ -104,8 +104,8 @@ if (edit.title !== item.title || edit.action !== item.action || edit.notes !== i
 const evidenceSnapshot = JSON.parse(serializeDraftSnapshot(item.evidenceSnapshot))
 ```
 
-- [ ] Add immutability tests: changing the input after freezing cannot mutate output; changing title/revision changes hash; key order does not; raw-answer-shaped evidence is rejected; 64 KiB evidence and 128 KiB package limits are independently tested. Validation failures return stable codes without raw content.
-- [ ] Rerun Task 1 tests; expect all pass. Review browser imports for Node dependencies and commit explicit Task 1 files with message `feat(change-sets): define frozen review content and inputs`.
+- [x] Add immutability tests: changing the input after freezing cannot mutate output; changing title/revision changes hash; key order does not; raw-answer-shaped evidence is rejected; 64 KiB evidence and 128 KiB package limits are independently tested. Validation failures return stable codes without raw content.
+- [x] Rerun Task 1 tests; expect all pass. Review browser imports for Node dependencies and commit explicit Task 1 files with message `feat(change-sets): define frozen review content and inputs`.
 
 ## Task 2: Additive persistence and database proof isolation
 
@@ -113,12 +113,12 @@ const evidenceSnapshot = JSON.parse(serializeDraftSnapshot(item.evidenceSnapshot
 **Modify:** vitest.integration.config.ts to exclude the dedicated suite; __tests__/scripts/migrate-baseline-guard.test.ts synthetic current relation inventory, with an explicit missing-042 rejection.
 **Produce:** tables work_item_versions, work_item_decisions, account_approver_state and account_approver_events. Recheck numbering before creation; no historical migration editing.
 
-- [ ] Write failing static assertions for table constraints, grants, no cascading history deletion and dedicated config isolation. Assert the baseline guard rejects a relation inventory missing the new tables.
-- [ ] Run those focused tests and record the failures.
-- [ ] Add a composite unique index on evidence_work_items(account_id,client_id,id) for a matching version FK. Versions store id/account_id/client_id/work_item_id, version_number, draft_revision, content JSONB, content_hash, validation JSONB, submitter JSONB and submitted_at. Add positive integer/check constraints, 128 KiB content/64 KiB evidence checks, hash format, supported policy/schema and explicit object checks. Unique (account_id,client_id,work_item_id,draft_revision), (account_id,client_id,work_item_id,version_number) and composite version identity for decision FK. FK deletion is RESTRICT/NO ACTION.
-- [ ] Decisions store exact account/client/item/version identity and content hash, constrained decision, bounded reason, actor snapshot, grant revision/event id, request_id and decided_at. Unique version identity and unique actor/request identity within that version. Composite FK binds the exact version/hash. Frozen actor identifiers have no profile-deletion cascade or SET NULL.
-- [ ] Access state has (account_id,profile_id) primary key, active, positive revision, last_event_id and updated_at. Events store immutable target identifiers, action, previous/new revision, administrator snapshot, reason, request_id and created_at; unique target/new_revision and actor/request identity within account. The event-to-state history link must not prevent recording the initial event: insert event and state in one transaction/CTE, with a deferrable state last-event FK if needed. Do not seed inactive state from a decision read.
-- [ ] Explicitly narrow privileges; example required pattern:
+- [x] Write failing static assertions for table constraints, grants, no cascading history deletion and dedicated config isolation. Assert the baseline guard rejects a relation inventory missing the new tables.
+- [x] Run those focused tests and record the failures.
+- [x] Add a composite unique index on evidence_work_items(account_id,client_id,id) for a matching version FK. Versions store id/account_id/client_id/work_item_id, version_number, draft_revision, content JSONB, content_hash, validation JSONB, submitter JSONB and submitted_at. Add positive integer/check constraints, 128 KiB content/64 KiB evidence checks, hash format, supported policy/schema and explicit object checks. Unique (account_id,client_id,work_item_id,draft_revision), (account_id,client_id,work_item_id,version_number) and composite version identity for decision FK. FK deletion is RESTRICT/NO ACTION.
+- [x] Decisions store exact account/client/item/version identity and content hash, constrained decision, bounded reason, actor snapshot, grant revision/event id, request_id and decided_at. Unique version identity and unique actor/request identity within that version. Composite FK binds the exact version/hash. Frozen actor identifiers have no profile-deletion cascade or SET NULL.
+- [x] Access state has (account_id,profile_id) primary key, active, positive revision, last_event_id and updated_at. Events store immutable target identifiers, action, previous/new revision, administrator snapshot, reason, request_id and created_at; unique target/new_revision and actor/request identity within account. The event-to-state history link must not prevent recording the initial event: insert event and state in one transaction/CTE, with a deferrable state last-event FK if needed. Do not seed inactive state from a decision read.
+- [x] Explicitly narrow privileges; example required pattern:
 
 ```sql
 revoke all on public.work_item_versions from public;
@@ -131,8 +131,8 @@ end $$;
 ```
 
 Apply that privilege pattern to decisions/events; state receives SELECT/INSERT/UPDATE only. History retention restricts relevant parent deletion. This is intentional and must have integration coverage.
-- [ ] Author guarded disposable-database tests for wrong-tenant FKs, package-size checks, immutable role grants, atomic access audit rollback, profile deletion preserving identity and concurrent decisions/revocation. Dedicated config includes only this file, no setupFiles/globalSetup, fileParallelism false. Require explicit C9D_DISPOSABLE_PROJECT_ID, C9D_DISPOSABLE_BRANCH_ID and C9D_TEST_DATABASE_URL; inspect connection identity and reject protected targets before test writes. Do not execute it under this task.
-- [ ] Run static/config/baseline tests only, review SQL, and commit explicit files with `feat(change-sets): add immutable review and access audit schema`.
+- [x] Author guarded disposable-database tests for wrong-tenant FKs, package-size checks, immutable role grants, atomic access audit rollback, profile deletion preserving identity and concurrent decisions/revocation. Dedicated config includes only this file, no setupFiles/globalSetup, fileParallelism false. Require explicit C9D_DISPOSABLE_PROJECT_ID, C9D_DISPOSABLE_BRANCH_ID and C9D_TEST_DATABASE_URL; inspect connection identity and reject protected targets before test writes. Do not execute it under this task.
+- [x] Run static/config/baseline tests only, review SQL, and commit explicit files with `feat(change-sets): add immutable review and access audit schema`.
 
 ## Transaction protocol shared by Tasks 3 and 4
 
@@ -150,7 +150,7 @@ All write operations return a discriminated store result rather than throwing ra
 **Consume:** ApproverAccessInput, ActorSnapshot and StoreResult from Task 1; requireApiAdmin from lib/admin-guard.ts for API boundary conventions; db() for fresh actor checks.
 **Produce:** listApproverAccess(actorId,accountId,query) and mutateApproverAccess(actorId,accountId,input), returning allowlisted paginated DTO/store results; authenticated service wrappers getApproverAccess(accountId,params) and changeApproverAccess(accountId,request). request.ts exports readLimitedJson(request,limit) and approvalErrorResponse(error).
 
-- [ ] Write tests for non-admin denial before target queries/body, cross-account target member rejection, removed admin flag, absent state expectedRevision 0, stale access revision, request-id payload mismatch and audit rollback.
+- [x] Write tests for non-admin denial before target queries/body, cross-account target member rejection, removed admin flag, absent state expectedRevision 0, stale access revision, request-id payload mismatch and audit rollback.
 
 ```ts
 expect(result.kind).toBe('conflict')
@@ -158,11 +158,11 @@ expect(writes).toEqual([]) // stale revision must not append an audit event
 ```
 
 Capture tagged SQL calls and the transaction options with mocks; do not pretend mock call ordering proves PostgreSQL concurrency.
-- [ ] Run tests red. Implement the actual streamed reader with reader.cancel() on byte overflow and fatal UTF-8 decoding, finally releasing the lock. Require stable safe input/error codes.
-- [ ] Implement ordered profile locks, then replay lookup scoped to administrator/target/request. Replay still requires current platform-admin authority. Compare normalized payload including expectedRevision. No existing state plus revoke is a conflict; already-active grant/already-inactive revoke without identical request replay is a conflict. Do not fabricate duplicate access-change events.
-- [ ] Implement state CAS and event insert atomically. Require current administrator is_admin and target profile.account_id equals target account in mutation predicates. Use returned event ID as state.last_event_id. Event preserves actor snapshot and prior/new revision. Empty write results must resolve to denied/not_found/conflict without committing a partial event.
-- [ ] Implement independent member and event keyset pagination in the same GET contract using memberCursor/eventCursor and common limit default20/max50. Reject unknown keys. Stable order profiles.id for members; events.created_at,id descending for history. Do not expose email/auth subjects. Add tests for two independent cursors and empty-vs-unavailable responses.
-- [ ] Run green tests and commit `feat(approvals): manage account approvers with atomic audit events`.
+- [x] Run tests red. Implement the actual streamed reader with reader.cancel() on byte overflow and fatal UTF-8 decoding, finally releasing the lock. Require stable safe input/error codes.
+- [x] Implement ordered profile locks, then replay lookup scoped to administrator/target/request. Replay still requires current platform-admin authority. Compare normalized payload including expectedRevision. No existing state plus revoke is a conflict; already-active grant/already-inactive revoke without identical request replay is a conflict. Do not fabricate duplicate access-change events.
+- [x] Implement state CAS and event insert atomically. Require current administrator is_admin and target profile.account_id equals target account in mutation predicates. Use returned event ID as state.last_event_id. Event preserves actor snapshot and prior/new revision. Empty write results must resolve to denied/not_found/conflict without committing a partial event.
+- [x] Implement independent member and event keyset pagination in the same GET contract using memberCursor/eventCursor and common limit default20/max50. Reject unknown keys. Stable order profiles.id for members; events.created_at,id descending for history. Do not expose email/auth subjects. Add tests for two independent cursors and empty-vs-unavailable responses.
+- [x] Run green tests and commit `feat(approvals): manage account approvers with atomic audit events`.
 
 ## Task 4: Version submission, history and terminal decisions
 
@@ -170,18 +170,18 @@ Capture tagged SQL calls and the transaction options with mocks; do not pretend 
 **Consume:** freezeReview, FrozenReview, parsed inputs and StoreResult. Reuse C9c readOwnedDraft for validation pre-read, preserving the two-source restriction.
 **Produce:** submitVersion(accountId,clientId,itemId,actorId,expectedRevision,frozen):Promise<StoreResult<VersionDetail>>; listVersions/readVersion with owned identifiers; decideVersion(accountId,clientId,itemId,versionId,actorId,input):Promise<StoreResult<VersionDetail>>. Service functions submitAuthenticatedVersion, listAuthenticatedVersions, readAuthenticatedVersion and decideAuthenticatedVersion authenticate independently and return response bodies/status.
 
-- [ ] Write red tests for same-revision replay after subsequent draft edits, stale unsubmitted revision, future revision, caller-supplied content rejection, malformed saved snapshot, tenant mismatch and failed insert.
-- [ ] Implement submission profile/item locks, then existing same-revision lookup. Replay requires ownership but does not revalidate newer draft content. Otherwise validate the pre-read revision, acquire locks, compare title/action/notes/locale/evidence JSONB and exact revision in INSERT SELECT. Version number is max+1 under the parent lock; unique constraints are the backstop. Insert frozen validation and actor snapshot together. Never overwrite the original draft.
-- [ ] Add tests for lost-response replay, failed exact comparison, valid unknown provenance and missing original source rows. Read/list validates persisted version DTOs and omits full content from summaries. Pagination is per-item version_number descending, opaque validated cursor, limit20/max50. Latest version is computed independently of the page.
-- [ ] Write decision tests: no grant, self-decision, superseded version, existing terminal decision, same request/same payload replay, different payload conflict, deleted/moved actor, revoked state, and new submission racing decision.
-- [ ] Implement profile/item/grant locks. First permit an identical owned prior decision replay by the original actor, even after revocation, with current capabilities false. New decision requires current member, active state, actor != submitter, latest version, no decision and matching stored version/hash. Insert the active grant revision and last event reference, immutable actor role and database time in the same write.
+- [x] Write red tests for same-revision replay after subsequent draft edits, stale unsubmitted revision, future revision, caller-supplied content rejection, malformed saved snapshot, tenant mismatch and failed insert.
+- [x] Implement submission profile/item locks, then existing same-revision lookup. Replay requires ownership but does not revalidate newer draft content. Otherwise validate the pre-read revision, acquire locks, compare title/action/notes/locale/evidence JSONB and exact revision in INSERT SELECT. Version number is max+1 under the parent lock; unique constraints are the backstop. Insert frozen validation and actor snapshot together. Never overwrite the original draft.
+- [x] Add tests for lost-response replay, failed exact comparison, valid unknown provenance and missing original source rows. Read/list validates persisted version DTOs and omits full content from summaries. Pagination is per-item version_number descending, opaque validated cursor, limit20/max50. Latest version is computed independently of the page.
+- [x] Write decision tests: no grant, self-decision, superseded version, existing terminal decision, same request/same payload replay, different payload conflict, deleted/moved actor, revoked state, and new submission racing decision.
+- [x] Implement profile/item/grant locks. First permit an identical owned prior decision replay by the original actor, even after revocation, with current capabilities false. New decision requires current member, active state, actor != submitter, latest version, no decision and matching stored version/hash. Insert the active grant revision and last event reference, immutable actor role and database time in the same write.
 
 ```ts
 // Capability projection is informative; the transaction enforces the same rules.
 const canDecide = activeGrant && currentMember && !ownSubmission && latest && decision === null
 ```
 
-- [ ] Return 409 on competing terminal decision/supersession, 403 on role/self denial, 404 on owned-object miss. Preserve 422 validation errors distinct from unavailable storage. Add mock failures showing no success over failed persistence; green test all Task 4 files and commit `feat(change-sets): freeze draft versions and record guarded decisions`.
+- [x] Return 409 on competing terminal decision/supersession, 403 on role/self denial, 404 on owned-object miss. Preserve 422 validation errors distinct from unavailable storage. Add mock failures showing no success over failed persistence; green test all Task 4 files and commit `feat(change-sets): freeze draft versions and record guarded decisions`.
 
 ## Task 5: Independent API authorization and contracts
 
@@ -189,8 +189,8 @@ const canDecide = activeGrant && currentMember && !ownSubmission && latest && de
 **Modify:** docs/contracts/routes.md, fields.md, features.md with exact new DTO/error/scope boundaries.
 **Consume:** Task 3/4 authenticated services and response helper. Route params are promises under installed Next 16 docs.
 
-- [ ] Read the three installed guides, then write red route tests for methods, parameters, independent auth, no-store headers, 201/200 distinction, streamed byte limits and stable failure mapping.
-- [ ] Implement thin routes following this shape, with actual imports from Task 4:
+- [x] Read the three installed guides, then write red route tests for methods, parameters, independent auth, no-store headers, 201/200 distinction, streamed byte limits and stable failure mapping.
+- [x] Implement thin routes following this shape, with actual imports from Task 4:
 
 ```ts
 export async function POST(request: Request, context: {params: Promise<{clientId:string;workItemId:string}>}) {
@@ -202,8 +202,8 @@ export async function POST(request: Request, context: {params: Promise<{clientId
 }
 ```
 
-- [ ] Provide GET/POST only where specified; no PATCH/DELETE for immutable records. All services authenticate before object disclosure or body parsing. Verify admin role revocation cannot be bypassed through the route or request body.
-- [ ] Run Task 5 tests plus __tests__/api/work-items.test.ts and __tests__/api/opportunities.test.ts. Commit explicit route/test/contracts files with `feat(api): expose scoped review and approver endpoints`.
+- [x] Provide GET/POST only where specified; no PATCH/DELETE for immutable records. All services authenticate before object disclosure or body parsing. Verify admin role revocation cannot be bypassed through the route or request body.
+- [x] Run Task 5 tests plus __tests__/api/work-items.test.ts and __tests__/api/opportunities.test.ts. Commit explicit route/test/contracts files with `feat(api): expose scoped review and approver endpoints`.
 
 ## Task 6: Bilingual submission, review and administrator UI
 
@@ -211,11 +211,11 @@ export async function POST(request: Request, context: {params: Promise<{clientId
 **Modify:** components/work-items/DraftEditor.tsx with a saved-item version-history link only; messages/en.json and zh-HK.json; scripts/ci/prepare-component-fixtures.mjs and fixture env allowlist/tests in .github/workflows/pr-gate.yml as required by the existing fixture pattern.
 **Consume:** version/access API DTOs only, browser-safe types; server pages use existing authentication guards. Admin page uses existing /admin guard and supplies locale copy through the established admin convention, with both locale dictionaries covered.
 
-- [ ] Write red render tests for saved revision submission, no unsaved draft submission, version content versus current draft, self/revoked/non-approver denial, superseded status and zero-approver versus unavailable states.
-- [ ] Implement VersionWorkspace with explicit loading/error/loaded states and a persisted revision read. Submit uses only {expectedRevision}; on 409 retain displayed text and offer explicit reload. Keep decision reason/requestId after failed write; change the requestId only when payload changes or after confirmed completion. Successful replay must not append duplicate UI history.
-- [ ] Implement terminal decisions using a required reason with an associated label, status announcements and preserved focus. Render source text as text nodes; reuse EvidenceDetails for immutable evidence. Show validation as review-package checks and preserve original provenance limitations.
-- [ ] Implement admin member selection, grant/revoke reason and current expectedRevision. Preserve both independent list cursors. Hide mutation controls without verified authority but rely on server enforcement. A failed permission lookup must not render an empty-success roster.
-- [ ] Extend the credential-free fixture harness with hydrated client fixtures for both surfaces and UTF-8 metadata. Add Playwright cases in both locales/Chromium/mobile for submission, new revision history, approval, request changes, revoked access, conflict retry, outage, escaped text, focus and keyboard interactions.
+- [x] Write red render tests for saved revision submission, no unsaved draft submission, version content versus current draft, self/revoked/non-approver denial, superseded status and zero-approver versus unavailable states.
+- [x] Implement VersionWorkspace with explicit loading/error/loaded states and a persisted revision read. Submit uses only {expectedRevision}; on 409 retain displayed text and offer explicit reload. Keep decision reason/requestId after failed write; change the requestId only when payload changes or after confirmed completion. Successful replay must not append duplicate UI history.
+- [x] Implement terminal decisions using a required reason with an associated label, status announcements and preserved focus. Render source text as text nodes; reuse EvidenceDetails for immutable evidence. Show validation as review-package checks and preserve original provenance limitations.
+- [x] Implement admin member selection, grant/revoke reason and current expectedRevision. Preserve both independent list cursors. Hide mutation controls without verified authority but rely on server enforcement. A failed permission lookup must not render an empty-success roster.
+- [x] Extend the credential-free fixture harness with hydrated client fixtures for both surfaces and UTF-8 metadata. Add Playwright cases in both locales/Chromium/mobile for submission, new revision history, approval, request changes, revoked access, conflict retry, outage, escaped text, focus and keyboard interactions.
 
 ```ts
 await page.getByRole('button', {name: copy.submitVersion}).click()
@@ -224,22 +224,22 @@ await expect(page.getByText(copy.notDelivery)).toBeVisible()
 ```
 
 The browser fixture must assert the posted body/revision/request identity through its mocked API handler, not only visible success copy. Add no live fixture bypass to production authentication.
-- [ ] Run component tests, sanitized production build, fixture generation and focused browser test. Commit explicit UI/fixture paths with `feat(review): add bilingual version and approver workspaces`.
+- [x] Run component tests, sanitized production build, fixture generation and focused browser test. Commit explicit UI/fixture paths with `feat(review): add bilingual version and approver workspaces`.
 
 ## Task 7: Full verification, review and local handoff
 
-**Create:** docs/superpowers/plans/2026-09-06-c9d-handoff.md.
+**Created:** docs/superpowers/plans/2026-09-07-c9d-handoff.md (actual local verification date).
 **Modify:** approved spec/plan progress and contracts only to reflect final implementation/evidence, not planned claims.
 
-- [ ] Run full unit suite using `node .superpowers/sdd/unit-run.cjs`; expect zero failed. Confirm integration was excluded and any temporary config edit restored.
-- [ ] Run package-scope lint via the existing local runner and actual node ESLint entrypoint. Run `node .superpowers/sdd/local-run.cjs node_modules/next/dist/bin/next typegen`, then `node .superpowers/sdd/local-run.cjs node_modules/typescript/bin/tsc --noEmit` and `node .superpowers/sdd/local-run.cjs node_modules/next/dist/bin/next build`. Record actual counts/status, not inherited C9c results.
-- [ ] Generate all component fixtures using the repository script after build. Run the local Playwright configuration with tests/e2e/c9d-change-sets.spec.ts, c9c-opportunities.spec.ts, c9b-observations.spec.ts and auth.spec.ts. Expect zero failures/skips/flaky; separately explain any environmental blockers.
+- [x] Run full unit suite using `node .superpowers/sdd/unit-run.cjs`; expect zero failed. Confirm integration was excluded and any temporary config edit restored.
+- [x] Run package-scope lint via the existing local runner and actual node ESLint entrypoint. Run `node .superpowers/sdd/local-run.cjs node_modules/next/dist/bin/next typegen`, then `node .superpowers/sdd/local-run.cjs node_modules/typescript/bin/tsc --noEmit` and `node .superpowers/sdd/local-run.cjs node_modules/next/dist/bin/next build`. Record actual counts/status, not inherited C9c results.
+- [x] Generate all component fixtures using the repository script after build. Run the local Playwright configuration with tests/e2e/c9d-change-sets.spec.ts, c9c-opportunities.spec.ts, c9b-observations.spec.ts and auth.spec.ts. Expect zero failures/skips/flaky; separately explain any environmental blockers.
 - [ ] Review transaction lock order, actual SQL null/composite binding, privilege constraints, append-only history, audit actor deletion, admin demotion, revocation race, latest-version decision and retry behavior. Request independent code review using the selected execution workflow; fix findings with red/green regression evidence.
-- [ ] Re-run only affected checks after fixes, then verify exact tested source SHA, clean status and `git diff --check 195282e..HEAD`. Preserve original user plan hash and checkout. Export a review patch under .superpowers/sdd if useful.
-- [ ] Write handoff with behavior, tested SHA/commands/results, reproduced failures and repairs, unrun dedicated DB tests and unapplied migration target UNKNOWN. Record source rollback and future exact-target activation checklist. No push/merge/deploy or next slice. Commit explicit docs with `docs: record C9d verification and local handoff`.
+- [x] Re-run only affected checks after fixes, then verify exact tested source SHA, clean status and `git diff --check 195282e..HEAD`. Preserve original user plan hash and checkout. Export a review patch under .superpowers/sdd if useful.
+- [x] Write handoff with behavior, tested SHA/commands/results, reproduced failures and repairs, unrun dedicated DB tests and unapplied migration target UNKNOWN. Record source rollback and future exact-target activation checklist. No push/merge/deploy or next slice. Commit explicit docs with `docs: record C9d verification and local handoff`.
 
 ## Plan self-review
 
 Coverage: version/validation/DTO inputs Task 1; append-only schema and isolated DB evidence Task 2; administrator grants and audit Task 3; transactional submissions/decisions and retention Task 4; independent route auth/errors Task 5; bilingual UX and recovery Task 6; actual verification/independent review/rollback Task 7. Shared interfaces are defined before consumers. C9c remains draft-only; no delivery or provider collection was added. Expected test outcomes are instructions, not completed evidence.
 
-Execution is pending selection of subagent-driven or inline execution. The approved scope and authorization model do not need to be reopened.
+Execution used subagent-driven development. Tasks 1-6 are implemented and independently approved. Task 7 local verification/handoff is complete at tested source 904f5c24ba25c26775341bf3cd339f632fcf1462: 248 unit files / 2682 passed, 134 browser cases passed, package lint/typegen/full tsc/build/47 fixture tests passed. Final whole-branch review is awaiting controller dispatch and remains unchecked above. Both dedicated PostgreSQL suites are authored and UNRUN; migration 042 remains unapplied here with target UNKNOWN. See [dated handoff](2026-09-07-c9d-handoff.md) for exact evidence, reproduced test-harness repair and activation gates. Checked prior task steps reflect the independently approved task reports, not live activation.

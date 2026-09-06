@@ -1,6 +1,6 @@
 # C9d: immutable change-set versions, validation and audited decisions
 
-Date: 2026-09-06. Status: conversational design and written specification approved by the user on 2026-09-06; implementation planning authorized.
+Date: 2026-09-06. Status updated 2026-09-07: specification approved on 2026-09-06; Tasks 1-6 implemented and independently approved, local Task 7 verification/handoff complete, awaiting final whole-branch review. No live activation: PostgreSQL suites are authored/UNRUN and migration 042 remains unapplied here with target UNKNOWN. Exact tested source and evidence: [local handoff](../plans/2026-09-07-c9d-handoff.md).
 
 Baseline: `195282e70084fb270a4bd7df3e91527869bd4d31`, origin/codex/c8c-g-workspace after PR #17. Its tree equals the tested C9b/C9c source/documentation checkpoint a1f004e. Design branch: codex/c9d-change-set-design. Existing implementation and original user checkout are preserved.
 
