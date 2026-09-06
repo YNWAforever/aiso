@@ -22,7 +22,10 @@ function isCanonicalDate(value: string): boolean {
   const year = Number(match[1])
   const month = Number(match[2])
   const day = Number(match[3])
-  const date = new Date(Date.UTC(year, month - 1, day))
+  if (year === 0) return false
+  const date = new Date(0)
+  date.setUTCHours(0, 0, 0, 0)
+  date.setUTCFullYear(year, month - 1, day)
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
 }
 
@@ -81,7 +84,7 @@ export function parseObservationQuery(params: URLSearchParams): ObservationQuery
   const limitValue = params.get('limit')
   const cursorValue = params.get('cursor')
 
-  if (platform !== null && (platform.length < 1 || platform.length > 80)) invalidQuery()
+  if (platform !== null && (Array.from(platform).length < 1 || Array.from(platform).length > 80)) invalidQuery()
   if (week !== null && !isCanonicalDate(week)) invalidQuery()
   if (result !== null && result !== 'success' && result !== 'incomplete') invalidQuery()
   if (cursorValue !== null && week === null) invalidQuery()

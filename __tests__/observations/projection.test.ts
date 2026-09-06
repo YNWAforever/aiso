@@ -100,6 +100,33 @@ describe('projectObservation', () => {
     })
   })
 
+  it('projects only the five public fields from a linked current prompt', () => {
+    const currentPrompt = {
+      id: '00000000-0000-4000-8000-000000000002',
+      question: 'Current prompt',
+      category: null,
+      language: null,
+      isActive: true,
+      accountId: 'must-not-leak',
+      internalNote: 'must-not-leak',
+    }
+    const dto = projectObservation({ ...row, prompt_id: currentPrompt.id }, currentPrompt)
+    expect(dto.currentPrompt).toEqual({
+      id: currentPrompt.id,
+      question: currentPrompt.question,
+      category: null,
+      language: null,
+      isActive: true,
+    })
+    expect(dto.currentPrompt).not.toHaveProperty('accountId')
+    expect(dto.currentPrompt).not.toHaveProperty('internalNote')
+  })
+
+  it('preserves valid recorded timestamps with four-digit years below 100', () => {
+    const exact = '0099-01-01T00:00:00.123456+00:00'
+    expect(projectObservation({ ...row, created_at: exact }, null).recordedAt).toBe(exact)
+  })
+
   it('preserves a valid recorded timestamp and treats malformed legacy dates as unavailable', () => {
     const exact = '2026-09-01T10:11:12.123456+00:00'
     expect(projectObservation({ ...row, created_at: exact }, null).recordedAt).toBe(exact)

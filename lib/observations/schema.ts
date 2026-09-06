@@ -9,7 +9,10 @@ function validTimestamp(value: string): boolean {
   const year = Number(match[1])
   const month = Number(match[2])
   const day = Number(match[3])
-  const date = new Date(Date.UTC(year, month - 1, day))
+  if (year === 0) return false
+  const date = new Date(0)
+  date.setUTCHours(0, 0, 0, 0)
+  date.setUTCFullYear(year, month - 1, day)
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
 }
 
@@ -20,7 +23,13 @@ export function projectObservation(row: PulseSourceRow, currentPrompt: Question 
   const classified = typeof row.brand_mentioned === 'boolean'
   const promptId = row.prompt_id?.toLowerCase() ?? null
   const linkedPrompt = promptId !== null && currentPrompt?.id.toLowerCase() === promptId
-    ? { ...currentPrompt, id: currentPrompt.id.toLowerCase() }
+    ? {
+        id: currentPrompt.id.toLowerCase(),
+        question: currentPrompt.question,
+        category: currentPrompt.category,
+        language: currentPrompt.language,
+        isActive: currentPrompt.isActive,
+      }
     : null
   const limitations = ['model-unrecorded', 'market-unrecorded', 'collection-time-unrecorded']
   if (!hasAnswer) limitations.push('answer-unavailable')

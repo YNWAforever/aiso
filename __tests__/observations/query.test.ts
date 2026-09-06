@@ -20,7 +20,7 @@ describe('parseObservationQuery', () => {
     expect(() => parseObservationQuery(new URLSearchParams(query))).toThrow()
   })
 
-  it.each(['week=2026-02-30', 'week=2025-02-29', 'week=2026-2-01', 'week='])('rejects an invalid calendar week: %s', query => {
+  it.each(['week=2026-02-30', 'week=2025-02-29', 'week=2026-2-01', 'week=0000-01-01', 'week='])('rejects an invalid calendar week: %s', query => {
     expect(() => parseObservationQuery(new URLSearchParams(query))).toThrow()
   })
 
@@ -39,6 +39,16 @@ describe('parseObservationQuery', () => {
 
   it.each(['platform=', `platform=${'x'.repeat(81)}`])('rejects an invalid platform: %s', query => {
     expect(() => parseObservationQuery(new URLSearchParams(query))).toThrow()
+  })
+
+  it('counts platform length in Unicode codepoints', () => {
+    const eighty = '😀'.repeat(80)
+    expect(parseObservationQuery(new URLSearchParams({ platform: eighty })).platform).toBe(eighty)
+    expect(() => parseObservationQuery(new URLSearchParams({ platform: eighty + '😀' }))).toThrow()
+  })
+
+  it('validates four-digit years below 100 without Date.UTC remapping', () => {
+    expect(parseObservationQuery(new URLSearchParams('week=0099-01-01')).week).toBe('0099-01-01')
   })
 
   it.each(['unknown=value', 'limit=1&limit=2', 'week=2026-09-01&week=2026-09-01'])('rejects unknown or repeated query keys: %s', query => {
