@@ -65,3 +65,41 @@ Result: route types generated successfully; TypeScript exited 0 with no diagnost
 ## Remaining scope
 
 The original plan described `stored-recommendation.v1`, but controller scope explicitly defers its eligibility, source read, snapshot, and save behavior until the user decides whether paid recommendation content remains readable after downgrade. Later tasks must not interpret the reserved union as implemented eligibility.
+
+## Final review fixes (2026-09-06)
+
+Status remains PARTIAL only at the deferred stored-recommendation boundary.
+
+### Findings fixed
+
+1. Replaced the tautological `snapshot.args` own-key check with strict rule-specific validation. `pulse-brand-absent.v1` requires exactly normalized bounded `question` and `platform` strings. `scan-check-gap.v1` requires exactly a known `checkKey` and `warn|fail` assessment. Missing keys, extra keys such as `rawAnswer`, invalid values, and structured values fail closed.
+2. Canonical object construction now uses a null-prototype own-data object, preserving JSON-owned `__proto__` keys in the canonical form and hash.
+3. Added bounded scalar and string-array checks for the adjacent snapshot fields so hostile objects cannot hide keys inside expected scalar/limitation positions.
+4. Preserved scan scanner/check/method version provenance unchanged, matching the reviewer's retraction and the approved spec.
+
+### TDD evidence
+
+RED command:
+
+`node node_modules/vitest/vitest.mjs run __tests__/opportunities/fingerprint.test.ts`
+
+Initial result: 9 failed / 16 passed. The own `__proto__` value hashed identically to `{}`, and eight invalid Pulse/scan argument cases did not throw. After the first fix, an additional focused RED run recorded 2 failed / 27 passed for object values hidden in `initialTitle` and Pulse `evidence.question`; the limitations-object case already failed.
+
+GREEN command:
+
+`node node_modules/vitest/vitest.mjs run __tests__/opportunities/fingerprint.test.ts __tests__/opportunities/rules.test.ts`
+
+Final result: 2 files passed, 45 tests passed, 0 failed.
+
+Full typecheck:
+
+- `node .superpowers/sdd/local-run.cjs node_modules/next/dist/bin/next typegen` — route types generated successfully.
+- `node .superpowers/sdd/local-run.cjs node_modules/typescript/bin/tsc --noEmit` — exited 0 with no diagnostics.
+
+### Self-review
+
+- Both supported rule argument shapes have positive coverage.
+- Missing, extra, wrong-type, unknown-check, and ineligible-assessment arguments have negative coverage.
+- Own `__proto__` values remain distinct from each other and `{}`, while property ordering remains stable.
+- The existing scan evidence projection and required provenance versions are unchanged.
+- No recommendation rule, source reader, framework, SQL, database, provider, environment, deployment, merge, or push scope was added.
