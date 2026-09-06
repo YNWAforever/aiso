@@ -119,3 +119,22 @@ The query accepts optional `promptId`, `platform`, `week`, `result`, `limit` and
 Routes return service responses directly and expose only these GET/POST methods; immutable records have no PATCH/DELETE route. Every response is `Cache-Control: no-store`. Services authenticate before disclosure, query parsing or body parsing. Callers cannot supply account, actor, admin status, role, hash, validation or timestamps. Actual streamed limits are 4 KiB for submission and 16 KiB for decision/access mutation; overflow is `413 CHANGE_SET_BODY_TOO_LARGE` or `413 APPROVAL_BODY_TOO_LARGE`.
 
 Stable change-set errors are `400 INVALID_CHANGE_SET_INPUT`, `401 UNAUTHENTICATED`, `403 CHANGE_SET_DENIED`, `404 CHANGE_SET_NOT_FOUND`, `409 CHANGE_SET_CONFLICT`, `413 CHANGE_SET_BODY_TOO_LARGE`, `422 CHANGE_SET_VALIDATION_FAILED`, and `503 CHANGE_SET_UNAVAILABLE`. Approver errors preserve the admin guard's `401`/`403`, plus `400 INVALID_APPROVAL_INPUT` or `APPROVAL_VALIDATION_FAILED`, `403 APPROVAL_DENIED`, `404 APPROVAL_NOT_FOUND`, `409 APPROVAL_CONFLICT`, `413 APPROVAL_BODY_TOO_LARGE`, and `503 APPROVAL_UNAVAILABLE`. Raw exceptions are never returned.
+
+## C9e delivery API amendment — 2026-09-07
+
+All endpoints below use the prefix `/api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]`. Thin Next16 handlers await promised path parameters and return the authenticated delivery service Response unchanged. Each operation independently authenticates; account and actor derive only from the session. Current members can act on owned resources; platform-admin status does not bypass ownership. Existing C9c/C9d routes are unchanged.
+
+| Method and suffix | Strict input | Successful response |
+| --- | --- | --- |
+| GET `/export` | Optional single `format=json|text`, default json; no other or duplicate query keys | 200 immutable approved package attachment, including historical approved versions |
+| GET `/delivery` | Optional single `limit` (default 20,max 50), `cursor` (opaque validated timestamp/UUID); no other or duplicate query keys | 200 `{events,activeAttestationId,capabilities,nextCursor}` |
+| POST `/delivery` | Exactly `{contentHash,destination,deliveredAt,note,requestId}` | `{event}`; 201 created, 200 exact owned replay |
+| POST `/delivery/[attestationId]/withdraw` | Exactly `{reason,requestId}` | `{event}`; 201 created, 200 exact owned replay |
+
+All path/request IDs are validated UUIDs. Both mutations count a maximum 16384 actual streamed bytes, including whitespace, irrespective of Content-Length; invalid UTF8, malformed JSON and extra fields fail closed. Destination is plain text, never fetched. Text and time field details are in the C9e fields contract.
+
+Export responds with `Content-Disposition: attachment; filename="delivery-<versionUUID>.json"` (or `.txt`), `application/json; charset=utf-8` (or `text/plain; charset=utf-8`), `X-Aiso-Export-Sha256`, `X-Content-Type-Options: nosniff`, and `Cache-Control: no-store`. The export hash identifies the canonical JSON envelope; the text representation labels that same envelope hash. Export and history GET perform no delivery write, provider call, upload or public sharing.
+
+Every response, including errors, is no-store. Errors return only `{error:code}`: 400 `DELIVERY_INVALID_INPUT`; 401 `DELIVERY_UNAUTHENTICATED`; 403 `DELIVERY_DENIED`; 404 `DELIVERY_NOT_FOUND` for missing/unowned resources; 409 `DELIVERY_CONFLICT` or `DELIVERY_NOT_APPROVED`; 413 `DELIVERY_BODY_TOO_LARGE`; 422 `DELIVERY_VALIDATION_FAILED` for delivery-time relations or malformed retained packages; 503 `DELIVERY_UNAVAILABLE` for dependency outages. Authentication outages never become unauthenticated/empty-success responses.
+
+These endpoints are locally implemented. Migration 043 and dedicated real-SQL proofs remain authored/unrun, target UNKNOWN; this contract does not claim live activation.
