@@ -1,6 +1,6 @@
 # C9d: immutable change-set versions, validation and audited decisions
 
-Date: 2026-09-06. Status: conversational design approved; written specification awaiting user review before implementation planning.
+Date: 2026-09-06. Status: conversational design and written specification approved by the user on 2026-09-06; implementation planning authorized.
 
 Baseline: `195282e70084fb270a4bd7df3e91527869bd4d31`, origin/codex/c8c-g-workspace after PR #17. Its tree equals the tested C9b/C9c source/documentation checkpoint a1f004e. Design branch: codex/c9d-change-set-design. Existing implementation and original user checkout are preserved.
 
@@ -92,6 +92,6 @@ Local source rollback removes C9d routes/components while preserving C9c. If lat
 
 ## Self-review and design progress
 
-Completed: baseline/context exploration, material policy questions, alternative comparison, conversational design approval, written design and consistency review. No visual companion was needed for these data/authorization decisions. Pending: user review of this written specification, then writing-plans for implementation.
+Completed: baseline/context exploration, material policy questions, alternative comparison, conversational design approval, written design and consistency review. No visual companion was needed for these data/authorization decisions. Written-spec review approved. Implementation plan prepared using writing-plans; execution workflow selection follows.
 
 Self-review checked C9c compatibility, actor snapshots versus deletion, cross-account administrator versus account approver authority, revocation/decision race, terminal version decisions, immutable validation, retry semantics and external boundaries. Tests above are planned, not executed. No application code, schema or environment changed in this design step.
