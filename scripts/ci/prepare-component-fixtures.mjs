@@ -3,6 +3,11 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
+/**
+ * @param {string} root
+ * @param {NodeJS.ProcessEnv} environment
+ * @param {(command: string, args: string[], options: {cwd: string, env: NodeJS.ProcessEnv, stdio: 'inherit'}) => {status: number | null, error?: Error}} run
+ */
 export async function prepareComponentFixtures(root, environment = process.env, run = spawnSync) {
   const chunks = join(root,'.next/static/chunks')
   const cssFiles = (await readdir(chunks)).filter(file=>file.endsWith('.css')).sort()

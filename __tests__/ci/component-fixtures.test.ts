@@ -10,11 +10,11 @@ describe('CI component fixture preparation',()=>{
   try {
    let calls=0
    const run=()=>{calls++;return {status:1}}
-   await expect(prepareComponentFixtures(root,{},run)).rejects.toThrow()
+   await expect(prepareComponentFixtures(root,{NODE_ENV: 'test'},run)).rejects.toThrow()
    expect(calls).toBe(0)
    await mkdir(join(root,'.next/static/chunks'),{recursive:true})
    await writeFile(join(root,'.next/static/chunks/a.css'),'body{color:red}')
-   await expect(prepareComponentFixtures(root,{},run)).rejects.toThrow('renderer')
+   await expect(prepareComponentFixtures(root,{NODE_ENV: 'test'},run)).rejects.toThrow('renderer')
    expect(calls).toBe(1)
   }finally{await rm(root,{recursive:true,force:true})}
  })
@@ -24,7 +24,7 @@ describe('CI component fixture preparation',()=>{
    await mkdir(join(root,'.next/static/chunks'),{recursive:true})
    await writeFile(join(root,'.next/static/chunks/a.css'),'a{}')
    await writeFile(join(root,'.next/static/chunks/b.css'),'b{}')
-   await prepareComponentFixtures(root,{},(_bin:string,args:string[],options:{env:Record<string,string>})=>{
+   await prepareComponentFixtures(root,{NODE_ENV: 'test'},(_bin:string,args:string[],options:{env:NodeJS.ProcessEnv})=>{
     expect(args.filter(a=>a.endsWith('.test.tsx'))).toHaveLength(5)
     for(const slice of ['C8A','C8B','C8C','C8G','C9A'])expect(options.env[`${slice}_HTML_DIR`]).toBe(join(root,'.next/component-fixtures',slice))
     return {status:0}
