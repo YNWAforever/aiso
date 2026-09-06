@@ -6,6 +6,8 @@ export const observationCopyKeys = [
   'archivedQuestion',
   'platform',
   'allPlatforms',
+  'applyPlatform',
+  'platformInvalid',
   'week',
   'result',
   'allResults',

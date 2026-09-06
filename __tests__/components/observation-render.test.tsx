@@ -164,6 +164,17 @@ describe('observation workspace rendering', () => {
     )
     expect(html).toContain(copyFor('en').empty)
   })
+  it.each(['en', 'zh-HK'])(
+    'accepts a bounded custom platform outside the first page in %s',
+    (lang) => {
+      const html = renderToString(<ObservationWorkspace {...propsFor(lang)} />)
+      expect(html).toContain('name="platform"')
+      expect(html).toContain('list="observation-platforms"')
+      expect(html).toContain(copyFor(lang).applyPlatform)
+      expect(html).toContain('aria-describedby="observation-platform-error"')
+      expect(html).toContain('<datalist id="observation-platforms"')
+    },
+  )
 })
 afterAll(async () => {
   const dir = process.env.C9B_HTML_DIR

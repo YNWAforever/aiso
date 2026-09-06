@@ -71,7 +71,8 @@ describe('observation page boundary', () => {
     )
     expect(html).toContain('selected="">2025-01-01')
     expect(html).toContain('value="p" selected=""')
-    expect(html).toContain('ChatGPT</option>')
+    expect(html).toContain('name="platform" value="ChatGPT"')
+    expect(html).toContain('<option value="ChatGPT"></option>')
     expect(html).toContain('0 recorded rows')
   })
   it('redirects unauthenticated users', async () => {

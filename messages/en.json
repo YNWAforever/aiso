@@ -1527,6 +1527,8 @@
     "archivedQuestion": "Selected archived question",
     "platform": "Platform",
     "allPlatforms": "All platforms",
+    "applyPlatform": "Apply platform",
+    "platformInvalid": "Enter no more than 80 characters.",
     "week": "Week",
     "result": "Result",
     "allResults": "All results",

@@ -1527,6 +1527,8 @@
     "archivedQuestion": "已選取封存問題",
     "platform": "平台",
     "allPlatforms": "所有平台",
+    "applyPlatform": "套用平台",
+    "platformInvalid": "輸入不得超過 80 個字元。",
     "week": "週次",
     "result": "結果",
     "allResults": "所有結果",

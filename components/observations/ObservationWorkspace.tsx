@@ -40,6 +40,8 @@ function Workspace({
   })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
+  const [platformDraft, setPlatformDraft] = useState(initialFilters.platform ?? '')
+  const [platformError, setPlatformError] = useState(false)
   const sequence = useRef(0)
   const pending = useRef<AbortController | null>(null)
   const lastRequest = useRef<Record<string, string>>({})
@@ -93,6 +95,14 @@ function Workspace({
     } finally {
       if (id === sequence.current) setBusy(false)
     }
+  }
+
+  function submitPlatform(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const valid = platformDraft.length === 0 || Array.from(platformDraft).length <= 80
+    setPlatformError(!valid)
+    if (!valid || platformDraft === (filters.platform ?? '')) return
+    select('platform', platformDraft)
   }
 
   function select(
@@ -166,19 +176,35 @@ function Workspace({
             ))}
           </select>
         </label>
-        <label className="min-w-0">
-          {copy.platform}
-          <select
-            className={field}
-            value={filters.platform ?? ''}
-            onChange={(event) => select('platform', event.target.value)}
-          >
-            <option value="">{copy.allPlatforms}</option>
+        <form className="min-w-0" onSubmit={submitPlatform}>
+          <label>
+            {copy.platform}
+            <input
+              aria-describedby="observation-platform-error"
+              aria-invalid={platformError}
+              className={field}
+              list="observation-platforms"
+              name="platform"
+              placeholder={copy.allPlatforms}
+              value={platformDraft}
+              onChange={(event) => {
+                setPlatformDraft(event.target.value)
+                setPlatformError(false)
+              }}
+            />
+          </label>
+          <datalist id="observation-platforms">
             {platforms.map((value) => (
-              <option key={value}>{value}</option>
+              <option key={value} value={value} />
             ))}
-          </select>
-        </label>
+          </datalist>
+          <button className="mt-1 min-h-11 underline" disabled={busy} type="submit">
+            {copy.applyPlatform}
+          </button>
+          <p id="observation-platform-error" role={platformError ? 'alert' : undefined}>
+            {platformError ? copy.platformInvalid : ''}
+          </p>
+        </form>
         <label className="min-w-0">
           {copy.week}
           <select

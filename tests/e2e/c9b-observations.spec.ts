@@ -181,6 +181,42 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(result).toHaveValue('incomplete')
   })
 
+  test(`C9b accepts and clears an unlisted bounded platform in ${lang}`, async ({
+    page,
+  }) => {
+    const copy = await fixture(page, lang)
+    const requests: URLSearchParams[] = []
+    await page.route('**/api/clients/*/observations?*', async (route) => {
+      requests.push(new URL(route.request().url()).searchParams)
+      await route.fulfill({ json: response() })
+    })
+    const platform = page.getByRole('combobox', {
+      name: copy.platform,
+      exact: true,
+    })
+
+    await platform.fill('DeepSeek')
+    await platform.press('Enter')
+    await expect.poll(() => requests.length).toBe(1)
+    expect(requests[0].get('platform')).toBe('DeepSeek')
+
+    await platform.fill('')
+    await platform.press('Enter')
+    await expect.poll(() => requests.length).toBe(2)
+    expect(requests[1].has('platform')).toBe(false)
+
+    const eighty = '😀'.repeat(80)
+    await platform.fill(eighty)
+    await platform.press('Enter')
+    await expect.poll(() => requests.length).toBe(3)
+    expect(requests[2].get('platform')).toBe(eighty)
+
+    await platform.fill(`${eighty}😀`)
+    await platform.press('Enter')
+    await expect(page.getByRole('alert')).toHaveText(copy.platformInvalid)
+    await expect.poll(() => requests.length).toBe(3)
+    await expect(platform).toBeFocused()
+  })
   test(`C9b pins filters, resets paging and retries the same page in ${lang}`, async ({
     page,
   }) => {
@@ -219,7 +255,8 @@ for (const lang of ['en', 'zh-HK']) {
     ).toHaveCount(1)
     await page
       .getByRole('combobox', { name: copy.platform, exact: true })
-      .selectOption('ChatGPT')
+      .fill('ChatGPT')
+    await page.getByRole('button', { name: copy.applyPlatform }).click()
     await expect.poll(() => requests.length).toBe(2)
     await expect(page.getByRole('status')).toBeEmpty()
     await page.getByRole('button', { name: copy.next }).click()
