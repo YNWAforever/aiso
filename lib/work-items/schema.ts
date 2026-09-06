@@ -17,11 +17,9 @@ export type WorkItem = {
   locale: OpportunityLocale; revision: number; createdAt: string; updatedAt: string
   evidenceSnapshot: DraftSnapshotV1
 }
-export type WorkItemListQuery = { limit: number; cursor: { createdAt: string; id: string } | null }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const FINGERPRINT = /^[0-9a-f]{64}$/
-const POSTGRES_TIMESTAMP = /^(\d{4}-\d{2}-\d{2})[T ](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,6})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/
 const SOURCE_RULE: Record<OpportunitySourceKind, CreateDraftInput['ruleVersion']> = {
   'pulse-metric': 'pulse-brand-absent.v1', 'scan-check': 'scan-check-gap.v1', 'agent-recommendation': 'stored-recommendation.v1',
 }
@@ -37,7 +35,7 @@ function exactKeys(value: Record<string, unknown>, keys: readonly string[]) {
 function boundedBytes(value: unknown, limit: number) {
   let encoded: string | undefined
   try { encoded = JSON.stringify(value) } catch { invalid() }
-  if (encoded === undefined || Buffer.byteLength(encoded, 'utf8') > limit) invalid()
+  if (encoded === undefined || new TextEncoder().encode(encoded).byteLength > limit) invalid()
 }
 function uuid(value: unknown): string {
   if (typeof value !== 'string' || !UUID.test(value)) invalid()
@@ -50,21 +48,6 @@ function text(value: unknown, min: number, max: number): string {
   if (length < min || length > max || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\uD800-\uDFFF]/u.test(normalized)) invalid()
   return normalized
 }
-function canonicalDate(value: string): boolean {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
-  if (!match || match[1] === '0000') return false
-  const date = new Date(0)
-  date.setUTCHours(0, 0, 0, 0)
-  date.setUTCFullYear(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
-  return date.getUTCFullYear() === Number(match[1]) && date.getUTCMonth() === Number(match[2]) - 1 && date.getUTCDate() === Number(match[3])
-}
-function timestamp(value: unknown): string {
-  if (typeof value !== 'string') invalid()
-  const match = POSTGRES_TIMESTAMP.exec(value)
-  if (!match || !canonicalDate(match[1])) invalid()
-  return value
-}
-
 export function parseCreateDraft(value: unknown): CreateDraftInput {
   boundedBytes(value, CREATE_DRAFT_BODY_LIMIT)
   const input = record(value)
@@ -90,32 +73,4 @@ export function parseDraftEdit(value: unknown): DraftEditInput {
   exactKeys(input, ['title', 'action', 'notes', 'expectedRevision'])
   if (!Number.isSafeInteger(input.expectedRevision) || (input.expectedRevision as number) <= 0) invalid()
   return { title: text(input.title, 1, 160), action: text(input.action, 1, 4000), notes: text(input.notes, 0, 8000), expectedRevision: input.expectedRevision as number }
-}
-function decodeCursor(value: string): NonNullable<WorkItemListQuery['cursor']> {
-  if (!value || value.length > 512 || !/^[A-Za-z0-9_-]+$/.test(value)) invalid()
-  try {
-    const bytes = Buffer.from(value, 'base64url')
-    if (bytes.toString('base64url') !== value) invalid()
-    const parsed = record(JSON.parse(bytes.toString('utf8')))
-    exactKeys(parsed, ['createdAt', 'id'])
-    return { createdAt: timestamp(parsed.createdAt), id: uuid(parsed.id) }
-  } catch { invalid() }
-}
-export function encodeWorkItemCursor(value: NonNullable<WorkItemListQuery['cursor']>): string {
-  const encoded = Buffer.from(JSON.stringify({ createdAt: timestamp(value.createdAt), id: uuid(value.id) })).toString('base64url')
-  if (encoded.length > 512) invalid()
-  return encoded
-}
-export function parseWorkItemListQuery(params: URLSearchParams): WorkItemListQuery {
-  const seen = new Set<string>()
-  for (const key of params.keys()) {
-    if (!['limit', 'cursor'].includes(key) || seen.has(key)) invalid()
-    seen.add(key)
-  }
-  const limitValue = params.get('limit')
-  if (limitValue !== null && !/^[1-9]\d*$/.test(limitValue)) invalid()
-  const limit = limitValue === null ? 50 : Number(limitValue)
-  if (limit > 100) invalid()
-  const cursor = params.get('cursor')
-  return { limit, cursor: cursor === null ? null : decodeCursor(cursor) }
 }

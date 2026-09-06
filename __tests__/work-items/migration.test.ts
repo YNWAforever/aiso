@@ -8,7 +8,12 @@ const sql = () => readFileSync(path,'utf8').replace(/\s+/g,' ').toLowerCase()
 
 describe('evidence work items migration contract', () => {
   it('uses unused migration 041 without modifying historical migrations', () => {
-    expect(execFileSync('git',['diff','--name-only','2e22185','--','supabase/migrations/001_*.sql','supabase/migrations/040_*.sql'],{encoding:'utf8'}).trim()).toBe('')
+    expect(execFileSync('git',['diff','--name-only','2e22185','--','supabase/migrations'],{encoding:'utf8'})
+      .split(/\r?\n/)
+      .filter(file => {
+        const number = Number(file.match(/supabase\/migrations\/(\d{3})_/)?.[1])
+        return number >= 1 && number <= 40
+      })).toEqual([])
     expect(sql()).toContain('create table public.evidence_work_items')
   })
 

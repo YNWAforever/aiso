@@ -1,10 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
-  encodeWorkItemCursor,
   parseCreateDraft,
   parseDraftEdit,
-  parseWorkItemListQuery,
 } from '@/lib/work-items/schema'
+import { encodeWorkItemCursor, parseWorkItemListQuery } from '@/lib/work-items/query'
 
 const ID = '123e4567-e89b-42d3-a456-426614174000'
 const HASH = 'a'.repeat(64)
@@ -31,6 +30,16 @@ describe('work item input contracts', () => {
     {source:{kind:'pulse-metric',id:ID},ruleVersion:'pulse-brand-absent.v1',fingerprint:HASH,locale:'en',title:'forged'},
   ])('rejects invalid create input %#', input => expect(() => parseCreateDraft(input)).toThrow('INVALID_WORK_ITEM_INPUT'))
 
+  it('keeps create and edit parsers browser-safe when Buffer is unavailable', () => {
+    vi.stubGlobal('Buffer', undefined)
+    try {
+      expect(parseCreateDraft({source:{kind:'pulse-metric',id:ID},ruleVersion:'pulse-brand-absent.v1',fingerprint:HASH,locale:'en'}).locale).toBe('en')
+      expect(parseDraftEdit({title:'Review',action:'Check',notes:'',expectedRevision:1}).title).toBe('Review')
+      expect(() => parseDraftEdit({title:'Review',action:'😀'.repeat(4000),notes:'😀'.repeat(8000),expectedRevision:1})).toThrow('INVALID_WORK_ITEM_INPUT')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
   it('normalizes editable text with trim and NFC', () => {
     expect(parseDraftEdit({title:' Cafe\u0301 ',action:' Review\n ',notes:' Note\u0301 ',expectedRevision:1}))
       .toEqual({title:'Café',action:'Review',notes:'Noté',expectedRevision:1})

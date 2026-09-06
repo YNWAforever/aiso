@@ -33,3 +33,21 @@ The suite is skipped unless `C9C_WORK_ITEMS_DISPOSABLE_BRANCH_ID` is present. Be
 ## Self-review and remaining boundaries
 
 Historical migrations 001-040 remain unchanged. No Supabase client import, provider call, secret, environment edit, customer mutation, push, merge, deployment or paid scan was introduced. The reserved `agent-recommendation` source/rule schema values remain inert: recommendation reads, eligibility, saves and UI are deferred pending the user's paid-read/saved-evidence-after-downgrade policy decision. Task 4 must implement raw streamed body caps and final JSONB byte preflight/constraint classification; this task provides the shared limits and database backstop only.
+
+## Review fixes after d1e4a8e
+
+Independent review found two material guard issues and one inaccurate test scope; all are fixed in this follow-up.
+
+- Browser-safe validation: replaced `Buffer.byteLength` in the UI-shared create/edit parser with `TextEncoder().encode(...).byteLength`. A regression temporarily removes global `Buffer`, proves both parsers still execute, and retains the oversized UTF-8 rejection. Node-specific base64url cursor handling moved to `lib/work-items/query.ts`, keeping the UI-shared schema module free of Node globals/imports.
+- Integration isolation: `vitest.integration.config.ts` now excludes `__tests__/integration/evidence-work-items.test.ts`, so its global setup cannot provision a branch, overwrite `TEST_DATABASE_URL`, reset a schema or run migrations before the suite's own target guard. `vitest.work-items-integration.config.ts` includes only that suite and has no `globalSetup` or `setupFiles`. The static config regression pins both properties.
+- Historical migration check: the migration contract now inspects every numbered migration 001 through 040 changed since base `2e22185`, rather than only glob-like path arguments for 001 and 040.
+
+Review-fix RED: `node node_modules/vitest/vitest.mjs run __tests__/work-items/schema.test.ts __tests__/work-items/migration.test.ts __tests__/config/work-item-integration.test.ts` ran 3 files / 38 tests: 35 passed and 3 failed as intended (browser parser used unavailable Buffer; general config did not exclude the suite; dedicated config was absent).
+
+Review-fix GREEN: the same command passed 3 files / 38 tests. `node .superpowers/sdd/local-run.cjs node_modules/typescript/bin/tsc --noEmit` exited 0 with no diagnostics. `git diff --check` exited 0.
+
+The integration suite was not executed. After separate authorization, manual provisioning, exact migration target review and application of 041, its future invocation is:
+
+`node node_modules/vitest/vitest.mjs run --config vitest.work-items-integration.config.ts`
+
+That command is documented only; it was not run. No database, migration, provider, environment, network, push, merge, deployment or customer action occurred. Recommendation reads/saves/UI remain deferred pending the paid-read and saved-evidence-after-downgrade policy decision.
