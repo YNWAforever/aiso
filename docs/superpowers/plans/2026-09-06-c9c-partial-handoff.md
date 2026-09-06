@@ -1,5 +1,7 @@
 # C9c partial local implementation handoff
 
+> **Superseded final status:** This historical partial handoff is superseded by [the final C9c handoff](2026-09-06-c9c-handoff.md). The user explicitly resolved the former recommendation-policy question by finishing C9c with Pulse and scan-check evidence only. Recommendations are deferred and are not a pending C9c decision. Historical evidence below is retained as recorded.
+
 Date: 2026-09-06. Source checkpoint: `d2994489e39f56589ba6a7a5f0f04e340157e65f` on `codex/c9b-c9c-implementation`, in `.worktrees/c9b-c9c`.
 
 ## Completed and independently reviewed
