@@ -244,3 +244,35 @@ for (const lang of ['en', 'zh-HK']) test(`C9e delayed permission response cannot
   await expect(section.getByRole('button', { name: c.record, exact: true })).toBeDisabled()
   expect(context.posts).toHaveLength(1)
 })
+
+for (const lang of ['en', 'zh-HK']) test(`C9e pending submission retains delivery input and records new history ${lang}`, async ({ page }) => {
+  const { c, section, context, version, fill } = await fixture(page, lang)
+  const review = (lang === 'en' ? en : zh).changeSets
+  const next = { ...version, id: '123e4567-e89b-42d3-a456-426614174099', versionNumber: 2, decision: null, capabilities: { canDecide: false } }
+  let release!: () => void
+  const wait = new Promise<void>(resolve => { release = resolve })
+  context.versionHook = async route => {
+    if (route.request().method() === 'POST') { await wait; context.reason = 'superseded' }
+    await route.fulfill({ json: { version: next } })
+  }
+  await page.getByRole('button', { name: review.submitVersion, exact: true }).click()
+  await fill('Keep input during submission')
+  const reads = context.reads
+  release()
+  await expect(page.getByRole('button', { name: review.reloadHistory, exact: true })).toBeEnabled()
+  await expect(section.getByLabel(c.destination, { exact: true })).toHaveValue('Keep input during submission')
+  const newVersion = page.getByRole('button', { name: new RegExp((lang === 'en' ? 'Version 2' : '版本 2') + ' ·') })
+  await expect(newVersion).toBeVisible()
+  await expect(newVersion).toHaveAttribute('aria-pressed', 'false')
+  await expect(newVersion).toBeDisabled()
+  await expect.poll(() => context.reads).toBeGreaterThan(reads)
+  await expect(section.getByRole('button', { name: c.record, exact: true })).toBeDisabled()
+  await expect(section.getByText(c.superseded, { exact: true })).toBeVisible()
+  page.once('dialog', dialog => dialog.accept())
+  await section.getByRole('button', { name: c.discard, exact: true }).click()
+  await expect(newVersion).toBeEnabled()
+  await newVersion.click()
+  await expect(newVersion).toHaveAttribute('aria-pressed', 'true')
+  await expect(section.getByLabel(c.destination, { exact: true })).toHaveValue('')
+  await expect(page.getByRole('button', { name: review.submitVersion, exact: true })).toBeEnabled()
+})

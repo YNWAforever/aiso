@@ -66,10 +66,21 @@ export function VersionWorkspace({
       lock.current = false
     }
   }
-  function upsert(version: VersionDetail) {
+  function upsert(version: VersionDetail, preserveSelection = false) {
     // A confirmed mutation outranks every version read started before it.
     versionReadGeneration.current++
-    setSelected(version)
+    setSelected((current) =>
+      preserveSelection && current && current.id !== version.id
+        ? {
+            ...current,
+            // Keep the keyed form while refreshing delivery eligibility after
+            // this confirmed submission changes the latest version.
+            capabilities: version.versionNumber > current.versionNumber
+              ? { canDecide: false }
+              : current.capabilities,
+          }
+        : version,
+    )
     setPage((previous) => ({
       versions: [
         version,
@@ -105,7 +116,8 @@ export function VersionWorkspace({
         )
         return
       }
-      upsert((await res.json()).version)
+      const submitted: VersionDetail = (await res.json()).version
+      upsert(submitted, dirtyRef.current)
       setStatus('versionSubmitted')
     })
   }
