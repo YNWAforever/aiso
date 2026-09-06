@@ -18,6 +18,7 @@ export function ApproverAccessWorkspace({
     id = useId(),
     [page, setPage] = useState(initial),
     [authority, setAuthority] = useState(verified),
+    [hasVerifiedAccess, setHasVerifiedAccess] = useState(verified),
     [profileId, setProfileId] = useState(initial?.members[0]?.profileId ?? ''),
     [action, setAction] = useState<'grant' | 'revoke'>('grant'),
     [reason, setReason] = useState(''),
@@ -41,6 +42,7 @@ export function ApproverAccessWorkspace({
     if (lock.current) return
     lock.current = true
     setBusy(true)
+    setAuthority(false)
     setError('')
     const next = { ...cursors.current }
     if (kind === 'members') next.memberCursor = page?.nextMemberCursor ?? null
@@ -55,12 +57,13 @@ export function ApproverAccessWorkspace({
     try {
       const res = await fetch(endpoint + '?' + params, { cache: 'no-store' })
       if (!res.ok) {
-        if (res.status === 403 || res.status === 401) setAuthority(false)
+        if (res.status === 401 || res.status === 403) setHasVerifiedAccess(false)
         setError('unavailable')
         return
       }
       const data: AccessPageDTO = await res.json()
       setAuthority(true)
+      setHasVerifiedAccess(true)
       cursors.current = next
       setPage((old) =>
         !old || kind === 'reload'
@@ -122,7 +125,10 @@ export function ApproverAccessWorkspace({
         }),
       })
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) setAuthority(false)
+        if (res.status === 401 || res.status === 403) {
+          setAuthority(false)
+          setHasVerifiedAccess(false)
+        }
         setError(
           res.status === 409
             ? 'conflict'
@@ -203,7 +209,7 @@ export function ApproverAccessWorkspace({
               </button>
             )}
           </section>
-          {authority && page.members.length > 0 && (
+          {hasVerifiedAccess && page.members.length > 0 && (
             <form
               onSubmit={submit}
               className="space-y-3 rounded-xl border border-border p-4"
@@ -261,7 +267,7 @@ export function ApproverAccessWorkspace({
               <button
                 className={button}
                 type="submit"
-                disabled={busy || !member}
+                disabled={busy || !member || !authority}
               >
                 {t('saveAccess')}
               </button>

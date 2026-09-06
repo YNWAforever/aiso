@@ -293,6 +293,7 @@ for (const lang of ['en', 'zh-HK']) {
   }) => {
     const { approverAccess: c } = await fixture(page, lang, 'C9D_APPROVERS')
     const reads: string[] = []
+    const bodies: Record<string, unknown>[] = []
     await page.route('**/api/admin/accounts/*/approvers?*', (route) => {
       const q = new URL(route.request().url()).searchParams
       reads.push(q.toString())
@@ -324,6 +325,7 @@ for (const lang of ['en', 'zh-HK']) {
     ])
     await expect(page.getByText(/Second member —/)).toBeVisible()
     await page.route('**/api/admin/accounts/*/approvers', (route) => {
+      bodies.push(route.request().postDataJSON())
       expect(route.request().postDataJSON()).toMatchObject({
         profileId: clientId,
         expectedRevision: 0,
@@ -348,6 +350,48 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(page.getByLabel(c.reason, { exact: true })).toHaveValue(
       'Keep on conflict',
     )
+    const save = page.getByRole('button', { name: c.saveAccess, exact: true })
+    await expect(save).toBeDisabled()
+    await expect(page.getByLabel(c.member, { exact: true })).toHaveValue(
+      clientId,
+    )
+    await expect(page.getByLabel(c.action, { exact: true })).toHaveValue(
+      'grant',
+    )
+    for (const failure of ['network', 'json'] as const) {
+      await page.route('**/api/admin/accounts/*/approvers?*', (route) =>
+        route.fulfill({ json: access }),
+      )
+      await page.getByRole('button', { name: c.reload, exact: true }).click()
+      await expect(save).toBeEnabled()
+      await page.route('**/api/admin/accounts/*/approvers?*', (route) =>
+        failure === 'network'
+          ? route.abort('failed')
+          : route.fulfill({ status: 200, body: '{invalid json' }),
+      )
+      await page.getByRole('button', { name: c.reload, exact: true }).click()
+      await expect(page.getByRole('alert')).toHaveText(c.unavailable)
+      await expect(save).toBeDisabled()
+      await expect(page.getByLabel(c.reason, { exact: true })).toHaveValue(
+        'Keep on conflict',
+      )
+      await expect(page.getByLabel(c.member, { exact: true })).toHaveValue(
+        clientId,
+      )
+      await expect(page.getByLabel(c.action, { exact: true })).toHaveValue(
+        'grant',
+      )
+    }
+    expect(bodies).toHaveLength(1)
+    await page.route('**/api/admin/accounts/*/approvers?*', (route) =>
+      route.fulfill({ json: access }),
+    )
+    await page.getByRole('button', { name: c.reload, exact: true }).click()
+    await expect(save).toBeEnabled()
+    await save.click()
+    await expect(page.getByRole('alert')).toHaveText(c.conflict)
+    expect(bodies).toHaveLength(2)
+    expect(bodies[1]).toEqual(bodies[0])
   })
   test(`C9d admin initial outage cannot grant or show zero approvers ${lang}`, async ({
     page,
