@@ -140,6 +140,25 @@ describe('serializeDraftSnapshot', () => {
   ])('rejects objects hidden in scalar or string-array field %s', (_name, override) => {
     expect(() => serializeDraftSnapshot({ ...snapshot(), ...override } as DraftSnapshotV1)).toThrow(TypeError)
   })
+  it.each([
+    ['Pulse evidence limitations', () => ({ ...snapshot(), evidence: { ...snapshot().evidence, limitations: [{ rawAnswer: 'secret' }] } })],
+    ['source id', () => ({ ...snapshot(), source: { kind: 'pulse-metric', id: { rawAnswer: 'secret' } } })],
+    ['scan check version', () => { const value = scanSnapshot(); if (value.evidence.kind === 'scan-check') value.evidence.check.version = { rawAnswer: 'secret' } as never; return value }],
+    ['scan URL origin', () => { const value = scanSnapshot(); if (value.evidence.kind === 'scan-check') value.evidence.requested.origin = { rawAnswer: 'secret' } as never; return value }],
+    ['scan comparison industry', () => { const value = scanSnapshot(); if (value.evidence.kind === 'scan-check') value.evidence.comparison.industry = { rawAnswer: 'secret' } as never; return value }],
+    ['scan check-version value', () => { const value = scanSnapshot(); if (value.evidence.kind === 'scan-check') (value.evidence.comparison.checkVersions as Record<string, unknown>).c1_robots = { rawAnswer: 'secret' }; return value }],
+    ['scan observation collection', () => { const value = scanSnapshot(); if (value.evidence.kind === 'scan-check') value.evidence.observations[0].collection = { rawAnswer: 'secret' } as never; return value }],
+    ['scan signal value', () => { const value = scanSnapshot(); if (value.evidence.kind === 'scan-check') value.evidence.observations[0].signals.mimeType = { rawAnswer: 'secret' } as never; return value }],
+    ['scan limited flag', () => { const value = scanSnapshot(); if (value.evidence.kind === 'scan-check') value.evidence.limited = { rawAnswer: 'secret' } as never; return value }],
+  ])('rejects structured values hidden in nested safe snapshot field %s', (_name, build) => {
+    expect(() => serializeDraftSnapshot(build() as DraftSnapshotV1)).toThrow(TypeError)
+  })
+  it.each([
+    ['Pulse evidence with scan rule', { ...snapshot(), ruleVersion: 'scan-check-gap.v1', args: { checkKey: 'c1_robots', assessment: 'warn' } }],
+    ['scan evidence with Pulse rule', { ...scanSnapshot(), ruleVersion: 'pulse-brand-absent.v1', args: { question: 'Example?', platform: 'chatgpt' } }],
+  ])('rejects mismatched rule and evidence identity: %s', (_name, value) => {
+    expect(() => serializeDraftSnapshot(value as DraftSnapshotV1)).toThrow(TypeError)
+  })
   it('rejects fields outside the snapshot allowlist, including raw answers', () => {
     const safe = snapshot()
     const unsafe = { ...safe, evidence: { ...safe.evidence, rawAnswer: 'secret answer' } }

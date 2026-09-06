@@ -40,15 +40,44 @@ function assertRuleArgs(snapshot: DraftSnapshotV1): void {
   throw new TypeError('Unsupported snapshot rule version')
 }
 
+const COLLECTION_STATES = ['complete', 'partial', 'blocked', 'failed', 'unsupported', 'unknown'] as const
+const ASSESSMENTS = ['pass', 'warn', 'fail', 'not-applicable', 'not-verifiable'] as const
+const APPLICABILITY = ['applicable', 'not-applicable', 'not-verifiable'] as const
+const CHECK_REASONS = ['provider-fallback', 'inferred-only', 'no-input', 'fetch-failed', 'parse-failed'] as const
+const INDUSTRIES: readonly string[] = ['finance', 'medical', 'legal', 'technology', 'retail_ecommerce', 'travel_hospitality', 'education', 'real_estate', 'manufacturing', 'media_entertainment', 'energy_utilities', 'general_b2b', 'general_b2c', 'unknown'] as const
+const REGIONS: readonly string[] = ['HK', 'TW', 'SG', 'JP', 'KR', 'US', 'UK', 'EU', 'AU', 'CA', 'global', 'unknown'] as const
+
+function validNullableString(value: unknown, maximum: number): boolean {
+  return value === null || validNormalizedString(value, maximum)
+}
+
+function assertUrl(value: unknown, label: string): void {
+  assertAllowedKeys(value, URL_KEYS, label)
+  if (!validNullableString(value.origin, 300)
+    || typeof value.pathRedacted !== 'boolean' || typeof value.queryRedacted !== 'boolean'
+    || typeof value.fragmentRedacted !== 'boolean' || typeof value.originNormalized !== 'boolean') {
+    throw new TypeError(`${label} contains invalid scalar values`)
+  }
+}
+
+function assertSignals(value: unknown): void {
+  const keys = ['mimeType', 'contentLength', 'lastModified', 'noindex', 'nofollow', 'nosnippet', 'noarchive'] as const
+  assertAllowedKeys(value, keys, 'scan observation signals')
+  if (value.mimeType !== undefined && (typeof value.mimeType !== 'string' || !['text/html', 'text/plain', 'application/json', 'application/xml', 'text/xml', 'application/xhtml+xml'].includes(value.mimeType))) throw new TypeError('Invalid mimeType signal')
+  if (value.contentLength !== undefined && (typeof value.contentLength !== 'number' || !Number.isSafeInteger(value.contentLength) || value.contentLength < 0)) throw new TypeError('Invalid contentLength signal')
+  if (value.lastModified !== undefined && !validNormalizedString(value.lastModified, 40)) throw new TypeError('Invalid lastModified signal')
+  for (const key of ['noindex', 'nofollow', 'nosnippet', 'noarchive'] as const) {
+    if (value[key] !== undefined && typeof value[key] !== 'boolean') throw new TypeError(`Invalid ${key} signal`)
+  }
+}
+
 function assertSnapshotAllowlist(snapshot: DraftSnapshotV1): void {
   assertAllowedKeys(snapshot, ['schemaVersion', 'source', 'ruleVersion', 'evidence', 'limitations', 'titleKey', 'actionKey', 'args', 'locale', 'initialTitle', 'initialAction'], 'snapshot')
   assertAllowedKeys(snapshot.source, ['kind', 'id', 'checkKey'], 'snapshot source')
-  if (!validNormalizedString(snapshot.ruleVersion, 80)
-    || !validNormalizedString(snapshot.titleKey, 160)
-    || !validNormalizedString(snapshot.actionKey, 160)
-    || !validNormalizedString(snapshot.initialTitle, 160)
-    || !validNormalizedString(snapshot.initialAction, 4_000)
-    || !['en', 'zh-HK'].includes(snapshot.locale)) {
+  if (snapshot.schemaVersion !== 1 || !validNormalizedString(snapshot.source.id, 36)) throw new TypeError('Invalid snapshot identity')
+  if (!validNormalizedString(snapshot.ruleVersion, 80) || !validNormalizedString(snapshot.titleKey, 160)
+    || !validNormalizedString(snapshot.actionKey, 160) || !validNormalizedString(snapshot.initialTitle, 160)
+    || !validNormalizedString(snapshot.initialAction, 4_000) || !['en', 'zh-HK'].includes(snapshot.locale)) {
     throw new TypeError('Snapshot scalar fields must contain bounded normalized values')
   }
   assertRuleArgs(snapshot)
@@ -56,32 +85,56 @@ function assertSnapshotAllowlist(snapshot: DraftSnapshotV1): void {
 
   const evidence = snapshot.evidence
   if (evidence.kind === 'pulse-metric') {
+    if (snapshot.ruleVersion !== 'pulse-brand-absent.v1' || snapshot.titleKey !== 'review-question-coverage' || snapshot.actionKey !== 'review-question-coverage' || snapshot.source.kind !== 'pulse-metric' || Object.hasOwn(snapshot.source, 'checkKey')) throw new TypeError('Pulse source identity does not match evidence')
     assertAllowedKeys(evidence, ['kind', 'id', 'promptId', 'question', 'platform', 'scanWeek', 'recordedAt', 'result', 'hasAnswer', 'brandMentioned', 'provenance', 'limitations', 'answerDigest'], 'Pulse snapshot evidence')
-    if (!validNormalizedString(evidence.id, 36)
+    if (!validNormalizedString(evidence.id, 36) || snapshot.source.id !== evidence.id
       || (evidence.promptId !== null && !validNormalizedString(evidence.promptId, 36))
-      || !validNormalizedString(evidence.question, 500)
-      || !validNormalizedString(evidence.platform, 80)
-      || !/^\d{4}-\d{2}-\d{2}$/.test(evidence.scanWeek)
-      || (evidence.recordedAt !== null && !validNormalizedString(evidence.recordedAt, 40))
+      || !validNormalizedString(evidence.question, 500) || !validNormalizedString(evidence.platform, 80)
+      || !/^\d{4}-\d{2}-\d{2}$/.test(evidence.scanWeek) || !validNullableString(evidence.recordedAt, 40)
       || evidence.result !== 'success' || evidence.hasAnswer !== true || evidence.brandMentioned !== false
       || evidence.provenance !== 'retained-pulse-metric' || !/^[a-f0-9]{64}$/.test(evidence.answerDigest)) {
       throw new TypeError('Pulse snapshot evidence contains invalid scalar values')
     }
+    assertStringArray(evidence.limitations, 40, 160, 'Pulse evidence limitations')
     return
   }
 
   assertAllowedKeys(evidence, ['kind', 'scanId', 'recordedAt', 'checkKey', 'check', 'collection', 'collectedAt', 'requested', 'evaluated', 'final', 'scannerVersion', 'headlineMethod', 'pillarMethod', 'comparisonSignature', 'comparison', 'observations', 'limited', 'limitations', 'provenance'], 'scan snapshot evidence')
+  if (snapshot.ruleVersion !== 'scan-check-gap.v1' || snapshot.titleKey !== 'review-check' || snapshot.actionKey !== 'review-check' || snapshot.source.kind !== 'scan-check' || typeof snapshot.source.checkKey !== 'string' || !Object.hasOwn(CHECK_VERSIONS, snapshot.source.checkKey)
+    || snapshot.source.checkKey !== evidence.checkKey || snapshot.source.id !== evidence.scanId) throw new TypeError('Scan source identity does not match evidence')
+  if (!validNormalizedString(evidence.scanId, 36) || !validNullableString(evidence.recordedAt, 40)
+    || !Object.hasOwn(CHECK_VERSIONS, evidence.checkKey) || !COLLECTION_STATES.includes(evidence.collection)
+    || !validNullableString(evidence.collectedAt, 40) || !validNormalizedString(evidence.scannerVersion, 80)
+    || !validNormalizedString(evidence.headlineMethod, 80) || !validNormalizedString(evidence.pillarMethod, 80)
+    || !/^[a-f0-9]{64}$/.test(evidence.comparisonSignature) || typeof evidence.limited !== 'boolean'
+    || evidence.provenance !== 'validated-scan-evidence' || !Array.isArray(evidence.observations) || evidence.observations.length > 40) {
+    throw new TypeError('Scan snapshot evidence contains invalid scalar values')
+  }
   assertAllowedKeys(evidence.check, ['applicability', 'version', 'collection', 'assessment', 'reason'], 'scan check evidence')
+  if (!APPLICABILITY.includes(evidence.check.applicability) || !validNormalizedString(evidence.check.version, 80)
+    || !COLLECTION_STATES.includes(evidence.check.collection) || !ASSESSMENTS.includes(evidence.check.assessment)
+    || (evidence.check.reason !== undefined && !CHECK_REASONS.includes(evidence.check.reason))) throw new TypeError('Invalid scan check evidence')
   assertStringArray(evidence.limitations, 40, 160, 'scan evidence limitations')
-  assertAllowedKeys(evidence.requested, URL_KEYS, 'requested URL evidence')
-  assertAllowedKeys(evidence.evaluated, URL_KEYS, 'evaluated URL evidence')
-  if (evidence.final !== null) assertAllowedKeys(evidence.final, URL_KEYS, 'final URL evidence')
+  assertUrl(evidence.requested, 'requested URL evidence')
+  assertUrl(evidence.evaluated, 'evaluated URL evidence')
+  if (evidence.final !== null) assertUrl(evidence.final, 'final URL evidence')
   assertAllowedKeys(evidence.comparison, ['scope', 'evaluatedOrigin', 'finalOrigin', 'industry', 'region', 'sitemapSource', 'urlPolicy', 'scannerVersion', 'checkVersions', 'headlineMethod', 'pillarMethod'], 'scan comparison evidence')
+  if (evidence.comparison.scope !== 'single-origin-page' || !validNullableString(evidence.comparison.evaluatedOrigin, 300)
+    || !validNullableString(evidence.comparison.finalOrigin, 300) || !INDUSTRIES.includes(evidence.comparison.industry)
+    || !REGIONS.includes(evidence.comparison.region) || !['caller', 'fetched', 'unknown'].includes(evidence.comparison.sitemapSource)
+    || !validNormalizedString(evidence.comparison.urlPolicy, 80) || !validNormalizedString(evidence.comparison.scannerVersion, 80)
+    || !validNormalizedString(evidence.comparison.headlineMethod, 80) || !validNormalizedString(evidence.comparison.pillarMethod, 80)) throw new TypeError('Invalid scan comparison evidence')
   assertAllowedKeys(evidence.comparison.checkVersions, Object.keys(CHECK_VERSIONS), 'scan check versions')
+  if (Object.keys(evidence.comparison.checkVersions).length !== Object.keys(CHECK_VERSIONS).length
+    || Object.values(evidence.comparison.checkVersions).some(value => !validNormalizedString(value, 80))) throw new TypeError('Invalid scan check versions')
   for (const observation of evidence.observations) {
     assertAllowedKeys(observation, ['observedAt', 'provenance', 'collection', 'target', 'httpStatus', 'signals', 'check'], 'scan observation evidence')
-    assertAllowedKeys(observation.target, URL_KEYS, 'scan observation target')
-    assertAllowedKeys(observation.signals, ['mimeType', 'contentLength', 'lastModified', 'noindex', 'nofollow', 'nosnippet', 'noarchive'], 'scan observation signals')
+    if (!validNullableString(observation.observedAt, 40) || ![null, 'validated-fetch'].includes(observation.provenance)
+      || !COLLECTION_STATES.includes(observation.collection)
+      || (observation.httpStatus !== null && (typeof observation.httpStatus !== 'number' || !Number.isInteger(observation.httpStatus) || observation.httpStatus < 100 || observation.httpStatus > 599))
+      || (observation.check !== null && observation.check !== 'page' && observation.check !== 'sitemap' && !Object.hasOwn(CHECK_VERSIONS, observation.check))) throw new TypeError('Invalid scan observation evidence')
+    assertUrl(observation.target, 'scan observation target')
+    assertSignals(observation.signals)
   }
 }
 
@@ -133,10 +186,10 @@ export function opportunityKey(ruleVersion: string, source: SourceRef): string {
 }
 
 export function serializeDraftSnapshot(snapshot: DraftSnapshotV1): string {
-  assertSnapshotAllowlist(snapshot)
   const serialized = canonicalJson(snapshot)
   if (Buffer.byteLength(serialized, 'utf8') > SNAPSHOT_BYTE_LIMIT) {
     throw new RangeError('Draft evidence snapshot exceeds 65536 bytes')
   }
+  assertSnapshotAllowlist(snapshot)
   return serialized
 }

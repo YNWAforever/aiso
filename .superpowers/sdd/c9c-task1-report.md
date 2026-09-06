@@ -103,3 +103,31 @@ Full typecheck:
 - Own `__proto__` values remain distinct from each other and `{}`, while property ordering remains stable.
 - The existing scan evidence projection and required provenance versions are unchanged.
 - No recommendation rule, source reader, framework, SQL, database, provider, environment, deployment, merge, or push scope was added.
+
+## Nested snapshot validation follow-up (2026-09-06)
+
+### Finding reproduced
+
+Focused RED command:
+
+`node node_modules/vitest/vitest.mjs run __tests__/opportunities/fingerprint.test.ts`
+
+Result: 9 failed / 29 passed. Structured hostile values were accepted in Pulse evidence limitations and representative nested source, scan check, URL, comparison, check-version, observation, signal, and limited fields. A final audit test then reproduced 2 failed / 38 passed for mismatched rule/evidence identities.
+
+### Fix and bounded audit
+
+- Added the missing Pulse `evidence.limitations` bounded normalized string-array check.
+- Validated source identity, Pulse scalar fields, scan top-level scalars, selected check fields, URL descriptors, comparison fields and complete check-version map, observation fields, and allowlisted signal value types.
+- Bound arrays to their safe contract limits and rejected objects in scalar/string-array positions.
+- Bound each evidence variant to its exact rule, source kind/check identity, and translation keys.
+- Kept scanner/check/method provenance fields unchanged and retained the 65,536-byte UTF-8 cap before structural validation.
+
+No schema decision was missing for this bounded safe-snapshot contract. The existing discriminated union and the authoritative scan evidence vocabulary supplied every required scalar/array constraint.
+
+### Final verification
+
+- `node node_modules/vitest/vitest.mjs run __tests__/opportunities/fingerprint.test.ts __tests__/opportunities/rules.test.ts` — 2 files passed, 56 tests passed, 0 failed.
+- `node .superpowers/sdd/local-run.cjs node_modules/next/dist/bin/next typegen` — route types generated successfully.
+- `node .superpowers/sdd/local-run.cjs node_modules/typescript/bin/tsc --noEmit` — exited 0 with no diagnostics.
+
+Self-review found no remaining nested plain-object position in `DraftSnapshotV1` that bypasses an expected scalar, string-array, or explicit nested-object validator. Stored recommendation derivation remains deferred.
