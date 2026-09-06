@@ -1,6 +1,6 @@
 # C9d: immutable change-set versions, validation and audited decisions
 
-Date: 2026-09-06. Status updated 2026-09-07: specification approved on 2026-09-06; Tasks 1-6 implemented and independently approved, local Task 7 verification/handoff complete, awaiting final whole-branch review. No live activation: PostgreSQL suites are authored/UNRUN and migration 042 remains unapplied here with target UNKNOWN. Exact tested source and evidence: [local handoff](../plans/2026-09-07-c9d-handoff.md).
+Date: 2026-09-06. Status updated 2026-09-07: specification approved on 2026-09-06; Tasks 1-6 implemented and independently approved, local Task 7 verification/handoff complete, final whole-branch review approved including the final permission-outage repair at `95b8566ec2d7aaf074e26755335c1fabd178efb3`. No live activation: PostgreSQL suites are authored/UNRUN and migration 042 remains unapplied here with target UNKNOWN. Exact tested source and evidence: [local handoff](../plans/2026-09-07-c9d-handoff.md).
 
 Baseline: `195282e70084fb270a4bd7df3e91527869bd4d31`, origin/codex/c8c-g-workspace after PR #17. Its tree equals the tested C9b/C9c source/documentation checkpoint a1f004e. Design branch: codex/c9d-change-set-design. Existing implementation and original user checkout are preserved.
 
@@ -95,3 +95,6 @@ Local source rollback removes C9d routes/components while preserving C9c. If lat
 Completed: baseline/context exploration, material policy questions, alternative comparison, conversational design approval, written design and consistency review. No visual companion was needed for these data/authorization decisions. Written-spec review approved. Implementation plan prepared using writing-plans; execution workflow selection follows.
 
 Self-review checked C9c compatibility, actor snapshots versus deletion, cross-account administrator versus account approver authority, revocation/decision race, terminal version decisions, immutable validation, retry semantics and external boundaries. Tests above are planned, not executed. No application code, schema or environment changed in this design step.
+## Final implementation evidence (2026-09-07)
+
+The permission-unavailability requirement now has RED/GREEN browser evidence for503, network and malformed-JSON refresh failures, preserved form/retry state and successful recovery. Source `95b8566ec2d7aaf074e26755335c1fabd178efb3` passed2682 unit tests,48 complete C9d browser cases,47 fixture tests, scoped lint, full TypeScript and fresh production build. Independent final re-review confirmed P2 resolved and no new findings. See the handoff closure addendum for raw artifacts and exact commands. PostgreSQL suites remain UNRUN and migration042 UNAPPLIED here, target UNKNOWN; no external activation occurred.
