@@ -43,5 +43,5 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], viewport: { width, height: 900 } },
     })),
   ],
-  ...(process.env.START_DEV_SERVER || isCi ? { webServer: { command: isCi ? 'node scripts/start-playwright-ci-server.cjs' : 'npm run dev', url: 'http://127.0.0.1:3000', reuseExistingServer: false, timeout: 120_000 } } : {}),
+  ...(process.env.START_DEV_SERVER || isCi ? { webServer: { command: isCi ? 'node node_modules/next/dist/bin/next start --hostname 127.0.0.1' : 'npm run dev', url: 'http://127.0.0.1:3000', reuseExistingServer: false, timeout: 120_000 } } : {}),
 })

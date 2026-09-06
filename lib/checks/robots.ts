@@ -1,7 +1,7 @@
 import type { PublicUrlFetch } from '@/lib/security/public-url'
 import type { CheckResult } from '@/lib/types'
 
-const AI_BOTS = ['gptbot', 'claudebot', 'perplexitybot', 'anthropic-ai', 'google-extended']
+import { AI_CRAWLER_ROLES, evaluateRobotsPolicy } from '@/lib/robots-policy'
 
 export async function checkRobots(baseUrl: string, fetcher: PublicUrlFetch): Promise<CheckResult> {
   const robotsUrl = new URL('/robots.txt', baseUrl).toString()
@@ -12,25 +12,25 @@ export async function checkRobots(baseUrl: string, fetcher: PublicUrlFetch): Pro
       headers: { 'User-Agent': 'Fimmick-AEO/1.0' },
     })
 
-    if (!res.ok) return { status: 'fail', message: 'robots_not_found' }
+    if (!res.ok) {
+      const observedAbsence = res.status === 404 || res.status === 410
+      return {
+        status: 'fail', message: 'robots_not_found',
+        diagnostic: observedAbsence
+          ? { collection: 'complete' }
+          : { collection: 'failed', reason: 'fetch-failed' },
+      }
+    }
 
-    const lower = (await res.text()).toLowerCase()
-
-    const hasBlock = AI_BOTS.some(bot => {
-      const idx = lower.indexOf(`user-agent: ${bot}`)
-      if (idx === -1) return false
-      const next = lower.indexOf('user-agent:', idx + 1)
-      const section = next === -1 ? lower.slice(idx) : lower.slice(idx, next)
-      return section.includes('disallow: /')
-    })
-
-    if (hasBlock) return { status: 'fail', message: 'robots_ai_blocked' }
-
-    const hasAllow = AI_BOTS.some(bot => lower.includes(`user-agent: ${bot}`))
+    const text = await res.text()
+    const policies = AI_CRAWLER_ROLES.filter(bot => bot.automatic)
+      .map(bot => evaluateRobotsPolicy(text, bot.token, '/'))
+    if (policies.some(policy => !policy.allowed)) return { status: 'fail', message: 'robots_ai_blocked' }
+    const hasAllow = policies.some(policy => policy.explicit)
     if (hasAllow) return { status: 'pass', message: 'robots_ai_allowed' }
 
     return { status: 'warn', message: 'robots_no_ai_rules' }
   } catch {
-    return { status: 'fail', message: 'robots_fetch_error' }
+    return { status: 'fail', message: 'robots_fetch_error', diagnostic: { collection: 'failed', reason: 'fetch-failed' } }
   }
 }

@@ -3,6 +3,8 @@
 Frozen from base plan §10.2, 2026-08-31. Changes require a plan amendment, not a silent edit
 here.
 
+Approved amendment: [C4–C6 evidence design](../superpowers/specs/2026-09-05-c4-c6-public-pages-evidence-design.md), 2026-09-05. The evidence rows below use additive bounded JSON instead of proposed new tables.
+
 ## UI field provenance matrix
 
 Provenance classes follow the donor's vocabulary: `deterministic check` · `provider-documented` · `first-party evidence` · `sampled observation` · `heuristic` · `inference` · `estimate` · `synthetic fixture`. Repeated fields are grouped where one component and one DTO contract cover them.
@@ -15,16 +17,16 @@ Provenance classes follow the donor's vocabulary: `deterministic check` · `prov
 | Check message | fixture bilingual | `CheckResult.message` | `scans.results` | — | deterministic check | **real** | domain-specific, not `check_error` | 3 |
 | Check name / why / action copy | fixture tuples | `lib/checkExplanations.ts` | — | — | static copy | **real** (move to `messages/*`) | i18n parity | 2 |
 | Owner lens grouping | `RepoScanCheck.lens` | — | — | — | static mapping | **new** (derived) | 20/20 mapped | 3 |
-| Evidence excerpt | `RepoScanCheck.evidence` | — | — | `check_evidence.evidence_json` | first-party evidence | **new** | ≤ N bytes; redaction policy | 3 |
-| Evaluated URL | fixture | `baseUrl` (not stored per check) | — | `scan_pages.url` | deterministic check | **new** | equals request after normalisation | 3 |
-| Final redirected URL | — | resolved in fetcher, **discarded** | — | `scan_pages.canonical_url` | deterministic check | **new** | differs from evaluated when redirected | 3 |
-| Fetched-at timestamp | — | — | — | `scan_runs.started_at` | deterministic check | **new** | distinct from `scans.created_at` | 3 |
-| HTTP status + safe headers | — | — | — | `scan_pages.http_status` | provider-documented | **new** | allow-list of headers only | 3 |
-| Check version / scanner version / methodology version | `methodVersion: "1.2-demo"` | `PILLAR_SCORE_VERSION` only | — | `scan_runs.*_version` | deterministic check | **new** | present on every new scan | 0/3 |
-| Pillar score ×3 | `calculatePillarScore` | `calculatePillarScores` | **not persisted** | `results.pillarScores` | deterministic check | **derived → must become real** | snapshot written and read back | 0/3 |
+| Parsed evidence signals | `RepoScanCheck.evidence` | `buildScanEvidence` | `results.evidence.observations` | no new table | sampled observation | **real, bounded JSON** | zero free-text bytes; only parsed booleans/counts/enums and allowlisted header signals | C6 |
+| Evaluated URL descriptor | fixture | origin-normalized `baseUrl` | `results.evidence.evaluated` | no new table | deterministic check | **real** | origin only plus explicit redaction/normalization flags | C6 |
+| Final redirected URL descriptor | — | SSRF-safe fetch boundary | `results.evidence.final` | no new table | sampled observation | **real** | validated final origin, path withheld; never infer from constructed Response.url | C6 |
+| Fetched-at timestamp | — | request-local observer | `results.evidence.observations[].observedAt` | no new table | sampled observation | **real** | collection event time, separate from envelope and row timestamps | C6 |
+| HTTP status + safe headers | — | request-local observer | `results.evidence.observations` | no new table | sampled observation | **real** | parsed MIME, numeric length, valid last-modified time, parsed robots flags; no arbitrary headers | C6 |
+| Check / scanner / methodology versions | `methodVersion: "1.2-demo"` | version registries | `results.evidence` and `results.pillarScores` | no new table | deterministic check | **real** | all 20 check identities retained, unchanged headline method recorded | C6 |
+| Pillar score ×3 | `calculatePillarScore` | `calculatePillarScores` | `results.pillarScores` | — | deterministic check | **real, already persisted** | immutable snapshot written and read back | 0/C6 |
 | Evidence coverage % | `coveragePercent` | — | — | derived | deterministic check | **new** | falls when data missing | 3 |
 | Score gate status | `insufficient_evidence`/`provisional`/`scored` | — | — | derived | deterministic check | **new** | 0.67 / 0.85 thresholds | 3 |
-| Comparison signature | fixture | — | — | `scan_runs` | deterministic check | **new** | equal scope ⇒ equal signature | 5 |
+| Comparison signature | fixture | `buildScanEvidence` | `results.evidence.comparisonSignature` | no new table | deterministic check | **real, no improvement claim** | method/scope equality is necessary but incomplete/redacted evidence is never comparable | C6 |
 | Impact / expected uplift | fixture | `lib/impact.ts` | derived | — | estimate | **real, label Estimated** | never stated as guarantee | 3 |
 | Observed impact | fixture outcome ledger | — | — | outcome windows | sampled observation | **new** | requires recorded delivery | 5 |
 | Entity name / aliases / identifiers | `fixtures.entities` | `clients.brand_name` (partial) | `clients` | brands/products | first-party evidence | **new** | ownership verification | 5 |
@@ -44,3 +46,9 @@ Provenance classes follow the donor's vocabulary: `deterministic check` · `prov
 | Demo-data banner | `ReviewBanner` | — | — | — | review-only | **must not ship** | absent from prod bundle | 2 |
 
 **Static marketing claims, CTAs, and release labels are inventoried separately** and must never be rendered through a data-bound component: comparison/experience/audience sections, `FinalCta`, `PricingPreview`, `IntegrationPreview`, all `publicPages` capability copy, and both legal summaries. Each is copy requiring sign-off (legal for privacy/terms; product for capability claims), not a live field.
+
+## Evidence storage limits and exposure
+
+Evidence v1 is at most 32 KiB serialized UTF-8, with all 20 check records at most 1 KiB each, at most 40 observations and 512 bytes per parsed signal. Optional observations are dropped deterministically and `limited` is explicit. Collection and applicability are independent of pass/warn/fail; provider fallback is not successful collection. `completedPages` and `completedScope` reflect whether a page was actually collected. No top-level `status` is present, preserving existing check-reader compatibility.
+
+The envelope is stored with the existing pillar snapshot in one insert. Insert failure remains non-success. Existing anonymous summaries and outbound webhooks omit evidence. Wrong-owner denial and SSRF-blocked 400 responses remain unchanged, and blocked requests insert no row. Authorized consumers may call the tolerant fail-closed reader; no new consumer or public exposure is introduced.

@@ -73,5 +73,5 @@ export async function checkCitationDensity(
 
   const status = qualityScore >= 30 ? 'pass' : qualityScore >= 15 ? 'warn' : 'fail'
 
-  return { status, message: `citation_density_${status}`, details: `Quality score ${qualityScore}/100`, geoDetails }
+  return { diagnostic: { collection: domainsToScore.length ? 'partial' : 'complete', ...(domainsToScore.length ? { reason: authorityResults.some(r => r.status === 'rejected') ? 'provider-fallback' as const : 'inferred-only' as const } : {}) }, status, message: `citation_density_${status}`, details: `Quality score ${qualityScore}/100`, geoDetails }
 }

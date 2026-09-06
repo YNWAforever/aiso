@@ -7,6 +7,86 @@
     "pricing": {
       "title": "Plans and Pricing | Fimmick AISO",
       "description": "Compare Fimmick AISO plans for website checks, AI visibility monitoring and actionable fixes."
+    },
+    "platform": {
+      "title": "Understand your website. Choose what to improve. | Fimmick AISO",
+      "description": "Bring website readiness, customer questions and sampled AI answers into a practical review workflow. Start with an observation, inspect its limits and decide your next action.",
+      "site-health": {
+        "title": "Find the website issues you can act on. | Fimmick AISO",
+        "description": "Review crawl access, structured information and answer readiness before deciding what to change on your site."
+      },
+      "search-intelligence": {
+        "title": "Build a clearer foundation for search. | Fimmick AISO",
+        "description": "Use website readiness findings to identify technical and content questions worth investigating in your search workflow."
+      },
+      "demand-intelligence": {
+        "title": "Organise the questions your customers ask. | Fimmick AISO",
+        "description": "Use the workspace question bank to develop and review prompts that reflect your customers, services and market."
+      },
+      "brand-product-discovery": {
+        "title": "A clearer picture of your brand and products. | Fimmick AISO",
+        "description": "Planned: a way to organise brand and product information with its source and review status. This capability is not available today."
+      },
+      "ai-visibility": {
+        "title": "Inspect AI answers one sample at a time. | Fimmick AISO",
+        "description": "Pulse helps you review sampled answers to selected questions and see where your brand appears in those observations."
+      },
+      "action-studio": {
+        "title": "Turn a finding into an editable fix. | Fimmick AISO",
+        "description": "Prepare website improvements with the existing Fix tools, then review the output before it reaches your site."
+      },
+      "governed-agents": {
+        "title": "Keep people responsible for agent work. | Fimmick AISO",
+        "description": "Planned: a governed workflow for preparing work within explicit policies and human review boundaries. This capability is not available today."
+      },
+      "proof": {
+        "title": "Make reports easier to scrutinise. | Fimmick AISO",
+        "description": "Use existing scan findings, Pulse observations and client reports to explain what was observed and what still needs verification."
+      }
+    },
+    "solutions": {
+      "title": "A review workflow for the way your team works. | Fimmick AISO",
+      "description": "Start with the same evidence discipline, then adapt the work to your team, clients and review responsibilities.",
+      "sme": {
+        "title": "Give a small team a focused starting point. | Fimmick AISO",
+        "description": "Identify website improvements without losing sight of the time and people needed to implement them."
+      },
+      "agencies": {
+        "title": "Bring a clearer review trail to client work. | Fimmick AISO",
+        "description": "Use client workspaces and report tools to connect an observation with the advice you give a client."
+      },
+      "enterprise": {
+        "title": "Bring website evidence into your existing review process. | Fimmick AISO",
+        "description": "Use focused findings and reviewable outputs alongside the governance practices your organisation already maintains."
+      },
+      "regulated-industries": {
+        "title": "Keep evidence and approval in the same conversation. | Fimmick AISO",
+        "description": "Use website observations as an input to a careful content review, with your own legal and compliance specialists responsible for regulated claims."
+      }
+    },
+    "how-it-works": {
+      "title": "Scan, review, change, check. | Fimmick AISO",
+      "description": "Move from a website observation to a deliberate improvement using a workflow you can explain."
+    },
+    "resources": {
+      "title": "Guides to the capabilities available today. | Fimmick AISO",
+      "description": "Explore the product's website checks, AI answer samples and editable fixes before choosing a workflow."
+    },
+    "contact": {
+      "title": "Prepare a useful product conversation. | Fimmick AISO",
+      "description": "Bring a clear website question, the workflow you need and the constraints your team works under to your existing Fimmick contact."
+    },
+    "security": {
+      "title": "Understand the controls behind the workflow. | Fimmick AISO",
+      "description": "Review the product's source-level access and request controls, then assess whether they meet your use case."
+    },
+    "trust": {
+      "title": "Know what a result can support. | Fimmick AISO",
+      "description": "Trust starts with distinguishing a measurement, a generated suggestion and a claim that still needs evidence."
+    },
+    "integrations": {
+      "title": "Understand where services support the product. | Fimmick AISO",
+      "description": "The application uses external services for authentication, data, AI processing, billing and email. Those dependencies are distinct from integrations you connect yourself."
     }
   },
   "nav": {
@@ -62,7 +142,8 @@
       "privacy": "Privacy",
       "terms": "Terms",
       "contact": "Contact"
-    }
+    },
+    "menu": "Menu"
   },
   "auth": {
     "signing_out": "Signing out…",
@@ -969,5 +1050,238 @@
     "title": "Temporarily unavailable",
     "body": "This feature is being migrated and is not available right now. Everything else in your workspace works normally.",
     "back": "Back to dashboard"
+  },
+  "publicPages": {
+    "common": {
+      "eyebrow": "From observation to a considered next step",
+      "planned": "Planned · not available",
+      "scan": "Start with a website scan",
+      "signIn": "Sign in to your workspace",
+      "actions": "What you can do",
+      "proposed": "Proposed direction",
+      "evidence": "What the evidence tells you",
+      "limitations": "Where the evidence stops",
+      "related": "Explore next"
+    },
+    "platform": {
+      "title": "Understand your website. Choose what to improve.",
+      "summary": "Bring website readiness, customer questions and sampled AI answers into a practical review workflow. Start with an observation, inspect its limits and decide your next action.",
+      "actions": [
+        "Run 20 website checks and review the 100-point headline score alongside individual findings.",
+        "Use your workspace to organise questions, inspect Pulse samples and prepare editable fixes.",
+        "Keep the original finding beside your proposed change so a reviewer can assess both."
+      ],
+      "evidence": "A scan is a dated observation of a single origin page and related checks. Diagnostic pillars overlap; they are views of the findings, not extra points.",
+      "limitations": "A readiness score is not a search ranking or a promise of AI citations. Discovery and governed agents remain planned capabilities."
+    },
+    "platform_site_health": {
+      "title": "Find the website issues you can act on.",
+      "summary": "Review crawl access, structured information and answer readiness before deciding what to change on your site.",
+      "actions": [
+        "Start a website scan to inspect 20 checks across core, extended and GEO signals.",
+        "Read each finding and prioritise a repair that is relevant to your website.",
+        "Review suggested robots.txt, llms.txt and FAQ JSON-LD outputs before applying them yourself."
+      ],
+      "evidence": "The headline score has a maximum of 100 points. It summarises the current checks; individual findings explain the assessment.",
+      "limitations": "Input URLs are normalised to their origin. This is not a crawl of every page, a security audit or proof that an AI provider will use your content."
+    },
+    "platform_search_intelligence": {
+      "title": "Build a clearer foundation for search.",
+      "summary": "Use website readiness findings to identify technical and content questions worth investigating in your search workflow.",
+      "actions": [
+        "Inspect crawl access and page signals in a website scan.",
+        "Separate a technical issue from a hypothesis about discoverability.",
+        "Record the change you intend to make and verify the relevant finding afterwards."
+      ],
+      "evidence": "Current scans assess readiness signals on the evaluated site. They can support a technical review alongside your own search analytics.",
+      "limitations": "Live search rankings, Search Console data and search-volume measurements are not provided by this page. A check result does not establish ranking impact."
+    },
+    "platform_demand_intelligence": {
+      "title": "Organise the questions your customers ask.",
+      "summary": "Use the workspace question bank to develop and review prompts that reflect your customers, services and market.",
+      "actions": [
+        "Review suggested questions and edit them for your audience.",
+        "Group questions by intent and decide which answers your content should support.",
+        "Use selected prompts in the existing Pulse workflow when your plan permits it."
+      ],
+      "evidence": "Question-bank entries describe the prompts your team chooses to investigate. They help make an observation repeatable and explainable.",
+      "limitations": "Suggested questions are not measured search demand. They do not establish market size, popularity or a complete picture of customer needs."
+    },
+    "platform_brand_product_discovery": {
+      "title": "A clearer picture of your brand and products.",
+      "summary": "Planned: a way to organise brand and product information with its source and review status. This capability is not available today.",
+      "actions": [
+        "Keep factual product information distinct from marketing claims.",
+        "Attach a source and review date to each proposed brand fact.",
+        "Resolve conflicting information before using it in public content."
+      ],
+      "evidence": "This page describes a proposed direction. It does not display a live entity record, discovery result or verified product catalogue.",
+      "limitations": "There is no live discovery backend or publishing action here. You can use the existing website scan to review current site readiness."
+    },
+    "platform_ai_visibility": {
+      "title": "Inspect AI answers one sample at a time.",
+      "summary": "Pulse helps you review sampled answers to selected questions and see where your brand appears in those observations.",
+      "actions": [
+        "Choose relevant prompts and the platforms available under your plan.",
+        "Inspect the answer samples and supporting observations for a run.",
+        "Compare the context of different runs before interpreting a change."
+      ],
+      "evidence": "A Pulse result belongs to a particular set of questions and collection conditions. Use the sample context when explaining mentions or omissions.",
+      "limitations": "Samples are not global AI rankings or exhaustive provider coverage. Answers can vary, and a brand mention does not demonstrate a sale or causal uplift."
+    },
+    "platform_action_studio": {
+      "title": "Turn a finding into an editable fix.",
+      "summary": "Prepare website improvements with the existing Fix tools, then review the output before it reaches your site.",
+      "actions": [
+        "Use a scan finding to choose an appropriate fix output.",
+        "Review generated llms.txt, robots.txt patches or FAQ JSON-LD for accuracy and fit.",
+        "Apply approved changes through your own website workflow and check the result."
+      ],
+      "evidence": "An output is a proposed change based on available inputs. Keep the finding and the edited version together during review.",
+      "limitations": "Generated text can be wrong or incomplete. AISO does not autonomously publish these fixes, and generating an output does not prove it was deployed or improved performance."
+    },
+    "platform_governed_agents": {
+      "title": "Keep people responsible for agent work.",
+      "summary": "Planned: a governed workflow for preparing work within explicit policies and human review boundaries. This capability is not available today.",
+      "actions": [
+        "Define which tasks an agent may prepare and which decisions require a person.",
+        "Keep proposed actions, review decisions and external effects distinct.",
+        "Make the supporting evidence visible before approving a change."
+      ],
+      "evidence": "These are design principles for a future capability. Existing workspace assistance is not a live policy or approval engine.",
+      "limitations": "No governed-agent execution, approval queue or autonomous publication is offered here. Existing scans remain available independently."
+    },
+    "platform_proof": {
+      "title": "Make reports easier to scrutinise.",
+      "summary": "Use existing scan findings, Pulse observations and client reports to explain what was observed and what still needs verification.",
+      "actions": [
+        "Review the underlying findings before selecting a report narrative.",
+        "Use the existing client report workflow where your plan permits it.",
+        "Distinguish an observed result from an explanation or a proposed next step."
+      ],
+      "evidence": "A report communicates the records available to it. Dates, scope and missing observations matter when a reader evaluates the conclusion.",
+      "limitations": "A report is not independent certification. A delivery-to-outcome ledger and proven causal uplift are not established by the current report workflow."
+    },
+    "solutions": {
+      "title": "A review workflow for the way your team works.",
+      "summary": "Start with the same evidence discipline, then adapt the work to your team, clients and review responsibilities.",
+      "actions": [
+        "Choose the audience workflow that fits your responsibilities.",
+        "Start with a website scan and identify one practical improvement.",
+        "Agree who reviews the finding and who applies the change."
+      ],
+      "evidence": "The audience pages describe uses of existing scans, questions, fixes and reports. They do not introduce separate product entitlements.",
+      "limitations": "Availability depends on the current plan and feature. An audience label does not imply custom roles, compliance certification or a managed service."
+    },
+    "solutions_sme": {
+      "title": "Give a small team a focused starting point.",
+      "summary": "Identify website improvements without losing sight of the time and people needed to implement them.",
+      "actions": [
+        "Scan your site and select a finding you understand and can change.",
+        "Review the suggested output with your website editor or developer.",
+        "Check the relevant result again after the change and record what remains uncertain."
+      ],
+      "evidence": "The scan provides a starting assessment and individual findings to discuss with the person maintaining your site.",
+      "limitations": "The tool does not replace your website maintainer or guarantee traffic. A higher readiness score is not proof of more customers."
+    },
+    "solutions_agencies": {
+      "title": "Bring a clearer review trail to client work.",
+      "summary": "Use client workspaces and report tools to connect an observation with the advice you give a client.",
+      "actions": [
+        "Review a client's website findings in its workspace.",
+        "Prepare editable fixes and explain the assumptions behind your recommendation.",
+        "Use client reports where available and review the contents before sharing."
+      ],
+      "evidence": "A report can bring current findings and observations into a client conversation. Your review supplies the context needed to interpret them.",
+      "limitations": "Agency use does not imply automatic client approval, publication or verified business impact. Plan limits and existing access rules still apply."
+    },
+    "solutions_enterprise": {
+      "title": "Bring website evidence into your existing review process.",
+      "summary": "Use focused findings and reviewable outputs alongside the governance practices your organisation already maintains.",
+      "actions": [
+        "Choose a website and define the question your team wants to investigate.",
+        "Review findings with the teams responsible for content and implementation.",
+        "Use existing reports as inputs to your internal decision process."
+      ],
+      "evidence": "Scans and reports support a bounded technical discussion. Your organisation determines whether the evidence is sufficient for a release decision.",
+      "limitations": "This page does not promise enterprise role hierarchies, SSO, procurement terms or bespoke controls. Assess current capabilities against your own requirements."
+    },
+    "solutions_regulated_industries": {
+      "title": "Keep evidence and approval in the same conversation.",
+      "summary": "Use website observations as an input to a careful content review, with your own legal and compliance specialists responsible for regulated claims.",
+      "actions": [
+        "Identify which website statements require specialist review.",
+        "Treat generated fixes as drafts and check each claim against approved sources.",
+        "Keep your established review and release process in control of publication."
+      ],
+      "evidence": "The product assesses website readiness signals. It can help organise a technical discussion but does not assess sector-specific legal obligations.",
+      "limitations": "No regulatory compliance, legal suitability or certification is claimed. Do not place confidential or regulated information in prompts without your own approval process."
+    },
+    "how_it_works": {
+      "title": "Scan, review, change, check.",
+      "summary": "Move from a website observation to a deliberate improvement using a workflow you can explain.",
+      "actions": [
+        "Enter your website on the home page and inspect the returned check findings.",
+        "Choose a relevant issue, review the evidence and prepare an editable fix.",
+        "Apply the reviewed change through your own tools, then inspect a later observation in context."
+      ],
+      "evidence": "The 100-point headline summarises 20 checks. Read the detailed findings and collection limits before deciding what the score means for your site.",
+      "limitations": "The scan evaluates an origin page rather than every submitted path. Later observations can differ for reasons beyond your change; they do not alone prove causation."
+    },
+    "resources": {
+      "title": "Guides to the capabilities available today.",
+      "summary": "Explore the product's website checks, AI answer samples and editable fixes before choosing a workflow.",
+      "actions": [
+        "Read Site Health to understand the scope of website checks.",
+        "Read AI Visibility to interpret Pulse samples responsibly.",
+        "Read Action Studio and How It Works before applying a suggested change."
+      ],
+      "evidence": "These guides describe the current product and its limits. Each linked page explains what you can do and what the result cannot establish.",
+      "limitations": "This is a product guide collection, not a research library or an independently validated benchmark. Planned capabilities are labelled on their pages."
+    },
+    "contact": {
+      "title": "Prepare a useful product conversation.",
+      "summary": "Bring a clear website question, the workflow you need and the constraints your team works under to your existing Fimmick contact.",
+      "actions": [
+        "Note the website and the specific finding or capability you want to discuss.",
+        "Record your audience, review responsibilities and any requirements the product must meet.",
+        "If you already work with Fimmick, use your established contact channel; existing users can sign in to review their workspace."
+      ],
+      "evidence": "A scan or workspace finding can give your conversation a concrete starting point. Share only information you are authorised to disclose.",
+      "limitations": "This page does not send a message or create a support ticket. No public contact address, delivery promise or response-time commitment is published here."
+    },
+    "security": {
+      "title": "Understand the controls behind the workflow.",
+      "summary": "Review the product's source-level access and request controls, then assess whether they meet your use case.",
+      "actions": [
+        "Use the authenticated workspace for account-scoped records.",
+        "Keep proposed website changes within your own review and release process.",
+        "Evaluate your data requirements before submitting website details or prompts."
+      ],
+      "evidence": "The application uses server-side authentication and ownership checks for protected records. Website fetches validate public destinations, including redirect hops, to reduce server-side request forgery risk.",
+      "limitations": "Source controls are not independent certification or proof of every deployed setting. This page does not promise penetration-test results, a security SLA or protection against every threat."
+    },
+    "trust": {
+      "title": "Know what a result can support.",
+      "summary": "Trust starts with distinguishing a measurement, a generated suggestion and a claim that still needs evidence.",
+      "actions": [
+        "Read individual check findings alongside the headline score.",
+        "Inspect the context of an AI answer sample before describing visibility.",
+        "Review generated content and keep unverified claims out of public copy."
+      ],
+      "evidence": "Current scans provide 20 check assessments and a 100-point headline. Diagnostic pillars overlap. Pulse provides samples, while Fix outputs are editable proposals.",
+      "limitations": "Readiness does not guarantee rankings, citations or commercial outcomes. This page is not a certification, legal policy or promise that every observation is complete."
+    },
+    "integrations": {
+      "title": "Understand where services support the product.",
+      "summary": "The application uses external services for authentication, data, AI processing, billing and email. Those dependencies are distinct from integrations you connect yourself.",
+      "actions": [
+        "Sign in through the existing authentication journey.",
+        "Review plan availability before using paid workspace capabilities.",
+        "Assess what information a workflow needs before submitting it."
+      ],
+      "evidence": "The source uses Neon for authentication and database access, OpenRouter for AI calls, Stripe for billing and Resend for email. These describe application dependencies.",
+      "limitations": "This is not a connection dashboard. No live provider status, user-connected Search Console account or one-click integration setup is claimed here."
+    }
   }
 }
