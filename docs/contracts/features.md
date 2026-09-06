@@ -44,3 +44,7 @@ Status: `live` · `partial` · `fixture` · `roadmap` · `absent`.
 | GSC / Bing / IndexNow / analytics / logs / CMS | absent | release-state catalogue | roadmap | 6 |
 | Bilingual en / zh-HK | live (883 leaf keys each) | hard-coded tuples | port to `messages/*` | 2 |
 | Agency portfolio | partial | fixture | port-onto-data | 4 |
+
+## C9a amendment — 2026-09-06
+
+Private entity organizational records and aliases are implemented locally for existing owned clients, one canonical brand record per client. Public discovery/verified entities, products/sub-entities, new approval roles, delivery attestations and outcome attribution remain outside this vertical. Migration040 is authored locally; no live feature availability is inferred before migration/activation approval.

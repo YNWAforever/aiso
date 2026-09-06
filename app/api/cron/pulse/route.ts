@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
     } catch {
       console.error('[cron/pulse] pending-client lookup failed')
       const payload = { error: 'Lookup failed' }
-      await finishCronRun(runId, 'ok', payload)
+      await finishCronRun(runId, 'error', payload)
       return NextResponse.json(payload, { status: 503 })
     }
 
@@ -117,14 +117,14 @@ export async function GET(req: NextRequest) {
         // the same error. The next firing retries it from the same derived cursor.
         console.error(`[cron/pulse] producer returned ${res.status} for ${target.clientId}`)
         const payload = { error: 'Producer failed', status: res.status, clientId: target.clientId }
-        await finishCronRun(runId, 'ok', payload)
+        await finishCronRun(runId, 'error', payload)
         return NextResponse.json(payload, { status: 502 })
       }
       result = await res.json()
     } catch {
       console.error('[cron/pulse] producer call failed')
       const payload = { error: 'Producer unreachable' }
-      await finishCronRun(runId, 'ok', payload)
+      await finishCronRun(runId, 'error', payload)
       return NextResponse.json(payload, { status: 502 })
     }
 

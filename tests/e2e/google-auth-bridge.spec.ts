@@ -55,7 +55,13 @@ test.describe('top-level Google auth bridge', () => {
       }),
     )
 
+    const failedRequest = page.waitForResponse(response =>
+      response.request().method() === 'POST'
+      && new URL(response.url()).pathname.endsWith('/sign-in/social')
+      && response.status() === 400,
+    )
     await page.goto('/en/auth/google?next=%2Fen%2Fdashboard')
+    await failedRequest
 
     await expect(page.locator('main [role="alert"]')).toHaveText(
       'Could not start Google sign-in in this window.',

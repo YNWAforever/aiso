@@ -922,7 +922,8 @@
     "nav_home": "Home",
     "nav_home_desc": "Observations, evidence and next steps",
     "workspace_navigation": "Workspace navigation",
-    "toggle_navigation": "Toggle workspace navigation"
+    "toggle_navigation": "Toggle workspace navigation",
+    "entity": "Brand identity"
   },
   "reports": {
     "create_client_report": "Create client report",
@@ -1494,5 +1495,27 @@
     "loadFailed": "Alert settings could not be loaded. Try again.",
     "saveFailed": "Alert settings were not confirmed as saved. Your changes are still here; try again.",
     "retry": "Try again"
+  },
+  "entities": {
+    "title": "Brand identity",
+    "description": "Keep one private brand identity for this client. These names are unverified and do not change your brand name or scanner results.",
+    "privateLabel": "Private workspace",
+    "unverified": "Unverified",
+    "unsaved": "Unsaved draft",
+    "saved": "Saved privately",
+    "displayName": "Display name",
+    "aliases": "Aliases",
+    "aliasesHelp": "One alias per line. Up to 20 aliases, with up to 120 characters per name.",
+    "save": "Save identity",
+    "saving": "Saving…",
+    "reload": "Discard draft and reload latest",
+    "reloading": "Reloading…",
+    "conflict": "Someone saved a newer version. Your draft is kept. Reload the latest version before saving again; reloading discards this draft.",
+    "saveError": "We could not save your changes. Your draft is kept. Please try saving again.",
+    "loadError": "We could not load this identity. Please retry.",
+    "retry": "Retry",
+    "invalid": "Enter a display name and up to 20 aliases. Each name must be 1–120 characters without control characters.",
+    "unauthenticated": "Your session has ended. Sign in again to continue. Your draft is kept here.",
+    "unavailable": "This client is no longer available. Your draft has not been saved."
   }
 }

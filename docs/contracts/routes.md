@@ -85,3 +85,7 @@ Target actions: `reuse` · `restyle` · `port-onto-data` · `adapter` · `new-ap
 **`aiso` routes with no donor counterpart** — all `reuse` unchanged unless noted: `/{loc}/onboarding` (restyle, Phase 4), `/{loc}/auth/{logout,complete,google}` (reuse — `AuthComplete` is load-bearing), `/{loc}/admin/authority` (reuse), `/admin` (reuse, stays outside `[lang]`), `app/robots.ts` / `app/sitemap.ts` (**must be revised in Phase 2** — new public routes need sitemap entries and the donor's blanket `noindex` must not leak).
 
 **Undocumented behaviours to preserve or replace deliberately:** donor `worker/index.ts` returns HTTP **410** for `/r/revoked` and `/r/expired` with a bilingual body disclosing no report content. `aiso` has `app/[lang]/r/[slug]/not-found.tsx`. Decide explicitly whether a revoked report is 404 or 410 — 410 is the more honest signal and is already the donor's choice.
+
+## C9a amendment — 2026-09-06
+
+New private entity page: /[lang]/dashboard/[clientId]/entities. New GET/PUT /api/clients/[clientId]/entity. Both require independent authentication and owned client lookup; no public route or cross-tenant admin bypass. GET is read-only; PUT uses the approved revisioned entity contract. Entity absence is distinct from an unavailable database/missing migration. Existing routes and aliases are unchanged.
