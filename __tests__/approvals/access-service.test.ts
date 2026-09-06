@@ -3,7 +3,7 @@ import { readLimitedJson, approvalErrorResponse } from '@/lib/approvals/request'
 import { changeApproverAccess, getApproverAccess } from '@/lib/approvals/access-service'
 const mocks = vi.hoisted(() => ({ guard: vi.fn(), mutate: vi.fn(), list: vi.fn() }))
 vi.mock('@/lib/admin-guard', () => ({ requireApiAdmin: mocks.guard }))
-vi.mock('@/lib/approvals/access-store', () => ({ mutateApproverAccess: mocks.mutate, listApproverAccess: mocks.list }))
+vi.mock('@/lib/approvals/access-store', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/approvals/access-store')>()), mutateApproverAccess: mocks.mutate, listApproverAccess: mocks.list }))
 beforeEach(() => vi.resetAllMocks())
 describe('bounded approval requests', () => {
   it('counts whitespace bytes and cancels overflow', async () => {
@@ -69,4 +69,29 @@ it('maps store outcomes with safe codes and parses normalized input',async()=>{
  expect(mocks.mutate.mock.calls[0][2].reason).toBe('Réason')
  mocks.mutate.mockRejectedValue(new Error('database secret'))
  expect((await changeApproverAccess(account,new Request('http://local',{method:'POST',body:JSON.stringify(input)}))).status).toBe(503)
+})
+
+it.each([['created',201],['replayed',200]] as const)('returns %s mutation status %i without caching',async(kind,status)=>{
+ mocks.guard.mockResolvedValue({ok:true,profile:{id:'11111111-1111-4111-8111-111111111111'}})
+ mocks.mutate.mockResolvedValue({kind,value:{id:'event'}})
+ const input={profileId:'33333333-3333-4333-8333-333333333333',action:'grant',reason:'Reason',expectedRevision:0,requestId:'44444444-4444-4444-8444-444444444444'}
+ const result=await changeApproverAccess('22222222-2222-4222-8222-222222222222',new Request('http://local',{method:'POST',body:JSON.stringify(input)}))
+ expect(result.status).toBe(status);expect(await result.json()).toEqual({id:'event'})
+ expect(result.headers.get('Cache-Control')).toBe('no-store')
+})
+it('returns authorized GET200 with real parsed query and no-store',async()=>{
+ mocks.guard.mockResolvedValue({ok:true,profile:{id:'11111111-1111-4111-8111-111111111111'}})
+ const value={members:[],events:[],nextMemberCursor:null,nextEventCursor:null}
+ mocks.list.mockResolvedValue({kind:'created',value})
+ const result=await getApproverAccess('22222222-2222-4222-8222-222222222222',new URLSearchParams('limit=2'))
+ expect(result.status).toBe(200);expect(await result.json()).toEqual(value)
+ expect(result.headers.get('Cache-Control')).toBe('no-store')
+ expect(mocks.list).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222',{limit:2,memberCursor:null,eventCursor:null})
+})
+it('marks guard denials and all helper errors no-store',async()=>{
+ mocks.guard.mockResolvedValue({ok:false,response:Response.json({error:'Unauthorized'},{status:401})})
+ expect((await getApproverAccess('bad',new URLSearchParams())).headers.get('Cache-Control')).toBe('no-store')
+ for(const code of ['APPROVAL_BODY_TOO_LARGE','INVALID_APPROVAL_INPUT','INVALID_CHANGE_SET_INPUT','secret']){
+  expect(approvalErrorResponse(new Error(code)).headers.get('Cache-Control')).toBe('no-store')
+ }
 })

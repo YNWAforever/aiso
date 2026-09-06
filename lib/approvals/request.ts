@@ -31,10 +31,11 @@ export async function readLimitedJson(request: Request, limit: number): Promise<
 }
 
 export function approvalErrorResponse(error: unknown): Response {
+  const headers = { 'Cache-Control': 'no-store' }
   const code = error instanceof Error ? error.message : ''
-  if (code === 'APPROVAL_BODY_TOO_LARGE') return Response.json({ error: code }, { status: 413 })
+  if (code === 'APPROVAL_BODY_TOO_LARGE') return Response.json({ error: code }, { status: 413, headers })
   if (code === 'INVALID_APPROVAL_INPUT' || code === 'INVALID_CHANGE_SET_INPUT') {
-    return Response.json({ error: code }, { status: 400 })
+    return Response.json({ error: code }, { status: 400, headers })
   }
-  return Response.json({ error: 'APPROVAL_UNAVAILABLE' }, { status: 503 })
+  return Response.json({ error: 'APPROVAL_UNAVAILABLE' }, { status: 503, headers })
 }
