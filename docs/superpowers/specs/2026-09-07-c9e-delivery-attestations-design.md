@@ -1,6 +1,6 @@
 # C9e: approved-version exports and manual delivery attestations
 
-Date: 2026-09-07. Status: manual delivery approach approved in conversation; this detailed written specification awaits user review. No C9e implementation, migration application or external execution is claimed.
+Date: 2026-09-07. Status: manual delivery approach and detailed written specification approved in conversation on 2026-09-07. No C9e implementation, migration application or external execution is claimed.
 
 Baseline: `12ec30d23654d9c8206d80935a1b7173647fd1d8` (C9d documentation checkpoint; tested application fix `95b8566`). PR #18 is open against `codex/c8c-g-workspace` at inspection. Design branch: `codex/c9e-delivery-design`, using the existing isolated `.worktrees/c9b-c9c` checkout. Preserve the published C9d branch, the original root checkout and its untracked continuation plan. Do not merge PR #18 as part of design work.
 
