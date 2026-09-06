@@ -8,15 +8,16 @@ import { EvidenceDetails } from './EvidenceDetails'
 export function OpportunityWorkspace({
   clientId,
   initial,
-}: {
-  clientId: string
-  initial: OpportunityResponse
-}) {
+  initialError,
+}: { clientId: string } & (
+  | { initial: OpportunityResponse; initialError?: never }
+  | { initial: null; initialError: 'unavailable' }
+)) {
   const t = useTranslations('opportunities'),
     locale = useLocale() === 'zh-HK' ? 'zh-HK' : 'en'
   const [data, setData] = useState(initial),
     [refreshing, setRefreshing] = useState(false),
-    [loadError, setLoadError] = useState(false)
+    [loadError, setLoadError] = useState(Boolean(initialError))
   const [view, setView] = useState<'suggestions' | 'drafts'>('suggestions'),
     [items, setItems] = useState<WorkItem[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
@@ -171,14 +172,17 @@ export function OpportunityWorkspace({
       }
       const item = result.item as WorkItem
       remember(item)
-      setData((old) => ({
-        ...old,
-        suggestions: old.suggestions.map((row) =>
-          row.key === suggestion.key
-            ? { ...row, savedState: 'saved', savedDraftId: item.id }
-            : row,
-        ),
-      }))
+      setData(
+        (old) =>
+          old && {
+            ...old,
+            suggestions: old.suggestions.map((row) =>
+              row.key === suggestion.key
+                ? { ...row, savedState: 'saved', savedDraftId: item.id }
+                : row,
+            ),
+          },
+      )
       setView('drafts')
       setStatus(t('draftSaved'))
     } catch {
@@ -230,19 +234,23 @@ export function OpportunityWorkspace({
       >
         <div className="space-y-2 rounded-xl border border-border bg-card p-4">
           <p>{t('window')}</p>
-          <p>
-            {t('week')}: {data.window.pulseWeek ?? t('noWeek')}
-          </p>
-          {data.window.pulseTruncated && <p>{t('pulseTruncated')}</p>}
-          {data.partial && <p>{t('partial')}</p>}
-          <p>
-            {t('pulse')}: {t(`sourceStates.${data.sourceStates.pulse}`)}
-          </p>
-          <p>
-            {t('scan')}: {t(`sourceStates.${data.sourceStates.scan}`)}
-          </p>
-          {data.savedDraftsState === 'unavailable' && (
-            <p>{t('savedUnknown')}</p>
+          {data && (
+            <>
+              <p>
+                {t('week')}: {data.window.pulseWeek ?? t('noWeek')}
+              </p>
+              {data.window.pulseTruncated && <p>{t('pulseTruncated')}</p>}
+              {data.partial && <p>{t('partial')}</p>}
+              <p>
+                {t('pulse')}: {t(`sourceStates.${data.sourceStates.pulse}`)}
+              </p>
+              <p>
+                {t('scan')}: {t(`sourceStates.${data.sourceStates.scan}`)}
+              </p>
+              {data.savedDraftsState === 'unavailable' && (
+                <p>{t('savedUnknown')}</p>
+              )}
+            </>
           )}
           <button
             className={button}
@@ -251,16 +259,18 @@ export function OpportunityWorkspace({
           >
             {refreshing ? t('loadingSuggestions') : t('refresh')}
           </button>
-          {loadError && <p role="alert">{t('loadError')}</p>}
+          {loadError && (
+            <p role="alert">{t(data ? 'loadError' : 'initialLoadError')}</p>
+          )}
         </div>
-        {data.suggestions.length === 0 && (
+        {data && data.suggestions.length === 0 && (
           <p>
             {Object.values(data.sourceStates).includes('unavailable')
               ? t('noAvailableSuggestions')
               : t('empty')}
           </p>
         )}
-        {data.suggestions.map((suggestion) => (
+        {data?.suggestions.map((suggestion) => (
           <article
             key={suggestion.key}
             className="min-w-0 space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6"

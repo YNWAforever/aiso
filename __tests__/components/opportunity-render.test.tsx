@@ -6,14 +6,19 @@ import { initial, clientId, scanSuggestion } from './c9c-fixtures'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 import { writeC9cFixture } from './c9c-fixture-writer'
-export const htmlFor = (lang: string, data = initial) =>
+export const htmlFor = (lang: string, data: typeof initial | null = initial) =>
   renderToString(
     <NextIntlClientProvider
       timeZone="UTC"
       locale={lang}
       messages={lang === 'en' ? en : zh}
     >
-      <OpportunityWorkspace clientId={clientId} initial={data} />
+      <OpportunityWorkspace
+        clientId={clientId}
+        {...(data
+          ? { initial: data }
+          : { initial: null, initialError: 'unavailable' as const })}
+      />
     </NextIntlClientProvider>,
   )
 describe('opportunity rendering', () => {
@@ -87,5 +92,11 @@ afterAll(() =>
     '@/components/opportunities/OpportunityWorkspace',
     { clientId, initial },
     htmlFor,
+    {
+      unavailable: {
+        props: { clientId, initial: null, initialError: 'unavailable' },
+        html: (lang) => htmlFor(lang, null),
+      },
+    },
   ),
 )

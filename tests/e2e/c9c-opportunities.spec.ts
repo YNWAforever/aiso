@@ -7,7 +7,12 @@ import type { WorkItem } from '@/lib/work-items/schema'
 import type { OpportunityResponse } from '@/lib/opportunities/types'
 type Copy = typeof en.opportunities
 const errors = new WeakMap<Page, string[]>()
-async function fixture(page: Page, lang: string, slice = 'C9C') {
+async function fixture(
+  page: Page,
+  lang: string,
+  slice = 'C9C',
+  unavailable = false,
+) {
   const dir = process.env[`${slice}_HTML_DIR`],
     css = process.env[`${slice}_CSS_PATH`]
   if (!dir || !css) throw new Error('C9c fixture paths are required')
@@ -24,7 +29,10 @@ async function fixture(page: Page, lang: string, slice = 'C9C') {
   const draft = JSON.parse(
     readFileSync(`${draftDir}/${lang}-data.json`, 'utf8'),
   ).item as WorkItem
-  const html = readFileSync(`${dir}/${lang}-default.html`, 'utf8'),
+  const html = readFileSync(
+      `${dir}/${lang}-${unavailable ? 'unavailable' : 'default'}.html`,
+      'utf8',
+    ),
     js = readFileSync(`${dir}/fixture.js`, 'utf8'),
     style = readFileSync(css, 'utf8')
   const pageErrors: string[] = []
@@ -47,6 +55,87 @@ test.afterEach(({ page }) => {
   expect(errors.get(page) ?? []).toEqual([])
 })
 for (const lang of ['en', 'zh-HK']) {
+  test(`C9c initial source failure preserves saved draft editing and explicit retry in ${lang}`, async ({
+    page,
+  }) => {
+    const { copy, data, draft } = await fixture(page, lang, 'C9C', true)
+    await expect(page.getByRole('alert')).toHaveText(copy.initialLoadError)
+    await expect(page.getByText(copy.empty, { exact: true })).toHaveCount(0)
+    let sourceReads = 0,
+      writes = 0
+    await page.route('**/api/clients/*/opportunities', (route) => {
+      sourceReads++
+      return route.fulfill(
+        sourceReads === 1
+          ? { status: 503, json: { error: 'OPPORTUNITIES_UNAVAILABLE' } }
+          : { json: data.initial },
+      )
+    })
+    await page.route('**/api/clients/*/work-items', (route) =>
+      route.fulfill({ json: { items: [draft], nextCursor: null } }),
+    )
+    await page.route('**/api/clients/*/work-items/*', (route) => {
+      if (route.request().method() === 'GET')
+        return route.fulfill({ json: { item: draft } })
+      writes++
+      expect(route.request().postDataJSON()).toEqual({
+        title: 'Edited during outage',
+        action: draft.action,
+        notes: draft.notes,
+        expectedRevision: draft.revision,
+      })
+      return route.fulfill({
+        json: {
+          item: {
+            ...draft,
+            title: 'Edited during outage',
+            revision: draft.revision + 1,
+          },
+        },
+      })
+    })
+    await page
+      .getByRole('button', { name: copy.savedDrafts, exact: true })
+      .click()
+    await page.getByRole('button', { name: draft.title, exact: true }).click()
+    await expect(page.getByLabel(copy.titleField, { exact: true })).toHaveValue(
+      draft.title,
+    )
+    await page
+      .getByLabel(copy.titleField, { exact: true })
+      .fill('Edited during outage')
+    await page
+      .getByRole('button', { name: copy.saveChanges, exact: true })
+      .click()
+    await expect(
+      page.getByRole('status').filter({ hasText: copy.changesSaved }),
+    ).toBeVisible()
+    expect(writes).toBe(1)
+    expect(sourceReads).toBe(0)
+    await expect(
+      page.getByText('Original title', { exact: true }),
+    ).toBeVisible()
+    await page
+      .getByRole('button', { name: copy.suggestions, exact: true })
+      .click()
+    await page.getByRole('button', { name: copy.refresh, exact: true }).click()
+    await expect(page.getByRole('alert')).toHaveText(copy.initialLoadError)
+    await expect(page.getByText(copy.empty, { exact: true })).toHaveCount(0)
+    await page.getByRole('button', { name: copy.refresh, exact: true }).click()
+    await expect(page.getByRole('alert')).toHaveCount(0)
+    await expect(
+      page
+        .getByRole('region', { name: copy.suggestions, exact: true })
+        .getByText(copy.pulseWhy, { exact: true }),
+    ).toBeVisible()
+    expect(sourceReads).toBe(2)
+    await page
+      .getByRole('button', { name: copy.savedDrafts, exact: true })
+      .click()
+    await expect(page.getByLabel(copy.titleField, { exact: true })).toHaveValue(
+      'Edited during outage',
+    )
+  })
   test(`C9c selected save, duplicate protection, focus and retained source in ${lang}`, async ({
     page,
   }) => {
@@ -68,7 +157,10 @@ for (const lang of ['en', 'zh-HK']) {
       await gate
       await route.fulfill({ status: 201, json: { item: draft } })
     })
-    const save = page.getByRole('button', { name: copy.saveDraft, exact: true })
+    const save = page.getByRole('button', {
+      name: copy.saveDraft,
+      exact: true,
+    })
     await save.focus()
     await page.keyboard.press('Enter')
     await expect(
@@ -112,7 +204,10 @@ for (const lang of ['en', 'zh-HK']) {
       gets++
       return route.fulfill({ json: data.initial })
     })
-    const save = page.getByRole('button', { name: copy.saveDraft, exact: true })
+    const save = page.getByRole('button', {
+      name: copy.saveDraft,
+      exact: true,
+    })
     await save.click()
     await expect(page.getByRole('alert')).toHaveText(copy.saveError)
     await expect(page.getByText(copy.pulseWhy, { exact: true })).toBeVisible()

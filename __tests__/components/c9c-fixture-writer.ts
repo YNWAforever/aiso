@@ -9,6 +9,10 @@ export async function writeC9cFixture(
   module: string,
   props: object,
   html: (lang: string) => string,
+  variants: Record<
+    string,
+    { props: object; html: (lang: string) => string }
+  > = {},
 ) {
   const dir = process.env[`${slice}_HTML_DIR`]
   if (!dir) return
@@ -24,6 +28,15 @@ export async function writeC9cFixture(
       join(dir, `${lang}-default.html`),
       `<div id="root">${html(lang)}</div><script id="fixture-props" type="application/json">${JSON.stringify({ props, messages, lang }).replace(/</g, '\\u003c')}</script>`,
     )
+  }
+  for (const [name, variant] of Object.entries(variants)) {
+    for (const lang of ['en', 'zh-HK']) {
+      const messages = lang === 'en' ? en : zh
+      writeFileSync(
+        join(dir, `${lang}-${name}.html`),
+        `<div id="root">${variant.html(lang)}</div><script id="fixture-props" type="application/json">${JSON.stringify({ props: variant.props, messages, lang }).replace(/</g, '\\u003c')}</script>`,
+      )
+    }
   }
   const entry = join(resolve(dir), 'entry.tsx')
   writeFileSync(
