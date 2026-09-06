@@ -159,6 +159,21 @@ describe('serializeDraftSnapshot', () => {
   ])('rejects mismatched rule and evidence identity: %s', (_name, value) => {
     expect(() => serializeDraftSnapshot(value as DraftSnapshotV1)).toThrow(TypeError)
   })
+  it.each([
+    ['Pulse question mismatch', () => ({ ...snapshot(), args: { question: 'Different?', platform: 'chatgpt' } })],
+    ['Pulse platform mismatch', () => ({ ...snapshot(), args: { question: 'Example?', platform: 'other' } })],
+    ['scan check key mismatch', () => scanSnapshot({ checkKey: 'c2_llms_txt', assessment: 'warn' })],
+    ['scan assessment mismatch', () => scanSnapshot({ checkKey: 'c1_robots', assessment: 'fail' })],
+    ['scan ineligible applicability', () => { const value = scanSnapshot(); if (value.evidence.kind === 'scan-check') value.evidence.check.applicability = 'not-verifiable'; return value }],
+    ['scan incomplete collection', () => { const value = scanSnapshot(); if (value.evidence.kind === 'scan-check') value.evidence.check.collection = 'partial'; return value }],
+    ['scan selected-check version mismatch', () => { const value = scanSnapshot(); if (value.evidence.kind === 'scan-check') value.evidence.check.version = 'forged.v1'; return value }],
+    ['scan duplicated method mismatch', () => { const value = scanSnapshot(); if (value.evidence.kind === 'scan-check') value.evidence.comparison.pillarMethod = 'other.v1'; return value }],
+    ['scan evaluated-origin mismatch', () => { const value = scanSnapshot(); if (value.evidence.kind === 'scan-check') value.evidence.comparison.evaluatedOrigin = 'https://other.example'; return value }],
+    ['scan limitations mismatch', () => { const value = scanSnapshot(); value.limitations = ['different']; return value }],
+    ['Pulse limitations mismatch', () => ({ ...snapshot(), limitations: ['different'] })],
+  ])('rejects inconsistent generated arguments and evidence: %s', (_name, build) => {
+    expect(() => serializeDraftSnapshot(build() as DraftSnapshotV1)).toThrow(TypeError)
+  })
   it('rejects fields outside the snapshot allowlist, including raw answers', () => {
     const safe = snapshot()
     const unsafe = { ...safe, evidence: { ...safe.evidence, rawAnswer: 'secret answer' } }

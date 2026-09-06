@@ -22,6 +22,9 @@ function assertStringArray(value: unknown, maximumItems: number, maximumCharacte
   }
 }
 
+function sameStrings(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index])
+}
 function assertRuleArgs(snapshot: DraftSnapshotV1): void {
   if (snapshot.ruleVersion === 'pulse-brand-absent.v1') {
     assertAllowedKeys(snapshot.args, ['question', 'platform'], 'Pulse rule arguments')
@@ -96,6 +99,8 @@ function assertSnapshotAllowlist(snapshot: DraftSnapshotV1): void {
       throw new TypeError('Pulse snapshot evidence contains invalid scalar values')
     }
     assertStringArray(evidence.limitations, 40, 160, 'Pulse evidence limitations')
+    if (snapshot.args.question !== evidence.question || snapshot.args.platform !== evidence.platform
+      || !sameStrings(snapshot.limitations, evidence.limitations)) throw new TypeError('Pulse rule arguments do not match evidence')
     return
   }
 
@@ -111,6 +116,11 @@ function assertSnapshotAllowlist(snapshot: DraftSnapshotV1): void {
     throw new TypeError('Scan snapshot evidence contains invalid scalar values')
   }
   assertAllowedKeys(evidence.check, ['applicability', 'version', 'collection', 'assessment', 'reason'], 'scan check evidence')
+  if (snapshot.args.checkKey !== evidence.checkKey || snapshot.args.assessment !== evidence.check.assessment
+    || evidence.check.applicability !== 'applicable' || evidence.check.collection !== 'complete'
+    || !['warn', 'fail'].includes(evidence.check.assessment) || evidence.check.version !== CHECK_VERSIONS[evidence.checkKey]) {
+    throw new TypeError('Scan rule arguments and selected check must describe the same eligible evidence')
+  }
   if (!APPLICABILITY.includes(evidence.check.applicability) || !validNormalizedString(evidence.check.version, 80)
     || !COLLECTION_STATES.includes(evidence.check.collection) || !ASSESSMENTS.includes(evidence.check.assessment)
     || (evidence.check.reason !== undefined && !CHECK_REASONS.includes(evidence.check.reason))) throw new TypeError('Invalid scan check evidence')
@@ -126,7 +136,13 @@ function assertSnapshotAllowlist(snapshot: DraftSnapshotV1): void {
     || !validNormalizedString(evidence.comparison.headlineMethod, 80) || !validNormalizedString(evidence.comparison.pillarMethod, 80)) throw new TypeError('Invalid scan comparison evidence')
   assertAllowedKeys(evidence.comparison.checkVersions, Object.keys(CHECK_VERSIONS), 'scan check versions')
   if (Object.keys(evidence.comparison.checkVersions).length !== Object.keys(CHECK_VERSIONS).length
-    || Object.values(evidence.comparison.checkVersions).some(value => !validNormalizedString(value, 80))) throw new TypeError('Invalid scan check versions')
+    || Object.entries(CHECK_VERSIONS).some(([key, version]) => evidence.comparison.checkVersions[key as keyof typeof CHECK_VERSIONS] !== version)) throw new TypeError('Invalid scan check versions')
+  if (evidence.scannerVersion !== evidence.comparison.scannerVersion
+    || evidence.headlineMethod !== evidence.comparison.headlineMethod
+    || evidence.pillarMethod !== evidence.comparison.pillarMethod
+    || evidence.evaluated.origin !== evidence.comparison.evaluatedOrigin
+    || (evidence.final?.origin ?? null) !== evidence.comparison.finalOrigin
+    || !sameStrings(snapshot.limitations, evidence.limitations)) throw new TypeError('Scan snapshot provenance fields are inconsistent')
   for (const observation of evidence.observations) {
     assertAllowedKeys(observation, ['observedAt', 'provenance', 'collection', 'target', 'httpStatus', 'signals', 'check'], 'scan observation evidence')
     if (!validNullableString(observation.observedAt, 40) || ![null, 'validated-fetch'].includes(observation.provenance)

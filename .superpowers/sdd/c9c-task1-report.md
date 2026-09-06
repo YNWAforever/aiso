@@ -131,3 +131,31 @@ No schema decision was missing for this bounded safe-snapshot contract. The exis
 - `node .superpowers/sdd/local-run.cjs node_modules/typescript/bin/tsc --noEmit` — exited 0 with no diagnostics.
 
 Self-review found no remaining nested plain-object position in `DraftSnapshotV1` that bypasses an expected scalar, string-array, or explicit nested-object validator. Stored recommendation derivation remains deferred.
+
+## Snapshot consistency follow-up (2026-09-06)
+
+### RED
+
+`node node_modules/vitest/vitest.mjs run __tests__/opportunities/fingerprint.test.ts`
+
+The requested regressions produced 7 failed / 40 passed: Pulse question/platform mismatches, scan check-key/assessment mismatches, ineligible applicability, incomplete collection, and selected-check version mismatch were all accepted. The bounded relation audit added duplicated method, evaluated-origin, and Pulse/scan limitation mismatch cases; the combined RED result was 11 failed / 40 passed.
+
+### Fix
+
+- Pulse `args.question` and `args.platform` must exactly equal the normalized evidence question/platform.
+- Scan `args.checkKey` and `args.assessment` must exactly equal the selected evidence check.
+- The selected scan check must be applicable, complete, warn/fail, and use `CHECK_VERSIONS[evidence.checkKey]`.
+- Source/rule/translation-key/evidence identity remains bound from the prior fix.
+- Top-level limitations must equal evidence limitations in order.
+- Duplicated scanner, headline, and pillar methods must equal their comparison values; evaluated/final origins must equal comparison origins.
+- The complete comparison check-version map must equal `CHECK_VERSIONS`.
+
+No missing schema decision was found. Initial localized title/action cannot be recomputed in this pure module without translation resources; their bounded normalized scalar validation remains here, while later save service construction owns localization. This is an existing planned boundary, not an unresolved consistency relation in the source evidence fingerprint.
+
+### GREEN
+
+- `node node_modules/vitest/vitest.mjs run __tests__/opportunities/fingerprint.test.ts __tests__/opportunities/rules.test.ts` — 2 files passed, 67 tests passed, 0 failed.
+- `node .superpowers/sdd/local-run.cjs node_modules/next/dist/bin/next typegen` — route types generated successfully.
+- `node .superpowers/sdd/local-run.cjs node_modules/typescript/bin/tsc --noEmit` — exited 0 with no diagnostics.
+
+Bounded self-review covered every duplicated source/rule/key/evidence relation represented in `DraftSnapshotV1`. Stored recommendation derivation remains deferred.
