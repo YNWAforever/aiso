@@ -30,10 +30,13 @@ async function fixture(
       body: `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>Review fixture</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>${readFileSync(css, 'utf8')}</style></head><body>${readFileSync(dir + '/' + lang + '-' + variant + '.html', 'utf8')}<script>${readFileSync(dir + '/fixture.js', 'utf8')}</script></body></html>`,
     }),
   )
+  await page.route('**/versions/*/delivery', route => route.fulfill({ json: { events: [], activeAttestationId: null, nextCursor: null, capabilities: { canExport: false, canAttest: false, canWithdraw: false, attestReason: 'not_approved', withdrawReason: 'no_active_attestation' } } }))
   await page.goto(`https://review.fixture/${lang}`)
   await page.waitForFunction(() =>
     Boolean((window as Window & { c9cFixtureReady?: boolean }).c9cFixtureReady),
   )
+  const delivery = page.locator('section[aria-label]').filter({ has: page.getByRole('heading', { name: lang === 'en' ? 'Manual delivery' : '手動交付', exact: true }) })
+  if (await delivery.count()) await expect(delivery).toHaveAttribute('aria-busy', 'false')
   const messages = lang === 'en' ? en : zh
   expect(
     JSON.parse(readFileSync(dir + '/' + lang + '-copy.json', 'utf8')),

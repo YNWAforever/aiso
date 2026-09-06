@@ -13,7 +13,7 @@ export async function writeC9cFixture(
     string,
     { props: object; html: (lang: string) => string }
   > = {},
-  namespace: 'opportunities' | 'changeSets' | 'approverAccess' = 'opportunities',
+  namespace: 'opportunities' | 'changeSets' | 'approverAccess' | 'delivery' = 'opportunities',
 ) {
   const dir = process.env[`${slice}_HTML_DIR`]
   if (!dir) return

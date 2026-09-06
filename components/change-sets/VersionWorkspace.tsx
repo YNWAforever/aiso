@@ -1,10 +1,11 @@
 'use client'
-import { useRef, useState, type FormEvent } from 'react'
+import { useCallback, useRef, useState, type FormEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { WorkItem } from '@/lib/work-items/schema'
 import type { VersionDetail, VersionSummary } from '@/lib/change-sets/types'
 import { VersionDetails } from './VersionDetails'
 import { DecisionForm } from './DecisionForm'
+import { DeliveryWorkspace } from '@/components/delivery/DeliveryWorkspace'
 export type VersionPageDTO = {
   versions: VersionSummary[]
   nextCursor: string | null
@@ -35,8 +36,15 @@ export function VersionWorkspace({
     [status, setStatus] = useState(''),
     [busy, setBusy] = useState(false),
     [dirty, setDirty] = useState(false)
-  const dirtyRef = useRef(false),
-    versionReadGeneration = useRef(0)
+  const [deliveryDirty, setDeliveryDirty] = useState(false)
+  const decisionDirtyRef = useRef(false), deliveryDirtyRef = useRef(false)
+  const dirtyRef = useRef(false), versionReadGeneration = useRef(0)
+  const anyDirty = dirty || deliveryDirty
+  const deliveryDirtyChange = useCallback((next: boolean) => {
+    deliveryDirtyRef.current = next
+    dirtyRef.current = decisionDirtyRef.current || next
+    setDeliveryDirty(next)
+  }, [])
   const lock = useRef(false),
     statusRef = useRef<HTMLParagraphElement>(null)
   const base = `/api/clients/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(workItemId)}`,
@@ -77,7 +85,7 @@ export function VersionWorkspace({
   }
   async function submit(e: FormEvent) {
     e.preventDefault()
-    if (!draft || dirty) return
+    if (!draft || dirtyRef.current) return
     await run(async () => {
       setStatus('')
       const res = await fetch(endpoint, {
@@ -193,7 +201,7 @@ export function VersionWorkspace({
             <p className="whitespace-pre-wrap break-words">{draft.action}</p>
             <p className="whitespace-pre-wrap break-words">{draft.notes}</p>
             <form onSubmit={submit}>
-              <button className={button} disabled={busy || dirty} type="submit">
+              <button className={button} disabled={busy || anyDirty} type="submit">
                 {t('submitVersion')}
               </button>
             </form>
@@ -216,7 +224,7 @@ export function VersionWorkspace({
             <li key={v.id}>
               <button
                 className={button}
-                disabled={busy || dirty}
+                disabled={busy || anyDirty}
                 aria-pressed={selected?.id === v.id}
                 onClick={() => select(v.id)}
               >
@@ -229,7 +237,7 @@ export function VersionWorkspace({
         {page?.nextCursor && (
           <button
             className={button}
-            disabled={busy || dirty}
+            disabled={busy || anyDirty}
             onClick={() => history(true)}
           >
             {t('moreVersions')}
@@ -243,6 +251,7 @@ export function VersionWorkspace({
             version={selected}
             latestVersionId={page?.latestVersionId ?? null}
           />
+          <DeliveryWorkspace key={selected.id + selected.contentHash} clientId={clientId} version={selected} onDirtyChange={deliveryDirtyChange} />
           {(dirty ||
             (!selected.decision && selected.capabilities.canDecide)) && (
             <DecisionForm
@@ -252,7 +261,8 @@ export function VersionWorkspace({
                 endpoint + '/' + encodeURIComponent(selected.id) + '/decision'
               }
               onDirty={(next) => {
-                dirtyRef.current = next
+                decisionDirtyRef.current = next
+                dirtyRef.current = next || deliveryDirtyRef.current
                 setDirty(next)
               }}
               onCompleted={(value) => {
