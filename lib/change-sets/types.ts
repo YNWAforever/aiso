@@ -68,3 +68,7 @@ export type VersionSummary = {
 export type VersionDetail = VersionSummary & ReviewContent & {
   validation: ValidationResult
 }
+
+export type StoreResult<T> =
+  | { kind: 'created' | 'replayed'; value: T }
+  | { kind: 'not_found' | 'denied' | 'conflict' | 'validation_failed' }
