@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
+import { buildScanEvidence } from '@/lib/scan-evidence'
 import type { DraftSnapshotV1 } from '@/lib/opportunities/types'
+import { deriveSuggestions } from '@/lib/opportunities/rules'
 import type { WorkItem } from '@/lib/work-items/schema'
-import { freezeReview } from '@/lib/change-sets/validation'
+import { assertReviewPackageSize, freezeReview } from '@/lib/change-sets/validation'
 
 vi.mock('server-only', () => ({}))
 
@@ -36,6 +38,45 @@ function item(overrides: Partial<WorkItem> = {}): WorkItem {
   }
 }
 
+function scanEvidence(): DraftSnapshotV1 {
+  const envelope = buildScanEvidence({
+    requestedUrl: 'https://example.com', evaluatedUrl: 'https://example.com',
+    industry: 'technology', region: 'HK', sitemapSource: 'fetched',
+    checks: { c1_robots: { assessment: 'warn', collection: 'complete' } },
+    observations: [{ check: 'page', collection: 'complete', httpStatus: 200, target: { origin: 'https://example.com' } }],
+  })
+  const suggestion = deriveSuggestions({ kind: 'scan-check', scanId: ID, recordedAt: null, envelope })[0]
+  if (suggestion.evidence.kind !== 'scan-check') throw new Error('expected scan suggestion')
+  return {
+    schemaVersion: 1, source: suggestion.source, ruleVersion: suggestion.ruleVersion,
+    evidence: suggestion.evidence, limitations: suggestion.limitations,
+    titleKey: suggestion.titleKey, actionKey: suggestion.actionKey, args: suggestion.args,
+    locale: 'en', initialTitle: 'Review check', initialAction: 'Review the recorded check.',
+  }
+}
+
+function evidenceAroundLimit(): { below: DraftSnapshotV1; above: DraftSnapshotV1 } {
+  const base = evidence()
+  const limitations = Array.from({ length: 40 }, (_, index) => `${index}`.padStart(3, '0') + '😀'.repeat(157))
+  let below: DraftSnapshotV1 | null = null
+  for (let emojiCount = 0; emojiCount <= 4_000; emojiCount += 1) {
+    const candidate = {
+      ...base, limitations,
+      evidence: { ...base.evidence, limitations },
+      initialAction: '😀'.repeat(emojiCount) + 'a'.repeat(4_000 - emojiCount),
+    }
+    const bytes = new TextEncoder().encode(JSON.stringify(candidate)).byteLength
+    if (bytes < 65_536) below = candidate
+    else if (below !== null) return { below, above: candidate }
+  }
+  throw new Error('could not construct evidence boundary fixtures')
+}
+
+function payloadAtFormattedSize(target: number): unknown {
+  const overhead = new TextEncoder().encode(JSON.stringify({ payload: '' }, null, 2)).byteLength
+  return { payload: 'x'.repeat(target - overhead) }
+}
+
 describe('freezeReview', () => {
   it('freezes only review content and records deterministic passing validation', () => {
     expect(freezeReview(item())).toMatchObject({
@@ -64,6 +105,12 @@ describe('freezeReview', () => {
     expect(frozen.content.evidenceSnapshot.args.question).toBe('Example?')
   })
 
+  it('freezes the released scan-check-gap source', () => {
+    const frozen = freezeReview(item({ evidenceSnapshot: scanEvidence() }))
+    expect(frozen.content.evidenceSnapshot.ruleVersion).toBe('scan-check-gap.v1')
+    expect(frozen.validation.checks.find((check) => check.code === 'evidence')).toEqual({ code: 'evidence', status: 'pass' })
+  })
+
   it('changes the hash for title or revision changes', () => {
     const original = freezeReview(item()).contentHash
     expect(freezeReview(item({ title: 'Another title' })).contentHash).not.toBe(original)
@@ -88,10 +135,24 @@ describe('freezeReview', () => {
     expect(String(failure)).not.toContain('secret')
   })
 
-  it('accepts evidence at the independent 64 KiB boundary and a package below 128 KiB', () => {
+  it('keeps maximum existing text fields below the independent 128 KiB package limit', () => {
     const frozen = freezeReview(item({
       title: 'x'.repeat(160), action: 'x'.repeat(4_000), notes: 'x'.repeat(8_000),
     }))
     expect(new TextEncoder().encode(JSON.stringify(frozen.content)).byteLength).toBeLessThanOrEqual(131_072)
+  })
+
+  it('accepts evidence immediately below 65536 bytes and rejects it immediately above', () => {
+    const { below, above } = evidenceAroundLimit()
+    expect(new TextEncoder().encode(JSON.stringify(below)).byteLength).toBeLessThan(65_536)
+    expect(new TextEncoder().encode(JSON.stringify(above)).byteLength).toBeGreaterThan(65_536)
+    expect(() => freezeReview(item({ evidenceSnapshot: below }))).not.toThrow()
+    expect(() => freezeReview(item({ evidenceSnapshot: above }))).toThrow('REVIEW_VALIDATION_FAILED')
+  })
+
+  it('independently enforces the formatted 131072-byte review package ceiling', () => {
+    expect(() => assertReviewPackageSize(payloadAtFormattedSize(131_071))).not.toThrow()
+    expect(() => assertReviewPackageSize(payloadAtFormattedSize(131_072))).not.toThrow()
+    expect(() => assertReviewPackageSize(payloadAtFormattedSize(131_073))).toThrow('REVIEW_VALIDATION_FAILED')
   })
 })

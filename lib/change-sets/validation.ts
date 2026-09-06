@@ -22,6 +22,10 @@ function conservativeJsonBytes(value: unknown): number {
   return new TextEncoder().encode(serialized).byteLength
 }
 
+export function assertReviewPackageSize(value: unknown): void {
+  if (conservativeJsonBytes(value) > REVIEW_CONTENT_LIMIT) validationFailed()
+}
+
 export function freezeReview(item: WorkItem): FrozenReview {
   try {
     if (item.locale !== 'en' && item.locale !== 'zh-HK') validationFailed()
@@ -45,7 +49,7 @@ export function freezeReview(item: WorkItem): FrozenReview {
       locale: item.locale,
       evidenceSnapshot,
     }
-    if (conservativeJsonBytes(content) > REVIEW_CONTENT_LIMIT) validationFailed()
+    assertReviewPackageSize(content)
 
     const validation: ValidationResult = {
       policyVersion: 'change-set-review.v1',
