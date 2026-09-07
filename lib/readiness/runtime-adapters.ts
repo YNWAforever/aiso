@@ -142,7 +142,8 @@ export function createRuntimePorts(dependencies: RuntimeDependencies): ProbePort
           signal.throwIfAborted()
           const issuer = new URL(env.NEON_AUTH_BASE_URL ?? '')
           if (issuer.protocol !== 'https:' || issuer.username || issuer.password || issuer.search || issuer.hash || !/^\/[A-Za-z0-9_-]+\/auth\/?$/.test(issuer.pathname)) throw new Error('Invalid issuer')
-          const url = id === 'auth.jwks' ? new URL(`${issuer.href.replace(/\/$/, '')}/jwks`) : new URL('/api/auth/get-session', candidateUrl()!)
+          // Neon Auth exposes managed public signing keys at this canonical path: https://raw.githubusercontent.com/neondatabase/website/main/content/docs/auth/guides/plugins/jwt.md
+          const url = id === 'auth.jwks' ? new URL(`${issuer.href.replace(/\/$/, '')}/.well-known/jwks.json`) : new URL('/api/auth/get-session', candidateUrl()!)
           const headers: Record<string, string> = { accept: 'application/json' }
           if (id === 'auth.anonymous_session' && env.VERCEL_AUTOMATION_BYPASS_SECRET) headers['x-vercel-protection-bypass'] = env.VERCEL_AUTOMATION_BYPASS_SECRET
           response = await fetcher(url, { method: 'GET', headers, credentials: 'omit', redirect: 'manual', signal })

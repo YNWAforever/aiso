@@ -20,7 +20,7 @@ function fixture(overrides: Record<string, string | undefined> = {}, rows = iden
     return batch.map(q => q.text.includes('jsonb_to_recordset') ? policy.relations.flatMap((r, policyIndex) => r.privileges.map(privilege => ({ ...rows, policy_index: policyIndex, privilege, present: true, permitted: true }))) : q.text.includes('current_setting') ? [rows] : [])
   })
   const neonFactory = vi.fn(() => ({ transaction })) as unknown as typeof neon
-  const publicFetcher = vi.fn(async (url: string | URL | Request) => Response.json(String(url).endsWith('/jwks') ? { keys: [{ kty: 'RSA' }] } : null))
+  const publicFetcher = vi.fn(async (url: string | URL | Request) => Response.json(String(url).endsWith('/.well-known/jwks.json') ? { keys: [{ kty: 'RSA' }] } : null))
   const ports = createRuntimePorts({ env: { ...env, ...overrides }, now: () => 1000, neonFactory, publicFetcher })
   return { ports, queries, transaction, neonFactory, publicFetcher }
 }
@@ -59,7 +59,7 @@ describe('runtime adapters', () => {
   })
   it('does not forward readiness or protection credentials to issuer', async () => {
     const f = fixture({ READINESS_PROBE_SECRET: 'sentinel', VERCEL_AUTOMATION_BYPASS_SECRET: 'protection' }); await f.ports.auth(policy, signal())
-    expect(f.publicFetcher.mock.calls[0][0].toString()).toBe('https://issuer.example/neondb/auth/jwks')
+    expect(f.publicFetcher.mock.calls[0][0].toString()).toBe('https://issuer.example/neondb/auth/.well-known/jwks.json')
     expect(JSON.stringify(f.publicFetcher.mock.calls[0])).not.toContain('protection')
     expect(JSON.stringify(f.publicFetcher.mock.calls)).not.toContain('sentinel')
   })
@@ -108,7 +108,7 @@ it('propagates cancellation to the SDK and maps statement timeout safely', async
 })
 it.each([401, 302])('rejects candidate HTTP %s and cancels the response', async status => {
   const f = fixture(); const cancel = vi.fn()
-  f.publicFetcher.mockImplementation(async url => String(url).endsWith('/jwks') ? Response.json({ keys: [{ kty: 'RSA' }] }) : new Response(new ReadableStream({ cancel }), { status }))
+  f.publicFetcher.mockImplementation(async url => String(url).endsWith('/.well-known/jwks.json') ? Response.json({ keys: [{ kty: 'RSA' }] }) : new Response(new ReadableStream({ cancel }), { status }))
   const result = await f.ports.auth(policy, signal()); expect(JSON.stringify(result)).toContain('unavailable'); expect(cancel).toHaveBeenCalledOnce()
 })
 it('rejects anonymous session data and oversized bodies', async () => {
