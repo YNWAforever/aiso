@@ -118,16 +118,13 @@ describe('configuration readiness', () => {
   })
 
   it.each([
-    'postgresql://aeo%ZZ_app:fake-password@db.fixture.invalid/neondb',
-    'postgresql://aeo_app:fake-password@db.fixture.invalid/neo%ZZdb',
-  ])('fails malformed percent encoding without throwing', (databaseUrl) => {
+    ['postgresql://aeo%ZZ_app:fake-password@db.fixture.invalid/neondb', 'binding.connection_role'],
+    ['postgresql://aeo_app:fake-password@db.fixture.invalid/neo%ZZdb', 'binding.connection_database'],
+  ])('fails malformed percent encoding without throwing', (databaseUrl, checkId) => {
     expect(() => validateConfiguration({ ...validEnv, DATABASE_URL: databaseUrl }, policy)).not.toThrow()
 
     const checks = validateConfiguration({ ...validEnv, DATABASE_URL: databaseUrl }, policy)
-    expect([
-      status(checks, 'binding.connection_role'),
-      status(checks, 'binding.connection_database'),
-    ]).toContain('fail')
+    expect(status(checks, checkId)).toBe('fail')
   })
 
   it('does not suppress required AI configuration', () => {

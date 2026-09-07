@@ -13,10 +13,56 @@ export type ReleasePolicy = {
   capabilities: Record<Capability, CapabilityPolicy>
 }
 
+export const configurationCheckIds = [
+  'config.DATABASE_URL',
+  'config.NEON_AUTH_BASE_URL',
+  'config.NEON_AUTH_COOKIE_SECRET',
+  'config.PUBLIC_SCAN_RATE_LIMIT_SECRET',
+  'config.NEXT_PUBLIC_APP_URL',
+  'config.VERCEL',
+  'config.REPORT_SHARE_SECRET',
+  'config.OPENROUTER_API_KEY',
+  'config.STRIPE_SECRET_KEY',
+  'config.STRIPE_WEBHOOK_SECRET',
+  'config.STRIPE_PRICE_BASIC',
+  'config.STRIPE_PRICE_PRO',
+  'config.STRIPE_PRICE_ENTERPRISE',
+  'config.RESEND_API_KEY',
+  'config.RESEND_FROM_EMAIL',
+  'config.RESEND_TRIAL_FROM_EMAIL',
+  'config.CRON_SECRET',
+  'binding.EXPECTED_NEON_PROJECT_ID',
+  'binding.EXPECTED_NEON_BRANCH_ID',
+  'binding.EXPECTED_DB_ROLE',
+  'binding.EXPECTED_DB_NAME',
+  'binding.connection_role',
+  'binding.connection_database',
+  'binding.forbidden_target',
+  ...capabilityNames.map((name) => `capability.${name}` as const),
+] as const
+
+export const configurationCheckStatuses = ['pass', 'fail', 'unknown'] as const
+export const configurationCheckCodes = [
+  'valid',
+  'invalid',
+  'missing',
+  'expectation_mismatch',
+  'application_role_required',
+  'database_mismatch',
+  'forbidden_target',
+  'required',
+  'verified-disabled',
+  'unknown',
+] as const
+
+export type ConfigurationCheckId = (typeof configurationCheckIds)[number]
+export type ConfigurationCheckStatus = (typeof configurationCheckStatuses)[number]
+export type ConfigurationCheckCode = (typeof configurationCheckCodes)[number]
+
 export type ConfigCheck = {
-  id: string
-  status: 'pass' | 'fail' | 'unknown'
-  code: string
+  id: ConfigurationCheckId
+  status: ConfigurationCheckStatus
+  code: ConfigurationCheckCode
 }
 
 type Env = Readonly<Record<string, string | undefined>>
@@ -83,13 +129,13 @@ function safeDecode(value: string): string | undefined {
 export function validateConfiguration(env: Env, policy: ReleasePolicy): ConfigCheck[] {
   const checks: ConfigCheck[] = []
   const value = (key: string) => (env[key] ?? '').trim()
-  const add = (id: string, valid: boolean, code: string) => {
+  const add = (id: ConfigurationCheckId, valid: boolean, code: ConfigurationCheckCode) => {
     checks.push({ id, status: valid ? 'pass' : 'fail', code: valid ? 'valid' : code })
   }
   const checkRules = (rules: Record<string, Rule>) => {
     for (const [key, rule] of Object.entries(rules)) {
       const candidate = value(key)
-      add(`config.${key}`, rule(candidate), candidate ? 'invalid' : 'missing')
+      add(`config.${key}` as ConfigurationCheckId, rule(candidate), candidate ? 'invalid' : 'missing')
     }
   }
 
@@ -102,7 +148,7 @@ export function validateConfiguration(env: Env, policy: ReleasePolicy): ConfigCh
     EXPECTED_DB_NAME: policy.expected.database,
   }
   for (const [key, target] of Object.entries(expected)) {
-    add(`binding.${key}`, Boolean(target.trim()) && value(key) === target, 'expectation_mismatch')
+    add(`binding.${key}` as ConfigurationCheckId, Boolean(target.trim()) && value(key) === target, 'expectation_mismatch')
   }
 
   let parsed: URL | undefined
