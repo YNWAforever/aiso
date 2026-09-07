@@ -102,6 +102,19 @@ test('does not let identical item and version IDs under another requested client
   expect(mocks.read).toHaveBeenCalledWith({ ...scope, clientId: otherClientId })
 })
 
+test.each([
+  ['denied', 403, 'OUTCOMES_DENIED'],
+  ['not_found', 404, 'OUTCOMES_NOT_FOUND'],
+] as const)('binds identical client/item/version IDs to a second session account before mapping %s', async (kind, status, code) => {
+  const otherAccountId = '123e4567-e89b-42d3-a456-426614174010'
+  mocks.profile.mockResolvedValue({ id: actorId, account_id: otherAccountId, is_admin: true })
+  mocks.read.mockResolvedValue({ kind })
+
+  await expectError(await getOutcomes(request(), params), status, code)
+
+  expect(mocks.read).toHaveBeenCalledWith({ ...scope, accountId: otherAccountId })
+})
+
 test('returns a parsed server-generated DTO with private no-store caching', async () => {
   const response = await getOutcomes(request(), params)
   expect(response.status).toBe(200)
