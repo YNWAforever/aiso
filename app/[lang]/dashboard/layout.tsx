@@ -27,19 +27,15 @@ export default async function DashboardLayout({
   // the id from useParams instead, which works because it renders inside the
   // route rather than above it.
 
-  let unreadCount = 0
+  let unreadCount: number | null = null
   try {
     const rows = await db()`
       select count(*)::int as n from notifications
       where account_id = ${profile.account_id} and read = false
     `
-    unreadCount = rows[0]?.n ?? 0
+    unreadCount = rows[0]?.n ?? null
   } catch (error) {
-    // Non-critical -- the bell shows 0 rather than breaking the page. But a
-    // silent catch here means a future regression in this query (a typo'd
-    // column, a broken index) would sit invisible forever: the count always
-    // reads 0 and nothing distinguishes that from "genuinely no unread
-    // notifications." Logging is the only signal anyone gets.
+    // Keep a failed lookup distinct from a confirmed zero unread count.
     console.error('[dashboard] unread notification count failed:', error)
   }
 
@@ -48,11 +44,11 @@ export default async function DashboardLayout({
       {entitlement.source === 'trial' && trial.isTrial && !trial.isExpired && (
         <TrialBanner daysRemaining={trial.daysRemaining} lang={lang} />
       )}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
         <DashboardSidebar profile={profile} entitlement={entitlement} />
-        <div className="flex-1 flex flex-col overflow-auto">
+        <div className="flex-1 min-w-0 w-full flex flex-col overflow-auto">
           <header className="flex justify-end px-6 py-3 border-b border-border">
-            <NotificationBell initialCount={unreadCount} />
+            <NotificationBell key={unreadCount ?? 'unknown'} initialCount={unreadCount} lang={lang} />
           </header>
           {children}
         </div>

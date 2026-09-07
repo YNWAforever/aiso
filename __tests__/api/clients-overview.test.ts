@@ -1,15 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const queries: string[] = []
+const bindings: unknown[][] = []
 let nextResults: unknown[][] = []
 
-const mockSql = vi.fn((strings: TemplateStringsArray) => {
+const mockSql = vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => {
+  bindings.push(values)
   queries.push(strings.join('?'))
   const result = nextResults.shift()
   if (result instanceof Error) throw result
   return Promise.resolve(result ?? [])
 })
 
+vi.mock('server-only', () => ({}))
 vi.mock('@/lib/db', () => ({ db: () => mockSql }))
 vi.mock('@/lib/auth', () => ({ getProfile: vi.fn() }))
 
@@ -29,6 +32,7 @@ function ctx(clientId = 'client-1') {
 describe('GET /api/clients/[clientId]/overview', () => {
   beforeEach(() => {
     queries.length = 0
+    bindings.length = 0
     nextResults = []
     vi.mocked(getProfile).mockReset()
   })
@@ -65,6 +69,30 @@ describe('GET /api/clients/[clientId]/overview', () => {
       expect(q).toContain('client_id')
       expect(q).toContain('account_id')
     }
+  })
+
+  it('redacts paid agent fields for a cancelled account before querying them', async () => {
+    vi.mocked(getProfile).mockResolvedValue({ ...PROFILE, accounts: { plan: 'enterprise', status: 'cancelled' } } as never)
+    nextResults = [[{ brand_name: 'Acme' }], [{ id: 'scan-a', results: {}, score: 30, created_at: '2026-09-01' }], [], [], []]
+    const res = await GET(request(), ctx())
+    expect(res.status).toBe(200)
+    const dto = await res.json()
+    expect(dto.recommendations).toEqual([])
+    expect(dto.progress).toEqual([])
+    expect(dto.competitors).toEqual([])
+    expect(queries.some(q => /from agent_/.test(q))).toBe(false)
+    expect(bindings[0]).toEqual(['client-1', 'acc-1'])
+  })
+
+  it('binds recommendation query ownership and platform allow-list for Basic', async () => {
+    vi.mocked(getProfile).mockResolvedValue({ ...PROFILE, accounts: { plan: 'basic', status: 'active', stripe_subscription_id: 'sub' } } as never)
+    nextResults = [[{ brand_name: 'Acme' }], [{ id: 'scan-a', results: {}, score: 30, created_at: '2026-09-01' }], [], [], [], [{ platform: 'gemini' }, { platform: 'gpt4o', recommendation: 'FORBIDDEN' }]]
+    const res = await GET(request(), ctx())
+    const dto = await res.json()
+    expect(dto.recommendations).toEqual([{ platform: 'gemini' }])
+    expect(JSON.stringify(dto)).not.toContain('FORBIDDEN')
+    const index = queries.findIndex(q => q.includes('from agent_recommendations'))
+    expect(bindings[index]).toEqual(['scan-a', 'client-1', 'acc-1', ['gemini']])
   })
 
   it('returns 500 instead of an empty 200 when a query fails', async () => {

@@ -1,6 +1,17 @@
 import { db } from '@/lib/db'
+import { sanitizeDatabaseError } from '@/lib/observability/database-error'
 
 export type CronRunStatus = 'ok' | 'error'
+
+function logLedgerFailure(operation: 'start' | 'finish', error: unknown): void {
+  const diagnostic = sanitizeDatabaseError(error, { correlationId: crypto.randomUUID(), route: `/cron-ledger/${operation}` })
+  console.error({
+    event: 'cron_ledger_write_failed',
+    operation,
+    correlationId: diagnostic.correlationId,
+    database: { code: diagnostic.code, category: diagnostic.category },
+  })
+}
 
 /**
  * Insert the start row for a cron invocation and return its id.
@@ -19,7 +30,7 @@ export async function startCronRun(route: string): Promise<string | null> {
     `
     return (rows[0]?.id as string | undefined) ?? null
   } catch (err) {
-    console.error(`[cron-ledger] could not record start for ${route}:`, err)
+    logLedgerFailure('start', err)
     return null
   }
 }
@@ -46,6 +57,6 @@ export async function finishCronRun(
        where id = ${id}
     `
   } catch (err) {
-    console.error(`[cron-ledger] could not record completion for ${id}:`, err)
+    logLedgerFailure('finish', err)
   }
 }

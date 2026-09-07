@@ -1,0 +1,11 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "aiso-cron-worker",
+  "account_id": "e387dfbeded3deb5b8f0023a78a660b5",
+  "main": "../cron-worker/src/index.ts",
+  "compatibility_date": "2026-08-22",
+  "workers_dev": false,
+  "preview_urls": false,
+  "vars": { "APP_BASE_URL": "https://aiso-kappa.vercel.app" },
+  "triggers": { "crons": [] }
+}

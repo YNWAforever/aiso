@@ -83,7 +83,7 @@ export async function GET(req: Request) {
       }
     }
 
-    await finishCronRun(runId, 'ok', { sent, failed })
+    await finishCronRun(runId, failed > 0 ? 'error' : 'ok', { sent, failed })
     return Response.json({ sent, failed }, { status: failed > 0 ? 502 : 200 })
   } catch (err) {
     await finishCronRun(runId, 'error', undefined, err instanceof Error ? err.message : String(err))

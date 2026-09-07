@@ -25,8 +25,8 @@ export default {
     })
 
     if (!res.ok) {
-      // Throwing lets Cloudflare's automatic retry apply — all three downstream
-      // routes are idempotent, so a retry is safe.
+      // Propagate the failed attempt; this Worker does not implement retries.
+      // Trial emails can resend after a successful send followed by a failed write.
       throw new Error(`[cron-worker] ${path} responded ${res.status}`)
     }
   },

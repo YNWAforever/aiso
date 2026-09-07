@@ -85,3 +85,62 @@ Target actions: `reuse` · `restyle` · `port-onto-data` · `adapter` · `new-ap
 **`aiso` routes with no donor counterpart** — all `reuse` unchanged unless noted: `/{loc}/onboarding` (restyle, Phase 4), `/{loc}/auth/{logout,complete,google}` (reuse — `AuthComplete` is load-bearing), `/{loc}/admin/authority` (reuse), `/admin` (reuse, stays outside `[lang]`), `app/robots.ts` / `app/sitemap.ts` (**must be revised in Phase 2** — new public routes need sitemap entries and the donor's blanket `noindex` must not leak).
 
 **Undocumented behaviours to preserve or replace deliberately:** donor `worker/index.ts` returns HTTP **410** for `/r/revoked` and `/r/expired` with a bilingual body disclosing no report content. `aiso` has `app/[lang]/r/[slug]/not-found.tsx`. Decide explicitly whether a revoked report is 404 or 410 — 410 is the more honest signal and is already the donor's choice.
+
+## C9a amendment — 2026-09-06
+
+New private entity page: /[lang]/dashboard/[clientId]/entities. New GET/PUT /api/clients/[clientId]/entity. Both require independent authentication and owned client lookup; no public route or cross-tenant admin bypass. GET is read-only; PUT uses the approved revisioned entity contract. Entity absence is distinct from an unavailable database/missing migration. Existing routes and aliases are unchanged.
+
+## C9b amendment — 2026-09-06
+
+`/[lang]/dashboard/[clientId]/observations` and `GET /api/clients/[clientId]/observations` are implemented as a private, read-only evidence view. The page and service authenticate independently. The service binds every read to `profile.account_id`; a missing or foreign client is the same `404 CLIENT_NOT_FOUND`, unauthenticated access is `401 UNAUTHENTICATED`, invalid bounded input is `400 INVALID_OBSERVATION_QUERY`, and a failed source read is `503 OBSERVATIONS_UNAVAILABLE` rather than a successful empty result. Responses use `Cache-Control: no-store`; GET performs no write, provider call, scheduler action or prompt mutation.
+
+The query accepts optional `promptId`, `platform`, `week`, `result`, `limit` and `cursor`. `promptId` and cursor IDs are UUIDs; platform is 1–80 Unicode codepoints; week is a valid ISO calendar date; result is `success | incomplete`; limit defaults to 50 and is capped at 100. A cursor is accepted only with an explicit week and carries the descending `(recordedAt,id)` position. Omitted week resolves once to the latest of at most 40 retained metric weeks and the client pins the returned `selectedWeek` for later requests.
+## C9c amendment — 2026-09-06
+
+`/[lang]/dashboard/[clientId]/opportunities` is the authenticated bilingual workspace. `GET /api/clients/[clientId]/opportunities` is read-only and returns `OpportunityResponse`; it performs no provider call or write. The page and API authenticate independently and every source/read mapping is restricted by `account_id` and `client_id`. Invalid client IDs use `400 INVALID_OPPORTUNITY_QUERY`; unauthenticated requests use `401 UNAUTHENTICATED`; a missing or foreign client uses the same `404 CLIENT_NOT_FOUND`; all-source failure uses `503 OPPORTUNITIES_UNAVAILABLE`. Partial source or saved-mapping failure remains a `200` with explicit DTO state. Responses are `Cache-Control: no-store`.
+
+`POST /api/clients/[clientId]/work-items` accepts exactly `{source,ruleVersion,fingerprint,locale}` with `source` exactly `{kind,id}` for `pulse-metric` or `{kind,id,checkKey}` for `scan-check`. `locale` is `en | zh-HK`; recommendation source and `stored-recommendation.v1` are rejected. The streamed body cap is 4 KiB independent of `Content-Length`. It replays an existing owned draft before a live-source lookup; otherwise it re-reads owned evidence and atomically verifies ownership and exact source values before insertion. It returns `{item}` with `201` for a new row and `200` for replay. Errors are `400 INVALID_WORK_ITEM_INPUT`, `401 UNAUTHENTICATED`, `404 CLIENT_NOT_FOUND`, `409 EVIDENCE_CHANGED`, or `503 WORK_ITEMS_UNAVAILABLE`.
+
+`GET /api/clients/[clientId]/work-items` returns `{items,nextCursor}` in descending `(createdAt,id)` order. `limit` defaults to 50 and is capped at 100; `cursor` is a validated lossless timestamp/UUID pair. `GET /api/clients/[clientId]/work-items/[workItemId]` returns `{item}`. Missing and foreign items share `404 WORK_ITEM_NOT_FOUND`; unavailable reads use `503 WORK_ITEMS_UNAVAILABLE`.
+
+`PATCH /api/clients/[clientId]/work-items/[workItemId]` accepts exactly `{title,action,notes,expectedRevision}` and has a 32 KiB streamed-body cap. It performs an account/client/item revision compare-and-swap. A successful edit increments revision; an identical normalized retry at an older revision replays the stored item; differing stale or future revisions return `409 WORK_ITEM_CONFLICT`. It cannot change source, evidence snapshot, locale or status. All successful and error responses are no-store.
+
+## C9d immutable review API — 2026-09-07
+
+| Method and route | Scope and request | Success |
+|---|---|---|
+| `GET /api/clients/[clientId]/work-items/[workItemId]/versions` | Authenticated member; owned client/item; only `limit` (default 20, max 50) and opaque `cursor` | `200` summaries, `nextCursor`, `latestVersionId` |
+| `POST` same `/versions` | Same ownership; exactly `{expectedRevision}`; server freezes saved draft | `201` new; `200` identical replay |
+| `GET .../versions/[versionId]` | Same ownership; immutable retained version | `200 {version}` |
+| `POST .../versions/[versionId]/decision` | Current account approver, independent of submitter; exactly `{decision,reason,requestId}` | `201` terminal decision; `200` identical replay |
+| `GET /api/admin/accounts/[accountId]/approvers` | Independently authenticated current platform admin; `limit`, `memberCursor`, `eventCursor` | `200` bounded members, grants and audit events |
+| `POST` same `/approvers` | Same admin check; exactly `{profileId,action,reason,expectedRevision,requestId}` | `201` event; `200` identical replay |
+
+Routes return service responses directly and expose only these GET/POST methods; immutable records have no PATCH/DELETE route. Every response is `Cache-Control: no-store`. Services authenticate before disclosure, query parsing or body parsing. Callers cannot supply account, actor, admin status, role, hash, validation or timestamps. Actual streamed limits are 4 KiB for submission and 16 KiB for decision/access mutation; overflow is `413 CHANGE_SET_BODY_TOO_LARGE` or `413 APPROVAL_BODY_TOO_LARGE`.
+
+Stable change-set errors are `400 INVALID_CHANGE_SET_INPUT`, `401 UNAUTHENTICATED`, `403 CHANGE_SET_DENIED`, `404 CHANGE_SET_NOT_FOUND`, `409 CHANGE_SET_CONFLICT`, `413 CHANGE_SET_BODY_TOO_LARGE`, `422 CHANGE_SET_VALIDATION_FAILED`, and `503 CHANGE_SET_UNAVAILABLE`. Approver errors preserve the admin guard's `401`/`403`, plus `400 INVALID_APPROVAL_INPUT` or `APPROVAL_VALIDATION_FAILED`, `403 APPROVAL_DENIED`, `404 APPROVAL_NOT_FOUND`, `409 APPROVAL_CONFLICT`, `413 APPROVAL_BODY_TOO_LARGE`, and `503 APPROVAL_UNAVAILABLE`. Raw exceptions are never returned.
+
+## C9e delivery API amendment — 2026-09-07
+
+All endpoints below use the prefix `/api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]`. Thin Next16 handlers await promised path parameters and return the authenticated delivery service Response unchanged. Each operation independently authenticates; account and actor derive only from the session. Current members can act on owned resources; platform-admin status does not bypass ownership. Existing C9c/C9d routes are unchanged.
+
+| Method and suffix | Strict input | Successful response |
+| --- | --- | --- |
+| GET `/export` | Optional single `format=json|text`, default json; no other or duplicate query keys | 200 immutable approved package attachment, including historical approved versions |
+| GET `/delivery` | Optional single `limit` (default 20,max 50), `cursor` (opaque validated timestamp/UUID); no other or duplicate query keys | 200 `{events,activeAttestationId,capabilities,nextCursor}` |
+| POST `/delivery` | Exactly `{contentHash,destination,deliveredAt,note,requestId}` | `{event}`; 201 created, 200 exact owned replay |
+| POST `/delivery/[attestationId]/withdraw` | Exactly `{reason,requestId}` | `{event}`; 201 created, 200 exact owned replay |
+
+All path/request IDs are validated UUIDs. Both mutations count a maximum 16384 actual streamed bytes, including whitespace, irrespective of Content-Length; invalid UTF8, malformed JSON and extra fields fail closed. Destination is plain text, never fetched. Text and time field details are in the C9e fields contract.
+
+Export responds with `Content-Disposition: attachment; filename="delivery-<versionUUID>.json"` (or `.txt`), `application/json; charset=utf-8` (or `text/plain; charset=utf-8`), `X-Aiso-Export-Sha256`, `X-Content-Type-Options: nosniff`, and `Cache-Control: no-store`. The export hash identifies the canonical JSON envelope; the text representation labels that same envelope hash. Export and history GET perform no delivery write, provider call, upload or public sharing.
+
+Every response, including errors, is no-store. Errors return only `{error:code}`: 400 `DELIVERY_INVALID_INPUT`; 401 `DELIVERY_UNAUTHENTICATED`; 403 `DELIVERY_DENIED`; 404 `DELIVERY_NOT_FOUND` for missing/unowned resources; 409 `DELIVERY_CONFLICT` or `DELIVERY_NOT_APPROVED`; 413 `DELIVERY_BODY_TOO_LARGE`; 422 `DELIVERY_VALIDATION_FAILED` for delivery-time relations or malformed retained packages; 503 `DELIVERY_UNAVAILABLE` for dependency outages. Authentication outages never become unauthenticated/empty-success responses.
+
+## C9f stored-outcomes read API amendment — 2026-09-07
+
+`GET /api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/outcomes` independently authenticates and derives account and actor scope from the current session. All three path parameters must be UUIDs. The endpoint accepts no query keys, body, caller clock, source selector or anchor selector. It performs one read-only, account-scoped outcome snapshot and returns the validated `stored-outcomes.v1` DTO.
+
+Every response uses `Cache-Control: private, no-store`. Success is 200. Safe errors are 400 `OUTCOMES_INVALID_INPUT`, 401 `OUTCOMES_UNAUTHENTICATED`, 403 `OUTCOMES_DENIED` for a missing current membership, 404 `OUTCOMES_NOT_FOUND` for missing or hidden owned relationships, and 503 `OUTCOMES_UNAVAILABLE` for authentication dependencies, SQL/primary snapshot failures, returned-scope mismatch or malformed server-generated output. Successfully read malformed candidate evidence remains a 200 DTO with explicit source-unavailable/unavailable states. The route performs no delivery mutation, scan, provider request or outcome persistence.
+
+These endpoints are locally implemented. Migration 043 and dedicated real-SQL proofs remain authored/unrun, target UNKNOWN; this contract does not claim live activation.

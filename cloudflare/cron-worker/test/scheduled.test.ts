@@ -45,13 +45,16 @@ describe('scheduled', () => {
     )
   })
 
-  it('throws when the downstream route fails, so Cloudflare retries', async () => {
+  it('propagates a downstream failure without retrying in this invocation', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 500 })
 
-    await expect(worker.scheduled(controller('17 4 * * 1'), env, ctx)).rejects.toThrow()
+    await expect(worker.scheduled(controller('17 4 * * 1'), env, ctx)).rejects.toThrow(
+      '[cron-worker] /api/cron/pulse responded 500',
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it('throws for an unmapped cron string, so Cloudflare retries', async () => {
+  it('rejects an unmapped cron without making a request', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     await expect(worker.scheduled(controller('* * * * *'), env, ctx)).rejects.toThrow()

@@ -3,6 +3,8 @@
 Frozen from base plan §10.2, 2026-08-31. Changes require a plan amendment, not a silent edit
 here.
 
+Approved amendment: [C4–C6 evidence design](../superpowers/specs/2026-09-05-c4-c6-public-pages-evidence-design.md), 2026-09-05. The evidence rows below use additive bounded JSON instead of proposed new tables.
+
 ## UI field provenance matrix
 
 Provenance classes follow the donor's vocabulary: `deterministic check` · `provider-documented` · `first-party evidence` · `sampled observation` · `heuristic` · `inference` · `estimate` · `synthetic fixture`. Repeated fields are grouped where one component and one DTO contract cover them.
@@ -15,22 +17,22 @@ Provenance classes follow the donor's vocabulary: `deterministic check` · `prov
 | Check message | fixture bilingual | `CheckResult.message` | `scans.results` | — | deterministic check | **real** | domain-specific, not `check_error` | 3 |
 | Check name / why / action copy | fixture tuples | `lib/checkExplanations.ts` | — | — | static copy | **real** (move to `messages/*`) | i18n parity | 2 |
 | Owner lens grouping | `RepoScanCheck.lens` | — | — | — | static mapping | **new** (derived) | 20/20 mapped | 3 |
-| Evidence excerpt | `RepoScanCheck.evidence` | — | — | `check_evidence.evidence_json` | first-party evidence | **new** | ≤ N bytes; redaction policy | 3 |
-| Evaluated URL | fixture | `baseUrl` (not stored per check) | — | `scan_pages.url` | deterministic check | **new** | equals request after normalisation | 3 |
-| Final redirected URL | — | resolved in fetcher, **discarded** | — | `scan_pages.canonical_url` | deterministic check | **new** | differs from evaluated when redirected | 3 |
-| Fetched-at timestamp | — | — | — | `scan_runs.started_at` | deterministic check | **new** | distinct from `scans.created_at` | 3 |
-| HTTP status + safe headers | — | — | — | `scan_pages.http_status` | provider-documented | **new** | allow-list of headers only | 3 |
-| Check version / scanner version / methodology version | `methodVersion: "1.2-demo"` | `PILLAR_SCORE_VERSION` only | — | `scan_runs.*_version` | deterministic check | **new** | present on every new scan | 0/3 |
-| Pillar score ×3 | `calculatePillarScore` | `calculatePillarScores` | **not persisted** | `results.pillarScores` | deterministic check | **derived → must become real** | snapshot written and read back | 0/3 |
+| Parsed evidence signals | `RepoScanCheck.evidence` | `buildScanEvidence` | `results.evidence.observations` | no new table | sampled observation | **real, bounded JSON** | zero free-text bytes; only parsed booleans/counts/enums and allowlisted header signals | C6 |
+| Evaluated URL descriptor | fixture | origin-normalized `baseUrl` | `results.evidence.evaluated` | no new table | deterministic check | **real** | origin only plus explicit redaction/normalization flags | C6 |
+| Final redirected URL descriptor | — | SSRF-safe fetch boundary | `results.evidence.final` | no new table | sampled observation | **real** | validated final origin, path withheld; never infer from constructed Response.url | C6 |
+| Fetched-at timestamp | — | request-local observer | `results.evidence.observations[].observedAt` | no new table | sampled observation | **real** | collection event time, separate from envelope and row timestamps | C6 |
+| HTTP status + safe headers | — | request-local observer | `results.evidence.observations` | no new table | sampled observation | **real** | parsed MIME, numeric length, valid last-modified time, parsed robots flags; no arbitrary headers | C6 |
+| Check / scanner / methodology versions | `methodVersion: "1.2-demo"` | version registries | `results.evidence` and `results.pillarScores` | no new table | deterministic check | **real** | all 20 check identities retained, unchanged headline method recorded | C6 |
+| Pillar score ×3 | `calculatePillarScore` | `calculatePillarScores` | `results.pillarScores` | — | deterministic check | **real, already persisted** | immutable snapshot written and read back | 0/C6 |
 | Evidence coverage % | `coveragePercent` | — | — | derived | deterministic check | **new** | falls when data missing | 3 |
-| Score gate status | `insufficient_evidence`/`provisional`/`scored` | — | — | derived | deterministic check | **new** | 0.67 / 0.85 thresholds | 3 |
-| Comparison signature | fixture | — | — | `scan_runs` | deterministic check | **new** | equal scope ⇒ equal signature | 5 |
+| Score gate status | `insufficient_evidence`/`provisional`/`scored` | `calculatePillarScores` | `results.pillarScores.{seo,aeo,geo}.state` | no new table | deterministic check | **real, C7 v2** | unrounded weighted 0.67 / 0.85 gates; insufficient `score` is null; old snapshots unchanged | C7 |
+| Comparison signature | fixture | `buildScanEvidence` | `results.evidence.comparisonSignature` | no new table | deterministic check | **real, no improvement claim** | method/scope equality is necessary but incomplete/redacted evidence is never comparable | C6 |
 | Impact / expected uplift | fixture | `lib/impact.ts` | derived | — | estimate | **real, label Estimated** | never stated as guarantee | 3 |
 | Observed impact | fixture outcome ledger | — | — | outcome windows | sampled observation | **new** | requires recorded delivery | 5 |
 | Entity name / aliases / identifiers | `fixtures.entities` | `clients.brand_name` (partial) | `clients` | brands/products | first-party evidence | **new** | ownership verification | 5 |
 | Entity ownership verified badge | fixture | — | — | verification | first-party evidence | **blocked** — needs policy | policy first | 5+ |
 | Observation surface / match / role | `fixtures.observations` | `pulse_metrics` (partial) | `pulse_metrics` | `ai_observations` | sampled observation | **new** | valid denominator; failure ≠ absence | 5 |
-| Share of voice | — | `pulse_weekly_summary.sov_score` | live | — | sampled observation | **real but never produced** | empty state, not zero | 4 |
+| Share of voice | — | `pulse_weekly_summary.sov_score` | live | — | sampled observation | **real rollup; availability validated in C8a** | no successful denominator or latest aggregate means unavailable, not zero | C8a |
 | Opportunity value/confidence/reach/effort/risk | `fixtures.opportunities` | `agent_recommendations` (partial) | `agent_recommendations` | opportunities | inference | **new** | evidence link required | 5 |
 | Change-set diff + validations | fixture | `fix_packs` | `fix_packs` | change sets | deterministic check | **new** | immutable versions | 5 |
 | Approval state + approver + timestamp | `demo-lifecycle` | — | — | approvals | first-party evidence | **new** | real approver identity | 5 |
@@ -44,3 +46,137 @@ Provenance classes follow the donor's vocabulary: `deterministic check` · `prov
 | Demo-data banner | `ReviewBanner` | — | — | — | review-only | **must not ship** | absent from prod bundle | 2 |
 
 **Static marketing claims, CTAs, and release labels are inventoried separately** and must never be rendered through a data-bound component: comparison/experience/audience sections, `FinalCta`, `PricingPreview`, `IntegrationPreview`, all `publicPages` capability copy, and both legal summaries. Each is copy requiring sign-off (legal for privacy/terms; product for capability claims), not a live field.
+
+## Evidence storage limits and exposure
+
+Evidence v1 is at most 32 KiB serialized UTF-8, with all 20 check records at most 1 KiB each, at most 40 observations and 512 bytes per parsed signal. Optional observations are dropped deterministically and `limited` is explicit. Collection and applicability are independent of pass/warn/fail; provider fallback is not successful collection. `completedPages` and `completedScope` reflect whether a page was actually collected. No top-level `status` is present, preserving existing check-reader compatibility.
+
+The envelope is stored with the existing pillar snapshot in one insert. Insert failure remains non-success. Existing anonymous summaries and outbound webhooks omit evidence. Wrong-owner denial and SSRF-blocked 400 responses remain unchanged, and blocked requests insert no row. Authorized consumers may call the tolerant fail-closed reader; no new consumer or public exposure is introduced.
+
+C7 writes validated evidence before calculating the pillar snapshot in the same existing insert. `coverage` is unrounded complete observed weight / applicable weight; `maximum` excludes explicit not-applicable weight, while `checks` retains the fixed mapped-check count and `covered` counts complete observed checks. `score: null` suppresses diagnostics below coverage 0.67 or with zero applicable weight. Historical numeric snapshots retain their original values and method without a synthetic state. Server-to-client scoring inputs include only applicability, collection and assessment, and only within owned detail access.
+
+
+## C8a owned workspace home and overview (2026-09-06)
+
+Both the default owned-client home and `GET /api/clients/[clientId]/overview` call the server-only `loadOwnedWorkspace`. The caller authenticates independently; the loader first binds `clients.id = clientId AND account_id = profile.account_id`. Missing ownership returns null/404, while a failed lookup throws. All subsequent reads carry client/account predicates directly or through an owned-client/scan join. No write, provider call, Local Trust snapshot creation or schema change is part of this loader.
+
+| Home field | Persisted query / compatibility field | Availability and interpretation |
+|---|---|---|
+| `client` | `clients.id, brand_name, domain, industry, status` | Owned identity only; no verified-entity claim. Overview retains `client.brand_name`. |
+| `siteHealth` | Latest owned `scans` by `created_at DESC, id DESC`, or exact explicitly supplied `scanId` | Invalid explicit ID stays empty without fallback. Score/time normalized from driver number/string/Date values. `pillarScores` is only a valid stored snapshot; absent/invalid is null, never an invented recalculation. No comparable improvement claim. |
+| `history` | Latest ten owned `scans.id,domain,score,grade,created_at` | Chronological observation dates and persisted headline values; no inferred improvement. Overview retains `scanHistory`. |
+| `visibility` | Newest 40 distinct weeks across owned `pulse_weekly_summary` and `pulse_metrics`; all summary rows for those weeks returned chronologically | Latest week is selected before aggregate lookup, so no old aggregate fallback. API keeps `pulseSummary` and nullable `pulseKpi`; successful denominator validation applies to KPI. |
+| `visibility.data` | Persisted aggregate `sov_score,brand_mentions,total_queries,scan_week` plus observed platform count | `sovScore` is a percentage. KPI requires positive rollup total matching both raw row count and rows with non-whitespace `raw_answer` (`~ '[^[:space:]]'`) and nonnull `brand_mentioned`, with observed true-mention count matching the rollup numerator; numeric missing/invalid values are unavailable. `platformCount` counts distinct platforms with such answers. This proves stored answer observations, not current provider availability or causation. |
+| `recommendations` | `agent_recommendations` joined to selected owned scan, ordered by priority/impact | `agent_recs` controls whether a query occurs; `platform_access` filters both SQL and returned rows using existing recommendation keys. The home labels these generated drafts (`generated:true`), never delivered/published work. |
+| API `progress` / `competitors` | Selected owned scan joins to corresponding agent tables | `agent_progress` / `agent_competitors` control queries and returned arrays. Preserve existing platform vocabularies: no new per-platform restriction for these two existing feature gates. |
+| API `missedOpportunities` | Latest ten owned metrics with brand_mentioned=false and nonblank raw answer | Empty retrieval is not a measured visibility percentage. Raw answers are used only in SQL predicates, never added to the DTO. |
+
+`resolveCommercialEntitlement` is the sole authority for paid permissions, including Basic, Pro, Enterprise, live/expired trials, cancelled/past-due accounts and admin overrides. Denied arrays are empty in the compatible overview DTO and forbidden queries never run. Pulse read access remains authenticated ownership access, not a new paid gate.
+
+The pure `buildWorkspaceHome` projection emits section `state: ready | empty | error | locked`, `data` (null unless ready), `observedAt` (nullable), and `freshness: unknown`. No stale threshold is approved. Optional home read errors remain panel errors; the overview API rejects any failed read with its established 500 response rather than returning partial success. Anonymous API callers remain 401; ownership miss remains 404. Legacy explicit dashboard step routes retain their existing behavior outside this new home adapter.
+
+
+## C8b owned portfolio (2026-09-06)
+
+`loadOwnedPortfolio({profile})` runs only after the page authenticates. Its authoritative active-client lookup binds `account_id` and `status='active'`; failure throws rather than manufacturing an empty portfolio. It then batches three independent optional reads (two when no active clients): all-owned-client count, latest ten owned scans and latest Pulse observations for active owned clients. Query count is independent of client count; the portfolio never invokes the full workspace loader per client or reads agents.
+
+| Portfolio field | Exact source / query boundary | Semantics |
+|---|---|---|
+| `clients[]` identity | `clients.id,brand_name,domain,industry,status`, account-bound active rows, deterministic created_at/id ordering | Only these narrow fields reach the UI; clientId and existing owned-home links remain stable. |
+| `clients[].visibility` | Batched `owned_clients` CTE binds account_id, active status and initially selected ids; summary/raw weeks are unioned then `max(scan_week)` grouped per client | No global latest-week selection, old aggregate fallback or cross-client count fanout. Aggregate observations group by client AND selected week before joining a persisted summary. |
+| Visibility state/data/date | Shared pure `projectObservedSummary` from `lib/pulse/observed-summary.ts`, extracted unchanged from C8a | Exact C8a usable-answer denominator/numerator checks; genuine zero remains zero, raw-only newest weeks/missing or mismatching evidence are unavailable. `observedAt` is selected week; `freshness` remains unknown. The DTO excludes raw answers and internal count-validation fields. |
+| `history` | `scans.id,domain,score,grade,created_at` bound by account_id, `created_at DESC,id DESC LIMIT 10` | Persisted values only; number/string scores and Date/string timestamps normalize at the boundary. Missing date stays unknown. Keep guarded `/result/{id}` links, no deltas/ranking/comparability claim. |
+| `capacity.count` | `count(*)::int FROM clients WHERE account_id = profile.account_id` with NO active predicate | Includes inactive clients exactly as the existing creation API does; missing/error/invalid count is unknown, never zero. |
+| `capacity.limit,plan,canCreate` | `resolveCommercialEntitlement(profile.accounts).features.max_brands` and effective plan | Known count below limit yields true; reached limit false; unknown count yields null. API and database trigger remain independent final authorities, including concurrent creation races. |
+
+The pure `buildPortfolio` returns only clients, history and capacity. Optional history/Pulse failures are section errors, while unavailable count is `capacity.state='unknown'`; none converts an incident into measured zero or promised capacity. No provider attempt-success rate is asserted. Existing C8a DTO shape and historical diagnostic handling remain unchanged by the extracted pure Pulse helper. No database, provider or Local Trust write, migration or creation-API behavior change belongs to C8b.
+
+## C8c–g existing workspace adaptations (2026-09-06)
+
+These adapters preserve authenticated ownership and existing mutation contracts. They do not introduce provider calls, roles, delivery approval, migrations or a new entitlement resolver.
+
+| Slice / displayed field | Source and boundary | Interpretation |
+|---|---|---|
+| C8c Pulse identity | `loadOwnedPulse` validates the UUID before `db()`, then binds client id and account id; missing ownership returns null | Page authenticates separately; malformed/missing/foreign client is 404, lookup outage is a generic load error. |
+| C8c observations and chart | At most 40 distinct stored weeks from owned summary/raw observations; per-week/platform counts use the shared observed-summary validator | Chart spans at most 40 calendar weeks ending at the latest observed week. Missing or invalid points are null gaps; genuine zero survives. No interpolation, old KPI fallback, current-provider or causation claim. Freshness remains unknown. |
+| C8c prompts / missed opportunities | Three bounded independent owned reads; prompts expose the existing narrow editable fields, missed rows require a nonblank answer and false brand mention | No raw answers in the DTO. Independent ready/empty/error states. Prompt mutation endpoints, categories, quota and feature guards remain authoritative; failed network mutations roll back or preserve the pending draft. |
+| C8d Fix Pack / agents | Existing guarded API and three validated nonempty generated strings; existing agent status | Generated content is a draft. API generation success does not prove cache persistence, approval or publication. Failed generation/copy cannot show success; scan changes cannot retain another scan's draft. |
+| C8e sample report | Separate static `SAMPLE_REPORT`, synthetic flag, reserved `example.invalid` domain | Illustrative score and three example checks are not customer evidence or calculation inputs. No report resolver, signature, view counter or provider call. Existing signed-report lifecycle is unchanged. Localized metadata and derived sitemap include both sample routes; exact demo redirects are temporary 307. |
+| C8f alert settings | Existing GET/PUT config DTO and server guards | A failed/malformed response never means Saved; retries and client-switch failures remain visible. Existing Local Trust explicit write boundary, no-snapshot states and notification deduplication remain unchanged. |
+| C8g settings | Existing commercial resolver, catalogue prices, persisted status and account-scoped branding gate | Missing/unrecognized status is unknown. Catalogue prices are not an invoice or actual billing state. Existing ordinary portal link and branding/onboarding permissions remain unchanged. |
+
+Unit and offline-renderer evidence does not establish real authentication, Neon data equivalence, Stripe behavior, provider availability, delivery or production readiness. C9–C11 retain their separate material decisions and external approval gates.
+
+## C9a private entities (2026-09-06)
+
+One private canonical brand record per existing client, with at most20 aliases. Names are organizational user input; the DTO always labels verification as unverified. No public profile, discovery route or verification badge is activated.
+
+| Field / operation | Source and tenant boundary | Semantics |
+|---|---|---|
+| Suggested display name | Owned clients.id/brand_name/account_id lookup | Used only when stored entity is null; GET never inserts, and suggestion is visibly unsaved |
+| Stored identity | client_entities joined to clients on id AND account_id | Narrow DTO: clientId,displayName,aliases,revision,verification,updatedAt; no account/actor ids |
+| Write | Authenticated account + profile actor; tenant-scoped INSERT SELECT or UPDATE with expected revision | One mutation and separate READ COMMITTED replay query in a transaction; concurrent winner can be seen safely, different stale/future payload conflicts |
+| Retry | Same normalized values and older expected revision | Returns stored record without increment; not approval/publication evidence |
+| Aliases | Trimmed/NFC-normalized labels, case-insensitive deduplication, display name excluded | Input bounded by16KiB body,20 alias labels and120 Unicode codepoints per label; no provider lookup or scan |
+| Failure | Missing/foreign owned client, invalid input, conflict, database/auth outage | Explicit401/400/404/409/500; no failed read presented as empty or failed write as saved |
+
+Migration040 is additive source only, not applied in this task. It carries owned-client and same-account actor foreign keys and explicitly narrows inherited app-role privileges to SELECT/INSERT/UPDATE. Existing brand quotas and roles are unchanged. Live concurrency/SQL/grant proof remains a separately authorized exact-target integration gate.
+
+## C9b monitored questions and observation provenance (2026-09-06)
+
+The implemented response is exactly `{schemaVersion:1,clientId,selectedWeek:string|null,weeks:string[],questionsTruncated:boolean,questions:Question[],items:Observation[],counts:{recordedRows,successfulRows,incompleteRows},nextCursor:string|null}`. `Question` is exactly `{id,question,category:string|null,language:string|null,isActive:boolean|null}`. `Observation` is exactly `{id,sourceKind:'pulse-metric',promptId:string|null,question,platform,scanWeek,recordedAt:string|null,collectedAt:null,model:null,market:null,result:'success'|'incomplete',hasAnswer:boolean,brandMentioned:boolean|null,currentPrompt:Question|null,limitations:string[]}`. Fixed projections exclude account/actor IDs, raw answers, secrets and internal query fields.
+
+`recordedAt` is the stored row creation time and may be null. Legacy rows do not establish exact collection time, model or market, so `collectedAt`, `model` and `market` remain null and stable limitation codes drive the localized explanations. Stored observation question text remains historical evidence. A separately labelled `currentPrompt` may contribute the current prompt category, language and nullable active state only when both prompt and owned client match; missing, deleted or mismatched links return null without dropping the observation.
+
+`hasAnswer` uses the PostgreSQL nonblank predicate `raw_answer ~ '[^[:space:]]'`, while `brandMentioned` preserves the nullable stored classification. A row is `success` only when both a nonblank answer and a boolean classification exist; all others are `incomplete`. `recordedRows`, `successfulRows` and `incompleteRows` are calculated before result filtering and pagination for the selected week/question/platform, with `incompleteRows = recordedRows - successfulRows`. They describe retained stored rows, not scheduled attempts, provider availability or a new visibility KPI. Counts, items, retained weeks and prompt menu come from one tagged database statement/snapshot. Questions are bounded by `MAX_PROMPTS` plus one probe row and `questionsTruncated` reports omission; observations use `limit + 1` only to derive `nextCursor`.
+
+Implemented source comparison SHA: `181e0007df79e634d8d7f261cce40dbca51b4eee`. Production files at that checkpoint are `lib/observations/{types,query,schema,store,service}.ts`, `app/api/clients/[clientId]/observations/route.ts`, `app/[lang]/dashboard/[clientId]/observations/page.tsx`, `components/observations/ObservationWorkspace.tsx`, `components/observations/copy.ts`, `components/dashboard/DashboardSidebar.tsx`, `messages/{en,zh-HK}.json`, `.github/workflows/pr-gate.yml` and `scripts/ci/prepare-component-fixtures.mjs`; focused coverage lives under `__tests__/observations`, `__tests__/api/observations.test.ts`, `__tests__/components/observation-*.test.tsx`, `__tests__/ci/component-fixtures.test.ts` and `tests/e2e/c9b-observations.spec.ts`.
+
+## C10 local hardening (2026-09-06)
+
+Cron-ledger write failures now emit allowlisted database diagnostics while preserving existing null/no-throw behavior. Three Pulse lookup/producer error responses record ledger status error; HTTP503/502 payloads and job flow remain unchanged. No new no-op/partial taxonomy or scheduler retry guarantee is introduced.
+
+Disposable helper cleanup may only use structurally validated child identities created in the current process. Protected/default/primary/wrong-project/name/root responses cannot enter the cleanup registry; connection lookup failure after valid child identity still permits cleanup. Deletion independently rejects unregistered/protected/invalid ids. The pure pruner excludes default/primary metadata even if its configured protected id is stale. These are locally mocked safeguards, not evidence that any provider cleanup ran.
+## C9c evidence-linked draft fields — 2026-09-06
+
+The only released deterministic rules are `pulse-brand-absent.v1` and `scan-check-gap.v1`. Recommendation-derived suggestions and drafts are deferred by explicit user scope; this is not a pending release decision. Public `sourceStates` has exactly `pulse` and `scan` keys.
+
+`OpportunityResponse` is `{schemaVersion:1,window,sourceStates,savedDraftsState,partial,suggestions}`. `window` is `{pulseWeek:string|null,pulseLimit:200,pulseTruncated:boolean,scanId:string|null}`. Pulse reads the newest owned week from at most 200 rows plus one truncation row; scan reads the newest owned scan only. `sourceStates.{pulse,scan}` is `ok | empty | unavailable`; `savedDraftsState` is `ok | unavailable`. A failed source is never converted to empty. `partial` is true for a source failure, saved-mapping failure, or limited snapshot eligibility. Truncation is reported independently by `window.pulseTruncated` and its dedicated banner; truncation alone does not set `partial`.
+
+Each suggestion contains `key`, `ruleVersion`, `source`, a lowercase 64-hex SHA-256 `fingerprint`, `titleKey`, `actionKey`, string `args`, allowlisted `evidence`, `limitations`, `savedDraftId`, `savedState`, and `saveAvailability`. `savedState` is independently `saved | unsaved | unavailable`; `saveAvailability` is independently `available | limited-evidence`. A saved item can remain navigable when current evidence is limited. Pulse evidence includes its retained metric ID, nullable prompt ID, full bounded question/platform, scan week, nullable recorded timestamp, fixed successful/answer-present/brand-absent predicates and retained-source provenance. Its private write token includes an answer digest but never exposes the raw answer. Scan evidence includes the scan/check identity, validated collection and URL descriptors, nullable timestamps, check/scanner/headline/pillar versions, comparison signature/context, allowlisted observations/signals, limitations and redaction state. It contains no fetched HTML, credentials, whole rows, raw provider/page excerpts or inferred market/model.
+
+`WorkItem` is exactly `{id,clientId,status:'draft',title,action,notes,locale,revision,createdAt,updatedAt,evidenceSnapshot}`. Account and actor IDs are not exposed. Text is trimmed and NFC-normalized: title 1–160 Unicode characters, action 1–4000, notes 0–8000. Revision is a positive safe integer. The snapshot is schema version 1, allowlisted, immutable after creation, and capped at 65,536 serialized UTF-8 bytes; SQL independently enforces `octet_length(evidence_snapshot::text) <= 65536`. Initial localized title/action, locale, source identity, rule version, evidence, provenance, limitations, translation keys/arguments and fingerprint inputs are retained. Later source or user edits never rewrite that evidence.
+
+Create and edit parsers reject arrays, malformed UTF-8/JSON, unexpected or inherited fields, unsupported locale/source/rule/check IDs, invalid UUIDs/fingerprints/revisions, and oversize streamed bodies. Viewing suggestions creates no record. Creation conditionally checks the exact persisted source in the same database snapshot as insertion, resolves the unique account/client/opportunity identity without success over failed persistence, and exposes no recommendation create path. PATCH changes only title/action/notes, updated actor/time and revision.
+
+## C9d immutable versions, decisions and approver access — 2026-09-07
+
+`VersionSummary` is `{id,versionNumber,workItemId,draftRevision,submittedBy,submittedAt,decision,capabilities}`. `VersionDetail` adds `{schemaVersion,title,action,notes,locale,evidenceSnapshot,contentHash,validation}`. Submission/detail use `{version: VersionDetail}`; listing is `{versions: VersionSummary[],nextCursor:string|null,latestVersionId:string|null}`. Frozen content contains only saved C9c text, locale and allowlisted evidence. Validation policy is `change-set-review.v1` with pass codes `text | locale | evidence | content_size`; lists omit full content.
+
+`DecisionDTO` retains `decision: approved | changes_requested`, normalized reason, actor snapshot, grant revision/event reference and database time. Both decisions are terminal. Submitters cannot decide their own versions; platform admins receive no review authority. Capability flags come from current ownership/grant/latest checks and are false for terminal or superseded versions.
+
+Approver access returns `AccessMemberDTO {profileId,displayName,active,revision}` and `AccessEventDTO {id,profileId,action,previousRevision,newRevision,administrator,reason,createdAt}` inside `{members,events,nextMemberCursor,nextEventCursor}`. It excludes email, auth subject, account id and internal query fields. Actor snapshots are `{profileId,displayName,role}`. Reasons are trimmed/NFC-normalized and 1–2000 code points. Extra caller identity/authority fields are rejected.
+
+Frozen evidence is capped at 64 KiB and total review content at 128 KiB, with SQL backstops. Streamed request limits are 4 KiB submission and 16 KiB decision/access mutation, counted from actual chunks rather than `Content-Length`.
+
+## C9e delivery fields — 2026-09-07
+
+`AttestInput` is exactly `{contentHash,destination,deliveredAt,note,requestId}`. `contentHash` is the lowercase 64-hex SHA256 of frozen C9d content. Destination is 1–500 Unicode code points; note/reason is 1–2000. Text normalizes CRLF to LF where multiline is allowed, trims and NFC-normalizes. Destination is single-line non-clickable plain text; notes/reasons permit line breaks but reject forbidden controls and malformed surrogate text. Caller account, actor, approval identity, recorded timestamps and other extra fields are rejected.
+
+Declared `deliveredAt` accepts a valid RFC3339 timestamp with timezone and at most millisecond input precision, normalizing to UTC. The store requires approval.decidedAt <= deliveredAt <= the database clock for new attestations. This is a member-declared delivery time, not a fetched publication time. `recordedAt` is a separate server timestamp retained as lossless UTC database text (up to six fractional digits). C9d timestamp behavior is unchanged.
+
+`DeliveryEvent` base is `{schemaVersion:1,eventId,versionId,contentHash,actor,recordedAt}`. An `attest` event adds `{kind:'attest',destination,deliveredAt,note}`. A `withdraw` event adds `{kind:'withdraw',targetAttestationId,reason}`. Actor is the retained `{profileId,displayName,role:'account_member'}` snapshot; missing historical displayName remains null. DTOs omit account IDs, request IDs, approval binding columns, auth subjects, email and internal SQL state. Provenance is a manual member declaration; no synthetic observation or externally verified result is implied.
+
+`DeliveryPage` is `{events,activeAttestationId,capabilities,nextCursor}`. Capabilities are `{canExport,canAttest,canWithdraw,attestReason,withdrawReason}`; disabled reasons are `not_approved | superseded | active_attestation | no_active_attestation | null`. Latest version and active state derive from full owned history, independently of the current page. Events sort by recordedAt DESC,id DESC; the opaque cursor retains exact timestamp/UUID position. History limit defaults to 20, maximum 50.
+
+The deterministic `delivery-export.v1` envelope contains frozen approved review content/evidence, original contentHash, validation, submitter/submission and decision snapshots and explicit limitations. ExportHash is a separate SHA256 over canonical JSON envelope bytes, not the original content hash, text download bytes, delivery status or measured impact. No download-time timestamp is added. Filename is `delivery-<validated-versionUUID>.json|txt`; downloads expose neither public share links nor mutable draft content.
+
+Persisted events have schemaVersion 1 and append-only history in migration 043. PostgreSQL proof is authored/unrun; no applied schema or live dataset is inferred.
+
+## C9f stored-outcome fields — 2026-09-07
+
+`stored-outcomes.v1` is a point-in-time read over one immutable version and its active manual delivery attestation. The response retains `clientId`, `itemId`, `versionId`, frozen `contentHash`, `evaluatedAt`, `anchorState`, nullable anchor and baseline, three outcome windows when the anchor is active, bounded diagnostics, truncation and finite reason codes. The anchor keeps the attestation ID, member-declared `deliveredAt` and separate server-recorded `recordedAt`; neither timestamp claims external publication verification.
+
+D7, D28 and D56 start at the declared delivery time plus exactly 7, 28 or 56 UTC elapsed days of 86400 seconds. Each eligible interval is half-open `[target,target+7 days)`, preserves stored microsecond precision and selects the earliest trustworthy collection timestamp, breaking exact ties by canonical source ID. Before a target the state is `not-due`; inside an empty interval it is `awaiting-evidence`; after an empty interval it is `missing-evidence`. An open-window selection is provisional.
+
+Selection and comparability remain separate. The frozen version evidence is the baseline; mutable drafts, current prompt-bank reconstruction and later favorable rows cannot replace it. Pulse collection time, model and market remain unknown by contract, and scan evidence schema 1 with withheld final-path identity remains non-comparable. Candidate reads are bounded at 200 plus an overflow witness per relevant source kind; overflow reports `evidence-limited` and suppresses selection certainty. Read/source failures report unavailable rather than zero or empty success.

@@ -1,76 +1,112 @@
-# Runbook: deploy the cron-triggering Cloudflare Worker
+# Runbook: activate the dedicated AISO cron Worker
 
-**When to run this:** after `cloudflare/cron-worker/` is merged, to actually start
-scheduling `cron/pulse`, `cron/evaluate-alerts`, and `cron/trial-emails` from
-Cloudflare instead of Vercel.
+## Current status and scope
 
-**Who runs it:** a human with access to this project's Cloudflare account and
-the Vercel project's `CRON_SECRET` value. An agent must not read or type the
-secret — copy it directly between your password manager / Vercel's dashboard
-and the command below.
+The dedicated `aiso-cron-worker` was created on 2026-09-07 in Cloudflare account
+`e387dfbeded3deb5b8f0023a78a660b5`. Its recorded readback has no schedules or
+bindings, with workers.dev and preview URLs disabled. See the
+[creation evidence](../superpowers/plans/2026-09-07-c10-dedicated-worker-creation.md)
+for version and deployment IDs. This is a dated observation; refresh it before changes.
 
-**Before you start — read this:** merging this branch's `vercel.json` change (commit
-`199d598`) already removed Vercel Cron's `crons` array. From that merge until you complete
-this runbook, **nothing schedules `cron/pulse`, `cron/evaluate-alerts`, or `cron/trial-emails`
-at all** — not a double-scheduling risk (the three routes are idempotent), but a real gap
-where the weekly Pulse rollup, alert evaluation, and the trial drip campaign all silently
-stop running. Run this runbook as close to that merge as practical, ideally the same day.
+Use `cloudflare/aiso-worker/wrangler.jsonc` for this resource. It reuses
+`cloudflare/cron-worker/src/index.ts`. The legacy `cloudflare/cron-worker/wrangler.jsonc`
+is not an activation template: it targets a different name and includes an origin
+that returned NXDOMAIN during the [live discovery](../superpowers/plans/2026-09-07-c10-live-scheduler-discovery.md).
+Do not deploy it to provision AISO.
 
-## Procedure
+Creating the Worker did not authorize activating jobs. Activation can cause database
+writes, paid AI calls and real email. The steps below are preparation until an exact
+activation target, configuration diff, validation and rollback are approved.
 
-1. **Install dependencies**, if not already done:
+## Prepare the activation package
 
-       cd cloudflare/cron-worker && npm install
+Record the intended Vercel team/project, production or isolated target, deployment
+ID and source SHA, working HTTPS origin, database identity/application role, provider
+mode and operational owner. A READY preview or a familiar domain does not establish
+production suitability. The current AISO and legacy Vercel projects are different
+resources; do not switch between them implicitly.
 
-2. **Authenticate wrangler**, if this machine hasn't before:
+Inventory live producers for each route across Cloudflare, Vercel Cron and legacy
+n8n. Record observed timestamps, schedules, enabled state and owner. A missing
+`crons` key in local `vercel.json` does not prove deployed jobs were retired.
+Establish one producer per enabled job before activation. Unknown ownership blocks
+activation; do not retire a workflow based only on repository configuration.
 
-       npx wrangler login
+The source supports these schedules; the dedicated config intentionally enables none:
 
-3. **Set the secret** — the exact same value as Vercel's `CRON_SECRET` env var,
-   copied directly (never through a shell history-visible `export`):
+| Route | Supported cron (UTC) | Acceptance evidence |
+| --- | --- | --- |
+| `/api/cron/pulse` | `17 4 * * 1` | Trigger and ledger correlated with producer completion/rollup state; a 2xx alone is insufficient |
+| `/api/cron/evaluate-alerts` | `47 7 * * 1` | Evaluation outcome and relevant completion counters; scheduled later than Pulse, but elapsed time does not prove Pulse finished |
+| `/api/cron/trial-emails` | `0 9 * * *` | HTTP status plus sent/failed counters and ledger; investigate partial failures before replay |
 
-       npx wrangler secret put CRON_SECRET
+Prepare a diff to the dedicated config that adds the approved HTTPS `APP_BASE_URL`
+and only the individually approved cron strings. Keep the exact account/name,
+`workers_dev: false` and `preview_urls: false`. Do not enable all jobs just because
+the route map supports them.
 
-   Paste the value when prompted; it is not echoed.
+`CRON_SECRET` must match the selected application's secret (at least 16 characters),
+transferred through an approved secret-management path. The Cloudflare API credential
+is not the application's cron secret. Do not put secret values in git, command
+arguments, logs or evidence. Verify presence and source mapping without exposing values.
 
-4. **`APP_BASE_URL`** already defaults to `https://aeo.fimmick.com` in
-   `wrangler.jsonc`'s `vars`, matching `lib/app-origin.ts`'s own fallback — no
-   action needed unless you're deploying against a different environment, in
-   which case edit that `vars` entry (or pass `--var APP_BASE_URL:...` to
-   `wrangler deploy`) and commit the change if it's meant to be permanent.
+## Local and isolated validation
 
-5. **Deploy:**
+Run from the repository root with installed tools:
 
-       npx wrangler deploy
+```text
+node node_modules/vitest/vitest.mjs run cloudflare/cron-worker/test/scheduled.test.ts --config cloudflare/cron-worker/vitest.config.ts --maxWorkers=2
+```
 
-6. **Verify**, allowing up to 15 minutes for global propagation:
-   - Cloudflare dashboard → Workers & Pages → `fimmick-aeo-cron-worker` →
-     Triggers → Cron Events, or `npx wrangler tail` while a schedule fires.
-   - Confirm each of the three schedules produces a `2xx` from its Vercel
-     route. A `401` means `CRON_SECRET` doesn't match; a network error means
-     `APP_BASE_URL` is wrong.
+These tests use mocked requests. They establish route/header dispatch and error
+propagation, not Cloudflare retry policy, live origin reachability, database behavior
+or email deduplication. Any remote test requires a separately approved isolated target
+and fake providers. Do not call authenticated cron routes as a read-only health probe.
 
-7. **Confirm Vercel actually stopped scheduling**, not just that `vercel.json` no longer
-   lists any crons. Vercel's own Cron Jobs dashboard (Project → Settings → Cron Jobs) should
-   show zero entries after the deploy that removed `crons` from `vercel.json` went live —
-   this hasn't been independently verified to behave identically to an explicit `"crons": []`
-   versus the key being entirely absent (both are used in practice, but this repo has not
-   confirmed Vercel treats them the same for deprovisioning a previously-scheduled cron).
-   If Vercel's dashboard still lists old cron jobs after that deploy, that's the signal the
-   two forms differ here and the old jobs need manual removal there.
+Before the approved deployment, inspect the exact config and generated artifact.
+Wrangler should always receive the dedicated config explicitly; for example, from
+the repository root, the local artifact preparation command is:
+
+```text
+wrangler deploy --dry-run --config cloudflare/aiso-worker/wrangler.jsonc
+```
+
+Wrangler was unavailable during initial provisioning; that creation used the REST
+multipart API instead. Do not treat the command above as a check already run. For a
+REST module upload, preserve `main_module` metadata and use the module content type
+`application/javascript+module`; the initial plain JavaScript content type was rejected.
+
+## Execution and acceptance after approval
+
+1. Refresh target and current-producer evidence; abort if it differs from the reviewed package.
+2. Follow the approved ownership transition, accounting for in-flight executions before enabling the replacement. Do not create overlapping producers.
+3. Apply only the reviewed dedicated config and secret mapping to the exact Worker.
+4. Read back deployed version, origin metadata, secret binding name, schedules and disabled public/preview access. Never print secret values.
+5. Observe the approved scheduled executions and correlate safe ledger/completion summaries for each route. Record skipped, empty, partial and failed outcomes explicitly. A successful trigger alone is not successful product work.
+
+The Worker makes one fetch attempt per invocation and propagates failures. Its source
+contains no retry loop. Do not infer platform retries from a thrown exception or the
+mock tests. Trial emails send before persisting the sent bit; if persistence fails after
+a successful send, another invocation can resend that email. Concurrent invocation safety
+and exactly-once delivery are not established. Trial-email runs with failed attempts
+return 502 and record ledger status `error`; successful or no-op runs record `ok`.
+Check the counters and HTTP result together, and account for a possible failed ledger
+write. Changing delivery guarantees is a separate implementation decision.
 
 ## Rollback
 
-The three Vercel routes are unchanged and still accept Vercel Cron's exact request
-shape, so reverting is restoring the 3-line `crons` array in `vercel.json`:
+The pre-activation baseline for the dedicated Worker is no schedules, no bindings and
+disabled public/preview access. Prepare a configuration rollback for this exact resource,
+including restoration/removal of activation-added origin and secret bindings through the
+approved secret-management path. Removing schedules prevents future triggers; it does not
+cancel in-flight requests or reverse messages, provider spend or database writes already made.
 
-    "crons": [
-      { "path": "/api/cron/pulse", "schedule": "17 4 * * 1" },
-      { "path": "/api/cron/evaluate-alerts", "schedule": "47 7 * * 1" }
-    ]
+If a previous producer must resume, restore only its explicitly recorded jobs after
+verifying the replacement is disabled and resolving in-flight/partial work. Account for
+Pulse, alerts and trial emails separately. Do not paste a generic two-route Vercel cron
+array or assume current plan limits allow a particular fallback. If no previous producer
+was verified, leave the affected jobs paused and report the gap.
 
-(`trial-emails` was never in that array historically before this branch, so
-its Vercel Hobby-plan rollback would need Cloudflare kept running for it
-alone, or trial-emails paused, since Hobby can't hold all 3.)
-
-No route code needs to change either way.
+Record the rollback version/configuration, live schedules, ownership and outcome evidence.
+Deleting the dedicated Worker is a separate rollback of resource creation, described in
+the creation handoff; it is not required merely to pause scheduling.

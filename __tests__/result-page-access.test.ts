@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactElement } from 'react'
 import type { PublicResultSummary } from '@/lib/result-access'
 import type { Scan } from '@/lib/types'
+import { buildScanEvidence } from '@/lib/scan-evidence'
+import type { OwnedResultEvidence } from '@/lib/result-evidence'
 
 const { getProfileMock, notFoundMock, sqlMock } = vi.hoisted(() => ({
   getProfileMock: vi.fn(),
@@ -44,6 +46,7 @@ type ResultClientProps = {
   lang: string
   summary: PublicResultSummary
   fullScan?: Scan
+  ownedEvidence?: OwnedResultEvidence | null
 }
 
 async function renderPage(id: string): Promise<ResultClientProps> {
@@ -54,6 +57,7 @@ async function renderPage(id: string): Promise<ResultClientProps> {
 function expectSanitized(props: ResultClientProps) {
   const serialized = JSON.stringify(props)
   expect(props.fullScan).toBeUndefined()
+  expect(props.ownedEvidence).toBeUndefined()
   expect(props.summary).not.toHaveProperty('results')
   expect(serialized).not.toContain('"results"')
   expect(serialized).not.toContain(RAW_EVIDENCE)
@@ -110,6 +114,31 @@ describe('public result route access boundary', () => {
     expectSanitized(await renderPage('non-owner'))
   })
 
+  it.each([null, 'account-2'])('withholds the new evidence projection from viewer %s', async viewer => {
+    const row = scan('evidence-private', 'account-1')
+    Object.assign(row.results, { evidence: buildScanEvidence({
+      requestedUrl: 'https://example.com/private?token=SECRET', evaluatedUrl: 'https://example.com',
+      industry: 'technology', region: 'HK', sitemapSource: 'unknown', checks: {},
+    }) })
+    sqlMock.mockResolvedValue([row])
+    getProfileMock.mockResolvedValue(viewer ? { account_id: viewer } : null)
+    expectSanitized(await renderPage('evidence-private'))
+  })
+
+  it('projects validated evidence for the exact owner only, preserving the headline', async () => {
+    const row = scan('evidence-owner', 'account-1')
+    Object.assign(row.results, { evidence: buildScanEvidence({
+      requestedUrl: 'https://example.com/private?token=SECRET', evaluatedUrl: 'https://example.com',
+      industry: 'technology', region: 'HK', sitemapSource: 'unknown', checks: {},
+    }) })
+    sqlMock.mockResolvedValue([row])
+    getProfileMock.mockResolvedValue({ account_id: 'account-1' })
+    const props = await renderPage('evidence-owner')
+    expect(props.ownedEvidence?.checks).toHaveLength(20)
+    expect(JSON.stringify(props.ownedEvidence)).not.toMatch(/SECRET|example\.com|comparisonSignature/)
+    expect(props.summary.score).toBe(62)
+    expect(props.summary.grade).toBe('C')
+  })
   it('serializes the full scan only for the exact owning account', async () => {
     sqlMock.mockResolvedValue([scan('owner', 'account-1')])
     getProfileMock.mockResolvedValue({ account_id: 'account-1' })

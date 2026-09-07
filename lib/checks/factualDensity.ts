@@ -23,6 +23,7 @@ export async function checkFactualDensity(
   const hasComparativeData = /compared to|versus|vs\.|year-over-year|YoY|grew from|up from|down from/i.test(text)
   const hasTimeSeriesData = /\d{4}\s*[-–]\s*\d{4}|over the (past|last)\s+\d+\s*(years?|months?|quarters?)/i.test(text)
 
+  let providerFallback = false
   let uniquenessScore = 50
   let uniqueClaims: string[] = []
   try {
@@ -32,9 +33,10 @@ export async function checkFactualDensity(
       maxTokens: 200,
     })
     const parsed = JSON.parse(aiResponse.match(/\{[\s\S]+\}/)?.[0] ?? '{}')
+    providerFallback = typeof parsed.score !== 'number' || !Number.isFinite(parsed.score)
     uniquenessScore = parsed.score ?? 50
     uniqueClaims = parsed.claims ?? []
-  } catch {}
+  } catch { providerFallback = true }
 
   const qualityScore = Math.min(100,
     Math.min(30, numberDensity * 10) +
@@ -53,5 +55,5 @@ export async function checkFactualDensity(
   }
 
   const status = qualityScore >= 40 ? 'pass' : qualityScore >= 20 ? 'warn' : 'fail'
-  return { status, message: `factual_density_${status}`, details: `Quality score ${qualityScore}/100`, geoDetails }
+  return { diagnostic: { collection: providerFallback ? 'partial' : 'complete', ...(providerFallback ? { reason: 'provider-fallback' as const } : {}) }, status, message: `factual_density_${status}`, details: `Quality score ${qualityScore}/100`, geoDetails }
 }

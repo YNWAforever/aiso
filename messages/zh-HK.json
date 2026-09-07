@@ -7,6 +7,98 @@
     "pricing": {
       "title": "方案及收費｜Fimmick AISO",
       "description": "比較 Fimmick AISO 的網站檢查、AI 搜尋能見度監察及改善建議方案。"
+    },
+    "platform": {
+      "title": "了解網站，選擇值得改善的地方。 | Fimmick AISO",
+      "description": "把網站就緒程度、客戶問題及 AI 答案樣本帶進實際審閱流程。先看觀察，再了解限制，最後決定行動。",
+      "site-health": {
+        "title": "找出可以着手處理的網站問題。 | Fimmick AISO",
+        "description": "先檢視爬取權限、結構化資訊及回答就緒程度，再決定如何修改網站。"
+      },
+      "search-intelligence": {
+        "title": "為搜尋建立更清晰的基礎。 | Fimmick AISO",
+        "description": "透過網站就緒檢查，找出值得在搜尋工作中深入調查的技術及內容問題。"
+      },
+      "demand-intelligence": {
+        "title": "整理客戶真正想問的問題。 | Fimmick AISO",
+        "description": "利用工作區問題庫擬定及審閱提示問題，反映你的客戶、服務與市場。"
+      },
+      "brand-product-discovery": {
+        "title": "更清楚地整理品牌及產品資訊。 | Fimmick AISO",
+        "description": "規劃中：把品牌及產品資料連同來源與審閱狀態一起整理。此功能目前尚未提供。"
+      },
+      "ai-visibility": {
+        "title": "逐個樣本理解 AI 答案。 | Fimmick AISO",
+        "description": "Pulse 協助你審閱指定問題的答案樣本，了解品牌在這些觀察中如何出現。"
+      },
+      "action-studio": {
+        "title": "把發現轉成可編輯的修復建議。 | Fimmick AISO",
+        "description": "利用現有 Fix 工具準備網站改善內容，在網站套用前先完成審閱。"
+      },
+      "governed-agents": {
+        "title": "讓人對代理工作負責。 | Fimmick AISO",
+        "description": "規劃中：在明確政策及人工審閱界線內準備工作的受管治流程。此功能目前尚未提供。"
+      },
+      "proof": {
+        "title": "讓報告更容易核對。 | Fimmick AISO",
+        "description": "以現有掃描發現、Pulse 觀察及客戶報告，說明已觀察的內容與仍待驗證的事項。"
+      }
+    },
+    "solutions": {
+      "title": "配合團隊工作的審閱流程。 | Fimmick AISO",
+      "description": "從一致的證據原則出發，再按團隊、客戶及審閱責任調整工作方式。",
+      "sme": {
+        "title": "讓小型團隊有清晰的起點。 | Fimmick AISO",
+        "description": "找出網站改善方向，同時考慮實施所需的人手及時間。"
+      },
+      "agencies": {
+        "title": "為客戶工作留下更清晰的審閱脈絡。 | Fimmick AISO",
+        "description": "利用客戶工作區及報告工具，把觀察與給客戶的建議連接起來。"
+      },
+      "enterprise": {
+        "title": "把網站證據帶進現有審閱制度。 | Fimmick AISO",
+        "description": "以具體發現及可審閱輸出，配合機構本身的管治方式。"
+      },
+      "regulated-industries": {
+        "title": "把證據與審批放在同一場討論。 | Fimmick AISO",
+        "description": "把網站觀察作為審慎內容審閱的參考，由你的法律及合規專業人員負責受規管聲稱。"
+      }
+    },
+    "how-it-works": {
+      "title": "掃描、審閱、修改、再檢查。 | Fimmick AISO",
+      "description": "透過可以清楚解釋的流程，從網站觀察走向審慎的改善。"
+    },
+    "resources": {
+      "title": "了解目前可用功能的指南。 | Fimmick AISO",
+      "description": "選擇流程前，先了解網站檢查、AI 答案樣本及可編輯修復。"
+    },
+    "contact": {
+      "title": "為產品討論準備具體資料。 | Fimmick AISO",
+      "description": "透過既有 Fimmick 聯絡渠道，帶同清楚的網站問題、需要的流程及團隊限制展開討論。"
+    },
+    "security": {
+      "title": "了解流程背後的控制。 | Fimmick AISO",
+      "description": "檢視產品在原始碼中的存取及請求控制，再評估是否符合你的用途。"
+    },
+    "trust": {
+      "title": "知道結果能支持哪些結論。 | Fimmick AISO",
+      "description": "信任始於分清量度結果、生成建議，以及仍需要證據的聲稱。"
+    },
+    "integrations": {
+      "title": "了解哪些服務支援產品。 | Fimmick AISO",
+      "description": "應用程式使用外部服務處理身份驗證、資料、AI、帳單及電郵。這些依賴服務與你自行連接的整合不同。"
+    },
+    "scan": {
+      "title": "掃描網站的 AI 搜尋就緒程度 | Fimmick AISO",
+      "description": "執行現有網站檢查，查看已儲存的結果、證據覆蓋率及收集限制。"
+    },
+    "methodology": {
+      "title": "如何解讀掃描證據 | Fimmick AISO",
+      "description": "支柱診斷說明掃描背後的證據。覆蓋率反映可核實的資料，不承諾搜尋排名、AI 引用或業務成效。"
+    },
+    "sample-report": {
+      "title": "AI 搜尋報告示範 | Fimmick AISO",
+      "description": "查看清楚標示的合成報告，了解網站檢查示例、草稿建議及證據限制。"
     }
   },
   "nav": {
@@ -62,7 +154,8 @@
       "privacy": "私隱",
       "terms": "條款",
       "contact": "聯絡我們"
-    }
+    },
+    "menu": "選單"
   },
   "auth": {
     "signing_out": "登出中…",
@@ -273,7 +366,14 @@
     "proof_bottom_body": "首次查看可見度結果毋須帳戶或信用卡。",
     "industry_travel_hospitality": "旅遊及款待",
     "industry_media_entertainment": "媒體及娛樂",
-    "skip_to_main": "跳至主要內容"
+    "skip_to_main": "跳至主要內容",
+    "scan_auth_unavailable": "登入驗證暫時無法使用，請稍後再試。",
+    "scan_unavailable": "掃描服務暫時無法使用，請稍後再試。",
+    "scan_quota_unavailable": "暫時無法核實你的掃描額度，請稍後再試。",
+    "scan_upgrade_required": "你目前的方案不包含已登入掃描。請先查看方案再重試。",
+    "scan_quota_reached": "你已用盡方案的掃描額度。請等待額度重設或查看方案。",
+    "scan_rate_limited": "掃描請求過多，請稍候再試。",
+    "scan_save_failed": "未能儲存這次掃描，沒有已儲存的結果可供查看。請重試。"
   },
   "result": {
     "score_label": "AI 就緒分數",
@@ -818,7 +918,14 @@
     "alerts_inapp": "應用內通知",
     "alerts_saving": "儲存中…",
     "alerts_saved": "✓ 已儲存",
-    "alerts_save": "儲存警示設定"
+    "alerts_save": "儲存警示設定",
+    "nav_home": "工作區總覽",
+    "nav_home_desc": "觀察、證據與下一步",
+    "workspace_navigation": "工作區導覽",
+    "toggle_navigation": "切換工作區導覽",
+    "entity": "品牌識別資料",
+    "observations": "觀察",
+    "opportunities": "改善機會"
   },
   "reports": {
     "create_client_report": "建立客戶報告",
@@ -969,5 +1076,821 @@
     "title": "暫時無法使用",
     "body": "此功能正在移轉中，暫時無法使用。工作區的其他功能不受影響。",
     "back": "返回儀表板"
+  },
+  "publicPages": {
+    "common": {
+      "eyebrow": "從觀察出發，決定下一步",
+      "planned": "規劃中 · 尚未提供",
+      "scan": "先掃描網站",
+      "signIn": "登入工作區",
+      "actions": "你可以做甚麼",
+      "proposed": "建議發展方向",
+      "evidence": "證據能說明甚麼",
+      "limitations": "證據的限制",
+      "related": "繼續了解"
+    },
+    "platform": {
+      "title": "了解網站，選擇值得改善的地方。",
+      "summary": "把網站就緒程度、客戶問題及 AI 答案樣本帶進實際審閱流程。先看觀察，再了解限制，最後決定行動。",
+      "actions": [
+        "執行 20 項網站檢查，配合個別結果閱讀滿分 100 分的總分。",
+        "在工作區整理問題、檢視 Pulse 樣本，並準備可編輯的修復內容。",
+        "把原始發現與建議修改放在一起，方便審閱者作出判斷。"
+      ],
+      "evidence": "掃描是在特定時間對單一來源網頁及相關項目作出的觀察。診斷支柱互有重疊，並非額外分數。",
+      "limitations": "就緒分數不是搜尋排名，也不保證 AI 引用。品牌產品探索及受管治代理仍在規劃中。"
+    },
+    "platform_site_health": {
+      "title": "找出可以着手處理的網站問題。",
+      "summary": "先檢視爬取權限、結構化資訊及回答就緒程度，再決定如何修改網站。",
+      "actions": [
+        "開始網站掃描，檢視核心、延伸及 GEO 訊號的 20 項檢查。",
+        "閱讀每項發現，優先處理與網站相關的問題。",
+        "自行套用前，先審閱 robots.txt、llms.txt 及 FAQ JSON-LD 建議內容。"
+      ],
+      "evidence": "總分滿分為 100 分，用來概括目前檢查；個別結果則解釋評估依據。",
+      "limitations": "輸入網址會正規化至來源網域。這不是全站爬取、資訊安全審計，也不能證明 AI 供應商會使用你的內容。"
+    },
+    "platform_search_intelligence": {
+      "title": "為搜尋建立更清晰的基礎。",
+      "summary": "透過網站就緒檢查，找出值得在搜尋工作中深入調查的技術及內容問題。",
+      "actions": [
+        "在網站掃描中檢視爬取權限及頁面訊號。",
+        "分清技術問題與對可被搜尋程度的假設。",
+        "記錄預計修改的內容，之後再次核對相關發現。"
+      ],
+      "evidence": "目前掃描評估網站的就緒訊號，可配合你自己的搜尋分析進行技術審閱。",
+      "limitations": "此頁不提供即時搜尋排名、Search Console 資料或搜尋量。檢查結果不能證明排名影響。"
+    },
+    "platform_demand_intelligence": {
+      "title": "整理客戶真正想問的問題。",
+      "summary": "利用工作區問題庫擬定及審閱提示問題，反映你的客戶、服務與市場。",
+      "actions": [
+        "審閱建議問題，並按受眾需要編輯。",
+        "按意圖整理問題，決定內容應回答甚麼。",
+        "方案允許時，在現有 Pulse 流程使用所選問題。"
+      ],
+      "evidence": "問題庫記錄團隊選擇調查的提示問題，讓觀察更容易重複及解釋。",
+      "limitations": "建議問題不是實測搜尋需求，不能反映市場規模、熱門程度或完整客戶需要。"
+    },
+    "platform_brand_product_discovery": {
+      "title": "更清楚地整理品牌及產品資訊。",
+      "summary": "規劃中：把品牌及產品資料連同來源與審閱狀態一起整理。此功能目前尚未提供。",
+      "actions": [
+        "把產品事實與市場推廣聲稱分開。",
+        "為每項建議品牌資料附上來源及審閱日期。",
+        "公開使用前，先處理互相矛盾的資訊。"
+      ],
+      "evidence": "此頁介紹建議發展方向，不展示即時實體記錄、探索結果或已核實產品目錄。",
+      "limitations": "目前沒有即時探索後端或發佈功能。你仍可使用現有網站掃描了解網站就緒程度。"
+    },
+    "platform_ai_visibility": {
+      "title": "逐個樣本理解 AI 答案。",
+      "summary": "Pulse 協助你審閱指定問題的答案樣本，了解品牌在這些觀察中如何出現。",
+      "actions": [
+        "選擇相關問題及方案支援的平台。",
+        "檢視一次執行的答案樣本與相關觀察。",
+        "解讀變化前，先比較不同執行的背景條件。"
+      ],
+      "evidence": "Pulse 結果對應特定問題及收集條件。解釋品牌有否出現時，應一併交代樣本背景。",
+      "limitations": "樣本不是全球 AI 排名，也不代表完整平台覆蓋。答案可能變動，提及品牌亦不等於帶來銷售或可證明的成效提升。"
+    },
+    "platform_action_studio": {
+      "title": "把發現轉成可編輯的修復建議。",
+      "summary": "利用現有 Fix 工具準備網站改善內容，在網站套用前先完成審閱。",
+      "actions": [
+        "根據掃描發現選擇合適的修復輸出。",
+        "核對生成的 llms.txt、robots.txt 修補內容或 FAQ JSON-LD 是否準確及適用。",
+        "透過自己的網站流程套用已審閱修改，再檢查結果。"
+      ],
+      "evidence": "輸出是根據現有輸入提出的修改建議。審閱時應保留原始發現與編輯版本。",
+      "limitations": "生成內容可能錯誤或不完整。AISO 不會自主發佈修復；生成輸出亦不能證明已部署或改善表現。"
+    },
+    "platform_governed_agents": {
+      "title": "讓人對代理工作負責。",
+      "summary": "規劃中：在明確政策及人工審閱界線內準備工作的受管治流程。此功能目前尚未提供。",
+      "actions": [
+        "界定代理可準備的工作，以及必須由人決定的事項。",
+        "分清建議行動、審閱決定及實際外部操作。",
+        "批准修改前，先展示支持行動的證據。"
+      ],
+      "evidence": "這些是未來功能的設計原則。現有工作區輔助功能並非已上線的政策或審批引擎。",
+      "limitations": "此頁不提供受管治代理執行、審批佇列或自主發佈。現有掃描功能可獨立使用。"
+    },
+    "platform_proof": {
+      "title": "讓報告更容易核對。",
+      "summary": "以現有掃描發現、Pulse 觀察及客戶報告，說明已觀察的內容與仍待驗證的事項。",
+      "actions": [
+        "選擇報告敘述前，先審閱原始發現。",
+        "方案允許時，使用現有客戶報告流程。",
+        "分清觀察結果、解釋及建議下一步。"
+      ],
+      "evidence": "報告傳達可用記錄。讀者評估結論時，需要了解日期、範圍及缺失的觀察。",
+      "limitations": "報告不是獨立認證。現有報告流程未建立從交付到成效的分類帳，也不能證明因果成效提升。"
+    },
+    "solutions": {
+      "title": "配合團隊工作的審閱流程。",
+      "summary": "從一致的證據原則出發，再按團隊、客戶及審閱責任調整工作方式。",
+      "actions": [
+        "選擇符合你責任的受眾流程。",
+        "先掃描網站，找出一項實際改善。",
+        "約定由誰審閱發現、由誰套用修改。"
+      ],
+      "evidence": "受眾頁面介紹現有掃描、問題、修復及報告的用途，不代表新增獨立產品權限。",
+      "limitations": "可用功能取決於目前方案。受眾名稱不代表自訂角色、合規認證或託管服務。"
+    },
+    "solutions_sme": {
+      "title": "讓小型團隊有清晰的起點。",
+      "summary": "找出網站改善方向，同時考慮實施所需的人手及時間。",
+      "actions": [
+        "掃描網站，選擇一項你理解而且能處理的發現。",
+        "與網站編輯或開發人員審閱建議輸出。",
+        "修改後再次檢查相關結果，並記錄仍不確定的地方。"
+      ],
+      "evidence": "掃描提供初步評估及個別發現，方便與網站維護人員討論。",
+      "limitations": "工具不會取代網站維護人員，也不保證流量。較高就緒分數不代表客戶增加。"
+    },
+    "solutions_agencies": {
+      "title": "為客戶工作留下更清晰的審閱脈絡。",
+      "summary": "利用客戶工作區及報告工具，把觀察與給客戶的建議連接起來。",
+      "actions": [
+        "在客戶工作區審閱網站發現。",
+        "準備可編輯修復，並解釋建議背後的假設。",
+        "使用可用的客戶報告功能，分享前先審閱內容。"
+      ],
+      "evidence": "報告可把目前發現及觀察帶進客戶討論；你的審閱提供解讀所需背景。",
+      "limitations": "代理商用途不代表自動獲得客戶批准、自動發佈或已核實業務成效。方案限制及現有存取規則仍然適用。"
+    },
+    "solutions_enterprise": {
+      "title": "把網站證據帶進現有審閱制度。",
+      "summary": "以具體發現及可審閱輸出，配合機構本身的管治方式。",
+      "actions": [
+        "選定網站，界定團隊希望調查的問題。",
+        "與負責內容及實施的團隊審閱發現。",
+        "把現有報告作為內部決策的參考資料。"
+      ],
+      "evidence": "掃描及報告支持有明確範圍的技術討論。是否足以支持發佈決定，須由你的機構判斷。",
+      "limitations": "此頁不承諾企業角色層級、單一登入、採購條款或專屬控制。請按自身要求評估現有能力。"
+    },
+    "solutions_regulated_industries": {
+      "title": "把證據與審批放在同一場討論。",
+      "summary": "把網站觀察作為審慎內容審閱的參考，由你的法律及合規專業人員負責受規管聲稱。",
+      "actions": [
+        "辨認哪些網站陳述需要專業審閱。",
+        "把生成修復視為草稿，逐項按核准來源核對聲稱。",
+        "由既有審閱及發佈流程掌握公開發佈。"
+      ],
+      "evidence": "產品評估網站就緒訊號，可協助整理技術討論，但不評估個別行業的法律義務。",
+      "limitations": "此頁不聲稱符合監管要求、具法律適用性或取得認證。未經自身批准流程，請勿在提示問題中加入機密或受規管資訊。"
+    },
+    "how_it_works": {
+      "title": "掃描、審閱、修改、再檢查。",
+      "summary": "透過可以清楚解釋的流程，從網站觀察走向審慎的改善。",
+      "actions": [
+        "在首頁輸入網站，檢視返回的檢查發現。",
+        "選擇相關問題、審閱證據，並準備可編輯修復。",
+        "透過自己的工具套用已審閱修改，再按背景檢視之後的觀察。"
+      ],
+      "evidence": "滿分 100 分的總分概括 20 項檢查。判斷分數意義前，應先閱讀詳細發現及收集限制。",
+      "limitations": "掃描評估來源網頁，而非每個輸入路徑。之後的觀察可能因修改以外的因素而不同，單憑結果不能證明因果關係。"
+    },
+    "resources": {
+      "title": "了解目前可用功能的指南。",
+      "summary": "選擇流程前，先了解網站檢查、AI 答案樣本及可編輯修復。",
+      "actions": [
+        "閱讀網站健康頁，了解網站檢查範圍。",
+        "閱讀 AI 能見度頁，審慎解讀 Pulse 樣本。",
+        "套用建議修改前，閱讀行動工作室及運作方式。"
+      ],
+      "evidence": "這些指南介紹目前產品及其限制。每個連結頁面都說明可做的事情，以及結果不能證明的事項。",
+      "limitations": "這是產品指南集，不是研究資料庫或獨立驗證的基準。規劃中功能會在相關頁面清楚標示。"
+    },
+    "contact": {
+      "title": "為產品討論準備具體資料。",
+      "summary": "透過既有 Fimmick 聯絡渠道，帶同清楚的網站問題、需要的流程及團隊限制展開討論。",
+      "actions": [
+        "記下網站及希望討論的具體發現或功能。",
+        "整理受眾、審閱責任及產品必須符合的要求。",
+        "如已與 Fimmick 合作，請使用既有聯絡渠道；現有用戶可登入審閱工作區。"
+      ],
+      "evidence": "掃描或工作區發現可提供具體討論起點。只分享你獲授權披露的資訊。",
+      "limitations": "此頁不會傳送訊息或建立支援請求，亦未公布公開聯絡地址、送達承諾或回覆時限。"
+    },
+    "security": {
+      "title": "了解流程背後的控制。",
+      "summary": "檢視產品在原始碼中的存取及請求控制，再評估是否符合你的用途。",
+      "actions": [
+        "透過已驗證身份的工作區存取帳戶範圍內的記錄。",
+        "讓網站修改建議留在你自己的審閱及發佈流程內。",
+        "提交網站資料或提示問題前，先評估資料要求。"
+      ],
+      "evidence": "應用程式為受保護記錄執行伺服器端身份驗證及擁有權檢查。網站擷取會驗證公開目的地及重新導向步驟，以降低伺服器端請求偽造風險。",
+      "limitations": "原始碼控制不是獨立認證，也不能證明所有部署設定。此頁不承諾滲透測試結果、安全服務水平或抵禦所有威脅。"
+    },
+    "trust": {
+      "title": "知道結果能支持哪些結論。",
+      "summary": "信任始於分清量度結果、生成建議，以及仍需要證據的聲稱。",
+      "actions": [
+        "配合總分閱讀個別檢查發現。",
+        "描述能見度前，先檢視 AI 答案樣本的背景。",
+        "審閱生成內容，避免把未核實聲稱放進公開文案。"
+      ],
+      "evidence": "目前掃描提供 20 項檢查評估及滿分 100 分的總分，診斷支柱互有重疊。Pulse 提供樣本，Fix 輸出則是可編輯建議。",
+      "limitations": "就緒程度不保證排名、引用或商業成效。此頁不是認證或法律政策，也不承諾每項觀察都完整。"
+    },
+    "integrations": {
+      "title": "了解哪些服務支援產品。",
+      "summary": "應用程式使用外部服務處理身份驗證、資料、AI、帳單及電郵。這些依賴服務與你自行連接的整合不同。",
+      "actions": [
+        "透過現有身份驗證流程登入。",
+        "使用付費工作區功能前，先了解方案可用範圍。",
+        "提交資料前，評估流程實際需要哪些資訊。"
+      ],
+      "evidence": "原始碼使用 Neon 處理身份驗證及資料庫存取、OpenRouter 處理 AI 呼叫、Stripe 處理帳單，以及 Resend 處理電郵。這些是應用程式的依賴服務。",
+      "limitations": "此頁不是連線控制台，不聲稱提供即時供應商狀態、用戶已連接的 Search Console 帳戶或一鍵整合設定。"
+    }
+  },
+  "scanPage": {
+    "title": "掃描網站的 AI 搜尋就緒程度",
+    "summary": "執行現有網站檢查，查看已儲存的結果、證據覆蓋率及收集限制。",
+    "formLabel": "網站掃描",
+    "limitations": "掃描反映特定時間點的診斷。收集資料缺失或暫時無法取得時，證據可能不完整；成功提交不代表完整覆蓋，也不保證出現在 AI 答案中。",
+    "methodology": "了解評分方法"
+  },
+  "methodologyPage": {
+    "title": "如何解讀掃描證據",
+    "summary": "支柱診斷說明掃描背後的證據。覆蓋率反映可核實的資料，不承諾搜尋排名、AI 引用或業務成效。",
+    "scan": "掃描你的網站",
+    "pillars": {
+      "title": "支柱可重疊，總分維持不變",
+      "body": "支柱將相關檢查分組，同一項檢查可能影響多個支柱，因此不可將支柱分數相加。已儲存的總分、評級及現有評分權重維持不變；支柱診斷是獨立的解讀。"
+    },
+    "coverage": {
+      "title": "按權重計算證據覆蓋率",
+      "body": "覆蓋率等於已核實觀察的權重除以適用權重。明確標示不適用的檢查會同時從分子與分母排除。缺失、失敗、未知或無法核實的收集仍計入分母，且不增加已觀察權重。不明確的部分評估不視為完整核實。若適用權重為零，結果為證據不足，絕不是滿分。"
+    },
+    "gates": {
+      "title": "以未四捨五入的覆蓋率判斷",
+      "body": "覆蓋率低於 0.67 時不顯示支柱數字分數，並標示證據不足。由 0.67 至低於 0.85 為暫定分數；達到 0.85 或以上才標示已評分。判斷使用未四捨五入的加權覆蓋率，即使顯示的百分比向上取整至門檻也不改變狀態。已評分不保證資料收集完整。"
+    },
+    "history": {
+      "title": "方法版本與歷史結果",
+      "body": "新計算的診斷會記錄方法版本。已儲存的舊版快照保留原來版本，不會重寫。以較新方法重新計算的歷史診斷會標示為重新計算；缺少收集證據的舊掃描不可當作已核實觀察。解讀差異前應先比較方法版本。"
+    },
+    "limits": {
+      "title": "資料收集與比較限制",
+      "body": "供應商服務中斷、請求被阻擋及收集缺失均可能降低覆蓋率。結果中的證據經過清理，並受存取權限限制。目前經刪減且僅保留來源網域的證據無法證明改善，因為未建立可比較的前後測量。預估影響仍屬估算。"
+    }
+  },
+  "workspaceHome": {
+    "title": "工作區總覽",
+    "summary": "查看已儲存的觀察與待處理工作。這些資料不代表已交付的改善或可歸因的成效。",
+    "siteHealth": "網站健康",
+    "visibility": "最新觀察到的 AI 可見度",
+    "recommendations": "生成的建議",
+    "history": "掃描記錄",
+    "tools": "現有工具",
+    "freshnessUnknown": "資料新鮮度：未知",
+    "observedAt": "觀察時間",
+    "noDate": "沒有可用的觀察日期",
+    "draft": "草稿建議，尚未交付",
+    "noPillars": "這次掃描沒有已儲存的支柱診斷。",
+    "score": "已儲存的 AISO 分數",
+    "mentions": "品牌提及",
+    "queries": "查詢",
+    "platforms": "平台",
+    "states": {
+      "empty": "尚未有可用觀察。",
+      "error": "暫時無法載入此部分，請稍後重新整理。",
+      "locked": "你目前的方案未包含此部分。"
+    },
+    "scan": "掃描網站",
+    "results": "查看結果",
+    "improve": "查看改善工具",
+    "monitor": "查看監測",
+    "roi": "查看 Local Trust／ROI",
+    "reports": "報告",
+    "prompts": "問題庫",
+    "pricing": "查看方案",
+    "openScan": "查看掃描",
+    "status": "網站狀態"
+  },
+  "portfolio": {
+    "title": "你的品牌組合",
+    "intro": "查看啟用中的品牌及已儲存的觀察。資料新鮮度仍屬未知；這些記錄未能證明可比較的表現變化。",
+    "brands": "啟用中的品牌",
+    "emptyBrands": "暫時沒有啟用中的品牌。",
+    "capacity": "所有持有的品牌",
+    "capacityUnknown": "暫時無法核實新增品牌的可用額度，請稍後重新整理再試。",
+    "capacityLimit": "你目前的品牌額度已滿。",
+    "pricing": "查看方案",
+    "history": "最近掃描",
+    "historyEmpty": "暫時沒有已儲存的掃描。",
+    "historyError": "暫時無法載入掃描記錄，請稍後重新整理再試。",
+    "visibility": "最新觀察到的可見度",
+    "visibilityEmpty": "暫時沒有可用的可見度觀察。",
+    "visibilityError": "暫時無法載入可見度觀察。",
+    "freshnessUnknown": "資料新鮮度：未知",
+    "observedAt": "觀察週期",
+    "dateUnknown": "日期暫時無法取得",
+    "dateZone": "日期以 UTC 顯示。",
+    "grade": "評級",
+    "loadErrorTitle": "未能載入你的品牌組合",
+    "loadErrorBody": "暫時無法取得你持有的品牌，請稍後重新整理再試。"
+  },
+  "settings": {
+    "title": "設定",
+    "intro": "管理你的訂閱權限及帳單。",
+    "currentPlan": "目前可用方案",
+    "cataloguePrice": "方案標準價格",
+    "perMonth": "每月",
+    "free": "免費",
+    "status": "訂閱狀態",
+    "statusLabels": {
+      "active": "使用中",
+      "trialing": "試用中",
+      "past_due": "付款逾期",
+      "cancelled": "已取消",
+      "unknown": "未知"
+    },
+    "billing": "帳單",
+    "manageBilling": "管理帳單",
+    "billingBody": "更新付款方式、查看發票或取消訂閱。",
+    "billingUnavailable": "此帳戶未連結帳單管理入口。",
+    "pricing": "比較方案",
+    "pricingNote": "標準價格用於說明方案；實際訂閱費用請查看帳單管理入口。"
+  },
+  "pulseView": {
+    "title": "AI 可見度觀測",
+    "intro": "已儲存的答案觀測，並非供應商請求成功率或歸因改善成效。",
+    "empty": "未有可用的觀測資料。",
+    "error": "此部分暫時無法載入，請稍後重新整理。",
+    "freshness": "資料新鮮度：未知",
+    "week": "觀測週期",
+    "unknown": "未能取得",
+    "aggregate": "所有已觀測平台",
+    "platforms": "平台觀測",
+    "prompts": "監察問題",
+    "missed": "未提及品牌的問題",
+    "back": "返回工作空間",
+    "full": "開啟 Pulse 報告",
+    "loadError": "未能載入 Pulse",
+    "gaps": "沒有資料的週期會保留空缺，不會推算中間數值。",
+    "value": "已觀測聲量佔比",
+    "question": "問題",
+    "platform": "平台",
+    "competitors": "其他獲提及品牌",
+    "active": "啟用",
+    "inactive": "停用"
+  },
+  "sampleReport": {
+    "eyebrow": "合成示範 — 不含客戶資料",
+    "title": "了解以證據為本的報告內容",
+    "intro": "這個靜態示例展示報告格式。以下品牌、分數、檢查及建議均為虛構；本頁沒有為此掃描任何網站。",
+    "brand": "示範品牌",
+    "score": "示例分數",
+    "grade": "評級",
+    "date": "示例觀察日期",
+    "checks": "檢查示例",
+    "subset": "這三項示例只展示部分報告格式，並非用來計算示例分數的輸入資料。",
+    "robots": "爬蟲存取",
+    "robotsBody": "示例：受檢查的爬蟲獲准存取網站。",
+    "schema": "結構化資訊",
+    "schemaBody": "示例：已有機構資料，但仍需審核。",
+    "content": "可擷取內容",
+    "contentBody": "示例：已擷取文字缺少重要服務資料。",
+    "pass": "通過",
+    "warn": "需要審核",
+    "fail": "需要處理",
+    "work": "草稿建議",
+    "workBody": "補充簡明的服務說明，並在發布任何變更前審核機構資料。",
+    "draftOnly": "這項示範建議尚未獲批准、交付或發布。",
+    "comparison": "沒有可比較的基準",
+    "comparisonBody": "此示例沒有較早的觀察、交付記錄或重新檢查，因此不聲稱有改善或可歸因的成效。",
+    "limits": "證據限制",
+    "limitsBody": "實際報告使用已儲存的快照及獲准提供的證據。分享連結可撤銷或輪替。本示範只是公開示例，不會建立分享連結或儲存報告。",
+    "scan": "掃描你的網站",
+    "methodology": "了解評估方法"
+  },
+  "generatedWork": {
+    "title": "已生成的建議",
+    "draftNotice": "生成的建議屬草稿，請先審閱。複製草稿不會將內容發佈到你的網站。",
+    "storageNotice": "請自行保存所需草稿。此回應未能確認草稿已儲存。",
+    "generationFailed": "修復包暫時無法使用或未能生成。請重試；目前不會顯示已完成的草稿。",
+    "generating": "正在生成草稿…",
+    "retry": "重試",
+    "copying": "正在複製…",
+    "copyFailed": "未能複製草稿。請重試，或選取文字後手動複製。",
+    "pending": "草稿生成已排隊，目前未有已完成的內容。",
+    "running": "正在生成草稿，目前未有已完成的內容。",
+    "error": "未能完成生成內容，請稍後重新整理查看狀態。",
+    "unavailable": "此掃描暫時未有已完成的生成內容。",
+    "packTitle": "修復包草稿",
+    "packSubtitle": "套用修改前請先審閱",
+    "packContents": "可生成的草稿檔案：",
+    "llmsDescription": "供審閱的網站內容摘要建議。",
+    "robotsDescription": "請按你的存取政策核對爬蟲規則建議。",
+    "faqDescription": "使用前請核實的結構化問答建議。",
+    "packCta": "生成草稿檔案"
+  },
+  "alertFeedback": {
+    "loadFailed": "未能載入提示設定，請重試。",
+    "saveFailed": "未能確認提示設定已儲存。你的修改仍然保留，請重試。",
+    "retry": "重試"
+  },
+  "entities": {
+    "title": "品牌識別資料",
+    "description": "為此客戶保留一份私人品牌識別資料。這些名稱尚未驗證，不會更改品牌名稱或掃描結果。",
+    "privateLabel": "私人工作區",
+    "unverified": "尚未驗證",
+    "unsaved": "尚未儲存的草稿",
+    "saved": "已私人儲存",
+    "displayName": "顯示名稱",
+    "aliases": "別名",
+    "aliasesHelp": "每行一個別名，最多 20 個，每個名稱最多 120 個字元。",
+    "save": "儲存識別資料",
+    "saving": "儲存中…",
+    "reload": "捨棄草稿並重新載入最新版本",
+    "reloading": "重新載入中…",
+    "conflict": "其他人已儲存較新版本。你的草稿已保留。再次儲存前請重新載入最新版本；重新載入將捨棄此草稿。",
+    "saveError": "無法儲存變更。你的草稿已保留，請再次嘗試儲存。",
+    "loadError": "無法載入識別資料，請重試。",
+    "retry": "重試",
+    "invalid": "請輸入顯示名稱及最多 20 個別名。每個名稱須為 1–120 個字元，且不可包含控制字元。",
+    "unauthenticated": "登入階段已結束，請重新登入以繼續。你的草稿仍保留在此。",
+    "unavailable": "此客戶已無法存取，你的草稿尚未儲存。"
+  },
+  "observations": {
+    "title": "已記錄觀察",
+    "description": "查看受監察問題及其保留證據。",
+    "question": "問題",
+    "allQuestions": "所有問題",
+    "archivedQuestion": "已選取封存問題",
+    "platform": "平台",
+    "allPlatforms": "所有平台",
+    "applyPlatform": "套用平台",
+    "platformInvalid": "輸入不得超過 80 個字元。",
+    "week": "週次",
+    "result": "結果",
+    "allResults": "所有結果",
+    "success": "成功",
+    "incomplete": "不完整或未知",
+    "recordedRows": "已記錄 {count} 列",
+    "successfulRows": "成功 {count} 列",
+    "unknownModel": "模型未知",
+    "unknownMarket": "市場未知",
+    "unknownCollectionTime": "收集時間未知",
+    "historicalQuestion": "觀察時的問題",
+    "currentPrompt": "目前提示詞",
+    "managePrompts": "管理受監察問題",
+    "questionsTruncated": "部分受監察問題未有顯示。",
+    "empty": "沒有符合篩選條件的已記錄觀察。",
+    "loading": "正在載入觀察…",
+    "loadError": "無法載入觀察。",
+    "retry": "重試",
+    "next": "下一頁",
+    "successfulRowsPlural": "成功 {count} 列",
+    "incompleteRows": "不完整 {count} 列",
+    "noData": "尚未有已記錄觀察。",
+    "recordedAt": "記錄建立時間",
+    "unknownRecordedAt": "記錄建立時間未知",
+    "noAnswer": "未記錄回答",
+    "hasAnswer": "已記錄回答",
+    "classificationUnknown": "未記錄分類",
+    "brandMentioned": "已儲存分類：提及品牌",
+    "brandNotMentioned": "已儲存分類：未提及品牌",
+    "retainedWeeks": "可選擇最近 40 個有保留記錄的週次。",
+    "monitoredQuestions": "受監察問題",
+    "noQuestions": "沒有可用的受監察問題。",
+    "active": "啟用",
+    "inactive": "停用",
+    "activityUnknown": "啟用狀態未知",
+    "category": "目前分類",
+    "language": "目前語言",
+    "unknown": "未知"
+  },
+  "opportunities": {
+    "title": "改善機會",
+    "intro": "檢視保留的 Pulse 及網站證據，再將希望跟進的發現儲存為私人草稿。",
+    "views": "工作區檢視",
+    "suggestions": "建議",
+    "savedDrafts": "已儲存草稿",
+    "savedDraft": "已儲存的草稿",
+    "saveDraft": "儲存為草稿",
+    "openDraft": "開啟已儲存草稿",
+    "refresh": "重新整理建議",
+    "refreshDrafts": "重新整理草稿",
+    "loadingSuggestions": "正在載入建議…",
+    "loadingDrafts": "正在載入草稿…",
+    "loadingDraft": "正在開啟草稿…",
+    "saving": "正在儲存…",
+    "saveChanges": "儲存變更",
+    "draftSaved": "草稿已儲存並開啟。",
+    "changesSaved": "變更已儲存。",
+    "refreshed": "建議已更新。",
+    "reloaded": "已載入最新草稿。",
+    "partial": "部分證據或草稿資料暫時無法取得或有所限制。以下顯示可用的發現。",
+    "savedUnknown": "暫時無法確認這項發現是否已有草稿。如已有草稿，儲存時會開啟現有草稿。",
+    "limitedEvidence": "保留的證據不足，無法將這項發現儲存為新草稿。",
+    "window": "建議來自最新保留的 Pulse 週最多 200 列資料，以及最新保留的網站掃描檢查。這是有限範圍的檢視，並非全面搜尋。",
+    "pulseTruncated": "這一週還有更多 Pulse 資料。目前只包括最新 200 列。",
+    "week": "保留週份",
+    "noWeek": "沒有保留的 Pulse 週份",
+    "pulse": "Pulse 證據",
+    "scan": "網站掃描證據",
+    "empty": "可用的保留證據中沒有符合條件的建議。",
+    "noAvailableSuggestions": "目前可用的來源中沒有可顯示的發現。請重新整理以重試無法取得的來源。",
+    "noDrafts": "尚未儲存草稿。",
+    "loadError": "無法更新建議。原有發現仍然顯示，請再次重新整理。",
+    "listError": "無法載入草稿，請再次重新整理草稿。",
+    "openError": "無法開啟草稿，請再次嘗試開啟。",
+    "saveError": "無法儲存草稿。這項發現仍然保留，請重試。",
+    "evidenceChanged": "證據已變更。請先重新整理建議，再儲存草稿。",
+    "editError": "無法儲存變更。你的編輯仍然保留，請再次儲存。",
+    "editConflict": "這份草稿已在其他地方變更。你的編輯仍然保留。只有在準備好取代目前編輯時，才重新載入最新草稿。",
+    "invalidEdit": "請檢查標題、行動及備註的長度，並移除不支援的控制字元。你的編輯仍然保留。",
+    "reloadDraft": "重新載入最新草稿並取代編輯",
+    "reloadError": "無法載入最新草稿。你的編輯仍然保留，請再次載入。",
+    "loadMore": "載入更多草稿",
+    "draftOnly": "機構私人草稿。儲存不會發佈或傳送內容。",
+    "draftLanguage": "草稿原始語言",
+    "createdAt": "建立時間",
+    "updatedAt": "上次儲存",
+    "titleField": "標題",
+    "action": "建議行動",
+    "notes": "備註",
+    "fieldLimits": "標題：1–160 字。行動：1–4,000 字。備註：最多 8,000 字。",
+    "savedEvidence": "草稿儲存時的證據",
+    "snapshotNotice": "這些證據及原始建議會保留草稿儲存時的記錄。編輯草稿或切換顯示語言不會改寫它們。即使來源已無法取得，仍可編輯草稿。",
+    "pulseWhy": "一個保留的回答未提及品牌。這只描述該次記錄的回答，並非整個市場的能見度。",
+    "scanWhy": "一項適用且已完整收集的網站檢查記錄了警告或未通過結果。請先檢視保留證據，再決定要更改甚麼。",
+    "recordedAt": "記錄日期",
+    "unknownRecordedAt": "未記錄日期",
+    "question": "記錄的問題",
+    "platform": "記錄的平台",
+    "pulseUnknowns": "未記錄收集時間、模型及市場。記錄日期不等同收集時間。",
+    "check": "網站檢查",
+    "warning": "警告",
+    "failed": "未通過",
+    "collectedAt": "收集時間",
+    "unknownCollectionTime": "未記錄收集時間",
+    "origin": "已評估的來源網域",
+    "unknown": "未記錄",
+    "redacted": "只保留來源網域。頁面路徑、查詢字串及片段已隱去；此證據無法識別確切頁面，也不能證明可比較的成效。",
+    "limitedScan": "此掃描只保留了有限證據。",
+    "collectionDetails": "收集詳情",
+    "requestedOrigin": "要求的來源網域",
+    "finalOrigin": "最終來源網域",
+    "collection": "收集覆蓋範圍",
+    "methods": "記錄的掃描器、檢查及評分版本",
+    "provenance": "來源",
+    "validatedFetch": "已驗證的擷取",
+    "httpStatus": "HTTP 狀態",
+    "limitations": "證據限制",
+    "sourceStates": {
+      "ok": "可用",
+      "empty": "沒有保留證據",
+      "unavailable": "暫時無法取得"
+    },
+    "states": {
+      "complete": "完整",
+      "partial": "部分",
+      "blocked": "受阻",
+      "failed": "失敗",
+      "unsupported": "不支援",
+      "unknown": "未知"
+    },
+    "rules": {
+      "review-question-coverage": {
+        "title": "檢視問題內容覆蓋",
+        "action": "檢視與「{question}」相關的內容。在 {platform} 保留的回答中未提及品牌；先核對內容及證據，再決定下一步。"
+      },
+      "review-check": {
+        "title": "檢視網站檢查：{checkKey}",
+        "action": "檢視 {checkKey} 的保留證據及限制，並調查警告或未通過的檢查結果。"
+      }
+    },
+    "limits": {
+      "model-unrecorded": "未記錄模型",
+      "market-unrecorded": "未記錄市場",
+      "collection-time-unrecorded": "未記錄收集時間",
+      "one-recorded-response": "只有一次記錄的回答",
+      "origin-only-identity": "只保留來源網域身分",
+      "no-page-or-provider-excerpts": "沒有保留頁面或供應商摘錄",
+      "sampled-single-page": "只抽樣一個頁面",
+      "scan-record-retention": "以保留的掃描記錄為依據"
+    },
+    "initialLoadError": "無法載入建議，請重試。",
+    "versionHistory": "查看版本紀錄",
+    "saveBeforeVersions": "請先儲存修改，再開啟版本紀錄。"
+  },
+  "changeSets": {
+    "title": "版本審核",
+    "notDelivery": "批准只會記錄審核決定，不會發佈、交付或執行此草稿。",
+    "immutableNotice": "版本保留提交時的內容及原始證據限制。修改目前草稿不會改變過往版本。",
+    "backToDrafts": "返回已儲存草稿",
+    "currentDraft": "目前已儲存草稿",
+    "savedRevision": "已儲存修訂 {revision}",
+    "draftUnavailable": "無法載入已儲存草稿。提交前請重新載入。",
+    "submitVersion": "提交已儲存版本",
+    "reloadDraft": "重新載入已儲存草稿",
+    "draftReloaded": "已重新載入草稿。",
+    "history": "版本紀錄",
+    "reloadHistory": "重新載入版本紀錄",
+    "noVersions": "尚未提交任何版本。",
+    "moreVersions": "更多版本",
+    "versionNumber": "版本 {number}",
+    "versionDetails": "不可更改的版本詳情",
+    "versionSubmitted": "已提交版本。",
+    "decisionRecorded": "已記錄決定。",
+    "loading": "載入中…",
+    "unavailable": "暫時無法取得審核資料。畫面內容及原因已保留。請重試或明確重新載入。",
+    "conflict": "此修訂或審核已改變。內容已保留。請重新載入已儲存草稿或版本紀錄，再選擇下一步。",
+    "validationFailed": "已儲存草稿未通過審核資料檢查。請檢查並儲存草稿後重試。",
+    "denied": "最新版本須由獨立且有效的帳戶審核員審核。提交者、已撤銷權限者及非審核員不能作出決定。",
+    "superseded": "已有較新的提交版本取代此版本。",
+    "pending": "等待審核",
+    "approved": "已批准",
+    "changes_requested": "要求修改",
+    "decision": "決定",
+    "reason": "審核原因",
+    "reasonLimit": "必填：刪除首尾空白後須為 1–2000 個字元。",
+    "invalidReason": "請輸入 1–2000 個字元的原因。",
+    "recordDecision": "記錄決定",
+    "finishDecision": "審核原因已保留。請完成決定或明確捨棄原因後再切換版本。",
+    "submittedBy": "提交者",
+    "decidedBy": "決定者",
+    "packageChecks": "審核資料檢查",
+    "check_text": "文字欄位",
+    "check_locale": "內容語言",
+    "check_evidence": "保留證據結構",
+    "check_content_size": "資料大小",
+    "pass": "已通過",
+    "contentHash": "內容雜湊",
+    "discardReason": "捨棄已輸入原因"
+  },
+  "approverAccess": {
+    "title": "帳戶審核員",
+    "scope": "為現有帳戶成員授予或撤銷審核權限。管理員身分不會授予客戶審核權限。",
+    "members": "帳戶成員",
+    "member": "選擇成員",
+    "active": "有效審核員",
+    "inactive": "沒有審核權限",
+    "noApprovers": "沒有有效審核員。請先授予合資格帳戶成員審核權限。",
+    "action": "權限操作",
+    "grant": "授予審核權限",
+    "revoke": "撤銷審核權限",
+    "reason": "權限變更原因",
+    "reasonLimit": "必填：刪除首尾空白後須為 1–2000 個字元。",
+    "revision": "權限修訂 {revision}",
+    "saveAccess": "記錄權限變更",
+    "accessRecorded": "已記錄權限變更。",
+    "history": "權限稽核紀錄",
+    "noEvents": "沒有權限事件。",
+    "moreMembers": "更多成員",
+    "moreEvents": "更多權限事件",
+    "reload": "重新載入權限清單",
+    "loading": "載入中…",
+    "unavailable": "暫時無法取得審核權限資料，這不代表名單為空。原因已保留，請重試查詢或提交。",
+    "conflict": "權限已改變。原因已保留。請重新載入清單並檢查目前修訂後重試。",
+    "denied": "未能確認管理員權限。請重新載入權限清單後重試。",
+    "invalidReason": "請輸入 1–2000 個字元的原因。"
+  },
+  "delivery": {
+    "title": "手動交付",
+    "limitation": "這是成員自行申報的手動交付，並非經核實的發佈或成效。交付未經核實；下載不會記錄交付。",
+    "versionBound": "此檔案及交付記錄屬於版本 {number}。歷史審批只適用於該保留版本。",
+    "record": "記錄手動交付",
+    "destination": "交付目的地標籤",
+    "destinationHelp": "1–500 個純文字字元。請勿填寫憑證或含有機密的網址。",
+    "timeUtc": "交付日期及時間（UTC）",
+    "timeHelp": "使用 UTC 並包括秒數。交付時間不得早於審批或晚於現在；伺服器會進行驗證。",
+    "note": "交付備註（1–2000 字元）",
+    "invalid": "請檢查欄位及交付時間。已保留你的輸入。",
+    "history": "交付歷史",
+    "active": "現有一項有效的自行申報交付記錄。",
+    "noActive": "目前沒有有效交付記錄。",
+    "empty": "沒有交付記錄。",
+    "withdraw": "撤回有效交付記錄",
+    "attested": "手動交付申報",
+    "withdrawn": "已撤回交付記錄",
+    "unknownActor": "未知成員",
+    "recordedTime": "伺服器記錄時間",
+    "declaredTime": "申報交付時間",
+    "withdrawReason": "撤回原因（1–2000 字元）",
+    "target": "原交付記錄 ID",
+    "more": "更多交付歷史",
+    "exportJson": "下載已審批 JSON",
+    "exportText": "下載已審批文字",
+    "refresh": "重新整理交付權限",
+    "unauthenticated": "請重新登入後再整理交付權限。已保留你的輸入。",
+    "denied": "沒有交付存取權限。已保留你的輸入。",
+    "conflict": "版本或交付歷史已變更。請先重新整理權限再重試。",
+    "unavailable": "交付功能暫時無法使用。已保留你的輸入。",
+    "loading": "正在載入交付權限及歷史…",
+    "refreshRequired": "請先重新整理交付權限再作變更。",
+    "not_approved": "此版本尚未獲批匯出或交付。",
+    "superseded": "可下載此歷史版本，但不可新增交付申報。",
+    "active_attestation": "請先撤回有效記錄，再新增更正的交付申報。",
+    "no_active_attestation": "沒有可撤回的有效交付記錄。",
+    "recorded": "已記錄手動交付申報。",
+    "withdrawalRecorded": "已記錄撤回。原交付申報仍保留在歷史中。",
+    "downloaded": "已開始下載，沒有新增交付申報。",
+    "withdrawConfirm": "請提供稽核原因以撤回此申報。撤回並不表示交付從未發生。",
+    "confirmWithdraw": "確認撤回",
+    "discard": "捨棄交付輸入",
+    "discardConfirm": "捨棄尚未儲存的交付輸入？"
+  },
+  "outcomes": {
+    "title": "儲存證據成效",
+    "limitation": "此讀取僅反映當時狀態；來源修改、刪除、延遲匯入或撤回均可能改變結果，並不證明影響或因果關係。",
+    "refresh": "重新整理成效",
+    "retry": "重試讀取成效",
+    "loading": "正在讀取儲存成效…",
+    "loaded": "儲存成效已更新。",
+    "unavailable": "暫時無法讀取儲存成效，請重試。",
+    "unauthenticated": "請重新登入以讀取儲存成效。",
+    "denied": "你已無權讀取這些成效。",
+    "anchorState": "交付基準",
+    "version": "不可變版本",
+    "contentHash": "版本內容雜湊",
+    "evaluatedAt": "評估時間",
+    "policy": "評估規則",
+    "anchorId": "交付聲明參考",
+    "deliveredAt": "自行申報的交付時間",
+    "attestedAt": "伺服器記錄的聲明時間",
+    "baseline": "凍結基線",
+    "baselineProvenance": "此不可變版本保留的證據；記錄時間不一定是收集時間。",
+    "intervalPolicy": "以 UTC 經過日數計算，包含開始時間，不包含結束時間。重新整理只讀取儲存證據。",
+    "window": "D{day} 證據時段",
+    "startsAt": "開始時間（包含）",
+    "endsAt": "結束時間（不包含）",
+    "timeState": "時段狀態",
+    "evidenceState": "證據狀態",
+    "provisional": "暫定選取：此時段仍未結束。",
+    "diagnostics": "未納入選取的保留觀察",
+    "diagnosticsLimitation": "這些參考並非已選取的定時測量；未知收集時間無法確定所屬時段。",
+    "source": "來源參考",
+    "collectedAt": "收集時間",
+    "recordedAt": "來源記錄時間",
+    "collectionUnknown": "收集時間不詳",
+    "unknown": "不詳",
+    "verdict": "保留的來源結果",
+    "anchorStates": {
+      "active": "有效交付聲明",
+      "no-delivery": "沒有交付聲明",
+      "withdrawn": "交付基準已撤回"
+    },
+    "timeStates": {
+      "not-due": "尚未到期",
+      "awaiting-evidence": "等待證據",
+      "missing-evidence": "缺少證據",
+      "observation-available": "已有觀察"
+    },
+    "evidenceStates": {
+      "available": "可用",
+      "timing-unknown": "時間不詳",
+      "invalid-baseline": "基線無效",
+      "not-comparable": "不可比較",
+      "evidence-limited": "證據受限",
+      "unavailable": "無法取得"
+    },
+    "sources": {
+      "scan-check": "掃描檢查",
+      "pulse-metric": "Pulse 觀察"
+    },
+    "verdicts": {
+      "pass": "通過",
+      "warn": "警告",
+      "fail": "未通過",
+      "not-applicable": "不適用",
+      "not-verifiable": "無法核實",
+      "success": "記錄為成功",
+      "incomplete": "不完整"
+    },
+    "reasons": {
+      "point-in-time-read": "僅反映本次讀取時的狀態，之後的來源變更可能改變結果。",
+      "self-reported-delivery": "交付時間為自行申報，未經獨立核實。",
+      "no-delivery": "必須有有效的手動交付聲明才能推算時段。",
+      "anchor-withdrawn": "聲明已撤回，已停止以此基準評估。",
+      "baseline-missing": "凍結基線缺失或格式錯誤。",
+      "baseline-after-delivery": "基線收集時間晚於申報交付時間。",
+      "collection-time-unknown": "實際收集時間不詳，無法確定所屬時段。",
+      "source-unavailable": "無法讀取來源證據；這並非成功讀取後沒有結果。",
+      "candidate-limit-exceeded": "候選數量超出上限，無法確定選取結果。",
+      "different-source-subject": "保留觀察涉及不同來源或對象。",
+      "no-comparable-adapter": "目前沒有支援的轉接器可建立可比較成效。",
+      "final-path-identity-withheld": "掃描結構版本 1 不保留最終路徑識別，無法建立可比較差異。",
+      "pulse-provenance-incomplete": "Pulse 缺少可信的歷史收集時間、模型、市場及涵蓋範圍資料。",
+      "unknown-evidence": "證據來源脈絡不詳。",
+      "different-methods-or-scope": "方法或範圍不同。",
+      "incomplete-collection": "收集不完整。",
+      "origin-only-identity": "僅保留來源網域識別。",
+      "no-page-or-provider-excerpts": "不顯示網頁或供應商摘錄。",
+      "sampled-single-page": "掃描僅抽樣單一頁面。",
+      "scan-record-retention": "此來源為保留的掃描記錄。",
+      "source-malformed": "儲存的來源證據格式錯誤。",
+      "unsupported-source": "此來源類型不支援比較。"
+    }
   }
 }

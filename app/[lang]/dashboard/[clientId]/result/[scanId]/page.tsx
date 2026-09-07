@@ -345,19 +345,19 @@ export default async function DashboardResultPage({
         {/* Fix Pack */}
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <p className="text-xs font-bold text-dash-muted tracking-widest">PHASE 2 — FIX PACK</p>
-            <span className="text-xs text-dash-muted/70">AI-generated files ready to deploy</span>
+            <p className="text-xs font-bold text-dash-muted tracking-widest">{t('generatedWork.packTitle')}</p>
+            <span className="text-xs text-dash-muted/70">{t('generatedWork.packSubtitle')}</span>
           </div>
           <div className="rounded-xl border border-dash-border bg-dash-elevated p-4 mb-3 text-sm text-dash-muted space-y-1">
-            <p className="font-semibold text-dash-text mb-2">What gets generated:</p>
-            <p>📄 <strong>llms.txt</strong> — tells AI platforms what your site covers (fixes c2, c6)</p>
-            <p>🤖 <strong>robots.txt patch</strong> — explicitly allows AI crawlers (fixes c1, c3)</p>
-            <p>🗂 <strong>FAQ JSON-LD</strong> — structured Q&amp;As for AI citation (fixes c4, c11)</p>
+            <p className="font-semibold text-dash-text mb-2">{t('generatedWork.packContents')}</p>
+            <p><strong>llms.txt</strong> — {t('generatedWork.llmsDescription')}</p>
+            <p><strong>robots.txt patch</strong> — {t('generatedWork.robotsDescription')}</p>
+            <p><strong>FAQ JSON-LD</strong> — {t('generatedWork.faqDescription')}</p>
           </div>
           <FixPackClient
             scanId={s.id}
-            fixCta={t('result.fix_cta')}
-            fixSubtitle={t('result.fix_subtitle')}
+            fixCta={t('generatedWork.packCta')}
+            fixSubtitle={t('generatedWork.draftNotice')}
             copyLabel={t('result.copy')}
             copiedLabel={t('result.copied')}
           />

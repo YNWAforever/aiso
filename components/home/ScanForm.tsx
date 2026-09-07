@@ -22,6 +22,32 @@ export function getScanSubmitLabelKey(hasFailed: boolean): 'cta' | 'retry_scan' 
   return hasFailed ? 'retry_scan' : 'cta'
 }
 
+export function getScanResultId(payload: unknown): string {
+  const id = payload && typeof payload === 'object' && 'id' in payload ? payload.id : undefined
+  if (typeof id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    throw new Error('invalid_response')
+  }
+  return id
+}
+
+// Match only known API failures; never show server diagnostics to visitors.
+export function getScanErrorKey(status: number, payload: unknown) {
+  const error = payload && typeof payload === 'object' && 'error' in payload ? payload.error : undefined
+  if (status === 400 && typeof error === 'string' && [
+    'Invalid URL', 'Invalid URL format', 'URL must use HTTP or HTTPS without credentials',
+    'URL must resolve to a public HTTP or HTTPS address',
+  ].includes(error)) return 'url_invalid'
+  if (status === 403 && error === 'AUTHENTICATED_SCAN_UPGRADE_REQUIRED') return 'scan_upgrade_required'
+  if (status === 429) return error === 'AUTHENTICATED_SCAN_LIMIT_REACHED' ? 'scan_quota_reached' : 'scan_rate_limited'
+  if (status === 503) {
+    if (error === 'Authentication service unavailable') return 'scan_auth_unavailable'
+    if (error === 'Authenticated scan quota unavailable') return 'scan_quota_unavailable'
+    return 'scan_unavailable'
+  }
+  if (status === 500 && (error === 'Insert returned no data' || error === 'Database error \u2014 check Neon configuration')) return 'scan_save_failed'
+  return 'scan_error_action'
+}
+
 const INDUSTRIES = [
   'technology',
   'finance',
@@ -106,18 +132,23 @@ export function ScanForm({ lang }: ScanFormProps) {
         }),
       })
 
-      if (!response.ok) throw new Error('scan_failed')
-      const data: unknown = await response.json()
-      if (!data || typeof data !== 'object' || !('id' in data) || typeof data.id !== 'string') {
-        throw new Error('invalid_response')
+      if (!response.ok) {
+        const payload: unknown = await response.json().catch(() => null)
+        setStatusIsError(true)
+        setStatus(t(getScanErrorKey(response.status, payload)))
+        setHasFailed(true)
+        setIsSubmitting(false)
+        return
       }
+      const data: unknown = await response.json()
+      const id = getScanResultId(data)
       trackFunnelEvent({
         name: 'scan_completed',
         locale: lang === 'zh-HK' ? 'zh-HK' : 'en',
-        scanId: data.id,
+        scanId: id,
       })
       setStatus(t('scan_complete'))
-      router.push(`/${lang}/result/${data.id}`)
+      router.push(`/${lang}/result/${id}`)
     } catch {
       setStatusIsError(true)
       setStatus(t('scan_error_action'))

@@ -1,6 +1,12 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { SettingsView } from '@/components/dashboard/SettingsView'
+import { resolveCommercialEntitlement } from '@/lib/tier'
+import en from '@/messages/en.json'
+import zhHK from '@/messages/zh-HK.json'
 
 function runtimeFiles(root: string): string[] {
   return readdirSync(root, { withFileTypes: true }).flatMap(entry => {
@@ -11,12 +17,16 @@ function runtimeFiles(root: string): string[] {
 }
 
 describe('commercial entitlement runtime wiring', () => {
-  it('keeps the pricing upgrade path visible for effective free accounts', () => {
-    const settings = readFileSync('app/[lang]/dashboard/settings/page.tsx', 'utf8')
-
-    expect(settings).toContain("free: 'Upgrade to Basic →'")
-    expect(settings).toContain("basic: 'Upgrade to Pro →'")
-    expect(settings).toContain("pro: 'Upgrade to Enterprise →'")
+  it.each(['en', 'zh-HK'])('keeps the localized pricing path visible for effective free accounts in %s', lang => {
+    const plan = resolveCommercialEntitlement({ plan: 'pro', status: 'past_due' }).plan
+    expect(plan).toBe('free')
+    const html = renderToStaticMarkup(createElement(SettingsView, {
+      lang, plan, status: 'past_due', hasStripe: false,
+    }))
+    const copy = (lang === 'zh-HK' ? zhHK : en).settings
+    expect(html).toContain(`href="/${lang}/pricing"`)
+    expect(html).toContain(copy.pricing)
+    expect(html).toContain(copy.free)
   })
 
   it('does not derive commercial access from the raw stored plan', () => {

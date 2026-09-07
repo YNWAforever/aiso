@@ -18,9 +18,13 @@ function resultsWithStatus(status: 'pass' | 'warn' | 'fail') {
   )
 }
 
+function evidenceWithStatus(status: 'pass' | 'warn' | 'fail') {
+  return Object.fromEntries(Object.keys(resultsWithStatus(status)).map(key => [key, {applicability: 'applicable', collection: 'complete', assessment: status}]))
+}
+
 describe('calculatePillarScores', () => {
   it('normalises each independent pillar to 100 when every mapped check passes', () => {
-    const scores = calculatePillarScores(resultsWithStatus('pass'))
+    const scores = calculatePillarScores(resultsWithStatus('pass'), evidenceWithStatus('pass'))
 
     expect(scores.methodologyVersion).toBe(PILLAR_SCORE_VERSION)
     expect(scores.seo).toMatchObject({ score: 100, earned: 50, maximum: 50, checks: 11 })
@@ -29,7 +33,7 @@ describe('calculatePillarScores', () => {
   })
 
   it('uses the existing warning rule of half credit', () => {
-    const scores = calculatePillarScores(resultsWithStatus('warn'))
+    const scores = calculatePillarScores(resultsWithStatus('warn'), evidenceWithStatus('warn'))
 
     expect(scores.seo).toMatchObject({ score: 50, earned: 25, warnings: 11 })
     expect(scores.aeo).toMatchObject({ score: 50, earned: 25, warnings: 9 })
@@ -40,17 +44,17 @@ describe('calculatePillarScores', () => {
     const scores = calculatePillarScores({
       c1_robots: { status: 'pass', message: 'ok' },
       c2_llms_txt: { status: 'unknown', message: 'invalid' },
-    })
+    }, evidenceWithStatus('pass'))
 
-    expect(scores.seo.score).toBe(100)
+    expect(scores.seo.score).toBeNull()
     expect(scores.seo.passing).toBe(1)
     expect(scores.seo.failing).toBe(0)
     expect(scores.seo.covered).toBe(1)
     expect(scores.seo.checks).toBe(11)
     expect(scores.seo.coverage).toBeCloseTo(12 / 50, 2)
-    expect(scores.aeo.score).toBe(0)
+    expect(scores.aeo.score).toBeNull()
     expect(scores.aeo.covered).toBe(0)
-    expect(scores.geo.score).toBe(0)
+    expect(scores.geo.score).toBeNull()
     expect(scores.geo.covered).toBe(0)
   })
 })
@@ -64,7 +68,7 @@ describe('resolvePillarScores', () => {
 
   it('preserves a valid stored snapshot and its historical methodology version', () => {
     const stored = {
-      ...calculatePillarScores(resultsWithStatus('pass')),
+      ...calculatePillarScores(resultsWithStatus('pass'), evidenceWithStatus('pass')),
       methodologyVersion: 'historical.v0',
     }
 
@@ -80,7 +84,7 @@ describe('resolvePillarScores', () => {
 
     const resolved = resolvePillarScores(results)
     expect(resolved.methodologyVersion).toBe(PILLAR_SCORE_VERSION)
-    expect(resolved.seo.score).toBe(100)
+    expect(resolved.seo.score).toBeNull()
   })
 
   it('reports whether the snapshot came from storage or was recalculated', () => {

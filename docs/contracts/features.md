@@ -26,7 +26,7 @@ Status: `live` · `partial` · `fixture` · `roadmap` · `absent`.
 | Change sets / diffs / validation | partial (`fix_packs`) | versioned diff | new-schema | 5 |
 | Approvals + audit | absent | guarded state machine | new-schema | 5 |
 | Export / delivery attestation | partial (CSV export) | export confirmation | new-schema | 5 |
-| Recheck / outcome windows / proof | absent | D7/D28/D56 | new-schema | 5 |
+| Recheck / outcome windows / proof | partial — private stored-evidence read API | D7/D28/D56 | new-schema | 5 |
 | Fix Pack / cluster map / content brief | live | local diff | port-onto-data | 4 |
 | AI Pulse | live but **never produced a row** | sampled fixture | port-onto-data; empty state first-class | 4 |
 | Prompt bank | live | QP-1.2 fixture | port-onto-data | 4 |
@@ -44,3 +44,44 @@ Status: `live` · `partial` · `fixture` · `roadmap` · `absent`.
 | GSC / Bing / IndexNow / analytics / logs / CMS | absent | release-state catalogue | roadmap | 6 |
 | Bilingual en / zh-HK | live (883 leaf keys each) | hard-coded tuples | port to `messages/*` | 2 |
 | Agency portfolio | partial | fixture | port-onto-data | 4 |
+
+## C9a amendment — 2026-09-06
+
+Private entity organizational records and aliases are implemented locally for existing owned clients, one canonical brand record per client. Public discovery/verified entities, products/sub-entities, new approval roles, delivery attestations and outcome attribution remain outside this vertical. Migration040 is authored locally; no live feature availability is inferred before migration/activation approval.
+
+## C9b amendment — 2026-09-06
+
+Private monitored questions and retained AI observations are implemented locally for existing owned clients at `/[lang]/dashboard/[clientId]/observations` and `GET /api/clients/[clientId]/observations`. This extends the existing partial `pulse_metrics` source into an authenticated, account-scoped read projection; it does not make search observations available or claim an immutable provider-attempt ledger. Raw answers remain private to the source query, legacy collection/model/market provenance remains unknown, and current prompt metadata is labelled separately from historical observation text. No entity row, paid read entitlement, schema migration, provider call, collection change, public verification, backfill or new KPI is introduced. Live Neon equivalence and provider behavior remain unproved by this local checkpoint.
+## C9c evidence-linked drafts — 2026-09-06
+
+C9c is locally complete for private, draft-only work derived deterministically from retained Pulse brand-absence evidence and the newest scan's validated check gaps. Existing account members can view suggestions and explicitly save/edit organizational drafts. Viewing is side-effect-free; no approval, role assignment, delivery, publication, dismissal/archive, outcome or impact-attribution lifecycle is introduced. Existing paid generation, prompt-write, recommendation-read and provider gates are unchanged.
+
+The release source contract is `pulse-brand-absent.v1 | scan-check-gap.v1`, with public source state limited to `pulse | scan`. Recommendation-derived drafts are deferred by the user's finish scope and are neither implemented nor a pending C9c decision. The additive migration may reserve `agent-recommendation`, but application reads/writes reject or exclude it.
+
+Migration `041_evidence_work_items.sql` is authored and unapplied. Activation remains a separate external gate requiring an exact target, SQL/application SHA review, application-role validation and approved rollback. Local mocks and browser fixtures prove application behavior only; live PostgreSQL concurrency, grants, schema state, real authentication, providers and customer data remain unverified.
+
+Source rollback may remove C9c routes, navigation, services, components and tests while retaining C9b observations. If schema/data is ever activated, rollback disables the C9c application surface while retaining the additive table and saved drafts; customer evidence is not dropped.
+
+## C9d immutable review and audited approvers — 2026-09-07
+
+C9d adds locally implemented immutable versions alongside the unchanged C9c draft API. Members submit an exact saved revision; the server freezes allowlisted content/evidence and deterministic validation. Draft editing remains separate. Only the latest version can receive one terminal Approve or Request changes decision from a currently designated account approver who did not submit it.
+
+Existing platform admins manage designated approvers for an explicit account through an independently guarded API. Grants/revocations use optimistic revisions and immutable audit events; admin status does not grant review authority or bypass client ownership. DTOs omit email/auth/account internals. Routes fail closed with stable no-store errors and preserve 201-new/200-identical replay semantics.
+
+This local checkpoint does not apply migration 042, grant a live role, write customer data, deliver/publish content, establish factual or regulatory approval, or prove impact. Live PostgreSQL constraints, grants, rollback and concurrency remain a separate exact-target gate. Recommendation sources, general roles, invitations/account reassignment, delivery attestations and outcome windows remain outside C9d.
+
+## C9e retained export and manual delivery attestations — 2026-09-07
+
+C9e locally implements authenticated downloads of immutable approved C9d review packages and append-only manual delivery attestations/withdrawals. Historical approved versions remain exportable. A new attestation requires the latest submitted version to be approved and no active attestation on that version. Any current member of the owning account can attest or withdraw with an audited reason; platform-admin status alone supplies no cross-account authority. Existing independent approval and commercial/provider gates remain unchanged.
+
+An attestation records where a member says they delivered the package, their declared delivery time, note and retained actor snapshot. It does not publish/fetch the destination, verify a download or publication, change evidence, or measure impact. Downloading/exporting creates no delivery event, storage object or audit write. Destination is non-clickable plain text; no public sharing is introduced.
+
+Correction appends a withdrawal referencing the exact scoped attestation and then, if currently eligible, a replacement attestation. Withdrawal does not edit/delete/reactivate historical records and can correct superseded history. At most one active attestation is allowed per version. Exact owned retries return the original historical event, including after withdrawal/supersession; reused request IDs with changed operation/path/payload conflict. Server approval/account/actor/timestamps are not caller-controlled.
+
+Migration 043 and its dedicated schema/actual-store SQL proofs are authored/unrun; target UNKNOWN. Local route/service mocks establish application response behavior, not live PostgreSQL locking, constraints, grants, activation or rollback. No database/provider/environment mutation is authorized by these contracts. UI completion, final local C9e verification, C9f outcomes, C10 live obligations and C11 cutover remain separate steps. C9e creates no automatic recheck, outcome window, proof-of-impact or publication claim.
+
+## C9f stored-evidence outcomes — 2026-09-07
+
+C9f locally adds an authenticated, read-only outcome endpoint for one owned immutable version. It evaluates honest D7/D28/D56 windows from the active manual attestation and retained evidence snapshot under `stored-outcomes.v1`. Reads use current membership and account ownership, return a browser-safe validated DTO, disclose bounded-source limitations and never run a scan, call a provider, write delivery history or persist an outcome.
+
+This slice can expose selected retained evidence while still reporting it as not comparable. Existing Pulse rows lack trustworthy collection time, model, market and full method coverage; existing scan schema 1 with withheld final-path identity cannot prove a compatible delta. No uplift, ROI, causality, confidence or positive impact is inferred. Later source edits, deletion, late ingestion or withdrawal can change a later point-in-time read. The UI, live PostgreSQL/role proof, migration-target proof, provider operations and release cutover remain separate gates.

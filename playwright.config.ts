@@ -13,6 +13,8 @@ const testIgnore = [
 
 export default defineConfig({
   testDir: '.',
+  // Skip ignored build/fixture trees during traversal, not only after collecting files.
+  respectGitIgnore: true,
   testMatch: ['tests/e2e/**/*.spec.ts', 'e2e/**/*.spec.ts'],
   testIgnore,
   globalSetup: './tests/globalSetup.ts', globalTeardown: './tests/globalTeardown.ts', fullyParallel: true,
@@ -43,5 +45,5 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], viewport: { width, height: 900 } },
     })),
   ],
-  ...(process.env.START_DEV_SERVER || isCi ? { webServer: { command: isCi ? 'node scripts/start-playwright-ci-server.cjs' : 'npm run dev', url: 'http://127.0.0.1:3000', reuseExistingServer: false, timeout: 120_000 } } : {}),
+  ...(process.env.START_DEV_SERVER || isCi ? { webServer: { command: isCi ? 'node node_modules/next/dist/bin/next start --hostname 127.0.0.1' : 'npm run dev', url: 'http://127.0.0.1:3000', reuseExistingServer: false, timeout: 120_000 } } : {}),
 })

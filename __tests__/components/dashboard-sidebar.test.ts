@@ -135,3 +135,13 @@ describe('question bank navigation', () => {
     expect(sidebar).toContain("pathname?.endsWith('/prompts')")
   })
 })
+
+describe('private entity navigation', () => {
+  it('offers the owned-client tool with an exact active destination', () => {
+    const sidebar = code(SIDEBAR)
+    expect(sidebar).toContain('href={`/${lang}/dashboard/${clientId}/entities`}')
+    expect(sidebar).toContain("pathname === `/${lang}/dashboard/${clientId}/entities` ? 'page' : undefined")
+    expect(sidebar).toContain("{t('entity')}")
+    for (const locale of ['en', 'zh-HK']) expect(JSON.parse(read(`messages/${locale}.json`)).dashboard.entity).toBeTruthy()
+  })
+})

@@ -7,6 +7,98 @@
     "pricing": {
       "title": "Plans and Pricing | Fimmick AISO",
       "description": "Compare Fimmick AISO plans for website checks, AI visibility monitoring and actionable fixes."
+    },
+    "platform": {
+      "title": "Understand your website. Choose what to improve. | Fimmick AISO",
+      "description": "Bring website readiness, customer questions and sampled AI answers into a practical review workflow. Start with an observation, inspect its limits and decide your next action.",
+      "site-health": {
+        "title": "Find the website issues you can act on. | Fimmick AISO",
+        "description": "Review crawl access, structured information and answer readiness before deciding what to change on your site."
+      },
+      "search-intelligence": {
+        "title": "Build a clearer foundation for search. | Fimmick AISO",
+        "description": "Use website readiness findings to identify technical and content questions worth investigating in your search workflow."
+      },
+      "demand-intelligence": {
+        "title": "Organise the questions your customers ask. | Fimmick AISO",
+        "description": "Use the workspace question bank to develop and review prompts that reflect your customers, services and market."
+      },
+      "brand-product-discovery": {
+        "title": "A clearer picture of your brand and products. | Fimmick AISO",
+        "description": "Planned: a way to organise brand and product information with its source and review status. This capability is not available today."
+      },
+      "ai-visibility": {
+        "title": "Inspect AI answers one sample at a time. | Fimmick AISO",
+        "description": "Pulse helps you review sampled answers to selected questions and see where your brand appears in those observations."
+      },
+      "action-studio": {
+        "title": "Turn a finding into an editable fix. | Fimmick AISO",
+        "description": "Prepare website improvements with the existing Fix tools, then review the output before it reaches your site."
+      },
+      "governed-agents": {
+        "title": "Keep people responsible for agent work. | Fimmick AISO",
+        "description": "Planned: a governed workflow for preparing work within explicit policies and human review boundaries. This capability is not available today."
+      },
+      "proof": {
+        "title": "Make reports easier to scrutinise. | Fimmick AISO",
+        "description": "Use existing scan findings, Pulse observations and client reports to explain what was observed and what still needs verification."
+      }
+    },
+    "solutions": {
+      "title": "A review workflow for the way your team works. | Fimmick AISO",
+      "description": "Start with the same evidence discipline, then adapt the work to your team, clients and review responsibilities.",
+      "sme": {
+        "title": "Give a small team a focused starting point. | Fimmick AISO",
+        "description": "Identify website improvements without losing sight of the time and people needed to implement them."
+      },
+      "agencies": {
+        "title": "Bring a clearer review trail to client work. | Fimmick AISO",
+        "description": "Use client workspaces and report tools to connect an observation with the advice you give a client."
+      },
+      "enterprise": {
+        "title": "Bring website evidence into your existing review process. | Fimmick AISO",
+        "description": "Use focused findings and reviewable outputs alongside the governance practices your organisation already maintains."
+      },
+      "regulated-industries": {
+        "title": "Keep evidence and approval in the same conversation. | Fimmick AISO",
+        "description": "Use website observations as an input to a careful content review, with your own legal and compliance specialists responsible for regulated claims."
+      }
+    },
+    "how-it-works": {
+      "title": "Scan, review, change, check. | Fimmick AISO",
+      "description": "Move from a website observation to a deliberate improvement using a workflow you can explain."
+    },
+    "resources": {
+      "title": "Guides to the capabilities available today. | Fimmick AISO",
+      "description": "Explore the product's website checks, AI answer samples and editable fixes before choosing a workflow."
+    },
+    "contact": {
+      "title": "Prepare a useful product conversation. | Fimmick AISO",
+      "description": "Bring a clear website question, the workflow you need and the constraints your team works under to your existing Fimmick contact."
+    },
+    "security": {
+      "title": "Understand the controls behind the workflow. | Fimmick AISO",
+      "description": "Review the product's source-level access and request controls, then assess whether they meet your use case."
+    },
+    "trust": {
+      "title": "Know what a result can support. | Fimmick AISO",
+      "description": "Trust starts with distinguishing a measurement, a generated suggestion and a claim that still needs evidence."
+    },
+    "integrations": {
+      "title": "Understand where services support the product. | Fimmick AISO",
+      "description": "The application uses external services for authentication, data, AI processing, billing and email. Those dependencies are distinct from integrations you connect yourself."
+    },
+    "scan": {
+      "title": "Scan your website for AI search readiness | Fimmick AISO",
+      "description": "Run the existing website checks and review a saved result with evidence coverage and collection limits."
+    },
+    "methodology": {
+      "title": "How to read your scan evidence | Fimmick AISO",
+      "description": "Pillar diagnostics explain the evidence behind a scan. Coverage describes what we could verify; it does not promise rankings, AI citations or business outcomes."
+    },
+    "sample-report": {
+      "title": "Sample AI search report | Fimmick AISO",
+      "description": "Explore a clearly labelled synthetic report with illustrative website checks, draft recommendations and evidence limitations."
     }
   },
   "nav": {
@@ -62,7 +154,8 @@
       "privacy": "Privacy",
       "terms": "Terms",
       "contact": "Contact"
-    }
+    },
+    "menu": "Menu"
   },
   "auth": {
     "signing_out": "Signing out…",
@@ -273,7 +366,14 @@
     "proof_bottom_body": "No account or credit card is needed to see your first visibility result.",
     "industry_travel_hospitality": "Travel & Hospitality",
     "industry_media_entertainment": "Media & Entertainment",
-    "skip_to_main": "Skip to main content"
+    "skip_to_main": "Skip to main content",
+    "scan_auth_unavailable": "Sign-in verification is temporarily unavailable. Please try again later.",
+    "scan_unavailable": "Scanning is temporarily unavailable. Please try again later.",
+    "scan_quota_unavailable": "We could not verify your scan allowance. Please try again later.",
+    "scan_upgrade_required": "Your current plan does not include authenticated scans. Review your plan before trying again.",
+    "scan_quota_reached": "You have reached your plan’s scan allowance. Wait for it to reset or review your plan.",
+    "scan_rate_limited": "Too many scan requests. Please wait before trying again.",
+    "scan_save_failed": "We could not save this scan. Please try again; no saved result is available."
   },
   "result": {
     "score_label": "AI Readiness Score",
@@ -818,7 +918,14 @@
     "alerts_inapp": "In-app notification",
     "alerts_saving": "Saving…",
     "alerts_saved": "✓ Saved",
-    "alerts_save": "Save Alerts"
+    "alerts_save": "Save Alerts",
+    "nav_home": "Home",
+    "nav_home_desc": "Observations, evidence and next steps",
+    "workspace_navigation": "Workspace navigation",
+    "toggle_navigation": "Toggle workspace navigation",
+    "entity": "Brand identity",
+    "observations": "Observations",
+    "opportunities": "Opportunities"
   },
   "reports": {
     "create_client_report": "Create client report",
@@ -969,5 +1076,821 @@
     "title": "Temporarily unavailable",
     "body": "This feature is being migrated and is not available right now. Everything else in your workspace works normally.",
     "back": "Back to dashboard"
+  },
+  "publicPages": {
+    "common": {
+      "eyebrow": "From observation to a considered next step",
+      "planned": "Planned · not available",
+      "scan": "Start with a website scan",
+      "signIn": "Sign in to your workspace",
+      "actions": "What you can do",
+      "proposed": "Proposed direction",
+      "evidence": "What the evidence tells you",
+      "limitations": "Where the evidence stops",
+      "related": "Explore next"
+    },
+    "platform": {
+      "title": "Understand your website. Choose what to improve.",
+      "summary": "Bring website readiness, customer questions and sampled AI answers into a practical review workflow. Start with an observation, inspect its limits and decide your next action.",
+      "actions": [
+        "Run 20 website checks and review the 100-point headline score alongside individual findings.",
+        "Use your workspace to organise questions, inspect Pulse samples and prepare editable fixes.",
+        "Keep the original finding beside your proposed change so a reviewer can assess both."
+      ],
+      "evidence": "A scan is a dated observation of a single origin page and related checks. Diagnostic pillars overlap; they are views of the findings, not extra points.",
+      "limitations": "A readiness score is not a search ranking or a promise of AI citations. Discovery and governed agents remain planned capabilities."
+    },
+    "platform_site_health": {
+      "title": "Find the website issues you can act on.",
+      "summary": "Review crawl access, structured information and answer readiness before deciding what to change on your site.",
+      "actions": [
+        "Start a website scan to inspect 20 checks across core, extended and GEO signals.",
+        "Read each finding and prioritise a repair that is relevant to your website.",
+        "Review suggested robots.txt, llms.txt and FAQ JSON-LD outputs before applying them yourself."
+      ],
+      "evidence": "The headline score has a maximum of 100 points. It summarises the current checks; individual findings explain the assessment.",
+      "limitations": "Input URLs are normalised to their origin. This is not a crawl of every page, a security audit or proof that an AI provider will use your content."
+    },
+    "platform_search_intelligence": {
+      "title": "Build a clearer foundation for search.",
+      "summary": "Use website readiness findings to identify technical and content questions worth investigating in your search workflow.",
+      "actions": [
+        "Inspect crawl access and page signals in a website scan.",
+        "Separate a technical issue from a hypothesis about discoverability.",
+        "Record the change you intend to make and verify the relevant finding afterwards."
+      ],
+      "evidence": "Current scans assess readiness signals on the evaluated site. They can support a technical review alongside your own search analytics.",
+      "limitations": "Live search rankings, Search Console data and search-volume measurements are not provided by this page. A check result does not establish ranking impact."
+    },
+    "platform_demand_intelligence": {
+      "title": "Organise the questions your customers ask.",
+      "summary": "Use the workspace question bank to develop and review prompts that reflect your customers, services and market.",
+      "actions": [
+        "Review suggested questions and edit them for your audience.",
+        "Group questions by intent and decide which answers your content should support.",
+        "Use selected prompts in the existing Pulse workflow when your plan permits it."
+      ],
+      "evidence": "Question-bank entries describe the prompts your team chooses to investigate. They help make an observation repeatable and explainable.",
+      "limitations": "Suggested questions are not measured search demand. They do not establish market size, popularity or a complete picture of customer needs."
+    },
+    "platform_brand_product_discovery": {
+      "title": "A clearer picture of your brand and products.",
+      "summary": "Planned: a way to organise brand and product information with its source and review status. This capability is not available today.",
+      "actions": [
+        "Keep factual product information distinct from marketing claims.",
+        "Attach a source and review date to each proposed brand fact.",
+        "Resolve conflicting information before using it in public content."
+      ],
+      "evidence": "This page describes a proposed direction. It does not display a live entity record, discovery result or verified product catalogue.",
+      "limitations": "There is no live discovery backend or publishing action here. You can use the existing website scan to review current site readiness."
+    },
+    "platform_ai_visibility": {
+      "title": "Inspect AI answers one sample at a time.",
+      "summary": "Pulse helps you review sampled answers to selected questions and see where your brand appears in those observations.",
+      "actions": [
+        "Choose relevant prompts and the platforms available under your plan.",
+        "Inspect the answer samples and supporting observations for a run.",
+        "Compare the context of different runs before interpreting a change."
+      ],
+      "evidence": "A Pulse result belongs to a particular set of questions and collection conditions. Use the sample context when explaining mentions or omissions.",
+      "limitations": "Samples are not global AI rankings or exhaustive provider coverage. Answers can vary, and a brand mention does not demonstrate a sale or causal uplift."
+    },
+    "platform_action_studio": {
+      "title": "Turn a finding into an editable fix.",
+      "summary": "Prepare website improvements with the existing Fix tools, then review the output before it reaches your site.",
+      "actions": [
+        "Use a scan finding to choose an appropriate fix output.",
+        "Review generated llms.txt, robots.txt patches or FAQ JSON-LD for accuracy and fit.",
+        "Apply approved changes through your own website workflow and check the result."
+      ],
+      "evidence": "An output is a proposed change based on available inputs. Keep the finding and the edited version together during review.",
+      "limitations": "Generated text can be wrong or incomplete. AISO does not autonomously publish these fixes, and generating an output does not prove it was deployed or improved performance."
+    },
+    "platform_governed_agents": {
+      "title": "Keep people responsible for agent work.",
+      "summary": "Planned: a governed workflow for preparing work within explicit policies and human review boundaries. This capability is not available today.",
+      "actions": [
+        "Define which tasks an agent may prepare and which decisions require a person.",
+        "Keep proposed actions, review decisions and external effects distinct.",
+        "Make the supporting evidence visible before approving a change."
+      ],
+      "evidence": "These are design principles for a future capability. Existing workspace assistance is not a live policy or approval engine.",
+      "limitations": "No governed-agent execution, approval queue or autonomous publication is offered here. Existing scans remain available independently."
+    },
+    "platform_proof": {
+      "title": "Make reports easier to scrutinise.",
+      "summary": "Use existing scan findings, Pulse observations and client reports to explain what was observed and what still needs verification.",
+      "actions": [
+        "Review the underlying findings before selecting a report narrative.",
+        "Use the existing client report workflow where your plan permits it.",
+        "Distinguish an observed result from an explanation or a proposed next step."
+      ],
+      "evidence": "A report communicates the records available to it. Dates, scope and missing observations matter when a reader evaluates the conclusion.",
+      "limitations": "A report is not independent certification. A delivery-to-outcome ledger and proven causal uplift are not established by the current report workflow."
+    },
+    "solutions": {
+      "title": "A review workflow for the way your team works.",
+      "summary": "Start with the same evidence discipline, then adapt the work to your team, clients and review responsibilities.",
+      "actions": [
+        "Choose the audience workflow that fits your responsibilities.",
+        "Start with a website scan and identify one practical improvement.",
+        "Agree who reviews the finding and who applies the change."
+      ],
+      "evidence": "The audience pages describe uses of existing scans, questions, fixes and reports. They do not introduce separate product entitlements.",
+      "limitations": "Availability depends on the current plan and feature. An audience label does not imply custom roles, compliance certification or a managed service."
+    },
+    "solutions_sme": {
+      "title": "Give a small team a focused starting point.",
+      "summary": "Identify website improvements without losing sight of the time and people needed to implement them.",
+      "actions": [
+        "Scan your site and select a finding you understand and can change.",
+        "Review the suggested output with your website editor or developer.",
+        "Check the relevant result again after the change and record what remains uncertain."
+      ],
+      "evidence": "The scan provides a starting assessment and individual findings to discuss with the person maintaining your site.",
+      "limitations": "The tool does not replace your website maintainer or guarantee traffic. A higher readiness score is not proof of more customers."
+    },
+    "solutions_agencies": {
+      "title": "Bring a clearer review trail to client work.",
+      "summary": "Use client workspaces and report tools to connect an observation with the advice you give a client.",
+      "actions": [
+        "Review a client's website findings in its workspace.",
+        "Prepare editable fixes and explain the assumptions behind your recommendation.",
+        "Use client reports where available and review the contents before sharing."
+      ],
+      "evidence": "A report can bring current findings and observations into a client conversation. Your review supplies the context needed to interpret them.",
+      "limitations": "Agency use does not imply automatic client approval, publication or verified business impact. Plan limits and existing access rules still apply."
+    },
+    "solutions_enterprise": {
+      "title": "Bring website evidence into your existing review process.",
+      "summary": "Use focused findings and reviewable outputs alongside the governance practices your organisation already maintains.",
+      "actions": [
+        "Choose a website and define the question your team wants to investigate.",
+        "Review findings with the teams responsible for content and implementation.",
+        "Use existing reports as inputs to your internal decision process."
+      ],
+      "evidence": "Scans and reports support a bounded technical discussion. Your organisation determines whether the evidence is sufficient for a release decision.",
+      "limitations": "This page does not promise enterprise role hierarchies, SSO, procurement terms or bespoke controls. Assess current capabilities against your own requirements."
+    },
+    "solutions_regulated_industries": {
+      "title": "Keep evidence and approval in the same conversation.",
+      "summary": "Use website observations as an input to a careful content review, with your own legal and compliance specialists responsible for regulated claims.",
+      "actions": [
+        "Identify which website statements require specialist review.",
+        "Treat generated fixes as drafts and check each claim against approved sources.",
+        "Keep your established review and release process in control of publication."
+      ],
+      "evidence": "The product assesses website readiness signals. It can help organise a technical discussion but does not assess sector-specific legal obligations.",
+      "limitations": "No regulatory compliance, legal suitability or certification is claimed. Do not place confidential or regulated information in prompts without your own approval process."
+    },
+    "how_it_works": {
+      "title": "Scan, review, change, check.",
+      "summary": "Move from a website observation to a deliberate improvement using a workflow you can explain.",
+      "actions": [
+        "Enter your website on the home page and inspect the returned check findings.",
+        "Choose a relevant issue, review the evidence and prepare an editable fix.",
+        "Apply the reviewed change through your own tools, then inspect a later observation in context."
+      ],
+      "evidence": "The 100-point headline summarises 20 checks. Read the detailed findings and collection limits before deciding what the score means for your site.",
+      "limitations": "The scan evaluates an origin page rather than every submitted path. Later observations can differ for reasons beyond your change; they do not alone prove causation."
+    },
+    "resources": {
+      "title": "Guides to the capabilities available today.",
+      "summary": "Explore the product's website checks, AI answer samples and editable fixes before choosing a workflow.",
+      "actions": [
+        "Read Site Health to understand the scope of website checks.",
+        "Read AI Visibility to interpret Pulse samples responsibly.",
+        "Read Action Studio and How It Works before applying a suggested change."
+      ],
+      "evidence": "These guides describe the current product and its limits. Each linked page explains what you can do and what the result cannot establish.",
+      "limitations": "This is a product guide collection, not a research library or an independently validated benchmark. Planned capabilities are labelled on their pages."
+    },
+    "contact": {
+      "title": "Prepare a useful product conversation.",
+      "summary": "Bring a clear website question, the workflow you need and the constraints your team works under to your existing Fimmick contact.",
+      "actions": [
+        "Note the website and the specific finding or capability you want to discuss.",
+        "Record your audience, review responsibilities and any requirements the product must meet.",
+        "If you already work with Fimmick, use your established contact channel; existing users can sign in to review their workspace."
+      ],
+      "evidence": "A scan or workspace finding can give your conversation a concrete starting point. Share only information you are authorised to disclose.",
+      "limitations": "This page does not send a message or create a support ticket. No public contact address, delivery promise or response-time commitment is published here."
+    },
+    "security": {
+      "title": "Understand the controls behind the workflow.",
+      "summary": "Review the product's source-level access and request controls, then assess whether they meet your use case.",
+      "actions": [
+        "Use the authenticated workspace for account-scoped records.",
+        "Keep proposed website changes within your own review and release process.",
+        "Evaluate your data requirements before submitting website details or prompts."
+      ],
+      "evidence": "The application uses server-side authentication and ownership checks for protected records. Website fetches validate public destinations, including redirect hops, to reduce server-side request forgery risk.",
+      "limitations": "Source controls are not independent certification or proof of every deployed setting. This page does not promise penetration-test results, a security SLA or protection against every threat."
+    },
+    "trust": {
+      "title": "Know what a result can support.",
+      "summary": "Trust starts with distinguishing a measurement, a generated suggestion and a claim that still needs evidence.",
+      "actions": [
+        "Read individual check findings alongside the headline score.",
+        "Inspect the context of an AI answer sample before describing visibility.",
+        "Review generated content and keep unverified claims out of public copy."
+      ],
+      "evidence": "Current scans provide 20 check assessments and a 100-point headline. Diagnostic pillars overlap. Pulse provides samples, while Fix outputs are editable proposals.",
+      "limitations": "Readiness does not guarantee rankings, citations or commercial outcomes. This page is not a certification, legal policy or promise that every observation is complete."
+    },
+    "integrations": {
+      "title": "Understand where services support the product.",
+      "summary": "The application uses external services for authentication, data, AI processing, billing and email. Those dependencies are distinct from integrations you connect yourself.",
+      "actions": [
+        "Sign in through the existing authentication journey.",
+        "Review plan availability before using paid workspace capabilities.",
+        "Assess what information a workflow needs before submitting it."
+      ],
+      "evidence": "The source uses Neon for authentication and database access, OpenRouter for AI calls, Stripe for billing and Resend for email. These describe application dependencies.",
+      "limitations": "This is not a connection dashboard. No live provider status, user-connected Search Console account or one-click integration setup is claimed here."
+    }
+  },
+  "scanPage": {
+    "title": "Scan your website for AI search readiness",
+    "summary": "Run the existing website checks and review a saved result with evidence coverage and collection limits.",
+    "formLabel": "Website scan",
+    "limitations": "A scan is a point-in-time diagnostic. Missing or unavailable collection can leave partial evidence; a successful submission does not guarantee complete coverage or visibility in AI answers.",
+    "methodology": "Read the scoring methodology"
+  },
+  "methodologyPage": {
+    "title": "How to read your scan evidence",
+    "summary": "Pillar diagnostics explain the evidence behind a scan. Coverage describes what we could verify; it does not promise rankings, AI citations or business outcomes.",
+    "scan": "Scan your website",
+    "pillars": {
+      "title": "Overlapping pillars, unchanged headline",
+      "body": "Pillars group related checks and can overlap: one check may inform more than one pillar. Do not add pillar scores together. The stored headline score, grade and existing scoring weights remain unchanged; pillar diagnostics are a separate interpretation."
+    },
+    "coverage": {
+      "title": "Weighted evidence coverage",
+      "body": "Coverage is verified observed weight divided by applicable weight. Explicitly not-applicable checks are excluded from both numerator and denominator. Missing, failed, unknown or unverifiable collection stays in the denominator and adds no observed coverage. Ambiguous partial assessment does not count as fully verified. If applicable weight is zero, evidence is insufficient, never a perfect score."
+    },
+    "gates": {
+      "title": "Coverage gates before rounding",
+      "body": "Coverage below 0.67 suppresses the numeric pillar score and shows insufficient evidence. From 0.67 to below 0.85 the score is provisional. At least 0.85 is scored. These decisions use unrounded weighted coverage, even if a displayed percentage rounds up to a boundary. A scored pillar is not a guarantee of complete collection."
+    },
+    "history": {
+      "title": "Method versions and historical results",
+      "body": "Newly calculated diagnostics record their methodology version. Stored legacy snapshots retain their original version and are not rewritten. Historical diagnostics recalculated using a newer method are labelled as recalculated; old scans without collection evidence cannot be treated as verified observations. Compare method versions before interpreting differences."
+    },
+    "limits": {
+      "title": "Collection and comparison limits",
+      "body": "Provider outages, blocked requests and missing collection can reduce coverage. Evidence displayed in results is sanitized and subject to access controls. Current redacted, origin-only evidence cannot substantiate an improvement comparison: it does not establish comparable before-and-after measurements. Estimated impact remains an estimate."
+    }
+  },
+  "workspaceHome": {
+    "title": "Workspace home",
+    "summary": "Review saved observations and work to consider. These records do not establish delivered improvements or attributed outcomes.",
+    "siteHealth": "Site health",
+    "visibility": "Latest observed AI visibility",
+    "recommendations": "Generated recommendations",
+    "history": "Scan history",
+    "tools": "Existing tools",
+    "freshnessUnknown": "Freshness: unknown",
+    "observedAt": "Observed at",
+    "noDate": "No observation date available",
+    "draft": "Draft recommendation, not delivered",
+    "noPillars": "No stored pillar diagnostics are available for this scan.",
+    "score": "Stored AISO score",
+    "mentions": "Brand mentions",
+    "queries": "Queries",
+    "platforms": "Platforms",
+    "states": {
+      "empty": "No usable observations yet.",
+      "error": "This section could not load. Refresh the page later to try again.",
+      "locked": "This section is not included in your current plan."
+    },
+    "scan": "Scan website",
+    "results": "View results",
+    "improve": "Open improvement tools",
+    "monitor": "Open monitoring",
+    "roi": "Open Local Trust / ROI",
+    "reports": "Reports",
+    "prompts": "Question bank",
+    "pricing": "Review plan",
+    "openScan": "Open scan",
+    "status": "Site status"
+  },
+  "portfolio": {
+    "title": "Your brand portfolio",
+    "intro": "Review active brands and their saved observations. Freshness remains unknown; these records do not establish comparable changes in performance.",
+    "brands": "Active brands",
+    "emptyBrands": "No active brands yet.",
+    "capacity": "All owned brands",
+    "capacityUnknown": "Brand creation availability could not be verified. Refresh later to try again.",
+    "capacityLimit": "Your current brand allowance is full.",
+    "pricing": "Review plan",
+    "history": "Recent scans",
+    "historyEmpty": "No saved scans yet.",
+    "historyError": "Recent scan history could not load. Refresh later to try again.",
+    "visibility": "Latest observed visibility",
+    "visibilityEmpty": "No usable visibility observation is available.",
+    "visibilityError": "Visibility observations could not load.",
+    "freshnessUnknown": "Freshness: unknown",
+    "observedAt": "Observed week",
+    "dateUnknown": "Date unavailable",
+    "dateZone": "Dates shown in UTC.",
+    "grade": "Grade",
+    "loadErrorTitle": "Your portfolio could not load",
+    "loadErrorBody": "We could not retrieve your owned brands. Refresh later to try again."
+  },
+  "settings": {
+    "title": "Settings",
+    "intro": "Manage your subscription access and billing.",
+    "currentPlan": "Current access plan",
+    "cataloguePrice": "Catalogue price",
+    "perMonth": "per month",
+    "free": "Free",
+    "status": "Subscription status",
+    "statusLabels": {
+      "active": "Active",
+      "trialing": "Trial",
+      "past_due": "Payment overdue",
+      "cancelled": "Cancelled",
+      "unknown": "Unknown"
+    },
+    "billing": "Billing",
+    "manageBilling": "Manage billing",
+    "billingBody": "Update your payment method, view invoices or cancel your subscription.",
+    "billingUnavailable": "No billing portal is linked to this account.",
+    "pricing": "Compare plans",
+    "pricingNote": "Catalogue prices describe plans; your billing portal shows your actual subscription charges."
+  },
+  "pulseView": {
+    "title": "Observed AI visibility",
+    "intro": "Stored answer observations, not provider attempt-success rates or attributed improvements.",
+    "empty": "No usable observations are available.",
+    "error": "This section could not load. Refresh later to try again.",
+    "freshness": "Freshness: unknown",
+    "week": "Observed week",
+    "unknown": "Unavailable",
+    "aggregate": "All observed platforms",
+    "platforms": "Platform observations",
+    "prompts": "Monitored questions",
+    "missed": "Questions without a brand mention",
+    "back": "Back to workspace",
+    "full": "Open Pulse report",
+    "loadError": "Pulse could not load",
+    "gaps": "Unavailable weeks remain gaps; no values are inferred between observations.",
+    "value": "Observed share of voice",
+    "question": "Question",
+    "platform": "Platform",
+    "competitors": "Other mentioned brands",
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "sampleReport": {
+    "eyebrow": "Synthetic sample — no customer data",
+    "title": "See what an evidence-led report looks like",
+    "intro": "This static example illustrates the report format. The brand, score, checks and recommendations below are invented; no website was scanned to produce this page.",
+    "brand": "Example Brand",
+    "score": "Illustrative score",
+    "grade": "Grade",
+    "date": "Example observation date",
+    "checks": "Illustrative checks",
+    "subset": "These three examples are a subset of the report format, not the inputs used to calculate this illustrative score.",
+    "robots": "Crawler access",
+    "robotsBody": "Example: the checked crawler is allowed to request the site.",
+    "schema": "Structured information",
+    "schemaBody": "Example: organization details are present but need review.",
+    "content": "Extractable content",
+    "contentBody": "Example: important service details are missing from the retrieved text.",
+    "pass": "Pass",
+    "warn": "Needs review",
+    "fail": "Needs attention",
+    "work": "Draft suggestion",
+    "workBody": "Add a concise explanation of the service and review the organization information before publishing any changes.",
+    "draftOnly": "This sample suggestion has not been approved, delivered or published.",
+    "comparison": "No comparable baseline",
+    "comparisonBody": "This example has no earlier observation, delivery record or recheck. It does not claim an improvement or attributed outcome.",
+    "limits": "Evidence limitations",
+    "limitsBody": "A live report uses its stored snapshot and permitted evidence. Share links can be revoked or rotated. This sample is a public illustration and does not create a share link or a saved report.",
+    "scan": "Scan your website",
+    "methodology": "Read the methodology"
+  },
+  "generatedWork": {
+    "title": "Generated work",
+    "draftNotice": "Generated suggestions are drafts for your review. Copying a draft does not publish it to your website.",
+    "storageNotice": "Keep a local copy of the drafts you need. This response does not confirm storage.",
+    "generationFailed": "The Fix Pack is unavailable or could not be generated. Try again; no draft is shown as completed.",
+    "generating": "Generating drafts…",
+    "retry": "Try again",
+    "copying": "Copying…",
+    "copyFailed": "The draft could not be copied. Try again or select and copy the text manually.",
+    "pending": "Draft generation is queued. No completed work is available yet.",
+    "running": "Draft generation is in progress. No completed work is available yet.",
+    "error": "Generated work could not be completed. Refresh later to check its status.",
+    "unavailable": "No completed generated work is available for this scan.",
+    "packTitle": "Fix Pack drafts",
+    "packSubtitle": "Review before applying changes",
+    "packContents": "Draft files available to generate:",
+    "llmsDescription": "A proposed summary of your site for review.",
+    "robotsDescription": "Proposed crawler rules to check against your access policy.",
+    "faqDescription": "Proposed structured questions and answers to verify before use.",
+    "packCta": "Generate draft files"
+  },
+  "alertFeedback": {
+    "loadFailed": "Alert settings could not be loaded. Try again.",
+    "saveFailed": "Alert settings were not confirmed as saved. Your changes are still here; try again.",
+    "retry": "Try again"
+  },
+  "entities": {
+    "title": "Brand identity",
+    "description": "Keep one private brand identity for this client. These names are unverified and do not change your brand name or scanner results.",
+    "privateLabel": "Private workspace",
+    "unverified": "Unverified",
+    "unsaved": "Unsaved draft",
+    "saved": "Saved privately",
+    "displayName": "Display name",
+    "aliases": "Aliases",
+    "aliasesHelp": "One alias per line. Up to 20 aliases, with up to 120 characters per name.",
+    "save": "Save identity",
+    "saving": "Saving…",
+    "reload": "Discard draft and reload latest",
+    "reloading": "Reloading…",
+    "conflict": "Someone saved a newer version. Your draft is kept. Reload the latest version before saving again; reloading discards this draft.",
+    "saveError": "We could not save your changes. Your draft is kept. Please try saving again.",
+    "loadError": "We could not load this identity. Please retry.",
+    "retry": "Retry",
+    "invalid": "Enter a display name and up to 20 aliases. Each name must be 1–120 characters without control characters.",
+    "unauthenticated": "Your session has ended. Sign in again to continue. Your draft is kept here.",
+    "unavailable": "This client is no longer available. Your draft has not been saved."
+  },
+  "observations": {
+    "title": "Recorded observations",
+    "description": "Review monitored questions and their retained evidence.",
+    "question": "Question",
+    "allQuestions": "All questions",
+    "archivedQuestion": "Selected archived question",
+    "platform": "Platform",
+    "allPlatforms": "All platforms",
+    "applyPlatform": "Apply platform",
+    "platformInvalid": "Enter no more than 80 characters.",
+    "week": "Week",
+    "result": "Result",
+    "allResults": "All results",
+    "success": "Success",
+    "incomplete": "Incomplete or unknown",
+    "recordedRows": "{count} recorded rows",
+    "successfulRows": "{count} successful row",
+    "unknownModel": "Unknown model",
+    "unknownMarket": "Unknown market",
+    "unknownCollectionTime": "Unknown collection time",
+    "historicalQuestion": "Question at observation time",
+    "currentPrompt": "Current prompt",
+    "managePrompts": "Manage monitored questions",
+    "questionsTruncated": "Some monitored questions are not shown.",
+    "empty": "No recorded observations match these filters.",
+    "loading": "Loading observations…",
+    "loadError": "We could not load observations.",
+    "retry": "Retry",
+    "next": "Next page",
+    "successfulRowsPlural": "{count} successful rows",
+    "incompleteRows": "{count} incomplete rows",
+    "noData": "No observations have been recorded.",
+    "recordedAt": "Record created at",
+    "unknownRecordedAt": "Unknown record creation time",
+    "noAnswer": "No answer recorded",
+    "hasAnswer": "Answer recorded",
+    "classificationUnknown": "Classification not recorded",
+    "brandMentioned": "Stored classification: brand mentioned",
+    "brandNotMentioned": "Stored classification: brand not mentioned",
+    "retainedWeeks": "Latest 40 retained weeks are available.",
+    "monitoredQuestions": "Monitored questions",
+    "noQuestions": "No monitored questions are available.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "activityUnknown": "Activity unknown",
+    "category": "Current category",
+    "language": "Current language",
+    "unknown": "Unknown"
+  },
+  "opportunities": {
+    "title": "Opportunities",
+    "intro": "Review retained Pulse and website evidence, then save the findings you want to work on as private drafts.",
+    "views": "Workspace views",
+    "suggestions": "Suggestions",
+    "savedDrafts": "Saved drafts",
+    "savedDraft": "Saved draft",
+    "saveDraft": "Save as draft",
+    "openDraft": "Open saved draft",
+    "refresh": "Refresh suggestions",
+    "refreshDrafts": "Refresh saved drafts",
+    "loadingSuggestions": "Loading suggestions…",
+    "loadingDrafts": "Loading saved drafts…",
+    "loadingDraft": "Opening draft…",
+    "saving": "Saving…",
+    "saveChanges": "Save changes",
+    "draftSaved": "Draft saved. Your saved draft is open.",
+    "changesSaved": "Changes saved.",
+    "refreshed": "Suggestions refreshed.",
+    "reloaded": "Latest saved draft loaded.",
+    "partial": "Some evidence or saved-draft information is unavailable or limited. Available findings are shown below.",
+    "savedUnknown": "We could not check whether this finding already has a saved draft. Saving returns the existing draft if there is one.",
+    "limitedEvidence": "The retained evidence is too limited to save this finding as a new draft.",
+    "window": "Suggestions use up to 200 rows from the latest retained Pulse week and checks from the newest retained website scan. This is a bounded review, not exhaustive discovery.",
+    "pulseTruncated": "More Pulse rows exist in this week. Only the newest 200 rows are included.",
+    "week": "Retained week",
+    "noWeek": "No retained Pulse week",
+    "pulse": "Pulse evidence",
+    "scan": "Website scan evidence",
+    "empty": "No suggestions match the available retained evidence.",
+    "noAvailableSuggestions": "No findings can be shown from the available sources. Refresh to try the unavailable sources again.",
+    "noDrafts": "No saved drafts yet.",
+    "loadError": "Suggestions could not be refreshed. The previous findings remain visible; try refreshing again.",
+    "listError": "Saved drafts could not be loaded. Try refreshing saved drafts again.",
+    "openError": "The saved draft could not be opened. Try opening it again.",
+    "saveError": "The draft could not be saved. Your finding remains here; try again.",
+    "evidenceChanged": "This evidence has changed. Refresh suggestions before saving again.",
+    "editError": "Changes could not be saved. Your edits are preserved; try saving again.",
+    "editConflict": "This draft was changed elsewhere. Your edits are preserved. Reload the latest saved draft only when you are ready to replace these edits.",
+    "invalidEdit": "Check the title, action and notes length and remove unsupported control characters. Your edits are preserved.",
+    "reloadDraft": "Reload latest draft and replace edits",
+    "reloadError": "The latest draft could not be loaded. Your edits are preserved; try reloading again.",
+    "loadMore": "Load more drafts",
+    "draftOnly": "Private organizational draft. Saving does not publish or deliver it.",
+    "draftLanguage": "Original draft language",
+    "createdAt": "Created",
+    "updatedAt": "Last saved",
+    "titleField": "Title",
+    "action": "Proposed action",
+    "notes": "Notes",
+    "fieldLimits": "Title: 1–160 characters. Action: 1–4,000 characters. Notes: up to 8,000 characters.",
+    "savedEvidence": "Evidence saved with this draft",
+    "snapshotNotice": "This evidence and original suggestion stay as recorded when the draft was saved. Editing the draft or changing the display language does not rewrite them. The draft remains editable if its source is no longer available.",
+    "pulseWhy": "One retained answer did not mention the brand. This describes that recorded response, not visibility across a market.",
+    "scanWhy": "A completely collected, applicable website check recorded a warning or failure. Review its retained evidence before deciding what to change.",
+    "recordedAt": "Record date",
+    "unknownRecordedAt": "Record date not recorded",
+    "question": "Recorded question",
+    "platform": "Recorded platform",
+    "pulseUnknowns": "Collection time, model and market were not recorded. A record date is not a collection time.",
+    "check": "Website check",
+    "warning": "Warning",
+    "failed": "Failed",
+    "collectedAt": "Collection time",
+    "unknownCollectionTime": "Collection time not recorded",
+    "origin": "Evaluated origin",
+    "unknown": "Not recorded",
+    "redacted": "Only origins are retained. Page paths, query strings and fragments are withheld; this evidence does not identify an exact page or establish comparable impact.",
+    "limitedScan": "This scan retained only limited evidence.",
+    "collectionDetails": "Collection details",
+    "requestedOrigin": "Requested origin",
+    "finalOrigin": "Final origin",
+    "collection": "Collection coverage",
+    "methods": "Recorded scanner, check and scoring versions",
+    "provenance": "Source",
+    "validatedFetch": "Validated fetch",
+    "httpStatus": "HTTP status",
+    "limitations": "Evidence limitations",
+    "sourceStates": {
+      "ok": "Available",
+      "empty": "No retained evidence",
+      "unavailable": "Temporarily unavailable"
+    },
+    "states": {
+      "complete": "Complete",
+      "partial": "Partial",
+      "blocked": "Blocked",
+      "failed": "Failed",
+      "unsupported": "Unsupported",
+      "unknown": "Unknown"
+    },
+    "rules": {
+      "review-question-coverage": {
+        "title": "Review question coverage",
+        "action": "Review content relevant to “{question}”. The retained {platform} answer did not mention the brand; review the content and evidence before deciding next steps."
+      },
+      "review-check": {
+        "title": "Review website check: {checkKey}",
+        "action": "Review the retained evidence and limitations for {checkKey}, and investigate the warning or failed check."
+      }
+    },
+    "limits": {
+      "model-unrecorded": "Model not recorded",
+      "market-unrecorded": "Market not recorded",
+      "collection-time-unrecorded": "Collection time not recorded",
+      "one-recorded-response": "One recorded response only",
+      "origin-only-identity": "Only origin identity is retained",
+      "no-page-or-provider-excerpts": "No page or provider excerpts are retained",
+      "sampled-single-page": "One sampled page only",
+      "scan-record-retention": "Based on retained scan records"
+    },
+    "initialLoadError": "Suggestions could not be loaded. Please try again.",
+    "versionHistory": "Review version history",
+    "saveBeforeVersions": "Save your edits before opening version history."
+  },
+  "changeSets": {
+    "title": "Version review",
+    "notDelivery": "Approval records a review decision only. It does not publish, deliver, or implement this draft.",
+    "immutableNotice": "Versions retain the submitted content and original evidence limitations. Current draft changes do not alter previous versions.",
+    "backToDrafts": "Back to saved drafts",
+    "currentDraft": "Current saved draft",
+    "savedRevision": "Saved revision {revision}",
+    "draftUnavailable": "Saved draft unavailable. Reload before submitting.",
+    "submitVersion": "Submit saved version",
+    "reloadDraft": "Reload saved draft",
+    "draftReloaded": "Saved draft reloaded.",
+    "history": "Version history",
+    "reloadHistory": "Reload version history",
+    "noVersions": "No submitted versions.",
+    "moreVersions": "More versions",
+    "versionNumber": "Version {number}",
+    "versionDetails": "Immutable version details",
+    "versionSubmitted": "Version submitted.",
+    "decisionRecorded": "Decision recorded.",
+    "loading": "Loading…",
+    "unavailable": "Review data is unavailable. Your displayed content and reason have been retained. Retry or explicitly reload.",
+    "conflict": "This revision or review has changed. Your content is retained. Reload the saved draft or version history before choosing your next action.",
+    "validationFailed": "The saved draft failed review-package checks. Review and save the draft before retrying.",
+    "denied": "An independent, active account approver must review the latest version. Submitters, revoked reviewers and non-approvers cannot decide.",
+    "superseded": "Superseded by a newer submitted version.",
+    "pending": "Awaiting review",
+    "approved": "Approved",
+    "changes_requested": "Changes requested",
+    "decision": "Decision",
+    "reason": "Review reason",
+    "reasonLimit": "Required: 1–2000 characters after trimming.",
+    "invalidReason": "Enter a reason of 1–2000 characters.",
+    "recordDecision": "Record decision",
+    "finishDecision": "Your review reason is retained. Complete the decision or explicitly discard the reason before switching versions.",
+    "submittedBy": "Submitted by",
+    "decidedBy": "Decided by",
+    "packageChecks": "Review-package checks",
+    "check_text": "Text fields",
+    "check_locale": "Content language",
+    "check_evidence": "Retained evidence structure",
+    "check_content_size": "Package size",
+    "pass": "Passed",
+    "contentHash": "Content hash",
+    "discardReason": "Discard entered reason"
+  },
+  "approverAccess": {
+    "title": "Account approvers",
+    "scope": "Grant or revoke review access for existing account members. Administrator status does not grant client review authority.",
+    "members": "Account members",
+    "member": "Select member",
+    "active": "Active approver",
+    "inactive": "No review access",
+    "noApprovers": "No active approvers. Grant access to an eligible account member before review.",
+    "action": "Access action",
+    "grant": "Grant review access",
+    "revoke": "Revoke review access",
+    "reason": "Access change reason",
+    "reasonLimit": "Required: 1–2000 characters after trimming.",
+    "revision": "Access revision {revision}",
+    "saveAccess": "Record access change",
+    "accessRecorded": "Access change recorded.",
+    "history": "Access audit history",
+    "noEvents": "No access events.",
+    "moreMembers": "More members",
+    "moreEvents": "More access events",
+    "reload": "Reload access lists",
+    "loading": "Loading…",
+    "unavailable": "Approver access is unavailable. This is not an empty roster. Your reason is retained; retry the lookup or write.",
+    "conflict": "Access changed. Your reason is retained. Reload access lists to review the current revision before retrying.",
+    "denied": "Administrator authority could not be verified. Reload access lists before retrying.",
+    "invalidReason": "Enter a reason of 1–2000 characters."
+  },
+  "delivery": {
+    "title": "Manual delivery",
+    "limitation": "This is a member’s manual attestation, not verified publication or measured impact. Downloading does not record delivery.",
+    "versionBound": "This package and delivery history belong to version {number}. Historical approvals cover only that retained version.",
+    "record": "Record manual delivery",
+    "destination": "Destination label",
+    "destinationHelp": "1–500 characters of plain text. Do not include credentials or secret-bearing URLs.",
+    "timeUtc": "Delivery date and time (UTC)",
+    "timeHelp": "UTC, including seconds. Delivery must be on or after approval and not in the future; the server validates this.",
+    "note": "Delivery note (1–2000 characters)",
+    "invalid": "Check the fields and delivery time. Your input has been kept.",
+    "history": "Delivery history",
+    "active": "An active self-reported delivery attestation is retained.",
+    "noActive": "No active delivery attestation.",
+    "empty": "No delivery records.",
+    "withdraw": "Withdraw active attestation",
+    "attested": "Manual delivery attestation",
+    "withdrawn": "Attestation withdrawn",
+    "unknownActor": "Unknown actor",
+    "recordedTime": "Server recorded time",
+    "declaredTime": "Declared delivery time",
+    "withdrawReason": "Withdrawal reason (1–2000 characters)",
+    "target": "Original attestation ID",
+    "more": "More delivery history",
+    "exportJson": "Download approved JSON",
+    "exportText": "Download approved text",
+    "refresh": "Refresh delivery permissions",
+    "unauthenticated": "Sign in again, then refresh delivery permissions. Your input has been kept.",
+    "denied": "Delivery access is denied. Your input has been kept.",
+    "conflict": "The version or delivery history has changed. Refresh delivery permissions before retrying.",
+    "unavailable": "Delivery is unavailable. Your input has been kept.",
+    "loading": "Loading delivery permissions and history…",
+    "refreshRequired": "Refresh delivery permissions before making changes.",
+    "not_approved": "This version is not approved for export or delivery.",
+    "superseded": "This historical version can be downloaded, but cannot receive a new attestation.",
+    "active_attestation": "Withdraw the active attestation before recording a correction.",
+    "no_active_attestation": "There is no active attestation to withdraw.",
+    "recorded": "Manual delivery attestation recorded.",
+    "withdrawalRecorded": "Withdrawal recorded. The original attestation remains in history.",
+    "downloaded": "Download started. No delivery attestation was created.",
+    "withdrawConfirm": "Withdraw this attestation with an audited reason. This does not claim delivery never happened.",
+    "confirmWithdraw": "Confirm withdrawal",
+    "discard": "Discard delivery input",
+    "discardConfirm": "Discard your unsaved delivery input?"
+  },
+  "outcomes": {
+    "title": "Stored evidence outcomes",
+    "limitation": "This point-in-time read can change after source edits, deletion, late ingestion or withdrawal. It does not establish impact or causality.",
+    "refresh": "Refresh outcomes",
+    "retry": "Retry outcomes",
+    "loading": "Loading stored outcomes…",
+    "loaded": "Stored outcomes updated.",
+    "unavailable": "Stored outcomes are unavailable. Retry this read.",
+    "unauthenticated": "Sign in again to read stored outcomes.",
+    "denied": "You no longer have permission to read these outcomes.",
+    "anchorState": "Delivery anchor",
+    "version": "Immutable version",
+    "contentHash": "Version content hash",
+    "evaluatedAt": "Evaluated at",
+    "policy": "Evaluation policy",
+    "anchorId": "Attestation reference",
+    "deliveredAt": "Self-reported delivery time",
+    "attestedAt": "Server-recorded attestation time",
+    "baseline": "Frozen baseline",
+    "baselineProvenance": "Evidence retained in this immutable version. Its recorded time is not necessarily its collection time.",
+    "intervalPolicy": "UTC elapsed-day intervals include the start and exclude the end. Refresh only reads stored evidence.",
+    "window": "D{day} evidence window",
+    "startsAt": "Inclusive start",
+    "endsAt": "Exclusive end",
+    "timeState": "Window timing",
+    "evidenceState": "Evidence status",
+    "provisional": "Provisional selection: this window is still open.",
+    "diagnostics": "Retained observations outside selection",
+    "diagnosticsLimitation": "These references are not selected timed measurements. Unknown collection times cannot establish window membership.",
+    "source": "Source reference",
+    "collectedAt": "Collection time",
+    "recordedAt": "Source recorded time",
+    "collectionUnknown": "Collection time unavailable",
+    "unknown": "Unavailable",
+    "verdict": "Retained source result",
+    "anchorStates": {
+      "active": "Active attestation",
+      "no-delivery": "No delivery attestation",
+      "withdrawn": "Anchor withdrawn"
+    },
+    "timeStates": {
+      "not-due": "Not due",
+      "awaiting-evidence": "Awaiting evidence",
+      "missing-evidence": "Missing evidence",
+      "observation-available": "Observation available"
+    },
+    "evidenceStates": {
+      "available": "Available",
+      "timing-unknown": "Timing unknown",
+      "invalid-baseline": "Invalid baseline",
+      "not-comparable": "Not comparable",
+      "evidence-limited": "Evidence limited",
+      "unavailable": "Unavailable"
+    },
+    "sources": {
+      "scan-check": "Scan check",
+      "pulse-metric": "Pulse observation"
+    },
+    "verdicts": {
+      "pass": "Pass",
+      "warn": "Warning",
+      "fail": "Fail",
+      "not-applicable": "Not applicable",
+      "not-verifiable": "Not verifiable",
+      "success": "Recorded success",
+      "incomplete": "Incomplete"
+    },
+    "reasons": {
+      "point-in-time-read": "Valid as of this read; later source changes can change these results.",
+      "self-reported-delivery": "Delivery timing is self-reported, not independently verified.",
+      "no-delivery": "An active manual-delivery attestation is required to derive windows.",
+      "anchor-withdrawn": "The attestation was withdrawn; evaluation under that anchor is disabled.",
+      "baseline-missing": "The frozen baseline is missing or malformed.",
+      "baseline-after-delivery": "The baseline was collected after the declared delivery time.",
+      "collection-time-unknown": "Actual collection time is unknown and cannot establish window membership.",
+      "source-unavailable": "Source evidence could not be read; this is not an empty successful result.",
+      "candidate-limit-exceeded": "The candidate limit was exceeded; selection certainty is suppressed.",
+      "different-source-subject": "The retained observation concerns a different source or subject.",
+      "no-comparable-adapter": "No supported adapter can establish a comparable outcome.",
+      "final-path-identity-withheld": "Scan schema 1 withholds final-path identity and cannot establish a comparable delta.",
+      "pulse-provenance-incomplete": "Pulse lacks trustworthy historical collection, model, market and coverage provenance.",
+      "unknown-evidence": "Evidence provenance is unknown.",
+      "different-methods-or-scope": "Methods or scope differ.",
+      "incomplete-collection": "Collection was incomplete.",
+      "origin-only-identity": "Only origin identity was retained.",
+      "no-page-or-provider-excerpts": "No page or provider excerpts are exposed.",
+      "sampled-single-page": "The scan sampled a single page.",
+      "scan-record-retention": "This source is a retained scan record.",
+      "source-malformed": "Stored source evidence is malformed.",
+      "unsupported-source": "This source kind is unsupported for comparison."
+    }
   }
 }

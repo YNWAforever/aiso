@@ -110,8 +110,9 @@ function AddPromptRow({ category, clientId, onAdd, onError }: {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!text.trim()) return
+    if (!text.trim() || loading) return
     setLoading(true)
+    try {
     // `category` is the stored value, not a display label — the route validates
     // it against the vocabulary and 400s otherwise.
     const res = await fetch(`/api/dashboard/clients/${clientId}/prompts`, {
@@ -127,7 +128,11 @@ function AddPromptRow({ category, clientId, onAdd, onError }: {
     } else {
       onError(t('qb_save_failed'))
     }
-    setLoading(false)
+    } catch {
+      onError(t('qb_save_failed'))
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -166,8 +171,8 @@ export function PromptBankEditor({ clientId, prompts, onPromptsChange }: Props) 
   // Without this a refused write — an unentitled plan, a lost session, a lookup
   // failure — leaves the UI showing a change that was never persisted, and the
   // next reload silently undoes it.
-  const revertOn = async (res: Response, undo: () => void) => {
-    if (res.ok) return true
+  const revertOn = async (res: Response | null, undo: () => void) => {
+    if (res?.ok) return true
     undo()
     setError(t('qb_save_failed'))
     return false
@@ -179,7 +184,7 @@ export function PromptBankEditor({ clientId, prompts, onPromptsChange }: Props) 
     const res = await fetch(`/api/dashboard/clients/${clientId}/prompts/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_active }),
-    })
+    }).catch(() => null)
     await revertOn(res, () =>
       setPrompts(ps => ps.map(p => p.id === id ? { ...p, is_active: !is_active } : p)))
   }
@@ -191,7 +196,7 @@ export function PromptBankEditor({ clientId, prompts, onPromptsChange }: Props) 
     const res = await fetch(`/api/dashboard/clients/${clientId}/prompts/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question }),
-    })
+    }).catch(() => null)
     await revertOn(res, () => setPrompts(ps => ps.map(p =>
       p.id === id && previous !== undefined ? { ...p, question: previous } : p)))
   }
@@ -201,10 +206,10 @@ export function PromptBankEditor({ clientId, prompts, onPromptsChange }: Props) 
     const removed = prompts.find(p => p.id === id)
     const at = prompts.findIndex(p => p.id === id)
     setPrompts(ps => ps.filter(p => p.id !== id))
-    const res = await fetch(`/api/dashboard/clients/${clientId}/prompts/${id}`, { method: 'DELETE' })
+    const res = await fetch(`/api/dashboard/clients/${clientId}/prompts/${id}`, { method: 'DELETE' }).catch(() => null)
     await revertOn(res, () => setPrompts(ps => {
       if (!removed) return ps
-      const next = [...ps]
+      const next = ps.filter(p => p.id !== id)
       next.splice(at, 0, removed)
       return next
     }))

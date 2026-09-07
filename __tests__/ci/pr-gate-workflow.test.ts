@@ -31,9 +31,22 @@ describe('PR gate workflow contract', () => {
     expect(workflow).toContain('npm run lint')
     expect(workflow).toContain('npm run typecheck')
     expect(workflow).toContain('npm test -- --coverage')
-    expect(workflow).toContain('npm run e2e -- --reporter=html,json,junit')
+    const e2eCommand = workflow.match(/npm run e2e -- ([^\r\n]+)/)?.[1] ?? ''
+    expect(e2eCommand).toContain('--workers=1')
+    expect(e2eCommand).toContain('--shard=${{ matrix.shard }}/4')
+    expect(workflow).toContain('shard: [1, 2, 3, 4]')
+    expect(workflow).toContain('fail-fast: false')
+    expect(workflow).toContain('node scripts/ci/merge-e2e-shards.mjs')
+    const reporters = e2eCommand.match(/--reporter=([^ ]+)/)?.[1].split(',')
+    expect(reporters).toEqual(expect.arrayContaining(['list', 'html', 'json', 'junit']))
+    expect(e2eCommand).not.toMatch(/--(?:project|grep|max-failures)\b/)
+    expect(e2eCommand).toContain('tee artifacts/e2e-accessibility/playwright.log')
     const e2eJob = workflow.slice(workflow.indexOf('  e2e-accessibility:'), workflow.indexOf('\n  build:'))
     expect(e2eJob).toContain('node scripts/ci/classify-playwright.mjs')
+    for (const slice of ['C9C', 'C9C_DRAFT','C9D','C9D_APPROVERS','C9E','C9F']) {
+      expect(e2eJob).toContain(`${slice}_HTML_DIR: .next/component-fixtures/${slice}`)
+      expect(e2eJob).toContain(`${slice}_CSS_PATH: .next/component-fixtures/build.css`)
+    }
     expect(e2eJob).not.toContain('--skipped 0')
     expect(workflow).toContain('npm run build')
     expect(workflow).toContain('E2E_FIXTURE_MODE: 1')

@@ -62,7 +62,7 @@ const DEFAULT_TTL_MS = 2 * 60 * 60 * 1000
  * without it" case can be expressed — the guard is a runtime one, and a type
  * that forbade omitting it would make that guard untestable.
  *
- * @typedef {{ id: string, name: string, created_at: string }} NeonBranch
+ * @typedef {{ id: string, name: string, created_at: string, default?: boolean, primary?: boolean }} NeonBranch
  * @param {NeonBranch[]} branches
  * @param {{ now?: number, productionBranchId?: string, ttlMs?: number }} [options]
  * @returns {NeonBranch[]}
@@ -80,7 +80,7 @@ export function selectPrunableBranches(branches, { now, productionBranchId, ttlM
 
   const cutoff = now - ttlMs
   return branches.filter((branch) => {
-    if (branch.id === productionBranchId) return false
+    if (branch.id === productionBranchId || branch.default === true || branch.primary === true) return false
     if (typeof branch.name !== 'string' || !PREVIEW_NAME.test(branch.name)) return false
     const createdAt = Date.parse(branch.created_at)
     if (Number.isNaN(createdAt)) return false

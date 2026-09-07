@@ -1,12 +1,15 @@
+import type { CheckDiagnostic, ScanEvidence } from '@/lib/scan-evidence'
 export type CheckStatus = 'pass' | 'warn' | 'fail'
 
 export interface CheckResult {
   status: CheckStatus
   message: string
   details?: string
+  diagnostic?: CheckDiagnostic
 }
 
 export interface ScanResults {
+  evidence?: ScanEvidence
   // Core checks (45 pts)
   c1_robots:          CheckResult
   c2_llms_txt:        CheckResult
@@ -419,9 +422,9 @@ export interface LocalTrustAction {
 // ── Versioning contract (docs/contracts/versioning.md) ─────────────
 /**
  * Bumped whenever check-engine detection logic changes for any of c1-c20.
- * Not yet stored per scan — lands with the evidence envelope (plan item 3.3).
+ * Stored on new scans in results.evidence.scannerVersion; historical rows are not backfilled.
  */
-export const SCANNER_VERSION = '2026-08-31.v1'
+export const SCANNER_VERSION = '2026-09-05.v1'
 
 export interface ScanVersionInfo {
   scannerVersion: string

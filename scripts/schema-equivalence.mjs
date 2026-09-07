@@ -1,5 +1,5 @@
 /**
- * Proves the greenfield baseline is equivalent to replaying migrations 001-037.
+ * Proves baseline-to-current-head is equivalent to replaying the migration chain.
  *
  *   npm run schema:equivalence
  *
@@ -63,6 +63,15 @@ async function resetPublicSchema(branch) {
       )
     }
     await client.query('drop schema public cascade; create schema public;')
+    // Match the integration harness: migration 003 needs these legacy auth
+    // objects, which the synthetic AISO parent need not contain. Only this
+    // verified disposable session can prepare them; Neon Auth stays untouched.
+    await client.query(
+      'create schema if not exists auth; '
+      + 'create table if not exists auth.users (id uuid primary key); '
+      + 'create or replace function auth.uid() returns uuid language sql stable as '
+      + "$$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;",
+    )
   })
 }
 
@@ -93,14 +102,14 @@ function reportClass(name, classDiff) {
  */
 function runMigrateDryRun(connectionUri) {
   try {
-    return redactSecrets(execFileSync('node', ['scripts/migrate.ts', '--dry-run'], {
+    return { ok: true, output: redactSecrets(execFileSync('node', ['scripts/migrate.ts', '--dry-run'], {
       env: { ...process.env, MIGRATE_DATABASE_URL: connectionUri },
       encoding: 'utf8',
-    }))
+    })) }
   } catch (err) {
     const stdout = typeof err?.stdout === 'string' ? err.stdout : ''
     const stderr = typeof err?.stderr === 'string' ? err.stderr : ''
-    return redactSecrets(`${stdout}${stderr}` || String(err?.message ?? err))
+    return { ok: false, output: redactSecrets(`${stdout}${stderr}` || String(err?.message ?? err)) }
   }
 }
 
@@ -124,6 +133,12 @@ async function main() {
     const checksum = createHash('sha256').update(rawBaseline).digest('hex')
     const baselineSql = rawBaseline.replaceAll(":'baseline_checksum'", `'${checksum}'`)
     await withBranchClient(branch, (client) => client.query(baselineSql))
+    // The baseline ledger covers its historical chain only. Apply subsequent
+    // migrations before comparing, using the same runner as the replay path.
+    execFileSync('node', ['scripts/migrate.ts'], {
+      env: { ...process.env, MIGRATE_DATABASE_URL: branch.connectionUri },
+      stdio: 'inherit',
+    })
     const baseline = await withBranchClient(branch, introspectSchema)
 
     // Bootstrap proof. Equivalence alone does not make the baseline usable: the
@@ -134,12 +149,12 @@ async function main() {
     // way, and --dry-run so it cannot mutate the branch. When it fails it prints
     // either the pending-migration list or the runner's own error.
     const bootstrap = runMigrateDryRun(branch.connectionUri)
-    const bootstrapOk = bootstrap.includes('Nothing to apply')
+    const bootstrapOk = bootstrap.ok && bootstrap.output.includes('Nothing to apply')
     console.log(`\nBootstrap proof: ${bootstrapOk ? 'ok — runner finds nothing pending' : 'FAILED'}`)
-    if (!bootstrapOk) console.log(bootstrap.trim())
+    if (!bootstrapOk) console.log(bootstrap.output.trim())
 
     const diff = diffSchemas(legacy, baseline)
-    console.log('\nSchema equivalence (legacy 001-038 vs baseline):')
+    console.log('\nSchema equivalence (migration chain to head vs baseline to head):')
     for (const [className, classDiff] of Object.entries(diff.classes)) {
       reportClass(className, classDiff)
     }

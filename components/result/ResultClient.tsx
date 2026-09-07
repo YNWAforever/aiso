@@ -13,6 +13,8 @@ import { ShareButton }      from './ShareButton'
 import { AccountUnlockCard } from './AccountUnlockCard'
 import { ClaimScanOnReturn } from './ClaimScanOnReturn'
 import { PillarScoreCards } from '@/components/PillarScoreCards'
+import { ScanEvidencePanel } from './ScanEvidencePanel'
+import type { OwnedResultEvidence } from '@/lib/result-evidence'
 import { computeImpact, type PlatformStatus } from '@/lib/impact'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
 import { getCheckExplanations }  from '@/lib/checkExplanations'
@@ -83,7 +85,9 @@ const UI_EN = {
   geoTitle:  'GEO CHECKS',
   geoSubtitle: 'Generative Engine Optimisation — content quality for AI citation',
   scanAnother: '← Scan another URL',
-  platforms: 'AI platform visibility',
+  platforms: 'Estimated AI platform readiness',
+  platformNote: 'Inferred from site checks, not observed AI answers or measured visibility.',
+  estimatedImpact: 'Estimated impact: the following projections are inferred from site checks, not measured visibility or guaranteed gains.',
   openFixPack: 'Open your Fix Pack',
 }
 
@@ -99,7 +103,9 @@ const UI_ZH_HK: typeof UI_EN = {
   geoTitle:  'GEO 檢查',
   geoSubtitle: '生成式引擎優化——內容能否被 AI 引用的質素指標',
   scanAnother: '← 掃描另一個網址',
-  platforms: 'AI 平台可見度',
+  platforms: 'AI 平台就緒度估算',
+  platformNote: '根據網站檢查推斷，並非實際 AI 回答觀測或可見度測量。',
+  estimatedImpact: '預估影響：以下推算根據網站檢查，並非實際可見度測量，亦不保證改善成效。',
   openFixPack: '開啟你的 Fix Pack',
 }
 
@@ -154,9 +160,10 @@ type Props = {
   lang: string
   summary: PublicResultSummary
   fullScan?: Scan
+  ownedEvidence?: OwnedResultEvidence | null
 }
 
-export function ResultClient({ lang, summary, fullScan }: Props) {
+export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) {
   const locale = useLocale()
   const resultViewTracked = useRef(false)
   const signupCtaTracked = useRef(false)
@@ -255,6 +262,7 @@ export function ResultClient({ lang, summary, fullScan }: Props) {
         {/* 4. Public teaser or owner-only full results */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5">
           <p className="text-xs font-bold text-slate-500 tracking-widest mb-3">{ui.platforms}</p>
+          <p className="mb-3 text-xs text-slate-500">{ui.platformNote}</p>
           <div className="grid gap-2 sm:grid-cols-2">
             {summary.teaser.platformVisibility.map(platform => (
               <div key={platform.platform} className="flex items-center justify-between gap-3 text-sm">
@@ -279,8 +287,12 @@ export function ResultClient({ lang, summary, fullScan }: Props) {
 
         {fullScan && impact ? (
           <>
-            <PillarScoreCards results={r} locale={locale} />
-            <ImpactPanel impact={impact} score={fullScan.score} grade={fullScan.grade ?? 'F'} />
+            <PillarScoreCards results={r} locale={locale} evidenceInputs={ownedEvidence?.pillarInputs} />
+            <ScanEvidencePanel evidence={ownedEvidence ?? null} locale={locale} />
+            <section aria-label={ui.estimatedImpact}>
+              <p className="mb-2 text-sm font-semibold text-slate-700">{ui.estimatedImpact}</p>
+              <ImpactPanel impact={impact} score={fullScan.score} grade={fullScan.grade ?? 'F'} />
+            </section>
 
             <div data-testid="full-check-breakdown" className="space-y-5">
               <CheckSection title={ui.coreTitle} keys={CORE_KEYS} results={r} />
@@ -309,7 +321,10 @@ export function ResultClient({ lang, summary, fullScan }: Props) {
           </>
         ) : (
           <>
-            <ImpactTeaser impact={publicImpact} score={summary.score} />
+            <section aria-label={ui.estimatedImpact}>
+              <p className="mb-2 text-sm font-semibold text-slate-700">{ui.estimatedImpact}</p>
+              <ImpactTeaser impact={publicImpact} score={summary.score} />
+            </section>
             <LockedPreview checkCount={total} />
             <AccountUnlockCard scanId={summary.id} lang={lang} />
           </>
