@@ -9,6 +9,7 @@ export type RuntimeEvidence = {
   startedAt: string
   completedAt: string
   expected: CandidateIdentity
+  configuredTeamId?: string | null
   observed: ObservedCandidateIdentity
   observedDatabase: ObservedDatabaseIdentity
   configuration: ConfigurationReport
@@ -112,7 +113,7 @@ export function parseRuntimeChecks(value: unknown, policy: RuntimePolicy): Runti
 }
 
 export function buildRuntimeReport(evidence: RuntimeEvidence, policy: RuntimePolicy): RuntimeReport {
-  if (!isRecord(evidence) || !exact(evidence, ['nonce', 'policyHash', 'startedAt', 'completedAt', 'expected', 'observed', 'observedDatabase', 'configuration', 'checks'])) throw new Error(invalidEvidence)
+  if (!isRecord(evidence) || !exact(evidence, ['nonce', 'policyHash', 'startedAt', 'completedAt', 'expected', 'observed', 'observedDatabase', 'configuration', 'checks', ...('configuredTeamId' in evidence ? ['configuredTeamId'] : [])])) throw new Error(invalidEvidence)
   if (typeof evidence.nonce !== 'string' || !/^[a-f0-9]{32}$/.test(evidence.nonce) || typeof evidence.policyHash !== 'string' || !/^[a-f0-9]{64}$/.test(evidence.policyHash)) throw new Error(invalidEvidence)
   let validatedPolicyHash: string
   try { validatedPolicyHash = hashPolicy(policy) } catch { throw new Error(invalidEvidence) }
@@ -124,26 +125,31 @@ export function buildRuntimeReport(evidence: RuntimeEvidence, policy: RuntimePol
   let checks: RuntimeCheck[]
   try { checks = parseRuntimeChecks(evidence.checks, policy) } catch { throw new Error(invalidEvidence) }
   if (!expected || !observed || !observedDatabase) throw new Error(invalidEvidence)
-  checks = canonicalIdentityCheck(checks, 'candidate.identity', expected as Record<string, unknown>, observed as Record<string, unknown>)
+  const hasConfiguredTeam = 'configuredTeamId' in evidence
+  if (hasConfiguredTeam && evidence.configuredTeamId !== null && (typeof evidence.configuredTeamId !== 'string' || !identityPattern.test(evidence.configuredTeamId))) throw new Error(invalidEvidence)
+  const candidateEvidence = hasConfiguredTeam ? { ...observed, teamId: evidence.configuredTeamId } : observed
+  checks = canonicalIdentityCheck(checks, 'candidate.identity', expected as Record<string, unknown>, candidateEvidence as Record<string, unknown>)
+  if (observed.teamId !== null && observed.teamId !== expected.teamId) checks = checks.map(check => check.id === 'candidate.identity' ? { id: 'candidate.identity', status: 'fail', code: 'identity_mismatch' } : check)
   checks = canonicalIdentityCheck(checks, 'database.identity', policy.expectedDatabase, observedDatabase)
   let configuration: ConfigurationReport
   try { configuration = buildConfigurationReport(evidence.configuration.checks) } catch { throw new Error(invalidEvidence) }
   return {
     schemaVersion: 1, kind: 'runtime-readiness', enforced: false, productionReady: false,
     nonce: evidence.nonce, policyHash: evidence.policyHash, startedAt: evidence.startedAt, completedAt: evidence.completedAt,
-    expected: expected as CandidateIdentity, observed, observedDatabase, configuration,
+    expected: expected as CandidateIdentity, observed, observedDatabase, configuration, ...(hasConfiguredTeam ? { configuredTeamId: evidence.configuredTeamId } : {}),
     configurationStatus: configuration.configurationStatus, runtimeStatus: status(checks, policy), checks,
   }
 }
 
 export function renderRuntimeReport(report: RuntimeReport, policy: RuntimePolicy): string {
-  const canonical = buildRuntimeReport({ nonce: report.nonce, policyHash: report.policyHash, startedAt: report.startedAt, completedAt: report.completedAt, expected: report.expected, observed: report.observed, observedDatabase: report.observedDatabase, configuration: report.configuration, checks: report.checks }, policy)
+  const canonical = buildRuntimeReport({ nonce: report.nonce, policyHash: report.policyHash, startedAt: report.startedAt, completedAt: report.completedAt, expected: report.expected, observed: report.observed, observedDatabase: report.observedDatabase, configuration: report.configuration, checks: report.checks, ...('configuredTeamId' in report ? { configuredTeamId: report.configuredTeamId } : {}) }, policy)
   const show = (value: string | null) => value ?? 'unavailable'
   return [
     '# AISO runtime readiness', '', 'REPORT ONLY / NOT ENFORCED', '',
     `Runtime: ${canonical.runtimeStatus}`, `Configuration: ${canonical.configurationStatus}`, 'Production readiness: unverified',
     `Nonce: ${canonical.nonce}`, `Policy hash: ${canonical.policyHash}`, `Started: ${canonical.startedAt}`, `Completed: ${canonical.completedAt}`, '',
     '## Expected candidate', ...Object.entries(canonical.expected).map(([key, value]) => `- ${key}: ${value}`), '',
+    ...('configuredTeamId' in canonical ? ['## Configured team expectation (runner control-plane verification required)', '- teamId: ' + show(canonical.configuredTeamId ?? null), ''] : []),
     '## Observed candidate', ...Object.entries(canonical.observed).map(([key, value]) => `- ${key}: ${show(value)}`), '',
     '## Observed database', ...Object.entries(canonical.observedDatabase).map(([key, value]) => `- ${key}: ${show(value)}`), '',
     '## Configuration checks', ...canonical.configuration.checks.map((check) => `- ${check.id}: ${check.status} (${check.code})`), '',

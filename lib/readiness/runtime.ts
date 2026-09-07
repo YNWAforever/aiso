@@ -11,6 +11,7 @@ export type AuthCheck = RuntimeCheck & { id: 'auth.jwks' | 'auth.anonymous_sessi
 export type AuthPortOutput = AuthCheck[]
 export type ProbePorts = {
   now(): number
+  configuredTeam?(): unknown
   identity(): unknown
   configuration(policy: RuntimePolicy): unknown
   database(policy: RuntimePolicy, signal: AbortSignal): Promise<unknown>
@@ -89,6 +90,7 @@ export async function runRuntimeProbe(input: ProbeRequest, ports: ProbePorts, si
   const shared = scope(signal, 15000)
   const remaining = () => deadline - ports.now()
   const checks: RuntimeCheck[] = []
+  let configuredTeamId: string | null | undefined
   let observed = emptyCandidate()
   let observedDatabase = emptyDatabase()
   let config = buildConfigurationReport([])
@@ -96,8 +98,13 @@ export async function runRuntimeProbe(input: ProbeRequest, ports: ProbePorts, si
   try {
     try {
       observed = { ...parseObservedCandidateIdentity(ports.identity()) }
-      const mismatch = Object.keys(request.expected).some(key => observed[key as keyof typeof observed] !== null && observed[key as keyof typeof observed] !== request.expected[key as keyof typeof request.expected])
-      const missing = Object.values(observed).some(value => value === null)
+      if (ports.configuredTeam) {
+        const value = ports.configuredTeam()
+        configuredTeamId = typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value) ? value : null
+      }
+      const identityForComparison = configuredTeamId !== undefined ? { ...observed, teamId: configuredTeamId } : observed
+      const mismatch = (observed.teamId !== null && observed.teamId !== request.expected.teamId) || Object.keys(request.expected).some(key => identityForComparison[key as keyof typeof identityForComparison] !== null && identityForComparison[key as keyof typeof identityForComparison] !== request.expected[key as keyof typeof request.expected])
+      const missing = Object.values(identityForComparison).some(value => value === null)
       checks.push({ id: 'candidate.identity', status: mismatch ? 'fail' : missing ? 'unknown' : 'pass', code: mismatch ? 'identity_mismatch' : missing ? 'identity_unavailable' : 'matched' })
     } catch { checks.push({ id: 'candidate.identity', status: 'unknown', code: 'identity_unavailable' }) }
     if (!shared.signal.aborted && remaining() > 0) {
@@ -136,7 +143,7 @@ export async function runRuntimeProbe(input: ProbeRequest, ports: ProbePorts, si
       } catch { checks.push(fallback(id, 'malformed_response')) }
     }
     return buildRuntimeReport({
-      nonce: request.nonce, policyHash: request.policyHash, expected: request.expected, observed, observedDatabase,
+      nonce: request.nonce, policyHash: request.policyHash, expected: request.expected, observed, observedDatabase, ...(configuredTeamId !== undefined ? { configuredTeamId } : {}),
       startedAt: new Date(started).toISOString(), completedAt: new Date(Math.max(started, ports.now())).toISOString(),
       configuration: config, checks,
     }, request.policy)

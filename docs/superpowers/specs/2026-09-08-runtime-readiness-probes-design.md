@@ -59,7 +59,7 @@ Read only the required allowlisted keys inside the candidate process and validat
 
 ### Database
 
-Use the candidate DATABASE_URL, never MIGRATE_DATABASE_URL or an operator database credential. Prove project/branch with Neon in-band identity fields and role/database with current_user/current_database, then apply checkBinding. Require the selected least-privilege application role; explicitly reject elevated owner/superuser/bypass-RLS privileges where metadata permits inspection.
+Use the candidate DATABASE_URL, never MIGRATE_DATABASE_URL or an operator database credential. Prove project/branch with Neon in-band identity fields and role/database with current_user/current_database, then apply checkBinding. Require the selected least-privilege application role; require the documented aeo_app BYPASSRLS posture (CLAUDE.md and migration 037), while rejecting owner, superuser, role/database creation, replication and elevated inherited-role privileges. No role repair or database mutation is permitted.
 
 After identity succeeds, use fixed metadata queries to confirm the declared relations and required privileges. Relation names and privilege lists come from a bounded reviewed policy, are validated, and are passed as tagged-template parameters; there is no arbitrary SQL endpoint. Check each required privilege independently, not an OR interpretation of a comma-separated privilege string. Do not read customer rows, mutate counters or invoke application functions with unknown effects.
 
@@ -109,3 +109,5 @@ Before any live activation, record previous deployment and scoped credential/con
 ## Self-review
 
 Checked against the approved parent design, existing pure readiness APIs, db-binding guard, proxy matcher and installed Next16 route conventions. Normal user auth is not required to diagnose an outage; readiness authorization is enforced before resource access. Safe request origin resolution precedes secret transmission. Database queries remain read-only and identity-bound. Reports do not claim full release acceptance. Live platform-field availability, bypass access and credential source must be pinned during implementation/live proposal and remain explicit activation gates.
+
+Runtime team provenance: READINESS_EXPECTED_TEAM_ID is a nonsecret configured handler expectation, reported as configuredTeamId separately from observed.teamId (null with documented Vercel runtime variables). Missing or mismatched configured team suppresses I/O. The runner must independently verify Vercel control-plane team ownership before accepting the report.
