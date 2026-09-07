@@ -63,7 +63,7 @@ async function bounded(call: (signal: AbortSignal) => Promise<unknown>, parent: 
       probe.signal.addEventListener('abort', onAbort, { once: true })
     })
     // Install rejection handling immediately, including for adapters that settle after cancellation.
-    const operation: Promise<Outcome> = Promise.resolve().then(() => {
+    const operation: Promise<Outcome> = Promise.resolve().then<Outcome>(() => {
       if (probe.signal.aborted) return { kind: 'timeout' } as const
       return call(probe.signal).then(value => ({ kind: 'value', value }) as const)
     }).catch(() => ({ kind: probe.signal.aborted ? 'timeout' : 'error' }))
