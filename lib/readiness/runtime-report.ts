@@ -44,7 +44,7 @@ function status(checks: readonly RuntimeCheck[], policy: RuntimePolicy): ProbeSt
 function canonicalIdentityCheck(checks: RuntimeCheck[], id: 'candidate.identity' | 'database.identity', expected: Record<string, unknown>, observed: Record<string, unknown>): RuntimeCheck[] {
   const index = checks.findIndex((check) => check.id === id)
   if (index < 0) return checks
-  if (checks[index].status === 'fail') return checks
+  if (checks[index].status !== 'pass') return checks
   const mismatch = Object.keys(expected).some((key) => observed[key] !== null && observed[key] !== expected[key])
   const unavailable = Object.keys(expected).some((key) => observed[key] === null)
   const canonical: RuntimeCheck = mismatch
@@ -97,7 +97,7 @@ export function parseRuntimeChecks(value: unknown, policy: RuntimePolicy): Runti
   for (const check of value) {
     if (!isRecord(check) || !checkIds.has(String(check.id)) || !statuses.has(String(check.status)) || !checkCodes.has(String(check.code))) throw new Error(invalidEvidence)
     if (check.id === 'database.relation') {
-      if (!exact(check, ['id', 'status', 'code', 'policyIndex', 'privilege']) || !Number.isInteger(check.policyIndex) || !policy.relations[Number(check.policyIndex)]?.privileges.includes(check.privilege as never)) throw new Error(invalidEvidence)
+      if (!exact(check, ['id', 'status', 'code', 'policyIndex', 'privilege']) || typeof check.policyIndex !== 'number' || !Number.isInteger(check.policyIndex) || !policy.relations[check.policyIndex]?.privileges.includes(check.privilege as never)) throw new Error(invalidEvidence)
       const identity = `${check.policyIndex}:${check.privilege}`
       if (identities.has(identity)) throw new Error(invalidEvidence)
       identities.add(identity)

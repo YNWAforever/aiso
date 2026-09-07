@@ -61,11 +61,34 @@ describe('runtime report', () => {
     expect(() => buildRuntimeReport({ ...evidence, policyHash: '0'.repeat(64) }, validPolicy)).toThrow('Invalid runtime evidence')
   })
 
+  it('preserves supplied unknown identity checks, including timeout evidence', () => {
+    const complete = { ...evidence, observed: expected, observedDatabase: validPolicy.expectedDatabase }
+    const checks = evidence.checks.map((check) =>
+      check.id === 'candidate.identity' || check.id === 'database.identity'
+        ? { ...check, status: 'unknown' as const, code: 'timeout' as const }
+        : check,
+    )
+    const report = buildRuntimeReport({ ...complete, checks }, validPolicy)
+    expect(report.checks.find((check) => check.id === 'candidate.identity')).toMatchObject({ status: 'unknown', code: 'timeout' })
+    expect(report.checks.find((check) => check.id === 'database.identity')).toMatchObject({ status: 'unknown', code: 'timeout' })
+    expect(report.runtimeStatus).toBe('unknown')
+  })
+
+  it('canonicalizes a matching candidate tuple when its supplied check passed', () => {
+    const report = buildRuntimeReport({ ...evidence, observed: expected }, validPolicy)
+    expect(report.checks.find((check) => check.id === 'candidate.identity')).toMatchObject({ status: 'pass', code: 'matched' })
+  })
+
   it('requires every policy relation privilege and rejects out-of-policy relation checks', () => {
     const withoutRelation = { ...evidence, observed: expected, observedDatabase: validPolicy.expectedDatabase, checks: evidence.checks.filter((check) => check.id !== 'database.relation') }
     expect(buildRuntimeReport(withoutRelation, validPolicy).runtimeStatus).toBe('unknown')
     expect(() => buildRuntimeReport({ ...evidence, checks: [...evidence.checks, { id: 'database.relation', status: 'pass', code: 'privilege_present', policyIndex: 1, privilege: 'SELECT' }] } as never, validPolicy)).toThrow('Invalid runtime evidence')
     expect(() => buildRuntimeReport({ ...evidence, checks: evidence.checks.map((check) => check.id === 'database.relation' ? { ...check, privilege: 'DELETE' } : check) } as never, validPolicy)).toThrow('Invalid runtime evidence')
+  })
+
+  it.each(['0', Number.NaN, 0.5])('rejects a non-integer numeric policy index: %s', (policyIndex) => {
+    const checks = evidence.checks.map((check) => check.id === 'database.relation' ? { ...check, policyIndex } : check)
+    expect(() => buildRuntimeReport({ ...evidence, checks } as never, validPolicy)).toThrow('Invalid runtime evidence')
   })
 
   it.each([

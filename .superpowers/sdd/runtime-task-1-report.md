@@ -62,3 +62,12 @@ GREEN evidence:
 - Result: passed.
 
 No live I/O, provider operation, credential access, database access, migration, deployment, or adapter work was performed.
+
+## Final review repair (2026-09-08)
+
+- Canonical identity rebuilding now rewrites only supplied pass checks; existing fail and unknown statuses/codes are preserved, including database timeout evidence.
+- Relation policyIndex validation now requires a numeric integer before policy lookup. Regression coverage rejects '0', NaN, and 0.5; matching candidate tuples remain canonicalized to pass/matched.
+- RED: after adding the regression cases, the focused runtime-report suite ran 29 tests with 1 expected failure in unknown timeout preservation.
+- GREEN: focused runtime-report suite passed 29/29; all four readiness suites passed 85/85.
+- Scoped ESLint passed with no output. git diff --check passed with only the expected LF-to-CRLF normalization warnings.
+- No live I/O, provider operation, credentials, database, migration, deployment, or external operation was performed.
