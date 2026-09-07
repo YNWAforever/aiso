@@ -1,0 +1,3 @@
+import type { OutcomeInput, SafeEvidence } from '@/lib/outcomes/types'
+export const evidence = (id = 'scan-1', collectedAt: string | null = '2026-09-01T00:00:00Z'): SafeEvidence => ({ source: { kind: 'scan-check', id, checkKey: 'c1_robots' }, recordedAt: collectedAt, collectedAt, verdict: 'fail', reasons: ['final-path-identity-withheld'] })
+export const input = (overrides: Partial<OutcomeInput> = {}): OutcomeInput => ({ clientId: 'client-1', itemId: 'item-1', versionId: 'version-1', contentHash: 'a'.repeat(64), evaluatedAt: '2026-09-15T00:00:00Z', anchorState: 'active', anchor: { id: 'anchor-1', deliveredAt: '2026-09-07T00:00:00Z', recordedAt: '2026-09-07T01:00:00Z' }, baseline: evidence(), candidates: [], sourceState: 'ok', truncated: false, ...overrides })
