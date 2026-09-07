@@ -137,4 +137,10 @@ Export responds with `Content-Disposition: attachment; filename="delivery-<versi
 
 Every response, including errors, is no-store. Errors return only `{error:code}`: 400 `DELIVERY_INVALID_INPUT`; 401 `DELIVERY_UNAUTHENTICATED`; 403 `DELIVERY_DENIED`; 404 `DELIVERY_NOT_FOUND` for missing/unowned resources; 409 `DELIVERY_CONFLICT` or `DELIVERY_NOT_APPROVED`; 413 `DELIVERY_BODY_TOO_LARGE`; 422 `DELIVERY_VALIDATION_FAILED` for delivery-time relations or malformed retained packages; 503 `DELIVERY_UNAVAILABLE` for dependency outages. Authentication outages never become unauthenticated/empty-success responses.
 
+## C9f stored-outcomes read API amendment — 2026-09-07
+
+`GET /api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/outcomes` independently authenticates and derives account and actor scope from the current session. All three path parameters must be UUIDs. The endpoint accepts no query keys, body, caller clock, source selector or anchor selector. It performs one read-only, account-scoped outcome snapshot and returns the validated `stored-outcomes.v1` DTO.
+
+Every response uses `Cache-Control: private, no-store`. Success is 200. Safe errors are 400 `OUTCOMES_INVALID_INPUT`, 401 `OUTCOMES_UNAUTHENTICATED`, 403 `OUTCOMES_DENIED` for a missing current membership, 404 `OUTCOMES_NOT_FOUND` for missing or hidden owned relationships, and 503 `OUTCOMES_UNAVAILABLE` for authentication dependencies, SQL/projection failures, source failure, returned-scope mismatch or malformed server-generated output. The route performs no delivery mutation, scan, provider request or outcome persistence.
+
 These endpoints are locally implemented. Migration 043 and dedicated real-SQL proofs remain authored/unrun, target UNKNOWN; this contract does not claim live activation.

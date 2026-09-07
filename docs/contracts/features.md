@@ -26,7 +26,7 @@ Status: `live` · `partial` · `fixture` · `roadmap` · `absent`.
 | Change sets / diffs / validation | partial (`fix_packs`) | versioned diff | new-schema | 5 |
 | Approvals + audit | absent | guarded state machine | new-schema | 5 |
 | Export / delivery attestation | partial (CSV export) | export confirmation | new-schema | 5 |
-| Recheck / outcome windows / proof | absent | D7/D28/D56 | new-schema | 5 |
+| Recheck / outcome windows / proof | partial — private stored-evidence read API | D7/D28/D56 | new-schema | 5 |
 | Fix Pack / cluster map / content brief | live | local diff | port-onto-data | 4 |
 | AI Pulse | live but **never produced a row** | sampled fixture | port-onto-data; empty state first-class | 4 |
 | Prompt bank | live | QP-1.2 fixture | port-onto-data | 4 |
@@ -79,3 +79,9 @@ An attestation records where a member says they delivered the package, their dec
 Correction appends a withdrawal referencing the exact scoped attestation and then, if currently eligible, a replacement attestation. Withdrawal does not edit/delete/reactivate historical records and can correct superseded history. At most one active attestation is allowed per version. Exact owned retries return the original historical event, including after withdrawal/supersession; reused request IDs with changed operation/path/payload conflict. Server approval/account/actor/timestamps are not caller-controlled.
 
 Migration 043 and its dedicated schema/actual-store SQL proofs are authored/unrun; target UNKNOWN. Local route/service mocks establish application response behavior, not live PostgreSQL locking, constraints, grants, activation or rollback. No database/provider/environment mutation is authorized by these contracts. UI completion, final local C9e verification, C9f outcomes, C10 live obligations and C11 cutover remain separate steps. C9e creates no automatic recheck, outcome window, proof-of-impact or publication claim.
+
+## C9f stored-evidence outcomes — 2026-09-07
+
+C9f locally adds an authenticated, read-only outcome endpoint for one owned immutable version. It evaluates honest D7/D28/D56 windows from the active manual attestation and retained evidence snapshot under `stored-outcomes.v1`. Reads use current membership and account ownership, return a browser-safe validated DTO, disclose bounded-source limitations and never run a scan, call a provider, write delivery history or persist an outcome.
+
+This slice can expose selected retained evidence while still reporting it as not comparable. Existing Pulse rows lack trustworthy collection time, model, market and full method coverage; existing scan schema 1 with withheld final-path identity cannot prove a compatible delta. No uplift, ROI, causality, confidence or positive impact is inferred. Later source edits, deletion, late ingestion or withdrawal can change a later point-in-time read. The UI, live PostgreSQL/role proof, migration-target proof, provider operations and release cutover remain separate gates.
