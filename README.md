@@ -79,7 +79,7 @@ entry there says what breaks when it is missing. The highlights:
 |---|---|
 | `DATABASE_URL` | Neon connection string |
 | `NEON_AUTH_BASE_URL` | Neon Auth issuer (runtime) |
-| `NEON_AUTH_COOKIE_SECRET` | ≥32 chars, required at **build** time — `next build` fails without it |
+| `NEON_AUTH_COOKIE_SECRET` | ≥32 chars. Required when Neon Auth is used at runtime; auth is initialized lazily, so a successful build does not prove it is configured |
 | `PUBLIC_SCAN_RATE_LIMIT_SECRET` | ≥32 chars. **Unset in production, every anonymous scan returns 503** — no local fallback is used there |
 | `REPORT_SHARE_SECRET` | ≥32 chars. Signs report share links **and** the scan-claim cookie |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | without the webhook secret every Stripe event 400s and no subscription provisions |
@@ -90,6 +90,12 @@ entry there says what breaks when it is missing. The highlights:
 
 Optional (have fallbacks): `RESEND_FROM_EMAIL`, `WIKIPEDIA_USER_AGENT`.
 E2E only: `BASE_URL`, `START_DEV_SERVER`, `PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_TEST_PASSWORD`.
+
+Auth and database clients are lazy. A successful build does not verify runtime configuration.
+The readiness configuration report applies a stricter, explicit release policy to supplied
+values, including values that current runtime paths only require when used. It is report-only:
+it validates configuration shape and consistency, but does not contact providers, prove runtime
+reachability, enforce promotion or establish production acceptance.
 
 `CRON_SECRET` (≥16 chars) authenticates the weekly Pulse chain: the Cloudflare Worker
 (`cloudflare/cron-worker/`, not Vercel Cron) calls `GET /api/cron/pulse` with
