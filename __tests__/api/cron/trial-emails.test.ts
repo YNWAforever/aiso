@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const h = vi.hoisted(() => ({
   db: vi.fn(),
   sendTrialEmail: vi.fn(),
+  finishCronRun: vi.fn(async () => undefined),
 }))
 
 vi.mock('@/lib/db', () => ({ db: h.db }))
@@ -12,7 +13,7 @@ vi.mock('@/lib/resend', () => ({ sendTrialEmail: h.sendTrialEmail }))
 // db() calls don't interleave with (and shift the indices of) mockSql.mock.calls.
 vi.mock('@/lib/cron/recordRun', () => ({
   startCronRun: vi.fn(async () => 'test-run-id'),
-  finishCronRun: vi.fn(async () => undefined),
+  finishCronRun: h.finishCronRun,
 }))
 
 async function importRoute() {
@@ -85,6 +86,7 @@ describe('GET /api/cron/trial-emails', () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ sent: 4, failed: 0 })
     expect(h.sendTrialEmail).toHaveBeenCalledTimes(4)
+    expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'ok', { sent: 4, failed: 0 })
   })
 
   it('skips an account with no resolvable email', async () => {
@@ -103,6 +105,7 @@ describe('GET /api/cron/trial-emails', () => {
     const res = await GET(request('test-cron-secret-0123'))
 
     expect(await res.json()).toEqual({ sent: 0, failed: 0 })
+    expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'ok', { sent: 0, failed: 0 })
     expect(h.sendTrialEmail).not.toHaveBeenCalled()
   })
 
@@ -149,6 +152,7 @@ describe('GET /api/cron/trial-emails', () => {
     expect(h.sendTrialEmail).toHaveBeenCalledTimes(8)
     expect(res.status).toBe(502)
     expect(await res.json()).toEqual({ sent: 7, failed: 1 })
+    expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'error', { sent: 7, failed: 1 })
     expect(consoleError).toHaveBeenCalledWith(
       expect.stringContaining('account-1'),
       expect.any(Error),
@@ -167,9 +171,27 @@ describe('GET /api/cron/trial-emails', () => {
 
     expect(res.status).toBe(502)
     expect(await res.json()).toEqual({ sent: 0, failed: 8 })
+    expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'error', { sent: 0, failed: 8 })
     expect(h.sendTrialEmail).toHaveBeenCalledTimes(8)
 
     consoleError.mockRestore()
+  })
+
+  it('records a persistence failure after sending as an error without changing retry behavior', async () => {
+    rows = [accountRow({ trial_emails_sent: 1 | 2 | 4 })]
+    mockSql.mockImplementation((strings: TemplateStringsArray) => {
+      if (strings.join('?').includes('UPDATE accounts')) return Promise.reject(new Error('Write failed'))
+      return Promise.resolve(rows)
+    })
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      const { GET } = await importRoute()
+      const res = await GET(request('test-cron-secret-0123'))
+      expect(res.status).toBe(502)
+      expect(await res.json()).toEqual({ sent: 0, failed: 1 })
+      expect(h.sendTrialEmail).toHaveBeenCalledTimes(1)
+      expect(h.finishCronRun).toHaveBeenCalledExactlyOnceWith('test-run-id', 'error', { sent: 0, failed: 1 })
+    } finally { consoleError.mockRestore() }
   })
 
   it('happy path (no failures) returns status 200', async () => {

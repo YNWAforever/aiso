@@ -88,9 +88,10 @@ The Worker makes one fetch attempt per invocation and propagates failures. Its s
 contains no retry loop. Do not infer platform retries from a thrown exception or the
 mock tests. Trial emails send before persisting the sent bit; if persistence fails after
 a successful send, another invocation can resend that email. Concurrent invocation safety
-and exactly-once delivery are not established. A trial route can return 502 with failed
-attempts even when the ledger's completion status is `ok`, so check the counters and HTTP
-result together. Changing delivery guarantees is a separate implementation decision.
+and exactly-once delivery are not established. Trial-email runs with failed attempts
+return 502 and record ledger status `error`; successful or no-op runs record `ok`.
+Check the counters and HTTP result together, and account for a possible failed ledger
+write. Changing delivery guarantees is a separate implementation decision.
 
 ## Rollback
 
