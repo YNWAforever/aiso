@@ -1,6 +1,6 @@
 # C9f Stored-Evidence Outcomes Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Show honest read-only D7/D28/D56 evidence windows for manually attested immutable versions without manufacturing comparable outcomes.
 
@@ -74,7 +74,7 @@ export function evaluateOutcomes(input:OutcomeInput):OutcomeResponse;
 export function parseOutcomeResponse(value:unknown):OutcomeResponse;
 ```
 
-- [ ] Write RED tests for microsecond boundaries and exact UTC calendar validation. Accept canonical UTC strings with 0-6 fractional digits, normalize to six; reject offsets, impossible dates, unsupported precision and nonfinite dates. Use BigInt for ordering; do not truncate to Date milliseconds.
+- [x] Write RED tests for microsecond boundaries and exact UTC calendar validation. Accept canonical UTC strings with 0-6 fractional digits, normalize to six; reject offsets, impossible dates, unsupported precision and nonfinite dates. Use BigInt for ordering; do not truncate to Date milliseconds.
 
 ```ts
 expect(utcMicros('2026-09-14T00:00:00.000001Z')-
@@ -82,8 +82,8 @@ expect(utcMicros('2026-09-14T00:00:00.000001Z')-
 expect(()=>utcMicros('2026-02-30T00:00:00Z')).toThrow()
 ```
 
-- [ ] Run focused time/evaluate/dto tests; record genuine failures before implementation.
-- [ ] Implement strict UTC parsing/formatting and derive boundaries with `BigInt(day) * 86400n * 1000000n`. For each window select the earliest timed candidate in [start,end), then ID ascending, before assessing compatibility. Never select future-collected data beyond evaluatedAt. Unknown timing stays diagnostic. Pre-delivery source baseline eligibility is inclusive of T; no baseline makes evidence invalid, not zero.
+- [x] Run focused time/evaluate/dto tests; record genuine failures before implementation.
+- [x] Implement strict UTC parsing/formatting and derive boundaries with `BigInt(day) * 86400n * 1000000n`. For each window select the earliest timed candidate in [start,end), then ID ascending, before assessing compatibility. Never select future-collected data beyond evaluatedAt. Unknown timing stays diagnostic. Pre-delivery source baseline eligibility is inclusive of T; no baseline makes evidence invalid, not zero.
 
 ```ts
 const inWindow = candidates.filter(c => c.collectedAt !== null &&
@@ -95,15 +95,15 @@ inWindow.sort((a,b) => {
 })
 ```
 
-- [ ] Test anchor absent/withdrawn => no active windows; active => exactly three windows. Test half-open endpoints, open-window provisional selection, late ingestion on fresh read, earlier failed candidate preserved, baseline after T, source unavailable, overflow, mixed kind/key rejection and anchor replacement. Comparison states for all supported current sources remain not-comparable with explicit reasons; no numeric delta field exists.
-- [ ] Implement browser-safe wire parsing with exact nested keys and bounded reason strings/source IDs, matching scope and consistency checks (three unique ordered days for active, no windows otherwise). Do not allow contradictory selected/timing states or unvalidated arbitrary reason text. Reason codes are a finite allowlist shared with localization; data strings never become translation keys.
-- [ ] Run all four tests GREEN, stage named files, commit `feat: define strict stored outcome windows`, obtain spec/quality review.
+- [x] Test anchor absent/withdrawn => no active windows; active => exactly three windows. Test half-open endpoints, open-window provisional selection, late ingestion on fresh read, earlier failed candidate preserved, baseline after T, source unavailable, overflow, mixed kind/key rejection and anchor replacement. Comparison states for all supported current sources remain not-comparable with explicit reasons; no numeric delta field exists.
+- [x] Implement browser-safe wire parsing with exact nested keys and bounded reason strings/source IDs, matching scope and consistency checks (three unique ordered days for active, no windows otherwise). Do not allow contradictory selected/timing states or unvalidated arbitrary reason text. Reason codes are a finite allowlist shared with localization; data strings never become translation keys.
+- [x] Run all four tests GREEN, stage named files, commit `feat: define strict stored outcome windows`, obtain spec/quality review.
 
 ## Task 2: Safe source projections and one-statement owned read
 
 **Interfaces:** `readOutcomeInput(scope:OutcomeScope):Promise<{kind:'ok';value:OutcomeInput}|{kind:'not_found'|'denied'|'unavailable'}>` in store.ts. `projectOutcomeSnapshot(value:unknown):OutcomeInput` in sources.ts validates the private SQL envelope. Reuse versionDTO and deliveryEventDTO; never call separate delivery/source loaders to build a purported coherent snapshot.
 
-- [ ] Write RED store tests proving the read uses one tagged SQL statement, binds account/actor/client/item/version, and returns no accessible version for mismatched ownership or stale membership. Mocked SQL assertions prove query intent only.
+- [x] Write RED store tests proving the read uses one tagged SQL statement, binds account/actor/client/item/version, and returns no accessible version for mismatched ownership or stale membership. Mocked SQL assertions prove query intent only.
 
 ```ts
 expect(await readOutcomeInput(scope)).toEqual({kind:'not_found'})
@@ -111,8 +111,8 @@ expect(sql.mock.calls).toHaveLength(1)
 expect(sql.mock.calls[0].slice(1)).toContain(scope.accountId)
 ```
 
-- [ ] Write projection tests for schema-invalid version, malformed event/hash binding, multiple active events, withdrawn-only history, exact microsecond timestamps, source overflow and a missing snapshot. Test Pulse never obtains collectedAt from created_at or scan_week; scan envelopes use their validated collection timestamp only.
-- [ ] Implement one SELECT with CTEs: fresh profile membership; account-scoped client/item; exact version and decision; same-version attestations and matching withdrawals; server statement timestamp; bounded candidate rows. Build active state over complete delivery history, not a paginated page. Serialize relevant UTC timestamps as six-digit UTC using existing to_char convention. Missing owned record => not_found, failed membership => denied, SQL/invalid primary snapshot => unavailable.
+- [x] Write projection tests for schema-invalid version, malformed event/hash binding, multiple active events, withdrawn-only history, exact microsecond timestamps, source overflow and a missing snapshot. Test Pulse never obtains collectedAt from created_at or scan_week; scan envelopes use their validated collection timestamp only.
+- [x] Implement one SELECT with CTEs: fresh profile membership; account-scoped client/item; exact version and decision; same-version attestations and matching withdrawals; server statement timestamp; bounded candidate rows. Build active state over complete delivery history, not a paginated page. Serialize relevant UTC timestamps as six-digit UTC using existing to_char convention. Missing owned record => not_found, failed membership => denied, SQL/invalid primary snapshot => unavailable.
 
 ```sql
 WITH member AS MATERIALIZED (
@@ -127,16 +127,16 @@ WITH member AS MATERIALIZED (
 
 Use the verified lib/delivery/store.ts version/event joins with every composite account/client/item/version/hash condition retained. Extend that single SELECT, not multiple calls. A single PostgreSQL statement snapshot supplies concurrency coherence without write locks or mutation retries.
 
-- [ ] Scan candidates: owned scans matching original check subject; use valid envelope timestamp for range filtering only when safely validated. Never cast arbitrary JSON text to timestamptz without guarding malformed input. If bounded raw reads cannot establish complete candidate coverage, emit evidence-limited; do not claim exhaustive empty evidence. Keep malformed sources explicit. Pulse diagnostic candidates: exact snapshot question/platform and prompt ID when retained, newest recorded rows then ID, limit 201; created_at ordering is diagnostic only. Do not join current prompt text. Compute has-answer in SQL; never send raw answers in the envelope returned to UI.
-- [ ] Project at most 200 safe candidates/diagnostics and mark overflow witness. Derive scan rejection reasons through existing readScanEvidence/compareScanEvidence; preserve withheld-path limitations. Mark Pulse missing collection/method context; no new producer or inferred signatures. Return only safe verdict/source/time/reason fields. Historical baseline comes from version.content.evidenceSnapshot semantics (VersionDetail directly exposes evidenceSnapshot), never the work-item draft.
-- [ ] Run Task 1/2 tests GREEN, inspect emitted query for every account boundary and no writes, commit `feat: read owned outcome evidence coherently`, obtain spec/quality review. Record real PostgreSQL concurrency/privilege proof as unrun; do not run integration hooks or provision targets.
+- [x] Scan candidates: owned scans matching original check subject; use valid envelope timestamp for range filtering only when safely validated. Never cast arbitrary JSON text to timestamptz without guarding malformed input. If bounded raw reads cannot establish complete candidate coverage, emit evidence-limited; do not claim exhaustive empty evidence. Keep malformed sources explicit. Pulse diagnostic candidates: exact snapshot question/platform and prompt ID when retained, newest recorded rows then ID, limit 201; created_at ordering is diagnostic only. Do not join current prompt text. Compute has-answer in SQL; never send raw answers in the envelope returned to UI.
+- [x] Project at most 200 safe candidates/diagnostics and mark overflow witness. Derive scan rejection reasons through existing readScanEvidence/compareScanEvidence; preserve withheld-path limitations. Mark Pulse missing collection/method context; no new producer or inferred signatures. Return only safe verdict/source/time/reason fields. Historical baseline comes from version.content.evidenceSnapshot semantics (VersionDetail directly exposes evidenceSnapshot), never the work-item draft.
+- [x] Run Task 1/2 tests GREEN, inspect emitted query for every account boundary and no writes, commit `feat: read owned outcome evidence coherently`, obtain spec/quality review. Record real PostgreSQL concurrency/privilege proof as unrun; do not run integration hooks or provision targets.
 
 ## Task 3: Authenticated read-only endpoint and contract documentation
 
 **Interfaces:** `getOutcomes(request:Request, params:{clientId:string;workItemId:string;versionId:string}):Promise<Response>` in service.ts consumes readOutcomeInput/evaluateOutcomes. Route awaits params then delegates. No existing endpoint changes.
 
-- [ ] Read installed Next.js guides listed above. Write RED service/route tests: session missing401, malformed ID400, unsupported query400, hidden scope404, denied current membership403, SQL/projection failure503, success200 with private no-store. Reject all query keys; do not accept caller clock or source selection.
-- [ ] Implement getProfile authentication, UUID parsing using established deliveryId validation, server-derived account/actor scope, result mapping and JSON serialization. Log only allowlisted error category, not SQL/source data. `Cache-Control: private, no-store` on every response.
+- [x] Read installed Next.js guides listed above. Write RED service/route tests: session missing401, malformed ID400, unsupported query400, hidden scope404, denied current membership403, SQL/projection failure503, success200 with private no-store. Reject all query keys; do not accept caller clock or source selection.
+- [x] Implement getProfile authentication, UUID parsing using established deliveryId validation, server-derived account/actor scope, result mapping and JSON serialization. Log only allowlisted error category, not SQL/source data. `Cache-Control: private, no-store` on every response.
 
 ```ts
 export async function GET(request:Request, context:{params:Promise<{
@@ -146,16 +146,16 @@ export async function GET(request:Request, context:{params:Promise<{
 }
 ```
 
-- [ ] Assert no write service, provider, scan runner or delivery mutation is imported/called. Test identical item/version IDs under a different client/account do not bypass ownership. Response parsing must succeed for server-generated DTOs and reject malformed fixtures.
-- [ ] Update docs/contracts/routes.md with exact URL/status/cache contract; fields.md with policy/window/time semantics; features.md with current non-comparability and source-retention limits. Do not describe proposed future comparisons as implemented.
-- [ ] Run Task 1-3 tests GREEN, commit `feat: expose private version outcome reads`, obtain spec/quality review.
+- [x] Assert no write service, provider, scan runner or delivery mutation is imported/called. Test identical item/version IDs under a different client/account do not bypass ownership. Response parsing must succeed for server-generated DTOs and reject malformed fixtures.
+- [x] Update docs/contracts/routes.md with exact URL/status/cache contract; fields.md with policy/window/time semantics; features.md with current non-comparability and source-retention limits. Do not describe proposed future comparisons as implemented.
+- [x] Run Task 1-3 tests GREEN, commit `feat: expose private version outcome reads`, obtain spec/quality review.
 
 ## Task 4: Bilingual outcome UI and mutation invalidation
 
 **Interfaces:** `OutcomeWorkspace({clientId,itemId,versionId,refreshKey}:{clientId:string;itemId:string;versionId:string;refreshKey:number})`; `OutcomeWindows({value}:{value:OutcomeResponse})`. Parent owns a refresh counter bumped after confirmed delivery create/withdraw. Add an optional notification callback to the delivery component only if needed; do not alter existing HTTP contracts or form state. Verify exact existing props before editing.
 
-- [ ] Read Next.js server/client guide. Write render fixtures and RED hydrated tests for no delivery, withdrawn anchor, D7 awaiting, missing windows, scan-v1 not-comparable, Pulse timing unknown, overflow and unavailable. Include en/zh-HK and desktop/mobile. Follow existing C9e fixture registration/generation, adding only the new cases.
-- [ ] Implement read-only GET loading with AbortController and monotonically increasing request generation. Validate response via parseOutcomeResponse and expected client/item/version; discard old generations. On refreshKey change clear stale outcome data, cancel old read and fetch fresh. Do not remount or reset delivery forms.
+- [x] Read Next.js server/client guide. Write render fixtures and RED hydrated tests for no delivery, withdrawn anchor, D7 awaiting, missing windows, scan-v1 not-comparable, Pulse timing unknown, overflow and unavailable. Include en/zh-HK and desktop/mobile. Follow existing C9e fixture registration/generation, adding only the new cases.
+- [x] Implement read-only GET loading with AbortController and monotonically increasing request generation. Validate response via parseOutcomeResponse and expected client/item/version; discard old generations. On refreshKey change clear stale outcome data, cancel old read and fetch fresh. Do not remount or reset delivery forms.
 
 ```tsx
 useEffect(() => {
@@ -167,8 +167,8 @@ useEffect(() => {
 }, [clientId, itemId, versionId, refreshKey])
 ```
 
-- [ ] Render anchor and recorded/self-reported times distinctly, UTC window bounds, evaluation time, source references and localizable reason codes. No clickable external destination, raw answer or success-colored impact badge. Show retry for network/503/malformed response; 401/403 must clear protected data and preserve unrelated form input. Refresh is GET only, never a scan CTA.
-- [ ] Add exact-key en/zh-HK translation guards. Test keyboard names/focus, announcements, no narrow viewport overflow, source deletion/read errors, out-of-order fetch after version switch/withdrawal/replacement and typed delivery input surviving outcome responses.
+- [x] Render anchor and recorded/self-reported times distinctly, UTC window bounds, evaluation time, source references and localizable reason codes. No clickable external destination, raw answer or success-colored impact badge. Show retry for network/503/malformed response; 401/403 must clear protected data and preserve unrelated form input. Refresh is GET only, never a scan CTA.
+- [x] Add exact-key en/zh-HK translation guards. Test keyboard names/focus, announcements, no narrow viewport overflow, source deletion/read errors, out-of-order fetch after version switch/withdrawal/replacement and typed delivery input surviving outcome responses.
 
 ```ts
 await page.getByRole('button', {name: 'Refresh outcomes', exact:true}).click()
@@ -176,12 +176,12 @@ await expect(page.getByText('Collection time unavailable', {exact:true})).toBeVi
 expect(mutationRequests).toHaveLength(0)
 ```
 
-- [ ] Run focused render/fixture checks then hydrated C9f and existing C9d/C9e regression cases using stripped-env production harness. Retain raw JSON per run. Fix reproduced failures, commit `feat: show accessible stored outcome windows`, obtain spec/quality review.
+- [x] Run focused render/fixture checks then hydrated C9f and existing C9d/C9e regression cases using stripped-env production harness. Retain raw JSON per run. Fix reproduced failures, commit `feat: show accessible stored outcome windows`, obtain spec/quality review.
 
 ## Task 5: Full verification, independent review and local handoff
 
-- [ ] Check git diff --check and final scope against approved specification; inspect all new SQL and DTO boundaries independently. Review must include policy boundary precision, unsupported evidence, coherent snapshot claims, account isolation, source bounding, stale-response protection and no hidden external actions.
-- [ ] Execute these commands sequentially, recording exact SHA/UTC times/exit codes. Check the existing harness files first; if missing, recreate the stripped dummy-local environment from its established contract rather than reading .env. Never rerun an unchanged successful suite merely to fill time.
+- [x] Check git diff --check and final scope against approved specification; inspect all new SQL and DTO boundaries independently. Review must include policy boundary precision, unsupported evidence, coherent snapshot claims, account isolation, source bounding, stale-response protection and no hidden external actions.
+- [x] Execute these commands sequentially, recording exact SHA/UTC times/exit codes. Check the existing harness files first; if missing, recreate the stripped dummy-local environment from its established contract rather than reading .env. Never rerun an unchanged successful suite merely to fill time.
 
 ```powershell
 node .superpowers/sdd/unit-run.cjs
@@ -193,11 +193,15 @@ node .superpowers/sdd/local-run.cjs node_modules/vitest/vitest.mjs run __tests__
 node .superpowers/sdd/local-run.cjs node_modules/@playwright/test/cli.js test --config .superpowers/sdd/playwright.local.config.cjs tests/e2e/c9f-outcomes.spec.ts tests/e2e/c9e-delivery.spec.ts
 ```
 
-- [ ] Add the existing C9d/browser auth specs to the selected regression invocation after verifying their actual filenames in the harness; retain all browser JSON and count locale/project cases. Expected acceptance: zero failing tests, lint/typegen/tsc/build exit0, no unexpected browser errors. Setup failures remain separately reported and block corresponding pass claims.
-- [ ] Obtain independent whole-diff source/evidence review. Fix findings with focused RED/GREEN and rerun affected broad checks only when justified by changes. Do not claim mock tests prove real database locking/grants.
-- [ ] Write handoff with changed behavior, exact source SHA, commands/counts, review results, failures/setup blockers, migration043 user-report vs unverified target, rollback and C10/C11 remaining gates. Update this plan checkboxes only for completed steps. Preserve original root plan hash and old branch tips.
-- [ ] Explicitly stage documentation, commit `docs: record C9f local outcome handoff`, verify clean status. No push, merge, deployment or next product slice.
+- [x] Add the existing C9d/browser auth specs to the selected regression invocation after verifying their actual filenames in the harness; retain all browser JSON and count locale/project cases. Expected acceptance: zero failing tests, lint/typegen/tsc/build exit0, no unexpected browser errors. Setup failures remain separately reported and block corresponding pass claims.
+- [x] Obtain independent whole-diff source/evidence review. Fix findings with focused RED/GREEN and rerun affected broad checks only when justified by changes. Do not claim mock tests prove real database locking/grants.
+- [x] Write handoff with changed behavior, exact source SHA, commands/counts, review results, failures/setup blockers, migration043 user-report vs unverified target, rollback and C10/C11 remaining gates. Update this plan checkboxes only for completed steps. Preserve original root plan hash and old branch tips.
+- [x] Explicitly stage documentation, commit `docs: record C9f local outcome handoff`, verify clean status. No push, merge, deployment or next product slice.
 
 ## Plan self-review
 
 Coverage: anchor/baseline/window/compatibility -> Tasks1-2; coherent ownership/error/bounds -> Tasks2-3; bilingual UI/freshness/input retention -> Task4; regression/independent review/rollback -> Task5. Current sources intentionally cannot produce positive comparative outcomes. All public function/type seams are defined above; proposed new file paths are implementation targets, not claims of existing code. Existing harness integration paths must be verified at execution. The plan does not close unknown live targets or authorize integration fixture writes.
+
+## Execution status — 2026-09-07
+
+Tasks 1-4 are implemented and independently approved. Final application SHA is a7cae4fd9005e56991b5a067b38dc980d622d4f9. See [C9f local handoff](2026-09-07-c9f-handoff.md) for exact-head gate evidence and retained local artifact paths. Final independent whole-diff source/evidence review is APPROVED; the local documentation handoff is complete. local checks do not close migration 043, C10 or C11 live gates.

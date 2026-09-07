@@ -1,6 +1,6 @@
 # C9f-C11 remaining-work inventory
 
-Date: 2026-09-07. Baseline: a7bcea3c7c306c44d83e567598909f9594183b79; tested C9e application 92f69dd. This is a continuation inventory and design proposal, not implementation or live acceptance.
+Date: 2026-09-07. Baseline: a7bcea3c7c306c44d83e567598909f9594183b79; tested C9e application 92f69dd. The original proposal below is retained as historical context; the current C9f implementation and local verification status are recorded in the update below. This is not live acceptance.
 
 ## Migration report
 
@@ -32,7 +32,7 @@ Current blocker to generic scan deltas: docs/contracts/versioning.md and lib/sca
 | Work | Next concrete deliverable | Evidence/authorization boundary |
 | --- | --- | --- |
 | C9e database closure | Inspect exact applied ledger/checksum and schema/application-role identity; prepare dedicated disposable proof target and commands | Target identifiers pending; fixture writes/provisioning require exact scope approval, not an assumption based on 043 applied |
-| C9f | Approve stored-evidence/window policy, write reviewed spec and implementation plan, then local tests and independent review | No paid or automatic collection; compatibility is not causal attribution |
+| C9f | Implementation complete at a7cae4fd; local verification and independent whole-diff source/evidence review APPROVED; local documentation handoff complete | No paid or automatic collection; compatibility is not causal attribution; live SQL remains unverified |
 | C10 scheduler/cleanup | Reconcile actual deployed origin, one producer per job, logs/ledger outcomes, TTL/orphan cleanup and sterile parent | Read-only evidence first; no workflow retirement, branch deletion, secret rotation or settings mutation inferred |
 | C10 Auth/billing/AI/email | Exact isolated verification plan, current owner/account mapping and failure/replay/cost boundaries | No real email, charge, paid scan, credential/provider mutation or customer write without scope-specific approval |
 | C10 connector | Select first connector and approve scopes/account mapping/revocation/provenance contract | No connector selected; GSC remains a candidate |
@@ -42,4 +42,7 @@ C11 operational target identities remain unverified. Historical topology values 
 
 ## This continuation's evidence
 
-Read current branch/status, C9e handoff/spec, C10/C11 inventory and scan versioning contract. Refreshed aiso-c9bc graph and inspected compareScanEvidence and compareReportEvidence via graph snippets. No application code or tests changed; no new unit/browser or live SQL result is claimed. C9f policy is proposed, not yet approved. Original C9e implementation branch is retained unchanged.
+Read current branch/status, C9e handoff/spec, C10/C11 inventory and scan versioning contract. Refreshed aiso-c9bc graph and inspected compareScanEvidence and compareReportEvidence via graph snippets. No application code or tests changed; no new unit/browser or live SQL result is claimed. At the original inventory point C9f policy was proposed; it was subsequently approved, implemented and independently reviewed through Tasks 1-4. Original C9e implementation branch is retained unchanged.
+## C9f implementation update — 2026-09-07
+
+Approved stored-outcomes.v1 is implemented at a7cae4fd9005e56991b5a067b38dc980d622d4f9. Full unit 3083/265, component 317/41, fixture generation 76/12, lint/typegen/TypeScript/build passed at that SHA. Final browser matrix passed 266/266 (133 per project, zero skipped/unexpected/flaky, errors=[]); independent whole-diff source/evidence review is APPROVED. See [C9f local handoff](2026-09-07-c9f-handoff.md) for precise commands, timings, artifacts and limitations. This supersedes the historical proposed-first-slice status above. Migration 043 remains user-reported applied with exact target/live evidence unverified; all C10/C11 boundaries remain open.
