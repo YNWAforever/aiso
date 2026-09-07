@@ -63,17 +63,17 @@ export function buildConfigurationReport(checks: readonly ConfigCheck[]): Config
 }
 
 export function renderConfigurationReport(report: ConfigurationReport): string {
-  const checks = report.checks.map(safeCheck)
+  const canonical = buildConfigurationReport(report.checks)
 
   return [
     '# AISO configuration readiness',
     '',
     'REPORT ONLY / NOT ENFORCED',
     '',
-    `Configuration: ${report.configurationStatus}`,
+    `Configuration: ${canonical.configurationStatus}`,
     'Production readiness: unverified',
     '',
-    ...checks.map((check) => `- ${check.id}: ${check.status} (${check.code})`),
+    ...canonical.checks.map((check) => `- ${check.id}: ${check.status} (${check.code})`),
     '',
   ].join('\n')
 }
