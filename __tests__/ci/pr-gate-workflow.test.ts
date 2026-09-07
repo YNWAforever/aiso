@@ -43,7 +43,7 @@ describe('PR gate workflow contract', () => {
     expect(e2eCommand).toContain('tee artifacts/e2e-accessibility/playwright.log')
     const e2eJob = workflow.slice(workflow.indexOf('  e2e-accessibility:'), workflow.indexOf('\n  build:'))
     expect(e2eJob).toContain('node scripts/ci/classify-playwright.mjs')
-    for (const slice of ['C9C', 'C9C_DRAFT','C9D','C9D_APPROVERS','C9E']) {
+    for (const slice of ['C9C', 'C9C_DRAFT','C9D','C9D_APPROVERS','C9E','C9F']) {
       expect(e2eJob).toContain(`${slice}_HTML_DIR: .next/component-fixtures/${slice}`)
       expect(e2eJob).toContain(`${slice}_CSS_PATH: .next/component-fixtures/build.css`)
     }

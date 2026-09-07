@@ -31,7 +31,7 @@ function pageDTO(value: unknown, version: VersionDetail): DeliveryPage {
 function responseError(status: number) {
   return status === 401 ? 'unauthenticated' : status === 403 ? 'denied' : status === 409 ? 'conflict' : status === 400 || status === 413 || status === 422 ? 'invalid' : 'unavailable'
 }
-export function DeliveryWorkspace({ clientId, version, onDirtyChange }: { clientId: string; version: VersionDetail; onDirtyChange: (dirty: boolean) => void }) {
+export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDeliveryChange }: { clientId: string; version: VersionDetail; onDirtyChange: (dirty: boolean) => void; onDeliveryChange?: () => void }) {
   const t = useTranslations('delivery'), id = useId()
   const [page, setPage] = useState<DeliveryPage | null>(null), [authority, setAuthority] = useState(false)
   const [authorityVersion, setAuthorityVersion] = useState<VersionDetail | null>(null)
@@ -85,6 +85,7 @@ export function DeliveryWorkspace({ clientId, version, onDirtyChange }: { client
       if (event.kind !== kind || (event.kind === 'withdraw' && event.targetAttestationId !== target)) throw Error()
       if (!alive.current) return
       generation.current++; operation.current = null
+      onDeliveryChange?.()
       if (kind === 'attest') { setFields(emptyFields); markDirty(Boolean(target || reason)) }
       else { setReason(''); setTarget(null); markDirty(Boolean(fields.destination || fields.deliveredAt || fields.note)) }
       setPage(previous => previous ? { ...previous, events: [event, ...previous.events.filter(e => e.eventId !== event.eventId)], activeAttestationId: event.kind === 'attest' ? event.eventId : null } : previous)

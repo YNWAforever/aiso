@@ -6,6 +6,7 @@ import type { VersionDetail, VersionSummary } from '@/lib/change-sets/types'
 import { VersionDetails } from './VersionDetails'
 import { DecisionForm } from './DecisionForm'
 import { DeliveryWorkspace } from '@/components/delivery/DeliveryWorkspace'
+import { OutcomeWorkspace } from '@/components/outcomes/OutcomeWorkspace'
 export type VersionPageDTO = {
   versions: VersionSummary[]
   nextCursor: string | null
@@ -37,6 +38,8 @@ export function VersionWorkspace({
     [busy, setBusy] = useState(false),
     [dirty, setDirty] = useState(false)
   const [deliveryDirty, setDeliveryDirty] = useState(false)
+  const [outcomeRefresh, setOutcomeRefresh] = useState(0)
+  const deliveryChanged = useCallback(() => setOutcomeRefresh(value => value + 1), [])
   const decisionDirtyRef = useRef(false), deliveryDirtyRef = useRef(false)
   const dirtyRef = useRef(false), versionReadGeneration = useRef(0)
   const anyDirty = dirty || deliveryDirty
@@ -263,7 +266,8 @@ export function VersionWorkspace({
             version={selected}
             latestVersionId={page?.latestVersionId ?? null}
           />
-          <DeliveryWorkspace key={selected.id + selected.contentHash} clientId={clientId} version={selected} onDirtyChange={deliveryDirtyChange} />
+          <DeliveryWorkspace key={selected.id + selected.contentHash} clientId={clientId} version={selected} onDirtyChange={deliveryDirtyChange} onDeliveryChange={deliveryChanged} />
+          <OutcomeWorkspace clientId={clientId} itemId={workItemId} versionId={selected.id} refreshKey={outcomeRefresh} />
           {(dirty ||
             (!selected.decision && selected.capabilities.canDecide)) && (
             <DecisionForm

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import en from '../../messages/en.json'
 import zh from '../../messages/zh-HK.json'
+import { outcome } from '../../__tests__/components/c9f-fixtures'
 import type { DeliveryEvent, DeliveryPage } from '../../lib/delivery/types'
 import type { VersionWorkspaceProps } from '../../components/change-sets/VersionWorkspace'
 const errors = new WeakMap<Page, string[]>()
@@ -32,6 +33,7 @@ async function fixture(page: Page, lang: string, variant = 'default') {
   await page.route('**/*', route => route.abort())
   await page.route('**/api/clients/**', async route => {
     const url = new URL(route.request().url())
+    if (url.pathname.endsWith('/outcomes')) return route.fulfill({ json: outcome({ versionId: url.pathname.split('/').at(-2)!, anchorState: 'no-delivery', anchor: null }) })
     if (url.pathname.endsWith('/export')) {
       const artifact = JSON.parse(readFileSync(dir + '/export-' + url.searchParams.get('format') + '.json', 'utf8'))
       return route.fulfill({ body: artifact.body, headers: { 'Content-Type': artifact.contentType, 'Content-Disposition': `attachment; filename="${artifact.filename}"`, 'X-Aiso-Export-Sha256': artifact.exportHash } })

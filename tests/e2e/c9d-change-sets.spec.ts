@@ -10,6 +10,7 @@ import {
   initial,
   access,
 } from '../../__tests__/components/c9d-fixtures'
+import { outcome } from '../../__tests__/components/c9f-fixtures'
 const errors = new WeakMap<Page, string[]>()
 async function fixture(
   page: Page,
@@ -31,6 +32,7 @@ async function fixture(
     }),
   )
   await page.route('**/versions/*/delivery', route => route.fulfill({ json: { events: [], activeAttestationId: null, nextCursor: null, capabilities: { canExport: false, canAttest: false, canWithdraw: false, attestReason: 'not_approved', withdrawReason: 'no_active_attestation' } } }))
+  await page.route('**/versions/*/outcomes', route => { const parts = new URL(route.request().url()).pathname.split('/'); return route.fulfill({ json: outcome({ clientId: parts[3], itemId: parts[5], versionId: parts[7], anchorState: 'no-delivery', anchor: null }) }) })
   await page.goto(`https://review.fixture/${lang}`)
   await page.waitForFunction(() =>
     Boolean((window as Window & { c9cFixtureReady?: boolean }).c9cFixtureReady),
