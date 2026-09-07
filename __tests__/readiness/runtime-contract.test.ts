@@ -46,6 +46,11 @@ describe('runtime request contract', () => {
     expect(() => parseProbeRequest(request)).toThrow('Invalid readiness request')
   })
 
+
+  it('rejects oversized policies through bounded relation and identifier fields', () => {
+    const oversized = { ...validPolicy, relations: [{ schema: 'public' as const, relation: 'x'.repeat(129), privileges: ['SELECT' as const] }] }
+    expect(() => hashPolicy(oversized)).toThrow('Invalid readiness request')
+  })
   it('canonicalizes object keys while preserving array order', () => {
     const reordered = { relations: validPolicy.relations, capabilities: validPolicy.capabilities, expectedDatabase: validPolicy.expectedDatabase, version: 1 } as RuntimePolicy
     expect(hashPolicy(reordered)).toBe(hashPolicy(validPolicy))

@@ -39,3 +39,26 @@ All tests are synthetic and pure. No external API, credential, database, provide
 The contracts reject unknown keys, malformed hashes/nonces/SHAs, invalid capability and privilege values, duplicate relations/privileges/checks, relation overflows, invalid timestamps, forged aggregates, and arbitrary rendered strings. Policy hashing recursively sorts object keys and preserves array order.
 
 The runtime team ID cannot currently be independently observed from a documented runtime system variable. This contract records it as unavailable rather than falling back to the request expectation. Team verification remains a runner/platform metadata responsibility. BYPASSRLS adapter policy remains outside Task 1 and pending user direction.
+## Review repair (2026-09-08)
+
+The review findings are fixed with an independently supplied and validated RuntimePolicy argument required by both buildRuntimeReport and renderRuntimeReport. The policy is validated through hashPolicy, and its canonical hash must match the evidence policyHash.
+
+Candidate and database identity checks are rebuilt from expected versus observed values. A non-null mismatch becomes fail; a missing/null observation becomes unknown; explicit failures retain failure precedence. The expected team ID is never copied into a null observed teamId.
+
+Relation checks are validated against the actual policy relation and privilege at policyIndex. Out-of-policy indices and privileges are rejected, duplicates remain rejected, and any missing required relation/privilege pair makes the aggregate runtime status unknown. The existing 16 KiB canonical policy check remains in place; oversized policy coverage uses the relation and identifier limits.
+
+Renderer sentinel coverage now includes nonce, policy hash, both timestamps, expected and observed identity fields, observed database identity, nested configuration check id/status/code, runtime check id/status/code, forged aggregate status, and unknown top-level fields.
+
+RED evidence:
+- Initial focused run: runtime report suite failed during import because the new policy fixture was not yet wired; runtime contract passed 16 tests.
+- Behavioral focused run after fixture wiring: 2 tests failed and 48 passed. Forged identity pass remained pass, and missing required relation evidence remained pass.
+
+GREEN evidence:
+- node node_modules/vitest/vitest.mjs run __tests__/readiness/config.test.ts __tests__/readiness/report.test.ts __tests__/readiness/runtime-contract.test.ts __tests__/readiness/runtime-report.test.ts --maxWorkers=2
+- Result: 4 files passed, 80 tests passed. The 40 foundation tests are unchanged and pass.
+- node node_modules/eslint/bin/eslint.js lib/readiness/runtime-contract.ts lib/readiness/runtime-report.ts __tests__/readiness/runtime-contract.test.ts __tests__/readiness/runtime-report.test.ts
+- Result: passed with no output.
+- git diff --check
+- Result: passed.
+
+No live I/O, provider operation, credential access, database access, migration, deployment, or adapter work was performed.
