@@ -40,3 +40,5 @@ Rollback proposal: disable only this new Worker's cron triggers first and verify
 ## Current disposition
 
 Read-only account/project discovery is complete. No additional account/project IDs are needed from the user for these verified targets. Activation is NOT READY because ownership, downstream environment/secret binding and isolated side-effect validation are unresolved. No deployment, trigger/secret/DNS mutation, paid scan, email, database action, push or merge occurred. No application files changed, so no new application test run is claimed in this metadata-only continuation. C9f remains complete at its preserved branch; C10/C11 external proof remains open.
+
+Browser fallback for Vercel cron ownership was attempted at https://vercel.com/dashboard using the in-app browser. It failed before page creation with the Windows sandbox helper error apply deny-read ACLs. No dashboard state was read and no browser action occurred. The browser tool exposes no per-call escalation override; no ACL or permission configuration was changed. Vercel/n8n schedule ownership therefore remains unverified rather than assumed absent.
