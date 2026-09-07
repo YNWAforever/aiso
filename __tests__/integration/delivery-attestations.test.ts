@@ -155,8 +155,8 @@ describe.skipIf(!optedIn)('delivery constraints on an exact disposable target', 
     const row=input(); await insert(row)
     await owner`delete from profiles where id=${author} and account_id=${account}`
     expect(await app`select actor from work_item_delivery_events where account_id=${account} and id=${row.id}`).toEqual([{actor:actor(author)}])
-    await expect(owner`delete from work_item_versions where account_id=${account} and id=${version}`).rejects.toMatchObject({code:'23503'})
-    await expect(owner`delete from work_item_decisions where account_id=${account} and id=${approval}`).rejects.toMatchObject({code:'23503'})
+    await expect(owner`delete from work_item_versions where account_id=${account} and id=${version}`).rejects.toMatchObject({code:'23001'})
+    await expect(owner`delete from work_item_decisions where account_id=${account} and id=${approval}`).rejects.toMatchObject({code:'23001'})
   })
 
   // Actual application stores below run only through the role-verified app SQL

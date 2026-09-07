@@ -46,3 +46,9 @@ Read current branch/status, C9e handoff/spec, C10/C11 inventory and scan version
 ## C9f implementation update — 2026-09-07
 
 Approved stored-outcomes.v1 is implemented at a7cae4fd9005e56991b5a067b38dc980d622d4f9. Full unit 3083/265, component 317/41, fixture generation 76/12, lint/typegen/TypeScript/build passed at that SHA. Final browser matrix passed 266/266 (133 per project, zero skipped/unexpected/flaky, errors=[]); independent whole-diff source/evidence review is APPROVED. See [C9f local handoff](2026-09-07-c9f-handoff.md) for precise commands, timings, artifacts and limitations. This supersedes the historical proposed-first-slice status above. Migration 043 remains user-reported applied with exact target/live evidence unverified; all C10/C11 boundaries remain open.
+
+## C9d/C9e PostgreSQL proof update - 2026-09-07
+
+The user confirmed synthetic-only parent history and approved a disposable test branch plus migrations040-043 and the three dedicated SQL suites. Created child br-hidden-hill-az61ux9z in AISO project weathered-wave-50814522, applied and checksum-verified040-043 only there, and executed approvals21/21, actual stores15/15 and delivery67/67:103 passing PostgreSQL tests. Five DELETE SQLSTATE expectations were corrected after reproduced failures; no application/schema behavior changed. Independent bounded review approved. See [exact-target proof](2026-09-07-c9-postgres-proof.md).
+
+This supersedes AUTHORED/UNRUN for those three suites only. The AISO parent still has no040-043 ledger entries and no version/delivery tables. Application migration/release, C1 equivalence, generic entity/work-item integration and C10/C11 operational evidence remain separate. Test branch retained; no automatic cleanup, release or Worker activation.
