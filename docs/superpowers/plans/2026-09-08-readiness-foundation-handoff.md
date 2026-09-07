@@ -1,7 +1,7 @@
 # AISO readiness configuration foundation handoff
 
 Date: 2026-09-08
-Status: local report-only foundation implemented and checked; Task 2 independently approved; whole-slice final review pending; not production readiness
+Status: local report-only foundation implemented and checked; Task 2 and whole-slice review approved; not production readiness
 
 ## Source identity
 
@@ -13,15 +13,15 @@ Foundation commits:
 
 - 4490a9c - pure configuration and capability validation
 - b1e6183 - redacted report-only configuration results
-- e313499 - finite validation of rendered top-level report metadata
+- e313499 - canonical rendered status derived from validated checks
 
-The documentation commit is the next commit after e313499.
+Initial documentation commit: 6b31b15; final-review wording correction recorded separately.
 
 ## Changed behavior
 
 The foundation adds pure TypeScript contracts that validate an explicitly supplied environment and release policy. It checks core configuration, expected Neon project/branch/role/database bindings, forbidden targets, and declared capability requirements. It does not load process.env, query a database, contact a provider, or mutate runtime behavior.
 
-The report builder accepts validated finite check vocabulary and emits configuration-only results. Every report remains enforced: false and productionReady: false; rendered output states REPORT ONLY / NOT ENFORCED. Configuration pass/fail/unknown describes only the supplied values and policy. The renderer validates top-level report metadata before interpolation. The report cannot establish live reachability, disabled-feature enforcement, candidate identity, or production acceptance.
+The report builder accepts validated finite check vocabulary and emits configuration-only results. Every report remains enforced: false and productionReady: false; rendered output states REPORT ONLY / NOT ENFORCED. Configuration pass/fail/unknown describes only the supplied values and policy. The renderer ignores caller-supplied top-level metadata and rebuilds canonical status from validated checks. The report cannot establish live reachability, disabled-feature enforcement, candidate identity, or production acceptance.
 
 README.md and .env.example now correct the stale claim that a missing Neon Auth cookie secret necessarily breaks next build. Auth and database clients initialize lazily, so build success does not verify runtime configuration. The readiness release policy is deliberately stricter than current runtime-path requirements.
 
@@ -38,7 +38,7 @@ README.md and .env.example now correct the stale claim that a missing Neon Auth 
 
 No live integration suite or schema:equivalence command was run. No provider, credential, deployment, database, scan, email, migration, scheduler, branch, or production operation was performed.
 
-The controller's documentation diff review found no concerns. The controller-found top-level renderer trust gap was reproduced by five failing tests and fixed in e313499; 17 report tests and all 40 readiness tests then passed. Independent Task 2 re-review approved spec compliance and quality with no outstanding findings. Final whole-slice review remains pending, so this handoff does not claim final review approval.
+The controller's documentation diff review found no concerns. The controller-found top-level renderer trust gap was reproduced by five failing tests and fixed in e313499; 17 report tests and all 40 readiness tests then passed. Independent Task 2 re-review approved spec compliance and quality with no outstanding findings. Final whole-slice review approved with no blocking implementation findings. Its minor renderer-description correction is applied in this handoff. Controller verification on 6b31b15 independently passed all40 readiness tests, scoped ESLint and diff checks; no runtime code changed afterward.
 
 ## Evidence reconciliation
 
