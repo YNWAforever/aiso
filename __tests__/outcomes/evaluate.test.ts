@@ -50,3 +50,15 @@ test('an overflow witness suppresses selection even if caller omitted truncation
   const candidates = Array.from({ length: 201 }, (_, index) => evidence(`scan-${index}`, '2026-09-14T00:00:00Z'))
   expect(evaluateOutcomes(input({ candidates }))).toMatchObject({ truncated: true, windows: [{ selected: null, evidenceState: 'evidence-limited' }, {}, {}] })
 })
+
+test('a row ingested after the first read is selected in its original collection window', () => {
+  const late = { ...evidence('late-ingested', '2026-09-14T12:00:00Z'), recordedAt: '2026-09-23T00:00:00Z' }
+  const first = evaluateOutcomes(input({ evaluatedAt: '2026-09-22T00:00:00Z', candidates: [] }))
+  expect(first.windows[0]).toMatchObject({ day: 7, timeState: 'missing-evidence', selected: null })
+  const refreshed = evaluateOutcomes(input({ evaluatedAt: '2026-09-24T00:00:00Z', candidates: [late] }))
+  expect(refreshed.windows[0]).toMatchObject({
+    day: 7, startsAt: '2026-09-14T00:00:00.000000Z', endsAt: '2026-09-21T00:00:00.000000Z',
+    timeState: 'observation-available', provisional: false, selected: late,
+  })
+  expect(refreshed.windows.slice(1).every(window => window.selected === null)).toBe(true)
+})
