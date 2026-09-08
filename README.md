@@ -191,7 +191,7 @@ HMAC key. They ignore forwarding headers and do not claim production proxy secur
 Slice B adds a protected, read-only runtime probe and explicit candidate runner.
 Configuration and runtime results always retain `enforced: false` and
 `productionReady: false`; exit 0 means only that the selected checks passed.
-Whole-branch independent review is pending; no live candidate has been verified.
+Whole-branch independent review approved the local implementation; no live candidate has been verified.
 
 After separately approving a concrete candidate and credential sources, use Node 24:
 
