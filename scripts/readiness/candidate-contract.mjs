@@ -100,8 +100,17 @@ export function validateReport(report, { expected, policy, nonce, now }) {
   const configIds = new Set()
   for (const c of config.checks) {
     exact(c,['id','status','code']); ensure(!configIds.has(c.id)); configIds.add(c.id)
-    if (c.status === 'pass') ensure(['valid','required','verified-disabled'].includes(c.code))
-    if (c.code === 'unknown') ensure(c.status === 'unknown')
+    if (c.id.startsWith('capability.')) {
+      // Match the application's toReleasePolicy normalization: disabled claims
+      // remain unknown until a trusted source gate proves them.
+      const mode = policy.capabilities[c.id.slice('capability.'.length)]
+      const normalized = mode === 'required' ? 'required' : 'unknown'
+      ensure(c.code === normalized && c.status === (normalized === 'required' ? 'pass' : 'unknown'))
+    } else {
+      if (c.status === 'pass') ensure(c.code === 'valid')
+      ensure(!['required','verified-disabled'].includes(c.code))
+      if (c.code === 'unknown') ensure(c.status === 'unknown')
+    }
   }
   const requiredConfig = [...core,...binding,...capabilities.map(c => 'capability.' + c),...capabilities.filter(c => policy.capabilities[c] === 'required').flatMap(c => optional[c].map(s => 'config.' + s))]
   ensure(requiredConfig.every(id => configIds.has(id)))

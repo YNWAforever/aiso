@@ -37,3 +37,30 @@ describe('candidate runner and application wire contract', () => {
     expect(validateReport(report, { expected: report.expected, nonce: report.nonce, policy, now: Date.parse('2026-09-08T01:00:02.000Z') })).toEqual(report)
   })
 })
+describe('candidate capability policy consistency', () => {
+  const context = (report: typeof fixture.report, policy: RuntimePolicy) => ({ expected: report.expected, nonce: report.nonce, policy, now: Date.parse('2026-09-08T01:00:02.000Z') })
+  it.each(['claims', 'ai', 'billing', 'email', 'scheduler'] as const)('rejects passing %s evidence for unknown or unverified-disabled policy', capability => {
+    for (const mode of ['unknown', 'verified-disabled'] as const) {
+      const policy = structuredClone(fixture.policy) as RuntimePolicy
+      policy.capabilities[capability] = mode
+      const report = structuredClone(fixture.report)
+      report.policyHash = hashPolicy(policy)
+      expect(() => validateReport(report, context(report, policy))).toThrow()
+    }
+  })
+  it.each(['unknown', 'verified-disabled'] as const)('preserves normalized unknown evidence for %s policy', mode => {
+    const policy = structuredClone(fixture.policy) as RuntimePolicy
+    policy.capabilities.ai = mode
+    const report = structuredClone(fixture.report)
+    report.policyHash = hashPolicy(policy)
+    const check = report.configuration.checks.find(c => c.id === 'capability.ai')!
+    check.status = 'unknown'; check.code = 'unknown'
+    report.configuration.configurationStatus = 'unknown'; report.configurationStatus = 'unknown'
+    expect(validateReport(report, context(report, policy)).configurationStatus).toBe('unknown')
+  })
+  it.each(['required', 'verified-disabled'])('rejects %s as a non-capability pass code', code => {
+    const report = structuredClone(fixture.report)
+    report.configuration.checks.find(c => c.id === 'config.DATABASE_URL')!.code = code
+    expect(() => validateReport(report, context(report, fixture.policy as RuntimePolicy))).toThrow()
+  })
+})
