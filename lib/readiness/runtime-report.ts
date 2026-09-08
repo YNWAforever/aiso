@@ -153,6 +153,6 @@ export function renderRuntimeReport(report: RuntimeReport, policy: RuntimePolicy
     '## Observed candidate', ...Object.entries(canonical.observed).map(([key, value]) => `- ${key}: ${show(value)}`), '',
     '## Observed database', ...Object.entries(canonical.observedDatabase).map(([key, value]) => `- ${key}: ${show(value)}`), '',
     '## Configuration checks', ...canonical.configuration.checks.map((check) => `- ${check.id}: ${check.status} (${check.code})`), '',
-    '## Runtime checks', ...canonical.checks.map((check) => `- ${check.id}: ${check.status} (${check.code})`), '',
+    '## Runtime checks', ...canonical.checks.map((check) => `- ${check.id}${check.id === 'database.relation' ? '[' + check.policyIndex + ':' + check.privilege + ']' : ''}: ${check.status} (${check.code})`), '',
   ].join('\n')
 }

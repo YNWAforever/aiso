@@ -110,3 +110,14 @@ describe('internal readiness route', () => {
     finally { process.env = original }
   })
 })
+
+it.each([
+  { ...policy, capabilities: { ...policy.capabilities, claims: ['required'] } },
+  ...[ ['clients'], null ].map(relation => ({ ...policy, relations: [{ schema: 'public', relation, privileges: ['SELECT'] }] })),
+  { ...policy, relations: [{ schema: 'public', relation: 'clients', privileges: [['SELECT']] }] },
+])('rejects non-string policy input before constructing ports', async invalidPolicy => {
+  // Compute the pre-fix normalized hash where possible, so rejection cannot rely on a hash mismatch.
+  const normalized = { ...invalidPolicy, capabilities: Object.fromEntries(Object.entries(invalidPolicy.capabilities).map(([k, v]) => [k, String(v)])), relations: invalidPolicy.relations.map(r => ({ ...r, relation: String(r.relation), privileges: r.privileges.map(String) })) } as RuntimePolicy
+  const response = await route.POST(request(JSON.stringify({ ...payload, policy: invalidPolicy, policyHash: hashPolicy(normalized) })))
+  expect(response.status).toBe(400); expect(factory).not.toHaveBeenCalled()
+})

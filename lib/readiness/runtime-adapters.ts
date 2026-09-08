@@ -1,3 +1,4 @@
+import { createPublicKey, type JsonWebKey } from 'node:crypto'
 import { neon, type NeonQueryFunctionInTransaction } from '@neondatabase/serverless'
 import { checkBinding } from '@/lib/security/db-binding'
 import { createPublicUrlFetcher, type PublicUrlFetch } from '@/lib/security/public-url'
@@ -150,7 +151,7 @@ export function createRuntimePorts(dependencies: RuntimeDependencies): ProbePort
           if (response.status !== 200) { checks.push({ id, status: 'fail', code: 'unavailable' }); continue }
           const body = await readJson(response, signal)
           if (id === 'auth.jwks') {
-            const valid = typeof body === 'object' && body !== null && !Array.isArray(body) && 'keys' in body && Array.isArray(body.keys) && body.keys.length > 0 && body.keys.every(key => typeof key === 'object' && key !== null && !Array.isArray(key))
+            const valid = typeof body === 'object' && body !== null && !Array.isArray(body) && 'keys' in body && Array.isArray(body.keys) && body.keys.length > 0 && body.keys.every(isPublicJwk)
             checks.push({ id, status: valid ? 'pass' : 'fail', code: valid ? 'available' : 'malformed_response' })
           } else checks.push({ id, status: body === null ? 'pass' : 'fail', code: body === null ? 'anonymous' : 'session_present' })
         } catch { checks.push({ id, status: signal.aborted ? 'unknown' : 'fail', code: signal.aborted ? 'timeout' : 'malformed_response' }) }
@@ -179,4 +180,14 @@ async function readJson(response: Response, signal: AbortSignal): Promise<unknow
     }
     return JSON.parse(Buffer.concat(chunks).toString('utf8'))
   } finally { signal.removeEventListener('abort', cancel); await reader.cancel().catch(() => {}); reader.releaseLock() }
+}
+
+/** Parse supported public material only; JSON shape alone does not establish usable signing keys. */
+function isPublicJwk(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const key = value as Record<string, unknown>
+  if (['d', 'p', 'q', 'dp', 'dq', 'qi', 'oth', 'k'].some(field => field in key)) return false
+  const fields = key.kty === 'RSA' ? ['n', 'e'] : key.kty === 'EC' && ['P-256', 'P-384', 'P-521'].includes(String(key.crv)) ? ['x', 'y'] : key.kty === 'OKP' && ['Ed25519', 'Ed448'].includes(String(key.crv)) ? ['x'] : null
+  if (!fields || fields.some(field => typeof key[field] !== 'string' || !/^[A-Za-z0-9_-]+$/.test(key[field] as string) || Buffer.from(key[field] as string, 'base64url').toString('base64url') !== key[field])) return false
+  try { return createPublicKey({ key: key as JsonWebKey, format: 'jwk' }).type === 'public' } catch { return false }
 }

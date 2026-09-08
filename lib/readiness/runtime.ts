@@ -142,6 +142,15 @@ export async function runRuntimeProbe(input: ProbeRequest, ports: ProbePorts, si
         } else checks.push(...categoryChecks(outcome.value, request.policy, 'auth.'))
       } catch { checks.push(fallback(id, 'malformed_response')) }
     }
+    // Early exits preserve their original cause; unattempted required checks remain explicit unknowns.
+    for (const id of ['database.identity', 'database.read_only', 'auth.jwks', 'auth.anonymous_session'] as const) {
+      if (!checks.some(check => check.id === id)) checks.push({ id, status: 'unknown', code: 'dependency_failed' })
+    }
+    for (const [policyIndex, relation] of request.policy.relations.entries()) for (const privilege of relation.privileges) {
+      if (!checks.some(check => check.id === 'database.relation' && check.policyIndex === policyIndex && check.privilege === privilege)) {
+        checks.push({ id: 'database.relation', policyIndex, privilege, status: 'unknown', code: 'dependency_failed' })
+      }
+    }
     return buildRuntimeReport({
       nonce: request.nonce, policyHash: request.policyHash, expected: request.expected, observed, observedDatabase, ...(configuredTeamId !== undefined ? { configuredTeamId } : {}),
       startedAt: new Date(started).toISOString(), completedAt: new Date(Math.max(started, ports.now())).toISOString(),

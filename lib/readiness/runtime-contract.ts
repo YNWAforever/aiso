@@ -103,15 +103,16 @@ function parsePolicy(value: unknown): RuntimePolicy | undefined {
   if (!isRecord(expected) || !hasOnlyKeys(expected, databaseKeys)) return
   if (typeof expected.project !== 'string' || typeof expected.branch !== 'string' || typeof expected.database !== 'string' || !externalIdentifier.test(expected.project) || !externalIdentifier.test(expected.branch) || expected.role !== 'aeo_app' || !sqlIdentifier.test(expected.database)) return
   if (!isRecord(capabilities) || !hasOnlyKeys(capabilities, capabilityNames)) return
-  if (capabilityNames.some((name) => !capabilityModes.has(String(capabilities[name])))) return
+  if (capabilityNames.some((name) => typeof capabilities[name] !== 'string' || !capabilityModes.has(capabilities[name]))) return
   if (!Array.isArray(relations) || relations.length > 32) return
 
   const parsedRelations: MetadataRequirement[] = []
   const relationNames = new Set<string>()
   for (const relation of relations) {
-    if (!isRecord(relation) || !hasOnlyKeys(relation, ['schema', 'relation', 'privileges']) || relation.schema !== 'public' || !sqlIdentifier.test(String(relation.relation))) return
+    if (!isRecord(relation) || !hasOnlyKeys(relation, ['schema', 'relation', 'privileges']) || relation.schema !== 'public' || typeof relation.relation !== 'string' || !sqlIdentifier.test(relation.relation)) return
     if (!Array.isArray(relation.privileges) || relation.privileges.length > 4 || relation.privileges.length === 0) return
-    const privileges = relation.privileges.map(String)
+    if (relation.privileges.some((privilege: unknown) => typeof privilege !== 'string')) return
+    const privileges = relation.privileges as string[]
     if (privileges.some((privilege) => !privilegeNames.has(privilege)) || new Set(privileges).size !== privileges.length || relationNames.has(String(relation.relation))) return
     relationNames.add(String(relation.relation))
     parsedRelations.push({ schema: 'public', relation: String(relation.relation), privileges: privileges as MetadataRequirement['privileges'] })
