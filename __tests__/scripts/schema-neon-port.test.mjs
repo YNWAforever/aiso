@@ -112,6 +112,28 @@ function fixture(overrides = {}) {
 }
 afterEach(() => vi.useRealTimers());
 describe("bounded Neon REST lifecycle", () => {
+  it("rejects malformed endpoint operation identity while retaining the proven child", async () => {
+    const f = fixture({
+      respond: (url, options) =>
+        options.method === "POST"
+          ? json(
+              {
+                ...creation,
+                endpoints: [{ ...endpoint, id: "ep--" }],
+                operations: [{ ...op, endpoint_id: "ep--" }],
+              },
+              201,
+            )
+          : json({ branch }),
+    });
+    await expect(f.create()).rejects.toMatchObject({
+      code: "identity_mismatch",
+      mutationAttempted: true,
+    });
+    expect(f.registry.cleanupCandidate().child.id).toBe(branch.id);
+    expect(f.calls).toHaveLength(1);
+  });
+
   it("uses explicit parent, floor-second TTL, fixed origin and exact full lifecycle", async () => {
     const f = fixture();
     expect(await f.port.readProject({ request })).toEqual({

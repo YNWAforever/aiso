@@ -433,6 +433,35 @@ describe("schema equivalence injected orchestration", () => {
     expect(r.events).toContain("absence");
     expect(JSON.stringify(r.evidence)).not.toContain("password");
   });
+  it.each([
+    ["project_id", "projectId", "-bad"],
+    ["branch_id", "branchId", "br--"],
+    ["project_id", "projectId", ["synthetic-project"]],
+    ["branch_id", "branchId", ["br-child"]],
+    ["project_id", "projectId", "a".repeat(61)],
+    ["branch_id", "branchId", "br-" + "a".repeat(58)],
+  ])(
+    "preserves contract-valid failure and cleanup for malformed session %s: %j",
+    async (input, field, value) => {
+      for (const side of ["A", "B"]) {
+        const r = await run({ session: { [side]: { [input]: value } } });
+        expect(r.evidence.sessions[side][field]).toBeNull();
+        expect(check(r.evidence, "session" + side)).toMatchObject({
+          status: "fail",
+          code: "identity_mismatch",
+        });
+        expect(r.events).not.toContain("reset" + side);
+        expect(r.events.slice(-3)).toEqual(["delete", "absence", "manifest"]);
+        expect(r.evidence.cleanup).toMatchObject({
+          status: "pass",
+          attempted: true,
+          confirmed: true,
+        });
+        expect(r.getRegistry().cleanupCandidate()).toBeNull();
+        expect(r.exitCode).toBe(1);
+      }
+    },
+  );
   it("records ambiguous create without deletion or SQL", async () => {
     const r = await run({ ambiguous: true });
     expect(r.evidence.child).toBeNull();

@@ -1,8 +1,8 @@
 import { parseRequest, canonicalJson, LIMITS } from "./contract.mjs";
 
 const registries = new WeakMap();
-const branchId = /^br-[a-z0-9-]{1,57}$/;
-const endpointId = /^ep-[a-z0-9-]{1,57}$/;
+const branchId = /^br-[a-z0-9][a-z0-9-]{0,56}$/;
+const endpointId = /^ep-[a-z0-9][a-z0-9-]{0,56}$/;
 const dns =
   /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 export function lifecycleError(code) {
@@ -42,6 +42,7 @@ export function proveChild(request, branch, name, startedAt) {
   const expected = childExpectation(name, startedAt);
   requireThat(
     branch &&
+      typeof branch.id === "string" &&
       branchId.test(branch.id) &&
       branch.project_id === request.projectId &&
       branch.parent_id === request.parentId &&
@@ -134,6 +135,7 @@ export function createTargetRegistry(value) {
           requireThat(
             entry.endpoints.some(
               (endpoint) =>
+                typeof endpoint.id === "string" &&
                 endpointId.test(endpoint.id) &&
                 endpoint.branch_id === entry.handle.child.id &&
                 endpoint.type === "read_write" &&

@@ -21,8 +21,8 @@ const clean = (value, pattern, max) =>
     : null;
 function sessionObservation(value) {
   return {
-    projectId: clean(value?.projectId, /^[a-z0-9-]+$/, 60),
-    branchId: clean(value?.branchId, /^br-[a-z0-9-]+$/, 60),
+    projectId: clean(value?.projectId, /^[a-z0-9][a-z0-9-]*$/, 60),
+    branchId: clean(value?.branchId, /^br-[a-z0-9][a-z0-9-]*$/, 60),
     database: clean(value?.database, /^[a-z_][a-z0-9_]*$/, 63),
     role: clean(value?.role, /^[a-z_][a-z0-9_]*$/, 63),
   };

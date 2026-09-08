@@ -65,6 +65,10 @@ describe("strict child registry", () => {
     { id: "br-parent" },
     { id: "br-protected" },
     { id: "bad" },
+    { id: "br--" },
+    { id: ["br-child"] },
+    { id: { toString: () => "br-child" } },
+    { id: "br-" + "a".repeat(58) },
     { name: "other" },
     { default: true },
     { default: undefined },
@@ -129,6 +133,10 @@ describe("strict child registry", () => {
     { host: "protected.neon.tech" },
     { host: "ep-child.region.neon.tech/path" },
     { id: "bad" },
+    { id: "ep--" },
+    { id: ["ep-child"] },
+    { id: { toString: () => "ep-child" } },
+    { id: "ep-" + "a".repeat(58) },
     { type: "read_only" },
   ])("rejects endpoint %j before session", (change) => {
     const registry = createTargetRegistry(request);

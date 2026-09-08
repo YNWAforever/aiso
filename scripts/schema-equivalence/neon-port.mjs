@@ -338,7 +338,7 @@ export function createNeonPort(options) {
                 (e) =>
                   e?.branch_id === handle.child.id &&
                   typeof e?.id === "string" &&
-                  /^ep-[a-z0-9-]{1,57}$/.test(e.id),
+                  /^ep-[a-z0-9][a-z0-9-]{0,56}$/.test(e.id),
               )
               .map((e) => e.id)
           : [],
