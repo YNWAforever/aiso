@@ -1,5 +1,7 @@
 # Runtime readiness implementation checkpoint
 
+> Historical snapshot: implementation-status statements below describe their dated checkpoint. See the [runtime readiness handoff](2026-09-08-runtime-readiness-handoff.md) for current local Slice B evidence and remaining live/review gates.
+
 Date: 2026-09-08
 Status: PARTIAL - Tasks 1 and 2 implemented; remaining Slice B is not complete.
 Branch: codex/release-readiness-design

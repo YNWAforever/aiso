@@ -1,5 +1,7 @@
 # AISO readiness configuration foundation handoff
 
+> Historical snapshot: implementation-status statements below describe their dated checkpoint. See the [runtime readiness handoff](2026-09-08-runtime-readiness-handoff.md) for current local Slice B evidence and remaining live/review gates.
+
 Date: 2026-09-08
 Status: local report-only foundation implemented and checked; Task 2 and whole-slice review approved; not production readiness
 

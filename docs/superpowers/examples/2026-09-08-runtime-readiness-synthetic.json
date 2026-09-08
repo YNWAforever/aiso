@@ -1,0 +1,256 @@
+{
+  "synthetic": true,
+  "warning": "SYNTHETIC FIXTURE ONLY - NOT LIVE EVIDENCE OR RELEASE ACCEPTANCE",
+  "sourceSha": "27d2a9a0d9cfb95a6211148020c9046f09239500",
+  "policy": {
+    "version": 1,
+    "expectedDatabase": {
+      "project": "project-test",
+      "branch": "br-test",
+      "role": "aeo_app",
+      "database": "neondb"
+    },
+    "capabilities": {
+      "claims": "required",
+      "ai": "required",
+      "billing": "required",
+      "email": "required",
+      "scheduler": "required"
+    },
+    "relations": [
+      {
+        "schema": "public",
+        "relation": "clients",
+        "privileges": [
+          "SELECT"
+        ]
+      }
+    ]
+  },
+  "report": {
+    "checks": [
+      {
+        "code": "matched",
+        "id": "candidate.identity",
+        "status": "pass"
+      },
+      {
+        "code": "valid",
+        "id": "configuration.core",
+        "status": "pass"
+      },
+      {
+        "code": "matched",
+        "id": "database.identity",
+        "status": "pass"
+      },
+      {
+        "code": "read_only",
+        "id": "database.read_only",
+        "status": "pass"
+      },
+      {
+        "code": "privilege_present",
+        "id": "database.relation",
+        "policyIndex": 0,
+        "privilege": "SELECT",
+        "status": "pass"
+      },
+      {
+        "code": "available",
+        "id": "auth.jwks",
+        "status": "pass"
+      },
+      {
+        "code": "anonymous",
+        "id": "auth.anonymous_session",
+        "status": "pass"
+      }
+    ],
+    "completedAt": "2026-09-08T01:00:01.000Z",
+    "configuration": {
+      "checks": [
+        {
+          "code": "valid",
+          "id": "config.DATABASE_URL",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "config.NEON_AUTH_BASE_URL",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "config.NEON_AUTH_COOKIE_SECRET",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "config.PUBLIC_SCAN_RATE_LIMIT_SECRET",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "config.NEXT_PUBLIC_APP_URL",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "config.VERCEL",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "config.REPORT_SHARE_SECRET",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "config.OPENROUTER_API_KEY",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "config.STRIPE_SECRET_KEY",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "config.STRIPE_WEBHOOK_SECRET",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "config.STRIPE_PRICE_BASIC",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "config.STRIPE_PRICE_PRO",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "config.STRIPE_PRICE_ENTERPRISE",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "config.RESEND_API_KEY",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "config.RESEND_FROM_EMAIL",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "config.RESEND_TRIAL_FROM_EMAIL",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "config.CRON_SECRET",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "binding.EXPECTED_NEON_PROJECT_ID",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "binding.EXPECTED_NEON_BRANCH_ID",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "binding.EXPECTED_DB_ROLE",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "binding.EXPECTED_DB_NAME",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "binding.connection_role",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "binding.connection_database",
+          "status": "pass"
+        },
+        {
+          "code": "valid",
+          "id": "binding.forbidden_target",
+          "status": "pass"
+        },
+        {
+          "code": "required",
+          "id": "capability.claims",
+          "status": "pass"
+        },
+        {
+          "code": "required",
+          "id": "capability.ai",
+          "status": "pass"
+        },
+        {
+          "code": "required",
+          "id": "capability.billing",
+          "status": "pass"
+        },
+        {
+          "code": "required",
+          "id": "capability.email",
+          "status": "pass"
+        },
+        {
+          "code": "required",
+          "id": "capability.scheduler",
+          "status": "pass"
+        }
+      ],
+      "configurationStatus": "pass",
+      "enforced": false,
+      "kind": "configuration-only",
+      "productionReady": false,
+      "version": 1
+    },
+    "configurationStatus": "pass",
+    "configuredTeamId": "team_test",
+    "enforced": false,
+    "expected": {
+      "commitSha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "deploymentId": "dpl_test",
+      "environment": "preview",
+      "projectId": "prj_test",
+      "teamId": "team_test"
+    },
+    "kind": "runtime-readiness",
+    "nonce": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "observed": {
+      "commitSha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "deploymentId": "dpl_test",
+      "environment": "preview",
+      "projectId": "prj_test",
+      "teamId": null
+    },
+    "observedDatabase": {
+      "branch": "br-test",
+      "database": "neondb",
+      "project": "project-test",
+      "role": "aeo_app"
+    },
+    "policyHash": "78d4ece3f26f22294c212af21f16c268caad4ae4b7262a8252711124c6629ae0",
+    "productionReady": false,
+    "runtimeStatus": "pass",
+    "schemaVersion": 1,
+    "startedAt": "2026-09-08T01:00:00.000Z"
+  }
+}
