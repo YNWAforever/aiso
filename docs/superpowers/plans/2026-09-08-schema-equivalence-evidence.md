@@ -239,7 +239,7 @@ responses. Network ports are constructed only after request/manifest validation.
 
 ```js
 expect(createBody.branch.parent_id).toBe(request.parentId)
-expect(createBody.branch.expires_at).toBe(new Date(now + 7200000).toISOString())
+expect(createBody.branch.expires_at).toBe(new Date(Math.floor((now + 7200000) / 1000) * 1000).toISOString())
 expect(() => registry.assertSession(forgedHandle, validSession)).toThrow()
 expect(deleteRequests).toHaveLength(0) // unproven foreign/protected response
 ```
@@ -321,7 +321,10 @@ expect(parseEvidence(result.evidence)).toEqual(result.evidence)
   Do not autoload .env files. Fixed failure code goes into proof, no raw output.
 - [ ] Preserve successful dry-run exit AND no-pending content rule. Capture ledger
   head evidence using fixed read-only schema_migrations queries for both paths;
-  compare ordered file/checksum entries against pinned manifest. Do not accept
+  compare exact ordered migration filenames with NULL checksums; Path A contains only
+  those rows, while Path B additionally contains the baseline filename and raw-byte
+  SHA-256 checksum. Ordinary ledger rows do not store per-file hashes: successful
+  execution plus pre/post byte manifests provides that binding. Do not accept
   migration subprocess exit0 alone as proof of reaching the expected head.
 - [ ] Use one outer cleanup finally, then final manifest comparison and buildEvidence.
   Missing dependent observations remain unknown; original and cleanup failures

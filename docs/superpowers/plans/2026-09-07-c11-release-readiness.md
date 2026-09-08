@@ -52,3 +52,24 @@ Scheduler rollback disables future triggers on the dedicated Worker and reconcil
 Prepared current C10 verification and C11 gate/action packages, ran270focused local tests, read Vercel deployment identity, GitHub main/rules/CI metadata and Cloudflare schedules/deployment/settings. No application runtime code changed in this continuation. Separately repaired the C1 verification runner and added four mocked orchestration regressions. All44 related tooling tests passed; scoped ESLint, JavaScript syntax, TypeScript and diff checks passed. Initial regression failures and the review-found SQL delimiter defect were corrected locally. No fresh full build or live schema-equivalence run was performed for this tooling/documentation diff. No provider mutation, branch cleanup, migration, real email, paid scan, deployment, push, merge or cutover occurred. Remaining gates above are explicit and are not relabeled complete by this dossier.
 
 Independent re-review approved the corrected tooling diff with no remaining actionable findings. Review covered identity guards, exact emitted auth SQL, migration ordering, dry-run failure handling and cleanup; it did not execute live PostgreSQL.
+
+## Slice C update — 2026-09-08 (supersedes local tooling status only)
+
+The historical September 7 gate register and targets above are retained as dated
+records. They do not select or authorize a target for the new strict rehearsal.
+In particular, the old temporary synthetic-parent statement is not inherited.
+
+At implementation source b866f14e97c203852f9143699c35d2cb698a094a, Slice C adds explicit
+request/clean-source/manifest binding, child/session identity guards, exact two-path
+head checks, canonical evidence and cleanup failure/readback enforcement. Local selected
+verification passed 421 tests in 10 files, scoped lint, Next typegen and TypeScript.
+No build or live rehearsal ran; whole-slice final independent review remains PENDING.
+The [schema handoff](2026-09-08-schema-equivalence-handoff.md) gives exact commands,
+source-specific hashes, limitations and the unexecuted UNKNOWN/BLOCKED live proposal.
+
+Baseline-to-head equivalence remains BLOCKED/UNPROVED until a separately authorized
+live run succeeds with confirmed recoverable cleanup. TTL does not confirm absence,
+and ordinary branch deletion is not irreversible erasure. A parser cannot authenticate
+live origin; reusable:false, enforced:false and productionReady:false remain. Candidate
+DB bindings/migrations/grants, provider acceptance, tenant isolation, release operators,
+CI enforcement, recovery, publication and Slice D remain separate unresolved gates.

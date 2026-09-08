@@ -216,3 +216,20 @@ The earlier 311-test results remain historical evidence. Independent source and 
 evidence; no external DNS/HTTP probe, candidate verification, credential operation,
 database action, push or deployment occurred. Concrete platform, target, policy,
 and credential prerequisites above remain unverified and require separate approval.
+
+## Slice C update — 2026-09-08 local evidence
+
+The separate [schema-equivalence handoff](2026-09-08-schema-equivalence-handoff.md)
+records strict request/clean-HEAD/hash preflight, explicit disposable-child/session
+identity, unchanged two-path comparison and recoverable cleanup with exact active-branch
+absence readback. At implementation source b866f14e97c203852f9143699c35d2cb698a094a,
+421 selected synthetic tests across 10 files, scoped lint, Next typegen and TypeScript
+passed. No build or live rehearsal ran. Whole-Slice C final independent review is
+PENDING. Slice A/B APIs and the readiness HTTP probe were not changed by Slice C.
+
+Historical evidence above remains dated evidence. No previously named project, parent,
+sterility statement or credential approval is inherited. All live schema proposal
+selections remain UNKNOWN/BLOCKED. Local evidence is unverified provenance with
+reusable:false, enforced:false and productionReady:false. TTL is not deletion proof;
+recoverable active-branch absence is not irreversible erasure. No schema equivalence,
+release readiness, publication or next-phase authorization is established.
