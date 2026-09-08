@@ -1,7 +1,7 @@
 # Slice C: schema-equivalence safeguards and evidence
 
 Date: 2026-09-08
-Status: design approved in conversation; written spec awaiting user review.
+Status: written specification approved by the user; implementation plan prepared separately.
 Source baseline: 222cf875721e4db4af0db6c08a40d67b16ab7c3c on codex/release-readiness-design.
 Parent design: 2026-09-08-release-readiness-design.md.
 
