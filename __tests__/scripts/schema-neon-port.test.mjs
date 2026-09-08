@@ -246,18 +246,72 @@ describe("bounded Neon REST lifecycle", () => {
       );
     },
   );
-  it("requires fresh child identity after finished operations", async () => {
-    const f = fixture({
-      respond: (url, o) =>
-        o.method === "POST"
-          ? json(creation, 201)
-          : url.includes("/operations/")
-            ? json({ operation: op })
-            : json({ branch: { ...branch, default: true } }),
-    });
-    await expect(f.create()).rejects.toThrow();
-    expect(f.registry.cleanupCandidate()).not.toBeNull();
-  });
+  it.each([
+    { default: true },
+    { protected: true },
+    { primary: true },
+    { project_id: "foreign" },
+    { parent_id: "br-other" },
+    { name: "other-child" },
+    { id: "br-other" },
+    { expires_at: "2026-09-09T02:00:00Z" },
+  ])(
+    "revokes mutations after contradictory child readback %j",
+    async (change) => {
+      const f = fixture({
+        respond: (url, o) =>
+          o.method === "POST"
+            ? json(creation, 201)
+            : o.method === "DELETE"
+              ? new Response(null, { status: 204 })
+              : url.includes("/operations/")
+                ? json({ operation: op })
+                : json({ branch: { ...branch, ...change } }),
+      });
+      await expect(f.create()).rejects.toThrow();
+      const handle = f.registry.cleanupCandidate();
+      expect(handle.child.id).toBe(branch.id);
+      await expect(f.port.deleteChild({ handle })).rejects.toMatchObject({
+        code: "cleanup_unverified",
+      });
+      await expect(f.port.confirmAbsent({ handle })).rejects.toMatchObject({
+        code: "cleanup_unverified",
+      });
+      await expect(f.port.connectionUri({ handle })).rejects.toThrow();
+      expect(f.calls.filter((c) => c.options.method === "DELETE")).toHaveLength(
+        0,
+      );
+      expect(
+        f.calls.filter((c) => c.url.includes("/connection_uri")),
+      ).toHaveLength(0);
+    },
+  );
+  it.each(["network", "operation"])(
+    "preserves cleanup after %s readiness failure",
+    async (kind) => {
+      const f = fixture({
+        respond: (url, o) => {
+          if (o.method === "POST") return json(creation, 201);
+          if (o.method === "DELETE") return new Response(null, { status: 204 });
+          if (url.includes("/operations/"))
+            return json({
+              operation: {
+                ...op,
+                status: kind === "operation" ? "failed" : "finished",
+              },
+            });
+          throw Error("SECRET");
+        },
+      });
+      await expect(f.create()).rejects.toThrow();
+      await expect(
+        f.port.deleteChild({ handle: f.registry.cleanupCandidate() }),
+      ).resolves.toMatchObject({ attempted: true });
+      expect(f.calls.filter((c) => c.options.method === "DELETE")).toHaveLength(
+        1,
+      );
+    },
+  );
   it("retains safe child on URI failure and rejects forged deletion handles", async () => {
     const f = fixture();
     const h = await f.create();

@@ -170,6 +170,7 @@ export function createNeonPort(options) {
     const ctx = children.get(handle);
     check(ctx, "identity_mismatch");
     ctx.registry.cleanupCandidate(handle);
+    check(!ctx.identityRejected, "cleanup_unverified");
     return ctx;
   };
   function operationIdentity(operation, ctx, original) {
@@ -342,10 +343,11 @@ export function createNeonPort(options) {
               .map((e) => e.id)
           : [],
         ready: false,
+        identityRejected: false,
         deleteAttempted: false,
         deleteCompleted: false,
       };
-      children.set(handle, ctx); // Proven child survives every subsequent readiness/URI failure.
+      children.set(handle, ctx); // Retain original child diagnostics even if fresh identity rejects.
       check(
         Array.isArray(data.endpoints) &&
           data.endpoints.length > 0 &&
@@ -358,8 +360,20 @@ export function createNeonPort(options) {
         `${path(request)}/branches/${encodeURIComponent(handle.child.id)}`,
         { signal },
       );
-      const observed = proveChild(request, fresh.data.branch, name, startedAt);
-      check(observed.id === handle.child.id);
+      try {
+        const observed = proveChild(
+          request,
+          fresh.data.branch,
+          name,
+          startedAt,
+        );
+        check(observed.id === handle.child.id);
+      } catch (error) {
+        // A returned child that no longer proves disposable revokes mutation authority.
+        // Transport/operation failures above leave the originally proven cleanup intact.
+        ctx.identityRejected = true;
+        throw error;
+      }
       ctx.ready = true;
       return handle;
     },

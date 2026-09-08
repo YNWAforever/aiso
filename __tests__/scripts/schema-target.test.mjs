@@ -152,6 +152,7 @@ describe("strict child registry", () => {
   });
   it("uses fixed error codes without serializing caller material", () => {
     const registry = createTargetRegistry(request);
+    let caught;
     try {
       registry.register({
         branch: { ...branch, name: "SECRET" },
@@ -160,10 +161,12 @@ describe("strict child registry", () => {
         startedAt,
       });
     } catch (error) {
-      expect(error.message).toBe("possible_orphan");
-      expect(error.code).toBe("possible_orphan");
-      expect(JSON.stringify(error)).not.toContain("SECRET");
+      caught = error;
     }
+    expect(caught).toBeInstanceOf(Error);
+    expect(caught.message).toBe("possible_orphan");
+    expect(caught.code).toBe("possible_orphan");
+    expect(JSON.stringify(caught)).not.toContain("SECRET");
   });
   it.each([null, undefined, {}, "SECRET"])(
     "sanitizes invalid registry request %j",
