@@ -1,8 +1,10 @@
 # Schema-equivalence evidence: local handoff
 
-Date: 2026-09-08. Implementation source: `b866f14e97c203852f9143699c35d2cb698a094a`.
-Whole-Slice C independent final review: **PENDING**. Tasks 1–5 have individual reviews;
-this document does not close Task 6 or authorize a live rehearsal.
+Date: 2026-09-08. Final implementation source: `d8347fa62c3570edf1e0217ea1c5ae9ff1b6c65d`.
+Whole-Slice C independent source review: **APPROVED**, no remaining findings after
+the final bounded repair. Local tooling handoff is complete; no live rehearsal is authorized.
+The initial Task 6 verification source was `b866f14e97c203852f9143699c35d2cb698a094a`;
+its dated checks below remain distinct from the final source verification.
 
 ## Scope and result
 
@@ -78,7 +80,7 @@ CLI arguments fail before these imports. No package setting was changed to silen
 The manifest binds exact baseline bytes, ordered actual migration membership (including
 historical gaps), required harness files and every immediate rehearsal `.mjs` module.
 Its SHA-256 hashes canonical JSON with sorted keys and preserved array order, excluding
-its own hash. Per-file hashes use raw bytes. At the implementation source above,
+its own hash. Per-file hashes use raw bytes. At initial Task 6 source `b866f14e97c203852f9143699c35d2cb698a094a`,
 read-only filesystem discovery found **41 migrations and 14 harness files**, baseline
 `supabase/baseline/000_baseline_2026-08-31.sql`, combined hash
 `17aeec788c21d91f370b77dddd6b47b170f58395bc1f496320012068832f6ff4`.
@@ -138,7 +140,7 @@ consistent true, reusable false, provenance unverified and productionReady false
 
 ## Exact local verification
 
-Controller ran these commands at the implementation SHA above, using the existing
+Controller ran these commands at initial Task 6 source `b866f14e97c203852f9143699c35d2cb698a094a`, using the existing
 local wrapper with synthetic environment and injected effects; Task 6 documentation
 work read the logs and did not repeat the checks:
 
@@ -158,9 +160,41 @@ with no bootstrap database operation. These are selected regressions, not a full
 or live integration claim. No build ran: standalone MJS tooling introduced no
 runtime/shared application import changes and type generation exposed no concern.
 
-Whole-slice review from approved-plan baseline
-`917db1206896f001a1daf74afeaffc41dbf2f9fe` through final docs HEAD remains **PENDING**.
-The controller will record final review, any coordinated repairs and final source.
+### Final source review and repair
+
+Independent whole-slice source review from approved-plan baseline
+`917db1206896f001a1daf74afeaffc41dbf2f9fe` is **APPROVED** at final source
+`d8347fa62c3570edf1e0217ea1c5ae9ff1b6c65d`, with no remaining findings.
+The review found one P2: malformed observed provider identifiers could survive the
+runner/target guards, then fail the evidence builder after cleanup and lose the report.
+The bounded repair aligns primitive-string and identifier validation; invalid session
+observations remain null, affected resets are blocked, and parseable failure evidence
+survives confirmed cleanup. Regression reproduction failed 9 tests before the repair.
+
+Final selected verification passed **436 tests across 10 files in two runs**:
+406 tests in eight schema/bootstrap/baseline files, then 30 in two helper files.
+Changed-six-file ESLint passed with zero diagnostics. Exact final commands:
+
+```text
+node .superpowers/sdd/local-run.cjs node_modules/vitest/vitest.mjs run __tests__/scripts/schema-equivalence.test.mjs __tests__/scripts/schema-target.test.mjs __tests__/scripts/schema-neon-port.test.mjs __tests__/scripts/schema-contract.test.mjs __tests__/scripts/schema-cli.test.mjs __tests__/scripts/schema-manifest.test.mjs __tests__/scripts/bootstrap-project.test.mjs __tests__/scripts/migrate-baseline-guard.test.ts --maxWorkers=2
+node .superpowers/sdd/local-run.cjs node_modules/vitest/vitest.mjs run __tests__/helpers/neon-branch.test.ts __tests__/helpers/neon-branch-config.test.ts --maxWorkers=2
+node .superpowers/sdd/local-run.cjs node_modules/eslint/bin/eslint.js scripts/schema-equivalence/runner.mjs scripts/schema-equivalence/target.mjs scripts/schema-equivalence/neon-port.mjs __tests__/scripts/schema-equivalence.test.mjs __tests__/scripts/schema-target.test.mjs __tests__/scripts/schema-neon-port.test.mjs --max-warnings=0
+```
+
+Logs: `.superpowers/sdd/schema-final-fix-{red,green,helper-green,lint}.log`;
+report: `.superpowers/sdd/schema-final-fix-report.md`. The controller verified these
+outputs. Earlier full scoped lint/typegen/TypeScript results belong to b866f14;
+typegen/TypeScript were not rerun after this MJS/test-only repair, which changed no
+TypeScript or framework source. No production build was run. The expected bootstrap
+refusal and existing Node TypeScript module warning remain documented nonblocking
+limitations; neither indicates a live operation or a newly introduced failure.
+
+Read-only manifest discovery at final source d8347fa again found 41 migrations and
+14 harness files, with hash
+`8f2c3c6613215c5c672ac51cd8bc3161b31806d36747294cb01ad94b3c78e181`
+(`.superpowers/sdd/schema-final-manifest.log`). This fingerprint belongs only to
+that exact source; the documentation closure commit changes HEAD and requires a
+fresh manifest for any later approved execution. Local implementation is complete.
 No next phase or publication follows implicitly from local completion.
 
 ## Unexecuted live proposal — all selections blocked

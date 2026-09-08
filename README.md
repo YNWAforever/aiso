@@ -243,8 +243,9 @@ TTL never confirms deletion. Failed cleanup or a partial artifact write returns 
 Artifacts always retain enforced:false and productionReady:false; local validation
 cannot establish provenance and reusable remains false, even for live-labeled input.
 
-At source b866f14, 421 selected synthetic tests in 10 files, scoped lint, Next typegen
-and TypeScript passed. Whole-slice final review is pending; no live schema equivalence
-has been proved. See the [schema handoff](docs/superpowers/plans/2026-09-08-schema-equivalence-handoff.md)
+Final source d8347fa passed 436 selected synthetic tests across 10 files in two runs
+and changed-file lint. Independent whole-slice source review approved the final repair;
+local tooling is complete. Earlier typegen/TypeScript and full scoped lint passed at
+b866f14; the final repair changed only MJS/tests. No live schema equivalence has been proved. See the [schema handoff](docs/superpowers/plans/2026-09-08-schema-equivalence-handoff.md)
 for the exact request, limits, dated verification, synthetic example and blocked live
 proposal. A later docs commit changes HEAD and therefore requires a new manifest hash.
