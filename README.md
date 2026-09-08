@@ -79,7 +79,7 @@ entry there says what breaks when it is missing. The highlights:
 |---|---|
 | `DATABASE_URL` | Neon connection string |
 | `NEON_AUTH_BASE_URL` | Neon Auth issuer (runtime) |
-| `NEON_AUTH_COOKIE_SECRET` | ≥32 chars, required at **build** time — `next build` fails without it |
+| `NEON_AUTH_COOKIE_SECRET` | ≥32 chars. Required when Neon Auth is used at runtime; auth is initialized lazily, so a successful build does not prove it is configured |
 | `PUBLIC_SCAN_RATE_LIMIT_SECRET` | ≥32 chars. **Unset in production, every anonymous scan returns 503** — no local fallback is used there |
 | `REPORT_SHARE_SECRET` | ≥32 chars. Signs report share links **and** the scan-claim cookie |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | without the webhook secret every Stripe event 400s and no subscription provisions |
@@ -90,6 +90,12 @@ entry there says what breaks when it is missing. The highlights:
 
 Optional (have fallbacks): `RESEND_FROM_EMAIL`, `WIKIPEDIA_USER_AGENT`.
 E2E only: `BASE_URL`, `START_DEV_SERVER`, `PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_TEST_PASSWORD`.
+
+Auth and database clients are lazy. A successful build does not verify runtime configuration.
+The readiness configuration report applies a stricter, explicit release policy to supplied
+values, including values that current runtime paths only require when used. It is report-only:
+it validates configuration shape and consistency, but does not contact providers, prove runtime
+reachability, enforce promotion or establish production acceptance.
 
 `CRON_SECRET` (≥16 chars) authenticates the weekly Pulse chain: the Cloudflare Worker
 (`cloudflare/cron-worker/`, not Vercel Cron) calls `GET /api/cron/pulse` with
@@ -179,3 +185,67 @@ Before releasing public scans:
 
 Local development and tests use a single explicitly isolated identity and development-only
 HMAC key. They ignore forwarding headers and do not claim production proxy security.
+
+## Manual runtime readiness (local implementation; live approval separate)
+
+Slice B adds a protected, read-only runtime probe and explicit candidate runner.
+Configuration and runtime results always retain `enforced: false` and
+`productionReady: false`; exit 0 means only that the selected checks passed.
+Whole-branch independent review approved the local implementation; no live candidate has been verified.
+
+After separately approving a concrete candidate and credential sources, use Node 24:
+
+```text
+node scripts/readiness/check-candidate.mjs --team TEAM_ID --project PROJECT_ID --deployment DEPLOYMENT_ID --sha FULL_LOWERCASE_SHA --environment preview --policy POLICY_JSON_PATH --output-dir OUTPUT_DIRECTORY
+```
+
+All seven options are mandatory. Team/project/deployment must be immutable IDs
+(`team_`, `prj_`, `dpl_`); SHA is exactly 40 lowercase hex characters. Environment
+is explicitly `preview` or `production`, with no default. Unknown/duplicate options,
+aliases and URL targets fail closed. This placeholder command is not authorization.
+The runner does not load dotenv files and accepts no credential CLI options.
+
+Inject `VERCEL_TOKEN` from the approved operator's Vercel metadata credential,
+`READINESS_PROBE_SECRET` from a separately provisioned dedicated server secret,
+and, when protection requires it, `VERCEL_AUTOMATION_BYPASS_SECRET` from that
+candidate project's Deployment Protection automation configuration. The first
+reaches only the Vercel control plane; the second authenticates the readiness
+endpoint; the third crosses outer deployment protection. They are separate credentials.
+
+Artifacts are exclusive `readiness-{nonce}.json` / `.md` writes in the explicit
+output directory. Existing files are never replaced. A failed Markdown write can
+leave validated JSON alone and returns exit 1; there is no atomic pair guarantee.
+Honest failed/unknown reports are retained with exit 1. Invalid reports or failed
+metadata checks are rejected before artifact writes.
+
+See the [runtime handoff](docs/superpowers/plans/2026-09-08-runtime-readiness-handoff.md) for policy format,
+limits, exact local evidence, and the blocked live-action proposal.
+The [synthetic sample](docs/superpowers/examples/2026-09-08-runtime-readiness-synthetic.md)
+is fixture-only; its JSON wrapper is intentionally rejected by the runner.
+
+## Schema-equivalence rehearsal (local tooling; live approval separate)
+
+Slice C provides a strict request-bound rehearsal and canonical cleanup-bound evidence.
+The Node 24 command, only after separate approval of exact live inputs, is:
+
+```text
+node scripts/schema-equivalence.mjs --request ABSOLUTE_REQUEST_JSON_PATH --output-dir ABSOLUTE_OUTPUT_DIRECTORY
+```
+
+Both flags are required. The request pins the project, sterile parent, database/role,
+protected IDs/hosts, sterility reference, clean source SHA and actual manifest hash.
+Unknown/duplicate options and JSON fields fail closed. Put operator files outside the
+checkout or in an explicitly ignored directory. Inject NEON_API_KEY only from a
+separately approved source; no dotenv or database URL fallback is used.
+
+Cleanup requires exact active-child absence readback after recoverable deletion;
+TTL never confirms deletion. Failed cleanup or a partial artifact write returns exit 1.
+Artifacts always retain enforced:false and productionReady:false; local validation
+cannot establish provenance and reusable remains false, even for live-labeled input.
+
+Final source d8347fa passed 436 selected synthetic tests across 10 files in two runs
+and changed-file lint. Independent whole-slice source review approved the final repair;
+local tooling is complete. Earlier typegen/TypeScript and full scoped lint passed at
+b866f14; the final repair changed only MJS/tests. No live schema equivalence has been proved. See the [schema handoff](docs/superpowers/plans/2026-09-08-schema-equivalence-handoff.md)
+for the exact request, limits, dated verification, synthetic example and blocked live
+proposal. A later docs commit changes HEAD and therefore requires a new manifest hash.

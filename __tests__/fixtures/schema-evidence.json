@@ -1,0 +1,187 @@
+{
+  "bootstrap": {
+    "nothingPending": true,
+    "status": "pass"
+  },
+  "checks": [
+    {
+      "code": "matched",
+      "id": "parent",
+      "status": "pass"
+    },
+    {
+      "code": "matched",
+      "id": "child",
+      "status": "pass"
+    },
+    {
+      "code": "matched",
+      "id": "sessionA",
+      "status": "pass"
+    },
+    {
+      "code": "completed",
+      "id": "pathA",
+      "status": "pass"
+    },
+    {
+      "code": "matched",
+      "id": "sessionB",
+      "status": "pass"
+    },
+    {
+      "code": "completed",
+      "id": "pathB",
+      "status": "pass"
+    },
+    {
+      "code": "equivalent",
+      "id": "comparison",
+      "status": "pass"
+    },
+    {
+      "code": "nothing_pending",
+      "id": "bootstrap",
+      "status": "pass"
+    },
+    {
+      "code": "unchanged",
+      "id": "manifest",
+      "status": "pass"
+    },
+    {
+      "code": "absent",
+      "id": "cleanup",
+      "status": "pass"
+    }
+  ],
+  "child": {
+    "expiresAt": "2026-09-08T02:00:00.000Z",
+    "id": "br-synthetic-child",
+    "name": "synthetic-child",
+    "parentId": "br-synthetic-parent",
+    "projectId": "synthetic-project"
+  },
+  "cleanup": {
+    "attempted": true,
+    "checkedAt": "2026-09-08T00:09:00.000Z",
+    "confirmed": true,
+    "deletionMode": "recoverable",
+    "status": "pass"
+  },
+  "comparison": {
+    "classes": {
+      "columns": {
+        "changed": 0,
+        "extra": 0,
+        "missing": 0
+      },
+      "constraints": {
+        "changed": 0,
+        "extra": 0,
+        "missing": 0
+      },
+      "extensions": {
+        "changed": 0,
+        "extra": 0,
+        "missing": 0
+      },
+      "functions": {
+        "changed": 0,
+        "extra": 0,
+        "missing": 0
+      },
+      "grants": {
+        "changed": 0,
+        "extra": 0,
+        "missing": 0
+      },
+      "indexes": {
+        "changed": 0,
+        "extra": 0,
+        "missing": 0
+      },
+      "rls": {
+        "changed": 0,
+        "extra": 0,
+        "missing": 0
+      },
+      "triggers": {
+        "changed": 0,
+        "extra": 0,
+        "missing": 0
+      }
+    },
+    "status": "pass"
+  },
+  "completedAt": "2026-09-08T00:10:00.000Z",
+  "enforced": false,
+  "kind": "schema-equivalence",
+  "manifest": {
+    "baseline": {
+      "path": "synthetic/baseline.sql",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "harness": [
+      {
+        "path": "synthetic/runner.mjs",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    ],
+    "hash": "2cb0687f5c9ffaa18e511e549f99fb74b0d937ac6e960c9dcd98dfb9dd9f1cbb",
+    "migrations": [
+      {
+        "path": "synthetic/001.sql",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    ],
+    "sourceSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "version": 1
+  },
+  "origin": "synthetic",
+  "parent": {
+    "id": "br-synthetic-parent",
+    "projectId": "synthetic-project"
+  },
+  "paths": {
+    "A": {
+      "headManifestHash": "2cb0687f5c9ffaa18e511e549f99fb74b0d937ac6e960c9dcd98dfb9dd9f1cbb",
+      "status": "pass"
+    },
+    "B": {
+      "headManifestHash": "2cb0687f5c9ffaa18e511e549f99fb74b0d937ac6e960c9dcd98dfb9dd9f1cbb",
+      "status": "pass"
+    }
+  },
+  "productionReady": false,
+  "request": {
+    "database": "synthetic_db",
+    "manifestHash": "2cb0687f5c9ffaa18e511e549f99fb74b0d937ac6e960c9dcd98dfb9dd9f1cbb",
+    "parentId": "br-synthetic-parent",
+    "projectId": "synthetic-project",
+    "protectedBranchIds": ["br-synthetic-protected"],
+    "protectedHosts": ["protected.invalid"],
+    "role": "synthetic_owner",
+    "sourceSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "sterilityReference": "synthetic-only",
+    "version": 1
+  },
+  "runId": "cccccccccccccccccccccccccccccccc",
+  "sessions": {
+    "A": {
+      "branchId": "br-synthetic-child",
+      "database": "synthetic_db",
+      "projectId": "synthetic-project",
+      "role": "synthetic_owner"
+    },
+    "B": {
+      "branchId": "br-synthetic-child",
+      "database": "synthetic_db",
+      "projectId": "synthetic-project",
+      "role": "synthetic_owner"
+    }
+  },
+  "startedAt": "2026-09-08T00:00:00.000Z",
+  "status": "pass",
+  "version": 1
+}
