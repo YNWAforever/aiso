@@ -345,6 +345,7 @@ export function createNeonPort(options) {
         ready: false,
         identityRejected: false,
         deleteAttempted: false,
+        deleteDispatched: false,
         deleteCompleted: false,
       };
       children.set(handle, ctx); // Retain original child diagnostics even if fresh identity rejects.
@@ -405,6 +406,9 @@ export function createNeonPort(options) {
           statuses: [200, 204],
           signal,
           code: "cleanup_failed",
+          onDispatch: () => {
+            ctx.deleteDispatched = true;
+          },
         },
       );
       if (status === 200) {
@@ -473,6 +477,9 @@ export function createNeonPort(options) {
               sanitized.mutationAttempted = dispatchedRegistries.has(
                 input?.registry,
               );
+            if (name === "deleteChild")
+              sanitized.mutationAttempted =
+                children.get(input?.handle)?.deleteDispatched === true;
             if (name === "connectionUri")
               sanitized.mutationAttempted = children.has(input?.handle);
             throw sanitized;

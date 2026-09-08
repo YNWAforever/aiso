@@ -273,6 +273,7 @@ describe("bounded Neon REST lifecycle", () => {
       expect(handle.child.id).toBe(branch.id);
       await expect(f.port.deleteChild({ handle })).rejects.toMatchObject({
         code: "cleanup_unverified",
+        mutationAttempted: false,
       });
       await expect(f.port.confirmAbsent({ handle })).rejects.toMatchObject({
         code: "cleanup_unverified",
@@ -739,4 +740,73 @@ describe("bounded Neon REST lifecycle", () => {
     });
     expect(ambiguous.registry.cleanupCandidate()).toBeNull();
   });
+  it.each([null, undefined, {}, { child: branch }])(
+    "reports no DELETE dispatch for malformed or foreign handle %j",
+    async (handle) => {
+      const f = fixture();
+      await expect(f.port.deleteChild({ handle })).rejects.toMatchObject({
+        mutationAttempted: false,
+      });
+      expect(f.calls).toHaveLength(0);
+    },
+  );
+  it("reports no DELETE dispatch for pre-aborted valid handle and allows later cleanup", async () => {
+    const f = fixture();
+    const handle = await f.create();
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      f.port.deleteChild({ handle, signal: controller.signal }),
+    ).rejects.toMatchObject({ code: "timeout", mutationAttempted: false });
+    expect(f.calls.filter((c) => c.options.method === "DELETE")).toHaveLength(
+      0,
+    );
+    await expect(f.port.deleteChild({ handle })).resolves.toMatchObject({
+      attempted: true,
+    });
+    expect(f.calls.filter((c) => c.options.method === "DELETE")).toHaveLength(
+      1,
+    );
+  });
+  it.each(["transport", "response", "operation"])(
+    "retains actual DELETE dispatch evidence after %s failure and retry refusal",
+    async (kind) => {
+      const f = fixture();
+      const handle = await f.create();
+      let deletes = 0;
+      f.fetch.mockImplementation(async (url, options) => {
+        if (options.method === "DELETE") {
+          deletes++;
+          if (kind === "transport") throw Error("SECRET");
+          if (kind === "response") return json({ error: "SECRET" }, 403);
+          return json({
+            branch,
+            operations: [{ ...op, action: "timeline_archive" }],
+          });
+        }
+        return json({
+          operation: {
+            ...op,
+            action: "timeline_archive",
+            status: "failed",
+            error: "SECRET",
+          },
+        });
+      });
+      const error = await f.port
+        .deleteChild({ handle })
+        .catch((error) => error);
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toMatchObject({
+        code: kind === "operation" ? "operation_failed" : "cleanup_failed",
+        mutationAttempted: true,
+      });
+      expect(JSON.stringify(error)).not.toContain("SECRET");
+      await expect(f.port.deleteChild({ handle })).rejects.toMatchObject({
+        code: "cleanup_failed",
+        mutationAttempted: true,
+      });
+      expect(deletes).toBe(1);
+    },
+  );
 });
