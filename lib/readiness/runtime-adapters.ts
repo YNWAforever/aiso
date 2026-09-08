@@ -3,6 +3,7 @@ import { neon, type NeonQueryFunctionInTransaction } from '@neondatabase/serverl
 import { checkBinding } from '@/lib/security/db-binding'
 import { createPublicUrlFetcher, type PublicUrlFetch } from '@/lib/security/public-url'
 import { validateConfiguration } from './config'
+import { createReadinessLookup } from './dns'
 import { toReleasePolicy, type RuntimePolicy } from './runtime-contract'
 import type { AuthCheck, DatabaseCheck, DatabasePortOutput, ProbePorts } from './runtime'
 import type { ObservedDatabaseIdentity } from './runtime-report'
@@ -135,7 +136,7 @@ export function createRuntimePorts(dependencies: RuntimeDependencies): ProbePort
     async auth(_policy, parent): Promise<AuthCheck[]> {
       const signal = AbortSignal.any([parent, AbortSignal.timeout(5000)])
       if (!runtimeAvailable()) return [{ id: 'auth.jwks', status: 'unknown', code: 'dependency_failed' }]
-      const fetcher = dependencies.publicFetcher ?? createPublicUrlFetcher({ allowedProtocols: ['https:'], maxRedirects: 0, maxResponseBytes: 65536, timeoutMs: 5000 })
+      const fetcher = dependencies.publicFetcher ?? createPublicUrlFetcher({ lookup: createReadinessLookup(), allowedProtocols: ['https:'], maxRedirects: 0, maxResponseBytes: 65536, timeoutMs: 5000 })
       const checks: AuthCheck[] = []
       for (const id of ['auth.jwks', 'auth.anonymous_session'] as const) {
         let response: Response | undefined

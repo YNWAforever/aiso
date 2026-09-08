@@ -6,7 +6,7 @@ import { request as httpsRequest, type RequestOptions } from 'node:https'
 import { BlockList, isIP } from 'node:net'
 
 export type PublicUrlFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
-export type LookupAll = (hostname: string) => Promise<ReadonlyArray<ResolvedAddress>>
+export type LookupAll = (hostname: string, signal?: AbortSignal) => Promise<ReadonlyArray<ResolvedAddress>>
 
 export type ResolvedAddress = { address: string; family: 4 | 6 }
 type PublicUrlRequest = (
@@ -116,7 +116,7 @@ async function resolvePublicUrl(
   const literalFamily = isIP(hostname)
   const answers: ReadonlyArray<ResolvedAddress> = literalFamily
     ? [{ address: hostname, family: literalFamily as 4 | 6 }]
-    : await awaitWithAbort(lookup(hostname), signal)
+    : await awaitWithAbort(lookup(hostname, signal), signal)
   signal.throwIfAborted()
   if (
     answers.length === 0
