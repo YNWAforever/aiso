@@ -6,7 +6,7 @@ Status: local Slice B implementation and documentation complete; independent who
 
 ## Source and review boundary
 
-Final verified runtime/runner source: `6054dfcf6b624b6a0c0ddbfe415b45a331b3beb5`.
+Latest verified source, including the authorized DNS repair: `638d5dbc1ea51cbf4d965125f1fa646d4959f1fa`. Prior Slice B source: `6054dfcf6b624b6a0c0ddbfe415b45a331b3beb5`.
 The documentation/sample commit follows that source. Whole-branch review base is
 `8d285cc890fd087fccc04f7d5bc10613f927a0a1` (verified origin/main merge-base),
 not the older local main merge-base. Slice B base is `bd0571e`.
@@ -162,12 +162,12 @@ reviewed before execution; unknown identifiers block action, including candidate
 | Dedicated readiness secret source and candidate configuration state | UNKNOWN |
 | Vercel metadata token source/scope and deployment-protection source | UNKNOWN |
 | Runtime identity/system-field availability and protection access | UNVERIFIED |
-| Physical DNS cancellation | BLOCKED: inherited DNS lookup cannot be cancelled; establish adapter cancellation before any live activation |
+| Readiness DNS cancellation | Established locally with Node Resolver cancellation and loopback proof at 638d5db; concrete deployed runtime still UNVERIFIED |
 | Output directory and evidence owner | UNKNOWN |
 | Previous deployment and scoped configuration/credential state | UNKNOWN |
 | Maximum action | One runner invocation: two read-only metadata GETs and at most one readiness POST; no retries |
 | Timeouts | 20 seconds per runner HTTP operation, 15-second handler, 5 seconds per probe; stop on failure, separately approve any rerun |
-| Acceptance | Resolve the DNS cancellation blocker first; matching pre/post immutable identity, fresh nonce/hash/timing, every approved check pass, exit 0 and complete sanitized artifact pair; still no release approval |
+| Acceptance | Matching pre/post immutable identity, fresh nonce/hash/timing, every approved check pass, exit 0 and complete sanitized artifact pair; still no release approval |
 | Rollback | Record prior compatible deployment first; revoke only dedicated readiness access or separately approve probe-deployment rollback after schema compatibility review; never delete data or rotate unrelated credentials |
 
 A separately approved deployment/configuration step is required if the candidate
@@ -175,10 +175,44 @@ lacks this endpoint or dedicated secret. No push, provisioning, credential retri
 scan, database repair, schema rehearsal, deployment, promotion or live invocation
 was performed or authorized by this handoff.
 
-Transport cancellation limitation: the inherited safe public-URL DNS lookup is not
-physically cancellable. Abort abandons its await; HTTPS and Neon transports receive
-abort signals. No claim is made that every DNS operation stops physically at deadline.
-This is an unresolved live-adapter blocker under the approved cancellation requirement.
-Local implementation can be reviewed, but no live activation is ready until cancellation
-is established. All four source findings have post-fix verification above; independent
-source re-review approved the local handoff at `6054dfc`.
+## DNS cancellation repair — local evidence
+
+The user separately authorized fixing DNS locally after the Slice B handoff.
+Source `638d5dbc1ea51cbf4d965125f1fa646d4959f1fa` replaces readiness's
+uncancellable OS lookup with an isolated `node:dns/promises.Resolver` per lookup.
+The existing fetch deadline reaches that resolver; abort cancels its outstanding
+queries. Success/error also clean up the listener and resolver. A failing family
+cancels a pending sibling. Concurrent probes have independent resolvers.
+
+Readiness resolves A and AAAA directly, waits for both, and validates every address
+through the unchanged public-address boundary before pinning the connection.
+Only ENODATA is treated as an empty family; other DNS errors fail closed. Resolution
+uses system-configured DNS servers with one resolver try, no application retry,
+and no fallback to OS lookup. Direct DNS bypasses hosts/NSS and prefers IPv4 when
+both families succeed. This behavior is limited to readiness's public issuer and
+candidate requests; general scan callers retain their existing lookup semantics.
+
+[Node 24 documents Resolver cancellation](https://nodejs.org/docs/latest-v24.x/api/dns.html#resolvercancel).
+A real local test sends A and AAAA only to an ephemeral UDP fixture on 127.0.0.1,
+then aborts and observes both underlying query promises reject with ECANCELLED.
+The fixture closes its socket and never changes global DNS settings. An adapter
+regression exercises the actual five-second readiness deadline and verifies one
+cancellation, one query per family, no second lookup, and no OS lookup.
+Already transmitted packets cannot be recalled; this establishes cancellation of
+outstanding resolver operations, not reversal of prior network traffic.
+
+Verification at the DNS source SHA:
+
+- RED: the original adapter timed out without calling resolver.cancel (one failing test).
+- Focused suite: 106 tests in four files passed.
+- Selected command documented above: **328 tests in 16 files passed**, 13.52s; `.superpowers/sdd/readiness-dns-selected.log`.
+- Scoped ESLint for the five changed source/test files: passed, no diagnostics.
+- Next typegen and full TypeScript: passed.
+- Synthetic production build: exit 0, compiled in 17.2s, 15/15 static pages.
+- `git diff --check`: passed.
+
+Exact commands and remaining logs are in `.superpowers/sdd/readiness-dns-fix-report.md`.
+The earlier 311-test results remain historical evidence. Independent source and documentation review approved the DNS repair with no actionable findings. The code-level readiness DNS blocker is repaired with local
+evidence; no external DNS/HTTP probe, candidate verification, credential operation,
+database action, push or deployment occurred. Concrete platform, target, policy,
+and credential prerequisites above remain unverified and require separate approval.
