@@ -2,17 +2,16 @@
 
 Date: 2026-09-08
 Branch: codex/release-readiness-design
-Status: local Slice B implementation and documentation complete; independent whole-branch review pending. No live candidate acceptance, Slice C schema rehearsal or Slice D promotion.
+Status: local Slice B implementation and documentation complete; independent whole-branch source review approved at 6054dfc. No live candidate acceptance, Slice C schema rehearsal or Slice D promotion.
 
 ## Source and review boundary
 
-Runtime/runner source inspected: `27d2a9a0d9cfb95a6211148020c9046f09239500`.
+Final verified runtime/runner source: `6054dfcf6b624b6a0c0ddbfe415b45a331b3beb5`.
 The documentation/sample commit follows that source. Whole-branch review base is
 `8d285cc890fd087fccc04f7d5bc10613f927a0a1` (verified origin/main merge-base),
 not the older local main merge-base. Slice B base is `bd0571e`.
 Task 5 independently approved after the policy/evidence contract repair at `27d2a9a`.
-Final review remains pending, including JWKS content validation and Markdown
-relation/privilege clarity. No final independent approval is claimed here.
+All four final source findings were repaired at `6054dfc`; independent whole-branch source re-review approved the local implementation with no remaining actionable source findings. Documentation review confirmed the credential, synthetic-evidence and live-action boundaries; its DNS blocker clarification and command correction are incorporated below.
 The earlier checkpoint and foundation handoff retain their dated evidence.
 
 ## Implemented behavior and limits
@@ -101,12 +100,11 @@ application variable names and failure behavior.
 
 ## Local verification evidence
 
-The controller supplied the following completed checks; these documentation edits
-change no application/test source and do not rerun them:
+Earlier checks below are retained as historical evidence; final post-fix checks follow. Documentation edits do not change application/test source:
 
 | Source | Command/check | Observed result |
 | --- | --- | --- |
-| 27d2a9a0d9cfb95a6211148020c9046f09239500 | `node .superpowers/sdd/local-run.cjs node_modules/vitest/vitest.mjs run __tests__/readiness __tests__/api/readiness.test.ts __tests__/api/auth-route.test.ts __tests__/scripts/check-candidate.test.mjs __tests__/lib/public-url.test.ts __tests__/security/db-binding.test.ts --maxWorkers=2 --reporter=dot` | Exit 0; 13 files, 288 tests passed; 15.23s |
+| 27d2a9a0d9cfb95a6211148020c9046f09239500 | `node .superpowers/sdd/local-run.cjs node_modules/vitest/vitest.mjs run __tests__/readiness __tests__/api/readiness.test.ts __tests__/api/auth-route.test.ts __tests__/scripts/check-candidate.test.mjs __tests__/lib/public-url.test.ts __tests__/security/db-binding.test.ts --maxWorkers=2` | Exit 0; 13 files, 288 tests passed; 15.23s |
 | b7a7d77ecbd3781c1838d5047861fc593aa701bd | Scoped ESLint, Next typegen and full tsc | Passed; after 27d2a9a changed-file lint and full tsc also passed |
 | b38b23bfaa0a53595924cc553e6341161de4a906 | `node .superpowers/sdd/local-run.cjs node_modules/next/dist/bin/next build` | Exit 0; compiled 16.0s; TypeScript 21.6s; 15/15 static pages, 166ms |
 
@@ -127,6 +125,28 @@ runner both rejected it: three synthetic HTTP responses, zero artifact writes,
 zero live calls. Even extracting its fixture report does not create trusted provenance
 or authorize acceptance. Generation transcript is recorded in the local Task 6 report.
 
+## Final post-fix verification
+
+Verified source: `6054dfcf6b624b6a0c0ddbfe415b45a331b3beb5`.
+
+- Selected command above, without a reporter override: **311 tests passed in 14 files**, 14.44s (`.superpowers/sdd/runtime-final-selected.log`).
+- Scoped ESLint for the seven changed source/test files: passed with no diagnostics (`runtime-final-lint.log`). Earlier unchanged runner/foundation lint also passed.
+- `node .superpowers/sdd/local-run.cjs node_modules/next/dist/bin/next typegen`: passed (`runtime-final-typegen.log`).
+- `node .superpowers/sdd/local-run.cjs node_modules/typescript/bin/tsc --noEmit`: passed, no diagnostics (`runtime-final-tsc.log`).
+- `node .superpowers/sdd/local-run.cjs node_modules/next/dist/bin/next build`: exit 0, compiled in 13.3s, 15/15 static pages (`runtime-final-build.log`).
+- `git diff --check`: passed; Git line-ending normalization notices are not test failures.
+
+The final regressions first reproduced 18 failures, then passed after repairing
+public JWK material validation, missing dependent probe evidence, relation/grant
+Markdown labels, and primitive JSON policy validation. Real adapters with injected
+I/O now feed orchestration and the runner: connection, identity, read-only,
+statement-timeout and auth failures retain diagnostics, produce exit 1, and write
+both sanitized artifacts. These are synthetic tests, not live SQL/provider proof.
+An earlier runner-policy regression reproduced seven failures and was also fixed.
+A delegated fixer hit a usage limit without edits; the controller completed that
+repair. Windows sandbox startup ACL failures were handled with scoped command
+escalation, without changing ACLs. No unresolved local test/setup blocker remains.
+
 ## Blocked live-action proposal template
 
 No live target is known or authorized. Every field below must be concrete and
@@ -142,11 +162,12 @@ reviewed before execution; unknown identifiers block action, including candidate
 | Dedicated readiness secret source and candidate configuration state | UNKNOWN |
 | Vercel metadata token source/scope and deployment-protection source | UNKNOWN |
 | Runtime identity/system-field availability and protection access | UNVERIFIED |
+| Physical DNS cancellation | BLOCKED: inherited DNS lookup cannot be cancelled; establish adapter cancellation before any live activation |
 | Output directory and evidence owner | UNKNOWN |
 | Previous deployment and scoped configuration/credential state | UNKNOWN |
 | Maximum action | One runner invocation: two read-only metadata GETs and at most one readiness POST; no retries |
 | Timeouts | 20 seconds per runner HTTP operation, 15-second handler, 5 seconds per probe; stop on failure, separately approve any rerun |
-| Acceptance | Matching pre/post immutable identity, fresh nonce/hash/timing, every approved check pass, exit 0 and complete sanitized artifact pair; still no release approval |
+| Acceptance | Resolve the DNS cancellation blocker first; matching pre/post immutable identity, fresh nonce/hash/timing, every approved check pass, exit 0 and complete sanitized artifact pair; still no release approval |
 | Rollback | Record prior compatible deployment first; revoke only dedicated readiness access or separately approve probe-deployment rollback after schema compatibility review; never delete data or rotate unrelated credentials |
 
 A separately approved deployment/configuration step is required if the candidate
@@ -157,6 +178,7 @@ was performed or authorized by this handoff.
 Transport cancellation limitation: the inherited safe public-URL DNS lookup is not
 physically cancellable. Abort abandons its await; HTTPS and Neon transports receive
 abort signals. No claim is made that every DNS operation stops physically at deadline.
-The final independent source review identified four findings requiring a separate
-source fix wave. Final approval and post-fix verification remain pending; the source
-SHAs and checks above intentionally describe the pre-fix evidence only.
+This is an unresolved live-adapter blocker under the approved cancellation requirement.
+Local implementation can be reviewed, but no live activation is ready until cancellation
+is established. All four source findings have post-fix verification above; independent
+source re-review approved the local handoff at `6054dfc`.
