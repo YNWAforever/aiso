@@ -18,11 +18,12 @@ Run in the worktree at commit `2be46c2`:
 | `npm run typecheck` | 0 | — |
 | `npm run lint` | 0 | 0 errors, 0 warnings |
 | `npm run test:unit` | 0 | **289 files / 3901 tests passed, 0 skipped** |
+| `npm test` | 0 | unit as above, **plus the integration project: 10 files / 71 tests passed** against a disposable Neon branch, which was provisioned, migrated through all 41 files and deleted. No skip banner was printed, so integration genuinely ran. |
+| the five owner-loop configs (see §5) | 0 | **5 files / 109 tests passed** against a separately provisioned disposable branch |
 
 Baseline for comparison, at `5bb2dcc`: 284 files / 3714 tests.
 
-**Not run:** the integration project and Playwright E2E. Both are BLOCKED — see §3.
-A skip is not a pass, and `scripts/run-tests.mjs` prints a banner saying so.
+**Not run:** Playwright E2E.
 
 ## 2. The matrix
 
@@ -39,7 +40,7 @@ A skip is not a pass, and `scripts/run-tests.mjs` prints a banner saying so.
 | **AC-09** | The exact approved version is exported, with actor, time and result retained | **PARTIAL** | Export renders from the exact approved version and refuses an unapproved one (`lib/delivery/export.ts` → `DELIVERY_NOT_APPROVED`), returning the artifact digest as `X-Aiso-Export-Sha256`. **Gap:** that artifact hash is computed and returned but never persisted, and no row records that an export happened — so the approved-payload hash and the rendered-artifact hash are not both retained, as the brief requires. |
 | **AC-10** | Recheck uses the same scope and method; incompatible means no improvement claim | **PARTIAL** | `compareScanChecks()` now produces the brief's vocabulary — `comparison_status` ∈ comparable / partially_comparable / not_comparable / insufficient_evidence and per-check `outcome` ∈ improved / unchanged / regressed / cannot_determine (`lib/scan-evidence.ts`, 16 tests in `__tests__/lib/scan-check-comparison.test.ts`). Comparability is decided by method, target and configuration; **content hashes are never compared**, since page content is expected to change. Page identity is proven without storing a path, by requiring both runs' `final` descriptor to have redacted nothing. A differing method refuses outright; an incomplete collection withholds every delta. Baselines remain immutable. **Still partial:** the adapter is not yet wired into `lib/outcomes/evaluate.ts`, whose self-validating DTO needs five coordinated changes plus localised copy, and nothing yet re-runs a scan after delivery. |
 | **AC-11** | Technical, search/AI and business outcomes stay separate | **PARTIAL** | Separate inside `lib/outcomes` — a technical verdict cannot populate a business one, because no verdict exists at all. Outside it, `lib/localTrust/roi.ts` presents a computed ROI baseline to owners; that is the layer-mixing risk to close before any commercial claim. |
-| **AC-12** | No cross-account read, mutation, inference or export | **PARTIAL** | Strong at the schema level: composite FKs make a cross-account reference rejectable by Postgres, and there is no RLS backstop by design. **But** those constraints are proven against SQL *text* in this session; the two-account integration suites did not run. There is also no route-inventory test that fails when a new handler ships with no gate. |
+| **AC-12** | No cross-account read, mutation, inference or export | **PARTIAL** | Now proven against **real Postgres**, not SQL text: the five owner-loop suites ran on a disposable branch with 040–043 applied and passed 109 tests, exercising the composite-FK tenancy chain, the append-only GRANT posture, and the app role's inability to UPDATE or DELETE version, decision and delivery history. **Still partial:** those suites are unreachable from `npm test` and from CI (§5), and there is still no route-inventory test that fails when a new handler ships with no gate. |
 | **AC-13** | A disconnected or failing provider recovers honestly | **PASS (for what exists)** | `lib/delivery/service.ts` maps dependency failure to 503 and never a silent 200; `db()` throws, so a failed write cannot return 2xx; checks degrade to domain-specific messages with a `collection` diagnostic rather than a zero. Covered across `__tests__/delivery/**` and `__tests__/checks/**`. No external provider connector exists to disconnect. |
 | **AC-14** | Mobile review, approve and request-changes | **BLOCKED** | A Pixel-5 Playwright project exists and resolves tests since 2026-09-03 (`__tests__/config/playwright-projects.test.ts` fails a project resolving to zero), but E2E was not run this session — no database. |
 | **AC-15** | English and Traditional Chinese are equivalent in meaning, state and action | **PARTIAL** | For the Home priorities surface this is now asserted: `__tests__/components/workspace-home-priorities.test.tsx` renders every state in both languages, requires the two catalogues to declare identical keys, and requires the same state to produce *different* strings — so a missing translation silently falling back to English fails. **Still partial:** only this surface is covered; no bilingual walkthrough of the whole owner journey was executed, and no repo-wide key-parity assertion exists. |
@@ -63,16 +64,18 @@ neither runtime, provider nor database readiness.
 
 ## 3. Why the BLOCKED rows are blocked
 
-1. **Migrations 040–043 are not applied** to the AISO development database.
-   `npm run migrate -- --verify` reports `MISSING` for all seven tables of the owner
-   loop. Applying them is a single additive `npm run migrate`; it was attempted and
-   **denied by the permission classifier**, so it needs the user's approval. Until
-   then no owner journey can be exercised end to end, which is what makes AC-04 and
-   AC-14 unrunnable rather than merely unrun.
-2. **The integration project did not run.** `neonctl` 4.13.0 is installed and
-   authenticated but prompts interactively for an organisation.
-   `REQUIRE_INTEGRATION_TESTS=1 npm test` is the command that proves the full suite
-   ran; it needs `NEON_API_KEY` exported, or an interactive shell.
+1. **Migrations 040–043 are not applied** to the *persistent* AISO development
+   database. `npm run migrate -- --verify` reports `MISSING` for all seven tables of
+   the owner loop. Applying them is a single additive `npm run migrate`; it was
+   attempted and **denied by the permission classifier**, so it needs the user's
+   approval. Their content is no longer unproven — they applied cleanly to two
+   disposable branches this session, and their constraints pass 109 tests — but
+   until they land on the persistent database no owner journey can be walked end to
+   end, which is what keeps AC-04 and AC-14 unrunnable rather than merely unrun.
+2. ~~The integration project did not run.~~ **Resolved.** `npm test` provisioned a
+   disposable Neon branch, applied all 41 migrations to it, passed 71 integration
+   tests and deleted the branch. `neonctl` only prompts interactively when invoked
+   without `NEON_API_KEY`; the harness passes it from `.env.local`.
 
 ## 4. Minimum agent-safety evaluation — not yet met
 
@@ -87,3 +90,38 @@ The plan is explicit that this must not be deferred to Phase 2. It is not met:
 | Bounded budget | **absent** — no per-account, per-task or per-cost cap on any LLM route |
 
 This gates pilot drafting, not the whole release.
+
+## 5. A silent skip in the release gate
+
+The five suites that prove the owner-loop schema are **excluded from
+`vitest.integration.config.ts`** and live in their own configs
+(`vitest.entity-integration.config.ts` and four siblings). Those configs are wired
+into no npm script and into no CI job.
+
+Run directly, without their `C9_*` environment variables set, all five report
+`Test Files 1 skipped` and **exit 0**:
+
+    entity-integration              2 skipped
+    work-items-integration          4 skipped
+    change-set-stores-integration  15 skipped
+    change-sets-integration        21 skipped
+    delivery-integration           67 skipped
+
+That is 109 tests reading as success while asserting nothing — the exact hazard
+`scripts/run-tests.mjs` was written to prevent, reproduced somewhere its banner
+does not reach. The suites themselves are good; the gate around them is not.
+
+They pass. To reproduce, provision a disposable branch, apply the migrations, and
+export the target for each suite:
+
+    C9_ENTITY_DISPOSABLE_BRANCH_ID / _PROJECT_ID / _OWNER_ROLE
+    C9C_WORK_ITEMS_DISPOSABLE_BRANCH_ID / _PROJECT_ID / _OWNER_ROLE
+    C9D_DISPOSABLE_BRANCH_ID / _DISPOSABLE_PROJECT_ID / _TEST_DATABASE_URL / _TEST_APP_DATABASE_URL
+    C9E_DISPOSABLE_BRANCH_ID / _DISPOSABLE_PROJECT_ID / _PARENT_BRANCH_ID / _TEST_DATABASE_URL / _TEST_APP_DATABASE_URL
+
+The C9D and C9E suites need **two** URLs — an owner one and an `aeo_app` one —
+because what they prove is that the application role cannot UPDATE or DELETE
+version, decision or delivery history.
+
+Making these reachable from `npm test`, or at minimum making an unconfigured run
+fail rather than skip, is the highest-value follow-up in the acceptance area.

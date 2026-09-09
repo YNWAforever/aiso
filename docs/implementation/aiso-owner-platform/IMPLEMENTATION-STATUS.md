@@ -35,8 +35,9 @@ source traceability verified. See `00-BASELINE-AND-GAPS.md`.
 | `npm run typecheck` | 0 | clean |
 | `npm run lint` | 0 | 0 errors, 0 warnings |
 | `npm run test:unit` | 0 | **289 files / 3901 tests, 0 skipped** (baseline 284 / 3714) |
-| `REQUIRE_INTEGRATION_TESTS=1 npm test` | — | **not run** — BLOCKED |
-| `npm run e2e` | — | **not run** — BLOCKED |
+| `npm test` | 0 | unit as above **plus 10 integration files / 71 tests**, against a disposable Neon branch that was provisioned, migrated through all 41 files and deleted. No skip banner printed. |
+| five owner-loop integration configs | 0 | **5 files / 109 tests passed** on a separately provisioned disposable branch with 040–043 applied — composite-FK tenancy, append-only GRANT posture, and the app role's inability to UPDATE or DELETE history |
+| `npm run e2e` | — | **not run** — needs the migrations on the persistent database |
 
 Acceptance: **3 PASS, 9 PARTIAL, 2 BLOCKED, 1 DEFERRED, 0 FAIL** across AC-01…AC-15.
 Four rows moved this session: AC-01, AC-03, AC-10 and AC-15.
@@ -59,9 +60,15 @@ Full table with evidence in `04-ACCEPTANCE-MATRIX.md`.
 **None.** No deployment, no production migration, no billing change, no external
 account connection, no outbound message, no customer-content write.
 
-The only database interaction was read-only: `scripts/verify-db-connection.mjs` and
-`npm run migrate -- --verify` / `--dry-run` against the AISO **development** project
-(synthetic seed: 1 account, 2 clients, 1 scan).
+Against the persistent AISO **development** database (synthetic seed: 1 account,
+2 clients, 1 scan) every interaction was **read-only**: `scripts/verify-db-connection.mjs`
+and `npm run migrate -- --verify` / `--dry-run`.
+
+Three **disposable** Neon branches were created and deleted in the same project, to
+run the integration suites: one by `npm test`'s own harness, two by hand for the
+owner-loop configs. Each was removed at the end of its run (`CLEANUP_OK`), and each
+schema-reset asserted the branch's identity in band — via `neon.branch_id` on the
+same session that ran the statement — before touching anything.
 
 ## Blockers
 
@@ -69,9 +76,13 @@ The only database interaction was read-only: `scripts/verify-db-connection.mjs` 
    the development database is the dependency for every remaining Phase 1 slice that
    touches the owner-loop tables — without those seven tables there is no schema to
    run a journey against.
-2. **Integration project not run.** `neonctl` 4.13.0 is installed and authenticated
-   but prompts interactively for an organisation. Needs `NEON_API_KEY` exported, or an
-   interactive shell.
+2. ~~Integration project not run.~~ **Resolved this session** — `npm test` ran it end
+   to end. `neonctl` only prompts interactively when invoked without `NEON_API_KEY`.
+   A new finding replaces it: the five suites that prove the owner-loop schema are
+   excluded from `vitest.integration.config.ts`, wired into no npm script and no CI
+   job, and **skip silently with exit 0** when unconfigured — 109 tests reading as
+   success while asserting nothing. They pass when given a target; the gate around
+   them does not exist. See `04-ACCEPTANCE-MATRIX.md`§5.
 3. **`eslint.config.mjs` protected** by the repo's `config-protection` hook, so the
    fetch rule could not be widened there. The equivalent invariant is enforced by the
    new test instead.
