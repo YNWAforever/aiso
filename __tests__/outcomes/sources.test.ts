@@ -47,7 +47,13 @@ describe('private outcome snapshot projection', () => {
 import { scanEnvelope, scanSnapshot } from './snapshot-fixtures'
 it('validates scan collection time without substituting recorded time and retains schema-v1 rejection',()=>{
  const row=scanSnapshot(); row.scans=[{id:REQUEST_ID,created_at:'2026-09-20T00:00:00.123456Z',envelope:scanEnvelope('2026-09-14T00:00:00.000Z')}]
- expect(projectOutcomeSnapshot(row)).toMatchObject({baseline:{collectedAt:'2026-09-01T00:00:00.000Z',reasons:expect.arrayContaining(['origin-only-identity','final-path-identity-withheld'])},candidates:[{collectedAt:'2026-09-14T00:00:00.000Z',recordedAt:'2026-09-20T00:00:00.123456Z',reasons:expect.arrayContaining(['final-path-identity-withheld'])}]})
+ // The baseline keeps 'final-path-identity-withheld': it is a single frozen check,
+ // not a full envelope, so it can never prove which page it came from. The
+ // candidate no longer does — it carries a complete envelope whose page
+ // observation redacted no path, so compareScanEvidence now finds it comparable
+ // and only the schema-wide limitations remain.
+ expect(projectOutcomeSnapshot(row)).toMatchObject({baseline:{collectedAt:'2026-09-01T00:00:00.000Z',reasons:expect.arrayContaining(['origin-only-identity','final-path-identity-withheld'])},candidates:[{collectedAt:'2026-09-14T00:00:00.000Z',recordedAt:'2026-09-20T00:00:00.123456Z',reasons:expect.arrayContaining(['origin-only-identity','sampled-single-page'])}]})
+ expect(projectOutcomeSnapshot(row).candidates[0]!.reasons).not.toContain('final-path-identity-withheld')
 })
 it('marks malformed scan envelope unavailable with safe diagnostic instead of timing by created_at',()=>{
  const row=scanSnapshot();row.scans=[{id:REQUEST_ID,created_at:'2026-09-14T00:00:00.123456Z',envelope:{collectedAt:'bad'}}]
