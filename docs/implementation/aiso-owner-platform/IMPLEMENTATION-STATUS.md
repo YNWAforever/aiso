@@ -6,7 +6,7 @@ Updated **2026-09-10**.
     Repository:            github.com/YNWAforever/aiso
     Branch:                claude/fimmick-aiso-phase-0-1-3cf312 (isolated worktree)
     Starting baseline SHA: 5bb2dcce11b63e027591e568786ff6e2c1577051 (clean tree)
-    Current SHA:           379887c
+    Current SHA:           2be46c2
     Uncommitted:           documentation only (this set)
 
 ## Completed
@@ -17,7 +17,7 @@ evidence → work → export path traced to real services and SQL; the scanner r
 and test baseline recorded; the v6 review opened in an authorised browser and its
 source traceability verified. See `00-BASELINE-AND-GAPS.md`.
 
-**Phase 1 slice 1 — landed (`379887c`).**
+**Phase 1 slices 1, 4 and 5 — landed.**
 
 | Epic | What changed |
 |---|---|
@@ -25,6 +25,8 @@ source traceability verified. See `00-BASELINE-AND-GAPS.md`.
 | P1-E1 trust | Two unguarded outbound fetches moved onto the SSRF-guarded fetcher: `app/api/fix` fetched a customer-supplied `scan.url` and fed the body into an LLM prompt; `lib/authority/layer2-signals` probed a caller-supplied hostname three times, once with `redirect: 'follow'`. |
 | P1-E1 scan protection | `__tests__/checks/scan-compatibility-freeze.test.ts` pins the twenty check ids, buckets, weights, the 45/30/25 split, grade boundaries and pass/warn/fail scoring **by value**, and ties the TypeScript registry to migration 041's `check_key` constraint so the two cannot drift. |
 | P1-E1 scan protection | `__tests__/security/no-unguarded-fetch.test.ts` replaces a hand-written eight-filename list with a directory walk over `lib/checks`, `lib/authority` and `app/api` — which is why the two live instances had gone unseen. |
+| P1-E5 recheck (`b80e52f`) | `compareScanChecks()` gives the product its first comparable technical recheck. `compareScanEvidence()` could never return `comparable: true`; page identity is now proven without storing a path, by requiring both runs' `final` descriptor to have redacted nothing. Emits `comparison_status` and per-check `outcome` in the brief's vocabulary. Content hashes are never compared. |
+| P1-E2 owner Home (`2be46c2`) | Home leads with at most three priorities and one named next action, ranked by points still at stake. Ranking reads the evidence envelope rather than the verdict, so a check that could not be observed becomes a stated gap instead of invented work, and a pre-envelope scan reports `unavailable` rather than falling back to raw verdicts. Specialist panels preserved below. |
 
 ## Verification
 
@@ -32,20 +34,25 @@ source traceability verified. See `00-BASELINE-AND-GAPS.md`.
 |---|---|---|
 | `npm run typecheck` | 0 | clean |
 | `npm run lint` | 0 | 0 errors, 0 warnings |
-| `npm run test:unit` | 0 | **286 files / 3856 tests, 0 skipped** (baseline 284 / 3714) |
+| `npm run test:unit` | 0 | **289 files / 3901 tests, 0 skipped** (baseline 284 / 3714) |
 | `REQUIRE_INTEGRATION_TESTS=1 npm test` | — | **not run** — BLOCKED |
 | `npm run e2e` | — | **not run** — BLOCKED |
 
-Acceptance: **3 PASS, 8 PARTIAL, 3 BLOCKED, 1 DEFERRED, 0 FAIL** across AC-01…AC-15.
+Acceptance: **3 PASS, 9 PARTIAL, 2 BLOCKED, 1 DEFERRED, 0 FAIL** across AC-01…AC-15.
+Four rows moved this session: AC-01, AC-03, AC-10 and AC-15.
 Full table with evidence in `04-ACCEPTANCE-MATRIX.md`.
 
 ## Migrations and flags
 
-- No migration is needed to deploy `379887c`; it touches no schema.
+- No migration is needed to deploy any commit on this branch; none touches a schema.
 - `040`–`043` remain **unapplied** to the AISO development database. `--verify`
   reports seven missing tables. Purely additive.
-- No new feature flag added yet. Phase 1 will add `owner_home_v1`,
-  `asset_sources_v1` and `recheck_compare_v1` to the union in `lib/flags.ts`.
+- **No feature flag was added.** Both new surfaces are safe unflagged: the Home
+  priorities section degrades to an honest `unavailable` state for any scan
+  without an evidence envelope, and `compareScanChecks` has no caller in a
+  request path yet. A flag would gate nothing that is not already fail-safe.
+  `recheck_compare_v1` becomes necessary when the adapter is wired into
+  `lib/outcomes`, since that changes a stored contract's output.
 
 ## Production actions taken under existing authority
 
@@ -59,8 +66,9 @@ The only database interaction was read-only: `scripts/verify-db-connection.mjs` 
 ## Blockers
 
 1. **`npm run migrate` denied by the permission classifier.** Applying `040`–`043` to
-   the development database is the single dependency for every remaining Phase 1
-   slice — without those seven tables the owner loop has no schema to run against.
+   the development database is the dependency for every remaining Phase 1 slice that
+   touches the owner-loop tables — without those seven tables there is no schema to
+   run a journey against.
 2. **Integration project not run.** `neonctl` 4.13.0 is installed and authenticated
    but prompts interactively for an organisation. Needs `NEON_API_KEY` exported, or an
    interactive shell.
@@ -68,8 +76,9 @@ The only database interaction was read-only: `scripts/verify-db-connection.mjs` 
    fetch rule could not be widened there. The equivalent invariant is enforced by the
    new test instead.
 
-None of these blocks unrelated safe local work; they block *validation of the owner
-loop*, which is why slices 4–10 are sequenced behind them.
+None of these blocked unrelated safe local work — slices 4 and 5 were built and
+tested around them. What they block is *validation of the owner loop end to end*,
+which is why slices 6–10 are sequenced behind them.
 
 ## Next concrete action
 
@@ -79,8 +88,10 @@ project). Four additive migrations, no destructive statements, each in its own
 transaction, recorded in `schema_migrations`, reversible by leaving the unused tables
 in place.
 
-That unblocks, in order: slice 4 (recheck comparison adapter — the largest genuine
-gap, designed in `01-DELIVERY-PLAN.md`§3), slice 5 (owner Home with three priorities
-and one next action), slice 6 (approved source pack), slice 7 (export receipt),
-slice 8 (separation of duties), slice 9 (agent-safety evaluation), slice 10
-(telemetry, bilingual and mobile).
+Slices 4 and 5 are done and did not need it — both are pure logic and render, so
+they were built and unit-tested without a database. What the migration unblocks is
+everything that must touch the owner-loop tables: wiring the comparison adapter
+through `lib/outcomes` (slice 4b), the approved source pack (slice 6), the export
+receipt (slice 7), separation of duties (slice 8), the agent-safety evaluation
+(slice 9), and the telemetry, bilingual and mobile verification that needs a real
+journey to walk (slice 10).
