@@ -1373,7 +1373,24 @@
     "prompts": "Question bank",
     "pricing": "Review plan",
     "openScan": "Open scan",
-    "status": "Site status"
+    "status": "Site status",
+    "priorities": {
+      "title": "Do these first",
+      "summary": "Ranked by the points each finding is currently costing. Only checks this scan could actually observe appear here.",
+      "primary": "Start here",
+      "pointsAtStake": "points at stake",
+      "showing": "Showing",
+      "of": "of",
+      "findings": "observed findings",
+      "needsEvidence": "Could not be checked in this scan",
+      "needsEvidenceNote": "These are gaps in what was observed, not findings. They are never counted as a failure.",
+      "openResults": "See the evidence",
+      "states": {
+        "all-clear": "Every check this scan could observe is passing.",
+        "insufficient-evidence": "This scan could not observe enough to rank priorities. Re-run it, or check whether the site blocks automated requests.",
+        "unavailable": "This scan predates evidence recording, so its findings cannot be ranked honestly. Run a new scan to get priorities."
+      }
+    }
   },
   "portfolio": {
     "title": "Your brand portfolio",
