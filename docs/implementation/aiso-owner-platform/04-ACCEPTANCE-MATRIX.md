@@ -97,10 +97,25 @@ neither runtime, provider nor database readiness.
 | Abstain when evidence is missing | **met** — failing the provider leaves the check reporting `collection: 'partial'` with reason `provider-fallback` rather than presenting its default as observed. |
 | Bounded budget | **NOT met**, and asserted as absent on the `callOpenRouter` signature and every call site. Nothing identifies who is spending, so no per-account or per-task cap can exist above it; `maxTokens` bounds one call, not a task. The test fails the day a budget lands, which is the point of writing it that way. |
 
-Draft *grounding* — every claim tied to a permitted source version — is not yet
-met either: no LLM path consumes `listAgentUsableSources`, because the drafting
-path is deterministic today. The enforcement point exists and is tested; the
-consumer does not.
+Draft **grounding is now met**, and deliberately without a model.
+`lib/sources/grounding.ts` answers a question with the customer's approved text
+**quoted verbatim**, citing the source id, version number, content hash and entry
+index it came from. A paraphrase of an approved fact is not the approved fact, and
+the approved fact is what a human signed off, so nothing is rewritten.
+
+Matching is normalised-exact, never fuzzy. A fuzzy match invents a connection
+nobody approved and fails in the worst direction — confidently, on the questions
+that matter, with a citation that makes a wrong answer look verified. When nothing
+matches it abstains and names the unanswered question, which is itself the useful
+product state: *your source pack does not cover this*.
+
+Two behaviours worth stating. It **refuses to choose** between two approved
+sources that disagree, returning both for a human, because picking one silently
+presents a single customer-approved fact as though it were the only one. And it
+**throws** rather than filtering when handed a revoked, unapproved or
+non-agent-usable source — the caller is meant to pass `listAgentUsableSources`,
+and filtering would hide their bug while a revoked source sat one refactor from a
+draft. 22 tests.
 
 ## 5. A silent skip in the release gate
 
