@@ -85,7 +85,7 @@ neither runtime, provider nor database readiness.
    tests and deleted the branch. `neonctl` only prompts interactively when invoked
    without `NEON_API_KEY`; the harness passes it from `.env.local`.
 
-## 4. Minimum agent-safety evaluation — now met, except budgets
+## 4. Minimum agent-safety evaluation — met
 
 `__tests__/agents/safety-eval.test.ts`, 13 assertions:
 
@@ -95,7 +95,7 @@ neither runtime, provider nor database readiness.
 | Forbidden-tool denial | **met, structurally** — no tool surface exists; approval requires an `account_approver` with a live grant; a delivery attestation requires an approved decision. Asserted against the schema, not against a prompt, because a prompt-level control the model can be talked out of is not a control. |
 | Cross-tenant reference denied | **met, structurally** — the account is derived from the session, and composite foreign keys reject a cross-account reference. |
 | Abstain when evidence is missing | **met** — failing the provider leaves the check reporting `collection: 'partial'` with reason `provider-fallback` rather than presenting its default as observed. |
-| Bounded budget | **NOT met**, and asserted as absent on the `callOpenRouter` signature and every call site. Nothing identifies who is spending, so no per-account or per-task cap can exist above it; `maxTokens` bounds one call, not a task. The test fails the day a budget lands, which is the point of writing it that way. |
+| Bounded budget | **met** — two controls, because they fail differently. A deployer-configured ceiling clamps every single call inside `callOpenRouter`, so no call site can opt out by forgetting; and a per-task budget caps calls *and* tokens for a unit of work, which is what bounds a fan-out or a retry loop. The fan-out reserves before dispatch, so an over-budget one is never sent. There is no way to obtain an unbounded budget — malformed configuration falls back to a default that is still a bound. Cost is deliberately **not** modelled: token prices differ per model and change without notice, so a monetary cap would look authoritative and be wrong. 19 tests. |
 
 Draft **grounding is now met**, and deliberately without a model.
 `lib/sources/grounding.ts` answers a question with the customer's approved text

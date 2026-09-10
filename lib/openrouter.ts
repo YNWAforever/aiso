@@ -1,3 +1,4 @@
+import { clampOutputTokens, type TaskBudget } from '@/lib/agents/budget'
 const BASE = 'https://openrouter.ai/api/v1/chat/completions'
 
 interface Message {
@@ -26,7 +27,9 @@ export async function callOpenRouter({ model, messages, maxTokens = 2000, signal
       'X-Title': 'Fimmick AEO',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ model, max_tokens: maxTokens, messages }),
+    // Clamped, never raised. The ceiling is deployer-configured and applies here
+    // rather than at each call site, so a caller cannot opt out by forgetting.
+    body: JSON.stringify({ model, max_tokens: clampOutputTokens(maxTokens), messages }),
     signal: signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
   })
 
@@ -61,8 +64,13 @@ export async function callMultiPlatform(
   messages: Message[],
   maxTokens = 1000,
   only?: readonly string[],
+  budget?: TaskBudget,
 ): Promise<Array<{ platform: string; answer: string }>> {
   const selected = only ? PLATFORMS.filter(p => only.includes(p.platform)) : PLATFORMS
+  // A fan-out is N calls for one unit of work, which no per-call ceiling bounds.
+  // Reserved up front so an over-budget fan-out is never dispatched at all --
+  // reserving afterwards would spend first and complain second.
+  if (budget) for (let k = 0; k < selected.length; k += 1) budget.reserve(maxTokens)
   const results = await Promise.allSettled(
     selected.map(async ({ platform, model }) => ({
       platform,
