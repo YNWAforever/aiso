@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { assertApprovedTarget } from './approved-target'
 import { freezeReview } from '@/lib/change-sets/validation'
 import type { WorkItem } from '@/lib/work-items/schema'
 vi.mock('server-only', () => ({}))
@@ -13,6 +14,8 @@ const branch = process.env.C9D_DISPOSABLE_BRANCH_ID
 const databaseUrl = process.env.C9D_TEST_DATABASE_URL
 const protectedBranches = new Set(['br-square-mountain-az6f82vi', process.env.NEON_TEST_PRODUCTION_BRANCH_ID].filter(Boolean))
 const optedIn = Boolean(project || branch || databaseUrl)
+
+it('refuses to report success without an approved disposable target', () => assertApprovedTarget(optedIn, 'C9D_DISPOSABLE_PROJECT_ID, C9D_DISPOSABLE_BRANCH_ID and C9D_TEST_DATABASE_URL'))
 
 describe.skipIf(!optedIn)('change-set schema on an exact disposable target', () => {
   let sql: NeonQueryFunction<false, false>

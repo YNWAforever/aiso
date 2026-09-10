@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { assertApprovedTarget } from './approved-target'
 
 // AUTHORED ONLY for C9c Task 3. Do not run without separate authorization for
 // the exact disposable branch after migration 041 has been applied there.
@@ -8,6 +9,8 @@ const approvedBranch = process.env.C9C_WORK_ITEMS_DISPOSABLE_BRANCH_ID
 const approvedProject = process.env.C9C_WORK_ITEMS_PROJECT_ID
 const approvedOwner = process.env.C9C_WORK_ITEMS_OWNER_ROLE
 const protectedBranches = new Set(['br-square-mountain-az6f82vi', process.env.NEON_TEST_PRODUCTION_BRANCH_ID].filter(Boolean))
+
+it('refuses to report success without an approved disposable target', () => assertApprovedTarget(approvedBranch, 'C9C_WORK_ITEMS_DISPOSABLE_BRANCH_ID, C9C_WORK_ITEMS_PROJECT_ID and C9C_WORK_ITEMS_OWNER_ROLE'))
 
 describe.skipIf(!approvedBranch)('evidence work items on exact disposable target', () => {
   let sql: NeonQueryFunction<false, false>

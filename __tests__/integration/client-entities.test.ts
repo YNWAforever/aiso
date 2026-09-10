@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { assertApprovedTarget } from './approved-target'
 
 vi.mock('server-only', () => ({}))
 let sql: NeonQueryFunction<false, false>
@@ -13,6 +14,8 @@ const approvedBranch = process.env.C9_ENTITY_DISPOSABLE_BRANCH_ID
 const approvedProject = process.env.C9_ENTITY_PROJECT_ID
 const approvedOwner = process.env.C9_ENTITY_OWNER_ROLE
 const protectedBranches = new Set(['br-square-mountain-az6f82vi', process.env.NEON_TEST_PRODUCTION_BRANCH_ID].filter(Boolean))
+it('refuses to report success without an approved disposable target', () => assertApprovedTarget(approvedBranch, 'C9_ENTITY_DISPOSABLE_BRANCH_ID, C9_ENTITY_PROJECT_ID and C9_ENTITY_OWNER_ROLE'))
+
 describe.skipIf(!approvedBranch)('private entities on exact disposable target', () => {
   const account = randomUUID(), other = randomUUID(), client = randomUUID()
   let verified = false

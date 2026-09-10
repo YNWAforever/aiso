@@ -17,7 +17,7 @@ evidence → work → export path traced to real services and SQL; the scanner r
 and test baseline recorded; the v6 review opened in an authorised browser and its
 source traceability verified. See `00-BASELINE-AND-GAPS.md`.
 
-**Phase 1 slices 1, 4 and 5 — landed.**
+**Phase 1 slices 1, 4, 4b and 5 — landed.**
 
 | Epic | What changed |
 |---|---|
@@ -26,6 +26,8 @@ source traceability verified. See `00-BASELINE-AND-GAPS.md`.
 | P1-E1 scan protection | `__tests__/checks/scan-compatibility-freeze.test.ts` pins the twenty check ids, buckets, weights, the 45/30/25 split, grade boundaries and pass/warn/fail scoring **by value**, and ties the TypeScript registry to migration 041's `check_key` constraint so the two cannot drift. |
 | P1-E1 scan protection | `__tests__/security/no-unguarded-fetch.test.ts` replaces a hand-written eight-filename list with a directory walk over `lib/checks`, `lib/authority` and `app/api` — which is why the two live instances had gone unseen. |
 | P1-E5 recheck (`b80e52f`) | `compareScanChecks()` gives the product its first comparable technical recheck. `compareScanEvidence()` could never return `comparable: true`; page identity is now proven without storing a path, by requiring both runs' `final` descriptor to have redacted nothing. Emits `comparison_status` and per-check `outcome` in the brief's vocabulary. Content hashes are never compared. |
+| P1-E5 recheck wiring (slice 4b) | `compareOutcome` attaches a `comparison` to every outcome window — `status` and `outcome` in the brief's vocabulary, plus both verdicts — and `evidenceState` reaches `available` for the first time. The DTO re-derives and compares it, so `improved` cannot be forged over fail→fail and `partially_comparable` cannot be upgraded to `comparable`. Rendered in both languages. |
+| Release gate | The five owner-loop integration suites used to skip silently and exit 0 when unconfigured — 109 tests reading as success while asserting nothing. Each now fails loudly instead. |
 | P1-E2 owner Home (`2be46c2`) | Home leads with at most three priorities and one named next action, ranked by points still at stake. Ranking reads the evidence envelope rather than the verdict, so a check that could not be observed becomes a stated gap instead of invented work, and a pre-envelope scan reports `unavailable` rather than falling back to raw verdicts. Specialist panels preserved below. |
 
 ## Verification
