@@ -6,7 +6,7 @@ Updated **2026-09-10**.
     Repository:            github.com/YNWAforever/aiso
     Branch:                claude/fimmick-aiso-phase-0-1-3cf312 (isolated worktree)
     Starting baseline SHA: 5bb2dcce11b63e027591e568786ff6e2c1577051 (clean tree)
-    Current SHA:           8de8462 (pull request #21)
+    Current SHA:           b9f0bc9 (branch claude/aiso-phase1-slices-6-10)
     Uncommitted:           documentation only (this set)
 
 ## Completed
@@ -17,7 +17,7 @@ evidence → work → export path traced to real services and SQL; the scanner r
 and test baseline recorded; the v6 review opened in an authorised browser and its
 source traceability verified. See `00-BASELINE-AND-GAPS.md`.
 
-**Phase 1 slices 1, 4, 4b and 5 — landed.**
+**Phase 1 slices 1 and 4–10 — landed.** Every slice in `01-DELIVERY-PLAN.md`§2 is done.
 
 | Epic | What changed |
 |---|---|
@@ -28,6 +28,11 @@ source traceability verified. See `00-BASELINE-AND-GAPS.md`.
 | P1-E5 recheck (`b80e52f`) | `compareScanChecks()` gives the product its first comparable technical recheck. `compareScanEvidence()` could never return `comparable: true`; page identity is now proven without storing a path, by requiring both runs' `final` descriptor to have redacted nothing. Emits `comparison_status` and per-check `outcome` in the brief's vocabulary. Content hashes are never compared. |
 | P1-E5 recheck wiring (slice 4b) | `compareOutcome` attaches a `comparison` to every outcome window — `status` and `outcome` in the brief's vocabulary, plus both verdicts — and `evidenceState` reaches `available` for the first time. The DTO re-derives and compares it, so `improved` cannot be forged over fail→fail and `partially_comparable` cannot be upgraded to `comparable`. Rendered in both languages. |
 | Release gate | The five owner-loop integration suites used to skip silently and exit 0 when unconfigured — 109 tests reading as success while asserting nothing. Each now fails loudly instead. |
+| P1-E3 approved sources (slice 6) | Migration 044 adds `client_sources` plus append-only `client_source_versions`: provenance, content hash, derived freshness, revocation as a state, and `agent_use_allowed` defaulting to **false**. `listAgentUsableSources` is the single server-side gate. CSV and paste ingest treat content as data — formula injection defused without losing the value. Writing the integration suite caught a real defect in the migration: a type-only jsonpath test compares an empty sequence when a key is absent, so an entry with no answer passed; absence is now checked with `exists()`. |
+| P1-E5 export receipt (slice 7) | Migration 045 records an append-only receipt keeping the approved-payload hash and the rendered-artifact hash **separately**, with format, renderer version, downloading actor and time. Written before the bytes are released; a failure fails the export. |
+| P1-E4 separation of duties (slice 8) | An editor can no longer approve, not merely the submitter. No migration needed — the `owned` CTE already reads the work item. A pure tightening, proven against real Postgres. |
+| P1-E1 agent safety (slice 9) | Two live prompt-injection sites fenced, and a 13-assertion evaluation covering injection resistance, forbidden-tool denial, cross-tenant denial and abstention. Budgets remain absent and are asserted as absent. |
+| P1-E6 activation (slice 10) | Six milestones **derived** from existing rows in one statement rather than emitted, so nothing can be backfilled with invented successes and no forgotten emit can make the funnel wrong. Progress is the furthest consecutive milestone. |
 | P1-E2 owner Home (`2be46c2`) | Home leads with at most three priorities and one named next action, ranked by points still at stake. Ranking reads the evidence envelope rather than the verdict, so a check that could not be observed becomes a stated gap instead of invented work, and a pre-envelope scan reports `unavailable` rather than falling back to raw verdicts. Specialist panels preserved below. |
 
 ## Verification
@@ -36,22 +41,25 @@ source traceability verified. See `00-BASELINE-AND-GAPS.md`.
 |---|---|---|
 | `npm run typecheck` | 0 | clean |
 | `npm run lint` | 0 | 0 errors, 0 warnings |
-| `npm run test:unit` | 0 | **289 files / 3901 tests, 0 skipped** (baseline 284 / 3714) |
-| `npm test` | 0 | unit as above **plus 10 integration files / 71 tests**, against a disposable Neon branch that was provisioned, migrated through all 41 files and deleted. No skip banner printed. |
-| five owner-loop integration configs | 0 | **5 files / 109 tests passed** on a separately provisioned disposable branch with 040–043 applied — composite-FK tenancy, append-only GRANT posture, and the app role's inability to UPDATE or DELETE history |
+| `npm run test:unit` | 0 | **293 files / 3987 tests, 0 skipped** (baseline 284 / 3714) |
+| `npm test` | 0 | unit as above **plus 11 integration files / 85 tests**, against a disposable Neon branch that was provisioned, migrated through all 41 files and deleted. No skip banner printed. |
+| five owner-loop integration configs | 0 | **5 files / 117 tests passed** on a separately provisioned disposable branch with 040–043 applied — composite-FK tenancy, append-only GRANT posture, and the app role's inability to UPDATE or DELETE history |
 | CI `PR gate` (#21) | success | all 10 jobs: `static`, `unit-contract`, `integration`, `e2e-accessibility` ×4, `build`, `cloudflare-worker`, `pr-gate` |
 | `npm run e2e` locally | — | not run. CI runs it, but under `E2E_FIXTURE_MODE` against a fixture DSN, so no authenticated owner journey is exercised anywhere yet |
 
-Acceptance: **3 PASS, 9 PARTIAL, 2 BLOCKED, 1 DEFERRED, 0 FAIL** across AC-01…AC-15.
-Four rows moved this session: AC-01, AC-03, AC-10 and AC-15.
+Acceptance: **7 PASS, 6 PARTIAL, 1 BLOCKED, 1 DEFERRED, 0 FAIL** across AC-01…AC-15.
+AC-14 is the only BLOCKED row left, and only for its authenticated half.
 Full table with evidence in `04-ACCEPTANCE-MATRIX.md`.
 
 ## Migrations and flags
 
 - No migration is needed to deploy any commit on this branch; none touches a schema.
 - `040`–`043` were **applied to the AISO development database on 2026-09-10, under
-  explicit approval** — see "Production actions" below. `--verify` now reports all
-  four `all present recorded`, and the ledger moved from 38 to 42.
+  explicit approval** — see "Actions taken" below. `--verify` reported all four
+  `all present recorded` and the ledger moved 38 → 42.
+- `044` (approved sources) and `045` (export receipts) are **authored and proven
+  against disposable branches, but not yet applied to the persistent development
+  database.** Both are additive. Run `npm run migrate` to land them.
 - **No feature flag was added.** Both new surfaces are safe unflagged: the Home
   priorities section degrades to an honest `unavailable` state for any scan
   without an evidence envelope, and `compareScanChecks` has no caller in a
@@ -104,23 +112,22 @@ already enforced by `__tests__/security/no-unguarded-fetch.test.ts`.
 
 ## Next concrete action
 
-The migration blocker is cleared, so the next slice needs no further authority.
+Apply `044` and `045` to the development database (`npm run migrate`, additive,
+two files), then merge #22 and open the slice 6–10 pull request.
 
-**Slice 4b — wire the comparison adapter through `lib/outcomes`.** This is the one
-that turns a library capability into something an owner sees. It is deliberately
-sequenced first because `lib/outcomes/dto.ts` re-runs `evaluateOutcomes()` and
-compares field by field, so a new window field has to land in five places at once —
-`types.ts`, `evaluate.ts`, the DTO's key list and validator, the UI, and both message
-catalogues — and `OUTCOME_REASON_CODES` is a closed vocabulary where every entry
-needs localised copy. It also wants the `recheck_compare_v1` flag, because unlike the
-two surfaces shipped here it changes a stored contract's output.
+The remaining Phase 1 gaps, in the order they matter:
 
-Then, in order: the approved source pack (slice 6, needs migration `044`), the export
-receipt (slice 7, needs `045`), separation of duties (slice 8), the minimum
-agent-safety evaluation (slice 9), and the telemetry, bilingual and mobile
-verification that needs a real journey to walk (slice 10).
-
-Worth doing early and cheaply, independent of all of the above: make the five
-owner-loop integration configs reachable from `npm test`, or at minimum make an
-unconfigured run fail rather than skip. 109 tests currently read as success while
-asserting nothing.
+1. **AC-14** — run the E2E suite against a real session and database. CI runs
+   Playwright, including the Pixel-5 project, but under `E2E_FIXTURE_MODE`
+   against a fixture DSN where `getProfile()` returns null, so mobile review and
+   approve is exercised nowhere.
+2. **Draft grounding** — `listAgentUsableSources` is the tested enforcement
+   point, but no drafting path consumes it, because drafting is deterministic
+   today. The gate exists; the consumer does not.
+3. **A bounded budget** — nothing identifies who is spending, so no per-account
+   or per-task cap can exist. The safety suite asserts this absence and will fail
+   when it is fixed.
+4. **A source UI** — package C has data and API but no owner-facing surface, so
+   "imported, not connected" is not yet shown to anyone.
+5. **Reach for the five owner-loop integration configs** — they now fail rather
+   than skip when unconfigured, but no npm script or CI job invokes them.
