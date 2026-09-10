@@ -798,6 +798,8 @@
     "local_trust_timeline_empty": "Run a scan to start your first enquiry value scenario.",
     "local_trust_timeline_estimate": "Estimated",
     "local_trust_timeline_no_estimate": "Add average lead value and close rate to estimate enquiry value.",
+    "local_trust_timeline_no_earlier_snapshot": "No earlier month to compare against yet. Your first enquiry value scenario appears once a second monthly snapshot exists.",
+    "local_trust_timeline_no_increase": "Your Local Trust Score has not risen since the previous month, so there is no movement to put a value on.",
     "local_trust_competitor_empty": "Add competitors or run agent analysis to compare local trust gaps.",
     "local_trust_competitor_mention_gap": "Mention gap",
     "local_trust_competitor_enterprise_locked": "Available on Enterprise for competitor visibility, trust signal gaps, and catch-up planning.",
@@ -928,6 +930,7 @@
     "opportunities": "Opportunities",
     "sources": "Approved facts",
     "local_trust_timeline_basis": "Scenario: {low}–{high} extra enquiries at the average lead value ({leadValue}) and close rate ({closeRate}) you entered.",
+    "local_trust_timeline_movement": "Keyed to a {delta}-point rise since {month}. Turning points into enquiries — one per {lowPoints} points at the low end, one per {highPoints} at the high — is an assumption AISO has not measured.",
     "local_trust_timeline_limitation": "Estimated, not observed. This is arithmetic over the figures you entered. AISO has not measured any enquiry, sale or revenue, and a technical or visibility improvement is not proven search or revenue uplift."
   },
   "reports": {

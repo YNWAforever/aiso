@@ -798,6 +798,8 @@
     "local_trust_timeline_empty": "執行掃描後即可開始第一個查詢價值情境。",
     "local_trust_timeline_estimate": "估算",
     "local_trust_timeline_no_estimate": "加入平均潛在客戶價值及成交率，即可估算查詢價值。",
+    "local_trust_timeline_no_earlier_snapshot": "尚未有可供比較的較早月份。當第二個月度快照出現後，就會顯示第一個查詢價值情境。",
+    "local_trust_timeline_no_increase": "你的本地信任評分較上一個月沒有上升，因此沒有可估算價值的變動。",
     "local_trust_competitor_empty": "加入競爭對手或執行代理分析，即可比較本地信任缺口。",
     "local_trust_competitor_mention_gap": "提及差距",
     "local_trust_competitor_enterprise_locked": "企業版可查看競爭對手能見度、信任訊號缺口及追趕計劃。",
@@ -928,6 +930,7 @@
     "opportunities": "改善機會",
     "sources": "已核准的資料",
     "local_trust_timeline_basis": "情境：以你輸入的平均潛在客戶價值（{leadValue}）及成交率（{closeRate}）計算，多 {low} 至 {high} 宗查詢。",
+    "local_trust_timeline_movement": "此估算對應較 {month} 上升 {delta} 分。把分數換算成查詢數量 —— 低端每 {lowPoints} 分一宗、高端每 {highPoints} 分一宗 —— 是 AISO 並未量度過的假設。",
     "local_trust_timeline_limitation": "這是估算，不是觀察所得。這只是根據你輸入的數字所作的計算。AISO 並未量度過任何查詢、成交或收入；技術或能見度上的改善，並不等於已證實的搜尋或收入提升。"
   },
   "reports": {

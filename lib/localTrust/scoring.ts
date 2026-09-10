@@ -5,7 +5,7 @@ import type {
   LocalTrustGap,
   Scan,
 } from '@/lib/types'
-import { estimateRoi } from './roi'
+import { roiScenario, type RoiScenario } from './roi'
 import type { LocalTrustInput, LocalTrustSnapshotDraft } from './types'
 
 type ScanResultMap = Partial<Scan['results']> & Record<string, unknown>
@@ -31,7 +31,7 @@ function statusPoints(result: unknown, passPoints: number, warnPoints = Math.rou
   return 0
 }
 
-function latestAggregateSov(input: LocalTrustInput) {
+function latestAggregateSov(input: Pick<LocalTrustInput, 'pulseSummary'>) {
   return input.pulseSummary
     .filter(row => !row.platform)
     .sort((a, b) => a.scan_week.localeCompare(b.scan_week))
@@ -77,6 +77,19 @@ function snapshotMonthFrom(value: string | null | undefined) {
   const fallback = '1970-01'
   const month = value && value.length >= 7 ? value.slice(0, 7) : fallback
   return `${month}-01`
+}
+
+/**
+ * Which month a snapshot will be filed under, without computing the snapshot.
+ *
+ * There is an ordering problem to solve: this month's enquiry-value scenario needs
+ * last month's score, and the store cannot look that score up until it knows which
+ * month "last" is. Rather than let the store derive the month a second way and
+ * hope the two agree, both paths call this. `calculateLocalTrust` uses it for the
+ * draft it returns, and `__tests__/lib/roi-scenario.test.ts` pins the agreement.
+ */
+export function resolveSnapshotMonth(input: Pick<LocalTrustInput, 'pulseSummary' | 'scan'>): string {
+  return snapshotMonthFrom(latestAggregateSov(input)?.scan_week ?? input.scan?.created_at)
 }
 
 function bucket(
@@ -198,7 +211,6 @@ export function calculateLocalTrust(input: LocalTrustInput): LocalTrustSnapshotD
   const results: ScanResultMap = input.scan?.results ?? EMPTY_RESULTS
   const latestSov = latestAggregateSov(input)
   const serviceArea = input.profile?.service_area || input.scan?.region || input.client.industry
-  const hasVisibilityBaseline = Boolean(input.scan || latestSov)
   const marketSentimentPoints = sentimentPoints(latestSov?.avg_sentiment_score)
   const marketCompetitorPoints = competitorPressurePoints(input, latestSov)
 
@@ -260,7 +272,7 @@ export function calculateLocalTrust(input: LocalTrustInput): LocalTrustSnapshotD
   const draft: LocalTrustSnapshotDraft = {
     client_id: input.client.id,
     account_id: input.accountId,
-    snapshot_month: snapshotMonthFrom(latestSov?.scan_week ?? input.scan?.created_at),
+    snapshot_month: resolveSnapshotMonth(input),
     local_trust_score: score,
     bucket_scores: buckets,
     trust_gaps: [],
@@ -270,12 +282,32 @@ export function calculateLocalTrust(input: LocalTrustInput): LocalTrustSnapshotD
   }
 
   draft.trust_gaps = buildGaps(input, buckets)
-  draft.roi_estimate = hasVisibilityBaseline
-    ? estimateRoi({
-        currentSnapshot: draft,
-        averageLeadValue: input.profile?.average_lead_value,
-        closeRate: input.profile?.close_rate,
-      })
-    : null
+  draft.roi_estimate = localTrustRoiScenario(input, draft).estimate
   return draft
+}
+
+/**
+ * The enquiry-value scenario for a computed draft, or the reason there is none.
+ *
+ * `roi_estimate` is a column and the reason is not, so the surface that has to
+ * explain an absent figure cannot read it back off the snapshot. It calls this
+ * instead — the same function `calculateLocalTrust` used to fill the column, with
+ * the same arguments, so the explanation and the stored value cannot disagree.
+ * Pure, so calling it twice costs nothing.
+ *
+ * The visibility gate lives here rather than in `roiScenario`: with no scan and no
+ * aggregate Pulse row there is no observed score at all, which is a different
+ * absence from "the score did not rise".
+ */
+export function localTrustRoiScenario(input: LocalTrustInput, draft: LocalTrustSnapshotDraft): RoiScenario {
+  if (!input.scan && !latestAggregateSov(input)) {
+    return { estimate: null, unavailable: 'no_visibility_baseline' }
+  }
+
+  return roiScenario({
+    currentSnapshot: draft,
+    previous: input.previous,
+    averageLeadValue: input.profile?.average_lead_value,
+    closeRate: input.profile?.close_rate,
+  })
 }

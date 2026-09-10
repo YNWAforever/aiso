@@ -244,24 +244,27 @@ describe('GET local-trust/export', () => {
     // no basis travels away from the panel that qualifies it and reads as a
     // measured result.
     nextResults = [[], [{ platform: null }], []]
-    storeMocks.getOrCreateLocalTrustSnapshot.mockResolvedValue({
-      snapshot: {
-        local_trust_score: 70,
-        snapshot_month: '2026-01',
-        roi_estimate: {
-          low: 1600,
-          high: 3200,
-          currency: 'HKD',
-          confidence: 'directional',
-          assumptions: {
-            averageLeadValue: 8000,
-            closeRate: 0.2,
-            estimatedExtraEnquiriesLow: 1,
-            estimatedExtraEnquiriesHigh: 2,
-          },
-        },
+    const roi_estimate = {
+      low: 1600,
+      high: 3200,
+      currency: 'HKD' as const,
+      confidence: 'directional' as const,
+      assumptions: {
+        averageLeadValue: 8000,
+        closeRate: 0.2,
+        estimatedExtraEnquiriesLow: 1,
+        estimatedExtraEnquiriesHigh: 2,
+        previousScore: 58,
+        scoreDelta: 12,
+        comparedToMonth: '2025-12-01',
+        pointsPerEnquiryLow: 10,
+        pointsPerEnquiryHigh: 4,
       },
+    }
+    storeMocks.getOrCreateLocalTrustSnapshot.mockResolvedValue({
+      snapshot: { local_trust_score: 70, snapshot_month: '2026-01', roi_estimate },
       actions: [],
+      roi: { estimate: roi_estimate, unavailable: null },
     })
 
     const res = await GET(
@@ -278,6 +281,37 @@ describe('GET local-trust/export', () => {
     expect(csv).toContain('Assumed Extra Enquiries Low,1')
     expect(csv).toContain('Assumed Extra Enquiries High,2')
     expect(csv).toContain('not an observed or measured result')
+    // What the figure answers. Without the movement rows a reader cannot tell the
+    // amount is keyed to a score change at all, and the points-to-enquiries step —
+    // which nothing in this product measures — would travel unstated.
+    expect(csv).toContain('Compared To Month,2025-12-01')
+    expect(csv).toContain('Previous Local Trust Score,58')
+    expect(csv).toContain('Score Movement,12')
+    expect(csv).toContain('Assumed Points Per Enquiry Low,10')
+    expect(csv).toContain('Assumed Points Per Enquiry High,4')
+  })
+
+  it.each([
+    ['no_earlier_snapshot', 'no earlier month to compare against yet'],
+    ['no_increase', 'has not risen since the previous month'],
+    ['assumptions_missing', 'have not been entered'],
+  ])('says why there is no figure rather than leaving empty cells (%s)', async (unavailable, note) => {
+    // An empty "Estimated Value Low," cell reads as a number that failed to
+    // arrive. Since a real baseline is now required, most months of most clients
+    // legitimately have no figure, so the CSV has to distinguish the two.
+    nextResults = [[], [{ platform: null }], []]
+    storeMocks.getOrCreateLocalTrustSnapshot.mockResolvedValue({
+      snapshot: { local_trust_score: 70, snapshot_month: '2026-01', roi_estimate: null },
+      actions: [],
+      roi: { estimate: null, unavailable },
+    })
+
+    const csv = await (await get()).text()
+
+    expect(csv).toContain('Estimated Value Low,')
+    expect(csv).toContain('No estimate for this month:')
+    expect(csv).toContain(note)
+    expect(csv).not.toContain('not an observed or measured result')
   })
 
   it('sanitises the client id in the download filename', async () => {
@@ -285,6 +319,7 @@ describe('GET local-trust/export', () => {
     storeMocks.getOrCreateLocalTrustSnapshot.mockResolvedValue({
       snapshot: { local_trust_score: 70, snapshot_month: '2026-01', roi_estimate: null },
       actions: [],
+      roi: { estimate: null, unavailable: 'no_earlier_snapshot' },
     })
 
     const res = await GET(
@@ -303,6 +338,7 @@ describe('GET local-trust/export', () => {
     storeMocks.getOrCreateLocalTrustSnapshot.mockResolvedValue({
       snapshot: { local_trust_score: 70, snapshot_month: '2026-01', roi_estimate: null },
       actions: [],
+      roi: { estimate: null, unavailable: 'no_earlier_snapshot' },
     })
 
     await get()
@@ -319,6 +355,7 @@ describe('GET local-trust/export', () => {
       snapshot: { local_trust_score: 70, snapshot_month: '2026-01', roi_estimate: null },
       // A title a user controls, crafted to execute on open in Excel/Sheets.
       actions: [{ status: 'open', title: '=cmd|/c calc' }],
+      roi: { estimate: null, unavailable: 'no_earlier_snapshot' },
     })
 
     const body = await (await get()).text()

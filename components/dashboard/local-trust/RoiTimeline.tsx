@@ -10,13 +10,19 @@ import type { LocalTrustSnapshot } from '@/lib/types'
  * used to assert, titled "ROI Proof Timeline" and rendered directly beneath that
  * score.
  *
- * The estimator's enquiry range is [1, 2] for every non-zero score, so the money
- * does not move with the score at all. Printing that range in the basis line is
- * deliberate: it makes the constant visible to the reader instead of leaving a
- * heading to imply a relationship the arithmetic does not contain.
+ * The figure now moves with a real month-over-month score movement rather than the
+ * fabricated `score - 5` baseline that made it identical for every client. That
+ * makes the link between the score and the money a real claim instead of an implied
+ * one — so the movement line states it outright, including the one step in it that
+ * nothing in this product has measured: how many trust points are worth an enquiry.
  *
- * The limitation sits in the same block as the number on purpose, so the two
- * cannot be screenshotted apart.
+ * The basis, the movement and the limitation all sit in the same block as the
+ * number on purpose, so it cannot be screenshotted apart from what qualifies it.
+ *
+ * `noEstimate` is chosen by the caller from the reason the estimator gave. A month
+ * with no figure used to print "Add average lead value and close rate…" whatever
+ * the cause, which is a lie to an owner who entered both and simply has no earlier
+ * month yet.
  */
 
 type Copy = {
@@ -27,6 +33,8 @@ type Copy = {
   noEstimate: string
   /** Template. `{low}`, `{high}`, `{leadValue}`, `{closeRate}`. */
   basis: string
+  /** Template. `{delta}`, `{month}`, `{lowPoints}`, `{highPoints}`. Rendered only when the row records a baseline. */
+  movement: string
   limitation: string
 }
 
@@ -37,6 +45,8 @@ const defaultCopy: Copy = {
   estimateLabel: 'Estimated',
   noEstimate: 'Add average lead value and close rate to estimate enquiry value.',
   basis: 'Scenario: {low}–{high} extra enquiries at the average lead value ({leadValue}) and close rate ({closeRate}) you entered.',
+  movement:
+    'Keyed to a {delta}-point rise since {month}. Turning points into enquiries — one per {lowPoints} points at the low end, one per {highPoints} at the high — is an assumption AISO has not measured.',
   limitation:
     'Estimated, not observed. This is arithmetic over the figures you entered. AISO has not measured any enquiry, sale or revenue, and a technical or visibility improvement is not proven search or revenue uplift.',
 }
@@ -122,6 +132,22 @@ export function RoiTimeline({ snapshots, copy, locale = 'en-HK' }: Props) {
                       closeRate: formatRate(snapshot.roi_estimate.assumptions.closeRate, locale),
                     })}
                   </p>
+                  {/*
+                    Only rows written since the estimator required a real baseline
+                    carry these. An older row genuinely has no earlier month to
+                    name, so the line is omitted rather than filled with a guess.
+                  */}
+                  {snapshot.roi_estimate.assumptions.scoreDelta !== undefined
+                    && snapshot.roi_estimate.assumptions.comparedToMonth ? (
+                    <p className="text-[11px] leading-relaxed text-dash-muted">
+                      {fill(labels.movement, {
+                        delta: String(snapshot.roi_estimate.assumptions.scoreDelta),
+                        month: formatMonth(snapshot.roi_estimate.assumptions.comparedToMonth, locale),
+                        lowPoints: String(snapshot.roi_estimate.assumptions.pointsPerEnquiryLow ?? ''),
+                        highPoints: String(snapshot.roi_estimate.assumptions.pointsPerEnquiryHigh ?? ''),
+                      })}
+                    </p>
+                  ) : null}
                   <p className="text-[11px] leading-relaxed text-dash-muted">{labels.limitation}</p>
                 </div>
               ) : (
