@@ -100,6 +100,17 @@ export async function GET(
       ['Top Action', topAction?.title ?? 'No open actions'],
       ['Estimated Value Low', snapshot.roi_estimate?.low ?? ''],
       ['Estimated Value High', snapshot.roi_estimate?.high ?? ''],
+      // The CSV and the print button are the two artifacts that leave the
+      // product. A bare "Estimated Value: 24000" in a spreadsheet, with no
+      // currency and no basis, is the highest-risk commercial claim in this
+      // feature: it reads as a measured result and travels without the panel
+      // that qualifies it. These rows make the figure carry its own basis.
+      ['Currency', snapshot.roi_estimate?.currency ?? ''],
+      ['Assumed Average Lead Value', snapshot.roi_estimate?.assumptions.averageLeadValue ?? ''],
+      ['Assumed Close Rate', snapshot.roi_estimate?.assumptions.closeRate ?? ''],
+      ['Assumed Extra Enquiries Low', snapshot.roi_estimate?.assumptions.estimatedExtraEnquiriesLow ?? ''],
+      ['Assumed Extra Enquiries High', snapshot.roi_estimate?.assumptions.estimatedExtraEnquiriesHigh ?? ''],
+      ['Basis', 'Estimated from the figures you entered — not an observed or measured result'],
     ])
 
     return new Response(csv, {

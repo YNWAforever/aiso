@@ -316,7 +316,9 @@ describe('Local Trust read-only UI components', () => {
 
     const html = renderToStaticMarkup(<RoiTimeline snapshots={[snapshot]} />)
 
-    expect(html).toContain('ROI Proof Timeline')
+    // "ROI Proof Timeline" was retired: the figure it headed cannot move with
+    // the Local Trust Score it sits under. See __tests__/lib/roi-scenario.test.ts.
+    expect(html).toContain('Enquiry value scenario')
     expect(html).toContain('Jun 2026')
     expect(html).toContain('Add average lead value and close rate')
   })
@@ -346,8 +348,50 @@ describe('Local Trust read-only UI components', () => {
       />,
     )
 
-    expect(html).toContain('Directional estimate')
+    // The money assertion stays. A test that stopped asserting the number renders
+    // would hide a regression that blanks the panel entirely.
     expect(html).toContain('HKD 12,000-28,000')
+    expect(html).toContain('Estimated')
+    // The basis and the limitation must render in the same block as the figure,
+    // so the number cannot be screenshotted apart from what qualifies it.
+    expect(html).toContain('8–18 extra enquiries')
+    expect(html).toContain('20%')
+    expect(html).toContain('Estimated, not observed')
+    expect(html).toContain('not proven search or revenue uplift')
+  })
+
+  it('formats assumptions that arrive as strings from the numeric columns', async () => {
+    // local_trust_profiles.average_lead_value and .close_rate are `numeric`, and
+    // nothing installs a type parser, so the driver hands them back as strings.
+    // Rendered raw they would read "8000.00" and "0.2" in a sentence about money.
+    const { RoiTimeline } = await import('@/components/dashboard/local-trust/RoiTimeline')
+
+    const html = renderToStaticMarkup(
+      <RoiTimeline
+        snapshots={[
+          {
+            ...snapshot,
+            roi_estimate: {
+              low: 1600,
+              high: 3200,
+              currency: 'HKD',
+              assumptions: {
+                averageLeadValue: '8000.00' as unknown as number,
+                closeRate: '0.20' as unknown as number,
+                estimatedExtraEnquiriesLow: 1,
+                estimatedExtraEnquiriesHigh: 2,
+              },
+              confidence: 'directional',
+            },
+          },
+        ]}
+      />,
+    )
+
+    expect(html).not.toContain('8000.00')
+    expect(html).not.toContain('(0.20)')
+    expect(html).toContain('20%')
+    expect(html).toMatch(/HK\$8,000|HKD\s?8,000/)
   })
 
   it('renders Enterprise report actions with an encoded export URL', async () => {
