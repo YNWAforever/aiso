@@ -3,6 +3,7 @@ import { callOpenRouter } from '@/lib/openrouter'
 import { getProfile }     from '@/lib/auth'
 import { db }             from '@/lib/db'
 import { fetchPublicUrl } from '@/lib/security/public-url'
+import { UNTRUSTED_SYSTEM_RULE, fenceUntrusted } from '@/lib/agents/untrusted'
 import type { Scan }      from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
   const raw = await callOpenRouter({
     model: 'anthropic/claude-haiku-4-5',
     maxTokens: 2000,
-    messages: [{
+    messages: [{ role: 'system', content: UNTRUSTED_SYSTEM_RULE }, {
       role: 'user',
       content: `你係 AEO 專家。根據以下掃描結果，生成 3 個修復檔案：
 1. llms.txt（根據網站描述）
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
 3. FAQPage JSON-LD（2–3 條 FAQ）
 
 網站：${scan.domain}
-描述：${pageTitle} - ${metaDescription}
+${fenceUntrusted('PAGE TITLE AND DESCRIPTION', `${pageTitle} - ${metaDescription}`)}
 問題：${JSON.stringify(issues)}
 
 輸出 JSON（只輸出 JSON，無其他文字）：{ "llms_txt": "...", "robots_patch": "...", "faq_schema": "..." }`,
