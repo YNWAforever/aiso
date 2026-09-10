@@ -27,7 +27,7 @@ source traceability verified. See `00-BASELINE-AND-GAPS.md`.
 | P1-E1 scan protection | `__tests__/security/no-unguarded-fetch.test.ts` replaces a hand-written eight-filename list with a directory walk over `lib/checks`, `lib/authority` and `app/api` — which is why the two live instances had gone unseen. |
 | P1-E5 recheck (`b80e52f`) | `compareScanChecks()` gives the product its first comparable technical recheck. `compareScanEvidence()` could never return `comparable: true`; page identity is now proven without storing a path, by requiring both runs' `final` descriptor to have redacted nothing. Emits `comparison_status` and per-check `outcome` in the brief's vocabulary. Content hashes are never compared. |
 | P1-E5 recheck wiring (slice 4b) | `compareOutcome` attaches a `comparison` to every outcome window — `status` and `outcome` in the brief's vocabulary, plus both verdicts — and `evidenceState` reaches `available` for the first time. The DTO re-derives and compares it, so `improved` cannot be forged over fail→fail and `partially_comparable` cannot be upgraded to `comparable`. Rendered in both languages. |
-| Release gate | The five owner-loop integration suites used to skip silently and exit 0 when unconfigured — 109 tests reading as success while asserting nothing. Each now fails loudly instead. |
+| Release gate | The five owner-loop integration suites used to skip silently and exit 0 when unconfigured, reading as success while asserting nothing. Each now **fails** loudly instead — and, since this session, they also **run in the gate**: `scripts/ci/run-exact-target-suites.mjs` provisions one disposable branch through the single audited path, derives every `C9*` value from it, runs all five configs and deletes the branch in a `finally`. Measured at 5/5 suites, 117 tests, 105s. |
 | P1-E3 approved sources (slice 6) | Migration 044 adds `client_sources` plus append-only `client_source_versions`: provenance, content hash, derived freshness, revocation as a state, and `agent_use_allowed` defaulting to **false**. `listAgentUsableSources` is the single server-side gate. CSV and paste ingest treat content as data — formula injection defused without losing the value. Writing the integration suite caught a real defect in the migration: a type-only jsonpath test compares an empty sequence when a key is absent, so an entry with no answer passed; absence is now checked with `exists()`. |
 | P1-E5 export receipt (slice 7) | Migration 045 records an append-only receipt keeping the approved-payload hash and the rendered-artifact hash **separately**, with format, renderer version, downloading actor and time. Written before the bytes are released; a failure fails the export. |
 | P1-E4 separation of duties (slice 8) | An editor can no longer approve, not merely the submitter. No migration needed — the `owned` CTE already reads the work item. A pure tightening, proven against real Postgres. |
@@ -43,7 +43,7 @@ source traceability verified. See `00-BASELINE-AND-GAPS.md`.
 | `npm run lint` | 0 | 0 errors, 0 warnings |
 | `npm run test:unit` | 0 | **293 files / 3987 tests, 0 skipped** (baseline 284 / 3714) |
 | `npm test` | 0 | unit as above **plus 11 integration files / 85 tests**, against a disposable Neon branch that was provisioned, migrated through all 41 files and deleted. No skip banner printed. |
-| five owner-loop integration configs | 0 | **5 files / 117 tests passed** on a separately provisioned disposable branch with 040–043 applied — composite-FK tenancy, append-only GRANT posture, and the app role's inability to UPDATE or DELETE history |
+| five owner-loop integration configs | 0 | **5 files / 117 tests passed** via `node scripts/ci/run-exact-target-suites.mjs`, which provisions and destroys its own disposable branch with all 46 migrations applied — composite-FK tenancy, append-only GRANT posture, and the app role’s inability to UPDATE or DELETE history. 105s wall clock. |
 | CI `PR gate` (#21) | success | all 10 jobs: `static`, `unit-contract`, `integration`, `e2e-accessibility` ×4, `build`, `cloudflare-worker`, `pr-gate` |
 | `npm run e2e` locally | — | not run. CI runs it, but under `E2E_FIXTURE_MODE` against a fixture DSN, so no authenticated owner journey is exercised anywhere yet |
 
@@ -98,11 +98,13 @@ same session that ran the statement — before touching anything.
    slices 6–10 and the E2E journey are unblocked.
 2. ~~Integration project not run.~~ **Resolved this session** — `npm test` ran it end
    to end. `neonctl` only prompts interactively when invoked without `NEON_API_KEY`.
-   A new finding replaces it: the five suites that prove the owner-loop schema are
-   excluded from `vitest.integration.config.ts`, wired into no npm script and no CI
-   job, and **skip silently with exit 0** when unconfigured — 109 tests reading as
-   success while asserting nothing. They pass when given a target; the gate around
-   them does not exist. See `04-ACCEPTANCE-MATRIX.md`§5.
+   The follow-on finding it exposed is now **also resolved**: the five suites that
+   prove the owner-loop schema were excluded from `vitest.integration.config.ts`,
+   wired into no npm script and no CI job, and skipped silently with exit 0 when
+   unconfigured — reading as success while asserting nothing. They now fail when
+   unconfigured, and `scripts/ci/run-exact-target-suites.mjs` runs all five inside
+   the `integration` job: **117 tests, measured**, on a branch it provisions and
+   destroys itself. See `04-ACCEPTANCE-MATRIX.md`§5.
 3. **`eslint.config.mjs` protected** by the repo's `config-protection` hook, so the
    fetch rule could not be widened there. The equivalent invariant is enforced by the
    new test instead.
@@ -135,8 +137,10 @@ The remaining Phase 1 gaps, in the order they matter:
    an import is not a connection, and derives "in use" from the same three
    conditions the SQL gate applies — with that agreement asserted against real
    Postgres rather than assumed.
-5. **Reach for the five owner-loop integration configs** — they now fail rather
-   than skip when unconfigured, but no npm script or CI job invokes them.
+5. ~~**Reach for the five owner-loop integration configs**~~ — **done.**
+   `scripts/ci/run-exact-target-suites.mjs` runs all five inside the `integration`
+   job, on a disposable branch it provisions and destroys itself: 117 tests, 105s.
+   Eleven assertions stop them drifting back out of the gate.
 6. **A contradiction inside migration 044**, found by the new integration coverage
    and now pinned by a test: `revoked_by` is declared `on delete set null` while a
    CHECK requires `revoked_at` and `revoked_by` to be null together, so deleting

@@ -1,6 +1,13 @@
 import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { Client, neonConfig } from '@neondatabase/serverless'
+// Relative, with the explicit .ts extension, for the same reason
+// helpers/neon-branch.ts states at its own top: this module is now imported by
+// scripts/ci/run-exact-target-suites.mjs under plain node, which resolves
+// neither tsconfig path aliases nor extensionless .ts files. Vitest resolves
+// this form too, so globalSetup is unaffected. Without it the wrapper dies with
+// ERR_MODULE_NOT_FOUND before provisioning anything, and the only symptom is a
+// CI step that failed for a reason naming no test.
 import {
   assertDisposableTestBranch,
   createTestBranch,
@@ -8,7 +15,8 @@ import {
   deleteTestBranch,
   PROJECT_ID,
   type TestBranch,
-} from '../helpers/neon-branch'
+  // @ts-expect-error -- see comment above; node requires the extension, tsc forbids it
+} from '../helpers/neon-branch.ts'
 
 /**
  * A Neon branch is a copy-on-write snapshot of its parent, not an empty
@@ -135,7 +143,20 @@ function cleanupCreatedBranches(): string[] {
   return orphans
 }
 
-export async function setup(): Promise<void> {
+/**
+ * The one provisioning path: create a disposable branch, empty it, migrate it.
+ *
+ * Extracted from setup() so scripts/ci/run-exact-target-suites.mjs can reach it
+ * WITHOUT a second implementation. That matters more than the deduplication: the
+ * destructive `drop schema public cascade` inside resetPublicSchema is guarded by
+ * assertDisposableTestBranch, which only accepts a branch this same process
+ * created. A wrapper that provisioned its own way, or that accepted a branch id
+ * from the environment, would be a way to aim that drop at another database.
+ *
+ * Returns the branch so a caller can derive values FROM it rather than being
+ * told them. Nothing here reads a caller-supplied target, and nothing should.
+ */
+export async function provisionBranch(): Promise<TestBranch> {
   // pid + timestamp alone can repeat across two containers that start in the
   // same millisecond with the same pid; the random suffix makes the name a
   // reliable identity, which matters because createTestBranch() asserts that
@@ -175,6 +196,7 @@ export async function setup(): Promise<void> {
       env: { ...process.env, MIGRATE_DATABASE_URL: branch.connectionUri },
       stdio: 'inherit',
     })
+    return branch
   } catch (err) {
     // Vitest registers globalSetup's teardown only once setup has resolved, so
     // a throw here would otherwise orphan the branch — and a throw here is the
@@ -183,6 +205,10 @@ export async function setup(): Promise<void> {
     cleanupCreatedBranches()
     throw err
   }
+}
+
+export async function setup(): Promise<void> {
+  await provisionBranch()
 }
 
 export async function teardown(): Promise<void> {

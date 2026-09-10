@@ -60,3 +60,8 @@ tests/e2e/a11y/.observed/
 # Cloudflare Worker
 /cloudflare/cron-worker/node_modules
 /cloudflare/cron-worker/.wrangler
+
+# Test and CI reports (vitest JSON/junit, job summaries, wrapper logs).
+# Never committed: a FAILING integration report embeds the full Neon DSN,
+# password included, in every assertion message.
+artifacts/

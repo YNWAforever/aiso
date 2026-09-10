@@ -97,6 +97,10 @@ describe('createTestBranch', () => {
 
     expect(createTestBranch('test-branch')).toEqual({
       id: 'br-fake-child-bbb22222',
+      // Carried through from the response's parent_id, which createTestBranch
+      // already requires as part of the branch's identity — so a caller can
+      // blocklist the real parent rather than a guess.
+      parentId: 'br-square-mountain-az6f82vi',
       connectionUri: URI,
     })
   })
@@ -185,7 +189,7 @@ describe('assertDisposableTestBranch', () => {
     const { assertDisposableTestBranch } = await load()
 
     expect(() =>
-      assertDisposableTestBranch({ id: 'br-fake-child-bbb22222', connectionUri: URI }),
+      assertDisposableTestBranch({ id: 'br-fake-child-bbb22222', parentId: 'br-parent', connectionUri: URI }),
     ).toThrow(/this process did not create it/)
   })
 
@@ -193,7 +197,7 @@ describe('assertDisposableTestBranch', () => {
     const { assertDisposableTestBranch } = await load()
 
     expect(() =>
-      assertDisposableTestBranch({ id: PRODUCTION_BRANCH_ID, connectionUri: URI }),
+      assertDisposableTestBranch({ id: PRODUCTION_BRANCH_ID, parentId: 'br-parent', connectionUri: URI }),
     ).toThrow(/did not create it/)
   })
 
@@ -205,6 +209,7 @@ describe('assertDisposableTestBranch', () => {
     expect(() =>
       assertDisposableTestBranch({
         id: branch.id,
+        parentId: branch.parentId,
         connectionUri: 'postgresql://u:p@ep-production.neon.tech/neondb',
       }),
     ).toThrow(/not the one neonctl returned/)
