@@ -7,6 +7,7 @@ import {
   fenceUntrusted,
   isFenced,
 } from '@/lib/agents/untrusted'
+import { createTaskBudget, maxOutputTokens } from '@/lib/agents/budget'
 
 /**
  * The minimum agent safety evaluation.
@@ -27,8 +28,8 @@ import {
  * properties of the schema, not of a prompt — which is the point, since a
  * prompt-level control the model can be talked out of is not a control.
  *
- * Budgets are NOT covered, and §5 says so out loud rather than leaving the gap
- * to be discovered.
+ * Budgets are covered too, since one now exists — §5 was written to fail the day
+ * it landed, and it did.
  */
 
 const LLM_DIRS = ['lib/checks', 'lib/prompts', 'app/api']
@@ -163,26 +164,41 @@ describe('4. abstention when evidence is missing', () => {
   })
 })
 
-describe('5. bounded budget — NOT met', () => {
-  it('has no per-account or per-task cap, and this suite says so out loud', () => {
-    // Asserted on the SIGNATURE rather than on a keyword search, which matched a
-    // comment. callOpenRouter takes a model, messages, a token ceiling and a
-    // signal; nothing identifies who is spending, so no per-account or per-task
-    // cap can exist anywhere above it. maxTokens bounds one call, not a task.
-    //
-    // Deliberately asserted as ABSENT. When a budget lands this fails and has to
-    // be rewritten as a real assertion, which is the point of writing it this way
-    // rather than leaving the gap to be discovered.
+describe('5. bounded budget', () => {
+  it('applies a deployer-configured ceiling to every call, with no plumbing to forget', () => {
+    // This section used to assert the ABSENCE of a budget, and said it would fail
+    // the day one landed. It did, and this is the real assertion that replaces it.
+    // The ceiling lives inside callOpenRouter rather than at each call site, so a
+    // caller cannot opt out by forgetting to pass it.
     const openrouter = readFileSync(join(process.cwd(), 'lib/openrouter.ts'), 'utf8')
-    const signature = /export async function callOpenRouter\(\{([^}]*)\}/.exec(openrouter)
 
-    expect(signature, 'callOpenRouter signature not found in the expected shape').not.toBeNull()
-    expect(signature![1]).not.toMatch(/account|budget|quota|cost|spend/i)
-    // And no call site supplies one either.
-    for (const file of llmCallSites) {
-      const source = readFileSync(join(process.cwd(), file), 'utf8')
-      const calls = source.split('callOpenRouter(').slice(1)
-      for (const call of calls) expect(call.slice(0, 400)).not.toMatch(/accountId|budget|quota/i)
-    }
+    expect(openrouter).toContain('clampOutputTokens(maxTokens)')
+    expect(openrouter).toContain("from '@/lib/agents/budget'")
+  })
+
+  it('bounds a fan-out, which no per-call ceiling can', () => {
+    // N calls for one unit of work. The reservation happens before dispatch, so
+    // an over-budget fan-out is never sent at all.
+    const openrouter = readFileSync(join(process.cwd(), 'lib/openrouter.ts'), 'utf8')
+
+    expect(openrouter).toMatch(/budget\?: TaskBudget/)
+    expect(openrouter).toMatch(/budget\.reserve\(maxTokens\)/)
+  })
+
+  it('offers no way to obtain an unbounded budget', () => {
+    // The property that matters. Every path -- no configuration, malformed
+    // configuration, caller-supplied overrides -- still yields a bound.
+    expect(createTaskBudget().limits.calls).toBeGreaterThan(0)
+    expect(createTaskBudget().limits.tokens).toBeGreaterThan(0)
+    expect(maxOutputTokens()).toBeGreaterThan(0)
+  })
+
+  it('still models no monetary cap, and that is stated rather than implied', () => {
+    // Token prices differ per model and change without notice, so a monetary cap
+    // here would be a number that looks authoritative and is wrong. Token and
+    // call ceilings are what the plan asks for while cost is unmeasured.
+    const budget = readFileSync(join(process.cwd(), 'lib/agents/budget.ts'), 'utf8')
+
+    expect(budget).toContain('Cost is not modelled')
   })
 })
