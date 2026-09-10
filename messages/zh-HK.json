@@ -925,7 +925,8 @@
     "toggle_navigation": "切換工作區導覽",
     "entity": "品牌識別資料",
     "observations": "觀察",
-    "opportunities": "改善機會"
+    "opportunities": "改善機會",
+    "sources": "已核准的資料"
   },
   "reports": {
     "create_client_report": "建立客戶報告",
@@ -1927,6 +1928,118 @@
       "regressed": "此檢查項目向差的方向改變。",
       "not_yet_observed": "此時段暫未觀察到任何結果。",
       "cannot_determine": "根據這些紀錄無法判斷變化。"
+    }
+  },
+  "sources": {
+    "title": "已核准的資料",
+    "summary": "草稿只可引用這裡的文字。答案會按這裡的原文使用，並註明版本，不會改寫。",
+    "notConnected": "這些是匯入，不是連線。每個版本只是匯入當日文字的副本，之後不會再讀取原本來源 —— 所以不存在「同步落後」，亦沒有會斷開的即時連結。",
+    "gate": "必須同時符合三項條件才會被引用：版本已核准、已允許代理使用、而且未被撤回。只開啟其中一項而其餘未符合，是不會有任何作用的。",
+    "untrusted": "匯入的文字只會當作資料儲存及使用。無論內容寫甚麼，系統都不會把它當作指令執行。",
+    "counts": {
+      "inUse": "使用中",
+      "awaitingApproval": "待核准",
+      "notPermitted": "未允許代理使用",
+      "revoked": "已撤回",
+      "staleInUse": "使用中而且匯入已超過",
+      "days": "日"
+    },
+    "usability": {
+      "in-use": "使用中",
+      "awaiting-approval": "未核准",
+      "not-permitted": "未允許代理使用",
+      "revoked": "已撤回"
+    },
+    "why": {
+      "in-use": "草稿可以引用，並會註明這個確實版本。",
+      "awaiting-approval": "已匯入但從未核准，所以不會被引用。請重新匯入這段文字並核准，才會生效。",
+      "not-permitted": "已核准，但代理使用已關閉，所以不會被引用。",
+      "revoked": "已撤回，不會再被引用。仍然保留在列表，讓曾經引用過它的草稿可以追溯。"
+    },
+    "provenance": {
+      "heading": "來源記錄",
+      "imported": "匯入於",
+      "daysAgo": "日前",
+      "method": "匯入方式",
+      "paste": "直接輸入",
+      "csv": "上載 CSV",
+      "origin": "來源備註",
+      "noOrigin": "未記錄來源",
+      "originNote": "這是匯入者自己填寫的備註，系統不會前往讀取。",
+      "version": "版本",
+      "hash": "內容雜湊值",
+      "entries": "條問答",
+      "none": "這項資料尚未匯入任何內容。"
+    },
+    "freshness": {
+      "current": "仍然適時",
+      "stale": "年期較舊",
+      "staleNote": "已超過下列年期。年期不會阻止資料被引用 —— 如果內容已有改變，請重新匯入。",
+      "threshold": "超過此日數即視為舊："
+    },
+    "states": {
+      "empty": "尚未匯入任何資料。在匯入之前，草稿沒有已核准的內容可以引用，它會如實說明，而不會自行猜測。",
+      "error": "無法載入資料列表。系統未作任何更改。"
+    },
+    "actions": {
+      "allow": "允許代理使用",
+      "disallow": "停止代理使用",
+      "revoke": "撤回",
+      "reload": "重新載入",
+      "working": "儲存中⋯",
+      "revokeWarning": "撤回後無法復原。",
+      "failed": "未能儲存。系統未作任何更改。",
+      "saved": "已儲存。",
+      "revoked": "已撤回，不會再被引用。"
+    },
+    "import": {
+      "title": "匯入資料",
+      "summary": "輸入問答配對，或貼上一段含「問題」欄與「答案」欄的 CSV 文字。",
+      "label": "名稱",
+      "key": "代號",
+      "keyHint": "日後匯入同一批資料時，系統會憑代號辨認為新版本。",
+      "kind": "類型",
+      "kinds": {
+        "facts": "品牌資料",
+        "faq": "常見問題"
+      },
+      "method": "方式",
+      "methods": {
+        "paste": "輸入問答",
+        "csv": "CSV 文字"
+      },
+      "origin": "來源備註（可選）",
+      "question": "問題",
+      "answer": "答案",
+      "add": "新增一組問答",
+      "remove": "移除",
+      "csvHint": "第一欄為問題，第二欄為答案。若標題列名為 question 與 answer，該列會被略過。",
+      "approve": "立即核准這個版本",
+      "approveNote": "核准之後草稿才可以引用。單是匯入並不會生效。",
+      "submit": "匯入",
+      "submitting": "匯入中⋯",
+      "created": "已匯入。",
+      "unchanged": "這段文字與現行版本完全相同，因此沒有建立新版本。",
+      "failed": "匯入失敗，未有儲存任何內容。"
+    },
+    "errors": {
+      "SOURCES_BODY_TOO_LARGE": "今次匯入的內容太大，無法一次過提交。請分拆成較小的部分。",
+      "SOURCES_CONFLICT": "這個代號屬於一項已撤回的資料。已撤回的資料不能重新匯入，請改用新的代號。",
+      "SOURCES_INVALID_INPUT": "無法讀取這個請求，未有儲存任何內容。",
+      "SOURCES_NOT_FOUND": "這項資料已不存在。",
+      "SOURCES_UNAUTHENTICATED": "登入狀態已結束，請重新登入。",
+      "SOURCES_UNAVAILABLE": "無法連接資料儲存庫，未有儲存任何內容。",
+      "SOURCE_ANSWER_INVALID": "每個答案必須是文字，長度不可超過 4000 字元。",
+      "SOURCE_CSV_EMPTY": "這個 CSV 沒有可用的資料列。",
+      "SOURCE_CSV_UNTERMINATED_QUOTE": "這個 CSV 有引號未有結束，無法安全讀取。",
+      "SOURCE_ENTRIES_INVALID": "每一組都必須同時有問題和答案。",
+      "SOURCE_ENTRIES_TOO_MANY": "單一項資料最多只可載有 200 組問答。",
+      "SOURCE_IMPORT_METHOD_INVALID": "請選擇文字的匯入方式：直接輸入或 CSV。",
+      "SOURCE_KEY_INVALID": "必須填寫代號，長度不可超過 120 字元。",
+      "SOURCE_KIND_INVALID": "請選擇類型：品牌資料或常見問題。",
+      "SOURCE_LABEL_INVALID": "必須填寫名稱，長度不可超過 160 字元。",
+      "SOURCE_ORIGIN_INVALID": "來源備註必須是文字，長度不可超過 500 字元。",
+      "SOURCE_QUESTION_INVALID": "每個問題必須是文字，長度不可超過 4000 字元。"
     }
   }
 }
