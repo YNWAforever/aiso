@@ -181,4 +181,77 @@ describe('playwright project discovery', () => {
       rmSync(fixtureDir, { recursive: true, force: true })
     }
   }, 60_000)
+
+  // AC-14's authenticated project was verified "in both directions" once, by
+  // hand, and then pinned only by two `toContain` greps over playwright.config.ts
+  // in __tests__/config/authenticated-e2e.test.ts. Those greps target the line
+  // that DEFINES the gate, not the line that USES it, so replacing
+  // `...(authenticatedConfigured ? [...] : [])` with an unconditional spread --
+  // deleting the gate outright -- leaves them both green. The two tests below
+  // ask Playwright instead, which is the only thing that can see it.
+  //
+  // Neither needs a session. storageState is read when a browser context is
+  // created, never during --list, so a stub file is enough to flip the gate.
+  // Only EXECUTING the journey needs a real capture, and that stays manual.
+  const withStubSession = (run: (statePath: string) => void): void => {
+    const dir = mkdtempSync(join(tmpdir(), 'playwright-auth-state-'))
+    const statePath = join(dir, 'owner-state.json')
+    writeFileSync(statePath, JSON.stringify({ cookies: [], origins: [] }))
+    try {
+      run(statePath)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }
+
+  it('adds authenticated-mobile only when a captured session exists', () => {
+    const names = (report: PlaywrightListReport): string[] =>
+      (report.config?.projects ?? []).map(project => project.name)
+
+    // Pointed at a path that does not exist: the project must be absent. Without
+    // the gate Playwright resolves the spec anyway and then dies at run time with
+    // "Error reading storage state from .auth/owner-state.json: ENOENT" on every
+    // test -- a broken suite rather than an unconfigured one, on every machine
+    // that never captured a session, CI included.
+    const absent = names(listAllProjects({
+      PLAYWRIGHT_STORAGE_STATE: join(tmpdir(), 'playwright-auth-state-absent', 'nope.json'),
+    }))
+    expect(absent).not.toContain('authenticated-mobile')
+
+    withStubSession(statePath => {
+      const present = names(listAllProjects({ PLAYWRIGHT_STORAGE_STATE: statePath }))
+      expect(present).toContain('authenticated-mobile')
+
+      // The gate must add a project, not rearrange the suite: every other
+      // project has to survive its arrival unchanged, which is what "CI is
+      // untouched" means when it is a claim rather than a hope.
+      expect(present.filter(name => name !== 'authenticated-mobile')).toEqual(absent)
+    })
+  }, 120_000)
+
+  it('resolves the authenticated journey to real specs, so deleting them fails here', () => {
+    // Without this, tests/e2e/authenticated/ could be emptied and every guard in
+    // __tests__/config/authenticated-e2e.test.ts would still pass: none of them
+    // opens a path under tests/e2e/. The gate would be green assertions around
+    // an empty directory -- the exact "rots into decoration" outcome its own
+    // header says it prevents.
+    withStubSession(statePath => {
+      const report = listAllProjects({ PLAYWRIGHT_STORAGE_STATE: statePath })
+      const counts = countByProject(report)
+      const files = filesByProject(report)
+
+      expect(counts['authenticated-mobile'] ?? 0).toBeGreaterThan(0)
+      expect([...(files['authenticated-mobile'] ?? [])].every(f => f.includes('tests/e2e/authenticated/'))).toBe(true)
+
+      // And it stays exclusive: a sessionless project picking these up would
+      // fail for want of a cookie, which teaches nothing about the page it names.
+      for (const [project, discovered] of Object.entries(files)) {
+        if (project === 'authenticated-mobile') continue
+        expect(
+          [...discovered].some(f => f.includes('tests/e2e/authenticated/')),
+          `${project} discovered an authenticated spec but carries no session`,
+        ).toBe(false)
+      }
+    })
+  }, 120_000)
 })

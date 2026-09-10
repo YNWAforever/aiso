@@ -80,10 +80,63 @@ test.describe('the owner journey on a phone', () => {
     await page.goto(`/en/dashboard/${clientId}/work-items/${items[0].id}/versions`)
     await expect(page.getByRole('main')).toBeVisible({ timeout: 15_000 })
 
-    // The decision controls must be present and reachable at this width. Whether
-    // this session may USE them is a separation-of-duties question the server
-    // answers; reachability is what AC-14 asks about.
-    expect(await page.getByRole('button').count(), 'the version surface rendered no controls').toBeGreaterThan(0)
-    await expect(page.locator('[role="status"]')).toHaveCount(1)
+    // Counting buttons here proved nothing. VersionWorkspace seeds `selected`
+    // from an `initialVersion` prop the page never passes, and it has no effect
+    // that auto-selects — so on first paint the whole `{selected && (…)}` block,
+    // decision controls included, is absent. "Submit saved version", "Reload
+    // draft" and "Reload history" satisfied a `count() > 0` on their own, and the
+    // comment above it claimed the decision controls were reachable while
+    // checking nothing of the sort. The history list has to be clicked.
+    const versions = page.getByRole('button', { name: /^Version \d+ ·/ })
+    expect(
+      await versions.count(),
+      'No submitted version to review. Submit one from the draft, then re-run: AC-14 is about deciding on a real version, and an item with no version renders "No submitted versions." instead.',
+    ).toBeGreaterThan(0)
+
+    await versions.first().click()
+
+    // Opening the detail region is the proof that `selected` is set — this is
+    // what the old assertion silently skipped past.
+    const details = page.getByRole('region', { name: 'Immutable version details' })
+    await expect(details).toBeVisible({ timeout: 15_000 })
+
+    // Now the branch. Both outcomes are correct product states and which one a
+    // captured session lands in cannot be known before a human captures it:
+    // lib/change-sets/store.ts computes can_decide as no-decision AND latest
+    // version AND submitter <> actor AND an active account_approver grant. A
+    // single owner who submitted the version they are looking at gets the denial,
+    // by design — separation of duties is AC-08, and asserting the controls
+    // unconditionally would fail against a correct product.
+    const recordDecision = page.getByRole('button', { name: 'Record decision', exact: true })
+    const denied = page.getByText(
+      'An independent, active account approver must review the latest version.',
+      { exact: false },
+    )
+
+    const canDecide = (await recordDecision.count()) > 0
+    if (!canDecide) {
+      // Not a skip: the page must SAY why, in the words the product uses.
+      await expect(
+        denied,
+        'Neither the decision controls nor the separation-of-duties denial rendered — the version surface is silent about what this owner may do.',
+      ).toBeVisible()
+      return
+    }
+
+    // AC-14's two verbs, on the live page: both options must actually be
+    // offered, and the reason the server requires must be typable.
+    const decision = page.getByLabel('Decision', { exact: true })
+    await expect(decision).toBeVisible()
+    await expect(decision.locator('option[value="approved"]')).toHaveCount(1)
+    await expect(decision.locator('option[value="changes_requested"]')).toHaveCount(1)
+    await expect(page.getByLabel('Review reason', { exact: true })).toBeVisible()
+
+    // Operable by thumb. The sources test's loop covers `button` only, which
+    // excludes exactly these two: the decision is a combobox and the reason a
+    // textbox, so the controls AC-14 is named after were the ones never measured.
+    for (const control of [decision, page.getByLabel('Review reason', { exact: true }), recordDecision]) {
+      const box = await control.boundingBox()
+      if (box) expect(box.height, 'a decision control smaller than a thumb').toBeGreaterThanOrEqual(40)
+    }
   })
 })

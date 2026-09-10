@@ -170,6 +170,27 @@ describe('the gate is reachable and the session is not committable', () => {
     expect(read('scripts/e2e/run-authenticated.mjs')).toContain('process.exit(1)')
   })
 
+  it.each(['e2e:auth:capture', 'e2e:authenticated'] as const)(
+    '%s survives a missing .env.local long enough to say so',
+    script => {
+      // `--env-file` (no suffix) makes Node exit 9 with `node: .env.local: not
+      // found` before the module graph loads, so describeAuthConfig never runs.
+      // .env.local is gitignored, so a fresh clone and every new git worktree
+      // land exactly there — which made the worktree blocker below unreachable
+      // in the one situation it is written for. `--env-file-if-exists` keeps the
+      // file optional and lets the real diagnosis print.
+      expect(scripts[script]).toContain('--env-file-if-exists=.env.local')
+      expect(scripts[script]).not.toContain('--env-file=.env.local')
+    },
+  )
+
+  it('still names the worktree trap it exists to name', () => {
+    // The message this pins is the reason the flag above matters: it is written
+    // for the case where .env.local is absent, and before the flag change it
+    // could not be printed in that case.
+    expect(read('scripts/e2e/auth-config.mjs')).toContain('setting it in another checkout does not set it here')
+  })
+
   it('keeps the captured session out of git', () => {
     // It is a live session. Committing it would be committing a password.
     expect(read('.gitignore')).toMatch(/^\.auth\/$/m)
