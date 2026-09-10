@@ -172,6 +172,34 @@ facts; the route now answers `503 {"error":"Claim unavailable"}`, verified again
 the running server and covered by a unit test. Nothing but a real stack would have
 shown this — every unit test mocks `getProfile` to *return* null rather than throw.
 
-**To unblock AC-14** someone with access needs to supply the four secrets and a
-test account (`PLAYWRIGHT_TEST_EMAIL` / `PLAYWRIGHT_TEST_PASSWORD`). Creating an
-account or entering a password is not something this session will do.
+### Correcting the ask: a password cannot unblock this
+
+An earlier version of this section asked for `PLAYWRIGHT_TEST_EMAIL` and
+`PLAYWRIGHT_TEST_PASSWORD`. **That request was wrong**, and CLAUDE.md:497 is wrong
+for the same reason: this product has **no password sign-in at all**.
+`components/auth/LoginForm.tsx` offers exactly two paths —
+`authClient.signIn.magicLink({ email })` and
+`signIn.social({ provider: 'google' })`. There is no password to supply.
+
+`tests/fixtures/auth.ts` was where that misreading came from. It filled
+`input[type="password"]` on a login page that has no such field, and when the
+password was empty — always — it silently yielded a plain anonymous `page` under
+the name `authenticatedPage`. Nothing imported it, so nothing was broken, but a
+test that had used it would have run logged out while reading as logged in. It now
+throws instead, naming the real path, because a fixture that yields an anonymous
+page turns "we never tested this" into "we tested it and it passed".
+
+**What would actually unblock AC-14**, in order:
+
+1. **Populate the four empty secrets in `.env.local`** — set them in the file
+   directly; they must never be pasted into a chat or a commit. Until then
+   `getProfile()` throws and every authenticated route answers 503.
+2. **Capture a session once, by hand.** For a magic-link/OAuth product the
+   standard approach is Playwright `storageState`: sign in, save the session to a
+   gitignored file, and point a Playwright project at it with
+   `use: { storageState }`. One human login covers every subsequent run.
+3. **Then write the journey spec** — scan → claim → priorities → draft → submit →
+   approve → export → recheck, at 375/390/430px for AC-14.
+
+Steps 1 and 2 need a person: creating an account, receiving a magic link and
+entering credentials are not things this session will do.
