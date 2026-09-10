@@ -65,3 +65,6 @@ tests/e2e/a11y/.observed/
 # Never committed: a FAILING integration report embeds the full Neon DSN,
 # password included, in every assertion message.
 artifacts/
+
+# A captured Playwright session. Live cookies — treat it like a password.
+.auth/

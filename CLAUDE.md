@@ -506,8 +506,18 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 - **`.env.example` is the authoritative list** — it documents every variable and what breaks
   without it.
 - Optional, with fallbacks: `RESEND_FROM_EMAIL`, `WIKIPEDIA_USER_AGENT`
-- E2E only: `BASE_URL`, `START_DEV_SERVER`, `CI`, `PLAYWRIGHT_TEST_EMAIL`,
-  `PLAYWRIGHT_TEST_PASSWORD`
+- E2E only: `BASE_URL`, `START_DEV_SERVER`, `CI`, `PLAYWRIGHT_STORAGE_STATE`.
+  **`PLAYWRIGHT_TEST_EMAIL` and `PLAYWRIGHT_TEST_PASSWORD` are dead, and always
+  were.** This product has no password sign-in — only magic link and Google OAuth —
+  so they could never drive a login, and listing them here is what made an
+  authenticated journey look one variable away. The old `tests/fixtures/auth.ts`
+  filled an `input[type="password"]` that has never existed and, when the password
+  was empty (always), silently handed back an anonymous page named
+  `authenticatedPage`. The authenticated journey now replays a session captured
+  once by a human: `npm run e2e:auth:capture`, then `npm run e2e:authenticated`.
+  The capture opens a browser and waits — it types no credential for anyone. The
+  session lands in gitignored `.auth/`, and the `authenticated-mobile` Playwright
+  project exists only while that file does, so CI is unaffected.
 - **Dead:** `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — read by zero source files; checkout is
   server-side only. `@stripe/stripe-js` is installed but never imported.
 - `CRON_SECRET` — ≥16 chars, read by **four** routes in two header shapes. `cron/pulse` and
