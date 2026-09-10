@@ -1,7 +1,7 @@
 import 'server-only'
 import { db } from '@/lib/db'
 import { retryWrite, versionDTO, versionLocks } from '@/lib/change-sets/store'
-import type { VersionDetail } from '@/lib/change-sets/types'
+import type { ActorSnapshot, VersionDetail } from '@/lib/change-sets/types'
 import { deliveryEventDTO } from './dto'
 import { deliveryId, parseAttest, parseDeliveryQuery, parseWithdraw } from './input'
 import type { AttestInput, DeliveryEvent, DeliveryPage, DeliveryQuery, DeliveryResult, DeliveryScope, WithdrawInput } from './types'
@@ -252,4 +252,45 @@ export async function withdrawDelivery(rawScope: DeliveryScope, rawAttestationId
       return eventResult(results.at(-1)?.[0])
     })
   } catch { unavailable() }
+}
+
+/**
+ * Records that an approved package left the system.
+ *
+ * Both hashes are kept because they answer different questions and need not be
+ * equal: `contentHash` is the approved payload a human signed off, `artifactHash`
+ * identifies the rendered canonical envelope. For the text format the delivered
+ * bytes are a rendering of that same envelope, which is why the format and the
+ * renderer version are stored beside the hash rather than left implied.
+ *
+ * Returns false when nothing was written. The caller fails the export rather than
+ * handing over approved content with no receipt — a 2xx here has to mean the
+ * write happened, and an export nobody can account for is the thing this table
+ * exists to prevent. The composite foreign key is what makes a zero-row result
+ * meaningful: it cannot match a version whose content differs from what was
+ * exported.
+ */
+export async function recordExportEvent(
+  scope: DeliveryScope,
+  input: { contentHash: string; artifactHash: string; format: 'json' | 'text'; rendererVersion: string; actor: ActorSnapshot },
+): Promise<boolean> {
+  const sql = db()
+  const rows = await sql`
+    insert into work_item_export_events (
+      account_id, client_id, work_item_id, version_id, content_hash,
+      artifact_hash, format, renderer_version, actor_id, actor
+    )
+    select ${scope.accountId}::uuid, ${scope.clientId}::uuid, ${scope.itemId}::uuid,
+           ${scope.versionId}::uuid, ${input.contentHash},
+           ${input.artifactHash}, ${input.format}, ${input.rendererVersion},
+           ${scope.actorId}::uuid, ${JSON.stringify(input.actor)}::jsonb
+    where exists (
+      select 1 from work_item_versions v
+      where v.account_id = ${scope.accountId}::uuid and v.client_id = ${scope.clientId}::uuid
+        and v.work_item_id = ${scope.itemId}::uuid and v.id = ${scope.versionId}::uuid
+        and v.content_hash = ${input.contentHash}
+    )
+    returning id
+  `
+  return rows.length > 0
 }

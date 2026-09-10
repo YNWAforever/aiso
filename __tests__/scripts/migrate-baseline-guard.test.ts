@@ -107,6 +107,8 @@ function allRelations() {
     'work_item_versions', 'work_item_decisions', 'account_approver_state', 'account_approver_events',
     // 044 likewise: approved source packs, authored here and applied by the runner.
     'client_sources', 'client_source_versions',
+    // 045: export receipts.
+    'work_item_export_events',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
@@ -266,6 +268,13 @@ it('refuses to baseline 043 when delivery history is absent', () => {
   relations.delete('work_item_delivery_events')
   expect(unappliedBaselineClaims(entries(['043_delivery_attestations.sql']), relations))
     .toEqual([{filename:'043_delivery_attestations.sql',missing:['work_item_delivery_events']}])
+})
+
+it('refuses to baseline 045 when export receipts are absent', () => {
+  const relations = allRelations()
+  relations.delete('work_item_export_events')
+  expect(unappliedBaselineClaims(entries(['045_export_events.sql']), relations))
+    .toEqual([{filename:'045_export_events.sql',missing:['work_item_export_events']}])
 })
 
 it('refuses to baseline 044 when approved source storage is absent', () => {

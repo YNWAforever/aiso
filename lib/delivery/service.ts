@@ -1,9 +1,9 @@
 import 'server-only'
 import { getProfile } from '@/lib/auth'
 import { readLimitedJson } from '@/lib/approvals/request'
-import { createDeliveryExport } from './export'
+import { createDeliveryExport, EXPORT_RENDERER_VERSION } from './export'
 import { deliveryId, parseAttest, parseDeliveryQuery, parseExportFormat, parseWithdraw } from './input'
-import { attestDelivery, readDelivery, readDeliveryVersion, withdrawDelivery } from './store'
+import { attestDelivery, readDelivery, readDeliveryVersion, recordExportEvent, withdrawDelivery } from './store'
 import type { DeliveryResult, DeliveryScope } from './types'
 
 const headers = { 'Cache-Control': 'no-store' }
@@ -64,6 +64,27 @@ export async function exportAuthenticatedDelivery(clientId: string, itemId: stri
       throw new DeliveryServiceError(error instanceof Error && error.message === 'DELIVERY_NOT_APPROVED'
         ? 'DELIVERY_NOT_APPROVED' : 'DELIVERY_VALIDATION_FAILED')
     }
+    // Record the receipt BEFORE handing the bytes over. The artifact hash used to
+    // be computed, returned in a header and discarded, so nothing recorded that an
+    // approved package had left the system. A failure here fails the export: a 2xx
+    // must mean the write happened, and approved content leaving with no receipt
+    // is exactly what this prevents.
+    let recorded: boolean
+    try {
+      recorded = await recordExportEvent(scope, {
+        contentHash: result.value.contentHash,
+        artifactHash: artifact.exportHash,
+        format,
+        rendererVersion: EXPORT_RENDERER_VERSION,
+        // The DOWNLOADER, not the submitter. 045 ties actor->>'profileId' to
+        // actor_id, so naming the submitter here would both misattribute the
+        // download and fail the constraint whenever the two differ.
+        actor: { profileId: scope.actorId, displayName: null, role: 'account_member' },
+      })
+    } catch { throw new DeliveryServiceError('DELIVERY_UNAVAILABLE') }
+    // Zero rows means the version no longer matches the payload we just rendered.
+    if (!recorded) throw new DeliveryServiceError('DELIVERY_CONFLICT')
+
     return new Response(artifact.body, { headers: {
       ...headers,
       'Content-Type': artifact.contentType,

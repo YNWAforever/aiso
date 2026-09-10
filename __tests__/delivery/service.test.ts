@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { approvedVersion, attestInput, eventRow, ID, ACTOR_ID, VERSION_ID, REQUEST_ID } from './fixtures'
 import { deliveryEventDTO } from '@/lib/delivery/dto'
 vi.mock('server-only', () => ({}))
-const mocks = vi.hoisted(() => ({profile:vi.fn(),readVersion:vi.fn(),read:vi.fn(),attest:vi.fn(),withdraw:vi.fn()}))
+const mocks = vi.hoisted(() => ({profile:vi.fn(),readVersion:vi.fn(),read:vi.fn(),attest:vi.fn(),withdraw:vi.fn(),recordExport:vi.fn()}))
 vi.mock('@/lib/auth', () => ({getProfile:mocks.profile}))
-vi.mock('@/lib/delivery/store', () => ({readDeliveryVersion:mocks.readVersion,readDelivery:mocks.read,attestDelivery:mocks.attest,withdrawDelivery:mocks.withdraw}))
+vi.mock('@/lib/delivery/store', () => ({readDeliveryVersion:mocks.readVersion,readDelivery:mocks.read,attestDelivery:mocks.attest,withdrawDelivery:mocks.withdraw,recordExportEvent:mocks.recordExport}))
 import { exportAuthenticatedDelivery, listAuthenticatedDelivery, attestAuthenticatedDelivery, withdrawAuthenticatedDelivery } from '@/lib/delivery/service'
 const accountId='123e4567-e89b-42d3-a456-426614174004'
 const clientId=REQUEST_ID, itemId=ID, versionId=VERSION_ID
@@ -28,6 +28,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.profile.mockResolvedValue({id:ACTOR_ID,account_id:accountId,is_admin:true})
   mocks.readVersion.mockResolvedValue({kind:'replayed',value:approvedVersion()})
+  mocks.recordExport.mockResolvedValue(true)
   mocks.read.mockResolvedValue({kind:'replayed',value:page})
   mocks.attest.mockResolvedValue({kind:'created',value:event})
   mocks.withdraw.mockResolvedValue({kind:'created',value:event})
@@ -77,6 +78,35 @@ it('unwraps list history and preserves precision without invoking mutations', as
   expect(mocks.read).toHaveBeenCalledWith(scope,{limit:10,cursor:null})
   expect(mocks.attest).not.toHaveBeenCalled(); expect(mocks.withdraw).not.toHaveBeenCalled()
 })
+it('records an export receipt carrying both hashes before releasing the bytes', async () => {
+  const response = await exportAuthenticatedDelivery(clientId, itemId, versionId, new URLSearchParams())
+
+  expect(response.status).toBe(200)
+  expect(mocks.recordExport).toHaveBeenCalledOnce()
+  const [scopeArg, input] = mocks.recordExport.mock.calls[0]!
+  expect(scopeArg).toMatchObject({accountId, clientId, itemId, versionId, actorId: ACTOR_ID})
+  // The approved payload hash and the rendered artifact hash are different facts
+  // and are recorded separately; requiring them to be equal would be wrong.
+  expect(input.contentHash).toBe(approvedVersion().contentHash)
+  expect(input.artifactHash).toBe(response.headers.get('x-aiso-export-sha256'))
+  expect(input.artifactHash).not.toBe(input.contentHash)
+  expect(input.rendererVersion).toBe('delivery-export.v1')
+  // The downloader, not the submitter. Migration 045 ties actor.profileId to
+  // actor_id, so recording the submitter would misattribute the download and
+  // break the constraint whenever the two people differ.
+  expect(input.actor).toEqual({profileId: ACTOR_ID, displayName: null, role: 'account_member'})
+})
+
+it('fails the export rather than releasing approved content with no receipt', async () => {
+  // A write that did not land must not be reported as success, and approved
+  // content leaving unrecorded is the thing the receipt exists to prevent.
+  mocks.recordExport.mockResolvedValueOnce(false)
+  await error(await exportAuthenticatedDelivery(clientId, itemId, versionId, new URLSearchParams()), 409, 'DELIVERY_CONFLICT')
+
+  mocks.recordExport.mockRejectedValueOnce(new Error('connection lost'))
+  await error(await exportAuthenticatedDelivery(clientId, itemId, versionId, new URLSearchParams()), 503, 'DELIVERY_UNAVAILABLE')
+})
+
 it.each(['json','text'] as const)('returns immutable %s attachment without creating an event', async format => {
   const response=await exportAuthenticatedDelivery(clientId,itemId,versionId,new URLSearchParams({format}))
   expect(response.status).toBe(200)

@@ -9,6 +9,8 @@ import { deliveryHash, deliveryId, deliveryTime } from './input'
 import { parseReviewDecision } from '@/lib/approvals/input'
 import type { ExportArtifact } from './types'
 
+/** Named so an export receipt records which renderer produced its artifact hash. */
+export const EXPORT_RENDERER_VERSION = 'delivery-export.v1'
 const LIMITATION = 'delivery-export.v1: This is a retained approved review package. Export does not attest delivery, verify publication, or demonstrate measured impact.'
 function invalid(): never { throw new Error('DELIVERY_VALIDATION_FAILED') }
 function canonical(value: unknown): unknown {
