@@ -257,6 +257,11 @@ export function LocalTrustStep({ lang, clientId, features, profile, snapshot, ac
           scoreLabel: t('local_trust_score'),
           estimateLabel: t('local_trust_timeline_estimate'),
           noEstimate: t('local_trust_timeline_no_estimate'),
+          // `.raw` rather than `t()`: the basis line carries ICU arguments whose
+          // values differ per snapshot, and copy is passed once for the whole
+          // list. RoiTimeline fills the placeholders itself.
+          basis: t.raw('local_trust_timeline_basis') as string,
+          limitation: t.raw('local_trust_timeline_limitation') as string,
         }}
       />
       {features.local_trust_competitors ? (

@@ -237,6 +237,49 @@ describe('GET local-trust/export', () => {
     expect(storeMocks.getOrCreateLocalTrustSnapshot).not.toHaveBeenCalled()
   })
 
+  it('exports the money with its currency and its basis, never bare', async () => {
+    // Every other export test passes roi_estimate: null, so the money path in the
+    // CSV was entirely uncovered. It is the highest-risk surface in the feature:
+    // a spreadsheet row reading "Estimated Value Low,1600" with no currency and
+    // no basis travels away from the panel that qualifies it and reads as a
+    // measured result.
+    nextResults = [[], [{ platform: null }], []]
+    storeMocks.getOrCreateLocalTrustSnapshot.mockResolvedValue({
+      snapshot: {
+        local_trust_score: 70,
+        snapshot_month: '2026-01',
+        roi_estimate: {
+          low: 1600,
+          high: 3200,
+          currency: 'HKD',
+          confidence: 'directional',
+          assumptions: {
+            averageLeadValue: 8000,
+            closeRate: 0.2,
+            estimatedExtraEnquiriesLow: 1,
+            estimatedExtraEnquiriesHigh: 2,
+          },
+        },
+      },
+      actions: [],
+    })
+
+    const res = await GET(
+      new Request('http://localhost'),
+      { params: Promise.resolve({ clientId: 'client-1' }) },
+    )
+    const csv = await res.text()
+
+    expect(res.status).toBe(200)
+    expect(csv).toContain('Estimated Value Low,1600')
+    expect(csv).toContain('Currency,HKD')
+    expect(csv).toContain('Assumed Average Lead Value,8000')
+    expect(csv).toContain('Assumed Close Rate,0.2')
+    expect(csv).toContain('Assumed Extra Enquiries Low,1')
+    expect(csv).toContain('Assumed Extra Enquiries High,2')
+    expect(csv).toContain('not an observed or measured result')
+  })
+
   it('sanitises the client id in the download filename', async () => {
     nextResults = [[], [{ platform: null }], []]
     storeMocks.getOrCreateLocalTrustSnapshot.mockResolvedValue({
