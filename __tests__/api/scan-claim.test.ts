@@ -45,15 +45,36 @@ describe('POST /api/scans/[id]/claim', () => {
     process.env.REPORT_SHARE_SECRET = 'x'.repeat(32)
   })
 
-  it('claims an unowned scan after authentication when the intent cookie is absent', async () => {
+  it('claims an unowned scan when a matching intent cookie is present', async () => {
     nextResults = [[{ id: 'scan-1' }]]
 
-    const response = await claim()
+    const response = await claim('scan-1', claimIntent())
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ ok: true, alreadyOwned: false })
     expect(getProfileMock).toHaveBeenCalledOnce()
     expect(mockSql).toHaveBeenCalledOnce()
+  })
+
+  // The absent-cookie case used to be the permissive one: verification ran only
+  // `if (token)`, so sending no cookie skipped it and the scan was claimed. That
+  // is foreign-scan takeover by omission, so it is now asserted as a denial.
+  it('denies a claim when the intent cookie is absent, without querying', async () => {
+    const response = await claim()
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'Claim unavailable' })
+    expect(mockSql).not.toHaveBeenCalled()
+  })
+
+  it('denies an authenticated user claiming a foreign scan they hold no intent for', async () => {
+    // The attacker holds a legitimate intent for their own scan-1 and aims it at
+    // someone else's scan-2. The scan id is bound into the signature, so the
+    // token cannot be retargeted.
+    const response = await claim('scan-2', claimIntent('scan-1'))
+
+    expect(response.status).toBe(403)
+    expect(mockSql).not.toHaveBeenCalled()
   })
 
   it('returns a fixed response without querying when the intent cookie is tampered', async () => {

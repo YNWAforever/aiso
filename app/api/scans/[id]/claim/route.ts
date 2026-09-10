@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProfile } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { CLAIM_INTENT_COOKIE, verifyScanClaimIntent } from '@/lib/security/scan-claim-intent'
+import { CLAIM_INTENT_COOKIE, isAuthorizedScanClaim } from '@/lib/security/scan-claim-intent'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,17 +50,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const profile = await getProfile()
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const token = req.cookies.get(CLAIM_INTENT_COOKIE)?.value
-  if (token) {
-    // No try/catch needed: verifyScanClaimIntent swallows its own failures —
-    // including a missing or too-short REPORT_SHARE_SECRET — and returns null,
-    // so a misconfigured deploy degrades to claimUnavailable() rather than
-    // crashing. Covered by a test, so a future refactor that starts throwing
-    // out of it does not silently become an unhandled 500.
-    const intent = verifyScanClaimIntent(token)
-    const expectedReturnPath = intent ? `/${intent.lang}/result/${encodeURIComponent(id)}?claim=1` : ''
-    if (!intent || intent.scanId !== id || intent.returnPath !== expectedReturnPath) return claimUnavailable()
-  }
+  // Mandatory, not conditional. This check used to run only `if (token)`, so
+  // omitting the cookie skipped it entirely and any authenticated session could
+  // claim any unowned scan id. isAuthorizedScanClaim treats an absent token as a
+  // denial and swallows its own verification failures, so a misconfigured deploy
+  // degrades to claimUnavailable() rather than crashing.
+  if (!isAuthorizedScanClaim(req.cookies.get(CLAIM_INTENT_COOKIE)?.value, id)) return claimUnavailable()
 
   const result = await claimScanForAccount(id, profile.account_id)
   if (result.status === 'error') return NextResponse.json({ error: 'Failed to claim scan' }, { status: 500 })

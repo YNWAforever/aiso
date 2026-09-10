@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { PillarScoreCards } from '@/components/PillarScoreCards'
+import { getCheckExplanations } from '@/lib/checkExplanations'
 import type { WorkspaceHome as HomeDto } from '@/lib/view-models/workspace-home'
 import en from '@/messages/en.json'
 import zhHK from '@/messages/zh-HK.json'
@@ -21,6 +22,9 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
   }
   const health = workspace.siteHealth.data
   const visibility = workspace.visibility.data
+  const priorities = workspace.priorities
+  const pcopy = copy.priorities
+  const explanations = getCheckExplanations(lang)
   return <main className="mx-auto w-full min-w-0 max-w-6xl break-words px-4 py-8 sm:px-6">
     <header className="mb-8">
       <p className="text-sm font-semibold text-primary">{copy.title}</p>
@@ -28,6 +32,31 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
       <p className="mt-2 text-sm text-dash-muted">{workspace.client.domain}</p>
       <p className="mt-4 max-w-3xl text-sm leading-relaxed text-dash-muted">{copy.summary}</p>
     </header>
+    <section aria-labelledby="priorities-heading" className="mb-8 min-w-0 rounded-xl border border-dash-border bg-dash-surface p-5 sm:p-6">
+      <h2 id="priorities-heading" className="text-xl font-bold text-dash-text">{pcopy.title}</h2>
+      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-dash-muted">{pcopy.summary}</p>
+      {priorities.state === 'ready'
+        ? <>
+            <ol className="mt-5 space-y-4">
+              {priorities.priorities.map((priority, index) => {
+                const explanation = explanations[priority.checkKey]
+                return <li key={priority.checkKey} className="border-b border-dash-border pb-4 last:border-0">
+                  {index === 0 && <p className="text-xs font-semibold text-primary">{pcopy.primary}</p>}
+                  <p className="mt-1 text-sm font-semibold text-dash-text">{explanation?.question ?? priority.checkKey}</p>
+                  {explanation && <p className="mt-2 text-sm leading-relaxed text-dash-muted">{explanation.fix[priority.assessment]}</p>}
+                  <p className="mt-2 text-xs text-dash-muted">{priority.pointsAtStake} {pcopy.pointsAtStake}</p>
+                </li>
+              })}
+            </ol>
+            <p className="mt-4 text-xs text-dash-muted">{pcopy.showing} {priorities.priorities.length} {pcopy.of} {priorities.observedFindings} {pcopy.findings}</p>
+            {health && <Link className={linkClass} href={`${base}?step=results&scanId=${encodeURIComponent(health.scanId)}`}>{pcopy.openResults}</Link>}
+          </>
+        : <p className="mt-5 max-w-3xl text-sm leading-relaxed text-dash-muted">{pcopy.states[priorities.state]}</p>}
+      {priorities.needsEvidence.length > 0 && <div className="mt-5 border-t border-dash-border pt-4">
+        <p className="text-sm font-semibold text-dash-text">{pcopy.needsEvidence} ({priorities.needsEvidence.length})</p>
+        <p className="mt-1 max-w-3xl text-xs leading-relaxed text-dash-muted">{pcopy.needsEvidenceNote}</p>
+      </div>}
+    </section>
     <div className="grid min-w-0 gap-5 xl:grid-cols-2">
       {panel(copy.siteHealth, workspace.siteHealth, health && <>
         <p className="text-sm text-dash-muted">{copy.score}</p>

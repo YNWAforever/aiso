@@ -1,3 +1,14 @@
+// The three probes against `clean` — a hostname derived from a caller-supplied
+// domain — must cross the SSRF boundary: a bare fetch has no DNS pinning, and
+// the last one asked for redirect:'follow', so a 302 to 169.254.169.254 landed
+// unvalidated. The Wikipedia and Tranco calls target constant API hosts and
+// carry the domain only in the path, so they stay on the global fetch.
+import { createPublicUrlFetcher, fetchPublicUrl } from '@/lib/security/public-url'
+
+// Rejects a redirect that downgrades to http, so reaching a response is itself
+// the httpsEnforced signal. See the call site for why res.url cannot serve.
+const httpsOnlyFetch = createPublicUrlFetcher({ allowedProtocols: ['https:'] })
+
 const WIKIPEDIA_API = 'https://en.wikipedia.org/api/rest_v1'
 const TRANCO_API = 'https://tranco-list.eu/api/ranks/domain'
 // `?.trim() ||`, not `??`: nullish coalescing keeps '', which a deploy
@@ -62,20 +73,28 @@ export async function scoreLayer2(domain: string): Promise<SignalResult> {
 
   // About page (0.25 pts)
   try {
-    const res = await fetch(`https://${clean}/about`, { signal: AbortSignal.timeout(4000) })
+    const res = await fetchPublicUrl(`https://${clean}/about`, { signal: AbortSignal.timeout(4000) })
     if (res.ok) { signals.hasAboutPage = true; score += 0.25 }
   } catch {}
 
   // Editorial policy (1.0 pt)
   try {
-    const res = await fetch(`https://${clean}/editorial-policy`, { signal: AbortSignal.timeout(4000) })
+    const res = await fetchPublicUrl(`https://${clean}/editorial-policy`, { signal: AbortSignal.timeout(4000) })
     if (res.ok) { signals.hasEditorialPolicy = true; score += 1.0 }
   } catch {}
 
   // HTTPS + author bylines (0.5 + 0.5 pts)
   try {
-    const res = await fetch(`https://${clean}`, { redirect: 'follow', signal: AbortSignal.timeout(6000) })
-    if (res.url.startsWith('https://')) { signals.httpsEnforced = true; score += 0.5 }
+    // This used to read res.url to see whether the redirect chain ended on
+    // https. The guarded fetcher resolves redirects itself and deliberately does
+    // not expose a final URL — its evidence contract is origin-only redaction —
+    // so res.url is '' and that test would silently be false forever. Restricting
+    // the allowed protocol proves the same thing more directly: a downgrade to
+    // http is rejected as an unsafe URL, so a response at all means the whole
+    // chain stayed on https.
+    const res = await httpsOnlyFetch(`https://${clean}`, { signal: AbortSignal.timeout(6000) })
+    signals.httpsEnforced = true
+    score += 0.5
     const html = await res.text()
     if (/itemprop="author"|rel="author"|class="byline"|data-author/.test(html)) {
       signals.hasAuthorBylines = true; score += 0.5

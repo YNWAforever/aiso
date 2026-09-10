@@ -4,6 +4,7 @@ import { getProfile } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { isPromptCategory } from '@/lib/prompts/categories'
 import { claimScanForAccount } from '@/app/api/scans/[id]/claim/route'
+import { CLAIM_INTENT_COOKIE, isAuthorizedScanClaim } from '@/lib/security/scan-claim-intent'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,6 +41,14 @@ export async function POST(req: NextRequest) {
   const accountId = profile.account_id
 
   if (scanId) {
+    // scanId arrives in the request body, so it is caller-supplied and proves
+    // nothing. This is the second claim path into claimScanForAccount and it
+    // used to skip the intent entirely, making it a wider version of the hole
+    // closed in /api/scans/[id]/claim: post any unowned scan id, own it. Same
+    // predicate, same denial.
+    if (!isAuthorizedScanClaim(req.cookies.get(CLAIM_INTENT_COOKIE)?.value, scanId)) {
+      return NextResponse.json({ error: 'Claim unavailable' }, { status: 403 })
+    }
     const claim = await claimScanForAccount(scanId, accountId)
     if (claim.status === 'not-found') return NextResponse.json({ error: 'Scan not found' }, { status: 404 })
     if (claim.status === 'conflict') return NextResponse.json({ error: 'Scan belongs to another account' }, { status: 409 })

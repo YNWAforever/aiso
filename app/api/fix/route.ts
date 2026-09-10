@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { callOpenRouter } from '@/lib/openrouter'
 import { getProfile }     from '@/lib/auth'
 import { db }             from '@/lib/db'
+import { fetchPublicUrl } from '@/lib/security/public-url'
 import type { Scan }      from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -70,7 +71,12 @@ export async function POST(req: NextRequest) {
   let pageTitle = scan.domain
   let metaDescription = ''
   try {
-    const res = await fetch(scan.url, { signal: AbortSignal.timeout(8000) })
+    // scan.url is customer-supplied at scan time, so this is the same blind SSRF
+    // the checks are fenced against: a bare fetch has no DNS pinning and follows
+    // redirects unvalidated, so a host answering 302 -> 169.254.169.254 reaches
+    // link-local space. The body also feeds the prompt below, which makes it an
+    // exfiltration path and not only a request one.
+    const res = await fetchPublicUrl(scan.url, { signal: AbortSignal.timeout(8000) })
     const html = await res.text()
     const t = html.match(/<title[^>]*>([^<]+)<\/title>/i)
     if (t) pageTitle = t[1].trim()

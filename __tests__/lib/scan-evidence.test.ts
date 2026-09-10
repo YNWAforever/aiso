@@ -53,7 +53,10 @@ describe('bounded scan evidence', () => {
     expect(first.completedScope).toBe('single-origin-page')
     expect(first.collection).toBe('complete')
     expect(first.comparisonSignature).toBe(second.comparisonSignature)
-    expect(compareScanEvidence(first,second)).toEqual({comparable:false,reason:'final-path-identity-withheld'})
+    // Both runs fetched exactly https://example.com/ — the page observation's
+    // descriptor redacted no path, query or fragment — so identity is proven
+    // without the envelope ever storing a path. This used to be refused.
+    expect(compareScanEvidence(first,second)).toEqual({comparable:true,reason:null})
     const otherRegion = buildScanEvidence({...input(),checks,observations,region:'HK'})
     expect(compareScanEvidence(first,otherRegion).reason).toBe('different-methods-or-scope')
     expect(readScanEvidence({...first, scannerVersion:'old'})).toBeNull()

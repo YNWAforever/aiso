@@ -131,13 +131,102 @@ export function readScanEvidence(value: unknown): ScanEvidence | null {
     return JSON.stringify(canonical(rebuilt)) === JSON.stringify(canonical(candidate)) ? rebuilt : null
   } catch { return null }
 }
-export function compareScanEvidence(before: unknown, after: unknown) {
-  const a = readScanEvidence(before), b = readScanEvidence(after)
+export type ScanComparisonReason =
+  | 'unknown-evidence' | 'different-methods-or-scope' | 'incomplete-collection' | 'final-path-identity-withheld'
+export type ScanComparison =
+  | { comparable: true; reason: null }
+  | { comparable: false; reason: ScanComparisonReason }
+
+/**
+ * Page identity, established without storing a path.
+ *
+ * `final` describes the page actually fetched, after redirects. Under
+ * `origin-only.v1` its href is never retained — but the three redaction flags
+ * are, and when all of them are false the URL had no path, query or fragment to
+ * redact. It was exactly `origin/`. Two scans whose comparisonSignature already
+ * agrees on finalOrigin, and whose final descriptors both prove the root, fetched
+ * the same page.
+ *
+ * Anything deeper stays withheld: a redacted path could be /en/home on one run
+ * and /zh/home on the next, and the origin alone cannot tell them apart.
+ */
+function provesPageIdentity(url: EvidenceUrl | null): boolean {
+  return url !== null && url.origin !== null
+    && !url.pathRedacted && !url.queryRedacted && !url.fragmentRedacted
+}
+
+function compareEnvelopes(a: ScanEvidence | null, b: ScanEvidence | null): ScanComparison {
   if (!a || !b) return { comparable: false, reason: 'unknown-evidence' }
   if (a.comparisonSignature !== b.comparisonSignature) return { comparable: false, reason: 'different-methods-or-scope' }
-  if ([a,b].some(e => Object.values(e.checks).some(c => c.collection !== 'complete'))) return { comparable: false, reason: 'incomplete-collection' }
-  // v1 deliberately withholds final path identity, even for root targets.
-  return { comparable: false, reason: 'final-path-identity-withheld' }
+  if ([a, b].some(e => Object.values(e.checks).some(c => c.collection !== 'complete'))) return { comparable: false, reason: 'incomplete-collection' }
+  if (!provesPageIdentity(a.final) || !provesPageIdentity(b.final)) return { comparable: false, reason: 'final-path-identity-withheld' }
+  return { comparable: true, reason: null }
+}
+
+export function compareScanEvidence(before: unknown, after: unknown): ScanComparison {
+  return compareEnvelopes(readScanEvidence(before), readScanEvidence(after))
+}
+
+export type ComparisonStatus = 'comparable' | 'partially_comparable' | 'not_comparable' | 'insufficient_evidence'
+export type CheckOutcome = 'improved' | 'unchanged' | 'regressed' | 'cannot_determine'
+export type CheckDelta = { before: EvidenceAssessment; after: EvidenceAssessment; outcome: CheckOutcome }
+export type ScanCheckComparison = {
+  status: ComparisonStatus
+  reason: ScanComparisonReason | null
+  /** Null whenever the verdicts are not safe to read against each other. */
+  checks: Record<EvidenceCheckKey, CheckDelta> | null
+  changed: EvidenceCheckKey[]
+}
+
+// Only these three are ordered. 'not-applicable' and 'not-verifiable' are not
+// worse or better than a verdict — they are the absence of one — so a move
+// involving either is cannot_determine, never an improvement or a regression.
+const ASSESSMENT_RANK: Partial<Record<EvidenceAssessment, number>> = { fail: 0, warn: 1, pass: 2 }
+
+function outcomeFor(before: EvidenceAssessment, after: EvidenceAssessment): CheckOutcome {
+  const from = ASSESSMENT_RANK[before], to = ASSESSMENT_RANK[after]
+  if (from === undefined || to === undefined) return 'cannot_determine'
+  return to > from ? 'improved' : to < from ? 'regressed' : 'unchanged'
+}
+
+/**
+ * A technical recheck: same target, same method, verdict by verdict.
+ *
+ * What is compared is method, target and configuration — never page content. A
+ * page's content is *expected* to differ between a baseline and a recheck, so
+ * requiring before and after to match would make every real improvement look
+ * incomparable. `comparisonSignature` already pins scanner version, all twenty
+ * check versions, headline and pillar method, industry, region, sitemap source
+ * and origins, so an equal signature means the two runs were produced the same way.
+ *
+ * `partially_comparable` is a real answer, not a failure: the verdicts moved and
+ * are worth showing, but the runs cannot be proven to have landed on the same
+ * page, and the caller must say so rather than imply a like-for-like result.
+ * Deltas are withheld entirely when collection was incomplete or the method
+ * differed, because a verdict from a failed collection is not a verdict.
+ */
+export function compareScanChecks(before: unknown, after: unknown): ScanCheckComparison {
+  const a = readScanEvidence(before), b = readScanEvidence(after)
+  const comparison = compareEnvelopes(a, b)
+  if (!comparison.comparable && comparison.reason !== 'final-path-identity-withheld') {
+    return {
+      status: comparison.reason === 'different-methods-or-scope' ? 'not_comparable' : 'insufficient_evidence',
+      reason: comparison.reason,
+      checks: null,
+      changed: [],
+    }
+  }
+  const keys = Object.keys(CHECK_VERSIONS) as EvidenceCheckKey[]
+  const checks = Object.fromEntries(keys.map(key => {
+    const from = a!.checks[key].assessment, to = b!.checks[key].assessment
+    return [key, { before: from, after: to, outcome: outcomeFor(from, to) }]
+  })) as Record<EvidenceCheckKey, CheckDelta>
+  return {
+    status: comparison.comparable ? 'comparable' : 'partially_comparable',
+    reason: comparison.reason,
+    checks,
+    changed: keys.filter(key => checks[key].outcome !== 'unchanged'),
+  }
 }
 
 /** Server-only validation; return a minimal serializable seam for pure diagnostic consumers. */

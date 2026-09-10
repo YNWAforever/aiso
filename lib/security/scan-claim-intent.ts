@@ -46,6 +46,30 @@ export function signScanClaimIntent(input: Omit<ScanClaimIntent, 'exp'>, nowMs =
   return `${encodedPayload}.${signature(payload, claimIntentSecret())}`
 }
 
+/**
+ * The single authority on whether a caller may claim a scan.
+ *
+ * An ABSENT cookie is a denial, never a bypass. The intent is the only thing
+ * tying the caller to a scan they actually ran and saw: it is minted by
+ * /api/scans/[id]/claim-intent, which is rate limited and refuses a scan that
+ * already belongs to an account. Treating "no cookie" as "unconstrained" let any
+ * authenticated session POST any unowned scan id and take a stranger's public
+ * scan, so both claim paths route through this one predicate rather than each
+ * re-deriving the rule.
+ *
+ * A verified email still does not prove website ownership: this authorises
+ * attaching a public scan to a workspace, not privileged control of the domain.
+ */
+export function isAuthorizedScanClaim(token: string | undefined, scanId: string, nowMs = Date.now()): boolean {
+  if (!token) return false
+  // verifyScanClaimIntent swallows its own failures — including a missing or
+  // too-short REPORT_SHARE_SECRET — and returns null, so a misconfigured deploy
+  // denies the claim rather than crashing.
+  const intent = verifyScanClaimIntent(token, nowMs)
+  if (!intent || intent.scanId !== scanId) return false
+  return intent.returnPath === `/${intent.lang}/result/${encodeURIComponent(scanId)}?claim=1`
+}
+
 export function verifyScanClaimIntent(token: string, nowMs = Date.now()): ScanClaimIntent | null {
   const [encodedPayload, encodedSignature, ...rest] = token.split('.')
   if (

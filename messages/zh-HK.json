@@ -1373,7 +1373,24 @@
     "prompts": "問題庫",
     "pricing": "查看方案",
     "openScan": "查看掃描",
-    "status": "網站狀態"
+    "status": "網站狀態",
+    "priorities": {
+      "title": "今日先做這三項",
+      "summary": "按每項問題目前失去的分數排序。只列出今次掃描實際觀察得到的檢查項目。",
+      "primary": "由這項開始",
+      "pointsAtStake": "可取回分數",
+      "showing": "顯示",
+      "of": "項，共",
+      "findings": "項已觀察到的問題",
+      "needsEvidence": "今次掃描未能檢查",
+      "needsEvidenceNote": "這些屬未能取得的資料，不是已發現的問題，亦不會當作不合格計算。",
+      "openResults": "查看證據",
+      "states": {
+        "all-clear": "今次掃描能觀察到的檢查項目全部通過。",
+        "insufficient-evidence": "今次掃描未能取得足夠資料排出優先次序。請重新掃描，或檢查網站是否阻擋自動請求。",
+        "unavailable": "這次掃描早於證據記錄機制，無法如實排出優先次序。請重新掃描以取得重點。"
+      }
+    }
   },
   "portfolio": {
     "title": "你的品牌組合",

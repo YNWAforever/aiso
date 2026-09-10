@@ -4,13 +4,16 @@ import { workspaceHomeFixture } from '../../tests/fixtures/workspace-home'
 import { afterAll, describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { WorkspaceHome } from '@/components/dashboard/WorkspaceHome'
+import { buildOwnerPriorities } from '@/lib/view-models/owner-priorities'
 import type { WorkspaceHome as HomeDto } from '@/lib/view-models/workspace-home'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 
 export const homeFixture = (state: 'ready'|'empty'|'error'|'locked' = 'empty') => {
   const section = { state, data: null, observedAt: null, freshness: 'unknown' as const }
-  return { client: { id: 'client-a', brand_name: 'Example Brand', domain: 'example.com', industry: 'technology', status: 'active' }, siteHealth: section, visibility: section, history: section, recommendations: { ...section, generated: true } } as HomeDto
+  // No evidence envelope in this fixture, so priorities resolve to 'unavailable'
+  // -- the honest answer for a scan whose findings cannot be ranked.
+  return { client: { id: 'client-a', brand_name: 'Example Brand', domain: 'example.com', industry: 'technology', status: 'active' }, priorities: buildOwnerPriorities(null), siteHealth: section, visibility: section, history: section, recommendations: { ...section, generated: true } } as HomeDto
 }
 describe('workspace home presentation', () => {
   it.each(['en','zh-HK'])('renders honest localized empty, error and locked states in %s', lang => {

@@ -1,0 +1,70 @@
+route,kind,gate,account_scoping,service,data_mode,phase1_package,action
+/api/scan,api,getProfile or anonymous+rate-limit,account_id on write; quota by account,lib/checks/* + lib/scan-evidence.ts,observed,A,KEEP
+/api/scans/[id]/claim-intent,api,public + durable rate limit,binds scanId into signed intent,lib/security/scan-claim-intent.ts,observed,A,KEEP
+/api/scans/[id]/claim,api,getProfile + mandatory claim intent,update scans where account_id is null,app/api/scans/[id]/claim/route.ts,observed,A,FIXED-this-session
+/api/onboarding/complete,api,getProfile + mandatory claim intent,profile.account_id,inline SQL + lib/openrouter.ts,observed,B,FIXED-this-session
+/api/fix,api,getProfile + canAccessScan,account_id is null OR = caller,lib/openrouter.ts,observed,A,FIXED-this-session (SSRF)
+/api/fix/cluster-map,api,getProfile,account-scoped,lib/openrouter.ts,observed,DEFER,KEEP
+/api/fix/content-brief,api,getProfile,account-scoped,lib/openrouter.ts,observed,DEFER,KEEP
+/api/fix/rewrite-chunks,api,getProfile,account-scoped,lib/openrouter.ts,observed,DEFER,KEEP
+/api/clients/[clientId]/entity,api,getProfile + owned client,composite FK client_entities,lib/entities/service.ts,observed,C,EXTEND
+/api/clients/[clientId]/observations,api,getProfile + owned client,composite FK,lib/observations/service.ts,observed,DEFER,KEEP
+/api/clients/[clientId]/opportunities,api,getProfile + owned client,composite FK,lib/opportunities/service.ts,observed,D,KEEP
+/api/clients/[clientId]/overview,api,getProfile + owned client,account_id filter,lib/workspace/load-owned-workspace.ts,observed,B,EXTEND
+/api/clients/[clientId]/work-items,api,getProfile + owned client,composite FK evidence_work_items,lib/work-items/service.ts,observed,D,KEEP
+/api/clients/[clientId]/work-items/[workItemId],api,getProfile + owned client,composite FK,lib/work-items/service.ts,observed,D,KEEP
+/api/clients/[clientId]/work-items/[workItemId]/versions,api,getProfile + owned client,composite FK work_item_versions,lib/change-sets/service.ts,observed,D,KEEP
+/api/clients/[clientId]/work-items/[workItemId]/versions/[versionId],api,getProfile + owned client,composite FK,lib/change-sets/service.ts,observed,D,KEEP
+/api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/decision,api,getProfile + approver grant,composite FK + grant_event_id,lib/approvals/decision-store.ts,observed,D,FIX (separation of duties)
+/api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/export,api,getProfile + owned + approved,composite FK + content_hash,lib/delivery/export.ts,observed,E,EXTEND (persist artifact hash)
+/api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/delivery,api,getProfile + owned + approved decision,composite FK to work_item_decisions,lib/delivery/store.ts,observed,E,KEEP
+/api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/delivery/[attestationId]/withdraw,api,getProfile + account member,composite FK to attestation,lib/delivery/store.ts,observed,E,KEEP
+/api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/outcomes,api,getProfile + owned client,composite FK,lib/outcomes/service.ts,observed-but-never-comparable,E,BUILD (comparison adapter)
+/api/clients/[clientId]/reports,api,getProfile inside lib/reports/service.ts,account_id filter in callee,lib/reports/service.ts,observed,DEFER,KEEP
+/api/client-reports/[reportId]/*,api,getProfile inside lib/reports/service.ts,account_id filter in callee,lib/reports/service.ts,observed,DEFER,KEEP
+/api/public/client-reports/[slug]/*,api,signed share slug,slug-scoped snapshot,lib/reports/service.ts,observed,DEFER,KEEP
+/api/report-branding,api,getProfile inside lib/reports/service.ts,account_id filter in callee,lib/reports/branding.ts,observed,C,KEEP
+/api/dashboard/clients,api,getProfile,account_id filter,inline SQL,observed,B,EXTEND
+/api/dashboard/clients/[clientId]/prompts,api,getProfile + owned client,tenancy inside the write,inline SQL,observed,DEFER,KEEP
+/api/dashboard/clients/[clientId]/prompts/[promptId],api,getProfile + owned client,update from clients where account_id,inline SQL,observed,DEFER,KEEP
+/api/dashboard/clients/[clientId]/alerts,api,getProfile + owned client,account_id filter,lib/alerts/neon-store.ts,observed,DEFER,KEEP
+/api/dashboard/clients/[clientId]/local-trust/*,api,lib/localTrust/guard.ts auth-entitlement-ownership,account_id + client ownership,lib/localTrust/store.ts,observed,DEFER,KEEP
+/api/notifications,api,getProfile,account_id filter,lib/alerts/neon-store.ts,observed,F,KEEP
+/api/notifications/read-all,api,getProfile,account_id filter,lib/alerts/neon-store.ts,observed,F,KEEP
+/api/authority/score,api,getProfile,domain-scoped not tenant-scoped,lib/authority/*,observed,A,FIXED-this-session (SSRF)
+/api/authority/score-bulk,api,requireApiAdmin,admin,lib/authority/*,observed,DEFER,KEEP
+/api/authority/diagnostics/[domain],api,requireApiAdmin,admin,lib/authority/*,observed,DEFER,KEEP
+/api/authority/override,api,requireApiAdmin,admin,lib/authority/*,observed,DEFER,KEEP
+/api/admin/clients,api,requireApiAdmin,admin,inline SQL,observed,DEFER,KEEP
+/api/admin/accounts/[accountId]/approvers,api,requireApiAdmin,account_approver_events,lib/approvals/access-store.ts,observed,D,KEEP
+/api/pulse/run,api,x-cron-secret then entitlement then ownership,client resolves the account,lib/pulse/*,observed,DEFER,KEEP
+/api/pulse/suggest-questions,api,getProfile + owned client,account_id filter,lib/openrouter.ts,observed,DEFER,KEEP
+/api/cron/pulse,api,Authorization Bearer CRON_SECRET,none (driver),lib/cron/*,observed,DEFER,KEEP
+/api/cron/evaluate-alerts,api,Bearer or x-cron-secret,per-client,lib/alerts/evaluate.ts,observed,DEFER,KEEP
+/api/cron/trial-emails,api,Authorization Bearer CRON_SECRET,per-account,lib/trial-emails.ts,observed,DEFER,KEEP
+/api/stripe/checkout,api,getProfile,account_id,lib/stripe.ts,observed,DEFER,KEEP
+/api/stripe/portal,api,getProfile,account_id,lib/stripe.ts,observed,DEFER,KEEP
+/api/stripe/webhook,api,Stripe signature,event-scoped,lib/stripe.ts,observed,DEFER,KEEP
+/api/webhooks/neon,api,payload verified against neon_auth.user,per-user,inline SQL,observed,DEFER,KEEP
+/api/auth/[...path],api,public by design (Neon Auth catch-all),n/a,lib/neon-auth.ts,observed,DEFER,KEEP
+/api/funnel-events,api,public + 2KiB cap + rate limit,redacted; no account id,lib/funnel-client.ts,observed,F,EXTEND (durable store + activation events)
+/api/internal/readiness,api,authenticated internal probe,n/a,lib/readiness/*,observed,DEFER,KEEP
+/[lang]/(marketing)/scan,page,public,n/a,/api/scan,observed,A,KEEP
+/[lang]/result/[id],page,public by scan id,lib/result-access.ts,lib/result-evidence.ts,observed,B,KEEP
+/[lang]/onboarding,page,NONE and reads any scan row,none,inline SQL,observed,B,FIX (orphaned + unscoped prefill)
+/[lang]/auth/login,page,public,n/a,lib/auth-client.ts,observed,B,KEEP
+/[lang]/auth/complete,page,client-side session exchange,n/a,components/auth/AuthComplete.tsx,observed,B,KEEP
+/[lang]/dashboard,page,requireAuth via layout,account_id,lib/workspace/load-owned-portfolio.ts,observed,B,EXTEND
+/[lang]/dashboard/[clientId],page,requireAuth + owned client,account_id,lib/view-models/workspace-home.ts,observed,B,EXTEND (three priorities + one next action)
+/[lang]/dashboard/[clientId]/entities,page,requireAuth + owned client,composite FK,lib/entities/service.ts,observed,C,EXTEND
+/[lang]/dashboard/[clientId]/observations,page,requireAuth + owned client,composite FK,lib/observations/service.ts,observed,DEFER,KEEP
+/[lang]/dashboard/[clientId]/opportunities,page,requireAuth + owned client,composite FK,lib/opportunities/service.ts,observed,D,KEEP
+/[lang]/dashboard/[clientId]/work-items/[workItemId]/versions,page,requireAuth + owned client,composite FK,components/change-sets/VersionWorkspace.tsx,observed,D,KEEP
+/[lang]/dashboard/[clientId]/result/[scanId],page,requireAuth + owned client,account_id,lib/result-evidence.ts,observed,A,KEEP
+/[lang]/dashboard/[clientId]/reports/*,page,requireAuth + owned client,account_id,lib/reports/service.ts,observed,DEFER,KEEP
+/[lang]/dashboard/settings,page,requireAuth,account_id,lib/tier.ts,observed,DEFER,KEEP
+/[lang]/pulse/[clientId],page,requireAuth + owned client,account_id,lib/pulse/*,observed,DEFER,KEEP
+/[lang]/r/[slug],page,signed share slug,slug-scoped,lib/reports/service.ts,observed,DEFER,KEEP
+/[lang]/admin/authority,page,requireAdmin per-page,admin,lib/authority/*,observed,DEFER,KEEP
+/admin,page,requireAdmin via app/admin/layout.tsx,admin,inline SQL,observed,DEFER,KEEP
+/admin/accounts/[accountId]/approvers,page,requireAdmin via layout,account_approver_state,lib/approvals/access-service.ts,observed,D,KEEP

@@ -1,5 +1,6 @@
 import { isPillarScoreSnapshot, type PillarScoreSnapshot } from '@/lib/pillar-scores'
 import type { OwnedWorkspace, WorkspaceClient, WorkspaceRead } from '@/lib/workspace/load-owned-workspace'
+import { buildOwnerPriorities, type OwnerPriorities } from '@/lib/view-models/owner-priorities'
 import type { AgentRecommendation, ClientOverview } from '@/lib/types'
 
 export type WorkspaceSection<T> = {
@@ -10,6 +11,13 @@ export type WorkspaceSection<T> = {
 }
 export type WorkspaceHome = {
   client: WorkspaceClient
+  /**
+   * What to do now. Derived from the same stored scan as siteHealth, but from its
+   * evidence rather than its score, so a check nobody could observe never becomes
+   * work to do. Carries its own state, because "nothing to do" and "could not
+   * tell" are different answers and must not render the same way.
+   */
+  priorities: OwnerPriorities
   siteHealth: WorkspaceSection<{ scanId: string; domain: string; score: number; grade: string | null; pillarScores: PillarScoreSnapshot | null }>
   history: WorkspaceSection<ClientOverview['scanHistory']>
   visibility: WorkspaceSection<NonNullable<ClientOverview['pulseKpi']>>
@@ -27,6 +35,10 @@ export function buildWorkspaceHome(workspace: OwnedWorkspace): WorkspaceHome {
   const persisted = row?.results?.pillarScores
   return {
     client: workspace.client,
+    // From the evidence envelope, not the score: an unobservable check must not
+    // become a priority. buildOwnerPriorities returns 'unavailable' for a scan
+    // that predates evidence recording rather than falling back to raw verdicts.
+    priorities: buildOwnerPriorities(row?.results?.evidence),
     siteHealth: section(scan, row ? { scanId: row.id, domain: row.domain, score: row.score, grade: row.grade ?? null,
       pillarScores: isPillarScoreSnapshot(persisted) ? persisted : null } : null, row?.created_at || null),
     history: section(history, history.data.length ? history.data : null, history.data[0]?.created_at || null),

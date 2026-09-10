@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import { readFileSync } from 'node:fs'
+import { CLAIM_INTENT_COOKIE, signScanClaimIntent } from '@/lib/security/scan-claim-intent'
 
 const getProfileMock = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/auth', () => ({ getProfile: getProfileMock }))
@@ -36,11 +37,31 @@ vi.mock('@/lib/openrouter', () => ({
   ),
 }))
 
-function request(body: unknown) {
+/**
+ * Claiming a scan through onboarding requires the same signed claim intent as
+ * /api/scans/[id]/claim: scanId arrives in the request body, so on its own it
+ * proves nothing. A body carrying a scanId therefore gets a matching intent
+ * cookie by default, so these cases keep exercising the claim behaviour they
+ * were written for instead of stopping at the 403. Pass `intent: null` to
+ * exercise the denial itself.
+ */
+function request(body: unknown, options: { intent?: string | null } = {}) {
+  const scanId = (body as { scanId?: string } | null)?.scanId
+  const intent = options.intent === undefined && scanId
+    ? signScanClaimIntent({
+        scanId,
+        lang: 'en',
+        returnPath: `/en/result/${encodeURIComponent(scanId)}?claim=1`,
+        attemptId: 'attempt-1',
+      })
+    : options.intent
   return new NextRequest('http://localhost/api/onboarding/complete', {
     method: 'POST',
     body: JSON.stringify(body),
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(intent ? { Cookie: `${CLAIM_INTENT_COOKIE}=${intent}` } : {}),
+    },
   })
 }
 
@@ -52,6 +73,30 @@ describe('POST /api/onboarding/complete', () => {
     queries.length = 0
     nextResults = []
     getProfileMock.mockResolvedValue({ account_id: 'acc-1' })
+    process.env.REPORT_SHARE_SECRET = 'x'.repeat(32)
+  })
+
+  // The onboarding handler was a second, unguarded way into claimScanForAccount:
+  // it claimed whatever scanId the body carried. An authenticated stranger could
+  // therefore take a public scan they had never run.
+  it('denies a body-supplied scan claim that carries no intent cookie', async () => {
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const res = await POST(request({ brandName: 'TestBrand', scanId: 'scan-1' }, { intent: null }))
+
+    expect(res.status).toBe(403)
+    expect((await res.json()).error).toBe('Claim unavailable')
+    expect(mockSql).not.toHaveBeenCalled()
+  })
+
+  it('denies a body-supplied scan claim whose intent was minted for a different scan', async () => {
+    const foreign = signScanClaimIntent({
+      scanId: 'scan-other', lang: 'en', returnPath: '/en/result/scan-other?claim=1', attemptId: 'attempt-1',
+    })
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+    const res = await POST(request({ brandName: 'TestBrand', scanId: 'scan-1' }, { intent: foreign }))
+
+    expect(res.status).toBe(403)
+    expect(mockSql).not.toHaveBeenCalled()
   })
 
   it('returns 400 when brandName is missing', async () => {
