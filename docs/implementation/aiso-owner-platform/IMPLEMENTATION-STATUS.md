@@ -46,8 +46,9 @@ Full table with evidence in `04-ACCEPTANCE-MATRIX.md`.
 ## Migrations and flags
 
 - No migration is needed to deploy any commit on this branch; none touches a schema.
-- `040`–`043` remain **unapplied** to the AISO development database. `--verify`
-  reports seven missing tables. Purely additive.
+- `040`–`043` were **applied to the AISO development database on 2026-09-10, under
+  explicit approval** — see "Production actions" below. `--verify` now reports all
+  four `all present recorded`, and the ledger moved from 38 to 42.
 - **No feature flag was added.** Both new surfaces are safe unflagged: the Home
   priorities section degrades to an honest `unavailable` state for any scan
   without an evidence envelope, and `compareScanChecks` has no caller in a
@@ -55,10 +56,19 @@ Full table with evidence in `04-ACCEPTANCE-MATRIX.md`.
   `recheck_compare_v1` becomes necessary when the adapter is wired into
   `lib/outcomes`, since that changes a stored contract's output.
 
-## Production actions taken under existing authority
+## Actions taken under explicit authority
 
-**None.** No deployment, no production migration, no billing change, no external
-account connection, no outbound message, no customer-content write.
+**One, approved by the user in session:** `npm run migrate` applied `040`–`043` to
+the AISO **development** database (`weathered-wave-50814522`, branch
+`br-square-mountain-az6f82vi`, synthetic seed — *not* the Vercel-connected
+production project). Four additive migrations, no destructive statements, each in
+its own transaction. Confirmed by `--dry-run` beforehand and `--verify` afterwards;
+the ledger moved 38 → 42 and the seed is intact (1 account, 2 clients).
+
+The branch was also pushed and pull request #21 opened, likewise on approval.
+
+**Still none of:** deployment, production migration, billing change, external
+account connection, outbound message, customer-content write.
 
 Against the persistent AISO **development** database (synthetic seed: 1 account,
 2 clients, 1 scan) every interaction was **read-only**: `scripts/verify-db-connection.mjs`
@@ -72,10 +82,9 @@ same session that ran the statement — before touching anything.
 
 ## Blockers
 
-1. **`npm run migrate` denied by the permission classifier.** Applying `040`–`043` to
-   the development database is the dependency for every remaining Phase 1 slice that
-   touches the owner-loop tables — without those seven tables there is no schema to
-   run a journey against.
+1. ~~`npm run migrate` denied by the permission classifier.~~ **Resolved** — approved
+   and applied. The seven owner-loop tables now exist on the development database, so
+   slices 6–10 and the E2E journey are unblocked.
 2. ~~Integration project not run.~~ **Resolved this session** — `npm test` ran it end
    to end. `neonctl` only prompts interactively when invoked without `NEON_API_KEY`.
    A new finding replaces it: the five suites that prove the owner-loop schema are
@@ -87,22 +96,28 @@ same session that ran the statement — before touching anything.
    fetch rule could not be widened there. The equivalent invariant is enforced by the
    new test instead.
 
-None of these blocked unrelated safe local work — slices 4 and 5 were built and
-tested around them. What they block is *validation of the owner loop end to end*,
-which is why slices 6–10 are sequenced behind them.
+Only the third remains open, and it is cosmetic: the invariant it would enforce is
+already enforced by `__tests__/security/no-unguarded-fetch.test.ts`.
 
 ## Next concrete action
 
-Approve `npm run migrate` against the AISO development database
-(`weathered-wave-50814522`, synthetic seed, not the Vercel-connected production
-project). Four additive migrations, no destructive statements, each in its own
-transaction, recorded in `schema_migrations`, reversible by leaving the unused tables
-in place.
+The migration blocker is cleared, so the next slice needs no further authority.
 
-Slices 4 and 5 are done and did not need it — both are pure logic and render, so
-they were built and unit-tested without a database. What the migration unblocks is
-everything that must touch the owner-loop tables: wiring the comparison adapter
-through `lib/outcomes` (slice 4b), the approved source pack (slice 6), the export
-receipt (slice 7), separation of duties (slice 8), the agent-safety evaluation
-(slice 9), and the telemetry, bilingual and mobile verification that needs a real
-journey to walk (slice 10).
+**Slice 4b — wire the comparison adapter through `lib/outcomes`.** This is the one
+that turns a library capability into something an owner sees. It is deliberately
+sequenced first because `lib/outcomes/dto.ts` re-runs `evaluateOutcomes()` and
+compares field by field, so a new window field has to land in five places at once —
+`types.ts`, `evaluate.ts`, the DTO's key list and validator, the UI, and both message
+catalogues — and `OUTCOME_REASON_CODES` is a closed vocabulary where every entry
+needs localised copy. It also wants the `recheck_compare_v1` flag, because unlike the
+two surfaces shipped here it changes a stored contract's output.
+
+Then, in order: the approved source pack (slice 6, needs migration `044`), the export
+receipt (slice 7, needs `045`), separation of duties (slice 8), the minimum
+agent-safety evaluation (slice 9), and the telemetry, bilingual and mobile
+verification that needs a real journey to walk (slice 10).
+
+Worth doing early and cheaply, independent of all of the above: make the five
+owner-loop integration configs reachable from `npm test`, or at minimum make an
+unconfigured run fail rather than skip. 109 tests currently read as success while
+asserting nothing.
