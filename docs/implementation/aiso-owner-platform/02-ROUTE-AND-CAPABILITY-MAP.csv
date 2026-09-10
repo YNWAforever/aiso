@@ -11,6 +11,8 @@ route,kind,gate,account_scoping,service,data_mode,phase1_package,action
 /api/clients/[clientId]/observations,api,getProfile + owned client,composite FK,lib/observations/service.ts,observed,DEFER,KEEP
 /api/clients/[clientId]/opportunities,api,getProfile + owned client,composite FK,lib/opportunities/service.ts,observed,D,KEEP
 /api/clients/[clientId]/overview,api,getProfile + owned client,account_id filter,lib/workspace/load-owned-workspace.ts,observed,B,EXTEND
+/api/clients/[clientId]/sources,api,getProfile + owned client,composite FK client_sources,lib/sources/service.ts,imported (not connected),C,KEEP
+/api/clients/[clientId]/sources/[sourceId],api,getProfile + owned client,composite FK,lib/sources/service.ts,imported (not connected),C,KEEP
 /api/clients/[clientId]/work-items,api,getProfile + owned client,composite FK evidence_work_items,lib/work-items/service.ts,observed,D,KEEP
 /api/clients/[clientId]/work-items/[workItemId],api,getProfile + owned client,composite FK,lib/work-items/service.ts,observed,D,KEEP
 /api/clients/[clientId]/work-items/[workItemId]/versions,api,getProfile + owned client,composite FK work_item_versions,lib/change-sets/service.ts,observed,D,KEEP
@@ -59,6 +61,7 @@ route,kind,gate,account_scoping,service,data_mode,phase1_package,action
 /[lang]/dashboard/[clientId]/entities,page,requireAuth + owned client,composite FK,lib/entities/service.ts,observed,C,EXTEND
 /[lang]/dashboard/[clientId]/observations,page,requireAuth + owned client,composite FK,lib/observations/service.ts,observed,DEFER,KEEP
 /[lang]/dashboard/[clientId]/opportunities,page,requireAuth + owned client,composite FK,lib/opportunities/service.ts,observed,D,KEEP
+/[lang]/dashboard/[clientId]/sources,page,requireAuth + owned client,composite FK,lib/view-models/source-pack.ts,imported (not connected),C,ADD (provenance + freshness + agent use + revoke)
 /[lang]/dashboard/[clientId]/work-items/[workItemId]/versions,page,requireAuth + owned client,composite FK,components/change-sets/VersionWorkspace.tsx,observed,D,KEEP
 /[lang]/dashboard/[clientId]/result/[scanId],page,requireAuth + owned client,account_id,lib/result-evidence.ts,observed,A,KEEP
 /[lang]/dashboard/[clientId]/reports/*,page,requireAuth + owned client,account_id,lib/reports/service.ts,observed,DEFER,KEEP

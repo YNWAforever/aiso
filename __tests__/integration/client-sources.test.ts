@@ -1,6 +1,18 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, afterAll, beforeEach, vi } from 'vitest'
 import { neon } from '@neondatabase/serverless'
 import { buildSourceContent, hashSourceContent } from '@/lib/sources/schema'
+import { importSource, listSources, listAgentUsableSources, revokeSource, setAgentUse } from '@/lib/sources/store'
+import { buildSourcePack } from '@/lib/view-models/source-pack'
+
+vi.mock('server-only', () => ({}))
+// The store reads through db(); point it at the same provisioned branch the raw
+// assertions below use, so the SQL gate and the projection see one database.
+// The factory imports dynamically because vi.mock is hoisted above this file's
+// own imports, so the top-level `neon` binding is not yet initialised when it runs.
+vi.mock('@/lib/db', async () => {
+  const { neon: connect } = await import('@neondatabase/serverless')
+  return { db: () => connect(process.env.TEST_DATABASE_URL!) }
+})
 
 /**
  * Migration 044's guarantees, against real Postgres.
@@ -205,4 +217,149 @@ describe('approved sources: revocation is a state', () => {
     const rows = await sql`select agent_use_allowed from client_sources where id = ${id}`
     expect(rows[0]!.agent_use_allowed).toBe(false)
   })
+})
+
+/**
+ * The screen and the gate, checked against each other on real Postgres.
+ *
+ * `listAgentUsableSources` is SQL and `buildSourcePack` is TypeScript, so the
+ * two say "a draft may quote this" in different languages and can drift apart
+ * silently. The drift surfaces as an owner-visible lie — a source shown as ready
+ * that nothing will ever cite, or one quietly quoted after being switched off —
+ * so the agreement is asserted rather than assumed.
+ */
+describe('approved sources: the projection agrees with the gate', () => {
+  beforeEach(seed)
+
+  async function scenario() {
+    const clientId = await brand(ACCOUNT, 'Brand')
+    const actor = await profile(ACCOUNT)
+    const scope = { accountId: ACCOUNT, clientId, actorId: actor }
+    const entries = [{ question: 'What are your hours?', answer: '9 to 6' }]
+    const importOne = (sourceKey: string, approve: boolean) =>
+      importSource(scope, { sourceKey, kind: 'facts' as const, label: sourceKey, entries, importMethod: 'paste' as const, originRef: null, approve })
+
+    // One source in each state the gate distinguishes.
+    const usable = await importOne('usable', true)
+    const unapproved = await importOne('unapproved', true)
+    const offSwitch = await importOne('off-switch', true)
+    const revoked = await importOne('revoked', true)
+    for (const result of [usable, unapproved, offSwitch, revoked]) expect(result.kind).toBe('created')
+
+    const idOf = (result: Awaited<ReturnType<typeof importOne>>) =>
+      (result as { source: { id: string } }).source.id
+
+    await setAgentUse(scope, idOf(usable), true)
+    await setAgentUse(scope, idOf(unapproved), true)
+    await setAgentUse(scope, idOf(revoked), true)
+    // Approval is stamped at import; strip it from one to isolate that predicate.
+    await sql`update client_source_versions set approved_at = null, approved_by = null
+      where account_id = ${ACCOUNT} and source_id = ${idOf(unapproved)}`
+    await revokeSource(scope, idOf(revoked))
+    // off-switch keeps agent_use_allowed = false, which is 044's default.
+
+    return { scope, ids: { usable: idOf(usable), unapproved: idOf(unapproved), offSwitch: idOf(offSwitch), revoked: idOf(revoked) } }
+  }
+
+  it('shows exactly the sources the SQL gate returns as in use', async () => {
+    const { scope } = await scenario()
+
+    const gated = (await listAgentUsableSources(scope)).map(source => source.id).sort()
+    const shown = buildSourcePack(await listSources(scope)).entries
+      .filter(entry => entry.usability === 'in-use').map(entry => entry.id).sort()
+
+    expect(gated).toHaveLength(1)
+    expect(shown).toEqual(gated)
+  })
+
+  it('names the right blocker for each source the gate excluded', async () => {
+    const { scope, ids } = await scenario()
+
+    const pack = buildSourcePack(await listSources(scope))
+    const usabilityOf = (id: string) => pack.entries.find(entry => entry.id === id)?.usability
+
+    expect(usabilityOf(ids.usable)).toBe('in-use')
+    expect(usabilityOf(ids.unapproved)).toBe('awaiting-approval')
+    expect(usabilityOf(ids.offSwitch)).toBe('not-permitted')
+    expect(usabilityOf(ids.revoked)).toBe('revoked')
+    expect(pack).toMatchObject({ inUse: 1, awaitingApproval: 1, revoked: 1 })
+  })
+
+  it('keeps a revoked source listed for the owner while the gate refuses it', async () => {
+    // Two different questions: "may a draft cite this" and "did this ever
+    // exist". Dropping it from the screen would make a past citation
+    // unexplainable.
+    const { scope, ids } = await scenario()
+
+    expect((await listAgentUsableSources(scope)).map(source => source.id)).not.toContain(ids.revoked)
+    expect(buildSourcePack(await listSources(scope)).entries.map(entry => entry.id)).toContain(ids.revoked)
+  })
+
+  it('reflects a switched-off source on the very next read', async () => {
+    const { scope, ids } = await scenario()
+    await setAgentUse(scope, ids.usable, false)
+
+    expect(await listAgentUsableSources(scope)).toHaveLength(0)
+    expect(buildSourcePack(await listSources(scope)).inUse).toBe(0)
+  })
+
+  it('sees nothing at all from another account', async () => {
+    const { ids } = await scenario()
+    const foreign = await brand(OTHER, 'Other brand')
+    const intruder = { accountId: OTHER, clientId: foreign, actorId: await profile(OTHER) }
+
+    expect(await listSources(intruder)).toEqual([])
+    expect(await listAgentUsableSources(intruder)).toEqual([])
+    expect(ids.usable).toBeTruthy()
+  })
+})
+
+/**
+ * Revocation attribution is durable, and that has a cost worth stating.
+ *
+ * 044 declares `foreign key (revoked_by, account_id) references profiles
+ * on delete set null (revoked_by)` and, three lines later,
+ * `check ((revoked_at is null) = (revoked_by is null))`. The FK promises to null
+ * a column the CHECK forbids nulling on its own, so deleting the profile of
+ * whoever revoked a source **fails** rather than quietly erasing who did it.
+ *
+ * That is the safe direction — a revocation with no actor is a worse record than
+ * no deletion — but it is a contradiction between two clauses rather than a
+ * decision either of them states, and it means account deletion is blocked by
+ * revocation history. Recorded here so the next person meets it as a documented
+ * behaviour rather than a mystery constraint error, and so changing it is a
+ * deliberate migration rather than a surprise.
+ */
+describe('approved sources: revocation attribution outlives its actor', () => {
+  beforeEach(seed)
+
+  it('refuses to erase who revoked a source, and blocks the profile deletion instead', async () => {
+    const clientId = await brand(ACCOUNT, 'Brand')
+    const actor = await profile(ACCOUNT)
+    const scope = { accountId: ACCOUNT, clientId, actorId: actor }
+    const imported = await importSource(scope, {
+      sourceKey: 'revoked-later', kind: 'facts', label: 'Revoked later',
+      entries: [{ question: 'Hours?', answer: '9 to 6' }],
+      importMethod: 'paste', originRef: null, approve: true,
+    })
+    await revokeSource(scope, (imported as { source: { id: string } }).source.id)
+
+    await expect(sql`delete from profiles where id = ${actor}`)
+      .rejects.toThrow(/client_sources_revocation_check/)
+
+    const rows = await sql`select revoked_by from client_sources where account_id = ${ACCOUNT}`
+    expect(rows[0]!.revoked_by).toBe(actor)
+  })
+})
+
+/**
+ * This file shares one Neon branch, and one ACCOUNT id, with
+ * `stripe-webhook-lifecycle.test.ts`, whose seed deletes that account. A revoked
+ * source left behind here makes THAT file fail, on a constraint that names
+ * neither suite — so this one clears its own rows rather than relying on the
+ * next file's seed to survive them.
+ */
+afterAll(async () => {
+  await sql`delete from client_source_versions where account_id in (${ACCOUNT}, ${OTHER})`
+  await sql`delete from client_sources where account_id in (${ACCOUNT}, ${OTHER})`
 })

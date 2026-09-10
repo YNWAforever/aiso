@@ -925,7 +925,8 @@
     "toggle_navigation": "Toggle workspace navigation",
     "entity": "Brand identity",
     "observations": "Observations",
-    "opportunities": "Opportunities"
+    "opportunities": "Opportunities",
+    "sources": "Approved facts"
   },
   "reports": {
     "create_client_report": "Create client report",
@@ -1927,6 +1928,118 @@
       "regressed": "This check moved in a worse direction.",
       "not_yet_observed": "Nothing has been observed in this window yet.",
       "cannot_determine": "A change cannot be determined from these records."
+    }
+  },
+  "sources": {
+    "title": "Approved facts",
+    "summary": "The text a draft is allowed to quote. Answers are used exactly as written here and cited by version, so nothing is paraphrased.",
+    "notConnected": "These are imports, not connections. Each version is a copy of the text as it stood on the day it was imported, and nothing re-reads the original afterwards — so there is no sync that can fall behind, and no live link to break.",
+    "gate": "A source is quoted only when all three are true: the version is approved, agent use is allowed, and it has not been revoked. Switching one on while another is off changes nothing.",
+    "untrusted": "Imported text is stored and treated as data. It is never followed as an instruction, whatever it says.",
+    "counts": {
+      "inUse": "in use",
+      "awaitingApproval": "awaiting approval",
+      "notPermitted": "agent use off",
+      "revoked": "revoked",
+      "staleInUse": "in use and older than",
+      "days": "days"
+    },
+    "usability": {
+      "in-use": "In use",
+      "awaiting-approval": "Not approved",
+      "not-permitted": "Agent use off",
+      "revoked": "Revoked"
+    },
+    "why": {
+      "in-use": "A draft may quote this, and will cite this exact version.",
+      "awaiting-approval": "Imported but never approved, so nothing will quote it. Re-import this text and approve it to put it in use.",
+      "not-permitted": "Approved, but agent use is switched off, so nothing will quote it.",
+      "revoked": "Withdrawn. Nothing will quote it again. It stays listed so drafts that already cited it can still be explained."
+    },
+    "provenance": {
+      "heading": "Where this came from",
+      "imported": "Imported",
+      "daysAgo": "days ago",
+      "method": "How it arrived",
+      "paste": "Typed in",
+      "csv": "CSV upload",
+      "origin": "Origin note",
+      "noOrigin": "No origin recorded",
+      "originNote": "A note the importer wrote. It is never fetched.",
+      "version": "Version",
+      "hash": "Content hash",
+      "entries": "questions answered",
+      "none": "Nothing has been imported into this source yet."
+    },
+    "freshness": {
+      "current": "Current",
+      "stale": "Old",
+      "staleNote": "Older than the age below. Age does not stop a source being quoted — re-import it if the facts have changed.",
+      "threshold": "Counted as old after"
+    },
+    "states": {
+      "empty": "No facts imported yet. Until you import some, a draft has nothing approved to quote and will say so rather than guess.",
+      "error": "The source list could not be loaded. Nothing has been changed."
+    },
+    "actions": {
+      "allow": "Allow agent use",
+      "disallow": "Stop agent use",
+      "revoke": "Revoke",
+      "reload": "Reload",
+      "working": "Saving…",
+      "revokeWarning": "Revoking cannot be undone.",
+      "failed": "That did not save. Nothing has been changed.",
+      "saved": "Saved.",
+      "revoked": "Revoked. Nothing will quote it again."
+    },
+    "import": {
+      "title": "Import facts",
+      "summary": "Type question-and-answer pairs, or paste the text of a CSV with a question column and an answer column.",
+      "label": "Name",
+      "key": "Reference",
+      "keyHint": "Used to recognise a later import of the same facts as a new version.",
+      "kind": "Type",
+      "kinds": {
+        "facts": "Brand facts",
+        "faq": "FAQ"
+      },
+      "method": "How",
+      "methods": {
+        "paste": "Type pairs",
+        "csv": "CSV text"
+      },
+      "origin": "Origin note (optional)",
+      "question": "Question",
+      "answer": "Answer",
+      "add": "Add another pair",
+      "remove": "Remove",
+      "csvHint": "First column question, second column answer. A header row named question and answer is skipped.",
+      "approve": "Approve this version now",
+      "approveNote": "Approving is what lets a draft quote it. Importing on its own does not.",
+      "submit": "Import",
+      "submitting": "Importing…",
+      "created": "Imported.",
+      "unchanged": "That text is identical to the current version, so no new version was created.",
+      "failed": "Import failed. Nothing was saved."
+    },
+    "errors": {
+      "SOURCES_BODY_TOO_LARGE": "That import is too large to send in one request. Split it into smaller parts.",
+      "SOURCES_CONFLICT": "That reference belongs to a source that was revoked. Revoked sources cannot be re-imported — use a new reference.",
+      "SOURCES_INVALID_INPUT": "That request could not be read. Nothing was saved.",
+      "SOURCES_NOT_FOUND": "That source no longer exists here.",
+      "SOURCES_UNAUTHENTICATED": "Your session has ended. Sign in again.",
+      "SOURCES_UNAVAILABLE": "The source store could not be reached. Nothing was saved.",
+      "SOURCE_ANSWER_INVALID": "Every answer must be text, and no longer than 4000 characters.",
+      "SOURCE_CSV_EMPTY": "That CSV had no usable rows.",
+      "SOURCE_CSV_UNTERMINATED_QUOTE": "That CSV has a quote that is never closed, so it cannot be read safely.",
+      "SOURCE_ENTRIES_INVALID": "Every pair needs both a question and an answer.",
+      "SOURCE_ENTRIES_TOO_MANY": "A single source holds at most 200 pairs.",
+      "SOURCE_IMPORT_METHOD_INVALID": "Choose how the text arrived: typed in, or CSV.",
+      "SOURCE_KEY_INVALID": "A reference is required, up to 120 characters.",
+      "SOURCE_KIND_INVALID": "Choose a type: brand facts, or FAQ.",
+      "SOURCE_LABEL_INVALID": "A name is required, up to 160 characters.",
+      "SOURCE_ORIGIN_INVALID": "The origin note must be text, up to 500 characters.",
+      "SOURCE_QUESTION_INVALID": "Every question must be text, and no longer than 4000 characters."
     }
   }
 }

@@ -112,21 +112,35 @@ already enforced by `__tests__/security/no-unguarded-fetch.test.ts`.
 
 ## Next concrete action
 
-Merge #22, then #23 (which retargets to `main`). Both are green.
+Merge #26 (draft grounding), then #27 (bounded budget, which retargets to `main`),
+then open and merge the approved-facts surface. All three are green.
 
 The remaining Phase 1 gaps, in the order they matter:
 
 1. **AC-14** — run the E2E suite against a real session and database. CI runs
    Playwright, including the Pixel-5 project, but under `E2E_FIXTURE_MODE`
    against a fixture DSN where `getProfile()` returns null, so mobile review and
-   approve is exercised nowhere.
-2. **Draft grounding** — `listAgentUsableSources` is the tested enforcement
-   point, but no drafting path consumes it, because drafting is deterministic
-   today. The gate exists; the consumer does not.
-3. **A bounded budget** — nothing identifies who is spending, so no per-account
-   or per-task cap can exist. The safety suite asserts this absence and will fail
-   when it is fixed.
-4. **A source UI** — package C has data and API but no owner-facing surface, so
-   "imported, not connected" is not yet shown to anyone.
+   approve is exercised nowhere. It needs `NEON_AUTH_BASE_URL` populated in
+   `.env.local`, then one human magic-link sign-in captured as Playwright
+   `storageState`. This product has no password sign-in, so no amount of
+   configuration substitutes for that one human step.
+2. ~~**Draft grounding**~~ — **done.** `lib/sources/grounding.ts` answers from
+   approved text quoted verbatim with a version-and-hash citation, or abstains,
+   and refuses to choose between two approved sources that disagree.
+3. ~~**A bounded budget**~~ — **done.** A deployer-configured ceiling clamps every
+   call inside `callOpenRouter`, and a per-task budget caps calls *and* tokens,
+   reserving before dispatch so an over-budget fan-out is never sent.
+4. ~~**A source UI**~~ — **done.** `/{lang}/dashboard/{clientId}/sources` shows
+   provenance, freshness, agent use and revocation, states in both languages that
+   an import is not a connection, and derives "in use" from the same three
+   conditions the SQL gate applies — with that agreement asserted against real
+   Postgres rather than assumed.
 5. **Reach for the five owner-loop integration configs** — they now fail rather
    than skip when unconfigured, but no npm script or CI job invokes them.
+6. **A contradiction inside migration 044**, found by the new integration coverage
+   and now pinned by a test: `revoked_by` is declared `on delete set null` while a
+   CHECK requires `revoked_at` and `revoked_by` to be null together, so deleting
+   the profile of whoever revoked a source fails. The direction is safe —
+   attribution survives — but it blocks account deletion for any account carrying
+   revocation history, and neither clause states that intent. Resolving it is a
+   follow-up migration, not an edit to the already-applied 044.
