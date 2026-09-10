@@ -57,9 +57,9 @@ Full table with evidence in `04-ACCEPTANCE-MATRIX.md`.
 - `040`–`043` were **applied to the AISO development database on 2026-09-10, under
   explicit approval** — see "Actions taken" below. `--verify` reported all four
   `all present recorded` and the ledger moved 38 → 42.
-- `044` (approved sources) and `045` (export receipts) are **authored and proven
-  against disposable branches, but not yet applied to the persistent development
-  database.** Both are additive. Run `npm run migrate` to land them.
+- `044` (approved sources) and `045` (export receipts) were **applied to the
+  development database on 2026-09-10**, under the same approval that named them.
+  `--verify` reports both `all present recorded`; the ledger is now at 44.
 - **No feature flag was added.** Both new surfaces are safe unflagged: the Home
   priorities section degrades to an honest `unavailable` state for any scan
   without an evidence envelope, and `compareScanChecks` has no caller in a
@@ -69,7 +69,7 @@ Full table with evidence in `04-ACCEPTANCE-MATRIX.md`.
 
 ## Actions taken under explicit authority
 
-**One, approved by the user in session:** `npm run migrate` applied `040`–`043` to
+**Two, both approved by the user in session.** `npm run migrate` applied `040`–`043`, and later `044`–`045`, to
 the AISO **development** database (`weathered-wave-50814522`, branch
 `br-square-mountain-az6f82vi`, synthetic seed — *not* the Vercel-connected
 production project). Four additive migrations, no destructive statements, each in
@@ -112,8 +112,7 @@ already enforced by `__tests__/security/no-unguarded-fetch.test.ts`.
 
 ## Next concrete action
 
-Apply `044` and `045` to the development database (`npm run migrate`, additive,
-two files), then merge #22 and open the slice 6–10 pull request.
+Merge #22, then #23 (which retargets to `main`). Both are green.
 
 The remaining Phase 1 gaps, in the order they matter:
 
