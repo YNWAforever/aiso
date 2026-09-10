@@ -47,7 +47,17 @@ function claimResponse(result: ScanClaimResult) {
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const profile = await getProfile()
+  // getProfile() THROWS when the auth dependency is unavailable — an empty
+  // NEON_AUTH_COOKIE_SECRET is enough to do it — and an unhandled throw here
+  // produced a bare 500 with an empty body, which tells the caller nothing and
+  // reads like a fault in their request. A missing session and a missing auth
+  // service are different facts and get different answers.
+  let profile: Awaited<ReturnType<typeof getProfile>>
+  try {
+    profile = await getProfile()
+  } catch {
+    return NextResponse.json({ error: 'Claim unavailable' }, { status: 503 })
+  }
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // Mandatory, not conditional. This check used to run only `if (token)`, so
