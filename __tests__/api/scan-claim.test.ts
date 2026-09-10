@@ -59,6 +59,20 @@ describe('POST /api/scans/[id]/claim', () => {
   // The absent-cookie case used to be the permissive one: verification ran only
   // `if (token)`, so sending no cookie skipped it and the scan was claimed. That
   // is foreign-scan takeover by omission, so it is now asserted as a denial.
+  it('separates an unavailable auth service from an absent session', async () => {
+    // getProfile throws when the auth dependency is down -- an empty
+    // NEON_AUTH_COOKIE_SECRET is enough -- and that used to escape as a bare 500
+    // with an empty body. Found by running the route against a real stack, where
+    // every authenticated call returned 500 instead of saying what was wrong.
+    getProfileMock.mockRejectedValueOnce(new Error('Neon Auth unavailable'))
+
+    const response = await claim('scan-1', claimIntent())
+
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ error: 'Claim unavailable' })
+    expect(mockSql).not.toHaveBeenCalled()
+  })
+
   it('denies a claim when the intent cookie is absent, without querying', async () => {
     const response = await claim()
 

@@ -49,7 +49,7 @@ owner journey against a database. AC-14 stays BLOCKED for that reason.
 | **AC-11** | Technical, search/AI and business outcomes stay separate | **PARTIAL** | Separate inside `lib/outcomes` — a technical verdict cannot populate a business one, because no verdict exists at all. Outside it, `lib/localTrust/roi.ts` presents a computed ROI baseline to owners; that is the layer-mixing risk to close before any commercial claim. |
 | **AC-12** | No cross-account read, mutation, inference or export | **PARTIAL** | Now proven against **real Postgres**, not SQL text: the five owner-loop suites ran on a disposable branch with 040–043 applied and passed 109 tests, exercising the composite-FK tenancy chain, the append-only GRANT posture, and the app role's inability to UPDATE or DELETE version, decision and delivery history. **Still partial:** those suites are unreachable from `npm test` and from CI (§5), and there is still no route-inventory test that fails when a new handler ships with no gate. |
 | **AC-13** | A disconnected or failing provider recovers honestly | **PASS (for what exists)** | `lib/delivery/service.ts` maps dependency failure to 503 and never a silent 200; `db()` throws, so a failed write cannot return 2xx; checks degrade to domain-specific messages with a `collection` diagnostic rather than a zero. Covered across `__tests__/delivery/**` and `__tests__/checks/**`. No external provider connector exists to disconnect. |
-| **AC-14** | Mobile review, approve and request-changes | **BLOCKED** | The Pixel-5 project runs in CI and passes across four shards — but under `E2E_FIXTURE_MODE: 1` against a fixture DSN, where `getProfile()` returns `null` and every authenticated route denies. So mobile *rendering* of public surfaces is exercised; mobile **review and approve** is not, and cannot be until the suite runs against a real session and database. |
+| **AC-14** | Mobile review, approve and request-changes | **BLOCKED** | Two separate blockers, now both identified precisely. (a) The Pixel-5 project runs in CI and passes, but the c9d/c9e specs render **pre-built static HTML fixtures** and abort all network — they test component markup at viewports, not a live journey. (b) An authenticated journey cannot be run here at all: `.env.local` declares `NEON_AUTH_COOKIE_SECRET`, `NEON_AUTH_BASE_URL`, `REPORT_SHARE_SECRET` and `PUBLIC_SCAN_RATE_LIMIT_SECRET` but every one is **empty**, and no `PLAYWRIGHT_TEST_EMAIL`/`PASSWORD` exists. See §6. |
 | **AC-15** | English and Traditional Chinese are equivalent in meaning, state and action | **PARTIAL** | Asserted directly for the two surfaces built here: the Home priorities render every state in both languages, the catalogues must declare identical keys, and the same state must produce *different* strings, so a missing translation falling back to English fails. The outcomes comparison copy is added to both catalogues with matching keys. CI's accessibility and public-page E2E pass in both locales. **Still partial:** no bilingual walkthrough of the whole owner journey, and no repo-wide key-parity assertion. |
 
 ### Tally
@@ -138,3 +138,40 @@ version, decision or delivery history.
 
 Making these reachable from `npm test`, or at minimum making an unconfigured run
 fail rather than skip, is the highest-value follow-up in the acceptance area.
+
+## 6. What a real runtime probe showed
+
+The app was booted against the **real development database** (`npm run dev`, real
+`DATABASE_URL`, migrations through `045`) and probed directly — something neither
+CI nor the unit suite does, because CI runs E2E under `E2E_FIXTURE_MODE` against a
+fixture DSN.
+
+**Public surfaces work against real data.** `/en`, `/zh-HK`, `/en/scan` and
+`/llms.txt` all return 200; an unknown result id returns 404, not a fixture.
+
+**Authenticated surfaces cannot be exercised**, and the reason is environmental
+rather than a code fault. Four secrets are declared in `.env.local` and are all
+**empty** — only `DATABASE_URL` has a value:
+
+| Variable | Consequence while empty |
+|---|---|
+| `NEON_AUTH_COOKIE_SECRET` | Neon Auth cannot be constructed, so `getProfile()` throws on every request |
+| `NEON_AUTH_BASE_URL` | same |
+| `PUBLIC_SCAN_RATE_LIMIT_SECRET` | every anonymous scan returns 503 |
+| `REPORT_SHARE_SECRET` | share links and the scan-claim cookie cannot be signed |
+
+So the owner-loop routes answered **503**, not 401 — which is the *correct*
+answer: a dependency that is genuinely down is not the same as an anonymous
+caller, and the services already keep those apart. The product degraded honestly
+under a real fault, which is AC-13 evidence obtained the hard way.
+
+**One rough edge found and fixed.** `/api/scans/[id]/claim` returned a bare **500
+with an empty body** when auth was unavailable, because `getProfile()` throws and
+nothing caught it. A missing session and a missing auth service are different
+facts; the route now answers `503 {"error":"Claim unavailable"}`, verified against
+the running server and covered by a unit test. Nothing but a real stack would have
+shown this — every unit test mocks `getProfile` to *return* null rather than throw.
+
+**To unblock AC-14** someone with access needs to supply the four secrets and a
+test account (`PLAYWRIGHT_TEST_EMAIL` / `PLAYWRIGHT_TEST_PASSWORD`). Creating an
+account or entering a password is not something this session will do.
