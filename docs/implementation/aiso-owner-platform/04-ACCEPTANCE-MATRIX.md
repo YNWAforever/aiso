@@ -45,7 +45,7 @@ owner journey against a database. AC-14 stays BLOCKED for that reason.
 | **AC-07** | An agent may draft but may not approve or publish | **PARTIAL** | Structurally strong: `work_item_decisions.actor->>'role'` must be `account_approver`, bound by composite FK to a live `account_approver_events` grant, and the app role holds no UPDATE/DELETE on the table. **But** the minimum agent-safety evaluation the plan requires *before pilot drafting ships* has no tests — see §4. |
 | **AC-08** | Where separation is required, an editor cannot approve their own version | **PARTIAL** | What is enforced is *submitter* cannot approve (`lib/approvals/decision-store.ts` compares `submitter->>'profileId'`). A second editor who did not submit **can** approve. A single-owner policy is not distinguished from a two-person policy. |
 | **AC-09** | The exact approved version is exported, with actor, time and result retained | **PARTIAL** | Export renders from the exact approved version and refuses an unapproved one (`lib/delivery/export.ts` → `DELIVERY_NOT_APPROVED`), returning the artifact digest as `X-Aiso-Export-Sha256`. **Gap:** that artifact hash is computed and returned but never persisted, and no row records that an export happened — so the approved-payload hash and the rendered-artifact hash are not both retained, as the brief requires. |
-| **AC-10** | Recheck uses the same scope and method; incompatible means no improvement claim | **PARTIAL** | `compareScanChecks()` now produces the brief's vocabulary — `comparison_status` ∈ comparable / partially_comparable / not_comparable / insufficient_evidence and per-check `outcome` ∈ improved / unchanged / regressed / cannot_determine (`lib/scan-evidence.ts`, 16 tests in `__tests__/lib/scan-check-comparison.test.ts`). Comparability is decided by method, target and configuration; **content hashes are never compared**, since page content is expected to change. Page identity is proven without storing a path, by requiring both runs' `final` descriptor to have redacted nothing. A differing method refuses outright; an incomplete collection withholds every delta. Baselines remain immutable. **Still partial:** the adapter is not yet wired into `lib/outcomes/evaluate.ts`, whose self-validating DTO needs five coordinated changes plus localised copy, and nothing yet re-runs a scan after delivery. |
+| **AC-10** | Recheck uses the same scope and method; incompatible means no improvement claim | **PASS (for the technical layer)** | The adapter is built *and wired*. `compareOutcome` (`lib/outcomes/evaluate.ts`) attaches a `comparison` to every window: `status` ∈ comparable / partially_comparable / not_comparable / insufficient_evidence, `outcome` ∈ improved / unchanged / regressed / not_yet_observed / cannot_determine, plus both verdicts. `evidenceState` reaches `available` for the first time. Admissibility is decided by method, target and configuration; **content is never compared**, since a page's content is expected to differ between a baseline and a recheck. A different method or subject refuses outright; an untrustworthy side is `insufficient_evidence` — "never" and "not yet" render differently. Pulse gets no adapter deliberately, because `success`/`incomplete` describe whether the observation completed, not whether it went well. `parseOutcomeResponse` re-derives and compares the field, so a client cannot forge `improved` over fail→fail nor upgrade `partially_comparable` to `comparable`; both forgeries are tested. 67 tests across `__tests__/outcomes/compare-outcome.test.ts`, `evaluate.test.ts` and `dto.test.ts`. **Remaining limitation, by design:** a scan-check baseline is a single frozen check rather than a whole envelope, so it carries `final-path-identity-withheld` and lands on `partially_comparable`; reaching `comparable` needs the snapshot to record its target identity, which is a separate change to a frozen contract. Nothing re-runs a scan automatically yet. |
 | **AC-11** | Technical, search/AI and business outcomes stay separate | **PARTIAL** | Separate inside `lib/outcomes` — a technical verdict cannot populate a business one, because no verdict exists at all. Outside it, `lib/localTrust/roi.ts` presents a computed ROI baseline to owners; that is the layer-mixing risk to close before any commercial claim. |
 | **AC-12** | No cross-account read, mutation, inference or export | **PARTIAL** | Now proven against **real Postgres**, not SQL text: the five owner-loop suites ran on a disposable branch with 040–043 applied and passed 109 tests, exercising the composite-FK tenancy chain, the append-only GRANT posture, and the app role's inability to UPDATE or DELETE version, decision and delivery history. **Still partial:** those suites are unreachable from `npm test` and from CI (§5), and there is still no route-inventory test that fails when a new handler ships with no gate. |
 | **AC-13** | A disconnected or failing provider recovers honestly | **PASS (for what exists)** | `lib/delivery/service.ts` maps dependency failure to 503 and never a silent 200; `db()` throws, so a failed write cannot return 2xx; checks degrade to domain-specific messages with a `collection` diagnostic rather than a zero. Covered across `__tests__/delivery/**` and `__tests__/checks/**`. No external provider connector exists to disconnect. |
@@ -105,21 +105,23 @@ The five suites that prove the owner-loop schema are **excluded from
 (`vitest.entity-integration.config.ts` and four siblings). Those configs are wired
 into no npm script and into no CI job.
 
-Run directly, without their `C9_*` environment variables set, all five report
-`Test Files 1 skipped` and **exit 0**:
+**Fixed.** Run directly without their `C9*` variables, all five used to report
+`Test Files 1 skipped` and **exit 0** — 109 tests reading as success while
+asserting nothing, the exact hazard `scripts/run-tests.mjs` was written to prevent,
+reproduced where its banner does not reach.
 
-    entity-integration              2 skipped
-    work-items-integration          4 skipped
-    change-set-stores-integration  15 skipped
-    change-sets-integration        21 skipped
-    delivery-integration           67 skipped
+Each suite now carries one guard (`__tests__/integration/approved-target.ts`) that
+**fails** when no target is configured. Invoking one of these configs *is* the
+explicit request, so doing nothing must not read as success. Verified both ways:
+unconfigured runs now fail loudly, and a provisioned run passes all 114 tests
+(109 original plus the five guards).
 
-That is 109 tests reading as success while asserting nothing — the exact hazard
-`scripts/run-tests.mjs` was written to prevent, reproduced somewhere its banner
-does not reach. The suites themselves are good; the gate around them is not.
+The remaining gap is reach: these configs are still invoked by no npm script and no
+CI job, so the release gate does not run them. Wiring them into `npm test` needs a
+provisioning step per suite and is its own change.
 
-They pass. To reproduce, provision a disposable branch, apply the migrations, and
-export the target for each suite:
+To run them, provision a disposable branch, apply the migrations, and export the
+target for each suite:
 
     C9_ENTITY_DISPOSABLE_BRANCH_ID / _PROJECT_ID / _OWNER_ROLE
     C9C_WORK_ITEMS_DISPOSABLE_BRANCH_ID / _PROJECT_ID / _OWNER_ROLE

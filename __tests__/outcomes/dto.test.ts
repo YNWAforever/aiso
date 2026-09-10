@@ -4,7 +4,7 @@ import { parseOutcomeResponse } from '@/lib/outcomes/dto'
 import { input, evidence } from './fixtures'
 const valid = () => evaluateOutcomes(input({ candidates: [evidence('a','2026-09-14T00:00:00Z')] }))
 test('accepts safe evaluator response', () => expect(parseOutcomeResponse(valid())).toEqual(valid()))
-test.each(['extra','date','days','selected','bounds','scope','reason','id','limit','anchor','delta','provisional','evidence'] as const)('rejects malformed %s', mutation => {
+test.each(['extra','date','days','selected','bounds','scope','reason','id','limit','anchor','delta','provisional','evidence','comparisonOutcome','comparisonStatus','comparisonVerdict'] as const)('rejects malformed %s', mutation => {
   const response = valid()
   switch (mutation) {
     case 'extra': Object.assign(response.baseline!, { rawAnswer: 'secret' }); break
@@ -19,7 +19,19 @@ test.each(['extra','date','days','selected','bounds','scope','reason','id','limi
     case 'anchor': response.anchor = null; break
     case 'delta': Object.assign(response.windows[0], { delta: 1 }); break
     case 'provisional': response.windows[0].provisional = false; break
-    case 'evidence': response.windows[0].evidenceState = 'available'; break
+    // 'available' is no longer a forgery here -- the evaluator produces it for this
+    // fixture now that a comparison adapter exists -- so this forges a state it did
+    // not compute instead. The invariant is unchanged: the client cannot restate
+    // the evidence status.
+    case 'evidence': response.windows[0].evidenceState = 'timing-unknown'; break
+    // The forgeries that matter once outcomes are real. Claiming 'improved' over
+    // fail -> fail invents the result the whole feature exists to report.
+    case 'comparisonOutcome': response.windows[0].comparison.outcome = 'improved'; break
+    // Upgrading partially_comparable to comparable drops the caveat that the two
+    // runs cannot be proven to have landed on the same page -- it turns a hedged
+    // observation into a like-for-like claim.
+    case 'comparisonStatus': response.windows[0].comparison.status = 'comparable'; break
+    case 'comparisonVerdict': response.windows[0].comparison.baselineVerdict = 'pass'; break
   }
   expect(() => parseOutcomeResponse(response)).toThrow()
 })

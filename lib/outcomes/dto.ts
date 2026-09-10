@@ -1,4 +1,4 @@
-import type { Anchor, OutcomeResponse, OutcomeWindow, SafeEvidence, SourceRef } from './types'
+import type { Anchor, OutcomeComparison, OutcomeResponse, OutcomeWindow, SafeEvidence, SourceRef } from './types'
 import { OUTCOME_DIAGNOSTIC_LIMIT, OUTCOME_REASON_CODES } from './types'
 import { evaluateOutcomes } from './evaluate'
 import { utcMicros } from './time'
@@ -43,7 +43,19 @@ function evidence(value: unknown): SafeEvidence {
   const collectedAt = nullableTime(data.collectedAt)
   // Existing Pulse has no trustworthy collection-time contract.
   if (kind === 'pulse-metric' && collectedAt !== null) return reject()
-  return { source, recordedAt: nullableTime(data.recordedAt), collectedAt, verdict: data.verdict === null ? null : choice(data.verdict, ['pass','warn','fail','not-applicable','not-verifiable','success','incomplete'] as const), reasons: reasons(data.reasons) }
+  return { source, recordedAt: nullableTime(data.recordedAt), collectedAt, verdict: data.verdict === null ? null : choice(data.verdict, VERDICTS), reasons: reasons(data.reasons) }
+}
+const VERDICTS = ['pass','warn','fail','not-applicable','not-verifiable','success','incomplete'] as const
+
+/** Browser-facing, so the vocabulary is closed on the way in as well as out. */
+function comparison(value: unknown): OutcomeComparison {
+  const data = object(value, ['status','outcome','baselineVerdict','observedVerdict'])
+  return {
+    status: choice(data.status, ['comparable','partially_comparable','not_comparable','insufficient_evidence'] as const),
+    outcome: choice(data.outcome, ['improved','unchanged','regressed','not_yet_observed','cannot_determine'] as const),
+    baselineVerdict: data.baselineVerdict === null ? null : choice(data.baselineVerdict, VERDICTS),
+    observedVerdict: data.observedVerdict === null ? null : choice(data.observedVerdict, VERDICTS),
+  }
 }
 function anchor(value: unknown): Anchor | null {
   if (value === null) return null
@@ -51,12 +63,13 @@ function anchor(value: unknown): Anchor | null {
   return { id: text(data.id), deliveredAt: timestamp(data.deliveredAt), recordedAt: timestamp(data.recordedAt) }
 }
 function window(value: unknown): OutcomeWindow {
-  const data = object(value, ['day','startsAt','endsAt','timeState','evidenceState','provisional','selected','reasons'])
+  const data = object(value, ['day','startsAt','endsAt','timeState','evidenceState','provisional','selected','reasons','comparison'])
   if (data.day !== 7 && data.day !== 28 && data.day !== 56) return reject()
   return { day: data.day, startsAt: timestamp(data.startsAt), endsAt: timestamp(data.endsAt),
     timeState: choice(data.timeState, ['not-due','awaiting-evidence','missing-evidence','observation-available'] as const),
     evidenceState: choice(data.evidenceState, ['available','timing-unknown','invalid-baseline','not-comparable','evidence-limited','unavailable'] as const),
-    provisional: bool(data.provisional), selected: data.selected === null ? null : evidence(data.selected), reasons: reasons(data.reasons) }
+    provisional: bool(data.provisional), selected: data.selected === null ? null : evidence(data.selected), reasons: reasons(data.reasons),
+    comparison: comparison(data.comparison) }
 }
 function sameReasons(a: string[], b: string[]): boolean { return a.length === b.length && a.every(reason => b.includes(reason)) }
 
@@ -86,7 +99,8 @@ export function parseOutcomeResponse(value: unknown): OutcomeResponse {
     const actual = result.windows[i], correct = expected.windows[i]
     if (actual.day !== correct.day || utcMicros(actual.startsAt) !== utcMicros(correct.startsAt) || utcMicros(actual.endsAt) !== utcMicros(correct.endsAt) ||
       actual.timeState !== correct.timeState || actual.evidenceState !== correct.evidenceState || actual.provisional !== correct.provisional ||
-      JSON.stringify(actual.selected) !== JSON.stringify(correct.selected) || !sameReasons(actual.reasons, correct.reasons)) return reject()
+      JSON.stringify(actual.selected) !== JSON.stringify(correct.selected) || !sameReasons(actual.reasons, correct.reasons) ||
+      JSON.stringify(actual.comparison) !== JSON.stringify(correct.comparison)) return reject()
   }
   return result
 }

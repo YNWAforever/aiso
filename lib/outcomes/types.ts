@@ -8,10 +8,35 @@ export type OutcomeInput = {
   anchorState: 'no-delivery' | 'withdrawn' | 'active'; anchor: Anchor | null;
   baseline: SafeEvidence | null; candidates: SafeEvidence[]; sourceState: 'ok' | 'unavailable'; truncated: boolean;
 }
+/**
+ * Underscored, matching `compareScanChecks` in lib/scan-evidence.ts rather than
+ * the hyphenated EvidenceState above. The two layers describe the same judgement
+ * at different depths — one over a whole envelope, one over a stored window — and
+ * giving them one spelling removes a translation table that would otherwise have
+ * to be kept correct forever.
+ */
+export type ComparisonStatus = 'comparable' | 'partially_comparable' | 'not_comparable' | 'insufficient_evidence'
+export type ComparisonOutcome = 'improved' | 'unchanged' | 'regressed' | 'not_yet_observed' | 'cannot_determine'
+
+/**
+ * What actually changed, and how far it can be trusted. `status` is about the
+ * comparison's admissibility — method, target, configuration — and `outcome` is
+ * about the verdicts. They are separate because a real movement observed under
+ * conditions we cannot fully prove is still worth showing, as long as the caller
+ * says which it is.
+ */
+export type OutcomeComparison = {
+  status: ComparisonStatus
+  outcome: ComparisonOutcome
+  baselineVerdict: string | null
+  observedVerdict: string | null
+}
+
 export type OutcomeWindow = {
   day: 7 | 28 | 56; startsAt: string; endsAt: string;
   timeState: 'not-due' | 'awaiting-evidence' | 'missing-evidence' | 'observation-available';
   evidenceState: EvidenceState; provisional: boolean; selected: SafeEvidence | null; reasons: string[];
+  comparison: OutcomeComparison;
 }
 export type OutcomeResponse = {
   schemaVersion: 1; policyVersion: 'stored-outcomes.v1'; clientId: string; itemId: string;

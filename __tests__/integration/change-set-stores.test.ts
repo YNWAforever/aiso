@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { assertApprovedTarget } from './approved-target'
 import { draft } from '../change-sets/fixtures'
 import { submitVersion, readVersion } from '@/lib/change-sets/store'
 import { mutateApproverAccess } from '@/lib/approvals/access-store'
@@ -21,6 +22,8 @@ const branch = process.env.C9D_DISPOSABLE_BRANCH_ID
 const ownerUrl = process.env.C9D_TEST_DATABASE_URL
 const appUrl = process.env.C9D_TEST_APP_DATABASE_URL
 const optedIn = Boolean(project || branch || ownerUrl || appUrl)
+
+it('refuses to report success without an approved disposable target', () => assertApprovedTarget(optedIn, 'C9D_DISPOSABLE_PROJECT_ID, C9D_DISPOSABLE_BRANCH_ID, C9D_TEST_DATABASE_URL and C9D_TEST_APP_DATABASE_URL'))
 
 describe.skipIf(!optedIn)('actual C9d stores on an approved disposable target', () => {
   let owner: NeonQueryFunction<false, false>

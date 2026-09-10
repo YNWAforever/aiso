@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { assertApprovedTarget } from './approved-target'
 import { draft } from '../change-sets/fixtures'
 import { freezeReview } from '@/lib/change-sets/validation'
 import { attestDelivery, readDelivery, readDeliveryVersion, withdrawDelivery } from '@/lib/delivery/store'
@@ -27,6 +28,8 @@ type EventInput = {
   actorId: string; actor: unknown; request: string; destination: string | null
   deliveredAt: string | null; note: string | null; target: string | null; targetKind: string | null; reason: string | null
 }
+
+it('refuses to report success without an approved disposable target', () => assertApprovedTarget(optedIn, 'C9E_DISPOSABLE_PROJECT_ID, C9E_DISPOSABLE_BRANCH_ID, C9E_PARENT_BRANCH_ID, C9E_TEST_DATABASE_URL and C9E_TEST_APP_DATABASE_URL'))
 
 describe.skipIf(!optedIn)('delivery constraints on an exact disposable target', () => {
   let owner: NeonQueryFunction<false, false>, app: NeonQueryFunction<false, false>

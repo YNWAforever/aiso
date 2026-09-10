@@ -1908,6 +1908,25 @@
       "scan-record-retention": "This source is a retained scan record.",
       "source-malformed": "Stored source evidence is malformed.",
       "unsupported-source": "This source kind is unsupported for comparison."
+    },
+    "comparison": "Comparison with the frozen baseline",
+    "comparisonBasis": "Comparison basis",
+    "comparisonChange": "Observed change",
+    "comparisonBaseline": "Baseline result",
+    "comparisonObserved": "Observed result",
+    "comparisonLimitation": "This compares the same check by the same method. It is a technical result only, and is not evidence of a search ranking or a business outcome.",
+    "comparisonStatuses": {
+      "comparable": "Same target, same method — a like-for-like comparison.",
+      "partially_comparable": "Same method, but these two runs cannot be proven to have checked the same page. Read the change as indicative, not like-for-like.",
+      "not_comparable": "These two records describe different work and cannot be compared.",
+      "insufficient_evidence": "Not enough trustworthy evidence to compare yet."
+    },
+    "comparisonOutcomes": {
+      "improved": "This check moved in a better direction.",
+      "unchanged": "This check has not changed.",
+      "regressed": "This check moved in a worse direction.",
+      "not_yet_observed": "Nothing has been observed in this window yet.",
+      "cannot_determine": "A change cannot be determined from these records."
     }
   }
 }

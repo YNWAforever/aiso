@@ -14,7 +14,11 @@ test.each([
 ] as const)('half-open boundary %s', (at, selected) => expect(!!evaluateOutcomes(input({ evaluatedAt: '2026-09-22T00:00:00Z', candidates: [evidence('a', at)] })).windows[0].selected).toBe(selected))
 test('earliest failed candidate wins, exact ties use ID; selection is provisional', () => {
   const result = evaluateOutcomes(input({ candidates: [{ ...evidence('z','2026-09-14T00:00:00.000001Z'), verdict: 'pass' }, evidence('b','2026-09-14T00:00:00Z'), evidence('a','2026-09-14T00:00:00Z')] }))
-  expect(result.windows[0]).toMatchObject({ selected: { source: { id: 'a' }, verdict: 'fail' }, provisional: true, evidenceState: 'not-comparable' })
+  expect(result.windows[0]).toMatchObject({ selected: { source: { id: 'a' }, verdict: 'fail' }, provisional: true, evidenceState: 'available' })
+  // fail -> fail is 'unchanged', and the fixture's baseline carries
+  // 'final-path-identity-withheld', so the two runs cannot be proven to be the
+  // same page. Both halves have to be said.
+  expect(result.windows[0].comparison).toEqual({ status: 'partially_comparable', outcome: 'unchanged', baselineVerdict: 'fail', observedVerdict: 'fail' })
   expect(JSON.stringify(result)).not.toContain('delta')
 })
 test('excludes future collection but permits late ingestion on fresh read', () => {
@@ -27,7 +31,7 @@ test('unknown collection is diagnostic, never recorded-time selection', () => {
   expect(evaluateOutcomes(input({ candidates: [untimed] }))).toMatchObject({ diagnostics: [untimed], windows: [{ selected: null, evidenceState: 'timing-unknown' }, {}, {}] })
 })
 test.each([null, evidence('after','2026-09-07T00:00:00.000001Z')])('invalid baseline does not become zero', baseline => expect(evaluateOutcomes(input({ baseline })).windows[0].evidenceState).toBe('invalid-baseline'))
-test('baseline at delivery is eligible', () => expect(evaluateOutcomes(input({ baseline: evidence('at','2026-09-07T00:00:00Z'), candidates: [evidence('a','2026-09-14T00:00:00Z')] })).windows[0].evidenceState).toBe('not-comparable'))
+test('baseline at delivery is eligible', () => expect(evaluateOutcomes(input({ baseline: evidence('at','2026-09-07T00:00:00Z'), candidates: [evidence('a','2026-09-14T00:00:00Z')] })).windows[0].evidenceState).toBe('available'))
 test.each([{ sourceState: 'unavailable' as const, truncated: false, state: 'unavailable' },{ sourceState: 'ok' as const, truncated: true, state: 'evidence-limited' }])('suppresses certainty for $state', ({ state, ...overrides }) => expect(evaluateOutcomes(input({ ...overrides, candidates: [evidence('a','2026-09-14T00:00:00Z')] })).windows[0]).toMatchObject({ selected: null, evidenceState: state }))
 test('mixed source kind or check key never selects', () => {
   for (const source of [{ kind: 'pulse-metric' as const, id: 'p', checkKey: null },{ kind: 'scan-check' as const, id: 's', checkKey: 'c2_llms_txt' }]) expect(evaluateOutcomes(input({ candidates: [{ ...evidence('a','2026-09-14T00:00:00Z'), source }] })).windows[0].selected).toBeNull()
