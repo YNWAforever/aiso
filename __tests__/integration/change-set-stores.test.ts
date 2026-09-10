@@ -134,6 +134,29 @@ describe.skipIf(!optedIn)('actual C9d stores on an approved disposable target', 
     const replay=await submit(); expect(replay).toMatchObject({kind:'replayed',value:{title:draft().title,draftRevision:1}})
     expect(await owner`select id from work_item_versions where account_id=${account} and work_item_id=${item}`).toHaveLength(1)
   })
+  it.each(['created_by','updated_by'] as const)('denies an approver who is the item %s, not only its submitter', async column => {
+    // The submitter check alone let a SECOND editor approve work they had written
+    // but not submitted -- the same person reviewing their own text with a step in
+    // between. The author here is a different person, so the submitter check would
+    // have passed and did.
+    expect((await grant()).kind).toBe('created')
+    const saved=await version()
+    if (column==='created_by') await owner`update evidence_work_items set created_by=${reviewer} where account_id=${account} and id=${item}`
+    else await owner`update evidence_work_items set updated_by=${reviewer} where account_id=${account} and id=${item}`
+
+    expect((await decideVersion(account,client,item,saved.id,reviewer,decision())).kind).toBe('denied')
+    expect(await owner`select id from work_item_decisions where account_id=${account} and version_id=${saved.id}`).toHaveLength(0)
+  })
+
+  it('still allows an approver who neither wrote nor submitted the item', async () => {
+    // The tightening must not block the ordinary two-person path.
+    expect((await grant()).kind).toBe('created')
+    const saved=await version()
+    await owner`update evidence_work_items set created_by=${author},updated_by=${author} where account_id=${account} and id=${item}`
+
+    expect((await decideVersion(account,client,item,saved.id,reviewer,decision())).kind).toBe('created')
+  })
+
   it.each(['revoke first','decision first'] as const)('enforces %s ordering with overlapping real store requests and exact decision retry', async order => {
     expect((await grant()).kind).toBe('created'); const saved=await version(); const input=decision()
     const decide=()=>decideVersion(account,client,item,saved.id,reviewer,input)

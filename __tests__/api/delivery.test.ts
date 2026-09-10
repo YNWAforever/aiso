@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { approvedVersion, attestInput, eventRow, ID, ACTOR_ID, VERSION_ID, REQUEST_ID } from '../delivery/fixtures'
 import { deliveryEventDTO } from '@/lib/delivery/dto'
 vi.mock('server-only', () => ({}))
-const mocks=vi.hoisted(()=>({profile:vi.fn(),version:vi.fn(),read:vi.fn(),attest:vi.fn(),withdraw:vi.fn()}))
+const mocks=vi.hoisted(()=>({profile:vi.fn(),version:vi.fn(),read:vi.fn(),attest:vi.fn(),withdraw:vi.fn(),recordExport:vi.fn()}))
 vi.mock('@/lib/auth',()=>({getProfile:mocks.profile}))
-vi.mock('@/lib/delivery/store',()=>({readDeliveryVersion:mocks.version,readDelivery:mocks.read,attestDelivery:mocks.attest,withdrawDelivery:mocks.withdraw}))
+vi.mock('@/lib/delivery/store',()=>({readDeliveryVersion:mocks.version,readDelivery:mocks.read,attestDelivery:mocks.attest,withdrawDelivery:mocks.withdraw,recordExportEvent:mocks.recordExport}))
 import { GET as exportGET } from '@/app/api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/export/route'
 import { GET as deliveryGET, POST as deliveryPOST } from '@/app/api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/delivery/route'
 import { POST as withdrawPOST } from '@/app/api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/delivery/[attestationId]/withdraw/route'
@@ -27,6 +27,7 @@ beforeEach(()=>{
   vi.clearAllMocks()
   mocks.profile.mockResolvedValue({id:ACTOR_ID,account_id:accountId,is_admin:true})
   mocks.version.mockResolvedValue({kind:'replayed',value:approvedVersion()})
+  mocks.recordExport.mockResolvedValue(true)
   mocks.read.mockResolvedValue({kind:'replayed',value:page})
   mocks.attest.mockResolvedValue({kind:'created',value:event})
   mocks.withdraw.mockResolvedValue({kind:'created',value:event})
@@ -70,6 +71,10 @@ it.each(['json','text'])('returns deterministic %s attachment and never writes d
   const body=await response.text()
   if(format==='json') expect(response.headers.get('x-aiso-export-sha256')).toBe(createHash('sha256').update(body).digest('hex'))
   else expect(body).toContain(`Export hash: ${response.headers.get('x-aiso-export-sha256')}`)
+  // Export now records a receipt, which is a different thing from attesting
+  // delivery: the receipt says an approved package left, the attestation says a
+  // human applied it somewhere. Export must still never claim the latter.
+  expect(mocks.recordExport).toHaveBeenCalledOnce()
   expect(mocks.attest).not.toHaveBeenCalled(); expect(mocks.withdraw).not.toHaveBeenCalled()
 })
 it('forwards list search params and returns the unwrapped page',async()=>{

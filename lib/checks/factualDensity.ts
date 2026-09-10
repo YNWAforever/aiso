@@ -1,3 +1,4 @@
+import { UNTRUSTED_SYSTEM_RULE, fenceUntrusted } from '@/lib/agents/untrusted'
 import type { CheckResult, IndustryCode, RegionCode, FactualDensityResult } from '@/lib/types'
 import { callOpenRouter } from '@/lib/openrouter'
 
@@ -29,7 +30,16 @@ export async function checkFactualDensity(
   try {
     const aiResponse = await callOpenRouter({
       model: 'anthropic/claude-haiku-4-5',
-      messages: [{ role: 'user', content: `Rate factual uniqueness 0-100 and list up to 3 unique claims.\nReturn JSON: {"score": number, "claims": string[]}\n\nCONTENT: ${text.slice(0, 800)}` }],
+      messages: [
+        { role: 'system', content: UNTRUSTED_SYSTEM_RULE },
+        // The page decides what this text says, so it is fenced rather than
+        // concatenated. A page asking to be rated 100 now reads as a request the
+        // page made, not as an instruction from us.
+        { role: 'user', content: `Rate factual uniqueness 0-100 and list up to 3 unique claims.
+Return JSON: {"score": number, "claims": string[]}
+
+${fenceUntrusted('PAGE CONTENT', text.slice(0, 800))}` },
+      ],
       maxTokens: 200,
     })
     const parsed = JSON.parse(aiResponse.match(/\{[\s\S]+\}/)?.[0] ?? '{}')

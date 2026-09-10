@@ -23,13 +23,27 @@ export async function decideVersion(accountId: string, clientId: string, itemId:
         SELECT p.id,p.display_name FROM profiles p WHERE p.id = ${actorId}::uuid AND p.account_id = ${accountId}::uuid
           AND p.id::text = current_setting('aiso.version_actor_locked', true)
       ), owned AS MATERIALIZED (
-        SELECT d.id FROM evidence_work_items d JOIN clients c ON c.id = d.client_id AND c.account_id = d.account_id
+        SELECT d.id,d.created_by,d.updated_by FROM evidence_work_items d JOIN clients c ON c.id = d.client_id AND c.account_id = d.account_id
         WHERE d.account_id = ${accountId}::uuid AND d.client_id = ${clientId}::uuid AND d.id = ${itemId}::uuid
           AND d.id::text = current_setting('aiso.version_item_locked', true) AND d.source_kind IN ('pulse-metric','scan-check')
           AND EXISTS (SELECT 1 FROM member)
       ), version AS MATERIALIZED (
         SELECT v.* FROM work_item_versions v WHERE v.account_id = ${accountId}::uuid AND v.client_id = ${clientId}::uuid
           AND v.work_item_id = ${itemId}::uuid AND v.id = ${versionId}::uuid AND EXISTS (SELECT 1 FROM owned)
+      ), separated AS MATERIALIZED (
+        -- Separation of duties, the whole of it. The submitter check alone let a
+        -- SECOND editor approve work they had written but not submitted, which is
+        -- the same person reviewing their own text with a step in between. The
+        -- item's authors are excluded too.
+        --
+        -- A pure tightening: a single-owner account already could not approve,
+        -- because the submitter check has always been absolute. An explicit
+        -- single-owner policy is deliberately NOT added here -- it would have to
+        -- be recorded per decision so a solo sign-off is never presented as
+        -- two-person review, and that is its own change.
+        SELECT 1 FROM owned d
+        WHERE coalesce(d.created_by::text,'') <> ${actorId}
+          AND coalesce(d.updated_by::text,'') <> ${actorId}
       ), prior AS MATERIALIZED (
         SELECT r.* FROM work_item_decisions r JOIN version v ON r.account_id = v.account_id AND r.client_id = v.client_id AND r.work_item_id = v.work_item_id AND r.version_id = v.id
       ), replay AS MATERIALIZED (
@@ -45,7 +59,7 @@ export async function decideVersion(accountId: string, clientId: string, itemId:
         SELECT v.account_id,v.client_id,v.work_item_id,v.id,v.content_hash,${input.decision},${input.reason},p.id,
           jsonb_build_object('profileId',p.id,'displayName',p.display_name,'role','account_approver'),g.revision,g.last_event_id,${input.requestId}::uuid
         FROM version v CROSS JOIN member p CROSS JOIN active_grant g
-        WHERE NOT EXISTS (SELECT 1 FROM prior) AND v.submitter->>'profileId' <> ${actorId}
+        WHERE NOT EXISTS (SELECT 1 FROM prior) AND v.submitter->>'profileId' <> ${actorId} AND EXISTS (SELECT 1 FROM separated)
           AND v.version_number = (SELECT number FROM latest) AND v.content_hash = ${hash}
         RETURNING *
       ), chosen AS (SELECT * FROM inserted UNION ALL SELECT * FROM replay)
@@ -53,7 +67,8 @@ export async function decideVersion(accountId: string, clientId: string, itemId:
         WHEN NOT EXISTS (SELECT 1 FROM member) THEN 'denied'
         WHEN NOT EXISTS (SELECT 1 FROM version) THEN 'not_found'
         WHEN EXISTS (SELECT 1 FROM prior) THEN 'conflict'
-        WHEN NOT EXISTS (SELECT 1 FROM active_grant) OR (SELECT submitter->>'profileId' FROM version) = ${actorId} THEN 'denied'
+        WHEN NOT EXISTS (SELECT 1 FROM active_grant) OR (SELECT submitter->>'profileId' FROM version) = ${actorId}
+          OR NOT EXISTS (SELECT 1 FROM separated) THEN 'denied'
         WHEN (SELECT version_number FROM version) <> (SELECT number FROM latest) THEN 'conflict'
         WHEN EXISTS (SELECT 1 FROM inserted) THEN 'created' ELSE 'conflict' END AS kind,
         (SELECT to_jsonb(v) || jsonb_build_object('can_decide',false,'decision_record',(SELECT to_jsonb(r) FROM chosen r LIMIT 1)) FROM version v) AS value`
