@@ -1,4 +1,5 @@
 import { useTranslations } from 'next-intl'
+import type { RoiUnavailable } from '@/lib/localTrust'
 import type {
   AgentCompetitor,
   LocalTrustAction,
@@ -25,11 +26,29 @@ type Props = {
   snapshot: LocalTrustSnapshot | null
   actions: LocalTrustAction[]
   competitors: AgentCompetitor[]
+  /**
+   * Why this month has no enquiry-value figure, straight from the estimator.
+   * Null when there is one. The panel cannot work this out for itself: a stored
+   * `roi_estimate` of null records the absence, not the cause.
+   */
+  roiUnavailable: RoiUnavailable | null
+}
+
+/**
+ * One string per reason. `no_visibility_baseline` reuses the empty-state copy —
+ * with no scan and no Pulse row there is nothing to compare, which is exactly what
+ * "run a scan" already says — rather than adding a fourth string saying it twice.
+ */
+const ROI_UNAVAILABLE_KEY: Record<RoiUnavailable, string> = {
+  assumptions_missing: 'local_trust_timeline_no_estimate',
+  no_earlier_snapshot: 'local_trust_timeline_no_earlier_snapshot',
+  no_increase: 'local_trust_timeline_no_increase',
+  no_visibility_baseline: 'local_trust_timeline_empty',
 }
 
 type BucketDisplayCopy = Pick<LocalTrustBucketScore, 'label' | 'explanation' | 'strongestSignal' | 'weakestSignal' | 'topAction'>
 
-export function LocalTrustStep({ lang, clientId, features, profile, snapshot, actions, competitors }: Props) {
+export function LocalTrustStep({ lang, clientId, features, profile, snapshot, actions, competitors, roiUnavailable }: Props) {
   const t = useTranslations('dashboard')
   const bucketCopy: Record<LocalTrustBucketKey, BucketDisplayCopy> = {
     local_visibility: {
@@ -256,11 +275,12 @@ export function LocalTrustStep({ lang, clientId, features, profile, snapshot, ac
           empty: t('local_trust_timeline_empty'),
           scoreLabel: t('local_trust_score'),
           estimateLabel: t('local_trust_timeline_estimate'),
-          noEstimate: t('local_trust_timeline_no_estimate'),
-          // `.raw` rather than `t()`: the basis line carries ICU arguments whose
-          // values differ per snapshot, and copy is passed once for the whole
-          // list. RoiTimeline fills the placeholders itself.
+          noEstimate: t(ROI_UNAVAILABLE_KEY[roiUnavailable ?? 'assumptions_missing']),
+          // `.raw` rather than `t()`: the basis and movement lines carry ICU
+          // arguments whose values differ per snapshot, and copy is passed once
+          // for the whole list. RoiTimeline fills the placeholders itself.
           basis: t.raw('local_trust_timeline_basis') as string,
+          movement: t.raw('local_trust_timeline_movement') as string,
           limitation: t.raw('local_trust_timeline_limitation') as string,
         }}
       />

@@ -387,6 +387,21 @@ export interface LocalTrustRoiEstimate {
     closeRate: number
     estimatedExtraEnquiriesLow: number
     estimatedExtraEnquiriesHigh: number
+    /**
+     * What the figure is keyed to, and the unmeasured step between the two.
+     *
+     * Optional because rows written before the estimator required a real baseline
+     * carry none of them — those rows were computed against a fabricated
+     * `score - 5` and genuinely have no earlier month to name. Every row written
+     * since carries all five, and the panel renders the movement line only when
+     * they are present rather than inventing a comparison for the old ones.
+     */
+    previousScore?: number
+    scoreDelta?: number
+    /** Month start, `YYYY-MM-DD`, matching `local_trust_snapshots.snapshot_month`. */
+    comparedToMonth?: string
+    pointsPerEnquiryLow?: number
+    pointsPerEnquiryHigh?: number
   }
   confidence: 'directional'
 }

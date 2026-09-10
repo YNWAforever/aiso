@@ -394,6 +394,115 @@ describe('Local Trust read-only UI components', () => {
     expect(html).toMatch(/HK\$8,000|HKD\s?8,000/)
   })
 
+  it('states the score movement the money is keyed to, and that the conversion is unmeasured', async () => {
+    // The figure now moves with a real month-over-month rise, which makes the link
+    // between the score and the money an actual claim rather than an implied one.
+    // The step that turns points into enquiries is the invention in it, so it is
+    // printed beside the number instead of living only in the source.
+    const { RoiTimeline } = await import('@/components/dashboard/local-trust/RoiTimeline')
+
+    const html = renderToStaticMarkup(
+      <RoiTimeline
+        snapshots={[
+          {
+            ...snapshot,
+            roi_estimate: {
+              low: 12000,
+              high: 28000,
+              currency: 'HKD',
+              assumptions: {
+                averageLeadValue: 8000,
+                closeRate: 0.2,
+                estimatedExtraEnquiriesLow: 8,
+                estimatedExtraEnquiriesHigh: 18,
+                previousScore: 30,
+                scoreDelta: 41,
+                comparedToMonth: '2026-04-01',
+                pointsPerEnquiryLow: 10,
+                pointsPerEnquiryHigh: 4,
+              },
+              confidence: 'directional',
+            },
+          },
+        ]}
+      />,
+    )
+
+    expect(html).toContain('HKD 12,000-28,000')
+    expect(html).toContain('41-point rise since Apr 2026')
+    expect(html).toContain('one per 10 points')
+    expect(html).toContain('an assumption AISO has not measured')
+  })
+
+  it('omits the movement line for a row written before a real baseline was required', async () => {
+    // Those rows were computed against the fabricated `score - 5` and genuinely
+    // have no earlier month to name. Inventing one to fill the sentence would be
+    // the same defect in a new place, so the line is simply absent.
+    const { RoiTimeline } = await import('@/components/dashboard/local-trust/RoiTimeline')
+
+    const html = renderToStaticMarkup(
+      <RoiTimeline
+        snapshots={[
+          {
+            ...snapshot,
+            roi_estimate: {
+              low: 1600,
+              high: 3200,
+              currency: 'HKD',
+              assumptions: {
+                averageLeadValue: 8000,
+                closeRate: 0.2,
+                estimatedExtraEnquiriesLow: 1,
+                estimatedExtraEnquiriesHigh: 2,
+              },
+              confidence: 'directional',
+            },
+          },
+        ]}
+      />,
+    )
+
+    expect(html).toContain('HKD 1,600-3,200')
+    expect(html).not.toContain('rise since')
+    expect(html).toContain('Estimated, not observed')
+  })
+
+  it.each(['en', 'zh-HK'] as const)('tells a %s owner which absence they are looking at', async locale => {
+    // Requiring a real baseline makes "no figure" the ordinary case for a first
+    // month and for a flat month. Printing "add average lead value and close rate"
+    // at an owner who entered both is the lie this state exists to end — and it has
+    // to end in both languages, or the Chinese surface keeps telling it.
+    const { LocalTrustStep } = await import('@/components/dashboard/local-trust/LocalTrustStep')
+
+    const render = (roiUnavailable: 'assumptions_missing' | 'no_earlier_snapshot' | 'no_increase') =>
+      renderToStaticMarkup(
+        <NextIntlClientProvider locale={locale} messages={messages(locale)} timeZone="Asia/Hong_Kong">
+          <LocalTrustStep
+            lang={locale}
+            clientId="client-1"
+            features={getPlanFeatures('pro')}
+            profile={null}
+            snapshot={{ ...snapshot, roi_estimate: null }}
+            actions={actions}
+            competitors={[]}
+            roiUnavailable={roiUnavailable}
+          />
+        </NextIntlClientProvider>,
+      )
+
+    const catalogue = messages(locale).dashboard as Record<string, string>
+    const firstMonth = render('no_earlier_snapshot')
+    const flatMonth = render('no_increase')
+
+    expect(firstMonth).toContain(catalogue.local_trust_timeline_no_earlier_snapshot)
+    expect(flatMonth).toContain(catalogue.local_trust_timeline_no_increase)
+    // Each state must reach a different sentence: three reasons collapsing to one
+    // string is the defect, and a missing translation falling back to English
+    // would show up here as the two locales agreeing.
+    expect(firstMonth).not.toContain(catalogue.local_trust_timeline_no_estimate)
+    expect(render('assumptions_missing')).toContain(catalogue.local_trust_timeline_no_estimate)
+  })
+
   it('renders Enterprise report actions with an encoded export URL', async () => {
     const { ReportActions } = await import('@/components/dashboard/local-trust/ReportActions')
 
@@ -437,6 +546,7 @@ describe('Local Trust read-only UI components', () => {
           snapshot={snapshot}
           actions={actions}
           competitors={[]}
+          roiUnavailable={null}
         />
       </NextIntlClientProvider>,
     )
@@ -463,6 +573,7 @@ describe('Local Trust read-only UI components', () => {
           snapshot={snapshot}
           actions={actions}
           competitors={[]}
+          roiUnavailable={null}
         />
       </NextIntlClientProvider>,
     )
@@ -484,6 +595,7 @@ describe('Local Trust read-only UI components', () => {
           snapshot={snapshot}
           actions={actions}
           competitors={[]}
+          roiUnavailable={null}
         />
       </NextIntlClientProvider>,
     )
@@ -497,6 +609,7 @@ describe('Local Trust read-only UI components', () => {
           snapshot={snapshot}
           actions={actions}
           competitors={[]}
+          roiUnavailable={null}
         />
       </NextIntlClientProvider>,
     )
@@ -533,6 +646,7 @@ describe('Local Trust read-only UI components', () => {
           snapshot={null}
           actions={[]}
           competitors={[]}
+          roiUnavailable={null}
         />
       </NextIntlClientProvider>,
     )

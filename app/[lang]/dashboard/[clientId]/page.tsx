@@ -319,6 +319,7 @@ export default async function DashboardPage({
             profile={localTrustProfile}
             snapshot={hasLocalTrustBaseline ? (localTrustData?.snapshot ?? null) : null}
             actions={hasLocalTrustBaseline ? (localTrustData?.actions ?? []) : []}
+            roiUnavailable={localTrustData?.roi.unavailable ?? null}
             competitors={localTrustCompetitors}
           />
         )}

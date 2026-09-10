@@ -22,6 +22,19 @@ export type LocalTrustSnapshotDraft = {
   source_pulse_week: string | null
 }
 
+/**
+ * The month this client's score is being compared against, read from the most
+ * recent earlier row in `local_trust_snapshots`.
+ *
+ * Score and month travel together on purpose: a baseline that cannot say which
+ * month it came from cannot be shown to the owner, and an enquiry-value figure
+ * whose origin cannot be stated is the defect this type exists to prevent.
+ */
+export type LocalTrustBaseline = {
+  score: number
+  month: string
+}
+
 export type LocalTrustInput = {
   accountId: string
   client: Client
@@ -30,10 +43,13 @@ export type LocalTrustInput = {
   pulseSummary: PulseWeeklySummary[]
   missed: PulseMetric[]
   competitors: AgentCompetitor[]
+  /** Required, nullable. See the note on `roiScenario` for why it is not optional. */
+  previous: LocalTrustBaseline | null
 }
 
 export type EstimateRoiInput = {
-  previousScore?: number
+  /** Required, nullable. Null means there is no earlier month, not "assume one". */
+  previous: LocalTrustBaseline | null
   currentSnapshot: LocalTrustSnapshotDraft
   averageLeadValue?: number | null
   closeRate?: number | null

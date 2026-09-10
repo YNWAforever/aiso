@@ -10,8 +10,9 @@ import type {
   PulseWeeklySummary,
   Scan,
 } from '@/lib/types'
-import { calculateLocalTrust } from './scoring'
-import type { LocalTrustSnapshotDraft } from './types'
+import type { RoiScenario } from './roi'
+import { calculateLocalTrust, localTrustRoiScenario, resolveSnapshotMonth } from './scoring'
+import type { LocalTrustBaseline, LocalTrustSnapshotDraft } from './types'
 
 // Neon throws on a failed query where supabase-js resolved { data, error } —
 // every query in this module runs through here so a thrown query becomes a
@@ -111,6 +112,53 @@ export async function updateLocalTrustActionStatus(input: {
   return (rows[0] ?? null) as LocalTrustAction | null
 }
 
+/**
+ * The most recent snapshot filed before `beforeMonth`, or null when there is none.
+ *
+ * This is the baseline the enquiry-value scenario is measured against. Before it
+ * existed, `estimateRoi` fell back to `score - 5` and every client's figure was
+ * identical regardless of score; the point of reading a real row is that a client
+ * whose score did not move now gets no figure, which is the correct answer.
+ *
+ * `local_trust_score` is `numeric` and lib/db.ts installs no type parser, so the
+ * driver hands it back as a **string**. Uncoerced it would reach the estimator as
+ * `'70.00'` and `score - '70.00'` would still produce a number by coercion — the
+ * failure would be silent and only visible in `assumptions.previousScore`, which
+ * the panel prints. Hence Number() plus a finite check rather than a cast.
+ *
+ * Scoped by both `client_id` and `account_id`: there is no database-level tenancy
+ * backstop (migration 036 disabled RLS), so every query filters explicitly.
+ */
+export async function getPreviousLocalTrustBaseline(input: {
+  clientId: string
+  accountId: string
+  beforeMonth: string
+}): Promise<LocalTrustBaseline | null> {
+  const sql = db()
+  const rows = await runQuery(() => sql`
+    select local_trust_score, snapshot_month from local_trust_snapshots
+    where client_id = ${input.clientId}
+      and account_id = ${input.accountId}
+      and snapshot_month < ${input.beforeMonth}::date
+    order by snapshot_month desc
+    limit 1
+  `)
+
+  const row = rows[0] as { local_trust_score: unknown; snapshot_month: unknown } | undefined
+  if (!row) return null
+
+  const score = Number(row.local_trust_score)
+  if (!Number.isFinite(score)) return null
+
+  // `date` columns come back as 'YYYY-MM-DD' strings over the HTTP driver, but a
+  // Date would arrive here if that ever changed; normalise rather than assume.
+  const month = row.snapshot_month instanceof Date
+    ? row.snapshot_month.toISOString().slice(0, 10)
+    : String(row.snapshot_month).slice(0, 10)
+
+  return { score, month }
+}
+
 export async function getOrCreateLocalTrustSnapshot(input: {
   client: Client
   accountId: string
@@ -119,9 +167,26 @@ export async function getOrCreateLocalTrustSnapshot(input: {
   pulseSummary: PulseWeeklySummary[]
   missed: PulseMetric[]
   competitors: AgentCompetitor[]
-}): Promise<{ snapshot: LocalTrustSnapshot; actions: LocalTrustAction[]; draft: LocalTrustSnapshotDraft }> {
+}): Promise<{
+  snapshot: LocalTrustSnapshot
+  actions: LocalTrustAction[]
+  draft: LocalTrustSnapshotDraft
+  roi: RoiScenario
+}> {
   const sql = db()
-  const draft = calculateLocalTrust({
+
+  // The month has to be resolved before the score can be computed, because this
+  // month's enquiry-value scenario is measured against the previous month's row.
+  // Both this lookup and the draft take the month from resolveSnapshotMonth, so
+  // the row read here is the one immediately before the row about to be written.
+  const snapshotMonth = resolveSnapshotMonth({ scan: input.latestScan, pulseSummary: input.pulseSummary })
+  const previous = await getPreviousLocalTrustBaseline({
+    clientId: input.client.id,
+    accountId: input.accountId,
+    beforeMonth: snapshotMonth,
+  })
+
+  const scoringInput = {
     accountId: input.accountId,
     client: input.client,
     profile: input.profile,
@@ -129,7 +194,10 @@ export async function getOrCreateLocalTrustSnapshot(input: {
     pulseSummary: input.pulseSummary,
     missed: input.missed,
     competitors: input.competitors,
-  })
+    previous,
+  }
+  const draft = calculateLocalTrust(scoringInput)
+  const roi = localTrustRoiScenario(scoringInput, draft)
 
   const accountId = draft.account_id || input.accountId
 
@@ -213,5 +281,6 @@ export async function getOrCreateLocalTrustSnapshot(input: {
     snapshot: savedSnapshot,
     actions: currentActions,
     draft,
+    roi,
   }
 }

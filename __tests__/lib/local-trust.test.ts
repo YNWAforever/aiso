@@ -104,7 +104,7 @@ const competitors: AgentCompetitor[] = [{
 
 describe('calculateLocalTrust', () => {
   it('returns four buckets and a capped 100-point score', () => {
-    const result = calculateLocalTrust({ accountId, client, profile, scan, pulseSummary: pulse, missed, competitors })
+    const result = calculateLocalTrust({ accountId, client, profile, scan, pulseSummary: pulse, missed, competitors, previous: null })
     expect(result.local_trust_score).toBeGreaterThan(0)
     expect(result.local_trust_score).toBeLessThanOrEqual(100)
     expect(result.bucket_scores).toHaveLength(4)
@@ -117,7 +117,7 @@ describe('calculateLocalTrust', () => {
   })
 
   it('prioritizes high-impact low-effort trust gaps', () => {
-    const result = calculateLocalTrust({ accountId, client, profile, scan, pulseSummary: pulse, missed, competitors })
+    const result = calculateLocalTrust({ accountId, client, profile, scan, pulseSummary: pulse, missed, competitors, previous: null })
     expect(result.trust_gaps[0]).toMatchObject({
       impact: 'high',
       effort: 'low',
@@ -125,7 +125,7 @@ describe('calculateLocalTrust', () => {
   })
 
   it('degrades when scan and Pulse data are missing', () => {
-    const result = calculateLocalTrust({ accountId, client, profile: null, scan: null, pulseSummary: [], missed: [], competitors: [] })
+    const result = calculateLocalTrust({ accountId, client, profile: null, scan: null, pulseSummary: [], missed: [], competitors: [], previous: null })
     expect(result.local_trust_score).toBeGreaterThanOrEqual(0)
     expect(result.trust_gaps.some(g => g.stableKey === 'run-first-scan')).toBe(true)
     expect(result.roi_estimate).toBeNull()
@@ -140,12 +140,13 @@ describe('calculateLocalTrust', () => {
       pulseSummary: [],
       missed,
       competitors,
+      previous: null,
     })
     expect(result.snapshot_month).toBe('2026-05-01')
   })
 
   it('keeps ROI null when assumptions exist but no visibility baseline exists', () => {
-    const result = calculateLocalTrust({ accountId, client, profile, scan: null, pulseSummary: [], missed: [], competitors: [] })
+    const result = calculateLocalTrust({ accountId, client, profile, scan: null, pulseSummary: [], missed: [], competitors: [], previous: null })
     expect(result.roi_estimate).toBeNull()
   })
 
@@ -158,6 +159,7 @@ describe('calculateLocalTrust', () => {
       pulseSummary: [{ ...pulse[0], avg_sentiment_score: 0.8 }],
       missed: [],
       competitors: [],
+      previous: null,
     })
     const negative = calculateLocalTrust({
       accountId,
@@ -167,6 +169,7 @@ describe('calculateLocalTrust', () => {
       pulseSummary: [{ ...pulse[0], avg_sentiment_score: -0.8 }],
       missed: [],
       competitors: [],
+      previous: null,
     })
 
     const positiveMarket = positive.bucket_scores.find(b => b.key === 'market_authority')!
@@ -184,6 +187,7 @@ describe('calculateLocalTrust', () => {
       pulseSummary: [{ ...pulse[0], brand_mentions: 10, top_competitors: { 'rival.example': 2 } }],
       missed: [],
       competitors: [{ ...competitors[0], mention_rate: 25, your_rate: 55 }],
+      previous: null,
     })
     const highPressure = calculateLocalTrust({
       accountId,
@@ -193,6 +197,7 @@ describe('calculateLocalTrust', () => {
       pulseSummary: [{ ...pulse[0], brand_mentions: 2, top_competitors: { 'rival.example': 18 } }],
       missed: [],
       competitors: [{ ...competitors[0], mention_rate: 70, your_rate: 20 }],
+      previous: null,
     })
 
     const lowPressureMarket = lowPressure.bucket_scores.find(b => b.key === 'market_authority')!
@@ -204,14 +209,14 @@ describe('calculateLocalTrust', () => {
 
 describe('estimateRoi', () => {
   it('returns null without lead value and close rate assumptions', () => {
-    const current = calculateLocalTrust({ accountId, client, profile: { ...profile, average_lead_value: null, close_rate: null }, scan, pulseSummary: pulse, missed, competitors })
-    expect(estimateRoi({ currentSnapshot: current })).toBeNull()
+    const current = calculateLocalTrust({ accountId, client, profile: { ...profile, average_lead_value: null, close_rate: null }, scan, pulseSummary: pulse, missed, competitors, previous: null })
+    expect(estimateRoi({ currentSnapshot: current, previous: null })).toBeNull()
   })
 
   it('returns a directional low/high range with assumptions', () => {
-    const current = calculateLocalTrust({ accountId, client, profile, scan, pulseSummary: pulse, missed, competitors })
+    const current = calculateLocalTrust({ accountId, client, profile, scan, pulseSummary: pulse, missed, competitors, previous: null })
     const estimate = estimateRoi({
-      previousScore: current.local_trust_score - 10,
+      previous: { score: current.local_trust_score - 10, month: '2026-05-01' },
       currentSnapshot: current,
       averageLeadValue: 20000,
       closeRate: 0.25,
