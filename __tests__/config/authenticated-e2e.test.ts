@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { describeAuthConfig } from '@/scripts/e2e/auth-config.mjs'
 
 /**
  * AC-14's manual gate, pinned so it cannot rot into a lie.
@@ -105,6 +106,56 @@ describe('the capture script authenticates nobody', () => {
 
   it('refuses to write an empty session', () => {
     expect(capture).toContain('refusing to write an empty session')
+  })
+})
+
+describe('the configuration check, asserted by behaviour rather than by grep', () => {
+  const HTTPS = 'https://auth.example.neon.tech'
+
+  it('lets a good configuration through', () => {
+    expect(describeAuthConfig({ baseUrl: HTTPS, stateExists: true }).blockers).toEqual([])
+  })
+
+  it('names a Postgres DSN for what it is, and says it carries a password', () => {
+    // Not hypothetical. A DSN was pasted into NEON_AUTH_BASE_URL, and because
+    // both scripts only tested `?.trim()`, it passed. It parses as a URL, so
+    // nothing downstream would have objected either — the symptom would have been
+    // a browser opening, a silent sign-in failure and a ten-minute timeout.
+    const [blocker] = describeAuthConfig({
+      baseUrl: 'postgresql://user:pw@ep-x.aws.neon.tech/neondb?sslmode=require',
+      stateExists: true,
+    }).blockers
+
+    expect(blocker).toContain('must be https')
+    expect(blocker).toContain('database connection string')
+    expect(blocker).toContain('carries a password')
+  })
+
+  it.each([
+    ['http://auth.example.com', 'must be https'],
+    ['not-a-url', 'not a URL'],
+    ['', 'not set'],
+  ])('rejects %j', (baseUrl, expected) => {
+    const { blockers } = describeAuthConfig({ baseUrl, stateExists: true })
+
+    expect(blockers).toHaveLength(1)
+    expect(blockers[0]).toContain(expected)
+  })
+
+  it('mentions the worktree trap, because that is where the value actually went', () => {
+    // .env.local is gitignored, so every worktree keeps its own copy. Setting it
+    // in another checkout looks identical to not setting it at all.
+    expect(describeAuthConfig({ baseUrl: '', stateExists: true }).blockers[0]).toContain('worktree')
+  })
+
+  it('reports a bad value and a missing session together', () => {
+    // Fixing one at a time, each time discovering the next, is worse than being
+    // told both at once.
+    expect(describeAuthConfig({ baseUrl: 'ftp://x.example.com', stateExists: false }).blockers).toHaveLength(2)
+  })
+
+  it('tolerates a quoted value, which is how .env files are often written', () => {
+    expect(describeAuthConfig({ baseUrl: `"${HTTPS}"`, stateExists: true }).blockers).toEqual([])
   })
 })
 

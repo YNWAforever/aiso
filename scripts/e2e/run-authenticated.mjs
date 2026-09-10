@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { DEFAULT_STATE_PATH, describeAuthConfig, formatRefusal } from './auth-config.mjs'
 
 /**
  * Runs the authenticated owner journey, or explains precisely why it cannot.
@@ -17,35 +18,16 @@ import { resolve } from 'node:path'
  * So this refuses loudly and actionably, and never exits 0 having done nothing.
  */
 
-const STATE_PATH = process.env.PLAYWRIGHT_STORAGE_STATE?.trim() || '.auth/owner-state.json'
+const STATE_PATH = process.env.PLAYWRIGHT_STORAGE_STATE?.trim() || DEFAULT_STATE_PATH
 
-const blockers = []
-if (!process.env.NEON_AUTH_BASE_URL?.trim()) {
-  blockers.push([
-    'NEON_AUTH_BASE_URL is not set in .env.local.',
-    '     Without it getProfile() cannot resolve a session and every authenticated',
-    '     route answers 503, so even a captured session would prove nothing.',
-  ].join('\n'))
-}
-if (!existsSync(resolve(process.cwd(), STATE_PATH))) {
-  blockers.push([
-    `No captured session at ${STATE_PATH}.`,
-    '     Run: npm run e2e:auth:capture',
-    '     It opens a browser and waits for YOU to sign in — magic link or Google.',
-    '     It types nothing on your behalf; this product has no password sign-in.',
-  ].join('\n'))
-}
+const { blockers } = describeAuthConfig({
+  baseUrl: process.env.NEON_AUTH_BASE_URL,
+  statePath: STATE_PATH,
+  stateExists: existsSync(resolve(process.cwd(), STATE_PATH)),
+})
 
 if (blockers.length > 0) {
-  process.stderr.write([
-    '',
-    'The authenticated owner journey (AC-14) cannot run yet.',
-    '',
-    ...blockers.map((blocker, index) => `  ${index + 1}. ${blocker}`),
-    '',
-    'This is the one gate in the suite a machine cannot satisfy on its own.',
-    '',
-  ].join('\n'))
+  process.stderr.write(formatRefusal(blockers))
   process.exit(1)
 }
 

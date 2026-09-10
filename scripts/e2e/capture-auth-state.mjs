@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { chromium } from '@playwright/test'
+import { describeAuthConfig, formatRefusal } from './auth-config.mjs'
 
 /**
  * Captures a signed-in session once, so the authenticated E2E journey can replay it.
@@ -30,21 +31,26 @@ const LANG = process.env.PLAYWRIGHT_AUTH_LANG?.trim() || 'en'
 const WINDOW_MS = Number(process.env.PLAYWRIGHT_AUTH_TIMEOUT_MS ?? 10 * 60 * 1000)
 
 function requireConfigured() {
-  const missing = []
-  if (!process.env.NEON_AUTH_BASE_URL?.trim()) missing.push('NEON_AUTH_BASE_URL')
-  if (!process.env.NEON_AUTH_COOKIE_SECRET?.trim()) missing.push('NEON_AUTH_COOKIE_SECRET')
-  if (missing.length === 0) return
+  // Fail before opening a browser. Without a usable auth configuration the app
+  // cannot establish a session at all, so anything captured would be an
+  // anonymous state file wearing an authenticated name — the exact failure this
+  // path exists to stop.
+  //
+  // `stateExists: true` because an absent session is what this script is FOR;
+  // only the configuration can block it here. Shape is checked, not merely
+  // presence: a Postgres DSN pasted into this variable parses as a URL and would
+  // otherwise sail through to a browser, a silent sign-in failure, and a
+  // ten-minute timeout naming nothing.
+  const { blockers } = describeAuthConfig({
+    baseUrl: process.env.NEON_AUTH_BASE_URL,
+    stateExists: true,
+  })
+  if (!process.env.NEON_AUTH_COOKIE_SECRET?.trim()) {
+    blockers.push('NEON_AUTH_COOKIE_SECRET is not set in .env.local (it must be at least 32 chars).')
+  }
+  if (blockers.length === 0) return
 
-  // Fail before opening a browser. Without these the app cannot establish a
-  // session at all, so anything captured would be an anonymous state file
-  // wearing an authenticated name — the exact failure this path exists to stop.
-  throw new Error([
-    `Cannot capture a session: ${missing.join(' and ')} ${missing.length === 1 ? 'is' : 'are'} not set.`,
-    '',
-    'Add the value(s) to .env.local directly, not through this terminal.',
-    'Without NEON_AUTH_BASE_URL, getProfile() cannot resolve a session and every',
-    'authenticated route answers 503.',
-  ].join('\n'))
+  throw new Error(formatRefusal(blockers).trimStart())
 }
 
 async function main() {
