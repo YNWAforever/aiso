@@ -6,7 +6,7 @@ Updated **2026-09-10**.
     Repository:            github.com/YNWAforever/aiso
     Branch:                claude/fimmick-aiso-phase-0-1-3cf312 (isolated worktree)
     Starting baseline SHA: 5bb2dcce11b63e027591e568786ff6e2c1577051 (clean tree)
-    Current SHA:           2be46c2
+    Current SHA:           8de8462 (pull request #21)
     Uncommitted:           documentation only (this set)
 
 ## Completed
@@ -37,7 +37,8 @@ source traceability verified. See `00-BASELINE-AND-GAPS.md`.
 | `npm run test:unit` | 0 | **289 files / 3901 tests, 0 skipped** (baseline 284 / 3714) |
 | `npm test` | 0 | unit as above **plus 10 integration files / 71 tests**, against a disposable Neon branch that was provisioned, migrated through all 41 files and deleted. No skip banner printed. |
 | five owner-loop integration configs | 0 | **5 files / 109 tests passed** on a separately provisioned disposable branch with 040–043 applied — composite-FK tenancy, append-only GRANT posture, and the app role's inability to UPDATE or DELETE history |
-| `npm run e2e` | — | **not run** — needs the migrations on the persistent database |
+| CI `PR gate` (#21) | success | all 10 jobs: `static`, `unit-contract`, `integration`, `e2e-accessibility` ×4, `build`, `cloudflare-worker`, `pr-gate` |
+| `npm run e2e` locally | — | not run. CI runs it, but under `E2E_FIXTURE_MODE` against a fixture DSN, so no authenticated owner journey is exercised anywhere yet |
 
 Acceptance: **3 PASS, 9 PARTIAL, 2 BLOCKED, 1 DEFERRED, 0 FAIL** across AC-01…AC-15.
 Four rows moved this session: AC-01, AC-03, AC-10 and AC-15.

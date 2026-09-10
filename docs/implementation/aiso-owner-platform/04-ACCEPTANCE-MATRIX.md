@@ -20,10 +20,17 @@ Run in the worktree at commit `2be46c2`:
 | `npm run test:unit` | 0 | **289 files / 3901 tests passed, 0 skipped** |
 | `npm test` | 0 | unit as above, **plus the integration project: 10 files / 71 tests passed** against a disposable Neon branch, which was provisioned, migrated through all 41 files and deleted. No skip banner was printed, so integration genuinely ran. |
 | the five owner-loop configs (see §5) | 0 | **5 files / 109 tests passed** against a separately provisioned disposable branch |
+| CI `PR gate` on pull request #21 | success | all 10 jobs green: `static`, `unit-contract`, `integration`, `e2e-accessibility` ×4 shards, `build`, `cloudflare-worker`, and the aggregating `pr-gate` |
 
 Baseline for comparison, at `5bb2dcc`: 284 files / 3714 tests.
 
-**Not run:** Playwright E2E.
+**Read the E2E result narrowly.** The `e2e-accessibility` job runs `npm run e2e`
+unfiltered, so every Playwright project including Pixel-5 `mobile` does execute — but
+it runs with `E2E_FIXTURE_MODE: 1` and a fixture DSN
+(`postgresql://fixture:fixture@127.0.0.1:5432/fixture`). Under that flag
+`getProfile()` returns `null`, so every authenticated route denies. What is green is
+the public surface and the rendered component fixtures, **not** an authenticated
+owner journey against a database. AC-14 stays BLOCKED for that reason.
 
 ## 2. The matrix
 
@@ -42,8 +49,8 @@ Baseline for comparison, at `5bb2dcc`: 284 files / 3714 tests.
 | **AC-11** | Technical, search/AI and business outcomes stay separate | **PARTIAL** | Separate inside `lib/outcomes` — a technical verdict cannot populate a business one, because no verdict exists at all. Outside it, `lib/localTrust/roi.ts` presents a computed ROI baseline to owners; that is the layer-mixing risk to close before any commercial claim. |
 | **AC-12** | No cross-account read, mutation, inference or export | **PARTIAL** | Now proven against **real Postgres**, not SQL text: the five owner-loop suites ran on a disposable branch with 040–043 applied and passed 109 tests, exercising the composite-FK tenancy chain, the append-only GRANT posture, and the app role's inability to UPDATE or DELETE version, decision and delivery history. **Still partial:** those suites are unreachable from `npm test` and from CI (§5), and there is still no route-inventory test that fails when a new handler ships with no gate. |
 | **AC-13** | A disconnected or failing provider recovers honestly | **PASS (for what exists)** | `lib/delivery/service.ts` maps dependency failure to 503 and never a silent 200; `db()` throws, so a failed write cannot return 2xx; checks degrade to domain-specific messages with a `collection` diagnostic rather than a zero. Covered across `__tests__/delivery/**` and `__tests__/checks/**`. No external provider connector exists to disconnect. |
-| **AC-14** | Mobile review, approve and request-changes | **BLOCKED** | A Pixel-5 Playwright project exists and resolves tests since 2026-09-03 (`__tests__/config/playwright-projects.test.ts` fails a project resolving to zero), but E2E was not run this session — no database. |
-| **AC-15** | English and Traditional Chinese are equivalent in meaning, state and action | **PARTIAL** | For the Home priorities surface this is now asserted: `__tests__/components/workspace-home-priorities.test.tsx` renders every state in both languages, requires the two catalogues to declare identical keys, and requires the same state to produce *different* strings — so a missing translation silently falling back to English fails. **Still partial:** only this surface is covered; no bilingual walkthrough of the whole owner journey was executed, and no repo-wide key-parity assertion exists. |
+| **AC-14** | Mobile review, approve and request-changes | **BLOCKED** | The Pixel-5 project runs in CI and passes across four shards — but under `E2E_FIXTURE_MODE: 1` against a fixture DSN, where `getProfile()` returns `null` and every authenticated route denies. So mobile *rendering* of public surfaces is exercised; mobile **review and approve** is not, and cannot be until the suite runs against a real session and database. |
+| **AC-15** | English and Traditional Chinese are equivalent in meaning, state and action | **PARTIAL** | CI's accessibility and public-page E2E specs pass in both locales. For the Home priorities surface it is asserted directly: `__tests__/components/workspace-home-priorities.test.tsx` renders every state in both languages, requires the two catalogues to declare identical keys, and requires the same state to produce *different* strings — so a missing translation silently falling back to English fails. **Still partial:** only this surface is covered; no bilingual walkthrough of the whole owner journey was executed, and no repo-wide key-parity assertion exists. |
 
 ### Tally
 
