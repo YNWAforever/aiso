@@ -118,9 +118,43 @@ jobs:
               node scripts/redact.mjs < "$report" > "$report.redacted" && mv "$report.redacted" "$report"
             fi
           done
-          if [ "$vitest_exit" -eq 0 ]; then status=success; else status=failure; fi
-          node scripts/ci/write-job-summary.mjs --job integration --status "$status" --executed 1 --skipped 0 --artifact integration/vitest.log --output artifacts/integration-summary.json
-          exit "$vitest_exit"
+          # The five exact-target suites — client-entities, evidence-work-items,
+          # change-set-approvals, change-set-stores, delivery-attestations. They are
+          # excluded from the config above because each demands its own pre-approved
+          # disposable target, so until now they were runnable and run by nothing.
+          # The wrapper provisions one branch through the same audited path and
+          # derives every C9 value from it. Measured locally at 105s for all five,
+          # branch create and 46 migrations included, against this job's 30 minutes.
+          #
+          # Inside THIS step, not a later one, and deliberately: write-job-summary
+          # runs a few lines below, so a separate step would let the summary record
+          # success before the wrapper had run at all — a pass reported over a
+          # failure, in the one job that touches a real database.
+          mkdir -p artifacts/exact-target
+          set +e
+          node scripts/ci/run-exact-target-suites.mjs 2>&1 | node scripts/redact.mjs | tee artifacts/exact-target/wrapper.log
+          exact_exit=${PIPESTATUS[0]}
+          set -e
+          for report in artifacts/exact-target/*.json; do
+            if [ -f "$report" ]; then
+              node scripts/redact.mjs < "$report" > "$report.redacted" && mv "$report.redacted" "$report"
+            fi
+          done
+
+          if [ "$vitest_exit" -eq 0 ] && [ "$exact_exit" -eq 0 ]; then status=success; else status=failure; fi
+          # Measured, never asserted. aggregate-gate.mjs blocks on skipped > 0, so a
+          # hardcoded zero here is exactly how a skipped suite would read as a passing
+          # one. A missing report makes the counter exit non-zero rather than count 0,
+          # because 0 is indistinguishable from "nothing ran".
+          set +e
+          counts=$(node scripts/ci/count-vitest-reports.mjs artifacts/integration/vitest.json artifacts/exact-target/*.json)
+          counts_exit=$?
+          set -e
+          if [ "$counts_exit" -ne 0 ]; then status=failure; counts="0 0"; fi
+          node scripts/ci/write-job-summary.mjs --job integration --status "$status" --executed "${counts% *}" --skipped "${counts#* }" --artifact integration/vitest.log --artifact exact-target/wrapper.log --output artifacts/integration-summary.json
+          if [ "$vitest_exit" -ne 0 ]; then exit "$vitest_exit"; fi
+          if [ "$counts_exit" -ne 0 ]; then exit "$counts_exit"; fi
+          exit "$exact_exit"
         env:
           CI: 'true'
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
@@ -132,6 +166,7 @@ jobs:
           if-no-files-found: warn
           path: |
             artifacts/integration/
+            artifacts/exact-target/
             artifacts/integration-summary.json
 
   e2e-accessibility:

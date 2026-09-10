@@ -47,7 +47,7 @@ owner journey against a database. AC-14 stays BLOCKED for that reason.
 | **AC-09** | The exact approved version is exported, with actor, time and result retained | **PASS** | Completed in this session. Export already refused an unapproved version; migration 045 now records an append-only receipt keeping **both** hashes separately — `content_hash` (the approved payload) and `artifact_hash` (the rendered canonical envelope) — with `format`, `renderer_version`, the downloading actor and the time. A composite FK binds the version *and* its payload hash, so a receipt cannot name a version whose content differs from what left. The receipt is written **before** the bytes are released and a failure fails the export (409 on zero rows, 503 on error). The receipt records the **downloader**, not the submitter. |
 | **AC-10** | Recheck uses the same scope and method; incompatible means no improvement claim | **PASS (for the technical layer)** | The adapter is built *and wired*. `compareOutcome` (`lib/outcomes/evaluate.ts`) attaches a `comparison` to every window: `status` ∈ comparable / partially_comparable / not_comparable / insufficient_evidence, `outcome` ∈ improved / unchanged / regressed / not_yet_observed / cannot_determine, plus both verdicts. `evidenceState` reaches `available` for the first time. Admissibility is decided by method, target and configuration; **content is never compared**, since a page's content is expected to differ between a baseline and a recheck. A different method or subject refuses outright; an untrustworthy side is `insufficient_evidence` — "never" and "not yet" render differently. Pulse gets no adapter deliberately, because `success`/`incomplete` describe whether the observation completed, not whether it went well. `parseOutcomeResponse` re-derives and compares the field, so a client cannot forge `improved` over fail→fail nor upgrade `partially_comparable` to `comparable`; both forgeries are tested. 67 tests across `__tests__/outcomes/compare-outcome.test.ts`, `evaluate.test.ts` and `dto.test.ts`. **Remaining limitation, by design:** a scan-check baseline is a single frozen check rather than a whole envelope, so it carries `final-path-identity-withheld` and lands on `partially_comparable`; reaching `comparable` needs the snapshot to record its target identity, which is a separate change to a frozen contract. Nothing re-runs a scan automatically yet. |
 | **AC-11** | Technical, search/AI and business outcomes stay separate | **PARTIAL** | Separate inside `lib/outcomes` — a technical verdict cannot populate a business one, because no verdict exists at all. Outside it, `lib/localTrust/roi.ts` presents a computed ROI baseline to owners; that is the layer-mixing risk to close before any commercial claim. |
-| **AC-12** | No cross-account read, mutation, inference or export | **PARTIAL** | Now proven against **real Postgres**, not SQL text: the five owner-loop suites ran on a disposable branch with 040–043 applied and passed 109 tests, exercising the composite-FK tenancy chain, the append-only GRANT posture, and the app role's inability to UPDATE or DELETE version, decision and delivery history. **Still partial:** those suites are unreachable from `npm test` and from CI (§5), and there is still no route-inventory test that fails when a new handler ships with no gate. |
+| **AC-12** | No cross-account read, mutation, inference or export | **PARTIAL** | Proven against **real Postgres**, not SQL text: the five owner-loop suites exercise the composite-FK tenancy chain, the append-only GRANT posture, and the app role's inability to UPDATE or DELETE version, decision and delivery history. **Changed this session:** they now run **in the release gate**. `scripts/ci/run-exact-target-suites.mjs` provisions one disposable branch through the single audited path, derives every `C9*` value from that branch and from nothing else, runs all five configs, and deletes the branch in a `finally`. The existing `integration` job invokes it inside its own step, before the summary is written — a later step would have let `write-job-summary` record success before the wrapper had run. Measured, not estimated: **5/5 suites, 117 tests, exit 0, 105s** including branch create, all 46 migrations and teardown, against that job's 30-minute budget. Eleven assertions in `__tests__/ci/exact-target-suites.test.ts` stop it drifting back out (§5), and `scripts/ci/count-vitest-reports.mjs` replaces the hardcoded `--executed 1 --skipped 0` the summary used to publish. `__tests__/api/route-gate-inventory.test.ts` separately fails when a handler ships with no gate. **Still partial:** the cross-account proofs cover the owner-loop tables, not every table, and nothing yet proves the negative for the older feature stores. |
 | **AC-13** | A disconnected or failing provider recovers honestly | **PASS (for what exists)** | `lib/delivery/service.ts` maps dependency failure to 503 and never a silent 200; `db()` throws, so a failed write cannot return 2xx; checks degrade to domain-specific messages with a `collection` diagnostic rather than a zero. Covered across `__tests__/delivery/**` and `__tests__/checks/**`. No external provider connector exists to disconnect. |
 | **AC-14** | Mobile review, approve and request-changes | **BLOCKED** | Two separate blockers, now both identified precisely. (a) The Pixel-5 project runs in CI and passes, but the c9d/c9e specs render **pre-built static HTML fixtures** and abort all network — they test component markup at viewports, not a live journey. (b) An authenticated journey cannot be run here at all: `.env.local` declares `NEON_AUTH_COOKIE_SECRET`, `NEON_AUTH_BASE_URL`, `REPORT_SHARE_SECRET` and `PUBLIC_SCAN_RATE_LIMIT_SECRET` but every one is **empty**, and no `PLAYWRIGHT_TEST_EMAIL`/`PASSWORD` exists. See §6. |
 | **AC-15** | English and Traditional Chinese are equivalent in meaning, state and action | **PARTIAL** | Asserted directly for the three surfaces built here: the Home priorities and the approved-facts pack render every state in both languages, the catalogues must declare identical keys, and the same state must produce *different* strings, so a missing translation falling back to English fails. The source surface goes further — every error code `lib/sources/service.ts` and `lib/sources/schema.ts` can emit is enumerated **from the source text** and must carry a message in both catalogues, so a new code ships translated or fails the suite. Both languages are also checked for touch-sized controls on every interactive element, since review happens on a phone. The outcomes comparison copy is added to both catalogues with matching keys. CI’s accessibility and public-page E2E pass in both locales. **Still partial:** no bilingual walkthrough of the whole owner journey, and no repo-wide key-parity assertion. |
@@ -77,7 +77,7 @@ neither runtime, provider nor database readiness.
    the owner loop. Applying them is a single additive `npm run migrate`; it was
    attempted and **denied by the permission classifier**, so it needs the user's
    approval. Their content is no longer unproven — they applied cleanly to two
-   disposable branches this session, and their constraints pass 109 tests — but
+   disposable branches this session, and their constraints pass 117 tests — but
    until they land on the persistent database no owner journey can be walked end to
    end, which is what keeps AC-04 and AC-14 unrunnable rather than merely unrun.
 2. ~~The integration project did not run.~~ **Resolved.** `npm test` provisioned a
@@ -117,42 +117,92 @@ non-agent-usable source — the caller is meant to pass `listAgentUsableSources`
 and filtering would hide their bug while a revoked source sat one refactor from a
 draft. 22 tests.
 
-## 5. A silent skip in the release gate
+## 5. The silent skip in the release gate — closed
 
 The five suites that prove the owner-loop schema are **excluded from
 `vitest.integration.config.ts`** and live in their own configs
-(`vitest.entity-integration.config.ts` and four siblings). Those configs are wired
-into no npm script and into no CI job.
+(`vitest.entity-integration.config.ts` and four siblings), because each demands its
+own pre-approved disposable target. For months that meant they were **runnable and
+run by nothing**: no npm script named those configs, and no CI job invoked them.
 
-**Fixed.** Run directly without their `C9*` variables, all five used to report
-`Test Files 1 skipped` and **exit 0** — 109 tests reading as success while
-asserting nothing, the exact hazard `scripts/run-tests.mjs` was written to prevent,
-reproduced where its banner does not reach.
+Two separate faults, fixed in two steps.
 
-Each suite now carries one guard (`__tests__/integration/approved-target.ts`) that
-**fails** when no target is configured. Invoking one of these configs *is* the
-explicit request, so doing nothing must not read as success. Verified both ways:
-unconfigured runs now fail loudly, and a provisioned run passes all 114 tests
-(109 original plus the five guards).
+**The skip.** Run without their `C9*` variables, all five used to report
+`Test Files 1 skipped` and **exit 0** — reading as success while asserting nothing,
+the exact hazard `scripts/run-tests.mjs` was written to prevent, reproduced where
+its banner does not reach. Each suite now carries a guard
+(`__tests__/integration/approved-target.ts`) that **fails** when no target is
+configured. Invoking one of these configs *is* the explicit request, so doing
+nothing must not read as success.
 
-The remaining gap is reach: these configs are still invoked by no npm script and no
-CI job, so the release gate does not run them. Wiring them into `npm test` needs a
-provisioning step per suite and is its own change.
+**The reach.** `scripts/ci/run-exact-target-suites.mjs` now provisions one
+disposable branch through the single audited path — `createTestBranch` →
+`resetPublicSchema` → `scripts/migrate.ts`, the same `provisionBranch()` the default
+integration project uses — derives every `C9*` value from that branch, runs all five
+configs, and deletes the branch in a `finally`. It is invoked **inside** the existing
+`integration` job's step in `.github/workflows/pr-gate.yml`, before
+`write-job-summary`, so one status covers both halves; a separate step would have let
+the summary record success before the wrapper had run at all.
 
-To run them, provision a disposable branch, apply the migrations, and export the
-target for each suite:
+**Measured, not estimated:** `5/5 suites, 117 tests`, exit 0, **105 seconds** wall
+clock including the branch create, all 46 migrations and teardown — against that
+job's 30-minute budget. That number also settles a contradiction this document
+carried: 117 is what the reports actually total (3 + 5 + 22 + 19 + 68). The 114 and
+109 that appeared elsewhere in these docs were stale and have been removed.
 
-    C9_ENTITY_DISPOSABLE_BRANCH_ID / _PROJECT_ID / _OWNER_ROLE
-    C9C_WORK_ITEMS_DISPOSABLE_BRANCH_ID / _PROJECT_ID / _OWNER_ROLE
-    C9D_DISPOSABLE_BRANCH_ID / _DISPOSABLE_PROJECT_ID / _TEST_DATABASE_URL / _TEST_APP_DATABASE_URL
-    C9E_DISPOSABLE_BRANCH_ID / _DISPOSABLE_PROJECT_ID / _PARENT_BRANCH_ID / _TEST_DATABASE_URL / _TEST_APP_DATABASE_URL
+### What changed about safety, stated plainly
 
-The C9D and C9E suites need **two** URLs — an owner one and an `aeo_app` one —
-because what they prove is that the application role cannot UPDATE or DELETE
-version, decision or delivery history.
+Before, the branch and project ids were typed by a human who had separately approved
+that target, and each suite compared them against the in-band `neon.project_id` /
+`neon.branch_id` GUCs — an independent approval. Now one process both creates the
+branch and declares the expectation, so that comparison becomes a self-consistency
+check.
 
-Making these reachable from `npm test`, or at minimum making an unconfigured run
-fail rather than skip, is the highest-value follow-up in the acceptance area.
+What replaces it is structural rather than procedural, and stronger in the direction
+that matters: `createTestBranch` proves the target is a fresh, non-default,
+non-primary, TTL-expiring child of the AISO project whose connection uri matches one
+of its own endpoints; `assertDisposableTestBranch` refuses any branch this process
+did not create; and the in-band check still runs inside every suite and still fails
+closed.
+
+The load-bearing condition is that the wrapper **never reads a `C9*` value from the
+environment** — not as a default, not as a local-convenience fallback. Those
+variables name the database five suites write fixtures into and delete rows from, so
+one `?? process.env.C9D_TEST_DATABASE_URL` would turn a provisioning script into a
+way to aim destructive writes at any database an operator can reach.
+`__tests__/ci/exact-target-suites.test.ts` asserts that against the source rather
+than trusting the comment.
+
+### What stops it regressing
+
+`__tests__/ci/exact-target-suites.test.ts` (11 tests):
+
+- every `vitest.*-integration.config.ts` **discovered by glob** is in the wrapper's
+  list, so a sixth config cannot be added without being wired in;
+- every path in `vitest.integration.config.ts`'s `exclude` array is covered by
+  exactly one of those configs — if the two lists drift, a suite is excluded from the
+  default project and run by nothing, the original failure exactly;
+- `pr-gate.yml` invokes the wrapper;
+- all five suites still contain `assertApprovedTarget(` — the guard the wrapper
+  quietly retires, since with the `C9*` variables always supplied it is permanently
+  green and its deletion would be invisible;
+- the wrapper does nothing when imported rather than run. Found the expensive way:
+  the test file imports one constant from it, and an unguarded `main()` at module
+  scope provisioned three real Neon branches before the guard existed;
+- `__tests__/integration/setup.ts` loads under **plain node**. Also not hypothetical —
+  it imported `'../helpers/neon-branch'` with no extension, which Vitest resolves and
+  node does not, so the wrapper died `ERR_MODULE_NOT_FOUND` before provisioning
+  anything, with no test named in the failure.
+
+The job summary no longer hardcodes `--executed 1 --skipped 0`.
+`scripts/ci/count-vitest-reports.mjs` measures both from the six JSON reports, and an
+unreadable report fails rather than counting zero — `aggregate-gate.mjs` blocks on
+`skipped > 0`, so a hardcoded zero was itself a mechanism by which a skipped suite
+could read as a passing one.
+
+To run them locally: `node --env-file=.env.local scripts/ci/run-exact-target-suites.mjs`.
+It needs `neonctl` on PATH and `NEON_API_KEY`; it takes no other configuration, by
+design.
 
 ## 6. What a real runtime probe showed
 

@@ -115,7 +115,14 @@ function neonctl(args: string[]): string {
   }
 }
 
-export type TestBranch = { id: string; connectionUri: string }
+/**
+ * `parentId` is the branch this one was cut from, taken from the same response
+ * whose presence createTestBranch already requires as a proof of identity. It is
+ * carried so a caller can blocklist the parent by its real id rather than
+ * guessing one — delivery-attestations.test.ts treats C9E_PARENT_BRANCH_ID as a
+ * refusal list, and a guessed value there silently protects nothing.
+ */
+export type TestBranch = { id: string; parentId: string; connectionUri: string }
 
 /**
  * Branches this process created: id -> the exact connection uri neonctl
@@ -239,7 +246,9 @@ export function createTestBranch(name: string): TestBranch {
   }
 
   created.set(id, uri)
-  return { id, connectionUri: uri }
+  // parent_id was already proved a non-empty string above, as part of this
+  // branch's identity; the cast records that rather than re-checking it.
+  return { id, parentId: branch.parent_id as string, connectionUri: uri }
 }
 
 /**
