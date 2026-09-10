@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -203,6 +203,44 @@ describe('playwright project discovery', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   }
+
+  it('never collects specs from a sibling worktree', () => {
+    // This is not hypothetical. Worktrees moved from `.worktrees/` to
+    // `.claude/worktrees/`, and testIgnore did not follow — so running Playwright
+    // from a checkout that has any worktree under it made `testDir: '.'` walk in,
+    // collect that worktree's copy of every spec, and load a SECOND
+    // @playwright/test from its node_modules. The run died on
+    // "Requiring @playwright/test second time" before a single test executed,
+    // which is how AC-14's journey failed the first time it was ever run for real.
+    //
+    // `respectGitIgnore` is not the backstop it looks like: .gitignore names only
+    // the old `.worktrees/`, and `.claude/worktrees/` is ignored per-clone through
+    // .git/info/exclude, which is never committed — so CI and every fresh clone
+    // see it as an ordinary directory.
+    // The probe must sit at tests/e2e/ INSIDE the fake worktree, mirroring the
+    // real layout. Project testMatch is also matched against the absolute path,
+    // so a spec parked anywhere else is skipped for want of a match rather than
+    // by testIgnore — which would make this test pass with the ignore removed.
+    // (It did, on the first attempt. Mutation caught it.)
+    const probeRoot = join(process.cwd(), '.claude', 'worktrees', '__ignore_probe__')
+    const probeDir = join(probeRoot, 'tests', 'e2e')
+    mkdirSync(probeDir, { recursive: true })
+    writeFileSync(
+      join(probeDir, 'probe.spec.ts'),
+      "import { test } from '@playwright/test'\ntest('probe', () => {})\n",
+    )
+    try {
+      const files = filesByProject(listAllProjects())
+      for (const [project, discovered] of Object.entries(files)) {
+        expect(
+          [...discovered].some(file => file.includes('__ignore_probe__')),
+          `${project} collected a spec from a sibling worktree`,
+        ).toBe(false)
+      }
+    } finally {
+      rmSync(probeRoot, { recursive: true, force: true })
+    }
+  }, 120_000)
 
   it('adds authenticated-mobile only when a captured session exists', () => {
     const names = (report: PlaywrightListReport): string[] =>
