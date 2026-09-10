@@ -126,7 +126,7 @@ proxy.ts           # Next 16 proxy (was middleware) — intl routing + auth veri
 i18n/              # next-intl routing + request config
 messages/          # en.json / zh-HK.json translation strings
 supabase/
-  migrations/      # 35 SQL migrations, 001_-037_ (no 005/006) - dir name is legacy
+  migrations/      # 44 SQL migrations, 001_-046_ (no 005/006) - dir name is legacy
 __tests__/         # Vitest tests mirroring lib/app structure
 tests/e2e/         # Playwright specs + page objects
 scripts/           # migrate.ts (npm run migrate), run-tests.mjs (npm test), seed-packs.ts
@@ -350,8 +350,20 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   rather than checking first is the preferred shape — one statement, no TOCTOU window, and zero
   rows means 404 without distinguishing "absent" from "not yours". See
   `app/api/dashboard/clients/[clientId]/prompts/[promptId]/route.ts`.
-- Migrations in `supabase/migrations/` — 35 files, `001_`–`037_` (no 005/006; directory name is legacy;
-  the target is now Neon)
+- Migrations in `supabase/migrations/` — 44 files, `001_`–`046_` (no 005/006; directory name is legacy;
+  the target is now Neon). `038`–`046` postdate the "001–035 all applied" note below, which is
+  about the *persistent* database and is only as fresh as its date — re-run `--verify`.
+- **`046` states an intent two clauses used to produce by accident.** 044 declared
+  `revoked_by` and `approved_by` as profile FKs with `on delete set null` while a CHECK on
+  each table required the actor and its timestamp to be null together — so the referential
+  action performed exactly the write the CHECK forbade, and deleting the referenced profile
+  failed on a constraint naming no profile. It was present twice, and the
+  `client_source_versions` half was masked because PostgreSQL fires referential triggers in
+  constraint-creation order. `046` drops those two FKs and relaxes **neither** CHECK: a
+  decision stays indivisible on write, and the recorded uuid becomes a frozen identity — the
+  rule `042` and `043` already state in their headers ("No profile FK: frozen identities
+  intentionally survive profile removal"). `created_by`/`imported_by` keep their FK and their
+  working `set null`, because provenance is erasable and a decision is not.
 - **A migration runner now exists:** `scripts/migrate.ts`, run via `npm run migrate`. It
   applies every file absent from the `schema_migrations` ledger, in filename order, each in
   its own transaction. `--dry-run` previews; `--baseline --except <file>` records existing

@@ -41,19 +41,27 @@ source traceability verified. See `00-BASELINE-AND-GAPS.md`.
 |---|---|---|
 | `npm run typecheck` | 0 | clean |
 | `npm run lint` | 0 | 0 errors, 0 warnings |
-| `npm run test:unit` | 0 | **293 files / 3987 tests, 0 skipped** (baseline 284 / 3714) |
-| `npm test` | 0 | unit as above **plus 11 integration files / 85 tests**, against a disposable Neon branch that was provisioned, migrated through all 41 files and deleted. No skip banner printed. |
+| `npm run test:unit` | 0 | **299 files / 4160 tests, 0 skipped** (baseline 284 / 3714) |
+| `npm test` | 0 | unit as above **plus 11 integration files / 92 tests**, against a disposable Neon branch that was provisioned, migrated through all 44 files and deleted. No skip banner printed. |
 | five owner-loop integration configs | 0 | **5 files / 117 tests passed** via `node scripts/ci/run-exact-target-suites.mjs`, which provisions and destroys its own disposable branch with all 46 migrations applied — composite-FK tenancy, append-only GRANT posture, and the app role’s inability to UPDATE or DELETE history. 105s wall clock. |
 | CI `PR gate` (#21) | success | all 10 jobs: `static`, `unit-contract`, `integration`, `e2e-accessibility` ×4, `build`, `cloudflare-worker`, `pr-gate` |
 | `npm run e2e` locally | — | not run. CI runs it, but under `E2E_FIXTURE_MODE` against a fixture DSN, so no authenticated owner journey is exercised anywhere yet |
 
-Acceptance: **7 PASS, 6 PARTIAL, 1 BLOCKED, 1 DEFERRED, 0 FAIL** across AC-01…AC-15.
+Acceptance: **8 PASS, 5 PARTIAL, 1 BLOCKED, 1 DEFERRED, 0 FAIL** across AC-01…AC-15.
 AC-14 is the only BLOCKED row left, and only for its authenticated half.
 Full table with evidence in `04-ACCEPTANCE-MATRIX.md`.
 
 ## Migrations and flags
 
-- No migration is needed to deploy any commit on this branch; none touches a schema.
+- **`046_source_actor_attribution.sql` MUST be applied before the commits on this
+  branch are deployed.** Every earlier commit here was schema-neutral; this one is
+  not. It drops two foreign keys (`client_sources_revoked_actor_fk`,
+  `client_source_versions_approved_actor_fk`) and creates nothing. Because it
+  creates no relation, `npm run migrate -- --verify` reports it `n/a` — that is the
+  correct answer for a constraint-only migration, not a sign it did not run; the
+  ledger row is the evidence. Applying it is additive in the sense that matters:
+  nothing that worked before stops working, and a profile deletion that used to
+  fail now succeeds with the decision intact.
 - `040`–`043` were **applied to the AISO development database on 2026-09-10, under
   explicit approval** — see "Actions taken" below. `--verify` reported all four
   `all present recorded` and the ledger moved 38 → 42.
@@ -141,10 +149,18 @@ The remaining Phase 1 gaps, in the order they matter:
    `scripts/ci/run-exact-target-suites.mjs` runs all five inside the `integration`
    job, on a disposable branch it provisions and destroys itself: 117 tests, 105s.
    Eleven assertions stop them drifting back out of the gate.
-6. **A contradiction inside migration 044**, found by the new integration coverage
-   and now pinned by a test: `revoked_by` is declared `on delete set null` while a
-   CHECK requires `revoked_at` and `revoked_by` to be null together, so deleting
-   the profile of whoever revoked a source fails. The direction is safe —
-   attribution survives — but it blocks account deletion for any account carrying
-   revocation history, and neither clause states that intent. Resolving it is a
-   follow-up migration, not an edit to the already-applied 044.
+6. ~~**A contradiction inside migration 044**~~ — **done, and it was present twice.**
+   044 declared `revoked_by` and `approved_by` as profile FKs with `on delete set
+   null`, while a CHECK on each table required the actor and its timestamp to be null
+   together — so the referential action performed exactly the write the CHECK forbade,
+   and deleting the referenced profile failed on a constraint naming no profile. The
+   `client_source_versions` half was **masked**: PostgreSQL fires referential triggers
+   in constraint-creation order, so `client_sources` raised first and the append-only
+   half — the one that matters more — was never reached.
+
+   `046_source_actor_attribution.sql` drops those two FKs and relaxes **neither**
+   CHECK. A decision stays indivisible on write; the recorded uuid becomes a frozen
+   identity, which is the rule 042 and 043 already state in their headers.
+   `created_by`/`imported_by` keep their FK and their working `set null`, because
+   provenance is erasable and a decision is not — and the integration test pins both
+   halves, so an over-broad fix that dropped all four FKs would fail it.

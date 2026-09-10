@@ -315,25 +315,28 @@ describe('approved sources: the projection agrees with the gate', () => {
 })
 
 /**
- * Revocation attribution is durable, and that has a cost worth stating.
+ * A decision outlives its actor; provenance does not. 046 makes that the schema's
+ * stated intent rather than something two disagreeing clauses produced by accident.
  *
- * 044 declares `foreign key (revoked_by, account_id) references profiles
- * on delete set null (revoked_by)` and, three lines later,
- * `check ((revoked_at is null) = (revoked_by is null))`. The FK promises to null
- * a column the CHECK forbids nulling on its own, so deleting the profile of
- * whoever revoked a source **fails** rather than quietly erasing who did it.
+ * 044 declared `revoked_by` and `approved_by` as profile FKs with `on delete set
+ * null`, while a CHECK on each table required the actor and its timestamp to be
+ * null together — so the referential action performed exactly the write the CHECK
+ * forbade, and deleting the profile failed on a constraint that mentions no
+ * profile. 046 drops those two FKs and leaves both CHECKs untouched: the decision
+ * is still indivisible on write, and the recorded uuid is now a frozen identity,
+ * which is the rule 042 and 043 already state in their own headers.
  *
- * That is the safe direction — a revocation with no actor is a worse record than
- * no deletion — but it is a contradiction between two clauses rather than a
- * decision either of them states, and it means account deletion is blocked by
- * revocation history. Recorded here so the next person meets it as a documented
- * behaviour rather than a mystery constraint error, and so changing it is a
- * deliberate migration rather than a surprise.
+ * `created_by` and `imported_by` deliberately keep their FK and their `set null`.
+ * They carry no paired CHECK, so SET NULL is a real behaviour there — losing "who
+ * first pasted this" when a colleague leaves is acceptable in a way that losing
+ * "who approved it" is not. This test pins both halves of that asymmetry, because
+ * an over-broad fix that dropped all four FKs would still make the first assertion
+ * pass.
  */
-describe('approved sources: revocation attribution outlives its actor', () => {
+describe('approved sources: a decision outlives its actor, provenance does not', () => {
   beforeEach(seed)
 
-  it('refuses to erase who revoked a source, and blocks the profile deletion instead', async () => {
+  it('keeps who revoked and who approved when their profile is deleted, and forgets who imported', async () => {
     const clientId = await brand(ACCOUNT, 'Brand')
     const actor = await profile(ACCOUNT)
     const scope = { accountId: ACCOUNT, clientId, actorId: actor }
@@ -342,13 +345,45 @@ describe('approved sources: revocation attribution outlives its actor', () => {
       entries: [{ question: 'Hours?', answer: '9 to 6' }],
       importMethod: 'paste', originRef: null, approve: true,
     })
+    expect(imported.kind).toBe('created')
     await revokeSource(scope, (imported as { source: { id: string } }).source.id)
 
-    await expect(sql`delete from profiles where id = ${actor}`)
-      .rejects.toThrow(/client_sources_revocation_check/)
+    // Before 046 this raised 23514 naming client_sources_revocation_check.
+    await sql`delete from profiles where id = ${actor}`
+    await sql`delete from neon_auth.user where id = ${actor}`
 
-    const rows = await sql`select revoked_by from client_sources where account_id = ${ACCOUNT}`
-    expect(rows[0]!.revoked_by).toBe(actor)
+    const [source] = await sql`
+      select revoked_by, revoked_at, created_by from client_sources where account_id = ${ACCOUNT}
+    ` as { revoked_by: string | null; revoked_at: string | null; created_by: string | null }[]
+    const [version] = await sql`
+      select approved_by, approved_at, imported_by from client_source_versions where account_id = ${ACCOUNT}
+    ` as { approved_by: string | null; approved_at: string | null; imported_by: string | null }[]
+
+    // The decisions survive, both halves of each still paired.
+    expect(source!.revoked_by).toBe(actor)
+    expect(source!.revoked_at).not.toBeNull()
+    // The versions half is the one the old test never reached, and the one that
+    // matters more: client_source_versions is append-only, so an approval is the
+    // most durable record in the feature.
+    expect(version!.approved_by).toBe(actor)
+    expect(version!.approved_at).not.toBeNull()
+
+    // Provenance is erasable, and still is. An over-broad fix that dropped all
+    // four profile FKs would pass every assertion above and fail these two.
+    expect(source!.created_by).toBeNull()
+    expect(version!.imported_by).toBeNull()
+  })
+
+  it('still refuses a revocation with only one half recorded', async () => {
+    // 046 relaxes neither CHECK. Dropping the FK must not make a decision
+    // divisible on write — that property is the reason the contradiction was
+    // worth resolving in this direction rather than the other.
+    const clientId = await brand(ACCOUNT, 'Brand')
+    const id = await source(ACCOUNT, clientId)
+
+    await expect(sql`
+      update client_sources set revoked_at = now() where account_id = ${ACCOUNT} and id = ${id}
+    `).rejects.toThrow(/client_sources_revocation_check/)
   })
 })
 
