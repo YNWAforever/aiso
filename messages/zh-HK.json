@@ -1908,6 +1908,25 @@
       "scan-record-retention": "此來源為保留的掃描記錄。",
       "source-malformed": "儲存的來源證據格式錯誤。",
       "unsupported-source": "此來源類型不支援比較。"
+    },
+    "comparison": "與凍結基準比較",
+    "comparisonBasis": "比較基礎",
+    "comparisonChange": "觀察到的變化",
+    "comparisonBaseline": "基準結果",
+    "comparisonObserved": "觀察結果",
+    "comparisonLimitation": "此比較針對同一檢查項目、同一方法,只屬技術結果,不構成搜尋排名或業務成效的證據。",
+    "comparisonStatuses": {
+      "comparable": "相同目標、相同方法 —— 屬同條件比較。",
+      "partially_comparable": "方法相同,但無法證實兩次檢查的是同一頁。此變化只作參考,不等於同條件比較。",
+      "not_comparable": "兩筆紀錄描述的並非同一件事,不能比較。",
+      "insufficient_evidence": "暫時未有足夠可信證據作比較。"
+    },
+    "comparisonOutcomes": {
+      "improved": "此檢查項目向好的方向改變。",
+      "unchanged": "此檢查項目沒有變化。",
+      "regressed": "此檢查項目向差的方向改變。",
+      "not_yet_observed": "此時段暫未觀察到任何結果。",
+      "cannot_determine": "根據這些紀錄無法判斷變化。"
     }
   }
 }
