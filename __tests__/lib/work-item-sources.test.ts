@@ -9,18 +9,39 @@ import { listLiveSources } from '@/lib/work-items/sources'
 beforeEach(() => { vi.clearAllMocks() })
 
 describe('listLiveSources', () => {
-  it('returns the sources of one item, in opportunity-key order', async () => {
+  it('maps all eight DTO fields and orders the read by opportunity_key in the statement', async () => {
     mocks.sql.mockResolvedValue([
-      { id: 's1', opportunity_key: 'a', source_kind: 'scan-check', source_id: 'x',
-        rule_version: 'scan-check-gap.v1', check_key: 'c9_meta_desc',
-        evidence_fingerprint: 'f'.repeat(64), evidence_snapshot: { kind: 'scan-check' } },
+      { id: 'id-value', opportunity_key: 'opportunity-key-value', source_kind: 'scan-check',
+        source_id: 'source-id-value', rule_version: 'scan-check-gap.v1', check_key: 'c9_meta_desc',
+        evidence_fingerprint: 'f'.repeat(64), evidence_snapshot: { marker: 'snapshot-value' } },
     ])
 
     const sources = await listLiveSources('account-1', 'client-1', 'item-1')
 
+    // Every value above is distinct from every other, so a mis-mapped column
+    // (e.g. sourceId: String(row.source_kind)) cannot coincidentally match --
+    // it would fail this equality instead of slipping through unnoticed.
     expect(sources).toHaveLength(1)
-    expect(sources[0]!.opportunityKey).toBe('a')
-    expect(sources[0]!.snapshot).toEqual({ kind: 'scan-check' })
+    expect(sources[0]).toEqual({
+      id: 'id-value',
+      opportunityKey: 'opportunity-key-value',
+      sourceKind: 'scan-check',
+      sourceId: 'source-id-value',
+      ruleVersion: 'scan-check-gap.v1',
+      checkKey: 'c9_meta_desc',
+      fingerprint: 'f'.repeat(64),
+      snapshot: { marker: 'snapshot-value' },
+    })
+
+    // The mock returns exactly whatever it is told to regardless of the query
+    // text, so it cannot itself tell an ordered result from an arbitrary one
+    // -- the only place this can be checked at all is the SQL text itself.
+    // Without this clause, rows come back in whatever order Postgres chooses
+    // to produce them, so two requests could present a work item's sources
+    // differently, and the submit path in a later task hashes these sources
+    // in order -- an unordered read would make that hash unstable.
+    const strings = mocks.sql.mock.calls[0]![0] as unknown as string[]
+    expect(strings.join(' ')).toContain('order by opportunity_key')
   })
 
   it('scopes the read to the account and client in the statement itself', async () => {

@@ -34,7 +34,15 @@ const dto = (row: Record<string, unknown>): LiveSource => ({
   ruleVersion: String(row.rule_version),
   checkKey: row.check_key === null ? null : String(row.check_key),
   fingerprint: String(row.evidence_fingerprint),
-  snapshot: (row.evidence_snapshot ?? {}) as Record<string, unknown>,
+  // No `?? {}` fallback here, deliberately. 051 declares evidence_snapshot
+  // `not null` plus `work_item_sources_snapshot_object_check`
+  // (`jsonb_typeof(evidence_snapshot) = 'object'`), so the column can be
+  // neither SQL NULL nor JSON null, and the Neon driver hands back jsonb
+  // already parsed (see store.ts's dto(), which uses row.evidence_snapshot
+  // directly with no JSON.parse). A nullish value here means something is
+  // badly wrong upstream, not a valid empty snapshot -- falling back to `{}`
+  // would present that failure as a success, which this codebase never does.
+  snapshot: row.evidence_snapshot as Record<string, unknown>,
 })
 
 /**
