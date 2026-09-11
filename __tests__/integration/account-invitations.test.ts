@@ -1,6 +1,17 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { neon } from '@neondatabase/serverless'
 import { provisionAccountForUser } from '@/app/api/webhooks/neon/route'
+
+vi.mock('server-only', () => ({}))
+// lib/members/store reads through db(); point it at the same provisioned branch
+// the raw assertions below use, so the store and the SQL see one database. The
+// factory imports dynamically because vi.mock is hoisted above this file's own
+// imports, so the top-level `neon` binding is not yet initialised when it runs.
+// provisionAccountForUser is unaffected — it takes its `sql` as an argument.
+vi.mock('@/lib/db', async () => {
+  const { neon: connect } = await import('@neondatabase/serverless')
+  return { db: () => connect(process.env.TEST_DATABASE_URL!) }
+})
 
 const sql = neon(process.env.TEST_DATABASE_URL!)
 
@@ -88,7 +99,14 @@ async function invite(
 async function seed() {
   // account_invitations references accounts and profiles, so it goes first;
   // profiles.account_id references accounts, so profiles go before accounts.
+  // Both clauses are needed: the store tests invite addresses other than
+  // INVITEE_EMAIL, and the provisioning tests invite from accounts that are
+  // deleted and recreated here.
   await sql`delete from account_invitations where email = ${INVITEE_EMAIL}`
+  await sql`
+    delete from account_invitations
+    where account_id in (${ACCOUNT_A}::uuid, ${ACCOUNT_B}::uuid)
+  `
   for (const user of ALL_USERS) {
     const owned = (await sql`
       select account_id from profiles where id = ${user}::uuid and account_id is not null
@@ -101,6 +119,14 @@ async function seed() {
         await sql`delete from accounts where id = ${row.account_id}::uuid`
       }
     }
+  }
+  // account_approver_events references accounts with ON DELETE RESTRICT, and
+  // _state references the events, so both have to go before the account can.
+  // The approver fixture below writes them, and without this the SECOND test
+  // in the file fails on a constraint naming a table it never touched.
+  for (const account of ALL_ACCOUNTS) {
+    await sql`delete from account_approver_state where account_id = ${account}::uuid`
+    await sql`delete from account_approver_events where account_id = ${account}::uuid`
   }
   for (const account of ALL_ACCOUNTS) {
     await sql`delete from accounts where id = ${account}::uuid`
@@ -324,5 +350,218 @@ describe('account_invitations constraints', () => {
     expect(rows).toHaveLength(1)
     expect(rows[0].invited_by).toBeNull()
     expect(rows[0].email).toBe(INVITEE_EMAIL)
+  })
+})
+
+describe('lib/members/store', () => {
+  const OUTSIDER_EMAIL = 'outsider-a7@example.com'
+
+  /**
+   * Grant an approver role through the same event + state pair `can_decide`
+   * reads. Written directly because minting a grant through the product needs
+   * a platform admin, which is a capability separate from membership.
+   */
+  async function grantApprover(accountId: string, profileId: string, administratorId: string) {
+    const rows = (await sql`
+      insert into account_approver_events
+        (account_id, profile_id, action, previous_revision, new_revision,
+         administrator_id, administrator, reason, request_id)
+      values (
+        ${accountId}::uuid, ${profileId}::uuid, 'grant', 0, 1,
+        ${administratorId}::uuid,
+        jsonb_build_object('profileId', ${administratorId}::text, 'displayName', null, 'role', 'platform_admin'),
+        'fixture', gen_random_uuid()
+      )
+      returning id
+    `) as Array<{ id: string }>
+    await sql`
+      insert into account_approver_state (account_id, profile_id, active, revision, last_event_id)
+      values (${accountId}::uuid, ${profileId}::uuid, true, 1, ${rows[0].id}::uuid)
+    `
+  }
+
+  describe('loadAccountMembers', () => {
+    it('returns only this account, and says who may approve', async () => {
+      const { loadAccountMembers } = await import('@/lib/members/store')
+      await grantApprover(ACCOUNT_A, OWNER_A, OWNER_A)
+
+      const page = await loadAccountMembers(ACCOUNT_A)
+
+      expect(page.members.map(member => member.profileId)).toEqual([OWNER_A])
+      expect(page.members[0].approver).toBe(true)
+      // OWNER_B is a member of ACCOUNT_B and must not appear here.
+      expect(page.members.map(member => member.profileId)).not.toContain(OWNER_B)
+    })
+
+    it('reports a member with no grant as not an approver', async () => {
+      const { loadAccountMembers } = await import('@/lib/members/store')
+
+      const page = await loadAccountMembers(ACCOUNT_A)
+
+      expect(page.members[0].approver).toBe(false)
+    })
+
+    it('lists this account invitations with a derived status, never another account', async () => {
+      const { loadAccountMembers } = await import('@/lib/members/store')
+      await invite(ACCOUNT_A, OWNER_A)
+      await invite(ACCOUNT_B, OWNER_B)
+
+      const page = await loadAccountMembers(ACCOUNT_A)
+
+      expect(page.invitations).toHaveLength(1)
+      expect(page.invitations[0].email).toBe(INVITEE_EMAIL)
+      // The address has a neon_auth.user row (seeded), so it can never consume
+      // an invitation — the listing has to say so rather than show `pending`.
+      expect(page.invitations[0].status).toBe('unclaimable')
+    })
+  })
+
+  describe('createInvitation', () => {
+    async function create(accountId: string, invitedBy: string, email = OUTSIDER_EMAIL) {
+      const { createInvitation } = await import('@/lib/members/store')
+      return createInvitation({ accountId, invitedBy, email })
+    }
+
+    it('creates a live invitation for an address nobody has registered', async () => {
+      const result = await create(ACCOUNT_A, OWNER_A)
+
+      expect(result.kind).toBe('created')
+      const rows = (await sql`
+        select account_id, email, invited_by from account_invitations
+        where account_id = ${ACCOUNT_A}::uuid and email = ${OUTSIDER_EMAIL}
+      `) as Row[]
+      expect(rows).toHaveLength(1)
+      expect(rows[0].invited_by).toBe(OWNER_A)
+    })
+
+    /**
+     * The tenancy assertion. `accountId` reaches the store from the caller's
+     * own profile, never from the request — but the store must not depend on
+     * that, because one route forgetting it would be the whole breach.
+     */
+    it('denies an actor who is not a member of the account being invited into', async () => {
+      const result = await create(ACCOUNT_A, OWNER_B)
+
+      expect(result.kind).toBe('denied')
+      const rows = (await sql`
+        select id from account_invitations where email = ${OUTSIDER_EMAIL}
+      `) as Row[]
+      expect(rows).toEqual([])
+    })
+
+    it('refuses an address that is already a member of this account', async () => {
+      const result = await create(ACCOUNT_A, OWNER_A, OWNER_A_EMAIL)
+
+      expect(result.kind).toBe('already_member')
+    })
+
+    /**
+     * An invitation is consumed at provisioning time, so an address that has
+     * already signed in can never consume one. Accepting the invitation and
+     * sending the mail anyway would promise something the product cannot do.
+     */
+    it('refuses an address that already has an auth user', async () => {
+      const result = await create(ACCOUNT_A, OWNER_A, INVITEE_EMAIL)
+
+      expect(result.kind).toBe('already_registered')
+    })
+
+    it('refuses a second live invitation for the same address', async () => {
+      await create(ACCOUNT_A, OWNER_A)
+
+      const result = await create(ACCOUNT_A, OWNER_A)
+
+      expect(result.kind).toBe('duplicate')
+    })
+
+    /**
+     * The partial unique index cannot mention now(), so an expired row still
+     * occupies the slot. Replacing it must therefore revoke it as `superseded`
+     * in the same call — not delete it, because an offered membership stays
+     * explainable.
+     */
+    it('supersedes an expired invitation rather than failing on the unique index', async () => {
+      await sql`
+        insert into account_invitations (account_id, email, invited_by, invited_at, expires_at)
+        values (${ACCOUNT_A}::uuid, ${OUTSIDER_EMAIL}, ${OWNER_A}::uuid,
+                now() - interval '8 days', now() - interval '1 day')
+      `
+
+      const result = await create(ACCOUNT_A, OWNER_A)
+
+      expect(result.kind).toBe('created')
+      const rows = (await sql`
+        select revoked_reason, revoked_by from account_invitations
+        where account_id = ${ACCOUNT_A}::uuid and email = ${OUTSIDER_EMAIL}
+        order by invited_at asc
+      `) as Row[]
+      expect(rows).toHaveLength(2)
+      expect(rows[0].revoked_reason).toBe('superseded')
+      // No human withdrew it, so none is recorded.
+      expect(rows[0].revoked_by).toBeNull()
+      expect(rows[1].revoked_reason).toBeNull()
+    })
+
+    it('refuses once members plus live invitations reach the cap', async () => {
+      const { MAX_ACCOUNT_MEMBERS } = await import('@/lib/members/schema')
+      // One member already exists, so fill the remaining slots with invitations.
+      for (let index = 0; index < MAX_ACCOUNT_MEMBERS - 1; index += 1) {
+        const result = await create(ACCOUNT_A, OWNER_A, `cap-a7-${index}@example.com`)
+        expect(result.kind).toBe('created')
+      }
+
+      const result = await create(ACCOUNT_A, OWNER_A, 'cap-a7-overflow@example.com')
+
+      expect(result.kind).toBe('limit_reached')
+    })
+  })
+
+  describe('revokeInvitation', () => {
+    it('revokes an invitation of its own account and names who did it', async () => {
+      const { revokeInvitation } = await import('@/lib/members/store')
+      const id = await invite(ACCOUNT_A, OWNER_A)
+
+      await expect(
+        revokeInvitation({ accountId: ACCOUNT_A, invitationId: id, revokedBy: OWNER_A }),
+      ).resolves.toBe(true)
+
+      const rows = (await sql`
+        select revoked_reason, revoked_by from account_invitations where id = ${id}::uuid
+      `) as Row[]
+      expect(rows[0].revoked_reason).toBe('member')
+      expect(rows[0].revoked_by).toBe(OWNER_A)
+    })
+
+    it('refuses to revoke another account invitation, and leaves it live', async () => {
+      const { revokeInvitation } = await import('@/lib/members/store')
+      const id = await invite(ACCOUNT_B, OWNER_B)
+
+      await expect(
+        revokeInvitation({ accountId: ACCOUNT_A, invitationId: id, revokedBy: OWNER_A }),
+      ).resolves.toBe(false)
+
+      const rows = (await sql`
+        select revoked_at from account_invitations where id = ${id}::uuid
+      `) as Row[]
+      expect(rows[0].revoked_at).toBeNull()
+    })
+
+    it('is idempotent — revoking twice does not rewrite who withdrew it', async () => {
+      const { revokeInvitation } = await import('@/lib/members/store')
+      const id = await invite(ACCOUNT_A, OWNER_A)
+      await revokeInvitation({ accountId: ACCOUNT_A, invitationId: id, revokedBy: OWNER_A })
+      const [first] = (await sql`
+        select revoked_at from account_invitations where id = ${id}::uuid
+      `) as Row[]
+
+      await expect(
+        revokeInvitation({ accountId: ACCOUNT_A, invitationId: id, revokedBy: OWNER_A }),
+      ).resolves.toBe(false)
+
+      const [second] = (await sql`
+        select revoked_at from account_invitations where id = ${id}::uuid
+      `) as Row[]
+      expect(second.revoked_at).toEqual(first.revoked_at)
+    })
   })
 })
