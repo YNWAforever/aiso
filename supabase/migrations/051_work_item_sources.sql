@@ -32,9 +32,15 @@ create table public.work_item_sources (
   -- would occupy its opportunity key forever: aeo_app has no DELETE here.
   withdrawn_at timestamptz,
   withdrawn_by uuid,
+  -- 042 binds work_item_versions to the same parent with on delete restrict.
+  -- A withdrawn source row exists precisely so a draft that once cited that
+  -- evidence stays explainable -- cascade would delete exactly the rows that
+  -- keep old work explicable. Neither action can fire today: aeo_app has no
+  -- DELETE grant on evidence_work_items. This states the intent in the
+  -- schema, not a change in current behaviour.
   constraint work_item_sources_owned_item_fk
     foreign key (account_id, client_id, work_item_id)
-      references public.evidence_work_items (account_id, client_id, id) on delete cascade,
+      references public.evidence_work_items (account_id, client_id, id) on delete restrict,
   constraint work_item_sources_attached_actor_fk
     foreign key (attached_by, account_id) references public.profiles (id, account_id) on delete set null (attached_by),
   -- Moved from 041 verbatim. One source per row now, same rule.
@@ -121,6 +127,21 @@ alter table public.work_item_versions add constraint work_item_versions_content_
       content->'schemaVersion' = '2'::jsonb
       and jsonb_typeof(content->'evidenceSnapshots') = 'array'
       and jsonb_array_length(content->'evidenceSnapshots') >= 1
+      -- Per-element rules, held to the same standard as the v1 branch above:
+      -- object type, the element's own schemaVersion, and source.kind within
+      -- the enum. A CHECK constraint cannot subquery or unnest, so these are
+      -- jsonpath predicates instead, written as "no element violates this".
+      -- Every comparison pairs with an explicit exists() -- 044's trap: a
+      -- comparison against an ABSENT key yields an empty sequence, which
+      -- jsonb_path_exists reads as false, so a malformed element would
+      -- otherwise pass silently.
+      and not jsonb_path_exists(content, '$.evidenceSnapshots[*] ? (@.type() != "object")')
+      and not jsonb_path_exists(content, '$.evidenceSnapshots[*] ? (!exists(@.schemaVersion) || @.schemaVersion != 1)')
+      and not jsonb_path_exists(content, '$.evidenceSnapshots[*] ? (!exists(@.source.kind) || !(@.source.kind == "pulse-metric" || @.source.kind == "scan-check"))')
+      -- jsonpath cannot measure bytes, so this bounds element COUNT, not
+      -- size -- octet_length(content::text) <= 131072 below already caps
+      -- total bytes; this exists only to stop one enormous array.
+      and jsonb_array_length(content->'evidenceSnapshots') <= 16
     )
   )
   and octet_length(content::text) <= 131072

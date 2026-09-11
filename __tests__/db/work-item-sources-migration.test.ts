@@ -56,4 +56,32 @@ describe('051 creates the source child table', () => {
     expect(sql).toContain("content->'schemaVersion' in ('1'::jsonb, '2'::jsonb)")
     expect(sql).toContain('evidenceSnapshots')
   })
+
+  it('restricts rather than cascades, like 042 binds the same parent', () => {
+    // A withdrawn source explains a draft that cited it. Cascade would delete
+    // exactly the rows that keep old work explicable.
+    expect(sql).toContain('references public.evidence_work_items (account_id, client_id, id) on delete restrict')
+  })
+
+  it('holds every v2 snapshot to the same rules as a v1 snapshot', () => {
+    // Without these, schemaVersion 2 would be validated more weakly than 1,
+    // which is a loosening rather than a relocation.
+    expect(sql).toContain("'$.evidenceSnapshots[*] ? (@.type() != \"object\")'")
+    expect(sql).toContain('!exists(@.schemaVersion)')
+    expect(sql).toContain('!exists(@.source.kind)')
+    expect(sql).toContain("jsonb_array_length(content->'evidenceSnapshots') <= 16")
+  })
+
+  it('tests key absence explicitly, which is the trap 044 documented', () => {
+    // A comparison against an absent key yields an empty sequence, so the
+    // predicate is false and a malformed element would pass. Every predicate
+    // pairs its comparison with an exists() test.
+    const predicates = sql.match(/\$\.evidenceSnapshots\[\*\] \? \([^']*\)/g) ?? []
+    const comparisons = predicates.filter(predicate => predicate.includes('=='))
+
+    expect(comparisons.length).toBeGreaterThan(0)
+    for (const predicate of comparisons) {
+      expect(predicate, `predicate compares without testing existence: ${predicate}`).toContain('exists(')
+    }
+  })
 })
