@@ -1403,6 +1403,9 @@
     "intro": "查看啟用中的品牌及已儲存的觀察。資料新鮮度仍屬未知；這些記錄未能證明可比較的表現變化。",
     "brands": "啟用中的品牌",
     "emptyBrands": "暫時沒有啟用中的品牌。",
+    "firstRunTitle": "設定你的第一個品牌",
+    "firstRunBody": "設定品牌會認領你剛完成的掃描、開始試用期，並建立 Pulse 每週會問的問題。",
+    "firstRunAction": "開始設定",
     "capacity": "所有持有的品牌",
     "capacityUnknown": "暫時無法核實新增品牌的可用額度，請稍後重新整理再試。",
     "capacityLimit": "你目前的品牌額度已滿。",
@@ -2045,6 +2048,22 @@
       "SOURCE_LABEL_INVALID": "必須填寫名稱，長度不可超過 160 字元。",
       "SOURCE_ORIGIN_INVALID": "來源備註必須是文字，長度不可超過 500 字元。",
       "SOURCE_QUESTION_INVALID": "每個問題必須是文字，長度不可超過 4000 字元。"
+    }
+  },
+  "activation": {
+    "title": "設定進度",
+    "progress": "已完成步驟",
+    "next": "下一步",
+    "complete": "所有步驟已完成。",
+    "unavailable": "讀取不到設定進度，請稍後重新整理再試。",
+    "outOfOrder": "在前一個步驟之前記錄",
+    "milestones": {
+      "first_scan": "首次掃描",
+      "first_workspace": "首個品牌",
+      "first_source": "首個已批核來源",
+      "first_approved_work": "首件已批核工作",
+      "first_export": "首次匯出",
+      "first_declared_delivery": "首次聲明交付"
     }
   }
 }

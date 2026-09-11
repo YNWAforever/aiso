@@ -6,7 +6,10 @@ import { PortfolioView } from '@/components/dashboard/PortfolioView'
 import { portfolioFixture } from '../../tests/fixtures/portfolio'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
-const render = (state:Parameters<typeof portfolioFixture>[0],lang:string) => renderToStaticMarkup(<PortfolioView portfolio={portfolioFixture(state)} lang={lang} creationControl={<button type="button" className="min-h-11 rounded-lg border border-border px-4 text-foreground">Create fixture brand</button>} />)
+// Activation has its own suite (portfolio-activation.test.tsx). These cases are
+// about capacity and link truthfulness, so it is held at `unavailable`, which
+// renders one sentence and no counts that could collide with the assertions here.
+const render = (state:Parameters<typeof portfolioFixture>[0],lang:string) => renderToStaticMarkup(<PortfolioView portfolio={portfolioFixture(state)} lang={lang} creationControl={<button type="button" className="min-h-11 rounded-lg border border-border px-4 text-foreground">Create fixture brand</button>} activation={{state:'unavailable'}} firstRunScanId={null} />)
 describe('real portfolio presentation', () => {
   it.each(['en','zh-HK'])('renders truthful capacity and optional sections in %s',lang=>{
     const copy=(lang==='en'?en:zh).portfolio
