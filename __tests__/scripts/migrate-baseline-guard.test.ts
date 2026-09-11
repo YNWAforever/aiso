@@ -109,6 +109,8 @@ function allRelations() {
     'client_sources', 'client_source_versions',
     // 045: export receipts.
     'work_item_export_events',
+    // 047: account membership by invitation, authored here and applied by the runner.
+    'account_invitations',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
