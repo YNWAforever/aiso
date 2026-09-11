@@ -214,6 +214,33 @@ Enforcement lives in three places, all via `lib/auth.ts`:
    webhook-payload verification — **and filter by `profile.account_id`, never a
    caller-supplied id.**
 
+> **Account membership exists now (migrations `047`/`048`).** `provisionAccountForUser`
+> used to mint a fresh account for every `user.created`, so a second member of an
+> existing account could not be created at all — the reason AC-14's approve and
+> request-changes verbs were unreachable. A live `account_invitations` row for the
+> signing-in address now diverts the new profile into the *inviting* account.
+> **A profile's `account_id` is still never moved**: every tenancy constraint in
+> `041`–`046` is a composite FK on `(…, account_id)`, so moving one would strand
+> the history it authored. There is no invitation token — the webhook already
+> proves the payload's id and email against `neon_auth.user`, so only somebody who
+> really signs in as that address can consume one. Invitation uniqueness is
+> **per-account, not platform-wide**, because "already invited" leaking across
+> accounts is exactly the inference AC-12 forbids; two live invitations for one
+> address are allowed and the oldest wins deterministically. `/api/account/*`
+> takes **no account parameter** — the account comes from the session, which is
+> why its guard has two steps rather than localTrust's three.
+>
+> **`profiles.is_admin` now has exactly one writer: `npm run grant-admin`**
+> (`scripts/grant-platform-admin.ts`). Before `048` it had none anywhere in the
+> repo, so administrators were made by ad-hoc UPDATEs that left no record. It runs
+> through `MIGRATE_DATABASE_URL` — holding the owner credential *is* the
+> authorisation — writes the flag and its reason to `platform_admin_grants` in one
+> statement, and is a dry run without `--yes`. It is deliberately **not a route**:
+> an endpoint that mints administrators would need an administrator to gate it.
+> `042`'s CHECK pinning the approver-granting actor as `platform_admin` was **not**
+> relaxed; appointing approvers stays the platform's call, not a tenant's. Full
+> procedure: `docs/runbooks/add-a-second-account-member.md`.
+>
 > **Three routes are intentionally public**, and no others: `auth/[...path]` (the Neon Auth
 > catch-all), `funnel-events` (redacted telemetry only, 2 KiB body cap, rate-limited), and
 > `scans/[id]/claim-intent` (rate-limited, issues a signed cookie). `webhooks/neon` is public
@@ -350,9 +377,13 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   rather than checking first is the preferred shape — one statement, no TOCTOU window, and zero
   rows means 404 without distinguishing "absent" from "not yours". See
   `app/api/dashboard/clients/[clientId]/prompts/[promptId]/route.ts`.
-- Migrations in `supabase/migrations/` — 44 files, `001_`–`046_` (no 005/006; directory name is legacy;
-  the target is now Neon). `038`–`046` postdate the "001–035 all applied" note below, which is
+- Migrations in `supabase/migrations/` — 46 files, `001_`–`048_` (no 005/006; directory name is legacy;
+  the target is now Neon). `038`–`048` postdate the "001–035 all applied" note below, which is
   about the *persistent* database and is only as fresh as its date — re-run `--verify`.
+- **`047` and `048` have not been applied to any persistent database.** Both are proven
+  only against disposable integration branches. `047` (`account_invitations`) is additive
+  and safe to apply at any time. `048` (`platform_admin_grants`) must be applied before
+  `npm run grant-admin` will work at all.
 - **`046` states an intent two clauses used to produce by accident.** 044 declared
   `revoked_by` and `approved_by` as profile FKs with `on delete set null` while a CHECK on
   each table required the actor and its timestamp to be null together — so the referential

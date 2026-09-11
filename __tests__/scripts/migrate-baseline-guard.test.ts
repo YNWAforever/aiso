@@ -111,6 +111,8 @@ function allRelations() {
     'work_item_export_events',
     // 047: account membership by invitation, authored here and applied by the runner.
     'account_invitations',
+    // 048: the platform-administrator grant ledger.
+    'platform_admin_grants',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
