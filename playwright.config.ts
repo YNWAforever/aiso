@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { defineConfig, devices } from '@playwright/test'
 
 const isCi = Boolean(process.env.CI)
@@ -23,8 +23,31 @@ const clientReportFixtureConfigured = Boolean(process.env.PLAYWRIGHT_CLIENT_REPO
 const authStatePath = process.env.PLAYWRIGHT_STORAGE_STATE?.trim() || '.auth/owner-state.json'
 const authenticatedConfigured = existsSync(resolve(process.cwd(), authStatePath))
 
+/**
+ * Worktrees nested inside THIS root, ignored by absolute path.
+ *
+ * Worktrees moved from `.worktrees/` to `.claude/worktrees/` and testIgnore did
+ * not follow, so running from a checkout that contains one made `testDir: '.'`
+ * walk in, collect that worktree's copy of every spec, and load a second
+ * @playwright/test from its node_modules — the run then died on "Requiring
+ * @playwright/test second time" before any test executed.
+ *
+ * It must be absolute. testIgnore globs are matched against the ABSOLUTE path,
+ * so a bare `'**​/.claude/worktrees/**'` also matches every spec of a checkout that
+ * IS a worktree — which is most of them here — and silently ignores the entire
+ * suite. That is the same absolute-path trap that once left the `mobile` project
+ * discovering nothing; `__tests__/config/playwright-projects.test.ts` catches
+ * both directions.
+ *
+ * `respectGitIgnore` is not a backstop: .gitignore names only the old
+ * `.worktrees/`, and `.claude/worktrees/` is ignored per-clone through
+ * .git/info/exclude, which is never committed.
+ */
+const nestedWorktrees = join(process.cwd(), '.claude', 'worktrees', '**').replaceAll('\\', '/')
+
 const testIgnore = [
   '**/.worktrees/**',
+  nestedWorktrees,
   '**/.playwright-ci-server/**',
   ...(releaseScanConfigured ? [] : ['tests/e2e/live-scan-smoke.spec.ts']),
   ...(clientReportFixtureConfigured ? [] : ['e2e/client-reports.spec.ts']),
@@ -79,7 +102,7 @@ export default defineConfig({
       ? [{
           name: 'authenticated-mobile',
           testMatch: 'tests/e2e/authenticated/**/*.spec.ts',
-          testIgnore: ['**/.worktrees/**', '**/.playwright-ci-server/**'],
+          testIgnore: ['**/.worktrees/**', nestedWorktrees, '**/.playwright-ci-server/**'],
           use: { ...devices['Pixel 5'], storageState: authStatePath },
         }]
       : []),
