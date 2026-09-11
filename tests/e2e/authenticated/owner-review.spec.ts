@@ -18,6 +18,18 @@ import { test, expect } from '../../fixtures/auth'
  * would return AC-14 to the state it just left: indistinguishable from a pass.
  */
 
+/**
+ * Every button the product renders, and none the framework does.
+ *
+ * `next dev` mounts its dev-tools overlay inside a `<nextjs-portal>` custom
+ * element. Excluding by that element rather than by the button's label keeps this
+ * working when Next renames the control, and keeps it honest: it removes exactly
+ * the subtree the framework owns, not anything the owner has to touch.
+ */
+function productButtons(page: Page) {
+  return page.locator('button:not(nextjs-portal button)')
+}
+
 async function openFirstBrand(page: Page): Promise<string> {
   const brand = page.getByRole('link', { name: /dashboard\/|brand/i }).first()
   expect(
@@ -56,7 +68,14 @@ test.describe('the owner journey on a phone', () => {
     await expect(main).toContainText('imports, not connections')
 
     // Review happens on a phone; a 24px control is not reviewable.
-    for (const control of await page.getByRole('button').all()) {
+    //
+    // Scoped past `nextjs-portal` deliberately. This journey can only ever run
+    // against `next dev` — it needs a captured session and a local app — and dev
+    // mode injects an "Open Next.js Dev Tools" button that is 32px tall. Sweeping
+    // every button on the page therefore failed on framework chrome that does not
+    // exist in `next start` or in CI, which made the assertion unpassable rather
+    // than strict. The product's own controls here measure 44px.
+    for (const control of await productButtons(page).all()) {
       const box = await control.boundingBox()
       if (box) expect(box.height, 'a control smaller than a thumb').toBeGreaterThanOrEqual(40)
     }
