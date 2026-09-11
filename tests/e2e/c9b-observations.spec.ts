@@ -181,6 +181,30 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(result).toHaveValue('incomplete')
   })
 
+  /**
+   * Submit the platform filter without racing the datalist popup.
+   *
+   * The field carries `list="observation-platforms"`, and Chromium spends the
+   * first Enter dismissing an open popup rather than submitting the form.
+   * Whether the popup is open depends on how many options `platforms` has
+   * accumulated from earlier responses, so the same keystroke submitted on some
+   * runs and not others. Both observed failures showed `submitPlatform` never
+   * running at all: no request fired, and no alert appeared even though that
+   * handler sets the error flag unconditionally on entry.
+   *
+   * That is browser behaviour, not a product defect — a person who meets an open
+   * popup presses Enter twice, which is what every datalist does. The test was
+   * the thing assuming one keystroke always submits.
+   *
+   * `requestSubmit()` fires the same submit event the key would, so every
+   * assertion below still exercises ObservationWorkspace.submitPlatform.
+   */
+  async function submitPlatformFilter(page: Page): Promise<void> {
+    await page
+      .locator('form:has(input[name="platform"])')
+      .evaluate(form => { (form as HTMLFormElement).requestSubmit() })
+  }
+
   test(`C9b accepts and clears an unlisted bounded platform in ${lang}`, async ({
     page,
   }) => {
@@ -196,23 +220,23 @@ for (const lang of ['en', 'zh-HK']) {
     })
 
     await platform.fill('DeepSeek')
-    await platform.press('Enter')
+    await submitPlatformFilter(page)
     await expect.poll(() => requests.length).toBe(1)
     expect(requests[0].get('platform')).toBe('DeepSeek')
 
     await platform.fill('')
-    await platform.press('Enter')
+    await submitPlatformFilter(page)
     await expect.poll(() => requests.length).toBe(2)
     expect(requests[1].has('platform')).toBe(false)
 
     const eighty = '😀'.repeat(80)
     await platform.fill(eighty)
-    await platform.press('Enter')
+    await submitPlatformFilter(page)
     await expect.poll(() => requests.length).toBe(3)
     expect(requests[2].get('platform')).toBe(eighty)
 
     await platform.fill(`${eighty}😀`)
-    await platform.press('Enter')
+    await submitPlatformFilter(page)
     await expect(page.getByRole('alert')).toHaveText(copy.platformInvalid)
     await expect.poll(() => requests.length).toBe(3)
     await expect(platform).toBeFocused()
