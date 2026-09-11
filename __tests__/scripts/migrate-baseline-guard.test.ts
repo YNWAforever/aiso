@@ -109,6 +109,8 @@ function allRelations() {
     'client_sources', 'client_source_versions',
     // 045: export receipts.
     'work_item_export_events',
+    // 047: single-use scan-claim attempts.
+    'scan_claim_attempts',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
