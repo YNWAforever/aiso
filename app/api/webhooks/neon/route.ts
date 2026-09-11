@@ -28,7 +28,7 @@ type Sql = ReturnType<typeof db>
  * could use to dedupe — hence the advisory lock, the same tool
  * check_brand_limit() uses in 028_account_plan_overrides.sql.
  *
- * Why three separate statements and not one CTE: `sql.transaction()` submits a
+ * Why separate statements and not one CTE: `sql.transaction()` submits a
  * *non-interactive* batch, so no statement can consume an earlier one's
  * RETURNING — but each is still its own statement, and under READ COMMITTED
  * each takes a fresh snapshot. Statement 1 blocks until the delivery we raced
@@ -36,10 +36,29 @@ type Sql = ReturnType<typeof db>
  * these into a single CTE would break exactly that: one statement means one
  * snapshot, taken before pg_advisory_xact_lock inside it acquires, so it would
  * be blind to the winner and insert the duplicate anyway.
+ *
+ * ---------------------------------------------------------------------------
+ * Membership (migration 047). A live invitation for this address diverts the
+ * new profile into the INVITING account instead of a fresh one. This is the
+ * only way a second member of an account can come into existence: `profiles.id`
+ * is a foreign key to `neon_auth.user(id)`, which only Neon Auth writes, so a
+ * member needs a real sign-in — and a profile's `account_id` is never moved
+ * afterwards, because the composite-FK tenancy chain in 041–046 would strand
+ * the history that profile authored.
+ *
+ * `email` is REQUIRED rather than optional. An optional parameter would let a
+ * caller silently skip invitation consumption and mint the fresh account the
+ * invitation exists to prevent — a failure that looks exactly like success.
+ *
+ * The live-invitation predicate appears in four statements and must stay
+ * identical in all four; it is spelled out each time because a non-interactive
+ * batch cannot share a CTE across statements. `lower(normalize(btrim(...), NFC))`
+ * mirrors normalizeInvitationEmail() in lib/members/schema.ts and the CHECK in
+ * migration 047, so a stored row and this lookup cannot disagree on a spelling.
  */
 export async function provisionAccountForUser(
   sql: Sql,
-  { userId, name }: { userId: string; name: string | null },
+  { userId, email, name }: { userId: string; email: string; name: string | null },
 ): Promise<void> {
   const accountId = crypto.randomUUID()
 
@@ -50,23 +69,71 @@ export async function provisionAccountForUser(
         pg_catalog.hashtextextended('webhooks/neon:user.created:' || ${userId}, 0)
       )
     `,
+    // No fresh account when an invitation will supply one.
     sql`
       insert into accounts (id, plan, status)
       select ${accountId}, 'basic', 'active'
       where not exists (
         select 1 from profiles where id = ${userId} and account_id is not null
       )
+      and not exists (
+        select 1 from account_invitations i
+        where i.email = lower(normalize(btrim(${email}), NFC))
+          and i.accepted_at is null and i.revoked_at is null and i.expires_at > now()
+      )
     `,
-    // Guarded on the account above actually having been inserted, so the FK can
-    // never see a dangling account_id: either both rows land or neither does.
-    // The DO UPDATE heals a profile the legacy trigger left with a null account.
+    // Guarded on an account being available — either the one just inserted or
+    // the invitation's — so the FK can never see a dangling account_id.
+    // `order by invited_at, id` makes the choice between two accounts that
+    // invited the same address deterministic rather than planner-dependent:
+    // whoever asked first gets them. The DO UPDATE heals a profile the legacy
+    // trigger left with a null account.
     sql`
       insert into profiles (id, account_id, display_name)
-      select ${userId}, ${accountId}, ${name}
+      select ${userId}, coalesce(
+        (select i.account_id from account_invitations i
+          where i.email = lower(normalize(btrim(${email}), NFC))
+            and i.accepted_at is null and i.revoked_at is null and i.expires_at > now()
+          order by i.invited_at asc, i.id asc limit 1),
+        ${accountId}
+      ), ${name}
       where exists (select 1 from accounts where id = ${accountId})
+        or exists (
+          select 1 from account_invitations i
+          where i.email = lower(normalize(btrim(${email}), NFC))
+            and i.accepted_at is null and i.revoked_at is null and i.expires_at > now()
+        )
       on conflict (id) do update
         set account_id = excluded.account_id
         where profiles.account_id is null
+    `,
+    // Record the acceptance against the invitation actually consumed. The
+    // `exists` guard is what ties the two together: it marks accepted only if
+    // the profile really did land in that invitation's account, so a profile
+    // that already existed elsewhere cannot consume a stranger's invitation.
+    sql`
+      update account_invitations
+      set accepted_at = now(), accepted_profile_id = ${userId}
+      where id = (
+        select i.id from account_invitations i
+        where i.email = lower(normalize(btrim(${email}), NFC))
+          and i.accepted_at is null and i.revoked_at is null and i.expires_at > now()
+        order by i.invited_at asc, i.id asc limit 1
+      )
+      and exists (
+        select 1 from profiles p
+        where p.id = ${userId} and p.account_id = account_invitations.account_id
+      )
+    `,
+    // Statements 2 and 3 take separate snapshots, so an invitation committed
+    // between them would leave the account from statement 2 with nothing
+    // pointing at it — the same orphan shape the advisory lock was added to
+    // prevent, arriving by a different door. Scoped to the uuid this call
+    // generated, and only when no profile points at it.
+    sql`
+      delete from accounts a
+      where a.id = ${accountId}
+        and not exists (select 1 from profiles p where p.account_id = a.id)
     `,
   ])
 }
@@ -162,7 +229,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    await provisionAccountForUser(sql, { userId, name: name ?? null })
+    // `knownEmail`, not the payload's `email`: the gate above proved they are
+    // equal, and the one that came back from `neon_auth.user` is the authority.
+    // It decides which account this profile joins (migration 047), so it must
+    // be the value the auth database holds rather than the one a caller sent.
+    await provisionAccountForUser(sql, { userId, email: knownEmail, name: name ?? null })
   } catch (err) {
     console.error(
       `[webhooks/neon] provisioning failed for user ${userId} (${email}):`,
