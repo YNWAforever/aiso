@@ -126,7 +126,7 @@ proxy.ts           # Next 16 proxy (was middleware) — intl routing + auth veri
 i18n/              # next-intl routing + request config
 messages/          # en.json / zh-HK.json translation strings
 supabase/
-  migrations/      # 44 SQL migrations, 001_-046_ (no 005/006) - dir name is legacy
+  migrations/      # 47 SQL migrations, 001_-049_ (no 005/006) - dir name is legacy
 __tests__/         # Vitest tests mirroring lib/app structure
 tests/e2e/         # Playwright specs + page objects
 scripts/           # migrate.ts (npm run migrate), run-tests.mjs (npm test), seed-packs.ts
@@ -238,8 +238,21 @@ Enforcement lives in three places, all via `lib/auth.ts`:
 > statement, and is a dry run without `--yes`. It is deliberately **not a route**:
 > an endpoint that mints administrators would need an administrator to gate it.
 > `042`'s CHECK pinning the approver-granting actor as `platform_admin` was **not**
-> relaxed; appointing approvers stays the platform's call, not a tenant's. Full
-> procedure: `docs/runbooks/add-a-second-account-member.md`.
+> relaxed; appointing approvers stays the platform's call, not a tenant's.
+>
+> **Removal is deactivation, never deletion (migration `049`).** A profile row can
+> never be deleted or moved — the composite-FK tenancy chain binds everything it
+> authored — so `profiles.deactivated_at` stops it being a way in instead.
+> `getProfile()` carries the predicate, and that is the whole enforcement: there is
+> no global gate, but there is no gate that does not call `getProfile()`, so a
+> removed member cannot reach a route, a layout, or `can_decide`. Do not add the
+> check to `can_decide`'s SQL as well without a reason — it would be unreachable.
+> You cannot remove yourself, and that one rule is what guarantees an account is
+> never emptied; there is deliberately no "last member" guard, because nothing can
+> reach it. Restore exists because a removed person keeps their `neon_auth.user`
+> row and so answers `already_registered` to a fresh invitation.
+>
+> Full procedure: `docs/runbooks/add-a-second-account-member.md`.
 >
 > **Three routes are intentionally public**, and no others: `auth/[...path]` (the Neon Auth
 > catch-all), `funnel-events` (redacted telemetry only, 2 KiB body cap, rate-limited), and
@@ -377,13 +390,12 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   rather than checking first is the preferred shape — one statement, no TOCTOU window, and zero
   rows means 404 without distinguishing "absent" from "not yours". See
   `app/api/dashboard/clients/[clientId]/prompts/[promptId]/route.ts`.
-- Migrations in `supabase/migrations/` — 46 files, `001_`–`048_` (no 005/006; directory name is legacy;
-  the target is now Neon). `038`–`048` postdate the "001–035 all applied" note below, which is
+- Migrations in `supabase/migrations/` — 47 files, `001_`–`049_` (no 005/006; directory name is legacy;
+  the target is now Neon). `038`–`049` postdate the "001–035 all applied" note below, which is
   about the *persistent* database and is only as fresh as its date — re-run `--verify`.
-- **`047` and `048` have not been applied to any persistent database.** Both are proven
-  only against disposable integration branches. `047` (`account_invitations`) is additive
-  and safe to apply at any time. `048` (`platform_admin_grants`) must be applied before
-  `npm run grant-admin` will work at all.
+- **`047`, `048` and `049` were applied to the AISO development database on 2026-09-11** and
+  `--verify` reports all three `all present recorded`. They have **not** been applied to the
+  production project Vercel points at — that is a separate cutover decision.
 - **`046` states an intent two clauses used to produce by accident.** 044 declared
   `revoked_by` and `approved_by` as profile FKs with `on delete set null` while a CHECK on
   each table required the actor and its timestamp to be null together — so the referential

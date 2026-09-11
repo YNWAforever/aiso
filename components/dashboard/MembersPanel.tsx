@@ -32,6 +32,7 @@ export function MembersPanel({ self, limit, members, invitations }: MembersPanel
   const t = useTranslations('members')
   const locale = useLocale()
   const [rows, setRows] = useState(invitations)
+  const [people, setPeople] = useState(members)
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -40,8 +41,9 @@ export function MembersPanel({ self, limit, members, invitations }: MembersPanel
   // Counted the way the server counts it (lib/members/store.ts): members plus
   // invitations that are still live. An expired one occupies no slot, because
   // creating a replacement supersedes it.
+  const activeMembers = people.filter(person => person.active).length
   const live = rows.filter(row => row.status === 'pending' || row.status === 'unclaimable').length
-  const atCap = members.length + live >= limit
+  const atCap = activeMembers + live >= limit
 
   /**
    * Server error codes are the only thing this surface trusts for wording. An
@@ -53,6 +55,7 @@ export function MembersPanel({ self, limit, members, invitations }: MembersPanel
       'INVALID_INVITATION_INPUT', 'MEMBER_ALREADY_IN_ACCOUNT', 'INVITATION_ALREADY_PENDING',
       'EMAIL_ALREADY_REGISTERED', 'MEMBER_LIMIT_REACHED', 'INVITATION_DENIED',
       'INVITATION_RATE_LIMITED', 'INVITATION_NOT_FOUND', 'INVITATION_BODY_TOO_LARGE',
+      'MEMBER_CANNOT_REMOVE_SELF', 'MEMBER_NOT_FOUND',
     ]
     const key = typeof code === 'string' && known.includes(code) ? code : 'MEMBERS_UNAVAILABLE'
     return t(`errors.${key}`)
@@ -74,6 +77,26 @@ export function MembersPanel({ self, limit, members, invitations }: MembersPanel
       // The invitation stands whether or not the mail went out, so say which
       // happened rather than implying somebody was told.
       setNotice(body.emailed ? t('created') : t('emailNotSent'))
+    } catch {
+      setError(t('errors.MEMBERS_UNAVAILABLE'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function setActive(profileId: string, active: boolean) {
+    setBusy(profileId); setError(null); setNotice(null)
+    try {
+      const response = await fetch(`/api/account/members/${profileId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active }),
+      })
+      if (!response.ok) {
+        const body = await response.json().catch(() => null)
+        setError(say(body?.error)); return
+      }
+      setPeople(current => current.map(p => (p.profileId === profileId ? { ...p, active } : p)))
     } catch {
       setError(t('errors.MEMBERS_UNAVAILABLE'))
     } finally {
@@ -107,7 +130,7 @@ export function MembersPanel({ self, limit, members, invitations }: MembersPanel
       <div className="rounded-xl border border-border bg-card p-5 sm:p-6">
         <h3 className="text-base font-semibold text-foreground">{t('membersHeading')}</h3>
         <ul className="mt-3 divide-y divide-border">
-          {members.map(person => (
+          {people.map(person => (
             <li key={person.profileId} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3">
               <span className="font-medium text-foreground">
                 {person.displayName ?? person.profileId}
@@ -118,8 +141,22 @@ export function MembersPanel({ self, limit, members, invitations }: MembersPanel
                 </span>
               )}
               <span className="text-sm text-muted-foreground">
-                {person.approver ? t('approver') : t('notApprover')}
+                {person.active
+                  ? (person.approver ? t('approver') : t('notApprover'))
+                  : t('removed')}
               </span>
+              {person.profileId !== self && (
+                <button
+                  type="button"
+                  onClick={() => setActive(person.profileId, !person.active)}
+                  disabled={busy !== null}
+                  className={`${CONTROL} ml-auto bg-secondary font-semibold text-foreground disabled:opacity-60`}
+                >
+                  {busy === person.profileId
+                    ? (person.active ? t('removing') : t('restoring'))
+                    : (person.active ? t('remove') : t('restore'))}
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -129,6 +166,10 @@ export function MembersPanel({ self, limit, members, invitations }: MembersPanel
         <p className="mt-3 border-t border-border pt-3 text-sm text-muted-foreground">
           {t('approverNote')}
         </p>
+        {/* Removal keeps the row. Saying so is the difference between a member
+            believing their colleague's past work disappeared and knowing it
+            did not. */}
+        <p className="mt-2 text-sm text-muted-foreground">{t('removalNote')}</p>
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5 sm:p-6">

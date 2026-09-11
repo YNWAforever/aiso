@@ -12,8 +12,8 @@ const baseProps: MembersPanelProps = {
   self: SELF,
   limit: 10,
   members: [
-    { profileId: SELF, displayName: 'Owner', approver: false, joinedAt: '2026-09-01T00:00:00.000000Z' },
-    { profileId: OTHER, displayName: 'Reviewer', approver: true, joinedAt: '2026-09-05T00:00:00.000000Z' },
+    { profileId: SELF, displayName: 'Owner', approver: false, active: true, joinedAt: '2026-09-01T00:00:00.000000Z' },
+    { profileId: OTHER, displayName: 'Reviewer', approver: true, active: true, joinedAt: '2026-09-05T00:00:00.000000Z' },
   ],
   invitations: [],
 }
@@ -98,6 +98,7 @@ describe('MembersPanel', () => {
       profileId: `6666666${index}-6666-4666-8666-666666666666`,
       displayName: `Member ${index}`,
       approver: false,
+      active: true,
       joinedAt: '2026-09-01T00:00:00.000000Z',
     }))
     const html = render({ members: full }, lang)
@@ -121,5 +122,51 @@ describe('MembersPanel', () => {
     const html = render()
     expect(html).toContain('<label')
     expect(html).toContain(en.members.emailLabel)
+  })
+})
+
+describe('MembersPanel removal', () => {
+  const removed = {
+    profileId: OTHER, displayName: 'Reviewer', approver: true, active: false,
+    joinedAt: '2026-09-05T00:00:00.000000Z',
+  }
+
+  it.each(['en', 'zh-HK'])('offers Remove for another member but never for yourself, in %s', lang => {
+    const html = render({}, lang)
+    const copy = (lang === 'en' ? en : zh).members
+    // Counted as a rendered text node, not a substring: in zh-HK the word also
+    // appears inside removalNote, so a bare `toContain` would count prose.
+    const label = `>${copy.remove}<`
+    expect(html).toContain(label)
+    // Two members, one of them the viewer, so exactly one control.
+    expect(html.split(label).length - 1).toBe(1)
+  })
+
+  it.each(['en', 'zh-HK'])('shows a removed member as removed and offers Restore, in %s', lang => {
+    const html = render({ members: [baseProps.members[0], removed] }, lang)
+    const copy = (lang === 'en' ? en : zh).members
+    expect(html).toContain(copy.removed)
+    expect(html).toContain(`>${copy.restore}<`)
+    expect(html).not.toContain(`>${copy.remove}<`)
+  })
+
+  /**
+   * The row survives removal, and the panel has to say so — otherwise a
+   * member reasonably assumes their colleague's past work went with them.
+   */
+  it.each(['en', 'zh-HK'])('explains that removal keeps their past work, in %s', lang => {
+    expect(render({}, lang)).toContain((lang === 'en' ? en : zh).members.removalNote)
+  })
+
+  it('stops counting a removed member against the seat cap', () => {
+    const full = Array.from({ length: 10 }, (_, index) => ({
+      profileId: `7777777${index}-7777-4777-8777-777777777777`,
+      displayName: `Member ${index}`,
+      approver: false,
+      active: index !== 0,
+      joinedAt: '2026-09-01T00:00:00.000000Z',
+    }))
+    // Nine active of a ten-seat cap, so inviting is still possible.
+    expect(render({ members: full })).not.toContain(en.members.capReached)
   })
 })

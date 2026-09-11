@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   loadAccountMembers: vi.fn(),
   createInvitation: vi.fn(),
   revokeInvitation: vi.fn(),
+  setMemberActive: vi.fn(),
   sendInvitationEmail: vi.fn(),
   consumeInvitationRateLimit: vi.fn(),
 }))
@@ -34,6 +35,7 @@ vi.mock('@/lib/members/store', () => ({
   loadAccountMembers: mocks.loadAccountMembers,
   createInvitation: mocks.createInvitation,
   revokeInvitation: mocks.revokeInvitation,
+  setMemberActive: mocks.setMemberActive,
 }))
 vi.mock('@/lib/resend', () => ({ sendInvitationEmail: mocks.sendInvitationEmail }))
 vi.mock('@/lib/security/invitation-rate-limit', () => ({
@@ -81,6 +83,7 @@ beforeEach(() => {
   mocks.loadAccountMembers.mockResolvedValue({ members: [], invitations: [] })
   mocks.createInvitation.mockResolvedValue({ kind: 'created', invitation })
   mocks.revokeInvitation.mockResolvedValue(true)
+  mocks.setMemberActive.mockResolvedValue('updated')
   mocks.sendInvitationEmail.mockResolvedValue(undefined)
 })
 
@@ -296,5 +299,78 @@ describe('DELETE /api/account/invitations/[invitationId]', () => {
     const response = await DELETE(new Request('http://localhost'), context('not-a-uuid'))
 
     expect(response.status).toBe(400)
+  })
+})
+
+describe('PATCH /api/account/members/[profileId]', () => {
+  const MEMBER = '44444444-4444-4444-4444-444444444444'
+  const context = (profileId = MEMBER) => ({ params: Promise.resolve({ profileId }) })
+  const body = (value: unknown) =>
+    new Request('http://localhost/api/account/members/x', {
+      method: 'PATCH',
+      body: JSON.stringify(value),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+  it('refuses an anonymous caller', async () => {
+    const { PATCH } = await import('@/app/api/account/members/[profileId]/route')
+
+    const response = await PATCH(body({ active: false }), context())
+
+    expect(response.status).toBe(401)
+    expect(mocks.setMemberActive).not.toHaveBeenCalled()
+  })
+
+  it('removes against the session account and names the caller as the actor', async () => {
+    signedIn()
+    const { PATCH } = await import('@/app/api/account/members/[profileId]/route')
+
+    const response = await PATCH(body({ active: false }), context())
+
+    expect(response.status).toBe(200)
+    expect(mocks.setMemberActive).toHaveBeenCalledWith({
+      accountId: ACCOUNT, profileId: MEMBER, actorId: PROFILE, active: false,
+    })
+  })
+
+  it('is idempotent: an unchanged state is still a success', async () => {
+    signedIn()
+    mocks.setMemberActive.mockResolvedValue('unchanged')
+    const { PATCH } = await import('@/app/api/account/members/[profileId]/route')
+
+    expect((await PATCH(body({ active: false }), context())).status).toBe(200)
+  })
+
+  it('refuses a caller removing themselves, with a reason they can act on', async () => {
+    signedIn()
+    mocks.setMemberActive.mockResolvedValue('self')
+    const { PATCH } = await import('@/app/api/account/members/[profileId]/route')
+
+    const response = await PATCH(body({ active: false }), context())
+
+    expect(response.status).toBe(409)
+    expect((await response.json()).error).toBe('MEMBER_CANNOT_REMOVE_SELF')
+  })
+
+  it('answers 404 for somebody who is not in this account', async () => {
+    signedIn()
+    mocks.setMemberActive.mockResolvedValue('not_found')
+    const { PATCH } = await import('@/app/api/account/members/[profileId]/route')
+
+    expect((await PATCH(body({ active: false }), context())).status).toBe(404)
+  })
+
+  it.each([
+    ['a missing field', {}],
+    ['a non-boolean', { active: 'no' }],
+    ['an extra key', { active: false, reason: 'x' }],
+  ])('rejects %s without reaching the store', async (_label, value) => {
+    signedIn()
+    const { PATCH } = await import('@/app/api/account/members/[profileId]/route')
+
+    const response = await PATCH(body(value), context())
+
+    expect(response.status).toBe(400)
+    expect(mocks.setMemberActive).not.toHaveBeenCalled()
   })
 })

@@ -21,6 +21,13 @@ export async function getProfile(): Promise<ProfileWithAccount | null> {
     from profiles p
     join accounts a on a.id = p.account_id
     where p.id = ${data.user.id}
+      -- Removal is deactivation (migration 049): the row stays, because the
+      -- composite-FK tenancy chain binds everything that profile authored to
+      -- it, but it stops being a way in. This one predicate is what makes
+      -- removal effective everywhere - there is no global gate, but there is
+      -- no gate that does not call getProfile(), so a removed member cannot
+      -- reach a route, a layout, or the can_decide predicate.
+      and p.deactivated_at is null
     limit 1
   `
   const row = rows[0] as Record<string, unknown> | undefined

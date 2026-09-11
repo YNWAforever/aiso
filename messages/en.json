@@ -2069,6 +2069,13 @@
     "emailNotSent": "The invitation was created but the notification email could not be sent. Tell them yourself — signing in with that address is what joins them, not the email.",
     "invitedOn": "Invited",
     "expiresOn": "Expires",
+    "remove": "Remove",
+    "removing": "Removing",
+    "restore": "Restore",
+    "restoring": "Restoring",
+    "removed": "Removed",
+    "removalNote": "Removing somebody signs them out and blocks them from this workspace. Their name stays on the work they already did — that history cannot be detached from them — and you can restore them here.",
+    "cannotRemoveSelf": "You cannot remove yourself. Ask another member to do it.",
     "status": {
       "pending": "Waiting for them to sign in",
       "accepted": "Joined",
@@ -2087,7 +2094,9 @@
       "INVITATION_RATE_LIMITED": "Too many invitations from this workspace. Try again later.",
       "INVITATION_NOT_FOUND": "That invitation is no longer there.",
       "INVITATION_BODY_TOO_LARGE": "That request was too large.",
-      "MEMBERS_UNAVAILABLE": "Members could not be loaded just now. This is not a permissions problem — try again."
+      "MEMBERS_UNAVAILABLE": "Members could not be loaded just now. This is not a permissions problem — try again.",
+      "MEMBER_CANNOT_REMOVE_SELF": "You cannot remove yourself. Ask another member to do it.",
+      "MEMBER_NOT_FOUND": "That person is not in this workspace."
     }
   }
 }

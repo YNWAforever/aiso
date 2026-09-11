@@ -105,8 +105,25 @@ exercised on 2026-09-11, when no second member could exist.
   never deleted, so an offered membership stays explainable.
 - Remove an approver: `POST` the approvers route with the revoke action.
 - Remove an administrator: `npm run grant-admin -- --revoke … --yes`.
-- There is **no supported way to remove a member from an account.** A profile's
-  `account_id` never moves, because the composite-FK tenancy chain in 041–046
-  would strand the history that profile authored. Revoking their approver role
-  and their sign-in is the available answer; removing the person is a change
-  that has not been designed yet.
+- Remove a member: **Settings → Members → Remove** (migration `049`). Removal is
+  **deactivation, never deletion** — the profile row stays, because the
+  composite-FK tenancy chain in 041–046 binds every version, decision and
+  delivery they authored to it, and dropping the row would strand that history.
+  What changes is access: `getProfile()` refuses a deactivated profile, so they
+  are signed out and every gated route treats them as anonymous. They stop
+  counting against the member cap, they cannot invite anybody, and their name
+  stays on the work they already did.
+
+  Three things worth knowing:
+
+  - **You cannot remove yourself**, and that single rule is what guarantees an
+    account can never be emptied — removing anyone else always leaves at least
+    you. There is no separate "last member" guard because there is no way to
+    reach one.
+  - **Restore is on the same screen**, and it matters: a removed person keeps
+    their `neon_auth.user` row, so re-inviting them answers
+    `already_registered`. Without the restore, an accidental removal would be
+    permanent.
+  - Removing an approver does **not** revoke their `account_approver` grant.
+    They cannot use it while deactivated, but if you intend the role to be gone,
+    revoke it through the approvers route as well.

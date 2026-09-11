@@ -31,6 +31,8 @@ export type AccountMember = {
   displayName: string | null
   /** Holds a live `account_approver` grant, i.e. `can_decide` can be true. */
   approver: boolean
+  /** False once removed. The row stays; it stops being a way in. */
+  active: boolean
   joinedAt: string
 }
 
@@ -60,7 +62,8 @@ export async function loadAccountMembers(accountId: string): Promise<AccountMemb
   const memberRows = (await sql`
     select p.id, p.display_name,
       to_char(p.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as joined_at,
-      coalesce(s.active and e.action = 'grant', false) as approver
+      coalesce(s.active and e.action = 'grant', false) as approver,
+      p.deactivated_at is null as active
     from profiles p
     left join account_approver_state s
       on s.account_id = p.account_id and s.profile_id = p.id
@@ -95,6 +98,7 @@ export async function loadAccountMembers(accountId: string): Promise<AccountMemb
       profileId: String(row.id),
       displayName: (row.display_name as string | null) ?? null,
       approver: row.approver === true,
+      active: row.active === true,
       joinedAt: String(row.joined_at),
     })),
     invitations: invitationRows.map(row => ({
@@ -164,12 +168,15 @@ export async function createInvitation({
         and exists (
           select 1 from profiles p
           where p.id = ${actor}::uuid and p.account_id = ${account}::uuid
+            and p.deactivated_at is null
         )
     `,
     sql`
       with actor as (
+        -- Deactivated members keep their row but may not act.
         select 1 from profiles p
         where p.id = ${actor}::uuid and p.account_id = ${account}::uuid
+          and p.deactivated_at is null
       ), member_match as (
         -- Cast both sides to text so this holds whether neon_auth.user.id is
         -- uuid or text. These tables are small enough that the cast costs
@@ -184,7 +191,8 @@ export async function createInvitation({
         where account_id = ${account}::uuid and email = ${address}
           and accepted_at is null and revoked_at is null
       ), capacity as (
-        select (select count(*) from profiles where account_id = ${account}::uuid)
+        select (select count(*) from profiles
+                 where account_id = ${account}::uuid and deactivated_at is null)
              + (select count(*) from account_invitations
                  where account_id = ${account}::uuid
                    and accepted_at is null and revoked_at is null
@@ -272,8 +280,78 @@ export async function revokeInvitation({
       and exists (
         select 1 from profiles p
         where p.id = ${actor}::uuid and p.account_id = ${account}::uuid
+          and p.deactivated_at is null
       )
     returning id
   `
   return rows.length > 0
+}
+
+export type SetMemberActiveResult = 'updated' | 'unchanged' | 'self' | 'not_found'
+
+/**
+ * Remove somebody from the workspace, or put them back.
+ *
+ * Removal is deactivation — see migration 049 for why deletion is not on the
+ * table. Restoring exists because it has to: a removed person keeps their
+ * `neon_auth.user` row, so re-inviting them answers `already_registered`, and
+ * without a restore an accidental removal would be permanent.
+ *
+ * There is no "last active member" guard, and that is not an omission. With N
+ * active members, removing anyone but yourself leaves N-1 >= 1; removing
+ * yourself is refused; and a deactivated member cannot act at all. The
+ * self-check is therefore the whole guarantee that an account stays reachable,
+ * and a separate rule would be dead code that read like a safety net.
+ *
+ * One statement: the diagnosis and the write share a snapshot, so the answer
+ * cannot describe a state the write did not act on.
+ */
+export async function setMemberActive({
+  accountId,
+  profileId,
+  actorId,
+  active,
+}: {
+  accountId: string
+  profileId: string
+  actorId: string
+  active: boolean
+}): Promise<SetMemberActiveResult> {
+  const account = uuid(accountId)
+  const target = uuid(profileId)
+  const actor = uuid(actorId)
+  const sql = db()
+
+  const rows = (await sql`
+    with actor as (
+      select 1 from profiles
+      where id = ${actor}::uuid and account_id = ${account}::uuid
+        and deactivated_at is null
+    ), target as (
+      select deactivated_at from profiles
+      where id = ${target}::uuid and account_id = ${account}::uuid
+    ), changed as (
+      update profiles set
+        deactivated_at = case when ${active} then null else now() end,
+        deactivated_by = case when ${active} then null else ${actor}::uuid end
+      where id = ${target}::uuid and account_id = ${account}::uuid
+        and ${target} <> ${actor}
+        and exists (select 1 from actor)
+        -- Only when the state actually differs, so a repeat call cannot
+        -- rewrite who removed them, or when they were removed.
+        and (deactivated_at is null) <> ${active}
+      returning id
+    )
+    select
+      exists (select 1 from actor) as actor_ok,
+      exists (select 1 from target) as target_ok,
+      exists (select 1 from changed) as changed
+  `) as Array<Record<string, unknown>>
+
+  const row = rows[0]
+  // Actor and target failures share one answer on purpose: the id came from
+  // the caller, so distinguishing them would confirm that a profile exists.
+  if (!row || row.actor_ok !== true || row.target_ok !== true) return 'not_found'
+  if (target === actor) return 'self'
+  return row.changed === true ? 'updated' : 'unchanged'
 }

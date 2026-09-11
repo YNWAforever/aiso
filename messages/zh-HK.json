@@ -2069,6 +2069,13 @@
     "emailNotSent": "邀請已建立，但通知電郵寄不出。請自行通知對方——真正令他加入的是用該地址登入，而不是那封電郵。",
     "invitedOn": "邀請於",
     "expiresOn": "失效於",
+    "remove": "移除",
+    "removing": "移除中",
+    "restore": "恢復",
+    "restoring": "恢復中",
+    "removed": "已移除",
+    "removalNote": "移除一個人會令他登出，並且無法再進入這個工作區。他的名字仍然留在他做過的工作上——那些紀錄無法與他分開——你亦可以在這裡恢復他。",
+    "cannotRemoveSelf": "你不能移除自己。請另一位成員代勞。",
     "status": {
       "pending": "等待對方登入",
       "accepted": "已加入",
@@ -2087,7 +2094,9 @@
       "INVITATION_RATE_LIMITED": "這個工作區發出的邀請太多，請稍後再試。",
       "INVITATION_NOT_FOUND": "這個邀請已經不在了。",
       "INVITATION_BODY_TOO_LARGE": "這個請求太大。",
-      "MEMBERS_UNAVAILABLE": "暫時載入不到成員。這不是權限問題，請再試一次。"
+      "MEMBERS_UNAVAILABLE": "暫時載入不到成員。這不是權限問題，請再試一次。",
+      "MEMBER_CANNOT_REMOVE_SELF": "你不能移除自己。請另一位成員代勞。",
+      "MEMBER_NOT_FOUND": "這個人不在這個工作區。"
     }
   }
 }

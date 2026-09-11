@@ -7,7 +7,7 @@ import {
   invitationRateLimitHeaders,
 } from '@/lib/security/invitation-rate-limit'
 import { INVITATION_BODY_LIMIT, MAX_ACCOUNT_MEMBERS, normalizeInvitationInput } from './schema'
-import { createInvitation, loadAccountMembers, revokeInvitation } from './store'
+import { createInvitation, loadAccountMembers, revokeInvitation, setMemberActive } from './store'
 
 /**
  * The gate for every members route, in one place so a route cannot ship with
@@ -36,6 +36,8 @@ const statuses = {
   MEMBER_LIMIT_REACHED: 403,
   INVITATION_DENIED: 403,
   INVITATION_NOT_FOUND: 404,
+  MEMBER_CANNOT_REMOVE_SELF: 409,
+  MEMBER_NOT_FOUND: 404,
   MEMBERS_UNAVAILABLE: 503,
 } as const
 
@@ -175,6 +177,60 @@ export async function revokeAccountInvitation(invitationId: string): Promise<Res
     // came from the caller, so a 403 would confirm it belongs to somebody.
     if (!revoked) throw new MemberServiceError('INVITATION_NOT_FOUND')
     return Response.json({ revoked: true }, { headers })
+  } catch (error) {
+    if (error instanceof Error && error.message === 'INVALID_INVITATION_INPUT') {
+      return errorResponse(new MemberServiceError('INVALID_INVITATION_INPUT'))
+    }
+    return errorResponse(error)
+  }
+}
+
+/**
+ * Remove a member from the workspace, or put them back.
+ *
+ * `active: false` is removal; there is no delete. Migration 049 explains why
+ * the row has to stay, and lib/auth.ts is where the removal actually bites —
+ * `getProfile()` refuses a deactivated profile, so a removed member cannot
+ * reach any route at all.
+ */
+export async function setAccountMemberActive(
+  profileId: string,
+  request: Request,
+): Promise<Response> {
+  const auth = await member()
+  if (!auth.ok) return auth.response
+
+  try {
+    let body: unknown
+    try {
+      body = await readLimitedJson(request, INVITATION_BODY_LIMIT)
+    } catch {
+      throw new MemberServiceError('INVALID_INVITATION_INPUT')
+    }
+    // Exactly one boolean. An extra key is refused rather than ignored: this
+    // endpoint revokes somebody's access, so a field the server silently drops
+    // is a field a caller could believe had an effect.
+    if (
+      !body || typeof body !== 'object' || Array.isArray(body)
+      || Object.keys(body).length !== 1
+      || typeof (body as Record<string, unknown>).active !== 'boolean'
+    ) throw new MemberServiceError('INVALID_INVITATION_INPUT')
+    const active = (body as { active: boolean }).active
+
+    const result = await setMemberActive({
+      accountId: auth.profile.account_id,
+      profileId,
+      actorId: auth.profile.id,
+      active,
+    })
+    // `unchanged` is a success: asking for a state that already holds is not
+    // an error, and reporting one would make the surface retry-hostile.
+    if (result === 'updated' || result === 'unchanged') {
+      return Response.json({ active, changed: result === 'updated' }, { headers })
+    }
+    throw new MemberServiceError(
+      result === 'self' ? 'MEMBER_CANNOT_REMOVE_SELF' : 'MEMBER_NOT_FOUND',
+    )
   } catch (error) {
     if (error instanceof Error && error.message === 'INVALID_INVITATION_INPUT') {
       return errorResponse(new MemberServiceError('INVALID_INVITATION_INPUT'))
