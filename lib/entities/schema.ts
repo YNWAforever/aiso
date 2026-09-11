@@ -3,7 +3,8 @@ export type EntityDto = {
   displayName: string
   aliases: string[]
   revision: number
-  verification: 'unverified'
+  /** Derived from client_domain_verifications (048), not a constant. */
+  verification: 'unverified' | 'verified'
   updatedAt: string
 }
 

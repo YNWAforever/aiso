@@ -111,6 +111,8 @@ function allRelations() {
     'work_item_export_events',
     // 047: single-use scan-claim attempts.
     'scan_claim_attempts',
+    // 048: domain-ownership proofs.
+    'client_domain_verifications',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }

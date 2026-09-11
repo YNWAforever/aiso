@@ -1541,7 +1541,21 @@
     "retry": "重試",
     "invalid": "請輸入顯示名稱及最多 20 個別名。每個名稱須為 1–120 個字元，且不可包含控制字元。",
     "unauthenticated": "登入階段已結束，請重新登入以繼續。你的草稿仍保留在此。",
-    "unavailable": "此客戶已無法存取，你的草稿尚未儲存。"
+    "unavailable": "此客戶已無法存取，你的草稿尚未儲存。",
+    "verified": "網域已驗證",
+    "verifyTitle": "證明你擁有呢個網域",
+    "verifyHow": "喺 {domain} 嘅以下路徑放一個檔案，內容係下面嗰行，然後按檢查。唔使改其他嘢，之後個檔案可以一直留喺度。",
+    "verifyPathLabel": "檔案路徑",
+    "verifyTokenLabel": "檔案內容",
+    "verifyCheck": "立即檢查",
+    "verifyChecking": "檢查中",
+    "verifyLastChecked": "上次檢查",
+    "verifyNoDomain": "呢個品牌仲未有網站地址，所以冇嘢可以驗證。請先填寫。",
+    "verifyOutcomeVerified": "已驗證——搵到個檔案，而且內容相符。",
+    "verifyOutcomeTokenAbsent": "搵唔到個檔案，或者內容唔啱。請檢查路徑同確實內容。",
+    "verifyOutcomeUnreachable": "個網站冇回應。呢個唔係我哋呢邊嘅問題——請確認網域解析得到並且支援 HTTPS。",
+    "verifyOutcomeRedirected": "個路徑轉向咗去第二度。驗證唔會跟隨轉向，因為另一個網站證明唔到呢一個。請喺呢個網域直接提供該檔案。",
+    "verifyOutcomeTooLarge": "回應太大，唔似係呢個檔案。個路徑好可能係提供緊一版網頁而唔係文字檔。"
   },
   "observations": {
     "title": "已記錄觀察",
