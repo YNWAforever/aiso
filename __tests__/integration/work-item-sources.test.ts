@@ -117,6 +117,62 @@ async function attachSource(params: {
   return rows[0]!.id as string
 }
 
+/**
+ * Reproduces the CTE shape createDraftIfEvidenceCurrent uses in
+ * lib/work-items/store.ts:
+ *   with mutation as ( insert into evidence_work_items ... on conflict do
+ *   nothing returning ... ), source_ins as ( insert into work_item_sources
+ *   (...) select ... from mutation returning id ) select * from mutation
+ *
+ * The store's own `mutation` CTE inserts via a SELECT joined against
+ * clients/pulse_metrics to reverify the caller's evidence snapshot hasn't
+ * drifted -- that join, and the EvidenceVersionToken it depends on, is a
+ * business check unrelated to the CTE-atomicity claim under test here, so
+ * it is replaced with a plain VALUES tuple carrying the same columns
+ * workItem() above already seeds with. Every clause the atomicity claim
+ * actually depends on is reproduced verbatim: the on-conflict target on
+ * (account_id, client_id, opportunity_key), source_ins selecting its
+ * work_item_id FROM mutation's own RETURNING rows (never a literal or a
+ * scalar subquery), and the trailing select naming only `mutation`. The
+ * explicit ::uuid/::jsonb casts on source_ins's SELECT list are copied
+ * verbatim from the store too -- a SELECT-based insert does not get the
+ * same implicit column-type coercion a plain VALUES tuple gets, which is
+ * exactly why the store casts there and nowhere else.
+ */
+async function runCreateDraftCte(params: {
+  account: string
+  clientId: string
+  opportunityKey: string
+  sourceId: string
+}) {
+  const { account, clientId, opportunityKey, sourceId } = params
+  const rows = await sql`
+    with mutation as (
+      insert into evidence_work_items (
+        account_id, client_id, opportunity_key, source_kind, source_id, rule_version,
+        evidence_fingerprint, evidence_snapshot, title, action, notes, locale
+      ) values (
+        ${account}, ${clientId}, ${opportunityKey}, 'pulse-metric', ${sourceId},
+        'pulse-brand-absent.v1', ${FINGERPRINT}, ${EVIDENCE_SNAPSHOT}::jsonb,
+        'Fix the thing', 'Do the thing', '', 'en'
+      )
+      on conflict (account_id, client_id, opportunity_key) do nothing
+      returning id, client_id, opportunity_key
+    ), source_ins as (
+      insert into work_item_sources (
+        account_id, client_id, work_item_id, opportunity_key, source_kind, source_id,
+        rule_version, check_key, evidence_fingerprint, evidence_snapshot, attached_by
+      )
+      select ${account}::uuid, ${clientId}::uuid, mutation.id, ${opportunityKey}, 'pulse-metric', ${sourceId}::uuid,
+        'pulse-brand-absent.v1', null, ${FINGERPRINT}, ${EVIDENCE_SNAPSHOT}::jsonb, null
+      from mutation
+      returning id
+    )
+    select * from mutation
+  ` as { id: string; client_id: string; opportunity_key: string }[]
+  return rows
+}
+
 describe('work_item_sources: an opportunity is claimed by at most one live source', () => {
   beforeEach(seed)
 
@@ -327,6 +383,87 @@ describe('work_item_sources: the app role has no DELETE', () => {
         has_table_privilege('aeo_app', 'public.work_item_sources', 'TRUNCATE') can_truncate
     `
     expect(grants).toEqual({ can_read: true, can_insert: true, can_update: true, can_delete: false, can_truncate: false })
+  })
+})
+
+describe("work_item_sources: createDraftIfEvidenceCurrent's item+source insert is one atomic statement", () => {
+  beforeEach(seed)
+
+  it('a fresh insert writes the item and its first source together, and the outer select returns the item', async () => {
+    const clientId = await brand(ACCOUNT, 'Brand')
+    const sourceId = crypto.randomUUID()
+
+    // What a mocked unit test cannot show: __tests__/work-items/store.test.ts
+    // mocks `@/lib/db` and string-matches the query TEXT -- it never sends
+    // this to a real planner, so it cannot execute a CTE at all. A store bug
+    // that dropped `, source_ins as (...)` entirely, referenced the wrong
+    // CTE name, or turned source_ins's insert into a plain select would
+    // still return the same `mutation` row shape and pass every mocked test
+    // unchanged. Only a real Postgres run can catch that -- which is what
+    // the work_item_sources assertion below is for.
+    //
+    // That same assertion is also the only proof needed that Postgres runs
+    // a data-modifying CTE the trailing SELECT never names: `select * from
+    // mutation` mentions only `mutation`, never `source_ins`. If Postgres
+    // only executed the CTEs the final query actually reads, source_ins
+    // would never run and work_item_sources would stay empty here even
+    // though `rows` below still comes back non-empty. A second, dedicated
+    // case could not show this any more clearly than this one already does.
+    const rows = await runCreateDraftCte({ account: ACCOUNT, clientId, opportunityKey: 'mutation-cte-fresh', sourceId })
+    expect(rows).toHaveLength(1)
+    const itemId = rows[0]!.id
+
+    const items = await sql`
+      select id from evidence_work_items
+      where account_id = ${ACCOUNT} and client_id = ${clientId} and opportunity_key = 'mutation-cte-fresh'
+    ` as { id: string }[]
+    expect(items).toHaveLength(1)
+    expect(items[0]!.id).toBe(itemId)
+
+    const sources = await sql`
+      select id, source_id from work_item_sources
+      where account_id = ${ACCOUNT} and client_id = ${clientId} and work_item_id = ${itemId}
+    ` as { id: string; source_id: string }[]
+    expect(sources).toHaveLength(1)
+    expect(sources[0]!.source_id).toBe(sourceId)
+  })
+
+  it('a conflicting second run inserts neither row, resolves without throwing, and leaves exactly one source', async () => {
+    const clientId = await brand(ACCOUNT, 'Brand')
+    const firstSourceId = crypto.randomUUID()
+    const firstRows = await runCreateDraftCte({ account: ACCOUNT, clientId, opportunityKey: 'mutation-cte-conflict', sourceId: firstSourceId })
+    expect(firstRows).toHaveLength(1)
+    const itemId = firstRows[0]!.id
+
+    // What would silently pass without this: if source_ins's `from mutation`
+    // did not actually see mutation's zero-row RETURNING on this conflict --
+    // say, if a future edit swapped it for a scalar subquery, or the
+    // on-conflict target column list drifted from evidence_work_items' real
+    // unique constraint -- this second call would either throw (a NULL or
+    // mismatched work_item_id failing work_item_sources' NOT NULL or FK
+    // check) or silently attach a second, orphaned source row under the
+    // first item. A mocked unit test cannot distinguish either wrong outcome
+    // from the correct one: it never runs the on-conflict path against a
+    // real unique index at all, so it would keep passing under any of them.
+    const secondSourceId = crypto.randomUUID()
+    await expect(
+      runCreateDraftCte({ account: ACCOUNT, clientId, opportunityKey: 'mutation-cte-conflict', sourceId: secondSourceId }),
+    ).resolves.toEqual([])
+
+    const items = await sql`
+      select id from evidence_work_items
+      where account_id = ${ACCOUNT} and client_id = ${clientId} and opportunity_key = 'mutation-cte-conflict'
+    ` as { id: string }[]
+    expect(items).toHaveLength(1)
+    expect(items[0]!.id).toBe(itemId)
+
+    // Exactly one -- not two (source_ins re-firing on the conflicting run)
+    // and not zero (the first run's source somehow lost or overwritten).
+    const sources = await sql`
+      select id from work_item_sources
+      where account_id = ${ACCOUNT} and client_id = ${clientId} and work_item_id = ${itemId}
+    ` as { id: string }[]
+    expect(sources).toHaveLength(1)
   })
 })
 
