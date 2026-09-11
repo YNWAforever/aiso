@@ -258,17 +258,28 @@ test that had used it would have run logged out while reading as logged in. It n
 throws instead, naming the real path, because a fixture that yields an anonymous
 page turns "we never tested this" into "we tested it and it passed".
 
-**What would actually unblock AC-14**, in order:
+**What would actually unblock AC-14**, in order — ~~the three steps below~~
+**all three are done, and they turned out not to be the blocker.** Kept as the
+record of what was believed on 2026-09-10:
 
-1. **Populate the four empty secrets in `.env.local`** — set them in the file
-   directly; they must never be pasted into a chat or a commit. Until then
-   `getProfile()` throws and every authenticated route answers 503.
-2. **Capture a session once, by hand.** For a magic-link/OAuth product the
-   standard approach is Playwright `storageState`: sign in, save the session to a
-   gitignored file, and point a Playwright project at it with
-   `use: { storageState }`. One human login covers every subsequent run.
-3. **Then write the journey spec** — scan → claim → priorities → draft → submit →
-   approve → export → recheck, at 375/390/430px for AC-14.
+1. ~~**Populate the four empty secrets in `.env.local`.**~~ Done.
+2. ~~**Capture a session once, by hand**, via Playwright `storageState`.~~ Done;
+   `npm run e2e:authenticated` reports `3 passed`.
+3. ~~**Then write the journey spec.**~~ Written and green —
+   `tests/e2e/authenticated/owner-review.spec.ts`.
 
-Steps 1 and 2 need a person: creating an account, receiving a magic link and
-entering credentials are not things this session will do.
+**What the green run then revealed is that none of that was the real blocker.**
+The spec took the separation-of-duties *denial* branch, because the captured
+owner had submitted the version under review — and the second party `can_decide`
+requires could not be created at all. Reaching the two verbs needed two writes
+the product could not perform: `profiles.account_id`, because
+`provisionAccountForUser` always minted a fresh account, and `profiles.is_admin`,
+which had no writer anywhere in the repository. Migrations `047`–`049` and
+`npm run grant-admin` closed both; see the AC-14 row and
+`docs/runbooks/add-a-second-account-member.md`.
+
+**What is left is one thing, and it does need people:** two humans, an invited
+address that has never signed in, and a run in which the approver is not the
+submitter. `__tests__/integration/second-approver.test.ts` proves that
+combination reaches `canDecide: true` against real Postgres, so what remains
+unproven is the browser journey over it — not whether the capability exists.
