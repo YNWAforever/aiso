@@ -288,29 +288,45 @@ describe("work_item_sources: a source cannot name another account's item", () =>
 describe('work_item_sources: the app role has no DELETE', () => {
   beforeEach(seed)
 
-  it('is refused with the exact permission-denied message, and the row survives', async () => {
-    const clientId = await brand(ACCOUNT, 'Brand')
-    const itemA = await workItem(ACCOUNT, clientId, 'item-a')
-    const id = await attachSource({ account: ACCOUNT, clientId, workItemId: itemA, opportunityKey: 'undeletable' })
-
-    // Same technique as least-privilege-role.test.ts: rotate aeo_app's password
-    // through the owner connection, then reconnect as aeo_app with it. ALTER
-    // ROLE can't take a bind parameter, so that one statement goes through
-    // .query() with literal SQL; the DELETE below takes one fine as a tagged
-    // template.
-    const password = `t${Math.random().toString(36).slice(2)}${Date.now()}`
-    await sql.query(`alter role aeo_app login password '${password}'`)
-    const url = new URL(process.env.TEST_DATABASE_URL!)
-    url.username = 'aeo_app'
-    url.password = password
-    const app = neon(url.toString())
-
-    await expect(
-      app`delete from work_item_sources where id = ${id}`,
-    ).rejects.toThrow('permission denied for table work_item_sources')
-
-    const survivor = await sql`select id from work_item_sources where id = ${id}`
-    expect(survivor).toHaveLength(1)
+  it('grants app reads and writes but no deletion', async () => {
+    // has_table_privilege against the catalogue, not a runtime DELETE denial.
+    // A runtime denial was tried first, twice:
+    //   1. Rotating aeo_app's password (the least-privilege-role.test.ts
+    //      technique) and reconnecting as it -- works, but mutates shared
+    //      role state that every other suite on this branch also depends on.
+    //   2. sql.transaction([sql`set local role aeo_app`, ...]) -- the
+    //      pattern change-set-approvals.test.ts uses at ~line 111 to prove a
+    //      different runtime denial. It fails HERE with the Postgres error
+    //      'permission denied to set role "aeo_app"': that file runs against
+    //      its own exact disposable target (C9D_TEST_DATABASE_URL) where a
+    //      human installs aeo_app and grants the migrating role membership
+    //      in it by hand. This suite runs against the default integration
+    //      harness's TEST_DATABASE_URL, whose migrating role is not a member
+    //      of aeo_app, so SET ROLE is refused before the DELETE is ever
+    //      attempted. Do not reintroduce set local role here without first
+    //      granting that membership on this harness's target.
+    // The catalogue read below is the fallback every other sibling in this
+    // directory takes for the same reason: evidence-work-items.test.ts
+    // (~line 73), delivery-attestations.test.ts (~line 151), and
+    // client-entities.test.ts (~line 50). It also checks SELECT/INSERT/UPDATE
+    // are still granted (what 051 actually grants) and TRUNCATE stays
+    // refused, not just DELETE, so this fails on a grant accidentally
+    // widened as readily as one narrowed.
+    //
+    // has_table_privilege reads table-level metadata, not any particular
+    // row, so there is nothing to attach and nothing that could "survive" --
+    // the previous version of this case created a row and re-selected it
+    // afterward to confirm the failed DELETE left it in place; that
+    // assertion is dropped along with the DELETE attempt it was validating.
+    const [grants] = await sql`
+      select
+        has_table_privilege('aeo_app', 'public.work_item_sources', 'SELECT') can_read,
+        has_table_privilege('aeo_app', 'public.work_item_sources', 'INSERT') can_insert,
+        has_table_privilege('aeo_app', 'public.work_item_sources', 'UPDATE') can_update,
+        has_table_privilege('aeo_app', 'public.work_item_sources', 'DELETE') can_delete,
+        has_table_privilege('aeo_app', 'public.work_item_sources', 'TRUNCATE') can_truncate
+    `
+    expect(grants).toEqual({ can_read: true, can_insert: true, can_update: true, can_delete: false, can_truncate: false })
   })
 })
 
@@ -323,6 +339,11 @@ describe('work_item_sources: the app role has no DELETE', () => {
 afterAll(async () => {
   await sql`delete from work_item_sources where account_id in (${ACCOUNT}, ${OTHER})`
   await sql`delete from evidence_work_items where account_id in (${ACCOUNT}, ${OTHER})`
+  // Mirrors seed()'s delete order. Dormant today -- this file never writes
+  // scans -- but a future case that does would otherwise fail the
+  // `delete from accounts` below on a foreign key, with nothing here to
+  // connect that failure back to this cause.
+  await sql`delete from scans where account_id in (${ACCOUNT}, ${OTHER})`
   await sql`delete from clients where account_id in (${ACCOUNT}, ${OTHER})`
   const actors = await sql`select id from profiles where account_id in (${ACCOUNT}, ${OTHER})`
   await sql`delete from profiles where account_id in (${ACCOUNT}, ${OTHER})`

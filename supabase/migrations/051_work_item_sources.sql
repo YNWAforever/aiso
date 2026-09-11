@@ -52,7 +52,25 @@ create table public.work_item_sources (
       references public.evidence_work_items (account_id, client_id, id) on delete restrict,
   constraint work_item_sources_attached_actor_fk
     foreign key (attached_by, account_id) references public.profiles (id, account_id) on delete set null (attached_by),
-  -- Moved from 041 verbatim. One source per row now, same rule.
+  -- Moved from 041 verbatim. Provably redundant today: every row that
+  -- violates this also violates work_item_sources_rule_source_check below,
+  -- in both directions and regardless of rule_version, because
+  -- rule_source_check's three branches each already pin check_key's
+  -- nullness to source_kind one-for-one -- exactly what this CHECK states on
+  -- its own. Postgres evaluates check constraints by name ('r' before 's'),
+  -- so rule_source_check is always the one that fires and gets reported;
+  -- this one, given the current constraint set, never can be.
+  --
+  -- Kept anyway, on purpose. rule_source_check is one compound rule covering
+  -- all three source_kinds at once, and the realistic future edit -- a
+  -- fourth source_kind with its own branch -- can add that branch without
+  -- fully pinning check_key's nullness for it, and the other two branches
+  -- would keep reading fine regardless, so nothing else would catch the
+  -- gap. This CHECK has exactly one job and is too simple to be weakened the
+  -- same way. The day rule_source_check's coverage slips like that, this
+  -- constraint stops being redundant and becomes the only thing still
+  -- enforcing the rule -- that is the failure this comment exists to guard
+  -- against, not a defect to clean up.
   constraint work_item_sources_source_check_key_check check (
     (source_kind = 'scan-check' and check_key is not null)
     or (source_kind <> 'scan-check' and check_key is null)
