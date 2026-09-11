@@ -2046,5 +2046,23 @@
       "SOURCE_ORIGIN_INVALID": "來源備註必須是文字，長度不可超過 500 字元。",
       "SOURCE_QUESTION_INVALID": "每個問題必須是文字，長度不可超過 4000 字元。"
     }
+  },
+  "assets": {
+    "title": "已登記頁面",
+    "intro": "登記重要的頁面，令網站檢查結果與客戶會問的問題，可以對應到同一版頁面。掃描觀察的是整個網站，所以檢查結果在這裡以網站層級顯示。",
+    "empty": "尚未登記任何頁面。",
+    "addTitle": "登記頁面",
+    "urlLabel": "頁面網址",
+    "labelLabel": "這版頁面是什麼",
+    "submit": "登記頁面",
+    "submitting": "登記中…",
+    "error": "無法登記該頁面，請檢查網址後再試。",
+    "converges": "網站檢查結果與已聲明的問題，同時對應到這版頁面。",
+    "findingsTitle": "適用的檢查結果",
+    "findingsScope": "針對整個網站觀察，並非單獨針對這版頁面",
+    "findingsEmpty": "這個網站未有檢查結果記錄。",
+    "questionsTitle": "這版頁面回答的問題",
+    "questionsScope": "由你聲明",
+    "questionsEmpty": "尚未為這版頁面聲明任何問題。"
   }
 }

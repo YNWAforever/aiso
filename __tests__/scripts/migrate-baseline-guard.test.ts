@@ -109,6 +109,10 @@ function allRelations() {
     'client_sources', 'client_source_versions',
     // 045: export receipts.
     'work_item_export_events',
+    // 050: owner-registered pages, authored here and applied by the runner. Like
+    // 040-045 above, this is a synthetic inventory entry and claims nothing about
+    // any live database.
+    'client_assets', 'client_asset_questions',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
