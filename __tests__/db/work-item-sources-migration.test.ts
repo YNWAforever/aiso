@@ -36,6 +36,13 @@ describe('051 creates the source child table', () => {
     expect(sql).toContain('where withdrawn_at is null')
   })
 
+  it('lets a withdrawn source be re-attached to the same item', () => {
+    // Its sibling index is partial for the same reason. A uniqueness rule that
+    // counts withdrawn rows would make withdrawal irreversible for that item,
+    // which is the opposite of why withdrawal exists.
+    expect(sql).toContain('unique index work_item_sources_live_item_source_idx')
+  })
+
   it('refuses a half-recorded withdrawal', () => {
     expect(sql).toContain('(withdrawn_at is null) = (withdrawn_by is null)')
   })
@@ -54,7 +61,15 @@ describe('051 creates the source child table', () => {
   it('teaches the version content check about schemaVersion 2', () => {
     expect(sql).toContain('work_item_versions_content_check')
     expect(sql).toContain("content->'schemaVersion' in ('1'::jsonb, '2'::jsonb)")
-    expect(sql).toContain('evidenceSnapshots')
+    // Direct assertions on both clauses, not just the word "evidenceSnapshots"
+    // -- that word alone also appears in this file's prose comments, so it
+    // would keep passing even if the whole schemaVersion-2 branch were
+    // deleted. The type guard matters on its own, separate from the length
+    // check below: jsonb_array_length raises a hard Postgres error on
+    // non-array JSON, so losing the type guard turns a clean constraint
+    // rejection into an unhandled exception.
+    expect(sql).toContain("jsonb_typeof(content->'evidenceSnapshots') = 'array'")
+    expect(sql).toContain("jsonb_array_length(content->'evidenceSnapshots') >= 1")
   })
 
   it('restricts rather than cascades, like 042 binds the same parent', () => {
@@ -75,12 +90,23 @@ describe('051 creates the source child table', () => {
   it('tests key absence explicitly, which is the trap 044 documented', () => {
     // A comparison against an absent key yields an empty sequence, so the
     // predicate is false and a malformed element would pass. Every predicate
-    // pairs its comparison with an exists() test.
+    // that reads a FIELD off the element pairs its comparison with an
+    // exists() test. The filter matches == or != so it also catches the
+    // schemaVersion predicate, which compares with != and was silently
+    // excluded by an ==-only filter: stripping its exists() guard would
+    // still have passed. @.type() != "object" is deliberately excluded from
+    // that requirement -- it is a method on the element itself, not a key
+    // lookup, so it can never hit the absent-key case and correctly carries
+    // no exists() guard.
     const predicates = sql.match(/\$\.evidenceSnapshots\[\*\] \? \([^']*\)/g) ?? []
-    const comparisons = predicates.filter(predicate => predicate.includes('=='))
+    expect(predicates).toHaveLength(3)
 
-    expect(comparisons.length).toBeGreaterThan(0)
-    for (const predicate of comparisons) {
+    const fieldComparisons = predicates.filter(predicate =>
+      (predicate.includes('==') || predicate.includes('!=')) && !predicate.includes('.type()'),
+    )
+
+    expect(fieldComparisons).toHaveLength(2)
+    for (const predicate of fieldComparisons) {
       expect(predicate, `predicate compares without testing existence: ${predicate}`).toContain('exists(')
     }
   })

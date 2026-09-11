@@ -31,6 +31,15 @@ create table public.work_item_sources (
   -- Withdrawn, never deleted (the 044 pattern). Without this a mis-attachment
   -- would occupy its opportunity key forever: aeo_app has no DELETE here.
   withdrawn_at timestamptz,
+  -- No FK here, unlike attached_by above -- do not add one; that would not
+  -- be a fix. withdrawn_by is paired with withdrawn_at by
+  -- work_item_sources_withdrawal_check below: both null or neither. An
+  -- on delete set null FK would perform exactly the write that CHECK
+  -- forbids -- clearing withdrawn_by while withdrawn_at stays set -- the
+  -- same contradiction 046 removed from client_sources.revoked_by and
+  -- client_source_versions.approved_by. attached_by carries no paired
+  -- CHECK, so its FK above is real, working behaviour; withdrawn_by's would
+  -- not be. Treat this as the settled answer, not a bug to reopen.
   withdrawn_by uuid,
   -- 042 binds work_item_versions to the same parent with on delete restrict.
   -- A withdrawn source row exists precisely so a draft that once cited that
@@ -56,9 +65,7 @@ create table public.work_item_sources (
   constraint work_item_sources_snapshot_object_check check (jsonb_typeof(evidence_snapshot) = 'object'),
   constraint work_item_sources_snapshot_size_check check (octet_length(evidence_snapshot::text) <= 65536),
   -- One fact recorded two ways; neither half may stand alone.
-  constraint work_item_sources_withdrawal_check check ((withdrawn_at is null) = (withdrawn_by is null)),
-  -- The same source cannot be attached to one item twice.
-  unique (account_id, client_id, work_item_id, source_kind, source_id)
+  constraint work_item_sources_withdrawal_check check ((withdrawn_at is null) = (withdrawn_by is null))
 );
 
 -- Backfill: exactly one source per existing item, from the columns 052 removes.
@@ -77,6 +84,17 @@ from public.evidence_work_items d;
 -- withdrawn row release its claim.
 create unique index work_item_sources_live_opportunity_idx
   on public.work_item_sources (account_id, client_id, opportunity_key)
+  where withdrawn_at is null;
+
+-- The same source cannot be attached to one item twice -- but only while
+-- live. A plain table-level unique constraint would count withdrawn rows
+-- too, so once a source was withdrawn from an item it could never be
+-- attached to THAT item again, while it could still be attached to any
+-- OTHER item -- arbitrary, and the opposite of why withdrawal exists
+-- instead of deletion. Partial for the same reason as its sibling above: a
+-- withdrawn row releases its claim.
+create unique index work_item_sources_live_item_source_idx
+  on public.work_item_sources (account_id, client_id, work_item_id, source_kind, source_id)
   where withdrawn_at is null;
 
 create index work_item_sources_item_idx
