@@ -109,6 +109,8 @@ function allRelations() {
     'client_sources', 'client_source_versions',
     // 045: export receipts.
     'work_item_export_events',
+    // 051: multi-source work items, authored here and applied by the runner.
+    'work_item_sources',
     // 050: owner-registered pages, authored here and applied by the runner. Like
     // 040-045 above, this is a synthetic inventory entry and claims nothing about
     // any live database.
