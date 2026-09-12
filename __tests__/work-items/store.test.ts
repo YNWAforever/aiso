@@ -179,12 +179,57 @@ it('reads exact sources only after both ownership predicates and compares the co
  expect(()=>buildInitialDraftSnapshot(oversized,projectedScan.source,'en')).toThrow()
 })
 it('every owned draft read/write excludes the reserved recommendation kind',async()=>{
- const {findOwnedDraft,readOwnedDraft}=await import('@/lib/work-items/store')
+ // findOwnedDraft moved its source_kind filter onto work_item_sources (see the
+ // dedicated tests below) -- readOwnedDraft and listOwnedDrafts still read it off
+ // evidence_work_items itself, so only those two stay in this loop.
+ const {readOwnedDraft}=await import('@/lib/work-items/store')
  mocks.sql.mockClear();mocks.sql.mockResolvedValue([])
- await findOwnedDraft(account,id,'key')
  await readOwnedDraft(account,id,id)
  await listOwnedDrafts(account,id,{limit:50,cursor:null})
  for(const call of mocks.sql.mock.calls) expect(call[0].join(' ')).toContain("d.source_kind in ('pulse-metric','scan-check')")
+})
+it('looks up the draft through work_item_sources, not the item\'s own opportunity_key column',async()=>{
+ const {findOwnedDraft}=await import('@/lib/work-items/store')
+ mocks.sql.mockClear();mocks.sql.mockResolvedValue([])
+ await findOwnedDraft(account,id,'the-key')
+ const query=mocks.sql.mock.calls[0][0].join(' ')
+ expect(query).toContain('join work_item_sources s')
+ expect(query).toContain("s.source_kind in ('pulse-metric','scan-check')")
+ expect(query).toContain('s.opportunity_key=')
+ expect(query).not.toContain('d.opportunity_key')
+})
+it('only matches a LIVE source, filtering withdrawn_at is null',async()=>{
+ // Would silently pass without this: 051's partial unique index only covers LIVE
+ // rows, so a withdrawn opportunity is free to be attached to a different work item.
+ // Matching the withdrawn row here would silently re-bind the caller to that OLD
+ // item -- saveAuthenticatedDraft short-circuits on `if(existing)return {item:existing,
+ // created:false}` before it ever loads or validates the new source, so the caller
+ // would get back the wrong draft with no evidence check at all, not an error.
+ const {findOwnedDraft}=await import('@/lib/work-items/store')
+ mocks.sql.mockClear();mocks.sql.mockResolvedValue([])
+ await findOwnedDraft(account,id,'the-key')
+ expect(mocks.sql.mock.calls[0][0].join(' ')).toContain('s.withdrawn_at is null')
+})
+it('sends account, client and key as bound parameters to the lookup',async()=>{
+ const {findOwnedDraft}=await import('@/lib/work-items/store')
+ mocks.sql.mockClear();mocks.sql.mockResolvedValue([])
+ await findOwnedDraft(account,id,'the-key')
+ expect(mocks.sql.mock.calls[0].slice(1)).toEqual([account,id,'the-key'])
+})
+it('returns the work item id, not a source row id also present on the row',async()=>{
+ // Would silently pass without explicit column qualification: evidence_work_items,
+ // clients and work_item_sources all have an `id` column, and the Neon HTTP driver
+ // builds each row with Object.fromEntries, where a duplicate output column name
+ // silently overwrites -- last one wins. A select list that let an unqualified `id`
+ // (or `s.id`) follow `d.id` would hand dto() a row whose `id` is the SOURCE row's,
+ // not the work item's -- this is the assertion that would catch it, since the query
+ // still executes and still returns exactly one row either way.
+ const {findOwnedDraft}=await import('@/lib/work-items/store')
+ const sourceRowId='00000000-0000-4000-8000-000000000099'
+ mocks.sql.mockClear();mocks.sql.mockResolvedValueOnce([{...row(),id,sourceRowId}])
+ const result=await findOwnedDraft(account,id,'the-key')
+ expect(result?.id).toBe(id)
+ expect(result?.id).not.toBe(sourceRowId)
 })
 
 

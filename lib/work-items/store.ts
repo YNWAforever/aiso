@@ -38,11 +38,20 @@ export async function loadOwnedDraftSource(accountId:string,clientId:string,sour
 }
 export async function findOwnedDraft(accountId:string,clientId:string,key:string):Promise<WorkItem|null> {
   const sql=db()
+  // opportunity_key now lives on work_item_sources, not on the item itself (051): join
+  // to it and require withdrawn_at is null, so a withdrawn source's key -- free to be
+  // reattached elsewhere under the partial unique index -- can never resolve back to
+  // this old item. The select list stays fully qualified to `d.` alone: evidence_work_items,
+  // clients and work_item_sources all have `id` and `account_id`, and the Neon HTTP driver
+  // builds rows with Object.fromEntries, where a duplicate output column name silently
+  // overwrites -- last one wins. Selecting any column off `c` or `s` here would risk
+  // exactly that collision on `id`.
   const rows=await sql`select d.id,d.client_id,d.status,d.title,d.action,d.notes,d.locale,d.revision,
     to_char(d.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
     to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot
     from evidence_work_items d join clients c on c.id=d.client_id and c.account_id=d.account_id
-    where d.source_kind in ('pulse-metric','scan-check') and d.account_id=${accountId} and d.client_id=${clientId} and d.opportunity_key=${key} limit 1`
+    join work_item_sources s on s.work_item_id=d.id and s.account_id=d.account_id and s.client_id=d.client_id and s.withdrawn_at is null
+    where s.source_kind in ('pulse-metric','scan-check') and d.account_id=${accountId} and d.client_id=${clientId} and s.opportunity_key=${key} limit 1`
   return rows[0] ? dto(rows[0] as Row) : null
 }
 export async function createDraftIfEvidenceCurrent(accountId:string,clientId:string,actorId:string|null,input:CreateDraftInput,snapshot:DraftSnapshotV1,token:EvidenceVersionToken):Promise<{item:WorkItem;created:boolean}|null> {
