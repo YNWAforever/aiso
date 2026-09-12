@@ -89,3 +89,126 @@ describe('listLiveSources', () => {
     expect(sources[0]!.checkKey).toBeNull()
   })
 })
+
+const SOURCE = {
+  opportunityKey: 'scan-check-gap.v1:scan-check:s:c9_meta_desc',
+  sourceKind: 'scan-check' as const,
+  sourceId: 'source-1',
+  ruleVersion: 'scan-check-gap.v1',
+  checkKey: 'c9_meta_desc',
+  fingerprint: 'f'.repeat(64),
+  snapshot: { marker: 'snapshot-value' },
+}
+
+describe('attachSource', () => {
+  it('inserts the source and bumps the item revision in one statement, not two awaited calls', async () => {
+    mocks.sql.mockResolvedValue([{ id: 'new-source-id' }])
+    const { attachSource } = await import('@/lib/work-items/sources')
+
+    const attached = await attachSource({ accountId: 'account-1', clientId: 'client-1', workItemId: 'item-1', source: SOURCE, actorId: 'actor-1' })
+
+    expect(attached).toBe(true)
+    // One statement, not sql.transaction([...]) or two awaited calls -- a
+    // second, separate revision-bump statement would let the insert succeed
+    // while the bump silently never runs (or runs unconditionally, bumping a
+    // revision for an item that was never actually written to).
+    expect(mocks.sql).toHaveBeenCalledTimes(1)
+    const query = mocks.sql.mock.calls[0]![0].join(' ')
+    expect(query).toContain('insert into work_item_sources')
+    expect(query).toContain('update evidence_work_items')
+    expect(query).toContain('revision = revision + 1')
+  })
+
+  it('ties the revision bump to the insert actually happening, not a separate unconditional write', async () => {
+    // Would silently pass without this: an update with no `exists(...)` guard
+    // would bump the revision even when the insert's WHERE matched no row --
+    // an item outside this account/client would then have its revision bumped
+    // by a caller who was never allowed to touch it.
+    mocks.sql.mockResolvedValue([])
+    const { attachSource } = await import('@/lib/work-items/sources')
+    await attachSource({ accountId: 'account-1', clientId: 'client-1', workItemId: 'item-1', source: SOURCE, actorId: 'actor-1' })
+
+    const query = mocks.sql.mock.calls[0]![0].join(' ')
+    expect(query).toMatch(/exists\s*\(\s*select 1 from inserted\s*\)/)
+  })
+
+  it('scopes both the insert and the bump to this account, client and item', async () => {
+    mocks.sql.mockResolvedValue([])
+    const { attachSource } = await import('@/lib/work-items/sources')
+    await attachSource({ accountId: 'account-1', clientId: 'client-1', workItemId: 'item-1', source: SOURCE, actorId: 'actor-1' })
+
+    const values = mocks.sql.mock.calls[0]!.slice(1)
+    expect(values.filter(value => value === 'account-1').length).toBeGreaterThanOrEqual(2)
+    expect(values.filter(value => value === 'client-1').length).toBeGreaterThanOrEqual(2)
+    expect(values.filter(value => value === 'item-1').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it("returns false when nothing was inserted -- the item is absent or not this account/client's", async () => {
+    mocks.sql.mockResolvedValue([])
+    const { attachSource } = await import('@/lib/work-items/sources')
+
+    expect(await attachSource({ accountId: 'account-1', clientId: 'client-1', workItemId: 'item-1', source: SOURCE, actorId: 'actor-1' })).toBe(false)
+  })
+
+  it('writes every source field into the insert, not a subset', async () => {
+    mocks.sql.mockResolvedValue([])
+    const { attachSource } = await import('@/lib/work-items/sources')
+    await attachSource({ accountId: 'account-1', clientId: 'client-1', workItemId: 'item-1', source: SOURCE, actorId: 'actor-1' })
+
+    const values = mocks.sql.mock.calls[0]!.slice(1)
+    for (const value of [SOURCE.opportunityKey, SOURCE.sourceKind, SOURCE.sourceId, SOURCE.ruleVersion, SOURCE.checkKey, SOURCE.fingerprint]) {
+      expect(values).toContain(value)
+    }
+    expect(values).toContainEqual(JSON.stringify(SOURCE.snapshot))
+  })
+})
+
+describe('withdrawSource', () => {
+  it('refuses to withdraw the last live source', async () => {
+    // Would silently pass without the count(*) guard: an item with zero live
+    // sources is a piece of work with no evidence behind it, and the
+    // remaining-count check has to live inside the statement itself -- a
+    // check-then-write in application code would leave a window where a
+    // concurrent withdrawal of the "other" source could race this one.
+    mocks.sql.mockResolvedValue([])
+    const { withdrawSource } = await import('@/lib/work-items/sources')
+
+    const withdrawn = await withdrawSource({ accountId: 'account-1', clientId: 'client-1', workItemId: 'item-1', opportunityKey: 'key-1', actorId: 'actor-1' })
+
+    expect(withdrawn).toBe(false)
+    const query = mocks.sql.mock.calls[0]![0].join(' ')
+    expect(query).toContain('count(*)')
+    expect(query).toMatch(/>\s*1/)
+  })
+
+  it('scopes the withdrawal to this account, client, item and opportunity key', async () => {
+    mocks.sql.mockResolvedValue([])
+    const { withdrawSource } = await import('@/lib/work-items/sources')
+    await withdrawSource({ accountId: 'account-1', clientId: 'client-1', workItemId: 'item-1', opportunityKey: 'key-1', actorId: 'actor-1' })
+
+    const values = mocks.sql.mock.calls[0]!.slice(1)
+    expect(values).toContain('account-1')
+    expect(values).toContain('client-1')
+    expect(values).toContain('item-1')
+    expect(values).toContain('key-1')
+    expect(values).toContain('actor-1')
+  })
+
+  it('records the actor doing the withdrawing, not a null', async () => {
+    mocks.sql.mockResolvedValue([{ id: 'source-1' }])
+    const { withdrawSource } = await import('@/lib/work-items/sources')
+    const withdrawn = await withdrawSource({ accountId: 'account-1', clientId: 'client-1', workItemId: 'item-1', opportunityKey: 'key-1', actorId: 'actor-1' })
+
+    expect(withdrawn).toBe(true)
+    const query = mocks.sql.mock.calls[0]![0].join(' ')
+    expect(query).toContain('withdrawn_by')
+    expect(query).not.toMatch(/withdrawn_by\s*=\s*null/)
+  })
+
+  it('returns false when nothing matched -- absent, not yours, already withdrawn, or the only source', async () => {
+    mocks.sql.mockResolvedValue([])
+    const { withdrawSource } = await import('@/lib/work-items/sources')
+
+    expect(await withdrawSource({ accountId: 'account-1', clientId: 'client-1', workItemId: 'item-1', opportunityKey: 'key-1', actorId: 'actor-1' })).toBe(false)
+  })
+})

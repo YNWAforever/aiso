@@ -541,6 +541,129 @@ describe("work_item_sources: createDraftIfEvidenceCurrent's item+source insert i
  * work_item_sources/evidence_work_items rows would block a later run's
  * `delete from clients` via the ON DELETE RESTRICT chain 051 adds.
  */
+/**
+ * Reproduces lib/work-items/sources.ts's attachSource, for the same reason
+ * runCreateDraftCte above reproduces createDraftIfEvidenceCurrent's: db() is
+ * hardwired to DATABASE_URL, not TEST_DATABASE_URL, so the production
+ * function cannot be called from this harness (see setup.ts's own comment on
+ * why that binding is deliberate: "no refactor can hand this function
+ * process.env.DATABASE_URL in passing").
+ *
+ * A structural change to attachSource's real CTE (dropping the exists()
+ * guard, renaming `inserted`) would leave this reproduction, and the mocked
+ * unit tests, silently proving nothing -- the same drift risk
+ * cte-shape-parity.test.ts pins for the draft-creation CTE. Not re-solved
+ * here to keep this addition proportionate; the risk is recorded rather than
+ * left unstated.
+ */
+async function runAttachSourceCte(params: {
+  account: string
+  clientId: string
+  workItemId: string
+  opportunityKey: string
+  actor: string
+}) {
+  const { account, clientId, workItemId, opportunityKey, actor } = params
+  const rows = await sql`
+    with inserted as (
+      insert into work_item_sources (
+        account_id, client_id, work_item_id, opportunity_key, source_kind, source_id,
+        rule_version, check_key, evidence_fingerprint, evidence_snapshot, attached_by
+      )
+      select d.account_id, d.client_id, d.id, ${opportunityKey}, 'pulse-metric', ${crypto.randomUUID()},
+        'pulse-brand-absent.v1', null, ${FINGERPRINT}, ${EVIDENCE_SNAPSHOT}::jsonb, ${actor}
+      from evidence_work_items d
+      where d.id = ${workItemId} and d.account_id = ${account} and d.client_id = ${clientId}
+      returning id
+    ), bumped as (
+      update evidence_work_items
+      set revision = revision + 1, updated_at = now(), updated_by = ${actor}::uuid
+      where id = ${workItemId} and account_id = ${account} and client_id = ${clientId}
+        and exists (select 1 from inserted)
+      returning revision
+    )
+    select id from inserted
+  ` as { id: string }[]
+  return rows
+}
+
+async function runWithdrawSourceCte(params: {
+  account: string
+  clientId: string
+  workItemId: string
+  opportunityKey: string
+  actor: string
+}) {
+  const { account, clientId, workItemId, opportunityKey, actor } = params
+  const rows = await sql`
+    update work_item_sources s
+    set withdrawn_at = now(), withdrawn_by = ${actor}
+    where s.account_id = ${account} and s.client_id = ${clientId}
+      and s.work_item_id = ${workItemId} and s.opportunity_key = ${opportunityKey}
+      and s.withdrawn_at is null
+      and (select count(*) from work_item_sources live
+           where live.work_item_id = s.work_item_id and live.account_id = s.account_id
+             and live.client_id = s.client_id and live.withdrawn_at is null) > 1
+    returning s.id
+  ` as { id: string }[]
+  return rows
+}
+
+describe('attachSource shape: the revision bump is tied to the insert, not unconditional', () => {
+  beforeEach(seed)
+
+  it('bumps the revision when the source is actually inserted', async () => {
+    const clientId = await brand(ACCOUNT, 'Brand')
+    const itemId = await workItem(ACCOUNT, clientId, 'seed-key')
+    const actor = await profile(ACCOUNT)
+    const before = (await sql`select revision from evidence_work_items where id = ${itemId}` as { revision: number }[])[0]!.revision
+
+    const inserted = await runAttachSourceCte({ account: ACCOUNT, clientId, workItemId: itemId, opportunityKey: 'new-source', actor })
+
+    expect(inserted).toHaveLength(1)
+    const after = (await sql`select revision from evidence_work_items where id = ${itemId}` as { revision: number }[])[0]!.revision
+    expect(after).toBe(before + 1)
+  })
+
+  it('does NOT bump the revision when the item belongs to another account', async () => {
+    // The property that matters: a tenancy failure must not leave the item
+    // half-touched. The exists(select 1 from inserted) guard is what makes
+    // "insert failed" and "bump also does not run" the same fact rather than
+    // two facts that could drift apart under a future edit.
+    const clientId = await brand(ACCOUNT, 'Brand')
+    const itemId = await workItem(ACCOUNT, clientId, 'seed-key')
+    const before = (await sql`select revision from evidence_work_items where id = ${itemId}` as { revision: number }[])[0]!.revision
+    const foreignActor = await profile(OTHER)
+
+    const inserted = await runAttachSourceCte({ account: OTHER, clientId, workItemId: itemId, opportunityKey: 'stolen-attach', actor: foreignActor })
+
+    expect(inserted).toHaveLength(0)
+    const after = (await sql`select revision from evidence_work_items where id = ${itemId}` as { revision: number }[])[0]!.revision
+    expect(after).toBe(before)
+  })
+})
+
+describe('withdrawSource shape: the last live source cannot be withdrawn', () => {
+  beforeEach(seed)
+
+  it('refuses to withdraw the only source, and allows it once a second exists', async () => {
+    const clientId = await brand(ACCOUNT, 'Brand')
+    const actor = await profile(ACCOUNT)
+    const itemId = await workItem(ACCOUNT, clientId, 'seed-key')
+    await attachSource({ account: ACCOUNT, clientId, workItemId: itemId, opportunityKey: 'only-source' })
+
+    const refused = await runWithdrawSourceCte({ account: ACCOUNT, clientId, workItemId: itemId, opportunityKey: 'only-source', actor })
+    expect(refused).toHaveLength(0)
+
+    await attachSource({ account: ACCOUNT, clientId, workItemId: itemId, opportunityKey: 'second-source' })
+    const allowed = await runWithdrawSourceCte({ account: ACCOUNT, clientId, workItemId: itemId, opportunityKey: 'only-source', actor })
+    expect(allowed).toHaveLength(1)
+
+    const rows = await sql`select withdrawn_at from work_item_sources where opportunity_key = ${'only-source'} and work_item_id = ${itemId}` as { withdrawn_at: string | null }[]
+    expect(rows[0]!.withdrawn_at).not.toBeNull()
+  })
+})
+
 afterAll(async () => {
   await sql`delete from work_item_sources where account_id in (${ACCOUNT}, ${OTHER})`
   await sql`delete from evidence_work_items where account_id in (${ACCOUNT}, ${OTHER})`

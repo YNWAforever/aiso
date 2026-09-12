@@ -69,3 +69,97 @@ export async function listLiveSources(
   `
   return rows.map(row => dto(row as Record<string, unknown>))
 }
+
+/**
+ * Attach a validated source to an existing item, bumping its revision.
+ *
+ * The caller MUST have derived and validated the source's suggestion (via
+ * lib/opportunities/rules.ts's deriveSuggestions) before calling this. A
+ * source row cannot exist without its snapshot -- this is exactly the
+ * validation step the old opportunity_key-based short-circuit in
+ * saveAuthenticatedDraft used to skip for a second source, which is the
+ * provenance lie 041-046 exist to prevent.
+ *
+ * One statement, two chained data-modifying CTEs -- the same shape
+ * createDraftIfEvidenceCurrent uses in lib/work-items/store.ts, proven
+ * against real Postgres there. The revision bump runs only
+ * `exists(select 1 from inserted)`: a tenancy failure (the item does not
+ * exist under this account/client) inserts nothing AND bumps nothing, never
+ * a half-applied write where the revision moves but no source landed.
+ *
+ * A unique violation (the opportunity is already live on another item, or
+ * this exact source is already attached here) is deliberately NOT swallowed
+ * with `on conflict do nothing`: that would report a genuine conflict as an
+ * indistinguishable "not found" or a false "nothing to do", and this
+ * codebase never returns a success, or a success-shaped no-op, over a write
+ * that did not do what the caller asked. It propagates as a thrown Postgres
+ * error naming the violated constraint.
+ */
+export async function attachSource(input: {
+  accountId: string
+  clientId: string
+  workItemId: string
+  source: Omit<LiveSource, 'id'>
+  actorId: string
+}): Promise<boolean> {
+  const sql = db()
+  const rows = await sql`
+    with inserted as (
+      insert into work_item_sources (
+        account_id, client_id, work_item_id, opportunity_key, source_kind, source_id,
+        rule_version, check_key, evidence_fingerprint, evidence_snapshot, attached_by
+      )
+      select d.account_id, d.client_id, d.id, ${input.source.opportunityKey}, ${input.source.sourceKind},
+        ${input.source.sourceId}, ${input.source.ruleVersion}, ${input.source.checkKey},
+        ${input.source.fingerprint}, ${JSON.stringify(input.source.snapshot)}::jsonb, ${input.actorId}::uuid
+      from evidence_work_items d
+      where d.id = ${input.workItemId} and d.account_id = ${input.accountId} and d.client_id = ${input.clientId}
+      returning id
+    ), bumped as (
+      update evidence_work_items
+      set revision = revision + 1, updated_at = now(), updated_by = ${input.actorId}::uuid
+      where id = ${input.workItemId} and account_id = ${input.accountId} and client_id = ${input.clientId}
+        and exists (select 1 from inserted)
+      returning id
+    )
+    select id from inserted
+  `
+  return rows.length > 0
+}
+
+/**
+ * Withdraw a source. Refuses to withdraw the last live one on the item: a
+ * work item must keep at least one source's evidence behind it.
+ *
+ * The remaining-count check lives inside the same statement as the write --
+ * `(select count(*) from work_item_sources live where ... ) > 1`, counting
+ * this row alongside every other live one -- so there is no window between
+ * checking and writing where a concurrent withdrawal of the "other" source
+ * could race this one and leave zero.
+ *
+ * Zero rows returned means: absent, not this account/client's, already
+ * withdrawn, or the only live source on the item. The caller cannot
+ * distinguish those from the return value alone, on purpose -- the same
+ * "absent or not yours" convention every store in this codebase uses.
+ */
+export async function withdrawSource(input: {
+  accountId: string
+  clientId: string
+  workItemId: string
+  opportunityKey: string
+  actorId: string
+}): Promise<boolean> {
+  const sql = db()
+  const rows = await sql`
+    update work_item_sources s
+    set withdrawn_at = now(), withdrawn_by = ${input.actorId}::uuid
+    where s.account_id = ${input.accountId} and s.client_id = ${input.clientId}
+      and s.work_item_id = ${input.workItemId} and s.opportunity_key = ${input.opportunityKey}
+      and s.withdrawn_at is null
+      and (select count(*) from work_item_sources live
+           where live.work_item_id = s.work_item_id and live.account_id = s.account_id
+             and live.client_id = s.client_id and live.withdrawn_at is null) > 1
+    returning s.id
+  `
+  return rows.length > 0
+}
