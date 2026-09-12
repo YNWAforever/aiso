@@ -218,6 +218,74 @@ describe('work_item_sources: withdrawal frees the claim and keeps the row', () =
   })
 })
 
+describe('work_item_sources: a live source reports its opportunity as saved, a withdrawn one does not', () => {
+  beforeEach(seed)
+
+  /**
+   * Reproduces lib/opportunities/store.ts's loadSavedDraftMapping shape
+   * directly against work_item_sources, for the same reason runCreateDraftCte
+   * above reproduces createDraftIfEvidenceCurrent's: db() is hardwired to
+   * DATABASE_URL, not TEST_DATABASE_URL, so the production function cannot be
+   * called from this harness.
+   *
+   * This is the behavioural half a mocked unit test cannot reach: it can
+   * assert the query TEXT filters `withdrawn_at is null`, but only real
+   * Postgres can prove a withdrawn row is actually excluded rather than
+   * merely asked to be.
+   */
+  async function loadSaved(account: string, clientId: string, keys: string[]) {
+    const rows = await sql`
+      select s.opportunity_key, d.id from work_item_sources s
+      join evidence_work_items d on d.id = s.work_item_id and d.account_id = s.account_id and d.client_id = s.client_id
+      where s.account_id = ${account} and s.client_id = ${clientId} and s.withdrawn_at is null
+        and s.opportunity_key = any(${keys}::text[])
+      order by s.opportunity_key
+    ` as { id: string; opportunity_key: string }[]
+    return new Map(rows.map(row => [row.opportunity_key, row.id]))
+  }
+
+  it("marks a live source's key as saved against its item", async () => {
+    const clientId = await brand(ACCOUNT, 'Brand')
+    const itemId = await workItem(ACCOUNT, clientId, 'seed-key')
+    await attachSource({ account: ACCOUNT, clientId, workItemId: itemId, opportunityKey: 'still-live' })
+
+    const saved = await loadSaved(ACCOUNT, clientId, ['still-live'])
+
+    expect(saved.get('still-live')).toBe(itemId)
+  })
+
+  it('stops marking a key as saved once its only source is withdrawn', async () => {
+    // The bug this closes: an owner would see this opportunity as unsaved and
+    // draft it again, on a key the product had already recorded a decision
+    // to withdraw from -- not "never drafted", but "deliberately let go".
+    const clientId = await brand(ACCOUNT, 'Brand')
+    const actor = await profile(ACCOUNT)
+    const itemId = await workItem(ACCOUNT, clientId, 'seed-key')
+    const sourceId = await attachSource({ account: ACCOUNT, clientId, workItemId: itemId, opportunityKey: 'let-go' })
+    await sql`update work_item_sources set withdrawn_at = now(), withdrawn_by = ${actor} where id = ${sourceId}`
+
+    const saved = await loadSaved(ACCOUNT, clientId, ['let-go'])
+
+    expect(saved.has('let-go')).toBe(false)
+  })
+
+  it("marks a SECOND live source's key as saved, even though the item was created for a different key", async () => {
+    // The bug's other half: evidence_work_items.opportunity_key only ever
+    // holds the item's ORIGINAL key. A key that only ever lived on a second,
+    // later-attached source would never satisfy the old column-only read.
+    const clientId = await brand(ACCOUNT, 'Brand')
+    const itemId = await workItem(ACCOUNT, clientId, 'original-key')
+    await attachSource({
+      account: ACCOUNT, clientId, workItemId: itemId, opportunityKey: 'attached-later',
+      sourceKind: 'scan-check', ruleVersion: 'scan-check-gap.v1', checkKey: 'c1_robots',
+    })
+
+    const saved = await loadSaved(ACCOUNT, clientId, ['attached-later'])
+
+    expect(saved.get('attached-later')).toBe(itemId)
+  })
+})
+
 describe('work_item_sources: a withdrawn source can be re-attached to the same item', () => {
   beforeEach(seed)
 

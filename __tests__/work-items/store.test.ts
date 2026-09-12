@@ -216,20 +216,38 @@ it('sends account, client and key as bound parameters to the lookup',async()=>{
  await findOwnedDraft(account,id,'the-key')
  expect(mocks.sql.mock.calls[0].slice(1)).toEqual([account,id,'the-key'])
 })
-it('returns the work item id, not a source row id also present on the row',async()=>{
- // Would silently pass without explicit column qualification: evidence_work_items,
- // clients and work_item_sources all have an `id` column, and the Neon HTTP driver
- // builds each row with Object.fromEntries, where a duplicate output column name
- // silently overwrites -- last one wins. A select list that let an unqualified `id`
- // (or `s.id`) follow `d.id` would hand dto() a row whose `id` is the SOURCE row's,
- // not the work item's -- this is the assertion that would catch it, since the query
- // still executes and still returns exactly one row either way.
+it('scopes the source join to this account and client, not work_item_id alone',async()=>{
+ // Would silently pass without both predicates: dropping `s.account_id=d.account_id
+ // and s.client_id=d.client_id` from the join would still resolve on `work_item_id`
+ // alone, letting a source row planted under a DIFFERENT account/client (impossible
+ // today only because 051's owned-item FK forbids writing one, not because this
+ // read forbids reading one) satisfy the join.
  const {findOwnedDraft}=await import('@/lib/work-items/store')
- const sourceRowId='00000000-0000-4000-8000-000000000099'
- mocks.sql.mockClear();mocks.sql.mockResolvedValueOnce([{...row(),id,sourceRowId}])
- const result=await findOwnedDraft(account,id,'the-key')
- expect(result?.id).toBe(id)
- expect(result?.id).not.toBe(sourceRowId)
+ mocks.sql.mockClear();mocks.sql.mockResolvedValue([])
+ await findOwnedDraft(account,id,'the-key')
+ const query=mocks.sql.mock.calls[0][0].join(' ')
+ expect(query).toContain('s.account_id=d.account_id')
+ expect(query).toContain('s.client_id=d.client_id')
+})
+it('projects nothing from c or s, so no id collision is possible by construction',async()=>{
+ // The prior version of this test built a mock row as a JS object literal, which
+ // can never hold two properties both named `id` -- it could not represent the
+ // real hazard (the Neon HTTP driver's Object.fromEntries silently overwriting a
+ // duplicate OUTPUT column name, last one wins) and would have passed whether or
+ // not the select list were qualified. This pins the shape that makes the
+ // collision impossible instead: the select list names no `c.` or `s.` column at
+ // all, so there is nothing from either joined table to collide with `d.id`. It
+ // cannot simulate the driver; it can only prove the statement never hands it a
+ // duplicate name to collapse. (Not a naive comma-split: to_char(...)'s own
+ // argument list contains a comma, so this checks for the alias tokens directly
+ // rather than trying to tokenize the select list by column.)
+ const {findOwnedDraft}=await import('@/lib/work-items/store')
+ mocks.sql.mockClear();mocks.sql.mockResolvedValue([])
+ await findOwnedDraft(account,id,'the-key')
+ const query=mocks.sql.mock.calls[0][0].join(' ')
+ const selectList=query.split(/\bfrom\b/i)[0]!
+ expect(selectList).not.toMatch(/\bc\.\w+/)
+ expect(selectList).not.toMatch(/\bs\.\w+/)
 })
 
 
