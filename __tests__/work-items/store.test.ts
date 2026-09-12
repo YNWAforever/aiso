@@ -72,9 +72,16 @@ beforeEach(() => { vi.clearAllMocks(); mocks.sql.mockReturnValue(Promise.resolve
   mocks.transaction.mockResolvedValue([[row()],[]])
   await createDraftIfEvidenceCurrent(account,id,null,input,snapshot(),projected.version)
   const query = mocks.sql.mock.calls[0][0].join(' ')
-  // One `,null,` for evidence_work_items.check_key (pre-existing), one for the new
-  // work_item_sources.check_key.
-  expect(query.match(/,null,/g) ?? []).toHaveLength(2)
+  // check_key is a bare SQL `null` literal here, not an interpolated value, so unlike
+  // the scan-check case below there is no bound parameter to filter on. Scope the
+  // `,null,` search to each insert's own select-list -- between its `insert into ... (`
+  // and its `from` -- rather than the whole statement, so an unrelated nullable column
+  // added anywhere else (the where clause, the returning list, ...) can't inflate this
+  // count for a reason that has nothing to do with check_key.
+  const itemInsert = query.split('insert into evidence_work_items')[1].split('from clients')[0]
+  const sourceInsert = query.split('insert into work_item_sources')[1].split('from mutation')[0]
+  expect(itemInsert.match(/,null,/g) ?? []).toHaveLength(1)
+  expect(sourceInsert.match(/,null,/g) ?? []).toHaveLength(1)
  })
  it('writes the scan check_key to the source row, matching the item exactly', async () => {
   // Would silently pass without this: hard-coding null here (the pulse-metric shape)

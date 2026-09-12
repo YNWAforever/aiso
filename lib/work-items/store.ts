@@ -54,9 +54,17 @@ export async function createDraftIfEvidenceCurrent(accountId:string,clientId:str
   // inserted an item -- a conflict makes mutation return zero rows, so source_ins reads
   // zero rows too and is a no-op. Postgres runs every data-modifying CTE to completion
   // exactly once regardless of whether the final SELECT reads it, so this holds even
-  // though the trailing `select * from mutation` never references source_ins by name.
-  // That keeps the item and its first source atomic without touching the on-conflict
-  // replay below, which must stay a separate statement (see its own comment).
+  // though the trailing select below names only `mutation`, never `source_ins`. That
+  // keeps the item and its first source atomic without touching the on-conflict replay
+  // below, which must stay a separate statement (see its own comment). Verified against
+  // real PostgreSQL, not assumed, in __tests__/integration/work-item-sources.test.ts.
+  //
+  // Cross-reference: that same integration file's runCreateDraftCte hand-reproduces
+  // this CTE's shape to run the proof above against a real database. A structural
+  // change here -- renaming source_ins, changing the on-conflict target, replacing
+  // source_ins's `from mutation` with a scalar subquery -- must be mirrored there too;
+  // __tests__/work-items/cte-shape-parity.test.ts pins the two texts together and fails
+  // the moment they drift.
   const mutation=token.kind==='pulse-metric' ? sql`
     with mutation as (
     insert into evidence_work_items (account_id,client_id,opportunity_key,source_kind,source_id,rule_version,check_key,evidence_fingerprint,evidence_snapshot,status,title,action,notes,locale,revision,created_by,updated_by)
@@ -81,7 +89,7 @@ export async function createDraftIfEvidenceCurrent(accountId:string,clientId:str
     from mutation
     returning id
     )
-    select * from mutation
+    select id,client_id,status,title,action,notes,locale,revision,created_at,updated_at,evidence_snapshot from mutation
   ` : sql`
     with mutation as (
     insert into evidence_work_items (account_id,client_id,opportunity_key,source_kind,source_id,rule_version,check_key,evidence_fingerprint,evidence_snapshot,status,title,action,notes,locale,revision,created_by,updated_by)
@@ -103,7 +111,7 @@ export async function createDraftIfEvidenceCurrent(accountId:string,clientId:str
     from mutation
     returning id
     )
-    select * from mutation
+    select id,client_id,status,title,action,notes,locale,revision,created_at,updated_at,evidence_snapshot from mutation
   `
   // A separate READ COMMITTED statement sees concurrent winners after conflict waiting.
   const replay=sql`select d.id,d.client_id,d.status,d.title,d.action,d.notes,d.locale,d.revision,
