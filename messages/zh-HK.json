@@ -2064,6 +2064,9 @@
     "findingsEmpty": "這個網站未有檢查結果記錄。",
     "questionsTitle": "這版頁面回答的問題",
     "questionsScope": "由你聲明",
-    "questionsEmpty": "尚未為這版頁面聲明任何問題。"
+    "questionsEmpty": "尚未為這版頁面聲明任何問題。",
+    "suggestionTitle": "這版頁面可能是同一項工作",
+    "suggestionBody": "一項檢查結果與一條已聲明的問題，同時對應到這版頁面，可以合併為同一項工作處理。",
+    "suggestionBothDrafted": "兩者已經各自有獨立的工作項目，暫時未支援合併已存在的項目。"
   }
 }
