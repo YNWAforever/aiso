@@ -2046,5 +2046,57 @@
       "SOURCE_ORIGIN_INVALID": "The origin note must be text, up to 500 characters.",
       "SOURCE_QUESTION_INVALID": "Every question must be text, and no longer than 4000 characters."
     }
+  },
+  "members": {
+    "title": "Members",
+    "intro": "Everyone here can see and change this workspace. Approving work needs more than membership — see below.",
+    "membersHeading": "People in this workspace",
+    "invitationsHeading": "Invitations",
+    "you": "You",
+    "approver": "Can approve work",
+    "notApprover": "Cannot approve work",
+    "approverNote": "Approving a submitted version needs an approver role, and the approver may not be the person who submitted it. Ask AISO to grant the role — members cannot grant it to each other, and granting it to yourself would not help.",
+    "howItWorks": "An invited person joins by signing in with the invited address. There is nothing to click: signing in with any other address starts a separate account instead. Invitations expire after seven days.",
+    "emailLabel": "Email address to invite",
+    "emailPlaceholder": "name@company.com",
+    "invite": "Send invitation",
+    "inviting": "Sending",
+    "revoke": "Withdraw",
+    "revoking": "Withdrawing",
+    "capReached": "This workspace has reached its member limit, so no further invitations can be sent.",
+    "noInvitations": "No invitations yet.",
+    "created": "Invitation created.",
+    "emailNotSent": "The invitation was created but the notification email could not be sent. Tell them yourself — signing in with that address is what joins them, not the email.",
+    "invitedOn": "Invited",
+    "expiresOn": "Expires",
+    "remove": "Remove",
+    "removing": "Removing",
+    "restore": "Restore",
+    "restoring": "Restoring",
+    "removed": "Removed",
+    "removalNote": "Removing somebody signs them out and blocks them from this workspace. Their name stays on the work they already did — that history cannot be detached from them — and you can restore them here.",
+    "cannotRemoveSelf": "You cannot remove yourself. Ask another member to do it.",
+    "status": {
+      "pending": "Waiting for them to sign in",
+      "accepted": "Joined",
+      "revoked": "Withdrawn",
+      "expired": "Expired",
+      "unclaimable": "Cannot be used"
+    },
+    "unclaimableHelp": "This address already has an AISO account, and an invitation is only taken up on a first sign-in. It can never be used, so it is not waiting for anything.",
+    "errors": {
+      "INVALID_INVITATION_INPUT": "That does not look like an email address.",
+      "MEMBER_ALREADY_IN_ACCOUNT": "That person is already in this workspace.",
+      "INVITATION_ALREADY_PENDING": "That address already has an invitation here. Withdraw it first to send a new one.",
+      "EMAIL_ALREADY_REGISTERED": "That address already has an AISO account. An invitation is only taken up on a first sign-in, so it cannot be moved into this workspace.",
+      "MEMBER_LIMIT_REACHED": "This workspace has reached its member limit.",
+      "INVITATION_DENIED": "You cannot invite people into this workspace.",
+      "INVITATION_RATE_LIMITED": "Too many invitations from this workspace. Try again later.",
+      "INVITATION_NOT_FOUND": "That invitation is no longer there.",
+      "INVITATION_BODY_TOO_LARGE": "That request was too large.",
+      "MEMBERS_UNAVAILABLE": "Members could not be loaded just now. This is not a permissions problem — try again.",
+      "MEMBER_CANNOT_REMOVE_SELF": "You cannot remove yourself. Ask another member to do it.",
+      "MEMBER_NOT_FOUND": "That person is not in this workspace."
+    }
   }
 }
