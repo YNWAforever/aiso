@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   list: vi.fn(),
   read: vi.fn(),
   decide: vi.fn(),
+  liveSources: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({ getProfile: mocks.profile }))
@@ -17,6 +18,7 @@ vi.mock('@/lib/change-sets/store', () => ({
   readVersion: mocks.read,
 }))
 vi.mock('@/lib/approvals/decision-store', () => ({ decideVersion: mocks.decide }))
+vi.mock('@/lib/work-items/sources', () => ({ listLiveSources: mocks.liveSources }))
 
 import * as versionsRoute from '@/app/api/clients/[clientId]/work-items/[workItemId]/versions/route'
 import * as versionRoute from '@/app/api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/route'
@@ -32,6 +34,7 @@ const params = Promise.resolve({ clientId, workItemId, versionId })
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.profile.mockResolvedValue(profile)
+  mocks.liveSources.mockResolvedValue([])
 })
 
 describe('change-set version route contracts', () => {
