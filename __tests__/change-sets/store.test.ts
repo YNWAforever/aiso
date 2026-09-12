@@ -16,7 +16,7 @@ it('keeps same-revision replay before validation and exact INSERT SELECT under i
  expect(statements[2]).toContain('FOR UPDATE');expect(statements[2]).toContain("set_config('aiso.version_item_locked'")
  const mutation=statements.at(-1)!
  expect(mutation.indexOf('FROM replay')).toBeLessThan(mutation.indexOf("THEN 'validation_failed'"))
- for(const text of ['d.title =','d.action =','d.notes =','d.locale =','d.evidence_snapshot =','d.revision =','max(version_number)','current_setting','p.account_id ='])expect(mutation).toContain(text)
+ for(const text of ['d.title =','d.action =','d.notes =','d.locale =','jsonb_agg(s.evidence_snapshot','s.withdrawn_at IS NULL','d.revision =','max(version_number)','current_setting','p.account_id ='])expect(mutation).toContain(text)
  expect(mutation).not.toContain('UPDATE evidence_work_items')
 })
 it('fails closed on persistence and retries only transaction errors twice',async()=>{m.transaction.mockRejectedValue({code:'40001'});await expect(submitVersion(id,id,id,id,1)).rejects.toThrow('CHANGE_SET_UNAVAILABLE');expect(m.transaction).toHaveBeenCalledTimes(3)})
@@ -40,7 +40,16 @@ it('new immutable version includes canonical content while exact comparison fail
  const row=await saved();m.draft.mockResolvedValue(draft());m.transaction.mockResolvedValueOnce([[],[],[{kind:'created',value:row}]]).mockResolvedValueOnce([[],[],[{kind:'conflict'}]])
  expect(await submitVersion(id,id,itemId,id,1)).toMatchObject({kind:'created',value:{id,title:draft().title}})
  expect(await submitVersion(id,id,itemId,id,1)).toEqual({kind:'conflict'})
- const values=m.sql.mock.calls.at(-1)!.slice(1);expect(values).toContain(draft().title);expect(values.filter((v): v is string => typeof v === 'string' && v.startsWith('{' )).map(v=>JSON.parse(v))).toContainEqual(draft().evidenceSnapshot)
+ const values=m.sql.mock.calls.at(-1)!.slice(1);expect(values).toContain(draft().title)
+ // The single bound `content` value is the exact serialized ReviewContentV1 --
+ // it carries evidenceSnapshot nested inside it, which is what matters here.
+ // (The separate aggregate-comparison parameter is [] in this mock, since
+ // listLiveSources's own m.sql call is not individually seeded above; that
+ // property -- the aggregate reflecting real live rows -- is proven against
+ // real Postgres in __tests__/integration/work-item-sources.test.ts instead.)
+ const contentValue=values.find((v): v is string => typeof v==='string' && v.includes('"evidenceSnapshot"'))
+ expect(contentValue).toBeDefined()
+ expect(JSON.parse(contentValue!).evidenceSnapshot).toEqual(draft().evidenceSnapshot)
 })
 it('validates persisted content/hash/actor and validation rather than exposing corrupt saved rows',async()=>{
  const {versionDTO}=await import('@/lib/change-sets/store');const row=await saved()
@@ -73,11 +82,38 @@ it('retained history preserves unknown recorded time and nullable actor name wit
  const {readVersion, versionDTO}=await import('@/lib/change-sets/store')
  const row=await saved()
  const persisted=JSON.parse(JSON.stringify(row))
- expect(versionDTO(persisted).evidenceSnapshot.evidence.recordedAt).toBeNull()
+ const decoded=versionDTO(persisted);if(decoded.schemaVersion!==1)throw new Error('expected a v1 fixture')
+ expect(decoded.evidenceSnapshot.evidence.recordedAt).toBeNull()
  m.sql.mockReturnValue([{owned:true,latest_id:row.id,versions:[persisted]}])
  const result=await readVersion(id,id,itemId,row.id,id)
  expect(result).toMatchObject({kind:'created',value:{submittedBy:{displayName:null},evidenceSnapshot:{evidence:{recordedAt:null,provenance:'retained-pulse-metric',promptId:null}}}})
  expect(m.draft).not.toHaveBeenCalled()
  const query=(m.sql.mock.calls[0][0] as string[]).join('?')
  expect(query).not.toMatch(/FROM (pulse_metrics|scans)/i)
+})
+it('writes schemaVersion 1 content when the multi-source flag is off, byte-identical to before 051',async()=>{
+ delete process.env.WORK_ITEM_MULTI_SOURCE_V1
+ m.draft.mockResolvedValue(draft());m.transaction.mockResolvedValue([[],[],[{kind:'validation_failed'}]])
+ await submitVersion(id,id,itemId,id,1)
+ const values=m.sql.mock.calls.at(-1)!.slice(1)
+ const contentValue=values.find((v):v is string=>typeof v==='string'&&v.includes('"evidenceSnapshot"'))
+ expect(contentValue).toBeDefined();expect(JSON.parse(contentValue!).schemaVersion).toBe(1)
+ expect(contentValue).not.toContain('evidenceSnapshots')
+})
+it('writes schemaVersion 2 content with an array when the flag is on',async()=>{
+ process.env.WORK_ITEM_MULTI_SOURCE_V1='1'
+ try {
+  m.draft.mockResolvedValue(draft());m.transaction.mockResolvedValue([[],[],[{kind:'validation_failed'}]])
+  // Call order per invocation is [saved-check, listLiveSources, lock1, lock2,
+  // write]. Seeding only the first two: listLiveSources must see a real row,
+  // or freezeMultiSourceReview throws on an empty array before the write is
+  // ever built.
+  m.sql.mockReturnValueOnce([]).mockReturnValueOnce([{id:'source-1',opportunity_key:'k',source_kind:'pulse-metric',source_id:itemId,rule_version:'pulse-brand-absent.v1',check_key:null,evidence_fingerprint:'f'.repeat(64),evidence_snapshot:draft().evidenceSnapshot}])
+  await submitVersion(id,id,itemId,id,1)
+  const values=m.sql.mock.calls.at(-1)!.slice(1)
+  const contentValue=values.find((v):v is string=>typeof v==='string'&&v.includes('"evidenceSnapshots"'))
+  expect(contentValue).toBeDefined()
+  const parsed=JSON.parse(contentValue!)
+  expect(parsed.schemaVersion).toBe(2);expect(parsed.evidenceSnapshots).toEqual([draft().evidenceSnapshot])
+ } finally { delete process.env.WORK_ITEM_MULTI_SOURCE_V1 }
 })

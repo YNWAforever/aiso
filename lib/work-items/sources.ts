@@ -1,6 +1,6 @@
 import 'server-only'
 import { db } from '@/lib/db'
-import type { OpportunitySourceKind } from '@/lib/opportunities/types'
+import type { DraftSnapshotV1, OpportunitySourceKind } from '@/lib/opportunities/types'
 
 /**
  * Reads of work_item_sources. Later tasks add attach/withdraw to this module
@@ -23,7 +23,7 @@ export type LiveSource = {
   ruleVersion: string
   checkKey: string | null
   fingerprint: string
-  snapshot: Record<string, unknown>
+  snapshot: DraftSnapshotV1
 }
 
 const dto = (row: Record<string, unknown>): LiveSource => ({
@@ -42,7 +42,7 @@ const dto = (row: Record<string, unknown>): LiveSource => ({
   // directly with no JSON.parse). A nullish value here means something is
   // badly wrong upstream, not a valid empty snapshot -- falling back to `{}`
   // would present that failure as a success, which this codebase never does.
-  snapshot: row.evidence_snapshot as Record<string, unknown>,
+  snapshot: row.evidence_snapshot as DraftSnapshotV1,
 })
 
 /**

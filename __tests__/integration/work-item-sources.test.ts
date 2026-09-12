@@ -664,6 +664,63 @@ describe('withdrawSource shape: the last live source cannot be withdrawn', () =>
   })
 })
 
+/**
+ * submitVersion's staleness check compares a pre-captured evidence array
+ * against this exact aggregate at write time. Nothing calls submitVersion
+ * itself here (db() cannot reach this branch), so this proves the aggregate
+ * genuinely reflects each of the three drifts the check exists to catch.
+ */
+async function liveSnapshotsAggregate(workItemId: string) {
+  const rows = await sql`
+    select jsonb_agg(s.evidence_snapshot order by s.opportunity_key) as agg
+    from work_item_sources s where s.work_item_id = ${workItemId} and s.withdrawn_at is null
+  ` as { agg: unknown[] | null }[]
+  return rows[0]!.agg
+}
+
+describe('the aggregate submitVersion compares against reflects real drift', () => {
+  beforeEach(seed)
+
+  it('changes when a source snapshot changes', async () => {
+    const clientId = await brand(ACCOUNT, 'Brand')
+    const itemId = await workItem(ACCOUNT, clientId, 'seed-key')
+    const sourceId = await attachSource({ account: ACCOUNT, clientId, workItemId: itemId, opportunityKey: 'drift-key' })
+    const before = await liveSnapshotsAggregate(itemId)
+
+    await sql`update work_item_sources set evidence_snapshot = ${JSON.stringify({ schemaVersion: 1, note: 'changed' })}::jsonb where id = ${sourceId}`
+
+    expect(await liveSnapshotsAggregate(itemId)).not.toEqual(before)
+  })
+
+  it('changes when a second source is attached after the first read', async () => {
+    const clientId = await brand(ACCOUNT, 'Brand')
+    const itemId = await workItem(ACCOUNT, clientId, 'seed-key')
+    await attachSource({ account: ACCOUNT, clientId, workItemId: itemId, opportunityKey: 'first-key' })
+    const before = await liveSnapshotsAggregate(itemId)
+
+    await attachSource({ account: ACCOUNT, clientId, workItemId: itemId, opportunityKey: 'second-key' })
+
+    const after = await liveSnapshotsAggregate(itemId)
+    expect(after).not.toEqual(before)
+    expect((after as unknown[]).length).toBe(2)
+  })
+
+  it('changes when a source is withdrawn', async () => {
+    const clientId = await brand(ACCOUNT, 'Brand')
+    const actor = await profile(ACCOUNT)
+    const itemId = await workItem(ACCOUNT, clientId, 'seed-key')
+    await attachSource({ account: ACCOUNT, clientId, workItemId: itemId, opportunityKey: 'first-key' })
+    const secondId = await attachSource({ account: ACCOUNT, clientId, workItemId: itemId, opportunityKey: 'second-key' })
+    const before = await liveSnapshotsAggregate(itemId)
+
+    await sql`update work_item_sources set withdrawn_at = now(), withdrawn_by = ${actor} where id = ${secondId}`
+
+    const after = await liveSnapshotsAggregate(itemId)
+    expect(after).not.toEqual(before)
+    expect((after as unknown[]).length).toBe(1)
+  })
+})
+
 afterAll(async () => {
   await sql`delete from work_item_sources where account_id in (${ACCOUNT}, ${OTHER})`
   await sql`delete from evidence_work_items where account_id in (${ACCOUNT}, ${OTHER})`

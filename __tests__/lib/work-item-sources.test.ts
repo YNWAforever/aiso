@@ -97,7 +97,9 @@ const SOURCE = {
   ruleVersion: 'scan-check-gap.v1',
   checkKey: 'c9_meta_desc',
   fingerprint: 'f'.repeat(64),
-  snapshot: { marker: 'snapshot-value' },
+  // The exact shape is irrelevant here -- these tests check tenancy and
+  // atomicity of the write, not evidence content.
+  snapshot: { marker: 'snapshot-value' } as unknown as import('@/lib/opportunities/types').DraftSnapshotV1,
 }
 
 describe('attachSource', () => {
