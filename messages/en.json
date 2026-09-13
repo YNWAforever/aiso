@@ -1541,7 +1541,21 @@
     "retry": "Retry",
     "invalid": "Enter a display name and up to 20 aliases. Each name must be 1–120 characters without control characters.",
     "unauthenticated": "Your session has ended. Sign in again to continue. Your draft is kept here.",
-    "unavailable": "This client is no longer available. Your draft has not been saved."
+    "unavailable": "This client is no longer available. Your draft has not been saved.",
+    "verified": "Domain verified",
+    "verifyTitle": "Prove you own this domain",
+    "verifyHow": "Publish a file at this path on {domain} containing the line below, then check. Nothing else needs to change, and the file can stay in place afterwards.",
+    "verifyPathLabel": "File path",
+    "verifyTokenLabel": "File contents",
+    "verifyCheck": "Check now",
+    "verifyChecking": "Checking",
+    "verifyLastChecked": "Last checked",
+    "verifyNoDomain": "This brand has no website address yet, so there is nothing to verify. Add one first.",
+    "verifyOutcomeVerified": "Verified — the file was found and matched.",
+    "verifyOutcomeTokenAbsent": "The file was not there, or did not contain the line. Check the path and the exact contents.",
+    "verifyOutcomeUnreachable": "The site did not answer. That is not a failure on our side — check the domain resolves and serves HTTPS.",
+    "verifyOutcomeRedirected": "The path redirected elsewhere. Verification does not follow redirects, because a different site cannot prove this one. Serve the file directly on this domain.",
+    "verifyOutcomeTooLarge": "The response was too large to be this file. The path is probably serving a page rather than the text file."
   },
   "observations": {
     "title": "Recorded observations",
