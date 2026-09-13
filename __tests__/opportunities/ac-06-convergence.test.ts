@@ -4,8 +4,24 @@ import { describe, expect, it } from 'vitest'
 import { opportunityKey } from '@/lib/opportunities/fingerprint'
 
 /**
- * Why AC-06 cannot be reached from here, pinned so the next person does not have
- * to rediscover it — or, worse, "implement" it by making the keys collide.
+ * AC-06's two halves, and the line between them.
+ *
+ * UPDATED when migration 050 added registered pages. The **asset** half is now
+ * reachable: an owner registers the pages that matter (`client_assets`), a scan
+ * finding attaches to them by origin, and a question attaches because the owner
+ * declared that the page answers it (`client_asset_questions`). That closes the
+ * "no target to key on" problem below — by asking, rather than by inferring a
+ * page nobody recorded.
+ *
+ * The **task** half is still out of reach, for the reason that has not changed:
+ * `evidence_work_items` is single-source by CHECK constraint, and merging two
+ * sources onto one row would make it claim a provenance it does not have. The
+ * assertions below still hold and still must.
+ *
+ * Everything from here down is the original note, kept because the trap it
+ * describes is exactly as live now as it was then — more so, since the asset
+ * half existing makes "and now merge the tasks too" look like the obvious next
+ * step.
  *
  * AC-06 asks that a website finding and a question opportunity reach the same
  * asset and the same task. The acceptance matrix used to justify deferring it by
@@ -84,10 +100,11 @@ describe('the task a finding reaches is single-source at the schema level', () =
     expect(migration).toContain('unique (account_id, client_id, opportunity_key)')
   })
 
-  it('has nowhere to record an asset', () => {
-    // The half of AC-06 that is about "the same asset" has no column to land in.
-    // If one is ever added, this assertion should fail and be rewritten — that is
-    // the point of it.
+  it('still has nowhere to record an asset, and must not gain one here', () => {
+    // The asset half of AC-06 is served by client_assets (migration 050), NOT by
+    // a column on the task. Adding one here would be the first step of the merge
+    // this file exists to prevent: once a work item names an asset, collapsing
+    // two sources onto it looks like deduplication rather than data loss.
     const table = migration.slice(
       migration.indexOf('create table if not exists evidence_work_items'),
       migration.indexOf('evidence_work_items_rule_source_check'),
@@ -96,5 +113,47 @@ describe('the task a finding reaches is single-source at the schema level', () =
     for (const column of ['asset', 'target', 'url', 'page', 'entity_id']) {
       expect(table, `evidence_work_items gained a ${column} column`).not.toContain(column)
     }
+  })
+})
+
+describe('the asset half is reached without touching the task half', () => {
+  const assets = readFileSync(
+    resolve(process.cwd(), 'supabase/migrations/050_registered_page_assets.sql'),
+    'utf8',
+  )
+
+  it('gives an owner a page to register, with its origin stored alongside', () => {
+    // `origin` is the join AC-06 rests on: a scan finding keeps origin and
+    // nothing finer, so this is the only column it can be matched against.
+    expect(assets).toContain('create table public.client_assets')
+    expect(assets).toContain('url text not null')
+    expect(assets).toContain('origin text not null')
+  })
+
+  it('records "this page answers this question" as a declaration, not an inference', () => {
+    expect(assets).toContain('create table public.client_asset_questions')
+    expect(assets).toContain('declared_by')
+  })
+
+  it('binds a declaration to its asset by account and client together', () => {
+    // Composite FK, so a declaration cannot reference another account's page
+    // even if the caller supplies its id.
+    expect(assets).toContain('references public.client_assets (account_id, client_id, id)')
+  })
+
+  it('cannot bind the prompt compositely, and says so where a reader will look', () => {
+    // prompt_bank predates tenancy: no account_id, and a plain FK to clients(id).
+    // The guarantee therefore lives in lib/assets/store.ts's insert, which joins
+    // the prompt on the asset's own client_id. If that comment ever stops being
+    // true, this is where someone finds out.
+    expect(assets).toContain('references public.prompt_bank (id)')
+    expect(assets).toContain('prompt_bank predates tenancy')
+  })
+
+  it('adds no work-item table, column or constraint', () => {
+    // The whole point of keeping the two halves separate, asserted rather than
+    // trusted: 050 must not touch the task at all.
+    expect(assets).not.toContain('evidence_work_items')
+    expect(assets).not.toContain('opportunity_key')
   })
 })

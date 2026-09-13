@@ -113,6 +113,10 @@ function allRelations() {
     'account_invitations',
     // 048: the platform-administrator grant ledger.
     'platform_admin_grants',
+    // 050: owner-registered pages, authored here and applied by the runner. Like
+    // 040-045 above, this is a synthetic inventory entry and claims nothing about
+    // any live database.
+    'client_assets', 'client_asset_questions',
     // 052: single-use scan-claim attempts. Renumbered from 047 -- migration
     // 043's PR merged first and took 047-049 for account membership.
     'scan_claim_attempts',
