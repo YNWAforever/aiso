@@ -8,6 +8,12 @@ import {
   loadAuthenticatedEntityPage,
   EntityServiceError,
 } from '@/lib/entities/service'
+import {
+  DomainVerificationPanel,
+  type DomainVerificationCopy,
+} from '@/components/entities/DomainVerificationPanel'
+import { VERIFICATION_PATH, deriveVerificationState } from '@/lib/domain-verification/schema'
+import { loadVerification } from '@/lib/domain-verification/store'
 
 export default async function EntitiesPage({
   params,
@@ -49,6 +55,20 @@ export default async function EntitiesPage({
     'description',
     'privateLabel',
     'unverified',
+    'verified',
+    'verifyTitle',
+    'verifyHow',
+    'verifyPathLabel',
+    'verifyTokenLabel',
+    'verifyCheck',
+    'verifyChecking',
+    'verifyLastChecked',
+    'verifyNoDomain',
+    'verifyOutcomeVerified',
+    'verifyOutcomeTokenAbsent',
+    'verifyOutcomeUnreachable',
+    'verifyOutcomeRedirected',
+    'verifyOutcomeTooLarge',
     'unsaved',
     'saved',
     'displayName',
@@ -68,12 +88,40 @@ export default async function EntitiesPage({
   const copy = Object.fromEntries(
     keys.map((key) => [key, t(key)]),
   ) as EntityCopy
+  // Read-only, and never minted here: a page render must not have the side
+  // effect of issuing a token. GET /domain-verification does that when the
+  // owner actually opens the panel and asks.
+  //
+  // Degrades rather than throws. Verification is secondary content on this
+  // page — if reading it fails, the owner should still get the editor, which
+  // is what they came for. The panel then renders its own empty state rather
+  // than the whole route 500ing over a badge.
+  let verification: Awaited<ReturnType<typeof loadVerification>> = null
+  try {
+    verification = await loadVerification(result.client.account_id, result.client.id)
+  } catch (error) {
+    console.error('[entities] verification lookup failed:', (error as Error)?.message ?? String(error))
+  }
   return (
-    <EntityEditor
-      clientId={result.client.id}
-      brandName={result.client.brand_name}
-      initialEntity={result.entity}
-      copy={copy}
-    />
+    <>
+      <EntityEditor
+        clientId={result.client.id}
+        brandName={result.client.brand_name}
+        initialEntity={result.entity}
+        copy={copy}
+      />
+      <DomainVerificationPanel
+        clientId={result.client.id}
+        initial={{
+          state: deriveVerificationState(verification, verification?.currentDomain ?? null),
+          domain: verification?.currentDomain ?? null,
+          token: verification?.token || null,
+          path: VERIFICATION_PATH,
+          lastCheckedAt: verification?.lastCheckedAt ?? null,
+          lastOutcome: verification?.lastOutcome ?? null,
+        }}
+        copy={copy as unknown as DomainVerificationCopy}
+      />
+    </>
   )
 }

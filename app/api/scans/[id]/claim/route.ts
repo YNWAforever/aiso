@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProfile } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { CLAIM_INTENT_COOKIE, isAuthorizedScanClaim } from '@/lib/security/scan-claim-intent'
+import { CLAIM_INTENT_COOKIE, authorizedScanClaimIntent } from '@/lib/security/scan-claim-intent'
+import { consumeScanClaimAttempt } from '@/lib/security/scan-claim-attempt'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,7 +66,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // claim any unowned scan id. isAuthorizedScanClaim treats an absent token as a
   // denial and swallows its own verification failures, so a misconfigured deploy
   // degrades to claimUnavailable() rather than crashing.
-  if (!isAuthorizedScanClaim(req.cookies.get(CLAIM_INTENT_COOKIE)?.value, id)) return claimUnavailable()
+  const intent = authorizedScanClaimIntent(req.cookies.get(CLAIM_INTENT_COOKIE)?.value, id)
+  if (!intent) return claimUnavailable()
+
+  // Single-use (AC-03). Verifying proved the cookie is ours; it never proved
+  // this was the first presentation of it, so an intercepted copy claimed the
+  // scan again on every replay inside its 15-minute window. Spend the attempt
+  // BEFORE the effect — that is what single-use means — and fail closed if it
+  // cannot be recorded, because allowing an unrecorded claim through is the
+  // one outcome this must never produce.
+  let attempt: Awaited<ReturnType<typeof consumeScanClaimAttempt>>
+  try {
+    attempt = await consumeScanClaimAttempt(intent.attemptId, id)
+  } catch {
+    return NextResponse.json({ error: 'Claim unavailable' }, { status: 503 })
+  }
+  // Same opaque answer as an unverifiable token: a replayed intent must not be
+  // distinguishable from a forged one, and neither from a malformed one.
+  if (attempt !== 'consumed') return claimUnavailable()
 
   const result = await claimScanForAccount(id, profile.account_id)
   if (result.status === 'error') return NextResponse.json({ error: 'Failed to claim scan' }, { status: 500 })

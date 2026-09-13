@@ -61,13 +61,36 @@ export function signScanClaimIntent(input: Omit<ScanClaimIntent, 'exp'>, nowMs =
  * attaching a public scan to a workspace, not privileged control of the domain.
  */
 export function isAuthorizedScanClaim(token: string | undefined, scanId: string, nowMs = Date.now()): boolean {
-  if (!token) return false
+  return authorizedScanClaimIntent(token, scanId, nowMs) !== null
+}
+
+/**
+ * The same decision as isAuthorizedScanClaim, but it hands back the intent.
+ *
+ * That difference is the whole of AC-03's replay gap. The boolean discarded
+ * the verified payload, and the payload is where `attemptId` lives — the one
+ * value needed to record that this token has been spent. A caller could prove
+ * the cookie was ours and had no way to ask whether it had already been used.
+ *
+ * Authorising and consuming stay separate functions on purpose: this one is
+ * pure and synchronous, so it can keep being tested without a database, and
+ * consumption (lib/security/scan-claim-attempt.ts) is the caller's next step
+ * rather than a hidden side effect of a predicate.
+ */
+export function authorizedScanClaimIntent(
+  token: string | undefined,
+  scanId: string,
+  nowMs = Date.now(),
+): ScanClaimIntent | null {
+  if (!token) return null
   // verifyScanClaimIntent swallows its own failures — including a missing or
   // too-short REPORT_SHARE_SECRET — and returns null, so a misconfigured deploy
   // denies the claim rather than crashing.
   const intent = verifyScanClaimIntent(token, nowMs)
-  if (!intent || intent.scanId !== scanId) return false
+  if (!intent || intent.scanId !== scanId) return null
   return intent.returnPath === `/${intent.lang}/result/${encodeURIComponent(scanId)}?claim=1`
+    ? intent
+    : null
 }
 
 export function verifyScanClaimIntent(token: string, nowMs = Date.now()): ScanClaimIntent | null {

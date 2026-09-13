@@ -9,6 +9,7 @@ export type EntityCopy = Record<
   | 'description'
   | 'privateLabel'
   | 'unverified'
+  | 'verified'
   | 'unsaved'
   | 'saved'
   | 'displayName'
@@ -40,7 +41,10 @@ function validEntity(value: unknown, clientId: string): value is EntityDto {
     entity.clientId !== clientId ||
     !Number.isInteger(entity.revision) ||
     entity.revision < 1 ||
-    entity.verification !== 'unverified' ||
+    // Membership, not equality. This used to read `!== 'unverified'`, which
+    // was fine while that was the only value the type admitted — and became a
+    // client-side rejection of every verified entity the moment it was not.
+    (entity.verification !== 'unverified' && entity.verification !== 'verified') ||
     typeof entity.updatedAt !== 'string' ||
     !Number.isFinite(Date.parse(entity.updatedAt))
   )
@@ -194,7 +198,7 @@ function EditorSession({ clientId, brandName, initialEntity, copy }: Props) {
       >
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <span className="rounded-full bg-secondary px-3 py-1 font-medium text-foreground">
-            {copy.unverified}
+            {entity?.verification === 'verified' ? copy.verified : copy.unverified}
           </span>
           <span
             role="status"

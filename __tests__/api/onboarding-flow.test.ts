@@ -17,9 +17,17 @@ vi.mock('@/lib/auth', () => ({ getProfile: getProfileMock }))
 // result off nextResults; queuing an Error makes that call throw, matching
 // how the Neon driver throws in place of supabase-js's { data, error }.
 const queries: string[] = []
+let attemptWon = true
 let nextResults: unknown[][] = []
 
 const mockSql = vi.fn((strings: TemplateStringsArray, ..._values: unknown[]) => {
+  // The single-use attempt insert (AC-03, migration 052) runs on every claim
+  // and belongs to no test's queued sequence. It is answered before `queries`
+  // is touched, so it neither shifts the queue nor shifts the positional
+  // indices every expectation below is written against.
+  if (/insert into scan_claim_attempts/i.test(strings.join('?'))) {
+    return Promise.resolve(attemptWon ? [{ attempt_id: 'a' }] : [])
+  }
   queries.push(strings.join('?'))
   const result = nextResults.shift()
   if (result instanceof Error) throw result
@@ -52,7 +60,7 @@ function request(body: unknown, options: { intent?: string | null } = {}) {
         scanId,
         lang: 'en',
         returnPath: `/en/result/${encodeURIComponent(scanId)}?claim=1`,
-        attemptId: 'attempt-1',
+        attemptId: '44444444-4444-4444-8444-444444444444',
       })
     : options.intent
   return new NextRequest('http://localhost/api/onboarding/complete', {
@@ -72,6 +80,7 @@ describe('POST /api/onboarding/complete', () => {
     vi.clearAllMocks()
     queries.length = 0
     nextResults = []
+    attemptWon = true
     getProfileMock.mockResolvedValue({ account_id: 'acc-1' })
     process.env.REPORT_SHARE_SECRET = 'x'.repeat(32)
   })
@@ -81,7 +90,7 @@ describe('POST /api/onboarding/complete', () => {
   // therefore take a public scan they had never run.
   it('denies a body-supplied scan claim that carries no intent cookie', async () => {
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand', scanId: 'scan-1' }, { intent: null }))
+    const res = await POST(request({ brandName: 'TestBrand', scanId: '11111111-1111-4111-8111-111111111111' }, { intent: null }))
 
     expect(res.status).toBe(403)
     expect((await res.json()).error).toBe('Claim unavailable')
@@ -90,10 +99,10 @@ describe('POST /api/onboarding/complete', () => {
 
   it('denies a body-supplied scan claim whose intent was minted for a different scan', async () => {
     const foreign = signScanClaimIntent({
-      scanId: 'scan-other', lang: 'en', returnPath: '/en/result/scan-other?claim=1', attemptId: 'attempt-1',
+      scanId: '33333333-3333-4333-8333-333333333333', lang: 'en', returnPath: '/en/result/scan-other?claim=1', attemptId: '44444444-4444-4444-8444-444444444444',
     })
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand', scanId: 'scan-1' }, { intent: foreign }))
+    const res = await POST(request({ brandName: 'TestBrand', scanId: '11111111-1111-4111-8111-111111111111' }, { intent: foreign }))
 
     expect(res.status).toBe(403)
     expect(mockSql).not.toHaveBeenCalled()
@@ -267,17 +276,17 @@ describe('POST /api/onboarding/complete', () => {
 
   it('claims a supplied scan before returning an existing client, and associates it with the brand', async () => {
     nextResults = [
-      [{ id: 'scan-1' }], // claim: update matched -> claimed
+      [{ id: '11111111-1111-4111-8111-111111111111' }], // claim: update matched -> claimed
       [{ trial_started_at: new Date(), trial_ends_at: new Date(Date.now() + 4 * 86_400_000) }],
       [{ id: 'client-existing' }],
       [], // scan -> client_id association update
     ]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand', scanId: 'scan-1' }))
+    const res = await POST(request({ brandName: 'TestBrand', scanId: '11111111-1111-4111-8111-111111111111' }))
     const json = await res.json()
 
     expect(res.status).toBe(200)
-    expect(json).toMatchObject({ clientId: 'client-existing', scanId: 'scan-1' })
+    expect(json).toMatchObject({ clientId: 'client-existing', scanId: '11111111-1111-4111-8111-111111111111' })
     const assocQuery = queries.find(q => q.includes('update scans set client_id'))
     expect(assocQuery).toBeDefined()
     expect(assocQuery).toContain('client_id is null')
@@ -285,7 +294,7 @@ describe('POST /api/onboarding/complete', () => {
 
   it('associates a supplied scan with a newly-created brand too', async () => {
     nextResults = [
-      [{ id: 'scan-1' }], // claim: update matched -> claimed
+      [{ id: '11111111-1111-4111-8111-111111111111' }], // claim: update matched -> claimed
       [{ trial_started_at: null, trial_ends_at: null }],
       [{ id: 'acc-1' }],
       [], // no existing client
@@ -293,11 +302,11 @@ describe('POST /api/onboarding/complete', () => {
       [], // scan -> client_id association update
     ]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand', scanId: 'scan-1' }))
+    const res = await POST(request({ brandName: 'TestBrand', scanId: '11111111-1111-4111-8111-111111111111' }))
     const json = await res.json()
 
     expect(res.status).toBe(200)
-    expect(json).toMatchObject({ clientId: 'client-new', scanId: 'scan-1' })
+    expect(json).toMatchObject({ clientId: 'client-new', scanId: '11111111-1111-4111-8111-111111111111' })
     const assocIdx = queries.findIndex(q => q.includes('update scans set client_id'))
     const insertIdx = queries.findIndex(q => q.includes('insert into clients'))
     expect(assocIdx).toBeGreaterThan(insertIdx)
@@ -309,30 +318,49 @@ describe('POST /api/onboarding/complete', () => {
       [{ account_id: 'acc-2' }], // claim: re-read shows a different owner
     ]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand', scanId: 'scan-1' }))
+    const res = await POST(request({ brandName: 'TestBrand', scanId: '11111111-1111-4111-8111-111111111111' }))
     expect(res.status).toBe(409)
     expect(queries.some(q => q.includes('clients'))).toBe(false)
   })
 
   it('returns 404 when a supplied scan is missing', async () => {
+    // A real uuid that simply is not there. The id used to be 'missing-scan',
+    // which production could never produce: claim-intent validates isUuid
+    // before it will mint an intent at all, so a non-uuid never reaches here
+    // carrying a valid cookie.
     nextResults = [[], []]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand', scanId: 'missing-scan' }))
+    const res = await POST(request({ brandName: 'TestBrand', scanId: '55555555-5555-4555-8555-555555555555' }))
     expect(res.status).toBe(404)
     expect(queries.some(q => q.includes('clients'))).toBe(false)
+  })
+
+  /**
+   * Single-use (AC-03). A replayed cookie must be refused with the same
+   * opaque answer as a forged one, and must not reach the claim at all.
+   */
+  it('denies a replayed claim intent without attempting the claim', async () => {
+    attemptWon = false
+    nextResults = [[{ id: '11111111-1111-4111-8111-111111111111' }]]
+    const { POST } = await import('@/app/api/onboarding/complete/route')
+
+    const res = await POST(request({ brandName: 'TestBrand', scanId: '11111111-1111-4111-8111-111111111111' }))
+
+    expect(res.status).toBe(403)
+    expect(queries.some(q => q.includes('update scans'))).toBe(false)
   })
 
   it('returns 500 when the scan claim query itself throws', async () => {
     nextResults = [new Error('connection terminated') as never]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand', scanId: 'scan-1' }))
+    const res = await POST(request({ brandName: 'TestBrand', scanId: '11111111-1111-4111-8111-111111111111' }))
     expect(res.status).toBe(500)
     expect((await res.json()).error).toBe('Failed to claim scan')
   })
 
   it('returns 500 (the tenant FK rejecting a mismatch) when a new client cannot be associated with the scan', async () => {
     nextResults = [
-      [{ id: 'scan-1' }],
+      [{ id: '11111111-1111-4111-8111-111111111111' }],
       [{ trial_started_at: null, trial_ends_at: null }],
       [{ id: 'acc-1' }],
       [],
@@ -340,7 +368,7 @@ describe('POST /api/onboarding/complete', () => {
       new Error('violates foreign key constraint "scans_client_tenant_fkey"') as never,
     ]
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand', scanId: 'scan-1' }))
+    const res = await POST(request({ brandName: 'TestBrand', scanId: '11111111-1111-4111-8111-111111111111' }))
     expect(res.status).toBe(500)
     expect((await res.json()).error).toBe('Failed to associate scan with client')
   })
