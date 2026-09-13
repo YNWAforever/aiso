@@ -153,7 +153,7 @@ describe('the parity check cannot pass vacuously', () => {
     expect(Object.keys(load(DEFAULT)).sort()).toEqual([
       'activation',
       'alertFeedback', 'approverAccess', 'auth', 'changeSets', 'checks', 'dashboard',
-      'delivery', 'entities', 'generatedWork', 'home', 'methodologyPage', 'nav',
+      'delivery', 'entities', 'generatedWork', 'home', 'members', 'methodologyPage', 'nav',
       'observations', 'opportunities', 'outcomes', 'portfolio', 'pricing',
       'publicPages', 'pulse', 'pulseView', 'reportBranding', 'reports', 'result',
       'sampleReport', 'scanPage', 'seo', 'settings', 'sources', 'unavailable',

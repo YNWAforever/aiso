@@ -51,6 +51,28 @@ describe('lib/auth', () => {
     expect(sqlMock).not.toHaveBeenCalled()
   })
 
+  /**
+   * Removal is deactivation (migration 049), and this predicate is the ONLY
+   * thing that makes it effective. There is no global gate in this app, but
+   * there is no gate that does not call getProfile() — so a removed member
+   * who still holds a valid session must be refused here or nowhere.
+   *
+   * A shape assertion, because the alternative needs a real Neon Auth session.
+   * It is kept honest by mutation: deleting the predicate from lib/auth.ts
+   * fails this test.
+   */
+  it('getProfile refuses a deactivated profile, not just an absent one', async () => {
+    getSessionMock.mockResolvedValue({ data: { user: { id: 'user-1', email: 'a@b.com' } }, error: null })
+    sqlMock.mockResolvedValue([])
+    const { getProfile } = await import('@/lib/auth')
+
+    await getProfile()
+
+    const [strings] = sqlMock.mock.calls[0]
+    const query = Array.isArray(strings) ? (strings as string[]).join('?') : String(strings)
+    expect(query).toMatch(/deactivated_at is null/)
+  })
+
   it('getProfile returns null when there is no session', async () => {
     getSessionMock.mockResolvedValue({ data: null, error: null })
     const { getProfile } = await import('@/lib/auth')
