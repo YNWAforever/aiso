@@ -16,6 +16,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test:watch": "vitest",
     "migrate": "node --env-file=.env.local scripts/migrate.ts",
+    "grant-admin": "node --env-file=.env.local scripts/grant-platform-admin.ts",
     "schema:equivalence": "node --env-file=.env.local scripts/schema-equivalence.mjs",
     "bootstrap:project": "node --env-file=.env.local scripts/bootstrap-project.mjs",
     "e2e": "playwright test",

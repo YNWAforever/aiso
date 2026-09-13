@@ -73,7 +73,7 @@ describe('concurrent user.created provisioning', () => {
   it('creates exactly one account when deliveries race', async () => {
     const results = await Promise.allSettled(
       Array.from({ length: CONCURRENCY }, () =>
-        provisionAccountForUser(sql, { userId: USER, name: 'Race' })),
+        provisionAccountForUser(sql, { userId: USER, email: EMAIL, name: 'Race' })),
     )
 
     // Losing deliveries are no-ops, not errors — the webhook returns 200 for
@@ -99,7 +99,7 @@ describe('concurrent user.created provisioning', () => {
 
     await Promise.allSettled(
       Array.from({ length: CONCURRENCY }, () =>
-        provisionAccountForUser(sql, { userId: USER, name: 'Race' })),
+        provisionAccountForUser(sql, { userId: USER, email: EMAIL, name: 'Race' })),
     )
 
     // Before the advisory lock this was CONCURRENCY - 1 orphans: every delivery
@@ -117,10 +117,10 @@ describe('concurrent user.created provisioning', () => {
     // account between them, so count the growth instead of the total.
     const accountsBefore = await countAccounts()
 
-    await provisionAccountForUser(sql, { userId: USER, name: 'First' })
+    await provisionAccountForUser(sql, { userId: USER, email: EMAIL, name: 'First' })
     const before = await sql`select account_id from profiles where id = ${USER}`
 
-    await provisionAccountForUser(sql, { userId: USER, name: 'Redelivery' })
+    await provisionAccountForUser(sql, { userId: USER, email: EMAIL, name: 'Redelivery' })
     const after = await sql`select account_id, display_name from profiles where id = ${USER}`
 
     expect(after[0].account_id).toBe(before[0].account_id)
