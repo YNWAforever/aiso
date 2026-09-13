@@ -1403,6 +1403,9 @@
     "intro": "Review active brands and their saved observations. Freshness remains unknown; these records do not establish comparable changes in performance.",
     "brands": "Active brands",
     "emptyBrands": "No active brands yet.",
+    "firstRunTitle": "Set up your first brand",
+    "firstRunBody": "Setting up a brand claims the scan you just ran, starts your trial, and seeds the questions Pulse asks each week.",
+    "firstRunAction": "Start setup",
     "capacity": "All owned brands",
     "capacityUnknown": "Brand creation availability could not be verified. Refresh later to try again.",
     "capacityLimit": "Your current brand allowance is full.",
@@ -2045,6 +2048,22 @@
       "SOURCE_LABEL_INVALID": "A name is required, up to 160 characters.",
       "SOURCE_ORIGIN_INVALID": "The origin note must be text, up to 500 characters.",
       "SOURCE_QUESTION_INVALID": "Every question must be text, and no longer than 4000 characters."
+    }
+  },
+  "activation": {
+    "title": "Setup progress",
+    "progress": "Steps completed",
+    "next": "Next step",
+    "complete": "Every step reached.",
+    "unavailable": "Setup progress could not be read. Refresh later to try again.",
+    "outOfOrder": "Recorded ahead of an earlier step",
+    "milestones": {
+      "first_scan": "First scan",
+      "first_workspace": "First brand",
+      "first_source": "First approved source",
+      "first_approved_work": "First approved work item",
+      "first_export": "First export",
+      "first_declared_delivery": "First declared delivery"
     }
   },
   "members": {
