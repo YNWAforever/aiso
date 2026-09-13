@@ -126,7 +126,7 @@ proxy.ts           # Next 16 proxy (was middleware) — intl routing + auth veri
 i18n/              # next-intl routing + request config
 messages/          # en.json / zh-HK.json translation strings
 supabase/
-  migrations/      # 44 SQL migrations, 001_-046_ (no 005/006) - dir name is legacy
+  migrations/      # 47 SQL migrations, 001_-049_ (no 005/006) - dir name is legacy
 __tests__/         # Vitest tests mirroring lib/app structure
 tests/e2e/         # Playwright specs + page objects
 scripts/           # migrate.ts (npm run migrate), run-tests.mjs (npm test), seed-packs.ts
@@ -214,6 +214,46 @@ Enforcement lives in three places, all via `lib/auth.ts`:
    webhook-payload verification — **and filter by `profile.account_id`, never a
    caller-supplied id.**
 
+> **Account membership exists now (migrations `047`/`048`).** `provisionAccountForUser`
+> used to mint a fresh account for every `user.created`, so a second member of an
+> existing account could not be created at all — the reason AC-14's approve and
+> request-changes verbs were unreachable. A live `account_invitations` row for the
+> signing-in address now diverts the new profile into the *inviting* account.
+> **A profile's `account_id` is still never moved**: every tenancy constraint in
+> `041`–`046` is a composite FK on `(…, account_id)`, so moving one would strand
+> the history it authored. There is no invitation token — the webhook already
+> proves the payload's id and email against `neon_auth.user`, so only somebody who
+> really signs in as that address can consume one. Invitation uniqueness is
+> **per-account, not platform-wide**, because "already invited" leaking across
+> accounts is exactly the inference AC-12 forbids; two live invitations for one
+> address are allowed and the oldest wins deterministically. `/api/account/*`
+> takes **no account parameter** — the account comes from the session, which is
+> why its guard has two steps rather than localTrust's three.
+>
+> **`profiles.is_admin` now has exactly one writer: `npm run grant-admin`**
+> (`scripts/grant-platform-admin.ts`). Before `048` it had none anywhere in the
+> repo, so administrators were made by ad-hoc UPDATEs that left no record. It runs
+> through `MIGRATE_DATABASE_URL` — holding the owner credential *is* the
+> authorisation — writes the flag and its reason to `platform_admin_grants` in one
+> statement, and is a dry run without `--yes`. It is deliberately **not a route**:
+> an endpoint that mints administrators would need an administrator to gate it.
+> `042`'s CHECK pinning the approver-granting actor as `platform_admin` was **not**
+> relaxed; appointing approvers stays the platform's call, not a tenant's.
+>
+> **Removal is deactivation, never deletion (migration `049`).** A profile row can
+> never be deleted or moved — the composite-FK tenancy chain binds everything it
+> authored — so `profiles.deactivated_at` stops it being a way in instead.
+> `getProfile()` carries the predicate, and that is the whole enforcement: there is
+> no global gate, but there is no gate that does not call `getProfile()`, so a
+> removed member cannot reach a route, a layout, or `can_decide`. Do not add the
+> check to `can_decide`'s SQL as well without a reason — it would be unreachable.
+> You cannot remove yourself, and that one rule is what guarantees an account is
+> never emptied; there is deliberately no "last member" guard, because nothing can
+> reach it. Restore exists because a removed person keeps their `neon_auth.user`
+> row and so answers `already_registered` to a fresh invitation.
+>
+> Full procedure: `docs/runbooks/add-a-second-account-member.md`.
+>
 > **Three routes are intentionally public**, and no others: `auth/[...path]` (the Neon Auth
 > catch-all), `funnel-events` (redacted telemetry only, 2 KiB body cap, rate-limited), and
 > `scans/[id]/claim-intent` (rate-limited, issues a signed cookie). `webhooks/neon` is public
@@ -350,9 +390,12 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   rather than checking first is the preferred shape — one statement, no TOCTOU window, and zero
   rows means 404 without distinguishing "absent" from "not yours". See
   `app/api/dashboard/clients/[clientId]/prompts/[promptId]/route.ts`.
-- Migrations in `supabase/migrations/` — 44 files, `001_`–`046_` (no 005/006; directory name is legacy;
-  the target is now Neon). `038`–`046` postdate the "001–035 all applied" note below, which is
+- Migrations in `supabase/migrations/` — 47 files, `001_`–`049_` (no 005/006; directory name is legacy;
+  the target is now Neon). `038`–`049` postdate the "001–035 all applied" note below, which is
   about the *persistent* database and is only as fresh as its date — re-run `--verify`.
+- **`047`, `048` and `049` were applied to the AISO development database on 2026-09-11** and
+  `--verify` reports all three `all present recorded`. They have **not** been applied to the
+  production project Vercel points at — that is a separate cutover decision.
 - **`046` states an intent two clauses used to produce by accident.** 044 declared
   `revoked_by` and `approved_by` as profile FKs with `on delete set null` while a CHECK on
   each table required the actor and its timestamp to be null together — so the referential

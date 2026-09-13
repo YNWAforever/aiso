@@ -10,7 +10,7 @@ let attemptThrows = false
 let nextResults: unknown[][] = []
 
 const mockSql = vi.fn((strings: TemplateStringsArray) => {
-  // The single-use attempt insert (AC-03, migration 047) runs on every claim
+  // The single-use attempt insert (AC-03, migration 052) runs on every claim
   // and belongs to no test's queued sequence. It is answered before `queries`
   // is touched, so it neither shifts the queue nor shifts the positional
   // indices every expectation below is written against.
@@ -221,7 +221,7 @@ describe('POST /api/scans/[id]/claim', () => {
  *
  * The signature proved the cookie was ours. It never proved this was the
  * first presentation of it, so a copy claimed the scan again on every replay
- * inside the 15-minute window. Migration 047 records the attempt; these are
+ * inside the 15-minute window. Migration 052 records the attempt; these are
  * the two answers the route must give once it does.
  */
 describe('POST /api/scans/[id]/claim — replay', () => {

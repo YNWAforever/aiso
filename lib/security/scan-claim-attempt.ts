@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
  * Spend a scan-claim attempt, exactly once.
  *
  * The signature on a claim intent proves the token is ours. It does not prove
- * this is the first time it has been presented, and until migration 047 there
+ * this is the first time it has been presented, and until migration 052 there
  * was nowhere to record that it had been — so a copy of the cookie claimed the
  * scan again on every presentation inside its 15-minute window. This is the
  * missing half.

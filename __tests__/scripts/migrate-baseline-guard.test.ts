@@ -109,9 +109,14 @@ function allRelations() {
     'client_sources', 'client_source_versions',
     // 045: export receipts.
     'work_item_export_events',
-    // 047: single-use scan-claim attempts.
+    // 047: account membership by invitation, authored here and applied by the runner.
+    'account_invitations',
+    // 048: the platform-administrator grant ledger.
+    'platform_admin_grants',
+    // 052: single-use scan-claim attempts. Renumbered from 047 -- migration
+    // 043's PR merged first and took 047-049 for account membership.
     'scan_claim_attempts',
-    // 048: domain-ownership proofs.
+    // 053: domain-ownership proofs. Renumbered from 048 for the same reason.
     'client_domain_verifications',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])

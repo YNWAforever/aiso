@@ -4,6 +4,9 @@ import { requireAuth } from '@/lib/auth'
 import { loadReportBranding } from '@/lib/reports/store'
 import Link from 'next/link'
 import { SettingsView, normalizeSettingsStatus } from '@/components/dashboard/SettingsView'
+import { MembersPanel } from '@/components/dashboard/MembersPanel'
+import { MAX_ACCOUNT_MEMBERS } from '@/lib/members/schema'
+import { loadAccountMembers } from '@/lib/members/store'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 
 export default async function SettingsPage({
@@ -21,9 +24,20 @@ export default async function SettingsPage({
     : null
   const status = normalizeSettingsStatus(profile.accounts?.status)
   const hasStripe = Boolean(profile.accounts?.stripe_customer_id)
+  // Not entitlement-gated, unlike report branding: membership is what makes a
+  // second party available for approval, and AC-08 asks that of every account
+  // rather than of paying ones. The account comes from the session profile —
+  // this page never reads an account id from the URL.
+  const membership = await loadAccountMembers(profile.account_id)
 
   return (
     <SettingsView lang={lang} plan={plan} status={status} hasStripe={hasStripe}>
+        <MembersPanel
+          self={profile.id}
+          limit={MAX_ACCOUNT_MEMBERS}
+          members={membership.members}
+          invitations={membership.invitations}
+        />
         <section id="report-branding" className="scroll-mt-6">
           <div className="mb-4">
             <h2 className="text-lg font-bold text-foreground">{reportT('title')}</h2>

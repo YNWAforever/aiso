@@ -71,3 +71,7 @@ route,kind,gate,account_scoping,service,data_mode,phase1_package,action
 /[lang]/admin/authority,page,requireAdmin per-page,admin,lib/authority/*,observed,DEFER,KEEP
 /admin,page,requireAdmin via app/admin/layout.tsx,admin,inline SQL,observed,DEFER,KEEP
 /admin/accounts/[accountId]/approvers,page,requireAdmin via layout,account_approver_state,lib/approvals/access-service.ts,observed,D,KEEP
+/api/account/members,api,getProfile,account from session; no account parameter exists,lib/members/service.ts,observed,A,ADDED-047
+/api/account/members/[profileId],api,getProfile,account from session; tenancy inside the UPDATE,lib/members/service.ts,observed,A,ADDED-049
+/api/account/invitations,api,getProfile + account-keyed rate limit,account from session; member cap enforced in the insert,lib/members/service.ts,observed,A,ADDED-047
+/api/account/invitations/[invitationId],api,getProfile,account from session; tenancy inside the UPDATE,lib/members/service.ts,observed,A,ADDED-047

@@ -21,7 +21,7 @@ let attemptWon = true
 let nextResults: unknown[][] = []
 
 const mockSql = vi.fn((strings: TemplateStringsArray, ..._values: unknown[]) => {
-  // The single-use attempt insert (AC-03, migration 047) runs on every claim
+  // The single-use attempt insert (AC-03, migration 052) runs on every claim
   // and belongs to no test's queued sequence. It is answered before `queries`
   // is touched, so it neither shifts the queue nor shifts the positional
   // indices every expectation below is written against.

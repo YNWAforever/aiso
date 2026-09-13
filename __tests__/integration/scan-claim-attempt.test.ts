@@ -69,11 +69,11 @@ describe('consumeScanClaimAttempt', () => {
   })
 })
 
-describe('migration 047 posture', () => {
+describe('migration 052 posture', () => {
   /**
    * A role that could delete a consumed attempt could replay the claim it
    * guards, so the app role gets SELECT and INSERT and nothing else. 037
-   * grants full DML on every new table by default, which is why 047 states
+   * grants full DML on every new table by default, which is why 052 states
    * the denial explicitly and why it is worth asserting.
    */
   it('gives the app role no way to erase a spent attempt', async () => {

@@ -7,7 +7,7 @@ type EntityRow = {client_id:string; display_name:string; aliases:string[]; revis
   verified_at?:string | Date | null; verified_domain?:string | null; current_domain?:string | null}
 /**
  * `verification` used to be the literal 'unverified' here, so the DTO stated
- * a status nothing could establish. It is now derived from the proof (048)
+ * a status nothing could establish. It is now derived from the proof (053)
  * and the domain the client currently names -- a proof recorded for a domain
  * the client has since moved off does NOT carry over.
  *

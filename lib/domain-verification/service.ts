@@ -118,7 +118,7 @@ export async function readDomainVerification(clientId: string): Promise<Response
   }
 }
 
-/** What the fetch found, in the closed vocabulary migration 048 allows. */
+/** What the fetch found, in the closed vocabulary migration 053 allows. */
 async function probe(domain: string, token: string): Promise<VerificationOutcome> {
   try {
     const response = await verificationFetch(`https://${domain}${VERIFICATION_PATH}`, {
