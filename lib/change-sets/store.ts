@@ -156,9 +156,9 @@ export async function submitVersion(accountId: string, clientId: string, itemId:
         FROM owned d CROSS JOIN member p WHERE NOT EXISTS (SELECT 1 FROM replay) AND ${frozen !== null}
           AND d.revision = ${expectedRevision} AND d.title = ${content?.title ?? null} AND d.action = ${content?.action ?? null}
           AND d.notes = ${content?.notes ?? null} AND d.locale = ${content?.locale ?? null}
-          AND (SELECT jsonb_agg(s.evidence_snapshot ORDER BY s.opportunity_key)
+          AND COALESCE((SELECT jsonb_agg(s.evidence_snapshot ORDER BY s.opportunity_key)
                FROM work_item_sources s
-               WHERE s.work_item_id = d.id AND s.account_id = d.account_id AND s.client_id = d.client_id AND s.withdrawn_at IS NULL)
+               WHERE s.work_item_id = d.id AND s.account_id = d.account_id AND s.client_id = d.client_id AND s.withdrawn_at IS NULL), '[]'::jsonb)
               = ${JSON.stringify(liveSnapshots)}::jsonb
         RETURNING *
       ), chosen AS (SELECT * FROM inserted UNION ALL SELECT * FROM replay)
