@@ -2047,6 +2047,24 @@
       "SOURCE_QUESTION_INVALID": "Every question must be text, and no longer than 4000 characters."
     }
   },
+  "assets": {
+    "title": "Registered pages",
+    "intro": "Register the pages that matter, so a website finding and a question your customers ask can be seen against the same page. A scan observes your site as a whole, so its findings are shown here at site scope.",
+    "empty": "No pages registered yet.",
+    "addTitle": "Register a page",
+    "urlLabel": "Page address",
+    "labelLabel": "What this page is",
+    "submit": "Register page",
+    "submitting": "Registering…",
+    "error": "That page could not be registered. Check the address and try again.",
+    "converges": "A site finding and a declared question both reach this page.",
+    "findingsTitle": "Findings that apply",
+    "findingsScope": "Observed for the whole site, not for this page on its own",
+    "findingsEmpty": "No findings recorded for this site.",
+    "questionsTitle": "Questions this page answers",
+    "questionsScope": "Declared by you",
+    "questionsEmpty": "No questions declared for this page yet."
+  },
   "members": {
     "title": "Members",
     "intro": "Everyone here can see and change this workspace. Approving work needs more than membership — see below.",
