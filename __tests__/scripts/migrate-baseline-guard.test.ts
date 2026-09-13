@@ -109,6 +109,10 @@ function allRelations() {
     'client_sources', 'client_source_versions',
     // 045: export receipts.
     'work_item_export_events',
+    // 047: account membership by invitation, authored here and applied by the runner.
+    'account_invitations',
+    // 048: the platform-administrator grant ledger.
+    'platform_admin_grants',
     // 050: owner-registered pages, authored here and applied by the runner. Like
     // 040-045 above, this is a synthetic inventory entry and claims nothing about
     // any live database.

@@ -1,14 +1,23 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-const mocks=vi.hoisted(()=>({auth:vi.fn(),branding:vi.fn()}))
+const mocks=vi.hoisted(()=>({auth:vi.fn(),branding:vi.fn(),members:vi.fn()}))
+// `server-only` is a Next build-time alias with no package to resolve under
+// Vitest; stubbing it is the convention the rest of the suite already uses.
+vi.mock('server-only',()=>({}))
 vi.mock('@/lib/auth',()=>({requireAuth:mocks.auth}))
 vi.mock('@/lib/reports/store',()=>({loadReportBranding:mocks.branding}))
+vi.mock('@/lib/members/store',()=>({loadAccountMembers:mocks.members}))
 vi.mock('next-intl/server',()=>({getTranslations:async()=>(key:string)=>key}))
 import Page from '@/app/[lang]/dashboard/settings/page'
 const render=()=>Page({params:Promise.resolve({lang:'zh-HK'})})
-beforeEach(()=>{vi.clearAllMocks();mocks.auth.mockResolvedValue({account_id:'account-a',accounts:{plan:'free'}});mocks.branding.mockResolvedValue(null)})
+beforeEach(()=>{vi.clearAllMocks();mocks.auth.mockResolvedValue({id:'profile-a',account_id:'account-a',accounts:{plan:'free'}});mocks.branding.mockResolvedValue(null);mocks.members.mockResolvedValue({members:[],invitations:[]})})
 it('keeps independent authentication ahead of branding data',async()=>{
  mocks.auth.mockRejectedValue(new Error('AUTH_REDIRECT'))
  await expect(render()).rejects.toThrow('AUTH_REDIRECT');expect(mocks.branding).not.toHaveBeenCalled()
+ // Same invariant for membership: no session, no read.
+ expect(mocks.members).not.toHaveBeenCalled()
+})
+it('reads membership for the session account, never an id from the URL',async()=>{
+ await render();expect(mocks.members).toHaveBeenCalledWith('account-a')
 })
 it('passes missing status as unknown rather than active',async()=>{
  const page=await render();expect(page.props.status).toBe('unknown');expect(page.props.lang).toBe('zh-HK');expect(mocks.branding).not.toHaveBeenCalled()

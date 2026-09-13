@@ -169,8 +169,9 @@ describe('POST /api/webhooks/neon', () => {
     expect(res.status).toBe(200)
     expect((await res.json()).ok).toBe(true)
 
-    // 1 auth-DB lookup + 1 idempotency check + 3 queries built for the batch.
-    expect(sqlMock).toHaveBeenCalledTimes(5)
+    // 1 auth-DB lookup + 1 idempotency check + 5 queries built for the batch
+    // (lock, accounts, profiles, invitation acceptance, orphan cleanup).
+    expect(sqlMock).toHaveBeenCalledTimes(7)
     expect(transactionMock).toHaveBeenCalledTimes(1)
 
     const [authStrings, authUserId] = sqlMock.mock.calls[0]
@@ -191,16 +192,65 @@ describe('POST /api/webhooks/neon', () => {
     expect(typeof accountId).toBe('string')
     expect((accountId as string).length).toBeGreaterThan(0)
 
-    const [profileStrings, profileUserId, profileAccountId, profileName] = sqlMock.mock.calls[4]
+    // Parameters in source order: the invitation lookup inside COALESCE comes
+    // between the user id and the fallback account id, and the account id and
+    // address each appear twice (once in the SELECT, once in the WHERE).
+    const [profileStrings, profileUserId, lookupEmail, fallbackAccountId, profileName, guardAccountId]
+      = sqlMock.mock.calls[4]
     expect(queryText(profileStrings)).toMatch(/insert into profiles/i)
     expect(profileUserId).toBe('user-123')
     expect(profileName).toBe('New User')
-    // The profile must link to the exact account id created alongside it.
-    expect(profileAccountId).toBe(accountId)
+    expect(lookupEmail).toBe('new@example.com')
+    // The profile must link to the exact account id created alongside it — and
+    // the guard must name that same id, or the insert could outlive its account.
+    expect(fallbackAccountId).toBe(accountId)
+    expect(guardAccountId).toBe(accountId)
 
-    // Lock + both inserts submitted together as a single atomic transaction.
+    // Lock + both inserts + invitation acceptance + orphan cleanup, submitted
+    // together as a single atomic transaction.
     const [txnQueries] = transactionMock.mock.calls[0]
-    expect(txnQueries).toHaveLength(3)
+    expect(txnQueries).toHaveLength(5)
+  })
+
+  /**
+   * Shape assertions only. Which account the profile lands in is decided by
+   * SQL, so this harness can prove the query was *built*, never that it
+   * resolves correctly — __tests__/integration/account-invitations.test.ts
+   * proves the behaviour against a real branch.
+   */
+  it('looks up a live invitation for the verified address, not the payload address', async () => {
+    const { POST } = await import('@/app/api/webhooks/neon/route')
+    authUserRows = [{ id: 'user-123', email: 'New@Example.com' }]
+    await POST(userCreatedRequest({ email: ' new@example.com ' }))
+
+    const profilesInsert = sqlMock.mock.calls[4]
+    expect(queryText(profilesInsert[0])).toMatch(/account_invitations/i)
+    // The address the auth database returned, normalised — never the claimed one.
+    expect(profilesInsert).toContain('new@example.com')
+  })
+
+  it('marks the consumed invitation accepted, guarded on the profile reaching that account', async () => {
+    const { POST } = await import('@/app/api/webhooks/neon/route')
+    await POST(userCreatedRequest())
+
+    const acceptance = queryText(sqlMock.mock.calls[5][0])
+    expect(acceptance).toMatch(/update account_invitations/i)
+    expect(acceptance).toMatch(/accepted_profile_id/i)
+    // Without this guard a profile that already existed elsewhere would consume
+    // a stranger's invitation and record itself as its member.
+    expect(acceptance).toMatch(/p\.account_id = account_invitations\.account_id/i)
+  })
+
+  it('cleans up only the account id it generated, and only when nothing points at it', async () => {
+    const { POST } = await import('@/app/api/webhooks/neon/route')
+    await POST(userCreatedRequest())
+
+    const [cleanupStrings, cleanupAccountId] = sqlMock.mock.calls[6]
+    const cleanup = queryText(cleanupStrings)
+    expect(cleanup).toMatch(/delete from accounts/i)
+    expect(cleanup).toMatch(/not exists/i)
+    // Scoped to this call's own uuid — the same one the accounts insert used.
+    expect(cleanupAccountId).toBe(sqlMock.mock.calls[3][1])
   })
 
   // Shape assertions, not a real race — the mock harness has one shared
