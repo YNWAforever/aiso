@@ -7,7 +7,8 @@ export const ACTOR_ID = '123e4567-e89b-42d3-a456-426614174001'
 export const VERSION_ID = '123e4567-e89b-42d3-a456-426614174002'
 export const REQUEST_ID = '123e4567-e89b-42d3-a456-426614174003'
 export const member: ActorSnapshot = { profileId: ACTOR_ID, displayName: null, role: 'account_member' }
-export function approvedVersion(): VersionDetail {
+/** Narrowed to the v1 member: this fixture is always built via freezeReview, never freezeMultiSourceReview. */
+export function approvedVersion(): Extract<VersionDetail, { schemaVersion: 1 }> {
   const draft: WorkItem = {
     id: ID, clientId: REQUEST_ID, status: 'draft', revision: 1,
     title: 'Review question coverage', action: 'Review the recorded response.', notes: '保留證據 é', locale: 'en',

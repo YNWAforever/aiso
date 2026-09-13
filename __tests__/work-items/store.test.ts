@@ -6,6 +6,7 @@ import { createDraftIfEvidenceCurrent, updateOwnedDraft, listOwnedDrafts } from 
 import { projectPulseOpportunityInput } from '@/lib/opportunities/store'
 import { deriveSuggestions } from '@/lib/opportunities/rules'
 import { buildInitialDraftSnapshot } from '@/lib/work-items/snapshot'
+import { opportunityKey, serializeDraftSnapshot } from '@/lib/opportunities/fingerprint'
 const id = '00000000-0000-4000-8000-000000000001'
 const account = '00000000-0000-4000-8000-000000000002'
 const pulse = {id,client_id:id,prompt_id:null,question:'Question?',platform:'chatgpt',scan_week:'2026-08-31',created_at:'2026-09-01T00:00:00.123456Z',raw_answer:'PRIVATE ANSWER',brand_mentioned:false,has_answer:true}
@@ -35,6 +36,85 @@ beforeEach(() => { vi.clearAllMocks(); mocks.sql.mockReturnValue(Promise.resolve
  it('propagates failed SQL instead of returning replay success', async () => {
   mocks.transaction.mockRejectedValue(new Error('failed sql'))
   await expect(createDraftIfEvidenceCurrent(account,id,null,input,snapshot(),projected.version)).rejects.toThrow('failed sql')
+ })
+ it('lands the item insert and its source insert in one atomic statement, not a second awaited call', async () => {
+  // Would silently pass without this: a version that writes work_item_sources via a
+  // second `await sql\`...\`` AFTER `sql.transaction([mutation,replay])` resolves would
+  // still look correct on the happy path, but leaves a window where the item exists and
+  // the source insert can fail -- or simply never run -- independently of it. That is
+  // exactly the "item without its source row" failure this task exists to prevent.
+  mocks.transaction.mockResolvedValue([[row()],[]])
+  await createDraftIfEvidenceCurrent(account,id,null,input,snapshot(),projected.version)
+  expect(mocks.transaction).toHaveBeenCalledTimes(1)
+  expect(mocks.transaction.mock.calls[0][0]).toHaveLength(2)
+  expect(mocks.sql).toHaveBeenCalledTimes(2)
+  const mutationQuery = mocks.sql.mock.calls[0][0].join(' ')
+  expect(mutationQuery).toContain('insert into evidence_work_items')
+  expect(mutationQuery).toContain('insert into work_item_sources')
+ })
+ it('gives the source row the same opportunity_key the item got', async () => {
+  // Would silently pass without this: a source insert that computed its own
+  // opportunity_key (or omitted the column) would still write "a row" and satisfy a
+  // naive not-null check, but a lookup by opportunity_key through work_item_sources --
+  // which the next task adds -- would never find it.
+  mocks.transaction.mockResolvedValue([[row()],[]])
+  await createDraftIfEvidenceCurrent(account,id,null,input,snapshot(),projected.version)
+  const key = opportunityKey(input.ruleVersion, input.source)
+  const params = mocks.sql.mock.calls[0].slice(1)
+  expect(params.filter(value => value === key)).toHaveLength(2)
+ })
+ it('writes a null check_key for a pulse-metric source, matching the item', async () => {
+  // Would silently pass without this: swapping in the scan-check branch's
+  // `${input.source.checkKey}` expression here by copy-paste would still typecheck
+  // (SourceRef.checkKey is optional regardless of kind) and look plausible in review,
+  // but migration 051's work_item_sources_rule_source_check rejects a pulse-metric
+  // source with a non-null check_key -- a hard failure at runtime, not a cosmetic one.
+  mocks.transaction.mockResolvedValue([[row()],[]])
+  await createDraftIfEvidenceCurrent(account,id,null,input,snapshot(),projected.version)
+  const query = mocks.sql.mock.calls[0][0].join(' ')
+  // check_key is a bare SQL `null` literal here, not an interpolated value, so unlike
+  // the scan-check case below there is no bound parameter to filter on. Scope the
+  // `,null,` search to each insert's own select-list -- between its `insert into ... (`
+  // and its `from` -- rather than the whole statement, so an unrelated nullable column
+  // added anywhere else (the where clause, the returning list, ...) can't inflate this
+  // count for a reason that has nothing to do with check_key.
+  const itemInsert = query.split('insert into evidence_work_items')[1].split('from clients')[0]
+  const sourceInsert = query.split('insert into work_item_sources')[1].split('from mutation')[0]
+  expect(itemInsert.match(/,null,/g) ?? []).toHaveLength(1)
+  expect(sourceInsert.match(/,null,/g) ?? []).toHaveLength(1)
+ })
+ it('writes the scan check_key to the source row, matching the item exactly', async () => {
+  // Would silently pass without this: hard-coding null here (the pulse-metric shape)
+  // instead of the actual check key would violate the same rule_source_check
+  // constraint from the other direction -- a scan-check source requires a non-null
+  // check_key.
+  const {buildScanEvidence}=await import('@/lib/scan-evidence')
+  const {projectScanOpportunityInput}=await import('@/lib/opportunities/store')
+  const envelope=buildScanEvidence({requestedUrl:'https://example.com',evaluatedUrl:'https://example.com',industry:'technology',region:'HK',sitemapSource:'fetched',checks:{c1_robots:{assessment:'fail',collection:'complete'}},observations:[]})
+  const scan={id,client_id:id,account_id:account,created_at:pulse.created_at,envelope}
+  const projectedScan=projectScanOpportunityInput(account,scan)!
+  const candidate=deriveSuggestions(projectedScan.source)[0]
+  const built=buildInitialDraftSnapshot(candidate,projectedScan.source,'en')
+  mocks.transaction.mockResolvedValue([[row()],[]])
+  mocks.sql.mockClear()
+  await createDraftIfEvidenceCurrent(account,id,null,{source:candidate.source,ruleVersion:candidate.ruleVersion,fingerprint:candidate.fingerprint,locale:'en'},built,projectedScan.version)
+  const params = mocks.sql.mock.calls[0].slice(1)
+  expect(params.filter(value => value === candidate.source.checkKey)).toHaveLength(2)
+ })
+ it('writes the same serialized snapshot to the source row, not a re-serialization', async () => {
+  // Would silently pass without this: a source insert that called
+  // serializeDraftSnapshot(snapshot) again instead of reusing the `serialized` variable
+  // computed once at the top of the function could drift from the item's bytes for the
+  // same logical snapshot -- canonicalization is stable today, but nothing should rely
+  // on calling it twice producing identical output by coincidence.
+  mocks.transaction.mockResolvedValue([[row()],[]])
+  await createDraftIfEvidenceCurrent(account,id,null,input,snapshot(),projected.version)
+  const expectedSnapshot = serializeDraftSnapshot(snapshot())
+  const params = mocks.sql.mock.calls[0].slice(1)
+  // The item's own evidence_snapshot value, the pre-existing octet_length size guard,
+  // and the new source row's evidence_snapshot value all reuse the same string: 3
+  // occurrences if source_ins exists and reuses it, 2 if it does not exist at all.
+  expect(params.filter(value => value === expectedSnapshot)).toHaveLength(3)
  })
  it('CAS edits only text/revision/actor/time, and replay requires strictly older identical payload', async () => {
   mocks.transaction.mockResolvedValue([[],[row()]])
@@ -99,12 +179,75 @@ it('reads exact sources only after both ownership predicates and compares the co
  expect(()=>buildInitialDraftSnapshot(oversized,projectedScan.source,'en')).toThrow()
 })
 it('every owned draft read/write excludes the reserved recommendation kind',async()=>{
- const {findOwnedDraft,readOwnedDraft}=await import('@/lib/work-items/store')
+ // findOwnedDraft moved its source_kind filter onto work_item_sources (see the
+ // dedicated tests below) -- readOwnedDraft and listOwnedDrafts still read it off
+ // evidence_work_items itself, so only those two stay in this loop.
+ const {readOwnedDraft}=await import('@/lib/work-items/store')
  mocks.sql.mockClear();mocks.sql.mockResolvedValue([])
- await findOwnedDraft(account,id,'key')
  await readOwnedDraft(account,id,id)
  await listOwnedDrafts(account,id,{limit:50,cursor:null})
  for(const call of mocks.sql.mock.calls) expect(call[0].join(' ')).toContain("d.source_kind in ('pulse-metric','scan-check')")
+})
+it('looks up the draft through work_item_sources, not the item\'s own opportunity_key column',async()=>{
+ const {findOwnedDraft}=await import('@/lib/work-items/store')
+ mocks.sql.mockClear();mocks.sql.mockResolvedValue([])
+ await findOwnedDraft(account,id,'the-key')
+ const query=mocks.sql.mock.calls[0][0].join(' ')
+ expect(query).toContain('join work_item_sources s')
+ expect(query).toContain("s.source_kind in ('pulse-metric','scan-check')")
+ expect(query).toContain('s.opportunity_key=')
+ expect(query).not.toContain('d.opportunity_key')
+})
+it('only matches a LIVE source, filtering withdrawn_at is null',async()=>{
+ // Would silently pass without this: 051's partial unique index only covers LIVE
+ // rows, so a withdrawn opportunity is free to be attached to a different work item.
+ // Matching the withdrawn row here would silently re-bind the caller to that OLD
+ // item -- saveAuthenticatedDraft short-circuits on `if(existing)return {item:existing,
+ // created:false}` before it ever loads or validates the new source, so the caller
+ // would get back the wrong draft with no evidence check at all, not an error.
+ const {findOwnedDraft}=await import('@/lib/work-items/store')
+ mocks.sql.mockClear();mocks.sql.mockResolvedValue([])
+ await findOwnedDraft(account,id,'the-key')
+ expect(mocks.sql.mock.calls[0][0].join(' ')).toContain('s.withdrawn_at is null')
+})
+it('sends account, client and key as bound parameters to the lookup',async()=>{
+ const {findOwnedDraft}=await import('@/lib/work-items/store')
+ mocks.sql.mockClear();mocks.sql.mockResolvedValue([])
+ await findOwnedDraft(account,id,'the-key')
+ expect(mocks.sql.mock.calls[0].slice(1)).toEqual([account,id,'the-key'])
+})
+it('scopes the source join to this account and client, not work_item_id alone',async()=>{
+ // Would silently pass without both predicates: dropping `s.account_id=d.account_id
+ // and s.client_id=d.client_id` from the join would still resolve on `work_item_id`
+ // alone, letting a source row planted under a DIFFERENT account/client (impossible
+ // today only because 051's owned-item FK forbids writing one, not because this
+ // read forbids reading one) satisfy the join.
+ const {findOwnedDraft}=await import('@/lib/work-items/store')
+ mocks.sql.mockClear();mocks.sql.mockResolvedValue([])
+ await findOwnedDraft(account,id,'the-key')
+ const query=mocks.sql.mock.calls[0][0].join(' ')
+ expect(query).toContain('s.account_id=d.account_id')
+ expect(query).toContain('s.client_id=d.client_id')
+})
+it('projects nothing from c or s, so no id collision is possible by construction',async()=>{
+ // The prior version of this test built a mock row as a JS object literal, which
+ // can never hold two properties both named `id` -- it could not represent the
+ // real hazard (the Neon HTTP driver's Object.fromEntries silently overwriting a
+ // duplicate OUTPUT column name, last one wins) and would have passed whether or
+ // not the select list were qualified. This pins the shape that makes the
+ // collision impossible instead: the select list names no `c.` or `s.` column at
+ // all, so there is nothing from either joined table to collide with `d.id`. It
+ // cannot simulate the driver; it can only prove the statement never hands it a
+ // duplicate name to collapse. (Not a naive comma-split: to_char(...)'s own
+ // argument list contains a comma, so this checks for the alias tokens directly
+ // rather than trying to tokenize the select list by column.)
+ const {findOwnedDraft}=await import('@/lib/work-items/store')
+ mocks.sql.mockClear();mocks.sql.mockResolvedValue([])
+ await findOwnedDraft(account,id,'the-key')
+ const query=mocks.sql.mock.calls[0][0].join(' ')
+ const selectList=query.split(/\bfrom\b/i)[0]!
+ expect(selectList).not.toMatch(/\bc\.\w+/)
+ expect(selectList).not.toMatch(/\bs\.\w+/)
 })
 
 

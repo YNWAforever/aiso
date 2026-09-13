@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import type { AssetConvergence } from '@/lib/view-models/asset-convergence'
+import type { MergeSuggestion } from '@/lib/assets/merge-suggestions'
 import en from '@/messages/en.json'
 import zhHK from '@/messages/zh-HK.json'
 
@@ -17,10 +18,12 @@ import zhHK from '@/messages/zh-HK.json'
  */
 export function AssetConvergenceView({
   convergence,
+  suggestions,
   lang,
   clientId,
 }: {
   convergence: AssetConvergence[]
+  suggestions: MergeSuggestion[]
   lang: string
   clientId: string
 }) {
@@ -93,7 +96,9 @@ export function AssetConvergenceView({
         <p className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">{copy.empty}</p>
       ) : (
         <ul className="space-y-4">
-          {convergence.map(entry => (
+          {convergence.map(entry => {
+            const suggestion = suggestions.find(candidate => candidate.assetId === entry.asset.id)
+            return (
             <li key={entry.asset.id} className="rounded-xl border border-border bg-card p-6">
               <h2 className="text-base font-bold text-foreground">{entry.asset.label}</h2>
               <p className="mt-1 break-all text-xs text-muted-foreground">{entry.asset.url}</p>
@@ -101,6 +106,18 @@ export function AssetConvergenceView({
                 <p className="mt-3 rounded-lg border border-border p-3 text-sm font-semibold text-foreground">
                   {copy.converges}
                 </p>
+              )}
+              {suggestion && (
+                suggestion.mergeable ? (
+                  <div className="mt-3 rounded-lg border border-border p-3 text-sm text-foreground">
+                    <p className="font-semibold">{copy.suggestionTitle}</p>
+                    <p className="mt-1 text-muted-foreground">{copy.suggestionBody}</p>
+                  </div>
+                ) : (
+                  <p className="mt-3 rounded-lg border border-border p-3 text-sm text-muted-foreground">
+                    {copy.suggestionBothDrafted}
+                  </p>
+                )
               )}
 
               <h3 className="mt-5 text-sm font-semibold text-foreground">{copy.findingsTitle}</h3>
@@ -132,7 +149,8 @@ export function AssetConvergenceView({
                 </ul>
               )}
             </li>
-          ))}
+            )
+          })}
         </ul>
       )}
     </main>

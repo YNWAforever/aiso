@@ -3,7 +3,7 @@ import { buildScanEvidence } from '@/lib/scan-evidence'
 import type { DraftSnapshotV1 } from '@/lib/opportunities/types'
 import { deriveSuggestions } from '@/lib/opportunities/rules'
 import type { WorkItem } from '@/lib/work-items/schema'
-import { assertReviewPackageSize, freezeReview } from '@/lib/change-sets/validation'
+import { assertReviewPackageSize, freezeMultiSourceReview, freezeReview } from '@/lib/change-sets/validation'
 
 vi.mock('server-only', () => ({}))
 
@@ -154,5 +154,43 @@ describe('freezeReview', () => {
     expect(() => assertReviewPackageSize(payloadAtFormattedSize(131_071))).not.toThrow()
     expect(() => assertReviewPackageSize(payloadAtFormattedSize(131_072))).not.toThrow()
     expect(() => assertReviewPackageSize(payloadAtFormattedSize(131_073))).toThrow('REVIEW_VALIDATION_FAILED')
+  })
+})
+
+describe('freezeMultiSourceReview', () => {
+  const base = { id: item().id, revision: item().revision, title: item().title, action: item().action, notes: item().notes, locale: item().locale }
+
+  it('builds schemaVersion 2 content carrying every snapshot, ordered as given', () => {
+    const first = item().evidenceSnapshot, second = scanEvidence()
+    const frozen = freezeMultiSourceReview(base, [first, second])
+    expect(frozen.content.schemaVersion).toBe(2)
+    expect(frozen.content.evidenceSnapshots).toEqual([first, second])
+  })
+
+  it('refuses an empty snapshot array', () => {
+    // A work item with zero live sources is a piece of work with no evidence
+    // behind it -- withdrawSource already refuses to create that state by
+    // refusing to withdraw the last source; this is the same invariant,
+    // enforced again here rather than trusted from the caller.
+    expect(() => freezeMultiSourceReview(base, [])).toThrow('REVIEW_VALIDATION_FAILED')
+  })
+
+  it('is sensitive to a change in any one snapshot, and to snapshot order', () => {
+    const first = item().evidenceSnapshot, second = scanEvidence()
+    const original = freezeMultiSourceReview(base, [first, second]).contentHash
+    expect(freezeMultiSourceReview(base, [second, first]).contentHash).not.toBe(original)
+    expect(freezeMultiSourceReview(base, [first, scanEvidence()]).contentHash).toBe(original)
+  })
+
+  it('deeply detaches frozen output from later input mutation, same as freezeReview', () => {
+    const snapshots = [item().evidenceSnapshot]
+    const frozen = freezeMultiSourceReview(base, snapshots)
+    snapshots[0]!.args.question = 'Changed?'
+    expect(frozen.content.evidenceSnapshots[0]!.args.question).toBe('Example?')
+  })
+
+  it('rejects the same malformed inputs freezeReview rejects: bad locale, forged text edits', () => {
+    expect(() => freezeMultiSourceReview({ ...base, locale: 'fr' as never }, [item().evidenceSnapshot])).toThrow('REVIEW_VALIDATION_FAILED')
+    expect(() => freezeMultiSourceReview({ ...base, title: 'a'.repeat(2000) }, [item().evidenceSnapshot])).toThrow('REVIEW_VALIDATION_FAILED')
   })
 })

@@ -3,6 +3,8 @@ import { requireAuth } from '@/lib/auth'
 import { loadOwnedWorkspace } from '@/lib/workspace/load-owned-workspace'
 import { listAssets, listQuestionDeclarations } from '@/lib/assets/store'
 import { buildAssetConvergence, siteFindingsFromEvidence } from '@/lib/view-models/asset-convergence'
+import { buildMergeSuggestions } from '@/lib/assets/merge-suggestions'
+import { loadSuggestionSources, toRegisteredPages } from '@/lib/assets/suggestion-inputs'
 import { AssetConvergenceView } from '@/components/dashboard/AssetConvergenceView'
 
 export const dynamic = 'force-dynamic'
@@ -32,9 +34,10 @@ export default async function AssetsPage({
   const owned = await loadOwnedWorkspace({ clientId, profile })
   if (!owned) notFound()
 
-  const [assets, declarations] = await Promise.all([
+  const [assets, declarations, sources] = await Promise.all([
     listAssets(profile.account_id, clientId),
     listQuestionDeclarations(profile.account_id, clientId),
+    loadSuggestionSources(profile.account_id, clientId),
   ])
 
   // `scan` is a WorkspaceRead: a read error carries `data: null`, which yields no
@@ -49,6 +52,7 @@ export default async function AssetsPage({
         declarations,
         findings: siteFindingsFromEvidence(evidence),
       })}
+      suggestions={buildMergeSuggestions({ assets: toRegisteredPages(assets, declarations), sources })}
       lang={lang}
       clientId={clientId}
     />

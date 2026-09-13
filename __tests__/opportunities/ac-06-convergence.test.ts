@@ -4,24 +4,36 @@ import { describe, expect, it } from 'vitest'
 import { opportunityKey } from '@/lib/opportunities/fingerprint'
 
 /**
- * AC-06's two halves, and the line between them.
+ * AC-06's two halves, and the line that must not move now that both are built.
  *
- * UPDATED when migration 050 added registered pages. The **asset** half is now
+ * UPDATED when migration 050 added registered pages. The **asset** half is
  * reachable: an owner registers the pages that matter (`client_assets`), a scan
  * finding attaches to them by origin, and a question attaches because the owner
- * declared that the page answers it (`client_asset_questions`). That closes the
+ * declared that the page answers it (`client_asset_questions`). That closed the
  * "no target to key on" problem below — by asking, rather than by inferring a
  * page nobody recorded.
  *
- * The **task** half is still out of reach, for the reason that has not changed:
- * `evidence_work_items` is single-source by CHECK constraint, and merging two
- * sources onto one row would make it claim a provenance it does not have. The
- * assertions below still hold and still must.
+ * UPDATED AGAIN when migration 051 added `work_item_sources`. The **task** half
+ * is now reachable too: a work item can hold more than one source, and
+ * `lib/work-items/sources.ts`'s `attachSource` validates a second source's
+ * evidence exactly as `saveAuthenticatedDraft` validates the first, before the
+ * write can happen — over HTTP via
+ * `app/api/dashboard/clients/[clientId]/work-items/[itemId]/sources/route.ts`.
  *
- * Everything from here down is the original note, kept because the trap it
- * describes is exactly as live now as it was then — more so, since the asset
- * half existing makes "and now merge the tasks too" look like the obvious next
- * step.
+ * Building the task half did not relax the rule this file used to enforce by
+ * proving it impossible — it moved that rule onto `051`, where it must hold
+ * exactly as absolutely: one `work_item_sources` ROW still names exactly one
+ * source (the CHECK moved, not loosened), two live rows still cannot claim the
+ * same opportunity (a partial unique index, not application logic), and
+ * `opportunity_key` still lives on the source, never on the item. The
+ * assertions below prove all three against `051` rather than `041`.
+ *
+ * Everything else here — the disjoint-keyspace proof, and the trap it exists to
+ * spring — is the original note, kept because it is exactly as live now as it
+ * was when the task half was impossible. More so: the obvious way to "make them
+ * converge" was always giving both kinds the same `opportunityKey`, and now that
+ * a work item can genuinely hold two sources, that shortcut looks even more
+ * tempting to a future reader than it did before.
  *
  * AC-06 asks that a website finding and a question opportunity reach the same
  * asset and the same task. The acceptance matrix used to justify deferring it by
@@ -45,16 +57,16 @@ import { opportunityKey } from '@/lib/opportunities/fingerprint'
  * existing draft BY THAT KEY and returns it before it ever loads or validates the
  * second source, so the second finding's evidence snapshot is never built. The row
  * would then describe one source while claiming to represent two — the kind of
- * provenance lie this codebase spends migrations 041-046 preventing.
+ * provenance lie this codebase spends migrations 041-046 preventing. Attaching a
+ * genuinely second source now goes through `attachSource` instead, a distinct
+ * write path from `saveAuthenticatedDraft`'s draft-creation lookup — the two must
+ * stay distinct, or this exact trap reopens with a real second source able to walk
+ * into it.
  *
- * Convergence needs a page-level target that neither side currently retains, and a
- * task table that can hold more than one source. Both are named in the AC-06 row.
+ * Convergence needed a page-level target that neither side retained, and a task
+ * table that could hold more than one source. Both now exist; the assertions below
+ * are what keeps each of them from quietly regressing.
  */
-
-const migration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/041_evidence_work_items.sql'),
-  'utf8',
-)
 
 const PULSE_IDS = ['00000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111']
 const SCAN_IDS = ['00000000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222']
@@ -82,37 +94,30 @@ describe('the two opportunity keyspaces are disjoint by construction', () => {
   })
 })
 
-describe('the task a finding reaches is single-source at the schema level', () => {
-  it('binds each source kind to exactly one rule version', () => {
-    // One row names one source. Merging two kinds onto one row is refused by the
-    // database, not merely by convention — which is why AC-06's task half needs a
-    // migration rather than a key change.
-    const check = migration.slice(
-      migration.indexOf('evidence_work_items_rule_source_check'),
-      migration.indexOf('evidence_work_items_snapshot_object_check'),
-    )
+describe('a task may hold many sources, each still naming exactly one thing', () => {
+  const expand = readFileSync(
+    resolve(process.cwd(), 'supabase/migrations/051_work_item_sources.sql'),
+    'utf8',
+  )
 
-    expect(check).toContain("source_kind = 'pulse-metric' and rule_version = 'pulse-brand-absent.v1'")
-    expect(check).toContain("source_kind = 'scan-check' and rule_version = 'scan-check-gap.v1'")
+  it('moved the rule/source rule rather than relaxing it', () => {
+    // One row still names one source. Merging two kinds onto one row is refused
+    // by the database, not merely by convention — that did not change when the
+    // rule moved off evidence_work_items.
+    expect(expand).toContain("source_kind = 'pulse-metric' and rule_version = 'pulse-brand-absent.v1'")
+    expect(expand).toContain("source_kind = 'scan-check' and rule_version = 'scan-check-gap.v1'")
   })
 
-  it('collapses rows only on the source-derived opportunity key', () => {
-    expect(migration).toContain('unique (account_id, client_id, opportunity_key)')
+  it('still refuses to let two live sources claim one opportunity', () => {
+    expect(expand).toContain('unique index work_item_sources_live_opportunity_idx')
+    expect(expand).toContain('where withdrawn_at is null')
   })
 
-  it('still has nowhere to record an asset, and must not gain one here', () => {
-    // The asset half of AC-06 is served by client_assets (migration 050), NOT by
-    // a column on the task. Adding one here would be the first step of the merge
-    // this file exists to prevent: once a work item names an asset, collapsing
-    // two sources onto it looks like deduplication rather than data loss.
-    const table = migration.slice(
-      migration.indexOf('create table if not exists evidence_work_items'),
-      migration.indexOf('evidence_work_items_rule_source_check'),
-    )
-
-    for (const column of ['asset', 'target', 'url', 'page', 'entity_id']) {
-      expect(table, `evidence_work_items gained a ${column} column`).not.toContain(column)
-    }
+  it('still keeps the opportunity key out of the work item itself', () => {
+    // The trap is now the opposite one: with many sources allowed, giving the
+    // ITEM a source-derived key again would re-create the collision that made
+    // saveAuthenticatedDraft return a draft before validating the second source.
+    expect(expand).not.toContain('alter table public.evidence_work_items add column opportunity_key')
   })
 })
 

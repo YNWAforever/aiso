@@ -38,17 +38,44 @@ export async function loadOwnedDraftSource(accountId:string,clientId:string,sour
 }
 export async function findOwnedDraft(accountId:string,clientId:string,key:string):Promise<WorkItem|null> {
   const sql=db()
+  // opportunity_key now lives on work_item_sources, not on the item itself (051): join
+  // to it and require withdrawn_at is null, so a withdrawn source's key -- free to be
+  // reattached elsewhere under the partial unique index -- can never resolve back to
+  // this old item. The select list stays fully qualified to `d.` alone: evidence_work_items,
+  // clients and work_item_sources all have `id` and `account_id`, and the Neon HTTP driver
+  // builds rows with Object.fromEntries, where a duplicate output column name silently
+  // overwrites -- last one wins. Selecting any column off `c` or `s` here would risk
+  // exactly that collision on `id`.
   const rows=await sql`select d.id,d.client_id,d.status,d.title,d.action,d.notes,d.locale,d.revision,
     to_char(d.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
     to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot
     from evidence_work_items d join clients c on c.id=d.client_id and c.account_id=d.account_id
-    where d.source_kind in ('pulse-metric','scan-check') and d.account_id=${accountId} and d.client_id=${clientId} and d.opportunity_key=${key} limit 1`
+    join work_item_sources s on s.work_item_id=d.id and s.account_id=d.account_id and s.client_id=d.client_id and s.withdrawn_at is null
+    where s.source_kind in ('pulse-metric','scan-check') and d.account_id=${accountId} and d.client_id=${clientId} and s.opportunity_key=${key} limit 1`
   return rows[0] ? dto(rows[0] as Row) : null
 }
 export async function createDraftIfEvidenceCurrent(accountId:string,clientId:string,actorId:string|null,input:CreateDraftInput,snapshot:DraftSnapshotV1,token:EvidenceVersionToken):Promise<{item:WorkItem;created:boolean}|null> {
   if(token.accountId!==accountId || token.row.client_id!==clientId || token.kind!==input.source.kind || token.row.id!==input.source.id) return null
   const sql=db(), serialized=serializeDraftSnapshot(snapshot), key=opportunityKey(input.ruleVersion,input.source)
+  // source_ins is chained onto mutation as a second data-modifying CTE, in the same
+  // statement: it selects FROM mutation (its RETURNING rows), not from the table, so it
+  // inserts a source row if-and-only-if mutation's own on-conflict-do-nothing actually
+  // inserted an item -- a conflict makes mutation return zero rows, so source_ins reads
+  // zero rows too and is a no-op. Postgres runs every data-modifying CTE to completion
+  // exactly once regardless of whether the final SELECT reads it, so this holds even
+  // though the trailing select below names only `mutation`, never `source_ins`. That
+  // keeps the item and its first source atomic without touching the on-conflict replay
+  // below, which must stay a separate statement (see its own comment). Verified against
+  // real PostgreSQL, not assumed, in __tests__/integration/work-item-sources.test.ts.
+  //
+  // Cross-reference: that same integration file's runCreateDraftCte hand-reproduces
+  // this CTE's shape to run the proof above against a real database. A structural
+  // change here -- renaming source_ins, changing the on-conflict target, replacing
+  // source_ins's `from mutation` with a scalar subquery -- must be mirrored there too;
+  // __tests__/work-items/cte-shape-parity.test.ts pins the two texts together and fails
+  // the moment they drift.
   const mutation=token.kind==='pulse-metric' ? sql`
+    with mutation as (
     insert into evidence_work_items (account_id,client_id,opportunity_key,source_kind,source_id,rule_version,check_key,evidence_fingerprint,evidence_snapshot,status,title,action,notes,locale,revision,created_by,updated_by)
     select c.account_id,c.id,${key},'pulse-metric',m.id,${input.ruleVersion},null,${input.fingerprint},${serialized}::jsonb,'draft',${snapshot.initialTitle},${snapshot.initialAction},'',${input.locale},1,${actorId}::uuid,${actorId}::uuid
     from clients c join pulse_metrics m on m.client_id=c.id
@@ -65,7 +92,15 @@ export async function createDraftIfEvidenceCurrent(accountId:string,clientId:str
     returning id,client_id,status,title,action,notes,locale,revision,
       to_char(created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
       to_char(updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,evidence_snapshot
+    ), source_ins as (
+    insert into work_item_sources (account_id,client_id,work_item_id,opportunity_key,source_kind,source_id,rule_version,check_key,evidence_fingerprint,evidence_snapshot,attached_by)
+    select ${accountId}::uuid,${clientId}::uuid,mutation.id,${key},'pulse-metric',${input.source.id}::uuid,${input.ruleVersion},null,${input.fingerprint},${serialized}::jsonb,${actorId}::uuid
+    from mutation
+    returning id
+    )
+    select id,client_id,status,title,action,notes,locale,revision,created_at,updated_at,evidence_snapshot from mutation
   ` : sql`
+    with mutation as (
     insert into evidence_work_items (account_id,client_id,opportunity_key,source_kind,source_id,rule_version,check_key,evidence_fingerprint,evidence_snapshot,status,title,action,notes,locale,revision,created_by,updated_by)
     select c.account_id,c.id,${key},'scan-check',s.id,${input.ruleVersion},${input.source.checkKey},${input.fingerprint},${serialized}::jsonb,'draft',${snapshot.initialTitle},${snapshot.initialAction},'',${input.locale},1,${actorId}::uuid,${actorId}::uuid
     from clients c join scans s on s.client_id=c.id and s.account_id=c.account_id
@@ -79,6 +114,13 @@ export async function createDraftIfEvidenceCurrent(accountId:string,clientId:str
     returning id,client_id,status,title,action,notes,locale,revision,
       to_char(created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
       to_char(updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,evidence_snapshot
+    ), source_ins as (
+    insert into work_item_sources (account_id,client_id,work_item_id,opportunity_key,source_kind,source_id,rule_version,check_key,evidence_fingerprint,evidence_snapshot,attached_by)
+    select ${accountId}::uuid,${clientId}::uuid,mutation.id,${key},'scan-check',${input.source.id}::uuid,${input.ruleVersion},${input.source.checkKey},${input.fingerprint},${serialized}::jsonb,${actorId}::uuid
+    from mutation
+    returning id
+    )
+    select id,client_id,status,title,action,notes,locale,revision,created_at,updated_at,evidence_snapshot from mutation
   `
   // A separate READ COMMITTED statement sees concurrent winners after conflict waiting.
   const replay=sql`select d.id,d.client_id,d.status,d.title,d.action,d.notes,d.locale,d.revision,

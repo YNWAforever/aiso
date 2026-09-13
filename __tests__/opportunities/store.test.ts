@@ -47,7 +47,22 @@ it('scopes saved mapping to account/client and requested keys', async () => {
   sql.mockResolvedValueOnce([{id,opportunity_key:'wanted'}, {id:'foreign',opportunity_key:'other'}])
   expect(await loadSavedDraftMapping(account,client,['wanted'])).toEqual(new Map([['wanted',id]]))
   const query = sql.mock.calls[0][0].join('?')
-  expect(query).toContain('d.account_id = ')
-  expect(query).toContain('d.client_id = ')
+  expect(query).toContain('s.account_id = ')
+  expect(query).toContain('s.client_id = ')
   expect(sql.mock.calls[0].slice(1)).toContainEqual(['wanted'])
+})
+it('reads the key from work_item_sources, filtering to live rows', async () => {
+  // Would silently pass without both: an item that gained a second live source
+  // under a NEW key (never written to evidence_work_items.opportunity_key at
+  // all) would report that key as unsaved forever, and the caller would offer
+  // to draft an opportunity that already has a work item. The behavioural half
+  // of this claim -- that a withdrawn source's key genuinely stops counting as
+  // saved -- needs a real database and is proven in
+  // __tests__/integration/work-item-sources.test.ts; a mocked driver can only
+  // confirm the filter is present in the statement, not that Postgres honours it.
+  sql.mockResolvedValueOnce([])
+  await loadSavedDraftMapping(account,client,['wanted'])
+  const query = sql.mock.calls[0][0].join(' ')
+  expect(query).toContain('from work_item_sources s')
+  expect(query).toContain('s.withdrawn_at is null')
 })

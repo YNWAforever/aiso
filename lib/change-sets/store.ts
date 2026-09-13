@@ -3,8 +3,10 @@ import { db } from '@/lib/db'
 import { readOwnedDraft } from '@/lib/work-items/store'
 import type { WorkItem } from '@/lib/work-items/schema'
 import { fingerprintEvidence } from '@/lib/opportunities/fingerprint'
-import { freezeReview } from './validation'
+import { freezeMultiSourceReview, freezeReview } from './validation'
 import type { ActorSnapshot, DecisionDTO, FrozenReview, StoreResult, VersionDetail, VersionSummary } from './types'
+import { listLiveSources } from '@/lib/work-items/sources'
+import { multiSourceEnabled } from '@/lib/work-items/multi-source-flag'
 
 export function validIds(...ids: string[]): boolean {
   return ids.every(id => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
@@ -23,8 +25,15 @@ function date(value: unknown): string {
 export function versionDTO(row: Record<string, unknown>): VersionDetail {
   try {
     const c = row.content as FrozenReview['content']
-    if (!validIds(String(row.id), String(row.work_item_id)) || !Number.isSafeInteger(Number(row.version_number)) || Number(row.version_number) < 1 || c.schemaVersion !== 1 || c.workItemId !== row.work_item_id || c.draftRevision !== Number(row.draft_revision)) invalidSaved()
-    const frozen = freezeReview({ id: c.workItemId, revision: c.draftRevision, title: c.title, action: c.action, notes: c.notes, locale: c.locale, evidenceSnapshot: c.evidenceSnapshot } as WorkItem)
+    if (!validIds(String(row.id), String(row.work_item_id)) || !Number.isSafeInteger(Number(row.version_number)) || Number(row.version_number) < 1 || c.workItemId !== row.work_item_id || c.draftRevision !== Number(row.draft_revision)) invalidSaved()
+    // Old rows keep schemaVersion 1 forever (051's own CHECK is evaluated only
+    // on write, never re-validated on read) -- both branches must be readable,
+    // not just the one new code writes.
+    const frozen = c.schemaVersion === 1
+      ? freezeReview({ id: c.workItemId, revision: c.draftRevision, title: c.title, action: c.action, notes: c.notes, locale: c.locale, evidenceSnapshot: c.evidenceSnapshot } as WorkItem)
+      : c.schemaVersion === 2
+        ? freezeMultiSourceReview({ id: c.workItemId, revision: c.draftRevision, title: c.title, action: c.action, notes: c.notes, locale: c.locale }, c.evidenceSnapshots)
+        : invalidSaved()
     if (frozen.contentHash !== row.content_hash || fingerprintEvidence(c) !== frozen.contentHash || fingerprintEvidence(row.validation) !== fingerprintEvidence(frozen.validation)) invalidSaved()
     const submittedBy = actor(row.submitter)
     const d = row.decision_record as Record<string, unknown> | null
@@ -58,6 +67,16 @@ export function mutationResult(row: Record<string, unknown> | undefined): StoreR
 
 // These witnesses are initialized even when a row is absent. Subsequent statements
 // must prove the current rows are the rows actually locked in this transaction.
+//
+// The second lock's `d.source_kind IN (...)` is deliberately left reading
+// evidence_work_items' own now-legacy column rather than migrated to
+// work_item_sources. It is a no-op today and stays one: createDraftIfEvidenceCurrent
+// only ever writes 'pulse-metric' or 'scan-check' as an item's ORIGINAL kind, that
+// column is never updated after creation, and the actual submittability gate is the
+// `owned` CTE inside submitVersion's write statement, which IS migrated (checks live
+// sources). This lock only needs to serialize concurrent writers on the item id; it
+// does not need to duplicate that gate's logic to do so correctly. It will need
+// removing at 052, when the column it reads stops existing.
 export function versionLocks(sql: ReturnType<typeof db>, accountId: string, clientId: string, itemId: string, actorId: string) {
   return [
     sql`WITH locked AS MATERIALIZED (SELECT id FROM profiles WHERE id = ${actorId}::uuid ORDER BY id FOR SHARE)
@@ -75,6 +94,15 @@ export async function submitVersion(accountId: string, clientId: string, itemId:
   if (!validIds(accountId,clientId,itemId,actorId) || !Number.isSafeInteger(expectedRevision) || expectedRevision < 1) return { kind: 'validation_failed' }
   ;[accountId,clientId,itemId,actorId] = [accountId,clientId,itemId,actorId].map(id => id.toLowerCase())
   let frozen: FrozenReview | null = null, preRevision: number | null = null
+  // Always computed, flag or no: this is what the write statement's aggregate
+  // compares against at write time, never `content`'s own snapshot field
+  // (which does not exist in the same shape on both freeze variants). With
+  // the flag off, attachSource is never called, so an item always has
+  // exactly one live source and this array always has length 1, matching
+  // draft.evidenceSnapshot's legacy column exactly -- migrating the SQL to
+  // read work_item_sources here is behaviour-preserving before the flag ever
+  // turns on.
+  let liveSnapshots: WorkItem['evidenceSnapshot'][] = []
   // Defer validation outcome until after the locked replay lookup. Even a malformed
   // newer draft cannot prevent retrieval of an already saved revision.
   try {
@@ -87,7 +115,11 @@ export async function submitVersion(accountId: string, clientId: string, itemId:
     if (draft) {
       preRevision = draft.revision
       if (draft.revision === expectedRevision) {
-        frozen = freezeReview(draft)
+        liveSnapshots = (await listLiveSources(accountId, clientId, itemId)).map(source => source.snapshot)
+        // Content SHAPE is the flag-gated half (051's stored-contract rule):
+        // with the flag off this is byte-identical to today's freezeReview
+        // call, so an existing submission's hash never moves under it.
+        frozen = multiSourceEnabled() ? freezeMultiSourceReview(draft, liveSnapshots) : freezeReview(draft)
         if (supplied && fingerprintEvidence(supplied) !== fingerprintEvidence(frozen)) frozen = null
       }
     }
@@ -107,7 +139,11 @@ export async function submitVersion(accountId: string, clientId: string, itemId:
         SELECT d.* FROM evidence_work_items d JOIN clients c ON c.id = d.client_id AND c.account_id = d.account_id
         WHERE d.account_id = ${accountId}::uuid AND d.client_id = ${clientId}::uuid AND d.id = ${itemId}::uuid
           AND d.id::text = current_setting('aiso.version_item_locked', true)
-          AND d.source_kind IN ('pulse-metric','scan-check') AND EXISTS (SELECT 1 FROM member)
+          AND NOT EXISTS (
+            SELECT 1 FROM work_item_sources s
+            WHERE s.work_item_id = d.id AND s.account_id = d.account_id AND s.client_id = d.client_id
+              AND s.withdrawn_at IS NULL AND s.source_kind NOT IN ('pulse-metric','scan-check'))
+          AND EXISTS (SELECT 1 FROM member)
       ), replay AS MATERIALIZED (
         SELECT v.* FROM work_item_versions v JOIN owned d ON d.id = v.work_item_id AND d.account_id = v.account_id AND d.client_id = v.client_id
         WHERE v.draft_revision = ${expectedRevision}
@@ -120,7 +156,10 @@ export async function submitVersion(accountId: string, clientId: string, itemId:
         FROM owned d CROSS JOIN member p WHERE NOT EXISTS (SELECT 1 FROM replay) AND ${frozen !== null}
           AND d.revision = ${expectedRevision} AND d.title = ${content?.title ?? null} AND d.action = ${content?.action ?? null}
           AND d.notes = ${content?.notes ?? null} AND d.locale = ${content?.locale ?? null}
-          AND d.evidence_snapshot = ${JSON.stringify(content?.evidenceSnapshot ?? null)}::jsonb
+          AND COALESCE((SELECT jsonb_agg(s.evidence_snapshot ORDER BY s.opportunity_key)
+               FROM work_item_sources s
+               WHERE s.work_item_id = d.id AND s.account_id = d.account_id AND s.client_id = d.client_id AND s.withdrawn_at IS NULL), '[]'::jsonb)
+              = ${JSON.stringify(liveSnapshots)}::jsonb
         RETURNING *
       ), chosen AS (SELECT * FROM inserted UNION ALL SELECT * FROM replay)
       SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM member) THEN 'denied'
