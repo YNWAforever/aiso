@@ -113,6 +113,11 @@ function allRelations() {
     'account_invitations',
     // 048: the platform-administrator grant ledger.
     'platform_admin_grants',
+    // 052: single-use scan-claim attempts. Renumbered from 047 -- migration
+    // 043's PR merged first and took 047-049 for account membership.
+    'scan_claim_attempts',
+    // 053: domain-ownership proofs. Renumbered from 048 for the same reason.
+    'client_domain_verifications',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }

@@ -4,7 +4,8 @@ import { getProfile } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { isPromptCategory } from '@/lib/prompts/categories'
 import { claimScanForAccount } from '@/app/api/scans/[id]/claim/route'
-import { CLAIM_INTENT_COOKIE, isAuthorizedScanClaim } from '@/lib/security/scan-claim-intent'
+import { CLAIM_INTENT_COOKIE, authorizedScanClaimIntent } from '@/lib/security/scan-claim-intent'
+import { consumeScanClaimAttempt } from '@/lib/security/scan-claim-attempt'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,7 +47,21 @@ export async function POST(req: NextRequest) {
     // used to skip the intent entirely, making it a wider version of the hole
     // closed in /api/scans/[id]/claim: post any unowned scan id, own it. Same
     // predicate, same denial.
-    if (!isAuthorizedScanClaim(req.cookies.get(CLAIM_INTENT_COOKIE)?.value, scanId)) {
+    const intent = authorizedScanClaimIntent(req.cookies.get(CLAIM_INTENT_COOKIE)?.value, scanId)
+    if (!intent) {
+      return NextResponse.json({ error: 'Claim unavailable' }, { status: 403 })
+    }
+    // Single-use (AC-03), spent before the effect. Both claim paths share one
+    // cookie, so consuming in only one of them would leave the other as the
+    // replay route — the same asymmetry that made this path the wider hole
+    // before the intent check was added here at all.
+    let attempt: Awaited<ReturnType<typeof consumeScanClaimAttempt>>
+    try {
+      attempt = await consumeScanClaimAttempt(intent.attemptId, scanId)
+    } catch {
+      return NextResponse.json({ error: 'Claim unavailable' }, { status: 503 })
+    }
+    if (attempt !== 'consumed') {
       return NextResponse.json({ error: 'Claim unavailable' }, { status: 403 })
     }
     const claim = await claimScanForAccount(scanId, accountId)
