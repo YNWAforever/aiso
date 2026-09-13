@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 const load = vi.hoisted(() => vi.fn())
+// The page now reads lib/domain-verification/store directly, which begins
+// with `import 'server-only'` — a Next build-time alias with no package to
+// resolve under Vitest. Stubbed as in 49 other suites.
+vi.mock('server-only', () => ({}))
 vi.mock('@/lib/entities/service', () => ({
   loadAuthenticatedEntityPage: load,
   EntityServiceError: class extends Error {

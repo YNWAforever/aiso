@@ -1403,6 +1403,9 @@
     "intro": "查看啟用中的品牌及已儲存的觀察。資料新鮮度仍屬未知；這些記錄未能證明可比較的表現變化。",
     "brands": "啟用中的品牌",
     "emptyBrands": "暫時沒有啟用中的品牌。",
+    "firstRunTitle": "設定你的第一個品牌",
+    "firstRunBody": "設定品牌會認領你剛完成的掃描、開始試用期，並建立 Pulse 每週會問的問題。",
+    "firstRunAction": "開始設定",
     "capacity": "所有持有的品牌",
     "capacityUnknown": "暫時無法核實新增品牌的可用額度，請稍後重新整理再試。",
     "capacityLimit": "你目前的品牌額度已滿。",
@@ -1541,7 +1544,21 @@
     "retry": "重試",
     "invalid": "請輸入顯示名稱及最多 20 個別名。每個名稱須為 1–120 個字元，且不可包含控制字元。",
     "unauthenticated": "登入階段已結束，請重新登入以繼續。你的草稿仍保留在此。",
-    "unavailable": "此客戶已無法存取，你的草稿尚未儲存。"
+    "unavailable": "此客戶已無法存取，你的草稿尚未儲存。",
+    "verified": "網域已驗證",
+    "verifyTitle": "證明你擁有呢個網域",
+    "verifyHow": "喺 {domain} 嘅以下路徑放一個檔案，內容係下面嗰行，然後按檢查。唔使改其他嘢，之後個檔案可以一直留喺度。",
+    "verifyPathLabel": "檔案路徑",
+    "verifyTokenLabel": "檔案內容",
+    "verifyCheck": "立即檢查",
+    "verifyChecking": "檢查中",
+    "verifyLastChecked": "上次檢查",
+    "verifyNoDomain": "呢個品牌仲未有網站地址，所以冇嘢可以驗證。請先填寫。",
+    "verifyOutcomeVerified": "已驗證——搵到個檔案，而且內容相符。",
+    "verifyOutcomeTokenAbsent": "搵唔到個檔案，或者內容唔啱。請檢查路徑同確實內容。",
+    "verifyOutcomeUnreachable": "個網站冇回應。呢個唔係我哋呢邊嘅問題——請確認網域解析得到並且支援 HTTPS。",
+    "verifyOutcomeRedirected": "個路徑轉向咗去第二度。驗證唔會跟隨轉向，因為另一個網站證明唔到呢一個。請喺呢個網域直接提供該檔案。",
+    "verifyOutcomeTooLarge": "回應太大，唔似係呢個檔案。個路徑好可能係提供緊一版網頁而唔係文字檔。"
   },
   "observations": {
     "title": "已記錄觀察",
@@ -2064,6 +2081,22 @@
     "questionsTitle": "這版頁面回答的問題",
     "questionsScope": "由你聲明",
     "questionsEmpty": "尚未為這版頁面聲明任何問題。"
+  },
+  "activation": {
+    "title": "設定進度",
+    "progress": "已完成步驟",
+    "next": "下一步",
+    "complete": "所有步驟已完成。",
+    "unavailable": "讀取不到設定進度，請稍後重新整理再試。",
+    "outOfOrder": "在前一個步驟之前記錄",
+    "milestones": {
+      "first_scan": "首次掃描",
+      "first_workspace": "首個品牌",
+      "first_source": "首個已批核來源",
+      "first_approved_work": "首件已批核工作",
+      "first_export": "首次匯出",
+      "first_declared_delivery": "首次聲明交付"
+    }
   },
   "members": {
     "title": "成員",
