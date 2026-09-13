@@ -37,6 +37,11 @@ export function projectOutcomeSnapshot(value: unknown): OutcomeInput {
  const row = record(value), rawVersion = record(row.version)
  if (row.member !== true || row.owned !== true) invalid()
  const version = versionDTO(rawVersion)
+ // Multi-source versions (051, schemaVersion 2) are not yet supported here --
+ // mirrors lib/delivery/export.ts's own `schemaVersion !== 1` guard, and for
+ // the same reason: refuse explicitly rather than crash on
+ // version.evidenceSnapshot being undefined once a v2 row can exist.
+ if (version.schemaVersion !== 1) invalid()
  const accountId = id(rawVersion.account_id), clientId = id(rawVersion.client_id)
  const evaluatedAt = time(row.evaluated_at), now = utcMicros(evaluatedAt)
  if (!Array.isArray(row.events)) invalid()

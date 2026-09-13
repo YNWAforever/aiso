@@ -117,6 +117,8 @@ function allRelations() {
     // 040-045 above, this is a synthetic inventory entry and claims nothing about
     // any live database.
     'client_assets', 'client_asset_questions',
+    // 051: multi-source work items, authored here and applied by the runner.
+    'work_item_sources',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }

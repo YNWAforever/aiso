@@ -1728,6 +1728,7 @@
     "decisionRecorded": "Decision recorded.",
     "loading": "Loading…",
     "unavailable": "Review data is unavailable. Your displayed content and reason have been retained. Retry or explicitly reload.",
+    "evidenceUnsupportedVersion": "This version's evidence cannot be shown in this view yet.",
     "conflict": "This revision or review has changed. Your content is retained. Reload the saved draft or version history before choosing your next action.",
     "validationFailed": "The saved draft failed review-package checks. Review and save the draft before retrying.",
     "denied": "An independent, active account approver must review the latest version. Submitters, revoked reviewers and non-approvers cannot decide.",
@@ -2063,7 +2064,10 @@
     "findingsEmpty": "No findings recorded for this site.",
     "questionsTitle": "Questions this page answers",
     "questionsScope": "Declared by you",
-    "questionsEmpty": "No questions declared for this page yet."
+    "questionsEmpty": "No questions declared for this page yet.",
+    "suggestionTitle": "This page may describe one job",
+    "suggestionBody": "A finding and a question both reach this page. They can be worked on as one item.",
+    "suggestionBothDrafted": "Both already have their own item. Merging existing items is not supported yet."
   },
   "members": {
     "title": "Members",

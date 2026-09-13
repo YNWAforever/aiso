@@ -6,6 +6,10 @@ import { decideVersion } from '@/lib/approvals/decision-store'
 import { parseSubmission, parseVersionQuery } from './input'
 import { submitVersion, listVersions, readVersion } from './store'
 import type { StoreResult } from './types'
+import { listLiveSources } from '@/lib/work-items/sources'
+import { loadOwnedDraftSource } from '@/lib/work-items/store'
+import { deriveSuggestions } from '@/lib/opportunities/rules'
+import type { EvidenceCheckKey } from '@/lib/scan-evidence'
 
 const headers = {'Cache-Control':'no-store'}
 function json(value: unknown, status = 200) { return Response.json(value,{status,headers}) }
@@ -27,6 +31,28 @@ async function authenticate(...ids: string[]) {
   if (!profile) throw new Error('UNAUTHENTICATED')
   if (!ids.every(id=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))) throw new Error('INVALID_CHANGE_SET_INPUT')
   return profile
+}
+/**
+ * Decision 4: fail closed. Submit (lib/change-sets/store.ts) only catches drift
+ * between a draft and its own submission -- it cannot catch a re-scan that
+ * removes the finding afterward. So before any decision, every live source's
+ * fingerprint is re-derived from current data and compared with the one frozen
+ * at attach time; any mismatch, or any source that no longer yields a
+ * suggestion at all, names that source as stale. A narrow window remains
+ * between this re-derivation and decideVersion's write -- it exists today for
+ * the single-source case (lib/work-items/service.ts's saveAuthenticatedDraft)
+ * and is not closed here either.
+ */
+async function staleLiveSources(accountId: string, clientId: string, itemId: string): Promise<string[]> {
+  const live = await listLiveSources(accountId,clientId,itemId)
+  const stale: string[] = []
+  for (const source of live) {
+    const ref = {kind:source.sourceKind,id:source.sourceId,...(source.checkKey===null?{}:{checkKey:source.checkKey as EvidenceCheckKey})}
+    const selected = await loadOwnedDraftSource(accountId,clientId,ref)
+    const suggestion = selected && deriveSuggestions(selected.source).find(item=>item.key===source.opportunityKey)
+    if (!suggestion || suggestion.fingerprint !== source.fingerprint) stale.push(source.opportunityKey)
+  }
+  return stale
 }
 export async function submitAuthenticatedVersion(clientId: string, itemId: string, request: Request): Promise<Response> {
   try {
@@ -51,6 +77,8 @@ export async function decideAuthenticatedVersion(clientId: string, itemId: strin
   try {
     const p = await authenticate(clientId,itemId,versionId)
     const input = parseReviewDecision(await readLimitedJson(request,16384))
+    const stale = await staleLiveSources(p.account_id,clientId,itemId)
+    if (stale.length > 0) return json({error:'EVIDENCE_CHANGED',staleOpportunityKeys:stale},409)
     return result(await decideVersion(p.account_id,clientId,itemId,versionId,p.id,input),true)
   } catch (error) { return errorResponse(error) }
 }

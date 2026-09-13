@@ -47,10 +47,17 @@ export function VersionDetails({
       <p className="break-all">
         {t('contentHash')}: {version.contentHash}
       </p>
-      <EvidenceDetails
-        evidence={version.evidenceSnapshot.evidence}
-        limitations={version.evidenceSnapshot.limitations}
-      />
+      {version.schemaVersion === 1 ? (
+        <EvidenceDetails
+          evidence={version.evidenceSnapshot.evidence}
+          limitations={version.evidenceSnapshot.limitations}
+        />
+      ) : (
+        // schemaVersion 2 (051, multi-source): not yet rendered here. Stated
+        // honestly rather than crashing on evidenceSnapshot, which this
+        // version does not have -- it has evidenceSnapshots, plural.
+        <p>{t('evidenceUnsupportedVersion')}</p>
+      )}
       {version.decision && (
         <div className="space-y-2">
           <p>

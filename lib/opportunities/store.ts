@@ -109,15 +109,33 @@ export async function loadOwnedOpportunitySources(accountId: string, clientId: s
   return result
 }
 
+/**
+ * Which of the caller's opportunity keys already have a draft, and which item.
+ *
+ * Reads work_item_sources rather than evidence_work_items.opportunity_key
+ * directly (051): an item created for one opportunity can later have a SECOND
+ * live source attached under a different key, and that key was never written
+ * to the item's own column -- only to its source row. Reading the old column
+ * alone would report a genuinely-saved opportunity as unsaved, and the caller
+ * (lib/opportunities/service.ts) would then offer to draft it again.
+ *
+ * `withdrawn_at is null` matters for the same reason it does in
+ * findOwnedDraft: a withdrawn source's key is free to be reattached under
+ * 051's partial unique index, so it must not still read as "saved" here.
+ *
+ * Select list stays `s.`/`d.` qualified with no overlapping names projected
+ * (`s.opportunity_key`, `d.id`), so there is nothing for the Neon driver's
+ * Object.fromEntries to collapse.
+ */
 export async function loadSavedDraftMapping(accountId: string, clientId: string, keys: string[]): Promise<Map<string, string>> {
   if (!keys.length) return new Map()
   const sql = db()
   const rows = await sql`
-    select d.id, d.opportunity_key from evidence_work_items d
-    join clients c on c.id = d.client_id and c.account_id = d.account_id
-    where d.account_id = ${accountId} and d.client_id = ${clientId}
-      and d.opportunity_key = any(${keys}::text[])
-    order by d.opportunity_key limit 240
+    select s.opportunity_key, d.id from work_item_sources s
+    join evidence_work_items d on d.id = s.work_item_id and d.account_id = s.account_id and d.client_id = s.client_id
+    where s.account_id = ${accountId} and s.client_id = ${clientId} and s.withdrawn_at is null
+      and s.opportunity_key = any(${keys}::text[])
+    order by s.opportunity_key limit 240
   ` as { id: string; opportunity_key: string }[]
   const requested = new Set(keys)
   return new Map(rows.filter(row => requested.has(row.opportunity_key)).map(row => [row.opportunity_key, row.id]))
