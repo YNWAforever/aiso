@@ -99,6 +99,30 @@ cause is condition 2: the approver is also the submitter, and `can_decide` is
 correctly false. That is the branch `tests/e2e/authenticated/owner-review.spec.ts`
 exercised on 2026-09-11, when no second member could exist.
 
+**This step is now automated**, once the approver's own session is captured the
+same way the submitter's was:
+
+```bash
+PLAYWRIGHT_STORAGE_STATE=.auth/approver-state.json npm run e2e:auth:capture
+```
+
+Sign in as the address you invited in Step 1, not the administrator from Step 2
+or the original owner — signing in as the invited address is what consumes the
+invitation. Then, with **two** fresh, undecided submitted versions in place —
+one for each test below, since a decision is terminal and the two tests run in
+a fixed order within the same client:
+
+```bash
+npm run e2e:authenticated
+```
+
+`an approver operates the decision controls, on a phone` (in the same spec file)
+records a real approval and a real request-changes against those two versions,
+not just the controls' presence. Both versions must exist and be undecided
+*before* the run starts — the tests resolve to whichever undecided version is
+currently highest-numbered, deciding one at a time in a fixed (serial) order,
+so submitting only one version partway through the run will not work.
+
 ## Rolling back
 
 - Withdraw an invitation: **Settings → Members → Withdraw**. The row is revoked,
