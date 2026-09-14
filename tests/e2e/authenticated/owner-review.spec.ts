@@ -42,6 +42,58 @@ async function openFirstBrand(page: Page): Promise<string> {
   return new URL(page.url()).pathname.split('/')[3]!
 }
 
+/**
+ * Finds the first work item and opens its latest version — the same navigation
+ * `owner-review.spec.ts`'s own third test already proves, factored out so the
+ * approver tests do not repeat it. Works for any signed-in member of the
+ * account, owner or approver: both see the same client and the same items.
+ */
+async function openLatestSubmittedVersion(page: Page, clientId: string): Promise<void> {
+  const response = await page.request.get(`/api/clients/${clientId}/work-items`)
+  expect(response.ok(), `work-items answered ${response.status()} for an owned client`).toBe(true)
+  const items = (await response.json()).items ?? []
+  expect(
+    items.length,
+    'No work item exists to review. Create one (Opportunities -> draft -> submit a version), then re-run.',
+  ).toBeGreaterThan(0)
+
+  await page.goto(`/en/dashboard/${clientId}/work-items/${items[0].id}/versions`)
+  await expect(page.getByRole('main')).toBeVisible({ timeout: 15_000 })
+
+  // History has to be clicked: VersionWorkspace seeds `selected` from an
+  // `initialVersion` prop the page never passes, so on first paint no version
+  // is selected and the decision controls are not in the DOM yet.
+  const versions = page.getByRole('button', { name: /^Version \d+ ·/ })
+  expect(
+    await versions.count(),
+    'No submitted version to review. Submit one from the draft, then re-run.',
+  ).toBeGreaterThan(0)
+
+  await versions.first().click()
+  await expect(page.getByRole('region', { name: 'Immutable version details' })).toBeVisible({ timeout: 15_000 })
+}
+
+/**
+ * Fills and submits DecisionForm for real, rather than checking the controls
+ * are merely present. Fails with a specific, actionable message if the
+ * decision controls never rendered — the version could be already decided, or
+ * the invite/grant setup could be incomplete, and a bare "not visible" timeout
+ * would not tell an operator which.
+ */
+async function recordDecision(page: Page, decision: 'approved' | 'changes_requested', reason: string): Promise<void> {
+  const recordButton = page.getByRole('button', { name: 'Record decision', exact: true })
+  await expect(
+    recordButton,
+    'Decision controls did not render. Either this version is already decided, or the ' +
+      'invite/admin/approver setup in docs/runbooks/add-a-second-account-member.md is ' +
+      'incomplete — submit a fresh version, confirm the setup, then re-run.',
+  ).toBeVisible({ timeout: 15_000 })
+
+  await page.getByLabel('Decision', { exact: true }).selectOption(decision)
+  await page.getByLabel('Review reason', { exact: true }).fill(reason)
+  await recordButton.click()
+}
+
 test.describe('the owner journey on a phone', () => {
   test('Home leads with priorities and a single next action', async ({ authenticatedPage: page }) => {
     // The fixture has already proven the session by reaching /en/dashboard.
@@ -157,5 +209,21 @@ test.describe('the owner journey on a phone', () => {
       const box = await control.boundingBox()
       if (box) expect(box.height, 'a decision control smaller than a thumb').toBeGreaterThanOrEqual(40)
     }
+  })
+})
+
+test.describe('an approver operates the decision controls, on a phone', () => {
+  test('an approver can approve a real version', async ({ approverPage: page }) => {
+    const clientId = await openFirstBrand(page)
+    await openLatestSubmittedVersion(page, clientId)
+
+    await recordDecision(page, 'approved', 'Reviewed the retained evidence; approving.')
+
+    await expect(page.getByRole('status')).toContainText('Decision recorded.', { timeout: 15_000 })
+    await expect(page.getByRole('button', { name: 'Record decision', exact: true })).toHaveCount(0)
+
+    const details = page.getByRole('region', { name: 'Immutable version details' })
+    await expect(details).toContainText('Approved')
+    await expect(details).toContainText('Reviewed the retained evidence; approving.')
   })
 })
