@@ -99,9 +99,12 @@ async function recordDecision(page: Page, decision: 'approved' | 'changes_reques
   const recordButton = page.getByRole('button', { name: 'Record decision', exact: true })
   await expect(
     recordButton,
-    'Decision controls did not render. Either this version is already decided, or the ' +
+    'Decision controls did not render. Either this version is already decided, the ' +
       'invite/admin/approver setup in docs/runbooks/add-a-second-account-member.md is ' +
-      'incomplete — submit a fresh version, confirm the setup, then re-run.',
+      'incomplete, or a newer version has since been submitted — can_decide is permanently ' +
+      "scoped to a work item's current-latest version, so an older undecided version can " +
+      'never become decidable again regardless of setup. Follow the two-pass, filtered ' +
+      'procedure in that runbook (one fresh version per test), then re-run.',
   ).toBeVisible({ timeout: 15_000 })
 
   await page.getByLabel('Decision', { exact: true }).selectOption(decision)

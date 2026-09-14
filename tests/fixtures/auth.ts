@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { test as base, expect, type Page } from '@playwright/test'
+import { devices, test as base, expect, type Page } from '@playwright/test'
 
 /**
  * An authenticated page, or a loud refusal. Never an anonymous page.
@@ -83,7 +83,7 @@ export const test = base.extend<{ authenticatedPage: Page; approverPage: Page }>
   async approverPage({ browser }, provide) {
     if (!existsSync(resolve(process.cwd(), APPROVER_STATE_PATH))) throw new Error(APPROVER_REASON)
 
-    const context = await browser.newContext({ storageState: APPROVER_STATE_PATH })
+    const context = await browser.newContext({ ...devices['Pixel 5'], storageState: APPROVER_STATE_PATH })
     try {
       const page = await context.newPage()
       await page.goto('/en/dashboard')
