@@ -99,6 +99,42 @@ cause is condition 2: the approver is also the submitter, and `can_decide` is
 correctly false. That is the branch `tests/e2e/authenticated/owner-review.spec.ts`
 exercised on 2026-09-11, when no second member could exist.
 
+**This step is now automated**, once the approver's own session is captured the
+same way the submitter's was:
+
+```bash
+PLAYWRIGHT_STORAGE_STATE=.auth/approver-state.json npm run e2e:auth:capture
+```
+
+Sign in as the address you invited in Step 1, not the administrator from Step 2
+or the original owner — signing in as the invited address is what consumes the
+invitation.
+
+`an approver operates the decision controls, on a phone` (in the same spec file)
+records a real approval and a real request-changes, not just the controls'
+presence — but it needs **one submitted, undecided version at a time**, not two
+staged in advance. `can_decide` (`lib/change-sets/store.ts`) is scoped to a work
+item's single current-latest version, permanently: once a newer version is
+submitted, an older undecided one can never become decidable again, decided or
+not. So run the two tests in two separate passes, each against its own fresh
+version:
+
+```bash
+# 1. Submit one fresh version, then:
+npm run e2e:authenticated -- -g "an approver can approve a real version"
+
+# 2. Submit a second fresh version, then:
+npm run e2e:authenticated -- -g "an approver can request changes on a real version"
+```
+
+Running the whole suite with no filter still works for the 3 owner-journey
+tests above (they don't touch this precondition), and will still run both
+approver tests too — but only one of them can find a decidable version if two
+fresh versions were staged up front, so use the two-pass, filtered procedure
+above for a reliable result. Don't pass `--retries` to either command:
+`test.describe.configure({ mode: 'serial' })` retries the whole approver block
+together on failure, which can reassign which version each test decides.
+
 ## Rolling back
 
 - Withdraw an invitation: **Settings → Members → Withdraw**. The row is revoked,

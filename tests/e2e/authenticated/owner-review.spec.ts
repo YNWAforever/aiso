@@ -16,6 +16,12 @@ import { test, expect } from '../../fixtures/auth'
  *
  * These tests FAIL rather than skip when the data they need is absent. A skip
  * would return AC-14 to the state it just left: indistinguishable from a pass.
+ *
+ * Two describe blocks, two captured sessions: 'the owner journey on a phone' drives
+ * the submitter/owner's session (`authenticatedPage`), and 'an approver operates the
+ * decision controls, on a phone' drives a second, independent approver session
+ * (`approverPage`) — AC-14 is a two-person workflow, and only the second block can
+ * prove the approve and request-changes verbs a lone owner is correctly denied.
  */
 
 /**
@@ -40,6 +46,70 @@ async function openFirstBrand(page: Page): Promise<string> {
   await brand.click()
   await page.waitForURL(/\/en\/dashboard\/[^/]+/)
   return new URL(page.url()).pathname.split('/')[3]!
+}
+
+/**
+ * Finds the first work item and opens the highest-numbered UNDECIDED version —
+ * the same navigation `owner-review.spec.ts`'s own third test already proves,
+ * factored out so the approver tests do not repeat it. Matches the "Awaiting
+ * review" suffix specifically, not just "Version N ·": the list is
+ * newest-first, and every version's button carries that same "Version N ·"
+ * prefix regardless of its decision, so an unfiltered match would keep
+ * re-resolving to whichever version is numerically highest even after a prior
+ * test already decided it. Filtering to undecided is what lets two approver
+ * tests share one client without colliding on the same version — see
+ * `test.describe.configure({ mode: 'serial' })` below, which this depends on:
+ * without serial mode, two concurrent calls could still race for the same
+ * undecided version. Works for any signed-in member of the account, owner or
+ * approver: both see the same client and the same items.
+ */
+async function openLatestSubmittedVersion(page: Page, clientId: string): Promise<void> {
+  const response = await page.request.get(`/api/clients/${clientId}/work-items`)
+  expect(response.ok(), `work-items answered ${response.status()} for an owned client`).toBe(true)
+  const items = (await response.json()).items ?? []
+  expect(
+    items.length,
+    'No work item exists to review. Create one (Opportunities -> draft -> submit a version), then re-run.',
+  ).toBeGreaterThan(0)
+
+  await page.goto(`/en/dashboard/${clientId}/work-items/${items[0].id}/versions`)
+  await expect(page.getByRole('main')).toBeVisible({ timeout: 15_000 })
+
+  // History has to be clicked: VersionWorkspace seeds `selected` from an
+  // `initialVersion` prop the page never passes, so on first paint no version
+  // is selected and the decision controls are not in the DOM yet.
+  const versions = page.getByRole('button', { name: /^Version \d+ · Awaiting review$/ })
+  expect(
+    await versions.count(),
+    'No submitted version to review. Submit one from the draft, then re-run.',
+  ).toBeGreaterThan(0)
+
+  await versions.first().click()
+  await expect(page.getByRole('region', { name: 'Immutable version details' })).toBeVisible({ timeout: 15_000 })
+}
+
+/**
+ * Fills and submits DecisionForm for real, rather than checking the controls
+ * are merely present. Fails with a specific, actionable message if the
+ * decision controls never rendered — the version could be already decided, or
+ * the invite/grant setup could be incomplete, and a bare "not visible" timeout
+ * would not tell an operator which.
+ */
+async function recordDecision(page: Page, decision: 'approved' | 'changes_requested', reason: string): Promise<void> {
+  const recordButton = page.getByRole('button', { name: 'Record decision', exact: true })
+  await expect(
+    recordButton,
+    'Decision controls did not render. Either this version is already decided, the ' +
+      'invite/admin/approver setup in docs/runbooks/add-a-second-account-member.md is ' +
+      'incomplete, or a newer version has since been submitted — can_decide is permanently ' +
+      "scoped to a work item's current-latest version, so an older undecided version can " +
+      'never become decidable again regardless of setup. Follow the two-pass, filtered ' +
+      'procedure in that runbook (one fresh version per test), then re-run.',
+  ).toBeVisible({ timeout: 15_000 })
+
+  await page.getByLabel('Decision', { exact: true }).selectOption(decision)
+  await page.getByLabel('Review reason', { exact: true }).fill(reason)
+  await recordButton.click()
 }
 
 test.describe('the owner journey on a phone', () => {
@@ -157,5 +227,42 @@ test.describe('the owner journey on a phone', () => {
       const box = await control.boundingBox()
       if (box) expect(box.height, 'a decision control smaller than a thumb').toBeGreaterThanOrEqual(40)
     }
+  })
+})
+
+test.describe('an approver operates the decision controls, on a phone', () => {
+  // Both tests below call openLatestSubmittedVersion against the same client,
+  // which now resolves to whichever undecided version is currently
+  // highest-numbered. Serial mode is what stops two concurrent instances of
+  // this file's `fullyParallel: true` (playwright.config.ts) from racing to
+  // claim that same version at once.
+  test.describe.configure({ mode: 'serial' })
+
+  test('an approver can approve a real version', async ({ approverPage: page }) => {
+    const clientId = await openFirstBrand(page)
+    await openLatestSubmittedVersion(page, clientId)
+
+    await recordDecision(page, 'approved', 'Reviewed the retained evidence; approving.')
+
+    await expect(page.getByRole('status')).toContainText('Decision recorded.', { timeout: 15_000 })
+    await expect(page.getByRole('button', { name: 'Record decision', exact: true })).toHaveCount(0)
+
+    const details = page.getByRole('region', { name: 'Immutable version details' })
+    await expect(details).toContainText('Approved')
+    await expect(details).toContainText('Reviewed the retained evidence; approving.')
+  })
+
+  test('an approver can request changes on a real version', async ({ approverPage: page }) => {
+    const clientId = await openFirstBrand(page)
+    await openLatestSubmittedVersion(page, clientId)
+
+    await recordDecision(page, 'changes_requested', 'Please address the noted evidence gap before resubmitting.')
+
+    await expect(page.getByRole('status')).toContainText('Decision recorded.', { timeout: 15_000 })
+    await expect(page.getByRole('button', { name: 'Record decision', exact: true })).toHaveCount(0)
+
+    const details = page.getByRole('region', { name: 'Immutable version details' })
+    await expect(details).toContainText('Changes requested')
+    await expect(details).toContainText('Please address the noted evidence gap before resubmitting.')
   })
 })
