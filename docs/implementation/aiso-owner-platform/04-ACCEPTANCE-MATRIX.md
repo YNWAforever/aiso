@@ -1,6 +1,6 @@
 # 04 — Acceptance matrix
 
-AC-01 … AC-15 from the implementation plan, against this branch on **2026-09-10**.
+AC-01 … AC-15 from the implementation plan, against this branch on **2026-09-16**.
 
 `PASS / FAIL / PARTIAL / BLOCKED / DEFERRED` describes what was **executed**. It is a
 different axis from `Verified / Inferred / Blocked`, which describes how strong the
@@ -56,19 +56,28 @@ owner journey against a database. **CI therefore still proves nothing about AC-1
 
 | Status | Count | Rows |
 |---|---|---|
-| PASS | 8 | AC-02, AC-04, AC-05, AC-07, AC-08, AC-09, AC-10, AC-13 |
-| PARTIAL | 7 | AC-01, AC-03, AC-06, AC-11, AC-12, AC-14, AC-15 |
+| PASS | 9 | AC-02, AC-03, AC-04, AC-05, AC-07, AC-08, AC-09, AC-10, AC-13 |
+| PARTIAL | 6 | AC-01, AC-06, AC-11, AC-12, AC-14, AC-15 |
 | BLOCKED | 0 | — |
 | DEFERRED | 0 | — |
 | FAIL | 0 | — |
 
-No row is BLOCKED as of 2026-09-11. AC-14 was the last one, and it moved to
-PARTIAL rather than PASS on purpose: its journey now runs green against a real
-session and database, but the captured owner is the submitter of the version
-under review, so the spec exercises the separation-of-duties **denial** and not
-the approve or request-changes verbs. CI still runs the Pixel-5 project under
-`E2E_FIXTURE_MODE`; the green journey above is a developer-machine run, and the
-`authenticated-mobile` project exists only where a captured session file does.
+No row is BLOCKED — see §3 for how the earlier blockers were resolved. AC-03 is
+the row whose status changed this refresh: PR #44 closed both gaps it had named,
+single-use claim-replay consumption and real domain-ownership verification,
+moving it from PARTIAL to PASS. AC-14 stays PARTIAL, but not for the reason this
+paragraph previously gave: PR #49 added `approverPage`, a second captured-session
+fixture, and two new tests in `tests/e2e/authenticated/owner-review.spec.ts` that
+drive the approve and request-changes controls for real, so the product can now
+produce and exercise a second approver rather than merely having a schema that
+would permit one. What remains is a human running that two-pass procedure
+(`docs/runbooks/add-a-second-account-member.md`'s Step 4) against two real
+captured sessions and a live database — the row reaches PASS when that run is
+green and recorded here, not before. CI still runs the Pixel-5 project under
+`E2E_FIXTURE_MODE`, where `getProfile()` returns null and every authenticated
+route denies; the green owner-review runs described under AC-14 are
+developer-machine runs against a real database with a captured session, and the
+`authenticated-mobile` project exists only where that capture does.
 
 **No row is marked PASS on the strength of a build succeeding.** A green build proves
 neither runtime, provider nor database readiness.
