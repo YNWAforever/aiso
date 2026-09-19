@@ -36,7 +36,7 @@ function productButtons(page: Page) {
   return page.locator('button:not(nextjs-portal button)')
 }
 
-async function openFirstBrand(page: Page): Promise<string> {
+async function openFirstBrand(page: Page, lang: 'en' | 'zh-HK' = 'en'): Promise<string> {
   const brand = page.getByRole('link', { name: /dashboard\/|brand/i }).first()
   expect(
     await brand.count(),
@@ -44,7 +44,7 @@ async function openFirstBrand(page: Page): Promise<string> {
   ).toBeGreaterThan(0)
 
   await brand.click()
-  await page.waitForURL(/\/en\/dashboard\/[^/]+/)
+  await page.waitForURL(new RegExp(`/${lang}/dashboard/[^/]+`))
   return new URL(page.url()).pathname.split('/')[3]!
 }
 
@@ -227,6 +227,48 @@ test.describe('the owner journey on a phone', () => {
       const box = await control.boundingBox()
       if (box) expect(box.height, 'a decision control smaller than a thumb').toBeGreaterThanOrEqual(40)
     }
+  })
+
+  test('Home, approved facts and a submitted version render correctly in Traditional Chinese', async ({ authenticatedPage: page }) => {
+    // The fixture proves the session via /en/dashboard. Locale here is pure
+    // URL-path routing (next-intl), independent of the session cookie, so
+    // navigating to /zh-HK/ with the same captured session is enough — no
+    // second capture needed.
+    await page.goto('/zh-HK/dashboard')
+    const clientId = await openFirstBrand(page, 'zh-HK')
+
+    const priorities = page.locator('section[aria-labelledby="priorities-heading"]')
+    await expect(priorities).toContainText('今日先做這三項')
+
+    await page.goto(`/zh-HK/dashboard/${clientId}/sources`)
+    const sourcesMain = page.getByRole('main')
+    await expect(sourcesMain).toContainText('必須同時符合三項條件才會被引用', { timeout: 15_000 })
+    await expect(sourcesMain).toContainText('這些是匯入，不是連線')
+
+    const response = await page.request.get(`/api/clients/${clientId}/work-items`)
+    expect(response.ok(), `work-items answered ${response.status()} for an owned client`).toBe(true)
+    const items = (await response.json()).items ?? []
+    expect(
+      items.length,
+      'No work item exists to review. Create one (Opportunities -> draft -> submit a version), then re-run.',
+    ).toBeGreaterThan(0)
+
+    await page.goto(`/zh-HK/dashboard/${clientId}/work-items/${items[0].id}/versions`)
+    await expect(page.getByRole('main')).toBeVisible({ timeout: 15_000 })
+
+    const versions = page.getByRole('button', { name: /^Version \d+ ·/ })
+    expect(
+      await versions.count(),
+      'No submitted version to review. Submit one from the draft, then re-run.',
+    ).toBeGreaterThan(0)
+
+    await versions.first().click()
+
+    // The zh-HK translation of "Immutable version details" — this region's
+    // accessible name is itself translated, so the English string this file's
+    // other tests use will never match here.
+    const details = page.getByRole('region', { name: '不可更改的版本詳情' })
+    await expect(details).toBeVisible({ timeout: 15_000 })
   })
 })
 
