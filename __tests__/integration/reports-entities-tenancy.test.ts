@@ -69,9 +69,13 @@ beforeEach(async () => {
   for (const [account, client, domain, user] of [
     [A, A_CLIENT, A_DOMAIN, A_USER], [B, B_CLIENT, 'tenant-b-c13.example', B_USER],
   ]) {
+    // The subscription id is the whole uuid, not a suffix: every integration
+    // file shares one branch, and stripe_subscription_id is unique
+    // account-wide, so a short suffix collides with another suite's fixture
+    // that happens to end the same way.
     await sql`
       insert into accounts (id, plan, status, stripe_subscription_id)
-      values (${account}::uuid, 'pro', 'active', ${'sub_' + account.slice(-4)})
+      values (${account}::uuid, 'pro', 'active', ${'sub_' + account})
     `
     // Real members: branding (027) and verification tokens (053) record their
     // actor through a composite FK to profiles(id, account_id).
