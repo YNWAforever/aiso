@@ -1,6 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { neon } from '@neondatabase/serverless'
+import { assertApprovedTarget } from './approved-target'
+import {
+  TENANCY_TARGET_VARIABLES,
+  approvedTenancyTarget,
+  assertDisposableTenancyTarget,
+} from './tenancy-target'
 import { runAlertEvaluation, type AlertEmailInput } from '@/lib/alerts/evaluate'
 import { createNeonAlertStore } from '@/lib/alerts/neon-store'
 
@@ -34,7 +40,9 @@ const sql = neon(process.env.TEST_DATABASE_URL!)
  *
  * Plus the one genuinely session-scoped surface, the alerts config route.
  *
- * Fixtures are keyed to this file; setup.ts shares one branch across the run.
+ * Run through scripts/ci/run-exact-target-suites.mjs, which provisions one
+ * disposable branch for every exact-target suite and derives this suite's
+ * C9F_TENANCY_* approval from it. Fixtures are keyed to this file.
  */
 
 const A = 'c1400000-0000-4000-8000-00000000000a'
@@ -125,6 +133,19 @@ beforeEach(async () => {
       values (${client}::uuid, ${week}::date, null, 10, 1, ${sov})
     `
   }
+})
+
+/**
+ * This suite deletes rows, so it refuses to run anywhere but the disposable
+ * branch approved for this run — the same discipline the five older
+ * exact-target suites carry. `assertApprovedTarget` turns an unconfigured run
+ * into one loud failure instead of a silent skip; the in-band check then asks
+ * the connected database whether it really is that branch.
+ */
+beforeAll(async () => {
+  const target = approvedTenancyTarget()
+  assertApprovedTarget(target, TENANCY_TARGET_VARIABLES)
+  await assertDisposableTenancyTarget(sql, target!)
 })
 
 describe('alert evaluation across two accounts, on real rows', () => {

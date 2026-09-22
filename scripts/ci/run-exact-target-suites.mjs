@@ -47,6 +47,15 @@ export const EXACT_TARGET_CONFIGS = [
   'vitest.change-sets-integration.config.ts',
   'vitest.change-set-stores-integration.config.ts',
   'vitest.delivery-integration.config.ts',
+  // The four cross-account tenancy suites. They ran in the default integration
+  // project, which provisioned their branch for them — safe by ownership of the
+  // config rather than by anything they checked. Moved here so they carry the
+  // same in-band approval as the five above, and moved rather than added: the
+  // integration project excludes them now, so nothing runs them twice.
+  'vitest.first-run-journey-integration.config.ts',
+  'vitest.feature-store-tenancy-integration.config.ts',
+  'vitest.reports-entities-tenancy-integration.config.ts',
+  'vitest.alerts-agents-tenancy-integration.config.ts',
 ]
 
 const REPORT_DIR = join('artifacts', 'exact-target')
@@ -109,6 +118,12 @@ function suiteEnv(branch, appUrl) {
     // A refusal list, not a selector. The real parent, so the suite rejects it by
     // identity — a guessed value there would protect nothing.
     C9E_PARENT_BRANCH_ID: branch.parentId,
+
+    // One set for all four tenancy suites: they are one approval, and four
+    // copies of the same three names would only invite three of them to drift.
+    C9F_TENANCY_DISPOSABLE_BRANCH_ID: branch.id,
+    C9F_TENANCY_PROJECT_ID: PROJECT_ID,
+    C9F_TENANCY_OWNER_ROLE: OWNER_ROLE,
   }
 }
 
