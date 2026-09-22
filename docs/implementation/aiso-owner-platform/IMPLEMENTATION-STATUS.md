@@ -43,7 +43,7 @@ source traceability verified. See `00-BASELINE-AND-GAPS.md`.
 | `npm run lint` | 0 | 0 errors, 0 warnings |
 | `npm run test:unit` | 0 | **299 files / 4160 tests, 0 skipped** (baseline 284 / 3714) |
 | `npm test` | 0 | unit as above **plus 11 integration files / 92 tests**, against a disposable Neon branch that was provisioned, migrated through all 44 files and deleted. No skip banner printed. |
-| five owner-loop integration configs | 0 | **5 files / 117 tests passed** via `node scripts/ci/run-exact-target-suites.mjs`, which provisions and destroys its own disposable branch with all 46 migrations applied — composite-FK tenancy, append-only GRANT posture, and the app role’s inability to UPDATE or DELETE history. 105s wall clock. |
+| nine exact-target integration configs | 0 | **9 files / 156 tests passed** via `node scripts/ci/run-exact-target-suites.mjs`, which provisions and destroys its own disposable branch with all 46 migrations applied — composite-FK tenancy, append-only GRANT posture, and the app role’s inability to UPDATE or DELETE history. 105s wall clock. |
 | CI `PR gate` (#21) | success | all 10 jobs: `static`, `unit-contract`, `integration`, `e2e-accessibility` ×4, `build`, `cloudflare-worker`, `pr-gate` |
 | `npm run e2e` locally | — | not run. CI runs it, but under `E2E_FIXTURE_MODE` against a fixture DSN, so no authenticated owner journey is exercised anywhere yet |
 

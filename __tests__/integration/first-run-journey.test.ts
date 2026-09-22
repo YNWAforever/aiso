@@ -1,7 +1,13 @@
 import { randomUUID } from 'node:crypto'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { neon } from '@neondatabase/serverless'
+import { assertApprovedTarget } from './approved-target'
+import {
+  TENANCY_TARGET_VARIABLES,
+  approvedTenancyTarget,
+  assertDisposableTenancyTarget,
+} from './tenancy-target'
 import { provisionAccountForUser } from '@/app/api/webhooks/neon/route'
 import { CLAIM_INTENT_COOKIE, signScanClaimIntent } from '@/lib/security/scan-claim-intent'
 import { buildScanEvidence, describeEvidenceUrl, CHECK_VERSIONS, type EvidenceCheckKey } from '@/lib/scan-evidence'
@@ -44,7 +50,9 @@ const sql = neon(process.env.TEST_DATABASE_URL!)
  * Not covered: the browser. CI's E2E runs under E2E_FIXTURE_MODE with
  * getProfile() null, so this is the deepest the journey goes in CI.
  *
- * Fixtures are keyed to this file; setup.ts shares one branch across the run.
+ * Run through scripts/ci/run-exact-target-suites.mjs, which provisions one
+ * disposable branch for every exact-target suite and derives this suite's
+ * C9F_TENANCY_* approval from it. Fixtures are keyed to this file.
  */
 
 const USER = 'c1000000-0000-4000-8000-000000000001'
@@ -146,6 +154,19 @@ beforeEach(async () => {
     values (${SCAN}::uuid, 'https://first-run.example', 'first-run.example', 41,
       ${JSON.stringify({ evidence: evidence() })}::jsonb, null)
   `
+})
+
+/**
+ * This suite deletes rows, so it refuses to run anywhere but the disposable
+ * branch approved for this run — the same discipline the five older
+ * exact-target suites carry. `assertApprovedTarget` turns an unconfigured run
+ * into one loud failure instead of a silent skip; the in-band check then asks
+ * the connected database whether it really is that branch.
+ */
+beforeAll(async () => {
+  const target = approvedTenancyTarget()
+  assertApprovedTarget(target, TENANCY_TARGET_VARIABLES)
+  await assertDisposableTenancyTarget(sql, target!)
 })
 
 describe('AC-01: the first-run journey on real rows', () => {
