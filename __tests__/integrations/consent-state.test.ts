@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { signConsentState, verifyConsentState } from '@/lib/integrations/google/consent-state'
+import { CONSENT_TTL_MS, signConsentState, verifyConsentState } from '@/lib/integrations/google/consent-state'
 
 const input = {
   state: 'a'.repeat(43),
@@ -43,5 +43,41 @@ describe('consent state cookie', () => {
   it('accepts a brand dashboard return path', () => {
     const returnPath = '/zh-HK/dashboard/22222222-2222-4222-8222-222222222222/assets'
     expect(verifyConsentState(signConsentState({ ...input, returnPath }))?.returnPath).toBe(returnPath)
+  })
+
+  it('expires exactly at the TTL boundary', () => {
+    const now = 1_000_000
+    expect(verifyConsentState(signConsentState(input, now), now + CONSENT_TTL_MS)).toBeNull()
+  })
+
+  it('rejects a token with three dot-separated segments', () => {
+    const token = signConsentState(input)
+    expect(verifyConsentState(`${token}.extra`)).toBeNull()
+  })
+
+  it('rejects a signature containing an invalid character', () => {
+    const [payload] = signConsentState(input).split('.')
+    const badSignature = `!${'a'.repeat(42)}`
+    expect(verifyConsentState(`${payload}.${badSignature}`)).toBeNull()
+  })
+
+  it('refuses to sign a state containing a colon', () => {
+    expect(() => signConsentState({ ...input, state: `${'a'.repeat(41)}:` })).toThrow()
+  })
+
+  it('refuses to sign a non-UUID accountId', () => {
+    expect(() => signConsentState({ ...input, accountId: 'not-a-uuid' })).toThrow()
+  })
+
+  it('rejects a payload whose colon-joined fields were rewritten across the state/verifier boundary', () => {
+    const colonInput = { ...input, state: 'A'.repeat(40), verifier: 'B'.repeat(50) }
+    const [payload, sig] = signConsentState(colonInput).split('.')
+    const original = JSON.parse(Buffer.from(payload!, 'base64url').toString())
+    const forged = Buffer.from(JSON.stringify({
+      ...original,
+      state: 'A'.repeat(41),
+      verifier: 'B'.repeat(49),
+    })).toString('base64url')
+    expect(verifyConsentState(`${forged}.${sig}`)).toBeNull()
   })
 })

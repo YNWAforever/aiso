@@ -22,7 +22,7 @@ export type ConsentState = {
 }
 
 const DOMAIN = 'aiso-google-consent:v1'
-const SIGNATURE_LENGTH = 43
+const SIGNATURE = /^[A-Za-z0-9_-]{43}$/
 
 function canonical(p: ConsentState): string {
   return [DOMAIN, p.state, p.verifier, p.profileId, p.accountId, p.returnPath, p.exp].join(':')
@@ -32,13 +32,16 @@ function sign(p: ConsentState): string {
   return createHmac('sha256', shareSigningSecret()).update(canonical(p)).digest('base64url')
 }
 
+const BASE64URL = /^[A-Za-z0-9_-]+$/
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 function isValid(value: unknown): value is ConsentState {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
   const v = value as Record<string, unknown>
-  return typeof v.state === 'string' && v.state.length >= 32
-    && typeof v.verifier === 'string' && v.verifier.length >= 43
-    && typeof v.profileId === 'string' && v.profileId.length > 0
-    && typeof v.accountId === 'string' && v.accountId.length > 0
+  return typeof v.state === 'string' && v.state.length >= 32 && BASE64URL.test(v.state)
+    && typeof v.verifier === 'string' && v.verifier.length >= 43 && BASE64URL.test(v.verifier)
+    && typeof v.profileId === 'string' && UUID.test(v.profileId)
+    && typeof v.accountId === 'string' && UUID.test(v.accountId)
     && typeof v.returnPath === 'string' && RETURN_PATH.test(v.returnPath)
     && typeof v.exp === 'number' && Number.isSafeInteger(v.exp)
 }
@@ -52,7 +55,7 @@ export function signConsentState(input: Omit<ConsentState, 'exp'>, nowMs = Date.
 export function verifyConsentState(token: string | undefined, nowMs = Date.now()): ConsentState | null {
   if (!token) return null
   const [encoded, signature, ...rest] = token.split('.')
-  if (!encoded || !signature || rest.length || signature.length !== SIGNATURE_LENGTH) return null
+  if (!encoded || !signature || rest.length || !SIGNATURE.test(signature)) return null
   let payload: unknown
   try {
     payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'))
