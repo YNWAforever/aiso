@@ -46,6 +46,16 @@ describe('propertyEligibility', () => {
       .toEqual({ eligible: false, reason: 'other_domain' })
   })
 
+  it('refuses a URL-prefix property pinned to an explicit non-default port', () => {
+    expect(propertyEligibility('https://example.com:8080/', owner, 'example.com'))
+      .toEqual({ eligible: false, reason: 'other_domain' })
+  })
+
+  it('accepts a URL-prefix property with the explicit default port', () => {
+    expect(propertyEligibility('https://example.com:443/', owner, 'example.com'))
+      .toEqual({ eligible: true })
+  })
+
   it('refuses unverified access even on the right property', () => {
     expect(propertyEligibility('sc-domain:example.com', 'siteUnverifiedUser', 'example.com'))
       .toEqual({ eligible: false, reason: 'unverified' })

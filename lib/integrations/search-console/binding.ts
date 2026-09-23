@@ -3,8 +3,9 @@
  *
  * A brand must never show another site's search data under its name, so the
  * property must cover the brand's own domain and the login must hold verified
- * access. A URL-prefix property scoped to a path reports on part of the site
- * only, and presenting it as the brand's performance would overstate it.
+ * access. A URL-prefix property scoped to a path, or pinned to an explicit
+ * non-default port, reports on part of the site only, and presenting it as
+ * the brand's performance would overstate it.
  */
 
 export type BindingReason = 'no_domain' | 'other_domain' | 'unverified'
@@ -39,7 +40,7 @@ function coverage(siteUrl: string): { host: string; subdomains: boolean } | null
   } catch {
     return null
   }
-  if (url.pathname !== '/' || url.search || url.hash) return null
+  if (url.pathname !== '/' || url.search || url.hash || url.port !== '') return null
   const host = normalizeBrandDomain(url.hostname)
   return host ? { host, subdomains: false } : null
 }
