@@ -84,6 +84,7 @@ export async function upsertConnection(input: {
       token_ciphertext = excluded.token_ciphertext,
       token_key_id = excluded.token_key_id,
       status = 'active',
+      connected_by = excluded.connected_by,
       updated_at = now()
     returning id
   `
@@ -141,14 +142,14 @@ export async function markConnection(accountId: string, connectionId: string, st
 /** Unbinds every brand on the connection and deletes the credential, atomically. */
 export async function revokeConnectionRow(accountId: string, connectionId: string): Promise<boolean> {
   const sql = db()
-  const [, revoked] = await sql.transaction([
-    sql`delete from search_console_bindings where account_id = ${accountId} and connection_id = ${connectionId}`,
+  const [revoked] = await sql.transaction([
     sql`
       update google_connections
       set status = 'revoked', token_ciphertext = null, token_key_id = null, updated_at = now()
       where account_id = ${accountId} and id = ${connectionId}
       returning id
     `,
+    sql`delete from search_console_bindings where account_id = ${accountId} and connection_id = ${connectionId}`,
   ])
   return (revoked as unknown[]).length > 0
 }
@@ -175,6 +176,7 @@ export async function bindProperty(input: {
     from clients c
     join google_connections g on g.id = ${input.connectionId} and g.account_id = c.account_id and g.status = 'active'
     where c.id = ${input.clientId} and c.account_id = ${input.accountId}
+    for share of g
     on conflict (account_id, client_id) do update set
       connection_id = excluded.connection_id,
       site_url = excluded.site_url,
@@ -232,7 +234,12 @@ export async function loadDueBindings(limit: number): Promise<DueBinding[]> {
   const sql = db()
   const rows = await sql`
     select b.account_id, b.client_id, b.connection_id, b.site_url, b.bound_domain, b.backfill_pending,
-           c.domain as current_domain, to_jsonb(a) as account, last_run.ran_at as last_ran
+           c.domain as current_domain,
+           jsonb_build_object(
+             'plan', a.plan, 'status', a.status, 'stripe_subscription_id', a.stripe_subscription_id,
+             'trial_ends_at', a.trial_ends_at, 'override_plan', a.override_plan,
+             'override_expires_at', a.override_expires_at
+           ) as account
     from search_console_bindings b
     join google_connections g on g.id = b.connection_id and g.account_id = b.account_id
     join clients c on c.id = b.client_id and c.account_id = b.account_id
@@ -263,7 +270,7 @@ export async function listSyncPages(accountId: string, clientId: string, cap: nu
   const sql = db()
   const rows = await sql`
     select url from client_assets
-    where account_id = ${accountId} and client_id = ${clientId}
+    where account_id = ${accountId} and client_id = ${clientId} and char_length(url) <= 2048
     order by created_at, id
     limit ${cap}
   `
@@ -334,6 +341,8 @@ export async function writePageQueries(
 export async function recordRun(input: {
   accountId: string
   clientId: string
+  siteUrl: string
+  connectionId: string
   outcome: SyncOutcome
   rowsWritten: number
   dataThrough: string | null
@@ -347,7 +356,8 @@ export async function recordRun(input: {
     `,
     sql`
       update search_console_bindings set backfill_pending = false
-      where account_id = ${input.accountId} and client_id = ${input.clientId} and ${input.clearBackfill}::boolean
+      where account_id = ${input.accountId} and client_id = ${input.clientId}
+        and site_url = ${input.siteUrl} and connection_id = ${input.connectionId} and ${input.clearBackfill}::boolean
     `,
   ])
 }
@@ -386,7 +396,7 @@ export async function loadPanelData(accountId: string, clientId: string): Promis
       group by scope, page_url
       order by scope, page_url
     `,
-  ])
+  ], { isolationLevel: 'RepeatableRead', readOnly: true })
   const run = (runs as Array<Record<string, unknown>>)[0]
   const all = totals as Array<Record<string, unknown>>
   const metric = (r: Record<string, unknown>): MetricTotals => ({
