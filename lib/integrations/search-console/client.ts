@@ -12,6 +12,15 @@ import { GOOGLE_TIMEOUT_MS, GoogleApiError, type GoogleFailure, type GoogleFetch
 
 const BASE = 'https://www.googleapis.com/webmasters/v3'
 
+/** Rows requested per Search Analytics page, and the default overall page size when the caller sets none. */
+export const ROW_LIMIT = 25_000
+/**
+ * Worst-case page count for one query. 200k rows is far beyond what the sync
+ * ever keeps (top 25 per date, spec §4.3) — this bounds runtime for a
+ * pathological property rather than expecting to reach it in practice.
+ */
+export const MAX_PAGES = 8
+
 export type SiteEntry = { siteUrl: string; permissionLevel: string }
 export type AnalyticsDimension = 'date' | 'page' | 'query'
 export type AnalyticsQuery = {
@@ -22,6 +31,10 @@ export type AnalyticsQuery = {
   rowLimit?: number
 }
 export type AnalyticsRow = { keys: string[]; clicks: number; impressions: number; ctr: number; position: number }
+
+function isRecord(x: unknown): x is Record<string, unknown> {
+  return typeof x === 'object' && x !== null
+}
 
 const QUOTA_REASONS = new Set(['rateLimitExceeded', 'userRateLimitExceeded', 'quotaExceeded', 'RATE_LIMIT_EXCEEDED'])
 const MISCONFIGURED_REASONS = new Set(['SERVICE_DISABLED', 'accessNotConfigured'])
@@ -102,17 +115,49 @@ export async function listSites(accessToken: string, f: GoogleFetch = fetch): Pr
   const body = await call(`${BASE}/sites`, accessToken, f)
   const entries = Array.isArray(body.siteEntry) ? body.siteEntry as unknown[] : []
   return entries.flatMap(e => {
-    const entry = e as Partial<SiteEntry>
-    return typeof entry.siteUrl === 'string' && typeof entry.permissionLevel === 'string'
-      ? [{ siteUrl: entry.siteUrl, permissionLevel: entry.permissionLevel }]
+    if (!isRecord(e)) return []
+    return typeof e.siteUrl === 'string' && typeof e.permissionLevel === 'string'
+      ? [{ siteUrl: e.siteUrl, permissionLevel: e.permissionLevel }]
       : []
   })
+}
+
+/**
+ * A row Google cannot be trusted to have sent cleanly is refused rather than
+ * coerced: retrying tomorrow is honest, inventing zeros or NaN for a
+ * malformed metric is not.
+ */
+function malformedRows(): GoogleApiError {
+  return new GoogleApiError('unavailable', 200, 'malformed_rows')
+}
+
+function toAnalyticsRow(r: unknown): AnalyticsRow {
+  if (!isRecord(r) || !Array.isArray(r.keys)) throw malformedRows()
+  const metric = (v: unknown): number => {
+    if (v === undefined) return 0
+    const n = Number(v)
+    if (!Number.isFinite(n)) throw malformedRows()
+    return n
+  }
+  return {
+    keys: r.keys.map(String),
+    clicks: metric(r.clicks),
+    impressions: metric(r.impressions),
+    ctr: metric(r.ctr),
+    position: metric(r.position),
+  }
 }
 
 /**
  * `dataState: 'all'` includes days Google has not finalised. Those values can
  * change, which is why a routine sync re-fetches the last seven days and the
  * store overwrites them (spec §4.3).
+ *
+ * Pages through `startRow` until a page returns fewer than `rowLimit` rows,
+ * capped at MAX_PAGES. 200k rows for one query's date+query breakdown is
+ * beyond what the sync ever keeps (top 25 per date) — reaching the cap on a
+ * still-full page is a deliberate bound on runtime, not an error, so it
+ * returns what was collected rather than throwing.
  */
 export async function querySearchAnalytics(
   accessToken: string,
@@ -120,28 +165,29 @@ export async function querySearchAnalytics(
   q: AnalyticsQuery,
   f: GoogleFetch = fetch,
 ): Promise<AnalyticsRow[]> {
-  const body = await call(`${BASE}/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, accessToken, f, {
-    method: 'POST',
-    body: JSON.stringify({
-      startDate: q.startDate,
-      endDate: q.endDate,
-      dimensions: q.dimensions,
-      dataState: 'all',
-      rowLimit: q.rowLimit ?? 25_000,
-      ...(q.pageEquals
-        ? { dimensionFilterGroups: [{ filters: [{ dimension: 'page', operator: 'equals', expression: q.pageEquals }] }] }
-        : {}),
-    }),
-  })
-  const rows = Array.isArray(body.rows) ? body.rows as unknown[] : []
-  return rows.map(r => {
-    const row = r as Partial<AnalyticsRow>
-    return {
-      keys: Array.isArray(row.keys) ? row.keys.map(String) : [],
-      clicks: Number(row.clicks ?? 0),
-      impressions: Number(row.impressions ?? 0),
-      ctr: Number(row.ctr ?? 0),
-      position: Number(row.position ?? 0),
-    }
-  })
+  const pageSize = q.rowLimit ?? ROW_LIMIT
+  const url = `${BASE}/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`
+  const rows: AnalyticsRow[] = []
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const startRow = page * pageSize
+    const body = await call(url, accessToken, f, {
+      method: 'POST',
+      body: JSON.stringify({
+        startDate: q.startDate,
+        endDate: q.endDate,
+        dimensions: q.dimensions,
+        dataState: 'all',
+        rowLimit: pageSize,
+        startRow,
+        ...(q.pageEquals
+          ? { dimensionFilterGroups: [{ filters: [{ dimension: 'page', operator: 'equals', expression: q.pageEquals }] }] }
+          : {}),
+      }),
+    })
+    const rawRows = Array.isArray(body.rows) ? body.rows as unknown[] : []
+    const pageRows = rawRows.map(toAnalyticsRow)
+    rows.push(...pageRows)
+    if (pageRows.length < pageSize) break
+  }
+  return rows
 }
