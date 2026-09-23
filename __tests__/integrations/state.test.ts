@@ -20,7 +20,6 @@ describe('deriveOwnerState', () => {
   })
 
   it.each([
-    ['revoked', 'reconnect'],
     ['access_lost', 'access_lost'],
     ['google_unavailable', 'retrying'],
     ['quota', 'retrying'],
@@ -31,6 +30,49 @@ describe('deriveOwnerState', () => {
   ] as const)('maps a %s run to %s, keeping the last good date', (outcome, kind) => {
     expect(deriveOwnerState({ ...base, latest: { outcome, dataThrough: null }, lastGoodDataThrough: '2026-09-18' }))
       .toEqual({ kind, dataThrough: '2026-09-18' })
+  })
+
+  it('does not re-ask a reconnected owner to reconnect over a stale revoked run', () => {
+    expect(deriveOwnerState({
+      ...base,
+      connectionStatus: 'active',
+      latest: { outcome: 'revoked', dataThrough: null },
+      lastGoodDataThrough: '2026-09-18',
+    })).toEqual({ kind: 'synced', dataThrough: '2026-09-18' })
+  })
+
+  it('awaits the first sync when a stale revoked run has no last good date either', () => {
+    expect(deriveOwnerState({
+      ...base,
+      connectionStatus: 'active',
+      latest: { outcome: 'revoked', dataThrough: null },
+      lastGoodDataThrough: null,
+    })).toEqual({ kind: 'awaiting_first_sync' })
+  })
+
+  it('still asks to reconnect for a revoked run while the connection needs it', () => {
+    expect(deriveOwnerState({
+      ...base,
+      connectionStatus: 'needs_reconnect',
+      latest: { outcome: 'revoked', dataThrough: null },
+      lastGoodDataThrough: '2026-09-18',
+    })).toEqual({ kind: 'reconnect', dataThrough: '2026-09-18' })
+  })
+
+  it('shows synced with the last good date when the latest ok run recorded no date', () => {
+    expect(deriveOwnerState({
+      ...base,
+      latest: { outcome: 'ok', dataThrough: null },
+      lastGoodDataThrough: '2026-09-18',
+    })).toEqual({ kind: 'synced', dataThrough: '2026-09-18' })
+  })
+
+  it('awaits the first sync when an ok run and last good date are both absent', () => {
+    expect(deriveOwnerState({
+      ...base,
+      latest: { outcome: 'ok', dataThrough: null },
+      lastGoodDataThrough: null,
+    })).toEqual({ kind: 'awaiting_first_sync' })
   })
 
   it('says the plan lapsed even when the last run was fine', () => {

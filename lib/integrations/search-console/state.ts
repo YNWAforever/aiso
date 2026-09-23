@@ -29,6 +29,11 @@ export type OwnerStateInput = {
 }
 
 const BY_OUTCOME: Record<Exclude<SyncOutcome, 'ok'>, ProblemKind> = {
+  // Only reached if the active-connection guard in deriveOwnerState above is
+  // ever removed or reordered. While that guard runs first, a 'revoked' row
+  // under an active connection is stale by definition — see the early branch
+  // below, which exists so a just-reconnected owner isn't told to reconnect
+  // again before the next sync overwrites the ledger.
   revoked: 'reconnect',
   access_lost: 'access_lost',
   google_unavailable: 'retrying',
@@ -46,6 +51,13 @@ export function deriveOwnerState(input: OwnerStateInput): OwnerState {
   if (!input.entitled) return { kind: 'paused_plan', dataThrough }
   if (input.connectionStatus !== 'active') return { kind: 'reconnect', dataThrough }
   if (!input.domainMatches) return { kind: 'rebind', dataThrough }
+  // The connection is active here, so a 'revoked' ledger row predates a
+  // reconnect that happened since that sync ran: it is stale, not current.
+  // Treat it like no newer run has happened yet rather than re-asking the
+  // owner to reconnect right after they just did.
+  if (input.latest?.outcome === 'revoked') {
+    return dataThrough ? { kind: 'synced', dataThrough } : { kind: 'awaiting_first_sync' }
+  }
   if (!input.latest) return dataThrough ? { kind: 'synced', dataThrough } : { kind: 'awaiting_first_sync' }
   if (input.latest.outcome === 'ok') {
     const through = input.latest.dataThrough ?? dataThrough
