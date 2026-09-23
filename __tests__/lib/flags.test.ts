@@ -29,3 +29,18 @@ describe('isFeatureEnabled', () => {
     expect(isFeatureEnabled('donor_ui_shell')).toBe(true)
   })
 })
+
+describe('search_console flag', () => {
+  afterEach(() => { delete process.env.FEATURE_SEARCH_CONSOLE })
+
+  it('is off by default', () => {
+    expect(isFeatureEnabled('search_console')).toBe(false)
+  })
+
+  it('turns on only for the exact value 1', () => {
+    process.env.FEATURE_SEARCH_CONSOLE = 'true'
+    expect(isFeatureEnabled('search_console')).toBe(false)
+    process.env.FEATURE_SEARCH_CONSOLE = '1'
+    expect(isFeatureEnabled('search_console')).toBe(true)
+  })
+})

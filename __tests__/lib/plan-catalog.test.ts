@@ -93,4 +93,11 @@ describe('Plan Catalog', () => {
       enterprise: 'price_enterprise_test',
     })).toBeNull()
   })
+
+  it('grants Search Console only to Pro and Enterprise', () => {
+    expect(PLAN_CATALOG.free.features.search_console).toBe(false)
+    expect(PLAN_CATALOG.basic.features.search_console).toBe(false)
+    expect(PLAN_CATALOG.pro.features.search_console).toBe(true)
+    expect(PLAN_CATALOG.enterprise.features.search_console).toBe(true)
+  })
 })
