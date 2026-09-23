@@ -1317,6 +1317,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ### Task 9: Migration 054
 
+> **Superseded after database review.** The shipped `054` differs from the SQL below: both upsert keys lead with `account_id` (`(account_id, client_id, date, scope, page_url)` and `(account_id, client_id, page_url, date, query)`, same constraint names) and `search_console_daily_read_idx` is gone; `aeo_app` may DELETE from `search_console_page_queries` so a re-fetched window can be replaced; position rejects NaN/Infinity; URL and query lengths are capped (2048 / 512); `bound_domain` and `permission_level` are constrained; `ran_at` defaults to `clock_timestamp()`; two indexes were added. Read `supabase/migrations/054_search_console.sql` as the source of truth.
+
 **Files:** Create `supabase/migrations/054_search_console.sql`. Test `__tests__/migrations/search-console-migration.test.ts`.
 
 - [ ] **Step 1: Write the failing test** (static; the real-Postgres proof is Task 18)
@@ -1832,25 +1834,44 @@ export async function writeDaily(accountId: string, clientId: string, metrics: D
   return rows.length
 }
 
-export async function writePageQueries(accountId: string, clientId: string, metrics: PageQueryMetric[]): Promise<number> {
-  if (!metrics.length) return 0
+export type QueryWindow = { startDate: string; endDate: string; pageUrls: string[] }
+
+/**
+ * Replaces the top queries for the re-fetched window, in one transaction. Google
+ * revises recent days, and a query that drops out of a day's top 25 would
+ * otherwise stay forever with stale numbers — pulse_metrics' class of bug.
+ * Replacing a window Google itself revised is not deleting history; only this
+ * table grants DELETE (migration 054).
+ */
+export async function writePageQueries(
+  accountId: string,
+  clientId: string,
+  metrics: PageQueryMetric[],
+  window: QueryWindow,
+): Promise<number> {
+  if (!window.pageUrls.length) return 0
   const sql = db()
-  const rows = await sql`
-    insert into search_console_page_queries
-      (account_id, client_id, page_url, date, query, clicks, impressions, ctr, position)
-    select ${accountId}, ${clientId}, p, d::date, q, cl, im, ct, po
-    from unnest(
-      ${metrics.map(m => m.pageUrl)}::text[], ${metrics.map(m => m.date)}::text[],
-      ${metrics.map(m => m.query)}::text[], ${metrics.map(m => m.clicks)}::int[],
-      ${metrics.map(m => m.impressions)}::int[], ${metrics.map(m => m.ctr)}::float8[],
-      ${metrics.map(m => m.position)}::float8[]
-    ) as t(p, d, q, cl, im, ct, po)
-    on conflict on constraint search_console_page_queries_unique do update set
-      clicks = excluded.clicks, impressions = excluded.impressions,
-      ctr = excluded.ctr, position = excluded.position
-    returning 1
-  `
-  return rows.length
+  const [, inserted] = await sql.transaction([
+    sql`
+      delete from search_console_page_queries
+      where account_id = ${accountId} and client_id = ${clientId}
+        and page_url = any(${window.pageUrls}::text[])
+        and date between ${window.startDate}::date and ${window.endDate}::date
+    `,
+    sql`
+      insert into search_console_page_queries
+        (account_id, client_id, page_url, date, query, clicks, impressions, ctr, position)
+      select ${accountId}, ${clientId}, p, d::date, q, cl, im, ct, po
+      from unnest(
+        ${metrics.map(m => m.pageUrl)}::text[], ${metrics.map(m => m.date)}::text[],
+        ${metrics.map(m => m.query)}::text[], ${metrics.map(m => m.clicks)}::int[],
+        ${metrics.map(m => m.impressions)}::int[], ${metrics.map(m => m.ctr)}::float8[],
+        ${metrics.map(m => m.position)}::float8[]
+      ) as t(p, d, q, cl, im, ct, po)
+      returning 1
+    `,
+  ])
+  return (inserted as unknown[]).length
 }
 
 export async function recordRun(input: {
@@ -1896,7 +1917,7 @@ export async function loadPanelData(accountId: string, clientId: string): Promis
     `,
     sql`
       select scope, page_url,
-             sum(clicks)::int as clicks, sum(impressions)::int as impressions,
+             sum(clicks)::bigint as clicks, sum(impressions)::bigint as impressions,
              case when sum(impressions) = 0 then 0 else sum(clicks)::float8 / sum(impressions) end as ctr,
              case when sum(impressions) = 0 then 0 else sum(position * impressions) / sum(impressions) end as position
       from search_console_daily
@@ -2200,7 +2221,7 @@ import { VaultError, type SealedToken } from '@/lib/integrations/google/vault'
 import type { AnalyticsQuery, AnalyticsRow } from './client'
 import { normalizeBrandDomain } from './binding'
 import type { SyncOutcome } from './state'
-import type { DailyMetric, DueBinding, PageQueryMetric } from './store'
+import type { DailyMetric, DueBinding, PageQueryMetric, QueryWindow } from './store'
 
 /**
  * Sync one binding and say exactly what happened (spec §4.3, §5). Every
@@ -2213,6 +2234,8 @@ export const BACKFILL_DAYS = 90
 export const ROUTINE_DAYS = 7
 export const PAGE_CAP = 20
 export const QUERY_CAP = 25
+/** Matches migration 054's CHECK: a longer query is dropped rather than failing the batch. */
+export const QUERY_MAX_LENGTH = 512
 
 export type SyncDeps = {
   loadSecret(accountId: string, connectionId: string): Promise<{ status: string; sealed: SealedToken | null } | null>
@@ -2222,7 +2245,7 @@ export type SyncDeps = {
   query(accessToken: string, siteUrl: string, q: AnalyticsQuery): Promise<AnalyticsRow[]>
   listPages(accountId: string, clientId: string, cap: number): Promise<string[]>
   writeDaily(accountId: string, clientId: string, metrics: DailyMetric[]): Promise<number>
-  writePageQueries(accountId: string, clientId: string, metrics: PageQueryMetric[]): Promise<number>
+  writePageQueries(accountId: string, clientId: string, metrics: PageQueryMetric[], window: QueryWindow): Promise<number>
   markConnection(accountId: string, connectionId: string, status: 'needs_reconnect'): Promise<void>
   recordRun(input: {
     accountId: string
@@ -2254,7 +2277,7 @@ function topQueriesPerDate(pageUrl: string, rows: AnalyticsRow[]): PageQueryMetr
   const byDate = new Map<string, AnalyticsRow[]>()
   for (const row of rows) {
     const [date, query] = row.keys
-    if (!date || !query) continue
+    if (!date || !query || query.length > QUERY_MAX_LENGTH) continue
     byDate.set(date, [...(byDate.get(date) ?? []), row])
   }
   return [...byDate.entries()].flatMap(([date, list]) => list
@@ -2300,7 +2323,8 @@ export async function syncBinding(b: DueBinding, deps: SyncDeps): Promise<SyncOu
     }))
 
     const queries: PageQueryMetric[] = []
-    for (const pageUrl of await deps.listPages(b.accountId, b.clientId, PAGE_CAP)) {
+    const pageUrls = await deps.listPages(b.accountId, b.clientId, PAGE_CAP)
+    for (const pageUrl of pageUrls) {
       const pageRows = await deps.query(accessToken, b.siteUrl, { startDate, endDate, dimensions: ['date'], pageEquals: pageUrl })
       daily.push(...pageRows.map(r => ({
         date: r.keys[0]!, scope: 'page' as const, pageUrl,
@@ -2313,7 +2337,7 @@ export async function syncBinding(b: DueBinding, deps: SyncDeps): Promise<SyncOu
     }
 
     const written = await deps.writeDaily(b.accountId, b.clientId, daily)
-      + await deps.writePageQueries(b.accountId, b.clientId, queries)
+      + await deps.writePageQueries(b.accountId, b.clientId, queries, { startDate, endDate, pageUrls })
     const dataThrough = property.map(r => r.keys[0]!).sort().at(-1) ?? null
     return finish('ok', written, dataThrough)
   } catch (error) {
