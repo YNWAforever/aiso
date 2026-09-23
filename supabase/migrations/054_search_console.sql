@@ -23,11 +23,12 @@ create table public.google_connections (
   unique (id, account_id),
   constraint google_connections_status_check
     check (status in ('active', 'needs_reconnect', 'revoked')),
-  -- A usable connection has a credential; a revoked one has none.
+  -- A usable connection has a credential; a revoked one has none. Folded in:
+  -- a present token_key_id must be non-empty, not just non-null.
   constraint google_connections_token_check check ((
     (status = 'revoked' and token_ciphertext is null and token_key_id is null)
     or (status <> 'revoked' and token_ciphertext is not null and token_key_id is not null)
-  ) is true),
+  ) is true and (token_key_id is null or token_key_id <> '')),
   -- Provenance, so erasable. Column-list form: plain `set null` would also null
   -- account_id, which is NOT NULL — the 044/046 trap. 053 uses the same form.
   constraint google_connections_connected_by_fk
@@ -54,8 +55,17 @@ create table public.search_console_bindings (
     foreign key (connection_id, account_id) references public.google_connections (id, account_id) on delete cascade,
   constraint search_console_bindings_bound_by_fk
     foreign key (bound_by, account_id) references public.profiles (id, account_id)
-    on delete set null (bound_by)
+    on delete set null (bound_by),
+  -- Mirrors client_domain_verifications_domain_check (053): already lowercase,
+  -- trimmed, and dotted.
+  constraint search_console_bindings_domain_check
+    check ((bound_domain = lower(btrim(bound_domain)) and bound_domain like '%.%') is true),
+  constraint search_console_bindings_permission_check
+    check (permission_level in ('siteOwner', 'siteFullUser', 'siteRestrictedUser'))
 );
+
+create index search_console_bindings_connection_idx
+  on public.search_console_bindings (connection_id, account_id);
 
 create table public.search_console_daily (
   account_id uuid not null,
@@ -66,17 +76,26 @@ create table public.search_console_daily (
   clicks integer not null check (clicks >= 0),
   impressions integer not null check (impressions >= 0),
   ctr double precision not null check (ctr >= 0 and ctr <= 1),
-  position double precision not null check (position >= 0),
+  -- NaN compares greater than everything in PostgreSQL, so bounding the top
+  -- rejects it along with Infinity; missing metrics default to 0 in the client,
+  -- so the floor stays 0, not 1.
+  position double precision not null check (position >= 0 and position < 'Infinity'),
   synced_at timestamptz not null default now(),
   constraint search_console_daily_client_fk
     foreign key (client_id, account_id) references public.clients (id, account_id) on delete cascade,
   constraint search_console_daily_scope_check check ((
     (scope = 'property' and page_url is null) or (scope = 'page' and page_url is not null)
   ) is true),
+  constraint search_console_daily_page_url_length_check
+    check (page_url is null or char_length(page_url) <= 2048),
   -- NULLS NOT DISTINCT (PostgreSQL 15+): property rows share a null page_url, and
   -- a plain unique would let a re-sync insert them twice — pulse_metrics' defect.
+  -- account_id leads so a caller-supplied row with a mismatched account_id takes
+  -- the INSERT path (not a same-key UPDATE) and the composite client FK rejects
+  -- it, rather than silently overwriting another account's metrics row. The same
+  -- key serves the 28-day-by-client read, so no separate read index is needed.
   constraint search_console_daily_unique
-    unique nulls not distinct (client_id, scope, page_url, date)
+    unique nulls not distinct (account_id, client_id, date, scope, page_url)
 );
 
 create table public.search_console_page_queries (
@@ -88,17 +107,25 @@ create table public.search_console_page_queries (
   clicks integer not null check (clicks >= 0),
   impressions integer not null check (impressions >= 0),
   ctr double precision not null check (ctr >= 0 and ctr <= 1),
-  position double precision not null check (position >= 0),
+  position double precision not null check (position >= 0 and position < 'Infinity'),
   constraint search_console_page_queries_client_fk
     foreign key (client_id, account_id) references public.clients (id, account_id) on delete cascade,
-  constraint search_console_page_queries_unique unique (client_id, page_url, date, query)
+  constraint search_console_page_queries_page_url_length_check
+    check (char_length(page_url) <= 2048),
+  constraint search_console_page_queries_query_length_check
+    check (char_length(query) <= 512),
+  -- account_id leads for the same reason as search_console_daily_unique above.
+  constraint search_console_page_queries_unique
+    unique (account_id, client_id, page_url, date, query)
 );
 
 create table public.search_console_sync_runs (
   id uuid primary key default gen_random_uuid(),
   account_id uuid not null,
   client_id uuid not null,
-  ran_at timestamptz not null default now(),
+  -- clock_timestamp(), not now(): now() is pinned to transaction start, so two
+  -- runs recorded in one transaction would tie on ran_at.
+  ran_at timestamptz not null default clock_timestamp(),
   outcome text not null,
   rows_written integer not null default 0 check (rows_written >= 0),
   data_through date,
@@ -113,8 +140,15 @@ create table public.search_console_sync_runs (
 
 create index search_console_sync_runs_latest_idx
   on public.search_console_sync_runs (account_id, client_id, ran_at desc);
-create index search_console_daily_read_idx
-  on public.search_console_daily (account_id, client_id, date desc);
+-- Serves "what's the last successful sync" without scanning failed/retried runs.
+create index search_console_sync_runs_last_good_idx
+  on public.search_console_sync_runs (account_id, client_id, data_through desc)
+  where outcome = 'ok';
+
+-- Retention is deliberately unbounded for now: nothing here prunes old daily
+-- rows, page/query rows, or sync-run history. Bounding it later is an
+-- owner-role job (aeo_app has no DELETE on two of these three tables anyway),
+-- not a change to this migration.
 
 revoke all on public.google_connections, public.search_console_bindings, public.search_console_daily,
   public.search_console_page_queries, public.search_console_sync_runs from public;
@@ -128,7 +162,11 @@ do $$ begin
     grant select, insert, update on public.google_connections to aeo_app;
     -- History: no DELETE. Disconnecting removes the credential, not the record.
     grant select, insert, update on public.search_console_daily to aeo_app;
-    grant select, insert, update on public.search_console_page_queries to aeo_app;
+    -- Query rows are the one exception: sync replaces a page's re-fetched query
+    -- window (delete then insert, one transaction) each run. Replacing a window
+    -- Google itself revised is not deleting history; daily metrics and the
+    -- ledger stay no-DELETE.
+    grant select, insert, update, delete on public.search_console_page_queries to aeo_app;
     grant select, insert, update on public.search_console_sync_runs to aeo_app;
   end if;
 end $$;
