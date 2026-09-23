@@ -965,7 +965,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ```ts
 import { describe, expect, it, vi } from 'vitest'
-import { listSites, querySearchAnalytics } from '@/lib/integrations/search-console/client'
+import { classifyApiFailure, listSites, querySearchAnalytics } from '@/lib/integrations/search-console/client'
 
 const json = (status: number, body: unknown) => vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }))
 
@@ -982,7 +982,7 @@ describe('listSites', () => {
     expect(await listSites('t', json(200, {}))).toEqual([])
   })
 
-  it.each([[401, 'revoked'], [403, 'forbidden'], [429, 'quota'], [502, 'unavailable']])(
+  it.each([[401, 'unavailable'], [403, 'forbidden'], [429, 'quota'], [502, 'unavailable']])(
     'maps %i to %s', async (status, kind) => {
       await expect(listSites('t', json(status, {}))).rejects.toMatchObject({ kind })
     })
@@ -1013,6 +1013,30 @@ describe('querySearchAnalytics', () => {
       .rejects.toMatchObject({ kind: 'forbidden' })
   })
 })
+
+describe('classifyApiFailure', () => {
+  const v1 = (reason: string) => ({ error: { errors: [{ reason }] } })
+  const v2 = (reason: string) => ({ error: { details: [{ reason }] } })
+
+  it.each([
+    [401, {}, 'unavailable'],
+    [403, {}, 'forbidden'],
+    [403, v2('SERVICE_DISABLED'), 'misconfigured'],
+    [403, v1('accessNotConfigured'), 'misconfigured'],
+    [403, v1('rateLimitExceeded'), 'quota'],
+    [403, v2('ACCESS_TOKEN_SCOPE_INSUFFICIENT'), 'revoked'],
+    [429, {}, 'quota'],
+    [500, {}, 'unavailable'],
+  ])('%i %j -> %s', (status, body, kind) => {
+    expect(classifyApiFailure(status, body)).toBe(kind)
+  })
+
+  it('passes a timeout signal on every call', async () => {
+    const f = json(200, {})
+    await listSites('t', f)
+    expect(f.mock.calls[0]![1].signal).toBeInstanceOf(AbortSignal)
+  })
+})
 ```
 
 - [ ] **Step 2: Run to verify it fails** — FAIL, module not found.
@@ -1020,7 +1044,7 @@ describe('querySearchAnalytics', () => {
 - [ ] **Step 3: Implement**
 
 ```ts
-import { GoogleApiError, classifyGoogleFailure, type GoogleFetch } from '@/lib/integrations/google/oauth'
+import { GOOGLE_TIMEOUT_MS, GoogleApiError, type GoogleFailure, type GoogleFetch } from '@/lib/integrations/google/oauth'
 
 const BASE = 'https://www.googleapis.com/webmasters/v3'
 
@@ -1038,13 +1062,52 @@ export type AnalyticsRow = { keys: string[]; clicks: number; impressions: number
 async function call(url: string, accessToken: string, f: GoogleFetch, init: RequestInit = {}): Promise<Record<string, unknown>> {
   let res: Response
   try {
-    res = await f(url, { ...init, headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' } })
+    res = await f(url, {
+      ...init,
+      headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+      signal: AbortSignal.timeout(GOOGLE_TIMEOUT_MS),
+    })
   } catch {
     throw new GoogleApiError('unavailable', 0)
   }
   const body = await res.json().catch(() => ({})) as Record<string, unknown>
-  if (!res.ok) throw new GoogleApiError(classifyGoogleFailure(res.status, body), res.status)
+  if (!res.ok) throw new GoogleApiError(classifyApiFailure(res.status, body), res.status)
   return body
+}
+
+const QUOTA_REASONS = new Set(['rateLimitExceeded', 'userRateLimitExceeded', 'quotaExceeded', 'RATE_LIMIT_EXCEEDED'])
+const MISCONFIGURED_REASONS = new Set(['SERVICE_DISABLED', 'accessNotConfigured'])
+const SCOPE_REASONS = new Set(['ACCESS_TOKEN_SCOPE_INSUFFICIENT', 'insufficientPermissions'])
+
+/** Every `reason` Google attached, from both its v1 (`errors[]`) and v2 (`details[]`) error shapes. */
+function errorReasons(body: unknown): string[] {
+  const error = body && typeof body === 'object' ? (body as { error?: unknown }).error : undefined
+  if (!error || typeof error !== 'object') return []
+  const e = error as { errors?: unknown; details?: unknown }
+  const list = [
+    ...(Array.isArray(e.errors) ? e.errors : []),
+    ...(Array.isArray(e.details) ? e.details : []),
+  ]
+  return list.flatMap(item => {
+    const reason = item && typeof item === 'object' ? (item as { reason?: unknown }).reason : undefined
+    return typeof reason === 'string' ? [reason] : []
+  })
+}
+
+/**
+ * Classifies a Search Console API failure — NOT the token endpoint (that is
+ * classifyGoogleFailure in oauth.ts). Status codes mean different things here:
+ * a 401 straight after a successful refresh is not proof of revocation (only
+ * the token endpoint's invalid_grant is), and a 403 can be our own Cloud project
+ * having the API disabled, which must never tell owners they lost access.
+ */
+export function classifyApiFailure(status: number, body: unknown): GoogleFailure {
+  const reasons = errorReasons(body)
+  if (status === 429 || reasons.some(r => QUOTA_REASONS.has(r))) return 'quota'
+  if (reasons.some(r => MISCONFIGURED_REASONS.has(r))) return 'misconfigured'
+  if (status === 403 && reasons.some(r => SCOPE_REASONS.has(r))) return 'revoked'
+  if (status === 403) return 'forbidden'
+  return 'unavailable'
 }
 
 export async function listSites(accessToken: string, f: GoogleFetch = fetch): Promise<SiteEntry[]> {
@@ -1147,6 +1210,7 @@ describe('deriveOwnerState', () => {
     ['domain_mismatch', 'rebind'],
     ['not_entitled', 'paused_plan'],
     ['vault_error', 'temporarily_unavailable'],
+    ['config_error', 'temporarily_unavailable'],
   ] as const)('maps a %s run to %s, keeping the last good date', (outcome, kind) => {
     expect(deriveOwnerState({ ...base, latest: { outcome, dataThrough: null }, lastGoodDataThrough: '2026-09-18' }))
       .toEqual({ kind, dataThrough: '2026-09-18' })
@@ -1185,7 +1249,7 @@ describe('deriveOwnerState', () => {
 
 export const SYNC_OUTCOMES = [
   'ok', 'revoked', 'access_lost', 'google_unavailable', 'quota',
-  'domain_mismatch', 'not_entitled', 'vault_error',
+  'domain_mismatch', 'not_entitled', 'vault_error', 'config_error',
 ] as const
 export type SyncOutcome = (typeof SYNC_OUTCOMES)[number]
 export type ConnectionStatus = 'active' | 'needs_reconnect' | 'revoked'
@@ -1215,6 +1279,8 @@ const BY_OUTCOME: Record<Exclude<SyncOutcome, 'ok'>, ProblemKind> = {
   domain_mismatch: 'rebind',
   not_entitled: 'paused_plan',
   vault_error: 'temporarily_unavailable',
+  // Our Google client or Cloud project is misconfigured: never the owner's to fix.
+  config_error: 'temporarily_unavailable',
 }
 
 export function deriveOwnerState(input: OwnerStateInput): OwnerState {
@@ -1407,7 +1473,7 @@ create table public.search_console_sync_runs (
   -- Closed vocabulary, mirrored by SYNC_OUTCOMES in lib/integrations/search-console/state.ts.
   constraint search_console_sync_runs_outcome_check check (outcome in (
     'ok', 'revoked', 'access_lost', 'google_unavailable', 'quota',
-    'domain_mismatch', 'not_entitled', 'vault_error'
+    'domain_mismatch', 'not_entitled', 'vault_error', 'config_error'
   ))
 );
 
@@ -2075,6 +2141,7 @@ describe('syncBinding', () => {
     ['forbidden', 'access_lost'],
     ['quota', 'quota'],
     ['unavailable', 'google_unavailable'],
+    ['misconfigured', 'config_error'],
   ] as const)('maps a %s query failure to %s and leaves the connection alone', async (kind, outcome) => {
     const d = deps({ query: vi.fn().mockRejectedValue(new GoogleApiError(kind, 0)) })
     expect(await syncBinding(binding(), d)).toBe(outcome)
@@ -2169,6 +2236,8 @@ const OUTCOME_FOR: Record<GoogleFailure, SyncOutcome> = {
   forbidden: 'access_lost',
   quota: 'quota',
   unavailable: 'google_unavailable',
+  // Our client secret or Cloud project is wrong. Never flips the connection, never asks the owner.
+  misconfigured: 'config_error',
 }
 
 function daysBefore(isoDate: string, days: number): string {

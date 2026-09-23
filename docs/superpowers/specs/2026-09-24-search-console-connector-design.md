@@ -191,6 +191,7 @@ visible with its last date.
 | `domain_mismatch` | Brand domain changed after binding | "Rebind for the new domain" | Skipped |
 | `not_entitled` | Account below Pro | "Syncing paused — plan" | Skipped; data kept |
 | `vault_error` | Ciphertext cannot be decrypted (missing or unknown key id) | "Temporarily unavailable" — **not** "reconnect" | Error-level log. Our fault, so the owner is never asked to act. |
+| `config_error` | Our Google client or Cloud project is wrong: token endpoint answers `invalid_client` / any 401, or the API is disabled for our project (`SERVICE_DISABLED`) | "Temporarily unavailable" — **not** "reconnect" | Error-level log; connection **not** flagged. Added after code review: a 401 from the token endpoint is a client-credential fault, so treating it as `revoked` would flip every connection after one bad deploy. Only `invalid_grant` means revoked. |
 
 **Hard rules:**
 - Missing or short `GOOGLE_TOKEN_ENCRYPTION_KEY` → connect and sync return 500 before doing
