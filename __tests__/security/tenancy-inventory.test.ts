@@ -63,6 +63,11 @@ const TENANT_TABLES: Record<string, string> = {
   local_trust_snapshots: 'account_id (021)',
   local_trust_actions: 'account_id (021)',
   content_briefs: 'account_id (018)',
+  google_connections: 'account_id (054)',
+  search_console_bindings: 'account_id (054)',
+  search_console_daily: 'account_id (054)',
+  search_console_page_queries: 'account_id (054)',
+  search_console_sync_runs: 'account_id (054)',
   // Tenant through the parent row.
   pulse_metrics: 'client_id -> clients.account_id',
   pulse_weekly_summary: 'client_id -> clients.account_id',
