@@ -1025,6 +1025,7 @@ describe('classifyApiFailure', () => {
     [403, v1('accessNotConfigured'), 'misconfigured'],
     [403, v1('rateLimitExceeded'), 'quota'],
     [403, v2('ACCESS_TOKEN_SCOPE_INSUFFICIENT'), 'revoked'],
+    [403, v1('insufficientPermissions'), 'forbidden'],
     [429, {}, 'quota'],
     [500, {}, 'unavailable'],
   ])('%i %j -> %s', (status, body, kind) => {
@@ -1077,7 +1078,10 @@ async function call(url: string, accessToken: string, f: GoogleFetch, init: Requ
 
 const QUOTA_REASONS = new Set(['rateLimitExceeded', 'userRateLimitExceeded', 'quotaExceeded', 'RATE_LIMIT_EXCEEDED'])
 const MISCONFIGURED_REASONS = new Set(['SERVICE_DISABLED', 'accessNotConfigured'])
-const SCOPE_REASONS = new Set(['ACCESS_TOKEN_SCOPE_INSUFFICIENT', 'insufficientPermissions'])
+// Only the unambiguous scope reason flips a connection. The older v1 reason
+// `insufficientPermissions` is also used for property-level denials, and treating
+// it as revoked would flip every brand on a connection because of one property.
+const SCOPE_REASONS = new Set(['ACCESS_TOKEN_SCOPE_INSUFFICIENT'])
 
 /** Every `reason` Google attached, from both its v1 (`errors[]`) and v2 (`details[]`) error shapes. */
 function errorReasons(body: unknown): string[] {
