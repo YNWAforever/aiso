@@ -5,7 +5,10 @@
  * property must cover the brand's own domain and the login must hold verified
  * access. A URL-prefix property scoped to a path, or pinned to an explicit
  * non-default port, reports on part of the site only, and presenting it as
- * the brand's performance would overstate it.
+ * the brand's performance would overstate it. `www` equivalence holds only
+ * between two single hosts — a Domain property for `www.example.com` has
+ * data for `www.example.com` and its subdomains only, never the apex or a
+ * sibling like `shop.example.com`.
  */
 
 export type BindingReason = 'no_domain' | 'other_domain' | 'unverified'
@@ -13,25 +16,35 @@ export type BindingVerdict = { eligible: true } | { eligible: false; reason: Bin
 
 const VERIFIED_LEVELS = new Set(['siteOwner', 'siteFullUser', 'siteRestrictedUser'])
 const HOST = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/
+const ALL_DIGITS = /^[0-9]+$/
 
-export function normalizeBrandDomain(domain: string | null | undefined): string | null {
-  if (!domain) return null
-  let value = domain.trim().toLowerCase()
+/** Parses and validates a bare host, with no `www` normalization. Rejects IP literals. */
+function normalizeHost(value: string | null | undefined): string | null {
   if (!value) return null
-  if (!/^[a-z]+:\/\//.test(value)) value = `https://${value}`
+  let v = value.trim().toLowerCase()
+  if (!v) return null
+  if (!/^[a-z]+:\/\//.test(v)) v = `https://${v}`
   let host: string
   try {
-    host = new URL(value).hostname
+    host = new URL(v).hostname
   } catch {
     return null
   }
-  host = host.replace(/^www\./, '')
-  return HOST.test(host) ? host : null
+  if (!HOST.test(host)) return null
+  const lastLabel = host.slice(host.lastIndexOf('.') + 1)
+  if (ALL_DIGITS.test(lastLabel)) return null
+  return host
+}
+
+export function normalizeBrandDomain(domain: string | null | undefined): string | null {
+  const host = normalizeHost(domain)
+  return host ? host.replace(/^www\./, '') : null
 }
 
 function coverage(siteUrl: string): { host: string; subdomains: boolean } | null {
   if (siteUrl.startsWith('sc-domain:')) {
-    const host = normalizeBrandDomain(siteUrl.slice('sc-domain:'.length))
+    // Domain property: exact host as verified, no `www` equivalence — see header comment.
+    const host = normalizeHost(siteUrl.slice('sc-domain:'.length))
     return host ? { host, subdomains: true } : null
   }
   let url: URL
@@ -41,6 +54,7 @@ function coverage(siteUrl: string): { host: string; subdomains: boolean } | null
     return null
   }
   if (url.pathname !== '/' || url.search || url.hash || url.port !== '') return null
+  // URL-prefix property: a single host, so `www` equivalence is correct here.
   const host = normalizeBrandDomain(url.hostname)
   return host ? { host, subdomains: false } : null
 }
@@ -51,11 +65,14 @@ export function propertyEligibility(
   brandDomain: string | null | undefined,
 ): BindingVerdict {
   const brand = normalizeBrandDomain(brandDomain)
-  if (!brand) return { eligible: false, reason: 'no_domain' }
+  const rawBrand = normalizeHost(brandDomain)
+  if (!brand || !rawBrand) return { eligible: false, reason: 'no_domain' }
 
   const covered = coverage(siteUrl)
   const covers = covered !== null
-    && (covered.host === brand || (covered.subdomains && brand.endsWith(`.${covered.host}`)))
+    && (covered.subdomains
+      ? rawBrand === covered.host || rawBrand.endsWith(`.${covered.host}`)
+      : brand === covered.host)
   if (!covers) return { eligible: false, reason: 'other_domain' }
 
   if (!VERIFIED_LEVELS.has(permissionLevel)) return { eligible: false, reason: 'unverified' }

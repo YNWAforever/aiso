@@ -15,6 +15,10 @@ describe('normalizeBrandDomain', () => {
   it.each([null, '', 'localhost', 'not a domain'])('rejects %s', input => {
     expect(normalizeBrandDomain(input)).toBeNull()
   })
+
+  it('rejects an IP literal', () => {
+    expect(normalizeBrandDomain('192.168.1.1')).toBeNull()
+  })
 })
 
 describe('propertyEligibility', () => {
@@ -67,5 +71,28 @@ describe('propertyEligibility', () => {
 
   it('refuses a brand with no domain', () => {
     expect(propertyEligibility('sc-domain:example.com', owner, null)).toEqual({ eligible: false, reason: 'no_domain' })
+  })
+
+  it('does not let a www Domain property cover the apex', () => {
+    expect(propertyEligibility('sc-domain:www.example.com', owner, 'example.com'))
+      .toEqual({ eligible: false, reason: 'other_domain' })
+  })
+
+  it('does not let a www Domain property cover a sibling subdomain', () => {
+    expect(propertyEligibility('sc-domain:www.example.com', owner, 'shop.example.com'))
+      .toEqual({ eligible: false, reason: 'other_domain' })
+  })
+
+  it('lets a www Domain property cover the same www host', () => {
+    expect(propertyEligibility('sc-domain:www.example.com', owner, 'www.example.com')).toEqual({ eligible: true })
+  })
+
+  it('still lets an apex Domain property cover the www host', () => {
+    expect(propertyEligibility('sc-domain:example.com', owner, 'www.example.com')).toEqual({ eligible: true })
+  })
+
+  it('refuses a brand that is an IP literal', () => {
+    expect(propertyEligibility('https://192.168.1.1/', owner, '192.168.1.1'))
+      .toEqual({ eligible: false, reason: 'no_domain' })
   })
 })
