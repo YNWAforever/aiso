@@ -152,6 +152,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ### Task 2: Token vault
 
+> **Superseded after code review (implemented in two commits).** The shipped vault differs from the code below: `sealToken(plain, { accountId }, env?)` and `openToken(sealed, { accountId }, env?)` bind each ciphertext to its account with GCM AAD; the key id is derived from the decoded key bytes (`aiso-google-vault:v1:`), not the encoded string; the tag length is pinned; a malformed `GOOGLE_TOKEN_ENCRYPTION_KEY_PREVIOUS` fails closed; an empty token is refused. Later tasks in this plan use the shipped signatures. Read `lib/integrations/google/vault.ts` as the source of truth.
+
 **Files:** Create `lib/integrations/google/vault.ts`. Test `__tests__/integrations/vault.test.ts`.
 
 - [ ] **Step 1: Write the failing test**
@@ -2143,7 +2145,8 @@ export const QUERY_CAP = 25
 
 export type SyncDeps = {
   loadSecret(accountId: string, connectionId: string): Promise<{ status: string; sealed: SealedToken | null } | null>
-  open(sealed: SealedToken): string
+  /** Opens the sealed refresh token; the vault binds each ciphertext to its account. */
+  open(sealed: SealedToken, accountId: string): string
   refresh(refreshToken: string): Promise<string>
   query(accessToken: string, siteUrl: string, q: AnalyticsQuery): Promise<AnalyticsRow[]>
   listPages(accountId: string, clientId: string, cap: number): Promise<string[]>
@@ -2205,7 +2208,7 @@ export async function syncBinding(b: DueBinding, deps: SyncDeps): Promise<SyncOu
 
   let refreshToken: string
   try {
-    refreshToken = deps.open(secret.sealed)
+    refreshToken = deps.open(secret.sealed, b.accountId)
   } catch (error) {
     if (!(error instanceof VaultError)) throw error
     console.error('[search-console] vault failure', { clientId: b.clientId, code: error.code })
@@ -2523,7 +2526,8 @@ export async function GET(req: NextRequest) {
       subject: grant.subject,
       email: grant.email,
       scopes: grant.scopes,
-      sealed: sealToken(grant.refreshToken),
+      // Bound to this account: a ciphertext copied into another account's row cannot be opened.
+      sealed: sealToken(grant.refreshToken, { accountId: access.profile.account_id }),
     })
   } catch {
     // Never report "connected" over a failed write.
@@ -2680,7 +2684,7 @@ export async function DELETE(req: Request) {
   let googleRevoked = false
   if (secret.sealed) {
     try {
-      googleRevoked = await revokeToken(openToken(secret.sealed))
+      googleRevoked = await revokeToken(openToken(secret.sealed, { accountId }))
     } catch {
       googleRevoked = false
     }
@@ -2838,7 +2842,7 @@ async function sitesFor(accountId: string, connectionId: string): Promise<SiteEn
   if (secret.status !== 'active' || !secret.sealed) throw new GoogleApiError('revoked', 0)
   const cfg = googleOAuthConfig(process.env, appOrigin())
   if (!cfg) throw new GoogleApiError('unavailable', 0)
-  return listSites(await refreshAccessToken(cfg, openToken(secret.sealed)))
+  return listSites(await refreshAccessToken(cfg, openToken(secret.sealed, { accountId })))
 }
 
 export async function GET(_req: Request, { params }: Ctx) {
@@ -3086,7 +3090,7 @@ export async function GET(req: Request) {
         if (Date.now() - started >= BUDGET_MS) break
         const outcome = await syncBinding(binding, {
           loadSecret: store.loadConnectionSecret,
-          open: openToken,
+          open: (sealed, accountId) => openToken(sealed, { accountId }),
           refresh: token => refreshAccessToken(cfg, token),
           query: querySearchAnalytics,
           listPages: store.listSyncPages,
