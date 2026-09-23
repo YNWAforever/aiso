@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { classifyApiFailure, listSites, MAX_PAGES, querySearchAnalytics, ROW_LIMIT } from '@/lib/integrations/search-console/client'
 
 const json = (status: number, body: unknown) => vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }))
+const raw = (status: number, text: string) => vi.fn().mockResolvedValue(new Response(text, { status }))
 
 describe('listSites', () => {
   it('returns every property with its permission level', async () => {
@@ -29,6 +30,14 @@ describe('listSites', () => {
   it('sets GoogleApiError.code on a SERVICE_DISABLED failure', async () => {
     const f = json(403, { error: { details: [{ reason: 'SERVICE_DISABLED' }] } })
     await expect(listSites('t', f)).rejects.toMatchObject({ kind: 'misconfigured', code: 'SERVICE_DISABLED' })
+  })
+
+  it('rejects a non-JSON 200 body as malformed rather than an empty list', async () => {
+    await expect(listSites('t', raw(200, 'not json'))).rejects.toMatchObject({ kind: 'unavailable', code: 'malformed_body' })
+  })
+
+  it('rejects a JSON null 200 body as malformed rather than an empty list', async () => {
+    await expect(listSites('t', raw(200, 'null'))).rejects.toMatchObject({ kind: 'unavailable', code: 'malformed_body' })
   })
 })
 
@@ -89,6 +98,20 @@ describe('querySearchAnalytics', () => {
     const rows = await querySearchAnalytics('t', 'sc-domain:e.com', { startDate: 'a', endDate: 'b', dimensions: ['date'] }, f)
     expect(f).toHaveBeenCalledTimes(MAX_PAGES)
     expect(rows).toHaveLength(ROW_LIMIT * MAX_PAGES)
+  })
+
+  it('rejects a non-JSON 200 body as malformed rather than an empty result', async () => {
+    await expect(querySearchAnalytics('t', 'sc-domain:e.com', { startDate: 'a', endDate: 'b', dimensions: ['date'] }, raw(200, 'not json')))
+      .rejects.toMatchObject({ kind: 'unavailable', code: 'malformed_body' })
+  })
+
+  it('rejects pagination when the second page is a non-JSON 200, not silently returning page one', async () => {
+    const fullPage = Array.from({ length: ROW_LIMIT }, (_, i) => ({ keys: [String(i)], clicks: 1, impressions: 1, ctr: 1, position: 1 }))
+    const f = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ rows: fullPage }), { status: 200 }))
+      .mockResolvedValueOnce(new Response('not json', { status: 200 }))
+    await expect(querySearchAnalytics('t', 'sc-domain:e.com', { startDate: 'a', endDate: 'b', dimensions: ['date'] }, f))
+      .rejects.toMatchObject({ kind: 'unavailable', code: 'malformed_body' })
   })
 })
 

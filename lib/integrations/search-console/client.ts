@@ -89,9 +89,24 @@ async function call(url: string, accessToken: string, f: GoogleFetch, init: Requ
   } catch {
     throw new GoogleApiError('unavailable', 0)
   }
-  const body = await res.json().catch(() => ({})) as Record<string, unknown>
-  if (!res.ok) throw new GoogleApiError(classifyApiFailure(res.status, body), res.status, errorCode(body))
-  return body
+  if (!res.ok) {
+    // A non-ok response still classifies correctly from the status alone, so an
+    // unreadable error body degrades to {} rather than masking the real failure.
+    const body = await res.json().catch(() => ({})) as Record<string, unknown>
+    throw new GoogleApiError(classifyApiFailure(res.status, body), res.status, errorCode(body))
+  }
+  // A 200 has no status to fall back on: a body that fails to parse, or parses
+  // to something that isn't a plain object (null, an array, a bare string...),
+  // must not silently become {} — that would read as "Google has nothing",
+  // which is a different, false claim from "we could not read the response".
+  let parsed: unknown
+  try {
+    parsed = await res.json()
+  } catch {
+    throw new GoogleApiError('unavailable', res.status, 'malformed_body')
+  }
+  if (!isRecord(parsed)) throw new GoogleApiError('unavailable', res.status, 'malformed_body')
+  return parsed
 }
 
 /**
