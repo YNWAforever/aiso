@@ -2250,6 +2250,9 @@ export type SyncDeps = {
   recordRun(input: {
     accountId: string
     clientId: string
+    /** The binding this run synced: backfill is only cleared if it is still bound. */
+    siteUrl: string
+    connectionId: string
     outcome: SyncOutcome
     rowsWritten: number
     dataThrough: string | null
@@ -2291,7 +2294,8 @@ function topQueriesPerDate(pageUrl: string, rows: AnalyticsRow[]): PageQueryMetr
 export async function syncBinding(b: DueBinding, deps: SyncDeps): Promise<SyncOutcome> {
   const finish = async (outcome: SyncOutcome, rowsWritten = 0, dataThrough: string | null = null) => {
     await deps.recordRun({
-      accountId: b.accountId, clientId: b.clientId, outcome, rowsWritten, dataThrough, clearBackfill: outcome === 'ok',
+      accountId: b.accountId, clientId: b.clientId, siteUrl: b.siteUrl, connectionId: b.connectionId,
+      outcome, rowsWritten, dataThrough, clearBackfill: outcome === 'ok',
     })
     return outcome
   }
@@ -3425,9 +3429,32 @@ describe('migration 054 on real Postgres', () => {
   it('round-trips the ciphertext byte for byte through bytea', async () => {
     const store = await import('@/lib/integrations/search-console/store')
     const id = await store.upsertConnection({ accountId: A, profileId: A_USER, subject: 'g-a', email: null, scopes: [], sealed })
+    const [len] = await sql`select octet_length(token_ciphertext) as n from google_connections where id = ${id}::uuid`
+    expect(len!.n).toBe(sealed.ciphertext.length)
     const loaded = await store.loadConnectionSecret(A, id)
     expect(loaded?.sealed?.ciphertext.equals(sealed.ciphertext)).toBe(true)
     expect(loaded?.sealed?.keyId).toBe(sealed.keyId)
+  })
+
+  it('stores a real vault-sealed token that opens again for its own account only', async () => {
+    const { sealToken, openToken } = await import('@/lib/integrations/google/vault')
+    const store = await import('@/lib/integrations/search-console/store')
+    const env = { GOOGLE_TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64') }
+    const first = sealToken('1//first-refresh-token', { accountId: A }, env)
+    const id = await store.upsertConnection({ accountId: A, profileId: A_USER, subject: 'g-v', email: null, scopes: [], sealed: first })
+    const loaded = await store.loadConnectionSecret(A, id)
+    expect(openToken(loaded!.sealed!, { accountId: A }, env)).toBe('1//first-refresh-token')
+    expect(() => openToken(loaded!.sealed!, { accountId: B }, env)).toThrow()
+
+    // Reconnecting the same Google login overwrites the credential (the on-conflict path).
+    const second = sealToken('1//second-refresh-token', { accountId: A }, env)
+    expect(await store.upsertConnection({ accountId: A, profileId: A_USER, subject: 'g-v', email: null, scopes: [], sealed: second }))
+      .toBe(id)
+    expect(openToken((await store.loadConnectionSecret(A, id))!.sealed!, { accountId: A }, env)).toBe('1//second-refresh-token')
+
+    // Revoking removes the credential entirely.
+    expect(await store.revokeConnectionRow(A, id)).toBe(true)
+    expect((await store.loadConnectionSecret(A, id))?.sealed).toBeNull()
   })
 
   it('overwrites a re-synced day instead of double-counting property rows', async () => {
@@ -3590,7 +3617,7 @@ Wire it — three edits that must agree, or `__tests__/ci/exact-target-suites.te
 - [ ] **Step 3: Run the suite for real**
 
 Run: `node scripts/ci/run-exact-target-suites.mjs 2>&1 | grep -v "postgresql://"`
-Expected: `10/10 suites`, including `ok   search-console-integration: 12 tests`, and the branch deleted at the end.
+Expected: `10/10 suites`, including `ok   search-console-integration: 13 tests`, and the branch deleted at the end.
 
 - [ ] **Step 4: Mutation check**
 
