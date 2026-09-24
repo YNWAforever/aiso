@@ -1,8 +1,8 @@
 import { randomBytes } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { GOOGLE_CONSENT_COOKIE, signConsentState } from '@/lib/integrations/google/consent-state'
-import { SEARCH_CONSOLE_SCOPE } from '@/lib/integrations/google/oauth'
+import { GOOGLE_CONSENT_COOKIE, signConsentState, verifyConsentState } from '@/lib/integrations/google/consent-state'
+import { GoogleApiError, SEARCH_CONSOLE_SCOPE } from '@/lib/integrations/google/oauth'
 
 const getProfile = vi.hoisted(() => vi.fn())
 const upsertConnection = vi.hoisted(() => vi.fn())
@@ -44,6 +44,17 @@ describe('GET start', () => {
     expect(cookie?.sameSite).toBe('lax')
   })
 
+  it('sets a Secure, path-scoped cookie whose value verifies', async () => {
+    const res = await start('?return=/en/dashboard/settings')
+    const cookie = res.cookies.get(GOOGLE_CONSENT_COOKIE)
+    expect(cookie?.secure).toBe(true)
+    expect(cookie?.path).toBe('/api/integrations/google')
+    const verified = verifyConsentState(cookie?.value)
+    expect(verified?.profileId).toBe(profile.id)
+    expect(verified?.accountId).toBe(profile.account_id)
+    expect(verified?.returnPath).toBe('/en/dashboard/settings')
+  })
+
   it('refuses before redirecting when the encryption key is missing', async () => {
     delete process.env.GOOGLE_TOKEN_ENCRYPTION_KEY
     expect((await start()).status).toBe(500)
@@ -82,6 +93,14 @@ describe('GET callback', () => {
     expect(stored.sealed.ciphertext.includes(Buffer.from('1//r'))).toBe(false)
   })
 
+  it('clears the consent cookie on a successful connect', async () => {
+    exchangeCode.mockResolvedValue(grant())
+    const res = await callback(cookieFor())
+    const setCookie = res.headers.get('set-cookie')
+    expect(setCookie).toContain('Max-Age=0')
+    expect(setCookie).toContain('Path=/api/integrations/google')
+  })
+
   it('refuses a missing cookie without exchanging the code', async () => {
     expect((await callback(null)).headers.get('location')).toContain('reason=consent_invalid')
     expect(exchangeCode).not.toHaveBeenCalled()
@@ -96,6 +115,18 @@ describe('GET callback', () => {
   it('refuses a cookie started by a different person', async () => {
     expect((await callback(cookieFor({ profileId: '33333333-3333-4333-8333-333333333333' }))).headers.get('location'))
       .toContain('reason=session_mismatch')
+    expect(exchangeCode).not.toHaveBeenCalled()
+  })
+
+  it('refuses a cookie started for a different account', async () => {
+    expect((await callback(cookieFor({ accountId: '44444444-4444-4444-8444-444444444444' }))).headers.get('location'))
+      .toContain('reason=session_mismatch')
+    expect(exchangeCode).not.toHaveBeenCalled()
+  })
+
+  it('refuses a denied consent (no code, error=access_denied) without exchanging the code', async () => {
+    expect((await callback(cookieFor(), `state=${STATE}&error=access_denied`)).headers.get('location'))
+      .toContain('reason=denied')
     expect(exchangeCode).not.toHaveBeenCalled()
   })
 
@@ -115,5 +146,35 @@ describe('GET callback', () => {
     exchangeCode.mockResolvedValue(grant())
     upsertConnection.mockRejectedValue(new Error('db'))
     expect((await callback(cookieFor())).headers.get('location')).toContain('reason=unavailable')
+  })
+
+  it('logs a misconfigured token-exchange failure for operators and never writes', async () => {
+    exchangeCode.mockRejectedValue(new GoogleApiError('misconfigured', 401, 'invalid_client'))
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const res = await callback(cookieFor())
+      expect(res.headers.get('location')).toContain('reason=unavailable')
+      expect(upsertConnection).not.toHaveBeenCalled()
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ code: 'invalid_client' }),
+      )
+    } finally {
+      errorSpy.mockRestore()
+    }
+  })
+
+  it('gates before exchanging: 404 with the flag off', async () => {
+    delete process.env.FEATURE_SEARCH_CONSOLE
+    const res = await callback(cookieFor())
+    expect(res.status).toBe(404)
+    expect(exchangeCode).not.toHaveBeenCalled()
+  })
+
+  it('gates before exchanging: 401 when signed out', async () => {
+    getProfile.mockResolvedValue(null)
+    const res = await callback(cookieFor())
+    expect(res.status).toBe(401)
+    expect(exchangeCode).not.toHaveBeenCalled()
   })
 })

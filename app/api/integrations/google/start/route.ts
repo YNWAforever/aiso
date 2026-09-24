@@ -11,10 +11,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const access = await authorizeSearchConsoleAccount()
-  // guard.ts's Denied.response is a plain Response shared by every route that
-  // uses this guard shape; NextResponse only adds .cookies on top of it, which
-  // no caller reads off a refusal branch here.
-  if (!access.ok) return access.response as NextResponse
+  if (!access.ok) return access.response
 
   try {
     assertVaultConfigured()

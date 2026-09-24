@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server'
 import { getProfile } from '@/lib/auth'
 import { isFeatureEnabled } from '@/lib/flags'
 import { resolveCommercialEntitlement } from '@/lib/tier'
@@ -10,10 +11,10 @@ import type { Client, ProfileWithAccount } from '@/lib/types'
  * plain 404 to everyone and reveals nothing about plans or brands.
  */
 
-type Denied = { ok: false; response: Response }
+type Denied = { ok: false; response: NextResponse }
 
 const deny = (status: number, error: string): Denied =>
-  ({ ok: false, response: Response.json({ error }, { status }) })
+  ({ ok: false, response: NextResponse.json({ error }, { status }) })
 
 /** The session-only half, for routes with no brand in the URL. */
 export async function authorizeSearchConsoleAccount(): Promise<{ ok: true; profile: ProfileWithAccount } | Denied> {

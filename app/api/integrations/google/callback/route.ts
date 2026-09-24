@@ -2,12 +2,18 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { appOrigin } from '@/lib/app-origin'
 import { authorizeSearchConsoleAccount } from '@/lib/integrations/search-console/guard'
 import { upsertConnection } from '@/lib/integrations/search-console/store'
-import { sealToken } from '@/lib/integrations/google/vault'
+import { sealToken, VaultError } from '@/lib/integrations/google/vault'
 import { GOOGLE_CONSENT_COOKIE, verifyConsentState } from '@/lib/integrations/google/consent-state'
 import type { ConsentErrorReason as Reason } from '@/lib/integrations/google/consent-reasons'
-import { SEARCH_CONSOLE_SCOPE, exchangeCode, googleOAuthConfig, type TokenGrant } from '@/lib/integrations/google/oauth'
+import {
+  GoogleApiError, SEARCH_CONSOLE_SCOPE, exchangeCode, googleOAuthConfig, type TokenGrant,
+} from '@/lib/integrations/google/oauth'
 
 export const dynamic = 'force-dynamic'
+
+// Google's own `error` query values (access_denied, invalid_scope, …) — never
+// error_description, which is free text Google fills from request parameters.
+const ERROR_CODE_RE = /^[a-z_]{1,64}$/
 
 /**
  * Finishes consent (spec §4.1). Every refusal returns the owner to a page that
@@ -25,9 +31,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const access = await authorizeSearchConsoleAccount()
-  // See start/route.ts: guard.ts's Denied.response is a plain Response shared
-  // by every route using this guard shape.
-  if (!access.ok) return access.response as NextResponse
+  if (!access.ok) return access.response
 
   const params = req.nextUrl.searchParams
   if (!consent || params.get('state') !== consent.state) return back('consent_invalid')
@@ -35,15 +39,32 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return back('session_mismatch')
   }
   const code = params.get('code')
-  if (!code) return back('denied')
+  if (!code) {
+    const errorParam = params.get('error')
+    if (errorParam && errorParam !== 'access_denied' && ERROR_CODE_RE.test(errorParam)) {
+      console.error('[google/callback] consent denied', { error: errorParam })
+    }
+    return back('denied')
+  }
 
   const cfg = googleOAuthConfig(process.env, origin)
-  if (!cfg) return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
+  if (!cfg) {
+    console.error('[google/callback] GOOGLE_OAUTH_CLIENT_ID / _SECRET are not set')
+    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
+  }
 
   let grant: TokenGrant
   try {
     grant = await exchangeCode(cfg, { code, verifier: consent.verifier })
-  } catch {
+  } catch (error) {
+    if (error instanceof GoogleApiError) {
+      console.error(
+        error.kind === 'misconfigured' ? '[google/callback] google misconfigured' : '[google/callback] code exchange failed',
+        { kind: error.kind, status: error.status, code: error.code },
+      )
+    } else {
+      console.error('[google/callback] code exchange failed', { name: error instanceof Error ? error.name : typeof error })
+    }
     return back('unavailable')
   }
   if (!grant.refreshToken) return back('no_refresh_token')
@@ -59,7 +80,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       // Bound to this account: a ciphertext copied into another account's row cannot be opened.
       sealed: sealToken(grant.refreshToken, { accountId: access.profile.account_id }),
     })
-  } catch {
+  } catch (error) {
+    // Never log error.message or the error object itself: the Neon driver
+    // echoes the connection string, password included, in its own messages.
+    console.error('[google/callback] failed to store connection', {
+      name: error instanceof Error ? error.name : typeof error,
+      ...(error instanceof VaultError ? { code: error.code } : {}),
+    })
     // Never report "connected" over a failed write.
     return back('unavailable')
   }
