@@ -37,40 +37,61 @@ async function sitesFor(accountId: string, connectionId: string): Promise<SiteEn
   if (!secret) return null
   if (secret.status !== 'active' || !secret.sealed) throw new GoogleApiError('revoked', 0)
   const cfg = googleOAuthConfig(process.env, appOrigin())
-  if (!cfg) throw new GoogleApiError('unavailable', 0)
+  // Distinct from the 'unavailable' Google itself can return: this is our own
+  // deploy missing GOOGLE_OAUTH_CLIENT_ID/_SECRET, an operator problem, so it
+  // must log — see logIfMisconfigured.
+  if (!cfg) throw new GoogleApiError('misconfigured', 0, 'oauth_config_missing')
   return listSites(await refreshAccessToken(cfg, openToken(secret.sealed, { accountId })))
 }
 
-export async function GET(_req: Request, { params }: Ctx) {
+type PropertyResult = {
+  connectionId: string
+  googleEmail: string | null
+  error: string | null
+  sites: Array<SiteEntry & { verdict: ReturnType<typeof propertyEligibility> }>
+}
+
+/**
+ * Fans out one Google call per active connection. Only called when the
+ * caller actually asked for properties (spec: GET must not call Google on
+ * every dashboard load) — the dashboard's default view never needs this list,
+ * only the picker the owner opens to bind or rebind a property.
+ */
+async function listProperties(accountId: string, brandDomain: string | null): Promise<PropertyResult[]> {
+  const connections = await listConnections(accountId)
+  return Promise.all(connections.filter(c => c.status === 'active').map(async (c): Promise<PropertyResult> => {
+    try {
+      const sites = (await sitesFor(accountId, c.id)) ?? []
+      return {
+        connectionId: c.id, googleEmail: c.googleEmail, error: null,
+        sites: sites.map(s => ({ ...s, verdict: propertyEligibility(s.siteUrl, s.permissionLevel, brandDomain) })),
+      }
+    } catch (error) {
+      // One connection's Google failure must never fail the whole GET — each
+      // connection carries its own error kind instead.
+      logIfMisconfigured(error)
+      if (!(error instanceof GoogleApiError)) logFailure('sitesFor failed', error)
+      return {
+        connectionId: c.id, googleEmail: c.googleEmail, sites: [],
+        error: error instanceof GoogleApiError ? error.kind : 'unavailable',
+      }
+    }
+  }))
+}
+
+export async function GET(req: Request, { params }: Ctx) {
   const { clientId } = await params
   const access = await authorizeSearchConsole(clientId)
   if (!access.ok) return access.response
   const accountId = access.profile.account_id
+  const wantsProperties = new URL(req.url).searchParams.get('properties') === '1'
 
   try {
-    const [binding, panel, connections] = await Promise.all([
+    const [binding, panel] = await Promise.all([
       loadBinding(accountId, clientId),
       loadPanelData(accountId, clientId),
-      listConnections(accountId),
     ])
-    const properties = await Promise.all(connections.filter(c => c.status === 'active').map(async c => {
-      try {
-        const sites = (await sitesFor(accountId, c.id)) ?? []
-        return {
-          connectionId: c.id, googleEmail: c.googleEmail, error: null,
-          sites: sites.map(s => ({ ...s, verdict: propertyEligibility(s.siteUrl, s.permissionLevel, access.client.domain) })),
-        }
-      } catch (error) {
-        // One connection's Google failure must never fail the whole GET — each
-        // connection carries its own error kind instead.
-        logIfMisconfigured(error)
-        if (!(error instanceof GoogleApiError)) logFailure('sitesFor failed', error)
-        return {
-          connectionId: c.id, googleEmail: c.googleEmail, sites: [],
-          error: error instanceof GoogleApiError ? error.kind : 'unavailable',
-        }
-      }
-    }))
+    const properties = wantsProperties ? await listProperties(accountId, access.client.domain) : []
 
     const state = deriveOwnerState({
       bound: binding !== null,
