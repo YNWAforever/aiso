@@ -124,6 +124,10 @@ function allRelations() {
     'scan_claim_attempts',
     // 053: domain-ownership proofs. Renumbered from 048 for the same reason.
     'client_domain_verifications',
+    // 054: the Search Console connector, authored here and applied by the
+    // runner. A synthetic inventory entry; claims nothing about any live database.
+    'google_connections', 'search_console_bindings', 'search_console_daily',
+    'search_console_page_queries', 'search_console_sync_runs',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
