@@ -5,6 +5,12 @@ import { revokeToken } from '@/lib/integrations/google/oauth'
 
 export const dynamic = 'force-dynamic'
 
+// google_connections.id is a `uuid` column (lib/integrations/search-console/store.ts).
+// Without this check a malformed id reached loadConnectionSecret unvalidated,
+// Postgres raised 22P02 (invalid input syntax for type uuid), and the lookup
+// catch below turned that into a misleading 503 instead of an honest 400.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 /** No account parameter: the account is the session's, like /api/account/*. */
 export async function GET() {
   const access = await authorizeSearchConsoleAccount()
@@ -32,6 +38,7 @@ export async function DELETE(req: Request) {
   if (!access.ok) return access.response
   const id = new URL(req.url).searchParams.get('id')
   if (!id) return Response.json({ error: 'id required' }, { status: 400 })
+  if (!UUID_RE.test(id)) return Response.json({ error: 'Invalid id' }, { status: 400 })
 
   const accountId = access.profile.account_id
   let secret: Awaited<ReturnType<typeof loadConnectionSecret>>

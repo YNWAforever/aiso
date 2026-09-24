@@ -11,6 +11,7 @@ vi.mock('@/lib/integrations/google/vault', async o => ({ ...(await o<object>()),
 
 const profile = { id: 'p', account_id: 'acct', accounts: { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_1' } }
 const sealed = { ciphertext: Buffer.from('x'), keyId: 'k' }
+const GID = '11111111-1111-1111-1111-111111111111'
 
 beforeEach(() => {
   process.env.FEATURE_SEARCH_CONSOLE = '1'
@@ -46,9 +47,14 @@ describe('DELETE', () => {
     expect((await del(null)).status).toBe(400)
   })
 
+  it('is 400 for a malformed id, and never reaches the store', async () => {
+    expect((await del('not-a-uuid')).status).toBe(400)
+    expect(store.loadConnectionSecret).not.toHaveBeenCalled()
+  })
+
   it('is 404 for a connection that is not the account\'s', async () => {
     store.loadConnectionSecret.mockResolvedValue(null)
-    expect((await del('g')).status).toBe(404)
+    expect((await del(GID)).status).toBe(404)
     expect(store.revokeConnectionRow).not.toHaveBeenCalled()
   })
 
@@ -56,22 +62,31 @@ describe('DELETE', () => {
     store.loadConnectionSecret.mockResolvedValue({ status: 'active', sealed })
     revokeToken.mockResolvedValue(false)
     store.revokeConnectionRow.mockResolvedValue(true)
-    const res = await del('g')
+    const res = await del(GID)
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ revoked: true, googleRevoked: false })
-    expect(store.revokeConnectionRow).toHaveBeenCalledWith('acct', 'g')
+    expect(store.revokeConnectionRow).toHaveBeenCalledWith('acct', GID)
   })
 
   it('still deletes locally when the token cannot be decrypted', async () => {
     store.loadConnectionSecret.mockResolvedValue({ status: 'active', sealed })
     openToken.mockImplementation(() => { throw new Error('vault') })
     store.revokeConnectionRow.mockResolvedValue(true)
-    expect(await (await del('g')).json()).toEqual({ revoked: true, googleRevoked: false })
+    expect(await (await del(GID)).json()).toEqual({ revoked: true, googleRevoked: false })
   })
 
   it('is 503 when the local delete fails', async () => {
     store.loadConnectionSecret.mockResolvedValue({ status: 'revoked', sealed: null })
     store.revokeConnectionRow.mockRejectedValue(new Error('db'))
-    expect((await del('g')).status).toBe(503)
+    expect((await del(GID)).status).toBe(503)
+  })
+
+  it('re-deleting an already-revoked connection is a no-op 200, and never calls Google', async () => {
+    store.loadConnectionSecret.mockResolvedValue({ status: 'revoked', sealed: null })
+    store.revokeConnectionRow.mockResolvedValue(true)
+    const res = await del(GID)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ revoked: true, googleRevoked: false })
+    expect(revokeToken).not.toHaveBeenCalled()
   })
 })
