@@ -48,6 +48,8 @@ const LLM_ROUTES = [
   'app/api/cron/evaluate-alerts/route.ts',
   // Same shape as evaluate-alerts: a Resend send per due email, serially.
   'app/api/cron/trial-emails/route.ts',
+  // Not an LLM caller: a paced loop of Google API calls under a 45s budget.
+  'app/api/cron/search-console/route.ts',
 ]
 
 describe('Vercel function durations', () => {
