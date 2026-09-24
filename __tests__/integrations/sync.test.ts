@@ -131,15 +131,15 @@ describe('syncBinding', () => {
     }))
   })
 
-  it('replaces the fetched window even when a page returns zero query rows, so stale rows clear', async () => {
+  it('makes only one query call for a page with zero page-total rows, and still clears its window', async () => {
     const query = vi.fn()
       .mockResolvedValueOnce([]) // property
-      .mockResolvedValueOnce([]) // page daily
-      .mockResolvedValueOnce([]) // page queries — zero rows
+      .mockResolvedValueOnce([]) // page-total — zero rows, so the date+query breakdown fetch is skipped entirely
     const d = deps({ query, listPages: vi.fn().mockResolvedValue(['https://example.com/p']) })
 
     expect(await syncBinding(binding(), d)).toBe('ok')
 
+    expect(d.query).toHaveBeenCalledTimes(2) // property + page-total only, no third breakdown call
     expect(d.writePageQueries).toHaveBeenCalledWith('a', 'c', [], {
       startDate: '2026-09-18', endDate: '2026-09-24', pageUrls: ['https://example.com/p'],
     })
@@ -153,7 +153,7 @@ describe('syncBinding', () => {
     ]
     const query = vi.fn()
       .mockResolvedValueOnce([]) // property
-      .mockResolvedValueOnce([]) // page daily
+      .mockResolvedValueOnce([{ keys: ['2026-09-20'], clicks: 1, impressions: 1, ctr: 0.1, position: 1 }]) // page-total — non-empty, so the breakdown fetch happens
       .mockResolvedValueOnce(queryRows) // page queries
     const d = deps({ query, listPages: vi.fn().mockResolvedValue(['https://example.com/p']) })
 
@@ -162,5 +162,74 @@ describe('syncBinding', () => {
     const written = vi.mocked(d.writePageQueries).mock.calls[0]![2]
     expect(written).toHaveLength(1)
     expect(written[0]!.query).toBe('short query')
+  })
+
+  it('deduplicates a (date, query) pair Google returned twice across startRow pages', async () => {
+    const queryRows = [
+      { keys: ['2026-09-20', 'shoes'], clicks: 5, impressions: 10, ctr: 0.5, position: 1 },
+      { keys: ['2026-09-20', 'shoes'], clicks: 3, impressions: 10, ctr: 0.3, position: 2 },
+    ]
+    const query = vi.fn()
+      .mockResolvedValueOnce([]) // property
+      .mockResolvedValueOnce([{ keys: ['2026-09-20'], clicks: 1, impressions: 1, ctr: 0.1, position: 1 }]) // page-total, non-empty
+      .mockResolvedValueOnce(queryRows) // page queries — same (date, query) key twice
+    const d = deps({ query, listPages: vi.fn().mockResolvedValue(['https://example.com/p']) })
+
+    expect(await syncBinding(binding(), d)).toBe('ok')
+
+    const written = vi.mocked(d.writePageQueries).mock.calls[0]![2]
+    expect(written).toHaveLength(1)
+    expect(written[0]).toMatchObject({ query: 'shoes', clicks: 5, impressions: 10, ctr: 0.5, position: 1 })
+  })
+
+  it('treats a cancelled Pro account as not entitled', async () => {
+    const d = deps()
+    expect(await syncBinding(binding({ account: { plan: 'pro', status: 'cancelled' } as DueBinding['account'] }), d))
+      .toBe('not_entitled')
+  })
+
+  it('treats a missing secret row as revoked', async () => {
+    const d = deps({ loadSecret: vi.fn().mockResolvedValue(null) })
+    expect(await syncBinding(binding(), d)).toBe('revoked')
+  })
+
+  it('treats a needs_reconnect connection status as revoked', async () => {
+    const d = deps({ loadSecret: vi.fn().mockResolvedValue({ status: 'needs_reconnect', sealed: { ciphertext: Buffer.from('x'), keyId: 'k' } }) })
+    expect(await syncBinding(binding(), d)).toBe('revoked')
+  })
+
+  it('treats a null sealed token as revoked', async () => {
+    const d = deps({ loadSecret: vi.fn().mockResolvedValue({ status: 'active', sealed: null }) })
+    expect(await syncBinding(binding(), d)).toBe('revoked')
+  })
+
+  it('turns a non-VaultError thrown by open into internal_error', async () => {
+    const d = deps({ open: vi.fn(() => { throw new Error('unexpected parse failure') }) })
+    expect(await syncBinding(binding(), d)).toBe('internal_error')
+  })
+
+  it('turns a non-Google write failure into internal_error, writes the ledger row exactly once, and never logs the message or a token', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const secretMessage = 'duplicate key value violates unique constraint "x" — postgresql://user:hunter2@host/db'
+      const d = deps({ writeDaily: vi.fn().mockRejectedValue(new Error(secretMessage)) })
+
+      expect(await syncBinding(binding(), d)).toBe('internal_error')
+      expect(d.recordRun).toHaveBeenCalledTimes(1)
+      expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({
+        outcome: 'internal_error', rowsWritten: 0, dataThrough: null, clearBackfill: false,
+      }))
+
+      for (const call of spy.mock.calls) {
+        for (const arg of call) {
+          const s = JSON.stringify(arg)
+          expect(s).not.toContain(secretMessage)
+          expect(s).not.toContain('1//refresh')
+          expect(s).not.toContain('ya29.access')
+        }
+      }
+    } finally {
+      spy.mockRestore()
+    }
   })
 })

@@ -27,6 +27,7 @@ describe('deriveOwnerState', () => {
     ['not_entitled', 'paused_plan'],
     ['vault_error', 'temporarily_unavailable'],
     ['config_error', 'temporarily_unavailable'],
+    ['internal_error', 'temporarily_unavailable'],
   ] as const)('maps a %s run to %s, keeping the last good date', (outcome, kind) => {
     expect(deriveOwnerState({ ...base, latest: { outcome, dataThrough: null }, lastGoodDataThrough: '2026-09-18' }))
       .toEqual({ kind, dataThrough: '2026-09-18' })

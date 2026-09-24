@@ -134,7 +134,7 @@ create table public.search_console_sync_runs (
   -- Closed vocabulary, mirrored by SYNC_OUTCOMES in lib/integrations/search-console/state.ts.
   constraint search_console_sync_runs_outcome_check check (outcome in (
     'ok', 'revoked', 'access_lost', 'google_unavailable', 'quota',
-    'domain_mismatch', 'not_entitled', 'vault_error', 'config_error'
+    'domain_mismatch', 'not_entitled', 'vault_error', 'config_error', 'internal_error'
   ))
 );
 

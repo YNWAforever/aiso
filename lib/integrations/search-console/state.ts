@@ -6,7 +6,7 @@
 
 export const SYNC_OUTCOMES = [
   'ok', 'revoked', 'access_lost', 'google_unavailable', 'quota',
-  'domain_mismatch', 'not_entitled', 'vault_error', 'config_error',
+  'domain_mismatch', 'not_entitled', 'vault_error', 'config_error', 'internal_error',
 ] as const
 export type SyncOutcome = (typeof SYNC_OUTCOMES)[number]
 export type ConnectionStatus = 'active' | 'needs_reconnect' | 'revoked'
@@ -43,6 +43,8 @@ const BY_OUTCOME: Record<Exclude<SyncOutcome, 'ok'>, ProblemKind> = {
   vault_error: 'temporarily_unavailable',
   // Our Google client or Cloud project is misconfigured: never the owner's to fix.
   config_error: 'temporarily_unavailable',
+  // An unexpected failure on our side; never the owner's to fix.
+  internal_error: 'temporarily_unavailable',
 }
 
 export function deriveOwnerState(input: OwnerStateInput): OwnerState {
