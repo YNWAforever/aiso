@@ -16,6 +16,12 @@ type Denied = { ok: false; response: NextResponse }
 const deny = (status: number, error: string): Denied =>
   ({ ok: false, response: NextResponse.json({ error }, { status }) })
 
+// clients.id is a `uuid` column. Without this check a malformed id reached
+// verifyClientOwnership unvalidated, Postgres raised 22P02 (invalid input
+// syntax for type uuid), and the catch below turned a caller's typo into a
+// misleading 503 "outage" instead of an honest 404.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 /** The session-only half, for routes with no brand in the URL. */
 export async function authorizeSearchConsoleAccount(): Promise<{ ok: true; profile: ProfileWithAccount } | Denied> {
   if (!isFeatureEnabled('search_console')) return deny(404, 'Not found')
@@ -31,6 +37,7 @@ export async function authorizeSearchConsole(
 ): Promise<{ ok: true; profile: ProfileWithAccount; client: Client } | Denied> {
   const account = await authorizeSearchConsoleAccount()
   if (!account.ok) return account
+  if (!UUID_RE.test(clientId)) return deny(404, 'Not found')
   let client: Client | null
   try {
     client = await verifyClientOwnership(clientId, account.profile.account_id)

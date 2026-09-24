@@ -8,7 +8,8 @@ vi.mock('@/lib/localTrust/store', () => ({ verifyClientOwnership }))
 import { authorizeSearchConsole } from '@/lib/integrations/search-console/guard'
 
 const pro = { id: 'p', account_id: 'a', accounts: { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_1' } }
-const status = async (clientId = 'c') => {
+const CLIENT_ID = '11111111-1111-1111-1111-111111111111'
+const status = async (clientId = CLIENT_ID) => {
   const r = await authorizeSearchConsole(clientId)
   return r.ok ? 200 : r.response.status
 }
@@ -37,6 +38,12 @@ describe('authorizeSearchConsole', () => {
     expect(verifyClientOwnership).not.toHaveBeenCalled()
   })
 
+  it('is 404 for a clientId that is not a UUID, before the ownership lookup', async () => {
+    getProfile.mockResolvedValue(pro)
+    expect(await status('not-a-uuid')).toBe(404)
+    expect(verifyClientOwnership).not.toHaveBeenCalled()
+  })
+
   it('is 404 for a brand that is not the account\'s', async () => {
     getProfile.mockResolvedValue(pro)
     verifyClientOwnership.mockResolvedValue(null)
@@ -51,8 +58,8 @@ describe('authorizeSearchConsole', () => {
 
   it('passes with the account from the session, never a caller id', async () => {
     getProfile.mockResolvedValue(pro)
-    verifyClientOwnership.mockResolvedValue({ id: 'c', domain: 'example.com' })
-    expect(await status('c')).toBe(200)
-    expect(verifyClientOwnership).toHaveBeenCalledWith('c', 'a')
+    verifyClientOwnership.mockResolvedValue({ id: CLIENT_ID, domain: 'example.com' })
+    expect(await status(CLIENT_ID)).toBe(200)
+    expect(verifyClientOwnership).toHaveBeenCalledWith(CLIENT_ID, 'a')
   })
 })
