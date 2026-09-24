@@ -133,6 +133,9 @@ export async function syncBinding(b: DueBinding, deps: SyncDeps): Promise<SyncOu
   } catch (error) {
     if (!(error instanceof GoogleApiError)) throw error
     if (error.kind === 'revoked') await deps.markConnection(b.accountId, b.connectionId, 'needs_reconnect')
+    if (error.kind === 'misconfigured') {
+      console.error('[search-console] google misconfigured', { clientId: b.clientId, status: error.status, code: error.code })
+    }
     return finish(OUTCOME_FOR[error.kind])
   }
 }

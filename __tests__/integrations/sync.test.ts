@@ -71,6 +71,23 @@ describe('syncBinding', () => {
     expect(d.markConnection).not.toHaveBeenCalled()
   })
 
+  it('logs a misconfigured refresh failure at error level with the code, and never a token', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const d = deps({ refresh: vi.fn().mockRejectedValue(new GoogleApiError('misconfigured', 401, 'invalid_client')) })
+      expect(await syncBinding(binding(), d)).toBe('config_error')
+      expect(spy).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ code: 'invalid_client' }))
+      for (const call of spy.mock.calls) {
+        for (const arg of call) {
+          expect(JSON.stringify(arg)).not.toContain('1//refresh')
+          expect(JSON.stringify(arg)).not.toContain('ya29.access')
+        }
+      }
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
   it('fetches 90 days on backfill and 7 days otherwise', async () => {
     const first = deps()
     await syncBinding(binding({ backfillPending: true }), first)
