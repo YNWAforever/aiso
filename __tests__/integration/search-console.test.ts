@@ -219,6 +219,49 @@ describe('migration 054 on real Postgres', () => {
   })
 })
 
+/** The GET route's own derivation, over what the store returns. */
+async function ownerState(accountId: string, clientId: string) {
+  const store = await import('@/lib/integrations/search-console/store')
+  const { deriveOwnerState } = await import('@/lib/integrations/search-console/state')
+  const { bindingMatchesDomain } = await import('@/lib/integrations/search-console/binding')
+  const [binding, panel] = await Promise.all([store.loadBinding(accountId, clientId), store.loadPanelData(accountId, clientId)])
+  return {
+    panel,
+    state: deriveOwnerState({
+      bound: binding !== null, entitled: true, connectionStatus: binding?.connectionStatus ?? null,
+      domainMatches: binding ? bindingMatchesDomain(binding, binding.currentDomain) : true,
+      boundAt: binding?.boundAt ?? null, latest: panel.latest, lastGoodDataThrough: panel.lastGoodDataThrough,
+    }),
+  }
+}
+
+describe('owner state after a rebind', () => {
+  it('reads a rebind after a domain_mismatch run as awaiting the first sync', async () => {
+    const store = await import('@/lib/integrations/search-console/store')
+    const conn = await store.upsertConnection({ accountId: A, profileId: A_USER, subject: 'g-state', email: null, scopes: [], sealed })
+    await store.bindProperty({
+      accountId: A, clientId: A_CLIENT, connectionId: conn, siteUrl: 'sc-domain:a-c15.example',
+      permissionLevel: 'siteOwner', boundDomain: 'a-c15.example', profileId: A_USER,
+    })
+    // The brand's domain changes and the next run skips it.
+    await sql`update clients set domain = 'new-a-c15.example' where id = ${A_CLIENT}::uuid and account_id = ${A}::uuid`
+    await store.recordRun({
+      accountId: A, clientId: A_CLIENT, siteUrl: 'sc-domain:a-c15.example', connectionId: conn,
+      outcome: 'domain_mismatch', rowsWritten: 0, dataThrough: null, clearBackfill: false,
+    })
+    expect((await ownerState(A, A_CLIENT)).state).toEqual({ kind: 'rebind', dataThrough: null })
+
+    // The owner rebinds to a property for the new domain; no run has happened since.
+    await store.bindProperty({
+      accountId: A, clientId: A_CLIENT, connectionId: conn, siteUrl: 'sc-domain:new-a-c15.example',
+      permissionLevel: 'siteOwner', boundDomain: 'new-a-c15.example', profileId: A_USER,
+    })
+    const { state, panel } = await ownerState(A, A_CLIENT)
+    expect(panel.latest?.outcome).toBe('domain_mismatch') // the row is still the newest...
+    expect(state).toEqual({ kind: 'awaiting_first_sync' }) // ...but it predates the binding
+  })
+})
+
 describe('cross-account, as B against A', () => {
   it('lists none of A\'s connections', async () => {
     const store = await import('@/lib/integrations/search-console/store')

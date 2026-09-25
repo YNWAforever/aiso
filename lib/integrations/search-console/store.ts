@@ -28,6 +28,8 @@ export type BindingRow = {
   backfillPending: boolean
   connectionStatus: ConnectionStatus
   currentDomain: string | null
+  /** When this binding was made or last rebound (ISO). Ledger rows and metrics older than it are about a previous binding. */
+  boundAt: string
 }
 
 export type DueBinding = {
@@ -58,7 +60,7 @@ export type PageQueryMetric = { pageUrl: string; date: string; query: string } &
 export type MetricTotals = Pick<DailyMetric, 'clicks' | 'impressions' | 'ctr' | 'position'>
 
 export type PanelData = {
-  latest: { outcome: SyncOutcome; dataThrough: string | null } | null
+  latest: { outcome: SyncOutcome; dataThrough: string | null; ranAt: string } | null
   lastGoodDataThrough: string | null
   property: MetricTotals | null
   pages: Array<{ pageUrl: string } & MetricTotals>
@@ -205,7 +207,7 @@ export async function unbindProperty(accountId: string, clientId: string): Promi
 export async function loadBinding(accountId: string, clientId: string): Promise<BindingRow | null> {
   const sql = db()
   const rows = await sql`
-    select b.connection_id, b.site_url, b.permission_level, b.bound_domain, b.backfill_pending,
+    select b.connection_id, b.site_url, b.permission_level, b.bound_domain, b.backfill_pending, b.bound_at,
            g.status as connection_status, c.domain as current_domain
     from search_console_bindings b
     join google_connections g on g.id = b.connection_id and g.account_id = b.account_id
@@ -223,6 +225,7 @@ export async function loadBinding(accountId: string, clientId: string): Promise<
     backfillPending: Boolean(r.backfill_pending),
     connectionStatus: r.connection_status as ConnectionStatus,
     currentDomain: (r.current_domain as string | null) ?? null,
+    boundAt: iso(r.bound_at),
   }
 }
 
@@ -378,7 +381,7 @@ export async function loadPanelData(accountId: string, clientId: string): Promis
   const sql = db()
   const [runs, lastGood, totals] = await sql.transaction([
     sql`
-      select outcome, data_through::text as data_through
+      select outcome, data_through::text as data_through, ran_at
       from search_console_sync_runs
       where account_id = ${accountId} and client_id = ${clientId}
       order by ran_at desc
@@ -411,7 +414,9 @@ export async function loadPanelData(accountId: string, clientId: string): Promis
   })
   const property = all.find(r => r.scope === 'property')
   return {
-    latest: run ? { outcome: run.outcome as SyncOutcome, dataThrough: (run.data_through as string | null) ?? null } : null,
+    latest: run
+      ? { outcome: run.outcome as SyncOutcome, dataThrough: (run.data_through as string | null) ?? null, ranAt: iso(run.ran_at) }
+      : null,
     lastGoodDataThrough: ((lastGood as Array<Record<string, unknown>>)[0]?.last_good as string | null) ?? null,
     property: property ? metric(property) : null,
     pages: all.filter(r => r.scope === 'page').map(r => ({ pageUrl: String(r.page_url), ...metric(r) })),

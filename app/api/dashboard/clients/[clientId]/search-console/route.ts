@@ -101,6 +101,8 @@ export async function GET(req: Request, { params }: Ctx) {
       // The same predicate the sync skips on, so the owner is told to rebind
       // exactly when the sync has stopped.
       domainMatches: binding ? bindingMatchesDomain(binding, binding.currentDomain) : true,
+      // A ledger row older than the binding was written for a previous one.
+      boundAt: binding?.boundAt ?? null,
       latest: panel.latest,
       lastGoodDataThrough: panel.lastGoodDataThrough,
     })

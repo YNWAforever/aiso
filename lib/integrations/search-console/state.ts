@@ -27,27 +27,48 @@ export type OwnerStateInput = {
   entitled: boolean
   connectionStatus: ConnectionStatus | null
   domainMatches: boolean
-  latest: { outcome: SyncOutcome; dataThrough: string | null } | null
+  /** When the current binding was made or last rebound (ISO). Null only when unbound. */
+  boundAt: string | null
+  /** The newest ledger row for the brand, of any outcome, with when it was recorded (ISO). */
+  latest: { outcome: SyncOutcome; dataThrough: string | null; ranAt: string } | null
   lastGoodDataThrough: string | null
 }
 
-const BY_OUTCOME: Record<Exclude<SyncOutcome, 'ok' | 'deferred'>, ProblemKind> = {
-  // Only reached if the active-connection guard in deriveOwnerState above is
-  // ever removed or reordered. While that guard runs first, a 'revoked' row
-  // under an active connection is stale by definition — see the early branch
-  // below, which exists so a just-reconnected owner isn't told to reconnect
-  // again before the next sync overwrites the ledger.
-  revoked: 'reconnect',
+/**
+ * Outcomes whose current truth deriveOwnerState checks live, BEFORE it reads
+ * the ledger — the connection status, the entitlement and the domain. Once
+ * those checks have passed, a row saying otherwise describes a past the owner
+ * has already fixed (reconnected, upgraded, rebound), not the present. Until
+ * the next daily run overwrites it, such a row must not keep telling them to
+ * do it again. `deferred` joins them because it carries no information at all:
+ * the run simply ran out of time.
+ */
+const SUPERSEDED_BY_LIVE_CHECK: ReadonlySet<SyncOutcome> = new Set(['revoked', 'not_entitled', 'domain_mismatch', 'deferred'])
+
+type LedgerProblem = Exclude<SyncOutcome, 'ok' | 'revoked' | 'not_entitled' | 'domain_mismatch' | 'deferred'>
+
+const BY_OUTCOME: Record<LedgerProblem, ProblemKind> = {
   access_lost: 'access_lost',
   google_unavailable: 'retrying',
   quota: 'retrying',
-  domain_mismatch: 'rebind',
-  not_entitled: 'paused_plan',
   vault_error: 'temporarily_unavailable',
   // Our Google client or Cloud project is misconfigured: never the owner's to fix.
   config_error: 'temporarily_unavailable',
   // An unexpected failure on our side; never the owner's to fix.
   internal_error: 'temporarily_unavailable',
+}
+
+/**
+ * Is the newest ledger row about the binding the owner has now? A row recorded
+ * before `bound_at` was written for a previous binding — possibly another
+ * property — so what it says (`domain_mismatch`, `access_lost`, even `ok`)
+ * is not about this one.
+ */
+function current(latest: OwnerStateInput['latest'], boundAt: string | null): OwnerStateInput['latest'] {
+  if (!latest) return null
+  if (boundAt !== null && Date.parse(latest.ranAt) < Date.parse(boundAt)) return null
+  if (SUPERSEDED_BY_LIVE_CHECK.has(latest.outcome)) return null
+  return latest
 }
 
 export function deriveOwnerState(input: OwnerStateInput): OwnerState {
@@ -56,19 +77,13 @@ export function deriveOwnerState(input: OwnerStateInput): OwnerState {
   if (!input.entitled) return { kind: 'paused_plan', dataThrough }
   if (input.connectionStatus !== 'active') return { kind: 'reconnect', dataThrough }
   if (!input.domainMatches) return { kind: 'rebind', dataThrough }
-  // The connection is active here, so a 'revoked' ledger row predates a
-  // reconnect that happened since that sync ran: it is stale, not current.
-  // Treat it like no newer run has happened yet rather than re-asking the
-  // owner to reconnect right after they just did.
-  // A deferred run ran out of time before finishing; it says nothing new, so
-  // the brand reads as whatever the last completed sync left it.
-  if (input.latest?.outcome === 'revoked' || input.latest?.outcome === 'deferred') {
-    return dataThrough ? { kind: 'synced', dataThrough } : { kind: 'awaiting_first_sync' }
-  }
-  if (!input.latest) return dataThrough ? { kind: 'synced', dataThrough } : { kind: 'awaiting_first_sync' }
-  if (input.latest.outcome === 'ok') {
-    const through = input.latest.dataThrough ?? dataThrough
+  // The live checks above all passed. A stale or superseded row reads as if no
+  // newer run had happened yet.
+  const latest = current(input.latest, input.boundAt)
+  if (!latest) return dataThrough ? { kind: 'synced', dataThrough } : { kind: 'awaiting_first_sync' }
+  if (latest.outcome === 'ok') {
+    const through = latest.dataThrough ?? dataThrough
     return through ? { kind: 'synced', dataThrough: through } : { kind: 'awaiting_first_sync' }
   }
-  return { kind: BY_OUTCOME[input.latest.outcome], dataThrough }
+  return { kind: BY_OUTCOME[latest.outcome as LedgerProblem], dataThrough }
 }

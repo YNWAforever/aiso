@@ -151,14 +151,29 @@ describe('GET', () => {
   it('derives the owner state from the binding and the ledger', async () => {
     store.loadBinding.mockResolvedValue({
       connectionId: CONNECTION_ID, siteUrl: 'sc-domain:example.com', permissionLevel: 'siteOwner', boundDomain: 'example.com',
-      backfillPending: false, connectionStatus: 'active', currentDomain: 'example.com',
+      backfillPending: false, connectionStatus: 'active', currentDomain: 'example.com', boundAt: '2026-09-01T00:00:00.000Z',
     })
     store.loadPanelData.mockResolvedValue({
-      latest: { outcome: 'ok', dataThrough: '2026-09-20' }, lastGoodDataThrough: '2026-09-20', property: null, pages: [],
+      latest: { outcome: 'ok', dataThrough: '2026-09-20', ranAt: '2026-09-21T00:00:00.000Z' },
+      lastGoodDataThrough: '2026-09-20', property: null, pages: [],
     })
     const { GET } = await import('@/app/api/dashboard/clients/[clientId]/search-console/route')
     const body = await (await GET(new Request('https://app.test/'), ctx)).json()
     expect(body.state).toEqual({ kind: 'synced', dataThrough: '2026-09-20' })
+  })
+
+  it('passes the binding time through, so a run from before a rebind is ignored', async () => {
+    store.loadBinding.mockResolvedValue({
+      connectionId: CONNECTION_ID, siteUrl: 'sc-domain:example.com', permissionLevel: 'siteOwner', boundDomain: 'example.com',
+      backfillPending: true, connectionStatus: 'active', currentDomain: 'example.com', boundAt: '2026-09-22T00:00:00.000Z',
+    })
+    store.loadPanelData.mockResolvedValue({
+      latest: { outcome: 'access_lost', dataThrough: null, ranAt: '2026-09-21T00:00:00.000Z' },
+      lastGoodDataThrough: null, property: null, pages: [],
+    })
+    const { GET } = await import('@/app/api/dashboard/clients/[clientId]/search-console/route')
+    const body = await (await GET(new Request('https://app.test/'), ctx)).json()
+    expect(body.state).toEqual({ kind: 'awaiting_first_sync' })
   })
 })
 
