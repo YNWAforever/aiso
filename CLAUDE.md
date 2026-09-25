@@ -126,7 +126,7 @@ proxy.ts           # Next 16 proxy (was middleware) — intl routing + auth veri
 i18n/              # next-intl routing + request config
 messages/          # en.json / zh-HK.json translation strings
 supabase/
-  migrations/      # 47 SQL migrations, 001_-049_ (no 005/006) - dir name is legacy
+  migrations/      # 52 SQL migrations, 001_-054_ (no 005/006) - dir name is legacy
 __tests__/         # Vitest tests mirroring lib/app structure
 tests/e2e/         # Playwright specs + page objects
 scripts/           # migrate.ts (npm run migrate), run-tests.mjs (npm test), seed-packs.ts
@@ -160,13 +160,15 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   happened.
 - Deployment config lives outside the code and is easy to miss: `vercel.json` sets
   `maxDuration` (60s scan, 30s fix, 60s each for `pulse/run`, `cron/pulse`,
-  `cron/evaluate-alerts` and `cron/trial-emails`) but **no longer schedules anything itself**
+  `cron/evaluate-alerts`, `cron/trial-emails` and `cron/search-console`) but **no longer schedules anything itself**
   (2026-08-22) — its `crons` array was removed. Scheduling now belongs to
   `cloudflare/cron-worker/`, a standalone Cloudflare Worker (own `package.json`/toolchain,
   excluded from this repo's root `tsconfig.json`/`vitest.config.ts`/lint) whose
   `wrangler.jsonc` holds the same three schedules in order — `17 4 * * 1` →
   `/api/cron/pulse`, `47 7 * * 1` → `/api/cron/evaluate-alerts` (after pulse, because alerts
-  read the rollup Pulse writes), `0 9 * * *` → `/api/cron/trial-emails` — calling each with
+  read the rollup Pulse writes), `0 9 * * *` → `/api/cron/trial-emails` **and**
+  `/api/cron/search-console` (one trigger fanning out to independent routes via
+  `Promise.allSettled`, because the free tier allows only three triggers) — calling each with
   the exact `Authorization: Bearer $CRON_SECRET` header Vercel Cron used to send, so none of
   the three routes needed code changes. Follow `docs/runbooks/deploy-cron-worker.md` to
   actually deploy and verify it; until that runs, nothing schedules these three routes at
@@ -390,9 +392,27 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   rather than checking first is the preferred shape — one statement, no TOCTOU window, and zero
   rows means 404 without distinguishing "absent" from "not yours". See
   `app/api/dashboard/clients/[clientId]/prompts/[promptId]/route.ts`.
-- Migrations in `supabase/migrations/` — 47 files, `001_`–`049_` (no 005/006; directory name is legacy;
-  the target is now Neon). `038`–`049` postdate the "001–035 all applied" note below, which is
+- Migrations in `supabase/migrations/` — 52 files, `001_`–`054_` (no 005/006; directory name is legacy;
+  the target is now Neon). `038`–`054` postdate the "001–035 all applied" note below, which is
   about the *persistent* database and is only as fresh as its date — re-run `--verify`.
+- **Search Console connector (migration `054`, Phase 2).** `054` is **not applied to any
+  persistent database** yet. Google refresh tokens are sealed with AES-256-GCM in
+  `lib/integrations/google/vault.ts` using `GOOGLE_TOKEN_ENCRYPTION_KEY`, with the
+  `accountId` as AAD so a ciphertext copied to another account's row will not open; the key
+  never reaches SQL and there is no plaintext fallback. Upsert keys on the metric tables lead
+  with `account_id`, and `search_console_daily` uses `unique nulls not distinct`, so a
+  re-synced day overwrites — unlike `pulse_metrics`. `search_console_page_queries` is the one
+  metric table `aeo_app` may DELETE from: each sync replaces the re-fetched window, because a
+  query that drops out of a day's top 25 would otherwise keep stale numbers forever.
+  Owner-visible state is derived from `search_console_sync_runs` (closed outcome vocabulary,
+  a DB CHECK mirrored by `SYNC_OUTCOMES`), never stored twice. Only `400 invalid_grant` marks
+  a connection revoked — a 401 or `invalid_client` is `misconfigured`, because treating it as
+  revoked would mass-flip every connection on one bad secret. A property binds only if it
+  covers the brand's domain (`lib/integrations/search-console/binding.ts`). Gated on
+  `FEATURE_SEARCH_CONSOLE=1` plus the `search_console` plan feature (Pro/Enterprise).
+  `webmasters.readonly` is a Google *sensitive* scope: until Google verifies the OAuth app,
+  consent shows an "unverified app" warning and the app is capped at 100 users. The OAuth
+  redirect URI comes from `NEXT_PUBLIC_APP_URL`, so connecting only works from that host.
 - **`047`, `048` and `049` were applied to the AISO development database on 2026-09-11** and
   `--verify` reports all three `all present recorded`. They have **not** been applied to the
   production project Vercel points at — that is a separate cutover decision.
