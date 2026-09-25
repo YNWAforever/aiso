@@ -8,7 +8,7 @@ vi.mock('@/lib/reports/store',()=>({loadReportBranding:mocks.branding}))
 vi.mock('@/lib/members/store',()=>({loadAccountMembers:mocks.members}))
 vi.mock('next-intl/server',()=>({getTranslations:async()=>(key:string)=>key}))
 import Page from '@/app/[lang]/dashboard/settings/page'
-const render=()=>Page({params:Promise.resolve({lang:'zh-HK'})})
+const render=()=>Page({params:Promise.resolve({lang:'zh-HK'}),searchParams:Promise.resolve({})})
 beforeEach(()=>{vi.clearAllMocks();mocks.auth.mockResolvedValue({id:'profile-a',account_id:'account-a',accounts:{plan:'free'}});mocks.branding.mockResolvedValue(null);mocks.members.mockResolvedValue({members:[],invitations:[]})})
 it('keeps independent authentication ahead of branding data',async()=>{
  mocks.auth.mockRejectedValue(new Error('AUTH_REDIRECT'))

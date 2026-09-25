@@ -8,13 +8,20 @@ import { MembersPanel } from '@/components/dashboard/MembersPanel'
 import { MAX_ACCOUNT_MEMBERS } from '@/lib/members/schema'
 import { loadAccountMembers } from '@/lib/members/store'
 import { resolveCommercialEntitlement } from '@/lib/tier'
+import { isFeatureEnabled } from '@/lib/flags'
+import { listConnections } from '@/lib/integrations/search-console/store'
+import { GoogleConnectionsPanel } from '@/components/integrations/GoogleConnectionsPanel'
+import { isConsentErrorReason } from '@/lib/integrations/google/consent-reasons'
 
 export default async function SettingsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ lang: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const { lang } = await params
+  const search = await searchParams
   const profile = await requireAuth(lang)
   const reportT = await getTranslations('reportBranding')
   const entitlement = resolveCommercialEntitlement(profile.accounts)
@@ -29,6 +36,12 @@ export default async function SettingsPage({
   // rather than of paying ones. The account comes from the session profile —
   // this page never reads an account id from the URL.
   const membership = await loadAccountMembers(profile.account_id)
+  const searchConsoleOn = isFeatureEnabled('search_console')
+  const searchConsoleEntitled = entitlement.features.search_console
+  const connections = searchConsoleOn && searchConsoleEntitled ? await listConnections(profile.account_id) : []
+  // Only a reason the callback itself generates is shown; anything else is ignored.
+  const reason = search.google === 'error' ? search.reason : undefined
+  const notice = isConsentErrorReason(reason) ? reason : null
 
   return (
     <SettingsView lang={lang} plan={plan} status={status} hasStripe={hasStripe}>
@@ -38,6 +51,9 @@ export default async function SettingsPage({
           members={membership.members}
           invitations={membership.invitations}
         />
+        {searchConsoleOn && (
+          <GoogleConnectionsPanel lang={lang} entitled={searchConsoleEntitled} connections={connections} notice={notice} />
+        )}
         <section id="report-branding" className="scroll-mt-6">
           <div className="mb-4">
             <h2 className="text-lg font-bold text-foreground">{reportT('title')}</h2>
