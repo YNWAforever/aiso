@@ -31,6 +31,7 @@ async function teardown() {
   await sql`delete from search_console_daily where account_id in (${A}::uuid, ${B}::uuid)`
   await sql`delete from search_console_bindings where account_id in (${A}::uuid, ${B}::uuid)`
   await sql`delete from google_connections where account_id in (${A}::uuid, ${B}::uuid)`
+  await sql`delete from client_assets where account_id in (${A}::uuid, ${B}::uuid)`
   await sql`delete from clients where account_id in (${A}::uuid, ${B}::uuid)`
   await sql`delete from profiles where id in (${A_USER}::uuid, ${B_USER}::uuid)`
   await sql`delete from neon_auth.user where id in (${A_USER}, ${B_USER})`
@@ -99,6 +100,68 @@ describe('migration 054 on real Postgres', () => {
     expect(await sql`select clicks from search_console_daily where client_id = ${A_CLIENT}::uuid`).toEqual([{ clicks: 7 }])
   })
 
+  it('replaces only the re-fetched window, leaving a query outside it untouched', async () => {
+    const { writePageQueries } = await import('@/lib/integrations/search-console/store')
+    const pageUrl = 'https://a-c15.example/page1'
+    await sql`
+      insert into client_assets (account_id, client_id, url, origin, label)
+      values (${A}::uuid, ${A_CLIENT}::uuid, ${pageUrl}, 'https://a-c15.example', 'Page 1')
+    `
+    const windowA = { startDate: '2026-09-18', endDate: '2026-09-24', pageUrls: [pageUrl] }
+    const windowOutside = { startDate: '2026-09-10', endDate: '2026-09-10', pageUrls: [pageUrl] }
+    const row = (query: string, clicks: number, date = '2026-09-20') =>
+      ({ pageUrl, date, query, clicks, impressions: 40, ctr: clicks / 40, position: 6 })
+
+    // First fetch of the window: two queries on the same day.
+    await writePageQueries(A, A_CLIENT, [row('q1', 3), row('q2', 4)], windowA)
+    // A separate, narrower window for a day outside the first: must survive the
+    // later re-fetch of windowA, since the delete predicate is bounded by date.
+    await writePageQueries(A, A_CLIENT, [row('qout', 1, '2026-09-10')], windowOutside)
+    // Re-fetch of windowA: q1 dropped out of the top ranks, q2's numbers changed.
+    await writePageQueries(A, A_CLIENT, [row('q2', 9)], windowA)
+
+    const inWindow = await sql`
+      select query, clicks from search_console_page_queries
+      where account_id = ${A}::uuid and client_id = ${A_CLIENT}::uuid and page_url = ${pageUrl} and date = '2026-09-20'
+    `
+    expect(inWindow).toEqual([{ query: 'q2', clicks: 9 }])
+
+    const outsideWindow = await sql`
+      select query, clicks from search_console_page_queries
+      where account_id = ${A}::uuid and client_id = ${A_CLIENT}::uuid and page_url = ${pageUrl} and date = '2026-09-10'
+    `
+    expect(outsideWindow).toEqual([{ query: 'qout', clicks: 1 }])
+  })
+
+  it('clears backfill_pending only when the recorded run matches the current binding', async () => {
+    const store = await import('@/lib/integrations/search-console/store')
+    const conn = await store.upsertConnection({ accountId: A, profileId: A_USER, subject: 'g-rebind', email: null, scopes: [], sealed })
+    expect(await store.bindProperty({
+      accountId: A, clientId: A_CLIENT, connectionId: conn, siteUrl: 'sc-domain:a-c15.example',
+      permissionLevel: 'siteOwner', boundDomain: 'a-c15.example', profileId: A_USER,
+    })).toBe(true)
+    const pending = async () => {
+      const [row] = await sql`select backfill_pending from search_console_bindings where account_id = ${A}::uuid and client_id = ${A_CLIENT}::uuid`
+      return row!.backfill_pending as boolean
+    }
+    expect(await pending()).toBe(true)
+
+    // A run for a different siteUrl than the current binding (e.g. a stale run
+    // racing a rebind) must not clear this binding's backfill flag.
+    await store.recordRun({
+      accountId: A, clientId: A_CLIENT, siteUrl: 'sc-domain:stale.example', connectionId: conn,
+      outcome: 'ok', rowsWritten: 5, dataThrough: '2026-09-20', clearBackfill: true,
+    })
+    expect(await pending()).toBe(true)
+
+    // A run for the binding's actual siteUrl and connection clears it.
+    await store.recordRun({
+      accountId: A, clientId: A_CLIENT, siteUrl: 'sc-domain:a-c15.example', connectionId: conn,
+      outcome: 'ok', rowsWritten: 5, dataThrough: '2026-09-20', clearBackfill: true,
+    })
+    expect(await pending()).toBe(false)
+  })
+
   it('refuses a property row that names a page', async () => {
     await expect(sql`
       insert into search_console_daily (account_id, client_id, date, scope, page_url, clicks, impressions, ctr, position)
@@ -118,6 +181,15 @@ describe('migration 054 on real Postgres', () => {
       has_table_privilege('aeo_app', 'public.search_console_sync_runs', 'DELETE') as runs,
       has_table_privilege('aeo_app', 'public.search_console_bindings', 'DELETE') as bindings`
     expect(grants).toEqual({ daily: false, runs: false, bindings: true })
+  })
+
+  it('gives aeo_app DELETE on page_queries, the one history table that keeps it', async () => {
+    // writePageQueries replaces a re-fetched window in one transaction (store.ts):
+    // that is not deleting history, so this table alone among the three history
+    // tables grants DELETE.
+    const [grants] = await sql`select
+      has_table_privilege('aeo_app', 'public.search_console_page_queries', 'DELETE') as page_queries`
+    expect(grants).toEqual({ page_queries: true })
   })
 
   it('keeps the account when the connecting profile is deleted (column-list set null)', async () => {
