@@ -89,9 +89,10 @@ every query filters by account explicitly.
   `clicks`, `impressions`, `ctr`, `position`. Unique `(client_id, page_url, date, query)`.
 - **`search_console_sync_runs`** — the ledger: `account_id`, `client_id`, `ran_at`,
   `outcome` (closed vocabulary, CHECK-constrained, §5), `rows_written`, `data_through date`.
-- **Grants:** `aeo_app` gets SELECT/INSERT/UPDATE; **no DELETE** on `search_console_daily`,
-  `search_console_page_queries` or `search_console_sync_runs`. Disconnecting removes the
-  credential, not the history.
+- **Grants:** `aeo_app` gets SELECT/INSERT/UPDATE with **no DELETE** on `search_console_daily`;
+  SELECT/INSERT only on the insert-only ledger `search_console_sync_runs`; and DELETE on
+  `search_console_page_queries` alone, because each sync replaces a re-fetched query window.
+  Disconnecting removes the credential, not the history.
 
 ### 3.3 Routes
 

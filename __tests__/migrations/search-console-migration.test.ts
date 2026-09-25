@@ -37,10 +37,15 @@ describe('migration 054', () => {
 
   it('grants aeo_app DELETE on page queries only, not on daily or the ledger', () => {
     expect(sql).toMatch(/grant select, insert, update, delete on public\.search_console_page_queries to aeo_app/)
+    expect(sql).toMatch(/grant select, insert, update on public\.search_console_daily to aeo_app/)
     for (const table of ['search_console_daily', 'search_console_sync_runs']) {
-      expect(sql).toMatch(new RegExp(`grant select, insert, update on public\\.${table} to aeo_app`))
-      expect(sql).not.toMatch(new RegExp(`grant select, insert, update, delete on public\\.${table} to aeo_app`))
+      expect(sql).not.toMatch(new RegExp(`grant [a-z, ]*delete[a-z, ]* on public\\.${table} to aeo_app`))
     }
+  })
+
+  it('keeps the ledger insert-only: no UPDATE for aeo_app', () => {
+    expect(sql).toMatch(/grant select, insert on public\.search_console_sync_runs to aeo_app;/)
+    expect(sql).not.toMatch(/grant [a-z, ]*update[a-z, ]* on public\.search_console_sync_runs to aeo_app/)
   })
 
   it('bounds ctr and position against NaN and Infinity, floor at 0', () => {

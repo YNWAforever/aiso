@@ -201,6 +201,13 @@ describe('migration 054 on real Postgres', () => {
     expect(grants).toEqual({ daily: false, runs: false, bindings: true })
   })
 
+  it('keeps the ledger insert-only for aeo_app: INSERT yes, UPDATE no', async () => {
+    const [grants] = await sql`select
+      has_table_privilege('aeo_app', 'public.search_console_sync_runs', 'INSERT') as runs_insert,
+      has_table_privilege('aeo_app', 'public.search_console_sync_runs', 'UPDATE') as runs_update`
+    expect(grants).toEqual({ runs_insert: true, runs_update: false })
+  })
+
   it('gives aeo_app DELETE on page_queries, the one history table that keeps it', async () => {
     // writePageQueries replaces a re-fetched window in one transaction (store.ts):
     // that is not deleting history, so this table alone among the three history

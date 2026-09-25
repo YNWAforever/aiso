@@ -168,6 +168,8 @@ do $$ begin
     -- Google itself revised is not deleting history; daily metrics and the
     -- ledger stay no-DELETE.
     grant select, insert, update, delete on public.search_console_page_queries to aeo_app;
-    grant select, insert, update on public.search_console_sync_runs to aeo_app;
+    -- The ledger is insert-only: a run's row is never rewritten, so no UPDATE
+    -- either. recordRun only inserts; the owner's state is the newest row.
+    grant select, insert on public.search_console_sync_runs to aeo_app;
   end if;
 end $$;
