@@ -1359,7 +1359,22 @@
     "error_denied": "Google access wasn't granted.",
     "error_no_refresh_token": "Google didn't grant ongoing access. Please connect again and approve access.",
     "error_scope_missing": "Search Console access wasn't granted. Please connect again and tick Search Console.",
-    "error_unavailable": "Couldn't finish connecting. Please try again."
+    "error_unavailable": "Couldn't finish connecting. Please try again.",
+    "bind_error_ineligible": "This property is no longer eligible for this brand. Refresh the list and choose another.",
+    "bind_error_google": "Google could not confirm this property right now. Try again shortly.",
+    "bind_error_revoked": "Google access for this connection was revoked. Reconnect Google, then try again.",
+    "bind_error_generic": "Could not use this property. Please try again.",
+    "binding": "Using…",
+    "disconnect_error": "Could not disconnect. Please try again.",
+    "disconnecting": "Disconnecting…",
+    "properties_load_failed": "Could not load Search Console properties. Try again.",
+    "retry": "Try again",
+    "connection_error_revoked": "{email}: Access was revoked for this login. Reconnect it in Settings.",
+    "connection_error_forbidden": "{email}: This login no longer has permission to list properties. Reconnect it in Settings.",
+    "connection_error_quota": "{email}: Google did not respond in time for this login. Try again later.",
+    "connection_error_misconfigured": "{email}: Search Console is temporarily unavailable for this login. No action is needed from you.",
+    "connection_error_unavailable": "{email}: Google could not list properties for this login right now. Try again later.",
+    "no_eligible_properties": "No eligible Search Console properties were found for this brand. A property must cover the brand domain and be verified for your Google login."
   },
   "methodologyPage": {
     "title": "How to read your scan evidence",
