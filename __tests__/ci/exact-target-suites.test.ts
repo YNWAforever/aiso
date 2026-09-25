@@ -46,6 +46,7 @@ const SUITES = [
   '__tests__/integration/feature-store-tenancy.test.ts',
   '__tests__/integration/reports-entities-tenancy.test.ts',
   '__tests__/integration/alerts-agents-tenancy.test.ts',
+  '__tests__/integration/search-console.test.ts',
 ]
 
 describe('the exact-target suites are wired into the gate', () => {
