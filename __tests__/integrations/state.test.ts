@@ -88,6 +88,20 @@ describe('deriveOwnerState', () => {
     expect(deriveOwnerState({ ...base, domainMatches: false })).toEqual({ kind: 'rebind', dataThrough: '2026-09-20' })
   })
 
+  it('knows the deferred outcome', () => {
+    expect(SYNC_OUTCOMES).toContain('deferred')
+  })
+
+  it('reads a deferred run as synced when an earlier run succeeded', () => {
+    expect(deriveOwnerState({ ...base, latest: { outcome: 'deferred', dataThrough: null }, lastGoodDataThrough: '2026-09-18' }))
+      .toEqual({ kind: 'synced', dataThrough: '2026-09-18' })
+  })
+
+  it('reads a deferred run as awaiting the first sync when nothing has succeeded yet', () => {
+    expect(deriveOwnerState({ ...base, latest: { outcome: 'deferred', dataThrough: null }, lastGoodDataThrough: null }))
+      .toEqual({ kind: 'awaiting_first_sync' })
+  })
+
   it('handles every outcome in the closed vocabulary', () => {
     for (const outcome of SYNC_OUTCOMES) {
       expect(deriveOwnerState({ ...base, latest: { outcome, dataThrough: null } }).kind).toBeTypeOf('string')

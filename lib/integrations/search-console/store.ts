@@ -227,8 +227,12 @@ export async function loadBinding(accountId: string, clientId: string): Promise<
 /**
  * The cron's selection and the one account-blind statement here, by design, like
  * alert evaluation. Each row carries its own account_id and every write the sync
- * makes uses that value. Anything synced in the last 20 hours is not due, and
- * the rest go oldest-synced first so a budget-limited run never starves a brand.
+ * makes uses that value. Anything ATTEMPTED in the last 20 hours is not due, and
+ * the rest go least recently attempted first: `last_run` is the newest ledger
+ * row of ANY outcome, not the newest `ok`. A brand whose run was `deferred`
+ * (out of time) therefore has a fresh row and goes behind every brand not yet
+ * attempted, so one oversized backfill cannot be retried first every day and
+ * starve the brands behind it. Never-attempted brands sort first (nulls first).
  */
 export async function loadDueBindings(limit: number): Promise<DueBinding[]> {
   const sql = db()

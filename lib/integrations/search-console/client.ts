@@ -29,6 +29,21 @@ export type AnalyticsQuery = {
   dimensions: AnalyticsDimension[]
   pageEquals?: string
   rowLimit?: number
+  /**
+   * Epoch ms (Date.now) after which no further `startRow` page is requested.
+   * Ours, never sent to Google. One query can be up to MAX_PAGES sequential
+   * calls, so the sync's own check before each query is not enough on its own
+   * to keep a cron run inside its budget.
+   */
+  deadline?: number
+}
+
+/** Thrown instead of requesting another page once AnalyticsQuery.deadline has passed. */
+export class DeadlineReachedError extends Error {
+  constructor() {
+    super('search console deadline reached')
+    this.name = 'DeadlineReachedError'
+  }
 }
 export type AnalyticsRow = { keys: string[]; clicks: number; impressions: number; ctr: number; position: number }
 
@@ -184,6 +199,9 @@ export async function querySearchAnalytics(
   const url = `${BASE}/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`
   const rows: AnalyticsRow[] = []
   for (let page = 0; page < MAX_PAGES; page++) {
+    // A partial result would be silently incomplete (a date+query breakdown
+    // missing rows), so running out of time throws rather than returning early.
+    if (q.deadline !== undefined && Date.now() >= q.deadline) throw new DeadlineReachedError()
     const startRow = page * pageSize
     const body = await call(url, accessToken, f, {
       method: 'POST',

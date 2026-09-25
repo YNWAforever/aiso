@@ -152,8 +152,10 @@ skip the other. `__tests__/config/function-durations.test.ts` and the worker's o
 updated to pin the new shape.
 
 Per run: select due bindings — active connection, entitled account, not mismatched,
-oldest-synced first — and process as many as fit a wall-clock budget below the 60-second
-limit; the rest wait for the next run. Per binding:
+least recently attempted first — and process as many as fit a wall-clock budget below the
+60-second limit; the rest wait for the next run. No binding starts after 40 s, and each sync
+checks a deadline of run start + 45 s before **every** Google call (including each
+`startRow` page), recording `deferred` if it is reached. Per binding:
 
 1. Refresh an access token. It lives in memory only and is never stored.
 2. Window: **90 days** when `backfill_pending`, else **the last 7 days** (Google revises
@@ -192,6 +194,7 @@ visible with its last date.
 | `not_entitled` | Account below Pro | "Syncing paused — plan" | Skipped; data kept |
 | `vault_error` | Ciphertext cannot be decrypted (missing or unknown key id) | "Temporarily unavailable" — **not** "reconnect" | Error-level log. Our fault, so the owner is never asked to act. |
 | `config_error` | Our Google client or Cloud project is wrong: token endpoint answers `invalid_client` / any 401, or the API is disabled for our project (`SERVICE_DISABLED`) | "Temporarily unavailable" — **not** "reconnect" | Error-level log; connection **not** flagged. Added after code review: a 401 from the token endpoint is a client-credential fault, so treating it as `revoked` would flip every connection after one bad deploy. Only `invalid_grant` means revoked. |
+| `deferred` | The run's per-sync deadline (cron start + 45 s) arrived before every Google call was made | Nothing new: "Data up to ⟨date⟩" if an earlier run succeeded, else "first data arrives within a day" | Added after the whole-branch review. Whole pages fetched so far are written; `backfill_pending` stays set; counts as due and not ok for the cron's 502 rule. The ledger row puts the brand behind never-attempted brands tomorrow. |
 
 **Hard rules:**
 - Missing or short `GOOGLE_TOKEN_ENCRYPTION_KEY` → connect and sync return 500 before doing

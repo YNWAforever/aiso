@@ -1,7 +1,7 @@
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { GoogleApiError, type GoogleFailure } from '@/lib/integrations/google/oauth'
 import { VaultError, type SealedToken } from '@/lib/integrations/google/vault'
-import type { AnalyticsQuery, AnalyticsRow } from './client'
+import { DeadlineReachedError, type AnalyticsQuery, type AnalyticsRow } from './client'
 import { normalizeBrandDomain } from './binding'
 import type { SyncOutcome } from './state'
 import type { DailyMetric, DueBinding, PageQueryMetric, QueryWindow } from './store'
@@ -13,9 +13,9 @@ import type { DailyMetric, DueBinding, PageQueryMetric, QueryWindow } from './st
  * included — the owner's screen is derived from it.
  *
  * `syncBinding` writes that ledger row exactly once, from ONE call site,
- * after `attempt()` returns or throws. The cron (Task 16) runs bindings
- * oldest-synced first, so a brand whose write hits a DB failure or a unique
- * violation is always the oldest again tomorrow: if that error escaped
+ * after `attempt()` returns or throws. The cron runs bindings least recently
+ * attempted first, so a brand with no ledger row is always first again
+ * tomorrow: if a DB failure or a unique violation escaped
  * uncaught it would abort the whole run and starve every other brand behind
  * it forever. `attempt()` still throws for anything it does not itself
  * classify (a non-VaultError from `open`, a DB error from `writeDaily` or
@@ -53,6 +53,16 @@ export type SyncDeps = {
     clearBackfill: boolean
   }): Promise<void>
   today(): string
+  /**
+   * Epoch ms after which no further Google call is started (cron: run start +
+   * 45 s). Checked before every call — the refresh, the property query and each
+   * page query — because one brand's 90-day backfill is dozens of sequential
+   * calls and could otherwise run past vercel.json's 60 s maxDuration, be
+   * killed with no ledger row, and be retried first every day forever.
+   */
+  deadline: number
+  /** The clock the deadline is read against. Defaults to Date.now. */
+  now?: () => number
 }
 
 type AttemptResult = { outcome: SyncOutcome; rows: number; through: string | null }
@@ -131,41 +141,81 @@ async function attempt(b: DueBinding, deps: SyncDeps): Promise<AttemptResult> {
 
   const endDate = deps.today()
   const startDate = daysBefore(endDate, (b.backfillPending ? BACKFILL_DAYS : ROUTINE_DAYS) - 1)
+  const clock = deps.now ?? Date.now
+  const outOfTime = () => clock() >= deps.deadline
 
   try {
+    if (outOfTime()) return { outcome: 'deferred', rows: 0, through: null }
     const accessToken = await deps.refresh(refreshToken)
-    const property = await deps.query(accessToken, b.siteUrl, { startDate, endDate, dimensions: ['date'] })
+    if (outOfTime()) return { outcome: 'deferred', rows: 0, through: null }
+    // The deadline also travels into each query: one query can be several
+    // startRow pages, and the client stops between them (DeadlineReachedError).
+    const window = { startDate, endDate, deadline: deps.deadline }
+    let property: AnalyticsRow[]
+    try {
+      property = await deps.query(accessToken, b.siteUrl, { ...window, dimensions: ['date'] })
+    } catch (error) {
+      if (error instanceof DeadlineReachedError) return { outcome: 'deferred', rows: 0, through: null }
+      throw error
+    }
     const daily: DailyMetric[] = property.map(r => ({
       date: r.keys[0]!, scope: 'property' as const, pageUrl: null,
       clicks: r.clicks, impressions: r.impressions, ctr: r.ctr, position: r.position,
     }))
 
     const queries: PageQueryMetric[] = []
+    // Only pages whose every call finished: see the partial-write note below.
+    const completedPages: string[] = []
+    let deferred = false
     const pageUrls = await deps.listPages(b.accountId, b.clientId, PAGE_CAP)
     for (const pageUrl of pageUrls) {
-      const pageRows = await deps.query(accessToken, b.siteUrl, { startDate, endDate, dimensions: ['date'], pageEquals: pageUrl })
+      if (outOfTime()) { deferred = true; break }
+      let pageRows: AnalyticsRow[]
+      // One request per page with date + query; the top QUERY_CAP per date are kept
+      // locally. One request per day would cost 90 per page on a backfill. Skipped
+      // entirely when the page had no activity in the window — there is no query
+      // breakdown to fetch, but the page stays in completedPages below so
+      // writePageQueries still clears any of its stale rows.
+      let queryRows: AnalyticsRow[] = []
+      try {
+        pageRows = await deps.query(accessToken, b.siteUrl, { ...window, dimensions: ['date'], pageEquals: pageUrl })
+        if (pageRows.length) {
+          if (outOfTime()) { deferred = true; break }
+          queryRows = await deps.query(accessToken, b.siteUrl, { ...window, dimensions: ['date', 'query'], pageEquals: pageUrl })
+        }
+      } catch (error) {
+        if (!(error instanceof DeadlineReachedError)) throw error
+        deferred = true
+        break
+      }
       daily.push(...pageRows.map(r => ({
         date: r.keys[0]!, scope: 'page' as const, pageUrl,
         clicks: r.clicks, impressions: r.impressions, ctr: r.ctr, position: r.position,
       })))
-      // One request per page with date + query; the top QUERY_CAP per date are kept
-      // locally. One request per day would cost 90 per page on a backfill. Skipped
-      // entirely when the page had no activity in the window — there is no query
-      // breakdown to fetch, but the page stays in pageUrls below so writePageQueries
-      // still clears any of its stale rows.
-      const queryRows = pageRows.length
-        ? await deps.query(accessToken, b.siteUrl, { startDate, endDate, dimensions: ['date', 'query'], pageEquals: pageUrl })
-        : []
       queries.push(...topQueriesPerDate(pageUrl, queryRows))
+      completedPages.push(pageUrl)
     }
 
+    // Partial writes on a deferred run are kept, deliberately, and are safe
+    // because of how each writer treats its window:
+    // - writeDaily is a pure upsert on (account, client, date, scope, page_url)
+    //   and never deletes, so writing the property series and the whole pages
+    //   fetched so far only replaces those exact keys with Google's own figures.
+    // - writePageQueries DELETES the window for every page it is handed before
+    //   inserting. Handing it a page whose query call never ran would erase that
+    //   page's stored queries and insert nothing, so it only ever sees
+    //   completedPages — a page cut off between its two calls is dropped whole.
+    // Pages never reached keep whatever they already had, and the ledger row
+    // keeps backfill_pending set, so the next run re-fetches the full window.
+    // Keeping the partial result means a backfill too large for one run still
+    // lands its property totals and its first pages instead of nothing.
     const written = await deps.writeDaily(b.accountId, b.clientId, daily)
       // Called with the same fetched window even when queries is empty, so a
       // page that dropped out of the top ranks entirely still has its stale
       // rows cleared — see store.ts's writePageQueries doc.
-      + await deps.writePageQueries(b.accountId, b.clientId, queries, { startDate, endDate, pageUrls })
+      + await deps.writePageQueries(b.accountId, b.clientId, queries, { startDate, endDate, pageUrls: completedPages })
     const dataThrough = property.map(r => r.keys[0]!).sort().at(-1) ?? null
-    return { outcome: 'ok', rows: written, through: dataThrough }
+    return { outcome: deferred ? 'deferred' : 'ok', rows: written, through: dataThrough }
   } catch (error) {
     if (!(error instanceof GoogleApiError)) throw error
     if (error.kind === 'revoked') await deps.markConnection(b.accountId, b.connectionId, 'needs_reconnect')

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import { classifyApiFailure, listSites, MAX_PAGES, querySearchAnalytics, ROW_LIMIT } from '@/lib/integrations/search-console/client'
+import {
+  classifyApiFailure, DeadlineReachedError, listSites, MAX_PAGES, querySearchAnalytics, ROW_LIMIT,
+} from '@/lib/integrations/search-console/client'
 
 const json = (status: number, body: unknown) => vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }))
 const raw = (status: number, text: string) => vi.fn().mockResolvedValue(new Response(text, { status }))
@@ -88,6 +90,24 @@ describe('querySearchAnalytics', () => {
     expect(f).toHaveBeenCalledTimes(2)
     const secondBody = JSON.parse(f.mock.calls[1]![1].body)
     expect(secondBody.startRow).toBe(ROW_LIMIT)
+  })
+
+  it('requests no further startRow page once the deadline has passed', async () => {
+    const fullPage = Array.from({ length: ROW_LIMIT }, (_, i) => ({ keys: [String(i)], clicks: 1, impressions: 1, ctr: 1, position: 1 }))
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000)
+    try {
+      const f = vi.fn().mockImplementation(async () => {
+        now.mockReturnValue(2_000) // the first page took us past the deadline
+        return new Response(JSON.stringify({ rows: fullPage }), { status: 200 })
+      })
+      await expect(querySearchAnalytics('t', 'sc-domain:e.com', { startDate: 'a', endDate: 'b', dimensions: ['date'], deadline: 1_500 }, f))
+        .rejects.toBeInstanceOf(DeadlineReachedError)
+      expect(f).toHaveBeenCalledTimes(1)
+      // The deadline is ours; it never reaches Google.
+      expect(JSON.parse(f.mock.calls[0]![1].body)).not.toHaveProperty('deadline')
+    } finally {
+      now.mockRestore()
+    }
   })
 
   it('stops at MAX_PAGES without throwing when every page is still full', async () => {

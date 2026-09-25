@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { GoogleApiError } from '@/lib/integrations/google/oauth'
 import { VaultError } from '@/lib/integrations/google/vault'
+import { DeadlineReachedError } from '@/lib/integrations/search-console/client'
 import { syncBinding, type SyncDeps } from '@/lib/integrations/search-console/sync'
 import type { DueBinding } from '@/lib/integrations/search-console/store'
 
@@ -23,9 +24,90 @@ function deps(over: Partial<SyncDeps> = {}): SyncDeps {
     markConnection: vi.fn().mockResolvedValue(undefined),
     recordRun: vi.fn().mockResolvedValue(undefined),
     today: () => '2026-09-24',
+    deadline: Number.POSITIVE_INFINITY,
     ...over,
   }
 }
+
+describe('syncBinding deadline', () => {
+  it('makes no Google call and records deferred when the deadline has already passed', async () => {
+    const d = deps({ deadline: 1_000, now: () => 1_000 })
+    expect(await syncBinding(binding({ backfillPending: true }), d)).toBe('deferred')
+    expect(d.refresh).not.toHaveBeenCalled()
+    expect(d.query).not.toHaveBeenCalled()
+    expect(d.writeDaily).not.toHaveBeenCalled()
+    expect(d.writePageQueries).not.toHaveBeenCalled()
+    expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'deferred', clearBackfill: false }))
+  })
+
+  it('stops mid-pages, keeps only whole pages, and leaves the backfill pending', async () => {
+    let clock = 0
+    const query = vi.fn(async (_t: string, _s: string, q: { pageEquals?: string; dimensions: string[] }) => {
+      clock += 10 // every Google call costs 10 ms on this fake clock
+      if (!q.pageEquals) return [{ keys: ['2026-09-20'], clicks: 10, impressions: 200, ctr: 0.05, position: 7 }]
+      if (q.dimensions.length === 1) return [{ keys: ['2026-09-20'], clicks: 2, impressions: 20, ctr: 0.1, position: 4 }]
+      return [{ keys: ['2026-09-20', `q-${q.pageEquals}`], clicks: 1, impressions: 5, ctr: 0.2, position: 3 }]
+    })
+    const pages = ['https://example.com/1', 'https://example.com/2', 'https://example.com/3']
+    // refresh (t=0) → property (0→10) → page 1 total (10→20) and queries (20→30) →
+    // page 2 total (30→40) → the check before page 2's query call sees t=40 ≥ 35.
+    const d = deps({ query, listPages: vi.fn().mockResolvedValue(pages), now: () => clock, deadline: 35 })
+
+    expect(await syncBinding(binding({ backfillPending: true }), d)).toBe('deferred')
+
+    expect(query).toHaveBeenCalledTimes(4)
+    expect(d.writeDaily).toHaveBeenCalledWith('a', 'c', [
+      expect.objectContaining({ scope: 'property', pageUrl: null }),
+      expect.objectContaining({ scope: 'page', pageUrl: 'https://example.com/1' }),
+    ])
+    expect(d.writePageQueries).toHaveBeenCalledWith('a', 'c',
+      [expect.objectContaining({ pageUrl: 'https://example.com/1' })],
+      expect.objectContaining({ pageUrls: ['https://example.com/1'] }))
+    expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'deferred', clearBackfill: false }))
+  })
+
+  it('passes the deadline into every query so pagination stops too', async () => {
+    const d = deps({ deadline: 9_999, listPages: vi.fn().mockResolvedValue(['https://example.com/1']),
+      query: vi.fn().mockResolvedValue([{ keys: ['2026-09-20'], clicks: 1, impressions: 1, ctr: 1, position: 1 }]) })
+    await syncBinding(binding(), { ...d, now: () => 0 })
+    for (const [, , q] of vi.mocked(d.query).mock.calls) expect(q.deadline).toBe(9_999)
+  })
+
+  it('treats a deadline reached inside a paginated page query as deferred, dropping that page whole', async () => {
+    const query = vi.fn()
+      .mockResolvedValueOnce([{ keys: ['2026-09-20'], clicks: 10, impressions: 200, ctr: 0.05, position: 7 }]) // property
+      .mockResolvedValueOnce([{ keys: ['2026-09-20'], clicks: 2, impressions: 20, ctr: 0.1, position: 4 }]) // page total
+      .mockRejectedValueOnce(new DeadlineReachedError()) // page queries, cut off between startRow pages
+    const d = deps({ query, listPages: vi.fn().mockResolvedValue(['https://example.com/1']) })
+
+    expect(await syncBinding(binding({ backfillPending: true }), d)).toBe('deferred')
+    expect(d.writeDaily).toHaveBeenCalledWith('a', 'c', [expect.objectContaining({ scope: 'property' })])
+    expect(d.writePageQueries).toHaveBeenCalledWith('a', 'c', [], expect.objectContaining({ pageUrls: [] }))
+    expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'deferred', clearBackfill: false }))
+  })
+
+  it('treats a deadline reached inside the property query as deferred with nothing written', async () => {
+    const d = deps({ query: vi.fn().mockRejectedValue(new DeadlineReachedError()) })
+    expect(await syncBinding(binding(), d)).toBe('deferred')
+    expect(d.writeDaily).not.toHaveBeenCalled()
+    expect(d.writePageQueries).not.toHaveBeenCalled()
+  })
+
+  it('checks the deadline before the refresh, the property query and every page query', async () => {
+    const calls: string[] = []
+    let clock = 0
+    const d = deps({
+      refresh: vi.fn(async () => { calls.push('refresh'); return 'ya29.access' }),
+      query: vi.fn(async () => { calls.push('query'); return [{ keys: ['2026-09-20'], clicks: 1, impressions: 1, ctr: 1, position: 1 }] }),
+      listPages: vi.fn().mockResolvedValue(['https://example.com/1']),
+      now: () => { calls.push('now'); return clock++ },
+    })
+    expect(await syncBinding(binding(), d)).toBe('ok')
+    // Every Google call is immediately preceded by a clock read.
+    calls.forEach((call, i) => { if (call !== 'now') expect(calls[i - 1]).toBe('now') })
+    expect(calls.filter(c => c !== 'now')).toEqual(['refresh', 'query', 'query', 'query'])
+  })
+})
 
 describe('syncBinding', () => {
   it('skips an account below Pro without calling Google, and records it', async () => {

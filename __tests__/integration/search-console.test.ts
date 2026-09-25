@@ -162,6 +162,24 @@ describe('migration 054 on real Postgres', () => {
     expect(await pending()).toBe(false)
   })
 
+  it('accepts a deferred run and leaves the backfill pending', async () => {
+    const store = await import('@/lib/integrations/search-console/store')
+    const conn = await store.upsertConnection({ accountId: A, profileId: A_USER, subject: 'g-deferred', email: null, scopes: [], sealed })
+    await store.bindProperty({
+      accountId: A, clientId: A_CLIENT, connectionId: conn, siteUrl: 'sc-domain:a-c15.example',
+      permissionLevel: 'siteOwner', boundDomain: 'a-c15.example', profileId: A_USER,
+    })
+    await store.recordRun({
+      accountId: A, clientId: A_CLIENT, siteUrl: 'sc-domain:a-c15.example', connectionId: conn,
+      outcome: 'deferred', rowsWritten: 3, dataThrough: null, clearBackfill: false,
+    })
+    const [row] = await sql`
+      select r.outcome, b.backfill_pending from search_console_sync_runs r
+      join search_console_bindings b on b.account_id = r.account_id and b.client_id = r.client_id
+      where r.account_id = ${A}::uuid and r.client_id = ${A_CLIENT}::uuid`
+    expect(row).toEqual({ outcome: 'deferred', backfill_pending: true })
+  })
+
   it('refuses a property row that names a page', async () => {
     await expect(sql`
       insert into search_console_daily (account_id, client_id, date, scope, page_url, clicks, impressions, ctr, position)
@@ -271,6 +289,7 @@ describe('cross-account, as B against A', () => {
         markConnection: store.markConnection,
         recordRun: store.recordRun,
         today: () => '2026-09-24',
+        deadline: Number.POSITIVE_INFINITY,
       })
     }
     const rows = await sql`

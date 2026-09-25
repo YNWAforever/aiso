@@ -10,10 +10,20 @@ import type { SyncOutcome } from '@/lib/integrations/search-console/state'
 
 export const dynamic = 'force-dynamic'
 
-/** Stop taking new bindings well inside vercel.json's 60s maxDuration. */
-const BUDGET_MS = 45_000
+/**
+ * Two limits inside vercel.json's 60 s maxDuration. No new binding is started
+ * after START_CUTOFF_MS; a binding already running stops starting Google calls
+ * at SYNC_DEADLINE_MS and records `deferred`. The worst case is one Google call
+ * begun just before the deadline running its full 10 s timeout, ending near
+ * 55 s — still under 60, so the run always writes its ledger row and finishes.
+ */
+const START_CUTOFF_MS = 40_000
+const SYNC_DEADLINE_MS = 45_000
 const BATCH = 10
-/** Deliberate skips are not failures of this run. */
+/**
+ * Deliberate skips are not failures of this run. `deferred` is NOT one: the
+ * brand was due and did not finish, so it counts toward the 502 rule.
+ */
 const SKIPS: ReadonlySet<SyncOutcome> = new Set(['not_entitled', 'domain_mismatch'])
 
 /**
@@ -56,11 +66,12 @@ export async function GET(req: Request) {
   const outcomes: Partial<Record<SyncOutcome, number>> = {}
   let due = 0
   try {
-    while (Date.now() - started < BUDGET_MS) {
+    const deadline = started + SYNC_DEADLINE_MS
+    while (Date.now() - started < START_CUTOFF_MS) {
       const batch = await store.loadDueBindings(BATCH)
       if (!batch.length) break
       for (const binding of batch) {
-        if (Date.now() - started >= BUDGET_MS) break
+        if (Date.now() - started >= START_CUTOFF_MS) break
         const outcome = await syncBinding(binding, {
           loadSecret: store.loadConnectionSecret,
           open: (sealed, accountId) => openToken(sealed, { accountId }),
@@ -72,6 +83,7 @@ export async function GET(req: Request) {
           markConnection: store.markConnection,
           recordRun: store.recordRun,
           today: () => new Date().toISOString().slice(0, 10),
+          deadline,
         })
         outcomes[outcome] = (outcomes[outcome] ?? 0) + 1
         if (!SKIPS.has(outcome)) due++

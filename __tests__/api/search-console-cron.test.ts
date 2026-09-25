@@ -50,12 +50,48 @@ describe('GET /api/cron/search-console', () => {
     expect(loadDueBindings).not.toHaveBeenCalled()
   })
 
-  it('counts outcomes', async () => {
+  it('counts outcomes and records the run as ok', async () => {
     loadDueBindings.mockResolvedValueOnce([{ clientId: 'a' }, { clientId: 'b' }]).mockResolvedValue([])
     syncBinding.mockResolvedValueOnce('ok').mockResolvedValueOnce('quota')
     const res = await call()
     expect(res.status).toBe(200)
     expect((await res.json()).outcomes).toEqual({ ok: 1, quota: 1 })
+    expect(finishCronRun).toHaveBeenCalledWith('run', 'ok', { outcomes: { ok: 1, quota: 1 } })
+  })
+
+  it('gives every sync a deadline 45 s after the run started', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000)
+    try {
+      loadDueBindings.mockResolvedValueOnce([{ clientId: 'a' }]).mockResolvedValue([])
+      syncBinding.mockResolvedValue('ok')
+      await call()
+      expect(syncBinding).toHaveBeenCalledWith({ clientId: 'a' }, expect.objectContaining({ deadline: 1_045_000 }))
+    } finally {
+      now.mockRestore()
+    }
+  })
+
+  it('takes no new binding once 40 s have passed', async () => {
+    let clock = 1_000_000
+    const now = vi.spyOn(Date, 'now').mockImplementation(() => clock)
+    try {
+      loadDueBindings.mockResolvedValueOnce([{ clientId: 'a' }, { clientId: 'b' }]).mockResolvedValue([])
+      syncBinding.mockImplementation(async () => { clock += 40_000; return 'ok' })
+      const res = await call()
+      expect(syncBinding).toHaveBeenCalledTimes(1)
+      expect((await res.json()).outcomes).toEqual({ ok: 1 })
+    } finally {
+      now.mockRestore()
+    }
+  })
+
+  it('counts a deferred sync as due and not ok, so a run of only deferrals is 502', async () => {
+    loadDueBindings.mockResolvedValueOnce([{ clientId: 'a' }]).mockResolvedValue([])
+    syncBinding.mockResolvedValue('deferred')
+    const res = await call()
+    expect(res.status).toBe(502)
+    expect((await res.json()).outcomes).toEqual({ deferred: 1 })
+    expect(finishCronRun).toHaveBeenCalledWith('run', 'error', { outcomes: { deferred: 1 } })
   })
 
   it('is 502 when bindings were due and none synced', async () => {

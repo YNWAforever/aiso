@@ -7,6 +7,9 @@
 export const SYNC_OUTCOMES = [
   'ok', 'revoked', 'access_lost', 'google_unavailable', 'quota',
   'domain_mismatch', 'not_entitled', 'vault_error', 'config_error', 'internal_error',
+  // The run's wall-clock deadline arrived before every Google call was made
+  // (sync.ts). Carries nothing the owner needs to act on.
+  'deferred',
 ] as const
 export type SyncOutcome = (typeof SYNC_OUTCOMES)[number]
 export type ConnectionStatus = 'active' | 'needs_reconnect' | 'revoked'
@@ -28,7 +31,7 @@ export type OwnerStateInput = {
   lastGoodDataThrough: string | null
 }
 
-const BY_OUTCOME: Record<Exclude<SyncOutcome, 'ok'>, ProblemKind> = {
+const BY_OUTCOME: Record<Exclude<SyncOutcome, 'ok' | 'deferred'>, ProblemKind> = {
   // Only reached if the active-connection guard in deriveOwnerState above is
   // ever removed or reordered. While that guard runs first, a 'revoked' row
   // under an active connection is stale by definition — see the early branch
@@ -57,7 +60,9 @@ export function deriveOwnerState(input: OwnerStateInput): OwnerState {
   // reconnect that happened since that sync ran: it is stale, not current.
   // Treat it like no newer run has happened yet rather than re-asking the
   // owner to reconnect right after they just did.
-  if (input.latest?.outcome === 'revoked') {
+  // A deferred run ran out of time before finishing; it says nothing new, so
+  // the brand reads as whatever the last completed sync left it.
+  if (input.latest?.outcome === 'revoked' || input.latest?.outcome === 'deferred') {
     return dataThrough ? { kind: 'synced', dataThrough } : { kind: 'awaiting_first_sync' }
   }
   if (!input.latest) return dataThrough ? { kind: 'synced', dataThrough } : { kind: 'awaiting_first_sync' }
