@@ -4,7 +4,7 @@ import {
   bindProperty, listConnections, loadBinding, loadConnectionSecret, loadPanelData, unbindProperty,
 } from '@/lib/integrations/search-console/store'
 import { listSites, type SiteEntry } from '@/lib/integrations/search-console/client'
-import { normalizeBrandDomain, propertyEligibility } from '@/lib/integrations/search-console/binding'
+import { bindingMatchesDomain, normalizeBrandDomain, propertyEligibility } from '@/lib/integrations/search-console/binding'
 import { deriveOwnerState } from '@/lib/integrations/search-console/state'
 import { openToken } from '@/lib/integrations/google/vault'
 import { GoogleApiError, googleOAuthConfig, refreshAccessToken } from '@/lib/integrations/google/oauth'
@@ -98,9 +98,9 @@ export async function GET(req: Request, { params }: Ctx) {
       // The guard has already refused an unentitled caller.
       entitled: true,
       connectionStatus: binding?.connectionStatus ?? null,
-      domainMatches: binding
-        ? normalizeBrandDomain(binding.currentDomain) === normalizeBrandDomain(binding.boundDomain)
-        : true,
+      // The same predicate the sync skips on, so the owner is told to rebind
+      // exactly when the sync has stopped.
+      domainMatches: binding ? bindingMatchesDomain(binding, binding.currentDomain) : true,
       latest: panel.latest,
       lastGoodDataThrough: panel.lastGoodDataThrough,
     })

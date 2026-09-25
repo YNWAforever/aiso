@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeBrandDomain, propertyEligibility } from '@/lib/integrations/search-console/binding'
+import { bindingMatchesDomain, normalizeBrandDomain, propertyEligibility } from '@/lib/integrations/search-console/binding'
 
 describe('normalizeBrandDomain', () => {
   it.each([
@@ -94,5 +94,28 @@ describe('propertyEligibility', () => {
   it('refuses a brand that is an IP literal', () => {
     expect(propertyEligibility('https://192.168.1.1/', owner, '192.168.1.1'))
       .toEqual({ eligible: false, reason: 'no_domain' })
+  })
+})
+
+describe('bindingMatchesDomain', () => {
+  const bound = { siteUrl: 'sc-domain:example.com', permissionLevel: 'siteOwner', boundDomain: 'example.com' }
+
+  it('matches while the brand keeps the domain it was bound for', () => {
+    expect(bindingMatchesDomain(bound, 'example.com')).toBe(true)
+    expect(bindingMatchesDomain(bound, 'https://www.example.com/')).toBe(true)
+  })
+
+  it('does not match once the brand domain changed', () => {
+    expect(bindingMatchesDomain(bound, 'other.com')).toBe(false)
+    expect(bindingMatchesDomain(bound, null)).toBe(false)
+  })
+
+  // bound_domain is www-stripped, so comparing it alone says www.example.com and
+  // example.com are the same brand. A Domain property for the www host does
+  // not cover the apex, so the property itself must be re-checked.
+  it('does not match a www Domain property once the brand moves to the apex', () => {
+    const www = { siteUrl: 'sc-domain:www.example.com', permissionLevel: 'siteOwner', boundDomain: 'example.com' }
+    expect(bindingMatchesDomain(www, 'www.example.com')).toBe(true)
+    expect(bindingMatchesDomain(www, 'example.com')).toBe(false)
   })
 })

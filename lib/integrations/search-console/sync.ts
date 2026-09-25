@@ -2,7 +2,7 @@ import { resolveCommercialEntitlement } from '@/lib/tier'
 import { GoogleApiError, type GoogleFailure } from '@/lib/integrations/google/oauth'
 import { VaultError, type SealedToken } from '@/lib/integrations/google/vault'
 import { DeadlineReachedError, type AnalyticsQuery, type AnalyticsRow } from './client'
-import { normalizeBrandDomain } from './binding'
+import { bindingMatchesDomain } from './binding'
 import type { SyncOutcome } from './state'
 import type { DailyMetric, DueBinding, PageQueryMetric, QueryWindow } from './store'
 
@@ -123,7 +123,8 @@ async function attempt(b: DueBinding, deps: SyncDeps): Promise<AttemptResult> {
   if (!resolveCommercialEntitlement(b.account).features.search_console) {
     return { outcome: 'not_entitled', rows: 0, through: null }
   }
-  if (normalizeBrandDomain(b.currentDomain) !== normalizeBrandDomain(b.boundDomain)) {
+  // Eligibility is re-run, not just bound_domain compared: see bindingMatchesDomain.
+  if (!bindingMatchesDomain(b, b.currentDomain)) {
     return { outcome: 'domain_mismatch', rows: 0, through: null }
   }
 

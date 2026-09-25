@@ -162,6 +162,22 @@ describe('GET', () => {
   })
 })
 
+describe('GET domain check', () => {
+  it('asks to rebind a www Domain property once the brand moved to the apex', async () => {
+    store.loadBinding.mockResolvedValue({
+      connectionId: CONNECTION_ID, siteUrl: 'sc-domain:www.example.com', permissionLevel: 'siteOwner', boundDomain: 'example.com',
+      backfillPending: false, connectionStatus: 'active', currentDomain: 'example.com', boundAt: '2026-09-01T00:00:00.000Z',
+    })
+    store.loadPanelData.mockResolvedValue({
+      latest: { outcome: 'ok', dataThrough: '2026-09-20', ranAt: '2026-09-21T00:00:00.000Z' },
+      lastGoodDataThrough: '2026-09-20', property: null, pages: [],
+    })
+    const { GET } = await import('@/app/api/dashboard/clients/[clientId]/search-console/route')
+    const body = await (await GET(new Request('https://app.test/'), ctx)).json()
+    expect(body.state).toEqual({ kind: 'rebind', dataThrough: '2026-09-20' })
+  })
+})
+
 describe('GET without ?properties=1', () => {
   it('never calls Google, or even lists connections, and returns an empty properties list', async () => {
     const { GET } = await import('@/app/api/dashboard/clients/[clientId]/search-console/route')

@@ -35,6 +35,8 @@ export type DueBinding = {
   clientId: string
   connectionId: string
   siteUrl: string
+  /** Google's level at bind time; the sync re-runs eligibility with it. */
+  permissionLevel: string
   boundDomain: string
   currentDomain: string | null
   backfillPending: boolean
@@ -237,8 +239,8 @@ export async function loadBinding(accountId: string, clientId: string): Promise<
 export async function loadDueBindings(limit: number): Promise<DueBinding[]> {
   const sql = db()
   const rows = await sql`
-    select b.account_id, b.client_id, b.connection_id, b.site_url, b.bound_domain, b.backfill_pending,
-           c.domain as current_domain,
+    select b.account_id, b.client_id, b.connection_id, b.site_url, b.permission_level, b.bound_domain,
+           b.backfill_pending, c.domain as current_domain,
            jsonb_build_object(
              'plan', a.plan, 'status', a.status, 'stripe_subscription_id', a.stripe_subscription_id,
              'trial_ends_at', a.trial_ends_at, 'override_plan', a.override_plan,
@@ -262,6 +264,7 @@ export async function loadDueBindings(limit: number): Promise<DueBinding[]> {
     clientId: String(r.client_id),
     connectionId: String(r.connection_id),
     siteUrl: String(r.site_url),
+    permissionLevel: String(r.permission_level),
     boundDomain: String(r.bound_domain),
     currentDomain: (r.current_domain as string | null) ?? null,
     backfillPending: Boolean(r.backfill_pending),

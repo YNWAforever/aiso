@@ -6,7 +6,7 @@ import { syncBinding, type SyncDeps } from '@/lib/integrations/search-console/sy
 import type { DueBinding } from '@/lib/integrations/search-console/store'
 
 const binding = (over: Partial<DueBinding> = {}): DueBinding => ({
-  accountId: 'a', clientId: 'c', connectionId: 'g', siteUrl: 'sc-domain:example.com',
+  accountId: 'a', clientId: 'c', connectionId: 'g', siteUrl: 'sc-domain:example.com', permissionLevel: 'siteOwner',
   boundDomain: 'example.com', currentDomain: 'example.com', backfillPending: false,
   account: { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_1' } as DueBinding['account'],
   ...over,
@@ -121,6 +121,13 @@ describe('syncBinding', () => {
   it('skips a binding whose brand domain changed', async () => {
     const d = deps()
     expect(await syncBinding(binding({ currentDomain: 'other.com' }), d)).toBe('domain_mismatch')
+    expect(d.refresh).not.toHaveBeenCalled()
+  })
+
+  it('skips a www Domain property once the brand moved to the apex, although bound_domain still equals it', async () => {
+    const d = deps()
+    const www = binding({ siteUrl: 'sc-domain:www.example.com', boundDomain: 'example.com', currentDomain: 'example.com' })
+    expect(await syncBinding(www, d)).toBe('domain_mismatch')
     expect(d.refresh).not.toHaveBeenCalled()
   })
 

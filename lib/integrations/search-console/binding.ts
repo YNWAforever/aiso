@@ -78,3 +78,23 @@ export function propertyEligibility(
   if (!VERIFIED_LEVELS.has(permissionLevel)) return { eligible: false, reason: 'unverified' }
   return { eligible: true }
 }
+
+/**
+ * Does an existing binding still describe the brand's current domain? Used by
+ * the sync (to skip as `domain_mismatch`) and by the owner's state (`rebind`).
+ *
+ * Two checks, both required. `bound_domain` equality is spec §4.2's rule: a
+ * brand whose domain changed stops syncing even if the old property happens to
+ * cover the new host. But `bound_domain` is www-stripped, so equality alone
+ * calls `www.example.com` and `example.com` the same brand — while a Domain
+ * property for `sc-domain:www.example.com` does not cover the apex. So the
+ * property's eligibility is re-run against the current domain as well, exactly
+ * as the bind route ran it.
+ */
+export function bindingMatchesDomain(
+  binding: { siteUrl: string; permissionLevel: string; boundDomain: string },
+  currentDomain: string | null | undefined,
+): boolean {
+  return normalizeBrandDomain(currentDomain) === normalizeBrandDomain(binding.boundDomain)
+    && propertyEligibility(binding.siteUrl, binding.permissionLevel, currentDomain).eligible
+}
