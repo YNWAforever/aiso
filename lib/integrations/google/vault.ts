@@ -5,8 +5,13 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
  *
  * AES-256-GCM in the app, so the key never reaches SQL. The stored blob is
  * iv(12) || tag(16) || ciphertext, and each row records the id of the key that
- * sealed it, so a rotation keeps opening old rows through
- * GOOGLE_TOKEN_ENCRYPTION_KEY_PREVIOUS while re-sealing under the new key.
+ * sealed it, so after a rotation old rows still open through
+ * GOOGLE_TOKEN_ENCRYPTION_KEY_PREVIOUS. Nothing re-seals them: there is no
+ * automatic re-seal on read or on sync. A row moves to the new key only when
+ * its owner reconnects that Google login (upsertConnection writes a fresh
+ * ciphertext). So _PREVIOUS must stay set until every connection sealed under
+ * the old key has reconnected or been revoked — unset it earlier and those
+ * rows fail as `vault_error` (VAULT_KEY_UNKNOWN), not as a reconnect prompt.
  * Each ciphertext is also bound via GCM AAD to the account it belongs to, so a
  * row copied into another account's column cannot be opened there.
  *
