@@ -376,6 +376,21 @@ export async function recordRun(input: {
  * 28-day totals ending at the newest stored date. CTR and position are
  * impression-weighted: a day with 3 impressions must not count as much as a day
  * with 3,000.
+ *
+ * Only what was synced under the CURRENT binding is shown (spec §2: a brand can
+ * never show another site's search data under its name). search_console_daily
+ * is keyed by brand, not by property, and Google omits zero-traffic days, so
+ * after a rebind the days the new property does not return would otherwise keep
+ * the old property's numbers. Every row is stamped `synced_at` on insert and on
+ * each overwrite, so `synced_at >= bound_at` is exactly "written for this
+ * binding"; the last good date is limited the same way by the ledger's `ran_at`.
+ * Rows from before stay in the table as history; they are just not presented.
+ * An unbound brand has no bound_at, so it shows nothing.
+ *
+ * search_console_page_queries has no synced_at, and needs none here: this is
+ * the only read of stored metrics and it never reads that table. A future
+ * reader of query rows must add the same bound_at rule, which means giving that
+ * table a synced_at (migration 054 is still unapplied, so it can be added there).
  */
 export async function loadPanelData(accountId: string, clientId: string): Promise<PanelData> {
   const sql = db()
@@ -388,20 +403,24 @@ export async function loadPanelData(accountId: string, clientId: string): Promis
       limit 1
     `,
     sql`
-      select max(data_through)::text as last_good
-      from search_console_sync_runs
-      where account_id = ${accountId} and client_id = ${clientId} and outcome = 'ok'
+      select max(r.data_through)::text as last_good
+      from search_console_sync_runs r
+      join search_console_bindings b on b.account_id = r.account_id and b.client_id = r.client_id
+      where r.account_id = ${accountId} and r.client_id = ${clientId} and r.outcome = 'ok'
+        and r.ran_at >= b.bound_at
     `,
     sql`
       select scope, page_url,
              sum(clicks)::bigint as clicks, sum(impressions)::bigint as impressions,
              case when sum(impressions) = 0 then 0 else sum(clicks)::float8 / sum(impressions) end as ctr,
              case when sum(impressions) = 0 then 0 else sum(position * impressions) / sum(impressions) end as position
-      from search_console_daily
-      where account_id = ${accountId} and client_id = ${clientId}
-        and date > (
-          select coalesce(max(date), current_date) from search_console_daily
-          where account_id = ${accountId} and client_id = ${clientId}
+      from search_console_daily d
+      join search_console_bindings b on b.account_id = d.account_id and b.client_id = d.client_id
+      where d.account_id = ${accountId} and d.client_id = ${clientId}
+        and d.synced_at >= b.bound_at
+        and d.date > (
+          select coalesce(max(d2.date), current_date) from search_console_daily d2
+          where d2.account_id = ${accountId} and d2.client_id = ${clientId} and d2.synced_at >= b.bound_at
         ) - 28
       group by scope, page_url
       order by scope, page_url

@@ -260,6 +260,54 @@ describe('owner state after a rebind', () => {
     expect(panel.latest?.outcome).toBe('domain_mismatch') // the row is still the newest...
     expect(state).toEqual({ kind: 'awaiting_first_sync' }) // ...but it predates the binding
   })
+
+  it('never shows the previous property\'s numbers after a rebind, and shows the new property\'s', async () => {
+    const store = await import('@/lib/integrations/search-console/store')
+    const conn = await store.upsertConnection({ accountId: A, profileId: A_USER, subject: 'g-panel', email: null, scopes: [], sealed })
+    const bind = (siteUrl: string) => store.bindProperty({
+      accountId: A, clientId: A_CLIENT, connectionId: conn, siteUrl,
+      permissionLevel: 'siteOwner', boundDomain: 'a-c15.example', profileId: A_USER,
+    })
+    const pageUrl = 'https://a-c15.example/p'
+    const day = (date: string, scope: 'property' | 'page', clicks: number) =>
+      ({ date, scope, pageUrl: scope === 'page' ? pageUrl : null, clicks, impressions: 100, ctr: clicks / 100, position: 5 })
+
+    // The first property syncs two days, for the whole site and a page.
+    await bind('sc-domain:a-c15.example')
+    await store.writeDaily(A, A_CLIENT, [
+      day('2026-09-19', 'property', 70), day('2026-09-20', 'property', 80), day('2026-09-19', 'page', 7),
+    ])
+    await store.recordRun({
+      accountId: A, clientId: A_CLIENT, siteUrl: 'sc-domain:a-c15.example', connectionId: conn,
+      outcome: 'ok', rowsWritten: 3, dataThrough: '2026-09-20', clearBackfill: true,
+    })
+    expect((await store.loadPanelData(A, A_CLIENT)).property?.clicks).toBe(150)
+
+    // Rebound to another property: nothing from before the rebind is shown.
+    await bind('https://a-c15.example/')
+    const rebound = await ownerState(A, A_CLIENT)
+    expect(rebound.panel.property).toBeNull()
+    expect(rebound.panel.pages).toEqual([])
+    expect(rebound.panel.lastGoodDataThrough).toBeNull()
+    expect(rebound.state).toEqual({ kind: 'awaiting_first_sync' })
+
+    // The new property returns 2026-09-20 only; Google omits its zero-traffic
+    // 2026-09-19, so that day keeps the old site's row in the table — and must
+    // still not be shown.
+    await store.writeDaily(A, A_CLIENT, [day('2026-09-20', 'property', 3)])
+    await store.recordRun({
+      accountId: A, clientId: A_CLIENT, siteUrl: 'https://a-c15.example/', connectionId: conn,
+      outcome: 'ok', rowsWritten: 1, dataThrough: '2026-09-20', clearBackfill: true,
+    })
+    const after = await ownerState(A, A_CLIENT)
+    expect(after.panel.property?.clicks).toBe(3)
+    expect(after.panel.pages).toEqual([])
+    expect(after.state).toEqual({ kind: 'synced', dataThrough: '2026-09-20' })
+    const [stale] = await sql`
+      select clicks from search_console_daily
+      where account_id = ${A}::uuid and client_id = ${A_CLIENT}::uuid and date = '2026-09-19' and scope = 'property'`
+    expect(stale).toEqual({ clicks: 70 }) // kept as history, just not shown
+  })
 })
 
 describe('cross-account, as B against A', () => {
