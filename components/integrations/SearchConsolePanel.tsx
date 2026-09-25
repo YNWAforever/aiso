@@ -5,10 +5,15 @@ import en from '@/messages/en.json'
 import zhHK from '@/messages/zh-HK.json'
 import type { OwnerState } from '@/lib/integrations/search-console/state'
 import type { MetricTotals, PanelData } from '@/lib/integrations/search-console/store'
+// Type-only: both modules are pure (no `server-only`, no DB/env access), and
+// a type-only import is erased at build regardless, so re-declaring these
+// shapes locally would only be redundant, not safer.
+import type { BindingVerdict } from '@/lib/integrations/search-console/binding'
+import type { SiteEntry } from '@/lib/integrations/search-console/client'
 
 type Copy = typeof en.searchConsole
-export type Verdict = { eligible: boolean; reason?: 'no_domain' | 'other_domain' | 'unverified' }
-export type Site = { siteUrl: string; permissionLevel: string; verdict: Verdict }
+export type Verdict = BindingVerdict
+export type Site = SiteEntry & { verdict: Verdict }
 // A connection's own Google call can fail independently of the others (expired
 // token, quota, misconfiguration): its `sites` come back empty and `error`
 // carries the failure kind, so that one connection's properties are shown as
@@ -87,6 +92,19 @@ export function classifyBindError(status: number, body: unknown): BindErrorKind 
 export function BindErrorNotice({ kind, lang }: { kind: BindErrorKind; lang: string }) {
   const copy = copyFor(lang)
   return <p role="alert" className="mt-2 text-sm font-medium text-destructive">{copy[`bind_error_${kind}`]}</p>
+}
+
+/**
+ * Whether bind()'s catch block may set BindErrorNotice for a given failure.
+ * False once the PUT itself is known to have succeeded: the write already
+ * landed, so a failure in whatever runs after it (the post-write refresh)
+ * must never read as "the bind failed". Pure and exported so the invariant
+ * is testable without mocking fetch — reload() below is already exception-
+ * safe on its own, so this is defence in depth against a future change
+ * reintroducing a throw after a successful PUT.
+ */
+export function shouldReportBindError(putSucceeded: boolean): boolean {
+  return !putSucceeded
 }
 
 /**
@@ -200,18 +218,28 @@ export function SearchConsolePanel({ clientId, lang }: { clientId: string; lang:
 
   // Not an effect, so free to call fetchPanel + setState directly: used by
   // the post-bind refresh and the properties-load-failed retry button.
+  // Exception-safe: a thrown fetch (a network failure, not just a non-2xx
+  // response — fetchPanel does not catch its own network errors) falls back
+  // to the `failed` panel state rather than propagating, so the retry
+  // button's `void reload()` can never become an unhandled rejection, and
+  // bind()'s post-write refresh can never throw into bind()'s own catch.
   async function reload() {
-    const result = await fetchPanel(clientId)
-    if (result.payload === null) { setFailed(true); return }
-    setFailed(false)
-    setData(result.payload)
-    setPropertiesFailed(result.propertiesFailed)
+    try {
+      const result = await fetchPanel(clientId)
+      if (result.payload === null) { setFailed(true); return }
+      setFailed(false)
+      setData(result.payload)
+      setPropertiesFailed(result.propertiesFailed)
+    } catch {
+      setFailed(true)
+    }
   }
 
   async function bind(connectionId: string, siteUrl: string) {
     const key = `${connectionId}:${siteUrl}`
     setBindBusy(key)
     setBindError(null)
+    let putSucceeded = false
     try {
       const res = await fetch(`/api/dashboard/clients/${clientId}/search-console`, {
         method: 'PUT',
@@ -223,9 +251,14 @@ export function SearchConsolePanel({ clientId, lang }: { clientId: string; lang:
         setBindError(classifyBindError(res.status, body))
         return
       }
+      putSucceeded = true
+      // reload() is exception-safe on its own (see above), so this cannot
+      // actually throw today — shouldReportBindError is what guarantees a
+      // refresh failure is never reported as a bind failure even if that
+      // ever changes.
       await reload()
     } catch {
-      setBindError('generic')
+      if (shouldReportBindError(putSucceeded)) setBindError('generic')
     } finally {
       setBindBusy(null)
     }

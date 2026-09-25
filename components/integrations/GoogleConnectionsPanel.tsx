@@ -69,14 +69,25 @@ export function GoogleConnectionsPanel({
   async function disconnect(id: string) {
     setBusy(id)
     setDisconnectError(false)
+    // Cleared here too, not just disconnectError: otherwise a stale warning
+    // from a previous connection's disconnect would sit next to this one's
+    // failure (or its own unrelated success) and read as if it were about it.
+    setRevokeWarning(false)
     try {
       const res = await fetch(`/api/account/integrations/google?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
       if (!res.ok) {
         setDisconnectError(true)
         return
       }
-      const body = await res.json() as { googleRevoked: boolean }
-      setRevokeWarning(!body.googleRevoked)
+      // A 2xx here means revokeConnectionRow already committed server-side
+      // (this repo's "never return 2xx over a failed write" rule — see
+      // app/api/account/integrations/google/route.ts), so the row is gone
+      // regardless of whether the response body can be parsed. An unreadable
+      // body is treated the same as an explicit googleRevoked:false — "not
+      // confirmed" is the honest default — and never as a disconnect
+      // failure, since the disconnect itself already succeeded.
+      const body = await res.json().catch(() => null) as { googleRevoked: boolean } | null
+      setRevokeWarning(body === null || !body.googleRevoked)
       setConnections(list => list.filter(c => c.id !== id))
     } catch {
       setDisconnectError(true)

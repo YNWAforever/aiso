@@ -12,6 +12,7 @@ import {
   SearchConsoleStateNotice,
   classifyBindError,
   classifyConnectionError,
+  shouldReportBindError,
   type BindErrorKind,
 } from '@/components/integrations/SearchConsolePanel'
 import type { OwnerState } from '@/lib/integrations/search-console/state'
@@ -82,6 +83,22 @@ describe('classifyBindError', () => {
     [0, null, 'generic'],
   ] as const)('%s %j -> %s', (status, body, expected) => {
     expect(classifyBindError(status, body)).toBe(expected)
+  })
+})
+
+/**
+ * A successful PUT must never be reported as a bind failure, even when
+ * whatever runs after it (the post-write refresh) does throw — the write
+ * itself already landed. This is the invariant bind() relies on in its
+ * catch block: `if (shouldReportBindError(putSucceeded)) setBindError(...)`.
+ */
+describe('shouldReportBindError', () => {
+  it('reports a failure that happened before the PUT succeeded', () => {
+    expect(shouldReportBindError(false)).toBe(true)
+  })
+
+  it('never reports a failure once the PUT is known to have succeeded', () => {
+    expect(shouldReportBindError(true)).toBe(false)
   })
 })
 
