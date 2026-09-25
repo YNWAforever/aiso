@@ -3,31 +3,36 @@ export interface Env {
   APP_BASE_URL: string
 }
 
-// The exact three schedules Vercel Cron used to run. Keep this in sync with
-// wrangler.jsonc's triggers.crons — a test in test/scheduled.test.ts asserts
-// the two stay in sync, since nothing at the type level enforces it.
-export const ROUTES: Record<string, string> = {
-  '17 4 * * 1': '/api/cron/pulse',
-  '47 7 * * 1': '/api/cron/evaluate-alerts',
-  '0 9 * * *': '/api/cron/trial-emails',
+// Keep in sync with wrangler.jsonc's triggers.crons — test/scheduled.test.ts
+// asserts the keys agree. A schedule may call several routes: the free tier
+// allows three triggers per Worker and all three are used, so the daily trigger
+// carries both trial emails and the Search Console sync.
+export const ROUTES: Record<string, readonly string[]> = {
+  '17 4 * * 1': ['/api/cron/pulse'],
+  '47 7 * * 1': ['/api/cron/evaluate-alerts'],
+  '0 9 * * *': ['/api/cron/trial-emails', '/api/cron/search-console'],
 }
 
 export default {
   async scheduled(controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
-    const path = ROUTES[controller.cron]
-    if (!path) {
+    const paths = ROUTES[controller.cron]
+    if (!paths?.length) {
       console.error(`[cron-worker] no route mapped for cron "${controller.cron}"`)
       throw new Error(`[cron-worker] no route mapped for cron "${controller.cron}"`)
     }
 
-    const res = await fetch(`${env.APP_BASE_URL}${path}`, {
-      headers: { Authorization: `Bearer ${env.CRON_SECRET}` },
-    })
+    // Independent calls: one route failing must never skip another.
+    const results = await Promise.allSettled(paths.map(async path => {
+      const res = await fetch(`${env.APP_BASE_URL}${path}`, {
+        headers: { Authorization: `Bearer ${env.CRON_SECRET}` },
+      })
+      if (!res.ok) throw new Error(`[cron-worker] ${path} responded ${res.status}`)
+    }))
 
-    if (!res.ok) {
-      // Propagate the failed attempt; this Worker does not implement retries.
-      // Trial emails can resend after a successful send followed by a failed write.
-      throw new Error(`[cron-worker] ${path} responded ${res.status}`)
+    const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+    if (failures.length) {
+      // Propagate the failed attempt(s); this Worker does not implement retries.
+      throw new Error(failures.map(f => (f.reason as Error).message).join('; '))
     }
   },
 }

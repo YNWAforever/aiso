@@ -79,13 +79,20 @@ describe('Cloudflare cron-worker schedule', () => {
       '0 9 * * *',
     ])
 
-    const paths = ['/api/cron/pulse', '/api/cron/evaluate-alerts', '/api/cron/trial-emails']
+    const paths = [
+      '/api/cron/pulse', '/api/cron/evaluate-alerts', '/api/cron/trial-emails', '/api/cron/search-console',
+    ]
     for (const path of paths) {
       const route = join(process.cwd(), 'app', `${path}/route.ts`)
       expect(existsSync(route), `${path} has no route file`).toBe(true)
       // The Worker calls with GET, mirroring what Vercel Cron used to send.
       expect(readFileSync(route, 'utf8')).toMatch(/export async function GET\b/)
     }
+  })
+
+  it('runs the Search Console sync on the existing daily trigger, not a fourth one', () => {
+    const worker = readFileSync(join(process.cwd(), 'cloudflare/cron-worker/src/index.ts'), 'utf8')
+    expect(worker).toMatch(/'0 9 \* \* \*':\s*\[\s*'\/api\/cron\/trial-emails',\s*'\/api\/cron\/search-console'\s*\]/)
   })
 
   it('evaluates alerts after the rollup they read, on the same day', () => {
