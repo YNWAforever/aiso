@@ -95,6 +95,7 @@ export async function polishReportSummary(facts: ReportAiFacts): Promise<ReportA
 
   try {
     const response = await callOpenRouter({
+      label: 'report.summary_polish',
       model: MODEL,
       maxTokens: 450,
       signal: AbortSignal.timeout(15_000),

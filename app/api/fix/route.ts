@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
     .map(([k, v]) => `${k}: ${v.message}`)
 
   const raw = await callOpenRouter({
+    label: 'fix.pack',
     model: 'anthropic/claude-haiku-4-5',
     maxTokens: 2000,
     responseFormat: FIX_PACK_FORMAT,

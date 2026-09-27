@@ -100,6 +100,7 @@ export async function POST(req: NextRequest) {
   }
 
   const raw = await callOpenRouter({
+    label: 'pulse.suggest_questions',
     model: 'openai/gpt-4o-mini',
     maxTokens: 800,
     responseFormat: SUGGESTIONS_FORMAT,

@@ -82,6 +82,7 @@ TOPIC: "${targetTopic}", INDUSTRY: ${industry}, REGION: ${region ?? 'global'}
 Target 2000-3000 word pillar page with 6-8 sections.`
 
   const aiResponse = await callOpenRouter({
+    label: 'fix.content_brief',
     model: 'anthropic/claude-sonnet-4-5',
     messages: [{ role: 'user', content: prompt }],
     maxTokens: 1200,

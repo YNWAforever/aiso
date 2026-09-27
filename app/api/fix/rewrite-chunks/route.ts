@@ -39,6 +39,7 @@ ORIGINAL: ${chunkText.slice(0, 2000)}`
   // the JSON around it. At 800 a truncated reply failed to parse and the route
   // silently returned the original text as if it were the rewrite.
   const res = await callOpenRouter({
+    label: 'fix.rewrite_chunks',
     model: 'anthropic/claude-haiku-4-5',
     messages: [{ role: 'user', content: prompt }],
     maxTokens: 2000,

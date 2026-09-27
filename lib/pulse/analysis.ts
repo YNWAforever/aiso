@@ -98,6 +98,7 @@ export async function analyseAnswer(input: {
 
   try {
     const raw = await callOpenRouter({
+      label: 'pulse.answer_analysis',
       model: ANALYSIS_MODEL,
       maxTokens: 300,
       signal: AbortSignal.timeout(ANALYSIS_TIMEOUT_MS),

@@ -12,7 +12,26 @@ export interface JsonSchemaFormat {
   schema: Record<string, unknown>
 }
 
+/**
+ * Which surface made the call, so the usage log attributes spend per feature
+ * rather than per model (several surfaces share Haiku). Required, and a closed
+ * list, so a new call site can neither forget it nor misspell it.
+ */
+export type CallLabel =
+  | 'check.factual_density'
+  | 'check.topical_authority'
+  | 'fix.pack'
+  | 'fix.rewrite_chunks'
+  | 'fix.cluster_map'
+  | 'fix.content_brief'
+  | 'onboarding.seed_questions'
+  | 'pulse.platform'
+  | 'pulse.answer_analysis'
+  | 'pulse.suggest_questions'
+  | 'report.summary_polish'
+
 interface CallOptions {
+  label: CallLabel
   model: string
   messages: Message[]
   maxTokens?: number
@@ -25,7 +44,7 @@ interface CallOptions {
 // the whole budget and take the surrounding request down with it.
 const DEFAULT_TIMEOUT_MS = 30_000
 
-export async function callOpenRouter({ model, messages, maxTokens = 2000, signal, responseFormat }: CallOptions): Promise<string> {
+export async function callOpenRouter({ label, model, messages, maxTokens = 2000, signal, responseFormat }: CallOptions): Promise<string> {
   const res = await fetch(BASE, {
     method: 'POST',
     headers: {
@@ -55,7 +74,7 @@ export async function callOpenRouter({ model, messages, maxTokens = 2000, signal
 
   if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${await res.text()}`)
   const data = await res.json()
-  logUsage(model, data)
+  logUsage(label, model, data)
   return data.choices[0].message.content as string
 }
 
@@ -79,10 +98,11 @@ const str = (value: unknown): string | null => (typeof value === 'string' ? valu
  * call up in OpenRouter's /api/v1/generation; `costUsd` is logged when
  * OpenRouter includes it and null otherwise.
  */
-function logUsage(model: string, data: CompletionMetadata | null | undefined): void {
+function logUsage(label: CallLabel, model: string, data: CompletionMetadata | null | undefined): void {
   const finishReason = str(data?.choices?.[0]?.finish_reason)
   const entry = {
     event: 'openrouter_usage',
+    label,
     model,
     servedBy: str(data?.model),
     generationId: str(data?.id),
@@ -131,7 +151,8 @@ export async function callMultiPlatform(
   const results = await Promise.allSettled(
     selected.map(async ({ platform, model }) => ({
       platform,
-      answer: await callOpenRouter({ model, messages, maxTokens }),
+      // `model` already tells the platforms apart in the log.
+      answer: await callOpenRouter({ label: 'pulse.platform', model, messages, maxTokens }),
     })),
   )
   return results
