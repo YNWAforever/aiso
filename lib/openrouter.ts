@@ -35,7 +35,44 @@ export async function callOpenRouter({ model, messages, maxTokens = 2000, signal
 
   if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${await res.text()}`)
   const data = await res.json()
+  logUsage(model, data)
   return data.choices[0].message.content as string
+}
+
+type CompletionMetadata = {
+  id?: unknown
+  model?: unknown
+  usage?: { prompt_tokens?: unknown; completion_tokens?: unknown; cost?: unknown }
+  choices?: Array<{ finish_reason?: unknown }>
+}
+
+const num = (value: unknown): number | null => (typeof value === 'number' ? value : null)
+const str = (value: unknown): string | null => (typeof value === 'string' ? value : null)
+
+/**
+ * One metadata line per completion, so spend and truncation are visible at all.
+ *
+ * Never the prompt or the reply: both carry customer page text. `finishReason:
+ * 'length'` means the reply hit max_tokens and was cut off, and every caller
+ * parses and falls back on failure, so without this line a truncation is
+ * indistinguishable from a model that answered badly. `generationId` looks the
+ * call up in OpenRouter's /api/v1/generation; `costUsd` is logged when
+ * OpenRouter includes it and null otherwise.
+ */
+function logUsage(model: string, data: CompletionMetadata | null | undefined): void {
+  const finishReason = str(data?.choices?.[0]?.finish_reason)
+  const entry = {
+    event: 'openrouter_usage',
+    model,
+    servedBy: str(data?.model),
+    generationId: str(data?.id),
+    promptTokens: num(data?.usage?.prompt_tokens),
+    completionTokens: num(data?.usage?.completion_tokens),
+    costUsd: num(data?.usage?.cost),
+    finishReason,
+  }
+  if (finishReason === 'length') console.warn({ ...entry, event: 'openrouter_truncated' })
+  else console.info(entry)
 }
 
 const PLATFORMS = [
