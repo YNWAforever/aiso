@@ -26,9 +26,10 @@ const COPY_ROOTS = ['.worktrees', join('.claude', 'worktrees'), '.playwright-ci-
  * not believe it is a worker of this run.
  */
 function listCollectedFiles(): string[] {
-  const env = Object.fromEntries(
-    Object.entries(process.env).filter(([key]) => !key.startsWith('VITEST')),
-  )
+  // A copy rather than Object.fromEntries, which would lose the ProcessEnv type
+  // (Next declares NODE_ENV as required on it) and fail typecheck.
+  const env: NodeJS.ProcessEnv = { ...process.env }
+  for (const key of Object.keys(env)) if (key.startsWith('VITEST')) delete env[key]
   const stdout = execFileSync(process.execPath, [VITEST_CLI, 'list', '--filesOnly'], {
     cwd: process.cwd(),
     encoding: 'utf8',
