@@ -24,7 +24,7 @@ const mockSql = vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => {
   const text = strings.join('?')
   queries.push({ text, values })
 
-  if (text.includes('select local_trust_score, snapshot_month')) return Promise.resolve(previousRows)
+  if (text.includes('select local_trust_score, to_char(snapshot_month')) return Promise.resolve(previousRows)
   if (text.includes('insert into local_trust_snapshots')) {
     return Promise.resolve([{ id: 'snapshot-1', client_id: 'client-1', local_trust_score: 61 }])
   }
@@ -73,7 +73,7 @@ describe('getPreviousLocalTrustBaseline', () => {
     expect(query.text).toContain('client_id')
     expect(query.text).toContain('account_id')
     expect(query.text).toContain('snapshot_month <')
-    expect(query.text).toContain('order by snapshot_month desc')
+    expect(query.text).toContain('order by local_trust_snapshots.snapshot_month desc')
     expect(query.text).toContain('limit 1')
     expect(query.values).toEqual(['client-1', 'account-1', '2026-06-01'])
   })
@@ -89,12 +89,13 @@ describe('getPreviousLocalTrustBaseline', () => {
     expect(typeof result!.score).toBe('number')
   })
 
-  it('normalises a Date month rather than assuming the driver returns a string', async () => {
-    previousRows = [{ local_trust_score: 45, snapshot_month: new Date('2026-05-01T00:00:00.000Z') }]
-
-    expect(await getPreviousLocalTrustBaseline({
-      clientId: 'client-1', accountId: 'account-1', beforeMonth: '2026-06-01',
-    })).toEqual({ score: 45, month: '2026-05-01' })
+  it('has Postgres format the month, so no timezone can shift it', async () => {
+    // This case used to feed a UTC-midnight Date and pass. The real driver
+    // returns LOCAL midnight, and toISOString() then read 2026-08-01 as
+    // 2026-07-31 east of UTC. A mock cannot reproduce that; the integration
+    // suite does. What a unit test can pin is that the date never reaches JS.
+    await getPreviousLocalTrustBaseline({ clientId: 'client-1', accountId: 'account-1', beforeMonth: '2026-06-01' })
+    expect(queries[0]!.text).toContain("to_char(snapshot_month, 'YYYY-MM-DD') as snapshot_month")
   })
 
   it.each([
@@ -116,7 +117,7 @@ describe('getOrCreateLocalTrustSnapshot', () => {
     // The month has to exist before the lookup can be scoped, and the lookup has
     // to happen before the score is computed — this is the ordering that makes the
     // real baseline possible at all.
-    expect(queries[0]!.text).toContain('select local_trust_score, snapshot_month')
+    expect(queries[0]!.text).toContain('select local_trust_score, to_char(snapshot_month')
     expect(queries[0]!.values).toEqual(['client-1', 'account-1', '2026-06-01'])
     expect(queries[1]!.text).toContain('insert into local_trust_snapshots')
   })

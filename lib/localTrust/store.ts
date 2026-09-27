@@ -136,11 +136,12 @@ export async function getPreviousLocalTrustBaseline(input: {
 }): Promise<LocalTrustBaseline | null> {
   const sql = db()
   const rows = await runQuery(() => sql`
-    select local_trust_score, snapshot_month from local_trust_snapshots
+    select local_trust_score, to_char(snapshot_month, 'YYYY-MM-DD') as snapshot_month
+    from local_trust_snapshots
     where client_id = ${input.clientId}
       and account_id = ${input.accountId}
       and snapshot_month < ${input.beforeMonth}::date
-    order by snapshot_month desc
+    order by local_trust_snapshots.snapshot_month desc
     limit 1
   `)
 
@@ -150,11 +151,12 @@ export async function getPreviousLocalTrustBaseline(input: {
   const score = Number(row.local_trust_score)
   if (!Number.isFinite(score)) return null
 
-  // `date` columns come back as 'YYYY-MM-DD' strings over the HTTP driver, but a
-  // Date would arrive here if that ever changed; normalise rather than assume.
-  const month = row.snapshot_month instanceof Date
-    ? row.snapshot_month.toISOString().slice(0, 10)
-    : String(row.snapshot_month).slice(0, 10)
+  // Formatted by Postgres, not here. The driver returns a `date` as a Date at
+  // LOCAL midnight, so `.toISOString()` moved it back a day east of UTC —
+  // 2026-08-01 read as 2026-07-31 in Hong Kong, and that is the month the
+  // scenario told the owner it was comparing against. A string carries no
+  // timezone. Proven on real Postgres in feature-store-tenancy.test.ts.
+  const month = String(row.snapshot_month)
 
   return { score, month }
 }

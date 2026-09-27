@@ -5,8 +5,11 @@ import { describe, expect, it } from 'vitest'
 import { EXACT_TARGET_CONFIGS } from '@/scripts/ci/run-exact-target-suites.mjs'
 
 /**
- * The canonical list that stops the five exact-target suites falling out of the
- * gate again.
+ * The canonical list that stops the exact-target suites falling out of the gate
+ * again. Nine now: the original five, plus the four cross-account tenancy suites
+ * moved here from the default integration project so they carry the same in-band
+ * approval. Moved, not copied — the project excludes them, so the glob check and
+ * the exclude check below still have to agree.
  *
  * They were runnable and never run: excluded from the default integration
  * project, targeted by five dedicated configs, and named by no npm script and no
@@ -39,6 +42,10 @@ const SUITES = [
   '__tests__/integration/change-set-approvals.test.ts',
   '__tests__/integration/change-set-stores.test.ts',
   '__tests__/integration/delivery-attestations.test.ts',
+  '__tests__/integration/first-run-journey.test.ts',
+  '__tests__/integration/feature-store-tenancy.test.ts',
+  '__tests__/integration/reports-entities-tenancy.test.ts',
+  '__tests__/integration/alerts-agents-tenancy.test.ts',
 ]
 
 describe('the exact-target suites are wired into the gate', () => {
