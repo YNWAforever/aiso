@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { callOpenRouter } from '@/lib/openrouter'
+import { callOpenRouter, type JsonSchemaFormat } from '@/lib/openrouter'
 import { getProfile } from '@/lib/auth'
+
+const REWRITE_FORMAT: JsonSchemaFormat = {
+  name: 'chunk_rewrite',
+  schema: {
+    type: 'object',
+    properties: {
+      rewritten: { type: 'string' },
+      changes: { type: 'array', items: { type: 'string' } },
+    },
+    required: ['rewritten', 'changes'],
+    additionalProperties: false,
+  },
+}
 
 export async function POST(req: NextRequest) {
   // No id in the body — nothing to own-check, but the LLM call is still paid-for
@@ -20,11 +33,17 @@ Rules:
 4. Each paragraph must stand alone
 5. Use lists where appropriate
 
-ORIGINAL: ${chunkText.slice(0, 2000)}
+ORIGINAL: ${chunkText.slice(0, 2000)}`
 
-Return JSON: {"rewritten": "text", "changes": ["change list"]}`
-
-  const res = await callOpenRouter({ model: 'anthropic/claude-haiku-4-5', messages: [{ role: 'user', content: prompt }], maxTokens: 800 })
+  // The default target alone is up to 1000 tokens, before the changes list and
+  // the JSON around it. At 800 a truncated reply failed to parse and the route
+  // silently returned the original text as if it were the rewrite.
+  const res = await callOpenRouter({
+    model: 'anthropic/claude-haiku-4-5',
+    messages: [{ role: 'user', content: prompt }],
+    maxTokens: 2000,
+    responseFormat: REWRITE_FORMAT,
+  })
   let result: { rewritten?: string; changes?: string[] } = {}
   try { result = JSON.parse(res.match(/\{[\s\S]+\}/)?.[0] ?? '{}') } catch {}
 
