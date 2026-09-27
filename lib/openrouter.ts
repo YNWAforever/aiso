@@ -120,8 +120,14 @@ const PLATFORMS = [
   { platform: 'perplexity-sonar-pro', model: 'perplexity/sonar-pro' },
   { platform: 'gpt-4o',               model: 'openai/gpt-4o' },
   { platform: 'claude-haiku',         model: 'anthropic/claude-haiku-4-5' },
-  { platform: 'gemini-flash',         model: 'google/gemini-flash-2.0' },
+  { platform: 'gemini-flash',         model: 'google/gemini-3.8-flash' },
 ]
+// A retired or mistyped id fails every call to that platform, and
+// callMultiPlatform drops failures, so the only symptom is a platform that
+// quietly stops recording answers. `google/gemini-flash-2.0` was never a valid
+// OpenRouter id and did exactly that -- to the only platform the Basic plan
+// has. Check a new id first: GET https://openrouter.ai/api/v1/models/<id>/endpoints
+// must return a non-empty `endpoints` list, not merely a 200.
 
 export const PLATFORM_KEYS = PLATFORMS.map(p => p.platform)
 
