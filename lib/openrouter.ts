@@ -6,11 +6,18 @@ interface Message {
   content: string
 }
 
+/** A strict JSON Schema; the root must be an object. */
+export interface JsonSchemaFormat {
+  name: string
+  schema: Record<string, unknown>
+}
+
 interface CallOptions {
   model: string
   messages: Message[]
   maxTokens?: number
   signal?: AbortSignal
+  responseFormat?: JsonSchemaFormat
 }
 
 // Callers that pass no signal would otherwise wait indefinitely. vercel.json
@@ -18,7 +25,7 @@ interface CallOptions {
 // the whole budget and take the surrounding request down with it.
 const DEFAULT_TIMEOUT_MS = 30_000
 
-export async function callOpenRouter({ model, messages, maxTokens = 2000, signal }: CallOptions): Promise<string> {
+export async function callOpenRouter({ model, messages, maxTokens = 2000, signal, responseFormat }: CallOptions): Promise<string> {
   const res = await fetch(BASE, {
     method: 'POST',
     headers: {
@@ -29,7 +36,20 @@ export async function callOpenRouter({ model, messages, maxTokens = 2000, signal
     },
     // Clamped, never raised. The ceiling is deployer-configured and applies here
     // rather than at each call site, so a caller cannot opt out by forgetting.
-    body: JSON.stringify({ model, max_tokens: clampOutputTokens(maxTokens), messages }),
+    body: JSON.stringify({
+      model, max_tokens: clampOutputTokens(maxTokens), messages,
+      // Structured outputs: the provider enforces the schema, so a caller no longer
+      // depends on the model echoing a schema written out in prose.
+      // require_parameters stops OpenRouter routing to a provider that would
+      // silently ignore response_format.
+      ...(responseFormat && {
+        response_format: {
+          type: 'json_schema',
+          json_schema: { name: responseFormat.name, strict: true, schema: responseFormat.schema },
+        },
+        provider: { require_parameters: true },
+      }),
+    }),
     signal: signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
   })
 

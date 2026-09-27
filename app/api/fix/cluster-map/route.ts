@@ -1,11 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { callOpenRouter } from '@/lib/openrouter'
+import { callOpenRouter, type JsonSchemaFormat } from '@/lib/openrouter'
 import { getProfile } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { INDUSTRY_PACKS } from '@/lib/authority/packs'
 import type { IndustryCode } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
+
+const topicList = { type: 'array', items: { type: 'string' } }
+
+const CLUSTER_MAP_FORMAT: JsonSchemaFormat = {
+  name: 'cluster_map',
+  schema: {
+    type: 'object',
+    properties: {
+      clientClusters: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            topic: { type: 'string' },
+            completenessScore: { type: 'integer', description: '0-100' },
+            recommendation: { type: 'string' },
+          },
+          required: ['topic', 'completenessScore', 'recommendation'],
+          additionalProperties: false,
+        },
+      },
+      recommendedNewClusters: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            topic: { type: 'string' },
+            priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+            rationale: { type: 'string' },
+          },
+          required: ['topic', 'priority', 'rationale'],
+          additionalProperties: false,
+        },
+      },
+      priorityOrder: { ...topicList, description: 'Topics to work on, most important first.' },
+      // No competitor data reaches this prompt, so the field is described as what
+      // the model can actually infer rather than as observed competitor coverage.
+      competitorGaps: { ...topicList, description: 'Topics this industry commonly covers that the existing clusters lack.' },
+    },
+    required: ['clientClusters', 'recommendedNewClusters', 'priorityOrder', 'competitorGaps'],
+    additionalProperties: false,
+  },
+}
 
 // Ownership is checked via Neon because lib/supabase points at a deleted project
 async function ownsClient(clientId: string, accountId: string): Promise<boolean> {
@@ -58,20 +101,13 @@ export async function POST(req: NextRequest) {
 
   const prompt = `Create a topical cluster map for ${industry} industry AEO.
 Existing clusters: ${JSON.stringify(clusters)}
-Industry keywords: ${keywords.join(', ')}
-
-Return JSON:
-{
-  "clientClusters": [{"topic":"string","completenessScore":number,"recommendation":"string"}],
-  "recommendedNewClusters": [{"topic":"string","priority":"high|medium|low","rationale":"string"}],
-  "priorityOrder": ["topic 1","topic 2","topic 3"],
-  "competitorGaps": ["topic competitors have that client lacks"]
-}`
+Industry keywords: ${keywords.join(', ')}`
 
   const raw = await callOpenRouter({
     model: 'anthropic/claude-sonnet-4-5',
     messages: [{ role: 'user', content: prompt }],
     maxTokens: 1200,
+    responseFormat: CLUSTER_MAP_FORMAT,
   })
 
   let clusterMap: object
