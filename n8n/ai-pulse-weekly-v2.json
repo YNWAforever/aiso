@@ -178,7 +178,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'google/gemini-2.0-flash-001', max_tokens: 1000, messages: [{ role: 'user', content: $json.question }] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'google/gemini-3.8-flash', max_tokens: 1000, messages: [{ role: 'user', content: $json.question }] }) }}",
         "options": {}
       },
       "name": "Query Gemini Flash",
