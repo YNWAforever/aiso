@@ -42,6 +42,7 @@ export async function checkFactualDensity(
   let uniqueClaims: string[] = []
   try {
     const aiResponse = await callOpenRouter({
+      label: 'check.factual_density',
       model: 'anthropic/claude-haiku-4-5',
       messages: [
         { role: 'system', content: UNTRUSTED_SYSTEM_RULE },

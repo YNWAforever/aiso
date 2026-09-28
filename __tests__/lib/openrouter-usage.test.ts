@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { callOpenRouter } from '@/lib/openrouter'
+import { callMultiPlatform, callOpenRouter } from '@/lib/openrouter'
 
 // Distinctive so a leak into the log line cannot be missed.
 const PROMPT = 'PROMPT-TEXT-customer-page-content'
@@ -16,12 +16,18 @@ function completion(overrides: Record<string, unknown> = {}) {
   }
 }
 
+// A fresh Response per call: a body can be read only once, so sharing one
+// would fail every call after the first in a fan-out.
 function respondWith(body: unknown) {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })))
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response(JSON.stringify(body), { status: 200 })))
 }
 
 function call() {
-  return callOpenRouter({ model: 'anthropic/claude-haiku-4-5', messages: [{ role: 'user', content: PROMPT }] })
+  return callOpenRouter({
+    label: 'fix.rewrite_chunks',
+    model: 'anthropic/claude-haiku-4-5',
+    messages: [{ role: 'user', content: PROMPT }],
+  })
 }
 
 describe('callOpenRouter usage logging', () => {
@@ -45,6 +51,7 @@ describe('callOpenRouter usage logging', () => {
     expect(info).toHaveBeenCalledTimes(1)
     expect(info).toHaveBeenCalledWith({
       event: 'openrouter_usage',
+      label: 'fix.rewrite_chunks',
       model: 'anthropic/claude-haiku-4-5',
       servedBy: 'anthropic/claude-4.5-haiku-20251001',
       generationId: 'gen-123',
@@ -74,7 +81,9 @@ describe('callOpenRouter usage logging', () => {
     await call()
 
     expect(warn).toHaveBeenCalledTimes(1)
-    expect(warn).toHaveBeenCalledWith(expect.objectContaining({ event: 'openrouter_truncated', finishReason: 'length' }))
+    expect(warn).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'openrouter_truncated', label: 'fix.rewrite_chunks', finishReason: 'length' }),
+    )
     expect(info).not.toHaveBeenCalled()
   })
 
@@ -85,6 +94,7 @@ describe('callOpenRouter usage logging', () => {
 
     expect(info).toHaveBeenCalledWith({
       event: 'openrouter_usage',
+      label: 'fix.rewrite_chunks',
       model: 'anthropic/claude-haiku-4-5',
       servedBy: null,
       generationId: null,
@@ -93,6 +103,16 @@ describe('callOpenRouter usage logging', () => {
       costUsd: null,
       finishReason: null,
     })
+  })
+
+  it('labels every call of a platform fan-out, distinguished by model', async () => {
+    respondWith(completion())
+
+    await callMultiPlatform([{ role: 'user', content: PROMPT }], 500, ['gpt-4o', 'claude-haiku'])
+
+    const lines = info.mock.calls.map((args: unknown[]) => args[0] as { label: string; model: string })
+    expect(lines.map((line: { label: string }) => line.label)).toEqual(['pulse.platform', 'pulse.platform'])
+    expect(lines.map((line: { model: string }) => line.model).sort()).toEqual(['anthropic/claude-haiku-4-5', 'openai/gpt-4o'])
   })
 
   it('logs nothing for a failed request, which throws as before', async () => {

@@ -220,6 +220,7 @@ export async function POST(req: NextRequest) {
   // Generate seed prompts via OpenRouter
   try {
     const raw = await callOpenRouter({
+      label: 'onboarding.seed_questions',
       model: 'anthropic/claude-haiku-4-5',
       maxTokens: 3000,
       responseFormat: SEED_QUESTIONS_FORMAT,

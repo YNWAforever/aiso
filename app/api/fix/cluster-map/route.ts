@@ -104,6 +104,7 @@ Existing clusters: ${JSON.stringify(clusters)}
 Industry keywords: ${keywords.join(', ')}`
 
   const raw = await callOpenRouter({
+    label: 'fix.cluster_map',
     model: 'anthropic/claude-sonnet-4-5',
     messages: [{ role: 'user', content: prompt }],
     maxTokens: 1200,

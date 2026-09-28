@@ -139,6 +139,7 @@ Industry: ${industry}, Keywords: ${industryKeywords.join(', ')}
 URL groups: ${JSON.stringify(slugGroups).slice(0, 1500)}`
 
     const res = await callOpenRouter({
+      label: 'check.topical_authority',
       model: 'anthropic/claude-haiku-4-5',
       messages: [
         {
