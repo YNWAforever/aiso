@@ -6,7 +6,9 @@ import { normalizeSitemapUrls } from '@/lib/security/sitemap-urls'
 type DetectedCluster = TopicalAuthorityResult['detectedClusters'][number]
 
 const MAX_CLUSTERS = 5
-const MAX_ARTICLES_PER_CLUSTER = 20
+// Three, not twenty: the article lists were what overflowed the reply, and no
+// UI reads them -- the result pages render only topic and completenessScore.
+const MAX_ARTICLES_PER_CLUSTER = 3
 const MAX_TEXT_FIELD = 300
 const OPENROUTER_TIMEOUT_MS = 20_000
 
@@ -28,6 +30,7 @@ const CLUSTERS_FORMAT: JsonSchemaFormat = {
             pillarPageUrl: { type: ['string', 'null'], description: 'One of the given URLs, or null.' },
             clusterArticles: {
               type: 'array',
+              description: `At most ${MAX_ARTICLES_PER_CLUSTER} representative URLs from the cluster.`,
               items: {
                 type: 'object',
                 properties: {
@@ -133,7 +136,7 @@ export async function checkTopicalAuthority(
   let detectedClusters: TopicalAuthorityResult['detectedClusters'] = []
 
   try {
-    const prompt = `Given these URL groups and industry keywords, identify up to 5 topical clusters.
+    const prompt = `Given these URL groups and industry keywords, identify up to 5 topical clusters, each with at most ${MAX_ARTICLES_PER_CLUSTER} representative articles.
 You see URLs only, not page content.
 Industry: ${industry}, Keywords: ${industryKeywords.join(', ')}
 URL groups: ${JSON.stringify(slugGroups).slice(0, 1500)}`
@@ -149,7 +152,9 @@ URL groups: ${JSON.stringify(slugGroups).slice(0, 1500)}`
         },
         { role: 'user', content: prompt },
       ],
-      maxTokens: 600,
+      // 600 truncated the first live reply mid-JSON (finishReason 'length'), which
+      // parsed as 0 clusters. Capped articles bring a full reply to ~800 tokens.
+      maxTokens: 1500,
       responseFormat: CLUSTERS_FORMAT,
       // vercel.json allows the scan route 60s; an unbounded call here could
       // spend all of it, since callOpenRouter passes no timeout of its own.
