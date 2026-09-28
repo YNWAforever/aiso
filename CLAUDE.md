@@ -179,10 +179,11 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
 - `npm run lint` ≠ `npx eslint .` — the ignores are CLI flags in `package.json`, not in
   `eslint.config.mjs`. Local checkouts can hold full copies of the repo, all gitignored:
   `.worktrees/`, `.claude/worktrees/`, `.playwright-ci-server/*` (recreated by the e2e launcher)
-  and `.codex/`. Vitest collects only `__tests__/` (pinned by
-  `__tests__/config/vitest-discovery.test.ts`) and `tsc` skips dot-directories, but lint ignores
-  only `.claude/` and `.playwright-ci-server/`, so `npm run lint` still walks `.worktrees/` and
-  `.codex/`. `playwright.config.ts` excludes `**/.worktrees/**`.
+  and `.codex/`. None of the tools walk them: Vitest collects only `__tests__/`
+  (`__tests__/config/vitest-discovery.test.ts`), `npm run lint` ignores all four
+  (`__tests__/config/lint-ignores.test.ts`), `tsc` skips dot-directories, and
+  `playwright.config.ts` excludes `**/.worktrees/**`. A new copy location needs adding to both
+  tests' lists and to the lint script.
 - Lazy singletons: `db()` and `auth()` defer client construction. This genuinely protects the
   build for `db()` — `next build` succeeds with `DATABASE_URL` unset. It does **not** protect
   `auth()`: `app/api/auth/[...path]/route.ts` calls `auth().handler()` at module scope, so
