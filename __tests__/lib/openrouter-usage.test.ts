@@ -30,18 +30,23 @@ function call() {
   })
 }
 
+let info: ReturnType<typeof vi.spyOn>
+let warn: ReturnType<typeof vi.spyOn>
+let error: ReturnType<typeof vi.spyOn>
+
+beforeEach(() => {
+  vi.stubEnv('OPENROUTER_API_KEY', 'test-key')
+  info = vi.spyOn(console, 'info').mockImplementation(() => {})
+  warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  error = vi.spyOn(console, 'error').mockImplementation(() => {})
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllEnvs()
+})
+
 describe('callOpenRouter usage logging', () => {
-  let info: ReturnType<typeof vi.spyOn>
-  let warn: ReturnType<typeof vi.spyOn>
-
-  beforeEach(() => {
-    info = vi.spyOn(console, 'info').mockImplementation(() => {})
-    warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-  })
-
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
 
   it('logs one metadata line per completion and still returns the reply', async () => {
     respondWith(completion())
@@ -115,12 +120,81 @@ describe('callOpenRouter usage logging', () => {
     expect(lines.map((line: { model: string }) => line.model).sort()).toEqual(['anthropic/claude-haiku-4-5', 'openai/gpt-4o'])
   })
 
-  it('logs nothing for a failed request, which throws as before', async () => {
+})
+
+describe('callOpenRouter failure logging', () => {
+  // Every caller catches a failed call and substitutes a default, so without a
+  // line here a missing or revoked key is silent. It was: production ran three
+  // weeks with every scan's c18/c19 on fallback values and nothing in the logs.
+  const failure = (fields: Record<string, unknown>) => ({
+    event: 'openrouter_failed',
+    label: 'fix.rewrite_chunks',
+    model: 'anthropic/claude-haiku-4-5',
+    ...fields,
+  })
+
+  it('logs missing_api_key and never sends the request when the key is unset', async () => {
+    vi.stubEnv('OPENROUTER_API_KEY', '')
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(call()).rejects.toThrow('OPENROUTER_API_KEY is not set')
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(error).toHaveBeenCalledWith(failure({ reason: 'missing_api_key' }))
+  })
+
+  it('logs the status and OpenRouter\'s own message for an HTTP error, and throws as before', async () => {
+    const body = JSON.stringify({ error: { message: 'No auth credentials found', code: 401 } })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 401 })))
+
+    await expect(call()).rejects.toThrow(`OpenRouter 401: ${body}`)
+
+    expect(error).toHaveBeenCalledWith(failure({ reason: 'http_error', status: 401, providerMessage: 'No auth credentials found' }))
+    expect(info).not.toHaveBeenCalled()
+  })
+
+  it('logs a null providerMessage when the error body is not OpenRouter JSON', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('upstream down', { status: 502 })))
 
     await expect(call()).rejects.toThrow('OpenRouter 502: upstream down')
 
-    expect(info).not.toHaveBeenCalled()
-    expect(warn).not.toHaveBeenCalled()
+    expect(error).toHaveBeenCalledWith(failure({ reason: 'http_error', status: 502, providerMessage: null }))
+  })
+
+  it('logs timeout and network failures apart', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('signal timed out', 'TimeoutError')))
+    await expect(call()).rejects.toThrow('signal timed out')
+    expect(error).toHaveBeenLastCalledWith(failure({ reason: 'timeout' }))
+
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fetch failed')))
+    await expect(call()).rejects.toThrow('fetch failed')
+    expect(error).toHaveBeenLastCalledWith(failure({ reason: 'network' }))
+  })
+
+  it('logs invalid_json when a 200 body does not parse', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>gateway</html>', { status: 200 })))
+
+    await expect(call()).rejects.toThrow()
+
+    expect(error).toHaveBeenCalledWith(failure({ reason: 'invalid_json' }))
+  })
+
+  it('logs usage and no_content when a completion carries no text', async () => {
+    // Tokens were still spent, so the usage line is kept.
+    respondWith(completion({ choices: [{ finish_reason: 'stop', message: { content: null } }] }))
+
+    await expect(call()).rejects.toThrow('OpenRouter returned no content')
+
+    expect(info).toHaveBeenCalledWith(expect.objectContaining({ event: 'openrouter_usage', completionTokens: 45 }))
+    expect(error).toHaveBeenCalledWith(failure({ reason: 'no_content', finishReason: 'stop' }))
+  })
+
+  it('never logs the prompt on a failure', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(`echo: ${PROMPT}`, { status: 400 })))
+
+    await expect(call()).rejects.toThrow()
+
+    expect(JSON.stringify(error.mock.calls)).not.toContain(PROMPT)
   })
 })
