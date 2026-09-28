@@ -45,37 +45,86 @@ interface CallOptions {
 const DEFAULT_TIMEOUT_MS = 30_000
 
 export async function callOpenRouter({ label, model, messages, maxTokens = 2000, signal, responseFormat }: CallOptions): Promise<string> {
-  const res = await fetch(BASE, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      'HTTP-Referer': 'https://aeo.fimmick.com',
-      'X-Title': 'Fimmick AEO',
-      'Content-Type': 'application/json',
-    },
-    // Clamped, never raised. The ceiling is deployer-configured and applies here
-    // rather than at each call site, so a caller cannot opt out by forgetting.
-    body: JSON.stringify({
-      model, max_tokens: clampOutputTokens(maxTokens), messages,
-      // Structured outputs: the provider enforces the schema, so a caller no longer
-      // depends on the model echoing a schema written out in prose.
-      // require_parameters stops OpenRouter routing to a provider that would
-      // silently ignore response_format.
-      ...(responseFormat && {
-        response_format: {
-          type: 'json_schema',
-          json_schema: { name: responseFormat.name, strict: true, schema: responseFormat.schema },
-        },
-        provider: { require_parameters: true },
-      }),
-    }),
-    signal: signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
-  })
+  const fail = (fields: Record<string, unknown>) => console.error({ event: 'openrouter_failed', label, model, ...fields })
 
-  if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${await res.text()}`)
-  const data = await res.json()
+  // Checked here rather than left to a 401: an empty key is a deployment fault,
+  // and naming it is the difference between one log search and three weeks of
+  // silent fallbacks.
+  const apiKey = process.env.OPENROUTER_API_KEY
+  if (!apiKey) {
+    fail({ reason: 'missing_api_key' })
+    throw new Error('OPENROUTER_API_KEY is not set')
+  }
+
+  let res: Response
+  try {
+    res = await fetch(BASE, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://aeo.fimmick.com',
+        'X-Title': 'Fimmick AEO',
+        'Content-Type': 'application/json',
+      },
+      // Clamped, never raised. The ceiling is deployer-configured and applies here
+      // rather than at each call site, so a caller cannot opt out by forgetting.
+      body: JSON.stringify({
+        model, max_tokens: clampOutputTokens(maxTokens), messages,
+        // Structured outputs: the provider enforces the schema, so a caller no longer
+        // depends on the model echoing a schema written out in prose.
+        // require_parameters stops OpenRouter routing to a provider that would
+        // silently ignore response_format.
+        ...(responseFormat && {
+          response_format: {
+            type: 'json_schema',
+            json_schema: { name: responseFormat.name, strict: true, schema: responseFormat.schema },
+          },
+          provider: { require_parameters: true },
+        }),
+      }),
+      signal: signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+    })
+  } catch (error) {
+    fail({ reason: error instanceof DOMException && error.name === 'TimeoutError' ? 'timeout' : 'network' })
+    throw error
+  }
+
+  if (!res.ok) {
+    const text = await res.text()
+    fail({ reason: 'http_error', status: res.status, providerMessage: providerMessage(text) })
+    throw new Error(`OpenRouter ${res.status}: ${text}`)
+  }
+
+  let data: CompletionMetadata & { choices?: Array<{ message?: { content?: unknown } }> }
+  try {
+    data = await res.json()
+  } catch (error) {
+    fail({ reason: 'invalid_json' })
+    throw error
+  }
   logUsage(label, model, data)
-  return data.choices[0].message.content as string
+
+  const content = data?.choices?.[0]?.message?.content
+  if (typeof content !== 'string') {
+    fail({ reason: 'no_content', finishReason: str(data?.choices?.[0]?.finish_reason) })
+    throw new Error('OpenRouter returned no content')
+  }
+  return content
+}
+
+/**
+ * OpenRouter's own error text (e.g. "No auth credentials found", or a routing
+ * failure naming an unsupported parameter), which is what tells a bad key from a
+ * provider problem. Only the parsed `error.message`, capped -- never the raw
+ * body, which a provider could fill with an echo of the request.
+ */
+function providerMessage(body: string): string | null {
+  try {
+    const message = JSON.parse(body)?.error?.message
+    return typeof message === 'string' ? message.slice(0, 200) : null
+  } catch {
+    return null
+  }
 }
 
 type CompletionMetadata = {
