@@ -23,6 +23,17 @@ export function DisconnectErrorNotice({ lang }: { lang: string }) {
 }
 
 /**
+ * The Settings page could not read the account's connections (a database
+ * error, or the flag switched on before migration 054 is applied). Said
+ * plainly instead of rendering an empty list, which would read as "you have
+ * no connections" — a false fact, not a failed read.
+ */
+export function ConnectionsLoadFailedNotice({ lang }: { lang: string }) {
+  const copy = copyFor(lang)
+  return <p role="alert" className="mt-3 text-sm font-medium text-destructive">{copy.connections_load_failed}</p>
+}
+
+/**
  * One connection row. Pulled out of GoogleConnectionsPanel for the same
  * reason as SearchConsolePanel's PropertySiteRow: the busy/disabled/
  * aria-label logic is otherwise only reachable through a component whose
@@ -53,12 +64,14 @@ export function ConnectionRow({
 }
 
 export function GoogleConnectionsPanel({
-  lang, connections: initial, entitled, notice,
+  lang, connections: initial, entitled, notice, loadFailed = false,
 }: {
   lang: string
   connections: ConnectionSummary[]
   entitled: boolean
   notice: ConsentErrorReason | null
+  /** The server could not list this account's connections; see ConnectionsLoadFailedNotice. */
+  loadFailed?: boolean
 }) {
   const copy = copyFor(lang)
   const [connections, setConnections] = useState(initial)
@@ -104,6 +117,10 @@ export function GoogleConnectionsPanel({
           <p className="mt-2 font-semibold text-foreground">{copy.upgrade_title}</p>
           <p className="mt-1 text-sm text-muted-foreground">{copy.upgrade_body}</p>
         </>
+      ) : loadFailed ? (
+        // No list and no connect button: with the read failing we cannot say
+        // what is already connected, and the failure may be the missing table.
+        <ConnectionsLoadFailedNotice lang={lang} />
       ) : (
         <>
           <p className="mt-1 text-sm text-muted-foreground">{copy.connections_body}</p>

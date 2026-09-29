@@ -1374,7 +1374,8 @@
     "connection_error_quota": "{email}：Google 未能及時回應，請稍後再試。",
     "connection_error_misconfigured": "{email}：Search Console 暫時無法使用，你無需採取任何行動。",
     "connection_error_unavailable": "{email}：Google 暫時未能列出此帳戶的資源，請稍後再試。",
-    "no_eligible_properties": "找不到適用於此品牌的 Search Console 資源。資源必須涵蓋品牌網域，並在你的 Google 帳戶中通過驗證。"
+    "no_eligible_properties": "找不到適用於此品牌的 Search Console 資源。資源必須涵蓋品牌網域，並在你的 Google 帳戶中通過驗證。",
+    "connections_load_failed": "未能載入你的 Google 連結，請重新整理頁面再試。"
   },
   "methodologyPage": {
     "title": "如何解讀掃描證據",

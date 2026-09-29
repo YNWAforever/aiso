@@ -38,7 +38,20 @@ export default async function SettingsPage({
   const membership = await loadAccountMembers(profile.account_id)
   const searchConsoleOn = isFeatureEnabled('search_console')
   const searchConsoleEntitled = entitlement.features.search_console
-  const connections = searchConsoleOn && searchConsoleEntitled ? await listConnections(profile.account_id) : []
+  // A failed read must not take down the whole Settings page (a database
+  // error, or the flag switched on before migration 054 is applied): the
+  // panel says the list could not load, and everything else still renders.
+  let connections: Awaited<ReturnType<typeof listConnections>> = []
+  let connectionsLoadFailed = false
+  if (searchConsoleOn && searchConsoleEntitled) {
+    try {
+      connections = await listConnections(profile.account_id)
+    } catch (error) {
+      // Name only: the Neon driver can echo the connection string in a message.
+      console.error('[settings] listConnections failed', { name: error instanceof Error ? error.name : typeof error })
+      connectionsLoadFailed = true
+    }
+  }
   // Only a reason the callback itself generates is shown; anything else is ignored.
   const reason = search.google === 'error' ? search.reason : undefined
   const notice = isConsentErrorReason(reason) ? reason : null
@@ -52,7 +65,13 @@ export default async function SettingsPage({
           invitations={membership.invitations}
         />
         {searchConsoleOn && (
-          <GoogleConnectionsPanel lang={lang} entitled={searchConsoleEntitled} connections={connections} notice={notice} />
+          <GoogleConnectionsPanel
+            lang={lang}
+            entitled={searchConsoleEntitled}
+            connections={connections}
+            notice={notice}
+            loadFailed={connectionsLoadFailed}
+          />
         )}
         <section id="report-branding" className="scroll-mt-6">
           <div className="mb-4">

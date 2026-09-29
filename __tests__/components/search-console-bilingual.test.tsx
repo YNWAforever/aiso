@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import en from '@/messages/en.json'
 import zhHK from '@/messages/zh-HK.json'
-import { ConnectionRow, DisconnectErrorNotice, GoogleConnectionsPanel } from '@/components/integrations/GoogleConnectionsPanel'
+import {
+  ConnectionRow, ConnectionsLoadFailedNotice, DisconnectErrorNotice, GoogleConnectionsPanel,
+} from '@/components/integrations/GoogleConnectionsPanel'
 import {
   BindErrorNotice,
   ErroredConnectionsNotice,
@@ -267,5 +269,31 @@ describe.each(['en', 'zh-HK'] as const)('ConnectionRow (%s)', lang => {
     const copy = (lang === 'zh-HK' ? zhHK : en).searchConsole
     expect(markup).toContain(copy.disconnecting)
     expect(markup).toContain('disabled=""')
+  })
+})
+
+describe.each(['en', 'zh-HK'] as const)('connections load failure (%s)', lang => {
+  const copy = (lang === 'zh-HK' ? zhHK : en).searchConsole
+
+  it('ConnectionsLoadFailedNotice is a non-blank alert in this language', () => {
+    const markup = renderToStaticMarkup(<ConnectionsLoadFailedNotice lang={lang} />)
+    expect(markup).toContain('role="alert"')
+    expect(markup).toContain(copy.connections_load_failed)
+  })
+
+  it('the panel shows the failure instead of an empty list or a connect button', () => {
+    const markup = renderToStaticMarkup(
+      <GoogleConnectionsPanel lang={lang} entitled notice={null} connections={[]} loadFailed />,
+    )
+    expect(markup).toContain(copy.connections_load_failed)
+    expect(markup).not.toContain('/api/integrations/google/start')
+  })
+
+  it('the panel does not mention a failure when the read worked', () => {
+    const markup = renderToStaticMarkup(
+      <GoogleConnectionsPanel lang={lang} entitled notice={null} connections={[]} loadFailed={false} />,
+    )
+    expect(markup).not.toContain(copy.connections_load_failed)
+    expect(markup).toContain('/api/integrations/google/start')
   })
 })
