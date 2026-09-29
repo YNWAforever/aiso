@@ -111,7 +111,7 @@ describe('POST /api/pulse/suggest-questions — generation', () => {
     await post()
     const prompt = llm.callOpenRouter.mock.calls[0][0].messages[0].content
 
-    expect(prompt).toContain('do NOT repeat these')
+    expect(prompt).toContain('must not repeat')
     expect(prompt).toContain('What is AcmeCo?')
   })
 

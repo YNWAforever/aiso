@@ -126,7 +126,7 @@ proxy.ts           # Next 16 proxy (was middleware) — intl routing + auth veri
 i18n/              # next-intl routing + request config
 messages/          # en.json / zh-HK.json translation strings
 supabase/
-  migrations/      # 52 SQL migrations, 001_-054_ (no 005/006) - dir name is legacy
+  migrations/      # SQL migrations from 001_ (no 005/006) - dir name is legacy
 __tests__/         # Vitest tests mirroring lib/app structure
 tests/e2e/         # Playwright specs + page objects
 scripts/           # migrate.ts (npm run migrate), run-tests.mjs (npm test), seed-packs.ts
@@ -179,10 +179,13 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   cron is still a deliberate, tested change.
   `next.config.ts` declares two permanent redirects that fire *before* `proxy.ts`.
 - `npm run lint` ≠ `npx eslint .` — the ignores are CLI flags in `package.json`, not in
-  `eslint.config.mjs`. (The vestigial `.worktrees/` / `.codex/` / `.opencode/` flags, and the
-  same dead paths in `tsconfig.json`'s and `vitest.config.ts`'s excludes, were removed
-  2026-08-31 — no such directories exist and `git worktree list` shows a single worktree.
-  `playwright.config.ts` still carries a `**/.worktrees/**` exclude.)
+  `eslint.config.mjs`. Local checkouts can hold full copies of the repo, all gitignored:
+  `.worktrees/`, `.claude/worktrees/`, `.playwright-ci-server/*` (recreated by the e2e launcher)
+  and `.codex/`. None of the tools walk them: Vitest collects only `__tests__/`
+  (`__tests__/config/vitest-discovery.test.ts`), `npm run lint` ignores all four
+  (`__tests__/config/lint-ignores.test.ts`), `tsc` skips dot-directories, and
+  `playwright.config.ts` excludes `**/.worktrees/**`. A new copy location needs adding to both
+  tests' lists and to the lint script.
 - Lazy singletons: `db()` and `auth()` defer client construction. This genuinely protects the
   build for `db()` — `next build` succeeds with `DATABASE_URL` unset. It does **not** protect
   `auth()`: `app/api/auth/[...path]/route.ts` calls `auth().handler()` at module scope, so
@@ -392,8 +395,8 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   rather than checking first is the preferred shape — one statement, no TOCTOU window, and zero
   rows means 404 without distinguishing "absent" from "not yours". See
   `app/api/dashboard/clients/[clientId]/prompts/[promptId]/route.ts`.
-- Migrations in `supabase/migrations/` — 52 files, `001_`–`054_` (no 005/006; directory name is legacy;
-  the target is now Neon). `038`–`054` postdate the "001–035 all applied" note below, which is
+- Migrations in `supabase/migrations/`, numbered from `001_` (no 005/006; directory name is legacy;
+  the target is now Neon). Everything from `038` postdates the "001–035 all applied" note below, which is
   about the *persistent* database and is only as fresh as its date — re-run `--verify`.
 - **Search Console connector (migration `054`, Phase 2).** `054` is **not applied to any
   persistent database** yet. Google refresh tokens are sealed with AES-256-GCM in
@@ -532,7 +535,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   exclusion surfaced 74 pre-existing type errors across 21 files, all fixed in one pass.
   The `next typegen` prefix is required: Next 16's `RouteContext<'…'>` is codegen'd into
   `.next/types/`, so a fresh checkout cannot typecheck route tests without it.
-- Run: `npm test` (unit: 340 files / 4998 tests pass as of 2026-09-29)
+- Run: `npm test`; the unit project must pass in full
 - **`npm test` runs two projects**, unit then integration, via `scripts/run-tests.mjs`. The
   integration project provisions a real Neon branch and needs `neonctl` on PATH and
   authenticated. Without it that project is **skipped**, with a banner printed after the run

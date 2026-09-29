@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { callOpenRouter } from '@/lib/openrouter'
+import { callOpenRouter, type JsonSchemaFormat } from '@/lib/openrouter'
 import { getProfile } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { isPromptCategory } from '@/lib/prompts/categories'
+import { isPromptCategory, PROMPT_CATEGORIES } from '@/lib/prompts/categories'
 import { claimScanForAccount } from '@/app/api/scans/[id]/claim/route'
 import { CLAIM_INTENT_COOKIE, authorizedScanClaimIntent } from '@/lib/security/scan-claim-intent'
 import { consumeScanClaimAttempt } from '@/lib/security/scan-claim-attempt'
@@ -10,6 +10,34 @@ import { consumeScanClaimAttempt } from '@/lib/security/scan-claim-attempt'
 export const dynamic = 'force-dynamic'
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
+
+// Wrapped in an object because strict schemas need an object root. The array
+// extraction below still finds the inner array, and isPromptCategory() still
+// filters the result, since a schema enum is enforcement but not a guarantee
+// this route can take on trust.
+const SEED_QUESTIONS_FORMAT: JsonSchemaFormat = {
+  name: 'seed_questions',
+  schema: {
+    type: 'object',
+    properties: {
+      questions: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            category: { type: 'string', enum: [...PROMPT_CATEGORIES] },
+            question: { type: 'string' },
+            language: { type: 'string', description: 'BCP 47 tag of the language the question is written in.' },
+          },
+          required: ['category', 'question', 'language'],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ['questions'],
+    additionalProperties: false,
+  },
+}
 
 // accounts.trial_started_at / trial_ends_at are timestamptz — the Neon driver
 // returns those as Date objects, not ISO strings (see fix(tier): accept a
@@ -192,11 +220,13 @@ export async function POST(req: NextRequest) {
   // Generate seed prompts via OpenRouter
   try {
     const raw = await callOpenRouter({
+      label: 'onboarding.seed_questions',
       model: 'anthropic/claude-haiku-4-5',
       maxTokens: 3000,
+      responseFormat: SEED_QUESTIONS_FORMAT,
       messages: [{
         role: 'user',
-        content: `Brand: ${brandName}\nIndustry: ${industry ?? 'general'}\nDomain: ${domain ?? ''}\nDescription: ${description ?? ''}\nCompetitors: ${(competitors ?? []).join(', ') || 'none specified'}\n\nGenerate 24 questions in 4 categories (brand_query, category_query, intent_query, pain_point), 6 per category. Return ONLY a JSON array: [{"category":"brand_query","question":"...","language":"en"}]`,
+        content: `Brand: ${brandName}\nIndustry: ${industry ?? 'general'}\nDomain: ${domain ?? ''}\nDescription: ${description ?? ''}\nCompetitors: ${(competitors ?? []).join(', ') || 'none specified'}\n\nGenerate 24 questions in 4 categories (brand_query, category_query, intent_query, pain_point), 6 per category.`,
       }],
     })
     const match = raw.match(/\[[\s\S]*\]/)

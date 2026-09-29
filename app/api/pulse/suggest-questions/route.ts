@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { db } from '@/lib/db'
-import { callOpenRouter } from '@/lib/openrouter'
+import { callOpenRouter, type JsonSchemaFormat } from '@/lib/openrouter'
 import { isPromptCategory, PROMPT_CATEGORIES } from '@/lib/prompts/categories'
 import { authorizePromptBank } from '@/lib/prompts/guard'
 
@@ -9,6 +9,31 @@ export const dynamic = 'force-dynamic'
 
 const MAX_SUGGESTIONS = 10
 const EXISTING_SAMPLE = 50
+
+// Object root because strict schemas require one; the array extraction below
+// still finds the inner array.
+const SUGGESTIONS_FORMAT: JsonSchemaFormat = {
+  name: 'question_suggestions',
+  schema: {
+    type: 'object',
+    properties: {
+      questions: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            question: { type: 'string' },
+            category: { type: 'string', enum: [...PROMPT_CATEGORIES] },
+          },
+          required: ['question', 'category'],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ['questions'],
+    additionalProperties: false,
+  },
+}
 
 /**
  * Suggests new questions for a brand's bank, deduped against what it already has.
@@ -75,15 +100,16 @@ export async function POST(req: NextRequest) {
   }
 
   const raw = await callOpenRouter({
+    label: 'pulse.suggest_questions',
     model: 'openai/gpt-4o-mini',
     maxTokens: 800,
+    responseFormat: SUGGESTIONS_FORMAT,
     messages: [{
       role: 'user',
       content: `Brand: ${brandName}\nIndustry: ${industry ?? 'general'}\n\n`
-        + `Existing questions (do NOT repeat these):\n${existingList || '(none yet)'}\n\n`
+        + `Existing questions, which the new ones must not repeat:\n${existingList || '(none yet)'}\n\n`
         + `Generate ${count} NEW, diverse questions for tracking this brand's AI visibility. `
-        + `Mix categories: ${PROMPT_CATEGORIES.join(', ')}.\n\n`
-        + `Return ONLY a JSON array: [{"question":"...","category":"brand_query"}]`,
+        + `Mix categories: ${PROMPT_CATEGORIES.join(', ')}.`,
     }],
   }).catch(() => '[]')
 

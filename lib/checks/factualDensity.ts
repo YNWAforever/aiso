@@ -1,8 +1,21 @@
 import { UNTRUSTED_SYSTEM_RULE, fenceUntrusted } from '@/lib/agents/untrusted'
 import type { CheckResult, IndustryCode, RegionCode, FactualDensityResult } from '@/lib/types'
-import { callOpenRouter } from '@/lib/openrouter'
+import { callOpenRouter, type JsonSchemaFormat } from '@/lib/openrouter'
 
 interface Context { industry: IndustryCode; region: RegionCode }
+
+const UNIQUENESS_FORMAT: JsonSchemaFormat = {
+  name: 'factual_uniqueness',
+  schema: {
+    type: 'object',
+    properties: {
+      score: { type: 'integer', description: '0-100' },
+      claims: { type: 'array', items: { type: 'string' }, description: 'At most 3.' },
+    },
+    required: ['score', 'claims'],
+    additionalProperties: false,
+  },
+}
 
 export async function checkFactualDensity(
   html: string,
@@ -29,6 +42,7 @@ export async function checkFactualDensity(
   let uniqueClaims: string[] = []
   try {
     const aiResponse = await callOpenRouter({
+      label: 'check.factual_density',
       model: 'anthropic/claude-haiku-4-5',
       messages: [
         { role: 'system', content: UNTRUSTED_SYSTEM_RULE },
@@ -36,11 +50,11 @@ export async function checkFactualDensity(
         // concatenated. A page asking to be rated 100 now reads as a request the
         // page made, not as an instruction from us.
         { role: 'user', content: `Rate factual uniqueness 0-100 and list up to 3 unique claims.
-Return JSON: {"score": number, "claims": string[]}
 
 ${fenceUntrusted('PAGE CONTENT', text.slice(0, 800))}` },
       ],
       maxTokens: 200,
+      responseFormat: UNIQUENESS_FORMAT,
     })
     const parsed = JSON.parse(aiResponse.match(/\{[\s\S]+\}/)?.[0] ?? '{}')
     providerFallback = typeof parsed.score !== 'number' || !Number.isFinite(parsed.score)

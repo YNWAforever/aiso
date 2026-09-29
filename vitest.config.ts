@@ -33,6 +33,14 @@ export default defineConfig({
     // relying on every TZ-sensitive test file remembering to check for it, so
     // a future one inherits the protection automatically.
     pool: 'forks',
+    // An allow-list, anchored at the root. Vitest's default include is
+    // `**/*.test.*` and it does not read .gitignore, so every copy of the repo
+    // inside the checkout -- `.claude/worktrees/`, `.worktrees/`, the e2e
+    // launcher's `.playwright-ci-server/*` workspaces, `.codex/` patch folders --
+    // had its whole suite collected and run: 3,980 files, 353 of them ours. A
+    // denylist would miss the next such directory; this cannot.
+    // __tests__/config/vitest-discovery.test.ts pins both directions.
+    include: ['__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)'],
     exclude: ['**/node_modules/**', 'tests/e2e/**', 'e2e/**', '**/.superpowers/**', 'cloudflare/**'],
     coverage: {
       provider: 'v8',

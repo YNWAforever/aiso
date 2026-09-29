@@ -95,7 +95,7 @@ echo "    OpenRouter credential ID: $OR_ID"
 
 echo ""
 echo "==> Step 3: Patch workflow nodes to use credential IDs"
-# Fetch both workflows, replace credential placeholders, PUT them back
+# Fetch the workflow, replace credential placeholders, PUT it back
 
 patch_workflow() {
   local WF_ID="$1"
@@ -129,11 +129,14 @@ print(json.dumps(allowed))
 }
 
 patch_workflow "fKyeS2AEBpdTlwsr" "AISO Scan Webhook"
-patch_workflow "AN4OUG1YnJnzbuxA" "AI Pulse Weekly v2"
+# AI Pulse Weekly v2 (AN4OUG1YnJnzbuxA) is retired (docs/adr/ADR-010) and must
+# not be patched or activated here: it writes pulse_metrics alongside
+# app/api/pulse/run, and that table has no unique key, so two writers inflate
+# sov_score. Deactivate or delete it in the n8n UI.
 
 echo ""
-echo "==> Step 4: Activate both workflows"
-for ID in "fKyeS2AEBpdTlwsr" "AN4OUG1YnJnzbuxA"; do
+echo "==> Step 4: Activate the scan webhook workflow"
+for ID in "fKyeS2AEBpdTlwsr"; do
   ACT=$(curl -s -X POST "$N8N_BASE/workflows/$ID/activate" \
     -H "${AUTH_HEADER}")
   echo "    $ID: $(echo "$ACT" | python3 -c "import sys,json; d=json.load(sys.stdin); print('Active ✓' if d.get('active') else 'Response: '+str(d.get('message',''))[:80])")"

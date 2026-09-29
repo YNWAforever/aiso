@@ -17,6 +17,14 @@ inflated `sov_score` — the headline number of the feature — plus duplicate L
 four providers. `pulse/run` defends itself by deleting a prompt's rows for the week before
 writing, in application code; the n8n workflow has no such discipline.
 
+## Implementation
+
+The Pulse exports (`n8n/ai-pulse-weekly.json`, `n8n/ai-pulse-weekly-v2.json`) were removed
+from the repo, `n8n/deploy-workflows.sh` no longer creates the v2 workflow, and
+`n8n/configure-credentials.sh` no longer patches or **activates** it. Before that change its
+step 4 re-activated workflow `AN4OUG1YnJnzbuxA` on every run. Removing the files does not
+touch the n8n server: the deployed workflow must be deactivated or deleted there.
+
 ## Retained decision
 
 `aiso-scan-webhook.json` is fire-and-forget enrichment; retire or re-point it deliberately,

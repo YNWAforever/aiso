@@ -100,6 +100,27 @@ describe('checkTopicalAuthority', () => {
     expect(first.completenessScore).toBe(70)
   })
 
+  it('keeps at most three articles per cluster', async () => {
+    // Enforced here rather than trusted to the prompt: the article lists are
+    // what overflowed the reply, and a limit only the prompt states is a hint.
+    const articles = Array.from({ length: 10 }, (_, k) => ({ url: `https://example.com/seo/${k}`, title: `T${k}` }))
+    openRouter.mockResolvedValue(JSON.stringify({ clusters: [{ topic: 'seo', clusterArticles: articles, completenessScore: 60 }] }))
+
+    const r = await checkTopicalAuthority(URLS, 'client-123', 'technology')
+
+    expect(r.geoDetails!.detectedClusters[0].clusterArticles).toHaveLength(3)
+  })
+
+  it('leaves the reply room to finish', async () => {
+    // Regression: at 600 tokens the first live run was cut off mid-JSON
+    // (finishReason 'length', completionTokens 600), the parse failed, and the
+    // check reported 0 clusters for a site with a full sitemap. Five clusters of
+    // three articles come to roughly 800 tokens.
+    await checkTopicalAuthority(URLS, 'client-123', 'technology')
+
+    expect(openRouter.mock.calls[0][0].maxTokens).toBeGreaterThanOrEqual(1500)
+  })
+
   it('survives a model response that is not JSON at all', async () => {
     openRouter.mockResolvedValue('I cannot help with that.')
 

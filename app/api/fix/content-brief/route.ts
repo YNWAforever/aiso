@@ -1,11 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { callOpenRouter } from '@/lib/openrouter'
+import { callOpenRouter, type JsonSchemaFormat } from '@/lib/openrouter'
 import { getProfile } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { INDUSTRY_PACKS } from '@/lib/authority/packs'
 import type { IndustryCode } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
+
+// The same for every brief, so it is set here rather than asked of the model.
+const CHUNKABILITY = { idealChunkLength: '600-1000 tokens', answerFirst: true, selfContained: true } as const
+
+const stringList = { type: 'array', items: { type: 'string' } }
+
+const BRIEF_FORMAT: JsonSchemaFormat = {
+  name: 'content_brief',
+  schema: {
+    type: 'object',
+    properties: {
+      titleSuggestions: { ...stringList, description: 'Five candidate titles.' },
+      sections: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: { heading: { type: 'string' }, estimatedWords: { type: 'integer' } },
+          required: ['heading', 'estimatedWords'],
+          additionalProperties: false,
+        },
+      },
+      requiredOriginalDataPoints: { ...stringList, description: 'Original data the page needs in order to be citable.' },
+      suggestedFaq: { ...stringList, description: 'Five questions.' },
+      recommendedSchema: {
+        type: 'object',
+        properties: { '@type': { type: 'string', description: 'The schema.org type that best fits this page.' } },
+        required: ['@type'],
+        additionalProperties: false,
+      },
+    },
+    required: ['titleSuggestions', 'sections', 'requiredOriginalDataPoints', 'suggestedFaq', 'recommendedSchema'],
+    additionalProperties: false,
+  },
+}
 
 // Ownership is checked via Neon because lib/supabase points at a deleted project
 async function ownsClient(clientId: string, accountId: string): Promise<boolean> {
@@ -45,22 +79,14 @@ export async function POST(req: NextRequest) {
   const prompt = `You are an AEO content strategist. Create a content brief for:
 TOPIC: "${targetTopic}", INDUSTRY: ${industry}, REGION: ${region ?? 'global'}
 
-Return JSON:
-{
-  "titleSuggestions": ["title 1","title 2","title 3","title 4","title 5"],
-  "sections": [{"heading":"string","estimatedWords":number}],
-  "requiredOriginalDataPoints": ["data 1","data 2","data 3"],
-  "suggestedFaq": ["q1","q2","q3","q4","q5"],
-  "recommendedSchema": {"@type":"Article"},
-  "chunkabilityRequirements": {"idealChunkLength":"600-1000 tokens","answerFirst":true,"selfContained":true}
-}
-
 Target 2000-3000 word pillar page with 6-8 sections.`
 
   const aiResponse = await callOpenRouter({
+    label: 'fix.content_brief',
     model: 'anthropic/claude-sonnet-4-5',
     messages: [{ role: 'user', content: prompt }],
     maxTokens: 1200,
+    responseFormat: BRIEF_FORMAT,
   })
 
   let brief: object
@@ -76,7 +102,7 @@ Target 2000-3000 word pillar page with 6-8 sections.`
     tier: 'tier1',
     reason: `Top ${industry} authority source`,
   }))
-  const fullBrief = { targetTopic, ...brief, requiredAuthorities: authorityWithReasons }
+  const fullBrief = { targetTopic, ...brief, chunkabilityRequirements: CHUNKABILITY, requiredAuthorities: authorityWithReasons }
 
   let id: string
   try {

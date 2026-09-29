@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { callOpenRouter } from '@/lib/openrouter'
+import { callOpenRouter, type JsonSchemaFormat } from '@/lib/openrouter'
 import { getProfile }     from '@/lib/auth'
 import { db }             from '@/lib/db'
 import { fetchPublicUrl } from '@/lib/security/public-url'
@@ -7,6 +7,20 @@ import { UNTRUSTED_SYSTEM_RULE, fenceUntrusted } from '@/lib/agents/untrusted'
 import type { Scan }      from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
+
+const FIX_PACK_FORMAT: JsonSchemaFormat = {
+  name: 'fix_pack',
+  schema: {
+    type: 'object',
+    properties: {
+      llms_txt: { type: 'string', description: 'Complete llms.txt file.' },
+      robots_patch: { type: 'string', description: 'Only the lines to add to robots.txt.' },
+      faq_schema: { type: 'string', description: 'FAQPage JSON-LD, serialised as a string.' },
+    },
+    required: ['llms_txt', 'robots_patch', 'faq_schema'],
+    additionalProperties: false,
+  },
+}
 
 export function parseFixPack(raw: string): { llms_txt: string; robots_patch: string; faq_schema: string } {
   const match = raw.match(/\{[\s\S]*\}/)
@@ -85,13 +99,18 @@ export async function POST(req: NextRequest) {
     if (m) metaDescription = m[1].trim()
   } catch { /* use defaults */ }
 
-  const issues = Object.entries(scan.results as unknown as Record<string, { status: string; message: string }>)
-    .filter(([, v]) => v.status !== 'pass')
+  // scans.results also holds c17_data..c20_data, pillarScores and evidence, which
+  // carry no status; without the typeof guard each became "<key>: undefined".
+  const issues = Object.entries(scan.results as unknown as Record<string, { status?: unknown; message?: string } | null>)
+    .filter((entry): entry is [string, { status: string; message: string }] =>
+      typeof entry[1]?.status === 'string' && entry[1].status !== 'pass')
     .map(([k, v]) => `${k}: ${v.message}`)
 
   const raw = await callOpenRouter({
+    label: 'fix.pack',
     model: 'anthropic/claude-haiku-4-5',
     maxTokens: 2000,
+    responseFormat: FIX_PACK_FORMAT,
     messages: [{ role: 'system', content: UNTRUSTED_SYSTEM_RULE }, {
       role: 'user',
       content: `你係 AEO 專家。根據以下掃描結果，生成 3 個修復檔案：
@@ -101,9 +120,7 @@ export async function POST(req: NextRequest) {
 
 網站：${scan.domain}
 ${fenceUntrusted('PAGE TITLE AND DESCRIPTION', `${pageTitle} - ${metaDescription}`)}
-問題：${JSON.stringify(issues)}
-
-輸出 JSON（只輸出 JSON，無其他文字）：{ "llms_txt": "...", "robots_patch": "...", "faq_schema": "..." }`,
+問題：${JSON.stringify(issues)}`,
     }],
   })
 

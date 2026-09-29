@@ -56,8 +56,14 @@ create_workflow() {
   fi
 }
 
+# Creates, never updates: running this again adds a duplicate workflow (and a
+# second claim on /webhook/aiso-scan). Update an existing one in the n8n UI or
+# with PUT /workflows/{id} instead.
+#
+# The AI Pulse Weekly workflows are retired (docs/adr/ADR-010) and deliberately
+# not deployed: app/api/pulse/run owns Pulse, and pulse_metrics has no unique
+# key, so a second writer inflates sov_score.
 create_workflow "${SCRIPT_DIR}/aiso-scan-webhook.json" "AISO Scan Webhook"
-create_workflow "${SCRIPT_DIR}/ai-pulse-weekly-v2.json" "AI Pulse Weekly v2"
 
 echo ""
 echo "==> Done. Next steps:"
@@ -84,15 +90,12 @@ echo ""
 echo "    2. Set environment variable OPENROUTER_API_KEY in n8n settings"
 echo "       (Settings > Environment Variables)"
 echo ""
-echo "    3. Set environment variable CRON_SECRET in n8n settings"
-echo "       Value: same as CRON_SECRET in .env.local"
-echo ""
-echo "    4. Update Slack webhook URLs in both workflows:"
+echo "    3. Update the Slack webhook URL in the workflow:"
 echo "       Replace all 'https://hooks.slack.com/services/PLACEHOLDER/...'"
 echo "       with your real Slack incoming webhook URL"
 echo ""
-echo "    5. Activate both workflows in the n8n UI (toggle ON)"
+echo "    4. Activate the workflow in the n8n UI (toggle ON)"
 echo ""
-echo "    6. For AISO Scan Webhook, the webhook path is: /webhook/aiso-scan"
+echo "    5. The webhook path is: /webhook/aiso-scan"
 echo "       Full URL: https://anfield-n8n.zeabur.app/webhook/aiso-scan"
 echo "       Add this to your Next.js /api/scan route handler as a POST after saving scan"
