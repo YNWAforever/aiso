@@ -157,6 +157,28 @@ const DECLARED: Record<string, string> = {
 }
 
 /**
+ * Cross-account reads that the token rule CANNOT see, declared anyway.
+ *
+ * OWNERSHIP_TOKENS treats any mention of `account_id` as scoping, which is right
+ * for a predicate like `where account_id = ${accountId}` — and wrong for a join
+ * that only relates two rows' account_ids to each other. Such a statement reads
+ * every account's rows while looking scoped, so it would never reach DECLARED
+ * (whose "declares nothing that is now scoped" test would even reject it). This
+ * list is where it is stated instead, with the reason, and the test below keeps
+ * each entry pointing at a live function that still carries tenant SQL.
+ */
+const ACCOUNT_BLIND_BY_DESIGN: Record<string, string> = {
+  'lib/integrations/search-console/store.ts::loadDueBindings':
+    'The selection made by the Search Console cron (spec §6): the due bindings of every account, by ' +
+    'design, like alert evaluation. The cron is authenticated by CRON_SECRET and has no session to ' +
+    'scope to. Its only account predicates are joins (g.account_id = b.account_id, c.account_id = ' +
+    'b.account_id, a.id = b.account_id, and the ledger lateral on b.account_id), which keep each ' +
+    'binding paired with the connection, brand, plan and ledger of its own account but select across ' +
+    'accounts. Each row carries ' +
+    'its own account_id, and every write syncBinding makes for that row uses that value.',
+}
+
+/**
  * Every unscoped statement, declared or not. Pinned because DECLARED is keyed by
  * function: a second unscoped statement added to an already-declared function
  * would otherwise need no new entry and would land unreviewed. This number makes
@@ -281,6 +303,22 @@ function unscopedStatements(): Finding[] {
   return findings
 }
 
+/** Every function holding a statement that touches a tenant-bearing table, scoped or not. */
+function tenantStatementFunctions(): Set<string> {
+  const keys = new Set<string>()
+  for (const file of sourceFiles()) {
+    const source = readFileSync(join(ROOT, file), 'utf8')
+    if (!TAGS.some(tag => source.includes(tag))) continue
+    for (const statement of sqlStatements(source)) {
+      const lowered = statement.text.toLowerCase()
+      if (Object.keys(TENANT_TABLES).some(table => new RegExp(`\\b${table}\\b`).test(lowered))) {
+        keys.add(`${file}::${enclosingFunction(source, statement.index)}`)
+      }
+    }
+  }
+  return keys
+}
+
 const FINDINGS = unscopedStatements()
 const UNDECLARED = FINDINGS.filter(finding => !DECLARED[finding.key])
 
@@ -331,6 +369,18 @@ describe('every tenant-bearing statement is scoped or declared', () => {
     const live = new Set(FINDINGS.map(finding => finding.key))
     for (const key of Object.keys(DECLARED)) {
       expect([...live], `${key} is declared cross-account but is now scoped; remove its entry.`).toContain(key)
+    }
+  })
+
+  it('keeps every account-blind declaration pointing at live tenant SQL the token rule passes', () => {
+    const live = tenantStatementFunctions()
+    const unscoped = new Set(FINDINGS.map(finding => finding.key))
+    for (const [key, reason] of Object.entries(ACCOUNT_BLIND_BY_DESIGN)) {
+      expect(reason.length, `${key} needs its reason`).toBeGreaterThan(40)
+      expect([...live], `${key} no longer holds tenant SQL; remove its entry.`).toContain(key)
+      // One that the token rule already flags belongs in DECLARED, not here.
+      expect([...unscoped], `${key} is flagged as unscoped; declare it in DECLARED instead.`).not.toContain(key)
+      expect(DECLARED[key]).toBeUndefined()
     }
   })
 

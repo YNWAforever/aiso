@@ -232,7 +232,16 @@ export async function loadBinding(accountId: string, clientId: string): Promise<
 /**
  * The cron's selection and the one account-blind statement here, by design, like
  * alert evaluation. Each row carries its own account_id and every write the sync
- * makes uses that value. Anything ATTEMPTED in the last 20 hours is not due, and
+ * makes uses that value.
+ *
+ * CROSS-ACCOUNT READ. Every account_id below is a join — g.account_id =
+ * b.account_id, c.account_id = b.account_id, a.id = b.account_id, the ledger
+ * lateral on b.account_id — so each binding stays paired with its own account's
+ * connection, brand, plan and ledger, but nothing restricts WHICH account: it
+ * selects across all of them. That is the point (the cron has no session), and
+ * it is declared as such in __tests__/security/tenancy-inventory.test.ts
+ * (ACCOUNT_BLIND_BY_DESIGN), whose token rule would otherwise count it scoped.
+ * Never call this from a session-scoped route. Anything ATTEMPTED in the last 20 hours is not due, and
  * the rest go least recently attempted first: `last_run` is the newest ledger
  * row of ANY outcome, not the newest `ok`. A brand whose run was `deferred`
  * (out of time) therefore has a fresh row and goes behind every brand not yet
