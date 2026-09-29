@@ -81,12 +81,13 @@ every query filters by account explicitly.
 - **`search_console_daily`** — `account_id`, `client_id`, `date`, `scope` ∈ `property` /
   `page`, `page_url` (null for `property`), `clicks`, `impressions`, `ctr`, `position`,
   `synced_at`. A CHECK ties `scope = 'property'` to `page_url is null`.
-  **`unique nulls not distinct (client_id, scope, page_url, date)`** (PostgreSQL 15+; this
+  **`unique nulls not distinct (account_id, client_id, scope, page_url, date)`** (PostgreSQL 15+; this
   project runs 16) so re-syncing a day overwrites rather than double-counting — the defect
   `pulse_metrics` has (CLAUDE.md) — and so the constraint can be the `on conflict` arbiter
   directly. A plain unique would treat every property row's null `page_url` as distinct.
 - **`search_console_page_queries`** — `account_id`, `client_id`, `page_url`, `date`, `query`,
-  `clicks`, `impressions`, `ctr`, `position`. Unique `(client_id, page_url, date, query)`.
+  `clicks`, `impressions`, `ctr`, `position`. Unique `(account_id, client_id, page_url, date, query)`.
+  (Both upsert keys lead with `account_id` — changed after the database review.)
 - **`search_console_sync_runs`** — the ledger: `account_id`, `client_id`, `ran_at`,
   `outcome` (closed vocabulary, CHECK-constrained, §5), `rows_written`, `data_through date`.
 - **Grants:** `aeo_app` gets SELECT/INSERT/UPDATE with **no DELETE** on `search_console_daily`;
@@ -187,14 +188,14 @@ visible with its last date.
 | Ledger outcome | Cause | Owner sees | Effect |
 |---|---|---|---|
 | `ok` | Synced | Data up to ⟨date⟩ | — |
-| `revoked` | `invalid_grant` on refresh | "Reconnect Google" | Connection → `needs_reconnect`; every brand on it stops syncing |
+| `revoked` | `invalid_grant` on refresh, or a 403 `ACCESS_TOKEN_SCOPE_INSUFFICIENT` from the API (the grant no longer carries the scope) | "Reconnect Google" | Connection → `needs_reconnect`; every brand on it stops syncing |
 | `access_lost` | 403 for this property | "This login no longer has access to ⟨property⟩" | This brand only; the connection stays `active` |
 | `google_unavailable` | 5xx or timeout | "Google didn't respond — retrying" | Retried next run; connection **not** flagged |
 | `quota` | 429 | Same as above | Same as above |
 | `domain_mismatch` | Brand domain changed after binding | "Rebind for the new domain" | Skipped |
 | `not_entitled` | Account below Pro | "Syncing paused — plan" | Skipped; data kept |
 | `vault_error` | Ciphertext cannot be decrypted (missing or unknown key id) | "Temporarily unavailable" — **not** "reconnect" | Error-level log. Our fault, so the owner is never asked to act. |
-| `config_error` | Our Google client or Cloud project is wrong: token endpoint answers `invalid_client` / any 401, or the API is disabled for our project (`SERVICE_DISABLED`) | "Temporarily unavailable" — **not** "reconnect" | Error-level log; connection **not** flagged. Added after code review: a 401 from the token endpoint is a client-credential fault, so treating it as `revoked` would flip every connection after one bad deploy. Only `invalid_grant` means revoked. |
+| `config_error` | Our Google client or Cloud project is wrong: token endpoint answers `invalid_client` / any 401, or the API is disabled for our project (`SERVICE_DISABLED`) | "Temporarily unavailable" — **not** "reconnect" | Error-level log; connection **not** flagged. Added after code review: a 401 from the token endpoint is a client-credential fault, so treating it as `revoked` would flip every connection after one bad deploy. Only `invalid_grant`, or the API's scope-insufficient 403, means revoked. |
 | `deferred` | The run's per-sync deadline (cron start + 45 s) arrived before every Google call was made | Nothing new: "Data up to ⟨date⟩" if an earlier run succeeded, else "first data arrives within a day" | Added after the whole-branch review. Whole pages fetched so far are written; `backfill_pending` stays set; counts as due and not ok for the cron's 502 rule. The ledger row puts the brand behind never-attempted brands tomorrow. |
 
 **Hard rules:**

@@ -170,9 +170,9 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   `/api/cron/search-console` (one trigger fanning out to independent routes via
   `Promise.allSettled`, because the free tier allows only three triggers) — calling each with
   the exact `Authorization: Bearer $CRON_SECRET` header Vercel Cron used to send, so none of
-  the three routes needed code changes. Follow `docs/runbooks/deploy-cron-worker.md` to
-  actually deploy and verify it; until that runs, nothing schedules these three routes at
-  all. `vercel.json`'s `functions` keys are **literal paths, not prefixes**, so `fix/`'s
+  the three original routes needed code changes (`cron/search-console` was written for that
+  header). Follow `docs/runbooks/deploy-cron-worker.md` to actually deploy and verify it;
+  until that runs, nothing schedules any of these four routes at all. `vercel.json`'s `functions` keys are **literal paths, not prefixes**, so `fix/`'s
   subroutes inherit nothing despite also calling OpenRouter.
   `__tests__/config/function-durations.test.ts` now pins `wrangler.jsonc`'s `triggers.crons`
   (not `vercel.json.crons`) and requires every scheduled path to export `GET`, so adding a
@@ -405,9 +405,21 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   metric table `aeo_app` may DELETE from: each sync replaces the re-fetched window, because a
   query that drops out of a day's top 25 would otherwise keep stale numbers forever.
   Owner-visible state is derived from `search_console_sync_runs` (closed outcome vocabulary,
-  a DB CHECK mirrored by `SYNC_OUTCOMES`), never stored twice. Only `400 invalid_grant` marks
-  a connection revoked — a 401 or `invalid_client` is `misconfigured`, because treating it as
-  revoked would mass-flip every connection on one bad secret. A property binds only if it
+  a DB CHECK mirrored by `SYNC_OUTCOMES`, which includes `deferred`), never stored twice; the
+  ledger is **insert-only** for `aeo_app`. A ledger row recorded before the binding's
+  `bound_at`, or a `revoked` / `not_entitled` / `domain_mismatch` / `deferred` row whose cause
+  the live checks now contradict, is ignored, and the panel only reads metric rows with
+  `synced_at >= bound_at` — so a rebind or an upgrade never shows the old state or the old
+  property's numbers. A connection is flagged for reconnect only on `400 invalid_grant` from
+  the token endpoint or a `403 ACCESS_TOKEN_SCOPE_INSUFFICIENT` from the API — a 401 or
+  `invalid_client` is `misconfigured`, because treating it as revoked would mass-flip every
+  connection on one bad secret. The daily cron starts no brand after 40 s and gives each sync
+  a deadline of run start + 45 s, checked before every Google call (including each `startRow`
+  page); a sync that hits it records `deferred`, keeps its backfill pending, and goes behind
+  never-attempted brands next run. `loadDueBindings` is the one deliberately account-blind
+  read, declared in `ACCOUNT_BLIND_BY_DESIGN` in `__tests__/security/tenancy-inventory.test.ts`.
+  Nothing re-seals tokens after a key rotation, so `GOOGLE_TOKEN_ENCRYPTION_KEY_PREVIOUS` must
+  stay set until every connection has reconnected or been revoked. A property binds only if it
   covers the brand's domain (`lib/integrations/search-console/binding.ts`). Gated on
   `FEATURE_SEARCH_CONSOLE=1` plus the `search_console` plan feature (Pro/Enterprise).
   `webmasters.readonly` is a Google *sensitive* scope: until Google verifies the OAuth app,
@@ -520,7 +532,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   exclusion surfaced 74 pre-existing type errors across 21 files, all fixed in one pass.
   The `next typegen` prefix is required: Next 16's `RouteContext<'…'>` is codegen'd into
   `.next/types/`, so a fresh checkout cannot typecheck route tests without it.
-- Run: `npm test` (unit: 136 files / 1510 tests currently pass)
+- Run: `npm test` (unit: 340 files / 4998 tests pass as of 2026-09-29)
 - **`npm test` runs two projects**, unit then integration, via `scripts/run-tests.mjs`. The
   integration project provisions a real Neon branch and needs `neonctl` on PATH and
   authenticated. Without it that project is **skipped**, with a banner printed after the run
@@ -583,12 +595,14 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   project exists only while that file does, so CI is unaffected.
 - **Dead:** `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — read by zero source files; checkout is
   server-side only. `@stripe/stripe-js` is installed but never imported.
-- `CRON_SECRET` — ≥16 chars, read by **four** routes in two header shapes. `cron/pulse` and
+- `CRON_SECRET` — ≥16 chars, read by **five** cron-path routes in two header shapes (and also
+  checked by the three `agents/*` routes). `cron/search-console` (Phase 2) takes the Vercel
+  Cron shape and rides the `0 9 * * *` trigger with `cron/trial-emails`. `cron/pulse` and
   `cron/trial-emails` (restored 2026-08-22) both take Vercel Cron's own shape directly: `GET`
   with `Authorization: Bearer $CRON_SECRET`. `pulse/run` isn't cron-invoked at all — the
   pulse driver calls it internally with `x-cron-secret` instead, which is why that second
   shape exists. Neither shape is ours to choose — the first is Vercel's, the second is the
-  producer's. All four return 500 rather than running if the secret is unset or short.
+  producer's. All five return 500 rather than running if the secret is unset or short.
   `cloudflare/cron-worker/` schedules `cron/pulse` and `cron/trial-emails` (2026-08-22,
   see above and `docs/runbooks/deploy-cron-worker.md`) — `vercel.json` no longer schedules
   anything. The fourth route,
