@@ -8,12 +8,14 @@ import {
 import {
   BindErrorNotice,
   ErroredConnectionsNotice,
+  NoConnectionNotice,
   NoEligiblePropertiesNotice,
   PropertiesLoadFailedNotice,
   PropertySiteRow,
   SearchConsoleStateNotice,
   classifyBindError,
   classifyConnectionError,
+  pickerNotice,
   shouldReportBindError,
   type BindErrorKind,
 } from '@/components/integrations/SearchConsolePanel'
@@ -295,5 +297,58 @@ describe.each(['en', 'zh-HK'] as const)('connections load failure (%s)', lang =>
     )
     expect(markup).not.toContain(copy.connections_load_failed)
     expect(markup).toContain('/api/integrations/google/start')
+  })
+})
+
+describe.each(['en', 'zh-HK'] as const)('routes to Settings from dead ends (%s)', lang => {
+  const copy = (lang === 'zh-HK' ? zhHK : en).searchConsole
+  const settings = `href="/${lang}/dashboard/settings#google"`
+
+  it.each([
+    { kind: 'reconnect', dataThrough: '2026-09-18' },
+    { kind: 'access_lost', dataThrough: null },
+  ] as OwnerState[])('links $kind to Google connections in Settings', state => {
+    const markup = renderToStaticMarkup(<SearchConsoleStateNotice state={state} lang={lang} />)
+    expect(markup).toContain(settings)
+    expect(markup).toContain(copy.manage_in_settings)
+    expect(markup).toMatch(/<a [^>]*min-h-11/)
+  })
+
+  it.each([
+    { kind: 'retrying', dataThrough: null },
+    { kind: 'temporarily_unavailable', dataThrough: null },
+    { kind: 'awaiting_first_sync' },
+  ] as OwnerState[])('sends no one to Settings for $kind, which is not theirs to fix there', state => {
+    expect(renderToStaticMarkup(<SearchConsoleStateNotice state={state} lang={lang} />)).not.toContain(settings)
+  })
+
+  it('NoConnectionNotice says to connect a Google login first, with the link', () => {
+    const markup = renderToStaticMarkup(<NoConnectionNotice lang={lang} />)
+    expect(markup).toContain(copy.no_connection)
+    expect(markup).toContain(settings)
+    expect(markup).not.toContain(copy.no_eligible_properties)
+  })
+})
+
+describe('pickerNotice', () => {
+  const site = (eligible: boolean) => ({
+    siteUrl: 'sc-domain:example.com', permissionLevel: 'siteOwner',
+    verdict: eligible ? { eligible: true as const } : { eligible: false as const, reason: 'other_domain' as const },
+  })
+  const conn = (sites: ReturnType<typeof site>[], error: string | null = null) =>
+    ({ connectionId: 'g', googleEmail: 'o@example.com', sites, error })
+
+  it('asks for a Google login first when the account has no connection at all', () => {
+    expect(pickerNotice({ properties: [], propertiesFailed: false })).toBe('no_connection')
+  })
+
+  it('says no property is eligible when connections exist but none covers the brand', () => {
+    expect(pickerNotice({ properties: [conn([site(false)])], propertiesFailed: false })).toBe('no_eligible')
+  })
+
+  it('says nothing when a property is eligible, or when the list failed or a connection errored', () => {
+    expect(pickerNotice({ properties: [conn([site(true)])], propertiesFailed: false })).toBeNull()
+    expect(pickerNotice({ properties: [], propertiesFailed: true })).toBeNull()
+    expect(pickerNotice({ properties: [conn([], 'quota')], propertiesFailed: false })).toBeNull()
   })
 })

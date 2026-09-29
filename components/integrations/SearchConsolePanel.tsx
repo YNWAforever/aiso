@@ -53,6 +53,26 @@ async function fetchPanel(clientId: string): Promise<{ payload: Payload | null; 
   return { payload, propertiesFailed }
 }
 
+/**
+ * Where an owner fixes a Google login: the Settings page's connections panel
+ * (GoogleConnectionsPanel, section id "google"). A plain anchor, the same
+ * choice GoogleConnectionsPanel makes for its connect link.
+ */
+function SettingsLink({ lang }: { lang: string }) {
+  const copy = copyFor(lang)
+  return (
+    <a
+      href={`/${lang}/dashboard/settings#google`}
+      className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline underline-offset-4"
+    >
+      {copy.manage_in_settings}
+    </a>
+  )
+}
+
+/** The states whose fix lives in Settings; every other one is not the owner's to act on there. */
+const FIXED_IN_SETTINGS: ReadonlySet<OwnerState['kind']> = new Set(['reconnect', 'access_lost'])
+
 export function SearchConsoleStateNotice({ state, lang }: { state: OwnerState; lang: string }) {
   const copy = copyFor(lang)
   // `dataThrough` is rendered as the plain ISO string the server sent, the
@@ -67,6 +87,7 @@ export function SearchConsoleStateNotice({ state, lang }: { state: OwnerState; l
     <div role="status" className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-foreground">
       <p>{copy[`state_${state.kind}`]}</p>
       {through}
+      {FIXED_IN_SETTINGS.has(state.kind) && <SettingsLink lang={lang} />}
     </div>
   )
 }
@@ -153,6 +174,36 @@ export function PropertiesLoadFailedNotice({ lang, onRetry }: { lang: string; on
       )}
     </div>
   )
+}
+
+/** The account has no usable Google login at all, so there is nothing to choose from yet. */
+export function NoConnectionNotice({ lang }: { lang: string }) {
+  const copy = copyFor(lang)
+  return (
+    <div className="text-sm text-muted-foreground">
+      <p>{copy.no_connection}</p>
+      <SettingsLink lang={lang} />
+    </div>
+  )
+}
+
+/**
+ * Which empty-picker sentence applies, if any. Pure and exported so the rule is
+ * testable without a DOM. No connection at all is a different fact from "none
+ * of your properties covers this brand": telling an owner with no Google login
+ * that their properties must cover the domain sends them looking for a
+ * property problem they do not have. A failed list or a connection whose own
+ * call failed has its own notice, so neither sentence is shown then.
+ */
+export type PickerNotice = 'no_connection' | 'no_eligible'
+
+export function pickerNotice({
+  properties, propertiesFailed,
+}: { properties: ConnectionProperties[]; propertiesFailed: boolean }): PickerNotice | null {
+  if (propertiesFailed) return null
+  if (properties.length === 0) return 'no_connection'
+  if (properties.some(c => c.error !== null)) return null
+  return properties.some(c => c.sites.some(s => s.verdict.eligible)) ? null : 'no_eligible'
 }
 
 export function NoEligiblePropertiesNotice({ lang }: { lang: string }) {
@@ -274,8 +325,7 @@ export function SearchConsolePanel({ clientId, lang }: { clientId: string; lang:
   const choosing = data.state.kind === 'unbound' || data.state.kind === 'rebind'
   const okConnections = data.properties.filter(c => c.error === null)
   const erroredConnections = data.properties.filter(c => c.error !== null)
-  const eligibleCount = okConnections.reduce((n, c) => n + c.sites.filter(s => s.verdict.eligible).length, 0)
-  const showNoEligible = choosing && !propertiesFailed && erroredConnections.length === 0 && eligibleCount === 0
+  const emptyNotice = choosing ? pickerNotice({ properties: data.properties, propertiesFailed }) : null
 
   return (
     <section className="mt-8 rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -289,7 +339,8 @@ export function SearchConsolePanel({ clientId, lang }: { clientId: string; lang:
           {propertiesFailed && <PropertiesLoadFailedNotice lang={lang} onRetry={() => void reload()} />}
           {erroredConnections.length > 0 && <ErroredConnectionsNotice connections={erroredConnections} lang={lang} />}
           {bindError && <BindErrorNotice kind={bindError} lang={lang} />}
-          {showNoEligible && <NoEligiblePropertiesNotice lang={lang} />}
+          {emptyNotice === 'no_connection' && <NoConnectionNotice lang={lang} />}
+          {emptyNotice === 'no_eligible' && <NoEligiblePropertiesNotice lang={lang} />}
           {okConnections.flatMap(c => c.sites.map(site => {
             const key = `${c.connectionId}:${site.siteUrl}`
             return (
