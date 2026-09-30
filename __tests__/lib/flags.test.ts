@@ -44,3 +44,20 @@ describe('search_console flag', () => {
     expect(isFeatureEnabled('search_console')).toBe(true)
   })
 })
+
+describe('analytics flag', () => {
+  afterEach(() => { delete process.env.FEATURE_ANALYTICS })
+
+  it('is off by default', () => {
+    expect(isFeatureEnabled('analytics')).toBe(false)
+  })
+
+  it('turns on only for the exact value 1', () => {
+    process.env.FEATURE_ANALYTICS = 'true'
+    expect(isFeatureEnabled('analytics')).toBe(false)
+    process.env.FEATURE_ANALYTICS = ' 1'
+    expect(isFeatureEnabled('analytics')).toBe(false)
+    process.env.FEATURE_ANALYTICS = '1'
+    expect(isFeatureEnabled('analytics')).toBe(true)
+  })
+})
