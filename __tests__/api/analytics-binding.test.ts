@@ -203,6 +203,20 @@ describe('GET', () => {
       expect((await res.json()).properties).toEqual([{ connectionId: CONNECTION_ID, items: [], error: 'access_lost' }])
     })
 
+    it('is 503 with no driver text when our own database fails, never a Google unavailable in a 200', async () => {
+      scStore.listConnections.mockResolvedValue([summary(CONNECTION_ID, [SEARCH_CONSOLE_SCOPE, ANALYTICS_SCOPE])])
+      scStore.loadConnectionSecret.mockRejectedValue(
+        Object.assign(new Error('connect postgresql://u:secret@host/db failed'), { name: 'NeonDbError' }),
+      )
+      const { GET } = await import(ROUTE)
+      const res = await GET(get('?properties=1'), ctx)
+      expect(res.status).toBe(503)
+      expect(JSON.stringify(await res.json())).not.toContain('postgresql')
+      expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('secret')
+      expect(JSON.stringify(errorSpy.mock.calls)).toContain('NeonDbError')
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
     it('maps a refresh forbidden to access_lost rather than an internal error', async () => {
       scStore.listConnections.mockResolvedValue([summary(CONNECTION_ID, [SEARCH_CONSOLE_SCOPE, ANALYTICS_SCOPE])])
       refreshAccessToken.mockRejectedValue(new GoogleApiError('forbidden', 403))

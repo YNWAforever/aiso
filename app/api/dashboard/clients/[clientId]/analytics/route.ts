@@ -151,8 +151,10 @@ async function propertiesFor(
       return { connectionId: c.id, items: await listProperties(acquired.accessToken), error: null }
     } catch (error) {
       const reason = googleReason(error)
-      if (!reason) logFailure('properties failed', error)
-      return { connectionId: c.id, items: [], error: reason ?? 'unavailable' }
+      // Not Google's doing (our database, the vault): fail the whole GET as a 503 rather
+      // than blame Google for our own outage inside a 200.
+      if (!reason) throw error
+      return { connectionId: c.id, items: [], error: reason }
     }
   }))
 }
