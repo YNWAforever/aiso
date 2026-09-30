@@ -117,7 +117,7 @@ create table public.analytics_sync_runs (
   data_withheld boolean not null default false,
   constraint analytics_sync_runs_client_fk
     foreign key (client_id, account_id) references public.clients (id, account_id) on delete cascade,
-  -- Closed vocabulary, mirrored by ANALYTICS_SYNC_OUTCOMES in lib/integrations/analytics.
+  -- Closed vocabulary, mirrored by ANALYTICS_SYNC_OUTCOMES in lib/integrations/analytics/state.ts.
   constraint analytics_sync_runs_outcome_check check (outcome in (
     'ok', 'revoked', 'access_lost', 'google_unavailable', 'quota',
     'domain_mismatch', 'not_entitled', 'vault_error', 'config_error', 'internal_error',

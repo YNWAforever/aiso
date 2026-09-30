@@ -1,14 +1,10 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { ANALYTICS_SYNC_OUTCOMES } from '@/lib/integrations/analytics/state'
 
 const sql = readFileSync('supabase/migrations/055_analytics.sql', 'utf8')
 
-// Literal on purpose: Task 9 switches this to an import of ANALYTICS_SYNC_OUTCOMES.
-const OUTCOMES = [
-  'ok', 'revoked', 'access_lost', 'google_unavailable', 'quota',
-  'domain_mismatch', 'not_entitled', 'vault_error', 'config_error', 'internal_error',
-  'deferred', 'scope_missing', 'events_missing',
-]
+const OUTCOMES = [...ANALYTICS_SYNC_OUTCOMES]
 
 const TABLES = ['analytics_bindings', 'analytics_daily', 'analytics_sync_runs']
 
