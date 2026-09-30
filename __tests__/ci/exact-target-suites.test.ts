@@ -6,10 +6,11 @@ import { EXACT_TARGET_CONFIGS } from '@/scripts/ci/run-exact-target-suites.mjs'
 
 /**
  * The canonical list that stops the exact-target suites falling out of the gate
- * again. Nine now: the original five, plus the four cross-account tenancy suites
+ * again. Eleven now: the original five, the four cross-account tenancy suites
  * moved here from the default integration project so they carry the same in-band
- * approval. Moved, not copied — the project excludes them, so the glob check and
- * the exclude check below still have to agree.
+ * approval, and the Search Console and Analytics connector suites. Moved, not
+ * copied — the project excludes them, so the glob check and the exclude check
+ * below still have to agree.
  *
  * They were runnable and never run: excluded from the default integration
  * project, targeted by five dedicated configs, and named by no npm script and no

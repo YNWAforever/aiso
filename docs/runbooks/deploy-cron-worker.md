@@ -40,10 +40,24 @@ The source supports these schedules; the dedicated config intentionally enables 
 | `/api/cron/evaluate-alerts` | `47 7 * * 1` | Evaluation outcome and relevant completion counters; scheduled later than Pulse, but elapsed time does not prove Pulse finished |
 | `/api/cron/trial-emails` | `0 9 * * *` | HTTP status plus sent/failed counters and ledger; investigate partial failures before replay |
 | `/api/cron/search-console` | `0 9 * * *` (same trigger as trial emails) | Per-outcome counts in the body and `search_console_sync_runs`; `502` means brands were due and none synced. With `FEATURE_SEARCH_CONSOLE` unset it answers `200 {skipped: 'flag_off'}` |
+| `/api/cron/analytics` | `0 9 * * *` (same trigger as trial emails and Search Console) | Per-outcome counts in the body and `analytics_sync_runs`; `502` means brands were due and none synced. With `FEATURE_ANALYTICS` unset it answers `200 {skipped: 'flag_off'}` |
 
-The `0 9 * * *` trigger fans out to both daily routes with `Promise.allSettled`, so
-one failing does not stop the other. Approving that cron string enables both; the
-Search Console route stays inert until its feature flag and Google variables are set.
+The `0 9 * * *` trigger fans out to all three daily routes (`trial-emails`, then
+`search-console`, then `analytics`) with `Promise.allSettled`, so one failing does not
+stop the others. Approving that cron string enables all three; the Search Console and
+Analytics routes stay inert until their feature flags (`FEATURE_SEARCH_CONSOLE`,
+`FEATURE_ANALYTICS`) and the Google variables are set. The two Google routes share one
+runner (`lib/integrations/google/cronRunner.ts`): no brand is started after 40 s, each
+sync stops calling Google at run start + 45 s and records `deferred`, and one brand's
+failed sync is counted as `internal_error` while the run continues. Both fit inside
+`vercel.json`'s 60 s `maxDuration` for their route.
+
+**Adding `/api/cron/analytics` changes the Worker's source; it does not deploy it.** The
+route list in `cloudflare/cron-worker/src/index.ts` takes effect only when the Worker is
+redeployed, which is a separate step from merging the code. Until then the
+`0 9 * * *` trigger keeps calling whatever route list was last deployed, so the
+Analytics sync does not run even with the flag on. `wrangler.jsonc` still holds exactly
+three triggers; this adds a route to an existing one, not a fourth trigger.
 
 Prepare a diff to the dedicated config that adds the approved HTTPS `APP_BASE_URL`
 and only the individually approved cron strings. Keep the exact account/name,
