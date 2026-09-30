@@ -36,7 +36,7 @@ describe('scheduled', () => {
     )
   })
 
-  it('calls trial-emails and search-console on the daily schedule', async () => {
+  it('calls trial-emails, search-console and analytics on the daily schedule', async () => {
     await worker.scheduled(controller('0 9 * * *'), env, ctx)
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -47,6 +47,10 @@ describe('scheduled', () => {
       'https://app.example.com/api/cron/search-console',
       { headers: { Authorization: 'Bearer secret-123' } },
     )
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://app.example.com/api/cron/analytics',
+      { headers: { Authorization: 'Bearer secret-123' } },
+    )
   })
 
   it('still calls every route on a schedule when one of them fails', async () => {
@@ -55,7 +59,7 @@ describe('scheduled', () => {
 
     await expect(worker.scheduled(controller('0 9 * * *'), env, ctx))
       .rejects.toThrow('[cron-worker] /api/cron/trial-emails responded 500')
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
   it('propagates a downstream failure without retrying in this invocation', async () => {

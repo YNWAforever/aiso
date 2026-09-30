@@ -8,6 +8,7 @@
     "app/api/cron/pulse/route.ts": { "maxDuration": 60 },
     "app/api/cron/evaluate-alerts/route.ts": { "maxDuration": 60 },
     "app/api/cron/trial-emails/route.ts": { "maxDuration": 60 },
-    "app/api/cron/search-console/route.ts": { "maxDuration": 60 }
+    "app/api/cron/search-console/route.ts": { "maxDuration": 60 },
+    "app/api/cron/analytics/route.ts": { "maxDuration": 60 }
   }
 }
