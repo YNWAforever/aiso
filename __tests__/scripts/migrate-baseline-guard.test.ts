@@ -128,6 +128,9 @@ function allRelations() {
     // runner. A synthetic inventory entry; claims nothing about any live database.
     'google_connections', 'search_console_bindings', 'search_console_daily',
     'search_console_page_queries', 'search_console_sync_runs',
+    // 055: the GA4 conversions connector, authored here and applied by the
+    // runner. Likewise synthetic; the real-Postgres proof is a separate task.
+    'analytics_bindings', 'analytics_daily', 'analytics_sync_runs',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
