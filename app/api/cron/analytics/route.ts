@@ -21,7 +21,6 @@ export async function GET(req: Request) {
     flag: 'analytics',
     loadDue: store.loadDueAnalyticsBindings,
     skips: SKIPS,
-    internalError: 'internal_error',
     sync: (binding, cfg, deadline) => syncAnalyticsBinding(binding, {
       loadSecret: connections.loadConnectionSecret,
       open: (sealed, accountId) => openToken(sealed, { accountId }),

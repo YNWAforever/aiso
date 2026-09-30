@@ -8,6 +8,14 @@ import { googleOAuthConfig, type GoogleOAuthConfig } from './oauth'
  * The daily Google sync cron, shared by Search Console and Analytics: the guards,
  * the batch loop and its time limits, the 502 rule and the ledger row. Each route
  * supplies only what differs: which flag, which bindings, and how one is synced.
+ * A 2xx means every attempted brand's ledger row was written. A sync rejects only
+ * when that write itself failed, so such a brand is counted `ledger_write_failed`
+ * and the loop carries on (one brand's failure must not starve the brands behind
+ * it), but the run then ends 500 `{ error: 'Sync failed', outcomes }` and is
+ * recorded as an error. `ledger_write_failed` is a counter in this response and
+ * in cron_runs' detail only: it is in neither ledger's outcome vocabulary, and no
+ * row anywhere carries it.
+ *
  *
  * Two limits inside vercel.json's 60 s maxDuration. No new binding is started
  * after START_CUTOFF_MS; a binding already running stops starting Google calls at
@@ -18,6 +26,9 @@ import { googleOAuthConfig, type GoogleOAuthConfig } from './oauth'
 export const START_CUTOFF_MS = 40_000
 export const SYNC_DEADLINE_MS = 45_000
 const BATCH = 10
+/** The response counter for a brand whose sync rejected: its ledger row was never written. */
+export const LEDGER_WRITE_FAILED = 'ledger_write_failed'
+
 
 /**
  * Read the secret, or null when it is missing or too short to be one.
@@ -50,8 +61,6 @@ export type GoogleCronSpec<B extends { accountId: string; clientId: string }, O 
    * brand was due and did not finish, so it counts toward the 502 rule.
    */
   skips: ReadonlySet<O>
-  /** What a rejected sync is counted as. */
-  internalError: O
 }
 
 export async function runGoogleCron<B extends { accountId: string; clientId: string }, O extends string>(
@@ -84,8 +93,9 @@ export async function runGoogleCron<B extends { accountId: string; clientId: str
 
   const runId = await startCronRun(spec.route)
   const started = Date.now()
-  const outcomes: Partial<Record<O, number>> = {}
+  const outcomes: Partial<Record<O | typeof LEDGER_WRITE_FAILED, number>> = {}
   let due = 0
+  let ledgerWriteFailed = 0
   try {
     const deadline = started + SYNC_DEADLINE_MS
     // A binding whose sync threw before its ledger row was written is still due,
@@ -102,9 +112,13 @@ export async function runGoogleCron<B extends { accountId: string; clientId: str
           outcome = await spec.sync(binding, cfg, deadline)
         } catch (error) {
           // A sync only rejects when its own ledger write fails. One brand's
-          // failure must not abort the loop, or every brand behind it starves.
-          console.error(`${tag} binding failed`, { clientId: binding.clientId, name: errorName(error) })
-          outcome = spec.internalError
+          // failure must not abort the loop, or every brand behind it starves;
+          // but it is not internal_error either, which is a row that WAS written.
+          console.error(`${tag} ledger write failed`, { clientId: binding.clientId, name: errorName(error) })
+          outcomes[LEDGER_WRITE_FAILED] = (outcomes[LEDGER_WRITE_FAILED] ?? 0) + 1
+          ledgerWriteFailed++
+          due++
+          continue
         }
         outcomes[outcome] = (outcomes[outcome] ?? 0) + 1
         if (!spec.skips.has(outcome)) due++
@@ -116,6 +130,13 @@ export async function runGoogleCron<B extends { accountId: string; clientId: str
     const name = errorName(error)
     await finishCronRun(runId, 'error', { outcomes }, name)
     console.error(`${tag} run failed`, { name })
+    return Response.json({ error: 'Sync failed', outcomes }, { status: 500 })
+  }
+
+  // A brand whose run left no ledger row: a 2xx would say the writes happened.
+  if (ledgerWriteFailed > 0) {
+    await finishCronRun(runId, 'error', { outcomes }, LEDGER_WRITE_FAILED)
+    console.error(`${tag} run finished with lost ledger writes`, { count: ledgerWriteFailed })
     return Response.json({ error: 'Sync failed', outcomes }, { status: 500 })
   }
 

@@ -106,14 +106,16 @@ describe('GET /api/cron/search-console', () => {
     expect((await call()).status).toBe(200)
   })
 
-  // CHANGED when the runner was shared with the analytics cron. This used to pin
-  // "one rejection aborts the run with a 500", which starved every brand behind
-  // the failing one. syncBinding only rejects when its own recordRun call fails,
-  // so the cron now counts that brand as internal_error and carries on. The
-  // failure must still never carry the rejection's message text into a log,
-  // because the Neon driver can echo the connection string (password included)
-  // into its own error messages.
-  it('counts a rejecting syncBinding as internal_error, keeps going, and logs no message text', async () => {
+  // CHANGED twice. It used to pin "one rejection aborts the run with a 500",
+  // which starved every brand behind the failing one; then, once the runner was
+  // shared, "counted internal_error, run answers 200", which turned a lost ledger
+  // write into a success. syncBinding only rejects when its own recordRun call
+  // fails, so that brand's run left no record: the loop still carries on, the
+  // brand is counted ledger_write_failed (a response counter, not a ledger
+  // outcome), and the run ends 500. The failure must still never carry the
+  // rejection's message text into a log, because the Neon driver can echo the
+  // connection string (password included) into its own error messages.
+  it('counts a rejecting syncBinding as ledger_write_failed, keeps going, answers 500 and logs no message text', async () => {
     loadDueBindings.mockResolvedValueOnce([{ clientId: 'a' }, { clientId: 'b' }]).mockResolvedValue([])
     const secretLookingMessage = 'connection failed: postgresql://user:hunter2@host/db'
     syncBinding.mockRejectedValueOnce(new TypeError(secretLookingMessage)).mockResolvedValueOnce('ok')
@@ -121,10 +123,10 @@ describe('GET /api/cron/search-console', () => {
     const res = await call()
 
     expect(syncBinding).toHaveBeenCalledTimes(2)
-    expect(res.status).toBe(200)
-    expect((await res.json()).outcomes).toEqual({ internal_error: 1, ok: 1 })
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'Sync failed', outcomes: { ledger_write_failed: 1, ok: 1 } })
     expect(finishCronRun).toHaveBeenCalledTimes(1)
-    expect(finishCronRun).toHaveBeenCalledWith('run', 'ok', { outcomes: { internal_error: 1, ok: 1 } })
+    expect(finishCronRun).toHaveBeenCalledWith('run', 'error', { outcomes: { ledger_write_failed: 1, ok: 1 } }, 'ledger_write_failed')
 
     const loggedText = JSON.stringify(consoleErrors)
     expect(loggedText).toContain('TypeError')
@@ -132,12 +134,13 @@ describe('GET /api/cron/search-console', () => {
     expect(loggedText).not.toContain('hunter2')
   })
 
-  it('attempts a rejecting binding once per run, not once per batch, and answers 502', async () => {
+  it('attempts a rejecting binding once per run, not once per batch, and answers 500', async () => {
     loadDueBindings.mockResolvedValue([{ clientId: 'a' }])
     syncBinding.mockRejectedValue(new Error('ledger down'))
     const res = await call()
     expect(syncBinding).toHaveBeenCalledTimes(1)
-    expect(res.status).toBe(502)
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'Sync failed', outcomes: { ledger_write_failed: 1 } })
     expect(finishCronRun).toHaveBeenCalledTimes(1)
   })
 

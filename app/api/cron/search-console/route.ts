@@ -16,7 +16,6 @@ export async function GET(req: Request) {
     flag: 'search_console',
     loadDue: store.loadDueBindings,
     skips: SKIPS,
-    internalError: 'internal_error',
     sync: (binding, cfg, deadline) => syncBinding(binding, {
       loadSecret: store.loadConnectionSecret,
       open: (sealed, accountId) => openToken(sealed, { accountId }),

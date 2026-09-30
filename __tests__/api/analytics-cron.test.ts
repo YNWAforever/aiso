@@ -141,7 +141,11 @@ describe('GET /api/cron/analytics', () => {
     expect((await call()).status).toBe(200)
   })
 
-  it('keeps going when one binding rejects: counts internal_error, logs only the name, finishes once', async () => {
+  // A sync only rejects when its own ledger write failed: that brand's run left
+  // no record, which a 2xx would hide. It is counted as ledger_write_failed (a
+  // response counter only, never a ledger outcome), the loop still reaches every
+  // brand behind it, and the run ends as a 500 with the counts.
+  it('keeps going when one binding rejects, then answers 500 with ledger_write_failed, logging only the name', async () => {
     loadDueAnalyticsBindings.mockResolvedValueOnce([due('a'), due('b')]).mockResolvedValue([])
     const secretLookingMessage = 'connection failed: postgresql://user:hunter2@host/db'
     syncAnalyticsBinding.mockRejectedValueOnce(new TypeError(secretLookingMessage)).mockResolvedValueOnce('ok')
@@ -149,10 +153,10 @@ describe('GET /api/cron/analytics', () => {
     const res = await call()
 
     expect(syncAnalyticsBinding).toHaveBeenCalledTimes(2)
-    expect(res.status).toBe(200)
-    expect((await res.json()).outcomes).toEqual({ internal_error: 1, ok: 1 })
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'Sync failed', outcomes: { ledger_write_failed: 1, ok: 1 } })
     expect(finishCronRun).toHaveBeenCalledTimes(1)
-    expect(finishCronRun).toHaveBeenCalledWith('run', 'ok', { outcomes: { internal_error: 1, ok: 1 } })
+    expect(finishCronRun).toHaveBeenCalledWith('run', 'error', { outcomes: { ledger_write_failed: 1, ok: 1 } }, 'ledger_write_failed')
     const loggedText = JSON.stringify(consoleErrors)
     expect(loggedText).toContain('TypeError')
     expect(loggedText).not.toContain('hunter2')
@@ -164,8 +168,17 @@ describe('GET /api/cron/analytics', () => {
     syncAnalyticsBinding.mockRejectedValue(new Error('ledger down'))
     const res = await call()
     expect(syncAnalyticsBinding).toHaveBeenCalledTimes(1)
-    expect(res.status).toBe(502)
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'Sync failed', outcomes: { ledger_write_failed: 1 } })
     expect(finishCronRun).toHaveBeenCalledTimes(1)
+  })
+
+  it('never counts a lost ledger write as internal_error, which is a real ledger outcome', async () => {
+    loadDueAnalyticsBindings.mockResolvedValueOnce([due('a'), due('b')]).mockResolvedValue([])
+    syncAnalyticsBinding.mockResolvedValueOnce('internal_error').mockRejectedValueOnce(new Error('ledger down'))
+    const res = await call()
+    expect(res.status).toBe(500)
+    expect((await res.json()).outcomes).toEqual({ internal_error: 1, ledger_write_failed: 1 })
   })
 
   it('is 500 and finishes the run as an error when loading the due bindings fails, logging no message text', async () => {
@@ -193,5 +206,16 @@ describe('GET /api/cron/analytics', () => {
     expect(listWebStreams).toHaveBeenCalledWith('tok', 'p')
     expect(deps.listKeyEvents).toBe(listKeyEvents)
     expect(deps.report).toBe(runKeyEventReport)
+  })
+})
+
+describe('ledger_write_failed is a response counter, not a ledger outcome', () => {
+  it('is in neither ledger vocabulary, so no DB CHECK can ever be asked to hold it', async () => {
+    const { LEDGER_WRITE_FAILED } = await import('@/lib/integrations/google/cronRunner')
+    const { ANALYTICS_SYNC_OUTCOMES } = await import('@/lib/integrations/analytics/state')
+    const { SYNC_OUTCOMES } = await import('@/lib/integrations/search-console/state')
+    expect(LEDGER_WRITE_FAILED).toBe('ledger_write_failed')
+    expect(ANALYTICS_SYNC_OUTCOMES as readonly string[]).not.toContain(LEDGER_WRITE_FAILED)
+    expect(SYNC_OUTCOMES as readonly string[]).not.toContain(LEDGER_WRITE_FAILED)
   })
 })
