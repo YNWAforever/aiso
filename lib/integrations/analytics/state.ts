@@ -111,6 +111,9 @@ export function deriveAnalyticsOwnerState(input: AnalyticsStateInput): Analytics
   const latest = current(input)
   if (!latest) return dataThrough ? { kind: 'synced', dataThrough } : { kind: 'awaiting_first_sync' }
   if (latest.outcome === 'ok') {
+    // An ok run records the window end it asked GA4 for, rows or not (GA4 omits
+    // zero-event days), so a run that found no enquiries is `synced` with zeros,
+    // never `awaiting_first_sync`. A current ok row IS the last good run.
     const through = latest.dataThrough ?? dataThrough
     return through ? { kind: 'synced', dataThrough: through } : { kind: 'awaiting_first_sync' }
   }

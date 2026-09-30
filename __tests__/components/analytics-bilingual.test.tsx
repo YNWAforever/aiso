@@ -17,6 +17,7 @@ import {
   grantAnalyticsHref,
   offeredStreams,
   shouldReportWriteError,
+  showsObservedFigures,
   type PickerStream,
 } from '@/components/integrations/AnalyticsPanel'
 import type { AnalyticsOwnerState } from '@/lib/integrations/analytics/state'
@@ -118,8 +119,9 @@ describe('grantAnalyticsHref', () => {
 })
 
 const figures = (over: Partial<AnalyticsPanel> = {}): AnalyticsPanel => ({
-  latest: { outcome: 'ok', dataThrough: '2026-09-27', ranAt: '2026-09-28T09:00:00.000Z', dataWithheld: false },
+  latest: { outcome: 'ok', dataThrough: '2026-09-27', ranAt: '2026-09-28T09:00:00.000Z' },
   lastGoodDataThrough: '2026-09-27',
+  lastGoodDataWithheld: false,
   last28: {
     total: 37,
     bySource: { organic_search: 21, ai_assistant: 5, other: 11 },
@@ -161,12 +163,29 @@ describe.each(LANGS)('ObservedFigures (%s)', lang => {
     expect(markup).toContain(`${copy.source_ai_assistant} 0`)
   })
 
+  it('shows 0 and the window end when the last enquiry fell outside the 28 days', () => {
+    // A brand whose last enquiry was 40 days ago: the last good run still dates the data.
+    const zero = figures({
+      lastGoodDataThrough: '2026-09-24',
+      last28: { total: 0, bySource: { organic_search: 0, ai_assistant: 0, other: 0 }, byEvent: [] },
+    })
+    const markup = renderFigures(zero, lang)
+    expect(text(markup)).toContain(`${copy.total_enquiries} 0`)
+    expect(markup).toContain(copy.data_through.replace('{date}', '2026-09-24'))
+  })
+
   it('shows the withheld note only when GA4 withheld data', () => {
     expect(renderFigures(figures(), lang)).not.toContain(copy.withheld_note)
-    const withheld = figures({
-      latest: { outcome: 'ok', dataThrough: '2026-09-27', ranAt: '2026-09-28T09:00:00.000Z', dataWithheld: true },
+    expect(renderFigures(figures({ lastGoodDataWithheld: true }), lang)).toContain(copy.withheld_note)
+  })
+
+  it('keeps the withheld note of the run that produced the figures after a later failed run', () => {
+    // ok (withheld) then quota: the numbers on screen are still the withheld run's.
+    const afterQuota = figures({
+      latest: { outcome: 'quota', dataThrough: null, ranAt: '2026-09-29T09:00:00.000Z' },
+      lastGoodDataWithheld: true,
     })
-    expect(renderFigures(withheld, lang)).toContain(copy.withheld_note)
+    expect(renderFigures(afterQuota, lang)).toContain(copy.withheld_note)
   })
 
   it('shows no value line when either owner figure is missing', () => {
@@ -196,9 +215,7 @@ it('computes the value line as count x close rate x lead value: HK$7,400 for 37 
 })
 
 it('never calls the observed figures an estimate', () => {
-  const markup = renderFigures(figures({
-    latest: { outcome: 'ok', dataThrough: '2026-09-27', ranAt: '2026-09-28T09:00:00.000Z', dataWithheld: true },
-  }), 'en')
+  const markup = renderFigures(figures({ lastGoodDataWithheld: true }), 'en')
   expect(markup).not.toMatch(/estimat/i)
   expect(en.analytics.observed_heading).toBe('Observed enquiries')
 })
@@ -218,6 +235,21 @@ const appStream = {
   streamId: '333', displayName: 'iOS app', defaultUri: '', type: 'IOS_APP_DATA_STREAM',
   verdict: { eligible: false, reason: 'invalid_uri' },
 } as PickerStream
+
+describe('showsObservedFigures', () => {
+  it('shows the figures whenever a good run dated them, zeros included', () => {
+    expect(showsObservedFigures(figures())).toBe(true)
+    expect(showsObservedFigures(figures({
+      last28: { total: 0, bySource: { organic_search: 0, ai_assistant: 0, other: 0 }, byEvent: [] },
+    }))).toBe(true)
+  })
+
+  it('hides them with no panel, or with no good run, whatever counts came back', () => {
+    expect(showsObservedFigures(null)).toBe(false)
+    expect(showsObservedFigures(figures({ lastGoodDataThrough: null }))).toBe(false)
+    expect(showsObservedFigures(figures({ lastGoodDataThrough: null, last28: null }))).toBe(false)
+  })
+})
 
 describe('offeredStreams', () => {
   it('drops anything that is not a web stream with a site URL', () => {

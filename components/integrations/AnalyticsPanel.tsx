@@ -155,16 +155,17 @@ function money(value: number, lang: string): string {
  * (this panel, and Task 17's card beside the Local Trust scenario). Carries its
  * own `observed_heading`, so a wrapper should not add a second one.
  *
- * `last28: null` means the current binding stored no rows; shown as zeros, since
- * the caller only renders this once something has synced. The value line comes
- * only from the owner's own figures via observedValue, which returns null when
- * either is missing: nothing here does its own arithmetic. `dataWithheld` means
- * GA4 thresholded or pooled rows, or the report hit its page cap, so the counts
- * are a lower bound and the note says exactly that.
+ * Rendered only once a good run dated the figures (showsObservedFigures), so a
+ * `last28` of zeros is shown as zeros (a null one, never expected then, too).
+ * The value line comes only from the owner's own figures via observedValue,
+ * which returns null when either is missing: nothing here does its own
+ * arithmetic. `lastGoodDataWithheld` is the flag of the run that produced these
+ * figures, not of the newest run: GA4 thresholded or pooled rows, or the report
+ * hit its page cap, so the counts are a lower bound and the note says exactly that.
  */
 export function ObservedFigures({
   panel, lang,
-}: { panel: Pick<PanelData, 'latest' | 'lastGoodDataThrough' | 'last28' | 'owner'>; lang: string }) {
+}: { panel: Pick<PanelData, 'lastGoodDataThrough' | 'lastGoodDataWithheld' | 'last28' | 'owner'>; lang: string }) {
   const copy = copyFor(lang)
   const total = panel.last28?.total ?? 0
   const bySource = panel.last28?.bySource ?? EMPTY_BY_SOURCE
@@ -207,13 +208,24 @@ export function ObservedFigures({
           <p className="text-xs text-muted-foreground">{copy.value_uses_your_figures}</p>
         </div>
       )}
-      {panel.latest?.dataWithheld && <p role="note" className="mt-3 text-xs text-foreground">{copy.withheld_note}</p>}
+      {panel.lastGoodDataWithheld && <p role="note" className="mt-3 text-xs text-foreground">{copy.withheld_note}</p>}
       {/* The ISO date as sent, like SearchConsoleStateNotice: per-locale formatting would diverge between server and client. */}
       {panel.lastGoodDataThrough && (
         <p className="mt-1 text-xs text-muted-foreground">{copy.data_through.replace('{date}', panel.lastGoodDataThrough)}</p>
       )}
     </div>
   )
+}
+
+/**
+ * Whether the observed figures are shown: exactly when a good run of the current
+ * binding dated them. An `ok` run records the window end it asked for even when
+ * GA4 returned no rows, so a zero total here is a real "0 observed enquiries",
+ * and a panel with no good run (whatever counts came back) is "nothing yet".
+ * loadObservedPanel applies the same test for the dashboard card.
+ */
+export function showsObservedFigures(panel: Pick<PanelData, 'lastGoodDataThrough'> | null): boolean {
+  return panel !== null && panel.lastGoodDataThrough !== null
 }
 
 /**
@@ -521,7 +533,7 @@ export function AnalyticsPanel({ clientId, lang }: { clientId: string; lang: str
   const noProperties = choosingProperty && !propertiesFailed && data.connections.length > 0
     && erroredConnections.length === 0 && okConnections.every(c => c.items.length === 0)
   const panel = data.panel
-  const showFigures = panel !== null && (panel.last28 !== null || panel.lastGoodDataThrough !== null)
+  const showFigures = showsObservedFigures(panel)
   const busy = saveBusy || pickerBusy !== null
   const loaded = pick.load?.ok ? pick.load.picker : null
   const chosenStream = loaded ? offeredStreams(loaded.streams).find(s => s.streamId === pick.streamId) : undefined

@@ -27,9 +27,10 @@ export async function loadObservedPanel(
     const binding = await loadAnalyticsBinding(profile.account_id, clientId)
     if (!binding) return null
     const panel = await loadAnalyticsPanel(profile.account_id, clientId, binding.keyEvents, binding.boundAt)
-    // The same test AnalyticsPanel uses to show figures: a bound stream that has
-    // never synced would otherwise read as "0 enquiries", a false fact.
-    if (panel.last28 === null && panel.lastGoodDataThrough === null) return null
+    // The same test AnalyticsPanel uses to show figures (showsObservedFigures): a
+    // bound stream with no good run would otherwise read as "0 enquiries", a false
+    // fact. Once a good run exists, zero is true and the card shows it.
+    if (panel.lastGoodDataThrough === null) return null
     return panel
   } catch (error) {
     console.error('[dashboard] observed enquiries unavailable', { name: error instanceof Error ? error.name : typeof error })

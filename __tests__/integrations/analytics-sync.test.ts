@@ -57,7 +57,7 @@ describe('syncAnalyticsBinding', () => {
   afterEach(() => { errorSpy.mockRestore() })
 
   describe('outcomes', () => {
-    it('ok: writes the aggregated counts, records the newest date and clears the backfill', async () => {
+    it('ok: writes the aggregated counts, records the window end as the date and clears the backfill', async () => {
       const d = deps({
         report: vi.fn().mockResolvedValue({
           rows: [row({ date: '2026-09-19', count: 2 }), row({ date: '2026-09-21', eventName: 'purchase', source: 'chatgpt.com', count: 3 })],
@@ -73,16 +73,29 @@ describe('syncAnalyticsBinding', () => {
       expect(d.recordRun).toHaveBeenCalledTimes(1)
       expect(d.recordRun).toHaveBeenCalledWith({
         accountId: 'a', clientId: 'c', connectionId: 'g', propertyId: '123456', streamId: '987',
-        eventsChosenAt: EVENTS_CHOSEN_AT, outcome: 'ok', rowsWritten: 2, dataThrough: '2026-09-21',
+        // The window end the sync requested, not the newest row: GA4 omits zero-event days.
+        eventsChosenAt: EVENTS_CHOSEN_AT, outcome: 'ok', rowsWritten: 2, dataThrough: '2026-09-24',
         dataWithheld: false, clearBackfill: true,
       })
     })
 
-    it('ok with no rows still replaces the window with nothing, and has no dataThrough', async () => {
+    // GA4's runReport omits days with no events, so "no rows" is a real answer:
+    // zero enquiries through the window end. Recording null here left a brand with
+    // no enquiries in awaiting_first_sync forever.
+    it('ok with no rows still replaces the window with nothing, and records the window end', async () => {
       const d = deps()
       expect(await syncAnalyticsBinding(binding(), d)).toBe('ok')
       expect(d.replaceDailyWindow).toHaveBeenCalledWith('a', 'c', expect.anything(), [])
-      expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'ok', dataThrough: null, rowsWritten: 0 }))
+      expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'ok', dataThrough: '2026-09-24', rowsWritten: 0 }))
+    })
+
+    it('ok whose last enquiry was 40 days ago still records the window end, not that old date', async () => {
+      const d = deps({
+        report: vi.fn().mockResolvedValue({ rows: [row({ date: '2026-08-15', count: 5 })], withheld: false }),
+        replaceDailyWindow: vi.fn().mockResolvedValue(1),
+      })
+      expect(await syncAnalyticsBinding(binding({ backfillPending: true }), d)).toBe('ok')
+      expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'ok', dataThrough: '2026-09-24' }))
     })
 
     it('not_entitled: an account below Pro makes no Google call and is recorded', async () => {
@@ -363,12 +376,12 @@ describe('syncAnalyticsBinding', () => {
       ])
     })
 
-    it('dataThrough comes from the kept rows, not from a dropped one', async () => {
+    it('dataThrough is the window end whichever rows were kept or dropped', async () => {
       const d = deps({
         report: vi.fn().mockResolvedValue({ rows: [row({ date: '2026-09-18' }), row({ date: '2026-09-23', eventName: '(other)' })], withheld: false }),
       })
       await syncAnalyticsBinding(binding(), d)
-      expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ dataThrough: '2026-09-18' }))
+      expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ dataThrough: '2026-09-24' }))
     })
   })
 

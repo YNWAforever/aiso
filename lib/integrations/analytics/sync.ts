@@ -144,9 +144,13 @@ async function attempt(b: DueAnalyticsBinding, deps: AnalyticsSyncDeps): Promise
     const wanted = new Set(validEvents)
     const kept = rows.filter(r => wanted.has(r.eventName))
     const written = await deps.replaceDailyWindow(b.accountId, b.clientId, { startDate, endDate }, aggregate(kept))
-    const through = kept.map(r => r.date).sort().at(-1) ?? null
+    // The window end this run asked for, rows or not. GA4's runReport omits days
+    // with no events, so the newest returned date says only when the last enquiry
+    // happened, not how far the data runs: a brand with no enquiries would never
+    // leave awaiting_first_sync, and one whose last enquiry was weeks ago would be
+    // shown as weeks stale. The panel anchors its 28 days on this value.
     // `withheld` also covers "stopped at the page cap": either way the counts are a lower bound.
-    return { outcome: 'ok', rows: written, through, withheld }
+    return { outcome: 'ok', rows: written, through: endDate, withheld }
   } catch (error) {
     if (error instanceof DeadlineReachedError) return stop('deferred')
     if (error instanceof AnalyticsApiError) {

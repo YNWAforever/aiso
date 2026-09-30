@@ -78,14 +78,13 @@ describe('deriveAnalyticsOwnerState precedence', () => {
       .toEqual({ kind: 'synced', dataThrough: '2026-09-20' })
   })
 
-  it('uses the last good date when the ok run recorded none', () => {
-    expect(deriveAnalyticsOwnerState({ ...base, latest: row('ok'), lastGoodDataThrough: '2026-09-18' }))
-      .toEqual({ kind: 'synced', dataThrough: '2026-09-18' })
-  })
-
-  it('awaits the first sync when an ok run and the last good date are both absent', () => {
-    expect(deriveAnalyticsOwnerState({ ...base, latest: row('ok'), lastGoodDataThrough: null }))
-      .toEqual({ kind: 'awaiting_first_sync' })
+  // An ok run records the window end it asked GA4 for, rows or not (GA4 omits
+  // zero-event days). So an ok run that found nothing is a real "0 observed
+  // enquiries through that date", never "still waiting".
+  it('is synced through the window end after an ok run that found no enquiries', () => {
+    const zero = { outcome: 'ok' as const, dataThrough: '2026-09-24', ranAt: RAN_AT }
+    expect(deriveAnalyticsOwnerState({ ...base, latest: zero, lastGoodDataThrough: '2026-09-24' }))
+      .toEqual({ kind: 'synced', dataThrough: '2026-09-24' })
   })
 
   it('asks to repick events after an events_missing run since the events were chosen', () => {

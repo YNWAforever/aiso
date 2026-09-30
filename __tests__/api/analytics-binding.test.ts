@@ -64,7 +64,9 @@ const storedBinding = {
   streamHost: 'example.com', keyEvents: ['generate_lead'], eventsChosenAt: '2026-09-10T00:00:00.000Z',
   boundAt: '2026-09-10T00:00:00.000Z', backfillPending: false,
 }
-const emptyPanel = { latest: null, lastGoodDataThrough: null, last28: null, owner: { leadValue: null, closeRate: null } }
+const emptyPanel = {
+  latest: null, lastGoodDataThrough: null, lastGoodDataWithheld: false, last28: null, owner: { leadValue: null, closeRate: null },
+}
 
 let errorSpy: ReturnType<typeof vi.spyOn>
 

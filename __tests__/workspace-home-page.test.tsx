@@ -107,7 +107,11 @@ function findAll(node: unknown, type: unknown, out: ReactElement<Record<string, 
   return out
 }
 
-const observedPanel = { latest: null, lastGoodDataThrough: '2026-09-27', last28: null, owner: { leadValue: null, closeRate: null } }
+const observedPanel = {
+  latest: null, lastGoodDataThrough: '2026-09-27', lastGoodDataWithheld: false,
+  last28: { total: 0, bySource: { organic_search: 0, ai_assistant: 0, other: 0 }, byEvent: [] },
+  owner: { leadValue: null, closeRate: null },
+}
 const clientRow = async (strings: TemplateStringsArray) =>
   strings.join('?').includes('from clients') ? [{ id: 'client-a', brand_name: 'Example', domain: 'example.com' }] : []
 

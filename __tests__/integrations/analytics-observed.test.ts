@@ -14,6 +14,7 @@ const binding = { keyEvents: ['generate_lead'], boundAt: '2026-09-01T00:00:00.00
 const synced = {
   latest: null,
   lastGoodDataThrough: '2026-09-27',
+  lastGoodDataWithheld: false,
   last28: { total: 3, bySource: { organic_search: 3, ai_assistant: 0, other: 0 }, byEvent: [{ eventName: 'generate_lead', count: 3 }] },
   owner: { leadValue: null, closeRate: null },
 }
@@ -67,9 +68,16 @@ describe('loadObservedPanel', () => {
   })
 
   it('still shows a synced window that observed no enquiries', async () => {
-    const empty = { ...synced, last28: null }
+    const empty = { ...synced, last28: { total: 0, bySource: { organic_search: 0, ai_assistant: 0, other: 0 }, byEvent: [] } }
     m.loadAnalyticsPanel.mockResolvedValue(empty)
     expect(await load()).toBe(empty)
+  })
+
+  // The figures are dated by the last good run and nothing else: without one,
+  // any counts would be dated by nothing, so the card stays away.
+  it('is null without a last good run, even if counts came back', async () => {
+    m.loadAnalyticsPanel.mockResolvedValue({ ...synced, lastGoodDataThrough: null })
+    expect(await load()).toBeNull()
   })
 
   it('omits the card rather than throwing when the binding read fails, logging only the error name', async () => {

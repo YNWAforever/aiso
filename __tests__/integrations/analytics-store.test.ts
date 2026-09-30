@@ -265,24 +265,34 @@ describe('loadAnalyticsPanel', () => {
     }
   })
 
-  it('filters daily rows by the chosen events and by bound_at, over the 28 days ending at the newest one', async () => {
+  // GA4 omits zero-event days, so the newest stored row says nothing about how
+  // recent the data is. The window is the 28 days ending at the last good run's
+  // data_through (the window end that run asked for), selected exactly as the
+  // lastGood statement selects it.
+  it('filters daily rows by the chosen events and by bound_at, over the 28 days ending at the last good run', async () => {
     await load([[], [], [], []])
     const daily = statements().find(text => text.includes('from analytics_daily'))!
     expect(daily).toContain('event_name = any(?::text[])')
     expect(daily).toContain('synced_at >= ?::timestamptz')
-    expect(daily).toContain('max(date)')
-    expect(daily).toContain('- 28')
-    expect(daily).toContain('sum(c.count)::bigint')
+    expect(daily).not.toContain('max(date)')
+    expect(daily).toContain("from analytics_sync_runs where account_id = ? and client_id = ? and outcome = 'ok' and ran_at >= ?::timestamptz")
+    expect(daily).toContain('d.date > g.data_through - 28')
+    expect(daily).toContain('d.date <= g.data_through')
+    expect(daily).toContain('sum(d.count)::bigint')
     expect(m.sql.mock.calls.flatMap(call => call.slice(1))).toEqual(
       expect.arrayContaining([['generate_lead', 'Purchase'], BOUND_AT]),
     )
   })
 
-  it('takes the last good date from the newest ok run since bound_at', async () => {
+  it('takes the last good date and its withheld flag from the newest ok run since bound_at', async () => {
     await load([[], [], [], []])
     const lastGood = statements().find(text => text.includes("outcome = 'ok'"))!
     expect(lastGood).toContain('ran_at >= ?::timestamptz')
     expect(lastGood).toContain('order by ran_at desc')
+    expect(lastGood).toContain('data_withheld')
+    // The newest-row statement no longer carries it: the note must follow the figures.
+    const latest = statements().find(text => text.includes('from analytics_sync_runs') && !text.includes("outcome = 'ok'"))!
+    expect(latest).not.toContain('data_withheld')
   })
 
   it('reads the owner figures as text from local_trust_profiles by client and account', async () => {
@@ -297,7 +307,7 @@ describe('loadAnalyticsPanel', () => {
   it('maps rows: numbers from bigint strings, all three source classes, events by count then name, ISO times', async () => {
     const panel = await load([
       [run],
-      [{ data_through: '2026-09-07' }],
+      [{ data_through: '2026-09-07', data_withheld: false }],
       [
         { event_name: 'purchase', source_class: 'organic_search', total: '4' },
         { event_name: 'generate_lead', source_class: 'organic_search', total: '3' },
@@ -307,8 +317,9 @@ describe('loadAnalyticsPanel', () => {
       [{ lead_value: '1500.50', close_rate: '0.25' }],
     ])
     expect(panel).toEqual({
-      latest: { outcome: 'ok', dataThrough: '2026-09-07', ranAt: '2026-09-08T09:00:00.000Z', dataWithheld: false },
+      latest: { outcome: 'ok', dataThrough: '2026-09-07', ranAt: '2026-09-08T09:00:00.000Z' },
       lastGoodDataThrough: '2026-09-07',
+      lastGoodDataWithheld: false,
       last28: {
         total: 14,
         bySource: { organic_search: 7, ai_assistant: 2, other: 5 },
@@ -324,14 +335,29 @@ describe('loadAnalyticsPanel', () => {
   })
 
   it('has every source class at 0 when a class is absent', async () => {
-    const panel = await load([[], [], [{ event_name: 'x', source_class: 'other', total: '2' }], []])
+    const panel = await load([[], [{ data_through: '2026-09-07' }], [{ event_name: 'x', source_class: 'other', total: '2' }], []])
     expect(panel.last28?.bySource).toEqual({ organic_search: 0, ai_assistant: 0, other: 2 })
+  })
+
+  it('has zeros, not null, once a good run exists even though no row was stored', async () => {
+    const panel = await load([[run], [{ data_through: '2026-09-24' }], [], []])
+    expect(panel.lastGoodDataThrough).toBe('2026-09-24')
+    expect(panel.last28).toEqual({
+      total: 0, bySource: { organic_search: 0, ai_assistant: 0, other: 0 }, byEvent: [],
+    })
+  })
+
+  it('has last28 null without a good run of this binding, whatever came back', async () => {
+    const panel = await load([[run], [], [{ event_name: 'x', source_class: 'other', total: '2' }], []])
+    expect(panel.lastGoodDataThrough).toBeNull()
+    expect(panel.last28).toBeNull()
   })
 
   it('has last28 null with no rows, null figures with no profile, and null latest with no ledger', async () => {
     expect(await load([[], [], [], []])).toEqual({
       latest: null,
       lastGoodDataThrough: null,
+      lastGoodDataWithheld: false,
       last28: null,
       owner: { leadValue: null, closeRate: null },
     })
@@ -342,9 +368,16 @@ describe('loadAnalyticsPanel', () => {
     expect(panel.owner).toEqual({ leadValue: '0', closeRate: null })
   })
 
-  it('reports withheld data on the latest run', async () => {
+  it('reports withheld data from the last good run, which produced the figures', async () => {
+    const quota = { outcome: 'quota', data_through: null, ran_at: new Date('2026-09-09T09:00:00.000Z') }
+    const panel = await load([[quota], [{ data_through: '2026-09-07', data_withheld: true }], [], []])
+    expect(panel.latest?.outcome).toBe('quota')
+    expect(panel.lastGoodDataWithheld).toBe(true)
+  })
+
+  it('never reports withheld without a good run, whatever the newest row says', async () => {
     const panel = await load([[{ ...run, data_withheld: true }], [], [], []])
-    expect(panel.latest?.dataWithheld).toBe(true)
+    expect(panel.lastGoodDataWithheld).toBe(false)
   })
 })
 

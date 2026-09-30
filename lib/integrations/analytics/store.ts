@@ -39,8 +39,17 @@ export type DueAnalyticsBinding = AnalyticsBinding & {
 export type DailyCount = { date: string; eventName: string; sourceClass: SourceClass; count: number }
 
 export type AnalyticsPanel = {
-  latest: { outcome: AnalyticsOutcome; dataThrough: string | null; ranAt: string; dataWithheld: boolean } | null
+  /** The newest ledger row of any outcome, for the owner state only. */
+  latest: { outcome: AnalyticsOutcome; dataThrough: string | null; ranAt: string } | null
+  /** The newest `ok` run of this binding: the window end it asked GA4 for, which dates the figures. */
   lastGoodDataThrough: string | null
+  /**
+   * Whether GA4 withheld rows in that same run. Read from the row that produced the
+   * figures, never the newest row: an `ok` (withheld) followed by a `quota` still
+   * shows the withheld run's numbers, so its note must stay.
+   */
+  lastGoodDataWithheld: boolean
+  /** The 28 days ending at lastGoodDataThrough. Null exactly when there is no good run; zeros are real. */
   last28: {
     total: number
     bySource: Record<SourceClass, number>
@@ -308,16 +317,27 @@ export async function recordAnalyticsRun(input: {
 }
 
 /**
- * 28-day totals of the chosen events, ending at the newest stored date.
+ * 28-day totals of the chosen events, ending at the last good run's data_through.
+ *
+ * The window is anchored on the ledger, never on the newest stored row: GA4 omits
+ * zero-event days, so a brand whose last enquiry was weeks ago has no recent row,
+ * and anchoring on max(date) would sum those old 28 days under a "last 28 days"
+ * label. Every `ok` run records the window end it asked for (sync.ts), so the
+ * last good run says how far the data runs even when it found nothing. The
+ * window is `data_through - 28 < date <= data_through`, and the daily statement
+ * picks that run with the same predicate and order as the lastGood statement.
  *
  * Only what was synced under the CURRENT binding is shown: analytics_daily is keyed
  * by brand, not by stream, and GA4 omits zero days, so after a rebind the days the
  * new stream does not return would otherwise keep the old stream's numbers. Every
  * row is stamped `synced_at` on insert, so `synced_at >= boundAt` is exactly
- * "written for this binding"; the last good date is limited the same way by the
+ * "written for this binding"; the last good run is limited the same way by the
  * ledger's `ran_at`. Rows from before stay in the table as history; they are just
  * not presented. Events no longer chosen are filtered out too (`event_name = any`),
  * which is why a re-pick changes the totals without deleting anything.
+ *
+ * `last28` is null exactly when there is no good run of this binding; once there
+ * is one it is a real total, zeros included ("0 observed enquiries").
  *
  * The four reads share one read-only repeatable-read snapshot so a sync landing
  * between them cannot pair one run's ledger row with another run's counts.
@@ -331,14 +351,14 @@ export async function loadAnalyticsPanel(
   const sql = db()
   const [runs, lastGood, daily, profile] = await sql.transaction([
     sql`
-      select outcome, data_through::text as data_through, ran_at, data_withheld
+      select outcome, data_through::text as data_through, ran_at
       from analytics_sync_runs
       where account_id = ${accountId} and client_id = ${clientId}
       order by ran_at desc
       limit 1
     `,
     sql`
-      select data_through::text as data_through
+      select data_through::text as data_through, data_withheld
       from analytics_sync_runs
       where account_id = ${accountId} and client_id = ${clientId} and outcome = 'ok'
         and ran_at >= ${boundAt}::timestamptz and data_through is not null
@@ -346,17 +366,23 @@ export async function loadAnalyticsPanel(
       limit 1
     `,
     sql`
-      with chosen as (
-        select date, event_name, source_class, count
-        from analytics_daily
-        where account_id = ${accountId} and client_id = ${clientId}
-          and event_name = any(${keyEvents}::text[])
-          and synced_at >= ${boundAt}::timestamptz
+      with good as (
+        select data_through
+        from analytics_sync_runs
+        where account_id = ${accountId} and client_id = ${clientId} and outcome = 'ok'
+          and ran_at >= ${boundAt}::timestamptz and data_through is not null
+        order by ran_at desc
+        limit 1
       )
-      select c.event_name, c.source_class, sum(c.count)::bigint as total
-      from chosen c
-      where c.date > (select max(date) from chosen) - 28
-      group by c.event_name, c.source_class
+      select d.event_name, d.source_class, sum(d.count)::bigint as total
+      from analytics_daily d
+      cross join good g
+      where d.account_id = ${accountId} and d.client_id = ${clientId}
+        and d.event_name = any(${keyEvents}::text[])
+        and d.synced_at >= ${boundAt}::timestamptz
+        and d.date > g.data_through - 28
+        and d.date <= g.data_through
+      group by d.event_name, d.source_class
     `,
     sql`
       select average_lead_value::text as lead_value, close_rate::text as close_rate
@@ -372,7 +398,7 @@ export async function loadAnalyticsPanel(
   const dailyRows = daily as Row[]
 
   let last28: AnalyticsPanel['last28'] = null
-  if (dailyRows.length > 0) {
+  if (good) {
     const bySource = Object.fromEntries(SOURCE_CLASSES.map(c => [c, 0])) as Record<SourceClass, number>
     const byEvent = new Map<string, number>()
     let total = 0
@@ -398,10 +424,10 @@ export async function loadAnalyticsPanel(
           outcome: run.outcome as AnalyticsOutcome,
           dataThrough: (run.data_through as string | null) ?? null,
           ranAt: iso(run.ran_at),
-          dataWithheld: Boolean(run.data_withheld),
         }
       : null,
     lastGoodDataThrough: (good?.data_through as string | null) ?? null,
+    lastGoodDataWithheld: Boolean(good?.data_withheld),
     last28,
     owner: {
       leadValue: (owner?.lead_value as string | null) ?? null,

@@ -562,9 +562,25 @@ describe('loadAnalyticsPanel', () => {
   const seed = (account: string, client: string, date: string, event: string, cls: string, n: number, offset = 0) => sql`
     insert into analytics_daily (account_id, client_id, date, event_name, source_class, count, synced_at)
     values (${account}::uuid, ${client}::uuid, ${date}::date, ${event}, ${cls}, ${n}, now() + make_interval(secs => ${offset}))`
+  /**
+   * A run of the current binding, recorded through the store as the sync records
+   * it. An `ok` run's data_through is the window end the sync asked for, rows or not.
+   */
+  const recordRun = async (
+    { store, conn, binding }: Awaited<ReturnType<typeof bindWithEvents>>,
+    over: { outcome?: (typeof ANALYTICS_SYNC_OUTCOMES)[number]; dataThrough?: string | null; dataWithheld?: boolean } = {},
+  ) => store.recordAnalyticsRun({
+    accountId: A, clientId: A_CLIENT, connectionId: conn, propertyId: '111', streamId: '222',
+    eventsChosenAt: binding.eventsChosenAt, outcome: over.outcome ?? 'ok', rowsWritten: 0,
+    dataThrough: over.dataThrough === undefined ? '2026-09-20' : over.dataThrough,
+    dataWithheld: over.dataWithheld ?? false, clearBackfill: false,
+  })
+  const ZERO = { total: 0, bySource: { organic_search: 0, ai_assistant: 0, other: 0 }, byEvent: [] }
 
   it('counts chosen events under the current binding only, and never another account\'s rows', async () => {
-    const { store, binding } = await bindWithEvents(['generate_lead', 'sign_up'])
+    const bound = await bindWithEvents(['generate_lead', 'sign_up'])
+    const { store, binding } = bound
+    await recordRun(bound, { dataThrough: '2026-09-20' })
     await seed(A, A_CLIENT, '2026-09-20', 'generate_lead', 'organic_search', 10)
     await seed(A, A_CLIENT, '2026-09-20', 'generate_lead', 'ai_assistant', 4)
     await seed(A, A_CLIENT, '2026-09-19', 'sign_up', 'other', 1)
@@ -583,45 +599,88 @@ describe('loadAnalyticsPanel', () => {
     const cross = await store.loadAnalyticsPanel(B, A_CLIENT, binding.keyEvents, binding.boundAt)
     expect(cross.last28).toBeNull()
     expect(cross.latest).toBeNull()
+    expect(cross.lastGoodDataThrough).toBeNull()
     expect(cross.owner).toEqual({ leadValue: null, closeRate: null })
   })
 
-  it('shows nothing when the only rows are un-chosen or predate the binding', async () => {
-    const { store, binding } = await bindWithEvents(['generate_lead'])
-    await seed(A, A_CLIENT, '2026-09-20', 'purchase', 'other', 5)
-    await seed(A, A_CLIENT, '2026-09-20', 'generate_lead', 'other', 5, -3600)
-    expect((await store.loadAnalyticsPanel(A, A_CLIENT, binding.keyEvents, binding.boundAt)).last28).toBeNull()
+  it('shows nothing, not zeros, before any good run of this binding, whatever rows exist', async () => {
+    const bound = await bindWithEvents(['generate_lead'])
+    await seed(A, A_CLIENT, '2026-09-20', 'generate_lead', 'other', 5)
+    await recordRun(bound, { outcome: 'quota', dataThrough: null })
+    const panel = await bound.store.loadAnalyticsPanel(A, A_CLIENT, bound.binding.keyEvents, bound.binding.boundAt)
+    expect(panel.lastGoodDataThrough).toBeNull()
+    expect(panel.last28).toBeNull()
   })
 
-  it('makes the 28-day window exactly 28 days: the 28th day counts, the 29th does not', async () => {
-    const { store, binding } = await bindWithEvents(['generate_lead'])
-    // The window ends at the newest stored date (2026-09-20), inclusive, and runs
+  it('shows real zeros after a good run when the only rows are un-chosen or predate the binding', async () => {
+    const bound = await bindWithEvents(['generate_lead'])
+    await recordRun(bound, { dataThrough: '2026-09-20' })
+    await seed(A, A_CLIENT, '2026-09-20', 'purchase', 'other', 5)
+    await seed(A, A_CLIENT, '2026-09-20', 'generate_lead', 'other', 5, -3600)
+    const panel = await bound.store.loadAnalyticsPanel(A, A_CLIENT, bound.binding.keyEvents, bound.binding.boundAt)
+    expect(panel.last28).toEqual(ZERO)
+    expect(panel.lastGoodDataThrough).toBe('2026-09-20')
+  })
+
+  it('shows a good run that found no enquiries at all as 0, dated by its window end', async () => {
+    const bound = await bindWithEvents(['generate_lead'])
+    await recordRun(bound, { dataThrough: '2026-09-24' })
+    const panel = await bound.store.loadAnalyticsPanel(A, A_CLIENT, bound.binding.keyEvents, bound.binding.boundAt)
+    expect(panel.last28).toEqual(ZERO)
+    expect(panel.lastGoodDataThrough).toBe('2026-09-24')
+  })
+
+  it('makes the 28-day window exactly 28 days ending at the last good run: day 28 counts, day 29 and later do not', async () => {
+    const bound = await bindWithEvents(['generate_lead'])
+    // The last good run's window end is 2026-09-20, inclusive, and the window runs
     // back 28 days: 2026-09-20 is day 1, 2026-08-24 is day 28, 2026-08-23 is day 29.
+    await recordRun(bound, { dataThrough: '2026-09-20' })
     await seed(A, A_CLIENT, '2026-09-20', 'generate_lead', 'other', 1)
     await seed(A, A_CLIENT, '2026-08-24', 'generate_lead', 'other', 10)
     await seed(A, A_CLIENT, '2026-08-23', 'generate_lead', 'other', 100)
-    const panel = await store.loadAnalyticsPanel(A, A_CLIENT, binding.keyEvents, binding.boundAt)
+    // After the anchor: outside a window that ends at 2026-09-20.
+    await seed(A, A_CLIENT, '2026-09-21', 'generate_lead', 'other', 1000)
+    const panel = await bound.store.loadAnalyticsPanel(A, A_CLIENT, bound.binding.keyEvents, bound.binding.boundAt)
     expect(panel.last28?.total).toBe(11)
   })
 
-  it('anchors the window on the newest chosen row of this binding, not on other rows', async () => {
-    const { store, binding } = await bindWithEvents(['generate_lead'])
-    await seed(A, A_CLIENT, '2026-09-20', 'generate_lead', 'other', 1)
-    await seed(A, A_CLIENT, '2026-08-01', 'generate_lead', 'other', 50) // 50 days back: outside
-    await seed(A, A_CLIENT, '2026-12-31', 'purchase', 'other', 1) // newer, but not chosen
-    await seed(A, A_CLIENT, '2026-12-31', 'generate_lead', 'other', 1, -3600) // newer, but stale
-    expect((await store.loadAnalyticsPanel(A, A_CLIENT, binding.keyEvents, binding.boundAt)).last28?.total).toBe(1)
+  it('anchors the window on the last good run, not on the newest stored row: an enquiry 40 days back is 0', async () => {
+    const bound = await bindWithEvents(['generate_lead'])
+    // GA4 omitted every zero day since, so the newest row is 40 days old. The old
+    // rule anchored on it and summed those 28 days under a "last 28 days" label.
+    await seed(A, A_CLIENT, '2026-08-15', 'generate_lead', 'other', 5)
+    await recordRun(bound, { dataThrough: '2026-09-24' })
+    const panel = await bound.store.loadAnalyticsPanel(A, A_CLIENT, bound.binding.keyEvents, bound.binding.boundAt)
+    expect(panel.last28).toEqual(ZERO)
+    expect(panel.lastGoodDataThrough).toBe('2026-09-24')
   })
 
-  it('reads the ledger: the newest row, and the last good date only from this binding', async () => {
-    const { store, conn, binding } = await bindWithEvents(['generate_lead'])
-    // An ok run from before this binding: its data_through is about another stream.
+  it('anchors on this binding\'s newest ok run: a later failure, or an ok run from before the bind, never moves it', async () => {
+    const bound = await bindWithEvents(['generate_lead'])
+    await seed(A, A_CLIENT, '2026-09-20', 'generate_lead', 'other', 1)
+    await seed(A, A_CLIENT, '2026-08-01', 'generate_lead', 'other', 50) // 50 days before the anchor
+    // An ok run from a previous binding, dated far later: not this binding's anchor.
     await sql`
       insert into analytics_sync_runs (account_id, client_id, connection_id, property_id, stream_id, outcome, data_through, ran_at)
-      values (${A}::uuid, ${A_CLIENT}::uuid, ${conn}::uuid, '1', '2', 'ok', '2026-09-01', ${binding.boundAt}::timestamptz - interval '1 hour')`
+      values (${A}::uuid, ${A_CLIENT}::uuid, ${bound.conn}::uuid, '1', '2', 'ok', '2026-12-31', ${bound.binding.boundAt}::timestamptz - interval '1 hour')`
+    await recordRun(bound, { dataThrough: '2026-09-20' })
+    await recordRun(bound, { outcome: 'quota', dataThrough: null })
+    const panel = await bound.store.loadAnalyticsPanel(A, A_CLIENT, bound.binding.keyEvents, bound.binding.boundAt)
+    expect(panel.last28?.total).toBe(1)
+    expect(panel.lastGoodDataThrough).toBe('2026-09-20')
+  })
+
+  it('reads the ledger: the newest row, and the last good date and withheld flag only from this binding', async () => {
+    const { store, conn, binding } = await bindWithEvents(['generate_lead'])
+    // A withheld ok run from before this binding: its data_through and its
+    // withheld flag are about another stream.
+    await sql`
+      insert into analytics_sync_runs (account_id, client_id, connection_id, property_id, stream_id, outcome, data_through, data_withheld, ran_at)
+      values (${A}::uuid, ${A_CLIENT}::uuid, ${conn}::uuid, '1', '2', 'ok', '2026-09-01', true, ${binding.boundAt}::timestamptz - interval '1 hour')`
     let panel = await store.loadAnalyticsPanel(A, A_CLIENT, binding.keyEvents, binding.boundAt)
     expect(panel.latest?.outcome).toBe('ok') // still the newest row...
     expect(panel.lastGoodDataThrough).toBeNull() // ...but not a good date for this binding
+    expect(panel.lastGoodDataWithheld).toBe(false) // ...nor its withheld note
 
     await store.recordAnalyticsRun({
       accountId: A, clientId: A_CLIENT, connectionId: conn, propertyId: '111', streamId: '222',
@@ -634,8 +693,10 @@ describe('loadAnalyticsPanel', () => {
       dataWithheld: false, clearBackfill: false,
     })
     panel = await store.loadAnalyticsPanel(A, A_CLIENT, binding.keyEvents, binding.boundAt)
-    expect(panel.latest).toMatchObject({ outcome: 'quota', dataThrough: null, dataWithheld: false })
+    expect(panel.latest).toEqual({ outcome: 'quota', dataThrough: null, ranAt: expect.any(String) })
     expect(panel.lastGoodDataThrough).toBe('2026-09-20')
+    // The figures shown are the withheld ok run's, so its note stays after a quota run.
+    expect(panel.lastGoodDataWithheld).toBe(true)
   })
 
   it('round-trips the owner figures as text, and tells "not entered" from a stored zero', async () => {
