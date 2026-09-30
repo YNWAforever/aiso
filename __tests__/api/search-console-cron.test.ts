@@ -106,27 +106,50 @@ describe('GET /api/cron/search-console', () => {
     expect((await call()).status).toBe(200)
   })
 
-  // Beyond the plan: syncBinding only rejects when its own recordRun call fails
-  // (the ledger write itself is down — see sync.ts's doc comment), which is a
-  // database-down condition this route cannot paper over. That must surface as
-  // a loud 500, and the failure must never carry the rejection's message text
-  // into a log, because the Neon driver can echo the connection string
-  // (password included) into its own error messages.
-  it('is 500 when syncBinding itself rejects, and logs no message text', async () => {
-    loadDueBindings.mockResolvedValueOnce([{ clientId: 'a' }]).mockResolvedValue([])
+  // CHANGED when the runner was shared with the analytics cron. This used to pin
+  // "one rejection aborts the run with a 500", which starved every brand behind
+  // the failing one. syncBinding only rejects when its own recordRun call fails,
+  // so the cron now counts that brand as internal_error and carries on. The
+  // failure must still never carry the rejection's message text into a log,
+  // because the Neon driver can echo the connection string (password included)
+  // into its own error messages.
+  it('counts a rejecting syncBinding as internal_error, keeps going, and logs no message text', async () => {
+    loadDueBindings.mockResolvedValueOnce([{ clientId: 'a' }, { clientId: 'b' }]).mockResolvedValue([])
     const secretLookingMessage = 'connection failed: postgresql://user:hunter2@host/db'
-    syncBinding.mockRejectedValue(new Error(secretLookingMessage))
+    syncBinding.mockRejectedValueOnce(new TypeError(secretLookingMessage)).mockResolvedValueOnce('ok')
+
+    const res = await call()
+
+    expect(syncBinding).toHaveBeenCalledTimes(2)
+    expect(res.status).toBe(200)
+    expect((await res.json()).outcomes).toEqual({ internal_error: 1, ok: 1 })
+    expect(finishCronRun).toHaveBeenCalledTimes(1)
+    expect(finishCronRun).toHaveBeenCalledWith('run', 'ok', { outcomes: { internal_error: 1, ok: 1 } })
+
+    const loggedText = JSON.stringify(consoleErrors)
+    expect(loggedText).toContain('TypeError')
+    expect(loggedText).not.toContain(secretLookingMessage)
+    expect(loggedText).not.toContain('hunter2')
+  })
+
+  it('attempts a rejecting binding once per run, not once per batch, and answers 502', async () => {
+    loadDueBindings.mockResolvedValue([{ clientId: 'a' }])
+    syncBinding.mockRejectedValue(new Error('ledger down'))
+    const res = await call()
+    expect(syncBinding).toHaveBeenCalledTimes(1)
+    expect(res.status).toBe(502)
+    expect(finishCronRun).toHaveBeenCalledTimes(1)
+  })
+
+  it('is 500 and finishes the run as an error when loading the due bindings fails, logging no message text', async () => {
+    const secretLookingMessage = 'connection failed: postgresql://user:hunter2@host/db'
+    loadDueBindings.mockRejectedValue(new Error(secretLookingMessage))
 
     const res = await call()
 
     expect(res.status).toBe(500)
-    expect(finishCronRun).toHaveBeenCalledWith('run', 'error', expect.anything(), expect.any(String))
-    const [, , , loggedError] = finishCronRun.mock.calls[0]!
-    expect(loggedError).not.toContain(secretLookingMessage)
-    expect(loggedError).not.toContain('hunter2')
-
-    const loggedText = JSON.stringify(consoleErrors)
-    expect(loggedText).not.toContain(secretLookingMessage)
-    expect(loggedText).not.toContain('hunter2')
+    expect(finishCronRun).toHaveBeenCalledWith('run', 'error', expect.anything(), 'Error')
+    expect(JSON.stringify(consoleErrors)).not.toContain('hunter2')
+    expect(JSON.stringify(finishCronRun.mock.calls)).not.toContain('hunter2')
   })
 })
