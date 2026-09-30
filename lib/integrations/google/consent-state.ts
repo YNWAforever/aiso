@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { shareSigningSecret } from '@/lib/security/share-secret'
+import type { GoogleProduct } from '@/lib/integrations/google/scopes'
 
 /**
  * Ties a Google consent round-trip to the person who started it (spec §4.1).
@@ -18,14 +19,17 @@ export type ConsentState = {
   profileId: string
   accountId: string
   returnPath: string
+  /** Which product the owner is consenting to; the callback derives its required scopes from it. */
+  product: GoogleProduct
   exp: number
 }
 
-const DOMAIN = 'aiso-google-consent:v1'
+// v2: `product` joined the signed fields, so a v1 cookie must not verify.
+const DOMAIN = 'aiso-google-consent:v2'
 const SIGNATURE = /^[A-Za-z0-9_-]{43}$/
 
 function canonical(p: ConsentState): string {
-  return [DOMAIN, p.state, p.verifier, p.profileId, p.accountId, p.returnPath, p.exp].join(':')
+  return [DOMAIN, p.state, p.verifier, p.profileId, p.accountId, p.returnPath, p.product, p.exp].join(':')
 }
 
 function sign(p: ConsentState): string {
@@ -43,6 +47,7 @@ function isValid(value: unknown): value is ConsentState {
     && typeof v.profileId === 'string' && UUID.test(v.profileId)
     && typeof v.accountId === 'string' && UUID.test(v.accountId)
     && typeof v.returnPath === 'string' && RETURN_PATH.test(v.returnPath)
+    && (v.product === 'search_console' || v.product === 'analytics')
     && typeof v.exp === 'number' && Number.isSafeInteger(v.exp)
 }
 

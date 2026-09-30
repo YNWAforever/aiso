@@ -1360,6 +1360,8 @@
     "error_no_refresh_token": "Google 未授予持續存取權。請重新連結並批准存取。",
     "error_scope_missing": "未授予 Search Console 存取權。請重新連結並勾選 Search Console。",
     "error_unavailable": "未能完成連結，請再試一次。",
+    "error_analytics_not_granted": "未獲授予 Google Analytics 存取權。請再試一次並勾選 Google Analytics。",
+    "error_search_console_not_granted": "未獲授予 Search Console 存取權。請再試一次並保持勾選 Search Console。",
     "bind_error_ineligible": "此資源已不再適用於此品牌。請重新整理清單，選擇另一個。",
     "bind_error_google": "Google 暫時未能確認此資源，請稍後再試。",
     "bind_error_revoked": "此連結的 Google 存取權已被撤銷。請重新連結 Google 後再試。",

@@ -5,9 +5,8 @@ import { upsertConnection } from '@/lib/integrations/search-console/store'
 import { sealToken, VaultError } from '@/lib/integrations/google/vault'
 import { GOOGLE_CONSENT_COOKIE, verifyConsentState } from '@/lib/integrations/google/consent-state'
 import type { ConsentErrorReason as Reason } from '@/lib/integrations/google/consent-reasons'
-import {
-  GoogleApiError, SEARCH_CONSOLE_SCOPE, exchangeCode, googleOAuthConfig, type TokenGrant,
-} from '@/lib/integrations/google/oauth'
+import { GoogleApiError, exchangeCode, googleOAuthConfig, type TokenGrant } from '@/lib/integrations/google/oauth'
+import { ANALYTICS_SCOPE, SEARCH_CONSOLE_SCOPE, hasScope } from '@/lib/integrations/google/scopes'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,7 +67,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return back('unavailable')
   }
   if (!grant.refreshToken) return back('no_refresh_token')
-  if (!grant.scopes.includes(SEARCH_CONSOLE_SCOPE)) return back('scope_missing')
+  // What the grant must contain follows the product the owner started with.
+  if (consent.product === 'analytics') {
+    if (!hasScope(grant.scopes, ANALYTICS_SCOPE)) return back('analytics_not_granted')
+    if (!hasScope(grant.scopes, SEARCH_CONSOLE_SCOPE)) return back('search_console_not_granted')
+  } else if (!hasScope(grant.scopes, SEARCH_CONSOLE_SCOPE)) {
+    return back('scope_missing')
+  }
 
   try {
     await upsertConnection({

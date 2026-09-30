@@ -1,4 +1,6 @@
+import { createHmac } from 'node:crypto'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { shareSigningSecret } from '@/lib/security/share-secret'
 import { CONSENT_TTL_MS, signConsentState, verifyConsentState } from '@/lib/integrations/google/consent-state'
 
 const input = {
@@ -7,6 +9,7 @@ const input = {
   profileId: '11111111-1111-4111-8111-111111111111',
   accountId: '22222222-2222-4222-8222-222222222222',
   returnPath: '/en/dashboard/settings',
+  product: 'search_console' as const,
 }
 
 describe('consent state cookie', () => {
@@ -79,5 +82,45 @@ describe('consent state cookie', () => {
       verifier: 'B'.repeat(49),
     })).toString('base64url')
     expect(verifyConsentState(`${forged}.${sig}`)).toBeNull()
+  })
+})
+
+describe('consent state product', () => {
+  beforeEach(() => { process.env.REPORT_SHARE_SECRET = 'consent-state-test-secret-0123456789abcdef' })
+
+  const v1Token = (payload: Record<string, unknown> & { exp: number }) => {
+    const v1Canonical = [
+      'aiso-google-consent:v1', payload.state, payload.verifier, payload.profileId,
+      payload.accountId, payload.returnPath, payload.exp,
+    ].join(':')
+    const v1Signature = createHmac('sha256', shareSigningSecret()).update(v1Canonical).digest('base64url')
+    return `${Buffer.from(JSON.stringify(payload)).toString('base64url')}.${v1Signature}`
+  }
+
+  it('round-trips the analytics product', () => {
+    expect(verifyConsentState(signConsentState({ ...input, product: 'analytics' }))?.product).toBe('analytics')
+  })
+
+  it('refuses to sign a product other than the two known values', () => {
+    expect(() => signConsentState({ ...input, product: 'ads' as never })).toThrow()
+    expect(() => signConsentState({ ...input, product: undefined as never })).toThrow()
+  })
+
+  it('rejects a payload whose product was rewritten after signing', () => {
+    const [payload, sig] = signConsentState(input).split('.')
+    const forged = Buffer.from(JSON.stringify({
+      ...JSON.parse(Buffer.from(payload!, 'base64url').toString()),
+      product: 'analytics',
+    })).toString('base64url')
+    expect(verifyConsentState(`${forged}.${sig}`)).toBeNull()
+  })
+
+  it('does not verify a token signed under the v1 domain, even over a payload carrying a product', () => {
+    expect(verifyConsentState(v1Token({ ...input, exp: Date.now() + CONSENT_TTL_MS }))).toBeNull()
+  })
+
+  it('does not verify a genuine pre-change token that has no product at all', () => {
+    const { product: _product, ...legacy } = input
+    expect(verifyConsentState(v1Token({ ...legacy, exp: Date.now() + CONSENT_TTL_MS }))).toBeNull()
   })
 })

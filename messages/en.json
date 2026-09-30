@@ -1360,6 +1360,8 @@
     "error_no_refresh_token": "Google didn't grant ongoing access. Please connect again and approve access.",
     "error_scope_missing": "Search Console access wasn't granted. Please connect again and tick Search Console.",
     "error_unavailable": "Couldn't finish connecting. Please try again.",
+    "error_analytics_not_granted": "Google Analytics access was not granted. Please try again and tick Google Analytics.",
+    "error_search_console_not_granted": "Search Console access was not granted. Please try again and keep Search Console ticked.",
     "bind_error_ineligible": "This property is no longer eligible for this brand. Refresh the list and choose another.",
     "bind_error_google": "Google could not confirm this property right now. Try again shortly.",
     "bind_error_revoked": "Google access for this connection was revoked. Reconnect Google, then try again.",

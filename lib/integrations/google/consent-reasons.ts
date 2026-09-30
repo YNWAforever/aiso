@@ -5,6 +5,7 @@
  */
 export const CONSENT_ERROR_REASONS = [
   'consent_invalid', 'session_mismatch', 'denied', 'no_refresh_token', 'scope_missing', 'unavailable',
+  'analytics_not_granted', 'search_console_not_granted',
 ] as const
 export type ConsentErrorReason = (typeof CONSENT_ERROR_REASONS)[number]
 
