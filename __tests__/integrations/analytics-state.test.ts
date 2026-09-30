@@ -177,9 +177,32 @@ describe('stale ledger rows', () => {
       .toEqual({ kind: 'synced', dataThrough: '2026-09-18' })
   })
 
-  it('treats a domain_mismatch row as stale once the domain matches again', () => {
-    expect(deriveAnalyticsOwnerState({ ...base, latest: row('domain_mismatch'), lastGoodDataThrough: '2026-09-18' }))
-      .toEqual({ kind: 'synced', dataThrough: '2026-09-18' })
+  it('asks to rebind over a current domain_mismatch row even though the stored host still matches', () => {
+    // The sync records this when the LIVE stream was re-pointed at another site: the stored host is unchanged, so domainMatches is true.
+    expect(deriveAnalyticsOwnerState({ ...base, domainMatches: true, latest: row('domain_mismatch'), lastGoodDataThrough: '2026-09-18' }))
+      .toEqual({ kind: 'rebind', dataThrough: '2026-09-18' })
+  })
+
+  it('carries a null date on a current domain_mismatch row when nothing ever synced', () => {
+    expect(deriveAnalyticsOwnerState({ ...base, latest: row('domain_mismatch'), lastGoodDataThrough: null }))
+      .toEqual({ kind: 'rebind', dataThrough: null })
+  })
+
+  it('treats a domain_mismatch row recorded exactly at boundAt as current', () => {
+    expect(deriveAnalyticsOwnerState({ ...base, latest: row('domain_mismatch', BOUND_AT), lastGoodDataThrough: '2026-09-18' }))
+      .toEqual({ kind: 'rebind', dataThrough: '2026-09-18' })
+  })
+
+  it('a rebind clears a domain_mismatch row: one from before boundAt is stale and reads as synced', () => {
+    expect(deriveAnalyticsOwnerState({
+      ...base, boundAt: '2026-09-22T00:00:00.000Z', latest: row('domain_mismatch'), lastGoodDataThrough: '2026-09-18',
+    })).toEqual({ kind: 'synced', dataThrough: '2026-09-18' })
+  })
+
+  it('a stale domain_mismatch row with no good date reads as awaiting the first sync', () => {
+    expect(deriveAnalyticsOwnerState({
+      ...base, boundAt: '2026-09-22T00:00:00.000Z', latest: row('domain_mismatch'), lastGoodDataThrough: null,
+    })).toEqual({ kind: 'awaiting_first_sync' })
   })
 
   it('does not re-ask a reconnected owner to reconnect over a stale revoked row', () => {

@@ -47,17 +47,25 @@ export type AnalyticsStateInput = {
 
 /**
  * Outcomes whose current truth deriveAnalyticsOwnerState checks live, BEFORE it
- * reads the ledger (entitlement, connection status, domain). Once those checks
- * have passed, a row saying otherwise describes a past the owner has already
- * fixed. `deferred` joins them because it carries no information at all: the
- * run simply ran out of time. `scope_missing` is the same idea for the scope
- * check, but it is conditional and handled separately in `current`.
+ * reads the ledger (entitlement, connection status). Once those checks have
+ * passed, a row saying otherwise describes a past the owner has already fixed.
+ * `deferred` joins them because it carries no information at all: the run simply
+ * ran out of time. `scope_missing` is the same idea for the scope check, but it is
+ * conditional and handled separately in `current`.
+ *
+ * `domain_mismatch` is deliberately NOT here. The live domain check reads the
+ * STORED stream host, but the sync also records `domain_mismatch` when the LIVE
+ * stream was re-pointed at another site, which leaves the stored host untouched.
+ * Superseding that row would show `synced` forever. It stays until a rebind, which
+ * makes it older than `bound_at` and so stale (see `current`).
  */
-const SUPERSEDED_BY_LIVE_CHECK: ReadonlySet<AnalyticsOutcome> = new Set(['revoked', 'not_entitled', 'domain_mismatch', 'deferred'])
+const SUPERSEDED_BY_LIVE_CHECK: ReadonlySet<AnalyticsOutcome> = new Set(['revoked', 'not_entitled', 'deferred'])
 
-type LedgerProblem = Exclude<AnalyticsOutcome, 'ok' | 'revoked' | 'not_entitled' | 'domain_mismatch' | 'deferred' | 'scope_missing' | 'events_missing'>
+type LedgerProblem = Exclude<AnalyticsOutcome, 'ok' | 'revoked' | 'not_entitled' | 'deferred' | 'scope_missing' | 'events_missing'>
 
 const BY_OUTCOME: Record<LedgerProblem, ProblemKind> = {
+  // The live stream no longer covers the brand: the owner has to choose the stream again.
+  domain_mismatch: 'rebind',
   access_lost: 'access_lost',
   google_unavailable: 'retrying',
   quota: 'retrying',
