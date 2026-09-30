@@ -30,7 +30,7 @@ const due = (clientId: string) => ({ accountId: 'acct', clientId })
 
 beforeEach(() => {
   Object.assign(process.env, {
-    CRON_SECRET: 'cron-secret-0123456789', FEATURE_ANALYTICS: '1',
+    CRON_SECRET: 'cron-secret-0123456789', FEATURE_ANALYTICS: '1', FEATURE_SEARCH_CONSOLE: '1',
     GOOGLE_OAUTH_CLIENT_ID: 'c', GOOGLE_OAUTH_CLIENT_SECRET: 's',
     GOOGLE_TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
   })
@@ -55,6 +55,15 @@ describe('GET /api/cron/analytics', () => {
 
   it('skips cleanly with the flag off, never looking like an outage', async () => {
     delete process.env.FEATURE_ANALYTICS
+    const res = await call()
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ skipped: 'flag_off' })
+    expect(loadDueAnalyticsBindings).not.toHaveBeenCalled()
+    expect(startCronRun).not.toHaveBeenCalled()
+  })
+
+  it('skips as flag_off with FEATURE_ANALYTICS on but FEATURE_SEARCH_CONSOLE off', async () => {
+    delete process.env.FEATURE_SEARCH_CONSOLE
     const res = await call()
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ skipped: 'flag_off' })

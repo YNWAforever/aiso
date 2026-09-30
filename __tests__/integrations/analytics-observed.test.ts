@@ -25,12 +25,14 @@ describe('loadObservedPanel', () => {
 
   beforeEach(() => {
     process.env.FEATURE_ANALYTICS = '1'
+    process.env.FEATURE_SEARCH_CONSOLE = '1'
     m.loadAnalyticsBinding.mockReset().mockResolvedValue(binding)
     m.loadAnalyticsPanel.mockReset().mockResolvedValue(synced)
     errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
   })
   afterEach(() => {
     delete process.env.FEATURE_ANALYTICS
+    delete process.env.FEATURE_SEARCH_CONSOLE
     vi.restoreAllMocks()
   })
 
@@ -42,6 +44,12 @@ describe('loadObservedPanel', () => {
 
   it('touches nothing when the flag is off', async () => {
     delete process.env.FEATURE_ANALYTICS
+    expect(await load()).toBeNull()
+    expect(m.loadAnalyticsBinding).not.toHaveBeenCalled()
+  })
+
+  it('touches nothing with the analytics flag on but the Search Console flag off', async () => {
+    delete process.env.FEATURE_SEARCH_CONSOLE
     expect(await load()).toBeNull()
     expect(m.loadAnalyticsBinding).not.toHaveBeenCalled()
   })

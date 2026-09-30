@@ -6,7 +6,7 @@ import { buildAssetConvergence, siteFindingsFromEvidence } from '@/lib/view-mode
 import { buildMergeSuggestions } from '@/lib/assets/merge-suggestions'
 import { loadSuggestionSources, toRegisteredPages } from '@/lib/assets/suggestion-inputs'
 import { AssetConvergenceView } from '@/components/dashboard/AssetConvergenceView'
-import { isFeatureEnabled } from '@/lib/flags'
+import { isAnalyticsEnabled, isFeatureEnabled } from '@/lib/flags'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { SearchConsolePanel } from '@/components/integrations/SearchConsolePanel'
 import { AnalyticsPanel } from '@/components/integrations/AnalyticsPanel'
@@ -52,8 +52,9 @@ export default async function AssetsPage({
   const entitlement = resolveCommercialEntitlement(profile.accounts)
   const searchConsole = isFeatureEnabled('search_console') && entitlement.features.search_console
   // The same gate the analytics routes apply (lib/integrations/analytics/guard.ts):
-  // dark behind FEATURE_ANALYTICS, and only on a plan that grants it.
-  const analytics = isFeatureEnabled('analytics') && entitlement.features.analytics
+  // dark unless FEATURE_ANALYTICS and FEATURE_SEARCH_CONSOLE are both on, and only
+  // on a plan that grants it.
+  const analytics = isAnalyticsEnabled() && entitlement.features.analytics
 
   return (
     <>

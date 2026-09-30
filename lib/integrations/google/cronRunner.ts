@@ -1,5 +1,4 @@
 import { appOrigin } from '@/lib/app-origin'
-import { isFeatureEnabled, type FeatureFlag } from '@/lib/flags'
 import { startCronRun, finishCronRun } from '@/lib/cron/recordRun'
 import { assertVaultConfigured, VaultError } from './vault'
 import { googleOAuthConfig, type GoogleOAuthConfig } from './oauth'
@@ -8,6 +7,7 @@ import { googleOAuthConfig, type GoogleOAuthConfig } from './oauth'
  * The daily Google sync cron, shared by Search Console and Analytics: the guards,
  * the batch loop and its time limits, the 502 rule and the ledger row. Each route
  * supplies only what differs: which flag, which bindings, and how one is synced.
+ *
  * A 2xx means every attempted brand's ledger row was written. A sync rejects only
  * when that write itself failed, so such a brand is counted `ledger_write_failed`
  * and the loop carries on (one brand's failure must not starve the brands behind
@@ -15,7 +15,6 @@ import { googleOAuthConfig, type GoogleOAuthConfig } from './oauth'
  * recorded as an error. `ledger_write_failed` is a counter in this response and
  * in cron_runs' detail only: it is in neither ledger's outcome vocabulary, and no
  * row anywhere carries it.
- *
  *
  * Two limits inside vercel.json's 60 s maxDuration. No new binding is started
  * after START_CUTOFF_MS; a binding already running stops starting Google calls at
@@ -26,9 +25,9 @@ import { googleOAuthConfig, type GoogleOAuthConfig } from './oauth'
 export const START_CUTOFF_MS = 40_000
 export const SYNC_DEADLINE_MS = 45_000
 const BATCH = 10
+
 /** The response counter for a brand whose sync rejected: its ledger row was never written. */
 export const LEDGER_WRITE_FAILED = 'ledger_write_failed'
-
 
 /**
  * Read the secret, or null when it is missing or too short to be one.
@@ -51,7 +50,8 @@ const errorName = (error: unknown) => (error instanceof Error ? error.name : typ
 export type GoogleCronSpec<B extends { accountId: string; clientId: string }, O extends string> = {
   /** The route's path, e.g. `/api/cron/analytics`: the ledger key, and (minus `/api/`) the log tag. */
   route: string
-  flag: FeatureFlag
+  /** The product's feature gate; off answers 200 `{ skipped: 'flag_off' }`. */
+  enabled(): boolean
   /** Account-blind by design: the cron has no session. */
   loadDue(limit: number): Promise<B[]>
   sync(binding: B, cfg: GoogleOAuthConfig, deadline: number): Promise<O>
@@ -76,7 +76,7 @@ export async function runGoogleCron<B extends { accountId: string; clientId: str
   if (req.headers.get('authorization') !== `Bearer ${secret}`) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  if (!isFeatureEnabled(spec.flag)) return Response.json({ skipped: 'flag_off' })
+  if (!spec.enabled()) return Response.json({ skipped: 'flag_off' })
 
   try {
     assertVaultConfigured()

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getProfile } from '@/lib/auth'
-import { isFeatureEnabled } from '@/lib/flags'
+import { isAnalyticsEnabled } from '@/lib/flags'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { loadOwnedClient } from './store'
 import type { ProfileWithAccount } from '@/lib/types'
@@ -27,7 +27,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export async function authorizeAnalytics(
   clientId: string,
 ): Promise<{ ok: true; profile: ProfileWithAccount; client: { id: string; domain: string | null } } | Denied> {
-  if (!isFeatureEnabled('analytics')) return deny(404, 'Not found')
+  // Both flags: analytics rides the Search Console connection (lib/flags.ts).
+  if (!isAnalyticsEnabled()) return deny(404, 'Not found')
   // Deliberately not wrapped: a session-store outage must surface as a 500, not a 401.
   const profile = await getProfile()
   if (!profile) return deny(401, 'Unauthorized')

@@ -1,5 +1,5 @@
 import 'server-only'
-import { isFeatureEnabled } from '@/lib/flags'
+import { isAnalyticsEnabled } from '@/lib/flags'
 import { resolveCommercialEntitlement, type CommercialAccount } from '@/lib/tier'
 import { loadAnalyticsBinding, loadAnalyticsPanel, type AnalyticsPanel } from './store'
 
@@ -21,7 +21,7 @@ export async function loadObservedPanel(
   profile: { account_id: string; accounts: CommercialAccount },
   clientId: string,
 ): Promise<AnalyticsPanel | null> {
-  if (!isFeatureEnabled('analytics')) return null
+  if (!isAnalyticsEnabled()) return null
   if (!resolveCommercialEntitlement(profile.accounts).features.analytics) return null
   try {
     const binding = await loadAnalyticsBinding(profile.account_id, clientId)

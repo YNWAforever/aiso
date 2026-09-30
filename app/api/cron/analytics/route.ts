@@ -1,3 +1,4 @@
+import { isAnalyticsEnabled } from '@/lib/flags'
 import { openToken } from '@/lib/integrations/google/vault'
 import { refreshAccessToken } from '@/lib/integrations/google/oauth'
 import { runGoogleCron } from '@/lib/integrations/google/cronRunner'
@@ -18,7 +19,8 @@ const SKIPS: ReadonlySet<AnalyticsOutcome> = new Set([
 export async function GET(req: Request) {
   return runGoogleCron(req, {
     route: '/api/cron/analytics',
-    flag: 'analytics',
+    // Both flags: analytics rides the Search Console connection (lib/flags.ts).
+    enabled: isAnalyticsEnabled,
     loadDue: store.loadDueAnalyticsBindings,
     skips: SKIPS,
     sync: (binding, cfg, deadline) => syncAnalyticsBinding(binding, {

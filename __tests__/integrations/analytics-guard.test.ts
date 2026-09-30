@@ -19,6 +19,7 @@ describe('authorizeAnalytics', () => {
 
   beforeEach(() => {
     process.env.FEATURE_ANALYTICS = '1'
+    process.env.FEATURE_SEARCH_CONSOLE = '1'
     getProfile.mockReset()
     loadOwnedClient.mockReset()
     // The 503 path logs by design; keep it out of the run's stderr but still assertable.
@@ -26,6 +27,8 @@ describe('authorizeAnalytics', () => {
   })
 
   afterEach(() => {
+    delete process.env.FEATURE_ANALYTICS
+    delete process.env.FEATURE_SEARCH_CONSOLE
     vi.restoreAllMocks()
   })
 
@@ -37,12 +40,15 @@ describe('authorizeAnalytics', () => {
 
   it('is not opened by the Search Console flag alone', async () => {
     delete process.env.FEATURE_ANALYTICS
-    process.env.FEATURE_SEARCH_CONSOLE = '1'
-    try {
-      expect(await status()).toBe(404)
-    } finally {
-      delete process.env.FEATURE_SEARCH_CONSOLE
-    }
+    expect(await status()).toBe(404)
+  })
+
+  it('is not opened by the analytics flag alone either: it rides the Search Console connection', async () => {
+    delete process.env.FEATURE_SEARCH_CONSOLE
+    getProfile.mockResolvedValue(pro)
+    loadOwnedClient.mockResolvedValue({ id: CLIENT_ID, domain: 'example.com' })
+    expect(await status()).toBe(404)
+    expect(getProfile).not.toHaveBeenCalled()
   })
 
   it('is 401 when signed out', async () => {

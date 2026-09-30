@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { isFeatureEnabled } from '@/lib/flags'
+import { isAnalyticsEnabled, isFeatureEnabled } from '@/lib/flags'
 
 describe('isFeatureEnabled', () => {
   const envKey = 'FEATURE_DONOR_UI_SHELL'
@@ -59,5 +59,37 @@ describe('analytics flag', () => {
     expect(isFeatureEnabled('analytics')).toBe(false)
     process.env.FEATURE_ANALYTICS = '1'
     expect(isFeatureEnabled('analytics')).toBe(true)
+  })
+})
+
+// Analytics rides the Google connection Search Console owns: its consent, callback
+// and connection routes are gated on FEATURE_SEARCH_CONSOLE, and Settings hides the
+// Google panel without it. So analytics counts as on only when both flags are.
+describe('isAnalyticsEnabled', () => {
+  afterEach(() => {
+    delete process.env.FEATURE_ANALYTICS
+    delete process.env.FEATURE_SEARCH_CONSOLE
+  })
+
+  it('is off by default', () => {
+    expect(isAnalyticsEnabled()).toBe(false)
+  })
+
+  it('is off with only FEATURE_ANALYTICS on', () => {
+    process.env.FEATURE_ANALYTICS = '1'
+    expect(isAnalyticsEnabled()).toBe(false)
+  })
+
+  it('is off with only FEATURE_SEARCH_CONSOLE on', () => {
+    process.env.FEATURE_SEARCH_CONSOLE = '1'
+    expect(isAnalyticsEnabled()).toBe(false)
+  })
+
+  it('is on only when both are exactly 1', () => {
+    process.env.FEATURE_ANALYTICS = '1'
+    process.env.FEATURE_SEARCH_CONSOLE = 'true'
+    expect(isAnalyticsEnabled()).toBe(false)
+    process.env.FEATURE_SEARCH_CONSOLE = '1'
+    expect(isAnalyticsEnabled()).toBe(true)
   })
 })

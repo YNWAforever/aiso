@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from '@/lib/flags'
 import { openToken } from '@/lib/integrations/google/vault'
 import { refreshAccessToken } from '@/lib/integrations/google/oauth'
 import { runGoogleCron } from '@/lib/integrations/google/cronRunner'
@@ -13,7 +14,7 @@ const SKIPS: ReadonlySet<SyncOutcome> = new Set(['not_entitled', 'domain_mismatc
 export async function GET(req: Request) {
   return runGoogleCron(req, {
     route: '/api/cron/search-console',
-    flag: 'search_console',
+    enabled: () => isFeatureEnabled('search_console'),
     loadDue: store.loadDueBindings,
     skips: SKIPS,
     sync: (binding, cfg, deadline) => syncBinding(binding, {
