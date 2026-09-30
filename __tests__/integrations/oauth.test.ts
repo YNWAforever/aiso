@@ -27,7 +27,7 @@ describe('consent URL', () => {
   it('uses S256 PKCE and asks for offline, forced-consent access', () => {
     const { verifier, challenge } = pkcePair()
     expect(verifier.length).toBeGreaterThanOrEqual(43)
-    const url = new URL(buildConsentUrl(cfg, { state: 's'.repeat(43), challenge }))
+    const url = new URL(buildConsentUrl(cfg, { state: 's'.repeat(43), challenge, scopes: [SEARCH_CONSOLE_SCOPE] }))
     expect(url.origin + url.pathname).toBe('https://accounts.google.com/o/oauth2/v2/auth')
     expect(url.searchParams.get('code_challenge')).toBe(challenge)
     expect(url.searchParams.get('code_challenge_method')).toBe('S256')
@@ -39,7 +39,7 @@ describe('consent URL', () => {
   it('code_challenge equals base64url(sha256(verifier)) and carries the required params', () => {
     const { verifier, challenge } = pkcePair()
     expect(challenge).toBe(createHash('sha256').update(verifier).digest('base64url'))
-    const url = new URL(buildConsentUrl(cfg, { state: 'state-value', challenge }))
+    const url = new URL(buildConsentUrl(cfg, { state: 'state-value', challenge, scopes: [SEARCH_CONSOLE_SCOPE] }))
     expect(url.searchParams.get('client_id')).toBe(cfg.clientId)
     expect(url.searchParams.get('redirect_uri')).toBe(cfg.redirectUri)
     expect(url.searchParams.get('state')).toBe('state-value')

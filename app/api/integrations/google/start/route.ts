@@ -6,6 +6,7 @@ import {
   CONSENT_TTL_MS, GOOGLE_CONSENT_COOKIE, RETURN_PATH, signConsentState,
 } from '@/lib/integrations/google/consent-state'
 import { buildConsentUrl, googleOAuthConfig, pkcePair, randomState } from '@/lib/integrations/google/oauth'
+import { scopesFor } from '@/lib/integrations/google/scopes'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const { verifier, challenge } = pkcePair()
   const state = randomState()
 
-  const res = NextResponse.redirect(buildConsentUrl(cfg, { state, challenge }), 302)
+  const res = NextResponse.redirect(buildConsentUrl(cfg, { state, challenge, scopes: scopesFor('search_console') }), 302)
   res.cookies.set(GOOGLE_CONSENT_COOKIE, signConsentState({
     state, verifier, profileId: access.profile.id, accountId: access.profile.account_id, returnPath,
   }), {
