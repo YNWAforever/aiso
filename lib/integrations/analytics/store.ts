@@ -16,6 +16,8 @@ import type { AnalyticsOutcome } from './state'
 
 export type AnalyticsBinding = {
   connectionId: string
+  /** The connection's live status. bindStream allows a non-active connection, so the owner state needs it. */
+  connectionStatus: 'active' | 'needs_reconnect' | 'revoked'
   propertyId: string
   streamId: string
   streamHost: string
@@ -55,6 +57,7 @@ const iso = (value: unknown): string => (value instanceof Date ? value.toISOStri
 function toBinding(r: Row): AnalyticsBinding {
   return {
     connectionId: String(r.connection_id),
+    connectionStatus: r.connection_status as AnalyticsBinding['connectionStatus'],
     propertyId: String(r.property_id),
     streamId: String(r.stream_id),
     streamHost: String(r.stream_host),
@@ -140,9 +143,10 @@ export async function unbindStream(accountId: string, clientId: string): Promise
 export async function loadAnalyticsBinding(accountId: string, clientId: string): Promise<AnalyticsBinding | null> {
   const sql = db()
   const rows = await sql`
-    select b.connection_id, b.property_id, b.stream_id, b.stream_host, b.key_events,
-           b.events_chosen_at, b.bound_at, b.backfill_pending
+    select b.connection_id, g.status as connection_status, b.property_id, b.stream_id, b.stream_host,
+           b.key_events, b.events_chosen_at, b.bound_at, b.backfill_pending
     from analytics_bindings b
+    join google_connections g on g.id = b.connection_id and g.account_id = b.account_id
     where b.account_id = ${accountId} and b.client_id = ${clientId}
     limit 1
   `
@@ -174,8 +178,8 @@ export async function loadAnalyticsBinding(accountId: string, clientId: string):
 export async function loadDueAnalyticsBindings(limit: number): Promise<DueAnalyticsBinding[]> {
   const sql = db()
   const rows = await sql`
-    select b.account_id, b.client_id, b.connection_id, b.property_id, b.stream_id, b.stream_host,
-           b.key_events, b.events_chosen_at, b.bound_at, b.backfill_pending,
+    select b.account_id, b.client_id, b.connection_id, g.status as connection_status,
+           b.property_id, b.stream_id, b.stream_host, b.key_events, b.events_chosen_at, b.bound_at, b.backfill_pending,
            c.domain as current_domain,
            jsonb_build_object(
              'plan', a.plan, 'status', a.status, 'stripe_subscription_id', a.stripe_subscription_id,
@@ -210,9 +214,9 @@ export async function loadDueAnalyticsBindings(limit: number): Promise<DueAnalyt
  * keep its old count forever — pulse_metrics' class of bug. It runs even with no
  * counts, because an empty window is exactly the case where stale rows must go.
  *
- * Rows sharing (date, event, class) are summed rather than inserted twice: the
- * unique key would otherwise reject the whole window over one duplicate. The
- * returned number is rows inserted after that merge.
+ * Rows are inserted as given, not merged: the caller aggregates (one row per date,
+ * event and class), and a duplicate from a wrong caller must fail loudly on
+ * analytics_daily_unique rather than be summed into an inflated count.
  */
 export async function replaceDailyWindow(
   accountId: string,
@@ -229,12 +233,11 @@ export async function replaceDailyWindow(
     `,
     sql`
       insert into analytics_daily (account_id, client_id, date, event_name, source_class, count)
-      select ${accountId}::uuid, ${clientId}::uuid, d::date, e, s, sum(n)::bigint
+      select ${accountId}::uuid, ${clientId}::uuid, d::date, e, s, n
       from unnest(
         ${counts.map(c => c.date)}::text[], ${counts.map(c => c.eventName)}::text[],
         ${counts.map(c => c.sourceClass)}::text[], ${counts.map(c => c.count)}::bigint[]
       ) as t(d, e, s, n)
-      group by d, e, s
       returning 1
     `,
   ])
@@ -245,7 +248,10 @@ export async function replaceDailyWindow(
  * The ledger is append-only. The plain identity columns record which binding this
  * run synced; the backfill flag is cleared only where the binding still is that
  * connection, property and stream, so a rebind that happened mid-sync keeps its
- * own pending backfill.
+ * own pending backfill. The same holds for a re-pick of the events mid-sync: the
+ * flag clears only where events_chosen_at is still the value this run synced, so a
+ * finishing run cannot clear the backfill the new events still need. events_chosen_at
+ * is microsecond-precision and the ISO string is millisecond, hence date_trunc.
  */
 export async function recordAnalyticsRun(input: {
   accountId: string
@@ -253,6 +259,8 @@ export async function recordAnalyticsRun(input: {
   connectionId: string
   propertyId: string
   streamId: string
+  /** The binding's events_chosen_at (ISO) this run synced. A later re-pick must keep its own pending backfill. */
+  eventsChosenAt: string
   outcome: AnalyticsOutcome
   rowsWritten: number
   dataThrough: string | null
@@ -271,7 +279,9 @@ export async function recordAnalyticsRun(input: {
       update analytics_bindings set backfill_pending = false
       where account_id = ${input.accountId} and client_id = ${input.clientId}
         and connection_id = ${input.connectionId} and property_id = ${input.propertyId}
-        and stream_id = ${input.streamId} and ${input.clearBackfill}::boolean
+        and stream_id = ${input.streamId}
+        and date_trunc('milliseconds', events_chosen_at) = ${input.eventsChosenAt}::timestamptz
+        and ${input.clearBackfill}::boolean
     `,
   ])
 }

@@ -109,16 +109,22 @@ describe('updateKeyEvents and unbindStream', () => {
 describe('loadAnalyticsBinding', () => {
   it('is account-scoped and returns ISO timestamps', async () => {
     m.sql.mockReturnValueOnce([{
-      connection_id: CONNECTION, property_id: '123', stream_id: '456', stream_host: 'example.com',
+      connection_id: CONNECTION, connection_status: 'needs_reconnect', property_id: '123', stream_id: '456',
+      stream_host: 'example.com',
       key_events: ['generate_lead'], events_chosen_at: new Date('2026-09-01T00:00:00.000Z'),
       bound_at: new Date('2026-08-01T00:00:00.000Z'), backfill_pending: true,
     }])
     expect(await loadAnalyticsBinding(ACCOUNT, CLIENT)).toEqual({
-      connectionId: CONNECTION, propertyId: '123', streamId: '456', streamHost: 'example.com',
+      connectionId: CONNECTION, connectionStatus: 'needs_reconnect', propertyId: '123', streamId: '456', streamHost: 'example.com',
       keyEvents: ['generate_lead'], eventsChosenAt: '2026-09-01T00:00:00.000Z',
       boundAt: '2026-08-01T00:00:00.000Z', backfillPending: true,
     })
-    expect(statements()[0]).toContain('b.account_id = ?')
+    const text = statements()[0]!
+    expect(text).toContain('b.account_id = ?')
+    // The live status comes from the connection of the SAME account, columns named, never *.
+    expect(text).toContain('join google_connections g on g.id = b.connection_id and g.account_id = b.account_id')
+    expect(text).toContain('g.status as connection_status')
+    expect(text).not.toMatch(/select\s+(b|g)?\.?\*/i)
   })
 
   it('returns null when there is no binding', async () => {
@@ -128,8 +134,8 @@ describe('loadAnalyticsBinding', () => {
 
 describe('loadDueAnalyticsBindings (the declared cross-account read)', () => {
   const row = {
-    account_id: ACCOUNT, client_id: CLIENT, connection_id: CONNECTION, property_id: '123', stream_id: '456',
-    stream_host: 'example.com', key_events: ['generate_lead'],
+    account_id: ACCOUNT, client_id: CLIENT, connection_id: CONNECTION, connection_status: 'active',
+    property_id: '123', stream_id: '456', stream_host: 'example.com', key_events: ['generate_lead'],
     events_chosen_at: new Date('2026-09-01T00:00:00.000Z'), bound_at: new Date('2026-08-01T00:00:00.000Z'),
     backfill_pending: false, current_domain: 'example.com', account: { plan: 'pro', status: 'active' },
   }
@@ -142,13 +148,15 @@ describe('loadDueAnalyticsBindings (the declared cross-account read)', () => {
     expect(text).toContain('c.account_id = b.account_id')
     expect(text).toContain('a.id = b.account_id')
     expect(text).toContain("g.status = 'active'")
+    expect(text).toContain('g.status as connection_status')
     expect(text).toContain('from analytics_sync_runs r')
     expect(text).toContain('r.account_id = b.account_id')
     expect(text).toContain('order by last_run.ran_at asc nulls first')
     expect(text).not.toMatch(/returning \*/i)
     expect(valuesOf(0)).toEqual([7])
     expect(due).toEqual([{
-      accountId: ACCOUNT, clientId: CLIENT, connectionId: CONNECTION, propertyId: '123', streamId: '456',
+      accountId: ACCOUNT, clientId: CLIENT, connectionId: CONNECTION, connectionStatus: 'active',
+      propertyId: '123', streamId: '456',
       streamHost: 'example.com', keyEvents: ['generate_lead'], eventsChosenAt: '2026-09-01T00:00:00.000Z',
       boundAt: '2026-08-01T00:00:00.000Z', backfillPending: false, currentDomain: 'example.com',
       account: { plan: 'pro', status: 'active' },
@@ -181,6 +189,9 @@ describe('replaceDailyWindow', () => {
     expect(insert).toContain('unnest(')
     expect(insert).toContain('::bigint[]')
     expect(insert).not.toMatch(/returning \*/i)
+    // No merge: a duplicate from a wrong caller must hit analytics_daily_unique, not be summed.
+    expect(insert).not.toMatch(/group by|sum\(/i)
+    expect(insert).toContain('d::date, e, s, n from unnest(')
     // The values reach the driver as parallel arrays, not as string-built SQL.
     expect(valuesOf(1)).toEqual(expect.arrayContaining([['2026-09-01', '2026-09-02'], ['generate_lead', 'generate_lead'], [3, 1]]))
   })
@@ -196,7 +207,7 @@ describe('replaceDailyWindow', () => {
 describe('recordAnalyticsRun', () => {
   const input = {
     accountId: ACCOUNT, clientId: CLIENT, connectionId: CONNECTION, propertyId: '123', streamId: '456',
-    outcome: 'ok' as const, rowsWritten: 5, dataThrough: '2026-09-07', dataWithheld: true, clearBackfill: true,
+    eventsChosenAt: '2026-09-01T00:00:00.000Z', outcome: 'ok' as const, rowsWritten: 5, dataThrough: '2026-09-07', dataWithheld: true, clearBackfill: true,
   }
 
   it('appends the ledger row and clears the backfill in one transaction', async () => {
@@ -216,6 +227,15 @@ describe('recordAnalyticsRun', () => {
     const clear = statements()[1]!
     for (const column of ['connection_id', 'property_id', 'stream_id']) expect(clear).toContain(`${column} = ?`)
     expect(clear).toContain('?::boolean')
+  })
+
+  it('clears backfill only where events_chosen_at is still the value the run synced', async () => {
+    await recordAnalyticsRun(input)
+    const clear = statements()[1]!
+    expect(clear).toContain("date_trunc('milliseconds', events_chosen_at) = ?::timestamptz")
+    expect(valuesOf(1)).toContain('2026-09-01T00:00:00.000Z')
+    // A re-pick mid-sync must keep its own pending backfill: nothing inserted in the ledger depends on it.
+    expect(statements()[0]).not.toContain('events_chosen_at')
     expect(valuesOf(1)).toContain(true)
   })
 
@@ -342,7 +362,7 @@ describe('every statement is account-scoped and none returns *', () => {
     await replaceDailyWindow(ACCOUNT, CLIENT, { startDate: '2026-09-01', endDate: '2026-09-02' }, [])
     await recordAnalyticsRun({
       accountId: ACCOUNT, clientId: CLIENT, connectionId: CONNECTION, propertyId: '1', streamId: '2',
-      outcome: 'deferred', rowsWritten: 0, dataThrough: null, dataWithheld: false, clearBackfill: false,
+      eventsChosenAt: '2026-09-01T00:00:00.000Z', outcome: 'deferred', rowsWritten: 0, dataThrough: null, dataWithheld: false, clearBackfill: false,
     })
     await loadAnalyticsPanel(ACCOUNT, CLIENT, ['e'], '2026-08-01T00:00:00.000Z')
     const all = statements()
