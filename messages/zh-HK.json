@@ -1633,6 +1633,7 @@
     "no_properties": "你的 Google 帳戶中找不到任何 Google Analytics 資源。",
     "properties_load_failed": "無法載入 Google Analytics 資源。請再試一次。",
     "retry": "再試一次",
+    "refresh_choices": "重新整理",
     "connection_error": "{email}：{message}",
     "error_revoked": "此帳戶的 Google 存取權已被撤銷。請在設定中重新連接。",
     "error_scope_missing": "此 Google 帳戶尚未授予 Google Analytics 存取權。",

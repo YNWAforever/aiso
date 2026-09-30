@@ -1633,6 +1633,7 @@
     "no_properties": "No Google Analytics properties were found for your Google logins.",
     "properties_load_failed": "Could not load Google Analytics properties. Try again.",
     "retry": "Try again",
+    "refresh_choices": "Refresh",
     "connection_error": "{email}: {message}",
     "error_revoked": "Google access for this login was revoked. Reconnect it in Settings.",
     "error_scope_missing": "This Google login has not granted Google Analytics access yet.",

@@ -16,6 +16,10 @@ import {
   classifyAnalyticsError,
   grantAnalyticsHref,
   offeredStreams,
+  SaveErrorNotice,
+  controlsDisabled,
+  isStaleChoiceError,
+  refreshedPick,
   shouldReportWriteError,
   showsObservedFigures,
   type PickerStream,
@@ -417,6 +421,101 @@ describe.each(LANGS)('WriteErrorNotice (%s)', lang => {
     const markup = decode(renderToStaticMarkup(<WriteErrorNotice copyKey="ineligible_not_key_event" lang={lang} />))
     expect(markup).toContain('role="alert"')
     expect(markup).toContain(copyOf(lang).ineligible_not_key_event)
+  })
+})
+
+// The route answers 422 INELIGIBLE not_visible / not_key_event when the stream or
+// an event changed in GA4 since the picker loaded; the copy says "Refresh and
+// choose again", so the notice has to offer exactly that.
+describe('isStaleChoiceError', () => {
+  it('is true only for the two refusals that a fresh picker can fix', () => {
+    expect(isStaleChoiceError('ineligible_not_visible')).toBe(true)
+    expect(isStaleChoiceError('ineligible_not_key_event')).toBe(true)
+    for (const key of ['ineligible_other_domain', 'error_generic', 'error_retry', 'error_revoked'] as const) {
+      expect(isStaleChoiceError(key)).toBe(false)
+    }
+  })
+})
+
+describe.each(LANGS)('SaveErrorNotice (%s)', lang => {
+  const copy = copyOf(lang)
+  const render = (copyKey: Parameters<typeof SaveErrorNotice>[0]['copyKey'], disabled = false) =>
+    decode(renderToStaticMarkup(<SaveErrorNotice copyKey={copyKey} lang={lang} onRefresh={() => {}} disabled={disabled} />))
+
+  it.each(['ineligible_not_visible', 'ineligible_not_key_event'] as const)('offers a refresh control after %s', key => {
+    const markup = render(key)
+    expect(markup).toContain('role="alert"')
+    expect(markup).toContain(copy[key])
+    expect(markup).toMatch(/<button[^>]*type="button"/)
+    expect(markup).toContain(copy.refresh_choices)
+    expect(markup).toContain('min-h-11')
+  })
+
+  it('disables the refresh control while something is in flight', () => {
+    expect(render('ineligible_not_visible', true)).toMatch(/<button[^>]*disabled=""/)
+  })
+
+  it('offers no refresh for any other failure, which a fresh picker would not fix', () => {
+    const markup = render('error_generic')
+    expect(markup).toContain(copy.error_generic)
+    expect(markup).not.toContain('<button')
+  })
+})
+
+it('names the refresh control differently in each language', () => {
+  expect(zhHK.analytics.refresh_choices).not.toBe(en.analytics.refresh_choices)
+  expect(en.analytics.refresh_choices).not.toMatch(/'/)
+})
+
+describe('refreshedPick', () => {
+  const selection = { connectionId: CONNECTION, propertyId: '42' }
+  const load = (keyEvents: string[], streams: PickerStream[] = [webStream]) =>
+    ({ ok: true as const, picker: { streams, keyEvents } })
+
+  it('keeps the selection and the chosen events that are still key events, dropping the rest', () => {
+    const prev = { selection, load: load(['a', 'b']), streamId: '111', events: ['a', 'b'] }
+    expect(refreshedPick(prev, selection, load(['a']))).toEqual({
+      selection, load: load(['a']), streamId: '111', events: ['a'],
+    })
+  })
+
+  it('keeps an events-only re-pick on its bound stream (repick_events), even if the stream is not offered', () => {
+    const prev = { selection, load: load(['a']), streamId: '999', events: ['a'] }
+    expect(refreshedPick(prev, selection, load(['a']), true).streamId).toBe('999')
+  })
+
+  it('drops a chosen stream that is gone, preselecting the one eligible stream left', () => {
+    const prev = { selection, load: load(['a'], [webStream, { ...webStream, streamId: '555' }]), streamId: '555', events: ['a'] }
+    expect(refreshedPick(prev, selection, load(['a'], [webStream, otherStream])).streamId).toBe('111')
+  })
+
+  it('keeps the selection with the failure when the reload itself fails, so its own retry shows', () => {
+    const prev = { selection, load: load(['a']), streamId: '111', events: ['a'] }
+    const failed = { ok: false as const, error: 'error_retry' as const }
+    expect(refreshedPick(prev, selection, failed)).toEqual({ selection, load: failed, streamId: '111', events: ['a'] })
+  })
+})
+
+// Unbind and save must never be in flight together: a save landing after an
+// unbind would re-create the binding the owner just removed, and an unbind
+// landing after a save would delete the one they just made.
+describe('controlsDisabled', () => {
+  const idle = { saveBusy: false, pickerBusy: false, unbindBusy: false }
+
+  it('leaves everything enabled when nothing is in flight', () => {
+    expect(controlsDisabled(idle)).toEqual({ picker: false, unbind: false })
+  })
+
+  it('disables save and the picker while an unbind is in flight', () => {
+    expect(controlsDisabled({ ...idle, unbindBusy: true }).picker).toBe(true)
+  })
+
+  it('disables unbind while a save is in flight', () => {
+    expect(controlsDisabled({ ...idle, saveBusy: true })).toEqual({ picker: true, unbind: true })
+  })
+
+  it('disables the picker, but not unbind, while only the picker loads', () => {
+    expect(controlsDisabled({ ...idle, pickerBusy: true })).toEqual({ picker: true, unbind: false })
   })
 })
 

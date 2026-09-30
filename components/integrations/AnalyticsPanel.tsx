@@ -347,6 +347,48 @@ export function WriteErrorNotice({ copyKey, lang }: { copyKey: CopyKey; lang: st
   return <p role="alert" className="mt-2 text-sm font-medium text-destructive">{copyFor(lang)[copyKey]}</p>
 }
 
+/**
+ * The two save refusals a fresh picker fixes: the chosen stream left the property,
+ * or a chosen event stopped being a key event, since the picker loaded. Their copy
+ * says "Refresh and choose again", so the notice offers exactly that control.
+ */
+const STALE_CHOICE: ReadonlySet<CopyKey> = new Set(['ineligible_not_visible', 'ineligible_not_key_event'])
+
+export function isStaleChoiceError(copyKey: CopyKey): boolean {
+  return STALE_CHOICE.has(copyKey)
+}
+
+/** A failed save; for a stale choice, with a control that reloads the picker for the same selection. */
+export function SaveErrorNotice({
+  copyKey, lang, onRefresh, disabled,
+}: { copyKey: CopyKey; lang: string; onRefresh: () => void; disabled: boolean }) {
+  if (!isStaleChoiceError(copyKey)) return <WriteErrorNotice copyKey={copyKey} lang={lang} />
+  const copy = copyFor(lang)
+  return (
+    <div role="alert" className="mt-2 flex flex-wrap items-center justify-between gap-3 text-sm">
+      <p className="font-medium text-destructive">{copy[copyKey]}</p>
+      <button
+        type="button"
+        onClick={onRefresh}
+        disabled={disabled}
+        className="min-h-11 shrink-0 rounded-lg border border-border px-3 text-sm disabled:opacity-60"
+      >
+        {copy.refresh_choices}
+      </button>
+    </div>
+  )
+}
+
+/**
+ * What stays disabled while something is in flight. Unbind and save are never in
+ * flight together: a save landing after an unbind would re-create the binding the
+ * owner just removed, and an unbind landing after a save would delete the one
+ * they just made. A picker load disables the picker and save, not unbind.
+ */
+export function controlsDisabled(s: { saveBusy: boolean; pickerBusy: boolean; unbindBusy: boolean }): { picker: boolean; unbind: boolean } {
+  return { picker: s.saveBusy || s.pickerBusy || s.unbindBusy, unbind: s.unbindBusy || s.saveBusy }
+}
+
 function RetryNotice({ message, lang, onRetry }: { message: string; lang: string; onRetry: () => void }) {
   return (
     <div role="alert" className="flex flex-wrap items-center justify-between gap-3 text-sm text-foreground">
@@ -395,8 +437,8 @@ async function fetchPanel(clientId: string): Promise<Loaded> {
   return { payload, propertiesFailed, picker }
 }
 
-type Selection = { connectionId: string; propertyId: string }
-type PickState = { selection: Selection | null; load: PickerLoad | null; streamId: string | null; events: string[] }
+export type Selection = { connectionId: string; propertyId: string }
+export type PickState = { selection: Selection | null; load: PickerLoad | null; streamId: string | null; events: string[] }
 type View = { status: 'loading' } | { status: 'failed' } | { status: 'ready'; data: Payload; propertiesFailed: boolean }
 
 const EMPTY_PICK: PickState = { selection: null, load: null, streamId: null, events: [] }
@@ -406,6 +448,26 @@ function onlyEligible(load: PickerLoad | null): string | null {
   if (!load?.ok) return null
   const eligible = offeredStreams(load.picker.streams).filter(s => s.verdict.eligible)
   return eligible.length === 1 ? eligible[0]!.streamId : null
+}
+
+/**
+ * The picker reloaded for the SAME selection after a stale-choice refusal. Unlike
+ * opening a property afresh, it keeps what the owner chose where GA4 still has
+ * it: the chosen events that are still key events, and the chosen stream if it is
+ * still offered and eligible (else the lone eligible one, as on open). An
+ * events-only re-pick (repick_events) keeps its bound stream, which that PUT never
+ * sends. A failed reload keeps the choices beside the failure, whose own retry shows.
+ */
+export function refreshedPick(prev: PickState, selection: Selection, load: PickerLoad, eventsOnly = false): PickState {
+  if (!load.ok) return { ...prev, selection, load }
+  const live = new Set(load.picker.keyEvents)
+  const kept = offeredStreams(load.picker.streams).some(s => s.streamId === prev.streamId && s.verdict.eligible)
+  return {
+    selection,
+    load,
+    streamId: eventsOnly || kept ? prev.streamId : onlyEligible(load),
+    events: prev.events.filter(e => live.has(e)),
+  }
 }
 
 // Pure, outside the component, so the mount effect and reload() share them
@@ -468,6 +530,22 @@ export function AnalyticsPanel({ clientId, lang }: { clientId: string; lang: str
     setPickerBusy(null)
   }
 
+  /** After a stale-choice refusal: the same selection's streams and events, fetched again. */
+  async function refreshPicker(eventsOnly: boolean) {
+    const selection = pick.selection
+    if (!selection) return
+    setPickerBusy(`${selection.connectionId}:${selection.propertyId}`)
+    setSaveError(null)
+    let load: PickerLoad
+    try {
+      load = await fetchPicker(clientId, selection.connectionId, selection.propertyId)
+    } catch {
+      load = { ok: false, error: 'error_generic' }
+    }
+    setPick(p => refreshedPick(p, selection, load, eventsOnly))
+    setPickerBusy(null)
+  }
+
   function toggleEvent(name: string) {
     setPick(p => ({
       ...p,
@@ -477,7 +555,8 @@ export function AnalyticsPanel({ clientId, lang }: { clientId: string; lang: str
   }
 
   async function save(eventsOnly: boolean) {
-    if (!pick.selection) return
+    // The buttons are disabled too (controlsDisabled); this also covers a stale click.
+    if (!pick.selection || unbindBusy) return
     setSaveBusy(true)
     setSaveError(null)
     const body = eventsOnly
@@ -504,6 +583,7 @@ export function AnalyticsPanel({ clientId, lang }: { clientId: string; lang: str
   }
 
   async function unbind() {
+    if (saveBusy) return
     setUnbindBusy(true)
     setUnbindError(false)
     let writeSucceeded = false
@@ -534,7 +614,8 @@ export function AnalyticsPanel({ clientId, lang }: { clientId: string; lang: str
     && erroredConnections.length === 0 && okConnections.every(c => c.items.length === 0)
   const panel = data.panel
   const showFigures = showsObservedFigures(panel)
-  const busy = saveBusy || pickerBusy !== null
+  const disabled = controlsDisabled({ saveBusy, pickerBusy: pickerBusy !== null, unbindBusy })
+  const busy = disabled.picker
   const loaded = pick.load?.ok ? pick.load.picker : null
   const chosenStream = loaded ? offeredStreams(loaded.streams).find(s => s.streamId === pick.streamId) : undefined
   const canSave = !busy && pick.events.length > 0 && (eventsOnly || chosenStream?.verdict.eligible === true)
@@ -620,7 +701,14 @@ export function AnalyticsPanel({ clientId, lang }: { clientId: string; lang: str
                   })}
                 </>
               )}
-              {saveError && <WriteErrorNotice copyKey={saveError} lang={lang} />}
+              {saveError && (
+                <SaveErrorNotice
+                  copyKey={saveError}
+                  lang={lang}
+                  onRefresh={() => void refreshPicker(eventsOnly)}
+                  disabled={busy}
+                />
+              )}
               <button
                 type="button"
                 onClick={() => void save(eventsOnly)}
@@ -641,7 +729,7 @@ export function AnalyticsPanel({ clientId, lang }: { clientId: string; lang: str
           <button
             type="button"
             onClick={() => void unbind()}
-            disabled={unbindBusy}
+            disabled={disabled.unbind}
             className="min-h-11 rounded-lg border border-border px-4 text-sm disabled:opacity-60"
           >
             {unbindBusy ? copy.unbinding : copy.unbind}
