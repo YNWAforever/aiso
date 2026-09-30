@@ -16,6 +16,8 @@ import { ResultsStep } from '@/components/dashboard/ResultsStep'
 import { ImproveStep } from '@/components/dashboard/ImproveStep'
 import { MonitorStep } from '@/components/dashboard/MonitorStep'
 import { LocalTrustStep } from '@/components/dashboard/local-trust/LocalTrustStep'
+import { ObservedEnquiriesCard } from '@/components/integrations/ObservedEnquiriesCard'
+import { loadObservedPanel } from '@/lib/integrations/analytics/observed'
 import { getLocalTrustProfile, getOrCreateLocalTrustSnapshot } from '@/lib/localTrust/store'
 import type {
   Scan, AgentRecommendation, AgentProgress as AgentProgressType,
@@ -264,6 +266,12 @@ export default async function DashboardPage({
   const hasAggregatePulseBaseline = summary.some(row => !row.platform)
   const hasLocalTrustBaseline = Boolean(localTrustScan || hasAggregatePulseBaseline)
 
+  // The counted outcome, shown beside the modelled scenario and never fed into it.
+  // loadObservedPanel applies the flag and plan gates, keys on the session's account
+  // and returns null on any failure, so a broken analytics read cannot take the
+  // scenario down with it.
+  const observed = step === 'roi' ? await loadObservedPanel(profile, clientId) : null
+
   return (
     <>
       <StepHeader step={step} features={features} />
@@ -322,6 +330,9 @@ export default async function DashboardPage({
             roiUnavailable={localTrustData?.roi.unavailable ?? null}
             competitors={localTrustCompetitors}
           />
+        )}
+        {step === 'roi' && observed && (
+          <ObservedEnquiriesCard lang={lang} clientId={clientId} panel={observed} />
         )}
       </main>
     </>

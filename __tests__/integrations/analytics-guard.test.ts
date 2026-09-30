@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getProfile = vi.hoisted(() => vi.fn())
-const verifyClientOwnership = vi.hoisted(() => vi.fn())
+const loadOwnedClient = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/auth', () => ({ getProfile }))
-vi.mock('@/lib/localTrust/store', () => ({ verifyClientOwnership }))
+vi.mock('@/lib/integrations/analytics/store', () => ({ loadOwnedClient }))
 
 import { authorizeAnalytics } from '@/lib/integrations/analytics/guard'
 
@@ -20,7 +20,7 @@ describe('authorizeAnalytics', () => {
   beforeEach(() => {
     process.env.FEATURE_ANALYTICS = '1'
     getProfile.mockReset()
-    verifyClientOwnership.mockReset()
+    loadOwnedClient.mockReset()
     // The 503 path logs by design; keep it out of the run's stderr but still assertable.
     errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
   })
@@ -53,30 +53,30 @@ describe('authorizeAnalytics', () => {
   it('is 403 below Pro, before any ownership lookup', async () => {
     getProfile.mockResolvedValue({ ...pro, accounts: { ...pro.accounts, plan: 'basic' } })
     expect(await status()).toBe(403)
-    expect(verifyClientOwnership).not.toHaveBeenCalled()
+    expect(loadOwnedClient).not.toHaveBeenCalled()
   })
 
   it('is 403 for a cancelled Pro account, because entitlement reads status', async () => {
     getProfile.mockResolvedValue({ ...pro, accounts: { ...pro.accounts, status: 'cancelled' } })
     expect(await status()).toBe(403)
-    expect(verifyClientOwnership).not.toHaveBeenCalled()
+    expect(loadOwnedClient).not.toHaveBeenCalled()
   })
 
   it('is 404 for a clientId that is not a UUID, before the ownership lookup', async () => {
     getProfile.mockResolvedValue(pro)
     expect(await status('not-a-uuid')).toBe(404)
-    expect(verifyClientOwnership).not.toHaveBeenCalled()
+    expect(loadOwnedClient).not.toHaveBeenCalled()
   })
 
   it('is 404 for a brand that is not the account\'s', async () => {
     getProfile.mockResolvedValue(pro)
-    verifyClientOwnership.mockResolvedValue(null)
+    loadOwnedClient.mockResolvedValue(null)
     expect(await status()).toBe(404)
   })
 
   it('is 503 when the ownership lookup fails, never 404', async () => {
     getProfile.mockResolvedValue(pro)
-    verifyClientOwnership.mockRejectedValue(new Error('db'))
+    loadOwnedClient.mockRejectedValue(new Error('db'))
     expect(await status()).toBe(503)
     expect(errorSpy).toHaveBeenCalledWith(expect.any(String), { name: 'Error' })
   })
@@ -85,7 +85,7 @@ describe('authorizeAnalytics', () => {
     getProfile.mockResolvedValue(pro)
     const err = new Error('postgresql://user:secret@host/db')
     err.name = 'NeonDbError'
-    verifyClientOwnership.mockRejectedValue(err)
+    loadOwnedClient.mockRejectedValue(err)
     await status()
     const logged = JSON.stringify(errorSpy.mock.calls)
     expect(logged).toContain('NeonDbError')
@@ -94,18 +94,18 @@ describe('authorizeAnalytics', () => {
 
   it('passes with the account from the session, never a caller id, and narrows the client', async () => {
     getProfile.mockResolvedValue(pro)
-    verifyClientOwnership.mockResolvedValue({
+    loadOwnedClient.mockResolvedValue({
       id: CLIENT_ID, domain: 'example.com', brand_name: 'Example', industry: null, competitors: [], status: 'active', created_at: 'x',
     })
     const r = await authorizeAnalytics(CLIENT_ID)
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.client).toEqual({ id: CLIENT_ID, domain: 'example.com' })
-    expect(verifyClientOwnership).toHaveBeenCalledWith(CLIENT_ID, 'a')
+    expect(loadOwnedClient).toHaveBeenCalledWith('a', CLIENT_ID)
   })
 
   it('passes a null domain through as null', async () => {
     getProfile.mockResolvedValue(pro)
-    verifyClientOwnership.mockResolvedValue({ id: CLIENT_ID, domain: null })
+    loadOwnedClient.mockResolvedValue({ id: CLIENT_ID, domain: null })
     const r = await authorizeAnalytics(CLIENT_ID)
     if (r.ok) expect(r.client.domain).toBeNull()
     else throw new Error('expected ok')

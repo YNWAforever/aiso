@@ -22,6 +22,7 @@ import {
 import type { AnalyticsOwnerState } from '@/lib/integrations/analytics/state'
 import type { AnalyticsPanel } from '@/lib/integrations/analytics/store'
 import { RETURN_PATH } from '@/lib/integrations/google/consent-state'
+import { ObservedEnquiriesCard } from '@/components/integrations/ObservedEnquiriesCard'
 
 type Lang = 'en' | 'zh-HK'
 type Copy = Record<string, string>
@@ -413,4 +414,46 @@ describe.each(LANGS)('ConnectionErrorNotice (%s)', lang => {
   it('falls back to the generic copy for an unknown reason rather than a missing key', () => {
     expect(render('something_new')).toContain(copy.error_generic)
   })
+})
+
+const renderCard = (panel: AnalyticsPanel, lang: Lang) =>
+  decode(renderToStaticMarkup(<ObservedEnquiriesCard panel={panel} lang={lang} clientId={CLIENT} />))
+
+describe.each(LANGS)('ObservedEnquiriesCard (%s)', lang => {
+  const copy = copyOf(lang)
+
+  it('shows the observed figures', () => {
+    const markup = text(renderCard(figures(), lang))
+    expect(markup).toContain(`${copy.total_enquiries} 37`)
+    expect(markup).toContain(`${copy.source_ai_assistant} 5`)
+    expect(markup).toContain('generate_lead 30')
+  })
+
+  it('has exactly one heading, the Observed one, not stacked on the figures own', () => {
+    const markup = renderCard(figures(), lang)
+    expect(markup.match(/<h[1-6]\b/g)).toHaveLength(1)
+    expect(markup.split(copy.observed_heading)).toHaveLength(2)
+  })
+
+  it('links to the assets page of this brand, where the connection is managed', () => {
+    const markup = renderCard(figures(), lang)
+    const anchors = [...markup.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([^<]*)<\/a>/g)]
+    expect(anchors).toHaveLength(1)
+    expect(anchors[0]![1]).toBe(`/${lang}/dashboard/${CLIENT}/assets`)
+    expect(anchors[0]![2]).toBe(copy.observed_assets_link)
+  })
+
+  it('gives the link a touch-size target', () => {
+    expect(renderCard(figures(), lang).match(/<a\b[^>]*>/)?.[0]).toContain('min-h-11')
+  })
+
+  it('carries the owner value line through from the panel, like the figures do', () => {
+    const markup = text(renderCard(figures({ owner: { leadValue: '1000', closeRate: '0.5' } }), lang))
+    expect(markup).toContain(copy.value_uses_your_figures)
+  })
+})
+
+it('gives the link different words in each language', () => {
+  expect(copyOf('en').observed_assets_link).not.toBe(copyOf('zh-HK').observed_assets_link)
+  expect(renderCard(figures(), 'en')).not.toBe(renderCard(figures(), 'zh-HK'))
 })

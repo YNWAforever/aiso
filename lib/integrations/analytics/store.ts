@@ -140,6 +140,27 @@ export async function unbindStream(accountId: string, clientId: string): Promise
   return rows.length > 0
 }
 
+/**
+ * The brand, if it is this account's. The guard's ownership lookup lives here, not
+ * in lib/localTrust, so the observed layer imports nothing from the modelled one
+ * (__tests__/security/outcome-layer-separation.test.ts). Zero rows means absent or
+ * not yours, and the caller cannot tell which.
+ */
+export async function loadOwnedClient(
+  accountId: string,
+  clientId: string,
+): Promise<{ id: string; domain: string | null } | null> {
+  const sql = db()
+  const rows = await sql`
+    select id, domain
+    from clients
+    where id = ${clientId} and account_id = ${accountId}
+    limit 1
+  `
+  const r = rows[0]
+  return r ? { id: String(r.id), domain: (r.domain as string | null) ?? null } : null
+}
+
 export async function loadAnalyticsBinding(accountId: string, clientId: string): Promise<AnalyticsBinding | null> {
   const sql = db()
   const rows = await sql`

@@ -1,21 +1,24 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), load: vi.fn(), project: vi.fn(), sql: vi.fn(), roi: vi.fn(), pulse: vi.fn() }))
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), load: vi.fn(), project: vi.fn(), sql: vi.fn(), roi: vi.fn(), pulse: vi.fn(), observed: vi.fn() }))
 vi.mock('@/lib/workspace/load-owned-pulse', () => ({ loadOwnedPulse: mocks.pulse }))
 vi.mock('@/lib/auth', () => ({ requireAuth: mocks.auth }))
 vi.mock('@/lib/workspace/load-owned-workspace', () => ({ loadOwnedWorkspace: mocks.load }))
 vi.mock('@/lib/view-models/workspace-home', () => ({ buildWorkspaceHome: mocks.project }))
 vi.mock('@/lib/db', () => ({ db: () => mocks.sql }))
 vi.mock('@/lib/localTrust/store', () => ({ getLocalTrustProfile: vi.fn(), getOrCreateLocalTrustSnapshot: mocks.roi }))
+vi.mock('@/lib/integrations/analytics/observed', () => ({ loadObservedPanel: mocks.observed }))
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NOT_FOUND') } }))
 vi.mock('next-intl/server', () => ({ getTranslations: async () => (key: string) => key }))
 vi.mock('@/components/dashboard/WorkspaceHome', () => ({ WorkspaceHome: () => null }))
 import { ImproveStep } from '@/components/dashboard/ImproveStep'
+import { LocalTrustStep } from '@/components/dashboard/local-trust/LocalTrustStep'
+import { ObservedEnquiriesCard } from '@/components/integrations/ObservedEnquiriesCard'
 import type { ReactElement } from 'react'
 import Page from '@/app/[lang]/dashboard/[clientId]/page'
 const profile = { account_id: 'account-a', accounts: { plan: 'free' } }
 const render = (search = {}) => Page({ params: Promise.resolve({ lang: 'en', clientId: 'client-a' }), searchParams: Promise.resolve(search) })
-beforeEach(() => { vi.clearAllMocks(); mocks.auth.mockResolvedValue(profile); mocks.load.mockResolvedValue({ client: {} }); mocks.project.mockReturnValue({ client: { id: 'client-a' } }); mocks.sql.mockResolvedValue([]); mocks.pulse.mockResolvedValue(null) })
+beforeEach(() => { vi.clearAllMocks(); mocks.auth.mockResolvedValue(profile); mocks.load.mockResolvedValue({ client: {} }); mocks.project.mockReturnValue({ client: { id: 'client-a' } }); mocks.sql.mockResolvedValue([]); mocks.pulse.mockResolvedValue(null); mocks.observed.mockResolvedValue(null) })
 it('defaults to the independently authenticated read-only home and preserves selected scan', async () => {
   const page = await render({ scanId: 'selected-scan' })
   expect(mocks.auth).toHaveBeenCalledWith('en')
@@ -93,4 +96,47 @@ it('routes explicit monitor through the owned Pulse loader before legacy reads',
   expect(mocks.load).not.toHaveBeenCalled()
   expect(mocks.sql).not.toHaveBeenCalled()
   expect(mocks.roi).not.toHaveBeenCalled()
+})
+
+function findAll(node: unknown, type: unknown, out: ReactElement<Record<string, unknown>>[] = []) {
+  if (!node || typeof node !== 'object') return out
+  if (Array.isArray(node)) { node.forEach(n => findAll(n, type, out)); return out }
+  const element = node as ReactElement<{ children?: unknown }>
+  if (element.type === type) out.push(element as ReactElement<Record<string, unknown>>)
+  findAll(element.props?.children, type, out)
+  return out
+}
+
+const observedPanel = { latest: null, lastGoodDataThrough: '2026-09-27', last28: null, owner: { leadValue: null, closeRate: null } }
+const clientRow = async (strings: TemplateStringsArray) =>
+  strings.join('?').includes('from clients') ? [{ id: 'client-a', brand_name: 'Example', domain: 'example.com' }] : []
+
+it('shows the observed card beside the Local Trust step, without giving the step any analytics prop', async () => {
+  mocks.sql.mockImplementation(clientRow)
+  mocks.observed.mockResolvedValue(observedPanel)
+  const tree = await render({ step: 'roi' })
+  const step = findAll(tree, LocalTrustStep)
+  const card = findAll(tree, ObservedEnquiriesCard)
+  expect(step).toHaveLength(1)
+  expect(card).toHaveLength(1)
+  expect(card[0]!.props).toEqual({ lang: 'en', clientId: 'client-a', panel: observedPanel })
+  expect(Object.keys(step[0]!.props).sort()).toEqual([
+    'actions', 'clientId', 'competitors', 'features', 'lang', 'profile', 'roiUnavailable', 'snapshot',
+  ])
+  expect(mocks.observed).toHaveBeenCalledWith(profile, 'client-a')
+})
+
+it('omits the card, and keeps the scenario, when the observed loader has nothing to show', async () => {
+  mocks.sql.mockImplementation(clientRow)
+  const tree = await render({ step: 'roi' })
+  expect(findAll(tree, LocalTrustStep)).toHaveLength(1)
+  expect(findAll(tree, ObservedEnquiriesCard)).toHaveLength(0)
+})
+
+it('does not read analytics on any other step', async () => {
+  mocks.sql.mockImplementation(clientRow)
+  mocks.observed.mockResolvedValue(observedPanel)
+  const tree = await render({ step: 'improve' })
+  expect(findAll(tree, ObservedEnquiriesCard)).toHaveLength(0)
+  expect(mocks.observed).not.toHaveBeenCalled()
 })

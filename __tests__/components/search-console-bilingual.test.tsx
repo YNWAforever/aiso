@@ -20,6 +20,7 @@ import {
   type BindErrorKind,
 } from '@/components/integrations/SearchConsolePanel'
 import type { OwnerState } from '@/lib/integrations/search-console/state'
+import { ANALYTICS_SCOPE, SEARCH_CONSOLE_SCOPE } from '@/lib/integrations/google/scopes'
 
 const STATES: OwnerState[] = [
   { kind: 'unbound' },
@@ -350,5 +351,44 @@ describe('pickerNotice', () => {
     expect(pickerNotice({ properties: [conn([site(true)])], propertiesFailed: false })).toBeNull()
     expect(pickerNotice({ properties: [], propertiesFailed: true })).toBeNull()
     expect(pickerNotice({ properties: [conn([], 'quota')], propertiesFailed: false })).toBeNull()
+  })
+})
+
+describe.each(['en', 'zh-HK'] as const)('what each connection covers (%s)', lang => {
+  const copy = (lang === 'zh-HK' ? zhHK : en).searchConsole
+  const row = (scopes: string[]) => renderToStaticMarkup(
+    <ConnectionRow connection={{ ...connection, scopes }} onDisconnect={() => {}} pending={false} disabled={false} lang={lang} />,
+  )
+  const labels = (markup: string) => ({
+    searchConsole: markup.includes(`>${copy.scope_search_console}<`),
+    analytics: markup.includes(`>${copy.scope_analytics}<`),
+  })
+
+  it('has a non-blank label for each product', () => {
+    expect(copy.scope_search_console.trim().length).toBeGreaterThan(0)
+    expect(copy.scope_analytics.trim().length).toBeGreaterThan(0)
+    expect(copy.scope_analytics).not.toBe(copy.scope_search_console)
+  })
+
+  it('lists Search Console alone for a connection that never granted Analytics', () => {
+    expect(labels(row([SEARCH_CONSOLE_SCOPE]))).toEqual({ searchConsole: true, analytics: false })
+  })
+
+  it('lists both when both scopes were granted', () => {
+    expect(labels(row([SEARCH_CONSOLE_SCOPE, ANALYTICS_SCOPE]))).toEqual({ searchConsole: true, analytics: true })
+  })
+
+  it('lists Analytics alone when only that scope is held', () => {
+    expect(labels(row([ANALYTICS_SCOPE]))).toEqual({ searchConsole: false, analytics: true })
+  })
+
+  it('lists nothing for a connection with no recognised scope, rather than claiming a product', () => {
+    expect(labels(row([]))).toEqual({ searchConsole: false, analytics: false })
+    expect(labels(row(['https://www.googleapis.com/auth/analytics']))).toEqual({ searchConsole: false, analytics: false })
+  })
+
+  it('does not put a label inside the disconnect button', () => {
+    const button = row([SEARCH_CONSOLE_SCOPE, ANALYTICS_SCOPE]).match(/<button\b[\s\S]*<\/button>/)?.[0] ?? ''
+    expect(button).not.toContain(copy.scope_analytics)
   })
 })

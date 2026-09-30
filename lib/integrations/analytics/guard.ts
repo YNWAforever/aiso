@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getProfile } from '@/lib/auth'
 import { isFeatureEnabled } from '@/lib/flags'
 import { resolveCommercialEntitlement } from '@/lib/tier'
-import { verifyClientOwnership } from '@/lib/localTrust/store'
+import { loadOwnedClient } from './store'
 import type { ProfileWithAccount } from '@/lib/types'
 
 /**
@@ -35,7 +35,7 @@ export async function authorizeAnalytics(
   if (!UUID_RE.test(clientId)) return deny(404, 'Not found')
   let client: { id: string; domain: string | null } | null
   try {
-    client = await verifyClientOwnership(clientId, profile.account_id)
+    client = await loadOwnedClient(profile.account_id, clientId)
   } catch (err) {
     // Never let a failed lookup read as "not yours". Log the name only: the Neon
     // driver puts the full connection string, password included, in its messages.

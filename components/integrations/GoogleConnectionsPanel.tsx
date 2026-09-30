@@ -5,6 +5,7 @@ import en from '@/messages/en.json'
 import zhHK from '@/messages/zh-HK.json'
 import type { ConnectionSummary } from '@/lib/integrations/search-console/store'
 import type { ConsentErrorReason } from '@/lib/integrations/google/consent-reasons'
+import { ANALYTICS_SCOPE, SEARCH_CONSOLE_SCOPE, hasScope } from '@/lib/integrations/google/scopes'
 
 type Copy = typeof en.searchConsole
 const copyFor = (lang: string): Copy => (lang === 'zh-HK' ? zhHK : en).searchConsole
@@ -33,6 +34,8 @@ export function ConnectionsLoadFailedNotice({ lang }: { lang: string }) {
   return <p role="alert" className="mt-3 text-sm font-medium text-destructive">{copy.connections_load_failed}</p>
 }
 
+const SCOPE_LABEL = 'rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground'
+
 /**
  * One connection row. Pulled out of GoogleConnectionsPanel for the same
  * reason as SearchConsolePanel's PropertySiteRow: the busy/disabled/
@@ -46,9 +49,14 @@ export function ConnectionRow({
   const copy = copyFor(lang)
   return (
     <li className="flex items-center justify-between gap-3">
-      <span className="text-sm text-foreground">
+      <span className="min-w-0 text-sm text-foreground">
         {copy.connected_as.replace('{email}', connection.googleEmail ?? '—')}
         {connection.status === 'needs_reconnect' && <> · {copy.status_needs_reconnect}</>}
+        {/* What this login covers, read from the scopes it actually granted. */}
+        <span className="mt-1 flex flex-wrap gap-1.5">
+          {hasScope(connection.scopes, SEARCH_CONSOLE_SCOPE) && <span className={SCOPE_LABEL}>{copy.scope_search_console}</span>}
+          {hasScope(connection.scopes, ANALYTICS_SCOPE) && <span className={SCOPE_LABEL}>{copy.scope_analytics}</span>}
+        </span>
       </span>
       <button
         type="button"
