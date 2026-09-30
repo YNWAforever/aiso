@@ -56,13 +56,14 @@ calibration of the Local Trust model from observed data.
 does not change, and that is proven by the existing Search Console suites passing **unedited**.
 
 **API versions.** GA4's Admin and Data APIs are published as `v1beta`, and that is what the
-ecosystem uses in production. The exact metric and dimension names this design relies on, `keyEvents`
-(and its per-event form, if supported), the key-event-attributed channel and source dimensions
-(`defaultChannelGroup` is confirmed; the matching source dimension is not), and a stream dimension to
-filter by, are **verified against Google's metadata endpoint in plan task 1**, with the responses
-recorded as fixtures, before any code depends on them. If a stream filter dimension does not exist,
-the plan must say how stream scoping is achieved instead, or stop and return to design. It must not
-fall back to whole-property counts.
+ecosystem uses in production. The names this design relies on were **verified on 2026-09-30**
+against the full API schema page and the Data API discovery document:
+- the metric `keyEvents`, which has no per-event form, so it is broken down by `eventName`;
+- the key-event-attributed `source` and `defaultChannelGroup` dimensions;
+- the `streamId` dimension, so stream scoping is possible and whole-property counts are never needed;
+- the response metadata `subjectToThresholding` and `dataLossFromOtherRow`.
+
+The implementation plan's Global Constraints record them exactly.
 
 ### 3.2 Migration `055`
 
