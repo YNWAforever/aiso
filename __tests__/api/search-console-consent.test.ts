@@ -13,6 +13,21 @@ const upsertConnection = vi.hoisted(() => vi.fn())
 const listConnections = vi.hoisted(() => vi.fn())
 const exchangeCode = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/auth', () => ({ getProfile }))
+// Wraps the real resolver so one test can grant Search Console without Analytics; the catalogue
+// grants the two to exactly the same plans, so no real plan reaches that state.
+const entitlementOverride = vi.hoisted(() => ({ analytics: null as boolean | null }))
+vi.mock('@/lib/tier', async importOriginal => {
+  const real = await importOriginal<typeof import('@/lib/tier')>()
+  return {
+    ...real,
+    resolveCommercialEntitlement: (...args: Parameters<typeof real.resolveCommercialEntitlement>) => {
+      const result = real.resolveCommercialEntitlement(...args)
+      return entitlementOverride.analytics === null
+        ? result
+        : { ...result, features: { ...result.features, analytics: entitlementOverride.analytics } }
+    },
+  }
+})
 vi.mock('@/lib/integrations/search-console/store', () => ({ upsertConnection, listConnections }))
 vi.mock('@/lib/integrations/google/oauth', async importOriginal => ({ ...(await importOriginal<object>()), exchangeCode }))
 
@@ -24,7 +39,7 @@ const profile = {
 
 beforeEach(() => {
   Object.assign(process.env, {
-    FEATURE_SEARCH_CONSOLE: '1', GOOGLE_OAUTH_CLIENT_ID: 'cid', GOOGLE_OAUTH_CLIENT_SECRET: 'cs',
+    FEATURE_SEARCH_CONSOLE: '1', FEATURE_ANALYTICS: '1', GOOGLE_OAUTH_CLIENT_ID: 'cid', GOOGLE_OAUTH_CLIENT_SECRET: 'cs',
     GOOGLE_TOKEN_ENCRYPTION_KEY: randomBytes(32).toString('base64'),
     REPORT_SHARE_SECRET: 'consent-route-test-secret-0123456789abcdef',
     NEXT_PUBLIC_APP_URL: 'https://app.test',
@@ -33,6 +48,7 @@ beforeEach(() => {
   upsertConnection.mockReset().mockResolvedValue('conn-1')
   exchangeCode.mockReset()
   listConnections.mockReset().mockResolvedValue([])
+  entitlementOverride.analytics = null
 })
 
 describe('GET start', () => {
@@ -134,6 +150,61 @@ describe('GET start', () => {
     } finally {
       errorSpy.mockRestore()
     }
+  })
+
+  describe('analytics is dark behind its flag and plan', () => {
+    it('is 404 with FEATURE_ANALYTICS off, sets no consent cookie and never queries', async () => {
+      delete process.env.FEATURE_ANALYTICS
+      const res = await start(`?scope=analytics&connection=${CONNECTION}`)
+      expect(res.status).toBe(404)
+      expect(res.headers.get('location')).toBeNull()
+      expect(res.cookies.get(GOOGLE_CONSENT_COOKIE)).toBeUndefined()
+      expect(listConnections).not.toHaveBeenCalled()
+    })
+
+    it.each(['0', 'true', ''])('is 404 when FEATURE_ANALYTICS is %j (only exactly 1 counts)', async value => {
+      process.env.FEATURE_ANALYTICS = value
+      expect((await start('?scope=analytics')).status).toBe(404)
+    })
+
+    it('is 404 when the plan grants Search Console but not analytics, and sets no cookie', async () => {
+      entitlementOverride.analytics = false
+      const res = await start(`?scope=analytics&connection=${CONNECTION}`)
+      expect(res.status).toBe(404)
+      expect(res.headers.get('location')).toBeNull()
+      expect(res.cookies.get(GOOGLE_CONSENT_COOKIE)).toBeUndefined()
+      expect(listConnections).not.toHaveBeenCalled()
+    })
+
+    it('does not gate Search Console on the analytics feature', async () => {
+      entitlementOverride.analytics = false
+      expect((await start('')).status).toBe(302)
+    })
+
+    it.each(['free', 'basic'])('is refused on the %s plan before any product is considered, with no cookie', async plan => {
+      getProfile.mockResolvedValue({ ...profile, accounts: { ...profile.accounts, plan } })
+      const res = await start('?scope=analytics')
+      expect(res.status).toBe(403)
+      expect(res.cookies.get(GOOGLE_CONSENT_COOKIE)).toBeUndefined()
+    })
+
+    it('still starts analytics consent when the flag is on and the plan is entitled', async () => {
+      const res = await start('?scope=analytics')
+      expect(res.status).toBe(302)
+      expect(verifyConsentState(res.cookies.get(GOOGLE_CONSENT_COOKIE)?.value)?.product).toBe('analytics')
+    })
+
+    it('leaves Search Console untouched with FEATURE_ANALYTICS off', async () => {
+      delete process.env.FEATURE_ANALYTICS
+      const res = await start('')
+      expect(res.status).toBe(302)
+      expect(consentUrl(res).searchParams.get('scope')).not.toContain(ANALYTICS_SCOPE)
+    })
+
+    it('treats an unknown scope value as search_console, so it is not gated by analytics', async () => {
+      delete process.env.FEATURE_ANALYTICS
+      expect((await start('?scope=ads')).status).toBe(302)
+    })
   })
 
   it('refuses before redirecting when the encryption key is missing', async () => {

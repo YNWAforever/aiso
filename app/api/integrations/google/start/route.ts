@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { appOrigin } from '@/lib/app-origin'
+import { isFeatureEnabled } from '@/lib/flags'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 import { authorizeSearchConsoleAccount } from '@/lib/integrations/search-console/guard'
 import { assertVaultConfigured, VaultError } from '@/lib/integrations/google/vault'
 import {
@@ -35,6 +37,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const access = await authorizeSearchConsoleAccount()
   if (!access.ok) return access.response
 
+  // Anything but exactly "analytics" is Search Console, the original behaviour.
+  const product: GoogleProduct = req.nextUrl.searchParams.get('scope') === 'analytics' ? 'analytics' : 'search_console'
+  // Analytics is dark by default: with the flag off, or on a plan without it, a hand-built
+  // link is a plain 404 that asks Google for nothing and sets no cookie.
+  if (product === 'analytics'
+    && (!isFeatureEnabled('analytics') || !resolveCommercialEntitlement(access.profile.accounts).features.analytics)) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
   try {
     assertVaultConfigured()
   } catch (error) {
@@ -50,8 +61,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const requested = req.nextUrl.searchParams.get('return') ?? ''
   const returnPath = RETURN_PATH.test(requested) ? requested : '/en/dashboard/settings'
-  // Anything but exactly "analytics" is Search Console, the original behaviour.
-  const product: GoogleProduct = req.nextUrl.searchParams.get('scope') === 'analytics' ? 'analytics' : 'search_console'
   const loginHint = product === 'analytics'
     ? await loginHintFor(access.profile.account_id, req.nextUrl.searchParams.get('connection'))
     : undefined
