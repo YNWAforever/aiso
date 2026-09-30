@@ -152,7 +152,7 @@ describe('the parity check cannot pass vacuously', () => {
     // catalogues at once is exactly what set equality misses.
     expect(Object.keys(load(DEFAULT)).sort()).toEqual([
       'activation',
-      'alertFeedback', 'approverAccess', 'assets', 'auth', 'changeSets', 'checks', 'dashboard',
+      'alertFeedback', 'analytics', 'approverAccess', 'assets', 'auth', 'changeSets', 'checks', 'dashboard',
       'delivery', 'entities', 'generatedWork', 'home', 'members', 'methodologyPage', 'nav',
       'observations', 'opportunities', 'outcomes', 'portfolio', 'pricing',
       'publicPages', 'pulse', 'pulseView', 'reportBranding', 'reports', 'result',

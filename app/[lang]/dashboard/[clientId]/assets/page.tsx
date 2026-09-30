@@ -9,6 +9,7 @@ import { AssetConvergenceView } from '@/components/dashboard/AssetConvergenceVie
 import { isFeatureEnabled } from '@/lib/flags'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { SearchConsolePanel } from '@/components/integrations/SearchConsolePanel'
+import { AnalyticsPanel } from '@/components/integrations/AnalyticsPanel'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,8 +49,11 @@ export default async function AssetsPage({
   // exist yet for a new brand.
   const evidence = (owned.scan.data?.results as { evidence?: unknown } | undefined)?.evidence
 
-  const searchConsole = isFeatureEnabled('search_console')
-    && resolveCommercialEntitlement(profile.accounts).features.search_console
+  const entitlement = resolveCommercialEntitlement(profile.accounts)
+  const searchConsole = isFeatureEnabled('search_console') && entitlement.features.search_console
+  // The same gate the analytics routes apply (lib/integrations/analytics/guard.ts):
+  // dark behind FEATURE_ANALYTICS, and only on a plan that grants it.
+  const analytics = isFeatureEnabled('analytics') && entitlement.features.analytics
 
   return (
     <>
@@ -64,6 +68,7 @@ export default async function AssetsPage({
         clientId={clientId}
       />
       {searchConsole && <SearchConsolePanel clientId={clientId} lang={lang} />}
+      {analytics && <AnalyticsPanel clientId={clientId} lang={lang} />}
     </>
   )
 }
