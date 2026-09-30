@@ -19,7 +19,7 @@ const HOST = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/
 const ALL_DIGITS = /^[0-9]+$/
 
 /** Parses and validates a bare host, with no `www` normalization. Rejects IP literals. */
-function normalizeHost(value: string | null | undefined): string | null {
+export function normalizeHost(value: string | null | undefined): string | null {
   if (!value) return null
   let v = value.trim().toLowerCase()
   if (!v) return null
