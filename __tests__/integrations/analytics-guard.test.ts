@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getProfile = vi.hoisted(() => vi.fn())
 const verifyClientOwnership = vi.hoisted(() => vi.fn())
@@ -15,10 +15,18 @@ const status = async (clientId = CLIENT_ID) => {
 }
 
 describe('authorizeAnalytics', () => {
+  let errorSpy: ReturnType<typeof vi.spyOn>
+
   beforeEach(() => {
     process.env.FEATURE_ANALYTICS = '1'
     getProfile.mockReset()
     verifyClientOwnership.mockReset()
+    // The 503 path logs by design; keep it out of the run's stderr but still assertable.
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('is a plain 404 when the flag is off, before touching the session', async () => {
@@ -70,6 +78,7 @@ describe('authorizeAnalytics', () => {
     getProfile.mockResolvedValue(pro)
     verifyClientOwnership.mockRejectedValue(new Error('db'))
     expect(await status()).toBe(503)
+    expect(errorSpy).toHaveBeenCalledWith(expect.any(String), { name: 'Error' })
   })
 
   it('logs only the error name when the lookup fails, never its message', async () => {
@@ -77,15 +86,10 @@ describe('authorizeAnalytics', () => {
     const err = new Error('postgresql://user:secret@host/db')
     err.name = 'NeonDbError'
     verifyClientOwnership.mockRejectedValue(err)
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      await status()
-      const logged = JSON.stringify(spy.mock.calls)
-      expect(logged).toContain('NeonDbError')
-      expect(logged).not.toContain('secret')
-    } finally {
-      spy.mockRestore()
-    }
+    await status()
+    const logged = JSON.stringify(errorSpy.mock.calls)
+    expect(logged).toContain('NeonDbError')
+    expect(logged).not.toContain('secret')
   })
 
   it('passes with the account from the session, never a caller id, and narrows the client', async () => {
