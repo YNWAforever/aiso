@@ -179,6 +179,14 @@ const ACCOUNT_BLIND_BY_DESIGN: Record<string, string> = {
     'binding paired with the connection, brand, plan and ledger of its own account but select across ' +
     'accounts. Each row carries ' +
     'its own account_id, and every write syncBinding makes for that row uses that value.',
+  'lib/integrations/analytics/store.ts::loadDueAnalyticsBindings':
+    'The selection made by the GA4 conversions cron, the analytics twin of loadDueBindings above: the ' +
+    'due bindings of every account, by design. The cron is authenticated by CRON_SECRET and has no ' +
+    'session to scope to. Its only account predicates are joins (g.account_id = b.account_id, ' +
+    'c.account_id = b.account_id, a.id = b.account_id, and the ledger lateral on b.account_id), which ' +
+    'keep each binding paired with the connection, brand, plan and ledger of its own account but ' +
+    'select across accounts. Each row carries its own account_id, and every write the sync makes for ' +
+    'that row uses that value.',
 }
 
 /**
