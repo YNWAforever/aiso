@@ -11,7 +11,7 @@ import { resolveCommercialEntitlement } from '@/lib/tier'
 import { isFeatureEnabled } from '@/lib/flags'
 import { listConnections } from '@/lib/integrations/search-console/store'
 import { GoogleConnectionsPanel } from '@/components/integrations/GoogleConnectionsPanel'
-import { isConsentErrorReason } from '@/lib/integrations/google/consent-reasons'
+import { consentErrorFrom } from '@/lib/integrations/google/consent-reasons'
 
 export default async function SettingsPage({
   params,
@@ -53,8 +53,7 @@ export default async function SettingsPage({
     }
   }
   // Only a reason the callback itself generates is shown; anything else is ignored.
-  const reason = search.google === 'error' ? search.reason : undefined
-  const notice = isConsentErrorReason(reason) ? reason : null
+  const notice = consentErrorFrom(search)
 
   return (
     <SettingsView lang={lang} plan={plan} status={status} hasStripe={hasStripe}>

@@ -18,6 +18,17 @@ const copyFor = (lang: string): Copy => (lang === 'zh-HK' ? zhHK : en).searchCon
  * the UI. One generic message covers every non-2xx and every thrown network
  * failure.
  */
+/**
+ * Why a Google consent round-trip was refused, in the owner's language. Rendered
+ * by this panel on Settings and by the brand's assets page, where the analytics
+ * grant link returns; both take the reason from consentErrorFrom, so an unknown
+ * one never reaches here and null renders nothing.
+ */
+export function GoogleConsentNotice({ lang, reason }: { lang: string; reason: ConsentErrorReason | null }) {
+  if (!reason) return null
+  return <p role="status" className="mt-3 text-sm text-foreground">{copyFor(lang)[`error_${reason}`]}</p>
+}
+
 export function DisconnectErrorNotice({ lang }: { lang: string }) {
   const copy = copyFor(lang)
   return <p role="alert" className="mt-3 text-sm font-medium text-destructive">{copy.disconnect_error}</p>
@@ -132,7 +143,7 @@ export function GoogleConnectionsPanel({
       ) : (
         <>
           <p className="mt-1 text-sm text-muted-foreground">{copy.connections_body}</p>
-          {notice && <p role="status" className="mt-3 text-sm text-foreground">{copy[`error_${notice}`]}</p>}
+          <GoogleConsentNotice lang={lang} reason={notice} />
           {revokeWarning && <p role="status" className="mt-3 text-sm text-foreground">{copy.google_revoke_failed}</p>}
           {disconnectError && <DisconnectErrorNotice lang={lang} />}
           <ul className="mt-4 space-y-2">
