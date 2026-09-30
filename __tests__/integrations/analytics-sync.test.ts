@@ -171,6 +171,40 @@ describe('syncAnalyticsBinding', () => {
     })
 
     it.each([
+      ['a stream re-pointed at another site', 'https://other.com'],
+      ['an unparseable default URI', 'not a url'],
+      ['a non-http default URI', 'ftp://www.example.com'],
+      ['a default URI with a port', 'https://www.example.com:8443'],
+      ['a subdomain of the brand', 'https://shop.example.com'],
+      ['an empty default URI', ''],
+    ])('domain_mismatch: the live stream is re-checked against the brand domain (%s)', async (_label, defaultUri) => {
+      const d = deps({ getStream: vi.fn().mockResolvedValue({ streamId: '987', displayName: 'Web', defaultUri }) })
+      expect(await syncAnalyticsBinding(binding({ backfillPending: true }), d)).toBe('domain_mismatch')
+      expect(d.listKeyEvents).not.toHaveBeenCalled()
+      expect(d.report).not.toHaveBeenCalled()
+      expect(d.replaceDailyWindow).not.toHaveBeenCalled()
+      expect(d.markConnection).not.toHaveBeenCalled()
+      expect(d.recordRun).toHaveBeenCalledTimes(1)
+      expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'domain_mismatch', clearBackfill: false }))
+    })
+
+    it('domain_mismatch is decided before the deadline check that follows the stream lookup', async () => {
+      let clock = 0
+      const d = deps({
+        getStream: vi.fn(async () => { clock = 50; return { streamId: '987', displayName: 'Web', defaultUri: 'https://other.com' } }),
+        now: () => clock, deadline: 40,
+      })
+      expect(await syncAnalyticsBinding(binding(), d)).toBe('domain_mismatch')
+    })
+
+    it('accepts the apex and the www form of the live stream host', async () => {
+      for (const defaultUri of ['https://example.com', 'https://www.example.com', 'HTTPS://WWW.EXAMPLE.COM/']) {
+        const d = deps({ getStream: vi.fn().mockResolvedValue({ streamId: '987', displayName: 'Web', defaultUri }) })
+        expect(await syncAnalyticsBinding(binding(), d)).toBe('ok')
+      }
+    })
+
+    it.each([
       ['access_lost', 'access_lost'],
       ['quota', 'quota'],
       ['unavailable', 'google_unavailable'],

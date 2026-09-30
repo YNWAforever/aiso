@@ -4,7 +4,7 @@ import { GoogleApiError } from '@/lib/integrations/google/oauth'
 import { ANALYTICS_SCOPE, hasScope } from '@/lib/integrations/google/scopes'
 import { DeadlineReachedError } from '@/lib/integrations/search-console/client'
 import { AnalyticsApiError, type KeyEventRow, type runKeyEventReport } from './client'
-import { streamStillMatches, type WebStream } from './binding'
+import { streamEligibility, streamStillMatches, type WebStream } from './binding'
 import { classifySource, type SourceClass } from './sources'
 import type { AnalyticsOutcome } from './state'
 import type { DailyCount, DueAnalyticsBinding, recordAnalyticsRun, replaceDailyWindow } from './store'
@@ -121,7 +121,12 @@ async function attempt(b: DueAnalyticsBinding, deps: AnalyticsSyncDeps): Promise
     const accessToken = token.accessToken
 
     if (outOfTime()) return stop('deferred')
-    if (!(await deps.getStream(accessToken, b.propertyId, b.streamId))) return stop('access_lost')
+    const stream = await deps.getStream(accessToken, b.propertyId, b.streamId)
+    if (!stream) return stop('access_lost')
+    // The stored host was checked above, but GA4 lets an admin re-point a stream at
+    // another site without changing its id. Re-run the same eligibility on the LIVE
+    // default URI, or that site's conversions would keep landing under this brand.
+    if (!streamEligibility(stream.defaultUri, b.currentDomain).eligible) return stop('domain_mismatch')
 
     if (outOfTime()) return stop('deferred')
     const liveKeyEvents = new Set(await deps.listKeyEvents(accessToken, b.propertyId))
