@@ -39,17 +39,18 @@ The source supports these schedules; the dedicated config intentionally enables 
 | `/api/cron/pulse` | `17 4 * * 1` | Trigger and ledger correlated with producer completion/rollup state; a 2xx alone is insufficient |
 | `/api/cron/evaluate-alerts` | `47 7 * * 1` | Evaluation outcome and relevant completion counters; scheduled later than Pulse, but elapsed time does not prove Pulse finished |
 | `/api/cron/trial-emails` | `0 9 * * *` | HTTP status plus sent/failed counters and ledger; investigate partial failures before replay |
-| `/api/cron/search-console` | `0 9 * * *` (same trigger as trial emails) | Per-outcome counts in the body and `search_console_sync_runs`; `502` means brands were due and none synced. With `FEATURE_SEARCH_CONSOLE` unset it answers `200 {skipped: 'flag_off'}` |
-| `/api/cron/analytics` | `0 9 * * *` (same trigger as trial emails and Search Console) | Per-outcome counts in the body and `analytics_sync_runs`; `502` means brands were due and none synced. With `FEATURE_ANALYTICS` unset it answers `200 {skipped: 'flag_off'}` |
+| `/api/cron/search-console` | `0 9 * * *` (same trigger as trial emails) | Per-outcome counts in the body and `search_console_sync_runs`; `502` means brands were due and none synced; `500 {error: 'Sync failed'}` with a `ledger_write_failed` count means some brand's ledger row could not be written. With `FEATURE_SEARCH_CONSOLE` unset it answers `200 {skipped: 'flag_off'}` |
+| `/api/cron/analytics` | `0 9 * * *` (same trigger as trial emails and Search Console) | Per-outcome counts in the body and `analytics_sync_runs`; `502` means brands were due and none synced; `500 {error: 'Sync failed'}` with a `ledger_write_failed` count means some brand's ledger row could not be written. With `FEATURE_ANALYTICS` or `FEATURE_SEARCH_CONSOLE` unset (analytics needs both) it answers `200 {skipped: 'flag_off'}` |
 
 The `0 9 * * *` trigger fans out to all three daily routes (`trial-emails`, then
 `search-console`, then `analytics`) with `Promise.allSettled`, so one failing does not
 stop the others. Approving that cron string enables all three; the Search Console and
-Analytics routes stay inert until their feature flags (`FEATURE_SEARCH_CONSOLE`,
-`FEATURE_ANALYTICS`) and the Google variables are set. The two Google routes share one
+Analytics routes stay inert until their feature flags (`FEATURE_SEARCH_CONSOLE`; for
+Analytics, `FEATURE_ANALYTICS` **and** `FEATURE_SEARCH_CONSOLE`) and the Google variables are set. The two Google routes share one
 runner (`lib/integrations/google/cronRunner.ts`): no brand is started after 40 s, each
-sync stops calling Google at run start + 45 s and records `deferred`, and one brand's
-failed sync is counted as `internal_error` while the run continues. Both fit inside
+sync stops calling Google at run start + 45 s and records `deferred`, and a brand whose
+ledger write failed is counted as `ledger_write_failed` while the run continues, after
+which the run answers `500` and is recorded as an error in `cron_runs`. Both fit inside
 `vercel.json`'s 60 s `maxDuration` for their route.
 
 **Adding `/api/cron/analytics` changes the Worker's source; it does not deploy it.** The

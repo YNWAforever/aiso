@@ -426,9 +426,13 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `lib/integrations/google/cronRunner.ts` (`runGoogleCron`) is the shared runner for both
   `cron/search-console` and `cron/analytics`, and owns the guards, both time limits, an
   in-run attempted set, a **per-binding catch** and the 502 rule. The catch is a behaviour
-  change for Search Console: a rejected sync (its ledger write failing) is now counted
-  `internal_error` and the run continues, where it used to abort on the first rejection and
-  starve every brand behind it. `loadDueBindings` is a deliberately account-blind read
+  change for Search Console: a rejected sync (its ledger write failing) no longer aborts the
+  run on the first rejection and starves every brand behind it. It is counted
+  `ledger_write_failed` — a response counter only, in neither ledger's outcome vocabulary nor
+  any DB CHECK, and distinct from `internal_error`, which is a row that *was* written — the loop
+  carries on, and the run then ends `500 {error:'Sync failed', outcomes}` with `cron_runs`
+  marked `error`, because a 2xx must mean every attempted brand's ledger row was written.
+  `loadDueBindings` is a deliberately account-blind read
   (Analytics has a twin, below), declared in `ACCOUNT_BLIND_BY_DESIGN` in
   `__tests__/security/tenancy-inventory.test.ts`.
   Nothing re-seals tokens after a key rotation, so `GOOGLE_TOKEN_ENCRYPTION_KEY_PREVIOUS` must
@@ -442,19 +446,33 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   applied to any persistent database** — the same status `047`–`049` had before 2026-09-11 and
   `054` has now. The integration suite replays it on disposable Neon branches only
   (`__tests__/integration/analytics.test.ts`, one of the eleven exact-target suites). Three
-  tables, all leading their keys with `account_id` and tied to the brand and the connection by
-  composite `(…, account_id)` FKs: `analytics_bindings` (one row per brand — property, web stream,
+  tables, all leading their keys with `account_id` and all tied to the brand by a composite
+  `(client_id, account_id)` FK: `analytics_bindings` (one row per brand — property, web stream,
   the stream's host as Google reported it, and 1–20 chosen key-event names, exact and
   case-sensitive), `analytics_daily` (a count per date, event and source *class*), and the
-  insert-only `analytics_sync_runs` ledger. Grants are exact: `aeo_app` gets
+  insert-only `analytics_sync_runs` ledger. **Only `analytics_bindings` also has the connection
+  FK** (`(connection_id, account_id)` → `google_connections`); the ledger deliberately has none —
+  its `connection_id` / `property_id` / `stream_id` are plain columns recording what a run
+  synced, so removing a connection never rewrites or cascades away history. **Disconnect**
+  (`revokeConnectionRow`) deletes the connection's `search_console_bindings` but **keeps its
+  `analytics_bindings`**: they read `reconnect` while the connection is revoked, and resume
+  syncing if the same Google login reconnects (the upsert keys on the Google subject, so it
+  reactivates the same connection row). Grants are exact: `aeo_app` gets
   SELECT/INSERT/UPDATE/DELETE on bindings, SELECT/INSERT/**DELETE** (no UPDATE) on `daily`, and
   SELECT/INSERT on the ledger, plus EXECUTE on `analytics_event_names_valid()` — the CHECK helper
   runs as the writing role, so without that grant every write to bindings would fail. Each sync
   *replaces* the re-fetched window (delete then insert, one transaction), 90 days on backfill and
   7 routinely, so a source that fell to zero does not keep a stale count; unlike
   `search_console_daily` that is a DELETE on a daily table, and unlike `pulse_metrics` it is
-  code-enforced *and* backstopped by `analytics_daily_unique`. The class (`organic_search`,
-  `ai_assistant`, `other`) is stored, not the raw referrer host, and the AI-assistant host list
+  code-enforced *and* backstopped by `analytics_daily_unique`. **GA4's `runReport` omits
+  zero-event days**, so an `ok` run records `data_through` = the **window end it requested**,
+  rows or not — never the newest returned date. The panel's "last 28 days" is anchored on the
+  last good run (`lastGood - 28 < date <= lastGood`, current binding and chosen events only),
+  never on `max(date)`, and its withheld note comes from that same row. An `ok` run with zero
+  rows is `synced` with zero totals — a real "0 observed enquiries" — so the observed card shows;
+  anchoring on the newest row would have left a brand with no enquiries in
+  `awaiting_first_sync` forever and dated one whose last enquiry was weeks ago by that old day.
+  The class (`organic_search`, `ai_assistant`, `other`) is stored, not the raw referrer host, and the AI-assistant host list
   lives in `lib/integrations/analytics/sources.ts`, so changing it reclassifies only the next
   re-fetched window. **It rides the same Google connection as Search Console and adds a second
   scope**, `analytics.readonly`: no new OAuth client, key or redirect URI, and one Google
@@ -486,8 +504,15 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   fails if `lib/localTrust` imports `lib/integrations/analytics` or the reverse — which is why
   the analytics guard has its own `loadOwnedClient` instead of borrowing `localTrust`'s. The two
   layers share the owner's lead value and close rate through analytics' own SQL, never a module.
-  Gated on `FEATURE_ANALYTICS=1` (independent of `FEATURE_SEARCH_CONSOLE`) plus the `analytics`
-  plan feature (Pro/Enterprise). This is why AC-11 stays PARTIAL until a pilot shows real data.
+  Gated on **both** `FEATURE_ANALYTICS=1` **and** `FEATURE_SEARCH_CONSOLE=1`
+  (`isAnalyticsEnabled()` in `lib/flags.ts`; every analytics gate — guard, cron, consent start,
+  assets page, observed card — reads it, never `isFeatureEnabled('analytics')` alone) plus the
+  `analytics` plan feature (Pro/Enterprise). Analytics rides the Search Console connection, whose
+  consent, callback and connection routes and Settings panel are all behind the Search Console
+  flag, so analytics alone would be a panel nobody can connect. A refused analytics consent
+  returns to the brand's assets page (`?google=error&reason=…`), which shows the same
+  `searchConsole.error_<reason>` copy as Settings. This is why AC-11 stays PARTIAL until a
+  pilot shows real data.
 - **`047`, `048` and `049` were applied to the AISO development database on 2026-09-11** and
   `--verify` reports all three `all present recorded`. They have **not** been applied to the
   production project Vercel points at — that is a separate cutover decision.
