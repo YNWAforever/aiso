@@ -15,6 +15,9 @@
 
 import { normalizeBrandDomain, normalizeHost } from '@/lib/integrations/search-console/binding'
 
+/** analytics_bindings.stream_host is CHECKed to this length (migration 055); a longer host must be refused before it reaches the DB. */
+export const STREAM_HOST_MAX = 253
+
 export type WebStream = { streamId: string; displayName: string; defaultUri: string }
 export type StreamReason = 'no_domain' | 'other_domain' | 'invalid_uri'
 export type StreamVerdict = { eligible: true; host: string } | { eligible: false; reason: StreamReason }
