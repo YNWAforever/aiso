@@ -51,12 +51,20 @@ describe('migration 055', () => {
 
   it('bounds the chosen events, and validates each element through an immutable helper', () => {
     expect(sql).toContain('cardinality(key_events) between 1 and 20')
-    expect(sql).toMatch(/create function public\.analytics_event_names_valid\(text\[\]\)\s+returns boolean/)
-    expect(sql).toMatch(/language sql\s+immutable/)
     expect(sql).toContain('analytics_event_names_valid(key_events)')
-    // Every element 1-40 characters, and a null element is refused.
-    expect(sql).toMatch(/char_length\(e\) between 1 and 40/)
-    expect(sql).toMatch(/e is not null/)
+  })
+
+  it('pins the whole event-name helper: signature, volatility and body', () => {
+    // Whitespace-normalised, so only real changes fail it. bool_or, a dropped
+    // coalesce, a sliced unnest, or a changed bound would each alter this text.
+    // Behaviour against real Postgres (null element, 41 chars, empty array) is
+    // Task 15's job.
+    const code = sql.replace(/--[^\n]*/g, '').replace(/\s+/g, ' ')
+    expect(code).toContain(
+      'create function public.analytics_event_names_valid(text[]) returns boolean language sql immutable as $$ ' +
+        'select coalesce(bool_and(e is not null and char_length(e) between 1 and 40), true) ' +
+        'from unnest($1) as e $$;',
+    )
   })
 
   it('pins numeric ids and caps the stream host', () => {
@@ -106,15 +114,25 @@ describe('migration 055', () => {
     )
   })
 
-  it('grants each table exactly what spec 3.2 lists', () => {
-    expect(sql).toContain('grant select, insert, update, delete on public.analytics_bindings to aeo_app;')
-    expect(sql).toContain('grant select, insert, delete on public.analytics_daily to aeo_app;')
-    expect(sql).toContain('grant select, insert on public.analytics_sync_runs to aeo_app;')
+  it('issues exactly four GRANT statements: spec 3.2 plus the helper EXECUTE', () => {
+    // Every grant in the file, comments stripped and whitespace/case normalised, so
+    // `grant all`, `grant truncate`, a multi-table grant, or a grant to public
+    // cannot slip in beside the expected ones.
+    const grants = sql
+      .replace(/--[^\n]*/g, '')
+      .match(/\bgrant\s[^;]*;/gi)!
+      .map(statement => statement.replace(/\s+/g, ' ').trim().toLowerCase())
+    expect(grants).toEqual([
+      'grant select, insert, update, delete on public.analytics_bindings to aeo_app;',
+      'grant select, insert, delete on public.analytics_daily to aeo_app;',
+      'grant select, insert on public.analytics_sync_runs to aeo_app;',
+      'grant execute on function public.analytics_event_names_valid(text[]) to aeo_app;',
+    ])
   })
 
-  it('gives daily no UPDATE and the ledger neither UPDATE nor DELETE', () => {
-    expect(sql).not.toMatch(/grant [a-z, ]*update[a-z, ]* on public\.analytics_daily to aeo_app/)
-    expect(sql).not.toMatch(/grant [a-z, ]*(update|delete)[a-z, ]* on public\.analytics_sync_runs to aeo_app/)
+  it('grants nothing to PUBLIC', () => {
+    const code = sql.replace(/--[^\n]*/g, '')
+    expect(code).not.toMatch(/\bgrant\s[^;]*\bto\s+public\b/i)
   })
 
   it('lets aeo_app execute the CHECK helper, because it runs as the inserting role', () => {
