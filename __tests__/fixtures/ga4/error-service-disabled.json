@@ -1,0 +1,15 @@
+{
+  "error": {
+    "code": 403,
+    "message": "Google Analytics Admin API has not been used in project 1 before or it is disabled.",
+    "status": "PERMISSION_DENIED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+        "reason": "SERVICE_DISABLED",
+        "domain": "googleapis.com",
+        "metadata": { "service": "analyticsadmin.googleapis.com" }
+      }
+    ]
+  }
+}

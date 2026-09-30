@@ -1,0 +1,7 @@
+{
+  "keyEvents": [
+    { "name": "properties/111/keyEvents/1", "eventName": "generate_lead", "createTime": "2026-01-01T00:00:00Z", "deletable": false, "custom": false, "countingMethod": "ONCE_PER_EVENT" },
+    { "name": "properties/111/keyEvents/2", "eventName": "Generate_Lead", "createTime": "2026-01-02T00:00:00Z", "deletable": true, "custom": true, "countingMethod": "ONCE_PER_EVENT" },
+    { "name": "properties/111/keyEvents/3", "eventName": "purchase", "createTime": "2026-01-03T00:00:00Z", "deletable": false, "custom": false, "countingMethod": "ONCE_PER_EVENT" }
+  ]
+}

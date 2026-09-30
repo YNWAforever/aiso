@@ -1,0 +1,22 @@
+{
+  "dataStreams": [
+    {
+      "name": "properties/111/dataStreams/1001",
+      "type": "WEB_DATA_STREAM",
+      "displayName": "Acme site",
+      "webStreamData": { "measurementId": "G-ABC123", "defaultUri": "https://acme.com" }
+    },
+    {
+      "name": "properties/111/dataStreams/1002",
+      "type": "ANDROID_APP_DATA_STREAM",
+      "displayName": "Acme Android",
+      "androidAppStreamData": { "firebaseAppId": "1:1:android:1", "packageName": "com.acme.app" }
+    },
+    {
+      "name": "properties/111/dataStreams/1003",
+      "type": "IOS_APP_DATA_STREAM",
+      "displayName": "Acme iOS",
+      "iosAppStreamData": { "firebaseAppId": "1:1:ios:1", "bundleId": "com.acme.app" }
+    }
+  ]
+}
