@@ -160,6 +160,13 @@ describe('syncBinding', () => {
     expect(d.markConnection).not.toHaveBeenCalled()
   })
 
+  it('maps a forbidden refresh failure to access_lost through the extracted token path and leaves the connection alone', async () => {
+    const d = deps({ refresh: vi.fn().mockRejectedValue(new GoogleApiError('forbidden', 403)) })
+    expect(await syncBinding(binding(), d)).toBe('access_lost')
+    expect(d.markConnection).not.toHaveBeenCalled()
+    expect(d.query).not.toHaveBeenCalled()
+  })
+
   it('logs a misconfigured refresh failure at error level with the code, and never a token', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
