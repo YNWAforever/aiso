@@ -117,10 +117,10 @@ export async function listConnections(accountId: string): Promise<ConnectionSumm
 export async function loadConnectionSecret(
   accountId: string,
   connectionId: string,
-): Promise<{ status: ConnectionStatus; sealed: SealedToken | null } | null> {
+): Promise<{ status: ConnectionStatus; sealed: SealedToken | null; scopes: string[] } | null> {
   const sql = db()
   const rows = await sql`
-    select status, token_ciphertext, token_key_id
+    select status, token_ciphertext, token_key_id, scopes
     from google_connections
     where account_id = ${accountId} and id = ${connectionId}
     limit 1
@@ -132,6 +132,7 @@ export async function loadConnectionSecret(
     sealed: row.token_ciphertext && row.token_key_id
       ? { ciphertext: Buffer.from(row.token_ciphertext as Uint8Array), keyId: String(row.token_key_id) }
       : null,
+    scopes: (row.scopes as string[] | null) ?? [],
   }
 }
 
