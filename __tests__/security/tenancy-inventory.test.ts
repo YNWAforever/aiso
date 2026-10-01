@@ -68,6 +68,9 @@ const TENANT_TABLES: Record<string, string> = {
   search_console_daily: 'account_id (054)',
   search_console_page_queries: 'account_id (054)',
   search_console_sync_runs: 'account_id (054)',
+  analytics_bindings: 'account_id (055)',
+  analytics_daily: 'account_id (055)',
+  analytics_sync_runs: 'account_id (055)',
   // Tenant through the parent row.
   pulse_metrics: 'client_id -> clients.account_id',
   pulse_weekly_summary: 'client_id -> clients.account_id',
@@ -176,6 +179,14 @@ const ACCOUNT_BLIND_BY_DESIGN: Record<string, string> = {
     'binding paired with the connection, brand, plan and ledger of its own account but select across ' +
     'accounts. Each row carries ' +
     'its own account_id, and every write syncBinding makes for that row uses that value.',
+  'lib/integrations/analytics/store.ts::loadDueAnalyticsBindings':
+    'The selection made by the GA4 conversions cron, the analytics twin of loadDueBindings above: the ' +
+    'due bindings of every account, by design. The cron is authenticated by CRON_SECRET and has no ' +
+    'session to scope to. Its only account predicates are joins (g.account_id = b.account_id, ' +
+    'c.account_id = b.account_id, a.id = b.account_id, and the ledger lateral on b.account_id), which ' +
+    'keep each binding paired with the connection, brand, plan and ledger of its own account but ' +
+    'select across accounts. Each row carries its own account_id, and every write the sync makes for ' +
+    'that row uses that value.',
 }
 
 /**

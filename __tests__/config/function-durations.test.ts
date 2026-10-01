@@ -50,6 +50,8 @@ const LLM_ROUTES = [
   'app/api/cron/trial-emails/route.ts',
   // Not an LLM caller: a paced loop of Google API calls under a 45s budget.
   'app/api/cron/search-console/route.ts',
+  // Same shape as search-console: a paced loop of Google API calls under a 45s budget.
+  'app/api/cron/analytics/route.ts',
 ]
 
 describe('Vercel function durations', () => {
@@ -81,6 +83,7 @@ describe('Cloudflare cron-worker schedule', () => {
 
     const paths = [
       '/api/cron/pulse', '/api/cron/evaluate-alerts', '/api/cron/trial-emails', '/api/cron/search-console',
+      '/api/cron/analytics',
     ]
     for (const path of paths) {
       const route = join(process.cwd(), 'app', `${path}/route.ts`)
@@ -90,9 +93,9 @@ describe('Cloudflare cron-worker schedule', () => {
     }
   })
 
-  it('runs the Search Console sync on the existing daily trigger, not a fourth one', () => {
+  it('runs the Search Console and Analytics syncs on the existing daily trigger, not a fourth one', () => {
     const worker = readFileSync(join(process.cwd(), 'cloudflare/cron-worker/src/index.ts'), 'utf8')
-    expect(worker).toMatch(/'0 9 \* \* \*':\s*\[\s*'\/api\/cron\/trial-emails',\s*'\/api\/cron\/search-console'\s*\]/)
+    expect(worker).toMatch(/'0 9 \* \* \*':\s*\[\s*'\/api\/cron\/trial-emails',\s*'\/api\/cron\/search-console',\s*'\/api\/cron\/analytics'\s*\]/)
   })
 
   it('evaluates alerts after the rollup they read, on the same day', () => {

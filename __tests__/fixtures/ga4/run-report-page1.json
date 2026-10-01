@@ -1,0 +1,16 @@
+{
+  "dimensionHeaders": [{ "name": "date" }, { "name": "eventName" }, { "name": "source" }, { "name": "defaultChannelGroup" }],
+  "metricHeaders": [{ "name": "keyEvents", "type": "TYPE_INTEGER" }],
+  "rows": [
+    {
+      "dimensionValues": [{ "value": "20260928" }, { "value": "generate_lead" }, { "value": "google" }, { "value": "Organic Search" }],
+      "metricValues": [{ "value": "4" }]
+    },
+    {
+      "dimensionValues": [{ "value": "20260928" }, { "value": "generate_lead" }, { "value": "chatgpt.com" }, { "value": "Referral" }],
+      "metricValues": [{ "value": "2" }]
+    }
+  ],
+  "rowCount": 3,
+  "metadata": { "currencyCode": "HKD", "timeZone": "Asia/Hong_Kong" }
+}

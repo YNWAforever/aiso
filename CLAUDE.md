@@ -160,19 +160,22 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   happened.
 - Deployment config lives outside the code and is easy to miss: `vercel.json` sets
   `maxDuration` (60s scan, 30s fix, 60s each for `pulse/run`, `cron/pulse`,
-  `cron/evaluate-alerts`, `cron/trial-emails` and `cron/search-console`) but **no longer schedules anything itself**
+  `cron/evaluate-alerts`, `cron/trial-emails`, `cron/search-console` and `cron/analytics`) but **no longer schedules anything itself**
   (2026-08-22) — its `crons` array was removed. Scheduling now belongs to
   `cloudflare/cron-worker/`, a standalone Cloudflare Worker (own `package.json`/toolchain,
   excluded from this repo's root `tsconfig.json`/`vitest.config.ts`/lint) whose
   `wrangler.jsonc` holds the same three schedules in order — `17 4 * * 1` →
   `/api/cron/pulse`, `47 7 * * 1` → `/api/cron/evaluate-alerts` (after pulse, because alerts
-  read the rollup Pulse writes), `0 9 * * *` → `/api/cron/trial-emails` **and**
-  `/api/cron/search-console` (one trigger fanning out to independent routes via
-  `Promise.allSettled`, because the free tier allows only three triggers) — calling each with
+  read the rollup Pulse writes), `0 9 * * *` → `/api/cron/trial-emails`,
+  `/api/cron/search-console` **and** `/api/cron/analytics` (one trigger fanning out to
+  independent routes via `Promise.allSettled`, in that order, because the free tier allows
+  only three triggers — `wrangler.jsonc` still holds exactly three) — calling each with
   the exact `Authorization: Bearer $CRON_SECRET` header Vercel Cron used to send, so none of
-  the three original routes needed code changes (`cron/search-console` was written for that
-  header). Follow `docs/runbooks/deploy-cron-worker.md` to actually deploy and verify it;
-  until that runs, nothing schedules any of these four routes at all. `vercel.json`'s `functions` keys are **literal paths, not prefixes**, so `fix/`'s
+  the three original routes needed code changes (both Google routes were written for that
+  header). Adding `/api/cron/analytics` to that list is a source change: it runs only once the
+  Worker is **redeployed**, a step separate from merging the code. Follow
+  `docs/runbooks/deploy-cron-worker.md` to actually deploy and verify it; until that runs,
+  nothing schedules any of these five routes at all. `vercel.json`'s `functions` keys are **literal paths, not prefixes**, so `fix/`'s
   subroutes inherit nothing despite also calling OpenRouter.
   `__tests__/config/function-durations.test.ts` now pins `wrangler.jsonc`'s `triggers.crons`
   (not `vercel.json.crons`) and requires every scheduled path to export `GET`, so adding a
@@ -419,8 +422,19 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   connection on one bad secret. The daily cron starts no brand after 40 s and gives each sync
   a deadline of run start + 45 s, checked before every Google call (including each `startRow`
   page); a sync that hits it records `deferred`, keeps its backfill pending, and goes behind
-  never-attempted brands next run. `loadDueBindings` is the one deliberately account-blind
-  read, declared in `ACCOUNT_BLIND_BY_DESIGN` in `__tests__/security/tenancy-inventory.test.ts`.
+  never-attempted brands next run. Since 2026-09-30 that loop is not Search Console's own:
+  `lib/integrations/google/cronRunner.ts` (`runGoogleCron`) is the shared runner for both
+  `cron/search-console` and `cron/analytics`, and owns the guards, both time limits, an
+  in-run attempted set, a **per-binding catch** and the 502 rule. The catch is a behaviour
+  change for Search Console: a rejected sync (its ledger write failing) no longer aborts the
+  run on the first rejection and starves every brand behind it. It is counted
+  `ledger_write_failed` — a response counter only, in neither ledger's outcome vocabulary nor
+  any DB CHECK, and distinct from `internal_error`, which is a row that *was* written — the loop
+  carries on, and the run then ends `500 {error:'Sync failed', outcomes}` with `cron_runs`
+  marked `error`, because a 2xx must mean every attempted brand's ledger row was written.
+  `loadDueBindings` is a deliberately account-blind read
+  (Analytics has a twin, below), declared in `ACCOUNT_BLIND_BY_DESIGN` in
+  `__tests__/security/tenancy-inventory.test.ts`.
   Nothing re-seals tokens after a key rotation, so `GOOGLE_TOKEN_ENCRYPTION_KEY_PREVIOUS` must
   stay set until every connection has reconnected or been revoked. A property binds only if it
   covers the brand's domain (`lib/integrations/search-console/binding.ts`). Gated on
@@ -428,6 +442,77 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `webmasters.readonly` is a Google *sensitive* scope: until Google verifies the OAuth app,
   consent shows an "unverified app" warning and the app is capped at 100 users. The OAuth
   redirect URI comes from `NEXT_PUBLIC_APP_URL`, so connecting only works from that host.
+- **GA4 conversions connector (migration `055`, Phase 2, added 2026-10-01).** `055` is **not
+  applied to any persistent database** — the same status `047`–`049` had before 2026-09-11 and
+  `054` has now. The integration suite replays it on disposable Neon branches only
+  (`__tests__/integration/analytics.test.ts`, one of the eleven exact-target suites). Three
+  tables, all leading their keys with `account_id` and all tied to the brand by a composite
+  `(client_id, account_id)` FK: `analytics_bindings` (one row per brand — property, web stream,
+  the stream's host as Google reported it, and 1–20 chosen key-event names, exact and
+  case-sensitive), `analytics_daily` (a count per date, event and source *class*), and the
+  insert-only `analytics_sync_runs` ledger. **Only `analytics_bindings` also has the connection
+  FK** (`(connection_id, account_id)` → `google_connections`); the ledger deliberately has none —
+  its `connection_id` / `property_id` / `stream_id` are plain columns recording what a run
+  synced, so removing a connection never rewrites or cascades away history. **Disconnect**
+  (`revokeConnectionRow`) deletes the connection's `search_console_bindings` but **keeps its
+  `analytics_bindings`**: they read `reconnect` while the connection is revoked, and resume
+  syncing if the same Google login reconnects (the upsert keys on the Google subject, so it
+  reactivates the same connection row). Grants are exact: `aeo_app` gets
+  SELECT/INSERT/UPDATE/DELETE on bindings, SELECT/INSERT/**DELETE** (no UPDATE) on `daily`, and
+  SELECT/INSERT on the ledger, plus EXECUTE on `analytics_event_names_valid()` — the CHECK helper
+  runs as the writing role, so without that grant every write to bindings would fail. Each sync
+  *replaces* the re-fetched window (delete then insert, one transaction), 90 days on backfill and
+  7 routinely, so a source that fell to zero does not keep a stale count; unlike
+  `search_console_daily` that is a DELETE on a daily table, and unlike `pulse_metrics` it is
+  code-enforced *and* backstopped by `analytics_daily_unique`. **GA4's `runReport` omits
+  zero-event days**, so an `ok` run records `data_through` = the **window end it requested**,
+  rows or not — never the newest returned date. The panel's "last 28 days" is anchored on the
+  last good run (`lastGood - 28 < date <= lastGood`, current binding and chosen events only),
+  never on `max(date)`, and its withheld note comes from that same row. An `ok` run with zero
+  rows is `synced` with zero totals — a real "0 observed enquiries" — so the observed card shows;
+  anchoring on the newest row would have left a brand with no enquiries in
+  `awaiting_first_sync` forever and dated one whose last enquiry was weeks ago by that old day.
+  The class (`organic_search`, `ai_assistant`, `other`) is stored, not the raw referrer host, and the AI-assistant host list
+  lives in `lib/integrations/analytics/sources.ts`, so changing it reclassifies only the next
+  re-fetched window. **It rides the same Google connection as Search Console and adds a second
+  scope**, `analytics.readonly`: no new OAuth client, key or redirect URI, and one Google
+  verification request covers both sensitive scopes. Consent is `/api/integrations/google/start?scope=analytics`, which
+  asks for both scopes so connecting never narrows an existing grant, and
+  `include_granted_scopes` is now `true` for **every** consent (Search Console's was `false`),
+  so a later Search Console reconnect cannot drop the Analytics grant either. Only a
+  `WEB_DATA_STREAM` whose host covers the brand's domain binds, and the sync re-checks the
+  stored host *and* the live stream against the brand's current domain on every run
+  (`domain_mismatch` → the owner rebinds). **The cross-product rule:** no GA4 failure of any
+  kind — a missing scope, an Analytics API 403 — may flip the shared connection, because Search
+  Console still works on it; `sync.ts` never calls `markConnection` itself, and only
+  `acquireAccessToken` (a refresh `400 invalid_grant`) does. Ledger vocabulary
+  (`ANALYTICS_SYNC_OUTCOMES`, mirrored by the table's CHECK): Search Console's, plus
+  `scope_missing` (skipped, and the owner is asked to grant it) and `events_missing` (none of the
+  chosen events is a key event any more; skipped). `cron/analytics` is the shared runner
+  (above) with `not_entitled`, `domain_mismatch`, `scope_missing` and `events_missing` as
+  deliberate skips, and `loadDueAnalyticsBindings` — active connections whose last run is over
+  20 h old, least recently attempted first — is the second account-blind read in
+  `ACCOUNT_BLIND_BY_DESIGN`. **Owner route** `app/api/dashboard/clients/[clientId]/analytics`
+  (GET / PUT / DELETE), gated by `lib/integrations/analytics/guard.ts` (flag → auth →
+  `analytics` plan feature → ownership; 404 / 401 / 403 `UPGRADE_REQUIRED` / 404, and 503 for a
+  failed ownership lookup): Google failures answer `{error:'GOOGLE', reason}` — `409` for
+  `revoked` and `scope_missing` (the owner can act on both), `502` for `access_lost`, `503` for
+  the rest; `422 {error:'INELIGIBLE', reason}` for a stream or event that cannot be bound; any
+  database failure is `503`. **Observed and modelled stay separate:** the dashboard's ROI step
+  shows an "Observed enquiries" card (`ObservedEnquiriesCard`, fed by `loadObservedPanel`)
+  beside the Local Trust scenario, and `__tests__/security/outcome-layer-separation.test.ts`
+  fails if `lib/localTrust` imports `lib/integrations/analytics` or the reverse — which is why
+  the analytics guard has its own `loadOwnedClient` instead of borrowing `localTrust`'s. The two
+  layers share the owner's lead value and close rate through analytics' own SQL, never a module.
+  Gated on **both** `FEATURE_ANALYTICS=1` **and** `FEATURE_SEARCH_CONSOLE=1`
+  (`isAnalyticsEnabled()` in `lib/flags.ts`; every analytics gate — guard, cron, consent start,
+  assets page, observed card — reads it, never `isFeatureEnabled('analytics')` alone) plus the
+  `analytics` plan feature (Pro/Enterprise). Analytics rides the Search Console connection, whose
+  consent, callback and connection routes and Settings panel are all behind the Search Console
+  flag, so analytics alone would be a panel nobody can connect. A refused analytics consent
+  returns to the brand's assets page (`?google=error&reason=…`), which shows the same
+  `searchConsole.error_<reason>` copy as Settings. This is why AC-11 stays PARTIAL until a
+  pilot shows real data.
 - **`047`, `048` and `049` were applied to the AISO development database on 2026-09-11** and
   `--verify` reports all three `all present recorded`. They have **not** been applied to the
   production project Vercel points at — that is a separate cutover decision.
@@ -598,18 +683,19 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   project exists only while that file does, so CI is unaffected.
 - **Dead:** `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — read by zero source files; checkout is
   server-side only. `@stripe/stripe-js` is installed but never imported.
-- `CRON_SECRET` — ≥16 chars, read by **five** cron-path routes in two header shapes (and also
-  checked by the three `agents/*` routes). `cron/search-console` (Phase 2) takes the Vercel
-  Cron shape and rides the `0 9 * * *` trigger with `cron/trial-emails`. `cron/pulse` and
-  `cron/trial-emails` (restored 2026-08-22) both take Vercel Cron's own shape directly: `GET`
-  with `Authorization: Bearer $CRON_SECRET`. `pulse/run` isn't cron-invoked at all — the
-  pulse driver calls it internally with `x-cron-secret` instead, which is why that second
-  shape exists. Neither shape is ours to choose — the first is Vercel's, the second is the
-  producer's. All five return 500 rather than running if the secret is unset or short.
-  `cloudflare/cron-worker/` schedules `cron/pulse` and `cron/trial-emails` (2026-08-22,
-  see above and `docs/runbooks/deploy-cron-worker.md`) — `vercel.json` no longer schedules
-  anything. The fourth route,
-  `cron/evaluate-alerts`, is **scheduled weekly** on its own and is not part of that
+- `CRON_SECRET` — ≥16 chars, read by **six** cron-path routes in two header shapes (and also
+  checked by the three `agents/*` routes, via `lib/agents.ts`). Counted by grep on 2026-10-01:
+  `cron/pulse`, `cron/trial-emails` and `cron/evaluate-alerts` each read it themselves;
+  `cron/search-console` and `cron/analytics` read it through the shared runner
+  `lib/integrations/google/cronRunner.ts`; and `pulse/run` reads it directly. Five take Vercel
+  Cron's own shape: `GET` with `Authorization: Bearer $CRON_SECRET`. `pulse/run` isn't
+  cron-invoked at all — the pulse driver calls it internally with `x-cron-secret` instead,
+  which is why that second shape exists. Neither shape is ours to choose — the first is Vercel's,
+  the second is the producer's. All six return 500 rather than running if the secret is unset or
+  short. `cloudflare/cron-worker/` schedules five of them (`cron/pulse`, `cron/evaluate-alerts`,
+  `cron/trial-emails`, `cron/search-console`, `cron/analytics`; see above and
+  `docs/runbooks/deploy-cron-worker.md`) — `vercel.json` no longer schedules anything.
+  `cron/evaluate-alerts` is **scheduled weekly** on its own and is not part of the Pulse
   chain — it accepts **both** shapes directly on its own handlers: `GET` with
   `Authorization: Bearer` for Vercel Cron, `POST` with `x-cron-secret` for the smoke
   checks in `docs/alert-evaluation-release.md`. It needs **no** driver hop, because

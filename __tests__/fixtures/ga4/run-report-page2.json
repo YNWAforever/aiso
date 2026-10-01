@@ -1,0 +1,12 @@
+{
+  "dimensionHeaders": [{ "name": "date" }, { "name": "eventName" }, { "name": "source" }, { "name": "defaultChannelGroup" }],
+  "metricHeaders": [{ "name": "keyEvents", "type": "TYPE_INTEGER" }],
+  "rows": [
+    {
+      "dimensionValues": [{ "value": "20260929" }, { "value": "purchase" }, { "value": "(direct)" }, { "value": "Direct" }],
+      "metricValues": [{ "value": "1" }]
+    }
+  ],
+  "rowCount": 3,
+  "metadata": { "currencyCode": "HKD", "timeZone": "Asia/Hong_Kong" }
+}

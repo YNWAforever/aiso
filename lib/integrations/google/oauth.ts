@@ -11,7 +11,8 @@ import { createHash, randomBytes } from 'node:crypto'
  * to "reconnect" after a single bad deploy, and reconnecting can't fix it.
  */
 
-export const SEARCH_CONSOLE_SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly'
+// Defined in scopes.ts; re-exported because the callback route and tests import it from here.
+export { SEARCH_CONSOLE_SCOPE } from './scopes'
 export const CALLBACK_PATH = '/api/integrations/google/callback'
 export const GOOGLE_TIMEOUT_MS = 10_000
 
@@ -59,20 +60,30 @@ export function randomState(): string {
   return randomBytes(32).toString('base64url')
 }
 
-export function buildConsentUrl(cfg: GoogleOAuthConfig, input: { state: string; challenge: string }): string {
+/**
+ * `include_granted_scopes=true` is deliberate: one connection holds every product's
+ * grant, so a later Search Console reconnect must not silently drop an Analytics
+ * grant the account already gave.
+ */
+export function buildConsentUrl(
+  cfg: GoogleOAuthConfig,
+  input: { state: string; challenge: string; scopes: string[]; loginHint?: string },
+): string {
   const url = new URL(AUTH_URL)
-  url.search = new URLSearchParams({
+  const params = new URLSearchParams({
     client_id: cfg.clientId,
     redirect_uri: cfg.redirectUri,
     response_type: 'code',
-    scope: `openid email ${SEARCH_CONSOLE_SCOPE}`,
+    scope: ['openid', 'email', ...input.scopes].join(' '),
     access_type: 'offline',
     prompt: 'consent',
-    include_granted_scopes: 'false',
+    include_granted_scopes: 'true',
     state: input.state,
     code_challenge: input.challenge,
     code_challenge_method: 'S256',
-  }).toString()
+  })
+  if (input.loginHint) params.set('login_hint', input.loginHint)
+  url.search = params.toString()
   return url.toString()
 }
 

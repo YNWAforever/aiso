@@ -6,9 +6,12 @@ import { buildAssetConvergence, siteFindingsFromEvidence } from '@/lib/view-mode
 import { buildMergeSuggestions } from '@/lib/assets/merge-suggestions'
 import { loadSuggestionSources, toRegisteredPages } from '@/lib/assets/suggestion-inputs'
 import { AssetConvergenceView } from '@/components/dashboard/AssetConvergenceView'
-import { isFeatureEnabled } from '@/lib/flags'
+import { isAnalyticsEnabled, isFeatureEnabled } from '@/lib/flags'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { SearchConsolePanel } from '@/components/integrations/SearchConsolePanel'
+import { AnalyticsPanel } from '@/components/integrations/AnalyticsPanel'
+import { GoogleConsentNotice } from '@/components/integrations/GoogleConnectionsPanel'
+import { consentErrorFrom } from '@/lib/integrations/google/consent-reasons'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,13 +28,20 @@ export const dynamic = 'force-dynamic'
  * state for it: "no pages registered" and "we could not read your pages" are
  * different facts, and rendering the first for the second would quietly invite
  * an owner to register a page they already have.
+ *
+ * The analytics grant link (grantAnalyticsHref) returns here, so a refused
+ * consent comes back as `?google=error&reason=…` and is explained above the
+ * Google panels, in the same words Settings uses.
  */
 export default async function AssetsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ lang: string; clientId: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const { lang, clientId } = await params
+  const search = await searchParams
   const profile = await requireAuth(lang)
 
   const owned = await loadOwnedWorkspace({ clientId, profile })
@@ -48,8 +58,14 @@ export default async function AssetsPage({
   // exist yet for a new brand.
   const evidence = (owned.scan.data?.results as { evidence?: unknown } | undefined)?.evidence
 
-  const searchConsole = isFeatureEnabled('search_console')
-    && resolveCommercialEntitlement(profile.accounts).features.search_console
+  const entitlement = resolveCommercialEntitlement(profile.accounts)
+  const searchConsole = isFeatureEnabled('search_console') && entitlement.features.search_console
+  // The same gate the analytics routes apply (lib/integrations/analytics/guard.ts):
+  // dark unless FEATURE_ANALYTICS and FEATURE_SEARCH_CONSOLE are both on, and only
+  // on a plan that grants it.
+  const analytics = isAnalyticsEnabled() && entitlement.features.analytics
+  // Only with a Google panel on screen: a dark feature explains nothing.
+  const consentNotice = searchConsole || analytics ? consentErrorFrom(search) : null
 
   return (
     <>
@@ -63,7 +79,9 @@ export default async function AssetsPage({
         lang={lang}
         clientId={clientId}
       />
+      {consentNotice && <GoogleConsentNotice lang={lang} reason={consentNotice} />}
       {searchConsole && <SearchConsolePanel clientId={clientId} lang={lang} />}
+      {analytics && <AnalyticsPanel clientId={clientId} lang={lang} />}
     </>
   )
 }

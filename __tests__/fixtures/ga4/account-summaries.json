@@ -1,0 +1,18 @@
+{
+  "accountSummaries": [
+    {
+      "name": "accountSummaries/100",
+      "account": "accounts/100",
+      "displayName": "Acme",
+      "propertySummaries": [
+        { "property": "properties/111", "displayName": "Acme Web", "propertyType": "PROPERTY_TYPE_ORDINARY", "parent": "accounts/100" },
+        { "property": "properties/222", "displayName": "Acme Shop", "propertyType": "PROPERTY_TYPE_ORDINARY", "parent": "accounts/100" }
+      ]
+    },
+    {
+      "name": "accountSummaries/200",
+      "account": "accounts/200",
+      "displayName": "Empty account"
+    }
+  ]
+}

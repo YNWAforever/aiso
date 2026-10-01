@@ -1,6 +1,6 @@
 import { resolveCommercialEntitlement } from '@/lib/tier'
+import { acquireAccessToken, type TokenDeps } from '@/lib/integrations/google/access'
 import { GoogleApiError, type GoogleFailure } from '@/lib/integrations/google/oauth'
-import { VaultError, type SealedToken } from '@/lib/integrations/google/vault'
 import { DeadlineReachedError, type AnalyticsQuery, type AnalyticsRow } from './client'
 import { bindingMatchesDomain } from './binding'
 import type { SyncOutcome } from './state'
@@ -31,16 +31,11 @@ export const QUERY_CAP = 25
 /** Matches migration 054's CHECK: a longer query is dropped rather than failing the batch. */
 export const QUERY_MAX_LENGTH = 512
 
-export type SyncDeps = {
-  loadSecret(accountId: string, connectionId: string): Promise<{ status: string; sealed: SealedToken | null } | null>
-  /** Opens the sealed refresh token; the vault binds each ciphertext to its account. */
-  open(sealed: SealedToken, accountId: string): string
-  refresh(refreshToken: string): Promise<string>
+export type SyncDeps = TokenDeps & {
   query(accessToken: string, siteUrl: string, q: AnalyticsQuery): Promise<AnalyticsRow[]>
   listPages(accountId: string, clientId: string, cap: number): Promise<string[]>
   writeDaily(accountId: string, clientId: string, metrics: DailyMetric[]): Promise<number>
   writePageQueries(accountId: string, clientId: string, metrics: PageQueryMetric[], window: QueryWindow): Promise<number>
-  markConnection(accountId: string, connectionId: string, status: 'needs_reconnect'): Promise<void>
   recordRun(input: {
     accountId: string
     clientId: string
@@ -128,26 +123,20 @@ async function attempt(b: DueBinding, deps: SyncDeps): Promise<AttemptResult> {
     return { outcome: 'domain_mismatch', rows: 0, through: null }
   }
 
-  const secret = await deps.loadSecret(b.accountId, b.connectionId)
-  if (!secret || secret.status !== 'active' || !secret.sealed) return { outcome: 'revoked', rows: 0, through: null }
-
-  let refreshToken: string
-  try {
-    refreshToken = deps.open(secret.sealed, b.accountId)
-  } catch (error) {
-    if (!(error instanceof VaultError)) throw error
-    console.error('[search-console] vault failure', { clientId: b.clientId, code: error.code })
-    return { outcome: 'vault_error', rows: 0, through: null }
-  }
-
   const endDate = deps.today()
   const startDate = daysBefore(endDate, (b.backfillPending ? BACKFILL_DAYS : ROUTINE_DAYS) - 1)
   const clock = deps.now ?? Date.now
   const outOfTime = () => clock() >= deps.deadline
 
+  // Inside the try so a refresh GoogleApiError that acquireAccessToken does not
+  // classify (`forbidden`) still lands in the catch below as access_lost, as it
+  // always has. Every other refresh failure comes back as a TokenResult.
   try {
-    if (outOfTime()) return { outcome: 'deferred', rows: 0, through: null }
-    const accessToken = await deps.refresh(refreshToken)
+    const token = await acquireAccessToken(deps, {
+      accountId: b.accountId, connectionId: b.connectionId, clientId: b.clientId, outOfTime, logTag: '[search-console]',
+    })
+    if (!token.ok) return { outcome: token.outcome, rows: 0, through: null }
+    const accessToken = token.accessToken
     if (outOfTime()) return { outcome: 'deferred', rows: 0, through: null }
     // The deadline also travels into each query: one query can be several
     // startRow pages, and the client stops between them (DeadlineReachedError).
@@ -219,6 +208,7 @@ async function attempt(b: DueBinding, deps: SyncDeps): Promise<AttemptResult> {
     return { outcome: deferred ? 'deferred' : 'ok', rows: written, through: dataThrough }
   } catch (error) {
     if (!(error instanceof GoogleApiError)) throw error
+    // A query failure. The refresh's own failures never reach here except `forbidden`.
     if (error.kind === 'revoked') await deps.markConnection(b.accountId, b.connectionId, 'needs_reconnect')
     if (error.kind === 'misconfigured') {
       console.error('[search-console] google misconfigured', { clientId: b.clientId, status: error.status, code: error.code })
