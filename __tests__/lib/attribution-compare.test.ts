@@ -118,6 +118,31 @@ describe('compareTarget status order', () => {
     expect(r.status).toBe('comparable')
   })
 
+  it('a deferred latest run is no information: not_ready, never sync_failing', () => {
+    expect(
+      compareTarget(base({ search: good({ latestOutcome: 'deferred', okRunDates: [] }) })),
+    ).toEqual({ status: 'not_ready', readyOn: READY })
+  })
+
+  it('a deferred latest run with a ready run and full coverage is comparable', () => {
+    expect(
+      compareTarget(base({ search: good({ latestOutcome: 'deferred' }) })).status,
+    ).toBe('comparable')
+  })
+
+  it('a deferred latest run still falls through to insufficient_history', () => {
+    expect(
+      compareTarget(base({ search: good({ latestOutcome: 'deferred', coveredFrom: null }) }))
+        .status,
+    ).toBe('insufficient_history')
+  })
+
+  it('a quota latest run with no ready run is still sync_failing', () => {
+    expect(
+      compareTarget(base({ search: good({ latestOutcome: 'quota', okRunDates: [] }) })),
+    ).toEqual({ status: 'unavailable', reason: 'sync_failing' })
+  })
+
   it('not_ready before D+31, with readyOn', () => {
     expect(compareTarget(base({ today: '2026-10-12' }))).toEqual({
       status: 'not_ready',
@@ -334,6 +359,26 @@ describe('enquiries (whole site only)', () => {
       missingFrom: '2026-08-15',
       missingTo: '2026-08-31',
     })
+  })
+
+  it('enquiries: a deferred latest run is not_ready, or comparable with a ready run', () => {
+    expect(
+      compareTarget(
+        site({ enquiries: enq({ state: good({ latestOutcome: 'deferred', okRunDates: [] }) }) }),
+      ).enquiries,
+    ).toEqual({ status: 'not_ready', readyOn: READY })
+    expect(
+      compareTarget(site({ enquiries: enq({ state: good({ latestOutcome: 'deferred' }) }) }))
+        .enquiries!.status,
+    ).toBe('comparable')
+  })
+
+  it('enquiries: a quota latest run with no ready run is still sync_failing', () => {
+    expect(
+      compareTarget(
+        site({ enquiries: enq({ state: good({ latestOutcome: 'quota', okRunDates: [] }) }) }),
+      ).enquiries,
+    ).toEqual({ status: 'unavailable', reason: 'sync_failing' })
   })
 
   it('GA4 readiness is independent of Search Console readiness', () => {

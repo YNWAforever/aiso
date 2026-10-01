@@ -50,7 +50,10 @@ function verdictFor(state: SourceState | null, day: string, today: string): Verd
   const ready = readyOn(day)
   const hasReadyRun = state.okRunDates.some((d) => d >= ready)
 
-  if (state.latestOutcome !== 'ok' && !hasReadyRun) {
+  // A `deferred` run only ran out of time: it carries no information about the
+  // source's health (the owner-state modules ignore it too), so it never reads
+  // as failing and evaluation falls through to not_ready / history / comparable.
+  if (state.latestOutcome !== 'ok' && state.latestOutcome !== 'deferred' && !hasReadyRun) {
     return { status: 'unavailable', reason: 'sync_failing' }
   }
   if (today < ready || !hasReadyRun) return { status: 'not_ready', readyOn: ready }
