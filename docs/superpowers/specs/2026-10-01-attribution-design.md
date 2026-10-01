@@ -39,7 +39,7 @@ agency/client roll-up reports, regression alerts (sub-project 4), and multi-sour
 | What can be measured | Specific registered pages (1–20), the whole site, or nothing | "Whole site" uses property-level figures; "nothing" keeps today's flow |
 | Metrics | Per page: Search Console clicks, impressions, CTR, position. Whole site: the same at property level **plus** GA4 enquiries (total and by source class) | GA4 has no page dimension; adding one doubles the scope and touches the GA4 connector still in review |
 | Window | **28 days before vs 28 days after**, delivery day excluded from both | One fixed number per metric that stops changing once complete; rolling numbers move under the owner |
-| Computation | **On read**, no stored snapshots, no new cron | The windows are fixed and Google re-fetches only the last 7 days, so a complete comparison reads the same every time |
+| Computation | **On read**, no stored snapshots, no new cron | The windows are fixed and Google re-fetches only a recent window, so a complete comparison reads the same every time |
 | Wording | "Observed change", with a standing caption; never "caused by" or "result of" | No control group and no seasonality adjustment exist |
 | Layers | Search figures and enquiry figures are separate fields, never combined | AC-11 keeps technical, search/AI and business outcomes apart |
 
@@ -50,7 +50,7 @@ agency/client roll-up reports, regression alerts (sub-project 4), and multi-sour
 - `D` is `delivered_at`'s calendar date in `Asia/Hong_Kong`.
 - **Before** = `D−28 … D−1`. **After** = `D+1 … D+28`. Both are inclusive and 28 days long.
 - **Ready on** = `D+31`: the after-window plus Google's ~3-day reporting lag.
-- **Known limitation, stated in the UI caption's help text and the docs:** Search Console dates are
+- **Known limitation, stated in the delivery form's measure help and the docs:** Search Console dates are
   Pacific Time and GA4 dates are the property's timezone, so a window edge may be up to one day off
   from the Hong Kong date. It is not corrected.
 
@@ -85,6 +85,9 @@ Each target gets exactly one status, decided in this order:
    this feature, or "don't measure"). The UI says to re-record the delivery to measure it.
 4. `unavailable` — with a `reason`:
    - `not_bound` — the brand has no Search Console binding;
+   - `page_not_synced` — a page target outside Search Console's sync set (the `PAGE_CAP` oldest
+     registered pages, as `listSyncPages` takes them); it beats every reason below, because such a
+     page gets no new rows however healthy the binding is;
    - `rebound` — the binding's `bound_at` is after `D−28` (a rebind since before-window start would
      mix two properties' data, and `synced_at >= bound_at` hides the older rows anyway);
    - `sync_failing` — the binding's latest finished run is not `ok` and no `ok` run since the bind has
@@ -201,7 +204,7 @@ fields.
     asset?: { id, url, label },
     status, reason?, readyOn?, missingFrom?, missingTo?,
     search?: { clicks, impressions, ctr, position },          // each {before, after, change, changePct}
-    enquiries?: { status, reason?, total, organic_search, ai_assistant, other }
+    enquiries?: { status, reason?, total, organic_search, ai_assistant, other, withheld? }
   }> }
 ```
 
@@ -253,7 +256,7 @@ assert with `toContain`.
   these figures."* The block never says "caused by" or "result of".
 - Presentational pieces (`TargetRow`, `FigureTable`, `TargetStatusNotice`) have no effects, so they
   render-test without mocks.
-- A failed attribution fetch shows "Measured change is temporarily unavailable"; the technical
+- A failed attribution fetch shows "Measured change could not be loaded just now. Try again."; the technical
   outcomes block beside it is unaffected.
 
 ## 7. Failures, security and tenancy
@@ -277,7 +280,7 @@ assert with `toContain`.
 - **Routes:** each gate in order; 404 vs 503; no driver text in any body or log; attest with and
   without `measure`, with the flag off (`measure` ignored), with a foreign asset id (422), and 2xx
   only after both writes.
-- **Search Console sync:** an uncovered page gets the 90-day window and a covered one the 7-day
+- **Search Console sync:** an uncovered page gets the 90-day window and a covered one the routine
   window; coverage is written only after that target's fetch succeeds; a deferred page writes no
   coverage; a site-URL change, unbind and revoke clear coverage; both syncs' routine windows reach
   back to the last ok run minus the 2-day margin, capped at 90.
@@ -322,3 +325,14 @@ now says what was built. The changes, so a reader of the history is not surprise
 - **Response shape (§5.2):** withdrawn targets are listed as `withdrawn`; a version that measured
   nothing is one `{ scope: null, status: 'not_measured' }` row rather than an empty list.
 - **Copy** is read with `useTranslations('attribution')` (§6), not by a `lang` prop.
+- **A page Search Console does not sync** (only the `PAGE_CAP` = 20 oldest registered pages are,
+  by `created_at, id`) is `unavailable` / `page_not_synced`, decided after `not_bound` and before
+  every other source verdict (§3.3). The delivery form lists such a page but disables it, with a
+  note, and refuses a choice that holds one (§6).
+- **Withheld GA4 data:** a comparable enquiry result carries `withheld: true` when any `ok` GA4 run
+  since `greatest(bound_at, events_chosen_at)` had `data_withheld`; it stays `comparable`, and the
+  block notes that the counts may be lower than actual (§5.2).
+- **Known limitation, documented rather than fixed:** any Search Console rebind (including a
+  disconnect and reconnect) moves `bound_at`, so every earlier delivery's comparison reads
+  `rebound` from then on. The `rebound` copy says reconnecting or rebinding starts a new history.
+  The follow-up is a property-identity timestamp that survives disconnect and reconnect.

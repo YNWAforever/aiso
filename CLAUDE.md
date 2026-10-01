@@ -528,8 +528,10 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   can never point at a withdraw event, and a second composite FK ties `asset_id` to
   `client_assets (account_id, client_id, id)`; both are `on delete restrict`. The "exactly one site
   row, or 1-20 page rows and no site row" rule spans rows, so a **deferred constraint trigger**
-  states it (`SECURITY INVOKER`, schema-qualified, with `aeo_app` granted EXECUTE explicitly,
-  the same reason `055`'s CHECK helper needs the grant) and a violation is SQLSTATE `23514`.
+  states it (`SECURITY INVOKER`, schema-qualified) and a violation is SQLSTATE `23514`. `aeo_app`
+  is granted EXECUTE on the trigger function, but **that grant is not load-bearing**: PostgreSQL
+  checks EXECUTE on a trigger function only at `CREATE TRIGGER` time, never when it fires, unlike
+  `055`'s CHECK helper, which an expression calls at write time and so does need its grant.
   **That error's reported constraint label (`work_item_delivery_measures_shape`) is not the
   trigger's catalog name (`work_item_delivery_measures_shape_trg`)**, so a test or a handler that
   matches on a name misses it; map by SQLSTATE. The route validates the same rule first and the
@@ -559,13 +561,26 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   (`lib/attribution/`: pure `windows.ts` / `compare.ts`, its own SQL in `store.ts`, its own
   `guard.ts`: flag → auth → `search_console` plan feature → ownership, with a malformed id a 404
   and a failed lookup a 503). Computed on read, no snapshots, no cron: `D` is the delivery date in
-  `Asia/Hong_Kong`, before = `D-28..D-1`, after = `D+1..D+28`. **Readiness is an `ok` run (since the
-  bind, HK date) on or after `D+31`, not `data_through`** (which is the requested window end, see
-  above). A latest outcome of `deferred`, or none at all (no run has finished since the bind or
+  `Asia/Hong_Kong`, before = `D-28..D-1`, after = `D+1..D+28`. Search Console dates are Pacific
+  Time and GA4 dates follow the property's time zone, so a window edge can be a day off from the
+  Hong Kong date; this is stated in the measure help and not corrected. **Readiness is an `ok` run
+  (since the bind, HK date) on or after `D+31`, not `data_through`** (which is the requested window
+  end, see above); for GA4 it counts only `ok` runs since `greatest(bound_at, events_chosen_at)`,
+  because an earlier run synced another event choice. A latest outcome of `deferred`, or none at all (no run has finished since the bind or
   event re-pick; the store passes the latest *non-deferred* outcome), is never `sync_failing`;
   only a failing latest outcome with no ready `ok` run is. Statuses, in order: `withdrawn`,
   `not_supported` (multi-source versions), `not_measured`, `unavailable` (`not_bound` /
-  `rebound` / `sync_failing`), `not_ready`, `insufficient_history`, `comparable`. A withdrawn
+  `page_not_synced` / `rebound` / `sync_failing`), `not_ready`, `insufficient_history`,
+  `comparable`. **Search Console syncs only the `PAGE_CAP` (20) oldest registered pages**
+  (`listSyncPages`, by `created_at, id`); `lib/attribution/store.ts` states the same set itself
+  (pinned to `listSyncPages` by a static test and on real Postgres), the delivery form disables a
+  page outside it, and a measured one reads `page_not_synced`. A comparable enquiry result carries
+  `withheld: true` when any `ok` GA4 run since `greatest(bound_at, events_chosen_at)` had
+  `data_withheld`; it stays comparable and the block notes the counts may be lower than actual.
+  **Known limitation: any Search Console rebind, including a disconnect and reconnect, moves
+  `bound_at`, so every earlier delivery's comparison reads `rebound` from then on** (the copy says
+  reconnecting or rebinding starts a new history). The follow-up is a property-identity timestamp
+  that survives disconnect and reconnect. A withdrawn
   attestation keeps its targets, each `withdrawn`, with no delivery date; a version that measured
   nothing answers a single `{scope: null, status: 'not_measured'}`. Enquiries sit beside the search
   figures in a whole-site target with their own sub-status, so a GA4 problem never hides search

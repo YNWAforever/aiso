@@ -35,7 +35,9 @@ export type Figure = {
 /**
  * What a data source (Search Console or GA4) tells us about itself.
  * `boundAt` is an ISO timestamp or a Hong Kong YYYY-MM-DD date.
- * `okRunDates` are the Hong Kong dates of `ok` runs since `boundAt`.
+ * `okRunDates` holds Hong Kong dates of `ok` runs since `boundAt`. The store
+ * passes only the NEWEST one (or none): compareTarget only asks whether some ok
+ * run is on or after ready-on, and the newest answers that.
  * `latestOutcome` is the newest run's outcome; the store supplies the latest
  * NON-`deferred` outcome since the bind, and null when there is none. Both null
  * and `deferred` are "no information": a deferred run only ran out of time, and

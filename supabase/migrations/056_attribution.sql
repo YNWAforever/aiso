@@ -27,17 +27,21 @@
 -- rule first; the trigger is the backstop.
 --
 -- The trigger function is deliberately SECURITY INVOKER (the default), with every
--- relation schema-qualified, for the opposite reason 055's helper needs EXECUTE:
+-- relation schema-qualified:
 --   * It reads work_item_delivery_measures, and aeo_app already holds SELECT on
 --     it, so there is nothing to elevate. SECURITY DEFINER would run it with the
 --     migration owner's privileges for no gain, and would then need a pinned
 --     search_path to be safe. Invoker needs neither; a qualified name cannot be
 --     redirected by search_path.
---   * Like 055's CHECK helper, it runs as the role performing the INSERT. This
---     migration revokes PUBLIC's EXECUTE (as 024, 027 and 055 do) and grants it to
---     aeo_app explicitly inside the same to_regrole guard as the table grants,
---     rather than leaning on a default-privileges rule that only covers functions
---     created by the migration owner (038 says so itself).
+--   * Its body runs as the role performing the INSERT, but EXECUTE is not what
+--     lets that role fire it. PostgreSQL checks EXECUTE on a trigger function
+--     only when CREATE TRIGGER runs (here, as the migration owner), never when
+--     the trigger fires, so aeo_app's inserts fire it with or without a grant.
+--     That is unlike 055's CHECK helper, which an expression calls at write time
+--     and which therefore does need EXECUTE. This migration still revokes
+--     PUBLIC's EXECUTE (as 024, 027 and 055 do) and grants it to aeo_app inside
+--     the same to_regrole guard as the table grants: harmless, and it keeps the
+--     grant set an explicit list of what aeo_app may touch. It is not load-bearing.
 --
 -- search_console_coverage records from which date Search Console data is known to
 -- exist for a property or a page. A brand whose property was bound last week has
@@ -157,7 +161,8 @@ do $$ begin
     -- A rebind resets the property's coverage (delete), and a re-sync moves it
     -- (update).
     grant select, insert, update, delete on public.search_console_coverage to aeo_app;
-    -- The trigger function runs as the inserting role; see the header.
+    -- Not needed for the trigger to fire (EXECUTE is checked at CREATE TRIGGER
+    -- only); kept as an explicit grant. See the header.
     grant execute on function public.work_item_delivery_measures_shape() to aeo_app;
   end if;
 end $$;
