@@ -193,7 +193,12 @@ export function TargetRow({ target, t, locale }: { target: AttributionTargetView
       )}
       {enquiries && (
         enquiriesShown
-          ? <FigureTable title={t('enquiriesTitle')} rows={enquiryRows(enquiries, t)} t={t} locale={locale} />
+          ? (
+            <div className="space-y-2">
+              <FigureTable title={t('enquiriesTitle')} rows={enquiryRows(enquiries, t)} t={t} locale={locale} />
+              {enquiries.withheld === true && <p className="text-sm text-muted-foreground">{t('enquiriesWithheld')}</p>}
+            </div>
+          )
           : (
             <div className="space-y-2">
               <h4 className="font-semibold">{t('enquiriesTitle')}</h4>

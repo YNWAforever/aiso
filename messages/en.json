@@ -2327,6 +2327,7 @@
     "enquiriesOrganic": "Organic search",
     "enquiriesAi": "AI assistants",
     "enquiriesOther": "Other sources",
+    "enquiriesWithheld": "Google Analytics withheld some small counts or cut a report short during this period, so these enquiry counts may be lower than actual.",
     "changeNew": "new",
     "unitPoints": "{value} percentage points",
     "unitPlaces": "{value} places"

@@ -241,6 +241,30 @@ describe('loadAttributionInput: the source reads', () => {
       expect(binding).toContain("r.outcome <> 'deferred' and r.ran_at >= greatest(b.bound_at, b.events_chosen_at)")
     })
 
+    it('reads whether any ok GA4 run since greatest(bound_at, events_chosen_at) withheld data, account-scoped', async () => {
+      m.sql.mockReturnValueOnce([site])
+      m.transaction.mockResolvedValueOnce([[searchBinding], [], [], [analyticsBinding], []])
+      await load(true)
+      const binding = statements().find(s => s.includes('from analytics_bindings b'))!
+      const withheld = binding.match(/\(select coalesce\(bool_or\(r\.data_withheld\), false\).*?\) as data_withheld/)?.[0]
+      expect(withheld, 'the withheld read').toBeDefined()
+      // The same run predicate as readiness: ok runs of the current binding and event choice only.
+      expect(withheld).toContain('from analytics_sync_runs r')
+      expect(withheld).toContain('r.account_id = b.account_id and r.client_id = b.client_id')
+      expect(withheld).toContain("r.outcome = 'ok' and r.ran_at >= greatest(b.bound_at, b.events_chosen_at)")
+      // And the binding it correlates with is the session account's.
+      expect(binding).toContain('b.account_id = ?')
+    })
+
+    it('maps a withheld GA4 run onto the state, and nothing withheld onto false', async () => {
+      m.sql.mockReturnValueOnce([site])
+      m.transaction.mockResolvedValueOnce([[searchBinding], [], [], [{ ...analyticsBinding, data_withheld: true }], []])
+      expect((await load(true))!.sources!.enquiries!.state!.withheld).toBe(true)
+      m.sql.mockReturnValueOnce([site])
+      m.transaction.mockResolvedValueOnce([[searchBinding], [], [], [{ ...analyticsBinding, data_withheld: false }], []])
+      expect((await load(true))!.sources!.enquiries!.state!.withheld).toBe(false)
+    })
+
     it('reads analytics_daily for the chosen events only, synced since the binding and the event choice', async () => {
       m.sql.mockReturnValueOnce([site])
       m.transaction.mockResolvedValueOnce([[searchBinding], [], [], [analyticsBinding], []])
@@ -264,7 +288,7 @@ describe('loadAttributionInput: the source reads', () => {
       ])
       const input = await load(true)
       expect(input!.sources!.enquiries).toEqual({
-        state: { boundAt: analyticsBinding.bound_at, coveredFrom: '2026-06-02', okRunDates: ['2026-10-15'], latestOutcome: 'ok' },
+        state: { boundAt: analyticsBinding.bound_at, coveredFrom: '2026-06-02', okRunDates: ['2026-10-15'], latestOutcome: 'ok', withheld: false },
         days: [{ date: '2026-09-01', sourceClass: 'ai_assistant', count: 4 }],
       })
     })

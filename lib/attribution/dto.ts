@@ -78,6 +78,7 @@ function enquiries(value: unknown): EnquiryResult {
   for (const key of ['total', 'organic_search', 'ai_assistant', 'other'] as const) {
     if (r[key] !== undefined) out[key] = figure(r[key])
   }
+  if (r.withheld !== undefined) out.withheld = typeof r.withheld === 'boolean' ? r.withheld : reject()
   return out
 }
 

@@ -439,7 +439,26 @@ describe('enquiries (whole site only)', () => {
       organic_search: { before: 2, after: 6, change: 4, changePct: 2 },
       ai_assistant: { before: 0, after: 1, change: 1, changePct: 'new' },
       other: { before: 2, after: 0, change: -2, changePct: -1 },
+      withheld: false,
     })
+  })
+
+  it('comparable enquiries carry whether GA4 withheld data, and stay comparable', () => {
+    const days = [ed('2026-09-01', 'organic_search', 2), ed('2026-09-14', 'organic_search', 3)]
+    const withheld = compareTarget(site({ enquiries: enq({ state: good({ withheld: true }), days }) })).enquiries!
+    expect(withheld.status).toBe('comparable')
+    expect(withheld.withheld).toBe(true)
+    // The figures are the same either way: the flag qualifies them, it never changes them.
+    const plain = compareTarget(site({ enquiries: enq({ state: good({ withheld: false }), days }) })).enquiries!
+    expect(plain.withheld).toBe(false)
+    expect({ ...withheld, withheld: false }).toEqual(plain)
+    // A state that says nothing about withholding (Search Console's shape) reads as not withheld.
+    expect(compareTarget(site({ enquiries: enq({ days }) })).enquiries!.withheld).toBe(false)
+  })
+
+  it('a withheld flag never attaches to a verdict that shows no figures', () => {
+    const notReady = compareTarget(site({ enquiries: enq({ state: good({ withheld: true, okRunDates: [] }) }) })).enquiries!
+    expect(notReady).toEqual({ status: 'not_ready', readyOn: READY })
   })
 
   it('a GA4 problem leaves the search figures exactly as they were', () => {

@@ -269,6 +269,36 @@ describe('TargetRow', () => {
     expect(out).not.toMatch(/Infinity|NaN|undefined/)
   })
 
+  const siteWithEnquiries = (withheld?: boolean): AttributionTargetView => ({
+    scope: 'site',
+    status: 'comparable',
+    search: comparablePage().search,
+    enquiries: {
+      status: 'comparable',
+      total: fig(10, 14, 0.4),
+      organic_search: fig(6, 8, 0.3333333333333333),
+      ai_assistant: fig(0, 3, 'new'),
+      other: fig(4, 3, -0.25),
+      ...(withheld === undefined ? {} : { withheld }),
+    },
+  })
+
+  it.each(LANGS)('notes on the enquiry table that withheld counts may be lower than actual, in %s', lang => {
+    const note = messages(lang).attribution.enquiriesWithheld
+    const out = row(lang, siteWithEnquiries(true))
+    expect(out).toContain(note)
+    // Still a comparison: the figures and the caption stay.
+    expect(out).toContain(messages(lang).attribution.enquiriesTotal)
+    expect(out).toContain(messages(lang).attribution.measuredCaption)
+    expect(row(lang, siteWithEnquiries(false))).not.toContain(note)
+    expect(row(lang, siteWithEnquiries())).not.toContain(note)
+  })
+
+  it('says the withheld counts may be lower than actual, never that they are wrong', () => {
+    expect(en.attribution.enquiriesWithheld).toContain('may be lower than actual')
+    expect(zh.attribution.enquiriesWithheld).toMatch(/\p{Script=Han}/u)
+  })
+
   it('keeps the search figures when only the enquiries are unavailable', () => {
     const out = row('en', {
       scope: 'site',
@@ -332,6 +362,20 @@ describe('parseAttributionResponse', () => {
     }))
     expect(view.targets[0].search?.clicks.changePct).toBe('new')
     expect(view.targets[0].enquiries?.total?.changePct).toBe(0)
+  })
+
+  it('keeps whether the enquiry counts were withheld', () => {
+    const enquiries = (withheld: unknown) => body({
+      targets: [{
+        scope: 'site',
+        status: 'comparable',
+        search: search(fig(1, 1, 0)),
+        enquiries: { status: 'comparable', total: fig(1, 1, 0), organic_search: fig(1, 1, 0), ai_assistant: fig(0, 0, 0), other: fig(0, 0, 0), withheld },
+      }],
+    })
+    expect(parseAttributionResponse(enquiries(true)).targets[0].enquiries?.withheld).toBe(true)
+    expect(parseAttributionResponse(enquiries(false)).targets[0].enquiries?.withheld).toBe(false)
+    expect(() => parseAttributionResponse(enquiries('yes'))).toThrow()
   })
 
   it.each([

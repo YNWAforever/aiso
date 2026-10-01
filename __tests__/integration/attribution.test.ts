@@ -605,6 +605,7 @@ describe('loadAttributionInput on real Postgres (as aeo_app)', () => {
       // The 2026-08-24 ok run synced the previous event choice and does not count.
       okRunDates: ['2026-09-12'],
       latestOutcome: 'internal_error',
+      withheld: false,
     })
     // book_call and generate_lead sum per class; rows synced before the re-pick,
     // an unchosen event, and other brands/accounts are out. The delivery day is in the read span.
@@ -639,7 +640,31 @@ describe('loadAttributionInput on real Postgres (as aeo_app)', () => {
         values (${A}::uuid, ${A_CLIENT}::uuid, ${CONNECTION}::uuid, '111', '222', ${outcome}, ${ranAt}::timestamptz)`
     }
     expect((await load({ analytics: true }))!.sources!.enquiries!.state)
-      .toEqual({ boundAt: BOUND_ISO, coveredFrom: null, okRunDates: [], latestOutcome: null })
+      .toEqual({ boundAt: BOUND_ISO, coveredFrom: null, okRunDates: [], latestOutcome: null, withheld: false })
+  })
+
+  it('flags withheld GA4 data only from this brand\'s ok runs since the event choice', async () => {
+    await attested({ scope: 'site' })
+    await seedSearchBinding()
+    await seedOtherBrandsAnalytics()
+    await sql`insert into analytics_bindings (account_id, client_id, connection_id, property_id, stream_id, stream_host, key_events, bound_at, events_chosen_at)
+      values (${A}::uuid, ${A_CLIENT}::uuid, ${CONNECTION}::uuid, '111', '222', 'a-c17.example', ${['generate_lead']}::text[],
+              ${BOUND}::timestamptz, '2026-08-25T00:00:00Z'::timestamptz)`
+    const run = (account: string, client: string, outcome: string, ranAt: string, withheld: boolean) => sql`
+      insert into analytics_sync_runs (account_id, client_id, connection_id, property_id, stream_id, outcome, ran_at, data_withheld)
+      values (${account}::uuid, ${client}::uuid, ${CONNECTION}::uuid, '111', '222', ${outcome}, ${ranAt}::timestamptz, ${withheld})`
+    // Withheld, but none of these counts: an ok run before the event re-pick, a
+    // run since it that is not ok, and the neighbours' ok runs since it.
+    await run(A, A_CLIENT, 'ok', '2026-08-22T10:00:00Z', true)
+    await run(A, A_CLIENT, 'quota', '2026-09-02T10:00:00Z', true)
+    await run(A, A_CLIENT2, 'ok', '2026-09-03T10:00:00Z', true)
+    await run(B, B_CLIENT, 'ok', '2026-09-03T10:00:00Z', true)
+    await run(A, A_CLIENT, 'ok', '2026-09-04T10:00:00Z', false)
+    expect((await load({ analytics: true }))!.sources!.enquiries!.state!.withheld).toBe(false)
+    // One withheld ok run since the event choice is enough, whatever came after it.
+    await run(A, A_CLIENT, 'ok', '2026-09-05T10:00:00Z', true)
+    await run(A, A_CLIENT, 'ok', '2026-09-06T10:00:00Z', false)
+    expect((await load({ analytics: true }))!.sources!.enquiries!.state!.withheld).toBe(true)
   })
 
   it('reports no Search Console binding as null, never an invented state', async () => {

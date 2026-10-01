@@ -41,12 +41,16 @@ export type Figure = {
  * and `deferred` are "no information": a deferred run only ran out of time, and
  * null means no run has finished yet (say every run since an event re-pick
  * deferred). `compareTarget` never treats either as failing.
+ * `withheld` is GA4's only: whether any `ok` run since the bind and the current
+ * event choice (`greatest(bound_at, events_chosen_at)`) reported that Google
+ * withheld data. Absent (Search Console) reads as false.
  */
 export type SourceState = {
   boundAt: string | null
   coveredFrom: string | null
   okRunDates: string[]
   latestOutcome: string | null
+  withheld?: boolean
 }
 
 export type SearchDay = { date: string; clicks: number; impressions: number; position: number }
@@ -62,6 +66,12 @@ export type EnquiryResult = {
   organic_search?: Figure
   ai_assistant?: Figure
   other?: Figure
+  /**
+   * Present on a comparable result only: GA4 withheld some data in a run these
+   * figures rest on, so the counts may be lower than actual. It qualifies the
+   * figures and never changes the status: they are still comparable.
+   */
+  withheld?: boolean
 }
 
 export type TargetResult = {

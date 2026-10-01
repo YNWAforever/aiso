@@ -147,6 +147,8 @@ function enquiryResult(
     organic_search: figure(b.organic_search, a.organic_search, true),
     ai_assistant: figure(b.ai_assistant, a.ai_assistant, true),
     other: figure(b.other, a.other, true),
+    // Withheld data makes the counts a floor, not a wrong answer: the result stays comparable.
+    withheld: input.state?.withheld === true,
   }
 }
 

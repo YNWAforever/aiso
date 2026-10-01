@@ -2327,6 +2327,7 @@
     "enquiriesOrganic": "自然搜尋",
     "enquiriesAi": "AI 助手",
     "enquiriesOther": "其他來源",
+    "enquiriesWithheld": "Google Analytics 在這段期間隱去了部分少量數字或截短了報告，因此這些查詢數字可能低於實際。",
     "changeNew": "新增",
     "unitPoints": "{value} 個百分點",
     "unitPlaces": "{value} 位"

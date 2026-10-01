@@ -212,7 +212,9 @@ async function readSources(
   if (readGa4) {
     queries.push(
       // Coverage and readiness count only runs since the binding AND the current
-      // event choice: an earlier run synced another stream or other events.
+      // event choice: an earlier run synced another stream or other events. The
+      // withheld flag uses the same ok runs: if Google withheld data from any of
+      // them, the counts these figures sum may be lower than actual.
       sql`
         select to_char(b.bound_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as bound_at,
           b.covered_from::text as covered_from,
@@ -220,6 +222,10 @@ async function readSources(
              from analytics_sync_runs r
             where r.account_id = b.account_id and r.client_id = b.client_id
               and r.outcome = 'ok' and r.ran_at >= greatest(b.bound_at, b.events_chosen_at)) as last_ok_day,
+          (select coalesce(bool_or(r.data_withheld), false)
+             from analytics_sync_runs r
+            where r.account_id = b.account_id and r.client_id = b.client_id
+              and r.outcome = 'ok' and r.ran_at >= greatest(b.bound_at, b.events_chosen_at)) as data_withheld,
           (select r.outcome
              from analytics_sync_runs r
             where r.account_id = b.account_id and r.client_id = b.client_id
@@ -281,6 +287,7 @@ async function readSources(
             coveredFrom: text(gaBinding.covered_from),
             okRunDates: gaBinding.last_ok_day ? [String(gaBinding.last_ok_day)] : [],
             latestOutcome: text(gaBinding.latest_outcome),
+            withheld: gaBinding.data_withheld === true,
           }
         : null,
       days: (results[4] ?? []).map(r => ({

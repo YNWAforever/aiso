@@ -203,7 +203,7 @@ describe('GET maps the stored state', () => {
       sources: {
         search, coverage, searchDays,
         enquiries: {
-          state: { boundAt: '2026-06-01T00:00:00.000Z', coveredFrom: '2026-06-02', okRunDates: ['2026-10-15'], latestOutcome: 'ok' },
+          state: { boundAt: '2026-06-01T00:00:00.000Z', coveredFrom: '2026-06-02', okRunDates: ['2026-10-15'], latestOutcome: 'ok', withheld: true },
           days: [
             { date: '2026-09-01', sourceClass: 'ai_assistant', count: 2 },
             { date: '2026-09-20', sourceClass: 'ai_assistant', count: 5 },
@@ -230,6 +230,8 @@ describe('GET maps the stored state', () => {
         organic_search: { before: 0, after: 3, change: 3, changePct: 'new' },
         ai_assistant: { before: 2, after: 5, change: 3, changePct: 1.5 },
         other: { before: 0, after: 0, change: 0, changePct: 0 },
+        // GA4 withheld data in a run since the event choice: still comparable, flagged.
+        withheld: true,
       },
     }])
   })
