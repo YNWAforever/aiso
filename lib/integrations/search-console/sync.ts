@@ -4,7 +4,7 @@ import { GoogleApiError, type GoogleFailure } from '@/lib/integrations/google/oa
 import { DeadlineReachedError, type AnalyticsQuery, type AnalyticsRow } from './client'
 import { bindingMatchesDomain } from './binding'
 import type { SyncOutcome } from './state'
-import type { DailyMetric, DueBinding, PageQueryMetric, QueryWindow } from './store'
+import type { CoverageMark, DailyMetric, DueBinding, PageQueryMetric, QueryWindow } from './store'
 
 /**
  * Sync one binding and say exactly what happened (spec §4.3, §5). Every
@@ -33,8 +33,9 @@ export const QUERY_MAX_LENGTH = 512
 
 export type SyncDeps = TokenDeps & {
   query(accessToken: string, siteUrl: string, q: AnalyticsQuery): Promise<AnalyticsRow[]>
-  listPages(accountId: string, clientId: string, cap: number): Promise<string[]>
-  writeDaily(accountId: string, clientId: string, metrics: DailyMetric[]): Promise<number>
+  /** `coveredFrom` null: no history was ever stored for the page, so it is backfilled, not just topped up. */
+  listPages(accountId: string, clientId: string, cap: number): Promise<Array<{ url: string; coveredFrom: string | null }>>
+  writeDaily(accountId: string, clientId: string, metrics: DailyMetric[], coverage: CoverageMark[]): Promise<number>
   writePageQueries(accountId: string, clientId: string, metrics: PageQueryMetric[], window: QueryWindow): Promise<number>
   recordRun(input: {
     accountId: string
@@ -124,7 +125,16 @@ async function attempt(b: DueBinding, deps: SyncDeps): Promise<AttemptResult> {
   }
 
   const endDate = deps.today()
-  const startDate = daysBefore(endDate, (b.backfillPending ? BACKFILL_DAYS : ROUTINE_DAYS) - 1)
+  const floor = daysBefore(endDate, BACKFILL_DAYS - 1)
+  const routineStart = daysBefore(endDate, ROUTINE_DAYS - 1)
+  // The routine window reaches back to the last ok run, so a run of failed syncs
+  // (quota, outage, deferred) leaves no hole in stored history: readiness elsewhere
+  // is judged by ok-run dates, so coverage must be one range from covered_from.
+  // Capped at the backfill window; past it the hole is real, the window is not
+  // contiguous with what was stored, and coverage restarts there.
+  const reach = b.lastOkDate !== null && b.lastOkDate < routineStart ? b.lastOkDate : routineStart
+  const startDate = b.backfillPending || reach < floor ? floor : reach
+  const contiguous = !b.backfillPending && b.lastOkDate !== null && b.lastOkDate >= startDate
   const clock = deps.now ?? Date.now
   const outOfTime = () => clock() >= deps.deadline
 
@@ -154,12 +164,20 @@ async function attempt(b: DueBinding, deps: SyncDeps): Promise<AttemptResult> {
     }))
 
     const queries: PageQueryMetric[] = []
-    // Only pages whose every call finished: see the partial-write note below.
-    const completedPages: string[] = []
+    // Only pages whose every call finished: see the partial-write note below. Each
+    // carries the window it was fetched over, which is also the window its stored
+    // queries are replaced over and the window its coverage mark claims.
+    const completedPages: Array<{ pageUrl: string; startDate: string; contiguous: boolean }> = []
     let deferred = false
-    const pageUrls = await deps.listPages(b.accountId, b.clientId, PAGE_CAP)
-    for (const pageUrl of pageUrls) {
+    const pages = await deps.listPages(b.accountId, b.clientId, PAGE_CAP)
+    for (const { url: pageUrl, coveredFrom } of pages) {
       if (outOfTime()) { deferred = true; break }
+      // A page with no recorded coverage (registered after the property was bound, or
+      // never completed) has no stored history to top up: fetch the full window. A
+      // covered page gets the property's window and its contiguity.
+      const pageStart = coveredFrom === null ? floor : startDate
+      const pageContiguous = coveredFrom === null ? false : contiguous
+      const pageWindow = { ...window, startDate: pageStart }
       let pageRows: AnalyticsRow[]
       // One request per page with date + query; the top QUERY_CAP per date are kept
       // locally. One request per day would cost 90 per page on a backfill. Skipped
@@ -168,10 +186,10 @@ async function attempt(b: DueBinding, deps: SyncDeps): Promise<AttemptResult> {
       // writePageQueries still clears any of its stale rows.
       let queryRows: AnalyticsRow[] = []
       try {
-        pageRows = await deps.query(accessToken, b.siteUrl, { ...window, dimensions: ['date'], pageEquals: pageUrl })
+        pageRows = await deps.query(accessToken, b.siteUrl, { ...pageWindow, dimensions: ['date'], pageEquals: pageUrl })
         if (pageRows.length) {
           if (outOfTime()) { deferred = true; break }
-          queryRows = await deps.query(accessToken, b.siteUrl, { ...window, dimensions: ['date', 'query'], pageEquals: pageUrl })
+          queryRows = await deps.query(accessToken, b.siteUrl, { ...pageWindow, dimensions: ['date', 'query'], pageEquals: pageUrl })
         }
       } catch (error) {
         if (!(error instanceof DeadlineReachedError)) throw error
@@ -183,7 +201,7 @@ async function attempt(b: DueBinding, deps: SyncDeps): Promise<AttemptResult> {
         clicks: r.clicks, impressions: r.impressions, ctr: r.ctr, position: r.position,
       })))
       queries.push(...topQueriesPerDate(pageUrl, queryRows))
-      completedPages.push(pageUrl)
+      completedPages.push({ pageUrl, startDate: pageStart, contiguous: pageContiguous })
     }
 
     // Partial writes on a deferred run are kept, deliberately, and are safe
@@ -199,11 +217,23 @@ async function attempt(b: DueBinding, deps: SyncDeps): Promise<AttemptResult> {
     // keeps backfill_pending set, so the next run re-fetches the full window.
     // Keeping the partial result means a backfill too large for one run still
     // lands its property totals and its first pages instead of nothing.
-    const written = await deps.writeDaily(b.accountId, b.clientId, daily)
-      // Called with the same fetched window even when queries is empty, so a
+    // Coverage follows the same rule as the rows it describes: a mark for the
+    // property (its fetch finished, or we would not be here) and for each completed
+    // page, in the same transaction as their daily rows. A deferred or never-reached
+    // page gets none, so its coverage still says only what was really stored.
+    const coverage: CoverageMark[] = [
+      { scope: 'property', pageUrl: null, windowStart: startDate, contiguous },
+      ...completedPages.map(p => ({
+        scope: 'page' as const, pageUrl: p.pageUrl, windowStart: p.startDate, contiguous: p.contiguous,
+      })),
+    ]
+    const written = await deps.writeDaily(b.accountId, b.clientId, daily, coverage)
+      // Called with each page's own fetched window even when queries is empty, so a
       // page that dropped out of the top ranks entirely still has its stale
       // rows cleared — see store.ts's writePageQueries doc.
-      + await deps.writePageQueries(b.accountId, b.clientId, queries, { startDate, endDate, pageUrls: completedPages })
+      + await deps.writePageQueries(b.accountId, b.clientId, queries, {
+        endDate, pages: completedPages.map(p => ({ pageUrl: p.pageUrl, startDate: p.startDate })),
+      })
     const dataThrough = property.map(r => r.keys[0]!).sort().at(-1) ?? null
     return { outcome: deferred ? 'deferred' : 'ok', rows: written, through: dataThrough }
   } catch (error) {
