@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { approvedVersion, attestInput, eventRow, ID, ACTOR_ID, VERSION_ID, REQUEST_ID } from './fixtures'
 import { deliveryEventDTO } from '@/lib/delivery/dto'
 vi.mock('server-only', () => ({}))
@@ -204,4 +204,61 @@ it('rejects already aborted requests', async () => {
   const abort=new AbortController(); abort.abort()
   await error(await attestAuthenticatedDelivery(clientId,itemId,versionId,streamRequest([],vi.fn(),abort.signal)),400,'DELIVERY_INVALID_INPUT')
   expect(mocks.attest).not.toHaveBeenCalled()
+})
+
+describe('attest measure gating', () => {
+  const ASSET = '123e4567-e89b-42d3-a456-426614174201'
+  const pro = { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_1' }
+  const on = () => { vi.stubEnv('FEATURE_ATTRIBUTION', '1'); vi.stubEnv('FEATURE_SEARCH_CONSOLE', '1') }
+  const withPlan = (accounts: Record<string, unknown>) => mocks.profile.mockResolvedValue({ id: ACTOR_ID, account_id: accountId, is_admin: false, accounts })
+  const attest = (measure: unknown) => attestAuthenticatedDelivery(clientId, itemId, versionId, request({ ...attestInput(), measure }))
+  const passed = () => mocks.attest.mock.calls[0][1] as Record<string, unknown>
+  afterEach(() => { vi.unstubAllEnvs() })
+
+  it('passes a site or page measure through when attribution is on and the plan grants Search Console', async () => {
+    on(); withPlan(pro)
+    expect((await attest({ scope: 'site' })).status).toBe(201)
+    expect(passed()).toEqual({ ...attestInput(), measure: { scope: 'site' } })
+    mocks.attest.mockClear()
+    expect((await attest({ scope: 'page', assetIds: [ASSET.toUpperCase()] })).status).toBe(201)
+    expect(passed().measure).toEqual({ scope: 'page', assetIds: [ASSET] })
+    expect(mocks.profile).toHaveBeenCalledTimes(2)
+  })
+  it.each([
+    ['the attribution flag is off', () => { vi.stubEnv('FEATURE_ATTRIBUTION', '0'); vi.stubEnv('FEATURE_SEARCH_CONSOLE', '1'); withPlan(pro) }],
+    ['Search Console is off', () => { vi.stubEnv('FEATURE_ATTRIBUTION', '1'); vi.stubEnv('FEATURE_SEARCH_CONSOLE', '0'); withPlan(pro) }],
+    ['the plan lacks Search Console', () => { on(); withPlan({ ...pro, plan: 'basic' }) }],
+    ['the subscription is cancelled', () => { on(); withPlan({ ...pro, status: 'cancelled' }) }],
+  ])('silently drops the measure and still attests when %s', async (_name, setup) => {
+    setup()
+    const response = await attest({ scope: 'site' })
+    expect(response.status).toBe(201)
+    expect(Object.hasOwn(passed(), 'measure')).toBe(false)
+    expect(passed()).toEqual(attestInput())
+  })
+  it('ignores even a malformed measure while the feature is off, so a stale client cannot break delivery', async () => {
+    withPlan(pro)
+    expect((await attest({ scope: 'nonsense', assetIds: 'x' })).status).toBe(201)
+    expect(Object.hasOwn(passed(), 'measure')).toBe(false)
+  })
+  it.each([{ scope: 'property' }, { scope: 'page', assetIds: [] }, { scope: 'page', assetIds: [ASSET, ASSET] }, { scope: 'page', assetIds: ['bad'] }, { scope: 'site', assetIds: [ASSET] }, { scope: 'page', assetIds: Array.from({ length: 21 }, (_, i) => `123e4567-e89b-42d3-a456-4266141743${String(i).padStart(2, '0')}`) }])('rejects malformed measure #%# with 400 when on', async measure => {
+    on(); withPlan(pro)
+    await error(await attest(measure), 400, 'DELIVERY_INVALID_INPUT')
+    expect(mocks.attest).not.toHaveBeenCalled()
+  })
+  it('maps a page that is not one of this brand\'s registered pages to 422 unknown_page', async () => {
+    on(); withPlan(pro)
+    mocks.attest.mockResolvedValue({ kind: 'unknown_page' })
+    const response = await attest({ scope: 'page', assetIds: [ASSET] })
+    expect(response.status).toBe(422)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(await response.json()).toEqual({ error: 'DELIVERY_VALIDATION_FAILED', reason: 'unknown_page' })
+  })
+  it('answers 200 for a replay with the same measure and 409 when the measure differs', async () => {
+    on(); withPlan(pro)
+    mocks.attest.mockResolvedValueOnce({ kind: 'replayed', value: event })
+    expect((await attest({ scope: 'site' })).status).toBe(200)
+    mocks.attest.mockResolvedValueOnce({ kind: 'conflict' })
+    await error(await attest({ scope: 'page', assetIds: [ASSET] }), 409, 'DELIVERY_CONFLICT')
+  })
 })

@@ -1,5 +1,8 @@
 import 'server-only'
 import { getProfile } from '@/lib/auth'
+import { isAttributionEnabled } from '@/lib/flags'
+import { resolveCommercialEntitlement } from '@/lib/tier'
+import type { ProfileWithAccount } from '@/lib/types'
 import { readLimitedJson } from '@/lib/approvals/request'
 import { createDeliveryExport, EXPORT_RENDERER_VERSION } from './export'
 import { deliveryId, parseAttest, parseDeliveryQuery, parseExportFormat, parseWithdraw } from './input'
@@ -27,6 +30,9 @@ function errorResponse(error: unknown): Response {
   return json({ error: code }, statuses[code])
 }
 function failure(result: Exclude<DeliveryResult<unknown>, { value: unknown }>): Response {
+  // The one failure that names its reason: the owner picked a page this brand has
+  // not registered (or that another brand owns), and nothing was written.
+  if (result.kind === 'unknown_page') return json({ error: 'DELIVERY_VALIDATION_FAILED', reason: 'unknown_page' }, statuses.DELIVERY_VALIDATION_FAILED)
   const codes = { not_found: 'DELIVERY_NOT_FOUND', denied: 'DELIVERY_DENIED', conflict: 'DELIVERY_CONFLICT', validation_failed: 'DELIVERY_VALIDATION_FAILED' } as const
   return errorResponse(new DeliveryServiceError(codes[result.kind]))
 }
@@ -34,6 +40,9 @@ function parse<T>(parser: () => T): T {
   try { return parser() } catch { throw new DeliveryServiceError('DELIVERY_INVALID_INPUT') }
 }
 async function authenticate(clientId: string, itemId: string, versionId: string): Promise<DeliveryScope> {
+  return (await session(clientId, itemId, versionId)).scope
+}
+async function session(clientId: string, itemId: string, versionId: string): Promise<{ scope: DeliveryScope; profile: ProfileWithAccount }> {
   // Dependency exceptions remain 503; only an absent session is 401.
   const profile = await getProfile()
   if (!profile) throw new DeliveryServiceError('DELIVERY_UNAUTHENTICATED')
@@ -42,7 +51,7 @@ async function authenticate(clientId: string, itemId: string, versionId: string)
   let accountId: string, actorId: string
   try { accountId = deliveryId(profile.account_id); actorId = deliveryId(profile.id) }
   catch { throw new DeliveryServiceError('DELIVERY_UNAVAILABLE') }
-  return { ...paths, accountId, actorId }
+  return { scope: { ...paths, accountId, actorId }, profile }
 }
 async function body(request: Request): Promise<unknown> {
   try { return await readLimitedJson(request, 16_384) }
@@ -108,12 +117,25 @@ export async function listAuthenticatedDelivery(clientId: string, itemId: string
 
 export async function attestAuthenticatedDelivery(clientId: string, itemId: string, versionId: string, request: Request): Promise<Response> {
   try {
-    const scope = await authenticate(clientId, itemId, versionId)
+    const { scope, profile } = await session(clientId, itemId, versionId)
     const raw = await body(request)
-    const input = parse(() => parseAttest(raw))
+    // With attribution off (flag or plan) the measure is not part of the API at
+    // all: it is removed before parsing, so a stale or newer client can neither
+    // fail delivery with it nor have it recorded.
+    const input = parse(() => parseAttest(measuresEnabled(profile) ? raw : withoutMeasure(raw)))
     const result = await attestDelivery(scope, input)
     return 'value' in result ? json({ event: result.value }, result.kind === 'created' ? 201 : 200) : failure(result)
   } catch (error) { return errorResponse(error) }
+}
+
+function measuresEnabled(profile: ProfileWithAccount): boolean {
+  return isAttributionEnabled() && resolveCommercialEntitlement(profile.accounts).features.search_console
+}
+function withoutMeasure(raw: unknown): unknown {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw) || !Object.hasOwn(raw, 'measure')) return raw
+  const { measure: _ignored, ...rest } = raw as Record<string, unknown>
+  void _ignored
+  return rest
 }
 
 export async function withdrawAuthenticatedDelivery(clientId: string, itemId: string, versionId: string, attestationId: string, request: Request): Promise<Response> {

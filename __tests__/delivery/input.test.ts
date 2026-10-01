@@ -63,3 +63,35 @@ describe('delivery queries', () => {
 it('requires delivery timestamps to be strings at the mutation boundary', () => {
   expect(() => parseAttest({ ...attestInput(), deliveredAt: new Date('2026-09-07T00:00:00Z') })).toThrow('INVALID_DELIVERY_INPUT')
 })
+
+describe('attest measure', () => {
+  const page = (n: number) => `123e4567-e89b-42d3-a456-4266141742${String(n).padStart(2, '0')}`
+  it('accepts no measure, a whole-site measure and up to 20 normalized pages', () => {
+    expect(Object.hasOwn(parseAttest(attestInput()), 'measure')).toBe(false)
+    expect(parseAttest({ ...attestInput(), measure: { scope: 'site' } })).toEqual({ ...attestInput(), measure: { scope: 'site' } })
+    expect(parseAttest({ ...attestInput(), measure: { scope: 'page', assetIds: [page(1).toUpperCase(), page(2)] } }).measure)
+      .toEqual({ scope: 'page', assetIds: [page(1), page(2)] })
+    const twenty = Array.from({ length: 20 }, (_, i) => page(i))
+    expect(parseAttest({ ...attestInput(), measure: { scope: 'page', assetIds: twenty } }).measure).toEqual({ scope: 'page', assetIds: twenty })
+  })
+  it.each([
+    ['unknown scope', { scope: 'property' }],
+    ['missing scope', {}],
+    ['assetIds with site', { scope: 'site', assetIds: [page(1)] }],
+    ['empty assetIds with site', { scope: 'site', assetIds: [] }],
+    ['page without assetIds', { scope: 'page' }],
+    ['zero pages', { scope: 'page', assetIds: [] }],
+    ['21 pages', { scope: 'page', assetIds: Array.from({ length: 21 }, (_, i) => page(i)) }],
+    ['duplicate page', { scope: 'page', assetIds: [page(1), page(1)] }],
+    ['case-duplicate page', { scope: 'page', assetIds: [page(1), page(1).toUpperCase()] }],
+    ['non-UUID page', { scope: 'page', assetIds: ['not-a-uuid'] }],
+    ['non-string page', { scope: 'page', assetIds: [1] }],
+    ['assetIds not an array', { scope: 'page', assetIds: page(1) }],
+    ['extra measure key', { scope: 'site', note: 'x' }],
+    ['null measure', null],
+    ['array measure', [{ scope: 'site' }]],
+    ['string measure', 'site'],
+  ])('rejects %s', (_name, measure) => {
+    expect(() => parseAttest({ ...attestInput(), measure })).toThrow(invalid)
+  })
+})

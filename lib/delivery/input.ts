@@ -1,4 +1,5 @@
-import type { AttestInput, DeliveryQuery, WithdrawInput } from './types'
+import { MEASURE_PAGES_MAX } from '@/lib/attribution/types'
+import type { AttestInput, DeliveryQuery, MeasureInput, WithdrawInput } from './types'
 
 function invalid(): never { throw new Error('INVALID_DELIVERY_INPUT') }
 
@@ -59,11 +60,34 @@ export function deliveryTime(value: unknown, precision: 3 | 6 = 3): string {
     : utc
 }
 
+/**
+ * The same shape rule migration 056's deferred trigger enforces at commit
+ * (exactly one site row, or 1-MEASURE_PAGES_MAX distinct pages), checked here
+ * first so the trigger is only ever a backstop.
+ */
+function parseMeasure(value: unknown): MeasureInput {
+  const input = object(value)
+  if (input.scope === 'site') { exactKeys(input, ['scope']); return { scope: 'site' } }
+  if (input.scope !== 'page') invalid()
+  exactKeys(input, ['scope', 'assetIds'])
+  const raw = input.assetIds
+  if (!Array.isArray(raw) || raw.length < 1 || raw.length > MEASURE_PAGES_MAX) invalid()
+  // Array.from visits holes, so a sparse array cannot smuggle an unchecked slot.
+  const assetIds = Array.from(raw as unknown[], deliveryId)
+  if (new Set(assetIds).size !== assetIds.length) invalid()
+  return { scope: 'page', assetIds }
+}
+
+const ATTEST_KEYS = ['contentHash', 'destination', 'deliveredAt', 'note', 'requestId'] as const
 export function parseAttest(value: unknown): AttestInput {
-  const input = body(value, ['contentHash', 'destination', 'deliveredAt', 'note', 'requestId'])
+  const measured = value !== null && typeof value === 'object' && Object.hasOwn(value, 'measure')
+  const input = body(value, measured ? [...ATTEST_KEYS, 'measure'] : ATTEST_KEYS)
   if (typeof input.deliveredAt !== 'string') invalid()
-  return { contentHash: deliveryHash(input.contentHash), destination: deliveryText(input.destination, 500, false),
+  const parsed: AttestInput = { contentHash: deliveryHash(input.contentHash), destination: deliveryText(input.destination, 500, false),
     deliveredAt: deliveryTime(input.deliveredAt), note: deliveryText(input.note, 2000, true), requestId: deliveryId(input.requestId) }
+  // Absent stays absent: the key is never present-but-undefined.
+  if (measured) parsed.measure = parseMeasure(input.measure)
+  return parsed
 }
 export function parseWithdraw(value: unknown): WithdrawInput {
   const input = body(value, ['reason', 'requestId'])
