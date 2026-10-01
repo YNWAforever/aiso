@@ -137,6 +137,20 @@ describe('compareTarget status order', () => {
     ).toBe('insufficient_history')
   })
 
+  // No finished (non-deferred) run since the bind is no information, exactly like
+  // 'deferred': the store passes null when every run since bound_at deferred.
+  it('a null latest outcome (no finished run yet) is not_ready, never sync_failing', () => {
+    expect(
+      compareTarget(base({ search: good({ latestOutcome: null, okRunDates: [] }) })),
+    ).toEqual({ status: 'not_ready', readyOn: READY })
+  })
+
+  it('a null latest outcome with a ready run and full coverage is comparable', () => {
+    expect(
+      compareTarget(base({ search: good({ latestOutcome: null }) })).status,
+    ).toBe('comparable')
+  })
+
   it('a quota latest run with no ready run is still sync_failing', () => {
     expect(
       compareTarget(base({ search: good({ latestOutcome: 'quota', okRunDates: [] }) })),
@@ -369,6 +383,18 @@ describe('enquiries (whole site only)', () => {
     ).toEqual({ status: 'not_ready', readyOn: READY })
     expect(
       compareTarget(site({ enquiries: enq({ state: good({ latestOutcome: 'deferred' }) }) }))
+        .enquiries!.status,
+    ).toBe('comparable')
+  })
+
+  it('enquiries: a null latest outcome is not_ready, or comparable with a ready run', () => {
+    expect(
+      compareTarget(
+        site({ enquiries: enq({ state: good({ latestOutcome: null, okRunDates: [] }) }) }),
+      ).enquiries,
+    ).toEqual({ status: 'not_ready', readyOn: READY })
+    expect(
+      compareTarget(site({ enquiries: enq({ state: good({ latestOutcome: null }) }) }))
         .enquiries!.status,
     ).toBe('comparable')
   })

@@ -234,6 +234,32 @@ describe('GET maps the stored state', () => {
     }])
   })
 
+  it('reads GA4 with no finished run since an event re-pick as not_ready, not sync_failing', async () => {
+    // The probe from review: the owner re-picked events, the fresh 90-day backfill
+    // keeps deferring, so the store finds no non-deferred run since
+    // greatest(bound_at, events_chosen_at) and passes latestOutcome null, with
+    // coverage reset to null by the re-pick.
+    process.env.FEATURE_ANALYTICS = '1'
+    store.loadAttributionInput.mockResolvedValue(input({
+      measures: [site],
+      sources: {
+        search, coverage, searchDays,
+        enquiries: { state: { boundAt: '2026-06-01T00:00:00.000Z', coveredFrom: null, okRunDates: [], latestOutcome: null }, days: [] },
+      },
+    }))
+    const body = await (await call()).json()
+    expect(body.targets[0].status).toBe('comparable')
+    expect(body.targets[0].enquiries).toEqual({ status: 'not_ready', readyOn: '2026-10-13' })
+  })
+
+  it('reads a Search Console binding whose only runs since bound_at deferred as not_ready', async () => {
+    store.loadAttributionInput.mockResolvedValue(input({
+      sources: { search: { ...search, okRunDates: [], latestOutcome: null }, coverage, searchDays, enquiries: null },
+    }))
+    const body = await (await call()).json()
+    expect(body.targets[0]).toEqual({ scope: 'page', asset: page.asset, status: 'not_ready', readyOn: '2026-10-13' })
+  })
+
   it('passes enquiries as not enabled (never null) for a site target with analytics off', async () => {
     store.loadAttributionInput.mockResolvedValue(input({ measures: [site] }))
     const body = await (await call()).json()

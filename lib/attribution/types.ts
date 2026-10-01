@@ -36,9 +36,11 @@ export type Figure = {
  * What a data source (Search Console or GA4) tells us about itself.
  * `boundAt` is an ISO timestamp or a Hong Kong YYYY-MM-DD date.
  * `okRunDates` are the Hong Kong dates of `ok` runs since `boundAt`.
- * `latestOutcome` is the newest run's outcome; the store should supply the latest
- * NON-`deferred` outcome. A `deferred` run only ran out of time and says nothing
- * about health, so `compareTarget` also never treats it as failing.
+ * `latestOutcome` is the newest run's outcome; the store supplies the latest
+ * NON-`deferred` outcome since the bind, and null when there is none. Both null
+ * and `deferred` are "no information": a deferred run only ran out of time, and
+ * null means no run has finished yet (say every run since an event re-pick
+ * deferred). `compareTarget` never treats either as failing.
  */
 export type SourceState = {
   boundAt: string | null

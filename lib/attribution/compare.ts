@@ -53,7 +53,11 @@ function verdictFor(state: SourceState | null, day: string, today: string): Verd
   // A `deferred` run only ran out of time: it carries no information about the
   // source's health (the owner-state modules ignore it too), so it never reads
   // as failing and evaluation falls through to not_ready / history / comparable.
-  if (state.latestOutcome !== 'ok' && state.latestOutcome !== 'deferred' && !hasReadyRun) {
+  // A null outcome is the same: no run has FINISHED since the bind (the store
+  // passes the latest non-deferred outcome, so a binding whose every run since
+  // bound_at or an event re-pick deferred arrives as null). Nothing has failed.
+  const failing = state.latestOutcome !== null && state.latestOutcome !== 'ok' && state.latestOutcome !== 'deferred'
+  if (failing && !hasReadyRun) {
     return { status: 'unavailable', reason: 'sync_failing' }
   }
   if (today < ready || !hasReadyRun) return { status: 'not_ready', readyOn: ready }
