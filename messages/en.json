@@ -2276,5 +2276,19 @@
       "MEMBER_CANNOT_REMOVE_SELF": "You cannot remove yourself. Ask another member to do it.",
       "MEMBER_NOT_FOUND": "That person is not in this workspace."
     }
+  },
+  "attribution": {
+    "measureTitle": "What should we measure?",
+    "measureHelp": "Measured change compares Search Console figures for the 28 days after delivery with the 28 days before. It shows what changed, not what caused it.",
+    "measurePages": "Specific pages",
+    "measureSite": "Whole site",
+    "measureNone": "Don’t measure",
+    "pickPages": "Choose pages (up to {max})",
+    "pageAria": "Measure {label} ({url})",
+    "maxReached": "You can choose up to {max} pages.",
+    "noPages": "No pages are registered yet. Register pages first to measure specific pages.",
+    "assetsLink": "Go to the assets page",
+    "measureInvalid": "Choose at least one page, or pick another option.",
+    "unknownPage": "One of the chosen pages is no longer registered. Refresh and choose again."
   }
 }

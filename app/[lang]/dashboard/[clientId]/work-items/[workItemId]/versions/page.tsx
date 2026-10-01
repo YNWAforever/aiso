@@ -6,6 +6,7 @@ import {
   WorkItemServiceError,
 } from '@/lib/work-items/service'
 import { listAuthenticatedVersions } from '@/lib/change-sets/service'
+import { loadMeasureOptions } from '@/lib/attribution/options'
 import { VersionWorkspace } from '@/components/change-sets/VersionWorkspace'
 export default async function VersionsPage({
   params,
@@ -45,6 +46,8 @@ export default async function VersionsPage({
   )
   if (response.status === 401) redirect(`/${lang}/auth/login`)
   if (response.status === 404 || response.status === 403) notFound()
+  // Never throws: null hides the "what to measure" field instead of failing the page.
+  const measureOptions = await loadMeasureOptions(clientId)
   return (
     <VersionWorkspace
       clientId={clientId}
@@ -52,6 +55,7 @@ export default async function VersionsPage({
       initialDraft={draft}
       initial={response.ok ? await response.json() : null}
       initialError={response.ok ? '' : 'unavailable'}
+      measureOptions={measureOptions}
     />
   )
 }

@@ -5,9 +5,13 @@ import type { VersionDetail } from '@/lib/change-sets/types'
 import type { AttestInput, DeliveryEvent, DeliveryPage } from '@/lib/delivery/types'
 import { deliveryId, deliveryText } from '@/lib/delivery/input'
 import { deliveryEventDTO } from '@/lib/delivery/dto'
-import { DeliveryForm, type DeliveryFields } from './DeliveryForm'
+import { deliveryFailureKey } from '@/lib/delivery/failure'
+import type { MeasureOptions } from '@/lib/attribution/types'
+import { DeliveryForm, EMPTY_DELIVERY_FIELDS, type DeliveryFields } from './DeliveryForm'
 import { DeliveryHistory } from './DeliveryHistory'
-const emptyFields: DeliveryFields = { destination: '', deliveredAt: '', note: '' }
+const emptyFields: DeliveryFields = EMPTY_DELIVERY_FIELDS
+const failureKeys = ['unauthenticated', 'denied', 'conflict', 'invalid', 'unknownPage']
+const fieldsEntered = (f: DeliveryFields) => Boolean(f.destination || f.deliveredAt || f.note || f.measure.mode !== 'none')
 function eventDTO(value: unknown, version: VersionDetail): DeliveryEvent {
   if (!value || typeof value !== 'object') throw Error()
   const e = value as DeliveryEvent
@@ -28,11 +32,14 @@ function pageDTO(value: unknown, version: VersionDetail): DeliveryPage {
   if (c.canAttest !== (c.attestReason === null) || c.canWithdraw !== (activeAttestationId !== null) || c.canWithdraw !== (c.withdrawReason === null) || (c.canAttest && (!c.canExport || activeAttestationId))) throw Error()
   return { events: p.events.map(e => eventDTO(e, version)), activeAttestationId, nextCursor: p.nextCursor, capabilities: { ...c } }
 }
-function responseError(status: number) {
-  return status === 401 ? 'unauthenticated' : status === 403 ? 'denied' : status === 409 ? 'conflict' : status === 400 || status === 413 || status === 422 ? 'invalid' : 'unavailable'
+// A 422 can name the page the owner must fix; the body's reason is the only place that is said.
+async function responseError(res: Response) {
+  let reason: unknown
+  try { reason = ((await res.json()) as { reason?: unknown } | null)?.reason } catch { /* no usable body */ }
+  return deliveryFailureKey(res.status, reason)
 }
-export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDeliveryChange }: { clientId: string; version: VersionDetail; onDirtyChange: (dirty: boolean) => void; onDeliveryChange?: () => void }) {
-  const t = useTranslations('delivery'), id = useId()
+export function DeliveryWorkspace({ clientId, version, measureOptions, onDirtyChange, onDeliveryChange }: { clientId: string; version: VersionDetail; measureOptions: MeasureOptions | null; onDirtyChange: (dirty: boolean) => void; onDeliveryChange?: () => void }) {
+  const t = useTranslations('delivery'), a = useTranslations('attribution'), id = useId()
   const [page, setPage] = useState<DeliveryPage | null>(null), [authority, setAuthority] = useState(false)
   const [authorityVersion, setAuthorityVersion] = useState<VersionDetail | null>(null)
   const authorized = authority && authorityVersion === version
@@ -48,13 +55,13 @@ export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDelivery
     setLoading(true); setAuthority(false); setError('')
     try {
       const res = await fetch(endpoint + (cursor ? '?cursor=' + encodeURIComponent(cursor) : ''), { cache: 'no-store' })
-      if (!res.ok) throw Error(responseError(res.status))
+      if (!res.ok) throw Error(await responseError(res))
       const next = pageDTO(await res.json(), version)
       if (!alive.current || token !== generation.current) return
       setPage(previous => cursor && previous ? { ...next, events: [...previous.events, ...next.events].filter((e, i, all) => all.findIndex(x => x.eventId === e.eventId) === i) } : next)
       setAuthorityVersion(version); setAuthority(true)
     } catch (failure) {
-      if (alive.current && token === generation.current) { setAuthority(false); setError(failure instanceof Error && ['unauthenticated', 'denied', 'conflict', 'invalid'].includes(failure.message) ? failure.message : 'unavailable') }
+      if (alive.current && token === generation.current) { setAuthority(false); setError(failure instanceof Error && failureKeys.includes(failure.message) ? failure.message : 'unavailable') }
     } finally { if (alive.current && token === generation.current) setLoading(false) }
   }, [endpoint, version])
   useEffect(() => {
@@ -71,7 +78,7 @@ export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDelivery
     window.addEventListener('beforeunload', unload); document.addEventListener('click', navigate, true)
     return () => { window.removeEventListener('beforeunload', unload); document.removeEventListener('click', navigate, true) }
   }, [t])
-  function changed(next: DeliveryFields) { setFields(next); markDirty(Boolean(next.destination || next.deliveredAt || next.note || reason || target)) }
+  function changed(next: DeliveryFields) { setFields(next); markDirty(fieldsEntered(next) || Boolean(reason || target)) }
   async function mutate(kind: 'attest' | 'withdraw', value: Omit<AttestInput, 'requestId'> | { reason: string }) {
     if (lock.current || !authorized || !(kind === 'attest' ? page?.capabilities.canAttest : page?.capabilities.canWithdraw)) return
     const path = kind === 'attest' ? endpoint : endpoint + '/' + encodeURIComponent(target!) + '/withdraw'
@@ -80,20 +87,20 @@ export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDelivery
     lock.current = true; generation.current++; setBusy(true); setLoading(false); setError(''); setStatus('')
     try {
       const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...value, requestId: operation.current.requestId }) })
-      if (!res.ok) throw Error(responseError(res.status))
+      if (!res.ok) throw Error(await responseError(res))
       const event = eventDTO((await res.json()).event, version)
       if (event.kind !== kind || (event.kind === 'withdraw' && event.targetAttestationId !== target)) throw Error()
       if (!alive.current) return
       generation.current++; operation.current = null
       onDeliveryChange?.()
       if (kind === 'attest') { setFields(emptyFields); markDirty(Boolean(target || reason)) }
-      else { setReason(''); setTarget(null); markDirty(Boolean(fields.destination || fields.deliveredAt || fields.note)) }
+      else { setReason(''); setTarget(null); markDirty(fieldsEntered(fields)) }
       setPage(previous => previous ? { ...previous, events: [event, ...previous.events.filter(e => e.eventId !== event.eventId)], activeAttestationId: event.kind === 'attest' ? event.eventId : null } : previous)
       setStatus(kind === 'attest' ? 'recorded' : 'withdrawalRecorded'); setAuthority(false)
       await load()
       requestAnimationFrame(() => statusRef.current?.focus())
     } catch (failure) {
-      if (alive.current) { setAuthority(false); setError(failure instanceof Error && ['unauthenticated', 'denied', 'conflict', 'invalid'].includes(failure.message) ? failure.message : 'unavailable'); if (kind === 'withdraw') reasonRef.current?.focus() }
+      if (alive.current) { setAuthority(false); setError(failure instanceof Error && failureKeys.includes(failure.message) ? failure.message : 'unavailable'); if (kind === 'withdraw') reasonRef.current?.focus() }
     } finally { lock.current = false; if (alive.current) setBusy(false) }
   }
   async function download(format: 'json' | 'text') {
@@ -101,7 +108,7 @@ export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDelivery
     lock.current = true; setBusy(true); setError('')
     try {
       const res = await fetch(base + '/export?format=' + format, { cache: 'no-store' })
-      if (!res.ok) throw Error(responseError(res.status))
+      if (!res.ok) throw Error(await responseError(res))
       const filename = `delivery-${deliveryId(version.id)}.${format === 'json' ? 'json' : 'txt'}`
       if (res.headers.get('Content-Disposition') !== `attachment; filename="${filename}"` || !/^[a-f0-9]{64}$/.test(res.headers.get('X-Aiso-Export-Sha256') ?? '') || !res.headers.get('Content-Type')?.startsWith(format === 'json' ? 'application/json' : 'text/plain')) throw Error()
       const url = URL.createObjectURL(await res.blob()), anchor = document.createElement('a')
@@ -109,7 +116,7 @@ export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDelivery
       setTimeout(() => URL.revokeObjectURL(url), 0)
       setStatus('downloaded')
     } catch (failure) {
-      setAuthority(false); setError(failure instanceof Error && ['unauthenticated', 'denied', 'conflict', 'invalid'].includes(failure.message) ? failure.message : 'unavailable')
+      setAuthority(false); setError(failure instanceof Error && failureKeys.includes(failure.message) ? failure.message : 'unavailable')
     } finally { lock.current = false; setBusy(false) }
   }
   const button = 'min-h-11 rounded border border-border px-4 py-2 font-semibold disabled:opacity-50'
@@ -121,11 +128,11 @@ export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDelivery
       <button type="button" className={button} disabled={busy || !authorized || !page?.capabilities.canExport} onClick={() => download('text')}>{t('exportText')}</button>
       <button type="button" className={button} disabled={busy || loading} onClick={() => load()}>{t('refresh')}</button>
     </div>
-    {error && <p role="alert">{t(error)}</p>}
+    {error && <p role="alert">{error === 'unknownPage' ? a(error) : t(error)}</p>}
     {(loading || status) && <p role={status ? "status" : undefined} aria-live="polite" tabIndex={-1} ref={statusRef}>{loading ? t('loading') : t(status)}</p>}
     {!authorized && !loading && <p>{t('refreshRequired')}</p>}
     {authorized && page?.capabilities.attestReason && <p>{t(page.capabilities.attestReason)}</p>}
-    <DeliveryForm version={version} values={fields} busy={busy} canAttest={authorized && Boolean(page?.capabilities.canAttest)} onChange={changed} onSubmit={value => { void mutate('attest', value) }} />
+    <DeliveryForm clientId={clientId} measureOptions={measureOptions} version={version} values={fields} busy={busy} canAttest={authorized && Boolean(page?.capabilities.canAttest)} onChange={changed} onSubmit={value => { void mutate('attest', value) }} />
     {page && <DeliveryHistory events={page.events} activeAttestationId={page.activeAttestationId} nextCursor={page.nextCursor} busy={busy || loading} canWithdraw={authorized && page.capabilities.canWithdraw} onMore={() => load(page.nextCursor)} onWithdraw={value => { setTarget(value); markDirty(true); requestAnimationFrame(() => reasonRef.current?.focus()) }} />}
     {target && <form className="space-y-3" onSubmit={event => { event.preventDefault(); try { void mutate('withdraw', { reason: deliveryText(reason, 2000, true) }) } catch { setError('invalid'); reasonRef.current?.focus() } }}>
       <p>{t('withdrawConfirm')}</p>
@@ -133,6 +140,6 @@ export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDelivery
       <textarea id={id + 'withdraw'} ref={reasonRef} required rows={3} className="w-full rounded border border-border bg-background p-3" value={reason} readOnly={busy} onChange={e => { setReason(e.target.value); markDirty(true) }} />
       <button type="submit" className={button} disabled={busy || !authorized || !page?.capabilities.canWithdraw}>{t('confirmWithdraw')}</button>
     </form>}
-    {(fields.destination || fields.deliveredAt || fields.note || target) && <button type="button" className={button} disabled={busy} onClick={() => { if (window.confirm(t('discardConfirm'))) { setFields(emptyFields); setReason(''); setTarget(null); operation.current = null; markDirty(false) } }}>{t('discard')}</button>}
+    {(fieldsEntered(fields) || target) && <button type="button" className={button} disabled={busy} onClick={() => { if (window.confirm(t('discardConfirm'))) { setFields(emptyFields); setReason(''); setTarget(null); operation.current = null; markDirty(false) } }}>{t('discard')}</button>}
   </section>
 }

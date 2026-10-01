@@ -5,6 +5,7 @@ const m = vi.hoisted(() => ({
   draft: vi.fn(),
   versions: vi.fn(),
   access: vi.fn(),
+  options: vi.fn(),
 }))
 vi.mock('@/lib/auth', () => ({ requireAuth: m.auth, requireAdmin: m.admin }))
 vi.mock('@/lib/work-items/service', () => ({
@@ -18,6 +19,7 @@ vi.mock('@/lib/work-items/service', () => ({
 vi.mock('@/lib/change-sets/service', () => ({
   listAuthenticatedVersions: m.versions,
 }))
+vi.mock('@/lib/attribution/options', () => ({ loadMeasureOptions: m.options }))
 vi.mock('@/lib/approvals/access-service', () => ({
   getApproverAccess: m.access,
 }))
@@ -43,6 +45,7 @@ beforeEach(() => {
   m.draft.mockResolvedValue({ item: draft })
   m.versions.mockResolvedValue(Response.json(initial))
   m.access.mockResolvedValue(Response.json(access))
+  m.options.mockResolvedValue(null)
 })
 describe('review page guards', () => {
   it('auth precedes any draft read', async () => {
@@ -61,6 +64,21 @@ describe('review page guards', () => {
     })
     expect(result.type).toBe('main')
     expect(m.versions).not.toHaveBeenCalled()
+  })
+  it('hands the loaded measure options to the workspace, keyed by the route client', async () => {
+    const options = { pages: [{ id: 'a', url: 'https://example.com/a', label: 'A' }] }
+    m.options.mockResolvedValue(options)
+    const result = await VersionsPage({
+      params: Promise.resolve({ lang: 'en', clientId, workItemId: draft.id }),
+    })
+    expect(m.options).toHaveBeenCalledWith(clientId)
+    expect(result.props.measureOptions).toBe(options)
+  })
+  it('passes null through, so the field is simply absent', async () => {
+    const result = await VersionsPage({
+      params: Promise.resolve({ lang: 'en', clientId, workItemId: draft.id }),
+    })
+    expect(result.props.measureOptions).toBeNull()
   })
   it('admin guard precedes roster', async () => {
     m.admin.mockRejectedValue(Error('denied'))

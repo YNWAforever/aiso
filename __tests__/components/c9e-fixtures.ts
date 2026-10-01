@@ -7,5 +7,5 @@ export const draft: WorkItem = { id: version.workItemId, clientId, status: 'draf
   evidenceSnapshot: version.evidenceSnapshot, createdAt: version.submittedAt, updatedAt: version.submittedAt }
 export const older = { ...version, id: '123e4567-e89b-42d3-a456-426614174005' }
 export const fixtureProps = { clientId, workItemId: draft.id, initialDraft: draft,
-  initial: { versions: [version, older], latestVersionId: version.id, nextCursor: null }, initialVersion: version }
+  initial: { versions: [version, older], latestVersionId: version.id, nextCursor: null }, initialVersion: version, measureOptions: null }
 export const pendingProps = { ...fixtureProps, initialVersion: { ...version, decision: null, capabilities: { canDecide: true } } }

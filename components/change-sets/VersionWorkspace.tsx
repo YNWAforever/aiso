@@ -6,6 +6,7 @@ import type { VersionDetail, VersionSummary } from '@/lib/change-sets/types'
 import { VersionDetails } from './VersionDetails'
 import { DecisionForm } from './DecisionForm'
 import { DeliveryWorkspace } from '@/components/delivery/DeliveryWorkspace'
+import type { MeasureOptions } from '@/lib/attribution/types'
 import { OutcomeWorkspace } from '@/components/outcomes/OutcomeWorkspace'
 export type VersionPageDTO = {
   versions: VersionSummary[]
@@ -19,6 +20,8 @@ export type VersionWorkspaceProps = {
   initial: VersionPageDTO | null
   initialVersion?: VersionDetail | null
   initialError?: string
+  /** The brand's registered pages, or null when attribution is off, not entitled, or unreadable. */
+  measureOptions: MeasureOptions | null
 }
 export function VersionWorkspace({
   clientId,
@@ -27,6 +30,7 @@ export function VersionWorkspace({
   initial,
   initialVersion = null,
   initialError = '',
+  measureOptions,
 }: VersionWorkspaceProps) {
   const t = useTranslations('changeSets'),
     lang = useLocale(),
@@ -266,7 +270,7 @@ export function VersionWorkspace({
             version={selected}
             latestVersionId={page?.latestVersionId ?? null}
           />
-          <DeliveryWorkspace key={selected.id + selected.contentHash} clientId={clientId} version={selected} onDirtyChange={deliveryDirtyChange} onDeliveryChange={deliveryChanged} />
+          <DeliveryWorkspace key={selected.id + selected.contentHash} clientId={clientId} version={selected} measureOptions={measureOptions} onDirtyChange={deliveryDirtyChange} onDeliveryChange={deliveryChanged} />
           <OutcomeWorkspace clientId={clientId} itemId={workItemId} versionId={selected.id} refreshKey={outcomeRefresh} />
           {(dirty ||
             (!selected.decision && selected.capabilities.canDecide)) && (

@@ -2276,5 +2276,19 @@
       "MEMBER_CANNOT_REMOVE_SELF": "你不能移除自己。請另一位成員代勞。",
       "MEMBER_NOT_FOUND": "這個人不在這個工作區。"
     }
+  },
+  "attribution": {
+    "measureTitle": "要量度甚麼？",
+    "measureHelp": "量度變化會比較交付後 28 日與交付前 28 日的 Search Console 數據，顯示出現了甚麼變化，但不能證明原因。",
+    "measurePages": "指定頁面",
+    "measureSite": "整個網站",
+    "measureNone": "不量度",
+    "pickPages": "選擇頁面（最多 {max} 個）",
+    "pageAria": "量度 {label}（{url}）",
+    "maxReached": "最多可選擇 {max} 個頁面。",
+    "noPages": "尚未登記任何頁面。請先登記頁面，才能量度指定頁面。",
+    "assetsLink": "前往資產頁面",
+    "measureInvalid": "請至少選擇一個頁面，或改選其他選項。",
+    "unknownPage": "所選頁面其中一個已不在登記名單內。請重新整理後再選擇。"
   }
 }

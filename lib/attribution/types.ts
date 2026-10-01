@@ -73,3 +73,10 @@ export type TargetResult = {
   search?: { clicks: Figure; impressions: Figure; ctr: Figure; position: Figure }
   enquiries?: EnquiryResult
 }
+
+/**
+ * What the delivery form may offer to measure: the brand's registered pages.
+ * Null (where this is passed) means attribution is off, not entitled, or the
+ * lookup failed — the form then omits the whole field.
+ */
+export type MeasureOptions = { pages: Array<{ id: string; url: string; label: string }> }
