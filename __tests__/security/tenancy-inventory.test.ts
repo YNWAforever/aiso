@@ -397,6 +397,19 @@ describe('every tenant-bearing statement is scoped or declared', () => {
     }
   })
 
+  it('sees every attribution statement, and finds each one scoped', () => {
+    // Attribution (056) reads a dozen tenant tables for one owner view. Naming its
+    // functions here makes sure the walk actually reaches them; the token rule
+    // then has to pass each one without a declaration.
+    const live = tenantStatementFunctions()
+    const unscoped = new Set(FINDINGS.map(finding => finding.key))
+    for (const fn of ['loadOwnedVersion', 'loadAttributionInput', 'readSources']) {
+      const key = `lib/attribution/store.ts::${fn}`
+      expect([...live]).toContain(key)
+      expect([...unscoped]).not.toContain(key)
+    }
+  })
+
   it('pins how many statements are unscoped in total', () => {
     // The per-entry list above is keyed by function, so a second unscoped
     // statement added to an already-declared function would not need a new

@@ -67,4 +67,15 @@ describe('the modelled and observed outcome layers stay separate', () => {
   it('lib/integrations/analytics imports nothing from localTrust', () => {
     expect(offenders('lib/integrations/analytics', /localTrust/)).toEqual([])
   })
+
+  // Attribution reports OBSERVED change (Search Console and GA4 figures before and
+  // after a delivery). Reading the modelled Local Trust scenario would let an
+  // estimate leak into a figure the owner is told was measured.
+  it('finds the attribution files to check', () => {
+    expect(sourceFiles('lib/attribution').length).toBeGreaterThan(3)
+  })
+
+  it('lib/attribution imports nothing from localTrust', () => {
+    expect(offenders('lib/attribution', /localTrust/)).toEqual([])
+  })
 })
