@@ -397,20 +397,29 @@ describe('syncAnalyticsBinding', () => {
         expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ windowStart: '2026-09-18', restartCoverage: false }))
       })
 
-      it('a routine window reaches back to the last ok date after failed syncs, so no day is left out', async () => {
+      it('a routine window reaches back two days before the last ok date after failed syncs, so no day is left out or left provisional', async () => {
         const d = deps()
-        expect(await syncAnalyticsBinding(binding({ lastOkDate: '2026-09-10' }), d)).toBe('ok')
+        expect(await syncAnalyticsBinding(binding({ lastOkDate: '2026-09-12' }), d)).toBe('ok') // 12 days ago: starts 14 days ago
         expect(windowOf(d)).toEqual(expect.objectContaining({ startDate: '2026-09-10', endDate: '2026-09-24' }))
         expect(d.replaceDailyWindow).toHaveBeenCalledWith('a', 'c', { startDate: '2026-09-10', endDate: '2026-09-24' }, [])
         // Still one contiguous range from covered_from, so it is not moved.
         expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ windowStart: '2026-09-10', restartCoverage: false }))
       })
 
-      it('a last ok date exactly at the 90-day floor is still contiguous', async () => {
+      it('the margin also applies when the last ok date is only just behind the routine window', async () => {
         const d = deps()
-        await syncAnalyticsBinding(binding({ lastOkDate: '2026-06-27' }), d)
-        expect(windowOf(d).startDate).toBe('2026-06-27')
-        expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ windowStart: '2026-06-27', restartCoverage: false }))
+        await syncAnalyticsBinding(binding({ lastOkDate: '2026-09-19' }), d) // min(today-6 = 09-18, 09-17)
+        expect(windowOf(d).startDate).toBe('2026-09-17')
+        expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ windowStart: '2026-09-17', restartCoverage: false }))
+      })
+
+      it('a last ok date exactly at the 90-day floor, or one day after, starts at the floor and is still contiguous', async () => {
+        for (const lastOkDate of ['2026-06-27', '2026-06-28']) {
+          const d = deps()
+          await syncAnalyticsBinding(binding({ lastOkDate }), d)
+          expect(windowOf(d).startDate).toBe('2026-06-27')
+          expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ windowStart: '2026-06-27', restartCoverage: false }))
+        }
       })
 
       it('a 100-day gap behaves as a backfill: the 90-day window, and coverage restarts at its start', async () => {

@@ -26,6 +26,8 @@ import type { CoverageMark, DailyMetric, DueBinding, PageQueryMetric, QueryWindo
 
 export const BACKFILL_DAYS = 90
 export const ROUTINE_DAYS = 7
+/** Days before the last ok run that a gap-closing window re-fetches, for days Search Console had not finalised. */
+export const RECHECK_DAYS = 2
 export const PAGE_CAP = 20
 export const QUERY_CAP = 25
 /** Matches migration 054's CHECK: a longer query is dropped rather than failing the batch. */
@@ -130,11 +132,16 @@ async function attempt(b: DueBinding, deps: SyncDeps): Promise<AttemptResult> {
   // The routine window reaches back to the last ok run, so a run of failed syncs
   // (quota, outage, deferred) leaves no hole in stored history: readiness elsewhere
   // is judged by ok-run dates, so coverage must be one range from covered_from.
-  // Capped at the backfill window; past it the hole is real, the window is not
-  // contiguous with what was stored, and coverage restarts there.
-  const reach = b.lastOkDate !== null && b.lastOkDate < routineStart ? b.lastOkDate : routineStart
+  // It starts RECHECK_DAYS before that run, not at it: Search Console revises the
+  // last days it reported, so the days just before the last ok run were fetched
+  // while still provisional and must be fetched again. The margin only adds
+  // re-fetching, and never goes below the backfill floor. Past the floor the hole
+  // is real, the window is not contiguous with what was stored, and coverage
+  // restarts there.
+  const margin = b.lastOkDate === null ? routineStart : daysBefore(b.lastOkDate, RECHECK_DAYS)
+  const reach = margin < routineStart ? margin : routineStart
   const startDate = b.backfillPending || reach < floor ? floor : reach
-  const contiguous = !b.backfillPending && b.lastOkDate !== null && b.lastOkDate >= startDate
+  const contiguous = !b.backfillPending && b.lastOkDate !== null && b.lastOkDate >= floor
   const clock = deps.now ?? Date.now
   const outOfTime = () => clock() >= deps.deadline
 

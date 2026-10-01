@@ -375,11 +375,33 @@ describe('syncBinding coverage and gap-free windows', () => {
     ])
   })
 
-  it('starts the routine window at the last ok run when that is older than today-6, and keeps it contiguous', async () => {
+  it('starts the routine window two days before the last ok run when that is older than today-6, and keeps it contiguous', async () => {
     const d = deps()
-    await syncBinding(binding({ lastOkDate: '2026-09-12' }), d) // 12 days ago
-    expect(d.query).toHaveBeenCalledWith('ya29.access', 'sc-domain:example.com', expect.objectContaining({ startDate: '2026-09-12' }))
-    expect(marks(d)).toEqual([{ scope: 'property', pageUrl: null, windowStart: '2026-09-12', contiguous: true }])
+    await syncBinding(binding({ lastOkDate: '2026-09-12' }), d) // 12 days ago: starts 14 days ago
+    expect(d.query).toHaveBeenCalledWith('ya29.access', 'sc-domain:example.com', expect.objectContaining({ startDate: '2026-09-10' }))
+    expect(marks(d)).toEqual([{ scope: 'property', pageUrl: null, windowStart: '2026-09-10', contiguous: true }])
+  })
+
+  it('re-fetches two days before a last ok run that is only just behind the routine window too', async () => {
+    const d = deps()
+    await syncBinding(binding({ lastOkDate: '2026-09-19' }), d) // min(today-6 = 09-18, 09-17)
+    expect(d.query).toHaveBeenCalledWith('ya29.access', 'sc-domain:example.com', expect.objectContaining({ startDate: '2026-09-17' }))
+    expect(marks(d)).toEqual([{ scope: 'property', pageUrl: null, windowStart: '2026-09-17', contiguous: true }])
+  })
+
+  it('never lets the margin go below the 90-day floor: a last ok run at the floor, or one day after, starts at the floor, contiguous', async () => {
+    for (const lastOkDate of ['2026-06-27', '2026-06-28']) {
+      const d = deps()
+      await syncBinding(binding({ lastOkDate }), d)
+      expect(d.query).toHaveBeenCalledWith('ya29.access', 'sc-domain:example.com', expect.objectContaining({ startDate: '2026-06-27' }))
+      expect(marks(d)).toEqual([{ scope: 'property', pageUrl: null, windowStart: '2026-06-27', contiguous: true }])
+    }
+  })
+
+  it('a last ok run one day below the floor is a gap: the floor, and not contiguous', async () => {
+    const d = deps()
+    await syncBinding(binding({ lastOkDate: '2026-06-26' }), d)
+    expect(marks(d)).toEqual([{ scope: 'property', pageUrl: null, windowStart: '2026-06-27', contiguous: false }])
   })
 
   it('caps the reach at today-89 and calls the window non-contiguous when the last ok run is older', async () => {

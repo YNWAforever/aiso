@@ -30,6 +30,8 @@ import type { DailyCount, DueAnalyticsBinding, recordAnalyticsRun, replaceDailyW
 
 export const BACKFILL_DAYS = 90
 export const ROUTINE_DAYS = 7
+/** Days before the last ok run that a gap-closing window re-fetches, for data GA4 had not finished processing. */
+export const RECHECK_DAYS = 2
 
 export type AnalyticsSyncDeps = TokenDeps & {
   /** Null when the property has no such web stream (any more). */
@@ -84,10 +86,16 @@ type SyncWindow = {
  * The routine window reaches back to the last ok run, so a run of failed syncs
  * (quota, outage, deferred) leaves no hole in stored history: GA4 omits zero-event
  * days, so a missing day inside the covered range is read as a real zero and the
- * range must be one unbroken stretch from covered_from. `lastOkDate` itself is
- * included, because that run fetched a day that was still in progress. Capped at the
- * backfill window; with no ok run, or one older than that, the hole is real, the
- * new window is not contiguous with what was stored, and coverage restarts at its start.
+ * range must be one unbroken stretch from covered_from. The window starts
+ * RECHECK_DAYS before `lastOkDate`, not at it: that run fetched its own day while it
+ * was still in progress and the two days before it before GA4 had finished
+ * processing them, so re-fetching only from lastOkDate would leave late-arriving
+ * enquiries on those days missing, as real-looking zeros inside the covered range.
+ * (A daily 7-day window fetches each day about 7 times; only an outage longer than
+ * that needs the margin.) The margin only adds re-fetching, never a hole, and is
+ * bounded below by the 90-day floor. With no ok run, or one older than the floor,
+ * the hole is real, the new window is not contiguous with what was stored, and
+ * coverage restarts at its start.
  */
 function windowFor(b: DueAnalyticsBinding, endDate: string): SyncWindow {
   const floor = daysBefore(endDate, BACKFILL_DAYS - 1)
@@ -95,7 +103,9 @@ function windowFor(b: DueAnalyticsBinding, endDate: string): SyncWindow {
   if (b.backfillPending || b.lastOkDate === null || b.lastOkDate < floor) {
     return { startDate: floor, endDate, restart: true }
   }
-  return { startDate: b.lastOkDate < routineStart ? b.lastOkDate : routineStart, endDate, restart: false }
+  const margin = daysBefore(b.lastOkDate, RECHECK_DAYS)
+  const reach = margin < routineStart ? margin : routineStart
+  return { startDate: reach < floor ? floor : reach, endDate, restart: false }
 }
 
 /** String properties are read this way for an unknown thrown value without assuming it is an Error. */
