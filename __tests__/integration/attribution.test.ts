@@ -55,6 +55,7 @@ const REVIEWER = 'c1700000-0000-4000-8000-0000000000a8'
 const ITEM = 'c1700000-0000-4000-8000-0000000000e1'
 const GRANT = 'c1700000-0000-4000-8000-0000000000f1'
 const CONNECTION = 'c1700000-0000-4000-8000-0000000000c1'
+const CONNECTION_B = 'c1700000-0000-4000-8000-0000000000c2'
 const ACCOUNTS = [A, B]
 
 const P1 = 'https://a-c17.example/p1'
@@ -431,9 +432,38 @@ describe('attestDelivery records what to measure (real statement, as aeo_app)', 
 async function seedConnection() {
   await sql`insert into google_connections (id, account_id, google_subject, scopes, token_ciphertext, token_key_id, status, connected_by)
     values (${CONNECTION}::uuid, ${A}::uuid, 'g-c17', ${['openid']}::text[], ${'\\x00'}::bytea, '0123456789abcdef', 'active', ${AUTHOR}::uuid)`
+  await sql`insert into google_connections (id, account_id, google_subject, scopes, token_ciphertext, token_key_id, status)
+    values (${CONNECTION_B}::uuid, ${B}::uuid, 'g-c17-b', ${['openid']}::text[], ${'\\x00'}::bytea, '0123456789abcdef', 'active')`
+}
+// The neighbours the measured brand's reads must never pick up: a sibling brand of the
+// same account and a brand of another account, EACH WITH ITS OWN binding, ok run and
+// newer failing run. Without a binding of their own their rows would fall out of the
+// store's binding join and the tenancy filters would never be exercised. They are
+// inserted BEFORE the measured brand's binding so that a read that lost its client
+// filter (a bare `limit 1`) reaches them first. Their bound_at differs from the
+// measured brand's for the same reason.
+async function seedOtherBrandsSearch() {
+  await seedConnection()
+  for (const [account, client, connection] of [[A, A_CLIENT2, CONNECTION], [B, B_CLIENT, CONNECTION_B]] as const) {
+    await sql`insert into search_console_bindings (account_id, client_id, connection_id, site_url, permission_level, bound_domain, backfill_pending, bound_at)
+      values (${account}::uuid, ${client}::uuid, ${connection}::uuid, 'sc-domain:other-c17.example', 'siteOwner', 'other-c17.example', false, '2026-07-01T00:00:00Z'::timestamptz)`
+    await searchRun(client, 'ok', '2026-09-13T01:00:00Z', account)
+    await searchRun(client, 'revoked', '2026-09-13T02:00:00Z', account)
+  }
+}
+async function seedOtherBrandsAnalytics() {
+  for (const [account, client, connection] of [[A, A_CLIENT2, CONNECTION], [B, B_CLIENT, CONNECTION_B]] as const) {
+    await sql`insert into analytics_bindings (account_id, client_id, connection_id, property_id, stream_id, stream_host, key_events, bound_at, events_chosen_at, covered_from)
+      values (${account}::uuid, ${client}::uuid, ${connection}::uuid, '333', '444', 'other-c17.example', ${['generate_lead']}::text[],
+              '2026-07-01T00:00:00Z'::timestamptz, '2026-07-01T00:00:00Z'::timestamptz, '2026-01-01'::date)`
+    for (const [outcome, ranAt] of [['ok', '2026-09-13T01:00:00Z'], ['quota', '2026-09-13T02:00:00Z']] as const) {
+      await sql`insert into analytics_sync_runs (account_id, client_id, connection_id, property_id, stream_id, outcome, ran_at)
+        values (${account}::uuid, ${client}::uuid, ${connection}::uuid, '333', '444', ${outcome}, ${ranAt}::timestamptz)`
+    }
+  }
 }
 async function seedSearchBinding() {
-  await seedConnection()
+  await seedOtherBrandsSearch()
   await sql`insert into search_console_bindings (account_id, client_id, connection_id, site_url, permission_level, bound_domain, backfill_pending, bound_at)
     values (${A}::uuid, ${A_CLIENT}::uuid, ${CONNECTION}::uuid, 'sc-domain:a-c17.example', 'siteOwner', 'a-c17.example', false, ${BOUND}::timestamptz)`
 }
@@ -474,16 +504,21 @@ describe('loadAttributionInput on real Postgres (as aeo_app)', () => {
     await searchDay(A, A_CLIENT2, '2026-09-05', 'property', null, 77, '2026-09-12T00:00:00Z')
     await searchDay(A, A_CLIENT2, '2026-09-05', 'page', PX, 77, '2026-09-12T00:00:00Z')
     await searchDay(B, B_CLIENT, '2026-09-05', 'property', null, 66, '2026-09-12T00:00:00Z')
+    // The SAME page url registered under the neighbours (unique per brand, so allowed): a page read that lost its client filter would pick these up.
+    await searchDay(A, A_CLIENT2, '2026-09-05', 'page', P1, 55, '2026-09-12T00:00:00Z')
+    await searchDay(B, B_CLIENT, '2026-09-05', 'page', P1, 44, '2026-09-12T00:00:00Z')
     // Coverage.
     for (const [clientScope, url, from] of [['property', null, '2026-07-01'], ['page', P1, '2026-07-15'], ['page', P2, '2026-07-20']] as const) {
       await sql`insert into search_console_coverage (account_id, client_id, scope, page_url, covered_from)
         values (${A}::uuid, ${A_CLIENT}::uuid, ${clientScope}, ${url}, ${from}::date)`
     }
     await sql`insert into search_console_coverage (account_id, client_id, scope, page_url, covered_from)
-      values (${A}::uuid, ${A_CLIENT2}::uuid, 'property', null, '2026-01-01'::date), (${B}::uuid, ${B_CLIENT}::uuid, 'property', null, '2026-01-01'::date)`
+      values (${A}::uuid, ${A_CLIENT2}::uuid, 'property', null, '2026-01-01'::date), (${B}::uuid, ${B_CLIENT}::uuid, 'property', null, '2026-01-01'::date),
+        (${A}::uuid, ${A_CLIENT2}::uuid, 'page', ${P1}, '2026-01-02'::date), (${B}::uuid, ${B_CLIENT}::uuid, 'page', ${P1}, '2026-01-02'::date)`
   }
 
   async function seedAnalytics() {
+    await seedOtherBrandsAnalytics()
     await sql`insert into analytics_bindings (account_id, client_id, connection_id, property_id, stream_id, stream_host, key_events, bound_at, events_chosen_at, covered_from)
       values (${A}::uuid, ${A_CLIENT}::uuid, ${CONNECTION}::uuid, '111', '222', 'a-c17.example', ${['generate_lead', 'book_call']}::text[],
               ${BOUND}::timestamptz, '2026-08-25T00:00:00Z'::timestamptz, '2026-08-10'::date)`
@@ -584,11 +619,32 @@ describe('loadAttributionInput on real Postgres (as aeo_app)', () => {
   it('reports no GA4 binding as a null state with no days', async () => {
     await attested({ scope: 'site' })
     await seedSearchData()
+    // Neighbours with bindings of their own must not stand in for the missing one.
+    await seedOtherBrandsAnalytics()
     expect((await load({ analytics: true }))!.sources!.enquiries).toEqual({ state: null, days: [] })
+  })
+
+  it('counts only GA4 runs since the event choice: runs after the bind but before the re-pick are ignored', async () => {
+    await attested({ scope: 'site' })
+    await seedSearchBinding()
+    await seedOtherBrandsAnalytics()
+    // bound_at 08-20, events_chosen_at 08-25. Both runs sit between them, so they synced another
+    // event set. They are the ONLY ok run and the newest non-deferred run, so a predicate that
+    // used bound_at alone would report an ok date and an outcome here.
+    await sql`insert into analytics_bindings (account_id, client_id, connection_id, property_id, stream_id, stream_host, key_events, bound_at, events_chosen_at)
+      values (${A}::uuid, ${A_CLIENT}::uuid, ${CONNECTION}::uuid, '111', '222', 'a-c17.example', ${['generate_lead']}::text[],
+              ${BOUND}::timestamptz, '2026-08-25T00:00:00Z'::timestamptz)`
+    for (const [outcome, ranAt] of [['ok', '2026-08-22T10:00:00Z'], ['quota', '2026-08-23T10:00:00Z']] as const) {
+      await sql`insert into analytics_sync_runs (account_id, client_id, connection_id, property_id, stream_id, outcome, ran_at)
+        values (${A}::uuid, ${A_CLIENT}::uuid, ${CONNECTION}::uuid, '111', '222', ${outcome}, ${ranAt}::timestamptz)`
+    }
+    expect((await load({ analytics: true }))!.sources!.enquiries!.state)
+      .toEqual({ boundAt: BOUND_ISO, coveredFrom: null, okRunDates: [], latestOutcome: null })
   })
 
   it('reports no Search Console binding as null, never an invented state', async () => {
     await attested({ scope: 'site' })
+    await seedOtherBrandsSearch()
     const sources = (await load())!.sources!
     expect(sources.search).toBeNull()
     expect(sources.searchDays).toEqual([])
