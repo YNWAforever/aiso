@@ -8,6 +8,7 @@ import { DecisionForm } from './DecisionForm'
 import { DeliveryWorkspace } from '@/components/delivery/DeliveryWorkspace'
 import type { MeasureOptions } from '@/lib/attribution/types'
 import { OutcomeWorkspace } from '@/components/outcomes/OutcomeWorkspace'
+import { MeasuredChangeBlock } from '@/components/attribution/MeasuredChangeBlock'
 export type VersionPageDTO = {
   versions: VersionSummary[]
   nextCursor: string | null
@@ -272,6 +273,9 @@ export function VersionWorkspace({
           />
           <DeliveryWorkspace key={selected.id + selected.contentHash} clientId={clientId} version={selected} measureOptions={measureOptions} onDirtyChange={deliveryDirtyChange} onDeliveryChange={deliveryChanged} />
           <OutcomeWorkspace clientId={clientId} itemId={workItemId} versionId={selected.id} refreshKey={outcomeRefresh} />
+          {measureOptions !== null && (
+            <MeasuredChangeBlock clientId={clientId} itemId={workItemId} versionId={selected.id} refreshKey={outcomeRefresh} />
+          )}
           {(dirty ||
             (!selected.decision && selected.capabilities.canDecide)) && (
             <DecisionForm
