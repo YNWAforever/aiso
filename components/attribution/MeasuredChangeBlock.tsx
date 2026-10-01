@@ -101,16 +101,19 @@ export function TargetStatusNotice({
   t: T
 }) {
   if (status === 'comparable') return null
+  // `reason` and `status` come from the server, so they are looked up as OWN keys
+  // only: a plain `COPY[value]` would resolve 'constructor' or 'toString' to an
+  // Object.prototype function and hand that to the translator.
   let text: string
   if (status === 'unavailable') {
-    const key = reason ? REASON_COPY[reason as UnavailableReason] : undefined
+    const key = reason && Object.hasOwn(REASON_COPY, reason) ? REASON_COPY[reason as UnavailableReason] : undefined
     text = key ? t(key, { source: t(SOURCE_COPY[source]) }) : t(STATUS_COPY.unavailable)
   } else if (status === 'not_ready') {
     text = t(STATUS_COPY.not_ready, { date: readyOn ?? DASH })
   } else if (status === 'insufficient_history') {
     text = t(STATUS_COPY.insufficient_history, { from: missingFrom ?? DASH, to: missingTo ?? DASH })
   } else {
-    text = t(STATUS_COPY[status])
+    text = t(Object.hasOwn(STATUS_COPY, status) ? STATUS_COPY[status] : STATUS_COPY.unavailable)
   }
   return <p className="rounded-lg border border-border bg-muted/40 p-3 text-sm">{text}</p>
 }

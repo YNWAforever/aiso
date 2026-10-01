@@ -147,6 +147,21 @@ describe('TargetStatusNotice', () => {
     expect(notice('en', { status: 'unavailable' })).toContain(en.attribution.statusUnavailable)
   })
 
+  it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty'])(
+    'reads a reason named like an Object.prototype member (%s) as unknown, not as a copy key',
+    reason => {
+      for (const lang of LANGS) {
+        expect(notice(lang, { status: 'unavailable', reason })).toContain(messages(lang).attribution.statusUnavailable)
+      }
+    },
+  )
+
+  it('reads a status named like an Object.prototype member as the generic sentence, never a lookup', () => {
+    for (const status of ['constructor', 'toString', 'valueOf']) {
+      expect(notice('en', { status })).toContain(en.attribution.statusUnavailable)
+    }
+  })
+
   it('renders nothing for a comparable verdict', () => {
     expect(notice('en', { status: 'comparable' })).toBe('')
   })
