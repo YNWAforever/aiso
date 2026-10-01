@@ -253,7 +253,7 @@ describe('migration 055 on real Postgres', () => {
     await store.recordAnalyticsRun({
       accountId: A, clientId: A_CLIENT, connectionId: conn, propertyId: '111', streamId: '222',
       eventsChosenAt: new Date().toISOString(), outcome: 'ok', rowsWritten: 1, dataThrough: '2026-09-20',
-      dataWithheld: false, clearBackfill: false,
+      dataWithheld: false, clearBackfill: false, windowStart: '2026-06-23', restartCoverage: false,
     })
     await sql`delete from google_connections where id = ${conn}::uuid`
     expect(await sql`select 1 from analytics_bindings where client_id = ${A_CLIENT}::uuid`).toHaveLength(0)
@@ -492,7 +492,7 @@ describe('replaceDailyWindow', () => {
 describe('recordAnalyticsRun', () => {
   const run = (over: Record<string, unknown>) => ({
     accountId: A, clientId: A_CLIENT, propertyId: '111', streamId: '222',
-    outcome: 'ok' as const, rowsWritten: 3, dataThrough: '2026-09-20', dataWithheld: false, clearBackfill: true,
+    outcome: 'ok' as const, rowsWritten: 3, dataThrough: '2026-09-20', dataWithheld: false, clearBackfill: true, windowStart: '2026-06-23', restartCoverage: false,
     ...over,
   })
   const pending = async () => (await rawBinding())!.backfill_pending as boolean
@@ -573,7 +573,7 @@ describe('loadAnalyticsPanel', () => {
     accountId: A, clientId: A_CLIENT, connectionId: conn, propertyId: '111', streamId: '222',
     eventsChosenAt: binding.eventsChosenAt, outcome: over.outcome ?? 'ok', rowsWritten: 0,
     dataThrough: over.dataThrough === undefined ? '2026-09-20' : over.dataThrough,
-    dataWithheld: over.dataWithheld ?? false, clearBackfill: false,
+    dataWithheld: over.dataWithheld ?? false, clearBackfill: false, windowStart: '2026-06-23', restartCoverage: false,
   })
   const ZERO = { total: 0, bySource: { organic_search: 0, ai_assistant: 0, other: 0 }, byEvent: [] }
 
@@ -685,12 +685,12 @@ describe('loadAnalyticsPanel', () => {
     await store.recordAnalyticsRun({
       accountId: A, clientId: A_CLIENT, connectionId: conn, propertyId: '111', streamId: '222',
       eventsChosenAt: binding.eventsChosenAt, outcome: 'ok', rowsWritten: 2, dataThrough: '2026-09-20',
-      dataWithheld: true, clearBackfill: true,
+      dataWithheld: true, clearBackfill: true, windowStart: '2026-06-23', restartCoverage: false,
     })
     await store.recordAnalyticsRun({
       accountId: A, clientId: A_CLIENT, connectionId: conn, propertyId: '111', streamId: '222',
       eventsChosenAt: binding.eventsChosenAt, outcome: 'quota', rowsWritten: 0, dataThrough: null,
-      dataWithheld: false, clearBackfill: false,
+      dataWithheld: false, clearBackfill: false, windowStart: '2026-06-23', restartCoverage: false,
     })
     panel = await store.loadAnalyticsPanel(A, A_CLIENT, binding.keyEvents, binding.boundAt)
     expect(panel.latest).toEqual({ outcome: 'quota', dataThrough: null, ranAt: expect.any(String) })
@@ -738,9 +738,220 @@ describe('loadDueAnalyticsBindings', () => {
     const a = mine.find(b => b.clientId === A_CLIENT)!
     await store.recordAnalyticsRun({
       accountId: A, clientId: A_CLIENT, connectionId: a.connectionId, propertyId: a.propertyId, streamId: a.streamId,
-      eventsChosenAt: a.eventsChosenAt, outcome: 'ok', rowsWritten: 0, dataThrough: null, dataWithheld: false, clearBackfill: true,
+      eventsChosenAt: a.eventsChosenAt, outcome: 'ok', rowsWritten: 0, dataThrough: null, dataWithheld: false, clearBackfill: true, windowStart: '2026-06-23', restartCoverage: false,
     })
     const after = (await store.loadDueAnalyticsBindings(200)).filter(b => b.clientId === A_CLIENT || b.clientId === B_CLIENT)
     expect(after.map(b => b.clientId)).toEqual([B_CLIENT])
+  })
+})
+
+describe('coverage and gap-free windows', () => {
+  const run = (over: Record<string, unknown>) => ({
+    accountId: A, clientId: A_CLIENT, propertyId: '111', streamId: '222',
+    outcome: 'ok' as const, rowsWritten: 0, dataThrough: '2026-09-20', dataWithheld: false,
+    clearBackfill: true, windowStart: '2026-06-23', restartCoverage: true,
+    ...over,
+  })
+  const coveredFrom = async () => (await sql`
+    select covered_from::text as covered_from from analytics_bindings
+    where account_id = ${A}::uuid and client_id = ${A_CLIENT}::uuid`)[0]!.covered_from as string | null
+
+  async function bound() {
+    const store = await gaStore()
+    const conn = await connect(A, A_USER, 'g-coverage')
+    await store.bindStream(bindingOf({ connectionId: conn }))
+    const binding = (await store.loadAnalyticsBinding(A, A_CLIENT))!
+    return { store, conn, binding }
+  }
+
+  /** A ledger row the store would never write: a chosen ran_at, so the date logic can be driven exactly. */
+  const seedRun = (conn: string, ranAt: string, outcome = 'ok', client = A_CLIENT) => sql`
+    insert into analytics_sync_runs
+      (account_id, client_id, connection_id, property_id, stream_id, outcome, rows_written, data_through, data_withheld, ran_at)
+    values (${A}::uuid, ${client}::uuid, ${conn}::uuid, '111', '222', ${outcome}, 0, null, false, ${ranAt}::timestamptz)`
+
+  describe('covered_from', () => {
+    it('is unrecorded (null) on a new binding', async () => {
+      const { binding } = await bound()
+      expect(binding.coveredFrom).toBeNull()
+      expect(await coveredFrom()).toBeNull()
+    })
+
+    it('is set to the window start by an ok run that clears the backfill and restarts coverage, and read back as a date', async () => {
+      const { store, conn, binding } = await bound()
+      await store.recordAnalyticsRun(run({ connectionId: conn, eventsChosenAt: binding.eventsChosenAt }) as never)
+      expect(await coveredFrom()).toBe('2026-06-23')
+      expect((await store.loadAnalyticsBinding(A, A_CLIENT))!.coveredFrom).toBe('2026-06-23')
+    })
+
+    it('is left alone by a contiguous routine ok run, even though it also clears an already clear backfill', async () => {
+      const { store, conn, binding } = await bound()
+      await store.recordAnalyticsRun(run({ connectionId: conn, eventsChosenAt: binding.eventsChosenAt }) as never)
+      await store.recordAnalyticsRun(run({
+        connectionId: conn, eventsChosenAt: binding.eventsChosenAt, windowStart: '2026-09-14', restartCoverage: false,
+      }) as never)
+      expect(await coveredFrom()).toBe('2026-06-23')
+    })
+
+    it('moves to the new window start when a later run restarts coverage (a gap past 90 days)', async () => {
+      const { store, conn, binding } = await bound()
+      await store.recordAnalyticsRun(run({ connectionId: conn, eventsChosenAt: binding.eventsChosenAt }) as never)
+      await store.recordAnalyticsRun(run({
+        connectionId: conn, eventsChosenAt: binding.eventsChosenAt, windowStart: '2026-08-01', restartCoverage: true,
+      }) as never)
+      expect(await coveredFrom()).toBe('2026-08-01')
+    })
+
+    it('is never set by a run that does not clear the backfill (a failed or deferred run)', async () => {
+      const { store, conn, binding } = await bound()
+      await store.recordAnalyticsRun(run({
+        connectionId: conn, eventsChosenAt: binding.eventsChosenAt, outcome: 'deferred', clearBackfill: false, restartCoverage: false,
+      }) as never)
+      expect(await coveredFrom()).toBeNull()
+      // Even a caller that wrongly asks for it: the guard that keeps the flag keeps the coverage.
+      await store.recordAnalyticsRun(run({
+        connectionId: conn, eventsChosenAt: binding.eventsChosenAt, outcome: 'quota', clearBackfill: false, restartCoverage: true,
+      }) as never)
+      expect(await coveredFrom()).toBeNull()
+    })
+
+    it('is not set when the events were re-chosen mid-sync, and the new events backfill sets it later', async () => {
+      const { store, conn, binding } = await bound()
+      expect(await store.updateKeyEvents(A, A_CLIENT, ['purchase'])).toBe(true)
+      await store.recordAnalyticsRun(run({ connectionId: conn, eventsChosenAt: binding.eventsChosenAt }) as never)
+      expect(await coveredFrom()).toBeNull()
+      expect((await rawBinding())!.backfill_pending).toBe(true)
+
+      const fresh = (await store.loadAnalyticsBinding(A, A_CLIENT))!
+      await store.recordAnalyticsRun(run({ connectionId: conn, eventsChosenAt: fresh.eventsChosenAt, windowStart: '2026-06-25' }) as never)
+      expect(await coveredFrom()).toBe('2026-06-25')
+    })
+
+    it('is not set by a run of a stale property, stream or connection', async () => {
+      const { store, conn, binding } = await bound()
+      const other = await connect(A, A_USER, 'g-coverage-other')
+      for (const over of [{ propertyId: '999' }, { streamId: '999' }, { connectionId: other }]) {
+        await store.recordAnalyticsRun(run({ connectionId: conn, eventsChosenAt: binding.eventsChosenAt, ...over }) as never)
+        expect(await coveredFrom()).toBeNull()
+      }
+    })
+
+    it('is voided by updateKeyEvents, which re-arms the backfill', async () => {
+      const { store, conn, binding } = await bound()
+      await store.recordAnalyticsRun(run({ connectionId: conn, eventsChosenAt: binding.eventsChosenAt }) as never)
+      expect(await coveredFrom()).toBe('2026-06-23')
+      expect(await store.updateKeyEvents(A, A_CLIENT, ['purchase'])).toBe(true)
+      expect(await coveredFrom()).toBeNull()
+    })
+
+    it('is voided by every bindStream: a same-stream re-save with new events, and a connection, property or stream change', async () => {
+      const { store, conn, binding } = await bound()
+      const conn2 = await connect(A, A_USER, 'g-coverage-2')
+      await store.recordAnalyticsRun(run({ connectionId: conn, eventsChosenAt: binding.eventsChosenAt }) as never)
+      expect(await coveredFrom()).toBe('2026-06-23')
+      await store.bindStream(bindingOf({ connectionId: conn, keyEvents: ['purchase'] }))
+      expect(await coveredFrom()).toBeNull()
+
+      for (const change of [
+        { connectionId: conn, propertyId: '999' },
+        { connectionId: conn, propertyId: '999', streamId: '888' },
+        { connectionId: conn2, propertyId: '999', streamId: '888' },
+      ]) {
+        const current = (await store.loadAnalyticsBinding(A, A_CLIENT))!
+        await store.recordAnalyticsRun(run({
+          connectionId: current.connectionId, propertyId: current.propertyId, streamId: current.streamId,
+          eventsChosenAt: current.eventsChosenAt,
+        }) as never)
+        expect(await coveredFrom()).toBe('2026-06-23')
+        await store.bindStream(bindingOf(change))
+        expect(await coveredFrom()).toBeNull()
+      }
+    })
+  })
+
+  describe('lastOkDate', () => {
+    const dueOf = async (client = A_CLIENT) => (await (await gaStore()).loadDueAnalyticsBindings(200)).find(b => b.clientId === client)!
+
+    /** Backdates the binding so seeded ledger rows can fall before or after it. */
+    async function backdate(boundAt: string, eventsChosenAt = boundAt) {
+      await sql`update analytics_bindings set bound_at = ${boundAt}::timestamptz, events_chosen_at = ${eventsChosenAt}::timestamptz
+                where account_id = ${A}::uuid and client_id = ${A_CLIENT}::uuid`
+    }
+
+    it('is null for a binding that has never had an ok run, and coveredFrom comes through with it', async () => {
+      await bound()
+      const due = await dueOf()
+      expect(due.lastOkDate).toBeNull()
+      expect(due.coveredFrom).toBeNull()
+    })
+
+    it('is the UTC date of the newest ok run, not the session or local date', async () => {
+      const { conn } = await bound()
+      await backdate('2026-08-01T00:00:00Z')
+      await seedRun(conn, '2026-09-05T12:00:00Z')
+      // 23:30 UTC on the 10th is already the 11th in Hong Kong: the date must stay the 10th.
+      await seedRun(conn, '2026-09-10T23:30:00Z')
+      expect((await dueOf()).lastOkDate).toBe('2026-09-10')
+      await seedRun(conn, '2026-09-11T00:15:00Z')
+      expect((await dueOf()).lastOkDate).toBe('2026-09-11')
+    })
+
+    it('ignores runs that were not ok, however recent', async () => {
+      const { conn } = await bound()
+      await backdate('2026-08-01T00:00:00Z')
+      await seedRun(conn, '2026-09-05T12:00:00Z')
+      for (const outcome of ['quota', 'deferred', 'google_unavailable', 'events_missing', 'internal_error']) {
+        await seedRun(conn, '2026-09-12T12:00:00Z', outcome)
+      }
+      expect((await dueOf()).lastOkDate).toBe('2026-09-05')
+    })
+
+    it('ignores an ok run from before the binding was last bound: it synced another source', async () => {
+      const { conn } = await bound()
+      await seedRun(conn, '2026-09-05T12:00:00Z')
+      await backdate('2026-09-06T00:00:00Z')
+      expect((await dueOf()).lastOkDate).toBeNull()
+      await seedRun(conn, '2026-09-08T12:00:00Z')
+      expect((await dueOf()).lastOkDate).toBe('2026-09-08')
+    })
+
+    it('ignores an ok run from before the events were last chosen: it fetched other events', async () => {
+      const { conn } = await bound()
+      await seedRun(conn, '2026-09-05T12:00:00Z')
+      // bound_at is older than the run; only the re-pick is newer.
+      await backdate('2026-08-01T00:00:00Z', '2026-09-06T00:00:00Z')
+      expect((await dueOf()).lastOkDate).toBeNull()
+      await seedRun(conn, '2026-09-08T12:00:00Z')
+      expect((await dueOf()).lastOkDate).toBe('2026-09-08')
+    })
+
+    it('does not see another brand ok runs, even one in the same account', async () => {
+      const { store, conn } = await bound()
+      await backdate('2026-08-01T00:00:00Z')
+      const other = 'c1600000-0000-4000-8000-0000000000a2'
+      await sql`insert into clients (id, account_id, brand_name, status, competitors, domain)
+                values (${other}::uuid, ${A}::uuid, 'Other', 'active', ${[]}::text[], 'other-c16.example')`
+      try {
+        await store.bindStream(bindingOf({ clientId: other, connectionId: conn, streamHost: 'other-c16.example' }))
+        await sql`update analytics_bindings set bound_at = '2026-08-01T00:00:00Z', events_chosen_at = '2026-08-01T00:00:00Z'
+                  where client_id = ${other}::uuid`
+        await seedRun(conn, '2026-09-12T12:00:00Z', 'ok', other)
+        expect((await dueOf()).lastOkDate).toBeNull()
+        expect((await dueOf(other)).lastOkDate).toBe('2026-09-12')
+      } finally {
+        await sql`delete from analytics_sync_runs where client_id = ${other}::uuid`
+        await sql`delete from analytics_bindings where client_id = ${other}::uuid`
+        await sql`delete from clients where id = ${other}::uuid`
+      }
+    })
+
+    it('a re-pick after an ok run voids it for the routine window, so the next run reads as non-contiguous', async () => {
+      const { store, conn } = await bound()
+      await backdate('2026-08-01T00:00:00Z')
+      await seedRun(conn, '2026-09-05T12:00:00Z')
+      expect((await dueOf()).lastOkDate).toBe('2026-09-05')
+      expect(await store.updateKeyEvents(A, A_CLIENT, ['purchase'])).toBe(true)
+      expect((await dueOf()).lastOkDate).toBeNull()
+    })
   })
 })

@@ -27,11 +27,26 @@ export type AnalyticsBinding = {
   /** When a different connection, property or stream was last bound (ISO). Older ledger rows and metrics are about a previous binding. */
   boundAt: string
   backfillPending: boolean
+  /**
+   * The first date (YYYY-MM-DD) from which the stored daily counts are one unbroken
+   * range for this stream and these chosen events, up to the last good run. GA4
+   * omits zero-event days, so only a recorded range lets a consumer read a missing
+   * day as a real zero. Null means "not recorded" and must be read as unknown,
+   * never as the beginning of time.
+   */
+  coveredFrom: string | null
 }
 
 export type DueAnalyticsBinding = AnalyticsBinding & {
   accountId: string
   clientId: string
+  /**
+   * The UTC date of this binding's newest `ok` run made since it was bound AND since
+   * its events were last chosen (an earlier run synced another source or other
+   * events). Null if there is none. The routine window reaches back to it, so failed
+   * syncs in between leave no hole.
+   */
+  lastOkDate: string | null
   currentDomain: string | null
   account: CommercialAccount
 }
@@ -74,6 +89,7 @@ function toBinding(r: Row): AnalyticsBinding {
     eventsChosenAt: iso(r.events_chosen_at),
     boundAt: iso(r.bound_at),
     backfillPending: Boolean(r.backfill_pending),
+    coveredFrom: (r.covered_from as string | null) ?? null,
   }
 }
 
@@ -86,7 +102,8 @@ function toBinding(r: Row): AnalyticsBinding {
  * bound_at moves only when the connection, property or stream changes. Re-saving
  * the same stream with different events leaves it alone, because data already
  * synced for events that stay chosen remains valid; the events and the backfill
- * flag are reset every time.
+ * flag are reset every time. So is covered_from: it describes what was fetched for
+ * the old events and source, and only the re-armed backfill re-establishes it.
  */
 export async function bindStream(input: {
   accountId: string
@@ -121,18 +138,23 @@ export async function bindStream(input: {
       key_events = excluded.key_events,
       events_chosen_at = now(),
       backfill_pending = true,
+      covered_from = null,
       updated_at = now()
     returning client_id
   `
   return rows.length > 0 ? 'bound' : 'not_found'
 }
 
-/** Re-choosing events re-arms the backfill (their history was never fetched) but leaves bound_at alone. */
+/**
+ * Re-choosing events re-arms the backfill (their history was never fetched) but leaves
+ * bound_at alone. Coverage is voided with it: what was recorded was fetched for the old events.
+ */
 export async function updateKeyEvents(accountId: string, clientId: string, keyEvents: string[]): Promise<boolean> {
   const sql = db()
   const rows = await sql`
     update analytics_bindings
-    set key_events = ${keyEvents}::text[], events_chosen_at = now(), backfill_pending = true, updated_at = now()
+    set key_events = ${keyEvents}::text[], events_chosen_at = now(), backfill_pending = true,
+        covered_from = null, updated_at = now()
     where account_id = ${accountId} and client_id = ${clientId}
     returning client_id
   `
@@ -174,7 +196,8 @@ export async function loadAnalyticsBinding(accountId: string, clientId: string):
   const sql = db()
   const rows = await sql`
     select b.connection_id, g.status as connection_status, b.property_id, b.stream_id, b.stream_host,
-           b.key_events, b.events_chosen_at, b.bound_at, b.backfill_pending
+           b.key_events, b.events_chosen_at, b.bound_at, b.backfill_pending,
+           b.covered_from::text as covered_from
     from analytics_bindings b
     join google_connections g on g.id = b.connection_id and g.account_id = b.account_id
     where b.account_id = ${accountId} and b.client_id = ${clientId}
@@ -210,6 +233,7 @@ export async function loadDueAnalyticsBindings(limit: number): Promise<DueAnalyt
   const rows = await sql`
     select b.account_id, b.client_id, b.connection_id, g.status as connection_status,
            b.property_id, b.stream_id, b.stream_host, b.key_events, b.events_chosen_at, b.bound_at, b.backfill_pending,
+           b.covered_from::text as covered_from, last_ok.ok_date::text as last_ok_date,
            c.domain as current_domain,
            jsonb_build_object(
              'plan', a.plan, 'status', a.status, 'stripe_subscription_id', a.stripe_subscription_id,
@@ -224,6 +248,11 @@ export async function loadDueAnalyticsBindings(limit: number): Promise<DueAnalyt
       select max(r.ran_at) as ran_at from analytics_sync_runs r
       where r.account_id = b.account_id and r.client_id = b.client_id
     ) last_run on true
+    left join lateral (
+      select max((r.ran_at at time zone 'UTC')::date) as ok_date from analytics_sync_runs r
+      where r.account_id = b.account_id and r.client_id = b.client_id
+        and r.outcome = 'ok' and r.ran_at >= b.bound_at and r.ran_at >= b.events_chosen_at
+    ) last_ok on true
     where g.status = 'active'
       and (last_run.ran_at is null or last_run.ran_at < now() - interval '20 hours')
     order by last_run.ran_at asc nulls first, b.client_id
@@ -233,6 +262,7 @@ export async function loadDueAnalyticsBindings(limit: number): Promise<DueAnalyt
     ...toBinding(r),
     accountId: String(r.account_id),
     clientId: String(r.client_id),
+    lastOkDate: (r.last_ok_date as string | null) ?? null,
     currentDomain: (r.current_domain as string | null) ?? null,
     account: r.account as CommercialAccount,
   }))
@@ -282,6 +312,13 @@ export async function replaceDailyWindow(
  * flag clears only where events_chosen_at is still the value this run synced, so a
  * finishing run cannot clear the backfill the new events still need. events_chosen_at
  * is microsecond-precision and the ISO string is millisecond, hence date_trunc.
+ *
+ * covered_from moves in that same guarded statement, so it can never describe a
+ * different source or different events than the run that wrote it. It is set to the
+ * run's window start only when `restartCoverage` says that window is not contiguous
+ * with what was stored before (a backfill, or a gap past the 90 days); a routine run
+ * that continues the stored range leaves it alone. A run that does not clear the
+ * backfill (anything but ok) never touches it.
  */
 export async function recordAnalyticsRun(input: {
   accountId: string
@@ -296,6 +333,10 @@ export async function recordAnalyticsRun(input: {
   dataThrough: string | null
   dataWithheld: boolean
   clearBackfill: boolean
+  /** The first date of the window this run fetched. Becomes covered_from when `restartCoverage` holds. */
+  windowStart: string
+  /** True only for an ok run whose window is not contiguous with the stored range. */
+  restartCoverage: boolean
 }): Promise<void> {
   const sql = db()
   await sql.transaction([
@@ -306,7 +347,8 @@ export async function recordAnalyticsRun(input: {
               ${input.outcome}, ${input.rowsWritten}, ${input.dataThrough}::date, ${input.dataWithheld})
     `,
     sql`
-      update analytics_bindings set backfill_pending = false
+      update analytics_bindings set backfill_pending = false,
+        covered_from = case when ${input.restartCoverage}::boolean then ${input.windowStart}::date else covered_from end
       where account_id = ${input.accountId} and client_id = ${input.clientId}
         and connection_id = ${input.connectionId} and property_id = ${input.propertyId}
         and stream_id = ${input.streamId}

@@ -13,7 +13,7 @@ const binding = (over: Partial<DueAnalyticsBinding> = {}): DueAnalyticsBinding =
   accountId: 'a', clientId: 'c', connectionId: 'g', connectionStatus: 'active',
   propertyId: '123456', streamId: '987', streamHost: 'www.example.com',
   keyEvents: ['generate_lead', 'purchase'], eventsChosenAt: EVENTS_CHOSEN_AT,
-  boundAt: '2026-09-01T00:00:00.000Z', backfillPending: false,
+  boundAt: '2026-09-01T00:00:00.000Z', backfillPending: false, coveredFrom: '2026-06-27', lastOkDate: '2026-09-23',
   currentDomain: 'example.com',
   account: { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_1' } as DueAnalyticsBinding['account'],
   ...over,
@@ -75,7 +75,7 @@ describe('syncAnalyticsBinding', () => {
         accountId: 'a', clientId: 'c', connectionId: 'g', propertyId: '123456', streamId: '987',
         // The window end the sync requested, not the newest row: GA4 omits zero-event days.
         eventsChosenAt: EVENTS_CHOSEN_AT, outcome: 'ok', rowsWritten: 2, dataThrough: '2026-09-24',
-        dataWithheld: false, clearBackfill: true,
+        dataWithheld: false, clearBackfill: true, windowStart: '2026-06-27', restartCoverage: true,
       })
     })
 
@@ -386,6 +386,93 @@ describe('syncAnalyticsBinding', () => {
   })
 
   describe('window and aggregation', () => {
+    describe('gap-free windows and coverage', () => {
+      // today() is 2026-09-24: routine start is 09-18 (today - 6), the 90-day floor is 06-27 (today - 89).
+      const windowOf = (d: AnalyticsSyncDeps) => vi.mocked(d.report).mock.calls[0]![1] as { startDate: string; endDate: string }
+
+      it('a routine run right behind the last ok run keeps the 7-day window and leaves coverage alone', async () => {
+        const d = deps()
+        expect(await syncAnalyticsBinding(binding({ lastOkDate: '2026-09-23' }), d)).toBe('ok')
+        expect(windowOf(d).startDate).toBe('2026-09-18')
+        expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ windowStart: '2026-09-18', restartCoverage: false }))
+      })
+
+      it('a routine window reaches back to the last ok date after failed syncs, so no day is left out', async () => {
+        const d = deps()
+        expect(await syncAnalyticsBinding(binding({ lastOkDate: '2026-09-10' }), d)).toBe('ok')
+        expect(windowOf(d)).toEqual(expect.objectContaining({ startDate: '2026-09-10', endDate: '2026-09-24' }))
+        expect(d.replaceDailyWindow).toHaveBeenCalledWith('a', 'c', { startDate: '2026-09-10', endDate: '2026-09-24' }, [])
+        // Still one contiguous range from covered_from, so it is not moved.
+        expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ windowStart: '2026-09-10', restartCoverage: false }))
+      })
+
+      it('a last ok date exactly at the 90-day floor is still contiguous', async () => {
+        const d = deps()
+        await syncAnalyticsBinding(binding({ lastOkDate: '2026-06-27' }), d)
+        expect(windowOf(d).startDate).toBe('2026-06-27')
+        expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ windowStart: '2026-06-27', restartCoverage: false }))
+      })
+
+      it('a 100-day gap behaves as a backfill: the 90-day window, and coverage restarts at its start', async () => {
+        const d = deps()
+        expect(await syncAnalyticsBinding(binding({ lastOkDate: '2026-06-16' }), d)).toBe('ok')
+        expect(windowOf(d).startDate).toBe('2026-06-27')
+        expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({
+          outcome: 'ok', clearBackfill: true, windowStart: '2026-06-27', restartCoverage: true,
+        }))
+      })
+
+      it('one day past the floor is a gap, not contiguous', async () => {
+        const d = deps()
+        await syncAnalyticsBinding(binding({ lastOkDate: '2026-06-26' }), d)
+        expect(windowOf(d).startDate).toBe('2026-06-27')
+        expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ restartCoverage: true }))
+      })
+
+      it('a routine run with no ok run since the bind has nothing to be contiguous with: 90 days, coverage restarts', async () => {
+        const d = deps()
+        await syncAnalyticsBinding(binding({ lastOkDate: null }), d)
+        expect(windowOf(d).startDate).toBe('2026-06-27')
+        expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ windowStart: '2026-06-27', restartCoverage: true }))
+      })
+
+      it('a backfill always restarts coverage at the 90-day window start, whatever the last ok date', async () => {
+        const d = deps()
+        await syncAnalyticsBinding(binding({ backfillPending: true, lastOkDate: '2026-09-23' }), d)
+        expect(windowOf(d).startDate).toBe('2026-06-27')
+        expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ windowStart: '2026-06-27', restartCoverage: true }))
+      })
+
+      it('only an ok run restarts coverage: a failed or deferred backfill passes restartCoverage false', async () => {
+        for (const report of [
+          vi.fn().mockRejectedValue(new AnalyticsApiError('quota', 429)),
+          vi.fn().mockRejectedValue(new DeadlineReachedError()),
+        ]) {
+          const d = deps({ report })
+          await syncAnalyticsBinding(binding({ backfillPending: true }), d)
+          expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ clearBackfill: false, restartCoverage: false, windowStart: '2026-06-27' }))
+        }
+        const skipped = deps()
+        await syncAnalyticsBinding(binding({ backfillPending: true, currentDomain: 'other.com' }), skipped)
+        expect(skipped.recordRun).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'domain_mismatch', restartCoverage: false }))
+      })
+
+      it('events_missing never restarts coverage', async () => {
+        const d = deps({ listKeyEvents: vi.fn().mockResolvedValue(['sign_up']) })
+        await syncAnalyticsBinding(binding({ backfillPending: true }), d)
+        expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'events_missing', restartCoverage: false }))
+      })
+
+      it('reads today once, so the window and the ledger row cannot straddle midnight', async () => {
+        const today = vi.fn().mockReturnValueOnce('2026-09-24').mockReturnValue('2026-09-25')
+        const d = deps({ today })
+        await syncAnalyticsBinding(binding(), d)
+        expect(windowOf(d).endDate).toBe('2026-09-24')
+        expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ windowStart: '2026-09-18', dataThrough: '2026-09-24' }))
+      })
+    })
+
+
     it('fetches 90 days on backfill and 7 otherwise, ending today', async () => {
       const first = deps()
       await syncAnalyticsBinding(binding({ backfillPending: true }), first)
