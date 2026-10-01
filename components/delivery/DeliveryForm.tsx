@@ -53,8 +53,8 @@ export function DeliveryForm({ clientId, version, values, canAttest, busy, measu
       {radio('page', a('measurePages'), noPages)}
       {noPages && <p className="text-sm">{a('noPages')} <a className="underline" href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/assets`}>{a('assetsLink')}</a></p>}
       {choice.mode === 'page' && !noPages && <div className="space-y-2 pl-6">
-        <p className="text-sm">{a('pickPages', { max: MEASURE_PAGES_MAX })}</p>
-        <ul className="space-y-1">
+        <p className="text-sm" id={id + 'pick-pages'}>{a('pickPages', { max: MEASURE_PAGES_MAX })}</p>
+        <ul className="space-y-1" role="group" aria-labelledby={id + 'pick-pages'}>
           {measureOptions.pages.map((page, index) => {
             const checked = choice.assetIds.includes(page.id)
             // Search Console syncs only the oldest registered pages: a newer one is shown, not offered.

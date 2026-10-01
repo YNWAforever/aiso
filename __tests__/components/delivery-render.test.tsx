@@ -113,6 +113,17 @@ describe('delivery form: what to measure', () => {
     expect(boxes[0]).not.toContain('aria-describedby')
   })
 
+  it.each([['en', en], ['zh-HK', zh]] as const)('groups the page checkboxes under the pick-pages prompt %s', (lang, messages) => {
+    const html = render(form({ pages: pages(2) }, fields({ mode: 'page', assetIds: [] })), lang)
+    const group = html.match(/<ul[^>]*role="group"[^>]*>/)![0]
+    const labelledBy = group.match(/aria-labelledby="([^"]*)"/)![1]!
+    const prompt = html.match(new RegExp(`<p[^>]*id="${labelledBy.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>([^<]*)<`))
+    expect(prompt?.[1]).toBe(messages.attribution.pickPages.replace('{max}', '20'))
+    // Every checkbox sits inside that group.
+    const inside = html.slice(html.indexOf(group), html.indexOf('</ul>', html.indexOf(group)))
+    expect(inside.match(/type="checkbox"/g)).toHaveLength(2)
+  })
+
   it.each([['en', en], ['zh-HK', zh]] as const)('disables Specific pages and links to the assets page when none are registered %s', (lang, messages) => {
     const html = render(form({ pages: [] }), lang)
     const specific = html.match(/<input[^>]*type="radio"[^>]*value="page"[^>]*>/)![0]
