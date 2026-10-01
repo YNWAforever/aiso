@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { isAnalyticsEnabled, isFeatureEnabled } from '@/lib/flags'
+import { isAnalyticsEnabled, isAttributionEnabled, isFeatureEnabled } from '@/lib/flags'
 
 describe('isFeatureEnabled', () => {
   const envKey = 'FEATURE_DONOR_UI_SHELL'
@@ -91,5 +91,58 @@ describe('isAnalyticsEnabled', () => {
     expect(isAnalyticsEnabled()).toBe(false)
     process.env.FEATURE_SEARCH_CONSOLE = '1'
     expect(isAnalyticsEnabled()).toBe(true)
+  })
+})
+
+// Attribution reads Search Console figures, so it counts as on only when both its
+// own flag and FEATURE_SEARCH_CONSOLE are exactly '1'.
+describe('attribution flag', () => {
+  afterEach(() => { delete process.env.FEATURE_ATTRIBUTION })
+
+  it('is off by default', () => {
+    expect(isFeatureEnabled('attribution')).toBe(false)
+  })
+
+  it('turns on only for the exact value 1', () => {
+    process.env.FEATURE_ATTRIBUTION = 'true'
+    expect(isFeatureEnabled('attribution')).toBe(false)
+    process.env.FEATURE_ATTRIBUTION = '1'
+    expect(isFeatureEnabled('attribution')).toBe(true)
+  })
+})
+
+describe('isAttributionEnabled', () => {
+  afterEach(() => {
+    delete process.env.FEATURE_ATTRIBUTION
+    delete process.env.FEATURE_SEARCH_CONSOLE
+  })
+
+  it('is off when neither flag is set', () => {
+    expect(isAttributionEnabled()).toBe(false)
+  })
+
+  it('is off with only FEATURE_ATTRIBUTION on', () => {
+    process.env.FEATURE_ATTRIBUTION = '1'
+    expect(isAttributionEnabled()).toBe(false)
+  })
+
+  it('is off with only FEATURE_SEARCH_CONSOLE on', () => {
+    process.env.FEATURE_SEARCH_CONSOLE = '1'
+    expect(isAttributionEnabled()).toBe(false)
+  })
+
+  it('is off when either value is not exactly 1', () => {
+    process.env.FEATURE_ATTRIBUTION = 'true'
+    process.env.FEATURE_SEARCH_CONSOLE = '1'
+    expect(isAttributionEnabled()).toBe(false)
+    process.env.FEATURE_ATTRIBUTION = '1'
+    process.env.FEATURE_SEARCH_CONSOLE = 'true'
+    expect(isAttributionEnabled()).toBe(false)
+  })
+
+  it('is on only when both are exactly 1', () => {
+    process.env.FEATURE_ATTRIBUTION = '1'
+    process.env.FEATURE_SEARCH_CONSOLE = '1'
+    expect(isAttributionEnabled()).toBe(true)
   })
 })

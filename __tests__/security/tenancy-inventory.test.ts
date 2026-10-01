@@ -71,6 +71,8 @@ const TENANT_TABLES: Record<string, string> = {
   analytics_bindings: 'account_id (055)',
   analytics_daily: 'account_id (055)',
   analytics_sync_runs: 'account_id (055)',
+  work_item_delivery_measures: 'account_id (056)',
+  search_console_coverage: 'account_id (056)',
   // Tenant through the parent row.
   pulse_metrics: 'client_id -> clients.account_id',
   pulse_weekly_summary: 'client_id -> clients.account_id',
