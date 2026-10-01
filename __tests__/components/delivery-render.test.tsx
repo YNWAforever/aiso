@@ -147,7 +147,7 @@ describe('the options reach the delivery form', () => {
   })
 })
 
-it.each([['en', en], ['zh-HK', zh]] as const)('has a distinct message for a chosen page that is no longer registered %s', (_lang, messages) => {
+it.each([['en', en], ['zh-HK', zh]] as const)('has a distinct message for a chosen page that is not a registered page of the brand %s', (_lang, messages) => {
   expect(messages.attribution.unknownPage).not.toBe(messages.delivery.invalid)
   expect(messages.attribution.unknownPage.length).toBeGreaterThan(10)
 })

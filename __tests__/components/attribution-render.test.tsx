@@ -89,6 +89,27 @@ describe('catalogue', () => {
     }
   })
 
+  it('says a reconnect or rebind starts a new history, so earlier comparisons cannot be shown', () => {
+    // A known limitation, documented rather than fixed: bound_at moves on any
+    // rebind, and the rebound rule then hides every earlier delivery's comparison.
+    expect(en.attribution.reasonRebound).toContain('Reconnecting or rebinding {source} starts a new history')
+    expect(en.attribution.reasonRebound).toContain('earlier comparisons cannot be shown')
+    expect(zh.attribution.reasonRebound).toContain('重新連接或重新綁定 {source} 會開始新的紀錄')
+  })
+
+  it('states the time-zone limitation in the measure help', () => {
+    expect(en.attribution.measureHelp).toContain('Search Console dates are in Pacific Time')
+    expect(en.attribution.measureHelp).toContain('a window edge can be a day off')
+    expect(zh.attribution.measureHelp).toContain('太平洋時間')
+  })
+
+  it('tells the owner to reload when a chosen page is not one of the brand registered pages', () => {
+    expect(en.attribution.unknownPage).toContain('is not a registered page of this brand')
+    expect(en.attribution.unknownPage).toContain('Reload the page')
+    expect(en.attribution.unknownPage).not.toContain('no longer registered')
+    expect(zh.attribution.unknownPage).toContain('重新載入')
+  })
+
   it('holds the standing caption exactly', () => {
     expect(en.attribution.measuredCaption).toBe(CAPTION)
   })
