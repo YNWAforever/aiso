@@ -6,9 +6,9 @@ import { EXACT_TARGET_CONFIGS } from '@/scripts/ci/run-exact-target-suites.mjs'
 
 /**
  * The canonical list that stops the exact-target suites falling out of the gate
- * again. Eleven now: the original five, the four cross-account tenancy suites
+ * again. Twelve now: the original five, the four cross-account tenancy suites
  * moved here from the default integration project so they carry the same in-band
- * approval, and the Search Console and Analytics connector suites. Moved, not
+ * approval, the Search Console and Analytics connector suites, and Attribution (migration 056). Moved, not
  * copied — the project excludes them, so the glob check and the exclude check
  * below still have to agree.
  *
@@ -49,6 +49,7 @@ const SUITES = [
   '__tests__/integration/alerts-agents-tenancy.test.ts',
   '__tests__/integration/search-console.test.ts',
   '__tests__/integration/analytics.test.ts',
+  '__tests__/integration/attribution.test.ts',
 ]
 
 describe('the exact-target suites are wired into the gate', () => {
