@@ -87,10 +87,14 @@ Each target gets exactly one status, decided in this order:
    - `not_bound` — the brand has no Search Console binding;
    - `rebound` — the binding's `bound_at` is after `D−28` (a rebind since before-window start would
      mix two properties' data, and `synced_at >= bound_at` hides the older rows anyway);
-   - `sync_failing` — the binding's latest run is not `ok` and its last good run does not reach `D+28`
-     (the existing Search Console owner-state reason is reused for the copy).
-5. `not_ready` — today (Hong Kong) is before `D+31`, **or** the last good Search Console run's
-   `data_through` is before `D+28`. Carries `readyOn`.
+   - `sync_failing` — the binding's latest finished run is not `ok` and no `ok` run since the bind has
+     reached `D+31` (the existing Search Console owner-state reason is reused for the copy). A
+     `deferred` run only ran out of time and a missing outcome means no run has finished since the
+     bind (or since an event re-pick), so neither is ever `sync_failing`: the store passes the latest
+     *non-deferred* outcome, and null for none.
+5. `not_ready` — today (Hong Kong) is before `D+31`, **or** no `ok` run since the bind has a Hong Kong
+   run date on or after `D+31`. Readiness is judged by the run's date, not by its `data_through`
+   (GA4's is the window end the run requested, so it proves nothing about the data). Carries `readyOn`.
 6. `insufficient_history` — the stored coverage (§3.4) for the target starts after `D−28`. Carries
    `missingFrom` and `missingTo` (the uncovered part of the before-window). Never a partial comparison.
 7. `comparable` — the figures in §3.2.
@@ -98,8 +102,9 @@ Each target gets exactly one status, decided in this order:
 Enquiries have their own sub-status inside a `comparable` or `not_ready` whole-site target, using
 the same vocabulary (`unavailable` with `not_enabled` / `not_bound` / `rebound` / `sync_failing`,
 `not_ready`, `insufficient_history`, `comparable`), so a GA4 problem never hides the search figures.
-GA4's coverage start is the analytics binding's first good backfill after `max(bound_at,
-events_chosen_at)`; a re-pick of events starts a fresh 90-day backfill.
+GA4's coverage start is `analytics_bindings.covered_from` (§4.3): set to the window start when
+a backfill clears, or when a run's window is not contiguous with the stored range, and nulled by a
+rebind and by a re-pick of events (which starts a fresh 90-day backfill).
 
 ### 3.4 Search Console coverage (a gap in sub-project 1 this fixes)
 
@@ -113,11 +118,19 @@ Fix:
   `('property','page')`, `page_url` null iff property, `covered_from date`, `covered_at`), unique per
   `(account_id, client_id, scope, page_url)` with nulls not distinct, composite FK to `clients`.
 - After a page's (or the property's) fetch succeeds, the sync upserts `covered_from =
-  least(existing, window start)` for that target, in the same transaction as the daily rows for it.
+  least(existing, window start)` for that target, in the same transaction as the daily rows for it,
+  when the window continues the stored range; a window that does not continue it (a backfill, or a
+  gap past 90 days) restarts coverage at the window start. A deferred page writes none.
 - A page with no coverage row is fetched with the 90-day backfill window; covered pages keep the
-  7-day window. The property gets a coverage row from its first successful backfill.
-- Rebinding deletes the brand's coverage rows in the same statement that resets the binding, so
-  coverage never outlives the data it describes.
+  routine window (below). The property gets a coverage row from its first successful backfill.
+- **Gap-free windows (both syncs).** The routine window is the last 7 days or, when that reaches
+  further, back to the last `ok` run's date minus a 2-day re-check margin (`RECHECK_DAYS = 2`,
+  because that run fetched its own day and the two before it before Google had finished
+  processing them), capped at 90 days. A run of failed or deferred syncs therefore leaves no hole
+  inside a covered range. A gap longer than 90 days, like a backfill, restarts coverage. The GA4 sync
+  follows the same rule and records its coverage on `analytics_bindings.covered_from`.
+- Coverage is deleted with the data it describes: on unbind, on revoking the connection, and when a
+  rebind changes the site URL (rebinding the same property keeps it, and re-arms the backfill).
 - Effect: registering a page on its delivery day is enough — its first sync fetches the 90 days
   before it, which covers `D−28`.
 
@@ -145,6 +158,12 @@ Fix:
 
 As §3.4. `aeo_app` gets `select, insert, update, delete` (delete for the rebind reset).
 
+### 4.3 `analytics_bindings.covered_from`
+
+`056` also adds `covered_from date` to `analytics_bindings`: the first date the binding's GA4 data is
+known to cover. Null means "not recorded" and is read as unknown, never as the beginning of time.
+It is written in the same guarded statement that clears `backfill_pending`.
+
 `056` states plainly in its header that it is applied to no persistent database, like `054`/`055`.
 
 ## 5. Architecture
@@ -153,11 +172,11 @@ As §3.4. `aeo_app` gets `select, insert, update, delete` (delete for the rebind
 
 - `windows.ts` (pure): `deliveryDay(deliveredAt)`, `windowsFor(D)`, `readyOn(D)`.
 - `compare.ts` (pure): `compareTarget(input) → TargetResult`, taking the daily rows for the target,
-  its coverage, the binding's `bound_at`, last good `data_through` and latest outcome, and today. All
+  its coverage, the binding's `bound_at`, the dates of its `ok` runs and its latest non-deferred outcome, and today. All
   of §3.2–§3.3 lives here; no I/O.
 - `store.ts`: its own SQL; every statement names `account_id`; no `returning *` on a join. Reads the
   attestation state and measure rows, the measured assets, `search_console_daily` for the targets over
-  `D−28 … D+28` only, `search_console_coverage`, the Search Console binding and its last good run,
+  `D−28 … D+28` only, `search_console_coverage`, the Search Console binding and the dates of its `ok` runs,
   and — for whole-site targets with GA4 enabled — `analytics_daily` totals and the analytics binding.
   It imports no other store, so the connectors' stores can change without breaking it.
 - `guard.ts`: auth → entitlement → ownership, in that order, the shape of `lib/localTrust/guard.ts`.
@@ -178,7 +197,7 @@ fields.
   windows: { before: {from, to}, after: {from, to} } | null,
   readyOn: 'YYYY-MM-DD' | null,
   targets: Array<{
-    scope: 'site' | 'page',
+    scope: 'site' | 'page' | null,                            // null only on the single row below
     asset?: { id, url, label },
     status, reason?, readyOn?, missingFrom?, missingTo?,
     search?: { clicks, impressions, ctr, position },          // each {before, after, change, changePct}
@@ -186,7 +205,10 @@ fields.
   }> }
 ```
 
-A version with no active attestation returns `targets: []` with `deliveredOn: null`.
+A version never attested returns `targets: []` with `deliveredOn: null`. A **withdrawn** attestation
+keeps its targets, each with status `withdrawn`, and `deliveredOn`, `windows` and `readyOn` null. An
+attestation that measured nothing (or a version that is not `schemaVersion` 1) returns one row
+`{ scope: null, status: 'not_measured' }` (or `'not_supported'`) so the status still reaches the owner.
 
 ### 5.3 Write path
 
@@ -197,7 +219,7 @@ A version with no active attestation returns `targets: []` with `deliveredOn: nu
   (`… from client_assets where account_id = … and client_id = … and id = any(…)`), and a count
   mismatch aborts the transaction. 2xx only after both writes commit.
 - Validation before any write: 400 for a bad shape (unknown scope, duplicates, more than 20 pages,
-  a non-UUID id, `assetIds` with `site`); 422 `{ error: 'INELIGIBLE', reason: 'unknown_page' }` for
+  a non-UUID id, `assetIds` with `site`); 422 `{ error: 'DELIVERY_VALIDATION_FAILED', reason: 'unknown_page' }` for
   an id that is not one of this brand's registered pages.
 
 ### 5.4 Gating
@@ -214,7 +236,8 @@ A version with no active attestation returns `targets: []` with `deliveredOn: nu
 ## 6. UI
 
 Copy in a new `attribution` namespace in `messages/en.json` and `messages/zh-HK.json` (Traditional
-Chinese), identical keys; components pick copy by a `lang` prop; no apostrophes in strings that tests
+Chinese), identical keys; components read copy with `useTranslations('attribution')` (the locale comes
+from next-intl, not a `lang` prop); no apostrophes in strings that tests
 assert with `toContain`.
 
 - **`DeliveryForm`** gains "What should we measure?" with three choices — *Specific pages*
@@ -256,7 +279,8 @@ assert with `toContain`.
   only after both writes.
 - **Search Console sync:** an uncovered page gets the 90-day window and a covered one the 7-day
   window; coverage is written only after that target's fetch succeeds; a deferred page writes no
-  coverage; rebinding clears coverage.
+  coverage; a site-URL change, unbind and revoke clear coverage; both syncs' routine windows reach
+  back to the last ok run minus the 2-day margin, capped at 90.
 - **Real Postgres** (a new exact-target suite, `vitest.attribution-integration.config.ts`): `056`
   applies after `055`; composite FKs reject another account's attestation or page (`23503`); the
   site-or-1–20-pages trigger; `aeo_app` cannot UPDATE or DELETE measures (`42501`); a failed attest
@@ -270,9 +294,31 @@ assert with `toContain`.
 - Dark by default behind `FEATURE_ATTRIBUTION`, which needs `FEATURE_SEARCH_CONSOLE` too.
 - `056` is applied to no persistent database until the `054`/`055` cutover decision.
 - No cron change: attribution reads the data the existing Search Console and GA4 syncs already
-  write; the coverage change rides the existing Search Console sync.
+  write; the coverage and gap-free window changes ride both existing syncs.
 - **Acceptance matrix:** there is no attribution row today. Add **AC-16, "a delivered work item shows
   its observed search change, separated from technical outcomes and labelled observed"**, at PARTIAL
   until a pilot brand has a delivered item with a `comparable` target on real data. AC-10 and AC-11
   are unchanged by this sub-project, and AC-13's stale "no external provider connector exists" line
   is corrected while the matrix is open.
+
+## 10. Changes during implementation (2026-10-01)
+
+This document was written before the code. Where they differed, the code won, and the text above
+now says what was built. The changes, so a reader of the history is not surprised:
+
+- **The 422 body** is `{ error: 'DELIVERY_VALIDATION_FAILED', reason: 'unknown_page' }` (§5.3), the
+  delivery route's own code, not `INELIGIBLE`.
+- **Readiness** is an `ok` run since the bind with a Hong Kong run date on or after `D+31`, not
+  `data_through >= D+28` (§3.3). GA4's `data_through` is the window end it requested.
+- **`deferred` and missing outcomes are not failures.** A `deferred` run, or no finished run at all,
+  never makes a source `sync_failing` (§3.3).
+- **Gap-free windows with a 2-day margin** in both syncs, capped at 90 days, with coverage
+  restarted by a backfill or a gap past 90 days (§3.4). This changes Search Console and GA4 sync
+  behaviour, not only coverage bookkeeping.
+- **GA4 coverage lives on `analytics_bindings.covered_from`** (§3.3, §4.3), not on a derived
+  "first good backfill".
+- **Search Console coverage is cleared** on unbind, revoke and a site-URL change; rebinding the
+  same property keeps it (§3.4).
+- **Response shape (§5.2):** withdrawn targets are listed as `withdrawn`; a version that measured
+  nothing is one `{ scope: null, status: 'not_measured' }` row rather than an empty list.
+- **Copy** is read with `useTranslations('attribution')` (§6), not by a `lang` prop.
