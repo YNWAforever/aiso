@@ -105,4 +105,18 @@ describe('redactSecrets', () => {
     redactSecrets(hostile)
     expect(Date.now() - started).toBeLessThan(1000)
   })
+
+  describe('Google OAuth tokens', () => {
+    it('redacts an access token', () => {
+      expect(redactSecrets('Authorization: Bearer ya29.a0AfB_byC-abcdefghijklmnop')).toBe('Authorization: Bearer ya29.***')
+    })
+
+    it('redacts a refresh token', () => {
+      expect(redactSecrets('refresh=1//0gABCDEFghijklmnopQRSTUV-xyz')).toBe('refresh=1//***')
+    })
+
+    it('leaves an ordinary short path alone', () => {
+      expect(redactSecrets('see https://example.com/1//x')).toBe('see https://example.com/1//x')
+    })
+  })
 })

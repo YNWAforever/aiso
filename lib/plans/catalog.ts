@@ -26,6 +26,8 @@ export interface PlanFeatures {
   local_trust_competitors: boolean
   local_trust_export: boolean
   client_reports_online: boolean
+  /** Google Search Console connector (Phase 2). Runtime entitlement only. */
+  search_console: boolean
 }
 
 /**
@@ -89,6 +91,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       alerts: false, csv_export: false, max_brands: 1, history_weeks: 0,
       edit_prompts: false, local_trust_roi: false,
       local_trust_competitors: false, local_trust_export: false, client_reports_online: false,
+      search_console: false,
     },
   },
   basic: {
@@ -102,6 +105,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       alerts: false, csv_export: false, max_brands: 1, history_weeks: 4,
       edit_prompts: false, local_trust_roi: false,
       local_trust_competitors: false, local_trust_export: false, client_reports_online: false,
+      search_console: false,
     },
   },
   pro: {
@@ -126,6 +130,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       alerts: true, csv_export: false, max_brands: 3, history_weeks: 26,
       edit_prompts: true, local_trust_roi: true,
       local_trust_competitors: false, local_trust_export: false, client_reports_online: true,
+      search_console: true,
     },
   },
   enterprise: {
@@ -146,6 +151,7 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       alerts: true, csv_export: true, max_brands: 10, history_weeks: 999,
       edit_prompts: true, local_trust_roi: true,
       local_trust_competitors: true, local_trust_export: true, client_reports_online: true,
+      search_console: true,
     },
   },
 }

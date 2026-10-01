@@ -160,17 +160,19 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   happened.
 - Deployment config lives outside the code and is easy to miss: `vercel.json` sets
   `maxDuration` (60s scan, 30s fix, 60s each for `pulse/run`, `cron/pulse`,
-  `cron/evaluate-alerts` and `cron/trial-emails`) but **no longer schedules anything itself**
+  `cron/evaluate-alerts`, `cron/trial-emails` and `cron/search-console`) but **no longer schedules anything itself**
   (2026-08-22) — its `crons` array was removed. Scheduling now belongs to
   `cloudflare/cron-worker/`, a standalone Cloudflare Worker (own `package.json`/toolchain,
   excluded from this repo's root `tsconfig.json`/`vitest.config.ts`/lint) whose
   `wrangler.jsonc` holds the same three schedules in order — `17 4 * * 1` →
   `/api/cron/pulse`, `47 7 * * 1` → `/api/cron/evaluate-alerts` (after pulse, because alerts
-  read the rollup Pulse writes), `0 9 * * *` → `/api/cron/trial-emails` — calling each with
+  read the rollup Pulse writes), `0 9 * * *` → `/api/cron/trial-emails` **and**
+  `/api/cron/search-console` (one trigger fanning out to independent routes via
+  `Promise.allSettled`, because the free tier allows only three triggers) — calling each with
   the exact `Authorization: Bearer $CRON_SECRET` header Vercel Cron used to send, so none of
-  the three routes needed code changes. Follow `docs/runbooks/deploy-cron-worker.md` to
-  actually deploy and verify it; until that runs, nothing schedules these three routes at
-  all. `vercel.json`'s `functions` keys are **literal paths, not prefixes**, so `fix/`'s
+  the three original routes needed code changes (`cron/search-console` was written for that
+  header). Follow `docs/runbooks/deploy-cron-worker.md` to actually deploy and verify it;
+  until that runs, nothing schedules any of these four routes at all. `vercel.json`'s `functions` keys are **literal paths, not prefixes**, so `fix/`'s
   subroutes inherit nothing despite also calling OpenRouter.
   `__tests__/config/function-durations.test.ts` now pins `wrangler.jsonc`'s `triggers.crons`
   (not `vercel.json.crons`) and requires every scheduled path to export `GET`, so adding a
@@ -396,6 +398,36 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 - Migrations in `supabase/migrations/`, numbered from `001_` (no 005/006; directory name is legacy;
   the target is now Neon). Everything from `038` postdates the "001–035 all applied" note below, which is
   about the *persistent* database and is only as fresh as its date — re-run `--verify`.
+- **Search Console connector (migration `054`, Phase 2).** `054` is **not applied to any
+  persistent database** yet. Google refresh tokens are sealed with AES-256-GCM in
+  `lib/integrations/google/vault.ts` using `GOOGLE_TOKEN_ENCRYPTION_KEY`, with the
+  `accountId` as AAD so a ciphertext copied to another account's row will not open; the key
+  never reaches SQL and there is no plaintext fallback. Upsert keys on the metric tables lead
+  with `account_id`, and `search_console_daily` uses `unique nulls not distinct`, so a
+  re-synced day overwrites — unlike `pulse_metrics`. `search_console_page_queries` is the one
+  metric table `aeo_app` may DELETE from: each sync replaces the re-fetched window, because a
+  query that drops out of a day's top 25 would otherwise keep stale numbers forever.
+  Owner-visible state is derived from `search_console_sync_runs` (closed outcome vocabulary,
+  a DB CHECK mirrored by `SYNC_OUTCOMES`, which includes `deferred`), never stored twice; the
+  ledger is **insert-only** for `aeo_app`. A ledger row recorded before the binding's
+  `bound_at`, or a `revoked` / `not_entitled` / `domain_mismatch` / `deferred` row whose cause
+  the live checks now contradict, is ignored, and the panel only reads metric rows with
+  `synced_at >= bound_at` — so a rebind or an upgrade never shows the old state or the old
+  property's numbers. A connection is flagged for reconnect only on `400 invalid_grant` from
+  the token endpoint or a `403 ACCESS_TOKEN_SCOPE_INSUFFICIENT` from the API — a 401 or
+  `invalid_client` is `misconfigured`, because treating it as revoked would mass-flip every
+  connection on one bad secret. The daily cron starts no brand after 40 s and gives each sync
+  a deadline of run start + 45 s, checked before every Google call (including each `startRow`
+  page); a sync that hits it records `deferred`, keeps its backfill pending, and goes behind
+  never-attempted brands next run. `loadDueBindings` is the one deliberately account-blind
+  read, declared in `ACCOUNT_BLIND_BY_DESIGN` in `__tests__/security/tenancy-inventory.test.ts`.
+  Nothing re-seals tokens after a key rotation, so `GOOGLE_TOKEN_ENCRYPTION_KEY_PREVIOUS` must
+  stay set until every connection has reconnected or been revoked. A property binds only if it
+  covers the brand's domain (`lib/integrations/search-console/binding.ts`). Gated on
+  `FEATURE_SEARCH_CONSOLE=1` plus the `search_console` plan feature (Pro/Enterprise).
+  `webmasters.readonly` is a Google *sensitive* scope: until Google verifies the OAuth app,
+  consent shows an "unverified app" warning and the app is capped at 100 users. The OAuth
+  redirect URI comes from `NEXT_PUBLIC_APP_URL`, so connecting only works from that host.
 - **`047`, `048` and `049` were applied to the AISO development database on 2026-09-11** and
   `--verify` reports all three `all present recorded`. They have **not** been applied to the
   production project Vercel points at — that is a separate cutover decision.
@@ -566,12 +598,14 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   project exists only while that file does, so CI is unaffected.
 - **Dead:** `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — read by zero source files; checkout is
   server-side only. `@stripe/stripe-js` is installed but never imported.
-- `CRON_SECRET` — ≥16 chars, read by **four** routes in two header shapes. `cron/pulse` and
+- `CRON_SECRET` — ≥16 chars, read by **five** cron-path routes in two header shapes (and also
+  checked by the three `agents/*` routes). `cron/search-console` (Phase 2) takes the Vercel
+  Cron shape and rides the `0 9 * * *` trigger with `cron/trial-emails`. `cron/pulse` and
   `cron/trial-emails` (restored 2026-08-22) both take Vercel Cron's own shape directly: `GET`
   with `Authorization: Bearer $CRON_SECRET`. `pulse/run` isn't cron-invoked at all — the
   pulse driver calls it internally with `x-cron-secret` instead, which is why that second
   shape exists. Neither shape is ours to choose — the first is Vercel's, the second is the
-  producer's. All four return 500 rather than running if the secret is unset or short.
+  producer's. All five return 500 rather than running if the secret is unset or short.
   `cloudflare/cron-worker/` schedules `cron/pulse` and `cron/trial-emails` (2026-08-22,
   see above and `docs/runbooks/deploy-cron-worker.md`) — `vercel.json` no longer schedules
   anything. The fourth route,

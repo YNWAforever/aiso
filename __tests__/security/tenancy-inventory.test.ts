@@ -63,6 +63,11 @@ const TENANT_TABLES: Record<string, string> = {
   local_trust_snapshots: 'account_id (021)',
   local_trust_actions: 'account_id (021)',
   content_briefs: 'account_id (018)',
+  google_connections: 'account_id (054)',
+  search_console_bindings: 'account_id (054)',
+  search_console_daily: 'account_id (054)',
+  search_console_page_queries: 'account_id (054)',
+  search_console_sync_runs: 'account_id (054)',
   // Tenant through the parent row.
   pulse_metrics: 'client_id -> clients.account_id',
   pulse_weekly_summary: 'client_id -> clients.account_id',
@@ -149,6 +154,28 @@ const DECLARED: Record<string, string> = {
     'The weekly rollup, called once per client from pulse/run (route.ts:250) with a clientId the ' +
     'scheduler selected. That POST resolves the account through the client and checks entitlement ' +
     'before any of this runs — the documented inversion in CLAUDE.md, not an ungated path.',
+}
+
+/**
+ * Cross-account reads that the token rule CANNOT see, declared anyway.
+ *
+ * OWNERSHIP_TOKENS treats any mention of `account_id` as scoping, which is right
+ * for a predicate like `where account_id = ${accountId}` — and wrong for a join
+ * that only relates two rows' account_ids to each other. Such a statement reads
+ * every account's rows while looking scoped, so it would never reach DECLARED
+ * (whose "declares nothing that is now scoped" test would even reject it). This
+ * list is where it is stated instead, with the reason, and the test below keeps
+ * each entry pointing at a live function that still carries tenant SQL.
+ */
+const ACCOUNT_BLIND_BY_DESIGN: Record<string, string> = {
+  'lib/integrations/search-console/store.ts::loadDueBindings':
+    'The selection made by the Search Console cron (spec §6): the due bindings of every account, by ' +
+    'design, like alert evaluation. The cron is authenticated by CRON_SECRET and has no session to ' +
+    'scope to. Its only account predicates are joins (g.account_id = b.account_id, c.account_id = ' +
+    'b.account_id, a.id = b.account_id, and the ledger lateral on b.account_id), which keep each ' +
+    'binding paired with the connection, brand, plan and ledger of its own account but select across ' +
+    'accounts. Each row carries ' +
+    'its own account_id, and every write syncBinding makes for that row uses that value.',
 }
 
 /**
@@ -276,6 +303,22 @@ function unscopedStatements(): Finding[] {
   return findings
 }
 
+/** Every function holding a statement that touches a tenant-bearing table, scoped or not. */
+function tenantStatementFunctions(): Set<string> {
+  const keys = new Set<string>()
+  for (const file of sourceFiles()) {
+    const source = readFileSync(join(ROOT, file), 'utf8')
+    if (!TAGS.some(tag => source.includes(tag))) continue
+    for (const statement of sqlStatements(source)) {
+      const lowered = statement.text.toLowerCase()
+      if (Object.keys(TENANT_TABLES).some(table => new RegExp(`\\b${table}\\b`).test(lowered))) {
+        keys.add(`${file}::${enclosingFunction(source, statement.index)}`)
+      }
+    }
+  }
+  return keys
+}
+
 const FINDINGS = unscopedStatements()
 const UNDECLARED = FINDINGS.filter(finding => !DECLARED[finding.key])
 
@@ -326,6 +369,18 @@ describe('every tenant-bearing statement is scoped or declared', () => {
     const live = new Set(FINDINGS.map(finding => finding.key))
     for (const key of Object.keys(DECLARED)) {
       expect([...live], `${key} is declared cross-account but is now scoped; remove its entry.`).toContain(key)
+    }
+  })
+
+  it('keeps every account-blind declaration pointing at live tenant SQL the token rule passes', () => {
+    const live = tenantStatementFunctions()
+    const unscoped = new Set(FINDINGS.map(finding => finding.key))
+    for (const [key, reason] of Object.entries(ACCOUNT_BLIND_BY_DESIGN)) {
+      expect(reason.length, `${key} needs its reason`).toBeGreaterThan(40)
+      expect([...live], `${key} no longer holds tenant SQL; remove its entry.`).toContain(key)
+      // One that the token rule already flags belongs in DECLARED, not here.
+      expect([...unscoped], `${key} is flagged as unscoped; declare it in DECLARED instead.`).not.toContain(key)
+      expect(DECLARED[key]).toBeUndefined()
     }
   })
 

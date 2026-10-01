@@ -25,13 +25,26 @@ const NEON_TOKEN = /npg_[A-Za-z0-9_-]{4,}/g
 /** Three base64url segments -- a JWT, such as the n8n bearer token. */
 const JWT = /eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g
 
+/** Google OAuth access tokens. */
+const GOOGLE_ACCESS = /ya29\.[A-Za-z0-9_-]{8,}/g
+
+/**
+ * Google OAuth refresh tokens: `1//` then a long base64url run. The 16-character
+ * floor keeps an ordinary `/1//x` path segment out of it.
+ */
+const GOOGLE_REFRESH = /1\/\/[A-Za-z0-9_-]{16,}/g
+
 export function redactSecrets(text: string): string {
   if (!text) return text
   return text.split('\n').map(redactLine).join('\n')
 }
 
 function redactLine(line: string): string {
-  return redactUris(line).replace(NEON_TOKEN, 'npg_***').replace(JWT, '***jwt***')
+  return redactUris(line)
+    .replace(NEON_TOKEN, 'npg_***')
+    .replace(JWT, '***jwt***')
+    .replace(GOOGLE_ACCESS, 'ya29.***')
+    .replace(GOOGLE_REFRESH, '1//***')
 }
 
 function redactUris(line: string): string {

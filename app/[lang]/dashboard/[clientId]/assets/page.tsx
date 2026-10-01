@@ -6,6 +6,9 @@ import { buildAssetConvergence, siteFindingsFromEvidence } from '@/lib/view-mode
 import { buildMergeSuggestions } from '@/lib/assets/merge-suggestions'
 import { loadSuggestionSources, toRegisteredPages } from '@/lib/assets/suggestion-inputs'
 import { AssetConvergenceView } from '@/components/dashboard/AssetConvergenceView'
+import { isFeatureEnabled } from '@/lib/flags'
+import { resolveCommercialEntitlement } from '@/lib/tier'
+import { SearchConsolePanel } from '@/components/integrations/SearchConsolePanel'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,16 +48,22 @@ export default async function AssetsPage({
   // exist yet for a new brand.
   const evidence = (owned.scan.data?.results as { evidence?: unknown } | undefined)?.evidence
 
+  const searchConsole = isFeatureEnabled('search_console')
+    && resolveCommercialEntitlement(profile.accounts).features.search_console
+
   return (
-    <AssetConvergenceView
-      convergence={buildAssetConvergence({
-        assets,
-        declarations,
-        findings: siteFindingsFromEvidence(evidence),
-      })}
-      suggestions={buildMergeSuggestions({ assets: toRegisteredPages(assets, declarations), sources })}
-      lang={lang}
-      clientId={clientId}
-    />
+    <>
+      <AssetConvergenceView
+        convergence={buildAssetConvergence({
+          assets,
+          declarations,
+          findings: siteFindingsFromEvidence(evidence),
+        })}
+        suggestions={buildMergeSuggestions({ assets: toRegisteredPages(assets, declarations), sources })}
+        lang={lang}
+        clientId={clientId}
+      />
+      {searchConsole && <SearchConsolePanel clientId={clientId} lang={lang} />}
+    </>
   )
 }

@@ -39,6 +39,11 @@ The source supports these schedules; the dedicated config intentionally enables 
 | `/api/cron/pulse` | `17 4 * * 1` | Trigger and ledger correlated with producer completion/rollup state; a 2xx alone is insufficient |
 | `/api/cron/evaluate-alerts` | `47 7 * * 1` | Evaluation outcome and relevant completion counters; scheduled later than Pulse, but elapsed time does not prove Pulse finished |
 | `/api/cron/trial-emails` | `0 9 * * *` | HTTP status plus sent/failed counters and ledger; investigate partial failures before replay |
+| `/api/cron/search-console` | `0 9 * * *` (same trigger as trial emails) | Per-outcome counts in the body and `search_console_sync_runs`; `502` means brands were due and none synced. With `FEATURE_SEARCH_CONSOLE` unset it answers `200 {skipped: 'flag_off'}` |
+
+The `0 9 * * *` trigger fans out to both daily routes with `Promise.allSettled`, so
+one failing does not stop the other. Approving that cron string enables both; the
+Search Console route stays inert until its feature flag and Google variables are set.
 
 Prepare a diff to the dedicated config that adds the approved HTTPS `APP_BASE_URL`
 and only the individually approved cron strings. Keep the exact account/name,

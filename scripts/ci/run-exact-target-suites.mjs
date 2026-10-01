@@ -56,6 +56,7 @@ export const EXACT_TARGET_CONFIGS = [
   'vitest.feature-store-tenancy-integration.config.ts',
   'vitest.reports-entities-tenancy-integration.config.ts',
   'vitest.alerts-agents-tenancy-integration.config.ts',
+  'vitest.search-console-integration.config.ts',
 ]
 
 const REPORT_DIR = join('artifacts', 'exact-target')
