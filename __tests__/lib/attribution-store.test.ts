@@ -13,7 +13,10 @@ const m = vi.hoisted(() => ({ sql: vi.fn(), transaction: vi.fn() }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/db', () => ({ db: () => Object.assign(m.sql, { transaction: m.transaction }) }))
 
-import { loadAttributionInput, loadOwnedVersion } from '@/lib/attribution/store'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { loadAttributionInput, loadOwnedVersion, loadSyncedPageIds } from '@/lib/attribution/store'
+import { PAGE_CAP } from '@/lib/integrations/search-console/sync'
 
 const ACCOUNT = '11111111-1111-4111-8111-111111111111'
 const CLIENT = '22222222-2222-4222-8222-222222222222'
@@ -39,6 +42,38 @@ const head = (over: Record<string, unknown> = {}) => ({
 })
 
 const load = (analytics = false) => loadAttributionInput(ACCOUNT, CLIENT, ITEM, VERSION, { analytics })
+
+/**
+ * Search Console's sync set, as attribution states it: this brand's registered
+ * pages, oldest first by (created_at, id), capped at PAGE_CAP, with listSyncPages'
+ * own url-length filter. Whitespace is collapsed by statements().
+ */
+const SYNC_SET =
+  /from client_assets s where s\.account_id = \?::uuid and s\.client_id = \?::uuid and char_length\(s\.url\) <= 2048 order by s\.created_at, s\.id limit \?/
+
+describe('the Search Console sync set', () => {
+  it('loadSyncedPageIds is one scoped statement over the sync set, returning ids', async () => {
+    m.sql.mockReturnValueOnce([{ id: 'p1' }, { id: 'p2' }])
+    expect(await loadSyncedPageIds(ACCOUNT, CLIENT)).toEqual(['p1', 'p2'])
+    const [text, ...rest] = statements()
+    expect(rest).toEqual([])
+    expect(text).toMatch(SYNC_SET)
+    expect(text).not.toMatch(/returning \*/i)
+    expect(valuesOf(0)).toEqual([ACCOUNT, CLIENT, PAGE_CAP])
+  })
+
+  it('states the same order and filter as listSyncPages, which is what the cron really syncs', () => {
+    // listSyncPages lives in another store, which this one deliberately does not
+    // import; pin its text instead, so either side drifting fails here.
+    const read = (path: string) => readFileSync(join(process.cwd(), path), 'utf8').replace(/\r\n/g, '\n')
+    const source = read('lib/integrations/search-console/store.ts')
+    const body = source.slice(source.indexOf('export async function listSyncPages'))
+    const fn = body.slice(0, body.indexOf('\n}\n')).replace(/\s+/g, ' ')
+    expect(fn).toContain('where a.account_id = ${accountId} and a.client_id = ${clientId} and char_length(a.url) <= 2048 order by a.created_at, a.id limit ${cap}')
+    // And the cron passes PAGE_CAP as that cap.
+    expect(read('lib/integrations/search-console/sync.ts')).toContain('deps.listPages(b.accountId, b.clientId, PAGE_CAP)')
+  })
+})
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -106,10 +141,32 @@ describe('loadAttributionInput: the attestation read', () => {
   })
 
   it('maps a site measure to a null asset', async () => {
-    m.sql.mockReturnValueOnce([head({ measures: [{ scope: 'site', assetId: null, url: null, label: null }] })])
+    m.sql.mockReturnValueOnce([head({ measures: [{ scope: 'site', assetId: null, url: null, label: null, synced: null }] })])
     m.transaction.mockResolvedValueOnce([[], [], []])
     const input = await load()
-    expect(input!.measures).toEqual([{ scope: 'site', asset: null }])
+    // The property is always synced, so a site measure is never "not synced".
+    expect(input!.measures).toEqual([{ scope: 'site', asset: null, synced: true }])
+  })
+
+  it('marks each measured page by whether Search Console syncs it, from the same set listSyncPages takes', async () => {
+    m.sql.mockReturnValueOnce([head({
+      measures: [
+        { scope: 'page', assetId: ASSET, url: 'https://example.com/a', label: 'Page A', synced: true },
+        { scope: 'page', assetId: ATTEST, url: 'https://example.com/b', label: 'Page B', synced: false },
+      ],
+    })])
+    const input = await load()
+    expect(input!.measures.map(t => t.synced)).toEqual([true, false])
+    const text = statements()[0]!
+    // The PAGE_CAP oldest registered pages of this brand, in listSyncPages' order.
+    expect(text).toMatch(SYNC_SET)
+    expect(text).toContain("'synced', exists (select 1 from synced s where s.id = a.id)")
+    expect(valuesOf(0)).toContain(PAGE_CAP)
+  })
+
+  it('reads a missing synced flag on a page as not synced, never as synced', async () => {
+    m.sql.mockReturnValueOnce([head({ measures: [{ scope: 'page', assetId: ASSET, url: 'https://example.com/a', label: 'Page A' }] })])
+    expect((await load())!.measures[0]!.synced).toBe(false)
   })
 
   it.each([

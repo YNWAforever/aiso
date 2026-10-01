@@ -6,7 +6,9 @@ import { TENANCY_TARGET_VARIABLES, approvedTenancyTarget, assertDisposableTenanc
 import { draft } from '../change-sets/fixtures'
 import { freezeReview } from '@/lib/change-sets/validation'
 import { attestDelivery, withdrawDelivery } from '@/lib/delivery/store'
-import { loadAttributionInput } from '@/lib/attribution/store'
+import { loadAttributionInput, loadSyncedPageIds } from '@/lib/attribution/store'
+import { listSyncPages } from '@/lib/integrations/search-console/store'
+import { PAGE_CAP } from '@/lib/integrations/search-console/sync'
 import type { AttestInput, DeliveryScope, MeasureInput } from '@/lib/delivery/types'
 
 /**
@@ -589,9 +591,49 @@ describe('loadAttributionInput on real Postgres (as aeo_app)', () => {
     await seedSearchData()
     const input = await load()
     expect(input!.measures).toEqual([
-      { scope: 'page', asset: { id: assetIds.p1, url: P1, label: 'Page 1' } },
-      { scope: 'page', asset: { id: assetIds.p2, url: P2, label: 'Page 2' } },
+      { scope: 'page', asset: { id: assetIds.p1, url: P1, label: 'Page 1' }, synced: true },
+      { scope: 'page', asset: { id: assetIds.p2, url: P2, label: 'Page 2' }, synced: true },
     ])
+  })
+
+  it('marks a page outside Search Console\'s sync set exactly as listSyncPages draws it, brand by brand', async () => {
+    expect(PAGE_CAP).toBe(20)
+    // p1..p3 are the oldest. Twenty more follow, a minute apart, except that the
+    // 17th and 18th share a created_at right on the cap, so the id tiebreak decides
+    // which one the sync takes. The neighbours' pages are older than all of them:
+    // a read that lost its brand or account filter would let them take places.
+    const extra: string[] = []
+    for (let n = 1; n <= 20; n++) {
+      const minutes = n === 18 ? 17 : n
+      const [row] = await sql`
+        insert into client_assets (account_id, client_id, url, origin, label, created_at)
+        values (${A}::uuid, ${A_CLIENT}::uuid, ${`https://a-c17.example/extra-${n}`}, 'https://a-c17.example', ${`Extra ${n}`},
+                now() + make_interval(mins => ${minutes}))
+        returning id`
+      extra.push(String(row!.id))
+    }
+    for (const [account, client, url] of [[A, A_CLIENT2, 'https://x-c17.example/old'], [B, B_CLIENT, 'https://b-c17.example/old']] as const) {
+      await sql`insert into client_assets (account_id, client_id, url, origin, label, created_at)
+        values (${account}::uuid, ${client}::uuid, ${url}, ${new URL(url).origin}, 'Older neighbour', now() - interval '1 day')`
+    }
+
+    // What the cron really syncs, as the cron reads it, mapped to ids.
+    const ids = new Map((await sql`select id, url from client_assets where account_id = ${A}::uuid and client_id = ${A_CLIENT}::uuid`)
+      .map(r => [String(r.url), String(r.id)]))
+    const cron = (await listSyncPages(A, A_CLIENT, PAGE_CAP)).map(p => ids.get(p.url))
+    const synced = await loadSyncedPageIds(A, A_CLIENT)
+    expect(synced).toEqual(cron)
+    expect(synced).toHaveLength(PAGE_CAP)
+    expect(synced).toEqual(expect.arrayContaining([assetIds.p1, assetIds.p2, assetIds.p3]))
+    // Exactly one of the tied pair is in, and the two newest are out.
+    expect([extra[16], extra[17]].filter(id => synced.includes(id!))).toHaveLength(1)
+    expect(synced).not.toContain(extra[18])
+    expect(synced).not.toContain(extra[19])
+
+    // And the measured-change read carries the same answer per measured page.
+    await attested({ scope: 'page', assetIds: [assetIds.p1!, extra[19]!] })
+    const measures = (await load())!.measures
+    expect(measures.map(t => [t.asset?.id, t.synced])).toEqual([[extra[19], false], [assetIds.p1, true]])
   })
 
   it('reads GA4 for a site measure: the binding, ok dates since the event choice, and summed chosen events', async () => {
@@ -723,7 +765,7 @@ describe('loadAttributionInput on real Postgres (as aeo_app)', () => {
     const second = await withdrawThenAttest(first, { scope: 'site' }, { deliveredAt: '2026-09-03T10:00:00.000Z' })
     const input = (await load())!
     expect(input.attestation).toEqual({ id: second, deliveredAt: '2026-09-03T10:00:00.000000Z', withdrawn: false })
-    expect(input.measures).toEqual([{ scope: 'site', asset: null }])
+    expect(input.measures).toEqual([{ scope: 'site', asset: null, synced: true }])
     // The retired attestation's measures are still on file, insert-only, and simply not read.
     expect((await counts()).measures).toBe(3)
     // And the read span moved with the new delivery day (D = 2026-09-03, so up to 2026-10-01): the

@@ -4,7 +4,8 @@ import { NO_MEASURE, buildMeasure, toggleAsset } from '@/lib/attribution/measure
 import { deliveryFailureKey } from '@/lib/delivery/failure'
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
-const options = { pages: [0, 1, 2].map(n => ({ id: id(n), url: `https://example.com/${n}`, label: `P${n}` })) }
+const options = { pages: [0, 1, 2].map(n => ({ id: id(n), url: `https://example.com/${n}`, label: `P${n}`, synced: true })) }
+const withUnsynced = { pages: options.pages.map(p => (p.id === id(1) ? { ...p, synced: false } : p)) }
 
 describe('buildMeasure', () => {
   it('sends no measure at all when there are no options, whatever the choice holds', () => {
@@ -29,6 +30,13 @@ describe('buildMeasure', () => {
   it('drops pages that are no longer on offer, and refuses if none remain', () => {
     expect(buildMeasure({ mode: 'page', assetIds: [id(1), id(9)] }, options)).toEqual({ ok: true, measure: { scope: 'page', assetIds: [id(1)] } })
     expect(buildMeasure({ mode: 'page', assetIds: [id(9)] }, options)).toEqual({ ok: false })
+  })
+  it('refuses a page Search Console does not sync, even beside pages it does', () => {
+    expect(buildMeasure({ mode: 'page', assetIds: [id(1)] }, withUnsynced)).toEqual({ ok: false })
+    expect(buildMeasure({ mode: 'page', assetIds: [id(0), id(1)] }, withUnsynced)).toEqual({ ok: false })
+    // The synced pages alone still go through, and an unsynced page does not block the whole site.
+    expect(buildMeasure({ mode: 'page', assetIds: [id(0), id(2)] }, withUnsynced)).toEqual({ ok: true, measure: { scope: 'page', assetIds: [id(0), id(2)] } })
+    expect(buildMeasure({ mode: 'site', assetIds: [id(1)] }, withUnsynced)).toEqual({ ok: true, measure: { scope: 'site' } })
   })
 })
 

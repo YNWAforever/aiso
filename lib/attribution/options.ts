@@ -3,6 +3,7 @@ import { listAssets } from '@/lib/assets/store'
 import { getProfile } from '@/lib/auth'
 import { isAttributionEnabled } from '@/lib/flags'
 import { resolveCommercialEntitlement } from '@/lib/tier'
+import { loadSyncedPageIds } from './store'
 import type { MeasureOptions } from './types'
 
 /**
@@ -14,6 +15,9 @@ import type { MeasureOptions } from './types'
  * entitlement), and the account is always the session's, never a caller's id.
  * `listAssets` filters on both account_id and client_id, so a client id from
  * another account yields an empty list rather than someone else's pages.
+ * Every page is listed, each marked whether Search Console syncs it
+ * (loadSyncedPageIds, scoped the same way), so the form can show an unsynced
+ * page as not choosable instead of silently leaving it out.
  *
  * A failed read hides the field instead of throwing, so recording a delivery
  * stays possible. Only the error's name is logged: the Neon driver puts the
@@ -25,8 +29,12 @@ export async function loadMeasureOptions(clientId: string): Promise<MeasureOptio
     const profile = await getProfile()
     if (!profile) return null
     if (!resolveCommercialEntitlement(profile.accounts).features.search_console) return null
-    const assets = await listAssets(profile.account_id, clientId)
-    return { pages: assets.map(a => ({ id: a.id, url: a.url, label: a.label })) }
+    const [assets, syncedIds] = await Promise.all([
+      listAssets(profile.account_id, clientId),
+      loadSyncedPageIds(profile.account_id, clientId),
+    ])
+    const synced = new Set(syncedIds)
+    return { pages: assets.map(a => ({ id: a.id, url: a.url, label: a.label, synced: synced.has(a.id) })) }
   } catch (error) {
     console.error('[attribution] measure options unavailable', { name: error instanceof Error ? error.name : typeof error })
     return null

@@ -55,12 +55,16 @@ export function DeliveryForm({ clientId, version, values, canAttest, busy, measu
       {choice.mode === 'page' && !noPages && <div className="space-y-2 pl-6">
         <p className="text-sm">{a('pickPages', { max: MEASURE_PAGES_MAX })}</p>
         <ul className="space-y-1">
-          {measureOptions.pages.map(page => {
+          {measureOptions.pages.map((page, index) => {
             const checked = choice.assetIds.includes(page.id)
+            // Search Console syncs only the oldest registered pages: a newer one is shown, not offered.
+            const note = page.synced ? undefined : `${id}page-${index}-not-synced`
             return <li key={page.id}><label className="flex items-start gap-2">
-              <input type="checkbox" aria-label={a('pageAria', { label: page.label, url: page.url })} checked={checked} disabled={busy || (atMax && !checked)}
+              <input type="checkbox" aria-label={a('pageAria', { label: page.label, url: page.url })} aria-describedby={note} checked={checked}
+                disabled={busy || !page.synced || (atMax && !checked)}
                 onChange={() => onChange({ ...values, measure: toggleAsset(choice, page.id) })} />
-              <span><span className="block">{page.label}</span><span className="block break-all text-sm">{page.url}</span></span>
+              <span><span className="block">{page.label}</span><span className="block break-all text-sm">{page.url}</span>
+                {note && <span id={note} className="block text-sm text-muted-foreground">{a('pageNotSynced')}</span>}</span>
             </label></li>
           })}
         </ul>

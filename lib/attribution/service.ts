@@ -73,6 +73,7 @@ function measure(
     withdrawn: false,
     measured: true,
     scope: target.scope,
+    pageSynced: target.synced,
     search: sources.search
       ? { ...sources.search, coveredFrom: sources.coverage.find(mine)?.coveredFrom ?? null }
       : null,
@@ -108,6 +109,8 @@ export async function getAttribution(
         withdrawn: attestation.withdrawn,
         measured: target !== null,
         scope: target?.scope ?? 'page',
+        // Never reached: every early status returns before the sync set matters.
+        pageSynced: target?.synced ?? true,
         search: null,
         searchDays: [],
         enquiries: null,

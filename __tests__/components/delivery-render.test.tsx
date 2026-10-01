@@ -50,7 +50,7 @@ it('does not claim empty history when an active attestation is outside the page'
   expect(html).not.toContain('No delivery records.')
 })
 
-const pages = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`, url: `https://example.com/p${i}`, label: `Page ${i}` }))
+const pages = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`, url: `https://example.com/p${i}`, label: `Page ${i}`, synced: true }))
 const fields = (measure = NO_MEASURE): DeliveryFields => ({ destination: '', deliveredAt: '', note: '', measure })
 const form = (measureOptions: { pages: ReturnType<typeof pages> } | null, values = fields()) =>
   <DeliveryForm clientId={clientId} version={version} values={values} canAttest busy={false} measureOptions={measureOptions} onChange={() => {}} onSubmit={() => {}} />
@@ -98,6 +98,19 @@ describe('delivery form: what to measure', () => {
     expect(boxes.filter(b => b.includes('checked=""'))).toHaveLength(20)
     expect(boxes.filter(b => b.includes('disabled=""'))).toHaveLength(1)
     expect(boxes.find(b => b.includes('disabled=""'))).not.toContain('checked=""')
+  })
+
+  it.each([['en', en], ['zh-HK', zh]] as const)('disables a page Search Console does not sync, with a note naming why %s', (lang, messages) => {
+    const offered = pages(3).map((p, i) => (i === 1 ? { ...p, synced: false } : p))
+    const html = render(form({ pages: offered }, fields({ mode: 'page', assetIds: [] })), lang)
+    const boxes = html.match(/<input[^>]*type="checkbox"[^>]*>/g)!
+    expect(boxes.map(b => b.includes('disabled=""'))).toEqual([false, true, false])
+    expect(html).toContain(messages.attribution.pageNotSynced)
+    expect(html.split(messages.attribution.pageNotSynced)).toHaveLength(2)
+    // The note is the disabled box's description, so a screen reader hears why.
+    const described = boxes[1]!.match(/aria-describedby="([^"]*)"/)![1]!
+    expect(html).toMatch(new RegExp(`id="${described.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>${messages.attribution.pageNotSynced}<`))
+    expect(boxes[0]).not.toContain('aria-describedby')
   })
 
   it.each([['en', en], ['zh-HK', zh]] as const)('disables Specific pages and links to the assets page when none are registered %s', (lang, messages) => {

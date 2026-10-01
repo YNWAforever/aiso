@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { parseAttributionResponse, type AttributionTargetView, type AttributionView } from '@/lib/attribution/dto'
+import { parseAttributionResponse, type AttributionTargetView, type AttributionView, type UnavailableReason } from '@/lib/attribution/dto'
 import type { EnquiryResult, Figure, TargetStatus } from '@/lib/attribution/types'
 
 /**
@@ -32,11 +32,12 @@ export const STATUS_COPY: Record<Exclude<TargetStatus, 'comparable'>, string> = 
 }
 
 /** Catalogue key per `unavailable` reason (enquiries add `not_enabled`). */
-export const REASON_COPY: Record<string, string> = {
+export const REASON_COPY: Record<UnavailableReason, string> = {
   not_bound: 'reasonNotBound',
   rebound: 'reasonRebound',
   sync_failing: 'reasonSyncFailing',
   not_enabled: 'reasonNotEnabled',
+  page_not_synced: 'reasonPageNotSynced',
 }
 
 const SOURCE_COPY: Record<Source, string> = { search: 'sourceSearch', enquiries: 'sourceEnquiries' }
@@ -102,7 +103,7 @@ export function TargetStatusNotice({
   if (status === 'comparable') return null
   let text: string
   if (status === 'unavailable') {
-    const key = reason ? REASON_COPY[reason] : undefined
+    const key = reason ? REASON_COPY[reason as UnavailableReason] : undefined
     text = key ? t(key, { source: t(SOURCE_COPY[source]) }) : t(STATUS_COPY.unavailable)
   } else if (status === 'not_ready') {
     text = t(STATUS_COPY.not_ready, { date: readyOn ?? DASH })

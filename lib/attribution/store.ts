@@ -1,6 +1,7 @@
 import 'server-only'
 import { db } from '@/lib/db'
 import type { SourceClass } from '@/lib/integrations/analytics/sources'
+import { PAGE_CAP } from '@/lib/integrations/search-console/sync'
 import type { EnquiryDay, SourceState } from './types'
 import { deliveryDay, windowsFor } from './windows'
 
@@ -16,6 +17,12 @@ import { deliveryDay, windowsFor } from './windows'
  *  - ok-run dates are Hong Kong dates: (ran_at at time zone 'Asia/Hong_Kong')::date.
  *    Not the Search Console store's lastOkDate, which is a UTC date.
  *  - daily dates are plain `date::text`, ordered, so float sums are repeatable.
+ *
+ * Search Console's sync set: the Search Console sync fetches only the PAGE_CAP
+ * oldest registered pages (listSyncPages: `order by a.created_at, a.id`, with a
+ * url-length filter). This file states the same set itself rather than importing
+ * that store; __tests__/lib/attribution-store.test.ts pins the two texts together
+ * and the integration suite proves they agree on real Postgres.
  */
 
 type Row = Record<string, unknown>
@@ -24,6 +31,8 @@ export type MeasuredTarget = {
   scope: 'site' | 'page'
   /** The measured registered page; null for the whole site. */
   asset: { id: string; url: string; label: string } | null
+  /** Whether Search Console syncs this page (always true for the whole site). */
+  synced: boolean
 }
 
 export type CoverageRow = { scope: 'property' | 'page'; pageUrl: string | null; coveredFrom: string }
@@ -89,6 +98,23 @@ export async function loadOwnedVersion(
 }
 
 /**
+ * The ids of this brand's registered pages that Search Console syncs: the
+ * PAGE_CAP oldest, exactly as listSyncPages takes them. The delivery form offers
+ * only these for measuring.
+ */
+export async function loadSyncedPageIds(accountId: string, clientId: string): Promise<string[]> {
+  const sql = db()
+  const rows = await sql`
+    select s.id
+    from client_assets s
+    where s.account_id = ${accountId}::uuid and s.client_id = ${clientId}::uuid and char_length(s.url) <= 2048
+    order by s.created_at, s.id
+    limit ${PAGE_CAP}
+  `
+  return rows.map(r => String(r.id))
+}
+
+/**
  * Everything one version's measured change is computed from. Null when the
  * version is not this account's (raced away after the guard).
  *
@@ -96,6 +122,8 @@ export async function loadOwnedVersion(
  * attestation's alone, so after withdraw-then-re-attest only the new choice
  * surfaces (Review Focus 4). Measures are insert-only and written in the
  * attestation's own statement, so they cannot change under this read.
+ * Each measured page carries whether it is in Search Console's sync set today;
+ * compareTarget answers `unavailable` / `page_not_synced` for one that is not.
  *
  * The source reads share one read-only repeatable-read snapshot, so a sync
  * landing between them cannot pair one run's ledger with another run's rows.
@@ -121,6 +149,12 @@ export async function loadAttributionInput(
       where e.account_id = ${accountId}::uuid and e.client_id = ${clientId}::uuid
         and e.work_item_id = ${itemId}::uuid and e.kind = 'attest'
       order by e.recorded_at desc, e.id desc limit 1
+    ), synced as (
+      select s.id
+      from client_assets s
+      where s.account_id = ${accountId}::uuid and s.client_id = ${clientId}::uuid and char_length(s.url) <= 2048
+      order by s.created_at, s.id
+      limit ${PAGE_CAP}
     )
     select exists (select 1 from version) as found,
       (select schema_version from version) as schema_version,
@@ -132,7 +166,8 @@ export async function loadAttributionInput(
           and w.work_item_id = ${itemId}::uuid and w.kind = 'withdraw'
       ) as withdrawn,
       coalesce((
-        select jsonb_agg(jsonb_build_object('scope', m.scope, 'assetId', a.id, 'url', a.url, 'label', a.label)
+        select jsonb_agg(jsonb_build_object('scope', m.scope, 'assetId', a.id, 'url', a.url, 'label', a.label,
+            'synced', exists (select 1 from synced s where s.id = a.id))
           order by (m.scope = 'site') desc, a.label, a.url, m.id)
         from work_item_delivery_measures m
         join latest l on m.attestation_id = l.id
@@ -148,8 +183,13 @@ export async function loadAttributionInput(
     : null
   const measures: MeasuredTarget[] = (head.measures as Row[]).map(r =>
     r.scope === 'site'
-      ? { scope: 'site', asset: null }
-      : { scope: 'page', asset: { id: String(r.assetId), url: String(r.url), label: String(r.label) } },
+      ? { scope: 'site', asset: null, synced: true }
+      : {
+          scope: 'page',
+          asset: { id: String(r.assetId), url: String(r.url), label: String(r.label) },
+          // Only an explicit true is synced: a missing flag never offers a comparison.
+          synced: r.synced === true,
+        },
   )
 
   if (!attestation || attestation.withdrawn || schemaVersion !== 1 || measures.length === 0) {

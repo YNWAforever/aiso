@@ -30,8 +30,8 @@ const call = (over: Record<string, string> = {}) => GET(new Request('https://app
 const NOW = new Date('2026-10-20T04:00:00Z')
 const WINDOWS = { before: { from: '2026-08-15', to: '2026-09-11' }, after: { from: '2026-09-13', to: '2026-10-10' } }
 const attestation = { id: ATTEST, deliveredAt: '2026-09-11T16:30:00.000000Z', withdrawn: false }
-const page = { scope: 'page' as const, asset: { id: ASSET, url: 'https://example.com/a', label: 'Page A' } }
-const site = { scope: 'site' as const, asset: null }
+const page = { scope: 'page' as const, asset: { id: ASSET, url: 'https://example.com/a', label: 'Page A' }, synced: true }
+const site = { scope: 'site' as const, asset: null, synced: true }
 const search = { boundAt: '2026-06-01T00:00:00.000Z', okRunDates: ['2026-10-15'], latestOutcome: 'ok' }
 const searchDays = [
   { scope: 'page', pageUrl: 'https://example.com/a', date: '2026-09-01', clicks: 10, impressions: 100, position: 5 },
@@ -293,6 +293,16 @@ describe('GET maps the stored state', () => {
     }))
     const body = await (await call()).json()
     expect(body.targets[0]).toEqual({ scope: 'page', asset: page.asset, status: 'unavailable', reason: 'not_bound' })
+  })
+
+  it('maps a measured page Search Console does not sync to unavailable / page_not_synced, with no figures', async () => {
+    // Its rows and coverage are present and would compare, yet it is outside the
+    // sync set today, so its after-window may never fill: no comparison is offered.
+    store.loadAttributionInput.mockResolvedValue(input({ measures: [{ ...page, synced: false }] }))
+    const body = await (await call()).json()
+    expect(body.targets).toEqual([{ scope: 'page', asset: page.asset, status: 'unavailable', reason: 'page_not_synced' }])
+    // The response carries no sync flag of its own: the reason is the whole answer.
+    expect(body.targets[0]).not.toHaveProperty('synced')
   })
 
   it('maps a withdrawn attestation: no delivery date, every target withdrawn, no figures', async () => {

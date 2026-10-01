@@ -19,6 +19,15 @@ export const TARGET_STATUSES = [
   'comparable',
 ] as const satisfies readonly TargetStatus[]
 
+/**
+ * Every `reason` an `unavailable` verdict can carry (enquiries add
+ * `not_enabled`). The parser still accepts any string, so a server newer than
+ * the page degrades to the generic sentence instead of failing the block; this
+ * list is what the copy (REASON_COPY) must cover.
+ */
+export const UNAVAILABLE_REASONS = ['not_bound', 'rebound', 'sync_failing', 'not_enabled', 'page_not_synced'] as const
+export type UnavailableReason = (typeof UNAVAILABLE_REASONS)[number]
+
 export type AttributionTargetView = TargetResult & {
   scope: 'site' | 'page' | null
   asset?: { id: string; url: string; label: string }

@@ -88,5 +88,9 @@ export type TargetResult = {
  * What the delivery form may offer to measure: the brand's registered pages.
  * Null (where this is passed) means attribution is off, not entitled, or the
  * lookup failed — the form then omits the whole field.
+ *
+ * `synced` says whether Search Console syncs the page at all: only the PAGE_CAP
+ * oldest registered pages are (listSyncPages), so a newer one is listed but
+ * cannot be chosen — its figures would never arrive.
  */
-export type MeasureOptions = { pages: Array<{ id: string; url: string; label: string }> }
+export type MeasureOptions = { pages: Array<{ id: string; url: string; label: string; synced: boolean }> }

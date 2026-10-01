@@ -21,6 +21,9 @@ import { addDays, deliveryDay, readyOn, windowsFor, type DayRange } from './wind
 //  2. A source is ready when it has an `ok` run (since its bind) whose Hong Kong
 //     date is on or after D+31 - not when its `data_through` says so.
 
+// Every `reason` literal here must be in UNAVAILABLE_REASONS (dto.ts) and have
+// copy in REASON_COPY; __tests__/components/attribution-render.test.tsx reads
+// this file and fails if one does not.
 type Verdict = {
   status: Exclude<TargetStatus, 'withdrawn' | 'not_supported' | 'not_measured'>
   reason?: string
@@ -159,6 +162,12 @@ export function compareTarget(input: {
   schemaVersion: number
   measured: boolean
   scope: 'site' | 'page'
+  /**
+   * Whether a page target is one Search Console syncs (the store reads the sync
+   * set listSyncPages takes). Ignored for a whole-site target: the property is
+   * always synced.
+   */
+  pageSynced: boolean
   search: SourceState | null
   searchDays: SearchDay[]
   enquiries: { enabled: boolean; state: SourceState | null; days: EnquiryDay[] } | null
@@ -167,7 +176,13 @@ export function compareTarget(input: {
   if (input.schemaVersion !== 1) return { status: 'not_supported' }
   if (!input.measured) return { status: 'not_measured' }
 
-  const v = verdictFor(input.search, input.day, input.today)
+  let v = verdictFor(input.search, input.day, input.today)
+  // A page outside the sync set gets no new rows however healthy the binding is,
+  // so no other verdict about it means anything. Only "no binding at all" is the
+  // more basic answer, and it stands.
+  if (input.scope === 'page' && !input.pageSynced && v.reason !== 'not_bound') {
+    v = { status: 'unavailable', reason: 'page_not_synced' }
+  }
   const result: TargetResult = { ...v }
   if (v.status === 'comparable') result.search = searchFigures(input.searchDays, input.day)
 

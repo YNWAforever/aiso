@@ -24,6 +24,7 @@ const base = (over: Partial<Input> = {}): Input => ({
   schemaVersion: 1,
   measured: true,
   scope: 'page',
+  pageSynced: true,
   search: good(),
   searchDays: [],
   enquiries: null,
@@ -65,6 +66,30 @@ describe('compareTarget status order', () => {
       status: 'unavailable',
       reason: 'not_bound',
     })
+  })
+
+  it('unavailable/page_not_synced for a measured page outside the Search Console sync set', () => {
+    expect(compareTarget(base({ pageSynced: false }))).toEqual({ status: 'unavailable', reason: 'page_not_synced' })
+  })
+
+  it('page_not_synced beats rebound, sync_failing, not_ready and insufficient_history', () => {
+    for (const search of [
+      good({ boundAt: '2026-08-16' }),
+      good({ latestOutcome: 'quota', okRunDates: [] }),
+      good({ okRunDates: [] }),
+      good({ coveredFrom: null }),
+    ]) {
+      expect(compareTarget(base({ pageSynced: false, search }))).toEqual({ status: 'unavailable', reason: 'page_not_synced' })
+    }
+  })
+
+  it('not_bound and not_measured beat page_not_synced', () => {
+    expect(compareTarget(base({ pageSynced: false, search: null }))).toEqual({ status: 'unavailable', reason: 'not_bound' })
+    expect(compareTarget(base({ pageSynced: false, measured: false }))).toEqual({ status: 'not_measured' })
+  })
+
+  it('a whole-site target ignores pageSynced: the property is always synced', () => {
+    expect(compareTarget(base({ scope: 'site', pageSynced: false })).status).toBe('comparable')
   })
 
   it('unavailable/not_bound when the state has no boundAt', () => {

@@ -10,7 +10,9 @@ import {
   type FigureRow,
 } from '@/components/attribution/MeasuredChangeBlock'
 import { VersionWorkspace } from '@/components/change-sets/VersionWorkspace'
-import { TARGET_STATUSES, parseAttributionResponse, type AttributionTargetView } from '@/lib/attribution/dto'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { TARGET_STATUSES, UNAVAILABLE_REASONS, parseAttributionResponse, type AttributionTargetView } from '@/lib/attribution/dto'
 import type { Figure } from '@/lib/attribution/types'
 import { fixtureProps } from './c9e-fixtures'
 import en from '@/messages/en.json'
@@ -63,7 +65,15 @@ describe('catalogue', () => {
     for (const key of [...Object.values(STATUS_COPY), ...Object.values(REASON_COPY)]) {
       expect(copy[key]?.trim().length, key).toBeGreaterThan(0)
     }
-    expect(Object.keys(REASON_COPY).sort()).toEqual(['not_bound', 'not_enabled', 'rebound', 'sync_failing'])
+    expect(Object.keys(REASON_COPY).sort()).toEqual(['not_bound', 'not_enabled', 'page_not_synced', 'rebound', 'sync_failing'])
+    expect(Object.keys(REASON_COPY).sort()).toEqual([...UNAVAILABLE_REASONS].sort())
+  })
+
+  it('names in the DTO every reason compareTarget can emit', () => {
+    const compare = readFileSync(join(process.cwd(), 'lib/attribution/compare.ts'), 'utf8')
+    const emitted = [...compare.matchAll(/reason: '([a-z_]+)'/g)].map(match => match[1])
+    expect(emitted).toContain('page_not_synced')
+    for (const reason of emitted) expect(UNAVAILABLE_REASONS as readonly string[]).toContain(reason)
   })
 
   it('gives every status and reason its own sentence', () => {
@@ -119,10 +129,11 @@ describe('TargetStatusNotice', () => {
   })
 
   it.each(LANGS)('gives each unavailable reason its own sentence in %s', lang => {
-    const out = ['not_bound', 'rebound', 'sync_failing'].map(reason => notice(lang, { status: 'unavailable', reason }))
-    expect(new Set(out).size).toBe(3)
+    const out = ['not_bound', 'rebound', 'sync_failing', 'page_not_synced'].map(reason => notice(lang, { status: 'unavailable', reason }))
+    expect(new Set(out).size).toBe(4)
     const copy = messages(lang).attribution as Record<string, string>
     expect(out[0]).toContain(copy.reasonNotBound.replace('{source}', copy.sourceSearch))
+    expect(out[3]).toContain(copy.reasonPageNotSynced)
     expect(notice(lang, { status: 'unavailable', reason: 'not_enabled', source: 'enquiries' })).toContain(copy.reasonNotEnabled)
   })
 
@@ -393,7 +404,7 @@ describe('parseAttributionResponse', () => {
 describe('VersionWorkspace', () => {
   const render = (node: React.ReactNode, lang: Lang) =>
     renderToString(<NextIntlClientProvider locale={lang} messages={messages(lang)} timeZone="UTC">{node}</NextIntlClientProvider>)
-  const pages = { pages: [{ id: 'p1', url: 'https://example.com/a', label: 'A' }] }
+  const pages = { pages: [{ id: 'p1', url: 'https://example.com/a', label: 'A', synced: true }] }
 
   it.each(LANGS)('renders the measured-change block beside the technical outcomes when attribution is on, in %s', lang => {
     const out = render(<VersionWorkspace {...fixtureProps} measureOptions={pages} />, lang)
