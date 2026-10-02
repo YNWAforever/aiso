@@ -644,7 +644,14 @@
     "cancel": "Cancel",
     "edit": "Edit",
     "delete": "Delete",
-    "add_prompt_ph": "+ Type a new prompt and press Enter…"
+    "add_prompt_ph": "+ Type a new prompt and press Enter…",
+    "qb_add_label": "Add question to {category}",
+    "qb_saving": "Saving…",
+    "qb_edit_label": "Edit question: {question}",
+    "qb_toggle_label": "Enable question: {question}",
+    "qb_saved": "Question saved.",
+    "qb_delete_label": "Delete question: {question}",
+    "qb_add": "Add"
   },
   "upsell": {
     "title": "Track {domain}'s AI presence every week",

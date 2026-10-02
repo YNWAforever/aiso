@@ -3,7 +3,10 @@ import { join } from 'node:path'
 
 import { NextIntlClientProvider } from 'next-intl'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
+import { mkdirSync, writeFileSync, unlinkSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { build } from 'vite'
 
 import { PromptBankEditor } from '@/components/pulse/PromptBankEditor'
 import { PROMPT_CATEGORIES } from '@/lib/prompts/categories'
@@ -30,6 +33,12 @@ function render(prompts: PromptBankItem[], locale: 'en' | 'zh-HK' = 'en') {
 }
 
 describe('PromptBankEditor category vocabulary', () => {
+  it('names each switch with its question and exposes active state', () => {
+    const html = render([prompt()])
+    expect(html).toContain('role="switch"')
+    expect(html).toContain('aria-checked="true"')
+    expect(html).toMatch(/aria-label="[^"]*What is AcmeCo\?/)
+  })
   it('renders stored categories under a populated section, not an empty one', () => {
     // The bug this replaces: sections were keyed on display labels ('Brand
     // Queries') while rows carry 'brand_query', so every section rendered
@@ -100,6 +109,22 @@ describe('PromptBankEditor category vocabulary', () => {
 
     expect(html).toContain(zh.cat_brand_query)
   })
+})
+
+afterAll(async () => {
+  const dir = process.env.PROMPT_BANK_HTML_DIR
+  if (!dir) return
+  mkdirSync(dir, { recursive: true })
+  const prompts = [prompt(), prompt({ id: 'p2', category: 'pain_point', question: 'How can AcmeCo help?', is_active: false })]
+  for (const locale of ['en', 'zh-HK'] as const) {
+    const props = { locale, messages: messages(locale), prompts }
+    writeFileSync(join(dir, `${locale}-copy.json`), JSON.stringify(messages(locale).pulse))
+    writeFileSync(join(dir, `${locale}.html`), `<main><h1>${locale === 'en' ? 'Question bank' : '問題庫'}</h1><div id="root">${render(prompts, locale)}</div></main><script id="fixture-props" type="application/json">${JSON.stringify(props).replace(/</g, '\\u003c')}</script>`)
+  }
+  const entry = join(resolve(dir), 'prompt-entry.tsx')
+  writeFileSync(entry, `import React,{useEffect,useState}from'react';import{hydrateRoot}from'react-dom/client';import{NextIntlClientProvider}from'next-intl';import{PromptBankEditor}from'@/components/pulse/PromptBankEditor';const d=JSON.parse(document.getElementById('fixture-props').textContent);function Fixture(){const[rows,setRows]=useState(d.prompts);useEffect(()=>{window.promptFixtureReady=true},[]);return React.createElement(NextIntlClientProvider,{locale:d.locale,messages:d.messages,timeZone:'UTC'},React.createElement(PromptBankEditor,{clientId:'client-1',prompts:rows,onPromptsChange:setRows}))};hydrateRoot(document.getElementById('root'),React.createElement(Fixture));`)
+  await build({ configFile: false, envDir: false, oxc: { jsx: { development: false } }, resolve: { alias: { '@': resolve('.') } }, define: { 'process.env.NODE_ENV': '"production"' }, build: { outDir: resolve(dir), emptyOutDir: false, lib: { entry, name: 'PromptFixture', formats: ['iife'], fileName: () => 'fixture.js' } } })
+  unlinkSync(entry)
 })
 
 describe('prompt category message parity', () => {

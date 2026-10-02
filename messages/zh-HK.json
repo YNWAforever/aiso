@@ -644,7 +644,14 @@
     "cancel": "取消",
     "edit": "編輯",
     "delete": "刪除",
-    "add_prompt_ph": "+ 輸入新提示語並按 Enter…"
+    "add_prompt_ph": "+ 輸入新提示語並按 Enter…",
+    "qb_add_label": "新增問題至{category}",
+    "qb_saving": "儲存中…",
+    "qb_edit_label": "編輯問題：{question}",
+    "qb_toggle_label": "啟用問題：{question}",
+    "qb_saved": "問題已儲存。",
+    "qb_delete_label": "刪除問題：{question}",
+    "qb_add": "新增"
   },
   "upsell": {
     "title": "每週追蹤 {domain} 的 AI 能見度",
