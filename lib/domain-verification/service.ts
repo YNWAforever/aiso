@@ -41,6 +41,7 @@ const statuses = {
   UNAUTHENTICATED: 401,
   CLIENT_NOT_FOUND: 404,
   NO_DOMAIN: 409,
+  DOMAIN_CHANGED: 409,
   VERIFICATION_UNAVAILABLE: 503,
 } as const
 
@@ -112,6 +113,9 @@ export async function readDomainVerification(clientId: string): Promise<Response
       profile.account_id, clientId, profile.id, row.currentDomain,
     )
     const fresh = await loadVerification(profile.account_id, clientId)
+    if (!token || !fresh || fresh.currentDomain !== row.currentDomain || fresh.verifiedDomain !== row.currentDomain || fresh.token !== token) {
+      throw new DomainVerificationError('DOMAIN_CHANGED')
+    }
     return Response.json(view(fresh ?? row, token), { headers })
   } catch (error) {
     return errorResponse(error)
@@ -153,6 +157,9 @@ export async function checkDomainVerification(clientId: string): Promise<Respons
     await recordVerificationResult(profile.account_id, clientId, row.currentDomain, outcome)
 
     const fresh = await loadVerification(profile.account_id, clientId)
+    if (!fresh || fresh.currentDomain !== row.currentDomain || fresh.verifiedDomain !== row.currentDomain || fresh.token !== token) {
+      throw new DomainVerificationError('DOMAIN_CHANGED')
+    }
     return Response.json(view(fresh ?? row, token), { headers })
   } catch (error) {
     return errorResponse(error)

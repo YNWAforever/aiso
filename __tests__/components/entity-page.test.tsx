@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 const load = vi.hoisted(() => vi.fn())
+const verification = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/domain-verification/store', () => ({ loadVerification: verification }))
 // The page now reads lib/domain-verification/store directly, which begins
 // with `import 'server-only'` — a Next build-time alias with no package to
 // resolve under Vitest. Stubbed as in 49 other suites.
@@ -30,8 +32,24 @@ import { EntityServiceError } from '@/lib/entities/service'
 const params = Promise.resolve({ lang: 'zh-HK', clientId: 'client-a' })
 beforeEach(() => {
   load.mockReset()
+  verification.mockResolvedValue(null)
 })
 describe('entity page boundary', () => {
+  it('offers content retrieval after a secondary verification-read failure without minting on render', async () => {
+    load.mockResolvedValue({ client: { id: 'client-a', brand_name: 'Brand', account_id: 'account-a', domain: 'example.com' }, entity: null })
+    verification.mockRejectedValue(new Error('Synthetic lookup failure'))
+    const html = renderToStaticMarkup(await Page({ params }))
+    expect(html).toContain('verifyGetContent')
+    expect(html).not.toContain('verifyNoDomain')
+    expect(html).not.toContain('verifyCheck<')
+  })
+  it('does not publish an old token on the current domain', async () => {
+    load.mockResolvedValue({ client: { id: 'client-a', brand_name: 'Brand', account_id: 'account-a', domain: 'other.com' }, entity: null })
+    verification.mockResolvedValue({ currentDomain: 'other.com', verifiedDomain: 'example.com', token: 'aiso-site-verification=0123456789abcdef0123456789abcdef', verifiedAt: '2026-10-03T00:00:00Z', lastOutcome: 'verified', lastCheckedAt: '2026-10-03T00:00:00Z' })
+    const html = renderToStaticMarkup(await Page({ params }))
+    expect(html).toContain('verifyGetContent')
+    expect(html).not.toContain('aiso-site-verification=')
+  })
   it('renders the authenticated owned client', async () => {
     load.mockResolvedValue({
       client: { id: 'client-a', brand_name: 'Brand' },

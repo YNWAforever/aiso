@@ -1614,7 +1614,13 @@
     "verifyOutcomeTokenAbsent": "The file was not there, or did not contain the line. Check the path and the exact contents.",
     "verifyOutcomeUnreachable": "The site did not answer. That is not a failure on our side — check the domain resolves and serves HTTPS.",
     "verifyOutcomeRedirected": "The path redirected elsewhere. Verification does not follow redirects, because a different site cannot prove this one. Serve the file directly on this domain.",
-    "verifyOutcomeTooLarge": "The response was too large to be this file. The path is probably serving a page rather than the text file."
+    "verifyOutcomeTooLarge": "The response was too large to be this file. The path is probably serving a page rather than the text file.",
+    "verifyGettingContent": "Getting contents…",
+    "verifyCopy": "Copy file contents",
+    "verifyCopied": "File contents copied.",
+    "verifyGetContent": "Get verification contents",
+    "verifyNeedsContent": "First get the verification contents for {domain}. Then publish the file and check ownership.",
+    "verifyCopyFailed": "Copy failed. Select and copy the file contents above."
   },
   "observations": {
     "title": "Recorded observations",

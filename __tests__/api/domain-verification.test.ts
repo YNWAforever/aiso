@@ -195,6 +195,22 @@ describe('POST domain-verification', () => {
 })
 
 describe('GET domain-verification', () => {
+  it('does not return old token contents after a concurrent domain change', async () => {
+    signedIn()
+    mocks.loadVerification.mockResolvedValueOnce(row()).mockResolvedValueOnce(row({ currentDomain: 'other.com' }))
+    const { readDomainVerification } = await import('@/lib/domain-verification/service')
+    const response = await readDomainVerification(CLIENT)
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({ error: 'DOMAIN_CHANGED' })
+    expect(mocks.fetcher).not.toHaveBeenCalled()
+  })
+  it('does not show empty instructions if the token cannot be issued', async () => {
+    signedIn()
+    mocks.ensureVerificationToken.mockResolvedValue(null)
+    const { readDomainVerification } = await import('@/lib/domain-verification/service')
+    expect((await readDomainVerification(CLIENT)).status).toBe(409)
+    expect(mocks.fetcher).not.toHaveBeenCalled()
+  })
   it('hands back the token and where to publish it, without checking', async () => {
     signedIn()
     const { readDomainVerification } = await import('@/lib/domain-verification/service')

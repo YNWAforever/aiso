@@ -1614,7 +1614,13 @@
     "verifyOutcomeTokenAbsent": "搵唔到個檔案，或者內容唔啱。請檢查路徑同確實內容。",
     "verifyOutcomeUnreachable": "個網站冇回應。呢個唔係我哋呢邊嘅問題——請確認網域解析得到並且支援 HTTPS。",
     "verifyOutcomeRedirected": "個路徑轉向咗去第二度。驗證唔會跟隨轉向，因為另一個網站證明唔到呢一個。請喺呢個網域直接提供該檔案。",
-    "verifyOutcomeTooLarge": "回應太大，唔似係呢個檔案。個路徑好可能係提供緊一版網頁而唔係文字檔。"
+    "verifyOutcomeTooLarge": "回應太大，唔似係呢個檔案。個路徑好可能係提供緊一版網頁而唔係文字檔。",
+    "verifyGettingContent": "正在取得內容…",
+    "verifyCopy": "複製檔案內容",
+    "verifyCopied": "已複製檔案內容。",
+    "verifyGetContent": "取得驗證內容",
+    "verifyNeedsContent": "先取得 {domain} 的驗證內容，再放置檔案及檢查網域擁有權。",
+    "verifyCopyFailed": "複製失敗，請選取並複製上方的檔案內容。"
   },
   "observations": {
     "title": "已記錄觀察",
