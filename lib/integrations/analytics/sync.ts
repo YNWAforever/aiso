@@ -30,6 +30,8 @@ import type { DailyCount, DueAnalyticsBinding, recordAnalyticsRun, replaceDailyW
 
 export const BACKFILL_DAYS = 90
 export const ROUTINE_DAYS = 7
+/** Days before the last ok run that a gap-closing window re-fetches, for data GA4 had not finished processing. */
+export const RECHECK_DAYS = 2
 
 export type AnalyticsSyncDeps = TokenDeps & {
   /** Null when the property has no such web stream (any more). */
@@ -69,6 +71,43 @@ function daysBefore(isoDate: string, days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+type SyncWindow = {
+  startDate: string
+  endDate: string
+  /**
+   * True when this window does not continue the stored range: a backfill, or a
+   * routine run with no ok run within reach. Coverage then restarts at startDate,
+   * if the run turns out ok.
+   */
+  restart: boolean
+}
+
+/**
+ * The routine window reaches back to the last ok run, so a run of failed syncs
+ * (quota, outage, deferred) leaves no hole in stored history: GA4 omits zero-event
+ * days, so a missing day inside the covered range is read as a real zero and the
+ * range must be one unbroken stretch from covered_from. The window starts
+ * RECHECK_DAYS before `lastOkDate`, not at it: that run fetched its own day while it
+ * was still in progress and the two days before it before GA4 had finished
+ * processing them, so re-fetching only from lastOkDate would leave late-arriving
+ * enquiries on those days missing, as real-looking zeros inside the covered range.
+ * (A daily 7-day window fetches each day about 7 times; only an outage longer than
+ * that needs the margin.) The margin only adds re-fetching, never a hole, and is
+ * bounded below by the 90-day floor. With no ok run, or one older than the floor,
+ * the hole is real, the new window is not contiguous with what was stored, and
+ * coverage restarts at its start.
+ */
+function windowFor(b: DueAnalyticsBinding, endDate: string): SyncWindow {
+  const floor = daysBefore(endDate, BACKFILL_DAYS - 1)
+  const routineStart = daysBefore(endDate, ROUTINE_DAYS - 1)
+  if (b.backfillPending || b.lastOkDate === null || b.lastOkDate < floor) {
+    return { startDate: floor, endDate, restart: true }
+  }
+  const margin = daysBefore(b.lastOkDate, RECHECK_DAYS)
+  const reach = margin < routineStart ? margin : routineStart
+  return { startDate: reach < floor ? floor : reach, endDate, restart: false }
+}
+
 /** String properties are read this way for an unknown thrown value without assuming it is an Error. */
 function stringProp(value: unknown, key: string): string | undefined {
   if (!value || typeof value !== 'object') return undefined
@@ -98,13 +137,12 @@ function aggregate(rows: KeyEventRow[]): DailyCount[] {
  * anything it does not itself classify: the one caller, `syncAnalyticsBinding`,
  * turns that into `internal_error`.
  */
-async function attempt(b: DueAnalyticsBinding, deps: AnalyticsSyncDeps): Promise<AttemptResult> {
+async function attempt(b: DueAnalyticsBinding, deps: AnalyticsSyncDeps, window: SyncWindow): Promise<AttemptResult> {
   if (!resolveCommercialEntitlement(b.account).features.analytics) return stop('not_entitled')
   // Before any Google call: a brand whose domain moved must not have another site's numbers pulled under its name.
   if (!streamStillMatches(b.streamHost, b.currentDomain)) return stop('domain_mismatch')
 
-  const endDate = deps.today()
-  const startDate = daysBefore(endDate, (b.backfillPending ? BACKFILL_DAYS : ROUTINE_DAYS) - 1)
+  const { startDate, endDate } = window
   const clock = deps.now ?? Date.now
   const outOfTime = () => clock() >= deps.deadline
 
@@ -168,8 +206,10 @@ async function attempt(b: DueAnalyticsBinding, deps: AnalyticsSyncDeps): Promise
 
 export async function syncAnalyticsBinding(b: DueAnalyticsBinding, deps: AnalyticsSyncDeps): Promise<AnalyticsOutcome> {
   let result: AttemptResult
+  // Read once, here: the window the attempt fetched and the window the ledger records are the same.
+  const window = windowFor(b, deps.today())
   try {
-    result = await attempt(b, deps)
+    result = await attempt(b, deps, window)
   } catch (error) {
     // Never log error.message: the Neon driver can echo the full connection
     // string, password included, into some of its own error messages.
@@ -190,6 +230,10 @@ export async function syncAnalyticsBinding(b: DueAnalyticsBinding, deps: Analyti
     outcome: result.outcome, rowsWritten: result.rows, dataThrough: result.through,
     dataWithheld: result.withheld,
     clearBackfill: result.outcome === 'ok',
+    // Coverage restarts only for an ok run whose window is not contiguous with the stored range.
+    // Only the store knows whether a re-pick or rebind mid-sync voids it (the same guard as the backfill flag).
+    windowStart: window.startDate,
+    restartCoverage: result.outcome === 'ok' && window.restart,
   })
   return result.outcome
 }

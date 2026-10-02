@@ -73,6 +73,16 @@ describe('bindStream', () => {
     expect(text).toContain('updated_at = now()')
   })
 
+  it('resets covered_from on every bind: a new source, or re-chosen events, void any coverage claim', async () => {
+    m.sql.mockReturnValueOnce([{ client_id: CLIENT }])
+    await bindStream(input)
+    const text = statements()[0]!
+    // Unconditional, unlike bound_at: events_chosen_at moves on every bind, and coverage was fetched for the old events.
+    // A new row has no covered_from to carry, so only the conflict branch names it.
+    expect(text).toContain('covered_from = null')
+    expect(text.indexOf('covered_from = null')).toBeGreaterThan(text.indexOf('on conflict'))
+  })
+
   it('answers not_found when no row came back (absent or not this account)', async () => {
     m.sql.mockReturnValueOnce([])
     expect(await bindStream(input)).toBe('not_found')
@@ -88,6 +98,8 @@ describe('updateKeyEvents and unbindStream', () => {
     expect(text).toContain('key_events = ?::text[]')
     expect(text).toContain('events_chosen_at = now()')
     expect(text).toContain('backfill_pending = true')
+    // Coverage was fetched for the old events; the re-armed backfill is what re-establishes it.
+    expect(text).toContain('covered_from = null')
     expect(text).toContain('account_id = ?')
     expect(text).not.toContain('bound_at')
     m.sql.mockReturnValueOnce([])
@@ -112,15 +124,16 @@ describe('loadAnalyticsBinding', () => {
       connection_id: CONNECTION, connection_status: 'needs_reconnect', property_id: '123', stream_id: '456',
       stream_host: 'example.com',
       key_events: ['generate_lead'], events_chosen_at: new Date('2026-09-01T00:00:00.000Z'),
-      bound_at: new Date('2026-08-01T00:00:00.000Z'), backfill_pending: true,
+      bound_at: new Date('2026-08-01T00:00:00.000Z'), backfill_pending: true, covered_from: '2026-06-27',
     }])
     expect(await loadAnalyticsBinding(ACCOUNT, CLIENT)).toEqual({
       connectionId: CONNECTION, connectionStatus: 'needs_reconnect', propertyId: '123', streamId: '456', streamHost: 'example.com',
       keyEvents: ['generate_lead'], eventsChosenAt: '2026-09-01T00:00:00.000Z',
-      boundAt: '2026-08-01T00:00:00.000Z', backfillPending: true,
+      boundAt: '2026-08-01T00:00:00.000Z', backfillPending: true, coveredFrom: '2026-06-27',
     })
     const text = statements()[0]!
     expect(text).toContain('b.account_id = ?')
+    expect(text).toContain('b.covered_from::text as covered_from')
     // The live status comes from the connection of the SAME account, columns named, never *.
     expect(text).toContain('join google_connections g on g.id = b.connection_id and g.account_id = b.account_id')
     expect(text).toContain('g.status as connection_status')
@@ -130,6 +143,15 @@ describe('loadAnalyticsBinding', () => {
   it('returns null when there is no binding', async () => {
     expect(await loadAnalyticsBinding(ACCOUNT, CLIENT)).toBeNull()
   })
+
+  it('reads an unrecorded coverage as null, never as a date', async () => {
+    m.sql.mockReturnValueOnce([{
+      connection_id: CONNECTION, connection_status: 'active', property_id: '1', stream_id: '2', stream_host: 'h',
+      key_events: ['e'], events_chosen_at: new Date('2026-09-01T00:00:00.000Z'),
+      bound_at: new Date('2026-08-01T00:00:00.000Z'), backfill_pending: false, covered_from: null,
+    }])
+    expect((await loadAnalyticsBinding(ACCOUNT, CLIENT))!.coveredFrom).toBeNull()
+  })
 })
 
 describe('loadDueAnalyticsBindings (the declared cross-account read)', () => {
@@ -137,7 +159,8 @@ describe('loadDueAnalyticsBindings (the declared cross-account read)', () => {
     account_id: ACCOUNT, client_id: CLIENT, connection_id: CONNECTION, connection_status: 'active',
     property_id: '123', stream_id: '456', stream_host: 'example.com', key_events: ['generate_lead'],
     events_chosen_at: new Date('2026-09-01T00:00:00.000Z'), bound_at: new Date('2026-08-01T00:00:00.000Z'),
-    backfill_pending: false, current_domain: 'example.com', account: { plan: 'pro', status: 'active' },
+    backfill_pending: false, covered_from: '2026-06-27', last_ok_date: '2026-08-20',
+    current_domain: 'example.com', account: { plan: 'pro', status: 'active' },
   }
 
   it('keeps each binding with its own account through joins, active connections only, least recently attempted first', async () => {
@@ -158,14 +181,38 @@ describe('loadDueAnalyticsBindings (the declared cross-account read)', () => {
       accountId: ACCOUNT, clientId: CLIENT, connectionId: CONNECTION, connectionStatus: 'active',
       propertyId: '123', streamId: '456',
       streamHost: 'example.com', keyEvents: ['generate_lead'], eventsChosenAt: '2026-09-01T00:00:00.000Z',
-      boundAt: '2026-08-01T00:00:00.000Z', backfillPending: false, currentDomain: 'example.com',
-      account: { plan: 'pro', status: 'active' },
+      boundAt: '2026-08-01T00:00:00.000Z', backfillPending: false, coveredFrom: '2026-06-27', lastOkDate: '2026-08-20',
+      currentDomain: 'example.com', account: { plan: 'pro', status: 'active' },
     }])
+  })
+
+  it("reads lastOkDate from this brand's own ok runs since the binding and since the events were chosen, as a UTC date", async () => {
+    m.sql.mockReturnValueOnce([{ ...row, last_ok_date: null, covered_from: null }])
+    const [due] = await loadDueAnalyticsBindings(1)
+    expect(due!.lastOkDate).toBeNull()
+    expect(due!.coveredFrom).toBeNull()
+    const text = statements()[0]!
+    expect(text).toContain('last_ok.ok_date::text as last_ok_date')
+    expect(text).toContain('b.covered_from::text as covered_from')
+    const lateral = text.slice(text.indexOf('last_ok on true') - 420, text.indexOf('last_ok on true'))
+    expect(lateral).toContain("max((r.ran_at at time zone 'UTC')::date) as ok_date")
+    expect(lateral).toContain('from analytics_sync_runs r')
+    expect(lateral).toContain('r.account_id = b.account_id')
+    expect(lateral).toContain('r.client_id = b.client_id')
+    expect(lateral).toContain("r.outcome = 'ok'")
+    // An ok run from before a re-bind or a re-pick synced another source or other events.
+    expect(lateral).toContain('r.ran_at >= b.bound_at')
+    expect(lateral).toContain('r.ran_at >= b.events_chosen_at')
   })
 
   it('orders by the newest ledger row of ANY outcome, not the newest ok', async () => {
     await loadDueAnalyticsBindings(1)
-    expect(statements()[0]).not.toContain("outcome = 'ok'")
+    const text = statements()[0]!
+    // The attempt lateral and the ordering never mention ok; only the separate last_ok lateral does.
+    const attempted = text.slice(text.indexOf('select max(r.ran_at) as ran_at'), text.indexOf('last_run on true'))
+    expect(attempted).toContain('from analytics_sync_runs r')
+    expect(attempted).not.toContain("outcome = 'ok'")
+    expect(text.slice(text.indexOf('where g.status'))).not.toContain("outcome = 'ok'")
   })
 })
 
@@ -208,6 +255,7 @@ describe('recordAnalyticsRun', () => {
   const input = {
     accountId: ACCOUNT, clientId: CLIENT, connectionId: CONNECTION, propertyId: '123', streamId: '456',
     eventsChosenAt: '2026-09-01T00:00:00.000Z', outcome: 'ok' as const, rowsWritten: 5, dataThrough: '2026-09-07', dataWithheld: true, clearBackfill: true,
+    windowStart: '2026-06-10', restartCoverage: true,
   }
 
   it('appends the ledger row and clears the backfill in one transaction', async () => {
@@ -220,6 +268,24 @@ describe('recordAnalyticsRun', () => {
     expect(ledger).toContain('?::date')
     expect(clear).toContain('update analytics_bindings set backfill_pending = false')
     expect(clear).toContain('account_id = ?')
+  })
+
+  it("sets covered_from to the run's window start in the same guarded statement, only when coverage restarts", async () => {
+    await recordAnalyticsRun(input)
+    const clear = statements()[1]!
+    expect(m.transaction).toHaveBeenCalledTimes(1)
+    expect(clear).toContain('covered_from = case when ?::boolean then ?::date else covered_from end')
+    // The same predicate that clears the flag guards the coverage write: a re-pick or rebind mid-sync keeps both.
+    expect(clear.indexOf('covered_from')).toBeLessThan(clear.indexOf('where'))
+    expect(clear).toContain("date_trunc('milliseconds', events_chosen_at) = ?::timestamptz")
+    expect(valuesOf(1)).toEqual(expect.arrayContaining([true, '2026-06-10']))
+  })
+
+  it('a contiguous run passes restartCoverage false so covered_from is left alone', async () => {
+    await recordAnalyticsRun({ ...input, windowStart: '2026-09-18', restartCoverage: false })
+    expect(valuesOf(1)).toContain('2026-09-18')
+    expect(valuesOf(1).filter(v => v === true)).toHaveLength(1) // only the clearBackfill guard
+    expect(valuesOf(1)).toContain(false)
   })
 
   it('clears backfill only where the binding is still this connection, property and stream', async () => {
@@ -240,7 +306,7 @@ describe('recordAnalyticsRun', () => {
   })
 
   it('passes clearBackfill false through so the flag stays set', async () => {
-    await recordAnalyticsRun({ ...input, clearBackfill: false })
+    await recordAnalyticsRun({ ...input, clearBackfill: false, restartCoverage: false })
     expect(valuesOf(1)).toContain(false)
     expect(valuesOf(1)).not.toContain(true)
   })
@@ -396,6 +462,7 @@ describe('every statement is account-scoped and none returns *', () => {
     await recordAnalyticsRun({
       accountId: ACCOUNT, clientId: CLIENT, connectionId: CONNECTION, propertyId: '1', streamId: '2',
       eventsChosenAt: '2026-09-01T00:00:00.000Z', outcome: 'deferred', rowsWritten: 0, dataThrough: null, dataWithheld: false, clearBackfill: false,
+      windowStart: '2026-06-10', restartCoverage: false,
     })
     await loadAnalyticsPanel(ACCOUNT, CLIENT, ['e'], '2026-08-01T00:00:00.000Z')
     const all = statements()

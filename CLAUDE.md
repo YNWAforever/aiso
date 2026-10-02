@@ -105,6 +105,8 @@ lib/
   authority/       # Domain authority engine: 4 layer modules. computeAuthority()'s
                    # 5th "dynamicBoost" slot is an optional arg no caller passes.
   localTrust/      # Local trust scoring + ROI engine
+  attribution/     # Observed change on delivered work items (windows/compare pure,
+                   # store, guard, service). Imports nothing from localTrust.
   prompts/         # Question-bank vocabulary + gate. categories.ts is the single
                    # source of truth for the four category keys — the column has
                    # no CHECK and its writers are LLMs, so validate on the way in
@@ -445,7 +447,7 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 - **GA4 conversions connector (migration `055`, Phase 2, added 2026-10-01).** `055` is **not
   applied to any persistent database** — the same status `047`–`049` had before 2026-09-11 and
   `054` has now. The integration suite replays it on disposable Neon branches only
-  (`__tests__/integration/analytics.test.ts`, one of the eleven exact-target suites). Three
+  (`__tests__/integration/analytics.test.ts`, one of the twelve exact-target suites). Three
   tables, all leading their keys with `account_id` and all tied to the brand by a composite
   `(client_id, account_id)` FK: `analytics_bindings` (one row per brand — property, web stream,
   the stream's host as Google reported it, and 1–20 chosen key-event names, exact and
@@ -461,10 +463,11 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   SELECT/INSERT/UPDATE/DELETE on bindings, SELECT/INSERT/**DELETE** (no UPDATE) on `daily`, and
   SELECT/INSERT on the ledger, plus EXECUTE on `analytics_event_names_valid()` — the CHECK helper
   runs as the writing role, so without that grant every write to bindings would fail. Each sync
-  *replaces* the re-fetched window (delete then insert, one transaction), 90 days on backfill and
-  7 routinely, so a source that fell to zero does not keep a stale count; unlike
-  `search_console_daily` that is a DELETE on a daily table, and unlike `pulse_metrics` it is
-  code-enforced *and* backstopped by `analytics_daily_unique`. **GA4's `runReport` omits
+  *replaces* the re-fetched window (delete then insert, one transaction): 90 days on backfill, and
+  routinely 7 days or back to the last `ok` run minus a 2-day margin, whichever reaches further
+  (capped at 90; see the Attribution bullet below), so a source that fell to zero does not keep
+  a stale count; unlike `search_console_daily` that is a DELETE on a daily table, and unlike
+  `pulse_metrics` it is code-enforced *and* backstopped by `analytics_daily_unique`. **GA4's `runReport` omits
   zero-event days**, so an `ok` run records `data_through` = the **window end it requested**,
   rows or not — never the newest returned date. The panel's "last 28 days" is anchored on the
   last good run (`lastGood - 28 < date <= lastGood`, current binding and chosen events only),
@@ -513,6 +516,86 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   returns to the brand's assets page (`?google=error&reason=…`), which shows the same
   `searchConsole.error_<reason>` copy as Settings. This is why AC-11 stays PARTIAL until a
   pilot shows real data.
+- **Attribution (migration `056`, Phase 2, added 2026-10-01): the observed change on a delivered
+  work item.** `056` is **not applied to any persistent database** — the status `054` and `055`
+  have; the integration suite replays it on disposable Neon branches only
+  (`__tests__/integration/attribution.test.ts`, the twelfth exact-target suite, config
+  `vitest.attribution-integration.config.ts`). It adds three things.
+  `work_item_delivery_measures` records which targets an owner chose to have measured for one
+  delivery attestation (the whole site, or 1-20 registered pages). It is **insert-only for
+  `aeo_app`** (`select, insert`). A composite FK ends in `(id, kind)` of
+  `work_item_delivery_events` with `attestation_kind` pinned to `'attest'` by a CHECK, so a measure
+  can never point at a withdraw event, and a second composite FK ties `asset_id` to
+  `client_assets (account_id, client_id, id)`; both are `on delete restrict`. The "exactly one site
+  row, or 1-20 page rows and no site row" rule spans rows, so a **deferred constraint trigger**
+  states it (`SECURITY INVOKER`, schema-qualified) and a violation is SQLSTATE `23514`. `aeo_app`
+  is granted EXECUTE on the trigger function, but **that grant is not load-bearing**: PostgreSQL
+  checks EXECUTE on a trigger function only at `CREATE TRIGGER` time, never when it fires, unlike
+  `055`'s CHECK helper, which an expression calls at write time and so does need its grant.
+  **That error's reported constraint label (`work_item_delivery_measures_shape`) is not the
+  trigger's catalog name (`work_item_delivery_measures_shape_trg`)**, so a test or a handler that
+  matches on a name misses it; map by SQLSTATE. The route validates the same rule first and the
+  trigger is the backstop (`MEASURE_PAGES_MAX = 20` in `lib/attribution/types.ts` is pinned to the
+  SQL by a test). `search_console_coverage` records from which date Search Console data is known
+  to exist for a property or a page (`aeo_app`: select/insert/update/delete), and
+  `analytics_bindings.covered_from` is the same idea for GA4. **Null `covered_from` means "not
+  recorded", never "the beginning of time"**: Search Console and GA4 both omit zero-activity days,
+  so a missing day is read as a real zero only inside a covered range, and outside one the target
+  is `insufficient_history`, never a partial comparison.
+  **Both syncs changed to keep that range gap-free, which changes Search Console and GA4 sync
+  behaviour.** The routine window no longer stops at 7 days: it starts at the last `ok` run's
+  date minus `RECHECK_DAYS = 2` (each connector's `sync.ts`) when that reaches further than 7
+  days back, capped at 90, so a run of failed or `deferred` syncs leaves no hole. The 2-day
+  margin exists because that run fetched its own day, and the two before it, before Google had
+  finished processing them. A gap longer than 90 days, or a backfill, **restarts** coverage at the
+  window start instead of extending it. Search Console additionally backfills 90 days for any
+  newly registered (uncovered) page, writes a target's coverage in the same transaction as its
+  daily rows, writes none for a page that `deferred`, and only ever moves a contiguous target's
+  `covered_from` earlier (`least`). Search Console coverage is deleted on unbind and on
+  `revokeConnectionRow`, and by `bindProperty` when the **site URL changes** (rebinding the same
+  property keeps it, with the backfill re-armed). GA4's `covered_from` is set by
+  `recordAnalyticsRun` in the same guarded statement that clears `backfill_pending` (so it can
+  never describe other events or another stream than the run that wrote it) and is **nulled by
+  a rebind and by a re-pick of the events**.
+  **The read** is `GET /api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/attribution`
+  (`lib/attribution/`: pure `windows.ts` / `compare.ts`, its own SQL in `store.ts`, its own
+  `guard.ts`: flag → auth → `search_console` plan feature → ownership, with a malformed id a 404
+  and a failed lookup a 503). Computed on read, no snapshots, no cron: `D` is the delivery date in
+  `Asia/Hong_Kong`, before = `D-28..D-1`, after = `D+1..D+28`. Search Console dates are Pacific
+  Time and GA4 dates follow the property's time zone, so a window edge can be a day off from the
+  Hong Kong date; this is stated in the measure help and not corrected. **Readiness is an `ok` run
+  (since the bind, HK date) on or after `D+31`, not `data_through`** (which is the requested window
+  end, see above); for GA4 it counts only `ok` runs since `greatest(bound_at, events_chosen_at)`,
+  because an earlier run synced another event choice. A latest outcome of `deferred`, or none at all (no run has finished since the bind or
+  event re-pick; the store passes the latest *non-deferred* outcome), is never `sync_failing`;
+  only a failing latest outcome with no ready `ok` run is. Statuses, in order: `withdrawn`,
+  `not_supported` (multi-source versions), `not_measured`, `unavailable` (`not_bound` /
+  `page_not_synced` / `rebound` / `sync_failing`), `not_ready`, `insufficient_history`,
+  `comparable`. **Search Console syncs only the `PAGE_CAP` (20) oldest registered pages**
+  (`listSyncPages`, by `created_at, id`); `lib/attribution/store.ts` states the same set itself
+  (pinned to `listSyncPages` by a static test and on real Postgres), the delivery form disables a
+  page outside it, and a measured one reads `page_not_synced`. A comparable enquiry result carries
+  `withheld: true` when any `ok` GA4 run since `greatest(bound_at, events_chosen_at)` had
+  `data_withheld`; it stays comparable and the block notes the counts may be lower than actual.
+  **Known limitation: any Search Console rebind, including a disconnect and reconnect, moves
+  `bound_at`, so every earlier delivery's comparison reads `rebound` from then on** (the copy says
+  reconnecting or rebinding starts a new history). The follow-up is a property-identity timestamp
+  that survives disconnect and reconnect. A withdrawn
+  attestation keeps its targets, each `withdrawn`, with no delivery date; a version that measured
+  nothing answers a single `{scope: null, status: 'not_measured'}`. Enquiries sit beside the search
+  figures in a whole-site target with their own sub-status, so a GA4 problem never hides search
+  figures, and `lib/attribution` imports nothing from `lib/localTrust`
+  (`__tests__/security/outcome-layer-separation.test.ts`). **Writing the choice** reuses the
+  delivery attest route: `measure: {scope:'site'} | {scope:'page', assetIds}` is optional, is
+  **ignored** (not rejected) when attribution is off or the plan lacks `search_console`, is
+  inserted with the attestation in one transaction, and a page that is not this brand's
+  registered page answers `422 {error:'DELIVERY_VALIDATION_FAILED', reason:'unknown_page'}`.
+  **Gated on `FEATURE_ATTRIBUTION=1` and `FEATURE_SEARCH_CONSOLE=1`** (`isAttributionEnabled()`
+  in `lib/flags.ts`, which every attribution gate reads; the flag alone is not enough) plus the
+  `search_console` plan feature (Pro/Enterprise). Enquiries additionally need `isAnalyticsEnabled()`
+  and the `analytics` plan feature. UI copy is the `attribution` namespace
+  (`useTranslations('attribution')`) in both catalogues. It is an observed change, never a
+  claim of cause, and no pilot brand has real data yet, so AC-16 is PARTIAL.
 - **`047`, `048` and `049` were applied to the AISO development database on 2026-09-11** and
   `--verify` reports all three `all present recorded`. They have **not** been applied to the
   production project Vercel points at — that is a separate cutover decision.
@@ -662,6 +745,8 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 - `STRIPE_PRICE_BASIC` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE` — read by
   `lib/stripe.ts` and `app/api/stripe/webhook/route.ts`. **Not in `.env.local`** — locally,
   checkout sends an undefined price id and webhook tier resolution falls through to `basic`.
+- `FEATURE_ATTRIBUTION` — dark by default; attribution is on only when it **and**
+  `FEATURE_SEARCH_CONSOLE` are both exactly `1` (`isAttributionEnabled()`).
 - `RESEND_API_KEY` · `OPENROUTER_API_KEY` · `NEXT_PUBLIC_APP_URL` · `N8N_SCAN_WEBHOOK_URL`
 - `PUBLIC_SCAN_RATE_LIMIT_SECRET` / `REPORT_SHARE_SECRET` — both ≥32 chars. The first has no
   production fallback, so unset it takes **every anonymous scan to 503**; the second signs

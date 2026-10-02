@@ -7,7 +7,7 @@ import type { DueBinding } from '@/lib/integrations/search-console/store'
 
 const binding = (over: Partial<DueBinding> = {}): DueBinding => ({
   accountId: 'a', clientId: 'c', connectionId: 'g', siteUrl: 'sc-domain:example.com', permissionLevel: 'siteOwner',
-  boundDomain: 'example.com', currentDomain: 'example.com', backfillPending: false,
+  boundDomain: 'example.com', currentDomain: 'example.com', backfillPending: false, lastOkDate: null,
   account: { plan: 'pro', status: 'active', stripe_subscription_id: 'sub_1' } as DueBinding['account'],
   ...over,
 })
@@ -49,6 +49,7 @@ describe('syncBinding deadline', () => {
       return [{ keys: ['2026-09-20', `q-${q.pageEquals}`], clicks: 1, impressions: 5, ctr: 0.2, position: 3 }]
     })
     const pages = ['https://example.com/1', 'https://example.com/2', 'https://example.com/3']
+      .map(url => ({ url, coveredFrom: '2026-09-01' }))
     // refresh (t=0) → property (0→10) → page 1 total (10→20) and queries (20→30) →
     // page 2 total (30→40) → the check before page 2's query call sees t=40 ≥ 35.
     const d = deps({ query, listPages: vi.fn().mockResolvedValue(pages), now: () => clock, deadline: 35 })
@@ -59,15 +60,15 @@ describe('syncBinding deadline', () => {
     expect(d.writeDaily).toHaveBeenCalledWith('a', 'c', [
       expect.objectContaining({ scope: 'property', pageUrl: null }),
       expect.objectContaining({ scope: 'page', pageUrl: 'https://example.com/1' }),
-    ])
+    ], expect.any(Array))
     expect(d.writePageQueries).toHaveBeenCalledWith('a', 'c',
       [expect.objectContaining({ pageUrl: 'https://example.com/1' })],
-      expect.objectContaining({ pageUrls: ['https://example.com/1'] }))
+      expect.objectContaining({ pages: [expect.objectContaining({ pageUrl: 'https://example.com/1' })] }))
     expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'deferred', clearBackfill: false }))
   })
 
   it('passes the deadline into every query so pagination stops too', async () => {
-    const d = deps({ deadline: 9_999, listPages: vi.fn().mockResolvedValue(['https://example.com/1']),
+    const d = deps({ deadline: 9_999, listPages: vi.fn().mockResolvedValue([{ url: 'https://example.com/1', coveredFrom: '2026-09-01' }]),
       query: vi.fn().mockResolvedValue([{ keys: ['2026-09-20'], clicks: 1, impressions: 1, ctr: 1, position: 1 }]) })
     await syncBinding(binding(), { ...d, now: () => 0 })
     for (const [, , q] of vi.mocked(d.query).mock.calls) expect(q.deadline).toBe(9_999)
@@ -78,11 +79,11 @@ describe('syncBinding deadline', () => {
       .mockResolvedValueOnce([{ keys: ['2026-09-20'], clicks: 10, impressions: 200, ctr: 0.05, position: 7 }]) // property
       .mockResolvedValueOnce([{ keys: ['2026-09-20'], clicks: 2, impressions: 20, ctr: 0.1, position: 4 }]) // page total
       .mockRejectedValueOnce(new DeadlineReachedError()) // page queries, cut off between startRow pages
-    const d = deps({ query, listPages: vi.fn().mockResolvedValue(['https://example.com/1']) })
+    const d = deps({ query, listPages: vi.fn().mockResolvedValue([{ url: 'https://example.com/1', coveredFrom: '2026-09-01' }]) })
 
     expect(await syncBinding(binding({ backfillPending: true }), d)).toBe('deferred')
-    expect(d.writeDaily).toHaveBeenCalledWith('a', 'c', [expect.objectContaining({ scope: 'property' })])
-    expect(d.writePageQueries).toHaveBeenCalledWith('a', 'c', [], expect.objectContaining({ pageUrls: [] }))
+    expect(d.writeDaily).toHaveBeenCalledWith('a', 'c', [expect.objectContaining({ scope: 'property' })], expect.any(Array))
+    expect(d.writePageQueries).toHaveBeenCalledWith('a', 'c', [], expect.objectContaining({ pages: [] }))
     expect(d.recordRun).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'deferred', clearBackfill: false }))
   })
 
@@ -99,7 +100,7 @@ describe('syncBinding deadline', () => {
     const d = deps({
       refresh: vi.fn(async () => { calls.push('refresh'); return 'ya29.access' }),
       query: vi.fn(async () => { calls.push('query'); return [{ keys: ['2026-09-20'], clicks: 1, impressions: 1, ctr: 1, position: 1 }] }),
-      listPages: vi.fn().mockResolvedValue(['https://example.com/1']),
+      listPages: vi.fn().mockResolvedValue([{ url: 'https://example.com/1', coveredFrom: '2026-09-01' }]),
       now: () => { calls.push('now'); return clock++ },
     })
     expect(await syncBinding(binding(), d)).toBe('ok')
@@ -203,13 +204,16 @@ describe('syncBinding', () => {
       .mockResolvedValueOnce([{ keys: ['2026-09-20'], clicks: 10, impressions: 200, ctr: 0.05, position: 7 }])
       .mockResolvedValueOnce([{ keys: ['2026-09-20'], clicks: 4, impressions: 50, ctr: 0.08, position: 3 }])
       .mockResolvedValueOnce(queryRows)
-    const d = deps({ query, listPages: vi.fn().mockResolvedValue(['https://example.com/p']) })
+    const d = deps({ query, listPages: vi.fn().mockResolvedValue([{ url: 'https://example.com/p', coveredFrom: '2026-09-01' }]) })
 
     expect(await syncBinding(binding({ backfillPending: true }), d)).toBe('ok')
 
     expect(d.writeDaily).toHaveBeenCalledWith('a', 'c', [
       { date: '2026-09-20', scope: 'property', pageUrl: null, clicks: 10, impressions: 200, ctr: 0.05, position: 7 },
       { date: '2026-09-20', scope: 'page', pageUrl: 'https://example.com/p', clicks: 4, impressions: 50, ctr: 0.08, position: 3 },
+    ], [
+      { scope: 'property', pageUrl: null, windowStart: '2026-06-27', contiguous: false },
+      { scope: 'page', pageUrl: 'https://example.com/p', windowStart: '2026-06-27', contiguous: false },
     ])
     const written = vi.mocked(d.writePageQueries).mock.calls[0]![2]
     expect(written).toHaveLength(25)
@@ -231,13 +235,13 @@ describe('syncBinding', () => {
     const query = vi.fn()
       .mockResolvedValueOnce([]) // property
       .mockResolvedValueOnce([]) // page-total — zero rows, so the date+query breakdown fetch is skipped entirely
-    const d = deps({ query, listPages: vi.fn().mockResolvedValue(['https://example.com/p']) })
+    const d = deps({ query, listPages: vi.fn().mockResolvedValue([{ url: 'https://example.com/p', coveredFrom: '2026-09-01' }]) })
 
     expect(await syncBinding(binding(), d)).toBe('ok')
 
     expect(d.query).toHaveBeenCalledTimes(2) // property + page-total only, no third breakdown call
     expect(d.writePageQueries).toHaveBeenCalledWith('a', 'c', [], {
-      startDate: '2026-09-18', endDate: '2026-09-24', pageUrls: ['https://example.com/p'],
+      endDate: '2026-09-24', pages: [{ pageUrl: 'https://example.com/p', startDate: '2026-09-18' }],
     })
   })
 
@@ -251,7 +255,7 @@ describe('syncBinding', () => {
       .mockResolvedValueOnce([]) // property
       .mockResolvedValueOnce([{ keys: ['2026-09-20'], clicks: 1, impressions: 1, ctr: 0.1, position: 1 }]) // page-total — non-empty, so the breakdown fetch happens
       .mockResolvedValueOnce(queryRows) // page queries
-    const d = deps({ query, listPages: vi.fn().mockResolvedValue(['https://example.com/p']) })
+    const d = deps({ query, listPages: vi.fn().mockResolvedValue([{ url: 'https://example.com/p', coveredFrom: '2026-09-01' }]) })
 
     expect(await syncBinding(binding(), d)).toBe('ok')
 
@@ -269,7 +273,7 @@ describe('syncBinding', () => {
       .mockResolvedValueOnce([]) // property
       .mockResolvedValueOnce([{ keys: ['2026-09-20'], clicks: 1, impressions: 1, ctr: 0.1, position: 1 }]) // page-total, non-empty
       .mockResolvedValueOnce(queryRows) // page queries — same (date, query) key twice
-    const d = deps({ query, listPages: vi.fn().mockResolvedValue(['https://example.com/p']) })
+    const d = deps({ query, listPages: vi.fn().mockResolvedValue([{ url: 'https://example.com/p', coveredFrom: '2026-09-01' }]) })
 
     expect(await syncBinding(binding(), d)).toBe('ok')
 
@@ -327,5 +331,131 @@ describe('syncBinding', () => {
     } finally {
       spy.mockRestore()
     }
+  })
+})
+
+describe('syncBinding coverage and gap-free windows', () => {
+  // today() is 2026-09-24: today-6 = 2026-09-18, today-89 = 2026-06-27.
+  const page = (url: string, coveredFrom: string | null) => ({ url, coveredFrom })
+  const startsOf = (d: SyncDeps) => vi.mocked(d.query).mock.calls.map(([, , q]) => ({
+    page: q.pageEquals ?? null, dims: q.dimensions.join(','), startDate: q.startDate,
+  }))
+  const marks = (d: SyncDeps) => vi.mocked(d.writeDaily).mock.calls[0]![3]
+  const someRows = [{ keys: ['2026-09-20'], clicks: 1, impressions: 1, ctr: 1, position: 1 }]
+  const newAndOld = () => [page('https://example.com/new', null), page('https://example.com/old', '2026-07-01')]
+
+  it('backfills a page with no coverage from today-89 while a covered page in the same run gets today-6', async () => {
+    const d = deps({ query: vi.fn().mockResolvedValue(someRows), listPages: vi.fn().mockResolvedValue(newAndOld()) })
+    expect(await syncBinding(binding(), d)).toBe('ok')
+    const calls = startsOf(d)
+    expect(calls.filter(c => c.page === null)).toEqual([{ page: null, dims: 'date', startDate: '2026-09-18' }])
+    expect(calls.filter(c => c.page === 'https://example.com/new').map(c => c.startDate)).toEqual(['2026-06-27', '2026-06-27'])
+    expect(calls.filter(c => c.page === 'https://example.com/old').map(c => c.startDate)).toEqual(['2026-09-18', '2026-09-18'])
+  })
+
+  it("replaces each page's stored queries over that page's own window, not the property's", async () => {
+    const d = deps({ query: vi.fn().mockResolvedValue(someRows), listPages: vi.fn().mockResolvedValue(newAndOld()) })
+    await syncBinding(binding(), d)
+    expect(d.writePageQueries).toHaveBeenCalledWith('a', 'c', expect.any(Array), {
+      endDate: '2026-09-24',
+      pages: [
+        { pageUrl: 'https://example.com/new', startDate: '2026-06-27' },
+        { pageUrl: 'https://example.com/old', startDate: '2026-09-18' },
+      ],
+    })
+  })
+
+  it("marks an uncovered page non-contiguous and a covered page with the property's contiguity", async () => {
+    const d = deps({ query: vi.fn().mockResolvedValue(someRows), listPages: vi.fn().mockResolvedValue(newAndOld()) })
+    await syncBinding(binding({ lastOkDate: '2026-09-23' }), d)
+    expect(marks(d)).toEqual([
+      { scope: 'property', pageUrl: null, windowStart: '2026-09-18', contiguous: true },
+      { scope: 'page', pageUrl: 'https://example.com/new', windowStart: '2026-06-27', contiguous: false },
+      { scope: 'page', pageUrl: 'https://example.com/old', windowStart: '2026-09-18', contiguous: true },
+    ])
+  })
+
+  it('starts the routine window two days before the last ok run when that is older than today-6, and keeps it contiguous', async () => {
+    const d = deps()
+    await syncBinding(binding({ lastOkDate: '2026-09-12' }), d) // 12 days ago: starts 14 days ago
+    expect(d.query).toHaveBeenCalledWith('ya29.access', 'sc-domain:example.com', expect.objectContaining({ startDate: '2026-09-10' }))
+    expect(marks(d)).toEqual([{ scope: 'property', pageUrl: null, windowStart: '2026-09-10', contiguous: true }])
+  })
+
+  it('re-fetches two days before a last ok run that is only just behind the routine window too', async () => {
+    const d = deps()
+    await syncBinding(binding({ lastOkDate: '2026-09-19' }), d) // min(today-6 = 09-18, 09-17)
+    expect(d.query).toHaveBeenCalledWith('ya29.access', 'sc-domain:example.com', expect.objectContaining({ startDate: '2026-09-17' }))
+    expect(marks(d)).toEqual([{ scope: 'property', pageUrl: null, windowStart: '2026-09-17', contiguous: true }])
+  })
+
+  it('never lets the margin go below the 90-day floor: a last ok run at the floor, or one day after, starts at the floor, contiguous', async () => {
+    for (const lastOkDate of ['2026-06-27', '2026-06-28']) {
+      const d = deps()
+      await syncBinding(binding({ lastOkDate }), d)
+      expect(d.query).toHaveBeenCalledWith('ya29.access', 'sc-domain:example.com', expect.objectContaining({ startDate: '2026-06-27' }))
+      expect(marks(d)).toEqual([{ scope: 'property', pageUrl: null, windowStart: '2026-06-27', contiguous: true }])
+    }
+  })
+
+  it('a last ok run one day below the floor is a gap: the floor, and not contiguous', async () => {
+    const d = deps()
+    await syncBinding(binding({ lastOkDate: '2026-06-26' }), d)
+    expect(marks(d)).toEqual([{ scope: 'property', pageUrl: null, windowStart: '2026-06-27', contiguous: false }])
+  })
+
+  it('caps the reach at today-89 and calls the window non-contiguous when the last ok run is older', async () => {
+    const d = deps()
+    await syncBinding(binding({ lastOkDate: '2026-05-27' }), d) // 120 days ago
+    expect(d.query).toHaveBeenCalledWith('ya29.access', 'sc-domain:example.com', expect.objectContaining({ startDate: '2026-06-27' }))
+    expect(marks(d)).toEqual([{ scope: 'property', pageUrl: null, windowStart: '2026-06-27', contiguous: false }])
+  })
+
+  it('keeps today-6 when the last ok run is more recent, and treats no ok run as non-contiguous', async () => {
+    const recent = deps()
+    await syncBinding(binding({ lastOkDate: '2026-09-23' }), recent)
+    expect(recent.query).toHaveBeenCalledWith('ya29.access', 'sc-domain:example.com', expect.objectContaining({ startDate: '2026-09-18' }))
+    expect(marks(recent)).toEqual([{ scope: 'property', pageUrl: null, windowStart: '2026-09-18', contiguous: true }])
+
+    const never = deps()
+    await syncBinding(binding({ lastOkDate: null }), never)
+    expect(never.query).toHaveBeenCalledWith('ya29.access', 'sc-domain:example.com', expect.objectContaining({ startDate: '2026-09-18' }))
+    expect(marks(never)).toEqual([{ scope: 'property', pageUrl: null, windowStart: '2026-09-18', contiguous: false }])
+  })
+
+  it('is never contiguous while the backfill is pending, whatever the last ok run was', async () => {
+    const d = deps()
+    await syncBinding(binding({ backfillPending: true, lastOkDate: '2026-09-23' }), d)
+    expect(marks(d)).toEqual([{ scope: 'property', pageUrl: null, windowStart: '2026-06-27', contiguous: false }])
+  })
+
+  it('names only completed pages in the coverage marks; a deferred page gets none', async () => {
+    let clock = 0
+    const query = vi.fn(async (_t: string, _s: string, q: { pageEquals?: string; dimensions: string[] }) => {
+      clock += 10 // every Google call costs 10 ms on this fake clock
+      return q.pageEquals && q.dimensions.length === 2 ? [{ ...someRows[0]!, keys: ['2026-09-20', 'q'] }] : someRows
+    })
+    const pages = ['https://example.com/1', 'https://example.com/2', 'https://example.com/3'].map(u => page(u, '2026-07-01'))
+    // Same clock as the deferred test above: page 1 completes, page 2 is cut off between its two calls.
+    const d = deps({ query, listPages: vi.fn().mockResolvedValue(pages), now: () => clock, deadline: 35 })
+    expect(await syncBinding(binding(), d)).toBe('deferred')
+    expect(marks(d)).toEqual([
+      { scope: 'property', pageUrl: null, windowStart: '2026-09-18', contiguous: false },
+      { scope: 'page', pageUrl: 'https://example.com/1', windowStart: '2026-09-18', contiguous: false },
+    ])
+  })
+
+  it('writes the property mark even when Google returned no rows at all', async () => {
+    const d = deps()
+    await syncBinding(binding(), d)
+    expect(d.writeDaily).toHaveBeenCalledWith('a', 'c', [], [
+      { scope: 'property', pageUrl: null, windowStart: '2026-09-18', contiguous: false },
+    ])
+  })
+
+  it('writes no coverage when the property fetch is deferred', async () => {
+    const d = deps({ query: vi.fn().mockRejectedValue(new DeadlineReachedError()) })
+    await syncBinding(binding(), d)
+    expect(d.writeDaily).not.toHaveBeenCalled()
   })
 })

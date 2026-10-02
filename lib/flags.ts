@@ -4,7 +4,7 @@
  * from client components — flags gate server-rendered behavior only, per
  * ADR-011's dark-launch requirement.
  */
-export type FeatureFlag = 'donor_ui_shell' | 'search_console' | 'analytics'
+export type FeatureFlag = 'donor_ui_shell' | 'search_console' | 'analytics' | 'attribution'
 
 export function isFeatureEnabled(flag: FeatureFlag): boolean {
   return process.env[`FEATURE_${flag.toUpperCase()}`] === '1'
@@ -20,4 +20,14 @@ export function isFeatureEnabled(flag: FeatureFlag): boolean {
  */
 export function isAnalyticsEnabled(): boolean {
   return isFeatureEnabled('analytics') && isFeatureEnabled('search_console')
+}
+
+/**
+ * Attribution is on only when BOTH FEATURE_ATTRIBUTION and FEATURE_SEARCH_CONSOLE
+ * are '1'. It compares the Search Console figures the connector syncs, so with
+ * the connector dark there is nothing to attribute. Every attribution gate reads
+ * this, never isFeatureEnabled('attribution') on its own.
+ */
+export function isAttributionEnabled(): boolean {
+  return isFeatureEnabled('attribution') && isFeatureEnabled('search_console')
 }

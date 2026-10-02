@@ -86,11 +86,14 @@ jobs:
 
   integration:
     runs-on: ubuntu-latest
-    # 30, matching e2e-accessibility rather than unit-contract's 20: this job is the
-    # other network/external-process-bound one in the gate (branch create, 37 real
-    # migrations, sequential real-Postgres round-trips, branch teardown) — unlike
-    # unit-contract's mocked, in-memory suite, which has no comparable I/O.
-    timeout-minutes: 30
+    # 45, above e2e-accessibility's 30: this job is the other network/external-
+    # process-bound one in the gate (a branch create, every real migration and a
+    # teardown per suite, sequential real-Postgres round-trips) — unlike
+    # unit-contract's mocked, in-memory suite. It was 30 until 2026-10-02, when the
+    # twelfth exact-target suite (attribution) pushed the job past it: the default
+    # project took ~10 min and ten of the twelve suites another ~20 before the
+    # cancel, with the two largest (analytics, attribution) still to run.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -118,7 +121,7 @@ jobs:
               node scripts/redact.mjs < "$report" > "$report.redacted" && mv "$report.redacted" "$report"
             fi
           done
-          # The exact-target suites — eleven at present; EXACT_TARGET_CONFIGS in
+          # The exact-target suites — twelve at present; EXACT_TARGET_CONFIGS in
           # scripts/ci/run-exact-target-suites.mjs is the list. They are excluded
           # from the config above because each demands its own pre-approved
           # disposable target, so until now they were runnable and run by nothing.

@@ -28,6 +28,7 @@ describe('change set rendering', () => {
           initialDraft={draft}
           initial={initial}
           initialVersion={version}
+          measureOptions={null}
         />,
         lang,
       )
@@ -48,6 +49,7 @@ describe('change set rendering', () => {
         initialDraft={null}
         initial={null}
         initialError="unavailable"
+        measureOptions={null}
       />,
     )
     expect(html).toContain('role="alert"')
@@ -89,6 +91,7 @@ const fixtureProps = {
   initialDraft: draft,
   initial,
   initialVersion: version,
+  measureOptions: null,
 }
 const unavailableProps = {
   ...fixtureProps,

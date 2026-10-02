@@ -116,7 +116,7 @@ function eventResult(row: Record<string, unknown> | undefined): DeliveryResult<D
     try { return { kind: row.kind, value: deliveryEventDTO(row.value as Record<string, unknown>) } }
     catch { return { kind: 'validation_failed' } }
   }
-  if (row.kind === 'not_found' || row.kind === 'denied' || row.kind === 'conflict' || row.kind === 'validation_failed') return { kind: row.kind }
+  if (row.kind === 'not_found' || row.kind === 'denied' || row.kind === 'conflict' || row.kind === 'validation_failed' || row.kind === 'unknown_page') return { kind: row.kind }
   unavailable()
 }
 export async function attestDelivery(rawScope: DeliveryScope, raw: AttestInput): Promise<DeliveryResult<DeliveryEvent>> {
@@ -127,6 +127,10 @@ export async function attestDelivery(rawScope: DeliveryScope, raw: AttestInput):
   // re-established after acquiring the shared C9d locks, including historical retry.
   const retained = await readDeliveryVersion(scope)
   const validatedHash = 'value' in retained ? retained.value.contentHash : null
+  // What to measure (migration 056). No measure is a null scope and an empty
+  // page set, so the statement's shape never depends on the input.
+  const measureScope = input.measure?.scope ?? null
+  const assetIds = input.measure?.scope === 'page' ? input.measure.assetIds : []
   try {
     return await retryWrite(async () => {
       const sql = db()
@@ -146,10 +150,24 @@ export async function attestDelivery(rawScope: DeliveryScope, raw: AttestInput):
         ), prior AS MATERIALIZED (
           SELECT r.* FROM work_item_delivery_events r WHERE r.account_id = ${accountId}::uuid AND r.actor_id = ${actorId}::uuid
             AND r.request_id = ${input.requestId}::uuid AND EXISTS (SELECT 1 FROM version)
+        ), requested AS MATERIALIZED (
+          SELECT 'site'::text AS scope,NULL::uuid AS asset_id WHERE ${measureScope}::text = 'site'
+          UNION ALL
+          SELECT 'page'::text,u.id FROM unnest(${assetIds}::uuid[]) AS u(id) WHERE ${measureScope}::text = 'page'
         ), replay AS MATERIALIZED (
           SELECT r.* FROM prior r WHERE r.kind = 'attest' AND r.client_id = ${clientId}::uuid AND r.work_item_id = ${itemId}::uuid
             AND r.version_id = ${versionId}::uuid AND r.content_hash = ${input.contentHash} AND r.destination = ${input.destination}
             AND r.delivered_at = ${input.deliveredAt}::timestamptz AND r.note = ${input.note}
+            -- A replay must also have asked to measure the same thing: both no
+            -- measure, or the same scope and the same page set. Otherwise the
+            -- request id was reused for a different request, which is a conflict.
+            -- A set difference compares NULLs as equal, so the site row's null asset matches.
+            AND NOT EXISTS (
+              (SELECT m.scope,m.asset_id FROM work_item_delivery_measures m WHERE m.account_id = r.account_id AND m.attestation_id = r.id
+                EXCEPT SELECT q.scope,q.asset_id FROM requested q)
+              UNION ALL
+              (SELECT q.scope,q.asset_id FROM requested q
+                EXCEPT SELECT m.scope,m.asset_id FROM work_item_delivery_measures m WHERE m.account_id = r.account_id AND m.attestation_id = r.id))
         ), approval AS MATERIALIZED (
           SELECT a.* FROM work_item_decisions a JOIN version v ON a.account_id = v.account_id AND a.client_id = v.client_id
             AND a.work_item_id = v.work_item_id AND a.version_id = v.id AND a.content_hash = v.content_hash
@@ -163,6 +181,12 @@ export async function attestDelivery(rawScope: DeliveryScope, raw: AttestInput):
           WHERE e.kind = 'attest' AND NOT EXISTS (SELECT 1 FROM work_item_delivery_events w WHERE w.account_id = e.account_id
             AND w.client_id = e.client_id AND w.work_item_id = e.work_item_id AND w.version_id = e.version_id
             AND w.target_attestation_id = e.id AND w.kind = 'withdraw')
+        ), assets AS MATERIALIZED (
+          -- Only this account's and this brand's registered pages. A count short
+          -- of the request means an id is foreign or unknown, and then nothing
+          -- at all is written (the guard on inserted below).
+          SELECT a.id FROM client_assets a WHERE a.account_id = ${accountId}::uuid AND a.client_id = ${clientId}::uuid
+            AND a.id = ANY(${assetIds}::uuid[])
         ), clock AS MATERIALIZED (SELECT clock_timestamp() AS now), inserted AS (
           INSERT INTO work_item_delivery_events (account_id,client_id,work_item_id,version_id,content_hash,approval_decision_id,approval_decision,
             kind,actor_id,actor,request_id,recorded_at,destination,delivered_at,note)
@@ -174,7 +198,20 @@ export async function attestDelivery(rawScope: DeliveryScope, raw: AttestInput):
             AND v.content_hash = ${validatedHash} AND v.content_hash = ${input.contentHash}
             AND v.version_number = (SELECT number FROM latest)
             AND ${input.deliveredAt}::timestamptz >= a.decided_at AND ${input.deliveredAt}::timestamptz <= clock.now
+            AND (SELECT count(*) FROM assets) = ${assetIds.length}::int
           RETURNING *
+        ), measured AS (
+          -- Same statement, same transaction: the attestation and what it measures
+          -- commit or roll back together. Built only from the row inserted above,
+          -- so a replay or a refused request writes no measure. 056's deferred
+          -- trigger re-checks the shape at commit as a backstop.
+          INSERT INTO work_item_delivery_measures (account_id,client_id,work_item_id,version_id,content_hash,attestation_id,scope,asset_id)
+          SELECT i.account_id,i.client_id,i.work_item_id,i.version_id,i.content_hash,i.id,'site',NULL FROM inserted i
+          WHERE ${measureScope}::text = 'site'
+          UNION ALL
+          SELECT i.account_id,i.client_id,i.work_item_id,i.version_id,i.content_hash,i.id,'page',a.id FROM inserted i CROSS JOIN assets a
+          WHERE ${measureScope}::text = 'page'
+          RETURNING id
         ), chosen AS (SELECT * FROM inserted UNION ALL SELECT * FROM replay)
         SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM member) THEN 'denied'
           WHEN NOT EXISTS (SELECT 1 FROM version) THEN 'not_found'
@@ -186,6 +223,7 @@ export async function attestDelivery(rawScope: DeliveryScope, raw: AttestInput):
             OR EXISTS (SELECT 1 FROM active) THEN 'conflict'
           WHEN NOT EXISTS (SELECT 1 FROM approval a CROSS JOIN clock WHERE ${input.deliveredAt}::timestamptz >= a.decided_at
             AND ${input.deliveredAt}::timestamptz <= clock.now) THEN 'validation_failed'
+          WHEN ${measureScope}::text = 'page' AND (SELECT count(*) FROM assets) <> ${assetIds.length}::int THEN 'unknown_page'
           WHEN EXISTS (SELECT 1 FROM inserted) THEN 'created' ELSE 'conflict' END AS kind,
           (SELECT to_jsonb(e) || jsonb_build_object(
             'recorded_at',to_char(e.recorded_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),

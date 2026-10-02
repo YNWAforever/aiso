@@ -42,6 +42,12 @@ export type DueBinding = {
   boundDomain: string
   currentDomain: string | null
   backfillPending: boolean
+  /**
+   * UTC date of the binding's newest `ok` run since `bound_at`, or null if it has none.
+   * The sync reaches back to it so a run of failed syncs leaves no hole in stored daily
+   * history (spec 3.4): readiness elsewhere is judged by ok-run dates.
+   */
+  lastOkDate: string | null
   account: CommercialAccount
 }
 
@@ -144,7 +150,11 @@ export async function markConnection(accountId: string, connectionId: string, st
   `
 }
 
-/** Unbinds every brand on the connection and deletes the credential, atomically. */
+/**
+ * Unbinds every brand on the connection and deletes the credential, atomically. A brand
+ * with no binding has no recorded coverage either, so that goes in the same transaction
+ * and before the bindings it is selected through.
+ */
 export async function revokeConnectionRow(accountId: string, connectionId: string): Promise<boolean> {
   const sql = db()
   const [revoked] = await sql.transaction([
@@ -153,6 +163,14 @@ export async function revokeConnectionRow(accountId: string, connectionId: strin
       set status = 'revoked', token_ciphertext = null, token_key_id = null, updated_at = now()
       where account_id = ${accountId} and id = ${connectionId}
       returning id
+    `,
+    sql`
+      delete from search_console_coverage
+      where account_id = ${accountId}
+        and client_id in (
+          select client_id from search_console_bindings
+          where account_id = ${accountId} and connection_id = ${connectionId}
+        )
     `,
     sql`delete from search_console_bindings where account_id = ${accountId} and connection_id = ${connectionId}`,
   ])
@@ -163,6 +181,13 @@ export async function revokeConnectionRow(accountId: string, connectionId: strin
  * One statement: the brand and the connection are both constrained to the
  * account inside it, and the connection must be active. False means one of them
  * is absent, not this account's, or unusable.
+ *
+ * Coverage is about the property, so it is deleted when the site URL changes and
+ * kept when the same property is rebound (another connection, a new permission
+ * level). It is a data-modifying CTE rather than a second statement for two
+ * reasons: `prior` reads the row as it was before this statement's own upsert, which
+ * a statement run afterwards could not, and the delete is conditioned on the bind
+ * having happened, so a refused bind (inactive connection) cannot wipe coverage.
  */
 export async function bindProperty(input: {
   accountId: string
@@ -175,34 +200,51 @@ export async function bindProperty(input: {
 }): Promise<boolean> {
   const sql = db()
   const rows = await sql`
-    insert into search_console_bindings
-      (account_id, client_id, connection_id, site_url, permission_level, bound_domain, backfill_pending, bound_by)
-    select c.account_id, c.id, g.id, ${input.siteUrl}, ${input.permissionLevel}, ${input.boundDomain}, true, ${input.profileId}
-    from clients c
-    join google_connections g on g.id = ${input.connectionId} and g.account_id = c.account_id and g.status = 'active'
-    where c.id = ${input.clientId} and c.account_id = ${input.accountId}
-    for share of g
-    on conflict (account_id, client_id) do update set
-      connection_id = excluded.connection_id,
-      site_url = excluded.site_url,
-      permission_level = excluded.permission_level,
-      bound_domain = excluded.bound_domain,
-      backfill_pending = true,
-      bound_by = excluded.bound_by,
-      bound_at = now()
-    returning client_id
+    with prior as (
+      select site_url from search_console_bindings
+      where account_id = ${input.accountId} and client_id = ${input.clientId}
+    ),
+    bound as (
+      insert into search_console_bindings
+        (account_id, client_id, connection_id, site_url, permission_level, bound_domain, backfill_pending, bound_by)
+      select c.account_id, c.id, g.id, ${input.siteUrl}, ${input.permissionLevel}, ${input.boundDomain}, true, ${input.profileId}
+      from clients c
+      join google_connections g on g.id = ${input.connectionId} and g.account_id = c.account_id and g.status = 'active'
+      where c.id = ${input.clientId} and c.account_id = ${input.accountId}
+      for share of g
+      on conflict (account_id, client_id) do update set
+        connection_id = excluded.connection_id,
+        site_url = excluded.site_url,
+        permission_level = excluded.permission_level,
+        bound_domain = excluded.bound_domain,
+        backfill_pending = true,
+        bound_by = excluded.bound_by,
+        bound_at = now()
+      returning client_id
+    ),
+    cleared as (
+      delete from search_console_coverage
+      where account_id = ${input.accountId} and client_id = ${input.clientId}
+        and exists (select 1 from bound)
+        and exists (select 1 from prior where site_url is distinct from ${input.siteUrl})
+      returning 1
+    )
+    select client_id from bound
   `
   return rows.length > 0
 }
 
 export async function unbindProperty(accountId: string, clientId: string): Promise<boolean> {
   const sql = db()
-  const rows = await sql`
-    delete from search_console_bindings
-    where account_id = ${accountId} and client_id = ${clientId}
-    returning client_id
-  `
-  return rows.length > 0
+  const [, unbound] = await sql.transaction([
+    sql`delete from search_console_coverage where account_id = ${accountId} and client_id = ${clientId}`,
+    sql`
+      delete from search_console_bindings
+      where account_id = ${accountId} and client_id = ${clientId}
+      returning client_id
+    `,
+  ])
+  return (unbound as unknown[]).length > 0
 }
 
 export async function loadBinding(accountId: string, clientId: string): Promise<BindingRow | null> {
@@ -253,7 +295,7 @@ export async function loadDueBindings(limit: number): Promise<DueBinding[]> {
   const sql = db()
   const rows = await sql`
     select b.account_id, b.client_id, b.connection_id, b.site_url, b.permission_level, b.bound_domain,
-           b.backfill_pending, c.domain as current_domain,
+           b.backfill_pending, c.domain as current_domain, last_ok.ok_date::text as last_ok_date,
            jsonb_build_object(
              'plan', a.plan, 'status', a.status, 'stripe_subscription_id', a.stripe_subscription_id,
              'trial_ends_at', a.trial_ends_at, 'override_plan', a.override_plan,
@@ -267,6 +309,11 @@ export async function loadDueBindings(limit: number): Promise<DueBinding[]> {
       select max(r.ran_at) as ran_at from search_console_sync_runs r
       where r.account_id = b.account_id and r.client_id = b.client_id
     ) last_run on true
+    left join lateral (
+      select max((r.ran_at at time zone 'UTC')::date) as ok_date from search_console_sync_runs r
+      where r.account_id = b.account_id and r.client_id = b.client_id
+        and r.outcome = 'ok' and r.ran_at >= b.bound_at
+    ) last_ok on true
     where g.status = 'active'
       and (last_run.ran_at is null or last_run.ran_at < now() - interval '20 hours')
     order by last_run.ran_at asc nulls first, b.client_id
@@ -281,44 +328,108 @@ export async function loadDueBindings(limit: number): Promise<DueBinding[]> {
     boundDomain: String(r.bound_domain),
     currentDomain: (r.current_domain as string | null) ?? null,
     backfillPending: Boolean(r.backfill_pending),
+    lastOkDate: (r.last_ok_date as string | null) ?? null,
     account: r.account as CommercialAccount,
   }))
 }
 
-/** Oldest-registered first, capped (spec §4.3). */
-export async function listSyncPages(accountId: string, clientId: string, cap: number): Promise<string[]> {
+/**
+ * Oldest-registered first, capped (spec §4.3). `coveredFrom` is the page's own
+ * recorded coverage: null means no Search Console history was ever stored for it, so
+ * the sync backfills it over the full window instead of the routine one.
+ */
+export async function listSyncPages(
+  accountId: string,
+  clientId: string,
+  cap: number,
+): Promise<Array<{ url: string; coveredFrom: string | null }>> {
   const sql = db()
   const rows = await sql`
-    select url from client_assets
-    where account_id = ${accountId} and client_id = ${clientId} and char_length(url) <= 2048
-    order by created_at, id
+    select a.url, cov.covered_from::text as covered_from
+    from client_assets a
+    left join search_console_coverage cov
+      on cov.account_id = a.account_id and cov.client_id = a.client_id
+     and cov.scope = 'page' and cov.page_url = a.url
+    where a.account_id = ${accountId} and a.client_id = ${clientId} and char_length(a.url) <= 2048
+    order by a.created_at, a.id
     limit ${cap}
   `
-  return rows.map(r => String(r.url))
+  return rows.map(r => ({ url: String(r.url), coveredFrom: (r.covered_from as string | null) ?? null }))
 }
 
-export async function writeDaily(accountId: string, clientId: string, metrics: DailyMetric[]): Promise<number> {
-  if (!metrics.length) return 0
+/**
+ * Search Console omits days with no activity, so "which days does the stored history
+ * cover" cannot be read back from the daily rows. A mark says the sync fetched this
+ * target over a window starting at `windowStart`. `contiguous` means that window
+ * overlaps what was already covered, so coverage only ever moves earlier; otherwise
+ * there may be a hole before it, and coverage restarts at `windowStart`.
+ */
+export type CoverageMark = {
+  scope: 'property' | 'page'
+  pageUrl: string | null
+  windowStart: string
+  contiguous: boolean
+}
+
+/**
+ * Daily upserts and coverage upserts, in one transaction: coverage that claimed a
+ * window whose rows were not written would be a claim Attribution then trusts.
+ * Coverage is written even with no daily rows, because a quiet page that returned
+ * nothing is exactly the case it exists to record. Returns the daily rows written.
+ */
+export async function writeDaily(
+  accountId: string,
+  clientId: string,
+  metrics: DailyMetric[],
+  coverage: CoverageMark[],
+): Promise<number> {
   const sql = db()
-  const rows = await sql`
-    insert into search_console_daily
-      (account_id, client_id, date, scope, page_url, clicks, impressions, ctr, position)
-    select ${accountId}, ${clientId}, d::date, s, p, cl, im, ct, po
+  const upsertCoverage = (marks: CoverageMark[], contiguous: boolean) => sql`
+    insert into search_console_coverage (account_id, client_id, scope, page_url, covered_from)
+    select ${accountId}, ${clientId}, s, p, w::date
     from unnest(
-      ${metrics.map(m => m.date)}::text[], ${metrics.map(m => m.scope)}::text[],
-      ${metrics.map(m => m.pageUrl)}::text[], ${metrics.map(m => m.clicks)}::int[],
-      ${metrics.map(m => m.impressions)}::int[], ${metrics.map(m => m.ctr)}::float8[],
-      ${metrics.map(m => m.position)}::float8[]
-    ) as t(d, s, p, cl, im, ct, po)
-    on conflict on constraint search_console_daily_unique do update set
-      clicks = excluded.clicks, impressions = excluded.impressions,
-      ctr = excluded.ctr, position = excluded.position, synced_at = now()
-    returning 1
+      ${marks.map(m => m.scope)}::text[], ${marks.map(m => m.pageUrl)}::text[],
+      ${marks.map(m => m.windowStart)}::text[]
+    ) as t(s, p, w)
+    on conflict on constraint search_console_coverage_unique do update set
+      covered_from = case when ${contiguous}::boolean
+        then least(search_console_coverage.covered_from, excluded.covered_from)
+        else excluded.covered_from end,
+      covered_at = clock_timestamp()
   `
-  return rows.length
+  const statements = []
+  if (metrics.length) {
+    statements.push(sql`
+      insert into search_console_daily
+        (account_id, client_id, date, scope, page_url, clicks, impressions, ctr, position)
+      select ${accountId}, ${clientId}, d::date, s, p, cl, im, ct, po
+      from unnest(
+        ${metrics.map(m => m.date)}::text[], ${metrics.map(m => m.scope)}::text[],
+        ${metrics.map(m => m.pageUrl)}::text[], ${metrics.map(m => m.clicks)}::int[],
+        ${metrics.map(m => m.impressions)}::int[], ${metrics.map(m => m.ctr)}::float8[],
+        ${metrics.map(m => m.position)}::float8[]
+      ) as t(d, s, p, cl, im, ct, po)
+      on conflict on constraint search_console_daily_unique do update set
+        clicks = excluded.clicks, impressions = excluded.impressions,
+        ctr = excluded.ctr, position = excluded.position, synced_at = now()
+      returning 1
+    `)
+  }
+  const keep = coverage.filter(m => m.contiguous)
+  const restart = coverage.filter(m => !m.contiguous)
+  if (keep.length) statements.push(upsertCoverage(keep, true))
+  if (restart.length) statements.push(upsertCoverage(restart, false))
+  if (!statements.length) return 0
+  const results = await sql.transaction(statements)
+  return metrics.length ? (results[0] as unknown[]).length : 0
 }
 
-export type QueryWindow = { startDate: string; endDate: string; pageUrls: string[] }
+/**
+ * Each page is replaced over ITS OWN window: a page registered after the property
+ * was bound is backfilled over 90 days while its neighbours get the routine window,
+ * and replacing the neighbours' window for it would leave its older queries stale.
+ */
+export type QueryWindow = { endDate: string; pages: Array<{ pageUrl: string; startDate: string }> }
 
 /**
  * Replaces the top queries for the re-fetched window, in one transaction. Google
@@ -333,14 +444,15 @@ export async function writePageQueries(
   metrics: PageQueryMetric[],
   window: QueryWindow,
 ): Promise<number> {
-  if (!window.pageUrls.length) return 0
+  if (!window.pages.length) return 0
   const sql = db()
   const [, inserted] = await sql.transaction([
     sql`
-      delete from search_console_page_queries
-      where account_id = ${accountId} and client_id = ${clientId}
-        and page_url = any(${window.pageUrls}::text[])
-        and date between ${window.startDate}::date and ${window.endDate}::date
+      delete from search_console_page_queries q
+      using unnest(${window.pages.map(p => p.pageUrl)}::text[], ${window.pages.map(p => p.startDate)}::text[]) as w(p, s)
+      where q.account_id = ${accountId} and q.client_id = ${clientId}
+        and q.page_url = w.p
+        and q.date between w.s::date and ${window.endDate}::date
     `,
     sql`
       insert into search_console_page_queries

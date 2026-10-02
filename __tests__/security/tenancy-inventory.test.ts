@@ -71,6 +71,8 @@ const TENANT_TABLES: Record<string, string> = {
   analytics_bindings: 'account_id (055)',
   analytics_daily: 'account_id (055)',
   analytics_sync_runs: 'account_id (055)',
+  work_item_delivery_measures: 'account_id (056)',
+  search_console_coverage: 'account_id (056)',
   // Tenant through the parent row.
   pulse_metrics: 'client_id -> clients.account_id',
   pulse_weekly_summary: 'client_id -> clients.account_id',
@@ -392,6 +394,19 @@ describe('every tenant-bearing statement is scoped or declared', () => {
       // One that the token rule already flags belongs in DECLARED, not here.
       expect([...unscoped], `${key} is flagged as unscoped; declare it in DECLARED instead.`).not.toContain(key)
       expect(DECLARED[key]).toBeUndefined()
+    }
+  })
+
+  it('sees every attribution statement, and finds each one scoped', () => {
+    // Attribution (056) reads a dozen tenant tables for one owner view. Naming its
+    // functions here makes sure the walk actually reaches them; the token rule
+    // then has to pass each one without a declaration.
+    const live = tenantStatementFunctions()
+    const unscoped = new Set(FINDINGS.map(finding => finding.key))
+    for (const fn of ['loadOwnedVersion', 'loadAttributionInput', 'readSources']) {
+      const key = `lib/attribution/store.ts::${fn}`
+      expect([...live]).toContain(key)
+      expect([...unscoped]).not.toContain(key)
     }
   })
 

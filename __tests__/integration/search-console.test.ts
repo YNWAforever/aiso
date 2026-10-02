@@ -27,6 +27,7 @@ const sealed = { ciphertext: Buffer.from([0, 1, 2, 250, 251, 252, 0x5c, 0x78]), 
 
 async function teardown() {
   await sql`delete from search_console_sync_runs where account_id in (${A}::uuid, ${B}::uuid)`
+  await sql`delete from search_console_coverage where account_id in (${A}::uuid, ${B}::uuid)`
   await sql`delete from search_console_page_queries where account_id in (${A}::uuid, ${B}::uuid)`
   await sql`delete from search_console_daily where account_id in (${A}::uuid, ${B}::uuid)`
   await sql`delete from search_console_bindings where account_id in (${A}::uuid, ${B}::uuid)`
@@ -95,9 +96,30 @@ describe('migration 054 on real Postgres', () => {
   it('overwrites a re-synced day instead of double-counting property rows', async () => {
     const { writeDaily } = await import('@/lib/integrations/search-console/store')
     const day = { date: '2026-09-20', scope: 'property' as const, pageUrl: null, clicks: 1, impressions: 10, ctr: 0.1, position: 4 }
-    await writeDaily(A, A_CLIENT, [day])
-    await writeDaily(A, A_CLIENT, [{ ...day, clicks: 7 }])
+    await writeDaily(A, A_CLIENT, [day], [])
+    await writeDaily(A, A_CLIENT, [{ ...day, clicks: 7 }], [])
     expect(await sql`select clicks from search_console_daily where client_id = ${A_CLIENT}::uuid`).toEqual([{ clicks: 7 }])
+  })
+
+  it("replaces each page's queries over that page's own window, not the neighbour's", async () => {
+    const { writePageQueries } = await import('@/lib/integrations/search-console/store')
+    const fresh = 'https://a-c15.example/fresh'
+    const older = 'https://a-c15.example/older'
+    const row = (pageUrl: string, query: string, date: string) =>
+      ({ pageUrl, date, query, clicks: 1, impressions: 10, ctr: 0.1, position: 3 })
+    await writePageQueries(A, A_CLIENT, [row(fresh, 'stale-fresh', '2026-08-01'), row(older, 'old-keep', '2026-08-01'), row(older, 'old-drop', '2026-09-20')], {
+      endDate: '2026-09-24',
+      pages: [{ pageUrl: fresh, startDate: '2026-06-27' }, { pageUrl: older, startDate: '2026-09-18' }],
+    })
+    // fresh is re-fetched over 90 days, older over 7: 08-01 is inside fresh's window and outside older's.
+    await writePageQueries(A, A_CLIENT, [row(fresh, 'new-fresh', '2026-08-01')], {
+      endDate: '2026-09-24',
+      pages: [{ pageUrl: fresh, startDate: '2026-06-27' }, { pageUrl: older, startDate: '2026-09-18' }],
+    })
+    expect(await sql`
+      select page_url, query from search_console_page_queries
+      where account_id = ${A}::uuid and client_id = ${A_CLIENT}::uuid order by page_url, query`)
+      .toEqual([{ page_url: fresh, query: 'new-fresh' }, { page_url: older, query: 'old-keep' }])
   })
 
   it('replaces only the re-fetched window, leaving a query outside it untouched', async () => {
@@ -107,8 +129,8 @@ describe('migration 054 on real Postgres', () => {
       insert into client_assets (account_id, client_id, url, origin, label)
       values (${A}::uuid, ${A_CLIENT}::uuid, ${pageUrl}, 'https://a-c15.example', 'Page 1')
     `
-    const windowA = { startDate: '2026-09-18', endDate: '2026-09-24', pageUrls: [pageUrl] }
-    const windowOutside = { startDate: '2026-09-10', endDate: '2026-09-10', pageUrls: [pageUrl] }
+    const windowA = { endDate: '2026-09-24', pages: [{ pageUrl, startDate: '2026-09-18' }] }
+    const windowOutside = { endDate: '2026-09-10', pages: [{ pageUrl, startDate: '2026-09-10' }] }
     const row = (query: string, clicks: number, date = '2026-09-20') =>
       ({ pageUrl, date, query, clicks, impressions: 40, ctr: clicks / 40, position: 6 })
 
@@ -283,7 +305,7 @@ describe('owner state after a rebind', () => {
     await bind('sc-domain:a-c15.example')
     await store.writeDaily(A, A_CLIENT, [
       day('2026-09-19', 'property', 70), day('2026-09-20', 'property', 80), day('2026-09-19', 'page', 7),
-    ])
+    ], [])
     await store.recordRun({
       accountId: A, clientId: A_CLIENT, siteUrl: 'sc-domain:a-c15.example', connectionId: conn,
       outcome: 'ok', rowsWritten: 3, dataThrough: '2026-09-20', clearBackfill: true,
@@ -301,7 +323,7 @@ describe('owner state after a rebind', () => {
     // The new property returns 2026-09-20 only; Google omits its zero-traffic
     // 2026-09-19, so that day keeps the old site's row in the table — and must
     // still not be shown.
-    await store.writeDaily(A, A_CLIENT, [day('2026-09-20', 'property', 3)])
+    await store.writeDaily(A, A_CLIENT, [day('2026-09-20', 'property', 3)], [])
     await store.recordRun({
       accountId: A, clientId: A_CLIENT, siteUrl: 'https://a-c15.example/', connectionId: conn,
       outcome: 'ok', rowsWritten: 1, dataThrough: '2026-09-20', clearBackfill: true,
@@ -399,5 +421,163 @@ describe('cross-account, as B against A', () => {
     ])
     expect((await store.loadPanelData(B, A_CLIENT)).property).toBeNull()
     expect((await store.loadPanelData(A, A_CLIENT)).property?.clicks).toBe(11)
+  })
+})
+
+describe('Search Console coverage (migration 056) on real Postgres', () => {
+  const P1 = 'https://a-c15.example/p1'
+  const P2 = 'https://a-c15.example/p2'
+  const mark = (scope: 'property' | 'page', pageUrl: string | null, windowStart: string, contiguous: boolean) =>
+    ({ scope, pageUrl, windowStart, contiguous })
+  const coverage = (account = A, client = A_CLIENT) => sql`
+    select scope, page_url, covered_from::text as covered_from from search_console_coverage
+    where account_id = ${account}::uuid and client_id = ${client}::uuid order by scope desc, page_url`
+
+  async function bound(siteUrl = 'sc-domain:a-c15.example') {
+    const store = await import('@/lib/integrations/search-console/store')
+    const conn = await store.upsertConnection({ accountId: A, profileId: A_USER, subject: 'g-cov', email: null, scopes: [], sealed })
+    const bind = (url: string) => store.bindProperty({
+      accountId: A, clientId: A_CLIENT, connectionId: conn, siteUrl: url,
+      permissionLevel: 'siteOwner', boundDomain: 'a-c15.example', profileId: A_USER,
+    })
+    await bind(siteUrl)
+    return { store, conn, bind }
+  }
+
+  it('records coverage with no daily rows, and a non-contiguous mark restarts it at the window start', async () => {
+    const { writeDaily } = await import('@/lib/integrations/search-console/store')
+    // A property with no activity in the window still has coverage: the whole point.
+    expect(await writeDaily(A, A_CLIENT, [], [mark('property', null, '2026-06-27', false), mark('page', P1, '2026-06-27', false)])).toBe(0)
+    expect(await coverage()).toEqual([
+      { scope: 'property', page_url: null, covered_from: '2026-06-27' },
+      { scope: 'page', page_url: P1, covered_from: '2026-06-27' },
+    ])
+    // A later non-contiguous window (the history before it may have a hole) moves coverage LATER.
+    await writeDaily(A, A_CLIENT, [], [mark('property', null, '2026-09-01', false)])
+    expect((await coverage())[0]).toEqual({ scope: 'property', page_url: null, covered_from: '2026-09-01' })
+  })
+
+  it('a contiguous mark only ever moves covered_from earlier', async () => {
+    const { writeDaily } = await import('@/lib/integrations/search-console/store')
+    await writeDaily(A, A_CLIENT, [], [mark('property', null, '2026-08-01', false)])
+    await writeDaily(A, A_CLIENT, [], [mark('property', null, '2026-09-18', true)]) // later window: no change
+    expect((await coverage())[0]!.covered_from).toBe('2026-08-01')
+    await writeDaily(A, A_CLIENT, [], [mark('property', null, '2026-07-01', true)]) // earlier: moves
+    expect((await coverage())[0]!.covered_from).toBe('2026-07-01')
+    expect(await sql`select count(*)::int as n from search_console_coverage where account_id = ${A}::uuid`).toEqual([{ n: 1 }])
+  })
+
+  it('writes the daily rows and the coverage together, or neither', async () => {
+    const { writeDaily } = await import('@/lib/integrations/search-console/store')
+    const day = { date: '2026-09-20', scope: 'property' as const, pageUrl: null, clicks: 1, impressions: 10, ctr: 0.1, position: 4 }
+    // A coverage row the database refuses (page scope with no url) must roll the daily row back.
+    await expect(writeDaily(A, A_CLIENT, [day], [mark('page', null, '2026-09-18', false)])).rejects.toBeDefined()
+    expect(await sql`select 1 from search_console_daily where account_id = ${A}::uuid`).toHaveLength(0)
+    expect(await coverage()).toEqual([])
+  })
+
+  it('lists a page uncovered until its coverage is written, per brand and account', async () => {
+    const { listSyncPages, writeDaily } = await import('@/lib/integrations/search-console/store')
+    for (const url of [P1, P2]) {
+      await sql`insert into client_assets (account_id, client_id, url, origin, label)
+                values (${A}::uuid, ${A_CLIENT}::uuid, ${url}, 'https://a-c15.example', 'Page')`
+    }
+    expect(await listSyncPages(A, A_CLIENT, 20)).toEqual([
+      { url: P1, coveredFrom: null }, { url: P2, coveredFrom: null },
+    ])
+    await writeDaily(A, A_CLIENT, [], [mark('page', P2, '2026-07-04', false)])
+    expect(await listSyncPages(A, A_CLIENT, 20)).toEqual([
+      { url: P1, coveredFrom: null }, { url: P2, coveredFrom: '2026-07-04' },
+    ])
+    // The property's own row (page_url null) is never mistaken for a page's, and B sees none of it.
+    await writeDaily(A, A_CLIENT, [], [mark('property', null, '2026-06-27', false)])
+    expect((await listSyncPages(A, A_CLIENT, 20)).map(p => p.coveredFrom)).toEqual([null, '2026-07-04'])
+    expect(await listSyncPages(B, A_CLIENT, 20)).toEqual([])
+  })
+
+  it('reports the UTC date of the newest ok run since the binding, and null before any', async () => {
+    const { store } = await bound()
+    const due = async () => (await store.loadDueBindings(50)).find(b => b.clientId === A_CLIENT)!.lastOkDate
+    expect(await due()).toBeNull()
+    const run = (outcome: string, ranAt: string) => sql`
+      insert into search_console_sync_runs (account_id, client_id, outcome, ran_at)
+      values (${A}::uuid, ${A_CLIENT}::uuid, ${outcome}, ${ranAt}::timestamptz)`
+    // Before bound_at: about a previous binding, ignored. A failed run is not an ok run either.
+    await run('ok', '2020-01-01T10:00:00Z')
+    expect(await due()).toBeNull()
+    // Backdate the binding so runs can sit after bound_at, near a UTC midnight boundary.
+    await sql`update search_console_bindings set bound_at = '2026-09-01T00:00:00Z' where account_id = ${A}::uuid and client_id = ${A_CLIENT}::uuid`
+    await run('ok', '2026-09-12T23:59:30-05:00') // 2026-09-13T04:59:30Z: the UTC date, not the local one
+    await run('ok', '2026-09-10T00:00:00Z')
+    await run('quota', '2026-09-20T00:00:00Z') // newer, but not ok
+    expect(await due()).toBe('2026-09-13')
+  })
+
+  it('a rebind to a different site URL deletes coverage; the same URL keeps it', async () => {
+    const { store, bind } = await bound()
+    await store.writeDaily(A, A_CLIENT, [], [mark('property', null, '2026-06-27', false), mark('page', P1, '2026-06-27', false)])
+    expect(await bind('sc-domain:a-c15.example')).toBe(true) // same property again
+    expect(await coverage()).toHaveLength(2)
+    expect(await bind('https://a-c15.example/')).toBe(true) // different property
+    expect(await coverage()).toEqual([])
+  })
+
+  it('a refused bind leaves coverage alone', async () => {
+    const { store, conn } = await bound()
+    await store.writeDaily(A, A_CLIENT, [], [mark('property', null, '2026-06-27', false)])
+    await sql`update google_connections set status = 'needs_reconnect' where id = ${conn}::uuid`
+    expect(await store.bindProperty({
+      accountId: A, clientId: A_CLIENT, connectionId: conn, siteUrl: 'https://other.example/',
+      permissionLevel: 'siteOwner', boundDomain: 'a-c15.example', profileId: A_USER,
+    })).toBe(false)
+    expect(await coverage()).toHaveLength(1)
+  })
+
+  it('unbinding deletes coverage, and only for that brand and account', async () => {
+    const { store } = await bound()
+    await store.writeDaily(A, A_CLIENT, [], [mark('property', null, '2026-06-27', false)])
+    await store.writeDaily(B, B_CLIENT, [], [mark('property', null, '2026-06-27', false)])
+    expect(await store.unbindProperty(B, A_CLIENT)).toBe(false) // not B's brand
+    expect(await coverage()).toHaveLength(1)
+    expect(await store.unbindProperty(A, A_CLIENT)).toBe(true)
+    expect(await coverage()).toEqual([])
+    expect(await coverage(B, B_CLIENT)).toHaveLength(1)
+  })
+
+  it('revoking the connection deletes the coverage of the brands it was bound to', async () => {
+    const { store, conn } = await bound()
+    await store.writeDaily(A, A_CLIENT, [], [mark('property', null, '2026-06-27', false)])
+    expect(await store.revokeConnectionRow(A, conn)).toBe(true)
+    expect(await coverage()).toEqual([])
+  })
+
+  it('end to end: a newly registered page is backfilled while a covered page gets the routine window', async () => {
+    const { store } = await bound()
+    const { syncBinding } = await import('@/lib/integrations/search-console/sync')
+    for (const url of [P1, P2]) {
+      await sql`insert into client_assets (account_id, client_id, url, origin, label)
+                values (${A}::uuid, ${A_CLIENT}::uuid, ${url}, 'https://a-c15.example', 'Page')`
+    }
+    await store.writeDaily(A, A_CLIENT, [], [mark('page', P1, '2026-06-27', false)]) // P1 covered, P2 never seen
+    await sql`update search_console_bindings set backfill_pending = false where account_id = ${A}::uuid and client_id = ${A_CLIENT}::uuid`
+    const starts: Array<{ page: string | null; start: string }> = []
+    const due = (await store.loadDueBindings(50)).find(b => b.clientId === A_CLIENT)!
+    expect(await syncBinding(due, {
+      loadSecret: store.loadConnectionSecret, open: () => '1//r', refresh: async () => 'ya29.a',
+      query: async (_t, _s, q) => { starts.push({ page: q.pageEquals ?? null, start: q.startDate }); return [] },
+      listPages: store.listSyncPages, writeDaily: store.writeDaily, writePageQueries: store.writePageQueries,
+      markConnection: store.markConnection, recordRun: store.recordRun,
+      today: () => '2026-09-24', deadline: Number.POSITIVE_INFINITY,
+    })).toBe('ok')
+    expect(starts).toEqual([
+      { page: null, start: '2026-09-18' }, { page: P1, start: '2026-09-18' }, { page: P2, start: '2026-06-27' },
+    ])
+    // No Google rows at all, yet every fetched target now has recorded coverage. No ok run since the bind
+    // means the property window is not contiguous, so P1 restarts at it; P2 at its own 90-day start.
+    expect(await coverage()).toEqual([
+      { scope: 'property', page_url: null, covered_from: '2026-09-18' },
+      { scope: 'page', page_url: P1, covered_from: '2026-09-18' },
+      { scope: 'page', page_url: P2, covered_from: '2026-06-27' },
+    ])
   })
 })

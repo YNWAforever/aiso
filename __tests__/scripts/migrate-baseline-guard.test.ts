@@ -131,6 +131,9 @@ function allRelations() {
     // 055: the GA4 conversions connector, authored here and applied by the
     // runner. Likewise synthetic; the real-Postgres proof is a separate task.
     'analytics_bindings', 'analytics_daily', 'analytics_sync_runs',
+    // 056: attribution, authored here and applied by the runner. Synthetic; the
+    // real-Postgres proof is a separate task.
+    'work_item_delivery_measures', 'search_console_coverage',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
