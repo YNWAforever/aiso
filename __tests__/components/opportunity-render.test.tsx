@@ -93,6 +93,10 @@ afterAll(() =>
     { clientId, initial },
     htmlFor,
     {
+      saved: {
+        props: { clientId, initial: { ...initial, suggestions: initial.suggestions.map(row => ({ ...row, savedDraftId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', savedState: 'saved' as const })) } },
+        html: (lang) => htmlFor(lang, { ...initial, suggestions: initial.suggestions.map(row => ({ ...row, savedDraftId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', savedState: 'saved' as const })) }),
+      },
       unavailable: {
         props: { clientId, initial: null, initialError: 'unavailable' },
         html: (lang) => htmlFor(lang, null),

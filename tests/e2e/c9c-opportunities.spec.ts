@@ -147,6 +147,7 @@ for (const lang of ['en', 'zh-HK']) {
       release = resolve
     })
     await page.route('**/api/clients/*/work-items', async (route) => {
+      if (route.request().method() === 'GET') return route.fulfill({ json: { items: [draft], nextCursor: null } })
       posts++
       expect(route.request().postDataJSON()).toEqual({
         source: data.initial.suggestions[0].source,
@@ -419,6 +420,7 @@ for (const lang of ['en', 'zh-HK']) {
         }),
       )
       await page.route('**/api/clients/*/work-items', (route) => {
+        if (route.request().method() === 'GET') return route.fulfill({ json: { items: [draft], nextCursor: null } })
         expect(route.request().postDataJSON()).toEqual({
           source: scanSuggestion.source,
           ruleVersion: scanSuggestion.ruleVersion,
@@ -473,6 +475,7 @@ for (const lang of ['en', 'zh-HK']) {
         }),
       )
       await page.route('**/api/clients/*/work-items', (route) => {
+        if (route.request().method() === 'GET') return route.fulfill({ json: { items: [draft], nextCursor: null } })
         posts++
         return route.abort()
       })
