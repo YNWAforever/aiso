@@ -7,10 +7,11 @@ const STATUS_STYLES: Record<PlatformStatus, { dot: string; label: string; text: 
   visible: { dot: 'bg-emerald-500', label: 'Visible',  text: 'text-emerald-700' },
   partial: { dot: 'bg-amber-500',   label: 'Partial',  text: 'text-amber-700' },
   blocked: { dot: 'bg-red-500',     label: 'Blocked',  text: 'text-red-700' },
+  not_measured: { dot: 'bg-slate-400', label: 'Not measured', text: 'text-slate-600' },
 }
 
 const STATUS_LABELS_ZH_HK: Record<PlatformStatus, string> = {
-  visible: '可見', partial: '部分可見', blocked: '被封鎖',
+  visible: '歷史技術估算', partial: '歷史技術估算', blocked: '歷史技術估算', not_measured: '未量度',
 }
 
 const EFFORT_STYLES: Record<Effort, { label: string; cls: string }> = {
@@ -30,7 +31,7 @@ const QUICK_WIN_LABELS_ZH_HK: Record<string, string> = {
   c3_bot_access: '在伺服器層面解除 AI 機械人封鎖',
   c4_structured_data: '加入 JSON-LD 結構化數據',
   c5_extractability: '改善內容可提取度',
-  c6_llms_full_txt: '新增 llms-full.txt 檔案',
+  c6_llms_full_txt: '改善選配 llms.txt 內容完整度',
   c7_mcp_card: '發佈 MCP 伺服器卡片',
   c8_sitemap: '新增 XML sitemap',
   c9_meta_desc: '撰寫 meta description',
@@ -50,7 +51,7 @@ const QUICK_WIN_LABELS_ZH_HK: Record<string, string> = {
 const UI_EN = {
   title: 'IMPACT ANALYSIS',
   subtitle: 'What your score means — and what fixing it would gain',
-  platformVisibility: 'AI platform visibility',
+  platformVisibility: 'Consumer AI exposure (not measured by this scan)',
   aiReadable: 'Content AI can actually use',
   now: 'Now',
   after: 'After fixes',
@@ -61,7 +62,7 @@ const UI_EN = {
 const UI_ZH_HK: typeof UI_EN = {
   title: '影響分析',
   subtitle: '你的分數代表甚麼——以及修復後可以得到甚麼',
-  platformVisibility: 'AI 平台可見度',
+  platformVisibility: '消費者 AI 曝光（本掃描未量度）',
   aiReadable: 'AI 真正能使用的內容',
   now: '現時',
   after: '修復後',

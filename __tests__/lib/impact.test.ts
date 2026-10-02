@@ -27,57 +27,20 @@ function allPassResults(): Record<string, unknown> {
 
 // ── Platform visibility ─────────────────────────────────────────
 describe('computeImpact — platformVisibility', () => {
-  it('marks all 5 platforms visible when c1 + c3 pass', () => {
-    const r = computeImpact(allPassResults(), { score: 95 })
+  it.each(['pass', 'warn', 'fail'] as const)('does not turn %s technical access into consumer exposure', status => {
+    const r = computeImpact({ c1_robots: {status, message:'robots_ai_blocked'}, c3_bot_access: {status, message:'bots_all_blocked', details:'GPTBot, ClaudeBot'} }, {score:60})
     expect(r.platformVisibility).toHaveLength(5)
-    expect(r.platformVisibility.every(p => p.status === 'visible')).toBe(true)
+    expect(r.platformVisibility.every(p => p.status === 'not_measured')).toBe(true)
+    expect(r.collectorAccess).toEqual([])
+    expect(r.headlineStat.text).not.toContain('invisible')
   })
-
-  it('marks named bots blocked from c3 details', () => {
-    const results = allPassResults()
-    results.c3_bot_access = warn('bots_partially_blocked')
-    ;(results.c3_bot_access as { details?: string }).details = 'GPTBot, ClaudeBot'
-    const r = computeImpact(results, { score: 60 })
-    const byKey = Object.fromEntries(r.platformVisibility.map(p => [p.platform, p.status]))
-    expect(byKey.chatgpt).toBe('blocked')
-    expect(byKey.claude).toBe('blocked')
-    expect(byKey.perplexity).toBe('visible')
+  it('keeps policy and fetch evidence distinct for the same crawler', () => {
+    const r=computeImpact({c1_robots:{...pass(),collectorAccess:[{crawler:'GPTBot',role:'training',policy:'blocked',probe:'not_measured'}]}, c3_bot_access:{...pass(),collectorAccess:[{crawler:'GPTBot',role:'training',policy:'unknown',probe:'reachable'}]}},{score:80})
+    expect(r.collectorAccess).toEqual([{crawler:'GPTBot',role:'training',policy:'blocked',probe:'reachable'}])
+    expect(r.platformVisibility.every(p => p.status === 'not_measured')).toBe(true)
   })
-
-  it('blocks all c3-tested platforms when bots_all_blocked with no details', () => {
-    const results = allPassResults()
-    results.c3_bot_access = fail('bots_all_blocked')
-    const r = computeImpact(results, { score: 40 })
-    const byKey = Object.fromEntries(r.platformVisibility.map(p => [p.platform, p.status]))
-    expect(byKey.chatgpt).toBe('blocked')
-    expect(byKey.claude).toBe('blocked')
-    expect(byKey.perplexity).toBe('blocked')
-  })
-
-  it('downgrades platforms to partial when robots.txt blocks AI crawlers', () => {
-    const results = allPassResults()
-    results.c1_robots = fail('robots_ai_blocked')
-    const r = computeImpact(results, { score: 60 })
-    const byKey = Object.fromEntries(r.platformVisibility.map(p => [p.platform, p.status]))
-    // c3 passed so server lets bots in, but robots.txt disallows some — partial
-    expect(byKey.gemini).toBe('partial')
-    expect(byKey.google_aio).toBe('partial')
-    expect(byKey.chatgpt).toBe('partial')
-  })
-
-  it('marks gemini/google_aio partial when robots.txt is missing (unverifiable)', () => {
-    const results = allPassResults()
-    results.c1_robots = fail('robots_not_found')
-    const r = computeImpact(results, { score: 60 })
-    const byKey = Object.fromEntries(r.platformVisibility.map(p => [p.platform, p.status]))
-    expect(byKey.gemini).toBe('partial')
-    // c3-verified platforms stay visible — server actually let the bots in
-    expect(byKey.chatgpt).toBe('visible')
-  })
-
   it('returns empty platform list when both c1 and c3 are missing', () => {
-    const r = computeImpact({}, { score: 50 })
-    expect(r.platformVisibility).toEqual([])
+    expect(computeImpact({}, {score:50}).platformVisibility).toEqual([])
   })
 })
 
@@ -147,15 +110,18 @@ describe('computeImpact — quickWins & projection', () => {
 
 // ── Headline stat priority ──────────────────────────────────────
 describe('computeImpact — headlineStat', () => {
-  it('prioritises blocked platforms above everything', () => {
+  it('prioritises recorded crawler restrictions without claiming consumer invisibility', () => {
     const results = allPassResults()
-    results.c3_bot_access = fail('bots_all_blocked')
+    results.c3_bot_access = { ...fail('bots_all_blocked'), collectorAccess: ['GPTBot', 'ClaudeBot', 'PerplexityBot'].map(crawler => ({
+      crawler, role: crawler === 'PerplexityBot' ? 'search' : 'training', policy: 'unknown', probe: 'unreachable',
+    })) }
     results.c5_extractability = fail() // low readable too
     const r = computeImpact(results, { score: 30, industry: 'technology' })
     expect(r.headlineStat.type).toBe('platforms_blocked')
     if (r.headlineStat.type === 'platforms_blocked') {
       expect(r.headlineStat.count).toBeGreaterThanOrEqual(3)
-      expect(r.headlineStat.total).toBe(5)
+      expect(r.headlineStat.total).toBe(3)
+      expect(r.headlineStat.text).not.toContain('invisible')
     }
   })
 

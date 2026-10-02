@@ -4,11 +4,11 @@
  * or legacy data degrades by omitting the affected stat.
  */
 import { CORE_PTS, EXT_PTS, GEO_PTS, assignGrade, capScore } from '@/lib/scoring'
-import type { CheckResult } from '@/lib/types'
+import type { CheckResult, CollectorAccess } from '@/lib/types'
 
 /* ── Types ───────────────────────────────────────────────────── */
 export type PlatformKey = 'chatgpt' | 'perplexity' | 'claude' | 'gemini' | 'google_aio'
-export type PlatformStatus = 'visible' | 'partial' | 'blocked'
+export type PlatformStatus = 'visible' | 'partial' | 'blocked' | 'not_measured'
 
 export interface PlatformVisibility {
   platform: PlatformKey
@@ -33,6 +33,7 @@ export type HeadlineStat =
   | { type: 'score_uplift'; delta: number; projectedScore: number; projectedGrade: string; text: string }
 
 export interface ImpactReport {
+  collectorAccess: CollectorAccess[]
   platformVisibility: PlatformVisibility[]
   aiReadablePercent: number | null
   quickWins: QuickWin[]
@@ -56,14 +57,6 @@ const PLATFORM_LABELS: Record<PlatformKey, string> = {
   gemini: 'Gemini', google_aio: 'Google AI Overviews',
 }
 
-// c3 botAccess tests these bots; maps bot name → platform
-const BOT_TO_PLATFORM: Record<string, PlatformKey> = {
-  gptbot: 'chatgpt',
-  claudebot: 'claude',
-  'anthropic-ai': 'claude',
-  perplexitybot: 'perplexity',
-}
-const C3_PLATFORMS: PlatformKey[] = ['chatgpt', 'claude', 'perplexity']
 const ALL_PLATFORMS: PlatformKey[] = ['chatgpt', 'perplexity', 'claude', 'gemini', 'google_aio']
 
 const EFFORT_MAP: Record<string, Effort> = {
@@ -84,7 +77,7 @@ const QUICK_WIN_LABELS: Record<string, string> = {
   c3_bot_access: 'Unblock AI bots at the server level',
   c4_structured_data: 'Add JSON-LD structured data',
   c5_extractability: 'Improve content extractability',
-  c6_llms_full_txt: 'Add an llms-full.txt file',
+  c6_llms_full_txt: 'Improve optional llms.txt content completeness',
   c7_mcp_card: 'Publish an MCP server card',
   c8_sitemap: 'Add an XML sitemap',
   c9_meta_desc: 'Write meta descriptions',
@@ -123,56 +116,27 @@ function derivePlatforms(results: Record<string, unknown>): PlatformVisibility[]
   const c3 = getCheck(results, 'c3_bot_access')
   if (!c1 && !c3) return []
 
-  const statuses = new Map<PlatformKey, { status: PlatformStatus; reason: string }>()
+  // A crawler response and robots policy cannot establish a consumer answer,
+  // citation or rank. Legacy aggregate checks cannot identify per-bot policy.
+  return ALL_PLATFORMS.map(platform => ({ platform, label: PLATFORM_LABELS[platform],
+    status: 'not_measured', reason: 'Consumer exposure has not been measured by this technical scan' }))
+}
 
-  // 1. c3 — live bot requests (chatgpt / claude / perplexity only)
-  if (c3) {
-    const blockedBots = (typeof c3.details === 'string' ? c3.details : '')
-      .toLowerCase().split(',').map(s => s.trim()).filter(Boolean)
-    const blockedPlatforms = new Set(
-      blockedBots.map(b => BOT_TO_PLATFORM[b]).filter(Boolean) as PlatformKey[],
-    )
-    // fail with no named bots → treat all tested bots as blocked
-    if (c3.status === 'fail' && blockedPlatforms.size === 0) {
-      C3_PLATFORMS.forEach(p => blockedPlatforms.add(p))
-    }
-    for (const p of C3_PLATFORMS) {
-      if (blockedPlatforms.has(p)) {
-        statuses.set(p, { status: 'blocked', reason: `${PLATFORM_LABELS[p]}'s crawler is blocked by your server` })
-      } else {
-        statuses.set(p, { status: 'visible', reason: 'Crawler can fetch your pages' })
-      }
-    }
-  }
-
-  // 2. c1 — robots.txt rules (covers all platforms incl. Gemini / Google AIO)
-  if (c1) {
-    if (c1.message === 'robots_ai_blocked') {
-      for (const p of ALL_PLATFORMS) {
-        const current = statuses.get(p)
-        if (!current || current.status === 'visible') {
-          statuses.set(p, { status: 'partial', reason: 'robots.txt disallows one or more AI crawlers' })
-        }
-      }
-    } else if (c1.message === 'robots_not_found' || c1.message === 'robots_fetch_error') {
-      for (const p of ALL_PLATFORMS) {
-        if (!statuses.has(p)) {
-          statuses.set(p, { status: 'partial', reason: 'No robots.txt found — crawler rules unverified' })
-        }
-      }
-    } else {
-      // robots_ai_allowed / robots_no_ai_rules — crawling permitted
-      for (const p of ALL_PLATFORMS) {
-        if (!statuses.has(p)) {
-          statuses.set(p, { status: 'visible', reason: 'robots.txt permits AI crawlers' })
-        }
-      }
+function deriveCollectorAccess(results: Record<string, unknown>): CollectorAccess[] {
+  const merged = new Map<string, CollectorAccess>()
+  for (const key of ['c1_robots', 'c3_bot_access']) {
+    const entries = getCheck(results, key)?.collectorAccess
+    if (!Array.isArray(entries)) continue
+    for (const entry of entries) {
+      if (!entry || typeof entry.crawler !== 'string' || !['search','training','user_triggered'].includes(entry.role)
+        || !['allowed','blocked','unknown'].includes(entry.policy) || !['reachable','unreachable','not_measured'].includes(entry.probe)) continue
+      const previous = merged.get(entry.crawler)
+      merged.set(entry.crawler, { ...entry,
+        policy: entry.policy === 'unknown' && previous ? previous.policy : entry.policy,
+        probe: entry.probe === 'not_measured' && previous ? previous.probe : entry.probe })
     }
   }
-
-  return ALL_PLATFORMS
-    .filter(p => statuses.has(p))
-    .map(p => ({ platform: p, label: PLATFORM_LABELS[p], ...statuses.get(p)! }))
+  return [...merged.values()]
 }
 
 /* ── AI-readable percent ─────────────────────────────────────── */
@@ -217,10 +181,12 @@ export function computeImpact(
   opts: { score: number; grade?: string; industry?: string | null },
 ): ImpactReport {
   let platformVisibility: PlatformVisibility[] = []
+  let collectorAccess: CollectorAccess[] = []
   let aiReadablePercent: number | null = null
   let quickWins: QuickWin[] = []
 
   try { platformVisibility = derivePlatforms(results) } catch { /* degrade */ }
+  try { collectorAccess = deriveCollectorAccess(results) } catch { /* degrade */ }
   try { aiReadablePercent  = deriveReadable(results) }  catch { /* degrade */ }
   try { quickWins          = deriveQuickWins(results) } catch { /* degrade */ }
 
@@ -232,7 +198,7 @@ export function computeImpact(
   const projectedGrade = assignGrade(projectedScore)
 
   // Headline: blocked platforms > low readable > benchmark gap > uplift
-  const blockedCount = platformVisibility.filter(p => p.status === 'blocked').length
+  const blockedCount = collectorAccess.filter(p => p.policy === 'blocked' || p.probe === 'unreachable').length
   const benchmark = opts.industry ? INDUSTRY_BENCHMARKS[opts.industry] : undefined
 
   let headlineStat: HeadlineStat
@@ -240,8 +206,8 @@ export function computeImpact(
     headlineStat = {
       type: 'platforms_blocked',
       count: blockedCount,
-      total: ALL_PLATFORMS.length,
-      text: `Your site is invisible to ${blockedCount} of ${ALL_PLATFORMS.length} major AI platforms`,
+      total: collectorAccess.length,
+      text: `${blockedCount} crawler access checks report restrictions; consumer exposure is unmeasured`,
     }
   } else if (aiReadablePercent !== null && aiReadablePercent < 50) {
     headlineStat = {
@@ -270,5 +236,5 @@ export function computeImpact(
     }
   }
 
-  return { platformVisibility, aiReadablePercent, quickWins, projectedScore, projectedGrade, headlineStat }
+  return { platformVisibility, collectorAccess, aiReadablePercent, quickWins, projectedScore, projectedGrade, headlineStat }
 }

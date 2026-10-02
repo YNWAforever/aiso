@@ -434,7 +434,7 @@
     "extractability_poor": "Very little extractable content",
     "extractability_fetch_error": "Could not check content",
     "check_error": "Check failed",
-    "c6_llms_full_txt": "LLMS.txt Depth",
+    "c6_llms_full_txt": "llms.txt content completeness (optional)",
     "c7_mcp_card": "AI Metadata Card",
     "c8_sitemap": "Sitemap Quality",
     "c9_meta_desc": "Meta Description",

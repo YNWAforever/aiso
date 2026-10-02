@@ -36,9 +36,9 @@ const ISSUE_MAP_EN: Record<string, IssueInfo> = {
     fix: 'Ensure key content is in semantic HTML — visible without JavaScript execution.',
   },
   c6_llms_full_txt: {
-    headline: 'No llms-full.txt for deep AI indexing',
-    why: 'Advanced AI agents look for a full-content version of your site in llms-full.txt. Without it, they only get a surface-level summary.',
-    fix: 'Add /llms-full.txt with your complete site content map.',
+    headline: 'Optional llms.txt content is incomplete',
+    why: 'A structured summary can help tools that choose to read it. It does not establish AI exposure or indexing.',
+    fix: 'If you use /llms.txt, add a # title, at least 5 non-empty lines and 3 distinct HTTP(S) page links.',
   },
   c7_mcp_card: {
     headline: 'No MCP server card detected',
@@ -139,9 +139,9 @@ const ISSUE_MAP_ZH_HK: Record<string, IssueInfo> = {
     fix: '確保重點內容以語義化 HTML 呈現——毋須執行 JavaScript 亦可見。',
   },
   c6_llms_full_txt: {
-    headline: '沒有 llms-full.txt 供 AI 深度索引',
-    why: '進階 AI 代理會在 llms-full.txt 尋找你網站的完整內容版本。沒有它，AI 只能取得表面摘要。',
-    fix: '加入 /llms-full.txt，提供完整的網站內容地圖。',
+    headline: '選配 llms.txt 內容不完整',
+    why: '結構化摘要可協助選擇讀取它的工具，但不能證明 AI 曝光或索引。',
+    fix: '如使用 /llms.txt，加入 # 標題、至少 5 個非空行及 3 個不同的 HTTP(S) 頁面連結。',
   },
   c7_mcp_card: {
     headline: '未偵測到 MCP 伺服器卡片',

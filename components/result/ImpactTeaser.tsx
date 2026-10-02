@@ -12,7 +12,7 @@ interface Props {
 function headlineZhHk(stat: HeadlineStat): string {
   switch (stat.type) {
     case 'platforms_blocked':
-      return `你的網站對 ${stat.count} 個主要 AI 平台完全隱形（共 ${stat.total} 個）`
+      return `${stat.count} 項爬蟲存取檢查顯示限制；實際 AI 曝光尚未量度`
     case 'low_readable':
       return `AI 引擎只能使用你大約 ${stat.percent}% 的內容`
     case 'benchmark_gap':

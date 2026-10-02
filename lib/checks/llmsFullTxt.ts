@@ -12,8 +12,21 @@ export async function checkLlmsFullTxt(baseUrl: string, fetcher: PublicUrlFetch)
     const text = await res.text()
     if (!text.trim()) return { status: 'fail', message: 'llms_full_txt_missing' }
 
-    const hasTitle   = /^#\s+\S/.test(text)
-    const urlCount   = (text.match(/^https?:\/\//gm) ?? []).length
+    const hasTitle   = /^#\s+\S/m.test(text)
+    const links = [
+      ...Array.from(text.matchAll(/\[[^\]\n]*\]\(\s*<?([^\s)>]+)>?(?:\s+["'][^\n]*?["'])?\s*\)/g), match => match[1]),
+      ...Array.from(text.matchAll(/^\s*(https?:\/\/\S+)\s*$/gm), match => match[1]),
+    ]
+    const urls = new Set<string>()
+    for (const link of links) {
+      try {
+        const url = new URL(link, baseUrl)
+        if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) continue
+        url.hash = ''
+        urls.add(url.href)
+      } catch { /* malformed optional link */ }
+    }
+    const urlCount   = urls.size
     const lineCount  = text.split('\n').filter(l => l.trim()).length
 
     // The llms.txt spec also defines a `> summary` blockquote under the title.

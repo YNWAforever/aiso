@@ -60,7 +60,7 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     why: 'A minimal llms.txt — the file with no real content — carries almost no information. A structured file with a description and multiple URL entries describes your site to any tool that reads it.',
     fix: {
       pass: 'Your llms.txt has good depth — no action needed.',
-      warn: 'Your llms.txt exists but is sparse. Add a `#` title line, a `>` description block, and at least 5 key page URLs — 5 is where this check passes.',
+      warn: 'This optional llms.txt check passes with a `#` title, at least 5 non-empty lines and 3 distinct HTTP(S) page links, including Markdown links. A `>` summary is useful but not required.',
       fail: 'No usable llms.txt content found. Use the Fix Pack below to generate a complete file.',
     },
   },
@@ -243,7 +243,7 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     why: '一份只有檔案、沒有實質內容的 llms.txt 幾乎不帶任何資訊。一份結構完整、附有描述及多個網址條目的檔案，能向任何會讀取它的工具說明你的網站。',
     fix: {
       pass: '你的 llms.txt 內容充實 — 無需任何操作。',
-      warn: '你的 llms.txt 存在但內容單薄。請加入 `#` 標題行、`>` 描述區塊，以及至少 5 個關鍵頁面網址 — 本檢查以 5 個為通過門檻。',
+      warn: '此選配 llms.txt 檢查以 # 標題、至少 5 個非空行及 3 個不同的 HTTP(S) 頁面連結為通過門檻，支援 Markdown 連結。> 摘要有幫助但非必要。',
       fail: '未找到可用的 llms.txt 內容。使用下方的 Fix Pack 生成一份完整檔案。',
     },
   },

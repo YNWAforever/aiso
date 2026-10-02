@@ -434,7 +434,7 @@
     "extractability_poor": "幾乎無可提取內容",
     "extractability_fetch_error": "無法檢查內容",
     "check_error": "檢測失敗",
-    "c6_llms_full_txt": "LLMS.txt 深度",
+    "c6_llms_full_txt": "llms.txt 內容完整度（選配）",
     "c7_mcp_card": "AI 元數據卡",
     "c8_sitemap": "網站地圖質量",
     "c9_meta_desc": "Meta 描述",
