@@ -1,7 +1,8 @@
-import { type NextRequest } from 'next/server'
+import { NextRequest } from 'next/server'
 import createIntlMiddleware from 'next-intl/middleware'
 import { routing } from './i18n/routing'
 import { auth } from '@/lib/neon-auth'
+import { AUTH_RETURN_TO_HEADER, safeReturnTo } from '@/lib/auth-return-to'
 
 // Auth is enforced in the route-group layouts (app/[lang]/dashboard/layout.tsx →
 // requireAuth, app/admin/layout.tsx → requireAdmin), which read the Neon Auth
@@ -42,15 +43,18 @@ const NEON_AUTH_SESSION_CHALLENGE_COOKIE = '__Secure-neon-auth.session_challange
 const intlMiddleware = createIntlMiddleware(routing)
 
 export function proxy(request: NextRequest) {
+  const langMatch = request.nextUrl.pathname.match(/^\/(en|zh-HK)(?:\/|$)/)
+  const lang = langMatch ? langMatch[1] : 'en'
+  const forwarded = new Headers(request.headers)
+  forwarded.set(AUTH_RETURN_TO_HEADER, safeReturnTo(`${request.nextUrl.pathname}${request.nextUrl.search}`, lang))
+  const trustedRequest = new NextRequest(request, { headers: forwarded })
   if (
     request.nextUrl.searchParams.has(NEON_AUTH_SESSION_VERIFIER_PARAM) &&
     request.cookies.has(NEON_AUTH_SESSION_CHALLENGE_COOKIE)
   ) {
-    const langMatch = request.nextUrl.pathname.match(/^\/(en|zh-HK)/)
-    const lang = langMatch ? langMatch[1] : 'en'
-    return auth().middleware({ loginUrl: `/${lang}/auth/login` })(request)
+    return auth().middleware({ loginUrl: `/${lang}/auth/login` })(trustedRequest)
   }
-  return intlMiddleware(request)
+  return intlMiddleware(trustedRequest)
 }
 
 // `admin` is excluded alongside `api`: the admin surface lives at app/admin/,

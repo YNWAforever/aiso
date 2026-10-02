@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { authClient } from '@/lib/auth-client'
 import { normalizeAuthNext } from '@/lib/auth-navigation'
+import { authLocale } from '@/lib/auth-return-to'
 
 const COPY_EN = {
   signingIn: 'Signing you in…',
@@ -56,7 +57,7 @@ export function AuthComplete({ lang, next }: { lang: string; next?: string }) {
           <>
             <p className="text-foreground font-medium">{c.failed}</p>
             <a
-              href={`/${lang}/auth/login`}
+              href={`/${authLocale(lang)}/auth/login?next=${encodeURIComponent(normalizeAuthNext(lang, next))}`}
               className="text-primary underline text-sm mt-2 inline-block"
             >
               {c.backToLogin}

@@ -17,7 +17,7 @@ vi.mock('@/lib/neon-auth', () => ({
   auth: () => ({ middleware: middlewareFactory }),
 }))
 
-const intlSpy = vi.fn(() => new Response('intl', { status: 200 }))
+const intlSpy = vi.fn((_request: NextRequest) => new Response('intl', { status: 200 }))
 vi.mock('next-intl/middleware', () => ({
   default: () => intlSpy,
 }))
@@ -71,6 +71,15 @@ describe('proxy', () => {
     const req = new NextRequest('https://app.example.com/en/pricing')
     await proxy(req)
     expect(intlSpy).toHaveBeenCalledTimes(1)
+    expect(middlewareFactory).not.toHaveBeenCalled()
+  })
+  it('overwrites a spoofed return header and strips callback secrets', async () => {
+    const { proxy } = await import('@/proxy')
+    const path = '/en/dashboard/11111111-1111-4111-8111-111111111111/opportunities'
+    const req = new NextRequest(`https://app.example.com${path}?neon_auth_session_verifier=secret&token=secret`, { headers: { 'x-aiso-return-to': '//evil.test' } })
+    await proxy(req)
+    expect(intlSpy.mock.calls[0][0].headers.get('x-aiso-return-to')).toBe(path)
+    expect(req.headers.get('x-aiso-return-to')).toBe('//evil.test')
     expect(middlewareFactory).not.toHaveBeenCalled()
   })
 })

@@ -1,4 +1,6 @@
 import { requireAuth } from '@/lib/auth'
+import { headers } from 'next/headers'
+import { AUTH_RETURN_TO_HEADER } from '@/lib/auth-return-to'
 import { db } from '@/lib/db'
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar'
 import { TrialBanner } from '@/components/dashboard/TrialBanner'
@@ -14,7 +16,7 @@ export default async function DashboardLayout({
   params: Promise<{ lang: string }>
 }) {
   const { lang } = await params
-  const profile = await requireAuth(lang)
+  const profile = await requireAuth(lang, (await headers()).get(AUTH_RETURN_TO_HEADER) ?? undefined)
   const trial = getTrialStatus(profile.accounts)
   const entitlement = resolveCommercialEntitlement(profile.accounts)
 
