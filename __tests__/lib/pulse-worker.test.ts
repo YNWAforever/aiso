@@ -13,12 +13,16 @@ function ports(){
   const p:PulseWorkerPorts={now:()=>clock,initialize:vi.fn(async()=>({runs:[],exhausted:true,failures:0})),
     page:vi.fn(async()=>({runs:[run()],cursor:null,exhausted:true})),unblock:vi.fn(async()=>{}),
     claim:vi.fn(async()=>[]),process:vi.fn(async()=> 'committed'),block:vi.fn(async()=> 'committed'),
-    coverage:vi.fn(async()=>coverageFromCounts({expected:1,succeeded:1,failed:0,pending:0,blocked:0,classified:0,mentioned:0})),
+    coverage:vi.fn(async()=>coverageFromCounts({expected:1,succeeded:1,failed:0,pending:0,blocked:0,classified:1,mentioned:0})),
     summarize:vi.fn(async()=>{}),due:vi.fn(async()=>false)}
   return {p,setClock:(next:number)=>{clock=next}}
 }
 afterEach(()=>vi.useRealTimers())
 describe('T07 durable Pulse consumer',()=>{
+  it('raw completion with unknown classification remains partial',async()=>{
+    const {p}=ports();p.coverage=vi.fn(async()=>coverageFromCounts({expected:1,succeeded:1,failed:0,pending:0,blocked:0,classified:0,mentioned:0}))
+    expect(await consumeDuePulseWork({mode:'repair',owner:'repair',deadlineAt:45_000},p)).toMatchObject({outcome:'partial',unclassified:1})
+  })
   it('repair resumes original run/week without starting a daily manifest',async()=>{
     const {p}=ports()
     expect(await consumeDuePulseWork({mode:'repair',owner:'repair',deadlineAt:45_000},p)).toMatchObject({outcome:'complete',runIds:['old-run']})

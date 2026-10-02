@@ -166,7 +166,7 @@ CSV是**一份來源內最多200組問答**。預覽保留每行的rowNumber、v
 | 來源核准與維護 | sources store/service/schema；版本approve route；query/import-preview純邏輯 | T04/T12 |
 | Pulse資料真相 | lib/pulse/runs/schema/store/service＋migration056；openrouter adapter | T05 |
 | Pulse消費與分析 | runs/worker、cron route/Worker；analysis-fallback與analysis；observations detail | T07/T08/T09 |
-| Onboarding與context | lib/onboarding三個小模組＋migration055；prompt context＋migration057 | T10/T11 |
+| Onboarding與context | lib/onboarding三個小模組＋migration056；prompt context＋migration059（057/058已用於Pulse） | T10/T11 |
 | 後台操作 | 既有Entities/Opportunity/Prompt editor、auth-return-to、workspace-home | T13/T14/T15/T18/T19/T20 |
 | 環境與發布 | 現有runbook、recordRun、CI與驗收文件 | T00/T16/T17 |
 
@@ -892,7 +892,7 @@ npm run e2e -- tests/e2e/prompt-bank-accessibility.spec.ts --project=chromium --
 - Modify／重用：`messages/en.json`
 - Modify／重用：`messages/zh-HK.json`
 - Create／擬新增：`lib/prompts/context.ts`
-- Create／擬新增：`supabase/migrations/057_prompt_context.sql`
+- Create／擬新增：`supabase/migrations/059_prompt_context.sql`
 - Create／擬新增：`__tests__/lib/prompt-context.test.ts`
 
 **Interfaces:** PromptContext={language:en|zh-HK;market:string|null}；parsePromptContext(input,brandDefaults):PromptContext使用repo既有市場值驗證，UI locale僅作初次預設。prompt語言／市場隨T05 manifest快照。舊language值需adapter，不能破壞既有可讀資料。
@@ -920,7 +920,7 @@ npm run test:integration -- __tests__/integration/onboarding-resume.test.ts __te
 
 - [ ] **Step 5: 執行UC／UI驗收**
 
-核對當前schema/enum再新增migration057；若現有prompt語言採其他代碼，在context adapter集中映射並以既有API相容測試約束，不能只改前端。
+核對當前schema/enum再新增migration059（057/058已用於Pulse）；若現有prompt語言採其他代碼，在context adapter集中映射並以既有API相容測試約束，不能只改前端。
 
 驗收條件：繁中與英文新增后重讀標籤正確；市場可確認；server拒絕未知enum；seed包括locale/market；不盲目覆寫舊資料。
 

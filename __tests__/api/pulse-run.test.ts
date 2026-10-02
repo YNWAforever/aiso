@@ -249,13 +249,14 @@ describe('POST /api/pulse/run — writes', () => {
     for (const row of rows) expect(row.params[0]).toBe('client-1')
   })
 
-  it('persists the analysis rather than a substring guess', async () => {
+  it('persists classified analysis but drops competitors absent from the saved answer', async () => {
     // competitors_mentioned is the column the live dashboard Missed table reads;
     // the pre-fence producer never populated it.
     await post({ clientId: 'client-1' })
 
     const [row] = inserts('pulse_metrics')
-    expect(row.params).toContainEqual(['CompetitorX'])
+    expect(row.params).not.toContainEqual(['CompetitorX'])
+    expect(row.params).toContain('classified')
     expect(row.params).toContain('positive')
   })
 
@@ -266,8 +267,9 @@ describe('POST /api/pulse/run — writes', () => {
     expect(res.status).toBe(200)
     const rows = inserts('pulse_metrics')
     expect(rows).toHaveLength(3)
-    // Substring path still finds the brand in "AcmeCo is great…".
-    expect(rows[0].params).toContain(true)
+    expect(rows[0].params[5]).toBeNull()
+    expect(rows[0].params).toContain('unknown')
+    expect(rows[0].params).toContain('fallback')
   })
 
   it('logs citations using the vocabulary the ai_citation_log CHECK allows', async () => {

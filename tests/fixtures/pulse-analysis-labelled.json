@@ -1,0 +1,1885 @@
+{
+  "description": "120 synthetic parser/fallback fixtures; labels are not independently reviewed and are not a model accuracy gold set.",
+  "cases": [
+    {
+      "id": "en-positive-01",
+      "locale": "en",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "I recommend Fimmick; the service is reliable. Case 1.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "en-positive-02",
+      "locale": "en",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "I recommend Fimmick; the service is reliable. Case 2.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "en-positive-03",
+      "locale": "en",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "I recommend Café; the service is reliable. Case 3.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "en-positive-04",
+      "locale": "en",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "I recommend Fimmick; the service is reliable. Case 4.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "en-positive-05",
+      "locale": "en",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "I recommend Fimmick; the service is reliable. Case 5.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "en-positive-06",
+      "locale": "en",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "I recommend Café; the service is reliable. Case 6.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "en-positive-07",
+      "locale": "en",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "I recommend Fimmick; the service is reliable. Case 7.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "en-positive-08",
+      "locale": "en",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "I recommend Fimmick; the service is reliable. Case 8.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "en-positive-09",
+      "locale": "en",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "I recommend Café; the service is reliable. Case 9.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "en-positive-10",
+      "locale": "en",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "I recommend Fimmick; the service is reliable. Case 10.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "en-negative-01",
+      "locale": "en",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "I do not recommend Fimmick; the service was terrible. Case 1.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "en-negative-02",
+      "locale": "en",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "I do not recommend Fimmick; the service was terrible. Case 2.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "en-negative-03",
+      "locale": "en",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "I do not recommend Café; the service was terrible. Case 3.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "en-negative-04",
+      "locale": "en",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "I do not recommend Fimmick; the service was terrible. Case 4.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "en-negative-05",
+      "locale": "en",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "I do not recommend Fimmick; the service was terrible. Case 5.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "en-negative-06",
+      "locale": "en",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "I do not recommend Café; the service was terrible. Case 6.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "en-negative-07",
+      "locale": "en",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "I do not recommend Fimmick; the service was terrible. Case 7.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "en-negative-08",
+      "locale": "en",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "I do not recommend Fimmick; the service was terrible. Case 8.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "en-negative-09",
+      "locale": "en",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "I do not recommend Café; the service was terrible. Case 9.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "en-negative-10",
+      "locale": "en",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "I do not recommend Fimmick; the service was terrible. Case 10.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "en-neutral-01",
+      "locale": "en",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick is a service company. Case 1.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "en-neutral-02",
+      "locale": "en",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick is a service company. Case 2.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "en-neutral-03",
+      "locale": "en",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "Café is a service company. Case 3.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "en-neutral-04",
+      "locale": "en",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick is a service company. Case 4.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "en-neutral-05",
+      "locale": "en",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick is a service company. Case 5.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "en-neutral-06",
+      "locale": "en",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "Café is a service company. Case 6.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "en-neutral-07",
+      "locale": "en",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick is a service company. Case 7.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "en-neutral-08",
+      "locale": "en",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick is a service company. Case 8.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "en-neutral-09",
+      "locale": "en",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "Café is a service company. Case 9.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "en-neutral-10",
+      "locale": "en",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick is a service company. Case 10.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "en-not_mentioned-01",
+      "locale": "en",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "This answer discusses traffic and weather only. Case 1.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-not_mentioned-02",
+      "locale": "en",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "This answer discusses traffic and weather only. Case 2.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-not_mentioned-03",
+      "locale": "en",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "This answer discusses traffic and weather only. Case 3.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-not_mentioned-04",
+      "locale": "en",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "This answer discusses traffic and weather only. Case 4.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-not_mentioned-05",
+      "locale": "en",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "This answer discusses traffic and weather only. Case 5.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-not_mentioned-06",
+      "locale": "en",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "This answer discusses traffic and weather only. Case 6.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-not_mentioned-07",
+      "locale": "en",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "This answer discusses traffic and weather only. Case 7.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-not_mentioned-08",
+      "locale": "en",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "This answer discusses traffic and weather only. Case 8.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-not_mentioned-09",
+      "locale": "en",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "This answer discusses traffic and weather only. Case 9.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-not_mentioned-10",
+      "locale": "en",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "This answer discusses traffic and weather only. Case 10.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-ambiguity-01",
+      "locale": "en",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "Fresh pineapple juice is available. Case 1.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-ambiguity-02",
+      "locale": "en",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "The apple is a fruit here. Case 2.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-ambiguity-03",
+      "locale": "en",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "Fresh pineapple juice is available. Case 3.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-ambiguity-04",
+      "locale": "en",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "The apple is a fruit here. Case 4.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-ambiguity-05",
+      "locale": "en",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "Fresh pineapple juice is available. Case 5.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-ambiguity-06",
+      "locale": "en",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "The apple is a fruit here. Case 6.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-ambiguity-07",
+      "locale": "en",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "Fresh pineapple juice is available. Case 7.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-ambiguity-08",
+      "locale": "en",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "The apple is a fruit here. Case 8.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-ambiguity-09",
+      "locale": "en",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "Fresh pineapple juice is available. Case 9.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-ambiguity-10",
+      "locale": "en",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "The apple is a fruit here. Case 10.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-fault-01",
+      "locale": "en",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick is terrible; classifier response is unavailable. Case 1.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-fault-02",
+      "locale": "en",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick is terrible; classifier response is unavailable. Case 2.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-fault-03",
+      "locale": "en",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "Café is terrible; classifier response is unavailable. Case 3.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-fault-04",
+      "locale": "en",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick is terrible; classifier response is unavailable. Case 4.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-fault-05",
+      "locale": "en",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick is terrible; classifier response is unavailable. Case 5.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-fault-06",
+      "locale": "en",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "Café is terrible; classifier response is unavailable. Case 6.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-fault-07",
+      "locale": "en",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick is terrible; classifier response is unavailable. Case 7.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-fault-08",
+      "locale": "en",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick is terrible; classifier response is unavailable. Case 8.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-fault-09",
+      "locale": "en",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "Café is terrible; classifier response is unavailable. Case 9.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "en-fault-10",
+      "locale": "en",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick is terrible; classifier response is unavailable. Case 10.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-positive-01",
+      "locale": "zh-HK",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "我推薦Fimmick，服務可靠，值得選擇。 案例 1.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "zh-HK-positive-02",
+      "locale": "zh-HK",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "我推薦Fimmick，服務可靠，值得選擇。 案例 2.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "zh-HK-positive-03",
+      "locale": "zh-HK",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "我推薦Café，服務可靠，值得選擇。 案例 3.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "zh-HK-positive-04",
+      "locale": "zh-HK",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "我推薦Fimmick，服務可靠，值得選擇。 案例 4.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "zh-HK-positive-05",
+      "locale": "zh-HK",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "我推薦Fimmick，服務可靠，值得選擇。 案例 5.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "zh-HK-positive-06",
+      "locale": "zh-HK",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "我推薦Café，服務可靠，值得選擇。 案例 6.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "zh-HK-positive-07",
+      "locale": "zh-HK",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "我推薦Fimmick，服務可靠，值得選擇。 案例 7.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "zh-HK-positive-08",
+      "locale": "zh-HK",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "我推薦Fimmick，服務可靠，值得選擇。 案例 8.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "zh-HK-positive-09",
+      "locale": "zh-HK",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "我推薦Café，服務可靠，值得選擇。 案例 9.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "zh-HK-positive-10",
+      "locale": "zh-HK",
+      "category": "positive",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "我推薦Fimmick，服務可靠，值得選擇。 案例 10.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "positive",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "positive"
+      }
+    },
+    {
+      "id": "zh-HK-negative-01",
+      "locale": "zh-HK",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "我不推薦Fimmick，服務很差。 案例 1.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "zh-HK-negative-02",
+      "locale": "zh-HK",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "我不推薦Fimmick，服務很差。 案例 2.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "zh-HK-negative-03",
+      "locale": "zh-HK",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "我不推薦Café，服務很差。 案例 3.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "zh-HK-negative-04",
+      "locale": "zh-HK",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "我不推薦Fimmick，服務很差。 案例 4.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "zh-HK-negative-05",
+      "locale": "zh-HK",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "我不推薦Fimmick，服務很差。 案例 5.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "zh-HK-negative-06",
+      "locale": "zh-HK",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "我不推薦Café，服務很差。 案例 6.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "zh-HK-negative-07",
+      "locale": "zh-HK",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "我不推薦Fimmick，服務很差。 案例 7.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "zh-HK-negative-08",
+      "locale": "zh-HK",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "我不推薦Fimmick，服務很差。 案例 8.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "zh-HK-negative-09",
+      "locale": "zh-HK",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "我不推薦Café，服務很差。 案例 9.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "zh-HK-negative-10",
+      "locale": "zh-HK",
+      "category": "negative",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "我不推薦Fimmick，服務很差。 案例 10.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "negative",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "negative"
+      }
+    },
+    {
+      "id": "zh-HK-neutral-01",
+      "locale": "zh-HK",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick是一家服務公司。 案例 1.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "zh-HK-neutral-02",
+      "locale": "zh-HK",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick是一家服務公司。 案例 2.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "zh-HK-neutral-03",
+      "locale": "zh-HK",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "Café是一家服務公司。 案例 3.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "zh-HK-neutral-04",
+      "locale": "zh-HK",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick是一家服務公司。 案例 4.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "zh-HK-neutral-05",
+      "locale": "zh-HK",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick是一家服務公司。 案例 5.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "zh-HK-neutral-06",
+      "locale": "zh-HK",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "Café是一家服務公司。 案例 6.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "zh-HK-neutral-07",
+      "locale": "zh-HK",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick是一家服務公司。 案例 7.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "zh-HK-neutral-08",
+      "locale": "zh-HK",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick是一家服務公司。 案例 8.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "zh-HK-neutral-09",
+      "locale": "zh-HK",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "Café是一家服務公司。 案例 9.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "zh-HK-neutral-10",
+      "locale": "zh-HK",
+      "category": "neutral",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick是一家服務公司。 案例 10.",
+      "classifierResponse": {
+        "brand_mentioned": true,
+        "sentiment": "neutral",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": true,
+        "sentiment": "neutral"
+      }
+    },
+    {
+      "id": "zh-HK-not_mentioned-01",
+      "locale": "zh-HK",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "這篇文章只討論交通與天氣。 案例 1.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-not_mentioned-02",
+      "locale": "zh-HK",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "這篇文章只討論交通與天氣。 案例 2.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-not_mentioned-03",
+      "locale": "zh-HK",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "這篇文章只討論交通與天氣。 案例 3.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-not_mentioned-04",
+      "locale": "zh-HK",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "這篇文章只討論交通與天氣。 案例 4.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-not_mentioned-05",
+      "locale": "zh-HK",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "這篇文章只討論交通與天氣。 案例 5.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-not_mentioned-06",
+      "locale": "zh-HK",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "這篇文章只討論交通與天氣。 案例 6.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-not_mentioned-07",
+      "locale": "zh-HK",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "這篇文章只討論交通與天氣。 案例 7.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-not_mentioned-08",
+      "locale": "zh-HK",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "這篇文章只討論交通與天氣。 案例 8.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-not_mentioned-09",
+      "locale": "zh-HK",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "這篇文章只討論交通與天氣。 案例 9.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-not_mentioned-10",
+      "locale": "zh-HK",
+      "category": "not_mentioned",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "這篇文章只討論交通與天氣。 案例 10.",
+      "classifierResponse": {
+        "brand_mentioned": false,
+        "sentiment": "not_mentioned",
+        "competitors_mentioned": []
+      },
+      "expected": {
+        "brandMentioned": false,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-ambiguity-01",
+      "locale": "zh-HK",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "Fresh pineapple juice 可在這裡買到。 案例 1.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-ambiguity-02",
+      "locale": "zh-HK",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "這裡的 apple 是水果。 案例 2.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-ambiguity-03",
+      "locale": "zh-HK",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "Fresh pineapple juice 可在這裡買到。 案例 3.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-ambiguity-04",
+      "locale": "zh-HK",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "這裡的 apple 是水果。 案例 4.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-ambiguity-05",
+      "locale": "zh-HK",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "Fresh pineapple juice 可在這裡買到。 案例 5.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-ambiguity-06",
+      "locale": "zh-HK",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "這裡的 apple 是水果。 案例 6.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-ambiguity-07",
+      "locale": "zh-HK",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "Fresh pineapple juice 可在這裡買到。 案例 7.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-ambiguity-08",
+      "locale": "zh-HK",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "這裡的 apple 是水果。 案例 8.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-ambiguity-09",
+      "locale": "zh-HK",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "Fresh pineapple juice 可在這裡買到。 案例 9.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-ambiguity-10",
+      "locale": "zh-HK",
+      "category": "ambiguity",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Apple",
+      "answer": "這裡的 apple 是水果。 案例 10.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-fault-01",
+      "locale": "zh-HK",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick的服務很差，分類器未能回覆。 案例 1.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-fault-02",
+      "locale": "zh-HK",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick的服務很差，分類器未能回覆。 案例 2.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-fault-03",
+      "locale": "zh-HK",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "Café的服務很差，分類器未能回覆。 案例 3.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-fault-04",
+      "locale": "zh-HK",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick的服務很差，分類器未能回覆。 案例 4.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-fault-05",
+      "locale": "zh-HK",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick的服務很差，分類器未能回覆。 案例 5.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-fault-06",
+      "locale": "zh-HK",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "Café的服務很差，分類器未能回覆。 案例 6.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-fault-07",
+      "locale": "zh-HK",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick的服務很差，分類器未能回覆。 案例 7.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-fault-08",
+      "locale": "zh-HK",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick的服務很差，分類器未能回覆。 案例 8.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-fault-09",
+      "locale": "zh-HK",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Café",
+      "answer": "Café的服務很差，分類器未能回覆。 案例 9.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    },
+    {
+      "id": "zh-HK-fault-10",
+      "locale": "zh-HK",
+      "category": "fault",
+      "reviewStatus": "unreviewed-synthetic",
+      "brandName": "Fimmick",
+      "answer": "Fimmick的服務很差，分類器未能回覆。 案例 10.",
+      "classifierResponse": null,
+      "expected": {
+        "brandMentioned": null,
+        "sentiment": "unknown"
+      }
+    }
+  ]
+}

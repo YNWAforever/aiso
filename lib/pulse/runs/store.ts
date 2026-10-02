@@ -20,7 +20,7 @@ export async function createOrResumeRun(scope: PulseScope, input: { scanWeek: st
     ), snapshot as (
       select jsonb_build_object('version','2026-10-03.v1','brand',jsonb_build_object(
         'name',c.brand_name,'competitors',coalesce(c.competitors,'{}'::text[]),'industry',c.industry,'domain',c.domain),
-        'policy',jsonb_build_object('maxAttempts',3,'maxOutputTokens',500,'maxAnalysisOutputTokens',300),
+        'policy',jsonb_build_object('maxAttempts',3,'maxOutputTokens',500,'maxClassificationAttempts',3,'maxAnalysisOutputTokens',300),
         'items',coalesce((select jsonb_agg(jsonb_build_object('promptId',p.id,'question',p.question,'category',p.category,
           'language',p.language,'market',p.market,'platform',v->>'platform','model',v->>'model') order by p.id,v->>'model')
           from prompts p cross join jsonb_array_elements(${JSON.stringify(input.manifest)}::jsonb) v),'[]'::jsonb)) as manifest
@@ -122,7 +122,7 @@ export async function commitAttempt(lease: LeasedItem, output: AttemptOutput): P
 
 export async function recordClassification(lease: LeasedItem, classification: {
   status: string; method: string; version: string; brandMentioned: boolean | null; sentiment: string;
-  mentionPosition: number | null; competitorsMentioned: string[]; matchedText?: string | null
+  mentionPosition: number | null; competitorsMentioned: string[]; matchedText?: string[]
 }): Promise<boolean> {
   const sql = db()
   const rows = await sql`with item as (
@@ -135,7 +135,8 @@ export async function recordClassification(lease: LeasedItem, classification: {
     where id = ${lease.attemptId}::uuid and item_id in (select id from item)
       and account_id = ${lease.accountId} and client_id = ${lease.clientId}::uuid returning id
   ), projection as (
-    update pulse_metrics set brand_mentioned = ${classification.brandMentioned},sentiment = ${classification.sentiment},
+    update pulse_metrics set classification_status=${classification.status},classifier_method=${classification.method},classifier_version=${classification.version},
+      matched_text=${JSON.stringify(classification.matchedText??[])}::jsonb,brand_mentioned = ${classification.brandMentioned},sentiment = ${classification.sentiment},
       mention_position = ${classification.mentionPosition},competitors_mentioned = ${classification.competitorsMentioned}::text[]
     where run_item_id in (select id from item) and client_id = ${lease.clientId}::uuid returning id
   ) select id from item`

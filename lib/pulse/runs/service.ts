@@ -1,9 +1,9 @@
 import 'server-only'
 import { callOpenRouterWithEvidence, modelVariantsFor } from '@/lib/openrouter'
-import { analyseAnswer } from '@/lib/pulse/analysis'
 import { computeWeeklySummary } from '@/lib/pulse/summary'
 import { db } from '@/lib/db'
-import { claimDueItems, commitAttempt, createOrResumeRun, readRunCoverage, recordClassification } from './store'
+import { claimDueItems, commitAttempt, createOrResumeRun, readRunCoverage } from './store'
+import {classifySavedAnswers} from './classification'
 import type { LeasedItem, ProviderEvidence, PulseScope } from './schema'
 
 export type CollectAnswer = (item: LeasedItem, signal: AbortSignal) => Promise<ProviderEvidence>
@@ -31,12 +31,6 @@ export async function processLeasedItem(item: LeasedItem, deadlineAt: number, co
   }
   const committed = await commitAttempt(item,{kind:'succeeded',evidence})
   if (committed !== 'committed') return committed
-  try {
-    if (Date.now() + 16_000 < deadlineAt) {
-      const result = await analyseAnswer({answer:evidence.answer,brandName:item.brand.name,competitors:item.brand.competitors})
-      await recordClassification(item,{...result,status:'legacy_unknown',method:'legacy-analysis',version:'pre-T08'})
-    }
-  } catch { /* Raw evidence survives unavailable classification. */ }
   return committed
 }
 
@@ -45,10 +39,11 @@ export async function runPulseChunk(scope: PulseScope, options: { scanWeek:strin
   if (!run) throw new Error('Run scope unavailable')
   const items = await claimDueItems(scope,run.id,{owner:`http:${crypto.randomUUID()}`,leaseUntil:new Date(options.deadlineAt),limit:Math.min(5,Math.max(1,options.limit))})
   const results = await Promise.allSettled(items.map(item => processLeasedItem(item,options.deadlineAt,collector)))
+  await classifySavedAnswers(scope,run.id,options.deadlineAt)
   const coverage = await readRunCoverage(scope,run.id)
   let summary = null
   if (coverage.status === 'completed') summary = await computeWeeklySummary(db(),{clientId:scope.clientId,scanWeek:run.scanWeek})
   return { pulseRunId:run.id,scanWeek:run.scanWeek,coverage,processed:results.filter(r => r.status === 'fulfilled' && r.value === 'committed').length,
     nextCursor:coverage.pending > 0 ? 0 : null,citations:0,platforms:options.platforms.length,summary,
-    outcome:results.some(r => r.status === 'rejected') ? 'partial' : coverage.status }
+    outcome:results.some(r => r.status === 'rejected') || coverage.classified < coverage.succeeded ? 'partial' : coverage.status }
 }

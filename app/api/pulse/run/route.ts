@@ -179,17 +179,13 @@ export async function POST(req: NextRequest) {
         platforms,
       ).catch(() => [])
 
-      // Clear this prompt's rows for the week before writing them, so
-      // reprocessing it replaces rather than accumulates.
-      //
       // Concurrent across responses, not sequential. Each analysis is its own
       // LLM round trip; awaiting them one after another made a single prompt
       // cost the sum of five latencies rather than the largest, which is what
       // put a chunk far outside any function limit. Five platforms is the
       // ceiling, so the added concurrency is bounded.
       const written = await Promise.all(responses.map(async response => {
-        // Degrades to a substring match rather than losing the row; see
-        // lib/pulse/analysis.ts.
+        // Preserve raw evidence; fallback is explicitly unknown.
         const analysis = await analyseAnswer({
           answer: response.answer,
           brandName: client.brand_name,
@@ -202,11 +198,13 @@ export async function POST(req: NextRequest) {
           sql`
           insert into pulse_metrics (
             client_id, prompt_id, platform, question, raw_answer,
-            brand_mentioned, sentiment, mention_position, competitors_mentioned, scan_week
+            brand_mentioned, sentiment, mention_position, competitors_mentioned, scan_week,
+            classification_status,classifier_method,classifier_version,matched_text
           ) select
             ${clientId}, ${prompt.id}, ${response.platform}, ${prompt.question}, ${response.answer},
             ${analysis.brandMentioned}, ${analysis.sentiment}, ${analysis.mentionPosition},
-            ${analysis.competitorsMentioned}::text[], ${scanWeek}::date
+            ${analysis.competitorsMentioned}::text[], ${scanWeek}::date,
+            ${analysis.classificationStatus},${analysis.method},${analysis.version},${JSON.stringify(analysis.matchedText)}::jsonb
           where exists(select 1 from clients where id = ${clientId} and account_id = ${client.account_id})
             and not exists(select 1 from pulse_metrics where client_id = ${clientId} and prompt_id = ${prompt.id}
               and scan_week = ${scanWeek}::date and platform = ${response.platform} and nullif(btrim(raw_answer),'') is not null)

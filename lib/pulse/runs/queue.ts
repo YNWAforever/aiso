@@ -21,7 +21,9 @@ export async function listPendingRunPage(after:string|null){
       a.trial_ends_at,a.override_plan,a.override_expires_at
     from pulse_runs r join accounts a on a.id=r.account_id join clients c on c.id=r.client_id and c.account_id=r.account_id
     where (${after}::uuid is null or r.id>${after}::uuid) and exists(select 1 from pulse_run_items i where i.run_id=r.id
-      and i.status in ('queued','running','retry_wait','blocked')) order by r.id limit 50`
+      and (i.status in ('queued','running','retry_wait','blocked')
+        or (i.status='succeeded' and i.classification_status<>'classified'
+          and (i.classification_attempt_count<3 or i.classification_lease_until is not null)))) order by r.id limit 50`
   return {runs:rows.map(row=>({id:String(row.id),accountId:String(row.account_id),clientId:String(row.client_id),scanWeek:isoDate(row.scan_week as string|Date,''),
     allowedPlatforms:runtimePlatformsFor(resolveCommercialEntitlement(row as CommercialAccount).features.platform_access)})),
     cursor:rows.length?String(rows.at(-1)!.id):null,exhausted:rows.length<50}
@@ -39,8 +41,11 @@ export async function unblockConfiguredItems(run:DueRun){
 }
 
 export async function hasDueItems(run:DueRun){
+  const canClassify=!!process.env.OPENROUTER_API_KEY&&run.allowedPlatforms.length>0
   const [row]=await db()`select exists(select 1 from pulse_run_items where account_id=${run.accountId} and client_id=${run.clientId}::uuid
-    and run_id=${run.id}::uuid and attempt_count<3 and ((status in ('queued','retry_wait') and next_attempt_at<=now())
-      or (status='running' and lease_until<now()))) as due`
+    and run_id=${run.id}::uuid and ((attempt_count<3 and ((status in ('queued','retry_wait') and next_attempt_at<=now())
+      or (status='running' and lease_until<now()))) or (${canClassify} and status='succeeded' and classification_status<>'classified'
+        and ((classification_attempt_count<3 and classification_next_at<=now()
+        and classification_lease_until is null) or classification_lease_until<now())))) as due`
   return row?.due===true
 }

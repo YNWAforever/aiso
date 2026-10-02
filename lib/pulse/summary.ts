@@ -43,8 +43,11 @@ export async function computeWeeklySummary(
 ): Promise<WeeklySummaryResult> {
   const rows = await sql`
     with metrics as (
-      select client_id, scan_week, platform, brand_mentioned, sentiment, competitors_mentioned
-      from pulse_metrics
+      select client_id, scan_week, platform,
+        case when to_jsonb(m)->>'classification_status'='classified' then brand_mentioned else null end as brand_mentioned,
+        case when to_jsonb(m)->>'classification_status'='classified' and brand_mentioned then sentiment else 'unknown' end as sentiment,
+        case when to_jsonb(m)->>'classification_status'='classified' then competitors_mentioned else '{}'::text[] end as competitors_mentioned
+      from pulse_metrics m
       where client_id = ${clientId}::uuid
         and scan_week = date_trunc('week', ${scanWeek}::date)::date
     ),
@@ -74,7 +77,7 @@ export async function computeWeeklySummary(
         count(*) filter (where brand_mentioned)::int as brand_mentions,
         round(
           count(*) filter (where brand_mentioned)::numeric * 100
-            / nullif(count(*), 0), 2
+            / nullif(count(*) filter(where brand_mentioned is not null), 0), 2
         ) as sov_score,
         round(avg(
           case sentiment

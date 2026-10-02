@@ -141,8 +141,8 @@ describe('createNeonAlertStore', () => {
     const profileSql = calls.find(call => call.text.toLowerCase().includes('from public.profiles'))
 
     expect(snapshot.weeksByClient['client-1']).toEqual([
-      { client_id: 'client-1', scan_week: '2026-08-08', sov_score: 41.5 },
-      { client_id: 'client-1', scan_week: '2026-08-01', sov_score: null },
+      { client_id: 'client-1', scan_week: '2026-08-08', sov_score: 41.5, coverageComplete:false },
+      { client_id: 'client-1', scan_week: '2026-08-01', sov_score: null, coverageComplete:false },
     ])
     expect(snapshot.emailsByAccount).toEqual({ 'account-1': 'owner@example.com' })
     expect(weeklySql?.text).toMatch(/DISTINCT ON\s*\(summary\.client_id,\s*summary\.scan_week\)/i)

@@ -5,6 +5,7 @@ import { modelVariantsFor } from '@/lib/openrouter'
 import { computeWeeklySummary } from '@/lib/pulse/summary'
 import { claimDueItems,commitAttempt,createOrResumeRun,readRunCoverage } from './store'
 import { processLeasedItem } from './service'
+import {classifySavedAnswers} from './classification'
 import { hasDueItems,listPendingRunPage,readPulseTarget,unblockConfiguredItems,type DueRun } from './queue'
 import type { LeasedItem,RunCoverage } from './schema'
 import type { WeeklyEnqueue } from './dispatch'
@@ -16,6 +17,7 @@ export type PulseWorkerPorts={
   unblock:(run:DueRun)=>Promise<void>
   claim:(run:DueRun,owner:string,deadlineAt:number)=>Promise<LeasedItem[]>
   process:(item:LeasedItem,deadlineAt:number)=>Promise<string>
+  classify?:(run:DueRun,deadlineAt:number)=>Promise<number>
   block:(item:LeasedItem)=>Promise<string>
   coverage:(run:DueRun)=>Promise<RunCoverage>
   summarize:(run:DueRun)=>Promise<unknown>
@@ -53,7 +55,7 @@ async function initializeWeekly(deadlineAt:number,enqueue?:WeeklyEnqueue){
 }
 const defaultPorts:PulseWorkerPorts={now:()=>Date.now(),initialize:initializeWeekly,page:listPendingRunPage,unblock:unblockConfiguredItems,
   claim:(run,owner,deadlineAt)=>claimDueItems(run,run.id,{owner,leaseUntil:new Date(deadlineAt),limit:5}),
-  process:processLeasedItem,block:item=>commitAttempt(item,{kind:'blocked',errorCode:'PLAN_HAS_NO_PLATFORMS'}),
+  process:processLeasedItem,classify:(run,deadlineAt)=>classifySavedAnswers(run,run.id,deadlineAt),block:item=>commitAttempt(item,{kind:'blocked',errorCode:'PLAN_HAS_NO_PLATFORMS'}),
   coverage:run=>readRunCoverage(run,run.id),summarize:run=>computeWeeklySummary(db(),{clientId:run.clientId,scanWeek:run.scanWeek}),due:hasDueItems}
 
 /** Provider replacement for isolated acceptance; persistence stays real. */
@@ -61,7 +63,7 @@ export function pulseWorkerPorts():PulseWorkerPorts{return {...defaultPorts}}
 
 export async function consumeDuePulseWork(options:{deadlineAt:number;owner:string;mode:'weekly'|'repair';afterRunId?:string|null;enqueue?:WeeklyEnqueue},ports:PulseWorkerPorts=defaultPorts){
   if(!options.owner || options.deadlineAt<=ports.now())throw new Error('Invalid worker budget')
-  let processed=0,remaining=0,failed=0,blocked=0,errors=0,hasDue=false,traversalComplete=true
+  let processed=0,remaining=0,unclassified=0,failed=0,blocked=0,errors=0,hasDue=false,traversalComplete=true
   const seen=new Set<string>(),coverages:Record<string,RunCoverage>={}
   let seededRuns:DueRun[]=[],enqueue=options.enqueue
   if(options.mode==='weekly'||enqueue){
@@ -82,8 +84,10 @@ export async function consumeDuePulseWork(options:{deadlineAt:number;owner:strin
         processed+=outcomes.filter(r=>r.status==='fulfilled' && r.value==='committed').length
         if(outcomes.some(r=>r.status==='rejected')){errors++;break}
       }
+      if(run.allowedPlatforms.length)await ports.classify?.(run,options.deadlineAt)
       const coverage=await ports.coverage(run)
       coverages[run.id]=coverage;remaining+=coverage.pending;failed+=coverage.failed;blocked+=coverage.blocked
+      unclassified+=coverage.succeeded-coverage.classified
       if(coverage.status==='completed')await ports.summarize(run)
       hasDue=await ports.due(run)||hasDue
     }catch{errors++;hasDue=true}
@@ -107,7 +111,7 @@ export async function consumeDuePulseWork(options:{deadlineAt:number;owner:strin
     if(!after)break
   }
   traversalComplete=traversalComplete&&runTraversalComplete
-  const outcome: 'complete'|'partial'|'failed'|'blocked' = errors||remaining||!traversalComplete?'partial':failed?'failed':blocked?'blocked':'complete'
-  return {outcome,processed,remaining,failed,blocked,errors,runIds:[...seen],coverage:coverages,
+  const outcome: 'complete'|'partial'|'failed'|'blocked' = errors||remaining||unclassified||!traversalComplete?'partial':failed?'failed':blocked?'blocked':'complete'
+  return {outcome,processed,remaining,unclassified,failed,blocked,errors,runIds:[...seen],coverage:coverages,
     hasDue:hasDue||!traversalComplete,mode:options.mode,empty:seen.size===0,traversalComplete,nextRunCursor:after,enqueue}
 }

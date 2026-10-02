@@ -93,6 +93,10 @@ async function loadSnapshot(sql: Sql): Promise<AlertSnapshot> {
         weeklyRows.push({client_id:String(row.client_id),scan_week:row.scan_week as string|Date,sov_score:null,coverageComplete:false})
     }
     weeklyRows.sort((a,b)=>isoDate(b.scan_week,'').localeCompare(isoDate(a.scan_week,'')))
+  }else{
+    // Compatibility/legacy summaries have no immutable manifest proof. They
+    // cannot establish either classified coverage or a definite alert.
+    for(const row of weeklyRows)row.coverageComplete=false
   }
 
   const weeksByClient: Record<string, AlertWeekSnapshot[]> = {}

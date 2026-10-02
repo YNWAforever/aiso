@@ -13,6 +13,8 @@ import {createNeonAlertStore} from '@/lib/alerts/neon-store'
 import {runAlertEvaluation} from '@/lib/alerts/evaluate'
 import {computeWeeklySummary} from '@/lib/pulse/summary'
 import {currentScanWeek} from '@/lib/pulse/schedule'
+import {claimClassifications,commitClassification,classifySavedAnswers} from '@/lib/pulse/runs/classification'
+import {naiveAnalysis,coerceAnalysis} from '@/lib/pulse/analysis-fallback'
 import type {ProviderEvidence,PulseScope} from '@/lib/pulse/runs/schema'
 vi.mock('server-only',()=>({}))
 const external=vi.hoisted(()=>({classify:vi.fn<typeof import('@/lib/pulse/analysis').analyseAnswer>(async()=>{throw new Error('Synthetic classifier outage')}),fanout:vi.fn()}))
@@ -39,6 +41,7 @@ async function fixture(test:(scope:PulseScope)=>Promise<void>,promptCount=3){
     await sql`delete from pulse_weekly_summary where client_id=${scope.clientId}`
     await sql`delete from pulse_metrics where client_id=${scope.clientId}`
     await sql`update pulse_run_items set accepted_attempt_id=null where account_id=${accountId}`
+    await sql`delete from pulse_classification_attempts where account_id=${accountId}`
     await sql`delete from pulse_item_attempts where account_id=${accountId}`
     await sql`delete from pulse_run_items where account_id=${accountId}`
     await sql`delete from pulse_runs where account_id=${accountId}`
@@ -49,8 +52,66 @@ async function fixture(test:(scope:PulseScope)=>Promise<void>,promptCount=3){
 const runFor=(scope:PulseScope)=>createOrResumeRun(scope,{scanWeek:'2026-09-28',manifest})
 const claim=(scope:PulseScope,runId:string,limit=5)=>claimDueItems(scope,runId,{owner:'synthetic-worker',leaseUntil:new Date(Date.now()+60_000),limit})
 describe('T05 guarded Neon run ledger',()=>{
+  it('T08 retries classification using the saved answer without collecting it again',async()=>fixture(async scope=>{
+    const run=(await createOrResumeRun(scope,{scanWeek:'2026-09-21',manifest:[manifest[0]]}))!
+    const collect=vi.fn(async()=>({...evidence,answer:'Synthetic Brand is terrible.'}))
+    await processLeasedItem((await claim(scope,run.id,1))[0],Date.now()+45_000,collect)
+    const classifier=vi.fn<typeof import('@/lib/pulse/analysis').analyseAnswer>()
+      .mockRejectedValueOnce(new Error('Synthetic analysis outage'))
+      .mockImplementation(async input=>coerceAnalysis({brand_mentioned:true,sentiment:'negative',competitors_mentioned:[]},input.answer,input.brandName)!)
+    expect(await classifySavedAnswers(scope,run.id,Date.now()+45_000,classifier)).toBe(1)
+    expect(await classifySavedAnswers(scope,run.id,Date.now()+45_000,classifier)).toBe(0)
+    await sql`update pulse_run_items set classification_next_at=now()-interval '1 second' where run_id=${run.id}`
+    expect(await classifySavedAnswers(scope,run.id,Date.now()+45_000,classifier)).toBe(1)
+    expect(collect).toHaveBeenCalledTimes(1);expect(classifier).toHaveBeenCalledTimes(2)
+    expect(await readRunCoverage(scope,run.id)).toMatchObject({expected:1,succeeded:1,classified:1,mentioned:1})
+    const [state]=await sql`select attempt_count,classification_attempt_count from pulse_run_items where run_id=${run.id}`
+    expect(state).toMatchObject({attempt_count:1,classification_attempt_count:2})
+    const histories=await sql`select status from pulse_classification_attempts where account_id=${scope.accountId} order by attempt_number`
+    expect(histories.map(r=>r.status)).toEqual(['failed','classified'])
+    await computeWeeklySummary(db(),{clientId:scope.clientId,scanWeek:run.scanWeek})
+    const [summary]=await sql`select total_queries,brand_mentions,sov_score::float,avg_sentiment_score::float from pulse_weekly_summary where client_id=${scope.clientId} and platform is null`
+    expect(summary).toMatchObject({total_queries:1,brand_mentions:1,sov_score:100,avg_sentiment_score:-1})
+  },1))
+  it('T08 fallback/legacy evidence stays outside classified and sentiment denominators',async()=>fixture(async scope=>{
+    const run=(await createOrResumeRun(scope,{scanWeek:'2026-09-21',manifest:[manifest[0]]}))!
+    const item=(await claim(scope,run.id,1))[0]
+    await commitAttempt(item,{kind:'succeeded',evidence:{...evidence,answer:'Synthetic Brand is terrible.'}})
+    const classifier=vi.fn<typeof import('@/lib/pulse/analysis').analyseAnswer>(async input=>naiveAnalysis(input.answer,input.brandName))
+    for(let n=0;n<3;n++){
+      expect(await classifySavedAnswers(scope,run.id,Date.now()+45_000,classifier)).toBe(1)
+      await sql`update pulse_run_items set classification_next_at=now()-interval '1 second' where run_id=${run.id}`
+    }
+    expect(await classifySavedAnswers(scope,run.id,Date.now()+45_000,classifier)).toBe(0)
+    expect(classifier).toHaveBeenCalledTimes(3)
+    await sql`insert into pulse_metrics(client_id,question,raw_answer,scan_week,platform,brand_mentioned,sentiment)
+      values(${scope.clientId},'Historical legacy question','Legacy positive substring','2026-09-21','legacy',true,'positive')`
+    await computeWeeklySummary(db(),{clientId:scope.clientId,scanWeek:run.scanWeek})
+    const [summary]=await sql`select total_queries,brand_mentions,sov_score,avg_sentiment_score from pulse_weekly_summary where client_id=${scope.clientId} and platform is null`
+    expect(summary).toMatchObject({total_queries:2,brand_mentions:0,sov_score:null,avg_sentiment_score:null})
+    expect(await readRunCoverage(scope,run.id)).toMatchObject({succeeded:1,classified:0,mentionRate:null})
+  },1))
+  it('T08 concurrent and stale classifiers cannot overwrite a fenced result or tenant',async()=>fixture(async scope=>{
+    const run=(await createOrResumeRun(scope,{scanWeek:'2026-09-21',manifest:[manifest[0]]}))!
+    await commitAttempt((await claim(scope,run.id,1))[0],{kind:'succeeded',evidence:{...evidence,answer:'Synthetic Brand is terrible.'}})
+    const leases=await Promise.all([claimClassifications(scope,run.id,Date.now()+45_000),claimClassifications(scope,run.id,Date.now()+45_000)])
+    expect(leases.flat()).toHaveLength(1)
+    const old=leases.flat()[0]
+    expect(await claimClassifications({...scope,accountId:randomUUID()},run.id,Date.now()+45_000)).toEqual([])
+    await sql`update pulse_run_items set classification_lease_until=now()-interval '1 second' where id=${old.id}`
+    const fresh=(await claimClassifications(scope,run.id,Date.now()+45_000))[0]
+    const result=coerceAnalysis({brand_mentioned:true,sentiment:'negative',competitors_mentioned:[]},fresh.answer,fresh.brandName)!
+    expect(await commitClassification({...fresh,accountId:randomUUID()},result)).toBe(false)
+    expect(await commitClassification(old,result)).toBe(false)
+    expect(await commitClassification(fresh,result)).toBe(true)
+    expect(await commitClassification(fresh,naiveAnalysis(fresh.answer,fresh.brandName))).toBe(false)
+    const histories=await sql`select status from pulse_classification_attempts where account_id=${scope.accountId} order by attempt_number`
+    expect(histories.map(r=>r.status)).toEqual(['interrupted','classified'])
+    const [raw]=await sql`select raw_answer,attempt_count from pulse_run_items i join pulse_item_attempts a on a.id=i.accepted_attempt_id where i.id=${fresh.id}`
+    expect(raw).toMatchObject({raw_answer:'Synthetic Brand is terrible.',attempt_count:1})
+  },1))
   it('application role cannot delete ledger evidence or rewrite immutable inputs',async()=>{
-    for(const table of ['pulse_runs','pulse_run_items','pulse_item_attempts']){
+    for(const table of ['pulse_runs','pulse_run_items','pulse_item_attempts','pulse_classification_attempts']){
       const [row]=await sql`select has_table_privilege('aeo_app',${'public.'+table},'DELETE') as can_delete,
         has_column_privilege('aeo_app',${'public.'+table},'account_id','UPDATE') as can_rebind`
       expect(row).toEqual({can_delete:false,can_rebind:false})
@@ -89,7 +150,7 @@ describe('T05 guarded Neon run ledger',()=>{
     expect(first).toMatchObject({outcome:'partial',processed:5,remaining:10,hasDue:true,runIds:[run.id]})
     const second=await consumeDuePulseWork({mode:'repair',owner:'next-daily-trigger',deadlineAt:Date.now()+45_000},
       {...pulseWorkerPorts(),process:(i,end)=>processLeasedItem(i,end,collect)})
-    expect(second).toMatchObject({outcome:'complete',processed:10,remaining:0,runIds:[run.id]})
+    expect(second).toMatchObject({outcome:'partial',processed:10,remaining:0,unclassified:15,runIds:[run.id]})
     expect(collect).toHaveBeenCalledTimes(15)
     const [rows]=await sql`select count(*)::int as n,min(scan_week)::text as week from pulse_metrics where client_id=${scope.clientId}`
     expect(rows).toMatchObject({n:15,week:'2026-09-21'})
@@ -129,7 +190,7 @@ describe('T05 guarded Neon run ledger',()=>{
     vi.stubEnv('FEATURE_PULSE_ATTEMPTS','0')
     vi.stubEnv('CRON_SECRET','synthetic-cron-secret-1234')
     await sql`update accounts set stripe_subscription_id='sub_synthetic' where id=${scope.accountId}`
-    external.classify.mockResolvedValue({brandMentioned:true,sentiment:'neutral',mentionPosition:0,competitorsMentioned:[]})
+    external.classify.mockResolvedValue({classificationStatus:'classified',method:'synthetic-fixture',version:'fixture.v1',matchedText:[],brandMentioned:true,sentiment:'neutral',mentionPosition:0,competitorsMentioned:[]})
     external.fanout.mockResolvedValue([{platform:'gemini-flash',answer:'Synthetic preserved'}])
     const post=()=>POST(new Request('http://localhost/api/pulse/run',{method:'POST',headers:{'Content-Type':'application/json','x-cron-secret':'synthetic-cron-secret-1234'},body:JSON.stringify({clientId:scope.clientId})}) as never)
     try{

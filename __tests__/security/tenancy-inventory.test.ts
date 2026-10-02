@@ -55,6 +55,7 @@ const TENANT_TABLES: Record<string, string> = {
   pulse_runs:'account_id + client_id (057)',
   pulse_run_items:'account_id + client_id + run_id (057)',
   pulse_item_attempts:'account_id + client_id + item_id (057)',
+  pulse_classification_attempts:'account_id + client_id + accepted attempt/item (058)',
   evidence_work_items: 'account_id (041)',
   work_item_versions: 'account_id (041)',
   work_item_decisions: 'account_id (042)',
