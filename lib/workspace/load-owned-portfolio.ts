@@ -2,6 +2,7 @@ import 'server-only'
 import { db } from '@/lib/db'
 import { resolveCommercialEntitlement, type CommercialAccount, type EffectivePlan } from '@/lib/tier'
 import { projectObservedSummary, type ObservedPulseSummary } from '@/lib/pulse/observed-summary'
+import { attachManifestCoverage } from '@/lib/pulse/runs/read-coverage'
 import type { ClientOverview } from '@/lib/types'
 import type { WorkspaceClient } from '@/lib/workspace/load-owned-workspace'
 
@@ -85,7 +86,7 @@ export async function loadOwnedPortfolio({ profile }: { profile: { account_id: s
         order by w.client_id
       `
       const byClient = new Map<string, Record<string, unknown>[]>()
-      for (const row of observations) {
+      for (const row of await attachManifestCoverage(sql,accountId,ids,observations)) {
         if (typeof row.client_id !== 'string') continue
         const group = byClient.get(row.client_id) ?? []
         group.push(row); byClient.set(row.client_id, group)

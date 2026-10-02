@@ -2,6 +2,7 @@ import 'server-only'
 import { db } from '@/lib/db'
 import { resolveCommercialEntitlement, type CommercialAccount } from '@/lib/tier'
 import { projectObservedSummary, type ObservedPulseSummary } from '@/lib/pulse/observed-summary'
+import { attachManifestCoverage } from '@/lib/pulse/runs/read-coverage'
 import type { AgentCompetitor, AgentProgress, AgentRecommendation, Client, ClientOverview, Scan } from '@/lib/types'
 
 export type WorkspaceRead<T> = { status: 'ok' | 'error' | 'locked'; data: T }
@@ -92,7 +93,7 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
         left join observations o on o.scan_week = w.scan_week
         order by w.scan_week, s.platform nulls first
       `
-      return projectObservedSummary(rows)
+      return projectObservedSummary(await attachManifestCoverage(sql,accountId,[clientId],rows))
     }, { summary: [], kpi: null, latestWeek: null }),
     read('missed', async () => await sql`
       select m.platform, m.question, m.competitors_mentioned, m.scan_week

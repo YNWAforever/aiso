@@ -1,7 +1,7 @@
 import { isoDate } from '@/lib/iso-date'
 import type { ClientOverview, PulseWeeklySummary } from '@/lib/types'
 
-export type ObservedPulseSummary = { summary: PulseWeeklySummary[]; kpi: ClientOverview['pulseKpi']; latestWeek: string | null }
+export type ObservedPulseSummary = { summary: PulseWeeklySummary[]; kpi: ClientOverview['pulseKpi']; latestWeek: string | null; coverage?: {expected:number;succeeded:number;failed:number;pending:number;blocked:number;classified:number} | null }
 
 function number(value: unknown): number | null {
   if ((typeof value !== 'number' && typeof value !== 'string') || value === '') return null
@@ -14,7 +14,10 @@ export function projectObservedSummary(rows: Record<string, unknown>[]): Observe
   const ordered = rows.map((row): Record<string, unknown> & { scan_week: string } => ({ ...row, scan_week: isoDate(row.scan_week as string | Date | null, '') }))
     .filter(row => row.scan_week).sort((a, b) => a.scan_week.localeCompare(b.scan_week))
   const latestWeek = ordered.at(-1)?.scan_week ?? null
-  const aggregate = ordered.find(row => row.scan_week === latestWeek && row.platform === null && row.total_queries !== undefined)
+  const aggregate = ordered.find(row => row.scan_week === latestWeek && row.platform === null)
+  const expected = number(aggregate?.expected_items)
+  const succeeded = number(aggregate?.succeeded_items)
+  const classified = number(aggregate?.classified_items)
   const total = number(aggregate?.total_queries)
   const successful = number(aggregate?.successful_queries)
   const observed = number(aggregate?.observed_queries)
@@ -23,6 +26,7 @@ export function projectObservedSummary(rows: Record<string, unknown>[]): Observe
   const sov = number(aggregate?.sov_score)
   const platforms = number(aggregate?.successful_platform_count)
   const valid = total !== null && total > 0 && total === successful && total === observed
+    && (expected === null || (expected > 0 && expected === succeeded && classified === succeeded && total === expected))
     && mentions !== null && mentions >= 0 && mentions <= total && mentions === observedMentions
     && sov !== null && sov >= 0 && sov <= 100 && platforms !== null && platforms > 0
   const summary = ordered.filter(row => row.total_queries !== undefined && row.total_queries !== null).map(row => ({
@@ -30,7 +34,9 @@ export function projectObservedSummary(rows: Record<string, unknown>[]): Observe
     total_queries: row.total_queries, brand_mentions: row.brand_mentions, sov_score: row.sov_score,
     avg_sentiment_score: row.avg_sentiment_score, top_competitors: row.top_competitors, created_at: row.created_at,
   })) as PulseWeeklySummary[]
-  return { summary, latestWeek, kpi: valid && latestWeek ? {
+  const coverage = expected === null ? null : {expected,succeeded:succeeded??0,failed:number(aggregate?.failed_items)??0,
+    pending:number(aggregate?.pending_items)??0,blocked:number(aggregate?.blocked_items)??0,classified:classified??0}
+  return { summary, latestWeek, coverage, kpi: valid && latestWeek ? {
     sovScore: sov!, brandMentions: mentions!, totalQueries: total!, platformCount: platforms!, scanWeek: latestWeek,
   } : null }
 }

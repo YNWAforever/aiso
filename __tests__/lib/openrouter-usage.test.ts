@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { callMultiPlatform, callOpenRouter } from '@/lib/openrouter'
+import { callMultiPlatform, callOpenRouter, callOpenRouterWithEvidence } from '@/lib/openrouter'
 
 // Distinctive so a leak into the log line cannot be missed.
 const PROMPT = 'PROMPT-TEXT-customer-page-content'
@@ -47,6 +47,15 @@ afterEach(() => {
 })
 
 describe('callOpenRouter usage logging', () => {
+
+  it('returns served model, request and usage evidence for durable attempts',async()=>{
+    respondWith(completion())
+    expect(await callOpenRouterWithEvidence({label:'pulse.platform',model:'requested/model',messages:[{role:'user',content:PROMPT}]}))
+      .toEqual({answer:REPLY,actualModel:'anthropic/claude-4.5-haiku-20251001',requestId:'gen-123',promptTokens:120,completionTokens:45,costUsd:0.00042,httpStatus:200})
+    respondWith({choices:[{message:{content:REPLY}}]})
+    expect(await callOpenRouterWithEvidence({label:'pulse.platform',model:'requested/model',messages:[{role:'user',content:PROMPT}]}))
+      .toMatchObject({actualModel:null,requestId:null,costUsd:null})
+  })
 
   it('logs one metadata line per completion and still returns the reply', async () => {
     respondWith(completion())
