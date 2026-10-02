@@ -15,6 +15,11 @@ import {computeWeeklySummary} from '@/lib/pulse/summary'
 import {currentScanWeek} from '@/lib/pulse/schedule'
 import {claimClassifications,commitClassification,classifySavedAnswers} from '@/lib/pulse/runs/classification'
 import {naiveAnalysis,coerceAnalysis} from '@/lib/pulse/analysis-fallback'
+import {loadObservationDetail} from '@/lib/observations/store'
+import {projectPulseOpportunityInput} from '@/lib/opportunities/store'
+import {deriveSuggestions} from '@/lib/opportunities/rules'
+import {buildInitialDraftSnapshot} from '@/lib/work-items/snapshot'
+import {createDraftIfEvidenceCurrent} from '@/lib/work-items/store'
 import type {ProviderEvidence,PulseScope} from '@/lib/pulse/runs/schema'
 vi.mock('server-only',()=>({}))
 const external=vi.hoisted(()=>({classify:vi.fn<typeof import('@/lib/pulse/analysis').analyseAnswer>(async()=>{throw new Error('Synthetic classifier outage')}),fanout:vi.fn()}))
@@ -52,6 +57,47 @@ async function fixture(test:(scope:PulseScope)=>Promise<void>,promptCount=3){
 const runFor=(scope:PulseScope)=>createOrResumeRun(scope,{scanWeek:'2026-09-28',manifest})
 const claim=(scope:PulseScope,runId:string,limit=5)=>claimDueItems(scope,runId,{owner:'synthetic-worker',leaseUntil:new Date(Date.now()+60_000),limit})
 describe('T05 guarded Neon run ledger',()=>{
+  it('T09 a classification downgrade cannot be bypassed by a previously loaded suggestion',async()=>fixture(async scope=>{
+    const [row]=await sql`insert into pulse_metrics(client_id,question,platform,scan_week,raw_answer,brand_mentioned,sentiment,classification_status)
+      values(${scope.clientId},'Frozen question','synthetic','2026-09-21','Frozen answer',false,'unknown','classified')
+      returning id,client_id,prompt_id,question,platform,scan_week::text,
+        to_char(created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
+        raw_answer,brand_mentioned,classification_status,true as has_answer`
+    const projected=projectPulseOpportunityInput(scope.accountId,row as Parameters<typeof projectPulseOpportunityInput>[1])
+    const suggestion=deriveSuggestions(projected.source)[0]
+    await sql`update pulse_metrics set classification_status='fallback' where id=${row.id}`
+    const save=()=>createDraftIfEvidenceCurrent(scope.accountId,scope.clientId,null,
+      {source:suggestion.source,ruleVersion:suggestion.ruleVersion,fingerprint:suggestion.fingerprint,locale:'en'},
+      buildInitialDraftSnapshot(suggestion,projected.source,'en'),projected.version)
+    try{
+      expect(await save()).toBeNull()
+      expect(await sql`select id from evidence_work_items where account_id=${scope.accountId}`).toEqual([])
+      await sql`update pulse_metrics set classification_status='classified' where id=${row.id}`
+      expect(await save()).toMatchObject({created:true})
+    }finally{
+      await sql`delete from work_item_sources where account_id=${scope.accountId}`
+      await sql`delete from evidence_work_items where account_id=${scope.accountId}`
+    }
+  },1))
+  it('T09 original answer, model and question snapshots survive edits across two weeks',async()=>fixture(async scope=>{
+    for(const week of ['2026-09-14','2026-09-21']){
+      const run=(await createOrResumeRun(scope,{scanWeek:week,manifest:[manifest[0]]}))!
+      const item=(await claim(scope,run.id,1))[0]
+      await commitAttempt(item,{kind:'succeeded',evidence:{...evidence,answer:`Frozen answer ${week} https://example.com/claim`,actualModel:`synthetic/served-${week}`}})
+    }
+    await sql`update prompt_bank set question='Edited today',language='en' where client_id=${scope.clientId}`
+    await sql`update clients set brand_name='Edited brand' where id=${scope.clientId}`
+    await sql`delete from prompt_bank where client_id=${scope.clientId}`
+    const rows=await sql`select id,scan_week::text as week from pulse_metrics where client_id=${scope.clientId} order by scan_week`
+    for(const row of rows){
+      const detail=await loadObservationDetail(scope.accountId,scope.clientId,String(row.id))
+      expect(detail).toMatchObject({model:`synthetic/served-${row.week}`,requestedModel:manifest[0].model,collector:'openrouter_api',
+        rawAnswer:`Frozen answer ${row.week} https://example.com/claim`,promptSnapshot:{question:'Synthetic question 1',language:'zh-HK',market:null},
+        brandSnapshot:{name:'Synthetic Brand'},links:[{url:'https://example.com/claim',kind:'text-link'}],classification:{status:'legacy_unknown'}})
+      expect(await loadObservationDetail(randomUUID(),scope.clientId,String(row.id))).toBeNull()
+    }
+    expect(rows).toHaveLength(2)
+  },1))
   it('T08 retries classification using the saved answer without collecting it again',async()=>fixture(async scope=>{
     const run=(await createOrResumeRun(scope,{scanWeek:'2026-09-21',manifest:[manifest[0]]}))!
     const collect=vi.fn(async()=>({...evidence,answer:'Synthetic Brand is terrible.'}))

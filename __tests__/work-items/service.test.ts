@@ -7,7 +7,7 @@ import { saveAuthenticatedDraft, editAuthenticatedDraft } from '@/lib/work-items
 import { projectPulseOpportunityInput } from '@/lib/opportunities/store'
 import { deriveSuggestions } from '@/lib/opportunities/rules'
 const id='00000000-0000-4000-8000-000000000001'
-const projected=projectPulseOpportunityInput(id,{id,client_id:id,prompt_id:null,question:'Question?',platform:'chatgpt',scan_week:'2026-08-31',created_at:null,raw_answer:'PRIVATE',brand_mentioned:false,has_answer:true})
+const projected=projectPulseOpportunityInput(id,{id,client_id:id,prompt_id:null,question:'Question?',platform:'chatgpt',scan_week:'2026-08-31',created_at:null,raw_answer:'PRIVATE',classification_status:'classified',brand_mentioned:false,has_answer:true})
 const suggestion=deriveSuggestions(projected.source)[0]
 const input={source:suggestion.source,ruleVersion:suggestion.ruleVersion,fingerprint:suggestion.fingerprint,locale:'en'}
 const request=(value:unknown)=>new Request('http://localhost',{method:'POST',body:JSON.stringify(value)})

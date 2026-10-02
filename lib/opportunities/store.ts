@@ -31,6 +31,7 @@ export function projectPulseOpportunityInput(accountId: string, row: PersistedPu
     id: row.id, client_id: row.client_id, prompt_id: row.prompt_id, question: row.question,
     platform: row.platform, scan_week: row.scan_week, created_at: row.created_at,
     raw_answer: row.raw_answer, brand_mentioned: row.brand_mentioned, has_answer: row.has_answer,
+    classification_status:row.classification_status??'legacy_unknown',
   }
   const source: SourceEvidence = {
     kind: 'pulse-metric', observation: projectObservation(input, null),
@@ -65,7 +66,7 @@ export async function loadOwnedOpportunitySources(accountId: string, clientId: s
       select m.id, m.client_id, m.prompt_id, m.question, m.platform,
         m.scan_week::text as scan_week,
         to_char(m.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-        m.raw_answer, m.brand_mentioned, coalesce(m.raw_answer ~ '[^[:space:]]', false) as has_answer
+        m.raw_answer, m.brand_mentioned,m.classification_status, coalesce(m.raw_answer ~ '[^[:space:]]', false) as has_answer
       from pulse_metrics m join clients c on c.id = m.client_id
       where c.id = ${clientId} and c.account_id = ${accountId}
         and m.scan_week = (select max(p.scan_week) from pulse_metrics p

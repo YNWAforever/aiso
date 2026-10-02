@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { ObservationResponse } from '@/lib/observations/types'
+import {ObservationDetail} from './ObservationDetail'
 
 import type { ObservationCopy } from './copy'
 export type { ObservationCopy } from './copy'
@@ -40,6 +41,7 @@ function Workspace({
   })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
+  const [detailId,setDetailId]=useState<string|null>(null)
   const [platformDraft, setPlatformDraft] = useState(initialFilters.platform ?? '')
   const [platformError, setPlatformError] = useState(false)
   const sequence = useRef(0)
@@ -309,9 +311,10 @@ function Workspace({
                   ? copy.brandMentioned
                   : copy.brandNotMentioned}
             </p>
-            <p>{copy.unknownModel}</p>
-            <p>{copy.unknownMarket}</p>
-            <p>{copy.unknownCollectionTime}</p>
+            <p>{item.model?`${copy.model}: ${item.model}`:copy.unknownModel}</p>
+            <p>{item.market?`${copy.market}: ${item.market}`:copy.unknownMarket}</p>
+            <p>{item.collectedAt?`${copy.collectedAt}: ${item.collectedAt}`:copy.unknownCollectionTime}</p>
+            <button type="button" className="min-h-11 rounded-lg border px-3" onClick={()=>setDetailId(item.id)}>{copy.viewDetails}</button>
           </article>
         ))}
       </section>
@@ -324,6 +327,7 @@ function Workspace({
           {copy.next}
         </button>
       )}
+      {detailId&&<ObservationDetail key={detailId} clientId={clientId} observationId={detailId} copy={copy} onClose={()=>setDetailId(null)}/>}
     </main>
   )
 }
