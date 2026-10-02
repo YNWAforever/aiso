@@ -4,6 +4,8 @@ import { appOrigin } from '@/lib/app-origin'
 import { startCronRun, finishCronRun } from '@/lib/cron/recordRun'
 import { db } from '@/lib/db'
 import { countConfiguredClients, currentScanWeek, selectPendingClientPage, type CandidateCursor, type PendingClientPage } from '@/lib/pulse/schedule'
+import {isFeatureEnabled} from '@/lib/flags'
+import {runLedgerCron} from '@/lib/pulse/runs/cron'
 
 export const dynamic = 'force-dynamic'
 
@@ -61,13 +63,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const requestUrl=new URL(req.url)
+  const mode=requestUrl.searchParams.get('mode')??'weekly'
+  if(mode!=='weekly'&&mode!=='repair')return NextResponse.json({error:'Invalid Pulse mode'},{status:400})
+  if(isFeatureEnabled('pulse_attempts'))return runLedgerCron(requestUrl,cronSecret)
+  if(mode==='repair')return NextResponse.json({skipped:'flag_off',outcome:'blocked',done:false})
   const runId = await startCronRun('/api/cron/pulse')
   try {
     const url = new URL(req.url)
     const hop = Number(url.searchParams.get('hop') ?? '0')
     if (!Number.isFinite(hop) || hop < 0 || hop >= MAX_CHAIN) {
-      const payload = { error: 'Chain limit reached', hop }
-      await finishCronRun(runId, 'ok', payload)
+      const payload = { error: 'Chain limit reached', hop,outcome:'partial',done:false }
+      await finishCronRun(runId, 'error', payload)
       return NextResponse.json(payload, { status: 200 })
     }
 

@@ -62,8 +62,12 @@ alter table public.pulse_metrics drop constraint pulse_metrics_prompt_id_fkey;
 alter table public.pulse_metrics add constraint pulse_metrics_prompt_id_fkey
   foreign key (prompt_id) references public.prompt_bank(id) on delete set null;
 grant select, insert on public.pulse_runs, public.pulse_run_items, public.pulse_item_attempts to aeo_app;
-revoke update on public.pulse_runs, public.pulse_run_items from aeo_app;
+-- 037 grants future tables broad defaults; explicitly remove inherited destructive
+-- privileges here. This new migration has not been deployed.
+revoke delete, update on public.pulse_runs, public.pulse_run_items, public.pulse_item_attempts from aeo_app;
 grant update(status,updated_at) on public.pulse_runs to aeo_app;
 grant update(status,attempt_count,lease_owner,lease_token,lease_until,fence,next_attempt_at,accepted_attempt_id,classification_status,updated_at)
   on public.pulse_run_items to aeo_app;
-grant update on public.pulse_item_attempts to aeo_app;
+grant update(finished_at,collection_status,accepted,actual_model,provider_request_id,raw_answer,
+  prompt_tokens,completion_tokens,cost_usd,http_status,error_code,classification,classifier_method,classifier_version)
+  on public.pulse_item_attempts to aeo_app;

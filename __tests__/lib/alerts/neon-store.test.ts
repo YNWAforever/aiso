@@ -212,7 +212,7 @@ describe('createNeonAlertStore', () => {
     // strings already, so a string fixture here cannot exercise the Date
     // branch of isoDate() at all -- see the neighbouring Date-fixture test
     // above for why that gap matters.
-    const isWeekQuery = (text: string) => /date_trunc\('week', now\(\)\)/.test(text)
+    const isWeekQuery = (text: string) => /date_trunc\('week', now\(\) at time zone 'UTC'\)/.test(text)
 
     const { sql, calls } = makeSql(call =>
       isWeekQuery(call.text) ? [{ current_scan_week: new Date(2026, 7, 10) }] : [],

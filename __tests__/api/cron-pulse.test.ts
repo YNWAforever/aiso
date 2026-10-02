@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const CRON_SECRET = 'test-cron-secret-0123'
+vi.mock('server-only',()=>({}))
+const durable=vi.hoisted(()=>({consume:vi.fn(),readWeekly:vi.fn(),readCursor:vi.fn(),saveWeekly:vi.fn()}))
+vi.mock('@/lib/pulse/runs/worker',()=>({consumeDuePulseWork:durable.consume}))
+vi.mock('@/lib/pulse/runs/dispatch',()=>({readWeeklyEnqueue:durable.readWeekly,readRepairCursor:durable.readCursor,saveWeeklyEnqueue:durable.saveWeekly}))
 
 const calls: Array<{ text: string; params: unknown[] }> = []
 let candidateRows: unknown[]
@@ -37,6 +41,13 @@ vi.mock('next/server', async (importOriginal) => ({
 }))
 
 import { GET } from '@/app/api/cron/pulse/route'
+import { finishCronRun } from '@/lib/cron/recordRun'
+
+it('T07 chain_cap_is_partial rather than a successful completed cron',async()=>{
+  const response=await get(CRON_SECRET,200)
+  expect(await response.json()).toMatchObject({outcome:'partial',done:false})
+  expect(finishCronRun).toHaveBeenLastCalledWith('test-run-id','error',expect.objectContaining({outcome:'partial'}))
+})
 
 const fetchMock = vi.fn()
 const realFetch = globalThis.fetch
@@ -60,6 +71,11 @@ function account(plan: string, extra: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   process.env.CRON_SECRET = CRON_SECRET
+  vi.stubEnv('FEATURE_PULSE_ATTEMPTS','0')
+  durable.consume.mockReset().mockResolvedValue({outcome:'partial',processed:1,remaining:14,failed:0,blocked:0,errors:0,runIds:['original-run'],coverage:{},hasDue:false,nextRunCursor:null,traversalComplete:true})
+  durable.readWeekly.mockReset().mockResolvedValue(null)
+  durable.readCursor.mockReset().mockResolvedValue(null)
+  durable.saveWeekly.mockReset().mockResolvedValue(undefined)
   calls.length = 0
   afterCallbacks.length = 0
   lookupFails = false
@@ -74,11 +90,29 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.unstubAllEnvs()
   globalThis.fetch = realFetch
   process.env.CRON_SECRET = CRON_SECRET
 })
 
 describe('GET /api/cron/pulse — authentication', () => {
+  it('repair is inert while the ledger flag is off',async()=>{
+    const response=await GET(new Request('http://localhost/api/cron/pulse?mode=repair',{headers:{authorization:`Bearer ${CRON_SECRET}`}}) as never)
+    expect(await response.json()).toMatchObject({skipped:'flag_off',done:false})
+    expect(durable.consume).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+  it('repair consumes the saved original-week dispatch and persists rotation',async()=>{
+    vi.stubEnv('FEATURE_PULSE_ATTEMPTS','1')
+    const original={scanWeek:'2026-09-28',after:null,failedClientIds:[],complete:false}
+    durable.readWeekly.mockResolvedValue({id:'weekly-intent',state:original})
+    durable.consume.mockResolvedValue({outcome:'partial',remaining:4,hasDue:false,nextRunCursor:null,enqueue:{...original,complete:true}})
+    const response=await GET(new Request('http://localhost/api/cron/pulse?mode=repair',{headers:{authorization:`Bearer ${CRON_SECRET}`}}) as never)
+    expect(await response.json()).toMatchObject({outcome:'partial',done:false,mode:'repair'})
+    expect(durable.consume).toHaveBeenCalledWith(expect.objectContaining({mode:'repair',enqueue:original,deadlineAt:expect.any(Number)}))
+    expect(durable.saveWeekly).toHaveBeenCalledWith('weekly-intent',original,{...original,complete:true})
+    expect(finishCronRun).toHaveBeenLastCalledWith('test-run-id','error',expect.objectContaining({outcome:'partial'}))
+  })
   it('accepts the Authorization: Bearer header Vercel Cron actually sends', async () => {
     // Vercel Cron sends GET with `Authorization: Bearer $CRON_SECRET` and no
     // body. The producer wants POST and x-cron-secret. This route exists to

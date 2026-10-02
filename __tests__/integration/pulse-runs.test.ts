@@ -1,11 +1,18 @@
 import {beforeAll,describe,it,expect,vi} from 'vitest'
 import {neon} from '@neondatabase/serverless'
 import {randomUUID} from 'node:crypto'
-import {claimDueItems,commitAttempt,createOrResumeRun,readRunCoverage} from '@/lib/pulse/runs/store'
+import {claimDueItems,commitAttempt,createOrResumeRun,readRunCoverage,recordClassification} from '@/lib/pulse/runs/store'
 import {processLeasedItem} from '@/lib/pulse/runs/service'
 import {modelVariantsFor,PLATFORM_KEYS} from '@/lib/openrouter'
 import {attachManifestCoverage} from '@/lib/pulse/runs/read-coverage'
 import {db} from '@/lib/db'
+import {consumeDuePulseWork,pulseWorkerPorts} from '@/lib/pulse/runs/worker'
+import {readWeeklyEnqueue,saveWeeklyEnqueue} from '@/lib/pulse/runs/dispatch'
+import {startCronRun} from '@/lib/cron/recordRun'
+import {createNeonAlertStore} from '@/lib/alerts/neon-store'
+import {runAlertEvaluation} from '@/lib/alerts/evaluate'
+import {computeWeeklySummary} from '@/lib/pulse/summary'
+import {currentScanWeek} from '@/lib/pulse/schedule'
 import type {ProviderEvidence,PulseScope} from '@/lib/pulse/runs/schema'
 vi.mock('server-only',()=>({}))
 const external=vi.hoisted(()=>({classify:vi.fn<typeof import('@/lib/pulse/analysis').analyseAnswer>(async()=>{throw new Error('Synthetic classifier outage')}),fanout:vi.fn()}))
@@ -29,6 +36,7 @@ async function fixture(test:(scope:PulseScope)=>Promise<void>,promptCount=3){
   const scope={accountId,clientId:client.id as string}
   await sql`insert into prompt_bank(client_id,question,language) select ${scope.clientId},'Synthetic question ' || n,'zh-HK' from generate_series(1,${promptCount}) n`
   try{await test(scope)}finally{
+    await sql`delete from pulse_weekly_summary where client_id=${scope.clientId}`
     await sql`delete from pulse_metrics where client_id=${scope.clientId}`
     await sql`update pulse_run_items set accepted_attempt_id=null where account_id=${accountId}`
     await sql`delete from pulse_item_attempts where account_id=${accountId}`
@@ -41,6 +49,82 @@ async function fixture(test:(scope:PulseScope)=>Promise<void>,promptCount=3){
 const runFor=(scope:PulseScope)=>createOrResumeRun(scope,{scanWeek:'2026-09-28',manifest})
 const claim=(scope:PulseScope,runId:string,limit=5)=>claimDueItems(scope,runId,{owner:'synthetic-worker',leaseUntil:new Date(Date.now()+60_000),limit})
 describe('T05 guarded Neon run ledger',()=>{
+  it('application role cannot delete ledger evidence or rewrite immutable inputs',async()=>{
+    for(const table of ['pulse_runs','pulse_run_items','pulse_item_attempts']){
+      const [row]=await sql`select has_table_privilege('aeo_app',${'public.'+table},'DELETE') as can_delete,
+        has_column_privilege('aeo_app',${'public.'+table},'account_id','UPDATE') as can_rebind`
+      expect(row).toEqual({can_delete:false,can_rebind:false})
+    }
+    const [attempt]=await sql`select has_column_privilege('aeo_app','public.pulse_item_attempts','requested_model','UPDATE') as can_rewrite,
+      has_column_privilege('aeo_app','public.pulse_item_attempts','collection_status','UPDATE') as can_finish`
+    expect(attempt).toEqual({can_rewrite:false,can_finish:true})
+  })
+  it('T07 raw-only and partial rollups cannot create definite alerts',async()=>fixture(async scope=>{
+    const run=(await createOrResumeRun(scope,{scanWeek:currentScanWeek(),manifest}))!
+    const lease=(await claim(scope,run.id,1))[0]
+    await commitAttempt(lease,{kind:'succeeded',evidence})
+    await recordClassification(lease,{status:'classified',method:'synthetic-fixture',version:'fixture.v1',brandMentioned:false,sentiment:'neutral',mentionPosition:null,competitorsMentioned:[]})
+    await computeWeeklySummary(db(),{clientId:scope.clientId,scanWeek:run.scanWeek})
+    await sql`insert into alert_configs(client_id,enabled_sov) values(${scope.clientId},true)`
+    vi.stubEnv('FEATURE_PULSE_ATTEMPTS','1')
+    const notification=vi.fn(async()=>{}),email=vi.fn(async()=>{})
+    try{
+      const store=createNeonAlertStore(db())
+      const snapshot=await store.loadSnapshot()
+      expect(snapshot.weeksByClient[scope.clientId][0].coverageComplete).toBe(false)
+      expect(await runAlertEvaluation({...store,upsertNotification:notification,sendAlertEmail:email})).toMatchObject({evaluated:0,incomplete:1,fired:0})
+      expect(notification).not.toHaveBeenCalled();expect(email).not.toHaveBeenCalled()
+    }finally{vi.stubEnv('FEATURE_PULSE_ATTEMPTS','0')}
+  }))
+  it('T07 lost self-call recovers on a new repair consumer in the original week',async()=>fixture(async scope=>{
+    await sql`update accounts set plan='pro',stripe_subscription_id='sub_synthetic' where id=${scope.accountId}`
+    const run=(await createOrResumeRun(scope,{scanWeek:'2026-09-21',manifest}))!
+    const collect=vi.fn(async()=>evidence)
+    const deadline=Date.now()+45_000
+    let virtualNow=Date.now()
+    const firstPorts={...pulseWorkerPorts(),now:()=>virtualNow,process:async(i:Parameters<typeof processLeasedItem>[0],end:number)=>{
+      const result=await processLeasedItem(i,end,collect);virtualNow=deadline-6_000;return result
+    }}
+    const first=await consumeDuePulseWork({mode:'repair',owner:'lost-self-call',deadlineAt:deadline},firstPorts)
+    expect(first).toMatchObject({outcome:'partial',processed:5,remaining:10,hasDue:true,runIds:[run.id]})
+    const second=await consumeDuePulseWork({mode:'repair',owner:'next-daily-trigger',deadlineAt:Date.now()+45_000},
+      {...pulseWorkerPorts(),process:(i,end)=>processLeasedItem(i,end,collect)})
+    expect(second).toMatchObject({outcome:'complete',processed:10,remaining:0,runIds:[run.id]})
+    expect(collect).toHaveBeenCalledTimes(15)
+    const [rows]=await sql`select count(*)::int as n,min(scan_week)::text as week from pulse_metrics where client_id=${scope.clientId}`
+    expect(rows).toMatchObject({n:15,week:'2026-09-21'})
+    await sql`delete from pulse_weekly_summary where client_id=${scope.clientId}`
+  }))
+  it('T07 backoff and maximum three attempts persist across consumers',async()=>fixture(async scope=>{
+    const run=(await createOrResumeRun(scope,{scanWeek:'2026-09-21',manifest:[manifest[0]]}))!
+    for(let n=1;n<=3;n++){
+      const lease=(await claim(scope,run.id,1))[0]
+      expect(lease.attempt).toBe(n)
+      await commitAttempt(lease,{kind:'failed',errorCode:'SYNTHETIC_TIMEOUT_OUTCOME_UNKNOWN'})
+      const [state]=await sql`select status,attempt_count,extract(epoch from next_attempt_at-now())::int as backoff from pulse_run_items where id=${lease.id}`
+      expect(state.status).toBe(n<3?'retry_wait':'failed')
+      expect(Number(state.backoff)).toBeGreaterThan([0,55,295,1795][n])
+      expect(await claim(scope,run.id,1)).toHaveLength(0)
+      await sql`update pulse_run_items set next_attempt_at=now()-interval '1 second' where id=${lease.id}`
+    }
+    expect(await readRunCoverage(scope,run.id)).toMatchObject({expected:1,failed:1,pending:0,status:'failed'})
+    expect(await claim(scope,run.id,1)).toHaveLength(0)
+  },1))
+  it('T07 dispatch checkpoint uses original weeks and fences an old overwrite',async()=>{
+    const original={scanWeek:'2026-09-14',after:null,failedClientIds:[],complete:false}
+    const newer={...original,scanWeek:'2026-09-21'}
+    const oldId=await startCronRun('/api/cron/pulse',{mode:'weekly',enqueue:original})
+    const newId=await startCronRun('/api/cron/pulse',{mode:'weekly',enqueue:newer})
+    try{
+      expect(await readWeeklyEnqueue()).toMatchObject({id:oldId,state:original})
+      const completed={...original,complete:true}
+      await saveWeeklyEnqueue(oldId!,original,completed)
+      await saveWeeklyEnqueue(oldId!,original,{...original,failedClientIds:['stale-worker']})
+      expect(await readWeeklyEnqueue()).toMatchObject({id:newId,state:newer})
+      const [row]=await sql`select detail->'enqueue' as enqueue from cron_runs where id=${oldId}`
+      expect(row.enqueue).toEqual(completed)
+    }finally{await sql`delete from cron_runs where id in (${oldId},${newId})`}
+  })
   it('compatibility writer preserves three old successes after an all-failed retry',async()=>fixture(async scope=>{
     vi.stubEnv('FEATURE_PULSE_ATTEMPTS','0')
     vi.stubEnv('CRON_SECRET','synthetic-cron-secret-1234')

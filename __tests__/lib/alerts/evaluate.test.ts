@@ -59,6 +59,14 @@ function portsFor(data: AlertSnapshot = snapshot()) {
 }
 
 describe('runAlertEvaluation', () => {
+  it('T07 partial Pulse coverage cannot produce a definite threshold or change alert',async()=>{
+    const data=snapshot()
+    data.weeksByClient['client-1'][0]={...data.weeksByClient['client-1'][0],coverageComplete:false}
+    const {ports}=portsFor(data)
+    expect(await runAlertEvaluation(ports)).toMatchObject({evaluated:0,fired:0,incomplete:1})
+    expect(ports.sendAlertEmail).not.toHaveBeenCalled()
+    expect(ports.upsertNotification).not.toHaveBeenCalled()
+  })
   it('creates independent threshold and week-over-week actions for one client', async () => {
     const { ports } = portsFor()
 

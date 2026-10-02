@@ -17,11 +17,17 @@ export async function processLeasedItem(item: LeasedItem, deadlineAt: number, co
   }
   const remaining = deadlineAt - Date.now() - 5_000
   if (remaining <= 0) return await commitAttempt(item,{kind:'failed',errorCode:'TIME_BUDGET_EXHAUSTED'})
+  const controller=new AbortController()
+  const timer=setTimeout(()=>controller.abort(new DOMException('Provider deadline','TimeoutError')),Math.min(30_000,remaining))
+  let abort:()=>void=()=>{}
   try {
-    evidence = await collector(item,AbortSignal.timeout(Math.min(30_000,remaining)))
+    const cancelled=new Promise<never>((_,reject)=>{abort=()=>reject(controller.signal.reason);controller.signal.addEventListener('abort',abort,{once:true})})
+    evidence = await Promise.race([collector(item,controller.signal),cancelled])
   } catch (error) {
     const timeout = error instanceof Error && /timeout|abort/i.test(error.name)
     return await commitAttempt(item,{kind:'failed',errorCode:timeout ? 'PROVIDER_TIMEOUT_OUTCOME_UNKNOWN' : 'PROVIDER_FAILED_OUTCOME_UNKNOWN'})
+  } finally {
+    clearTimeout(timer);controller.signal.removeEventListener('abort',abort)
   }
   const committed = await commitAttempt(item,{kind:'succeeded',evidence})
   if (committed !== 'committed') return committed

@@ -1,6 +1,7 @@
 import type { db } from '@/lib/db'
 import { runtimePlatformsFor } from '@/lib/pulse/platforms'
 import { resolveCommercialEntitlement, type CommercialAccount } from '@/lib/tier'
+import { isFeatureEnabled } from '@/lib/flags'
 
 type Sql = ReturnType<typeof db>
 
@@ -24,22 +25,10 @@ type CandidateRow = Record<string, unknown> & {
 /**
  * Clients whose weekly Pulse run has not finished, oldest brand first.
  *
- * **"Finished" is the aggregate `pulse_weekly_summary` row, not the presence of
- * metrics.** `pulse/run` writes that row only on the chunk where nextCursor
- * comes back null, so it means the whole bank completed. Testing `pulse_metrics`
- * instead would make a client that finished one chunk look done — the worst
- * possible false negative for a resumable driver.
- *
- * The cursor is derived rather than stored: it is how many of the client's
- * prompts already have metrics for this week. `pulse/run` orders prompts by id
- * and processes them in order, so the scanned set is a prefix and its size is
- * the resume point. Deriving it means there is no cursor to get out of sync with
- * reality, and an interrupted run resumes correctly with no bookkeeping.
- *
- * The known imprecision: deactivating a prompt mid-week shrinks the active list,
- * so the derived cursor can point a place or two off and a few prompts get
- * rescanned. Harmless — the rollup is idempotent — and much cheaper than the
- * cursor table it avoids.
+ * With pulse_attempts enabled, completion is the immutable run manifest's
+ * completed status. The item ledger handles continuation, so cursor is zero.
+ * Flag-off compatibility retains the historical summary marker and derived
+ * prompt count; those markers cannot prove complete question/model coverage.
  *
  * Entitlement is deliberately NOT expressed in SQL. Migration 026 has a SQL
  * translation of the plan rules, but it predates `override_plan` and so is blind
@@ -66,7 +55,19 @@ export async function selectPendingClientPage(sql: Sql, options: {
   const items: PendingClient[] = []
   let scanned = 0
   while (Date.now() < options.deadlineMs) {
-    const rows = await sql`
+    const rows = isFeatureEnabled('pulse_attempts') ? await sql`
+      select c.id as client_id,c.created_at,0 as scanned_prompts,
+        (select count(*) from prompt_bank pb where pb.client_id=c.id and pb.is_active) as prompt_count,
+        a.plan,a.status,a.stripe_subscription_id,a.trial_ends_at,a.override_plan,a.override_expires_at
+      from clients c join accounts a on a.id=c.account_id
+      where c.status='active' and exists(select 1 from prompt_bank pb where pb.client_id=c.id and pb.is_active)
+        and not exists(select 1 from pulse_runs r where r.client_id=c.id and r.account_id=c.account_id
+          and r.scan_week=${options.scanWeek}::date and r.status='completed')
+        and (a.override_plan is not null or a.plan in ('basic','pro','enterprise'))
+        and (a.override_plan is not null or a.status not in ('past_due','cancelled'))
+        and (${cursor?.createdAt??null}::timestamptz is null or (c.created_at,c.id)>(${cursor?.createdAt??null}::timestamptz,${cursor?.clientId??null}::uuid))
+      order by c.created_at,c.id limit ${pageSize}
+    ` : await sql`
     select c.id as client_id, c.created_at,
            (select count(*) from prompt_bank pb
              where pb.client_id = c.id and pb.is_active) as prompt_count,
