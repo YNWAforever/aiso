@@ -2031,7 +2031,7 @@
     },
     "why": {
       "in-use": "A draft may quote this, and will cite this exact version.",
-      "awaiting-approval": "Imported but never approved, so nothing will quote it. Re-import this text and approve it to put it in use.",
+      "awaiting-approval": "Imported and awaiting approval. Review and approve this version; agent permission remains a separate choice.",
       "not-permitted": "Approved, but agent use is switched off, so nothing will quote it.",
       "revoked": "Withdrawn. Nothing will quote it again. It stays listed so drafts that already cited it can still be explained."
     },
@@ -2069,7 +2069,12 @@
       "revokeWarning": "Revoking cannot be undone.",
       "failed": "That did not save. Nothing has been changed.",
       "saved": "Saved.",
-      "revoked": "Revoked. Nothing will quote it again."
+      "revoked": "Revoked. Nothing will quote it again.",
+      "reviewVersion": "Review this version",
+      "approveVersion": "Approve this version",
+      "cancelReview": "Close review",
+      "reviewNote": "Review version {version} below. Approval preserves this text and does not allow agent use.",
+      "approved": "Version approved. Agent permission is unchanged."
     },
     "import": {
       "title": "Import facts",
@@ -2103,7 +2108,7 @@
     },
     "errors": {
       "SOURCES_BODY_TOO_LARGE": "That import is too large to send in one request. Split it into smaller parts.",
-      "SOURCES_CONFLICT": "That reference belongs to a source that was revoked. Revoked sources cannot be re-imported — use a new reference.",
+      "SOURCES_CONFLICT": "This version changed or the source was revoked. Reload and review the current version before approving. Your input is preserved.",
       "SOURCES_INVALID_INPUT": "That request could not be read. Nothing was saved.",
       "SOURCES_NOT_FOUND": "That source no longer exists here.",
       "SOURCES_UNAUTHENTICATED": "Your session has ended. Sign in again.",

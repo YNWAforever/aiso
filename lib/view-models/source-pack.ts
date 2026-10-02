@@ -37,6 +37,9 @@ export type SourcePackEntry = {
   /** Mirrors the server toggle, which is not on its own enough to reach a draft. */
   agentUseAllowed: boolean
   versionNumber: number | null
+  versionId: string | null
+  approvedAt: string | null
+  approvedBy: string | null
   /** Identifies the exact approved text a draft would quote and cite. */
   contentHash: string | null
   entryCount: number
@@ -86,6 +89,9 @@ function entryOf(source: SourceDto, now: Date): SourcePackEntry {
     usability: usabilityOf(source),
     agentUseAllowed: source.agentUseAllowed,
     versionNumber: version?.versionNumber ?? null,
+    versionId: version?.id ?? null,
+    approvedAt: version?.approvedAt ?? null,
+    approvedBy: version?.approvedBy ?? null,
     contentHash: version?.contentHash ?? null,
     entryCount: version?.entries.length ?? 0,
     provenance: {

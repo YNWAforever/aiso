@@ -33,6 +33,7 @@ type SourceRow = {
   version_id: string | null; version_number: number | null; content_hash: string | null
   import_method: ImportMethod | null; origin_ref: string | null
   imported_at: string | Date | null; approved_at: string | Date | null
+  approved_by?: string | null
   content: SourceContent | null
 }
 
@@ -49,6 +50,7 @@ function versionDto(row: SourceRow): SourceVersionDto | null {
     originRef: row.origin_ref,
     importedAt: iso(row.imported_at) ?? '',
     approvedAt: iso(row.approved_at),
+    approvedBy: row.approved_by ?? null,
     entries: row.content?.entries ?? [],
   }
 }
@@ -78,7 +80,7 @@ export async function listSources(scope: SourceScope, now = new Date()): Promise
       s.id, s.source_key, s.kind, s.label, s.agent_use_allowed, s.revoked_at,
       s.latest_version, s.updated_at,
       v.id as version_id, v.version_number, v.content_hash, v.import_method,
-      v.origin_ref, v.imported_at, v.approved_at, v.content
+      v.origin_ref, v.imported_at, v.approved_at, v.approved_by, v.content
     from client_sources s
     left join client_source_versions v
       on v.account_id = s.account_id and v.client_id = s.client_id
@@ -107,7 +109,7 @@ export async function listAgentUsableSources(scope: SourceScope, now = new Date(
       s.id, s.source_key, s.kind, s.label, s.agent_use_allowed, s.revoked_at,
       s.latest_version, s.updated_at,
       v.id as version_id, v.version_number, v.content_hash, v.import_method,
-      v.origin_ref, v.imported_at, v.approved_at, v.content
+      v.origin_ref, v.imported_at, v.approved_at, v.approved_by, v.content
     from client_sources s
     join client_source_versions v
       on v.account_id = s.account_id and v.client_id = s.client_id
@@ -129,7 +131,7 @@ export async function readSource(scope: SourceScope, sourceId: string, now = new
       s.id, s.source_key, s.kind, s.label, s.agent_use_allowed, s.revoked_at,
       s.latest_version, s.updated_at,
       v.id as version_id, v.version_number, v.content_hash, v.import_method,
-      v.origin_ref, v.imported_at, v.approved_at, v.content
+      v.origin_ref, v.imported_at, v.approved_at, v.approved_by, v.content
     from client_sources s
     left join client_source_versions v
       on v.account_id = s.account_id and v.client_id = s.client_id
@@ -153,7 +155,7 @@ export type ImportInput = {
 }
 
 export type ImportResult =
-  | { kind: 'created' | 'version-added' | 'unchanged'; source: SourceDto }
+  | { kind: 'created' | 'version-added' | 'unchanged'; source: SourceDto; approval: 'approved' | 'already-approved' | 'not-requested' }
   | { kind: 'revoked' }
   | { kind: 'not-found' }
 
@@ -167,58 +169,104 @@ export async function importSource(scope: SourceScope, input: ImportInput): Prom
   const sql = db()
   const content = buildSourceContent(input.entries)
   const contentHash = hashSourceContent(content)
-
-  // Tenancy inside the write: the insert cannot name a client this account does
-  // not own, because the select it draws from returns nothing.
-  const upserted = await sql`
+  // Noninteractive HTTP batch, not a transaction callback. The lock statement
+  // precedes the dependent CTE so a waiter sees the committed latest version
+  // in a fresh READ COMMITTED snapshot. All dependent writes roll back together.
+  const results = await sql.transaction([sql`
     insert into client_sources (account_id, client_id, source_key, kind, label, created_by)
     select ${scope.accountId}, c.id, ${input.sourceKey}, ${input.kind}, ${input.label}, ${scope.actorId}
     from clients c where c.id = ${scope.clientId} and c.account_id = ${scope.accountId}
-    on conflict (account_id, client_id, source_key)
-      do update set label = excluded.label, kind = excluded.kind, updated_at = now()
-    returning id, latest_version, revoked_at
-  `
-  const source = upserted[0] as { id: string; latest_version: number; revoked_at: string | Date | null } | undefined
-  if (!source) return { kind: 'not-found' }
-  // A revoked source is not a place to put new content. Restoring one is a
-  // separate, deliberate act rather than a side effect of importing again.
-  if (source.revoked_at !== null) return { kind: 'revoked' }
-
-  const existing = await sql`
-    select content_hash from client_source_versions
-    where account_id = ${scope.accountId} and client_id = ${scope.clientId}
-      and source_id = ${source.id} and version_number = ${source.latest_version}
-    limit 1
-  `
-  if ((existing[0] as { content_hash?: string } | undefined)?.content_hash === contentHash) {
-    const unchanged = await readSource(scope, source.id)
-    return unchanged ? { kind: 'unchanged', source: unchanged } : { kind: 'not-found' }
-  }
-
-  const nextVersion = source.latest_version + 1
-  await sql`
-    insert into client_source_versions (
-      account_id, client_id, source_id, version_number, content, content_hash,
-      import_method, origin_ref, imported_by, approved_by, approved_at
-    ) values (
-      ${scope.accountId}, ${scope.clientId}, ${source.id}, ${nextVersion},
-      ${JSON.stringify(content)}::jsonb, ${contentHash},
-      ${input.importMethod}, ${input.originRef}, ${scope.actorId},
-      ${input.approve ? scope.actorId : null}, ${input.approve ? new Date().toISOString() : null}
+    on conflict (account_id, client_id, source_key) do nothing
+  `, sql`
+    select id from client_sources
+    where account_id = ${scope.accountId} and client_id = ${scope.clientId} and source_key = ${input.sourceKey}
+    for update
+  `, sql`
+    with source_state as materialized (
+      select s.*, v.content_hash as previous_hash, v.approved_at as previous_approved_at
+      from client_sources s left join client_source_versions v
+        on v.account_id = s.account_id and v.client_id = s.client_id
+        and v.source_id = s.id and v.version_number = s.latest_version
+      where s.account_id = ${scope.accountId} and s.client_id = ${scope.clientId} and s.source_key = ${input.sourceKey}
+    ), new_version as (
+      insert into client_source_versions (account_id, client_id, source_id, version_number,
+        content, content_hash, import_method, origin_ref, imported_by, approved_by, approved_at)
+      select ${scope.accountId}, ${scope.clientId}, s.id, s.latest_version + 1,
+        ${JSON.stringify(content)}::jsonb, ${contentHash}, ${input.importMethod}, ${input.originRef},
+        ${scope.actorId}, ${input.approve ? scope.actorId : null}::uuid,
+        case when ${input.approve} then now() else null end
+      from source_state s where s.revoked_at is null and s.previous_hash is distinct from ${contentHash}
+      returning *
+    ), approved_version as (
+      update client_source_versions v set approved_by = ${scope.actorId}, approved_at = now()
+      from source_state s where v.account_id = ${scope.accountId} and v.client_id = ${scope.clientId}
+        and v.source_id = s.id and v.version_number = s.latest_version and v.approved_at is null
+        and s.revoked_at is null and ${input.approve} and s.previous_hash = ${contentHash}
+      returning v.*
+    ), chosen_version as (
+      select * from new_version union all select * from approved_version
+      union all select v.* from client_source_versions v join source_state s
+        on v.source_id = s.id and v.version_number = s.latest_version
+        and v.account_id = ${scope.accountId} and v.client_id = ${scope.clientId}
+      where not exists (select 1 from new_version) and not exists (select 1 from approved_version)
+    ), updated_source as (
+      update client_sources t set label = ${input.label}, kind = ${input.kind},
+        latest_version = coalesce((select version_number from new_version), t.latest_version), updated_at = now()
+      from source_state s where t.id = s.id and t.account_id = ${scope.accountId}
+        and t.client_id = ${scope.clientId} and t.revoked_at is null
+      returning t.id, t.source_key, t.kind, t.label, t.agent_use_allowed, t.revoked_at, t.latest_version, t.updated_at
     )
-  `
-  const bumped = await sql`
-    update client_sources set latest_version = ${nextVersion}, updated_at = now()
-    where account_id = ${scope.accountId} and client_id = ${scope.clientId} and id = ${source.id}
-    returning id
-  `
-  // Zero rows here means the source vanished under us. Reporting success would
-  // claim a write that did not land.
-  if (!bumped[0]) return { kind: 'not-found' }
+    select s.id, s.source_key, coalesce(u.kind,s.kind) as kind, coalesce(u.label,s.label) as label,
+      s.agent_use_allowed, s.revoked_at, coalesce(u.latest_version,s.latest_version) as latest_version,
+      coalesce(u.updated_at,s.updated_at) as updated_at,
+      v.id as version_id, v.version_number, v.content_hash, v.import_method, v.origin_ref,
+      v.imported_at, v.approved_at, v.approved_by, v.content,
+      case when s.revoked_at is not null then 'revoked' when s.latest_version = 0 then 'created'
+        when s.previous_hash = ${contentHash} then 'unchanged' else 'version-added' end as result_kind,
+      case when not ${input.approve} then 'not-requested'
+        when s.previous_hash = ${contentHash} and s.previous_approved_at is not null then 'already-approved'
+        else 'approved' end as approval_result
+    from source_state s left join updated_source u on u.id = s.id left join chosen_version v on v.source_id = s.id
+  `])
+  const row = results[2]![0] as (SourceRow & { result_kind: 'created' | 'version-added' | 'unchanged' | 'revoked'; approval_result: 'approved' | 'already-approved' | 'not-requested' }) | undefined
+  if (!row) return { kind: 'not-found' }
+  if (row.result_kind === 'revoked') return { kind: 'revoked' }
+  return { kind: row.result_kind, approval: row.approval_result, source: dto(row, new Date()) }
+}
 
-  const stored = await readSource(scope, source.id)
-  if (!stored) return { kind: 'not-found' }
-  return { kind: source.latest_version === 0 ? 'created' : 'version-added', source: stored }
+export type ApprovalInput = { sourceId: string; versionId: string; expectedLatestVersion: number; expectedContentHash: string }
+export type ApprovalResult =
+  | { kind: 'approved' | 'already-approved'; source: SourceDto }
+  | { kind: 'conflict' | 'revoked' | 'not-found' }
+
+export async function approveSourceVersion(scope: SourceScope, input: ApprovalInput): Promise<ApprovalResult> {
+  const sql = db()
+  const results = await sql.transaction([sql`
+    select id from client_sources where account_id = ${scope.accountId} and client_id = ${scope.clientId}
+      and id = ${input.sourceId} for update
+  `, sql`
+    with reviewed as materialized (
+      select s.id, s.latest_version, s.revoked_at, v.id as version_id, v.version_number, v.content_hash, v.approved_at
+      from client_sources s left join client_source_versions v on v.account_id = s.account_id
+        and v.client_id = s.client_id and v.source_id = s.id and v.id = ${input.versionId}
+      where s.account_id = ${scope.accountId} and s.client_id = ${scope.clientId} and s.id = ${input.sourceId}
+    ), approved as (
+      update client_source_versions v set approved_by = ${scope.actorId}, approved_at = now()
+      from reviewed r where v.account_id = ${scope.accountId} and v.client_id = ${scope.clientId}
+        and v.id = r.version_id and v.source_id = r.id and r.revoked_at is null
+        and r.latest_version = ${input.expectedLatestVersion} and r.version_number = ${input.expectedLatestVersion}
+        and r.content_hash = ${input.expectedContentHash} and v.approved_at is null returning v.id
+    )
+    select case when r.version_id is null then 'not-found' when r.revoked_at is not null then 'revoked'
+      when r.latest_version <> ${input.expectedLatestVersion} or r.version_number <> ${input.expectedLatestVersion}
+        or r.content_hash <> ${input.expectedContentHash} then 'conflict'
+      when exists(select 1 from approved) then 'approved' else 'already-approved' end as kind from reviewed r
+  `])
+  const kind = (results[1]![0] as { kind: ApprovalResult['kind'] } | undefined)?.kind ?? 'not-found'
+  if (kind !== 'approved' && kind !== 'already-approved') return { kind }
+  const source = await readSource(scope, input.sourceId)
+  if (!source) return { kind: 'not-found' }
+  return { kind, source }
 }
 
 /** Revocation is a state, never a delete: a draft that cited this must stay explainable. */

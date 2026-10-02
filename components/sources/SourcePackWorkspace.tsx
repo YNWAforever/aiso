@@ -38,6 +38,7 @@ export function SourcePackWorkspace({
 
   const [busy, setBusy] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [review, setReview] = useState<import('@/lib/sources/schema').SourceDto | null>(null)
   const [status, setStatus] = useState('')
 
   const [label, setLabel] = useState('')
@@ -110,7 +111,9 @@ export function SourcePackWorkspace({
       }
       // `unchanged` is a real outcome, not a failure: identical text hashes the
       // same, so no version was created and saying "imported" would overstate it.
-      setStatus((payload as { result?: string }).result === 'unchanged' ? t('import.unchanged') : t('import.created'))
+      const outcome = payload as { result?: string; approval?: string }
+      setStatus(outcome.approval === 'approved' ? t('actions.approved')
+        : outcome.result === 'unchanged' ? t('import.unchanged') : t('import.created'))
       setPairs([{ ...EMPTY_PAIR }])
       setCsv('')
       router.refresh()
@@ -119,6 +122,37 @@ export function SourcePackWorkspace({
     } finally {
       setImporting(false)
     }
+  }
+
+  async function reviewVersion(sourceId: string) {
+    if (busy) return
+    setBusy(sourceId)
+    setActionError(null)
+    try {
+      const response = await fetch(`${base}/${encodeURIComponent(sourceId)}`, { cache: 'no-store' })
+      const payload = await response.json()
+      if (!response.ok) { setActionError(messageFor(payload.error)); return }
+      setReview(payload.source)
+    } catch { setActionError(t('actions.failed')) }
+    finally { setBusy(null) }
+  }
+
+  async function approveReviewedVersion() {
+    if (busy || !review?.current) return
+    setBusy(review.id)
+    setActionError(null)
+    try {
+      const response = await fetch(`${base}/${encodeURIComponent(review.id)}/versions/${encodeURIComponent(review.current.id)}/approve`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expectedLatestVersion: review.latestVersion, expectedContentHash: review.current.contentHash }),
+      })
+      const payload = await response.json()
+      if (!response.ok) { setActionError(messageFor(payload.error)); return }
+      setStatus(t('actions.approved'))
+      setReview(null)
+      router.refresh()
+    } catch { setActionError(t('actions.failed')) }
+    finally { setBusy(null) }
   }
 
   const field = 'mt-1 w-full min-h-11 rounded-lg border border-dash-border bg-dash-surface px-3 py-2 text-sm text-dash-text'
@@ -172,6 +206,10 @@ export function SourcePackWorkspace({
 
         {entry.usability !== 'revoked' && (
           <div className="mt-4 flex flex-wrap gap-2">
+            {entry.usability === 'awaiting-approval' && entry.versionId && (
+              <button type="button" className={action} disabled={busy !== null}
+                onClick={() => reviewVersion(entry.id)}>{t('actions.reviewVersion')}</button>
+            )}
             <button
               type="button"
               className={action}
@@ -192,6 +230,22 @@ export function SourcePackWorkspace({
             </button>
             <span className="self-center text-xs text-dash-muted">{t('actions.revokeWarning')}</span>
           </div>
+        )}
+        {review?.id === entry.id && review.current && (
+          <section className="mt-4 rounded-lg border border-dash-border p-4" aria-label={t('actions.reviewVersion')}>
+            <p className="text-sm text-dash-muted">{t('actions.reviewNote', { version: review.current.versionNumber })}</p>
+            <dl className="mt-3 space-y-3 text-sm">
+              {review.current.entries.map((pair, index) => <div key={index}>
+                <dt className="font-semibold text-dash-text">{pair.question}</dt>
+                <dd className="whitespace-pre-wrap text-dash-muted">{pair.answer}</dd>
+              </div>)}
+            </dl>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" className={action} disabled={busy !== null || review.revokedAt !== null || review.current.approvedAt !== null}
+                onClick={approveReviewedVersion}>{t('actions.approveVersion')}</button>
+              <button type="button" className={action} disabled={busy !== null} onClick={() => setReview(null)}>{t('actions.cancelReview')}</button>
+            </div>
+          </section>
         )}
       </li>
     )

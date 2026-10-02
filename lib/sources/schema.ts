@@ -38,6 +38,8 @@ export type SourceVersionDto = {
   originRef: string | null
   importedAt: string
   approvedAt: string | null
+  /** Unknown on legacy projections; new reads always include the frozen actor. */
+  approvedBy?: string | null
   entries: SourceEntry[]
 }
 

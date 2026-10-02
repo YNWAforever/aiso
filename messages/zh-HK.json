@@ -2031,7 +2031,7 @@
     },
     "why": {
       "in-use": "草稿可以引用，並會註明這個確實版本。",
-      "awaiting-approval": "已匯入但從未核准，所以不會被引用。請重新匯入這段文字並核准，才會生效。",
+      "awaiting-approval": "已匯入，等待核准。請覆核並核准此版本；代理使用許可是另一項獨立選擇。",
       "not-permitted": "已核准，但代理使用已關閉，所以不會被引用。",
       "revoked": "已撤回，不會再被引用。仍然保留在列表，讓曾經引用過它的草稿可以追溯。"
     },
@@ -2069,7 +2069,12 @@
       "revokeWarning": "撤回後無法復原。",
       "failed": "未能儲存。系統未作任何更改。",
       "saved": "已儲存。",
-      "revoked": "已撤回，不會再被引用。"
+      "revoked": "已撤回，不會再被引用。",
+      "reviewVersion": "覆核這個版本",
+      "approveVersion": "核准此版本",
+      "cancelReview": "關閉覆核",
+      "reviewNote": "請覆核以下版本 {version}。核准會保留此內容，不會開啟代理使用許可。",
+      "approved": "版本已核准，代理使用許可維持原狀。"
     },
     "import": {
       "title": "匯入資料",
@@ -2103,7 +2108,7 @@
     },
     "errors": {
       "SOURCES_BODY_TOO_LARGE": "今次匯入的內容太大，無法一次過提交。請分拆成較小的部分。",
-      "SOURCES_CONFLICT": "這個代號屬於一項已撤回的資料。已撤回的資料不能重新匯入，請改用新的代號。",
+      "SOURCES_CONFLICT": "版本已變更，或資料已撤回。請重新載入並覆核目前版本後再核准。你的輸入仍然保留。",
       "SOURCES_INVALID_INPUT": "無法讀取這個請求，未有儲存任何內容。",
       "SOURCES_NOT_FOUND": "這項資料已不存在。",
       "SOURCES_UNAUTHENTICATED": "登入狀態已結束，請重新登入。",

@@ -11,7 +11,7 @@ import {
   type SourceEntry,
   type SourceKind,
 } from './schema'
-import { importSource, listSources, readSource, revokeSource, setAgentUse, type SourceScope } from './store'
+import { approveSourceVersion, importSource, listSources, readSource, revokeSource, setAgentUse, type SourceScope } from './store'
 
 /**
  * Auth, then ownership, in that order and in one place, so a route cannot do one
@@ -118,7 +118,7 @@ export async function importClientSource(clientId: string, request: Request): Pr
     })
     if (result.kind === 'not-found') throw new SourceServiceError('SOURCES_NOT_FOUND')
     if (result.kind === 'revoked') throw new SourceServiceError('SOURCES_CONFLICT')
-    return json({ result: result.kind, source: result.source }, result.kind === 'created' ? 201 : 200)
+    return json({ result: result.kind, approval: result.approval, source: result.source }, result.kind === 'created' ? 201 : 200)
   } catch (error) { return errorResponse(error) }
 }
 
@@ -144,5 +144,24 @@ export async function readClientSource(clientId: string, sourceId: string): Prom
     const source = await readSource(scope, sourceId)
     if (!source) throw new SourceServiceError('SOURCES_NOT_FOUND')
     return json({ source })
+  } catch (error) { return errorResponse(error) }
+}
+
+export async function approveClientSourceVersion(clientId: string, sourceId: string, versionId: string, request: Request): Promise<Response> {
+  try {
+    const scope = await authorize(clientId)
+    const input = await body(request)
+    if (!Number.isSafeInteger(input.expectedLatestVersion) || Number(input.expectedLatestVersion) < 1
+      || typeof input.expectedContentHash !== 'string' || !/^[a-f0-9]{64}$/.test(input.expectedContentHash)
+      || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(sourceId)
+      || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(versionId)) {
+      throw new SourceServiceError('SOURCES_INVALID_INPUT')
+    }
+    const result = await approveSourceVersion(scope, { sourceId, versionId,
+      expectedLatestVersion: Number(input.expectedLatestVersion), expectedContentHash: input.expectedContentHash })
+    if (result.kind === 'not-found') throw new SourceServiceError('SOURCES_NOT_FOUND')
+    if (result.kind === 'conflict' || result.kind === 'revoked') throw new SourceServiceError('SOURCES_CONFLICT')
+    if (!('source' in result)) throw new SourceServiceError('SOURCES_CONFLICT')
+    return json({ result: result.kind, source: result.source })
   } catch (error) { return errorResponse(error) }
 }
