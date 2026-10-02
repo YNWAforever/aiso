@@ -2,7 +2,7 @@
  * TDD: Impact engine — deterministic modelled estimates from scan results
  */
 import { describe, it, expect } from 'vitest'
-import { computeImpact, INDUSTRY_BENCHMARKS } from '@/lib/impact'
+import { computeImpact } from '@/lib/impact'
 
 // ── Fixtures ────────────────────────────────────────────────────
 const pass = (msg = 'ok')  => ({ status: 'pass' as const, message: msg })
@@ -134,13 +134,11 @@ describe('computeImpact — headlineStat', () => {
     expect(r.headlineStat.type).toBe('low_readable')
   })
 
-  it('falls to benchmark_gap when below industry average', () => {
+  it('does not invent a benchmark for low-scoring industry scans', () => {
     const r = computeImpact(allPassResults(), { score: 50, industry: 'technology' })
-    expect(r.headlineStat.type).toBe('benchmark_gap')
-    if (r.headlineStat.type === 'benchmark_gap') {
-      expect(r.headlineStat.benchmark).toBe(INDUSTRY_BENCHMARKS.technology)
-      expect(r.headlineStat.gap).toBe(INDUSTRY_BENCHMARKS.technology! - 50)
-    }
+    expect(r.benchmark).toBeNull()
+    expect(r.headlineStat.type).toBe('score_uplift')
+    expect(r.headlineStat.text).not.toContain('average')
   })
 
   it('falls back to score_uplift otherwise', () => {

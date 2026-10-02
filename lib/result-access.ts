@@ -66,6 +66,7 @@ export function buildPublicResultSummary(
       projectedGrade: impact.projectedGrade,
       platformVisibility: impact.platformVisibility,
       collectorAccess: impact.collectorAccess,
+      benchmark: impact.benchmark,
     },
   }
 }
