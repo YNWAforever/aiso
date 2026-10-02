@@ -51,7 +51,7 @@ function get(secret: string | null = CRON_SECRET, hop?: number) {
 
 function account(plan: string, extra: Record<string, unknown> = {}) {
   return {
-    client_id: 'client-1', prompt_count: 24, scanned_prompts: 6,
+    client_id: 'client-1', created_at: '2026-10-01T00:00:00.000Z', prompt_count: 24, scanned_prompts: 6,
     plan, status: 'active', stripe_subscription_id: 'sub_1',
     trial_ends_at: null, override_plan: null, override_expires_at: null,
     ...extra,
@@ -190,6 +190,22 @@ describe('GET /api/cron/pulse — driving the producer', () => {
 })
 
 describe('GET /api/cron/pulse — selection', () => {
+  it('empty items at the deadline are deferred with a continuation cursor', async () => {
+    candidateRows = Array.from({ length: 100 }, (_, i) => account('free', {
+      client_id: `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`,
+      override_plan: 'pro', override_expires_at: '2020-01-01T00:00:00.000Z', stripe_subscription_id: null,
+    }))
+    const clock = vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(50_000)
+    try {
+      const body = await (await get()).json()
+      expect(body).toMatchObject({ done: false, deferred: true, processed: 0, scanned: 1,
+        candidateCursor: { clientId: '00000000-0000-4000-8000-000000000001' } })
+      expect(afterCallbacks).toHaveLength(1)
+      expect(fetchMock).not.toHaveBeenCalled()
+      await afterCallbacks[0]()
+      expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get('candidateAfter')).toContain('000000000001')
+    } finally { clock.mockRestore() }
+  })
   it('treats the aggregate summary row as the completion marker, not metrics', async () => {
     // pulse/run writes the platform-null row only on the chunk where nextCursor
     // is null. Testing pulse_metrics instead would make a client that finished
@@ -206,7 +222,7 @@ describe('GET /api/cron/pulse — selection', () => {
     await get()
 
     expect(calls[0].text).toMatch(/count\(distinct m\.prompt_id\)/)
-    expect(calls[0].text).toMatch(/date_trunc\('week', now\(\)\)::date/)
+    expect(calls[0].params).toEqual(expect.arrayContaining([expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)]))
   })
 
   it('never excludes a comped account in SQL', async () => {

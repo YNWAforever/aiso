@@ -3,7 +3,7 @@ import { NextResponse, after, type NextRequest } from 'next/server'
 import { appOrigin } from '@/lib/app-origin'
 import { startCronRun, finishCronRun } from '@/lib/cron/recordRun'
 import { db } from '@/lib/db'
-import { countConfiguredClients, selectPendingClients } from '@/lib/pulse/schedule'
+import { countConfiguredClients, currentScanWeek, selectPendingClientPage, type CandidateCursor, type PendingClientPage } from '@/lib/pulse/schedule'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,9 +72,24 @@ export async function GET(req: NextRequest) {
     }
 
     const startedAt = Date.now()
-    let pending: Awaited<ReturnType<typeof selectPendingClients>>
+    let candidateAfter: CandidateCursor | null = null
+    const encodedAfter = url.searchParams.get('candidateAfter')
+    if (encodedAfter) {
+      try {
+        const parsed = JSON.parse(encodedAfter)
+        if (typeof parsed.createdAt !== 'string' || !Number.isFinite(Date.parse(parsed.createdAt))
+          || typeof parsed.clientId !== 'string' || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(parsed.clientId)) throw new Error()
+        candidateAfter = { createdAt: new Date(parsed.createdAt).toISOString(), clientId: parsed.clientId }
+      } catch {
+        const payload = { error: 'Invalid candidate cursor' }
+        await finishCronRun(runId, 'error', payload)
+        return NextResponse.json(payload, { status: 400 })
+      }
+    }
+    let page: PendingClientPage
     try {
-      pending = await selectPendingClients(db(), 1)
+      page = await selectPendingClientPage(db(), { limit: 1, after: candidateAfter,
+        scanWeek: currentScanWeek(), deadlineMs: startedAt + BUDGET_MS - 5_000 })
     } catch {
       console.error('[cron/pulse] pending-client lookup failed')
       const payload = { error: 'Lookup failed' }
@@ -82,6 +97,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(payload, { status: 503 })
     }
 
+    const pending = page.items
+    if (pending.length === 0 && !page.exhausted) {
+      const next = new URL('/api/cron/pulse', appOrigin())
+      next.searchParams.set('hop', String(hop + 1))
+      if (page.nextCursor) next.searchParams.set('candidateAfter', JSON.stringify(page.nextCursor))
+      after(async () => {
+        try { await fetch(next, { headers: { authorization: `Bearer ${cronSecret}` } }) }
+        catch { console.error('[cron/pulse] candidate continuation failed') }
+      })
+      const payload = { done: false, deferred: true, hop, processed: 0, scanned: page.scanned, candidateCursor: page.nextCursor }
+      await finishCronRun(runId, 'ok', payload)
+      return NextResponse.json(payload)
+    }
     if (pending.length === 0) {
       // An empty pending list is ambiguous: selectPendingClients excludes clients
       // already rolled up this week, so it is also empty when every client is
@@ -92,14 +120,17 @@ export async function GET(req: NextRequest) {
       try {
         configuredClients = await countConfiguredClients(db())
       } catch {
-        configuredClients = -1
+        const payload = { error: 'Configured-client lookup failed' }
+        await finishCronRun(runId, 'error', payload)
+        return NextResponse.json(payload, { status: 503 })
       }
 
       if (configuredClients === 0) {
         console.error('[cron/pulse] no client has an active prompt bank; nothing will ever be scanned')
       }
 
-      const payload = { done: true, hop, processed: 0, configuredClients }
+      const payload = { done: true, hop, processed: 0, configuredClients, scanned: page.scanned,
+        outcome: configuredClients === 0 ? 'unconfigured' : page.scanned > 0 ? 'no-eligible-candidates' : 'all-complete' }
       await finishCronRun(runId, 'ok', payload)
       return NextResponse.json(payload)
     }
