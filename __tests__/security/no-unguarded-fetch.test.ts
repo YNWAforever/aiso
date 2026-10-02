@@ -30,8 +30,8 @@ const SCANNED_DIRS = ['lib/checks', 'lib/authority', 'app/api']
  */
 const ALLOWED: Record<string, { count: number; reason: string }> = {
   'app/api/cron/pulse/route.ts': {
-    count: 2,
-    reason: 'Self-origin driver hop to appOrigin()/api/pulse/run. The guarded fetcher '
+    count: 3,
+    reason: 'Self-origin producer and continuation hops, including candidate deadline continuation, use appOrigin(). The guarded fetcher '
       + 'blocks private ranges, so it would reject localhost in dev and preview.',
   },
   'app/api/scan/route.ts': {
