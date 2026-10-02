@@ -51,6 +51,7 @@ const TENANT_TABLES: Record<string, string> = {
   client_entities: 'account_id (040)',
   client_sources: 'account_id (044)',
   client_source_versions: 'account_id (044)',
+  onboarding_progress: 'account_id (056)',
   evidence_work_items: 'account_id (041)',
   work_item_versions: 'account_id (041)',
   work_item_decisions: 'account_id (042)',
@@ -122,13 +123,6 @@ const DECLARED: Record<string, string> = {
   'app/[lang]/result/[id]/opengraph-image.tsx::Image':
     'The same public page\'s OG card. It renders domain, score and grade, all three of which ' +
     'buildPublicResultSummary already publishes to anonymous viewers of that same id.',
-  'app/[lang]/onboarding/page.tsx::OnboardingPage':
-    'Pre-fills the wizard from the scan the visitor just ran. Reads domain, industry and region — ' +
-    'and buildPublicResultSummary (lib/result-access.ts) already returns all three to any ' +
-    'anonymous viewer of /result/[id] for the same id, so this is strictly less than the public ' +
-    'page publishes. Narrowing it to unclaimed-or-owned scans would break the anonymous ' +
-    'scan -> sign-up -> onboarding funnel it exists to serve, and close nothing.',
-
   // ---- Cron-authenticated: the system is the caller, so there is no session to scope to. ----
   'app/api/clients/[clientId]/agents/competitors/route.ts::POST':
     'x-cron-secret, not a session — the n8n agent workflow posts results back. No account exists ' +
@@ -184,7 +178,8 @@ const ACCOUNT_BLIND_BY_DESIGN: Record<string, string> = {
  * would otherwise need no new entry and would land unreviewed. This number makes
  * it a visible edit.
  */
-const EXPECTED_UNSCOPED_TOTAL = 17
+// T10 scopes the onboarding prefill to the session or its signed public-scan intent.
+const EXPECTED_UNSCOPED_TOTAL = 16
 
 const ROOT = process.cwd()
 const BACKSLASH = String.fromCharCode(92)

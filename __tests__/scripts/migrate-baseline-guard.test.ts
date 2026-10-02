@@ -53,7 +53,7 @@ const ALL_TABLES = [
   'agent_recommendations', 'ai_citation_log', 'alert_configs', 'alert_email_deliveries',
   'authenticated_scan_monthly_usage', 'authority_overrides', 'authority_scores',
   'chunk_analysis', 'client_report_versions', 'client_reports', 'clients', 'content_briefs',
-  'cron_runs',
+  'cron_runs', 'onboarding_progress',
   'domain_signals', 'fix_packs', 'industry_packs', 'local_trust_actions', 'local_trust_profiles',
   'local_trust_snapshots', 'notifications', 'profiles', 'prompt_bank', 'public_scan_rate_limits',
   'pulse_metrics', 'pulse_weekly_summary', 'regional_packs', 'scans', 'schema_migrations',

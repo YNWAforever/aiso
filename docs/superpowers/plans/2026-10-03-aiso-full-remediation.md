@@ -451,7 +451,7 @@ npm run test:integration -- __tests__/integration/pulse-summary.test.ts
 - Create／擬新增：`lib/onboarding/schema.ts`
 - Create／擬新增：`lib/onboarding/store.ts`
 - Create／擬新增：`lib/onboarding/service.ts`
-- Create／擬新增：`supabase/migrations/055_onboarding_progress.sql`
+- Create／擬新增：`supabase/migrations/056_onboarding_progress.sql`
 - Create／擬新增：`__tests__/integration/onboarding-resume.test.ts`
 - Create／擬新增：`tests/e2e/onboarding-recovery.spec.ts`
 
@@ -506,7 +506,7 @@ npm run e2e -- tests/e2e/onboarding-recovery.spec.ts --project=chromium
 - Create／擬新增：`lib/pulse/runs/schema.ts`
 - Create／擬新增：`lib/pulse/runs/store.ts`
 - Create／擬新增：`lib/pulse/runs/service.ts`
-- Create／擬新增：`supabase/migrations/056_pulse_run_ledger.sql`
+- Create／擬新增：`supabase/migrations/057_pulse_run_ledger.sql`
 - Create／擬新增：`__tests__/lib/pulse-run-ledger.test.ts`
 - Create／擬新增：`__tests__/integration/pulse-runs.test.ts`
 
@@ -1311,3 +1311,4 @@ BASE_URL=http://127.0.0.1:3000 START_DEV_SERVER=1 npm run e2e -- --project=chrom
 - 原始證據ZIP、已展開的audit、來源hash與README；歷史v1仍在原包內。
 
 本計劃自查：19 findings均有修復／調查任務；依賴無循環；所有既有路徑對到稽核SHA；新增路徑明示擬新增；local/live分開；F16保持unknown調查；沒有把計劃完成當成網站已修復。
+

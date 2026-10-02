@@ -4,6 +4,8 @@ import type { ReactElement } from 'react'
 const { sqlMock } = vi.hoisted(() => ({ sqlMock: vi.fn() }))
 
 vi.mock('@/lib/db', () => ({ db: () => sqlMock }))
+vi.mock('@/lib/auth', () => ({ getProfile: vi.fn(async () => ({ account_id: 'synthetic-account' })) }))
+vi.mock('next/headers', () => ({ cookies: vi.fn(async () => ({ get: () => undefined })) }))
 vi.mock('@/components/onboarding/OnboardingWizard', () => ({
   OnboardingWizard: () => null,
 }))
@@ -56,6 +58,7 @@ describe('onboarding page scan pre-fill', () => {
     sqlMock.mockResolvedValue([{ domain: 'testbrand.com', industry: 'technology', region: 'HK' }])
 
     const props = await renderPage('scan-1')
+    expect(sqlMock.mock.calls[0].slice(1)).toEqual(expect.arrayContaining(['synthetic-account', false]))
 
     expect(props).toMatchObject({
       scanId: 'scan-1',

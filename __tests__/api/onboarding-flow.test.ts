@@ -1,469 +1,109 @@
-/**
- * TDD: Onboarding flow — expanded
- * Covers: trial setup, domain/region/description/competitors, idempotency,
- * scan claiming, and the scan -> brand association added alongside
- * scans.client_id (both the new-client and existing-client paths).
- */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { readFileSync } from 'node:fs'
 import { CLAIM_INTENT_COOKIE, signScanClaimIntent } from '@/lib/security/scan-claim-intent'
-
-const getProfileMock = vi.hoisted(() => vi.fn())
-vi.mock('@/lib/auth', () => ({ getProfile: getProfileMock }))
-
-// Queued-result tagged-template mock, matching __tests__/api/dashboard-clients.test.ts.
-// Each call to sql`...` records the query text and shifts the next queued
-// result off nextResults; queuing an Error makes that call throw, matching
-// how the Neon driver throws in place of supabase-js's { data, error }.
-const queries: string[] = []
-let attemptWon = true
-let nextResults: unknown[][] = []
-
-const mockSql = vi.fn((strings: TemplateStringsArray, ..._values: unknown[]) => {
-  // The single-use attempt insert (AC-03, migration 052) runs on every claim
-  // and belongs to no test's queued sequence. It is answered before `queries`
-  // is touched, so it neither shifts the queue nor shifts the positional
-  // indices every expectation below is written against.
-  if (/insert into scan_claim_attempts/i.test(strings.join('?'))) {
-    return Promise.resolve(attemptWon ? [{ attempt_id: 'a' }] : [])
-  }
-  queries.push(strings.join('?'))
-  const result = nextResults.shift()
-  if (result instanceof Error) throw result
-  return Promise.resolve(result ?? [])
-})
-
-vi.mock('@/lib/db', () => ({ db: () => mockSql }))
-
-vi.mock('@/lib/openrouter', () => ({
-  callOpenRouter: vi.fn().mockResolvedValue(
-    JSON.stringify([
-      { category: 'brand_query', question: 'What is TestBrand?', language: 'en' },
-      { category: 'pain_point', question: 'How does TestBrand help with SEO?', language: 'en' },
-    ])
-  ),
-}))
-
-/**
- * Claiming a scan through onboarding requires the same signed claim intent as
- * /api/scans/[id]/claim: scanId arrives in the request body, so on its own it
- * proves nothing. A body carrying a scanId therefore gets a matching intent
- * cookie by default, so these cases keep exercising the claim behaviour they
- * were written for instead of stopping at the 403. Pass `intent: null` to
- * exercise the denial itself.
- */
-function request(body: unknown, options: { intent?: string | null } = {}) {
-  const scanId = (body as { scanId?: string } | null)?.scanId
-  const intent = options.intent === undefined && scanId
-    ? signScanClaimIntent({
-        scanId,
-        lang: 'en',
-        returnPath: `/en/result/${encodeURIComponent(scanId)}?claim=1`,
-        attemptId: '44444444-4444-4444-8444-444444444444',
-      })
-    : options.intent
-  return new NextRequest('http://localhost/api/onboarding/complete', {
-    method: 'POST',
-    body: JSON.stringify(body),
-    headers: {
-      'Content-Type': 'application/json',
-      ...(intent ? { Cookie: `${CLAIM_INTENT_COOKIE}=${intent}` } : {}),
-    },
-  })
+const mocks = vi.hoisted(() => ({ profile: vi.fn(), read: vi.fn(), ownedScan: vi.fn(), complete: vi.fn(), claim: vi.fn(), consume: vi.fn() }))
+vi.mock('@/lib/auth', () => ({ getProfile: mocks.profile }))
+vi.mock('@/lib/onboarding/store', () => ({ readOnboardingProgress: mocks.read, ownedOnboardingScan: mocks.ownedScan }))
+vi.mock('@/lib/onboarding/service', () => ({ completeOnboarding: mocks.complete }))
+vi.mock('@/app/api/scans/[id]/claim/route', () => ({ claimScanForAccount: mocks.claim }))
+vi.mock('@/lib/security/scan-claim-attempt', () => ({ consumeScanClaimAttempt: mocks.consume }))
+import { POST } from '@/app/api/onboarding/complete/route'
+const clientId = '11111111-1111-4111-8111-111111111111', scanId = '22222222-2222-4222-8222-222222222222'
+const result = { clientId, scanId: null, trialEndsAt: '2026-10-10T00:00:00.000Z', intentKey: 'synthetic-intent', progress: {
+  clientId, brand: 'ready', prompts: 'ready', promptCount: 24, scanId: null, retryable: false, errorCode: null,
+} }
+function request(body: unknown, intent?: string) {
+  return new NextRequest('https://example.test/api/onboarding/complete', { method: 'POST', body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json', ...(intent ? {Cookie: `${CLAIM_INTENT_COOKIE}=${intent}`} : {}) } })
 }
-
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
-
-describe('POST /api/onboarding/complete', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    queries.length = 0
-    nextResults = []
-    attemptWon = true
-    getProfileMock.mockResolvedValue({ account_id: 'acc-1' })
-    process.env.REPORT_SHARE_SECRET = 'x'.repeat(32)
+function signed(id = scanId) {
+  return signScanClaimIntent({scanId:id,lang:'en',returnPath:`/en/result/${id}?claim=1`,attemptId:'44444444-4444-4444-8444-444444444444'})!
+}
+beforeEach(() => {
+  vi.clearAllMocks(); process.env.REPORT_SHARE_SECRET = 'x'.repeat(32)
+  mocks.profile.mockResolvedValue({account_id:'synthetic-account'}); mocks.read.mockResolvedValue(null)
+  mocks.complete.mockResolvedValue(result); mocks.claim.mockResolvedValue({status:'claimed'}); mocks.consume.mockResolvedValue('consumed')
+  mocks.ownedScan.mockResolvedValue(false)
+})
+describe('resumable onboarding API boundary', () => {
+  it('returns 401 before database effects for an anonymous user', async () => {
+    mocks.profile.mockResolvedValue(null)
+    expect((await POST(request({brandName:'Synthetic'}))).status).toBe(401)
+    expect(mocks.read).not.toHaveBeenCalled(); expect(mocks.complete).not.toHaveBeenCalled()
   })
-
-  // The onboarding handler was a second, unguarded way into claimScanForAccount:
-  // it claimed whatever scanId the body carried. An authenticated stranger could
-  // therefore take a public scan they had never run.
-  it('denies a body-supplied scan claim that carries no intent cookie', async () => {
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand', scanId: '11111111-1111-4111-8111-111111111111' }, { intent: null }))
-
-    expect(res.status).toBe(403)
-    expect((await res.json()).error).toBe('Claim unavailable')
-    expect(mockSql).not.toHaveBeenCalled()
+  it.each([{},null,[],{brandName:' '},{brandName:42},{brandName:'x'.repeat(161)},
+    {brandName:'Synthetic',description:'x'.repeat(4001)}, {brandName:'Synthetic',competitors:[42]},
+    {brandName:'Synthetic',clientId:'invalid'}, {brandName:'Synthetic',scanId:'invalid'}])('rejects invalid input before effects: %j', async body => {
+    expect((await POST(request(body))).status).toBe(400); expect(mocks.complete).not.toHaveBeenCalled()
   })
-
-  it('denies a body-supplied scan claim whose intent was minted for a different scan', async () => {
-    const foreign = signScanClaimIntent({
-      scanId: '33333333-3333-4333-8333-333333333333', lang: 'en', returnPath: '/en/result/scan-other?claim=1', attemptId: '44444444-4444-4444-8444-444444444444',
-    })
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand', scanId: '11111111-1111-4111-8111-111111111111' }, { intent: foreign }))
-
-    expect(res.status).toBe(403)
-    expect(mockSql).not.toHaveBeenCalled()
+  it('rejects invalid JSON', async () => {
+    expect((await POST(new NextRequest('https://example.test', {method:'POST',body:'{'}))).status).toBe(400)
   })
-
-  it('returns 400 when brandName is missing', async () => {
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ domain: 'example.com' }))
-    expect(res.status).toBe(400)
-    expect((await res.json()).error).toBe('brandName required')
-    expect(mockSql).not.toHaveBeenCalled()
+  it('denies a scan without a signed claim intent', async () => {
+    expect((await POST(request({brandName:'Synthetic',scanId}))).status).toBe(403)
+    expect(mocks.consume).not.toHaveBeenCalled(); expect(mocks.complete).not.toHaveBeenCalled()
   })
-
-  it('returns 401 when unauthenticated', async () => {
-    getProfileMock.mockResolvedValue(null)
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand' }))
-    expect(res.status).toBe(401)
-    expect(mockSql).not.toHaveBeenCalled()
+  it('denies an intent minted for another scan', async () => {
+    expect((await POST(request({brandName:'Synthetic',scanId},signed(clientId)))).status).toBe(403)
   })
-
-  it('returns 500 without querying clients when the account lookup fails', async () => {
-    nextResults = [new Error('connection terminated') as never]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand' }))
-    expect(res.status).toBe(500)
-    expect((await res.json()).error).toBe('Failed to load account')
-    expect(queries.some(q => q.includes('clients'))).toBe(false)
+  it('rejects replay of a consumed claim attempt', async () => {
+    mocks.consume.mockResolvedValue('already-consumed')
+    expect((await POST(request({brandName:'Synthetic',scanId},signed()))).status).toBe(403)
+    expect(mocks.claim).not.toHaveBeenCalled(); expect(mocks.complete).not.toHaveBeenCalled()
   })
-
-  it('returns 500 without querying clients when the trial update fails', async () => {
-    nextResults = [
-      [{ trial_started_at: null, trial_ends_at: null }],
-      new Error('account update failed') as never,
-    ]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand' }))
-    expect(res.status).toBe(500)
-    expect((await res.json()).error).toBe('Failed to start trial')
-    expect(queries.some(q => q.includes('clients'))).toBe(false)
+  it('fails closed when claim attempt storage is unavailable', async () => {
+    mocks.consume.mockRejectedValue(new Error('synthetic outage'))
+    expect((await POST(request({brandName:'Synthetic',scanId},signed()))).status).toBe(503)
   })
-
-  it('treats a client lookup error differently from no existing client', async () => {
-    nextResults = [
-      [{ trial_started_at: null, trial_ends_at: null }],
-      [{ id: 'acc-1' }],
-      new Error('client read failed') as never,
-    ]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand' }))
-    expect(res.status).toBe(500)
-    expect((await res.json()).error).toBe('Failed to load client')
-    expect(queries.some(q => q.includes('insert into clients'))).toBe(false)
+  it.each([['not-found',404],['conflict',409],['error',500]] as const)('preserves %s scan claim denial', async (status,expected) => {
+    mocks.claim.mockResolvedValue({status})
+    expect((await POST(request({brandName:'Synthetic',scanId},signed()))).status).toBe(expected)
+    expect(mocks.complete).not.toHaveBeenCalled()
   })
-
-  it('returns { clientId, trialEndsAt } on success', async () => {
-    nextResults = [
-      [{ trial_started_at: null, trial_ends_at: null }],
-      [{ id: 'acc-1' }],
-      [],
-      [{ id: 'client-new' }],
-    ]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({
-      brandName: 'TestBrand', domain: 'testbrand.com', industry: 'technology', region: 'HK',
-    }))
-    expect(res.status).toBe(200)
-    const json = await res.json()
-    expect(json.clientId).toBe('client-new')
-    expect(json.scanId).toBeNull()
-    const endsAt = new Date(json.trialEndsAt).getTime()
-    expect(endsAt).toBeGreaterThan(Date.now() + SEVEN_DAYS_MS - 60_000)
-    expect(endsAt).toBeLessThan(Date.now() + SEVEN_DAYS_MS + 60_000)
+  it('claims only for the session account before creating persistent progress', async () => {
+    expect((await POST(request({brandName:'Synthetic',scanId},signed()))).status).toBe(200)
+    expect(mocks.claim).toHaveBeenCalledWith(scanId,'synthetic-account')
+    expect(mocks.complete).toHaveBeenCalledWith({accountId:'synthetic-account'},expect.objectContaining({scanId}))
   })
-
-  it('returns existing clientId on double-submit (idempotent)', async () => {
-    nextResults = [
-      [{ trial_started_at: new Date(), trial_ends_at: new Date(Date.now() + 4 * 86_400_000) }],
-      [{ id: 'client-existing' }],
-    ]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand', domain: 'testbrand.com' }))
-    expect(res.status).toBe(200)
-    expect((await res.json()).clientId).toBe('client-existing')
+  it('resumes a stored matching client/scan without spending another claim intent', async () => {
+    mocks.read.mockResolvedValue({...result,scanId})
+    expect((await POST(request({brandName:'Synthetic',scanId,clientId,intentKey:result.intentKey}))).status).toBe(200)
+    expect(mocks.claim).not.toHaveBeenCalled(); expect(mocks.consume).not.toHaveBeenCalled()
   })
-
-  it('does NOT reset trial dates on double-submit', async () => {
-    const trialEndsAt = new Date(Date.now() + 4 * 86_400_000)
-    nextResults = [
-      [{ trial_started_at: new Date(Date.now() - 3 * 86_400_000), trial_ends_at: trialEndsAt }],
-      [{ id: 'client-existing' }],
-    ]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand' }))
-    expect(res.status).toBe(200)
-    expect((await res.json()).trialEndsAt).toBe(trialEndsAt.toISOString())
-    expect(queries.some(q => q.includes('update accounts'))).toBe(false)
+  it('resumes after a lost response when the caller has not received the client id', async () => {
+    mocks.read.mockResolvedValue({...result,scanId})
+    expect((await POST(request({brandName:'Synthetic',scanId,intentKey:result.intentKey}))).status).toBe(200)
+    expect(mocks.consume).not.toHaveBeenCalled()
   })
-
-  it('repairs a missing stored trial expiry without resetting the start date', async () => {
-    const trialStartedAt = new Date('2026-07-01T00:00:00.000Z')
-    const expectedTrialEndsAt = '2026-07-08T00:00:00.000Z'
-    nextResults = [
-      [{ trial_started_at: trialStartedAt, trial_ends_at: null }],
-      [{ id: 'acc-1' }],
-      [{ id: 'client-existing' }],
-    ]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand' }))
-    expect(res.status).toBe(200)
-    expect((await res.json()).trialEndsAt).toBe(expectedTrialEndsAt)
-    expect(queries.filter(q => q.includes('update accounts'))).toHaveLength(1)
+  it('resumes an interruption after scan claim through signed intent and session-owned readback', async () => {
+    mocks.ownedScan.mockResolvedValue(true)
+    expect((await POST(request({brandName:'Synthetic',scanId},signed()))).status).toBe(200)
+    expect(mocks.ownedScan).toHaveBeenCalledWith({accountId:'synthetic-account'},scanId)
+    expect(mocks.consume).not.toHaveBeenCalled(); expect(mocks.claim).not.toHaveBeenCalled()
   })
-
-  it('accepts a stored trial expiry given as an ISO string, not just a Date', async () => {
-    // The Neon driver returns timestamptz as a Date, but a row written before
-    // the migration (or a test fixture) may still hand back a plain string.
-    nextResults = [
-      [{ trial_started_at: '2026-07-01T00:00:00.000Z', trial_ends_at: '2026-07-08T00:00:00.000Z' }],
-      [{ id: 'client-existing' }],
-    ]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand' }))
-    expect(res.status).toBe(200)
-    expect((await res.json()).trialEndsAt).toBe('2026-07-08T00:00:00.000Z')
-    expect(queries.some(q => q.includes('update accounts'))).toBe(false)
+  it('stored progress for a different client cannot bypass claim authorization', async () => {
+    mocks.read.mockResolvedValue({...result,scanId})
+    expect((await POST(request({brandName:'Synthetic',scanId,clientId:scanId,intentKey:result.intentKey}))).status).toBe(403)
   })
-
-  it('maps a BRAND_LIMIT_REACHED trigger error to 403, matching dashboard/clients', async () => {
-    nextResults = [
-      [{ trial_started_at: new Date(), trial_ends_at: new Date(Date.now() + 4 * 86_400_000) }],
-      [],
-      new Error('BRAND_LIMIT_REACHED') as never,
-    ]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'Fourth Brand' }))
-    expect(res.status).toBe(403)
-    expect((await res.json()).error).toBe('BRAND_LIMIT_REACHED')
+  it('seed_failure_resumes_same_client exposes persistent retryable progress instead of silent success', async () => {
+    mocks.complete.mockResolvedValue({...result,progress:{...result.progress,prompts:'failed',promptCount:0,retryable:true,errorCode:'ONBOARDING_SEED_FAILED'}})
+    const response=await POST(request({brandName:'Synthetic',intentKey:result.intentKey,clientId}))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({clientId,trialEndsAt:result.trialEndsAt,progress:{prompts:'failed',retryable:true,promptCount:0}})
   })
-
-  it('returns 500, not a silent success, when client creation fails for another reason', async () => {
-    nextResults = [
-      [{ trial_started_at: new Date(), trial_ends_at: new Date(Date.now() + 4 * 86_400_000) }],
-      [],
-      new Error('connection terminated') as never,
-    ]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand' }))
-    expect(res.status).toBe(500)
-    expect((await res.json()).error).toBe('Failed to create client')
+  it('distinguishes unavailable requested brand from dependency failure', async () => {
+    mocks.complete.mockResolvedValue(null)
+    expect((await POST(request({brandName:'Synthetic',clientId}))).status).toBe(404)
+    mocks.complete.mockRejectedValue(new Error('synthetic outage'))
+    expect((await POST(request({brandName:'Synthetic',clientId}))).status).toBe(503)
   })
-
-  it('accepts description and competitors without error, passed as text[] not jsonb', async () => {
-    nextResults = [
-      [{ trial_started_at: null, trial_ends_at: null }],
-      [{ id: 'acc-1' }],
-      [],
-      [{ id: 'client-new' }],
-    ]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({
-      brandName: 'TestBrand',
-      domain: 'testbrand.com',
-      description: 'TestBrand is an AI SEO platform.',
-      competitors: ['Semrush', 'Ahrefs', 'Moz'],
-    }))
-    expect(res.status).toBe(200)
-    const insertQuery = queries.find(q => q.includes('insert into clients'))
-    expect(insertQuery).toContain('::text[]')
+  it('preserves the brand quota response', async () => {
+    mocks.complete.mockRejectedValue(new Error('BRAND_LIMIT_REACHED'))
+    expect((await POST(request({brandName:'Synthetic'}))).status).toBe(403)
   })
-
-  it('claims a supplied scan before returning an existing client, and associates it with the brand', async () => {
-    nextResults = [
-      [{ id: '11111111-1111-4111-8111-111111111111' }], // claim: update matched -> claimed
-      [{ trial_started_at: new Date(), trial_ends_at: new Date(Date.now() + 4 * 86_400_000) }],
-      [{ id: 'client-existing' }],
-      [], // scan -> client_id association update
-    ]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand', scanId: '11111111-1111-4111-8111-111111111111' }))
-    const json = await res.json()
-
-    expect(res.status).toBe(200)
-    expect(json).toMatchObject({ clientId: 'client-existing', scanId: '11111111-1111-4111-8111-111111111111' })
-    const assocQuery = queries.find(q => q.includes('update scans set client_id'))
-    expect(assocQuery).toBeDefined()
-    expect(assocQuery).toContain('client_id is null')
-  })
-
-  it('associates a supplied scan with a newly-created brand too', async () => {
-    nextResults = [
-      [{ id: '11111111-1111-4111-8111-111111111111' }], // claim: update matched -> claimed
-      [{ trial_started_at: null, trial_ends_at: null }],
-      [{ id: 'acc-1' }],
-      [], // no existing client
-      [{ id: 'client-new' }], // insert clients
-      [], // scan -> client_id association update
-    ]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand', scanId: '11111111-1111-4111-8111-111111111111' }))
-    const json = await res.json()
-
-    expect(res.status).toBe(200)
-    expect(json).toMatchObject({ clientId: 'client-new', scanId: '11111111-1111-4111-8111-111111111111' })
-    const assocIdx = queries.findIndex(q => q.includes('update scans set client_id'))
-    const insertIdx = queries.findIndex(q => q.includes('insert into clients'))
-    expect(assocIdx).toBeGreaterThan(insertIdx)
-  })
-
-  it('returns 409 without querying clients when a supplied scan has another owner', async () => {
-    nextResults = [
-      [], // claim: update matched nothing
-      [{ account_id: 'acc-2' }], // claim: re-read shows a different owner
-    ]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand', scanId: '11111111-1111-4111-8111-111111111111' }))
-    expect(res.status).toBe(409)
-    expect(queries.some(q => q.includes('clients'))).toBe(false)
-  })
-
-  it('returns 404 when a supplied scan is missing', async () => {
-    // A real uuid that simply is not there. The id used to be 'missing-scan',
-    // which production could never produce: claim-intent validates isUuid
-    // before it will mint an intent at all, so a non-uuid never reaches here
-    // carrying a valid cookie.
-    nextResults = [[], []]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand', scanId: '55555555-5555-4555-8555-555555555555' }))
-    expect(res.status).toBe(404)
-    expect(queries.some(q => q.includes('clients'))).toBe(false)
-  })
-
-  /**
-   * Single-use (AC-03). A replayed cookie must be refused with the same
-   * opaque answer as a forged one, and must not reach the claim at all.
-   */
-  it('denies a replayed claim intent without attempting the claim', async () => {
-    attemptWon = false
-    nextResults = [[{ id: '11111111-1111-4111-8111-111111111111' }]]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-
-    const res = await POST(request({ brandName: 'TestBrand', scanId: '11111111-1111-4111-8111-111111111111' }))
-
-    expect(res.status).toBe(403)
-    expect(queries.some(q => q.includes('update scans'))).toBe(false)
-  })
-
-  it('returns 500 when the scan claim query itself throws', async () => {
-    nextResults = [new Error('connection terminated') as never]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand', scanId: '11111111-1111-4111-8111-111111111111' }))
-    expect(res.status).toBe(500)
-    expect((await res.json()).error).toBe('Failed to claim scan')
-  })
-
-  it('returns 500 (the tenant FK rejecting a mismatch) when a new client cannot be associated with the scan', async () => {
-    nextResults = [
-      [{ id: '11111111-1111-4111-8111-111111111111' }],
-      [{ trial_started_at: null, trial_ends_at: null }],
-      [{ id: 'acc-1' }],
-      [],
-      [{ id: 'client-new' }],
-      new Error('violates foreign key constraint "scans_client_tenant_fkey"') as never,
-    ]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand', scanId: '11111111-1111-4111-8111-111111111111' }))
-    expect(res.status).toBe(500)
-    expect((await res.json()).error).toBe('Failed to associate scan with client')
-  })
-
-  it('a failed OpenRouter call still returns the created client', async () => {
-    const { callOpenRouter } = await import('@/lib/openrouter')
-    vi.mocked(callOpenRouter).mockRejectedValueOnce(new Error('OpenRouter 500'))
-    nextResults = [
-      [{ trial_started_at: null, trial_ends_at: null }],
-      [{ id: 'acc-1' }],
-      [],
-      [{ id: 'client-new' }],
-    ]
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(request({ brandName: 'TestBrand' }))
-    expect(res.status).toBe(200)
-    expect((await res.json()).clientId).toBe('client-new')
-  })
-
-  // The generated bank is the only thing that ever writes prompt_bank.category,
-  // and the column has no CHECK, so whatever the model returns used to become
-  // the vocabulary. A category outside the four lands in a section the question
-  // bank editor cannot offer an add row for.
-  describe('generated prompt categories', () => {
-    async function runWithGenerated(generated: unknown) {
-      const { callOpenRouter } = await import('@/lib/openrouter')
-      vi.mocked(callOpenRouter).mockResolvedValueOnce(JSON.stringify(generated))
-      nextResults = [
-        [{ trial_started_at: null, trial_ends_at: null }],
-        [{ id: 'acc-1' }],
-        [],
-        [{ id: 'client-new' }],
-      ]
-      const { POST } = await import('@/app/api/onboarding/complete/route')
-      await POST(request({ brandName: 'TestBrand' }))
-      const insert = mockSql.mock.calls.find(
-        ([strings]) => /insert into prompt_bank/i.test((strings as TemplateStringsArray).join('?')),
-      )
-      // Params are (clientId, categories[], questions[], languages[]) — the
-      // categories array is the second interpolation, not the first.
-      return insert ? (insert[2] as string[]) : null
-    }
-
-    it('drops a category the model invented rather than storing it', async () => {
-      const categories = await runWithGenerated([
-        { category: 'brand_query', question: 'Kept?', language: 'en' },
-        { category: 'Brand Queries', question: 'Invented label', language: 'en' },
-        { category: 'competitor_query', question: 'Invented category', language: 'en' },
-        { category: 'pain_point', question: 'Also kept?', language: 'en' },
-      ])
-
-      expect(categories).toEqual(['brand_query', 'pain_point'])
-    })
-
-    it('drops a row with a missing category rather than writing NULL', async () => {
-      const categories = await runWithGenerated([
-        { question: 'No category', language: 'en' },
-        { category: 'intent_query', question: 'Kept?', language: 'en' },
-      ])
-
-      expect(categories).toEqual(['intent_query'])
-    })
-
-    it('writes nothing at all when every generated row is unusable', async () => {
-      const categories = await runWithGenerated([
-        { category: 'nonsense', question: 'q', language: 'en' },
-      ])
-
-      expect(categories).toBeNull()
-    })
-
-    it('still returns the created client when the whole bank is dropped', async () => {
-      const { callOpenRouter } = await import('@/lib/openrouter')
-      vi.mocked(callOpenRouter).mockResolvedValueOnce(
-        JSON.stringify([{ category: 'nonsense', question: 'q', language: 'en' }]),
-      )
-      nextResults = [
-        [{ trial_started_at: null, trial_ends_at: null }],
-        [{ id: 'acc-1' }],
-        [],
-        [{ id: 'client-new' }],
-      ]
-      const { POST } = await import('@/app/api/onboarding/complete/route')
-      const res = await POST(request({ brandName: 'TestBrand' }))
-
-      expect(res.status).toBe(200)
-      expect((await res.json()).clientId).toBe('client-new')
-    })
-  })
-
-  it('starts a pre-filled scan onboarding at step 3 and reuses the completed report', () => {
-    const wizard = readFileSync('components/onboarding/OnboardingWizard.tsx', 'utf8')
-    expect(wizard).toContain('const hasScanPrefill = Boolean(scanId && initialBrand && initialDomain)')
-    expect(wizard).toContain('useState(hasScanPrefill ? 3 : 1)')
-    expect(wizard).toContain('/result/')
-    expect(wizard).not.toContain("fetch('/api/scan'")
+  it('does not disclose dependency errors', async () => {
+    mocks.read.mockRejectedValue(new Error('synthetic-private-detail'))
+    const response=await POST(request({brandName:'Synthetic'}))
+    expect(response.status).toBe(503); expect(await response.text()).not.toContain('synthetic-private-detail')
   })
 })

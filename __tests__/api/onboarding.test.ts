@@ -7,6 +7,8 @@ vi.mock('@/lib/auth', () => ({ getProfile: getProfileMock }))
 
 const mockSql = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/db', () => ({ db: () => mockSql }))
+vi.mock('@/lib/onboarding/store', () => ({ readOnboardingProgress: vi.fn(), ownedOnboardingScan: vi.fn() }))
+vi.mock('@/lib/onboarding/service', () => ({ completeOnboarding: vi.fn() }))
 
 vi.mock('@/lib/openrouter', () => ({
   callOpenRouter: vi.fn().mockResolvedValue(

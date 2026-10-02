@@ -1,4 +1,8 @@
 import { db } from '@/lib/db'
+import { getProfile } from '@/lib/auth'
+import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
+import { CLAIM_INTENT_COOKIE, authorizedScanClaimIntent } from '@/lib/security/scan-claim-intent'
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 
 export default async function OnboardingPage({
@@ -9,6 +13,8 @@ export default async function OnboardingPage({
   searchParams: Promise<{ scan?: string | string[] }>
 }) {
   const { lang } = await params
+  const profile = await getProfile()
+  if (!profile) redirect(`/${lang}/login`)
   const { scan } = await searchParams
   const scanId = typeof scan === 'string' && scan.trim() ? scan : undefined
 
@@ -21,8 +27,11 @@ export default async function OnboardingPage({
   if (scanId) {
     try {
       const sql = db()
+      const jar = await cookies()
+      const validIntent = !!authorizedScanClaimIntent(jar.get(CLAIM_INTENT_COOKIE)?.value, scanId)
       const rows = await sql`
-        select domain, industry, region from scans where id = ${scanId} limit 1
+        select domain, industry, region from scans where id = ${scanId}
+          and (account_id = ${profile.account_id} or (account_id is null and ${validIntent})) limit 1
       `
       const data = rows[0] as { domain: string | null; industry: string | null; region: string | null } | undefined
       if (data) {
@@ -47,6 +56,7 @@ export default async function OnboardingPage({
   return (
     <OnboardingWizard
       lang={lang}
+      accountId={profile.account_id}
       scanId={scanId}
       initialBrand={initialBrand}
       initialDomain={initialDomain}
