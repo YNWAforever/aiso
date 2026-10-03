@@ -4,6 +4,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 // `drop schema public cascade`. Everything is exercised against a mocked
 // neonctl — nothing here talks to Neon.
 const execFileSync = vi.hoisted(() => vi.fn())
+const recordBranchProvenance = vi.hoisted(() => vi.fn())
+vi.mock('../../scripts/ci/record-branch-provenance.mjs', () => ({ recordBranchProvenance }))
 vi.mock('node:child_process', () => ({ execFileSync }))
 
 // These must agree with neon-branch.ts's defaults: createTestBranch() rejects a
@@ -77,6 +79,7 @@ const originalNeonTestEnv: Record<string, string | undefined> = {}
 
 beforeEach(() => {
   execFileSync.mockReset()
+  recordBranchProvenance.mockReset()
   for (const key of NEON_TEST_ENV_KEYS) {
     originalNeonTestEnv[key] = process.env[key]
     delete process.env[key]
@@ -265,6 +268,7 @@ describe('cleanup cannot bypass create identity guards',()=>{
     for(const id of createdBranchIds()) deleteTestBranch(id)
     expect(createdBranchIds()).toEqual([])
     const invoked=execFileSync.mock.calls.map(call=>neonctlArgv(call[1]))
+    expect(recordBranchProvenance).not.toHaveBeenCalled()
     expect(invoked.some(args=>args[0]==='connection-string')).toBe(false)
     expect(invoked.some(args=>args[0]==='branches'&&args[1]==='delete')).toBe(false)
   })
@@ -287,4 +291,24 @@ describe('cleanup cannot bypass create identity guards',()=>{
     deleteTestBranch('br-fake-child-bbb22222')
     expect(createdBranchIds()).toEqual([])
   })
+})
+
+
+describe('creation receipt precedes credential lookup',()=>{
+ it('records only proven metadata before requesting the connection',async()=>{
+  mockNeonctl()
+  const {createTestBranch}=await load()
+  createTestBranch('test-branch')
+  expect(recordBranchProvenance).toHaveBeenCalledWith({projectId:PROJECT_ID,parentBranchId:PRODUCTION_BRANCH_ID,branchId:'br-fake-child-bbb22222',branchName:'test-branch'})
+  expect(recordBranchProvenance.mock.invocationCallOrder[0]).toBeLessThan(execFileSync.mock.invocationCallOrder[1])
+ })
+ it('keeps the validated child cleanable if its receipt cannot be written',async()=>{
+  mockNeonctl();recordBranchProvenance.mockImplementationOnce(()=>{throw Error('synthetic storage failure')})
+  const {createTestBranch,createdBranchIds,deleteTestBranch}=await load()
+  expect(()=>createTestBranch('test-branch')).toThrow('synthetic storage failure')
+  expect(createdBranchIds()).toEqual(['br-fake-child-bbb22222'])
+  expect(execFileSync.mock.calls.some(c=>neonctlArgv(c[1])[0]==='connection-string')).toBe(false)
+  deleteTestBranch('br-fake-child-bbb22222')
+  expect(createdBranchIds()).toEqual([])
+ })
 })

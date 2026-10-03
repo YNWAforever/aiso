@@ -124,3 +124,14 @@ describe('single-run disposable role authorization', () => {
   })
 
 })
+
+
+it('records checkout-bound branch receipts outside buffered stdout', async () => {
+ const workflow = await readWorkflow()
+ const integration = workflow.slice(workflow.indexOf('  integration:'),workflow.indexOf('  e2e-accessibility:'))
+ expect(integration).toContain("AISO_RECORD_BRANCH_PROVENANCE: '1'")
+ expect(integration).toContain('export AISO_TEST_CHECKOUT_SHA="$(git rev-parse HEAD)"')
+ expect(integration.indexOf('export AISO_TEST_CHECKOUT_SHA')).toBeLessThan(integration.indexOf('npx vitest run'))
+ expect(integration).toMatch(/Upload integration diagnostics[\s\S]*if: always\(\)/)
+ expect(integration).toMatch(/path:[\s\S]*artifacts\/integration\//)
+})

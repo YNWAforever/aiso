@@ -116,6 +116,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p artifacts/integration
+          # A durable metadata receipt survives cancellation of the buffered log pipe.
+          export AISO_TEST_CHECKOUT_SHA="$(git rev-parse HEAD)"
           set +e
           REQUIRE_INTEGRATION_TESTS=1 npx vitest run --config vitest.integration.config.ts --reporter=json --reporter=junit --outputFile.json=artifacts/integration/vitest.json --outputFile.junit=artifacts/integration/vitest.junit.xml 2>&1 | node scripts/redact.mjs | tee artifacts/integration/vitest.log
           vitest_exit=${PIPESTATUS[0]}
@@ -173,6 +175,7 @@ jobs:
           # Manual opt-in applies only to this workflow_dispatch invocation.
           # No input or persistent authorization means a failing gate, never skip.
           ALLOW_DISPOSABLE_ROLE_PASSWORD: ${{ steps.disposable-role-authorization.outputs.allowed }}
+          AISO_RECORD_BRANCH_PROVENANCE: '1'
       - name: Upload integration diagnostics
         if: always()
         uses: actions/upload-artifact@v4
