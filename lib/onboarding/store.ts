@@ -93,12 +93,12 @@ export async function commitOnboardingSeed(scope: OnboardingScope, intentKey: st
       select client_id from onboarding_progress where account_id = ${scope.accountId} and intent_key = ${intentKey}
         and lease_token = ${token}::uuid and lease_until > now() and prompt_status = 'running' for update
     ), input as (
-      select cat, question, language, seed_key, row_number() over () as n from unnest(
+      select cat, question, language, market, seed_key, row_number() over () as n from unnest(
         ${prompts.map(p => p.category)}::text[], ${prompts.map(p => p.question)}::text[],
-        ${prompts.map(p => p.language)}::text[], ${prompts.map(seedKey)}::text[]) as t(cat, question, language, seed_key)
+        ${prompts.map(p => p.language)}::text[], ${prompts.map(p => p.market ?? null)}::text[], ${prompts.map(seedKey)}::text[]) as t(cat, question, language, market, seed_key)
     ), inserted as (
-      insert into prompt_bank (client_id, category, question, language, is_active, onboarding_seed_key)
-      select leased.client_id, input.cat, input.question, input.language, true, input.seed_key from leased join input on true
+      insert into prompt_bank (client_id, category, question, language, market, is_active, onboarding_seed_key)
+      select leased.client_id, input.cat, input.question, input.language, input.market, true, input.seed_key from leased join input on true
       where input.n <= greatest(0, 50 - (select count(*) from prompt_bank where client_id = leased.client_id))
       on conflict (client_id, onboarding_seed_key) where onboarding_seed_key is not null do nothing returning id
     ) update onboarding_progress set prompt_status = 'ready', error_code = null, lease_token = null, lease_until = null,

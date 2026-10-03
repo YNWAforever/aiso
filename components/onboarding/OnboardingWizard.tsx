@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronRight, Zap, X } from 'lucide-react'
+import { PROMPT_MARKETS, isPromptLanguage, type PromptLanguage } from '@/lib/prompts/context'
 
 const INDUSTRIES = [
   { value: 'technology',         labelEn: 'Technology',            labelZh: '科技' },
@@ -19,19 +20,7 @@ const INDUSTRIES = [
   { value: 'general_b2c',        labelEn: 'General B2C',           labelZh: '一般 B2C' },
 ]
 
-const REGIONS = [
-  { value: 'HK',     labelEn: 'Hong Kong',      labelZh: '香港' },
-  { value: 'TW',     labelEn: 'Taiwan',         labelZh: '台灣' },
-  { value: 'SG',     labelEn: 'Singapore',      labelZh: '新加坡' },
-  { value: 'JP',     labelEn: 'Japan',          labelZh: '日本' },
-  { value: 'KR',     labelEn: 'South Korea',    labelZh: '南韓' },
-  { value: 'US',     labelEn: 'United States',  labelZh: '美國' },
-  { value: 'UK',     labelEn: 'United Kingdom', labelZh: '英國' },
-  { value: 'EU',     labelEn: 'European Union', labelZh: '歐盟' },
-  { value: 'AU',     labelEn: 'Australia',      labelZh: '澳洲' },
-  { value: 'CA',     labelEn: 'Canada',         labelZh: '加拿大' },
-  { value: 'global', labelEn: 'Global',         labelZh: '全球' },
-]
+const REGIONS = PROMPT_MARKETS
 
 const COPY_EN = {
   stepOf: (step: number, total: number) => `Step ${step} of ${total}`,
@@ -46,7 +35,8 @@ const COPY_EN = {
   s2HintNot: 'not',
   s2Skip: "Skip — I don't have a website yet",
   s3Title: 'Your industry & region',
-  s3Subtitle: 'Personalises your AI authority score and Pulse benchmarks.',
+  s3Subtitle: 'Confirm the language and market for your tracking questions.',
+  questionLanguage: 'Question language',
   industryPlaceholder: 'Industry (optional)',
   regionPlaceholder: 'Region (optional)',
   s3Skip: 'Skip — set up later',
@@ -83,7 +73,8 @@ const COPY_ZH_HK: typeof COPY_EN = {
   s2HintNot: '而非',
   s2Skip: '略過——我暫時未有網站',
   s3Title: '你的行業及地區',
-  s3Subtitle: '用於個人化你的 AI 權威分數及 Pulse 基準。',
+  s3Subtitle: '確認追蹤問題的語言及市場。',
+  questionLanguage: '問題語言',
   industryPlaceholder: '行業（可選）',
   regionPlaceholder: '地區（可選）',
   s3Skip: '略過——稍後設定',
@@ -129,7 +120,7 @@ interface Props {
   scanId?: string
 }
 
-type Draft = { intentKey?: string; brand?: string; domain?: string; industry?: string; region?: string; description?: string; competitors?: string[]; step?: number; clientId?: string; partial?: boolean }
+type Draft = { intentKey?: string; brand?: string; domain?: string; industry?: string; region?: string; language?: PromptLanguage; description?: string; competitors?: string[]; step?: number; clientId?: string; partial?: boolean }
 const subscribeHydration = () => () => {}
 export function OnboardingWizard(props: Props) {
   const ready = useSyncExternalStore(subscribeHydration, () => true, () => false)
@@ -148,6 +139,7 @@ export function OnboardingWizard(props: Props) {
       if (Array.isArray(saved.competitors) && saved.competitors.every((v: unknown) => typeof v === 'string')) clean.competitors = saved.competitors
       if (Number.isInteger(saved.step) && saved.step >= 1 && saved.step <= TOTAL_STEPS) clean.step = saved.step
       clean.partial = saved.partial === true
+      if (isPromptLanguage(saved.language)) clean.language = saved.language
       return clean
     } catch { return {} }
   }, [ready, draftKey])
@@ -178,6 +170,7 @@ function WizardForm({
   const [domain, setDomain]         = useState(draft.domain ?? normaliseDomain(initialDomain))
   const [industry, setIndustry]     = useState(draft.industry ?? initialIndustry)
   const [region, setRegion]         = useState(draft.region ?? initialRegion)
+  const [language, setLanguage] = useState<PromptLanguage>(draft.language ?? (isZh ? 'zh-HK' : 'en'))
   const [description, setDescription] = useState(draft.description ?? '')
   const [competitors, setCompetitors] = useState<string[]>(draft.competitors ?? [])
   const [competitorInput, setCompetitorInput] = useState('')
@@ -191,9 +184,9 @@ function WizardForm({
   const draftKey = `aiso:onboarding:${accountId}:${scanId ?? 'new'}`
   useEffect(() => {
     if (!draftReady || submitted.current) return
-    try { sessionStorage.setItem(draftKey, JSON.stringify({ intentKey, brand, domain, industry, region, description, competitors, step, clientId, partial })) }
+    try { sessionStorage.setItem(draftKey, JSON.stringify({ intentKey, brand, domain, industry, region, language, description, competitors, step, clientId, partial })) }
     catch { /* Form state still survives in this tab when storage is unavailable. */ }
-  }, [draftReady, draftKey, intentKey, brand, domain, industry, region, description, competitors, step, clientId, partial])
+  }, [draftReady, draftKey, intentKey, brand, domain, industry, region, language, description, competitors, step, clientId, partial])
 
   function handleDomainChange(raw: string) {
     // Normalise on the fly as the user types
@@ -224,6 +217,8 @@ function WizardForm({
         domain:      domain || undefined,
         industry:    industry || undefined,
         region:      region || undefined,
+        language,
+        market: region || null,
         description: description || undefined,
         competitors: competitors.length ? competitors : undefined,
         scanId,
@@ -344,6 +339,12 @@ function WizardForm({
             <p className="text-sm text-muted-foreground mb-6">{c.s3Subtitle}</p>
             <div className="space-y-3 mb-6">
               <div>
+                <label htmlFor="onboarding-language" className="block text-xs font-semibold text-foreground mb-1.5">{c.questionLanguage}</label>
+                <select id="onboarding-language" name="language" value={language} onChange={e => { if (isPromptLanguage(e.target.value)) setLanguage(e.target.value) }} className={inputClass}>
+                  <option value="en">English</option><option value="zh-HK">繁體中文（香港）</option>
+                </select>
+              </div>
+              <div>
                 <label htmlFor="onboarding-industry" className="block text-xs font-semibold text-foreground mb-1.5">{c.industryPlaceholder}</label>
                 <select id="onboarding-industry" name="industry" value={industry} onChange={e => setIndustry(e.target.value)}
                   className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
@@ -381,6 +382,7 @@ function WizardForm({
             </p>
 
             {/* Brand description */}
+            <p className="mb-4 text-sm text-muted-foreground">{c.questionLanguage}: {language === 'en' ? 'English' : '繁體中文（香港）'} · {REGIONS.find(r => r.value === region)?.[isZh ? 'labelZh' : 'labelEn'] ?? c.regionPlaceholder}</p>
             <div className="mb-4">
               <label htmlFor="onboarding-description" className="block text-xs font-semibold text-foreground mb-1.5">
                 {c.descLabel} <span className="text-muted-foreground font-normal">{c.optional}</span>

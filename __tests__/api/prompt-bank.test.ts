@@ -39,7 +39,7 @@ const clientParams = { params: Promise.resolve({ clientId: 'client-1' }) }
 const itemParams = { params: Promise.resolve({ clientId: 'client-1', promptId: 'prompt-1' }) }
 
 const get = () => GET(new Request('http://localhost'), clientParams)
-const post = (body: unknown = { category: 'brand_query', question: 'What is AcmeCo?' }) =>
+const post = (body: unknown = { category: 'brand_query', question: 'What is AcmeCo?', language: 'en' }) =>
   POST(new Request('http://localhost', {
     method: 'POST',
     body: typeof body === 'string' ? body : JSON.stringify(body),
@@ -148,7 +148,8 @@ describe('GET /prompts', () => {
     await get()
     const list = calls.find(c => /from prompt_bank/i.test(c.text))!
 
-    expect(list.text).toMatch(/order by category, created_at, id/)
+    expect(list.text).toMatch(/order by p.category, p.created_at, p.id/)
+    expect(list.params).toContain('acc-1')
   })
 
   it('returns the prompts', async () => {
@@ -159,6 +160,15 @@ describe('GET /prompts', () => {
 })
 
 describe('POST /prompts', () => {
+  it('zh_hk_prompt_round_trips_context into both stored columns', async () => {
+    await post({ category: 'brand_query', question: '中文問題？', language: 'zh-HK', market: 'HK' })
+    const insert = calls.find(c => /insert into prompt_bank/i.test(c.text))!
+    expect(insert.text).toMatch(/language, market/)
+    expect(insert.params).toContain('HK')
+  })
+  it.each([{ language: 'fr' }, { language: 'zh-TW' }, { market: 'invented' }, { market: 42 }])('rejects invalid context %j', context => {
+    return post({ category: 'brand_query', question: 'q', language: 'en', ...context }).then(res => expect(res.status).toBe(400))
+  })
   it('rejects a category outside the vocabulary before writing anything', async () => {
     // The exact payload the editor's add-row used to send.
     const res = await post({ category: 'Brand Queries', question: 'What is AcmeCo?' })
@@ -210,7 +220,7 @@ describe('POST /prompts', () => {
   })
 
   it('takes client_id from the path, never from the body', async () => {
-    await post({ category: 'brand_query', question: 'q', client_id: 'client-evil' })
+    await post({ category: 'brand_query', question: 'q', language: 'en', client_id: 'client-evil' })
     const insert = calls.find(c => /insert into prompt_bank/i.test(c.text))!
 
     expect(insert.params).not.toContain('client-evil')
@@ -231,6 +241,11 @@ describe('POST /prompts', () => {
 })
 
 describe('PATCH /prompts/[promptId]', () => {
+  it('accepts context-only correction without rewriting the question', async () => {
+    expect((await patch({ language: 'zh-HK', market: 'HK' })).status).toBe(200)
+    expect(calls[0].params).toContain('zh-HK')
+    expect(calls[0].params).toContain('HK')
+  })
   it('returns 400 when no updatable field is present, before any query', async () => {
     // Expressed in JS rather than SQL: `where $1 is not null` triggers "could
     // not determine data type of parameter", and would 404 a bad request.
@@ -250,7 +265,7 @@ describe('PATCH /prompts/[promptId]', () => {
   it('sends only question and is_active to the statement', async () => {
     await patch({ question: 'Updated?', is_active: false, category: 'pain_point', id: 'other' })
 
-    expect(calls[0].params).toEqual(['Updated?', false, 'prompt-1', 'client-1', 'acc-1'])
+    expect(calls[0].params).toEqual(['Updated?', false, false, 'en', false, null, 'prompt-1', 'client-1', 'acc-1'])
   })
 
   it('scopes the update by prompt, client and account in one statement', async () => {

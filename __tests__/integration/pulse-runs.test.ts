@@ -57,6 +57,17 @@ async function fixture(test:(scope:PulseScope)=>Promise<void>,promptCount=3){
 const runFor=(scope:PulseScope)=>createOrResumeRun(scope,{scanWeek:'2026-09-28',manifest})
 const claim=(scope:PulseScope,runId:string,limit=5)=>claimDueItems(scope,runId,{owner:'synthetic-worker',leaseUntil:new Date(Date.now()+60_000),limit})
 describe('T05 guarded Neon run ledger',()=>{
+  it('T11 context changes apply to new runs while original manifests remain frozen',async()=>fixture(async scope=>{
+    await sql`update prompt_bank set language='zh-HK',market='HK' where client_id=${scope.clientId}`
+    const original=(await createOrResumeRun(scope,{scanWeek:'2026-09-14',manifest:[manifest[0]]}))!
+    await sql`update prompt_bank set language='en',market='US' where client_id=${scope.clientId}`
+    const resumed=(await createOrResumeRun(scope,{scanWeek:'2026-09-14',manifest:[manifest[0]]}))!
+    const next=(await createOrResumeRun(scope,{scanWeek:'2026-09-21',manifest:[manifest[0]]}))!
+    expect(resumed.manifest).toEqual(original.manifest)
+    const rows=await sql`select run_id,snapshot from pulse_run_items where account_id=${scope.accountId} order by run_id`
+    expect(rows.find(r=>r.run_id===original.id)?.snapshot).toMatchObject({language:'zh-HK',market:'HK'})
+    expect(rows.find(r=>r.run_id===next.id)?.snapshot).toMatchObject({language:'en',market:'US'})
+  },1))
   it('T09 a classification downgrade cannot be bypassed by a previously loaded suggestion',async()=>fixture(async scope=>{
     const [row]=await sql`insert into pulse_metrics(client_id,question,platform,scan_week,raw_answer,brand_mentioned,sentiment,classification_status)
       values(${scope.clientId},'Frozen question','synthetic','2026-09-21','Frozen answer',false,'unknown','classified')

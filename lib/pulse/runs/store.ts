@@ -18,11 +18,11 @@ export async function createOrResumeRun(scope: PulseScope, input: { scanWeek: st
       where c.account_id = ${scope.accountId} and c.id = ${scope.clientId}::uuid and pb.is_active
       order by pb.id limit ${MAX_PROMPTS}
     ), snapshot as (
-      select jsonb_build_object('version','2026-10-03.v1','brand',jsonb_build_object(
+      select jsonb_build_object('version','2026-10-03.v2','brand',jsonb_build_object(
         'name',c.brand_name,'competitors',coalesce(c.competitors,'{}'::text[]),'industry',c.industry,'domain',c.domain),
         'policy',jsonb_build_object('maxAttempts',3,'maxOutputTokens',500,'maxClassificationAttempts',3,'maxAnalysisOutputTokens',300),
         'items',coalesce((select jsonb_agg(jsonb_build_object('promptId',p.id,'question',p.question,'category',p.category,
-          'language',p.language,'market',p.market,'platform',v->>'platform','model',v->>'model') order by p.id,v->>'model')
+          'language',p.language,'market',p.market,'contextVersion','2026-10-03.v1','platform',v->>'platform','model',v->>'model') order by p.id,v->>'model')
           from prompts p cross join jsonb_array_elements(${JSON.stringify(input.manifest)}::jsonb) v),'[]'::jsonb)) as manifest
       from clients c where c.account_id = ${scope.accountId} and c.id = ${scope.clientId}::uuid
     ), created as (

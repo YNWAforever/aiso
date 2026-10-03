@@ -13,7 +13,7 @@ import {
 
 describe('prompt categories', () => {
   it('matches the vocabulary onboarding actually asks the model for', async () => {
-    await generateOnboardingSeed(parseOnboardingInput({brandName:'Synthetic'}))
+    await generateOnboardingSeed(parseOnboardingInput({brandName:'Synthetic',language:'en'}))
     const request = vi.mocked(callOpenRouter).mock.calls.at(-1)![0]
     const source = request.messages.map(message => message.content).join('\n')
     for (const category of PROMPT_CATEGORIES) {

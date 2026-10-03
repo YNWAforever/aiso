@@ -651,7 +651,11 @@
     "qb_toggle_label": "啟用問題：{question}",
     "qb_saved": "問題已儲存。",
     "qb_delete_label": "刪除問題：{question}",
-    "qb_add": "新增"
+    "qb_add": "新增",
+    "qb_language": "問題語言",
+    "qb_market": "問題市場",
+    "qb_unknown_context": "語言未知",
+    "qb_unspecified_market": "未指定市場"
   },
   "upsell": {
     "title": "每週追蹤 {domain} 的 AI 能見度",

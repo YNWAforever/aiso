@@ -7,7 +7,7 @@ describe('persistent onboarding input and provider validation', () => {
   })
   it('deduplicates generated questions and drops invalid categories before writing', () => {
     const valid={category:'brand_query',question:'Synthetic question?',language:'en'}
-    expect(parseSeedPrompts(JSON.stringify([valid, valid, {...valid,category:'invented'}, {...valid,question:''}]))).toEqual([valid])
+    expect(parseSeedPrompts(JSON.stringify([valid, valid, {...valid,category:'invented'}, {...valid,question:''}]))).toEqual([{ ...valid, market: null }])
   })
   it.each(['{}','not JSON','[]','[{"category":"invented","question":"q"}]'])('fails an unusable provider response %s', raw => {
     expect(()=>parseSeedPrompts(raw)).toThrow()

@@ -137,6 +137,7 @@ export interface PromptBankItem {
   category: string | null
   question: string
   language: string
+  market?: string | null
   is_active: boolean
   created_at: string
 }

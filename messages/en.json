@@ -651,7 +651,11 @@
     "qb_toggle_label": "Enable question: {question}",
     "qb_saved": "Question saved.",
     "qb_delete_label": "Delete question: {question}",
-    "qb_add": "Add"
+    "qb_add": "Add",
+    "qb_language": "Question language",
+    "qb_market": "Question market",
+    "qb_unknown_context": "Unknown language",
+    "qb_unspecified_market": "Market unspecified"
   },
   "upsell": {
     "title": "Track {domain}'s AI presence every week",

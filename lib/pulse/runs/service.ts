@@ -5,10 +5,11 @@ import { db } from '@/lib/db'
 import { claimDueItems, commitAttempt, createOrResumeRun, readRunCoverage } from './store'
 import {classifySavedAnswers} from './classification'
 import type { LeasedItem, ProviderEvidence, PulseScope } from './schema'
+import { promptCollectionMessages } from '@/lib/prompts/context'
 
 export type CollectAnswer = (item: LeasedItem, signal: AbortSignal) => Promise<ProviderEvidence>
 const collect: CollectAnswer = (item, signal) => callOpenRouterWithEvidence({ label:'pulse.platform',model:item.model,
-  messages:[{role:'user',content:item.snapshot.question}],maxTokens:500,signal })
+  messages:promptCollectionMessages(item.snapshot),maxTokens:500,signal })
 
 export async function processLeasedItem(item: LeasedItem, deadlineAt: number, collector: CollectAnswer = collect) {
   let evidence: ProviderEvidence

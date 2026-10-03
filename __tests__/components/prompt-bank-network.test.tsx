@@ -4,7 +4,7 @@ import { PromptBankEditor } from '@/components/pulse/PromptBankEditor'
 import type { PromptBankItem } from '@/lib/types'
 const state=vi.hoisted(()=>({values:[] as unknown[],cursor:0}))
 vi.mock('react',async original=>({...await original<typeof import('react')>(),useEffect:()=>{},useRef:(initial:unknown)=>({current:initial}),useId:()=> 'test-input',useState:(initial:unknown)=>{const index=state.cursor++;if(!(index in state.values))state.values[index]=initial;return[state.values[index],(value:unknown)=>{state.values[index]=value}]}}))
-vi.mock('next-intl',()=>({useTranslations:()=> (key:string)=>key}))
+vi.mock('next-intl',()=>({useLocale:()=> 'en',useTranslations:()=> (key:string)=>key}))
 type Element=ReactElement<Record<string,unknown>&{children?:ReactNode}>
 function nodes(node:ReactNode):Element[]{return Children.toArray(node).flatMap(child=>isValidElement(child)?[child as Element,...nodes((child as Element).props.children)]:[])}
 const prompt:PromptBankItem={id:'p1',client_id:'c1',category:'brand_query',question:'Original',language:'en',is_active:true,created_at:'2026-09-01'}

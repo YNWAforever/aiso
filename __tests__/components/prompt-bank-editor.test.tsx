@@ -26,13 +26,18 @@ function prompt(overrides: Partial<PromptBankItem> = {}): PromptBankItem {
 
 function render(prompts: PromptBankItem[], locale: 'en' | 'zh-HK' = 'en') {
   return renderToStaticMarkup(
-    <NextIntlClientProvider locale={locale} messages={messages(locale)}>
+    <NextIntlClientProvider locale={locale} messages={messages(locale)} timeZone="UTC">
       <PromptBankEditor clientId="client-1" prompts={prompts} onPromptsChange={() => {}} />
     </NextIntlClientProvider>,
   )
 }
 
 describe('PromptBankEditor category vocabulary', () => {
+  it('keeps legacy language text visible and labels it unknown', () => {
+    const html = render([prompt({ language: 'legacy-ambiguous' })], 'zh-HK')
+    expect(html).toContain('語言未知 (legacy-ambiguous)')
+    expect(html).toContain('value="zh-HK" selected=""')
+  })
   it('names each switch with its question and exposes active state', () => {
     const html = render([prompt()])
     expect(html).toContain('role="switch"')

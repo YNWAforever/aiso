@@ -1,11 +1,13 @@
 'use client'
 import { useEffect, useId, useRef, useState, type RefObject } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { PROMPT_CATEGORIES, promptCategoryLabelKey } from '@/lib/prompts/categories'
 import type { PromptBankItem } from '@/lib/types'
+import { isPromptLanguage, isPromptMarket, PROMPT_MARKETS, readPromptLanguage, type PromptContextDefaults } from '@/lib/prompts/context'
 
 interface Props {
   clientId: string
+  contextDefaults?: PromptContextDefaults
   /**
    * Controlled. This used to be `initialPrompts` seeding a useState, which meant
    * a parent that also tracked the list (QuestionBankSection, so its suggest
@@ -42,6 +44,25 @@ function groupByCategory(prompts: PromptBankItem[]): Record<string, PromptBankIt
 }
 
 const CONTROL = 'min-h-11 min-w-11 rounded-lg px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60'
+export function PromptContextFields({ language, market, disabled, onChange }: {
+  language: string; market: string | null; disabled?: boolean; onChange: (context: { language: string; market: string | null }) => void
+}) {
+  const t = useTranslations('pulse'), locale = useLocale(), id = useId()
+  return <div className="flex w-full flex-wrap gap-2">
+    <label className="min-w-0 flex-1 text-xs text-muted-foreground" htmlFor={`${id}-language`}>{t('qb_language')}
+      <select id={`${id}-language`} value={language} disabled={disabled} onChange={e => onChange({ language: e.target.value, market })} className={`${CONTROL} mt-1 w-full border border-border bg-background text-foreground`}>
+        {!isPromptLanguage(language) && <option value="">{t('qb_unknown_context')}</option>}
+        <option value="en">English</option><option value="zh-HK">繁體中文（香港）</option>
+      </select>
+    </label>
+    <label className="min-w-0 flex-1 text-xs text-muted-foreground" htmlFor={`${id}-market`}>{t('qb_market')}
+      <select id={`${id}-market`} value={market ?? ''} disabled={disabled} onChange={e => onChange({ language, market: e.target.value || null })} className={`${CONTROL} mt-1 w-full border border-border bg-background text-foreground`}>
+        <option value="">{t('qb_unspecified_market')}</option>
+        {PROMPT_MARKETS.map(m => <option key={m.value} value={m.value}>{locale === 'zh-HK' ? m.labelZh : m.labelEn}</option>)}
+      </select>
+    </label>
+  </div>
+}
 function Toggle({ active, name, disabled, buttonRef, onToggle }: { active: boolean; name: string; disabled: boolean; buttonRef: RefObject<HTMLButtonElement | null>; onToggle: () => void }) {
   return (
     <button type="button" ref={buttonRef} role="switch" aria-checked={active} aria-label={name} aria-disabled={disabled} onClick={onToggle}
@@ -56,29 +77,35 @@ function Toggle({ active, name, disabled, buttonRef, onToggle }: { active: boole
 function PromptRow({ prompt, onToggle, onEdit, onDelete }: {
   prompt: PromptBankItem
   onToggle: (id: string, is_active: boolean) => Promise<void>
-  onEdit:   (id: string, question: string)   => Promise<boolean>
+  onEdit:   (id: string, question: string, context?: PromptContextDefaults) => Promise<boolean>
   onDelete: (id: string) => Promise<void>
 }) {
   const t = useTranslations('pulse')
   const [editing, setEditing] = useState(false)
   const [draft, setDraft]     = useState(prompt.question)
+  const [context, setContext] = useState({ language: readPromptLanguage(prompt.language) ?? '', market: prompt.market ?? null })
   const [saving, setSaving]   = useState(false)
   const inputId = useId(), editButton = useRef<HTMLButtonElement>(null), pending = useRef(false)
   const editInput = useRef<HTMLInputElement>(null), toggleButton = useRef<HTMLButtonElement>(null)
+  const wasEditing = useRef(false)
+  useEffect(() => {
+    if (wasEditing.current && !editing && !saving) editButton.current?.focus()
+    if (!saving) wasEditing.current = editing
+  }, [editing, saving])
   const focusEdit = () => requestAnimationFrame(() => editButton.current?.focus())
 
   const save = async () => {
     if (pending.current || !draft.trim()) return
-    if (draft.trim() === prompt.question) { setEditing(false); focusEdit(); return }
+    if (draft.trim() === prompt.question && context.language === (readPromptLanguage(prompt.language) ?? '') && context.market === (prompt.market ?? null)) { setEditing(false); focusEdit(); return }
     pending.current = true
     setSaving(true)
     try {
-      if (await onEdit(prompt.id, draft.trim())) { setEditing(false); focusEdit() }
+      if (await onEdit(prompt.id, draft.trim(), { ...(isPromptLanguage(context.language) ? { language: context.language } : {}), market: context.market })) { setEditing(false); focusEdit() }
       else requestAnimationFrame(() => { if (document.activeElement === document.body) editInput.current?.focus() })
     } finally { pending.current = false; setSaving(false) }
   }
 
-  const cancel = () => { if (pending.current) return; setDraft(prompt.question); setEditing(false); focusEdit() }
+  const cancel = () => { if (pending.current) return; setDraft(prompt.question); setContext({ language: readPromptLanguage(prompt.language) ?? '', market: prompt.market ?? null }); setEditing(false); focusEdit() }
   async function toggle() {
     if (pending.current || editing) return
     pending.current = true; setSaving(true)
@@ -100,14 +127,15 @@ function PromptRow({ prompt, onToggle, onEdit, onDelete }: {
             {saving ? '…' : t('save')}
           </button>
           <button type="button" onClick={cancel} disabled={saving} className={`${CONTROL} border border-border text-foreground`}>{t('cancel')}</button>
+          <PromptContextFields {...context} onChange={setContext} disabled={saving} />
         </div>
       ) : (
         <>
           <span className={`min-w-0 flex-1 break-words text-sm text-foreground ${!prompt.is_active ? 'line-through' : ''}`}>
             {prompt.question}
           </span>
-          <span className="text-xs text-muted-foreground">{prompt.language}</span>
-          <button type="button" ref={editButton} disabled={saving} onClick={() => setEditing(true)} className={`${CONTROL} shrink-0 text-foreground`} aria-label={t('qb_edit_label', { question: prompt.question })} title={t('edit')}><span aria-hidden="true">✏️</span></button>
+          <span className="text-xs text-muted-foreground">{readPromptLanguage(prompt.language) ?? `${t('qb_unknown_context')} (${prompt.language ?? '—'})`} · {isPromptMarket(prompt.market) ? prompt.market : t('qb_unspecified_market')}</span>
+          <button type="button" ref={editButton} disabled={saving} onClick={() => { setDraft(prompt.question); setContext({ language: readPromptLanguage(prompt.language) ?? '', market: prompt.market ?? null }); setEditing(true) }} className={`${CONTROL} shrink-0 text-foreground`} aria-label={t('qb_edit_label', { question: prompt.question })} title={t('edit')}><span aria-hidden="true">✏️</span></button>
           <button type="button" id={`prompt-delete-${prompt.id}`} disabled={saving} onClick={() => onDelete(prompt.id)} className={`${CONTROL} shrink-0 text-destructive`} aria-label={t('qb_delete_label', { question: prompt.question })} title={t('delete')}><span aria-hidden="true">🗑</span></button>
         </>
       )}
@@ -115,17 +143,20 @@ function PromptRow({ prompt, onToggle, onEdit, onDelete }: {
   )
 }
 
-function AddPromptRow({ category, clientId, onAdd, onError, onStart }: {
+function AddPromptRow({ category, clientId, onAdd, onError, onStart, contextDefaults }: {
   category: string
   clientId: string
   onAdd: (p: PromptBankItem) => void
   onError: (message: string) => void
   onStart: () => void
+  contextDefaults?: PromptContextDefaults
 }) {
   const t = useTranslations('pulse')
   const [text, setText]       = useState('')
   const [loading, setLoading] = useState(false)
   const inputId = useId()
+  const locale = useLocale()
+  const [context, setContext] = useState<{ language: string; market: string | null }>({ language: readPromptLanguage(contextDefaults?.language) ?? (locale === 'zh-HK' ? 'zh-HK' : 'en'), market: isPromptMarket(contextDefaults?.market) ? contextDefaults.market : null })
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -137,7 +168,7 @@ function AddPromptRow({ category, clientId, onAdd, onError, onStart }: {
     // it against the vocabulary and 400s otherwise.
     const res = await fetch(`/api/dashboard/clients/${clientId}/prompts`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category, question: text.trim(), language: 'en' }),
+      body: JSON.stringify({ category, question: text.trim(), ...context }),
     })
     if (res.ok) {
       const { prompt } = await res.json()
@@ -162,11 +193,12 @@ function AddPromptRow({ category, clientId, onAdd, onError, onStart }: {
         placeholder={t('add_prompt_ph')}
         className="min-h-11 min-w-0 flex-1 rounded-lg border border-border px-3 bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-primary" />
       <button type="submit" disabled={loading || !text.trim()} className={`${CONTROL} border border-border text-foreground`}>{loading ? t('qb_saving') : t('qb_add')}</button>
+      <PromptContextFields {...context} onChange={setContext} disabled={loading} />
     </form>
   )
 }
 
-export function PromptBankEditor({ clientId, prompts, onPromptsChange }: Props) {
+export function PromptBankEditor({ clientId, prompts, onPromptsChange, contextDefaults }: Props) {
   const t = useTranslations('pulse')
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [error, setError]         = useState<string | null>(null)
@@ -217,17 +249,18 @@ export function PromptBankEditor({ clientId, prompts, onPromptsChange }: Props) 
       setPrompts(ps => ps.map(p => p.id === id ? { ...p, is_active: !is_active } : p)))
   }
 
-  const handleEdit = async (id: string, question: string) => {
+  const handleEdit = async (id: string, question: string, context: PromptContextDefaults = {}) => {
     setError(null)
     setStatus('')
-    const previous = prompts.find(p => p.id === id)?.question
-    setPrompts(ps => ps.map(p => p.id === id ? { ...p, question } : p))
+    const previous = current.current.find(p => p.id === id)
+    const changes = { question, ...(isPromptLanguage(context.language) ? { language: context.language } : {}), ...(context.market !== undefined ? { market: context.market as string | null } : {}) }
+    setPrompts(ps => ps.map(p => p.id === id ? { ...p, ...changes } : p))
     const res = await fetch(`/api/dashboard/clients/${clientId}/prompts/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify(changes),
     }).catch(() => null)
     return await revertOn(res, () => setPrompts(ps => ps.map(p =>
-      p.id === id && previous !== undefined ? { ...p, question: previous } : p)))
+      p.id === id && previous !== undefined ? { ...p, question: previous.question, language: previous.language, market: previous.market } : p)))
   }
 
   const handleDelete = async (id: string) => {
@@ -280,7 +313,7 @@ export function PromptBankEditor({ clientId, prompts, onPromptsChange }: Props) 
                   {/* No add row for the uncategorised section — POST validates
                       against the vocabulary, so adding there would 400. */}
                   {canAdd && (
-                    <AddPromptRow category={cat} clientId={clientId}
+                    <AddPromptRow category={cat} clientId={clientId} contextDefaults={contextDefaults}
                       onAdd={handleAdd} onError={setError} onStart={() => { setStatus(''); setError(null) }} />
                   )}
                 </div>

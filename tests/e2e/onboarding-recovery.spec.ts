@@ -16,6 +16,8 @@ async function finalStep(page: Page, lang: string) {
   await page.getByRole('button', { name: next, exact: true }).click()
   await page.getByRole('textbox', { name: lang === 'en' ? 'Your website domain' : '你的網站域名' }).fill('synthetic.test')
   await page.getByRole('button', { name: next, exact: true }).click()
+  await page.locator('#onboarding-language').selectOption(lang === 'en' ? 'zh-HK' : 'en')
+  await page.locator('#onboarding-region').selectOption('TW')
   await page.getByRole('button', { name: next, exact: true }).click()
   await page.locator('#onboarding-description').fill('Persistent synthetic draft')
 }
@@ -40,6 +42,8 @@ for (const lang of ['en', 'zh-HK']) {
     expect(bodies[1].intentKey).toBe(bodies[0].intentKey)
     expect(bodies[1].clientId).toBe(clientId)
     expect(bodies[1].description).toBe('Persistent synthetic draft')
+    expect(bodies[0]).toMatchObject({ language: lang === 'en' ? 'zh-HK' : 'en', market: 'TW' })
+    expect(bodies[1]).toMatchObject({ language: bodies[0].language, market: 'TW' })
   })
   test(`network_rejection_releases_loading and preserves draft in ${lang}`, async ({ page }) => {
     await openFixture(page, lang); await finalStep(page, lang)
