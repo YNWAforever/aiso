@@ -22,7 +22,19 @@ type AuthRouteContext = { params: Promise<{ path: string[] }> }
 let handlers: AuthHandlers | null = null
 
 function route(method: keyof AuthHandlers) {
-  return (request: Request, context: AuthRouteContext): Promise<Response> => {
+  return async (request: Request, context: AuthRouteContext): Promise<Response> => {
+    if (method === 'GET') {
+      const url = new URL(request.url)
+      if (url.searchParams.has('neon_auth_session_verifier')) {
+        const { path } = await context.params
+        if (path.length === 1 && path[0] === 'get-session') {
+          // SDK 0.4.2-beta checks the old cookie cache before the verifier.
+          // Complete the new sign-in upstream before accepting its identity.
+          url.searchParams.set('disableCookieCache', 'true')
+          request = new Request(url, request)
+        }
+      }
+    }
     handlers ??= auth().handler()
     return handlers[method](request, context)
   }
