@@ -158,6 +158,9 @@ jobs:
         env:
           CI: 'true'
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          # Enable only after the owner authorizes password setup on the fresh
+          # disposable child. Missing authorization fails the gate, never skips.
+          ALLOW_DISPOSABLE_ROLE_PASSWORD: ${{ vars.AISO_ALLOW_DISPOSABLE_ROLE_PASSWORD }}
       - name: Upload integration diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -238,6 +241,13 @@ jobs:
           C9E_CSS_PATH: .next/component-fixtures/build.css
           C9F_HTML_DIR: .next/component-fixtures/C9F
           C9F_CSS_PATH: .next/component-fixtures/build.css
+          AISO_SOURCES_HTML_DIR: .next/component-fixtures/AISO_SOURCES
+          AISO_SOURCES_CSS_PATH: .next/component-fixtures/build.css
+          AISO_ONBOARDING_HTML_DIR: .next/component-fixtures/AISO_ONBOARDING
+          AISO_PRIORITY_HTML_DIR: .next/component-fixtures/AISO_PRIORITY
+          PROMPT_BANK_HTML_DIR: .next/component-fixtures/PROMPT_BANK
+          AUTH_RETURN_HTML_DIR: .next/component-fixtures/AUTH_RETURN
+          AUTH_RETURN_APP_URL: http://127.0.0.1:3000
           PLAYWRIGHT_JSON_OUTPUT_NAME: artifacts/e2e-accessibility/playwright-results.json
           PLAYWRIGHT_JUNIT_OUTPUT_NAME: artifacts/e2e-accessibility/playwright.junit.xml
       - name: Upload e2e-accessibility diagnostics
