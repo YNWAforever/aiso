@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import createIntlMiddleware from 'next-intl/middleware'
 import { routing } from './i18n/routing'
 import { auth } from '@/lib/neon-auth'
@@ -43,12 +43,39 @@ const NEON_AUTH_SESSION_CHALLENGE_COOKIE = '__Secure-neon-auth.session_challange
 const intlMiddleware = createIntlMiddleware(routing)
 
 export function proxy(request: NextRequest) {
+  // Embedded SDK sign-in returns to this fixed, unlocalised popup URL. Keep
+  // the browser URL/verifier intact until its client notifies the opener; a
+  // server exchange here would consume the verifier before that handoff.
+  if (request.nextUrl.pathname === '/auth/callback' && request.nextUrl.searchParams.get('neon_popup') === '1') {
+    let popupLang: 'en' | 'zh-HK' = 'en'
+    let next: string | null = null
+    try {
+      const callback = new URL(request.nextUrl.searchParams.get('neon_popup_callback') ?? '', request.url)
+      const match = callback.pathname.match(/^\/(en|zh-HK)\/auth\/complete$/)
+      const publicOrigin = new URL(request.nextUrl.protocol + '//' + (request.headers.get('host') ?? request.nextUrl.host)).origin
+      if (callback.origin === publicOrigin && match) {
+        popupLang = match[1] as 'en' | 'zh-HK'
+        next = callback.searchParams.get('next')
+      }
+    } catch { /* Invalid callback uses the local default. */ }
+    const destination = request.nextUrl.clone()
+    destination.pathname = `/${popupLang}/auth/complete`
+    const returnTo = safeReturnTo(next, popupLang)
+    destination.searchParams.set('next', returnTo)
+    const headers = new Headers(request.headers)
+    headers.set(AUTH_RETURN_TO_HEADER, returnTo)
+    const localized = intlMiddleware(new NextRequest(destination, { headers }))
+    localized.headers.delete('x-middleware-next')
+    return NextResponse.rewrite(destination, { headers: localized.headers })
+  }
   const langMatch = request.nextUrl.pathname.match(/^\/(en|zh-HK)(?:\/|$)/)
   const lang = langMatch ? langMatch[1] : 'en'
   const forwarded = new Headers(request.headers)
   forwarded.set(AUTH_RETURN_TO_HEADER, safeReturnTo(`${request.nextUrl.pathname}${request.nextUrl.search}`, lang))
   const trustedRequest = new NextRequest(request, { headers: forwarded })
+  const popupCompletion = request.nextUrl.searchParams.get('neon_popup') === '1' && /^\/(en|zh-HK)\/auth\/complete$/.test(request.nextUrl.pathname)
   if (
+    !popupCompletion &&
     request.nextUrl.searchParams.has(NEON_AUTH_SESSION_VERIFIER_PARAM) &&
     request.cookies.has(NEON_AUTH_SESSION_CHALLENGE_COOKIE)
   ) {
