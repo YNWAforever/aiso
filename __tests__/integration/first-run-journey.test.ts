@@ -228,9 +228,12 @@ describe('AC-01: the first-run journey on real rows', () => {
     const intent = intentFor(SCAN)
     const first=await POST(onboard(SCAN,intent));expect(first.status).toBe(200)
     const saved=await first.json(),trial=await commercialAccount(accountId)
+    if(!trial)throw new Error('Expected saved account/trial readback')
     const replay=await POST(onboard(SCAN,intent));expect(replay.status).toBe(200)
     expect((await replay.json()).clientId).toBe(saved.clientId)
-    expect((await commercialAccount(accountId)).trial_ends_at).toEqual(trial.trial_ends_at)
+    const resumed=await commercialAccount(accountId)
+    if(!resumed)throw new Error('Expected resumed account/trial readback')
+    expect(resumed.trial_ends_at).toEqual(trial.trial_ends_at)
     expect(await sql`select id from clients where account_id = ${accountId}::uuid`).toHaveLength(1)
   })
 
