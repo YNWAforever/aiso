@@ -144,7 +144,7 @@ jobs:
           # failure, in the one job that touches a real database.
           mkdir -p artifacts/exact-target
           set +e
-          node scripts/ci/run-exact-target-suites.mjs 2>&1 | node scripts/redact.mjs | tee artifacts/exact-target/wrapper.log
+          node scripts/ci/run-exact-target-suites.mjs 2>&1 | node scripts/redact.mjs | tee artifacts/integration/exact-target-wrapper.log
           exact_exit=${PIPESTATUS[0]}
           set -e
           for report in artifacts/exact-target/*.json; do
@@ -163,7 +163,7 @@ jobs:
           counts_exit=$?
           set -e
           if [ "$counts_exit" -ne 0 ]; then status=failure; counts="0 0"; fi
-          node scripts/ci/write-job-summary.mjs --job integration --status "$status" --executed "${counts% *}" --skipped "${counts#* }" --artifact integration/vitest.log --artifact exact-target/wrapper.log --output artifacts/integration-summary.json
+          node scripts/ci/write-job-summary.mjs --job integration --status "$status" --executed "${counts% *}" --skipped "${counts#* }" --artifact integration/vitest.log --artifact integration/exact-target-wrapper.log --output artifacts/integration-summary.json
           if [ "$vitest_exit" -ne 0 ]; then exit "$vitest_exit"; fi
           if [ "$counts_exit" -ne 0 ]; then exit "$counts_exit"; fi
           exit "$exact_exit"

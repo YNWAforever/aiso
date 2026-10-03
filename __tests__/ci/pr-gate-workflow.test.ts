@@ -111,4 +111,16 @@ describe('single-run disposable role authorization', () => {
     expect(integration).toContain('AISO_MANUAL_ROLE_APPROVAL: ${{ inputs.allow_disposable_role_password }}')
     expect(integration).toContain('ALLOW_DISPOSABLE_ROLE_PASSWORD: ${{ steps.disposable-role-authorization.outputs.allowed }}')
   })
+  it('preserves and uploads the exact-target log outside the report reset directory', async () => {
+    const workflow = await readWorkflow()
+    const integration = workflow.slice(workflow.indexOf('  integration:'), workflow.indexOf('\n  e2e-accessibility:'))
+    const wrapper = await readFile(resolve(process.cwd(), 'scripts/ci/run-exact-target-suites.mjs'), 'utf8')
+    expect(wrapper).toContain("const REPORT_DIR = join('artifacts', 'exact-target')")
+    expect(wrapper).toContain('rmSync(REPORT_DIR, { recursive: true, force: true })')
+    const teePath = integration.match(/node scripts\/ci\/run-exact-target-suites\.mjs[^\r\n]*?tee ([^\s]+)/)?.[1]
+    expect(teePath).toBe('artifacts/integration/exact-target-wrapper.log')
+    expect(integration).toContain('--artifact integration/exact-target-wrapper.log')
+    expect(integration).toMatch(/Upload integration diagnostics[\s\S]*path:[\s\S]*artifacts\/integration\//)
+  })
+
 })

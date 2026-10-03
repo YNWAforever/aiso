@@ -26,4 +26,4 @@ The default integration configuration excludes feature-store-tenancy, so the fir
 
 No production source approval, agent-use permission, revocation, deletion, email, paid scan or Pulse job is part of these fixtures. The original live source remains unapproved and agent-disabled; the private AUDIT draft remains unsubmitted. Cleanup removes synthetic fixtures only from the disposable child. No destructive rollback of new immutable evidence tables is proposed.
 
-T16 remains 受阻 for missing Pro, reviewer, account-B and fresh-account sessions and actual app-role execution. These limitations do not block independent code, fixtures or documentation.
+T16 remains 受阻 for missing Pro, reviewer, account-B and fresh-account sessions and hydrated persistent role journeys. Actual isolated aeo_app login/permissions and ten exact configs were completed under this round's explicit authorization; see the current candidate manifest for its SHA, scope and cleanup. These limitations do not block independent code, fixtures or documentation.
