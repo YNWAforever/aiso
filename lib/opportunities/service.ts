@@ -4,6 +4,7 @@ import { getProfile } from '@/lib/auth'
 import { deriveSuggestions } from '@/lib/opportunities/rules'
 import { loadOwnedOpportunitySources, loadSavedDraftMapping } from '@/lib/opportunities/store'
 import type { OpportunityResponse } from '@/lib/opportunities/types'
+import { parseOpportunityQuery } from './query'
 
 const statuses = { UNAUTHENTICATED:401, INVALID_OPPORTUNITY_QUERY:400, CLIENT_NOT_FOUND:404, OPPORTUNITIES_UNAVAILABLE:503 } as const
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -15,12 +16,14 @@ function diagnostic(operation: 'load' | 'sources' | 'saved-drafts') {
   // Deliberately emit no driver message, SQL, identities, or persisted evidence.
   console.error({ event: 'opportunities_unavailable', operation })
 }
-export async function loadAuthenticatedOpportunities(clientId: string): Promise<OpportunityResponse> {
+export async function loadAuthenticatedOpportunities(clientId: string,params=new URLSearchParams()): Promise<OpportunityResponse> {
   try {
     const profile = await getProfile()
     if (!profile) throw new OpportunityServiceError('UNAUTHENTICATED')
     if (!UUID.test(clientId)) throw new OpportunityServiceError('INVALID_OPPORTUNITY_QUERY')
-    const snapshot = await loadOwnedOpportunitySources(profile.account_id, clientId)
+    let query
+    try{query=parseOpportunityQuery(params,profile.account_id,clientId)}catch{throw new OpportunityServiceError('INVALID_OPPORTUNITY_QUERY')}
+    const snapshot = await loadOwnedOpportunitySources(profile.account_id, clientId,query)
     if (!snapshot) throw new OpportunityServiceError('CLIENT_NOT_FOUND')
     const sourceStates = { pulse: snapshot.sourceStates.pulse, scan: snapshot.sourceStates.scan }
     const partial = Object.values(sourceStates).includes('unavailable')

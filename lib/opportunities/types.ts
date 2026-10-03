@@ -132,6 +132,8 @@ export interface OpportunityWindow {
   pulseLimit: 200
   pulseTruncated: boolean
   scanId: string | null
+  nextCursor?:string|null
+  asOf?:string
 }
 export interface OpportunityResponse {
   schemaVersion: 1

@@ -87,7 +87,6 @@ export async function listSources(scope: SourceScope, now = new Date()): Promise
       and v.source_id = s.id and v.version_number = s.latest_version
     where s.account_id = ${scope.accountId} and s.client_id = ${scope.clientId}
     order by s.created_at desc, s.id desc
-    limit 200
   `
   return (rows as SourceRow[]).map(row => dto(row, now))
 }
@@ -152,11 +151,13 @@ export type ImportInput = {
   originRef: string | null
   /** Recorded only when the importer is entitled to approve; the service decides. */
   approve: boolean
+  expectedLatestVersion?: number
 }
 
 export type ImportResult =
   | { kind: 'created' | 'version-added' | 'unchanged'; source: SourceDto; approval: 'approved' | 'already-approved' | 'not-requested' }
   | { kind: 'revoked' }
+  | { kind: 'conflict' }
   | { kind: 'not-found' }
 
 /**
@@ -176,6 +177,7 @@ export async function importSource(scope: SourceScope, input: ImportInput): Prom
     insert into client_sources (account_id, client_id, source_key, kind, label, created_by)
     select ${scope.accountId}, c.id, ${input.sourceKey}, ${input.kind}, ${input.label}, ${scope.actorId}
     from clients c where c.id = ${scope.clientId} and c.account_id = ${scope.accountId}
+      and ${input.expectedLatestVersion===undefined||input.expectedLatestVersion===0}
     on conflict (account_id, client_id, source_key) do nothing
   `, sql`
     select id from client_sources
@@ -196,12 +198,14 @@ export async function importSource(scope: SourceScope, input: ImportInput): Prom
         ${scope.actorId}, ${input.approve ? scope.actorId : null}::uuid,
         case when ${input.approve} then now() else null end
       from source_state s where s.revoked_at is null and s.previous_hash is distinct from ${contentHash}
+        and (${input.expectedLatestVersion===undefined} or s.latest_version=${input.expectedLatestVersion??null}::int)
       returning *
     ), approved_version as (
       update client_source_versions v set approved_by = ${scope.actorId}, approved_at = now()
       from source_state s where v.account_id = ${scope.accountId} and v.client_id = ${scope.clientId}
         and v.source_id = s.id and v.version_number = s.latest_version and v.approved_at is null
         and s.revoked_at is null and ${input.approve} and s.previous_hash = ${contentHash}
+        and (${input.expectedLatestVersion===undefined} or s.latest_version=${input.expectedLatestVersion??null}::int)
       returning v.*
     ), chosen_version as (
       select * from new_version union all select * from approved_version
@@ -214,6 +218,7 @@ export async function importSource(scope: SourceScope, input: ImportInput): Prom
         latest_version = coalesce((select version_number from new_version), t.latest_version), updated_at = now()
       from source_state s where t.id = s.id and t.account_id = ${scope.accountId}
         and t.client_id = ${scope.clientId} and t.revoked_at is null
+        and (${input.expectedLatestVersion===undefined} or s.latest_version=${input.expectedLatestVersion??null}::int)
       returning t.id, t.source_key, t.kind, t.label, t.agent_use_allowed, t.revoked_at, t.latest_version, t.updated_at
     )
     select s.id, s.source_key, coalesce(u.kind,s.kind) as kind, coalesce(u.label,s.label) as label,
@@ -221,16 +226,18 @@ export async function importSource(scope: SourceScope, input: ImportInput): Prom
       coalesce(u.updated_at,s.updated_at) as updated_at,
       v.id as version_id, v.version_number, v.content_hash, v.import_method, v.origin_ref,
       v.imported_at, v.approved_at, v.approved_by, v.content,
-      case when s.revoked_at is not null then 'revoked' when s.latest_version = 0 then 'created'
+      case when not ${input.expectedLatestVersion===undefined} and s.latest_version<>${input.expectedLatestVersion??null}::int then 'conflict'
+        when s.revoked_at is not null then 'revoked' when s.latest_version = 0 then 'created'
         when s.previous_hash = ${contentHash} then 'unchanged' else 'version-added' end as result_kind,
       case when not ${input.approve} then 'not-requested'
         when s.previous_hash = ${contentHash} and s.previous_approved_at is not null then 'already-approved'
         else 'approved' end as approval_result
     from source_state s left join updated_source u on u.id = s.id left join chosen_version v on v.source_id = s.id
   `])
-  const row = results[2]![0] as (SourceRow & { result_kind: 'created' | 'version-added' | 'unchanged' | 'revoked'; approval_result: 'approved' | 'already-approved' | 'not-requested' }) | undefined
+  const row = results[2]![0] as (SourceRow & { result_kind: 'created' | 'version-added' | 'unchanged' | 'revoked' | 'conflict'; approval_result: 'approved' | 'already-approved' | 'not-requested' }) | undefined
   if (!row) return { kind: 'not-found' }
   if (row.result_kind === 'revoked') return { kind: 'revoked' }
+  if (row.result_kind === 'conflict') return { kind: 'conflict' }
   return { kind: row.result_kind, approval: row.approval_result, source: dto(row, new Date()) }
 }
 

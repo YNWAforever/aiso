@@ -114,19 +114,21 @@ function OpportunityContent({
     showView('drafts')
     void ensureDraftListLoaded()
   }
-  async function refresh() {
+  async function refresh(more=false) {
     if (refreshLock.current || savingLock.current) return
     refreshLock.current = true
     setRefreshing(true)
     setLoadError(false)
     try {
-      const response = await fetch(`${base}/opportunities`, {
+      const response = await fetch(`${base}/opportunities${more&&data?.window.nextCursor?`?cursor=${encodeURIComponent(data.window.nextCursor)}`:''}`, {
         cache: 'no-store',
+        signal:AbortSignal.timeout(15000),
       })
       if (!response.ok) throw new Error()
-      setData(await response.json())
-      setEvidenceChangedKeys(new Set())
-      setSaveError(null)
+      const next=await response.json() as OpportunityResponse
+      if(!Array.isArray(next.suggestions)||!next.window)throw new Error()
+      setData(old=>more&&old?{...next,suggestions:[...old.suggestions,...next.suggestions].filter((row,index,rows)=>rows.findIndex(item=>item.key===row.key)===index)}:next)
+      if(!more){setEvidenceChangedKeys(new Set());setSaveError(null)}
       setStatus(t('refreshed'))
     } catch {
       setLoadError(true)
@@ -295,7 +297,7 @@ function OpportunityContent({
           <button
             className={button}
             disabled={refreshing || saving !== null}
-            onClick={refresh}
+            onClick={() => refresh()}
           >
             {refreshing ? t('loadingSuggestions') : t('refresh')}
           </button>
@@ -343,7 +345,7 @@ function OpportunityContent({
                 <button
                   className={button}
                   disabled={refreshing || saving !== null}
-                  onClick={refresh}
+                  onClick={() => refresh()}
                 >
                   {t('refresh')}
                 </button>
@@ -375,6 +377,7 @@ function OpportunityContent({
           </article>
           )
         })}
+        {data?.window.nextCursor&&<button className={button} disabled={refreshing||saving!==null} onClick={()=>refresh(true)}>{t('moreCandidates')}</button>}
       </section>
       <section
         hidden={view !== 'drafts'}

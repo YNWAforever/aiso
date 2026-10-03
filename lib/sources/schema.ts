@@ -107,7 +107,7 @@ export function parseSourceEntries(value: unknown): SourceEntry[] {
  * permissive parser would be guessing at a customer's data, and guessing wrong
  * about which column holds the answer is worse than refusing the file.
  */
-export function parseSourceCsv(text: string): SourceEntry[] {
+export function parseSourceCsvRows(text: string): {rowNumber:number;cells:string[]}[] {
   if (typeof text !== 'string' || !text.trim()) reject('SOURCE_CSV_EMPTY')
   const rows: string[][] = []
   let row: string[] = []
@@ -134,17 +134,24 @@ export function parseSourceCsv(text: string): SourceEntry[] {
   row.push(cell)
   rows.push(row)
 
-  const usable = rows.filter(cells => cells.some(value => value.trim().length))
+  if(rows.at(-1)?.every(value=>!value.trim())&&/[\r\n]$/.test(text))rows.pop()
+  const usable = rows.map((cells,index)=>({cells,rowNumber:index+1}))
   if (!usable.length) reject('SOURCE_CSV_EMPTY')
   // Drop a header row only when it actually looks like one, so a file whose first
   // row is a real question is not silently discarded.
-  const first = usable[0]!
+  const first = usable[0]!.cells
   const looksLikeHeader = first.length >= 2
     && /^\s*(question|q|問題)\s*$/i.test(first[0] ?? '')
     && /^\s*(answer|a|答案|回答)\s*$/i.test(first[1] ?? '')
   const body = looksLikeHeader ? usable.slice(1) : usable
   if (!body.length) reject('SOURCE_CSV_EMPTY')
-  return parseSourceEntries(body.map(cells => ({ question: cells[0] ?? '', answer: cells[1] ?? '' })))
+  return body
+}
+export function parseSourceCsv(text: string): SourceEntry[] {
+  return parseSourceEntries(parseSourceCsvRows(text).map(({cells})=>{
+    if(cells.length!==2)reject('SOURCE_CSV_COLUMNS_INVALID')
+    return {question:cells[0]??'',answer:cells[1]??''}
+  }))
 }
 
 export function buildSourceContent(entries: SourceEntry[]): SourceContent {

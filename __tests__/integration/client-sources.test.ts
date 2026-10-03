@@ -3,6 +3,12 @@ import { neon } from '@neondatabase/serverless'
 import { buildSourceContent, hashSourceContent } from '@/lib/sources/schema'
 import { approveSourceVersion, importSource, listSources, listAgentUsableSources, readSource, revokeSource, setAgentUse } from '@/lib/sources/store'
 import { buildSourcePack } from '@/lib/view-models/source-pack'
+import { listSourcePage } from '@/lib/sources/pagination'
+import { parseSourceQuery } from '@/lib/sources/query'
+import { loadOwnedOpportunitySources } from '@/lib/opportunities/store'
+import { parseOpportunityQuery } from '@/lib/opportunities/query'
+import { previewSourceImport } from '@/lib/sources/import-preview'
+import { mergePreviewRetry } from '@/lib/sources/preview-state'
 
 vi.mock('server-only', () => ({}))
 // Exercise the real binding guard and HTTP transaction proxy, not a mock db().
@@ -31,6 +37,7 @@ const OTHER = '55555555-5555-5555-5555-555555555555'
 const content = (answer: string) => buildSourceContent([{ question: 'What are your hours?', answer }])
 
 async function seed() {
+  await sql`delete from pulse_metrics where client_id in (select id from clients where account_id in (${ACCOUNT},${OTHER}))`
   await sql`delete from client_source_versions where account_id in (${ACCOUNT}, ${OTHER})`
   await sql`delete from client_sources where account_id in (${ACCOUNT}, ${OTHER})`
   // scans and profiles reference accounts as well, and this branch is shared
@@ -84,6 +91,55 @@ async function version(account: string, clientId: string, sourceId: string, n: n
     )
   `
 }
+
+describe('T12 maintenance scale and complete imports',()=>{
+ beforeEach(seed)
+ it('all_201_sources_are_reachable with summary-only pages and account/filter binding',async()=>{
+  const clientId=await brand(ACCOUNT,'T12 sources'),actorId=await profile(ACCOUNT),scope={accountId:ACCOUNT,clientId,actorId}
+  await sql`insert into client_sources(account_id,client_id,source_key,kind,label) select ${ACCOUNT},${clientId},'source-'||n,'facts','Source '||n from generate_series(1,201) n`
+  let cursor:string|null=null
+  const ids:string[]=[]
+  do{
+   const params=new URLSearchParams(cursor?{cursor}:{})
+   const page=await listSourcePage(scope,parseSourceQuery(params,ACCOUNT,clientId))
+   expect(page!.total).toBe(201);expect(page!.items.length).toBeLessThanOrEqual(50)
+   expect(page!.items.every(row=>!row.current||!('entries'in row.current))).toBe(true)
+   ids.push(...page!.items.map(row=>row.id));cursor=page!.nextCursor
+  }while(cursor)
+  expect(ids).toHaveLength(201);expect(new Set(ids).size).toBe(201)
+  expect(await listSourcePage({...scope,accountId:OTHER},{limit:50,filter:'all',cursor:null})).toBeNull()
+  const first=await listSourcePage(scope,{limit:50,filter:'all',cursor:null})
+  await sql`update client_sources set label='Changed',updated_at=clock_timestamp() where account_id=${ACCOUNT} and client_id=${clientId} and id=${first!.items[0].id}`
+  await expect(listSourcePage(scope,parseSourceQuery(new URLSearchParams({cursor:first!.nextCursor!}),ACCOUNT,clientId))).rejects.toThrow('SOURCE_PAGE_CHANGED')
+ })
+ it('all_250_observations_have_candidate_scope including null timestamps and same-time ties',async()=>{
+  const clientId=await brand(ACCOUNT,'T12 observations')
+  await sql`insert into pulse_metrics(client_id,question,platform,scan_week,raw_answer,brand_mentioned,classification_status,created_at) select ${clientId},'Question '||n,'chatgpt','2026-09-01'::date,'Retained answer',false,'classified',case when n>240 then null else '2026-09-02T10:00:00.123456Z'::timestamptz end from generate_series(1,250)n`
+  const ids:string[]=[];let cursor:string|null=null
+  do{
+   const page=await loadOwnedOpportunitySources(ACCOUNT,clientId,parseOpportunityQuery(new URLSearchParams(cursor?{cursor}:{}),ACCOUNT,clientId))
+   ids.push(...page!.sources.filter(row=>row.kind==='pulse-metric').map(row=>row.observation.id));cursor=page!.window.nextCursor??null
+  }while(cursor)
+  expect(ids).toHaveLength(250);expect(new Set(ids).size).toBe(250)
+  expect(await loadOwnedOpportunitySources(OTHER,clientId)).toBeNull()
+ })
+ it('retry_invalid_csv_rows_preserves_valid_rows and exactly one complete version wins a parallel stale write',async()=>{
+  const clientId=await brand(ACCOUNT,'T12 CSV'),actorId=await profile(ACCOUNT),scope={accountId:ACCOUNT,clientId,actorId}
+  const preview=previewSourceImport({csv:Array.from({length:200},(_,n)=>`Question ${n},${n===199?'':'Answer'}`).join('\n')})
+  const full=mergePreviewRetry(preview,previewSourceImport({rows:[{rowNumber:200,question:'Question 199',answer:'Corrected'}]}))
+  const input={sourceKey:'t12-csv',kind:'faq' as const,label:'CSV',entries:full.rows.map(row=>row.entry!),importMethod:'csv' as const,originRef:null,approve:false,expectedLatestVersion:0}
+  const results=await Promise.all([importSource(scope,input),importSource(scope,{...input,entries:[{question:'Subset?',answer:'Must not replace full file'}]})])
+  expect(results.filter(row=>row.kind==='created')).toHaveLength(1);expect(results.filter(row=>row.kind==='conflict')).toHaveLength(1)
+  // Repeat with a known full winner to verify stored complete readback without depending on race order.
+  const saved=await importSource(scope,{...input,sourceKey:'t12-complete'})
+  if(!('source'in saved))throw new Error('fixture failed')
+  const read=await readSource(scope,saved.source.id)
+  expect(read!.latestVersion).toBe(1);expect(read!.current!.entries).toHaveLength(200)
+  expect(read!.current!.entries.at(-1)!.answer).toBe('Corrected')
+  const stale=await importSource(scope,{...input,sourceKey:'t12-complete',label:'Stale',entries:[{question:'Subset?',answer:'Rejected'}]})
+  expect(stale.kind).toBe('conflict');expect((await readSource(scope,saved.source.id))!.label).toBe('CSV')
+ })
+})
 
 describe('T04 source import and approval', () => {
   beforeEach(seed)

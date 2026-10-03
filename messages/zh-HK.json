@@ -1737,7 +1737,7 @@
     "partial": "部分證據或草稿資料暫時無法取得或有所限制。以下顯示可用的發現。",
     "savedUnknown": "暫時無法確認這項發現是否已有草稿。如已有草稿，儲存時會開啟現有草稿。",
     "limitedEvidence": "保留的證據不足，無法將這項發現儲存為新草稿。",
-    "window": "建議來自最新保留的 Pulse 週最多 200 列資料，以及最新保留的網站掃描檢查。這是有限範圍的檢視，並非全面搜尋。",
+    "window": "候選來自所選保留 Pulse 週及最新掃描。載入更多可到達後續資料；優先序只涵蓋目前已載入的證據，並非全局排名。",
     "pulseTruncated": "這一週還有更多 Pulse 資料。目前只包括最新 200 列。",
     "week": "保留週份",
     "noWeek": "沒有保留的 Pulse 週份",
@@ -1827,7 +1827,8 @@
     },
     "initialLoadError": "無法載入建議，請重試。",
     "versionHistory": "查看版本紀錄",
-    "saveBeforeVersions": "請先儲存修改，再開啟版本紀錄。"
+    "saveBeforeVersions": "請先儲存修改，再開啟版本紀錄。",
+    "moreCandidates": "載入更多候選證據"
   },
   "changeSets": {
     "title": "版本審核",
@@ -2153,7 +2154,13 @@
       "submitting": "匯入中⋯",
       "created": "已匯入。",
       "unchanged": "這段文字與現行版本完全相同，因此沒有建立新版本。",
-      "failed": "匯入失敗，未有儲存任何內容。"
+      "failed": "匯入失敗，未有儲存任何內容。",
+      "limits": "每份來源最多 200 列問答、每欄最多 4000 字元，每次請求最多 262144 bytes。CSV 須完成全部有效列的預覽後才可匯入。",
+      "preview": "預覽 CSV 各列",
+      "previewCounts": "{valid} 列有效 · {invalid} 列需要修正",
+      "row": "第 {number} 列",
+      "valid": "有效",
+      "retryRows": "重新驗證已修正列"
     },
     "errors": {
       "SOURCES_BODY_TOO_LARGE": "今次匯入的內容太大，無法一次過提交。請分拆成較小的部分。",
@@ -2172,7 +2179,27 @@
       "SOURCE_KIND_INVALID": "請選擇類型：品牌資料或常見問題。",
       "SOURCE_LABEL_INVALID": "必須填寫名稱，長度不可超過 160 字元。",
       "SOURCE_ORIGIN_INVALID": "來源備註必須是文字，長度不可超過 500 字元。",
-      "SOURCE_QUESTION_INVALID": "每個問題必須是文字，長度不可超過 4000 字元。"
+      "SOURCE_QUESTION_INVALID": "每個問題必須是文字，長度不可超過 4000 字元。",
+      "SOURCE_QUERY_INVALID": "分頁請求無效。請由第一頁開始。",
+      "SOURCE_PAGE_CHANGED": "來源已更新。請由第一頁重新整理後繼續。",
+      "SOURCE_PREVIEW_INVALID": "請預覽完整檔案並修正所有列後再匯入。",
+      "SOURCE_CSV_COLUMNS_INVALID": "每列必須剛好包含一個問題及一個答案。",
+      "SOURCE_DUPLICATE_QUESTION": "此問題與另一列重複。每列須使用獨立問題。",
+      "SOURCE_ENTRIES_LIMIT": "每次預覽須包含 1–200 列問答。"
+    },
+    "pagination": {
+      "loadedScope": "數量只計已載入來源",
+      "scope": "已載入 {shown} / {total} 個符合篩選的來源",
+      "filter": "來源篩選",
+      "filters": {
+        "all": "全部符合的來源",
+        "awaiting-approval": "待核准",
+        "in-use": "使用中",
+        "revoked": "已撤回"
+      },
+      "refresh": "由第一頁重新整理",
+      "loading": "正在載入來源…",
+      "more": "載入更多來源"
     }
   },
   "assets": {

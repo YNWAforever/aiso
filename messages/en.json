@@ -1737,7 +1737,7 @@
     "partial": "Some evidence or saved-draft information is unavailable or limited. Available findings are shown below.",
     "savedUnknown": "We could not check whether this finding already has a saved draft. Saving returns the existing draft if there is one.",
     "limitedEvidence": "The retained evidence is too limited to save this finding as a new draft.",
-    "window": "Suggestions use up to 200 rows from the latest retained Pulse week and checks from the newest retained website scan. This is a bounded review, not exhaustive discovery.",
+    "window": "Candidates use the selected retained Pulse week and latest scan. Load more to reach later rows; priority is within the evidence loaded here. This is not a global ranking.",
     "pulseTruncated": "More Pulse rows exist in this week. Only the newest 200 rows are included.",
     "week": "Retained week",
     "noWeek": "No retained Pulse week",
@@ -1827,7 +1827,8 @@
     },
     "initialLoadError": "Suggestions could not be loaded. Please try again.",
     "versionHistory": "Review version history",
-    "saveBeforeVersions": "Save your edits before opening version history."
+    "saveBeforeVersions": "Save your edits before opening version history.",
+    "moreCandidates": "Load more candidate evidence"
   },
   "changeSets": {
     "title": "Version review",
@@ -2153,7 +2154,13 @@
       "submitting": "Importing…",
       "created": "Imported.",
       "unchanged": "That text is identical to the current version, so no new version was created.",
-      "failed": "Import failed. Nothing was saved."
+      "failed": "Import failed. Nothing was saved.",
+      "limits": "Up to 200 question/answer rows per source, 4000 characters per field and 262144 bytes per request. CSV imports require a complete valid preview.",
+      "preview": "Preview CSV rows",
+      "previewCounts": "{valid} valid rows · {invalid} rows need correction",
+      "row": "Row {number}",
+      "valid": "Valid",
+      "retryRows": "Revalidate corrected rows"
     },
     "errors": {
       "SOURCES_BODY_TOO_LARGE": "That import is too large to send in one request. Split it into smaller parts.",
@@ -2172,7 +2179,27 @@
       "SOURCE_KIND_INVALID": "Choose a type: brand facts, or FAQ.",
       "SOURCE_LABEL_INVALID": "A name is required, up to 160 characters.",
       "SOURCE_ORIGIN_INVALID": "The origin note must be text, up to 500 characters.",
-      "SOURCE_QUESTION_INVALID": "Every question must be text, and no longer than 4000 characters."
+      "SOURCE_QUESTION_INVALID": "Every question must be text, and no longer than 4000 characters.",
+      "SOURCE_QUERY_INVALID": "This page request is invalid. Start from the first page.",
+      "SOURCE_PAGE_CHANGED": "Sources changed. Refresh from the first page before continuing.",
+      "SOURCE_PREVIEW_INVALID": "Preview the complete file and correct every row before importing.",
+      "SOURCE_CSV_COLUMNS_INVALID": "This row must contain exactly one question and one answer.",
+      "SOURCE_DUPLICATE_QUESTION": "This question duplicates another row. Keep one unique question per row.",
+      "SOURCE_ENTRIES_LIMIT": "A preview needs 1–200 question/answer rows."
+    },
+    "pagination": {
+      "loadedScope": "Counts cover loaded sources",
+      "scope": "Loaded {shown} of {total} matching sources",
+      "filter": "Source filter",
+      "filters": {
+        "all": "All matching sources",
+        "awaiting-approval": "Awaiting approval",
+        "in-use": "In use",
+        "revoked": "Revoked"
+      },
+      "refresh": "Refresh from first page",
+      "loading": "Loading sources…",
+      "more": "Load more sources"
     }
   },
   "assets": {

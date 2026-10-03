@@ -1,8 +1,12 @@
 'use client'
-import { useState } from 'react'
+import { useEffect,useRef,useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { SourcePack, SourcePackEntry } from '@/lib/view-models/source-pack'
+import type { SourcePage } from '@/lib/sources/pagination'
+import type { SourceFilter } from '@/lib/sources/query'
+import type { PreviewRows } from '@/lib/sources/import-preview'
+import { mergePreviewRetry } from '@/lib/sources/preview-state'
 
 /**
  * The owner's view of the facts a draft may quote.
@@ -26,10 +30,12 @@ const EMPTY_PAIR: Draft = { question: '', answer: '' }
 export function SourcePackWorkspace({
   clientId,
   pack,
+  page=null,
   loadFailed = false,
 }: {
   clientId: string
   pack: SourcePack | null
+  page?:SourcePage|null
   loadFailed?: boolean
 }) {
   const t = useTranslations('sources')
@@ -40,6 +46,13 @@ export function SourcePackWorkspace({
   const [actionError, setActionError] = useState<string | null>(null)
   const [review, setReview] = useState<import('@/lib/sources/schema').SourceDto | null>(null)
   const [status, setStatus] = useState('')
+  const [loaded,setLoaded]=useState({originPack:pack,originPage:page,pack,page,filter:'all' as SourceFilter})
+  const current=loaded.originPack===pack&&loaded.originPage===page
+  const shown=current?loaded.pack:pack,pageState=current?loaded.page:page,filter=current?loaded.filter:'all'
+  const [pagePending,setPagePending]=useState({pack,page,busy:false})
+  const loadingPage=pagePending.pack===pack&&pagePending.page===page&&pagePending.busy
+  const pageRequest=useRef(0)
+  useEffect(()=>{pageRequest.current++},[pack,page])
 
   const [label, setLabel] = useState('')
   const [sourceKey, setSourceKey] = useState('')
@@ -51,6 +64,39 @@ export function SourcePackWorkspace({
   const [approve, setApprove] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
+  const [preview,setPreview]=useState<(PreviewRows&{expectedLatestVersion:number})|null>(null)
+  const [previewing,setPreviewing]=useState(false)
+  async function loadPage(nextFilter:SourceFilter,more=false){
+    const request=++pageRequest.current;setPagePending({pack,page,busy:true});setActionError(null)
+    try{
+      const params=new URLSearchParams({filter:nextFilter})
+      if(more&&pageState?.nextCursor)params.set('cursor',pageState.nextCursor)
+      const response=await fetch(`${base}?${params}`,{cache:'no-store',signal:AbortSignal.timeout(15000)})
+      const data=await response.json()
+      if(request!==pageRequest.current)return
+      if(!response.ok)throw new Error(data.error)
+      if(!Array.isArray(data.pack?.entries))throw new Error('SOURCES_UNAVAILABLE')
+      setLoaded(old=>{
+        const previous=old.originPack===pack&&old.originPage===page?old.pack:pack
+        const entries:SourcePackEntry[]=more&&previous?[...previous.entries,...data.pack.entries].filter((row,index,rows)=>rows.findIndex(item=>item.id===row.id)===index):data.pack.entries
+        const nextPack={...data.pack,entries,inUse:entries.filter(row=>row.usability==='in-use').length,awaitingApproval:entries.filter(row=>row.usability==='awaiting-approval').length,revoked:entries.filter(row=>row.usability==='revoked').length,staleInUse:entries.filter(row=>row.usability==='in-use'&&row.freshness==='stale').length}
+        return{originPack:pack,originPage:page,pack:nextPack,page:data,filter:nextFilter}
+      })
+    }catch(error){if(request===pageRequest.current)setActionError(messageFor(error instanceof Error?error.message:null))}
+    finally{if(request===pageRequest.current)setPagePending({pack,page,busy:false})}
+  }
+  async function previewCsv(retry=false){
+    if(previewing)return
+    setPreviewing(true);setImportError(null)
+    try{
+      const response=await fetch(`${base}/import-preview`,{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(15000),body:JSON.stringify({sourceKey,...(retry&&preview?{rows:preview.rows.filter(row=>row.errorCode!==null).map(({rowNumber,question,answer})=>({rowNumber,question,answer}))}:{csv})})})
+      const data=await response.json()
+      if(!response.ok)throw new Error(data.error)
+      if(!Array.isArray(data.rows)||!Number.isInteger(data.expectedLatestVersion))throw new Error('SOURCE_PREVIEW_INVALID')
+      setPreview(old=>retry&&old?{...mergePreviewRetry(old,data),expectedLatestVersion:old.expectedLatestVersion}:data)
+    }catch(error){setImportError(messageFor(error instanceof Error?error.message:null))}
+    finally{setPreviewing(false)}
+  }
 
   /** A code the service documented; anything else is a dependency failure. */
   function messageFor(code: unknown): string {
@@ -87,13 +133,24 @@ export function SourcePackWorkspace({
   async function submitImport(event: React.FormEvent) {
     event.preventDefault()
     if (importing) return
+    if(method==='csv'&&(!preview||preview.invalidCount||previewing)){setImportError(messageFor('SOURCE_PREVIEW_INVALID'));return}
     setImporting(true)
     setImportError(null)
     setStatus('')
     try {
+      let expectedLatestVersion:number|undefined
+      if(method==='paste'){
+        const validation=await fetch(`${base}/import-preview`,{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(15000),body:JSON.stringify({sourceKey,rows:pairs.map((pair,index)=>({...pair,rowNumber:index+1}))})})
+        const checked=await validation.json()
+        if(!validation.ok||checked.invalidCount||!Number.isSafeInteger(checked.expectedLatestVersion)){
+          setImportError(messageFor(checked.rows?.find((row:{errorCode:string|null})=>row.errorCode)?.errorCode??checked.error??'SOURCE_PREVIEW_INVALID'));return
+        }
+        expectedLatestVersion=checked.expectedLatestVersion
+      }
       const response = await fetch(base, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal:AbortSignal.timeout(15000),
         body: JSON.stringify({
           sourceKey,
           kind,
@@ -101,7 +158,7 @@ export function SourcePackWorkspace({
           importMethod: method,
           originRef: originRef.trim() ? originRef : null,
           approve,
-          ...(method === 'csv' ? { csv } : { entries: pairs }),
+          ...(method === 'csv' && preview ? {entries:preview.rows.map(row=>row.entry),previewRowCount:preview.rows.length,previewContentHash:preview.contentHash,expectedLatestVersion:preview.expectedLatestVersion} : { entries: pairs,expectedLatestVersion }),
         }),
       })
       const payload = await response.json().catch(() => ({}))
@@ -116,6 +173,7 @@ export function SourcePackWorkspace({
         : outcome.result === 'unchanged' ? t('import.unchanged') : t('import.created'))
       setPairs([{ ...EMPTY_PAIR }])
       setCsv('')
+      setPreview(null)
       router.refresh()
     } catch {
       setImportError(t('import.failed'))
@@ -163,7 +221,7 @@ export function SourcePackWorkspace({
     return (
       <li key={entry.id} className="min-w-0 rounded-xl border border-dash-border bg-dash-surface p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="text-base font-bold text-dash-text">{entry.label}</h3>
+          <h2 className="text-base font-bold text-dash-text">{entry.label}</h2>
           <span className="rounded-full border border-dash-border px-3 py-1 text-xs font-semibold text-dash-text">
             {t(`usability.${entry.usability}`)}
           </span>
@@ -264,7 +322,7 @@ export function SourcePackWorkspace({
       <p aria-live="polite" className="text-sm text-dash-text">{status}</p>
       {actionError && <p role="alert" className="mt-2 text-sm text-dash-text">{actionError}</p>}
 
-      {loadFailed || !pack ? (
+      {loadFailed || !shown ? (
         <section className="mt-6 rounded-xl border border-dash-border bg-dash-surface p-5">
           <p role="alert" className="text-sm leading-relaxed text-dash-muted">{t('states.error')}</p>
           <button type="button" className={`${action} mt-4`} onClick={() => router.refresh()}>{t('actions.reload')}</button>
@@ -272,18 +330,21 @@ export function SourcePackWorkspace({
       ) : (
         <>
           <p className="mt-6 text-sm text-dash-muted">
-            {pack.inUse} {t('counts.inUse')} · {pack.awaitingApproval} {t('counts.awaitingApproval')} · {pack.revoked} {t('counts.revoked')}
-            {pack.staleInUse > 0 && <> · {pack.staleInUse} {t('counts.staleInUse')} {pack.staleAfterDays} {t('counts.days')}</>}
+            {t('pagination.loadedScope')} · {shown.inUse} {t('counts.inUse')} · {shown.awaitingApproval} {t('counts.awaitingApproval')} · {shown.revoked} {t('counts.revoked')}
+            {shown.staleInUse > 0 && <> · {shown.staleInUse} {t('counts.staleInUse')} {shown.staleAfterDays} {t('counts.days')}</>}
           </p>
-          {pack.state === 'empty'
+          {pageState&&<div className="mt-3 space-y-3"><p>{t('pagination.scope',{shown:shown.entries.length,total:pageState.total})}</p><label>{t('pagination.filter')}<select className={field} value={filter} disabled={loadingPage} onChange={event=>loadPage(event.target.value as SourceFilter)}>{(['all','awaiting-approval','in-use','revoked'] as const).map(value=><option key={value} value={value}>{t(`pagination.filters.${value}`)}</option>)}</select></label><button className={action} disabled={loadingPage} onClick={()=>loadPage(filter)}>{t('pagination.refresh')}</button></div>}
+          {shown.state === 'empty'
             ? <p className="mt-6 max-w-2xl text-sm leading-relaxed text-dash-muted">{t('states.empty')}</p>
-            : <ul className="mt-6 space-y-4">{pack.entries.map(entryCard)}</ul>}
+            : <ul className="mt-6 space-y-4">{shown.entries.map(entryCard)}</ul>}
+          {pageState?.nextCursor&&<button className={`${action} mt-4`} disabled={loadingPage} onClick={()=>loadPage(filter,true)}>{loadingPage?t('pagination.loading'):t('pagination.more')}</button>}
         </>
       )}
 
       <section className="mt-10 rounded-xl border border-dash-border bg-dash-surface p-5">
         <h2 className="text-xl font-bold text-dash-text">{t('import.title')}</h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-dash-muted">{t('import.summary')}</p>
+        <p className="mt-2 text-sm text-dash-muted">{t('import.limits')}</p>
         <form className="mt-5 space-y-4" onSubmit={submitImport}>
           <label className="block text-sm font-semibold text-dash-text">
             {t('import.label')}
@@ -291,7 +352,7 @@ export function SourcePackWorkspace({
           </label>
           <label className="block text-sm font-semibold text-dash-text">
             {t('import.key')}
-            <input className={field} value={sourceKey} onChange={event => setSourceKey(event.target.value)} required maxLength={120} />
+            <input className={field} value={sourceKey} readOnly={previewing||importing} onChange={event => {setSourceKey(event.target.value);setPreview(null)}} required maxLength={120} />
             <span className="mt-1 block text-xs font-normal text-dash-muted">{t('import.keyHint')}</span>
           </label>
           <label className="block text-sm font-semibold text-dash-text">
@@ -303,7 +364,7 @@ export function SourcePackWorkspace({
           </label>
           <label className="block text-sm font-semibold text-dash-text">
             {t('import.method')}
-            <select className={field} value={method} onChange={event => setMethod(event.target.value as 'paste' | 'csv')}>
+            <select className={field} value={method} disabled={previewing||importing} onChange={event => {setMethod(event.target.value as 'paste' | 'csv');setPreview(null)}}>
               <option value="paste">{t('import.methods.paste')}</option>
               <option value="csv">{t('import.methods.csv')}</option>
             </select>
@@ -317,7 +378,7 @@ export function SourcePackWorkspace({
           {method === 'csv' ? (
             <label className="block text-sm font-semibold text-dash-text">
               {t('import.methods.csv')}
-              <textarea className={`${field} min-h-32 font-mono`} value={csv} onChange={event => setCsv(event.target.value)} rows={8} />
+              <textarea className={`${field} min-h-32 font-mono`} value={csv} readOnly={previewing||importing} onChange={event => {setCsv(event.target.value);setPreview(null)}} rows={8} />
               <span className="mt-1 block text-xs font-normal text-dash-muted">{t('import.csvHint')}</span>
             </label>
           ) : (
@@ -351,11 +412,12 @@ export function SourcePackWorkspace({
                   )}
                 </div>
               ))}
-              <button type="button" className={action} onClick={() => setPairs(old => [...old, { ...EMPTY_PAIR }])}>
+              <button type="button" className={action} disabled={pairs.length>=200} onClick={() => setPairs(old => [...old, { ...EMPTY_PAIR }])}>
                 {t('import.add')}
               </button>
             </fieldset>
           )}
+          {method==='csv'&&<section aria-label={t('import.preview')} className="space-y-3"><button type="button" className={action} disabled={previewing||importing} onClick={()=>previewCsv()}>{t('import.preview')}</button>{preview&&<><p role="status">{t('import.previewCounts',{valid:preview.validCount,invalid:preview.invalidCount})}</p><ol>{preview.rows.map(row=><li key={row.rowNumber} className="my-2 rounded-lg border border-dash-border p-3"><p>{t('import.row',{number:row.rowNumber})} · {row.errorCode?messageFor(row.errorCode):t('import.valid')}</p>{row.errorCode?<><label>{t('import.question')}<input className={field} readOnly={previewing||importing} maxLength={4000} value={row.question} onChange={event=>setPreview(old=>old&&({...old,rows:old.rows.map(item=>item.rowNumber===row.rowNumber?{...item,question:event.target.value}:item)}))}/></label><label>{t('import.answer')}<textarea className={field} readOnly={previewing||importing} maxLength={4000} value={row.answer} onChange={event=>setPreview(old=>old&&({...old,rows:old.rows.map(item=>item.rowNumber===row.rowNumber?{...item,answer:event.target.value}:item)}))}/></label></>:<p className="whitespace-pre-wrap">{row.entry?.question} · {row.entry?.answer}</p>}</li>)}</ol>{preview.invalidCount>0&&<button type="button" className={action} disabled={previewing||importing} onClick={()=>previewCsv(true)}>{t('import.retryRows')}</button>}</>}</section>}
 
           <label className="flex items-start gap-3 text-sm font-semibold text-dash-text">
             <input type="checkbox" className="mt-1 h-5 w-5" checked={approve} onChange={event => setApprove(event.target.checked)} />
@@ -366,7 +428,7 @@ export function SourcePackWorkspace({
           </label>
 
           {importError && <p role="alert" className="text-sm text-dash-text">{importError}</p>}
-          <button type="submit" className={action} disabled={importing}>
+          <button type="submit" className={action} disabled={importing||previewing||(method==='csv'&&(!preview||preview.invalidCount>0))}>
             {importing ? t('import.submitting') : t('import.submit')}
           </button>
         </form>

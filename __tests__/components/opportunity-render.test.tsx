@@ -100,6 +100,7 @@ afterAll(() =>
     { clientId, initial },
     htmlFor,
     {
+      continuation:{props:{clientId,initial:{...initial,window:{...initial.window,nextCursor:'next-evidence'}}},html:lang=>htmlFor(lang,{...initial,window:{...initial.window,nextCursor:'next-evidence'}})},
       many: { props:{clientId,initial:manyCandidates},html:lang=>htmlFor(lang,manyCandidates) },
       saved: {
         props: { clientId, initial: { ...initial, suggestions: initial.suggestions.map(row => ({ ...row, savedDraftId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', savedState: 'saved' as const })) } },

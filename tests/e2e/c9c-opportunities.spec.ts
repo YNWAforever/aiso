@@ -56,6 +56,20 @@ test.afterEach(({ page }) => {
   expect(errors.get(page) ?? []).toEqual([])
 })
 for (const lang of ['en', 'zh-HK']) {
+  test(`T12 empty candidate pages can continue and preserve existing candidates in ${lang}`,async({page})=>{
+    const {copy,data}=await fixture(page,lang,'C9C',false,'continuation')
+    let reads=0
+    await page.route('**/api/clients/*/opportunities?cursor=*',route=>{
+      reads++
+      return route.fulfill({json:{...data.initial,window:{...data.initial.window,nextCursor:reads===1?'later-evidence':null},suggestions:reads===1?[]:[{...data.initial.suggestions[0],key:'later-candidate',args:{...data.initial.suggestions[0].args,question:'Later question'},source:{...data.initial.suggestions[0].source,id:'77777777-7777-4777-8777-777777777777'}}]}})
+    })
+    await page.getByRole('button',{name:copy.moreCandidates}).click()
+    await expect(page.locator('article')).toHaveCount(1)
+    await page.getByRole('button',{name:copy.moreCandidates}).click()
+    await expect(page.locator('article')).toHaveCount(2)
+    await expect(page.getByRole('button',{name:copy.moreCandidates})).toHaveCount(0)
+    expect(reads).toBe(2)
+  })
   test(`T19 all sixteen candidates have human next steps in ${lang}`,async({page})=>{
     await fixture(page,lang,'C9C',false,'many')
     const articles=page.locator('article')

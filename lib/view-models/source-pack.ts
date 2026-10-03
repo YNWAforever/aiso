@@ -1,4 +1,5 @@
 import { sourceFreshness, STALE_AFTER_DAYS, type FreshnessState, type ImportMethod, type SourceDto } from '@/lib/sources/schema'
+import type { SourceSummary } from '@/lib/sources/pagination'
 
 /**
  * What an owner sees about the facts a draft is allowed to quote.
@@ -69,7 +70,7 @@ export type SourcePack = {
 
 const DAY = 24 * 60 * 60 * 1000
 
-function usabilityOf(source: SourceDto): SourceUsability {
+function usabilityOf(source: SourceDto|SourceSummary): SourceUsability {
   // Strongest blocker first. Revocation is terminal — reporting "one toggle
   // away" for a revoked source would name a step that does nothing.
   if (source.revokedAt !== null) return 'revoked'
@@ -78,7 +79,7 @@ function usabilityOf(source: SourceDto): SourceUsability {
   return 'in-use'
 }
 
-function entryOf(source: SourceDto, now: Date): SourcePackEntry {
+function entryOf(source: SourceDto|SourceSummary, now: Date): SourcePackEntry {
   const version = source.current
   const importedAt = version?.importedAt ?? null
   return {
@@ -93,7 +94,7 @@ function entryOf(source: SourceDto, now: Date): SourcePackEntry {
     approvedAt: version?.approvedAt ?? null,
     approvedBy: version?.approvedBy ?? null,
     contentHash: version?.contentHash ?? null,
-    entryCount: version?.entries.length ?? 0,
+    entryCount: version ? ('entries'in version?version.entries.length:version.entryCount) : 0,
     provenance: {
       importMethod: version?.importMethod ?? null,
       originRef: version?.originRef ?? null,
@@ -115,7 +116,7 @@ function entryOf(source: SourceDto, now: Date): SourcePackEntry {
  * Revoked sources are kept, not hidden. A draft that cited one stays explainable
  * only while the owner can still see it existed.
  */
-export function buildSourcePack(sources: SourceDto[], now = new Date()): SourcePack {
+export function buildSourcePack(sources: (SourceDto|SourceSummary)[], now = new Date()): SourcePack {
   const entries = sources.map(source => entryOf(source, now))
   const count = (predicate: (entry: SourcePackEntry) => boolean) => entries.filter(predicate).length
   return {

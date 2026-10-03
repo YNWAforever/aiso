@@ -11,6 +11,11 @@ const id = '00000000-0000-4000-8000-000000000003'
 const row = { id, client_id: client, prompt_id: null, question: 'Question?', platform: 'chatgpt', scan_week: '2026-08-31', created_at: '2026-09-01T00:00:00.123456Z', raw_answer: 'SECRET answer', classification_status: 'classified',brand_mentioned: false, has_answer: true }
 const envelope = buildScanEvidence({ requestedUrl: 'https://example.com', evaluatedUrl: 'https://example.com', industry: 'technology', region: 'HK', sitemapSource: 'fetched', checks: { c1_robots: { assessment: 'fail', collection: 'complete' } } })
 beforeEach(() => sql.mockReset())
+it('all_250_observations_have_candidate_scope',async()=>{
+ sql.mockResolvedValueOnce([{id:client}]).mockResolvedValueOnce(Array.from({length:201},()=>row)).mockResolvedValueOnce([])
+ const result=await loadOwnedOpportunitySources(account,client)
+ expect(result?.window).toHaveProperty('nextCursor',expect.any(String))
+})
 it('unknown historical classification cannot produce a definite brand-missing draft suggestion',()=>{
   const unknown=projectPulseOpportunityInput(account,{...row,classification_status:'legacy_unknown'})
   expect(unknown.source.observation.brandMentioned).toBeNull()

@@ -5,6 +5,7 @@ import { projectObservation } from '@/lib/observations/schema'
 import type { PulseSourceRow } from '@/lib/observations/types'
 import { readScanEvidence } from '@/lib/scan-evidence'
 import type { OpportunityResponse, OpportunityWindow, SourceEvidence } from '@/lib/opportunities/types'
+import { encodeOpportunityCursor,type OpportunityQuery } from './query'
 
 export type PersistedPulseInput = PulseSourceRow & { client_id: string; has_answer: boolean }
 export interface PersistedScanInput {
@@ -53,12 +54,13 @@ export function projectScanOpportunityInput(accountId: string, row: PersistedSca
   return { source, version }
 }
 
-export async function loadOwnedOpportunitySources(accountId: string, clientId: string): Promise<SourceWindow | null> {
+export async function loadOwnedOpportunitySources(accountId: string, clientId: string,query:OpportunityQuery={cursor:null}): Promise<SourceWindow | null> {
   const sql = db()
   const owned = await sql`select id from clients where id = ${clientId} and account_id = ${accountId}`
   if (!owned.length) return null
+  const cursor=query.cursor,asOf=cursor?.asOf??new Date().toISOString()
   const result: SourceWindow = {
-    window: { pulseWeek: null, pulseLimit: 200, pulseTruncated: false, scanId: null },
+    window: { pulseWeek: cursor?.week??null, pulseLimit: 200, pulseTruncated: false, scanId: null,nextCursor:null,asOf },
     sourceStates: { pulse: 'unavailable', scan: 'unavailable' }, sources: [], evidenceVersions: [],
   }
   const [pulse, scan] = await Promise.allSettled([
@@ -69,9 +71,13 @@ export async function loadOwnedOpportunitySources(accountId: string, clientId: s
         m.raw_answer, m.brand_mentioned,m.classification_status, coalesce(m.raw_answer ~ '[^[:space:]]', false) as has_answer
       from pulse_metrics m join clients c on c.id = m.client_id
       where c.id = ${clientId} and c.account_id = ${accountId}
-        and m.scan_week = (select max(p.scan_week) from pulse_metrics p
+        and m.scan_week = coalesce(${cursor?.week??null}::date,(select max(p.scan_week) from pulse_metrics p
           join clients owner on owner.id = p.client_id
-          where owner.id = ${clientId} and owner.account_id = ${accountId})
+          where owner.id = ${clientId} and owner.account_id = ${accountId}))
+        and (m.created_at is null or m.created_at<=${asOf}::timestamptz)
+        and (${cursor===null} or
+          (${cursor?.recordedAt??null}::timestamptz is not null and (m.created_at<${cursor?.recordedAt??null}::timestamptz or (m.created_at=${cursor?.recordedAt??null}::timestamptz and m.id<${cursor?.id??null}::uuid) or m.created_at is null)) or
+          (${cursor?.recordedAt??null}::timestamptz is null and m.created_at is null and m.id<${cursor?.id??null}::uuid))
       order by m.created_at desc nulls last, m.id desc limit 201
     `,
     sql`
@@ -87,8 +93,10 @@ export async function loadOwnedOpportunitySources(accountId: string, clientId: s
     try {
       const rows = pulse.value as PersistedPulseInput[]
       const projected = rows.slice(0, 200).map(row => projectPulseOpportunityInput(accountId, row))
-      result.window.pulseWeek = rows[0]?.scan_week ?? null
+      result.window.pulseWeek = rows[0]?.scan_week ?? cursor?.week ?? null
       result.window.pulseTruncated = rows.length > 200
+      const last=rows.slice(0,200).at(-1)
+      result.window.nextCursor=rows.length>200&&last?encodeOpportunityCursor({accountId,clientId,week:last.scan_week,asOf,recordedAt:last.created_at,id:last.id}):null
       result.sourceStates.pulse = rows.length ? 'ok' : 'empty'
       result.sources.push(...projected.map(item => item.source))
       result.evidenceVersions.push(...projected.map(item => item.version))

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { SourcePackWorkspace } from '@/components/sources/SourcePackWorkspace'
 import { requireAuth } from '@/lib/auth'
-import { listSources } from '@/lib/sources/store'
+import { listSourcePage,type SourcePage } from '@/lib/sources/pagination'
 import { loadOwnedDraftClient } from '@/lib/work-items/store'
 import { buildSourcePack, type SourcePack } from '@/lib/view-models/source-pack'
 
@@ -41,15 +41,16 @@ export default async function SourcesPage({
   if (!loadFailed && owned === null) notFound()
 
   let pack: SourcePack | null = null
+  let page:SourcePage|null=null
   if (!loadFailed) {
     try {
-      pack = buildSourcePack(
-        await listSources({ accountId: profile.account_id, clientId, actorId: profile.id }),
-      )
+      page=await listSourcePage({ accountId: profile.account_id, clientId, actorId: profile.id },{filter:'all',limit:50,cursor:null})
+      if(!page)throw new Error('Source ownership changed')
+      pack = buildSourcePack(page.items)
     } catch {
       loadFailed = true
     }
   }
 
-  return <SourcePackWorkspace clientId={clientId} pack={pack} loadFailed={loadFailed} />
+  return <SourcePackWorkspace clientId={clientId} pack={pack} page={page} loadFailed={loadFailed} />
 }

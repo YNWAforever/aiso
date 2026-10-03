@@ -13,7 +13,7 @@ export async function writeC9cFixture(
     string,
     { props: object; html: (lang: string) => string }
   > = {},
-  namespace: 'opportunities' | 'changeSets' | 'approverAccess' | 'delivery' | 'outcomes' = 'opportunities',
+  namespace: 'opportunities' | 'changeSets' | 'approverAccess' | 'delivery' | 'outcomes' | 'sources' = 'opportunities',
 ) {
   const dir = process.env[`${slice}_HTML_DIR`]
   if (!dir) return
@@ -44,11 +44,13 @@ export async function writeC9cFixture(
     entry,
     `import React,{useEffect}from'react';import{hydrateRoot}from'react-dom/client';import{NextIntlClientProvider}from'next-intl';import{${component}}from'${module}';const d=JSON.parse(document.getElementById('fixture-props').textContent);function Fixture(){useEffect(()=>{window.c9cFixtureReady=true},[]);const c=React.createElement(${component},{...d.props,onSaved:()=>{}});return React.createElement(NextIntlClientProvider,{locale:d.lang,messages:d.messages,timeZone:"UTC"},${component === 'DraftEditor' ? "React.createElement('main',null,React.createElement('h1',null,'Draft fixture'),c)" : 'c'})}hydrateRoot(document.getElementById('root'),React.createElement(Fixture));`,
   )
+  const navigationShim=component==='SourcePackWorkspace'?join(resolve(dir),'navigation-shim.js'):null
+  if(navigationShim)writeFileSync(navigationShim,"export function useRouter(){return {refresh(){window.dispatchEvent(new Event('fixture-refresh'))}}}")
   await build({
     configFile: false,
     envDir: false,
     oxc: { jsx: { development: false } },
-    resolve: { alias: { '@': resolve('.') } },
+    resolve: { alias: { '@': resolve('.'),...(navigationShim?{'next/navigation':navigationShim}:{}) } },
     define: { 'process.env.NODE_ENV': '"production"' },
     build: {
       outDir: resolve(dir),
@@ -62,4 +64,5 @@ export async function writeC9cFixture(
     },
   })
   unlinkSync(entry)
+  if(navigationShim)unlinkSync(navigationShim)
 }
