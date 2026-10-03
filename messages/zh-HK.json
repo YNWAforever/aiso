@@ -1463,6 +1463,32 @@
         "insufficient-evidence": "今次掃描未能取得足夠資料排出優先次序。請重新掃描，或檢查網站是否阻擋自動請求。",
         "unavailable": "這次掃描早於證據記錄機制，無法如實排出優先次序。請重新掃描以取得重點。"
       }
+    },
+    "daily": {
+      "title": "每日維護工作",
+      "states": {
+        "not_configured": "未設定採集；空白問題庫不代表排程故障。",
+        "pending": "採集尚有待處理項目。",
+        "partial": "採集或分類尚未完整。",
+        "complete": "此 run 的採集及分類完整。",
+        "failed": "此 run 的採集失敗。",
+        "disabled": "已停用。",
+        "unknown": "目前無法確認工作狀態。"
+      },
+      "coverage": "成功採集 {succeeded}/{expected}；失敗 {failed}、待處理 {pending}、受阻 {blocked}；已分類 {classified}。",
+      "lastComplete": "最近完整 run 的記錄更新時間",
+      "nextDue": "下次工作時間（香港）",
+      "unknown": "尚未確認",
+      "partialReads": "部分記錄讀取失敗，仍保留已確認的工作。",
+      "manual": "先檢查證據、修訂私人草稿，再核准確切來源版本。這些連結不會啟動採集、寄信或發布；下載草稿並不代表已交付。",
+      "actions": {
+        "review-failed-run": "查看失敗及受阻項目",
+        "review-pending-run": "查看待處理項目",
+        "review-classification": "覆核未分類答案",
+        "review-source": "覆核待核准的確切來源版本",
+        "open-draft": "繼續私人草稿",
+        "review-opportunities": "查看改善機會"
+      }
     }
   },
   "portfolio": {
@@ -1712,7 +1738,12 @@
     "promptSnapshot": "當時的問題快照",
     "snapshotLanguage": "採集時的語言",
     "limitations": "證據限制",
-    "brandSnapshot": "採集時的品牌"
+    "brandSnapshot": "採集時的品牌",
+    "workflowTitle": "繼續維護",
+    "workflowNote": "核對觀察原文，整理私人草稿，再覆核來源版本。核准來源與允許代理使用須分別處理；改善建議不代表曝光提升。",
+    "workflowObservations": "查看觀察證據",
+    "workflowOpportunities": "修訂私人草稿",
+    "workflowSources": "覆核來源版本"
   },
   "opportunities": {
     "title": "改善機會",
@@ -1828,7 +1859,12 @@
     "initialLoadError": "無法載入建議，請重試。",
     "versionHistory": "查看版本紀錄",
     "saveBeforeVersions": "請先儲存修改，再開啟版本紀錄。",
-    "moreCandidates": "載入更多候選證據"
+    "moreCandidates": "載入更多候選證據",
+    "workflowTitle": "繼續維護",
+    "workflowNote": "核對觀察原文，整理私人草稿，再覆核來源版本。核准來源與允許代理使用須分別處理；改善建議不代表曝光提升。",
+    "workflowObservations": "查看觀察證據",
+    "workflowOpportunities": "修訂私人草稿",
+    "workflowSources": "覆核來源版本"
   },
   "changeSets": {
     "title": "版本審核",
@@ -2124,7 +2160,8 @@
       "approveVersion": "核准此版本",
       "cancelReview": "關閉覆核",
       "reviewNote": "請覆核以下版本 {version}。核准會保留此內容，不會開啟代理使用許可。",
-      "approved": "版本已核准，代理使用許可維持原狀。"
+      "approved": "版本已核准，代理使用許可維持原狀。",
+      "reviewStale": "要求覆核的版本已改變或無法讀取。請重新選擇版本；沒有核准任何來源。"
     },
     "import": {
       "title": "匯入資料",
@@ -2200,7 +2237,12 @@
       "refresh": "由第一頁重新整理",
       "loading": "正在載入來源…",
       "more": "載入更多來源"
-    }
+    },
+    "workflowTitle": "繼續維護",
+    "workflowNote": "核對觀察原文，整理私人草稿，再覆核來源版本。核准來源與允許代理使用須分別處理；改善建議不代表曝光提升。",
+    "workflowObservations": "查看觀察證據",
+    "workflowOpportunities": "修訂私人草稿",
+    "workflowSources": "覆核來源版本"
   },
   "assets": {
     "title": "已登記頁面",
@@ -2290,5 +2332,32 @@
       "MEMBER_CANNOT_REMOVE_SELF": "你不能移除自己。請另一位成員代勞。",
       "MEMBER_NOT_FOUND": "這個人不在這個工作區。"
     }
+  },
+  "maintenance": {
+    "runTitle": "採集工作項目",
+    "runUnavailable": "無法讀取此 run 的完整記錄；沒有更改任何工作。",
+    "runCounts": "成功採集 {succeeded}/{expected}；失敗 {failed}、待處理 {pending}、受阻 {blocked}；已分類 {classified}。",
+    "runFilters": "工作項目篩選",
+    "filters": {
+      "all": "全部",
+      "failed": "失敗或受阻",
+      "pending": "待處理",
+      "unclassified": "未分類"
+    },
+    "runScope": "本頁 {shown} 項；符合篩選共 {total} 項。",
+    "itemStates": {
+      "queued": "排隊中",
+      "running": "處理中",
+      "retry_wait": "等待重試",
+      "succeeded": "採集成功",
+      "failed": "採集失敗",
+      "blocked": "受阻"
+    },
+    "classification": "分類",
+    "classified": "已分類",
+    "unknown": "未確認",
+    "attempts": "嘗試次數",
+    "runEmpty": "沒有符合此篩選的項目。",
+    "moreRunItems": "下一頁工作項目"
   }
 }

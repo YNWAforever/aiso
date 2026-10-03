@@ -27,8 +27,14 @@ export function safeReturnTo(raw: unknown, requestedLang: string): string {
     if ((path === dashboard || clientRoot.test(path)) && step && ['home', 'scan', 'results', 'improve', 'monitor', 'roi'].includes(step)) kept.set('step', step)
     const draft = single('draft')
     if (path.endsWith('/opportunities') && draft && uuid.test(draft)) kept.set('draft', draft)
+    if(path.endsWith('/sources')){
+      const source=single('source'),version=single('version')
+      if(source&&version&&uuid.test(source)&&uuid.test(version)){kept.set('source',source);kept.set('version',version)}
+    }
     if (scanClaim.test(path) && single('claim') === '1') kept.set('claim', '1')
     if (path.endsWith('/observations')) {
+      const run=single('run'),cursor=single('runCursor'),status=single('runStatus')
+      if(run&&uuid.test(run)){kept.set('run',run);if(cursor&&uuid.test(cursor))kept.set('runCursor',cursor);if(status&&['all','failed','pending','unclassified'].includes(status))kept.set('runStatus',status)}
       const week = single('week')
       if (week && /^\d{4}-\d{2}-\d{2}$/.test(week) && Number.isFinite(Date.parse(week))) kept.set('week', week)
       for (const [key, allowed] of [['result', ['all', 'success', 'incomplete']], ['mention', ['all', 'mentioned', 'not-mentioned', 'unknown']]] as const) {

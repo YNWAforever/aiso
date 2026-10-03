@@ -1463,6 +1463,32 @@
         "insufficient-evidence": "This scan could not observe enough to rank priorities. Re-run it, or check whether the site blocks automated requests.",
         "unavailable": "This scan predates evidence recording, so its findings cannot be ranked honestly. Run a new scan to get priorities."
       }
+    },
+    "daily": {
+      "title": "Daily maintenance",
+      "states": {
+        "not_configured": "Collection is not configured; an empty question library does not imply a scheduler failure.",
+        "pending": "Collection has pending items.",
+        "partial": "Collection or classification is incomplete.",
+        "complete": "Collection and classification are complete for this run.",
+        "failed": "Collection failed for this run.",
+        "disabled": "Disabled.",
+        "unknown": "The work status cannot currently be confirmed."
+      },
+      "coverage": "Collected {succeeded}/{expected}; failed {failed}, pending {pending}, blocked {blocked}; classified {classified}.",
+      "lastComplete": "Record update time of the latest complete run",
+      "nextDue": "Next scheduled work (Hong Kong)",
+      "unknown": "Unconfirmed",
+      "partialReads": "Some records could not be read. Confirmed actions remain available.",
+      "manual": "Review evidence, edit the private draft, then approve the exact source version. These links do not start collection, send email or publish. Downloading a draft does not confirm delivery.",
+      "actions": {
+        "review-failed-run": "Review failed and blocked items",
+        "review-pending-run": "Review pending items",
+        "review-classification": "Review unclassified answers",
+        "review-source": "Review the exact source version awaiting approval",
+        "open-draft": "Continue a private draft",
+        "review-opportunities": "Review opportunities"
+      }
     }
   },
   "portfolio": {
@@ -1712,7 +1738,12 @@
     "promptSnapshot": "Question snapshot",
     "snapshotLanguage": "Language at collection",
     "limitations": "Evidence limitations",
-    "brandSnapshot": "Brand at collection"
+    "brandSnapshot": "Brand at collection",
+    "workflowTitle": "Continue maintenance",
+    "workflowNote": "Check original observations, edit a private draft, then review the source version. Source approval and permission for agent use are separate. Recommendations do not prove improved exposure.",
+    "workflowObservations": "Review observation evidence",
+    "workflowOpportunities": "Edit private drafts",
+    "workflowSources": "Review source versions"
   },
   "opportunities": {
     "title": "Opportunities",
@@ -1828,7 +1859,12 @@
     "initialLoadError": "Suggestions could not be loaded. Please try again.",
     "versionHistory": "Review version history",
     "saveBeforeVersions": "Save your edits before opening version history.",
-    "moreCandidates": "Load more candidate evidence"
+    "moreCandidates": "Load more candidate evidence",
+    "workflowTitle": "Continue maintenance",
+    "workflowNote": "Check original observations, edit a private draft, then review the source version. Source approval and permission for agent use are separate. Recommendations do not prove improved exposure.",
+    "workflowObservations": "Review observation evidence",
+    "workflowOpportunities": "Edit private drafts",
+    "workflowSources": "Review source versions"
   },
   "changeSets": {
     "title": "Version review",
@@ -2124,7 +2160,8 @@
       "approveVersion": "Approve this version",
       "cancelReview": "Close review",
       "reviewNote": "Review version {version} below. Approval preserves this text and does not allow agent use.",
-      "approved": "Version approved. Agent permission is unchanged."
+      "approved": "Version approved. Agent permission is unchanged.",
+      "reviewStale": "The requested version changed or is unavailable. Select the version again. No source was approved."
     },
     "import": {
       "title": "Import facts",
@@ -2200,7 +2237,12 @@
       "refresh": "Refresh from first page",
       "loading": "Loading sources…",
       "more": "Load more sources"
-    }
+    },
+    "workflowTitle": "Continue maintenance",
+    "workflowNote": "Check original observations, edit a private draft, then review the source version. Source approval and permission for agent use are separate. Recommendations do not prove improved exposure.",
+    "workflowObservations": "Review observation evidence",
+    "workflowOpportunities": "Edit private drafts",
+    "workflowSources": "Review source versions"
   },
   "assets": {
     "title": "Registered pages",
@@ -2290,5 +2332,32 @@
       "MEMBER_CANNOT_REMOVE_SELF": "You cannot remove yourself. Ask another member to do it.",
       "MEMBER_NOT_FOUND": "That person is not in this workspace."
     }
+  },
+  "maintenance": {
+    "runTitle": "Collection work items",
+    "runUnavailable": "The complete run record is unavailable. No work was changed.",
+    "runCounts": "Collected {succeeded}/{expected}; failed {failed}, pending {pending}, blocked {blocked}; classified {classified}.",
+    "runFilters": "Work item filters",
+    "filters": {
+      "all": "All",
+      "failed": "Failed or blocked",
+      "pending": "Pending",
+      "unclassified": "Unclassified"
+    },
+    "runScope": "This page shows {shown} of {total} matching items.",
+    "itemStates": {
+      "queued": "Queued",
+      "running": "Running",
+      "retry_wait": "Waiting for retry",
+      "succeeded": "Collected",
+      "failed": "Failed",
+      "blocked": "Blocked"
+    },
+    "classification": "Classification",
+    "classified": "Classified",
+    "unknown": "Unconfirmed",
+    "attempts": "Attempts",
+    "runEmpty": "No items match this filter.",
+    "moreRunItems": "Next page of work items"
   }
 }

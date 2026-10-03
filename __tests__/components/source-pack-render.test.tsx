@@ -59,6 +59,10 @@ const renderFailed = (lang: string) => renderToString(
 
 describe.each(['en', 'zh-HK'])('the source pack in %s', lang => {
   const copy = copyFor(lang)
+  it('renders the exact requested version even when it is outside the loaded page',()=>{
+    const html=renderToString(<NextIntlClientProvider locale={lang} messages={lang==='en'?en:zh} timeZone="UTC"><SourcePackWorkspace clientId={clientId} pack={buildSourcePack([])} initialReview={source({}, {approvedAt:null})}/></NextIntlClientProvider>)
+    expect(html).toContain('id="source-review"');expect(html).toContain('What are your hours?');expect(html).toContain(copy.actions.approveVersion)
+  })
 
   it.each([
     ['in-use', {}, {}],

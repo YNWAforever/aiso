@@ -3,6 +3,13 @@ import { normalizeAuthNext } from '@/lib/auth-navigation'
 import { safeReturnTo } from '@/lib/auth-return-to'
 const client = '11111111-1111-4111-8111-111111111111'
 describe('validated return destination', () => {
+  it('preserves exact version and run item context after authentication',()=>{
+    const sources=`/zh-HK/dashboard/${client}/sources?source=${client}&version=${client}#source-review`
+    const run=`/en/dashboard/${client}/observations?run=${client}&runStatus=failed&runCursor=${client}&week=2026-09-28#run-status`
+    expect(safeReturnTo(sources,'zh-HK')).toBe(sources)
+    expect(safeReturnTo(run,'en')).toBe(`/en/dashboard/${client}/observations?run=${client}&runCursor=${client}&runStatus=failed&week=2026-09-28#run-status`)
+    expect(safeReturnTo(`/en/dashboard/${client}/sources?source=${client}&version=bad`,'en')).toBe(`/en/dashboard/${client}/sources`)
+  })
   it.each([null, [], { next: '/en/dashboard' }, '/en/dashboard?step=monitor&step=roi', '/en/dashboard#access_token=secret'])('does not adopt ambiguous context %j', raw => {
     expect(safeReturnTo(raw, 'en')).toBe('/en/dashboard')
   })

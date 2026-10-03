@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { readFileSync } from 'node:fs'
+import en from '../../messages/en.json'
+import zh from '../../messages/zh-HK.json'
 
 // Component acceptance only: no authenticated route or provider request is bypassed.
 // Generate HTML by running workspace-home-render.test.tsx with C8A_HTML_DIR set.
@@ -32,6 +34,19 @@ for (const lang of ['en', 'zh-HK'] as const) for (const width of [375,1440]) for
       for (const step of ['scan','results','improve','monitor','roi']) await expect(page.locator(`a[href="/${lang}/dashboard/fixture-client?step=${step}"]`).first()).toBeVisible()
       const violations = (await new AxeBuilder({page}).analyze()).violations
       expect(violations).toEqual([])
+    }
+    const dailyCopy=(lang==='en'?en:zh).workspaceHome.daily
+    for(const state of ['partial','free','unknown','classification'] as const){
+      const html=readFileSync(`${htmlDir}/${lang}-daily-${state}.html`,'utf8')
+      await page.setContent(`<!doctype html><html lang="${lang}" class="${theme}"><head><title>Daily work acceptance</title><style>${css}</style></head><body>${html}</body></html>`)
+      const section=page.getByRole('region',{name:dailyCopy.title})
+      await expect(section).toContainText(dailyCopy.states[state==='free'?'not_configured':state==='classification'?'partial':state])
+      if(state==='partial')await expect(section).toContainText('13/15')
+      await expect(section.locator('a[href*="/sources?source="][href*="&version="]')).toHaveCount(1)
+      await expect(section.locator('a[href*="/opportunities?draft="]')).toHaveCount(1)
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+      expect((await new AxeBuilder({page}).analyze()).violations).toEqual([])
+      if(state==='partial'&&width===375&&theme==='light')await page.screenshot({path:`${htmlDir}/${lang}-daily-mobile.png`,fullPage:true})
     }
   })
 }

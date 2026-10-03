@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { scanOpportunityCopy } from '@/lib/opportunities/presentation'
+import { MaintenanceNextSteps,workflowCopyKeys,type WorkflowCopy } from '@/components/workspace/MaintenanceNextSteps'
 import type { OpportunityResponse } from '@/lib/opportunities/types'
 import type { WorkItem } from '@/lib/work-items/schema'
 import { DraftEditor } from '@/components/work-items/DraftEditor'
@@ -429,6 +430,7 @@ function OpportunityContent({
           </div>
         )}
       </section>
+      <MaintenanceNextSteps clientId={clientId} lang={locale} current="opportunities" copy={Object.fromEntries(workflowCopyKeys.map(key=>[key,t(key)])) as WorkflowCopy}/>
     </main>
   )
 }

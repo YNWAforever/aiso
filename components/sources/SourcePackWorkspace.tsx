@@ -1,12 +1,13 @@
 'use client'
 import { useEffect,useRef,useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale,useTranslations } from 'next-intl'
 import type { SourcePack, SourcePackEntry } from '@/lib/view-models/source-pack'
 import type { SourcePage } from '@/lib/sources/pagination'
 import type { SourceFilter } from '@/lib/sources/query'
 import type { PreviewRows } from '@/lib/sources/import-preview'
 import { mergePreviewRetry } from '@/lib/sources/preview-state'
+import { MaintenanceNextSteps,workflowCopyKeys,type WorkflowCopy } from '@/components/workspace/MaintenanceNextSteps'
 
 /**
  * The owner's view of the facts a draft may quote.
@@ -32,19 +33,24 @@ export function SourcePackWorkspace({
   pack,
   page=null,
   loadFailed = false,
+  initialReview=null,
+  initialReviewStale=false,
 }: {
   clientId: string
   pack: SourcePack | null
   page?:SourcePage|null
   loadFailed?: boolean
+  initialReview?:import('@/lib/sources/schema').SourceDto|null
+  initialReviewStale?:boolean
 }) {
   const t = useTranslations('sources')
+  const locale=useLocale()==='zh-HK'?'zh-HK':'en'
   const router = useRouter()
   const base = `/api/clients/${encodeURIComponent(clientId)}/sources`
 
   const [busy, setBusy] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
-  const [review, setReview] = useState<import('@/lib/sources/schema').SourceDto | null>(null)
+  const [review, setReview] = useState<import('@/lib/sources/schema').SourceDto | null>(initialReview)
   const [status, setStatus] = useState('')
   const [loaded,setLoaded]=useState({originPack:pack,originPage:page,pack,page,filter:'all' as SourceFilter})
   const current=loaded.originPack===pack&&loaded.originPage===page
@@ -289,22 +295,7 @@ export function SourcePackWorkspace({
             <span className="self-center text-xs text-dash-muted">{t('actions.revokeWarning')}</span>
           </div>
         )}
-        {review?.id === entry.id && review.current && (
-          <section className="mt-4 rounded-lg border border-dash-border p-4" aria-label={t('actions.reviewVersion')}>
-            <p className="text-sm text-dash-muted">{t('actions.reviewNote', { version: review.current.versionNumber })}</p>
-            <dl className="mt-3 space-y-3 text-sm">
-              {review.current.entries.map((pair, index) => <div key={index}>
-                <dt className="font-semibold text-dash-text">{pair.question}</dt>
-                <dd className="whitespace-pre-wrap text-dash-muted">{pair.answer}</dd>
-              </div>)}
-            </dl>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button type="button" className={action} disabled={busy !== null || review.revokedAt !== null || review.current.approvedAt !== null}
-                onClick={approveReviewedVersion}>{t('actions.approveVersion')}</button>
-              <button type="button" className={action} disabled={busy !== null} onClick={() => setReview(null)}>{t('actions.cancelReview')}</button>
-            </div>
-          </section>
-        )}
+
       </li>
     )
   }
@@ -321,6 +312,25 @@ export function SourcePackWorkspace({
 
       <p aria-live="polite" className="text-sm text-dash-text">{status}</p>
       {actionError && <p role="alert" className="mt-2 text-sm text-dash-text">{actionError}</p>}
+
+      {initialReviewStale&&<p role="alert">{t('actions.reviewStale')}</p>}
+        {review?.current && (
+          <section id="source-review" className="mt-4 rounded-lg border border-dash-border p-4" aria-label={t('actions.reviewVersion')}>
+            <h2 className="text-xl font-bold text-dash-text">{review.label}</h2>
+            <p className="text-sm text-dash-muted">{t('actions.reviewNote', { version: review.current.versionNumber })}</p>
+            <dl className="mt-3 space-y-3 text-sm">
+              {review.current.entries.map((pair, index) => <div key={index}>
+                <dt className="font-semibold text-dash-text">{pair.question}</dt>
+                <dd className="whitespace-pre-wrap text-dash-muted">{pair.answer}</dd>
+              </div>)}
+            </dl>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" className={action} disabled={busy !== null || review.revokedAt !== null || review.current.approvedAt !== null}
+                onClick={approveReviewedVersion}>{t('actions.approveVersion')}</button>
+              <button type="button" className={action} disabled={busy !== null} onClick={() => setReview(null)}>{t('actions.cancelReview')}</button>
+            </div>
+          </section>
+        )}
 
       {loadFailed || !shown ? (
         <section className="mt-6 rounded-xl border border-dash-border bg-dash-surface p-5">
@@ -433,6 +443,7 @@ export function SourcePackWorkspace({
           </button>
         </form>
       </section>
+      <MaintenanceNextSteps clientId={clientId} lang={locale} current="sources" copy={Object.fromEntries(workflowCopyKeys.map(key=>[key,t(key)])) as WorkflowCopy}/>
     </main>
   )
 }

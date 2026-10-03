@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState,type ReactNode } from 'react'
 import type { ObservationResponse } from '@/lib/observations/types'
 import {ObservationDetail} from './ObservationDetail'
+import { MaintenanceNextSteps } from '@/components/workspace/MaintenanceNextSteps'
 
 import type { ObservationCopy } from './copy'
 export type { ObservationCopy } from './copy'
@@ -19,6 +20,7 @@ type Props = {
   copy: ObservationCopy
   lang: string
   initialFilters?: ObservationFilters
+  runPanel?:ReactNode
 }
 const format = (value: string, count: number) =>
   value.replace('{count}', String(count))
@@ -33,6 +35,7 @@ function Workspace({
   copy,
   lang,
   initialFilters = {},
+  runPanel,
 }: Props) {
   const [data, setData] = useState(initial)
   const [filters, setFilters] = useState({
@@ -130,6 +133,7 @@ function Workspace({
           {copy.managePrompts}
         </a>
       </header>
+      {runPanel}
       <section aria-label={copy.monitoredQuestions} className="space-y-2">
         <h2 className="font-semibold">{copy.monitoredQuestions}</h2>
         {!data.questions.length && <p>{copy.noQuestions}</p>}
@@ -328,6 +332,7 @@ function Workspace({
         </button>
       )}
       {detailId&&<ObservationDetail key={detailId} clientId={clientId} observationId={detailId} copy={copy} onClose={()=>setDetailId(null)}/>}
+      <MaintenanceNextSteps clientId={clientId} lang={lang} current="observations" copy={copy}/>
     </main>
   )
 }

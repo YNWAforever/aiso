@@ -21,6 +21,8 @@ import {deriveSuggestions} from '@/lib/opportunities/rules'
 import {buildInitialDraftSnapshot} from '@/lib/work-items/snapshot'
 import {createDraftIfEvidenceCurrent} from '@/lib/work-items/store'
 import type {ProviderEvidence,PulseScope} from '@/lib/pulse/runs/schema'
+import {loadMaintenanceSnapshot} from '@/lib/workspace/maintenance'
+import {loadRunTroubleshooting} from '@/lib/observations/run-troubleshooting'
 vi.mock('server-only',()=>({}))
 const external=vi.hoisted(()=>({classify:vi.fn<typeof import('@/lib/pulse/analysis').analyseAnswer>(async()=>{throw new Error('Synthetic classifier outage')}),fanout:vi.fn()}))
 vi.mock('@/lib/pulse/analysis',()=>({analyseAnswer:external.classify}))
@@ -57,6 +59,28 @@ async function fixture(test:(scope:PulseScope)=>Promise<void>,promptCount=3){
 const runFor=(scope:PulseScope)=>createOrResumeRun(scope,{scanWeek:'2026-09-28',manifest})
 const claim=(scope:PulseScope,runId:string,limit=5)=>claimDueItems(scope,runId,{owner:'synthetic-worker',leaseUntil:new Date(Date.now()+60_000),limit})
 describe('T05 guarded Neon run ledger',()=>{
+  it('T15 reads partial coverage and scoped failed items without mutating run evidence',async()=>fixture(async scope=>{
+    const run=(await runFor(scope))!
+    const leased=await claim(scope,run.id,15)
+    expect(leased).toHaveLength(15)
+    for(const [index,item]of leased.entries())await commitAttempt(item,index<13?{kind:'succeeded',evidence}:{kind:'failed',errorCode:'synthetic-failure'})
+    for(let retry=0;retry<2;retry++){
+      await sql`update pulse_run_items set next_attempt_at=now()-interval '1 second' where account_id=${scope.accountId} and run_id=${run.id} and status='retry_wait'`
+      for(const item of await claim(scope,run.id,2))await commitAttempt(item,{kind:'failed',errorCode:'synthetic-failure'})
+    }
+    const before=await sql`select status,updated_at from pulse_runs where account_id=${scope.accountId} and id=${run.id}`
+    const daily=await loadMaintenanceSnapshot(scope.accountId,scope.clientId,true)
+    expect(daily).toMatchObject({runRead:'ok',latestRun:{expected:15,succeeded:13,failed:2,pending:0,classified:0},lastCompleteAt:null})
+    const failed=await loadRunTroubleshooting(scope.accountId,scope.clientId,run.id,'failed')
+    expect(failed).toMatchObject({expected:15,total:2,succeeded:13,failed:2})
+    expect(failed?.items).toHaveLength(2)
+    expect(failed?.items.every(item=>item.status==='failed'&&item.attempts===3)).toBe(true)
+    expect(await loadRunTroubleshooting(randomUUID(),scope.clientId,run.id,'all')).toBeNull()
+    expect(await loadRunTroubleshooting(scope.accountId,scope.clientId,run.id,'pending')).toMatchObject({total:0,items:[]})
+    expect(await loadRunTroubleshooting(scope.accountId,scope.clientId,run.id,'unclassified')).toMatchObject({total:13})
+    expect((await loadMaintenanceSnapshot(randomUUID(),scope.clientId,true)).latestRun).toBeNull()
+    expect(await sql`select status,updated_at from pulse_runs where account_id=${scope.accountId} and id=${run.id}`).toEqual(before)
+  }))
   it('T11 context changes apply to new runs while original manifests remain frozen',async()=>fixture(async scope=>{
     await sql`update prompt_bank set language='zh-HK',market='HK' where client_id=${scope.clientId}`
     const original=(await createOrResumeRun(scope,{scanWeek:'2026-09-14',manifest:[manifest[0]]}))!
