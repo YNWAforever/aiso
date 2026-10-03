@@ -10,6 +10,8 @@ export type SupportedLang = 'en' | 'zh-HK'
  *  - every /[lang]/dashboard/** and /admin route: lib/auth.ts:7 returns null
  *    from getProfile() in fixture mode, so requireAuth always redirects to
  *    login. They are unreachable, not merely unscanned.
+ *  - onboarding is also protected. Its matrix cell renders the actual wizard
+ *    fixture; the keyboard suite separately verifies the anonymous login return.
  *  - /[lang]/r/[slug]: needs a live database row and an HMAC signature.
  *  - /[lang]/auth/{complete,google,logout}: each mutates its own DOM on mount
  *    (session exchange, social redirect, sign-out), so a scan races the page.

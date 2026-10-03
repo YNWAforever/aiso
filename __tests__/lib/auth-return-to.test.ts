@@ -3,6 +3,11 @@ import { normalizeAuthNext } from '@/lib/auth-navigation'
 import { safeReturnTo } from '@/lib/auth-return-to'
 const client = '11111111-1111-4111-8111-111111111111'
 describe('validated return destination', () => {
+  it('retains first-use scan context while stripping secrets and ambiguous IDs',()=>{
+    expect(safeReturnTo(`/en/onboarding?scan=${client}&access_token=secret`,'en')).toBe(`/en/onboarding?scan=${client}`)
+    expect(safeReturnTo('/zh-HK/onboarding?scan=bad','zh-HK')).toBe('/zh-HK/onboarding')
+    expect(safeReturnTo(`/en/onboarding?scan=${client}&scan=${client}`,'en')).toBe('/en/onboarding')
+  })
   it('preserves exact version and run item context after authentication',()=>{
     const sources=`/zh-HK/dashboard/${client}/sources?source=${client}&version=${client}#source-review`
     const run=`/en/dashboard/${client}/observations?run=${client}&runStatus=failed&runCursor=${client}&week=2026-09-28#run-status`

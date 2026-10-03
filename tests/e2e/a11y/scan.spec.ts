@@ -6,6 +6,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 import { cellId, compareCounts, type A11yTheme, type Baseline, type RuleCounts } from './baseline'
 import { A11Y_LOCALES, A11Y_ROUTES, A11Y_THEMES } from './matrix'
+import { openOnboardingComponent } from '../../fixtures/onboarding-browser'
 
 const BASELINE_PATH = join(process.cwd(), 'tests', 'e2e', 'a11y', 'baseline.json')
 
@@ -93,7 +94,8 @@ async function scan(page: Page, path: string, theme: A11yTheme) {
   // settles the page -- and it also exercises the reduced-motion state the base
   // plan requires and nothing else in the matrix covered.
   await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' })
-  await page.goto(path, { waitUntil: 'networkidle' })
+  if(path.endsWith('/onboarding')) await openOnboardingComponent(page,path.split('/')[1])
+  else await page.goto(path, { waitUntil: 'networkidle' })
   // options({rules}) rather than withRules(): withRules runs ONLY the named
   // rules, which would silently disable every other check. target-size is
   // enabled:false by default in axe-core 4.12.1, so touch-target size is never

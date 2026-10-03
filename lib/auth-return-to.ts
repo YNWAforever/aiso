@@ -20,9 +20,12 @@ export function safeReturnTo(raw: unknown, requestedLang: string): string {
     const nested = new RegExp(`^${dashboard}/${UUID}/(?:reports/(?:new|${UUID})|result/${OPAQUE}|work-items/${UUID}/versions)$`, 'i')
     // Existing public scan claim is a separate, already-used login continuation.
     const scanClaim = new RegExp(`^/${lang}/result/${OPAQUE}$`)
-    if (path !== dashboard && path !== `${dashboard}/settings` && !clientRoot.test(path) && !tools.test(path) && !nested.test(path) && !scanClaim.test(path)) return dashboard
+    const onboarding = path === `/${lang}/onboarding`
+    if (path !== dashboard && path !== `${dashboard}/settings` && !onboarding && !clientRoot.test(path) && !tools.test(path) && !nested.test(path) && !scanClaim.test(path)) return dashboard
     const kept = new URLSearchParams()
     const single = (key: string) => url.searchParams.getAll(key).length === 1 ? url.searchParams.get(key) : null
+    const scan = single('scan')
+    if(onboarding && scan && uuid.test(scan)) kept.set('scan',scan)
     const step = single('step')
     if ((path === dashboard || clientRoot.test(path)) && step && ['home', 'scan', 'results', 'improve', 'monitor', 'roi'].includes(step)) kept.set('step', step)
     const draft = single('draft')

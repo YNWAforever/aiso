@@ -1,6 +1,8 @@
 import { db } from '@/lib/db'
 import { getProfile } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { authLocale,safeReturnTo } from '@/lib/auth-return-to'
+import { redactSecrets } from '@/lib/security/redact-secrets'
 import { cookies } from 'next/headers'
 import { CLAIM_INTENT_COOKIE, authorizedScanClaimIntent } from '@/lib/security/scan-claim-intent'
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
@@ -12,11 +14,15 @@ export default async function OnboardingPage({
   params: Promise<{ lang: string }>
   searchParams: Promise<{ scan?: string | string[] }>
 }) {
-  const { lang } = await params
-  const profile = await getProfile()
-  if (!profile) redirect(`/${lang}/login`)
+  const { lang: requestedLang } = await params
+  const lang = authLocale(requestedLang)
   const { scan } = await searchParams
   const scanId = typeof scan === 'string' && scan.trim() ? scan : undefined
+  const profile = await getProfile()
+  if (!profile) {
+    const destination=safeReturnTo(`/${lang}/onboarding${scanId?`?scan=${encodeURIComponent(scanId)}`:''}`,lang)
+    redirect(`/${lang}/auth/login?next=${encodeURIComponent(destination)}`)
+  }
 
   // Pre-fill from scan if provided
   let initialBrand = ''
@@ -49,7 +55,7 @@ export default async function OnboardingPage({
       // Pre-fill is a convenience, not the page's core function — a failed
       // lookup must not block onboarding. Degrade to the same blank fields
       // used when no scanId is supplied at all.
-      console.error('[onboarding] scan pre-fill lookup failed:', (err as Error)?.message ?? String(err))
+      console.error('[onboarding] scan pre-fill lookup failed:', redactSecrets((err as Error)?.message ?? String(err)))
     }
   }
 

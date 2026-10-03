@@ -5,12 +5,14 @@ const { sqlMock } = vi.hoisted(() => ({ sqlMock: vi.fn() }))
 
 vi.mock('@/lib/db', () => ({ db: () => sqlMock }))
 vi.mock('@/lib/auth', () => ({ getProfile: vi.fn(async () => ({ account_id: 'synthetic-account' })) }))
+vi.mock('next/navigation', () => ({ redirect: (url: string) => { throw new Error(`redirect:${url}`) } }))
 vi.mock('next/headers', () => ({ cookies: vi.fn(async () => ({ get: () => undefined })) }))
 vi.mock('@/components/onboarding/OnboardingWizard', () => ({
   OnboardingWizard: () => null,
 }))
 
 import OnboardingPage from '@/app/[lang]/onboarding/page'
+import { getProfile } from '@/lib/auth'
 
 type WizardProps = {
   lang: string
@@ -32,6 +34,13 @@ async function renderPage(scan?: string): Promise<WizardProps> {
 describe('onboarding page scan pre-fill', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getProfile).mockResolvedValue({ account_id: 'synthetic-account' } as never)
+  })
+
+  it('returns an anonymous first-use visit to the served login route with safe context', async () => {
+    vi.mocked(getProfile).mockResolvedValue(null as never)
+    await expect(renderPage('11111111-1111-4111-8111-111111111111')).rejects.toThrow('redirect:/en/auth/login?next=%2Fen%2Fonboarding%3Fscan%3D11111111-1111-4111-8111-111111111111')
+    expect(sqlMock).not.toHaveBeenCalled()
   })
 
   it('renders blank fields without touching the database when no scanId is supplied', async () => {
