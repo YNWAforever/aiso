@@ -29,6 +29,22 @@ async function fixture(run: (accountId: string) => Promise<void>) {
   }
 }
 describe('T10 persistent onboarding resume through guarded HTTP SQL', () => {
+  it('T17 concurrent manual additions and onboarding seed respect the same fifty-question cap',async()=>fixture(async accountId=>{
+    auth.profile.mockResolvedValue({id:randomUUID(),account_id:accountId,accounts:{plan:'pro',status:'active',stripe_subscription_id:'synthetic'}})
+    const input=parseOnboardingInput({intentKey:randomUUID(),brandName:'Synthetic cap brand',website:'https://example.test',industry:'technology',region:'HK',language:'en'})
+    const progress=(await initializeOnboarding({accountId},input))!
+    const clientId=progress.clientId
+    await sql`insert into prompt_bank(client_id,question,language,is_active)select ${clientId},'Existing '||n,'en',true from generate_series(1,49)n`
+    const add=(n:number)=>addPrompt(new Request('http://localhost',{method:'POST',body:JSON.stringify({category:'brand_query',question:`Concurrent ${n}?`,language:'en',market:'HK'})}),{params:Promise.resolve({clientId})})
+    const responses=await Promise.all(Array.from({length:8},(_,n)=>add(n)))
+    expect(responses.filter(r=>r.status===201)).toHaveLength(1)
+    expect(responses.filter(r=>r.status===409)).toHaveLength(7)
+    expect((await sql`select count(*)::int as total from prompt_bank where client_id=${clientId}`)[0].total).toBe(50)
+    await sql`delete from prompt_bank where client_id=${clientId} and question like 'Concurrent %'`
+    const lease=(await claimOnboardingSeed({accountId},input.intentKey))!
+    await Promise.all([add(99),commitOnboardingSeed({accountId},input.intentKey,lease.token,prompts)])
+    expect((await sql`select count(*)::int as total from prompt_bank where client_id=${clientId}`)[0].total).toBe(50)
+  }))
   it.each(['en', 'zh-HK'] as const)('T11 API context round trip and legacy preservation %s', async language => fixture(async accountId => {
     const input = parseOnboardingInput({ intentKey: randomUUID(), brandName: 'Context synthetic', language, region: 'HK', market: 'HK' })
     const generated = prompts.map(p => ({ ...p, language }))

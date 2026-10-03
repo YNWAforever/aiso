@@ -48,6 +48,12 @@ it('T07 chain_cap_is_partial rather than a successful completed cron',async()=>{
   expect(await response.json()).toMatchObject({outcome:'partial',done:false})
   expect(finishCronRun).toHaveBeenLastCalledWith('test-run-id','error',expect.objectContaining({outcome:'partial'}))
 })
+it('retains exact PostgreSQL cursor time across a legacy continuation request',async()=>{
+ const cursor={createdAt:'2026-10-01T00:00:00.123456Z',clientId:'00000000-0000-4000-8000-000000000001'}
+ candidateRows=[]
+ await GET(new Request(`http://localhost/api/cron/pulse?candidateAfter=${encodeURIComponent(JSON.stringify(cursor))}`,{headers:{authorization:`Bearer ${CRON_SECRET}`}}) as never)
+ expect(calls.find(call=>call.text.includes('order by c.created_at'))?.params).toContain(cursor.createdAt)
+})
 
 const fetchMock = vi.fn()
 const realFetch = globalThis.fetch

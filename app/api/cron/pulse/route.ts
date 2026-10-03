@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
         const parsed = JSON.parse(encodedAfter)
         if (typeof parsed.createdAt !== 'string' || !Number.isFinite(Date.parse(parsed.createdAt))
           || typeof parsed.clientId !== 'string' || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(parsed.clientId)) throw new Error()
-        candidateAfter = { createdAt: new Date(parsed.createdAt).toISOString(), clientId: parsed.clientId }
+        candidateAfter = { createdAt: parsed.createdAt, clientId: parsed.clientId }
       } catch {
         const payload = { error: 'Invalid candidate cursor' }
         await finishCronRun(runId, 'error', payload)

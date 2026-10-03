@@ -18,7 +18,7 @@ export function parseSourceQuery(params:URLSearchParams,accountId:string,clientI
  if(raw!==null){
   if(raw.length>2048||!raw.length||!/^[A-Za-z0-9_-]+$/.test(raw))invalid()
   try{const bytes=Buffer.from(raw,'base64url');if(bytes.toString('base64url')!==raw)invalid();cursor=JSON.parse(bytes.toString('utf8'))}catch{invalid()}
-  if(!cursor||Object.keys(cursor).sort().join(',')!=='accountId,asOf,clientId,createdAt,epoch,filter,id'||cursor.accountId!==accountId||cursor.clientId!==clientId||cursor.filter!==filter||!timestamp(cursor.asOf)||!timestamp(cursor.createdAt)||(cursor.epoch!==null&&!timestamp(cursor.epoch))||!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(cursor.id))invalid()
+  if(!cursor||Object.keys(cursor).sort().join(',')!=='accountId,asOf,clientId,createdAt,epoch,filter,id'||cursor.accountId!==accountId||cursor.clientId!==clientId||cursor.filter!==filter||!timestamp(cursor.asOf)||!timestamp(cursor.createdAt)||(cursor.epoch!==null&&!timestamp(cursor.epoch)&&!/^[a-f0-9]{32}$/.test(cursor.epoch))||!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(cursor.id))invalid()
  }
  return{filter:filter as SourceFilter,limit:Number(rawLimit),cursor}
 }

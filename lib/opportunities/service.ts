@@ -57,7 +57,7 @@ export async function loadAuthenticatedOpportunities(clientId: string,params=new
     catch { savedDraftsState = 'unavailable'; diagnostic('saved-drafts') }
     return {
       schemaVersion: 1,
-      window: { pulseWeek: snapshot.window.pulseWeek, pulseLimit: 200, pulseTruncated: snapshot.window.pulseTruncated, scanId: snapshot.window.scanId },
+      window: { ...snapshot.window },
       sourceStates, savedDraftsState, partial: partial || limitedEvidence || savedDraftsState === 'unavailable',
       suggestions: suggestions.map(item => ({ ...item, saveAvailability: saveAvailability.get(item.key) ?? 'limited-evidence', savedDraftId: saved.get(item.key) ?? null,
         savedState: savedDraftsState === 'unavailable' ? 'unavailable' : saved.has(item.key) ? 'saved' : 'unsaved' })),

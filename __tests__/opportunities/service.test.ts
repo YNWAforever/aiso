@@ -10,6 +10,10 @@ const client = '00000000-0000-4000-8000-000000000002'
 const id = '00000000-0000-4000-8000-000000000003'
 function sourceWindow(pulse='ok',scan='empty') { return { window:{pulseWeek:'2026-08-31',pulseLimit:200,pulseTruncated:false,scanId:null},sourceStates:{pulse,scan},sources:[{kind:'pulse-metric',answerDigest:'a'.repeat(64),observation:projectObservation({id,prompt_id:null,question:'Question?',platform:'chatgpt',scan_week:'2026-08-31',created_at:null,raw_answer:'SECRET',classification_status:'classified',brand_mentioned:false},null)}],evidenceVersions:[{raw_answer:'SECRET TOKEN'}] } }
 beforeEach(() => { vi.spyOn(console, 'error').mockImplementation(() => {}); vi.clearAllMocks(); mocks.profile.mockResolvedValue({account_id:'account'}); mocks.saved.mockResolvedValue(new Map()); mocks.load.mockResolvedValue(sourceWindow()) })
+it('preserves store continuation even when the current page derives no candidates',async()=>{
+ mocks.load.mockResolvedValue({...sourceWindow('ok','empty'),sources:[],window:{pulseWeek:'2026-09-28',pulseLimit:200,pulseTruncated:true,scanId:null,nextCursor:'tenant-bound-cursor',asOf:'2026-10-03T00:00:00.123456Z'}})
+ expect(await loadAuthenticatedOpportunities(client)).toMatchObject({suggestions:[],window:{nextCursor:'tenant-bound-cursor',asOf:'2026-10-03T00:00:00.123456Z'}})
+})
 it('authenticates before database access even for malformed id', async () => { mocks.profile.mockResolvedValue(null); await expect(loadAuthenticatedOpportunities('bad')).rejects.toMatchObject({code:'UNAUTHENTICATED',status:401}); expect(mocks.load).not.toHaveBeenCalled() })
 it('denies missing ownership', async () => { mocks.load.mockResolvedValue(null); await expect(loadAuthenticatedOpportunities(client)).rejects.toMatchObject({status:404}) })
 it('reports all failures as 503 and empty plus failure as partial', async () => {

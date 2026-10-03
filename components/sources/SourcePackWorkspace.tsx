@@ -352,10 +352,11 @@ export function SourcePackWorkspace({
       )}
 
       <section className="mt-10 rounded-xl border border-dash-border bg-dash-surface p-5">
-        <h2 className="text-xl font-bold text-dash-text">{t('import.title')}</h2>
+        <h2 id="source-import-heading" className="text-xl font-bold text-dash-text">{t('import.title')}</h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-dash-muted">{t('import.summary')}</p>
         <p className="mt-2 text-sm text-dash-muted">{t('import.limits')}</p>
         <form className="mt-5 space-y-4" onSubmit={submitImport}>
+          <fieldset className="space-y-4" aria-labelledby="source-import-heading" disabled={importing}>
           <label className="block text-sm font-semibold text-dash-text">
             {t('import.label')}
             <input className={field} value={label} onChange={event => setLabel(event.target.value)} required maxLength={160} />
@@ -400,6 +401,7 @@ export function SourcePackWorkspace({
                     {t('import.question')}
                     <input
                       className={field}
+                      aria-label={t('import.question')}
                       value={pair.question}
                       maxLength={4000}
                       onChange={event => setPairs(old => old.map((row, i) => i === index ? { ...row, question: event.target.value } : row))}
@@ -409,6 +411,7 @@ export function SourcePackWorkspace({
                     {t('import.answer')}
                     <textarea
                       className={field}
+                      aria-label={t('import.answer')}
                       value={pair.answer}
                       maxLength={4000}
                       rows={3}
@@ -441,6 +444,7 @@ export function SourcePackWorkspace({
           <button type="submit" className={action} disabled={importing||previewing||(method==='csv'&&(!preview||preview.invalidCount>0))}>
             {importing ? t('import.submitting') : t('import.submit')}
           </button>
+          </fieldset>
         </form>
       </section>
       <MaintenanceNextSteps clientId={clientId} lang={locale} current="sources" copy={Object.fromEntries(workflowCopyKeys.map(key=>[key,t(key)])) as WorkflowCopy}/>

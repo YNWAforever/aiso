@@ -8,6 +8,10 @@ const candidate = (id: string, extra: Record<string, unknown> = {}) => ({
   override_plan: 'pro', override_expires_at: '2020-01-01T00:00:00.000Z', ...extra,
 })
 describe('T06 eligibility candidate traversal', () => {
+  it('retains PostgreSQL microseconds in the consumed keyset cursor',async()=>{
+    const sql=vi.fn(async()=>[candidate('00000000-0000-4000-8000-000000000001',{created_at:'2026-10-01T00:00:00.123456Z',plan:'pro',stripe_subscription_id:'synthetic',override_plan:null})])
+    expect((await selectPendingClientPage(sql as unknown as ReturnType<typeof db>,{limit:1,scanWeek:'2026-09-28',deadlineMs:Date.now()+5000})).nextCursor?.createdAt).toBe('2026-10-01T00:00:00.123456Z')
+  })
   it('expired_oldest_does_not_starve_paid_client with limit=1', async () => {
     const rows = [candidate('00000000-0000-4000-8000-000000000001'), candidate('00000000-0000-4000-8000-000000000002', {
       plan: 'pro', stripe_subscription_id: 'synthetic_subscription', override_plan: null, override_expires_at: null,

@@ -14,7 +14,7 @@ export async function listSourcePage(scope:SourceScope,query:SourceQuery):Promis
    select s.*,v.id as version_id,v.content_hash,v.import_method,v.origin_ref,v.imported_at,v.approved_at,v.approved_by,jsonb_array_length(v.content->'entries') as entry_count
    from client_sources s left join client_source_versions v on v.account_id=s.account_id and v.client_id=s.client_id and v.source_id=s.id and v.version_number=s.latest_version
    where s.account_id=${scope.accountId} and s.client_id=${scope.clientId}
-  ), meta as (select to_char(coalesce(${cursor?.asOf??null}::timestamptz,clock_timestamp()) at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as as_of,to_char(max(updated_at) at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as epoch from all_sources),
+  ), meta as (select to_char(coalesce(${cursor?.asOf??null}::timestamptz,clock_timestamp()) at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as as_of,md5(coalesce(jsonb_agg(to_jsonb(all_sources) order by id),'[]'::jsonb)::text) as epoch from all_sources),
   matching as materialized (
    select s.* from all_sources s,meta where s.created_at<=meta.as_of::timestamptz and (
     ${query.filter}='all' or (${query.filter}='revoked' and s.revoked_at is not null) or

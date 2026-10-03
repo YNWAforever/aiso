@@ -84,9 +84,8 @@ export async function POST(
 
   const sql = db()
   try {
-    // Ownership and capacity in one round trip. The capacity number is advisory
-    // — two concurrent adds can overshoot by one, which is harmless — but the
-    // ownership predicate below is authoritative.
+    // Read confirmed defaults and reject an already-full bank early. The write
+    // rechecks capacity after taking the same client lock as onboarding seed.
     const owned = await sql`
       select c.id, c.region,
              (select draft->>'language' from onboarding_progress op where op.client_id = c.id and op.account_id = c.account_id) as prompt_language,
@@ -112,14 +111,18 @@ export async function POST(
     // The tenancy predicate is re-asserted inside the write, so the decision
     // that matters is never TOCTOU. client_id comes from the path, never the
     // body.
-    const inserted = await sql`
+    const [locked,inserted] = await sql.transaction([
+      sql`select c.id from clients c where c.id=${clientId} and c.account_id=${access.accountId} for no key update`,
+      sql`
       insert into prompt_bank (client_id, category, question, language, market, is_active)
       select c.id, ${body.category}::text, ${question}::text, ${context.language}::text, ${context.market}::text, true
       from clients c
       where c.id = ${clientId} and c.account_id = ${access.accountId}
+        and (select count(*) from prompt_bank p where p.client_id=c.id)<${MAX_PROMPTS}
       returning id, client_id, category, question, language, market, is_active, created_at
-    `
-    if (!inserted[0]) return Response.json({ error: 'Not found' }, { status: 404 })
+    `])
+    if (!locked[0]) return Response.json({ error: 'Not found' }, { status: 404 })
+    if (!inserted[0]) return Response.json({error:'PROMPT_LIMIT_REACHED',max:MAX_PROMPTS},{status:409})
     return Response.json({ prompt: inserted[0] }, { status: 201 })
   } catch {
     // A 2xx must mean the write happened.

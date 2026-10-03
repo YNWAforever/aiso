@@ -8,6 +8,29 @@ import zh from '../../messages/zh-HK.json'
 
 for(const lang of ['en','zh-HK']){
  const copy=(lang==='en'?en:zh).sources
+ test(`T17 paste and submitted metadata stay fixed while importing in ${lang}`,async({page})=>{
+  const dir=process.env.AISO_SOURCES_HTML_DIR,css=process.env.AISO_SOURCES_CSS_PATH
+  if(!dir||!css)throw new Error('Source fixture paths required')
+  await page.route('**/*',route=>route.abort())
+  await page.route(`https://sources.fixture/${lang}`,route=>route.fulfill({contentType:'text/html; charset=utf-8',body:`<!doctype html><html lang="${lang}"><head><title>Pending import</title><style>${readFileSync(css,'utf8')}</style></head><body>${readFileSync(`${dir}/${lang}-default.html`,'utf8')}<script>${readFileSync(`${dir}/fixture.js`,'utf8')}</script></body></html>`}))
+  let release:()=>void=()=>{}
+  const wait=new Promise<void>(resolve=>{release=resolve})
+  await page.route('**/api/clients/*/sources/import-preview',async route=>{
+    await wait;return route.fulfill({json:{...previewSourceImport(route.request().postDataJSON()),expectedLatestVersion:0}})
+  })
+  await page.route('**/api/clients/*/sources',route=>route.fulfill({status:201,json:{result:'created'}}))
+  await page.goto(`https://sources.fixture/${lang}`);await page.waitForFunction(()=>Boolean((window as Window&{c9cFixtureReady?:boolean}).c9cFixtureReady))
+  await page.getByLabel(copy.import.label,{exact:true}).fill('Synthetic pending')
+  await page.getByLabel(copy.import.key,{exact:false}).fill('pending')
+  await page.getByLabel(copy.import.question,{exact:true}).fill('Submitted question')
+  await page.getByLabel(copy.import.answer,{exact:true}).fill('Submitted answer')
+  await page.getByRole('button',{name:copy.import.submit,exact:true}).click()
+  for(const label of [copy.import.label,copy.import.question,copy.import.answer])await expect(page.getByLabel(label,{exact:true})).toBeDisabled()
+  await expect(page.getByRole('button',{name:copy.import.add,exact:true})).toBeDisabled()
+  release();await expect(page.getByRole('button',{name:copy.import.submit,exact:true})).toBeEnabled()
+  await expect(page.getByLabel(copy.import.question,{exact:true})).toHaveValue('')
+  expect((await new AxeBuilder({page}).analyze()).violations).toEqual([])
+ })
  test(`T12 source pages and filters reach all 201 in ${lang}`,async({page})=>{
   const dir=process.env.AISO_SOURCES_HTML_DIR,css=process.env.AISO_SOURCES_CSS_PATH
   if(!dir||!css)throw new Error('Source fixture paths required')

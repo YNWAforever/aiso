@@ -40,6 +40,7 @@ async function seed() {
       (${CLIENT}, 'gemini', 'q2', false, 'negative', ${null},                       ${MONDAY}),
       (${CLIENT}, 'gemini', 'q3', false, 'neutral',  ${[]}::text[],                 ${MONDAY})
   `
+  await sql`update pulse_metrics set classification_status='classified',classifier_method='synthetic-fixture',classifier_version='fixture.v1' where client_id=${CLIENT}`
 }
 
 const summaryRows = () => sql`
@@ -49,6 +50,18 @@ const summaryRows = () => sql`
 
 describe('pulse weekly summary rollup', () => {
   beforeEach(seed)
+  it('continues tied microsecond brand timestamps without repeating the first page',async()=>{
+    const accounts=Array.from({length:3},()=>randomUUID())
+    try{
+      await sql`insert into accounts(id,plan,status,stripe_subscription_id)select id,'pro','active','synthetic-'||id from unnest(${accounts}::uuid[])as t(id)`
+      const brands=await sql`with added as (insert into clients(account_id,brand_name,status,created_at)select id,'Synthetic micros','active','2019-01-01T00:00:00.123456Z' from unnest(${accounts}::uuid[])as t(id)returning id)insert into prompt_bank(client_id,question)select id,'Synthetic microsecond question?' from added returning client_id`
+      const first=await selectPendingClientPage(sql as unknown as ReturnType<typeof db>,{limit:1,scanWeek:MONDAY,deadlineMs:Date.now()+5000})
+      const second=await selectPendingClientPage(sql as unknown as ReturnType<typeof db>,{limit:1,after:first.nextCursor,scanWeek:MONDAY,deadlineMs:Date.now()+5000})
+      expect(first.nextCursor?.createdAt).toBe('2019-01-01T00:00:00.123456Z')
+      expect(second.items[0].clientId).not.toBe(first.items[0].clientId)
+      expect(brands.map(row=>row.client_id)).toContain(second.items[0].clientId)
+    }finally{await sql`delete from clients where account_id=any(${accounts}::uuid[])`;await sql`delete from accounts where id=any(${accounts}::uuid[])`}
+  })
   it('traverses 101 expired overrides with real PostgreSQL keyset ordering', async () => {
     const expiredAccounts = Array.from({ length: 101 }, () => randomUUID()), paidAccount = randomUUID()
     try {

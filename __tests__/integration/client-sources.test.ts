@@ -94,6 +94,35 @@ async function version(account: string, clientId: string, sourceId: string, n: n
 
 describe('T12 maintenance scale and complete imports',()=>{
  beforeEach(seed)
+ it('approval changes invalidate a filtered page cursor without changing agent permission',async()=>{
+  const clientId=await brand(ACCOUNT,'Approval page'),actorId=await profile(ACCOUNT),scope={accountId:ACCOUNT,clientId,actorId}
+  const sources=[]
+  for(let n=0;n<3;n++){
+    const item=await importSource(scope,{sourceKey:`approval-${n}`,kind:'facts',label:'Synthetic',importMethod:'paste',originRef:null,entries:content(String(n)).entries,approve:n<2})
+    if(item.kind!=='created')throw new Error('fixture import failed')
+    await setAgentUse(scope,item.source.id,true);sources.push(item.source)
+  }
+  const first=await listSourcePage(scope,{limit:1,filter:'in-use',cursor:null})
+  const last=sources[2]
+  await approveSourceVersion(scope,{sourceId:last.id,versionId:last.current!.id,expectedLatestVersion:last.latestVersion,expectedContentHash:last.current!.contentHash})
+  await expect(listSourcePage(scope,parseSourceQuery(new URLSearchParams({filter:'in-use',cursor:first!.nextCursor!}),ACCOUNT,clientId))).rejects.toThrow('SOURCE_PAGE_CHANGED')
+  expect((await readSource(scope,last.id))?.agentUseAllowed).toBe(true)
+ })
+ it('out-of-order commit timestamps cannot hide source filter changes',async()=>{
+  const clientId=await brand(ACCOUNT,'Timestamp epoch'),actorId=await profile(ACCOUNT),scope={accountId:ACCOUNT,clientId,actorId}
+  const sources=[]
+  for(let n=0;n<3;n++){
+   const item=await importSource(scope,{sourceKey:`epoch-${n}`,kind:'facts',label:'Synthetic',importMethod:'paste',originRef:null,entries:content(String(n)).entries,approve:n<2})
+   if(item.kind!=='created')throw new Error('fixture import failed')
+   await setAgentUse(scope,item.source.id,true);sources.push(item.source)
+  }
+  // Emulates a timestamp from an earlier-started transaction committing later.
+  await sql`update client_sources set updated_at='2040-01-01' where account_id=${ACCOUNT} and id=${sources[0].id}`
+  const first=await listSourcePage(scope,{limit:1,filter:'in-use',cursor:null})
+  const last=sources[2]
+  await approveSourceVersion(scope,{sourceId:last.id,versionId:last.current!.id,expectedLatestVersion:last.latestVersion,expectedContentHash:last.current!.contentHash})
+  await expect(listSourcePage(scope,parseSourceQuery(new URLSearchParams({filter:'in-use',cursor:first!.nextCursor!}),ACCOUNT,clientId))).rejects.toThrow('SOURCE_PAGE_CHANGED')
+ })
  it('all_201_sources_are_reachable with summary-only pages and account/filter binding',async()=>{
   const clientId=await brand(ACCOUNT,'T12 sources'),actorId=await profile(ACCOUNT),scope={accountId:ACCOUNT,clientId,actorId}
   await sql`insert into client_sources(account_id,client_id,source_key,kind,label) select ${ACCOUNT},${clientId},'source-'||n,'facts','Source '||n from generate_series(1,201) n`

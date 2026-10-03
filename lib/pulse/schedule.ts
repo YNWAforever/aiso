@@ -56,7 +56,7 @@ export async function selectPendingClientPage(sql: Sql, options: {
   let scanned = 0
   while (Date.now() < options.deadlineMs) {
     const rows = isFeatureEnabled('pulse_attempts') ? await sql`
-      select c.id as client_id,c.created_at,0 as scanned_prompts,
+      select c.id as client_id,to_char(c.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,0 as scanned_prompts,
         (select count(*) from prompt_bank pb where pb.client_id=c.id and pb.is_active) as prompt_count,
         a.plan,a.status,a.stripe_subscription_id,a.trial_ends_at,a.override_plan,a.override_expires_at
       from clients c join accounts a on a.id=c.account_id
@@ -68,7 +68,7 @@ export async function selectPendingClientPage(sql: Sql, options: {
         and (${cursor?.createdAt??null}::timestamptz is null or (c.created_at,c.id)>(${cursor?.createdAt??null}::timestamptz,${cursor?.clientId??null}::uuid))
       order by c.created_at,c.id limit ${pageSize}
     ` : await sql`
-    select c.id as client_id, c.created_at,
+    select c.id as client_id,to_char(c.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
            (select count(*) from prompt_bank pb
              where pb.client_id = c.id and pb.is_active) as prompt_count,
            (select count(distinct m.prompt_id) from pulse_metrics m
@@ -99,7 +99,7 @@ export async function selectPendingClientPage(sql: Sql, options: {
     const candidates = rows as unknown as CandidateRow[]
     for (const [index, row] of candidates.entries()) {
       if (Date.now() >= options.deadlineMs) return { items, nextCursor: cursor, exhausted: false, scanned }
-      cursor = { createdAt: new Date(row.created_at).toISOString(), clientId: row.client_id }
+      cursor = { createdAt: typeof row.created_at==='string'?row.created_at:row.created_at.toISOString(), clientId: row.client_id }
       scanned++
       const entitlement = resolveCommercialEntitlement(row as CommercialAccount)
       if (runtimePlatformsFor(entitlement.features.platform_access).length && Number(row.prompt_count) > 0) {

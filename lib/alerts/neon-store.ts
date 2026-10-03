@@ -78,15 +78,15 @@ async function loadSnapshot(sql: Sql): Promise<AlertSnapshot> {
   ])
 
   if(isFeatureEnabled('pulse_attempts')){
-    const completion=await sql`select r.client_id,r.scan_week,count(i.id)::int as expected,
+    const completion=await sql`select r.client_id,r.scan_week,jsonb_array_length(r.manifest->'items') as expected,count(i.id)::int as actual,
       count(i.id) filter(where i.status='succeeded')::int as succeeded,
-      count(i.id) filter(where i.classification_status='classified')::int as classified
-      from pulse_runs r join clients c on c.id=r.client_id and c.account_id=r.account_id left join pulse_run_items i on i.run_id=r.id
-      where c.id=any(${clientIds}::uuid[]) group by r.id,r.client_id,r.scan_week`
+      count(i.id) filter(where i.status='succeeded' and i.classification_status='classified')::int as classified
+      from pulse_runs r join clients c on c.id=r.client_id and c.account_id=r.account_id left join pulse_run_items i on i.run_id=r.id and i.account_id=r.account_id and i.client_id=r.client_id
+      where c.id=any(${clientIds}::uuid[]) group by r.id,r.client_id,r.scan_week,r.manifest`
     const byWeek=new Map(completion.map(row=>[`${row.client_id}:${isoDate(row.scan_week as string|Date,'')}`,row]))
     for(const row of weeklyRows){
       const proof=byWeek.get(`${row.client_id}:${isoDate(row.scan_week,'')}`)
-      row.coverageComplete=Boolean(proof&&Number(proof.expected)>0&&proof.expected===proof.succeeded&&proof.classified===proof.succeeded)
+      row.coverageComplete=Boolean(proof&&Number(proof.expected)>0&&proof.expected===proof.actual&&proof.expected===proof.succeeded&&proof.classified===proof.succeeded)
     }
     for(const row of completion){
       if(!weeklyRows.some(week=>week.client_id===row.client_id&&isoDate(week.scan_week,'')===isoDate(row.scan_week as string|Date,'')))

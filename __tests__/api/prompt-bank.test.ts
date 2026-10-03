@@ -8,7 +8,7 @@ let promptRows: unknown[]
 let writeRows: unknown[]
 let failOn: RegExp | null
 
-const mockSql = vi.fn((strings: TemplateStringsArray, ...params: unknown[]) => {
+const mockSql = Object.assign(vi.fn((strings: TemplateStringsArray, ...params: unknown[]) => {
   const text = strings.join('?')
   calls.push({ text, params })
   if (failOn && failOn.test(text)) return Promise.reject(new Error('boom'))
@@ -17,7 +17,7 @@ const mockSql = vi.fn((strings: TemplateStringsArray, ...params: unknown[]) => {
   if (!/^\s*select/i.test(text)) return Promise.resolve(writeRows)
   if (/from clients\b/i.test(text)) return Promise.resolve(ownedRows)
   return Promise.resolve(promptRows)
-})
+}),{transaction:async(queries:Promise<unknown[]>[])=>Promise.all(queries)})
 
 vi.mock('@/lib/db', () => ({ db: () => mockSql }))
 vi.mock('@/lib/auth', () => ({ getProfile: vi.fn() }))
