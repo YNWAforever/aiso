@@ -97,3 +97,18 @@ describe('PR gate workflow contract', () => {
     expect(needed).toEqual(jobNames.filter((name) => name !== 'pr-gate'))
   })
 })
+
+describe('single-run disposable role authorization', () => {
+  it('offers a manual opt-in that defaults off and feeds only the integration role gate', async () => {
+    const workflow = await readWorkflow()
+    expect(workflow).toMatch(/workflow_dispatch:\s*\n\s+inputs:\s*\n\s+allow_disposable_role_password:/)
+    const input = workflow.slice(workflow.indexOf('      allow_disposable_role_password:'), workflow.indexOf('\npermissions:'))
+    expect(input).toMatch(/type:\s+boolean/)
+    expect(input).toMatch(/default:\s+false/)
+    expect(input).not.toMatch(/default:\s+true/)
+    const integration = workflow.slice(workflow.indexOf('  integration:'), workflow.indexOf('\n  e2e-accessibility:'))
+    expect(integration).toContain('node scripts/ci/resolve-disposable-role-authorization.mjs')
+    expect(integration).toContain('AISO_MANUAL_ROLE_APPROVAL: ${{ inputs.allow_disposable_role_password }}')
+    expect(integration).toContain('ALLOW_DISPOSABLE_ROLE_PASSWORD: ${{ steps.disposable-role-authorization.outputs.allowed }}')
+  })
+})

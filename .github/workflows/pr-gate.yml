@@ -4,6 +4,12 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
+    inputs:
+      allow_disposable_role_password:
+        description: "Authorize synthetic aeo_app login password setup only on this run's fresh disposable Neon children"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -100,6 +106,12 @@ jobs:
       - run: npm ci
       - name: Install neonctl
         run: npm i -g neonctl
+      - name: Resolve disposable role authorization
+        id: disposable-role-authorization
+        run: node scripts/ci/resolve-disposable-role-authorization.mjs
+        env:
+          AISO_MANUAL_ROLE_APPROVAL: ${{ inputs.allow_disposable_role_password }}
+          AISO_REPOSITORY_ROLE_APPROVAL: ${{ vars.AISO_ALLOW_DISPOSABLE_ROLE_PASSWORD }}
       - name: Run integration suite
         shell: bash
         run: |
@@ -158,9 +170,9 @@ jobs:
         env:
           CI: 'true'
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
-          # Enable only after the owner authorizes password setup on the fresh
-          # disposable child. Missing authorization fails the gate, never skips.
-          ALLOW_DISPOSABLE_ROLE_PASSWORD: ${{ vars.AISO_ALLOW_DISPOSABLE_ROLE_PASSWORD }}
+          # Manual opt-in applies only to this workflow_dispatch invocation.
+          # No input or persistent authorization means a failing gate, never skip.
+          ALLOW_DISPOSABLE_ROLE_PASSWORD: ${{ steps.disposable-role-authorization.outputs.allowed }}
       - name: Upload integration diagnostics
         if: always()
         uses: actions/upload-artifact@v4
