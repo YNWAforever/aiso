@@ -1,4 +1,4 @@
-import {test,expect} from '../../fixtures/auth'
+import {test,expect,authenticatedGet} from '../../fixtures/auth'
 
 // Read-only authenticated acceptance. Separate from synthetic component gates.
 // Fixtures and sessions must belong to the approved isolated environment.
@@ -18,7 +18,7 @@ for(const lang of ['en','zh-HK'] as const)for(const width of [360,390,1440]){
    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
   }
   for(const endpoint of [`/api/clients/${foreign}/entities`,`/api/clients/${foreign}/sources`,`/api/clients/${foreign}/observations`,`/api/clients/${foreign}/work-items`,`/api/dashboard/clients/${foreign}/prompts`]){
-   const response=await page.request.get(endpoint);expect(response.status(),endpoint).toBe(404)
+   const response=await authenticatedGet(page, endpoint);expect(response.status(),endpoint).toBe(404)
   }
  })
 }
