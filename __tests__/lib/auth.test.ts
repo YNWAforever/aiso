@@ -12,10 +12,13 @@ const redirectMock = vi.fn((url: string) => { throw new Error(`REDIRECT:${url}`)
 vi.mock('next/navigation', () => ({ redirect: redirectMock }))
 
 const originalFixtureMode = process.env.E2E_FIXTURE_MODE
+const requestHeaders = vi.hoisted(() => ({ get: vi.fn() }))
+vi.mock('next/headers', () => ({ headers: async () => requestHeaders }))
 
 describe('lib/auth', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    requestHeaders.get.mockReturnValue(null)
   })
 
   afterEach(() => {
@@ -115,6 +118,20 @@ describe('lib/auth', () => {
     getSessionMock.mockResolvedValue({ data: null, error: null })
     const { requireAuth } = await import('@/lib/auth')
     await expect(requireAuth('en')).rejects.toThrow('REDIRECT:/en/auth/login')
+  })
+  it('preserves the trusted tool path for an expired session', async () => {
+    getSessionMock.mockResolvedValue({ data: null, error: null })
+    const path = '/zh-HK/dashboard/11111111-1111-4111-8111-111111111111/observations'
+    requestHeaders.get.mockReturnValue(path)
+    const { requireAuth } = await import('@/lib/auth')
+    await expect(requireAuth('zh-HK')).rejects.toThrow('REDIRECT:')
+    expect(redirectMock).toHaveBeenCalledWith(`/zh-HK/auth/login?next=${encodeURIComponent(path)}`)
+  })
+  it('refuses an external explicit return destination', async () => {
+    getSessionMock.mockResolvedValue({ data: null, error: null })
+    const { requireAuth } = await import('@/lib/auth')
+    await expect(requireAuth('en', '//evil.test')).rejects.toThrow('REDIRECT:')
+    expect(redirectMock).toHaveBeenCalledWith('/en/auth/login?next=%2Fen%2Fdashboard')
   })
 
   it('requireAdmin redirects to dashboard when the profile is not an admin', async () => {

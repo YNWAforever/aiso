@@ -22,7 +22,7 @@ export async function loadOwnedDraftSource(accountId:string,clientId:string,sour
   if(source.kind==='pulse-metric') {
     const rows=await sql`select m.id,m.client_id,m.prompt_id,m.question,m.platform,m.scan_week::text as scan_week,
       to_char(m.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-      m.raw_answer,m.brand_mentioned,coalesce(m.raw_answer ~ '[^[:space:]]',false) as has_answer
+      m.raw_answer,m.brand_mentioned,m.classification_status,coalesce(m.raw_answer ~ '[^[:space:]]',false) as has_answer
       from pulse_metrics m join clients c on c.id=m.client_id
       where c.account_id=${accountId} and c.id=${clientId} and m.id=${source.id} limit 1`
     return rows[0] ? projectPulseOpportunityInput(accountId,rows[0] as PersistedPulseInput) : null
@@ -83,6 +83,7 @@ export async function createDraftIfEvidenceCurrent(accountId:string,clientId:str
       and m.question is not distinct from ${token.row.question}
       and m.raw_answer is not distinct from ${token.row.raw_answer}
       and m.brand_mentioned is not distinct from ${token.row.brand_mentioned}
+      and m.classification_status is not distinct from ${token.row.classification_status??'legacy_unknown'}
       and m.platform is not distinct from ${token.row.platform}
       and m.prompt_id is not distinct from ${token.row.prompt_id}::uuid
       and m.scan_week is not distinct from ${token.row.scan_week}::date

@@ -1,7 +1,14 @@
 import type { CheckDiagnostic, ScanEvidence } from '@/lib/scan-evidence'
 export type CheckStatus = 'pass' | 'warn' | 'fail'
 
+export interface CollectorAccess {
+  crawler: string
+  role: 'search' | 'training' | 'user_triggered'
+  policy: 'allowed' | 'blocked' | 'unknown'
+  probe: 'reachable' | 'unreachable' | 'not_measured'
+}
 export interface CheckResult {
+  collectorAccess?: CollectorAccess[]
   status: CheckStatus
   message: string
   details?: string
@@ -130,6 +137,7 @@ export interface PromptBankItem {
   category: string | null
   question: string
   language: string
+  market?: string | null
   is_active: boolean
   created_at: string
 }
@@ -439,7 +447,7 @@ export interface LocalTrustAction {
  * Bumped whenever check-engine detection logic changes for any of c1-c20.
  * Stored on new scans in results.evidence.scannerVersion; historical rows are not backfilled.
  */
-export const SCANNER_VERSION = '2026-09-05.v1'
+export const SCANNER_VERSION = '2026-10-03.v1'
 
 export interface ScanVersionInfo {
   scannerVersion: string

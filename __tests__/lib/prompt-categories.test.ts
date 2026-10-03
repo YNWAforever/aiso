@@ -1,7 +1,9 @@
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+vi.mock('server-only', () => ({}))
+vi.mock('@/lib/openrouter', () => ({ callOpenRouter: vi.fn(async () => '{}') }))
+import { callOpenRouter } from '@/lib/openrouter'
+import { generateOnboardingSeed } from '@/lib/onboarding/service'
+import { parseOnboardingInput } from '@/lib/onboarding/schema'
 
 import {
   PROMPT_CATEGORIES,
@@ -10,16 +12,14 @@ import {
 } from '@/lib/prompts/categories'
 
 describe('prompt categories', () => {
-  it('matches the vocabulary onboarding actually asks the model for', () => {
-    // Read from the source rather than restated here: onboarding is the only
-    // writer of this column today, so if its prompt string and this list drift
-    // apart the whole bank lands outside the vocabulary and nothing notices.
-    const source = readFileSync(
-      join(process.cwd(), 'app/api/onboarding/complete/route.ts'), 'utf8',
-    )
+  it('matches the vocabulary onboarding actually asks the model for', async () => {
+    await generateOnboardingSeed(parseOnboardingInput({brandName:'Synthetic',language:'en'}))
+    const request = vi.mocked(callOpenRouter).mock.calls.at(-1)![0]
+    const source = request.messages.map(message => message.content).join('\n')
     for (const category of PROMPT_CATEGORIES) {
       expect(source, `onboarding never asks for "${category}"`).toContain(category)
     }
+    expect(JSON.stringify(request.responseFormat)).toContain('brand_query')
   })
 
   it('rejects the display labels the editor used to send', () => {

@@ -38,7 +38,7 @@ const GATE_TOKENS = [
   'isAuthorizedScanClaim', // signed, scan-bound claim intent
   'consumePublicScanRateLimit',
   'consumeDurableRateLimit',
-  'neon_auth',             // webhook payload verified against the auth table
+  'neon_auth.',            // schema-qualified auth-table lookup, not verifier params
   // Capability-based rather than session-based, and no less a gate: the share
   // link carries an HMAC verified with timingSafeEqual in lib/reports/share.ts.
   'resolvePublishedClientReport',
@@ -102,6 +102,10 @@ function gateEvidence(file: string): string | null {
 const ROUTES = routeFiles()
 
 describe('every API route is gated or declared public', () => {
+  it('distinguishes the verifier parameter from an auth-table lookup', () => {
+    expect(hasGate("url.searchParams.has('neon_auth_session_verifier')")).toBe(false)
+    expect(hasGate('select id from neon_auth.user where id = userId')).toBe(true)
+  })
   it('finds the route handlers', () => {
     // A broken walk would make this suite vacuous while still passing.
     expect(ROUTES.length).toBeGreaterThan(50)

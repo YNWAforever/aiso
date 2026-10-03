@@ -9,6 +9,7 @@ import {
 } from './tenancy-target'
 import { runAlertEvaluation, type AlertEmailInput } from '@/lib/alerts/evaluate'
 import { createNeonAlertStore } from '@/lib/alerts/neon-store'
+import {createOrResumeRun,claimDueItems,commitAttempt,recordClassification} from '@/lib/pulse/runs/store'
 
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/db', async () => {
@@ -74,6 +75,12 @@ async function currentScanWeek(): Promise<string> {
 }
 
 async function teardown() {
+  await sql`delete from pulse_metrics where client_id in (${A_CLIENT},${B_CLIENT})`
+  await sql`update pulse_run_items set accepted_attempt_id=null where account_id in (${A},${B})`
+  await sql`delete from pulse_classification_attempts where account_id in (${A},${B})`
+  await sql`delete from pulse_item_attempts where account_id in (${A},${B})`
+  await sql`delete from pulse_run_items where account_id in (${A},${B})`
+  await sql`delete from pulse_runs where account_id in (${A},${B})`
   await sql`delete from agent_recommendations where scan_id in (${A_SCAN}::uuid, ${B_SCAN}::uuid)`
   await sql`delete from notifications where account_id in (${A}::uuid, ${B}::uuid)`
   await sql`delete from alert_email_deliveries where client_id in (${A_CLIENT}::uuid, ${B_CLIENT}::uuid)`
@@ -94,6 +101,7 @@ async function signedInAs(account: string) {
 }
 
 beforeEach(async () => {
+  vi.stubEnv('FEATURE_PULSE_ATTEMPTS','1')
   process.env.CRON_SECRET = CRON
   getProfileMock.mockReset()
   await teardown()
@@ -132,6 +140,13 @@ beforeEach(async () => {
       insert into pulse_weekly_summary (client_id, scan_week, platform, total_queries, brand_mentions, sov_score)
       values (${client}::uuid, ${week}::date, null, 10, 1, ${sov})
     `
+    await sql`insert into prompt_bank(client_id,question,language)values(${client},'Synthetic question one','en'),(${client},'Synthetic question two','en')`
+    const scope={accountId:account,clientId:client},run=(await createOrResumeRun(scope,{scanWeek:week,manifest:[{platform:'synthetic',model:'fixture'}]}))!
+    const leases=await claimDueItems(scope,run.id,{owner:'synthetic-alert',leaseUntil:new Date(Date.now()+60000),limit:2})
+    for(const lease of leases){
+      await commitAttempt(lease,{kind:'succeeded',evidence:{answer:'Synthetic complete answer',actualModel:'fixture',requestId:null,promptTokens:1,completionTokens:1,costUsd:null,httpStatus:200}})
+      await recordClassification(lease,{status:'classified',method:'synthetic',version:'fixture',brandMentioned:true,sentiment:'neutral',mentionPosition:0,competitorsMentioned:[]})
+    }
   }
 })
 
@@ -149,6 +164,16 @@ beforeAll(async () => {
 })
 
 describe('alert evaluation across two accounts, on real rows', () => {
+  it('a missing manifest item cannot make a partial run look complete',async()=>{
+    const [item]=await sql`select id from pulse_run_items where account_id=${A} order by id limit 1`
+    await sql`delete from pulse_metrics where run_item_id=${item.id}`
+    await sql`update pulse_run_items set accepted_attempt_id=null where account_id=${A} and id=${item.id}`
+    await sql`delete from pulse_item_attempts where account_id=${A} and item_id=${item.id}`
+    await sql`delete from pulse_run_items where account_id=${A} and id=${item.id}`
+    const emails:AlertEmailInput[]=[]
+    await runAlertEvaluation({...createNeonAlertStore(sql),sendAlertEmail:async email=>{emails.push(email)}})
+    expect(emails.map(email=>email.to)).toEqual([B_EMAIL])
+  })
   it('delivers each account\'s score only to that account', async () => {
     const emails: AlertEmailInput[] = []
     const result = await runAlertEvaluation({

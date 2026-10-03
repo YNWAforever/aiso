@@ -22,10 +22,10 @@ function logLedgerFailure(operation: 'start' | 'finish', error: unknown): void {
  * is mitigated only by the fact that a database outage would fail the job's
  * actual work too.
  */
-export async function startCronRun(route: string): Promise<string | null> {
+export async function startCronRun(route: string,detail?:Record<string,unknown>): Promise<string | null> {
   try {
     const sql = db()
-    const rows = await sql`
+    const rows = detail ? await sql`insert into cron_runs(route,detail) values(${route},${JSON.stringify(detail)}::jsonb) returning id` : await sql`
       insert into cron_runs (route) values (${route}) returning id
     `
     return (rows[0]?.id as string | undefined) ?? null

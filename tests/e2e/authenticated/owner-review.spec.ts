@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { test, expect } from '../../fixtures/auth'
+import { test, expect, authenticatedGet } from '../../fixtures/auth'
 
 /**
  * AC-14: review and approve, on a phone, against a real session and database.
@@ -64,7 +64,7 @@ async function openFirstBrand(page: Page, lang: 'en' | 'zh-HK' = 'en'): Promise<
  * approver: both see the same client and the same items.
  */
 async function openLatestSubmittedVersion(page: Page, clientId: string): Promise<void> {
-  const response = await page.request.get(`/api/clients/${clientId}/work-items`)
+  const response = await authenticatedGet(page, `/api/clients/${clientId}/work-items`)
   expect(response.ok(), `work-items answered ${response.status()} for an owned client`).toBe(true)
   const items = (await response.json()).items ?? []
   expect(
@@ -154,7 +154,7 @@ test.describe('the owner journey on a phone', () => {
   test('a version can be reviewed and its decision controls reached', async ({ authenticatedPage: page }) => {
     const clientId = await openFirstBrand(page)
 
-    const response = await page.request.get(`/api/clients/${clientId}/work-items`)
+    const response = await authenticatedGet(page, `/api/clients/${clientId}/work-items`)
     expect(response.ok(), `work-items answered ${response.status()} for an owned client`).toBe(true)
     const items = (await response.json()).items ?? []
 
@@ -245,7 +245,7 @@ test.describe('the owner journey on a phone', () => {
     await expect(sourcesMain).toContainText('必須同時符合三項條件才會被引用', { timeout: 15_000 })
     await expect(sourcesMain).toContainText('這些是匯入，不是連線')
 
-    const response = await page.request.get(`/api/clients/${clientId}/work-items`)
+    const response = await authenticatedGet(page, `/api/clients/${clientId}/work-items`)
     expect(response.ok(), `work-items answered ${response.status()} for an owned client`).toBe(true)
     const items = (await response.json()).items ?? []
     expect(

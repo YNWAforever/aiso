@@ -1,18 +1,17 @@
-import { describe, it, expect, afterAll, beforeEach, vi } from 'vitest'
+import { describe, it, expect, afterAll, beforeAll, beforeEach, vi } from 'vitest'
 import { neon } from '@neondatabase/serverless'
 import { buildSourceContent, hashSourceContent } from '@/lib/sources/schema'
-import { importSource, listSources, listAgentUsableSources, revokeSource, setAgentUse } from '@/lib/sources/store'
+import { approveSourceVersion, importSource, listSources, listAgentUsableSources, readSource, revokeSource, setAgentUse } from '@/lib/sources/store'
 import { buildSourcePack } from '@/lib/view-models/source-pack'
+import { listSourcePage } from '@/lib/sources/pagination'
+import { parseSourceQuery } from '@/lib/sources/query'
+import { loadOwnedOpportunitySources } from '@/lib/opportunities/store'
+import { parseOpportunityQuery } from '@/lib/opportunities/query'
+import { previewSourceImport } from '@/lib/sources/import-preview'
+import { mergePreviewRetry } from '@/lib/sources/preview-state'
 
 vi.mock('server-only', () => ({}))
-// The store reads through db(); point it at the same provisioned branch the raw
-// assertions below use, so the SQL gate and the projection see one database.
-// The factory imports dynamically because vi.mock is hoisted above this file's
-// own imports, so the top-level `neon` binding is not yet initialised when it runs.
-vi.mock('@/lib/db', async () => {
-  const { neon: connect } = await import('@neondatabase/serverless')
-  return { db: () => connect(process.env.TEST_DATABASE_URL!) }
-})
+// Exercise the real binding guard and HTTP transaction proxy, not a mock db().
 
 /**
  * Migration 044's guarantees, against real Postgres.
@@ -24,6 +23,13 @@ vi.mock('@/lib/db', async () => {
  */
 
 const sql = neon(process.env.TEST_DATABASE_URL!)
+beforeAll(async () => {
+  const [identity] = await sql`select current_setting('neon.project_id') as project, current_setting('neon.branch_id') as branch, current_user as role`
+  expect(identity!.project).toBe(process.env.EXPECTED_NEON_PROJECT_ID)
+  vi.stubEnv('DATABASE_URL', process.env.TEST_DATABASE_URL!)
+  vi.stubEnv('EXPECTED_NEON_BRANCH_ID', identity!.branch as string)
+  vi.stubEnv('EXPECTED_DB_ROLE', identity!.role as string)
+})
 
 const ACCOUNT = '44444444-4444-4444-4444-444444444444'
 const OTHER = '55555555-5555-5555-5555-555555555555'
@@ -31,6 +37,7 @@ const OTHER = '55555555-5555-5555-5555-555555555555'
 const content = (answer: string) => buildSourceContent([{ question: 'What are your hours?', answer }])
 
 async function seed() {
+  await sql`delete from pulse_metrics where client_id in (select id from clients where account_id in (${ACCOUNT},${OTHER}))`
   await sql`delete from client_source_versions where account_id in (${ACCOUNT}, ${OTHER})`
   await sql`delete from client_sources where account_id in (${ACCOUNT}, ${OTHER})`
   // scans and profiles reference accounts as well, and this branch is shared
@@ -84,6 +91,168 @@ async function version(account: string, clientId: string, sourceId: string, n: n
     )
   `
 }
+
+describe('T12 maintenance scale and complete imports',()=>{
+ beforeEach(seed)
+ it('approval changes invalidate a filtered page cursor without changing agent permission',async()=>{
+  const clientId=await brand(ACCOUNT,'Approval page'),actorId=await profile(ACCOUNT),scope={accountId:ACCOUNT,clientId,actorId}
+  const sources=[]
+  for(let n=0;n<3;n++){
+    const item=await importSource(scope,{sourceKey:`approval-${n}`,kind:'facts',label:'Synthetic',importMethod:'paste',originRef:null,entries:content(String(n)).entries,approve:n<2})
+    if(item.kind!=='created')throw new Error('fixture import failed')
+    await setAgentUse(scope,item.source.id,true);sources.push(item.source)
+  }
+  const first=await listSourcePage(scope,{limit:1,filter:'in-use',cursor:null})
+  const last=sources[2]
+  await approveSourceVersion(scope,{sourceId:last.id,versionId:last.current!.id,expectedLatestVersion:last.latestVersion,expectedContentHash:last.current!.contentHash})
+  await expect(listSourcePage(scope,parseSourceQuery(new URLSearchParams({filter:'in-use',cursor:first!.nextCursor!}),ACCOUNT,clientId))).rejects.toThrow('SOURCE_PAGE_CHANGED')
+  expect((await readSource(scope,last.id))?.agentUseAllowed).toBe(true)
+ })
+ it('out-of-order commit timestamps cannot hide source filter changes',async()=>{
+  const clientId=await brand(ACCOUNT,'Timestamp epoch'),actorId=await profile(ACCOUNT),scope={accountId:ACCOUNT,clientId,actorId}
+  const sources=[]
+  for(let n=0;n<3;n++){
+   const item=await importSource(scope,{sourceKey:`epoch-${n}`,kind:'facts',label:'Synthetic',importMethod:'paste',originRef:null,entries:content(String(n)).entries,approve:n<2})
+   if(item.kind!=='created')throw new Error('fixture import failed')
+   await setAgentUse(scope,item.source.id,true);sources.push(item.source)
+  }
+  // Emulates a timestamp from an earlier-started transaction committing later.
+  await sql`update client_sources set updated_at='2040-01-01' where account_id=${ACCOUNT} and id=${sources[0].id}`
+  const first=await listSourcePage(scope,{limit:1,filter:'in-use',cursor:null})
+  const last=sources[2]
+  await approveSourceVersion(scope,{sourceId:last.id,versionId:last.current!.id,expectedLatestVersion:last.latestVersion,expectedContentHash:last.current!.contentHash})
+  await expect(listSourcePage(scope,parseSourceQuery(new URLSearchParams({filter:'in-use',cursor:first!.nextCursor!}),ACCOUNT,clientId))).rejects.toThrow('SOURCE_PAGE_CHANGED')
+ })
+ it('all_201_sources_are_reachable with summary-only pages and account/filter binding',async()=>{
+  const clientId=await brand(ACCOUNT,'T12 sources'),actorId=await profile(ACCOUNT),scope={accountId:ACCOUNT,clientId,actorId}
+  await sql`insert into client_sources(account_id,client_id,source_key,kind,label) select ${ACCOUNT},${clientId},'source-'||n,'facts','Source '||n from generate_series(1,201) n`
+  let cursor:string|null=null
+  const ids:string[]=[]
+  do{
+   const params=new URLSearchParams(cursor?{cursor}:{})
+   const page=await listSourcePage(scope,parseSourceQuery(params,ACCOUNT,clientId))
+   expect(page!.total).toBe(201);expect(page!.items.length).toBeLessThanOrEqual(50)
+   expect(page!.items.every(row=>!row.current||!('entries'in row.current))).toBe(true)
+   ids.push(...page!.items.map(row=>row.id));cursor=page!.nextCursor
+  }while(cursor)
+  expect(ids).toHaveLength(201);expect(new Set(ids).size).toBe(201)
+  expect(await listSourcePage({...scope,accountId:OTHER},{limit:50,filter:'all',cursor:null})).toBeNull()
+  const first=await listSourcePage(scope,{limit:50,filter:'all',cursor:null})
+  await sql`update client_sources set label='Changed',updated_at=clock_timestamp() where account_id=${ACCOUNT} and client_id=${clientId} and id=${first!.items[0].id}`
+  await expect(listSourcePage(scope,parseSourceQuery(new URLSearchParams({cursor:first!.nextCursor!}),ACCOUNT,clientId))).rejects.toThrow('SOURCE_PAGE_CHANGED')
+ })
+ it('all_250_observations_have_candidate_scope including null timestamps and same-time ties',async()=>{
+  const clientId=await brand(ACCOUNT,'T12 observations')
+  await sql`insert into pulse_metrics(client_id,question,platform,scan_week,raw_answer,brand_mentioned,classification_status,created_at) select ${clientId},'Question '||n,'chatgpt','2026-09-01'::date,'Retained answer',false,'classified',case when n>240 then null else '2026-09-02T10:00:00.123456Z'::timestamptz end from generate_series(1,250)n`
+  const ids:string[]=[];let cursor:string|null=null
+  do{
+   const page=await loadOwnedOpportunitySources(ACCOUNT,clientId,parseOpportunityQuery(new URLSearchParams(cursor?{cursor}:{}),ACCOUNT,clientId))
+   ids.push(...page!.sources.filter(row=>row.kind==='pulse-metric').map(row=>row.observation.id));cursor=page!.window.nextCursor??null
+  }while(cursor)
+  expect(ids).toHaveLength(250);expect(new Set(ids).size).toBe(250)
+  expect(await loadOwnedOpportunitySources(OTHER,clientId)).toBeNull()
+ })
+ it('retry_invalid_csv_rows_preserves_valid_rows and exactly one complete version wins a parallel stale write',async()=>{
+  const clientId=await brand(ACCOUNT,'T12 CSV'),actorId=await profile(ACCOUNT),scope={accountId:ACCOUNT,clientId,actorId}
+  const preview=previewSourceImport({csv:Array.from({length:200},(_,n)=>`Question ${n},${n===199?'':'Answer'}`).join('\n')})
+  const full=mergePreviewRetry(preview,previewSourceImport({rows:[{rowNumber:200,question:'Question 199',answer:'Corrected'}]}))
+  const input={sourceKey:'t12-csv',kind:'faq' as const,label:'CSV',entries:full.rows.map(row=>row.entry!),importMethod:'csv' as const,originRef:null,approve:false,expectedLatestVersion:0}
+  const results=await Promise.all([importSource(scope,input),importSource(scope,{...input,entries:[{question:'Subset?',answer:'Must not replace full file'}]})])
+  expect(results.filter(row=>row.kind==='created')).toHaveLength(1);expect(results.filter(row=>row.kind==='conflict')).toHaveLength(1)
+  // Repeat with a known full winner to verify stored complete readback without depending on race order.
+  const saved=await importSource(scope,{...input,sourceKey:'t12-complete'})
+  if(!('source'in saved))throw new Error('fixture failed')
+  const read=await readSource(scope,saved.source.id)
+  expect(read!.latestVersion).toBe(1);expect(read!.current!.entries).toHaveLength(200)
+  expect(read!.current!.entries.at(-1)!.answer).toBe('Corrected')
+  const stale=await importSource(scope,{...input,sourceKey:'t12-complete',label:'Stale',entries:[{question:'Subset?',answer:'Rejected'}]})
+  expect(stale.kind).toBe('conflict');expect((await readSource(scope,saved.source.id))!.label).toBe('CSV')
+ })
+})
+
+describe('T04 source import and approval', () => {
+  beforeEach(seed)
+  it('source_v1_same_content_can_be_approved and repeated approval preserves actor/time', async () => {
+    const clientId = await brand(ACCOUNT, 'T04 synthetic')
+    const actorId = await profile(ACCOUNT)
+    const scope = { accountId: ACCOUNT, clientId, actorId }
+    const input = { sourceKey: 't04-synthetic', kind: 'facts' as const, label: 'T04 synthetic',
+      entries: [{ question: 'Hours?', answer: '9 to 6' }], importMethod: 'paste' as const, originRef: null, approve: false }
+    const initial = await importSource(scope, input)
+    expect(initial.kind).toBe('created')
+    const approved = await importSource(scope, { ...input, approve: true })
+    expect('source' in approved && approved.source.latestVersion).toBe(1)
+    expect('source' in approved && approved.source.current?.approvedAt).not.toBeNull()
+    expect('source' in approved && approved.source.agentUseAllowed).toBe(false)
+    const retried = await importSource({ ...scope, actorId: await profile(ACCOUNT) }, { ...input, approve: true })
+    expect('source' in retried && retried.source.current?.approvedAt).toBe('source' in approved && approved.source.current?.approvedAt)
+    const rows = await sql`select approved_by from client_source_versions where account_id = ${ACCOUNT} and client_id = ${clientId}`
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.approved_by).toBe(actorId)
+  })
+  async function fixture(key = 't04-synthetic') {
+    const clientId = await brand(ACCOUNT, 'T04 synthetic')
+    const scope = { accountId: ACCOUNT, clientId, actorId: await profile(ACCOUNT) }
+    const input = { sourceKey: key, kind: 'facts' as const, label: 'T04 synthetic', entries: [{ question: 'Hours?', answer: '9 to 6' }],
+      importMethod: 'paste' as const, originRef: null, approve: false }
+    return { scope, input }
+  }
+  it('two simultaneous same-hash imports create one version', async () => {
+    const { scope, input } = await fixture()
+    const results = await Promise.all([importSource(scope, input), importSource(scope, input)])
+    expect(results.map(r => r.kind).sort()).toEqual(['created', 'unchanged'])
+    const rows = await sql`select version_number from client_source_versions where account_id = ${ACCOUNT} and client_id = ${scope.clientId}`
+    expect(rows.map(r => r.version_number)).toEqual([1])
+  })
+  it('an old reviewed version cannot approve a newer import, including a race', async () => {
+    const { scope, input } = await fixture()
+    const initial = await importSource(scope, input)
+    if (!('source' in initial) || !initial.source.current) throw new Error('fixture missing')
+    const review = { sourceId: initial.source.id, versionId: initial.source.current.id,
+      expectedLatestVersion: 1, expectedContentHash: initial.source.current.contentHash }
+    const [approval] = await Promise.all([approveSourceVersion(scope, review), importSource(scope,
+      { ...input, entries: [{ question: 'Hours?', answer: '10 to 7' }] })])
+    expect(['approved', 'conflict']).toContain(approval.kind)
+    expect((await approveSourceVersion(scope, review)).kind).toBe('conflict')
+    const current = await readSource(scope, initial.source.id)
+    expect(current!.latestVersion).toBe(2)
+    expect(current!.current!.approvedAt).toBeNull()
+    expect(current!.current!.entries[0]!.answer).toBe('10 to 7')
+  })
+  it('foreign accounts cannot approve and revoked sources cannot be revived or relabelled', async () => {
+    const { scope, input } = await fixture()
+    const initial = await importSource(scope, input)
+    if (!('source' in initial) || !initial.source.current) throw new Error('fixture missing')
+    const review = { sourceId: initial.source.id, versionId: initial.source.current.id,
+      expectedLatestVersion: 1, expectedContentHash: initial.source.current.contentHash }
+    expect((await approveSourceVersion({ ...scope, accountId: OTHER }, review)).kind).toBe('not-found')
+    await revokeSource(scope, initial.source.id)
+    expect((await approveSourceVersion(scope, review)).kind).toBe('revoked')
+    expect((await importSource(scope, { ...input, label: 'Must not change', approve: true })).kind).toBe('revoked')
+    expect((await readSource(scope, initial.source.id))!.label).toBe(input.label)
+  })
+  it('pointer failure rolls back version, approval, and source metadata together', async () => {
+    const { scope, input } = await fixture('t04-rollback')
+    const initial = await importSource(scope, input)
+    if (!('source' in initial)) throw new Error('fixture missing')
+    await sql.query(`create function t04_pointer_failure() returns trigger language plpgsql as $$ begin
+      if new.source_key = 't04-rollback' and new.label = 'T04 fault' then raise exception 'T04 pointer fixture failure'; end if;
+      return new; end $$`)
+    await sql.query('create trigger t04_pointer_failure before update on client_sources for each row execute function t04_pointer_failure()')
+    try {
+      await expect(importSource(scope, { ...input, label: 'T04 fault', approve: true })).rejects.toThrow(/T04 pointer fixture failure/)
+      await expect(importSource(scope, { ...input, label: 'T04 fault', entries: [{ question: 'Hours?', answer: 'Changed' }] })).rejects.toThrow(/T04 pointer fixture failure/)
+      const current = await readSource(scope, initial.source.id)
+      expect(current!.latestVersion).toBe(1)
+      expect(current!.label).toBe(input.label)
+      expect(current!.current!.approvedAt).toBeNull()
+      expect(await sql`select id from client_source_versions where account_id = ${ACCOUNT} and client_id = ${scope.clientId}`).toHaveLength(1)
+    } finally {
+      await sql.query('drop trigger t04_pointer_failure on client_sources')
+      await sql.query('drop function t04_pointer_failure()')
+    }
+  })
+})
 
 describe('approved sources: tenancy is structural', () => {
   beforeEach(seed)

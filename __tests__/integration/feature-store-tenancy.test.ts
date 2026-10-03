@@ -52,6 +52,7 @@ const A_NOTE = 'c1200000-0000-4000-8000-0000000000a6'
 const B_USER = 'c1200000-0000-4000-8000-0000000000b9'
 
 async function teardown() {
+  await sql`delete from pulse_metrics where client_id in (${A_CLIENT}::uuid,${B_CLIENT}::uuid)`
   await sql`delete from notifications where account_id in (${A}::uuid, ${B}::uuid)`
   await sql`delete from client_asset_questions where account_id in (${A}::uuid, ${B}::uuid)`
   await sql`delete from client_assets where account_id in (${A}::uuid, ${B}::uuid)`
@@ -256,5 +257,24 @@ describe('notifications routes, as account B', () => {
     const { GET } = await import('@/app/api/notifications/route')
     const { notifications } = await (await GET()).json() as { notifications: Array<{ id: string }> }
     expect(notifications.map(n => n.id)).toContain(A_NOTE)
+  })
+})
+
+describe('T09 observation original-answer detail',()=>{
+  it('other_tenant_gets_404, while the owning-account control reads original text',async()=>{
+    const [metric]=await sql`insert into pulse_metrics(client_id,question,platform,scan_week,raw_answer,brand_mentioned,sentiment)
+      values(${A_CLIENT}::uuid,'Private historical question','synthetic-api','2026-09-21','Private original answer',true,'positive') returning id`
+    const {GET}=await import('@/app/api/clients/[clientId]/observations/[observationId]/route')
+    const context=(clientId:string)=>({params:Promise.resolve({clientId,observationId:String(metric.id)})})
+    for(const path of [A_CLIENT,B_CLIENT]){
+      const denial=await GET(new Request('http://localhost/'),context(path))
+      expect(denial.status).toBe(404)
+      expect(JSON.stringify(await denial.json())).not.toContain('Private')
+    }
+    getProfileMock.mockResolvedValue(await profileFor(A))
+    const control=await GET(new Request('http://localhost/'),context(A_CLIENT))
+    expect(control.status).toBe(200)
+    expect(await control.json()).toMatchObject({observation:{rawAnswer:'Private original answer',model:null,
+      classification:{status:'legacy_unknown',brandMentioned:null,sentiment:'unknown'}}})
   })
 })

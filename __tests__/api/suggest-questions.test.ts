@@ -37,7 +37,7 @@ const post = (body: unknown = { clientId: 'client-1' }) =>
 beforeEach(() => {
   calls.length = 0
   lookupFails = false
-  clientRows = [{ brand_name: 'AcmeCo', industry: 'technology' }]
+  clientRows = [{ brand_name: 'AcmeCo', industry: 'technology', prompt_language: 'en', region: 'HK' }]
   existingRows = [{ question: 'What is AcmeCo?' }]
   vi.mocked(getProfile).mockReset()
   vi.mocked(getProfile).mockResolvedValue(account('pro') as never)
@@ -134,7 +134,7 @@ describe('POST /api/pulse/suggest-questions — generation', () => {
     ]))
     const { suggestions } = await (await post()).json()
 
-    expect(suggestions).toEqual([{ question: 'Kept?', category: 'brand_query' }])
+    expect(suggestions).toEqual([{ question: 'Kept?', category: 'brand_query', language: 'en', market: 'HK' }])
   })
 
   it('drops a suggestion with no usable question', async () => {

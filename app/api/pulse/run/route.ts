@@ -6,6 +6,10 @@ import { citationPlatformFor, runtimePlatformsFor } from '@/lib/pulse/platforms'
 import { MAX_PROMPTS } from '@/lib/pulse/limits'
 import { computeWeeklySummary } from '@/lib/pulse/summary'
 import { resolveCommercialEntitlement, type CommercialAccount } from '@/lib/tier'
+import { isFeatureEnabled } from '@/lib/flags'
+import { runPulseChunk } from '@/lib/pulse/runs/service'
+import { currentScanWeek } from '@/lib/pulse/schedule'
+import { isoDate } from '@/lib/iso-date'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,10 +30,9 @@ export const dynamic = 'force-dynamic'
  *              + writes    (one insert per response, plus citations)
  *              ≈ 10s + 3s + 1s typical, ≈ 45s worst case
  *
- * 3 × ~13s ≈ 40s, inside the 60s vercel.json grants this route with margin for
- * one slow platform. MAX_CHUNK stays higher for a caller that knows its own
- * plan's ceiling. Raising DEFAULT_CHUNK without raising maxDuration reintroduces
- * the timeout this replaced.
+ * The compatibility writer retains the old prompt cursor. With the ledger flag
+ * enabled, work uses immutable items, leases and one concurrent model batch.
+ * T07's consumer handles further batches within a measured request deadline.
  */
 const DEFAULT_CHUNK = 3
 const MAX_CHUNK = 12
@@ -57,8 +60,8 @@ function positiveInt(value: unknown, fallback: number, max: number): number {
  * survives that inversion and doubles as cost control: a plan that grants no
  * platforms is refused before any LLM spend.
  *
- * **Nothing invokes this route.** vercel.json declares no crons and no other
- * caller exists, so Pulse data appears only when something calls this by hand.
+ * The authenticated Pulse cron invokes this producer. Deployment and active
+ * scheduling still require independent operational evidence.
  */
 export async function POST(req: NextRequest) {
   // Explicit, not incidental. The pre-fence check compared a possibly-undefined
@@ -91,11 +94,11 @@ export async function POST(req: NextRequest) {
 
   const sql = db()
 
-  let client: { brand_name: string; competitors: string[]; industry: string | null }
+  let client: { account_id: string; brand_name: string; competitors: string[]; industry: string | null }
   let platforms: string[]
   try {
     const rows = await sql`
-      select c.brand_name, c.industry, c.competitors,
+      select c.account_id, c.brand_name, c.industry, c.competitors,
              a.plan, a.status, a.stripe_subscription_id, a.trial_ends_at,
              a.override_plan, a.override_expires_at
       from clients c
@@ -107,6 +110,7 @@ export async function POST(req: NextRequest) {
     if (!row) return NextResponse.json({ error: 'Client not found' }, { status: 404 })
 
     client = {
+      account_id: String(row.account_id),
       brand_name: String(row.brand_name ?? ''),
       industry: (row.industry as string | null) ?? null,
       competitors: (row.competitors as string[] | null) ?? [],
@@ -127,6 +131,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'PLAN_HAS_NO_PLATFORMS' }, { status: 403 })
   }
 
+  if (isFeatureEnabled('pulse_attempts')) {
+    try {
+      return NextResponse.json(await runPulseChunk({accountId:client.account_id,clientId},{
+        scanWeek:currentScanWeek(),platforms,limit:chunk,deadlineAt:Date.now()+45_000,
+      }))
+    } catch {
+      return NextResponse.json({error:'Pulse ledger unavailable',cursor},{status:503})
+    }
+  }
+
   let prompts: Array<{ id: string; question: string; category: string | null }>
   let scanWeek: string
   try {
@@ -143,8 +157,8 @@ export async function POST(req: NextRequest) {
     // timezone while toISOString() is always UTC, so computing it here and
     // reusing it below is what stops a run near midnight writing metrics into
     // one week and rolling up another.
-    const [week] = await sql`select date_trunc('week', now())::date as scan_week`
-    scanWeek = String((week as { scan_week: string | Date }).scan_week)
+    const [week] = await sql`select date_trunc('week', now() at time zone 'UTC')::date as scan_week`
+    scanWeek = isoDate((week as { scan_week: string | Date }).scan_week,currentScanWeek())
   } catch {
     console.error('[pulse/run] prompt lookup failed')
     return NextResponse.json({ error: 'Prompt lookup failed' }, { status: 503 })
@@ -165,48 +179,39 @@ export async function POST(req: NextRequest) {
         platforms,
       ).catch(() => [])
 
-      // Clear this prompt's rows for the week before writing them, so
-      // reprocessing it replaces rather than accumulates.
-      //
-      // pulse_metrics has no unique key, so nothing at the schema level stops a
-      // second pass doubling a prompt's rows — and total_queries is a count over
-      // exactly those rows, so a duplicate inflates sov_score, the number the
-      // whole feature reports. That was survivable while nothing invoked this
-      // route; with a scheduler driving it, reprocessing is routine (a retried
-      // chunk, an explicit cursor, a prompt deactivated mid-week moving the
-      // derived cursor back). Doing it here rather than in a migration keeps
-      // this correct whether or not the pending ledger ever gets a unique index.
-      await sql`
-        delete from pulse_metrics
-        where client_id = ${clientId}
-          and prompt_id = ${prompt.id}
-          and scan_week = ${scanWeek}::date
-      `
-
       // Concurrent across responses, not sequential. Each analysis is its own
       // LLM round trip; awaiting them one after another made a single prompt
       // cost the sum of five latencies rather than the largest, which is what
       // put a chunk far outside any function limit. Five platforms is the
       // ceiling, so the added concurrency is bounded.
       const written = await Promise.all(responses.map(async response => {
-        // Degrades to a substring match rather than losing the row; see
-        // lib/pulse/analysis.ts.
+        // Preserve raw evidence; fallback is explicitly unknown.
         const analysis = await analyseAnswer({
           answer: response.answer,
           brandName: client.brand_name,
           competitors: client.competitors,
         })
 
-        await sql`
+        // Compatibility writer preserves successful legacy answers on retry.
+        const [, inserted] = await sql.transaction([
+          sql`select id from clients where id = ${clientId} and account_id = ${client.account_id} for update`,
+          sql`
           insert into pulse_metrics (
             client_id, prompt_id, platform, question, raw_answer,
-            brand_mentioned, sentiment, mention_position, competitors_mentioned, scan_week
-          ) values (
+            brand_mentioned, sentiment, mention_position, competitors_mentioned, scan_week,
+            classification_status,classifier_method,classifier_version,matched_text
+          ) select
             ${clientId}, ${prompt.id}, ${response.platform}, ${prompt.question}, ${response.answer},
             ${analysis.brandMentioned}, ${analysis.sentiment}, ${analysis.mentionPosition},
-            ${analysis.competitorsMentioned}::text[], ${scanWeek}::date
-          )
-        `
+            ${analysis.competitorsMentioned}::text[], ${scanWeek}::date,
+            ${analysis.classificationStatus},${analysis.method},${analysis.version},${JSON.stringify(analysis.matchedText)}::jsonb
+          where exists(select 1 from clients where id = ${clientId} and account_id = ${client.account_id})
+            and not exists(select 1 from pulse_metrics where client_id = ${clientId} and prompt_id = ${prompt.id}
+              and scan_week = ${scanWeek}::date and platform = ${response.platform} and nullif(btrim(raw_answer),'') is not null)
+          returning id
+        `,
+        ])
+        if (!inserted.length) return 0
 
         const citationPlatform = citationPlatformFor(response.platform)
         if (!citationPlatform) return 0

@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { isPromptCategory } from '@/lib/prompts/categories'
 import { authorizePromptBank } from '@/lib/prompts/guard'
 import { MAX_PROMPTS } from '@/lib/pulse/limits'
+import { parsePromptContext } from '@/lib/prompts/context'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,10 +35,10 @@ export async function GET(
     // 24 rows an onboarding writes share one value and intra-category order
     // would otherwise vary between requests.
     const prompts = await sql`
-      select id, client_id, category, question, language, is_active, created_at
-      from prompt_bank
-      where client_id = ${clientId}
-      order by category, created_at, id
+      select p.id, p.client_id, p.category, p.question, p.language, p.market, p.is_active, p.created_at
+      from prompt_bank p join clients c on c.id = p.client_id
+      where p.client_id = ${clientId} and c.account_id = ${access.accountId}
+      order by p.category, p.created_at, p.id
     `
     return Response.json({ prompts })
   } catch {
@@ -76,24 +77,28 @@ export async function POST(
   if (question.length > MAX_QUESTION_LENGTH) {
     return Response.json({ error: 'question too long' }, { status: 400 })
   }
-  const language = typeof body.language === 'string' && body.language.trim()
-    ? body.language.trim().slice(0, 16)
-    : 'en'
+  // Validate provided fields before a lookup. Missing language is resolved only
+  // from an explicitly saved brand default, never from request/UI locale.
+  try { parsePromptContext({ language: body.language === undefined ? 'en' : body.language, market: body.market }) }
+  catch { return Response.json({ error: 'Invalid prompt context' }, { status: 400 }) }
 
   const sql = db()
   try {
-    // Ownership and capacity in one round trip. The capacity number is advisory
-    // — two concurrent adds can overshoot by one, which is harmless — but the
-    // ownership predicate below is authoritative.
+    // Read confirmed defaults and reject an already-full bank early. The write
+    // rechecks capacity after taking the same client lock as onboarding seed.
     const owned = await sql`
-      select c.id,
+      select c.id, c.region,
+             (select draft->>'language' from onboarding_progress op where op.client_id = c.id and op.account_id = c.account_id) as prompt_language,
              (select count(*)::int from prompt_bank b where b.client_id = c.id) as prompt_count
       from clients c
       where c.id = ${clientId} and c.account_id = ${access.accountId}
       limit 1
     `
-    const row = owned[0] as { prompt_count: number } | undefined
+    const row = owned[0] as { prompt_count: number; prompt_language?: unknown; region?: unknown } | undefined
     if (!row) return Response.json({ error: 'Not found' }, { status: 404 })
+    let context
+    try { context = parsePromptContext(body, { language: row.prompt_language, market: row.region }) }
+    catch { return Response.json({ error: 'Prompt language must be confirmed' }, { status: 400 }) }
     if (row.prompt_count >= MAX_PROMPTS) {
       // Refused rather than accepted-and-ignored: past this the weekly run
       // silently scans an arbitrary subset, so a 201 here would be a lie.
@@ -106,14 +111,18 @@ export async function POST(
     // The tenancy predicate is re-asserted inside the write, so the decision
     // that matters is never TOCTOU. client_id comes from the path, never the
     // body.
-    const inserted = await sql`
-      insert into prompt_bank (client_id, category, question, language, is_active)
-      select c.id, ${body.category}::text, ${question}::text, ${language}::text, true
+    const [locked,inserted] = await sql.transaction([
+      sql`select c.id from clients c where c.id=${clientId} and c.account_id=${access.accountId} for no key update`,
+      sql`
+      insert into prompt_bank (client_id, category, question, language, market, is_active)
+      select c.id, ${body.category}::text, ${question}::text, ${context.language}::text, ${context.market}::text, true
       from clients c
       where c.id = ${clientId} and c.account_id = ${access.accountId}
-      returning id, client_id, category, question, language, is_active, created_at
-    `
-    if (!inserted[0]) return Response.json({ error: 'Not found' }, { status: 404 })
+        and (select count(*) from prompt_bank p where p.client_id=c.id)<${MAX_PROMPTS}
+      returning id, client_id, category, question, language, market, is_active, created_at
+    `])
+    if (!locked[0]) return Response.json({ error: 'Not found' }, { status: 404 })
+    if (!inserted[0]) return Response.json({error:'PROMPT_LIMIT_REACHED',max:MAX_PROMPTS},{status:409})
     return Response.json({ prompt: inserted[0] }, { status: 201 })
   } catch {
     // A 2xx must mean the write happened.

@@ -11,7 +11,13 @@ import {
   type SourceEntry,
   type SourceKind,
 } from './schema'
-import { importSource, listSources, readSource, revokeSource, setAgentUse, type SourceScope } from './store'
+import { approveSourceVersion, importSource, readSource, revokeSource, setAgentUse, type SourceScope } from './store'
+import { listSourcePage } from './pagination'
+import { parseSourceQuery } from './query'
+import { previewSourceImport } from './import-preview'
+import { buildSourcePack } from '@/lib/view-models/source-pack'
+import { db } from '@/lib/db'
+import { loadOwnedDraftClient } from '@/lib/work-items/store'
 
 /**
  * Auth, then ownership, in that order and in one place, so a route cannot do one
@@ -44,7 +50,7 @@ const json = (value: unknown, status = 200) => Response.json(value, { status, he
 function errorResponse(error: unknown): Response {
   if (error instanceof SourceServiceError) return json({ error: error.code }, STATUS[error.code])
   // An input error carries a specific, non-sensitive code the UI can localise.
-  if (error instanceof SourceInputError) return json({ error: error.code }, 400)
+  if (error instanceof SourceInputError) return json({ error: error.code }, error.code==='SOURCE_PAGE_CHANGED'?409:400)
   // Anything unrecognised is a dependency failure, never a silent success.
   return json({ error: 'SOURCES_UNAVAILABLE' }, 503)
 }
@@ -91,11 +97,24 @@ function entriesFrom(input: Record<string, unknown>, method: ImportMethod): Sour
   return parseSourceEntries(input.entries)
 }
 
-export async function listClientSources(clientId: string): Promise<Response> {
+export async function listClientSources(clientId: string,request?:Request): Promise<Response> {
   try {
     const scope = await authorize(clientId)
-    return json({ sources: await listSources(scope) })
+    const page=await listSourcePage(scope,parseSourceQuery(request?new URL(request.url).searchParams:new URLSearchParams(),scope.accountId,clientId))
+    if(!page)throw new SourceServiceError('SOURCES_NOT_FOUND')
+    return json({...page,sources:page.items,pack:buildSourcePack(page.items)})
   } catch (error) { return errorResponse(error) }
+}
+export async function previewClientSource(clientId:string,request:Request):Promise<Response>{
+ try{
+  const scope=await authorize(clientId)
+  if(!await loadOwnedDraftClient(scope.accountId,clientId))throw new SourceServiceError('SOURCES_NOT_FOUND')
+  const input=await body(request)
+  const sourceKey=text(input.sourceKey,'SOURCE_KEY_INVALID',120).toLowerCase()
+  const preview=typeof input.csv==='string'?previewSourceImport({csv:input.csv}):previewSourceImport({rows:input.rows as {rowNumber:number;question:string;answer:string}[]})
+  const [source]=await db()`select latest_version from client_sources where account_id=${scope.accountId} and client_id=${clientId} and source_key=${sourceKey}`
+  return json({...preview,expectedLatestVersion:Number(source?.latest_version??0)})
+ }catch(error){return errorResponse(error)}
 }
 
 export async function importClientSource(clientId: string, request: Request): Promise<Response> {
@@ -103,11 +122,19 @@ export async function importClientSource(clientId: string, request: Request): Pr
     const scope = await authorize(clientId)
     const input = await body(request)
     const importMethod = choice(input.importMethod, IMPORT_METHODS, 'SOURCE_IMPORT_METHOD_INVALID')
+    if(input.expectedLatestVersion!==undefined&&(!Number.isSafeInteger(input.expectedLatestVersion)||(input.expectedLatestVersion as number)<0))throw new SourceServiceError('SOURCES_INVALID_INPUT')
+    let entries:SourceEntry[]
+    if(input.previewRowCount!==undefined){
+      if(importMethod!=='csv'||!Number.isSafeInteger(input.previewRowCount)||!Array.isArray(input.entries)||input.entries.length!==input.previewRowCount||input.expectedLatestVersion===undefined)throw new SourceInputError('SOURCE_PREVIEW_INVALID')
+      const preview=previewSourceImport({rows:input.entries.map((entry,index)=>({...entry,rowNumber:index+1}))})
+      if(preview.invalidCount||(input.previewContentHash!==null&&preview.contentHash!==input.previewContentHash))throw new SourceInputError('SOURCE_PREVIEW_INVALID')
+      entries=preview.rows.map(row=>row.entry!)
+    }else entries=entriesFrom(input,importMethod)
     const result = await importSource(scope, {
       sourceKey: text(input.sourceKey, 'SOURCE_KEY_INVALID', 120).toLowerCase(),
       kind: choice(input.kind, SOURCE_KINDS, 'SOURCE_KIND_INVALID') as SourceKind,
       label: text(input.label, 'SOURCE_LABEL_INVALID', 160),
-      entries: entriesFrom(input, importMethod),
+      entries,
       importMethod,
       originRef: input.originRef === undefined || input.originRef === null
         ? null : text(input.originRef, 'SOURCE_ORIGIN_INVALID', 500),
@@ -115,10 +142,11 @@ export async function importClientSource(clientId: string, request: Request): Pr
       // they do the source is excluded from agent use even when the flag is on —
       // see listAgentUsableSources.
       approve: input.approve === true,
+      expectedLatestVersion:input.expectedLatestVersion as number|undefined,
     })
     if (result.kind === 'not-found') throw new SourceServiceError('SOURCES_NOT_FOUND')
-    if (result.kind === 'revoked') throw new SourceServiceError('SOURCES_CONFLICT')
-    return json({ result: result.kind, source: result.source }, result.kind === 'created' ? 201 : 200)
+    if (result.kind === 'revoked'||result.kind==='conflict') throw new SourceServiceError('SOURCES_CONFLICT')
+    return json({ result: result.kind, approval: result.approval, source: result.source }, result.kind === 'created' ? 201 : 200)
   } catch (error) { return errorResponse(error) }
 }
 
@@ -144,5 +172,24 @@ export async function readClientSource(clientId: string, sourceId: string): Prom
     const source = await readSource(scope, sourceId)
     if (!source) throw new SourceServiceError('SOURCES_NOT_FOUND')
     return json({ source })
+  } catch (error) { return errorResponse(error) }
+}
+
+export async function approveClientSourceVersion(clientId: string, sourceId: string, versionId: string, request: Request): Promise<Response> {
+  try {
+    const scope = await authorize(clientId)
+    const input = await body(request)
+    if (!Number.isSafeInteger(input.expectedLatestVersion) || Number(input.expectedLatestVersion) < 1
+      || typeof input.expectedContentHash !== 'string' || !/^[a-f0-9]{64}$/.test(input.expectedContentHash)
+      || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(sourceId)
+      || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(versionId)) {
+      throw new SourceServiceError('SOURCES_INVALID_INPUT')
+    }
+    const result = await approveSourceVersion(scope, { sourceId, versionId,
+      expectedLatestVersion: Number(input.expectedLatestVersion), expectedContentHash: input.expectedContentHash })
+    if (result.kind === 'not-found') throw new SourceServiceError('SOURCES_NOT_FOUND')
+    if (result.kind === 'conflict' || result.kind === 'revoked') throw new SourceServiceError('SOURCES_CONFLICT')
+    if (!('source' in result)) throw new SourceServiceError('SOURCES_CONFLICT')
+    return json({ result: result.kind, source: result.source })
   } catch (error) { return errorResponse(error) }
 }

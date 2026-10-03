@@ -69,11 +69,11 @@ describe('question bank page', () => {
     const page = code(PAGE)
     const query = page.slice(page.indexOf('from prompt_bank'))
 
-    expect(query).toContain('where client_id = ${clientId}')
+    expect(query).toContain('where p.client_id = ${clientId} and c.account_id = ${profile.account_id}')
   })
 
   it('orders identically to the API so the two never disagree', () => {
-    expect(code(PAGE)).toContain('order by category, created_at, id')
+    expect(code(PAGE)).toContain('order by p.category, p.created_at, p.id')
   })
 
   it('normalises lang before handing it to requireAuth', () => {

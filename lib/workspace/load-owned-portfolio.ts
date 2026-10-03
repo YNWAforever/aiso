@@ -2,6 +2,7 @@ import 'server-only'
 import { db } from '@/lib/db'
 import { resolveCommercialEntitlement, type CommercialAccount, type EffectivePlan } from '@/lib/tier'
 import { projectObservedSummary, type ObservedPulseSummary } from '@/lib/pulse/observed-summary'
+import { attachManifestCoverage } from '@/lib/pulse/runs/read-coverage'
 import type { ClientOverview } from '@/lib/types'
 import type { WorkspaceClient } from '@/lib/workspace/load-owned-workspace'
 
@@ -72,7 +73,7 @@ export async function loadOwnedPortfolio({ profile }: { profile: { account_id: s
         ), observations as (
           select m.client_id, m.scan_week, count(*)::int as observed_queries,
             count(*) filter (where m.brand_mentioned = true and m.raw_answer ~ '[^[:space:]]')::int as observed_brand_mentions,
-            count(*) filter (where m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_queries,
+            count(*) filter (where to_jsonb(m)->>'classification_status'='classified' and m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_queries,
             count(distinct m.platform) filter (where m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_platform_count
           from pulse_metrics m join owned_clients c on c.id = m.client_id
           join latest_weeks w on w.client_id = m.client_id and w.scan_week = m.scan_week
@@ -85,7 +86,7 @@ export async function loadOwnedPortfolio({ profile }: { profile: { account_id: s
         order by w.client_id
       `
       const byClient = new Map<string, Record<string, unknown>[]>()
-      for (const row of observations) {
+      for (const row of await attachManifestCoverage(sql,accountId,ids,observations)) {
         if (typeof row.client_id !== 'string') continue
         const group = byClient.get(row.client_id) ?? []
         group.push(row); byClient.set(row.client_id, group)

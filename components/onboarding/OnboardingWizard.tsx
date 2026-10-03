@@ -1,7 +1,8 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronRight, Zap, X } from 'lucide-react'
+import { PROMPT_MARKETS, isPromptLanguage, type PromptLanguage } from '@/lib/prompts/context'
 
 const INDUSTRIES = [
   { value: 'technology',         labelEn: 'Technology',            labelZh: '科技' },
@@ -19,19 +20,7 @@ const INDUSTRIES = [
   { value: 'general_b2c',        labelEn: 'General B2C',           labelZh: '一般 B2C' },
 ]
 
-const REGIONS = [
-  { value: 'HK',     labelEn: 'Hong Kong',      labelZh: '香港' },
-  { value: 'TW',     labelEn: 'Taiwan',         labelZh: '台灣' },
-  { value: 'SG',     labelEn: 'Singapore',      labelZh: '新加坡' },
-  { value: 'JP',     labelEn: 'Japan',          labelZh: '日本' },
-  { value: 'KR',     labelEn: 'South Korea',    labelZh: '南韓' },
-  { value: 'US',     labelEn: 'United States',  labelZh: '美國' },
-  { value: 'UK',     labelEn: 'United Kingdom', labelZh: '英國' },
-  { value: 'EU',     labelEn: 'European Union', labelZh: '歐盟' },
-  { value: 'AU',     labelEn: 'Australia',      labelZh: '澳洲' },
-  { value: 'CA',     labelEn: 'Canada',         labelZh: '加拿大' },
-  { value: 'global', labelEn: 'Global',         labelZh: '全球' },
-]
+const REGIONS = PROMPT_MARKETS
 
 const COPY_EN = {
   stepOf: (step: number, total: number) => `Step ${step} of ${total}`,
@@ -46,7 +35,8 @@ const COPY_EN = {
   s2HintNot: 'not',
   s2Skip: "Skip — I don't have a website yet",
   s3Title: 'Your industry & region',
-  s3Subtitle: 'Personalises your AI authority score and Pulse benchmarks.',
+  s3Subtitle: 'Confirm the language and market for your tracking questions.',
+  questionLanguage: 'Question language',
   industryPlaceholder: 'Industry (optional)',
   regionPlaceholder: 'Region (optional)',
   s3Skip: 'Skip — set up later',
@@ -63,6 +53,9 @@ const COPY_EN = {
   goToDashboard: 'Go to my dashboard',
   s4Skip: "Skip — I'll set this up later",
   genericError: 'Something went wrong',
+  seedPartial: 'Your brand is saved. Question setup is incomplete; retry or continue to your workspace.',
+  retrySeed: 'Retry question setup',
+  openWorkspace: 'Open workspace',
   skipToMain: 'Skip to main content',
   removeCompetitor: (name: string) => `Remove ${name}`,
 }
@@ -80,7 +73,8 @@ const COPY_ZH_HK: typeof COPY_EN = {
   s2HintNot: '而非',
   s2Skip: '略過——我暫時未有網站',
   s3Title: '你的行業及地區',
-  s3Subtitle: '用於個人化你的 AI 權威分數及 Pulse 基準。',
+  s3Subtitle: '確認追蹤問題的語言及市場。',
+  questionLanguage: '問題語言',
   industryPlaceholder: '行業（可選）',
   regionPlaceholder: '地區（可選）',
   s3Skip: '略過——稍後設定',
@@ -97,6 +91,9 @@ const COPY_ZH_HK: typeof COPY_EN = {
   goToDashboard: '前往我的儀表板',
   s4Skip: '略過——我稍後再設定',
   genericError: '發生錯誤，請再試一次',
+  seedPartial: '品牌已儲存，問題設定尚未完成；你可重試或先進入工作區。',
+  retrySeed: '重試問題設定',
+  openWorkspace: '開啟工作區',
   skipToMain: '跳至主要內容',
   removeCompetitor: (name: string) => `移除${name}`,
 }
@@ -115,6 +112,7 @@ const TOTAL_STEPS = 4
 
 interface Props {
   lang: string
+  accountId?: string
   initialBrand?: string
   initialDomain?: string
   initialIndustry?: string
@@ -122,15 +120,41 @@ interface Props {
   scanId?: string
 }
 
-export function OnboardingWizard({
-  lang, initialBrand = '', initialDomain = '',
-  initialIndustry = '', initialRegion = '', scanId,
-}: Props) {
+type Draft = { intentKey?: string; brand?: string; domain?: string; industry?: string; region?: string; language?: PromptLanguage; description?: string; competitors?: string[]; step?: number; clientId?: string; partial?: boolean }
+const subscribeHydration = () => () => {}
+export function OnboardingWizard(props: Props) {
+  const ready = useSyncExternalStore(subscribeHydration, () => true, () => false)
+  const draftKey = `aiso:onboarding:${props.accountId ?? 'fixture'}:${props.scanId ?? 'new'}`
+  const draft = useMemo((): Draft => {
+    if (!ready) return {}
+    try {
+      const raw = sessionStorage.getItem(draftKey)
+      if (!raw || raw.length > 20000) return {}
+      const saved = JSON.parse(raw)
+      if (!saved || typeof saved.intentKey !== 'string') return {}
+      const clean: Draft = { intentKey: saved.intentKey }
+      for (const key of ['brand','domain','industry','region','description','clientId'] as const) {
+        if (typeof saved[key] === 'string') clean[key] = saved[key]
+      }
+      if (Array.isArray(saved.competitors) && saved.competitors.every((v: unknown) => typeof v === 'string')) clean.competitors = saved.competitors
+      if (Number.isInteger(saved.step) && saved.step >= 1 && saved.step <= TOTAL_STEPS) clean.step = saved.step
+      clean.partial = saved.partial === true
+      if (isPromptLanguage(saved.language)) clean.language = saved.language
+      return clean
+    } catch { return {} }
+  }, [ready, draftKey])
+  return <WizardForm key={`${draftKey}:${ready}`} {...props} draft={draft} draftReady={ready} />
+}
+
+function WizardForm({
+  lang, accountId = 'fixture', initialBrand = '', initialDomain = '',
+  initialIndustry = '', initialRegion = '', scanId, draft, draftReady,
+}: Props & { draft: Draft; draftReady: boolean }) {
   const router = useRouter()
   const isZh = lang === 'zh-HK'
   const c = isZh ? COPY_ZH_HK : COPY_EN
   const hasScanPrefill = Boolean(scanId && initialBrand && initialDomain)
-  const [step, setStep] = useState(hasScanPrefill ? 3 : 1)
+  const [step, setStep] = useState(draft.step ?? (hasScanPrefill ? 3 : 1))
   const previousStepRef = useRef(step)
   const stepHeadingRef = useRef<HTMLHeadingElement>(null)
 
@@ -142,16 +166,27 @@ export function OnboardingWizard({
     stepHeadingRef.current?.focus()
   }, [step])
 
-  const [brand, setBrand]           = useState(initialBrand)
-  const [domain, setDomain]         = useState(normaliseDomain(initialDomain))
-  const [industry, setIndustry]     = useState(initialIndustry)
-  const [region, setRegion]         = useState(initialRegion)
-  const [description, setDescription] = useState('')
-  const [competitors, setCompetitors] = useState<string[]>([])
+  const [brand, setBrand]           = useState(draft.brand ?? initialBrand)
+  const [domain, setDomain]         = useState(draft.domain ?? normaliseDomain(initialDomain))
+  const [industry, setIndustry]     = useState(draft.industry ?? initialIndustry)
+  const [region, setRegion]         = useState(draft.region ?? initialRegion)
+  const [language, setLanguage] = useState<PromptLanguage>(draft.language ?? (isZh ? 'zh-HK' : 'en'))
+  const [description, setDescription] = useState(draft.description ?? '')
+  const [competitors, setCompetitors] = useState<string[]>(draft.competitors ?? [])
   const [competitorInput, setCompetitorInput] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
+  const [intentKey, setIntentKey] = useState(() => draft.intentKey ?? (draftReady ? crypto.randomUUID() : ''))
+  const [clientId, setClientId] = useState<string | null>(draft.clientId ?? null)
+  const [partial, setPartial] = useState(draft.partial ?? false)
+  const submitted = useRef(false)
+  const draftKey = `aiso:onboarding:${accountId}:${scanId ?? 'new'}`
+  useEffect(() => {
+    if (!draftReady || submitted.current) return
+    try { sessionStorage.setItem(draftKey, JSON.stringify({ intentKey, brand, domain, industry, region, language, description, competitors, step, clientId, partial })) }
+    catch { /* Form state still survives in this tab when storage is unavailable. */ }
+  }, [draftReady, draftKey, intentKey, brand, domain, industry, region, language, description, competitors, step, clientId, partial])
 
   function handleDomainChange(raw: string) {
     // Normalise on the fly as the user types
@@ -173,7 +208,8 @@ export function OnboardingWizard({
   async function complete() {
     setLoading(true)
     setError('')
-    const res = await fetch('/api/onboarding/complete', {
+    try {
+      const res = await fetch('/api/onboarding/complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -181,21 +217,34 @@ export function OnboardingWizard({
         domain:      domain || undefined,
         industry:    industry || undefined,
         region:      region || undefined,
+        language,
+        market: region || null,
         description: description || undefined,
         competitors: competitors.length ? competitors : undefined,
         scanId,
+        intentKey: intentKey || undefined,
+        clientId: clientId || undefined,
       }),
     })
-    const data = await res.json()
-    if (!res.ok) { setError(data.error ?? c.genericError); setLoading(false); return }
-    if (scanId) {
-      router.push(`/${lang}/dashboard/${data.clientId}/result/${scanId}`)
-      return
-    }
+      const data = await res.json()
+      if (!res.ok) { setError(typeof data.error === 'string' ? data.error : c.genericError); return }
+      if (typeof data.clientId !== 'string' || !data.progress) throw new Error('Invalid progress')
+      setClientId(data.clientId)
+      if (typeof data.intentKey === 'string') setIntentKey(data.intentKey)
+      if (data.progress.prompts !== 'ready') { setPartial(true); setError(c.seedPartial); return }
+      submitted.current = true
+      try { sessionStorage.removeItem(draftKey) } catch { /* optional storage */ }
+      navigateToWorkspace(data.clientId)
+    } catch { setError(c.genericError) }
+    finally { setLoading(false) }
+  }
+
+  function navigateToWorkspace(targetClientId: string) {
+    if (scanId) { router.push(`/${lang}/dashboard/${targetClientId}/result/${scanId}`); return }
     const scanUrl = domain
       ? `?step=scan&url=${encodeURIComponent(domain.startsWith('http') ? domain : `https://${domain}`)}`
       : '?step=scan'
-    router.push(`/${lang}/dashboard/${data.clientId}${scanUrl}`)
+    router.push(`/${lang}/dashboard/${targetClientId}${scanUrl}`)
   }
 
   const progress = (step / TOTAL_STEPS) * 100
@@ -290,6 +339,12 @@ export function OnboardingWizard({
             <p className="text-sm text-muted-foreground mb-6">{c.s3Subtitle}</p>
             <div className="space-y-3 mb-6">
               <div>
+                <label htmlFor="onboarding-language" className="block text-xs font-semibold text-foreground mb-1.5">{c.questionLanguage}</label>
+                <select id="onboarding-language" name="language" value={language} onChange={e => { if (isPromptLanguage(e.target.value)) setLanguage(e.target.value) }} className={inputClass}>
+                  <option value="en">English</option><option value="zh-HK">繁體中文（香港）</option>
+                </select>
+              </div>
+              <div>
                 <label htmlFor="onboarding-industry" className="block text-xs font-semibold text-foreground mb-1.5">{c.industryPlaceholder}</label>
                 <select id="onboarding-industry" name="industry" value={industry} onChange={e => setIndustry(e.target.value)}
                   className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
@@ -327,6 +382,7 @@ export function OnboardingWizard({
             </p>
 
             {/* Brand description */}
+            <p className="mb-4 text-sm text-muted-foreground">{c.questionLanguage}: {language === 'en' ? 'English' : '繁體中文（香港）'} · {REGIONS.find(r => r.value === region)?.[isZh ? 'labelZh' : 'labelEn'] ?? c.regionPlaceholder}</p>
             <div className="mb-4">
               <label htmlFor="onboarding-description" className="block text-xs font-semibold text-foreground mb-1.5">
                 {c.descLabel} <span className="text-muted-foreground font-normal">{c.optional}</span>
@@ -388,10 +444,11 @@ export function OnboardingWizard({
             <div className="flex flex-wrap gap-3">
               <button onClick={() => setStep(3)} className={btnBack}>{c.back}</button>
               <button onClick={complete} disabled={loading} className={`${btnPrimary} disabled:opacity-60`}>
-                {loading ? c.settingUp : c.goToDashboard}
+                {loading ? c.settingUp : partial ? c.retrySeed : c.goToDashboard}
                 {!loading && <ChevronRight className="size-4" />}
               </button>
             </div>
+            {partial && clientId && <button type="button" onClick={() => navigateToWorkspace(clientId)} className={`${btnBack} mt-3 w-full`}>{c.openWorkspace}</button>}
             <button onClick={complete} disabled={loading} className="w-full text-xs text-muted-foreground hover:text-foreground mt-3 transition">
               {c.s4Skip}
             </button>

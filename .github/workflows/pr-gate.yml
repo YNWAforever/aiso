@@ -4,6 +4,12 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
+    inputs:
+      allow_disposable_role_password:
+        description: "Authorize synthetic aeo_app login password setup only on this run's fresh disposable Neon children"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -100,10 +106,18 @@ jobs:
       - run: npm ci
       - name: Install neonctl
         run: npm i -g neonctl
+      - name: Resolve disposable role authorization
+        id: disposable-role-authorization
+        run: node scripts/ci/resolve-disposable-role-authorization.mjs
+        env:
+          AISO_MANUAL_ROLE_APPROVAL: ${{ inputs.allow_disposable_role_password }}
+          AISO_REPOSITORY_ROLE_APPROVAL: ${{ vars.AISO_ALLOW_DISPOSABLE_ROLE_PASSWORD }}
       - name: Run integration suite
         shell: bash
         run: |
           mkdir -p artifacts/integration
+          # A durable metadata receipt survives cancellation of the buffered log pipe.
+          export AISO_TEST_CHECKOUT_SHA="$(git rev-parse HEAD)"
           set +e
           REQUIRE_INTEGRATION_TESTS=1 npx vitest run --config vitest.integration.config.ts --reporter=json --reporter=junit --outputFile.json=artifacts/integration/vitest.json --outputFile.junit=artifacts/integration/vitest.junit.xml 2>&1 | node scripts/redact.mjs | tee artifacts/integration/vitest.log
           vitest_exit=${PIPESTATUS[0]}
@@ -132,7 +146,7 @@ jobs:
           # failure, in the one job that touches a real database.
           mkdir -p artifacts/exact-target
           set +e
-          node scripts/ci/run-exact-target-suites.mjs 2>&1 | node scripts/redact.mjs | tee artifacts/exact-target/wrapper.log
+          node scripts/ci/run-exact-target-suites.mjs 2>&1 | node scripts/redact.mjs | tee artifacts/integration/exact-target-wrapper.log
           exact_exit=${PIPESTATUS[0]}
           set -e
           for report in artifacts/exact-target/*.json; do
@@ -151,13 +165,17 @@ jobs:
           counts_exit=$?
           set -e
           if [ "$counts_exit" -ne 0 ]; then status=failure; counts="0 0"; fi
-          node scripts/ci/write-job-summary.mjs --job integration --status "$status" --executed "${counts% *}" --skipped "${counts#* }" --artifact integration/vitest.log --artifact exact-target/wrapper.log --output artifacts/integration-summary.json
+          node scripts/ci/write-job-summary.mjs --job integration --status "$status" --executed "${counts% *}" --skipped "${counts#* }" --artifact integration/vitest.log --artifact integration/exact-target-wrapper.log --output artifacts/integration-summary.json
           if [ "$vitest_exit" -ne 0 ]; then exit "$vitest_exit"; fi
           if [ "$counts_exit" -ne 0 ]; then exit "$counts_exit"; fi
           exit "$exact_exit"
         env:
           CI: 'true'
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          # Manual opt-in applies only to this workflow_dispatch invocation.
+          # No input or persistent authorization means a failing gate, never skip.
+          ALLOW_DISPOSABLE_ROLE_PASSWORD: ${{ steps.disposable-role-authorization.outputs.allowed }}
+          AISO_RECORD_BRANCH_PROVENANCE: '1'
       - name: Upload integration diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -238,6 +256,13 @@ jobs:
           C9E_CSS_PATH: .next/component-fixtures/build.css
           C9F_HTML_DIR: .next/component-fixtures/C9F
           C9F_CSS_PATH: .next/component-fixtures/build.css
+          AISO_SOURCES_HTML_DIR: .next/component-fixtures/AISO_SOURCES
+          AISO_SOURCES_CSS_PATH: .next/component-fixtures/build.css
+          AISO_ONBOARDING_HTML_DIR: .next/component-fixtures/AISO_ONBOARDING
+          AISO_PRIORITY_HTML_DIR: .next/component-fixtures/AISO_PRIORITY
+          PROMPT_BANK_HTML_DIR: .next/component-fixtures/PROMPT_BANK
+          AUTH_RETURN_HTML_DIR: .next/component-fixtures/AUTH_RETURN
+          AUTH_RETURN_APP_URL: http://127.0.0.1:3000
           PLAYWRIGHT_JSON_OUTPUT_NAME: artifacts/e2e-accessibility/playwright-results.json
           PLAYWRIGHT_JUNIT_OUTPUT_NAME: artifacts/e2e-accessibility/playwright.junit.xml
       - name: Upload e2e-accessibility diagnostics

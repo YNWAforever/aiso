@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
+import { AUTH_RETURN_TO_HEADER, authLocale, safeReturnTo } from '@/lib/auth-return-to'
 import { auth } from '@/lib/neon-auth'
 import { db } from '@/lib/db'
 import type { ProfileWithAccount } from '@/lib/types'
@@ -57,9 +59,12 @@ export async function getProfile(): Promise<ProfileWithAccount | null> {
   } as unknown as ProfileWithAccount
 }
 
-export async function requireAuth(lang = 'en'): Promise<ProfileWithAccount> {
+export async function requireAuth(lang = 'en', returnTo?: string): Promise<ProfileWithAccount> {
   const profile = await getProfile()
-  if (!profile) redirect(`/${lang}/auth/login`)
+  if (!profile) {
+    const destination = safeReturnTo(returnTo ?? (await headers()).get(AUTH_RETURN_TO_HEADER), lang)
+    redirect(`/${authLocale(lang)}/auth/login?next=${encodeURIComponent(destination)}`)
+  }
   return profile
 }
 

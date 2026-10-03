@@ -1,14 +1,15 @@
 import { CORE_PTS, EXT_PTS, GEO_PTS } from '@/lib/scoring'
 import { readScanEvidence, type CollectionState, type EvidenceCheckKey } from '@/lib/scan-evidence'
+import { resolveCheckPriorities } from './check-priority'
 
 /**
  * The owner's three priorities and one next action.
  *
  * Home answers "what should I do now?", so it has to rank findings — but ranking
  * on a check's pass/warn/fail status alone conflates two different things.
- * `deriveQuickWins` in lib/impact.ts does exactly that, which is defensible on
- * the public result page where the reader is judging a score, and wrong here,
- * where the reader is being told what to go and fix.
+ * Public summaries, owner priorities and impact suggestions share the same
+ * collection/applicability resolver, so one surface cannot invent a fix that
+ * another correctly identifies as a gap in evidence.
  *
  * A check can read `fail` because the site genuinely lacks something, or because
  * the scan could not collect the evidence — a blocked fetch, an unsupported
@@ -17,7 +18,7 @@ import { readScanEvidence, type CollectionState, type EvidenceCheckKey } from '@
  * problem the owner may not have.
  *
  * So the collection state decides, not the verdict:
- *   collection 'complete' + fail/warn -> a priority, ranked by points at stake
+ *   collection 'complete' + applicable fail/warn -> fail first, stable key order
  *   any other collection              -> needsEvidence, never a priority
  *   no evidence envelope at all       -> insufficient-evidence, no priorities
  *
@@ -48,7 +49,7 @@ export type OwnerPriorities = {
    * unavailable           — no readable scan evidence at all
    */
   state: 'ready' | 'all-clear' | 'insufficient-evidence' | 'unavailable'
-  /** At most three, highest points at stake first. */
+  /** At most three, confirmed failures before warnings, stable key tie-break. */
   priorities: OwnerPriority[]
   /** The single next action: the top priority, or null when there is nothing to do. */
   primaryAction: OwnerPriority | null
@@ -85,26 +86,12 @@ export function buildOwnerPriorities(evidence: unknown): OwnerPriorities {
   const envelope = readScanEvidence(evidence)
   if (!envelope) return empty('unavailable')
 
-  const findings: OwnerPriority[] = []
-  const needsEvidence: UnobservedCheck[] = []
-
-  for (const [key, check] of Object.entries(envelope.checks)) {
-    const weighted = bucketOf(key)
-    // A key carrying no weight is not scored, so it cannot be points at stake.
-    if (!weighted) continue
-    if (check.collection !== 'complete') {
-      needsEvidence.push({ checkKey: key as EvidenceCheckKey, collection: check.collection })
-      continue
-    }
-    if (check.assessment !== 'fail' && check.assessment !== 'warn') continue
-    findings.push({
-      checkKey: key as EvidenceCheckKey,
-      bucket: weighted.bucket,
-      assessment: check.assessment,
-      // A warn already earns half its weight, so only half is still at stake.
-      pointsAtStake: check.assessment === 'fail' ? weighted.weight : weighted.weight / 2,
-    })
-  }
+  const resolution = resolveCheckPriorities(envelope.checks)
+  const needsEvidence = resolution.needsEvidence
+  const findings: OwnerPriority[] = resolution.ranked.map(check => {
+    const weighted = bucketOf(check.checkKey)!
+    return { ...check, bucket: weighted.bucket, pointsAtStake: check.assessment === 'fail' ? weighted.weight : weighted.weight / 2 }
+  })
 
   if (!findings.length) {
     // Nothing failing is only good news when we actually looked. If every check
@@ -112,9 +99,6 @@ export function buildOwnerPriorities(evidence: unknown): OwnerPriorities {
     return empty(needsEvidence.length ? 'insufficient-evidence' : 'all-clear', needsEvidence)
   }
 
-  // Points at stake first, check key second, so equal-weight findings order
-  // deterministically rather than by object insertion.
-  findings.sort((a, b) => b.pointsAtStake - a.pointsAtStake || a.checkKey.localeCompare(b.checkKey))
   const priorities = findings.slice(0, MAX_PRIORITIES)
 
   return {

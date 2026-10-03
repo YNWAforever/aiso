@@ -92,7 +92,7 @@ describe('Cloudflare cron-worker schedule', () => {
 
   it('runs the Search Console sync on the existing daily trigger, not a fourth one', () => {
     const worker = readFileSync(join(process.cwd(), 'cloudflare/cron-worker/src/index.ts'), 'utf8')
-    expect(worker).toMatch(/'0 9 \* \* \*':\s*\[\s*'\/api\/cron\/trial-emails',\s*'\/api\/cron\/search-console'\s*\]/)
+    expect(worker).toMatch(/'0 9 \* \* \*':\s*\[\s*'\/api\/cron\/trial-emails',\s*'\/api\/cron\/search-console',\s*'\/api\/cron\/pulse\?mode=repair'\s*\]/)
   })
 
   it('evaluates alerts after the rollup they read, on the same day', () => {

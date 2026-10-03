@@ -57,6 +57,10 @@ function scan(evidence: unknown): SourceEvidence {
 }
 
 describe('deriveSuggestions', () => {
+  it('T19 a c11 failure precedes c10 warning using the shared evidence severity rule', () => {
+    const suggestions = deriveSuggestions(scan(envelope({ c10_headings: { assessment: 'warn', collection: 'complete' }, c11_faq: { assessment: 'fail', collection: 'complete' } })))
+    expect(suggestions.map(s => s.source.checkKey)).toEqual(['c11_faq', 'c10_headings'])
+  })
   it('derives the versioned Pulse absent-brand review from one successful recorded answer', () => {
     const [suggestion] = deriveSuggestions(pulse())
     expect(suggestion).toMatchObject({

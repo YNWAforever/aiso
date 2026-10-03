@@ -30,7 +30,7 @@ async function fixture(
   ) as Record<string, string>
   const html = readFileSync(`${dir}/${lang}-${state}.html`, 'utf8')
   const style = readFileSync(css!, 'utf8'),
-    js = readFileSync(`${dir}/entity-fixture.js`, 'utf8')
+    js = readFileSync(`${dir}/${state.startsWith('verification') ? 'verification' : 'entity'}-fixture.js`, 'utf8')
   await page.route('**/*', (route) =>
     route.request().url() === 'https://entity.fixture/'
       ? route.fulfill({
@@ -47,6 +47,68 @@ async function fixture(
   )
   return copy
 }
+
+const proof = { state: 'unverified', domain: 'proof.fixture', token: 'aiso-site-verification=0123456789abcdef0123456789abcdef', path: '/.well-known/aiso-site-verification.txt', lastCheckedAt: null, lastOutcome: null }
+for (const lang of ['en', 'zh-HK']) {
+  test(`verification gets content before probing in ${lang}`, async ({ page }) => {
+    const copy = await fixture(page, lang, 'verification')
+    const methods: string[] = []
+    let release!: () => void
+    const gate = new Promise<void>(resolve => { release = resolve })
+    await page.route('**/domain-verification', async route => {
+      methods.push(route.request().method())
+      if (route.request().method() === 'GET') await gate
+      await route.fulfill({ json: route.request().method() === 'GET' ? proof : { ...proof, state: 'verified', lastOutcome: 'verified', lastCheckedAt: '2026-10-03T00:00:00Z' } })
+    })
+    expect(methods).toEqual([])
+    await expect(page.getByRole('button', { name: copy.verifyCheck, exact: true })).toHaveCount(0)
+    await page.getByRole('button', { name: copy.verifyGetContent, exact: true }).click()
+    await expect(page.getByRole('button', { name: copy.verifyGettingContent, exact: true })).toBeDisabled()
+    await expect(page.getByRole('button', { name: copy.verifyCheck, exact: true })).toHaveCount(0)
+    release()
+    await expect(page.getByText(proof.token, { exact: true })).toBeVisible()
+    await expect(page.getByText(proof.path, { exact: true })).toBeVisible()
+    expect(methods).toEqual(['GET'])
+    await page.getByRole('button', { name: copy.verifyCopy, exact: true }).click()
+    await expect(page.getByRole('status')).toHaveText(new RegExp(`${copy.verifyCopied}|${copy.verifyCopyFailed}`))
+    await page.getByRole('button', { name: copy.verifyCheck, exact: true }).click()
+    await expect(page.getByText(copy.verifyOutcomeVerified, { exact: false })).toBeVisible()
+    expect(methods).toEqual(['GET', 'POST'])
+    await page.setViewportSize({ width: 375, height: 900 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+    await page.screenshot({ path: `artifacts/aiso/T18/${lang}-ready.png`, fullPage: true })
+  })
+  test(`verification content failure can retry in ${lang}`, async ({ page }) => {
+    const copy = await fixture(page, lang, 'verification')
+    let reads = 0
+    await page.route('**/domain-verification', route => {
+      expect(route.request().method()).toBe('GET')
+      return route.fulfill(++reads === 1 ? { status: 503, json: {} } : { json: proof })
+    })
+    await page.getByRole('button', { name: copy.verifyGetContent, exact: true }).click()
+    await expect(page.getByRole('alert')).toHaveText(copy.unavailable)
+    await expect(page.getByText(proof.path, { exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: copy.verifyCheck, exact: true })).toHaveCount(0)
+    await page.getByRole('button', { name: copy.verifyGetContent, exact: true }).click()
+    await expect(page.getByText(proof.token, { exact: true })).toBeVisible()
+    expect(reads).toBe(2)
+  })
+}
+test('verification reload keeps issued token; changed domain requires new content', async ({ page }) => {
+  const copy = await fixture(page, 'en', 'verification-saved')
+  let calls = 0
+  await page.route('**/domain-verification', route => { calls++; return route.fulfill({ json: proof }) })
+  await expect(page.getByText(proof.token, { exact: true })).toBeVisible()
+  expect(calls).toBe(0)
+  await page.evaluate(() => {
+    const props = JSON.parse(document.getElementById('fixture-props')!.textContent!)
+    ;(window as unknown as { entityFixtureSwitch: (props: unknown) => void }).entityFixtureSwitch({ ...props, initial: { ...props.initial, domain: 'other.fixture', token: null, state: 'unverified', lastOutcome: null, lastCheckedAt: null } })
+  })
+  await expect(page.getByRole('button', { name: copy.verifyGetContent, exact: true })).toBeVisible()
+  await expect(page.getByText(proof.token, { exact: true })).toHaveCount(0)
+  expect(calls).toBe(0)
+})
 for (const lang of ['en', 'zh-HK'])
   for (const width of [375, 1440])
     for (const theme of ['light', 'dark'])

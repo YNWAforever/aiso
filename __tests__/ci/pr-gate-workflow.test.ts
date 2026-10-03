@@ -97,3 +97,41 @@ describe('PR gate workflow contract', () => {
     expect(needed).toEqual(jobNames.filter((name) => name !== 'pr-gate'))
   })
 })
+
+describe('single-run disposable role authorization', () => {
+  it('offers a manual opt-in that defaults off and feeds only the integration role gate', async () => {
+    const workflow = await readWorkflow()
+    expect(workflow).toMatch(/workflow_dispatch:\s*\n\s+inputs:\s*\n\s+allow_disposable_role_password:/)
+    const input = workflow.slice(workflow.indexOf('      allow_disposable_role_password:'), workflow.indexOf('\npermissions:'))
+    expect(input).toMatch(/type:\s+boolean/)
+    expect(input).toMatch(/default:\s+false/)
+    expect(input).not.toMatch(/default:\s+true/)
+    const integration = workflow.slice(workflow.indexOf('  integration:'), workflow.indexOf('\n  e2e-accessibility:'))
+    expect(integration).toContain('node scripts/ci/resolve-disposable-role-authorization.mjs')
+    expect(integration).toContain('AISO_MANUAL_ROLE_APPROVAL: ${{ inputs.allow_disposable_role_password }}')
+    expect(integration).toContain('ALLOW_DISPOSABLE_ROLE_PASSWORD: ${{ steps.disposable-role-authorization.outputs.allowed }}')
+  })
+  it('preserves and uploads the exact-target log outside the report reset directory', async () => {
+    const workflow = await readWorkflow()
+    const integration = workflow.slice(workflow.indexOf('  integration:'), workflow.indexOf('\n  e2e-accessibility:'))
+    const wrapper = await readFile(resolve(process.cwd(), 'scripts/ci/run-exact-target-suites.mjs'), 'utf8')
+    expect(wrapper).toContain("const REPORT_DIR = join('artifacts', 'exact-target')")
+    expect(wrapper).toContain('rmSync(REPORT_DIR, { recursive: true, force: true })')
+    const teePath = integration.match(/node scripts\/ci\/run-exact-target-suites\.mjs[^\r\n]*?tee ([^\s]+)/)?.[1]
+    expect(teePath).toBe('artifacts/integration/exact-target-wrapper.log')
+    expect(integration).toContain('--artifact integration/exact-target-wrapper.log')
+    expect(integration).toMatch(/Upload integration diagnostics[\s\S]*path:[\s\S]*artifacts\/integration\//)
+  })
+
+})
+
+
+it('records checkout-bound branch receipts outside buffered stdout', async () => {
+ const workflow = await readWorkflow()
+ const integration = workflow.slice(workflow.indexOf('  integration:'),workflow.indexOf('  e2e-accessibility:'))
+ expect(integration).toContain("AISO_RECORD_BRANCH_PROVENANCE: '1'")
+ expect(integration).toContain('export AISO_TEST_CHECKOUT_SHA="$(git rev-parse HEAD)"')
+ expect(integration.indexOf('export AISO_TEST_CHECKOUT_SHA')).toBeLessThan(integration.indexOf('npx vitest run'))
+ expect(integration).toMatch(/Upload integration diagnostics[\s\S]*if: always\(\)/)
+ expect(integration).toMatch(/path:[\s\S]*artifacts\/integration\//)
+})

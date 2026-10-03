@@ -1,13 +1,22 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { neon } from '@neondatabase/serverless'
 
 vi.mock('server-only', () => ({}))
-vi.mock('@/lib/db', async () => {
-  const { neon: connect } = await import('@neondatabase/serverless')
-  return { db: () => connect(process.env.TEST_DATABASE_URL!) }
-})
+const external = vi.hoisted(() => ({ profile: vi.fn(), file: vi.fn() }))
+vi.mock('@/lib/auth', () => ({ getProfile: external.profile }))
+vi.mock('@/lib/security/public-url', async original => ({
+  ...await original<typeof import('@/lib/security/public-url')>(),
+  createPublicUrlFetcher: () => external.file,
+}))
 
 const sql = neon(process.env.TEST_DATABASE_URL!)
+beforeAll(async () => {
+  const [identity] = await sql`select current_setting('neon.project_id') as project, current_setting('neon.branch_id') as branch, current_user as role`
+  expect(identity.project).toBe(process.env.EXPECTED_NEON_PROJECT_ID)
+  vi.stubEnv('DATABASE_URL', process.env.TEST_DATABASE_URL!)
+  vi.stubEnv('EXPECTED_NEON_BRANCH_ID', identity.branch)
+  vi.stubEnv('EXPECTED_DB_ROLE', identity.role)
+})
 
 /**
  * Domain-ownership verification against real Postgres (AC-03).
@@ -29,6 +38,8 @@ type Row = Record<string, unknown>
 const store = () => import('@/lib/domain-verification/store')
 
 beforeEach(async () => {
+  external.profile.mockResolvedValue({ id: OWNER, account_id: ACCOUNT })
+  external.file.mockReset()
   await sql`delete from client_domain_verifications where account_id in (${ACCOUNT}::uuid, ${OTHER_ACCOUNT}::uuid)`
   await sql`delete from client_entities where account_id in (${ACCOUNT}::uuid, ${OTHER_ACCOUNT}::uuid)`
   await sql`delete from clients where account_id in (${ACCOUNT}::uuid, ${OTHER_ACCOUNT}::uuid)`
@@ -47,6 +58,37 @@ beforeEach(async () => {
     insert into clients (id, account_id, brand_name, domain)
     values (${CLIENT}::uuid, ${ACCOUNT}::uuid, 'C1 fixture', 'https://Example.COM/pricing')
   `
+})
+
+describe('first-use service with controlled file fixture and guarded DB', () => {
+  it('issues content before a probe, reuses it on read, then persists the controlled proof', async () => {
+    const { readDomainVerification, checkDomainVerification } = await import('@/lib/domain-verification/service')
+    const first = await (await readDomainVerification(CLIENT)).json()
+    const second = await (await readDomainVerification(CLIENT)).json()
+    expect(first.token).toMatch(/^aiso-site-verification=[0-9a-f]{32}$/)
+    expect(second.token).toBe(first.token)
+    expect(external.file).not.toHaveBeenCalled()
+    // Only this synthetic file is served; this is not a claim about live ownership.
+    external.file.mockImplementation(async (url: string) => {
+      expect(url).toBe(`https://example.com${first.path}`)
+      return new Response(first.token)
+    })
+    const checked = await checkDomainVerification(CLIENT)
+    expect(checked.status).toBe(200)
+    expect((await checked.json()).state).toBe('verified')
+    expect((await (await readDomainVerification(CLIENT)).json()).token).toBe(first.token)
+    const [persisted] = await sql`select token, verified_at, issued_by from client_domain_verifications where account_id = ${ACCOUNT}::uuid and client_id = ${CLIENT}::uuid`
+    expect(persisted.token).toBe(first.token)
+    expect(persisted.verified_at).not.toBeNull()
+    expect(persisted.issued_by).toBe(OWNER)
+  })
+  it('returns no contents to account B', async () => {
+    external.profile.mockResolvedValue({ id: OWNER, account_id: OTHER_ACCOUNT })
+    const { readDomainVerification } = await import('@/lib/domain-verification/service')
+    const result = await readDomainVerification(CLIENT)
+    expect(result.status).toBe(404)
+    expect(external.file).not.toHaveBeenCalled()
+  })
 })
 
 describe('ensureVerificationToken', () => {

@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const CRON_SECRET = 'test-cron-secret-0123'
+vi.mock('server-only',()=>({}))
+const durable=vi.hoisted(()=>({consume:vi.fn(),readWeekly:vi.fn(),readCursor:vi.fn(),saveWeekly:vi.fn()}))
+vi.mock('@/lib/pulse/runs/worker',()=>({consumeDuePulseWork:durable.consume}))
+vi.mock('@/lib/pulse/runs/dispatch',()=>({readWeeklyEnqueue:durable.readWeekly,readRepairCursor:durable.readCursor,saveWeeklyEnqueue:durable.saveWeekly}))
 
 const calls: Array<{ text: string; params: unknown[] }> = []
 let candidateRows: unknown[]
@@ -37,6 +41,19 @@ vi.mock('next/server', async (importOriginal) => ({
 }))
 
 import { GET } from '@/app/api/cron/pulse/route'
+import { finishCronRun } from '@/lib/cron/recordRun'
+
+it('T07 chain_cap_is_partial rather than a successful completed cron',async()=>{
+  const response=await get(CRON_SECRET,200)
+  expect(await response.json()).toMatchObject({outcome:'partial',done:false})
+  expect(finishCronRun).toHaveBeenLastCalledWith('test-run-id','error',expect.objectContaining({outcome:'partial'}))
+})
+it('retains exact PostgreSQL cursor time across a legacy continuation request',async()=>{
+ const cursor={createdAt:'2026-10-01T00:00:00.123456Z',clientId:'00000000-0000-4000-8000-000000000001'}
+ candidateRows=[]
+ await GET(new Request(`http://localhost/api/cron/pulse?candidateAfter=${encodeURIComponent(JSON.stringify(cursor))}`,{headers:{authorization:`Bearer ${CRON_SECRET}`}}) as never)
+ expect(calls.find(call=>call.text.includes('order by c.created_at'))?.params).toContain(cursor.createdAt)
+})
 
 const fetchMock = vi.fn()
 const realFetch = globalThis.fetch
@@ -51,7 +68,7 @@ function get(secret: string | null = CRON_SECRET, hop?: number) {
 
 function account(plan: string, extra: Record<string, unknown> = {}) {
   return {
-    client_id: 'client-1', prompt_count: 24, scanned_prompts: 6,
+    client_id: 'client-1', created_at: '2026-10-01T00:00:00.000Z', prompt_count: 24, scanned_prompts: 6,
     plan, status: 'active', stripe_subscription_id: 'sub_1',
     trial_ends_at: null, override_plan: null, override_expires_at: null,
     ...extra,
@@ -60,6 +77,11 @@ function account(plan: string, extra: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   process.env.CRON_SECRET = CRON_SECRET
+  vi.stubEnv('FEATURE_PULSE_ATTEMPTS','0')
+  durable.consume.mockReset().mockResolvedValue({outcome:'partial',processed:1,remaining:14,failed:0,blocked:0,errors:0,runIds:['original-run'],coverage:{},hasDue:false,nextRunCursor:null,traversalComplete:true})
+  durable.readWeekly.mockReset().mockResolvedValue(null)
+  durable.readCursor.mockReset().mockResolvedValue(null)
+  durable.saveWeekly.mockReset().mockResolvedValue(undefined)
   calls.length = 0
   afterCallbacks.length = 0
   lookupFails = false
@@ -74,11 +96,29 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.unstubAllEnvs()
   globalThis.fetch = realFetch
   process.env.CRON_SECRET = CRON_SECRET
 })
 
 describe('GET /api/cron/pulse — authentication', () => {
+  it('repair is inert while the ledger flag is off',async()=>{
+    const response=await GET(new Request('http://localhost/api/cron/pulse?mode=repair',{headers:{authorization:`Bearer ${CRON_SECRET}`}}) as never)
+    expect(await response.json()).toMatchObject({skipped:'flag_off',done:false})
+    expect(durable.consume).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+  it('repair consumes the saved original-week dispatch and persists rotation',async()=>{
+    vi.stubEnv('FEATURE_PULSE_ATTEMPTS','1')
+    const original={scanWeek:'2026-09-28',after:null,failedClientIds:[],complete:false}
+    durable.readWeekly.mockResolvedValue({id:'weekly-intent',state:original})
+    durable.consume.mockResolvedValue({outcome:'partial',remaining:4,hasDue:false,nextRunCursor:null,enqueue:{...original,complete:true}})
+    const response=await GET(new Request('http://localhost/api/cron/pulse?mode=repair',{headers:{authorization:`Bearer ${CRON_SECRET}`}}) as never)
+    expect(await response.json()).toMatchObject({outcome:'partial',done:false,mode:'repair'})
+    expect(durable.consume).toHaveBeenCalledWith(expect.objectContaining({mode:'repair',enqueue:original,deadlineAt:expect.any(Number)}))
+    expect(durable.saveWeekly).toHaveBeenCalledWith('weekly-intent',original,{...original,complete:true})
+    expect(finishCronRun).toHaveBeenLastCalledWith('test-run-id','error',expect.objectContaining({outcome:'partial'}))
+  })
   it('accepts the Authorization: Bearer header Vercel Cron actually sends', async () => {
     // Vercel Cron sends GET with `Authorization: Bearer $CRON_SECRET` and no
     // body. The producer wants POST and x-cron-secret. This route exists to
@@ -190,6 +230,22 @@ describe('GET /api/cron/pulse — driving the producer', () => {
 })
 
 describe('GET /api/cron/pulse — selection', () => {
+  it('empty items at the deadline are deferred with a continuation cursor', async () => {
+    candidateRows = Array.from({ length: 100 }, (_, i) => account('free', {
+      client_id: `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`,
+      override_plan: 'pro', override_expires_at: '2020-01-01T00:00:00.000Z', stripe_subscription_id: null,
+    }))
+    const clock = vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(50_000)
+    try {
+      const body = await (await get()).json()
+      expect(body).toMatchObject({ done: false, deferred: true, processed: 0, scanned: 1,
+        candidateCursor: { clientId: '00000000-0000-4000-8000-000000000001' } })
+      expect(afterCallbacks).toHaveLength(1)
+      expect(fetchMock).not.toHaveBeenCalled()
+      await afterCallbacks[0]()
+      expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get('candidateAfter')).toContain('000000000001')
+    } finally { clock.mockRestore() }
+  })
   it('treats the aggregate summary row as the completion marker, not metrics', async () => {
     // pulse/run writes the platform-null row only on the chunk where nextCursor
     // is null. Testing pulse_metrics instead would make a client that finished
@@ -206,7 +262,7 @@ describe('GET /api/cron/pulse — selection', () => {
     await get()
 
     expect(calls[0].text).toMatch(/count\(distinct m\.prompt_id\)/)
-    expect(calls[0].text).toMatch(/date_trunc\('week', now\(\)\)::date/)
+    expect(calls[0].params).toEqual(expect.arrayContaining([expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)]))
   })
 
   it('never excludes a comped account in SQL', async () => {

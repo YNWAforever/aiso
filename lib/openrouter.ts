@@ -44,7 +44,11 @@ interface CallOptions {
 // the whole budget and take the surrounding request down with it.
 const DEFAULT_TIMEOUT_MS = 30_000
 
-export async function callOpenRouter({ label, model, messages, maxTokens = 2000, signal, responseFormat }: CallOptions): Promise<string> {
+export async function callOpenRouter(options: CallOptions): Promise<string> {
+  return (await callOpenRouterWithEvidence(options)).answer
+}
+
+export async function callOpenRouterWithEvidence({ label, model, messages, maxTokens = 2000, signal, responseFormat }: CallOptions): Promise<import('@/lib/pulse/runs/schema').ProviderEvidence> {
   const fail = (fields: Record<string, unknown>) => console.error({ event: 'openrouter_failed', label, model, ...fields })
 
   // Checked here rather than left to a 401: an empty key is a deployment fault,
@@ -109,7 +113,9 @@ export async function callOpenRouter({ label, model, messages, maxTokens = 2000,
     fail({ reason: 'no_content', finishReason: str(data?.choices?.[0]?.finish_reason) })
     throw new Error('OpenRouter returned no content')
   }
-  return content
+  return { answer: content, actualModel: str(data.model), requestId: str(data.id),
+    promptTokens: num(data.usage?.prompt_tokens), completionTokens: num(data.usage?.completion_tokens),
+    costUsd: num(data.usage?.cost), httpStatus: res.status }
 }
 
 /**
@@ -179,6 +185,10 @@ const PLATFORMS = [
 // must return a non-empty `endpoints` list, not merely a 200.
 
 export const PLATFORM_KEYS = PLATFORMS.map(p => p.platform)
+
+export function modelVariantsFor(platforms: readonly string[]) {
+  return PLATFORMS.filter(p => platforms.includes(p.platform)).map(p => ({ ...p }))
+}
 
 /**
  * Fans a prompt out across platforms, concurrently.

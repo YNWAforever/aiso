@@ -30,7 +30,7 @@ it('routes wrap owned replay/read/list/edit results with no-store',async()=>{
 it('returns 201 only for a confirmed insertion',async()=>{
  const {projectPulseOpportunityInput}=await import('@/lib/opportunities/store')
  const {deriveSuggestions}=await import('@/lib/opportunities/rules')
- const source=projectPulseOpportunityInput(id,{id,client_id:id,prompt_id:null,question:'Question?',platform:'chatgpt',scan_week:'2026-08-31',created_at:null,raw_answer:'PRIVATE',brand_mentioned:false,has_answer:true})
+ const source=projectPulseOpportunityInput(id,{id,client_id:id,prompt_id:null,question:'Question?',platform:'chatgpt',scan_week:'2026-08-31',created_at:null,raw_answer:'PRIVATE',classification_status:'classified',brand_mentioned:false,has_answer:true})
  const suggestion=deriveSuggestions(source.source)[0]
  mocks.profile.mockResolvedValue({id,account_id:id});mocks.owner.mockResolvedValue({id});mocks.find.mockResolvedValue(null);mocks.source.mockResolvedValue(source);mocks.create.mockResolvedValue({item:{id},created:true})
  const response=await POST(new Request('http://localhost',{method:'POST',body:JSON.stringify({source:suggestion.source,ruleVersion:suggestion.ruleVersion,fingerprint:suggestion.fingerprint,locale:'en'})}),{params:Promise.resolve({clientId:id})})
