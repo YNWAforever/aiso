@@ -2,6 +2,7 @@
 import { AlertTriangle } from 'lucide-react'
 import { useLocale } from 'next-intl'
 import type { ScanResults } from '@/lib/types'
+import { resolveCheckPriorities, type CheckPriorityState } from '@/lib/view-models/check-priority'
 
 interface IssueInfo {
   headline: string
@@ -232,42 +233,51 @@ const UI_ZH_HK: typeof UI_EN = {
   more: (n: number) => `+ 還發現 ${n} 個問題——免費建立帳戶即可查看完整分析 ↓`,
 }
 
-const CORE_ORDER = ['c1_robots','c2_llms_txt','c3_bot_access','c4_structured_data','c5_extractability']
-const EXT_ORDER  = ['c6_llms_full_txt','c7_mcp_card','c8_sitemap','c9_meta_desc','c10_headings','c11_faq','c12_canonical','c13_render','c14_internal_links','c15_entity','c16_freshness']
-const GEO_ORDER  = ['c17_citation_density','c18_factual_density','c19_topical_authority','c20_chunkability']
-
 interface Props {
   results: ScanResults & Record<string, unknown>
   failCount: number
+  priorityState?: CheckPriorityState
+  retryHref?: string
 }
 
-export function TopIssueCard({ results, failCount }: Props) {
+export function TopIssueCard({ results, failCount, priorityState, retryHref }: Props) {
   const locale = useLocale()
   const isZh = locale === 'zh-HK'
   const issueMap = isZh ? ISSUE_MAP_ZH_HK : ISSUE_MAP_EN
   const ui = isZh ? UI_ZH_HK : UI_EN
 
-  const allKeys = [...CORE_ORDER, ...EXT_ORDER, ...GEO_ORDER]
-  const topKey = allKeys.find(k => {
-    const r = results[k] as { status: string } | undefined
-    return r?.status === 'fail'
-  }) ?? allKeys.find(k => {
-    const r = results[k] as { status: string } | undefined
-    return r?.status === 'warn'
-  })
-
-  if (!topKey) return null
+  const resolution = resolveCheckPriorities(results)
+  const top = resolution.ranked[0]
+  const state = top ? 'ready' : priorityState ?? resolution.state
+  if (!top) {
+    const copy = isZh ? {
+      'insufficient-evidence': ['資料不足，暫未能選擇修復項目', '部分檢查未完成採集。重新掃描取得證據後，再確認改善項目。'],
+      'all-clear': ['已採集的檢查沒有待修復項目', '本次檢查均通過；這並不代表已驗證搜尋平台的實際曝光。'],
+      'not-applicable': ['本次檢查不適用', '沒有適用且已確認的修復項目。'],
+      ready: ['', ''],
+    } : {
+      'insufficient-evidence': ['More evidence is needed before choosing a fix', 'Some checks could not be collected. Scan again to confirm what needs attention.'],
+      'all-clear': ['No fixes found in the collected checks', 'The collected checks passed. Actual visibility on search platforms remains unverified.'],
+      'not-applicable': ['These checks do not apply', 'There are no applicable, confirmed fixes in this scan.'],
+      ready: ['', ''],
+    }
+    return <aside data-priority-state={state} className="rounded-2xl border border-border bg-card p-6">
+      <h2 className="text-lg font-semibold text-foreground">{copy[state][0]}</h2>
+      <p className="mt-2 text-sm text-muted-foreground">{copy[state][1]}</p>
+      {state === 'insufficient-evidence' && <a href={retryHref ?? `/${isZh ? 'zh-HK' : 'en'}`} className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground">{isZh ? '重新掃描' : 'Scan again'}</a>}
+    </aside>
+  }
+  const topKey = top.checkKey
   const issue = issueMap[topKey]
   if (!issue) return null
 
-  const topResult = results[topKey] as { status: 'warn' | 'fail' }
-  const severity = topResult.status === 'warn' ? 'warn' : 'fail'
+  const severity = top.assessment
   const severityLabel = ui.severity[severity]
   const styles = severity === 'warn'
     ? {
         card: 'border-amber-200 bg-amber-50',
         icon: 'bg-amber-500',
-        eyebrow: 'text-amber-600',
+        eyebrow: 'text-amber-800',
         badge: 'bg-amber-100 text-amber-800 ring-amber-200',
         quickFix: 'border-amber-100',
         more: 'text-amber-700',
@@ -282,7 +292,7 @@ export function TopIssueCard({ results, failCount }: Props) {
       }
 
   return (
-    <div data-severity={severity} className={`rounded-2xl border-2 p-6 ${styles.card}`}>
+    <div data-severity={severity} data-priority-check={topKey} className={`rounded-2xl border-2 p-6 ${styles.card}`}>
       <div className="flex items-start gap-3 mb-3">
         <div className={`size-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${styles.icon}`}>
           <AlertTriangle className="size-4 text-white" />

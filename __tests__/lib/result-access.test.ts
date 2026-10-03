@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildPublicResultSummary, canViewFullResult } from '@/lib/result-access'
+import { buildScanEvidence } from '@/lib/scan-evidence'
 
 const scan = {
   id: 'scan-1',
@@ -11,6 +12,8 @@ const scan = {
   region: 'HK',
   created_at: '2026-07-16T00:00:00.000Z',
   results: {
+    evidence: buildScanEvidence({ requestedUrl: 'https://example.com', evaluatedUrl: 'https://example.com', industry: 'technology', region: 'HK', sitemapSource: 'fetched',
+      checks: { c2_llms_txt: { assessment: 'fail', collection: 'complete' } } }),
     c1_robots: { status: 'pass', message: 'robots_ai_allowed', details: 'private raw evidence' },
     c2_llms_txt: { status: 'fail', message: 'llms_txt_missing', details: 'private remediation detail' },
     c3_bot_access: { status: 'pass', message: 'bots_all_accessible' },

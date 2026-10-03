@@ -5,6 +5,7 @@
  */
 import { CORE_PTS, EXT_PTS, GEO_PTS, assignGrade, capScore } from '@/lib/scoring'
 import type { CheckResult, CollectorAccess } from '@/lib/types'
+import { rankActionableChecks, resolveCheckPriorities } from '@/lib/view-models/check-priority'
 
 /* ── Types ───────────────────────────────────────────────────── */
 export type PlatformKey = 'chatgpt' | 'perplexity' | 'claude' | 'gemini' | 'google_aio'
@@ -27,6 +28,7 @@ export interface QuickWin {
 }
 
 export type HeadlineStat =
+  | { type: 'evidence_needed'; text: string }
   | { type: 'platforms_blocked'; count: number; total: number; text: string }
   | { type: 'low_readable'; percent: number; text: string }
   | { type: 'score_uplift'; delta: number; projectedScore: number; projectedGrade: string; text: string }
@@ -60,7 +62,6 @@ const EFFORT_MAP: Record<string, Effort> = {
   c3_bot_access: 'days', c5_extractability: 'days', c13_render: 'days',
   c17_citation_density: 'days', c19_topical_authority: 'days',
 }
-const EFFORT_FACTOR: Record<Effort, number> = { minutes: 1, hours: 2, days: 8 }
 
 const QUICK_WIN_LABELS: Record<string, string> = {
   c1_robots: 'Allow AI crawlers in robots.txt',
@@ -146,40 +147,40 @@ function deriveReadable(results: Record<string, unknown>): number | null {
 }
 
 /* ── Quick wins ──────────────────────────────────────────────── */
-function deriveQuickWins(results: Record<string, unknown>): QuickWin[] {
-  const wins: QuickWin[] = []
-  for (const key of Object.keys(ALL_WEIGHTS)) {
-    const check = getCheck(results, key)
-    if (!check || check.status === 'pass') continue
+function deriveQuickWins(checks: Record<string, unknown>): QuickWin[] {
+  return rankActionableChecks(checks).map(check => {
+    const key = check.checkKey
     const weight = ALL_WEIGHTS[key]!
-    const pointsGain = check.status === 'fail' ? weight : weight * 0.5
-    wins.push({
+    const pointsGain = check.assessment === 'fail' ? weight : weight * 0.5
+    return {
       key,
       label: QUICK_WIN_LABELS[key] ?? key,
       pointsGain,
       effort: EFFORT_MAP[key] ?? 'hours',
-    })
-  }
-  return wins.sort((a, b) =>
-    (b.pointsGain / EFFORT_FACTOR[b.effort]) - (a.pointsGain / EFFORT_FACTOR[a.effort]) ||
-    b.pointsGain - a.pointsGain,
-  )
+    }
+  })
 }
 
 /* ── Main ────────────────────────────────────────────────────── */
 export function computeImpact(
   results: Record<string, unknown>,
-  opts: { score: number; grade?: string; industry?: string | null },
+  opts: { score: number; grade?: string; industry?: string | null; confirmedChecks?: Record<string, unknown> },
 ): ImpactReport {
   let platformVisibility: PlatformVisibility[] = []
   let collectorAccess: CollectorAccess[] = []
   let aiReadablePercent: number | null = null
   let quickWins: QuickWin[] = []
+  const checks = opts.confirmedChecks ?? {}
+  const resolution = resolveCheckPriorities(checks)
+  const observed = Object.fromEntries(Object.entries(checks).filter(([, raw]) => {
+    const check = raw as { collection?: unknown; applicability?: unknown } | null
+    return check?.collection === 'complete' && check.applicability === 'applicable'
+  }).flatMap(([key]) => [[key, results[key]], [`${key}_data`, results[`${key}_data`]]]))
 
   try { platformVisibility = derivePlatforms(results) } catch { /* degrade */ }
-  try { collectorAccess = deriveCollectorAccess(results) } catch { /* degrade */ }
-  try { aiReadablePercent  = deriveReadable(results) }  catch { /* degrade */ }
-  try { quickWins          = deriveQuickWins(results) } catch { /* degrade */ }
+  try { collectorAccess = deriveCollectorAccess(observed) } catch { /* degrade */ }
+  try { aiReadablePercent  = deriveReadable(observed) }  catch { /* degrade */ }
+  try { quickWins          = deriveQuickWins(checks) } catch { /* degrade */ }
 
   const score = Number.isFinite(opts.score) ? opts.score : 0
   const uplift = quickWins
@@ -192,7 +193,9 @@ export function computeImpact(
   const blockedCount = collectorAccess.filter(p => p.policy === 'blocked' || p.probe === 'unreachable').length
 
   let headlineStat: HeadlineStat
-  if (blockedCount > 0) {
+  if (resolution.state === 'insufficient-evidence') {
+    headlineStat = { type: 'evidence_needed', text: 'More evidence is needed before estimating a fix or score improvement.' }
+  } else if (blockedCount > 0) {
     headlineStat = {
       type: 'platforms_blocked',
       count: blockedCount,
@@ -214,7 +217,7 @@ export function computeImpact(
       projectedGrade,
       text: delta > 0
         ? `Quick fixes could lift your score by ${delta} points to ${projectedScore} (${projectedGrade})`
-        : 'Your site is in great shape for AI search',
+        : 'No confirmed fixes identified in the collected checks; actual AI visibility remains unmeasured.',
     }
   }
 

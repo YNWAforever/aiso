@@ -171,11 +171,11 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
   const { pass, warn, fail, total } = summary.counts
   const r = (fullScan?.results ?? {}) as Record<string, unknown>
   const impact = fullScan
-    ? computeImpact(r, { score: fullScan.score, grade: fullScan.grade ?? 'F', industry: fullScan.industry })
+    ? computeImpact(r, { score: fullScan.score, grade: fullScan.grade ?? 'F', industry: fullScan.industry, confirmedChecks: ownedEvidence?.pillarInputs ?? {} })
     : null
   const publicImpact = { ...summary.teaser, aiReadablePercent: null, quickWins: [] }
   const topIssueResults = summary.topIssueKey && summary.topIssueStatus
-    ? { [summary.topIssueKey]: { status: summary.topIssueStatus, message: 'public_summary' } }
+    ? { [summary.topIssueKey]: { status: summary.topIssueStatus, assessment: summary.topIssueStatus, collection: 'complete', applicability: 'applicable', message: 'public_summary' } }
     : {}
 
   useEffect(() => {
@@ -248,6 +248,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
             {pass > 0 && <span className="bg-emerald-100 text-emerald-700 font-semibold px-2.5 py-1 rounded-full">✅ {ui.passing(pass)}</span>}
             {warn > 0 && <span className="bg-amber-100  text-amber-700  font-semibold px-2.5 py-1 rounded-full">⚠️ {ui.warnings(warn)}</span>}
             {fail > 0 && <span className="bg-red-100    text-red-700    font-semibold px-2.5 py-1 rounded-full">❌ {ui.failing(fail)}</span>}
+            {summary.counts.unknown > 0 && <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">{locale === 'zh-HK' ? `${summary.counts.unknown} 項資料不足` : `${summary.counts.unknown} need evidence`}</span>}
           </span>
         </div>
 
@@ -256,6 +257,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
           <TopIssueCard
             results={topIssueResults as ScanResults & Record<string, unknown>}
             failCount={fail + warn}
+            priorityState={summary.priorityState}
           />
         </div>
 

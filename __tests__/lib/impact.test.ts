@@ -2,7 +2,14 @@
  * TDD: Impact engine — deterministic modelled estimates from scan results
  */
 import { describe, it, expect } from 'vitest'
-import { computeImpact } from '@/lib/impact'
+import { computeImpact as actualImpact } from '@/lib/impact'
+// These arithmetic fixtures explicitly assert completed collection. Separate
+// priority tests cover missing/partial evidence through the actual API.
+function computeImpact(results: Record<string, unknown>, opts: Parameters<typeof actualImpact>[1]) {
+  return actualImpact(results, { ...opts, confirmedChecks: Object.fromEntries(Object.entries(results).map(([key, value]) => [key, {
+    collection: 'complete', applicability: 'applicable', assessment: (value as { status?: unknown })?.status,
+  }])) })
+}
 
 // ── Fixtures ────────────────────────────────────────────────────
 const pass = (msg = 'ok')  => ({ status: 'pass' as const, message: msg })
@@ -82,7 +89,7 @@ describe('computeImpact — quickWins & projection', () => {
     expect(faq?.pointsGain).toBe(1.5)
   })
 
-  it('ranks fast high-point fixes first', () => {
+  it('ranks confirmed failures in stable check-key order', () => {
     const results = allPassResults()
     results.c2_llms_txt = fail()          // 10 pts minutes
     results.c9_meta_desc = fail()         // 2 pts hours
