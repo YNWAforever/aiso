@@ -15,13 +15,13 @@ Recorded 2026-10-03 (Asia/Hong_Kong). This is an evidence register, not producti
 | Evidence | Current conclusion | Required readback |
 | --- | --- | --- |
 | Current production alias/app SHA | Refreshed: READY production dpl_3u2uYmVaoLGqGCTSWraVfUZXjzJ2, source f49e1bd, alias aiso-kappa.vercel.app | Alias, immutable deployment ID, source SHA |
-| Deployed Cloudflare worker | unknown | Deployment ID, deployed APP_BASE_URL override, enabled schedules |
+| Deployed Cloudflare worker | Refreshed13:25 HKT: deployment9ee2db8b-fc56-4ff9-a8cf-32eacbe3172b / version2546d97d-edb8-4a16-a257-2b7750ef8af8 at100%; schedules=[] (disabled); APP_BASE_URL absent, origin unverified | Deployment ID, deployed APP_BASE_URL override, enabled schedules |
 | Persistent schema | Read-only binding: weathered-wave-50814522 / br-square-mountain-az6f82vi / neondb / aeo_app; 52 ledger rows, tip 053; 054–059 absent | Binding/project/branch/role, ledger and concrete column/index/constraint verification |
 | Feature flags | unknown | Search Console / Pulse attempts / multi-source values for the target environment |
 | Last seven days of jobs | unknown | Last attempt and last complete success, outcome, brand/item coverage, next due time, disabled versus failed |
 | Role UAT | blocked live acceptance | Pro role, independent reviewer, account B, new account and nonempty observation fixtures |
 
-Source schedules: Pulse Monday 12:17 HKT, alerts Monday 15:47 HKT, daily trial emails, Search Console and original-run Pulse repair 17:00 HKT. Source default APP_BASE_URL is https://aeo.fimmick.com; it must not be changed based on an unverified deployed override. Empty logs and HTTP 200 cannot prove scheduler health. Google login is already complete and is not the missing gate.
+Configured legacy source schedules (not proof of active control-plane schedules): Pulse Monday 12:17 HKT, alerts Monday 15:47 HKT, daily trial emails, Search Console and original-run Pulse repair 17:00 HKT. Source default APP_BASE_URL is https://aeo.fimmick.com; it must not be changed based on an unverified deployed override. Empty logs and HTTP 200 cannot prove scheduler health. Google login is already complete and is not the missing gate.
 
 No production Pulse, email, authority elevation, AUDIT-source approval/permission/revocation or AUDIT-draft submission is authorized by these checks. T00 remains 受阻 only for the missing operational acceptance; independent repairs continue.
 
@@ -33,4 +33,10 @@ Full local logs: ignored `.superpowers/aiso-remediation/baseline-*.log`; defect 
 
 Vercel production is READY at the original SHA, not this candidate. The configured production DATABASE_URL answered the expected project/branch/role in-band before aggregate reads. Its ledger has 52 rows ending at `053_client_domain_verification.sql`; repository migration054 is also absent, so deployment must inspect the entire pending set054–059. No ledger baseline or migration was applied. Read-only seven-day `cron_runs` aggregate returned zero rows; Vercel grouped cron runtime logs returned zero groups. Both are unknown coverage, not healthy jobs or proof of disabled schedules. No customer rows, raw answers, tokens or error details were read. Sanitized identity/schema/job aggregate is `artifacts/aiso/T17/runtime-readonly.json`.
 
-The source AISO worker has no schedules; the legacy source worker has three schedules and a different default origin. Actual deployed overrides/version/flags remain unverified. T00 stays受阻. Google login remains completed in the original audit.
+The source AISO worker has no schedules; the legacy source worker has three schedules and a different default origin. At this10:21 readback, deployed overrides/version/flags were unverified; the later Worker refresh below supersedes only version/schedule metadata. T00 stays受阻. Google login remains completed in the original audit.
+
+## T00 Worker control-plane refresh, 2026-10-03 13:25 HKT
+
+GET-only deployment/settings/schedules/version/content readback confirms `aiso-cron-worker` deployment `9ee2db8b-fc56-4ff9-a8cf-32eacbe3172b`, version `2546d97d-edb8-4a16-a257-2b7750ef8af8` at100%, created2026-09-07. The active cron schedules array is empty: scheduling is disabled, with no confirmed next due time. Source handlers alone do not establish scheduling or job coverage. No `APP_BASE_URL` binding is present, although deployed source reads it; target origin is unverified. The1115-byte Worker module has SHA-256 `a178d5b14fd16bac26bf5def39c1e16445c7595573ba2ac5c6dcc33a5a8048bf` and exposes only Pulse, alerts and trial-email route constants; the candidate repair Worker is not deployed.
+
+Sanitized receipt: `artifacts/aiso/T17/ci-scope/worker-runtime-readonly.json`. Source was processed in memory and credentials were neither printed nor copied. No Worker invocation, provider request, email, deployment, schedule mutation or production migration occurred. Feature flags, actual item coverage, role UAT and controlled rollout remain unverified; T00 remains受阻 for those acceptance gates.

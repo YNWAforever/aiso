@@ -10,8 +10,8 @@ Multi-tenant SaaS that scores websites on **AEO / GEO** — how well AI answer e
 - **Local Trust** — trust/ROI scoring per brand, with a CSV export
   (`app/api/dashboard/clients/[clientId]/local-trust/`, `lib/localTrust/`).
 - **Pulse** — weekly monitoring of how often a brand is surfaced by LLM platforms
-  (`app/api/pulse/`, `lib/pulse/`). The producer is **live**: `/api/cron/pulse` drives
-  `POST /api/pulse/run` across five platforms weekly, and the dashboard's Monitor step
+  (`app/api/pulse/`, `lib/pulse/`). The producer route `/api/cron/pulse` drives
+  `POST /api/pulse/run` across configured platforms, and the dashboard's Monitor step
   renders the results. Scheduling is via `cloudflare/cron-worker/`, not Vercel Cron (see
   `docs/runbooks/deploy-cron-worker.md`).
 - Bilingual **en / zh-HK** (`next-intl`), billed through **Stripe**, deployed on **Vercel**.
@@ -23,12 +23,18 @@ producer (`POST /api/pulse/run`), the question bank (including AI question sugge
 `notifications` (restored), `cron/trial-emails` (restored 2026-08-22), content tools
 (`fix/cluster-map`, `fix/content-brief`, restored 2026-08-23), and `agents/*` (`competitors`,
 `progress`, `recommendations`, restored 2026-08-23). Alert *evaluation*
-is also live: it runs weekly (scheduled via `cloudflare/cron-worker/`, not Vercel Cron) and
+has an available producer route (scheduler source in `cloudflare/cron-worker/`) and
 emails threshold, week-over-week and recovery alerts, deduped to one per client, type and
 week, with in-app notifications written and readable. Migrations `033`–`035` gate its deploy (see
 [`docs/alert-evaluation-release.md`](./docs/alert-evaluation-release.md)). A fence is not a
 gate — restoring one means adding a real auth/entitlement/ownership gate, not just deleting
 the `featureUnavailable` call. `lib/localTrust/guard.ts` is the shape to copy.
+
+**Runtime readback, 2026-10-03 13:25 HKT:** the deployed `aiso-cron-worker` has no enabled
+cron schedules and no `APP_BASE_URL` binding. Weekly operation and job coverage are
+unverified; the remediation candidate has not been deployed. See the
+[runtime evidence register](docs/runbooks/aiso-runtime-evidence.md) and
+[release/rollback runbook](docs/runbooks/aiso-remediation-release.md).
 
 Stack: Next.js 16 (App Router) · TypeScript 5.9 · Neon Postgres + Neon Auth · Tailwind v4 ·
 shadcn/ui · Vitest · Playwright.
@@ -102,7 +108,8 @@ reachability, enforce promotion or establish production acceptance.
 `Authorization: Bearer`, and that driver calls `POST /api/pulse/run` with `x-cron-secret`.
 Both return 500 rather than running when it is unset. `/api/cron/trial-emails` is restored
 (2026-08-22) and validates the same `Authorization: Bearer` shape; `/api/cron/evaluate-alerts`
-is Neon-backed and scheduled weekly, accepting both header shapes on its own handlers.
+is Neon-backed, accepting both header shapes on its own handlers. Scheduling requires
+verified control-plane configuration.
 
 Dead — read by nothing, listed so nobody re-adds them expecting an effect:
 `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (checkout is server-side only). `RESEND_API_KEY`
