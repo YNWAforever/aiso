@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { scanOpportunityCopy } from '@/lib/opportunities/presentation'
 import type { OpportunityResponse } from '@/lib/opportunities/types'
 import type { WorkItem } from '@/lib/work-items/schema'
 import { DraftEditor } from '@/components/work-items/DraftEditor'
@@ -309,16 +310,19 @@ function OpportunityContent({
               : t('empty')}
           </p>
         )}
-        {data?.suggestions.map((suggestion) => (
+        {data?.suggestions.map((suggestion) => {
+          const copy = suggestion.evidence.kind === 'scan-check' ? scanOpportunityCopy(suggestion.evidence, locale) : null
+          const displayArgs = copy ? { ...suggestion.args, checkTitle: copy.title, checkAction: copy.action } : suggestion.args
+          return (
           <article
             key={suggestion.key}
             className="min-w-0 space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6"
           >
             <h2 className="text-lg font-semibold">
-              {t(`rules.${suggestion.titleKey}.title`, suggestion.args)}
+              {t(`rules.${suggestion.titleKey}.title`, displayArgs)}
             </h2>
             <p className="whitespace-pre-wrap break-words">
-              {t(`rules.${suggestion.actionKey}.action`, suggestion.args)}
+              {t(`rules.${suggestion.actionKey}.action`, displayArgs)}
             </p>
             <EvidenceDetails
               evidence={suggestion.evidence}
@@ -369,7 +373,8 @@ function OpportunityContent({
               </button>
             )}
           </article>
-        ))}
+          )
+        })}
       </section>
       <section
         hidden={view !== 'drafts'}

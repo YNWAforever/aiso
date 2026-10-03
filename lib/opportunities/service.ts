@@ -34,7 +34,8 @@ export async function loadAuthenticatedOpportunities(clientId: string): Promise<
       return compare(a.source.kind, b.source.kind)
         || compare(b.evidence.recordedAt ?? '', a.evidence.recordedAt ?? '')
         || compare(a.source.id, b.source.id)
-        || compare(a.source.checkKey ?? '', b.source.checkKey ?? '')
+        // Each validated scan's candidates are already ordered by the shared
+        // evidence resolver. Stable sort preserves failure-before-warning.
     })
     const saveAvailability = new Map<string, 'available' | 'limited-evidence'>()
     for (const source of snapshot.sources) {

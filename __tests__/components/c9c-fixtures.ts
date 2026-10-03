@@ -82,6 +82,7 @@ export const draft: WorkItem = {
 }
 import { buildScanEvidence } from '@/lib/scan-evidence'
 import { deriveSuggestions } from '@/lib/opportunities/rules'
+import { CHECK_KEYS } from '@/lib/types'
 const envelope = buildScanEvidence({
   requestedUrl: 'https://example.test/private?secret=1',
   evaluatedUrl: 'https://example.test/private',
@@ -102,3 +103,5 @@ export const scanSuggestion: OpportunityResponse['suggestions'][number] = {
   savedState: 'unsaved',
   saveAvailability: 'available',
 }
+const manyEnvelope=buildScanEvidence({requestedUrl:'https://example.test',evaluatedUrl:'https://example.test',industry:'general_b2b',region:'HK',sitemapSource:'unknown',checks:Object.fromEntries(CHECK_KEYS.slice(0,16).map((key,index)=>[key,{assessment:key==='c11_faq'?'fail':index<8?'fail':'warn',collection:'complete'}])),collectedAt:'2026-09-02T10:00:00Z',observations:[]})
+export const manyCandidates:OpportunityResponse={...initial,partial:false,sourceStates:{pulse:'empty',scan:'ok'},savedDraftsState:'ok',window:{...initial.window,pulseTruncated:false,scanId:'66666666-6666-4666-8666-666666666666'},suggestions:deriveSuggestions({kind:'scan-check',scanId:'66666666-6666-4666-8666-666666666666',recordedAt:'2026-09-03T10:00:00Z',envelope:manyEnvelope}).map(row=>({...row,savedState:'unsaved',saveAvailability:'available'}))}

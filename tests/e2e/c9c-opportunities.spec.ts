@@ -12,6 +12,7 @@ async function fixture(
   lang: string,
   slice = 'C9C',
   unavailable = false,
+  variant = 'default',
 ) {
   const dir = process.env[`${slice}_HTML_DIR`],
     css = process.env[`${slice}_CSS_PATH`]
@@ -30,7 +31,7 @@ async function fixture(
     readFileSync(`${draftDir}/${lang}-data.json`, 'utf8'),
   ).item as WorkItem
   const html = readFileSync(
-      `${dir}/${lang}-${unavailable ? 'unavailable' : 'default'}.html`,
+      `${dir}/${lang}-${unavailable ? 'unavailable' : variant}.html`,
       'utf8',
     ),
     js = readFileSync(`${dir}/fixture.js`, 'utf8'),
@@ -55,6 +56,21 @@ test.afterEach(({ page }) => {
   expect(errors.get(page) ?? []).toEqual([])
 })
 for (const lang of ['en', 'zh-HK']) {
+  test(`T19 all sixteen candidates have human next steps in ${lang}`,async({page})=>{
+    await fixture(page,lang,'C9C',false,'many')
+    const articles=page.locator('article')
+    await expect(articles).toHaveCount(16)
+    for(const article of await articles.all()){
+      await expect(article.locator('h2')).not.toContainText(/c\d+_/)
+      await expect(article.locator('p').first()).toContainText(lang==='en'?'Locate the relevant content':'先在網站定位')
+      await expect(article.locator('p').first()).not.toContainText(/\/private|\d+%/)
+    }
+    const faq=page.getByRole('heading',{name:lang==='en'?'Review frequently asked questions':'檢查常見問題內容'})
+    const headings=page.getByRole('heading',{name:lang==='en'?'Review heading structure':'檢查標題結構'})
+    expect(await faq.evaluate(node=>Array.from(document.querySelectorAll('article h2')).indexOf(node))).toBeLessThan(await headings.evaluate(node=>Array.from(document.querySelectorAll('article h2')).indexOf(node)))
+    expect((await new AxeBuilder({page}).analyze()).violations).toEqual([])
+    await page.screenshot({path:`${process.env.C9C_HTML_DIR}/${lang}-sixteen.png`,fullPage:true})
+  })
   test(`C9c initial source failure preserves saved draft editing and explicit retry in ${lang}`, async ({
     page,
   }) => {

@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { renderToString } from 'react-dom/server'
 import { NextIntlClientProvider } from 'next-intl'
 import { OpportunityWorkspace } from '@/components/opportunities/OpportunityWorkspace'
-import { initial, clientId, scanSuggestion } from './c9c-fixtures'
+import { initial, clientId, scanSuggestion, manyCandidates } from './c9c-fixtures'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 import { writeC9cFixture } from './c9c-fixture-writer'
@@ -22,6 +22,13 @@ export const htmlFor = (lang: string, data: typeof initial | null = initial) =>
     </NextIntlClientProvider>,
   )
 describe('opportunity rendering', () => {
+  it.each(['en', 'zh-HK'])('T19 describes FAQ content with a localized next step, without guessing a page %s', lang => {
+    const suggestion = { ...scanSuggestion, source: { ...scanSuggestion.source, checkKey: 'c11_faq' as const }, args: { checkKey: 'c11_faq', assessment: 'fail' }, evidence: { ...scanSuggestion.evidence, checkKey: 'c11_faq' as const } }
+    const html = htmlFor(lang, { ...initial, suggestions: [suggestion as typeof scanSuggestion] })
+    expect(html).toContain(lang === 'en' ? 'Review frequently asked questions' : '檢查常見問題內容')
+    expect(html.match(/<h2[^>]*>[^<]*c11_faq/)).toBeNull()
+    expect(html).not.toContain('/private')
+  })
   it.each(['en', 'zh-HK'])(
     'renders escaped full source and distinct partial/saved states in %s',
     (lang) => {
@@ -93,6 +100,7 @@ afterAll(() =>
     { clientId, initial },
     htmlFor,
     {
+      many: { props:{clientId,initial:manyCandidates},html:lang=>htmlFor(lang,manyCandidates) },
       saved: {
         props: { clientId, initial: { ...initial, suggestions: initial.suggestions.map(row => ({ ...row, savedDraftId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', savedState: 'saved' as const })) } },
         html: (lang) => htmlFor(lang, { ...initial, suggestions: initial.suggestions.map(row => ({ ...row, savedDraftId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', savedState: 'saved' as const })) }),

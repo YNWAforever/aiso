@@ -1811,8 +1811,8 @@
         "action": "Review content relevant to “{question}”. The retained {platform} answer did not mention the brand; review the content and evidence before deciding next steps."
       },
       "review-check": {
-        "title": "Review website check: {checkKey}",
-        "action": "Review the retained evidence and limitations for {checkKey}, and investigate the warning or failed check."
+        "title": "{checkTitle}",
+        "action": "{checkAction}"
       }
     },
     "limits": {

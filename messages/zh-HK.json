@@ -1811,8 +1811,8 @@
         "action": "檢視與「{question}」相關的內容。在 {platform} 保留的回答中未提及品牌；先核對內容及證據，再決定下一步。"
       },
       "review-check": {
-        "title": "檢視網站檢查：{checkKey}",
-        "action": "檢視 {checkKey} 的保留證據及限制，並調查警告或未通過的檢查結果。"
+        "title": "{checkTitle}",
+        "action": "{checkAction}"
       }
     },
     "limits": {
