@@ -120,7 +120,13 @@ function PromptRow({ prompt, onToggle, onEdit, onDelete }: {
         <div className="flex w-full flex-wrap gap-2">
           <label className="sr-only" htmlFor={inputId}>{t('qb_edit_label', { question: prompt.question })}</label>
           <input id={inputId} ref={editInput} autoFocus value={draft} readOnly={saving} onChange={e => setDraft(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void save() }; if (e.key === 'Escape') cancel() }}
+            onKeyDown={e => {
+              // IME keys confirm or cancel composition before acting on the draft.
+              // 229 also covers composition boundary events with isComposing=false.
+              if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return
+              if (e.key === 'Enter') { e.preventDefault(); void save() }
+              if (e.key === 'Escape') cancel()
+            }}
             className="min-h-11 min-w-0 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-primary" />
           <button type="button" onClick={save} disabled={saving || !draft.trim()}
             className={`${CONTROL} bg-primary text-primary-foreground`}>
