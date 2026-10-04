@@ -8,7 +8,7 @@ import zh from '../../messages/zh-HK.json'
 
 for(const lang of ['en','zh-HK']){
  const copy=(lang==='en'?en:zh).sources
- test(`T17 paste and submitted metadata stay fixed while importing in ${lang}`,async({page})=>{
+ test(`T17 paste and submitted metadata stay fixed while importing in ${lang}`,async({page},testInfo)=>{
   const dir=process.env.AISO_SOURCES_HTML_DIR,css=process.env.AISO_SOURCES_CSS_PATH
   if(!dir||!css)throw new Error('Source fixture paths required')
   await page.route('**/*',route=>route.abort())
@@ -24,7 +24,24 @@ for(const lang of ['en','zh-HK']){
   await page.getByLabel(copy.import.key,{exact:false}).fill('pending')
   await page.getByLabel(copy.import.question,{exact:true}).fill('Submitted question')
   await page.getByLabel(copy.import.answer,{exact:true}).fill('Submitted answer')
+  await page.evaluate(()=>{
+   const form=document.querySelector('form')!
+   form.addEventListener('submit',()=>{
+    const started=performance.now()
+    const observer=new MutationObserver(()=>{
+     if(form.querySelector('fieldset')?.disabled){
+      ;(window as Window&{sourcePendingMs?:number}).sourcePendingMs=performance.now()-started
+      observer.disconnect()
+     }
+    })
+    observer.observe(form,{attributes:true,childList:true,subtree:true})
+   },{once:true,capture:true})
+  })
   await page.getByRole('button',{name:copy.import.submit,exact:true}).click()
+  await expect(page.getByRole('button',{name:copy.import.submitting,exact:true})).toBeDisabled({timeout:1000})
+  const submissionToPendingMs=await page.evaluate(()=>(window as Window&{sourcePendingMs?:number}).sourcePendingMs)
+  expect(submissionToPendingMs).toBeLessThanOrEqual(1000)
+  await testInfo.attach('source-pending-timing',{body:JSON.stringify({lang,submissionToPendingMs,limitMs:1000,scope:'actual DOM submit event to pending mutation; component renderer; intercepted request; synthetic fixture'}),contentType:'application/json'})
   for(const label of [copy.import.label,copy.import.question,copy.import.answer])await expect(page.getByLabel(label,{exact:true})).toBeDisabled()
   await expect(page.getByRole('button',{name:copy.import.add,exact:true})).toBeDisabled()
   release();await expect(page.getByRole('button',{name:copy.import.submit,exact:true})).toBeEnabled()
