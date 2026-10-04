@@ -2134,7 +2134,8 @@
       "version": "Version",
       "hash": "Content hash",
       "entries": "questions answered",
-      "none": "Nothing has been imported into this source yet."
+      "none": "Nothing has been imported into this source yet.",
+      "sourceKey": "Source key"
     },
     "freshness": {
       "current": "Current",
@@ -2197,7 +2198,8 @@
       "previewCounts": "{valid} valid rows · {invalid} rows need correction",
       "row": "Row {number}",
       "valid": "Valid",
-      "retryRows": "Revalidate corrected rows"
+      "retryRows": "Revalidate corrected rows",
+      "savedVersion": "Source {key} · Version {version}."
     },
     "errors": {
       "SOURCES_BODY_TOO_LARGE": "That import is too large to send in one request. Split it into smaller parts.",

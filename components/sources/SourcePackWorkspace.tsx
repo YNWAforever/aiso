@@ -110,6 +110,15 @@ export function SourcePackWorkspace({
     return (typeof code === 'string' && table[code]) || table.SOURCES_UNAVAILABLE!
   }
 
+  function versionStatus(payload: unknown, done: string): string {
+    // Identify the persisted source returned by the service, including its canonical key.
+    const source = (payload as { source?: { sourceKey: string; latestVersion: number } } | null)?.source
+    return typeof source?.sourceKey === 'string' && source.sourceKey.length > 0
+      && Number.isSafeInteger(source.latestVersion) && source.latestVersion > 0
+      ? `${t('import.savedVersion', { key: source.sourceKey, version: source.latestVersion })} ${done}`
+      : done
+  }
+
   async function mutate(sourceId: string, body: Record<string, unknown>, done: string) {
     if (busy) return
     setBusy(sourceId)
@@ -175,8 +184,8 @@ export function SourcePackWorkspace({
       // `unchanged` is a real outcome, not a failure: identical text hashes the
       // same, so no version was created and saying "imported" would overstate it.
       const outcome = payload as { result?: string; approval?: string }
-      setStatus(outcome.approval === 'approved' ? t('actions.approved')
-        : outcome.result === 'unchanged' ? t('import.unchanged') : t('import.created'))
+      setStatus(versionStatus(payload, outcome.approval === 'approved' ? t('actions.approved')
+        : outcome.result === 'unchanged' ? t('import.unchanged') : t('import.created')))
       setPairs([{ ...EMPTY_PAIR }])
       setCsv('')
       setPreview(null)
@@ -212,7 +221,7 @@ export function SourcePackWorkspace({
       })
       const payload = await response.json()
       if (!response.ok) { setActionError(messageFor(payload.error)); return }
-      setStatus(t('actions.approved'))
+      setStatus(versionStatus(payload, t('actions.approved')))
       setReview(null)
       router.refresh()
     } catch { setActionError(t('actions.failed')) }
@@ -235,6 +244,10 @@ export function SourcePackWorkspace({
         <p className="mt-2 text-sm leading-relaxed text-dash-muted">{t(`why.${entry.usability}`)}</p>
 
         <dl className="mt-4 grid gap-2 text-xs text-dash-muted sm:grid-cols-2">
+          <div>
+            <dt className="font-semibold text-dash-text">{t('provenance.sourceKey')}</dt>
+            <dd><code className="break-all">{entry.sourceKey}</code></dd>
+          </div>
           <div>
             <dt className="font-semibold text-dash-text">{t('provenance.method')}</dt>
             <dd>{provenance.importMethod ? t(`provenance.${provenance.importMethod}`) : t('provenance.none')}</dd>
@@ -317,6 +330,7 @@ export function SourcePackWorkspace({
         {review?.current && (
           <section id="source-review" className="mt-4 rounded-lg border border-dash-border p-4" aria-label={t('actions.reviewVersion')}>
             <h2 className="text-xl font-bold text-dash-text">{review.label}</h2>
+            <p className="mt-2 text-sm text-dash-muted">{t('provenance.sourceKey')}: <code className="break-all">{review.sourceKey}</code></p>
             <p className="text-sm text-dash-muted">{t('actions.reviewNote', { version: review.current.versionNumber })}</p>
             <dl className="mt-3 space-y-3 text-sm">
               {review.current.entries.map((pair, index) => <div key={index}>

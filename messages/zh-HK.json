@@ -2134,7 +2134,8 @@
       "version": "版本",
       "hash": "內容雜湊值",
       "entries": "條問答",
-      "none": "這項資料尚未匯入任何內容。"
+      "none": "這項資料尚未匯入任何內容。",
+      "sourceKey": "代號"
     },
     "freshness": {
       "current": "仍然適時",
@@ -2197,7 +2198,8 @@
       "previewCounts": "{valid} 列有效 · {invalid} 列需要修正",
       "row": "第 {number} 列",
       "valid": "有效",
-      "retryRows": "重新驗證已修正列"
+      "retryRows": "重新驗證已修正列",
+      "savedVersion": "來源 {key} · 版本 {version}。"
     },
     "errors": {
       "SOURCES_BODY_TOO_LARGE": "今次匯入的內容太大，無法一次過提交。請分拆成較小的部分。",

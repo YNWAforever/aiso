@@ -8,6 +8,51 @@ import zh from '../../messages/zh-HK.json'
 
 for(const lang of ['en','zh-HK']){
  const copy=(lang==='en'?en:zh).sources
+ test(`T04 successful import identifies the acknowledged source key and version in ${lang}`,async({page})=>{
+  const dir=process.env.AISO_SOURCES_HTML_DIR,css=process.env.AISO_SOURCES_CSS_PATH
+  if(!dir||!css)throw new Error('Source fixture paths required')
+  await page.route('**/*',route=>route.abort())
+  await page.route(`https://sources.fixture/${lang}`,route=>route.fulfill({contentType:'text/html; charset=utf-8',body:`<!doctype html><html lang="${lang}"><head><title>Source approval identity</title><style>${readFileSync(css,'utf8')}</style></head><body>${readFileSync(`${dir}/${lang}-default.html`,'utf8')}<script>${readFileSync(`${dir}/fixture.js`,'utf8')}</script></body></html>`}))
+  await page.route('**/api/clients/*/sources/import-preview',route=>route.fulfill({json:{...previewSourceImport(route.request().postDataJSON()),expectedLatestVersion:1}}))
+  await page.route('**/api/clients/*/sources',route=>route.fulfill({status:200,json:{result:'unchanged',approval:'approved',source:{sourceKey:'canonical-key',latestVersion:3}}}))
+  await page.goto(`https://sources.fixture/${lang}`);await page.waitForFunction(()=>Boolean((window as Window&{c9cFixtureReady?:boolean}).c9cFixtureReady))
+  await page.getByLabel(copy.import.label,{exact:true}).fill('Shared source label')
+  await page.getByLabel(copy.import.key,{exact:false}).fill('Canonical-Key')
+  await page.getByLabel(copy.import.question,{exact:true}).fill('Same question')
+  await page.getByLabel(copy.import.answer,{exact:true}).fill('Same answer')
+  await page.getByRole('checkbox',{name:copy.import.approve,exact:false}).check()
+  await page.getByRole('button',{name:copy.import.submit,exact:true}).click()
+  const status=page.locator('[aria-live="polite"]')
+  await expect(status).toHaveText(`${copy.import.savedVersion.replace('{key}','canonical-key').replace('{version}','3')} ${copy.actions.approved}`)
+  await expect(status).not.toContainText('Canonical-Key')
+ })
+ test(`T04 reviewed approval identifies its persisted source in ${lang}`,async({page})=>{
+  const dir=process.env.AISO_SOURCES_HTML_DIR,css=process.env.AISO_SOURCES_CSS_PATH
+  if(!dir||!css)throw new Error('Source fixture paths required')
+  const sourceId='00000000-0000-4000-8000-000000000001',versionId='00000000-0000-4000-8000-000000000002',key='reviewed-key',hash='a'.repeat(64)
+  const source={id:sourceId,sourceKey:key,label:'Reviewed source',latestVersion:3,agentUseAllowed:false,revokedAt:null,current:{id:versionId,versionNumber:3,contentHash:hash,approvedAt:null,entries:[{question:'Review question',answer:'Review answer'}]}}
+  await page.route('**/*',route=>route.abort())
+  await page.route(`https://sources.fixture/${lang}`,route=>route.fulfill({contentType:'text/html; charset=utf-8',body:`<!doctype html><html lang="${lang}"><head><title>Reviewed approval identity</title><style>${readFileSync(css,'utf8')}</style></head><body>${readFileSync(`${dir}/${lang}-default.html`,'utf8')}<script>${readFileSync(`${dir}/fixture.js`,'utf8')}</script></body></html>`}))
+  await page.route('**/api/clients/*/sources?*',route=>{
+   const data=sourcePageFixture()
+   const entry={...data.pack.entries[0],id:sourceId,label:source.label,sourceKey:key,usability:'awaiting-approval',agentUseAllowed:false,versionId,versionNumber:3,contentHash:hash}
+   return route.fulfill({json:{...data,nextCursor:null,pack:{...data.pack,entries:[entry]}}})
+  })
+  await page.route(`**/sources/${sourceId}`,route=>route.fulfill({json:{source}}))
+  await page.route(`**/sources/${sourceId}/versions/${versionId}/approve`,route=>{
+   expect(route.request().postDataJSON()).toEqual({expectedLatestVersion:3,expectedContentHash:hash})
+   return route.fulfill({json:{source:{...source,current:{...source.current,approvedAt:'2026-10-04T00:00:00Z'}}}})
+  })
+  await page.goto(`https://sources.fixture/${lang}`);await page.waitForFunction(()=>Boolean((window as Window&{c9cFixtureReady?:boolean}).c9cFixtureReady))
+  await page.getByLabel(copy.pagination.filter).selectOption('awaiting-approval')
+  await page.getByRole('button',{name:copy.actions.reviewVersion,exact:true}).click()
+  const review=page.getByRole('region',{name:copy.actions.reviewVersion,exact:true})
+  await expect(review).toContainText(key)
+  await expect(review).toContainText('Review answer')
+  await review.getByRole('button',{name:copy.actions.approveVersion,exact:true}).click()
+  await expect(page.locator('[aria-live="polite"]')).toHaveText(`${copy.import.savedVersion.replace('{key}',key).replace('{version}','3')} ${copy.actions.approved}`)
+  await expect(review).toHaveCount(0)
+ })
  test(`T17 paste and submitted metadata stay fixed while importing in ${lang}`,async({page},testInfo)=>{
   const dir=process.env.AISO_SOURCES_HTML_DIR,css=process.env.AISO_SOURCES_CSS_PATH
   if(!dir||!css)throw new Error('Source fixture paths required')
