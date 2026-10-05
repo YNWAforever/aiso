@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { authClient } from '@/lib/auth-client'
 import { normalizeAuthNext } from '@/lib/auth-navigation'
 import { authLocale } from '@/lib/auth-return-to'
@@ -17,6 +16,13 @@ const COPY_ZH_HK: typeof COPY_EN = {
   backToLogin: '返回登入頁',
 }
 
+function hasCompletedSession(data: unknown): boolean {
+  if (!data || typeof data !== 'object') return false
+  const { session, user } = data as { session?: unknown; user?: unknown }
+  return Boolean(session && typeof session === 'object' && !Array.isArray(session)
+    && user && typeof user === 'object' && !Array.isArray(user))
+}
+
 /**
  * Completes a Neon Auth sign-in on the client.
  *
@@ -30,7 +36,6 @@ const COPY_ZH_HK: typeof COPY_EN = {
  * sets, so this client-side exchange is the reliable completion path.)
  */
 export function AuthComplete({ lang, next }: { lang: string; next?: string }) {
-  const router = useRouter()
   const ran = useRef(false)
   const [failed, setFailed] = useState(false)
   const c = lang === 'zh-HK' ? COPY_ZH_HK : COPY_EN
@@ -38,17 +43,41 @@ export function AuthComplete({ lang, next }: { lang: string; next?: string }) {
   useEffect(() => {
     if (ran.current) return
     ran.current = true
-    authClient
-      .getSession()
-      .then(({ data }) => {
-        if (data?.session) {
-          router.replace(normalizeAuthNext(lang, next))
-        } else {
+    const query = new URLSearchParams(window.location.search)
+    if (query.has('neon_auth_session_verifier') && !query.get('neon_auth_session_verifier')) {
+      queueMicrotask(() => setFailed(true))
+      return
+    }
+    let responseConfirmed = false
+    async function complete() {
+      try {
+        const { data } = await authClient.getSession({
+          fetchOptions: {
+            // Observe this exchange before SDK cache/history hooks can throw.
+            onResponse: async ({ response }) => {
+              if (response.ok) responseConfirmed = hasCompletedSession(await response.clone().json())
+            },
+          },
+        })
+        if (!hasCompletedSession(data) && !responseConfirmed) {
           setFailed(true)
+          return
         }
-      })
-      .catch(() => setFailed(true))
-  }, [router, next, lang])
+      } catch {
+        if (!responseConfirmed) {
+          setFailed(true)
+          return
+        }
+      }
+      try {
+        // Read authorization afresh with the exchanged cookie and replace the verifier URL.
+        window.location.replace(normalizeAuthNext(lang, next))
+      } catch {
+        setFailed(true)
+      }
+    }
+    void complete()
+  }, [next, lang])
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

@@ -57,3 +57,53 @@ test('failed completion retains safe destination on retry', async ({ page }) => 
   await page.goto(`https://auth.fixture/zh-HK/auth/complete?next=${encodeURIComponent(next)}&fixture-failed=1`)
   await expect(page.getByRole('link', { name: '返回登入頁' })).toHaveAttribute('href', `/zh-HK/auth/login?next=${encodeURIComponent(next)}`)
 })
+
+
+const sdkCases = [
+  { name: 'valid session', status: 200, payload: 'valid', historyError: null, completes: true },
+  { name: 'valid session despite SecurityError housekeeping', status: 200, payload: 'valid', historyError: 'SecurityError', completes: true },
+  { name: 'valid session despite DataCloneError housekeeping', status: 200, payload: 'valid', historyError: 'DataCloneError', completes: true },
+  { name: 'missing user fails closed', status: 200, payload: 'missing-user', historyError: null, completes: false },
+  { name: 'empty verifier cannot reuse prior session', status: 200, payload: 'valid', historyError: null, completes: false, verifier: '', expectedCalls: 0 },
+  { name: 'null session fails closed', status: 200, payload: 'null', historyError: null, completes: false },
+  { name: 'unauthorized fails closed', status: 401, payload: 'error', historyError: null, completes: false },
+  { name: 'invalid JSON fails closed', status: 200, payload: 'invalid', historyError: null, completes: false },
+] as const
+for (const lang of ['en', 'zh-HK']) for (const scenario of sdkCases) test(`SDK completion ${lang}: ${scenario.name}`, async ({ page }) => {
+  const dir = process.env.AUTH_RETURN_HTML_DIR
+  if (!dir) throw new Error('Installed-SDK Auth component fixtures required; no skip is acceptance')
+  const bundle = readFileSync(`${dir}/sdk-fixture.js`, 'utf8')
+  const destination = `/${lang}/dashboard/${client}/sources`
+  const valid = {
+    session: { id: 'fixture-session', userId: 'fixture-user', token: 'synthetic-not-a-real-token', expiresAt: '2027-01-01T00:00:00Z', createdAt: '2026-10-05T00:00:00Z', updatedAt: '2026-10-05T00:00:00Z' },
+    user: { id: 'fixture-user', name: 'Synthetic SDK fixture', email: 'fixture@example.test', emailVerified: true, createdAt: '2026-10-05T00:00:00Z', updatedAt: '2026-10-05T00:00:00Z' },
+  }
+  const verifier = 'verifier' in scenario ? scenario.verifier : 'synthetic-verifier'
+  if (!verifier) await page.context().addCookies([{ name: 'neon-auth.session_token', value: 'synthetic-prior-session', url: 'https://auth.fixture' }])
+  let sessionCalls = 0
+  if (scenario.historyError) await page.addInitScript(name => {
+    history.replaceState = () => { throw new DOMException('Synthetic browser history failure', name) }
+  }, scenario.historyError)
+  await page.route('**/*', route => route.abort())
+  await page.route('https://auth.fixture/**', route => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/auth/get-session') {
+      sessionCalls++
+      expect(url.searchParams.get('neon_auth_session_verifier')).toBe(verifier || null)
+      const body = scenario.payload === 'valid' ? JSON.stringify(valid) : scenario.payload === 'missing-user' ? JSON.stringify({ ...valid, user: null }) : scenario.payload === 'null' ? 'null' : scenario.payload === 'invalid' ? 'not JSON' : '{"message":"Unauthorized","code":"UNAUTHORIZED"}'
+      return route.fulfill({ status: scenario.status, contentType: 'application/json', body })
+    }
+    if (url.pathname === destination) return route.fulfill({ contentType: 'text/html', body: '<html><body><h1>Authorized fixture destination</h1></body></html>' })
+    return route.fulfill({ contentType: 'text/html; charset=utf-8', body: `<!doctype html><html lang="${lang}"><body><div id="root"></div><script>${bundle}</script></body></html>` })
+  })
+  await page.goto(`https://auth.fixture/${lang}/auth/complete?next=${encodeURIComponent(destination)}&neon_auth_session_verifier=${encodeURIComponent(verifier)}`)
+  if (scenario.completes) {
+    await expect(page.getByRole('heading', { name: 'Authorized fixture destination' })).toBeVisible()
+    expect(new URL(page.url()).pathname).toBe(destination)
+    expect(new URL(page.url()).search).toBe('')
+  } else {
+    await expect(page.getByRole('link', { name: lang === 'en' ? 'Back to login' : '返回登入頁' })).toHaveAttribute('href', `/${lang}/auth/login?next=${encodeURIComponent(destination)}`)
+    expect(new URL(page.url()).pathname).toBe(`/${lang}/auth/complete`)
+  }
+  expect(sessionCalls).toBe('expectedCalls' in scenario ? scenario.expectedCalls : 1)
+})
