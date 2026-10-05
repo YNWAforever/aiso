@@ -36,7 +36,21 @@ function route(method: keyof AuthHandlers) {
       }
     }
     handlers ??= auth().handler()
-    return handlers[method](request, context)
+    const response = await handlers[method](request, context)
+    // Node fetch decodes upstream gzip/br before the SDK returns this body,
+    // but SDK 0.4.2-beta retains the old transport headers. Forwarding them
+    // makes the browser decode JSON again, even after the cookie was stored.
+    const headers = new Headers(response.headers)
+    // Keep session JSON out of HTTP caches; the SDK cookie cache is separate.
+    headers.set('cache-control', 'private, no-store')
+    for (const name of ['content-encoding', 'content-length', 'transfer-encoding', 'connection']) {
+      headers.delete(name)
+    }
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    })
   }
 }
 
