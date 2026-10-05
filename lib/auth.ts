@@ -1,14 +1,14 @@
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { AUTH_RETURN_TO_HEADER, authLocale, safeReturnTo } from '@/lib/auth-return-to'
-import { auth } from '@/lib/neon-auth'
+import { getServerSession } from '@/lib/neon-auth'
 import { db } from '@/lib/db'
 import type { ProfileWithAccount } from '@/lib/types'
 
 export async function getProfile(): Promise<ProfileWithAccount | null> {
   if (process.env.E2E_FIXTURE_MODE === '1') return null
 
-  const { data, error } = await auth().getSession()
+  const { data, error } = await getServerSession()
   if (error) throw error
   if (!data?.user) return null
 

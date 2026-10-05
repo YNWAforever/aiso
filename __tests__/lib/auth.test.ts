@@ -2,7 +2,7 @@ import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 
 const getSessionMock = vi.fn()
 vi.mock('@/lib/neon-auth', () => ({
-  auth: () => ({ getSession: getSessionMock }),
+  getServerSession: getSessionMock,
 }))
 
 const sqlMock = vi.fn()

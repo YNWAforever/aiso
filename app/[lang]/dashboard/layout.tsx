@@ -1,3 +1,4 @@
+import { SessionRefresh } from '@/components/auth/SessionRefresh'
 import { requireAuth } from '@/lib/auth'
 import { headers } from 'next/headers'
 import { AUTH_RETURN_TO_HEADER } from '@/lib/auth-return-to'
@@ -43,6 +44,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
+      <SessionRefresh />
       {entitlement.source === 'trial' && trial.isTrial && !trial.isExpired && (
         <TrialBanner daysRemaining={trial.daysRemaining} lang={lang} />
       )}

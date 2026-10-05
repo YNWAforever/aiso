@@ -128,7 +128,7 @@ describe('3. cross-tenant denial', () => {
   it('derives the account from the session, so nothing can name another one', () => {
     const auth = readFileSync(join(process.cwd(), 'lib/auth.ts'), 'utf8')
 
-    expect(auth).toContain('auth().getSession()')
+    expect(auth).toContain('getServerSession()')
     expect(auth).toContain('where p.id = ${data.user.id}')
   })
 
