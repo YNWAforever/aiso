@@ -1,0 +1,24 @@
+{
+  "assembledAtUtc": "2026-10-06T20:02:18Z",
+  "assembledAtHkt": "2026-10-07 04:02:18 HKT",
+  "worker": "aiso-cron-worker",
+  "account": "e387dfbeded3deb5b8f0023a78a660b5",
+  "deployment": "9ee2db8b-fc56-4ff9-a8cf-32eacbe3172b",
+  "version": "2546d97d-edb8-4a16-a257-2b7750ef8af8",
+  "workerSchedulingState": "disabled",
+  "enabledSchedules": [],
+  "workerBindings": [],
+  "appOrigin": "unknown: no APP_BASE_URL binding in live version",
+  "appDatabaseBinding": "unknown",
+  "appRuntimeRole": "unknown; connector neondb_owner is not app identity",
+  "primaryConnectorCronRows": 0,
+  "jobs": [
+    {"job":"weekly Pulse","workerEnabled":false,"overallProducerState":"unknown","flag":"unknown","lastAttempt":null,"lastSuccess":null,"lastFailure":null,"coveredBrands":null,"coveredItems":null,"nextDueAtHkt":null,"sourcePlannedWindow":"Monday 12:17 HKT; inactive"},
+    {"job":"weekly alerts","workerEnabled":false,"overallProducerState":"unknown","flag":"unknown","lastAttempt":null,"lastSuccess":null,"lastFailure":null,"coveredBrands":null,"coveredItems":null,"nextDueAtHkt":null,"sourcePlannedWindow":"Monday 15:47 HKT; inactive"},
+    {"job":"daily trial maintenance","workerEnabled":false,"overallProducerState":"unknown","flag":"unknown","lastAttempt":null,"lastSuccess":null,"lastFailure":null,"coveredBrands":null,"coveredItems":null,"nextDueAtHkt":null,"sourcePlannedWindow":"Daily 17:00 HKT; inactive"},
+    {"job":"daily Pulse repair","workerEnabled":false,"overallProducerState":"unknown","flag":"unknown","lastAttempt":null,"lastSuccess":null,"lastFailure":null,"coveredBrands":null,"coveredItems":null,"nextDueAtHkt":null,"sourcePlannedWindow":"Daily 17:00 HKT; inactive"},
+    {"job":"Search Console sync","workerEnabled":false,"overallProducerState":"unknown","flag":"unknown","lastAttempt":null,"lastSuccess":null,"lastFailure":null,"coveredBrands":null,"coveredItems":null,"nextDueAtHkt":null,"sourcePlannedWindow":null}
+  ],
+  "evidence": ["worker-runtime.json","runtime-readback.json"],
+  "limits": ["Empty schedules verify this Worker is disabled, not job health.","Zero cron rows cannot establish successful coverage or rule out another producer.","Named ROUTES in version metadata are source constants, not enabled Cloudflare schedules.","No production job was run or enabled; no feature flag, binding, role, approval or stored content was changed."]
+}

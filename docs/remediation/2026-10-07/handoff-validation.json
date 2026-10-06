@@ -1,0 +1,14 @@
+{
+  "artifact_only": true,
+  "source_zip_sha256": "c5ba2f07aee65f1eb72fe4486d92205ab496302f24b7f4382e0540133141189d",
+  "source_archive_crc_ok": true,
+  "tasks": 24,
+  "findings": 22,
+  "acceptance_cases": 36,
+  "historical_acceptance_rows_preserved": 26,
+  "dependency_order_valid": true,
+  "all_execution_results_unrun": true,
+  "product_tests_run_during_planning": false,
+  "application_changes": false,
+  "live_reverification": false
+}

@@ -1,0 +1,1016 @@
+{
+  "selectedImplementationSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+  "recordedAtUtc": "2026-10-06T20:30:22.309Z",
+  "policy": "Counts measured from actual reports; job-summary counters are retained separately. Synthetic merge identity must be verified. Provider/Auth fixtures are not normal UAT.",
+  "runs": [
+    {
+      "runId": 37521719625,
+      "url": "https://github.com/YNWAforever/aiso/actions/runs/37521719625",
+      "headSha": "e6821971e7adffc74da3b6e945eeaadaa4224360",
+      "environment": "GitHub Actions Ubuntu; Node 24.x; synthetic provider/Auth fixture browser; guarded disposable owner DB; role authorization absent",
+      "summaries": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\build\\build-summary.json",
+          "schemaVersion": 1,
+          "job": "build",
+          "commitSha": "f6d3eda2158be478bb4db0ff5558d7895e3212b1",
+          "status": "success",
+          "executed": 1,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "build/build.log"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-1\\artifacts\\e2e-accessibility-1-summary.json",
+          "schemaVersion": 1,
+          "job": "e2e-accessibility",
+          "commitSha": "f6d3eda2158be478bb4db0ff5558d7895e3212b1",
+          "status": "success",
+          "executed": 226,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "e2e-accessibility/playwright.log",
+            "e2e-accessibility/playwright-results.json",
+            "e2e-accessibility/playwright.junit.xml"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-2\\artifacts\\e2e-accessibility-2-summary.json",
+          "schemaVersion": 1,
+          "job": "e2e-accessibility",
+          "commitSha": "f6d3eda2158be478bb4db0ff5558d7895e3212b1",
+          "status": "failure",
+          "executed": 226,
+          "skipped": 0,
+          "failurePriorities": [
+            "P0"
+          ],
+          "artifacts": [
+            "e2e-accessibility/playwright.log",
+            "e2e-accessibility/playwright-results.json",
+            "e2e-accessibility/playwright.junit.xml"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-3\\artifacts\\e2e-accessibility-3-summary.json",
+          "schemaVersion": 1,
+          "job": "e2e-accessibility",
+          "commitSha": "f6d3eda2158be478bb4db0ff5558d7895e3212b1",
+          "status": "failure",
+          "executed": 225,
+          "skipped": 0,
+          "failurePriorities": [
+            "P0"
+          ],
+          "artifacts": [
+            "e2e-accessibility/playwright.log",
+            "e2e-accessibility/playwright-results.json",
+            "e2e-accessibility/playwright.junit.xml"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-4\\artifacts\\e2e-accessibility-4-summary.json",
+          "schemaVersion": 1,
+          "job": "e2e-accessibility",
+          "commitSha": "f6d3eda2158be478bb4db0ff5558d7895e3212b1",
+          "status": "success",
+          "executed": 225,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "e2e-accessibility/playwright.log",
+            "e2e-accessibility/playwright-results.json",
+            "e2e-accessibility/playwright.junit.xml"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\gate\\gate-summary.json",
+          "schemaVersion": 1,
+          "job": "pr-gate",
+          "commitSha": "f6d3eda2158be478bb4db0ff5558d7895e3212b1",
+          "status": "failure",
+          "executed": 6,
+          "skipped": 0,
+          "failurePriorities": [
+            "P0"
+          ],
+          "artifacts": [
+            "gate-summary.json"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\integration\\integration-summary.json",
+          "schemaVersion": 1,
+          "job": "integration",
+          "commitSha": "f6d3eda2158be478bb4db0ff5558d7895e3212b1",
+          "status": "failure",
+          "executed": 0,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "integration/vitest.log",
+            "integration/exact-target-wrapper.log"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\static\\static-summary.json",
+          "schemaVersion": 1,
+          "job": "static",
+          "commitSha": "f6d3eda2158be478bb4db0ff5558d7895e3212b1",
+          "status": "success",
+          "executed": 2,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "static/lint.log",
+            "static/typecheck.log"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\unit\\artifacts\\unit-contract-summary.json",
+          "schemaVersion": 1,
+          "job": "unit-contract",
+          "commitSha": "f6d3eda2158be478bb4db0ff5558d7895e3212b1",
+          "status": "success",
+          "executed": 5343,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "unit-contract/vitest.json",
+            "unit-contract/vitest.junit.xml"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\worker\\cloudflare-worker-summary.json",
+          "schemaVersion": 1,
+          "job": "cloudflare-worker",
+          "commitSha": "f6d3eda2158be478bb4db0ff5558d7895e3212b1",
+          "status": "success",
+          "executed": 1,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "cloudflare-worker/output.log"
+          ]
+        }
+      ],
+      "reports": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-1\\artifacts\\e2e-accessibility\\playwright-results.json",
+          "command": "npm run e2e -- --workers=1 --shard=1/4 --reporter=list,html,json,junit",
+          "counts": {
+            "discovered": 226,
+            "pass": 226,
+            "fail": 0,
+            "skip": 0,
+            "flaky": 0,
+            "globalErrors": 0
+          },
+          "startedAtUtc": "2026-10-06T19:52:41.530Z",
+          "startedAtHkt": "07/10/2026, 03:52:41 HKT"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-2\\artifacts\\e2e-accessibility\\playwright-results.json",
+          "command": "npm run e2e -- --workers=1 --shard=2/4 --reporter=list,html,json,junit",
+          "counts": {
+            "discovered": 226,
+            "pass": 222,
+            "fail": 4,
+            "skip": 0,
+            "flaky": 0,
+            "globalErrors": 0
+          },
+          "startedAtUtc": "2026-10-06T19:53:03.347Z",
+          "startedAtHkt": "07/10/2026, 03:53:03 HKT"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-3\\artifacts\\e2e-accessibility\\playwright-results.json",
+          "command": "npm run e2e -- --workers=1 --shard=3/4 --reporter=list,html,json,junit",
+          "counts": {
+            "discovered": 225,
+            "pass": 221,
+            "fail": 4,
+            "skip": 0,
+            "flaky": 0,
+            "globalErrors": 0
+          },
+          "startedAtUtc": "2026-10-06T19:52:48.456Z",
+          "startedAtHkt": "07/10/2026, 03:52:48 HKT"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-4\\artifacts\\e2e-accessibility\\playwright-results.json",
+          "command": "npm run e2e -- --workers=1 --shard=4/4 --reporter=list,html,json,junit",
+          "counts": {
+            "discovered": 225,
+            "pass": 225,
+            "fail": 0,
+            "skip": 0,
+            "flaky": 0,
+            "globalErrors": 0
+          },
+          "startedAtUtc": "2026-10-06T19:52:52.307Z",
+          "startedAtHkt": "07/10/2026, 03:52:52 HKT"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\integration\\integration\\vitest.json",
+          "command": "REQUIRE_INTEGRATION_TESTS=1 npx vitest run --config vitest.integration.config.ts --reporter=json --reporter=junit --outputFile.json=artifacts/integration/vitest.json --outputFile.junit=artifacts/integration/vitest.junit.xml",
+          "counts": {
+            "files": 22,
+            "filesPassed": 21,
+            "filesFailed": 1,
+            "discovered": 221,
+            "pass": 199,
+            "fail": 0,
+            "skip": 22
+          },
+          "startedAtUtc": "2026-10-06T19:51:50.234Z",
+          "startedAtHkt": "07/10/2026, 03:51:50 HKT"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\unit\\artifacts\\unit-contract\\vitest.json",
+          "command": "npm test -- --coverage --reporter=json --reporter=junit --outputFile.json=artifacts/unit-contract/vitest.json --outputFile.junit=artifacts/unit-contract/vitest.junit.xml",
+          "counts": {
+            "files": 373,
+            "filesPassed": 373,
+            "filesFailed": 0,
+            "discovered": 5343,
+            "pass": 5343,
+            "fail": 0,
+            "skip": 0
+          },
+          "startedAtUtc": "2026-10-06T19:51:54.327Z",
+          "startedAtHkt": "07/10/2026, 03:51:54 HKT"
+        }
+      ],
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\build\\build\\build.log",
+          "sha256": "fb7d9103baafe65f2a1413021a712722a4bd2c557c5a123acab74e44c4ff3d9e"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\build\\build-summary.json",
+          "sha256": "2839ceee9057654652d743f63ff84b0f0b66126e51f7348a2eb85df6526c1b52"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-1\\artifacts\\e2e-accessibility\\build.log",
+          "sha256": "e24997be6a3fd4e48d27b9337d4a3e2f6b35bbb08c8f172ede404bfc3e70ab1a"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-1\\artifacts\\e2e-accessibility\\playwright-results.json",
+          "sha256": "2d8d665a47fe1743732bb392010abdad1a46530d1bee811af310be379543d3ea"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-1\\artifacts\\e2e-accessibility\\playwright.junit.xml",
+          "sha256": "3bfb8900f0e5c73cb6384f7b26778985ce89dcf29be1642157f836c173adcb12"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-1\\artifacts\\e2e-accessibility\\playwright.log",
+          "sha256": "58a96c8a67bcf9efc2a38509318da5697ea8fe152fa40f98e351643df99896c9"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-1\\artifacts\\e2e-accessibility-1-summary.json",
+          "sha256": "d19a09b458772505fee5b98e342a2073c748e9573d7450b1232ab3bcd9c63483"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-2\\artifacts\\e2e-accessibility\\build.log",
+          "sha256": "09265a69ef0ca61565d15b886e4ebdb18a4bd51633d8a6b7d61d815590c5f1dd"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-2\\artifacts\\e2e-accessibility\\playwright-results.json",
+          "sha256": "0d1de07908a0bfb7fccdfee9c92ab0043dff72432cb98d4bbe50783d4b8ea6ed"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-2\\artifacts\\e2e-accessibility\\playwright.junit.xml",
+          "sha256": "6bbe4fb1609a4ee9fc0aba6aec1754b55df3c479b834867eda953b37ad9b08e0"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-2\\artifacts\\e2e-accessibility\\playwright.log",
+          "sha256": "9cc89f51af94c2a4facea2f1860bfe627984184eb3e63f5f974546f2fe23a67c"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-2\\artifacts\\e2e-accessibility-2-summary.json",
+          "sha256": "a14f864a42941e2c8d0247d8112a4e887f5c233b71d8e860cb1cd93aa48777c1"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-3\\artifacts\\e2e-accessibility\\build.log",
+          "sha256": "84e5b0adaa427f8437c27277ed37db20082ebb497e88923ad4311f8335a9c42e"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-3\\artifacts\\e2e-accessibility\\playwright-results.json",
+          "sha256": "463e97a7f9b3c7270b9db3f8a45400837d1ead9081f70db30e0c64446596a845"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-3\\artifacts\\e2e-accessibility\\playwright.junit.xml",
+          "sha256": "757702487235214a61f5ecb0bb2d92dc86eca848942b5659545a7e24fb54d246"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-3\\artifacts\\e2e-accessibility\\playwright.log",
+          "sha256": "642e5ee9715668df5475eb3a40ad3a7a19685a81cc354d6e76f5d5802d7dfa63"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-3\\artifacts\\e2e-accessibility-3-summary.json",
+          "sha256": "65241095ee8305104acbd9c0cd1eb87e0da84e16364501990a46c2adbf54ae30"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-4\\artifacts\\e2e-accessibility\\build.log",
+          "sha256": "2b183969dd0ca8a257b04c8e1467c55596ae7c04936201cdbd931888e16bccd1"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-4\\artifacts\\e2e-accessibility\\playwright-results.json",
+          "sha256": "8ebf6211dcc0d7ac9e4d1011a48c96e7a053e93c063f66f3071ea5c3d223ccf9"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-4\\artifacts\\e2e-accessibility\\playwright.junit.xml",
+          "sha256": "e6b3a296a27e7ec70ec1d9ac8dc8473256f026eefd4620b8ce5472014d67d5b9"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-4\\artifacts\\e2e-accessibility\\playwright.log",
+          "sha256": "539a8efd2b3464f788fc6e20f889099dca25a61b2c48dbc78617f9cd3d81b58d"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\e2e-4\\artifacts\\e2e-accessibility-4-summary.json",
+          "sha256": "561ba9ac132f12ba5ea103223bed50fffe857a1311bae1b933d84cb4db3723cf"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\gate\\gate-summary.json",
+          "sha256": "4a05e859448c323a767773d7258665e50a3bb2e3e48596adbac93334f0587891"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\integration\\integration\\exact-target-wrapper.log",
+          "sha256": "ab171f9376363d9aa04c3fe7ccbc57ac8bc5f39380275ebea8e945b15d8a3d99"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\integration\\integration\\vitest.json",
+          "sha256": "3a0ec5e7d85283845bef219b0c00cf30bb50b78dac1f0a4c3c3f995ead9df2cd"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\integration\\integration\\vitest.junit.xml",
+          "sha256": "0a724e4bd601245787f30cc049c2d74c12d4553f2f0861d68051ff1edcb6f227"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\integration\\integration\\vitest.log",
+          "sha256": "1a1d472d3b2d1cfbc302237c5814845c901e71fd6b0197f404d748758c371db3"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\integration\\integration-summary.json",
+          "sha256": "fbd8e3f3cef38bfda82b4fddf56c415ea476c6a37d8bb137c5897f52b8859af4"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\static\\static\\lint.log",
+          "sha256": "c6db5f0fdc721a4d189b1071385ef54b857f91dd589d6251df532d0a5929b408"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\static\\static\\typecheck.log",
+          "sha256": "4538f6a9c3cae187770b75626197841be05d727c86bd5579a41d928b0871fa5d"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\static\\static-summary.json",
+          "sha256": "bae71982c9a8fdd9986a695d8ac4bfd9f281e004242a49e619c4f9464581684c"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\unit\\artifacts\\unit-contract\\vitest.json",
+          "sha256": "c3caaa0c0e1b13e047bc558afa8d8dcd8736cd8edf8795a2732679d25ac41a48"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\unit\\artifacts\\unit-contract\\vitest.junit.xml",
+          "sha256": "77bb08a7768d118206762fdb855817f2a4bcf3f244ae1c1ca47a966ddc916194"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\unit\\artifacts\\unit-contract\\vitest.log",
+          "sha256": "83a417f035303efc84322076765612006377a71446133cb8d3a4e15d32990043"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\unit\\artifacts\\unit-contract-summary.json",
+          "sha256": "10887667c750cf699451da07d1a03f63cc557900853f43ad8df8ffb78dfd5b0c"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\worker\\cloudflare-worker\\output.log",
+          "sha256": "f6fac53de9c0c0a4ea5cfaad871d7ab58d2e9379eb1dec56b1d3e62fbafd5d1b"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37521719625\\worker\\cloudflare-worker-summary.json",
+          "sha256": "7b1673d95ba4eb825e743d6411815156d816d09e3292de4c181e139313a5c1e2"
+        }
+      ],
+      "checkoutShas": [
+        "f6d3eda2158be478bb4db0ff5558d7895e3212b1"
+      ],
+      "sourceIdentity": {
+        "merge": {
+          "parents": [
+            "f49e1bd8951394cf88250b3ea88847d0038db491",
+            "e6821971e7adffc74da3b6e945eeaadaa4224360"
+          ],
+          "sha": "f6d3eda2158be478bb4db0ff5558d7895e3212b1",
+          "tree": "531e83d9dfd505ca5078ed667e8fbe963e146d90"
+        },
+        "comparison": {
+          "base": "e6821971e7adffc74da3b6e945eeaadaa4224360",
+          "files": [],
+          "head": "f6d3eda2158be478bb4db0ff5558d7895e3212b1",
+          "status": "ahead"
+        }
+      },
+      "browser": {
+        "shardsRead": 4,
+        "requiredShards": 4,
+        "discovered": 902,
+        "pass": 894,
+        "fail": 8,
+        "skip": 0,
+        "flaky": 0,
+        "globalErrors": 0
+      },
+      "exactTarget": "Guarded wrapper refuses without disposable-role authorization; missing exact-target reports never constitute a pass.",
+      "runStatus": "completed",
+      "conclusion": "failure",
+      "jobs": [
+        {
+          "name": "cloudflare-worker",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-06T19:51:19Z",
+          "completedAt": "2026-10-06T19:51:32Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37521719625/job/112469449132"
+        },
+        {
+          "name": "static",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-06T19:51:19Z",
+          "completedAt": "2026-10-06T19:52:01Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37521719625/job/112469449552"
+        },
+        {
+          "name": "e2e-accessibility (3)",
+          "status": "completed",
+          "conclusion": "failure",
+          "startedAt": "2026-10-06T19:51:19Z",
+          "completedAt": "2026-10-06T19:58:38Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37521719625/job/112469449601"
+        },
+        {
+          "name": "unit-contract",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-06T19:51:19Z",
+          "completedAt": "2026-10-06T19:53:00Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37521719625/job/112469449624"
+        },
+        {
+          "name": "e2e-accessibility (2)",
+          "status": "completed",
+          "conclusion": "failure",
+          "startedAt": "2026-10-06T19:51:19Z",
+          "completedAt": "2026-10-06T20:04:12Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37521719625/job/112469449626"
+        },
+        {
+          "name": "e2e-accessibility (4)",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-06T19:51:19Z",
+          "completedAt": "2026-10-06T20:03:46Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37521719625/job/112469449659"
+        },
+        {
+          "name": "integration",
+          "status": "completed",
+          "conclusion": "failure",
+          "startedAt": "2026-10-06T19:51:19Z",
+          "completedAt": "2026-10-06T20:02:55Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37521719625/job/112469449745"
+        },
+        {
+          "name": "e2e-accessibility (1)",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-06T19:51:19Z",
+          "completedAt": "2026-10-06T19:57:24Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37521719625/job/112469449863"
+        },
+        {
+          "name": "build",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-06T19:51:19Z",
+          "completedAt": "2026-10-06T19:51:58Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37521719625/job/112469449930"
+        },
+        {
+          "name": "pr-gate",
+          "status": "completed",
+          "conclusion": "failure",
+          "startedAt": "2026-10-06T20:04:17Z",
+          "completedAt": "2026-10-06T20:04:55Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37521719625/job/112475012070"
+        }
+      ]
+    },
+    {
+      "runId": 37524256754,
+      "url": "https://github.com/YNWAforever/aiso/actions/runs/37524256754",
+      "headSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "environment": "GitHub Actions Ubuntu; Node 24.x; synthetic provider/Auth fixture browser; guarded disposable owner DB; role authorization absent",
+      "summaries": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\build\\build-summary.json",
+          "schemaVersion": 1,
+          "job": "build",
+          "commitSha": "716a7a2f352dde1874e9f2a165f797b6baf1f856",
+          "status": "success",
+          "executed": 1,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "build/build.log"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-1\\artifacts\\e2e-accessibility-1-summary.json",
+          "schemaVersion": 1,
+          "job": "e2e-accessibility",
+          "commitSha": "716a7a2f352dde1874e9f2a165f797b6baf1f856",
+          "status": "success",
+          "executed": 226,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "e2e-accessibility/playwright.log",
+            "e2e-accessibility/playwright-results.json",
+            "e2e-accessibility/playwright.junit.xml"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-2\\artifacts\\e2e-accessibility-2-summary.json",
+          "schemaVersion": 1,
+          "job": "e2e-accessibility",
+          "commitSha": "716a7a2f352dde1874e9f2a165f797b6baf1f856",
+          "status": "success",
+          "executed": 226,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "e2e-accessibility/playwright.log",
+            "e2e-accessibility/playwright-results.json",
+            "e2e-accessibility/playwright.junit.xml"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-3\\artifacts\\e2e-accessibility-3-summary.json",
+          "schemaVersion": 1,
+          "job": "e2e-accessibility",
+          "commitSha": "716a7a2f352dde1874e9f2a165f797b6baf1f856",
+          "status": "success",
+          "executed": 225,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "e2e-accessibility/playwright.log",
+            "e2e-accessibility/playwright-results.json",
+            "e2e-accessibility/playwright.junit.xml"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-4\\artifacts\\e2e-accessibility-4-summary.json",
+          "schemaVersion": 1,
+          "job": "e2e-accessibility",
+          "commitSha": "716a7a2f352dde1874e9f2a165f797b6baf1f856",
+          "status": "success",
+          "executed": 225,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "e2e-accessibility/playwright.log",
+            "e2e-accessibility/playwright-results.json",
+            "e2e-accessibility/playwright.junit.xml"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\gate\\gate-summary.json",
+          "schemaVersion": 1,
+          "job": "pr-gate",
+          "commitSha": "716a7a2f352dde1874e9f2a165f797b6baf1f856",
+          "status": "failure",
+          "executed": 6,
+          "skipped": 0,
+          "failurePriorities": [
+            "P0"
+          ],
+          "artifacts": [
+            "gate-summary.json"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\integration\\integration-summary.json",
+          "schemaVersion": 1,
+          "job": "integration",
+          "commitSha": "716a7a2f352dde1874e9f2a165f797b6baf1f856",
+          "status": "failure",
+          "executed": 0,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "integration/vitest.log",
+            "integration/exact-target-wrapper.log"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\static\\static-summary.json",
+          "schemaVersion": 1,
+          "job": "static",
+          "commitSha": "716a7a2f352dde1874e9f2a165f797b6baf1f856",
+          "status": "success",
+          "executed": 2,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "static/lint.log",
+            "static/typecheck.log"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\unit\\artifacts\\unit-contract-summary.json",
+          "schemaVersion": 1,
+          "job": "unit-contract",
+          "commitSha": "716a7a2f352dde1874e9f2a165f797b6baf1f856",
+          "status": "success",
+          "executed": 5345,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "unit-contract/vitest.json",
+            "unit-contract/vitest.junit.xml"
+          ]
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\worker\\cloudflare-worker-summary.json",
+          "schemaVersion": 1,
+          "job": "cloudflare-worker",
+          "commitSha": "716a7a2f352dde1874e9f2a165f797b6baf1f856",
+          "status": "success",
+          "executed": 1,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "cloudflare-worker/output.log"
+          ]
+        }
+      ],
+      "reports": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-1\\artifacts\\e2e-accessibility\\playwright-results.json",
+          "command": "npm run e2e -- --workers=1 --shard=1/4 --reporter=list,html,json,junit",
+          "counts": {
+            "discovered": 226,
+            "pass": 226,
+            "fail": 0,
+            "skip": 0,
+            "flaky": 0,
+            "globalErrors": 0
+          },
+          "startedAtUtc": "2026-10-06T20:11:33.766Z",
+          "startedAtHkt": "07/10/2026, 04:11:33 HKT"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-2\\artifacts\\e2e-accessibility\\playwright-results.json",
+          "command": "npm run e2e -- --workers=1 --shard=2/4 --reporter=list,html,json,junit",
+          "counts": {
+            "discovered": 226,
+            "pass": 226,
+            "fail": 0,
+            "skip": 0,
+            "flaky": 0,
+            "globalErrors": 0
+          },
+          "startedAtUtc": "2026-10-06T20:11:00.288Z",
+          "startedAtHkt": "07/10/2026, 04:11:00 HKT"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-3\\artifacts\\e2e-accessibility\\playwright-results.json",
+          "command": "npm run e2e -- --workers=1 --shard=3/4 --reporter=list,html,json,junit",
+          "counts": {
+            "discovered": 225,
+            "pass": 225,
+            "fail": 0,
+            "skip": 0,
+            "flaky": 0,
+            "globalErrors": 0
+          },
+          "startedAtUtc": "2026-10-06T20:10:20.324Z",
+          "startedAtHkt": "07/10/2026, 04:10:20 HKT"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-4\\artifacts\\e2e-accessibility\\playwright-results.json",
+          "command": "npm run e2e -- --workers=1 --shard=4/4 --reporter=list,html,json,junit",
+          "counts": {
+            "discovered": 225,
+            "pass": 225,
+            "fail": 0,
+            "skip": 0,
+            "flaky": 0,
+            "globalErrors": 0
+          },
+          "startedAtUtc": "2026-10-06T20:10:33.511Z",
+          "startedAtHkt": "07/10/2026, 04:10:33 HKT"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\integration\\integration\\vitest.json",
+          "command": "REQUIRE_INTEGRATION_TESTS=1 npx vitest run --config vitest.integration.config.ts --reporter=json --reporter=junit --outputFile.json=artifacts/integration/vitest.json --outputFile.junit=artifacts/integration/vitest.junit.xml",
+          "counts": {
+            "files": 22,
+            "filesPassed": 21,
+            "filesFailed": 1,
+            "discovered": 221,
+            "pass": 199,
+            "fail": 0,
+            "skip": 22
+          },
+          "startedAtUtc": "2026-10-06T20:09:47.899Z",
+          "startedAtHkt": "07/10/2026, 04:09:47 HKT"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\unit\\artifacts\\unit-contract\\vitest.json",
+          "command": "npm test -- --coverage --reporter=json --reporter=junit --outputFile.json=artifacts/unit-contract/vitest.json --outputFile.junit=artifacts/unit-contract/vitest.junit.xml",
+          "counts": {
+            "files": 373,
+            "filesPassed": 373,
+            "filesFailed": 0,
+            "discovered": 5345,
+            "pass": 5345,
+            "fail": 0,
+            "skip": 0
+          },
+          "startedAtUtc": "2026-10-06T20:09:36.823Z",
+          "startedAtHkt": "07/10/2026, 04:09:36 HKT"
+        }
+      ],
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\build\\build\\build.log",
+          "sha256": "2b539a7df0f5adf55369c99d3c58148661df1c6b5a68383f88f50535952fb530"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\build\\build-summary.json",
+          "sha256": "c7ad4e3e779eeeb5fb902cec75ef5b548cb769742d804406f839b4ae0633d94c"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-1\\artifacts\\e2e-accessibility\\build.log",
+          "sha256": "9473c24f10ee876a09fe14527fc4c8692d50507f399a7b9008c87567f744bbb2"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-1\\artifacts\\e2e-accessibility\\playwright-results.json",
+          "sha256": "5c5538c4f50990ff835952fdf3d67cc025e2bc3ed9fb703cbab6111e10b7c25c"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-1\\artifacts\\e2e-accessibility\\playwright.junit.xml",
+          "sha256": "f0fd05bed3d0d9bdba8facf8207c3955a59591d03b3f9368b3ee704fa4f71ded"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-1\\artifacts\\e2e-accessibility\\playwright.log",
+          "sha256": "efdad813a30855e2830e0e78500ea6fff5f57802ff7044e95ef114cfa69bc024"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-1\\artifacts\\e2e-accessibility-1-summary.json",
+          "sha256": "358beed9768ab01f8cce5d581bb75993645ff491c93c6efbabf5ea3d0e1d6650"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-2\\artifacts\\e2e-accessibility\\build.log",
+          "sha256": "7f4d48f277fca6eba07108e1540aca2452ec981aa7f8197dcb010fff1d3953e9"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-2\\artifacts\\e2e-accessibility\\playwright-results.json",
+          "sha256": "1b3d6f4a770e8fe812a997bb3708203f16e17a8b99d60d7f7dd367673a51d12d"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-2\\artifacts\\e2e-accessibility\\playwright.junit.xml",
+          "sha256": "34dfc4019bc06aac3f9f4636c9d67dff54701804f7a92368f0a079219907494a"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-2\\artifacts\\e2e-accessibility\\playwright.log",
+          "sha256": "ce34e2c3be96a28c2f6b189bf0ee30a391c435a78b52ddfa008e44dd8c65a181"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-2\\artifacts\\e2e-accessibility-2-summary.json",
+          "sha256": "358beed9768ab01f8cce5d581bb75993645ff491c93c6efbabf5ea3d0e1d6650"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-3\\artifacts\\e2e-accessibility\\build.log",
+          "sha256": "c7ec2bb61ee13c04d54daca44b0af50e1ba8912bb67d31b37dc3e7a86d0a87b2"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-3\\artifacts\\e2e-accessibility\\playwright-results.json",
+          "sha256": "f18e22ade44004869abd3e5b0fbdfbdc52ad513cf141e38462bb9e9f32c17bc0"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-3\\artifacts\\e2e-accessibility\\playwright.junit.xml",
+          "sha256": "b81730fc04c1ae7d1f793901f93ba03bc2257d3027029ebeb1a7e0d9ec48010c"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-3\\artifacts\\e2e-accessibility\\playwright.log",
+          "sha256": "fc8d19f730d3e613a394e94ed3be83a88bca26c47d6787a240b481dcb5c5ed96"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-3\\artifacts\\e2e-accessibility-3-summary.json",
+          "sha256": "d19385e673a596900a5704fb680e6147d185fc0c6239227e91aa1f0627329e43"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-4\\artifacts\\e2e-accessibility\\build.log",
+          "sha256": "f1a34e304adfcb359f697c012173a462688d78eb2457d83e07d3acc8973aaecd"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-4\\artifacts\\e2e-accessibility\\playwright-results.json",
+          "sha256": "1b9bd7de1ffffcb57c7065fd07800b3ca5d976a30662e3c5afa0fa9d0a4247fd"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-4\\artifacts\\e2e-accessibility\\playwright.junit.xml",
+          "sha256": "f0381880f773ccd44bfe85f089a84eb7b2e3ccecb0026570f7db2c37349d5223"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-4\\artifacts\\e2e-accessibility\\playwright.log",
+          "sha256": "bf5d72aa4401693ff1afe928b6d3ffe8c4886829f558245c228f7f2635148c7f"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\e2e-4\\artifacts\\e2e-accessibility-4-summary.json",
+          "sha256": "d19385e673a596900a5704fb680e6147d185fc0c6239227e91aa1f0627329e43"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\gate\\gate-summary.json",
+          "sha256": "6c0f15ae988554320ff24321aa1e43e9f8412879a663ec85f2ff35a86500b664"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\integration\\integration\\exact-target-wrapper.log",
+          "sha256": "232a4fa8ac09b0a3f0bc39a6e86adc537c49ba789d4c4bd2ae13a65098c1dea7"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\integration\\integration\\vitest.json",
+          "sha256": "2bde7f9ab0f2af838f03a2f20bd048f59300e446ee81e8f07c895abac95d0b38"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\integration\\integration\\vitest.junit.xml",
+          "sha256": "a4ddaa0c6ef3e33f17c7243941917e20b786daca469008eb35642eefbe6bbadb"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\integration\\integration\\vitest.log",
+          "sha256": "de78ed685d31709c2bfd6f1c4a5594166a885c9173202fe9a2f75c029db98c6c"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\integration\\integration-summary.json",
+          "sha256": "13d7c7cfba503783a89fe860cfe1f1f54dccd3fd33873e0f0c6eb29645ae4965"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\static\\static\\lint.log",
+          "sha256": "c6db5f0fdc721a4d189b1071385ef54b857f91dd589d6251df532d0a5929b408"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\static\\static\\typecheck.log",
+          "sha256": "4538f6a9c3cae187770b75626197841be05d727c86bd5579a41d928b0871fa5d"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\static\\static-summary.json",
+          "sha256": "d45394142e99c8e7ca61e6e65000b6a4337e59b54525adf88c9c8929307fb7e5"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\unit\\artifacts\\unit-contract\\vitest.json",
+          "sha256": "a0a3e6e6e36eaa474799040df7b85e1c3fa484a5d4b6eae3fc49350d15cd1b35"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\unit\\artifacts\\unit-contract\\vitest.junit.xml",
+          "sha256": "96a0aede59ad7205e8af165f04c4e172764d2c834d943312a78ab5c9d7174bb0"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\unit\\artifacts\\unit-contract\\vitest.log",
+          "sha256": "ef5021783119d77801e7bc2c5dc6cd6ff5d7fa675aa556c316f2de130cecfe86"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\unit\\artifacts\\unit-contract-summary.json",
+          "sha256": "80a1789b29d541d96eb1b0f51b1c0ced21de405ecd4e393968dbb054243ba6a2"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\worker\\cloudflare-worker\\output.log",
+          "sha256": "8461ed0196c0e5704d778fefd12dd4534e58d599aa73673b3e9ef6a2433f01a9"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\ci-37524256754\\worker\\cloudflare-worker-summary.json",
+          "sha256": "9bd5a05ec107d0012e1b8773a1dedfe5b6f20492e31cd133d901256eaef9b875"
+        }
+      ],
+      "checkoutShas": [
+        "716a7a2f352dde1874e9f2a165f797b6baf1f856"
+      ],
+      "sourceIdentity": {
+        "merge": {
+          "parents": [
+            "f49e1bd8951394cf88250b3ea88847d0038db491",
+            "fbf8f9d209edf5ce47fc01d979c167371ffa2c76"
+          ],
+          "sha": "716a7a2f352dde1874e9f2a165f797b6baf1f856",
+          "tree": "07b8559888823248bd4ae0a371c3940b4cf9241a"
+        },
+        "comparison": {
+          "base": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+          "files": [],
+          "status": "ahead"
+        }
+      },
+      "browser": {
+        "shardsRead": 4,
+        "requiredShards": 4,
+        "discovered": 902,
+        "pass": 902,
+        "fail": 0,
+        "skip": 0,
+        "flaky": 0,
+        "globalErrors": 0
+      },
+      "exactTarget": "Guarded wrapper refuses without disposable-role authorization; missing exact-target reports never constitute a pass.",
+      "runStatus": "completed",
+      "conclusion": "failure",
+      "jobs": [
+        {
+          "name": "static",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-06T20:09:07Z",
+          "completedAt": "2026-10-06T20:10:13Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37524256754/job/112477117454"
+        },
+        {
+          "name": "cloudflare-worker",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-06T20:09:07Z",
+          "completedAt": "2026-10-06T20:09:31Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37524256754/job/112477117675"
+        },
+        {
+          "name": "e2e-accessibility (4)",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-06T20:09:07Z",
+          "completedAt": "2026-10-06T20:20:13Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37524256754/job/112477117694"
+        },
+        {
+          "name": "unit-contract",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-06T20:09:07Z",
+          "completedAt": "2026-10-06T20:10:37Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37524256754/job/112477117730"
+        },
+        {
+          "name": "integration",
+          "status": "completed",
+          "conclusion": "failure",
+          "startedAt": "2026-10-06T20:09:08Z",
+          "completedAt": "2026-10-06T20:20:02Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37524256754/job/112477117753"
+        },
+        {
+          "name": "build",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-06T20:09:07Z",
+          "completedAt": "2026-10-06T20:09:51Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37524256754/job/112477117843"
+        },
+        {
+          "name": "e2e-accessibility (3)",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-06T20:09:07Z",
+          "completedAt": "2026-10-06T20:15:17Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37524256754/job/112477118068"
+        },
+        {
+          "name": "e2e-accessibility (1)",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-06T20:09:08Z",
+          "completedAt": "2026-10-06T20:17:33Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37524256754/job/112477118090"
+        },
+        {
+          "name": "e2e-accessibility (2)",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-06T20:09:08Z",
+          "completedAt": "2026-10-06T20:21:45Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37524256754/job/112477118235"
+        },
+        {
+          "name": "pr-gate",
+          "status": "completed",
+          "conclusion": "failure",
+          "startedAt": "2026-10-06T20:21:48Z",
+          "completedAt": "2026-10-06T20:22:23Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37524256754/job/112482550692"
+        }
+      ]
+    }
+  ]
+}

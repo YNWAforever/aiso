@@ -1,0 +1,21 @@
+{
+  "observedAt": "2026-10-06T19:31:50.620Z",
+  "account": "e387dfbeded3deb5b8f0023a78a660b5",
+  "worker": "aiso-cron-worker",
+  "method": "GET only",
+  "schedules": [],
+  "subdomain": {
+    "enabled": false,
+    "previews_enabled": false
+  },
+  "content": {
+    "modules": [
+      {
+        "name": "worker.mjs",
+        "bytes": 1115,
+        "sha256": "a178d5b14fd16bac26bf5def39c1e16445c7595573ba2ac5c6dcc33a5a8048bf",
+        "contentType": "application/javascript+module"
+      }
+    ]
+  }
+}

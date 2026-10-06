@@ -1,0 +1,9 @@
+{
+  "selectedImplementationSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+  "recordedAtUtc": "2026-10-06T20:35:05.248Z",
+  "sourceFilesVerified": 1128,
+  "structuredReportsVerified": 66,
+  "receiptHashesVerified": 148,
+  "historyPreservation": "24/36 register history compared by exporter; original finding/repair/case/operation columns retained with execution columns appended",
+  "exclusions": "No input ZIP, environment file, human auth state or credential material included."
+}

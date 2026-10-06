@@ -1,0 +1,1690 @@
+{
+  "selectedImplementationSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+  "node": "v24.18.0",
+  "recordedAt": "2026-10-06T20:34:05.404Z",
+  "countsPolicy": "Measured assertions/files. Failed hooks, zero discovery, missing reports or skipped assertions never pass. Provider/Auth fixtures do not establish real visibility or human login.",
+  "receipts": [
+    {
+      "id": "baseline-geo-probes",
+      "command": "node node_modules/vitest/vitest.mjs run --config .superpowers/aiso-20261007/baseline-geo.config.mts --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/baseline-geo-probes.json",
+      "executionSha": "6f7b84a0f24e1f4427369ec12e304f618b2f68aa",
+      "environment": "pack probes through path-only adapted config; 2 PASS confirms defects, NOT acceptance",
+      "exit": 0,
+      "counts": {
+        "files": 1,
+        "filesPassed": 1,
+        "filesFailed": 0,
+        "discovered": 2,
+        "pass": 2,
+        "fail": 0,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\baseline-geo-probes.json",
+          "sha256": "1d9531717c343f1be926e12fb88758b678250fb287c430c9210112cfaa0e7e81"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\baseline-geo-probes.log",
+          "sha256": "0b2b944063802912452287a536ddb25907ef63a23c3910282fb2e8bca1c8db19"
+        }
+      ],
+      "startedAtUtc": "2026-10-06T19:57:50.049Z",
+      "startedAtHkt": "07/10/2026, 03:57:50 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:57:50.908Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "pack probes through path-only adapted config; 2 PASS confirms defects, NOT acceptance"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T23",
+        "T01",
+        "T03"
+      ],
+      "acceptanceIds": [
+        "AC29",
+        "AC30",
+        "AC34"
+      ],
+      "acceptanceMeaning": "baseline only; not corrected acceptance"
+    },
+    {
+      "id": "baseline-original",
+      "command": "npm run test:unit -- --maxWorkers=4",
+      "executionSha": "6f7b84a0f24e1f4427369ec12e304f618b2f68aa",
+      "environment": "unchanged candidate unit; provider fixtures",
+      "exit": 0,
+      "counts": {
+        "files": 372,
+        "filesPassed": 372,
+        "filesFailed": 0,
+        "discovered": 5303,
+        "pass": 5303,
+        "fail": 0,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\baseline-original.json",
+          "sha256": "12151ea922f0d6661b9e9d620dffa786b986ff145154dae5d84add592d8d534c"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\baseline-original.log",
+          "sha256": "49ff5328fa437737b02ef28a775ca038d9b240346c3203846023608241f5e37e"
+        }
+      ],
+      "commandExpanded": "vitest run --exclude '__tests__/integration/**' --maxWorkers=4 --reporter=default --reporter=json --outputFile.json=C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/artifacts/aiso/2026-10-07/baseline-original.json",
+      "startedAtUtc": "2026-10-06T19:00:46.939Z",
+      "startedAtHkt": "07/10/2026, 03:00:46 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:04:19.024Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "unchanged candidate unit; provider fixtures"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ],
+      "acceptanceMeaning": "baseline only; not corrected acceptance"
+    },
+    {
+      "id": "t21-red-final",
+      "command": "npm run test:integration -- __tests__/integration/activation-approval.test.ts",
+      "executionSha": "6f7b84a + regression test",
+      "environment": "guarded disposable DB; genuine defect RED",
+      "exit": 1,
+      "counts": {
+        "files": 1,
+        "filesPassed": 0,
+        "filesFailed": 1,
+        "discovered": 4,
+        "pass": 0,
+        "fail": 4,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\t21-red-final.json",
+          "sha256": "19ab9d3958301d4999276fbee095a6012e7e5a460bc024c9b2de1c46eac6f169"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\t21-red-final.log",
+          "sha256": "cb45746049c4f08f93528b783dc7a2a93dbb4742a60a65fcfebc1a9e028220e6"
+        }
+      ],
+      "commandExpanded": "vitest run --config vitest.integration.config.ts __tests__/integration/activation-approval.test.ts --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/t21-red-final.json",
+      "startedAtUtc": "2026-10-06T19:05:02.377Z",
+      "startedAtHkt": "07/10/2026, 03:05:02 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:05:33.913Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "project": "weathered-wave-50814522",
+        "branch": "br-little-firefly-az8apmh5",
+        "database": "neondb",
+        "role": "neondb_owner; application-role assertions blocked"
+      },
+      "cleanup": "deleted registered disposable branch",
+      "taskIds": [
+        "T21",
+        "T04"
+      ],
+      "acceptanceIds": [
+        "AC27",
+        "AC28"
+      ]
+    },
+    {
+      "id": "t21-green-final",
+      "command": "npm run test:integration -- __tests__/integration/activation-approval.test.ts",
+      "executionSha": "dirty continuation before 793d919",
+      "environment": "guarded disposable DB; source_id ownership join GREEN",
+      "exit": 0,
+      "counts": {
+        "files": 1,
+        "filesPassed": 1,
+        "filesFailed": 0,
+        "discovered": 4,
+        "pass": 4,
+        "fail": 0,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\t21-green-final.json",
+          "sha256": "0c48ced16a95be790c8bf07eac68f97571929f9f4382a52894528920ee917e1a"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\t21-green-final.log",
+          "sha256": "8cf4f20b803127aef646a4d2d0e8f5e9b6f9681e541c26c76e4c83b0f36d833b"
+        }
+      ],
+      "commandExpanded": "vitest run --config vitest.integration.config.ts __tests__/integration/activation-approval.test.ts --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/t21-green-final.json",
+      "startedAtUtc": "2026-10-06T19:12:50.771Z",
+      "startedAtHkt": "07/10/2026, 03:12:50 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:13:33.149Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "project": "weathered-wave-50814522",
+        "branch": "br-winter-sunset-az172oj0",
+        "database": "neondb",
+        "role": "neondb_owner; application-role assertions blocked"
+      },
+      "cleanup": "deleted registered disposable branch",
+      "taskIds": [
+        "T21",
+        "T04"
+      ],
+      "acceptanceIds": [
+        "AC27",
+        "AC28"
+      ]
+    },
+    {
+      "id": "t23-red-provider",
+      "command": "npm run test:unit -- __tests__/checks/factualDensity.test.ts __tests__/lib/scan-evidence-capture.test.ts",
+      "executionSha": "6f7b84a + regression tests",
+      "environment": "provider mocks; one later-corrected test cleanup-hook fault also present",
+      "exit": 1,
+      "counts": {
+        "files": 2,
+        "filesPassed": 0,
+        "filesFailed": 2,
+        "discovered": 34,
+        "pass": 13,
+        "fail": 21,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\t23-red-provider.json",
+          "sha256": "19b25e242ab1a5307ba0d9db2bacf74c235987236e9528bfdf3af12a6070b2e7"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\t23-red-provider.log",
+          "sha256": "c748ae90bb8f6c59203a1590f3cafbfff338e066d6d58de1e345f4a312f58d4c"
+        }
+      ],
+      "commandExpanded": "vitest run --exclude '__tests__/integration/**' __tests__/checks/factualDensity.test.ts __tests__/lib/scan-evidence-capture.test.ts --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/t23-red-provider.json",
+      "startedAtUtc": "2026-10-06T19:05:15.925Z",
+      "startedAtHkt": "07/10/2026, 03:05:15 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:05:16.667Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "provider mocks; one later-corrected test cleanup-hook fault also present"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T23",
+        "T01",
+        "T03"
+      ],
+      "acceptanceIds": [
+        "AC29",
+        "AC30",
+        "AC34"
+      ]
+    },
+    {
+      "id": "t23-red-projections",
+      "command": "npm run test:unit -- __tests__/components/factual-density-evidence.test.tsx",
+      "executionSha": "6f7b84a + regression tests",
+      "environment": "SSR bilingual projections and historical reader RED",
+      "exit": 1,
+      "counts": {
+        "files": 1,
+        "filesPassed": 0,
+        "filesFailed": 1,
+        "discovered": 6,
+        "pass": 0,
+        "fail": 6,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\t23-red-projections.json",
+          "sha256": "a455be894b7dc009360155b34ae864aa43a8d854b1b567de9215c19759c22b00"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\t23-red-projections.log",
+          "sha256": "7058b330e23f67feca60d83728c666d575203685855f9529030d7fc62f7b43e3"
+        }
+      ],
+      "commandExpanded": "vitest run --exclude '__tests__/integration/**' __tests__/components/factual-density-evidence.test.tsx --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/t23-red-projections.json",
+      "startedAtUtc": "2026-10-06T19:07:38.981Z",
+      "startedAtHkt": "07/10/2026, 03:07:38 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:07:41.898Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "SSR bilingual projections and historical reader RED"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T23",
+        "T01",
+        "T03"
+      ],
+      "acceptanceIds": [
+        "AC29",
+        "AC30",
+        "AC34"
+      ]
+    },
+    {
+      "id": "t21-t23-focused",
+      "command": "npm run test:unit -- __tests__/checks/factualDensity.test.ts __tests__/lib/scan-evidence-capture.test.ts __tests__/lib/scan-evidence.test.ts __tests__/components/factual-density-evidence.test.tsx __tests__/lib/result-access.test.ts __tests__/lib/owner-priorities.test.ts __tests__/lib/activation.test.ts __tests__/lib/activation-progress.test.ts __tests__/components/portfolio-activation.test.tsx --maxWorkers=4 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/t21-t23-focused.json",
+      "executionSha": "dirty continuation before 793d919",
+      "environment": "provider mocks and real component SSR",
+      "exit": 0,
+      "counts": {
+        "files": 9,
+        "filesPassed": 9,
+        "filesFailed": 0,
+        "discovered": 109,
+        "pass": 109,
+        "fail": 0,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\t21-t23-focused.json",
+          "sha256": "d8a1005e18a45d576f12b0399361715d2250138d3553017eddcf568003072352"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\t21-t23-focused.log",
+          "sha256": "5b228222e2f614b9b50b78a82cdff2197fbea1be180bad2ff99c01c4775aacbd"
+        }
+      ],
+      "commandExpanded": "vitest run --exclude '__tests__/integration/**' __tests__/checks/factualDensity.test.ts __tests__/lib/scan-evidence-capture.test.ts __tests__/lib/scan-evidence.test.ts __tests__/components/factual-density-evidence.test.tsx __tests__/lib/result-access.test.ts __tests__/lib/owner-priorities.test.ts __tests__/lib/activation.test.ts __tests__/lib/activation-progress.test.ts __tests__/components/portfolio-activation.test.tsx --maxWorkers=4 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/t21-t23-focused.json",
+      "startedAtUtc": "2026-10-06T19:14:47.324Z",
+      "startedAtHkt": "07/10/2026, 03:14:47 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:14:51.805Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "provider mocks and real component SSR"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T21",
+        "T04"
+      ],
+      "acceptanceIds": [
+        "AC27",
+        "AC28"
+      ]
+    },
+    {
+      "id": "b1-auth-source",
+      "command": "npm run test:unit -- __tests__/lib/auth-return-to.test.ts __tests__/components/google-auth-start-route.test.ts __tests__/lib/auth-client.test.ts __tests__/proxy.test.ts __tests__/lib/auth-rsc-session.test.ts __tests__/components/session-refresh.test.ts __tests__/lib/auth.test.ts __tests__/api/source-version-approval.test.ts __tests__/lib/source-pack.test.ts __tests__/components/source-pack-render.test.tsx --maxWorkers=4 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/b1-auth-source.json",
+      "executionSha": "dirty continuation before 793d919",
+      "environment": "SDK/transport fixtures; not real Auth",
+      "exit": 0,
+      "counts": {
+        "files": 10,
+        "filesPassed": 10,
+        "filesFailed": 0,
+        "discovered": 157,
+        "pass": 157,
+        "fail": 0,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\b1-auth-source.json",
+          "sha256": "0b01ab61a3ed4179c51e874dd4ba668dc89b9b6dca81da7592aeb9793ab888d1"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\b1-auth-source.log",
+          "sha256": "d76f0fe95484abfd7ae26af90776bd391a403040b97f6895652c7a4021082520"
+        }
+      ],
+      "commandExpanded": "vitest run --exclude '__tests__/integration/**' __tests__/lib/auth-return-to.test.ts __tests__/components/google-auth-start-route.test.ts __tests__/lib/auth-client.test.ts __tests__/proxy.test.ts __tests__/lib/auth-rsc-session.test.ts __tests__/components/session-refresh.test.ts __tests__/lib/auth.test.ts __tests__/api/source-version-approval.test.ts __tests__/lib/source-pack.test.ts __tests__/components/source-pack-render.test.tsx --maxWorkers=4 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/b1-auth-source.json",
+      "startedAtUtc": "2026-10-06T19:15:22.788Z",
+      "startedAtHkt": "07/10/2026, 03:15:22 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:15:30.475Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "SDK/transport fixtures; not real Auth"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T04",
+        "T14",
+        "T22"
+      ],
+      "acceptanceIds": [
+        "AC02",
+        "AC22",
+        "AC26",
+        "AC31",
+        "AC32",
+        "AC33"
+      ]
+    },
+    {
+      "id": "unit-final",
+      "command": "npm run test:unit -- --maxWorkers=4",
+      "executionSha": "dirty continuation before discovery fix",
+      "environment": "reproduced worktree discovery fault",
+      "exit": 1,
+      "counts": {
+        "files": 373,
+        "filesPassed": 372,
+        "filesFailed": 1,
+        "discovered": 5340,
+        "pass": 5337,
+        "fail": 3,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\unit-final.json",
+          "sha256": "0779c5404d7bff785a7a64a159e6960b21cfe610acd1807981f96f7ec7c7539d"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\unit-final.log",
+          "sha256": "ff9d2de87b351e1e3ec5002e2fadbb07ac964ce24639152fd3ce21d28d8daf98"
+        }
+      ],
+      "commandExpanded": "vitest run --exclude '__tests__/integration/**' --maxWorkers=4 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/unit-final.json",
+      "startedAtUtc": "2026-10-06T19:16:42.852Z",
+      "startedAtHkt": "07/10/2026, 03:16:42 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:19:25.518Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "reproduced worktree discovery fault"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "worktree-discovery-green",
+      "command": "npm run test:unit -- __tests__/config/playwright-projects.test.ts",
+      "executionSha": "dirty continuation before 793d919",
+      "environment": "actual Playwright discovery and nested-copy guard",
+      "exit": 0,
+      "counts": {
+        "files": 1,
+        "filesPassed": 1,
+        "filesFailed": 0,
+        "discovered": 5,
+        "pass": 5,
+        "fail": 0,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\worktree-discovery-green.json",
+          "sha256": "fe712554503ee07ca851e1b6749c41e8ae0ef8dd8e5d13162b85685acc2eceb2"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\worktree-discovery-green.log",
+          "sha256": "4ee4205dd1bc8fa2e29e61416be8701fdafa079ccbf563c1724ad017cc47945e"
+        }
+      ],
+      "commandExpanded": "vitest run --exclude '__tests__/integration/**' __tests__/config/playwright-projects.test.ts --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/worktree-discovery-green.json",
+      "startedAtUtc": "2026-10-06T19:20:35.658Z",
+      "startedAtHkt": "07/10/2026, 03:20:35 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:22:10.847Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "actual Playwright discovery and nested-copy guard"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "unit-candidate",
+      "command": "npm run test:unit -- --maxWorkers=4",
+      "executionSha": "793d919598093ba7ea8e01701be70393916fa501",
+      "environment": "full unit gate at committed SHA",
+      "exit": 0,
+      "counts": {
+        "files": 373,
+        "filesPassed": 373,
+        "filesFailed": 0,
+        "discovered": 5340,
+        "pass": 5340,
+        "fail": 0,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\unit-candidate.json",
+          "sha256": "be29e7b0c933a3067c3b97d1f52bdaf9a37905c077658bb680e4a143fdb84a56"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\unit-candidate.log",
+          "sha256": "7174a3327c0e49efd75095ac40503e96e23b426c12445105b439768b35a1309f"
+        }
+      ],
+      "commandExpanded": "vitest run --exclude '__tests__/integration/**' --maxWorkers=4 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/unit-candidate.json",
+      "startedAtUtc": "2026-10-06T19:30:56.253Z",
+      "startedAtHkt": "07/10/2026, 03:30:56 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:37:15.588Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "full unit gate at committed SHA"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "unit-e682",
+      "command": "npm run test:unit -- --maxWorkers=2 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/unit-release.json",
+      "executionSha": "e6821971e7adffc74da3b6e945eeaadaa4224360",
+      "environment": "full unit gate before browser-found non-applicability repair",
+      "exit": 0,
+      "counts": {
+        "files": 373,
+        "filesPassed": 373,
+        "filesFailed": 0,
+        "discovered": 5343,
+        "pass": 5343,
+        "fail": 0,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\unit-e682.json",
+          "sha256": "5be198c29dace4ef880264252121bc8d2192f7eeb8b9891e3432504698892ddb"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\unit-e682.log",
+          "sha256": "fe24af5d83d015d3f7977c0162e739ae7583a99acc4fee4e8e38f1dd19b4ccfb"
+        }
+      ],
+      "commandExpanded": "vitest run --exclude '__tests__/integration/**' --maxWorkers=2 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/unit-release.json",
+      "startedAtUtc": "2026-10-06T19:55:37.064Z",
+      "startedAtHkt": "07/10/2026, 03:55:37 HKT",
+      "logWrittenAtUtc": "2026-10-06T20:00:03.824Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "full unit gate before browser-found non-applicability repair"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "not-applicable-red",
+      "command": "npm run test:unit -- __tests__/components/factual-density-evidence.test.tsx --maxWorkers=2 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/not-applicable-red.json",
+      "executionSha": "e682197 + regression test",
+      "environment": "explicit non-applicability projection fault RED",
+      "exit": 1,
+      "counts": {
+        "files": 1,
+        "filesPassed": 0,
+        "filesFailed": 1,
+        "discovered": 10,
+        "pass": 9,
+        "fail": 1,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\not-applicable-red.json",
+          "sha256": "93d4b4513fb6c03598de2d95296b36d7a97c7bd28e6ebbf1eb16b2d3174c143f"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\not-applicable-red.log",
+          "sha256": "c0fa37f8f045be73b391225c2ebcb1aa587978c4a5cb0e35dce89ac660ed66b3"
+        }
+      ],
+      "commandExpanded": "vitest run --exclude '__tests__/integration/**' __tests__/components/factual-density-evidence.test.tsx --maxWorkers=2 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/not-applicable-red.json",
+      "startedAtUtc": "2026-10-06T20:07:20.506Z",
+      "startedAtHkt": "07/10/2026, 04:07:20 HKT",
+      "logWrittenAtUtc": "2026-10-06T20:07:28.135Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "explicit non-applicability projection fault RED"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "not-applicable-green",
+      "command": "npm run test:unit -- __tests__/components/factual-density-evidence.test.tsx __tests__/components/top-issue-card.test.tsx __tests__/lib/check-priority.test.ts --maxWorkers=2 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/not-applicable-green.json",
+      "executionSha": "e682197 + focused repair before fbf8f9d",
+      "environment": "explicit non-applicability and observed fixture provenance GREEN",
+      "exit": 0,
+      "counts": {
+        "files": 3,
+        "filesPassed": 3,
+        "filesFailed": 0,
+        "discovered": 24,
+        "pass": 24,
+        "fail": 0,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\not-applicable-green.json",
+          "sha256": "a8c7cd42d8d2c9ab1e920b72c6df3aff5247b28cf6eb6538ed4ef32a6c8c2483"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\not-applicable-green.log",
+          "sha256": "d5993909cb7f37a12de699927377d9900ba4d7584c380f22cbaa5d215fdf87ad"
+        }
+      ],
+      "commandExpanded": "vitest run --exclude '__tests__/integration/**' __tests__/components/factual-density-evidence.test.tsx __tests__/components/top-issue-card.test.tsx __tests__/lib/check-priority.test.ts --maxWorkers=2 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/not-applicable-green.json",
+      "startedAtUtc": "2026-10-06T20:08:13.632Z",
+      "startedAtHkt": "07/10/2026, 04:08:13 HKT",
+      "logWrittenAtUtc": "2026-10-06T20:08:16.122Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "explicit non-applicability and observed fixture provenance GREEN"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "t23-disclosure-red",
+      "command": "npm run test:unit -- __tests__/components/factual-density-evidence.test.tsx",
+      "executionSha": "793d919 + regression test",
+      "environment": "review-found incomplete disclosure RED",
+      "exit": 1,
+      "counts": {
+        "files": 1,
+        "filesPassed": 0,
+        "filesFailed": 1,
+        "discovered": 7,
+        "pass": 6,
+        "fail": 1,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\t23-disclosure-red.json",
+          "sha256": "276f5c6a08e2b344eae6b1a8bff8eaa387ccbd5b22e26915f2f15b5973e6dd3b"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\t23-disclosure-red.log",
+          "sha256": "b1a01baf980a46537d03d14833602627d098373941a825ecfde6d34bc8ea7e10"
+        }
+      ],
+      "commandExpanded": "vitest run --exclude '__tests__/integration/**' __tests__/components/factual-density-evidence.test.tsx --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/t23-disclosure-red.json",
+      "startedAtUtc": "2026-10-06T19:37:35.065Z",
+      "startedAtHkt": "07/10/2026, 03:37:35 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:37:38.943Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "review-found incomplete disclosure RED"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T23",
+        "T01",
+        "T03"
+      ],
+      "acceptanceIds": [
+        "AC29",
+        "AC30",
+        "AC34"
+      ]
+    },
+    {
+      "id": "t23-disclosure-green",
+      "command": "npm run test:unit -- __tests__/components/factual-density-evidence.test.tsx __tests__/components/scan-evidence-render.test.tsx __tests__/lib/result-access.test.ts __tests__/lib/owner-priorities.test.ts --maxWorkers=2 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/t23-disclosure-green.json",
+      "executionSha": "793d919 + disclosure patch",
+      "environment": "review-found incomplete disclosure GREEN",
+      "exit": 0,
+      "counts": {
+        "files": 3,
+        "filesPassed": 3,
+        "filesFailed": 0,
+        "discovered": 25,
+        "pass": 25,
+        "fail": 0,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\t23-disclosure-green.json",
+          "sha256": "789bb0a22f3a2fbf6bd8c5b96965d075deb3213b3011b87405c0c5a7fc90d2dc"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\t23-disclosure-green.log",
+          "sha256": "b99fabf21a79d044984cd042320612b2aed6b47015479b513ea8aebf80cd1345"
+        }
+      ],
+      "commandExpanded": "vitest run --exclude '__tests__/integration/**' __tests__/components/factual-density-evidence.test.tsx __tests__/components/scan-evidence-render.test.tsx __tests__/lib/result-access.test.ts __tests__/lib/owner-priorities.test.ts --maxWorkers=2 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/t23-disclosure-green.json",
+      "startedAtUtc": "2026-10-06T19:39:10.953Z",
+      "startedAtHkt": "07/10/2026, 03:39:10 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:39:16.553Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "review-found incomplete disclosure GREEN"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T23",
+        "T01",
+        "T03"
+      ],
+      "acceptanceIds": [
+        "AC29",
+        "AC30",
+        "AC34"
+      ]
+    },
+    {
+      "id": "geo-claims-red",
+      "command": "npm run test:unit -- __tests__/components/factual-density-evidence.test.tsx",
+      "executionSha": "5df8823 + regression tests",
+      "environment": "E37 unsupported platform claims RED",
+      "exit": 1,
+      "counts": {
+        "files": 1,
+        "filesPassed": 0,
+        "filesFailed": 1,
+        "discovered": 9,
+        "pass": 7,
+        "fail": 2,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\geo-claims-red.json",
+          "sha256": "1b9755b89a029c131da86d64c020aa802362b7de8f0c06909d8260d832b0a947"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\geo-claims-red.log",
+          "sha256": "8eca3e1ba9f6ee81c67bc72beb097e9fc77bf950c8276729ace3ea57c1106bad"
+        }
+      ],
+      "commandExpanded": "vitest run --exclude '__tests__/integration/**' __tests__/components/factual-density-evidence.test.tsx --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/geo-claims-red.json",
+      "startedAtUtc": "2026-10-06T19:44:26.910Z",
+      "startedAtHkt": "07/10/2026, 03:44:26 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:44:31.184Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "E37 unsupported platform claims RED"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T23",
+        "T01",
+        "T03"
+      ],
+      "acceptanceIds": [
+        "AC29",
+        "AC30",
+        "AC34"
+      ]
+    },
+    {
+      "id": "geo-claims-green",
+      "command": "npm run test:unit -- __tests__/components/factual-density-evidence.test.tsx __tests__/checks/factualDensity.test.ts __tests__/checks/llms-content-quality.test.ts __tests__/checks/robots-policy.test.ts __tests__/checks/botAccess.test.ts __tests__/checks/scan-compatibility-freeze.test.ts __tests__/components/result-platform-status.test.ts __tests__/lib/impact.test.ts --maxWorkers=2 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/geo-claims-green.json",
+      "executionSha": "5df8823 + wording patch",
+      "environment": "bilingual SSR; scoring compatibility GREEN",
+      "exit": 0,
+      "counts": {
+        "files": 8,
+        "filesPassed": 8,
+        "filesFailed": 0,
+        "discovered": 140,
+        "pass": 140,
+        "fail": 0,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\geo-claims-green.json",
+          "sha256": "b1c32bfffde6948e57610afef48f31a266dca3a7a513f712629d3a1d03c57504"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\geo-claims-green.log",
+          "sha256": "0bce8b84d3c942577d05305c710bf9c35981561de3b4449d9f8de75e3d9f3f4b"
+        }
+      ],
+      "commandExpanded": "vitest run --exclude '__tests__/integration/**' __tests__/components/factual-density-evidence.test.tsx __tests__/checks/factualDensity.test.ts __tests__/checks/llms-content-quality.test.ts __tests__/checks/robots-policy.test.ts __tests__/checks/botAccess.test.ts __tests__/checks/scan-compatibility-freeze.test.ts __tests__/components/result-platform-status.test.ts __tests__/lib/impact.test.ts --maxWorkers=2 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/geo-claims-green.json",
+      "startedAtUtc": "2026-10-06T19:45:12.832Z",
+      "startedAtHkt": "07/10/2026, 03:45:12 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:45:19.521Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "bilingual SSR; scoring compatibility GREEN"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T23",
+        "T01",
+        "T03"
+      ],
+      "acceptanceIds": [
+        "AC29",
+        "AC30",
+        "AC34"
+      ]
+    },
+    {
+      "id": "unit-release",
+      "command": "npm run test:unit -- --maxWorkers=2 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/unit-release.json",
+      "executionSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "environment": "final committed implementation; provider fixtures",
+      "exit": 0,
+      "counts": {
+        "files": 373,
+        "filesPassed": 373,
+        "filesFailed": 0,
+        "discovered": 5345,
+        "pass": 5345,
+        "fail": 0,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\unit-release.json",
+          "sha256": "48947ced20c9355677907a0d399c6c2b9c8f67a1b05068f858eea8ce8f8cce45"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\unit-release.log",
+          "sha256": "b40f7ad1b8db6d70cffc3599c1a34e12a44f5f50aa7d04a1eda8ee5eb8a77977"
+        }
+      ],
+      "commandExpanded": "vitest run --exclude '__tests__/integration/**' --maxWorkers=2 --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/unit-release.json",
+      "startedAtUtc": "2026-10-06T20:09:31.830Z",
+      "startedAtHkt": "07/10/2026, 04:09:31 HKT",
+      "logWrittenAtUtc": "2026-10-06T20:14:09.669Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "final committed implementation; provider fixtures"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "integration-default",
+      "command": "REQUIRE_INTEGRATION_TESTS=1 npm run test:integration",
+      "executionSha": "dirty continuation before 793d919",
+      "environment": "guarded disposable owner DB; role hook blocked",
+      "exit": 1,
+      "counts": {
+        "files": 22,
+        "filesPassed": 21,
+        "filesFailed": 1,
+        "discovered": 221,
+        "pass": 199,
+        "fail": 0,
+        "skip": 22
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\integration-default.json",
+          "sha256": "2a0870a5343ea7a761d3ebdb43cd3ace9ea8d75d0514d987ebed70e8a60f10fe"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\integration-default.log",
+          "sha256": "fac9a5c37f086925a3feebdc8668dcad9f3997ad97f4e8247b04739654b374f6"
+        }
+      ],
+      "commandExpanded": "vitest run --config vitest.integration.config.ts --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/integration-default.json",
+      "startedAtUtc": "2026-10-06T19:16:15.824Z",
+      "startedAtHkt": "07/10/2026, 03:16:15 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:21:37.129Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "project": "weathered-wave-50814522",
+        "branch": "br-blue-firefly-az0r53f0",
+        "database": "neondb",
+        "role": "neondb_owner; application-role assertions blocked"
+      },
+      "cleanup": "deleted registered disposable branch",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "integration-final-sha",
+      "command": "REQUIRE_INTEGRATION_TESTS=1 npm run test:integration",
+      "executionSha": "5df882327aa2254e7c7a247d0b07d13237aa061f",
+      "environment": "guarded disposable owner DB; role hook blocked",
+      "exit": 1,
+      "counts": {
+        "files": 22,
+        "filesPassed": 21,
+        "filesFailed": 1,
+        "discovered": 221,
+        "pass": 199,
+        "fail": 0,
+        "skip": 22
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\integration-final-sha.json",
+          "sha256": "ec3fba8eab134b96f2415834adb6f8fec95bb7c7d9fd2c9a50ae466b2ddec3c4"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\integration-final-sha.log",
+          "sha256": "7cfb31d295d7a13e511d119a7a8022056175ef06e7ff0d16b9e3a718044d19cd"
+        }
+      ],
+      "commandExpanded": "vitest run --config vitest.integration.config.ts --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/integration-final-sha.json",
+      "startedAtUtc": "2026-10-06T19:42:41.141Z",
+      "startedAtHkt": "07/10/2026, 03:42:41 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:48:01.957Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "project": "weathered-wave-50814522",
+        "branch": "br-divine-tree-azh7n77x",
+        "database": "neondb",
+        "role": "neondb_owner; application-role assertions blocked"
+      },
+      "cleanup": "deleted registered disposable branch",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "integration-release",
+      "command": "REQUIRE_INTEGRATION_TESTS=1 npm run test:integration -- --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/integration-release.json",
+      "executionSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "environment": "guarded disposable owner DB; role hook blocked",
+      "exit": 1,
+      "counts": {
+        "files": 22,
+        "filesPassed": 21,
+        "filesFailed": 1,
+        "discovered": 221,
+        "pass": 199,
+        "fail": 0,
+        "skip": 22
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\integration-release.json",
+          "sha256": "983a7b2bb4c22170a5d7bc1206537bc2df641f7d4b4cd0d8ed68f53973be2569"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\integration-release.log",
+          "sha256": "3a4c5660f60602381719a95dfa07da231babf273fbb57c2c57d1e4572087bd68"
+        }
+      ],
+      "commandExpanded": "vitest run --config vitest.integration.config.ts --reporter=default --reporter=json --outputFile.json=artifacts/aiso/2026-10-07/integration-release.json",
+      "startedAtUtc": "2026-10-06T20:09:58.206Z",
+      "startedAtHkt": "07/10/2026, 04:09:58 HKT",
+      "logWrittenAtUtc": "2026-10-06T20:14:56.825Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "project": "weathered-wave-50814522",
+        "branch": "br-small-surf-az5a34c8",
+        "database": "neondb",
+        "role": "neondb_owner; application-role assertions blocked"
+      },
+      "cleanup": "deleted registered disposable branch",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "worker-final-sha",
+      "command": "npm --prefix cloudflare/cron-worker run test",
+      "executionSha": "5df882327aa2254e7c7a247d0b07d13237aa061f",
+      "environment": "Worker own lockfile, script and provider-free fixtures",
+      "exit": 0,
+      "counts": {
+        "files": 1,
+        "filesPassed": 1,
+        "filesFailed": 0,
+        "discovered": 8,
+        "pass": 8,
+        "fail": 0,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\worker-final-sha.json",
+          "sha256": "a79ad67ee0246ad847b942b70482d3138cfea8f599d27a0409260bc0ea17b0fb"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\worker-final-sha.log",
+          "sha256": "76883b5c1fb3140707e653f467c987d9afa89145cb2b2b05bf2151de53d7f286"
+        }
+      ],
+      "startedAtUtc": "2026-10-06T19:46:06.412Z",
+      "startedAtHkt": "07/10/2026, 03:46:06 HKT",
+      "logWrittenAtUtc": "2026-10-06T19:46:08.013Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "Worker own lockfile, script and provider-free fixtures"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "prepare-fixtures-release",
+      "command": "node scripts/ci/prepare-component-fixtures.mjs",
+      "executionSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "environment": "real component SSR and compiled production CSS; synthetic fixtures",
+      "exit": 0,
+      "counts": {
+        "files": 18,
+        "filesPassed": 18,
+        "filesFailed": 0,
+        "discovered": 113,
+        "pass": 113,
+        "fail": 0,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\prepare-fixtures-release.json",
+          "sha256": "4e21a4b58c968d5a0016664e824617a97f0ec0b54e73959e5410dfb26b89f021"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\prepare-fixtures-release.log",
+          "sha256": "4df967dc88d150a95e7cc02dc2b14182d79fb884258eced43a9f3c76ba3f6d3a"
+        }
+      ],
+      "startedAtUtc": "2026-10-06T20:15:11.704Z",
+      "startedAtHkt": "07/10/2026, 04:15:11 HKT",
+      "logWrittenAtUtc": "2026-10-06T20:15:31.651Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "real component SSR and compiled production CSS; synthetic fixtures"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "browser-fixtures",
+      "command": "npm run e2e -- --workers=2 --reporter=list,json,junit",
+      "executionSha": "793d919598093ba7ea8e01701be70393916fa501",
+      "environment": "compiled local app; mocked providers/Auth; fixture HTML/CSS",
+      "exit": 1,
+      "counts": {
+        "discovered": 902,
+        "pass": 888,
+        "fail": 8,
+        "skip": 6,
+        "flaky": 0,
+        "errors": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\browser-fixtures.json",
+          "sha256": "8b7577f01810a92864fa409256d2c00bc329e79a789797fbc54f80b71a1a350e"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\browser-fixtures.log",
+          "sha256": "0e9ec7c39ad80dd96d3c2efa60db14db8eb4ce0fd41200f1ae0e8906ac06b5a8"
+        }
+      ],
+      "commandExpanded": "playwright test --workers=2 --reporter=list,json,junit",
+      "startedAtUtc": "2026-10-06T19:26:24.300Z",
+      "startedAtHkt": "07/10/2026, 03:26:24 HKT",
+      "logWrittenAtUtc": "2026-10-06T20:13:00.980Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "origin": "http://127.0.0.1:3000",
+        "providers": "synthetic",
+        "auth": "fixture",
+        "realHumanSession": false
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "browser-release",
+      "command": "npm run e2e -- tests/e2e/auth-return-to.spec.ts tests/e2e/auth-rsc-session.spec.ts tests/e2e/check-priority.spec.ts tests/e2e/scan-flow.spec.ts --project=chromium --project=mobile --workers=2 --reporter=list,json,junit",
+      "executionSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "environment": "final compiled local app and refreshed synthetic component fixtures; legacy fixture markers are synthetic, no Supabase project used",
+      "exit": 0,
+      "counts": {
+        "discovered": 106,
+        "pass": 106,
+        "fail": 0,
+        "skip": 0,
+        "flaky": 0,
+        "errors": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\browser-release.json",
+          "sha256": "ba109c8ea252046561f150533f321aafc1cacd0d4b9dc9772966bd4ec5d01925"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\browser-release.log",
+          "sha256": "8654530906a53d9dae176498f3c661842099b7061ced249a9f0454187ab2775b"
+        }
+      ],
+      "commandExpanded": "playwright test tests/e2e/auth-return-to.spec.ts tests/e2e/auth-rsc-session.spec.ts tests/e2e/check-priority.spec.ts tests/e2e/scan-flow.spec.ts --project=chromium --project=mobile --workers=2 --reporter=list,json,junit",
+      "startedAtUtc": "2026-10-06T20:15:35.689Z",
+      "startedAtHkt": "07/10/2026, 04:15:35 HKT",
+      "logWrittenAtUtc": "2026-10-06T20:17:21.083Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "origin": "http://127.0.0.1:3000",
+        "providers": "synthetic",
+        "auth": "fixture",
+        "realHumanSession": false
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "browser-email-release",
+      "command": "npm run e2e -- tests/e2e/email-gate.spec.ts --project=chromium --project=mobile --workers=2 --reporter=list,json,junit",
+      "executionSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "environment": "same final compiled local app; mocked magic-link response, no email or normal login",
+      "exit": 0,
+      "counts": {
+        "discovered": 8,
+        "pass": 8,
+        "fail": 0,
+        "skip": 0,
+        "flaky": 0,
+        "errors": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\browser-email-release.json",
+          "sha256": "3c09e4ceb7f190b8d1fff6041809289e99c3f530aafe863dcb18895d0f5fb615"
+        },
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\browser-email-release.log",
+          "sha256": "8247180dc61e6c3b5f278096e6c03898c24f34076e62812c400ff166c087243a"
+        }
+      ],
+      "commandExpanded": "playwright test tests/e2e/email-gate.spec.ts --project=chromium --project=mobile --workers=2 --reporter=list,json,junit",
+      "startedAtUtc": "2026-10-06T20:17:57.080Z",
+      "startedAtHkt": "07/10/2026, 04:17:57 HKT",
+      "logWrittenAtUtc": "2026-10-06T20:18:13.117Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "origin": "http://127.0.0.1:3000",
+        "providers": "synthetic",
+        "auth": "fixture",
+        "realHumanSession": false
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "exact-target",
+      "command": "node scripts/ci/run-exact-target-suites.mjs",
+      "executionSha": "candidate 6f7b84a base; preparatory/blocked command in continuation; no final-SHA assertion claim",
+      "environment": "explicit role guard; zero tests, no branch/role changed",
+      "exit": 1,
+      "counts": {
+        "discovered": 0,
+        "pass": 0,
+        "fail": 0,
+        "skip": 0,
+        "gate": "blocked before assertion execution"
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\exact-target.log",
+          "sha256": "225b6510eebdd9069227f2dc41c68fdf780cf8499e3adfee5191a505968ce25e"
+        }
+      ],
+      "startedAtUtc": null,
+      "startedAtHkt": null,
+      "logWrittenAtUtc": "2026-10-06T19:16:28.726Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "explicit role guard; zero tests, no branch/role changed"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "normal-auth",
+      "command": "npm run e2e:authenticated -- tests/e2e/authenticated/aiso-maintenance.spec.ts",
+      "executionSha": "candidate 6f7b84a base; preparatory/blocked command in continuation; no final-SHA assertion claim",
+      "environment": "missing isolated issuer and captured human session; no tests",
+      "exit": 1,
+      "counts": {
+        "discovered": 0,
+        "pass": 0,
+        "fail": 0,
+        "skip": 0,
+        "gate": "blocked before assertion execution"
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\normal-auth.log",
+          "sha256": "affe17a185f369e3646d403687b69a28ec8a911587916df8a9eeaa01d0506814"
+        }
+      ],
+      "commandExpanded": "node --env-file-if-exists=.env.local scripts/e2e/run-authenticated.mjs tests/e2e/authenticated/aiso-maintenance.spec.ts",
+      "startedAtUtc": null,
+      "startedAtHkt": null,
+      "logWrittenAtUtc": "2026-10-06T19:16:30.435Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "missing isolated issuer and captured human session; no tests"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "typecheck-release",
+      "command": "npm run typecheck",
+      "executionSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "environment": "local Next typegen and TypeScript",
+      "exit": 0,
+      "counts": null,
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\typecheck-release.log",
+          "sha256": "4a06afe6769dc38765d059f77c098e507693ba8a824ccdc262a2c595bd8f9e48"
+        }
+      ],
+      "commandExpanded": "next typegen && tsc --noEmit",
+      "startedAtUtc": null,
+      "startedAtHkt": null,
+      "logWrittenAtUtc": "2026-10-06T20:09:51.930Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "local Next typegen and TypeScript"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "lint-release",
+      "command": "npm run lint",
+      "executionSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "environment": "local ESLint",
+      "exit": 0,
+      "counts": null,
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\lint-release.log",
+          "sha256": "df4868771113c1f78f002be20d8f0418d2d3c4ef0a0e335b7373ddf1391ef2f1"
+        }
+      ],
+      "commandExpanded": "eslint . --ignore-pattern \".claude/\" --ignore-pattern \".superpowers/\" --ignore-pattern \".codebase-memory/**\" --ignore-pattern \"coverage/\" --ignore-pattern \"cloudflare/**\" --ignore-pattern \".playwright-ci-server/**\" --ignore-pattern \".worktrees/\" --ignore-pattern \".codex/\" --ignore-pattern \"artifacts/\"",
+      "startedAtUtc": null,
+      "startedAtHkt": null,
+      "logWrittenAtUtc": "2026-10-06T20:10:33.531Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "local ESLint"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "build-release",
+      "command": "npm run build",
+      "executionSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "environment": "explicit synthetic CI bindings; no deployment",
+      "exit": 0,
+      "counts": null,
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\build-release.log",
+          "sha256": "dd8aee1f4e2dca458a9cbcaf56a2ce9b18dc77928b4f793ff980ef0489174b15"
+        }
+      ],
+      "commandExpanded": "next build",
+      "startedAtUtc": null,
+      "startedAtHkt": null,
+      "logWrittenAtUtc": "2026-10-06T20:15:08.822Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "explicit synthetic CI bindings; no deployment"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "worker-typecheck-final-sha",
+      "command": "npm --prefix cloudflare/cron-worker run typecheck",
+      "executionSha": "5df882327aa2254e7c7a247d0b07d13237aa061f",
+      "environment": "Worker own TypeScript config at 5df8823; source unchanged",
+      "exit": 0,
+      "counts": null,
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\worker-typecheck-final-sha.log",
+          "sha256": "e5046545a3a9fcc0cf6950c9402c78a2b227f07a6a658d2a0c1fbc5f4a194da0"
+        }
+      ],
+      "startedAtUtc": null,
+      "startedAtHkt": null,
+      "logWrittenAtUtc": "2026-10-06T19:46:11.522Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "Worker own TypeScript config at 5df8823; source unchanged"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "worker-ci",
+      "command": "npm ci --prefix cloudflare/cron-worker --no-audit --no-fund",
+      "executionSha": "candidate 6f7b84a base; preparatory/blocked command in continuation; no final-SHA assertion claim",
+      "environment": "Worker own lockfile; no install approval setting changed",
+      "exit": 0,
+      "counts": null,
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\worker-ci.log",
+          "sha256": "d856492a82f7fe0af8bfb0737a3805e8256026be2fde3fd33945bff23f20833e"
+        }
+      ],
+      "startedAtUtc": null,
+      "startedAtHkt": null,
+      "logWrittenAtUtc": "2026-10-06T19:21:22.287Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "Worker own lockfile; no install approval setting changed"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "npm-ci-retry",
+      "command": "npm ci --no-audit --no-fund",
+      "executionSha": "candidate 6f7b84a base; preparatory/blocked command in continuation; no final-SHA assertion claim",
+      "environment": "663 packages; initial ENOSPC attempts are not acceptance",
+      "exit": 0,
+      "counts": null,
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\npm-ci-retry.log",
+          "sha256": "8ed70a235e32b5b4f3644c0f465fe696c2b56462e33a119fe709a32d0d6491e4"
+        }
+      ],
+      "startedAtUtc": null,
+      "startedAtHkt": null,
+      "logWrittenAtUtc": "2026-10-06T18:57:43.698Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "663 packages; initial ENOSPC attempts are not acceptance"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "owner-final-sha",
+      "command": "node scripts/ci/run-owner-remediation-suites.mjs",
+      "executionSha": "5df882327aa2254e7c7a247d0b07d13237aa061f",
+      "environment": "7 configs; owner fixtures only at 5df8823, no application-role password setup",
+      "exit": 0,
+      "counts": null,
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\owner-final-sha.log",
+          "sha256": "0b2e14ede9618490815b144c03796699b128ff164cdc34d9baad13ebffdb34e6"
+        }
+      ],
+      "startedAtUtc": null,
+      "startedAtHkt": null,
+      "logWrittenAtUtc": "2026-10-06T19:46:59.734Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "project": "weathered-wave-50814522",
+        "branch": "br-calm-meadow-azbtk9e8",
+        "database": "neondb",
+        "role": "neondb_owner; application-role assertions blocked"
+      },
+      "cleanup": "deleted registered disposable branch",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "owner-release",
+      "command": "node scripts/ci/run-owner-remediation-suites.mjs",
+      "executionSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "environment": "7 configs; owner fixtures only at selected SHA, no application-role password setup",
+      "exit": 1,
+      "counts": {
+        "discovered": 0,
+        "pass": 0,
+        "fail": 0,
+        "skip": 0,
+        "gate": "blocked before assertion execution"
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\owner-release.log",
+          "sha256": "1c4f440a6345b7b10336f5e1ff156cb33a148b4ce6099c0a3b206bc3ba209aed"
+        }
+      ],
+      "startedAtUtc": null,
+      "startedAtHkt": null,
+      "logWrittenAtUtc": "2026-10-06T20:11:31.840Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "7 configs; owner fixtures only at selected SHA, no application-role password setup"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "owner-retry-release",
+      "command": "node scripts/ci/run-owner-remediation-suites.mjs",
+      "executionSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "environment": "one serial retry after default branch teardown; no credential/role change",
+      "exit": 0,
+      "counts": {
+        "files": 7,
+        "discovered": 69,
+        "pass": 69,
+        "fail": 0,
+        "skip": 0
+      },
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\owner-retry-release.log",
+          "sha256": "910a043a2c7dfc54aee9cef5d26d2653dca0fa4431880c239f110a8023cb7b6f"
+        }
+      ],
+      "startedAtUtc": null,
+      "startedAtHkt": null,
+      "logWrittenAtUtc": "2026-10-06T20:19:19.576Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "project": "weathered-wave-50814522",
+        "branch": "br-empty-band-azer2xp2",
+        "database": "neondb",
+        "role": "neondb_owner; application-role assertions blocked"
+      },
+      "cleanup": "deleted registered disposable branch",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "e2e-discovery-final",
+      "command": "npm run e2e -- --list",
+      "executionSha": "793d919598093ba7ea8e01701be70393916fa501",
+      "environment": "actual discovery, not execution",
+      "exit": 0,
+      "counts": null,
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\e2e-discovery-final.log",
+          "sha256": "d7e0b046d99cd68f88f11e89a3484d5dd7bb6448f695e0a37c56c3e3557476bb"
+        }
+      ],
+      "commandExpanded": "playwright test --list",
+      "startedAtUtc": null,
+      "startedAtHkt": null,
+      "logWrittenAtUtc": "2026-10-06T19:22:15.126Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "actual discovery, not execution"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    },
+    {
+      "id": "read-worker-runtime",
+      "command": "node .superpowers/aiso-20261007/read-worker-runtime.mjs",
+      "executionSha": "deployed Worker version 2546d97d-edb8-4a16-a257-2b7750ef8af8",
+      "environment": "Cloudflare GET-only metadata and module hash; credential/source text kept in memory",
+      "exit": 0,
+      "counts": null,
+      "artifacts": [
+        {
+          "path": "artifacts\\aiso\\2026-10-07\\redacted\\read-worker-runtime.log",
+          "sha256": "b63dfaec710af7bc7af4598de1799c333a4e3873e8e401d4ef693f2ab2a75ed3"
+        }
+      ],
+      "startedAtUtc": null,
+      "startedAtHkt": null,
+      "logWrittenAtUtc": "2026-10-06T19:31:54.782Z",
+      "timestampPolicy": "Test report start time when available; log mtime is capture time, not an invented command start.",
+      "target": {
+        "scope": "Cloudflare GET-only metadata and module hash; credential/source text kept in memory"
+      },
+      "cleanup": "not applicable; no production fixtures created",
+      "taskIds": [
+        "T17"
+      ],
+      "acceptanceIds": [
+        "AC21",
+        "AC35"
+      ]
+    }
+  ],
+  "ownerReports": [
+    {
+      "name": "entity",
+      "executionSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "role": "neondb_owner; NOT aeo_app acceptance",
+      "files": 1,
+      "discovered": 3,
+      "pass": 3,
+      "fail": 0,
+      "skip": 0,
+      "path": "artifacts\\aiso\\2026-10-07\\redacted\\owner-entity.json",
+      "sha256": "d540c8fcee28b8f74c2a8e5a2fdad28b074cc7862c3a42c3867dbe5cf9523afb"
+    },
+    {
+      "name": "work-items",
+      "executionSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "role": "neondb_owner; NOT aeo_app acceptance",
+      "files": 1,
+      "discovered": 5,
+      "pass": 5,
+      "fail": 0,
+      "skip": 0,
+      "path": "artifacts\\aiso\\2026-10-07\\redacted\\owner-work-items.json",
+      "sha256": "cd6efc95864167795c0d4302b12a71f328d281339c8745e3814cfc22803934c2"
+    },
+    {
+      "name": "first-run-journey",
+      "executionSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "role": "neondb_owner; NOT aeo_app acceptance",
+      "files": 1,
+      "discovered": 4,
+      "pass": 4,
+      "fail": 0,
+      "skip": 0,
+      "path": "artifacts\\aiso\\2026-10-07\\redacted\\owner-first-run-journey.json",
+      "sha256": "158b6bec586cd1711b7bf21724d43713686f9fafd73c2075dfd8cfc1bf30650b"
+    },
+    {
+      "name": "feature-store-tenancy",
+      "executionSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "role": "neondb_owner; NOT aeo_app acceptance",
+      "files": 1,
+      "discovered": 16,
+      "pass": 16,
+      "fail": 0,
+      "skip": 0,
+      "path": "artifacts\\aiso\\2026-10-07\\redacted\\owner-feature-store-tenancy.json",
+      "sha256": "c3301e040a080b0d249e498243c0d777627767d65ee5eec96853e6de7d9d959a"
+    },
+    {
+      "name": "reports-entities-tenancy",
+      "executionSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "role": "neondb_owner; NOT aeo_app acceptance",
+      "files": 1,
+      "discovered": 13,
+      "pass": 13,
+      "fail": 0,
+      "skip": 0,
+      "path": "artifacts\\aiso\\2026-10-07\\redacted\\owner-reports-entities-tenancy.json",
+      "sha256": "d24a3aa340cad65d681238e7a35172441a0e1768abd46d741fdab6d02920d856"
+    },
+    {
+      "name": "alerts-agents-tenancy",
+      "executionSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "role": "neondb_owner; NOT aeo_app acceptance",
+      "files": 1,
+      "discovered": 8,
+      "pass": 8,
+      "fail": 0,
+      "skip": 0,
+      "path": "artifacts\\aiso\\2026-10-07\\redacted\\owner-alerts-agents-tenancy.json",
+      "sha256": "99a7e7482ae36cefe357863aa1fd5b62367a4c8f10a590fdf812b00da0fb7fb5"
+    },
+    {
+      "name": "search-console",
+      "executionSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "role": "neondb_owner; NOT aeo_app acceptance",
+      "files": 1,
+      "discovered": 20,
+      "pass": 20,
+      "fail": 0,
+      "skip": 0,
+      "path": "artifacts\\aiso\\2026-10-07\\redacted\\owner-search-console.json",
+      "sha256": "98866c9d5b0a395ff9ffe0fe33b78400d94e363b8ebc0b8659633ffcd1908e9e"
+    }
+  ]
+}

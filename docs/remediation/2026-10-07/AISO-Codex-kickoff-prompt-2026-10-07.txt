@@ -1,0 +1,24 @@
+You are Codex GPT-6.1 Sol. Implement the AISO remediation using the attached AISO-Codex-implementation-pack-2026-10-07.zip.
+
+Read these root files first:
+1. AISO-Codex-implementation-plan-2026-10-07.md (v2, controlling execution plan).
+2. AISO-Codex-execution-register-2026-10-07.csv (24 tasks, T00–T23).
+3. AISO-Codex-acceptance-matrix-2026-10-07.csv (AC01–AC36; historical and current execution fields are separate).
+Verify input/AISO-audit-evidence-2026-10-07.zip SHA-256:
+c5ba2f07aee65f1eb72fe4486d92205ab496302f24b7f4382e0540133141189d
+Extract it to input/evidence/, then read AISO-reaudit-2026-10-07/AISO-audit-report-2026-10-07.md, findings/repair/case/operation CSVs, E21/E29/E30/E33/E35/E36, and candidate-docs. Read repository AGENTS.md/CLAUDE.md and applicable local instructions before touching code.
+
+Repository: https://github.com/YNWAforever/aiso
+Recorded candidate: draft PR #68, codex/aiso-full-remediation-20261003, SHA 6f7b84a0f24e1f4427369ec12e304f618b2f68aa.
+Recorded production/main: f49e1bd8951394cf88250b3ea88847d0038db491.
+Reconfirm current repo/PR/runtime identity and document drift. Continue the candidate; preserve existing fixes and user changes. Use an isolated worktree when needed. Do not spawn agents unless separately authorized by this session or applicable repository instructions.
+
+Execute B0–B4 continuously in dependency order. The first new code work is T21 (derive activation from actual tenant-scoped version approval) and T23 (strict provider validation, unavailable metrics, honest GEO rendering and historical registry compatibility). First inspect their existing dependencies T04/T01/T03. Validate the existing T22 auth repair with T14; amend only if a remaining fault reproduces. A valid model score is not proof of real search/consumer visibility.
+
+For T01–T20, reuse implemented code and finish the named acceptance. Do not restart all old tasks or manufacture failing tests for behavior already correct. New regressions require meaningful failing tests, minimal changes and focused verification. Preserve IDs F01–F22, T00–T23, UC01–UC22, OP01–OP67 and AC01–AC26; append current results without erasing history.
+
+Use npm run test:unit for the unit gate. Run included DB suites through the guarded disposable setup. Ten exact-target suites, including feature-store-tenancy, are excluded from the default integration config; use scripts/ci/run-exact-target-suites.mjs through existing authorized workflow/environment. Never disable guards, set approval flags to self-authorize, fabricate C9 target values, treat no tests/skips as passes, or quote unread CI artifact counts. Run the Worker's own lockfile/scripts and normal-session browser UAT separately. Keep test fixtures/provider mocks distinct from production and real Auth evidence.
+
+Complete all independent work if DB/role/normal login/scheduler access is blocked. Track exact missing evidence rather than asking the user to re-approve reversible local steps. Existing session authorization remains valid. Before any consequential action not already authorized—production migration, merge/deploy, job enablement, paid provider run, email, role change, activation/revocation or cleanup of existing production audit content—prepare a concrete reviewable target/SHA/operation/rollback proposal and obtain the required authorization. Do not perform those actions under this plan-writing request alone.
+
+Deliver focused commits/PR update, the 24-task register, all 36 acceptance rows, redacted evidence with SHA/environment/command/exit/discovered/pass/fail/skip counts, and a deployable rollout/rollback proposal. Keep production status open until actual authorized rollout, matching live UAT and required real scheduling windows are evidenced. Finish with actual changes, tests, blockers and next authorized action. Do not conclude all fixed solely because code or CI passed.

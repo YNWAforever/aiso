@@ -1,0 +1,768 @@
+[
+  {
+    "taskId": "T00",
+    "acceptanceIds": "AC01;AC36",
+    "files": []
+  },
+  {
+    "taskId": "T14",
+    "acceptanceIds": "AC13;AC26;AC31;AC32",
+    "files": [
+      {
+        "path": "__tests__/lib/auth-return-to.test.ts",
+        "discovered": 24,
+        "pass": 24,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/components/google-auth-start-route.test.ts",
+        "discovered": 1,
+        "pass": 1,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/lib/auth-client.test.ts",
+        "discovered": 18,
+        "pass": 18,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/proxy.test.ts",
+        "discovered": 20,
+        "pass": 20,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T22",
+    "acceptanceIds": "AC31;AC32;AC33",
+    "files": [
+      {
+        "path": "__tests__/lib/auth-rsc-session.test.ts",
+        "discovered": 18,
+        "pass": 18,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/components/session-refresh.test.ts",
+        "discovered": 4,
+        "pass": 4,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/lib/auth.test.ts",
+        "discovered": 11,
+        "pass": 11,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T04",
+    "acceptanceIds": "AC02;AC22;AC28",
+    "files": [
+      {
+        "path": "__tests__/api/source-version-approval.test.ts",
+        "discovered": 7,
+        "pass": 7,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/lib/source-pack.test.ts",
+        "discovered": 19,
+        "pass": 19,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/components/source-pack-render.test.tsx",
+        "discovered": 35,
+        "pass": 35,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/integration/client-sources.test.ts",
+        "discovered": 31,
+        "pass": 31,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T21",
+    "acceptanceIds": "AC27;AC28",
+    "files": [
+      {
+        "path": "__tests__/lib/activation.test.ts",
+        "discovered": 8,
+        "pass": 8,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/lib/activation-progress.test.ts",
+        "discovered": 8,
+        "pass": 8,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/components/portfolio-activation.test.tsx",
+        "discovered": 14,
+        "pass": 14,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/integration/activation-approval.test.ts",
+        "discovered": 4,
+        "pass": 4,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T01",
+    "acceptanceIds": "AC03;AC30;AC34",
+    "files": [
+      {
+        "path": "__tests__/checks/llms-content-quality.test.ts",
+        "discovered": 3,
+        "pass": 3,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/checks/robots-policy.test.ts",
+        "discovered": 29,
+        "pass": 29,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/checks/botAccess.test.ts",
+        "discovered": 3,
+        "pass": 3,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/checks/scan-compatibility-freeze.test.ts",
+        "discovered": 38,
+        "pass": 38,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/components/result-platform-status.test.ts",
+        "discovered": 2,
+        "pass": 2,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/lib/impact.test.ts",
+        "discovered": 20,
+        "pass": 20,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T02",
+    "acceptanceIds": "AC04",
+    "files": [
+      {
+        "path": "__tests__/lib/impact.test.ts",
+        "discovered": 20,
+        "pass": 20,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/components/public-impact-estimate.test.tsx",
+        "discovered": 4,
+        "pass": 4,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/sample-report.test.tsx",
+        "discovered": 8,
+        "pass": 8,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T03",
+    "acceptanceIds": "AC16;AC30",
+    "files": [
+      {
+        "path": "__tests__/lib/check-priority.test.ts",
+        "discovered": 8,
+        "pass": 8,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/lib/result-access.test.ts",
+        "discovered": 2,
+        "pass": 2,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/lib/owner-priorities.test.ts",
+        "discovered": 16,
+        "pass": 16,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/components/top-issue-card.test.tsx",
+        "discovered": 6,
+        "pass": 6,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T23",
+    "acceptanceIds": "AC29;AC30;AC34",
+    "files": [
+      {
+        "path": "__tests__/checks/factualDensity.test.ts",
+        "discovered": 36,
+        "pass": 36,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/components/factual-density-evidence.test.tsx",
+        "discovered": 10,
+        "pass": 10,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/lib/scan-evidence.test.ts",
+        "discovered": 10,
+        "pass": 10,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/lib/scan-evidence-capture.test.ts",
+        "discovered": 9,
+        "pass": 9,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T06",
+    "acceptanceIds": "AC05;AC36",
+    "files": [
+      {
+        "path": "__tests__/lib/pulse-schedule-pagination.test.ts",
+        "discovered": 4,
+        "pass": 4,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/api/cron-pulse.test.ts",
+        "discovered": 30,
+        "pass": 30,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/integration/pulse-summary.test.ts",
+        "discovered": 9,
+        "pass": 9,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T05",
+    "acceptanceIds": "AC07;AC24;AC36",
+    "files": [
+      {
+        "path": "__tests__/lib/pulse-run-ledger.test.ts",
+        "discovered": 7,
+        "pass": 7,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/api/pulse-run.test.ts",
+        "discovered": 34,
+        "pass": 34,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/lib/pulse-summary.test.ts",
+        "discovered": 8,
+        "pass": 8,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/integration/pulse-runs.test.ts",
+        "discovered": 20,
+        "pass": 20,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/integration/pulse-summary.test.ts",
+        "discovered": 9,
+        "pass": 9,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T07",
+    "acceptanceIds": "AC08;AC24;AC36",
+    "files": [
+      {
+        "path": "__tests__/lib/pulse-worker.test.ts",
+        "discovered": 8,
+        "pass": 8,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/api/cron-pulse.test.ts",
+        "discovered": 30,
+        "pass": 30,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/api/cron/evaluate-alerts.test.ts",
+        "discovered": 20,
+        "pass": 20,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/config/function-durations.test.ts",
+        "discovered": 15,
+        "pass": 15,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/integration/pulse-runs.test.ts",
+        "discovered": 20,
+        "pass": 20,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T08",
+    "acceptanceIds": "AC09;AC25",
+    "files": [
+      {
+        "path": "__tests__/lib/pulse-analysis-fallback.test.ts",
+        "discovered": 11,
+        "pass": 11,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/lib/pulse-summary.test.ts",
+        "discovered": 8,
+        "pass": 8,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T09",
+    "acceptanceIds": "AC10",
+    "files": [
+      {
+        "path": "__tests__/api/observation-detail.test.ts",
+        "discovered": 8,
+        "pass": 8,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/observations/projection.test.ts",
+        "discovered": 18,
+        "pass": 18,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/components/observation-render.test.tsx",
+        "discovered": 14,
+        "pass": 14,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T10",
+    "acceptanceIds": "AC06",
+    "files": [
+      {
+        "path": "__tests__/api/onboarding-flow.test.ts",
+        "discovered": 28,
+        "pass": 28,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/components/onboarding-wizard-bilingual.test.tsx",
+        "discovered": 6,
+        "pass": 6,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/integration/onboarding-resume.test.ts",
+        "discovered": 10,
+        "pass": 10,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T11",
+    "acceptanceIds": "AC15",
+    "files": [
+      {
+        "path": "__tests__/lib/prompt-context.test.ts",
+        "discovered": 9,
+        "pass": 9,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/api/prompt-bank.test.ts",
+        "discovered": 47,
+        "pass": 47,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/components/onboarding-wizard-bilingual.test.tsx",
+        "discovered": 6,
+        "pass": 6,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/integration/onboarding-resume.test.ts",
+        "discovered": 10,
+        "pass": 10,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/integration/pulse-runs.test.ts",
+        "discovered": 20,
+        "pass": 20,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T12",
+    "acceptanceIds": "AC18;AC23",
+    "files": [
+      {
+        "path": "__tests__/lib/source-pagination.test.ts",
+        "discovered": 2,
+        "pass": 2,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/lib/source-import-preview.test.ts",
+        "discovered": 3,
+        "pass": 3,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/opportunities/store.test.ts",
+        "discovered": 8,
+        "pass": 8,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/opportunities/service.test.ts",
+        "discovered": 12,
+        "pass": 12,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/components/source-pack-render.test.tsx",
+        "discovered": 35,
+        "pass": 35,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/components/opportunity-render.test.tsx",
+        "discovered": 8,
+        "pass": 8,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/lib/work-item-sources.test.ts",
+        "discovered": 13,
+        "pass": 13,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/integration/client-sources.test.ts",
+        "discovered": 31,
+        "pass": 31,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T13",
+    "acceptanceIds": "AC14",
+    "files": [
+      {
+        "path": "__tests__/components/prompt-bank-editor.test.tsx",
+        "discovered": 15,
+        "pass": 15,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/components/prompt-bank-network.test.tsx",
+        "discovered": 4,
+        "pass": 4,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T18",
+    "acceptanceIds": "AC11",
+    "files": [
+      {
+        "path": "__tests__/components/domain-verification-first-use.test.tsx",
+        "discovered": 3,
+        "pass": 3,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/api/domain-verification.test.ts",
+        "discovered": 14,
+        "pass": 14,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/integration/domain-verification.test.ts",
+        "discovered": 10,
+        "pass": 10,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T19",
+    "acceptanceIds": "AC17",
+    "files": [
+      {
+        "path": "__tests__/opportunities/rules.test.ts",
+        "discovered": 17,
+        "pass": 17,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/components/opportunity-render.test.tsx",
+        "discovered": 8,
+        "pass": 8,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/lib/check-explanations-parity.test.ts",
+        "discovered": 6,
+        "pass": 6,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T20",
+    "acceptanceIds": "AC12",
+    "files": [
+      {
+        "path": "__tests__/components/opportunity-render.test.tsx",
+        "discovered": 8,
+        "pass": 8,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T15",
+    "acceptanceIds": "AC19;AC36",
+    "files": [
+      {
+        "path": "__tests__/lib/workspace-home.test.ts",
+        "discovered": 31,
+        "pass": 31,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      },
+      {
+        "path": "__tests__/components/workspace-home-priorities.test.tsx",
+        "discovered": 14,
+        "pass": 14,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T16",
+    "acceptanceIds": "AC20;AC35",
+    "files": [
+      {
+        "path": "__tests__/integration/second-approver.test.ts",
+        "discovered": 4,
+        "pass": 4,
+        "fail": 0,
+        "skip": 0,
+        "fileStatus": "passed"
+      }
+    ]
+  },
+  {
+    "taskId": "T17",
+    "acceptanceIds": "AC21;AC35;AC36",
+    "files": []
+  }
+]
