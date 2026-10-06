@@ -64,7 +64,10 @@ export async function readActivation(accountId: string, now = new Date()): Promi
     select
       (select min(created_at) from scans where account_id = ${accountId}) as first_scan,
       (select min(created_at) from clients where account_id = ${accountId}) as first_workspace,
-      (select min(created_at) from client_sources where account_id = ${accountId}) as first_source,
+      (select min(v.approved_at) from client_source_versions v
+        join client_sources s on s.id = v.source_id and s.account_id = v.account_id and s.client_id = v.client_id
+        where v.account_id = ${accountId} and s.account_id = ${accountId}
+          and v.approved_at is not null) as first_source,
       (select min(decided_at) from work_item_decisions
         where account_id = ${accountId} and decision = 'approved') as first_approved_work,
       (select min(exported_at) from work_item_export_events where account_id = ${accountId}) as first_export,
