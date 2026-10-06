@@ -16,6 +16,14 @@ const observed = { ...unavailable, qualityScore: 20, uniquenessScore: 50, unique
 const input = { requestedUrl: 'https://example.com', evaluatedUrl: 'https://example.com', industry: 'technology', region: 'HK', sitemapSource: 'fetched' }
 
 describe('factual density evidence projections', () => {
+  it.each(['en', 'zh-HK'])('labels the other GEO thresholds as local heuristics in %s', lang => {
+    locale.value = lang
+    const html = renderToStaticMarkup(<DeepGeoSection c17={{ qualityScore: 50 }} c19={{ topicalCoverageScore: 50 }} c20={{ optimalChunkRatio: 0.5 }} />)
+    expect(html).not.toContain('AI citations weight Tier 1 sources most heavily')
+    expect(html).not.toContain('AI 引用時最重視 Tier 1 來源')
+    expect(html).toContain(lang === 'en' ? 'local heuristic' : '本地啟發式規則')
+    expect(html).toContain(lang === 'en' ? 'not measured' : '尚未量度')
+  })
   it.each(['en', 'zh-HK'])('renders unavailable and legacy metrics honestly in %s', lang => {
     locale.value = lang
     for (const data of [unavailable, { ...observed, uniquenessStatus: undefined }, { ...observed, uniquenessScore: NaN }, { ...observed, qualityScore: Infinity }]) {
