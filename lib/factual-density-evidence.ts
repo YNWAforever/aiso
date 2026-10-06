@@ -21,6 +21,7 @@ export function factualDensityState(value: unknown, diagnostic?: { collection?: 
 export function projectFactualDensityChecks<T extends Record<string, unknown>>(checks: T, results?: Record<string, unknown>): T {
   const check = object(checks.c18_factual_density)
   if (!Object.keys(check).length) return checks
+  if (check.applicability === 'not-applicable' && check.assessment === 'not-applicable') return checks
   const raw = object(results?.c18_factual_density)
   const data = results?.c18_factual_density_data ?? results?.c18 ?? raw.geoDetails
   const oldVersion = typeof check.version === 'string' && check.version !== FACTUAL_DENSITY_VERSION

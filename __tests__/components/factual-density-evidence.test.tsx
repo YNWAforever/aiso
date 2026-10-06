@@ -16,6 +16,15 @@ const observed = { ...unavailable, qualityScore: 20, uniquenessScore: 50, unique
 const input = { requestedUrl: 'https://example.com', evaluatedUrl: 'https://example.com', industry: 'technology', region: 'HK', sitemapSource: 'fetched' }
 
 describe('factual density evidence projections', () => {
+  it('preserves explicit non-applicability without claiming a provider observation', () => {
+    const checks = Object.fromEntries(Object.keys(CHECK_VERSIONS).map(key => [key, { collection: 'complete', assessment: 'not-applicable' }]))
+    const evidence = buildScanEvidence({ ...input, checks })
+    const before = JSON.stringify(evidence)
+    const summary = buildPublicResultSummary({ id: 'synthetic', domain: 'example.com', score: 60, results: { evidence } as never })
+    expect(summary.priorityState).toBe('not-applicable')
+    expect(summary.counts).toMatchObject({ unknown: 0, notApplicable: 20 })
+    expect(JSON.stringify(evidence)).toBe(before)
+  })
   it.each(['en', 'zh-HK'])('labels the other GEO thresholds as local heuristics in %s', lang => {
     locale.value = lang
     const html = renderToStaticMarkup(<DeepGeoSection c17={{ qualityScore: 50 }} c19={{ topicalCoverageScore: 50 }} c20={{ optimalChunkRatio: 0.5 }} />)

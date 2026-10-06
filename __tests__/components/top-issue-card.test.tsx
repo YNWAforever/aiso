@@ -23,9 +23,24 @@ function renderIssue(status: 'warn' | 'fail', failCount = 2) {
   return renderToStaticMarkup(<TopIssueCard results={results} failCount={failCount} />)
 }
 
+function currentPriorityScan(evidence: ReturnType<typeof buildScanEvidence>) {
+  return { id: 'synthetic', domain: 'synthetic.test', score: 50, grade: 'D', results: {
+    evidence,
+    // A current synthetic observation, never inherited legacy provider provenance.
+    c18_factual_density_data: { uniquenessStatus: 'observed', uniquenessScore: 100, qualityScore: 100, uniqueClaims: [] },
+  } }
+}
+
 describe('public top issue presentation', () => {
   beforeEach(() => {
     locale.value = 'en'
+  })
+  it('uses explicit current provider provenance for the all-clear browser fixture', () => {
+    const checks = Object.fromEntries(Object.keys(CHECK_VERSIONS).map(key => [key, { assessment: 'pass', collection: 'complete' }]))
+    const evidence = buildScanEvidence({ requestedUrl: 'https://synthetic.test', evaluatedUrl: 'https://synthetic.test', industry: 'technology', region: 'HK', sitemapSource: 'fetched', checks })
+    const summary = buildPublicResultSummary(currentPriorityScan(evidence) as never)
+    expect(summary.priorityState).toBe('all-clear')
+    expect(summary.counts).toMatchObject({ pass: 20, unknown: 0 })
   })
 
   it('renders an accessible amber Warning badge and account-oriented copy', () => {
@@ -83,7 +98,7 @@ afterAll(() => {
     const fallback = name === 'unknown' ? { assessment: 'fail', collection: 'unknown' } : name === 'not-applicable' ? { ...base, assessment: 'not-applicable' } : base
     const checks = Object.fromEntries(Object.keys(CHECK_VERSIONS).map(key => [key, (overrides as Record<string, typeof base> | null)?.[key] ?? fallback]))
     const evidence = buildScanEvidence({ requestedUrl: 'https://synthetic.test', evaluatedUrl: 'https://synthetic.test', industry: 'technology', region: 'HK', sitemapSource: 'fetched', checks })
-    const scan = { id: 'synthetic', domain: 'synthetic.test', score: 50, grade: 'D', results: { evidence } }
+    const scan = currentPriorityScan(evidence)
     const summary = buildPublicResultSummary(scan as never), owner = buildOwnerPriorities(evidence)
     const project = (key: string | null, status: string | null) => key ? { [key]: { assessment: status, collection: 'complete', applicability: 'applicable' } } : {}
     const html = renderToStaticMarkup(<main><h1>{lang === 'en' ? 'Scan priorities' : '掃描改善優先序'}</h1>
