@@ -9,12 +9,22 @@ const UNIQUENESS_FORMAT: JsonSchemaFormat = {
   schema: {
     type: 'object',
     properties: {
-      score: { type: 'integer', description: '0-100' },
-      claims: { type: 'array', items: { type: 'string' }, description: 'At most 3.' },
+      score: { type: 'integer', minimum: 0, maximum: 100 },
+      claims: { type: 'array', maxItems: 3, items: { type: 'string', minLength: 1, maxLength: 500 } },
     },
     required: ['score', 'claims'],
     additionalProperties: false,
   },
+}
+
+/** Provider output is untrusted. A missing observation is never a neutral score. */
+export function parseFactualUniqueness(value: unknown): { score: number; claims: string[] } | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const { score, claims } = value as Record<string, unknown>
+  if (typeof score !== 'number' || !Number.isInteger(score) || score < 0 || score > 100) return null
+  if (!Array.isArray(claims) || claims.length > 3 || claims.some(claim =>
+    typeof claim !== 'string' || !claim.trim() || claim.length > 500)) return null
+  return { score, claims: claims.map(claim => (claim as string).trim()) }
 }
 
 export async function checkFactualDensity(
@@ -37,8 +47,7 @@ export async function checkFactualDensity(
   const hasComparativeData = /compared to|versus|vs\.|year-over-year|YoY|grew from|up from|down from/i.test(text)
   const hasTimeSeriesData = /\d{4}\s*[-–]\s*\d{4}|over the (past|last)\s+\d+\s*(years?|months?|quarters?)/i.test(text)
 
-  let providerFallback = false
-  let uniquenessScore = 50
+  let uniquenessScore: number | null = null
   let uniqueClaims: string[] = []
   try {
     const aiResponse = await callOpenRouter({
@@ -56,13 +65,11 @@ ${fenceUntrusted('PAGE CONTENT', text.slice(0, 800))}` },
       maxTokens: 200,
       responseFormat: UNIQUENESS_FORMAT,
     })
-    const parsed = JSON.parse(aiResponse.match(/\{[\s\S]+\}/)?.[0] ?? '{}')
-    providerFallback = typeof parsed.score !== 'number' || !Number.isFinite(parsed.score)
-    uniquenessScore = parsed.score ?? 50
-    uniqueClaims = parsed.claims ?? []
-  } catch { providerFallback = true }
+    const parsed = parseFactualUniqueness(JSON.parse(aiResponse))
+    if (parsed) { uniquenessScore = parsed.score; uniqueClaims = parsed.claims }
+  } catch { /* Deterministic page counts survive unavailable provider evidence. */ }
 
-  const qualityScore = Math.min(100,
+  const qualityScore = uniquenessScore === null ? null : Math.min(100,
     Math.min(30, numberDensity * 10) +
     Math.min(20, namedEntityDensity * 5) +
     Math.min(15, dates.length * 3) +
@@ -75,9 +82,15 @@ ${fenceUntrusted('PAGE CONTENT', text.slice(0, 800))}` },
     qualityScore, numberDensity: Math.round(numberDensity * 10) / 10,
     namedEntityDensity: Math.round(namedEntityDensity * 10) / 10,
     dateReferences: dates.length, hasComparativeData, hasTimeSeriesData,
-    uniquenessScore, uniqueClaims,
+    uniquenessScore, uniquenessStatus: uniquenessScore === null ? 'unavailable' : 'observed', uniqueClaims,
   }
 
+  if (qualityScore === null) return {
+    diagnostic: { collection: 'partial', reason: 'provider-fallback' },
+    // Compatibility sentinel: headline weights receive no credit. Evidence
+    // projections render this as unavailable, never a content failure.
+    status: 'fail', message: 'factual_density_unavailable', details: 'Provider assessment unavailable', geoDetails,
+  }
   const status = qualityScore >= 40 ? 'pass' : qualityScore >= 20 ? 'warn' : 'fail'
-  return { diagnostic: { collection: providerFallback ? 'partial' : 'complete', ...(providerFallback ? { reason: 'provider-fallback' as const } : {}) }, status, message: `factual_density_${status}`, details: `Quality score ${qualityScore}/100`, geoDetails }
+  return { diagnostic: { collection: 'complete' }, status, message: `factual_density_${status}`, details: `Quality score ${qualityScore}/100`, geoDetails }
 }

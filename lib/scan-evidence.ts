@@ -14,8 +14,14 @@ const HISTORICAL_CHECK_VERSIONS = {
   c16_freshness: '2026-08-31.v1', c17_citation_density: '2026-08-31.v1', c18_factual_density: '2026-08-31.v1',
   c19_topical_authority: '2026-08-31.v1', c20_chunkability: '2026-08-31.v1',
 } as const
-export const CHECK_VERSIONS = { ...HISTORICAL_CHECK_VERSIONS,
+const OCTOBER_03_CHECK_VERSIONS = { ...HISTORICAL_CHECK_VERSIONS,
   c1_robots: '2026-10-03.v1', c3_bot_access: '2026-10-03.v1', c6_llms_full_txt: '2026-10-03.v1' } as const
+export const CHECK_VERSIONS = { ...OCTOBER_03_CHECK_VERSIONS, c18_factual_density: '2026-10-07.v1' } as const
+const CHECK_REGISTRIES: Record<string, Record<EvidenceCheckKey, string>> = {
+  '2026-09-05.v1': HISTORICAL_CHECK_VERSIONS,
+  '2026-10-03.v1': OCTOBER_03_CHECK_VERSIONS,
+  [SCANNER_VERSION]: CHECK_VERSIONS,
+}
 export type EvidenceCheckKey = keyof typeof CHECK_VERSIONS
 export type CollectionState = 'complete' | 'partial' | 'blocked' | 'failed' | 'unsupported' | 'unknown'
 export type EvidenceAssessment = 'pass' | 'warn' | 'fail' | 'not-applicable' | 'not-verifiable'
@@ -125,10 +131,10 @@ export function readScanEvidence(value: unknown): ScanEvidence | null {
     const data = object(value)
     if (bytes(data) > 32768 || data.schemaVersion !== EVIDENCE_SCHEMA_VERSION) return null
     const candidate = data as unknown as ScanEvidence
+    if (typeof candidate.scannerVersion !== 'string') return null
     if (!candidate.requested || !candidate.evaluated || !candidate.comparison || !Array.isArray(candidate.observations)) return null
     if (!supportedPillarMethods.includes(candidate.pillarMethod as typeof supportedPillarMethods[number])) return null
-    const registry = candidate.scannerVersion === SCANNER_VERSION ? CHECK_VERSIONS
-      : candidate.scannerVersion === '2026-09-05.v1' ? HISTORICAL_CHECK_VERSIONS : null
+    const registry = Object.hasOwn(CHECK_REGISTRIES, candidate.scannerVersion) ? CHECK_REGISTRIES[candidate.scannerVersion] : null
     if (!registry || JSON.stringify(canonical(candidate.comparison.checkVersions)) !== JSON.stringify(canonical(registry))) return null
     const rebuilt = buildEvidenceForMethod({ requestedUrl: candidate.requested.origin ?? '', evaluatedUrl: candidate.evaluated.origin ?? '', industry: candidate.comparison.industry, region: candidate.comparison.region, sitemapSource: candidate.comparison.sitemapSource, checks: candidate.checks, observations: candidate.observations, collectedAt: candidate.collectedAt ?? undefined, limited: candidate.limited }, candidate.pillarMethod, candidate.scannerVersion, registry)
     // Descriptors carry redaction history which cannot be reconstructed from an origin.

@@ -4,6 +4,7 @@ import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
 import { PillarScoreCards } from '@/components/PillarScoreCards'
 import { getCheckExplanations } from '@/lib/checkExplanations'
 import type { Scan, CheckResult } from '@/lib/types'
+import { factualDensityState } from '@/lib/factual-density-evidence'
 
 type Props = {
   scan: Pick<Scan, 'id' | 'score' | 'grade' | 'domain' | 'created_at' | 'results'>
@@ -28,10 +29,12 @@ export function ScanSummary({ scan }: Props) {
   // English copy to zh-HK users even though the translations existed.
   const explanations = getCheckExplanations(locale)
   const r = scan.results as Record<string, unknown>
+  const isPassing = (key: string) => (r[key] as CheckResult)?.status === 'pass'
+    && (key !== 'c18_factual_density' || factualDensityState(r.c18_factual_density_data ?? r.c18, (r[key] as CheckResult)?.diagnostic) === 'observed')
   const date = new Date(scan.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
   const totalChecks = GROUPS.reduce((s, g) => s + g.keys.length, 0)
-  const totalPassed = GROUPS.reduce((s, g) => s + g.keys.filter(k => (r[k] as CheckResult)?.status === 'pass').length, 0)
+  const totalPassed = GROUPS.reduce((s, g) => s + g.keys.filter(isPassing).length, 0)
   const healthPct = Math.round((totalPassed / totalChecks) * 100)
 
   const scoreColor = scan.score >= 80 ? 'var(--dash-success)' : scan.score >= 50 ? 'var(--dash-warning)' : 'var(--dash-danger)'
@@ -75,7 +78,7 @@ export function ScanSummary({ scan }: Props) {
           const checks = group.keys.map(key => ({ key, result: r[key] as CheckResult | undefined })).filter(c => c.result)
           if (!checks.length) return null
 
-          const passed = checks.filter(c => c.result?.status === 'pass').length
+          const passed = checks.filter(c => isPassing(c.key)).length
           const pct = Math.round((passed / checks.length) * 100)
 
           return (
@@ -100,7 +103,8 @@ export function ScanSummary({ scan }: Props) {
                   const explanation = explanations[key]
                   const label = key.replace(/^c\d+_/, '').replace(/_/g, ' ')
                   return (
-                    <ExpandableCheckItem key={key} label={label} result={result!} message={result!.message} explanation={explanation} />
+                    <ExpandableCheckItem key={key} label={label} result={result!} message={result!.message} explanation={explanation}
+                      factualState={key === 'c18_factual_density' ? factualDensityState(r.c18_factual_density_data ?? r.c18, result?.diagnostic) : undefined} />
                   )
                 })}
               </div>

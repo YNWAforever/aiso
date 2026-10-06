@@ -2,6 +2,7 @@ import { computeImpact } from '@/lib/impact'
 import type { Scan } from '@/lib/types'
 import { readScanEvidence } from '@/lib/scan-evidence'
 import { resolveCheckPriorities } from '@/lib/view-models/check-priority'
+import { projectFactualDensityChecks } from '@/lib/factual-density-evidence'
 
 export function canViewFullResult(
   scanAccountId?: string | null,
@@ -16,16 +17,17 @@ export function buildPublicResultSummary(
 ) {
   const results = scan.results as Record<string, { status?: string } | unknown>
   const envelope = readScanEvidence(results.evidence)
+  const checks = projectFactualDensityChecks(envelope?.checks ?? Object.fromEntries(Object.keys(results).map(key => [key, {}])), results)
   // Legacy verdicts are retained in storage/owner details; they cannot establish
   // a confirmed fix or a success count without collection evidence.
-  const resolution = resolveCheckPriorities(envelope?.checks ?? Object.fromEntries(Object.keys(results).map(key => [key, {}])))
+  const resolution = resolveCheckPriorities(checks)
   const topIssueKey = resolution.ranked[0]?.checkKey ?? null
   const topIssueStatus = resolution.ranked[0]?.assessment ?? null
   const impact = computeImpact(results, {
     score: scan.score,
     grade: scan.grade ?? 'F',
     industry: scan.industry,
-    confirmedChecks: envelope?.checks ?? {},
+    confirmedChecks: checks,
   })
 
   return {

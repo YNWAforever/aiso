@@ -38,7 +38,8 @@ export function createScanEvidenceCapture(fetcher: PublicUrlFetch) {
       }
       const fallbackUnavailable = key === 'c7_mcp_card' && check.message !== 'mcp_card_found' && stateFor('page') !== 'complete'
       if (fallbackUnavailable && collection === 'complete') collection = 'partial'
-      const assessment = fallbackUnavailable || !['complete','partial'].includes(collection) ? 'not-verifiable' : check.status
+      const factualUnavailable = key === 'c18_factual_density' && (collection !== 'complete' || check.message === 'factual_density_unavailable')
+      const assessment = fallbackUnavailable || factualUnavailable || !['complete','partial'].includes(collection) ? 'not-verifiable' : check.status
       return [key, { collection, assessment, reason: check.diagnostic?.reason }]
     }))
   }

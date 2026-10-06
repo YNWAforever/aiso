@@ -23,12 +23,17 @@ it('records rejected redirects and timeouts without altering rejection', async (
   await expect(timeout.forCheck('page')('https://example.com')).rejects.toThrow()
   expect(timeout.observations[0].collection).toBe('failed')
 })
-it('reports internal provider fallback without changing benchmark output', async () => {
+it('reports unavailable provider metrics without a confirmed content failure', async () => {
   const factual = await checkFactualDensity('<p>Example text</p>', {industry:'general_b2c',region:'global'})
-  expect(factual.geoDetails?.uniquenessScore).toBe(50)
+  expect(factual.geoDetails?.uniquenessScore).toBeNull()
+  expect(factual.geoDetails?.qualityScore).toBeNull()
   expect(factual.diagnostic).toEqual({collection:'partial',reason:'provider-fallback'})
   const topical = await checkTopicalAuthority(['https://example.com/topic/article'], '', 'general_b2c')
   expect(topical.diagnostic).toEqual({collection:'partial',reason:'provider-fallback'})
+  const capture = createScanEvidenceCapture(createPublicUrlFetcher({lookup, fetchImpl:async()=>new Response('ok')}))
+  await capture.forCheck('page')('https://example.com')
+  expect(capture.checks([{status:'fulfilled',value:factual}], ['c18_factual_density']).c18_factual_density)
+    .toMatchObject({collection:'partial',assessment:'not-verifiable',reason:'provider-fallback'})
 })
 
 it('keeps body-read failures, missing checks and assessment failures distinct', async () => {

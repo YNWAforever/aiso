@@ -1,6 +1,7 @@
 'use client'
 import { Brain, Link2, TrendingUp, Layers } from 'lucide-react'
 import { useLocale } from 'next-intl'
+import { factualDensityState, type FactualDensityView } from '@/lib/factual-density-evidence'
 
 const COPY_EN = {
   sectionTitle: 'Deep GEO Analysis',
@@ -18,7 +19,9 @@ const COPY_EN = {
   externalLinks: (n: number) => <><strong className="text-slate-700">{n}</strong> external</>,
   // C18
   c18Title: 'Factual Density',
-  c18Desc: 'AI models prefer citing content dense with specific facts — statistics, dates, named entities, and comparisons. Vague content rarely gets cited.',
+  c18Desc: 'Page counts and a model assessment of factual uniqueness. Real search and consumer visibility are not measured by this check.',
+  c18Unavailable: 'Unavailable — retry to obtain provider evidence. Page counts remain available.',
+  c18Legacy: 'Legacy / unverifiable — provider provenance is unknown. Run a new scan.',
   numberDensity: 'Number/stat density',
   entityDensity: 'Named entity density',
   uniqueness: 'Content uniqueness',
@@ -61,7 +64,9 @@ const COPY_ZH_HK: typeof COPY_EN = {
   externalLinks: (n: number) => <>對外連結 <strong className="text-slate-700">{n}</strong></>,
   // C18
   c18Title: '事實密度',
-  c18Desc: 'AI 模型偏好引用充滿具體事實的內容——統計數字、日期、具名實體和比較。空泛的內容鮮少被引用。',
+  c18Desc: '頁面數量統計及模型對事實獨特性的評估。本檢查尚未量度真實搜尋及消費者可見度。',
+  c18Unavailable: '未能取得資料 — 請重試以取得供應商證據。頁面統計仍可查看。',
+  c18Legacy: '歷史／未能核實 — 供應商來源不明。請重新掃描。',
   numberDensity: '數字／統計密度',
   entityDensity: '具名實體密度',
   uniqueness: '內容獨特性',
@@ -90,6 +95,7 @@ const COPY_ZH_HK: typeof COPY_EN = {
 
 interface MetricBarProps { label: string; value: number; max?: number; color?: string }
 function MetricBar({ label, value, max = 100, color = 'bg-primary' }: MetricBarProps) {
+  if (!Number.isFinite(value) || value < 0 || !Number.isFinite(max) || max <= 0) return null
   const pct = Math.min(100, (value / max) * 100)
   const barColor = pct >= 60 ? 'bg-emerald-500' : pct >= 30 ? 'bg-amber-400' : 'bg-red-400'
   return (
@@ -121,7 +127,7 @@ function TierBadge({ tier, count, otherLabel }: TierBadgeProps) {
 }
 
 type C17Data = { qualityScore?: number; authorityBreakdown?: Record<string, number>; citationsPerThousandWords?: number; totalLinks?: number; externalLinks?: number }
-type C18Data = { qualityScore?: number; numberDensity?: number; namedEntityDensity?: number; dateReferences?: number; hasComparativeData?: boolean; hasTimeSeriesData?: boolean; uniquenessScore?: number }
+type C18Data = FactualDensityView
 type C19Data = { topicalCoverageScore?: number; totalClusters?: number; hasOrphanPages?: number; detectedClusters?: { topic: string; completenessScore: number }[] }
 type C20Data = { avgChunkLength?: number; optimalChunkRatio?: number; totalChunks?: number; hasFaqStyle?: boolean; chunkAnalysis?: { heading: string; extractabilityScore: number; isAnswerFirst?: boolean; isSelfContained?: boolean }[] }
 
@@ -135,6 +141,7 @@ interface Props {
 export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
   const locale = useLocale()
   const c = locale === 'zh-HK' ? COPY_ZH_HK : COPY_EN
+  const c18State = factualDensityState(c18)
   if (!c17 && !c18 && !c19 && !c20) return null
 
   return (
@@ -196,7 +203,8 @@ export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
             {c.c18Desc}
           </p>
           <div className="space-y-3 mb-5">
-            {c18.qualityScore !== undefined && (
+            {c18State !== 'observed' && <p className="text-xs text-slate-500" role="status">{c18State === 'legacy' ? c.c18Legacy : c.c18Unavailable}</p>}
+            {c18State === 'observed' && typeof c18.qualityScore === 'number' && (
               <MetricBar label={c.overallQuality} value={c18.qualityScore} color="auto" />
             )}
             {c18.numberDensity !== undefined && (
@@ -205,7 +213,7 @@ export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
             {c18.namedEntityDensity !== undefined && (
               <MetricBar label={c.entityDensity} value={c18.namedEntityDensity} max={10} color="auto" />
             )}
-            {c18.uniquenessScore !== undefined && (
+            {c18State === 'observed' && typeof c18.uniquenessScore === 'number' && (
               <MetricBar label={c.uniqueness} value={c18.uniquenessScore} color="auto" />
             )}
           </div>

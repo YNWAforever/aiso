@@ -1,5 +1,6 @@
 import { CORE_PTS, EXT_PTS, GEO_PTS } from '@/lib/scoring'
 import type { CollectionState, EvidenceCheckKey } from '@/lib/scan-evidence'
+import { projectFactualDensityChecks } from '@/lib/factual-density-evidence'
 
 const vocabulary = { ...CORE_PTS, ...EXT_PTS, ...GEO_PTS }
 export type RankedCheck = { checkKey: EvidenceCheckKey; assessment: 'fail' | 'warn' }
@@ -12,7 +13,7 @@ export function resolveCheckPriorities(checks: RecordInput) {
   const ranked: RankedCheck[] = []
   const needsEvidence: { checkKey: EvidenceCheckKey; collection: CollectionState }[] = []
   const counts = { pass: 0, warn: 0, fail: 0, unknown: 0, notApplicable: 0, total: 0 }
-  for (const [key, raw] of Object.entries(checks)) {
+  for (const [key, raw] of Object.entries(projectFactualDensityChecks(checks))) {
     if (!Object.hasOwn(vocabulary, key)) continue
     counts.total++
     const check = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as RecordInput : {}

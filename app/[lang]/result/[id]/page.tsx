@@ -109,7 +109,7 @@ export default async function ResultPage({
       lang={lang}
       summary={summary}
       fullScan={unlocked ? scan : undefined}
-      ownedEvidence={unlocked ? buildOwnedResultEvidence((scan.results as Record<string, unknown>).evidence) : undefined}
+      ownedEvidence={unlocked ? buildOwnedResultEvidence((scan.results as Record<string, unknown>).evidence, scan.results as Record<string, unknown>) : undefined}
     />
   )
 }

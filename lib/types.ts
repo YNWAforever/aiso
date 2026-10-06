@@ -216,13 +216,14 @@ export interface CitationDensityResult {
 }
 
 export interface FactualDensityResult {
-  qualityScore:       number
+  qualityScore:       number | null
   numberDensity:      number
   namedEntityDensity: number
   dateReferences:     number
   hasComparativeData: boolean
   hasTimeSeriesData:  boolean
-  uniquenessScore:    number
+  uniquenessScore:    number | null
+  uniquenessStatus:   'observed' | 'unavailable'
   uniqueClaims:       string[]
 }
 
@@ -447,7 +448,7 @@ export interface LocalTrustAction {
  * Bumped whenever check-engine detection logic changes for any of c1-c20.
  * Stored on new scans in results.evidence.scannerVersion; historical rows are not backfilled.
  */
-export const SCANNER_VERSION = '2026-10-03.v1'
+export const SCANNER_VERSION = '2026-10-07.v1'
 
 export interface ScanVersionInfo {
   scannerVersion: string

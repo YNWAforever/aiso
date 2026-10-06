@@ -21,6 +21,7 @@ import { getCheckExplanations }  from '@/lib/checkExplanations'
 import type { Scan, CheckResult, ScanResults } from '@/lib/types'
 import type { PublicResultSummary } from '@/lib/result-access'
 import { consumeOneTimeFunnelEvent, trackFunnelEvent } from '@/lib/funnel-client'
+import { factualDensityState, type FactualDensityView } from '@/lib/factual-density-evidence'
 
 /* ── Check key lists ─────────────────────────────────────────── */
 const CORE_KEYS = ['c1_robots','c2_llms_txt','c3_bot_access','c4_structured_data','c5_extractability'] as const
@@ -147,6 +148,7 @@ function CheckSection({ title, subtitle, keys, results }: {
               result={r}
               message={r.message}
               explanation={explanations[key]}
+              factualState={key === 'c18_factual_density' ? factualDensityState(results.c18_factual_density_data ?? results.c18, r.diagnostic) : undefined}
             />
           </div>
         )
@@ -192,7 +194,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
 
   // GEO rich data
   type C17 = { qualityScore?: number; authorityBreakdown?: Record<string, number>; citationsPerThousandWords?: number; totalLinks?: number; externalLinks?: number }
-  type C18 = { qualityScore?: number; numberDensity?: number; namedEntityDensity?: number; dateReferences?: number; hasComparativeData?: boolean; hasTimeSeriesData?: boolean; uniquenessScore?: number }
+  type C18 = FactualDensityView
   type C19 = { topicalCoverageScore?: number; totalClusters?: number; hasOrphanPages?: number; detectedClusters?: { topic: string; completenessScore: number }[] }
   type C20 = { avgChunkLength?: number; optimalChunkRatio?: number; totalChunks?: number; hasFaqStyle?: boolean; chunkAnalysis?: { heading: string; extractabilityScore: number; isAnswerFirst?: boolean; isSelfContained?: boolean }[] }
 
