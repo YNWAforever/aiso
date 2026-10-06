@@ -3,7 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { DeepGeoSection } from '@/components/result/DeepGeoSection'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
 import { buildPublicResultSummary } from '@/lib/result-access'
-import { buildScanEvidence, readScanEvidence, compareScanEvidence } from '@/lib/scan-evidence'
+import { buildScanEvidence, readScanEvidence, compareScanEvidence, CHECK_VERSIONS, describeEvidenceUrl } from '@/lib/scan-evidence'
+import { buildOwnedResultEvidence } from '@/lib/result-evidence'
 import { buildOwnerPriorities } from '@/lib/view-models/owner-priorities'
 import historicalSeptember from '../fixtures/scan-evidence-20260905.json'
 import historicalOctober from '../fixtures/scan-evidence-20261003.json'
@@ -60,5 +61,16 @@ describe('factual density evidence projections', () => {
     expect(current.checks.c18_factual_density.version).toBe('2026-10-07.v1')
     expect(compareScanEvidence(historicalOctober, current).reason).toBe('different-methods-or-scope')
     expect(readScanEvidence({ ...current, scannerVersion: '2026-10-08.v1' })).toBeNull()
+  })
+  it('discloses projected incomplete evidence without rewriting stored collection or score', () => {
+    const checks = Object.fromEntries(Object.keys(CHECK_VERSIONS).map(key => [key, { collection: 'complete', assessment: 'pass' }]))
+    const evidence = buildScanEvidence({ ...input, checks, observations: [{ check: 'page', collection: 'complete', httpStatus: 200, target: describeEvidenceUrl(input.evaluatedUrl) }] })
+    expect(evidence.collection).toBe('complete')
+    const before = JSON.stringify(evidence)
+    const projected = buildOwnedResultEvidence(evidence, { c18_factual_density_data: unavailable })!
+    expect(projected.collection).toBe('partial')
+    expect(projected.limited).toBe(true)
+    expect(projected.pillarInputs.c18_factual_density).toMatchObject({ applicability: 'not-verifiable', assessment: 'not-verifiable' })
+    expect(JSON.stringify(evidence)).toBe(before)
   })
 })

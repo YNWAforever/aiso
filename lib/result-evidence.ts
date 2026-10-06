@@ -7,10 +7,10 @@ export function buildOwnedResultEvidence(value: unknown, results?: Record<string
   if (!evidence) return null
   const checks = projectFactualDensityChecks(evidence.checks, results)
   return {
-    collection: evidence.collection,
+    collection: evidence.collection === 'complete' && checks !== evidence.checks ? 'partial' as const : evidence.collection,
     completedPages: evidence.completedPages,
     collectedAt: evidence.collectedAt,
-    limited: evidence.limited,
+    limited: evidence.limited || checks !== evidence.checks,
     scannerVersion: evidence.scannerVersion,
     methodologyVersion: evidence.pillarMethod,
     checks: Object.entries(checks).map(([key, check]) => ({
