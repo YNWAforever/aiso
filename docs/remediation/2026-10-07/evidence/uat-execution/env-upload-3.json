@@ -1,0 +1,133 @@
+{
+  "observedAtUtc": "2026-10-07T13:34:45.450Z",
+  "exitCode": 0,
+  "stderr": "",
+  "responseFields": [
+    "created",
+    "failed"
+  ],
+  "createdCount": 15,
+  "keys": [
+    {
+      "id": "jflJ0mk2DHLNcg66",
+      "key": "DATABASE_URL",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ]
+    },
+    {
+      "id": "olBMQD2vWAemgZxS",
+      "key": "NEON_AUTH_BASE_URL",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ]
+    },
+    {
+      "id": "M5Tbd6YBgBYHqtJ9",
+      "key": "NEON_AUTH_COOKIE_SECRET",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ]
+    },
+    {
+      "id": "3Gii3YWgRQBcg8QH",
+      "key": "PUBLIC_SCAN_RATE_LIMIT_SECRET",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ]
+    },
+    {
+      "id": "dayOsPkwYpizGmiQ",
+      "key": "REPORT_SHARE_SECRET",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ]
+    },
+    {
+      "id": "jdnUpEghpKiQCIJI",
+      "key": "READINESS_PROBE_SECRET",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ]
+    },
+    {
+      "id": "t0F6WOZlKnhIjj4x",
+      "key": "EXPECTED_NEON_PROJECT_ID",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ]
+    },
+    {
+      "id": "wKeDJIFH3RYv8s7V",
+      "key": "EXPECTED_NEON_BRANCH_ID",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ]
+    },
+    {
+      "id": "a7vjfJpF0L5qRbB3",
+      "key": "EXPECTED_DB_NAME",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ]
+    },
+    {
+      "id": "dtiDRSXok68ohNjQ",
+      "key": "EXPECTED_DB_ROLE",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ]
+    },
+    {
+      "id": "sMJZK9Mcl1naBKow",
+      "key": "FORBIDDEN_NEON_PROJECT_IDS",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ]
+    },
+    {
+      "id": "klgAFmmsnQagrqwF",
+      "key": "FORBIDDEN_NEON_BRANCH_IDS",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ]
+    },
+    {
+      "id": "Oo72qQOX0DzNsUFl",
+      "key": "FEATURE_SEARCH_CONSOLE",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ]
+    },
+    {
+      "id": "eQovxdCxPLsZlY3z",
+      "key": "FEATURE_PULSE_ATTEMPTS",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ]
+    },
+    {
+      "id": "jAlZXVfDcZyT4iSi",
+      "key": "READINESS_EXPECTED_TEAM_ID",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ]
+    }
+  ],
+  "transportCorrection": "CLI 50.28.0 serializes only constructor===Object; array input was passed without JSON serialization. JSON-string input plus explicit JSON Content-Type preserves intended array bytes."
+}

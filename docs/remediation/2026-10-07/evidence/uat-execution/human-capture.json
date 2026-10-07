@@ -1,0 +1,11 @@
+{
+  "observedAtUtc": "2026-10-07T13:58:30.532Z",
+  "command": "npm run e2e:auth:capture",
+  "exitCode": 1,
+  "baseUrl": "https://aiso-remediation-uat-20261007-git-edd2cd-ynwaforevers-projects.vercel.app",
+  "issuer": "https://ep-soft-bird-b3lqgjne.neonauth.c-4.ap-southeast-1.aws.neon.tech/neondb/auth",
+  "storageStateExists": false,
+  "credentialAutomation": false,
+  "oldRootCookiesUsed": false,
+  "fixtureMode": false
+}

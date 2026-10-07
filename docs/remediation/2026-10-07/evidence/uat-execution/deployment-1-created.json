@@ -1,0 +1,13 @@
+{
+  "observedAtUtc": "2026-10-07 13:35:43 UTC",
+  "operation": "First of at most two approved basic Preview builds; allocate real isolated origin; not accepted for human UAT",
+  "id": "dpl_9iQZekCYcqEcEzccTvsgzvhdeg3Q",
+  "url": "aiso-remediation-uat-20261007-c9vri3a7d-ynwaforevers-projects.vercel.app",
+  "readyState": "INITIALIZING",
+  "target": "production",
+  "aliases": [
+    "aiso-remediation-uat-20261007-ynwaforevers-projects.vercel.app",
+    "aiso-remediation-uat-20261007-git-edd2cd-ynwaforevers-projects.vercel.app"
+  ],
+  "createdAt": 1791380130223
+}

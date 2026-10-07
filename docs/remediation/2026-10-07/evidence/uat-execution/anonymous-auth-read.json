@@ -1,0 +1,11 @@
+{
+  "observedAtUtc": "2026-10-07T13:46:41.173Z",
+  "command": "Vercel CLI authenticated protection access, GET /api/auth/get-session; no application session cookie supplied",
+  "deploymentId": "dpl_6FZPqESpfQ8azzByaWRzfBgLDruw",
+  "exitCode": 0,
+  "httpStatus": "200",
+  "validJson": true,
+  "anonymousNullSession": true,
+  "humanAuthEvidence": false,
+  "interpretation": "Full server self-probe remains failed because new Preview has protection and no VERCEL_AUTOMATION_BYPASS_SECRET; this external request distinguishes protection from a real Auth route fault."
+}

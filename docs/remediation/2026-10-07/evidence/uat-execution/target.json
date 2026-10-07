@@ -1,0 +1,23 @@
+{
+  "projectId": "nameless-term-06793418",
+  "branchId": "br-ancient-glitter-b34yew8s",
+  "endpointId": "ep-soft-bird-b3lqgjne",
+  "host": "ep-soft-bird-b3lqgjne.c-4.ap-southeast-1.aws.neon.tech",
+  "organizationId": "org-soft-sunset-25251479",
+  "projectName": "aiso-remediation-uat-20261007",
+  "projectCreatedAtUtc": "2026-10-07T13:10:59Z",
+  "parentId": null,
+  "database": "neondb",
+  "ownerRole": "neondb_owner",
+  "applicationRole": "aeo_app",
+  "sourceSha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+  "compute": {
+    "minCu": 0.25,
+    "maxCu": 0.25,
+    "storedTimeout": 0,
+    "effectiveDefaultSeconds": 300,
+    "plan": "free"
+  },
+  "expiresAtUtc": "2026-10-14T13:10:59Z",
+  "rollbackScope": "Only this freshly registered UAT project, its resources, and the fresh Vercel project if created"
+}

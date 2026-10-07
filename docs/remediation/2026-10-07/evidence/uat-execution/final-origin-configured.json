@@ -1,0 +1,25 @@
+{
+  "observedAtUtc": "2026-10-07T13:37:35.1994351Z",
+  "exitCode": 0,
+  "projectId": "prj_HlAi6mJDWDKLyisQo4ZmUlj6pS04",
+  "origin": "https://aiso-remediation-uat-20261007-git-edd2cd-ynwaforevers-projects.vercel.app",
+  "source": "Alias allocated by the cancelled first deployment in only the new project; final Preview assignment must be verified before UAT",
+  "keys": [
+    {
+      "id": "B4FX0bpChvHhJVfl",
+      "key": "NEXT_PUBLIC_APP_URL",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "id": "reLOQEmea2ddA1dM",
+      "key": "FORBIDDEN_DB_HOSTS",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    }
+  ]
+}

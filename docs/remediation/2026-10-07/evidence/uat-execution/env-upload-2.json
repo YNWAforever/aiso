@@ -1,0 +1,8 @@
+{
+  "observedAtUtc": "2026-10-07T13:29:33.959Z",
+  "exitCode": 1,
+  "stderr": "Error: Invalid JSON (400)\r\n",
+  "fields": [],
+  "createdCount": null,
+  "envsCount": null
+}

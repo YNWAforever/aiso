@@ -1,0 +1,536 @@
+{
+  "numTotalTestSuites": 3,
+  "numPassedTestSuites": 1,
+  "numFailedTestSuites": 2,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 41,
+  "numPassedTests": 39,
+  "numFailedTests": 2,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1791381153770,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary verifies metadata twice around one credential-separated probe and writes exclusive sanitized artifacts",
+          "status": "passed",
+          "title": "verifies metadata twice around one credential-separated probe and writes exclusive sanitized artifacts",
+          "duration": 185.3119999999999,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects missing full metadata field ownerId before probe",
+          "status": "passed",
+          "title": "rejects missing full metadata field ownerId before probe",
+          "duration": 3.7123999999998887,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects missing full metadata field projectId before probe",
+          "status": "passed",
+          "title": "rejects missing full metadata field projectId before probe",
+          "duration": 145.73209999999972,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects missing full metadata field id before probe",
+          "status": "passed",
+          "title": "rejects missing full metadata field id before probe",
+          "duration": 1.5558999999998377,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects missing full metadata field url before probe",
+          "status": "passed",
+          "title": "rejects missing full metadata field url before probe",
+          "duration": 1.1093999999998232,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects missing full metadata field readyState before probe",
+          "status": "passed",
+          "title": "rejects missing full metadata field readyState before probe",
+          "duration": 1.129699999999957,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary accepts the standard Preview API target staging without a custom environment",
+          "status": "failed",
+          "title": "accepts the standard Preview API target staging without a custom environment",
+          "duration": 51.033800000000156,
+          "failureMessages": [
+            "Error: Candidate verification failed\n    at failure (C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/scripts/readiness/check-candidate.mjs:7:23)\n    at runCandidateCheck (C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/scripts/readiness/check-candidate.mjs:92:19)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/__tests__/scripts/check-candidate.test.mjs:48:13\n    at file:///C:***@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary refuses a custom environment advertised as Preview target null",
+          "status": "failed",
+          "title": "refuses a custom environment advertised as Preview target null",
+          "duration": 94.56580000000031,
+          "failureMessages": [
+            "Error: promise resolved \"{ exitCode: +0, …(3) }\" instead of rejecting\n    at _Assertion.__VITEST_REJECTS__ (file:///C:***@vitest/expect/dist/index.js:1747:17)\n    at _Assertion.propertyGetter (file:///C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/node_modules/chai/index.js:1570:27)\n    at Reflect.get (<anonymous>)\n    at Object.proxyGetter [as get] (file:///C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/node_modules/chai/index.js:1659:22)\n    at C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/__tests__/scripts/check-candidate.test.mjs:53:56\n    at file:///C:***@vitest/runner/dist/chunk-artifact.js:2027:60\n    at file:///C:***@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///C:***@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///C:***@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)"
+          ],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary refuses a custom environment advertised as Preview target staging",
+          "status": "passed",
+          "title": "refuses a custom environment advertised as Preview target staging",
+          "duration": 1.402599999999893,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects source disagreement and post-read drift",
+          "status": "passed",
+          "title": "rejects source disagreement and post-read drift",
+          "duration": 2.798400000000129,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 3.0513999999998305,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 61.05899999999974,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 1.9252000000001317,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 1.9283000000000357,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 1.747400000000198,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 2.0385000000001128,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 2.1718000000000757,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 2.534400000000005,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 19.739399999999932,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 2.1141999999999825,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 1.71100000000024,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 1.7639999999992142,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 3.3450999999995474,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 2.0135999999993146,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary preserves honest fail reports with exit 1",
+          "status": "passed",
+          "title": "preserves honest fail reports with exit 1",
+          "duration": 8.527600000000348,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary preserves honest unknown reports with exit 1",
+          "status": "passed",
+          "title": "preserves honest unknown reports with exit 1",
+          "duration": 2.1135000000003856,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects redirect and oversized bodies without artifacts",
+          "status": "passed",
+          "title": "rejects redirect and oversized bodies without artifacts",
+          "duration": 4.2281999999995605,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects overwrite, leaves first artifact when the second write fails",
+          "status": "passed",
+          "title": "rejects overwrite, leaves first artifact when the second write fails",
+          "duration": 15.842499999999745,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary validates CLI parsing and serialized policy boundary through main",
+          "status": "passed",
+          "title": "validates CLI parsing and serialized policy boundary through main",
+          "duration": 35.92609999999968,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges enforces exactly 20 seconds through a stalled response body and cancels it",
+          "status": "passed",
+          "title": "enforces exactly 20 seconds through a stalled response body and cancels it",
+          "duration": 7.959600000000137,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges bounds a fetch that ignores abort and cancels its late body",
+          "status": "passed",
+          "title": "bounds a fetch that ignores abort and cancels its late body",
+          "duration": 3.4173000000000684,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges serializes actual files and refuses existing nonce paths without replacing their content",
+          "status": "passed",
+          "title": "serializes actual files and refuses existing nonce paths without replacing their content",
+          "duration": 196.26050000000032,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges has no import side effects and actual CLI rejects secret arguments with fixed output",
+          "status": "passed",
+          "title": "has no import side effects and actual CLI rejects secret arguments with fixed output",
+          "duration": 1025.7563,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges blocks invalid target before sending readiness credential",
+          "status": "passed",
+          "title": "blocks invalid target before sending readiness credential",
+          "duration": 1.2398000000002867,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges blocks invalid target before sending readiness credential",
+          "status": "passed",
+          "title": "blocks invalid target before sending readiness credential",
+          "duration": 1.5989999999992506,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges blocks invalid target before sending readiness credential",
+          "status": "passed",
+          "title": "blocks invalid target before sending readiness credential",
+          "duration": 1.427599999999984,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges blocks invalid target before sending readiness credential",
+          "status": "passed",
+          "title": "blocks invalid target before sending readiness credential",
+          "duration": 3.723399999999856,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges blocks invalid target before sending readiness credential",
+          "status": "passed",
+          "title": "blocks invalid target before sending readiness credential",
+          "duration": 0.85320000000047,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges blocks invalid target before sending readiness credential",
+          "status": "passed",
+          "title": "blocks invalid target before sending readiness credential",
+          "duration": 1.0461999999997715,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges blocks invalid target before sending readiness credential",
+          "status": "passed",
+          "title": "blocks invalid target before sending readiness credential",
+          "duration": 0.9633000000003449,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges blocks invalid target before sending readiness credential",
+          "status": "passed",
+          "title": "blocks invalid target before sending readiness credential",
+          "duration": 0.9349000000001979,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1791381157736,
+      "endTime": 1791381159646.9348,
+      "status": "failed",
+      "message": "",
+      "name": "C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/__tests__/scripts/check-candidate.test.mjs"
+    }
+  ]
+}

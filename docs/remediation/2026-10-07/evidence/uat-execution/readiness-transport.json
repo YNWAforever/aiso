@@ -1,0 +1,7 @@
+{
+  "observedAtUtc": "2026-10-07T13:42:22.5872098Z",
+  "exitCode": 0,
+  "httpStatus": "200",
+  "command": "Authenticated Vercel CLI curl /api/internal/readiness on immutable UAT deployment; POST body and bearer header read from private files; no human session used",
+  "deploymentId": "dpl_6FZPqESpfQ8azzByaWRzfBgLDruw"
+}

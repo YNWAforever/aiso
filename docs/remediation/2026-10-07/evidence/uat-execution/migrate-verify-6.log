@@ -1,0 +1,63 @@
+migration                                  objects     ledger
+001_phase1.sql                             all present recorded
+002_phase2.sql                             all present recorded
+003_phase3a_accounts.sql                   all present recorded
+004_phase3a_clients_fk.sql                 n/a        recorded
+007_fix_handle_new_user_with_account.sql   n/a        recorded
+008_scans_account_id.sql                   all present recorded
+009_clients_domain.sql                     n/a        recorded
+010_phase3b.sql                            all present recorded
+011_phase3b_hardening.sql                  all present recorded
+012_aiso_v3.sql                            all present recorded
+013_agent_dashboard.sql                    all present recorded
+014_subscription_tiers.sql                 MISSING 1   recorded
+                                             ↳ plan_features
+015_scan_lead_email.sql                    n/a        recorded
+016_trial_columns.sql                      n/a        recorded
+017_fix_handle_new_user_plan.sql           n/a        recorded
+018_clients_region.sql                     n/a        recorded
+019_clients_description.sql                n/a        recorded
+020_scans_public_select.sql                n/a        recorded
+021_local_trust_roi.sql                    all present recorded
+022_profiles_neon_auth_fk.sql              n/a        recorded
+023_public_scan_rate_limits.sql            all present recorded
+024_stripe_lifecycle_integrity.sql         all present recorded
+025_authenticated_scan_quotas.sql          all present recorded
+026_effective_brand_limit.sql              n/a        recorded
+027_client_report_snapshots.sql            all present recorded
+028_account_plan_overrides.sql             n/a        recorded
+029_scans_client_id.sql                    all present recorded
+030_accounts_plan_default_basic.sql        n/a        recorded
+031_pulse_weekly_summary_unique.sql        all present recorded
+032_pulse_metrics_indexes.sql              all present recorded
+033_alert_evaluation_hardening.sql         all present recorded
+034_alert_evaluation_snapshot_refinement.sql all present recorded
+035_alert_email_delivery_ledger.sql        all present recorded
+036_drop_dead_rls_policies.sql             n/a        recorded
+037_least_privilege_app_role.sql           n/a        recorded
+038_app_role_function_execute.sql          n/a        recorded
+039_cron_runs.sql                          all present recorded
+040_client_entities.sql                    all present recorded
+041_evidence_work_items.sql                all present recorded
+042_change_set_approvals.sql               all present recorded
+043_delivery_attestations.sql              all present recorded
+044_approved_sources.sql                   all present recorded
+045_export_events.sql                      all present recorded
+046_source_actor_attribution.sql           n/a        recorded
+047_account_invitations.sql                all present recorded
+048_platform_admin_grants.sql              all present recorded
+049_profile_deactivation.sql               all present recorded
+050_registered_page_assets.sql             all present recorded
+051_work_item_sources.sql                  all present recorded
+052_scan_claim_attempts.sql                all present recorded
+053_client_domain_verification.sql         all present recorded
+054_search_console.sql                     all present recorded
+055_source_version_approval.sql            n/a        recorded
+056_onboarding_progress.sql                all present recorded
+057_pulse_run_ledger.sql                   all present recorded
+058_pulse_classification_repair.sql        all present recorded
+059_prompt_context.sql                     n/a        recorded
+(node:56480) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/scripts/migrate.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\laich\Documents\Aiso\.worktrees\aiso-remediation-20261007\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

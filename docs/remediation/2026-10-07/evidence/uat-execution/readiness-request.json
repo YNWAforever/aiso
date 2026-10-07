@@ -1,0 +1,58 @@
+{
+  "expected": {
+    "commitSha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+    "deploymentId": "dpl_6FZPqESpfQ8azzByaWRzfBgLDruw",
+    "environment": "preview",
+    "projectId": "prj_HlAi6mJDWDKLyisQo4ZmUlj6pS04",
+    "teamId": "team_qvzlsFmfCsLkgItSypqHjw3z"
+  },
+  "nonce": "91527ff8510a444459e08817a5e1d542",
+  "policy": {
+    "capabilities": {
+      "ai": "unknown",
+      "billing": "unknown",
+      "claims": "required",
+      "email": "unknown",
+      "scheduler": "unknown"
+    },
+    "expectedDatabase": {
+      "branch": "br-ancient-glitter-b34yew8s",
+      "database": "neondb",
+      "project": "nameless-term-06793418",
+      "role": "aeo_app"
+    },
+    "relations": [
+      {
+        "privileges": [
+          "SELECT"
+        ],
+        "relation": "clients",
+        "schema": "public"
+      },
+      {
+        "privileges": [
+          "SELECT"
+        ],
+        "relation": "profiles",
+        "schema": "public"
+      },
+      {
+        "privileges": [
+          "SELECT"
+        ],
+        "relation": "accounts",
+        "schema": "public"
+      },
+      {
+        "privileges": [
+          "SELECT"
+        ],
+        "relation": "client_source_versions",
+        "schema": "public"
+      }
+    ],
+    "version": 1
+  },
+  "policyHash": "96aaf922eb6b38b6d221ac9c5c9616af6f10735efe7c3ba1445065b7a7c84c66",
+  "schemaVersion": 1
+}

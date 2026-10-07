@@ -1,0 +1,197 @@
+{
+  "checks": [
+    {
+      "code": "matched",
+      "id": "candidate.identity",
+      "status": "pass"
+    },
+    {
+      "code": "malformed_response",
+      "id": "configuration.core",
+      "status": "unknown"
+    },
+    {
+      "code": "matched",
+      "id": "database.identity",
+      "status": "pass"
+    },
+    {
+      "code": "read_only",
+      "id": "database.read_only",
+      "status": "pass"
+    },
+    {
+      "code": "privilege_present",
+      "id": "database.relation",
+      "policyIndex": 0,
+      "privilege": "SELECT",
+      "status": "pass"
+    },
+    {
+      "code": "privilege_present",
+      "id": "database.relation",
+      "policyIndex": 1,
+      "privilege": "SELECT",
+      "status": "pass"
+    },
+    {
+      "code": "privilege_present",
+      "id": "database.relation",
+      "policyIndex": 2,
+      "privilege": "SELECT",
+      "status": "pass"
+    },
+    {
+      "code": "privilege_present",
+      "id": "database.relation",
+      "policyIndex": 3,
+      "privilege": "SELECT",
+      "status": "pass"
+    },
+    {
+      "code": "available",
+      "id": "auth.jwks",
+      "status": "pass"
+    },
+    {
+      "code": "unavailable",
+      "id": "auth.anonymous_session",
+      "status": "fail"
+    }
+  ],
+  "completedAt": "2026-10-07T13:42:22.936Z",
+  "configuration": {
+    "checks": [
+      {
+        "code": "valid",
+        "id": "config.DATABASE_URL",
+        "status": "pass"
+      },
+      {
+        "code": "valid",
+        "id": "config.NEON_AUTH_BASE_URL",
+        "status": "pass"
+      },
+      {
+        "code": "valid",
+        "id": "config.NEON_AUTH_COOKIE_SECRET",
+        "status": "pass"
+      },
+      {
+        "code": "valid",
+        "id": "config.PUBLIC_SCAN_RATE_LIMIT_SECRET",
+        "status": "pass"
+      },
+      {
+        "code": "valid",
+        "id": "config.NEXT_PUBLIC_APP_URL",
+        "status": "pass"
+      },
+      {
+        "code": "valid",
+        "id": "config.VERCEL",
+        "status": "pass"
+      },
+      {
+        "code": "valid",
+        "id": "binding.EXPECTED_NEON_PROJECT_ID",
+        "status": "pass"
+      },
+      {
+        "code": "valid",
+        "id": "binding.EXPECTED_NEON_BRANCH_ID",
+        "status": "pass"
+      },
+      {
+        "code": "valid",
+        "id": "binding.EXPECTED_DB_ROLE",
+        "status": "pass"
+      },
+      {
+        "code": "valid",
+        "id": "binding.EXPECTED_DB_NAME",
+        "status": "pass"
+      },
+      {
+        "code": "valid",
+        "id": "binding.connection_role",
+        "status": "pass"
+      },
+      {
+        "code": "valid",
+        "id": "binding.connection_database",
+        "status": "pass"
+      },
+      {
+        "code": "valid",
+        "id": "binding.forbidden_target",
+        "status": "pass"
+      },
+      {
+        "code": "required",
+        "id": "capability.claims",
+        "status": "pass"
+      },
+      {
+        "code": "valid",
+        "id": "config.REPORT_SHARE_SECRET",
+        "status": "pass"
+      },
+      {
+        "code": "unknown",
+        "id": "capability.ai",
+        "status": "unknown"
+      },
+      {
+        "code": "unknown",
+        "id": "capability.billing",
+        "status": "unknown"
+      },
+      {
+        "code": "unknown",
+        "id": "capability.email",
+        "status": "unknown"
+      },
+      {
+        "code": "unknown",
+        "id": "capability.scheduler",
+        "status": "unknown"
+      }
+    ],
+    "configurationStatus": "unknown",
+    "enforced": false,
+    "kind": "configuration-only",
+    "productionReady": false,
+    "version": 1
+  },
+  "configurationStatus": "unknown",
+  "configuredTeamId": "team_qvzlsFmfCsLkgItSypqHjw3z",
+  "enforced": false,
+  "expected": {
+    "commitSha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+    "deploymentId": "dpl_6FZPqESpfQ8azzByaWRzfBgLDruw",
+    "environment": "preview",
+    "projectId": "prj_HlAi6mJDWDKLyisQo4ZmUlj6pS04",
+    "teamId": "team_qvzlsFmfCsLkgItSypqHjw3z"
+  },
+  "kind": "runtime-readiness",
+  "nonce": "91527ff8510a444459e08817a5e1d542",
+  "observed": {
+    "commitSha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+    "deploymentId": "dpl_6FZPqESpfQ8azzByaWRzfBgLDruw",
+    "environment": "preview",
+    "projectId": "prj_HlAi6mJDWDKLyisQo4ZmUlj6pS04",
+    "teamId": null
+  },
+  "observedDatabase": {
+    "branch": "br-ancient-glitter-b34yew8s",
+    "database": "neondb",
+    "project": "nameless-term-06793418",
+    "role": "aeo_app"
+  },
+  "policyHash": "96aaf922eb6b38b6d221ac9c5c9616af6f10735efe7c3ba1445065b7a7c84c66",
+  "productionReady": false,
+  "runtimeStatus": "fail",
+  "schemaVersion": 1,
+  "startedAt": "2026-10-07T13:42:22.538Z"
+}

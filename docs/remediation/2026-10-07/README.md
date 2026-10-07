@@ -1,5 +1,7 @@
 # AISO Codex 執行包 — 2026-10-07
 
+Current execution results: [uat-execution-addendum.md](./uat-execution-addendum.md) records the authorized isolated setup, current unit gate, exact Preview/DB/Auth identities and remaining normal-session/production blockers. The planning statements below are retained as historical input; appended CSV fields and execution addenda hold current results.
+
 把本 ZIP 交給 Codex GPT-6.1 Sol，貼上 `AISO-Codex-kickoff-prompt-2026-10-07.txt`，即可從 B0 開始。
 
 包含完整計劃、24 項任務執行表、36 項驗收矩陣，以及原封不動的 `input/AISO-audit-evidence-2026-10-07.zip`。技術計劃及啟動提示用英文，原有任務及稽核證據保留繁體中文。

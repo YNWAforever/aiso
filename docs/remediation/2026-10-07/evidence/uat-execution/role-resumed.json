@@ -1,0 +1,96 @@
+{
+  "observedAtUtc": "2026-10-07T13:23:07.200Z",
+  "target": {
+    "projectId": "nameless-term-06793418",
+    "branchId": "br-ancient-glitter-b34yew8s",
+    "endpointId": "ep-soft-bird-b3lqgjne",
+    "host": "ep-soft-bird-b3lqgjne.c-4.ap-southeast-1.aws.neon.tech",
+    "organizationId": "org-soft-sunset-25251479",
+    "projectName": "aiso-remediation-uat-20261007",
+    "projectCreatedAtUtc": "2026-10-07T13:10:59Z",
+    "parentId": null,
+    "database": "neondb",
+    "ownerRole": "neondb_owner",
+    "applicationRole": "aeo_app",
+    "sourceSha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+    "compute": {
+      "minCu": 0.25,
+      "maxCu": 0.25,
+      "storedTimeout": 0,
+      "effectiveDefaultSeconds": 300,
+      "plan": "free"
+    },
+    "expiresAtUtc": "2026-10-14T13:10:59Z",
+    "rollbackScope": "Only this freshly registered UAT project, its resources, and the fresh Vercel project if created"
+  },
+  "explanation": "Initial helper incorrectly required blanket CRUD. Checked-in expansion migrations intentionally restrict append-only/admin tables. No database grants changed; baseline/migrations were not replayed.",
+  "status": "pass",
+  "exitCode": 0,
+  "counts": {
+    "discovered": 293,
+    "pass": 293,
+    "fail": 0,
+    "skip": 0
+  },
+  "events": [
+    {
+      "step": "new target aeo_app credential replaced after failed helper; no grants altered",
+      "businessRows": {
+        "accounts": 0,
+        "profiles": 0,
+        "clients": 0,
+        "scans": 0,
+        "auth_users": 0
+      },
+      "ledgerRows": 58,
+      "ownerCredentialInRuntime": false
+    },
+    {
+      "step": "rolled-back application-role DDL denial",
+      "statement": "create table public.aiso_uat_ddl_denial_probe (id integer)",
+      "expectedCode": "42501",
+      "actualCode": "42501"
+    },
+    {
+      "step": "rolled-back application-role DDL denial",
+      "statement": "drop table public.accounts",
+      "expectedCode": "42501",
+      "actualCode": "42501"
+    },
+    {
+      "step": "rolled-back application-role DDL denial",
+      "statement": "alter table public.accounts add column aiso_uat_ddl_probe integer",
+      "expectedCode": "42501",
+      "actualCode": "42501"
+    },
+    {
+      "step": "rolled-back application-role DDL denial",
+      "statement": "create role aiso_uat_role_denial_probe",
+      "expectedCode": "42501",
+      "actualCode": "42501"
+    },
+    {
+      "step": "actual aeo_app contract verified",
+      "identity": {
+        "project": "nameless-term-06793418",
+        "branch": "br-ancient-glitter-b34yew8s",
+        "database": "neondb",
+        "role": "aeo_app"
+      },
+      "tablesChecked": 62,
+      "privilegesChecked": 248,
+      "restrictedTables": 24,
+      "rpcChecks": 10,
+      "columnAndAuthPrivileges": {
+        "approval_actor": true,
+        "approval_time": true,
+        "version_id": false,
+        "auth_read": true,
+        "auth_insert": false,
+        "auth_update": false,
+        "auth_delete": false
+      },
+      "tenancyAcceptance": "Still requires real normal-session cross-tenant evidence"
+    }
+  ]
+}

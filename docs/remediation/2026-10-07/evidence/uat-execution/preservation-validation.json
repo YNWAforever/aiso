@@ -1,0 +1,11 @@
+{
+  "taskRows": 24,
+  "acceptanceRows": 36,
+  "retainedTrackedCells": 1948,
+  "retainedPreflightCells": 2382,
+  "allPreviousCsvCellsPreserved": true,
+  "allIdsPreserved": true,
+  "oldDeliveryArchivesModified": false,
+  "productionAcceptanceClosed": false,
+  "normalAuthAssertionsExecuted": 0
+}

@@ -1,0 +1,39 @@
+{
+  "numTotalTestSuites": 1,
+  "numPassedTestSuites": 0,
+  "numFailedTestSuites": 1,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 0,
+  "numPassedTests": 0,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1791381016412,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [],
+      "startTime": 1791381016412,
+      "endTime": 1791381016412,
+      "status": "failed",
+      "message": "EPERM: operation not permitted, rename 'C:\\Users\\laich\\AppData\\Local\\Packages\\sandbox.{32eae448-3c7a-4b3f-bd4f-0c028556a2e2}\\AC\\Temp\\aImpwtFmrk_6OCTa5ucVK\\ssr\\.tmp-1791381021436-pz61w4m3po' -> 'C:\\Users\\laich\\AppData\\Local\\Packages\\sandbox.{32eae448-3c7a-4b3f-bd4f-0c028556a2e2}\\AC\\Temp\\aImpwtFmrk_6OCTa5ucVK\\ssr\\6d68db3467c8de50ad0797256dd748c11ce9bd63'",
+      "name": "C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/__tests__/scripts/check-candidate.test.mjs"
+    }
+  ]
+}

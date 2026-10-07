@@ -1,0 +1,13 @@
+{
+  "observedAtUtc": "2026-10-07 13:37:23 UTC",
+  "id": "dpl_9iQZekCYcqEcEzccTvsgzvhdeg3Q",
+  "projectId": "prj_HlAi6mJDWDKLyisQo4ZmUlj6pS04",
+  "sourceSha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+  "target": "production",
+  "state": "CANCELED",
+  "createdAt": 1791380130223,
+  "cancelledAt": 1791380193157,
+  "reason": "The API defaulted omitted target to production; explicitly requested Preview was intended. Stopped during build and cancelled. New project only; existing production unchanged. No production-scoped runtime environment keys existed.",
+  "operation": "cancel only newly registered accidental deployment",
+  "acceptedForUat": false
+}

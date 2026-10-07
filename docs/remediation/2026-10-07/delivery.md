@@ -1,5 +1,7 @@
 # AISO implementation delivery — 2026-10-07 HKT
 
+Latest continuation: [uat-execution-addendum.md](./uat-execution-addendum.md). Operator commit a6c2f2c accepts standard Vercel Preview metadata and rejects custom environments; focused 102/102 and full unit 5,348/5,348 passed. The authorized dedicated Preview serves d1aecce with verified fresh Neon `aeo_app` binding. Human capture timed out at Vercel login; normal-session, full readiness and production acceptance remain open. Historical counts below retain their original tested SHA and environment.
+
 Implementation SHA: `fbf8f9d209edf5ce47fc01d979c167371ffa2c76`. Continuing [draft PR68](https://github.com/YNWAforever/aiso/pull/68). This delivery contains implementation and independent verification; production is not rolled out or fully accepted.
 
 The subsequent one-run disposable-role approval has been executed and verified at documentation delivery SHA `d0b12b656111c679bdb4be8fcc4105cfe7efa369`. [CI 37550438626](https://github.com/YNWAforever/aiso/actions/runs/37550438626) passed with 221 default DB and 178 exact-target assertions, no failures/skips, and both disposable children deleted. Its actual checkout SHA and approval scope are retained in `evidence/approved-ci.json`; see `approved-ci-addendum.md` for the complete report inventory.

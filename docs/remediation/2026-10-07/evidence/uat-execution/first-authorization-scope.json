@@ -1,0 +1,14 @@
+{
+  "source": "User continue in response to the explicit isolated-UAT provisioning/deployment approval question",
+  "user_message": "continue",
+  "recorded_at_utc": "2026-10-07T12:50:11.2763704Z",
+  "proposal_path": "C:\\Users\\laich\\Documents\\Aiso\\.worktrees\\aiso-remediation-20261007\\artifacts\\aiso\\2026-10-07\\uat-follow-up\\isolated-preview-proposal.md",
+  "proposal_sha256": "e57d2ab272c81bc7509a79a80428a69084bca9fa12c6cdcccdedb733e9081f40",
+  "candidate_sha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+  "new_neon_name": "aiso-remediation-uat-20261007",
+  "neon_org": "org-soft-sunset-25251479",
+  "new_vercel_name": "aiso-remediation-uat-20261007",
+  "vercel_team": "team_qvzlsFmfCsLkgItSypqHjw3z",
+  "production_authorized": false,
+  "renewed_ci_permission": false
+}

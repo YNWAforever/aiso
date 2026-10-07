@@ -1,0 +1,15 @@
+{
+  "recorded_at_utc": "2026-10-07T13:10:51.7358087Z",
+  "previous_project": "super-unit-14336637",
+  "previous_status": "deleted-and-verified-absent",
+  "interpretation_correction": "suspend_timeout_seconds=0 uses the default, not always-on; Free plan fixed idle suspension is five minutes",
+  "primary_sources": [
+    "https://github.com/neondatabase/latency-benchmarks/blob/main/AGENTS.md",
+    "https://neon.com/docs/guides/scale-to-zero-guide"
+  ],
+  "parser_correction": "endpoint-configured.json does not prove success; actual update returned HTTP 412 and no setting changed",
+  "scope": "Retry same approved fresh-project setup with no active original target, no plan upgrade, fixed 0.25 CU and observed idle suspension before Auth/SQL",
+  "idle_guard": "Require real suspended endpoint state after five-minute inactivity before progressing; no override or PATCH",
+  "production_authorized": false,
+  "ci_role_permission_renewed": false
+}

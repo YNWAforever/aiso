@@ -1,0 +1,21 @@
+{
+  "observed_at_utc": "2026-10-07T13:03:44.5880563Z",
+  "command": "neonctl projects list --org-id org-soft-sunset-25251479 --output json",
+  "exit_code": 0,
+  "list_root": "array (parsed as array directly)",
+  "removed_project_id": "super-unit-14336637",
+  "active_id_matches": 0,
+  "active_name_matches": 0,
+  "existing_aiso_project": [
+    {
+      "id": "weathered-wave-50814522",
+      "name": "AISO",
+      "org_id": "org-soft-sunset-25251479",
+      "region_id": "aws-ap-southeast-1",
+      "created_at": "2026-08-31T01:33:33Z"
+    }
+  ],
+  "creation_delete_command_exit": 0,
+  "removed_project_absent": true,
+  "first_list_parser_result_was_inconclusive": true
+}

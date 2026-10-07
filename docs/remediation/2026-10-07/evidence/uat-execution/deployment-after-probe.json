@@ -1,0 +1,23 @@
+{
+  "observedAtUtc": "2026-10-07T13:43:38.8547351Z",
+  "id": "dpl_6FZPqESpfQ8azzByaWRzfBgLDruw",
+  "url": "aiso-remediation-uat-20261007-qc560v6uy-ynwaforevers-projects.vercel.app",
+  "projectId": "prj_HlAi6mJDWDKLyisQo4ZmUlj6pS04",
+  "ownerId": "team_qvzlsFmfCsLkgItSypqHjw3z",
+  "target": "staging",
+  "readyState": "READY",
+  "gitSource": {
+    "ref": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+    "repoId": 1351495248,
+    "sha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+    "type": "github"
+  },
+  "meta": {
+    "githubCommitSha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb"
+  },
+  "alias": [
+    "aiso-remediation-uat-20261007-ynwaforevers-projects.vercel.app",
+    "aiso-remediation-uat-20261007-git-edd2cd-ynwaforevers-projects.vercel.app"
+  ],
+  "customEnvironment": null
+}

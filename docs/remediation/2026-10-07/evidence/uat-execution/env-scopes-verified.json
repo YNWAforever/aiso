@@ -1,0 +1,131 @@
+{
+  "observedAtUtc": "2026-10-07T13:58:34.3669854Z",
+  "status": "pass",
+  "exitCode": 0,
+  "projectId": "prj_HlAi6mJDWDKLyisQo4ZmUlj6pS04",
+  "count": 17,
+  "nonPreviewCount": 0,
+  "excludedCredentialCount": 0,
+  "keys": [
+    {
+      "key": "NEXT_PUBLIC_APP_URL",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "FORBIDDEN_DB_HOSTS",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "DATABASE_URL",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "NEON_AUTH_BASE_URL",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "NEON_AUTH_COOKIE_SECRET",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "PUBLIC_SCAN_RATE_LIMIT_SECRET",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "REPORT_SHARE_SECRET",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "READINESS_PROBE_SECRET",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "EXPECTED_NEON_PROJECT_ID",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "EXPECTED_NEON_BRANCH_ID",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "EXPECTED_DB_NAME",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "EXPECTED_DB_ROLE",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "FORBIDDEN_NEON_PROJECT_IDS",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "FORBIDDEN_NEON_BRANCH_IDS",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "FEATURE_SEARCH_CONSOLE",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "FEATURE_PULSE_ATTEMPTS",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "READINESS_EXPECTED_TEAM_ID",
+      "target": [
+        "preview"
+      ],
+      "type": "encrypted"
+    }
+  ],
+  "decryptedValuesRead": false
+}

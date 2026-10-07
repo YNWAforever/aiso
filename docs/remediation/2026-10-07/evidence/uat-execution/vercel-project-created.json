@@ -1,0 +1,37 @@
+{
+  "observed_at_utc": "2026-10-07T13:24:55.9819764Z",
+  "id": "prj_HlAi6mJDWDKLyisQo4ZmUlj6pS04",
+  "name": "aiso-remediation-uat-20261007",
+  "accountId": "team_qvzlsFmfCsLkgItSypqHjw3z",
+  "createdAt": 1791379439101,
+  "nodeVersion": "24.x",
+  "framework": "nextjs",
+  "resourceConfig": {
+    "fluid": true,
+    "functionDefaultRegions": [
+      "sin1"
+    ],
+    "elasticConcurrencyEnabled": false,
+    "buildMachineSelection": "fixed",
+    "buildMachineType": "basic"
+  },
+  "link": {
+    "type": "github",
+    "repo": "aiso",
+    "repoId": 1351495248,
+    "org": "YNWAforever",
+    "repoOwnerId": 201698560,
+    "productionBranch": "main",
+    "createdAt": 1791379438906,
+    "updatedAt": 1791379438906,
+    "deployHooks": []
+  },
+  "ssoProtection": {
+    "deploymentType": "all_except_custom_domains"
+  },
+  "domains": null,
+  "targets": {},
+  "env_keys": [
+    null
+  ]
+}

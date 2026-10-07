@@ -1,0 +1,15 @@
+{
+  "recordedAtUtc": "2026-10-07 13:19:24 UTC",
+  "projectId": "nameless-term-06793418",
+  "branchId": "br-ancient-glitter-b34yew8s",
+  "database": "neondb",
+  "provider": "better_auth",
+  "providerProjectId": "c617a7ce-2168-470e-9e4e-22860034fa9d",
+  "issuer": "https://ep-soft-bird-b3lqgjne.neonauth.c-4.ap-southeast-1.aws.neon.tech/neondb/auth",
+  "jwksUrl": "https://ep-soft-bird-b3lqgjne.neonauth.c-4.ap-southeast-1.aws.neon.tech/neondb/auth/.well-known/jwks.json",
+  "createdAtUtc": "2026-10-07T13:18:25Z",
+  "googleMode": "shared-development",
+  "productionAuthChanged": false,
+  "magicLinkEnabled": false,
+  "emailOperationsPerformed": false
+}

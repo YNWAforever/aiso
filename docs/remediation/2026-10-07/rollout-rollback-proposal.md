@@ -1,5 +1,7 @@
 # Reviewable release proposal — no release action executed
 
+Current continuation: [uat-execution-addendum.md](./uat-execution-addendum.md) records the separately authorized fresh UAT setup, actual Preview/DB/Auth identities, operator source `a6c2f2c258951f9feef75fa621f1918a6ab9d5cd`, current 5,348-test unit gate and outstanding human evidence. The earlier missing-target statements below are historical; normal-session and production gates remain open. The UAT deployment is still pinned to d1aecce; no production release or renewed privileged CI run occurred.
+
 Selected implementation: `fbf8f9d209edf5ce47fc01d979c167371ffa2c76`, continuing draft [PR68](https://github.com/YNWAforever/aiso/pull/68). A later documentation-only delivery commit must have the same source/test/config/migration fingerprint. Production remains `f49e1bd8951394cf88250b3ea88847d0038db491`.
 
 ## Approved one-run disposable application-role acceptance

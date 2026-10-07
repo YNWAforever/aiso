@@ -1,0 +1,41 @@
+{
+  "observedAtUtc": "2026-10-07T14:07:20.182Z",
+  "sourceSha": "a6c2f2c258951f9feef75fa621f1918a6ab9d5cd",
+  "deployedSha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+  "changedFiles": [
+    "__tests__/scripts/check-candidate.test.mjs",
+    "scripts/readiness/candidate-contract.mjs"
+  ],
+  "productRuntimeTrees": {
+    "app": {
+      "deployedTree": "1fb1c961b4e3c2474a8c8303413445de6ff249f4",
+      "currentTree": "1fb1c961b4e3c2474a8c8303413445de6ff249f4",
+      "equal": true
+    },
+    "lib": {
+      "deployedTree": "a304c40b8d52c9f602bc1ebd3a84917f31e4a1bd",
+      "currentTree": "a304c40b8d52c9f602bc1ebd3a84917f31e4a1bd",
+      "equal": true
+    },
+    "components": {
+      "deployedTree": "2d6c69ccdb2448299aa556da2e29a92836077440",
+      "currentTree": "2d6c69ccdb2448299aa556da2e29a92836077440",
+      "equal": true
+    },
+    "messages": {
+      "deployedTree": "a9652376f910a1a2abd96de867b5b39273be4e9e",
+      "currentTree": "a9652376f910a1a2abd96de867b5b39273be4e9e",
+      "equal": true
+    },
+    "supabase": {
+      "deployedTree": "932be56294c3cf8858a75beb5450a23e3b728133",
+      "currentTree": "932be56294c3cf8858a75beb5450a23e3b728133",
+      "equal": true
+    },
+    "cloudflare": {
+      "deployedTree": "803dd59f8cb4732617ca7d5a14b5c746a49ee717",
+      "currentTree": "803dd59f8cb4732617ca7d5a14b5c746a49ee717",
+      "equal": true
+    }
+  }
+}

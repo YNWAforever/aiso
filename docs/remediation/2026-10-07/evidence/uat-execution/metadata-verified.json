@@ -1,0 +1,21 @@
+{
+  "observedAtUtc": "2026-10-07T13:54:44.650Z",
+  "status": "pass",
+  "exitCode": 0,
+  "metadataSource": "artifacts/aiso/2026-10-07/uat-execution/retry-2/deployment-after-probe.json",
+  "metadataSha256": "609aa34d14737517c7afb8474ba80a511fc1595f2de91abf5fe778cc1540a9b0",
+  "verifierSha256": "fe4d375c9ca2b9fec11ac18cef6e17ccbc25f2f2353e213f54ddf84e48c20ebd",
+  "expected": {
+    "commitSha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+    "deploymentId": "dpl_6FZPqESpfQ8azzByaWRzfBgLDruw",
+    "environment": "preview",
+    "projectId": "prj_HlAi6mJDWDKLyisQo4ZmUlj6pS04",
+    "teamId": "team_qvzlsFmfCsLkgItSypqHjw3z"
+  },
+  "actualOrigin": "https://aiso-remediation-uat-20261007-qc560v6uy-ynwaforevers-projects.vercel.app",
+  "actualTarget": "staging",
+  "customEnvironment": null,
+  "fullRuntimeStatus": "fail",
+  "fullConfigurationStatus": "unknown",
+  "productionReady": false
+}

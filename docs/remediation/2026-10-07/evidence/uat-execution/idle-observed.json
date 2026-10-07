@@ -1,0 +1,13 @@
+{
+  "observedAtUtc": "2026-10-07 13:16:33 UTC",
+  "projectId": "nameless-term-06793418",
+  "branchId": "br-ancient-glitter-b34yew8s",
+  "endpointId": "ep-soft-bird-b3lqgjne",
+  "currentState": "active",
+  "lastActive": "2026-10-07T13:11:03Z",
+  "elapsedSeconds": 330,
+  "storedTimeoutSeconds": 0,
+  "computeMinCu": 0.25,
+  "computeMaxCu": 0.25,
+  "noDatabaseConnectionsMade": true
+}

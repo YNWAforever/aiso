@@ -1,0 +1,18 @@
+{
+  "command": "neonctl projects delete super-unit-14336637 --output json",
+  "target_project": "super-unit-14336637",
+  "target_name": "aiso-remediation-uat-20261007",
+  "target_created_at": "2026-10-07T12:50:25Z",
+  "guard_source": "Fresh creation registry and independently read exact-project metadata; project list did not supply target",
+  "started_at_utc": "2026-10-07T13:00:09.4343012Z",
+  "completed_at_utc": "2026-10-07T13:00:14.2888979Z",
+  "exit_code": 0,
+  "output": "{\r\n  \"data_storage_bytes_hour\": 0,\r\n  \"data_transfer_bytes\": 0,\r\n  \"written_data_bytes\": 0,\r\n  \"compute_time_seconds\": 0,\r\n  \"active_time_seconds\": 0,\r\n  \"cpu_used_sec\": 0,\r\n  \"id\": \"super-unit-14336637\",\r\n  \"platform_id\": \"aws\",\r\n  \"region_id\": \"aws-ap-southeast-1\",\r\n  \"name\": \"aiso-remediation-uat-20261007\",\r\n  \"slug\": \"super-unit-14336637\",\r\n  \"provisioner\": \"k8s-neonvm\",\r\n  \"default_endpoint_settings\": {\r\n    \"autoscaling_limit_min_cu\": 0.25,\r\n    \"autoscaling_limit_max_cu\": 0.25,\r\n    \"suspend_timeout_seconds\": 0\r\n  },\r\n  \"settings\": {\r\n    \"allowed_ips\": {\r\n      \"ips\": [],\r\n      \"protected_branches_only\": false\r\n    },\r\n    \"enable_logical_replication\": false,\r\n    \"maintenance_window\": {\r\n      \"weekdays\": [\r\n        4\r\n      ],\r\n      \"start_time\": \"17:00\",\r\n      \"end_time\": \"18:00\"\r\n    },\r\n    \"block_public_connections\": false,\r\n    \"block_vpc_connections\": false,\r\n    \"hipaa\": false\r\n  },\r\n  \"pg_version\": 18,\r\n  \"proxy_host\": \"c-4.ap-southeast-1.aws.neon.tech\",\r\n  \"branch_logical_size_limit\": 1024,\r\n  \"branch_logical_size_limit_bytes\": 1073741824,\r\n  \"store_passwords\": true,\r\n  \"creation_source\": \"console\",\r\n  \"history_retention_seconds\": 21600,\r\n  \"created_at\": \"2026-10-07T12:50:25Z\",\r\n  \"updated_at\": \"2026-10-07T12:50:31Z\",\r\n  \"synthetic_storage_size\": 31686656,\r\n  \"consumption_period_start\": \"0001-01-01T00:00:00Z\",\r\n  \"consumption_period_end\": \"0001-01-01T00:00:00Z\",\r\n  \"owner_id\": \"org-soft-sunset-25251479\",\r\n  \"compute_last_active_at\": \"2026-10-07T12:50:29Z\",\r\n  \"org_id\": \"org-soft-sunset-25251479\"\r\n}",
+  "reason": "Account refused approved 300-second idle timeout; authorized rollback of only this newly created empty UAT project",
+  "production_modified": false,
+  "auth_provisioned": false,
+  "sql_initialized": false,
+  "role_password_set": false,
+  "vercel_project_created": false,
+  "preview_deployed": false
+}

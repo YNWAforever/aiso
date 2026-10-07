@@ -1,0 +1,624 @@
+{
+  "observedAtUtc": "2026-10-07T13:20:53.218Z",
+  "identity": {
+    "project": "nameless-term-06793418",
+    "branch": "br-ancient-glitter-b34yew8s",
+    "database": "neondb",
+    "role": "neondb_owner"
+  },
+  "role": {
+    "rolcanlogin": true,
+    "rolbypassrls": true,
+    "rolcreatedb": false,
+    "rolcreaterole": false,
+    "rolsuper": false
+  },
+  "tables": [
+    {
+      "relname": "account_approver_events",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "account_approver_state",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "account_invitations",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "account_report_branding",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "accounts",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "agent_competitors",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "agent_progress",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "agent_recommendations",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "ai_citation_log",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "alert_configs",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "alert_email_deliveries",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "authenticated_scan_monthly_usage",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "authority_overrides",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "authority_scores",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "chunk_analysis",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "client_asset_questions",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": true
+    },
+    {
+      "relname": "client_assets",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "client_domain_verifications",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "client_entities",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "client_report_versions",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "client_reports",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "client_source_versions",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "client_sources",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "clients",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "content_briefs",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "cron_runs",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "domain_signals",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "evidence_work_items",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "fix_packs",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "google_connections",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "industry_packs",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "local_trust_actions",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "local_trust_profiles",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "local_trust_snapshots",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "notifications",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "onboarding_progress",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "platform_admin_grants",
+      "can_select": true,
+      "can_insert": false,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "profiles",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "prompt_bank",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "public_scan_rate_limits",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "pulse_classification_attempts",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "pulse_item_attempts",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "pulse_metrics",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "pulse_run_items",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "pulse_runs",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "pulse_weekly_summary",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "regional_packs",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "scan_claim_attempts",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "scans",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "schema_migrations",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "search_console_bindings",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "search_console_daily",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "search_console_page_queries",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "search_console_sync_runs",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "stripe_subscription_processing_leases",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "stripe_webhook_events",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "topical_clusters",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": true
+    },
+    {
+      "relname": "work_item_decisions",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "work_item_delivery_events",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "work_item_export_events",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "work_item_sources",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "work_item_versions",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    }
+  ],
+  "constrained": [
+    {
+      "relname": "account_approver_events",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "account_approver_state",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "account_invitations",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "client_asset_questions",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": true
+    },
+    {
+      "relname": "client_assets",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "client_domain_verifications",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "client_entities",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "client_source_versions",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "client_sources",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "evidence_work_items",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "google_connections",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "platform_admin_grants",
+      "can_select": true,
+      "can_insert": false,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "pulse_classification_attempts",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "pulse_item_attempts",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "pulse_run_items",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "pulse_runs",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "scan_claim_attempts",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "search_console_daily",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "search_console_sync_runs",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "work_item_decisions",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "work_item_delivery_events",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "work_item_export_events",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    },
+    {
+      "relname": "work_item_sources",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": true,
+      "can_delete": false
+    },
+    {
+      "relname": "work_item_versions",
+      "can_select": true,
+      "can_insert": true,
+      "can_update": false,
+      "can_delete": false
+    }
+  ],
+  "exitCode": 0,
+  "mutationPerformed": false
+}

@@ -1,0 +1,31 @@
+{
+  "recordedAtUtc": "2026-10-07T12:56:03.936Z",
+  "step": "configure new UAT endpoint idle suspension",
+  "projectId": "super-unit-14336637",
+  "branchId": "br-hidden-smoke-b3fl8ccx",
+  "endpointId": "ep-steep-violet-b3zmm9rn",
+  "requested": {
+    "cuMin": 0.25,
+    "cuMax": 0.25,
+    "suspendTimeoutSeconds": 300
+  },
+  "observed": {
+    "cuMin": 0.25,
+    "cuMax": 0.25,
+    "suspendTimeoutSeconds": 0
+  },
+  "httpStatus": 412,
+  "errorCode": "INVALID_ARGUMENT",
+  "message": "modifying the suspend interval is not permitted on this account\n[HTTP 412] modifying the suspend interval is not permitted on this account",
+  "blockedBefore": [
+    "Auth provisioning",
+    "credential retrieval",
+    "baseline/SQL migration",
+    "application-role password",
+    "Vercel project creation",
+    "Preview deployment"
+  ],
+  "guardDisabled": false,
+  "planUpgradePerformed": false,
+  "rollbackScope": "delete only the just-created registered UAT project after verifying its identity"
+}

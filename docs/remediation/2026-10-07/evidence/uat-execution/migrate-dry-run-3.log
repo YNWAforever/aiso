@@ -1,0 +1,26 @@
+Would apply 21 migration(s):
+  039_cron_runs.sql
+  040_client_entities.sql
+  041_evidence_work_items.sql
+  042_change_set_approvals.sql
+  043_delivery_attestations.sql
+  044_approved_sources.sql
+  045_export_events.sql
+  046_source_actor_attribution.sql
+  047_account_invitations.sql
+  048_platform_admin_grants.sql
+  049_profile_deactivation.sql
+  050_registered_page_assets.sql
+  051_work_item_sources.sql
+  052_scan_claim_attempts.sql
+  053_client_domain_verification.sql
+  054_search_console.sql
+  055_source_version_approval.sql
+  056_onboarding_progress.sql
+  057_pulse_run_ledger.sql
+  058_pulse_classification_repair.sql
+  059_prompt_context.sql
+(node:8384) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/scripts/migrate.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\laich\Documents\Aiso\.worktrees\aiso-remediation-20261007\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

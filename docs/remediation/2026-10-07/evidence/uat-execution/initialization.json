@@ -1,0 +1,345 @@
+{
+  "startedAtUtc": "2026-10-07T13:19:21.655Z",
+  "completedAtUtc": "2026-10-07T13:19:31.029Z",
+  "target": {
+    "projectId": "nameless-term-06793418",
+    "branchId": "br-ancient-glitter-b34yew8s",
+    "endpointId": "ep-soft-bird-b3lqgjne",
+    "host": "ep-soft-bird-b3lqgjne.c-4.ap-southeast-1.aws.neon.tech",
+    "organizationId": "org-soft-sunset-25251479",
+    "projectName": "aiso-remediation-uat-20261007",
+    "projectCreatedAtUtc": "2026-10-07T13:10:59Z",
+    "parentId": null,
+    "database": "neondb",
+    "ownerRole": "neondb_owner",
+    "applicationRole": "aeo_app",
+    "sourceSha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+    "compute": {
+      "minCu": 0.25,
+      "maxCu": 0.25,
+      "storedTimeout": 0,
+      "effectiveDefaultSeconds": 300,
+      "plan": "free"
+    },
+    "expiresAtUtc": "2026-10-14T13:10:59Z",
+    "rollbackScope": "Only this freshly registered UAT project, its resources, and the fresh Vercel project if created"
+  },
+  "events": [
+    {
+      "step": "same-session baseline preflight",
+      "atUtc": "2026-10-07T13:19:22.298Z",
+      "identity": {
+        "project": "nameless-term-06793418",
+        "branch": "br-ancient-glitter-b34yew8s",
+        "database": "neondb",
+        "role": "neondb_owner"
+      },
+      "public_tables": 0,
+      "auth_user_relation": "neon_auth.\"user\"",
+      "auth_users": 0
+    },
+    {
+      "step": "existing consolidated baseline applied as one owner-session query",
+      "atUtc": "2026-10-07T13:19:22.803Z",
+      "sha256": "d969357c1fefa3d657d73cc0b0ac5912c01dc029564820b0dfbd9060b39ddaf9",
+      "exitCode": 0,
+      "ledgerRows": 37,
+      "syntheticSeedApplied": false
+    },
+    {
+      "step": "node scripts/migrate.ts --verify",
+      "atUtc": "2026-10-07T13:19:23.974Z",
+      "startedAtUtc": "2026-10-07T13:19:22.852Z",
+      "exitCode": 0,
+      "output": "migration                                  objects     ledger\n001_phase1.sql                             all present recorded\n002_phase2.sql                             all present recorded\n003_phase3a_accounts.sql                   all present recorded\n004_phase3a_clients_fk.sql                 n/a        recorded\n007_fix_handle_new_user_with_account.sql   n/a        recorded\n008_scans_account_id.sql                   all present recorded\n009_clients_domain.sql                     n/a        recorded\n010_phase3b.sql                            all present recorded\n011_phase3b_hardening.sql                  all present recorded\n012_aiso_v3.sql                            all present recorded\n013_agent_dashboard.sql                    all present recorded\n014_subscription_tiers.sql                 MISSING 1   recorded\n                                             ↳ plan_features\n015_scan_lead_email.sql                    n/a        recorded\n016_trial_columns.sql                      n/a        recorded\n017_fix_handle_new_user_plan.sql           n/a        recorded\n018_clients_region.sql                     n/a        recorded\n019_clients_description.sql                n/a        recorded\n020_scans_public_select.sql                n/a        recorded\n021_local_trust_roi.sql                    all present recorded\n022_profiles_neon_auth_fk.sql              n/a        recorded\n023_public_scan_rate_limits.sql            all present recorded\n024_stripe_lifecycle_integrity.sql         all present recorded\n025_authenticated_scan_quotas.sql          all present recorded\n026_effective_brand_limit.sql              n/a        recorded\n027_client_report_snapshots.sql            all present recorded\n028_account_plan_overrides.sql             n/a        recorded\n029_scans_client_id.sql                    all present recorded\n030_accounts_plan_default_basic.sql        n/a        recorded\n031_pulse_weekly_summary_unique.sql        all present recorded\n032_pulse_metrics_indexes.sql              all present recorded\n033_alert_evaluation_hardening.sql         all present recorded\n034_alert_evaluation_snapshot_refinement.sql all present recorded\n035_alert_email_delivery_ledger.sql        all present recorded\n036_drop_dead_rls_policies.sql             n/a        recorded\n037_least_privilege_app_role.sql           n/a        recorded\n038_app_role_function_execute.sql          n/a        recorded\n039_cron_runs.sql                          MISSING 2   -\n                                             ↳ cron_runs, cron_runs_route_started_idx\n040_client_entities.sql                    MISSING 1   -\n                                             ↳ client_entities\n041_evidence_work_items.sql                MISSING 2   -\n                                             ↳ evidence_work_items, evidence_work_items_account_client_created_idx\n042_change_set_approvals.sql               MISSING 5   -\n                                             ↳ work_item_versions, account_approver_events, account_approver_state, work_item_decisions, evidence_work_items_version_owner_idx\n043_delivery_attestations.sql              MISSING 3   -\n                                             ↳ work_item_delivery_events, work_item_decisions_delivery_approval_idx, work_item_delivery_events_history_idx\n044_approved_sources.sql                   MISSING 4   -\n                                             ↳ client_sources, client_source_versions, client_source_versions_source_idx, client_sources_client_idx\n045_export_events.sql                      MISSING 2   -\n                                             ↳ work_item_export_events, work_item_export_events_history_idx\n046_source_actor_attribution.sql           n/a        -\n047_account_invitations.sql                MISSING 4   -\n                                             ↳ account_invitations, account_invitations_live_email_uniq, account_invitations_live_lookup_idx, account_invitations_account_idx\n048_platform_admin_grants.sql              MISSING 2   -\n                                             ↳ platform_admin_grants, platform_admin_grants_profile_idx\n049_profile_deactivation.sql               MISSING 1   -\n                                             ↳ profiles_account_active_idx\n050_registered_page_assets.sql             MISSING 5   -\n                                             ↳ client_assets, client_asset_questions, client_assets_client_idx, client_assets_origin_idx, client_asset_questions_asset_idx\n051_work_item_sources.sql                  MISSING 4   -\n                                             ↳ work_item_sources, work_item_sources_live_opportunity_idx, work_item_sources_live_item_source_idx, work_item_sources_item_idx\n052_scan_claim_attempts.sql                MISSING 2   -\n                                             ↳ scan_claim_attempts, scan_claim_attempts_consumed_at_idx\n053_client_domain_verification.sql         MISSING 1   -\n                                             ↳ client_domain_verifications\n054_search_console.sql                     MISSING 8   -\n                                             ↳ google_connections, search_console_bindings, search_console_daily, search_console_page_queries, search_console_sync_runs, search_console_bindings_connection_idx, search_console_sync_runs_latest_idx, search_console_sync_runs_last_good_idx\n055_source_version_approval.sql            n/a        -\n056_onboarding_progress.sql                MISSING 3   -\n                                             ↳ onboarding_progress, onboarding_progress_client, prompt_bank_onboarding_seed\n057_pulse_run_ledger.sql                   MISSING 6   -\n                                             ↳ pulse_runs, pulse_run_items, pulse_item_attempts, pulse_items_due, pulse_runs_scope, pulse_metrics_run_item\n058_pulse_classification_repair.sql        MISSING 2   -\n                                             ↳ pulse_classification_attempts, pulse_classification_due\n059_prompt_context.sql                     n/a        -\n(node:16364) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/scripts/migrate.ts is not specified and it doesn't parse as CommonJS.\nReparsing as ES module because module syntax was detected. This incurs a performance overhead.\nTo eliminate this warning, add \"type\": \"module\" to \\\\?\\C:\\Users\\laich\\Documents\\Aiso\\.worktrees\\aiso-remediation-20261007\\package.json.\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "step": "node scripts/migrate.ts --dry-run",
+      "atUtc": "2026-10-07T13:19:25.177Z",
+      "startedAtUtc": "2026-10-07T13:19:23.975Z",
+      "exitCode": 0,
+      "output": "Would apply 21 migration(s):\n  039_cron_runs.sql\n  040_client_entities.sql\n  041_evidence_work_items.sql\n  042_change_set_approvals.sql\n  043_delivery_attestations.sql\n  044_approved_sources.sql\n  045_export_events.sql\n  046_source_actor_attribution.sql\n  047_account_invitations.sql\n  048_platform_admin_grants.sql\n  049_profile_deactivation.sql\n  050_registered_page_assets.sql\n  051_work_item_sources.sql\n  052_scan_claim_attempts.sql\n  053_client_domain_verification.sql\n  054_search_console.sql\n  055_source_version_approval.sql\n  056_onboarding_progress.sql\n  057_pulse_run_ledger.sql\n  058_pulse_classification_repair.sql\n  059_prompt_context.sql\n(node:8384) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/scripts/migrate.ts is not specified and it doesn't parse as CommonJS.\nReparsing as ES module because module syntax was detected. This incurs a performance overhead.\nTo eliminate this warning, add \"type\": \"module\" to \\\\?\\C:\\Users\\laich\\Documents\\Aiso\\.worktrees\\aiso-remediation-20261007\\package.json.\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "step": "node scripts/migrate.ts ",
+      "atUtc": "2026-10-07T13:19:27.824Z",
+      "startedAtUtc": "2026-10-07T13:19:25.178Z",
+      "exitCode": 0,
+      "output": "Applying 039_cron_runs.sql … ok\nApplying 040_client_entities.sql … ok\nApplying 041_evidence_work_items.sql … ok\nApplying 042_change_set_approvals.sql … ok\nApplying 043_delivery_attestations.sql … ok\nApplying 044_approved_sources.sql … ok\nApplying 045_export_events.sql … ok\nApplying 046_source_actor_attribution.sql … ok\nApplying 047_account_invitations.sql … ok\nApplying 048_platform_admin_grants.sql … ok\nApplying 049_profile_deactivation.sql … ok\nApplying 050_registered_page_assets.sql … ok\nApplying 051_work_item_sources.sql … ok\nApplying 052_scan_claim_attempts.sql … ok\nApplying 053_client_domain_verification.sql … ok\nApplying 054_search_console.sql … ok\nApplying 055_source_version_approval.sql … ok\nApplying 056_onboarding_progress.sql … ok\nApplying 057_pulse_run_ledger.sql … ok\nApplying 058_pulse_classification_repair.sql … ok\nApplying 059_prompt_context.sql … ok\nApplied 21 migration(s).\n(node:15292) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/scripts/migrate.ts is not specified and it doesn't parse as CommonJS.\nReparsing as ES module because module syntax was detected. This incurs a performance overhead.\nTo eliminate this warning, add \"type\": \"module\" to \\\\?\\C:\\Users\\laich\\Documents\\Aiso\\.worktrees\\aiso-remediation-20261007\\package.json.\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "step": "node scripts/migrate.ts --dry-run",
+      "atUtc": "2026-10-07T13:19:28.766Z",
+      "startedAtUtc": "2026-10-07T13:19:27.824Z",
+      "exitCode": 0,
+      "output": "Nothing to apply — the database is up to date.\n(node:45444) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/scripts/migrate.ts is not specified and it doesn't parse as CommonJS.\nReparsing as ES module because module syntax was detected. This incurs a performance overhead.\nTo eliminate this warning, add \"type\": \"module\" to \\\\?\\C:\\Users\\laich\\Documents\\Aiso\\.worktrees\\aiso-remediation-20261007\\package.json.\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "step": "node scripts/migrate.ts --verify",
+      "atUtc": "2026-10-07T13:19:29.767Z",
+      "startedAtUtc": "2026-10-07T13:19:28.767Z",
+      "exitCode": 0,
+      "output": "migration                                  objects     ledger\n001_phase1.sql                             all present recorded\n002_phase2.sql                             all present recorded\n003_phase3a_accounts.sql                   all present recorded\n004_phase3a_clients_fk.sql                 n/a        recorded\n007_fix_handle_new_user_with_account.sql   n/a        recorded\n008_scans_account_id.sql                   all present recorded\n009_clients_domain.sql                     n/a        recorded\n010_phase3b.sql                            all present recorded\n011_phase3b_hardening.sql                  all present recorded\n012_aiso_v3.sql                            all present recorded\n013_agent_dashboard.sql                    all present recorded\n014_subscription_tiers.sql                 MISSING 1   recorded\n                                             ↳ plan_features\n015_scan_lead_email.sql                    n/a        recorded\n016_trial_columns.sql                      n/a        recorded\n017_fix_handle_new_user_plan.sql           n/a        recorded\n018_clients_region.sql                     n/a        recorded\n019_clients_description.sql                n/a        recorded\n020_scans_public_select.sql                n/a        recorded\n021_local_trust_roi.sql                    all present recorded\n022_profiles_neon_auth_fk.sql              n/a        recorded\n023_public_scan_rate_limits.sql            all present recorded\n024_stripe_lifecycle_integrity.sql         all present recorded\n025_authenticated_scan_quotas.sql          all present recorded\n026_effective_brand_limit.sql              n/a        recorded\n027_client_report_snapshots.sql            all present recorded\n028_account_plan_overrides.sql             n/a        recorded\n029_scans_client_id.sql                    all present recorded\n030_accounts_plan_default_basic.sql        n/a        recorded\n031_pulse_weekly_summary_unique.sql        all present recorded\n032_pulse_metrics_indexes.sql              all present recorded\n033_alert_evaluation_hardening.sql         all present recorded\n034_alert_evaluation_snapshot_refinement.sql all present recorded\n035_alert_email_delivery_ledger.sql        all present recorded\n036_drop_dead_rls_policies.sql             n/a        recorded\n037_least_privilege_app_role.sql           n/a        recorded\n038_app_role_function_execute.sql          n/a        recorded\n039_cron_runs.sql                          all present recorded\n040_client_entities.sql                    all present recorded\n041_evidence_work_items.sql                all present recorded\n042_change_set_approvals.sql               all present recorded\n043_delivery_attestations.sql              all present recorded\n044_approved_sources.sql                   all present recorded\n045_export_events.sql                      all present recorded\n046_source_actor_attribution.sql           n/a        recorded\n047_account_invitations.sql                all present recorded\n048_platform_admin_grants.sql              all present recorded\n049_profile_deactivation.sql               all present recorded\n050_registered_page_assets.sql             all present recorded\n051_work_item_sources.sql                  all present recorded\n052_scan_claim_attempts.sql                all present recorded\n053_client_domain_verification.sql         all present recorded\n054_search_console.sql                     all present recorded\n055_source_version_approval.sql            n/a        recorded\n056_onboarding_progress.sql                all present recorded\n057_pulse_run_ledger.sql                   all present recorded\n058_pulse_classification_repair.sql        all present recorded\n059_prompt_context.sql                     n/a        recorded\n(node:56480) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/scripts/migrate.ts is not specified and it doesn't parse as CommonJS.\nReparsing as ES module because module syntax was detected. This incurs a performance overhead.\nTo eliminate this warning, add \"type\": \"module\" to \\\\?\\C:\\Users\\laich\\Documents\\Aiso\\.worktrees\\aiso-remediation-20261007\\package.json.\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "step": "fresh aeo_app password and ledger readback",
+      "atUtc": "2026-10-07T13:19:30.436Z",
+      "exitCode": 0,
+      "ledger": [
+        {
+          "filename": "000_baseline_2026-08-31.sql",
+          "checksum": "d969357c1fefa3d657d73cc0b0ac5912c01dc029564820b0dfbd9060b39ddaf9"
+        },
+        {
+          "filename": "001_phase1.sql",
+          "checksum": null
+        },
+        {
+          "filename": "002_phase2.sql",
+          "checksum": null
+        },
+        {
+          "filename": "003_phase3a_accounts.sql",
+          "checksum": null
+        },
+        {
+          "filename": "004_phase3a_clients_fk.sql",
+          "checksum": null
+        },
+        {
+          "filename": "007_fix_handle_new_user_with_account.sql",
+          "checksum": null
+        },
+        {
+          "filename": "008_scans_account_id.sql",
+          "checksum": null
+        },
+        {
+          "filename": "009_clients_domain.sql",
+          "checksum": null
+        },
+        {
+          "filename": "010_phase3b.sql",
+          "checksum": null
+        },
+        {
+          "filename": "011_phase3b_hardening.sql",
+          "checksum": null
+        },
+        {
+          "filename": "012_aiso_v3.sql",
+          "checksum": null
+        },
+        {
+          "filename": "013_agent_dashboard.sql",
+          "checksum": null
+        },
+        {
+          "filename": "014_subscription_tiers.sql",
+          "checksum": null
+        },
+        {
+          "filename": "015_scan_lead_email.sql",
+          "checksum": null
+        },
+        {
+          "filename": "016_trial_columns.sql",
+          "checksum": null
+        },
+        {
+          "filename": "017_fix_handle_new_user_plan.sql",
+          "checksum": null
+        },
+        {
+          "filename": "018_clients_region.sql",
+          "checksum": null
+        },
+        {
+          "filename": "019_clients_description.sql",
+          "checksum": null
+        },
+        {
+          "filename": "020_scans_public_select.sql",
+          "checksum": null
+        },
+        {
+          "filename": "021_local_trust_roi.sql",
+          "checksum": null
+        },
+        {
+          "filename": "022_profiles_neon_auth_fk.sql",
+          "checksum": null
+        },
+        {
+          "filename": "023_public_scan_rate_limits.sql",
+          "checksum": null
+        },
+        {
+          "filename": "024_stripe_lifecycle_integrity.sql",
+          "checksum": null
+        },
+        {
+          "filename": "025_authenticated_scan_quotas.sql",
+          "checksum": null
+        },
+        {
+          "filename": "026_effective_brand_limit.sql",
+          "checksum": null
+        },
+        {
+          "filename": "027_client_report_snapshots.sql",
+          "checksum": null
+        },
+        {
+          "filename": "028_account_plan_overrides.sql",
+          "checksum": null
+        },
+        {
+          "filename": "029_scans_client_id.sql",
+          "checksum": null
+        },
+        {
+          "filename": "030_accounts_plan_default_basic.sql",
+          "checksum": null
+        },
+        {
+          "filename": "031_pulse_weekly_summary_unique.sql",
+          "checksum": null
+        },
+        {
+          "filename": "032_pulse_metrics_indexes.sql",
+          "checksum": null
+        },
+        {
+          "filename": "033_alert_evaluation_hardening.sql",
+          "checksum": null
+        },
+        {
+          "filename": "034_alert_evaluation_snapshot_refinement.sql",
+          "checksum": null
+        },
+        {
+          "filename": "035_alert_email_delivery_ledger.sql",
+          "checksum": null
+        },
+        {
+          "filename": "036_drop_dead_rls_policies.sql",
+          "checksum": null
+        },
+        {
+          "filename": "037_least_privilege_app_role.sql",
+          "checksum": null
+        },
+        {
+          "filename": "038_app_role_function_execute.sql",
+          "checksum": null
+        },
+        {
+          "filename": "039_cron_runs.sql",
+          "checksum": null
+        },
+        {
+          "filename": "040_client_entities.sql",
+          "checksum": null
+        },
+        {
+          "filename": "041_evidence_work_items.sql",
+          "checksum": null
+        },
+        {
+          "filename": "042_change_set_approvals.sql",
+          "checksum": null
+        },
+        {
+          "filename": "043_delivery_attestations.sql",
+          "checksum": null
+        },
+        {
+          "filename": "044_approved_sources.sql",
+          "checksum": null
+        },
+        {
+          "filename": "045_export_events.sql",
+          "checksum": null
+        },
+        {
+          "filename": "046_source_actor_attribution.sql",
+          "checksum": null
+        },
+        {
+          "filename": "047_account_invitations.sql",
+          "checksum": null
+        },
+        {
+          "filename": "048_platform_admin_grants.sql",
+          "checksum": null
+        },
+        {
+          "filename": "049_profile_deactivation.sql",
+          "checksum": null
+        },
+        {
+          "filename": "050_registered_page_assets.sql",
+          "checksum": null
+        },
+        {
+          "filename": "051_work_item_sources.sql",
+          "checksum": null
+        },
+        {
+          "filename": "052_scan_claim_attempts.sql",
+          "checksum": null
+        },
+        {
+          "filename": "053_client_domain_verification.sql",
+          "checksum": null
+        },
+        {
+          "filename": "054_search_console.sql",
+          "checksum": null
+        },
+        {
+          "filename": "055_source_version_approval.sql",
+          "checksum": null
+        },
+        {
+          "filename": "056_onboarding_progress.sql",
+          "checksum": null
+        },
+        {
+          "filename": "057_pulse_run_ledger.sql",
+          "checksum": null
+        },
+        {
+          "filename": "058_pulse_classification_repair.sql",
+          "checksum": null
+        },
+        {
+          "filename": "059_prompt_context.sql",
+          "checksum": null
+        }
+      ],
+      "businessRows": {
+        "accounts": 0,
+        "profiles": 0,
+        "clients": 0,
+        "scans": 0
+      },
+      "previousRole": {
+        "rolcanlogin": false,
+        "rolbypassrls": true,
+        "rolcreatedb": false,
+        "rolcreaterole": false,
+        "rolsuper": false
+      }
+    },
+    {
+      "step": "initialization stopped",
+      "atUtc": "2026-10-07T13:19:31.028Z",
+      "status": "blocked",
+      "exitCode": 1,
+      "error": "Application table privilege failure",
+      "code": null
+    }
+  ]
+}

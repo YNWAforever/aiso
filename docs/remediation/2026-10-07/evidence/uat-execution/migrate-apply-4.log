@@ -1,0 +1,26 @@
+Applying 039_cron_runs.sql … ok
+Applying 040_client_entities.sql … ok
+Applying 041_evidence_work_items.sql … ok
+Applying 042_change_set_approvals.sql … ok
+Applying 043_delivery_attestations.sql … ok
+Applying 044_approved_sources.sql … ok
+Applying 045_export_events.sql … ok
+Applying 046_source_actor_attribution.sql … ok
+Applying 047_account_invitations.sql … ok
+Applying 048_platform_admin_grants.sql … ok
+Applying 049_profile_deactivation.sql … ok
+Applying 050_registered_page_assets.sql … ok
+Applying 051_work_item_sources.sql … ok
+Applying 052_scan_claim_attempts.sql … ok
+Applying 053_client_domain_verification.sql … ok
+Applying 054_search_console.sql … ok
+Applying 055_source_version_approval.sql … ok
+Applying 056_onboarding_progress.sql … ok
+Applying 057_pulse_run_ledger.sql … ok
+Applying 058_pulse_classification_repair.sql … ok
+Applying 059_prompt_context.sql … ok
+Applied 21 migration(s).
+(node:15292) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/scripts/migrate.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\laich\Documents\Aiso\.worktrees\aiso-remediation-20261007\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

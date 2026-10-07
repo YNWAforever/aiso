@@ -1,0 +1,347 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-10-07T14:07:20.182Z",
+  "sourceSha": "a6c2f2c258951f9feef75fa621f1918a6ab9d5cd",
+  "deployedSha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+  "environment": "Windows PowerShell / Node 24; dedicated protected Vercel Preview; fresh Neon Free AWS Singapore PostgreSQL 18",
+  "scope": "Approved isolated setup, read-only runtime probes, operator-only compatibility regression and local full unit gate",
+  "productSourceUnchangedAgainstDeployedSha": true,
+  "sourceDifference": [
+    "scripts/readiness/candidate-contract.mjs",
+    "__tests__/scripts/check-candidate.test.mjs"
+  ],
+  "target": {
+    "projectId": "nameless-term-06793418",
+    "branchId": "br-ancient-glitter-b34yew8s",
+    "endpointId": "ep-soft-bird-b3lqgjne",
+    "host": "ep-soft-bird-b3lqgjne.c-4.ap-southeast-1.aws.neon.tech",
+    "organizationId": "org-soft-sunset-25251479",
+    "projectName": "aiso-remediation-uat-20261007",
+    "projectCreatedAtUtc": "2026-10-07T13:10:59Z",
+    "parentId": null,
+    "database": "neondb",
+    "ownerRole": "neondb_owner",
+    "applicationRole": "aeo_app",
+    "sourceSha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+    "compute": {
+      "minCu": 0.25,
+      "maxCu": 0.25,
+      "storedTimeout": 0,
+      "effectiveDefaultSeconds": 300,
+      "plan": "free"
+    },
+    "expiresAtUtc": "2026-10-14T13:10:59Z",
+    "rollbackScope": "Only this freshly registered UAT project, its resources, and the fresh Vercel project if created"
+  },
+  "tests": [
+    {
+      "kind": "Blocked first RED discovery",
+      "command": "npm run test:unit -- __tests__/scripts/check-candidate.test.mjs --reporter=json --outputFile=artifacts/aiso/2026-10-07/uat-execution/retry-2/metadata-regression-red.json",
+      "exitCode": 1,
+      "discovered": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "status": "Vite cache rename EPERM; no assertions; neither RED regression nor pass",
+      "report": "metadata-regression-red.json"
+    },
+    {
+      "kind": "Meaningful RED before implementation fix",
+      "sha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+      "command": "npm run test:unit -- __tests__/scripts/check-candidate.test.mjs --reporter=json --outputFile=artifacts/aiso/2026-10-07/uat-execution/retry-2/metadata-regression-red-actual.json",
+      "exitCode": 1,
+      "files": 1,
+      "discovered": 41,
+      "passed": 39,
+      "failed": 2,
+      "skipped": 0,
+      "failedFiles": 1,
+      "startedAtUtc": "2026-10-07T13:52:33.770Z",
+      "completedAtUtc": "2026-10-07T13:52:39.646Z",
+      "reportSuccess": false,
+      "report": "metadata-regression-red-actual.json"
+    },
+    {
+      "kind": "Focused GREEN",
+      "sha": "a6c2f2c258951f9feef75fa621f1918a6ab9d5cd",
+      "command": "npm run test:unit -- __tests__/scripts/check-candidate.test.mjs __tests__/readiness/candidate-cross-contract.test.ts __tests__/readiness/runtime-adapters.test.ts --reporter=json --outputFile=artifacts/aiso/2026-10-07/uat-execution/retry-2/metadata-regression-green.json",
+      "exitCode": 0,
+      "files": 3,
+      "discovered": 102,
+      "passed": 102,
+      "failed": 0,
+      "skipped": 0,
+      "failedFiles": 0,
+      "startedAtUtc": "2026-10-07T13:53:59.954Z",
+      "completedAtUtc": "2026-10-07T13:54:07.350Z",
+      "reportSuccess": true,
+      "report": "metadata-regression-green.json"
+    },
+    {
+      "kind": "Required unit gate",
+      "sha": "a6c2f2c258951f9feef75fa621f1918a6ab9d5cd",
+      "command": "npm run test:unit -- --reporter=json --outputFile=artifacts/aiso/2026-10-07/uat-execution/retry-2/unit-gate-current.json",
+      "exitCode": 0,
+      "files": 373,
+      "discovered": 5348,
+      "passed": 5348,
+      "failed": 0,
+      "skipped": 0,
+      "failedFiles": 0,
+      "startedAtUtc": "2026-10-07T13:55:16.171Z",
+      "completedAtUtc": "2026-10-07T13:58:02.557Z",
+      "reportSuccess": true,
+      "report": "unit-gate-current.json"
+    },
+    {
+      "kind": "Fresh role catalog checks, not the existing integration/tenancy suite",
+      "sha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+      "command": "node artifacts/aiso/2026-10-07/uat-execution/retry-2/resume-role.mjs",
+      "exitCode": 0,
+      "discovered": 293,
+      "report": "role-resumed.json",
+      "passed": 293,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "kind": "Human capture, no UAT test discovery",
+      "sha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+      "command": "npm run e2e:auth:capture",
+      "exitCode": 1,
+      "discovered": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "status": "Timed out at Vercel SSO login; no storage state; blocked, not passed",
+      "report": "human-capture.json"
+    }
+  ],
+  "runtime": {
+    "deploymentId": "dpl_6FZPqESpfQ8azzByaWRzfBgLDruw",
+    "sha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+    "environment": "preview",
+    "projectId": "prj_HlAi6mJDWDKLyisQo4ZmUlj6pS04",
+    "observedDatabase": {
+      "branch": "br-ancient-glitter-b34yew8s",
+      "database": "neondb",
+      "project": "nameless-term-06793418",
+      "role": "aeo_app"
+    },
+    "runtimeStatus": "fail",
+    "configurationStatus": "unknown",
+    "productionReady": false,
+    "transportExitCode": 0,
+    "transportHttpStatus": 200,
+    "explanation": "The self-request to the protected anonymous Auth route has no automation bypass credential. The separate CLI-authorized anonymous route returned HTTP 200 with literal null, not a human session. Optional AI/billing/email/scheduler capabilities remain unknown. No T22 remaining application Auth fault reproduced."
+  },
+  "historicalCi": {
+    "approvedRun": "37550438626",
+    "actualTestedSha": "d0b12b656111c679bdb4be8fcc4105cfe7efa369",
+    "permissionConsumed": true,
+    "rerun": false,
+    "countsNotAttributedToNewSource": true
+  },
+  "failureHistory": [
+    "First Neon project rolled back and verified absent after suspend-time configuration refusal; timeout=0 was later confirmed as the Free-plan default, with actual idle observation on the retry.",
+    "Initial role helper incorrectly required blanket CRUD; its exit 1 is retained. Existing append-only/admin grants were inspected, no grants altered; only fresh aeo_app credential resumed.",
+    "Two environment-upload attempts returned Invalid JSON; metadata readback had zero keys. Correctly encoded retry succeeded; final 17 encrypted Preview-only keys verified.",
+    "The first newly created deployment omitted target and defaulted to production. It was cancelled during build, never accepted for UAT; no Production runtime keys existed in the new project. Second and last allocated build explicitly uses API staging = Preview. The rejected target=preview request allocated no deployment."
+  ],
+  "blockers": [
+    "Fresh human Google sessions (owner A, owner B, new signup) and real client/tenant IDs are unavailable; normal mobile and separate Desktop UAT did not execute.",
+    "Reviewer/Pro/Free transitions, approval/revocation and session-revocation need concrete real actor/content proposals and separate authorization.",
+    "Real Auth renewal/expiry/same-path activity remains unobserved.",
+    "Full readiness remains fail/unknown; any environment change requiring a third build needs a new concrete authorization.",
+    "Production rollout, real providers/search visibility, producer ownership and actual daily/weekly scheduling windows remain open."
+  ],
+  "retention": {
+    "expiresAtUtc": "2026-10-14T13:10:59Z",
+    "scheduledCleanup": false,
+    "operation": "Export redacted evidence and manually tear down only these registered new UAT resources before the deadline. No automatic cleanup has been installed."
+  },
+  "originalReportHashes": [
+    {
+      "path": "first-authorization-scope.json",
+      "originalSha256": "25c7b22f90795c9abf8f64bb99414ffd0021285bde770451c90f39c2722a8f0a"
+    },
+    {
+      "path": "first-compute-account-blocker.json",
+      "originalSha256": "8a70963d4f9efdda695676e7caaec165f0d79a634befc5b1262f7f65b145f288"
+    },
+    {
+      "path": "first-rollback.json",
+      "originalSha256": "e099fdce9517e4a45114be704085fe2eaf94dfebe3bc5e240974a7d031192a4c"
+    },
+    {
+      "path": "first-rollback-verified.json",
+      "originalSha256": "1d26d38269cbcdcfb2f01cea30e470e22954a21b67a98e8f05f7ffdb12dc45f0"
+    },
+    {
+      "path": "retry-scope.json",
+      "originalSha256": "e4d1648433ca185fbe985d22225cbaf7157ccfa355d0a9d49bcc567c207d275b"
+    },
+    {
+      "path": "target.json",
+      "originalSha256": "a330b42698eea79ef0a8222a86df08b071ce972d098da9f587cf470ee7dd7685"
+    },
+    {
+      "path": "creation.json",
+      "originalSha256": "6d254229b6c571175ee86a11be1ab8e78f62a7998a3ae0316f254b30c93df851"
+    },
+    {
+      "path": "idle-observed.json",
+      "originalSha256": "f8feec3015b3b2feac584517bcc6a2fcaa08bf34a8ed2de6eca1bc27e58cf706"
+    },
+    {
+      "path": "idle-observed-2.json",
+      "originalSha256": "51fd9f73e1aebb841d616c781a95da1e52f2028131983f30b166f9200c5260a4"
+    },
+    {
+      "path": "auth-provisioned.json",
+      "originalSha256": "f7b591d6a4f738d69a1b73b78e7abb0b7d904480090570b17aa22699def73f1c"
+    },
+    {
+      "path": "initialization.json",
+      "originalSha256": "2dc8f26af5a6d9d8c15f4bab29405992c1764b67c792ab6a0b12c472dde273d7"
+    },
+    {
+      "path": "role-inspection.json",
+      "originalSha256": "7cbd3a3e1d720dd363b70ff7684098b503ea6c6aa6c2c4de7e631e271021f0a1"
+    },
+    {
+      "path": "role-resumed.json",
+      "originalSha256": "482acb91f39e86b2ee6203bd2f14b6f2a5fea8293ac2aeb0d62ca854532251fc"
+    },
+    {
+      "path": "vercel-project-created.json",
+      "originalSha256": "6375e161589d48aad79c5a40893f81b330a9e0650d04cc0307f901d1183341fb"
+    },
+    {
+      "path": "env-after-failed-write.json",
+      "originalSha256": "4c5d879dd93ab44e546358186578e282c41bb711243e2c8042f426fdd8bf233a"
+    },
+    {
+      "path": "env-upload-2.json",
+      "originalSha256": "acff6d64d3f4f972155cce1d76b4ab031ada82ddaba54181feab7b9d61ad7fc3"
+    },
+    {
+      "path": "env-upload-3.json",
+      "originalSha256": "1706eebc461cc446f0140129302c7c5ccf4e6998f1803cd52f6161ea485745d7"
+    },
+    {
+      "path": "final-origin-configured.json",
+      "originalSha256": "d21ce46e587ba2cad7b133ceb70ec2d1154862174c1da38b237357cb58836fab"
+    },
+    {
+      "path": "deployment-1-created.json",
+      "originalSha256": "85b1283d88f5b2a3cea0de9961bc30c1940f1d7bba3df1e82c0882fb75150db7"
+    },
+    {
+      "path": "deployment-1-cancelled.json",
+      "originalSha256": "fb2b4460ad5f3b272b94d5c7f8f16b5d5f5791a5d21a7ae5f8d6f89de92ebfd7"
+    },
+    {
+      "path": "deployment-2-created.json",
+      "originalSha256": "d13a4688e08e0ae5b975e3818a621ad26a4f3deefba36c40e2ff9f1dcdc26959"
+    },
+    {
+      "path": "deployment-after-probe.json",
+      "originalSha256": "609aa34d14737517c7afb8474ba80a511fc1595f2de91abf5fe778cc1540a9b0"
+    },
+    {
+      "path": "readiness-request.json",
+      "originalSha256": "038b633c0ce91ce16cf5decd5083b55f1aec443f188574870b2a34df2f24fe8c"
+    },
+    {
+      "path": "readiness-transport.json",
+      "originalSha256": "19c65d18a79359193bd00b0c7df16cec03162c45f5cde1a6e187657815f6416c"
+    },
+    {
+      "path": "runtime-readiness.json",
+      "originalSha256": "774323efef4847dc3943acdcdf209a2de9390ae7b29dddad517cbda45dbf6c8c"
+    },
+    {
+      "path": "anonymous-auth-read.json",
+      "originalSha256": "8ecc1418f719a76472de9bd91d7d382625ff0bc654d414d450de39164c400656"
+    },
+    {
+      "path": "metadata-verified.json",
+      "originalSha256": "891e31a55dbb75d58dc526ccd596b24e5aefd8dc4da9968dfcf59ba230d93c98"
+    },
+    {
+      "path": "production-preserved.json",
+      "originalSha256": "f44dcd6035b561a291a4f4a9d8ebb269ca0528659f8a5fa1d20c789e5148a03b"
+    },
+    {
+      "path": "preview-alias-verified.json",
+      "originalSha256": "a5549c20051d93f5621d333bc69aa18b82a0466ee0079a6780340bfda4786e0c"
+    },
+    {
+      "path": "env-scopes-verified.json",
+      "originalSha256": "a842f58e5cb6122c0b04304b233b58ec43945f8d7e4055b72516a6cac9bf1596"
+    },
+    {
+      "path": "human-capture.json",
+      "originalSha256": "60785aa5c901cc7a4e7f5812f2e32a48223417957d0fbfc79233471723a42c33"
+    },
+    {
+      "path": "metadata-regression-red.json",
+      "originalSha256": "ff1647654f17870eae3010e69a5e9ca377d113a1d471ddffaa65b87a5c3f750e"
+    },
+    {
+      "path": "metadata-regression-red-actual.json",
+      "originalSha256": "19f5bef6978f0a6c907cfc4b69a5339eb4b1e91aa16f7272beb90870f40520a3"
+    },
+    {
+      "path": "metadata-regression-green.json",
+      "originalSha256": "9eb9e5d2a38e85265241197cd6c6040fc10c875c111a597d70b78aad3e5fa6fe"
+    },
+    {
+      "path": "unit-gate-current.json",
+      "originalSha256": "9af9ae5692517b2ed81b280501491481bb21f417a94610551c5ea2709cff0221"
+    },
+    {
+      "path": "migrate-verify-2.log",
+      "originalSha256": "3699fda9526019032905a27ee7010a807f15bae1b20bcd37247204e0b03a54c7"
+    },
+    {
+      "path": "migrate-dry-run-3.log",
+      "originalSha256": "b9639293542cd310c501446fa2dfe18615dff314dfde50db005314bc6b334aa4"
+    },
+    {
+      "path": "migrate-apply-4.log",
+      "originalSha256": "bc0fab8334316cc10880fed87d5b1297d2a4663bdadea8a82e77edfd5688aeec"
+    },
+    {
+      "path": "migrate-dry-run-5.log",
+      "originalSha256": "3cc94b59019d9d779f190191f8513b8d75980c1d288b3528a56e326a90d45f27"
+    },
+    {
+      "path": "migrate-verify-6.log",
+      "originalSha256": "89dd1b98f35462d10106fff855abb8b66f6e6af6bfdc7efc1e5817974414e7e5"
+    },
+    {
+      "path": "operator-source-initialize.mjs",
+      "originalSha256": "562bc1afa3c4ed53b08cbde80a35edeaf14883eb60e0dce9dd8525abf0575a5b",
+      "purpose": "Source of already executed helper; retained for review, not authorization to rerun."
+    },
+    {
+      "path": "operator-source-inspect-role.mjs",
+      "originalSha256": "a5cca92da8404a4b1f82d0a2d8670e54a0fd7b7b5d6ca8d71cfb01f4c4c2c6d4",
+      "purpose": "Source of already executed helper; retained for review, not authorization to rerun."
+    },
+    {
+      "path": "operator-source-resume-role.mjs",
+      "originalSha256": "c19285c3f2d62b7899c8d52d9df524b44bd9dc3944001e0a219bdd84ec89440c",
+      "purpose": "Source of already executed helper; retained for review, not authorization to rerun."
+    }
+  ],
+  "testSourceProvenance": {
+    "baseImplementationSha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+    "red": "Base verifier implementation plus uncommitted regression tests; first real RED preceded verifier changes.",
+    "greenAndUnit": "Verified worktree source bytes committed unchanged as a6c2f2c258951f9feef75fa621f1918a6ab9d5cd",
+    "regressionTestSha256": "973314bf2baf13e679ad60a99c2eb5e07200340d2e8470a63b803fdd86f5e96f",
+    "verifierSha256": "fe4d375c9ca2b9fec11ac18cef6e17ccbc25f2f2353e213f54ddf84e48c20ebd"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "dpl_6FZPqESpfQ8azzByaWRzfBgLDruw",
+  "url": "aiso-remediation-uat-20261007-qc560v6uy-ynwaforevers-projects.vercel.app",
+  "projectId": "prj_HlAi6mJDWDKLyisQo4ZmUlj6pS04",
+  "sourceSha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+  "target": "staging",
+  "state": "INITIALIZING",
+  "createdAt": 1791380320312,
+  "aliases": [
+    "aiso-remediation-uat-20261007-ynwaforevers-projects.vercel.app",
+    "aiso-remediation-uat-20261007-git-edd2cd-ynwaforevers-projects.vercel.app"
+  ],
+  "requestTarget": "staging",
+  "requestPreviewRejected": {
+    "status": 400,
+    "code": "bad_request",
+    "message": "target must be production, staging, or custom environment; no deployment allocated by rejected request"
+  },
+  "operation": "Second and last allocated basic build; API staging target maps to Preview, to be checked in actual metadata/runtime",
+  "acceptedForUat": false
+}

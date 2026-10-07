@@ -1,0 +1,1236 @@
+{
+  "numTotalTestSuites": 8,
+  "numPassedTestSuites": 8,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 102,
+  "numPassedTests": 102,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1791381239954,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary verifies metadata twice around one credential-separated probe and writes exclusive sanitized artifacts",
+          "status": "passed",
+          "title": "verifies metadata twice around one credential-separated probe and writes exclusive sanitized artifacts",
+          "duration": 121.29480000000012,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects missing full metadata field ownerId before probe",
+          "status": "passed",
+          "title": "rejects missing full metadata field ownerId before probe",
+          "duration": 42.10050000000001,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects missing full metadata field projectId before probe",
+          "status": "passed",
+          "title": "rejects missing full metadata field projectId before probe",
+          "duration": 105.47909999999956,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects missing full metadata field id before probe",
+          "status": "passed",
+          "title": "rejects missing full metadata field id before probe",
+          "duration": 13.262300000000323,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects missing full metadata field url before probe",
+          "status": "passed",
+          "title": "rejects missing full metadata field url before probe",
+          "duration": 38.15530000000035,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects missing full metadata field readyState before probe",
+          "status": "passed",
+          "title": "rejects missing full metadata field readyState before probe",
+          "duration": 38.601300000000265,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary accepts the standard Preview API target staging without a custom environment",
+          "status": "passed",
+          "title": "accepts the standard Preview API target staging without a custom environment",
+          "duration": 44.24330000000009,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary refuses a custom environment advertised as Preview target null",
+          "status": "passed",
+          "title": "refuses a custom environment advertised as Preview target null",
+          "duration": 1.4224999999996726,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary refuses a custom environment advertised as Preview target staging",
+          "status": "passed",
+          "title": "refuses a custom environment advertised as Preview target staging",
+          "duration": 1.4689000000007582,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects source disagreement and post-read drift",
+          "status": "passed",
+          "title": "rejects source disagreement and post-read drift",
+          "duration": 10.268399999999929,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 39.03790000000026,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 2.1042999999999665,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 1.7807999999995445,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 1.4708000000000538,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 1.6594000000004598,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 2.8649999999997817,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 1.4216000000005806,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 3.594199999999546,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 21.396300000000338,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 4.571899999999914,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 1.2673000000004322,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 1.0902999999998428,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 1.0270000000000437,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects malformed, stale, incomplete or forged reports",
+          "status": "passed",
+          "title": "rejects malformed, stale, incomplete or forged reports",
+          "duration": 1.4505000000008295,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary preserves honest fail reports with exit 1",
+          "status": "passed",
+          "title": "preserves honest fail reports with exit 1",
+          "duration": 1.7436999999999898,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary preserves honest unknown reports with exit 1",
+          "status": "passed",
+          "title": "preserves honest unknown reports with exit 1",
+          "duration": 1.5619999999998981,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects redirect and oversized bodies without artifacts",
+          "status": "passed",
+          "title": "rejects redirect and oversized bodies without artifacts",
+          "duration": 3.001499999999396,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary rejects overwrite, leaves first artifact when the second write fails",
+          "status": "passed",
+          "title": "rejects overwrite, leaves first artifact when the second write fails",
+          "duration": 2.537000000000262,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "manual candidate boundary"
+          ],
+          "fullName": "manual candidate boundary validates CLI parsing and serialized policy boundary through main",
+          "status": "passed",
+          "title": "validates CLI parsing and serialized policy boundary through main",
+          "duration": 68.82989999999972,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges enforces exactly 20 seconds through a stalled response body and cancels it",
+          "status": "passed",
+          "title": "enforces exactly 20 seconds through a stalled response body and cancels it",
+          "duration": 7.5362999999997555,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges bounds a fetch that ignores abort and cancels its late body",
+          "status": "passed",
+          "title": "bounds a fetch that ignores abort and cancels its late body",
+          "duration": 2.394000000000233,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges serializes actual files and refuses existing nonce paths without replacing their content",
+          "status": "passed",
+          "title": "serializes actual files and refuses existing nonce paths without replacing their content",
+          "duration": 535.1800999999996,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges has no import side effects and actual CLI rejects secret arguments with fixed output",
+          "status": "passed",
+          "title": "has no import side effects and actual CLI rejects secret arguments with fixed output",
+          "duration": 1903.0047000000004,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges blocks invalid target before sending readiness credential",
+          "status": "passed",
+          "title": "blocks invalid target before sending readiness credential",
+          "duration": 1.1823999999996886,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges blocks invalid target before sending readiness credential",
+          "status": "passed",
+          "title": "blocks invalid target before sending readiness credential",
+          "duration": 0.992500000000291,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges blocks invalid target before sending readiness credential",
+          "status": "passed",
+          "title": "blocks invalid target before sending readiness credential",
+          "duration": 1.6836000000002969,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges blocks invalid target before sending readiness credential",
+          "status": "passed",
+          "title": "blocks invalid target before sending readiness credential",
+          "duration": 11.191500000000815,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges blocks invalid target before sending readiness credential",
+          "status": "passed",
+          "title": "blocks invalid target before sending readiness credential",
+          "duration": 2.5318000000006577,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges blocks invalid target before sending readiness credential",
+          "status": "passed",
+          "title": "blocks invalid target before sending readiness credential",
+          "duration": 1.1772999999993772,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges blocks invalid target before sending readiness credential",
+          "status": "passed",
+          "title": "blocks invalid target before sending readiness credential",
+          "duration": 1.6671000000005733,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runner transport and filesystem edges"
+          ],
+          "fullName": "runner transport and filesystem edges blocks invalid target before sending readiness credential",
+          "status": "passed",
+          "title": "blocks invalid target before sending readiness credential",
+          "duration": 0.88379999999961,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1791381244204,
+      "endTime": 1791381247277.8838,
+      "status": "passed",
+      "message": "",
+      "name": "C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/__tests__/scripts/check-candidate.test.mjs"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "candidate runner and application wire contract"
+          ],
+          "fullName": "candidate runner and application wire contract rebuilds the shared synthetic response through the actual application builder",
+          "status": "passed",
+          "title": "rebuilds the shared synthetic response through the actual application builder",
+          "duration": 24.79370000000017,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "candidate runner and application wire contract"
+          ],
+          "fullName": "candidate runner and application wire contract pins every finite wire vocabulary to application exports",
+          "status": "passed",
+          "title": "pins every finite wire vocabulary to application exports",
+          "duration": 21.96479999999974,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "candidate runner and application wire contract"
+          ],
+          "fullName": "candidate runner and application wire contract accepts honest builder fail database identity evidence",
+          "status": "passed",
+          "title": "accepts honest builder fail database identity evidence",
+          "duration": 47.94830000000002,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "candidate runner and application wire contract"
+          ],
+          "fullName": "candidate runner and application wire contract accepts honest builder unknown database identity evidence",
+          "status": "passed",
+          "title": "accepts honest builder unknown database identity evidence",
+          "duration": 1.8350000000000364,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "candidate capability policy consistency"
+          ],
+          "fullName": "candidate capability policy consistency rejects passing claims evidence for unknown or unverified-disabled policy",
+          "status": "passed",
+          "title": "rejects passing claims evidence for unknown or unverified-disabled policy",
+          "duration": 25.016599999999926,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "candidate capability policy consistency"
+          ],
+          "fullName": "candidate capability policy consistency rejects passing ai evidence for unknown or unverified-disabled policy",
+          "status": "passed",
+          "title": "rejects passing ai evidence for unknown or unverified-disabled policy",
+          "duration": 24.30949999999939,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "candidate capability policy consistency"
+          ],
+          "fullName": "candidate capability policy consistency rejects passing billing evidence for unknown or unverified-disabled policy",
+          "status": "passed",
+          "title": "rejects passing billing evidence for unknown or unverified-disabled policy",
+          "duration": 1.869499999999789,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "candidate capability policy consistency"
+          ],
+          "fullName": "candidate capability policy consistency rejects passing email evidence for unknown or unverified-disabled policy",
+          "status": "passed",
+          "title": "rejects passing email evidence for unknown or unverified-disabled policy",
+          "duration": 1.3843000000006214,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "candidate capability policy consistency"
+          ],
+          "fullName": "candidate capability policy consistency rejects passing scheduler evidence for unknown or unverified-disabled policy",
+          "status": "passed",
+          "title": "rejects passing scheduler evidence for unknown or unverified-disabled policy",
+          "duration": 44.67039999999997,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "candidate capability policy consistency"
+          ],
+          "fullName": "candidate capability policy consistency preserves normalized unknown evidence for unknown policy",
+          "status": "passed",
+          "title": "preserves normalized unknown evidence for unknown policy",
+          "duration": 3.0088999999998123,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "candidate capability policy consistency"
+          ],
+          "fullName": "candidate capability policy consistency preserves normalized unknown evidence for verified-disabled policy",
+          "status": "passed",
+          "title": "preserves normalized unknown evidence for verified-disabled policy",
+          "duration": 0.8006999999997788,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "candidate capability policy consistency"
+          ],
+          "fullName": "candidate capability policy consistency rejects required as a non-capability pass code",
+          "status": "passed",
+          "title": "rejects required as a non-capability pass code",
+          "duration": 0.5790999999999258,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "candidate capability policy consistency"
+          ],
+          "fullName": "candidate capability policy consistency rejects verified-disabled as a non-capability pass code",
+          "status": "passed",
+          "title": "rejects verified-disabled as a non-capability pass code",
+          "duration": 0.3897999999999229,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1791381245303,
+      "endTime": 1791381245502.579,
+      "status": "passed",
+      "message": "",
+      "name": "C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/__tests__/readiness/candidate-cross-contract.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters keeps configured team separate and permits verified runtime probes",
+          "status": "passed",
+          "title": "keeps configured team separate and permits verified runtime probes",
+          "duration": 151.59090000000015,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters suppresses I/O for configured team undefined",
+          "status": "passed",
+          "title": "suppresses I/O for configured team undefined",
+          "duration": 1.6159999999999854,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters suppresses I/O for configured team wrong",
+          "status": "passed",
+          "title": "suppresses I/O for configured team wrong",
+          "duration": 1.0527000000001863,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters suppresses I/O for configured team bad team",
+          "status": "passed",
+          "title": "suppresses I/O for configured team bad team",
+          "duration": 6.784300000000258,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters uses read-only transactions, local timeout, cancellation and parameterized metadata only",
+          "status": "passed",
+          "title": "uses read-only transactions, local timeout, cancellation and parameterized metadata only",
+          "duration": 1.4373999999997977,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters blocks metadata for invalid binding or role {\"project_id\":\"wrong\"}",
+          "status": "passed",
+          "title": "blocks metadata for invalid binding or role {\"project_id\":\"wrong\"}",
+          "duration": 1.368800000000192,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters blocks metadata for invalid binding or role {\"role\":\"neondb_owner\"}",
+          "status": "passed",
+          "title": "blocks metadata for invalid binding or role {\"role\":\"neondb_owner\"}",
+          "duration": 0.6666999999997643,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters blocks metadata for invalid binding or role {\"rolsuper\":true}",
+          "status": "passed",
+          "title": "blocks metadata for invalid binding or role {\"rolsuper\":true}",
+          "duration": 0.47150000000056025,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters blocks metadata for invalid binding or role {\"rolbypassrls\":false}",
+          "status": "passed",
+          "title": "blocks metadata for invalid binding or role {\"rolbypassrls\":false}",
+          "duration": 0.45309999999972206,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters blocks metadata for invalid binding or role {\"owner\":true}",
+          "status": "passed",
+          "title": "blocks metadata for invalid binding or role {\"owner\":true}",
+          "duration": 0.5154999999995198,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters blocks metadata for invalid binding or role {\"rolcreatedb\":true}",
+          "status": "passed",
+          "title": "blocks metadata for invalid binding or role {\"rolcreatedb\":true}",
+          "duration": 0.36890000000039436,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters blocks metadata for invalid binding or role {\"elevated_membership\":true}",
+          "status": "passed",
+          "title": "blocks metadata for invalid binding or role {\"elevated_membership\":true}",
+          "duration": 0.3070000000006985,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters honors forbidden target even when it matches the policy",
+          "status": "passed",
+          "title": "honors forbidden target even when it matches the policy",
+          "duration": 0.3449000000000524,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters does not forward readiness or protection credentials to issuer",
+          "status": "passed",
+          "title": "does not forward readiness or protection credentials to issuer",
+          "duration": 1.1159999999999854,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters rejects invalid JWKS {\"keys\":[]}",
+          "status": "passed",
+          "title": "rejects invalid JWKS {\"keys\":[]}",
+          "duration": 1.2596999999996115,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters rejects invalid JWKS {\"keys\":null}",
+          "status": "passed",
+          "title": "rejects invalid JWKS {\"keys\":null}",
+          "duration": 0.7049999999999272,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters rejects invalid JWKS {\"keys\":[{}]}",
+          "status": "passed",
+          "title": "rejects invalid JWKS {\"keys\":[{}]}",
+          "duration": 1.339799999999741,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters rejects invalid JWKS {\"keys\":[{\"kty\":\"RSA\"}]}",
+          "status": "passed",
+          "title": "rejects invalid JWKS {\"keys\":[{\"kty\":\"RSA\"}]}",
+          "duration": 2.65729999999985,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters rejects invalid JWKS {\"keys\":[{\"kty\":\"RSA\",\"n\":\"\",\"e\":\"AQAB\"}]}",
+          "status": "passed",
+          "title": "rejects invalid JWKS {\"keys\":[{\"kty\":\"RSA\",\"n\":\"\",\"e\":\"AQAB\"}]}",
+          "duration": 0.8612000000002809,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters rejects invalid JWKS {\"keys\":[{\"kty\":\"RSA\",\"n\":\"tMsXS2bZL3dfwcMLFbLAzym6k7SRHYA4P4s_Wgkdt5vbkhaGmQX4GCFh7p3G_DNKGy7KyXeMQO_mWD4t3qjq9sAIM_9KOe1YdCWEIUwI10-mE2ipYfx2wVfVck1whSb2uz4E3_dIPZqwOerLmOPJ5c1Qcc29Wn01qwmkdUcg4uCUwrjKUT7_pRmgJqDNUKRD-wpXteK47VnCBqGrh1SqSYJLADgutVlP6EV7g_NJXDmmm3R2v5F0qZZlNOsXj8yznny1xMNHE1lLDNp5UkuPUfpaPGb2l9Xu6obxQRDuWc3g7J3SVjajxOqSKtdmL_XnE7nisLc-Z6d9Qzgc6G8dUQ\",\"e\":\"!\"}]}",
+          "status": "passed",
+          "title": "rejects invalid JWKS {\"keys\":[{\"kty\":\"RSA\",\"n\":\"tMsXS2bZL3dfwcMLFbLAzym6k7SRHYA4P4s_Wgkdt5vbkhaGmQX4GCFh7p3G_DNKGy7KyXeMQO_mWD4t3qjq9sAIM_9KOe1YdCWEIUwI10-mE2ipYfx2wVfVck1whSb2uz4E3_dIPZqwOerLmOPJ5c1Qcc29Wn01qwmkdUcg4uCUwrjKUT7_pRmgJqDNUKRD-wpXteK47VnCBqGrh1SqSYJLADgutVlP6EV7g_NJXDmmm3R2v5F0qZZlNOsXj8yznny1xMNHE1lLDNp5UkuPUfpaPGb2l9Xu6obxQRDuWc3g7J3SVjajxOqSKtdmL_XnE7nisLc-Z6d9Qzgc6G8dUQ\",\"e\":\"!\"}]}",
+          "duration": 1.41570000000047,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters rejects invalid JWKS {\"keys\":[{\"kty\":\"RSA\",\"n\":\"tMsXS2bZL3dfwcMLFbLAzym6k7SRHYA4P4s_Wgkdt5vbkhaGmQX4GCFh7p3G_DNKGy7KyXeMQO_mWD4t3qjq9sAIM_9KOe1YdCWEIUwI10-mE2ipYfx2wVfVck1whSb2uz4E3_dIPZqwOerLmOPJ5c1Qcc29Wn01qwmkdUcg4uCUwrjKUT7_pRmgJqDNUKRD-wpXteK47VnCBqGrh1SqSYJLADgutVlP6EV7g_NJXDmmm3R2v5F0qZZlNOsXj8yznny1xMNHE1lLDNp5UkuPUfpaPGb2l9Xu6obxQRDuWc3g7J3SVjajxOqSKtdmL_XnE7nisLc-Z6d9Qzgc6G8dUQ\",\"e\":\"AQAB\",\"d\":\"private\"}]}",
+          "status": "passed",
+          "title": "rejects invalid JWKS {\"keys\":[{\"kty\":\"RSA\",\"n\":\"tMsXS2bZL3dfwcMLFbLAzym6k7SRHYA4P4s_Wgkdt5vbkhaGmQX4GCFh7p3G_DNKGy7KyXeMQO_mWD4t3qjq9sAIM_9KOe1YdCWEIUwI10-mE2ipYfx2wVfVck1whSb2uz4E3_dIPZqwOerLmOPJ5c1Qcc29Wn01qwmkdUcg4uCUwrjKUT7_pRmgJqDNUKRD-wpXteK47VnCBqGrh1SqSYJLADgutVlP6EV7g_NJXDmmm3R2v5F0qZZlNOsXj8yznny1xMNHE1lLDNp5UkuPUfpaPGb2l9Xu6obxQRDuWc3g7J3SVjajxOqSKtdmL_XnE7nisLc-Z6d9Qzgc6G8dUQ\",\"e\":\"AQAB\",\"d\":\"private\"}]}",
+          "duration": 0.8500000000003638,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters rejects invalid JWKS {\"keys\":[{\"kty\":\"oct\",\"k\":\"c2VjcmV0\"}]}",
+          "status": "passed",
+          "title": "rejects invalid JWKS {\"keys\":[{\"kty\":\"oct\",\"k\":\"c2VjcmV0\"}]}",
+          "duration": 35.13680000000022,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters rejects invalid JWKS null",
+          "status": "passed",
+          "title": "rejects invalid JWKS null",
+          "duration": 0.9248999999999796,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters rejects invalid JWKS \"bad\"",
+          "status": "passed",
+          "title": "rejects invalid JWKS \"bad\"",
+          "duration": 1.9429000000000087,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "runtime adapters"
+          ],
+          "fullName": "runtime adapters redacts SDK exceptions",
+          "status": "passed",
+          "title": "redacts SDK exceptions",
+          "duration": 0.8416999999999462,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "gates second-transaction drift before accepting metadata results",
+          "status": "passed",
+          "title": "gates second-transaction drift before accepting metadata results",
+          "duration": 0.6526000000003478,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "classifies absent relation and each independent privilege",
+          "status": "passed",
+          "title": "classifies absent relation and each independent privilege",
+          "duration": 28.373099999999795,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "cancels a pending auth response body on caller abort",
+          "status": "passed",
+          "title": "cancels a pending auth response body on caller abort",
+          "duration": 3.283599999999751,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "propagates cancellation to the SDK and maps statement timeout safely",
+          "status": "passed",
+          "title": "propagates cancellation to the SDK and maps statement timeout safely",
+          "duration": 0.9897000000000844,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "rejects candidate HTTP 401 and cancels the response",
+          "status": "passed",
+          "title": "rejects candidate HTTP 401 and cancels the response",
+          "duration": 0.9938999999994849,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "rejects candidate HTTP 302 and cancels the response",
+          "status": "passed",
+          "title": "rejects candidate HTTP 302 and cancels the response",
+          "duration": 0.7156999999997424,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "rejects anonymous session data and oversized bodies",
+          "status": "passed",
+          "title": "rejects anonymous session data and oversized bodies",
+          "duration": 2.349199999999655,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "treats missing database identity as unknown unless another binding field mismatches",
+          "status": "passed",
+          "title": "treats missing database identity as unknown unless another binding field mismatches",
+          "duration": 0.7292999999999665,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "rejects private destinations before injected transport can run",
+          "status": "passed",
+          "title": "rejects private destinations before injected transport can run",
+          "duration": 13.646200000000135,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "suppresses I/O when runtime field VERCEL_PROJECT_ID is unavailable",
+          "status": "passed",
+          "title": "suppresses I/O when runtime field VERCEL_PROJECT_ID is unavailable",
+          "duration": 1.136700000000019,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "suppresses I/O when runtime field VERCEL_DEPLOYMENT_ID is unavailable",
+          "status": "passed",
+          "title": "suppresses I/O when runtime field VERCEL_DEPLOYMENT_ID is unavailable",
+          "duration": 1.2709999999997308,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "suppresses I/O when runtime field VERCEL_GIT_COMMIT_SHA is unavailable",
+          "status": "passed",
+          "title": "suppresses I/O when runtime field VERCEL_GIT_COMMIT_SHA is unavailable",
+          "duration": 2.042000000000371,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "suppresses I/O when runtime field VERCEL_ENV is unavailable",
+          "status": "passed",
+          "title": "suppresses I/O when runtime field VERCEL_ENV is unavailable",
+          "duration": 1.7119999999995343,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "suppresses I/O when runtime field VERCEL_URL is unavailable",
+          "status": "passed",
+          "title": "suppresses I/O when runtime field VERCEL_URL is unavailable",
+          "duration": 1.290299999999661,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "labels each Markdown policy index and privilege distinctly",
+          "status": "passed",
+          "title": "labels each Markdown policy index and privilege distinctly",
+          "duration": 2.0954000000001543,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "preserves real adapter connection failures through runner artifacts",
+          "status": "passed",
+          "title": "preserves real adapter connection failures through runner artifacts",
+          "duration": 8.366500000000087,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "preserves real adapter mismatch failures through runner artifacts",
+          "status": "passed",
+          "title": "preserves real adapter mismatch failures through runner artifacts",
+          "duration": 18.674600000000282,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "preserves real adapter read-only failures through runner artifacts",
+          "status": "passed",
+          "title": "preserves real adapter read-only failures through runner artifacts",
+          "duration": 7.558799999999792,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "preserves real adapter timeout failures through runner artifacts",
+          "status": "passed",
+          "title": "preserves real adapter timeout failures through runner artifacts",
+          "duration": 4.112200000000485,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "preserves real adapter auth-early failures through runner artifacts",
+          "status": "passed",
+          "title": "preserves real adapter auth-early failures through runner artifacts",
+          "duration": 15.622000000000298,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "normalizes both real adapter categories after candidate identity prevents I/O",
+          "status": "passed",
+          "title": "normalizes both real adapter categories after candidate identity prevents I/O",
+          "duration": 0.8984000000000378,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "preserves timeout evidence from a cancelled real adapter through strict report validation",
+          "status": "passed",
+          "title": "preserves timeout evidence from a cancelled real adapter through strict report validation",
+          "duration": 8.19970000000012,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "accepts genuine synthetic public signing key material",
+          "status": "passed",
+          "title": "accepts genuine synthetic public signing key material",
+          "duration": 1.5504000000000815,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1791381246936,
+      "endTime": 1791381247350.5503,
+      "status": "passed",
+      "message": "",
+      "name": "C:/Users/laich/Documents/Aiso/.worktrees/aiso-remediation-20261007/__tests__/readiness/runtime-adapters.test.ts"
+    }
+  ]
+}
