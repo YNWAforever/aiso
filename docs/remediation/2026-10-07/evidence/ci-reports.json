@@ -1,6 +1,6 @@
 {
   "selectedImplementationSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
-  "recordedAtUtc": "2026-10-06T20:30:22.309Z",
+  "recordedAtUtc": "2026-10-07T00:39:06.158Z",
   "policy": "Counts measured from actual reports; job-summary counters are retained separately. Synthetic merge identity must be verified. Provider/Auth fixtures are not normal UAT.",
   "runs": [
     {
@@ -1009,6 +1009,981 @@
           "startedAt": "2026-10-06T20:21:48Z",
           "completedAt": "2026-10-06T20:22:23Z",
           "url": "https://github.com/YNWAforever/aiso/actions/runs/37524256754/job/112482550692"
+        }
+      ]
+    },
+    {
+      "runId": 37550438626,
+      "url": "https://github.com/YNWAforever/aiso/actions/runs/37550438626",
+      "event": "workflow_dispatch",
+      "headSha": "d0b12b656111c679bdb4be8fcc4105cfe7efa369",
+      "selectedImplementationSha": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+      "environment": "GitHub Actions Ubuntu; Node 24.x; guarded fresh disposable Neon children; synthetic provider/Auth browser fixtures",
+      "authorization": {
+        "userMessage": "approve",
+        "scope": "one manual invocation; fresh guarded disposable children only",
+        "workflowInput": "allow_disposable_role_password=true",
+        "persistentRepositoryVariableSet": false,
+        "resolverObserved": "manual-run"
+      },
+      "runStatus": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "static",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-07T00:09:14Z",
+          "completedAt": "2026-10-07T00:10:21Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37550438626/job/112564356355"
+        },
+        {
+          "name": "build",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-07T00:09:14Z",
+          "completedAt": "2026-10-07T00:10:22Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37550438626/job/112564356502"
+        },
+        {
+          "name": "integration",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-07T00:09:13Z",
+          "completedAt": "2026-10-07T00:35:51Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37550438626/job/112564356523"
+        },
+        {
+          "name": "unit-contract",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-07T00:09:13Z",
+          "completedAt": "2026-10-07T00:10:44Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37550438626/job/112564356525"
+        },
+        {
+          "name": "e2e-accessibility (3)",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-07T00:09:14Z",
+          "completedAt": "2026-10-07T00:19:20Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37550438626/job/112564356555"
+        },
+        {
+          "name": "cloudflare-worker",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-07T00:09:15Z",
+          "completedAt": "2026-10-07T00:09:39Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37550438626/job/112564356560"
+        },
+        {
+          "name": "e2e-accessibility (4)",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-07T00:09:14Z",
+          "completedAt": "2026-10-07T00:22:34Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37550438626/job/112564356586"
+        },
+        {
+          "name": "e2e-accessibility (2)",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-07T00:09:14Z",
+          "completedAt": "2026-10-07T00:20:51Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37550438626/job/112564356650"
+        },
+        {
+          "name": "e2e-accessibility (1)",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-07T00:09:15Z",
+          "completedAt": "2026-10-07T00:16:46Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37550438626/job/112564356657"
+        },
+        {
+          "name": "pr-gate",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-07T00:35:53Z",
+          "completedAt": "2026-10-07T00:36:16Z",
+          "url": "https://github.com/YNWAforever/aiso/actions/runs/37550438626/job/112571990446"
+        }
+      ],
+      "summaries": [
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/build/build-summary.json",
+          "schemaVersion": 1,
+          "job": "build",
+          "commitSha": "d0b12b656111c679bdb4be8fcc4105cfe7efa369",
+          "status": "success",
+          "executed": 1,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "build/build.log"
+          ]
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-1/artifacts/e2e-accessibility-1-summary.json",
+          "schemaVersion": 1,
+          "job": "e2e-accessibility",
+          "commitSha": "d0b12b656111c679bdb4be8fcc4105cfe7efa369",
+          "status": "success",
+          "executed": 226,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "e2e-accessibility/playwright.log",
+            "e2e-accessibility/playwright-results.json",
+            "e2e-accessibility/playwright.junit.xml"
+          ]
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-2/artifacts/e2e-accessibility-2-summary.json",
+          "schemaVersion": 1,
+          "job": "e2e-accessibility",
+          "commitSha": "d0b12b656111c679bdb4be8fcc4105cfe7efa369",
+          "status": "success",
+          "executed": 226,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "e2e-accessibility/playwright.log",
+            "e2e-accessibility/playwright-results.json",
+            "e2e-accessibility/playwright.junit.xml"
+          ]
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-3/artifacts/e2e-accessibility-3-summary.json",
+          "schemaVersion": 1,
+          "job": "e2e-accessibility",
+          "commitSha": "d0b12b656111c679bdb4be8fcc4105cfe7efa369",
+          "status": "success",
+          "executed": 225,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "e2e-accessibility/playwright.log",
+            "e2e-accessibility/playwright-results.json",
+            "e2e-accessibility/playwright.junit.xml"
+          ]
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-4/artifacts/e2e-accessibility-4-summary.json",
+          "schemaVersion": 1,
+          "job": "e2e-accessibility",
+          "commitSha": "d0b12b656111c679bdb4be8fcc4105cfe7efa369",
+          "status": "success",
+          "executed": 225,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "e2e-accessibility/playwright.log",
+            "e2e-accessibility/playwright-results.json",
+            "e2e-accessibility/playwright.junit.xml"
+          ]
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/gate/gate-summary.json",
+          "schemaVersion": 1,
+          "job": "pr-gate",
+          "commitSha": "d0b12b656111c679bdb4be8fcc4105cfe7efa369",
+          "status": "success",
+          "executed": 6,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "gate-summary.json"
+          ]
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/integration-summary.json",
+          "schemaVersion": 1,
+          "job": "integration",
+          "commitSha": "d0b12b656111c679bdb4be8fcc4105cfe7efa369",
+          "status": "success",
+          "executed": 399,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "integration/vitest.log",
+            "integration/exact-target-wrapper.log"
+          ]
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/static/static-summary.json",
+          "schemaVersion": 1,
+          "job": "static",
+          "commitSha": "d0b12b656111c679bdb4be8fcc4105cfe7efa369",
+          "status": "success",
+          "executed": 2,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "static/lint.log",
+            "static/typecheck.log"
+          ]
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/unit/artifacts/unit-contract-summary.json",
+          "schemaVersion": 1,
+          "job": "unit-contract",
+          "commitSha": "d0b12b656111c679bdb4be8fcc4105cfe7efa369",
+          "status": "success",
+          "executed": 5345,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "unit-contract/vitest.json",
+            "unit-contract/vitest.junit.xml"
+          ]
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/worker/cloudflare-worker-summary.json",
+          "schemaVersion": 1,
+          "job": "cloudflare-worker",
+          "commitSha": "d0b12b656111c679bdb4be8fcc4105cfe7efa369",
+          "status": "success",
+          "executed": 1,
+          "skipped": 0,
+          "failurePriorities": [],
+          "artifacts": [
+            "cloudflare-worker/output.log"
+          ]
+        }
+      ],
+      "reports": [
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-1/artifacts/e2e-accessibility/playwright-results.json",
+          "sha256": "1f9fa63d17888b073dd1a15ac84932bcf146edc64464aaad8af0fe72d813c750",
+          "layer": "browser-fixtures",
+          "command": "npm run e2e -- --workers=1 --shard=1/4 --reporter=list,html,json,junit",
+          "counts": {
+            "discovered": 226,
+            "pass": 226,
+            "fail": 0,
+            "skip": 0,
+            "flaky": 0,
+            "globalErrors": 0
+          },
+          "startedAtUtc": "2026-10-07T00:10:51.688Z"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-2/artifacts/e2e-accessibility/playwright-results.json",
+          "sha256": "3ca4535880c03a742277c3215a020fd2773f00cfe8dd0f337f25d670d9fa17b1",
+          "layer": "browser-fixtures",
+          "command": "npm run e2e -- --workers=1 --shard=2/4 --reporter=list,html,json,junit",
+          "counts": {
+            "discovered": 226,
+            "pass": 226,
+            "fail": 0,
+            "skip": 0,
+            "flaky": 0,
+            "globalErrors": 0
+          },
+          "startedAtUtc": "2026-10-07T00:10:46.701Z"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-3/artifacts/e2e-accessibility/playwright-results.json",
+          "sha256": "a9f808bd0f565dd1f1a1204a3db0b1625596b1734c8f7f08f2e6b2f3cd50b27e",
+          "layer": "browser-fixtures",
+          "command": "npm run e2e -- --workers=1 --shard=3/4 --reporter=list,html,json,junit",
+          "counts": {
+            "discovered": 225,
+            "pass": 225,
+            "fail": 0,
+            "skip": 0,
+            "flaky": 0,
+            "globalErrors": 0
+          },
+          "startedAtUtc": "2026-10-07T00:13:12.210Z"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-4/artifacts/e2e-accessibility/playwright-results.json",
+          "sha256": "3c3feda108b21bddc1cf09c22753de6e386f28f61313ab0529963fa09997b55e",
+          "layer": "browser-fixtures",
+          "command": "npm run e2e -- --workers=1 --shard=4/4 --reporter=list,html,json,junit",
+          "counts": {
+            "discovered": 225,
+            "pass": 225,
+            "fail": 0,
+            "skip": 0,
+            "flaky": 0,
+            "globalErrors": 0
+          },
+          "startedAtUtc": "2026-10-07T00:10:49.827Z"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/alerts-agents-tenancy-integration.json",
+          "sha256": "f29b3a6bcf53ecb2f320e9c24900eab2fbac2a63d41397ba31dd6df364d5942f",
+          "layer": "exact-target",
+          "command": "node scripts/ci/run-exact-target-suites.mjs -> vitest run --config vitest.alerts-agents-tenancy-integration.config.ts",
+          "counts": {
+            "files": 1,
+            "filesPassed": 1,
+            "filesFailed": 0,
+            "discovered": 8,
+            "pass": 8,
+            "fail": 0,
+            "skip": 0
+          },
+          "namedSlices": [],
+          "startedAtUtc": "2026-10-07T00:32:25.708Z",
+          "reportSuccess": true
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/change-set-stores-integration.json",
+          "sha256": "ec8f8c01a336b86db26c1e5d351134f5240ddf13659b1f97b775d4f6e3bfda46",
+          "layer": "exact-target",
+          "command": "node scripts/ci/run-exact-target-suites.mjs -> vitest run --config vitest.change-set-stores-integration.config.ts",
+          "counts": {
+            "files": 1,
+            "filesPassed": 1,
+            "filesFailed": 0,
+            "discovered": 19,
+            "pass": 19,
+            "fail": 0,
+            "skip": 0
+          },
+          "namedSlices": [],
+          "startedAtUtc": "2026-10-07T00:24:09.733Z",
+          "reportSuccess": true
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/change-sets-integration.json",
+          "sha256": "d8d321502f27958f2387760dd58ba5a037e2e6eec0eb4942c29c0f1f60821642",
+          "layer": "exact-target",
+          "command": "node scripts/ci/run-exact-target-suites.mjs -> vitest run --config vitest.change-sets-integration.config.ts",
+          "counts": {
+            "files": 1,
+            "filesPassed": 1,
+            "filesFailed": 0,
+            "discovered": 22,
+            "pass": 22,
+            "fail": 0,
+            "skip": 0
+          },
+          "namedSlices": [],
+          "startedAtUtc": "2026-10-07T00:23:52.484Z",
+          "reportSuccess": true
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/delivery-integration.json",
+          "sha256": "10447d521b9d6dc0d295ff52af471668a00356720de2604ba3265d9aed23e297",
+          "layer": "exact-target",
+          "command": "node scripts/ci/run-exact-target-suites.mjs -> vitest run --config vitest.delivery-integration.config.ts",
+          "counts": {
+            "files": 1,
+            "filesPassed": 1,
+            "filesFailed": 0,
+            "discovered": 68,
+            "pass": 68,
+            "fail": 0,
+            "skip": 0
+          },
+          "namedSlices": [],
+          "startedAtUtc": "2026-10-07T00:25:22.669Z",
+          "reportSuccess": true
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/entity-integration.json",
+          "sha256": "ce7fae13d620026f20e67cc0a009e23f4ff79038f61bef3214c789e79b1ddfeb",
+          "layer": "exact-target",
+          "command": "node scripts/ci/run-exact-target-suites.mjs -> vitest run --config vitest.entity-integration.config.ts",
+          "counts": {
+            "files": 1,
+            "filesPassed": 1,
+            "filesFailed": 0,
+            "discovered": 3,
+            "pass": 3,
+            "fail": 0,
+            "skip": 0
+          },
+          "namedSlices": [],
+          "startedAtUtc": "2026-10-07T00:23:40.467Z",
+          "reportSuccess": true
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/feature-store-tenancy-integration.json",
+          "sha256": "0a2db6875513eed91797613a672ffdade3e4ed5b2bd78d1e7e8cdbfd94fc0427",
+          "layer": "exact-target",
+          "command": "node scripts/ci/run-exact-target-suites.mjs -> vitest run --config vitest.feature-store-tenancy-integration.config.ts",
+          "counts": {
+            "files": 1,
+            "filesPassed": 1,
+            "filesFailed": 0,
+            "discovered": 16,
+            "pass": 16,
+            "fail": 0,
+            "skip": 0
+          },
+          "namedSlices": [],
+          "startedAtUtc": "2026-10-07T00:29:31.584Z",
+          "reportSuccess": true
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/first-run-journey-integration.json",
+          "sha256": "ede78b1c987fad11e70d83978c8d551dd5cece5eb4752329c526080f6d0bc575",
+          "layer": "exact-target",
+          "command": "node scripts/ci/run-exact-target-suites.mjs -> vitest run --config vitest.first-run-journey-integration.config.ts",
+          "counts": {
+            "files": 1,
+            "filesPassed": 1,
+            "filesFailed": 0,
+            "discovered": 4,
+            "pass": 4,
+            "fail": 0,
+            "skip": 0
+          },
+          "namedSlices": [],
+          "startedAtUtc": "2026-10-07T00:29:00.433Z",
+          "reportSuccess": true
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/reports-entities-tenancy-integration.json",
+          "sha256": "608095aaec6009fb80d112f44aa9620ab91a5597d16db1d2fb34731c7d104e29",
+          "layer": "exact-target",
+          "command": "node scripts/ci/run-exact-target-suites.mjs -> vitest run --config vitest.reports-entities-tenancy-integration.config.ts",
+          "counts": {
+            "files": 1,
+            "filesPassed": 1,
+            "filesFailed": 0,
+            "discovered": 13,
+            "pass": 13,
+            "fail": 0,
+            "skip": 0
+          },
+          "namedSlices": [],
+          "startedAtUtc": "2026-10-07T00:31:03.010Z",
+          "reportSuccess": true
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/search-console-integration.json",
+          "sha256": "feebc797fc5c52f7c67c304ecbd33d552e84fec5f97d3437abeec6329965ac24",
+          "layer": "exact-target",
+          "command": "node scripts/ci/run-exact-target-suites.mjs -> vitest run --config vitest.search-console-integration.config.ts",
+          "counts": {
+            "files": 1,
+            "filesPassed": 1,
+            "filesFailed": 0,
+            "discovered": 20,
+            "pass": 20,
+            "fail": 0,
+            "skip": 0
+          },
+          "namedSlices": [],
+          "startedAtUtc": "2026-10-07T00:34:04.212Z",
+          "reportSuccess": true
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/work-items-integration.json",
+          "sha256": "12dd02351bf4707af9560fb2d88211218db6434c9196803ab2a771b12bdab6e1",
+          "layer": "exact-target",
+          "command": "node scripts/ci/run-exact-target-suites.mjs -> vitest run --config vitest.work-items-integration.config.ts",
+          "counts": {
+            "files": 1,
+            "filesPassed": 1,
+            "filesFailed": 0,
+            "discovered": 5,
+            "pass": 5,
+            "fail": 0,
+            "skip": 0
+          },
+          "namedSlices": [],
+          "startedAtUtc": "2026-10-07T00:23:46.349Z",
+          "reportSuccess": true
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/integration/vitest.json",
+          "sha256": "09be97d1783df2b8e305873689a295fc4703dc70ae75d65ea7f42149cb9fdc16",
+          "layer": "default-db",
+          "command": "REQUIRE_INTEGRATION_TESTS=1 npx vitest run --config vitest.integration.config.ts --reporter=json --reporter=junit",
+          "counts": {
+            "files": 22,
+            "filesPassed": 22,
+            "filesFailed": 0,
+            "discovered": 221,
+            "pass": 221,
+            "fail": 0,
+            "skip": 0
+          },
+          "namedSlices": [
+            {
+              "file": "/home/runner/work/aiso/aiso/__tests__/integration/activation-approval.test.ts",
+              "status": "passed",
+              "discovered": 4,
+              "pass": 4,
+              "fail": 0,
+              "skip": 0
+            },
+            {
+              "file": "/home/runner/work/aiso/aiso/__tests__/integration/least-privilege-role.test.ts",
+              "status": "passed",
+              "discovered": 22,
+              "pass": 22,
+              "fail": 0,
+              "skip": 0
+            }
+          ],
+          "startedAtUtc": "2026-10-07T00:09:48.576Z",
+          "reportSuccess": true
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/unit/artifacts/unit-contract/vitest.json",
+          "sha256": "fecf126428fd385192255a6d002a30c06398889e648df19c313b243a5d34559c",
+          "layer": "unit",
+          "command": "npm test -- --coverage --reporter=json --reporter=junit",
+          "counts": {
+            "files": 373,
+            "filesPassed": 373,
+            "filesFailed": 0,
+            "discovered": 5345,
+            "pass": 5345,
+            "fail": 0,
+            "skip": 0
+          },
+          "namedSlices": [],
+          "startedAtUtc": "2026-10-07T00:09:44.131Z",
+          "reportSuccess": true
+        }
+      ],
+      "artifacts": [
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/build/build/build.log",
+          "sha256": "0e696ed5c182bfab1bfd0d37bb2ea3787820552850c6d099576db15328ba66b5"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/build/build-summary.json",
+          "sha256": "5a7f058dc907f71943f8e532d43100d101ec2fecb8b1bdb6c0f65f09de36c570"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-1/artifacts/e2e-accessibility/build.log",
+          "sha256": "e4e8310c5a0644a7ae66779be172991ba7d259ea9189384ede1df466598dc2c3"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-1/artifacts/e2e-accessibility/playwright-results.json",
+          "sha256": "1f9fa63d17888b073dd1a15ac84932bcf146edc64464aaad8af0fe72d813c750"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-1/artifacts/e2e-accessibility/playwright.junit.xml",
+          "sha256": "6622ab228d276af18662d091033e3a8b30e3983f88a50e90b2cca0fe479ccfb8"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-1/artifacts/e2e-accessibility/playwright.log",
+          "sha256": "50eeaad49bb75758bff2bc08f7b49442301a5f02d39917f9bbccdc76d56f6b16"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-1/artifacts/e2e-accessibility-1-summary.json",
+          "sha256": "38d00909b22ed44033b45ac2c894f02e8a328f2e157718b4c8a3b50ce0c03c62"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-2/artifacts/e2e-accessibility/build.log",
+          "sha256": "496b9925a3e0c026998bf1fc41a0c4ee0878dbcc47e0dc4adedbba690bdc03a5"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-2/artifacts/e2e-accessibility/playwright-results.json",
+          "sha256": "3ca4535880c03a742277c3215a020fd2773f00cfe8dd0f337f25d670d9fa17b1"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-2/artifacts/e2e-accessibility/playwright.junit.xml",
+          "sha256": "363cf4539c2ab920ff18752462001ac205a47a53b8c7d26de61c087711cbf502"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-2/artifacts/e2e-accessibility/playwright.log",
+          "sha256": "3585a1d3d1cf2084c7851be4978ab978ff5e8fcd25f24784e73237ac8070402f"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-2/artifacts/e2e-accessibility-2-summary.json",
+          "sha256": "38d00909b22ed44033b45ac2c894f02e8a328f2e157718b4c8a3b50ce0c03c62"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-3/artifacts/e2e-accessibility/build.log",
+          "sha256": "0f699bbedda691b8606261840c817630f53d4a9a7c2035650fc5c67251a8e66e"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-3/artifacts/e2e-accessibility/playwright-results.json",
+          "sha256": "a9f808bd0f565dd1f1a1204a3db0b1625596b1734c8f7f08f2e6b2f3cd50b27e"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-3/artifacts/e2e-accessibility/playwright.junit.xml",
+          "sha256": "35e3710bcf6ea61f9613ee33d7393b2c7ac05659e58674cb9f56dd1af655ffe5"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-3/artifacts/e2e-accessibility/playwright.log",
+          "sha256": "247f76f61896f495675ac4fe9c443c928a54b1cf80e16b018cce7b65e3b495cf"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-3/artifacts/e2e-accessibility-3-summary.json",
+          "sha256": "a17e9dc91f86d16a6799997175994a1ecc639858bafea3aaef36a61653e7c6fa"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-4/artifacts/e2e-accessibility/build.log",
+          "sha256": "690a464c469beb6b3a90124a68b0b1e3c1642760134c2d2841e402d422092ea5"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-4/artifacts/e2e-accessibility/playwright-results.json",
+          "sha256": "3c3feda108b21bddc1cf09c22753de6e386f28f61313ab0529963fa09997b55e"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-4/artifacts/e2e-accessibility/playwright.junit.xml",
+          "sha256": "7aa637b3a9c4c0189d054efa9fc72140abbe8f67464645af09d0a21aca450eec"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-4/artifacts/e2e-accessibility/playwright.log",
+          "sha256": "2b4930bcf67df672f91dd6e3d784f3c0004ae30508acf2a1682294190858308f"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/e2e-4/artifacts/e2e-accessibility-4-summary.json",
+          "sha256": "a17e9dc91f86d16a6799997175994a1ecc639858bafea3aaef36a61653e7c6fa"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/gate/gate-summary.json",
+          "sha256": "1d9ab62c54262aaccb0c9f74fd3c1eb574135d6e387fceb1951aa9708e4e6c2a"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/alerts-agents-tenancy-integration.json",
+          "sha256": "f29b3a6bcf53ecb2f320e9c24900eab2fbac2a63d41397ba31dd6df364d5942f"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/change-set-stores-integration.json",
+          "sha256": "ec8f8c01a336b86db26c1e5d351134f5240ddf13659b1f97b775d4f6e3bfda46"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/change-sets-integration.json",
+          "sha256": "d8d321502f27958f2387760dd58ba5a037e2e6eec0eb4942c29c0f1f60821642"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/delivery-integration.json",
+          "sha256": "10447d521b9d6dc0d295ff52af471668a00356720de2604ba3265d9aed23e297"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/entity-integration.json",
+          "sha256": "ce7fae13d620026f20e67cc0a009e23f4ff79038f61bef3214c789e79b1ddfeb"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/feature-store-tenancy-integration.json",
+          "sha256": "0a2db6875513eed91797613a672ffdade3e4ed5b2bd78d1e7e8cdbfd94fc0427"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/first-run-journey-integration.json",
+          "sha256": "ede78b1c987fad11e70d83978c8d551dd5cece5eb4752329c526080f6d0bc575"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/reports-entities-tenancy-integration.json",
+          "sha256": "608095aaec6009fb80d112f44aa9620ab91a5597d16db1d2fb34731c7d104e29"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/search-console-integration.json",
+          "sha256": "feebc797fc5c52f7c67c304ecbd33d552e84fec5f97d3437abeec6329965ac24"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/exact-target/work-items-integration.json",
+          "sha256": "12dd02351bf4707af9560fb2d88211218db6434c9196803ab2a771b12bdab6e1"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/integration/branch-provenance/br-autumn-frost-azqt6dym.json",
+          "sha256": "60c3a871c85dfb76cc5e1481c631f48dbe65f61ad2cb0501cacfd218fb6edebc"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/integration/branch-provenance/br-solitary-bread-az47x3vg.json",
+          "sha256": "e41b3bbd81fc0eface64bafb42c1f864d15b54dd4fb1970ca4cd6ef81dba3f5c"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/integration/exact-target-wrapper.log",
+          "sha256": "8946cd0b5fc33f09cf29f12000a3b94b31a15274059507da24cdee50f0ee2d3e"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/integration/vitest.json",
+          "sha256": "09be97d1783df2b8e305873689a295fc4703dc70ae75d65ea7f42149cb9fdc16"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/integration/vitest.junit.xml",
+          "sha256": "257157033e6c267fb70b8dcedb2532d175b66853306129d19e81dda1369427b9"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/integration/vitest.log",
+          "sha256": "6e971b94963f5bb322c143b2f12a671eda7f7aeb5cbb002b8610c04be611069c"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/integration-summary.json",
+          "sha256": "314cffda6ebcf76168b32301e799ca5de0e454b2641a71198ecdd1d439abd8c7"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/static/static/lint.log",
+          "sha256": "c6db5f0fdc721a4d189b1071385ef54b857f91dd589d6251df532d0a5929b408"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/static/static/typecheck.log",
+          "sha256": "4538f6a9c3cae187770b75626197841be05d727c86bd5579a41d928b0871fa5d"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/static/static-summary.json",
+          "sha256": "df82a4f487f6683d10d1fafb52b614a70ece9606a0f627c4f6ef84d081f2822a"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/unit/artifacts/unit-contract/vitest.json",
+          "sha256": "fecf126428fd385192255a6d002a30c06398889e648df19c313b243a5d34559c"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/unit/artifacts/unit-contract/vitest.junit.xml",
+          "sha256": "c83b5ac37ea44dad9f6ff9e06f25d96e20fd299ed178740eed21b11a64122068"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/unit/artifacts/unit-contract/vitest.log",
+          "sha256": "2e927a8907aa3c50d792c46fc799cacb6b07ee85d49f1c4ec72de8eb2ba797e0"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/unit/artifacts/unit-contract-summary.json",
+          "sha256": "ac3e961c448981dc91f09aeaf6ba4a77ebb2a91ae96d326c7c231f645d19d58f"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/worker/cloudflare-worker/output.log",
+          "sha256": "4d7d2038af07917614cc20eb2a13e44d4d7f11215529b282e40ce872919ba4c9"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/worker/cloudflare-worker-summary.json",
+          "sha256": "4c1a5892a9e284e079ceceae012e39633f784249ea69e4458bc8129718e1a1e6"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/authorization-resolver.log",
+          "sha256": "767b4a92b0309014a0b5b3010f91c654b47c04786592decae4e798154fabef3b"
+        }
+      ],
+      "provenance": [
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/integration/branch-provenance/br-autumn-frost-azqt6dym.json",
+          "event": "created",
+          "projectId": "weathered-wave-50814522",
+          "parentBranchId": "br-square-mountain-az6f82vi",
+          "branchId": "br-autumn-frost-azqt6dym",
+          "branchName": "test-2533-1791331788763-c8afaa23",
+          "checkoutSha": "d0b12b656111c679bdb4be8fcc4105cfe7efa369",
+          "runId": "37550438626",
+          "runAttempt": 1,
+          "job": "integration",
+          "recordedAt": "2026-10-07T00:09:52.345Z"
+        },
+        {
+          "path": "artifacts/aiso/2026-10-07/redacted/ci-37550438626/integration/integration/branch-provenance/br-solitary-bread-az47x3vg.json",
+          "event": "created",
+          "projectId": "weathered-wave-50814522",
+          "parentBranchId": "br-square-mountain-az6f82vi",
+          "branchId": "br-solitary-bread-az47x3vg",
+          "branchName": "test-3075-1791332598751-0cd2658a",
+          "checkoutSha": "d0b12b656111c679bdb4be8fcc4105cfe7efa369",
+          "runId": "37550438626",
+          "runAttempt": 1,
+          "job": "integration",
+          "recordedAt": "2026-10-07T00:23:20.296Z"
+        }
+      ],
+      "commands": [
+        {
+          "job": "static",
+          "step": "Run static checks",
+          "conclusion": "success",
+          "exitCode": 0,
+          "exitEvidence": "GitHub Actions step conclusion; workflow propagates command exit; exact-target child status also checked by wrapper",
+          "startedAtUtc": "2026-10-07T00:09:42Z",
+          "completedAtUtc": "2026-10-07T00:10:19Z"
+        },
+        {
+          "job": "build",
+          "step": "Build fixture application",
+          "conclusion": "success",
+          "exitCode": 0,
+          "exitEvidence": "GitHub Actions step conclusion; workflow propagates command exit; exact-target child status also checked by wrapper",
+          "startedAtUtc": "2026-10-07T00:09:47Z",
+          "completedAtUtc": "2026-10-07T00:10:19Z"
+        },
+        {
+          "job": "integration",
+          "step": "Run integration suite",
+          "conclusion": "success",
+          "exitCode": 0,
+          "exitEvidence": "GitHub Actions step conclusion; workflow propagates command exit; exact-target child status also checked by wrapper",
+          "startedAtUtc": "2026-10-07T00:09:47Z",
+          "completedAtUtc": "2026-10-07T00:35:48Z"
+        },
+        {
+          "job": "unit-contract",
+          "step": "Run unit contract suite",
+          "conclusion": "success",
+          "exitCode": 0,
+          "exitEvidence": "GitHub Actions step conclusion; workflow propagates command exit; exact-target child status also checked by wrapper",
+          "startedAtUtc": "2026-10-07T00:09:43Z",
+          "completedAtUtc": "2026-10-07T00:10:41Z"
+        },
+        {
+          "job": "e2e-accessibility (3)",
+          "step": "Run E2E and accessibility suite",
+          "conclusion": "success",
+          "exitCode": 0,
+          "exitEvidence": "GitHub Actions step conclusion; workflow propagates command exit; exact-target child status also checked by wrapper",
+          "startedAtUtc": "2026-10-07T00:12:31Z",
+          "completedAtUtc": "2026-10-07T00:19:16Z"
+        },
+        {
+          "job": "cloudflare-worker",
+          "step": "Install and run Worker checks",
+          "conclusion": "success",
+          "exitCode": 0,
+          "exitEvidence": "GitHub Actions step conclusion; workflow propagates command exit; exact-target child status also checked by wrapper",
+          "startedAtUtc": "2026-10-07T00:09:24Z",
+          "completedAtUtc": "2026-10-07T00:09:34Z"
+        },
+        {
+          "job": "e2e-accessibility (4)",
+          "step": "Run E2E and accessibility suite",
+          "conclusion": "success",
+          "exitCode": 0,
+          "exitEvidence": "GitHub Actions step conclusion; workflow propagates command exit; exact-target child status also checked by wrapper",
+          "startedAtUtc": "2026-10-07T00:10:07Z",
+          "completedAtUtc": "2026-10-07T00:22:31Z"
+        },
+        {
+          "job": "e2e-accessibility (2)",
+          "step": "Run E2E and accessibility suite",
+          "conclusion": "success",
+          "exitCode": 0,
+          "exitEvidence": "GitHub Actions step conclusion; workflow propagates command exit; exact-target child status also checked by wrapper",
+          "startedAtUtc": "2026-10-07T00:10:06Z",
+          "completedAtUtc": "2026-10-07T00:20:47Z"
+        },
+        {
+          "job": "e2e-accessibility (1)",
+          "step": "Run E2E and accessibility suite",
+          "conclusion": "success",
+          "exitCode": 0,
+          "exitEvidence": "GitHub Actions step conclusion; workflow propagates command exit; exact-target child status also checked by wrapper",
+          "startedAtUtc": "2026-10-07T00:10:09Z",
+          "completedAtUtc": "2026-10-07T00:16:42Z"
+        }
+      ],
+      "checkoutShas": [
+        "d0b12b656111c679bdb4be8fcc4105cfe7efa369"
+      ],
+      "exactTarget": {
+        "requiredConfigs": 10,
+        "reportsRead": 10,
+        "discovered": 178,
+        "pass": 178,
+        "fail": 0,
+        "skip": 0
+      },
+      "browser": {
+        "requiredShards": 4,
+        "shardsRead": 4,
+        "discovered": 902,
+        "pass": 902,
+        "fail": 0,
+        "skip": 0,
+        "flaky": 0,
+        "globalErrors": 0
+      },
+      "sourceIdentity": {
+        "checkoutSha": "d0b12b656111c679bdb4be8fcc4105cfe7efa369",
+        "docsOnlyDescendantOf": "fbf8f9d209edf5ce47fc01d979c167371ffa2c76",
+        "sourceDiffAgainstImplementation": []
+      },
+      "controlPlaneSnapshots": [
+        {
+          "readAtUtc": "2026-10-07 00:16:48 UTC",
+          "source": "Neon list_branches; project weathered-wave-50814522; read-only",
+          "rows": [
+            {
+              "id": "br-autumn-frost-azqt6dym",
+              "project_id": "weathered-wave-50814522",
+              "parent_id": "br-square-mountain-az6f82vi",
+              "current_state": "ready",
+              "primary": false,
+              "default": false,
+              "created_at": "2026-10-07T00:09:49Z",
+              "expires_at": "2026-10-07T02:09:48Z",
+              "ttl_interval_seconds": 7199
+            },
+            {
+              "id": "br-hidden-hill-az61ux9z",
+              "project_id": "weathered-wave-50814522",
+              "parent_id": "br-square-mountain-az6f82vi",
+              "current_state": "archived",
+              "primary": false,
+              "default": false,
+              "created_at": "2026-09-07T04:48:30Z"
+            },
+            {
+              "id": "br-square-mountain-az6f82vi",
+              "project_id": "weathered-wave-50814522",
+              "current_state": "ready",
+              "primary": true,
+              "default": true,
+              "created_at": "2026-08-31T01:33:33Z"
+            }
+          ]
+        },
+        {
+          "readAtUtc": "2026-10-07 00:26:16 UTC",
+          "source": "Neon list_branches; project weathered-wave-50814522; read-only",
+          "rows": [
+            {
+              "id": "br-solitary-bread-az47x3vg",
+              "parent_id": "br-square-mountain-az6f82vi",
+              "current_state": "ready",
+              "primary": false,
+              "default": false,
+              "created_at": "2026-10-07T00:23:19Z",
+              "expires_at": "2026-10-07T02:23:18Z"
+            },
+            {
+              "id": "br-hidden-hill-az61ux9z",
+              "parent_id": "br-square-mountain-az6f82vi",
+              "current_state": "archived",
+              "primary": false,
+              "default": false,
+              "created_at": "2026-09-07T04:48:30Z"
+            },
+            {
+              "id": "br-square-mountain-az6f82vi",
+              "current_state": "ready",
+              "primary": true,
+              "default": true,
+              "created_at": "2026-08-31T01:33:33Z"
+            }
+          ]
+        },
+        {
+          "readAtUtc": "2026-10-07 00:38:59 UTC",
+          "source": "Neon list_branches; project weathered-wave-50814522; read-only",
+          "rows": [
+            {
+              "id": "br-hidden-hill-az61ux9z",
+              "parent_id": "br-square-mountain-az6f82vi",
+              "current_state": "archived",
+              "primary": false,
+              "default": false,
+              "created_at": "2026-09-07T04:48:30Z"
+            },
+            {
+              "id": "br-square-mountain-az6f82vi",
+              "current_state": "ready",
+              "primary": true,
+              "default": true,
+              "created_at": "2026-08-31T01:33:33Z"
+            }
+          ]
+        }
+      ],
+      "cleanup": [
+        {
+          "branch": "br-autumn-frost-azqt6dym",
+          "deleted": true,
+          "controlPlaneAfterAbsent": true
+        },
+        {
+          "branch": "br-solitary-bread-az47x3vg",
+          "deleted": true,
+          "controlPlaneAfterAbsent": true
         }
       ]
     }

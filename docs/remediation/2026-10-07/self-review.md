@@ -20,3 +20,9 @@ Selected implementation: `fbf8f9d209edf5ce47fc01d979c167371ffa2c76`. Single-agen
 - All historical task/finding/case/operation IDs and fields are retained. New execution fields and immutable input copies are separate. Counts come from actual reports; skipped assertions, failed hooks, zero discovery and absent reports are never passes.
 
 Use the execution ledger, command receipts and rollout proposal for the final measured gates. The remaining external acceptance is not closed by this review.
+
+## Approved CI evidence follow-up
+
+The subsequent explicit one-run approval has been executed at d0b12b6 and all actual reports read. Default DB passed 221/221, including all 22 application-role assertions; all ten exact-target configurations passed 178/178 with feature-store-tenancy included. No required test failed or skipped. Four browser reports passed 902/902 without flaky results or global errors; unit passed 5,345/5,345. Registered fresh-child provenance, resolver `manual-run`, successful command steps, logged deletions and independent post-run absence agree. The persistent repository approval variable remained absent. No implementation fault reproduced, so no source change or additional tests were introduced for this documentation update.
+
+The six execution CSVs preserve all IDs, row order and historical fields. Only T16/T17 active isolated results/blockers and AC20/AC21/AC35 active blockers were superseded, with their exact previous values retained in appended columns. Existing CI run objects compare unchanged against d0b12b6. Source fingerprint verification covers 1,128 files; structured-report/hash validation is recorded separately. Required normal-session/production/scheduling acceptance remains open. The one-time permission cannot be reused by a later documentation-only head.

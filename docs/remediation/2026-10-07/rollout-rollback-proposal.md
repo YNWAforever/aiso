@@ -2,7 +2,11 @@
 
 Selected implementation: `fbf8f9d209edf5ce47fc01d979c167371ffa2c76`, continuing draft [PR68](https://github.com/YNWAforever/aiso/pull/68). A later documentation-only delivery commit must have the same source/test/config/migration fingerprint. Production remains `f49e1bd8951394cf88250b3ea88847d0038db491`.
 
-## Next authorization: disposable application-role acceptance only
+## Approved one-run disposable application-role acceptance
+
+The user's subsequent `approve` authorized this section's operation once. Workflow [37550438626](https://github.com/YNWAforever/aiso/actions/runs/37550438626) was dispatched on 2026-10-07 at 00:09:09 UTC against delivery SHA `d0b12b656111c679bdb4be8fcc4105cfe7efa369`, with `allow_disposable_role_password=true`. The delivery contains no source/test/config/migration differences against implementation `fbf8f9d`. The persistent repository authorization variable was absent before and after the invocation and was not set. The actual resolver reported `manual-run`. This permission is consumed and does not authorize another invocation or any production action.
+
+The approved invocation passed: default DB 221/221, including all 22 application-role assertions and four activation regressions; all ten exact-target reports 178/178, including feature-store-tenancy 16/16; unit 5,345/5,345; browser fixtures 902/902; Worker 8/8; static/build checks passed. Required test failures and skips were zero. Both fresh children (`br-autumn-frost-azqt6dym`, `br-solitary-bread-az47x3vg`) have logged deletion receipts and were absent in a subsequent read-only Neon listing. Provenance binds both children to project `weathered-wave-50814522`, the actual run/attempt and checkout SHA. See `evidence/approved-ci.json` and `approved-ci-addendum.md`. These disposable/fixture results do not close normal-session UAT, production rollout or real scheduling acceptance.
 
 Proposed operation: manually dispatch `.github/workflows/pr-gate.yml` on `codex/aiso-full-remediation-20261003` after verifying its head equals the delivery SHA and its implementation fingerprint equals the selected SHA, with `allow_disposable_role_password=true` for that invocation only. Capture the actual run ID and checkout SHA. Do not set the persistent `AISO_ALLOW_DISPOSABLE_ROLE_PASSWORD` repository variable.
 
@@ -12,7 +16,7 @@ Acceptance: the default DB suite's 22 role assertions execute with no required s
 
 Rollback/cleanup: wrappers delete only their registered disposable children in `finally`; record branch IDs and deletion receipts. If cleanup fails, retain the receipt and propose the exact leftover child for review. Do not clean up unrelated branches. Existing secrets remain in their existing authorized environment and must not enter artifacts. No provider run, email, production migration, merge, deployment, activation/revocation, or scheduling is included in this authorization.
 
-This authorization is required by the current role guard and the user's explicit privilege-change boundary. The prior pack's one-run permission is historical; it does not authorize a fresh invocation. A separate automatic-review rejection concerned cleanup of the executor's temporary local import without a complete inventory/backup. Every file was subsequently inventoried and backed up before retrying; that event does not authorize role changes or production cleanup.
+The role guard and the user's explicit privilege-change boundary required the separate approval now recorded above. The prior pack's one-run permission remains historical and cannot authorize a further invocation. A separate automatic-review rejection concerned cleanup of the executor's temporary local import without a complete inventory/backup. Every file was subsequently inventoried and backed up before retrying; that event does not authorize role changes or production cleanup.
 
 ## Normal-session preview acceptance
 
