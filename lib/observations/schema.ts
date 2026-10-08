@@ -1,4 +1,5 @@
 import type { Observation, ObservationDetailDto, ObservationDetailRow, PulseSourceRow, Question } from '@/lib/observations/types'
+import { normalizeProviderCitations, safeEvidenceUrl } from '@/lib/pulse/provider-citations'
 
 const POSTGRES_TIMESTAMP = /^(\d{4})-(\d{2})-(\d{2})[T ](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,6})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/
 const POSTGRES_SPACE_ONLY = /^[\t\n\v\f\r ]*$/
@@ -65,19 +66,20 @@ export function textEvidenceLinks(answer:string):ObservationDetailDto['links']{
   const links=new Set<string>()
   for(const match of answer.matchAll(/https?:\/\/[^\s<>"']+/gi)){
     const candidate=match[0].replace(/[.,;:!?\])}]+$/,'')
-    if(/[\\\u0000-\u0020]/.test(candidate))continue
-    try{
-      const url=new URL(candidate),host=url.hostname.toLowerCase()
-      if(!['http:','https:'].includes(url.protocol)||url.username||url.password||!host.includes('.')
-        ||/^[\d.]+$/.test(host)||host.includes(':')||/\.(?:localhost|local|internal)$/.test(host))continue
-      links.add(url.href)
-    }catch{/* Invalid text remains readable in the raw answer. */}
+    const url=safeEvidenceUrl(candidate)
+    if(url)links.add(url)
     if(links.size>=50)break
   }
   return [...links].map(url=>({url,kind:'text-link' as const}))
 }
 export function projectObservationDetail(row:ObservationDetailRow):ObservationDetailDto{
   const base=projectObservation(row,null)
+  const citations=normalizeProviderCitations(row.provider_citations)
+  const providerUrls=new Set(citations?.map(c=>c.url))
+  const links:ObservationDetailDto['links']=base.hasAnswer?[
+    ...(citations??[]).map(c=>({...c,kind:'provider-citation' as const})),
+    ...textEvidenceLinks(row.raw_answer??'').filter(c=>!providerUrls.has(c.url)),
+  ]:[]
   const status=['classified','fallback','failed'].includes(row.classification_status??'')
     ? row.classification_status as 'classified'|'fallback'|'failed':'legacy_unknown'
   const sentiment=status==='classified'&&row.brand_mentioned===true&&['positive','neutral','negative'].includes(row.sentiment??'')
@@ -87,5 +89,6 @@ export function projectObservationDetail(row:ObservationDetailRow):ObservationDe
     collectorVersion:row.collector_version,providerRequestId:row.provider_request_id,
     classification:{status,method:row.classifier_method,version:row.classifier_version,brandMentioned:base.brandMentioned,
       sentiment,matchedText:Array.isArray(row.matched_text)?row.matched_text.filter((v):v is string=>typeof v==='string'):[]},
-    links:base.hasAnswer?textEvidenceLinks(row.raw_answer??''):[],limitations:[...base.limitations,'provider-citations-unrecorded']}
+    links,providerFinishReason:row.provider_finish_reason??null,
+    limitations:[...base.limitations,...(citations===null?['provider-citations-unrecorded']:[])]}
 }

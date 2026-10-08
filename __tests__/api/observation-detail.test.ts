@@ -11,6 +11,17 @@ const context=(client=clientId,id=observationId)=>({params:Promise.resolve({clie
 beforeEach(()=>{vi.resetAllMocks();h.profile.mockResolvedValue({account_id:'session-account'});vi.spyOn(console,'error').mockImplementation(()=>{})})
 afterEach(()=>vi.restoreAllMocks())
 describe('observation detail',()=>{
+  it('prefers provider provenance over duplicate text links and preserves legacy unknown',()=>{
+    const row={id:observationId,prompt_id:null,question:'Question',platform:'chatgpt',scan_week:'2026-10-05',
+      created_at:null,raw_answer:'Read https://source.example/a and https://text.example/b',brand_mentioned:null,snapshot:null,brand_snapshot:null,
+      requested_model:null,actual_model:null,collector:null,collector_version:null,provider_request_id:null,classifier_method:null,
+      classifier_version:null,sentiment:null,matched_text:null,provider_citations:[{url:'https://source.example/a',title:'Source'}],provider_finish_reason:'stop'}
+    const dto=projectObservationDetail(row)
+    expect(dto.links).toEqual([{url:'https://source.example/a',title:'Source',kind:'provider-citation'},{url:'https://text.example/b',kind:'text-link'}])
+    expect(dto.limitations).not.toContain('provider-citations-unrecorded')
+    expect(projectObservationDetail({...row,provider_citations:null}).limitations).toContain('provider-citations-unrecorded')
+    expect(projectObservationDetail({...row,provider_citations:[]}).limitations).not.toContain('provider-citations-unrecorded')
+  })
   it('other_tenant_gets_404 with no original answer or diagnostic leakage',async()=>{
     h.detail.mockResolvedValue(null)
     const response=await GET(request(),context())

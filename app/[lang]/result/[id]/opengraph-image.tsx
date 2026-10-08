@@ -1,7 +1,8 @@
 import { ImageResponse } from 'next/og'
 import { db } from '@/lib/db'
+import { hasFailedScanPage } from '@/lib/result-access'
 
-export const alt = 'AI visibility score — Fimmick AISO'
+export const alt = 'Website readiness scan — Fimmick AISO'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -29,13 +30,15 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   let score: number | null = null
   let grade = 'F'
   let counts = { pass: 0, warn: 0, fail: 0 }
+  let collectionFailed = false
 
   try {
     const rows = await db()`select domain, score, grade, results from scans where id = ${id} limit 1`
     const scan = rows[0] as { domain: string; score: string | number | null; grade: string | null; results: unknown } | undefined
     if (scan) {
       domain = scan.domain
-      score = Math.round(Number(scan.score))
+      collectionFailed=hasFailedScanPage((scan.results??{}) as Record<string,unknown>)
+      score = collectionFailed || scan.score===null ? null : Math.round(Number(scan.score))
       grade = scan.grade ?? 'F'
       counts = countStatuses(scan.results as Record<string, unknown>)
     }
@@ -76,12 +79,12 @@ export default async function Image({ params }: { params: Promise<{ id: string }
                   borderRadius: 20, padding: '8px 32px',
                 }}>{grade}</div>
                 <div style={{ display: 'flex', fontSize: 36, color: '#cbd5e1', fontWeight: 700 }}>
-                  AI visibility score
+                  Website readiness score
                 </div>
               </div>
             ) : (
               <div style={{ display: 'flex', fontSize: 36, color: '#cbd5e1', fontWeight: 700 }}>
-                Free AI visibility scan — 20 checks in ~15 seconds
+                {collectionFailed ? 'Scan could not be completed — please retry' : 'Website readiness — technical and content checks'}
               </div>
             )}
             {score !== null && (
@@ -95,7 +98,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
 
           {/* Footer */}
           <div style={{ display: 'flex', fontSize: 24, color: '#64748b', fontWeight: 600 }}>
-            How visible is your brand to ChatGPT, Perplexity, Claude &amp; Gemini? Scan free →
+            Review your website readiness. Scan free →
           </div>
         </div>
 

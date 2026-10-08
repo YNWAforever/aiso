@@ -90,6 +90,8 @@ const UI_EN = {
   platformNote: 'Not measured by this technical scan. Crawler access is reported separately below.',
   estimatedImpact: 'Estimated impact: the following projections are inferred from site checks, not measured visibility or guaranteed gains.',
   openFixPack: 'Open your Fix Pack',
+  collectionFailedTitle: 'This scan could not be completed',
+  collectionFailedBody: 'The website page was not collected. A score or improvement estimate would be misleading. Check the address and try again.',
 }
 
 const UI_ZH_HK: typeof UI_EN = {
@@ -108,6 +110,8 @@ const UI_ZH_HK: typeof UI_EN = {
   platformNote: '本技術掃描尚未量度實際曝光。下方另列爬蟲存取結果。',
   estimatedImpact: '預估影響：以下推算根據網站檢查，並非實際可見度測量，亦不保證改善成效。',
   openFixPack: '開啟你的 Fix Pack',
+  collectionFailedTitle: '未能完成這次掃描',
+  collectionFailedBody: '未有成功採集網站頁面，因此無法提供可靠分數或改善估算。請核對網址後重試。',
 }
 
 /* ── Helpers ────────────────────────────────────────────────── */
@@ -187,10 +191,17 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
   }, [lang, summary.id])
 
   useEffect(() => {
-    if (fullScan || !consumeOneTimeFunnelEvent(signupCtaTracked)) return
+    if (summary.collectionFailed || fullScan || !consumeOneTimeFunnelEvent(signupCtaTracked)) return
     const locale = lang === 'zh-HK' ? 'zh-HK' : 'en'
     trackFunnelEvent({ name: 'signup_cta_viewed', locale, scanId: summary.id })
-  }, [fullScan, lang, summary.id])
+  }, [fullScan, lang, summary.id, summary.collectionFailed])
+
+  if (summary.collectionFailed) return <main className="mx-auto max-w-2xl space-y-4 px-4 py-12" data-testid="collection-failed">
+    <p className="break-all text-sm text-muted-foreground">{summary.domain}</p>
+    <h1 className="text-2xl font-bold">{ui.collectionFailedTitle}</h1>
+    <p>{ui.collectionFailedBody}</p>
+    <Link href={`/${lang}/scan`} className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-primary-foreground">{ui.scanAnother}</Link>
+  </main>
 
   // GEO rich data
   type C17 = { qualityScore?: number; authorityBreakdown?: Record<string, number>; citationsPerThousandWords?: number; totalLinks?: number; externalLinks?: number }

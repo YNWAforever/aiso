@@ -10,6 +10,7 @@ export function ObservationDetailContent({observation:d,copy:c}:{observation:Obs
     [c.model,d.model],[c.requestedModel,d.requestedModel],[c.collector,d.collector],[c.market,d.market],
     [c.collectedAt,d.collectedAt],[c.classification,status],[c.sentiment,sentiment],
     [c.method,d.classification.method],[c.version,d.classification.version],
+    [c.providerFinishReason,d.providerFinishReason==='stop'?c.providerComplete:c.unknown],
   ]
   return <div className="space-y-4">
     <p>{c.apiSample}</p>
@@ -20,8 +21,13 @@ export function ObservationDetailContent({observation:d,copy:c}:{observation:Obs
     <dl className="grid gap-2 sm:grid-cols-2">{fields.map(([label,value])=><div key={label}><dt className="text-sm text-muted-foreground">{label}</dt><dd className="break-words">{value??c.unknown}</dd></div>)}</dl>
     <p>{d.classification.brandMentioned===null?c.classificationUnknown:d.classification.brandMentioned?c.brandMentioned:c.brandNotMentioned}</p>
     {!!d.classification.matchedText.length&&<section><h3 className="font-semibold">{c.matchedText}</h3><ul>{d.classification.matchedText.map((text,i)=><li key={i}>{text}</li>)}</ul></section>}
-    <section><h3 className="font-semibold">{c.links}</h3><p>{c.noProviderCitations}</p><ul>{d.links.map(link=><li key={link.url}>
-      <span>{link.kind==='text-link'?c.textLink:c.providerCitation}: </span><a className="underline break-all" href={link.url} target="_blank" rel="noopener noreferrer">{link.url}</a>
+    <section><h3 className="font-semibold">{c.links}</h3>
+      <p>{d.limitations.includes('provider-citations-unrecorded')?c.noProviderCitations
+        :d.links.some(link=>link.kind==='provider-citation')?c.providerEvidenceNote:c.providerCitationsEmpty}</p>
+      <ul>{d.links.map(link=><li key={link.url}>
+      <span>{link.kind==='text-link'?c.textLink:c.providerCitation}: </span>
+      {link.title&&<span>{link.title} — </span>}
+      <a className="underline break-all" href={link.url} target="_blank" rel="noopener noreferrer">{link.url}</a>
     </li>)}</ul></section>
     {!!d.limitations.length&&<section><h3 className="font-semibold">{c.limitations}</h3><ul>
       {!d.model&&<li>{c.unknownModel}</li>}{!d.market&&<li>{c.unknownMarket}</li>}{!d.collectedAt&&<li>{c.unknownCollectionTime}</li>}

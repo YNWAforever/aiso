@@ -66,10 +66,12 @@ export interface ObservationDetailDto extends Observation {
   providerRequestId:string|null
   classification:{status:'classified'|'fallback'|'failed'|'legacy_unknown';method:string|null;version:string|null;
     brandMentioned:boolean|null;sentiment:'positive'|'neutral'|'negative'|'unknown';matchedText:string[]}
-  links:{url:string;kind:'text-link'|'provider-citation'}[]
+  links:{url:string;title?:string|null;kind:'text-link'|'provider-citation'}[]
+  providerFinishReason?:string|null
 }
 export type ObservationDetailRow=PulseSourceRow & {
   snapshot:ObservationDetailDto['promptSnapshot'];brand_snapshot:ObservationDetailDto['brandSnapshot'];
   requested_model:string|null;collector:string|null;collector_version:string|null;provider_request_id:string|null;
   classifier_method:string|null;classifier_version:string|null;sentiment:string|null;matched_text:unknown;
+  provider_citations?:unknown;provider_finish_reason?:string|null;
 }

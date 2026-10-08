@@ -1,0 +1,12 @@
+id,severity,task,source_status,verification,release_status
+F23,High,Reject unscannable origins and hide failed-report score claims,Fixed,API form rendering metadata regressions and built-server HTTP smoke,Pending deployment
+F24,High,Preserve and distinguish provider citation evidence,Fixed,Provider projection rendering tests; local Postgres migration ACL test,Pending migration060 and guarded UAT
+F25,High,Reject blank or incomplete Pulse output and invalid usage,Fixed,Provider boundary regressions,Pending deployment and real provider UAT
+F26,Medium,Align homepage and sharing with measured readiness scope,Fixed,Bilingual copy review build and HTTP smoke,Pending deployment
+R1,High,Grant new mutable citation columns to runtime role,Fixed,PGlite actual migrations057/060 RED to GREEN,Pending deployment of migration060
+R2,Medium,Bound normalized Unicode citation URLs,Fixed,Unicode expansion regression RED to GREEN,Pending deployment
+G01,High,Explicitly authorize and complete AISO Google login UAT,Blocked,Automatic approval review denied distinct destination login,Open
+G02,High,Run guarded real Neon integration with approved role authority,Not run,Local ACL test is supplementary,Open
+G03,High,Merge parent remediation and deploy reviewed candidate through release gates,Not run,Main and production still f49e1bd,Open
+P01,Medium,Observed search-query fan-out and aggregate citation exploration,Product gap,AnsVisor reference inspected; not represented as AISO capability,Backlog
+P02,Medium,Verified AI referral and conversion attribution,Unverified,No live analytics installation or ingestion tested,Backlog

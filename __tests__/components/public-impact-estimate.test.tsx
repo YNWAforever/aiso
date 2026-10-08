@@ -21,6 +21,15 @@ const summary = buildPublicResultSummary({ id: 'public-scan', domain: 'example.c
 } })
 
 describe('public result impact estimate', () => {
+  it.each(['en','zh-HK'])('does not render a score, grade, upsell or projected gains for failed collection in %s', locale=>{
+    language.value=locale
+    const html=renderToStaticMarkup(<ResultClient lang={locale} summary={{...summary,collectionFailed:true}} />)
+    expect(html).toContain('collection-failed')
+    expect(html).not.toContain('score-reveal')
+    expect(html).not.toContain('/100')
+    expect(html).not.toContain('result-top-issue')
+    expect(html).not.toContain('pricing')
+  })
   it.each(['en', 'zh-HK'])('unverified_benchmark_is_hidden in %s and the technical score stays readable', locale => {
     language.value = locale
     const html = renderToStaticMarkup(<ScoreReveal score={73} grade="B" domain="example.test" industry="technology" />)
