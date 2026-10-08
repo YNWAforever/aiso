@@ -69,7 +69,7 @@ jobs:
         run: |
           mkdir -p artifacts/unit-contract coverage
           set +e
-          npm test -- --coverage --reporter=json --reporter=junit --outputFile.json=artifacts/unit-contract/vitest.json --outputFile.junit=artifacts/unit-contract/vitest.junit.xml 2>&1 | tee artifacts/unit-contract/vitest.log
+          npm run test:unit -- --coverage --reporter=json --reporter=junit --outputFile.json=artifacts/unit-contract/vitest.json --outputFile.junit=artifacts/unit-contract/vitest.junit.xml 2>&1 | tee artifacts/unit-contract/vitest.log
           vitest_exit=${PIPESTATUS[0]}
           set -e
           set +e

@@ -30,7 +30,7 @@ describe('PR gate workflow contract', () => {
     expect(workflow).toContain('npm ci')
     expect(workflow).toContain('npm run lint')
     expect(workflow).toContain('npm run typecheck')
-    expect(workflow).toContain('npm test -- --coverage')
+    expect(workflow).toContain('npm run test:unit -- --coverage')
     const e2eCommand = workflow.match(/npm run e2e -- ([^\r\n]+)/)?.[1] ?? ''
     expect(e2eCommand).toContain('--workers=1')
     expect(e2eCommand).toContain('--shard=${{ matrix.shard }}/4')
