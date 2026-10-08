@@ -14,6 +14,20 @@ export function buildScanClaimNext(lang: string, scanId: string): string {
   return `/${lang}/result/${encodeURIComponent(scanId)}?claim=1`
 }
 
+export async function requestScanClaim(scanId: string, lang: string, renewIntent = false): Promise<Response> {
+  if (renewIntent) {
+    // A failed write may have already spent the original one-use intent.
+    // Re-mint through the existing public gate; a newly owned scan is refused.
+    const intent = await fetch(`/api/scans/${encodeURIComponent(scanId)}/claim-intent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lang }),
+    })
+    if (!intent.ok) return intent
+  }
+  return fetch(`/api/scans/${encodeURIComponent(scanId)}/claim`, { method: 'POST' })
+}
+
 export function classifyClaimResponse(
   status: number,
   body: unknown,
@@ -45,14 +59,21 @@ export function ClaimScanOnReturn({ scanId, lang }: { scanId: string; lang: stri
   const [state, setState] = useState<ClaimReturnState>('idle')
   const locale = lang === 'zh-HK' ? 'zh-HK' : 'en'
 
-  const claim = useCallback(async () => {
+  const claim = useCallback(async (renewIntent = false) => {
     setState('claiming')
     try {
-      const response = await fetch(`/api/scans/${encodeURIComponent(scanId)}/claim`, { method: 'POST' })
+      const response = await requestScanClaim(scanId, lang, renewIntent)
       let body: unknown = null
       try {
         body = await response.json()
       } catch {}
+      if (renewIntent && response.status === 409 && body && typeof body === 'object'
+        && 'error' in body && body.error === 'Scan already belongs to an account') {
+        // The original claim may have succeeded before its response was lost.
+        // A fresh page request lets the server decide which account owns it.
+        window.location.replace(`/${lang}/result/${encodeURIComponent(scanId)}`)
+        return
+      }
       const result = classifyClaimResponse(response.status, body)
       const funnelEvents = getClaimReturnFunnelEvents(response.status, body)
       setState(result)
@@ -124,7 +145,7 @@ export function ClaimScanOnReturn({ scanId, lang }: { scanId: string; lang: stri
           type="button"
           onClick={() => {
             trackFunnelEvent({ name: 'scan_retry_clicked', locale, scanId })
-            void claim()
+            void claim(true)
           }}
           className="mt-2 min-h-11 rounded-lg px-3 text-sm font-bold text-primary underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >

@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { trackFunnelEvent } from '@/lib/funnel-client'
 import { normalizeScanUrl } from '@/lib/scan-input'
+import type { IndustryCode } from '@/lib/types'
 
 export type ScanFormProps = { lang: string }
 
@@ -55,10 +56,10 @@ const INDUSTRIES = [
   'travel_hospitality',
   'media_entertainment',
   'manufacturing',
-  'energy',
+  'energy_utilities',
   'general_b2b',
   'general_b2c',
-] as const
+] as const satisfies readonly IndustryCode[]
 
 const REGIONS = ['HK', 'TW', 'SG', 'JP', 'KR', 'US', 'UK', 'EU', 'AU', 'CA', 'global'] as const
 
@@ -219,7 +220,7 @@ export function ScanForm({ lang }: ScanFormProps) {
           >
             <option value="">{t('select_not_specified')}</option>
             {INDUSTRIES.map((value) => (
-              <option key={value} value={value}>{t(`industry_${value}`)}</option>
+              <option key={value} value={value}>{t(value === 'energy_utilities' ? 'industry_energy' : `industry_${value}`)}</option>
             ))}
           </select>
         </div>
