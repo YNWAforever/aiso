@@ -1,0 +1,189 @@
+{
+  "recordedAtUtc": "2026-10-08T01:15:46.380Z",
+  "sourceSha": "b0c1c4403126ff861dffef7393233f3799fdcf91",
+  "sourceParentSha": "ab757d84e77802df6820472f8ed345d7f80129de",
+  "environment": "Local Windows Node 24.18, synthetic runner/transport fixtures; separate guarded UAT operator SELECTs",
+  "change": "Fix maintenance foreign entity URL /entities -> /entity, require five matching owned 200 JSON controls and exact foreign 404 ownership-only bodies",
+  "files": [
+    {
+      "path": "tests/e2e/authenticated/aiso-maintenance.spec.ts",
+      "workingFileSha256": "2f08b71d33ce2441dcf100d9f120f31984c38cf15c72d5b956329bbe44968bcf",
+      "commitFileSha256": "f8db281cb53c576ad28d95184ed17c780e67d04c76a4ac313e924989b7f8d32b"
+    },
+    {
+      "path": "__tests__/config/maintenance-uat-contract.test.ts",
+      "workingFileSha256": "97bd1c2dd66283c372711c6d47fec33194adceb4f3898a8a467a688b3b2ee28d",
+      "commitFileSha256": "97bd1c2dd66283c372711c6d47fec33194adceb4f3898a8a467a688b3b2ee28d"
+    }
+  ],
+  "red": {
+    "command": "npm run test:unit -- __tests__/config/maintenance-uat-contract.test.ts --reporter=json --outputFile=artifacts/aiso/2026-10-08/maintenance-runner/red-collected.json",
+    "exitCode": 1,
+    "files": 1,
+    "discovered": 9,
+    "passed": 1,
+    "failed": 8,
+    "skipped": 0
+  },
+  "green": {
+    "command": "npm run test:unit -- __tests__/config/maintenance-uat-contract.test.ts --reporter=json --outputFile=artifacts/aiso/2026-10-08/maintenance-runner/green.json",
+    "exitCode": 0,
+    "files": 1,
+    "discovered": 9,
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0
+  },
+  "unit": {
+    "file": "unit-command.json",
+    "command": "npm run test:unit -- --reporter=json --outputFile=artifacts/aiso/2026-10-08/maintenance-runner/unit.json",
+    "exit": 0,
+    "completed_at": "2026-10-08T01:08:59.8572165Z",
+    "started_at": "2026-10-08T01:07:42.3237188Z",
+    "files": 374,
+    "discovered": 5357,
+    "passed": 5357,
+    "failed": 0,
+    "skipped": 0
+  },
+  "static": {
+    "typecheck": {
+      "file": "typecheck-verified-command.json",
+      "exit": 0,
+      "started_at": "2026-10-08T01:09:32.5899477Z",
+      "command": "npm run typecheck",
+      "completed_at": "2026-10-08T01:09:41.9541268Z"
+    },
+    "lint": {
+      "file": "lint-command.json",
+      "completed_at": "2026-10-08T01:09:21.1469118Z",
+      "started_at": "2026-10-08T01:07:41.7406916Z",
+      "exit": 0,
+      "command": "npm run lint"
+    }
+  },
+  "priorInvalidAttempts": [
+    {
+      "file": "red.json",
+      "exitCode": 1,
+      "discovered": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "result": "Collection failed on sandbox temp-cache EPERM; not RED evidence or a pass"
+    },
+    {
+      "file": "collection-failure.log",
+      "exitCode": 1,
+      "discovered": 0,
+      "result": "Same cache failure; retained"
+    },
+    {
+      "file": "typecheck-command.json",
+      "started_at": "2026-10-08T01:07:42.1924913Z",
+      "command": "npm run typecheck",
+      "exit": 0,
+      "completed_at": "2026-10-08T01:08:34.2404327Z",
+      "result": "Exit 0 but Next native access-denied/panic; not a successful typecheck. Verified retry retained."
+    }
+  ],
+  "readOnlyUatData": {
+    "command": "node artifacts/aiso/2026-10-08/maintenance-runner/read-owned-data.mjs",
+    "exitCode": 0,
+    "checks": {
+      "discovered": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0
+    },
+    "ownedDataReads": [
+      {
+        "route": "entity",
+        "selectSucceeded": true,
+        "limit": 1,
+        "rowsReturned": 0,
+        "expectedFixtureState": "empty"
+      },
+      {
+        "route": "sources",
+        "selectSucceeded": true,
+        "limit": 1,
+        "rowsReturned": 0,
+        "expectedFixtureState": "empty"
+      },
+      {
+        "route": "observations",
+        "selectSucceeded": true,
+        "limit": 1,
+        "rowsReturned": 0,
+        "expectedFixtureState": "empty"
+      },
+      {
+        "route": "work-items",
+        "selectSucceeded": true,
+        "limit": 1,
+        "rowsReturned": 0,
+        "expectedFixtureState": "empty"
+      },
+      {
+        "route": "prompts",
+        "selectSucceeded": true,
+        "limit": 1,
+        "rowsReturned": 0,
+        "expectedFixtureState": "empty"
+      }
+    ],
+    "actualBinding": {
+      "project_id": "nameless-term-06793418",
+      "branch_id": "br-ancient-glitter-b34yew8s",
+      "role": "aeo_app",
+      "database": "neondb"
+    },
+    "fixtureUnchanged": true,
+    "normalBrowserAcceptance": false
+  },
+  "productSourceComparison": {
+    "deployedSha": "d1aecceb3f0680d4e03b7aad9dd2f84f9b5ac9cb",
+    "currentSourceSha": "b0c1c4403126ff861dffef7393233f3799fdcf91",
+    "paths": [
+      "app",
+      "lib",
+      "components",
+      "proxy.ts",
+      "cloudflare",
+      "supabase",
+      "package.json",
+      "package-lock.json",
+      "next.config.ts"
+    ],
+    "differentFiles": []
+  },
+  "normalBrowser": {
+    "discovered": null,
+    "passed": null,
+    "failed": null,
+    "skipped": null,
+    "assertionsExecuted": 0,
+    "capture": "Missing",
+    "actualForeignClientId": "Missing",
+    "humanEntitiesHeading": "Pending direct reply",
+    "controlError": "CUA initialization/reset/retry failed before tab/DOM; kernel 60356 exit 1, windows sandbox apply deny-read ACLs",
+    "mockSession": false
+  },
+  "historicalCi": "Earlier approved CI and latest automatic failed guarded role/exact-target run retained with own SHA/counts; new runner fixtures differ, permission is consumed, no new privileged run requested or approved",
+  "worker": "Prior own-lockfile/scripts evidence retained; this test-only change does not modify Worker source",
+  "production": {
+    "id": "dpl_3u2uYmVaoLGqGCTSWraVfUZXjzJ2",
+    "projectId": "prj_f9sxRkT1gxcBSYgT7ELIwHWqUDDV",
+    "sha": "f49e1bd8951394cf88250b3ea88847d0038db491",
+    "readyState": "READY"
+  },
+  "productionRuntimeBinding": "Unknown; previous owner-ledger/config review remains dated evidence",
+  "appDataWrites": 0,
+  "providerCalls": 0,
+  "emailsSent": 0,
+  "roleChanges": 0,
+  "deployments": 0,
+  "productionMutations": 0,
+  "productionAcceptance": "open"
+}

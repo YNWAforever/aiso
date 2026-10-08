@@ -1,0 +1,69 @@
+{
+  "startedAtUtc": "2026-10-08T01:10:58.686Z",
+  "command": "node artifacts/aiso/2026-10-08/maintenance-runner/read-owned-data.mjs",
+  "environment": "Dedicated approved UAT; direct operator SELECTs through aeo_app",
+  "operation": "Read only owned maintenance table/column permissions and empty fixture data; not service, Auth, API, browser or foreign-tenant acceptance",
+  "accountId": "30f13298-cd79-42ba-bfdd-ba2613db7f01",
+  "clientId": "9c43c390-5af5-449a-8df7-3a6c5df0f2a3",
+  "checks": {
+    "discovered": 11,
+    "passed": 11,
+    "failed": 0,
+    "skipped": 0
+  },
+  "appDataWrites": 0,
+  "providerCalls": 0,
+  "emailsSent": 0,
+  "roleChanges": 0,
+  "productionChanges": 0,
+  "normalBrowserAssertionsExecuted": 0,
+  "productionAcceptance": "open",
+  "candidateBaseSha": "ab757d84e77802df6820472f8ed345d7f80129de",
+  "actualBinding": {
+    "project_id": "nameless-term-06793418",
+    "branch_id": "br-ancient-glitter-b34yew8s",
+    "role": "aeo_app",
+    "database": "neondb"
+  },
+  "ownedDataReads": [
+    {
+      "route": "entity",
+      "selectSucceeded": true,
+      "limit": 1,
+      "rowsReturned": 0,
+      "expectedFixtureState": "empty"
+    },
+    {
+      "route": "sources",
+      "selectSucceeded": true,
+      "limit": 1,
+      "rowsReturned": 0,
+      "expectedFixtureState": "empty"
+    },
+    {
+      "route": "observations",
+      "selectSucceeded": true,
+      "limit": 1,
+      "rowsReturned": 0,
+      "expectedFixtureState": "empty"
+    },
+    {
+      "route": "work-items",
+      "selectSucceeded": true,
+      "limit": 1,
+      "rowsReturned": 0,
+      "expectedFixtureState": "empty"
+    },
+    {
+      "route": "prompts",
+      "selectSucceeded": true,
+      "limit": 1,
+      "rowsReturned": 0,
+      "expectedFixtureState": "empty"
+    }
+  ],
+  "fixtureUnchanged": true,
+  "exitCode": 0,
+  "completedAtUtc": "2026-10-08T01:11:01.372Z",
+  "scriptSha256": "dca1711f07cb4e595903f96a730a81aeebb0dc57cade2ac3075284c6c39b7927"
+}
