@@ -20,7 +20,11 @@ export function normalizeProviderCitations(value: unknown): ProviderCitation[] |
     if (!entry || typeof entry !== 'object') continue
     const url = safeEvidenceUrl(entry.url)
     if (!url || citations.has(url)) continue
-    const title = typeof entry.title === 'string' ? entry.title.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 300) || null : null
+    // Truncate by Unicode code point: slicing UTF-16 can split an emoji and
+    // create a lone surrogate, which PostgreSQL JSONB rejects for the whole attempt.
+    const title = typeof entry.title === 'string'
+      ? Array.from(entry.title.toWellFormed().replace(/[\u0000-\u001f]/g, '').trim()).slice(0, 300).join('') || null
+      : null
     citations.set(url, { url, title })
     if (citations.size === 50) break
   }

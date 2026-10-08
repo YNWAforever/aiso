@@ -78,7 +78,7 @@ export async function selectPendingClientPage(sql: Sql, options: {
            a.override_plan, a.override_expires_at
     from clients c
     join accounts a on a.id = c.account_id
-    where exists (
+    where c.status = 'active' and exists (
             select 1 from prompt_bank pb
             where pb.client_id = c.id and pb.is_active
           )

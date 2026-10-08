@@ -43,6 +43,7 @@ export async function loadOwnedPulse({clientId,profile}:{clientId:string;profile
   read('missed',async()=>await sql`
    select m.platform,m.question,m.competitors_mentioned,m.scan_week from pulse_metrics m join clients c on c.id=m.client_id
    where c.id=${clientId} and c.account_id=${accountId} and m.brand_mentioned=false and m.raw_answer ~ '[^[:space:]]'
+     and to_jsonb(m)->>'classification_status'='classified'
    order by m.scan_week desc,m.id desc limit 50
   ` as ClientOverview['missedOpportunities'],[]),
   read('prompts',async()=>await sql`

@@ -111,7 +111,10 @@ export async function computeWeeklySummary(
       brand_mentions      = excluded.brand_mentions,
       sov_score           = excluded.sov_score,
       avg_sentiment_score = excluded.avg_sentiment_score,
-      top_competitors     = excluded.top_competitors
+      top_competitors     = excluded.top_competitors,
+      -- This mutable projection's generation time allows a failed final rollup
+      -- to be repaired without changing collection status or saved evidence.
+      created_at         = now()
     returning scan_week, platform
   `
 

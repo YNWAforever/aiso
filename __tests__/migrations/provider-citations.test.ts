@@ -1,6 +1,26 @@
 import {readFileSync} from 'node:fs'
 import {PGlite} from '@electric-sql/pglite'
 import {it,expect} from 'vitest'
+import {normalizeProviderCitations} from '@/lib/pulse/provider-citations'
+
+it('stores bounded citation titles as valid Unicode JSONB, including emoji at the boundary', async () => {
+  const pg = await PGlite.create()
+  try {
+    const fixtures = [
+      { title: 'x'.repeat(299) + '😀' + 'truncated', expected: 'x'.repeat(299) + '😀' },
+      { title: 'source\ud83d title', expected: 'source\ufffd title' },
+      { title: 'source\ude00 title', expected: 'source\ufffd title' },
+      { title: '\u0000中文😀\n', expected: '中文😀' },
+    ]
+    for (const { title, expected } of fixtures) {
+      const citations = normalizeProviderCitations([{url: 'https://source.example/article', title}])
+      // PostgreSQL rejects lone surrogates even though JSON.stringify accepts them.
+      // Exercise the real storage boundary so a citation cannot discard the answer.
+      const {rows} = await pg.query<{evidence: unknown}>('select $1::jsonb as evidence', [JSON.stringify(citations)])
+      expect(rows[0].evidence).toEqual([{url: 'https://source.example/article', title: expected}])
+    }
+  } finally { await pg.close() }
+})
 
 // A local, in-memory Postgres ACL regression. This does not replace the guarded
 // Neon integration suite or grant any role on an external database.
