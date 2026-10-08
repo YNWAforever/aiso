@@ -23,17 +23,18 @@ vi.mock('next-intl/middleware', () => ({
 }))
 
 const CHALLENGE_COOKIE = '__Secure-neon-auth.session_challange'
+const CHALLENGE_COOKIES = ['__Secure-neon-auth.session_challenge', CHALLENGE_COOKIE] as const
 
 describe('proxy', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('delegates verifier requests WITH the challenge cookie to the auth middleware', async () => {
+  it.each(CHALLENGE_COOKIES)('delegates verifier requests WITH %s to the auth middleware', async challengeCookie => {
     const { proxy } = await import('@/proxy')
     const req = new NextRequest(
       'https://app.example.com/en/dashboard?neon_auth_session_verifier=abc123',
-      { headers: { cookie: `${CHALLENGE_COOKIE}=challenge-value` } }
+      { headers: { cookie: `${challengeCookie}=challenge-value` } }
     )
     const res = await proxy(req)
     expect(middlewareFactory).toHaveBeenCalledWith({ loginUrl: '/en/auth/login' })
@@ -70,6 +71,15 @@ describe('proxy', () => {
     const { proxy } = await import('@/proxy')
     const req = new NextRequest('https://app.example.com/en/pricing')
     await proxy(req)
+    expect(intlSpy).toHaveBeenCalledTimes(1)
+    expect(middlewareFactory).not.toHaveBeenCalled()
+  })
+  it.each(CHALLENGE_COOKIES)('keeps %s without a verifier on the public intl path', async challengeCookie => {
+    const { proxy } = await import('@/proxy')
+    const res = await proxy(new NextRequest('https://app.example.com/en/pricing', {
+      headers: { cookie: `${challengeCookie}=challenge-value` },
+    }))
+    expect(res.status).toBe(200)
     expect(intlSpy).toHaveBeenCalledTimes(1)
     expect(middlewareFactory).not.toHaveBeenCalled()
   })
@@ -122,9 +132,9 @@ describe('proxy matcher', () => {
 
 describe('embedded Google popup completion', () => {
   beforeEach(() => vi.clearAllMocks())
-  for (const lang of ['en', 'zh-HK']) it(`keeps the verifier when Next re-enters the ${lang} public popup completion`, async () => {
+  for (const lang of ['en', 'zh-HK']) it.each(CHALLENGE_COOKIES)(`keeps the verifier when Next re-enters the ${lang} public popup completion with %s`, async challengeCookie => {
     const { proxy } = await import('@/proxy')
-    await proxy(new NextRequest(`https://app.example.com/${lang}/auth/complete?neon_popup=1&neon_auth_session_verifier=synthetic`, { headers: { cookie: `${CHALLENGE_COOKIE}=fixture` } }))
+    await proxy(new NextRequest(`https://app.example.com/${lang}/auth/complete?neon_popup=1&neon_auth_session_verifier=synthetic`, { headers: { cookie: `${challengeCookie}=fixture` } }))
     expect(middlewareFactory).not.toHaveBeenCalled()
     expect(intlSpy).toHaveBeenCalledTimes(1)
   })
