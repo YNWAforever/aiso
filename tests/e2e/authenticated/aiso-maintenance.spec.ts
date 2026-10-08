@@ -17,8 +17,24 @@ for(const lang of ['en','zh-HK'] as const)for(const width of [360,390,1440]){
    expect(response?.status()).toBe(200);await expect(page.getByRole('heading',{level:1})).toBeVisible()
    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
   }
-  for(const endpoint of [`/api/clients/${foreign}/entities`,`/api/clients/${foreign}/sources`,`/api/clients/${foreign}/observations`,`/api/clients/${foreign}/work-items`,`/api/dashboard/clients/${foreign}/prompts`]){
-   const response=await authenticatedGet(page, endpoint);expect(response.status(),endpoint).toBe(404)
+  const reads=[
+   {path:(id:string)=>`/api/clients/${id}/entity`,key:'entity',denied:'CLIENT_NOT_FOUND'},
+   {path:(id:string)=>`/api/clients/${id}/sources`,key:'sources',denied:'SOURCES_NOT_FOUND'},
+   {path:(id:string)=>`/api/clients/${id}/observations`,key:'items',denied:'CLIENT_NOT_FOUND'},
+   {path:(id:string)=>`/api/clients/${id}/work-items`,key:'items',denied:'CLIENT_NOT_FOUND'},
+   {path:(id:string)=>`/api/dashboard/clients/${id}/prompts`,key:'prompts',denied:'Not found'},
+  ]
+  for(const read of reads){
+   // A fallback 404 proves nothing. First establish a working owned read of the
+   // same route, then require its exact JSON ownership error without extra data.
+   const ownedEndpoint=read.path(own),owned=await authenticatedGet(page,ownedEndpoint)
+   expect(owned.status(),ownedEndpoint).toBe(200)
+   const body=await owned.json();expect(body,ownedEndpoint).not.toHaveProperty('error')
+   if(read.key==='entity')expect(body,ownedEndpoint).toHaveProperty('entity')
+   else expect(Array.isArray(body[read.key]),ownedEndpoint).toBe(true)
+   const endpoint=read.path(foreign),response=await authenticatedGet(page,endpoint)
+   expect(response.status(),endpoint).toBe(404)
+   expect(await response.json(),endpoint).toEqual({error:read.denied})
   }
  })
 }
