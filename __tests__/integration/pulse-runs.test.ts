@@ -59,6 +59,19 @@ async function fixture(test:(scope:PulseScope)=>Promise<void>,promptCount=3){
 const runFor=(scope:PulseScope)=>createOrResumeRun(scope,{scanWeek:'2026-09-28',manifest})
 const claim=(scope:PulseScope,runId:string,limit=5)=>claimDueItems(scope,runId,{owner:'synthetic-worker',leaseUntil:new Date(Date.now()+60_000),limit})
 describe('T05 guarded Neon run ledger',()=>{
+  it('preserves provider citations through accepted attempt and tenant-scoped detail',async()=>fixture(async scope=>{
+    const run=(await runFor(scope))!
+    const [lease]=await claim(scope,run.id,1)
+    const providerCitations=[{url:'https://source.example/report',title:'Synthetic source'}]
+    expect(await commitAttempt(lease,{kind:'succeeded',evidence:{...evidence,providerCitations,providerFinishReason:'stop'}})).toBe('committed')
+    const [attempt]=await sql`select provider_citations,provider_finish_reason from pulse_item_attempts where account_id=${scope.accountId} and id=${lease.attemptId}`
+    expect(attempt).toEqual({provider_citations:providerCitations,provider_finish_reason:'stop'})
+    const [metric]=await sql`select id from pulse_metrics where run_item_id=${lease.id} and client_id=${scope.clientId}`
+    expect(await loadObservationDetail(scope.accountId,scope.clientId,metric.id)).toMatchObject({
+      links:[{...providerCitations[0],kind:'provider-citation'}],providerFinishReason:'stop',
+    })
+    expect(await loadObservationDetail(randomUUID(),scope.clientId,metric.id)).toBeNull()
+  },1))
   it('T15 reads partial coverage and scoped failed items without mutating run evidence',async()=>fixture(async scope=>{
     const run=(await runFor(scope))!
     const leased=await claim(scope,run.id,15)

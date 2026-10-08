@@ -5,17 +5,13 @@ import { ChevronDown, LoaderCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { trackFunnelEvent } from '@/lib/funnel-client'
+import { normalizeScanUrl } from '@/lib/scan-input'
+import type { IndustryCode } from '@/lib/types'
 
 export type ScanFormProps = { lang: string }
 
 export function normalizeSubmittedUrl(value: string): string {
-  const trimmed = value.trim()
-  if (!trimmed) throw new Error('empty_url')
-  const hasScheme = /^[a-z][a-z\d+.-]*:/i.test(trimmed)
-  const withProtocol = hasScheme ? trimmed : `https://${trimmed}`
-  const parsed = new URL(withProtocol)
-  if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('invalid_protocol')
-  return parsed.toString()
+  return normalizeScanUrl(value)
 }
 
 export function getScanSubmitLabelKey(hasFailed: boolean): 'cta' | 'retry_scan' {
@@ -33,6 +29,7 @@ export function getScanResultId(payload: unknown): string {
 // Match only known API failures; never show server diagnostics to visitors.
 export function getScanErrorKey(status: number, payload: unknown) {
   const error = payload && typeof payload === 'object' && 'error' in payload ? payload.error : undefined
+  if (status === 502 && error === 'SCAN_PAGE_UNAVAILABLE') return 'scan_page_unavailable'
   if (status === 400 && typeof error === 'string' && [
     'Invalid URL', 'Invalid URL format', 'URL must use HTTP or HTTPS without credentials',
     'URL must resolve to a public HTTP or HTTPS address',
@@ -59,10 +56,10 @@ const INDUSTRIES = [
   'travel_hospitality',
   'media_entertainment',
   'manufacturing',
-  'energy',
+  'energy_utilities',
   'general_b2b',
   'general_b2c',
-] as const
+] as const satisfies readonly IndustryCode[]
 
 const REGIONS = ['HK', 'TW', 'SG', 'JP', 'KR', 'US', 'UK', 'EU', 'AU', 'CA', 'global'] as const
 
@@ -223,7 +220,7 @@ export function ScanForm({ lang }: ScanFormProps) {
           >
             <option value="">{t('select_not_specified')}</option>
             {INDUSTRIES.map((value) => (
-              <option key={value} value={value}>{t(`industry_${value}`)}</option>
+              <option key={value} value={value}>{t(value === 'energy_utilities' ? 'industry_energy' : `industry_${value}`)}</option>
             ))}
           </select>
         </div>

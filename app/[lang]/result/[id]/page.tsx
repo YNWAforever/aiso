@@ -5,7 +5,7 @@ import { getE2EScanFixture } from '@/lib/e2e-fixtures'
 import { ResultClient }     from '@/components/result/ResultClient'
 import { getProfile }       from '@/lib/auth'
 import { buildOwnedResultEvidence } from '@/lib/result-evidence'
-import { buildPublicResultSummary, canViewFullResult } from '@/lib/result-access'
+import { buildPublicResultSummary, canViewFullResult, hasFailedScanPage } from '@/lib/result-access'
 import type { Scan }        from '@/lib/types'
 import type { Metadata }    from 'next'
 
@@ -73,14 +73,18 @@ export async function generateMetadata({
     return { title: isZh ? 'AI 可見度掃描 — Fimmick AISO' : 'AI Visibility Scan — Fimmick AISO' }
   }
 
+  if (hasFailedScanPage(scan.results as Record<string,unknown>)) {
+    const title=isZh ? `${scan.domain} — 未能完成掃描` : `${scan.domain} — scan could not be completed`
+    return {title,openGraph:{title},twitter:{card:'summary',title}}
+  }
   const score = Math.round(scan.score)
   const grade = scan.grade ?? 'F'
   const title = isZh
-    ? `${scan.domain} 的 AI 可見度得分 ${score}/100（${grade}）`
-    : `${scan.domain} scored ${score}/100 (${grade}) on AI visibility`
+    ? `${scan.domain} 的網站就緒分數 ${score}/100（${grade}）`
+    : `${scan.domain} scored ${score}/100 (${grade}) on website readiness`
   const description = isZh
-    ? `查看 ${scan.domain} 在 ChatGPT、Perplexity、Claude 及 Gemini 的可見度——由 Fimmick AISO 提供的 20 項 AI 就緒檢查。`
-    : `See how visible ${scan.domain} is to ChatGPT, Perplexity, Claude and Gemini — 20-check AI readiness scan by Fimmick AISO.`
+    ? `查看 ${scan.domain} 的網站技術及內容就緒檢查。此分數並非 AI 推薦率或曝光量。`
+    : `Review technical and content readiness for ${scan.domain}. This score does not measure AI recommendations or exposure.`
   return {
     title,
     description,

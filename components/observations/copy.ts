@@ -51,6 +51,7 @@ export const observationCopyKeys = [
   'model','requestedModel','collector','collectedAt','market','classification','classified','fallback','failed','legacyUnknown',
   'sentiment','positive','neutral','negative','method','version','matchedText','links','textLink','providerCitation','noProviderCitations',
   'promptSnapshot','snapshotLanguage','limitations','brandSnapshot',
+  'providerEvidenceNote','providerCitationsEmpty','providerFinishReason','providerComplete',
   ...workflowCopyKeys,
 ] as const
 export type ObservationCopy = Record<

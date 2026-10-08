@@ -16,7 +16,7 @@ vi.mock('@/lib/db', () => ({ db: () => sqlMock }))
 vi.mock('next/navigation', () => ({ notFound: notFoundMock }))
 vi.mock('@/components/result/ResultClient', () => ({ ResultClient: () => null }))
 
-import ResultPage from '@/app/[lang]/result/[id]/page'
+import ResultPage, {generateMetadata} from '@/app/[lang]/result/[id]/page'
 
 const RAW_EVIDENCE = 'SENTINEL_RAW_PRIVATE_EVIDENCE'
 const PRIVATE_REMEDIATION = 'SENTINEL_PRIVATE_REMEDIATION'
@@ -65,6 +65,15 @@ function expectSanitized(props: ResultClientProps) {
 }
 
 describe('public result route access boundary', () => {
+  it('withholds failed collection grades from social/search metadata',async()=>{
+    const row=scan('failed-page',null)
+    Object.assign(row.results,{evidence:buildScanEvidence({requestedUrl:row.url,evaluatedUrl:row.url,industry:null,region:null,sitemapSource:'unknown',checks:{},
+      observations:[{check:'page',collection:'failed',httpStatus:503,target:{origin:row.url}}]})})
+    sqlMock.mockResolvedValue([row])
+    const metadata=await generateMetadata({params:Promise.resolve({id:row.id,lang:'en'})})
+    expect(metadata.title).toContain('could not be completed')
+    expect(JSON.stringify(metadata)).not.toContain('/100')
+  })
   beforeEach(() => {
     vi.clearAllMocks()
   })

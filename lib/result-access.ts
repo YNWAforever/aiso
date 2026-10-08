@@ -11,6 +11,14 @@ export function canViewFullResult(
   return Boolean(scanAccountId && viewerAccountId && scanAccountId === viewerAccountId)
 }
 
+/** A recorded collection failure is not a poor website score. Legacy unknown remains unknown. */
+export function hasFailedScanPage(results: Record<string, unknown>): boolean {
+  const evidence=readScanEvidence(results.evidence)
+  return !!evidence && evidence.completedPages===0 && (
+    ['failed','blocked'].includes(evidence.collection) || evidence.observations.some(observation=>
+      observation.check==='page' && (['failed','blocked'].includes(observation.collection) || (observation.httpStatus??0)>=400)))
+}
+
 export function buildPublicResultSummary(
   scan: Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'industry' | 'region' | 'results'>
     & Partial<Pick<Scan, 'account_id' | 'created_at'>> ,
@@ -33,6 +41,7 @@ export function buildPublicResultSummary(
   return {
     id: scan.id,
     domain: scan.domain,
+    collectionFailed: hasFailedScanPage(results),
     score: scan.score,
     grade: scan.grade ?? 'F',
     industry: scan.industry ?? null,

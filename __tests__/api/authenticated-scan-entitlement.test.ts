@@ -74,7 +74,7 @@ vi.mock('@/lib/db', () => ({
   ),
 }))
 
-const fetchMock = vi.fn().mockResolvedValue(new Response('<html>ok</html>', { status: 200 }))
+const fetchMock = vi.fn().mockImplementation(async () => new Response('<html>ok</html>', { status: 200 }))
 vi.stubGlobal('fetch', fetchMock)
 
 function paidAccount(plan: TestAccount['plan']): TestAccount {

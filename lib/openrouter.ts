@@ -1,4 +1,5 @@
 import { clampOutputTokens, type TaskBudget } from '@/lib/agents/budget'
+import { citationsFromAnnotations } from '@/lib/pulse/provider-citations'
 const BASE = 'https://openrouter.ai/api/v1/chat/completions'
 
 interface Message {
@@ -99,7 +100,7 @@ export async function callOpenRouterWithEvidence({ label, model, messages, maxTo
     throw new Error(`OpenRouter ${res.status}: ${text}`)
   }
 
-  let data: CompletionMetadata & { choices?: Array<{ message?: { content?: unknown } }> }
+  let data: CompletionMetadata & { choices?: Array<{ message?: { content?: unknown; annotations?: unknown } }> }
   try {
     data = await res.json()
   } catch (error) {
@@ -109,13 +110,19 @@ export async function callOpenRouterWithEvidence({ label, model, messages, maxTo
   logUsage(label, model, data)
 
   const content = data?.choices?.[0]?.message?.content
-  if (typeof content !== 'string') {
+  if (typeof content !== 'string' || !content.trim()) {
     fail({ reason: 'no_content', finishReason: str(data?.choices?.[0]?.finish_reason) })
     throw new Error('OpenRouter returned no content')
   }
+  const finishReason = str(data?.choices?.[0]?.finish_reason)
+  if (label === 'pulse.platform' && finishReason !== null && finishReason !== 'stop') {
+    fail({ reason: 'incomplete_content', finishReason })
+    throw new Error('OpenRouter returned incomplete content')
+  }
   return { answer: content, actualModel: str(data.model), requestId: str(data.id),
-    promptTokens: num(data.usage?.prompt_tokens), completionTokens: num(data.usage?.completion_tokens),
-    costUsd: num(data.usage?.cost), httpStatus: res.status }
+    promptTokens: tokens(data.usage?.prompt_tokens), completionTokens: tokens(data.usage?.completion_tokens),
+    costUsd: num(data.usage?.cost), httpStatus: res.status,
+    providerCitations: citationsFromAnnotations(data?.choices?.[0]?.message?.annotations), providerFinishReason: finishReason?.slice(0,64) ?? null }
 }
 
 /**
@@ -140,7 +147,8 @@ type CompletionMetadata = {
   choices?: Array<{ finish_reason?: unknown }>
 }
 
-const num = (value: unknown): number | null => (typeof value === 'number' ? value : null)
+const num = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null)
+const tokens = (value: unknown): number | null => (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= 2147483647 ? value : null)
 const str = (value: unknown): string | null => (typeof value === 'string' ? value : null)
 
 /**
@@ -161,8 +169,8 @@ function logUsage(label: CallLabel, model: string, data: CompletionMetadata | nu
     model,
     servedBy: str(data?.model),
     generationId: str(data?.id),
-    promptTokens: num(data?.usage?.prompt_tokens),
-    completionTokens: num(data?.usage?.completion_tokens),
+    promptTokens: tokens(data?.usage?.prompt_tokens),
+    completionTokens: tokens(data?.usage?.completion_tokens),
     costUsd: num(data?.usage?.cost),
     finishReason,
   }

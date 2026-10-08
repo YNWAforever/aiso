@@ -23,6 +23,11 @@ const scan = {
 } as const
 
 describe('result access', () => {
+  it('marks a historical failed page collection as unscorable', () => {
+    const evidence=buildScanEvidence({requestedUrl:'https://example.com',evaluatedUrl:'https://example.com',industry:null,region:null,sitemapSource:'unknown',checks:{},
+      observations:[{check:'page',collection:'failed',httpStatus:503,target:{origin:'https://example.com'}}]})
+    expect(buildPublicResultSummary({...scan,results:{...scan.results,evidence}})).toMatchObject({collectionFailed:true})
+  })
   it('unlocks only for the owning account', () => {
     expect(canViewFullResult('account-1', 'account-1')).toBe(true)
     expect(canViewFullResult('account-1', 'account-2')).toBe(false)

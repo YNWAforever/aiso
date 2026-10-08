@@ -33,12 +33,14 @@ import { AUTH_RETURN_TO_HEADER, safeReturnTo } from '@/lib/auth-return-to'
 // SKIP_ROUTES don't match our i18n paths, so running it globally would redirect
 // anonymous visitors on public pages to a nonexistent /auth/sign-in.
 //
-// (Names not exported by @neondatabase/auth — values verified against the
-// package dist: NEON_AUTH_SESSION_VERIFIER_PARAM_NAME and
-// NEON_AUTH_SESSION_CHALLENGE_COOKIE_NAME, including the SDK's "challange"
-// spelling.)
+// Values verified against the installed Neon SDK. During the hosted server's
+// cookie-name migration, the SDK accepts both the canonical challenge cookie
+// and the legacy "challange" spelling. Recognise both before delegating.
 const NEON_AUTH_SESSION_VERIFIER_PARAM = 'neon_auth_session_verifier'
-const NEON_AUTH_SESSION_CHALLENGE_COOKIE = '__Secure-neon-auth.session_challange'
+const NEON_AUTH_SESSION_CHALLENGE_COOKIES = [
+  '__Secure-neon-auth.session_challenge',
+  '__Secure-neon-auth.session_challange',
+]
 
 const intlMiddleware = createIntlMiddleware(routing)
 
@@ -77,7 +79,7 @@ export function proxy(request: NextRequest) {
   if (
     !popupCompletion &&
     request.nextUrl.searchParams.has(NEON_AUTH_SESSION_VERIFIER_PARAM) &&
-    request.cookies.has(NEON_AUTH_SESSION_CHALLENGE_COOKIE)
+    NEON_AUTH_SESSION_CHALLENGE_COOKIES.some(name => request.cookies.has(name))
   ) {
     return auth().middleware({ loginUrl: `/${lang}/auth/login` })(trustedRequest)
   }

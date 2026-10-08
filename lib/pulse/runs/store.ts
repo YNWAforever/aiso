@@ -95,6 +95,8 @@ export async function commitAttempt(lease: LeasedItem, output: AttemptOutput): P
       update pulse_item_attempts a set collection_status = ${output.kind},accepted = true,finished_at = now(),
         raw_answer = ${evidence?.answer ?? null},actual_model = ${evidence?.actualModel ?? null},provider_request_id = ${evidence?.requestId ?? null},
         prompt_tokens = ${evidence?.promptTokens ?? null},completion_tokens = ${evidence?.completionTokens ?? null},cost_usd = ${evidence?.costUsd ?? null},
+        provider_citations = ${evidence?.providerCitations == null ? null : JSON.stringify(evidence.providerCitations)}::jsonb,
+        provider_finish_reason = ${evidence?.providerFinishReason ?? null},
         http_status = ${evidence?.httpStatus ?? (output.kind !== 'succeeded' ? output.httpStatus ?? null : null)},
         error_code = ${output.kind !== 'succeeded' ? output.errorCode.slice(0,80) : null}
       from current i where a.id = ${lease.attemptId}::uuid and a.item_id = i.id and a.lease_token = i.lease_token and a.fence = i.fence

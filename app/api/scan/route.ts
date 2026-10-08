@@ -38,6 +38,7 @@ import { calculatePillarScores } from '@/lib/pillar-scores'
 import { buildScanEvidence, CHECK_VERSIONS, type EvidenceCheckKey } from '@/lib/scan-evidence'
 import { createScanEvidenceCapture } from '@/lib/scan-evidence-capture'
 import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'
+import { normalizeScanUrl } from '@/lib/scan-input'
 
 // Re-exported for existing tests that import scoring from this route
 export { assignGrade, calculateScore, calculateGeoScore }
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
   let baseUrl: string
   let domain: string
   try {
-    const parsed = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : 'https://' + url)
+    const parsed = new URL(normalizeScanUrl(url))
     if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || parsed.username || parsed.password) {
       return NextResponse.json({ error: 'URL must use HTTP or HTTPS without credentials' }, { status: 400 })
     }
@@ -183,7 +184,14 @@ export async function POST(req: NextRequest) {
       headers: { 'User-Agent': 'FimmickAISO/1.0' },
       signal: AbortSignal.timeout(15_000),
     })
+    const contentType = htmlRes.headers.get('content-type')?.split(';')[0].trim().toLowerCase()
+    if (!htmlRes.ok || (contentType && !['text/html', 'application/xhtml+xml', 'text/plain'].includes(contentType))) {
+      return NextResponse.json({ error: 'SCAN_PAGE_UNAVAILABLE' }, { status: 502, headers: scanHeaders })
+    }
     html = await htmlRes.text()
+    if (!html.trim()) {
+      return NextResponse.json({ error: 'SCAN_PAGE_UNAVAILABLE' }, { status: 502, headers: scanHeaders })
+    }
   } catch (error) {
     if (error instanceof PublicUrlError) {
       return NextResponse.json({ error: 'URL must resolve to a public HTTP or HTTPS address' }, {
@@ -191,8 +199,8 @@ export async function POST(req: NextRequest) {
         headers: scanHeaders,
       })
     }
-    capture.failedRead('page')
-    // Continue without HTML — checks degrade gracefully for ordinary network failures.
+    // Failed collection provides no basis for scoring content or crawler access.
+    return NextResponse.json({ error: 'SCAN_PAGE_UNAVAILABLE' }, { status: 502, headers: scanHeaders })
   }
 
   // Run all 16 checks (5 core + 11 extended) in parallel

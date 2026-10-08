@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
              a.override_plan, a.override_expires_at
       from clients c
       join accounts a on a.id = c.account_id
-      where c.id = ${clientId}
+      where c.id = ${clientId} and c.status = 'active'
       limit 1
     `
     const row = rows[0] as Record<string, unknown> | undefined

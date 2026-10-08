@@ -102,6 +102,7 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
       from pulse_metrics m join clients c on c.id = m.client_id
       where c.id = ${clientId} and c.account_id = ${accountId} and m.brand_mentioned = false
         and m.raw_answer ~ '[^[:space:]]'
+        and to_jsonb(m)->>'classification_status'='classified'
       order by m.scan_week desc, m.id desc limit 10
     ` as ClientOverview['missedOpportunities'], []),
     read('maintenance',()=>loadMaintenanceSnapshot(accountId,clientId,features.edit_prompts),null),
