@@ -1,5 +1,7 @@
 # AISO / AnsVisor audit follow-up
 
+Continuation: [current audit addendum](./continuation-audit.md) extends this initial pass with F27–F37, a refreshed authenticated reference comparison, security dependency review and new verification. The initial observations and counts below are preserved as historical evidence.
+
 Audit: 2026-10-08 UTC / 2026-10-09 Hong Kong. Source repairs are complete for this bounded pass; production acceptance remains open.
 
 ## Version boundary

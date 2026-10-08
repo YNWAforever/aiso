@@ -10,3 +10,16 @@ G02,High,Run guarded real Neon integration with approved role authority,Not run,
 G03,High,Merge parent remediation and deploy reviewed candidate through release gates,Not run,Main and production still f49e1bd,Open
 P01,Medium,Observed search-query fan-out and aggregate citation exploration,Product gap,AnsVisor reference inspected; not represented as AISO capability,Backlog
 P02,Medium,Verified AI referral and conversion attribution,Unverified,No live analytics installation or ingestion tested,Backlog
+F27,High,Allow owner sign-in when reopening an already claimed report,Fixed,Claim-intent and continuation regressions with canonical owner gate,Pending deployment and genuine Auth UAT
+F28,High,Recover claim retries after spent intents and lost successful responses,Fixed,Write failure and lost-response RED to GREEN; actual owner and foreign result controls,Pending deployment and genuine Auth UAT
+F29,Medium,Use canonical energy industry code,Fixed,Rendered select and authority-pack input regression,Pending deployment
+F30,Medium,Align social image counts with public evidence summary,Fixed,Legacy partial and confirmed evidence image regressions,Pending deployment
+F31,High,Keep bounded citation titles valid PostgreSQL JSONB,Fixed,Unicode surrogate RED to GREEN using actual local PGlite JSONB,Pending deployment and guarded Neon round trip
+F32,High,Recheck current entitlement before resuming saved Pulse models,Fixed,PGlite owned downgrade and immutable-manifest controls,Pending deployment and real provider UAT
+F33,High,Exclude paused clients from every Pulse producer lookup,Fixed,Repair route and compatibility scheduling regressions,Pending deployment
+F34,Medium,Require classified evidence before counting missed opportunities,Fixed,Owned loaders exclude unknown legacy negatives,Pending deployment
+F35,High,Repair missing or stale summaries after completed collection,Fixed,Final-write failure then repair without recollecting accepted evidence,Pending deployment and real database UAT
+F36,High,Remediate patchable dependency advisories and SDK cookie transition,Fixed,Root production audit0; worker full audit0; clean installs and dependency trees pass,Pending deployment; F37 remains separate
+F37,High,Unpatched braces advisory in development lint dependency chain,Open upstream,Root full audit retains5 high entries; dev-only chain and reachability documented,No supported upstream patch; not a production exploit claim
+G01-C,High,Complete live AISO Google login with selected account,Awaiting account choice,Google account chooser reached; no account guessed,Open
+G02-C,High,Obtain fresh scoped role acceptance and run genuine Neon suites,Not run,Prior CI37820852994 confirms ROLE_ACCEPTANCE_BLOCKED; old approval consumed,Open
