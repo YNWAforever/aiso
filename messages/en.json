@@ -496,6 +496,7 @@
     "topical_authority_fail": "No topical clusters detected",
     "topical_authority_no_sitemap": "No sitemap to analyse",
     "topical_authority_unavailable": "Topical authority could not be assessed (AI analysis unavailable)",
+    "topical_authority_unstructured": "URL structure does not reveal topic clusters, so topical authority was not assessed",
     "chunkability_pass": "Well-chunked content",
     "chunkability_warn": "Partially chunkable",
     "chunkability_fail": "Poorly chunked",

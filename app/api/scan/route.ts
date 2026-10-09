@@ -37,6 +37,7 @@ import { GEO_PTS, assignGrade, calculateScore, calculateGeoScore, capScore } fro
 import { calculatePillarScores } from '@/lib/pillar-scores'
 import { buildScanEvidence, CHECK_VERSIONS, type EvidenceCheckKey } from '@/lib/scan-evidence'
 import { createScanEvidenceCapture } from '@/lib/scan-evidence-capture'
+import { fetchSitemapPageUrls } from '@/lib/sitemap-fetch'
 import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'
 
 // Re-exported for existing tests that import scoring from this route
@@ -257,18 +258,9 @@ export async function POST(req: NextRequest) {
   let sitemapUrlsForGeo: string[] = parsedSitemapUrls.urls
   if (!sitemapUrlsForGeo.length) {
     try {
-      const sitemapRes = await capture.forCheck('sitemap')(new URL('/sitemap.xml', baseUrl), {
-        headers: { 'User-Agent': 'FimmickAISO/1.0' },
-        signal: AbortSignal.timeout(8_000),
-      })
-      if (sitemapRes.ok) {
-        const sitemapXml = await sitemapRes.text()
-        const locMatches = sitemapXml.match(/<loc>([^<]+)<\/loc>/g) ?? []
-        sitemapUrlsForGeo = locMatches
-          .map(m => m.replace(/<\/?loc>/g, '').trim())
-          .slice(0, 200)
-      }
-    } catch { capture.failedRead('sitemap') /* sitemap unavailable — c19 will return warn/fail */ }
+      // Follows a sitemap index one level, within the same 8s budget.
+      sitemapUrlsForGeo = await fetchSitemapPageUrls(capture.forCheck('sitemap'), baseUrl, { timeoutMs: 8_000 })
+    } catch { capture.failedRead('sitemap') /* sitemap unavailable — c19 reports it unassessable */ }
   }
 
   const geoDetails: Record<string, unknown> = {}

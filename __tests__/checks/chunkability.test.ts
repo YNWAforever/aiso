@@ -20,4 +20,14 @@ describe('checkChunkability', () => {
     const r = await checkChunkability('<html><body></body></html>', { industry: 'technology', region: 'global' })
     expect(r.status).toBe('fail')
   })
+
+  it('reads a section from its visible text, not an inline script inside it', async () => {
+    // The script's text used to become the section's first sentence, so "This
+    // is ..." in a script made a self-contained answer look dependent.
+    const html = `<html><body><h2>What is AEO?</h2><script>This.is = "tracking";</script><p>Answer engine optimisation is the practice of making pages easy for AI systems to quote.</p></body></html>`
+    const r = await checkChunkability(html, { industry: 'technology', region: 'global' })
+
+    expect(r.geoDetails?.chunkAnalysis[0]?.isSelfContained).toBe(true)
+    expect(r.geoDetails?.chunkAnalysis[0]?.isAnswerFirst).toBe(true)
+  })
 })

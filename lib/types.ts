@@ -441,9 +441,10 @@ export interface LocalTrustAction {
  * Stored on new scans in results.evidence.scannerVersion; historical rows are not backfilled.
  */
 // 2026-10-09.v1: GEO checks that could not measure (provider failure, no
-// input) are left out of the GEO denominator instead of scoring as fail/warn;
-// c18 no longer invents a uniqueness score. Earlier methods stay readable via
-// SCANNER_METHODS in lib/scan-evidence.ts.
+// input, URLs with no structure) are left out of the GEO denominator instead
+// of scoring as fail/warn; c18 no longer invents a uniqueness score; c17, c18
+// and c20 read visible text only, not CSS/scripts. Earlier methods stay
+// readable via SCANNER_METHODS in lib/scan-evidence.ts.
 export const SCANNER_VERSION = '2026-10-09.v1'
 
 export interface ScanVersionInfo {

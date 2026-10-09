@@ -17,9 +17,13 @@ const CHECK_VERSIONS_2026_09_05 = {
 } as const
 export const CHECK_VERSIONS = {
   ...CHECK_VERSIONS_2026_09_05,
-  // Unavailable instead of scored when the provider fails (see SCANNER_VERSION).
+  // 2026-10-09.v1 (see SCANNER_VERSION): c17/c18/c20 read visible text only;
+  // c18/c19 report a provider failure as unavailable instead of scoring it;
+  // c19 does not ask the model to cluster URLs that form no groups.
+  c17_citation_density: '2026-10-09.v1',
   c18_factual_density: '2026-10-09.v1',
   c19_topical_authority: '2026-10-09.v1',
+  c20_chunkability: '2026-10-09.v1',
 } as const
 export type EvidenceCheckKey = keyof typeof CHECK_VERSIONS
 

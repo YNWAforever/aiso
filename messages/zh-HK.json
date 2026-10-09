@@ -496,6 +496,7 @@
     "topical_authority_fail": "未檢測到主題群組",
     "topical_authority_no_sitemap": "無法分析網站地圖",
     "topical_authority_unavailable": "未能評估主題權威（AI 分析暫時無法使用）",
+    "topical_authority_unstructured": "網址結構未能顯示主題群組，因此未有評估主題權威",
     "chunkability_pass": "內容分塊結構良好",
     "chunkability_warn": "內容分塊結構一般",
     "chunkability_fail": "內容分塊結構欠佳",

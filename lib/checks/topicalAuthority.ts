@@ -131,6 +131,18 @@ export async function checkTopicalAuthority(
     } catch {}
   }
 
+  // Nothing to cluster: a flat URL structure (/post-slug), or a sitemap index
+  // whose entries are child sitemaps. Asking the model anyway handed it only
+  // the industry keywords — free to invent clusters worth 15 points each. The
+  // URLs exist but reveal no structure, so this is unassessable, not a finding.
+  if (!Object.values(slugGroups).some(group => group.length >= 2)) {
+    return {
+      status: 'warn', message: 'topical_authority_unstructured',
+      diagnostic: { collection: 'unsupported', reason: 'no-input' },
+      geoDetails: { topicalCoverageScore: 0, detectedClusters: [], totalClusters: 0, hasOrphanPages: 0 },
+    }
+  }
+
   const industryKeywords = INDUSTRY_PACKS[industry]?.topicalKeywords?.slice(0, 10) ?? []
   let providerFallback = false
   let detectedClusters: TopicalAuthorityResult['detectedClusters'] = []

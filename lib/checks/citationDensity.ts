@@ -1,5 +1,6 @@
 import type { CheckResult, IndustryCode, RegionCode, CitationDensityResult, AuthorityTier } from '@/lib/types'
 import { computeAuthority } from '@/lib/authority/aggregator'
+import { stripNonVisible, visibleText } from '@/lib/checks/visibleText'
 
 interface Context { industry: IndustryCode; region: RegionCode; clientId?: string }
 
@@ -13,17 +14,20 @@ export async function checkCitationDensity(
   const externalLinks: string[] = []
   let m: RegExpExecArray | null
 
-  while ((m = linkPattern.exec(html)) !== null) {
+  // Links and words are read from what a reader sees: a link written by an
+  // inline script is not a citation, and script text is not page content.
+  const visibleHtml = stripNonVisible(html)
+  while ((m = linkPattern.exec(visibleHtml)) !== null) {
     try {
       const href = new URL(m[1], baseUrl)
       if (href.hostname !== base.hostname) externalLinks.push(href.href)
     } catch {}
   }
 
-  const words = html.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length
+  const textContent = visibleText(html)
+  const words = textContent.split(/\s+/).filter(Boolean).length
   const citationsPerK = words > 0 ? (externalLinks.length / words) * 1000 : 0
 
-  const textContent = html.replace(/<[^>]+>/g, ' ')
   const statsMatches = textContent.match(/\d+(\.\d+)?%|\$[\d,]+|\d+\s?(million|billion|thousand)/gi) ?? []
   const sourcePattern = /source:|according to|cites?|reference:|study by/i
   const statsWithSource = statsMatches.filter(s => {

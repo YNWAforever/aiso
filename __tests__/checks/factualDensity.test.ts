@@ -51,6 +51,18 @@ describe('checkFactualDensity', () => {
   })
 })
 
+describe('checkFactualDensity — visible text only', () => {
+  it('does not count CSS percentages or years in inline scripts as facts', async () => {
+    // The audit's repro: three words of content scored "pass" on head CSS and
+    // a config object.
+    const html = `<html><head><style>.a{width:100%}.b{height:100%}.c{width:50%}.d{opacity:100%}.e{top:0%}</style><script>var cfg={"year":2024,"build":2023,"v":"Google Analytics Tag Manager"};</script></head><body><p>We sell shoes.</p></body></html>`
+    const r = await checkFactualDensity(html, { industry: 'finance', region: 'US' })
+
+    expect(r.status).toBe('fail')
+    expect(r.geoDetails?.dateReferences).toBe(0)
+  })
+})
+
 describe('checkFactualDensity — uniqueness provider', () => {
   const ctx = { industry: 'finance', region: 'US' } as const
   const model = vi.mocked(callOpenRouter)

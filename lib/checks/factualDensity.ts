@@ -1,6 +1,7 @@
 import { UNTRUSTED_SYSTEM_RULE, fenceUntrusted } from '@/lib/agents/untrusted'
 import type { CheckResult, IndustryCode, RegionCode, FactualDensityResult } from '@/lib/types'
 import { callOpenRouter, type JsonSchemaFormat } from '@/lib/openrouter'
+import { visibleText } from '@/lib/checks/visibleText'
 
 interface Context { industry: IndustryCode; region: RegionCode }
 
@@ -24,7 +25,7 @@ export async function checkFactualDensity(
   html: string,
   _context: Context
 ): Promise<CheckResult & { geoDetails?: FactualDensityResult }> {
-  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  const text = visibleText(html)
   const wordCount = text.split(/\s+/).filter(Boolean).length || 1
 
   const numbers = text.match(/\d+(\.\d+)?%|\$[\d,.]+|\b\d{4}\b|\b\d+\s?(million|billion|thousand|K|M|B)\b/gi) ?? []
