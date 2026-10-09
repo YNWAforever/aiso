@@ -8,7 +8,9 @@ export interface Env {
 // allows three triggers per Worker and all three are used, so the daily trigger
 // carries both trial emails and the Search Console sync.
 export const ROUTES: Record<string, readonly string[]> = {
-  '17 4 * * 1': ['/api/cron/pulse'],
+  // Daily: the driver only picks clients whose week is not yet rolled up, so
+  // the Tuesday–Sunday firings finish weeks a failed hop left incomplete.
+  '17 4 * * *': ['/api/cron/pulse'],
   '47 7 * * 1': ['/api/cron/evaluate-alerts'],
   '0 9 * * *': ['/api/cron/trial-emails', '/api/cron/search-console'],
 }

@@ -161,10 +161,14 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
 - Deployment config lives outside the code and is easy to miss: `vercel.json` sets
   `maxDuration` (60s scan, 30s fix, 60s each for `pulse/run`, `cron/pulse`,
   `cron/evaluate-alerts`, `cron/trial-emails` and `cron/search-console`) but **no longer schedules anything itself**
-  (2026-08-22) — its `crons` array was removed. Scheduling now belongs to
-  `cloudflare/cron-worker/`, a standalone Cloudflare Worker (own `package.json`/toolchain,
-  excluded from this repo's root `tsconfig.json`/`vitest.config.ts`/lint) whose
-  `wrangler.jsonc` holds the same three schedules in order — `17 4 * * 1` →
+  (2026-08-22) — its `crons` array was removed. Scheduling now belongs to a Cloudflare
+  Worker whose source is `cloudflare/cron-worker/src/index.ts` (own `package.json`/toolchain,
+  excluded from this repo's root `tsconfig.json`/`vitest.config.ts`/lint). **The deployable
+  config is `cloudflare/aiso-worker/wrangler.jsonc`**; the legacy `cloudflare/cron-worker/wrangler.jsonc`
+  is never deployed (its origin is NXDOMAIN) and is only kept in step. Until 2026-10-09 the
+  deployable config had `"crons": []` while the test pinned the legacy one, so nothing was
+  scheduled. Both now hold three schedules in order — `17 4 * * *` (daily; a client whose week
+  is already rolled up is never selected, so extra firings only finish incomplete weeks) →
   `/api/cron/pulse`, `47 7 * * 1` → `/api/cron/evaluate-alerts` (after pulse, because alerts
   read the rollup Pulse writes), `0 9 * * *` → `/api/cron/trial-emails` **and**
   `/api/cron/search-console` (one trigger fanning out to independent routes via
@@ -174,9 +178,10 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   header). Follow `docs/runbooks/deploy-cron-worker.md` to actually deploy and verify it;
   until that runs, nothing schedules any of these four routes at all. `vercel.json`'s `functions` keys are **literal paths, not prefixes**, so `fix/`'s
   subroutes inherit nothing despite also calling OpenRouter.
-  `__tests__/config/function-durations.test.ts` now pins `wrangler.jsonc`'s `triggers.crons`
-  (not `vercel.json.crons`) and requires every scheduled path to export `GET`, so adding a
-  cron is still a deliberate, tested change.
+  `__tests__/config/function-durations.test.ts` pins `aiso-worker/wrangler.jsonc`'s
+  `triggers.crons` (not `vercel.json.crons`), requires every scheduled path to export `GET`
+  and every cron string to have a `ROUTES` entry, so adding a cron is still a deliberate,
+  tested change. Committing a schedule activates nothing — deploying the Worker does.
   `next.config.ts` declares two permanent redirects that fire *before* `proxy.ts`.
 - `npm run lint` ≠ `npx eslint .` — the ignores are CLI flags in `package.json`, not in
   `eslint.config.mjs`. Local checkouts can hold full copies of the repo, all gitignored:

@@ -19,7 +19,7 @@ describe('scheduled', () => {
   })
 
   it('calls cron/pulse for the pulse schedule', async () => {
-    await worker.scheduled(controller('17 4 * * 1'), env, ctx)
+    await worker.scheduled(controller('17 4 * * *'), env, ctx)
 
     expect(fetchMock).toHaveBeenCalledWith(
       'https://app.example.com/api/cron/pulse',
@@ -61,7 +61,7 @@ describe('scheduled', () => {
   it('propagates a downstream failure without retrying in this invocation', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 500 })
 
-    await expect(worker.scheduled(controller('17 4 * * 1'), env, ctx)).rejects.toThrow(
+    await expect(worker.scheduled(controller('17 4 * * *'), env, ctx)).rejects.toThrow(
       '[cron-worker] /api/cron/pulse responded 500',
     )
     expect(fetchMock).toHaveBeenCalledTimes(1)

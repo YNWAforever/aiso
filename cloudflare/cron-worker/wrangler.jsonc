@@ -14,7 +14,7 @@
   // at 2 crons/day-granularity and Cloudflare's free tier allows 3 per Worker.
   "triggers": {
     "crons": [
-      "17 4 * * 1",
+      "17 4 * * *",
       "47 7 * * 1",
       "0 9 * * *"
     ]

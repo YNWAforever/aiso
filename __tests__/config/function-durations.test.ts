@@ -22,9 +22,17 @@ function parseWranglerJsonc(raw: string): WranglerConfig {
   return JSON.parse(withoutComments) as WranglerConfig
 }
 
+// The config that is actually deployed (docs/runbooks/deploy-cron-worker.md).
+// This test used to pin the legacy cron-worker config, which the runbook says
+// never to deploy, so it stayed green while the deployable config scheduled
+// nothing at all.
 const workerConfig = parseWranglerJsonc(
+  readFileSync(join(process.cwd(), 'cloudflare/aiso-worker/wrangler.jsonc'), 'utf8'),
+)
+const legacyWorkerConfig = parseWranglerJsonc(
   readFileSync(join(process.cwd(), 'cloudflare/cron-worker/wrangler.jsonc'), 'utf8'),
 )
+const workerSource = readFileSync(join(process.cwd(), 'cloudflare/cron-worker/src/index.ts'), 'utf8')
 
 /**
  * Every route that fans out to an LLM needs a declared maxDuration, because the
@@ -73,8 +81,12 @@ describe('Vercel function durations', () => {
 
 describe('Cloudflare cron-worker schedule', () => {
   it('schedules exactly the three cron routes, and every one exists', () => {
+    // Pulse fires daily. Progress is derived from the data and a client whose
+    // week is already rolled up is never selected, so the extra firings only
+    // finish weeks a failed hop left incomplete — they cost no LLM calls
+    // otherwise. Weekly, one broken hop lost the rest of the week.
     expect(workerConfig.triggers?.crons).toEqual([
-      '17 4 * * 1',
+      '17 4 * * *',
       '47 7 * * 1',
       '0 9 * * *',
     ])
@@ -91,8 +103,21 @@ describe('Cloudflare cron-worker schedule', () => {
   })
 
   it('runs the Search Console sync on the existing daily trigger, not a fourth one', () => {
-    const worker = readFileSync(join(process.cwd(), 'cloudflare/cron-worker/src/index.ts'), 'utf8')
-    expect(worker).toMatch(/'0 9 \* \* \*':\s*\[\s*'\/api\/cron\/trial-emails',\s*'\/api\/cron\/search-console'\s*\]/)
+    expect(workerSource).toMatch(/'0 9 \* \* \*':\s*\[\s*'\/api\/cron\/trial-emails',\s*'\/api\/cron\/search-console'\s*\]/)
+  })
+
+  it('maps every scheduled cron string to routes in the Worker', () => {
+    // The Worker dispatches on the exact cron string. A schedule with no ROUTES
+    // entry fires and does nothing, so the two must change together.
+    for (const cron of workerConfig.triggers?.crons ?? []) {
+      expect(workerSource, `${cron} has no ROUTES entry`).toContain(`'${cron}':`)
+    }
+  })
+
+  it('keeps the legacy config in step with the routes it shares', () => {
+    // Not deployed (see the runbook), but it runs the same source; letting it
+    // drift would leave a schedule that no longer matches any route.
+    expect(legacyWorkerConfig.triggers?.crons).toEqual(workerConfig.triggers?.crons)
   })
 
   it('evaluates alerts after the rollup they read, on the same day', () => {
@@ -108,7 +133,8 @@ describe('Cloudflare cron-worker schedule', () => {
     const pulse = at(crons[0])
     const alerts = at(crons[1])
 
-    expect(alerts.weekday).toBe(pulse.weekday)
+    // A daily Pulse ('*') also fires on the alerts day.
+    expect([alerts.weekday, '*']).toContain(pulse.weekday)
     expect(alerts.minutes).toBeGreaterThan(pulse.minutes)
   })
 
