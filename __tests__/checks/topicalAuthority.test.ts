@@ -129,3 +129,20 @@ describe('checkTopicalAuthority', () => {
     expect(r.geoDetails?.detectedClusters).toEqual([])
   })
 })
+
+describe('checkTopicalAuthority — provider failure', () => {
+  // Clusters come only from the model. When it fails, "0 clusters detected" was
+  // shown to the customer as a real finding and scored 0/7 — our outage
+  // presented as their content gap.
+  it.each([
+    ['a thrown call', () => openRouter.mockRejectedValue(new Error('provider down'))],
+    ['a reply that is not JSON', () => openRouter.mockResolvedValue('I cannot help with that.')],
+  ])('reports %s as unavailable rather than as a finding', async (_label, arrange) => {
+    arrange()
+    const r = await checkTopicalAuthority(URLS, 'client-123', 'technology')
+
+    expect(r.message).toBe('topical_authority_unavailable')
+    expect(r.diagnostic).toEqual({ collection: 'failed', reason: 'provider-fallback' })
+    expect(r.details ?? '').not.toMatch(/clusters detected/)
+  })
+})

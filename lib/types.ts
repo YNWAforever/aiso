@@ -214,7 +214,8 @@ export interface FactualDensityResult {
   dateReferences:     number
   hasComparativeData: boolean
   hasTimeSeriesData:  boolean
-  uniquenessScore:    number
+  /** null when the provider gave no usable score — never an invented default. */
+  uniquenessScore:    number | null
   uniqueClaims:       string[]
 }
 
@@ -439,7 +440,11 @@ export interface LocalTrustAction {
  * Bumped whenever check-engine detection logic changes for any of c1-c20.
  * Stored on new scans in results.evidence.scannerVersion; historical rows are not backfilled.
  */
-export const SCANNER_VERSION = '2026-09-05.v1'
+// 2026-10-09.v1: GEO checks that could not measure (provider failure, no
+// input) are left out of the GEO denominator instead of scoring as fail/warn;
+// c18 no longer invents a uniqueness score. Earlier methods stay readable via
+// SCANNER_METHODS in lib/scan-evidence.ts.
+export const SCANNER_VERSION = '2026-10-09.v1'
 
 export interface ScanVersionInfo {
   scannerVersion: string

@@ -57,6 +57,38 @@ describe('calculateGeoScore', () => {
     expect(calculateGeoScore(results)).toBe(19)
   })
 
+  it('leaves a check it could not assess out of the GEO denominator', () => {
+    // An unavailable check (provider failure, no input) used to score as a
+    // fail (0) or, for a missing sitemap, a free warn (half). Neither is a
+    // measurement; the other checks are rescaled to the bucket's 25.
+    const results = {
+      c17_citation_density:  { status: 'pass' as const, message: '' },
+      c18_factual_density:   { status: 'pass' as const, message: '' },
+      c19_topical_authority: { status: 'warn' as const, message: '', diagnostic: { collection: 'failed' as const, reason: 'provider-fallback' as const } },
+      c20_chunkability:      { status: 'pass' as const, message: '' },
+    }
+    expect(calculateGeoScore(results)).toBe(25)
+  })
+
+  it('rescales a partial GEO result over the checks it could assess', () => {
+    const results = {
+      c17_citation_density:  { status: 'pass' as const, message: '' },
+      c18_factual_density:   { status: 'fail' as const, message: '' },
+      c19_topical_authority: { status: 'warn' as const, message: '', diagnostic: { collection: 'unsupported' as const, reason: 'no-input' as const } },
+      c20_chunkability:      { status: 'fail' as const, message: '' },
+    }
+    // 7 of the 18 assessable points, rescaled to 25.
+    expect(calculateGeoScore(results)).toBe(9.72)
+  })
+
+  it('scores 0 when no GEO check could be assessed', () => {
+    const unavailable = { status: 'warn' as const, message: '', diagnostic: { collection: 'failed' as const } }
+    expect(calculateGeoScore({
+      c17_citation_density: unavailable, c18_factual_density: unavailable,
+      c19_topical_authority: unavailable, c20_chunkability: unavailable,
+    })).toBe(0)
+  })
+
   it('returns 0 when all GEO checks fail', () => {
     const results = {
       c17_citation_density:  { status: 'fail' as const, message: '' },

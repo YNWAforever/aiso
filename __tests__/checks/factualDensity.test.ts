@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { checkFactualDensity } from '@/lib/checks/factualDensity'
+import { callOpenRouter } from '@/lib/openrouter'
 
 // Mock OpenRouter — eliminates ~1.5s LLM round-trip per test
 vi.mock('@/lib/openrouter', () => ({
@@ -47,5 +48,55 @@ describe('checkFactualDensity', () => {
   it('handles empty HTML without throwing', async () => {
     const r = await checkFactualDensity('<html><body></body></html>', { industry: 'technology', region: 'global' })
     expect(['pass', 'warn', 'fail']).toContain(r.status)
+  })
+})
+
+describe('checkFactualDensity — uniqueness provider', () => {
+  const ctx = { industry: 'finance', region: 'US' } as const
+  const model = vi.mocked(callOpenRouter)
+
+  // Only the uniqueness term comes from the model; numbers, entities and dates
+  // are deterministic and stay valid when it fails. The fallback used to store
+  // an invented 50, rendered as a real "Content uniqueness 50/100" bar.
+  it('does not invent a uniqueness score when the provider fails', async () => {
+    model.mockRejectedValueOnce(new Error('provider down'))
+    const r = await checkFactualDensity(HTML_FACTUAL, ctx)
+
+    expect(r.geoDetails?.uniquenessScore).toBeNull()
+    expect(r.diagnostic).toEqual({ collection: 'partial', reason: 'provider-fallback' })
+  })
+
+  it('scores the deterministic signals alone, rescaled, when uniqueness is unavailable', async () => {
+    model.mockResolvedValueOnce(JSON.stringify({ score: 0, claims: [] }))
+    const withZero = await checkFactualDensity(HTML_VAGUE, ctx)
+    model.mockRejectedValueOnce(new Error('provider down'))
+    const unavailable = await checkFactualDensity(HTML_VAGUE, ctx)
+
+    // A uniqueness of 0 contributes nothing, so withZero is the deterministic
+    // part; out of the 90 points it can reach, rescaled to 100.
+    expect(unavailable.geoDetails?.qualityScore)
+      .toBeCloseTo(Math.min(100, (withZero.geoDetails?.qualityScore ?? 0) * 100 / 90), 5)
+  })
+
+  it('clamps a model score outside 0-100', async () => {
+    model.mockResolvedValueOnce(JSON.stringify({ score: 500, claims: ['x'] }))
+    const r = await checkFactualDensity(HTML_FACTUAL, ctx)
+
+    expect(r.geoDetails?.uniquenessScore).toBe(100)
+  })
+
+  it('treats a non-numeric score as unavailable instead of NaN', async () => {
+    model.mockResolvedValueOnce(JSON.stringify({ score: 'high', claims: [] }))
+    const r = await checkFactualDensity(HTML_FACTUAL, ctx)
+
+    expect(r.geoDetails?.uniquenessScore).toBeNull()
+    expect(Number.isFinite(r.geoDetails?.qualityScore)).toBe(true)
+  })
+
+  it('keeps only short string claims, at most three', async () => {
+    model.mockResolvedValueOnce(JSON.stringify({ score: 70, claims: ['a', 42, 'b', 'c', 'd', 'x'.repeat(500)] }))
+    const r = await checkFactualDensity(HTML_FACTUAL, ctx)
+
+    expect(r.geoDetails?.uniqueClaims).toEqual(['a', 'b', 'c'])
   })
 })

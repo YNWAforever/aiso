@@ -495,6 +495,7 @@
     "topical_authority_warn": "Partial topic coverage",
     "topical_authority_fail": "No topical clusters detected",
     "topical_authority_no_sitemap": "No sitemap to analyse",
+    "topical_authority_unavailable": "Topical authority could not be assessed (AI analysis unavailable)",
     "chunkability_pass": "Well-chunked content",
     "chunkability_warn": "Partially chunkable",
     "chunkability_fail": "Poorly chunked",
