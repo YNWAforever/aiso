@@ -268,6 +268,42 @@ describe('POST /api/scan — full scan flow', () => {
     expect(res.status).toBe(400)
     expect(dbState.insertValues).toEqual([])
   })
+  it('refuses a host with no domain before spending a scan, and saves nothing', async () => {
+    // Production stored "not-a-valid-url — 3.5/100, grade F": the host could
+    // never resolve, every check degraded, and the result was graded anyway.
+    const { consumePublicScanRateLimit } = await import('@/lib/security/public-scan-rate-limit')
+    vi.mocked(consumePublicScanRateLimit).mockClear()
+    const { POST } = await import('@/app/api/scan/route')
+    const res = await POST(new NextRequest('http://localhost/api/scan', { method: 'POST', body: JSON.stringify({ url: 'not-a-valid-url' }) }))
+
+    expect(res.status).toBe(400)
+    expect(await res.json()).toEqual({ error: 'Invalid URL format' })
+    expect(consumePublicScanRateLimit).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(dbState.insertValues).toEqual([])
+  })
+
+  it('refuses a site it cannot reach at all, and saves nothing', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'))
+    const { POST } = await import('@/app/api/scan/route')
+    const res = await POST(new NextRequest('http://localhost/api/scan', { method: 'POST', body: JSON.stringify({ url: 'https://unreachable.example' }) }))
+
+    expect(res.status).toBe(422)
+    expect(await res.json()).toEqual({ error: 'SCAN_UNREACHABLE' })
+    expect(dbState.insertValues).toEqual([])
+  })
+
+  it('still scans a site that answers with an error status', async () => {
+    // A 403 to the scanner is exactly what the bot-access check exists to
+    // report, so an HTTP response of any status is scannable.
+    fetchMock.mockResolvedValueOnce(new Response('Forbidden', { status: 403 }))
+    const { POST } = await import('@/app/api/scan/route')
+    const res = await POST(new NextRequest('http://localhost/api/scan', { method: 'POST', body: JSON.stringify({ url: 'https://example.com' }) }))
+
+    expect(res.status).toBe(200)
+    expect(dbState.insertValues.length).toBeGreaterThan(0)
+  })
+
   it('preserves a rejected check benchmark while recording failed collection', async () => {
     const { checkLlmsTxt } = await import('@/lib/checks/llmsTxt')
     vi.mocked(checkLlmsTxt).mockRejectedValueOnce(new Error('private rejection'))

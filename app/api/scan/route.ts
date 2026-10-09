@@ -38,6 +38,20 @@ import { calculatePillarScores } from '@/lib/pillar-scores'
 import { buildScanEvidence, CHECK_VERSIONS, type EvidenceCheckKey } from '@/lib/scan-evidence'
 import { createScanEvidenceCapture } from '@/lib/scan-evidence-capture'
 import { fetchSitemapPageUrls } from '@/lib/sitemap-fetch'
+
+const IPV4 = /^(?:\d{1,3}\.){3}\d{1,3}$/
+const TLD = /^(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$/i
+
+/**
+ * Whether a hostname can name a public website at all: an IP literal, or a
+ * dotted name with no empty label and an alphabetic (or punycode) TLD. This is
+ * a shape check only; whether the address is public is fetchPublicUrl's job.
+ */
+function isScannableHost(hostname: string): boolean {
+  if (IPV4.test(hostname) || hostname.startsWith('[')) return true
+  const labels = hostname.split('.')
+  return labels.length >= 2 && labels.every(Boolean) && TLD.test(labels[labels.length - 1]!)
+}
 import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'
 
 // Re-exported for existing tests that import scoring from this route
@@ -70,6 +84,12 @@ export async function POST(req: NextRequest) {
     baseUrl = parsed.origin
     domain = parsed.hostname
   } catch {
+    return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 })
+  }
+  // A host that can never be a public website ("not-a-valid-url") is refused
+  // here, before any rate limit or quota is spent. It used to reach the page
+  // fetch, fail DNS, degrade every check and be saved with a grade.
+  if (!isScannableHost(domain)) {
     return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 })
   }
 
@@ -179,12 +199,12 @@ export async function POST(req: NextRequest) {
   // The reusable boundary validates DNS and every redirect hop.
   const capture = createScanEvidenceCapture(fetchPublicUrl)
   let html = ''
+  let htmlRes: Response
   try {
-    const htmlRes = await capture.forCheck('page')(baseUrl, {
+    htmlRes = await capture.forCheck('page')(baseUrl, {
       headers: { 'User-Agent': 'FimmickAISO/1.0' },
       signal: AbortSignal.timeout(15_000),
     })
-    html = await htmlRes.text()
   } catch (error) {
     if (error instanceof PublicUrlError) {
       return NextResponse.json({ error: 'URL must resolve to a public HTTP or HTTPS address' }, {
@@ -192,8 +212,18 @@ export async function POST(req: NextRequest) {
         headers: scanHeaders,
       })
     }
+    // No HTTP response at all (DNS failure, refused connection, timeout): there
+    // is no site to assess, so nothing is graded or saved. Any response, even
+    // a 403 or 500, is still scanned — reporting that is what bot-access is for.
+    console.error('[scan] page unreachable:', (error as Error)?.name ?? 'Error')
+    return NextResponse.json({ error: 'SCAN_UNREACHABLE' }, { status: 422, headers: scanHeaders })
+  }
+  try {
+    html = await htmlRes.text()
+  } catch {
+    // The site answered but its body could not be read: still a site, so
+    // checks degrade on empty HTML as before.
     capture.failedRead('page')
-    // Continue without HTML — checks degrade gracefully for ordinary network failures.
   }
 
   // Run all 16 checks (5 core + 11 extended) in parallel
