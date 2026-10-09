@@ -154,6 +154,10 @@ export async function POST(req: NextRequest) {
   const nextCursor = cursor + slice.length < prompts.length ? cursor + slice.length : null
   const pulseRunId = crypto.randomUUID()
   let citations = 0
+  // Prompts in this chunk that got no answer from any platform. Counted rather
+  // than swallowed: a chunk where every prompt failed is a provider outage, and
+  // answering 200 for it let the driver chain to its limit on the same client.
+  let failedPrompts = 0
 
   try {
     for (const prompt of slice) {
@@ -164,6 +168,14 @@ export async function POST(req: NextRequest) {
         500,
         platforms,
       ).catch(() => [])
+
+      // Nothing new to write, so leave last time's rows alone: the delete below
+      // exists to stop a successful rewrite doubling a prompt, and running it
+      // here would only destroy good data.
+      if (responses.length === 0) {
+        failedPrompts += 1
+        continue
+      }
 
       // Clear this prompt's rows for the week before writing them, so
       // reprocessing it replaces rather than accumulates.
@@ -242,6 +254,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Pulse run failed', cursor }, { status: 500 })
   }
 
+  if (slice.length > 0 && failedPrompts === slice.length) {
+    // Not a 2xx and not a rollup: nothing was observed, and a summary written now
+    // would describe a week from whatever stale rows happen to remain.
+    console.error('[pulse/run] no provider answered any prompt in this chunk')
+    return NextResponse.json(
+      { error: 'NO_PROVIDER_RESPONSES', cursor, failedPrompts },
+      { status: 502 },
+    )
+  }
+
   // Roll up only once the bank is exhausted, so the summary describes a whole
   // week rather than a partial one.
   let summary = null
@@ -258,6 +280,7 @@ export async function POST(req: NextRequest) {
     pulseRunId,
     scanWeek,
     processed: slice.length,
+    failedPrompts,
     nextCursor,
     citations,
     platforms: platforms.length,
