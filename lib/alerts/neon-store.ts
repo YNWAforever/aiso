@@ -7,6 +7,7 @@ import {
   type AlertSnapshot,
   type AlertWeekSnapshot,
 } from '@/lib/alerts/evaluate'
+import { appOrigin } from '@/lib/app-origin'
 import { isoDate } from '@/lib/iso-date'
 
 const PAGE_SIZE = 1000
@@ -98,7 +99,9 @@ async function loadSnapshot(sql: Sql): Promise<AlertSnapshot> {
     dashboardUrlByClient: Object.fromEntries(
       configs.map(config => [
         config.client_id,
-        `${process.env.NEXT_PUBLIC_APP_URL}/en/dashboard/${config.client_id}`,
+        // appOrigin() validates the variable and falls back to the canonical
+        // origin; the raw read produced `undefined/en/...` when it was unset.
+        `${appOrigin()}/en/dashboard/${config.client_id}`,
       ]),
     ),
     currentScanWeek,
@@ -240,7 +243,12 @@ async function loadEmailRows(sql: Sql, accountIds: string[]): Promise<EmailRow[]
     FROM public.profiles AS p
     LEFT JOIN neon_auth."user" AS u ON u.id = p.id
     WHERE p.account_id = ANY(${accountIds}::uuid[])
-    ORDER BY p.account_id ASC, p.id ASC
+      -- A removed member is not a recipient: migration 049 makes this column
+      -- the only enforcement, and getProfile() is not on this path.
+      AND p.deactivated_at IS NULL
+    -- Oldest active member first (the account's creator unless they left),
+    -- rather than whichever profile happens to have the lowest uuid.
+    ORDER BY p.account_id ASC, p.created_at ASC, p.id ASC
   `) as EmailRow[]
 }
 

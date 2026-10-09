@@ -51,7 +51,10 @@ export async function GET(req: Request) {
       LEFT JOIN neon_auth."user" u ON u.id = p.id
       WHERE a.trial_started_at IS NOT NULL
         AND (a.stripe_subscription_id IS NULL OR a.stripe_subscription_id = '')
-      ORDER BY a.id ASC, p.id ASC
+        -- A removed member is not a recipient (migration 049).
+        AND p.deactivated_at IS NULL
+      -- Oldest active member, not whoever has the lowest uuid.
+      ORDER BY a.id ASC, p.created_at ASC, p.id ASC
     `) as TrialAccountRow[]
 
     const appUrl = appOrigin()

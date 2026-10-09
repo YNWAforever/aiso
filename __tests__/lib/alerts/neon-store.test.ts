@@ -149,6 +149,39 @@ describe('createNeonAlertStore', () => {
     expect(weeklySql?.text).toMatch(/created_at DESC NULLS LAST,\s*summary\.id DESC/i)
     expect(profileSql?.text).toMatch(/neon_auth\."user"/i)
     expect(profileSql?.text).toMatch(/DISTINCT ON\s*\(p\.account_id\)/i)
+    // A removed member must stop receiving the account's alerts (migration 049
+    // makes deactivated_at the only enforcement), and the recipient is the
+    // oldest active member rather than whoever has the lowest uuid.
+    expect(profileSql?.text).toMatch(/p\.deactivated_at IS NULL/i)
+    expect(profileSql?.text).toMatch(/ORDER BY p\.account_id ASC,\s*p\.created_at ASC/i)
+  })
+
+  it('builds the dashboard link from the app origin, never from a raw env read', async () => {
+    const previous = process.env.NEXT_PUBLIC_APP_URL
+    delete process.env.NEXT_PUBLIC_APP_URL
+    try {
+      let configCalls = 0
+      const { sql } = makeSql(({ text }) => {
+        const normalized = text.toLowerCase()
+        if (normalized.includes('from public.alert_configs')) {
+          configCalls += 1
+          return configCalls === 1 ? [configRow()] : []
+        }
+        if (normalized.includes('from public.pulse_weekly_summary')) return []
+        if (normalized.includes('from public.profiles')) return []
+        if (normalized.includes('current_scan_week')) return [{ current_scan_week: '2026-08-08' }]
+        throw new Error(`unexpected SQL: ${text}`)
+      })
+
+      const snapshot = await createNeonAlertStore(sql).loadSnapshot()
+      const url = Object.values(snapshot.dashboardUrlByClient)[0]
+
+      expect(url).toMatch(/^https:\/\//)
+      expect(url).not.toContain('undefined')
+    } finally {
+      if (previous === undefined) delete process.env.NEXT_PUBLIC_APP_URL
+      else process.env.NEXT_PUBLIC_APP_URL = previous
+    }
   })
 
   it('normalizes a driver-supplied Date scan_week to its local ISO day', async () => {
