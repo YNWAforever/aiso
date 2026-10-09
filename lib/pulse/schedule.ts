@@ -16,9 +16,17 @@ export type PendingClient = {
  */
 type CandidateRow = Record<string, unknown> & {
   client_id: string
+  cursor_created_at: string
   prompt_count: number | string
   scanned_prompts: number | string
 }
+
+/**
+ * Candidates read per round trip. Independent of `limit` on purpose: the
+ * eligibility decision happens after the query, so the page has to be big
+ * enough that a run of ineligible clients costs one query, not one per client.
+ */
+const CANDIDATE_PAGE = 50
 
 /**
  * Clients whose weekly Pulse run has not finished, oldest brand first.
@@ -45,10 +53,55 @@ type CandidateRow = Record<string, unknown> & {
  * to comped accounts; copying it here would silently skip a paying customer.
  * The over-inclusive prefilter below can only admit clients TypeScript then
  * rejects, never exclude one it would have accepted.
+ *
+ * **Because the decision is made after the query, `limit` must not be applied
+ * in SQL.** It was, and a single ineligible oldest client (an expired trial
+ * still holding an active prompt bank) then filled the one-row page, filtered
+ * out to nothing, and — never getting a rollup — stayed first in line every
+ * week, so no younger client was ever scanned. The query now pages through the
+ * candidates by (created_at, id) until `limit` eligible ones are found or the
+ * candidates run out.
  */
 export async function selectPendingClients(sql: Sql, limit: number): Promise<PendingClient[]> {
+  const pending: PendingClient[] = []
+  let cursor: { createdAt: string; id: string } | null = null
+
+  while (pending.length < limit) {
+    const rows = await selectCandidatePage(sql, cursor)
+    for (const row of rows) {
+      const client = eligiblePendingClient(row)
+      if (client) pending.push(client)
+      if (pending.length >= limit) break
+    }
+    if (rows.length < CANDIDATE_PAGE) break
+    const last = rows[rows.length - 1]
+    cursor = { createdAt: last.cursor_created_at, id: last.client_id }
+  }
+
+  return pending
+}
+
+function eligiblePendingClient(row: CandidateRow): PendingClient | null {
+  const entitlement = resolveCommercialEntitlement(row as CommercialAccount)
+  // A plan granting no platforms is refused 403 by pulse/run anyway; skipping
+  // here is what stops the driver burning its whole budget on those refusals.
+  if (runtimePlatformsFor(entitlement.features.platform_access).length === 0) return null
+  const promptCount = Number(row.prompt_count)
+  if (promptCount <= 0) return null
+  return { clientId: row.client_id, promptCount, cursor: Number(row.scanned_prompts) }
+}
+
+async function selectCandidatePage(
+  sql: Sql,
+  cursor: { createdAt: string; id: string } | null,
+): Promise<CandidateRow[]> {
+  const cursorAt = cursor?.createdAt ?? null
+  const cursorId = cursor?.id ?? null
+  // created_at travels as text so the keyset comparison round-trips at full
+  // precision; a JS Date would truncate microseconds and could skip a row.
   const rows = await sql`
     select c.id as client_id,
+           c.created_at::text as cursor_created_at,
            (select count(*) from prompt_bank pb
              where pb.client_id = c.id and pb.is_active) as prompt_count,
            (select count(distinct m.prompt_id) from pulse_metrics m
@@ -71,23 +124,12 @@ export async function selectPendingClients(sql: Sql, limit: number): Promise<Pen
       -- Over-inclusive on purpose; the real decision is made below.
       and (a.override_plan is not null or a.plan in ('basic', 'pro', 'enterprise'))
       and (a.override_plan is not null or a.status not in ('past_due', 'cancelled'))
+      and (${cursorAt}::timestamptz is null
+           or (c.created_at, c.id) > (${cursorAt}::timestamptz, ${cursorId}::uuid))
     order by c.created_at, c.id
-    limit ${limit}
+    limit ${CANDIDATE_PAGE}
   `
-
-  return (rows as unknown as CandidateRow[])
-    .filter(row => {
-      const entitlement = resolveCommercialEntitlement(row as CommercialAccount)
-      // A plan granting no platforms is refused 403 by pulse/run anyway; skipping
-      // here is what stops the driver burning its whole budget on those refusals.
-      return runtimePlatformsFor(entitlement.features.platform_access).length > 0
-    })
-    .map(row => ({
-      clientId: row.client_id,
-      promptCount: Number(row.prompt_count),
-      cursor: Number(row.scanned_prompts),
-    }))
-    .filter(c => c.promptCount > 0)
+  return rows as unknown as CandidateRow[]
 }
 
 /**
