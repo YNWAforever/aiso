@@ -49,7 +49,8 @@ const TLD = /^(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$/i
  */
 function isScannableHost(hostname: string): boolean {
   if (IPV4.test(hostname) || hostname.startsWith('[')) return true
-  const labels = hostname.split('.')
+  // A fully qualified name may end in one dot ("example.com.").
+  const labels = (hostname.endsWith('.') ? hostname.slice(0, -1) : hostname).split('.')
   return labels.length >= 2 && labels.every(Boolean) && TLD.test(labels[labels.length - 1]!)
 }
 import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'

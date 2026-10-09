@@ -283,6 +283,13 @@ describe('POST /api/scan — full scan flow', () => {
     expect(dbState.insertValues).toEqual([])
   })
 
+  it('accepts a fully qualified host with a trailing dot', async () => {
+    const { POST } = await import('@/app/api/scan/route')
+    const res = await POST(new NextRequest('http://localhost/api/scan', { method: 'POST', body: JSON.stringify({ url: 'https://example.com./' }) }))
+
+    expect(res.status).toBe(200)
+  })
+
   it('refuses a site it cannot reach at all, and saves nothing', async () => {
     fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'))
     const { POST } = await import('@/app/api/scan/route')
