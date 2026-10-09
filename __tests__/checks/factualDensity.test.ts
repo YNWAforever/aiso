@@ -90,6 +90,15 @@ describe('checkFactualDensity — uniqueness provider', () => {
       .toBeCloseTo(Math.min(100, (withZero.geoDetails?.qualityScore ?? 0) * 100 / 90), 5)
   })
 
+  it('reports a rescaled quality score to one decimal place', async () => {
+    model.mockRejectedValueOnce(new Error('provider down'))
+    const r = await checkFactualDensity('<p>In 2024 revenue grew 23.4% to $4.2 billion.</p>', ctx)
+    const score = r.geoDetails?.qualityScore ?? 0
+
+    expect(Math.round(score * 10) / 10).toBe(score)
+    expect(r.details).toBe(`Quality score ${score}/100`)
+  })
+
   it('clamps a model score outside 0-100', async () => {
     model.mockResolvedValueOnce(JSON.stringify({ score: 500, claims: ['x'] }))
     const r = await checkFactualDensity(HTML_FACTUAL, ctx)

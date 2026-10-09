@@ -1,5 +1,18 @@
 import { createHash } from 'node:crypto'
-import { CHECK_VERSIONS } from '@/lib/scan-evidence'
+import { CHECK_VERSIONS, SCANNER_METHODS, type EvidenceCheckKey } from '@/lib/scan-evidence'
+
+/**
+ * The check versions of the scanner method a snapshot's scan was recorded
+ * under. Stored snapshots outlive methodology changes, so they are checked
+ * against their own registered method, never against the current one — which
+ * would make every work item, change set and export built from an older scan
+ * fail validation the day the methodology is bumped.
+ */
+function methodVersions(scannerVersion: unknown): Readonly<Record<EvidenceCheckKey, string>> | undefined {
+  return typeof scannerVersion === 'string' && Object.hasOwn(SCANNER_METHODS, scannerVersion)
+    ? SCANNER_METHODS[scannerVersion]
+    : undefined
+}
 import type { DraftSnapshotV1, SourceRef } from '@/lib/opportunities/types'
 
 const SNAPSHOT_BYTE_LIMIT = 65_536
@@ -118,7 +131,7 @@ function assertSnapshotAllowlist(snapshot: DraftSnapshotV1): void {
   assertAllowedKeys(evidence.check, ['applicability', 'version', 'collection', 'assessment', 'reason'], 'scan check evidence')
   if (snapshot.args.checkKey !== evidence.checkKey || snapshot.args.assessment !== evidence.check.assessment
     || evidence.check.applicability !== 'applicable' || evidence.check.collection !== 'complete'
-    || !['warn', 'fail'].includes(evidence.check.assessment) || evidence.check.version !== CHECK_VERSIONS[evidence.checkKey]) {
+    || !['warn', 'fail'].includes(evidence.check.assessment) || evidence.check.version !== methodVersions(evidence.scannerVersion)?.[evidence.checkKey]) {
     throw new TypeError('Scan rule arguments and selected check must describe the same eligible evidence')
   }
   if (!APPLICABILITY.includes(evidence.check.applicability) || !validNormalizedString(evidence.check.version, 80)
@@ -135,8 +148,9 @@ function assertSnapshotAllowlist(snapshot: DraftSnapshotV1): void {
     || !validNormalizedString(evidence.comparison.urlPolicy, 80) || !validNormalizedString(evidence.comparison.scannerVersion, 80)
     || !validNormalizedString(evidence.comparison.headlineMethod, 80) || !validNormalizedString(evidence.comparison.pillarMethod, 80)) throw new TypeError('Invalid scan comparison evidence')
   assertAllowedKeys(evidence.comparison.checkVersions, Object.keys(CHECK_VERSIONS), 'scan check versions')
-  if (Object.keys(evidence.comparison.checkVersions).length !== Object.keys(CHECK_VERSIONS).length
-    || Object.entries(CHECK_VERSIONS).some(([key, version]) => evidence.comparison.checkVersions[key as keyof typeof CHECK_VERSIONS] !== version)) throw new TypeError('Invalid scan check versions')
+  const recordedVersions = methodVersions(evidence.comparison.scannerVersion)
+  if (!recordedVersions || Object.keys(evidence.comparison.checkVersions).length !== Object.keys(CHECK_VERSIONS).length
+    || Object.entries(recordedVersions).some(([key, version]) => evidence.comparison.checkVersions[key as keyof typeof CHECK_VERSIONS] !== version)) throw new TypeError('Invalid scan check versions')
   if (evidence.scannerVersion !== evidence.comparison.scannerVersion
     || evidence.headlineMethod !== evidence.comparison.headlineMethod
     || evidence.pillarMethod !== evidence.comparison.pillarMethod

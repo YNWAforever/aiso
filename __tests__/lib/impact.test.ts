@@ -101,6 +101,22 @@ describe('computeImpact — aiReadablePercent', () => {
 })
 
 // ── Quick wins + projection ─────────────────────────────────────
+describe('computeImpact — checks that could not be assessed', () => {
+  it('never offers an unmeasured check as a quick win', () => {
+    // An unavailable c19 is left out of the GEO score; offering "Build out
+    // topic clusters" for it would ask the customer to fix something that was
+    // never measured, and count points the score never deducted.
+    const results = allPassResults()
+    results.c19_topical_authority = {
+      status: 'warn', message: 'topical_authority_unavailable',
+      diagnostic: { collection: 'failed', reason: 'provider-fallback' },
+    } as never
+    const r = computeImpact(results, { score: 90 })
+
+    expect(r.quickWins.map(w => w.key)).not.toContain('c19_topical_authority')
+  })
+})
+
 describe('computeImpact — quickWins & projection', () => {
   it('returns no quick wins and zero uplift for a perfect scan', () => {
     const r = computeImpact(allPassResults(), { score: 100 })

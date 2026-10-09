@@ -86,9 +86,12 @@ ${fenceUntrusted('PAGE CONTENT', text.slice(0, 800))}` },
     Math.min(15, dates.length * 3) +
     (hasComparativeData ? 15 : 0) +
     (hasTimeSeriesData ? 10 : 0)
-  const qualityScore = Math.min(100, uniquenessScore === null
+  const rawQuality = Math.min(100, uniquenessScore === null
     ? deterministic * 100 / 90
     : deterministic + uniquenessScore * 0.1)
+  // One decimal, as the densities below: the rescale otherwise shows
+  // "Quality score 36.666666666666664/100" on the result page.
+  const qualityScore = Math.round(rawQuality * 10) / 10
 
   const geoDetails: FactualDensityResult = {
     qualityScore, numberDensity: Math.round(numberDensity * 10) / 10,

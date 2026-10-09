@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildScanEvidence } from '@/lib/scan-evidence'
+import { createHash } from 'node:crypto'
+import { buildScanEvidence, SCANNER_METHODS } from '@/lib/scan-evidence'
 import { fingerprintEvidence, opportunityKey, serializeDraftSnapshot } from '@/lib/opportunities/fingerprint'
 import { deriveSuggestions } from '@/lib/opportunities/rules'
 import type { DraftSnapshotV1 } from '@/lib/opportunities/types'
@@ -43,6 +44,43 @@ function scanSnapshot(args: Record<string, unknown> = { checkKey: 'c1_robots', a
     initialTitle: 'Review check', initialAction: 'Review the recorded check.',
   }
 }
+/** The same scan, as recorded under the earlier scanner method 2026-09-05.v1. */
+function legacyEnvelope(checks: Record<string, { assessment: string; collection: string }>) {
+  const current = buildScanEvidence({
+    requestedUrl: 'https://example.com', evaluatedUrl: 'https://example.com',
+    industry: 'technology', region: 'HK', sitemapSource: 'fetched', checks,
+    observations: [{ check: 'page', collection: 'complete', httpStatus: 200, target: { origin: 'https://example.com' } }],
+  })
+  const legacy = structuredClone(current) as typeof current & { scannerVersion: string }
+  const versions = SCANNER_METHODS['2026-09-05.v1']
+  legacy.scannerVersion = '2026-09-05.v1'
+  ;(legacy.comparison as Record<string, unknown>).scannerVersion = '2026-09-05.v1'
+  ;(legacy.comparison as Record<string, unknown>).checkVersions = versions
+  for (const key of Object.keys(legacy.checks) as Array<keyof typeof legacy.checks>) legacy.checks[key].version = versions[key]
+  legacy.comparisonSignature = createHash('sha256').update(JSON.stringify(legacy.comparison)).digest('hex')
+  return legacy
+}
+
+describe('snapshots of scans recorded under an earlier scanner method', () => {
+  // The 2026-10-09 methodology bump changed c17-c20's versions. Validation
+  // compared every stored snapshot with the *current* versions, so each work
+  // item, change set and export built from an older scan would have thrown.
+  it('still validates and serialises against the method that recorded them', () => {
+    const envelope = legacyEnvelope({ c19_topical_authority: { assessment: 'warn', collection: 'complete' } })
+    const suggestion = deriveSuggestions({ kind: 'scan-check', scanId: ID, recordedAt: null, envelope })[0]
+    if (suggestion?.evidence.kind !== 'scan-check') throw new Error('expected scan suggestion')
+    const legacySnapshot: DraftSnapshotV1 = {
+      schemaVersion: 1, source: suggestion.source, ruleVersion: suggestion.ruleVersion,
+      evidence: suggestion.evidence, limitations: suggestion.limitations,
+      titleKey: suggestion.titleKey, actionKey: suggestion.actionKey,
+      args: { checkKey: 'c19_topical_authority', assessment: 'warn' }, locale: 'en',
+      initialTitle: 'Review check', initialAction: 'Review the recorded check.',
+    }
+
+    expect(() => serializeDraftSnapshot(legacySnapshot)).not.toThrow()
+  })
+})
+
 describe('fingerprintEvidence', () => {
   it('sorts object keys while preserving semantic values', () => {
     expect(fingerprintEvidence({ a: 1, b: 2 })).toBe(fingerprintEvidence({ b: 2, a: 1 }))

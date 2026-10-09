@@ -24,11 +24,14 @@ it('records rejected redirects and timeouts without altering rejection', async (
   expect(timeout.observations[0].collection).toBe('failed')
 })
 it('reports internal provider fallback without changing benchmark output', async () => {
+  // Since 2026-10-09.v1 a fallback stores no invented uniqueness (it was 50),
+  // and c19 — whose clusters come only from the model — declares the
+  // measurement failed so it is left out of the score rather than reported.
   const factual = await checkFactualDensity('<p>Example text</p>', {industry:'general_b2c',region:'global'})
-  expect(factual.geoDetails?.uniquenessScore).toBe(50)
+  expect(factual.geoDetails?.uniquenessScore).toBeNull()
   expect(factual.diagnostic).toEqual({collection:'partial',reason:'provider-fallback'})
-  const topical = await checkTopicalAuthority(['https://example.com/topic/article'], '', 'general_b2c')
-  expect(topical.diagnostic).toEqual({collection:'partial',reason:'provider-fallback'})
+  const topical = await checkTopicalAuthority(['https://example.com/topic/one', 'https://example.com/topic/two'], '', 'general_b2c')
+  expect(topical.diagnostic).toEqual({collection:'failed',reason:'provider-fallback'})
 })
 
 it('keeps body-read failures, missing checks and assessment failures distinct', async () => {

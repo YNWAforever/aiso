@@ -3,7 +3,7 @@
  * the check results already stored in scans.results. Never throws; missing
  * or legacy data degrades by omitting the affected stat.
  */
-import { CORE_PTS, EXT_PTS, GEO_PTS, assignGrade, capScore } from '@/lib/scoring'
+import { CORE_PTS, EXT_PTS, GEO_PTS, assignGrade, capScore, isAssessable } from '@/lib/scoring'
 import type { CheckResult } from '@/lib/types'
 
 /* ── Types ───────────────────────────────────────────────────── */
@@ -192,7 +192,9 @@ function deriveQuickWins(results: Record<string, unknown>): QuickWin[] {
   const wins: QuickWin[] = []
   for (const key of Object.keys(ALL_WEIGHTS)) {
     const check = getCheck(results, key)
-    if (!check || check.status === 'pass') continue
+    // A check that could not measure (no input, provider failure) is out of the
+    // score, so it is not a fix the customer can make either.
+    if (!check || check.status === 'pass' || !isAssessable(check)) continue
     const weight = ALL_WEIGHTS[key]!
     const pointsGain = check.status === 'fail' ? weight : weight * 0.5
     wins.push({
