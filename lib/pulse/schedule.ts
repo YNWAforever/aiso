@@ -62,14 +62,20 @@ const CANDIDATE_PAGE = 50
  * candidates by (created_at, id) until `limit` eligible ones are found or the
  * candidates run out.
  */
-export async function selectPendingClients(sql: Sql, limit: number): Promise<PendingClient[]> {
+export async function selectPendingClients(
+  sql: Sql,
+  limit: number,
+  // Clients the caller already tried and saw fail in this pass; passed over so
+  // one broken client cannot hold the head of the queue.
+  exclude: ReadonlySet<string> = new Set(),
+): Promise<PendingClient[]> {
   const pending: PendingClient[] = []
   let cursor: { createdAt: string; id: string } | null = null
 
   while (pending.length < limit) {
     const rows = await selectCandidatePage(sql, cursor)
     for (const row of rows) {
-      const client = eligiblePendingClient(row)
+      const client = exclude.has(row.client_id) ? null : eligiblePendingClient(row)
       if (client) pending.push(client)
       if (pending.length >= limit) break
     }
