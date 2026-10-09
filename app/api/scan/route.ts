@@ -32,7 +32,7 @@ import { resolveCommercialEntitlement } from '@/lib/tier'
 import { fetchPublicUrl, PublicUrlError } from '@/lib/security/public-url'
 import { consumePublicScanRateLimit, rateLimitHeaders } from '@/lib/security/public-scan-rate-limit'
 import { parseSitemapUrls } from '@/lib/security/sitemap-urls'
-import { consumeAuthenticatedScanQuota, authenticatedScanQuotaHeaders } from '@/lib/security/authenticated-scan-quota'
+import { consumeAuthenticatedScanQuota, authenticatedScanQuotaHeaders, releaseAuthenticatedScanQuota } from '@/lib/security/authenticated-scan-quota'
 import { GEO_PTS, assignGrade, calculateScore, calculateGeoScore, capScore } from '@/lib/scoring'
 import { calculatePillarScores } from '@/lib/pillar-scores'
 import { buildScanEvidence, CHECK_VERSIONS, type EvidenceCheckKey } from '@/lib/scan-evidence'
@@ -161,6 +161,9 @@ export async function POST(req: NextRequest) {
 
   const entitlement = resolveCommercialEntitlement(profile?.accounts)
   let scanHeaders: Headers | undefined
+  // Set once a monthly scan has been spent, so a scan that turns out to have
+  // nothing to assess can give it back.
+  let quotaSpentBy: string | null = null
   if (!profile || (entitlement.plan === 'free' && !ownedClient)) {
     try {
       const decision = await consumePublicScanRateLimit(req)
@@ -187,6 +190,7 @@ export async function POST(req: NextRequest) {
           { status: 429, headers: scanHeaders },
         )
       }
+      quotaSpentBy = profile.account_id
     } catch (error) {
       console.error('[scan] authenticated quota failed:', (error as Error)?.message ?? String(error))
       return NextResponse.json({ error: 'Authenticated scan quota unavailable' }, { status: 503 })
@@ -217,6 +221,15 @@ export async function POST(req: NextRequest) {
     // is no site to assess, so nothing is graded or saved. Any response, even
     // a 403 or 500, is still scanned — reporting that is what bot-access is for.
     console.error('[scan] page unreachable:', (error as Error)?.name ?? 'Error')
+    // Nothing is saved, so the monthly scan it spent is given back. A failed
+    // refund is logged, not surfaced: the 422 is still the true answer.
+    if (quotaSpentBy) {
+      try {
+        await releaseAuthenticatedScanQuota(quotaSpentBy)
+      } catch (releaseError) {
+        console.error('[scan] quota refund failed:', (releaseError as Error)?.name ?? 'Error')
+      }
+    }
     return NextResponse.json({ error: 'SCAN_UNREACHABLE' }, { status: 422, headers: scanHeaders })
   }
   try {
@@ -317,7 +330,12 @@ export async function POST(req: NextRequest) {
   for (const key of Object.keys(GEO_PTS) as Array<keyof typeof GEO_PTS>) {
     const r = geoResults[key]
     // Store both the CheckResult (for status/message) and the rich geoDetails under named keys
-    geoDetails[key] = { status: r.status, message: r.message, details: (r as { details?: unknown }).details }
+    // The diagnostic is kept so readers of the stored result (computeImpact's
+    // quick wins) know a check could not measure, as calculateGeoScore did here.
+    geoDetails[key] = {
+      status: r.status, message: r.message, details: (r as { details?: unknown }).details,
+      ...(r.diagnostic ? { diagnostic: r.diagnostic } : {}),
+    }
     if ('geoDetails' in r && r.geoDetails) {
       geoDetails[`${key}_data`] = r.geoDetails
     }

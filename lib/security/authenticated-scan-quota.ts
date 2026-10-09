@@ -52,6 +52,21 @@ export function consumeAuthenticatedScanQuota(
   return consume(accountId, AUTHENTICATED_BASIC_SCAN_LIMIT)
 }
 
+/**
+ * Gives back one scan consumed this month. Used when a scan that already spent
+ * quota turns out to have nothing to assess (the site never responded): no
+ * result is saved, so it must not cost one of the account's monthly scans.
+ * Floors at zero and only touches the current UTC month, the one consumed.
+ */
+export async function releaseAuthenticatedScanQuota(accountId: string): Promise<void> {
+  await db()`
+    update authenticated_scan_monthly_usage
+    set request_count = greatest(0, request_count - 1)
+    where account_id = ${accountId}::uuid
+      and month_start = date_trunc('month', now() at time zone 'UTC')::date
+  `
+}
+
 export function authenticatedScanQuotaHeaders(
   decision: AuthenticatedScanQuotaDecision,
   nowSeconds = Math.floor(Date.now() / 1000),

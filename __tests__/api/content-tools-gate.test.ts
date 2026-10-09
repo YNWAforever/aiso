@@ -15,6 +15,7 @@ const h = vi.hoisted(() => ({
   llm: vi.fn(),
   owns: true,
   cachedFixPack: false,
+  clusterLookupFails: false,
 }))
 
 vi.mock('@/lib/auth', () => ({ getProfile: vi.fn(async () => h.profile) }))
@@ -28,6 +29,7 @@ vi.mock('@/lib/db', () => ({
   db: () => (strings: TemplateStringsArray) => {
     const text = strings.join('?').toLowerCase()
     if (text.includes('from clients')) return Promise.resolve(h.owns ? [{ id: 'client-1' }] : [])
+    if (text.includes('from topical_clusters') && h.clusterLookupFails) return Promise.reject(new Error('db down'))
     if (text.includes('from fix_packs')) {
       return Promise.resolve(h.cachedFixPack ? [{ llms_txt: 'x', robots_patch: 'y', faq_schema: '{}' }] : [])
     }
@@ -61,6 +63,7 @@ beforeEach(() => {
   h.profile = signedIn(account('pro'))
   h.owns = true
   h.cachedFixPack = false
+  h.clusterLookupFails = false
   h.consume.mockReset()
   h.consume.mockResolvedValue({ allowed: true, remaining: 19, resetAt: 2_000_000_000 })
   h.llm.mockReset()
@@ -115,6 +118,14 @@ describe('allowance is keyed to the account', () => {
 
     const [first, second] = h.consume.mock.calls.map(c => c[0])
     expect(first).not.toBe(second)
+  })
+
+  it('does not spend allowance when the cluster-map data lookup fails', async () => {
+    h.clusterLookupFails = true
+    const res = await call('@/app/api/fix/cluster-map/route', ROUTES[1][2])
+
+    expect(res.status).toBe(500)
+    expect(h.consume).not.toHaveBeenCalled()
   })
 
   it('does not spend allowance on a client the caller does not own', async () => {

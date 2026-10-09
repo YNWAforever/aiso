@@ -17,6 +17,7 @@ const state = vi.hoisted(() => ({
 
 const getProfile = vi.hoisted(() => vi.fn(async () => state.profile))
 const consumeAuthenticatedScanQuota = vi.hoisted(() => vi.fn(async () => state.quota))
+const releaseAuthenticatedScanQuota = vi.hoisted(() => vi.fn(async () => undefined))
 const consumePublicScanRateLimit = vi.hoisted(() => vi.fn(async () => ({
   allowed: true,
   remaining: 4,
@@ -26,6 +27,7 @@ const consumePublicScanRateLimit = vi.hoisted(() => vi.fn(async () => ({
 vi.mock('@/lib/auth', () => ({ getProfile }))
 vi.mock('@/lib/security/authenticated-scan-quota', () => ({
   consumeAuthenticatedScanQuota,
+  releaseAuthenticatedScanQuota,
   authenticatedScanQuotaHeaders: (decision: typeof state.quota) => new Headers({
     'RateLimit-Limit': '3',
     'RateLimit-Remaining': String(decision.remaining),
@@ -105,6 +107,31 @@ describe('authenticated scan commercial entitlement', () => {
     consumePublicScanRateLimit.mockClear()
     fetchMock.mockClear()
     vi.stubGlobal('fetch', fetchMock)
+  })
+
+  it('refunds a Basic monthly scan when the site cannot be reached', async () => {
+    // The quota is spent before the page fetch; an unreachable site saves
+    // nothing, so it must not cost one of the account's three monthly scans.
+    state.profile = { account_id: 'account-basic', accounts: paidAccount('basic') }
+    releaseAuthenticatedScanQuota.mockClear()
+    fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'))
+
+    const response = await scan()
+
+    expect(response.status).toBe(422)
+    expect(consumeAuthenticatedScanQuota).toHaveBeenCalledTimes(1)
+    expect(releaseAuthenticatedScanQuota).toHaveBeenCalledWith('account-basic')
+  })
+
+  it('refunds nothing for a plan whose scans are not counted', async () => {
+    state.profile = { account_id: 'account-pro', accounts: paidAccount('pro') }
+    releaseAuthenticatedScanQuota.mockClear()
+    fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'))
+
+    const response = await scan()
+
+    expect(response.status).toBe(422)
+    expect(releaseAuthenticatedScanQuota).not.toHaveBeenCalled()
   })
 
   it('fails closed when authentication lookup fails before choosing a limiter', async () => {

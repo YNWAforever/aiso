@@ -86,9 +86,6 @@ export async function POST(req: NextRequest) {
   // 404 rather than 403 so the endpoint does not leak client existence
   if (!owned) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const overAllowance = await consumeAiToolAllowance(access.accountId)
-  if (overAllowance) return overAllowance
-
   let clusters: TopicalCluster[]
   try {
     clusters = (await db()`
@@ -100,6 +97,11 @@ export async function POST(req: NextRequest) {
     console.error('[fix/cluster-map] cluster lookup failed:', error)
     return NextResponse.json({ error: 'Database error' }, { status: 500 })
   }
+
+  // Spent only once the data the prompt needs is in hand, immediately before
+  // the model call: a failed lookup must not cost a generation.
+  const overAllowance = await consumeAiToolAllowance(access.accountId)
+  if (overAllowance) return overAllowance
 
   const keywords = INDUSTRY_PACKS[industry as IndustryCode]?.topicalKeywords?.slice(0, 15) ?? []
 

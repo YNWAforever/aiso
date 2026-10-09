@@ -283,6 +283,22 @@ describe('POST /api/scan — full scan flow', () => {
     expect(dbState.insertValues).toEqual([])
   })
 
+  it('stores a GEO check diagnostic so later readers know it was not measured', async () => {
+    // computeImpact reads the stored results; without the diagnostic an
+    // unavailable c19 came back as a plain warn and was offered as a quick win.
+    const { checkTopicalAuthority } = await import('@/lib/checks/topicalAuthority')
+    vi.mocked(checkTopicalAuthority).mockResolvedValueOnce({
+      status: 'warn', message: 'topical_authority_unavailable',
+      diagnostic: { collection: 'failed', reason: 'provider-fallback' },
+    })
+    const { POST } = await import('@/app/api/scan/route')
+    const res = await POST(new NextRequest('http://localhost/api/scan', { method: 'POST', body: JSON.stringify({ url: 'https://example.com' }) }))
+
+    expect(res.status).toBe(200)
+    const stored = JSON.parse(dbState.insertValues[3] as string)
+    expect(stored.c19_topical_authority.diagnostic).toEqual({ collection: 'failed', reason: 'provider-fallback' })
+  })
+
   it('accepts a fully qualified host with a trailing dot', async () => {
     const { POST } = await import('@/app/api/scan/route')
     const res = await POST(new NextRequest('http://localhost/api/scan', { method: 'POST', body: JSON.stringify({ url: 'https://example.com./' }) }))
