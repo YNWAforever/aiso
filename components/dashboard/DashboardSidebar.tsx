@@ -55,7 +55,10 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
   // A layout cannot see a child segment's params, but this is a client component
   // rendered inside the route, so useParams can.
   const clientId = params?.clientId ?? brandId
-  const step = searchParams?.get('step') ?? 'home'
+  // Without a brand in the route this is the portfolio page, which renders only
+  // itself whatever ?step= says — so the step actually shown is Home, and
+  // marking any other entry current would misstate where the user is.
+  const step = clientId ? (searchParams?.get('step') ?? 'home') : 'home'
   const { plan, features } = entitlement
 
   // Sub-routes carry no ?step=, so without this the Scan entry would render as
@@ -93,7 +96,9 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
           // a pricing link, so blocking would put the upgrade path behind the
           // very lock advertising it — the carve-out the question bank documents
           // below, applied to every entry rather than just that one.
-          const unreachable = BRAND_STEPS.has(s.key) && !clientId
+          // Every step but Home also needs a brand *route*: the portfolio page
+          // ignores ?step=, so these used to render the portfolio again.
+          const unreachable = BRAND_STEPS.has(s.key) && !clientId || (!clientId && s.key !== 'home')
           const unentitled = (s.key === 'improve' && !features.agent_recs) ||
                              (s.key === 'roi' && !features.local_trust_roi)
           const locked = unreachable || unentitled
@@ -106,7 +111,7 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
               aria-disabled={blocksNavigation || undefined}
               tabIndex={blocksNavigation ? -1 : undefined}
               onClick={() => setNavigationOpen(false)}
-              href={clientId ? `/${lang}/dashboard/${clientId}?step=${s.key}` : `/${lang}/dashboard?step=${s.key}`}
+              href={clientId ? `/${lang}/dashboard/${clientId}?step=${s.key}` : `/${lang}/dashboard`}
               className={`flex min-h-11 items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group ${
                 active
                   ? 'bg-primary text-white shadow-sm'
