@@ -29,6 +29,15 @@ vi.mock('@/lib/auth', () => ({
   getProfile: vi.fn(),
 }))
 
+// These routes now spend a per-account daily allowance before any model call
+// (lib/fix/guard.ts). The counter is out of scope here — always allowed — and
+// is exercised in content-tools-gate.test.ts.
+vi.mock('@/lib/security/durable-rate-limit', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/security/durable-rate-limit')>()),
+  consumeFromNeon: vi.fn(async () => ({ allowed: true, remaining: 19, resetAt: 2_000_000_000 })),
+  resolveRateLimitSecret: () => 'x'.repeat(32),
+}))
+
 vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
   ok: true,
   text: async () => '<title>Example</title>',
@@ -38,7 +47,15 @@ import { parseFixPack } from '@/app/api/fix/route'
 import { getProfile } from '@/lib/auth'
 import { callOpenRouter } from '@/lib/openrouter'
 
-const PROFILE = { id: 'profile-1', account_id: 'acc-1', is_admin: false }
+// A paid account: the content tools are refused to free, cancelled and
+// expired-trial accounts (content-tools-gate.test.ts covers those).
+const PROFILE = {
+  id: 'profile-1', account_id: 'acc-1', is_admin: false,
+  accounts: {
+    plan: 'pro', status: 'active', stripe_subscription_id: 'sub_1',
+    trial_ends_at: null, override_plan: null, override_expires_at: null,
+  },
+}
 
 const SCAN_ROW = {
   id: 'scan-1', url: 'https://example.com', domain: 'example.com',

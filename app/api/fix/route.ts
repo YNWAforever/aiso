@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { callOpenRouter, type JsonSchemaFormat } from '@/lib/openrouter'
-import { getProfile }     from '@/lib/auth'
+import { authorizeAiTool, consumeAiToolAllowance } from '@/lib/fix/guard'
 import { db }             from '@/lib/db'
 import { fetchPublicUrl } from '@/lib/security/public-url'
 import { UNTRUSTED_SYSTEM_RULE, fenceUntrusted } from '@/lib/agents/untrusted'
@@ -41,15 +41,18 @@ async function canAccessScan(scanId: string, accountId: string): Promise<boolean
 }
 
 export async function POST(req: NextRequest) {
-  const profile = await getProfile()
-  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Any signed-in account: the Fix Pack is what a newly signed-in visitor
+  // unlocks for the scan they just ran. Generation is bounded by the shared
+  // allowance below instead, spent only on a cache miss.
+  const access = await authorizeAiTool({ paidOnly: false })
+  if (!access.ok) return access.response
 
   const { scanId } = await req.json()
   if (!scanId) return NextResponse.json({ error: 'Missing scanId' }, { status: 400 })
 
   let allowed = false
   try {
-    allowed = await canAccessScan(scanId, profile.account_id)
+    allowed = await canAccessScan(scanId, access.accountId)
   } catch (error) {
     console.error('[fix] ownership check failed:', error)
     return NextResponse.json({ error: 'Database error' }, { status: 500 })
@@ -82,6 +85,9 @@ export async function POST(req: NextRequest) {
   if (existing) return NextResponse.json(existing)
 
   if (!scan) return NextResponse.json({ error: 'Scan not found' }, { status: 404 })
+
+  const overAllowance = await consumeAiToolAllowance(access.accountId)
+  if (overAllowance) return overAllowance
 
   let pageTitle = scan.domain
   let metaDescription = ''
