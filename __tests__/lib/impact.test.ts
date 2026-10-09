@@ -2,7 +2,7 @@
  * TDD: Impact engine — deterministic modelled estimates from scan results
  */
 import { describe, it, expect } from 'vitest'
-import { computeImpact, INDUSTRY_BENCHMARKS } from '@/lib/impact'
+import { computeImpact } from '@/lib/impact'
 
 // ── Fixtures ────────────────────────────────────────────────────
 const pass = (msg = 'ok')  => ({ status: 'pass' as const, message: msg })
@@ -168,13 +168,18 @@ describe('computeImpact — headlineStat', () => {
     expect(r.headlineStat.type).toBe('low_readable')
   })
 
-  it('falls to benchmark_gap when below industry average', () => {
+  it('never headlines a gap to an industry average it does not have', () => {
+    // The averages were a hard-coded table with no data behind them, shown to
+    // customers as measured. Below the old "technology: 61" a score of 50 used
+    // to headline "11 points below the average for your industry".
     const r = computeImpact(allPassResults(), { score: 50, industry: 'technology' })
-    expect(r.headlineStat.type).toBe('benchmark_gap')
-    if (r.headlineStat.type === 'benchmark_gap') {
-      expect(r.headlineStat.benchmark).toBe(INDUSTRY_BENCHMARKS.technology)
-      expect(r.headlineStat.gap).toBe(INDUSTRY_BENCHMARKS.technology! - 50)
-    }
+
+    expect(r.headlineStat.type).toBe('score_uplift')
+    expect(r.headlineStat.text).not.toMatch(/average/i)
+  })
+
+  it('exports no industry benchmark table', async () => {
+    expect(await import('@/lib/impact')).not.toHaveProperty('INDUSTRY_BENCHMARKS')
   })
 
   it('falls back to score_uplift otherwise', () => {

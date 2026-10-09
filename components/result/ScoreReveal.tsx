@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useLocale } from 'next-intl'
-import { INDUSTRY_BENCHMARKS } from '@/lib/impact'
 
 const GRADE_CONFIG: Record<string, { ring: string; badge: string; text: string; label: string }> = {
   'A+': { ring: 'stroke-emerald-500', badge: 'bg-emerald-500', text: 'text-white', label: 'Excellent' },
@@ -32,16 +31,14 @@ const INDUSTRY_LABELS_ZH_HK: Record<string, string> = {
   energy_utilities: '能源及公用事業', general_b2b: '一般 B2B', general_b2c: '一般 B2C',
 }
 
+// No industry-average comparison: the old one came from a hard-coded table
+// with no data behind it. Add one back only from measured scans, with n and date.
 const UI_EN = {
   yourScore: 'Your score',
-  avg: (industry: string | null) => `Avg. ${industry ?? 'industry'}`,
-  vsAvg: (delta: number) => `${delta >= 0 ? `+${delta}` : delta} vs avg`,
 }
 
 const UI_ZH_HK: typeof UI_EN = {
   yourScore: '你的分數',
-  avg: (industry: string | null) => `${industry ?? '行業'}平均`,
-  vsAvg: (delta: number) => `比平均 ${delta >= 0 ? `+${delta}` : delta}`,
 }
 
 interface Props {
@@ -63,9 +60,7 @@ export function ScoreReveal({ score, grade, domain, industry, region }: Props) {
 
   const cfg = GRADE_CONFIG[grade] ?? GRADE_CONFIG['F']!
   const gradeLabel = isZh ? (GRADE_LABELS_ZH_HK[grade] ?? GRADE_LABELS_ZH_HK['F']!) : cfg.label
-  const benchmark = industry ? (INDUSTRY_BENCHMARKS[industry] ?? 49) : 49
   const industryLabel = industry ? (industryLabels[industry] ?? industry) : null
-  const delta = score - benchmark
   const size = 140
   const r = 56
   const circ = 2 * Math.PI * r
@@ -128,18 +123,10 @@ export function ScoreReveal({ score, grade, domain, industry, region }: Props) {
             </span>
           </div>
 
-          {/* Benchmark */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2 text-sm">
               <span className="text-slate-500">{ui.yourScore}</span>
               <span className="font-bold text-slate-900">{score}/100</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-slate-500">{ui.avg(industryLabel)}</span>
-              <span className="font-semibold text-slate-600">{benchmark}/100</span>
-              <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${delta >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                {ui.vsAvg(delta)}
-              </span>
             </div>
           </div>
         </div>
