@@ -149,18 +149,17 @@ export async function GET(req: NextRequest) {
       })
       if (!res.ok) {
         // Never retry a failing client in the same chain — that would spin the
-        // whole budget on one error. Stopping the chain was worse: the client
-        // stayed first in line, so one persistently broken brand starved every
+        // whole budget on one error. When the failure is about this client
+        // (a 4xx: bad request, plan grants no platforms, client gone), stopping
+        // the chain was worse: the client stayed first in line and starved every
         // brand behind it. Pass over it instead; the next firing retries it from
         // the same derived cursor.
         //
-        // The exception is a provider outage: no other client would fare any
-        // better, so moving on would only spend the chain on refusals.
-        let producerError: unknown = null
-        try { producerError = (await res.json())?.error } catch { /* body is optional */ }
-        const outage = producerError === 'NO_PROVIDER_RESPONSES'
+        // A 5xx is not about the client — a failed write, a failed lookup, a
+        // provider outage — and the next client would only pay for the same
+        // LLM calls and lose them the same way, so the chain stops.
         const nextSkip = [...skip, target.clientId]
-        const passedOver = !outage && nextSkip.length <= MAX_SKIPPED
+        const passedOver = res.status < 500 && nextSkip.length <= MAX_SKIPPED
           && Date.now() - startedAt < BUDGET_MS
         if (passedOver) chainNextHop(cronSecret, hop, nextSkip)
 

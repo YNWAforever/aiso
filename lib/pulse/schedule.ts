@@ -81,6 +81,9 @@ export async function selectPendingClients(
     }
     if (rows.length < CANDIDATE_PAGE) break
     const last = rows[rows.length - 1]
+    // Never re-read a page: a cursor that did not move would loop until the
+    // platform killed the invocation.
+    if (cursor && last.cursor_created_at === cursor.createdAt && last.client_id === cursor.id) break
     cursor = { createdAt: last.cursor_created_at, id: last.client_id }
   }
 
@@ -105,9 +108,11 @@ async function selectCandidatePage(
   const cursorId = cursor?.id ?? null
   // created_at travels as text so the keyset comparison round-trips at full
   // precision; a JS Date would truncate microseconds and could skip a row.
+  // The column is nullable, and a NULL key would compare as unknown and read
+  // as "first page" on the next query — coalesce keeps the ordering total.
   const rows = await sql`
     select c.id as client_id,
-           c.created_at::text as cursor_created_at,
+           coalesce(c.created_at, '-infinity'::timestamptz)::text as cursor_created_at,
            (select count(*) from prompt_bank pb
              where pb.client_id = c.id and pb.is_active) as prompt_count,
            (select count(distinct m.prompt_id) from pulse_metrics m
@@ -131,8 +136,8 @@ async function selectCandidatePage(
       and (a.override_plan is not null or a.plan in ('basic', 'pro', 'enterprise'))
       and (a.override_plan is not null or a.status not in ('past_due', 'cancelled'))
       and (${cursorAt}::timestamptz is null
-           or (c.created_at, c.id) > (${cursorAt}::timestamptz, ${cursorId}::uuid))
-    order by c.created_at, c.id
+           or (coalesce(c.created_at, '-infinity'::timestamptz), c.id) > (${cursorAt}::timestamptz, ${cursorId}::uuid))
+    order by coalesce(c.created_at, '-infinity'::timestamptz), c.id
     limit ${CANDIDATE_PAGE}
   `
   return rows as unknown as CandidateRow[]

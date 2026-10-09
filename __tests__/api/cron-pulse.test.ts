@@ -261,7 +261,7 @@ describe('GET /api/cron/pulse — chaining', () => {
     // the chain instead (the old behaviour) left that client first in line, so
     // one persistently failing brand starved every brand behind it until it
     // recovered. The next scheduled firing retries it from the same cursor.
-    fetchMock.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) })
+    fetchMock.mockResolvedValue({ ok: false, status: 403, json: async () => ({ error: 'PLAN_HAS_NO_PLATFORMS' }) })
     const res = await get()
 
     expect(res.status).toBe(502)
@@ -293,8 +293,18 @@ describe('GET /api/cron/pulse — chaining', () => {
     expect(JSON.parse(producerCall[1].body)).toMatchObject({ clientId: 'client-2' })
   })
 
+  it('stops the chain on a server-side producer failure, which is not about the client', async () => {
+    // A failed write or lookup would fail the same way for the next client —
+    // after it had paid for that client's LLM calls.
+    fetchMock.mockResolvedValue({ ok: false, status: 500, json: async () => ({ error: 'Pulse run failed' }) })
+    const res = await get()
+
+    expect(res.status).toBe(502)
+    expect(afterCallbacks).toHaveLength(0)
+  })
+
   it('accumulates the skip list across hops and caps it', async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) })
+    fetchMock.mockResolvedValue({ ok: false, status: 404, json: async () => ({ error: 'Client not found' }) })
     const url = new URL('http://localhost/api/cron/pulse')
     url.searchParams.set('hop', '3')
     url.searchParams.set('skip', 'client-0')
@@ -349,9 +359,7 @@ describe('Pulse failure ledger classification', () => {
       expect(response.status).toBe(failure === 'lookup' ? 503 : 502)
       expect(await response.json()).toEqual(expected)
       expect(finishCronRun).toHaveBeenLastCalledWith('test-run-id', 'error', expected)
-      // A failing client is passed over rather than ending the chain (see the
-      // chaining block); a failed lookup or an unreachable producer still ends it.
-      expect(afterCallbacks).toHaveLength(failure === 'producer-response' ? 1 : 0)
+      expect(afterCallbacks).toHaveLength(0)
     },
   )
 })

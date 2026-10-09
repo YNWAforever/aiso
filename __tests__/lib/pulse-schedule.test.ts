@@ -83,6 +83,17 @@ describe('selectPendingClients', () => {
     expect(pending.map(p => p.clientId)).toEqual(['a', 'c'])
   })
 
+  it('stops paging if the cursor fails to advance, instead of looping forever', async () => {
+    // A query that keeps answering the same full page (as a NULL paging key
+    // once did) must not spin the cron invocation until the platform kills it.
+    const page = Array.from({ length: 50 }, (_, i) => row(`x-${i}`, '2026-01-01 00:00:00+00', expiredTrial))
+    let calls = 0
+    const sql = (() => { calls += 1; return Promise.resolve(page) }) as never
+
+    expect(await selectPendingClients(sql, 1)).toEqual([])
+    expect(calls).toBeLessThanOrEqual(2)
+  })
+
   it('returns an empty list when no candidate is eligible', async () => {
     const { sql } = fakeSql([row('a', '2026-01-01 00:00:00+00', expiredTrial)])
 
