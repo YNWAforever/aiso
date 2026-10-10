@@ -71,6 +71,22 @@ describe('uncertain Pulse classification',()=>{
     expect(result).toMatchObject({classificationStatus:'classified',matchedText:['Fimmick-AEO'],mentionPosition:0})
     expect(result?.competitorsMentioned).toContain('A.S. Watson')
   })
+  // Aliases are configured, never inferred: an alias found in the answer is
+  // reported under the competitor's canonical name.
+  it('reports a competitor found by a configured alias under its canonical name',()=>{
+    const refs=[{name:'HSBC Holdings',aliases:['HSBC','匯豐']},{name:'Hang Seng Bank'}]
+    expect(naiveAnalysis('我推薦匯豐。','Fimmick',refs).competitorsMentioned).toEqual(['HSBC Holdings'])
+    expect(naiveAnalysis('Try Hang Seng Bank.','Fimmick',refs).competitorsMentioned).toEqual(['Hang Seng Bank'])
+  })
+  it('maps a classifier-named alias to the canonical competitor once',()=>{
+    const refs=[{name:'HSBC Holdings',aliases:['HSBC']}]
+    expect(coerceAnalysis({brand_mentioned:false,sentiment:'not_mentioned',competitors_mentioned:['hsbc','Citi']},'HSBC and Citi lead.','Fimmick',refs)?.competitorsMentioned)
+      .toEqual(['HSBC Holdings','Citi'])
+  })
+  it('plain names and refs can be mixed, as older manifests carry plain names',()=>{
+    expect(naiveAnalysis('Acme and Globex.','Fimmick',['Acme',{name:'Globex Corp',aliases:['Globex']}]).competitorsMentioned)
+      .toEqual(['Acme','Globex Corp'])
+  })
   it('classifier outage keeps uncertainty and literal evidence',async()=>{
     expect(await analyseAnswer({answer:'Fimmick is terrible.',brandName:'Fimmick'}))
       .toMatchObject({classificationStatus:'fallback',sentiment:'unknown',brandMentioned:null})

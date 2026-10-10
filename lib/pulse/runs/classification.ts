@@ -3,10 +3,11 @@ import {randomUUID} from 'node:crypto'
 import {db} from '@/lib/db'
 import {analyseAnswer,type AnswerAnalysisV2} from '@/lib/pulse/analysis'
 import {ANALYSIS_VERSION,naiveAnalysis} from '@/lib/pulse/analysis-fallback'
+import {mergeCompetitorRefs,type CompetitorRef} from '@/lib/competitors/schema'
 import type {PulseScope} from './schema'
 
 export type ClassificationLease=PulseScope & {id:string;runId:string;attemptId:string;token:string;fence:number;
-  classificationAttemptId:string;answer:string;brandName:string;competitors:string[]}
+  classificationAttemptId:string;answer:string;brandName:string;competitors:CompetitorRef[]}
 export async function claimClassifications(scope:PulseScope,runId:string,deadlineAt:number):Promise<ClassificationLease[]>{
   if(!Number.isFinite(deadlineAt)||deadlineAt<=Date.now()||deadlineAt>Date.now()+120_000)throw new Error('Invalid classification deadline')
   const sql=db(),token=randomUUID()
@@ -39,7 +40,10 @@ export async function claimClassifications(scope:PulseScope,runId:string,deadlin
   ])
   return rows.map(row=>({...scope,id:String(row.id),runId,attemptId:String(row.accepted_attempt_id),token,
     fence:Number(row.classification_fence),classificationAttemptId:String(row.classification_attempt_id),answer:String(row.raw_answer),
-    brandName:(row.brand as {name:string}).name,competitors:(row.brand as {competitors:string[]}).competitors}))
+    brandName:(row.brand as {name:string}).name,
+    // Manifests written before 061 carry only plain names; refs add the aliases.
+    competitors:mergeCompetitorRefs((row.brand as {competitors?:unknown[]}).competitors,
+      ((row.brand as {competitorRefs?:unknown}).competitorRefs as {name?:unknown;aliases?:unknown}[]|undefined)??[])}))
 }
 export async function commitClassification(item:ClassificationLease,result:AnswerAnalysisV2):Promise<boolean>{
   const sql=db(),serialized=JSON.stringify(result)

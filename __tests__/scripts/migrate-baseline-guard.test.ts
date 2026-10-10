@@ -129,6 +129,8 @@ function allRelations() {
     // runner. A synthetic inventory entry; claims nothing about any live database.
     'google_connections', 'search_console_bindings', 'search_console_daily',
     'search_console_page_queries', 'search_console_sync_runs',
+    // 061: competitors as entities (GEO parity Step 3). Synthetic, like 054.
+    'competitors',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }

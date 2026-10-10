@@ -10,6 +10,7 @@ import { isFeatureEnabled } from '@/lib/flags'
 import { runPulseChunk } from '@/lib/pulse/runs/service'
 import { currentScanWeek } from '@/lib/pulse/schedule'
 import { isoDate } from '@/lib/iso-date'
+import { mergeCompetitorRefs, type CompetitorRef } from '@/lib/competitors/schema'
 
 export const dynamic = 'force-dynamic'
 
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
 
   const sql = db()
 
-  let client: { account_id: string; brand_name: string; competitors: string[]; industry: string | null }
+  let client: { account_id: string; brand_name: string; competitors: CompetitorRef[]; industry: string | null }
   let platforms: string[]
   try {
     const rows = await sql`
@@ -109,11 +110,18 @@ export async function POST(req: NextRequest) {
     const row = rows[0] as Record<string, unknown> | undefined
     if (!row) return NextResponse.json({ error: 'Client not found' }, { status: 404 })
 
+    // Table rows carry the owner's aliases; the array still holds names added
+    // by onboarding since the last competitors edit, so both are read.
+    const competitorRows = await sql`
+      select name, aliases from competitors
+      where client_id = ${clientId} and account_id = ${String(row.account_id)} and archived_at is null
+      order by created_at, id
+    `
     client = {
       account_id: String(row.account_id),
       brand_name: String(row.brand_name ?? ''),
       industry: (row.industry as string | null) ?? null,
-      competitors: (row.competitors as string[] | null) ?? [],
+      competitors: mergeCompetitorRefs(row.competitors as unknown[] | null, competitorRows),
     }
     // Query only the platforms the plan grants — free gets none, basic one, pro
     // and enterprise all five. Translated out of the entitlement vocabulary,
