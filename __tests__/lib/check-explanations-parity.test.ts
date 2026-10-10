@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CHECK_EXPLANATIONS, CHECK_EXPLANATIONS_ZH_HK } from '@/lib/checkExplanations'
+import { CHECK_EXPLANATIONS, CHECK_EXPLANATIONS_ZH_HK, getCheckActionCopy } from '@/lib/checkExplanations'
 import { CHECK_KEYS } from '@/lib/types'
 
 const RECORDS = [
@@ -11,6 +11,14 @@ const FIELDS = ['question', 'why'] as const
 const FIX_FIELDS = ['pass', 'warn', 'fail'] as const
 
 describe('check explanation parity', () => {
+  it.each(['en', 'zh-HK'])('T19 gives every check a human action in %s', locale => {
+    for (const key of CHECK_KEYS) {
+      const copy = getCheckActionCopy(key, locale)
+      expect(copy?.title.trim()).toBeTruthy()
+      expect(copy?.nextStep.trim()).toBeTruthy()
+      expect(copy?.title).not.toContain(key)
+    }
+  })
   // The expected id list comes from lib/types.ts, NOT from
   // Object.keys(CHECK_EXPLANATIONS). Deriving the expectation from the object
   // under test makes the guard circular -- it would pass with a check missing

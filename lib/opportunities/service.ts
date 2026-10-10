@@ -4,6 +4,7 @@ import { getProfile } from '@/lib/auth'
 import { deriveSuggestions } from '@/lib/opportunities/rules'
 import { loadOwnedOpportunitySources, loadSavedDraftMapping } from '@/lib/opportunities/store'
 import type { OpportunityResponse } from '@/lib/opportunities/types'
+import { parseOpportunityQuery } from './query'
 
 const statuses = { UNAUTHENTICATED:401, INVALID_OPPORTUNITY_QUERY:400, CLIENT_NOT_FOUND:404, OPPORTUNITIES_UNAVAILABLE:503 } as const
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -15,12 +16,14 @@ function diagnostic(operation: 'load' | 'sources' | 'saved-drafts') {
   // Deliberately emit no driver message, SQL, identities, or persisted evidence.
   console.error({ event: 'opportunities_unavailable', operation })
 }
-export async function loadAuthenticatedOpportunities(clientId: string): Promise<OpportunityResponse> {
+export async function loadAuthenticatedOpportunities(clientId: string,params=new URLSearchParams()): Promise<OpportunityResponse> {
   try {
     const profile = await getProfile()
     if (!profile) throw new OpportunityServiceError('UNAUTHENTICATED')
     if (!UUID.test(clientId)) throw new OpportunityServiceError('INVALID_OPPORTUNITY_QUERY')
-    const snapshot = await loadOwnedOpportunitySources(profile.account_id, clientId)
+    let query
+    try{query=parseOpportunityQuery(params,profile.account_id,clientId)}catch{throw new OpportunityServiceError('INVALID_OPPORTUNITY_QUERY')}
+    const snapshot = await loadOwnedOpportunitySources(profile.account_id, clientId,query)
     if (!snapshot) throw new OpportunityServiceError('CLIENT_NOT_FOUND')
     const sourceStates = { pulse: snapshot.sourceStates.pulse, scan: snapshot.sourceStates.scan }
     const partial = Object.values(sourceStates).includes('unavailable')
@@ -34,7 +37,8 @@ export async function loadAuthenticatedOpportunities(clientId: string): Promise<
       return compare(a.source.kind, b.source.kind)
         || compare(b.evidence.recordedAt ?? '', a.evidence.recordedAt ?? '')
         || compare(a.source.id, b.source.id)
-        || compare(a.source.checkKey ?? '', b.source.checkKey ?? '')
+        // Each validated scan's candidates are already ordered by the shared
+        // evidence resolver. Stable sort preserves failure-before-warning.
     })
     const saveAvailability = new Map<string, 'available' | 'limited-evidence'>()
     for (const source of snapshot.sources) {
@@ -53,7 +57,7 @@ export async function loadAuthenticatedOpportunities(clientId: string): Promise<
     catch { savedDraftsState = 'unavailable'; diagnostic('saved-drafts') }
     return {
       schemaVersion: 1,
-      window: { pulseWeek: snapshot.window.pulseWeek, pulseLimit: 200, pulseTruncated: snapshot.window.pulseTruncated, scanId: snapshot.window.scanId },
+      window: { ...snapshot.window },
       sourceStates, savedDraftsState, partial: partial || limitedEvidence || savedDraftsState === 'unavailable',
       suggestions: suggestions.map(item => ({ ...item, saveAvailability: saveAvailability.get(item.key) ?? 'limited-evidence', savedDraftId: saved.get(item.key) ?? null,
         savedState: savedDraftsState === 'unavailable' ? 'unavailable' : saved.has(item.key) ? 'saved' : 'unsaved' })),

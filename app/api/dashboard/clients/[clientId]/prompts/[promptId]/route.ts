@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { authorizePromptBank } from '@/lib/prompts/guard'
+import { parsePromptContext } from '@/lib/prompts/context'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,12 +44,16 @@ export async function PATCH(
     return Response.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  // Only these two are patchable. category, client_id and id are not — a prompt
+  // Content, active state and confirmed context are patchable. category, client_id and id are not — a prompt
   // cannot be moved between brands or recategorised through this route.
   const question = typeof body.question === 'string' ? body.question.trim() : null
   const isActive = typeof body.is_active === 'boolean' ? body.is_active : null
+  const hasLanguage = Object.hasOwn(body, 'language'), hasMarket = Object.hasOwn(body, 'market')
+  let context
+  try { context = parsePromptContext({ language: hasLanguage ? body.language : 'en', market: hasMarket ? body.market : null }) }
+  catch { return Response.json({ error: 'Invalid prompt context' }, { status: 400 }) }
 
-  if (question === null && isActive === null) {
+  if (question === null && isActive === null && !hasLanguage && !hasMarket) {
     // Checked here rather than in SQL: `where $1 is not null` is exactly the
     // shape that produces "could not determine data type of parameter", and it
     // would turn a bad request into a 404.
@@ -70,14 +75,16 @@ export async function PATCH(
     const updated = await sql`
       update prompt_bank p
          set question  = coalesce(${question}::text, p.question),
-             is_active = coalesce(${isActive}::boolean, p.is_active)
+             is_active = coalesce(${isActive}::boolean, p.is_active),
+             language = case when ${hasLanguage}::boolean then ${context.language}::text else p.language end,
+             market = case when ${hasMarket}::boolean then ${context.market}::text else p.market end
         from clients c
        where p.id = ${promptId}
          and p.client_id = ${clientId}
          and c.id = p.client_id
          and c.account_id = ${access.accountId}
       returning p.id, p.client_id, p.category, p.question,
-                p.language, p.is_active, p.created_at
+                p.language, p.market, p.is_active, p.created_at
     `
     if (!updated[0]) return Response.json({ error: 'Not found' }, { status: 404 })
     return Response.json({ prompt: updated[0] })

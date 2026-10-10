@@ -1,7 +1,9 @@
 import { ImageResponse } from 'next/og'
 import { db } from '@/lib/db'
+import { buildPublicResultSummary, type PublicResultSummary } from '@/lib/result-access'
+import type { Scan } from '@/lib/types'
 
-export const alt = 'AI visibility score — Fimmick AISO'
+export const alt = 'Website readiness scan — Fimmick AISO'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -10,34 +12,25 @@ const GRADE_COLORS: Record<string, string> = {
   'C': '#eab308', 'D': '#f97316', 'F': '#ef4444',
 }
 
-function countStatuses(results: Record<string, unknown>) {
-  let pass = 0, warn = 0, fail = 0
-  for (const v of Object.values(results ?? {})) {
-    if (!v || typeof v !== 'object' || !('status' in (v as object))) continue
-    const s = (v as { status: string }).status
-    if (s === 'pass') pass++
-    else if (s === 'warn') warn++
-    else if (s === 'fail') fail++
-  }
-  return { pass, warn, fail }
-}
-
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
   let domain = 'fimmick.com'
   let score: number | null = null
   let grade = 'F'
-  let counts = { pass: 0, warn: 0, fail: 0 }
+  let counts: PublicResultSummary['counts'] = { pass: 0, warn: 0, fail: 0, unknown: 0, notApplicable: 0, total: 0 }
+  let collectionFailed = false
 
   try {
-    const rows = await db()`select domain, score, grade, results from scans where id = ${id} limit 1`
-    const scan = rows[0] as { domain: string; score: string | number | null; grade: string | null; results: unknown } | undefined
+    const rows = await db()`select domain, score, grade, results, industry, region from scans where id = ${id} limit 1`
+    const scan = rows[0] as { domain: string; score: string | number | null; grade: string | null; results: Scan['results']; industry: string | null; region: string | null } | undefined
     if (scan) {
+      const summary = buildPublicResultSummary({ ...scan, id, score: Number(scan.score ?? 0), results: scan.results ?? {} as Scan['results'] })
       domain = scan.domain
-      score = Math.round(Number(scan.score))
+      collectionFailed = summary.collectionFailed
+      score = collectionFailed || scan.score===null ? null : Math.round(Number(scan.score))
       grade = scan.grade ?? 'F'
-      counts = countStatuses(scan.results as Record<string, unknown>)
+      counts = summary.counts
     }
   } catch { /* unknown scan — render generic branded card */ }
 
@@ -76,26 +69,27 @@ export default async function Image({ params }: { params: Promise<{ id: string }
                   borderRadius: 20, padding: '8px 32px',
                 }}>{grade}</div>
                 <div style={{ display: 'flex', fontSize: 36, color: '#cbd5e1', fontWeight: 700 }}>
-                  AI visibility score
+                  Website readiness score
                 </div>
               </div>
             ) : (
               <div style={{ display: 'flex', fontSize: 36, color: '#cbd5e1', fontWeight: 700 }}>
-                Free AI visibility scan — 20 checks in ~15 seconds
+                {collectionFailed ? 'Scan could not be completed — please retry' : 'Website readiness — technical and content checks'}
               </div>
             )}
             {score !== null && (
-              <div style={{ display: 'flex', gap: 18, fontSize: 26, fontWeight: 700 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, fontSize: 26, fontWeight: 700 }}>
                 <span style={{ color: '#34d399' }}>✓ {counts.pass} passing</span>
                 <span style={{ color: '#fbbf24' }}>⚠ {counts.warn} warnings</span>
                 <span style={{ color: '#f87171' }}>✕ {counts.fail} failing</span>
+                {counts.unknown > 0 && <span style={{ color: '#94a3b8' }}>{counts.unknown} need evidence</span>}
               </div>
             )}
           </div>
 
           {/* Footer */}
           <div style={{ display: 'flex', fontSize: 24, color: '#64748b', fontWeight: 600 }}>
-            How visible is your brand to ChatGPT, Perplexity, Claude &amp; Gemini? Scan free →
+            Review your website readiness. Scan free →
           </div>
         </div>
 

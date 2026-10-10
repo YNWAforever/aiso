@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState,type ReactNode } from 'react'
 import type { ObservationResponse } from '@/lib/observations/types'
+import {ObservationDetail} from './ObservationDetail'
+import { MaintenanceNextSteps } from '@/components/workspace/MaintenanceNextSteps'
 
 import type { ObservationCopy } from './copy'
 export type { ObservationCopy } from './copy'
@@ -18,6 +20,7 @@ type Props = {
   copy: ObservationCopy
   lang: string
   initialFilters?: ObservationFilters
+  runPanel?:ReactNode
 }
 const format = (value: string, count: number) =>
   value.replace('{count}', String(count))
@@ -32,6 +35,7 @@ function Workspace({
   copy,
   lang,
   initialFilters = {},
+  runPanel,
 }: Props) {
   const [data, setData] = useState(initial)
   const [filters, setFilters] = useState({
@@ -40,6 +44,7 @@ function Workspace({
   })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
+  const [detailId,setDetailId]=useState<string|null>(null)
   const [platformDraft, setPlatformDraft] = useState(initialFilters.platform ?? '')
   const [platformError, setPlatformError] = useState(false)
   const sequence = useRef(0)
@@ -128,6 +133,7 @@ function Workspace({
           {copy.managePrompts}
         </a>
       </header>
+      {runPanel}
       <section aria-label={copy.monitoredQuestions} className="space-y-2">
         <h2 className="font-semibold">{copy.monitoredQuestions}</h2>
         {!data.questions.length && <p>{copy.noQuestions}</p>}
@@ -309,9 +315,10 @@ function Workspace({
                   ? copy.brandMentioned
                   : copy.brandNotMentioned}
             </p>
-            <p>{copy.unknownModel}</p>
-            <p>{copy.unknownMarket}</p>
-            <p>{copy.unknownCollectionTime}</p>
+            <p>{item.model?`${copy.model}: ${item.model}`:copy.unknownModel}</p>
+            <p>{item.market?`${copy.market}: ${item.market}`:copy.unknownMarket}</p>
+            <p>{item.collectedAt?`${copy.collectedAt}: ${item.collectedAt}`:copy.unknownCollectionTime}</p>
+            <button type="button" className="min-h-11 rounded-lg border px-3" onClick={()=>setDetailId(item.id)}>{copy.viewDetails}</button>
           </article>
         ))}
       </section>
@@ -324,6 +331,8 @@ function Workspace({
           {copy.next}
         </button>
       )}
+      {detailId&&<ObservationDetail key={detailId} clientId={clientId} observationId={detailId} copy={copy} onClose={()=>setDetailId(null)}/>}
+      <MaintenanceNextSteps clientId={clientId} lang={lang} current="observations" copy={copy}/>
     </main>
   )
 }

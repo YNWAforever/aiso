@@ -90,7 +90,9 @@ function evaluationStatus(result: {
   deferred: number
   emailFailures: number
   notificationFailures: number
+  incomplete?:number
 }): number {
+  if((result.incomplete??0)>0)return 502
   if (result.emailFailures > 0 || result.notificationFailures > 0) {
     console.error(
       `[cron/evaluate-alerts] 502: emailFailures=${result.emailFailures} notificationFailures=${result.notificationFailures}`,

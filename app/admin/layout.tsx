@@ -1,3 +1,4 @@
+import { SessionRefresh } from '@/components/auth/SessionRefresh'
 import Link from 'next/link'
 import { requireAdmin } from '@/lib/auth'
 
@@ -5,6 +6,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   await requireAdmin() // Redirects non-admins to /en/dashboard
   return (
     <div className="min-h-screen bg-slate-50">
+      <SessionRefresh />
       <nav className="bg-slate-900 px-6 py-3 flex items-center gap-4">
         <span className="font-black text-white text-sm">
           Fimmick <span className="text-blue-400">AEO</span>{' '}

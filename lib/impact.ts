@@ -3,12 +3,13 @@
  * the check results already stored in scans.results. Never throws; missing
  * or legacy data degrades by omitting the affected stat.
  */
-import { CORE_PTS, EXT_PTS, GEO_PTS, assignGrade, capScore, isAssessable } from '@/lib/scoring'
-import type { CheckResult } from '@/lib/types'
+import { CORE_PTS, EXT_PTS, GEO_PTS, assignGrade, capScore } from '@/lib/scoring'
+import type { CheckResult, CollectorAccess } from '@/lib/types'
+import { rankActionableChecks, resolveCheckPriorities } from '@/lib/view-models/check-priority'
 
 /* ── Types ───────────────────────────────────────────────────── */
 export type PlatformKey = 'chatgpt' | 'perplexity' | 'claude' | 'gemini' | 'google_aio'
-export type PlatformStatus = 'visible' | 'partial' | 'blocked'
+export type PlatformStatus = 'visible' | 'partial' | 'blocked' | 'not_measured'
 
 export interface PlatformVisibility {
   platform: PlatformKey
@@ -27,11 +28,14 @@ export interface QuickWin {
 }
 
 export type HeadlineStat =
+  | { type: 'evidence_needed'; text: string }
   | { type: 'platforms_blocked'; count: number; total: number; text: string }
   | { type: 'low_readable'; percent: number; text: string }
   | { type: 'score_uplift'; delta: number; projectedScore: number; projectedGrade: string; text: string }
 
 export interface ImpactReport {
+  benchmark: null
+  collectorAccess: CollectorAccess[]
   platformVisibility: PlatformVisibility[]
   aiReadablePercent: number | null
   quickWins: QuickWin[]
@@ -40,27 +44,12 @@ export interface ImpactReport {
   headlineStat: HeadlineStat
 }
 
-/*
- * There are no industry benchmarks. The table that used to live here was
- * hard-coded with no data behind it and was shown to customers as a measured
- * industry average ("Avg. General B2C 47/100"). A comparison may come back
- * only computed from real scans and labelled with its sample size and date.
- */
-
 /* ── Static maps ─────────────────────────────────────────────── */
 const PLATFORM_LABELS: Record<PlatformKey, string> = {
   chatgpt: 'ChatGPT', perplexity: 'Perplexity', claude: 'Claude',
   gemini: 'Gemini', google_aio: 'Google AI Overviews',
 }
 
-// c3 botAccess tests these bots; maps bot name → platform
-const BOT_TO_PLATFORM: Record<string, PlatformKey> = {
-  gptbot: 'chatgpt',
-  claudebot: 'claude',
-  'anthropic-ai': 'claude',
-  perplexitybot: 'perplexity',
-}
-const C3_PLATFORMS: PlatformKey[] = ['chatgpt', 'claude', 'perplexity']
 const ALL_PLATFORMS: PlatformKey[] = ['chatgpt', 'perplexity', 'claude', 'gemini', 'google_aio']
 
 const EFFORT_MAP: Record<string, Effort> = {
@@ -73,7 +62,6 @@ const EFFORT_MAP: Record<string, Effort> = {
   c3_bot_access: 'days', c5_extractability: 'days', c13_render: 'days',
   c17_citation_density: 'days', c19_topical_authority: 'days',
 }
-const EFFORT_FACTOR: Record<Effort, number> = { minutes: 1, hours: 2, days: 8 }
 
 const QUICK_WIN_LABELS: Record<string, string> = {
   c1_robots: 'Allow AI crawlers in robots.txt',
@@ -81,7 +69,7 @@ const QUICK_WIN_LABELS: Record<string, string> = {
   c3_bot_access: 'Unblock AI bots at the server level',
   c4_structured_data: 'Add JSON-LD structured data',
   c5_extractability: 'Improve content extractability',
-  c6_llms_full_txt: 'Add an llms-full.txt file',
+  c6_llms_full_txt: 'Improve optional llms.txt content completeness',
   c7_mcp_card: 'Publish an MCP server card',
   c8_sitemap: 'Add an XML sitemap',
   c9_meta_desc: 'Write meta descriptions',
@@ -120,56 +108,27 @@ function derivePlatforms(results: Record<string, unknown>): PlatformVisibility[]
   const c3 = getCheck(results, 'c3_bot_access')
   if (!c1 && !c3) return []
 
-  const statuses = new Map<PlatformKey, { status: PlatformStatus; reason: string }>()
+  // A crawler response and robots policy cannot establish a consumer answer,
+  // citation or rank. Legacy aggregate checks cannot identify per-bot policy.
+  return ALL_PLATFORMS.map(platform => ({ platform, label: PLATFORM_LABELS[platform],
+    status: 'not_measured', reason: 'Consumer exposure has not been measured by this technical scan' }))
+}
 
-  // 1. c3 — live bot requests (chatgpt / claude / perplexity only)
-  if (c3) {
-    const blockedBots = (typeof c3.details === 'string' ? c3.details : '')
-      .toLowerCase().split(',').map(s => s.trim()).filter(Boolean)
-    const blockedPlatforms = new Set(
-      blockedBots.map(b => BOT_TO_PLATFORM[b]).filter(Boolean) as PlatformKey[],
-    )
-    // fail with no named bots → treat all tested bots as blocked
-    if (c3.status === 'fail' && blockedPlatforms.size === 0) {
-      C3_PLATFORMS.forEach(p => blockedPlatforms.add(p))
-    }
-    for (const p of C3_PLATFORMS) {
-      if (blockedPlatforms.has(p)) {
-        statuses.set(p, { status: 'blocked', reason: `${PLATFORM_LABELS[p]}'s crawler is blocked by your server` })
-      } else {
-        statuses.set(p, { status: 'visible', reason: 'Crawler can fetch your pages' })
-      }
-    }
-  }
-
-  // 2. c1 — robots.txt rules (covers all platforms incl. Gemini / Google AIO)
-  if (c1) {
-    if (c1.message === 'robots_ai_blocked') {
-      for (const p of ALL_PLATFORMS) {
-        const current = statuses.get(p)
-        if (!current || current.status === 'visible') {
-          statuses.set(p, { status: 'partial', reason: 'robots.txt disallows one or more AI crawlers' })
-        }
-      }
-    } else if (c1.message === 'robots_not_found' || c1.message === 'robots_fetch_error') {
-      for (const p of ALL_PLATFORMS) {
-        if (!statuses.has(p)) {
-          statuses.set(p, { status: 'partial', reason: 'No robots.txt found — crawler rules unverified' })
-        }
-      }
-    } else {
-      // robots_ai_allowed / robots_no_ai_rules — crawling permitted
-      for (const p of ALL_PLATFORMS) {
-        if (!statuses.has(p)) {
-          statuses.set(p, { status: 'visible', reason: 'robots.txt permits AI crawlers' })
-        }
-      }
+function deriveCollectorAccess(results: Record<string, unknown>): CollectorAccess[] {
+  const merged = new Map<string, CollectorAccess>()
+  for (const key of ['c1_robots', 'c3_bot_access']) {
+    const entries = getCheck(results, key)?.collectorAccess
+    if (!Array.isArray(entries)) continue
+    for (const entry of entries) {
+      if (!entry || typeof entry.crawler !== 'string' || !['search','training','user_triggered'].includes(entry.role)
+        || !['allowed','blocked','unknown'].includes(entry.policy) || !['reachable','unreachable','not_measured'].includes(entry.probe)) continue
+      const previous = merged.get(entry.crawler)
+      merged.set(entry.crawler, { ...entry,
+        policy: entry.policy === 'unknown' && previous ? previous.policy : entry.policy,
+        probe: entry.probe === 'not_measured' && previous ? previous.probe : entry.probe })
     }
   }
-
-  return ALL_PLATFORMS
-    .filter(p => statuses.has(p))
-    .map(p => ({ platform: p, label: PLATFORM_LABELS[p], ...statuses.get(p)! }))
+  return [...merged.values()]
 }
 
 /* ── AI-readable percent ─────────────────────────────────────── */
@@ -188,40 +147,40 @@ function deriveReadable(results: Record<string, unknown>): number | null {
 }
 
 /* ── Quick wins ──────────────────────────────────────────────── */
-function deriveQuickWins(results: Record<string, unknown>): QuickWin[] {
-  const wins: QuickWin[] = []
-  for (const key of Object.keys(ALL_WEIGHTS)) {
-    const check = getCheck(results, key)
-    // A check that could not measure (no input, provider failure) is out of the
-    // score, so it is not a fix the customer can make either.
-    if (!check || check.status === 'pass' || !isAssessable(check)) continue
+function deriveQuickWins(checks: Record<string, unknown>): QuickWin[] {
+  return rankActionableChecks(checks).map(check => {
+    const key = check.checkKey
     const weight = ALL_WEIGHTS[key]!
-    const pointsGain = check.status === 'fail' ? weight : weight * 0.5
-    wins.push({
+    const pointsGain = check.assessment === 'fail' ? weight : weight * 0.5
+    return {
       key,
       label: QUICK_WIN_LABELS[key] ?? key,
       pointsGain,
       effort: EFFORT_MAP[key] ?? 'hours',
-    })
-  }
-  return wins.sort((a, b) =>
-    (b.pointsGain / EFFORT_FACTOR[b.effort]) - (a.pointsGain / EFFORT_FACTOR[a.effort]) ||
-    b.pointsGain - a.pointsGain,
-  )
+    }
+  })
 }
 
 /* ── Main ────────────────────────────────────────────────────── */
 export function computeImpact(
   results: Record<string, unknown>,
-  opts: { score: number; grade?: string; industry?: string | null },
+  opts: { score: number; grade?: string; industry?: string | null; confirmedChecks?: Record<string, unknown> },
 ): ImpactReport {
   let platformVisibility: PlatformVisibility[] = []
+  let collectorAccess: CollectorAccess[] = []
   let aiReadablePercent: number | null = null
   let quickWins: QuickWin[] = []
+  const checks = opts.confirmedChecks ?? {}
+  const resolution = resolveCheckPriorities(checks)
+  const observed = Object.fromEntries(Object.entries(checks).filter(([, raw]) => {
+    const check = raw as { collection?: unknown; applicability?: unknown } | null
+    return check?.collection === 'complete' && check.applicability === 'applicable'
+  }).flatMap(([key]) => [[key, results[key]], [`${key}_data`, results[`${key}_data`]]]))
 
   try { platformVisibility = derivePlatforms(results) } catch { /* degrade */ }
-  try { aiReadablePercent  = deriveReadable(results) }  catch { /* degrade */ }
-  try { quickWins          = deriveQuickWins(results) } catch { /* degrade */ }
+  try { collectorAccess = deriveCollectorAccess(observed) } catch { /* degrade */ }
+  try { aiReadablePercent  = deriveReadable(observed) }  catch { /* degrade */ }
+  try { quickWins          = deriveQuickWins(checks) } catch { /* degrade */ }
 
   const score = Number.isFinite(opts.score) ? opts.score : 0
   const uplift = quickWins
@@ -230,16 +189,18 @@ export function computeImpact(
   const projectedScore = capScore(Math.round((score + uplift) * 10) / 10)
   const projectedGrade = assignGrade(projectedScore)
 
-  // Headline: blocked platforms > low readable > uplift
-  const blockedCount = platformVisibility.filter(p => p.status === 'blocked').length
+  // No industry comparison is available without a verified dataset.
+  const blockedCount = collectorAccess.filter(p => p.policy === 'blocked' || p.probe === 'unreachable').length
 
   let headlineStat: HeadlineStat
-  if (blockedCount > 0) {
+  if (resolution.state === 'insufficient-evidence') {
+    headlineStat = { type: 'evidence_needed', text: 'More evidence is needed before estimating a fix or score improvement.' }
+  } else if (blockedCount > 0) {
     headlineStat = {
       type: 'platforms_blocked',
       count: blockedCount,
-      total: ALL_PLATFORMS.length,
-      text: `Your site is invisible to ${blockedCount} of ${ALL_PLATFORMS.length} major AI platforms`,
+      total: collectorAccess.length,
+      text: `${blockedCount} crawler access checks report restrictions; consumer exposure is unmeasured`,
     }
   } else if (aiReadablePercent !== null && aiReadablePercent < 50) {
     headlineStat = {
@@ -256,9 +217,9 @@ export function computeImpact(
       projectedGrade,
       text: delta > 0
         ? `Quick fixes could lift your score by ${delta} points to ${projectedScore} (${projectedGrade})`
-        : 'Your site is in great shape for AI search',
+        : 'No confirmed fixes identified in the collected checks; actual AI visibility remains unmeasured.',
     }
   }
 
-  return { platformVisibility, aiReadablePercent, quickWins, projectedScore, projectedGrade, headlineStat }
+  return { benchmark: null, platformVisibility, collectorAccess, aiReadablePercent, quickWins, projectedScore, projectedGrade, headlineStat }
 }

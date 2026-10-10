@@ -9,7 +9,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --ignore-pattern \".claude/\" --ignore-pattern \".superpowers/\" --ignore-pattern \".codebase-memory/**\" --ignore-pattern \"coverage/\" --ignore-pattern \"cloudflare/**\" --ignore-pattern \".playwright-ci-server/**\" --ignore-pattern \".worktrees/\" --ignore-pattern \".codex/\"",
+    "lint": "eslint . --ignore-pattern \".claude/\" --ignore-pattern \".superpowers/\" --ignore-pattern \".codebase-memory/**\" --ignore-pattern \"coverage/\" --ignore-pattern \"cloudflare/**\" --ignore-pattern \".playwright-ci-server/**\" --ignore-pattern \".worktrees/\" --ignore-pattern \".codex/\" --ignore-pattern \"artifacts/\"",
     "test": "node scripts/run-tests.mjs",
     "test:unit": "vitest run --exclude '__tests__/integration/**'",
     "test:integration": "vitest run --config vitest.integration.config.ts",
@@ -26,7 +26,7 @@
     "e2e:authenticated": "node --env-file-if-exists=.env.local scripts/e2e/run-authenticated.mjs"
   },
   "dependencies": {
-    "@neondatabase/auth": "0.4.2-beta",
+    "@neondatabase/auth": "0.5.0-beta",
     "@neondatabase/serverless": "^1.1.0",
     "@radix-ui/react-slot": "^1.2.4",
     "@stripe/stripe-js": "^9.3.1",
@@ -39,22 +39,36 @@
     "react-dom": "^19.2.5",
     "react-is": "^19.2.6",
     "recharts": "^3.8.1",
-    "resend": "^6.12.2",
+    "resend": "6.12.3",
     "stripe": "^22.0.2",
     "tailwind-merge": "^3.5.0"
   },
+  "overrides": {
+    "@neondatabase/auth@0.5.0-beta": {
+      "better-auth": "1.6.23",
+      "@better-auth/core": "1.6.23",
+      "@better-auth/utils": "0.4.2",
+      "@better-auth/passkey": "1.6.23",
+      "@better-auth/telemetry": "1.6.23",
+      "@better-auth/api-key": "1.6.23",
+      "@better-fetch/fetch": "1.3.1",
+      "better-call": "1.3.7",
+      "@hookform/resolvers": "5.4.0"
+    }
+  },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
+    "@electric-sql/pglite": "0.5.8",
     "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22.19.17",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@vitest/coverage-v8": "^4.1.5",
+    "@vitest/coverage-v8": "4.1.11",
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.5"
+    "vitest": "4.1.11"
   }
 }

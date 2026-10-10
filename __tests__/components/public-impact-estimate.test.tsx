@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ResultClient } from '@/components/result/ResultClient'
 import { buildPublicResultSummary } from '@/lib/result-access'
+import { ScoreReveal } from '@/components/result/ScoreReveal'
+import { computeImpact } from '@/lib/impact'
 
 const language = vi.hoisted(() => ({ value: 'en' }))
 vi.mock('next-intl', () => ({ useLocale: () => language.value, useTranslations: () => (key: string) => key }))
@@ -19,6 +21,24 @@ const summary = buildPublicResultSummary({ id: 'public-scan', domain: 'example.c
 } })
 
 describe('public result impact estimate', () => {
+  it.each(['en','zh-HK'])('does not render a score, grade, upsell or projected gains for failed collection in %s', locale=>{
+    language.value=locale
+    const html=renderToStaticMarkup(<ResultClient lang={locale} summary={{...summary,collectionFailed:true}} />)
+    expect(html).toContain('collection-failed')
+    expect(html).not.toContain('score-reveal')
+    expect(html).not.toContain('/100')
+    expect(html).not.toContain('result-top-issue')
+    expect(html).not.toContain('pricing')
+  })
+  it.each(['en', 'zh-HK'])('unverified_benchmark_is_hidden in %s and the technical score stays readable', locale => {
+    language.value = locale
+    const html = renderToStaticMarkup(<ScoreReveal score={73} grade="B" domain="example.test" industry="technology" />)
+    expect(html).toContain('73/100')
+    expect(html).not.toMatch(/Avg\.|vs avg|行業平均|科技平均|比平均|61\/100/)
+    const impact = computeImpact({}, { score: 73, industry: 'technology' })
+    expect((impact as unknown as { benchmark: unknown }).benchmark).toBeNull()
+    expect(impact.headlineStat.type).not.toBe('benchmark_gap')
+  })
   it.each([
     ['en', 'Estimated impact:', 'not measured visibility or guaranteed gains'],
     ['zh-HK', '預估影響：', '並非實際可見度測量，亦不保證改善成效'],

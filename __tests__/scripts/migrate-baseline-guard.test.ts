@@ -53,7 +53,8 @@ const ALL_TABLES = [
   'agent_recommendations', 'ai_citation_log', 'alert_configs', 'alert_email_deliveries',
   'authenticated_scan_monthly_usage', 'authority_overrides', 'authority_scores',
   'chunk_analysis', 'client_report_versions', 'client_reports', 'clients', 'content_briefs',
-  'cron_runs',
+  // 058 replayed with real guarded-store readback in br-plain-cell-aznpflus, then deleted.
+  'cron_runs', 'onboarding_progress', 'pulse_runs', 'pulse_run_items', 'pulse_item_attempts', 'pulse_classification_attempts',
   'domain_signals', 'fix_packs', 'industry_packs', 'local_trust_actions', 'local_trust_profiles',
   'local_trust_snapshots', 'notifications', 'profiles', 'prompt_bank', 'public_scan_rate_limits',
   'pulse_metrics', 'pulse_weekly_summary', 'regional_packs', 'scans', 'schema_migrations',

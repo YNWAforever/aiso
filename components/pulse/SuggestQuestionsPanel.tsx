@@ -1,17 +1,22 @@
 // components/pulse/SuggestQuestionsPanel.tsx
 'use client'
 import { useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { X, Sparkles, Check } from 'lucide-react'
 import type { PromptBankItem } from '@/lib/types'
+import { isPromptMarket, readPromptLanguage, type PromptContextDefaults } from '@/lib/prompts/context'
+import { PromptContextFields } from './PromptBankEditor'
 
 interface Suggestion {
   question: string
   category: string
+  language: string
+  market: string | null
 }
 
 interface Props {
   clientId: string
+  contextDefaults?: PromptContextDefaults
   onClose: () => void
   /**
    * Receives the row the server actually created, not the text that was sent.
@@ -23,8 +28,10 @@ interface Props {
   onError: (message: string) => void
 }
 
-export function SuggestQuestionsPanel({ clientId, onClose, onAccepted, onError }: Props) {
+export function SuggestQuestionsPanel({ clientId, onClose, onAccepted, onError, contextDefaults }: Props) {
   const t = useTranslations('pulse')
+  const locale = useLocale()
+  const [context, setContext] = useState<{ language: string; market: string | null }>({ language: readPromptLanguage(contextDefaults?.language) ?? (locale === 'zh-HK' ? 'zh-HK' : 'en'), market: isPromptMarket(contextDefaults?.market) ? contextDefaults.market : null })
   const [loading, setLoading] = useState(false)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [editing, setEditing] = useState<Record<number, string>>({})
@@ -33,20 +40,21 @@ export function SuggestQuestionsPanel({ clientId, onClose, onAccepted, onError }
 
   async function fetchSuggestions() {
     setLoading(true)
+    try {
     const res = await fetch('/api/pulse/suggest-questions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clientId, count: 5 }),
+      body: JSON.stringify({ clientId, count: 5, ...context }),
     })
     if (!res.ok) {
       onError(t('qb_save_failed'))
-      setLoading(false)
       return
     }
     const data = await res.json()
     setSuggestions(data.suggestions ?? [])
     setFetched(true)
-    setLoading(false)
+    } catch { onError(t('qb_save_failed')) }
+    finally { setLoading(false) }
   }
 
   async function accept(i: number) {
@@ -55,7 +63,7 @@ export function SuggestQuestionsPanel({ clientId, onClose, onAccepted, onError }
     const res = await fetch(`/api/dashboard/clients/${clientId}/prompts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, category, language: 'en' }),
+      body: JSON.stringify({ question, category, language: suggestions[i].language, market: suggestions[i].market }),
     })
     // Only dismiss on a write that actually happened. Dismissing regardless is
     // how an accepted suggestion could vanish having been saved nowhere.
@@ -75,6 +83,7 @@ export function SuggestQuestionsPanel({ clientId, onClose, onAccepted, onError }
 
   return (
     <div className="fixed inset-y-0 right-0 w-full max-w-sm bg-white border-l border-slate-200 shadow-2xl z-50 flex flex-col">
+      <div className="p-4"><PromptContextFields {...context} onChange={next => { setContext(next); setSuggestions([]); setFetched(false); setEditing({}); setDismissed(new Set()) }} disabled={loading} /></div>
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2">
           <Sparkles className="size-4 text-primary" />

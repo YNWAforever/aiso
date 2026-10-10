@@ -28,6 +28,10 @@ const COPY_EN = {
   preparing: 'Preparing your report save…',
   intentFailed: 'Could not prepare your report save. Please try again.',
   retrySaving: 'Retry saving',
+  savedTitle: 'Sign in to your saved report',
+  savedBody: 'Use the account that saved this report to view its full details.',
+  savedGoogle: 'Continue with Google to view your report',
+  savedNote: 'Access stays with the account that saved this report.',
 }
 
 const COPY_ZH_HK: typeof COPY_EN = {
@@ -47,11 +51,34 @@ const COPY_ZH_HK: typeof COPY_EN = {
   preparing: '正在準備保存報告…',
   intentFailed: '暫時未能準備保存報告，請再試一次。',
   retrySaving: '重試保存',
+  savedTitle: '登入以查看已保存報告',
+  savedBody: '請使用保存這份報告的帳戶，查看完整內容。',
+  savedGoogle: '使用 Google 繼續查看報告',
+  savedNote: '只有保存報告的帳戶可以查看完整內容。',
 }
 
 type Props = {
   scanId: string
   lang: string
+}
+
+type AccountUnlockContinuation = { mode: 'claim' | 'sign-in'; next: string }
+
+export async function prepareAccountUnlock(scanId: string, lang: string): Promise<AccountUnlockContinuation> {
+  const response = await fetch(`/api/scans/${encodeURIComponent(scanId)}/claim-intent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lang }),
+  })
+  const payload: unknown = await response.json().catch(() => null)
+  const body = payload && typeof payload === 'object' ? payload as Record<string, unknown> : null
+  // A saved report needs sign-in, not a new ownership claim. The result page
+  // still checks the authenticated account before exposing its full details.
+  if (response.status === 409 && body?.error === 'Scan already belongs to an account') {
+    return { mode: 'sign-in', next: `/${lang}/result/${encodeURIComponent(scanId)}` }
+  }
+  if (!response.ok || body?.ok !== true) throw new Error('claim_intent_failed')
+  return { mode: 'claim', next: buildScanClaimNext(lang, scanId) }
 }
 
 type AuthRequestError = { code?: string; message?: string }
@@ -139,7 +166,8 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
   const googlePopupMonitorRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const googlePopupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasStartedClaimIntent = useRef(false)
-  const next = buildScanClaimNext(lang, scanId)
+  const [continuation, setContinuation] = useState<AccountUnlockContinuation>({ mode: 'claim', next: buildScanClaimNext(lang, scanId) })
+  const next = continuation.next
   const callbackURL = buildAuthCompleteUrl(lang, next)
 
   function releaseGooglePopup() {
@@ -159,12 +187,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
   const prepareClaimIntent = useCallback(async (showPreparing = true) => {
     if (showPreparing) setIntentState('preparing')
     try {
-      const response = await fetch(`/api/scans/${encodeURIComponent(scanId)}/claim-intent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lang }),
-      })
-      if (!response.ok) throw new Error('claim_intent_failed')
+      setContinuation(await prepareAccountUnlock(scanId, lang))
       setIntentState('ready')
     } catch {
       setIntentState('error')
@@ -244,8 +267,8 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
   return (
     <section ref={startClaimIntentOnMount} data-testid="save-report-cta" className="rounded-2xl border-2 border-primary/30 bg-slate-900 p-6 sm:p-8">
       <div className="mx-auto max-w-md text-center">
-        <h2 className="text-xl font-black text-white">{c.title}</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-300">{c.body}</p>
+        <h2 className="text-xl font-black text-white">{continuation.mode === 'sign-in' ? c.savedTitle : c.title}</h2>
+        <p className="mt-2 text-sm leading-relaxed text-slate-300">{continuation.mode === 'sign-in' ? c.savedBody : c.body}</p>
 
         <Button
           type="button"
@@ -261,7 +284,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
             <path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z" />
             <path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z" />
           </svg>
-          {c.continueGoogle}
+          {continuation.mode === 'sign-in' ? c.savedGoogle : c.continueGoogle}
         </Button>
 
         <div className="my-4 flex items-center gap-3" aria-hidden="true">
@@ -303,7 +326,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
         >
           {status}
         </p>
-        <p className="mt-2 text-xs text-slate-400">{c.finePrint}</p>
+        <p className="mt-2 text-xs text-slate-400">{continuation.mode === 'sign-in' ? c.savedNote : c.finePrint}</p>
         {intentState === 'preparing' ? <p className="mt-2 text-xs text-slate-400">{c.preparing}</p> : null}
         {intentState === 'error' ? (
           <div className="mt-2">

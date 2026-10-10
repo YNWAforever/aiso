@@ -1,5 +1,5 @@
 import type { PublicUrlFetch } from '@/lib/security/public-url'
-import type { CheckResult } from '@/lib/types'
+import type { CheckResult, CollectorAccess } from '@/lib/types'
 
 const BOTS = [
   { name: 'GPTBot',        ua: 'Mozilla/5.0 (compatible; GPTBot/1.3; +https://openai.com/gptbot)' },
@@ -24,8 +24,14 @@ export async function checkBotAccess(url: string, fetcher: PublicUrlFetch): Prom
   }))
 
   const blocked = outcomes.filter(o => !o.accessible)
+  const collectorAccess: CollectorAccess[] = outcomes.map((outcome, i) => ({
+    crawler: outcome.bot, role: outcome.bot === 'PerplexityBot' ? 'search' : 'training', policy: 'unknown',
+    probe: results[i].status === 'rejected' ? 'not_measured' : outcome.accessible ? 'reachable' : 'unreachable',
+  }))
+  const rejected = results.filter(r => r.status === 'rejected').length
+  const diagnostic: CheckResult['diagnostic'] = rejected ? { collection: rejected === BOTS.length ? 'failed' : 'partial', reason: 'fetch-failed' } : undefined
 
-  if (blocked.length === 0) return { status: 'pass', message: 'bots_all_accessible' }
-  if (blocked.length === BOTS.length) return { status: 'fail', message: 'bots_all_blocked', details: blocked.map(b => b.bot).join(', ') }
-  return { status: 'warn', message: 'bots_partially_blocked', details: blocked.map(b => b.bot).join(', ') }
+  if (blocked.length === 0) return { status: 'pass', message: 'bots_all_accessible', collectorAccess }
+  if (blocked.length === BOTS.length) return { status: 'fail', message: 'bots_all_blocked', details: blocked.map(b => b.bot).join(', '), collectorAccess, ...(diagnostic ? { diagnostic } : {}) }
+  return { status: 'warn', message: 'bots_partially_blocked', details: blocked.map(b => b.bot).join(', '), collectorAccess, ...(diagnostic ? { diagnostic } : {}) }
 }

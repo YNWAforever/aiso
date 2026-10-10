@@ -15,16 +15,24 @@ const CHECK_VERSIONS_2026_09_05 = {
   c16_freshness: '2026-08-31.v1', c17_citation_density: '2026-08-31.v1', c18_factual_density: '2026-08-31.v1',
   c19_topical_authority: '2026-08-31.v1', c20_chunkability: '2026-08-31.v1',
 } as const
-export const CHECK_VERSIONS = {
-  ...CHECK_VERSIONS_2026_09_05,
-  // 2026-10-09.v1 (see SCANNER_VERSION): c17/c18/c20 read visible text only;
-  // c18/c19 report a provider failure as unavailable instead of scoring it;
-  // c19 does not ask the model to cluster URLs that form no groups.
-  c17_citation_density: '2026-10-09.v1',
-  c18_factual_density: '2026-10-09.v1',
-  c19_topical_authority: '2026-10-09.v1',
-  c20_chunkability: '2026-10-09.v1',
-} as const
+/** 2026-10-03.v1 (remediation branch): c1, c3 and c6 revised. */
+const CHECK_VERSIONS_2026_10_03 = { ...CHECK_VERSIONS_2026_09_05,
+  c1_robots: '2026-10-03.v1', c3_bot_access: '2026-10-03.v1', c6_llms_full_txt: '2026-10-03.v1' } as const
+/** 2026-10-07.v1 (remediation branch, UAT only): c18 unavailable uniqueness. */
+const CHECK_VERSIONS_2026_10_07 = { ...CHECK_VERSIONS_2026_10_03, c18_factual_density: '2026-10-07.v1' } as const
+/** 2026-10-09.v1 (main, PR #70, served in production 2026-10-10): c17-c20 revised. */
+const CHECK_VERSIONS_2026_10_09 = { ...CHECK_VERSIONS_2026_09_05,
+  c17_citation_density: '2026-10-09.v1', c18_factual_density: '2026-10-09.v1',
+  c19_topical_authority: '2026-10-09.v1', c20_chunkability: '2026-10-09.v1' } as const
+/**
+ * 2026-10-10.v1: the two lines joined. c1/c3/c6 as revised on 2026-10-03;
+ * c17/c18/c20 read visible text only; c18/c19 report a provider failure as
+ * unavailable instead of scoring it; c19 does not ask the model to cluster
+ * URLs that form no groups.
+ */
+export const CHECK_VERSIONS = { ...CHECK_VERSIONS_2026_10_03,
+  c17_citation_density: '2026-10-10.v1', c18_factual_density: '2026-10-10.v1',
+  c19_topical_authority: '2026-10-10.v1', c20_chunkability: '2026-10-10.v1' } as const
 export type EvidenceCheckKey = keyof typeof CHECK_VERSIONS
 
 /**
@@ -36,6 +44,9 @@ export type EvidenceCheckKey = keyof typeof CHECK_VERSIONS
  */
 export const SCANNER_METHODS: Readonly<Record<string, Readonly<Record<EvidenceCheckKey, string>>>> = {
   '2026-09-05.v1': CHECK_VERSIONS_2026_09_05,
+  '2026-10-03.v1': CHECK_VERSIONS_2026_10_03,
+  '2026-10-07.v1': CHECK_VERSIONS_2026_10_07,
+  '2026-10-09.v1': CHECK_VERSIONS_2026_10_09,
   [SCANNER_VERSION]: CHECK_VERSIONS,
 }
 export type CollectionState = 'complete' | 'partial' | 'blocked' | 'failed' | 'unsupported' | 'unknown'
@@ -147,6 +158,7 @@ export function readScanEvidence(value: unknown): ScanEvidence | null {
     const data = object(value)
     if (bytes(data) > 32768 || data.schemaVersion !== EVIDENCE_SCHEMA_VERSION) return null
     const candidate = data as unknown as ScanEvidence
+    if (typeof candidate.scannerVersion !== 'string') return null
     if (!candidate.requested || !candidate.evaluated || !candidate.comparison || !Array.isArray(candidate.observations)) return null
     if (!supportedPillarMethods.includes(candidate.pillarMethod as typeof supportedPillarMethods[number])) return null
     if (typeof candidate.scannerVersion !== 'string' || !Object.hasOwn(SCANNER_METHODS, candidate.scannerVersion)) return null

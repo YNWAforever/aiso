@@ -5,16 +5,16 @@ import { Share2, Check } from 'lucide-react'
 
 const COPY_EN = {
   shareText: (domain: string, score: number, grade: string) =>
-    `${domain} scored ${score}/100 (${grade}) on AI visibility — scanned with Fimmick AISO`,
-  shareTitle: (domain: string) => `AI visibility score for ${domain}`,
+    `${domain} scored ${score}/100 (${grade}) on website readiness — scanned with Fimmick AISO`,
+  shareTitle: (domain: string) => `Website readiness score for ${domain}`,
   copied: 'Link copied',
   share: 'Share',
 }
 
 const COPY_ZH_HK: typeof COPY_EN = {
   shareText: (domain: string, score: number, grade: string) =>
-    `${domain} 的 AI 可見度分數為 ${score}/100（${grade}）——以 Fimmick AISO 掃描`,
-  shareTitle: (domain: string) => `${domain} 的 AI 可見度分數`,
+    `${domain} 的網站就緒分數為 ${score}/100（${grade}）——以 Fimmick AISO 掃描`,
+  shareTitle: (domain: string) => `${domain} 的網站就緒分數`,
   copied: '已複製連結',
   share: '分享',
 }

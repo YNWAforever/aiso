@@ -99,7 +99,7 @@ vi.mock('@/lib/db', () => {
   return { db: () => sql }
 })
 
-const fetchMock = vi.fn().mockResolvedValue(new Response('ok', { status: 200 }))
+const fetchMock = vi.fn().mockImplementation(async () => new Response('ok', { status: 200 }))
 vi.stubGlobal('fetch', fetchMock)
 
 function scan(body: Record<string, unknown>) {
@@ -142,6 +142,7 @@ describe('POST /api/scan security boundaries', () => {
   })
 
   it.each([
+    ['single-label hostname', 'not-a-valid-url'],
     ['file protocol', 'file:///etc/passwd'],
     ['ftp protocol', 'ftp://example.com/resource'],
     ['URL credentials', 'https://user:password@example.com'],

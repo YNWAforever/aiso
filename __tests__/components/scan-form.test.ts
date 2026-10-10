@@ -21,6 +21,10 @@ describe('normalizeSubmittedUrl', () => {
   it('rejects a non-web URL scheme', () => {
     expect(() => normalizeSubmittedUrl('mailto:user@example.com')).toThrowError('invalid_protocol')
   })
+
+  it.each(['not-a-valid-url', 'localhost', 'https://user:secret@example.com'])('rejects a non-public or credentialed input: %s', value => {
+    expect(() => normalizeSubmittedUrl(value)).toThrow()
+  })
 })
 
 describe('scan form retry label', () => {
@@ -32,6 +36,7 @@ describe('scan form retry label', () => {
 
 describe('safe localized scan failures', () => {
   it.each([
+    [502, 'SCAN_PAGE_UNAVAILABLE', 'scan_page_unavailable'],
     [503, 'Authentication service unavailable', 'scan_auth_unavailable'],
     [503, 'Public scan temporarily unavailable', 'scan_unavailable'],
     [503, 'Authenticated scan quota unavailable', 'scan_quota_unavailable'],

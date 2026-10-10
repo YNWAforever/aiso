@@ -61,6 +61,23 @@ const APPROVER_REASON = [
   `  PLAYWRIGHT_STORAGE_STATE=${APPROVER_STATE_PATH} npm run e2e:auth:capture`,
 ].join('\n')
 
+/** Read JSON through the signed-in browser, including Secure loopback cookies.
+ * Playwright APIRequestContext omits those cookies on http://127.0.0.1 even
+ * when the browser accepts them, turning a tenant read into an anonymous401.
+ */
+export async function authenticatedGet(page: Page, endpoint: string) {
+  if (!endpoint.startsWith('/api/')) throw new Error('Authenticated reads require a same-origin API path')
+  const response = await page.evaluate(async path => {
+    const result = await fetch(path, { credentials: 'same-origin' })
+    return { status: result.status, text: await result.text() }
+  }, endpoint)
+  return {
+    status: () => response.status,
+    ok: () => response.status >= 200 && response.status < 300,
+    json: async () => JSON.parse(response.text),
+  }
+}
+
 export const test = base.extend<{ authenticatedPage: Page; approverPage: Page }>({
   // Second parameter renamed from Playwright's conventional `use` so eslint's
   // react-hooks/rules-of-hooks does not mistake the call for the React `use` hook.

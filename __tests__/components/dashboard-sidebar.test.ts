@@ -26,7 +26,9 @@ describe('dashboard sidebar brand resolution', () => {
     // matched: brandId was permanently undefined, every nav link dropped the
     // brand, and the results entry was locked and unclickable forever.
     expect(code(LAYOUT)).not.toContain('x-invoke-path')
-    expect(code(LAYOUT)).not.toContain("from 'next/headers'")
+    // T14 adds an app-owned authentication return header. Brand resolution
+    // still belongs to the sidebar's route params and must not move back here.
+    expect(code(LAYOUT)).not.toContain('const brandId')
   })
 
   it('reads the brand from the route it renders inside', () => {

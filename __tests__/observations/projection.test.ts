@@ -15,13 +15,22 @@ const row: PulseSourceRow = {
 }
 
 describe('projectObservation', () => {
+  it('observation_detail_replays_snapshot metadata rather than current model settings',()=>{
+    const recorded={...row,raw_answer:'Saved answer',classification_status:'classified',actual_model:'synthetic/old-served-model',
+      collected_at:'2026-09-21T04:17:00.000000Z',market:'HK'} as PulseSourceRow
+    expect(projectObservation(recorded,null)).toMatchObject({model:'synthetic/old-served-model',market:'HK',collectedAt:'2026-09-21T04:17:00.000000Z'})
+  })
+  it('legacy boolean guesses remain unknown without classification provenance',()=>{
+    expect(projectObservation({...row,raw_answer:'Legacy answer',brand_mentioned:true},null))
+      .toMatchObject({brandMentioned:null,result:'incomplete',limitations:expect.arrayContaining(['classification-unavailable'])})
+  })
   it('projects unavailable legacy evidence without leaking the raw answer', () => {
     const dto = projectObservation(row, null)
     expect(dto).toMatchObject({
       question: 'Recorded question',
       result: 'incomplete',
       hasAnswer: false,
-      brandMentioned: false,
+      brandMentioned: null,
       collectedAt: null,
       recordedAt: null,
       model: null,
@@ -32,6 +41,7 @@ describe('projectObservation', () => {
         'market-unrecorded',
         'collection-time-unrecorded',
         'answer-unavailable',
+        'classification-unavailable',
       ],
     })
     expect(dto).not.toHaveProperty('raw_answer')
@@ -45,7 +55,7 @@ describe('projectObservation', () => {
   })
 
   it('treats a nonbreaking space as content, matching the PostgreSQL POSIX predicate', () => {
-    expect(projectObservation({ ...row, raw_answer: '\u00a0', brand_mentioned: true }, null)).toMatchObject({
+    expect(projectObservation({ ...row, raw_answer: '\u00a0', brand_mentioned: true,classification_status:'classified' }, null)).toMatchObject({
       hasAnswer: true,
       result: 'success',
     })

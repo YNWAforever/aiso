@@ -17,6 +17,9 @@ const PASSWORD = `t${Math.random().toString(36).slice(2)}${Date.now()}`
 let app: NeonQueryFunction<false, false>
 
 beforeAll(async () => {
+  if(process.env.ALLOW_DISPOSABLE_ROLE_PASSWORD!=='1'){
+    throw new Error('ROLE_ACCEPTANCE_BLOCKED: setting a disposable role password requires explicit authorization; no role was changed')
+  }
   if (!process.env.TEST_DATABASE_URL) {
     throw new Error('TEST_DATABASE_URL is not set — globalSetup did not provision a branch')
   }

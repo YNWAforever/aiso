@@ -54,6 +54,7 @@ function isScannableHost(hostname: string): boolean {
   return labels.length >= 2 && labels.every(Boolean) && TLD.test(labels[labels.length - 1]!)
 }
 import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'
+import { normalizeScanUrl } from '@/lib/scan-input'
 
 // Re-exported for existing tests that import scoring from this route
 export { assignGrade, calculateScore, calculateGeoScore }
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
   let baseUrl: string
   let domain: string
   try {
-    const parsed = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : 'https://' + url)
+    const parsed = new URL(normalizeScanUrl(url))
     if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || parsed.username || parsed.password) {
       return NextResponse.json({ error: 'URL must use HTTP or HTTPS without credentials' }, { status: 400 })
     }
@@ -203,6 +204,19 @@ export async function POST(req: NextRequest) {
   // Fetch page HTML once — shared by extended checks + GEO checks.
   // The reusable boundary validates DNS and every redirect hop.
   const capture = createScanEvidenceCapture(fetchPublicUrl)
+  // Nothing is saved on any refusal below, so the monthly scan it spent is
+  // given back. A failed refund is logged, not surfaced: the refusal is still
+  // the true answer.
+  const refuse = async (error: string, status: number) => {
+    if (quotaSpentBy) {
+      try {
+        await releaseAuthenticatedScanQuota(quotaSpentBy)
+      } catch (releaseError) {
+        console.error('[scan] quota refund failed:', (releaseError as Error)?.name ?? 'Error')
+      }
+    }
+    return NextResponse.json({ error }, { status, headers: scanHeaders })
+  }
   let html = ''
   let htmlRes: Response
   try {
@@ -218,26 +232,31 @@ export async function POST(req: NextRequest) {
       })
     }
     // No HTTP response at all (DNS failure, refused connection, timeout): there
-    // is no site to assess, so nothing is graded or saved. Any response, even
-    // a 403 or 500, is still scanned — reporting that is what bot-access is for.
+    // is no site to assess, so nothing is graded or saved.
     console.error('[scan] page unreachable:', (error as Error)?.name ?? 'Error')
-    // Nothing is saved, so the monthly scan it spent is given back. A failed
-    // refund is logged, not surfaced: the 422 is still the true answer.
-    if (quotaSpentBy) {
-      try {
-        await releaseAuthenticatedScanQuota(quotaSpentBy)
-      } catch (releaseError) {
-        console.error('[scan] quota refund failed:', (releaseError as Error)?.name ?? 'Error')
-      }
-    }
-    return NextResponse.json({ error: 'SCAN_UNREACHABLE' }, { status: 422, headers: scanHeaders })
+    return refuse('SCAN_UNREACHABLE', 422)
   }
+  // An access denial (401/403/429) is still scanned: refusing the scanner is
+  // exactly what the bot-access check exists to report. Any other failed
+  // status, a non-HTML body or an empty page gives no basis for scoring
+  // content, so nothing is graded or saved.
+  const accessDenied = [401, 403, 429].includes(htmlRes.status)
+  const contentType = htmlRes.headers.get('content-type')?.split(';')[0].trim().toLowerCase()
+  if (!accessDenied && (!htmlRes.ok
+    || (contentType && !['text/html', 'application/xhtml+xml', 'text/plain'].includes(contentType)))) {
+    return refuse('SCAN_PAGE_UNAVAILABLE', 502)
+  }
+  let readFailed = false
   try {
     html = await htmlRes.text()
   } catch {
     // The site answered but its body could not be read: still a site, so
     // checks degrade on empty HTML as before.
     capture.failedRead('page')
+    readFailed = true
+  }
+  if (!accessDenied && !readFailed && !html.trim()) {
+    return refuse('SCAN_PAGE_UNAVAILABLE', 502)
   }
 
   // Run all 16 checks (5 core + 11 extended) in parallel

@@ -9,7 +9,7 @@ import { buildInitialDraftSnapshot } from '@/lib/work-items/snapshot'
 import { opportunityKey, serializeDraftSnapshot } from '@/lib/opportunities/fingerprint'
 const id = '00000000-0000-4000-8000-000000000001'
 const account = '00000000-0000-4000-8000-000000000002'
-const pulse = {id,client_id:id,prompt_id:null,question:'Question?',platform:'chatgpt',scan_week:'2026-08-31',created_at:'2026-09-01T00:00:00.123456Z',raw_answer:'PRIVATE ANSWER',brand_mentioned:false,has_answer:true}
+const pulse = {id,client_id:id,prompt_id:null,question:'Question?',platform:'chatgpt',scan_week:'2026-08-31',created_at:'2026-09-01T00:00:00.123456Z',raw_answer:'PRIVATE ANSWER',classification_status:'classified',brand_mentioned:false,has_answer:true}
 const projected = projectPulseOpportunityInput(account,pulse)
 const suggestion = deriveSuggestions(projected.source)[0]
 const input = { source:suggestion.source,ruleVersion:suggestion.ruleVersion,fingerprint:suggestion.fingerprint,locale:'en' as const }
@@ -22,7 +22,7 @@ beforeEach(() => { vi.clearAllMocks(); mocks.sql.mockReturnValue(Promise.resolve
   expect(result?.created).toBe(true)
   expect(JSON.stringify(result)).not.toContain('PRIVATE ANSWER')
   const query = mocks.sql.mock.calls[0][0].join(' ')
-  for (const field of ['question','raw_answer','brand_mentioned','platform','prompt_id','scan_week','created_at']) expect(query).toMatch(new RegExp(`m\\.${field} is not distinct from`))
+  for (const field of ['question','raw_answer','brand_mentioned','classification_status','platform','prompt_id','scan_week','created_at']) expect(query).toMatch(new RegExp(`m\\.${field} is not distinct from`))
   expect(query).toContain('octet_length(')
   expect(query).toContain('::jsonb::text')
   expect(mocks.sql.mock.calls[0].slice(1)).toContain('PRIVATE ANSWER')

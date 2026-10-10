@@ -15,6 +15,7 @@ export interface AlertWeekSnapshot {
   client_id: string
   scan_week: string
   sov_score: number | null
+  coverageComplete?:boolean
 }
 
 export interface AlertSnapshot {
@@ -113,11 +114,13 @@ export async function runAlertEvaluation(
   deferred: number
   emailFailures: number
   notificationFailures: number
+  incomplete?:number
 }> {
   const snapshot = await ports.loadSnapshot()
   const actions: AlertAction[] = []
   let stale = 0
   let evaluated = 0
+  let incomplete = 0
 
   for (const config of snapshot.configs) {
     const weeks = snapshot.weeksByClient[config.client_id] ?? []
@@ -131,7 +134,8 @@ export async function runAlertEvaluation(
     if (!weeks.length) continue
 
     const latest = weeks[0]
-    const previous = weeks[1]
+    const previous = weeks[1]?.coverageComplete===false?undefined:weeks[1]
+    if(latest.coverageComplete===false){incomplete++;continue}
 
     // Evaluate only the current week. Without this the run re-derives last
     // week's action, the ledger claim for it already exists, and the outcome is
@@ -284,6 +288,7 @@ export async function runAlertEvaluation(
   }
 
   return {
+    ...(incomplete?{incomplete}:{}),
     processed: snapshot.configs.length,
     stale,
     evaluated,

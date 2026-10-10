@@ -1,0 +1,191 @@
+{
+  "collection": "partial",
+  "completedPages": 0,
+  "schemaVersion": 1,
+  "scannerVersion": "2026-09-05.v1",
+  "headlineMethod": "aiso-100.v1",
+  "pillarMethod": "2026-09-05.v2",
+  "requestedScope": "single-origin-page",
+  "completedScope": "none",
+  "requested": {
+    "origin": "https://example.test",
+    "pathRedacted": false,
+    "queryRedacted": false,
+    "fragmentRedacted": false,
+    "originNormalized": false
+  },
+  "evaluated": {
+    "origin": "https://example.test",
+    "pathRedacted": false,
+    "queryRedacted": false,
+    "fragmentRedacted": false,
+    "originNormalized": false
+  },
+  "final": null,
+  "collectedAt": "2026-09-05T00:00:00.000Z",
+  "checks": {
+    "c1_robots": {
+      "applicability": "not-verifiable",
+      "version": "2026-09-05.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c2_llms_txt": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c3_bot_access": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c4_structured_data": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c5_extractability": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c6_llms_full_txt": {
+      "applicability": "applicable",
+      "version": "2026-08-31.v1",
+      "collection": "complete",
+      "assessment": "warn"
+    },
+    "c7_mcp_card": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c8_sitemap": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c9_meta_desc": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c10_headings": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c11_faq": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c12_canonical": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c13_render": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c14_internal_links": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c15_entity": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c16_freshness": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c17_citation_density": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c18_factual_density": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c19_topical_authority": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    },
+    "c20_chunkability": {
+      "applicability": "not-verifiable",
+      "version": "2026-08-31.v1",
+      "collection": "unknown",
+      "assessment": "not-verifiable"
+    }
+  },
+  "observations": [],
+  "comparison": {
+    "scope": "single-origin-page",
+    "evaluatedOrigin": "https://example.test",
+    "finalOrigin": null,
+    "industry": "general_b2c",
+    "region": "HK",
+    "sitemapSource": "fetched",
+    "urlPolicy": "origin-only.v1",
+    "scannerVersion": "2026-09-05.v1",
+    "checkVersions": {
+      "c1_robots": "2026-09-05.v1",
+      "c2_llms_txt": "2026-08-31.v1",
+      "c3_bot_access": "2026-08-31.v1",
+      "c4_structured_data": "2026-08-31.v1",
+      "c5_extractability": "2026-08-31.v1",
+      "c6_llms_full_txt": "2026-08-31.v1",
+      "c7_mcp_card": "2026-08-31.v1",
+      "c8_sitemap": "2026-08-31.v1",
+      "c9_meta_desc": "2026-08-31.v1",
+      "c10_headings": "2026-08-31.v1",
+      "c11_faq": "2026-08-31.v1",
+      "c12_canonical": "2026-08-31.v1",
+      "c13_render": "2026-08-31.v1",
+      "c14_internal_links": "2026-08-31.v1",
+      "c15_entity": "2026-08-31.v1",
+      "c16_freshness": "2026-08-31.v1",
+      "c17_citation_density": "2026-08-31.v1",
+      "c18_factual_density": "2026-08-31.v1",
+      "c19_topical_authority": "2026-08-31.v1",
+      "c20_chunkability": "2026-08-31.v1"
+    },
+    "headlineMethod": "aiso-100.v1",
+    "pillarMethod": "2026-09-05.v2"
+  },
+  "comparisonSignature": "a4d9a8e0ce1f1904dbd10770a36b65401c82059dca1802b5fda27cd04192cd29",
+  "limited": false,
+  "limitations": [
+    "origin-only-identity",
+    "no-page-or-provider-excerpts",
+    "sampled-single-page",
+    "scan-record-retention"
+  ]
+}

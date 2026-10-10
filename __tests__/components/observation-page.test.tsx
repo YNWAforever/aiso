@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
 }))
 const load = h.load
 vi.mock('@/lib/auth', () => ({ requireAuth: h.auth }))
+vi.mock('server-only', () => ({}))
 vi.mock('@/lib/observations/service', () => ({
   loadAuthenticatedObservations: h.load,
   ObservationServiceError: h.ServiceError,

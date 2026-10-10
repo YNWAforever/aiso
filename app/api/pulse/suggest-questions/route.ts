@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { callOpenRouter, type JsonSchemaFormat } from '@/lib/openrouter'
 import { isPromptCategory, PROMPT_CATEGORIES } from '@/lib/prompts/categories'
 import { authorizePromptBank } from '@/lib/prompts/guard'
+import { parsePromptContext } from '@/lib/prompts/context'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,23 +73,28 @@ export async function POST(req: NextRequest) {
   let brandName = ''
   let industry: string | null = null
   let existingList = ''
+  let context: ReturnType<typeof parsePromptContext>
   try {
     const rows = await sql`
-      select brand_name, industry from clients
+      select brand_name, industry, region,
+        (select draft->>'language' from onboarding_progress op where op.client_id = clients.id and op.account_id = clients.account_id) as prompt_language
+      from clients
       where id = ${clientId} and account_id = ${access.accountId}
       limit 1
     `
-    const client = rows[0] as { brand_name: string; industry: string | null } | undefined
+    const client = rows[0] as { brand_name: string; industry: string | null; region?: unknown; prompt_language?: unknown } | undefined
     // 404, not 403 — the id came from the caller, so confirming it exists would
     // tell them it belongs to somebody.
     if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     brandName = client.brand_name
     industry = client.industry
+    try { context = parsePromptContext(body, { language: client.prompt_language, market: client.region }) }
+    catch { return NextResponse.json({ error: 'Invalid prompt context' }, { status: 400 }) }
 
     const existing = await sql`
-      select question from prompt_bank
-      where client_id = ${clientId}
-      order by created_at, id
+      select p.question from prompt_bank p join clients c on c.id = p.client_id
+      where p.client_id = ${clientId} and c.account_id = ${access.accountId}
+      order by p.created_at, p.id
       limit ${EXISTING_SAMPLE}
     `
     existingList = (existing as unknown as Array<{ question: string }>)
@@ -107,6 +113,7 @@ export async function POST(req: NextRequest) {
     messages: [{
       role: 'user',
       content: `Brand: ${brandName}\nIndustry: ${industry ?? 'general'}\n\n`
+        + `Language: ${context.language}\nMarket: ${context.market ?? 'unspecified'}\nWrite questions only in this confirmed language and market.\n`
         + `Existing questions, which the new ones must not repeat:\n${existingList || '(none yet)'}\n\n`
         + `Generate ${count} NEW, diverse questions for tracking this brand's AI visibility. `
         + `Mix categories: ${PROMPT_CATEGORIES.join(', ')}.`,
@@ -128,7 +135,7 @@ export async function POST(req: NextRequest) {
       && typeof (s as { question?: unknown }).question === 'string'
       && (s as { question: string }).question.trim().length > 0
       && isPromptCategory((s as { category?: unknown }).category))
-    .map(s => ({ question: s.question.trim(), category: s.category }))
+    .map(s => ({ question: s.question.trim(), category: s.category, ...context }))
     .slice(0, count)
 
   return NextResponse.json({ suggestions })

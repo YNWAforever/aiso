@@ -1,8 +1,8 @@
 {
   "seo": {
     "home": {
-      "title": "Fimmick AISO | AI Visibility Scan",
-      "description": "Check how easily AI platforms can find, understand and cite your website, and get prioritized fixes."
+      "title": "Fimmick AISO | Website Readiness for AI Search",
+      "description": "Review technical and content readiness, prioritise website improvements, and inspect sampled AI answers in your workspace."
     },
     "pricing": {
       "title": "Plans and Pricing | Fimmick AISO",
@@ -320,13 +320,13 @@
     "industry_retail_ecommerce": "Retail & E-Commerce",
     "proof_public_nav": "Public navigation",
     "proof_footer_nav": "Footer navigation",
-    "proof_eyebrow": "Free AI Visibility Scan",
-    "proof_headline": "See whether AI recommends your brand.",
-    "proof_subheadline": "Run {count} evidence-based checks to see whether ChatGPT, Google AI, Perplexity, Claude, and Gemini can find, understand, and cite your website.",
+    "proof_eyebrow": "Free Website Readiness Scan",
+    "proof_headline": "Prepare your website for AI search.",
+    "proof_subheadline": "Run {count} technical and content checks to find improvements you can review. Actual brand mentions and citations are measured separately from sampled AI model answers.",
     "proof_no_signup": "No signup to scan",
     "proof_no_card": "No credit card",
-    "proof_platforms": "{count} AI platforms",
-    "proof_preview_label": "Visibility dossier preview",
+    "proof_platforms": "{count} AI products in context",
+    "proof_preview_label": "Website readiness preview",
     "proof_preview_note": "Example output",
     "proof_score_label": "AI readiness score",
     "proof_signal_access": "Crawler access",
@@ -337,16 +337,16 @@
     "proof_failing": "failing",
     "proof_priority_title": "Highest-impact issue",
     "proof_priority_body": "Key service pages lack answer-ready facts and structured evidence that AI systems can cite.",
-    "proof_platform_section": "Measured across five leading AI platforms",
+    "proof_platform_section": "Understand the AI search ecosystem",
     "proof_how_label": "From scan to action",
-    "proof_how_title": "Know what AI sees, then improve it",
+    "proof_how_title": "Review your website evidence, then choose a fix",
     "proof_how_body": "The scan turns technical and content evidence into a clear business-ready dossier.",
     "proof_step1_title": "Scan your website",
     "proof_step1_body": "Enter a URL and optionally tailor the scan by industry and region.",
     "proof_step2_title": "Understand the evidence",
-    "proof_step2_body": "Review a 100-point score, platform visibility, and the issues holding your brand back.",
+    "proof_step2_body": "Review a technical readiness score, collection limits, and confirmed website issues.",
     "proof_step3_title": "Fix and track",
-    "proof_step3_body": "Prioritise the strongest actions, deploy the Fix Pack, and monitor visibility over time.",
+    "proof_step3_body": "Review proposed fixes, publish when ready, and compare future evidence.",
     "proof_method_label": "Evidence-led methodology",
     "proof_method_title": "A transparent scan, not a black-box promise",
     "proof_method_body": "Every score is grounded in {count} repeatable readiness checks across access, content, structure, and authority.",
@@ -355,21 +355,22 @@
     "proof_method_point3": "Prioritised fixes tied to the measured gap",
     "proof_capability_checks_title": "Readiness checks",
     "proof_capability_checks_body": "Test crawler access, structured data, extractability, and citation signals.",
-    "proof_capability_dossier_title": "Visibility dossier",
-    "proof_capability_dossier_body": "See your score, platform-level signals, and highest-impact issue together.",
+    "proof_capability_dossier_title": "Readiness report",
+    "proof_capability_dossier_body": "See website checks, their evidence limits, and suggested improvements in one place.",
     "proof_capability_fix_title": "Technical Fix Pack",
     "proof_capability_fix_body": "Prepare llms.txt, robots.txt guidance, and FAQ JSON-LD from defined outputs.",
     "proof_capability_monitor_title": "Ongoing monitoring",
-    "proof_capability_monitor_body": "Track share of voice and competitor citation gaps as your evidence improves.",
+    "proof_capability_monitor_body": "Inspect sampled model API answers, brand mentions, and provider citations when available. Samples do not establish consumer AI rankings.",
     "proof_bottom_label": "Your evidence starts here",
     "proof_bottom_title": "Run the free scan now",
-    "proof_bottom_body": "No account or credit card is needed to see your first visibility result.",
+    "proof_bottom_body": "Get your first website readiness report without an account or credit card.",
     "industry_travel_hospitality": "Travel & Hospitality",
     "industry_media_entertainment": "Media & Entertainment",
     "skip_to_main": "Skip to main content",
     "scan_auth_unavailable": "Sign-in verification is temporarily unavailable. Please try again later.",
     "scan_unavailable": "Scanning is temporarily unavailable. Please try again later.",
     "scan_unreachable": "We could not reach that website. Check the address and try again; nothing was saved.",
+    "scan_page_unavailable": "We could not read a usable page at this address. Check that the website opens publicly, then retry. No score was created.",
     "scan_quota_unavailable": "We could not verify your scan allowance. Please try again later.",
     "scan_upgrade_required": "Your current plan does not include authenticated scans. Review your plan before trying again.",
     "scan_quota_reached": "You have reached your plan’s scan allowance. Wait for it to reset or review your plan.",
@@ -397,6 +398,8 @@
     "geo_c19_label": "Topical Authority",
     "geo_c20_label": "Chunkability",
     "geo_quality_score": "Quality Score",
+    "geo_model_evidence_note": "Model assessment and page counts. Real search and consumer visibility are not measured by this check.",
+    "evidence_unverified": "{count} checks need evidence",
     "geo_cites_per_k": "citations/1K words",
     "geo_number_density": "Number density",
     "geo_has_comparisons": "Has comparative data",
@@ -435,7 +438,7 @@
     "extractability_poor": "Very little extractable content",
     "extractability_fetch_error": "Could not check content",
     "check_error": "Check failed",
-    "c6_llms_full_txt": "LLMS.txt Depth",
+    "c6_llms_full_txt": "llms.txt content completeness (optional)",
     "c7_mcp_card": "AI Metadata Card",
     "c8_sitemap": "Sitemap Quality",
     "c9_meta_desc": "Meta Description",
@@ -492,6 +495,8 @@
     "factual_density_pass": "Good factual density",
     "factual_density_warn": "Moderate factual density",
     "factual_density_fail": "Low factual density",
+    "factual_density_unavailable": "Unavailable — retry to obtain provider evidence",
+    "factual_density_legacy": "Legacy / unverifiable — run a new scan",
     "topical_authority_pass": "Strong topical clusters",
     "topical_authority_warn": "Partial topic coverage",
     "topical_authority_fail": "No topical clusters detected",
@@ -647,7 +652,18 @@
     "cancel": "Cancel",
     "edit": "Edit",
     "delete": "Delete",
-    "add_prompt_ph": "+ Type a new prompt and press Enter…"
+    "add_prompt_ph": "+ Type a new prompt and press Enter…",
+    "qb_add_label": "Add question to {category}",
+    "qb_saving": "Saving…",
+    "qb_edit_label": "Edit question: {question}",
+    "qb_toggle_label": "Enable question: {question}",
+    "qb_saved": "Question saved.",
+    "qb_delete_label": "Delete question: {question}",
+    "qb_add": "Add",
+    "qb_language": "Question language",
+    "qb_market": "Question market",
+    "qb_unknown_context": "Unknown language",
+    "qb_unspecified_market": "Market unspecified"
   },
   "upsell": {
     "title": "Track {domain}'s AI presence every week",
@@ -1456,6 +1472,32 @@
         "insufficient-evidence": "This scan could not observe enough to rank priorities. Re-run it, or check whether the site blocks automated requests.",
         "unavailable": "This scan predates evidence recording, so its findings cannot be ranked honestly. Run a new scan to get priorities."
       }
+    },
+    "daily": {
+      "title": "Daily maintenance",
+      "states": {
+        "not_configured": "Collection is not configured; an empty question library does not imply a scheduler failure.",
+        "pending": "Collection has pending items.",
+        "partial": "Collection or classification is incomplete.",
+        "complete": "Collection and classification are complete for this run.",
+        "failed": "Collection failed for this run.",
+        "disabled": "Disabled.",
+        "unknown": "The work status cannot currently be confirmed."
+      },
+      "coverage": "Collected {succeeded}/{expected}; failed {failed}, pending {pending}, blocked {blocked}; classified {classified}.",
+      "lastComplete": "Record update time of the latest complete run",
+      "nextDue": "Next scheduled work (Hong Kong)",
+      "unknown": "Unconfirmed",
+      "partialReads": "Some records could not be read. Confirmed actions remain available.",
+      "manual": "Review evidence, edit the private draft, then approve the exact source version. These links do not start collection, send email or publish. Downloading a draft does not confirm delivery.",
+      "actions": {
+        "review-failed-run": "Review failed and blocked items",
+        "review-pending-run": "Review pending items",
+        "review-classification": "Review unclassified answers",
+        "review-source": "Review the exact source version awaiting approval",
+        "open-draft": "Continue a private draft",
+        "review-opportunities": "Review opportunities"
+      }
     }
   },
   "portfolio": {
@@ -1618,7 +1660,13 @@
     "verifyOutcomeTokenAbsent": "The file was not there, or did not contain the line. Check the path and the exact contents.",
     "verifyOutcomeUnreachable": "The site did not answer. That is not a failure on our side — check the domain resolves and serves HTTPS.",
     "verifyOutcomeRedirected": "The path redirected elsewhere. Verification does not follow redirects, because a different site cannot prove this one. Serve the file directly on this domain.",
-    "verifyOutcomeTooLarge": "The response was too large to be this file. The path is probably serving a page rather than the text file."
+    "verifyOutcomeTooLarge": "The response was too large to be this file. The path is probably serving a page rather than the text file.",
+    "verifyGettingContent": "Getting contents…",
+    "verifyCopy": "Copy file contents",
+    "verifyCopied": "File contents copied.",
+    "verifyGetContent": "Get verification contents",
+    "verifyNeedsContent": "First get the verification contents for {domain}. Then publish the file and check ownership.",
+    "verifyCopyFailed": "Copy failed. Select and copy the file contents above."
   },
   "observations": {
     "title": "Recorded observations",
@@ -1656,7 +1704,7 @@
     "unknownRecordedAt": "Unknown record creation time",
     "noAnswer": "No answer recorded",
     "hasAnswer": "Answer recorded",
-    "classificationUnknown": "Classification not recorded",
+    "classificationUnknown": "Classification unknown",
     "brandMentioned": "Stored classification: brand mentioned",
     "brandNotMentioned": "Stored classification: brand not mentioned",
     "retainedWeeks": "Latest 40 retained weeks are available.",
@@ -1667,7 +1715,48 @@
     "activityUnknown": "Activity unknown",
     "category": "Current category",
     "language": "Current language",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "viewDetails": "View answer evidence",
+    "detailTitle": "Answer evidence",
+    "closeDetail": "Close",
+    "detailLoading": "Loading answer evidence…",
+    "detailError": "We could not load this answer.",
+    "rawAnswer": "Saved answer",
+    "apiSample": "This is an API model sample. It does not establish a position in a consumer AI product.",
+    "model": "Model actually served",
+    "requestedModel": "Requested model",
+    "collector": "Collection method",
+    "collectedAt": "Collection completed at",
+    "market": "Market",
+    "classification": "Classification status",
+    "classified": "Classified",
+    "fallback": "Uncertain fallback",
+    "failed": "Classification failed",
+    "legacyUnknown": "Historical classification unknown",
+    "sentiment": "Sentiment toward the brand",
+    "positive": "Positive",
+    "neutral": "Neutral",
+    "negative": "Negative",
+    "method": "Classification method",
+    "version": "Method version",
+    "matchedText": "Literal matching evidence",
+    "links": "Links in the answer",
+    "textLink": "Text link (unverified)",
+    "providerCitation": "Provider citation",
+    "noProviderCitations": "Provider citations were not recorded. Links extracted from answer text are unverified.",
+    "providerEvidenceNote": "These citations were supplied by the model provider for this answer. Their contents have not been independently verified. Other links come from the answer text.",
+    "providerCitationsEmpty": "The recorded annotations contained no usable public URL citations. Links in the answer text are unverified.",
+    "providerFinishReason": "Provider response status",
+    "providerComplete": "Completed normally",
+    "promptSnapshot": "Question snapshot",
+    "snapshotLanguage": "Language at collection",
+    "limitations": "Evidence limitations",
+    "brandSnapshot": "Brand at collection",
+    "workflowTitle": "Continue maintenance",
+    "workflowNote": "Check original observations, edit a private draft, then review the source version. Source approval and permission for agent use are separate. Recommendations do not prove improved exposure.",
+    "workflowObservations": "Review observation evidence",
+    "workflowOpportunities": "Edit private drafts",
+    "workflowSources": "Review source versions"
   },
   "opportunities": {
     "title": "Opportunities",
@@ -1692,7 +1781,7 @@
     "partial": "Some evidence or saved-draft information is unavailable or limited. Available findings are shown below.",
     "savedUnknown": "We could not check whether this finding already has a saved draft. Saving returns the existing draft if there is one.",
     "limitedEvidence": "The retained evidence is too limited to save this finding as a new draft.",
-    "window": "Suggestions use up to 200 rows from the latest retained Pulse week and checks from the newest retained website scan. This is a bounded review, not exhaustive discovery.",
+    "window": "Candidates use the selected retained Pulse week and latest scan. Load more to reach later rows; priority is within the evidence loaded here. This is not a global ranking.",
     "pulseTruncated": "More Pulse rows exist in this week. Only the newest 200 rows are included.",
     "week": "Retained week",
     "noWeek": "No retained Pulse week",
@@ -1766,8 +1855,8 @@
         "action": "Review content relevant to “{question}”. The retained {platform} answer did not mention the brand; review the content and evidence before deciding next steps."
       },
       "review-check": {
-        "title": "Review website check: {checkKey}",
-        "action": "Review the retained evidence and limitations for {checkKey}, and investigate the warning or failed check."
+        "title": "{checkTitle}",
+        "action": "{checkAction}"
       }
     },
     "limits": {
@@ -1782,7 +1871,13 @@
     },
     "initialLoadError": "Suggestions could not be loaded. Please try again.",
     "versionHistory": "Review version history",
-    "saveBeforeVersions": "Save your edits before opening version history."
+    "saveBeforeVersions": "Save your edits before opening version history.",
+    "moreCandidates": "Load more candidate evidence",
+    "workflowTitle": "Continue maintenance",
+    "workflowNote": "Check original observations, edit a private draft, then review the source version. Source approval and permission for agent use are separate. Recommendations do not prove improved exposure.",
+    "workflowObservations": "Review observation evidence",
+    "workflowOpportunities": "Edit private drafts",
+    "workflowSources": "Review source versions"
   },
   "changeSets": {
     "title": "Version review",
@@ -2035,7 +2130,7 @@
     },
     "why": {
       "in-use": "A draft may quote this, and will cite this exact version.",
-      "awaiting-approval": "Imported but never approved, so nothing will quote it. Re-import this text and approve it to put it in use.",
+      "awaiting-approval": "Imported and awaiting approval. Review and approve this version; agent permission remains a separate choice.",
       "not-permitted": "Approved, but agent use is switched off, so nothing will quote it.",
       "revoked": "Withdrawn. Nothing will quote it again. It stays listed so drafts that already cited it can still be explained."
     },
@@ -2052,7 +2147,8 @@
       "version": "Version",
       "hash": "Content hash",
       "entries": "questions answered",
-      "none": "Nothing has been imported into this source yet."
+      "none": "Nothing has been imported into this source yet.",
+      "sourceKey": "Source key"
     },
     "freshness": {
       "current": "Current",
@@ -2073,7 +2169,13 @@
       "revokeWarning": "Revoking cannot be undone.",
       "failed": "That did not save. Nothing has been changed.",
       "saved": "Saved.",
-      "revoked": "Revoked. Nothing will quote it again."
+      "revoked": "Revoked. Nothing will quote it again.",
+      "reviewVersion": "Review this version",
+      "approveVersion": "Approve this version",
+      "cancelReview": "Close review",
+      "reviewNote": "Review version {version} below. Approval preserves this text and does not allow agent use.",
+      "approved": "Version approved. Agent permission is unchanged.",
+      "reviewStale": "The requested version changed or is unavailable. Select the version again. No source was approved."
     },
     "import": {
       "title": "Import facts",
@@ -2103,11 +2205,18 @@
       "submitting": "Importing…",
       "created": "Imported.",
       "unchanged": "That text is identical to the current version, so no new version was created.",
-      "failed": "Import failed. Nothing was saved."
+      "failed": "Import failed. Nothing was saved.",
+      "limits": "Up to 200 question/answer rows per source, 4000 characters per field and 262144 bytes per request. CSV imports require a complete valid preview.",
+      "preview": "Preview CSV rows",
+      "previewCounts": "{valid} valid rows · {invalid} rows need correction",
+      "row": "Row {number}",
+      "valid": "Valid",
+      "retryRows": "Revalidate corrected rows",
+      "savedVersion": "Source {key} · Version {version}."
     },
     "errors": {
       "SOURCES_BODY_TOO_LARGE": "That import is too large to send in one request. Split it into smaller parts.",
-      "SOURCES_CONFLICT": "That reference belongs to a source that was revoked. Revoked sources cannot be re-imported — use a new reference.",
+      "SOURCES_CONFLICT": "This version changed or the source was revoked. Reload and review the current version before approving. Your input is preserved.",
       "SOURCES_INVALID_INPUT": "That request could not be read. Nothing was saved.",
       "SOURCES_NOT_FOUND": "That source no longer exists here.",
       "SOURCES_UNAUTHENTICATED": "Your session has ended. Sign in again.",
@@ -2122,8 +2231,33 @@
       "SOURCE_KIND_INVALID": "Choose a type: brand facts, or FAQ.",
       "SOURCE_LABEL_INVALID": "A name is required, up to 160 characters.",
       "SOURCE_ORIGIN_INVALID": "The origin note must be text, up to 500 characters.",
-      "SOURCE_QUESTION_INVALID": "Every question must be text, and no longer than 4000 characters."
-    }
+      "SOURCE_QUESTION_INVALID": "Every question must be text, and no longer than 4000 characters.",
+      "SOURCE_QUERY_INVALID": "This page request is invalid. Start from the first page.",
+      "SOURCE_PAGE_CHANGED": "Sources changed. Refresh from the first page before continuing.",
+      "SOURCE_PREVIEW_INVALID": "Preview the complete file and correct every row before importing.",
+      "SOURCE_CSV_COLUMNS_INVALID": "This row must contain exactly one question and one answer.",
+      "SOURCE_DUPLICATE_QUESTION": "This question duplicates another row. Keep one unique question per row.",
+      "SOURCE_ENTRIES_LIMIT": "A preview needs 1–200 question/answer rows."
+    },
+    "pagination": {
+      "loadedScope": "Counts cover loaded sources",
+      "scope": "Loaded {shown} of {total} matching sources",
+      "filter": "Source filter",
+      "filters": {
+        "all": "All matching sources",
+        "awaiting-approval": "Awaiting approval",
+        "in-use": "In use",
+        "revoked": "Revoked"
+      },
+      "refresh": "Refresh from first page",
+      "loading": "Loading sources…",
+      "more": "Load more sources"
+    },
+    "workflowTitle": "Continue maintenance",
+    "workflowNote": "Check original observations, edit a private draft, then review the source version. Source approval and permission for agent use are separate. Recommendations do not prove improved exposure.",
+    "workflowObservations": "Review observation evidence",
+    "workflowOpportunities": "Edit private drafts",
+    "workflowSources": "Review source versions"
   },
   "assets": {
     "title": "Registered pages",
@@ -2213,5 +2347,32 @@
       "MEMBER_CANNOT_REMOVE_SELF": "You cannot remove yourself. Ask another member to do it.",
       "MEMBER_NOT_FOUND": "That person is not in this workspace."
     }
+  },
+  "maintenance": {
+    "runTitle": "Collection work items",
+    "runUnavailable": "The complete run record is unavailable. No work was changed.",
+    "runCounts": "Collected {succeeded}/{expected}; failed {failed}, pending {pending}, blocked {blocked}; classified {classified}.",
+    "runFilters": "Work item filters",
+    "filters": {
+      "all": "All",
+      "failed": "Failed or blocked",
+      "pending": "Pending",
+      "unclassified": "Unclassified"
+    },
+    "runScope": "This page shows {shown} of {total} matching items.",
+    "itemStates": {
+      "queued": "Queued",
+      "running": "Running",
+      "retry_wait": "Waiting for retry",
+      "succeeded": "Collected",
+      "failed": "Failed",
+      "blocked": "Blocked"
+    },
+    "classification": "Classification",
+    "classified": "Classified",
+    "unknown": "Unconfirmed",
+    "attempts": "Attempts",
+    "runEmpty": "No items match this filter.",
+    "moreRunItems": "Next page of work items"
   }
 }

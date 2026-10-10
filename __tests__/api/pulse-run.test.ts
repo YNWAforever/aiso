@@ -38,8 +38,10 @@ const mockSql = vi.fn((strings: TemplateStringsArray, ...params: unknown[]) => {
     return Promise.resolve([{ scan_week: '2026-08-03', platform: 'gemini-flash' },
       { scan_week: '2026-08-03', platform: null }])
   }
+  if (/insert into pulse_metrics/i.test(text)) return Promise.resolve([{id:'metric'}])
   return Promise.resolve([])
 })
+Object.assign(mockSql,{transaction:(queries:Promise<unknown>[])=>Promise.all(queries)})
 
 vi.mock('@/lib/db', () => ({ db: () => mockSql }))
 
@@ -49,12 +51,25 @@ const llm = vi.hoisted(() => ({
   callMultiPlatform: vi.fn(),
   callOpenRouter: vi.fn(),
 }))
+const ledger = vi.hoisted(() => ({runPulseChunk:vi.fn()}))
+vi.mock('@/lib/pulse/runs/service',()=>ledger)
 vi.mock('@/lib/openrouter', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/openrouter')>()),
   ...llm,
 }))
 
 import { POST } from '@/app/api/pulse/run/route'
+
+it('T05 keeps all fifteen expected items when every provider fails', async () => {
+  vi.stubEnv('FEATURE_PULSE_ATTEMPTS', '1')
+  llm.callMultiPlatform.mockResolvedValue([])
+  const response = await post({ clientId: 'client-1' })
+  const result = await response.json()
+  expect(result.coverage).toMatchObject({ expected: 15, succeeded: 0 })
+  expect(ledger.runPulseChunk.mock.calls[0][0]).toEqual({accountId:'account-1',clientId:'client-1'})
+  expect(ledger.runPulseChunk.mock.calls[0][1].platforms).toHaveLength(5)
+  vi.unstubAllEnvs()
+})
 
 function post(body: unknown, secret: string | null = CRON_SECRET) {
   return POST(new Request('http://localhost/api/pulse/run', {
@@ -70,6 +85,7 @@ function post(body: unknown, secret: string | null = CRON_SECRET) {
 function account(plan: string, extra: Record<string, unknown> = {}) {
   return {
     brand_name: 'AcmeCo',
+    account_id:'account-1',
     industry: 'technology',
     competitors: ['CompetitorX'],
     plan,
@@ -86,6 +102,8 @@ const inserts = (table: string) => calls.filter(c => new RegExp(`insert into ${t
 
 beforeEach(() => {
   process.env.CRON_SECRET = CRON_SECRET
+  vi.stubEnv('FEATURE_PULSE_ATTEMPTS','0')
+  ledger.runPulseChunk.mockReset().mockResolvedValue({coverage:{expected:15,succeeded:0,pending:15},nextCursor:0,outcome:'partial'})
   calls.length = 0
   failOn = null
   lookupError = null
@@ -108,6 +126,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.unstubAllEnvs()
   process.env.CRON_SECRET = CRON_SECRET
 })
 
@@ -230,13 +249,14 @@ describe('POST /api/pulse/run — writes', () => {
     for (const row of rows) expect(row.params[0]).toBe('client-1')
   })
 
-  it('persists the analysis rather than a substring guess', async () => {
+  it('persists classified analysis but drops competitors absent from the saved answer', async () => {
     // competitors_mentioned is the column the live dashboard Missed table reads;
     // the pre-fence producer never populated it.
     await post({ clientId: 'client-1' })
 
     const [row] = inserts('pulse_metrics')
-    expect(row.params).toContainEqual(['CompetitorX'])
+    expect(row.params).not.toContainEqual(['CompetitorX'])
+    expect(row.params).toContain('classified')
     expect(row.params).toContain('positive')
   })
 
@@ -247,8 +267,9 @@ describe('POST /api/pulse/run — writes', () => {
     expect(res.status).toBe(200)
     const rows = inserts('pulse_metrics')
     expect(rows).toHaveLength(3)
-    // Substring path still finds the brand in "AcmeCo is great…".
-    expect(rows[0].params).toContain(true)
+    expect(rows[0].params[5]).toBeNull()
+    expect(rows[0].params).toContain('unknown')
+    expect(rows[0].params).toContain('fallback')
   })
 
   it('logs citations using the vocabulary the ai_citation_log CHECK allows', async () => {
@@ -288,29 +309,33 @@ describe('POST /api/pulse/run — writes', () => {
     expect(inserts('pulse_metrics')).toHaveLength(3)
   })
 
-  it('clears a prompt\'s existing rows for the week before writing them', async () => {
+  it('preserves successful legacy rows and serializes scoped append on retry', async () => {
     // pulse_metrics has no unique key and total_queries is a count over its
     // rows, so reprocessing a prompt would inflate sov_score — the number the
     // whole feature reports. With a scheduler driving this, reprocessing is
     // routine rather than exceptional.
     await post({ clientId: 'client-1', limit: 1 })
 
+    // A successful stored answer is never deleted. The only delete allowed is
+    // of a blank legacy row, which the guarded insert would otherwise join
+    // rather than replace — two rows for one prompt × platform × week.
     const deletes = calls.filter(c => /delete from pulse_metrics/i.test(c.text))
-    expect(deletes).toHaveLength(1)
-    expect(deletes[0].params).toEqual(['client-1', 'p1', '2026-08-03'])
-
-    // And it must happen before the insert, or it deletes what it just wrote.
-    const delIndex = calls.findIndex(c => /delete from pulse_metrics/i.test(c.text))
+    expect(deletes.length).toBeGreaterThan(0)
+    for (const d of deletes) expect(d.text).toContain("nullif(btrim(raw_answer),'') is null")
+    const delIndex = calls.findIndex(c => /for update/i.test(c.text))
     const insIndex = calls.findIndex(c => /insert into pulse_metrics/i.test(c.text))
     expect(delIndex).toBeLessThan(insIndex)
+    expect(calls[delIndex].params).toEqual(['client-1','account-1'])
   })
 
-  it('scopes that delete to the one prompt, never the whole client-week', async () => {
+  it('checks the one legacy prompt/model/week before appending', async () => {
     await post({ clientId: 'client-1', limit: 1 })
-    const [del] = calls.filter(c => /delete from pulse_metrics/i.test(c.text))
+    const [del] = inserts('pulse_metrics')
 
     expect(del.text).toMatch(/prompt_id =/)
     expect(del.text).toMatch(/scan_week =/)
+    expect(del.text).toMatch(/platform =/)
+    expect(del.text).toMatch(/not exists/)
   })
 
   it('returns 5xx rather than a success carrying counts it never persisted', async () => {
@@ -466,7 +491,7 @@ describe('POST /api/pulse/run — scan_week', () => {
     // another.
     await post({ clientId: 'client-1' })
 
-    expect(calls.some(c => /date_trunc\('week', now\(\)\)::date as scan_week/.test(c.text)))
+    expect(calls.some(c => /date_trunc\('week', now\(\) at time zone 'UTC'\)::date as scan_week/.test(c.text)))
       .toBe(true)
   })
 

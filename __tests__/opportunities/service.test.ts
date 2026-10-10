@@ -5,10 +5,15 @@ vi.mock('@/lib/auth', () => ({getProfile:mocks.profile}))
 vi.mock('@/lib/opportunities/store', () => ({loadOwnedOpportunitySources:mocks.load,loadSavedDraftMapping:mocks.saved}))
 import { loadAuthenticatedOpportunities } from '@/lib/opportunities/service'
 import { projectObservation } from '@/lib/observations/schema'
+import { buildScanEvidence } from '@/lib/scan-evidence'
 const client = '00000000-0000-4000-8000-000000000002'
 const id = '00000000-0000-4000-8000-000000000003'
-function sourceWindow(pulse='ok',scan='empty') { return { window:{pulseWeek:'2026-08-31',pulseLimit:200,pulseTruncated:false,scanId:null},sourceStates:{pulse,scan},sources:[{kind:'pulse-metric',answerDigest:'a'.repeat(64),observation:projectObservation({id,prompt_id:null,question:'Question?',platform:'chatgpt',scan_week:'2026-08-31',created_at:null,raw_answer:'SECRET',brand_mentioned:false},null)}],evidenceVersions:[{raw_answer:'SECRET TOKEN'}] } }
+function sourceWindow(pulse='ok',scan='empty') { return { window:{pulseWeek:'2026-08-31',pulseLimit:200,pulseTruncated:false,scanId:null},sourceStates:{pulse,scan},sources:[{kind:'pulse-metric',answerDigest:'a'.repeat(64),observation:projectObservation({id,prompt_id:null,question:'Question?',platform:'chatgpt',scan_week:'2026-08-31',created_at:null,raw_answer:'SECRET',classification_status:'classified',brand_mentioned:false},null)}],evidenceVersions:[{raw_answer:'SECRET TOKEN'}] } }
 beforeEach(() => { vi.spyOn(console, 'error').mockImplementation(() => {}); vi.clearAllMocks(); mocks.profile.mockResolvedValue({account_id:'account'}); mocks.saved.mockResolvedValue(new Map()); mocks.load.mockResolvedValue(sourceWindow()) })
+it('preserves store continuation even when the current page derives no candidates',async()=>{
+ mocks.load.mockResolvedValue({...sourceWindow('ok','empty'),sources:[],window:{pulseWeek:'2026-09-28',pulseLimit:200,pulseTruncated:true,scanId:null,nextCursor:'tenant-bound-cursor',asOf:'2026-10-03T00:00:00.123456Z'}})
+ expect(await loadAuthenticatedOpportunities(client)).toMatchObject({suggestions:[],window:{nextCursor:'tenant-bound-cursor',asOf:'2026-10-03T00:00:00.123456Z'}})
+})
 it('authenticates before database access even for malformed id', async () => { mocks.profile.mockResolvedValue(null); await expect(loadAuthenticatedOpportunities('bad')).rejects.toMatchObject({code:'UNAUTHENTICATED',status:401}); expect(mocks.load).not.toHaveBeenCalled() })
 it('denies missing ownership', async () => { mocks.load.mockResolvedValue(null); await expect(loadAuthenticatedOpportunities(client)).rejects.toMatchObject({status:404}) })
 it('reports all failures as 503 and empty plus failure as partial', async () => {
@@ -38,6 +43,13 @@ it('orders by source kind, exact source date descending, then source ID', async 
   mocks.load.mockResolvedValue({...window,sources:[make('3',null),make('4','2026-09-01T00:00:00.123456Z'),make('5','2026-09-01T00:00:00.123457Z')]})
   const response = await loadAuthenticatedOpportunities(client)
   expect(response.suggestions.map(item => item.source.id.slice(-1))).toEqual(['5','4','3'])
+})
+it('T19 preserves failure-before-warning order through the authenticated read model', async () => {
+ const envelope=buildScanEvidence({requestedUrl:'https://example.test',evaluatedUrl:'https://example.test',industry:'general_b2b',region:'HK',sitemapSource:'unknown',checks:{c10_headings:{assessment:'warn',collection:'complete'},c11_faq:{assessment:'fail',collection:'complete'}},collectedAt:'2026-09-02T10:00:00Z',observations:[]})
+ mocks.load.mockResolvedValue({...sourceWindow('empty','ok'),sources:[{kind:'scan-check',scanId:id,recordedAt:'2026-09-02T10:00:00Z',envelope}]})
+ const response=await loadAuthenticatedOpportunities(client)
+ expect(response.suggestions.map(row=>row.source.checkKey)).toEqual(['c11_faq','c10_headings'])
+ expect(response.suggestions.every(row=>row.saveAvailability==='available')).toBe(true)
 })
 it('rejects malformed authenticated IDs without querying and sanitizes lookup failures', async () => {
   await expect(loadAuthenticatedOpportunities('bad')).rejects.toMatchObject({status:400})

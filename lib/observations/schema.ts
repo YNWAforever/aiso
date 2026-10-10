@@ -1,4 +1,5 @@
-import type { Observation, PulseSourceRow, Question } from '@/lib/observations/types'
+import type { Observation, ObservationDetailDto, ObservationDetailRow, PulseSourceRow, Question } from '@/lib/observations/types'
+import { normalizeProviderCitations, safeEvidenceUrl } from '@/lib/pulse/provider-citations'
 
 const POSTGRES_TIMESTAMP = /^(\d{4})-(\d{2})-(\d{2})[T ](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,6})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/
 const POSTGRES_SPACE_ONLY = /^[\t\n\v\f\r ]*$/
@@ -20,7 +21,7 @@ export function projectObservation(row: PulseSourceRow, currentPrompt: Question 
   const hasAnswer = typeof row.has_answer === 'boolean'
     ? row.has_answer
     : typeof row.raw_answer === 'string' && !POSTGRES_SPACE_ONLY.test(row.raw_answer)
-  const classified = typeof row.brand_mentioned === 'boolean'
+  const classified = row.classification_status==='classified'&&typeof row.brand_mentioned === 'boolean'
   const promptId = row.prompt_id?.toLowerCase() ?? null
   const linkedPrompt = promptId !== null && currentPrompt?.id.toLowerCase() === promptId
     ? {
@@ -31,7 +32,13 @@ export function projectObservation(row: PulseSourceRow, currentPrompt: Question 
         isActive: currentPrompt.isActive,
       }
     : null
-  const limitations = ['model-unrecorded', 'market-unrecorded', 'collection-time-unrecorded']
+  const model=typeof row.actual_model==='string'&&row.actual_model?row.actual_model:null
+  const market=typeof row.market==='string'&&row.market?row.market:null
+  const collectedAt=typeof row.collected_at==='string'&&validTimestamp(row.collected_at)?row.collected_at:null
+  const limitations:string[]=[]
+  if(!model)limitations.push('model-unrecorded')
+  if(!market)limitations.push('market-unrecorded')
+  if(!collectedAt)limitations.push('collection-time-unrecorded')
   if (!hasAnswer) limitations.push('answer-unavailable')
   if (!classified) limitations.push('classification-unavailable')
 
@@ -43,13 +50,45 @@ export function projectObservation(row: PulseSourceRow, currentPrompt: Question 
     platform: row.platform,
     scanWeek: row.scan_week,
     recordedAt: typeof row.created_at === 'string' && validTimestamp(row.created_at) ? row.created_at : null,
-    collectedAt: null,
-    model: null,
-    market: null,
+    collectedAt,
+    model,
+    market,
     result: hasAnswer && classified ? 'success' : 'incomplete',
     hasAnswer,
     brandMentioned: classified ? row.brand_mentioned : null,
     currentPrompt: linkedPrompt,
     limitations,
   }
+}
+
+/** Only explicit public HTTP(S) text links; no fetch or provider-citation inference. */
+export function textEvidenceLinks(answer:string):ObservationDetailDto['links']{
+  const links=new Set<string>()
+  for(const match of answer.matchAll(/https?:\/\/[^\s<>"']+/gi)){
+    const candidate=match[0].replace(/[.,;:!?\])}]+$/,'')
+    const url=safeEvidenceUrl(candidate)
+    if(url)links.add(url)
+    if(links.size>=50)break
+  }
+  return [...links].map(url=>({url,kind:'text-link' as const}))
+}
+export function projectObservationDetail(row:ObservationDetailRow):ObservationDetailDto{
+  const base=projectObservation(row,null)
+  const citations=normalizeProviderCitations(row.provider_citations)
+  const providerUrls=new Set(citations?.map(c=>c.url))
+  const links:ObservationDetailDto['links']=base.hasAnswer?[
+    ...(citations??[]).map(c=>({...c,kind:'provider-citation' as const})),
+    ...textEvidenceLinks(row.raw_answer??'').filter(c=>!providerUrls.has(c.url)),
+  ]:[]
+  const status=['classified','fallback','failed'].includes(row.classification_status??'')
+    ? row.classification_status as 'classified'|'fallback'|'failed':'legacy_unknown'
+  const sentiment=status==='classified'&&row.brand_mentioned===true&&['positive','neutral','negative'].includes(row.sentiment??'')
+    ? row.sentiment as 'positive'|'neutral'|'negative':'unknown'
+  return {...base,rawAnswer:base.hasAnswer?row.raw_answer:null,promptSnapshot:row.snapshot,
+    brandSnapshot:row.brand_snapshot,requestedModel:row.requested_model,collector:row.collector,
+    collectorVersion:row.collector_version,providerRequestId:row.provider_request_id,
+    classification:{status,method:row.classifier_method,version:row.classifier_version,brandMentioned:base.brandMentioned,
+      sentiment,matchedText:Array.isArray(row.matched_text)?row.matched_text.filter((v):v is string=>typeof v==='string'):[]},
+    links,providerFinishReason:row.provider_finish_reason??null,
+    limitations:[...base.limitations,...(citations===null?['provider-citations-unrecorded']:[])]}
 }

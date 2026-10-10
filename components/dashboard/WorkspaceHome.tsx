@@ -32,6 +32,16 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
       <p className="mt-2 text-sm text-dash-muted">{workspace.client.domain}</p>
       <p className="mt-4 max-w-3xl text-sm leading-relaxed text-dash-muted">{copy.summary}</p>
     </header>
+    {workspace.dailyWork&&<section aria-labelledby="daily-work-heading" className="mb-8 space-y-3 rounded-xl border border-dash-border bg-dash-surface p-5 sm:p-6">
+      <h2 id="daily-work-heading" className="text-xl font-bold text-dash-text">{copy.daily.title}</h2>
+      <p className="text-dash-text">{copy.daily.states[workspace.dailyWork.state]}</p>
+      {workspace.dailyWork.coverage&&<p className="text-dash-muted">{copy.daily.coverage.replace('{succeeded}',String(workspace.dailyWork.coverage.succeeded)).replace('{expected}',String(workspace.dailyWork.coverage.expected)).replace('{failed}',String(workspace.dailyWork.coverage.failed)).replace('{pending}',String(workspace.dailyWork.coverage.pending)).replace('{blocked}',String(workspace.dailyWork.coverage.blocked)).replace('{classified}',String(workspace.dailyWork.coverage.classified))}</p>}
+      <p className="text-dash-muted">{copy.daily.lastComplete}: {workspace.dailyWork.lastCompleteAt??copy.daily.unknown}</p>
+      <p className="text-dash-muted">{copy.daily.nextDue}: {copy.daily.unknown}</p>
+      {workspace.dailyWork.partialReads&&<p>{copy.daily.partialReads}</p>}
+      <ol>{workspace.dailyWork.nextActions.map(action=><li key={`${action.kind}:${action.path}`}><Link className={linkClass} href={`${base}${action.path}`}>{copy.daily.actions[action.kind]}</Link></li>)}</ol>
+      <p className="text-sm text-dash-muted">{copy.daily.manual}</p>
+    </section>}
     <section aria-labelledby="priorities-heading" className="mb-8 min-w-0 rounded-xl border border-dash-border bg-dash-surface p-5 sm:p-6">
       <h2 id="priorities-heading" className="text-xl font-bold text-dash-text">{pcopy.title}</h2>
       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-dash-muted">{pcopy.summary}</p>

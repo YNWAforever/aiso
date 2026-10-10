@@ -1,8 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
+import { writeOnboardingFixture } from './onboarding-fixture-writer'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: () => {}, replace: () => {} }) }))
+afterAll(writeOnboardingFixture)
 
 /**
  * The first-run wizard, in both languages and at a phone's width.

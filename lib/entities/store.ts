@@ -27,10 +27,10 @@ function dto(row: EntityRow): EntityDto {
 // account_id is selected as well as matched: the entities page needs it to
 // read the domain-verification row, and re-deriving it from the session in a
 // second place is how two sources of the same id drift apart.
-export async function loadOwnedEntityClient(accountId: string, clientId: string): Promise<{id:string; account_id:string; brand_name:string} | null> {
+export async function loadOwnedEntityClient(accountId: string, clientId: string): Promise<{id:string; account_id:string; brand_name:string; domain:string | null} | null> {
   const sql = db()
-  const rows = await sql`select id, account_id, brand_name from clients where id = ${clientId} and account_id = ${accountId} limit 1`
-  return rows[0] as {id:string; account_id:string; brand_name:string} | undefined ?? null
+  const rows = await sql`select id, account_id, brand_name, domain from clients where id = ${clientId} and account_id = ${accountId} limit 1`
+  return rows[0] as {id:string; account_id:string; brand_name:string; domain:string | null} | undefined ?? null
 }
 
 export async function loadEntity(accountId: string, clientId: string): Promise<EntityDto | null> {

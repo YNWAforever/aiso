@@ -93,9 +93,11 @@ async function accountOf(userId: string): Promise<string | null> {
 
 async function teardown() {
   const accounts = (await Promise.all([USER, STRANGER].map(accountOf))).filter(Boolean) as string[]
+  await sql`delete from onboarding_progress where scan_id=${SCAN}::uuid`
   await sql`delete from scan_claim_attempts where scan_id = ${SCAN}::uuid`
   await sql`delete from scans where id = ${SCAN}::uuid`
   for (const account of accounts) {
+    await sql`delete from onboarding_progress where account_id=${account}::uuid`
     await sql`delete from prompt_bank where client_id in (select id from clients where account_id = ${account}::uuid)`
     await sql`delete from scans where account_id = ${account}::uuid`
     await sql`delete from clients where account_id = ${account}::uuid`
@@ -133,7 +135,7 @@ async function signedInAs(userId: string, accountId: string) {
 function onboard(scanId: string, intent: string) {
   return new NextRequest('http://localhost/api/onboarding/complete', {
     method: 'POST',
-    body: JSON.stringify({ brandName: 'First Run Co', domain: 'first-run.example', industry: 'general_b2c', scanId }),
+    body: JSON.stringify({ brandName: 'First Run Co', domain: 'first-run.example', industry: 'general_b2c', language:'en',region:'HK', scanId }),
     headers: { 'Content-Type': 'application/json', cookie: `${CLAIM_INTENT_COOKIE}=${intent}` },
   })
 }
@@ -219,14 +221,19 @@ describe('AC-01: the first-run journey on real rows', () => {
     expect(activation.furthest).toBe('first_workspace')
   })
 
-  it('refuses a replayed cookie without creating a second brand', async () => {
+  it('resumes the same owned onboarding intent without creating a second brand or trial', async () => {
     const accountId = await signUp(USER, USER_EMAIL)
     await signedInAs(USER, accountId)
     const { POST } = await import('@/app/api/onboarding/complete/route')
     const intent = intentFor(SCAN)
-    expect((await POST(onboard(SCAN, intent))).status).toBe(200)
-
-    expect((await POST(onboard(SCAN, intent))).status).toBe(403)
+    const first=await POST(onboard(SCAN,intent));expect(first.status).toBe(200)
+    const saved=await first.json(),trial=await commercialAccount(accountId)
+    if(!trial)throw new Error('Expected saved account/trial readback')
+    const replay=await POST(onboard(SCAN,intent));expect(replay.status).toBe(200)
+    expect((await replay.json()).clientId).toBe(saved.clientId)
+    const resumed=await commercialAccount(accountId)
+    if(!resumed)throw new Error('Expected resumed account/trial readback')
+    expect(resumed.trial_ends_at).toEqual(trial.trial_ends_at)
     expect(await sql`select id from clients where account_id = ${accountId}::uuid`).toHaveLength(1)
   })
 

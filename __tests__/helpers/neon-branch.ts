@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { recordBranchProvenance } from '../../scripts/ci/record-branch-provenance.mjs'
 
 // Relative, with the explicit .ts extension, rather than the '@/' alias: this
 // module is imported by scripts/schema-equivalence.mjs under plain node, which
@@ -213,6 +214,14 @@ export function createTestBranch(name: string): TestBranch {
   }
   // A safe child remains cleanable if retrieving its connection subsequently fails.
   created.set(id, '')
+  // Persist the verified identity before a credential lookup can be cancelled.
+  // This receipt does not populate or replace the private creation registry.
+  recordBranchProvenance({
+    projectId: PROJECT_ID,
+    parentBranchId: branch.parent_id as string,
+    branchId: id,
+    branchName: name,
+  })
 
   // `branches create`'s response carries no connection string once a branch
   // has more than one role (ambiguous which role to hand back), which is now

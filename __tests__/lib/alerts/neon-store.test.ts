@@ -141,8 +141,8 @@ describe('createNeonAlertStore', () => {
     const profileSql = calls.find(call => call.text.toLowerCase().includes('from public.profiles'))
 
     expect(snapshot.weeksByClient['client-1']).toEqual([
-      { client_id: 'client-1', scan_week: '2026-08-08', sov_score: 41.5 },
-      { client_id: 'client-1', scan_week: '2026-08-01', sov_score: null },
+      { client_id: 'client-1', scan_week: '2026-08-08', sov_score: 41.5, coverageComplete:false },
+      { client_id: 'client-1', scan_week: '2026-08-01', sov_score: null, coverageComplete:false },
     ])
     expect(snapshot.emailsByAccount).toEqual({ 'account-1': 'owner@example.com' })
     expect(weeklySql?.text).toMatch(/DISTINCT ON\s*\(summary\.client_id,\s*summary\.scan_week\)/i)
@@ -245,7 +245,7 @@ describe('createNeonAlertStore', () => {
     // strings already, so a string fixture here cannot exercise the Date
     // branch of isoDate() at all -- see the neighbouring Date-fixture test
     // above for why that gap matters.
-    const isWeekQuery = (text: string) => /date_trunc\('week', now\(\)\)/.test(text)
+    const isWeekQuery = (text: string) => /date_trunc\('week', now\(\) at time zone 'UTC'\)/.test(text)
 
     const { sql, calls } = makeSql(call =>
       isWeekQuery(call.text) ? [{ current_scan_week: new Date(2026, 7, 10) }] : [],

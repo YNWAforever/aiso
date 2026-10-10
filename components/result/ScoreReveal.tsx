@@ -123,6 +123,7 @@ export function ScoreReveal({ score, grade, domain, industry, region }: Props) {
             </span>
           </div>
 
+          {/* Technical score */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2 text-sm">
               <span className="text-slate-500">{ui.yourScore}</span>

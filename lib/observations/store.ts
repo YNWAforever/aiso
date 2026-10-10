@@ -3,8 +3,8 @@ import { db } from '@/lib/db'
 import { isoDate } from '@/lib/iso-date'
 import { MAX_PROMPTS } from '@/lib/pulse/limits'
 import { encodeObservationCursor, type ObservationQuery } from '@/lib/observations/query'
-import { projectObservation } from '@/lib/observations/schema'
-import type { ObservationResponse, PulseSourceRow, Question } from '@/lib/observations/types'
+import { projectObservation,projectObservationDetail } from '@/lib/observations/schema'
+import type { ObservationResponse, ObservationDetailRow, PulseSourceRow, Question } from '@/lib/observations/types'
 
 type ItemRow = Omit<PulseSourceRow, 'raw_answer' | 'scan_week'> & {
   scan_week: string | Date
@@ -40,12 +40,17 @@ export async function loadObservationSnapshot(accountId: string, clientId: strin
     ), filtered as (
       select m.id, m.prompt_id, m.question, m.platform, m.scan_week, m.created_at, m.brand_mentioned,
         coalesce(m.raw_answer ~ '[^[:space:]]', false) as has_answer,
-        m.brand_mentioned is not null as classified,
+        m.classification_status='classified' and m.brand_mentioned is not null as classified,
+        m.classification_status,a.actual_model,
+        to_char(a.finished_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as collected_at,
+        i.snapshot->>'market' as market,
         case when p.id is null then null else jsonb_build_object(
           'id', p.id, 'question', p.question, 'category', p.category,
           'language', p.language, 'isActive', p.is_active
         ) end as current_prompt
       from pulse_metrics m join owned c on c.id = m.client_id
+      left join pulse_run_items i on i.id=m.run_item_id and i.client_id=c.id and i.account_id=c.account_id
+      left join pulse_item_attempts a on a.id=i.accepted_attempt_id and a.item_id=i.id and a.client_id=c.id and a.account_id=c.account_id
       cross join selected_week w
       left join prompt_bank p on p.id = m.prompt_id and p.client_id = m.client_id and p.client_id = c.id
       where m.scan_week = w.week
@@ -82,7 +87,8 @@ export async function loadObservationSnapshot(accountId: string, clientId: strin
         'id', r.id, 'prompt_id', r.prompt_id, 'question', r.question, 'platform', r.platform,
         'scan_week', r.scan_week,
         'created_at', to_char(r.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
-        'brand_mentioned', r.brand_mentioned, 'has_answer', r.has_answer, 'current_prompt', r.current_prompt
+        'brand_mentioned', r.brand_mentioned, 'has_answer', r.has_answer, 'current_prompt', r.current_prompt,
+        'classification_status',r.classification_status,'actual_model',r.actual_model,'collected_at',r.collected_at,'market',r.market
       ) order by r.created_at desc nulls last, r.id desc) from page_rows r), '[]'::jsonb) as items,
       counts.recorded_rows, counts.successful_rows from counts
   ` as SnapshotRow[]
@@ -107,4 +113,20 @@ export async function loadObservationSnapshot(accountId: string, clientId: strin
       ? encodeObservationCursor({ recordedAt: last.created_at, id: last.id })
       : null,
   }
+}
+
+export async function loadObservationDetail(accountId:string,clientId:string,observationId:string){
+  const [row]=await db()`select m.id,m.prompt_id,m.question,m.platform,m.scan_week,
+    to_char(m.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
+    case when i.id is null then m.raw_answer else a.raw_answer end as raw_answer,m.brand_mentioned,m.classification_status,
+    i.snapshot,r.manifest->'brand' as brand_snapshot,a.requested_model,a.actual_model,a.collector,a.collector_version,a.provider_request_id,
+    a.provider_citations,a.provider_finish_reason,
+    to_char(a.finished_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as collected_at,
+    i.snapshot->>'market' as market,m.classifier_method,m.classifier_version,m.sentiment,m.matched_text
+    from clients c join pulse_metrics m on m.client_id=c.id
+    left join pulse_run_items i on i.id=m.run_item_id and i.client_id=c.id and i.account_id=c.account_id
+    left join pulse_runs r on r.id=i.run_id and r.client_id=c.id and r.account_id=c.account_id
+    left join pulse_item_attempts a on a.id=i.accepted_attempt_id and a.item_id=i.id and a.client_id=c.id and a.account_id=c.account_id
+    where c.id=${clientId}::uuid and c.account_id=${accountId} and m.id=${observationId}::uuid`
+  return row?projectObservationDetail({...row,scan_week:isoDate(row.scan_week as string|Date,'')} as ObservationDetailRow):null
 }

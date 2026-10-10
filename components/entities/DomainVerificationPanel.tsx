@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export type DomainVerificationView = {
   state: 'verified' | 'unverified'
@@ -16,6 +16,12 @@ export type DomainVerificationCopy = {
   verifyHow: string
   verifyPathLabel: string
   verifyTokenLabel: string
+  verifyGetContent: string
+  verifyGettingContent: string
+  verifyNeedsContent: string
+  verifyCopy: string
+  verifyCopied: string
+  verifyCopyFailed: string
   verifyCheck: string
   verifyChecking: string
   verifyLastChecked: string
@@ -57,24 +63,52 @@ export function DomainVerificationPanel({
   initial: DomainVerificationView
   copy: DomainVerificationCopy
 }) {
-  const [view, setView] = useState(initial)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  return <VerificationContent key={`${clientId}:${initial.domain}:${initial.token ?? ''}`} clientId={clientId} initial={initial} copy={copy} />
+}
 
-  async function check() {
-    setBusy(true); setError(null)
+function VerificationContent({ clientId, initial, copy }: { clientId: string; initial: DomainVerificationView; copy: DomainVerificationCopy }) {
+  const [view, setView] = useState(initial)
+  const [pending, setPending] = useState<'GET' | 'POST' | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [clipboard, setClipboard] = useState<string | null>(null)
+  const active = useRef<AbortController | null>(null)
+  useEffect(() => () => active.current?.abort(), [])
+  const ready = Boolean(view.token && /^aiso-site-verification=[0-9a-f]{32}$/.test(view.token))
+
+  async function request(method: 'GET' | 'POST') {
+    if (active.current || (method === 'POST' && !ready)) return
+    const controller = new AbortController()
+    active.current = controller
+    const timer = setTimeout(() => controller.abort(), 15_000)
+    setPending(method); setError(null)
     try {
       const response = await fetch(
         `/api/dashboard/clients/${encodeURIComponent(clientId)}/domain-verification`,
-        { method: 'POST' },
+        { method, cache: 'no-store', signal: controller.signal },
       )
-      if (!response.ok) { setError(copy.unavailable); return }
-      setView(await response.json())
+      if (!response.ok) throw new Error('VERIFICATION_UNAVAILABLE')
+      const next: DomainVerificationView = await response.json()
+      if (controller.signal.aborted) return
+      if (!next || next.domain !== view.domain || next.path !== initial.path ||
+        typeof next.token !== 'string' || !/^aiso-site-verification=[0-9a-f]{32}$/.test(next.token) ||
+        !['verified', 'unverified'].includes(next.state) ||
+        (next.lastOutcome !== null && !Object.hasOwn(OUTCOME_KEY, next.lastOutcome)) ||
+        (next.lastCheckedAt !== null && (typeof next.lastCheckedAt !== 'string' || !Number.isFinite(Date.parse(next.lastCheckedAt))))) {
+        throw new Error('VERIFICATION_UNAVAILABLE')
+      }
+      setView(next)
     } catch {
       setError(copy.unavailable)
     } finally {
-      setBusy(false)
+      clearTimeout(timer)
+      if (active.current === controller) active.current = null
+      setPending(null)
     }
+  }
+
+  async function copyToken() {
+    try { await navigator.clipboard.writeText(view.token!); setClipboard(copy.verifyCopied) }
+    catch { setClipboard(copy.verifyCopyFailed) }
   }
 
   if (!view.domain) {
@@ -91,27 +125,33 @@ export function DomainVerificationPanel({
       <div>
         <h2 className="text-lg font-bold text-foreground">{copy.verifyTitle}</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          {copy.verifyHow.replace('{domain}', view.domain)}
+          {(ready ? copy.verifyHow : copy.verifyNeedsContent).replace('{domain}', view.domain)}
         </p>
       </div>
 
+      {ready ? <>
       <dl className="space-y-2 text-sm">
         <dt className="font-medium text-foreground">{copy.verifyPathLabel}</dt>
         <dd className="break-all rounded bg-secondary px-3 py-2 font-mono text-foreground">{view.path}</dd>
         <dt className="font-medium text-foreground">{copy.verifyTokenLabel}</dt>
         <dd className="break-all rounded bg-secondary px-3 py-2 font-mono text-foreground">{view.token}</dd>
       </dl>
+      <button type="button" onClick={copyToken} className={CONTROL}>{copy.verifyCopy}</button>
+      {clipboard && <p role="status" className="text-sm text-muted-foreground">{clipboard}</p>}
 
       <button
         type="button"
-        onClick={check}
-        disabled={busy}
+        onClick={() => request('POST')}
+        disabled={pending !== null}
         className={`${CONTROL} bg-primary text-primary-foreground disabled:opacity-60`}
       >
-        {busy ? copy.verifyChecking : copy.verifyCheck}
+        {pending === 'POST' ? copy.verifyChecking : copy.verifyCheck}
       </button>
+      </> : <button type="button" onClick={() => request('GET')} disabled={pending !== null} className={`${CONTROL} bg-primary text-primary-foreground disabled:opacity-60`}>
+        {pending === 'GET' ? copy.verifyGettingContent : copy.verifyGetContent}
+      </button>}
 
-      {view.lastOutcome && (
+      {ready && view.lastOutcome && (
         <p role="status" className="text-sm text-muted-foreground">
           {copy[OUTCOME_KEY[view.lastOutcome]]}
           {view.lastCheckedAt && ` · ${copy.verifyLastChecked} ${view.lastCheckedAt.slice(0, 10)}`}

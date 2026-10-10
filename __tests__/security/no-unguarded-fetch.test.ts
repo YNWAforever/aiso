@@ -22,16 +22,20 @@ import { describe, expect, it } from 'vitest'
  * one a deliberate, reviewed act.
  */
 
-const SCANNED_DIRS = ['lib/checks', 'lib/authority', 'app/api']
+const SCANNED_DIRS = ['lib/checks', 'lib/authority', 'lib/pulse/runs', 'app/api']
 
 /**
  * Call sites that legitimately keep the global fetch, with the reason each is
  * safe. Counts are exact, so a new bare fetch inside one of these files fails too.
  */
 const ALLOWED: Record<string, { count: number; reason: string }> = {
+  'lib/pulse/runs/cron.ts':{
+    count:1,
+    reason:'Optional acceleration always targets appOrigin; validated mode/hop/run cursor only change the query. Durable recovery is in the database.',
+  },
   'app/api/cron/pulse/route.ts': {
     count: 2,
-    reason: 'Self-origin driver hop to appOrigin()/api/pulse/run. The guarded fetcher '
+    reason: 'Self-origin producer call and the one chainTo() continuation (every hop, including candidate deadline continuation and the 4xx pass-over) use appOrigin(). The guarded fetcher '
       + 'blocks private ranges, so it would reject localhost in dev and preview.',
   },
   'app/api/scan/route.ts': {

@@ -2,7 +2,14 @@
  * TDD: Impact engine — deterministic modelled estimates from scan results
  */
 import { describe, it, expect } from 'vitest'
-import { computeImpact } from '@/lib/impact'
+import { computeImpact as actualImpact } from '@/lib/impact'
+// These arithmetic fixtures explicitly assert completed collection. Separate
+// priority tests cover missing/partial evidence through the actual API.
+function computeImpact(results: Record<string, unknown>, opts: Parameters<typeof actualImpact>[1]) {
+  return actualImpact(results, { ...opts, confirmedChecks: Object.fromEntries(Object.entries(results).map(([key, value]) => [key, {
+    collection: 'complete', applicability: 'applicable', assessment: (value as { status?: unknown })?.status,
+  }])) })
+}
 
 // ── Fixtures ────────────────────────────────────────────────────
 const pass = (msg = 'ok')  => ({ status: 'pass' as const, message: msg })
@@ -27,57 +34,20 @@ function allPassResults(): Record<string, unknown> {
 
 // ── Platform visibility ─────────────────────────────────────────
 describe('computeImpact — platformVisibility', () => {
-  it('marks all 5 platforms visible when c1 + c3 pass', () => {
-    const r = computeImpact(allPassResults(), { score: 95 })
+  it.each(['pass', 'warn', 'fail'] as const)('does not turn %s technical access into consumer exposure', status => {
+    const r = computeImpact({ c1_robots: {status, message:'robots_ai_blocked'}, c3_bot_access: {status, message:'bots_all_blocked', details:'GPTBot, ClaudeBot'} }, {score:60})
     expect(r.platformVisibility).toHaveLength(5)
-    expect(r.platformVisibility.every(p => p.status === 'visible')).toBe(true)
+    expect(r.platformVisibility.every(p => p.status === 'not_measured')).toBe(true)
+    expect(r.collectorAccess).toEqual([])
+    expect(r.headlineStat.text).not.toContain('invisible')
   })
-
-  it('marks named bots blocked from c3 details', () => {
-    const results = allPassResults()
-    results.c3_bot_access = warn('bots_partially_blocked')
-    ;(results.c3_bot_access as { details?: string }).details = 'GPTBot, ClaudeBot'
-    const r = computeImpact(results, { score: 60 })
-    const byKey = Object.fromEntries(r.platformVisibility.map(p => [p.platform, p.status]))
-    expect(byKey.chatgpt).toBe('blocked')
-    expect(byKey.claude).toBe('blocked')
-    expect(byKey.perplexity).toBe('visible')
+  it('keeps policy and fetch evidence distinct for the same crawler', () => {
+    const r=computeImpact({c1_robots:{...pass(),collectorAccess:[{crawler:'GPTBot',role:'training',policy:'blocked',probe:'not_measured'}]}, c3_bot_access:{...pass(),collectorAccess:[{crawler:'GPTBot',role:'training',policy:'unknown',probe:'reachable'}]}},{score:80})
+    expect(r.collectorAccess).toEqual([{crawler:'GPTBot',role:'training',policy:'blocked',probe:'reachable'}])
+    expect(r.platformVisibility.every(p => p.status === 'not_measured')).toBe(true)
   })
-
-  it('blocks all c3-tested platforms when bots_all_blocked with no details', () => {
-    const results = allPassResults()
-    results.c3_bot_access = fail('bots_all_blocked')
-    const r = computeImpact(results, { score: 40 })
-    const byKey = Object.fromEntries(r.platformVisibility.map(p => [p.platform, p.status]))
-    expect(byKey.chatgpt).toBe('blocked')
-    expect(byKey.claude).toBe('blocked')
-    expect(byKey.perplexity).toBe('blocked')
-  })
-
-  it('downgrades platforms to partial when robots.txt blocks AI crawlers', () => {
-    const results = allPassResults()
-    results.c1_robots = fail('robots_ai_blocked')
-    const r = computeImpact(results, { score: 60 })
-    const byKey = Object.fromEntries(r.platformVisibility.map(p => [p.platform, p.status]))
-    // c3 passed so server lets bots in, but robots.txt disallows some — partial
-    expect(byKey.gemini).toBe('partial')
-    expect(byKey.google_aio).toBe('partial')
-    expect(byKey.chatgpt).toBe('partial')
-  })
-
-  it('marks gemini/google_aio partial when robots.txt is missing (unverifiable)', () => {
-    const results = allPassResults()
-    results.c1_robots = fail('robots_not_found')
-    const r = computeImpact(results, { score: 60 })
-    const byKey = Object.fromEntries(r.platformVisibility.map(p => [p.platform, p.status]))
-    expect(byKey.gemini).toBe('partial')
-    // c3-verified platforms stay visible — server actually let the bots in
-    expect(byKey.chatgpt).toBe('visible')
-  })
-
   it('returns empty platform list when both c1 and c3 are missing', () => {
-    const r = computeImpact({}, { score: 50 })
-    expect(r.platformVisibility).toEqual([])
+    expect(computeImpact({}, {score:50}).platformVisibility).toEqual([])
   })
 })
 
@@ -111,7 +81,13 @@ describe('computeImpact — checks that could not be assessed', () => {
       status: 'warn', message: 'topical_authority_unavailable',
       diagnostic: { collection: 'failed', reason: 'provider-fallback' },
     } as never
-    const r = computeImpact(results, { score: 90 })
+    // Pass the evidence as capture.checks records it: a declared 'failed'
+    // diagnostic becomes evidence collection 'failed', never 'complete'.
+    const confirmedChecks = Object.fromEntries(Object.entries(results).map(([key, value]) => [key, {
+      collection: (value as { diagnostic?: { collection?: string } })?.diagnostic?.collection ?? 'complete',
+      applicability: 'applicable', assessment: (value as { status?: unknown })?.status,
+    }]))
+    const r = actualImpact(results, { score: 90, confirmedChecks })
 
     expect(r.quickWins.map(w => w.key)).not.toContain('c19_topical_authority')
   })
@@ -135,7 +111,7 @@ describe('computeImpact — quickWins & projection', () => {
     expect(faq?.pointsGain).toBe(1.5)
   })
 
-  it('ranks fast high-point fixes first', () => {
+  it('ranks confirmed failures in stable check-key order', () => {
     const results = allPassResults()
     results.c2_llms_txt = fail()          // 10 pts minutes
     results.c9_meta_desc = fail()         // 2 pts hours
@@ -163,15 +139,18 @@ describe('computeImpact — quickWins & projection', () => {
 
 // ── Headline stat priority ──────────────────────────────────────
 describe('computeImpact — headlineStat', () => {
-  it('prioritises blocked platforms above everything', () => {
+  it('prioritises recorded crawler restrictions without claiming consumer invisibility', () => {
     const results = allPassResults()
-    results.c3_bot_access = fail('bots_all_blocked')
+    results.c3_bot_access = { ...fail('bots_all_blocked'), collectorAccess: ['GPTBot', 'ClaudeBot', 'PerplexityBot'].map(crawler => ({
+      crawler, role: crawler === 'PerplexityBot' ? 'search' : 'training', policy: 'unknown', probe: 'unreachable',
+    })) }
     results.c5_extractability = fail() // low readable too
     const r = computeImpact(results, { score: 30, industry: 'technology' })
     expect(r.headlineStat.type).toBe('platforms_blocked')
     if (r.headlineStat.type === 'platforms_blocked') {
       expect(r.headlineStat.count).toBeGreaterThanOrEqual(3)
-      expect(r.headlineStat.total).toBe(5)
+      expect(r.headlineStat.total).toBe(3)
+      expect(r.headlineStat.text).not.toContain('invisible')
     }
   })
 
@@ -184,18 +163,11 @@ describe('computeImpact — headlineStat', () => {
     expect(r.headlineStat.type).toBe('low_readable')
   })
 
-  it('never headlines a gap to an industry average it does not have', () => {
-    // The averages were a hard-coded table with no data behind them, shown to
-    // customers as measured. Below the old "technology: 61" a score of 50 used
-    // to headline "11 points below the average for your industry".
+  it('does not invent a benchmark for low-scoring industry scans', () => {
     const r = computeImpact(allPassResults(), { score: 50, industry: 'technology' })
-
+    expect(r.benchmark).toBeNull()
     expect(r.headlineStat.type).toBe('score_uplift')
-    expect(r.headlineStat.text).not.toMatch(/average/i)
-  })
-
-  it('exports no industry benchmark table', async () => {
-    expect(await import('@/lib/impact')).not.toHaveProperty('INDUSTRY_BENCHMARKS')
+    expect(r.headlineStat.text).not.toContain('average')
   })
 
   it('falls back to score_uplift otherwise', () => {

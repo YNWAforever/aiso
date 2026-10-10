@@ -3,7 +3,7 @@ import 'server-only'
 import { getProfile } from '@/lib/auth'
 import { sanitizeDatabaseError } from '@/lib/observability/database-error'
 import { parseObservationQuery } from '@/lib/observations/query'
-import { loadObservationSnapshot } from '@/lib/observations/store'
+import { loadObservationSnapshot,loadObservationDetail } from '@/lib/observations/store'
 import type { ObservationResponse } from '@/lib/observations/types'
 
 const statuses = {
@@ -56,6 +56,23 @@ export async function loadAuthenticatedObservations(
       correlationId: diagnostic.correlationId,
       database: { code: diagnostic.code, category: diagnostic.category },
     })
+    throw new ObservationServiceError('OBSERVATIONS_UNAVAILABLE')
+  }
+}
+
+export async function loadAuthenticatedObservationDetail(clientId:string,observationId:string){
+  try{
+    const profile=await getProfile()
+    if(!profile)throw new ObservationServiceError('UNAUTHENTICATED')
+    if(!UUID.test(clientId)||!UUID.test(observationId))throw new ObservationServiceError('INVALID_OBSERVATION_QUERY')
+    const observation=await loadObservationDetail(profile.account_id,clientId,observationId)
+    if(!observation)throw new ObservationServiceError('CLIENT_NOT_FOUND')
+    return observation
+  }catch(error){
+    if(error instanceof ObservationServiceError)throw error
+    const diagnostic=sanitizeDatabaseError(error,{correlationId:crypto.randomUUID(),route:'/api/clients/[clientId]/observations/[observationId]'})
+    console.error({event:'observation_operation_failed',operation:'detail',correlationId:diagnostic.correlationId,
+      database:{code:diagnostic.code,category:diagnostic.category}})
     throw new ObservationServiceError('OBSERVATIONS_UNAVAILABLE')
   }
 }

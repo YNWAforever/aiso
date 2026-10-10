@@ -6,12 +6,12 @@ import { GET } from '@/app/api/clients/[clientId]/opportunities/route'
 import { OpportunityServiceError } from '@/lib/opportunities/service'
 it('returns authenticated DTO with no-store and generic failures', async () => {
   load.mockResolvedValue({schemaVersion:1,suggestions:[]})
-  const request = new Request('http://localhost/api/clients/client/opportunities')
+  const request = new Request('http://localhost/api/clients/client/opportunities?cursor=next-page')
   const context = {params:Promise.resolve({clientId:'client'})}
   const response = await GET(request,context)
   expect(response.status).toBe(200)
   expect(response.headers.get('Cache-Control')).toBe('no-store')
-  expect(load).toHaveBeenCalledWith('client')
+  expect(load).toHaveBeenCalledWith('client',new URLSearchParams({cursor:'next-page'}))
   load.mockRejectedValue(new OpportunityServiceError('UNAUTHENTICATED'))
   expect((await GET(request,context)).status).toBe(401)
   load.mockRejectedValue(new Error('SECRET'))

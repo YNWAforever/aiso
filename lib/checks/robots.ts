@@ -1,5 +1,5 @@
 import type { PublicUrlFetch } from '@/lib/security/public-url'
-import type { CheckResult } from '@/lib/types'
+import type { CheckResult, CollectorAccess } from '@/lib/types'
 
 import { AI_CRAWLER_ROLES, evaluateRobotsPolicy } from '@/lib/robots-policy'
 
@@ -23,13 +23,17 @@ export async function checkRobots(baseUrl: string, fetcher: PublicUrlFetch): Pro
     }
 
     const text = await res.text()
+    const collectorAccess: CollectorAccess[] = AI_CRAWLER_ROLES
+      .filter(bot => bot.role === 'search' || bot.role === 'training' || bot.role === 'user')
+      .map(bot => ({ crawler: bot.token, role: bot.role === 'user' ? 'user_triggered' : bot.role as 'search' | 'training',
+        policy: evaluateRobotsPolicy(text, bot.token, '/').allowed ? 'allowed' : 'blocked', probe: 'not_measured' }))
     const policies = AI_CRAWLER_ROLES.filter(bot => bot.automatic)
       .map(bot => evaluateRobotsPolicy(text, bot.token, '/'))
-    if (policies.some(policy => !policy.allowed)) return { status: 'fail', message: 'robots_ai_blocked' }
+    if (policies.some(policy => !policy.allowed)) return { status: 'fail', message: 'robots_ai_blocked', collectorAccess }
     const hasAllow = policies.some(policy => policy.explicit)
-    if (hasAllow) return { status: 'pass', message: 'robots_ai_allowed' }
+    if (hasAllow) return { status: 'pass', message: 'robots_ai_allowed', collectorAccess }
 
-    return { status: 'warn', message: 'robots_no_ai_rules' }
+    return { status: 'warn', message: 'robots_no_ai_rules', collectorAccess }
   } catch {
     return { status: 'fail', message: 'robots_fetch_error', diagnostic: { collection: 'failed', reason: 'fetch-failed' } }
   }

@@ -12,7 +12,7 @@ import {
   DomainVerificationPanel,
   type DomainVerificationCopy,
 } from '@/components/entities/DomainVerificationPanel'
-import { VERIFICATION_PATH, deriveVerificationState } from '@/lib/domain-verification/schema'
+import { VERIFICATION_PATH, deriveVerificationState, normalizeVerificationDomain } from '@/lib/domain-verification/schema'
 import { loadVerification } from '@/lib/domain-verification/store'
 
 export default async function EntitiesPage({
@@ -60,6 +60,12 @@ export default async function EntitiesPage({
     'verifyHow',
     'verifyPathLabel',
     'verifyTokenLabel',
+    'verifyGetContent',
+    'verifyGettingContent',
+    'verifyNeedsContent',
+    'verifyCopy',
+    'verifyCopied',
+    'verifyCopyFailed',
     'verifyCheck',
     'verifyChecking',
     'verifyLastChecked',
@@ -114,11 +120,11 @@ export default async function EntitiesPage({
         clientId={result.client.id}
         initial={{
           state: deriveVerificationState(verification, verification?.currentDomain ?? null),
-          domain: verification?.currentDomain ?? null,
-          token: verification?.token || null,
+          domain: verification?.currentDomain ?? normalizeVerificationDomain(result.client.domain ?? null),
+          token: verification?.verifiedDomain === verification?.currentDomain ? verification?.token || null : null,
           path: VERIFICATION_PATH,
-          lastCheckedAt: verification?.lastCheckedAt ?? null,
-          lastOutcome: verification?.lastOutcome ?? null,
+          lastCheckedAt: verification?.verifiedDomain === verification?.currentDomain ? verification?.lastCheckedAt ?? null : null,
+          lastOutcome: verification?.verifiedDomain === verification?.currentDomain ? verification?.lastOutcome ?? null : null,
         }}
         copy={copy as unknown as DomainVerificationCopy}
       />

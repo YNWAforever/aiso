@@ -32,6 +32,10 @@ it('reports internal provider fallback without changing benchmark output', async
   expect(factual.diagnostic).toEqual({collection:'partial',reason:'provider-fallback'})
   const topical = await checkTopicalAuthority(['https://example.com/topic/one', 'https://example.com/topic/two'], '', 'general_b2c')
   expect(topical.diagnostic).toEqual({collection:'failed',reason:'provider-fallback'})
+  const capture = createScanEvidenceCapture(createPublicUrlFetcher({lookup, fetchImpl:async()=>new Response('ok')}))
+  await capture.forCheck('page')('https://example.com')
+  expect(capture.checks([{status:'fulfilled',value:factual}], ['c18_factual_density']).c18_factual_density)
+    .toMatchObject({collection:'partial',assessment:'not-verifiable',reason:'provider-fallback'})
 })
 
 it('keeps body-read failures, missing checks and assessment failures distinct', async () => {

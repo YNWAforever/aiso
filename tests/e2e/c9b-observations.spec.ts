@@ -62,6 +62,37 @@ const response = (result: 'success' | 'incomplete' = 'success') => ({
 })
 
 for (const lang of ['en', 'zh-HK']) {
+  test(`T09 original answer modal retries, keeps filters and restores focus in ${lang}`,async({page})=>{
+    await page.setViewportSize({width:375,height:900})
+    const copy=await fixture(page,lang)
+    let calls=0
+    await page.route('**/api/clients/*/observations/*',async route=>{
+      if(++calls===1){await route.fulfill({status:503,json:{error:'OBSERVATIONS_UNAVAILABLE'}});return}
+      const detail={...response().items[0],id:'33333333-3333-4333-8333-333333333333',question:'Frozen question',rawAnswer:'<script>window.bad=true</script> Original answer.',
+        promptSnapshot:{question:'Frozen question',language:'en',market:'HK',category:null},brandSnapshot:{name:'Frozen brand',competitors:[]},
+        model:'synthetic/old-served-model',requestedModel:'synthetic/requested-model',market:'HK',collector:'openrouter_api',collectorVersion:'fixture.v1',providerRequestId:'synthetic',
+        classification:{status:'fallback',method:'literal-evidence-abstention',version:'fixture.v1',brandMentioned:null,sentiment:'unknown',matchedText:['Frozen brand']},
+        links:[{url:'https://example.com/page',kind:'text-link'}],limitations:['collection-time-unrecorded']}
+      if(calls===3){detail.rawAnswer='';detail.hasAnswer=false}
+      await route.fulfill({json:{observation:detail}})
+    })
+    const trigger=page.getByRole('button',{name:copy.viewDetails})
+    await trigger.focus();await page.keyboard.press('Enter')
+    const modal=page.getByRole('dialog',{name:copy.detailTitle})
+    await expect(modal).toBeVisible();await expect(modal.getByRole('alert')).toContainText(copy.detailError)
+    await modal.getByRole('button',{name:copy.retry}).click()
+    await expect(modal.getByText('<script>window.bad=true</script> Original answer.',{exact:true})).toBeVisible()
+    expect(await page.evaluate(()=>Object.hasOwn(window,'bad'))).toBe(false)
+    await expect(modal.getByText('synthetic/old-served-model',{exact:true})).toBeVisible()
+    await expect(modal.getByText(copy.textLink+':',{exact:true})).toBeVisible()
+    expect((await new AxeBuilder({page}).analyze()).violations).toEqual([])
+    expect(await modal.evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true)
+    await page.screenshot({path:`artifacts/aiso/T09/${lang}-detail.png`,fullPage:true})
+    await page.keyboard.press('Escape');await expect(modal).toHaveCount(0);await expect(trigger).toBeFocused()
+    await expect(page.getByRole('combobox',{name:copy.week,exact:true})).toHaveValue('2026-09-01')
+    await trigger.click();await expect(page.getByRole('dialog').getByText(copy.noAnswer,{exact:true})).toBeVisible()
+    await page.getByRole('button',{name:copy.closeDetail}).click();await expect(trigger).toBeFocused()
+  })
   test(`C9b filters, preserves localized copy and reflows in ${lang}`, async ({
     page,
   }) => {

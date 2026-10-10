@@ -5,26 +5,34 @@ import { visibleText } from '@/lib/checks/visibleText'
 
 interface Context { industry: IndustryCode; region: RegionCode }
 
-const MAX_CLAIMS = 3
-const MAX_CLAIM_LENGTH = 200
-
 const UNIQUENESS_FORMAT: JsonSchemaFormat = {
   name: 'factual_uniqueness',
   schema: {
     type: 'object',
     properties: {
-      score: { type: 'integer', description: '0-100' },
-      claims: { type: 'array', items: { type: 'string' }, description: 'At most 3.' },
+      score: { type: 'integer', minimum: 0, maximum: 100 },
+      claims: { type: 'array', maxItems: 3, items: { type: 'string', minLength: 1, maxLength: 500 } },
     },
     required: ['score', 'claims'],
     additionalProperties: false,
   },
 }
 
+/** Provider output is untrusted. A missing observation is never a neutral score. */
+export function parseFactualUniqueness(value: unknown): { score: number; claims: string[] } | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const { score, claims } = value as Record<string, unknown>
+  if (typeof score !== 'number' || !Number.isInteger(score) || score < 0 || score > 100) return null
+  if (!Array.isArray(claims) || claims.length > 3 || claims.some(claim =>
+    typeof claim !== 'string' || !claim.trim() || claim.length > 500)) return null
+  return { score, claims: claims.map(claim => (claim as string).trim()) }
+}
+
 export async function checkFactualDensity(
   html: string,
   _context: Context
 ): Promise<CheckResult & { geoDetails?: FactualDensityResult }> {
+  // Visible text only: head CSS and inline JSON are not content (2026-10-09).
   const text = visibleText(html)
   const wordCount = text.split(/\s+/).filter(Boolean).length || 1
 
@@ -41,8 +49,6 @@ export async function checkFactualDensity(
   const hasComparativeData = /compared to|versus|vs\.|year-over-year|YoY|grew from|up from|down from/i.test(text)
   const hasTimeSeriesData = /\d{4}\s*[-–]\s*\d{4}|over the (past|last)\s+\d+\s*(years?|months?|quarters?)/i.test(text)
 
-  // null when the model gave no usable score. The fallback used to be an
-  // invented 50, stored and rendered as a real "Content uniqueness" bar.
   let uniquenessScore: number | null = null
   let uniqueClaims: string[] = []
   try {
@@ -61,45 +67,32 @@ ${fenceUntrusted('PAGE CONTENT', text.slice(0, 800))}` },
       maxTokens: 200,
       responseFormat: UNIQUENESS_FORMAT,
     })
-    const parsed = JSON.parse(aiResponse.match(/\{[\s\S]+\}/)?.[0] ?? '{}')
-    // The schema asks for an integer 0-100, but the reply is still model
-    // output: anything else is treated as no score, never as NaN or 500.
-    if (typeof parsed.score === 'number' && Number.isFinite(parsed.score)) {
-      uniquenessScore = Math.round(Math.min(100, Math.max(0, parsed.score)))
-      uniqueClaims = Array.isArray(parsed.claims)
-        ? parsed.claims
-            .filter((claim: unknown): claim is string => typeof claim === 'string')
-            .map((claim: string) => claim.trim())
-            .filter((claim: string) => claim.length > 0 && claim.length <= MAX_CLAIM_LENGTH)
-            .slice(0, MAX_CLAIMS)
-        : []
-    }
-  } catch { /* uniqueness stays unavailable */ }
-  const providerFallback = uniquenessScore === null
+    const parsed = parseFactualUniqueness(JSON.parse(aiResponse))
+    if (parsed) { uniquenessScore = parsed.score; uniqueClaims = parsed.claims }
+  } catch { /* Deterministic page counts survive unavailable provider evidence. */ }
 
-  // The five deterministic signals can reach 90; uniqueness supplies the last
-  // 10. Without it, the deterministic part is rescaled to 100 rather than
-  // capped at 90, so a provider outage neither costs nor earns the site points.
-  const deterministic =
+  const qualityScore = uniquenessScore === null ? null : Math.min(100,
     Math.min(30, numberDensity * 10) +
     Math.min(20, namedEntityDensity * 5) +
     Math.min(15, dates.length * 3) +
     (hasComparativeData ? 15 : 0) +
-    (hasTimeSeriesData ? 10 : 0)
-  const rawQuality = Math.min(100, uniquenessScore === null
-    ? deterministic * 100 / 90
-    : deterministic + uniquenessScore * 0.1)
-  // One decimal, as the densities below: the rescale otherwise shows
-  // "Quality score 36.666666666666664/100" on the result page.
-  const qualityScore = Math.round(rawQuality * 10) / 10
+    (hasTimeSeriesData ? 10 : 0) +
+    uniquenessScore * 0.1
+  )
 
   const geoDetails: FactualDensityResult = {
     qualityScore, numberDensity: Math.round(numberDensity * 10) / 10,
     namedEntityDensity: Math.round(namedEntityDensity * 10) / 10,
     dateReferences: dates.length, hasComparativeData, hasTimeSeriesData,
-    uniquenessScore, uniqueClaims,
+    uniquenessScore, uniquenessStatus: uniquenessScore === null ? 'unavailable' : 'observed', uniqueClaims,
   }
 
+  if (qualityScore === null) return {
+    diagnostic: { collection: 'partial', reason: 'provider-fallback' },
+    // Compatibility sentinel: headline weights receive no credit. Evidence
+    // projections render this as unavailable, never a content failure.
+    status: 'fail', message: 'factual_density_unavailable', details: 'Provider assessment unavailable', geoDetails,
+  }
   const status = qualityScore >= 40 ? 'pass' : qualityScore >= 20 ? 'warn' : 'fail'
-  return { diagnostic: { collection: providerFallback ? 'partial' : 'complete', ...(providerFallback ? { reason: 'provider-fallback' as const } : {}) }, status, message: `factual_density_${status}`, details: `Quality score ${qualityScore}/100`, geoDetails }
+  return { diagnostic: { collection: 'complete' }, status, message: `factual_density_${status}`, details: `Quality score ${qualityScore}/100`, geoDetails }
 }
