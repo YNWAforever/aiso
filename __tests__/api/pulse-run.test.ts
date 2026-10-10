@@ -509,3 +509,42 @@ describe('POST /api/pulse/run — scan_week', () => {
     expect(calls.filter(c => /as scan_week/.test(c.text))).toHaveLength(1)
   })
 })
+
+describe('POST /api/pulse/run — web search (062)', () => {
+  afterEach(() => { vi.unstubAllEnvs() })
+  const answer = (overrides: Record<string, unknown> = {}) => [{
+    platform: 'gemini-flash', answer: 'See https://other.example/page for more.', providerCitations: null, grounding: 'none', ...overrides,
+  }]
+
+  it('asks without web search while FEATURE_PULSE_GROUNDING is off', async () => {
+    llm.callMultiPlatform.mockResolvedValue(answer())
+    await post({ clientId: 'client-1', limit: 1 })
+    expect(llm.callMultiPlatform.mock.calls.at(-1)?.[4]).toEqual({ webSearch: false })
+    expect(calls.some(c => /pulse_item_attempts/.test(c.text))).toBe(false)
+  })
+
+  it('asks with web search when the flag is on and the weekly cap allows, counting per account', async () => {
+    vi.stubEnv('FEATURE_PULSE_GROUNDING', '1')
+    llm.callMultiPlatform.mockResolvedValue(answer({ grounding: 'web' }))
+    await post({ clientId: 'client-1', limit: 1 })
+    expect(llm.callMultiPlatform.mock.calls.at(-1)?.[4]).toEqual({ webSearch: true })
+    const usage = calls.find(c => /grounding = 'web'/.test(c.text))!
+    expect(usage.params).toContain('account-1')
+  })
+
+  it('stores provider citations and grounding, and logs the provider citations rather than text links', async () => {
+    llm.callMultiPlatform.mockResolvedValue(answer({ grounding: 'web', providerCitations: [{ url: 'https://hsbc.com.hk/rates', title: 'HSBC' }] }))
+    await post({ clientId: 'client-1', limit: 1 })
+    const metric = calls.find(c => /insert into pulse_metrics/i.test(c.text))!
+    expect(metric.params).toEqual(expect.arrayContaining([JSON.stringify([{ url: 'https://hsbc.com.hk/rates', title: 'HSBC' }]), 'web']))
+    const logged = calls.filter(c => /insert into ai_citation_log/i.test(c.text))
+    expect(logged.map(c => c.params)).toEqual([expect.arrayContaining(['https://hsbc.com.hk/rates', 'provider'])])
+  })
+
+  it('falls back to text links, marked as extracted, when the provider returned no citations', async () => {
+    llm.callMultiPlatform.mockResolvedValue(answer())
+    await post({ clientId: 'client-1', limit: 1 })
+    const logged = calls.filter(c => /insert into ai_citation_log/i.test(c.text))
+    expect(logged.map(c => c.params)).toEqual([expect.arrayContaining(['https://other.example/page', 'extracted'])])
+  })
+})

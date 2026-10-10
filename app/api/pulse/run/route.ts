@@ -11,6 +11,7 @@ import { runPulseChunk } from '@/lib/pulse/runs/service'
 import { currentScanWeek } from '@/lib/pulse/schedule'
 import { isoDate } from '@/lib/iso-date'
 import { mergeCompetitorRefs, type CompetitorRef } from '@/lib/competitors/schema'
+import { webSearchAllowance } from '@/lib/pulse/grounding'
 
 export const dynamic = 'force-dynamic'
 
@@ -172,6 +173,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Prompt lookup failed' }, { status: 503 })
   }
 
+  // Decided once per chunk against this account's weekly grounded-answer cap.
+  // Fails closed inside webSearchAllowance: no usage, no search.
+  const webSearch = (await webSearchAllowance(sql, client.account_id, scanWeek)).allowed
+
   const slice = prompts.slice(cursor, cursor + chunk)
   const nextCursor = cursor + slice.length < prompts.length ? cursor + slice.length : null
   const pulseRunId = crypto.randomUUID()
@@ -187,6 +192,8 @@ export async function POST(req: NextRequest) {
         [{ role: 'user', content: prompt.question }],
         500,
         platforms,
+        undefined,
+        { webSearch },
       ).catch(() => [])
 
       // No platform answered: nothing to write, and stored rows stay as they
@@ -227,12 +234,14 @@ export async function POST(req: NextRequest) {
           insert into pulse_metrics (
             client_id, prompt_id, platform, question, raw_answer,
             brand_mentioned, sentiment, mention_position, competitors_mentioned, scan_week,
-            classification_status,classifier_method,classifier_version,matched_text
+            classification_status,classifier_method,classifier_version,matched_text,
+            provider_citations,grounding
           ) select
             ${clientId}, ${prompt.id}, ${response.platform}, ${prompt.question}, ${response.answer},
             ${analysis.brandMentioned}, ${analysis.sentiment}, ${analysis.mentionPosition},
             ${analysis.competitorsMentioned}::text[], ${scanWeek}::date,
-            ${analysis.classificationStatus},${analysis.method},${analysis.version},${JSON.stringify(analysis.matchedText)}::jsonb
+            ${analysis.classificationStatus},${analysis.method},${analysis.version},${JSON.stringify(analysis.matchedText)}::jsonb,
+            ${response.providerCitations == null ? null : JSON.stringify(response.providerCitations)}::jsonb,${response.grounding ?? null}
           where exists(select 1 from clients where id = ${clientId} and account_id = ${client.account_id})
             and not exists(select 1 from pulse_metrics where client_id = ${clientId} and prompt_id = ${prompt.id}
               and scan_week = ${scanWeek}::date and platform = ${response.platform} and nullif(btrim(raw_answer),'') is not null)
@@ -244,17 +253,23 @@ export async function POST(req: NextRequest) {
         const citationPlatform = citationPlatformFor(response.platform)
         if (!citationPlatform) return 0
 
+        // The provider's own citations when it returned any; URLs found in the
+        // answer text otherwise. `source` says which, so a reader can weigh them.
+        const providerUrls = (response.providerCitations ?? []).map(citation => citation.url)
+        const cited = providerUrls.length
+          ? providerUrls.map(url => ({ url, source: 'provider' as const }))
+          : extractCitedUrls(response.answer).map(url => ({ url, source: 'extracted' as const }))
         let logged = 0
-        for (const url of extractCitedUrls(response.answer)) {
+        for (const { url, source } of cited) {
           let domain: string
           try { domain = new URL(url).hostname } catch { continue }
           await sql`
             insert into ai_citation_log (
               pulse_run_id, client_id, cited_url, cited_domain, platform,
-              prompt_industry, prompt_topic, prompt_text, cited_at
+              prompt_industry, prompt_topic, prompt_text, cited_at, source
             ) values (
               ${pulseRunId}, ${clientId}, ${url}, ${domain}, ${citationPlatform},
-              ${client.industry}, ${prompt.category}, ${prompt.question}, now()
+              ${client.industry}, ${prompt.category}, ${prompt.question}, now(), ${source}
             )
           `
           logged += 1

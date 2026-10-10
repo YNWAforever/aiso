@@ -90,5 +90,6 @@ export function projectObservationDetail(row:ObservationDetailRow):ObservationDe
     classification:{status,method:row.classifier_method,version:row.classifier_version,brandMentioned:base.brandMentioned,
       sentiment,matchedText:Array.isArray(row.matched_text)?row.matched_text.filter((v):v is string=>typeof v==='string'):[]},
     links,providerFinishReason:row.provider_finish_reason??null,
+    grounding:row.grounding==='native'||row.grounding==='web'||row.grounding==='none'?row.grounding:null,
     limitations:[...base.limitations,...(citations===null?['provider-citations-unrecorded']:[])]}
 }
