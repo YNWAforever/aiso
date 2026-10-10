@@ -548,3 +548,13 @@ describe('POST /api/pulse/run — web search (062)', () => {
     expect(logged.map(c => c.params)).toEqual([expect.arrayContaining(['https://other.example/page', 'extracted'])])
   })
 })
+
+describe('POST /api/pulse/run — answer length', () => {
+  // Production, 2026-10-10: at 500 tokens every Gemini 3.8 Flash answer (a
+  // reasoning model) and some sourced answers were cut off and discarded.
+  it('asks each platform for answers of up to PULSE_ANSWER_MAX_TOKENS', async () => {
+    llm.callMultiPlatform.mockResolvedValue([])
+    await post({ clientId: 'client-1', limit: 1 })
+    expect(llm.callMultiPlatform.mock.calls.at(-1)?.[1]).toBe(1500)
+  })
+})

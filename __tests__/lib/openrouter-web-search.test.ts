@@ -18,13 +18,22 @@ afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(
 
 describe('web search request shape', () => {
   it('adds the web plugin and low search context only when asked', async () => {
-    await callOpenRouterWithEvidence({ label: 'pulse.platform', model: 'openai/gpt-4o', messages: [{ role: 'user', content: 'Q' }], webSearch: true })
-    await callOpenRouterWithEvidence({ label: 'pulse.platform', model: 'openai/gpt-4o', messages: [{ role: 'user', content: 'Q' }] })
+    await callOpenRouterWithEvidence({ label: 'pulse.platform', model: 'anthropic/claude-haiku-4-5', messages: [{ role: 'user', content: 'Q' }], webSearch: true })
+    await callOpenRouterWithEvidence({ label: 'pulse.platform', model: 'anthropic/claude-haiku-4-5', messages: [{ role: 'user', content: 'Q' }] })
     const [searched, plain] = bodies()
     expect(searched.plugins).toEqual([{ id: 'web', max_results: 5 }])
     expect(searched.web_search_options).toEqual({ search_context_size: 'low' })
     expect(plain.plugins).toBeUndefined()
     expect(plain.web_search_options).toBeUndefined()
+  })
+
+  // Production, 2026-10-10: openai/gpt-4o answered every request carrying
+  // web_search_options with a 400. OpenAI accepts it only on *-search-preview.
+  it('sends OpenAI models the web plugin without web_search_options', async () => {
+    await callOpenRouterWithEvidence({ label: 'pulse.platform', model: 'openai/gpt-4o', messages: [{ role: 'user', content: 'Q' }], webSearch: true })
+    const [body] = bodies()
+    expect(body.plugins).toEqual([{ id: 'web', max_results: 5 }])
+    expect(body).not.toHaveProperty('web_search_options')
   })
 })
 

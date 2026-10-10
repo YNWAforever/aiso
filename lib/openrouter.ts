@@ -98,9 +98,13 @@ export async function callOpenRouterWithEvidence({ label, model, messages, maxTo
         }),
         // Low search context is the cheapest native-search tier; citations come
         // back as message.annotations either way.
+        // web_search_options is not sent to OpenAI models: OpenAI's chat API
+        // accepts it only on its *-search-preview models, and openai/gpt-4o
+        // answered every request carrying it with a 400 (production,
+        // 2026-10-10). The plugin alone still searches.
         ...(webSearch && {
           plugins: [{ id: 'web', max_results: WEB_SEARCH_MAX_RESULTS }],
-          web_search_options: { search_context_size: 'low' },
+          ...(!model.startsWith('openai/') && { web_search_options: { search_context_size: 'low' } }),
         }),
       }),
       signal: signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS),

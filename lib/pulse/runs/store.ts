@@ -2,7 +2,7 @@ import 'server-only'
 import { randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
 import { isoDate } from '@/lib/iso-date'
-import { MAX_PROMPTS } from '@/lib/pulse/limits'
+import { MAX_PROMPTS, PULSE_ANSWER_MAX_TOKENS } from '@/lib/pulse/limits'
 import { coverageFromCounts, type AttemptOutput, type LeasedItem, type ModelVariant, type PulseRun, type PulseScope } from './schema'
 
 /** Noninteractive HTTP batch: lock first, then read a fresh snapshot. */
@@ -23,7 +23,7 @@ export async function createOrResumeRun(scope: PulseScope, input: { scanWeek: st
         -- 061: configured spellings, captured with the manifest so a later edit never rewrites a run.
         'competitorRefs',coalesce((select jsonb_agg(jsonb_build_object('name',k.name,'aliases',k.aliases) order by k.created_at,k.id)
           from competitors k where k.client_id=c.id and k.account_id=c.account_id and k.archived_at is null),'[]'::jsonb)),
-        'policy',jsonb_build_object('maxAttempts',3,'maxOutputTokens',500,'maxClassificationAttempts',3,'maxAnalysisOutputTokens',300),
+        'policy',jsonb_build_object('maxAttempts',3,'maxOutputTokens',${PULSE_ANSWER_MAX_TOKENS}::int,'maxClassificationAttempts',3,'maxAnalysisOutputTokens',300),
         'items',coalesce((select jsonb_agg(jsonb_build_object('promptId',p.id,'question',p.question,'category',p.category,
           'language',p.language,'market',p.market,'contextVersion','2026-10-03.v1','platform',v->>'platform','model',v->>'model') order by p.id,v->>'model')
           from prompts p cross join jsonb_array_elements(${JSON.stringify(input.manifest)}::jsonb) v),'[]'::jsonb)) as manifest
