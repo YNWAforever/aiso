@@ -6,21 +6,53 @@ export type AnswerAnalysisV2 = {
   /** Normalized literal excerpts, never consumer ranking. */
   matchedText:string[];mentionPosition:number|null;competitorsMentioned:string[]
 }
-export const ANALYSIS_VERSION='2026-10-03.v2'
+// v3 (2026-10-10): separator, Latin-accent and dotted-acronym variants match.
+export const ANALYSIS_VERSION='2026-10-10.v3'
 const normalize=(value:string)=>value.normalize('NFKC').normalize('NFC')
 const latinWord=(value:string|undefined)=>!!value&&/[\p{Script=Latin}\p{N}\p{M}_]/u.test(value)
+const latin=(value:string|undefined)=>!!value&&/\p{Script=Latin}/u.test(value)
+const SEPARATORS='[\\s\\-_\\u2010-\\u2015]'
+const escapeRegExp=(value:string)=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')
 
-/** Latin word boundaries reject pineapple/ApplePay, while allowing adjacent CJK. */
+/**
+ * Comparison form of a text, with each folded unit's source span. Folding is
+ * case, accents on Latin letters only (a Thai or Hangul mark is part of the
+ * letter), and the full stops of a dotted acronym (A.S. -> AS, but Inc. keeps
+ * its stop).
+ */
+function fold(text:string){
+  const chars=[...text],starts:number[]=[],ends:number[]=[]
+  let folded='',offset=0
+  chars.forEach((char,index)=>{
+    const at=offset;offset+=char.length
+    const previous=chars[index-1],beforePrevious=chars[index-2]
+    if(char==='.'&&latin(previous)&&(!beforePrevious||beforePrevious==='.'||!/[\p{L}\p{N}]/u.test(beforePrevious)))return
+    const base=latin(char)?char.normalize('NFD').replace(/\p{M}/gu,''):char
+    for(const unit of base.toLowerCase()){folded+=unit;for(let i=0;i<unit.length;i++){starts.push(at);ends.push(at+char.length)}}
+  })
+  return {folded,starts,ends}
+}
+
+/**
+ * Latin word boundaries reject pineapple/ApplePay, while allowing adjacent CJK.
+ * Words of a multi-word name may be joined by any separator or none
+ * (Fimmick AEO = fimmick-aeo = FimmickAEO). The evidence is the answer's own
+ * span, as written.
+ */
 export function literalBrandEvidence(answer:string,brandName:string):{text:string;position:number}|null{
-  const text=normalize(answer),brand=normalize(brandName).trim()
-  if(!brand)return null
-  const hay=text.toLowerCase(),needle=brand.toLowerCase()
-  let start=0,index=-1
-  while((index=hay.indexOf(needle,start))!==-1){
-    const before=text.slice(0,index).at(-1),after=text.slice(index+brand.length)[0]
-    if((!latinWord(brand[0])||!latinWord(before))&&(!latinWord(brand.at(-1))||!latinWord(after)))
-      return {text:text.slice(index,index+brand.length),position:index}
-    start=index+Math.max(1,needle.length)
+  const text=normalize(answer),source=fold(text)
+  const words=fold(normalize(brandName)).folded.split(new RegExp(`${SEPARATORS}+`,'u')).filter(Boolean)
+  if(!words.length)return null
+  const first=words[0][0],last=words.at(-1)!.at(-1)
+  const pattern=new RegExp(words.map(escapeRegExp).join(`${SEPARATORS}*`),'gu')
+  for(let match=pattern.exec(source.folded);match;match=pattern.exec(source.folded)){
+    const index=match.index,end=index+match[0].length
+    const before=source.folded[index-1],after=source.folded[end]
+    if((!latinWord(first)||!latinWord(before))&&(!latinWord(last)||!latinWord(after))){
+      const position=source.starts[index]
+      return {text:text.slice(position,source.ends[end-1]),position}
+    }
+    pattern.lastIndex=index+1
   }
   return null
 }
