@@ -7,6 +7,7 @@ import { ScoreReveal }      from './ScoreReveal'
 import { TopIssueCard }     from './TopIssueCard'
 import { LockedPreview }    from './LockedPreview'
 import { DeepGeoSection }   from './DeepGeoSection'
+import { TrustSignalsSection } from './TrustSignalsSection'
 import { ImpactTeaser }     from './ImpactTeaser'
 import { ImpactPanel }      from './ImpactPanel'
 import { ShareButton }      from './ShareButton'
@@ -332,6 +333,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
                 results={r}
               />
               <DeepGeoSection c17={c17} c18={c18} c19={c19} c20={c20} />
+              <TrustSignalsSection value={r.trust_signals} />
             </div>
 
             <Link

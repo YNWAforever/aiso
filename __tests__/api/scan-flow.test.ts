@@ -306,6 +306,24 @@ describe('POST /api/scan — full scan flow', () => {
     expect(dbState.insertValues).toEqual([])
   })
 
+  it('stores trust signals next to the results without changing the score', async () => {
+    const { POST } = await import('@/app/api/scan/route')
+    const scan = async (html: string) => {
+      fetchMock.mockResolvedValueOnce(new Response(html, { status: 200, headers: { 'content-type': 'text/html' } }))
+      dbState.insertValues = []
+      const res = await POST(new NextRequest('http://localhost/api/scan', { method: 'POST', body: JSON.stringify({ url: 'https://example.com' }) }))
+      expect(res.status).toBe(200)
+      return { score: dbState.insertValues[2], results: JSON.parse(dbState.insertValues[3] as string) }
+    }
+    const plain = await scan('<html><body><p>Plain page</p></body></html>')
+    const trusted = await scan('<html><head><meta name="author" content="Jane"></head><body><p>Plain page</p><a href="/privacy">Privacy</a><a href="/terms">Terms</a></body></html>')
+    expect(trusted.results.trust_signals.version).toBe('2026-10-10.v1')
+    expect(trusted.results.trust_signals.signals).toHaveLength(10)
+    expect(trusted.results.trust_signals.signals.find((s: { key: string }) => s.key === 'policies').status).toBe('pass')
+    // A diagnostic: identical scores with and without the trust markup.
+    expect(trusted.score).toBe(plain.score)
+  })
+
   it('stores a GEO check diagnostic so later readers know it was not measured', async () => {
     // computeImpact reads the stored results; without the diagnostic an
     // unavailable c19 came back as a plain warn and was offered as a quick win.
