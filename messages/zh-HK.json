@@ -2440,5 +2440,33 @@
     "manage": "編輯競爭對手",
     "empty": "尚未有已分類的回答。Pulse 回答並分類您的問題後，便會顯示聲量佔比。",
     "error": "未能載入聲量佔比。請稍後重新整理再試。"
+  },
+  "trustSignals": {
+    "title": "信任及 E-E-A-T 訊號",
+    "intro": "有助 AI 系統及搜尋引擎判斷此頁面是否可信的訊號。僅供參考，不會影響您的分數。",
+    "summary": "{total} 項中已具備 {count} 項",
+    "status_pass": "已具備",
+    "status_warn": "部分具備",
+    "status_fail": "缺少",
+    "author_label": "具名作者",
+    "author_fix": "註明撰寫者，例如加入作者署名或作者標記（meta name=\"author\" 或 schema.org Person）。",
+    "organization_label": "機構身份",
+    "organization_fix": "以 schema.org Organization 標記描述您的機構，並以 sameAs 連結官方資料頁。",
+    "contact_label": "聯絡資料",
+    "contact_fix": "連結至聯絡我們頁面，或加入電話號碼或電郵地址。",
+    "address_label": "實體地址",
+    "address_fix": "顯示您的營業地址，可使用 address 元素或 PostalAddress 標記。",
+    "about_label": "關於我們頁面",
+    "about_fix": "連結至介紹您是誰的頁面。",
+    "policies_label": "私隱政策及條款",
+    "policies_fix": "同時連結您的私隱政策及使用條款。",
+    "reviews_label": "評價標記",
+    "reviews_fix": "如您展示顧客評價，請以 AggregateRating 或 Review 標記，並包括評分及評價數目。",
+    "dates_label": "發佈日期",
+    "dates_fix": "顯示頁面的發佈或最後更新日期，可使用 time 元素或 datePublished 標記。",
+    "credentials_label": "資歷及獎項",
+    "credentials_fix": "如適用，請在 Organization 或 Person 標記中列出會籍、認證或獎項。",
+    "https_label": "安全連線（HTTPS）",
+    "https_fix": "以 HTTPS 提供此頁面。"
   }
 }

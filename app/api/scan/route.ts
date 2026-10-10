@@ -55,6 +55,7 @@ function isScannableHost(hostname: string): boolean {
 }
 import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'
 import { normalizeScanUrl } from '@/lib/scan-input'
+import { assessTrustSignals } from '@/lib/trust-signals'
 
 // Re-exported for existing tests that import scoring from this route
 export { assignGrade, calculateScore, calculateGeoScore }
@@ -368,7 +369,10 @@ export async function POST(req: NextRequest) {
 
   let scanId: string
   try {
-    const combinedResults = { ...results, ...geoDetails }
+    // Trust signals are a diagnostic outside the score (lib/trust-signals.ts):
+    // computed from the page already fetched, after scoring, so they cannot
+    // move a grade. Omitted when there is no page body to read.
+    const combinedResults = { ...results, ...geoDetails, ...(html.trim() ? { trust_signals: assessTrustSignals(html, baseUrl) } : {}) }
     const evidence = buildScanEvidence({
       requestedUrl: /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : 'https://' + url,
       evaluatedUrl: baseUrl, industry: geoIndustry, region: geoRegion,
