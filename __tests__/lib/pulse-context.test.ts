@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import type { LeasedItem } from '@/lib/pulse/runs/schema'
 const request = vi.hoisted(() => vi.fn(async (_input: unknown) => ({ answer: 'Synthetic', actualModel: 'synthetic', requestId: null, promptTokens: null, completionTokens: null, costUsd: null, httpStatus: 200 })))
 vi.mock('server-only', () => ({}))
-vi.mock('@/lib/openrouter', () => ({ callOpenRouterWithEvidence: request }))
+vi.mock('@/lib/openrouter', () => ({ callOpenRouterWithEvidence: request, reasoningForModel: () => undefined }))
 vi.mock('@/lib/pulse/runs/store', () => ({ commitAttempt: vi.fn(async () => 'committed') }))
 import { processLeasedItem } from '@/lib/pulse/runs/service'
 afterEach(() => { vi.unstubAllEnvs(); request.mockClear() })

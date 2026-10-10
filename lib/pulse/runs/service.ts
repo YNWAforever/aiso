@@ -1,5 +1,5 @@
 import 'server-only'
-import { callOpenRouterWithEvidence, modelVariantsFor } from '@/lib/openrouter'
+import { callOpenRouterWithEvidence, modelVariantsFor, reasoningForModel } from '@/lib/openrouter'
 import { computeWeeklySummary } from '@/lib/pulse/summary'
 import { db } from '@/lib/db'
 import { claimDueItems, commitAttempt, createOrResumeRun, readRunCoverage } from './store'
@@ -19,7 +19,7 @@ function collectWith(webSearchAllowed: boolean): CollectAnswer {
   const collector: CollectAnswer = async (item, signal) => {
     const grounding = groundingFor(item.platform, webSearchAllowed)
     const evidence = await callOpenRouterWithEvidence({ label:'pulse.platform',model:item.model,
-      messages:promptCollectionMessages(item.snapshot),maxTokens:PULSE_ANSWER_MAX_TOKENS,signal,webSearch:grounding === 'web' })
+      messages:promptCollectionMessages(item.snapshot),maxTokens:PULSE_ANSWER_MAX_TOKENS,signal,webSearch:grounding === 'web',reasoning:reasoningForModel(item.model) })
     return { ...evidence, grounding }
   }
   defaultCollectors.add(collector)
