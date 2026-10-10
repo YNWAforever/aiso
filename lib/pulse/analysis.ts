@@ -1,7 +1,11 @@
 import { callOpenRouter, type JsonSchemaFormat } from '@/lib/openrouter'
-import {naiveAnalysis,coerceAnalysis,type AnswerAnalysisV2} from './analysis-fallback'
+import {naiveAnalysis,coerceAnalysis,type AnswerAnalysisV2,type CompetitorMatch} from './analysis-fallback'
 export {naiveAnalysis} from './analysis-fallback'
-export type {AnswerAnalysisV2} from './analysis-fallback'
+export type {AnswerAnalysisV2,CompetitorMatch} from './analysis-fallback'
+
+/** "Name (also written: a, b)" — the configured spellings, so the model is told rather than left to guess. */
+const describeCompetitor=(c:CompetitorMatch)=>typeof c==='string'?c
+  :c.aliases?.length?`${c.name} (also written: ${c.aliases.join(', ')})`:c.name
 
 export type AnswerAnalysis = AnswerAnalysisV2
 
@@ -38,7 +42,7 @@ const ANALYSIS_FORMAT: JsonSchemaFormat = {
 export async function analyseAnswer(input: {
   answer: string
   brandName: string
-  competitors?: readonly string[]
+  competitors?: readonly CompetitorMatch[]
 }): Promise<AnswerAnalysis> {
   const competitors = input.competitors ?? []
   const fallback = () => naiveAnalysis(input.answer, input.brandName, competitors)
@@ -64,7 +68,7 @@ export async function analyseAnswer(input: {
         {
           role: 'user',
           content: `Brand: ${input.brandName}\n`
-            + `Known competitors: ${competitors.join(', ') || 'none given'}\n\n`
+            + `Known competitors: ${competitors.map(describeCompetitor).join(', ') || 'none given'}\n\n`
             + `Answer:\n${input.answer.slice(0, 6000)}`,
         },
       ],

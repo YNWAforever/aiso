@@ -19,7 +19,10 @@ export async function createOrResumeRun(scope: PulseScope, input: { scanWeek: st
       order by pb.id limit ${MAX_PROMPTS}
     ), snapshot as (
       select jsonb_build_object('version','2026-10-03.v2','brand',jsonb_build_object(
-        'name',c.brand_name,'competitors',coalesce(c.competitors,'{}'::text[]),'industry',c.industry,'domain',c.domain),
+        'name',c.brand_name,'competitors',coalesce(c.competitors,'{}'::text[]),'industry',c.industry,'domain',c.domain,
+        -- 061: configured spellings, captured with the manifest so a later edit never rewrites a run.
+        'competitorRefs',coalesce((select jsonb_agg(jsonb_build_object('name',k.name,'aliases',k.aliases) order by k.created_at,k.id)
+          from competitors k where k.client_id=c.id and k.account_id=c.account_id and k.archived_at is null),'[]'::jsonb)),
         'policy',jsonb_build_object('maxAttempts',3,'maxOutputTokens',500,'maxClassificationAttempts',3,'maxAnalysisOutputTokens',300),
         'items',coalesce((select jsonb_agg(jsonb_build_object('promptId',p.id,'question',p.question,'category',p.category,
           'language',p.language,'market',p.market,'contextVersion','2026-10-03.v1','platform',v->>'platform','model',v->>'model') order by p.id,v->>'model')

@@ -56,14 +56,27 @@ export function literalBrandEvidence(answer:string,brandName:string):{text:strin
   }
   return null
 }
-export function naiveAnalysis(answer:string,brandName:string,competitors:readonly string[]=[]):AnswerAnalysisV2{
+/**
+ * A competitor as the matcher sees it. A plain string is a name with no
+ * aliases, which is what manifests written before 061 carry. Aliases are the
+ * owner's configured spellings (`competitors.aliases`), never inferred.
+ */
+export type CompetitorMatch=string|{name:string;aliases?:readonly string[]|null}
+const refsOf=(competitors:readonly CompetitorMatch[])=>competitors
+  .map(c=>typeof c==='string'?{name:c,forms:[c]}:{name:c.name,forms:[c.name,...(c.aliases??[])]})
+  .filter(ref=>!!ref.name?.trim())
+/** Canonical names of the competitors whose name or an alias is literally in the answer. */
+const literalCompetitors=(answer:string,competitors:readonly CompetitorMatch[])=>
+  refsOf(competitors).filter(ref=>ref.forms.some(form=>literalBrandEvidence(answer,form))).map(ref=>ref.name)
+
+export function naiveAnalysis(answer:string,brandName:string,competitors:readonly CompetitorMatch[]=[]):AnswerAnalysisV2{
   const match=literalBrandEvidence(answer,brandName)
   return {classificationStatus:'fallback',method:'literal-evidence-abstention',version:ANALYSIS_VERSION,
     brandMentioned:null,sentiment:'unknown',matchedText:match?[match.text]:[],mentionPosition:match?.position??null,
-    competitorsMentioned:[...new Set(competitors.filter(c=>literalBrandEvidence(answer,c)))].slice(0,10)}
+    competitorsMentioned:[...new Set(literalCompetitors(answer,competitors))].slice(0,10)}
 }
-/** Validate classifier output against saved text; explicit private aliases are not used. */
-export function coerceAnalysis(value:unknown,answer:string,brandName:string,competitors:readonly string[]=[]):AnswerAnalysisV2|null{
+/** Validate classifier output against saved text; only configured aliases are used, never inferred ones. */
+export function coerceAnalysis(value:unknown,answer:string,brandName:string,competitors:readonly CompetitorMatch[]=[]):AnswerAnalysisV2|null{
   if(!value||typeof value!=='object')return null
   const row=value as Record<string,unknown>
   if(typeof row.brand_mentioned!=='boolean'||!Array.isArray(row.competitors_mentioned))return null
@@ -71,10 +84,14 @@ export function coerceAnalysis(value:unknown,answer:string,brandName:string,comp
   if(typeof row.sentiment!=='string'||!allowed.includes(row.sentiment))return null
   const match=literalBrandEvidence(answer,brandName)
   if(row.brand_mentioned&&(!match||!['positive','neutral','negative'].includes(row.sentiment)))return null
+  // A classifier-named spelling of a configured competitor is reported under
+  // that competitor's canonical name, so one brand is never counted twice.
+  const canonical=new Map(refsOf(competitors).flatMap(ref=>ref.forms.map(form=>[form.trim().toLowerCase(),ref.name] as const)))
   const named=row.competitors_mentioned.filter((c):c is string=>typeof c==='string'&&!!c.trim())
     .map(c=>c.trim().slice(0,120)).filter(c=>literalBrandEvidence(answer,c))
+    .map(c=>canonical.get(c.toLowerCase())??c)
   return {classificationStatus:'classified',method:'openrouter-json-literal-guard',version:ANALYSIS_VERSION,
     brandMentioned:row.brand_mentioned,sentiment:row.brand_mentioned?row.sentiment as AnswerAnalysisV2['sentiment']:'unknown',
     matchedText:row.brand_mentioned&&match?[match.text]:[],mentionPosition:row.brand_mentioned?match?.position??null:null,
-    competitorsMentioned:[...new Set([...named,...competitors.filter(c=>literalBrandEvidence(answer,c))])].slice(0,10)}
+    competitorsMentioned:[...new Set([...named,...literalCompetitors(answer,competitors)])].slice(0,10)}
 }

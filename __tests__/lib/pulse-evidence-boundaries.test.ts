@@ -77,7 +77,7 @@ beforeAll(async () => {
     create table scans(id uuid primary key,client_id uuid references clients(id),account_id uuid references accounts(id),
       domain text,score numeric,grade text,created_at timestamptz,results jsonb,agent_status text);
   `)
-  for (const file of ['057_pulse_run_ledger.sql', '058_pulse_classification_repair.sql', '060_provider_citations.sql']) {
+  for (const file of ['057_pulse_run_ledger.sql', '058_pulse_classification_repair.sql', '060_provider_citations.sql', '061_competitors.sql']) {
     await state.pg.exec(readFileSync(`supabase/migrations/${file}`, 'utf8'))
   }
 })
