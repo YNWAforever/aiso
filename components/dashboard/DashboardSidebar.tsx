@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { LogOut, Wrench, Scan, FileBarChart2, Sparkles, Radio, TrendingUp, Brain, Settings, Lock, ListChecks, BookOpenCheck } from 'lucide-react'
+import { LogOut, Wrench, Scan, FileBarChart2, Sparkles, Radio, TrendingUp, Brain, Settings, Lock, ListChecks, BookOpenCheck, Users } from 'lucide-react'
 import type { CommercialEntitlement } from '@/lib/tier'
 import { ThemeToggle } from '@/components/dashboard/ThemeToggle'
 
@@ -200,6 +200,15 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
                   Pro
                 </span>
               )}
+            </Link>
+            <Link
+              href={`/${lang}/dashboard/${clientId}/competitors`}
+              aria-current={pathname === `/${lang}/dashboard/${clientId}/competitors` ? 'page' : undefined}
+              onClick={() => setNavigationOpen(false)}
+              className={`flex min-h-11 items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 ${pathname === `/${lang}/dashboard/${clientId}/competitors` ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
+            >
+              <Users className="size-4 shrink-0" aria-hidden="true" />
+              <span className="text-xs font-semibold">{t('competitors')}</span>
             </Link>
           </>
         )}
