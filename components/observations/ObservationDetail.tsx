@@ -11,6 +11,7 @@ export function ObservationDetailContent({observation:d,copy:c}:{observation:Obs
     [c.collectedAt,d.collectedAt],[c.classification,status],[c.sentiment,sentiment],
     [c.method,d.classification.method],[c.version,d.classification.version],
     [c.providerFinishReason,d.providerFinishReason==='stop'?c.providerComplete:c.unknown],
+    [c.grounding,d.grounding==='web'?c.groundingWeb:d.grounding==='native'?c.groundingNative:d.grounding==='none'?c.groundingNone:c.unknown],
   ]
   return <div className="space-y-4">
     <p>{c.apiSample}</p>

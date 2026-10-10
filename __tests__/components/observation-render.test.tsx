@@ -78,6 +78,21 @@ describe('observation workspace rendering', () => {
     expect(html).toContain(copyFor(lang).textLink);expect(html).toContain(copyFor(lang).apiSample)
     expect(html).toContain('synthetic/served');expect(html).toContain('openrouter_api')
   })
+  it.each([
+    ['web', 'groundingWeb'], ['native', 'groundingNative'], ['none', 'groundingNone'], [null, 'unknown'], ['guessed', 'unknown'],
+  ] as const)('says how the answer was produced: %s', (grounding, key) => {
+    for (const lang of ['en', 'zh-HK']) {
+      const detail = projectObservationDetail({ id: initial.items[0].id, prompt_id: null, question: 'Q', platform: 'gpt-4o', scan_week: '2026-09-21',
+        created_at: null, raw_answer: 'An answer.', brand_mentioned: null,
+        snapshot: null, brand_snapshot: null, requested_model: null, actual_model: null, collector: null, collector_version: null,
+        provider_request_id: null, classifier_method: null, classifier_version: null, sentiment: null, matched_text: [],
+        classification_status: 'fallback', grounding })
+      expect(detail.grounding ?? null).toBe(grounding === 'guessed' ? null : grounding)
+      const copy = copyFor(lang)
+      const html = renderToString(<ObservationDetailContent observation={detail} copy={copy} />)
+      expect(html).toContain(`<dt class="text-sm text-muted-foreground">${copy.grounding}</dt><dd class="break-words">${copy[key]}</dd>`)
+    }
+  })
   it('has equal locale copy keys', () => {
     expect(Object.keys(en.observations).sort()).toEqual(
       Object.keys(zh.observations).sort(),

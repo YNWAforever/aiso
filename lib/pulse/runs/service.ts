@@ -7,14 +7,28 @@ import {classifySavedAnswers} from './classification'
 import { readPulseTarget } from './queue'
 import type { LeasedItem, ProviderEvidence, PulseScope } from './schema'
 import { promptCollectionMessages } from '@/lib/prompts/context'
+import { groundingFor, webSearchAllowance } from '@/lib/pulse/grounding'
 
 export type CollectAnswer = (item: LeasedItem, signal: AbortSignal) => Promise<ProviderEvidence>
-const collect: CollectAnswer = (item, signal) => callOpenRouterWithEvidence({ label:'pulse.platform',model:item.model,
-  messages:promptCollectionMessages(item.snapshot),maxTokens:500,signal })
+// The real collectors, so a missing API key blocks rather than fails them. A
+// Set, not identity with one function: each chunk builds its own collector
+// carrying that chunk's web-search allowance.
+const defaultCollectors = new WeakSet<CollectAnswer>()
+function collectWith(webSearchAllowed: boolean): CollectAnswer {
+  const collector: CollectAnswer = async (item, signal) => {
+    const grounding = groundingFor(item.platform, webSearchAllowed)
+    const evidence = await callOpenRouterWithEvidence({ label:'pulse.platform',model:item.model,
+      messages:promptCollectionMessages(item.snapshot),maxTokens:500,signal,webSearch:grounding === 'web' })
+    return { ...evidence, grounding }
+  }
+  defaultCollectors.add(collector)
+  return collector
+}
+const collect = collectWith(false)
 
 export async function processLeasedItem(item: LeasedItem, deadlineAt: number, collector: CollectAnswer = collect) {
   let evidence: ProviderEvidence
-  if (!process.env.OPENROUTER_API_KEY && collector === collect) {
+  if (!process.env.OPENROUTER_API_KEY && defaultCollectors.has(collector)) {
     return await commitAttempt(item,{kind:'blocked',errorCode:'PROVIDER_NOT_CONFIGURED'})
   }
   const remaining = deadlineAt - Date.now() - 5_000
@@ -45,10 +59,13 @@ export async function runPulseChunk(scope: PulseScope, options: { scanWeek:strin
   const allowedModels = new Set(manifest.map(variant => variant.model))
   const run = await createOrResumeRun(scope,{scanWeek:options.scanWeek,manifest})
   if (!run) throw new Error('Run scope unavailable')
+  // Decided once per chunk against this week's grounded-answer cap; an injected
+  // collector (tests) is used as given.
+  const chunkCollector = collector ?? collectWith((await webSearchAllowance(db(),scope.accountId,run.scanWeek)).allowed)
   const items = await claimDueItems(scope,run.id,{owner:`http:${crypto.randomUUID()}`,leaseUntil:new Date(options.deadlineAt),limit:Math.min(5,Math.max(1,options.limit))})
   // Resumed manifests are immutable and can still include a previous plan's models.
   const results = await Promise.allSettled(items.map(item => allowedModels.has(item.model)
-    ? processLeasedItem(item,options.deadlineAt,collector)
+    ? processLeasedItem(item,options.deadlineAt,chunkCollector)
     : commitAttempt(item,{kind:'blocked',errorCode:'PLAN_HAS_NO_PLATFORMS'})))
   await classifySavedAnswers(scope,run.id,options.deadlineAt)
   const coverage = await readRunCoverage(scope,run.id)

@@ -1,5 +1,6 @@
 import { clampOutputTokens, type TaskBudget } from '@/lib/agents/budget'
-import { citationsFromAnnotations } from '@/lib/pulse/provider-citations'
+import { citationsFromAnnotations, type ProviderCitation } from '@/lib/pulse/provider-citations'
+import { groundingFor, type Grounding } from '@/lib/pulse/grounding'
 const BASE = 'https://openrouter.ai/api/v1/chat/completions'
 
 interface Message {
@@ -38,7 +39,16 @@ interface CallOptions {
   maxTokens?: number
   signal?: AbortSignal
   responseFormat?: JsonSchemaFormat
+  /**
+   * Ask for a web-grounded answer through OpenRouter's `web` plugin (native
+   * search for OpenAI, Anthropic and Google models). Costs extra per call, so
+   * only Pulse asks, and only via lib/pulse/grounding.ts's allowance.
+   */
+  webSearch?: boolean
 }
+
+/** Results per web search. OpenRouter's default; fixed so cost does not drift. */
+const WEB_SEARCH_MAX_RESULTS = 5
 
 // Callers that pass no signal would otherwise wait indefinitely. vercel.json
 // caps the scan route at 60s and fix at 30s, so an unbounded call can consume
@@ -49,7 +59,7 @@ export async function callOpenRouter(options: CallOptions): Promise<string> {
   return (await callOpenRouterWithEvidence(options)).answer
 }
 
-export async function callOpenRouterWithEvidence({ label, model, messages, maxTokens = 2000, signal, responseFormat }: CallOptions): Promise<import('@/lib/pulse/runs/schema').ProviderEvidence> {
+export async function callOpenRouterWithEvidence({ label, model, messages, maxTokens = 2000, signal, responseFormat, webSearch }: CallOptions): Promise<import('@/lib/pulse/runs/schema').ProviderEvidence> {
   const fail = (fields: Record<string, unknown>) => console.error({ event: 'openrouter_failed', label, model, ...fields })
 
   // Checked here rather than left to a 401: an empty key is a deployment fault,
@@ -85,6 +95,12 @@ export async function callOpenRouterWithEvidence({ label, model, messages, maxTo
             json_schema: { name: responseFormat.name, strict: true, schema: responseFormat.schema },
           },
           provider: { require_parameters: true },
+        }),
+        // Low search context is the cheapest native-search tier; citations come
+        // back as message.annotations either way.
+        ...(webSearch && {
+          plugins: [{ id: 'web', max_results: WEB_SEARCH_MAX_RESULTS }],
+          web_search_options: { search_context_size: 'low' },
         }),
       }),
       signal: signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
@@ -210,25 +226,35 @@ export function modelVariantsFor(platforms: readonly string[]) {
  * Omitting `only` queries all five, which is the right default for callers that
  * are not per-account.
  */
+export type PlatformAnswer = {
+  platform: string
+  answer: string
+  providerCitations: ProviderCitation[] | null
+  grounding: Grounding
+}
+
 export async function callMultiPlatform(
   messages: Message[],
   maxTokens = 1000,
   only?: readonly string[],
   budget?: TaskBudget,
-): Promise<Array<{ platform: string; answer: string }>> {
+  options: { webSearch?: boolean } = {},
+): Promise<PlatformAnswer[]> {
   const selected = only ? PLATFORMS.filter(p => only.includes(p.platform)) : PLATFORMS
   // A fan-out is N calls for one unit of work, which no per-call ceiling bounds.
   // Reserved up front so an over-budget fan-out is never dispatched at all --
   // reserving afterwards would spend first and complain second.
   if (budget) for (let k = 0; k < selected.length; k += 1) budget.reserve(maxTokens)
   const results = await Promise.allSettled(
-    selected.map(async ({ platform, model }) => ({
-      platform,
+    selected.map(async ({ platform, model }): Promise<PlatformAnswer> => {
+      // Perplexity searches by itself; the others search only when asked.
+      const grounding = groundingFor(platform, options.webSearch === true)
       // `model` already tells the platforms apart in the log.
-      answer: await callOpenRouter({ label: 'pulse.platform', model, messages, maxTokens }),
-    })),
+      const evidence = await callOpenRouterWithEvidence({ label: 'pulse.platform', model, messages, maxTokens, webSearch: grounding === 'web' })
+      return { platform, answer: evidence.answer, providerCitations: evidence.providerCitations ?? null, grounding }
+    }),
   )
   return results
-    .filter((r): r is PromiseFulfilledResult<{ platform: string; answer: string }> => r.status === 'fulfilled')
+    .filter((r): r is PromiseFulfilledResult<PlatformAnswer> => r.status === 'fulfilled')
     .map(r => r.value)
 }

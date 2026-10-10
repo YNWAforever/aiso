@@ -1756,7 +1756,11 @@
     "workflowNote": "Check original observations, edit a private draft, then review the source version. Source approval and permission for agent use are separate. Recommendations do not prove improved exposure.",
     "workflowObservations": "Review observation evidence",
     "workflowOpportunities": "Edit private drafts",
-    "workflowSources": "Review source versions"
+    "workflowSources": "Review source versions",
+    "grounding": "How the answer was produced",
+    "groundingWeb": "Live web search",
+    "groundingNative": "Built-in search (Perplexity)",
+    "groundingNone": "Training data only, no web search"
   },
   "opportunities": {
     "title": "Opportunities",

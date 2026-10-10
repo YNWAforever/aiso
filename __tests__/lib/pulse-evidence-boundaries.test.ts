@@ -74,10 +74,13 @@ beforeAll(async () => {
       scan_week date,platform text,total_queries integer,brand_mentions integer,sov_score numeric,
       avg_sentiment_score numeric,top_competitors jsonb,created_at timestamptz default now(),
       unique nulls not distinct(client_id,scan_week,platform));
+    create table ai_citation_log(id uuid primary key default gen_random_uuid(),pulse_run_id uuid,client_id uuid references clients(id),
+      cited_url text not null,cited_domain text not null,platform text not null,prompt_industry text,prompt_region text,
+      prompt_topic text,prompt_text text,cited_at timestamptz default now());
     create table scans(id uuid primary key,client_id uuid references clients(id),account_id uuid references accounts(id),
       domain text,score numeric,grade text,created_at timestamptz,results jsonb,agent_status text);
   `)
-  for (const file of ['057_pulse_run_ledger.sql', '058_pulse_classification_repair.sql', '060_provider_citations.sql', '061_competitors.sql']) {
+  for (const file of ['057_pulse_run_ledger.sql', '058_pulse_classification_repair.sql', '060_provider_citations.sql', '061_competitors.sql', '062_pulse_grounding.sql']) {
     await state.pg.exec(readFileSync(`supabase/migrations/${file}`, 'utf8'))
   }
 })

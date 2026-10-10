@@ -1756,7 +1756,11 @@
     "workflowNote": "核對觀察原文，整理私人草稿，再覆核來源版本。核准來源與允許代理使用須分別處理；改善建議不代表曝光提升。",
     "workflowObservations": "查看觀察證據",
     "workflowOpportunities": "修訂私人草稿",
-    "workflowSources": "覆核來源版本"
+    "workflowSources": "覆核來源版本",
+    "grounding": "回答的產生方式",
+    "groundingWeb": "即時網絡搜尋",
+    "groundingNative": "內置搜尋（Perplexity）",
+    "groundingNone": "只用訓練資料，沒有網絡搜尋"
   },
   "opportunities": {
     "title": "改善機會",
