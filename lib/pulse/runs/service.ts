@@ -8,6 +8,7 @@ import { readPulseTarget } from './queue'
 import type { LeasedItem, ProviderEvidence, PulseScope } from './schema'
 import { promptCollectionMessages } from '@/lib/prompts/context'
 import { groundingFor, webSearchAllowance } from '@/lib/pulse/grounding'
+import { PULSE_ANSWER_MAX_TOKENS } from '@/lib/pulse/limits'
 
 export type CollectAnswer = (item: LeasedItem, signal: AbortSignal) => Promise<ProviderEvidence>
 // The real collectors, so a missing API key blocks rather than fails them. A
@@ -18,7 +19,7 @@ function collectWith(webSearchAllowed: boolean): CollectAnswer {
   const collector: CollectAnswer = async (item, signal) => {
     const grounding = groundingFor(item.platform, webSearchAllowed)
     const evidence = await callOpenRouterWithEvidence({ label:'pulse.platform',model:item.model,
-      messages:promptCollectionMessages(item.snapshot),maxTokens:500,signal,webSearch:grounding === 'web' })
+      messages:promptCollectionMessages(item.snapshot),maxTokens:PULSE_ANSWER_MAX_TOKENS,signal,webSearch:grounding === 'web' })
     return { ...evidence, grounding }
   }
   defaultCollectors.add(collector)

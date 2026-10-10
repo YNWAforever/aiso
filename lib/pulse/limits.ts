@@ -15,3 +15,13 @@
  * not free capacity that reactivating would then silently exceed.
  */
 export const MAX_PROMPTS = 50
+
+/**
+ * Output-token limit for one Pulse platform answer. A cut-off answer
+ * (finish_reason 'length') is discarded rather than stored, so the limit must
+ * leave room for the whole answer: 500 cut off every Gemini 3.8 Flash answer
+ * (a reasoning model, whose reasoning counts towards the limit) and some
+ * web-searched answers that cite their sources (production, 2026-10-10).
+ * Well under AISO_LLM_MAX_OUTPUT_TOKENS's default of 4000, which still clamps.
+ */
+export const PULSE_ANSWER_MAX_TOKENS = 1500
