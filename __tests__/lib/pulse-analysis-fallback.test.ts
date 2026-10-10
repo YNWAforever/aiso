@@ -37,6 +37,40 @@ describe('uncertain Pulse classification',()=>{
   ])('unicode_brand_match_is_explicit: %s',(answer,brand,matchedText)=>{
     expect(naiveAnalysis(answer,brand)).toMatchObject({brandMentioned:null,sentiment:'unknown',matchedText})
   })
+  // Written forms an answer uses for the same name. The evidence is the span as
+  // the answer wrote it, never the brand as configured.
+  it.each([
+    ['fimmick-aeo is a tool.','Fimmick AEO',['fimmick-aeo']],
+    ['Fimmick  AEO is a tool.','Fimmick AEO',['Fimmick  AEO']],
+    ['Try FimmickAEO today.','Fimmick AEO',['FimmickAEO']],
+    ['Fimmick_AEO is a tool.','Fimmick AEO',['Fimmick_AEO']],
+    ['Café Lux opened downtown.','Cafe Lux',['Café Lux']],
+    ['Cafe Lux opened downtown.','Café Lux',['Cafe Lux']],
+    ['Visit A.S. Watson today.','AS Watson',['A.S. Watson']],
+    ['Visit AS Watson today.','A.S. Watson',['AS Watson']],
+    ['Acme Inc. is reliable.','Acme Inc',['Acme Inc']],
+    ['삼성전자는 좋다','삼성전자',['삼성전자']],
+    ['ร้านกาแฟดี','ร้านกาแฟ',['ร้านกาแฟ']],
+  ])('written_variants_of_one_name_match: %s',(answer,brand,matchedText)=>{
+    expect(naiveAnalysis(answer,brand)).toMatchObject({matchedText})
+  })
+  it.each([
+    ['Fimmick AEOS is different.','Fimmick AEO'],
+    ['FimmickAEOTool is different.','Fimmick AEO'],
+    ['A deluxe room.','Lux'],
+    ['He has Watson on speed dial.','AS Watson'],
+    ['Pineapple Lux is a juice.','Apple Lux'],
+    // Accent folding is Latin-only: a Thai tone mark or a Hangul syllable is
+    // part of the letter, so a different mark is a different name.
+    ['ร้านกาแฟดี','ร้านกาแฝ'],
+  ])('variant_folding_keeps_word_boundaries: %s',(answer,brand)=>{
+    expect(naiveAnalysis(answer,brand)).toMatchObject({matchedText:[]})
+  })
+  it('a separator variant counts as literal evidence for the classifier',()=>{
+    const result=coerceAnalysis({brand_mentioned:true,sentiment:'positive',competitors_mentioned:[]},'Fimmick-AEO beats AS-Watson.','Fimmick AEO',['A.S. Watson'])
+    expect(result).toMatchObject({classificationStatus:'classified',matchedText:['Fimmick-AEO'],mentionPosition:0})
+    expect(result?.competitorsMentioned).toContain('A.S. Watson')
+  })
   it('classifier outage keeps uncertainty and literal evidence',async()=>{
     expect(await analyseAnswer({answer:'Fimmick is terrible.',brandName:'Fimmick'}))
       .toMatchObject({classificationStatus:'fallback',sentiment:'unknown',brandMentioned:null})
