@@ -80,15 +80,19 @@ describe('Vercel function durations', () => {
 })
 
 describe('Cloudflare cron-worker schedule', () => {
-  it('schedules exactly the three cron routes, and every one exists', () => {
+  it('schedules exactly the approved cron routes, and every one exists', () => {
     // Pulse fires daily. Progress is derived from the data and a client whose
     // week is already rolled up is never selected, so the extra firings only
     // finish weeks a failed hop left incomplete — they cost no LLM calls
     // otherwise. Weekly, one broken hop lost the rest of the week.
+    //
+    // Only Pulse and alert evaluation are approved for activation (2026-10-10).
+    // The Worker still routes '0 9 * * *' (trial emails + Search Console), but
+    // the deployed config does not schedule it: the trial drip sends real
+    // customer email, which is its own approval.
     expect(workerConfig.triggers?.crons).toEqual([
       '17 4 * * *',
       '47 7 * * 1',
-      '0 9 * * *',
     ])
 
     const paths = [
@@ -114,10 +118,12 @@ describe('Cloudflare cron-worker schedule', () => {
     }
   })
 
-  it('keeps the legacy config in step with the routes it shares', () => {
-    // Not deployed (see the runbook), but it runs the same source; letting it
-    // drift would leave a schedule that no longer matches any route.
-    expect(legacyWorkerConfig.triggers?.crons).toEqual(workerConfig.triggers?.crons)
+  it('deploys only schedules the shared Worker source can route', () => {
+    // The legacy config is not deployed (see the runbook); it lists every
+    // schedule the shared source routes, and the Worker's own test pins ROUTES
+    // to it. The deployed config may enable only a subset of those.
+    const routable = legacyWorkerConfig.triggers?.crons ?? []
+    for (const cron of workerConfig.triggers?.crons ?? []) expect(routable).toContain(cron)
   })
 
   it('evaluates alerts after the rollup they read, on the same day', () => {

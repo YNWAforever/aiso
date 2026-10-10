@@ -167,7 +167,10 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   config is `cloudflare/aiso-worker/wrangler.jsonc`**; the legacy `cloudflare/cron-worker/wrangler.jsonc`
   is never deployed (its origin is NXDOMAIN) and is only kept in step. Until 2026-10-09 the
   deployable config had `"crons": []` while the test pinned the legacy one, so nothing was
-  scheduled. Both now hold three schedules in order — `17 4 * * *` (daily; a client whose week
+  scheduled. The deployable config enables only the two approved schedules (Pulse and alerts,
+  2026-10-10); the legacy config and `ROUTES` still list all three, so the 09:00 trigger (trial
+  emails — real customer email — plus Search Console) is one config line away once approved. The
+  schedules, in order — `17 4 * * *` (daily; a client whose week
   is already rolled up is never selected, so extra firings only finish incomplete weeks) →
   `/api/cron/pulse`, `47 7 * * 1` → `/api/cron/evaluate-alerts` (after pulse, because alerts
   read the rollup Pulse writes), `0 9 * * *` → `/api/cron/trial-emails` **and**
