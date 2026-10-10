@@ -121,7 +121,7 @@ function TierBadge({ tier, count, otherLabel }: TierBadgeProps) {
 }
 
 type C17Data = { qualityScore?: number; authorityBreakdown?: Record<string, number>; citationsPerThousandWords?: number; totalLinks?: number; externalLinks?: number }
-type C18Data = { qualityScore?: number; numberDensity?: number; namedEntityDensity?: number; dateReferences?: number; hasComparativeData?: boolean; hasTimeSeriesData?: boolean; uniquenessScore?: number }
+type C18Data = { qualityScore?: number; numberDensity?: number; namedEntityDensity?: number; dateReferences?: number; hasComparativeData?: boolean; hasTimeSeriesData?: boolean; uniquenessScore?: number | null }
 type C19Data = { topicalCoverageScore?: number; totalClusters?: number; hasOrphanPages?: number; detectedClusters?: { topic: string; completenessScore: number }[] }
 type C20Data = { avgChunkLength?: number; optimalChunkRatio?: number; totalChunks?: number; hasFaqStyle?: boolean; chunkAnalysis?: { heading: string; extractabilityScore: number; isAnswerFirst?: boolean; isSelfContained?: boolean }[] }
 
@@ -205,7 +205,8 @@ export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
             {c18.namedEntityDensity !== undefined && (
               <MetricBar label={c.entityDensity} value={c18.namedEntityDensity} max={10} color="auto" />
             )}
-            {c18.uniquenessScore !== undefined && (
+            {/* Older scans stored an invented 50 here; new ones store null when unmeasured. */}
+            {typeof c18.uniquenessScore === 'number' && (
               <MetricBar label={c.uniqueness} value={c18.uniquenessScore} color="auto" />
             )}
           </div>

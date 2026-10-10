@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { callOpenRouter, type JsonSchemaFormat } from '@/lib/openrouter'
-import { getProfile } from '@/lib/auth'
+import { authorizeAiTool, consumeAiToolAllowance } from '@/lib/fix/guard'
 
 const REWRITE_FORMAT: JsonSchemaFormat = {
   name: 'chunk_rewrite',
@@ -16,12 +16,16 @@ const REWRITE_FORMAT: JsonSchemaFormat = {
 }
 
 export async function POST(req: NextRequest) {
-  // No id in the body — nothing to own-check, but the LLM call is still paid-for
-  const profile = await getProfile()
-  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // No id in the body — nothing to own-check, but the LLM call is still paid-for,
+  // so plan and allowance are what bound it (lib/fix/guard.ts).
+  const access = await authorizeAiTool({ paidOnly: true })
+  if (!access.ok) return access.response
 
   const { chunkText, heading, targetLength = '600-1000 tokens' } = await req.json()
   if (!chunkText) return NextResponse.json({ error: 'chunkText required' }, { status: 400 })
+
+  const overAllowance = await consumeAiToolAllowance(access.accountId)
+  if (overAllowance) return overAllowance
 
   const prompt = `Rewrite for AI citation potential.
 HEADING: "${heading ?? 'Section'}", TARGET: ${targetLength}

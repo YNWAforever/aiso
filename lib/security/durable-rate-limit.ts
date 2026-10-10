@@ -50,7 +50,30 @@ function productionIdentity(req: NextRequest, runtime: RateLimitRuntime) {
   if (!address || isIP(address) === 0) {
     throw new Error('Missing trusted Vercel forwarding address')
   }
-  return 'ip:' + address
+  return addressIdentity(address)
+}
+
+/**
+ * The identity a rate limit counts against. IPv4 is the address itself, as it
+ * always was, so existing counters carry over. IPv6 is its /64: a single
+ * subscriber is routinely handed a whole /64, so keying on the full address
+ * let one caller rotate through addresses for an unlimited allowance. An
+ * IPv4-mapped IPv6 address counts as its IPv4 address.
+ */
+function addressIdentity(address: string): string {
+  if (isIP(address) === 4) return 'ip:' + address
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(address)
+  if (mapped && isIP(mapped[1]!) === 4) return 'ip:' + mapped[1]
+  return 'ip6:' + expandIpv6(address).slice(0, 4).join(':') + '::/64'
+}
+
+/** The eight hextets of a valid IPv6 address, zero-padded and lower-case. */
+function expandIpv6(address: string): string[] {
+  const [head, tail = ''] = address.toLowerCase().split('::')
+  const left = head ? head.split(':') : []
+  const right = address.includes('::') && tail ? tail.split(':') : []
+  const fill = address.includes('::') ? Array(8 - left.length - right.length).fill('0') : []
+  return [...left, ...fill, ...right].map(h => h.padStart(4, '0'))
 }
 
 export function resolveClientIdentity(req: NextRequest, runtime: RateLimitRuntime) {

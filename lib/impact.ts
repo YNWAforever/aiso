@@ -3,7 +3,7 @@
  * the check results already stored in scans.results. Never throws; missing
  * or legacy data degrades by omitting the affected stat.
  */
-import { CORE_PTS, EXT_PTS, GEO_PTS, assignGrade, capScore } from '@/lib/scoring'
+import { CORE_PTS, EXT_PTS, GEO_PTS, assignGrade, capScore, isAssessable } from '@/lib/scoring'
 import type { CheckResult } from '@/lib/types'
 
 /* ── Types ───────────────────────────────────────────────────── */
@@ -29,7 +29,6 @@ export interface QuickWin {
 export type HeadlineStat =
   | { type: 'platforms_blocked'; count: number; total: number; text: string }
   | { type: 'low_readable'; percent: number; text: string }
-  | { type: 'benchmark_gap'; benchmark: number; gap: number; industry: string; text: string }
   | { type: 'score_uplift'; delta: number; projectedScore: number; projectedGrade: string; text: string }
 
 export interface ImpactReport {
@@ -41,14 +40,12 @@ export interface ImpactReport {
   headlineStat: HeadlineStat
 }
 
-/* ── Benchmarks (single source of truth — also used by ScoreReveal) ── */
-export const INDUSTRY_BENCHMARKS: Record<string, number> = {
-  technology: 61, finance: 58, medical: 54, legal: 52,
-  retail_ecommerce: 48, education: 51, real_estate: 44,
-  travel_hospitality: 46, media_entertainment: 55,
-  manufacturing: 40, energy_utilities: 42,
-  general_b2b: 49, general_b2c: 47,
-}
+/*
+ * There are no industry benchmarks. The table that used to live here was
+ * hard-coded with no data behind it and was shown to customers as a measured
+ * industry average ("Avg. General B2C 47/100"). A comparison may come back
+ * only computed from real scans and labelled with its sample size and date.
+ */
 
 /* ── Static maps ─────────────────────────────────────────────── */
 const PLATFORM_LABELS: Record<PlatformKey, string> = {
@@ -195,7 +192,9 @@ function deriveQuickWins(results: Record<string, unknown>): QuickWin[] {
   const wins: QuickWin[] = []
   for (const key of Object.keys(ALL_WEIGHTS)) {
     const check = getCheck(results, key)
-    if (!check || check.status === 'pass') continue
+    // A check that could not measure (no input, provider failure) is out of the
+    // score, so it is not a fix the customer can make either.
+    if (!check || check.status === 'pass' || !isAssessable(check)) continue
     const weight = ALL_WEIGHTS[key]!
     const pointsGain = check.status === 'fail' ? weight : weight * 0.5
     wins.push({
@@ -231,9 +230,8 @@ export function computeImpact(
   const projectedScore = capScore(Math.round((score + uplift) * 10) / 10)
   const projectedGrade = assignGrade(projectedScore)
 
-  // Headline: blocked platforms > low readable > benchmark gap > uplift
+  // Headline: blocked platforms > low readable > uplift
   const blockedCount = platformVisibility.filter(p => p.status === 'blocked').length
-  const benchmark = opts.industry ? INDUSTRY_BENCHMARKS[opts.industry] : undefined
 
   let headlineStat: HeadlineStat
   if (blockedCount > 0) {
@@ -248,14 +246,6 @@ export function computeImpact(
       type: 'low_readable',
       percent: aiReadablePercent,
       text: `AI engines can only use about ${aiReadablePercent}% of your content`,
-    }
-  } else if (benchmark !== undefined && score < benchmark) {
-    headlineStat = {
-      type: 'benchmark_gap',
-      benchmark,
-      gap: benchmark - score,
-      industry: opts.industry!,
-      text: `You score ${benchmark - score} points below the average for your industry`,
     }
   } else {
     const delta = Math.max(0, projectedScore - score)

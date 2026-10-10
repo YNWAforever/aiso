@@ -37,6 +37,7 @@ export function getScanErrorKey(status: number, payload: unknown) {
     'Invalid URL', 'Invalid URL format', 'URL must use HTTP or HTTPS without credentials',
     'URL must resolve to a public HTTP or HTTPS address',
   ].includes(error)) return 'url_invalid'
+  if (status === 422 && error === 'SCAN_UNREACHABLE') return 'scan_unreachable'
   if (status === 403 && error === 'AUTHENTICATED_SCAN_UPGRADE_REQUIRED') return 'scan_upgrade_required'
   if (status === 429) return error === 'AUTHENTICATED_SCAN_LIMIT_REACHED' ? 'scan_quota_reached' : 'scan_rate_limited'
   if (status === 503) {

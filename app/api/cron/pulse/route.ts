@@ -23,6 +23,40 @@ const MAX_CHAIN = 200
 const BUDGET_MS = 45_000
 
 /**
+ * Most clients one chain will pass over after they fail. The list travels in
+ * the hop URL, so it is bounded; reaching it ends the chain, and the next
+ * firing starts with an empty list.
+ */
+const MAX_SKIPPED = 25
+
+/** Client ids are uuids in production; this only has to keep the URL tame. */
+const SKIP_ID = /^[A-Za-z0-9-]{1,64}$/
+
+function parseSkip(raw: string | null): string[] {
+  if (!raw) return []
+  return [...new Set(raw.split(',').map(id => id.trim()).filter(id => SKIP_ID.test(id)))]
+    .slice(0, MAX_SKIPPED)
+}
+
+/**
+ * Fires the next hop once this response has been sent. A dropped link costs
+ * throughput, not correctness: the next scheduled firing resumes from the same
+ * derived progress.
+ */
+function chainNextHop(cronSecret: string, hop: number, skip: readonly string[]) {
+  const next = new URL('/api/cron/pulse', appOrigin())
+  next.searchParams.set('hop', String(hop + 1))
+  if (skip.length > 0) next.searchParams.set('skip', skip.join(','))
+  after(async () => {
+    try {
+      await fetch(next, { headers: { authorization: `Bearer ${cronSecret}` } })
+    } catch {
+      console.error('[cron/pulse] chain hop failed')
+    }
+  })
+}
+
+/**
  * Drives the chunked Pulse producer.
  *
  * Vercel Cron and `/api/pulse/run` have incompatible shapes, which is the whole
@@ -72,9 +106,10 @@ export async function GET(req: NextRequest) {
     }
 
     const startedAt = Date.now()
+    const skip = parseSkip(url.searchParams.get('skip'))
     let pending: Awaited<ReturnType<typeof selectPendingClients>>
     try {
-      pending = await selectPendingClients(db(), 1)
+      pending = await selectPendingClients(db(), 1, new Set(skip))
     } catch {
       console.error('[cron/pulse] pending-client lookup failed')
       const payload = { error: 'Lookup failed' }
@@ -113,8 +148,21 @@ export async function GET(req: NextRequest) {
         body: JSON.stringify({ clientId: target.clientId, cursor: target.cursor }),
       })
       if (!res.ok) {
-        // Do not chain past a failing client — it would spin the whole budget on
-        // the same error. The next firing retries it from the same derived cursor.
+        // Never retry a failing client in the same chain — that would spin the
+        // whole budget on one error. When the failure is about this client
+        // (a 4xx: bad request, plan grants no platforms, client gone), stopping
+        // the chain was worse: the client stayed first in line and starved every
+        // brand behind it. Pass over it instead; the next firing retries it from
+        // the same derived cursor.
+        //
+        // A 5xx is not about the client — a failed write, a failed lookup, a
+        // provider outage — and the next client would only pay for the same
+        // LLM calls and lose them the same way, so the chain stops.
+        const nextSkip = [...skip, target.clientId]
+        const passedOver = res.status < 500 && nextSkip.length <= MAX_SKIPPED
+          && Date.now() - startedAt < BUDGET_MS
+        if (passedOver) chainNextHop(cronSecret, hop, nextSkip)
+
         console.error(`[cron/pulse] producer returned ${res.status} for ${target.clientId}`)
         const payload = { error: 'Producer failed', status: res.status, clientId: target.clientId }
         await finishCronRun(runId, 'error', payload)
@@ -133,19 +181,7 @@ export async function GET(req: NextRequest) {
     // open for its successor.
     const moreWork = result.nextCursor !== null || pending.length > 0
     const chained = moreWork && Date.now() - startedAt < BUDGET_MS
-    if (chained) {
-      const next = new URL('/api/cron/pulse', appOrigin())
-      next.searchParams.set('hop', String(hop + 1))
-      after(async () => {
-        try {
-          await fetch(next, { headers: { authorization: `Bearer ${cronSecret}` } })
-        } catch {
-          // A dropped link costs throughput, not correctness: the next scheduled
-          // firing resumes from the same derived progress.
-          console.error('[cron/pulse] chain hop failed')
-        }
-      })
-    }
+    if (chained) chainNextHop(cronSecret, hop, skip)
 
     const payload = {
       hop,

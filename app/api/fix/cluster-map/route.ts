@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { callOpenRouter, type JsonSchemaFormat } from '@/lib/openrouter'
-import { getProfile } from '@/lib/auth'
+import { authorizeAiTool, consumeAiToolAllowance } from '@/lib/fix/guard'
 import { db } from '@/lib/db'
 import { INDUSTRY_PACKS } from '@/lib/authority/packs'
 import type { IndustryCode } from '@/lib/types'
@@ -67,8 +67,9 @@ type TopicalCluster = {
 }
 
 export async function POST(req: NextRequest) {
-  const profile = await getProfile()
-  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Paid plans only, refused before any lookup or model call (lib/fix/guard.ts).
+  const access = await authorizeAiTool({ paidOnly: true })
+  if (!access.ok) return access.response
 
   const { clientId, industry } = await req.json()
   if (!clientId || !industry) {
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
 
   let owned = false
   try {
-    owned = await ownsClient(clientId, profile.account_id)
+    owned = await ownsClient(clientId, access.accountId)
   } catch (error) {
     console.error('[fix/cluster-map] ownership check failed:', error)
     return NextResponse.json({ error: 'Database error' }, { status: 500 })
@@ -96,6 +97,11 @@ export async function POST(req: NextRequest) {
     console.error('[fix/cluster-map] cluster lookup failed:', error)
     return NextResponse.json({ error: 'Database error' }, { status: 500 })
   }
+
+  // Spent only once the data the prompt needs is in hand, immediately before
+  // the model call: a failed lookup must not cost a generation.
+  const overAllowance = await consumeAiToolAllowance(access.accountId)
+  if (overAllowance) return overAllowance
 
   const keywords = INDUSTRY_PACKS[industry as IndustryCode]?.topicalKeywords?.slice(0, 15) ?? []
 

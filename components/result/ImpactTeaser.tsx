@@ -15,8 +15,6 @@ function headlineZhHk(stat: HeadlineStat): string {
       return `你的網站對 ${stat.count} 個主要 AI 平台完全隱形（共 ${stat.total} 個）`
     case 'low_readable':
       return `AI 引擎只能使用你大約 ${stat.percent}% 的內容`
-    case 'benchmark_gap':
-      return `你的分數比同行業平均低 ${stat.gap} 分`
     case 'score_uplift':
       return stat.delta > 0
         ? `快速修復可令你的分數提升 ${stat.delta} 分，達到 ${stat.projectedScore}（${stat.projectedGrade}）`

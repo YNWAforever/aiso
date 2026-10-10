@@ -221,6 +221,18 @@ describe('GET /api/cron/trial-emails', () => {
     expect(selectClause).not.toMatch(/\bp\.id\b/i)
   })
 
+  it('never emails a removed member, and picks the oldest active one', async () => {
+    // Migration 049 makes deactivated_at the only enforcement; a removed
+    // member kept receiving the account's trial drip.
+    const { GET } = await importRoute()
+    await GET(request('test-cron-secret-0123'))
+
+    const [selectCall] = mockSql.mock.calls
+    const text = (selectCall[0] as TemplateStringsArray).join('?')
+    expect(text).toMatch(/p\.deactivated_at IS NULL/i)
+    expect(text).toMatch(/ORDER BY a\.id ASC,\s*p\.created_at ASC,\s*p\.id ASC/i)
+  })
+
   it('filters out accounts with stripe_subscription_id (converted customers)', async () => {
     const { GET } = await importRoute()
     await GET(request('test-cron-secret-0123'))

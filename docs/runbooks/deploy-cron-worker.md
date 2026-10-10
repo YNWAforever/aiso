@@ -32,11 +32,14 @@ n8n. Record observed timestamps, schedules, enabled state and owner. A missing
 Establish one producer per enabled job before activation. Unknown ownership blocks
 activation; do not retire a workflow based only on repository configuration.
 
-The source supports these schedules; the dedicated config intentionally enables none:
+Since the 2026-10-09 audit (finding P0-1) the dedicated config carries these three
+schedules, so that the config the runbook deploys is the one the schedule test pins.
+**Committing them activates nothing**: the Worker still has to be deployed, and that
+deployment remains a separately approved step under the rest of this runbook.
 
-| Route | Supported cron (UTC) | Acceptance evidence |
+| Route | Cron (UTC) | Acceptance evidence |
 | --- | --- | --- |
-| `/api/cron/pulse` | `17 4 * * 1` | Trigger and ledger correlated with producer completion/rollup state; a 2xx alone is insufficient |
+| `/api/cron/pulse` | `17 4 * * *` (daily; only clients whose week is not yet rolled up are selected, so Tuesday–Sunday firings cost nothing unless a failed hop left a week incomplete) | Trigger and ledger correlated with producer completion/rollup state; a 2xx alone is insufficient |
 | `/api/cron/evaluate-alerts` | `47 7 * * 1` | Evaluation outcome and relevant completion counters; scheduled later than Pulse, but elapsed time does not prove Pulse finished |
 | `/api/cron/trial-emails` | `0 9 * * *` | HTTP status plus sent/failed counters and ledger; investigate partial failures before replay |
 | `/api/cron/search-console` | `0 9 * * *` (same trigger as trial emails) | Per-outcome counts in the body and `search_console_sync_runs`; `502` means brands were due and none synced. With `FEATURE_SEARCH_CONSOLE` unset it answers `200 {skipped: 'flag_off'}` |

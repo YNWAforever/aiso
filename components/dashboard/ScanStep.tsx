@@ -13,6 +13,12 @@ const INDUSTRY_VALUES = [
 
 const REGION_VALUES = ['global', 'HK', 'TW', 'SG', 'JP', 'KR', 'US', 'UK', 'EU', 'AU', 'CA'] as const
 
+/** A translated message key for a known scan failure, or null to keep the existing handling. */
+export function getDashboardScanErrorKey(status: number, payload: unknown): 'scan_unreachable' | null {
+  const error = payload && typeof payload === 'object' && 'error' in payload ? payload.error : undefined
+  return status === 422 && error === 'SCAN_UNREACHABLE' ? 'scan_unreachable' : null
+}
+
 type Props = {
   lang: string
   clientId: string
@@ -53,7 +59,12 @@ export function ScanStep({ lang, clientId, scanHistory }: Props) {
         body: JSON.stringify({ url: scanUrl.trim(), industry: industry || undefined, region: region || undefined, clientId }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data.error || t('scan_failed')); setLoading(false); return }
+      if (!res.ok) {
+        const key = getDashboardScanErrorKey(res.status, data)
+        setError(key ? t(key) : (data.error || t('scan_failed')))
+        setLoading(false)
+        return
+      }
       router.push(`/${lang}/dashboard/${clientId}?step=results&scanId=${data.id}`)
     } catch {
       setError(t('network_error'))

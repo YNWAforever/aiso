@@ -129,3 +129,35 @@ describe('checkTopicalAuthority', () => {
     expect(r.geoDetails?.detectedClusters).toEqual([])
   })
 })
+
+describe('checkTopicalAuthority — URLs that reveal no structure', () => {
+  // Only URLs with at least two path segments are grouped. A flat site
+  // (/post-slug) or a sitemap index (/sitemap-1.xml) left the model with
+  // `URL groups: {}` and the industry keywords — free to invent clusters, each
+  // worth 15 points.
+  it('does not ask the model to cluster nothing', async () => {
+    const flat = ['https://example.com/one', 'https://example.com/two', 'https://example.com/sitemap-posts.xml']
+    const r = await checkTopicalAuthority(flat, 'client-123', 'technology')
+
+    expect(openRouter).not.toHaveBeenCalled()
+    expect(r.message).toBe('topical_authority_unstructured')
+    expect(r.diagnostic).toEqual({ collection: 'unsupported', reason: 'no-input' })
+  })
+})
+
+describe('checkTopicalAuthority — provider failure', () => {
+  // Clusters come only from the model. When it fails, "0 clusters detected" was
+  // shown to the customer as a real finding and scored 0/7 — our outage
+  // presented as their content gap.
+  it.each([
+    ['a thrown call', () => openRouter.mockRejectedValue(new Error('provider down'))],
+    ['a reply that is not JSON', () => openRouter.mockResolvedValue('I cannot help with that.')],
+  ])('reports %s as unavailable rather than as a finding', async (_label, arrange) => {
+    arrange()
+    const r = await checkTopicalAuthority(URLS, 'client-123', 'technology')
+
+    expect(r.message).toBe('topical_authority_unavailable')
+    expect(r.diagnostic).toEqual({ collection: 'failed', reason: 'provider-fallback' })
+    expect(r.details ?? '').not.toMatch(/clusters detected/)
+  })
+})

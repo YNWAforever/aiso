@@ -46,6 +46,7 @@ describe('safe localized scan failures', () => {
     [400, 'Invalid URL format', 'url_invalid'],
     [400, 'URL must use HTTP or HTTPS without credentials', 'url_invalid'],
     [400, 'URL must resolve to a public HTTP or HTTPS address', 'url_invalid'],
+    [422, 'SCAN_UNREACHABLE', 'scan_unreachable'],
     [400, 'Invalid JSON body', 'scan_error_action'],
     [400, 'unknown private message', 'scan_error_action'],
   ])('maps %s / %s to %s', (status, error, key) => {

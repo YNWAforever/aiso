@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { buildScanEvidence, readScanEvidence, compareScanEvidence, CHECK_VERSIONS, describeEvidenceUrl } from '@/lib/scan-evidence'
+import { createHash } from 'node:crypto'
+import { buildScanEvidence, readScanEvidence, compareScanEvidence, CHECK_VERSIONS, SCANNER_METHODS, describeEvidenceUrl } from '@/lib/scan-evidence'
 
 const input = () => ({ requestedUrl: 'https://example.com/private-secret?q=secret#secret', evaluatedUrl: 'https://example.com', industry: 'general_b2c', region: 'global', sitemapSource: 'fetched' as const, checks: {} })
 describe('bounded scan evidence', () => {
@@ -60,6 +61,28 @@ describe('bounded scan evidence', () => {
     const otherRegion = buildScanEvidence({...input(),checks,observations,region:'HK'})
     expect(compareScanEvidence(first,otherRegion).reason).toBe('different-methods-or-scope')
     expect(readScanEvidence({...first, scannerVersion:'old'})).toBeNull()
+  })
+
+  it('still reads evidence recorded under a registered earlier scanner method', () => {
+    // Bumping SCANNER_VERSION for a methodology change must not make every
+    // stored scan unreadable: readScanEvidence rebuilds the envelope and
+    // compares, so an earlier method has to be rebuildable with its own
+    // versions.
+    const current = buildScanEvidence(input())
+    const legacy = structuredClone(current) as typeof current & { scannerVersion: string }
+    const legacyVersion = '2026-09-05.v1'
+    const legacyChecks = SCANNER_METHODS[legacyVersion]
+    legacy.scannerVersion = legacyVersion
+    ;(legacy.comparison as Record<string, unknown>).scannerVersion = legacyVersion
+    ;(legacy.comparison as Record<string, unknown>).checkVersions = legacyChecks
+    for (const key of Object.keys(legacy.checks) as Array<keyof typeof legacy.checks>) {
+      legacy.checks[key].version = legacyChecks[key]
+    }
+    legacy.comparisonSignature = createHash('sha256').update(JSON.stringify(legacy.comparison)).digest('hex')
+
+    expect(readScanEvidence(legacy)).toEqual(legacy)
+    // And a scan under the earlier method is never compared as like-for-like.
+    expect(compareScanEvidence(legacy, current).reason).toBe('different-methods-or-scope')
   })
 
   it.each(['UNTRUSTED_SENTINEL', 'x'.repeat(40000), { private: 'UNTRUSTED_SENTINEL' }, null])('bounds runtime-untrusted sitemap provenance', value => {

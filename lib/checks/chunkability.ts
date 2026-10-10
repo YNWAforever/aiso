@@ -1,4 +1,5 @@
 import type { CheckResult, IndustryCode, RegionCode, ChunkabilityResult } from '@/lib/types'
+import { stripNonVisible } from '@/lib/checks/visibleText'
 
 interface Context { industry: IndustryCode; region: RegionCode }
 
@@ -10,7 +11,10 @@ export async function checkChunkability(
   const chunks: ChunkabilityResult['chunkAnalysis'] = []
   let m: RegExpExecArray | null
 
-  while ((m = headingPattern.exec(html)) !== null) {
+  // Sections are read from visible markup: an inline script between a heading
+  // and its paragraph used to become the section's "first sentence".
+  const visibleHtml = stripNonVisible(html)
+  while ((m = headingPattern.exec(visibleHtml)) !== null) {
     const heading = m[2].replace(/<[^>]+>/g, '').trim()
     const body = m[3].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
     const words = body.split(/\s+/).filter(Boolean)

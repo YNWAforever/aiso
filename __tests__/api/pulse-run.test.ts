@@ -322,6 +322,51 @@ describe('POST /api/pulse/run — writes', () => {
   })
 })
 
+describe('POST /api/pulse/run — provider failure', () => {
+  // A total provider outage (key revoked, credits exhausted, every model down)
+  // used to look like a healthy chunk: each prompt's rows were deleted, nothing
+  // was written, and the route still answered 200 with processed > 0. The
+  // driver then chained to the chain limit, re-picking the same client.
+  it('answers non-2xx when no prompt in the chunk got any response', async () => {
+    llm.callMultiPlatform.mockResolvedValue([])
+    const res = await post({ clientId: 'client-1' })
+
+    expect(res.status).toBe(502)
+    expect(await res.json()).toMatchObject({ error: 'NO_PROVIDER_RESPONSES', cursor: 0 })
+  })
+
+  it('treats a thrown provider call the same way', async () => {
+    llm.callMultiPlatform.mockRejectedValue(new Error('provider down'))
+    const res = await post({ clientId: 'client-1' })
+
+    expect(res.status).toBe(502)
+  })
+
+  it('never deletes a prompt\'s existing rows when it got no new answer', async () => {
+    llm.callMultiPlatform.mockResolvedValue([])
+    await post({ clientId: 'client-1' })
+
+    expect(calls.filter(c => /delete from pulse_metrics/i.test(c.text))).toHaveLength(0)
+    expect(inserts('pulse_metrics')).toHaveLength(0)
+    expect(inserts('pulse_weekly_summary')).toHaveLength(0)
+  })
+
+  it('keeps the rows of the one prompt that failed and reports it', async () => {
+    llm.callMultiPlatform
+      .mockResolvedValueOnce([{ platform: 'gemini-flash', answer: 'AcmeCo is great.' }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ platform: 'gemini-flash', answer: 'AcmeCo is fine.' }])
+    const res = await post({ clientId: 'client-1' })
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ failedPrompts: 1 })
+    const deletedPrompts = calls
+      .filter(c => /delete from pulse_metrics/i.test(c.text))
+      .map(c => c.params[1])
+    expect(deletedPrompts).toEqual(['p1', 'p3'])
+  })
+})
+
 describe('POST /api/pulse/run — execution budget', () => {
   it('analyses the platform responses concurrently, not one after another', async () => {
     // A call-count assertion passes whether these run in series or in parallel.

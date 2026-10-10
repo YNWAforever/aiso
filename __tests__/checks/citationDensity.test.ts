@@ -138,4 +138,21 @@ describe('checkCitationDensity', () => {
       domain: 'nih.gov',
     })])
   })
+
+  it('measures density against the words a reader sees, not inline scripts', async () => {
+    // 400 lines of script used to count as page words, diluting a real citation
+    // to almost nothing.
+    const script = `<script>${'var filler = 1; '.repeat(400)}</script>`
+    const html = `<html><head>${script}</head><body><p>According to <a href="https://nih.gov/study">NIH</a> results improved for patients in trials.</p></body></html>`
+    const result = await checkCitationDensity(html, 'https://example.com', { industry: 'finance', region: 'global' })
+
+    expect(result.geoDetails?.citationsPerThousandWords).toBeGreaterThan(50)
+  })
+
+  it('does not count a link that only appears inside a script', async () => {
+    const html = `<html><head><script>document.write('<a href="https://nih.gov/x">x</a>')</script></head><body><p>No sources here at all today.</p></body></html>`
+    const result = await checkCitationDensity(html, 'https://example.com', { industry: 'finance', region: 'global' })
+
+    expect(result.geoDetails?.externalLinks).toBe(0)
+  })
 })

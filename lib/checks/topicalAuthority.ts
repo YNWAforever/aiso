@@ -131,6 +131,18 @@ export async function checkTopicalAuthority(
     } catch {}
   }
 
+  // Nothing to cluster: a flat URL structure (/post-slug), or a sitemap index
+  // whose entries are child sitemaps. Asking the model anyway handed it only
+  // the industry keywords — free to invent clusters worth 15 points each. The
+  // URLs exist but reveal no structure, so this is unassessable, not a finding.
+  if (!Object.values(slugGroups).some(group => group.length >= 2)) {
+    return {
+      status: 'warn', message: 'topical_authority_unstructured',
+      diagnostic: { collection: 'unsupported', reason: 'no-input' },
+      geoDetails: { topicalCoverageScore: 0, detectedClusters: [], totalClusters: 0, hasOrphanPages: 0 },
+    }
+  }
+
   const industryKeywords = INDUSTRY_PACKS[industry]?.topicalKeywords?.slice(0, 10) ?? []
   let providerFallback = false
   let detectedClusters: TopicalAuthorityResult['detectedClusters'] = []
@@ -164,12 +176,23 @@ URL groups: ${JSON.stringify(slugGroups).slice(0, 1500)}`
     try { providerFallback = !Array.isArray(JSON.parse(res.match(/\[[\s\S]*\]/)?.[0] ?? 'null')) } catch { providerFallback = true }
   } catch { providerFallback = true }
 
+  // Clusters come only from the model, so without it there is no measurement.
+  // Reported as unavailable and declared `failed`, which keeps it out of the
+  // GEO score — "0 clusters detected" here was our outage shown as their gap.
+  if (providerFallback) {
+    return {
+      status: 'warn', message: 'topical_authority_unavailable',
+      diagnostic: { collection: 'failed', reason: 'provider-fallback' },
+      geoDetails: { topicalCoverageScore: 0, detectedClusters: [], totalClusters: 0, hasOrphanPages: 0 },
+    }
+  }
+
   const orphanPages = sitemapUrls.filter(u => { try { return new URL(u).pathname.split('/').filter(Boolean).length === 1 } catch { return false } }).length
   const topicalCoverageScore = Math.min(100, detectedClusters.length * 15 + Math.max(0, 20 - orphanPages * 2))
   const status = topicalCoverageScore >= 60 ? 'pass' : topicalCoverageScore >= 30 ? 'warn' : 'fail'
 
   return {
-    diagnostic: { collection: 'partial', reason: providerFallback ? 'provider-fallback' : 'inferred-only' },
+    diagnostic: { collection: 'partial', reason: 'inferred-only' },
     status, message: `topical_authority_${status}`,
     details: `${detectedClusters.length} clusters detected`,
     geoDetails: { topicalCoverageScore, detectedClusters, totalClusters: detectedClusters.length, hasOrphanPages: orphanPages },

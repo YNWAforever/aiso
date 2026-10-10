@@ -62,6 +62,35 @@ export function calculateScore(results: ScanResults): number {
   return sumWeightedScore(results, CORE_PTS) + sumWeightedScore(results, EXT_PTS)
 }
 
+const GEO_TOTAL = Object.values(GEO_PTS).reduce((sum, pts) => sum + pts, 0)
+
+/**
+ * Whether a check produced a measurement at all. A check that could not
+ * collect its input (no sitemap) or whose provider failed declares that in its
+ * diagnostic; scoring it as a fail turns our outage into the customer's
+ * finding, and scoring it as a warn hands out credit for nothing.
+ */
+export function isAssessable(result: CheckResult | undefined): boolean {
+  const collection = result?.diagnostic?.collection
+  return collection !== 'failed' && collection !== 'unsupported'
+}
+
+/**
+ * The GEO bucket over the checks that could be assessed, rescaled to its 25.
+ * A missing key still scores as a fail, as everywhere else in this file; only
+ * a check that declares it could not measure is left out. Rounded to cents to
+ * match `scans.score numeric(5,2)`.
+ */
 export function calculateGeoScore(results: Partial<Record<keyof typeof GEO_PTS, CheckResult>>): number {
-  return sumWeightedScore(results, GEO_PTS)
+  const r = results as Record<string, CheckResult | undefined>
+  let earned = 0
+  let possible = 0
+  for (const [key, pts] of Object.entries(GEO_PTS)) {
+    const result = r[key]
+    if (result && !isAssessable(result)) continue
+    possible += pts
+    earned += scorePts(result ?? { status: 'fail', message: '' }, pts)
+  }
+  if (possible === 0) return 0
+  return Math.round((earned * GEO_TOTAL / possible) * 100) / 100
 }

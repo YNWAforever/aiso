@@ -256,13 +256,69 @@ describe('GET /api/cron/pulse — chaining', () => {
     expect(afterCallbacks).toHaveLength(0)
   })
 
-  it('does not chain past a failing producer', async () => {
-    // Otherwise the whole budget spins on one broken client. The next scheduled
-    // firing retries it from the same derived cursor.
-    fetchMock.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) })
+  it('never retries a failing client in the same chain, but moves on to the next', async () => {
+    // Retrying it would spin the whole budget on one broken client. Stopping
+    // the chain instead (the old behaviour) left that client first in line, so
+    // one persistently failing brand starved every brand behind it until it
+    // recovered. The next scheduled firing retries it from the same cursor.
+    fetchMock.mockResolvedValue({ ok: false, status: 403, json: async () => ({ error: 'PLAN_HAS_NO_PLATFORMS' }) })
     const res = await get()
 
     expect(res.status).toBe(502)
+    expect(afterCallbacks).toHaveLength(1)
+    await afterCallbacks[0]()
+    const next = new URL(String(fetchMock.mock.calls.at(-1)?.[0]))
+    expect(next.searchParams.get('hop')).toBe('1')
+    expect(next.searchParams.get('skip')).toBe('client-1')
+  })
+
+  it('stops the chain on a provider outage, which no other client would escape', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false, status: 502, json: async () => ({ error: 'NO_PROVIDER_RESPONSES' }),
+    })
+    const res = await get()
+
+    expect(res.status).toBe(502)
+    expect(afterCallbacks).toHaveLength(0)
+  })
+
+  it('passes over clients already skipped in this chain', async () => {
+    candidateRows = [account('pro', { client_id: 'client-1' }), account('pro', { client_id: 'client-2' })]
+    const url = new URL('http://localhost/api/cron/pulse')
+    url.searchParams.set('hop', '1')
+    url.searchParams.set('skip', 'client-1')
+    await GET(new Request(url, { headers: { authorization: `Bearer ${CRON_SECRET}` } }) as never)
+
+    const [producerCall] = fetchMock.mock.calls
+    expect(JSON.parse(producerCall[1].body)).toMatchObject({ clientId: 'client-2' })
+  })
+
+  it('stops the chain on a server-side producer failure, which is not about the client', async () => {
+    // A failed write or lookup would fail the same way for the next client —
+    // after it had paid for that client's LLM calls.
+    fetchMock.mockResolvedValue({ ok: false, status: 500, json: async () => ({ error: 'Pulse run failed' }) })
+    const res = await get()
+
+    expect(res.status).toBe(502)
+    expect(afterCallbacks).toHaveLength(0)
+  })
+
+  it('accumulates the skip list across hops and caps it', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 404, json: async () => ({ error: 'Client not found' }) })
+    const url = new URL('http://localhost/api/cron/pulse')
+    url.searchParams.set('hop', '3')
+    url.searchParams.set('skip', 'client-0')
+    await GET(new Request(url, { headers: { authorization: `Bearer ${CRON_SECRET}` } }) as never)
+    await afterCallbacks[0]()
+
+    const next = new URL(String(fetchMock.mock.calls.at(-1)?.[0]))
+    expect(next.searchParams.get('skip')).toBe('client-0,client-1')
+
+    afterCallbacks.length = 0
+    const full = Array.from({ length: 25 }, (_, i) => `full-${i}`).join(',')
+    const capped = new URL('http://localhost/api/cron/pulse')
+    capped.searchParams.set('skip', full)
+    await GET(new Request(capped, { headers: { authorization: `Bearer ${CRON_SECRET}` } }) as never)
     expect(afterCallbacks).toHaveLength(0)
   })
 

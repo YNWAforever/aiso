@@ -32,11 +32,27 @@ import { resolveCommercialEntitlement } from '@/lib/tier'
 import { fetchPublicUrl, PublicUrlError } from '@/lib/security/public-url'
 import { consumePublicScanRateLimit, rateLimitHeaders } from '@/lib/security/public-scan-rate-limit'
 import { parseSitemapUrls } from '@/lib/security/sitemap-urls'
-import { consumeAuthenticatedScanQuota, authenticatedScanQuotaHeaders } from '@/lib/security/authenticated-scan-quota'
+import { consumeAuthenticatedScanQuota, authenticatedScanQuotaHeaders, releaseAuthenticatedScanQuota } from '@/lib/security/authenticated-scan-quota'
 import { GEO_PTS, assignGrade, calculateScore, calculateGeoScore, capScore } from '@/lib/scoring'
 import { calculatePillarScores } from '@/lib/pillar-scores'
 import { buildScanEvidence, CHECK_VERSIONS, type EvidenceCheckKey } from '@/lib/scan-evidence'
 import { createScanEvidenceCapture } from '@/lib/scan-evidence-capture'
+import { fetchSitemapPageUrls } from '@/lib/sitemap-fetch'
+
+const IPV4 = /^(?:\d{1,3}\.){3}\d{1,3}$/
+const TLD = /^(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$/i
+
+/**
+ * Whether a hostname can name a public website at all: an IP literal, or a
+ * dotted name with no empty label and an alphabetic (or punycode) TLD. This is
+ * a shape check only; whether the address is public is fetchPublicUrl's job.
+ */
+function isScannableHost(hostname: string): boolean {
+  if (IPV4.test(hostname) || hostname.startsWith('[')) return true
+  // A fully qualified name may end in one dot ("example.com.").
+  const labels = (hostname.endsWith('.') ? hostname.slice(0, -1) : hostname).split('.')
+  return labels.length >= 2 && labels.every(Boolean) && TLD.test(labels[labels.length - 1]!)
+}
 import type { ScanResults, IndustryCode, RegionCode } from '@/lib/types'
 
 // Re-exported for existing tests that import scoring from this route
@@ -69,6 +85,12 @@ export async function POST(req: NextRequest) {
     baseUrl = parsed.origin
     domain = parsed.hostname
   } catch {
+    return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 })
+  }
+  // A host that can never be a public website ("not-a-valid-url") is refused
+  // here, before any rate limit or quota is spent. It used to reach the page
+  // fetch, fail DNS, degrade every check and be saved with a grade.
+  if (!isScannableHost(domain)) {
     return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 })
   }
 
@@ -139,6 +161,9 @@ export async function POST(req: NextRequest) {
 
   const entitlement = resolveCommercialEntitlement(profile?.accounts)
   let scanHeaders: Headers | undefined
+  // Set once a monthly scan has been spent, so a scan that turns out to have
+  // nothing to assess can give it back.
+  let quotaSpentBy: string | null = null
   if (!profile || (entitlement.plan === 'free' && !ownedClient)) {
     try {
       const decision = await consumePublicScanRateLimit(req)
@@ -165,6 +190,7 @@ export async function POST(req: NextRequest) {
           { status: 429, headers: scanHeaders },
         )
       }
+      quotaSpentBy = profile.account_id
     } catch (error) {
       console.error('[scan] authenticated quota failed:', (error as Error)?.message ?? String(error))
       return NextResponse.json({ error: 'Authenticated scan quota unavailable' }, { status: 503 })
@@ -178,12 +204,12 @@ export async function POST(req: NextRequest) {
   // The reusable boundary validates DNS and every redirect hop.
   const capture = createScanEvidenceCapture(fetchPublicUrl)
   let html = ''
+  let htmlRes: Response
   try {
-    const htmlRes = await capture.forCheck('page')(baseUrl, {
+    htmlRes = await capture.forCheck('page')(baseUrl, {
       headers: { 'User-Agent': 'FimmickAISO/1.0' },
       signal: AbortSignal.timeout(15_000),
     })
-    html = await htmlRes.text()
   } catch (error) {
     if (error instanceof PublicUrlError) {
       return NextResponse.json({ error: 'URL must resolve to a public HTTP or HTTPS address' }, {
@@ -191,8 +217,27 @@ export async function POST(req: NextRequest) {
         headers: scanHeaders,
       })
     }
+    // No HTTP response at all (DNS failure, refused connection, timeout): there
+    // is no site to assess, so nothing is graded or saved. Any response, even
+    // a 403 or 500, is still scanned — reporting that is what bot-access is for.
+    console.error('[scan] page unreachable:', (error as Error)?.name ?? 'Error')
+    // Nothing is saved, so the monthly scan it spent is given back. A failed
+    // refund is logged, not surfaced: the 422 is still the true answer.
+    if (quotaSpentBy) {
+      try {
+        await releaseAuthenticatedScanQuota(quotaSpentBy)
+      } catch (releaseError) {
+        console.error('[scan] quota refund failed:', (releaseError as Error)?.name ?? 'Error')
+      }
+    }
+    return NextResponse.json({ error: 'SCAN_UNREACHABLE' }, { status: 422, headers: scanHeaders })
+  }
+  try {
+    html = await htmlRes.text()
+  } catch {
+    // The site answered but its body could not be read: still a site, so
+    // checks degrade on empty HTML as before.
     capture.failedRead('page')
-    // Continue without HTML — checks degrade gracefully for ordinary network failures.
   }
 
   // Run all 16 checks (5 core + 11 extended) in parallel
@@ -257,18 +302,9 @@ export async function POST(req: NextRequest) {
   let sitemapUrlsForGeo: string[] = parsedSitemapUrls.urls
   if (!sitemapUrlsForGeo.length) {
     try {
-      const sitemapRes = await capture.forCheck('sitemap')(new URL('/sitemap.xml', baseUrl), {
-        headers: { 'User-Agent': 'FimmickAISO/1.0' },
-        signal: AbortSignal.timeout(8_000),
-      })
-      if (sitemapRes.ok) {
-        const sitemapXml = await sitemapRes.text()
-        const locMatches = sitemapXml.match(/<loc>([^<]+)<\/loc>/g) ?? []
-        sitemapUrlsForGeo = locMatches
-          .map(m => m.replace(/<\/?loc>/g, '').trim())
-          .slice(0, 200)
-      }
-    } catch { capture.failedRead('sitemap') /* sitemap unavailable — c19 will return warn/fail */ }
+      // Follows a sitemap index one level, within the same 8s budget.
+      sitemapUrlsForGeo = await fetchSitemapPageUrls(capture.forCheck('sitemap'), baseUrl, { timeoutMs: 8_000 })
+    } catch { capture.failedRead('sitemap') /* sitemap unavailable — c19 reports it unassessable */ }
   }
 
   const geoDetails: Record<string, unknown> = {}
@@ -294,7 +330,12 @@ export async function POST(req: NextRequest) {
   for (const key of Object.keys(GEO_PTS) as Array<keyof typeof GEO_PTS>) {
     const r = geoResults[key]
     // Store both the CheckResult (for status/message) and the rich geoDetails under named keys
-    geoDetails[key] = { status: r.status, message: r.message, details: (r as { details?: unknown }).details }
+    // The diagnostic is kept so readers of the stored result (computeImpact's
+    // quick wins) know a check could not measure, as calculateGeoScore did here.
+    geoDetails[key] = {
+      status: r.status, message: r.message, details: (r as { details?: unknown }).details,
+      ...(r.diagnostic ? { diagnostic: r.diagnostic } : {}),
+    }
     if ('geoDetails' in r && r.geoDetails) {
       geoDetails[`${key}_data`] = r.geoDetails
     }
