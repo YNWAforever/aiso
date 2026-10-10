@@ -43,10 +43,14 @@ deployment remains a separately approved step under the rest of this runbook.
 | `/api/cron/evaluate-alerts` | `47 7 * * 1` | Evaluation outcome and relevant completion counters; scheduled later than Pulse, but elapsed time does not prove Pulse finished |
 | `/api/cron/trial-emails` | `0 9 * * *` | HTTP status plus sent/failed counters and ledger; investigate partial failures before replay |
 | `/api/cron/search-console` | `0 9 * * *` (same trigger as trial emails) | Per-outcome counts in the body and `search_console_sync_runs`; `502` means brands were due and none synced. With `FEATURE_SEARCH_CONSOLE` unset it answers `200 {skipped: 'flag_off'}` |
+| `/api/cron/pulse?mode=repair` | `0 9 * * *` (same daily trigger) | T07 resumes saved weekly enqueue intent and due items at the original UTC week. Correlate run/item/attempt coverage and cron outcome; flag-off is inert. No independent daily Pulse intent is created |
 
-The `0 9 * * *` trigger fans out to both daily routes with `Promise.allSettled`, so
+The `0 9 * * *` trigger fans out to all three daily routes with `Promise.allSettled`, so
 one failing does not stop the other. Approving that cron string enables both; the
 Search Console route stays inert until its feature flag and Google variables are set.
+Pulse repair stays inert until FEATURE_PULSE_ATTEMPTS is enabled after migration/role validation.
+The added repair dispatch is a reviewable activation change: approve its binding,
+provider mode and exact source SHA explicitly along with the other daily routes.
 
 Prepare a diff to the dedicated config that adds the approved HTTPS `APP_BASE_URL`
 and only the individually approved cron strings. Keep the exact account/name,
@@ -92,7 +96,7 @@ REST module upload, preserve `main_module` metadata and use the module content t
 4. Read back deployed version, origin metadata, secret binding name, schedules and disabled public/preview access. Never print secret values.
 5. Observe the approved scheduled executions and correlate safe ledger/completion summaries for each route. Record skipped, empty, partial and failed outcomes explicitly. A successful trigger alone is not successful product work.
 
-The Worker makes one fetch attempt per invocation and propagates failures. Its source
+The Worker makes one fetch attempt per mapped route and propagates failures. Its source
 contains no retry loop. Do not infer platform retries from a thrown exception or the
 mock tests. Trial emails send before persisting the sent bit; if persistence fails after
 a successful send, another invocation can resend that email. Concurrent invocation safety

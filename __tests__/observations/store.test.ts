@@ -13,7 +13,7 @@ const NEXT_ID = '30000000-0000-4000-8000-000000000002'
 const PROMPT = '40000000-0000-4000-8000-000000000001'
 const TIME = '2026-09-01T12:30:45.123456Z'
 const question = { id: PROMPT, question: 'Current text', category: 'unknown-category', language: 'en', isActive: null }
-const item = (overrides = {}) => ({ id: ID, prompt_id: PROMPT, question: 'Historical text', platform: 'chatgpt', scan_week: '2026-08-31', created_at: TIME, has_answer: true, brand_mentioned: false, current_prompt: question, ...overrides })
+const item = (overrides = {}) => ({ id: ID, prompt_id: PROMPT, question: 'Historical text', platform: 'chatgpt', scan_week: '2026-08-31', created_at: TIME, has_answer: true, brand_mentioned: false, classification_status:'classified',current_prompt: question, ...overrides })
 const snapshot = (overrides = {}) => ({ owned: true, selected_week: '2026-08-31', weeks: ['2026-08-31'], questions: [question], items: [item()], recorded_rows: '3', successful_rows: '1', ...overrides })
 const query = (value = '') => parseObservationQuery(new URLSearchParams(value))
 function captured() {
@@ -51,7 +51,7 @@ describe('loadObservationSnapshot', () => {
     expect(counts).toContain('from filtered')
     expect(counts).not.toMatch(/limit|created_at|success\x27|incomplete\x27/)
     expect(text).toContain("coalesce(m.raw_answer ~ '[^[:space:]]', false) as has_answer")
-    expect(text).toContain('m.brand_mentioned is not null as classified')
+    expect(text).toContain("m.classification_status='classified' and m.brand_mentioned is not null as classified")
     expect(text).not.toMatch(/jsonb?_agg\([a-z]+\.\*|row_to_json|to_jsonb|\x27raw_answer\x27/)
     expect(values).toContain(ACCOUNT)
     expect(values).toContain(CLIENT)

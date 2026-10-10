@@ -193,6 +193,9 @@ function readReport({ name, reportPath, status }) {
 }
 
 async function main() {
+  if(process.env.ALLOW_DISPOSABLE_ROLE_PASSWORD!=='1'){
+    throw new Error('ROLE_ACCEPTANCE_BLOCKED: setting a disposable role password requires explicit authorization; no branch or role was changed')
+  }
   rmSync(REPORT_DIR, { recursive: true, force: true })
   mkdirSync(REPORT_DIR, { recursive: true })
 

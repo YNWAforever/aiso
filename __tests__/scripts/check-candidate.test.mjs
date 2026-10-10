@@ -43,6 +43,17 @@ describe('manual candidate boundary', () => {
     await expect(runCandidateCheck(options(), h.ports)).rejects.toThrow('Candidate verification failed')
     expect(h.calls).toHaveLength(1); expect(h.writes).toHaveLength(0)
   })
+  it('accepts the standard Preview API target staging without a custom environment', async () => {
+    const h = harness(d => { d.metadata.target = 'staging'; d.metadata.customEnvironment = null })
+    expect((await runCandidateCheck(options(), h.ports)).exitCode).toBe(0)
+    expect(h.calls.map(c => c.init.method)).toEqual(['GET', 'POST', 'GET'])
+  })
+  it.each([null, 'staging'])('refuses a custom environment advertised as Preview target %s', async target => {
+    const h = harness(d => { d.metadata.target = target; d.metadata.customEnvironment = { id: 'env_custom', slug: 'staging' } })
+    await expect(runCandidateCheck(options(), h.ports)).rejects.toThrow('Candidate verification failed')
+    expect(h.calls.map(c => c.init.method)).toEqual(['GET'])
+    expect(h.writes).toHaveLength(0)
+  })
   it('rejects source disagreement and post-read drift', async () => {
     const h = harness(d => { d.metadata.gitSource.sha = 'c'.repeat(40) })
     await expect(runCandidateCheck(options(), h.ports)).rejects.toThrow()

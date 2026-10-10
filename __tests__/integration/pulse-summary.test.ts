@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { neon } from '@neondatabase/serverless'
 import { computeWeeklySummary } from '@/lib/pulse/summary'
+import { selectPendingClientPage } from '@/lib/pulse/schedule'
+import { randomUUID } from 'node:crypto'
+import type { db } from '@/lib/db'
 
 const sql = neon(process.env.TEST_DATABASE_URL!)
 
@@ -37,6 +40,7 @@ async function seed() {
       (${CLIENT}, 'gemini', 'q2', false, 'negative', ${null},                       ${MONDAY}),
       (${CLIENT}, 'gemini', 'q3', false, 'neutral',  ${[]}::text[],                 ${MONDAY})
   `
+  await sql`update pulse_metrics set classification_status='classified',classifier_method='synthetic-fixture',classifier_version='fixture.v1' where client_id=${CLIENT}`
 }
 
 const summaryRows = () => sql`
@@ -46,6 +50,45 @@ const summaryRows = () => sql`
 
 describe('pulse weekly summary rollup', () => {
   beforeEach(seed)
+  it('continues tied microsecond brand timestamps without repeating the first page',async()=>{
+    const accounts=Array.from({length:3},()=>randomUUID())
+    try{
+      await sql`insert into accounts(id,plan,status,stripe_subscription_id)select id,'pro','active','synthetic-'||id from unnest(${accounts}::uuid[])as t(id)`
+      const brands=await sql`with added as (insert into clients(account_id,brand_name,status,created_at)select id,'Synthetic micros','active','2019-01-01T00:00:00.123456Z' from unnest(${accounts}::uuid[])as t(id)returning id)insert into prompt_bank(client_id,question)select id,'Synthetic microsecond question?' from added returning client_id`
+      const first=await selectPendingClientPage(sql as unknown as ReturnType<typeof db>,{limit:1,scanWeek:MONDAY,deadlineMs:Date.now()+5000})
+      const second=await selectPendingClientPage(sql as unknown as ReturnType<typeof db>,{limit:1,after:first.nextCursor,scanWeek:MONDAY,deadlineMs:Date.now()+5000})
+      expect(first.nextCursor?.createdAt).toBe('2019-01-01T00:00:00.123456Z')
+      expect(second.items[0].clientId).not.toBe(first.items[0].clientId)
+      expect(brands.map(row=>row.client_id)).toContain(second.items[0].clientId)
+    }finally{await sql`delete from clients where account_id=any(${accounts}::uuid[])`;await sql`delete from accounts where id=any(${accounts}::uuid[])`}
+  })
+  it('traverses 101 expired overrides with real PostgreSQL keyset ordering', async () => {
+    const expiredAccounts = Array.from({ length: 101 }, () => randomUUID()), paidAccount = randomUUID()
+    try {
+      await sql`insert into accounts (id, plan, status, override_plan, override_expires_at, override_reason, override_set_by)
+        select id, 'basic', 'active', 'pro', '2020-01-01', 'Expired synthetic fixture', ${randomUUID()}::uuid
+        from unnest(${expiredAccounts}::uuid[]) as t(id)`
+      await sql`insert into accounts (id, plan, status, stripe_subscription_id)
+        values (${paidAccount}, 'pro', 'active', 'synthetic-t06-subscription')`
+      await sql`with seeded as (
+        insert into clients (account_id, brand_name, status, created_at)
+        select id, 'Synthetic expired', 'active', '2020-01-01'::timestamptz + row_number() over (order by id) * interval '1 second'
+        from accounts where id = any(${expiredAccounts}::uuid[]) returning id
+      ) insert into prompt_bank (client_id, question) select id, 'Synthetic question?' from seeded`
+      const [paid] = await sql`insert into clients (account_id, brand_name, status, created_at)
+        values (${paidAccount}, 'Synthetic paid', 'active', '2021-01-01') returning id`
+      await sql`insert into prompt_bank (client_id, question) values (${paid.id}, 'Synthetic paid question?')`
+      const page = await selectPendingClientPage(sql as unknown as ReturnType<typeof db>, {
+        limit: 1, scanWeek: MONDAY, deadlineMs: Date.now() + 20_000,
+      })
+      expect(page.items).toEqual([{ clientId: paid.id, promptCount: 1, cursor: 0 }])
+      expect(page.scanned).toBe(102)
+      expect(page.exhausted).toBe(true)
+    } finally {
+      await sql`delete from clients where account_id = any(${[...expiredAccounts, paidAccount]}::uuid[])`
+      await sql`delete from accounts where id = any(${[...expiredAccounts, paidAccount]}::uuid[])`
+    }
+  })
 
   it('writes one row per platform plus the aggregate row nothing else produces', async () => {
     const result = await computeWeeklySummary(sql, { clientId: CLIENT, scanWeek: MONDAY })

@@ -6,24 +6,24 @@ import { selectPendingClients } from '@/lib/pulse/schedule'
 // cron-pulse route test mocks this module's query with a list that ignores the
 // limit, which is exactly why it could never see a limit applied too early.
 //
-// Keyset parameters, when present, are read by position: the query passes
-// [cursorCreatedAt, cursorCreatedAt, cursorId, pageSize]. With no cursor
-// parameters the single parameter is the page size.
-type Row = Record<string, unknown> & { client_id: string; cursor_created_at: string }
+// Keyset parameters are read from the end: since #69 the query passes
+// [scanWeek, cursorCreatedAt, cursorCreatedAt, cursorId, pageSize] and returns
+// the row's own created_at as the cursor.
+type Row = Record<string, unknown> & { client_id: string; created_at: string }
 
 function fakeSql(rows: Row[]) {
   const pages: number[] = []
   const sql = ((_strings: TemplateStringsArray, ...params: unknown[]) => {
     const pageSize = Number(params[params.length - 1])
-    const cursorAt = params.length >= 4 ? (params[0] as string | null) : null
-    const cursorId = params.length >= 4 ? (params[2] as string | null) : null
+    const cursorAt = params[params.length - 4] as string | null
+    const cursorId = params[params.length - 2] as string | null
     const ordered = [...rows].sort((a, b) =>
-      a.cursor_created_at.localeCompare(b.cursor_created_at) || a.client_id.localeCompare(b.client_id))
+      a.created_at.localeCompare(b.created_at) || a.client_id.localeCompare(b.client_id))
     const after = cursorAt === null
       ? ordered
       : ordered.filter(r =>
-          r.cursor_created_at > cursorAt
-          || (r.cursor_created_at === cursorAt && r.client_id > (cursorId as string)))
+          r.created_at > cursorAt
+          || (r.created_at === cursorAt && r.client_id > (cursorId as string)))
     pages.push(pageSize)
     return Promise.resolve(after.slice(0, pageSize))
   }) as never
@@ -35,7 +35,7 @@ const PAST = '2026-01-01T00:00:00.000Z'
 function row(clientId: string, createdAt: string, account: Record<string, unknown>): Row {
   return {
     client_id: clientId,
-    cursor_created_at: createdAt,
+    created_at: createdAt,
     prompt_count: 8,
     scanned_prompts: 0,
     plan: 'pro', status: 'active', stripe_subscription_id: 'sub_1',
@@ -51,8 +51,8 @@ const expiredTrial = { plan: 'basic', status: 'trialing', stripe_subscription_id
 describe('selectPendingClients', () => {
   it('skips an ineligible oldest client instead of returning nobody', async () => {
     const { sql } = fakeSql([
-      row('a-expired', '2026-01-01 00:00:00+00', expiredTrial),
-      row('b-paid', '2026-02-01 00:00:00+00', {}),
+      row('a-expired', '2026-01-01T00:00:00.000000Z', expiredTrial),
+      row('b-paid', '2026-02-01T00:00:00.000000Z', {}),
     ])
 
     const pending = await selectPendingClients(sql, 1)
@@ -62,8 +62,8 @@ describe('selectPendingClients', () => {
 
   it('keeps paging past a full page of ineligible clients', async () => {
     const ineligible = Array.from({ length: 120 }, (_, i) =>
-      row(`x-${String(i).padStart(3, '0')}`, '2026-01-01 00:00:00+00', expiredTrial))
-    const { sql } = fakeSql([...ineligible, row('z-paid', '2026-03-01 00:00:00+00', {})])
+      row(`x-${String(i).padStart(3, '0')}`, '2026-01-01T00:00:00.000000Z', expiredTrial))
+    const { sql } = fakeSql([...ineligible, row('z-paid', '2026-03-01T00:00:00.000000Z', {})])
 
     const pending = await selectPendingClients(sql, 1)
 
@@ -72,10 +72,10 @@ describe('selectPendingClients', () => {
 
   it('returns oldest eligible clients first, up to the limit', async () => {
     const { sql } = fakeSql([
-      row('c', '2026-03-01 00:00:00+00', {}),
-      row('a', '2026-01-01 00:00:00+00', {}),
-      row('b', '2026-02-01 00:00:00+00', expiredTrial),
-      row('d', '2026-04-01 00:00:00+00', {}),
+      row('c', '2026-03-01T00:00:00.000000Z', {}),
+      row('a', '2026-01-01T00:00:00.000000Z', {}),
+      row('b', '2026-02-01T00:00:00.000000Z', expiredTrial),
+      row('d', '2026-04-01T00:00:00.000000Z', {}),
     ])
 
     const pending = await selectPendingClients(sql, 2)
@@ -86,7 +86,7 @@ describe('selectPendingClients', () => {
   it('stops paging if the cursor fails to advance, instead of looping forever', async () => {
     // A query that keeps answering the same full page (as a NULL paging key
     // once did) must not spin the cron invocation until the platform kills it.
-    const page = Array.from({ length: 50 }, (_, i) => row(`x-${i}`, '2026-01-01 00:00:00+00', expiredTrial))
+    const page = Array.from({ length: 50 }, (_, i) => row(`x-${i}`, '2026-01-01T00:00:00.000000Z', expiredTrial))
     let calls = 0
     const sql = (() => { calls += 1; return Promise.resolve(page) }) as never
 
@@ -95,7 +95,7 @@ describe('selectPendingClients', () => {
   })
 
   it('returns an empty list when no candidate is eligible', async () => {
-    const { sql } = fakeSql([row('a', '2026-01-01 00:00:00+00', expiredTrial)])
+    const { sql } = fakeSql([row('a', '2026-01-01T00:00:00.000000Z', expiredTrial)])
 
     expect(await selectPendingClients(sql, 1)).toEqual([])
   })

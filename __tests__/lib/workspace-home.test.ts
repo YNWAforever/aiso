@@ -22,6 +22,7 @@ vi.mock('@/lib/db', () => ({ db: () => async (strings: TemplateStringsArray, ...
 
 import { loadOwnedWorkspace, workspaceOverview } from '@/lib/workspace/load-owned-workspace'
 import { buildWorkspaceHome } from '@/lib/view-models/workspace-home'
+import type { OwnedWorkspace } from '@/lib/workspace/load-owned-workspace'
 const paid: CommercialAccount = { plan: 'enterprise', status: 'active', stripe_subscription_id: 'sub' }
 const load = (account: CommercialAccount = paid, scanId?: string) => loadOwnedWorkspace({ clientId: 'client-a', profile: { account_id: 'account-a', accounts: account }, scanId })
 const pulseRow = (week: string, total: unknown = 2, successful: unknown = 2) => ({ scan_week: week, platform: null, total_queries: total, brand_mentions: 0, sov_score: 0, successful_queries: successful, observed_queries: 2, observed_brand_mentions: 0, successful_platform_count: 1 })
@@ -29,6 +30,18 @@ const pulseRow = (week: string, total: unknown = 2, successful: unknown = 2) => 
 beforeEach(() => { state.calls = []; state.missing = false; state.failed = ''; state.selectedMissing = false; state.dateRows = false; state.scanResults = {}; state.pulse = [] })
 
 describe('owned workspace loader', () => {
+  it('partial_run_guides_to_failed_items instead of claiming 100 percent coverage',async()=>{
+    const workspace={...(await load())!,maintenance:{status:'ok',data:{eligible:true,ledgerEnabled:true,runRead:'ok',sourceRead:'ok',draftRead:'ok',latestRun:{id:'11111111-1111-4111-8111-111111111111',week:'2026-09-28',expected:15,succeeded:13,failed:2,pending:0,blocked:0,classified:13,mentioned:4},lastCompleteAt:null,awaitingSource:null,latestDraftId:null}}}
+    const home=buildWorkspaceHome(workspace as unknown as OwnedWorkspace) as ReturnType<typeof buildWorkspaceHome>&{dailyWork?:{state:string;coverage:{expected:number;succeeded:number};nextActions:{path:string}[]}}
+    expect(home.dailyWork).toMatchObject({state:'partial',coverage:{expected:15,succeeded:13}})
+    expect(home.dailyWork?.nextActions[0].path).toContain('runStatus=failed')
+  })
+  it('unapproved_source_links_to_exact_version and free_empty_is_not_scheduler_failure',async()=>{
+    const workspace={...(await load({plan:'free'}))!,maintenance:{status:'ok',data:{eligible:false,ledgerEnabled:false,runRead:'ok',sourceRead:'ok',draftRead:'ok',latestRun:null,lastCompleteAt:null,awaitingSource:{id:'22222222-2222-4222-8222-222222222222',versionId:'33333333-3333-4333-8333-333333333333'},latestDraftId:null}}}
+    const home=buildWorkspaceHome(workspace as unknown as OwnedWorkspace) as ReturnType<typeof buildWorkspaceHome>&{dailyWork?:{state:string;nextActions:{path:string}[]}}
+    expect(home.dailyWork?.state).toBe('not_configured')
+    expect(home.dailyWork?.nextActions[0].path).toContain('version=33333333-3333-4333-8333-333333333333')
+  })
   it('binds ownership first and denies an actual mismatching account before other reads', async () => {
     expect(await loadOwnedWorkspace({ clientId: 'client-a', profile: { account_id: 'other-account', accounts: paid } })).toBeNull()
     expect(state.calls).toHaveLength(1)

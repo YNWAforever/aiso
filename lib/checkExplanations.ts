@@ -60,7 +60,7 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
     why: 'A minimal llms.txt — the file with no real content — carries almost no information. A structured file with a description and multiple URL entries describes your site to any tool that reads it.',
     fix: {
       pass: 'Your llms.txt has good depth — no action needed.',
-      warn: 'Your llms.txt exists but is sparse. Add a `#` title line, a `>` description block, and at least 5 key page URLs — 5 is where this check passes.',
+      warn: 'This optional llms.txt check passes with a `#` title, at least 5 non-empty lines and 3 distinct HTTP(S) page links, including Markdown links. A `>` summary is useful but not required.',
       fail: 'No usable llms.txt content found. Use the Fix Pack below to generate a complete file.',
     },
   },
@@ -243,7 +243,7 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
     why: '一份只有檔案、沒有實質內容的 llms.txt 幾乎不帶任何資訊。一份結構完整、附有描述及多個網址條目的檔案，能向任何會讀取它的工具說明你的網站。',
     fix: {
       pass: '你的 llms.txt 內容充實 — 無需任何操作。',
-      warn: '你的 llms.txt 存在但內容單薄。請加入 `#` 標題行、`>` 描述區塊，以及至少 5 個關鍵頁面網址 — 本檢查以 5 個為通過門檻。',
+      warn: '此選配 llms.txt 檢查以 # 標題、至少 5 個非空行及 3 個不同的 HTTP(S) 頁面連結為通過門檻，支援 Markdown 連結。> 摘要有幫助但非必要。',
       fail: '未找到可用的 llms.txt 內容。使用下方的 Fix Pack 生成一份完整檔案。',
     },
   },
@@ -377,4 +377,55 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
 
 export function getCheckExplanations(locale: string) {
   return locale === 'zh-HK' ? CHECK_EXPLANATIONS_ZH_HK : CHECK_EXPLANATIONS
+}
+
+type CheckAction = { title: string; nextStep: string }
+const CHECK_ACTIONS_EN: Record<string, CheckAction> = {
+  c1_robots: { title: 'Review crawler rules', nextStep: 'Check the intended crawler policies and verify the published robots rules.' },
+  c2_llms_txt: { title: 'Review the website summary for tools', nextStep: 'Prepare a concise site summary with links to relevant public content if your tools use llms.txt.' },
+  c3_bot_access: { title: 'Review technical crawler access', nextStep: 'Inspect the recorded response, then verify server and security rules before changing access.' },
+  c4_structured_data: { title: 'Review structured content information', nextStep: 'Locate relevant content and validate that any structured markup accurately describes it.' },
+  c5_extractability: { title: 'Review readable page content', nextStep: 'Locate key customer answers and verify that they appear in the page HTML.' },
+  c6_llms_full_txt: { title: 'Review optional llms.txt content', nextStep: 'If using llms.txt, verify a title, five nonblank lines and three distinct HTTP(S) content links.' },
+  c7_mcp_card: { title: 'Review agent discovery information', nextStep: 'Confirm whether agent discovery is needed and document only the endpoints actually available.' },
+  c8_sitemap: { title: 'Review sitemap availability', nextStep: 'Verify that the site sitemap is accessible and lists the intended canonical public pages.' },
+  c9_meta_desc: { title: 'Review page descriptions', nextStep: 'Locate relevant pages and check that each description accurately summarises its content.' },
+  c10_headings: { title: 'Review heading structure', nextStep: 'Locate the scanned content and review its main heading and section hierarchy.' },
+  c11_faq: { title: 'Review frequently asked questions', nextStep: 'Locate common customer questions, check their visible answers and validate any FAQ markup.' },
+  c12_canonical: { title: 'Review canonical page identity', nextStep: 'Verify the intended canonical URL against the actual page and redirects.' },
+  c13_render: { title: 'Review content rendering', nextStep: 'Compare the served HTML with the visible content and confirm that key answers can be read.' },
+  c14_internal_links: { title: 'Review links between related content', nextStep: 'Locate related pages and review clear, relevant links between them.' },
+  c15_entity: { title: 'Review brand identification', nextStep: 'Check that brand identity and contact information are consistent across the relevant content.' },
+  c16_freshness: { title: 'Review content dates and accuracy', nextStep: 'Check time-sensitive statements and update dates only after reviewing the content.' },
+  c17_citation_density: { title: 'Review supporting sources', nextStep: 'Locate factual claims and verify that their links lead to relevant, reliable sources.' },
+  c18_factual_density: { title: 'Review verifiable facts', nextStep: 'Check factual statements against their sources and replace unsupported promotional claims.' },
+  c19_topical_authority: { title: 'Review coverage of customer topics', nextStep: 'Identify unanswered customer questions and plan related content without inventing page-level findings.' },
+  c20_chunkability: { title: 'Review self-contained answers', nextStep: 'Locate long sections and review whether each clearly answers one question.' },
+}
+const CHECK_ACTIONS_ZH_HK: Record<string, CheckAction> = {
+  c1_robots: { title: '檢查爬蟲規則', nextStep: '核對預期的爬蟲政策，再驗證已公開的 robots 規則。' },
+  c2_llms_txt: { title: '檢查提供予工具的網站摘要', nextStep: '如工具使用 llms.txt，準備簡明網站摘要，並連結至相關公開內容。' },
+  c3_bot_access: { title: '檢查爬蟲技術存取', nextStep: '先檢視保留的回應，再核對伺服器及安全規則，然後決定是否修改存取設定。' },
+  c4_structured_data: { title: '檢查內容的結構化資料', nextStep: '定位相關內容，驗證結構化標記有否準確描述內容。' },
+  c5_extractability: { title: '檢查可讀取的頁面內容', nextStep: '定位客戶需要的主要答案，核對它們是否出現在頁面 HTML。' },
+  c6_llms_full_txt: { title: '檢查選配 llms.txt 內容', nextStep: '如使用 llms.txt，核對標題、五個非空行及三個不同的 HTTP(S) 內容連結。' },
+  c7_mcp_card: { title: '檢查代理發現資訊', nextStep: '先確認是否需要代理發現功能，只記錄實際可用的服務端點。' },
+  c8_sitemap: { title: '檢查網站地圖是否可用', nextStep: '驗證網站地圖可被讀取，並列出預期的標準公開頁面。' },
+  c9_meta_desc: { title: '檢查頁面摘要', nextStep: '定位相關頁面，核對每個摘要是否準確描述內容。' },
+  c10_headings: { title: '檢查標題結構', nextStep: '定位已掃描內容，檢查主標題及各段落的層級。' },
+  c11_faq: { title: '檢查常見問題內容', nextStep: '定位客戶常見問題，核對可見答案，並驗證任何 FAQ 標記。' },
+  c12_canonical: { title: '檢查標準頁面識別', nextStep: '以實際頁面及轉址結果核對預期的標準網址。' },
+  c13_render: { title: '檢查內容呈現方式', nextStep: '比較伺服器提供的 HTML 與可見內容，確認主要答案可被讀取。' },
+  c14_internal_links: { title: '檢查相關內容之間的連結', nextStep: '定位相關頁面，檢視它們之間是否有清楚且相關的連結。' },
+  c15_entity: { title: '檢查品牌識別', nextStep: '核對相關內容的品牌身份及聯絡資訊是否一致。' },
+  c16_freshness: { title: '檢查內容日期及準確性', nextStep: '核對時效性陳述，先審閱內容，再更新日期。' },
+  c17_citation_density: { title: '檢查支持內容的來源', nextStep: '定位事實陳述，核對其連結是否指向相關且可靠的來源。' },
+  c18_factual_density: { title: '檢查可核實的事實', nextStep: '以來源核對事實陳述，替換沒有證據支持的宣傳說法。' },
+  c19_topical_authority: { title: '檢查客戶主題的內容覆蓋', nextStep: '找出尚未回答的客戶問題，規劃相關內容，保留目前證據的網站層面限制。' },
+  c20_chunkability: { title: '檢查可獨立閱讀的答案', nextStep: '定位較長段落，核對每段是否清楚回答一條問題。' },
+}
+export function getCheckActionCopy(key: string, locale: string) {
+  const action = (locale === 'zh-HK' ? CHECK_ACTIONS_ZH_HK : CHECK_ACTIONS_EN)[key]
+  const explanation = getCheckExplanations(locale)[key]
+  return action && explanation ? { ...action, question: explanation.question } : null
 }

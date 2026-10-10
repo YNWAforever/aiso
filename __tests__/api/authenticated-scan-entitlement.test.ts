@@ -76,7 +76,7 @@ vi.mock('@/lib/db', () => ({
   ),
 }))
 
-const fetchMock = vi.fn().mockResolvedValue(new Response('<html>ok</html>', { status: 200 }))
+const fetchMock = vi.fn().mockImplementation(async () => new Response('<html>ok</html>', { status: 200 }))
 vi.stubGlobal('fetch', fetchMock)
 
 function paidAccount(plan: TestAccount['plan']): TestAccount {
@@ -120,6 +120,19 @@ describe('authenticated scan commercial entitlement', () => {
 
     expect(response.status).toBe(422)
     expect(consumeAuthenticatedScanQuota).toHaveBeenCalledTimes(1)
+    expect(releaseAuthenticatedScanQuota).toHaveBeenCalledWith('account-basic')
+  })
+
+  it('refunds a Basic monthly scan when the page is not usable', async () => {
+    // #69's 502 SCAN_PAGE_UNAVAILABLE also saves nothing, so it is refunded
+    // exactly like the unreachable case.
+    state.profile = { account_id: 'account-basic', accounts: paidAccount('basic') }
+    releaseAuthenticatedScanQuota.mockClear()
+    fetchMock.mockResolvedValueOnce(new Response('upstream down', { status: 503, headers: { 'content-type': 'text/html' } }))
+
+    const response = await scan()
+
+    expect(response.status).toBe(502)
     expect(releaseAuthenticatedScanQuota).toHaveBeenCalledWith('account-basic')
   })
 

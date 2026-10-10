@@ -44,11 +44,13 @@ const authenticatedConfigured = existsSync(resolve(process.cwd(), authStatePath)
  * .git/info/exclude, which is never committed.
  */
 const nestedWorktrees = join(process.cwd(), '.claude', 'worktrees', '**').replaceAll('\\', '/')
+const nestedLegacyWorktrees = join(process.cwd(), '.worktrees', '**').replaceAll('\\', '/')
+const nestedCiServers = join(process.cwd(), '.playwright-ci-server', '**').replaceAll('\\', '/')
 
 const testIgnore = [
-  '**/.worktrees/**',
+  nestedLegacyWorktrees,
   nestedWorktrees,
-  '**/.playwright-ci-server/**',
+  nestedCiServers,
   ...(releaseScanConfigured ? [] : ['tests/e2e/live-scan-smoke.spec.ts']),
   ...(clientReportFixtureConfigured ? [] : ['e2e/client-reports.spec.ts']),
   // Excluded from every project below, configured or not. They carry no session,
@@ -102,7 +104,7 @@ export default defineConfig({
       ? [{
           name: 'authenticated-mobile',
           testMatch: 'tests/e2e/authenticated/**/*.spec.ts',
-          testIgnore: ['**/.worktrees/**', nestedWorktrees, '**/.playwright-ci-server/**'],
+          testIgnore: [nestedLegacyWorktrees, nestedWorktrees, nestedCiServers],
           use: { ...devices['Pixel 5'], storageState: authStatePath },
         }]
       : []),

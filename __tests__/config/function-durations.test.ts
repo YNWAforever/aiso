@@ -107,7 +107,8 @@ describe('Cloudflare cron-worker schedule', () => {
   })
 
   it('runs the Search Console sync on the existing daily trigger, not a fourth one', () => {
-    expect(workerSource).toMatch(/'0 9 \* \* \*':\s*\[\s*'\/api\/cron\/trial-emails',\s*'\/api\/cron\/search-console'\s*\]/)
+    const worker = readFileSync(join(process.cwd(), 'cloudflare/cron-worker/src/index.ts'), 'utf8')
+    expect(worker).toMatch(/'0 9 \* \* \*':\s*\[\s*'\/api\/cron\/trial-emails',\s*'\/api\/cron\/search-console',\s*'\/api\/cron\/pulse\?mode=repair'\s*\]/)
   })
 
   it('maps every scheduled cron string to routes in the Worker', () => {

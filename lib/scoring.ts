@@ -72,7 +72,11 @@ const GEO_TOTAL = Object.values(GEO_PTS).reduce((sum, pts) => sum + pts, 0)
  */
 export function isAssessable(result: CheckResult | undefined): boolean {
   const collection = result?.diagnostic?.collection
-  return collection !== 'failed' && collection !== 'unsupported'
+  if (collection === 'failed' || collection === 'unsupported') return false
+  // A check that reports itself unavailable (factual_density_unavailable,
+  // topical_authority_unavailable) measured nothing, whatever compatibility
+  // status it carries — c18 keeps `fail` for older readers.
+  return !result?.message?.endsWith('_unavailable')
 }
 
 /**

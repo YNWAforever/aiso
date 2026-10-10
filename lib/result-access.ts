@@ -1,12 +1,8 @@
 import { computeImpact } from '@/lib/impact'
-import type { CheckStatus, Scan } from '@/lib/types'
-
-const ISSUE_PRIORITY = [
-  'c1_robots', 'c2_llms_txt', 'c3_bot_access', 'c4_structured_data', 'c5_extractability',
-  'c6_llms_full_txt', 'c7_mcp_card', 'c8_sitemap', 'c9_meta_desc', 'c10_headings',
-  'c11_faq', 'c12_canonical', 'c13_render', 'c14_internal_links', 'c15_entity', 'c16_freshness',
-  'c17_citation_density', 'c18_factual_density', 'c19_topical_authority', 'c20_chunkability',
-] as const
+import type { Scan } from '@/lib/types'
+import { readScanEvidence } from '@/lib/scan-evidence'
+import { resolveCheckPriorities } from '@/lib/view-models/check-priority'
+import { projectFactualDensityChecks } from '@/lib/factual-density-evidence'
 
 export function canViewFullResult(
   scanAccountId?: string | null,
@@ -15,49 +11,44 @@ export function canViewFullResult(
   return Boolean(scanAccountId && viewerAccountId && scanAccountId === viewerAccountId)
 }
 
+/** A recorded collection failure is not a poor website score. Legacy unknown remains unknown. */
+export function hasFailedScanPage(results: Record<string, unknown>): boolean {
+  const evidence=readScanEvidence(results.evidence)
+  return !!evidence && evidence.completedPages===0 && (
+    ['failed','blocked'].includes(evidence.collection) || evidence.observations.some(observation=>
+      observation.check==='page' && (['failed','blocked'].includes(observation.collection) || (observation.httpStatus??0)>=400)))
+}
+
 export function buildPublicResultSummary(
   scan: Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'industry' | 'region' | 'results'>
     & Partial<Pick<Scan, 'account_id' | 'created_at'>> ,
 ) {
   const results = scan.results as Record<string, { status?: string } | unknown>
-  const statuses = Object.values(results).filter(
-    (value): value is { status: string } => (
-      Boolean(value && typeof value === 'object' && 'status' in value)
-    ),
-  )
-  const topIssueKey = ISSUE_PRIORITY.find(key => {
-    const value = results[key]
-    return Boolean(
-      value && typeof value === 'object' && 'status' in value && value.status !== 'pass',
-    )
-  }) ?? null
-  const topIssueValue = topIssueKey ? results[topIssueKey] : null
-  const topIssueStatus: CheckStatus | null = (
-    topIssueValue
-    && typeof topIssueValue === 'object'
-    && 'status' in topIssueValue
-    && (topIssueValue.status === 'warn' || topIssueValue.status === 'fail')
-  ) ? topIssueValue.status : null
+  const envelope = readScanEvidence(results.evidence)
+  const checks = projectFactualDensityChecks(envelope?.checks ?? Object.fromEntries(Object.keys(results).map(key => [key, {}])), results)
+  // Legacy verdicts are retained in storage/owner details; they cannot establish
+  // a confirmed fix or a success count without collection evidence.
+  const resolution = resolveCheckPriorities(checks)
+  const topIssueKey = resolution.ranked[0]?.checkKey ?? null
+  const topIssueStatus = resolution.ranked[0]?.assessment ?? null
   const impact = computeImpact(results, {
     score: scan.score,
     grade: scan.grade ?? 'F',
     industry: scan.industry,
+    confirmedChecks: checks,
   })
 
   return {
     id: scan.id,
     domain: scan.domain,
+    collectionFailed: hasFailedScanPage(results),
     score: scan.score,
     grade: scan.grade ?? 'F',
     industry: scan.industry ?? null,
     region: scan.region ?? null,
     createdAt: scan.created_at ?? null,
-    counts: {
-      pass: statuses.filter(value => value.status === 'pass').length,
-      warn: statuses.filter(value => value.status === 'warn').length,
-      fail: statuses.filter(value => value.status === 'fail').length,
-      total: statuses.length,
-    },
+    counts: resolution.counts,
+    priorityState: resolution.state,
     topIssueKey,
     topIssueStatus,
     teaser: {
@@ -65,6 +56,8 @@ export function buildPublicResultSummary(
       projectedScore: impact.projectedScore,
       projectedGrade: impact.projectedGrade,
       platformVisibility: impact.platformVisibility,
+      collectorAccess: impact.collectorAccess,
+      benchmark: impact.benchmark,
     },
   }
 }

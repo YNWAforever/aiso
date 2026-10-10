@@ -18,6 +18,11 @@ describe('scheduled', () => {
     globalThis.fetch = fetchMock as never
   })
 
+  it('T07 daily trigger repairs original runs independently of email and search jobs',async()=>{
+    await worker.scheduled(controller('0 9 * * *'),env,ctx)
+    expect(fetchMock.mock.calls.map(call=>call[0])).toContain('https://app.example.com/api/cron/pulse?mode=repair')
+  })
+
   it('calls cron/pulse for the pulse schedule', async () => {
     await worker.scheduled(controller('17 4 * * *'), env, ctx)
 
@@ -55,7 +60,7 @@ describe('scheduled', () => {
 
     await expect(worker.scheduled(controller('0 9 * * *'), env, ctx))
       .rejects.toThrow('[cron-worker] /api/cron/trial-emails responded 500')
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
   it('propagates a downstream failure without retrying in this invocation', async () => {

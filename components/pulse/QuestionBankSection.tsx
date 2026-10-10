@@ -6,14 +6,16 @@ import { Sparkles } from 'lucide-react'
 import { PromptBankEditor } from './PromptBankEditor'
 import { SuggestQuestionsPanel } from './SuggestQuestionsPanel'
 import type { PromptBankItem } from '@/lib/types'
+import type { PromptContextDefaults } from '@/lib/prompts/context'
 
 interface Props {
   clientId: string
+  contextDefaults?: PromptContextDefaults
   initialPrompts: PromptBankItem[]
   isFirstTime: boolean   // true when prompt bank was just auto-generated
 }
 
-export function QuestionBankSection({ clientId, initialPrompts, isFirstTime }: Props) {
+export function QuestionBankSection({ clientId, initialPrompts, isFirstTime, contextDefaults }: Props) {
   const t = useTranslations('pulse')
   const [showPanel, setShowPanel] = useState(false)
   // The single owner of the list. PromptBankEditor is controlled from here, so
@@ -70,7 +72,7 @@ export function QuestionBankSection({ clientId, initialPrompts, isFirstTime }: P
 
       {error && <p role="alert" className="text-xs text-red-600 mb-3">{error}</p>}
 
-      <PromptBankEditor clientId={clientId} prompts={prompts} onPromptsChange={setPrompts} />
+      <PromptBankEditor clientId={clientId} prompts={prompts} onPromptsChange={setPrompts} contextDefaults={contextDefaults} />
 
       {/* Slide-in suggest panel */}
       {showPanel && (
@@ -78,6 +80,7 @@ export function QuestionBankSection({ clientId, initialPrompts, isFirstTime }: P
           <div className="fixed inset-0 bg-black/20 z-40" onClick={() => setShowPanel(false)} />
           <SuggestQuestionsPanel
             clientId={clientId}
+            contextDefaults={contextDefaults}
             onClose={() => setShowPanel(false)}
             onAccepted={handleAccepted}
             onError={setError}

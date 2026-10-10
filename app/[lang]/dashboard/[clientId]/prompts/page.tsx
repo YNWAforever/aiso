@@ -44,11 +44,13 @@ export default async function PromptsPage({
 
   const sql = db()
   const clientRows = await sql`
-    select brand_name from clients
+    select brand_name, region,
+      (select draft->>'language' from onboarding_progress op where op.client_id = clients.id and op.account_id = clients.account_id) as prompt_language
+    from clients
     where id = ${clientId} and account_id = ${profile.account_id}
     limit 1
   `
-  const client = clientRows[0] as { brand_name: string } | undefined
+  const client = clientRows[0] as { brand_name: string; region?: string | null; prompt_language?: string | null } | undefined
   // 404 rather than 403 — the id came from the caller, and confirming it exists
   // would tell them it belongs to somebody.
   if (!client) notFound()
@@ -79,10 +81,10 @@ export default async function PromptsPage({
   // onboarding writes shares one value, and the id tiebreak is what keeps
   // intra-category order stable between renders.
   const promptRows = await sql`
-    select id, client_id, category, question, language, is_active, created_at
-    from prompt_bank
-    where client_id = ${clientId}
-    order by category, created_at, id
+    select p.id, p.client_id, p.category, p.question, p.language, p.market, p.is_active, p.created_at
+    from prompt_bank p join clients c on c.id = p.client_id
+    where p.client_id = ${clientId} and c.account_id = ${profile.account_id}
+    order by p.category, p.created_at, p.id
     limit ${MAX_PROMPTS}
   `
   const prompts = promptRows as unknown as PromptBankItem[]
@@ -93,7 +95,7 @@ export default async function PromptsPage({
         <p className="text-sm font-medium text-primary">{client.brand_name}</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">{t('qb_title')}</h1>
       </div>
-      <QuestionBankSection clientId={clientId} initialPrompts={prompts} isFirstTime={false} />
+      <QuestionBankSection clientId={clientId} initialPrompts={prompts} isFirstTime={false} contextDefaults={{ language: client.prompt_language, market: client.region }} />
     </main>
   )
 }

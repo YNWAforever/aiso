@@ -62,7 +62,12 @@ export function hashPolicy(policy) { return createHash('sha256').update(canonica
 export function verifyMetadata(metadata, expected) {
   ensure(record(metadata))
   ensure(metadata.ownerId === expected.teamId && metadata.projectId === expected.projectId && metadata.id === expected.deploymentId && metadata.readyState === 'READY')
-  ensure(metadata.target === (expected.environment === 'preview' ? null : 'production'))
+  // The deployment API represents standard Preview as staging; older reads use null.
+  // A named custom environment is a different target even when its slug is staging.
+  ensure(metadata.customEnvironment == null)
+  ensure(expected.environment === 'preview'
+    ? metadata.target === null || metadata.target === 'staging'
+    : metadata.target === 'production')
   const sources = [metadata.gitSource?.sha, metadata.meta?.githubCommitSha].filter(v => v !== undefined)
   ensure(sources.length > 0 && sources.every(s => s === expected.commitSha))
   ensure(typeof metadata.url === 'string')

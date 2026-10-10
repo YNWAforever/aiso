@@ -9,7 +9,7 @@
  * through next-intl routing.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 const authMiddlewareSpy = vi.fn(async () => new Response(null, { status: 302 }))
 const middlewareFactory = vi.fn(() => authMiddlewareSpy)
@@ -17,23 +17,24 @@ vi.mock('@/lib/neon-auth', () => ({
   auth: () => ({ middleware: middlewareFactory }),
 }))
 
-const intlSpy = vi.fn(() => new Response('intl', { status: 200 }))
+const intlSpy = vi.fn((_request: NextRequest) => new Response('intl', { status: 200 }))
 vi.mock('next-intl/middleware', () => ({
   default: () => intlSpy,
 }))
 
 const CHALLENGE_COOKIE = '__Secure-neon-auth.session_challange'
+const CHALLENGE_COOKIES = ['__Secure-neon-auth.session_challenge', CHALLENGE_COOKIE] as const
 
 describe('proxy', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('delegates verifier requests WITH the challenge cookie to the auth middleware', async () => {
+  it.each(CHALLENGE_COOKIES)('delegates verifier requests WITH %s to the auth middleware', async challengeCookie => {
     const { proxy } = await import('@/proxy')
     const req = new NextRequest(
       'https://app.example.com/en/dashboard?neon_auth_session_verifier=abc123',
-      { headers: { cookie: `${CHALLENGE_COOKIE}=challenge-value` } }
+      { headers: { cookie: `${challengeCookie}=challenge-value` } }
     )
     const res = await proxy(req)
     expect(middlewareFactory).toHaveBeenCalledWith({ loginUrl: '/en/auth/login' })
@@ -73,6 +74,24 @@ describe('proxy', () => {
     expect(intlSpy).toHaveBeenCalledTimes(1)
     expect(middlewareFactory).not.toHaveBeenCalled()
   })
+  it.each(CHALLENGE_COOKIES)('keeps %s without a verifier on the public intl path', async challengeCookie => {
+    const { proxy } = await import('@/proxy')
+    const res = await proxy(new NextRequest('https://app.example.com/en/pricing', {
+      headers: { cookie: `${challengeCookie}=challenge-value` },
+    }))
+    expect(res.status).toBe(200)
+    expect(intlSpy).toHaveBeenCalledTimes(1)
+    expect(middlewareFactory).not.toHaveBeenCalled()
+  })
+  it('overwrites a spoofed return header and strips callback secrets', async () => {
+    const { proxy } = await import('@/proxy')
+    const path = '/en/dashboard/11111111-1111-4111-8111-111111111111/opportunities'
+    const req = new NextRequest(`https://app.example.com${path}?neon_auth_session_verifier=secret&token=secret`, { headers: { 'x-aiso-return-to': '//evil.test' } })
+    await proxy(req)
+    expect(intlSpy.mock.calls[0][0].headers.get('x-aiso-return-to')).toBe(path)
+    expect(req.headers.get('x-aiso-return-to')).toBe('//evil.test')
+    expect(middlewareFactory).not.toHaveBeenCalled()
+  })
 })
 
 /**
@@ -108,5 +127,90 @@ describe('proxy matcher', () => {
     expect(await matches('/')).toBe(true)
     expect(await matches('/en/pricing')).toBe(true)
     expect(await matches('/en/dashboard/abc')).toBe(true)
+  })
+})
+
+describe('embedded Google popup completion', () => {
+  beforeEach(() => vi.clearAllMocks())
+  for (const lang of ['en', 'zh-HK']) it.each(CHALLENGE_COOKIES)(`keeps the verifier when Next re-enters the ${lang} public popup completion with %s`, async challengeCookie => {
+    const { proxy } = await import('@/proxy')
+    await proxy(new NextRequest(`https://app.example.com/${lang}/auth/complete?neon_popup=1&neon_auth_session_verifier=synthetic`, { headers: { cookie: `${challengeCookie}=fixture` } }))
+    expect(middlewareFactory).not.toHaveBeenCalled()
+    expect(intlSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves locale and trusted return request headers through the popup rewrite', async () => {
+    const { proxy } = await import('@/proxy')
+    intlSpy.mockImplementationOnce(request => {
+      const headers = new Headers(request.headers)
+      headers.set('x-next-intl-locale', 'zh-HK')
+      return NextResponse.next({ request: { headers } })
+    })
+    const url = new URL('https://app.example.com/auth/callback?neon_popup=1')
+    url.searchParams.set('neon_popup_callback', 'https://app.example.com/zh-HK/auth/complete?next=%2Fzh-HK%2Fdashboard')
+    const res = await proxy(new NextRequest(url, { headers: { 'x-aiso-return-to': '//attacker.example' } }))
+    expect(res.headers.get('x-middleware-request-x-aiso-return-to')).toBe('/zh-HK/dashboard')
+    expect(res.headers.get('x-middleware-request-x-next-intl-locale')).toBe('zh-HK')
+    expect(res.headers.get('x-middleware-override-headers')).toContain('x-next-intl-locale')
+    expect(res.headers.has('x-middleware-next')).toBe(false)
+  })
+  it('uses the public Host when Next normalises a loopback callback URL to localhost', async () => {
+    const { proxy } = await import('@/proxy')
+    const url = new URL('http://localhost:3231/auth/callback?neon_popup=1')
+    url.searchParams.set('neon_popup_callback', 'http://127.0.0.1:3231/zh-HK/auth/complete?next=%2Fzh-HK%2Fdashboard')
+    const res = await proxy(new NextRequest(url, { headers: { host: '127.0.0.1:3231' } }))
+    const rewrite = new URL(res.headers.get('x-middleware-rewrite')!)
+    expect(rewrite.pathname).toBe('/zh-HK/auth/complete')
+    expect(rewrite.searchParams.get('next')).toBe('/zh-HK/dashboard')
+  })
+  for (const lang of ['en', 'zh-HK']) for (const challenge of [false, true]) {
+    it(`rewrites the ${lang} popup callback without consuming its verifier (challenge=${challenge})`, async () => {
+      const { proxy } = await import('@/proxy')
+      const next = `/${lang}/dashboard/11111111-1111-4111-8111-111111111111/sources`
+      const original = `https://app.example.com/${lang}/auth/complete?next=${encodeURIComponent(next)}`
+      const url = new URL('https://app.example.com/auth/callback')
+      url.searchParams.set('neon_popup', '1')
+      url.searchParams.set('neon_popup_callback', original)
+      url.searchParams.set('neon_auth_session_verifier', 'synthetic-popup-verifier')
+      const req = new NextRequest(url, challenge ? { headers: { cookie: `${CHALLENGE_COOKIE}=fixture-challenge` } } : undefined)
+      const res = await proxy(req)
+      expect(middlewareFactory).not.toHaveBeenCalled()
+      const rewrite = new URL(res.headers.get('x-middleware-rewrite')!)
+      expect(rewrite.origin).toBe(url.origin)
+      expect(rewrite.pathname).toBe(`/${lang}/auth/complete`)
+      expect(rewrite.searchParams.get('next')).toBe(next)
+      expect(rewrite.searchParams.get('neon_auth_session_verifier')).toBe('synthetic-popup-verifier')
+      expect(rewrite.searchParams.get('neon_popup')).toBe('1')
+      expect(res.headers.has('location')).toBe(false)
+      expect(req.nextUrl.pathname).toBe('/auth/callback')
+    })
+  }
+
+  for (const callback of ['https://attacker.example/zh-HK/auth/complete?next=//attacker.example', 'not a callback']) {
+    it(`keeps an invalid popup callback on a local safe completion page: ${callback}`, async () => {
+      const { proxy } = await import('@/proxy')
+      const url = new URL('https://app.example.com/auth/callback?neon_popup=1')
+      url.searchParams.set('neon_popup_callback', callback)
+      const res = await proxy(new NextRequest(url))
+      const rewrite = new URL(res.headers.get('x-middleware-rewrite')!)
+      expect(rewrite.origin).toBe(url.origin)
+      expect(rewrite.pathname).toBe('/en/auth/complete')
+      expect(rewrite.searchParams.get('next')).toBe('/en/dashboard')
+    })
+  }
+
+  it('does not let a popup marker bypass an ordinary protected return', async () => {
+    const { proxy } = await import('@/proxy')
+    await proxy(new NextRequest('https://app.example.com/en/dashboard?neon_popup=1&neon_auth_session_verifier=fixture', {
+      headers: { cookie: `${CHALLENGE_COOKIE}=fixture-challenge` },
+    }))
+    expect(authMiddlewareSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps callback requests without the SDK popup marker on ordinary routing', async () => {
+    const { proxy } = await import('@/proxy')
+    const res = await proxy(new NextRequest('https://app.example.com/auth/callback'))
+    expect(intlSpy).toHaveBeenCalledTimes(1)
+    expect(res.headers.has('x-middleware-rewrite')).toBe(false)
   })
 })

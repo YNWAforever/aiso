@@ -1,6 +1,8 @@
 import { getTranslations } from 'next-intl/server'
 import { notFound, redirect } from 'next/navigation'
 import { ObservationWorkspace } from '@/components/observations/ObservationWorkspace'
+import { RunTroubleshooting } from '@/components/observations/RunTroubleshooting'
+import { loadRunTroubleshooting,type RunItemFilter,type RunTroubleshooting as RunDto } from '@/lib/observations/run-troubleshooting'
 import {
   observationCopyKeys,
   type ObservationCopy,
@@ -20,8 +22,12 @@ export default async function ObservationsPage({
 }) {
   const { lang: requestedLang, clientId } = await params
   const lang = requestedLang === 'zh-HK' ? 'zh-HK' : 'en'
-  await requireAuth(lang)
+  const profile=await requireAuth(lang)
   const raw = await searchParams
+  let runData:RunDto|null=null,runError=false
+  const runId=typeof raw.run==='string'?raw.run:null
+  const runFilter=(typeof raw.runStatus==='string'?raw.runStatus:'all') as RunItemFilter
+  if(runId){try{runData=await loadRunTroubleshooting(profile.account_id,clientId,runId,runFilter,typeof raw.runCursor==='string'?raw.runCursor:null)}catch{runError=true}}
   const href = `/${lang}/dashboard/${encodeURIComponent(clientId)}/observations`
   const query = new URLSearchParams()
   for (const key of [
@@ -51,6 +57,7 @@ export default async function ObservationsPage({
       <main className="p-8">
         <h1>{t('title')}</h1>
         <p role="alert">{t('loadError')}</p>
+        {runId&&<RunTroubleshooting data={runData} error={runError} lang={lang} clientId={clientId} filter={runFilter}/>}
         <a className="inline-flex min-h-11 items-center underline" href={href}>
           {t('retry')}
         </a>
@@ -67,6 +74,7 @@ export default async function ObservationsPage({
       initial={initial}
       copy={copy}
       lang={lang}
+      runPanel={runId?<RunTroubleshooting data={runData} error={runError} lang={lang} clientId={clientId} filter={runFilter}/>:undefined}
       initialFilters={{
         promptId: typeof raw.promptId === 'string' ? raw.promptId : undefined,
         platform: typeof raw.platform === 'string' ? raw.platform : undefined,

@@ -26,10 +26,10 @@ The Supabase → Neon migration is done. `db()` from `@/lib/db` (a lazy
 | Layer | Technology | Version |
 |-------|-----------|---------|
 | Language | TypeScript | 5.9 |
-| Framework | Next.js (App Router) | 16.2 |
+| Framework | Next.js (App Router) | 16.3.8 |
 | i18n | next-intl | 4.x |
 | Database | **Neon** (PostgreSQL) | `@neondatabase/serverless` 1.x |
-| Auth | **Neon Auth** | `@neondatabase/auth` 0.4.2-beta (pinned exact) |
+| Auth | **Neon Auth** | `@neondatabase/auth` 0.5.0-beta (pinned exact) |
 | Payments | Stripe | v22 |
 | Email | Resend | v6 |
 | AI / LLM | OpenRouter | `lib/openrouter.ts` |
@@ -42,6 +42,13 @@ The Supabase → Neon migration is done. `db()` from `@/lib/db` (a lazy
 | Deploy | Vercel | `vercel.json` |
 
 No `@supabase/*` packages remain — see the migration note above.
+
+The Auth-only `overrides` in `package.json` preserve Neon's published Better Auth
+1.6.23 dependency pins; the SDK's UI dependency otherwise resolves incompatible
+1.7.x peers. `@hookform/resolvers` stays at the previously installed 5.4.0 within
+the SDK's declared range. Review these pins together when upgrading Neon Auth;
+see `docs/adr/ADR-009-neon-auth-and-identity.md`. The proxy accepts both the canonical
+`session_challenge` and legacy `session_challange` cookies during Neon's migration.
 
 ## Build & Run
 

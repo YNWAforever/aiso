@@ -1,9 +1,18 @@
 import { describe, it, expect } from 'vitest'
 import { createHash } from 'node:crypto'
 import { buildScanEvidence, readScanEvidence, compareScanEvidence, CHECK_VERSIONS, SCANNER_METHODS, describeEvidenceUrl } from '@/lib/scan-evidence'
+import historicalEvidence from '../fixtures/scan-evidence-20260905.json'
 
 const input = () => ({ requestedUrl: 'https://example.com/private-secret?q=secret#secret', evaluatedUrl: 'https://example.com', industry: 'general_b2c', region: 'global', sitemapSource: 'fetched' as const, checks: {} })
 describe('bounded scan evidence', () => {
+  it('retains the historical scanner/check identities and refuses cross-method comparison', () => {
+    expect(readScanEvidence(historicalEvidence)).toEqual(historicalEvidence)
+    expect(historicalEvidence.checks.c6_llms_full_txt.version).toBe('2026-08-31.v1')
+    const current = buildScanEvidence(input())
+    expect(current.checks.c6_llms_full_txt.version).toBe('2026-10-03.v1')
+    expect(compareScanEvidence(historicalEvidence, current).reason).toBe('different-methods-or-scope')
+    expect(readScanEvidence({ ...historicalEvidence, scannerVersion: current.scannerVersion })).toBeNull()
+  })
   it('retains all identities without inventing historical collection or leaking input', () => {
     const evidence = buildScanEvidence(input())
     expect(Object.keys(evidence.checks)).toEqual(Object.keys(CHECK_VERSIONS))

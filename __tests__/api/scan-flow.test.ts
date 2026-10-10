@@ -4,6 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
+import { checkRobots } from '@/lib/checks/robots'
 
 // Set required env vars before any module is loaded
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test'
@@ -85,6 +86,28 @@ describe('POST /api/scan — full scan flow', () => {
     fetchMock.mockResolvedValue(new Response('ok', { status: 200 }))
     dbState.insertValues = []
     dbState.failInsert = false
+    vi.mocked(checkRobots).mockClear()
+  })
+
+  it.each(['network', 'http-error', 'empty', 'json'])('does not score or save a scan when origin collection fails: %s', async mode => {
+    if (mode === 'network') fetchMock.mockRejectedValueOnce(new Error('private network diagnostics'))
+    else fetchMock.mockResolvedValueOnce(new Response(mode === 'empty' ? '  ' : 'upstream response', {
+      status: mode === 'http-error' ? 503 : 200,
+      headers: { 'content-type': mode === 'json' ? 'application/json' : 'text/html' },
+    }))
+    const { POST } = await import('@/app/api/scan/route')
+    const res = await POST(new NextRequest('http://localhost/api/scan', {
+      method: 'POST', body: JSON.stringify({ url: 'https://example.com' }),
+      headers: { 'content-type': 'application/json' },
+    }))
+    // No HTTP response at all keeps #70's live contract (422, "could not reach");
+    // a response that is not a usable page is #69's 502.
+    const expected = mode === 'network' ? { status: 422, error: 'SCAN_UNREACHABLE' } : { status: 502, error: 'SCAN_PAGE_UNAVAILABLE' }
+    expect(res.status).toBe(expected.status)
+    expect(await res.json()).toEqual({ error: expected.error })
+    expect(dbState.insertValues).toEqual([])
+    expect(checkRobots).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('returns 400 when URL is missing', async () => {

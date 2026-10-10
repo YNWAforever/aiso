@@ -1,15 +1,17 @@
 import 'server-only'
 import { serializeDraftSnapshot } from '@/lib/opportunities/fingerprint'
+import { scanOpportunityCopy } from '@/lib/opportunities/presentation'
 import type { DraftSnapshotV1, OpportunityLocale, SourceEvidence, Suggestion } from '@/lib/opportunities/types'
 import { parseDraftEdit } from './schema'
 
 /** Shared server-side eligibility and locale copy. Never accepts browser-generated text. */
 export function buildInitialDraftSnapshot(suggestion:Suggestion,source:SourceEvidence,locale:OpportunityLocale):DraftSnapshotV1 {
  const chinese=locale==='zh-HK'
- const title=suggestion.source.kind==='pulse-metric' ? (chinese?'檢視問題內容覆蓋':'Review question coverage') : (chinese?`檢視網站檢查：${suggestion.args.checkKey}`:`Review website check: ${suggestion.args.checkKey}`)
+ const scanCopy=suggestion.evidence.kind==='scan-check'?scanOpportunityCopy(suggestion.evidence,locale):null
+ const title=scanCopy?.title ?? (chinese?'檢視問題內容覆蓋':'Review question coverage')
  const action=suggestion.source.kind==='pulse-metric'
   ? (chinese?`檢視與「${suggestion.args.question}」相關的內容。在 ${suggestion.args.platform} 保留的回答中未提及品牌；先核對內容及證據，再決定下一步。`:`Review content relevant to “${suggestion.args.question}”. The retained ${suggestion.args.platform} answer did not mention the brand; review the content and evidence before deciding next steps.`)
-  : (chinese?`檢視 ${suggestion.args.checkKey} 的保留證據及限制，並調查警告或未通過的檢查結果。`:`Review the retained evidence and limitations for ${suggestion.args.checkKey}, and investigate the warning or failed check.`)
+  : scanCopy!.action
  const normalized=parseDraftEdit({title,action,notes:'',expectedRevision:1})
  if(suggestion.evidence.kind==='pulse-metric'&&source.kind!=='pulse-metric')throw new TypeError('Source kind mismatch')
  const evidence=suggestion.evidence.kind==='pulse-metric'

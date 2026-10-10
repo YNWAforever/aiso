@@ -13,6 +13,7 @@ const mockSql = vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => {
 })
 
 vi.mock('server-only', () => ({}))
+vi.mock('@/lib/workspace/maintenance', () => ({ loadMaintenanceSnapshot: async () => null }))
 vi.mock('@/lib/db', () => ({ db: () => mockSql }))
 vi.mock('@/lib/auth', () => ({ getProfile: vi.fn() }))
 

@@ -1,5 +1,6 @@
-import { readScanEvidence, type EvidenceCheckKey, type EvidenceUrl, type ScanEvidence } from '@/lib/scan-evidence'
+import { readScanEvidence, type EvidenceUrl, type ScanEvidence } from '@/lib/scan-evidence'
 import { fingerprintEvidence, opportunityKey } from '@/lib/opportunities/fingerprint'
+import { rankActionableChecks } from '@/lib/view-models/check-priority'
 import type {
   PulseSuggestionEvidence,
   SafeObservationEvidence,
@@ -92,7 +93,7 @@ function scanSuggestions(source: Extract<SourceEvidence, { kind: 'scan-check' }>
   const recordedAt = normalizedNullableTimestamp(source.recordedAt)
   const suggestions: Suggestion[] = []
 
-  for (const checkKey of Object.keys(envelope.checks).sort() as EvidenceCheckKey[]) {
+  for (const { checkKey } of rankActionableChecks(envelope.checks)) {
     const check = envelope.checks[checkKey]
     if (check.applicability !== 'applicable' || check.collection !== 'complete' || !['warn', 'fail'].includes(check.assessment)) continue
     const sourceRef: SourceRef = { kind: 'scan-check', id: source.scanId.toLowerCase(), checkKey }

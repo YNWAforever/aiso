@@ -9,6 +9,8 @@ import { FixPackClient } from '@/components/FixPackClient'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
 import { getCheckExplanations } from '@/lib/checkExplanations'
 import type { Scan, CheckResult } from '@/lib/types'
+import { factualDensityState, type FactualDensityView } from '@/lib/factual-density-evidence'
+import { buildPublicResultSummary } from '@/lib/result-access'
 
 const CORE_CHECK_KEYS = [
   'c1_robots', 'c2_llms_txt', 'c3_bot_access', 'c4_structured_data', 'c5_extractability',
@@ -89,12 +91,13 @@ export default async function DashboardResultPage({
   const r = s.results as Record<string, unknown>
 
   type C17Data = { qualityScore?: number; authorityBreakdown?: Record<string, number>; citationsPerThousandWords?: number }
-  type C18Data = { qualityScore?: number; numberDensity?: number; hasComparativeData?: boolean }
+  type C18Data = FactualDensityView
   type C19Data = { topicalCoverageScore?: number; totalClusters?: number; hasOrphanPages?: number }
   type C20Data = { avgChunkLength?: number; optimalChunkRatio?: number; totalChunks?: number; hasFaqStyle?: boolean }
 
   const c17data = (r['c17_citation_density_data'] ?? r['c17']) as C17Data | undefined
   const c18data = (r['c18_factual_density_data']  ?? r['c18']) as C18Data | undefined
+  const c18State = factualDensityState(c18data, (r.c18_factual_density as CheckResult | undefined)?.diagnostic)
   const c19data = (r['c19_topical_authority_data'] ?? r['c19']) as C19Data | undefined
   const c20data = (r['c20_chunkability_data']      ?? r['c20']) as C20Data | undefined
   const hasGeo  = !!(c17data || c18data || c19data || c20data ||
@@ -105,12 +108,12 @@ export default async function DashboardResultPage({
   const geoWeights = [7, 6, 7, 5]
   const geoQualityScores = [
     c17data?.qualityScore,
-    c18data?.qualityScore,
+    c18State === 'observed' ? c18data?.qualityScore : undefined,
     c19data?.topicalCoverageScore,
     c20data ? Math.round(((c20data.optimalChunkRatio ?? 0) * 100)) : undefined,
   ]
   const geoScore = geoQualityScores.reduce<number>((acc, q, i) => {
-    if (q === undefined) return acc
+    if (typeof q !== 'number' || !Number.isFinite(q)) return acc
     const w = geoWeights[i]!
     return acc + (q >= 60 ? w : q >= 30 ? w * 0.5 : 0)
   }, 0)
@@ -122,9 +125,7 @@ export default async function DashboardResultPage({
     ...EXTENDED_CHECK_KEYS.map(k => (s.results as Record<string, unknown>)[k] as CheckResult | undefined).filter(Boolean),
     ...GEO_CHECK_KEYS.map(k => (s.results as Record<string, unknown>)[k] as CheckResult | undefined).filter(Boolean),
   ] as CheckResult[]
-  const passes = allChecks.filter(c => c.status === 'pass').length
-  const warns  = allChecks.filter(c => c.status === 'warn').length
-  const fails  = allChecks.filter(c => c.status === 'fail').length
+  const { pass: passes, warn: warns, fail: fails, unknown } = buildPublicResultSummary(s).counts
 
   const pending = s.agent_status === 'pending' || s.agent_status === 'running'
 
@@ -190,6 +191,8 @@ export default async function DashboardResultPage({
         {hasGeo && (
           <div className="rounded-xl border border-dash-border bg-dash-surface p-5 mb-6">
             <p className="text-xs font-bold text-dash-muted tracking-widest mb-4">{t('result.score_breakdown')}</p>
+            {c18State !== 'observed' && <p className="text-xs text-dash-muted mb-3">{t(c18State === 'legacy' ? 'checks.factual_density_legacy' : 'checks.factual_density_unavailable')}</p>}
+            <p className="text-xs text-dash-muted mb-3">{t('result.geo_model_evidence_note')}</p>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-dash-muted">{t('result.core_checks')}</span>
@@ -224,6 +227,7 @@ export default async function DashboardResultPage({
             {passes > 0 && <span className="bg-dash-success/10 text-dash-success font-semibold px-2 py-0.5 rounded-full text-xs border border-dash-success/20">✓ {passes} passing</span>}
             {warns  > 0 && <span className="bg-dash-warning/10 text-dash-warning font-semibold px-2 py-0.5 rounded-full text-xs border border-dash-warning/20">⚠ {warns} warnings</span>}
             {fails  > 0 && <span className="bg-dash-danger/10 text-dash-danger font-semibold px-2 py-0.5 rounded-full text-xs border border-dash-danger/20">✗ {fails} failing</span>}
+            {unknown > 0 && <span className="text-dash-muted text-xs">{t('result.evidence_unverified', { count: unknown })}</span>}
           </span>
         </div>
 
@@ -294,6 +298,7 @@ export default async function DashboardResultPage({
                     result={checkResult}
                     message={msg}
                     explanation={explanations[key]}
+                    factualState={isC18 ? c18State : undefined}
                   />
                   {/* Inline metric strip shown below each expandable row */}
                   {isC17 && c17data && (
@@ -313,7 +318,7 @@ export default async function DashboardResultPage({
                     <div className="flex gap-3 px-2 pb-2 text-xs text-dash-muted">
                       {c18data.numberDensity !== undefined && <span>{t('result.geo_number_density')}: {c18data.numberDensity.toFixed(1)}%</span>}
                       {c18data.hasComparativeData && <span className="text-emerald-400">✓ {t('result.geo_has_comparisons')}</span>}
-                      {c18data.qualityScore !== undefined && (
+                      {c18State === 'observed' && typeof c18data.qualityScore === 'number' && (
                         <span className="ml-auto font-semibold">{t('result.geo_quality_score')}: {Math.round(c18data.qualityScore)}/100</span>
                       )}
                     </div>

@@ -3,7 +3,9 @@ import { NextResponse, after, type NextRequest } from 'next/server'
 import { appOrigin } from '@/lib/app-origin'
 import { startCronRun, finishCronRun } from '@/lib/cron/recordRun'
 import { db } from '@/lib/db'
-import { countConfiguredClients, selectPendingClients } from '@/lib/pulse/schedule'
+import { countConfiguredClients, currentScanWeek, selectPendingClientPage, type CandidateCursor, type PendingClientPage } from '@/lib/pulse/schedule'
+import {isFeatureEnabled} from '@/lib/flags'
+import {runLedgerCron} from '@/lib/pulse/runs/cron'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,36 +25,18 @@ const MAX_CHAIN = 200
 const BUDGET_MS = 45_000
 
 /**
- * Most clients one chain will pass over after they fail. The list travels in
- * the hop URL, so it is bounded; reaching it ends the chain, and the next
- * firing starts with an empty list.
- */
-const MAX_SKIPPED = 25
-
-/** Client ids are uuids in production; this only has to keep the URL tame. */
-const SKIP_ID = /^[A-Za-z0-9-]{1,64}$/
-
-function parseSkip(raw: string | null): string[] {
-  if (!raw) return []
-  return [...new Set(raw.split(',').map(id => id.trim()).filter(id => SKIP_ID.test(id)))]
-    .slice(0, MAX_SKIPPED)
-}
-
-/**
- * Fires the next hop once this response has been sent. A dropped link costs
+ * Schedules the next hop once this response is sent. Every continuation goes
+ * through here so the chain has one self-origin call site. A dropped link costs
  * throughput, not correctness: the next scheduled firing resumes from the same
  * derived progress.
  */
-function chainNextHop(cronSecret: string, hop: number, skip: readonly string[]) {
+function chainTo(hop: number, cronSecret: string, candidateAfter?: CandidateCursor | null) {
   const next = new URL('/api/cron/pulse', appOrigin())
-  next.searchParams.set('hop', String(hop + 1))
-  if (skip.length > 0) next.searchParams.set('skip', skip.join(','))
+  next.searchParams.set('hop', String(hop))
+  if (candidateAfter) next.searchParams.set('candidateAfter', JSON.stringify(candidateAfter))
   after(async () => {
-    try {
-      await fetch(next, { headers: { authorization: `Bearer ${cronSecret}` } })
-    } catch {
-      console.error('[cron/pulse] chain hop failed')
-    }
+    try { await fetch(next, { headers: { authorization: `Bearer ${cronSecret}` } }) }
+    catch { console.error('[cron/pulse] chain hop failed') }
   })
 }
 
@@ -95,21 +79,40 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const requestUrl=new URL(req.url)
+  const mode=requestUrl.searchParams.get('mode')??'weekly'
+  if(mode!=='weekly'&&mode!=='repair')return NextResponse.json({error:'Invalid Pulse mode'},{status:400})
+  if(isFeatureEnabled('pulse_attempts'))return runLedgerCron(requestUrl,cronSecret)
+  if(mode==='repair')return NextResponse.json({skipped:'flag_off',outcome:'blocked',done:false})
   const runId = await startCronRun('/api/cron/pulse')
   try {
     const url = new URL(req.url)
     const hop = Number(url.searchParams.get('hop') ?? '0')
     if (!Number.isFinite(hop) || hop < 0 || hop >= MAX_CHAIN) {
-      const payload = { error: 'Chain limit reached', hop }
-      await finishCronRun(runId, 'ok', payload)
+      const payload = { error: 'Chain limit reached', hop,outcome:'partial',done:false }
+      await finishCronRun(runId, 'error', payload)
       return NextResponse.json(payload, { status: 200 })
     }
 
     const startedAt = Date.now()
-    const skip = parseSkip(url.searchParams.get('skip'))
-    let pending: Awaited<ReturnType<typeof selectPendingClients>>
+    let candidateAfter: CandidateCursor | null = null
+    const encodedAfter = url.searchParams.get('candidateAfter')
+    if (encodedAfter) {
+      try {
+        const parsed = JSON.parse(encodedAfter)
+        if (typeof parsed.createdAt !== 'string' || !Number.isFinite(Date.parse(parsed.createdAt))
+          || typeof parsed.clientId !== 'string' || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(parsed.clientId)) throw new Error()
+        candidateAfter = { createdAt: parsed.createdAt, clientId: parsed.clientId }
+      } catch {
+        const payload = { error: 'Invalid candidate cursor' }
+        await finishCronRun(runId, 'error', payload)
+        return NextResponse.json(payload, { status: 400 })
+      }
+    }
+    let page: PendingClientPage
     try {
-      pending = await selectPendingClients(db(), 1, new Set(skip))
+      page = await selectPendingClientPage(db(), { limit: 1, after: candidateAfter,
+        scanWeek: currentScanWeek(), deadlineMs: startedAt + BUDGET_MS - 5_000 })
     } catch {
       console.error('[cron/pulse] pending-client lookup failed')
       const payload = { error: 'Lookup failed' }
@@ -117,6 +120,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(payload, { status: 503 })
     }
 
+    const pending = page.items
+    if (pending.length === 0 && !page.exhausted) {
+      chainTo(hop + 1, cronSecret, page.nextCursor)
+      const payload = { done: false, deferred: true, hop, processed: 0, scanned: page.scanned, candidateCursor: page.nextCursor }
+      await finishCronRun(runId, 'ok', payload)
+      return NextResponse.json(payload)
+    }
     if (pending.length === 0) {
       // An empty pending list is ambiguous: selectPendingClients excludes clients
       // already rolled up this week, so it is also empty when every client is
@@ -127,14 +137,17 @@ export async function GET(req: NextRequest) {
       try {
         configuredClients = await countConfiguredClients(db())
       } catch {
-        configuredClients = -1
+        const payload = { error: 'Configured-client lookup failed' }
+        await finishCronRun(runId, 'error', payload)
+        return NextResponse.json(payload, { status: 503 })
       }
 
       if (configuredClients === 0) {
         console.error('[cron/pulse] no client has an active prompt bank; nothing will ever be scanned')
       }
 
-      const payload = { done: true, hop, processed: 0, configuredClients }
+      const payload = { done: true, hop, processed: 0, configuredClients, scanned: page.scanned,
+        outcome: configuredClients === 0 ? 'unconfigured' : page.scanned > 0 ? 'no-eligible-candidates' : 'all-complete' }
       await finishCronRun(runId, 'ok', payload)
       return NextResponse.json(payload)
     }
@@ -149,20 +162,16 @@ export async function GET(req: NextRequest) {
       })
       if (!res.ok) {
         // Never retry a failing client in the same chain — that would spin the
-        // whole budget on one error. When the failure is about this client
-        // (a 4xx: bad request, plan grants no platforms, client gone), stopping
-        // the chain was worse: the client stayed first in line and starved every
-        // brand behind it. Pass over it instead; the next firing retries it from
-        // the same derived cursor.
-        //
-        // A 5xx is not about the client — a failed write, a failed lookup, a
-        // provider outage — and the next client would only pay for the same
-        // LLM calls and lose them the same way, so the chain stops.
-        const nextSkip = [...skip, target.clientId]
-        const passedOver = res.status < 500 && nextSkip.length <= MAX_SKIPPED
-          && Date.now() - startedAt < BUDGET_MS
-        if (passedOver) chainNextHop(cronSecret, hop, nextSkip)
-
+        // budget on one error. When the failure is about this client (a 4xx:
+        // plan grants no platforms, client gone), stopping the chain was worse:
+        // the next firing starts from the top, so one broken brand starved every
+        // brand behind it. Continue from the candidate after it instead. A 5xx
+        // (failed write, lookup or provider outage) is not about the client and
+        // the next one would pay for LLM calls and lose them the same way, so
+        // the chain stops; the next firing retries from the derived cursor.
+        if (res.status < 500 && page.nextCursor && Date.now() - startedAt < BUDGET_MS) {
+          chainTo(hop + 1, cronSecret, page.nextCursor)
+        }
         console.error(`[cron/pulse] producer returned ${res.status} for ${target.clientId}`)
         const payload = { error: 'Producer failed', status: res.status, clientId: target.clientId }
         await finishCronRun(runId, 'error', payload)
@@ -181,7 +190,7 @@ export async function GET(req: NextRequest) {
     // open for its successor.
     const moreWork = result.nextCursor !== null || pending.length > 0
     const chained = moreWork && Date.now() - startedAt < BUDGET_MS
-    if (chained) chainNextHop(cronSecret, hop, skip)
+    if (chained) chainTo(hop + 1, cronSecret)
 
     const payload = {
       hop,

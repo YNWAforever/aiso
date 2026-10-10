@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useLocale } from 'next-intl'
 import type { CheckResult } from '@/lib/types'
 import type { CheckExplanation } from '@/lib/checkExplanations'
+import type { FactualDensityState } from '@/lib/factual-density-evidence'
 
 const COPY_EN = {
   question: 'What this checks',
@@ -10,6 +11,8 @@ const COPY_EN = {
   whatWeFound: 'What we found',
   status: 'Status',
   howToFix: 'How to fix',
+  unavailable: 'Unavailable — retry to obtain provider evidence',
+  legacy: 'Legacy / unverifiable — run a new scan',
 }
 
 // Typed `typeof COPY_EN` deliberately: adding a key above forces it here too,
@@ -20,6 +23,8 @@ const COPY_ZH_HK: typeof COPY_EN = {
   whatWeFound: '掃描發現',
   status: '狀態',
   howToFix: '如何修復',
+  unavailable: '未能取得資料 — 請重試以取得供應商證據',
+  legacy: '歷史／未能核實 — 請重新掃描',
 }
 
 const STATUS_ICON  = { pass: '✅', warn: '⚠️', fail: '❌' } as const
@@ -39,12 +44,22 @@ interface Props {
   result:      CheckResult
   message:     string
   explanation?: CheckExplanation
+  factualState?: FactualDensityState
 }
 
-export function ExpandableCheckItem({ label, result, message, explanation }: Props) {
+export function ExpandableCheckItem({ label, result, message, explanation, factualState }: Props) {
   const locale = useLocale()
   const c = locale === 'zh-HK' ? COPY_ZH_HK : COPY_EN
   const [open, setOpen] = useState(false)
+  const unavailable = factualState === 'unavailable' || factualState === 'legacy' || result.message === 'factual_density_unavailable'
+  const displayedMessage = unavailable ? factualState === 'legacy' ? c.legacy : c.unavailable : message
+
+  if (unavailable) return (
+    <div className="border-b border-slate-100 last:border-0 py-2.5">
+      <p className="text-sm text-slate-700">{label}</p>
+      <p className="text-xs text-slate-500 mt-1" role="status">{displayedMessage}</p>
+    </div>
+  )
 
   return (
     <div className="border-b border-slate-100 last:border-0">

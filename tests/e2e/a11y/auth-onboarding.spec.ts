@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { A11Y_LOCALES } from './matrix'
+import { openOnboardingComponent } from '../../fixtures/onboarding-browser'
 
 const COPY = {
   en: {
@@ -137,6 +138,9 @@ for (const locale of A11Y_LOCALES) {
   test(`onboarding keyboard landmark and reflow ${locale}`, async ({ page }) => {
     await mockRequests(page)
     await page.goto(`/${locale}/onboarding`, { waitUntil: 'networkidle' })
+    await expect(page.getByRole('heading',{level:1})).toHaveText(c.login)
+    expect(new URL(page.url()).searchParams.get('next')).toBe(`/${locale}/onboarding`)
+    await openOnboardingComponent(page,locale)
     await expectShell(page, c.steps[0], c.skip)
     await page.keyboard.press('Tab')
     await expect(page.getByRole('textbox', { name: c.steps[0], exact: true })).toBeFocused()
@@ -145,11 +149,11 @@ for (const locale of A11Y_LOCALES) {
 
   test(`onboarding steps retain keyboard focus and announce HTTP failure ${locale}`, async ({ page }) => {
     const requests = await mockRequests(page)
-    await page.goto(`/${locale}/onboarding`, { waitUntil: 'networkidle' })
+    await openOnboardingComponent(page,locale)
     const firstControls = [
       page.getByRole('textbox', { name: c.steps[0], exact: true }),
       page.getByRole('textbox', { name: c.steps[1], exact: true }),
-      page.getByRole('combobox', { name: c.industry, exact: true }),
+      page.getByRole('combobox', { name: locale==='en'?'Question language':'問題語言', exact: true }),
       page.getByRole('textbox', { name: new RegExp(c.description) }),
     ]
     async function expectStep(step: number) {
@@ -169,7 +173,7 @@ for (const locale of A11Y_LOCALES) {
     await firstControls[1].press('Enter')
     await expectStep(2)
     await page.getByRole('combobox', { name: c.region, exact: true }).selectOption('HK')
-    await firstControls[2].selectOption('technology')
+    await page.getByRole('combobox', { name: c.industry, exact: true }).selectOption('technology')
     await activateButtonByKeyboard(page, c.continue)
     await expectStep(3)
     const competitor = page.getByRole('textbox', { name: new RegExp(c.competitors) })

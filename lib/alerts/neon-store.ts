@@ -9,6 +9,7 @@ import {
 } from '@/lib/alerts/evaluate'
 import { appOrigin } from '@/lib/app-origin'
 import { isoDate } from '@/lib/iso-date'
+import {isFeatureEnabled} from '@/lib/flags'
 
 const PAGE_SIZE = 1000
 type Sql = NeonQueryFunction<false, false>
@@ -33,6 +34,7 @@ type WeeklyRow = {
   client_id: string
   scan_week: string | Date
   sov_score: number | string | null
+  coverageComplete?:boolean
 }
 
 type EmailRow = {
@@ -76,6 +78,28 @@ async function loadSnapshot(sql: Sql): Promise<AlertSnapshot> {
     loadEmailRows(sql, accountIds),
   ])
 
+  if(isFeatureEnabled('pulse_attempts')){
+    const completion=await sql`select r.client_id,r.scan_week,jsonb_array_length(r.manifest->'items') as expected,count(i.id)::int as actual,
+      count(i.id) filter(where i.status='succeeded')::int as succeeded,
+      count(i.id) filter(where i.status='succeeded' and i.classification_status='classified')::int as classified
+      from pulse_runs r join clients c on c.id=r.client_id and c.account_id=r.account_id left join pulse_run_items i on i.run_id=r.id and i.account_id=r.account_id and i.client_id=r.client_id
+      where c.id=any(${clientIds}::uuid[]) group by r.id,r.client_id,r.scan_week,r.manifest`
+    const byWeek=new Map(completion.map(row=>[`${row.client_id}:${isoDate(row.scan_week as string|Date,'')}`,row]))
+    for(const row of weeklyRows){
+      const proof=byWeek.get(`${row.client_id}:${isoDate(row.scan_week,'')}`)
+      row.coverageComplete=Boolean(proof&&Number(proof.expected)>0&&proof.expected===proof.actual&&proof.expected===proof.succeeded&&proof.classified===proof.succeeded)
+    }
+    for(const row of completion){
+      if(!weeklyRows.some(week=>week.client_id===row.client_id&&isoDate(week.scan_week,'')===isoDate(row.scan_week as string|Date,'')))
+        weeklyRows.push({client_id:String(row.client_id),scan_week:row.scan_week as string|Date,sov_score:null,coverageComplete:false})
+    }
+    weeklyRows.sort((a,b)=>isoDate(b.scan_week,'').localeCompare(isoDate(a.scan_week,'')))
+  }else{
+    // Compatibility/legacy summaries have no immutable manifest proof. They
+    // cannot establish either classified coverage or a definite alert.
+    for(const row of weeklyRows)row.coverageComplete=false
+  }
+
   const weeksByClient: Record<string, AlertWeekSnapshot[]> = {}
   for (const row of weeklyRows) {
     const week = {
@@ -86,9 +110,11 @@ async function loadSnapshot(sql: Sql): Promise<AlertSnapshot> {
       // a counted failure downstream, not a wrong-but-plausible date string.
       scan_week: isoDate(row.scan_week, ''),
       sov_score: row.sov_score === null ? null : Number(row.sov_score),
+      ...(row.coverageComplete===undefined?{}:{coverageComplete:row.coverageComplete}),
     }
     weeksByClient[row.client_id] = [...(weeksByClient[row.client_id] ?? []), week]
   }
+  for(const id of Object.keys(weeksByClient))weeksByClient[id]=weeksByClient[id].slice(0,2)
 
   return {
     configs,
@@ -227,7 +253,7 @@ async function loadWeeklyRows(sql: Sql, clientIds: string[]): Promise<WeeklyRow[
  */
 async function loadCurrentScanWeek(sql: Sql): Promise<string> {
   const rows = (await sql`
-    SELECT date_trunc('week', now())::date AS current_scan_week
+    SELECT date_trunc('week', now() at time zone 'UTC')::date AS current_scan_week
   `) as Array<{ current_scan_week: string | Date }>
 
   const week = isoDate(rows[0]?.current_scan_week, '')

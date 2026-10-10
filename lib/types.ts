@@ -1,7 +1,14 @@
 import type { CheckDiagnostic, ScanEvidence } from '@/lib/scan-evidence'
 export type CheckStatus = 'pass' | 'warn' | 'fail'
 
+export interface CollectorAccess {
+  crawler: string
+  role: 'search' | 'training' | 'user_triggered'
+  policy: 'allowed' | 'blocked' | 'unknown'
+  probe: 'reachable' | 'unreachable' | 'not_measured'
+}
 export interface CheckResult {
+  collectorAccess?: CollectorAccess[]
   status: CheckStatus
   message: string
   details?: string
@@ -130,6 +137,7 @@ export interface PromptBankItem {
   category: string | null
   question: string
   language: string
+  market?: string | null
   is_active: boolean
   created_at: string
 }
@@ -208,7 +216,7 @@ export interface CitationDensityResult {
 }
 
 export interface FactualDensityResult {
-  qualityScore:       number
+  qualityScore:       number | null
   numberDensity:      number
   namedEntityDensity: number
   dateReferences:     number
@@ -216,6 +224,7 @@ export interface FactualDensityResult {
   hasTimeSeriesData:  boolean
   /** null when the provider gave no usable score — never an invented default. */
   uniquenessScore:    number | null
+  uniquenessStatus:   'observed' | 'unavailable'
   uniqueClaims:       string[]
 }
 
@@ -440,12 +449,12 @@ export interface LocalTrustAction {
  * Bumped whenever check-engine detection logic changes for any of c1-c20.
  * Stored on new scans in results.evidence.scannerVersion; historical rows are not backfilled.
  */
-// 2026-10-09.v1: GEO checks that could not measure (provider failure, no
-// input, URLs with no structure) are left out of the GEO denominator instead
-// of scoring as fail/warn; c18 no longer invents a uniqueness score; c17, c18
-// and c20 read visible text only, not CSS/scripts. Earlier methods stay
-// readable via SCANNER_METHODS in lib/scan-evidence.ts.
-export const SCANNER_VERSION = '2026-10-09.v1'
+// 2026-10-10.v1 joins the two method lines: the remediation branch's c1/c3/c6
+// revisions (2026-10-03.v1) and main's GEO revisions (2026-10-09.v1) — checks
+// that could not measure are left out of the GEO denominator; c18 never invents
+// a uniqueness score; c17, c18 and c20 read visible text only. Every earlier
+// method stays readable via SCANNER_METHODS in lib/scan-evidence.ts.
+export const SCANNER_VERSION = '2026-10-10.v1'
 
 export interface ScanVersionInfo {
   scannerVersion: string

@@ -12,6 +12,7 @@ async function fixture(
   lang: string,
   slice = 'C9C',
   unavailable = false,
+  variant = 'default',
 ) {
   const dir = process.env[`${slice}_HTML_DIR`],
     css = process.env[`${slice}_CSS_PATH`]
@@ -30,7 +31,7 @@ async function fixture(
     readFileSync(`${draftDir}/${lang}-data.json`, 'utf8'),
   ).item as WorkItem
   const html = readFileSync(
-      `${dir}/${lang}-${unavailable ? 'unavailable' : 'default'}.html`,
+      `${dir}/${lang}-${unavailable ? 'unavailable' : variant}.html`,
       'utf8',
     ),
     js = readFileSync(`${dir}/fixture.js`, 'utf8'),
@@ -55,6 +56,35 @@ test.afterEach(({ page }) => {
   expect(errors.get(page) ?? []).toEqual([])
 })
 for (const lang of ['en', 'zh-HK']) {
+  test(`T12 empty candidate pages can continue and preserve existing candidates in ${lang}`,async({page})=>{
+    const {copy,data}=await fixture(page,lang,'C9C',false,'continuation')
+    let reads=0
+    await page.route('**/api/clients/*/opportunities?cursor=*',route=>{
+      reads++
+      return route.fulfill({json:{...data.initial,window:{...data.initial.window,nextCursor:reads===1?'later-evidence':null},suggestions:reads===1?[]:[{...data.initial.suggestions[0],key:'later-candidate',args:{...data.initial.suggestions[0].args,question:'Later question'},source:{...data.initial.suggestions[0].source,id:'77777777-7777-4777-8777-777777777777'}}]}})
+    })
+    await page.getByRole('button',{name:copy.moreCandidates}).click()
+    await expect(page.locator('article')).toHaveCount(1)
+    await page.getByRole('button',{name:copy.moreCandidates}).click()
+    await expect(page.locator('article')).toHaveCount(2)
+    await expect(page.getByRole('button',{name:copy.moreCandidates})).toHaveCount(0)
+    expect(reads).toBe(2)
+  })
+  test(`T19 all sixteen candidates have human next steps in ${lang}`,async({page})=>{
+    await fixture(page,lang,'C9C',false,'many')
+    const articles=page.locator('article')
+    await expect(articles).toHaveCount(16)
+    for(const article of await articles.all()){
+      await expect(article.locator('h2')).not.toContainText(/c\d+_/)
+      await expect(article.locator('p').first()).toContainText(lang==='en'?'Locate the relevant content':'先在網站定位')
+      await expect(article.locator('p').first()).not.toContainText(/\/private|\d+%/)
+    }
+    const faq=page.getByRole('heading',{name:lang==='en'?'Review frequently asked questions':'檢查常見問題內容'})
+    const headings=page.getByRole('heading',{name:lang==='en'?'Review heading structure':'檢查標題結構'})
+    expect(await faq.evaluate(node=>Array.from(document.querySelectorAll('article h2')).indexOf(node))).toBeLessThan(await headings.evaluate(node=>Array.from(document.querySelectorAll('article h2')).indexOf(node)))
+    expect((await new AxeBuilder({page}).analyze()).violations).toEqual([])
+    await page.screenshot({path:`${process.env.C9C_HTML_DIR}/${lang}-sixteen.png`,fullPage:true})
+  })
   test(`C9c initial source failure preserves saved draft editing and explicit retry in ${lang}`, async ({
     page,
   }) => {
@@ -147,6 +177,7 @@ for (const lang of ['en', 'zh-HK']) {
       release = resolve
     })
     await page.route('**/api/clients/*/work-items', async (route) => {
+      if (route.request().method() === 'GET') return route.fulfill({ json: { items: [draft], nextCursor: null } })
       posts++
       expect(route.request().postDataJSON()).toEqual({
         source: data.initial.suggestions[0].source,
@@ -419,6 +450,7 @@ for (const lang of ['en', 'zh-HK']) {
         }),
       )
       await page.route('**/api/clients/*/work-items', (route) => {
+        if (route.request().method() === 'GET') return route.fulfill({ json: { items: [draft], nextCursor: null } })
         expect(route.request().postDataJSON()).toEqual({
           source: scanSuggestion.source,
           ruleVersion: scanSuggestion.ruleVersion,
@@ -473,6 +505,7 @@ for (const lang of ['en', 'zh-HK']) {
         }),
       )
       await page.route('**/api/clients/*/work-items', (route) => {
+        if (route.request().method() === 'GET') return route.fulfill({ json: { items: [draft], nextCursor: null } })
         posts++
         return route.abort()
       })

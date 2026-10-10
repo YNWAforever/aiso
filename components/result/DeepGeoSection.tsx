@@ -1,6 +1,7 @@
 'use client'
 import { Brain, Link2, TrendingUp, Layers } from 'lucide-react'
 import { useLocale } from 'next-intl'
+import { factualDensityState, type FactualDensityView } from '@/lib/factual-density-evidence'
 
 const COPY_EN = {
   sectionTitle: 'Deep GEO Analysis',
@@ -8,17 +9,19 @@ const COPY_EN = {
   checkNo: (n: number) => `Check #${n}`,
   // C17
   c17Title: 'Citation Density & Authority',
-  c17Desc: 'AI models trust sources that cite trustworthy references. We scored every external link on your page through our 5-layer Authority Engine.',
+  c17Desc: 'AISO rates external links with a local heuristic. Actual AI citations and consumer visibility are not measured by this check.',
   overallQuality: 'Overall quality score',
   citationsPer1k: 'Citations per 1,000 words',
   authorityBreakdown: 'Citation authority breakdown',
-  tierNote: 'Tier 1 = academic, government & major publications. AI citations weight Tier 1 sources most heavily.',
+  tierNote: 'Tier 1 groups academic, government and major publications under AISO’s heuristic. These weights are not platform ranking rules.',
   tierOther: 'Other',
   totalLinks: (n: number) => <><strong className="text-slate-700">{n}</strong> total links</>,
   externalLinks: (n: number) => <><strong className="text-slate-700">{n}</strong> external</>,
   // C18
   c18Title: 'Factual Density',
-  c18Desc: 'AI models prefer citing content dense with specific facts — statistics, dates, named entities, and comparisons. Vague content rarely gets cited.',
+  c18Desc: 'Page counts and a model assessment of factual uniqueness. Real search and consumer visibility are not measured by this check.',
+  c18Unavailable: 'Unavailable — retry to obtain provider evidence. Page counts remain available.',
+  c18Legacy: 'Legacy / unverifiable — provider provenance is unknown. Run a new scan.',
   numberDensity: 'Number/stat density',
   entityDensity: 'Named entity density',
   uniqueness: 'Content uniqueness',
@@ -27,14 +30,14 @@ const COPY_EN = {
   timeSeriesData: 'Time-series data',
   // C19
   c19Title: 'Topical Authority',
-  c19Desc: 'AI models favour sites that comprehensively cover a topic area. Topic clusters — a pillar page + supporting articles — signal deep expertise.',
+  c19Desc: 'A local heuristic for topic clusters in the sampled sitemap. Coverage does not establish search ranking or citation performance.',
   coverageScore: 'Topical coverage score',
   clustersDetected: (n: number) => `${n} topic cluster${n !== 1 ? 's' : ''} detected`,
   orphanPages: (n: number) => `⚠ ${n} orphan page${n > 1 ? 's' : ''}`,
   detectedClusters: 'Detected clusters',
   // C20
   c20Title: 'AI Chunkability',
-  c20Desc: "AI models extract content in self-contained 'chunks' to cite. This measures how well your content is structured for that extraction.",
+  c20Desc: 'A local heuristic for content structure and chunk sizes. These thresholds are not platform requirements or guaranteed visibility gains.',
   optimalChunkRatio: 'Optimal chunk ratio',
   contentChunks: (n: number) => `${n} content chunks`,
   avgWords: (n: number) => `Avg ${n} words/chunk`,
@@ -51,17 +54,19 @@ const COPY_ZH_HK: typeof COPY_EN = {
   checkNo: (n: number) => `檢查 #${n}`,
   // C17
   c17Title: '引用密度及權威度',
-  c17Desc: 'AI 模型信任引用可靠來源的網站。我們以 5 層權威引擎為你頁面上的每條對外連結評分。',
+  c17Desc: 'AISO 以本地啟發式規則評估對外連結。本檢查尚未量度實際 AI 引用及消費者可見度。',
   overallQuality: '整體質素分數',
   citationsPer1k: '每 1,000 字引用數',
   authorityBreakdown: '引用權威分佈',
-  tierNote: 'Tier 1 = 學術、政府及主要刊物。AI 引用時最重視 Tier 1 來源。',
+  tierNote: 'Tier 1 按 AISO 的啟發式規則包括學術、政府及主要刊物。這些權重並非平台排名規則。',
   tierOther: '其他',
   totalLinks: (n: number) => <>連結總數 <strong className="text-slate-700">{n}</strong></>,
   externalLinks: (n: number) => <>對外連結 <strong className="text-slate-700">{n}</strong></>,
   // C18
   c18Title: '事實密度',
-  c18Desc: 'AI 模型偏好引用充滿具體事實的內容——統計數字、日期、具名實體和比較。空泛的內容鮮少被引用。',
+  c18Desc: '頁面數量統計及模型對事實獨特性的評估。本檢查尚未量度真實搜尋及消費者可見度。',
+  c18Unavailable: '未能取得資料 — 請重試以取得供應商證據。頁面統計仍可查看。',
+  c18Legacy: '歷史／未能核實 — 供應商來源不明。請重新掃描。',
   numberDensity: '數字／統計密度',
   entityDensity: '具名實體密度',
   uniqueness: '內容獨特性',
@@ -70,14 +75,14 @@ const COPY_ZH_HK: typeof COPY_EN = {
   timeSeriesData: '時間序列數據',
   // C19
   c19Title: '主題權威',
-  c19Desc: 'AI 模型偏好全面覆蓋某個主題範疇的網站。主題群組——支柱頁面 + 支援文章——是深厚專業的訊號。',
+  c19Desc: '以本地啟發式規則評估已抽樣 sitemap 的主題群組。覆蓋程度不能證明搜尋排名或引用成效。',
   coverageScore: '主題覆蓋分數',
   clustersDetected: (n: number) => `偵測到 ${n} 個主題群組`,
   orphanPages: (n: number) => `⚠ ${n} 個孤立頁面`,
   detectedClusters: '偵測到的群組',
   // C20
   c20Title: 'AI 分塊能力',
-  c20Desc: 'AI 模型以自成一體的「塊」提取內容作引用。這項指標衡量你的內容結構有多適合這種提取方式。',
+  c20Desc: '以本地啟發式規則評估內容結構及分塊大小。這些門檻並非平台要求，亦不保證可見度改善。',
   optimalChunkRatio: '理想分塊比例',
   contentChunks: (n: number) => `${n} 個內容分塊`,
   avgWords: (n: number) => `平均每塊 ${n} 字`,
@@ -90,6 +95,7 @@ const COPY_ZH_HK: typeof COPY_EN = {
 
 interface MetricBarProps { label: string; value: number; max?: number; color?: string }
 function MetricBar({ label, value, max = 100, color = 'bg-primary' }: MetricBarProps) {
+  if (!Number.isFinite(value) || value < 0 || !Number.isFinite(max) || max <= 0) return null
   const pct = Math.min(100, (value / max) * 100)
   const barColor = pct >= 60 ? 'bg-emerald-500' : pct >= 30 ? 'bg-amber-400' : 'bg-red-400'
   return (
@@ -121,7 +127,7 @@ function TierBadge({ tier, count, otherLabel }: TierBadgeProps) {
 }
 
 type C17Data = { qualityScore?: number; authorityBreakdown?: Record<string, number>; citationsPerThousandWords?: number; totalLinks?: number; externalLinks?: number }
-type C18Data = { qualityScore?: number; numberDensity?: number; namedEntityDensity?: number; dateReferences?: number; hasComparativeData?: boolean; hasTimeSeriesData?: boolean; uniquenessScore?: number | null }
+type C18Data = FactualDensityView
 type C19Data = { topicalCoverageScore?: number; totalClusters?: number; hasOrphanPages?: number; detectedClusters?: { topic: string; completenessScore: number }[] }
 type C20Data = { avgChunkLength?: number; optimalChunkRatio?: number; totalChunks?: number; hasFaqStyle?: boolean; chunkAnalysis?: { heading: string; extractabilityScore: number; isAnswerFirst?: boolean; isSelfContained?: boolean }[] }
 
@@ -135,6 +141,7 @@ interface Props {
 export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
   const locale = useLocale()
   const c = locale === 'zh-HK' ? COPY_ZH_HK : COPY_EN
+  const c18State = factualDensityState(c18)
   if (!c17 && !c18 && !c19 && !c20) return null
 
   return (
@@ -196,7 +203,8 @@ export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
             {c.c18Desc}
           </p>
           <div className="space-y-3 mb-5">
-            {c18.qualityScore !== undefined && (
+            {c18State !== 'observed' && <p className="text-xs text-slate-500" role="status">{c18State === 'legacy' ? c.c18Legacy : c.c18Unavailable}</p>}
+            {c18State === 'observed' && typeof c18.qualityScore === 'number' && (
               <MetricBar label={c.overallQuality} value={c18.qualityScore} color="auto" />
             )}
             {c18.numberDensity !== undefined && (
@@ -205,8 +213,7 @@ export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
             {c18.namedEntityDensity !== undefined && (
               <MetricBar label={c.entityDensity} value={c18.namedEntityDensity} max={10} color="auto" />
             )}
-            {/* Older scans stored an invented 50 here; new ones store null when unmeasured. */}
-            {typeof c18.uniquenessScore === 'number' && (
+            {c18State === 'observed' && typeof c18.uniquenessScore === 'number' && (
               <MetricBar label={c.uniqueness} value={c18.uniquenessScore} color="auto" />
             )}
           </div>

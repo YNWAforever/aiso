@@ -2,7 +2,9 @@ import 'server-only'
 import { db } from '@/lib/db'
 import { resolveCommercialEntitlement, type CommercialAccount } from '@/lib/tier'
 import { projectObservedSummary, type ObservedPulseSummary } from '@/lib/pulse/observed-summary'
+import { attachManifestCoverage } from '@/lib/pulse/runs/read-coverage'
 import type { AgentCompetitor, AgentProgress, AgentRecommendation, Client, ClientOverview, Scan } from '@/lib/types'
+import { loadMaintenanceSnapshot,type MaintenanceSnapshot } from './maintenance'
 
 export type WorkspaceRead<T> = { status: 'ok' | 'error' | 'locked'; data: T }
 export type WorkspaceClient = Pick<Client, 'id' | 'brand_name' | 'domain' | 'industry' | 'status'>
@@ -15,6 +17,7 @@ export type OwnedWorkspace = {
   recommendations: WorkspaceRead<AgentRecommendation[]>
   progress: WorkspaceRead<AgentProgress[]>
   competitors: WorkspaceRead<AgentCompetitor[]>
+  maintenance?:WorkspaceRead<MaintenanceSnapshot|null>
 }
 
 async function read<T>(name: string, work: () => Promise<T>, empty: T): Promise<WorkspaceRead<T>> {
@@ -55,7 +58,7 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
   if (!clientRows[0]) return null
   const client = clientRows[0] as WorkspaceClient
   const { features } = resolveCommercialEntitlement(profile.accounts)
-  const [scan, history, pulse, missed] = await Promise.all([
+  const [scan, history, pulse, missed,maintenance] = await Promise.all([
     read('scan', async () => {
       const rows = scanId !== undefined
         ? await sql`select * from scans where id = ${scanId} and client_id = ${clientId} and account_id = ${accountId} limit 1`
@@ -78,7 +81,7 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
         ), observations as (
           select m.scan_week, count(*)::int as observed_queries,
             count(*) filter (where m.brand_mentioned = true and m.raw_answer ~ '[^[:space:]]')::int as observed_brand_mentions,
-            count(*) filter (where m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_queries,
+            count(*) filter (where to_jsonb(m)->>'classification_status'='classified' and m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_queries,
             count(distinct m.platform) filter (where m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_platform_count
           from pulse_metrics m join clients c on c.id = m.client_id
           join recent_weeks w on w.scan_week = m.scan_week
@@ -92,15 +95,17 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
         left join observations o on o.scan_week = w.scan_week
         order by w.scan_week, s.platform nulls first
       `
-      return projectObservedSummary(rows)
+      return projectObservedSummary(await attachManifestCoverage(sql,accountId,[clientId],rows))
     }, { summary: [], kpi: null, latestWeek: null }),
     read('missed', async () => await sql`
       select m.platform, m.question, m.competitors_mentioned, m.scan_week
       from pulse_metrics m join clients c on c.id = m.client_id
       where c.id = ${clientId} and c.account_id = ${accountId} and m.brand_mentioned = false
         and m.raw_answer ~ '[^[:space:]]'
+        and to_jsonb(m)->>'classification_status'='classified'
       order by m.scan_week desc, m.id desc limit 10
     ` as ClientOverview['missedOpportunities'], []),
+    read('maintenance',()=>loadMaintenanceSnapshot(accountId,clientId,features.edit_prompts),null),
   ])
   const selected = scan.data
   const platforms = features.platform_access
@@ -128,7 +133,7 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
         order by a.mention_rate desc
     ` as AgentCompetitor[]),
   ])
-  return { client, scan, history, pulse, missed, recommendations, progress, competitors }
+  return { client, scan, history, pulse, missed, recommendations, progress, competitors,maintenance }
 }
 
 /** Existing API shape remains stable; unlike home it must not return partial success. */

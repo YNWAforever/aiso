@@ -21,6 +21,7 @@ import { getCheckExplanations }  from '@/lib/checkExplanations'
 import type { Scan, CheckResult, ScanResults } from '@/lib/types'
 import type { PublicResultSummary } from '@/lib/result-access'
 import { consumeOneTimeFunnelEvent, trackFunnelEvent } from '@/lib/funnel-client'
+import { factualDensityState, type FactualDensityView } from '@/lib/factual-density-evidence'
 
 /* ── Check key lists ─────────────────────────────────────────── */
 const CORE_KEYS = ['c1_robots','c2_llms_txt','c3_bot_access','c4_structured_data','c5_extractability'] as const
@@ -33,7 +34,7 @@ const CHECK_LABELS_EN: Record<string, string> = {
   c3_bot_access:        'AI bot accessibility',
   c4_structured_data:   'Structured data (JSON-LD)',
   c5_extractability:    'Content extractability',
-  c6_llms_full_txt:     'llms-full.txt',
+  c6_llms_full_txt:     'llms.txt content completeness (optional)',
   c7_mcp_card:          'MCP server card',
   c8_sitemap:           'XML sitemap',
   c9_meta_desc:         'Meta descriptions',
@@ -56,7 +57,7 @@ const CHECK_LABELS_ZH_HK: Record<string, string> = {
   c3_bot_access:        'AI 機械人可存取性',
   c4_structured_data:   '結構化數據（JSON-LD）',
   c5_extractability:    '內容可提取度',
-  c6_llms_full_txt:     'llms-full.txt',
+  c6_llms_full_txt:     'llms.txt 內容完整度（選配）',
   c7_mcp_card:          'MCP 伺服器卡片',
   c8_sitemap:           'XML sitemap',
   c9_meta_desc:         'Meta description',
@@ -85,10 +86,12 @@ const UI_EN = {
   geoTitle:  'GEO CHECKS',
   geoSubtitle: 'Generative Engine Optimisation — content quality for AI citation',
   scanAnother: '← Scan another URL',
-  platforms: 'Estimated AI platform readiness',
-  platformNote: 'Inferred from site checks, not observed AI answers or measured visibility.',
+  platforms: 'Consumer AI exposure',
+  platformNote: 'Not measured by this technical scan. Crawler access is reported separately below.',
   estimatedImpact: 'Estimated impact: the following projections are inferred from site checks, not measured visibility or guaranteed gains.',
   openFixPack: 'Open your Fix Pack',
+  collectionFailedTitle: 'This scan could not be completed',
+  collectionFailedBody: 'The website page was not collected. A score or improvement estimate would be misleading. Check the address and try again.',
 }
 
 const UI_ZH_HK: typeof UI_EN = {
@@ -103,10 +106,12 @@ const UI_ZH_HK: typeof UI_EN = {
   geoTitle:  'GEO 檢查',
   geoSubtitle: '生成式引擎優化——內容能否被 AI 引用的質素指標',
   scanAnother: '← 掃描另一個網址',
-  platforms: 'AI 平台就緒度估算',
-  platformNote: '根據網站檢查推斷，並非實際 AI 回答觀測或可見度測量。',
+  platforms: '消費者 AI 曝光',
+  platformNote: '本技術掃描尚未量度實際曝光。下方另列爬蟲存取結果。',
   estimatedImpact: '預估影響：以下推算根據網站檢查，並非實際可見度測量，亦不保證改善成效。',
   openFixPack: '開啟你的 Fix Pack',
+  collectionFailedTitle: '未能完成這次掃描',
+  collectionFailedBody: '未有成功採集網站頁面，因此無法提供可靠分數或改善估算。請核對網址後重試。',
 }
 
 /* ── Helpers ────────────────────────────────────────────────── */
@@ -117,8 +122,8 @@ function getResult(results: Record<string, unknown>, key: string): CheckResult |
 }
 
 const PLATFORM_STATUS_LABELS: Record<'en' | 'zh-HK', Record<PlatformStatus, string>> = {
-  en: { visible: 'Visible', partial: 'Partial', blocked: 'Hidden' },
-  'zh-HK': { visible: '可見', partial: '部分可見', blocked: '隱藏' },
+  en: { visible: 'Legacy technical estimate', partial: 'Legacy technical estimate', blocked: 'Legacy technical estimate', not_measured: 'Not measured' },
+  'zh-HK': { visible: '歷史技術估算', partial: '歷史技術估算', blocked: '歷史技術估算', not_measured: '未量度' },
 }
 
 export function getPlatformStatusLabel(status: PlatformStatus, locale: string) {
@@ -147,6 +152,7 @@ function CheckSection({ title, subtitle, keys, results }: {
               result={r}
               message={r.message}
               explanation={explanations[key]}
+              factualState={key === 'c18_factual_density' ? factualDensityState(results.c18_factual_density_data ?? results.c18, r.diagnostic) : undefined}
             />
           </div>
         )
@@ -171,11 +177,11 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
   const { pass, warn, fail, total } = summary.counts
   const r = (fullScan?.results ?? {}) as Record<string, unknown>
   const impact = fullScan
-    ? computeImpact(r, { score: fullScan.score, grade: fullScan.grade ?? 'F', industry: fullScan.industry })
+    ? computeImpact(r, { score: fullScan.score, grade: fullScan.grade ?? 'F', industry: fullScan.industry, confirmedChecks: ownedEvidence?.pillarInputs ?? {} })
     : null
   const publicImpact = { ...summary.teaser, aiReadablePercent: null, quickWins: [] }
   const topIssueResults = summary.topIssueKey && summary.topIssueStatus
-    ? { [summary.topIssueKey]: { status: summary.topIssueStatus, message: 'public_summary' } }
+    ? { [summary.topIssueKey]: { status: summary.topIssueStatus, assessment: summary.topIssueStatus, collection: 'complete', applicability: 'applicable', message: 'public_summary' } }
     : {}
 
   useEffect(() => {
@@ -185,14 +191,21 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
   }, [lang, summary.id])
 
   useEffect(() => {
-    if (fullScan || !consumeOneTimeFunnelEvent(signupCtaTracked)) return
+    if (summary.collectionFailed || fullScan || !consumeOneTimeFunnelEvent(signupCtaTracked)) return
     const locale = lang === 'zh-HK' ? 'zh-HK' : 'en'
     trackFunnelEvent({ name: 'signup_cta_viewed', locale, scanId: summary.id })
-  }, [fullScan, lang, summary.id])
+  }, [fullScan, lang, summary.id, summary.collectionFailed])
+
+  if (summary.collectionFailed) return <main className="mx-auto max-w-2xl space-y-4 px-4 py-12" data-testid="collection-failed">
+    <p className="break-all text-sm text-muted-foreground">{summary.domain}</p>
+    <h1 className="text-2xl font-bold">{ui.collectionFailedTitle}</h1>
+    <p>{ui.collectionFailedBody}</p>
+    <Link href={`/${lang}/scan`} className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-primary-foreground">{ui.scanAnother}</Link>
+  </main>
 
   // GEO rich data
   type C17 = { qualityScore?: number; authorityBreakdown?: Record<string, number>; citationsPerThousandWords?: number; totalLinks?: number; externalLinks?: number }
-  type C18 = { qualityScore?: number; numberDensity?: number; namedEntityDensity?: number; dateReferences?: number; hasComparativeData?: boolean; hasTimeSeriesData?: boolean; uniquenessScore?: number }
+  type C18 = FactualDensityView
   type C19 = { topicalCoverageScore?: number; totalClusters?: number; hasOrphanPages?: number; detectedClusters?: { topic: string; completenessScore: number }[] }
   type C20 = { avgChunkLength?: number; optimalChunkRatio?: number; totalChunks?: number; hasFaqStyle?: boolean; chunkAnalysis?: { heading: string; extractabilityScore: number; isAnswerFirst?: boolean; isSelfContained?: boolean }[] }
 
@@ -248,6 +261,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
             {pass > 0 && <span className="bg-emerald-100 text-emerald-700 font-semibold px-2.5 py-1 rounded-full">✅ {ui.passing(pass)}</span>}
             {warn > 0 && <span className="bg-amber-100  text-amber-700  font-semibold px-2.5 py-1 rounded-full">⚠️ {ui.warnings(warn)}</span>}
             {fail > 0 && <span className="bg-red-100    text-red-700    font-semibold px-2.5 py-1 rounded-full">❌ {ui.failing(fail)}</span>}
+            {summary.counts.unknown > 0 && <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">{locale === 'zh-HK' ? `${summary.counts.unknown} 項資料不足` : `${summary.counts.unknown} need evidence`}</span>}
           </span>
         </div>
 
@@ -256,6 +270,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
           <TopIssueCard
             results={topIssueResults as ScanResults & Record<string, unknown>}
             failCount={fail + warn}
+            priorityState={summary.priorityState}
           />
         </div>
 
@@ -275,7 +290,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
                       ? 'bg-emerald-100 text-emerald-700'
                       : platform.status === 'partial'
                         ? 'bg-amber-100 text-amber-700'
-                        : 'bg-red-100 text-red-700'
+                        : platform.status === 'not_measured' ? 'bg-slate-100 text-slate-700' : 'bg-red-100 text-red-700'
                   }`}
                 >
                   {getPlatformStatusLabel(platform.status, locale)}
@@ -283,6 +298,14 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
               </div>
             ))}
           </div>
+          {(summary.teaser.collectorAccess ?? []).length > 0 && <ul className="mt-4 space-y-2 text-xs text-slate-600" aria-label={locale === 'zh-HK' ? '爬蟲技術存取' : 'Crawler technical access'}>
+            {summary.teaser.collectorAccess.map(collector => <li key={collector.crawler}>
+              {collector.crawler} · {locale === 'zh-HK'
+                ? ({ search: '搜尋', training: '訓練', user_triggered: '使用者觸發' }[collector.role]) : collector.role.replace('_', ' ')} · {locale === 'zh-HK'
+                ? `規則：${{ allowed: '允許', blocked: '封鎖', unknown: '未知' }[collector.policy]}；抓取：${{ reachable: '可存取', unreachable: '不可存取', not_measured: '未量度' }[collector.probe]}`
+                : `Policy: ${collector.policy}; fetch: ${collector.probe.replace('_', ' ')}`}
+            </li>)}
+          </ul>}
         </div>
 
         {fullScan && impact ? (

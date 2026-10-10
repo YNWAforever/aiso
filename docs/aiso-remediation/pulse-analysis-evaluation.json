@@ -1,0 +1,53 @@
+{
+  "scope": "Synthetic parser/fallback behavior; not live model accuracy",
+  "reviewStatus": "unreviewed-synthetic",
+  "n": 120,
+  "counts": {
+    "en:positive": 10,
+    "en:negative": 10,
+    "en:neutral": 10,
+    "en:not_mentioned": 10,
+    "en:ambiguity": 10,
+    "en:fault": 10,
+    "zh-HK:positive": 10,
+    "zh-HK:negative": 10,
+    "zh-HK:neutral": 10,
+    "zh-HK:not_mentioned": 10,
+    "zh-HK:ambiguity": 10,
+    "zh-HK:fault": 10
+  },
+  "abstentions": 40,
+  "precision": 1,
+  "recall": 1,
+  "truePositive": 60,
+  "falsePositive": 0,
+  "falseNegative": 0,
+  "mentionConfusionMatrix": {
+    "mentioned": {
+      "mentioned": 60
+    },
+    "not_mentioned": {
+      "not_mentioned": 20
+    },
+    "unknown": {
+      "unknown": 40
+    }
+  },
+  "sentimentConfusionMatrix": {
+    "positive": {
+      "positive": 20
+    },
+    "negative": {
+      "negative": 20
+    },
+    "neutral": {
+      "neutral": 20
+    },
+    "unknown": {
+      "unknown": 60
+    }
+  },
+  "failureCount": 0,
+  "failures": [],
+  "paidProviderCalls": 0
+}

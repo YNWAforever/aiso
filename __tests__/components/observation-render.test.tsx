@@ -10,6 +10,8 @@ import {
 import type { ObservationResponse } from '@/lib/observations/types'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
+import {ObservationDetailContent} from '@/components/observations/ObservationDetail'
+import {projectObservationDetail} from '@/lib/observations/schema'
 
 const clientId = '11111111-1111-4111-8111-111111111111'
 const initial: ObservationResponse = {
@@ -64,6 +66,18 @@ const propsFor = (lang: string) => ({
   lang,
 })
 describe('observation workspace rendering', () => {
+  it.each(['en','zh-HK'])('renders raw evidence as plain text and labels text URLs in %s',(lang)=>{
+    const detail=projectObservationDetail({id:initial.items[0].id,prompt_id:null,question:'Frozen question',platform:'api-model',scan_week:'2026-09-21',
+      created_at:null,raw_answer:'<script>alert(1)</script> https://example.com/page javascript:alert(1)',brand_mentioned:null,
+      snapshot:{question:'Frozen question',language:'en',market:null,category:null},brand_snapshot:null,requested_model:'synthetic/requested',
+      actual_model:'synthetic/served',collector:'openrouter_api',collector_version:'fixture.v1',provider_request_id:null,classifier_method:'literal',
+      classifier_version:'fixture.v1',sentiment:'unknown',matched_text:[],classification_status:'fallback'})
+    const html=renderToString(<ObservationDetailContent observation={detail} copy={copyFor(lang)}/>)
+    expect(html).toContain('&lt;script&gt;');expect(html).not.toContain('<script>')
+    expect(html).not.toContain('href="javascript:')
+    expect(html).toContain(copyFor(lang).textLink);expect(html).toContain(copyFor(lang).apiSample)
+    expect(html).toContain('synthetic/served');expect(html).toContain('openrouter_api')
+  })
   it('has equal locale copy keys', () => {
     expect(Object.keys(en.observations).sort()).toEqual(
       Object.keys(zh.observations).sort(),
@@ -137,7 +151,7 @@ describe('observation workspace rendering', () => {
   it('shows recorded date, nullable classification, retained-week boundary and incomplete denominator', () => {
     const html = renderToString(<ObservationWorkspace {...propsFor('en')} />)
     expect(html).toContain('2026-09-02T10:00:00Z')
-    expect(html).toContain('Classification not recorded')
+    expect(html).toContain('Classification unknown')
     expect(html).toContain('2 incomplete rows')
     expect(html).toContain('Latest 40 retained weeks')
   })

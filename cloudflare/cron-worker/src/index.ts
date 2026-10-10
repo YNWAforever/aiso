@@ -6,13 +6,13 @@ export interface Env {
 // Keep in sync with wrangler.jsonc's triggers.crons — test/scheduled.test.ts
 // asserts the keys agree. A schedule may call several routes: the free tier
 // allows three triggers per Worker and all three are used, so the daily trigger
-// carries both trial emails and the Search Console sync.
+// carries trial emails, Search Console sync and durable Pulse repair.
 export const ROUTES: Record<string, readonly string[]> = {
   // Daily: the driver only picks clients whose week is not yet rolled up, so
   // the Tuesday–Sunday firings finish weeks a failed hop left incomplete.
   '17 4 * * *': ['/api/cron/pulse'],
   '47 7 * * 1': ['/api/cron/evaluate-alerts'],
-  '0 9 * * *': ['/api/cron/trial-emails', '/api/cron/search-console'],
+  '0 9 * * *': ['/api/cron/trial-emails', '/api/cron/search-console', '/api/cron/pulse?mode=repair'],
 }
 
 export default {
@@ -29,6 +29,7 @@ export default {
         headers: { Authorization: `Bearer ${env.CRON_SECRET}` },
       })
       if (!res.ok) throw new Error(`[cron-worker] ${path} responded ${res.status}`)
+      console.info({event:'cron_worker_response',route:path,status:res.status,outcome:res.headers?.get('x-aiso-outcome')??'unknown'})
     }))
 
     const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected')

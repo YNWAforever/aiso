@@ -1,0 +1,344 @@
+{
+  "recordedAtUtc": "2026-10-08T22:00:29.5862658Z",
+  "sourceCommit": "4f81005a556017ec5064cb55b0b56612e19e179d",
+  "baselineCommit": "55fcabfe3cbfe1cf220c136897252a595c8521fa",
+  "productionSource": "f49e1bd8951394cf88250b3ea88847d0038db491",
+  "productionDeployment": "dpl_3u2uYmVaoLGqGCTSWraVfUZXjzJ2",
+  "referenceSource": "1ebf69e6f97b1c503b46db95bd20cd877b9fef08",
+  "tests": [
+    {
+      "receipt": "artifacts/audit-20261009/baseline-unit-valid.json",
+      "nativeExit": 0,
+      "files": 376,
+      "total": 5383,
+      "passed": 5383,
+      "failed": 0,
+      "skipped": 0,
+      "success": true,
+      "sha256": "41eea8a0d3c67dec2622faa9f6659e4f80cf55949c412506e005d4319d0db62d"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/citation-unicode-red.json",
+      "nativeExit": 1,
+      "files": 1,
+      "total": 2,
+      "passed": 1,
+      "failed": 1,
+      "skipped": 0,
+      "success": false,
+      "sha256": "7a1d36544d615b7ed550bbcdd260f0b17f557e32dc0cacf477c46b5cfd3159ce"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/citation-unicode-green.json",
+      "nativeExit": 0,
+      "files": 3,
+      "total": 25,
+      "passed": 25,
+      "failed": 0,
+      "skipped": 0,
+      "success": true,
+      "sha256": "014dc9c778b379439343415e259d6848675c2364a4406cc73b7fc79729792a41"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/pulse-boundaries-and-rollup-red.json",
+      "nativeExit": 1,
+      "files": 1,
+      "total": 8,
+      "passed": 0,
+      "failed": 8,
+      "skipped": 0,
+      "success": false,
+      "sha256": "de1733a915104e0b646210688e80eb3725779e0a780b0bd140a976e1705671da"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/pulse-compatibility-status-red.json",
+      "nativeExit": 1,
+      "files": 1,
+      "total": 12,
+      "passed": 8,
+      "failed": 4,
+      "skipped": 0,
+      "success": false,
+      "sha256": "26313cc090593d3793d6d09c0d607e3e012fc1de653657b27ca74f466d14535a"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/pulse-scope-green.json",
+      "nativeExit": 0,
+      "files": 9,
+      "total": 142,
+      "passed": 142,
+      "failed": 0,
+      "skipped": 0,
+      "success": true,
+      "sha256": "b658c29a11cc24217663598040a3cfbc15d9f73085958a47c16aa92b02343c0d"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/dependency-proxy-red.json",
+      "nativeExit": 1,
+      "files": 1,
+      "total": 25,
+      "passed": 24,
+      "failed": 1,
+      "skipped": 0,
+      "success": false,
+      "sha256": "8ffffdb7ac1c6b8726b3e717077bf00f527f230f9e38937c994f2a63f6f25695"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/dependency-auth-green.json",
+      "nativeExit": 0,
+      "files": 9,
+      "total": 115,
+      "passed": 115,
+      "failed": 0,
+      "skipped": 0,
+      "success": true,
+      "sha256": "668ce62340bdce359d5c64064add997f440b597caae4a17c7bffcb7766536a21"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/final-unit.json",
+      "nativeExit": 0,
+      "files": 381,
+      "total": 5423,
+      "passed": 5423,
+      "failed": 0,
+      "skipped": 0,
+      "success": true,
+      "sha256": "c1b753986b9a9611cc9afd08430eef918dbef582686f69bddbc67daabc438a70"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/worker-security-tests.json",
+      "nativeExit": 0,
+      "files": 1,
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "success": true,
+      "sha256": "98030326c2b69de58dfec5eec2ae95d6c3c132cd1a0447a3b23f0fc1ea7b80b7"
+    },
+    {
+      "receipt": "artifacts/scan-auth-red.json",
+      "nativeExit": 1,
+      "files": 4,
+      "total": 17,
+      "passed": 8,
+      "failed": 9,
+      "skipped": 0,
+      "success": false,
+      "sha256": "920d853b9f53465228ff00361cddb57d520d1f65f042d75189cc53c28249bdfc"
+    },
+    {
+      "receipt": "artifacts/scan-auth-recheck-red.json",
+      "nativeExit": 1,
+      "files": 1,
+      "total": 9,
+      "passed": 6,
+      "failed": 3,
+      "skipped": 0,
+      "success": false,
+      "sha256": "85c6b4d18e610c0127b760a6a4e1fd31b18898034b778f6f0ab921305e9f4a0b"
+    },
+    {
+      "receipt": "artifacts/scan-auth-nextrequest-green.json",
+      "nativeExit": 0,
+      "files": 12,
+      "total": 125,
+      "passed": 125,
+      "failed": 0,
+      "skipped": 0,
+      "success": true,
+      "sha256": "8acdad301b65f61cd3e6e14500fff094787c1efd96cdc7a8de3bfbf7096b71ed"
+    }
+  ],
+  "checks": [
+    {
+      "receipt": "artifacts/audit-20261009/dependency-clean-ci.log",
+      "nativeExit": 0,
+      "sha256": "acc2ab029cc9ddbcfbcec185dc337b1925673b0bd41ed06b13c9620667161ef0"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/dependency-tree-clean-ci.json",
+      "nativeExit": 0,
+      "sha256": "714df69cca3dcb55d8ce23cc80a253495c20cc96024142b81a7b7c710a8955fa"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/final-lint.log",
+      "nativeExit": 0,
+      "sha256": "df4868771113c1f78f002be20d8f0418d2d3c4ef0a0e335b7373ddf1391ef2f1"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/final-typecheck.log",
+      "nativeExit": 0,
+      "sha256": "4a06afe6769dc38765d059f77c098e507693ba8a824ccdc262a2c595bd8f9e48"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/final-build.log",
+      "nativeExit": 0,
+      "sha256": "5108bad17cd4a9428a3dee8ca33ea00357babf94174acc2ad8e1ef2376f0c6ba"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/worker-clean-ci.log",
+      "nativeExit": 0,
+      "sha256": "b0336fd5ce0b12b0ff00461dcc2ca2529332461e7611a9340d02802460a256bc"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/worker-dependency-tree-clean-ci.json",
+      "nativeExit": 0,
+      "sha256": "05255f35a9017c728e44adab151fa3a5dcf70a71802705c68c5670c266a31db0"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/worker-security-typecheck.log",
+      "nativeExit": 0,
+      "sha256": "e5046545a3a9fcc0cf6950c9402c78a2b227f07a6a658d2a0c1fbc5f4a194da0"
+    }
+  ],
+  "audits": [
+    {
+      "receipt": "artifacts/audit-20261009/production-dependency-audit.json",
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 10,
+        "high": 5,
+        "critical": 2,
+        "total": 17
+      },
+      "inventory": {
+        "prod": 320,
+        "dev": 342,
+        "optional": 125,
+        "peer": 24,
+        "peerOptional": 0,
+        "total": 778
+      },
+      "sha256": "34e8bb113098d846ca9371267ed04e3e3d703becb44f28d22d4680457283888a"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/production-dependency-audit-clean-ci.json",
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "inventory": {
+        "prod": 328,
+        "dev": 374,
+        "optional": 144,
+        "peer": 24,
+        "peerOptional": 0,
+        "total": 816
+      },
+      "sha256": "79750cf847d97ff1d233ecd1de682bbc2851a17be9bd138872c8e33768f06824"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/full-dependency-audit-clean-ci.json",
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 5,
+        "critical": 0,
+        "total": 5
+      },
+      "inventory": {
+        "prod": 328,
+        "dev": 374,
+        "optional": 144,
+        "peer": 24,
+        "peerOptional": 0,
+        "total": 816
+      },
+      "sha256": "f4b39a4d7c81a5179935a7dcc57c7a4150ee4ef8bafd9d5d9bffab8d8436bf5e"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/cron-worker-dependency-audit.json",
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 5,
+        "critical": 0,
+        "total": 5
+      },
+      "inventory": {
+        "prod": 1,
+        "dev": 160,
+        "optional": 86,
+        "peer": 0,
+        "peerOptional": 0,
+        "total": 160
+      },
+      "sha256": "3bf434eee3e4837e444bf8da09ea9dc3065482ab396dcde3b3b416409d0e65e8"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/worker-production-audit-clean-ci.json",
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "inventory": {
+        "prod": 1,
+        "dev": 160,
+        "optional": 86,
+        "peer": 0,
+        "peerOptional": 0,
+        "total": 160
+      },
+      "sha256": "abfb3ab0abc231c43dfcd0e88c029b7f54452db91410fa512e44f80f278a9430"
+    },
+    {
+      "receipt": "artifacts/audit-20261009/worker-full-audit-clean-ci.json",
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "inventory": {
+        "prod": 1,
+        "dev": 160,
+        "optional": 86,
+        "peer": 0,
+        "peerOptional": 0,
+        "total": 160
+      },
+      "sha256": "abfb3ab0abc231c43dfcd0e88c029b7f54452db91410fa512e44f80f278a9430"
+    }
+  ],
+  "invalidAttempts": [
+    "Sandbox baseline Vitest could not rename cache files and collected zero tests; excluded from pass counts.",
+    "Initial final-typecheck found two NextRequest fixture signal typing errors; retained in typecheck-red.log and repaired before final checks."
+  ],
+  "browser": {
+    "environment": "Built local candidate using in-memory fixtures at loopback:3109; Edge via CUA",
+    "observations": [
+      "English homepage distinguishes readiness from separately collected model answers.",
+      "English Energy & Utilities select returns energy_utilities.",
+      "Single-label https://internal is rejected with inline validation and retry label.",
+      "Chinese homepage and energy label render; selection also returns energy_utilities.",
+      "At viewport375x900 the page content/client widths both measure360px: no horizontal overflow in observed state.",
+      "Chinese sample report is explicitly synthetic and withholds improvement claims.",
+      "No warning/error entries returned by browser console inspection of observed public pages."
+    ],
+    "screenshot": "artifacts/audit-20261009/mobile-scan-zh-HK.jpg",
+    "screenshotSha256": "2d62726e24e3ab9b3d476c94195f679ad6805e7c27b899de9c1c68367c1a7305",
+    "authenticatedAiso": "Not completed: account choice pending",
+    "authenticatedReference": "Existing authenticated AnsVisor session inspected read-only; private records excluded"
+  },
+  "release": {
+    "productionChanged": false,
+    "databaseIntegration": "Open: fresh disposable application-role authorization required",
+    "providerAcceptance": "Not performed",
+    "fullRootAudit": "Open F37: five high dev-only entries from unpatched braces chain",
+    "fullFeatureParity": false
+  }
+}

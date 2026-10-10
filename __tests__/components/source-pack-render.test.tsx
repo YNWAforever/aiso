@@ -59,6 +59,27 @@ const renderFailed = (lang: string) => renderToString(
 
 describe.each(['en', 'zh-HK'])('the source pack in %s', lang => {
   const copy = copyFor(lang)
+  it('distinguishes equally named versions by their persisted source keys', () => {
+    const first = source({ id: 'same-label-a', sourceKey: 'uat-owner-e632', label: 'Same label', agentUseAllowed: false, latestVersion: 1 }, { versionNumber: 1 })
+    const second = source({ id: 'same-label-b', sourceKey: 'uat-owner-pending-e632', label: 'Same label', agentUseAllowed: false, latestVersion: 1 }, { versionNumber: 1, approvedAt: null })
+    const list = render([first, second], lang).match(/<ul class="mt-6[\s\S]*?<\/ul>/)![0]
+    const cards = list.match(/<li[\s\S]*?<\/li>/g)!
+    expect(cards).toHaveLength(2)
+    expect(cards[0]).toContain(first.sourceKey)
+    expect(cards[0]).not.toContain(second.sourceKey)
+    expect(cards[1]).toContain(second.sourceKey)
+  })
+
+  it('names the exact source key during existing-version review', () => {
+    const reviewed = source({ sourceKey: 'uat-owner-pending-e632' }, { approvedAt: null })
+    const html = renderToString(<NextIntlClientProvider locale={lang} messages={lang === 'zh-HK' ? zh : en} timeZone="UTC"><SourcePackWorkspace clientId={clientId} pack={buildSourcePack([])} initialReview={reviewed} /></NextIntlClientProvider>)
+    expect(html).toContain(reviewed.sourceKey)
+  })
+
+  it('renders the exact requested version even when it is outside the loaded page',()=>{
+    const html=renderToString(<NextIntlClientProvider locale={lang} messages={lang==='en'?en:zh} timeZone="UTC"><SourcePackWorkspace clientId={clientId} pack={buildSourcePack([])} initialReview={source({}, {approvedAt:null})}/></NextIntlClientProvider>)
+    expect(html).toContain('id="source-review"');expect(html).toContain('What are your hours?');expect(html).toContain(copy.actions.approveVersion)
+  })
 
   it.each([
     ['in-use', {}, {}],

@@ -1,18 +1,24 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { scanOpportunityCopy } from '@/lib/opportunities/presentation'
+import { MaintenanceNextSteps,workflowCopyKeys,type WorkflowCopy } from '@/components/workspace/MaintenanceNextSteps'
 import type { OpportunityResponse } from '@/lib/opportunities/types'
 import type { WorkItem } from '@/lib/work-items/schema'
 import { DraftEditor } from '@/components/work-items/DraftEditor'
 import { EvidenceDetails } from './EvidenceDetails'
-export function OpportunityWorkspace({
+type WorkspaceProps = { clientId: string } & (
+  | { initial: OpportunityResponse; initialError?: never }
+  | { initial: null; initialError: 'unavailable' }
+)
+export function OpportunityWorkspace(props: WorkspaceProps) {
+  return <OpportunityContent key={props.clientId} {...props} />
+}
+function OpportunityContent({
   clientId,
   initial,
   initialError,
-}: { clientId: string } & (
-  | { initial: OpportunityResponse; initialError?: never }
-  | { initial: null; initialError: 'unavailable' }
-)) {
+}: WorkspaceProps) {
   const t = useTranslations('opportunities'),
     locale = useLocale() === 'zh-HK' ? 'zh-HK' : 'en'
   const [data, setData] = useState(initial),
@@ -21,9 +27,8 @@ export function OpportunityWorkspace({
   const [view, setView] = useState<'suggestions' | 'drafts'>('suggestions'),
     [items, setItems] = useState<WorkItem[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
-    [listed, setListed] = useState(false),
-    [listing, setListing] = useState(false),
-    [listError, setListError] = useState(false)
+    [listState, setListState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
+  const listed = listState === 'loaded', listing = listState === 'loading', listError = listState === 'error'
   const [selected, setSelected] = useState<WorkItem | null>(null),
     [opening, setOpening] = useState(false),
     [openError, setOpenError] = useState(false)
@@ -37,7 +42,11 @@ export function OpportunityWorkspace({
     } | null>(null),
     [status, setStatus] = useState('')
   const savingLock = useRef(false),
-    listLock = useRef(false),
+    listRequest = useRef<Promise<void> | null>(null),
+    listLoaded = useRef(false),
+    listCursor = useRef<string | null>(null),
+    selectedItem = useRef<WorkItem | null>(null),
+    restored = useRef(false),
     refreshLock = useRef(false),
     openLock = useRef(false),
     selectionEpoch = useRef(0),
@@ -47,65 +56,80 @@ export function OpportunityWorkspace({
   useEffect(() => {
     if (selectedId && view === 'drafts') editor.current?.focus()
   }, [selectedId, view])
-  function remember(item: WorkItem) {
+  const remember = useCallback((item: WorkItem) => {
     setItems((old) => [item, ...old.filter((row) => row.id !== item.id)])
     setSelected(item)
-  }
-  async function list(more = false) {
-    if (listLock.current) return
-    listLock.current = true
-    setListing(true)
-    setListError(false)
+    selectedItem.current = item
+    const url = new URL(window.location.href)
+    url.searchParams.set('draft', item.id)
+    window.history.replaceState(window.history.state, '', url)
+  }, [])
+  const list = useCallback((more = false): Promise<void> => {
+    if (listRequest.current) return listRequest.current
+    const task = (async () => {
+    setListState('loading')
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 15_000)
     try {
       const response = await fetch(
-        `${base}/work-items${more && cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
-        { cache: 'no-store' },
+        `${base}/work-items${more && listCursor.current ? `?cursor=${encodeURIComponent(listCursor.current)}` : ''}`,
+        { cache: 'no-store', signal: controller.signal },
       )
       if (!response.ok) throw new Error()
       const result = (await response.json()) as {
         items: WorkItem[]
         nextCursor: string | null
       }
-      setItems((old) =>
-        more
-          ? [
-              ...old,
-              ...result.items.filter(
-                (row) => !old.some((previous) => previous.id === row.id),
-              ),
-            ]
-          : result.items,
-      )
+      if (!Array.isArray(result.items) || result.items.some(row => !row || typeof row.id !== 'string' || row.clientId !== clientId) || (result.nextCursor !== null && typeof result.nextCursor !== 'string')) throw new Error()
+      setItems((old) => {
+        const selected = selectedItem.current
+        const rows = more ? [...old, ...result.items] : [...result.items, ...(selected && !result.items.some(row => row.id === selected.id) ? [selected] : [])]
+        const seen = new Set<string>()
+        return rows.filter(row => seen.has(row.id) ? false : Boolean(seen.add(row.id)))
+      })
+      listCursor.current = result.nextCursor
       setCursor(result.nextCursor)
-      setListed(true)
+      listLoaded.current = true
+      setListState('loaded')
     } catch {
-      setListError(true)
+      setListState('error')
     } finally {
-      listLock.current = false
-      setListing(false)
+      clearTimeout(timer)
+      listRequest.current = null
     }
-  }
+    })()
+    listRequest.current = task
+    return task
+  }, [base, clientId])
+  const ensureDraftListLoaded = useCallback((): Promise<void> => listLoaded.current ? Promise.resolve() : list(), [list])
   function showView(next: 'suggestions' | 'drafts') {
     selectionEpoch.current++
     setView(next)
+    if (next === 'suggestions') {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('draft')
+      window.history.replaceState(window.history.state, '', url)
+    }
   }
   function showDrafts() {
     showView('drafts')
-    if (!listed && !listLock.current) void list()
+    void ensureDraftListLoaded()
   }
-  async function refresh() {
+  async function refresh(more=false) {
     if (refreshLock.current || savingLock.current) return
     refreshLock.current = true
     setRefreshing(true)
     setLoadError(false)
     try {
-      const response = await fetch(`${base}/opportunities`, {
+      const response = await fetch(`${base}/opportunities${more&&data?.window.nextCursor?`?cursor=${encodeURIComponent(data.window.nextCursor)}`:''}`, {
         cache: 'no-store',
+        signal:AbortSignal.timeout(15000),
       })
       if (!response.ok) throw new Error()
-      setData(await response.json())
-      setEvidenceChangedKeys(new Set())
-      setSaveError(null)
+      const next=await response.json() as OpportunityResponse
+      if(!Array.isArray(next.suggestions)||!next.window)throw new Error()
+      setData(old=>more&&old?{...next,suggestions:[...old.suggestions,...next.suggestions].filter((row,index,rows)=>rows.findIndex(item=>item.key===row.key)===index)}:next)
+      if(!more){setEvidenceChangedKeys(new Set());setSaveError(null)}
       setStatus(t('refreshed'))
     } catch {
       setLoadError(true)
@@ -114,29 +138,46 @@ export function OpportunityWorkspace({
       setRefreshing(false)
     }
   }
-  async function open(id: string) {
+  const readDraft = useCallback(async (id: string): Promise<WorkItem> => {
+    const response = await fetch(`${base}/work-items/${encodeURIComponent(id)}`, { cache: 'no-store', signal: AbortSignal.timeout(15_000) })
+    if (!response.ok) throw new Error()
+    const item = (await response.json()).item as WorkItem
+    if (!item || item.id !== id || item.clientId !== clientId) throw new Error()
+    return item
+  }, [base, clientId])
+  const open = useCallback(async (id: string) => {
     if (openLock.current) return
     openLock.current = true
     const epoch = ++selectionEpoch.current
     setOpening(true)
     setOpenError(false)
     try {
-      const response = await fetch(
-        `${base}/work-items/${encodeURIComponent(id)}`,
-        { cache: 'no-store' },
-      )
-      if (!response.ok) throw new Error()
-      const item = (await response.json()).item as WorkItem
+      const item = await readDraft(id)
       if (epoch !== selectionEpoch.current) return
       remember(item)
       setView('drafts')
+      void ensureDraftListLoaded()
     } catch {
       if (epoch === selectionEpoch.current) setOpenError(true)
     } finally {
       openLock.current = false
       setOpening(false)
     }
-  }
+  }, [readDraft, remember, ensureDraftListLoaded])
+  useEffect(() => {
+    if (restored.current) return
+    restored.current = true
+    const id = new URL(window.location.href).searchParams.get('draft')
+    let cancelled = false
+    const epoch = selectionEpoch.current
+    if (id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      void readDraft(id).then(item => {
+        if (cancelled || epoch !== selectionEpoch.current) return
+        remember(item); setView('drafts'); void ensureDraftListLoaded()
+      }).catch(() => { if (!cancelled && epoch === selectionEpoch.current) setOpenError(true) })
+    }
+    return () => { cancelled = true }
+  }, [readDraft, remember, ensureDraftListLoaded])
   async function save(suggestion: OpportunityResponse['suggestions'][number]) {
     if (
       savingLock.current ||
@@ -171,6 +212,7 @@ export function OpportunityWorkspace({
         return
       }
       const item = result.item as WorkItem
+      if (!item || typeof item.id !== 'string' || item.clientId !== clientId) throw new Error()
       remember(item)
       setData(
         (old) =>
@@ -184,6 +226,7 @@ export function OpportunityWorkspace({
           },
       )
       setView('drafts')
+      void ensureDraftListLoaded()
       setStatus(t('draftSaved'))
     } catch {
       setSaveError({ key: suggestion.key, message: 'saveError' })
@@ -255,7 +298,7 @@ export function OpportunityWorkspace({
           <button
             className={button}
             disabled={refreshing || saving !== null}
-            onClick={refresh}
+            onClick={() => refresh()}
           >
             {refreshing ? t('loadingSuggestions') : t('refresh')}
           </button>
@@ -270,16 +313,19 @@ export function OpportunityWorkspace({
               : t('empty')}
           </p>
         )}
-        {data?.suggestions.map((suggestion) => (
+        {data?.suggestions.map((suggestion) => {
+          const copy = suggestion.evidence.kind === 'scan-check' ? scanOpportunityCopy(suggestion.evidence, locale) : null
+          const displayArgs = copy ? { ...suggestion.args, checkTitle: copy.title, checkAction: copy.action } : suggestion.args
+          return (
           <article
             key={suggestion.key}
             className="min-w-0 space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6"
           >
             <h2 className="text-lg font-semibold">
-              {t(`rules.${suggestion.titleKey}.title`, suggestion.args)}
+              {t(`rules.${suggestion.titleKey}.title`, displayArgs)}
             </h2>
             <p className="whitespace-pre-wrap break-words">
-              {t(`rules.${suggestion.actionKey}.action`, suggestion.args)}
+              {t(`rules.${suggestion.actionKey}.action`, displayArgs)}
             </p>
             <EvidenceDetails
               evidence={suggestion.evidence}
@@ -300,7 +346,7 @@ export function OpportunityWorkspace({
                 <button
                   className={button}
                   disabled={refreshing || saving !== null}
-                  onClick={refresh}
+                  onClick={() => refresh()}
                 >
                   {t('refresh')}
                 </button>
@@ -330,7 +376,9 @@ export function OpportunityWorkspace({
               </button>
             )}
           </article>
-        ))}
+          )
+        })}
+        {data?.window.nextCursor&&<button className={button} disabled={refreshing||saving!==null} onClick={()=>refresh(true)}>{t('moreCandidates')}</button>}
       </section>
       <section
         hidden={view !== 'drafts'}
@@ -382,6 +430,7 @@ export function OpportunityWorkspace({
           </div>
         )}
       </section>
+      <MaintenanceNextSteps clientId={clientId} lang={locale} current="opportunities" copy={Object.fromEntries(workflowCopyKeys.map(key=>[key,t(key)])) as WorkflowCopy}/>
     </main>
   )
 }

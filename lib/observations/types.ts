@@ -14,9 +14,9 @@ export interface Observation {
   platform: string
   scanWeek: string
   recordedAt: string | null
-  collectedAt: null
-  model: null
-  market: null
+  collectedAt: string|null
+  model: string|null
+  market: string|null
   result: 'success' | 'incomplete'
   hasAnswer: boolean
   brandMentioned: boolean | null
@@ -50,4 +50,28 @@ export interface PulseSourceRow {
   raw_answer: string | null
   brand_mentioned: boolean | null
   has_answer?: boolean
+  classification_status?: string|null
+  actual_model?: string|null
+  collected_at?: string|null
+  market?: string|null
+}
+
+export interface ObservationDetailDto extends Observation {
+  rawAnswer:string|null
+  promptSnapshot:{question:string;category:string|null;language:string|null;market:string|null}|null
+  brandSnapshot:{name:string;competitors:string[]}|null
+  requestedModel:string|null
+  collector:string|null
+  collectorVersion:string|null
+  providerRequestId:string|null
+  classification:{status:'classified'|'fallback'|'failed'|'legacy_unknown';method:string|null;version:string|null;
+    brandMentioned:boolean|null;sentiment:'positive'|'neutral'|'negative'|'unknown';matchedText:string[]}
+  links:{url:string;title?:string|null;kind:'text-link'|'provider-citation'}[]
+  providerFinishReason?:string|null
+}
+export type ObservationDetailRow=PulseSourceRow & {
+  snapshot:ObservationDetailDto['promptSnapshot'];brand_snapshot:ObservationDetailDto['brandSnapshot'];
+  requested_model:string|null;collector:string|null;collector_version:string|null;provider_request_id:string|null;
+  classifier_method:string|null;classifier_version:string|null;sentiment:string|null;matched_text:unknown;
+  provider_citations?:unknown;provider_finish_reason?:string|null;
 }
