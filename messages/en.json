@@ -2436,5 +2436,33 @@
     "manage": "Edit competitors",
     "empty": "No classified answers yet. Share of voice appears once Pulse has answered and classified your questions.",
     "error": "Share of voice could not load. Refresh later to try again."
+  },
+  "trustSignals": {
+    "title": "Trust and E-E-A-T signals",
+    "intro": "Signals that help AI systems and search engines judge whether this page is trustworthy. Shown as guidance: they do not change your score.",
+    "summary": "{count} of {total} present",
+    "status_pass": "Present",
+    "status_warn": "Partly there",
+    "status_fail": "Missing",
+    "author_label": "Named author",
+    "author_fix": "Show who wrote the page, with a byline or author markup (meta name=\"author\" or schema.org Person).",
+    "organization_label": "Organisation identity",
+    "organization_fix": "Describe your organisation in schema.org Organization markup and link its official profiles with sameAs.",
+    "contact_label": "Contact details",
+    "contact_fix": "Link to a contact page, or add a phone number or email address.",
+    "address_label": "Physical address",
+    "address_fix": "Show your business address, in an address element or PostalAddress markup.",
+    "about_label": "About page",
+    "about_fix": "Link to a page that explains who you are.",
+    "policies_label": "Privacy policy and terms",
+    "policies_fix": "Link to both your privacy policy and your terms of use.",
+    "reviews_label": "Review markup",
+    "reviews_fix": "If you show reviews, mark them up with AggregateRating or Review, including a rating value and a review count.",
+    "dates_label": "Publication dates",
+    "dates_fix": "Show when the page was published or last updated, with a time element or datePublished markup.",
+    "credentials_label": "Credentials and awards",
+    "credentials_fix": "Where relevant, list memberships, accreditations or awards in your Organization or Person markup.",
+    "https_label": "Secure connection (HTTPS)",
+    "https_fix": "Serve the page over HTTPS."
   }
 }
