@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { callMultiPlatform, callOpenRouterWithEvidence } from '@/lib/openrouter'
+import { callMultiPlatform, callOpenRouterWithEvidence, modelVariantsFor, reasoningForModel } from '@/lib/openrouter'
 
 const ANNOTATIONS = [{ type: 'url_citation', url_citation: { url: 'https://hsbc.com.hk/', title: 'HSBC', start_index: 0, end_index: 4 } }]
 const completion = { id: 'gen-1', model: 'x', choices: [{ finish_reason: 'stop', message: { content: 'An answer.', annotations: ANNOTATIONS } }], usage: {} }
@@ -34,6 +34,22 @@ describe('web search request shape', () => {
     const [body] = bodies()
     expect(body.plugins).toEqual([{ id: 'web', max_results: 5 }])
     expect(body).not.toHaveProperty('web_search_options')
+  })
+})
+
+describe('reasoning control', () => {
+  // Production, 2026-10-10: Gemini 3.8 Flash spent its whole 1500-token limit
+  // reasoning in 5 of 8 answers. Only it is asked to think less.
+  it('asks Gemini, and only Gemini, for low reasoning effort', async () => {
+    await callMultiPlatform([{ role: 'user', content: 'Q' }], 1500, ['gemini-flash', 'gpt-4o', 'claude-haiku', 'perplexity-sonar'], undefined, { webSearch: true })
+    const byModel = Object.fromEntries(bodies().map(b => [b.model, b]))
+    expect(byModel['google/gemini-3.8-flash'].reasoning).toEqual({ effort: 'low' })
+    for (const model of ['openai/gpt-4o', 'anthropic/claude-haiku-4-5', 'perplexity/sonar']) expect(byModel[model]).not.toHaveProperty('reasoning')
+  })
+  it('gives the ledger the same setting by model id, and keeps manifests to platform and model', () => {
+    expect(reasoningForModel('google/gemini-3.8-flash')).toEqual({ effort: 'low' })
+    expect(reasoningForModel('openai/gpt-4o')).toBeUndefined()
+    expect(modelVariantsFor(['gemini-flash'])).toEqual([{ platform: 'gemini-flash', model: 'google/gemini-3.8-flash' }])
   })
 })
 
