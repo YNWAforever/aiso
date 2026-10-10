@@ -951,7 +951,8 @@
     "sources": "Approved facts",
     "local_trust_timeline_basis": "Scenario: {low}–{high} extra enquiries at the average lead value ({leadValue}) and close rate ({closeRate}) you entered.",
     "local_trust_timeline_movement": "Keyed to a {delta}-point rise since {month}. Turning points into enquiries — one per {lowPoints} points at the low end, one per {highPoints} at the high — is an assumption AISO has not measured.",
-    "local_trust_timeline_limitation": "Estimated, not observed. This is arithmetic over the figures you entered. AISO has not measured any enquiry, sale or revenue, and a technical or visibility improvement is not proven search or revenue uplift."
+    "local_trust_timeline_limitation": "Estimated, not observed. This is arithmetic over the figures you entered. AISO has not measured any enquiry, sale or revenue, and a technical or visibility improvement is not proven search or revenue uplift.",
+    "cited_sources": "Cited sources"
   },
   "reports": {
     "create_client_report": "Create client report",
@@ -2468,5 +2469,40 @@
     "credentials_fix": "Where relevant, list memberships, accreditations or awards in your Organization or Person markup.",
     "https_label": "Secure connection (HTTPS)",
     "https_fix": "Serve the page over HTTPS."
+  },
+  "citations": {
+    "title": "Cited sources",
+    "intro": "The websites AI answers cite when they answer your monitored questions, over the last 8 weeks. Only sources the AI provider says it used are counted; links that merely appear in an answer are not.",
+    "coverage": "{withCitations} answers listed sources · {recordedEmpty} listed none · {unrecorded} have no record of sources",
+    "coverage_note": "Perplexity always lists its sources. GPT, Claude and Gemini only do when web search is turned on.",
+    "weeks": "{from} to {to}",
+    "gaps_title": "Questions where competitors are cited and you are not",
+    "gaps_note": "This week's answers to these questions cite a competitor's website but never yours.",
+    "gaps_none": "No such questions this week.",
+    "col_question": "Question",
+    "col_competitors": "Competitors cited",
+    "domains_title": "Cited websites",
+    "filter_label": "Filter by source type",
+    "filter_all": "All",
+    "kind_owned": "Your site",
+    "kind_competitor": "Competitor",
+    "kind_forum": "Forum",
+    "kind_social": "Social",
+    "kind_review": "Reviews",
+    "kind_institutional": "Government or education",
+    "kind_editorial": "News and reference",
+    "kind_other": "Other",
+    "col_site": "Website",
+    "col_type": "Type",
+    "col_answers": "Answers citing it",
+    "col_citations": "Citations",
+    "col_questions": "Questions",
+    "col_platforms": "Platforms",
+    "urls_title": "Most-cited pages",
+    "col_page": "Page",
+    "download": "Download CSV",
+    "empty": "No cited sources yet. They appear once Pulse has answers that list their sources.",
+    "filtered_empty": "No websites of this type.",
+    "back": "Back to workspace"
   }
 }

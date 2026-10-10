@@ -951,7 +951,8 @@
     "sources": "已核准的資料",
     "local_trust_timeline_basis": "情境：以你輸入的平均潛在客戶價值（{leadValue}）及成交率（{closeRate}）計算，多 {low} 至 {high} 宗查詢。",
     "local_trust_timeline_movement": "此估算對應較 {month} 上升 {delta} 分。把分數換算成查詢數量 —— 低端每 {lowPoints} 分一宗、高端每 {highPoints} 分一宗 —— 是 AISO 並未量度過的假設。",
-    "local_trust_timeline_limitation": "這是估算，不是觀察所得。這只是根據你輸入的數字所作的計算。AISO 並未量度過任何查詢、成交或收入；技術或能見度上的改善，並不等於已證實的搜尋或收入提升。"
+    "local_trust_timeline_limitation": "這是估算，不是觀察所得。這只是根據你輸入的數字所作的計算。AISO 並未量度過任何查詢、成交或收入；技術或能見度上的改善，並不等於已證實的搜尋或收入提升。",
+    "cited_sources": "被引用的來源"
   },
   "reports": {
     "create_client_report": "建立客戶報告",
@@ -2468,5 +2469,40 @@
     "credentials_fix": "如適用，請在 Organization 或 Person 標記中列出會籍、認證或獎項。",
     "https_label": "安全連線（HTTPS）",
     "https_fix": "以 HTTPS 提供此頁面。"
+  },
+  "citations": {
+    "title": "被引用的來源",
+    "intro": "過去 8 週，AI 回答您所監察的問題時所引用的網站。只計算 AI 供應商表明曾使用的來源；僅出現在回答中的連結不計算在內。",
+    "coverage": "{withCitations} 個回答列出來源 · {recordedEmpty} 個沒有列出 · {unrecorded} 個沒有來源記錄",
+    "coverage_note": "Perplexity 一定會列出來源；GPT、Claude 和 Gemini 只會在開啟網絡搜尋後列出。",
+    "weeks": "{from} 至 {to}",
+    "gaps_title": "競爭對手被引用而您沒有的問題",
+    "gaps_note": "本週這些問題的回答引用了競爭對手的網站，卻從未引用您的網站。",
+    "gaps_none": "本週沒有此類問題。",
+    "col_question": "問題",
+    "col_competitors": "被引用的競爭對手",
+    "domains_title": "被引用的網站",
+    "filter_label": "按來源類型篩選",
+    "filter_all": "全部",
+    "kind_owned": "您的網站",
+    "kind_competitor": "競爭對手",
+    "kind_forum": "論壇",
+    "kind_social": "社交媒體",
+    "kind_review": "評價網站",
+    "kind_institutional": "政府或教育機構",
+    "kind_editorial": "新聞及參考資料",
+    "kind_other": "其他",
+    "col_site": "網站",
+    "col_type": "類型",
+    "col_answers": "引用它的回答",
+    "col_citations": "引用次數",
+    "col_questions": "問題數",
+    "col_platforms": "平台",
+    "urls_title": "最常被引用的頁面",
+    "col_page": "頁面",
+    "download": "下載 CSV",
+    "empty": "尚未有被引用的來源。當 Pulse 的回答列出來源後，便會在此顯示。",
+    "filtered_empty": "沒有此類型的網站。",
+    "back": "返回工作區"
   }
 }
