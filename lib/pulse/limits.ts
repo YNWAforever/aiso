@@ -25,3 +25,18 @@ export const MAX_PROMPTS = 50
  * Well under AISO_LLM_MAX_OUTPUT_TOKENS's default of 4000, which still clamps.
  */
 export const PULSE_ANSWER_MAX_TOKENS = 1500
+
+/**
+ * Gemini 3.8 Flash thinks before it answers and its thinking counts towards
+ * the limit: at 1500 it ran out mid-answer in 5 of 8 answers (production,
+ * week 2026-10-05). Asking it to think less fixed the cut-offs but its answers
+ * then stopped citing the search results, so it keeps its default thinking and
+ * gets AISO_LLM_MAX_OUTPUT_TOKENS's default ceiling instead.
+ */
+export const PULSE_REASONING_ANSWER_MAX_TOKENS = 4000
+const REASONING_PLATFORMS: ReadonlySet<string> = new Set(['gemini-flash'])
+
+/** The answer limit for one platform. */
+export function pulseAnswerMaxTokens(platform: string): number {
+  return REASONING_PLATFORMS.has(platform) ? PULSE_REASONING_ANSWER_MAX_TOKENS : PULSE_ANSWER_MAX_TOKENS
+}

@@ -45,16 +45,7 @@ interface CallOptions {
    * only Pulse asks, and only via lib/pulse/grounding.ts's allowance.
    */
   webSearch?: boolean
-  /**
-   * How much a reasoning model may think. Reasoning tokens count against
-   * max_tokens, so an unbounded thinker can spend the whole limit and return
-   * nothing (finish_reason 'length').
-   */
-  reasoning?: Reasoning
 }
-
-/** OpenRouter's `reasoning` control; for Gemini 3 it maps to Google's thinkingLevel. */
-export type Reasoning = { effort: 'minimal' | 'low' | 'medium' | 'high' }
 
 /** Results per web search. OpenRouter's default; fixed so cost does not drift. */
 const WEB_SEARCH_MAX_RESULTS = 5
@@ -68,7 +59,7 @@ export async function callOpenRouter(options: CallOptions): Promise<string> {
   return (await callOpenRouterWithEvidence(options)).answer
 }
 
-export async function callOpenRouterWithEvidence({ label, model, messages, maxTokens = 2000, signal, responseFormat, webSearch, reasoning }: CallOptions): Promise<import('@/lib/pulse/runs/schema').ProviderEvidence> {
+export async function callOpenRouterWithEvidence({ label, model, messages, maxTokens = 2000, signal, responseFormat, webSearch }: CallOptions): Promise<import('@/lib/pulse/runs/schema').ProviderEvidence> {
   const fail = (fields: Record<string, unknown>) => console.error({ event: 'openrouter_failed', label, model, ...fields })
 
   // Checked here rather than left to a 401: an empty key is a deployment fault,
@@ -115,7 +106,6 @@ export async function callOpenRouterWithEvidence({ label, model, messages, maxTo
           plugins: [{ id: 'web', max_results: WEB_SEARCH_MAX_RESULTS }],
           ...(!model.startsWith('openai/') && { web_search_options: { search_context_size: 'low' } }),
         }),
-        ...(reasoning && { reasoning }),
       }),
       signal: signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
     })
@@ -213,11 +203,8 @@ const PLATFORMS = [
   { platform: 'perplexity-sonar-pro', model: 'perplexity/sonar-pro' },
   { platform: 'gpt-4o',               model: 'openai/gpt-4o' },
   { platform: 'claude-haiku',         model: 'anthropic/claude-haiku-4-5' },
-  // Low thinking: at the default level Gemini 3.8 Flash spent the whole
-  // 1500-token answer limit reasoning and returned nothing in 5 of 8 answers
-  // (production, 2026-10-10).
-  { platform: 'gemini-flash',         model: 'google/gemini-3.8-flash', reasoning: { effort: 'low' } as Reasoning },
-] satisfies Array<{ platform: string; model: string; reasoning?: Reasoning }>
+  { platform: 'gemini-flash',         model: 'google/gemini-3.8-flash' },
+]
 // A retired or mistyped id fails every call to that platform, and
 // callMultiPlatform drops failures, so the only symptom is a platform that
 // quietly stops recording answers. `google/gemini-flash-2.0` was never a valid
@@ -228,14 +215,7 @@ const PLATFORMS = [
 export const PLATFORM_KEYS = PLATFORMS.map(p => p.platform)
 
 export function modelVariantsFor(platforms: readonly string[]) {
-  // Exactly platform and model: these are frozen into run manifests.
-  return PLATFORMS.filter(p => platforms.includes(p.platform)).map(p => ({ platform: p.platform, model: p.model }))
-}
-
-/** The reasoning setting for a platform model, for callers that only know the model id. */
-export function reasoningForModel(model: string): Reasoning | undefined {
-  const entry = PLATFORMS.find(p => p.model === model) as { reasoning?: Reasoning } | undefined
-  return entry?.reasoning
+  return PLATFORMS.filter(p => platforms.includes(p.platform)).map(p => ({ ...p }))
 }
 
 /**
@@ -259,7 +239,7 @@ export type PlatformAnswer = {
 
 export async function callMultiPlatform(
   messages: Message[],
-  maxTokens = 1000,
+  maxTokens: number | ((platform: string) => number) = 1000,
   only?: readonly string[],
   budget?: TaskBudget,
   options: { webSearch?: boolean } = {},
@@ -268,15 +248,14 @@ export async function callMultiPlatform(
   // A fan-out is N calls for one unit of work, which no per-call ceiling bounds.
   // Reserved up front so an over-budget fan-out is never dispatched at all --
   // reserving afterwards would spend first and complain second.
-  if (budget) for (let k = 0; k < selected.length; k += 1) budget.reserve(maxTokens)
+  const limitFor = (platform: string) => typeof maxTokens === 'function' ? maxTokens(platform) : maxTokens
+  if (budget) for (const { platform } of selected) budget.reserve(limitFor(platform))
   const results = await Promise.allSettled(
-    selected.map(async (entry): Promise<PlatformAnswer> => {
-      const { platform, model } = entry
-      const reasoning = (entry as { reasoning?: Reasoning }).reasoning
+    selected.map(async ({ platform, model }): Promise<PlatformAnswer> => {
       // Perplexity searches by itself; the others search only when asked.
       const grounding = groundingFor(platform, options.webSearch === true)
       // `model` already tells the platforms apart in the log.
-      const evidence = await callOpenRouterWithEvidence({ label: 'pulse.platform', model, messages, maxTokens, webSearch: grounding === 'web', reasoning })
+      const evidence = await callOpenRouterWithEvidence({ label: 'pulse.platform', model, messages, maxTokens: limitFor(platform), webSearch: grounding === 'web' })
       return { platform, answer: evidence.answer, providerCitations: evidence.providerCitations ?? null, grounding }
     }),
   )
