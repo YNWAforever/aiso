@@ -8,7 +8,7 @@
   // `wrangler deploy --var APP_BASE_URL:...`) only when targeting a
   // non-production environment.
   "vars": {
-    "APP_BASE_URL": "https://aeo.fimmick.com"
+    "APP_BASE_URL": "https://aiso-kappa.vercel.app"
   },
   // Vercel Cron's exact three schedules, moved here because Vercel Hobby caps
   // at 2 crons/day-granularity and Cloudflare's free tier allows 3 per Worker.
