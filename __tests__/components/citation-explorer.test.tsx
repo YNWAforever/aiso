@@ -35,7 +35,7 @@ describe('CitationExplorer', () => {
     const html = render()
     expect(html).toContain('2026-09-28 to 2026-10-05')
     expect(html).toContain('3 answers listed sources · 0 listed none · 1 have no record of sources')
-    expect(html).toContain('GPT, Claude and Gemini only do when web search is turned on.')
+    expect(html).toContain('Search capability or a search request does not guarantee returned citations.')
   })
 
   it('lists questions where a competitor is cited and the brand is not', () => {

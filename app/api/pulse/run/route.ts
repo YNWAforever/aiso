@@ -235,13 +235,13 @@ export async function POST(req: NextRequest) {
             client_id, prompt_id, platform, question, raw_answer,
             brand_mentioned, sentiment, mention_position, competitors_mentioned, scan_week,
             classification_status,classifier_method,classifier_version,matched_text,
-            provider_citations,grounding
+            provider_citations,grounding,search_evidence
           ) select
             ${clientId}, ${prompt.id}, ${response.platform}, ${prompt.question}, ${response.answer},
             ${analysis.brandMentioned}, ${analysis.sentiment}, ${analysis.mentionPosition},
             ${analysis.competitorsMentioned}::text[], ${scanWeek}::date,
             ${analysis.classificationStatus},${analysis.method},${analysis.version},${JSON.stringify(analysis.matchedText)}::jsonb,
-            ${response.providerCitations == null ? null : JSON.stringify(response.providerCitations)}::jsonb,${response.grounding ?? null}
+            ${response.providerCitations == null ? null : JSON.stringify(response.providerCitations)}::jsonb,${response.grounding ?? null},${response.searchEvidence?JSON.stringify(response.searchEvidence):null}::jsonb
           where exists(select 1 from clients where id = ${clientId} and account_id = ${client.account_id})
             and not exists(select 1 from pulse_metrics where client_id = ${clientId} and prompt_id = ${prompt.id}
               and scan_week = ${scanWeek}::date and platform = ${response.platform} and nullif(btrim(raw_answer),'') is not null)

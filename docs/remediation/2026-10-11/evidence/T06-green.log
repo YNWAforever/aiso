@@ -1,0 +1,15 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ✓ __tests__/lib/pulse-grounding.test.ts (15 tests) 9ms
+ ✓ __tests__/components/provider-citations-render.test.tsx (4 tests) 17ms
+ ✓ __tests__/components/citation-explorer.test.tsx (8 tests) 56ms
+
+ Test Files  3 passed (3)
+      Tests  27 passed (27)
+   Start at  19:07:43
+   Duration  459ms (transform 318ms, setup 94ms, import 423ms, tests 82ms, environment 0ms)
+

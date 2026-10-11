@@ -52,7 +52,7 @@ export const observationCopyKeys = [
   'sentiment','positive','neutral','negative','method','version','matchedText','links','textLink','providerCitation','noProviderCitations',
   'promptSnapshot','snapshotLanguage','limitations','brandSnapshot',
   'providerEvidenceNote','providerCitationsEmpty','providerFinishReason','providerComplete',
-  'grounding','groundingWeb','groundingNative','groundingNone',
+  'searchExecution','searchUnknown','searchConfirmed','grounding','groundingWeb','groundingNative','groundingNone',
   ...workflowCopyKeys,
 ] as const
 export type ObservationCopy = Record<

@@ -1,3 +1,4 @@
+import {readSearchEvidence} from '@/lib/pulse/grounding'
 import type { Observation, ObservationDetailDto, ObservationDetailRow, PulseSourceRow, Question } from '@/lib/observations/types'
 import { normalizeProviderCitations, safeEvidenceUrl } from '@/lib/pulse/provider-citations'
 
@@ -90,6 +91,7 @@ export function projectObservationDetail(row:ObservationDetailRow):ObservationDe
     classification:{status,method:row.classifier_method,version:row.classifier_version,brandMentioned:base.brandMentioned,
       sentiment,matchedText:Array.isArray(row.matched_text)?row.matched_text.filter((v):v is string=>typeof v==='string'):[]},
     links,providerFinishReason:row.provider_finish_reason??null,
+    searchEvidence:readSearchEvidence(row.search_evidence,row.grounding==='web'||row.grounding==='native'||row.grounding==='none'?row.grounding:null),
     grounding:row.grounding==='native'||row.grounding==='web'||row.grounding==='none'?row.grounding:null,
     limitations:[...base.limitations,...(citations===null?['provider-citations-unrecorded']:[])]}
 }

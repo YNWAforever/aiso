@@ -6,7 +6,7 @@ export type LeasedItem = PulseScope & { id: string; runId: string; scanWeek: str
 export type ProviderEvidence = { answer: string; actualModel: string | null; requestId: string | null; promptTokens: number | null; completionTokens: number | null; costUsd: number | null; httpStatus: number | null;
   providerCitations?: import('@/lib/pulse/provider-citations').ProviderCitation[] | null; providerFinishReason?: string | null
   /** 062: how the answer was produced. Absent for collectors that do not say. */
-  grounding?: import('@/lib/pulse/grounding').Grounding | null }
+  grounding?: import('@/lib/pulse/grounding').Grounding | null; searchEvidence?:import('@/lib/pulse/grounding').SearchEvidence|null }
 export type AttemptOutput = { kind: 'succeeded'; evidence: ProviderEvidence } | { kind: 'failed' | 'blocked'; errorCode: string; httpStatus?: number | null }
 export function coverageFromCounts(counts: Omit<RunCoverage, 'status' | 'coverage' | 'mentionRate'>): RunCoverage {
   const { expected, succeeded, failed, pending, blocked, classified, mentioned } = counts

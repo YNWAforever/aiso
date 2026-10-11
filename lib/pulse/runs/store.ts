@@ -101,6 +101,7 @@ export async function commitAttempt(lease: LeasedItem, output: AttemptOutput): P
         provider_citations = ${evidence?.providerCitations == null ? null : JSON.stringify(evidence.providerCitations)}::jsonb,
         provider_finish_reason = ${evidence?.providerFinishReason ?? null},
         grounding = ${evidence?.grounding ?? null},
+        search_evidence = ${evidence?.searchEvidence?JSON.stringify(evidence.searchEvidence):null}::jsonb,
         http_status = ${evidence?.httpStatus ?? (output.kind !== 'succeeded' ? output.httpStatus ?? null : null)},
         error_code = ${output.kind !== 'succeeded' ? output.errorCode.slice(0,80) : null}
       from current i where a.id = ${lease.attemptId}::uuid and a.item_id = i.id and a.lease_token = i.lease_token and a.fence = i.fence
@@ -113,10 +114,10 @@ export async function commitAttempt(lease: LeasedItem, output: AttemptOutput): P
         lease_token = null,lease_until = null,lease_owner = null,updated_at = now()
       where i.id in (select id from current) and exists(select 1 from attempt) returning i.*
     ), projection as (
-      insert into pulse_metrics(client_id,prompt_id,platform,question,raw_answer,scan_week,run_item_id,provider_citations,grounding)
+      insert into pulse_metrics(client_id,prompt_id,platform,question,raw_answer,scan_week,run_item_id,provider_citations,grounding,search_evidence)
       select i.client_id,(select p.id from prompt_bank p where p.id = i.prompt_snapshot_id and p.client_id = i.client_id),
         i.platform,i.snapshot->>'question',${evidence?.answer ?? null},r.scan_week,i.id,
-        ${evidence?.providerCitations == null ? null : JSON.stringify(evidence.providerCitations)}::jsonb,${evidence?.grounding ?? null}
+        ${evidence?.providerCitations == null ? null : JSON.stringify(evidence.providerCitations)}::jsonb,${evidence?.grounding ?? null},${evidence?.searchEvidence?JSON.stringify(evidence.searchEvidence):null}::jsonb
       from accepted i join pulse_runs r on r.id = i.run_id where i.status = 'succeeded'
       on conflict(run_item_id) where run_item_id is not null do nothing returning id
     ) select 'committed' as outcome from accepted

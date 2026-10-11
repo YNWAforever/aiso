@@ -69,11 +69,12 @@ export interface ObservationDetailDto extends Observation {
   links:{url:string;title?:string|null;kind:'text-link'|'provider-citation'}[]
   providerFinishReason?:string|null
   /** 062: native / web / none; null when the answer predates it. */
+  searchEvidence?:import('@/lib/pulse/grounding').SearchEvidence
   grounding?:'native'|'web'|'none'|null
 }
 export type ObservationDetailRow=PulseSourceRow & {
   snapshot:ObservationDetailDto['promptSnapshot'];brand_snapshot:ObservationDetailDto['brandSnapshot'];
   requested_model:string|null;collector:string|null;collector_version:string|null;provider_request_id:string|null;
   classifier_method:string|null;classifier_version:string|null;sentiment:string|null;matched_text:unknown;
-  provider_citations?:unknown;provider_finish_reason?:string|null;grounding?:string|null;
+  search_evidence?:unknown;provider_citations?:unknown;provider_finish_reason?:string|null;grounding?:string|null;
 }

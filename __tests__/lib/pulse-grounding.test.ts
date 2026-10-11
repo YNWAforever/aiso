@@ -77,3 +77,12 @@ describe('webSearchAllowance', () => {
     error.mockRestore()
   })
 })
+
+import {searchEvidenceFor} from '@/lib/pulse/grounding'
+it('does not infer search execution from a requested mode or citations',()=>{
+ expect(searchEvidenceFor('web')).toEqual({requested:'web',execution:'unknown',basis:'request-only'});
+ expect(searchEvidenceFor('native')).toMatchObject({execution:'unknown'});
+ expect(searchEvidenceFor(null)).toEqual({requested:'unknown',execution:'unknown',basis:'legacy'});
+ expect(searchEvidenceFor('web',{server_tool_use:{web_search_requests:1}})).toMatchObject({execution:'confirmed',basis:'provider-search-event'});
+ expect(searchEvidenceFor('web',{server_tool_use:{web_search_requests:0}}).execution).toBe('unknown');
+});

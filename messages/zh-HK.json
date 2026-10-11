@@ -1773,9 +1773,12 @@
     "workflowOpportunities": "修訂私人草稿",
     "workflowSources": "覆核來源版本",
     "grounding": "回答的產生方式",
-    "groundingWeb": "即時網絡搜尋",
-    "groundingNative": "內置搜尋（Perplexity）",
-    "groundingNone": "只用訓練資料，沒有網絡搜尋"
+    "groundingWeb": "已要求網絡搜尋",
+    "groundingNative": "原生搜尋能力（是否執行未知）",
+    "groundingNone": "未要求網絡搜尋",
+    "searchExecution": "搜尋執行證據",
+    "searchUnknown": "供應商未確認搜尋已執行",
+    "searchConfirmed": "供應商已確認搜尋執行"
   },
   "opportunities": {
     "title": "改善機會",
@@ -2488,7 +2491,7 @@
     "title": "被引用的來源",
     "intro": "過去 8 週，AI 回答您所監察的問題時所引用的網站。只計算 AI 供應商表明曾使用的來源；僅出現在回答中的連結不計算在內。",
     "coverage": "{withCitations} 個回答列出來源 · {recordedEmpty} 個沒有列出 · {unrecorded} 個沒有來源記錄",
-    "coverage_note": "Perplexity 一定會列出來源；GPT、Claude 和 Gemini 只會在開啟網絡搜尋後列出。",
+    "coverage_note": "API 回答不一定回傳來源。搜尋能力或搜尋請求不保證有引用；這些樣本不代表消費者 AI 產品排名。",
     "weeks": "{from} 至 {to}",
     "gaps_title": "競爭對手被引用而您沒有的問題",
     "gaps_note": "本週這些問題的回答引用了競爭對手的網站，卻從未引用您的網站。",

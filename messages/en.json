@@ -1773,9 +1773,12 @@
     "workflowOpportunities": "Edit private drafts",
     "workflowSources": "Review source versions",
     "grounding": "How the answer was produced",
-    "groundingWeb": "Live web search",
-    "groundingNative": "Built-in search (Perplexity)",
-    "groundingNone": "Training data only, no web search"
+    "groundingWeb": "Web search requested",
+    "groundingNative": "Native search capability (execution unknown)",
+    "groundingNone": "Web search not requested",
+    "searchExecution": "Search execution evidence",
+    "searchUnknown": "Provider has not confirmed search execution",
+    "searchConfirmed": "Provider confirmed search execution"
   },
   "opportunities": {
     "title": "Opportunities",
@@ -2488,7 +2491,7 @@
     "title": "Cited sources",
     "intro": "The websites AI answers cite when they answer your monitored questions, over the last 8 weeks. Only sources the AI provider says it used are counted; links that merely appear in an answer are not.",
     "coverage": "{withCitations} answers listed sources · {recordedEmpty} listed none · {unrecorded} have no record of sources",
-    "coverage_note": "Perplexity always lists its sources. GPT, Claude and Gemini only do when web search is turned on.",
+    "coverage_note": "Sources vary by API answer. Search capability or a search request does not guarantee returned citations. These samples are not consumer AI product rankings.",
     "weeks": "{from} to {to}",
     "gaps_title": "Questions where competitors are cited and you are not",
     "gaps_note": "This week's answers to these questions cite a competitor's website but never yours.",
