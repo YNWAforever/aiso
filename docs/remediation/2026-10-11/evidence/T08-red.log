@@ -1,0 +1,74 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ❯ __tests__/lib/citation-sources.test.ts (42 tests | 4 failed) 11ms
+     ✓ https://WWW.Example.com/Page/?utm_source=x&b=2&gclid=y#top → https://example.com/Page?b=2 2ms
+     ✓ https://example.com/ → https://example.com/ 0ms
+     ✓ https://example.com/path/ → https://example.com/path 0ms
+     ✓ http://example.com/a?fbclid=1 → http://example.com/a 0ms
+     ✓ refuses "javascript:alert(1)" 0ms
+     ✓ refuses "ftp://example.com/x" 0ms
+     ✓ refuses "not a url" 0ms
+     ✓ refuses "" 0ms
+     ✓ www.hsbc.com.hk → hsbc.com.hk 0ms
+     ✓ personal.hsbc.com.hk → hsbc.com.hk 0ms
+     ✓ news.bbc.co.uk → bbc.co.uk 0ms
+     ✓ en.wikipedia.org → wikipedia.org 0ms
+     ✓ example.com → example.com 0ms
+     ✓ www.info.gov.hk → info.gov.hk 0ms
+     ✓ localhost → localhost 0ms
+     ✓ fimmick.com → owned 0ms
+     ✓ blog.fimmick.com → owned 0ms
+     ✓ personal.hsbc.com.hk → competitor 0ms
+     ✓ www.reddit.com → forum 0ms
+     ✓ lihkg.com → forum 0ms
+     ✓ forum.example.org → forum 0ms
+     ✓ www.instagram.com → social 0ms
+     ✓ www.openrice.com → review 0ms
+     ✓ www.tripadvisor.com.hk → review 0ms
+     ✓ www.info.gov.hk → institutional 0ms
+     ✓ www.hku.edu.hk → institutional 0ms
+     ✓ www.scmp.com → editorial 0ms
+     ✓ zh.wikipedia.org → editorial 0ms
+     ✓ example.net → other 0ms
+     ✓ names the competitor a domain belongs to 1ms
+     ✓ prefers owned over a list match, so a brand that is itself a news site stays owned 0ms
+     ✓ does not treat a lookalike as a subdomain 0ms
+     ✓ counts answers per domain once, across subdomains, with its class 0ms
+     ✓ lists URLs normalised and de-duplicated within an answer 0ms
+     ✓ separates answers with no recorded citations from answers that cited nothing 0ms
+     ✓ finds latest-week questions where a competitor is cited and you are not 0ms
+     ✓ reports the weeks it covers, newest first, at most eight 1ms
+     ✓ ignores citations it cannot parse 0ms
+     × does not equate missing setup with no gap 2ms
+     × does not equate missing setup with no gap 0ms
+     × does not equate missing setup with no gap 0ms
+     × distinguishes fully configured with no observations 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/lib/citation-sources.test.ts > citation comparison prerequisites > does not equate missing setup with no gap
+ FAIL  __tests__/lib/citation-sources.test.ts > citation comparison prerequisites > does not equate missing setup with no gap
+ FAIL  __tests__/lib/citation-sources.test.ts > citation comparison prerequisites > does not equate missing setup with no gap
+TypeError: Cannot read properties of undefined (reading 'state')
+ ❯ __tests__/lib/citation-sources.test.ts:122:305
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  __tests__/lib/citation-sources.test.ts > citation comparison prerequisites > distinguishes fully configured with no observations
+
+TypeError: Cannot read properties of undefined (reading 'state')
+ ❯ __tests__/lib/citation-sources.test.ts:123:186
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 38 passed (42)
+   Start at  19:08:18
+   Duration  393ms (transform 59ms, setup 32ms, import 66ms, tests 11ms, environment 0ms)
+

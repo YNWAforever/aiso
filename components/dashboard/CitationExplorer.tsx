@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 
 import type { CitationKind } from '@/lib/citations/classify'
 import type { CitationDomain, CitationReport } from '@/lib/citations/report'
@@ -22,7 +22,7 @@ export function domainsOfKind(domains: CitationDomain[], kind: CitationKind | 'a
  * cited instead of the brand. Reads the Step 4 report; no writes.
  */
 export function CitationExplorer({ report, clientId }: { report: CitationReport; clientId: string }) {
-  const t = useTranslations('citations')
+  const t = useTranslations('citations');const locale=useLocale()
   const [kind, setKind] = useState<CitationKind | 'all'>('all')
   const typeLabel = (d: { kind: CitationKind; competitor?: string }) =>
     d.kind === 'competitor' && d.competitor ? `${t('kind_competitor')} · ${d.competitor}` : t(`kind_${d.kind}`)
@@ -42,6 +42,7 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
         <p className="text-xs text-muted-foreground">{t('coverage_note')}</p>
       </div>
 
+      <section className="space-y-2"><p>{t('gap_'+report.gapCoverage.state,{configured:report.gapCoverage.configuredCompetitors,domains:report.gapCoverage.competitorsWithDomains})}</p>{['not_configured','partial_config'].includes(report.gapCoverage.state)&&<a className="inline-flex min-h-11 items-center underline" href={`/${locale}/dashboard/${clientId}?step=competitors`}>{t('configure_competitors')}</a>}</section>
       {report.domains.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t('empty')}</p>
       ) : (
@@ -49,7 +50,7 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
           <section aria-labelledby="citation-gaps-title" className="space-y-2">
             <h2 id="citation-gaps-title" className="text-lg font-bold">{t('gaps_title')}</h2>
             <p className="text-sm text-muted-foreground">{t('gaps_note')}</p>
-            {report.gaps.length === 0 ? <p className="text-sm">{t('gaps_none')}</p> : (
+            {report.gaps.length === 0 ? <p className="text-sm">{report.gapCoverage.state==='ready'?t('gaps_none'):t('gap_'+report.gapCoverage.state,{configured:report.gapCoverage.configuredCompetitors,domains:report.gapCoverage.competitorsWithDomains})}</p> : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[28rem] text-sm">
                   <thead>

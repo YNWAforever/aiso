@@ -2520,6 +2520,11 @@
     "download": "下載 CSV",
     "empty": "尚未有被引用的來源。當 Pulse 的回答列出來源後，便會在此顯示。",
     "filtered_empty": "沒有此類型的網站。",
-    "back": "返回工作區"
+    "back": "返回工作區",
+    "gap_not_configured": "尚未設定競爭對手網域。",
+    "gap_partial_config": "比較涵蓋 {configured} 個競爭對手中的 {domains} 個，請補上缺少的網域。",
+    "gap_no_observations": "已設定競爭對手，尚未有引用觀測。",
+    "gap_ready": "比較涵蓋 {domains} 個已設定競爭對手。",
+    "configure_competitors": "設定競爭對手網域"
   }
 }

@@ -2520,6 +2520,11 @@
     "download": "Download CSV",
     "empty": "No cited sources yet. They appear once Pulse has answers that list their sources.",
     "filtered_empty": "No websites of this type.",
-    "back": "Back to workspace"
+    "back": "Back to workspace",
+    "gap_not_configured": "Competitor domains are not configured.",
+    "gap_partial_config": "Comparison covers {domains} of {configured} competitors. Add the missing domains.",
+    "gap_no_observations": "Competitors are configured; no citation observations are available yet.",
+    "gap_ready": "Comparison covers {domains} configured competitors.",
+    "configure_competitors": "Configure competitor domains"
   }
 }

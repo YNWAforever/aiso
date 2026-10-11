@@ -91,3 +91,7 @@ describe('domainsOfKind', () => {
     expect(domainsOfKind(report.domains, 'social')).toEqual([])
   })
 })
+
+it.each(['en','zh-HK'] as const)('renders prerequisite states and never claims no gap without domains in %s',locale=>{
+ const r=buildCitationReport({context:{ownedDomains:[],competitors:[]},answers:[answer({provider_citations:[{url:'https://source.example/x'}]})]});const html=render(r,locale);const c=messages(locale).citations;expect(html).toContain(c.gap_not_configured);expect(html).toContain('step=competitors');expect(html).not.toContain(c.gaps_none);
+});

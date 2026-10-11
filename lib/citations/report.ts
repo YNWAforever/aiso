@@ -33,6 +33,7 @@ export type CitationDomain = {
 export type CitationUrl = { url: string; title: string | null; domain: string; kind: CitationKind; competitor?: string; answers: number }
 export type CitationGap = { promptId: string | null; question: string; competitors: string[]; domains: string[] }
 export type CitationReport = {
+  gapCoverage: {state:'not_configured'|'partial_config'|'no_observations'|'ready';configuredCompetitors:number;competitorsWithDomains:number}
   weeks: string[]
   /** recordedEmpty: the provider returned no usable citation. unrecorded: no citation envelope was stored at all. */
   answers: { withCitations: number; recordedEmpty: number; unrecorded: number }
@@ -110,6 +111,7 @@ export function buildCitationReport(input: { context: ClassifyContext; answers: 
 
   return {
     weeks,
+    gapCoverage:{configuredCompetitors:input.context.competitors.length,competitorsWithDomains:input.context.competitors.filter(c=>c.domains.length>0).length,state:!input.context.competitors.length?'not_configured':input.context.competitors.some(c=>!c.domains.length)?'partial_config':counts.withCitations+counts.recordedEmpty===0?'no_observations':'ready'},
     answers: counts,
     domains: [...domains.values()]
       .map(({ promptKeys, platformSet, ...d }) => ({ ...d, prompts: promptKeys.size, platforms: [...platformSet].sort() }))
@@ -138,7 +140,7 @@ export function citationReportCsv(report: CitationReport): string {
 
 /** Null when the client is not the account's. Every statement carries the account. */
 export async function readCitationReport(sql: Sql, accountId: string, clientId: string): Promise<CitationReport | null> {
-  const [client] = await sql`select domain from clients where id = ${clientId} and account_id = ${accountId} limit 1`
+  const [client] = await sql`select domain,competitors from clients where id = ${clientId} and account_id = ${accountId} limit 1`
   if (!client) return null
   const [verified, competitors, answers] = await Promise.all([
     sql`select domain from client_domain_verifications
@@ -168,7 +170,7 @@ export async function readCitationReport(sql: Sql, accountId: string, clientId: 
   return buildCitationReport({
     context: {
       ownedDomains: [...new Set(owned)],
-      competitors: competitors.map(c => ({ name: String(c.name), domains: Array.isArray(c.domains) ? c.domains.filter((d): d is string => typeof d === 'string') : [] })),
+      competitors: [...competitors.map(c => ({ name: String(c.name), domains: Array.isArray(c.domains) ? c.domains.filter((d): d is string => typeof d === 'string') : [] })),...(Array.isArray(client.competitors)?client.competitors:[]).filter((n):n is string=>typeof n==='string'&&!!n.trim()&&!competitors.some(c=>String(c.name).toLowerCase()===n.trim().toLowerCase())).map(name=>({name,domains:[]}))],
     },
     answers: answers as CitationAnswer[],
   })

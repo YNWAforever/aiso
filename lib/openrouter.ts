@@ -259,7 +259,7 @@ export async function callMultiPlatform(
       const grounding = groundingFor(platform, options.webSearch === true)
       // `model` already tells the platforms apart in the log.
       const evidence = await callOpenRouterWithEvidence({ label: 'pulse.platform', model, messages, maxTokens: limitFor(platform), webSearch: grounding === 'web' })
-      return { platform, answer: evidence.answer, providerCitations: evidence.providerCitations ?? null, grounding,searchEvidence:evidence.searchEvidence }
+      return { platform, answer: evidence.answer, providerCitations: evidence.providerCitations ?? null, grounding,searchEvidence:evidence.searchEvidence??undefined }
     }),
   )
   return results
