@@ -1,3 +1,4 @@
+import {PulseCoverage} from '@/components/pulse/PulseCoverage'
 import Link from 'next/link'
 import { BarChart2 } from 'lucide-react'
 import type { Portfolio } from '@/lib/view-models/portfolio'
@@ -15,8 +16,8 @@ export function BrandCard({client,lang}: Props) {
     {client.domain && <p className="mt-1 break-words text-xs text-muted-foreground">{client.domain}</p>}
     <div className="mt-4 border-t border-border pt-3">
       <p className="text-xs font-semibold text-muted-foreground">{copy.visibility}</p>
-      {visibility.state === 'ready' && visibility.data ? <p className="mt-2 text-2xl font-bold text-foreground">{visibility.data.sovScore}%</p> : <p className="mt-2 text-sm text-muted-foreground">{visibility.state === 'error' ? copy.visibilityError : copy.visibilityEmpty}</p>}
-      <p className="mt-2 text-xs text-muted-foreground">{copy.observedAt}: {formatScanDate(visibility.observedAt,lang)}</p>
+      {visibility.state !== 'error' && visibility.data ? <p className="mt-2 text-2xl font-bold text-foreground">{Number(visibility.data.sovScore.toFixed(1))}%</p> : <p className="mt-2 text-sm text-muted-foreground">{visibility.state === 'error' ? copy.visibilityError : copy.visibilityEmpty}</p>}
+      {visibility.state==='partial'&&<p className="mt-2 text-sm">{copy.visibilityPartial}</p>}<PulseCoverage coverage={visibility.coverage} lang={lang}/><p className="mt-2 text-xs text-muted-foreground">{copy.observedAt}: {formatScanDate(visibility.observedAt,lang)}</p>
       <p className="mt-1 text-xs text-muted-foreground">{copy.freshnessUnknown}</p>
     </div>
   </Link>

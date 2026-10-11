@@ -28,14 +28,15 @@ export async function loadOwnedPulse({clientId,profile}:{clientId:string;profile
     union select m.scan_week,m.platform from pulse_metrics m join clients c on c.id=m.client_id join recent_weeks w on w.scan_week=m.scan_week where c.id=${clientId} and c.account_id=${accountId}
    ), observations as (
     select m.scan_week,m.platform,count(*)::int as observed_queries,
-     count(*) filter(where m.brand_mentioned=true and m.raw_answer ~ '[^[:space:]]')::int as observed_brand_mentions,
+     count(*) filter(where m.raw_answer ~ '[^[:space:]]')::int as collected_queries,
+     count(*) filter(where to_jsonb(m)->>'classification_status'='classified' and m.brand_mentioned=true and m.raw_answer ~ '[^[:space:]]')::int as observed_brand_mentions,
      count(*) filter(where to_jsonb(m)->>'classification_status'='classified' and m.brand_mentioned is not null and m.raw_answer ~ '[^[:space:]]')::int as successful_queries,
-     count(distinct m.platform) filter(where m.brand_mentioned is not null and m.raw_answer ~ '[^[:space:]]')::int as successful_platform_count
+     count(distinct m.platform) filter(where to_jsonb(m)->>'classification_status'='classified' and m.brand_mentioned is not null and m.raw_answer ~ '[^[:space:]]')::int as successful_platform_count
     from pulse_metrics m join clients c on c.id=m.client_id join recent_weeks w on w.scan_week=m.scan_week
     where c.id=${clientId} and c.account_id=${accountId}
     group by grouping sets ((m.scan_week,m.platform),(m.scan_week))
    )
-   select s.*,k.scan_week,k.platform,o.observed_queries,o.observed_brand_mentions,o.successful_queries,o.successful_platform_count
+   select s.*,k.scan_week,k.platform,o.observed_queries,o.collected_queries,o.observed_brand_mentions,o.successful_queries,o.successful_platform_count
    from keys k left join pulse_weekly_summary s on s.scan_week=k.scan_week and s.platform is not distinct from k.platform and s.client_id=${clientId}
     and exists(select 1 from clients c where c.id=s.client_id and c.account_id=${accountId})
    left join observations o on o.scan_week=k.scan_week and o.platform is not distinct from k.platform order by k.scan_week,k.platform nulls first

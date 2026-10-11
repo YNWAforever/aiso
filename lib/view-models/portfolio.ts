@@ -16,8 +16,8 @@ export function buildPortfolio(owned: OwnedPortfolio): Portfolio {
   return {
     clients: owned.clients.map(client => {
       const pulse = owned.pulse.data[client.id]
-      const state = owned.pulse.status === 'error' ? 'error' : pulse?.kpi ? 'ready' : 'empty'
-      return { ...client, visibility: { state, data: state === 'ready' ? pulse!.kpi : null, observedAt: pulse?.latestWeek ?? null, freshness: 'unknown' } }
+      const state = owned.pulse.status === 'error' ? 'error' : pulse?.state ?? (pulse?.kpi ? 'complete' : 'empty')
+      return { ...client, visibility: { state, data: state !== 'error' ? pulse?.kpi ?? null : null, coverage:pulse?.coverage??null, observedAt: pulse?.latestWeek ?? null, freshness: 'unknown' } }
     }),
     history: { state: owned.history.status === 'error' ? 'error' : owned.history.data.length ? 'ready' : 'empty',
       data: owned.history.status === 'ok' && owned.history.data.length ? owned.history.data : null,

@@ -1445,7 +1445,13 @@
     "states": {
       "empty": "No usable observations yet.",
       "error": "This section could not load. Refresh the page later to try again.",
-      "locked": "This section is not included in your current plan."
+      "locked": "This section is not included in your current plan.",
+      "partial": "Partial sample",
+      "complete": "",
+      "pending": "Monitoring pending",
+      "failed": "Collection failed",
+      "blocked": "Monitoring blocked",
+      "not_configured": "Monitoring not configured"
     },
     "scan": "Scan website",
     "results": "View results",
@@ -1527,7 +1533,8 @@
     "loadErrorTitle": "Your portfolio could not load",
     "loadErrorBody": "We could not retrieve your owned brands. Refresh later to try again.",
     "scanIncomplete": "Scan incomplete — view reason",
-    "scanUnknown": "Collection evidence unavailable"
+    "scanUnknown": "Collection evidence unavailable",
+    "visibilityPartial": "Partial sample"
   },
   "settings": {
     "title": "Settings",
@@ -1572,7 +1579,12 @@
     "platform": "Platform",
     "competitors": "Other mentioned brands",
     "active": "Active",
-    "inactive": "Inactive"
+    "inactive": "Inactive",
+    "partial": "Partial sample",
+    "classifiedCoverage": "{classified}/{recorded} recorded answers classified",
+    "collectionCoverage": "{collected}/{expected} expected answers collected",
+    "legacyCoverage": "Expected run size was not recorded for this legacy sample",
+    "unclassified": "Read unclassified answers"
   },
   "sampleReport": {
     "eyebrow": "Synthetic sample — no customer data",

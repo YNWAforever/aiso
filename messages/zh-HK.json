@@ -1445,7 +1445,13 @@
     "states": {
       "empty": "尚未有可用觀察。",
       "error": "暫時無法載入此部分，請稍後重新整理。",
-      "locked": "你目前的方案未包含此部分。"
+      "locked": "你目前的方案未包含此部分。",
+      "partial": "部分樣本",
+      "complete": "",
+      "pending": "監測待完成",
+      "failed": "採集失敗",
+      "blocked": "監測受阻",
+      "not_configured": "尚未設定監測"
     },
     "scan": "掃描網站",
     "results": "查看結果",
@@ -1527,7 +1533,8 @@
     "loadErrorTitle": "未能載入你的品牌組合",
     "loadErrorBody": "暫時無法取得你持有的品牌，請稍後重新整理再試。",
     "scanIncomplete": "掃描未完成／查看原因",
-    "scanUnknown": "採集證據未能確認"
+    "scanUnknown": "採集證據未能確認",
+    "visibilityPartial": "部分樣本"
   },
   "settings": {
     "title": "設定",
@@ -1572,7 +1579,12 @@
     "platform": "平台",
     "competitors": "其他獲提及品牌",
     "active": "啟用",
-    "inactive": "停用"
+    "inactive": "停用",
+    "partial": "部分樣本",
+    "classifiedCoverage": "{classified}／{recorded} 個已記錄回答完成分類",
+    "collectionCoverage": "{collected}／{expected} 個預期回答已採集",
+    "legacyCoverage": "這個舊樣本沒有記錄整次工作的預期數量",
+    "unclassified": "查看未分類回答"
   },
   "sampleReport": {
     "eyebrow": "合成示範 — 不含客戶資料",

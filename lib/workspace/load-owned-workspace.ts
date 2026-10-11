@@ -81,15 +81,16 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
           order by scan_week desc limit 40
         ), observations as (
           select m.scan_week, count(*)::int as observed_queries,
-            count(*) filter (where m.brand_mentioned = true and m.raw_answer ~ '[^[:space:]]')::int as observed_brand_mentions,
+     count(*) filter(where m.raw_answer ~ '[^[:space:]]')::int as collected_queries,
+            count(*) filter (where to_jsonb(m)->>'classification_status'='classified' and m.brand_mentioned = true and m.raw_answer ~ '[^[:space:]]')::int as observed_brand_mentions,
             count(*) filter (where to_jsonb(m)->>'classification_status'='classified' and m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_queries,
-            count(distinct m.platform) filter (where m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_platform_count
+            count(distinct m.platform) filter (where to_jsonb(m)->>'classification_status'='classified' and m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_platform_count
           from pulse_metrics m join clients c on c.id = m.client_id
           join recent_weeks w on w.scan_week = m.scan_week
           where c.id = ${clientId} and c.account_id = ${accountId}
           group by m.scan_week
         )
-        select s.*, w.scan_week, o.observed_queries, o.observed_brand_mentions, o.successful_queries, o.successful_platform_count
+        select s.*, w.scan_week, o.observed_queries,o.collected_queries, o.observed_brand_mentions, o.successful_queries, o.successful_platform_count
         from recent_weeks w
         left join pulse_weekly_summary s on s.scan_week = w.scan_week and s.client_id = ${clientId}
           and exists (select 1 from clients c where c.id = s.client_id and c.account_id = ${accountId})

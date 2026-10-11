@@ -1,0 +1,64 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+stderr | __tests__/lib/pulse-view.test.ts > owned Pulse observations > fails authoritative ownership closed and optional observations independently
+[pulse-view] observations read failed
+
+ ❯ __tests__/lib/pulse-view.test.ts (10 tests | 2 failed) 35ms
+     ✓ checks ownership before every other read 3ms
+     ✓ binds every query to tenant and client without agent/provider/write work 2ms
+     ✓ fails authoritative ownership closed and optional observations independently 2ms
+     ✓ retains genuine zero but invalid denominator becomes a gap 20ms
+     ✓ fills wholly missing weeks with gaps and keeps per-platform validity independent 0ms
+     ✓ latest raw-only week is unavailable and raw answers never enter DTO 0ms
+     ✓ bounds chart expansion to forty weeks 0ms
+   ✓ rejects malformed identifiers without querying 0ms
+   × retains partial samples with a classified denominator and unknown legacy expectation 5ms
+   × keeps all-negative classified samples at zero but unclassified answers unknown 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/lib/pulse-view.test.ts > retains partial samples with a classified denominator and unknown legacy expectation
+AssertionError: expected 'ready' to be 'partial' // Object.is equality
+
+Expected: "partial"
+Received: "ready"
+
+ ❯ __tests__/lib/pulse-view.test.ts:30:18
+     28|  mocks.rows=[{...row('2026-10-05'),observed_queries:40,collected_queri…
+     29|  const v=buildPulseView((await load())!).observations;
+     30|  expect(v.state).toBe('partial');expect(v.coverage).toMatchObject({exp…
+       |                  ^
+     31|  expect(v.coverage?.mentionRate).toBeCloseTo(3/31);expect(v.latestKpi?…
+     32| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+ FAIL  __tests__/lib/pulse-view.test.ts > keeps all-negative classified samples at zero but unclassified answers unknown
+AssertionError: expected undefined to be +0 // Object.is equality
+
+- Expected:
+0
+
++ Received:
+undefined
+
+ ❯ __tests__/lib/pulse-view.test.ts:35:77
+     33| it('keeps all-negative classified samples at zero but unclassified ans…
+     34|  mocks.rows=[{...row('2026-10-05'),observed_queries:40,collected_queri…
+     35|  expect(buildPulseView((await load())!).observations.coverage?.mention…
+       |                                                                             ^
+     36|  mocks.rows[0].successful_queries=0;expect(buildPulseView((await load(…
+     37| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 8 passed (10)
+   Start at  18:59:27
+   Duration  333ms (transform 79ms, setup 38ms, import 78ms, tests 35ms, environment 0ms)
+

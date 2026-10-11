@@ -1,0 +1,45 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+stderr | __tests__/lib/pulse-view.test.ts > owned Pulse observations > fails authoritative ownership closed and optional observations independently
+[pulse-view] observations read failed
+
+ ✓ __tests__/lib/pulse-view.test.ts (10 tests) 35ms
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count null unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count undefined unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count -1 unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count unknown unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] history read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] visibility read failed
+
+ ✓ __tests__/lib/portfolio.test.ts (20 tests) 33ms
+stderr | __tests__/lib/workspace-home.test.ts > owned workspace loader > throws for ownership lookup outage, but keeps optional failures distinct
+[workspace] pulse read failed
+
+ ✓ __tests__/lib/workspace-home.test.ts (31 tests) 41ms
+ ✓ __tests__/components/workspace-home-render.test.tsx (3 tests) 30ms
+ ✓ __tests__/components/portfolio-render.test.tsx (3 tests) 72ms
+ ✓ __tests__/components/pulse-view-render.test.tsx (5 tests) 24ms
+
+ Test Files  6 passed (6)
+      Tests  72 passed (72)
+   Start at  19:04:37
+   Duration  1.02s (transform 1.17s, setup 252ms, import 2.13s, tests 234ms, environment 1ms)
+

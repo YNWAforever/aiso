@@ -26,7 +26,7 @@ import { buildWorkspaceHome } from '@/lib/view-models/workspace-home'
 import type { OwnedWorkspace } from '@/lib/workspace/load-owned-workspace'
 const paid: CommercialAccount = { plan: 'enterprise', status: 'active', stripe_subscription_id: 'sub' }
 const load = (account: CommercialAccount = paid, scanId?: string) => loadOwnedWorkspace({ clientId: 'client-a', profile: { account_id: 'account-a', accounts: account }, scanId })
-const pulseRow = (week: string, total: unknown = 2, successful: unknown = 2) => ({ scan_week: week, platform: null, total_queries: total, brand_mentions: 0, sov_score: 0, successful_queries: successful, observed_queries: 2, observed_brand_mentions: 0, successful_platform_count: 1 })
+const pulseRow = (week: string, total: unknown = 2, successful: unknown = 2) => ({ scan_week: week, platform: null, total_queries: total, brand_mentions: 0, sov_score: 0, successful_queries: successful, observed_queries: 2, collected_queries: 2, observed_brand_mentions: 0, successful_platform_count: 1 })
 
 beforeEach(() => { state.calls = []; state.missing = false; state.failed = ''; state.selectedMissing = false; state.dateRows = false; state.scanResults = {}; state.pulse = [] })
 
@@ -79,9 +79,9 @@ describe('owned workspace loader', () => {
     expect(home.visibility.data?.sovScore).toBe(0)
     expect(home.visibility.freshness).toBe('unknown')
   })
-  it.each([[0, 0], [null, 2], [2, null], [2, 0], [2, 1]])('withholds KPI for unproven denominator %s/%s', async (total, successful) => {
+  it.each([[0, 0], [2, null], [2, 0]])('withholds KPI for unproven denominator %s/%s', async (total, successful) => {
     state.pulse = [pulseRow('2026-09-01', total, successful)]
-    expect(buildWorkspaceHome((await load())!).visibility.state).toBe('empty')
+    const v=buildWorkspaceHome((await load())!).visibility;expect(v.state).toBe('partial');expect(v.data).toBeNull()
   })
   it('requires whitespace-aware raw answers in collection predicates', async () => {
     await load()
@@ -90,7 +90,7 @@ describe('owned workspace loader', () => {
   })
   it('rejects a stale aggregate numerator after a same-count retry', async () => {
     state.pulse = [{ ...pulseRow('2026-09-01'), observed_brand_mentions: 1 }]
-    expect(buildWorkspaceHome((await load())!).visibility.state).toBe('empty')
+    const v=buildWorkspaceHome((await load())!).visibility;expect(v.state).toBe('partial');expect(v.data).toBeNull()
   })
   it('does not use an older aggregate when newest week has only platform rows', async () => {
     state.pulse = [pulseRow('2026-08-24'), { ...pulseRow('2026-08-31'), platform: 'gemini-flash' }]
@@ -158,3 +158,8 @@ it('UC05 applies failed collection to brand site health without mutating raw sto
  expect(home.siteHealth.data?.score).toBeNull()
  expect(home.siteHealth.data?.grade).toBeNull()
 })
+
+it('shows complete raw samples without a rollup and partial negative samples with their actual denominator',async()=>{
+ state.pulse=[pulseRow('2026-09-01',null,2)];expect(buildWorkspaceHome((await load())!).visibility.data?.totalQueries).toBe(2);
+ state.pulse=[pulseRow('2026-09-01',2,1)];const v=buildWorkspaceHome((await load())!).visibility;expect(v.state).toBe('partial');expect(v.data?.sovScore).toBe(0);expect(v.data?.totalQueries).toBe(1);
+});
