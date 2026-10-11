@@ -8,14 +8,20 @@ import type { BrandDraft } from '@/lib/onboarding/brand-draft'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 
-export function BrandAssistant({ lang, initialDomain, onApply }: { lang: string; initialDomain: string; onApply: (draft: BrandDraft) => void }) {
+type AssistantContext = { url: string; language: PromptLanguage | ''; market: string }
+type Props = {
+  lang: string; context: AssistantContext; onContextChange: (context: AssistantContext) => void;
+  onApply: (draft: BrandDraft) => void; onManual: () => void;
+}
+export function BrandAssistant(props: Props) {
+  const { lang } = props
   return <NextIntlClientProvider locale={lang} messages={{ brandAssistant: (lang === 'zh-HK' ? zh : en).brandAssistant }} timeZone="UTC">
-    <AssistantForm lang={lang} initialDomain={initialDomain} onApply={onApply} />
+    <AssistantForm {...props} />
   </NextIntlClientProvider>
 }
-function AssistantForm({ lang, initialDomain, onApply }: { lang: string; initialDomain: string; onApply: (draft: BrandDraft) => void }) {
+function AssistantForm({ lang, context, onContextChange, onApply, onManual }: Props) {
   const t = useTranslations('brandAssistant')
-  const [url, setUrl] = useState(initialDomain), [language, setLanguage] = useState<PromptLanguage | ''>(''), [market, setMarket] = useState('')
+  const { url, language, market } = context
   const [draft, setDraft] = useState<BrandDraft | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState('')
   const controller = useRef<AbortController | null>(null)
   useEffect(() => () => controller.current?.abort(), [])
@@ -31,7 +37,7 @@ function AssistantForm({ lang, initialDomain, onApply }: { lang: string; initial
       if (!response.ok) { setError(t(response.status === 429 ? 'limit' : 'unavailable')); return }
       const result = await response.json() as BrandDraft
       if (!result.brandName || !result.domain || !result.description || result.language !== language || result.market !== market) throw new Error('Invalid draft')
-      setDraft(result)
+      if (!request.signal.aborted) setDraft(result)
     } catch { if (!request.signal.aborted) setError(t('unavailable')) }
     finally { controller.current = null; setBusy(false) }
   }
@@ -39,12 +45,12 @@ function AssistantForm({ lang, initialDomain, onApply }: { lang: string; initial
     <h2 id="brand-assist-title" className="flex items-center gap-2 font-semibold"><Sparkles aria-hidden="true" className="size-4" />{t('title')}</h2>
     <p className="mt-2 text-sm text-muted-foreground">{t('intro')}</p>
     {!draft ? <form onSubmit={suggest} className="mt-4 space-y-3" aria-busy={busy}>
-      <label className="block text-sm" htmlFor="brand-assist-url">{t('website')}<input id="brand-assist-url" value={url} maxLength={2048} onChange={e => setUrl(e.target.value)} placeholder="example.com" className={field} disabled={busy} required /></label>
+      <label className="block text-sm" htmlFor="brand-assist-url">{t('website')}<input id="brand-assist-url" value={url} maxLength={2048} onChange={e => onContextChange({ ...context, url: e.target.value })} placeholder="example.com" className={field} disabled={busy} required /></label>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-sm" htmlFor="brand-assist-language">{t('language')}<select id="brand-assist-language" value={language} onChange={e => setLanguage(e.target.value as PromptLanguage)} className={field} disabled={busy} required>
+        <label className="block text-sm" htmlFor="brand-assist-language">{t('language')}<select id="brand-assist-language" value={language} onChange={e => onContextChange({ ...context, language: e.target.value as PromptLanguage | '' })} className={field} disabled={busy} required>
           <option value="">{t('choose')}</option><option value="en">English</option><option value="zh-HK">繁體中文（香港）</option>
         </select></label>
-        <label className="block text-sm" htmlFor="brand-assist-market">{t('market')}<select id="brand-assist-market" value={market} onChange={e => setMarket(e.target.value)} className={field} disabled={busy} required>
+        <label className="block text-sm" htmlFor="brand-assist-market">{t('market')}<select id="brand-assist-market" value={market} onChange={e => onContextChange({ ...context, market: e.target.value })} className={field} disabled={busy} required>
           <option value="">{t('choose')}</option>{PROMPT_MARKETS.map(m => <option key={m.value} value={m.value}>{lang === 'zh-HK' ? m.labelZh : m.labelEn}</option>)}
         </select></label>
       </div>
@@ -65,5 +71,6 @@ function AssistantForm({ lang, initialDomain, onApply }: { lang: string; initial
     </div>}
     {error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
     <p className="mt-4 text-xs text-muted-foreground">{t('manual')}</p>
+    {!draft && <button type="button" onClick={() => { controller.current?.abort(); setError(''); onManual() }} className="mt-2 min-h-11 w-full rounded-lg border border-border bg-background px-3 py-3 text-sm font-semibold">{t('manualAction')}</button>}
   </section>
 }

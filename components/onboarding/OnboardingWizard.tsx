@@ -123,7 +123,7 @@ interface Props {
   scanId?: string
 }
 
-type Draft = { intentKey?: string; brand?: string; domain?: string; industry?: string; region?: string; language?: PromptLanguage; description?: string; competitors?: string[]; step?: number; clientId?: string; partial?: boolean; submittedPayload?: string }
+type Draft = { intentKey?: string; brand?: string; domain?: string; websiteUrl?: string; industry?: string; region?: string; language?: PromptLanguage; description?: string; competitors?: string[]; step?: number; clientId?: string; partial?: boolean; submittedPayload?: string }
 const subscribeHydration = () => () => {}
 export function OnboardingWizard(props: Props) {
   const ready = useSyncExternalStore(subscribeHydration, () => true, () => false)
@@ -136,7 +136,7 @@ export function OnboardingWizard(props: Props) {
       const saved = JSON.parse(raw)
       if (!saved || typeof saved.intentKey !== 'string') return {}
       const clean: Draft = { intentKey: saved.intentKey, submittedPayload: typeof saved.submittedPayload==='string'?saved.submittedPayload:undefined }
-      for (const key of ['brand','domain','industry','region','description','clientId'] as const) {
+      for (const key of ['brand','domain','websiteUrl','industry','region','description','clientId'] as const) {
         if (typeof saved[key] === 'string') clean[key] = saved[key]
       }
       if (Array.isArray(saved.competitors) && saved.competitors.every((v: unknown) => typeof v === 'string')) clean.competitors = saved.competitors
@@ -171,6 +171,8 @@ function WizardForm({
 
   const [brand, setBrand]           = useState(draft.brand ?? initialBrand)
   const [domain, setDomain]         = useState(draft.domain ?? normaliseDomain(initialDomain))
+  const [websiteUrl, setWebsiteUrl] = useState(draft.websiteUrl ?? draft.domain ?? initialDomain)
+  const manualBrandRef = useRef<HTMLInputElement>(null)
   const [industry, setIndustry]     = useState(draft.industry ?? initialIndustry)
   const [region, setRegion]         = useState(draft.region ?? initialRegion)
   const [language, setLanguage] = useState<PromptLanguage|''>(draft.language ?? '')
@@ -187,13 +189,14 @@ function WizardForm({
   const draftKey = `aiso:onboarding:${accountId}:${scanId ?? 'new'}`
   useEffect(() => {
     if (!draftReady || submitted.current) return
-    try { sessionStorage.setItem(draftKey, JSON.stringify({ intentKey, brand, domain, industry, region, language, description, competitors, step, clientId, partial,submittedPayload:submittedPayload.current })) }
+    try { sessionStorage.setItem(draftKey, JSON.stringify({ intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, step, clientId, partial,submittedPayload:submittedPayload.current })) }
     catch { /* Form state still survives in this tab when storage is unavailable. */ }
-  }, [draftReady, draftKey, intentKey, brand, domain, industry, region, language, description, competitors, step, clientId, partial])
+  }, [draftReady, draftKey, intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, step, clientId, partial])
 
   function handleDomainChange(raw: string) {
     // Normalise on the fly as the user types
     setDomain(normaliseDomain(raw))
+    setWebsiteUrl(raw)
   }
 
   function addCompetitor() {
@@ -232,7 +235,7 @@ function WizardForm({
       }
       const requestIntent=targetClientId&&previous!==undefined&&previous!==payload?crypto.randomUUID():intentKey
       submittedPayload.current=payload;setIntentKey(requestIntent)
-      try{sessionStorage.setItem(draftKey,JSON.stringify({intentKey:requestIntent,...values,step,clientId:targetClientId,partial,submittedPayload:payload}))}catch{}
+      try{sessionStorage.setItem(draftKey,JSON.stringify({intentKey:requestIntent,...values,websiteUrl,step,clientId:targetClientId,partial,submittedPayload:payload}))}catch{}
       const res=await send(values,requestIntent,targetClientId)
       const data = await res.json()
       if (!res.ok) { setError(typeof data.error === 'string' ? data.error : c.genericError); return }
@@ -288,14 +291,17 @@ function WizardForm({
         {step === 1 && (
           <div>
             <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary">{c.setupTitle}</h1>
-            <BrandAssistant lang={lang} initialDomain={domain} onApply={suggestion => {
-              setBrand(suggestion.brandName); setDomain(suggestion.domain); setDescription(suggestion.description)
+            <BrandAssistant lang={lang} context={{ url: websiteUrl, language, market: region }} onContextChange={next => {
+              setWebsiteUrl(next.url); setDomain(normaliseDomain(next.url)); setLanguage(next.language); setRegion(next.market)
+            }} onManual={() => manualBrandRef.current?.focus()} onApply={suggestion => {
+              setBrand(suggestion.brandName); setDomain(suggestion.domain); setWebsiteUrl(suggestion.domain); setDescription(suggestion.description)
               setIndustry(suggestion.industry ?? ''); setLanguage(suggestion.language); setRegion(suggestion.market); setStep(4)
             }} />
             <h2 className="text-lg font-bold text-foreground mb-1"><label htmlFor="onboarding-brand">{c.s1Title}</label></h2>
             <p className="text-sm text-muted-foreground mb-6">{c.s1Subtitle}</p>
             <input
               id="onboarding-brand"
+              ref={manualBrandRef}
               name="brandName"
               value={brand}
               maxLength={160}
@@ -352,7 +358,7 @@ function WizardForm({
             <div className="space-y-3 mb-6">
               <div>
                 <label htmlFor="onboarding-language" className="block text-xs font-semibold text-foreground mb-1.5">{c.questionLanguage}</label>
-                <select id="onboarding-language" name="language" value={language} onChange={e => { if (isPromptLanguage(e.target.value)) setLanguage(e.target.value) }} className={inputClass}>
+                <select id="onboarding-language" name="language" value={language} onChange={e => { if (e.target.value === '' || isPromptLanguage(e.target.value)) setLanguage(e.target.value) }} className={inputClass}>
                   <option value="">{c.questionLanguage}</option><option value="en">English</option><option value="zh-HK">繁體中文（香港）</option>
                 </select>
               </div>

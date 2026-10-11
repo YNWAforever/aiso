@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { DIRECTORY_VIEWS, DIRECTORY_COLUMNS, type DirectoryQuery, type DirectoryResult, type DirectoryRow } from '@/lib/admin/directory-schema'
 
-export function AdminDirectory({ lang, query }: { lang: string; query: DirectoryQuery }) {
+export function AdminDirectory({ lang, query, children }: { lang: string; query: DirectoryQuery; children?: React.ReactNode }) {
   const t = useTranslations('adminDirectory')
   const [result, setResult] = useState<DirectoryResult | null>(null), [error, setError] = useState(''), [revision, setRevision] = useState(0)
   const { view, q, accountId, page } = query
@@ -40,6 +40,7 @@ export function AdminDirectory({ lang, query }: { lang: string; query: Directory
   }
   return <div className="min-w-0 space-y-6 text-slate-900">
     <header><p className="text-sm font-semibold text-blue-700">{t('eyebrow')}</p><h1 className="mt-2 text-3xl font-bold">{t('title')}</h1><p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600">{t('intro')}</p></header>
+    {children}
     <nav aria-label={t('controls')} className="flex flex-wrap gap-2">
       <Link href={href({ accountId: null, page: 1 })} className={link}>{t('allAccounts')}</Link>
       <Link href="/admin/billing" className={link}>{t('billing')}</Link>

@@ -9,15 +9,19 @@ async function fixture(page: Page, lang: string) {
   await page.route(`https://admin.fixture/${lang}`, route => route.fulfill({ contentType: 'text/html; charset=utf-8', body: `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>Admin component fixture</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body><main><div id="root"></div></main><script>${js}</script></body></html>` }))
 }
 for (const lang of ['en', 'zh-HK']) {
-  test(`admin sees a bounded page and account drilldowns (${lang})`, async ({ page }) => {
+  test(`admin sees a bounded page and account drilldowns (${lang})`, async ({ page }, testInfo) => {
     await fixture(page, lang)
     await page.route('**/api/admin/directory?*', route => route.fulfill({ json: { view: 'users', page: 1, hasMore: true, rows: [{ id: 'synthetic-user', account_id: '11111111-1111-4111-8111-111111111111', name: 'Synthetic Owner', email: 'owner@example.test', role: 'member', status: 'active', created_at: '2026-10-11T00:00:00Z' }] } }))
     await page.goto(`https://admin.fixture/${lang}`)
     await expect(page.getByText('owner@example.test')).toBeVisible()
+    await expect(page.getByRole('heading', { name: lang === 'en' ? 'Data structure check' : '資料結構檢查' })).toBeVisible()
+    await page.getByText(lang === 'en' ? 'Affected features and technical details' : '受影響功能及技術詳情', { exact: true }).click()
+    await expect(page.getByText('pulse_runs.purpose', { exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: lang === 'en' ? 'Next' : '下一頁', exact: true })).toHaveAttribute('href', /page=2/)
     await expect(page.getByRole('link', { name: /11111111/ })).toHaveAttribute('href', /accountId=11111111/)
     expect((await new AxeBuilder({ page }).withTags(['wcag2a','wcag2aa']).analyze()).violations).toEqual([])
     expect(await page.evaluate(() => document.body.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+    await page.screenshot({ path: testInfo.outputPath('admin-schema-health.png'), fullPage: true })
   })
   test(`admin data outage retries without showing an empty success (${lang})`, async ({ page }) => {
     await fixture(page, lang)
