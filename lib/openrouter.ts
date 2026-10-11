@@ -1,4 +1,5 @@
 import { clampOutputTokens, type TaskBudget } from '@/lib/agents/budget'
+import { appOrigin } from '@/lib/app-origin'
 import { citationsFromAnnotations, type ProviderCitation } from '@/lib/pulse/provider-citations'
 import { groundingFor, type Grounding } from '@/lib/pulse/grounding'
 const BASE = 'https://openrouter.ai/api/v1/chat/completions'
@@ -77,7 +78,7 @@ export async function callOpenRouterWithEvidence({ label, model, messages, maxTo
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://aeo.fimmick.com',
+        'HTTP-Referer': appOrigin(),
         'X-Title': 'Fimmick AEO',
         'Content-Type': 'application/json',
       },

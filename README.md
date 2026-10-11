@@ -91,7 +91,7 @@ entry there says what breaks when it is missing. The highlights:
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | without the webhook secret every Stripe event 400s and no subscription provisions |
 | `STRIPE_PRICE_BASIC` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE` | checkout guards these and 500s per plan; the **webhook** does not, so tiers resolve wrongly |
 | `OPENROUTER_API_KEY` | LLM calls (`lib/openrouter.ts`) |
-| `NEXT_PUBLIC_APP_URL` | public origin; falls back to `https://aeo.fimmick.com` (`lib/app-origin.ts`) |
+| `NEXT_PUBLIC_APP_URL` | public origin; falls back to `https://aiso-kappa.vercel.app` (`lib/app-origin.ts`) |
 | `N8N_SCAN_WEBHOOK_URL` | n8n scan automation; unset = feature off |
 
 Optional (have fallbacks): `RESEND_FROM_EMAIL`, `WIKIPEDIA_USER_AGENT`.

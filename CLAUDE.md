@@ -593,16 +593,18 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   `lib/stripe.ts` and `app/api/stripe/webhook/route.ts`. **Not in `.env.local`** — locally,
   checkout sends an undefined price id and webhook tier resolution falls through to `basic`.
 - `RESEND_API_KEY` · `OPENROUTER_API_KEY` · `NEXT_PUBLIC_APP_URL` · `N8N_SCAN_WEBHOOK_URL`
-- **`aeo.fimmick.com` is dead (NXDOMAIN) — and it is both the old production
-  `NEXT_PUBLIC_APP_URL` and `DEFAULT_APP_ORIGIN` in `lib/app-origin.ts`**, whose comment still
-  calls it "the only real domain". Until 2026-10-10 production pointed there, so the Pulse
+- **`aeo.fimmick.com` is dead (NXDOMAIN) — and it was both the old production
+  `NEXT_PUBLIC_APP_URL` and `DEFAULT_APP_ORIGIN` in `lib/app-origin.ts`**, whose comment
+  called it "the only real domain". Until 2026-10-10 production pointed there, so the Pulse
   driver's self-call (`appOrigin()` + `/api/pulse/run`) failed every hop with `502 producer call
   failed` — Pulse had most likely never produced a row in production before that date. It is
   now `https://aiso-kappa.vercel.app`, stored as **type `config`, not secret**: the Vercel CLI
   refuses to update a secret-typed `NEXT_PUBLIC_*` variable, so it had to be removed and
   re-added. Readiness (`lib/readiness/config.ts`) only checks the value is `https`, never that
-  the host resolves, so a dead origin passes it. Unset, the app still falls back to the dead
-  domain — fixing `DEFAULT_APP_ORIGIN` is owed. Everything built from `appOrigin()` follows
+  the host resolves, so a dead origin passes it. `DEFAULT_APP_ORIGIN` (the fallback when the
+  variable is unset or empty), OpenRouter's `HTTP-Referer` and the legacy
+  `cloudflare/cron-worker/wrangler.jsonc` now all use the live host too; the retired n8n
+  export still names the dead one. Everything built from `appOrigin()` follows
   this one variable: SEO canonicals, Stripe return URLs, report share links, links in every
   email (`lib/resend.ts`, alert and trial emails), and the Search Console OAuth redirect.
 - `PUBLIC_SCAN_RATE_LIMIT_SECRET` / `REPORT_SHARE_SECRET` — both ≥32 chars. The first has no
