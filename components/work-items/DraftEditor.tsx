@@ -193,7 +193,7 @@ export function DraftEditor({
           {status}
         </p>
       </form>
-      <WorkOperationsPanel clientId={clientId} itemId={item.id}/>
+      <WorkOperationsPanel clientId={clientId} itemId={item.id} revision={saved.revision} onRevision={revision=>{const next={...saved,revision};setSaved(next);onSaved(next)}}/>
       <section className="space-y-3 border-t border-border pt-4">
         <h3 className="font-semibold">{t('savedEvidence')}</h3>
         <p>{t('snapshotNotice')}</p>

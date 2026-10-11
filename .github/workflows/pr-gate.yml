@@ -260,6 +260,7 @@ jobs:
           AISO_SOURCES_CSS_PATH: .next/component-fixtures/build.css
           AISO_ONBOARDING_HTML_DIR: .next/component-fixtures/AISO_ONBOARDING
           AISO_FIRST_PULSE_HTML_DIR: .next/component-fixtures/AISO_FIRST_PULSE
+          AISO_AUDIT_LOOP_HTML_DIR: .next/component-fixtures/AISO_AUDIT_LOOP
           AISO_PRIORITY_HTML_DIR: .next/component-fixtures/AISO_PRIORITY
           PROMPT_BANK_HTML_DIR: .next/component-fixtures/PROMPT_BANK
           AUTH_RETURN_HTML_DIR: .next/component-fixtures/AUTH_RETURN

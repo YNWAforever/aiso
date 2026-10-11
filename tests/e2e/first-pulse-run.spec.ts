@@ -18,6 +18,7 @@ for(const lang of ['en','zh-HK']){
    run={id:runId,week:'2026-10-05',purpose:'canonical',coverage:coverage(1,1),reasons:['classification_pending'],retryable:true}
    return route.fulfill({status:202,json:{run,coverage:run.coverage}})
   })
+  await page.route(`**/api/dashboard/clients/${clientId}/pulse-runs/${runId}`,route=>route.fulfill({json:run}));
   await page.goto(`https://first-pulse.fixture/${lang}`)
   const start=page.getByRole('button',{name:lang==='en'?'Start first monitoring':'開始首次監測',exact:true});await start.click();await expect(page.getByRole('alert')).toBeVisible();await page.reload();await start.click()
   await expect(page.getByRole('button',{name:lang==='en'?'Resume saved work':'繼續已保存的工作',exact:true})).toBeVisible();expect(intents).toHaveLength(2);expect(intents[0]).toBe(intents[1])
@@ -29,3 +30,5 @@ for(const lang of ['en','zh-HK']){
   await fixture(page,lang);let reads=0;await page.route(`**/api/dashboard/clients/${clientId}/pulse-runs`,route=>{reads++;return route.fulfill({json:{prompts:1,variants:5,expected:5,remaining:5,contextConfirmed:true,week:'2026-10-05',latest:{id:runId,week:'2026-10-05',coverage:coverage(),reasons:[],retryable:true},legacyObservationIds:[],search:{requested:'off'},enabled:true}})});await page.goto(`https://first-pulse.fixture/${lang}`);await expect(page.getByText(lang==='en'?'Queued':'已排隊',{exact:true})).toBeVisible();await page.goto('about:blank');const count=reads;await page.waitForTimeout(2300);expect(reads).toBe(count)
  })
 }
+
+for(const lang of ['en','zh-HK'])test('prior-week completion still permits current canonical monitoring '+lang,async({page})=>{await fixture(page,lang);const previous={id:runId,week:'2026-09-28',purpose:'canonical',coverage:coverage(5,5),reasons:[],retryable:false};await page.route('**/api/dashboard/clients/'+clientId+'/pulse-runs',route=>route.fulfill({json:{prompts:1,variants:5,expected:5,remaining:10,contextConfirmed:true,week:'2026-10-05',currentCanonicalId:null,latest:previous,legacyCurrentWeek:false,legacyObservationIds:[],search:{requested:'off'},enabled:true}}));await page.goto('https://first-pulse.fixture/'+lang);await expect(page.getByRole('button',{name:lang==='en'?'Start first monitoring':'開始首次監測',exact:true})).toBeEnabled()});

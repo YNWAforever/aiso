@@ -6,7 +6,7 @@ import { claimDueItems, commitAttempt, createOrResumeRun, readRunCoverage } from
 import {classifySavedAnswers} from './classification'
 import { readPulseTarget } from './queue'
 import type { LeasedItem, ProviderEvidence, PulseScope } from './schema'
-import { promptCollectionMessages } from '@/lib/prompts/context'
+import { promptCollectionMessages,isPromptLanguage,isPromptMarket } from '@/lib/prompts/context'
 import { groundingFor, webSearchAllowance } from '@/lib/pulse/grounding'
 import { pulseAnswerMaxTokens } from '@/lib/pulse/limits'
 
@@ -28,6 +28,7 @@ function collectWith(webSearchAllowed: boolean): CollectAnswer {
 const collect = collectWith(false)
 
 export async function processLeasedItem(item: LeasedItem, deadlineAt: number, collector: CollectAnswer = collect) {
+  if(!isPromptLanguage(item.snapshot.language)||!isPromptMarket(item.snapshot.market))return commitAttempt(item,{kind:'blocked',errorCode:'PULSE_CONTEXT_UNCONFIRMED'})
   let evidence: ProviderEvidence
   if (!process.env.OPENROUTER_API_KEY && defaultCollectors.has(collector)) {
     return await commitAttempt(item,{kind:'blocked',errorCode:'PROVIDER_NOT_CONFIGURED'})

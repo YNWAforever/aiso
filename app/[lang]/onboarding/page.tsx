@@ -25,7 +25,7 @@ export default async function OnboardingPage({
   }
 
   // Pre-fill from scan if provided
-  let initialBrand = ''
+  const initialBrand = ''
   let initialDomain = ''
   let initialIndustry = ''
   let initialRegion = ''

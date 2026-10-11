@@ -24,7 +24,7 @@ describe('client report workspace review fixes', () => {
     )
     const header = source.slice(
       source.indexOf('{/* Top nav bar */}'),
-      source.indexOf('<main'),
+      source.indexOf('<main',source.indexOf('{/* Top nav bar */}')),
     )
 
     expect(header.match(/(?:^|\s)bg-primary(?=\s)/g)).toHaveLength(1)

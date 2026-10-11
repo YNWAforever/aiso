@@ -1473,7 +1473,7 @@
       "error": "This section could not load. Refresh the page later to try again.",
       "locked": "This section is not included in your current plan.",
       "partial": "Partial sample",
-      "complete": "",
+      "complete": "Monitoring results are available",
       "pending": "Monitoring pending",
       "failed": "Collection failed",
       "blocked": "Monitoring blocked",
@@ -1963,7 +1963,9 @@
     "openRetest": "View retest status",
     "compareRetest": "Compare completed observations",
     "observedDelta": "Comparable observations: mention difference {delta}; causality and ROI unproven.",
-    "notComparable": "Cannot directly compare: {reasons}"
+    "notComparable": "Cannot directly compare: {reasons}",
+    "operationsConflict": "This work record changed in another session. Your unsaved changes are retained. Reload the saved version to reconcile before saving.",
+    "reloadOperations": "Reload saved work record"
   },
   "changeSets": {
     "title": "Version review",
@@ -2609,7 +2611,12 @@
     "answer_evidence": "Answer evidence",
     "context_unknown": "Context unknown",
     "export_scope": "Export all {count} sites in this filtered scope, across every page.",
-    "export_error": "Export failed. Narrow the scope or retry; no partial file was downloaded."
+    "export_error": "Export failed. Narrow the scope or retry; no partial file was downloaded.",
+    "evidence_window": "Evidence page {page}: showing {shown} of {total} references. Use evidence pages to reach every saved answer.",
+    "next_evidence": "Next evidence page",
+    "scope_evidence": "Explore all evidence for this site",
+    "gaps_page_empty": "No gaps on this page. Other pages contain gaps in this scope.",
+    "page_empty": "No sources on this page. Return to an earlier page in this scope."
   },
   "runProgress": {
     "title": "Monitor your brand",

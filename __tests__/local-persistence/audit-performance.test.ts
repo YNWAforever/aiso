@@ -1,0 +1,28 @@
+import {it,expect,vi} from 'vitest'
+import {randomUUID} from 'node:crypto'
+import {mkdirSync,writeFileSync} from 'node:fs'
+import {createRequire} from 'node:module'
+const {Client}=createRequire(import.meta.url)('pg') as {Client:new(options:{connectionString:string|undefined})=>{connect:()=>Promise<void>;end:()=>Promise<void>;query:(text:string,values?:unknown[])=>Promise<{rowCount:number|null;rows:Record<string,unknown>[]}>}}
+import {neon} from '@neondatabase/serverless'
+vi.mock('server-only',()=>({}))
+import {db} from '@/lib/db'
+import {readCitationReport} from '@/lib/citations/report'
+import {readPromptBatch,applyPromptBatch} from '@/lib/prompts/bulk-store'
+it('maximum supported citation and 50-row bulk fixture has measured scoped SQL plans',async()=>{
+ const sql=neon(process.env.TEST_DATABASE_URL!),accountId=randomUUID(),clientId=randomUUID(),connection=new Client({connectionString:process.env.TEST_DATABASE_URL});await connection.connect()
+ try{
+ await sql`insert into accounts(id,plan,status,stripe_subscription_id) values(${accountId},'pro','active',${'sub_synthetic_'+accountId})`;await sql`insert into clients(id,account_id,brand_name,domain) values(${clientId},${accountId},'Synthetic maximum','fixture.example')`
+ const citations=Array.from({length:50},(_,i)=>({url:'https://source'+i+'.example/page'}));await sql`insert into pulse_metrics(client_id,question,platform,scan_week,raw_answer,provider_citations) select ${clientId},'Question '||n,'fixture','2026-10-05','Synthetic saved answer',${JSON.stringify(citations)}::jsonb from generate_series(1,2000) n`
+ await sql`insert into prompt_bank(client_id,question,category,language,market) select ${clientId},'Bulk question '||n,'brand_query','en','HK' from generate_series(1,50) n`
+ const captured:{text:string;values:unknown[]}[]=[];const live=db();const traced=((strings:TemplateStringsArray,...values:unknown[])=>{captured.push({text:strings.reduce((s,x,i)=>s+x+(i<values.length?'$'+(i+1):''),''),values});return live(strings,...values)}) as typeof live
+ const times:number[]=[];let report;for(let i=0;i<4;i++){const t=performance.now();report=await readCitationReport(traced,accountId,clientId,{page:1,pageSize:25});times.push(performance.now()-t)}
+ expect(report?.answers.withCitations).toBe(2000);expect(report?.pages?.domains.total).toBe(50);expect(report?.evidenceWindow?.total).toBe(50000);expect(report?.evidence).toHaveLength(500)
+ const query=captured.find(c=>c.text.includes('select m.id,i.run_id'))!;const plan=await connection.query('explain (analyze,buffers,format json) '+query.text,query.values)
+ // Exact baseline query shape from main 27dd057: same fixture/database, old reader fetched all scoped rows and sorted by editable prompt text.
+ const baseline='select m.scan_week,m.platform,m.prompt_id,coalesce(p.question,m.question) as question,coalesce(a.provider_citations,m.provider_citations) as provider_citations from pulse_metrics m join clients c on c.id=m.client_id left join prompt_bank p on p.id=m.prompt_id and p.client_id=m.client_id left join pulse_run_items i on i.id=m.run_item_id and i.client_id=c.id and i.account_id=c.account_id left join pulse_item_attempts a on a.id=i.accepted_attempt_id and a.item_id=i.id and a.account_id=c.account_id where c.id=$1 and c.account_id=$2 and m.raw_answer ~ $3 and m.scan_week in(select distinct w.scan_week from pulse_metrics w where w.client_id=c.id order by 1 desc limit 8) order by m.scan_week desc,coalesce(p.question,m.question),m.platform'
+ const baseTimes:number[]=[];for(let i=0;i<4;i++){const t=performance.now(),r=await connection.query(baseline,[clientId,accountId,'[^[:space:]]']);baseTimes.push(performance.now()-t);expect(r.rowCount).toBe(2000)}const baselinePlan=await connection.query('explain(analyze,buffers,format json) '+baseline,[clientId,accountId,'[^[:space:]]'])
+ const before=await readPromptBatch({accountId,clientId}),singleStart=performance.now();for(const row of before.prompts)await sql`update prompt_bank set market='HK' where id=${row.id}::uuid and client_id=${clientId}::uuid and exists(select 1 from clients where id=${clientId}::uuid and account_id=${accountId})`;const singlesMs=performance.now()-singleStart;const current=await readPromptBatch({accountId,clientId});const t=performance.now();const changes=current.prompts.map(p=>({...p,market:'TW',language:'zh-HK'}));const result=await applyPromptBatch({accountId,clientId},{intentKey:'max-bulk-fixture',expectedVersion:current.version,changes});const bulkMs=performance.now()-t;expect(result.updatedIds).toHaveLength(50)
+ const median=(a:number[])=>[...a].slice(1).sort((a,b)=>a-b)[1];mkdirSync('docs/remediation/2026-10-11/evidence',{recursive:true});writeFileSync('docs/remediation/2026-10-11/evidence/R01-performance.json',JSON.stringify({environment:'task-owned local PostgreSQL 16; loopback; no hosted pressure',baselineSha:'27dd057fa6d5ecaae5bbd342e25cc8579e529d3a',answers:2000,citationsPerAnswer:50,rows:100000,newReaderMs:times,newReaderWarmMedianMs:median(times),baselineSqlMs:baseTimes,baselineSqlWarmMedianMs:median(baseTimes),comparison:'baseline SQL only versus full new reader+aggregation; not an equivalent end-to-end latency ratio',newSqlPlan:plan.rows,baselineSqlPlan:baselinePlan.rows,bulk:{rows:50,elapsedMs:bulkMs,atomicTransactions:1,baseline:'old UI supported individual edits; 50 round-trips, no atomic bulk API',sameEnvironment50SingleUpdatesMs:singlesMs}},null,2))
+ expect(median(times)).toBeLessThan(10000);expect(bulkMs).toBeLessThan(5000)
+ }finally{await sql`delete from pulse_metrics where client_id=${clientId}::uuid`;await sql`delete from accounts where id=${accountId}`;await connection.end()}
+},30000)

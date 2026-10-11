@@ -43,7 +43,7 @@ async function fixture(test:(scope:PulseScope)=>Promise<void>,promptCount=3){
   await sql`insert into accounts(id,plan,status) values(${accountId},'basic','active')`
   const [client]=await sql`insert into clients(account_id,brand_name) values(${accountId},'Synthetic Brand') returning id`
   const scope={accountId,clientId:client.id as string}
-  await sql`insert into prompt_bank(client_id,question,language) select ${scope.clientId},'Synthetic question ' || n,'zh-HK' from generate_series(1,${promptCount}) n`
+  await sql`insert into prompt_bank(client_id,question,language,market) select ${scope.clientId},'Synthetic question ' || n,'zh-HK','HK' from generate_series(1,${promptCount}) n`
   try{await test(scope)}finally{
     await sql`delete from pulse_weekly_summary where client_id=${scope.clientId}`
     await sql`delete from pulse_metrics where client_id=${scope.clientId}`
@@ -140,7 +140,7 @@ describe('T05 guarded Neon run ledger',()=>{
     for(const row of rows){
       const detail=await loadObservationDetail(scope.accountId,scope.clientId,String(row.id))
       expect(detail).toMatchObject({model:`synthetic/served-${row.week}`,requestedModel:manifest[0].model,collector:'openrouter_api',
-        rawAnswer:`Frozen answer ${row.week} https://example.com/claim`,promptSnapshot:{question:'Synthetic question 1',language:'zh-HK',market:null},
+        rawAnswer:`Frozen answer ${row.week} https://example.com/claim`,promptSnapshot:{question:'Synthetic question 1',language:'zh-HK',market:'HK'},
         brandSnapshot:{name:'Synthetic Brand'},links:[{url:'https://example.com/claim',kind:'text-link'}],classification:{status:'legacy_unknown'}})
       expect(await loadObservationDetail(randomUUID(),scope.clientId,String(row.id))).toBeNull()
     }
@@ -357,7 +357,7 @@ describe('T05 guarded Neon run ledger',()=>{
     const reused=(await runFor(scope))!
     expect(reused.manifest).toEqual(run.manifest)
     const item=(await claim(scope,run.id,1))[0]
-    expect(item.snapshot).toMatchObject({language:'zh-HK',market:null})
+    expect(item.snapshot).toMatchObject({language:'zh-HK',market:'HK'})
     expect(item.brand.name).toBe('Synthetic Brand')
     expect(item.scanWeek).toBe('2026-09-28')
     await commitAttempt(item,{kind:'succeeded',evidence})

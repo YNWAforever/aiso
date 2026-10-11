@@ -57,7 +57,7 @@ describe('callOpenRouter usage logging', () => {
     ]
     respondWith(completion({choices:[{finish_reason:'stop',message:{content:REPLY+' https://text.example/',annotations}}]}))
     const evidence=await callOpenRouterWithEvidence({label:'pulse.platform',model:'requested/model',messages:[]})
-    expect(evidence).toMatchObject({providerCitations:[{url:'https://source.example/article',title:'Primary source'}],providerFinishReason:'stop'})
+    expect(evidence).toMatchObject({providerCitations:[{url:'https://source.example/article',title:'Primary source'}],providerFinishReason:'stop',searchEvidence:{requested:'none',execution:'unknown',basis:'request-only'}})
   })
 
   it('distinguishes absent annotations from an explicitly empty annotation list', async () => {
@@ -88,7 +88,7 @@ describe('callOpenRouter usage logging', () => {
   it('returns served model, request and usage evidence for durable attempts',async()=>{
     respondWith(completion())
     expect(await callOpenRouterWithEvidence({label:'pulse.platform',model:'requested/model',messages:[{role:'user',content:PROMPT}]}))
-      .toEqual({answer:REPLY,actualModel:'anthropic/claude-4.5-haiku-20251001',requestId:'gen-123',promptTokens:120,completionTokens:45,costUsd:0.00042,httpStatus:200,providerCitations:null,providerFinishReason:'stop'})
+      .toEqual({searchEvidence:{requested:'none',execution:'unknown',basis:'request-only'},answer:REPLY,actualModel:'anthropic/claude-4.5-haiku-20251001',requestId:'gen-123',promptTokens:120,completionTokens:45,costUsd:0.00042,httpStatus:200,providerCitations:null,providerFinishReason:'stop'})
     respondWith({choices:[{message:{content:REPLY}}]})
     expect(await callOpenRouterWithEvidence({label:'pulse.platform',model:'requested/model',messages:[{role:'user',content:PROMPT}]}))
       .toMatchObject({actualModel:null,requestId:null,costUsd:null})

@@ -155,7 +155,7 @@ describe('the parity check cannot pass vacuously', () => {
       'alertFeedback', 'approverAccess', 'assets', 'auth', 'changeSets', 'checks', 'citations', 'competitors', 'dashboard',
       'delivery', 'entities', 'generatedWork', 'home', 'maintenance', 'members', 'methodologyPage', 'nav',
       'observations', 'opportunities', 'outcomes', 'portfolio', 'pricing',
-      'publicPages', 'pulse', 'pulseView', 'reportBranding', 'reports', 'result',
+      'publicPages', 'pulse', 'pulseView', 'reportBranding', 'reports', 'result', 'runProgress',
       'sampleReport', 'scanPage', 'searchConsole', 'seo', 'settings', 'shareOfVoice', 'sources', 'trustSignals', 'unavailable',
       'upsell', 'workspaceHome',
     ])

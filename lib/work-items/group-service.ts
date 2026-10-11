@@ -9,9 +9,11 @@ import {loadOwnedDraftSource,readOwnedDraft} from './store'
 import {multiSourceEnabled} from './multi-source-flag'
 import type {Suggestion} from '@/lib/opportunities/types'
 export async function saveGroupedDraft(accountId:string,clientId:string,actorId:string|null,inputs:CreateDraftInput[],groupKey:string){
+ if(!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(clientId))throw new Error('INVALID_WORK_ITEM_INPUT')
  if(!inputs.length||inputs.length>5||inputs.some(x=>x.source.kind!=='pulse-metric')||new Set(inputs.map(x=>x.source.id)).size!==inputs.length)throw new Error('INVALID_WORK_ITEM_INPUT')
  if(inputs.length>1&&!multiSourceEnabled())throw new Error('MULTI_SOURCE_DISABLED')
  const selected=await Promise.all(inputs.map(input=>loadOwnedDraftSource(accountId,clientId,input.source)))
+ if(selected.some(item=>!item))throw new Error('WORK_ITEM_NOT_FOUND')
  const suggestions=selected.map((item,i)=>{const s=item&&deriveSuggestions(item.source).find(s=>s.source.id===inputs[i].source.id);if(!s||s.fingerprint!==inputs[i].fingerprint)throw new Error('EVIDENCE_CHANGED');return s}) as Suggestion[]
  const groups=groupOpportunities(suggestions);if(groups.length!==1||groups[0].key!==groupKey)throw new Error('INVALID_GROUP_SCOPE')
  const rows=inputs.map((input,i)=>{const item=selected[i]!,row=item.version.row as {question:string;raw_answer:string|null;platform:string;scan_week:string;classification_status?:string;brand_mentioned:boolean|null};return{key:suggestions[i].key,id:input.source.id,fingerprint:input.fingerprint,snapshot:buildInitialDraftSnapshot(suggestions[i],item.source,input.locale),question:row.question,raw:row.raw_answer,platform:row.platform,week:row.scan_week}}).sort((a,b)=>a.key.localeCompare(b.key)),first=rows[0],sql=db(),keys=rows.map(x=>x.key),context=groups[0].context

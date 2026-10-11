@@ -42,6 +42,7 @@ export type CitationReport = {
   availableKinds?:CitationKind[]
   pages?:{domains:CitationPage<CitationDomain>;urls:CitationPage<CitationUrl>;gaps:CitationPage<CitationGap>}
   evidence?:{domain:string;url:string;observationId:string;question:string;platform:string;runId:string|null;week:string;market:string|null;language:string|null}[]
+  evidenceWindow?:{total:number;page:number;pageSize:number}
   normalizationVersion?:string
   gapCoverage: {state:'not_configured'|'partial_config'|'no_observations'|'ready';configuredCompetitors:number;competitorsWithDomains:number}
   weeks: string[]
@@ -190,7 +191,7 @@ export async function readCitationReport(sql: Sql, accountId: string, clientId: 
   ])
   const owned = [normalizeVerificationDomain(client.domain as string | null), ...verified.map(v => normalizeVerificationDomain(v.domain as string))]
     .filter((d): d is string => !!d)
-    .map(d => d.replace(/^www\./, ''))
+    .map(d => {const url=normalizeCitationUrl('https://'+d);return url?new URL(url).hostname:d})
   if(answers.length>MAX_CITATION_ANSWERS)throw new Error('CITATION_SCOPE_TOO_LARGE')
   const report=buildCitationReport({
     context: {

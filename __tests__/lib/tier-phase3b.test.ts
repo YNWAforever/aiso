@@ -4,7 +4,7 @@ import { getPlanFeatures, maxBrandsForPlan } from '@/lib/tier'
 
 const h = vi.hoisted(() => {
   const state = {
-    getProfile: vi.fn(),
+    getProfile: vi.fn(),complete:vi.fn(),
     count: 0,
     inserts: [] as Array<Record<string, unknown>>,
     sql: vi.fn(),
@@ -25,6 +25,7 @@ const h = vi.hoisted(() => {
 
 vi.mock('@/lib/auth', () => ({ getProfile: h.getProfile }))
 vi.mock('@/lib/db', () => ({ db: () => h.sql }))
+vi.mock('@/lib/onboarding/service',()=>({completeOnboarding:h.complete}))
 
 beforeEach(() => {
   h.count = 0
@@ -50,7 +51,7 @@ test('maxBrandsForPlan returns correct limits', () => {
   expect(maxBrandsForPlan('enterprise')).toBe(10)
 })
 
-test('allows a brand at limit-minus-one and rejects limit and limit-plus-one quota counts', async () => {
+test('maps persisted brand success and commercial quota errors through the shared onboarding adapter', async () => {
   const { POST } = await import('@/app/api/dashboard/clients/route')
   const limit = maxBrandsForPlan('pro')
   const request = () => new NextRequest('http://localhost/api/dashboard/clients', {
@@ -59,9 +60,11 @@ test('allows a brand at limit-minus-one and rejects limit and limit-plus-one quo
     headers: { 'content-type': 'application/json' },
   })
 
+  h.complete.mockResolvedValue({clientId:'client-created',progress:{prompts:'pending'}})
   h.count = limit - 1
   await expect(POST(request())).resolves.toMatchObject({ status: 200 })
-  expect(h.inserts).toHaveLength(1)
+  expect(h.complete).toHaveBeenCalledWith({accountId:'account-1'},expect.objectContaining({brandName:'Boundary Brand'}))
+  h.complete.mockRejectedValue(new Error('BRAND_LIMIT_REACHED'))
 
   h.count = limit
   await expect(POST(request())).resolves.toMatchObject({ status: 403 })

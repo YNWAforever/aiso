@@ -21,7 +21,7 @@ export async function readOnboardingProgress(scope: OnboardingScope, intentKey: 
   const rows = await sql`select p.*, a.trial_ends_at,
       (select count(*)::int from prompt_bank pb where pb.client_id = p.client_id) as prompt_count
     from onboarding_progress p join accounts a on a.id = p.account_id
-    where p.account_id = ${scope.accountId} and p.intent_key = ${intentKey}`
+    where p.account_id = ${scope.accountId} and (p.intent_key = ${intentKey} or p.request_aliases ? ${intentKey})`
   return rows[0] ? dto(rows[0] as ProgressRow) : null
 }
 
@@ -30,9 +30,12 @@ export async function initializeOnboarding(scope: OnboardingScope, input: Onboar
   const [, rows] = await sql.transaction([
     sql`select id from accounts where id = ${scope.accountId} for update`,
     sql`with previous as (
-      select client_id, scan_id, request_hash,draft from onboarding_progress where account_id = ${scope.accountId} and intent_key = ${input.intentKey}
+      select client_id,scan_id,case when intent_key=${input.intentKey} then request_hash else request_aliases->>${input.intentKey} end as request_hash,draft from onboarding_progress where account_id=${scope.accountId} and (intent_key=${input.intentKey} or request_aliases ? ${input.intentKey})
+    ), locked_context as (
+      select client_id from onboarding_progress where account_id=${scope.accountId} and client_id=${input.clientId}::uuid and not exists(select 1 from previous) and prompt_status in ('running','ready') and (draft-'intentKey'-'clientId')<>(${JSON.stringify(input)}::jsonb-'intentKey'-'clientId')
     ), permitted as (
       select id from accounts where id = ${scope.accountId}
+        and not exists(select 1 from locked_context)
         and not exists(select 1 from previous where request_hash is not null and request_hash <> ${onboardingInputHash(input)})
         and (${input.scanId}::uuid is null or exists (select 1 from scans where id = ${input.scanId}::uuid and account_id = ${scope.accountId}
           and (client_id is null or client_id = coalesce((select client_id from previous), ${input.clientId}::uuid))))
@@ -56,18 +59,21 @@ export async function initializeOnboarding(scope: OnboardingScope, input: Onboar
       select id, ${input.brandName}, ${input.domain}, ${input.industry}, ${input.region}, ${input.description}, ${input.competitors}::text[], 'active'
       from trial where not exists (select 1 from existing) and ${input.clientId}::uuid is null returning id
     ), chosen as (select id from existing union all select id from created), progress as (
-      insert into onboarding_progress (account_id, intent_key, client_id, scan_id, draft,request_hash)
-      select ${scope.accountId}, ${input.intentKey}, chosen.id, ${input.scanId}::uuid, ${JSON.stringify(input)}::jsonb,${onboardingInputHash(input)}
+      insert into onboarding_progress (account_id,intent_key,client_id,scan_id,draft,request_hash,request_aliases)
+      select ${scope.accountId}, ${input.intentKey}, chosen.id, ${input.scanId}::uuid, ${JSON.stringify(input)}::jsonb,${onboardingInputHash(input)},jsonb_build_object(${input.intentKey}::text,${onboardingInputHash(input)}::text)
       from chosen join trial on true
-      on conflict (account_id, client_id) do update set draft = case when onboarding_progress.intent_key<>excluded.intent_key and onboarding_progress.prompt_status in ('pending','failed') then excluded.draft else onboarding_progress.draft end,request_hash=coalesce(onboarding_progress.request_hash,excluded.request_hash),
+      on conflict (account_id, client_id) do update set draft = case when onboarding_progress.intent_key<>excluded.intent_key and onboarding_progress.prompt_status in ('pending','failed') then excluded.draft else onboarding_progress.draft end,request_hash=coalesce(onboarding_progress.request_hash,excluded.request_hash),request_aliases=onboarding_progress.request_aliases||excluded.request_aliases,
         scan_id = coalesce(onboarding_progress.scan_id, excluded.scan_id), updated_at = now()
       returning *
+    ), updated_metadata as (
+      update clients c set brand_name=${input.brandName},domain=${input.domain},industry=${input.industry},region=${input.region},description=${input.description},competitors=${input.competitors}::text[] from progress p where c.id=p.client_id and c.account_id=p.account_id and c.account_id=${scope.accountId} and c.id=${input.clientId}::uuid and p.prompt_status in ('pending','failed') and (p.draft-'intentKey'-'clientId')=(${JSON.stringify(input)}::jsonb-'intentKey'-'clientId') returning c.id
     ), associated as (
       update scans set client_id = (select client_id from progress)
       where id = ${input.scanId}::uuid and account_id = ${scope.accountId}
         and (client_id is null or client_id = (select client_id from progress)) returning id
     ) select to_jsonb(progress) as progress,trial.trial_ends_at,null::text as reason from progress join trial on true
-    union all select null::jsonb,null::timestamptz,'intent_conflict' from previous where request_hash is not null and request_hash <> ${onboardingInputHash(input)}`,
+    union all select null::jsonb,null::timestamptz,'intent_conflict' from previous where request_hash is not null and request_hash <> ${onboardingInputHash(input)}
+    union all select null::jsonb,null::timestamptz,'intent_conflict' from locked_context`,
   ])
   if(rows[0]?.reason==='intent_conflict')throw new Error('ONBOARDING_INTENT_CONFLICT')
   return rows[0] ? dto({...rows[0].progress as Record<string,unknown>,trial_ends_at:rows[0].trial_ends_at} as ProgressRow) : null

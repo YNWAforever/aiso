@@ -1,3 +1,4 @@
+import {projectScanStatus} from '@/lib/view-models/scan-status'
 import { hasFailedScanPage } from '@/lib/result-access'
 import { compareReportEvidence, isReportEvidence, normalizeReportDomain, parseReportTimestamp, REPORTABLE_CHECKS } from './comparison'
 import { buildDeterministicReportSummary } from './summary'
@@ -91,6 +92,7 @@ export function buildClientReportSnapshot(input: ClientReportSnapshotInput): Cli
   const currentDomain = normalizeReportDomain(input.currentScan.domain)
   if (!currentDomain || currentDomain !== domain || !input.currentScan.accountId || !isReportEvidence(input.currentScan.results)) throw new Error('Current scan must match the client evidence scope')
   if (hasFailedScanPage(input.currentScan.results as Record<string, unknown>) || (input.previousScan && hasFailedScanPage(input.previousScan.results as Record<string, unknown>))) throw new Error('Failed collection cannot produce a scored report')
+  for(const scan of [input.currentScan,input.previousScan])if(scan&&projectScanStatus({score:scan.score,grade:scan.grade,evidence:(scan.results as Record<string,unknown>).evidence}).score===null)throw new Error('Unverified collection cannot produce a scored report')
   if (!Number.isFinite(input.currentScan.score)) throw new Error('Current score must be finite')
   const scanDate = validDate(input.currentScan.createdAt, 'Current scan date')
   const previousDate = input.previousScan ? validDate(input.previousScan.createdAt, 'Previous scan date') : null

@@ -131,6 +131,8 @@ function allRelations() {
     'search_console_page_queries', 'search_console_sync_runs',
     // 061: competitors as entities (GEO parity Step 3). Synthetic, like 054.
     'competitors',
+    // 065-069: verified against task-owned local PG16 only; not hosted evidence.
+    'pulse_legacy_classification_attempts','pulse_user_intents','pulse_run_reservations','prompt_batch_intents','work_item_groups',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }

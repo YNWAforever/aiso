@@ -7,6 +7,7 @@ import { isoDate } from '@/lib/iso-date'
 export async function attachManifestCoverage(sql:ReturnType<typeof db>,accountId:string,clientIds:string[],observations:Record<string,unknown>[]) {
   if (!isFeatureEnabled('pulse_attempts') || !clientIds.length) return observations
   const coverage = await sql`select r.id as run_id,r.client_id,r.scan_week,i.platform,
+    (select exists(select 1 from pulse_metrics legacy where legacy.client_id=r.client_id and legacy.scan_week=r.scan_week and legacy.run_item_id is null)) as mixed_legacy,
     count(i.id)::int as expected_items,
     count(i.id) filter(where i.status = 'succeeded')::int as succeeded_items,
     count(i.id) filter(where i.status = 'failed')::int as failed_items,

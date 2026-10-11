@@ -1,3 +1,4 @@
+import {normalizeCitationUrl} from '@/lib/citations/normalize'
 import {normalizeScanUrl} from '@/lib/scan-input'
 import {normalizeVerificationDomain} from '@/lib/domain-verification/schema'
 import {readIndustry} from './industry'
@@ -25,7 +26,9 @@ export function parseOnboardingInput(raw: Record<string, unknown>): OnboardingIn
     return raw[key].normalize('NFC').trim() || null
   }
   const brandName = raw.brandName.normalize('NFC').trim(), domainInput = text('domain', 255)
-  const domain=domainInput?normalizeVerificationDomain(normalizeScanUrl(domainInput))?.replace(/^www\./,'')??null:null
+  const verifiedDomain=domainInput?normalizeVerificationDomain(normalizeScanUrl(domainInput)):null
+  const normalizedDomainUrl=verifiedDomain?normalizeCitationUrl('https://'+verifiedDomain):null
+  const domain=normalizedDomainUrl?new URL(normalizedDomainUrl).hostname:null
   if(domainInput&&!domain)throw new Error('Invalid domain')
   const scanId = text('scanId', 36), clientId = text('clientId', 36)
   if ([scanId, clientId].some(id => id && !UUID.test(id))) throw new Error('Invalid onboarding input')

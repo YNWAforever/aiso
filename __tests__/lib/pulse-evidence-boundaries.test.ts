@@ -35,7 +35,7 @@ vi.mock('@/lib/pulse/analysis', () => ({ analyseAnswer: async () => ({ classific
 vi.mock('@/lib/pulse/runs/classification', () => ({ classifySavedAnswers: async () => 0 }))
 vi.mock('@/lib/workspace/maintenance', () => ({ loadMaintenanceSnapshot: async () => null }))
 
-import { createOrResumeRun } from '@/lib/pulse/runs/store'
+import { createOrResumeRun,readRunCoverage } from '@/lib/pulse/runs/store'
 import { runPulseChunk } from '@/lib/pulse/runs/service'
 import { consumeDuePulseWork, pulseWorkerPorts } from '@/lib/pulse/runs/worker'
 import { listPendingRunPage } from '@/lib/pulse/runs/queue'
@@ -80,7 +80,7 @@ beforeAll(async () => {
     create table scans(id uuid primary key,client_id uuid references clients(id),account_id uuid references accounts(id),
       domain text,score numeric,grade text,created_at timestamptz,results jsonb,agent_status text);
   `)
-  for (const file of ['057_pulse_run_ledger.sql', '058_pulse_classification_repair.sql', '060_provider_citations.sql', '061_competitors.sql', '062_pulse_grounding.sql']) {
+  for (const file of ['057_pulse_run_ledger.sql', '058_pulse_classification_repair.sql', '060_provider_citations.sql', '061_competitors.sql', '062_pulse_grounding.sql', '063_search_execution_evidence.sql','065_pulse_run_identity_and_repair.sql','066_pulse_attempt_grounding_grant.sql','067_user_pulse_intents.sql']) {
     await state.pg.exec(readFileSync(`supabase/migrations/${file}`, 'utf8'))
   }
 })
@@ -183,6 +183,7 @@ describe('recoverable Pulse rollups', () => {
   async function classifySavedFixture() {
     await state.pg!.query("update pulse_run_items set classification_status='classified',updated_at=now() where client_id=$1 and status='succeeded'", [CLIENT])
     await state.pg!.query("update pulse_metrics set classification_status='classified',brand_mentioned=false where client_id=$1", [CLIENT])
+    const run=(await state.pg!.query<{id:string}>('select id from pulse_runs where client_id=$1',[CLIENT])).rows[0];await readRunCoverage(scope,String(run.id))
     return 1
   }
   const repair = () => ({ mode: 'repair' as const, owner: 'offline-rollup-fixture', deadlineAt: Date.now() + 45_000 })

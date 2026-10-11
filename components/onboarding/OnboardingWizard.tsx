@@ -120,7 +120,7 @@ interface Props {
   scanId?: string
 }
 
-type Draft = { intentKey?: string; brand?: string; domain?: string; industry?: string; region?: string; language?: PromptLanguage; description?: string; competitors?: string[]; step?: number; clientId?: string; partial?: boolean }
+type Draft = { intentKey?: string; brand?: string; domain?: string; industry?: string; region?: string; language?: PromptLanguage; description?: string; competitors?: string[]; step?: number; clientId?: string; partial?: boolean; submittedPayload?: string }
 const subscribeHydration = () => () => {}
 export function OnboardingWizard(props: Props) {
   const ready = useSyncExternalStore(subscribeHydration, () => true, () => false)
@@ -132,7 +132,7 @@ export function OnboardingWizard(props: Props) {
       if (!raw || raw.length > 20000) return {}
       const saved = JSON.parse(raw)
       if (!saved || typeof saved.intentKey !== 'string') return {}
-      const clean: Draft = { intentKey: saved.intentKey }
+      const clean: Draft = { intentKey: saved.intentKey, submittedPayload: typeof saved.submittedPayload==='string'?saved.submittedPayload:undefined }
       for (const key of ['brand','domain','industry','region','description','clientId'] as const) {
         if (typeof saved[key] === 'string') clean[key] = saved[key]
       }
@@ -180,11 +180,11 @@ function WizardForm({
   const [intentKey, setIntentKey] = useState(() => draft.intentKey ?? (draftReady ? crypto.randomUUID() : ''))
   const [clientId, setClientId] = useState<string | null>(draft.clientId ?? null)
   const [partial, setPartial] = useState(draft.partial ?? false)
-  const submitted = useRef(false)
+  const submitted = useRef(false),submittedPayload=useRef(draft.submittedPayload)
   const draftKey = `aiso:onboarding:${accountId}:${scanId ?? 'new'}`
   useEffect(() => {
     if (!draftReady || submitted.current) return
-    try { sessionStorage.setItem(draftKey, JSON.stringify({ intentKey, brand, domain, industry, region, language, description, competitors, step, clientId, partial })) }
+    try { sessionStorage.setItem(draftKey, JSON.stringify({ intentKey, brand, domain, industry, region, language, description, competitors, step, clientId, partial,submittedPayload:submittedPayload.current })) }
     catch { /* Form state still survives in this tab when storage is unavailable. */ }
   }, [draftReady, draftKey, intentKey, brand, domain, industry, region, language, description, competitors, step, clientId, partial])
 
@@ -212,28 +212,30 @@ function WizardForm({
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/onboarding/complete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        brandName:   brand,
-        domain:      domain || undefined,
-        industry:    industry || undefined,
-        region:      region || undefined,
-        language:language||undefined,
-        market: region || null,
-        description: description || undefined,
-        competitors: competitors.length ? competitors : undefined,
-        scanId,
-        intentKey: intentKey || undefined,
-        clientId: clientId || undefined,
-      }),
-    })
+      const values={brand,domain,industry,region,language,description,competitors,scanId}
+      const payload=JSON.stringify(values)
+      const send=(v:typeof values,key:string,target:string|null)=>fetch('/api/onboarding/complete',{
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brandName:v.brand,domain:v.domain||undefined,industry:v.industry||undefined,region:v.region||undefined,language:v.language||undefined,market:v.region||null,description:v.description||undefined,competitors:v.competitors.length?v.competitors:undefined,scanId:v.scanId,intentKey:key||undefined,clientId:target||undefined})
+      })
+      let targetClientId=clientId
+      const previous=submittedPayload.current
+      // Resolve the original immutable request before changing an unknown-outcome intent.
+      if(!targetClientId&&previous!==undefined&&previous!==payload){
+        const recovered=await send(JSON.parse(previous) as typeof values,intentKey,null)
+        const body=await recovered.json()
+        if(!recovered.ok){setError(typeof body.error==='string'?body.error:c.genericError);return}
+        if(typeof body.clientId!=='string'||!body.progress)throw new Error('Invalid progress')
+        targetClientId=body.clientId;setClientId(body.clientId)
+      }
+      const requestIntent=targetClientId&&previous!==undefined&&previous!==payload?crypto.randomUUID():intentKey
+      submittedPayload.current=payload;setIntentKey(requestIntent)
+      try{sessionStorage.setItem(draftKey,JSON.stringify({intentKey:requestIntent,...values,step,clientId:targetClientId,partial,submittedPayload:payload}))}catch{}
+      const res=await send(values,requestIntent,targetClientId)
       const data = await res.json()
       if (!res.ok) { setError(typeof data.error === 'string' ? data.error : c.genericError); return }
       if (typeof data.clientId !== 'string' || !data.progress) throw new Error('Invalid progress')
       setClientId(data.clientId)
-      if (typeof data.intentKey === 'string') setIntentKey(data.intentKey)
+      // Keep the request intent: recovery may reuse the original progress row's identity.
       if (data.progress.prompts !== 'ready') { setPartial(true); setError(c.seedPartial); return }
       submitted.current = true
       try { sessionStorage.removeItem(draftKey) } catch { /* optional storage */ }

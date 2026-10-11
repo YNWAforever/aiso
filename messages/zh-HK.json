@@ -1473,7 +1473,7 @@
       "error": "暫時無法載入此部分，請稍後重新整理。",
       "locked": "你目前的方案未包含此部分。",
       "partial": "部分樣本",
-      "complete": "",
+      "complete": "監測結果已可查看",
       "pending": "監測待完成",
       "failed": "採集失敗",
       "blocked": "監測受阻",
@@ -1963,7 +1963,9 @@
     "openRetest": "查看重測狀態",
     "compareRetest": "比較已完成的觀測",
     "observedDelta": "可比觀測：品牌提及差異 {delta}；未證明因果或 ROI。",
-    "notComparable": "不能直接比較：{reasons}"
+    "notComparable": "不能直接比較：{reasons}",
+    "operationsConflict": "另一個視窗已更改工作紀錄。已保留你的未儲存內容；請重新載入已儲存版本並核對後再儲存。",
+    "reloadOperations": "重新載入已儲存工作紀錄"
   },
   "changeSets": {
     "title": "版本審核",
@@ -2609,7 +2611,12 @@
     "answer_evidence": "查看回答證據",
     "context_unknown": "背景未知",
     "export_scope": "匯出同一篩選範圍的全部 {count} 個網站；不受目前分頁限制。",
-    "export_error": "匯出失敗，請縮小範圍或重試；未下載部分檔案。"
+    "export_error": "匯出失敗，請縮小範圍或重試；未下載部分檔案。",
+    "evidence_window": "證據第 {page} 頁：顯示 {total} 個引用中的 {shown} 個。可翻頁查看全部已保存回答。",
+    "next_evidence": "下一頁證據",
+    "scope_evidence": "查看此網站全部證據",
+    "gaps_page_empty": "這一頁沒有差距；此範圍的其他頁仍有差距。",
+    "page_empty": "這一頁沒有來源；請返回此範圍的較早頁面。"
   },
   "runProgress": {
     "title": "監測品牌",
