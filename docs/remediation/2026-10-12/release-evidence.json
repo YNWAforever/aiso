@@ -1,0 +1,196 @@
+{
+  "observedAt": "2026-10-11T20:29:48.550Z",
+  "applicationSourceSha": "c7b3b7c9971c0e684c6b7aa97b3ae62f4b36cc27",
+  "preview": {
+    "id": "dpl_3iuz1PdxqL1kyuwJGk1WTHL6w63o",
+    "url": "https://aiso-auth-acceptance-20261012-ool2wijrb-ynwaforevers-projects.vercel.app",
+    "environment": "protected_isolated_preview",
+    "gitMetadata": false,
+    "archiveBaseSha": "c7b3b7c9971c0e684c6b7aa97b3ae62f4b36cc27",
+    "instrumentationSha256": "e38464e057029fabefb3f135e693e09add3fb7fda487e468e1e2c7494372766b",
+    "providerFixtureSha256": "58d43cc66a982259db5867aa39075e41ae99a3b693015d9422d54e3aaea7932d"
+  },
+  "auth": {
+    "managedReal": true,
+    "authMock": false,
+    "tenants": 2,
+    "emailCalls": 0,
+    "googleMagicLinkHumanUat": "not_exercised"
+  },
+  "tests": {
+    "unit": {
+      "passed": 5968,
+      "failed": 0,
+      "skipped": 0,
+      "networkGuard": "CI=1"
+    },
+    "browser": {
+      "passed": 47,
+      "failed": 0,
+      "skipped": 0,
+      "languages": [
+        "en",
+        "zh-HK"
+      ],
+      "widths": [
+        360,
+        390,
+        1440
+      ]
+    },
+    "releaseGuard": 12,
+    "providerFixture": 12,
+    "workerUnit": 11,
+    "typecheck": "passed",
+    "lint": "passed"
+  },
+  "migration": {
+    "isolatedRehearsal": "passed",
+    "files": 8,
+    "production": "READ_ONLY pending063-070",
+    "productionWrites": 0,
+    "packetSha256": "7b02b0a08720ed9ea55d886f217691d92e8a7c365138be447e4914759e58922e"
+  },
+  "worker": {
+    "scheduledHandler": "actual local bundle -> hosted isolated app",
+    "hostedCloudflareInvocation": false,
+    "calls": [
+      {
+        "route": "/api/cron/pulse",
+        "status": 200,
+        "mode": "weekly",
+        "empty": false
+      },
+      {
+        "route": "/api/cron/pulse?mode=repair",
+        "status": 200,
+        "mode": "repair",
+        "empty": true
+      }
+    ],
+    "collectionAttempts": 40,
+    "classificationCount": 40
+  },
+  "provider": {
+    "paidCalls": 0,
+    "metadata": "6 model endpoint GETs200; all nonempty",
+    "realCost": "unexercised"
+  },
+  "cases": [
+    {
+      "id": "UC01",
+      "status": "passed_preview_synthetic",
+      "sourceSha": "c7b3b7c9971c0e684c6b7aa97b3ae62f4b36cc27",
+      "evidence": "Real managed sessions for two accounts; 24 initial prompts each; persisted 40/5-item runs; replay retains owned brand/run identity.",
+      "production": "not_verified_live",
+      "limits": "Real provider/production journey unexercised"
+    },
+    {
+      "id": "UC02",
+      "status": "passed_preview_synthetic",
+      "sourceSha": "c7b3b7c9971c0e684c6b7aa97b3ae62f4b36cc27",
+      "evidence": "Concurrent second-brand replay returns one brand with canonical industry and24 shared seed prompts.",
+      "production": "not_verified_live",
+      "limits": "Real provider/production journey unexercised"
+    },
+    {
+      "id": "UC03",
+      "status": "passed_preview_synthetic",
+      "sourceSha": "c7b3b7c9971c0e684c6b7aa97b3ae62f4b36cc27",
+      "evidence": "9 synthetic classification faults leave31/40 partial; unknown remains null and9 original answers remain readable.",
+      "production": "not_verified_live",
+      "limits": "Real provider/production journey unexercised"
+    },
+    {
+      "id": "UC04",
+      "status": "passed_preview_synthetic",
+      "sourceSha": "c7b3b7c9971c0e684c6b7aa97b3ae62f4b36cc27",
+      "evidence": "Classification repair reaches40/40; accepted attempt IDs, raw answers and40 collection attempts unchanged.",
+      "production": "not_verified_live",
+      "limits": "Real provider/production journey unexercised"
+    },
+    {
+      "id": "UC05",
+      "status": "passed_preview_synthetic",
+      "sourceSha": "c7b3b7c9971c0e684c6b7aa97b3ae62f4b36cc27",
+      "evidence": "Historical synthetic503 scan with stored F/3.5 displays Scan incomplete on both card and detail; invalid URL is400 in earlier preview.",
+      "production": "not_verified_live",
+      "limits": "Real provider/production journey unexercised"
+    },
+    {
+      "id": "UC06",
+      "status": "passed_preview_synthetic",
+      "sourceSha": "c7b3b7c9971c0e684c6b7aa97b3ae62f4b36cc27",
+      "evidence": "10 observation details preserve provider citations and requested native/web; execution stays unknown without confirmed search events.",
+      "production": "not_verified_live",
+      "limits": "Real search execution/native vendor metadata unexercised"
+    },
+    {
+      "id": "UC07",
+      "status": "passed_preview_synthetic",
+      "sourceSha": "c7b3b7c9971c0e684c6b7aa97b3ae62f4b36cc27",
+      "evidence": "60-domain universe;50 visible; review at rank51 remains filterable;60 CSV rows; recorded-empty1 and unrecorded1 remain distinct.",
+      "production": "not_verified_live",
+      "limits": "Real provider/production journey unexercised"
+    },
+    {
+      "id": "UC08",
+      "status": "passed_preview_synthetic",
+      "sourceSha": "c7b3b7c9971c0e684c6b7aa97b3ae62f4b36cc27",
+      "evidence": "Zero configured competitors is not_configured; name-only competitor is partial_config.",
+      "production": "not_verified_live",
+      "limits": "Real provider/production journey unexercised"
+    },
+    {
+      "id": "UC09",
+      "status": "passed_preview_synthetic",
+      "sourceSha": "c7b3b7c9971c0e684c6b7aa97b3ae62f4b36cc27",
+      "evidence": "Owned Pro portfolio links, workspace/tool navigation, keyboard focus; no foreign portfolio links.",
+      "production": "not_verified_live",
+      "limits": "Real provider/production journey unexercised"
+    },
+    {
+      "id": "UC10",
+      "status": "passed_preview_synthetic",
+      "sourceSha": "c7b3b7c9971c0e684c6b7aa97b3ae62f4b36cc27",
+      "evidence": "50 prompts/8 active/8 result links; changed batch concurrent replay200/200; stale409; over-limit400.",
+      "production": "not_verified_live",
+      "limits": "Real provider/production journey unexercised"
+    },
+    {
+      "id": "UC11",
+      "status": "passed_preview_synthetic",
+      "sourceSha": "c7b3b7c9971c0e684c6b7aa97b3ae62f4b36cc27",
+      "evidence": "5-platform evidence saves one group; manual done state; frozen retest comparable with observed delta0; canonical weekly summary digest unchanged.",
+      "production": "not_verified_live",
+      "limits": "Real provider/production journey unexercised"
+    },
+    {
+      "id": "UC12",
+      "status": "passed_preview_synthetic",
+      "sourceSha": "c7b3b7c9971c0e684c6b7aa97b3ae62f4b36cc27",
+      "evidence": "14 owned200/foreign404 route pairs +4 additional mutation/work pairs; anonymous401; real managed sign-out revokes access401 then real sign-in restores200; private PSL tenants incl WWW stay distinct.",
+      "production": "not_verified_live",
+      "limits": "Google/magic-link UI and human platform-admin UAT unexercised"
+    },
+    {
+      "id": "UC13",
+      "status": "passed_preview_synthetic",
+      "sourceSha": "c7b3b7c9971c0e684c6b7aa97b3ae62f4b36cc27",
+      "evidence": "Non-JSON500 and network failure release loading; refresh keeps same intent/step; real final submission creates one owned brand. Lost-ack replay200 and changed-payload409.",
+      "production": "not_verified_live",
+      "limits": "Real provider/production journey unexercised"
+    }
+  ],
+  "privateEvidenceSha256": {
+    "current-uc-api.json": "20220a145476f67489d950fb6a70f4178c73650f9d44c9778a8088942fbc6b8f",
+    "current-uc-batch.json": "93d596be19ff72a0d53f88a06e51c7fee933635e1b48e1ac0bae55441aa03d6b",
+    "current-uc-browser.json": "7f5365a3495ad1ebb855e594d52dc5b63a17a015f11687e0a0e7a33ef84c381c",
+    "current-tenant-auth-controls.json": "46811f711bfa80f1043e2002e06e9299835d6252a375c26dc4c33d4db3b409c5",
+    "current-worker-controlled-isolated.json": "9623581109304955406c44d4f023ccd31c3234c92bbd91becf35d3e42da21089",
+    "unit-guarded-final.json": "db7e1c2c705b3b709b6e6901429b6cb2e1fc1e27bb71a6e47c52e041043e3bcf",
+    "migration-rehearsal.json": "2e8cdfebe300f10498ac4b154c0d8c3edd7ce46cc05b88d916ffc5f2e6435fab",
+    "production-runner-readonly.json": "c97f9547c68303cd134612672e74d9f0e36cfab57dde3a4c5edd2f272214648e",
+    "production-compatibility.json": "e5f1e8a7842ee02d9e81a7fa9e5f2e41d1fc55c45a135d64d3003cce10e0f039"
+  }
+}
