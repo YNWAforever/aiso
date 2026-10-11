@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { callMultiPlatform } from '@/lib/openrouter'
 import { analyseAnswer } from '@/lib/pulse/analysis'
 import { citationPlatformFor, runtimePlatformsFor } from '@/lib/pulse/platforms'
-import { MAX_PROMPTS, PULSE_ANSWER_MAX_TOKENS } from '@/lib/pulse/limits'
+import { MAX_PROMPTS, pulseAnswerMaxTokens } from '@/lib/pulse/limits'
 import { computeWeeklySummary } from '@/lib/pulse/summary'
 import { resolveCommercialEntitlement, type CommercialAccount } from '@/lib/tier'
 import { isFeatureEnabled } from '@/lib/flags'
@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
       // drops rejected platforms, and this catches a total failure.
       const responses = await callMultiPlatform(
         [{ role: 'user', content: prompt.question }],
-        PULSE_ANSWER_MAX_TOKENS,
+        pulseAnswerMaxTokens,
         platforms,
         undefined,
         { webSearch },

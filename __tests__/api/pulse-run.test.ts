@@ -552,9 +552,12 @@ describe('POST /api/pulse/run — web search (062)', () => {
 describe('POST /api/pulse/run — answer length', () => {
   // Production, 2026-10-10: at 500 tokens every Gemini 3.8 Flash answer (a
   // reasoning model) and some sourced answers were cut off and discarded.
-  it('asks each platform for answers of up to PULSE_ANSWER_MAX_TOKENS', async () => {
+  // Week 2026-10-05: at 1500 Gemini still ran out in 5 of 8 answers, so it alone gets 4000.
+  it('asks each platform for answers of up to its limit: 1500, or 4000 for Gemini', async () => {
     llm.callMultiPlatform.mockResolvedValue([])
     await post({ clientId: 'client-1', limit: 1 })
-    expect(llm.callMultiPlatform.mock.calls.at(-1)?.[1]).toBe(1500)
+    const limit = llm.callMultiPlatform.mock.calls.at(-1)?.[1] as (platform: string) => number
+    for (const platform of ['perplexity-sonar', 'perplexity-sonar-pro', 'gpt-4o', 'claude-haiku']) expect(limit(platform)).toBe(1500)
+    expect(limit('gemini-flash')).toBe(4000)
   })
 })

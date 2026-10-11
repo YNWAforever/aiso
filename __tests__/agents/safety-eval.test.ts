@@ -182,7 +182,8 @@ describe('5. bounded budget', () => {
     const openrouter = readFileSync(join(process.cwd(), 'lib/openrouter.ts'), 'utf8')
 
     expect(openrouter).toMatch(/budget\?: TaskBudget/)
-    expect(openrouter).toMatch(/budget\.reserve\(maxTokens\)/)
+    // Each platform reserves its own answer limit (Gemini has a higher one).
+    expect(openrouter).toMatch(/for \(const \{ platform \} of selected\) budget\.reserve\(limitFor\(platform\)\)/)
   })
 
   it('offers no way to obtain an unbounded budget', () => {
