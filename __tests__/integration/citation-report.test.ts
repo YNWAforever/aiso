@@ -35,7 +35,7 @@ async function fixture(test: (scope: PulseScope) => Promise<void>) {
   await sql`insert into accounts(id, plan, status) values (${accountId}, 'basic', 'active')`
   const [client] = await sql`insert into clients(account_id, brand_name, domain) values (${accountId}, 'Citation Brand', 'https://www.acme-brand.com/') returning id`
   const scope = { accountId, clientId: client.id as string }
-  await sql`insert into prompt_bank(client_id, question, language) values (${scope.clientId}, 'Where to bank?', 'en')`
+  await sql`insert into prompt_bank(client_id, question, language, market) values (${scope.clientId}, 'Where to bank?', 'en', 'HK')`
   await sql`insert into competitors(account_id, client_id, name, domains) values (${accountId}, ${scope.clientId}, 'HSBC Holdings', array['hsbc.com.hk'])`
   try { await test(scope) } finally {
     await sql`delete from pulse_metrics where client_id = ${scope.clientId}`
@@ -55,12 +55,15 @@ describe('readCitationReport', () => {
     // Legacy-writer row with its own citations. The legacy writer always sets
     // prompt_id (app/api/pulse/run/route.ts), so the fixture does too.
     const [prompt] = await sql`select id from prompt_bank where client_id = ${scope.clientId}`
+    // Freeze the canonical manifest before adding the legacy row. A pre-existing
+    // raw answer intentionally blocks automatic collection for that week.
+    const run = (await createOrResumeRun(scope, { scanWeek: WEEK, manifest: modelVariantsFor(['gpt-4o']) }))!
+    expect(run).not.toBeNull()
     await sql`insert into pulse_metrics (client_id, prompt_id, platform, question, raw_answer, scan_week, provider_citations, grounding)
               values (${scope.clientId}, ${prompt.id}, 'gemini-flash', 'Where to bank?', 'An answer', ${WEEK}::date,
                       ${JSON.stringify([{ url: 'https://personal.hsbc.com.hk/loans', title: 'Loans' }])}::jsonb, 'web')`
     // Ledger answer whose projection carries no citations, as before 062:
     // the report must fall back to the attempt's.
-    const run = (await createOrResumeRun(scope, { scanWeek: WEEK, manifest: modelVariantsFor(['gpt-4o']) }))!
     const [lease] = await claimDueItems(scope, run.id, { owner: 'synthetic', leaseUntil: new Date(Date.now() + 60_000), limit: 1 })
     await commitAttempt(lease, { kind: 'succeeded', evidence: { ...evidence, providerCitations: [{ url: 'https://acme-brand.com/rates', title: 'Our rates' }] } })
     await sql`update pulse_metrics set provider_citations = null where run_item_id = ${lease.id} and client_id = ${scope.clientId}`

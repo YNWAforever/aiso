@@ -52,6 +52,8 @@ describe('readShareOfVoice', () => {
     await metric('2026-10-05', { brand: true, status: 'fallback' })          // not classified
     await metric('2026-10-05', { brand: false, answer: '   ' })              // blank body
     await metric('2026-10-05', { brand: null })                              // no brand decision
+    // Editing today's bank cannot rewrite the question observed in this week.
+    await sql`update prompt_bank set question='Edited after observation?' where id=${PROMPT}::uuid and client_id=${CLIENT}::uuid`
     const view = (await readShareOfVoice(sql as never, ACCOUNT, CLIENT))!
     const cell = (label: string) => view.subjects.find(s => s.label === label)!.cells['2026-10-05']['*']
     expect(view.weeks).toEqual(['2026-10-05'])
@@ -60,8 +62,8 @@ describe('readShareOfVoice', () => {
     // Citi is only in the legacy array, and still a configured competitor.
     expect(view.subjects.find(s => s.label === 'Citi')?.kind).toBe('competitor')
     expect(cell('Citi')).toEqual({ mentions: 1, answers: 2, share: 50 })
-    // The question comes from the prompt bank, not the copy stored on the metric.
-    expect(view.prompts.map(p => p.question)).toEqual(['Best bank in Hong Kong?'])
+    // The immutable observation question survives later prompt-bank edits.
+    expect(view.prompts.map(p => p.question)).toEqual(['Stored question'])
   })
 
   it('reads the most recent eight weeks only', async () => {
