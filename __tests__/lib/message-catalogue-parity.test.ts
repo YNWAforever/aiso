@@ -151,8 +151,8 @@ describe('the parity check cannot pass vacuously', () => {
     // Adding a namespace is a deliberate edit here; deleting one from both
     // catalogues at once is exactly what set equality misses.
     expect(Object.keys(load(DEFAULT)).sort()).toEqual([
-      'activation',
-      'alertFeedback', 'approverAccess', 'assets', 'auth', 'changeSets', 'checks', 'citations', 'competitors', 'dashboard',
+      'activation', 'adminDirectory',
+      'alertFeedback', 'approverAccess', 'assets', 'auth', 'brandAssistant', 'changeSets', 'checks', 'citations', 'competitors', 'dashboard',
       'delivery', 'entities', 'generatedWork', 'home', 'maintenance', 'members', 'methodologyPage', 'nav',
       'observations', 'opportunities', 'outcomes', 'portfolio', 'pricing',
       'publicPages', 'pulse', 'pulseView', 'reportBranding', 'reports', 'result', 'runProgress',

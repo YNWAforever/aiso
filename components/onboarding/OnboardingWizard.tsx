@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronRight, Zap, X } from 'lucide-react'
+import { BrandAssistant } from './BrandAssistant'
 import { PROMPT_MARKETS, isPromptLanguage, type PromptLanguage } from '@/lib/prompts/context'
 
 const INDUSTRIES = [
@@ -24,6 +25,7 @@ const REGIONS = PROMPT_MARKETS
 
 const COPY_EN = {
   stepOf: (step: number, total: number) => `Step ${step} of ${total}`,
+  setupTitle: 'Set up your brand',
   s1Title: "What's your brand name?",
   s1Subtitle: 'This is how AI agents will look for you.',
   s1Placeholder: 'e.g. Fimmick',
@@ -41,7 +43,7 @@ const COPY_EN = {
   regionPlaceholder: 'Region (optional)',
   s3Skip: 'Skip — set up later',
   s4Title: 'Tell AI what you do',
-  s4Subtitle: 'A short description helps us generate better scan questions and improves your AI citation accuracy.',
+  s4Subtitle: 'Review your brand details. We will use them to draft relevant tracking questions for your chosen language and market.',
   descLabel: 'Brand description',
   optional: '(optional)',
   descPlaceholder: (brand: string) => `e.g. ${brand || 'Your brand'} is an AI search optimisation platform that helps businesses improve their visibility in ChatGPT, Perplexity, and Google AI answers.`,
@@ -62,6 +64,7 @@ const COPY_EN = {
 
 const COPY_ZH_HK: typeof COPY_EN = {
   stepOf: (step: number, total: number) => `第 ${step} 步，共 ${total} 步`,
+  setupTitle: '設定你的品牌',
   s1Title: '你的品牌名稱是？',
   s1Subtitle: 'AI 將以此名稱搜尋你的品牌。',
   s1Placeholder: '例如 Fimmick',
@@ -79,7 +82,7 @@ const COPY_ZH_HK: typeof COPY_EN = {
   regionPlaceholder: '地區（可選）',
   s3Skip: '略過——稍後設定',
   s4Title: '讓 AI 了解你的業務',
-  s4Subtitle: '一段簡短描述有助我們生成更好的掃描問題，並提升你的 AI 引用準確度。',
+  s4Subtitle: '請核對品牌資料。我們會按你選擇的語言及市場，草擬相關的追蹤問題。',
   descLabel: '品牌描述',
   optional: '（可選）',
   descPlaceholder: (brand: string) => `例如：${brand || '你的品牌'} 是一個 AI 搜尋優化平台，幫助企業提升在 ChatGPT、Perplexity 及 Google AI 答案中的能見度。`,
@@ -284,7 +287,12 @@ function WizardForm({
         {/* ── Step 1: Brand name ── */}
         {step === 1 && (
           <div>
-            <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-1 focus-visible:outline-2 focus-visible:outline-primary"><label htmlFor="onboarding-brand">{c.s1Title}</label></h1>
+            <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary">{c.setupTitle}</h1>
+            <BrandAssistant lang={lang} initialDomain={domain} onApply={suggestion => {
+              setBrand(suggestion.brandName); setDomain(suggestion.domain); setDescription(suggestion.description)
+              setIndustry(suggestion.industry ?? ''); setLanguage(suggestion.language); setRegion(suggestion.market); setStep(4)
+            }} />
+            <h2 className="text-lg font-bold text-foreground mb-1"><label htmlFor="onboarding-brand">{c.s1Title}</label></h2>
             <p className="text-sm text-muted-foreground mb-6">{c.s1Subtitle}</p>
             <input
               id="onboarding-brand"
@@ -386,7 +394,8 @@ function WizardForm({
             </p>
 
             {/* Brand description */}
-            <p className="mb-4 text-sm text-muted-foreground">{c.questionLanguage}: {language === 'en' ? 'English' : '繁體中文（香港）'} · {REGIONS.find(r => r.value === region)?.[isZh ? 'labelZh' : 'labelEn'] ?? c.regionPlaceholder}</p>
+            <p className="mb-2 font-semibold">{brand} · {domain}</p>
+            <p className="mb-4 text-sm text-muted-foreground">{c.questionLanguage}: {language === 'en' ? 'English' : language === 'zh-HK' ? '繁體中文（香港）' : '—'} · {REGIONS.find(r => r.value === region)?.[isZh ? 'labelZh' : 'labelEn'] ?? c.regionPlaceholder}</p>
             <div className="mb-4">
               <label htmlFor="onboarding-description" className="block text-xs font-semibold text-foreground mb-1.5">
                 {c.descLabel} <span className="text-muted-foreground font-normal">{c.optional}</span>

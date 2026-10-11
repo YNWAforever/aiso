@@ -37,6 +37,11 @@ function links(html: string) {
 const render = () => links(renderToStaticMarkup(<DashboardSidebar profile={{}} entitlement={entitlement} />))
 
 describe('dashboard sidebar on the brand portfolio', () => {
+  it('routes platform admins to the unlocalized protected directory', () => {
+    const html = renderToStaticMarkup(<DashboardSidebar profile={{ is_admin: true }} entitlement={entitlement} />)
+    expect(html).toContain('href="/admin?lang=en"')
+    expect(html).not.toContain('href="/en/admin"')
+  })
   beforeEach(() => {
     nav.params = { lang: 'en' }
     nav.step = 'improve'

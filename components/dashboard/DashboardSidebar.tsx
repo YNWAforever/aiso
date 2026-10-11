@@ -261,7 +261,7 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
             <p className="text-[10px] text-muted-foreground">{plan}</p>
           </div>
           {profile.is_admin && (
-            <Link href={`/${lang}/admin`} className="inline-flex size-11 items-center justify-center text-muted-foreground hover:text-foreground transition-colors" title={t('admin')}>
+            <Link href={`/admin?lang=${lang}`} className="inline-flex size-11 items-center justify-center text-muted-foreground hover:text-foreground transition-colors" title={t('admin')}>
               <Wrench size={13} />
             </Link>
           )}
