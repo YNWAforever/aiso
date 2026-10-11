@@ -247,6 +247,11 @@
         "id": "auth.anonymous_session",
         "status": "pass",
         "code": "anonymous"
+      },
+      {
+        "id": "origin.resolves",
+        "status": "pass",
+        "code": "resolved"
       }
     ]
   },

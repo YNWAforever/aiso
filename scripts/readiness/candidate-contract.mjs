@@ -14,13 +14,13 @@ const optional = {
 }
 const configurationIds = [...core, ...binding, ...Object.values(optional).flat().map(s => 'config.' + s), ...capabilities.map(s => 'capability.' + s)]
 const configCodes = ['valid', 'invalid', 'missing', 'expectation_mismatch', 'application_role_required', 'database_mismatch', 'forbidden_target', 'required', 'verified-disabled', 'unknown']
-const requiredRuntime = ['configuration.core', 'candidate.identity', 'database.identity', 'database.read_only', 'auth.jwks', 'auth.anonymous_session']
+const requiredRuntime = ['configuration.core', 'candidate.identity', 'database.identity', 'database.read_only', 'auth.jwks', 'auth.anonymous_session', 'origin.resolves']
 const passCodes = {
   'candidate.identity': ['matched'], 'configuration.core': ['valid'], 'database.identity': ['matched'],
   'database.read_only': ['read_only'], 'database.relation': ['privilege_present', 'relation_present'],
-  'auth.jwks': ['available'], 'auth.anonymous_session': ['anonymous'],
+  'auth.jwks': ['available'], 'auth.anonymous_session': ['anonymous'], 'origin.resolves': ['resolved'],
 }
-const runtimeCodes = ['matched','identity_unavailable','identity_mismatch','valid','invalid','dependency_failed','connected','connection_failed','read_only','read_only_unverified','relation_present','relation_missing','privilege_present','privilege_missing','available','unavailable','anonymous','session_present','malformed_response','timeout','probe_error']
+const runtimeCodes = ['matched','identity_unavailable','identity_mismatch','valid','invalid','dependency_failed','connected','connection_failed','read_only','read_only_unverified','relation_present','relation_missing','privilege_present','privilege_missing','available','unavailable','anonymous','session_present','malformed_response','timeout','probe_error','resolved','unresolved']
 const statuses = ['pass', 'fail', 'unknown']
 const fail = () => { throw new Error('Candidate verification failed') }
 const ensure = value => { if (!value) fail() }
@@ -129,7 +129,7 @@ export function validateReport(report, { expected, policy, nonce, now }) {
     const key = relation ? c.id + ':' + c.policyIndex + ':' + c.privilege : c.id
     ensure(!seen.has(key)); seen.add(key)
     if (c.status === 'pass') ensure(passCodes[c.id].includes(c.code))
-    if (c.status !== 'pass') ensure(!['matched','valid','read_only','relation_present','privilege_present','available','anonymous'].includes(c.code))
+    if (c.status !== 'pass') ensure(!['matched','valid','read_only','relation_present','privilege_present','available','anonymous','resolved'].includes(c.code))
     if (c.id === 'database.identity' && c.status === 'pass') ensure(databaseKeys.every(k => report.observedDatabase[k] === policy.expectedDatabase[k]))
     if (c.id === 'configuration.core' && c.status === 'pass') ensure(core.every(id => config.checks.find(c => c.id === id)?.status === 'pass'))
   }
