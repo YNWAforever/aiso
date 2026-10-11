@@ -6,7 +6,7 @@ async function fixture(page: Page, lang: string) {
   if (!dir) throw new Error('AISO_ADMIN_HTML_DIR is required')
   const js = readFileSync(`${dir}/fixture.js`, 'utf8'), css = readFileSync(`${dir}/build.css`, 'utf8')
   await page.route('**/*', route => route.abort())
-  await page.route(`https://admin.fixture/${lang}`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html lang="${lang}"><head><title>Admin component fixture</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body><main><div id="root"></div></main><script>${js}</script></body></html>` }))
+  await page.route(`https://admin.fixture/${lang}`, route => route.fulfill({ contentType: 'text/html; charset=utf-8', body: `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>Admin component fixture</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body><main><div id="root"></div></main><script>${js}</script></body></html>` }))
 }
 for (const lang of ['en', 'zh-HK']) {
   test(`admin sees a bounded page and account drilldowns (${lang})`, async ({ page }) => {

@@ -30,5 +30,6 @@ Read-only database evidence: project `weathered-wave-50814522`, branch `br-squar
 - [x] Platform directory API, filters, pagination and tests.
 - [x] Admin UI, billing preservation, correct navigation and bilingual verification.
 - [x] Typecheck/lint/build, targeted synthetic tests and diff review.
-- [ ] Create reviewable PR and record remote CI.
+- [x] Create reviewable draft PR #87 and record the first remote CI results.
+- [ ] Fresh browser/gate verification after the two test-fixture corrections; latest status is in the PR description.
 - [x] Record measured coverage, operational blockers and exact deployment status.

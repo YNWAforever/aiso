@@ -17,6 +17,16 @@
 - Local browser attempt: **0 functional cases executed / 8 launch failures**, because the pinned Chromium executable is absent. `playwright install chromium` returned corrupt/empty download archives. New synthetic, outbound-denying desktop/mobile specs are registered in the normal CI pipeline; pending execution is not success.
 - No live AI call, brand creation, paid monitoring run, email, payment, schema migration or Worker publication performed.
 
+## First remote CI and corrections
+
+PR: https://github.com/YNWAforever/aiso/pull/87 . Application candidate: `5fddb70cb82b3d498d0d9dfc273e95ebd5995ecf`. CI run https://github.com/YNWAforever/aiso/actions/runs/38161592198 checked merge ref `2279c738ba3c0a61b653e8c2b7dcb3271ecfd38e` against unchanged main.
+
+- Unit: **5,936/5,936 passed, zero skipped**, including the 42 network-boundary cases that could not all pass locally.
+- Static, build and Worker jobs passed. Disposable-Neon integration: **419/419 passed, zero skipped**.
+- Browser: **942 passed / 12 failed / 0 skipped**, across four shards. All eight new AI-assistant desktop/mobile cases passed. Four failures came from the admin fixture omitting a UTF-8 declaration (the captured DOM confirms mojibake); eight came from the old keyboard assertion expecting the manual brand field instead of the newly first website field on returning to step one.
+- Follow-up changes add explicit UTF-8 headers/meta to the synthetic admin page and assert the actual first control after backward navigation. No product security control or required gate is weakened. A fresh CI run is mandatory; the first red result remains historical evidence. The PR description records the latest run and results so evidence updates do not themselves restart every required job.
+- Both Vercel branch builds succeeded. The main alias remains unchanged. Preview build success does not establish authenticated hosted acceptance.
+
 ## Bounded live review
 
 Inventory at this checkout: 92 API files and 54 page files; this is a surface count, **not a claim every route was tested**. Reviewed relevant auth, onboarding, admin, AI transport, quota, SQL and deployment code; browser checks used the signed-in tenant session.

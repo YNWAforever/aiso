@@ -165,7 +165,8 @@ for (const locale of A11Y_LOCALES) {
       // avoids raising the mobile software keyboard until the user tabs.
       await expect(heading).toBeFocused()
       await page.keyboard.press('Tab')
-      await expect(firstControls[step]).toBeFocused()
+      // The website assistant is now the first interactive control on step one.
+      await expect(step === 0 ? page.locator('#brand-assist-url') : firstControls[step]).toBeFocused()
       await expectNoOverflow(page)
     }
     await firstControls[0].fill('Accessibility fixture')
