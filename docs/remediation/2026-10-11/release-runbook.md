@@ -32,8 +32,8 @@ Important: scripts/migrate.ts creates schema_migrations before processing --veri
 ~~~sql
 BEGIN READ ONLY;
 SELECT current_database() AS database_name, current_user AS role_name,
-       current_setting('app.neon_project_id', true) AS project_id,
-       current_setting('app.neon_branch_id', true) AS branch_id,
+       current_setting('neon.project_id', true) AS project_id,
+       current_setting('neon.branch_id', true) AS branch_id,
        to_regclass('public.schema_migrations') AS ledger;
 COMMIT;
 ~~~
@@ -78,7 +78,7 @@ Correlate at least one real scheduled Worker execution or an explicitly approved
 
 No hosted rollback rehearsal is claimed. Before release, record compatible app/Worker deployment IDs and rehearse legacy readers on the approved isolated migrated schema. Baseline27dd057 is not a safe long-term truthfulness rollback because it predates T01/T02. A compatible rollback must preserve unknown/partial display rules, raw answers, attempts, citation sources, intent receipts and draft versions.
 
-Stop new dispatch/entry points first AND suspend the affected existing Worker producers. Setting FEATURE_PULSE_ATTEMPTS=0 alone can leave legacy collection active. Prepare a task-specific copy of the dedicated config, preserving account/name/main/secret mapping, with an explicitly reviewed trigger diff. A full triggers.crons=[] suspension also stops alert evaluation and therefore needs that exact scope approved; a Pulse-only suspension preserves47 7 * * 1. Validate the pause artifact with --dry-run before publication. Do not deploy the template or invent a new cron to pause another.
+Stop new dispatch/entry points first AND suspend the affected existing Worker producers. Setting FEATURE_PULSE_ATTEMPTS=0 alone can leave legacy collection active. A concrete Pulse-only pause config is prepared in evidence/rollback-worker-pause-pulse.json and its local dry-run passed (evidence/R01-rollback-worker-dry-run.log). It preserves account/name/main/secret mapping and removes only17 4 * * * while retaining47 7 * * 1. Publish it only under explicit rollback authorization: `node cloudflare/cron-worker/node_modules/wrangler/bin/wrangler.js deploy --config docs/remediation/2026-10-11/evidence/rollback-worker-pause-pulse.json`. A full triggers.crons=[] suspension also stops alert evaluation and therefore needs that exact scope approved; a Pulse-only suspension preserves47 7 * * 1. Validate the pause artifact with --dry-run before publication. Do not deploy the template or invent a new cron to pause another.
 
 After explicit rollback authorization: publish the approved pause config, reconcile in-flight unknown outcomes read-only, disable relevant new-entry flags, then roll app/Worker back to the recorded compatible deployments. Preserve additive tables and immutable evidence; do not drop migrations or fill UNKNOWN with0. Verify alias SHA, Worker active version/schedules and owned/foreign read controls. Re-enable dispatch only after a new exact-target release approval and ledger reconciliation.
 

@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-11T14:19:08.966Z",
+  "recordedAt": "2026-10-11T14:25:55.260Z",
   "auditSha": "783e54e3fa99f8c14e4cab84a67b42b0b1513c3c",
   "baseSha": "27dd057fa6d5ecaae5bbd342e25cc8579e529d3a",
   "codeSha": "f0ed5c794fd612be541b14058fcd5c9eff20343e",
@@ -518,7 +518,7 @@
     "status": "passed_presentation_only"
   },
   "ci": {
-    "status": "pending_final_evidence_head",
+    "status": "pending_at_evidence_commit",
     "requiredClasses": [
       "static",
       "unit-contract",
@@ -529,7 +529,12 @@
     ],
     "aggregateRequired": true,
     "unchangedGuard": true,
-    "disposableRoleApproval": "existing repository authorization enabled; no setting change in session"
+    "disposableRoleApproval": "existing repository authorization enabled; no setting change in session",
+    "receiptPolicy": "Latest exact PR head run/merge-checkout receipt is downloaded after commit to ignored artifacts/audit/final-ci-receipt.json and summarized in the PR body. Never treat this timestamped pending snapshot as a future pass.",
+    "precedingHead": "7548254394cfab2bf3dd4bf9b734aefac62a706a",
+    "precedingRun": "38146746468",
+    "precedingMergeCheckout": "af1ae8d8edd54893476071716a27e3075eedc76d",
+    "mergeCheckoutPolicy": "Verify synthetic merge parents and full tree equality with PR head, plus code fingerprint equality with reviewed f0ed5c7."
   },
   "production": {
     "sha": "27dd057fa6d5ecaae5bbd342e25cc8579e529d3a",

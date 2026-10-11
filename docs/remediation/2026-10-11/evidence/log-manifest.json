@@ -658,6 +658,11 @@
       "path": "T12-red.log",
       "sha256": "df5d44b2eba8da61bfdf7492ef63a3ea38baf5c063792851c7ce5addf97c40fd",
       "bytes": 3285
+    },
+    {
+      "path": "R01-rollback-worker-dry-run.log",
+      "sha256": "1e056cf468ba12adc8d9c488bf010cd8123e391610268667035f19b3d25a9cf1",
+      "bytes": 377
     }
   ]
 }
