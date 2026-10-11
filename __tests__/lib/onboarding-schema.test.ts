@@ -16,3 +16,6 @@ describe('persistent onboarding input and provider validation', () => {
     expect(parseSeedPrompts(JSON.stringify(Array.from({length:100},(_,i)=>({category:'brand_query',question:`Question ${i}`,language:'en'}))))).toHaveLength(24)
   })
 })
+
+it('normalizes safe domains and canonical industries without fetching them',()=>{const a=parseOnboardingInput({brandName:'Brand',domain:'https://www.example.com/path',industry:'Technology'});expect(a.domain).toBe('example.com');expect(a.industry).toBe('technology')});
+it.each([42,'https://user:pass@example.com','http://localhost','https://127.0.0.1'])('rejects unsafe onboarding domain %s',domain=>expect(()=>parseOnboardingInput({brandName:'Brand',domain})).toThrow());

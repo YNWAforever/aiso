@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
     if (!result) return NextResponse.json({ error: 'Onboarding target unavailable' }, { status: 404 })
     return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
+    if(error instanceof Error&&error.message==='ONBOARDING_INTENT_CONFLICT')return NextResponse.json({error:'ONBOARDING_INTENT_CONFLICT'},{status:409})
     if (error instanceof Error && error.message.includes('BRAND_LIMIT_REACHED')) {
       return NextResponse.json({ error: 'BRAND_LIMIT_REACHED' }, { status: 403 })
     }

@@ -21,6 +21,7 @@ export async function completeOnboarding(scope: OnboardingScope, input: Onboardi
   const initialized = await initializeOnboarding(scope, input)
   if (!initialized) return null
   const intentKey = initialized.intentKey
+  if(!input.language||!input.market)return readOnboardingProgress(scope,intentKey)
   const lease = await claimOnboardingSeed(scope, intentKey)
   if (lease) {
     try { const context = parsePromptContext(lease.input)

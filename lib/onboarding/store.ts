@@ -1,7 +1,7 @@
 import 'server-only'
 import { randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
-import { seedKey, type OnboardingInput, type OnboardingProgress, type OnboardingScope, type SeedPrompt } from './schema'
+import { onboardingInputHash, seedKey, type OnboardingInput, type OnboardingProgress, type OnboardingScope, type SeedPrompt } from './schema'
 
 type ProgressRow = Record<string, unknown> & { intent_key: string; client_id: string; scan_id: string | null; prompt_status: OnboardingProgress['prompts']; prompt_count: number; error_code: string | null; trial_ends_at: Date | string; lease_until: Date | string | null }
 const dto = (row: ProgressRow) => ({ intentKey: row.intent_key, clientId: row.client_id, scanId: row.scan_id,
@@ -30,9 +30,10 @@ export async function initializeOnboarding(scope: OnboardingScope, input: Onboar
   const [, rows] = await sql.transaction([
     sql`select id from accounts where id = ${scope.accountId} for update`,
     sql`with previous as (
-      select client_id, scan_id from onboarding_progress where account_id = ${scope.accountId} and intent_key = ${input.intentKey}
+      select client_id, scan_id, request_hash,draft from onboarding_progress where account_id = ${scope.accountId} and intent_key = ${input.intentKey}
     ), permitted as (
       select id from accounts where id = ${scope.accountId}
+        and not exists(select 1 from previous where request_hash is not null and request_hash <> ${onboardingInputHash(input)})
         and (${input.scanId}::uuid is null or exists (select 1 from scans where id = ${input.scanId}::uuid and account_id = ${scope.accountId}
           and (client_id is null or client_id = coalesce((select client_id from previous), ${input.clientId}::uuid))))
         and (${input.clientId}::uuid is null or exists (
@@ -55,19 +56,21 @@ export async function initializeOnboarding(scope: OnboardingScope, input: Onboar
       select id, ${input.brandName}, ${input.domain}, ${input.industry}, ${input.region}, ${input.description}, ${input.competitors}::text[], 'active'
       from trial where not exists (select 1 from existing) and ${input.clientId}::uuid is null returning id
     ), chosen as (select id from existing union all select id from created), progress as (
-      insert into onboarding_progress (account_id, intent_key, client_id, scan_id, draft)
-      select ${scope.accountId}, ${input.intentKey}, chosen.id, ${input.scanId}::uuid, ${JSON.stringify(input)}::jsonb
+      insert into onboarding_progress (account_id, intent_key, client_id, scan_id, draft,request_hash)
+      select ${scope.accountId}, ${input.intentKey}, chosen.id, ${input.scanId}::uuid, ${JSON.stringify(input)}::jsonb,${onboardingInputHash(input)}
       from chosen join trial on true
-      on conflict (account_id, client_id) do update set draft = excluded.draft,
+      on conflict (account_id, client_id) do update set draft = excluded.draft,request_hash=coalesce(onboarding_progress.request_hash,excluded.request_hash),
         scan_id = coalesce(onboarding_progress.scan_id, excluded.scan_id), updated_at = now()
       returning *
     ), associated as (
       update scans set client_id = (select client_id from progress)
       where id = ${input.scanId}::uuid and account_id = ${scope.accountId}
         and (client_id is null or client_id = (select client_id from progress)) returning id
-    ) select progress.*, trial.trial_ends_at from progress join trial on true`,
+    ) select to_jsonb(progress) as progress,trial.trial_ends_at,null::text as reason from progress join trial on true
+    union all select null::jsonb,null::timestamptz,'intent_conflict' from previous where request_hash is not null and request_hash <> ${onboardingInputHash(input)}`,
   ])
-  return rows[0] ? dto(rows[0] as ProgressRow) : null
+  if(rows[0]?.reason==='intent_conflict')throw new Error('ONBOARDING_INTENT_CONFLICT')
+  return rows[0] ? dto({...rows[0].progress as Record<string,unknown>,trial_ends_at:rows[0].trial_ends_at} as ProgressRow) : null
 }
 
 export async function claimOnboardingSeed(scope: OnboardingScope, intentKey: string) {
@@ -76,6 +79,7 @@ export async function claimOnboardingSeed(scope: OnboardingScope, intentKey: str
     lease_token = ${token}::uuid, lease_until = now() + interval '90 seconds', updated_at = now()
     from clients c where onboarding_progress.account_id = ${scope.accountId} and intent_key = ${intentKey}
       and c.id = onboarding_progress.client_id and c.account_id = onboarding_progress.account_id
+      and draft->>'language' in ('en','zh-HK') and draft->>'market' is not null
       and (prompt_status in ('pending','failed') or (prompt_status = 'running' and lease_until < now()))
     returning client_id, draft, c.brand_name, c.domain, c.industry, c.region, c.description, c.competitors`
   const row = rows[0]

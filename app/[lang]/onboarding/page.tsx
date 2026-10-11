@@ -42,12 +42,6 @@ export default async function OnboardingPage({
       const data = rows[0] as { domain: string | null; industry: string | null; region: string | null } | undefined
       if (data) {
         initialDomain = data.domain ?? ''
-        // Guess brand from domain: strip TLD and capitalise
-        const parts = data.domain?.split('.') ?? []
-        if (parts.length >= 2) {
-          const name = parts[parts.length - 2] ?? ''
-          initialBrand = name.charAt(0).toUpperCase() + name.slice(1)
-        }
         initialIndustry = data.industry ?? ''
         initialRegion = data.region ?? ''
       }

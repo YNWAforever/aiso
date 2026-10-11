@@ -170,7 +170,7 @@ function WizardForm({
   const [domain, setDomain]         = useState(draft.domain ?? normaliseDomain(initialDomain))
   const [industry, setIndustry]     = useState(draft.industry ?? initialIndustry)
   const [region, setRegion]         = useState(draft.region ?? initialRegion)
-  const [language, setLanguage] = useState<PromptLanguage>(draft.language ?? (isZh ? 'zh-HK' : 'en'))
+  const [language, setLanguage] = useState<PromptLanguage|''>(draft.language ?? '')
   const [description, setDescription] = useState(draft.description ?? '')
   const [competitors, setCompetitors] = useState<string[]>(draft.competitors ?? [])
   const [competitorInput, setCompetitorInput] = useState('')
@@ -205,7 +205,10 @@ function WizardForm({
     setCompetitors(prev => prev.filter(x => x !== c))
   }
 
+  const inFlight=useRef(false)
   async function complete() {
+    if(inFlight.current)return
+    inFlight.current=true
     setLoading(true)
     setError('')
     try {
@@ -217,7 +220,7 @@ function WizardForm({
         domain:      domain || undefined,
         industry:    industry || undefined,
         region:      region || undefined,
-        language,
+        language:language||undefined,
         market: region || null,
         description: description || undefined,
         competitors: competitors.length ? competitors : undefined,
@@ -236,14 +239,12 @@ function WizardForm({
       try { sessionStorage.removeItem(draftKey) } catch { /* optional storage */ }
       navigateToWorkspace(data.clientId)
     } catch { setError(c.genericError) }
-    finally { setLoading(false) }
+    finally { inFlight.current=false;setLoading(false) }
   }
 
   function navigateToWorkspace(targetClientId: string) {
     if (scanId) { router.push(`/${lang}/dashboard/${targetClientId}/result/${scanId}`); return }
-    const scanUrl = domain
-      ? `?step=scan&url=${encodeURIComponent(domain.startsWith('http') ? domain : `https://${domain}`)}`
-      : '?step=scan'
+    const scanUrl = '?step=questions'
     router.push(`/${lang}/dashboard/${targetClientId}${scanUrl}`)
   }
 
@@ -287,6 +288,7 @@ function WizardForm({
               id="onboarding-brand"
               name="brandName"
               value={brand}
+              maxLength={160}
               onChange={e => setBrand(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && brand.trim() && setStep(2)}
               placeholder={c.s1Placeholder}
@@ -341,7 +343,7 @@ function WizardForm({
               <div>
                 <label htmlFor="onboarding-language" className="block text-xs font-semibold text-foreground mb-1.5">{c.questionLanguage}</label>
                 <select id="onboarding-language" name="language" value={language} onChange={e => { if (isPromptLanguage(e.target.value)) setLanguage(e.target.value) }} className={inputClass}>
-                  <option value="en">English</option><option value="zh-HK">繁體中文（香港）</option>
+                  <option value="">{c.questionLanguage}</option><option value="en">English</option><option value="zh-HK">繁體中文（香港）</option>
                 </select>
               </div>
               <div>
@@ -390,6 +392,7 @@ function WizardForm({
               <textarea
                 id="onboarding-description"
                 name="description"
+                maxLength={4000}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 placeholder={c.descPlaceholder(brand)}

@@ -107,3 +107,5 @@ describe('resumable onboarding API boundary', () => {
     expect(response.status).toBe(503); expect(await response.text()).not.toContain('synthetic-private-detail')
   })
 })
+
+it('returns a specific intent conflict without disclosing dependency details',async()=>{mocks.complete.mockRejectedValue(new Error('ONBOARDING_INTENT_CONFLICT'));const r=await POST(request({brandName:'Synthetic',intentKey:'intent'}));expect(r.status).toBe(409);expect(await r.json()).toEqual({error:'ONBOARDING_INTENT_CONFLICT'})});
