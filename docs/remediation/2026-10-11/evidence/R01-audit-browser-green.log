@@ -1,0 +1,55 @@
+[globalSetup] In-memory E2E fixture ready — ID: e2e00000-0000-4000-a000-000000000001
+
+Running 40 tests using 1 worker
+
+(node:38144) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:38144) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 [chromium] › tests\e2e\audit-action-loop.spec.ts:11:6 › 24 selected prompt edits survive lost response and commit once en (3.0s)
+  ok  2 [chromium] › tests\e2e\audit-action-loop.spec.ts:12:6 › source 51 is filterable, paginated and fully exportable en (1.9s)
+  ok  3 [chromium] › tests\e2e\audit-action-loop.spec.ts:13:6 › five sources save one work item; manual done and retest are separate en (3.2s)
+  ok  4 [chromium] › tests\e2e\audit-action-loop.spec.ts:11:6 › 24 selected prompt edits survive lost response and commit once zh-HK (2.3s)
+  ok  5 [chromium] › tests\e2e\audit-action-loop.spec.ts:12:6 › source 51 is filterable, paginated and fully exportable zh-HK (1.7s)
+  ok  6 [chromium] › tests\e2e\audit-action-loop.spec.ts:13:6 › five sources save one work item; manual done and retest are separate zh-HK (2.3s)
+  ok  7 [chromium] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in en (676ms)
+  ok  8 [chromium] › tests\e2e\first-pulse-run.spec.ts:29:6 › leaving the page stops pending polling in en (2.8s)
+  ok  9 [chromium] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in zh-HK (758ms)
+  ok 10 [chromium] › tests\e2e\first-pulse-run.spec.ts:29:6 › leaving the page stops pending polling in zh-HK (2.8s)
+  ok 11 [chromium] › tests\e2e\first-pulse-run.spec.ts:34:38 › prior-week completion still permits current canonical monitoring en (377ms)
+  ok 12 [chromium] › tests\e2e\first-pulse-run.spec.ts:34:38 › prior-week completion still permits current canonical monitoring zh-HK (452ms)
+  ok 13 [chromium] › tests\e2e\onboarding-recovery.spec.ts:25:7 › partial seed resumes the same intent and brand after reload in en (903ms)
+  ok 14 [chromium] › tests\e2e\onboarding-recovery.spec.ts:48:7 › network_rejection_releases_loading and preserves draft in en (670ms)
+  ok 15 [chromium] › tests\e2e\onboarding-recovery.spec.ts:58:7 › invalid JSON releases loading in en (631ms)
+  ok 16 [chromium] › tests\e2e\onboarding-recovery.spec.ts:25:7 › partial seed resumes the same intent and brand after reload in zh-HK (831ms)
+  ok 17 [chromium] › tests\e2e\onboarding-recovery.spec.ts:48:7 › network_rejection_releases_loading and preserves draft in zh-HK (627ms)
+  ok 18 [chromium] › tests\e2e\onboarding-recovery.spec.ts:58:7 › invalid JSON releases loading in zh-HK (573ms)
+  ok 19 [chromium] › tests\e2e\onboarding-recovery.spec.ts:66:38 › skipped context is recovered with a new intent for the same brand en (682ms)
+  ok 20 [chromium] › tests\e2e\onboarding-recovery.spec.ts:66:38 › skipped context is recovered with a new intent for the same brand zh-HK (678ms)
+(node:27188) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:27188) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 21 [mobile] › tests\e2e\audit-action-loop.spec.ts:11:6 › 24 selected prompt edits survive lost response and commit once en (1.4s)
+  ok 22 [mobile] › tests\e2e\audit-action-loop.spec.ts:12:6 › source 51 is filterable, paginated and fully exportable en (1.8s)
+  ok 23 [mobile] › tests\e2e\audit-action-loop.spec.ts:13:6 › five sources save one work item; manual done and retest are separate en (2.3s)
+  ok 24 [mobile] › tests\e2e\audit-action-loop.spec.ts:11:6 › 24 selected prompt edits survive lost response and commit once zh-HK (1.6s)
+  ok 25 [mobile] › tests\e2e\audit-action-loop.spec.ts:12:6 › source 51 is filterable, paginated and fully exportable zh-HK (1.5s)
+  ok 26 [mobile] › tests\e2e\audit-action-loop.spec.ts:13:6 › five sources save one work item; manual done and retest are separate zh-HK (2.3s)
+  ok 27 [mobile] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in en (672ms)
+  ok 28 [mobile] › tests\e2e\first-pulse-run.spec.ts:29:6 › leaving the page stops pending polling in en (2.8s)
+  ok 29 [mobile] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in zh-HK (778ms)
+  ok 30 [mobile] › tests\e2e\first-pulse-run.spec.ts:29:6 › leaving the page stops pending polling in zh-HK (2.7s)
+  ok 31 [mobile] › tests\e2e\first-pulse-run.spec.ts:34:38 › prior-week completion still permits current canonical monitoring en (350ms)
+  ok 32 [mobile] › tests\e2e\first-pulse-run.spec.ts:34:38 › prior-week completion still permits current canonical monitoring zh-HK (364ms)
+  ok 33 [mobile] › tests\e2e\onboarding-recovery.spec.ts:25:7 › partial seed resumes the same intent and brand after reload in en (858ms)
+  ok 34 [mobile] › tests\e2e\onboarding-recovery.spec.ts:48:7 › network_rejection_releases_loading and preserves draft in en (667ms)
+  ok 35 [mobile] › tests\e2e\onboarding-recovery.spec.ts:58:7 › invalid JSON releases loading in en (606ms)
+  ok 36 [mobile] › tests\e2e\onboarding-recovery.spec.ts:25:7 › partial seed resumes the same intent and brand after reload in zh-HK (856ms)
+  ok 37 [mobile] › tests\e2e\onboarding-recovery.spec.ts:48:7 › network_rejection_releases_loading and preserves draft in zh-HK (707ms)
+  ok 38 [mobile] › tests\e2e\onboarding-recovery.spec.ts:58:7 › invalid JSON releases loading in zh-HK (613ms)
+  ok 39 [mobile] › tests\e2e\onboarding-recovery.spec.ts:66:38 › skipped context is recovered with a new intent for the same brand en (765ms)
+  ok 40 [mobile] › tests\e2e\onboarding-recovery.spec.ts:66:38 › skipped context is recovered with a new intent for the same brand zh-HK (976ms)
+[globalTeardown] In-memory E2E fixture has no cleanup side effect.
+
+  40 passed (57.0s)

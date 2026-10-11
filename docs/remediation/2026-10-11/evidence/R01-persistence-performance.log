@@ -1,0 +1,22 @@
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ❯ __tests__/local-persistence/audit-performance.test.ts (1 test | 1 failed) 4786ms
+   × maximum supported citation and 50-row bulk fixture has measured scoped SQL plans 4785ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/local-persistence/audit-performance.test.ts > maximum supported citation and 50-row bulk fixture has measured scoped SQL plans
+NeonDbError: update or delete on table "clients" violates foreign key constraint "pulse_metrics_client_id_fkey" on table "pulse_metrics"
+ ❯ dr.execute node_modules/@neondatabase/serverless/index.mjs:1298:10
+ ❯ __tests__/local-persistence/audit-performance.test.ts:26:11
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 34 passed (35)
+   Start at  21:08:31
+   Duration  8.88s (transform 535ms, setup 163ms, import 816ms, tests 7.43s, environment 0ms)
+

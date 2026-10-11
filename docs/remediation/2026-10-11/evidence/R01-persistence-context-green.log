@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+
+ Test Files  3 passed (3)
+      Tests  39 passed (39)
+   Start at  21:40:26
+   Duration  12.94s (transform 835ms, setup 227ms, import 1.88s, tests 10.10s, environment 0ms)
+

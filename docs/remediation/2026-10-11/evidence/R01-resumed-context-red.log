@@ -1,0 +1,69 @@
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ❯ __tests__/local-persistence/audit-remediation.test.ts (14 tests | 1 failed) 2051ms
+   × resuming a pre-fix unconfirmed manifest blocks collection before any provider call 63ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/local-persistence/audit-remediation.test.ts > resuming a pre-fix unconfirmed manifest blocks collection before any provider call
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      Object {
+        "accountId": "96219108-37da-4ffe-938d-eaac869166ff",
+        "attempt": 1,
+        "attemptId": "12210b11-2d58-4f48-9451-62485243d9c6",
+        "brand": Object {
+          "competitorRefs": Array [],
+          "competitors": Array [],
+          "domain": "fixture.example",
+          "industry": null,
+          "name": "Synthetic audit",
+        },
+        "clientId": "474a8cf7-5eef-4f70-ad98-2bae6cac5167",
+        "fence": 1,
+        "id": "e0eacae3-f4c5-49a2-b3b4-8171607a803c",
+        "model": "synthetic/model",
+        "platform": "synthetic",
+        "runId": "d5a89c7d-3c92-448e-ba53-6dc015b9f98c",
+        "scanWeek": "2026-10-05",
+        "snapshot": Object {
+          "category": null,
+          "contextVersion": "2026-10-03.v1",
+          "language": "en",
+          "market": null,
+          "question": "Synthetic question",
+          "sourceSchemaVersion": "2026-10-11.v1",
+        },
+        "token": "9fcea4dc-4dd4-4230-a48c-dbc6ed24ef17",
+      },
+      AbortSignal {
+        Symbol(kEvents): Map {},
+        Symbol(events.maxEventTargetListeners): 0,
+        Symbol(events.maxEventTargetListenersWarned): false,
+        Symbol(kHandlers): Map {},
+        Symbol(kAborted): false,
+        Symbol(kReason): undefined,
+        Symbol(kComposite): false,
+      },
+    ]
+
+
+Number of calls: 1
+
+ ❯ __tests__/local-persistence/audit-remediation.test.ts:74:681
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 13 passed (14)
+   Start at  21:12:02
+   Duration  2.96s (transform 498ms, setup 112ms, import 594ms, tests 2.05s, environment 0ms)
+

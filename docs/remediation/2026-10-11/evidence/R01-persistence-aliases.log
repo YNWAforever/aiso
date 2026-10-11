@@ -1,0 +1,73 @@
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ❯ __tests__/local-persistence/audit-remediation.test.ts (16 tests | 4 failed) 1641ms
+     × onboarding concurrent same intent creates one brand and rejects changed payload 32ms
+   × pending onboarding accepts explicit context recovery without a second brand or paid seed 27ms
+   × real brand quota refuses the fourth Pro brand without a partial progress row 26ms
+   × recovery B is immutable, preserves A and persists owned pending metadata edits 18ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/local-persistence/audit-remediation.test.ts > real local PostgreSQL audit persistence (not hosted Neon) > onboarding concurrent same intent creates one brand and rejects changed payload
+NeonDbError: could not determine data type of parameter $39
+ ❯ execute node_modules/@neondatabase/serverless/index.mjs:1298:10
+ ❯ Module.initializeOnboarding lib/onboarding/store.ts:30:20
+     28| export async function initializeOnboarding(scope: OnboardingScope, inp…
+     29|   const sql = db()
+     30|   const [, rows] = await sql.transaction([
+       |                    ^
+     31|     sql`select id from accounts where id = ${scope.accountId} for upda…
+     32|     sql`with previous as (
+ ❯ __tests__/local-persistence/audit-remediation.test.ts:51:39
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  __tests__/local-persistence/audit-remediation.test.ts > pending onboarding accepts explicit context recovery without a second brand or paid seed
+NeonDbError: could not determine data type of parameter $39
+ ❯ execute node_modules/@neondatabase/serverless/index.mjs:1298:10
+ ❯ Module.initializeOnboarding lib/onboarding/store.ts:30:20
+     28| export async function initializeOnboarding(scope: OnboardingScope, inp…
+     29|   const sql = db()
+     30|   const [, rows] = await sql.transaction([
+       |                    ^
+     31|     sql`select id from accounts where id = ${scope.accountId} for upda…
+     32|     sql`with previous as (
+ ❯ __tests__/local-persistence/audit-remediation.test.ts:62:370
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  __tests__/local-persistence/audit-remediation.test.ts > real brand quota refuses the fourth Pro brand without a partial progress row
+NeonDbError: could not determine data type of parameter $39
+ ❯ execute node_modules/@neondatabase/serverless/index.mjs:1298:10
+ ❯ Module.initializeOnboarding lib/onboarding/store.ts:30:20
+     28| export async function initializeOnboarding(scope: OnboardingScope, inp…
+     29|   const sql = db()
+     30|   const [, rows] = await sql.transaction([
+       |                    ^
+     31|     sql`select id from accounts where id = ${scope.accountId} for upda…
+     32|     sql`with previous as (
+ ❯ __tests__/local-persistence/audit-remediation.test.ts:68:250
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  __tests__/local-persistence/audit-remediation.test.ts > recovery B is immutable, preserves A and persists owned pending metadata edits
+NeonDbError: could not determine data type of parameter $39
+ ❯ execute node_modules/@neondatabase/serverless/index.mjs:1298:10
+ ❯ Module.initializeOnboarding lib/onboarding/store.ts:30:20
+     28| export async function initializeOnboarding(scope: OnboardingScope, inp…
+     29|   const sql = db()
+     30|   const [, rows] = await sql.transaction([
+       |                    ^
+     31|     sql`select id from accounts where id = ${scope.accountId} for upda…
+     32|     sql`with previous as (
+ ❯ __tests__/local-persistence/audit-remediation.test.ts:78:374
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  4 failed | 34 passed (38)
+   Start at  21:23:11
+   Duration  9.81s (transform 780ms, setup 262ms, import 1.20s, tests 7.52s, environment 0ms)
+

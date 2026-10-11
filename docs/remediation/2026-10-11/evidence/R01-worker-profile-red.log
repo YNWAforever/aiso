@@ -1,0 +1,25 @@
+
+> test
+> vitest run
+
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/cloudflare/cron-worker
+
+ ❯ test/scheduled.test.ts (9 tests | 1 failed) 51ms
+   × AISO deployed profile schedules raw-only repair without adding email dispatch 10ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/scheduled.test.ts > AISO deployed profile schedules raw-only repair without adding email dispatch
+AssertionError: expected [ '/api/cron/pulse' ] to include '/api/cron/pulse?mode=repair'
+ ❯ test/scheduled.test.ts:117:307
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 passed (9)
+   Start at  21:47:51
+   Duration  3.36s (transform 274ms, setup 0ms, import 327ms, tests 51ms, environment 0ms)
+

@@ -1,0 +1,21 @@
+Retrieving project…
+Deploying ynwaforevers-projects/aiso-audit-fixture-20261011
+Inspect: https://vercel.com/ynwaforevers-projects/aiso-audit-fixture-20261011/DCVV6De6CL6jTm2i5quiQs22ZJd9 [1s]
+Preview: https://aiso-audit-fixture-20261011-hzmbcaxpb-ynwaforevers-projects.vercel.app [1s]
+Building...
+Building...
+Building: Running build in Washington, D.C., USA (East) – iad1
+Building: Build machine configuration: 4 cores, 8 GB
+Building: Retrieving list of deployment files...
+Building: Previous build caches not available.
+Building: Downloading 119 deployment files...
+[2K[1A[2K[GPreview: https://aiso-audit-fixture-20261011-hzmbcaxpb-ynwaforevers-projects.vercel.app [8s]
+Completing...
+{
+  "id": "dpl_DCVV6De6CL6jTm2i5quiQs22ZJd9",
+  "url": "https://aiso-audit-fixture-20261011-hzmbcaxpb-ynwaforevers-projects.vercel.app",
+  "inspectorUrl": "https://vercel.com/ynwaforevers-projects/aiso-audit-fixture-20261011/DCVV6De6CL6jTm2i5quiQs22ZJd9",
+  "readyState": "READY",
+  "target": null,
+  "deploymentApiUrl": "https://api.vercel.com/v13/deployments/dpl_DCVV6De6CL6jTm2i5quiQs22ZJd9"
+}

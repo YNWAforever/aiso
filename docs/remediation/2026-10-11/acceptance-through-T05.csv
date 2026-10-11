@@ -1,0 +1,14 @@
+case_id,task,status,environment,sha,evidence,remaining
+UC01,T03;T05;T09,partial_local,synthetic_local_SQL_and_browser,see task commits,evidence/T05-persistence.log,T09 activation and authenticated preview pending
+UC02,T03,passed_local_parts,synthetic_local_SQL,see task commits,evidence/T03-focused.log,seed-recovery browser and preview pending
+UC03,T02;T05,passed_local_parts,synthetic_local_SQL_and_browser,see task commits,evidence/T05-persistence.log,full CSS fixture and preview pending
+UC04,T04;T05,passed_local,synthetic_local_SQL,see task commits,evidence/T05-persistence.log,Neon service and preview pending
+UC05,T01,passed_focused,synthetic_local,see task commits,evidence/T01-focused.log,preview and live pending
+UC06,T06,passed_focused,synthetic_provider_fixture,see task commits,evidence/T06-focused.log,live provider evidence pending
+UC07,T07,pending,not_run,see task commits,evidence/T07-focused.log,implementation pending
+UC08,T08,passed_focused,synthetic_local,see task commits,evidence/T08-focused.log,reachable competitor CTA and preview pending
+UC09,T09,implementing,not_run,see task commits,evidence/T09-focused.log,implementation pending
+UC10,T10,pending,not_run,see task commits,evidence/T10-focused.log,implementation pending
+UC11,T11,pending,not_run,see task commits,evidence/T11-focused.log,implementation pending
+UC12,T12,pending,not_run,see task commits,evidence/T12-focused.log,implementation pending
+UC13,T03,passed_focused,synthetic_local,see task commits,evidence/T03-focused.log,preview pending

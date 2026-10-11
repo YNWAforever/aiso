@@ -1,0 +1,476 @@
+[globalSetup] In-memory E2E fixture ready — ID: e2e00000-0000-4000-a000-000000000001
+
+Running 12 tests using 1 worker
+
+(node:3628) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3628) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 [chromium] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in en (923ms)
+  ok  2 [chromium] › tests\e2e\first-pulse-run.spec.ts:29:6 › leaving the page stops pending polling in en (2.7s)
+  ok  3 [chromium] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in zh-HK (668ms)
+  ok  4 [chromium] › tests\e2e\first-pulse-run.spec.ts:29:6 › leaving the page stops pending polling in zh-HK (2.7s)
+  ok  5 [chromium] › tests\e2e\first-pulse-run.spec.ts:34:38 › prior-week completion still permits current canonical monitoring en (298ms)
+  ok  6 [chromium] › tests\e2e\first-pulse-run.spec.ts:34:38 › prior-week completion still permits current canonical monitoring zh-HK (307ms)
+(node:21388) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21388) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  7 [mobile] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in en (713ms)
+  ok  8 [mobile] › tests\e2e\first-pulse-run.spec.ts:29:6 › leaving the page stops pending polling in en (2.7s)
+  ok  9 [mobile] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in zh-HK (686ms)
+  ok 10 [mobile] › tests\e2e\first-pulse-run.spec.ts:29:6 › leaving the page stops pending polling in zh-HK (2.7s)
+  ok 11 [mobile] › tests\e2e\first-pulse-run.spec.ts:34:38 › prior-week completion still permits current canonical monitoring en (320ms)
+  ok 12 [mobile] › tests\e2e\first-pulse-run.spec.ts:34:38 › prior-week completion still permits current canonical monitoring zh-HK (319ms)
+[globalTeardown] In-memory E2E fixture has no cleanup side effect.
+
+  12 passed (17.3s)
+{
+  "config": {
+    "configFile": "C:\\Users\\laich\\.codex\\worktrees\\aiso-audit-fixes-20261011\\Aiso\\playwright.audit-fixtures.config.ts",
+    "rootDir": "C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso",
+    "forbidOnly": true,
+    "fullyParallel": true,
+    "globalSetup": "C:\\Users\\laich\\.codex\\worktrees\\aiso-audit-fixes-20261011\\Aiso\\tests\\globalSetup.ts",
+    "globalTeardown": "C:\\Users\\laich\\.codex\\worktrees\\aiso-audit-fixes-20261011\\Aiso\\tests\\globalTeardown.ts",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso",
+        "testIgnore": [
+          "C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/.worktrees/**",
+          "C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/.claude/worktrees/**",
+          "C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/.playwright-ci-server/**",
+          "tests/e2e/live-scan-smoke.spec.ts",
+          "e2e/client-reports.spec.ts",
+          "tests/e2e/authenticated/**",
+          "tests/e2e/a11y/**"
+        ],
+        "testMatch": [
+          "tests/e2e/first-pulse-run.spec.ts"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "mobile",
+        "name": "mobile",
+        "testDir": "C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso",
+        "testIgnore": [
+          "C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/.worktrees/**",
+          "C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/.claude/worktrees/**",
+          "C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/.playwright-ci-server/**",
+          "tests/e2e/live-scan-smoke.spec.ts",
+          "e2e/client-reports.spec.ts",
+          "tests/e2e/authenticated/**",
+          "tests/e2e/a11y/**"
+        ],
+        "testMatch": [
+          "tests/e2e/first-pulse-run.spec.ts"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list"
+      ],
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.60.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "tests\\e2e\\first-pulse-run.spec.ts",
+      "file": "tests/e2e/first-pulse-run.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "lost response keeps intent, partial run recovers and classification controls completion in en",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 923,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T13:00:08.439Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            },
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 713,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T13:00:17.134Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b6ec85c5ef21ee72822f-beb4fc3428be23b07c64",
+          "file": "tests/e2e/first-pulse-run.spec.ts",
+          "line": 10,
+          "column": 6
+        },
+        {
+          "title": "leaving the page stops pending polling in en",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2664,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T13:00:10.039Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            },
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2702,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T13:00:17.937Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b6ec85c5ef21ee72822f-8910299f5020a406c17c",
+          "file": "tests/e2e/first-pulse-run.spec.ts",
+          "line": 29,
+          "column": 6
+        },
+        {
+          "title": "lost response keeps intent, partial run recovers and classification controls completion in zh-HK",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 668,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T13:00:12.712Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            },
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 686,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T13:00:20.650Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b6ec85c5ef21ee72822f-4c1b82d5cc7f96fd9062",
+          "file": "tests/e2e/first-pulse-run.spec.ts",
+          "line": 10,
+          "column": 6
+        },
+        {
+          "title": "leaving the page stops pending polling in zh-HK",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2674,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T13:00:13.390Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            },
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2656,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T13:00:21.344Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b6ec85c5ef21ee72822f-dfeb973eef96e4709054",
+          "file": "tests/e2e/first-pulse-run.spec.ts",
+          "line": 29,
+          "column": 6
+        },
+        {
+          "title": "prior-week completion still permits current canonical monitoring en",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 298,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T13:00:16.072Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            },
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 320,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T13:00:24.010Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b6ec85c5ef21ee72822f-d4136415bf78361f7574",
+          "file": "tests/e2e/first-pulse-run.spec.ts",
+          "line": 34,
+          "column": 38
+        },
+        {
+          "title": "prior-week completion still permits current canonical monitoring zh-HK",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 307,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T13:00:16.385Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            },
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 319,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T13:00:24.338Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b6ec85c5ef21ee72822f-203627aa0306e2057ee8",
+          "file": "tests/e2e/first-pulse-run.spec.ts",
+          "line": 34,
+          "column": 38
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-11T13:00:07.498Z",
+    "duration": 17268.280000000002,
+    "expected": 12,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

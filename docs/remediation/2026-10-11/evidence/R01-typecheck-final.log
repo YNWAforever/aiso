@@ -1,0 +1,11 @@
+
+> fimmick-aeo@0.1.0 typecheck
+> next typegen && tsc --noEmit
+
+Generating route types...
+✓ Types generated successfully
+tests/e2e/audit-action-loop.spec.ts(11,168): error TS2322: Type '{ category: string; id: string; client_id: string; question: string; language: string; market?: string | null | undefined; is_active: boolean; created_at: string; }[]' is not assignable to type 'PromptBatchRow[]'.
+  Type '{ category: string; id: string; client_id: string; question: string; language: string; market?: string | null; is_active: boolean; created_at: string; }' is not assignable to type 'PromptBatchRow'.
+    Types of property 'market' are incompatible.
+      Type 'string | null | undefined' is not assignable to type 'string | null'.
+        Type 'undefined' is not assignable to type 'string | null'.

@@ -1,0 +1,1798 @@
+
+> fimmick-aeo@0.1.0 test:unit
+> vitest run --exclude '__tests__/integration/**' --coverage
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+      Coverage enabled with v8
+
+stderr | __tests__/api/cron-ledger-wiring.test.ts > every scheduled cron route records its invocation > /api/cron/pulse calls startCronRun
+[cron/pulse] no client has an active prompt bank; nothing will ever be scanned
+
+ ✓ __tests__/lib/commercial-entitlement-wiring.test.ts (5 tests) 1456ms
+     ✓ does not derive commercial access from the raw stored plan  1415ms
+stderr | __tests__/lib/auth-rsc-session.test.ts > normal profile reads with installed Neon SDK in read-only Server Components > retains a verified user when upstream refreshes its cookie without mutating read-only render cookies
+[parseSessionData] Failed to parse session dates: {
+  error: 'Invalid date value for session.createdAt: undefined',
+  hasSession: true,
+  hasUser: true
+}
+
+stderr | __tests__/lib/auth-rsc-session.test.ts > normal profile reads with installed Neon SDK in read-only Server Components > does not turn an Auth upstream503 into a signed-out result
+[neon-auth] Upstream HTTP error {
+  component: 'proxy',
+  proxyPath: 'get-session',
+  status: 503,
+  statusText: '',
+  host: 'auth.fixture.invalid'
+}
+
+stderr | __tests__/lib/auth-rsc-session.test.ts > normal profile reads with installed Neon SDK in read-only Server Components > preserves transport failure as an error without querying the database
+[neon-auth] Upstream fetch failed {
+  component: 'proxy',
+  proxyPath: 'get-session',
+  code: 'NETWORK_RESET',
+  detail: 'ECONNRESET',
+  host: 'auth.fixture.invalid'
+}
+
+stderr | __tests__/lib/auth-rsc-session.test.ts > normal profile reads with installed Neon SDK in read-only Server Components > leaves a due renewal for the writable browser request after an RSC profile validation
+[parseSessionData] Failed to parse session dates: {
+  error: 'Invalid date value for session.createdAt: undefined',
+  hasSession: true,
+  hasUser: true
+}
+
+stderr | __tests__/lib/auth-rsc-session.test.ts > normal profile reads with installed Neon SDK in read-only Server Components > persists renewal cookies when the profile read runs in a writable Route Handler
+[parseSessionData] Failed to parse session dates: {
+  error: 'Invalid date value for session.createdAt: undefined',
+  hasSession: true,
+  hasUser: true
+}
+
+ ✓ __tests__/lib/auth-rsc-session.test.ts (18 tests) 3557ms
+     ✓ returns anonymous when upstream clears an expired cookie, without an RSC cookie write escaping  3377ms
+ ✓ __tests__/lib/pulse-conflict-arbiter.test.ts (2 tests) 720ms
+     ✓ every ON CONFLICT under lib/, app/ and scripts/ has a matching unique index  617ms
+ ✓ __tests__/readiness/runtime-dns.test.ts (2 tests) 5026ms
+   ✓ cancels DNS on the real readiness five-second auth deadline  5009ms
+ ✓ __tests__/scripts/schema-cli.test.mjs (31 tests) 278ms
+ ✓ __tests__/security/tenancy-inventory.test.ts (6 tests) 5516ms
+     ✓ finds the statements at all  1908ms
+     ✓ keeps every account-blind declaration pointing at live tenant SQL the token rule passes  3584ms
+ ✓ __tests__/security/no-unguarded-fetch.test.ts (141 tests) 350ms
+ ✓ __tests__/lib/app-origin.test.ts (7 tests) 3887ms
+     ✓ is the only origin every consumer resolves to  3878ms
+stderr | __tests__/api/auth-response-transport.test.ts > Neon Auth decoded response transport > preserves upstream error status and body after decoding
+[neon-auth] Upstream HTTP error {
+  component: 'proxy',
+  proxyPath: 'get-session',
+  status: 503,
+  statusText: '',
+  host: 'synthetic-auth.example.test'
+}
+
+ ✓ __tests__/api/auth-response-transport.test.ts (6 tests) 1038ms
+     ✓ serves decoded gzip session JSON without stale upstream encoding/length  875ms
+ ✓ __tests__/api/cron-ledger-wiring.test.ts (3 tests) 9086ms
+     ✓ /api/cron/pulse calls startCronRun  1714ms
+     ✓ /api/cron/evaluate-alerts calls startCronRun  7087ms
+ ✓ __tests__/migrations/neon-role-portability.test.mjs (69 tests) 340ms
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+ ✓ __tests__/config/vitest-discovery.test.ts (1 test) 2023ms
+     ✓ collects exactly the test files under __tests__/, and no copy of them  2019ms
+ ✓ __tests__/api/client-reports.test.ts (68 tests) 193ms
+ ✓ __tests__/api/route-gate-inventory.test.ts (94 tests) 705ms
+ ✓ __tests__/migrations/provider-citations.test.ts (2 tests) 10884ms
+   ✓ stores bounded citation titles as valid Unicode JSONB, including emoji at the boundary  5828ms
+   ✓ permits citation evidence updates under the existing runtime role without widening immutable fields  5053ms
+ ✓ __tests__/lib/pulse-evidence-boundaries.test.ts (12 tests) 9295ms
+     ✓ refuses a paused target before compatibility fan-out after an active control succeeds  362ms
+     ✓ keeps paused targets out of repair dispatch while an active owned control still collects  336ms
+ ✓ __tests__/components/report-builder-navigation.test.ts (13 tests) 1329ms
+     ✓ rejects one Back prompt while preserving the URL, mounted builder, and dirty edit  1311ms
+ ✓ __tests__/integrations/search-console-client.test.ts (30 tests) 715ms
+     ✓ stops at MAX_PAGES without throwing when every page is still full  385ms
+ ✓ __tests__/authority/layers-full.test.ts (23 tests) 12324ms
+     ✓ gives Wikipedia-present domains a higher score  3470ms
+     ✓ returns result with expected signal shape  717ms
+     ✓ does not throw when Wikipedia API is unavailable  511ms
+     ✓ returns a finalScore between 0 and 50 for any domain  730ms
+     ✓ high-authority domain scores more than unknown domain  4348ms
+     ✓ result includes breakdown by all four layers  2154ms
+ ✓ __tests__/change-sets/validation.test.ts (17 tests) 1302ms
+     ✓ accepts evidence immediately below 65536 bytes and rejects it immediately above  1257ms
+ ✓ __tests__/components/competitors-editor.test.tsx (7 tests) 163ms
+stderr | __tests__/api/scan-flow.test.ts > POST /api/scan — full scan flow > does not score or save a scan when origin collection fails: network
+[scan] page unreachable: Error
+
+ ✓ __tests__/components/source-pack-render.test.tsx (35 tests) 388ms
+stderr | __tests__/api/scan-flow.test.ts > POST /api/scan — full scan flow > keeps write failure non-success and does not dispatch a webhook
+[scan] DB insert failed: mock database write failure
+
+stderr | __tests__/api/scan-flow.test.ts > POST /api/scan — full scan flow > refuses a site it cannot reach at all, and saves nothing
+[scan] page unreachable: TypeError
+
+ ✓ __tests__/api/scan-flow.test.ts (24 tests) 814ms
+     ✓ does not score or save a scan when origin collection fails: network  541ms
+ ✓ __tests__/components/auth-return-fixture.test.tsx (1 test) 34ms
+ ✓ __tests__/components/citation-explorer.test.tsx (10 tests) 415ms
+ ✓ __tests__/outcomes/sources.test.ts (23 tests) 865ms
+   ✓ suppresses certainty on scan overflow even when every raw candidate is outside all windows  752ms
+ ✓ __tests__/scripts/schema-equivalence.test.mjs (41 tests) 649ms
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/competitors > returns 500 when CRON_SECRET is unset
+[agents/competitors] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/competitors > returns 503 when the scan lookup itself fails
+[agents/competitors] scan lookup failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/agent-routes.test.ts:89:20
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/competitors > upserts each competitor and returns 500 if the write fails
+[agents/competitors] write failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/agent-routes.test.ts:130:40
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/progress > returns 500 when CRON_SECRET is unset
+[agents/progress] CRON_SECRET is unset or shorter than 16 characters
+
+ ✓ __tests__/config/input-token-role.test.ts (1 test) 335ms
+     ✓ no file uses it as a border colour  332ms
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/progress > returns 503 when the scan lookup itself fails
+[agents/progress] scan lookup failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/agent-routes.test.ts:237:20
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ __tests__/components/local-trust.test.tsx (37 tests) 1207ms
+     ✓ tells a en owner which absence they are looking at  598ms
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/progress > upserts each metric and returns 500 if the write fails
+[agents/progress] write failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/agent-routes.test.ts:281:40
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/recommendations > returns 500 when CRON_SECRET is unset
+[agents/recommendations] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/recommendations > returns 503 when the scan lookup itself fails
+[agents/recommendations] scan lookup failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/agent-routes.test.ts:372:20
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/recommendations > upserts each recommendation and returns 500 if the write fails
+[agents/recommendations] write failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/agent-routes.test.ts:401:40
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ __tests__/api/agent-routes.test.ts (31 tests) 751ms
+     ✓ returns 500 when CRON_SECRET is unset  377ms
+ ✓ __tests__/components/onboarding-wizard-bilingual.test.tsx (6 tests) 37ms
+ ✓ __tests__/scripts/migrate-baseline-guard.test.ts (22 tests) 8010ms
+     ✓ passes a baseline whose objects all exist  724ms
+     ✓ refuses to record 021 when the local_trust tables are absent  1401ms
+     ✓ says nothing about a migration excluded via --except  660ms
+   ✓ refuses to baseline 040 when its private entity table is absent  1693ms
+   ✓ refuses to baseline 041 when its private draft table is absent  535ms
+   ✓ refuses to baseline 043 when delivery history is absent  621ms
+   ✓ refuses to baseline 045 when export receipts are absent  1110ms
+   ✓ refuses to baseline 044 when approved source storage is absent  536ms
+ ✓ __tests__/components/scan-claim-retry.test.ts (9 tests) 709ms
+stderr | __tests__/api/content-tools-gate.test.ts > POST /api/fix/content-brief > fails closed when the allowance cannot be checked
+[ai-tools] allowance check failed: Error
+
+stderr | __tests__/api/content-tools-gate.test.ts > POST /api/fix/content-brief > spends one allowance unit and calls the model for a paid account
+[fix/content-brief] brief save failed: TypeError: Cannot read properties of undefined (reading 'id')
+    at POST (C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/app/api/fix/content-brief/route.ts:118:38)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/content-tools-gate.test.ts:106:5
+    at async file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20
+
+stderr | __tests__/api/content-tools-gate.test.ts > POST /api/fix/cluster-map > fails closed when the allowance cannot be checked
+[ai-tools] allowance check failed: Error
+
+ ✓ __tests__/ci/disposable-role-authorization.test.ts (19 tests) 457ms
+stderr | __tests__/api/fix.test.ts > POST /api/fix > returns 500 when the ownership check fails, not a silent success
+[fix] ownership check failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/fix.test.ts:180:20
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+(node:19216) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/lib/security/redact-secrets.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\laich\.codex\worktrees\aiso-audit-fixes-20261011\Aiso\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stderr | __tests__/api/fix.test.ts > POST /api/fix > returns 500 when the cache/scan lookup fails, not a silent success
+[fix] cache/scan lookup failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/fix.test.ts:194:7
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/content-tools-gate.test.ts > POST /api/fix/rewrite-chunks > fails closed when the allowance cannot be checked
+[ai-tools] allowance check failed: Error
+
+stderr | __tests__/api/account-members.test.ts > POST /api/account/invitations > still reports the invitation when the mail could not be sent, and says so
+[members] invitation email failed: Resend invitation email failed
+
+stderr | __tests__/api/content-tools-gate.test.ts > allowance is keyed to the account > does not spend allowance when the cluster-map data lookup fails
+[fix/cluster-map] cluster lookup failed: Error: db down
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/content-tools-gate.test.ts:32:95
+    at POST (C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/app/api/fix/cluster-map/route.ts:91:27)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/content-tools-gate.test.ts:125:17
+    at async file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20
+
+stderr | __tests__/api/fix.test.ts > POST /api/fix/cluster-map > returns 500 when the ownership check fails, not a silent success
+[fix/cluster-map] ownership check failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/fix.test.ts:264:20
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/fix.test.ts > POST /api/fix/cluster-map > returns 500 when the cluster lookup fails, not a silent success
+[fix/cluster-map] cluster lookup failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/fix.test.ts:278:7
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/fix.test.ts > POST /api/fix/content-brief > returns 500 when the ownership check fails, not a silent success
+[fix/content-brief] ownership check failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/fix.test.ts:363:20
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/fix.test.ts > POST /api/fix/content-brief > returns 500 when the content_briefs insert fails, not a response with a missing id
+[fix/content-brief] brief save failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/fix.test.ts:412:7
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ __tests__/api/content-tools-gate.test.ts (23 tests) 250ms
+ ✓ __tests__/api/account-members.test.ts (28 tests) 239ms
+ ✓ __tests__/api/fix.test.ts (27 tests) 305ms
+ ✓ __tests__/scripts/check-candidate.test.mjs (41 tests) 442ms
+(node:31840) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/lib/security/redact-secrets.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\laich\.codex\worktrees\aiso-audit-fixes-20261011\Aiso\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ __tests__/scripts/neon-wrapper.test.ts (5 tests) 427ms
+ ✓ __tests__/scripts/schema-neon-port.test.mjs (80 tests) 354ms
+ ✓ __tests__/scripts/schema-manifest.test.mjs (80 tests) 248ms
+ ✓ __tests__/api/auth-route.test.ts (2 tests) 647ms
+     ✓ imports without constructing the auth client  641ms
+ ✓ __tests__/ci/branch-provenance.test.ts (16 tests) 279ms
+ ✓ __tests__/lib/tier-phase3b.test.ts (4 tests) 192ms
+ ✓ __tests__/components/reports-list.test.tsx (2 tests) 322ms
+     ✓ renders every report state and accurate unavailable engagement metrics  318ms
+stderr | __tests__/api/auth-verifier-cache.test.ts > real Neon SDK verifier exchange with an existing identity cookie > preserves upstream failure instead of reporting old cached success
+[neon-auth] Upstream HTTP error {
+  component: 'proxy',
+  proxyPath: 'get-session',
+  status: 503,
+  statusText: '',
+  host: 'synthetic-auth.example.test'
+}
+
+ ✓ __tests__/api/auth-verifier-cache.test.ts (7 tests) 550ms
+     ✓ retains the ordinary session cache fast path  511ms
+ ✓ __tests__/ci/gate-scripts.test.ts (21 tests) 344ms
+ ✓ __tests__/work-items/migration.test.ts (4 tests) 205ms
+stderr | __tests__/api/stripe-entitlement-integrity.test.ts > Stripe entitlement integrity > best-effort releases the lease when canonical Stripe retrieval fails
+[stripe/webhook] processing failed Error: Stripe unavailable
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/stripe-entitlement-integrity.test.ts:364:50
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/stripe-entitlement-integrity.test.ts > Stripe entitlement integrity > returns 500 — never { ok: true } — when the database throws persisting the event, and still releases the lease
+[stripe/webhook] processing failed Error: connection terminated unexpectedly
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/stripe-entitlement-integrity.test.ts:466:25
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/stripe-entitlement-integrity.test.ts > Stripe entitlement integrity > returns 500 when Stripe cannot retrieve canonical subscription state
+[stripe/webhook] processing failed Error: Stripe unavailable
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/stripe-entitlement-integrity.test.ts:504:50
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ __tests__/api/stripe-entitlement-integrity.test.ts (32 tests) 164ms
+ ✓ __tests__/components/report-builder.test.tsx (6 tests) 325ms
+ ✓ __tests__/ci/test-manifest.test.ts (21 tests) 280ms
+ ✓ __tests__/components/source-maintenance-fixture.test.tsx (2 tests) 225ms
+stderr | __tests__/api/search-console-connections.test.ts > GET > is 503 when the read fails
+[account/integrations/google] listConnections failed { name: 'Error' }
+
+stderr | __tests__/api/search-console-connections.test.ts > DELETE > is 503 when the local delete fails
+[account/integrations/google] revokeConnectionRow failed { name: 'Error' }
+
+ ✓ __tests__/api/search-console-connections.test.ts (9 tests) 616ms
+     ✓ lists only the session account's connections  602ms
+ ✓ __tests__/components/observation-render.test.tsx (19 tests) 99ms
+ ✓ __tests__/ci/exact-target-suites.test.ts (17 tests) 632ms
+     ✓ imports the integration harness under plain node  505ms
+ ✓ __tests__/components/prompt-bank-editor.test.tsx (15 tests) 702ms
+ ✓ __tests__/scripts/schema-contract.test.mjs (82 tests) 295ms
+ ✓ __tests__/components/outcomes-render.test.tsx (24 tests) 263ms
+ ✓ __tests__/db/client-report-migration.test.ts (13 tests) 303ms
+ ✓ __tests__/checks/extended-checks.test.ts (30 tests) 568ms
+stderr | __tests__/api/search-console-consent.test.ts > GET start > refuses before redirecting when the encryption key is missing
+[google/start] GOOGLE_TOKEN_ENCRYPTION_KEY is missing or not 32 bytes
+
+stderr | __tests__/api/search-console-consent.test.ts > GET callback > never reports connected over a failed write
+[google/callback] failed to store connection { name: 'Error' }
+
+ ✓ __tests__/api/search-console-consent.test.ts (17 tests) 263ms
+ ✓ __tests__/components/audit-loop-fixture.test.tsx (3 tests) 196ms
+ ✓ __tests__/components/approver-access-render.test.tsx (4 tests) 58ms
+ ✓ __tests__/components/delivery-render.test.tsx (5 tests) 46ms
+ ✓ __tests__/components/opportunity-render.test.tsx (8 tests) 99ms
+ ✓ __tests__/components/draft-render.test.tsx (3 tests) 35ms
+stderr | __tests__/api/search-console-binding.test.ts > PUT bind > is 503 when bindProperty throws
+[search-console/binding] bindProperty failed { name: 'Error' }
+
+ ✓ __tests__/api/search-console-binding.test.ts (20 tests) 180ms
+ ✓ __tests__/components/trust-signals-section.test.tsx (8 tests) 213ms
+ ✓ __tests__/components/change-set-render.test.tsx (8 tests) 166ms
+ ✓ __tests__/components/first-pulse-fixture.test.tsx (2 tests) 18ms
+ ✓ __tests__/migrations/rls-policy-freeze.test.mjs (6 tests) 849ms
+     ✓ 036_drop_dead_rls_policies.sql drops every policy the earlier migrations created  303ms
+     ✓ 036_drop_dead_rls_policies.sql drops nothing that was never created  355ms
+stderr | __tests__/api/cron/trial-emails.test.ts > GET /api/cron/trial-emails > returns 500 when CRON_SECRET is unset
+[cron/trial-emails] CRON_SECRET is unset or shorter than 16 characters
+
+ ✓ __tests__/api/cron/trial-emails.test.ts (14 tests) 158ms
+ ✓ __tests__/scripts/verify-db-connection.test.ts (3 tests) 445ms
+     ✓ exits non-zero with a clear message when DATABASE_URL is unset  438ms
+ ✓ __tests__/components/report-branding-form.test.tsx (3 tests) 633ms
+     ✓ validates exact Agency branding constraints and paired contact fields  597ms
+stderr | __tests__/api/scan-security.test.ts > POST /api/scan security boundaries > returns 503 when a surfaced Neon session error rejects profile lookup
+[scan] authentication lookup failed: Neon Auth unavailable
+
+ ✓ __tests__/api/scan-security.test.ts (18 tests) 632ms
+     ✓ returns 400 before auth or network work for single-label hostname  589ms
+ ✓ __tests__/components/domain-verification-first-use.test.tsx (3 tests) 26ms
+stderr | __tests__/api/domain-verification.test.ts > POST domain-verification > answers 503 for a session-store outage, never 401
+[domain-verification] failed: session store unreachable
+
+ ✓ __tests__/components/entity-render.test.tsx (2 tests) 36ms
+ ✓ __tests__/api/domain-verification.test.ts (14 tests) 673ms
+     ✓ refuses redirects entirely, and caps the response  651ms
+ ✓ __tests__/config/typescript-discovery.test.ts (1 test) 193ms
+ ✓ __tests__/api/funnel-events.test.ts (6 tests) 120ms
+ ✓ __tests__/components/alerts-interaction.test.tsx (11 tests) 242ms
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > POST /api/cron/evaluate-alerts > returns 500 when CRON_SECRET is not configured
+[cron/evaluate-alerts] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > POST /api/cron/evaluate-alerts > returns 502 when emailFailures is greater than zero, so Vercel Cron sees a red run
+[cron/evaluate-alerts] 502: emailFailures=2 notificationFailures=0
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > POST /api/cron/evaluate-alerts > returns 502 when notificationFailures is greater than zero, even with no email failures
+[cron/evaluate-alerts] 502: emailFailures=0 notificationFailures=2
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > POST /api/cron/evaluate-alerts > returns 502 when the run evaluated nobody, mirroring the GET handler
+[cron/evaluate-alerts] 502: evaluated 0 of 2 configured client(s) -- the Pulse rollup likely never landed
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > accepts the Bearer header Vercel Cron actually sends
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: '596d153e-c797-47f3-87fd-ea0ac2c9b2cf',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when emailFailures is greater than zero, matching the POST handler
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: '15a38ea8-2e4a-41d1-a7c5-d67a9b618160',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when emailFailures is greater than zero, matching the POST handler
+[cron/evaluate-alerts] 502: emailFailures=2 notificationFailures=0
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when notificationFailures is greater than zero, even with no email failures
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: '97d8209f-287d-43ac-8ecf-35ab1743ae88',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when notificationFailures is greater than zero, even with no email failures
+[cron/evaluate-alerts] 502: emailFailures=0 notificationFailures=2
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 500 rather than running when CRON_SECRET is unset or too short
+[cron/evaluate-alerts] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 500 rather than running when CRON_SECRET is unset or too short
+[cron/evaluate-alerts] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > composes the same ports the POST handler does
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: 'f3bf71db-ab16-4939-8587-b5f2283449e1',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when every configured client was stale
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: '89642c67-eec8-4625-8cd1-3952154bac17',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when every configured client was stale
+[cron/evaluate-alerts] 502: evaluated 0 of 3 configured client(s) -- the Pulse rollup likely never landed
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when the evaluator ran but evaluated nobody, even with zero stale clients
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: '3e288787-3342-4985-a49f-404a6355cc51',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when the evaluator ran but evaluated nobody, even with zero stale clients
+[cron/evaluate-alerts] 502: evaluated 0 of 2 configured client(s) -- the Pulse rollup likely never landed
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > stays 200 when only some clients were stale
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: '6ed822d8-080b-4a90-94df-c457e6f28791',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > stays 200 when some clients were stale but at least one was evaluated
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: '235cc964-7301-4373-8ac1-e1211a76efce',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when the run was truncated before finishing
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: 'df989b2e-6dca-42ff-b5cb-bce12eae96fc',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when the run was truncated before finishing
+[cron/evaluate-alerts] 502: deferred=180 alert(s) past the time budget
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > stays 200 for an empty run with zero configured clients
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: '3fa9864e-9c97-4e0f-82a8-62686c7d8f07',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+ ✓ __tests__/api/cron/evaluate-alerts.test.ts (20 tests) 145ms
+ ✓ __tests__/ci/component-fixtures.test.ts (2 tests) 279ms
+ ✓ __tests__/security/db-guard.test.ts (16 tests) 122ms
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — authentication > refuses to run at all when CRON_SECRET is unset
+[pulse/run] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — authentication > refuses a CRON_SECRET too short to be worth guessing against
+[pulse/run] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — request validation > returns 503, not 404, when the ownership lookup itself fails
+[pulse/run] client lookup failed
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — writes > returns 5xx rather than a success carrying counts it never persisted
+[pulse/run] metrics write failed
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — provider failure > answers non-2xx when no prompt in the chunk got any response
+[pulse/run] no provider answered any prompt in this chunk
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — provider failure > treats a thrown provider call the same way
+[pulse/run] no provider answered any prompt in this chunk
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — provider failure > never deletes a prompt's existing rows when it got no new answer
+[pulse/run] no provider answered any prompt in this chunk
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — chunking > returns 500 when the rollup fails, not a 200 with a null summary
+[pulse/run] summary rollup failed
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — answer length > asks each platform for answers of up to its limit: 1500, or 4000 for Gemini
+[pulse/run] no provider answered any prompt in this chunk
+
+ ✓ __tests__/lib/public-url.test.ts (42 tests) 329ms
+ ✓ __tests__/api/pulse-run.test.ts (43 tests) 201ms
+ ✓ __tests__/api/search-console-cron.test.ts (10 tests) 243ms
+ ✓ __tests__/delivery/service.test.ts (80 tests) 315ms
+ ✓ __tests__/proxy.test.ts (25 tests) 178ms
+ ✓ __tests__/lib/admin-guard.test.ts (4 tests) 235ms
+ ✓ __tests__/api/work-items.test.ts (3 tests) 129ms
+ ✓ __tests__/components/workspace-home-priorities.test.tsx (14 tests) 133ms
+ ✓ __tests__/helpers/neon-branch.test.ts (28 tests) 155ms
+ ✓ __tests__/components/notification-bell.test.tsx (7 tests) 84ms
+stderr | __tests__/api/admin-clients.test.ts > GET /api/admin/clients > returns 5xx when the query fails rather than an empty list
+[admin/clients] account query failed: connection failed
+
+stderr | __tests__/api/admin-clients.test.ts > PATCH /api/admin/clients > returns 5xx when the write fails
+[admin/clients] revoke failed: connection failed
+
+ ✓ __tests__/supabase/migration-contract.test.ts (13 tests) 121ms
+ ✓ __tests__/api/admin-clients.test.ts (22 tests) 289ms
+ ✓ __tests__/components/members-panel.test.tsx (22 tests) 113ms
+ ✓ __tests__/api/readiness.test.ts (26 tests) 119ms
+ ✓ __tests__/lib/openrouter-usage.test.ts (21 tests) 110ms
+ ✓ __tests__/change-sets/service.test.ts (18 tests) 135ms
+stderr | __tests__/api/authenticated-scan-entitlement.test.ts > authenticated scan commercial entitlement > refunds a Basic monthly scan when the site cannot be reached
+[scan] page unreachable: TypeError
+
+stderr | __tests__/api/authenticated-scan-entitlement.test.ts > authenticated scan commercial entitlement > refunds nothing for a plan whose scans are not counted
+[scan] page unreachable: TypeError
+
+stderr | __tests__/api/authenticated-scan-entitlement.test.ts > authenticated scan commercial entitlement > fails closed when authentication lookup fails before choosing a limiter
+[scan] authentication lookup failed: Neon Auth unavailable
+
+stderr | __tests__/api/authenticated-scan-entitlement.test.ts > authenticated scan commercial entitlement > fails closed when durable Basic quota persistence fails
+[scan] authenticated quota failed: database unavailable
+
+ ✓ __tests__/api/authenticated-scan-entitlement.test.ts (12 tests) 91ms
+ ✓ __tests__/public-report-page.test.tsx (9 tests) 190ms
+ ✓ __tests__/api/delivery.test.ts (35 tests) 104ms
+ ✓ __tests__/components/workspace-home-render.test.tsx (3 tests) 44ms
+ ✓ __tests__/components/factual-density-evidence.test.tsx (10 tests) 128ms
+ ✓ __tests__/config/entity-integration.test.ts (2 tests) 78ms
+ ✓ __tests__/api/alerts-config.test.ts (15 tests) 59ms
+ ✓ __tests__/approvals/access-service.test.ts (13 tests) 89ms
+ ✓ __tests__/api/prompt-bank.test.ts (47 tests) 84ms
+ ✓ __tests__/config/public-redirects.test.ts (26 tests) 163ms
+ ✓ __tests__/lib/scan-evidence-capture.test.ts (9 tests) 192ms
+ ✓ __tests__/components/session-refresh.test.ts (4 tests) 96ms
+ ✓ __tests__/api/change-set-versions.test.ts (5 tests) 59ms
+ ✓ __tests__/ci/playwright-config.test.ts (3 tests) 57ms
+stderr | __tests__/api/cron-pulse.test.ts > retains exact PostgreSQL cursor time across a legacy continuation request
+[cron/pulse] no client has an active prompt bank; nothing will ever be scanned
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — authentication > refuses to run at all when CRON_SECRET is unset
+[cron/pulse] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — authentication > refuses a secret too short to be worth guessing
+[cron/pulse] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — driving the producer > skips a plan that grants no platforms instead of spending a hop on a 403
+[cron/pulse] no client has an active prompt bank; nothing will ever be scanned
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — driving the producer > skips a cancelled account still carrying plan=pro
+[cron/pulse] no client has an active prompt bank; nothing will ever be scanned
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — driving the producer > reports zero configured clients when the feature was never set up
+[cron/pulse] no client has an active prompt bank; nothing will ever be scanned
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — driving the producer > returns 503 when the pending lookup fails
+[cron/pulse] pending-client lookup failed
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — chaining > never retries a failing client in the same chain, but moves on to the next
+[cron/pulse] producer returned 403 for client-1
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — chaining > stops the chain on a provider outage, which no other client would escape
+[cron/pulse] producer returned 502 for client-1
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — chaining > stops the chain on a server-side producer failure, which is not about the client
+[cron/pulse] producer returned 500 for client-1
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — chaining > carries one cursor forward across hops, bounded by the chain cap
+[cron/pulse] producer returned 404 for 00000000-0000-4000-8000-000000000002
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — chaining > does not chain when the producer is unreachable
+[cron/pulse] producer call failed
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — chaining > survives a dropped chain hop without failing the response
+[cron/pulse] chain hop failed
+
+stderr | __tests__/api/cron-pulse.test.ts > Pulse failure ledger classification > records lookup as an error with unchanged HTTP failure
+[cron/pulse] pending-client lookup failed
+
+stderr | __tests__/api/cron-pulse.test.ts > Pulse failure ledger classification > records producer-response as an error with unchanged HTTP failure
+[cron/pulse] producer returned 503 for client-1
+
+stderr | __tests__/api/cron-pulse.test.ts > Pulse failure ledger classification > records producer-network as an error with unchanged HTTP failure
+[cron/pulse] producer call failed
+
+ ✓ __tests__/api/cron-pulse.test.ts (34 tests) 91ms
+ ✓ __tests__/lib/citation-query.test.ts (4 tests) 61ms
+ ✓ __tests__/components/opportunity-page.test.tsx (11 tests) 56ms
+ ✓ __tests__/workspace-home-page.test.tsx (13 tests) 43ms
+ ✓ __tests__/components/search-console-bilingual.test.tsx (93 tests) 55ms
+ ✓ __tests__/api/local-trust.test.ts (34 tests) 76ms
+stderr | __tests__/api/assets-route.test.ts > POST /api/dashboard/clients/[clientId]/assets > fails loudly when the write throws, rather than reporting success
+[assets] register failed: Error: private-database-details
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/assets-route.test.ts:118:38
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ __tests__/api/assets-route.test.ts (15 tests) 65ms
+ ✓ __tests__/api/citations.test.ts (6 tests) 104ms
+ ✓ __tests__/outcomes/service.test.ts (23 tests) 102ms
+stderr | __tests__/components/entity-page.test.tsx > entity page boundary > offers content retrieval after a secondary verification-read failure without minting on render
+[entities] verification lookup failed: Synthetic lookup failure
+
+ ✓ __tests__/components/entity-page.test.tsx (7 tests) 41ms
+ ✓ __tests__/integrations/oauth.test.ts (29 tests) 57ms
+ ✓ __tests__/components/portfolio-activation.test.tsx (14 tests) 54ms
+ ✓ __tests__/components/portfolio-render.test.tsx (3 tests) 76ms
+ ✓ __tests__/lib/report-branding.test.ts (41 tests) 70ms
+stderr | __tests__/lib/workspace-home.test.ts > owned workspace loader > throws for ownership lookup outage, but keeps optional failures distinct
+[workspace] pulse read failed
+
+stderr | __tests__/api/scan-funnel-contract.test.ts > Homepage scan funnel contracts > returns 503 when the profile lookup is unavailable
+[scan] authentication lookup failed: provider secret must not escape
+
+ ✓ __tests__/api/scan-funnel-contract.test.ts (7 tests) 101ms
+ ✓ __tests__/lib/workspace-home.test.ts (31 tests) 61ms
+stderr | __tests__/api/webhooks-neon.test.ts > POST /api/webhooks/neon > returns 200 received/handled:false for an event type it does not handle
+[webhooks/neon] ignoring unhandled event_type: user.updated
+
+stderr | __tests__/api/webhooks-neon.test.ts > POST /api/webhooks/neon > rejects a forged payload whose user id does not exist in neon_auth.user, provisioning nothing
+[webhooks/neon] rejecting unverifiable user.created payload for user attacker-made-up-id — no such row in neon_auth.user
+
+stderr | __tests__/api/webhooks-neon.test.ts > POST /api/webhooks/neon > rejects a payload that binds a real user id to a different email, provisioning nothing
+[webhooks/neon] rejecting unverifiable user.created payload for user user-123 — email does not match neon_auth.user
+
+stderr | __tests__/api/webhooks-neon.test.ts > POST /api/webhooks/neon > returns the same opaque response for an unknown id and a mismatched email
+[webhooks/neon] rejecting unverifiable user.created payload for user user-123 — no such row in neon_auth.user
+
+stderr | __tests__/api/webhooks-neon.test.ts > POST /api/webhooks/neon > returns the same opaque response for an unknown id and a mismatched email
+[webhooks/neon] rejecting unverifiable user.created payload for user user-123 — email does not match neon_auth.user
+
+stderr | __tests__/api/webhooks-neon.test.ts > POST /api/webhooks/neon > returns 500 (so Neon retries) when the auth-DB lookup itself fails
+[webhooks/neon] auth-user lookup failed for user user-123: connection terminated unexpectedly
+
+stderr | __tests__/api/webhooks-neon.test.ts > POST /api/webhooks/neon > returns 500 without leaking internal error details when provisioning fails
+[webhooks/neon] provisioning failed for user user-123 (new@example.com): insert into profiles violates foreign key constraint "profiles_account_id_fkey" detail: Key (account_id)=(account-abc) is not present in table "accounts".
+
+ ✓ __tests__/api/webhooks-neon.test.ts (16 tests) 56ms
+ ✓ __tests__/api/onboarding-flow.test.ts (29 tests) 81ms
+ ✓ __tests__/ci/e2e-shards.test.ts (11 tests) 44ms
+ ✓ __tests__/components/generated-work.test.tsx (16 tests) 56ms
+ ✓ __tests__/api/audit-mutation-errors.test.ts (15 tests) 78ms
+ ✓ __tests__/api/client-entity.test.ts (11 tests) 67ms
+ ✓ __tests__/opportunities/fingerprint.test.ts (52 tests) 50ms
+ ✓ __tests__/api/competitors.test.ts (25 tests) 80ms
+ ✓ __tests__/lib/report-snapshot.test.ts (16 tests) 135ms
+ ✓ __tests__/readiness/runtime-auth.test.ts (13 tests) 53ms
+ ✓ __tests__/api/approver-access.test.ts (5 tests) 56ms
+ ✓ __tests__/ci/pr-gate-workflow.test.ts (6 tests) 52ms
+ ✓ __tests__/components/top-issue-card.test.tsx (6 tests) 50ms
+ ✓ __tests__/work-items/service.test.ts (13 tests) 60ms
+ ✓ __tests__/outcomes/route.test.ts (2 tests) 45ms
+ ✓ __tests__/api/observation-detail.test.ts (9 tests) 53ms
+ ✓ __tests__/observations/service.test.ts (11 tests) 51ms
+ ✓ __tests__/api/source-import-preview.test.ts (3 tests) 56ms
+ ✓ __tests__/work-items/store.test.ts (20 tests) 64ms
+ ✓ __tests__/lib/competitors-client.test.ts (21 tests) 50ms
+ ✓ __tests__/api/work-item-sources-route.test.ts (16 tests) 55ms
+ ✓ __tests__/checks/robots-policy.test.ts (29 tests) 52ms
+ ✓ __tests__/lib/product-facts.test.ts (16 tests) 62ms
+ ✓ __tests__/delivery/store.test.ts (30 tests) 53ms
+ ✓ __tests__/components/pulse-view-render.test.tsx (5 tests) 52ms
+ ✓ __tests__/lib/pricing-billing-truth.test.ts (12 tests) 67ms
+ ✓ __tests__/sample-report.test.tsx (8 tests) 104ms
+ ✓ __tests__/agents/safety-eval.test.ts (16 tests) 113ms
+ ✓ __tests__/lib/openrouter-web-search.test.ts (6 tests) 49ms
+ ✓ __tests__/lib/scan-evidence.test.ts (11 tests) 54ms
+ ✓ __tests__/readiness/runtime.test.ts (20 tests) 48ms
+ ✓ __tests__/config/dark-mode-surfaces.test.ts (1 test) 60ms
+ ✓ __tests__/config/maintenance-uat-contract.test.ts (9 tests) 55ms
+ ✓ __tests__/api/scan-claim.test.ts (17 tests) 53ms
+ ✓ __tests__/api/source-version-approval.test.ts (7 tests) 61ms
+ ✓ __tests__/seo/discovery.test.ts (7 tests) 47ms
+ ✓ __tests__/seo/route-wiring.test.ts (8 tests) 46ms
+ ✓ __tests__/api/share-of-voice.test.ts (6 tests) 44ms
+ ✓ __tests__/components/dashboard-sidebar-portfolio.test.tsx (3 tests) 52ms
+ ✓ __tests__/lib/sitemap-fetch.test.ts (6 tests) 47ms
+ ✓ __tests__/lib/scan-check-comparison.test.ts (15 tests) 57ms
+ ✓ __tests__/api/notifications.test.ts (5 tests) 42ms
+ ✓ __tests__/components/asset-convergence-view.test.tsx (17 tests) 44ms
+ ✓ __tests__/components/dashboard-sidebar.test.ts (12 tests) 37ms
+ ✓ __tests__/lib/funnel-client.test.ts (3 tests) 38ms
+ ✓ __tests__/components/recent-scans.test.ts (10 tests) 48ms
+stderr | __tests__/api/scan-claim-intent.test.ts > POST /api/scans/[id]/claim-intent > returns 500 when the scan lookup fails
+[scan-claim-intent] scan-lookup-failed Error: database connection unavailable
+
+ ✓ __tests__/api/scan-claim-intent.test.ts (8 tests) 38ms
+ ✓ __tests__/readiness/dns.test.ts (15 tests) 55ms
+ ✓ __tests__/api/client-report-preview-assets.test.ts (3 tests) 40ms
+ ✓ __tests__/lib/pulse-context.test.ts (3 tests) 9ms
+stderr | __tests__/api/public-client-reports.test.ts > published client report resolver > returns one null outcome for draft
+[public-report] unavailable { reason: 'state' }
+
+stderr | __tests__/api/public-client-reports.test.ts > published client report resolver > returns one null outcome for revoked
+[public-report] unavailable { reason: 'state' }
+
+stderr | __tests__/api/public-client-reports.test.ts > published client report resolver > returns one null outcome for missing pointer
+[public-report] unavailable { reason: 'state' }
+
+stderr | __tests__/api/public-client-reports.test.ts > published client report resolver > returns one null outcome for wrong published version
+[public-report] unavailable { reason: 'state' }
+
+stderr | __tests__/api/public-client-reports.test.ts > published client report resolver > returns one null outcome for downgrade
+[public-report] unavailable { reason: 'entitlement' }
+
+stderr | __tests__/api/public-client-reports.test.ts > published client report resolver > returns one null outcome for failed-closed account
+[public-report] unavailable { reason: 'entitlement' }
+
+stderr | __tests__/api/public-client-reports.test.ts > published client report resolver > returns one null outcome for malformed snapshot
+[public-report] unavailable { reason: 'snapshot' }
+
+stderr | __tests__/api/public-client-reports.test.ts > public report asset handlers > rejects unsafe contact destination http://agency.example/contact with the neutral 404
+[public-report] unavailable { reason: 'snapshot' }
+
+ ✓ __tests__/api/public-client-reports.test.ts (19 tests) 37ms
+ ✓ __tests__/api/notifications-read-all.test.ts (4 tests) 43ms
+ ✓ __tests__/opportunities/service.test.ts (12 tests) 44ms
+ ✓ __tests__/components/change-set-pages.test.tsx (6 tests) 42ms
+ ✓ __tests__/opportunities/rules.test.ts (17 tests) 50ms
+ ✓ __tests__/components/public-impact-estimate.test.tsx (6 tests) 36ms
+stderr | __tests__/lib/alerts/evaluate.test.ts > runAlertEvaluation > continues after notification or email adapter failures
+[alerts] notification failed: Error: notification unavailable
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/lib/alerts/evaluate.test.ts:236:63
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/lib/alerts/evaluate.test.ts > runAlertEvaluation > continues after notification or email adapter failures
+[alerts] email failed: Error: email unavailable
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/lib/alerts/evaluate.test.ts:237:59
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/lib/alerts/evaluate.test.ts > runAlertEvaluation > counts a failing upsertNotification independently of email delivery, which still reflects successful sends
+[alerts] notification failed: Error: 42P10 no unique or exclusion constraint
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/lib/alerts/evaluate.test.ts:259:63
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ __tests__/seo/public-families.test.ts (24 tests) 36ms
+stderr | __tests__/lib/alerts/evaluate.test.ts > runAlertEvaluation > skips a client whose latest aggregate week is not the current week
+[alerts] client client-1: latest aggregate week is 2026-08-10, expected 2026-08-17 — skipping. The Pulse rollup has not landed for this client this week.
+
+stderr | __tests__/lib/alerts/evaluate.test.ts > runAlertEvaluation > skips a stale client while a fresh client in the same run still fires
+[alerts] client client-stale: latest aggregate week is 2026-08-03, expected 2026-08-10 — skipping. The Pulse rollup has not landed for this client this week.
+
+stderr | __tests__/lib/alerts/evaluate.test.ts > runAlertEvaluation > stops on the time budget and reports the alerts it did not reach
+[alerts] time budget exhausted after 0 of 4 clients; 8 alert(s) deferred. Vercel Cron does not retry — these wait a week.
+
+stderr | __tests__/lib/alerts/evaluate.test.ts > email idempotence > releases the claim when the send fails, so the next run retries
+[alerts] email failed: Error: resend is down
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/lib/alerts/evaluate.test.ts:472:30
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/lib/alerts/evaluate.test.ts > email idempotence > does not send when the claim itself fails
+[alerts] email claim failed: Error: ledger unavailable
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/lib/alerts/evaluate.test.ts:495:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/lib/alerts/evaluate.test.ts > email idempotence > does not send when the claim itself fails
+[alerts] email claim failed: Error: ledger unavailable
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/lib/alerts/evaluate.test.ts:495:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ __tests__/lib/alerts/evaluate.test.ts (21 tests) 36ms
+ ✓ __tests__/scripts/package-test-script.test.mjs (1 test) 21ms
+stderr | __tests__/integrations/sync.test.ts > syncBinding > reports a vault failure as ours, not as a revoked login
+[search-console] vault failure { clientId: 'c', code: 'VAULT_KEY_UNKNOWN' }
+
+stderr | __tests__/integrations/sync.test.ts > syncBinding > maps a misconfigured query failure to config_error and leaves the connection alone
+[search-console] google misconfigured { clientId: 'c', status: 0, code: null }
+
+stderr | __tests__/integrations/sync.test.ts > syncBinding > does not mark the connection for a misconfigured refresh failure either
+[search-console] google misconfigured { clientId: 'c', status: 401, code: null }
+
+stderr | __tests__/integrations/sync.test.ts > syncBinding > turns a non-VaultError thrown by open into internal_error
+[search-console] sync failed {
+  clientId: 'c',
+  name: 'Error',
+  code: undefined,
+  constraint: undefined
+}
+
+ ✓ __tests__/integrations/sync.test.ts (29 tests) 39ms
+ ✓ __tests__/lib/check-priority.test.ts (8 tests) 35ms
+ ✓ __tests__/lib/navigation.test.ts (7 tests) 27ms
+ ✓ __tests__/api/dashboard-clients.test.ts (11 tests) 38ms
+ ✓ __tests__/result-page-access.test.ts (10 tests) 38ms
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count null unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count undefined unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count -1 unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count unknown unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] history read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] visibility read failed
+
+ ✓ __tests__/checks/llms-content-quality.test.ts (3 tests) 41ms
+ ✓ __tests__/lib/portfolio.test.ts (20 tests) 39ms
+ ✓ __tests__/components/result-og-evidence.test.tsx (3 tests) 37ms
+ ✓ __tests__/delivery/migration.test.ts (5 tests) 36ms
+ ✓ __tests__/api/stripe-checkout.test.ts (9 tests) 33ms
+ ✓ __tests__/components/scan-industry-options.test.tsx (2 tests) 35ms
+ ✓ __tests__/scripts/schema-target.test.mjs (52 tests) 35ms
+ ✓ __tests__/lib/owner-priorities.test.ts (16 tests) 37ms
+ ✓ __tests__/components/account-unlock-continuation.test.ts (8 tests) 37ms
+ ✓ __tests__/opportunities/store.test.ts (8 tests) 34ms
+ ✓ __tests__/api/stripe-webhook-full.test.ts (8 tests) 34ms
+ ✓ __tests__/lib/auth.test.ts (11 tests) 40ms
+ ✓ __tests__/components/share-of-voice-benchmark.test.tsx (7 tests) 37ms
+ ✓ __tests__/seo/public-content.test.tsx (10 tests) 38ms
+stderr | __tests__/lib/pulse-view.test.ts > owned Pulse observations > fails authoritative ownership closed and optional observations independently
+[pulse-view] observations read failed
+
+ ✓ __tests__/lib/pulse-view.test.ts (10 tests) 34ms
+ ✓ __tests__/lib/report-message-parity.test.ts (2 tests) 22ms
+ ✓ __tests__/delivery/input.test.ts (72 tests) 31ms
+ ✓ __tests__/components/settings-render.test.tsx (3 tests) 42ms
+ ✓ __tests__/change-sets/store.test.ts (20 tests) 35ms
+ ✓ __tests__/components/provider-citations-render.test.tsx (4 tests) 30ms
+ ✓ __tests__/lib/impact.test.ts (21 tests) 32ms
+ ✓ __tests__/components/scan-error-copy.test.mjs (1 test) 13ms
+ ✓ __tests__/lib/report-store.test.ts (27 tests) 31ms
+ ✓ __tests__/lib/pulse-platforms.test.ts (8 tests) 39ms
+ ✓ __tests__/components/entity-editor.test.tsx (2 tests) 31ms
+ ✓ __tests__/lib/pillar-coverage.test.ts (19 tests) 32ms
+ ✓ __tests__/delivery/export.test.ts (15 tests) 28ms
+ ✓ __tests__/dashboard-result-page.test.ts (6 tests) 28ms
+ ✓ __tests__/api/user-pulse-runs.test.ts (12 tests) 31ms
+ ✓ __tests__/lib/asset-convergence.test.ts (15 tests) 30ms
+ ✓ __tests__/api/suggest-questions.test.ts (15 tests) 30ms
+ ✓ __tests__/lib/result-access.test.ts (3 tests) 27ms
+ ✓ __tests__/components/pillar-evidence-rendering.test.tsx (6 tests) 27ms
+ ✓ __tests__/checks/mcpCard.test.ts (6 tests) 28ms
+ ✓ __tests__/checks/scan-compatibility-freeze.test.ts (38 tests) 16ms
+ ✓ __tests__/readiness/candidate-cross-contract.test.ts (13 tests) 27ms
+ ✓ __tests__/components/observation-page.test.tsx (6 tests) 27ms
+ ✓ __tests__/lib/report-share.test.ts (36 tests) 26ms
+ ✓ __tests__/api/observations.test.ts (7 tests) 27ms
+ ✓ __tests__/api/report-branding.test.ts (11 tests) 24ms
+ ✓ __tests__/opportunities/grouping.test.ts (2 tests) 20ms
+ ✓ __tests__/api/brand-creation-contract.test.ts (1 test) 26ms
+ ✓ __tests__/opportunities/presentation.test.ts (2 tests) 33ms
+stderr | __tests__/api/clients-overview.test.ts > GET /api/clients/[clientId]/overview > returns 500 instead of an empty 200 when a query fails
+[overview] query failed: connection terminated
+
+stderr | __tests__/api/clients-overview.test.ts > GET /api/clients/[clientId]/overview > returns 500 when a later parallel query fails after the client is found
+[workspace] scan read failed
+
+stderr | __tests__/api/clients-overview.test.ts > GET /api/clients/[clientId]/overview > returns 500 when a later parallel query fails after the client is found
+[overview] query failed: Failed to load overview
+
+ ✓ __tests__/api/clients-overview.test.ts (7 tests) 36ms
+ ✓ __tests__/lib/pulse-worker.test.ts (10 tests) 46ms
+ ✓ __tests__/lib/message-catalogue-parity.test.ts (9 tests) 33ms
+ ✓ __tests__/lib/citation-psl.test.ts (3 tests) 30ms
+ ✓ __tests__/lib/result-evidence.test.ts (3 tests) 29ms
+ ✓ __tests__/lib/pulse-schedule.test.ts (5 tests) 25ms
+ ✓ __tests__/scripts/run-tests.test.mjs (30 tests) 23ms
+ ✓ __tests__/config/node-engine.test.ts (1 test) 27ms
+ ✓ __tests__/ci/e2e-fixtures.test.ts (4 tests) 23ms
+ ✓ __tests__/observations/store.test.ts (11 tests) 22ms
+ ✓ __tests__/readiness/origin-resolves.test.ts (9 tests) 25ms
+ ✓ __tests__/lib/scan-status.test.ts (7 tests) 36ms
+ ✓ __tests__/components/prompt-bank-page.test.ts (9 tests) 27ms
+ ✓ __tests__/lib/alerts/neon-store.test.ts (12 tests) 30ms
+ ✓ __tests__/outcomes/evaluate.test.ts (22 tests) 29ms
+ ✓ __tests__/api/onboarding.test.ts (2 tests) 27ms
+ ✓ __tests__/lib/public-scan-rate-limit.test.ts (10 tests) 42ms
+ ✓ __tests__/checks/no-bare-fetch.test.ts (16 tests) 23ms
+ ✓ __tests__/seo/metadata-coverage.test.ts (12 tests) 24ms
+ ✓ __tests__/checks/factualDensity.test.ts (43 tests) 21ms
+ ✓ __tests__/approvals/decision-store.test.ts (11 tests) 24ms
+ ✓ __tests__/lib/pulse-analysis-fallback.test.ts (32 tests) 24ms
+ ✓ __tests__/readiness/runtime-primitive-policy.test.ts (4 tests) 23ms
+ ✓ __tests__/lib/work-item-sources.test.ts (13 tests) 16ms
+ ✓ __tests__/readiness/runtime-report.test.ts (29 tests) 23ms
+ ✓ __tests__/outcomes/store.test.ts (6 tests) 26ms
+ ✓ __tests__/lib/report-ai.test.ts (32 tests) 23ms
+ ✓ __tests__/outcomes/dto.test.ts (25 tests) 25ms
+ ✓ __tests__/lib/pulse-classification.test.ts (1 test) 20ms
+ ✓ __tests__/approvals/access-store.test.ts (14 tests) 21ms
+ ✓ __tests__/config/work-item-integration.test.ts (2 tests) 60ms
+ ✓ __tests__/lib/rate-limit-identity.test.ts (4 tests) 19ms
+ ✓ __tests__/security/scan-claim-attempt.test.ts (9 tests) 19ms
+ ✓ __tests__/lib/sources-schema.test.ts (29 tests) 17ms
+ ✓ __tests__/lib/resend.test.ts (12 tests) 18ms
+ ✓ __tests__/helpers/neon-branch-config.test.ts (4 tests) 26ms
+ ✓ __tests__/lib/trust-signals.test.ts (19 tests) 16ms
+ ✓ __tests__/lib/source-import-preview.test.ts (3 tests) 17ms
+ ✓ __tests__/components/score-reveal.test.tsx (2 tests) 21ms
+ ✓ __tests__/lib/commercial-surface-contract.test.ts (9 tests) 21ms
+stderr | __tests__/dashboard-layout-entitlement.test.tsx > dashboard notification bell > preserves an unknown count without failing the page when the query throws
+[dashboard] unread notification count failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/dashboard-layout-entitlement.test.tsx:137:24
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ __tests__/lib/citation-sources.test.ts (42 tests) 18ms
+ ✓ __tests__/dashboard-layout-entitlement.test.tsx (9 tests) 18ms
+ ✓ __tests__/delivery/dto.test.ts (19 tests) 20ms
+ ✓ __tests__/work-items/schema.test.ts (32 tests) 20ms
+ ✓ __tests__/checks/citationDensity.test.ts (11 tests) 16ms
+ ✓ __tests__/lib/scan-claim-intent.test.ts (7 tests) 16ms
+ ✓ __tests__/config/authenticated-e2e.test.ts (22 tests) 19ms
+ ✓ __tests__/db/brand-limit-entitlement.test.ts (7 tests) 25ms
+ ✓ __tests__/lib/onboarding-schema.test.ts (12 tests) 24ms
+ ✓ __tests__/lib/cron-ledger.test.ts (4 tests) 17ms
+ ✓ __tests__/components/prompt-bank-network.test.tsx (4 tests) 22ms
+ ✓ __tests__/api/opportunities.test.ts (1 test) 14ms
+ ✓ __tests__/lib/pulse-schedule-pagination.test.ts (4 tests) 17ms
+ ✓ __tests__/integrations/guard.test.ts (7 tests) 21ms
+ ✓ __tests__/pulse-page.test.tsx (3 tests) 11ms
+ ✓ __tests__/settings-page.test.tsx (10 tests) 20ms
+ ✓ __tests__/db/synthetic-seed.test.ts (4 tests) 9ms
+ ✓ __tests__/lib/pulse-legacy-repair.test.ts (4 tests) 17ms
+ ✓ __tests__/observations/query.test.ts (29 tests) 17ms
+ ✓ __tests__/readiness/runtime-contract.test.ts (16 tests) 15ms
+ ✓ __tests__/lib/sources-grounding.test.ts (22 tests) 16ms
+ ✓ __tests__/checks/topicalAuthority.test.ts (15 tests) 15ms
+ ✓ __tests__/lib/sitemap-urls.test.ts (17 tests) 13ms
+ ✓ __tests__/lib/authenticated-scan-quota.test.ts (5 tests) 17ms
+ ✓ __tests__/portfolio-page.test.tsx (9 tests) 15ms
+ ✓ __tests__/integrations/vault.test.ts (20 tests) 21ms
+ ✓ __tests__/lib/onboarding-store-contract.test.ts (2 tests) 11ms
+ ✓ __tests__/scripts/grant-platform-admin.test.ts (15 tests) 12ms
+ ✓ __tests__/readiness/config.test.ts (23 tests) 17ms
+ ✓ __tests__/lib/local-trust-baseline.test.ts (10 tests) 14ms
+ ✓ __tests__/lib/check-explanations-parity.test.ts (6 tests) 11ms
+ ✓ __tests__/lib/pulse-grounding.test.ts (15 tests) 17ms
+ ✓ __tests__/lib/activation.test.ts (8 tests) 15ms
+ ✓ __tests__/security/db-binding.test.ts (20 tests) 16ms
+ ✓ __tests__/lib/domain-verification-schema.test.ts (23 tests) 11ms
+ ✓ __tests__/onboarding-page.test.ts (6 tests) 15ms
+ ✓ __tests__/scripts/migrate-error-reporting.test.ts (16 tests) 12ms
+ ✓ __tests__/lib/roi-scenario.test.ts (26 tests) 13ms
+ ✓ __tests__/lib/prompt-context.test.ts (9 tests) 12ms
+ ✓ __tests__/integrations/consent-state.test.ts (15 tests) 15ms
+ ✓ __tests__/integrations/state.test.ts (26 tests) 14ms
+ ✓ __tests__/config/change-set-integration.test.ts (3 tests) 16ms
+ ✓ __tests__/components/scan-form.test.ts (35 tests) 14ms
+stderr | __tests__/scripts/bootstrap-project.test.mjs
+Bootstrap failed: Refusing to run: BOOTSTRAP_PROJECT_ID, BOOTSTRAP_BRANCH_ID, BOOTSTRAP_DATABASE_URL not set (or empty). This script has no default target, deliberately -- name the project, branch and connection explicitly.
+
+ ✓ __tests__/lib/agent-budget.test.ts (19 tests) 12ms
+ ✓ __tests__/lib/auth-client.test.ts (18 tests) 13ms
+ ✓ __tests__/scripts/bootstrap-project.test.mjs (20 tests) 12ms
+ ✓ __tests__/lib/redact-secrets.test.ts (18 tests) 12ms
+ ✓ __tests__/sources-review-page.test.tsx (3 tests) 13ms
+ ✓ __tests__/observations/projection.test.ts (18 tests) 13ms
+ ✓ __tests__/members/schema.test.ts (27 tests) 14ms
+ ✓ __tests__/change-sets/input.test.ts (19 tests) 12ms
+ ✓ __tests__/integrations/binding.test.ts (34 tests) 13ms
+ ✓ __tests__/lib/source-pack.test.ts (19 tests) 13ms
+ ✓ __tests__/lib/entities/store.test.ts (6 tests) 14ms
+ ✓ __tests__/approvals/input.test.ts (19 tests) 13ms
+ ✓ __tests__/components/account-unlock-card.test.ts (9 tests) 14ms
+ ✓ __tests__/lib/local-trust.test.ts (11 tests) 14ms
+ ✓ __tests__/lib/report-comparison.test.ts (6 tests) 12ms
+ ✓ __tests__/lib/funnel-events.test.ts (9 tests) 12ms
+ ✓ __tests__/lib/asset-registry.test.ts (20 tests) 12ms
+ ✓ __tests__/e2e/funnel-verification-contract.test.ts (4 tests) 17ms
+ ✓ __tests__/lib/competitors-schema.test.ts (20 tests) 13ms
+ ✓ __tests__/lib/auth-return-to.test.ts (24 tests) 13ms
+ ✓ __tests__/lib/commercial-entitlement.test.ts (17 tests) 12ms
+ ✓ __tests__/checks/robots.test.ts (4 tests) 11ms
+ ✓ __tests__/lib/plan-catalog.test.ts (8 tests) 12ms
+ ✓ __tests__/lib/migrate-planning.test.ts (12 tests) 11ms
+ ✓ __tests__/lib/pillar-scores.test.ts (7 tests) 11ms
+ ✓ __tests__/lib/share-of-voice.test.ts (12 tests) 12ms
+ ✓ __tests__/lib/pulse-summary.test.ts (8 tests) 11ms
+ ✓ __tests__/db/work-item-sources-migration.test.ts (12 tests) 10ms
+ ✓ __tests__/migrations/search-console-migration.test.ts (20 tests) 12ms
+ ✓ __tests__/lib/source-pagination.test.ts (2 tests) 11ms
+ ✓ __tests__/lib/entities/schema.test.ts (11 tests) 14ms
+ ✓ __tests__/outcomes/compare-outcome.test.ts (25 tests) 13ms
+ ✓ __tests__/outcomes/time.test.ts (16 tests) 13ms
+ ✓ __tests__/lib/pulse-run-ledger.test.ts (8 tests) 13ms
+ ✓ __tests__/scripts/prune-preview-branches.test.ts (12 tests) 11ms
+ ✓ __tests__/components/claim-scan-on-return.test.ts (16 tests) 8ms
+ ✓ __tests__/config/function-durations.test.ts (17 tests) 16ms
+ ✓ __tests__/db/baseline-ledger.test.ts (7 tests) 10ms
+ ✓ __tests__/components/report-workspace-review-fixes.test.ts (2 tests) 10ms
+ ✓ __tests__/lib/suggestion-inputs.test.ts (8 tests) 12ms
+ ✓ __tests__/config/delivery-integration.test.ts (2 tests) 10ms
+ ✓ __tests__/lib/trial-emails.test.ts (10 tests) 12ms
+ ✓ __tests__/lib/schema-diff.test.ts (9 tests) 10ms
+ ✓ __tests__/checks/chunkability.test.ts (3 tests) 8ms
+ ✓ __tests__/seo/platform-links.test.ts (3 tests) 10ms
+ ✓ __tests__/readiness/report.test.ts (17 tests) 11ms
+ ✓ __tests__/lib/activation-progress.test.ts (8 tests) 11ms
+ ✓ __tests__/lib/entitlement-timestamp-coercion.test.ts (12 tests) 9ms
+ ✓ __tests__/authority/layers.test.ts (16 tests) 10ms
+ ✓ __tests__/migrations/rls-scan-analyzer.test.mjs (12 tests) 11ms
+ ✓ __tests__/lib/agents.test.ts (6 tests) 13ms
+ ✓ __tests__/e2e/a11y-baseline.test.ts (10 tests) 10ms
+ ✓ __tests__/work-items/operations-input.test.ts (7 tests) 10ms
+ ✓ __tests__/lib/prompt-categories.test.ts (5 tests) 8ms
+ ✓ __tests__/lib/database-error.test.ts (6 tests) 8ms
+ ✓ __tests__/supabase/035_alert_email_delivery_ledger.test.ts (5 tests) 8ms
+ ✓ __tests__/lib/merge-suggestions.test.ts (5 tests) 8ms
+ ✓ __tests__/lib/daily-work.test.ts (4 tests) 9ms
+ ✓ __tests__/lib/prompt-bulk.test.ts (2 tests) 8ms
+ ✓ __tests__/lib/entitlement-override.test.ts (16 tests) 9ms
+ ✓ __tests__/lib/multi-source-flag.test.ts (3 tests) 7ms
+ ✓ __tests__/opportunities/ac-06-convergence.test.ts (10 tests) 9ms
+ ✓ __tests__/scripts/migrate-redaction.test.ts (8 tests) 9ms
+ ✓ __tests__/change-sets/migration.test.ts (9 tests) 16ms
+ ✓ __tests__/checks/extractability.test.ts (3 tests) 9ms
+ ✓ __tests__/lib/report-client-dto.test.ts (3 tests) 9ms
+ ✓ __tests__/components/google-auth-start-route.test.ts (1 test) 8ms
+ ✓ __tests__/checks/visibleText.test.ts (3 tests) 6ms
+ ✓ __tests__/migrations/client-entities.test.ts (2 tests) 10ms
+ ✓ __tests__/checks/botAccess.test.ts (3 tests) 8ms
+ ✓ __tests__/work-items/cte-shape-parity.test.ts (5 tests) 8ms
+ ✓ __tests__/checks/structuredData.test.ts (3 tests) 8ms
+ ✓ __tests__/supabase/037_least_privilege_app_role.test.ts (8 tests) 10ms
+ ✓ __tests__/lib/types.test.ts (2 tests) 7ms
+ ✓ __tests__/checks/llmsTxt.test.ts (3 tests) 8ms
+ ✓ __tests__/lib/plans/alerts-release.test.ts (3 tests) 8ms
+ ✓ __tests__/lib/flags.test.ts (5 tests) 7ms
+ ✓ __tests__/lib/scoring.test.ts (2 tests) 7ms
+ ✓ __tests__/lib/tier.test.ts (11 tests) 8ms
+ ✓ __tests__/lib/trial.test.ts (3 tests) 7ms
+ ✓ __tests__/api/fenced-routes.test.ts (1 test) 6ms
+ ✓ __tests__/api/scan.test.ts (10 tests) 9ms
+ ✓ __tests__/lib/axe-report.test.ts (1 test) 8ms
+ ✓ __tests__/migrations/role-guard-analyzer.test.mjs (2 tests) 8ms
+ ✓ __tests__/supabase/034_alert_evaluation_snapshot_refinement.test.ts (1 test) 6ms
+ ✓ __tests__/components/result-platform-status.test.ts (2 tests) 6ms
+ ✓ __tests__/config/turbopack-root.test.ts (1 test) 6ms
+ ✓ __tests__/lib/iso-date.test.ts (6 tests) 6ms
+ ✓ __tests__/lib/report-accessibility.test.ts (2 tests) 7ms
+ ✓ __tests__/lib/primary-next-step.test.ts (3 tests) 6ms
+ ✓ __tests__/supabase/033_alert_evaluation_hardening.test.ts (1 test) 6ms
+ ✓ __tests__/scripts/migrate-connection-source.test.ts (3 tests) 6ms
+ ✓ __tests__/components/scan-step-error.test.ts (2 tests) 6ms
+ ✓ __tests__/config/playwright-projects.test.ts (5 tests) 61020ms
+     ✓ every configured project discovers at least one test  10175ms
+     ✓ mobile discovers tests/e2e specs but not the root e2e/ tree  6591ms
+     ✓ never collects specs from a sibling worktree  11417ms
+     ✓ adds authenticated-mobile only when a captured session exists  20363ms
+     ✓ resolves the authenticated journey to real specs, so deleting them fails here  12436ms
+ ✓ __tests__/components/orphaned-components.test.ts (3 tests) 8ms
+ ✓ __tests__/config/lint-ignores.test.ts (10 tests) 64198ms
+     ✓ does not lint the repo copy under .worktrees  63707ms
+     ✓ still lints lib/db.ts  437ms
+ ✓ __tests__/readiness/runtime-adapters.test.ts (48 tests) 80530ms
+     ✓ keeps configured team separate and permits verified runtime probes  5028ms
+     ✓ suppresses I/O for configured team undefined  5037ms
+     ✓ suppresses I/O for configured team wrong  5012ms
+     ✓ suppresses I/O for configured team bad team  5019ms
+   ✓ suppresses I/O when runtime field VERCEL_PROJECT_ID is unavailable  5007ms
+   ✓ suppresses I/O when runtime field VERCEL_DEPLOYMENT_ID is unavailable  5025ms
+   ✓ suppresses I/O when runtime field VERCEL_GIT_COMMIT_SHA is unavailable  5017ms
+   ✓ suppresses I/O when runtime field VERCEL_ENV is unavailable  5047ms
+   ✓ suppresses I/O when runtime field VERCEL_URL is unavailable  5018ms
+   ✓ labels each Markdown policy index and privilege distinctly  5012ms
+   ✓ preserves real adapter connection failures through runner artifacts  5152ms
+   ✓ preserves real adapter mismatch failures through runner artifacts  5016ms
+   ✓ preserves real adapter read-only failures through runner artifacts  5018ms
+   ✓ preserves real adapter timeout failures through runner artifacts  5009ms
+   ✓ preserves real adapter auth-early failures through runner artifacts  5012ms
+   ✓ normalizes both real adapter categories after candidate identity prevents I/O  5016ms
+
+ Test Files  417 passed (417)
+      Tests  5877 passed (5877)
+   Start at  22:11:25
+   Duration  87.46s (transform 65.50s, setup 22.22s, import 125.29s, tests 318.50s, environment 67ms)
+
+JSON report written to C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/artifacts/unit-contract/vitest.json
+JUNIT report written to C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/artifacts/unit-contract/vitest.junit.xml
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   77.21 |    73.96 |   74.05 |   80.99 |                   
+ Aiso              |     100 |    95.23 |     100 |     100 |                   
+  proxy.ts         |     100 |    95.23 |     100 |     100 | 55                
+ ...s__/components |   60.65 |    48.57 |   77.77 |   59.25 |                   
+  ...ure-writer.ts |   21.73 |    22.22 |      50 |      20 | 20-43,49-67       
+  ...ure-writer.ts |   33.33 |       50 |      50 |      25 | 7-15              
+  ...e-fixtures.ts |     100 |       70 |     100 |     100 | 6-7               
+ ...ests__/helpers |   92.85 |    89.02 |   95.45 |   94.64 |                   
+  ...obal-fetch.ts |      50 |      100 |      50 |      50 | 21                
+  neon-branch.ts   |   90.58 |    86.76 |     100 |   93.33 | ...50,190,288,292 
+ ...__/integration |       0 |        0 |       0 |       0 |                   
+  setup.ts         |       0 |        0 |       0 |       0 | 69-217            
+ ...sts__/outcomes |   95.65 |    83.33 |     100 |     100 |                   
+  ...t-fixtures.ts |   94.73 |    66.66 |     100 |     100 | 27                
+ ..._tests__/stubs |       0 |      100 |       0 |       0 |                   
+  next-headers.ts  |       0 |      100 |       0 |       0 | 17-31             
+ Aiso/app/[lang]   |      40 |       50 |      50 |    37.5 |                   
+  layout.tsx       |      40 |       50 |      50 |    37.5 | 21-27             
+ ...ting)/platform |   77.77 |      100 |      75 |   77.77 |                   
+  page.tsx         |   77.77 |      100 |      75 |   77.77 | 9-10              
+ ...eting)/pricing |      60 |       50 |      50 |      75 |                   
+  layout.tsx       |      60 |       50 |      50 |      75 | 19                
+ ...ard/[clientId] |   83.09 |    54.63 |      40 |   84.37 |                   
+  page.tsx         |   83.09 |    54.63 |      40 |   84.37 | ...08,241-243,249 
+ ...ntId]/entities |     100 |       90 |     100 |     100 |                   
+  page.tsx         |     100 |       90 |     100 |     100 | 24-31,109         
+ ...]/observations |   84.84 |    59.09 |     100 |   96.29 |                   
+  page.tsx         |   84.84 |    59.09 |     100 |   96.29 | 45                
+ ...esult/[scanId] |   50.61 |    19.84 |    12.5 |   57.35 |                   
+  page.tsx         |   50.61 |    19.84 |    12.5 |   57.35 | ...32-134,246-302 
+ ...entId]/sources |   90.32 |    71.42 |     100 |      92 |                   
+  page.tsx         |   90.32 |    71.42 |     100 |      92 | 48,65             
+ ...emId]/versions |   44.44 |    11.11 |     100 |   53.33 |                   
+  page.tsx         |   44.44 |    11.11 |     100 |   53.33 | 24-32,41-48       
+ ...board/settings |     100 |    83.33 |     100 |     100 |                   
+  page.tsx         |     100 |    83.33 |     100 |     100 | 51-57             
+ ...ng]/onboarding |     100 |       75 |     100 |     100 |                   
+  page.tsx         |     100 |       75 |     100 |     100 | 23,44-52          
+ ...lse/[clientId] |   64.28 |    33.33 |     100 |   66.66 |                   
+  page.tsx         |   64.28 |    33.33 |     100 |   66.66 | 19-20             
+ ...lang]/r/[slug] |    91.3 |       74 |     100 |   95.12 |                   
+  page.tsx         |   91.11 |       74 |     100 |      95 | 125-126           
+ ...g]/result/[id] |   84.28 |    61.66 |     100 |   86.15 |                   
+  ...aph-image.tsx |     100 |    86.36 |     100 |     100 | 27-28             
+  page.tsx         |   77.08 |    47.36 |     100 |   79.06 | 29,73,80-87       
+ ...tId]/approvers |    90.9 |    72.72 |     100 |      90 |                   
+  page.tsx         |    90.9 |    72.72 |     100 |      90 | 25                
+ ...rations/google |   88.23 |    58.33 |     100 |    93.1 |                   
+  route.ts         |   88.23 |    58.33 |     100 |    93.1 | 48-52             
+ .../admin/clients |   92.06 |     84.9 |     100 |    93.1 |                   
+  route.ts         |   92.06 |     84.9 |     100 |    93.1 | 159,166,187-188   
+ ...auth/[...path] |     100 |       75 |     100 |     100 |                   
+  route.ts         |     100 |       75 |     100 |     100 | 26,30             
+ ...Id]/ai-summary |   92.85 |      100 |     100 |   92.85 |                   
+  route.ts         |   92.85 |      100 |     100 |   92.85 | 22                
+ ...ortId]/publish |   86.66 |     90.9 |     100 |   86.66 |                   
+  route.ts         |   86.66 |     90.9 |     100 |   86.66 | 12,22             
+ ...portId]/revoke |   92.85 |      100 |     100 |   92.85 |                   
+  route.ts         |   92.85 |      100 |     100 |   92.85 | 22                
+ ...d]/rotate-link |   92.85 |      100 |     100 |   92.85 |                   
+  route.ts         |   92.85 |      100 |     100 |   92.85 | 22                
+ ...rtId]/versions |   94.44 |       90 |     100 |     100 |                   
+  route.ts         |   94.44 |       90 |     100 |     100 | 25-27             
+ ...ionId]/contact |   71.42 |    66.66 |     100 |   76.92 |                   
+  route.ts         |   71.42 |    66.66 |     100 |   76.92 | 12,34,48          
+ ...ersionId]/logo |     100 |    83.33 |     100 |     100 |                   
+  route.ts         |     100 |    83.33 |     100 |     100 | 27                
+ ...ts/competitors |   97.05 |      100 |     100 |   96.87 |                   
+  route.ts         |   97.05 |      100 |     100 |   96.87 | 39                
+ ...gents/progress |   97.22 |     91.3 |     100 |   97.05 |                   
+  route.ts         |   97.22 |     91.3 |     100 |   97.05 | 38                
+ ...ecommendations |   94.59 |      100 |     100 |   94.28 |                   
+  route.ts         |   94.59 |      100 |     100 |   94.28 | 38,96             
+ ...ntId]/overview |     100 |    83.33 |     100 |     100 |                   
+  route.ts         |     100 |    83.33 |     100 |     100 | 21                
+ ...entId]/reports |    87.5 |    88.46 |     100 |    93.1 |                   
+  route.ts         |    87.5 |    88.46 |     100 |    93.1 | 33,42             
+ ...Id]/operations |   70.27 |       50 |   85.71 |   83.33 |                   
+  route.ts         |   70.27 |       50 |   85.71 |   83.33 | 9                 
+ ...k-items/groups |     100 |    83.33 |     100 |     100 |                   
+  route.ts         |     100 |    83.33 |     100 |     100 | 3                 
+ ...valuate-alerts |   97.56 |    93.33 |     100 |     100 |                   
+  route.ts         |   97.56 |    93.33 |     100 |     100 | 95,145            
+ ...api/cron/pulse |   89.36 |     87.5 |     100 |   89.77 |                   
+  route.ts         |   89.36 |     87.5 |     100 |   89.77 | ...40-142,206-207 
+ ...search-console |   82.69 |    86.66 |      40 |   82.97 |                   
+  route.ts         |   82.69 |    86.66 |      40 |   82.97 | 54-56,60-61,77-85 
+ ...n/trial-emails |   94.44 |    83.33 |     100 |   94.11 |                   
+  route.ts         |   94.44 |    83.33 |     100 |   94.11 | 92-93             
+ ...hboard/clients |     100 |    94.73 |     100 |     100 |                   
+  route.ts         |     100 |    94.73 |     100 |     100 | 15                
+ ...ientId]/alerts |     100 |     91.3 |     100 |     100 |                   
+  route.ts         |     100 |     91.3 |     100 |     100 | 24,110            
+ ...ientId]/assets |   87.87 |    84.21 |     100 |   85.71 |                   
+  route.ts         |   87.87 |    84.21 |     100 |   85.71 | 31-32,48,52       
+ ...s/declarations |      80 |       80 |     100 |   84.37 |                   
+  route.ts         |      80 |       80 |     100 |   84.37 | 28,61-62,87-88    
+ ...tId]/citations |    90.9 |    93.75 |     100 |     100 |                   
+  route.ts         |    90.9 |    93.75 |     100 |     100 | 29                
+ ...[competitorId] |   89.65 |      100 |     100 |   90.47 |                   
+  route.ts         |   89.65 |      100 |     100 |   90.47 | 26,40             
+ ...ons/[actionId] |    90.9 |    84.61 |     100 |   94.73 |                   
+  route.ts         |    90.9 |    84.61 |     100 |   94.73 | 14                
+ ...l-trust/export |     100 |     91.3 |     100 |     100 |                   
+  route.ts         |     100 |     91.3 |     100 |     100 | 22,27-40,79       
+ ...-trust/profile |      90 |    82.05 |     100 |    90.9 |                   
+  route.ts         |      90 |    82.05 |     100 |    90.9 | 25,36,44          
+ ...entId]/prompts |   98.07 |    89.65 |     100 |   97.61 |                   
+  route.ts         |   98.07 |    89.65 |     100 |   97.61 | 101               
+ ...pts/[promptId] |   93.02 |    97.14 |     100 |   94.44 |                   
+  route.ts         |   93.02 |    97.14 |     100 |   94.44 | 44,54             
+ ...]/prompts/bulk |   81.25 |    67.85 |     100 |     100 |                   
+  route.ts         |   81.25 |    67.85 |     100 |     100 | 6-8               
+ ...Id]/pulse-runs |   91.66 |    83.33 |   66.66 |     100 |                   
+  route.ts         |   91.66 |    83.33 |   66.66 |     100 | 9                 
+ ...e-runs/[runId] |   72.72 |       50 |     100 |     100 |                   
+  route.ts         |   72.72 |       50 |     100 |     100 | 5                 
+ ...search-console |   90.12 |    82.45 |   91.66 |   95.45 |                   
+  route.ts         |   90.12 |    82.45 |   91.66 |   95.45 | 123,170-171       
+ ...temId]/sources |   87.14 |    87.75 |     100 |   90.38 |                   
+  route.ts         |   87.14 |    87.75 |     100 |   90.38 | ...14-115,146-147 
+ Aiso/app/api/fix  |   96.55 |    80.76 |     100 |      98 |                   
+  route.ts         |   96.55 |    80.76 |     100 |      98 | 137               
+ ...ix/cluster-map |     100 |    92.85 |     100 |     100 |                   
+  route.ts         |     100 |    92.85 |     100 |     100 | 106               
+ .../content-brief |     100 |    89.47 |     100 |     100 |                   
+  route.ts         |     100 |    89.47 |     100 |     100 | 79-80             
+ ...rewrite-chunks |   93.75 |    93.33 |     100 |     100 |                   
+  route.ts         |   93.75 |    93.33 |     100 |     100 | 25                
+ .../funnel-events |   95.45 |       80 |     100 |   95.23 |                   
+  route.ts         |   95.45 |       80 |     100 |   95.23 | 14                
+ ...oogle/callback |   90.69 |    75.67 |     100 |   89.74 |                   
+  route.ts         |   90.69 |    75.67 |     100 |   89.74 | 45,52-53,66       
+ ...s/google/start |   85.71 |       60 |     100 |   89.47 |                   
+  route.ts         |   85.71 |       60 |     100 |   89.47 | 25-26             
+ ...rnal/readiness |   97.56 |     92.3 |     100 |     100 |                   
+  route.ts         |   97.56 |     92.3 |     100 |     100 | 32                
+ ...rding/complete |     100 |    97.36 |     100 |     100 |                   
+  route.ts         |     100 |    97.36 |     100 |     100 | 19                
+ ...[slug]/contact |   93.33 |    83.33 |     100 |     100 |                   
+  route.ts         |   93.33 |    83.33 |     100 |     100 | 31                
+ ...ts/[slug]/logo |   88.88 |      100 |     100 |    87.5 |                   
+  route.ts         |   88.88 |      100 |     100 |    87.5 | 31                
+ .../api/pulse/run |   95.04 |    93.33 |     100 |    96.7 |                   
+  route.ts         |   95.04 |    93.33 |     100 |    96.7 | 150,173-174       
+ ...gest-questions |   97.72 |       90 |     100 |    97.5 |                   
+  route.ts         |   97.72 |       90 |     100 |    97.5 | 92                
+ ...eport-branding |      95 |    92.59 |     100 |   94.11 |                   
+  route.ts         |      95 |    92.59 |     100 |   94.11 | 18                
+ Aiso/app/api/scan |   85.35 |    80.62 |   66.66 |   85.71 |                   
+  route.ts         |   85.35 |    80.62 |   66.66 |   85.71 | ...60,404-426,445 
+ ...]/claim-intent |   89.47 |    95.23 |     100 |   90.62 |                   
+  route.ts         |   89.47 |    95.23 |     100 |   90.62 | 52,77-78          
+ ...tripe/checkout |      75 |    64.28 |     100 |   78.94 |                   
+  route.ts         |      75 |    64.28 |     100 |   78.94 | 32,47-49          
+ ...stripe/webhook |   84.61 |    80.89 |     100 |   86.74 |                   
+  route.ts         |   84.61 |    80.89 |     100 |   86.74 | ...89,195,200,235 
+ .../webhooks/neon |   96.77 |    89.65 |   66.66 |     100 |                   
+  route.ts         |   96.77 |    89.65 |   66.66 |     100 | 197,236-240       
+ Aiso/components   |   86.51 |       70 |   73.33 |   90.54 |                   
+  ...CheckItem.tsx |   81.25 |    38.46 |   33.33 |   85.71 | 64-68             
+  FixPackBlock.tsx |   94.73 |       80 |     100 |     100 | 13-26             
+  ...ackClient.tsx |   96.77 |    96.15 |     100 |     100 | 15                
+  ...coreCards.tsx |     100 |    83.33 |     100 |     100 | 78-83             
+  ScoreRing.tsx    |    12.5 |        0 |       0 |   16.66 | 6-13              
+ ...ents/approvals |   22.12 |    28.12 |   18.18 |      24 |                   
+  ...Workspace.tsx |   22.12 |    28.12 |   18.18 |      24 | ...06-226,244-303 
+ ...omponents/auth |   43.95 |    28.33 |   33.33 |   45.67 |                   
+  AuthComplete.tsx |   22.85 |     7.14 |   16.66 |    25.8 | 20-22,44-79       
+  LoginForm.tsx    |    42.1 |       30 |   14.28 |   44.44 | ...7,62-75,80,111 
+  ...onRefresh.tsx |   88.88 |       75 |      80 |   92.85 | 22                
+ ...ts/change-sets |   25.46 |    30.14 |   13.51 |   27.46 |                   
+  DecisionForm.tsx |      22 |       15 |      20 |   22.91 | 30-75,93-133      
+  ...onDetails.tsx |     100 |    68.75 |     100 |     100 | 34-65             
+  ...Workspace.tsx |   24.29 |       27 |    6.66 |   26.66 | ...89,233,244-287 
+ ...ents/dashboard |   43.47 |    60.89 |   38.12 |   47.29 |                   
+  ...nProgress.tsx |     100 |    66.66 |     100 |     100 | 25,42             
+  ...andWizard.tsx |      20 |        0 |       0 |      25 | 6-8               
+  ...mpetitors.tsx |       0 |        0 |       0 |       0 | 7-36              
+  ...tProgress.tsx |       0 |        0 |       0 |       0 | 7-38              
+  ...endations.tsx |       0 |        0 |       0 |       0 | 7-35              
+  ...genceView.tsx |   46.42 |       80 |    62.5 |   44.44 | 38-57,74-81       
+  BrandCard.tsx    |     100 |    92.85 |     100 |     100 | 21                
+  ...nExplorer.tsx |   64.81 |    75.92 |   85.71 |   95.83 | 158               
+  ...orsEditor.tsx |   27.86 |    48.57 |      16 |   34.88 | 47-75,106-155     
+  ...rdSidebar.tsx |   65.62 |    72.34 |   15.38 |   67.74 | 83,113-244        
+  ImproveStep.tsx  |       0 |        0 |       0 |       0 | 19-24             
+  ...edFeature.tsx |    12.5 |        0 |       0 |   14.28 | 13-40             
+  MembersPanel.tsx |   28.37 |    55.55 |   28.57 |   33.96 | ...19,151-192,225 
+  MonitorStep.tsx  |       0 |        0 |       0 |       0 | 13-14             
+  ...ationBell.tsx |      80 |    79.71 |   66.66 |   81.35 | 28-41             
+  RecentScans.tsx  |     100 |    96.42 |     100 |     100 | 29                
+  ResultsStep.tsx  |       0 |      100 |       0 |       0 | 9-10              
+  ScanStep.tsx     |   10.63 |       18 |    7.69 |   10.86 | 30-184            
+  ScanSummary.tsx  |   13.33 |        0 |       0 |   17.39 | 26-105            
+  ...spaceHome.tsx |    87.5 |    54.16 |   71.42 |    87.5 | 46,94             
+ ...rd/local-trust |      73 |    71.15 |   65.45 |   74.59 |                   
+  ...rSnapshot.tsx |     100 |       75 |     100 |     100 | 44                
+  ...corePanel.tsx |     100 |       50 |     100 |     100 | 39                
+  ...SetupForm.tsx |   75.36 |    89.13 |      50 |      75 | ...83-203,225-278 
+  ...TrustStep.tsx |   67.64 |    60.46 |     100 |   64.51 | 87-105,112        
+  ...rtActions.tsx |   85.71 |      100 |      50 |   85.71 | 31                
+  RoiTimeline.tsx  |   88.23 |    56.52 |     100 |     100 | 81-93,102,146-147 
+  ...Checklist.tsx |   59.64 |    69.44 |    37.5 |   64.15 | ...58-185,225-234 
+ ...nents/delivery |   19.26 |    17.25 |     9.3 |   24.34 |                   
+  DeliveryForm.tsx |   33.33 |       30 |   16.66 |   33.33 | 15-22,28-34       
+  ...ryHistory.tsx |   83.33 |    72.22 |   66.66 |   83.33 | 13                
+  ...Workspace.tsx |    15.7 |    11.61 |    2.94 |   19.14 | ...67-113,120-136 
+ ...nents/entities |   22.04 |    22.91 |   21.05 |      25 |                   
+  ...tionPanel.tsx |   31.11 |    40.42 |      25 |      40 | 79-111,144-150    
+  EntityEditor.tsx |   17.07 |    14.43 |   18.18 |   18.18 | ...82-178,217-287 
+ ...omponents/home |   55.43 |    69.23 |      50 |   54.32 |                   
+  ScanForm.tsx     |   55.43 |    69.23 |      50 |   54.32 | ...54,173-218,236 
+ ...s/integrations |   40.93 |    54.12 |   52.17 |   40.98 |                   
+  ...ionsPanel.tsx |      50 |       64 |   58.33 |   53.33 | 83-108,135        
+  ...solePanel.tsx |   38.26 |    51.19 |      50 |   36.95 | 40-53,248-373     
+ ...ents/marketing |      75 |       90 |   66.66 |      75 |                   
+  ...ationPage.tsx |      75 |       90 |   66.66 |      75 | 43                
+ ...s/observations |   26.86 |    56.11 |   34.09 |   33.65 |                   
+  ...ionDetail.tsx |   16.32 |    61.29 |   28.57 |   26.66 | 25,41-68          
+  ...Workspace.tsx |   35.06 |    63.63 |    42.3 |    38.8 | ...34-265,323-336 
+  ...eshooting.tsx |       0 |        0 |       0 |       0 | 5-12              
+ ...nts/onboarding |   28.82 |    24.57 |      16 |   34.35 |                   
+  ...ingWizard.tsx |   28.82 |    24.57 |      16 |   34.35 | ...10-250,294-456 
+ .../opportunities |    26.2 |    31.96 |   19.35 |   29.83 |                   
+  ...ceDetails.tsx |      75 |    48.48 |      60 |   71.42 | 69-88             
+  ...nityCards.tsx |   31.42 |    36.66 |    37.5 |      75 | 7                 
+  ...Workspace.tsx |   23.41 |    28.17 |   12.24 |   27.05 | ...56-317,351-428 
+ ...nents/outcomes |   44.89 |     45.9 |   56.25 |   57.89 |                   
+  ...meWindows.tsx |     100 |    91.66 |     100 |     100 | 9-10              
+  ...Workspace.tsx |   27.02 |    16.21 |    12.5 |   38.46 | 18-36,41          
+ ...mponents/pulse |   51.13 |    45.94 |    49.3 |   72.62 |                   
+  AlertsTab.tsx    |   82.41 |    78.57 |   47.36 |   83.33 | 19,63-66,112-150  
+  ...PulseView.tsx |     100 |    91.17 |     100 |     100 | 17-22             
+  ...ankEditor.tsx |   60.69 |    43.35 |   60.65 |   75.75 | ...87,199,233,306 
+  ...BulkPanel.tsx |      23 |    22.05 |   17.24 |   42.85 | 11-13,16-17,20-22 
+  ...eCoverage.tsx |     100 |    88.88 |     100 |     100 | 8                 
+  RunProgress.tsx  |   15.84 |     7.92 |    7.14 |    25.8 | 13-39,56-61       
+  ...Benchmark.tsx |     100 |    82.05 |     100 |     100 | ...,29,67,114-119 
+  SovChart.tsx     |   66.66 |    58.82 |      50 |      80 | 12                
+ ...onents/reports |   34.84 |    40.16 |      40 |   36.14 |                   
+  ...ndingForm.tsx |   54.79 |     58.9 |   42.85 |   54.83 | ...89-124,151-255 
+  ...rtBuilder.tsx |   12.12 |    15.88 |   16.66 |   13.33 | ...99-359,393-536 
+  ...rtPreview.tsx |   84.78 |     74.6 |   78.57 |    92.3 | 72-76,113         
+  ReportsList.tsx  |   29.54 |    42.85 |   26.66 |   34.21 | ...05,110,145-199 
+ ...ponents/result |   56.37 |    53.28 |   40.86 |   58.51 |                   
+  ...nlockCard.tsx |   27.58 |    26.66 |   14.28 |   27.18 | 150,159-338       
+  ...nOnReturn.tsx |   90.14 |    86.36 |      90 |   93.54 | 85-87,116         
+  ...eoSection.tsx |   47.36 |    56.92 |   33.33 |      50 | ...14-121,179-324 
+  ImpactPanel.tsx  |   34.78 |        0 |       0 |   34.78 | 58,69-165         
+  ImpactTeaser.tsx |   78.57 |       50 |     100 |   78.57 | 17-21             
+  ResultClient.tsx |   53.33 |       37 |   29.41 |    57.4 | ...93,197-199,311 
+  ...encePanel.tsx |     100 |       90 |     100 |     100 | 22                
+  ScoreReveal.tsx  |   57.14 |       52 |   14.28 |   66.66 | 70-71,75-85       
+  ShareButton.tsx  |   13.63 |        0 |       0 |   14.28 | 8-9,16-50         
+  TopIssueCard.tsx |      96 |     92.3 |     100 |     100 | 14,60             
+ ...onents/sources |   19.32 |    31.57 |    9.37 |    25.5 |                   
+  ...Workspace.tsx |   19.32 |    31.57 |    9.37 |    25.5 | ...64-406,421-450 
+ .../components/ui |   96.42 |      100 |   88.88 |   96.42 |                   
+  card.tsx         |   93.33 |      100 |      80 |   93.33 | 34                
+ ...nts/work-items |   20.21 |    13.54 |    6.45 |   33.33 |                   
+  DraftEditor.tsx  |   26.15 |    37.03 |    12.5 |   28.33 | 30-96,139-196     
+  ...ionsPanel.tsx |   16.94 |     4.34 |    4.34 |   66.66 | 11-13             
+ Aiso/lib          |   95.81 |    91.86 |   98.24 |   97.71 |                   
+  ...-return-to.ts |   95.38 |    93.82 |     100 |   97.67 | 52                
+  auth.ts          |   95.45 |    88.88 |     100 |   94.11 | 74                
+  axe-report.ts    |     100 |       60 |     100 |     100 | 36-44,58          
+  ...planations.ts |     100 |     87.5 |     100 |     100 | 430               
+  db.ts            |    85.1 |     62.5 |    87.5 |   90.24 | 29,113,116,162    
+  ...y-evidence.ts |     100 |    97.22 |     100 |     100 | 19                
+  funnel-client.ts |   82.75 |       80 |   83.33 |    91.3 | 31,55             
+  impact.ts        |   98.79 |       90 |     100 |   98.57 | 124               
+  neon-auth.ts     |   91.89 |       90 |     100 |   93.75 | 30,44             
+  openrouter.ts    |    97.1 |     91.8 |     100 |     100 | ...60,253,258-265 
+  pillar-scores.ts |   94.33 |     92.5 |     100 |   97.82 | 126               
+  resend.ts        |     100 |       75 |     100 |     100 | 32-33,89-96       
+  robots-policy.ts |     100 |    95.91 |     100 |     100 | 42,81             
+  ...ce-capture.ts |   95.83 |    85.18 |     100 |   97.05 | 17                
+  scan-evidence.ts |   93.16 |    93.51 |     100 |   98.24 | 149,170           
+  seo.ts           |     100 |     90.9 |     100 |     100 | 69-76             
+  sitemap-fetch.ts |      88 |       90 |     100 |   94.44 | 48                
+  stripe.ts        |   57.14 |        0 |       0 |   57.14 | 12-18             
+  trust-signals.ts |     100 |    97.56 |     100 |     100 | 52,83             
+ Aiso/lib/agents   |   97.36 |    95.23 |     100 |     100 |                   
+  untrusted.ts     |   88.88 |       50 |     100 |     100 | 57                
+ Aiso/lib/alerts   |   91.15 |    79.41 |   88.46 |   92.18 |                   
+  evaluate.ts      |   98.86 |    86.66 |     100 |   98.71 | 351               
+  neon-store.ts    |   79.66 |    59.25 |      85 |      82 | 82-96             
+ .../lib/approvals |   92.77 |    92.14 |   92.59 |   97.82 |                   
+  access-store.ts  |   89.18 |    89.85 |     100 |   98.03 | 29                
+  ...sion-store.ts |   84.61 |       75 |     100 |    90.9 | 12                
+  input.ts         |    92.1 |    94.44 |     100 |   96.42 | 24                
+  request.ts       |     100 |    95.45 |      60 |     100 | 35                
+ Aiso/lib/assets   |   94.82 |    89.13 |     100 |     100 |                   
+  ...uggestions.ts |   95.45 |       90 |     100 |     100 | 32,53             
+  schema.ts        |    91.3 |    86.36 |     100 |     100 | 37-51             
+ .../lib/authority |   75.63 |    63.85 |   93.33 |   84.26 |                   
+  aggregator.ts    |    87.5 |     64.7 |      50 |   86.66 | 70-71             
+  cache.ts         |   66.66 |       50 |     100 |   81.81 | 18-19             
+  layer1-tld.ts    |     100 |    83.33 |     100 |     100 | 40                
+  ...r2-signals.ts |   60.86 |    33.33 |     100 |   74.28 | 62-69,100         
+  ...3-industry.ts |   88.23 |    91.66 |     100 |    90.9 | 22                
+  ...4-regional.ts |   86.66 |     87.5 |     100 |     100 | 12-13             
+ ...ib/change-sets |   92.01 |    89.04 |     100 |   98.31 |                   
+  input.ts         |   94.87 |    97.29 |     100 |   96.29 | 24                
+  service.ts       |   96.29 |    94.28 |     100 |     100 | 26,32             
+  store.ts         |   88.88 |    84.55 |     100 |   98.71 | 187               
+  validation.ts    |   91.89 |    91.66 |     100 |   96.66 | 19                
+ Aiso/lib/checks   |   91.77 |    80.18 |   96.87 |   93.67 |                   
+  botAccess.ts     |     100 |       70 |     100 |     100 | 29-32,35-36       
+  canonical.ts     |    90.9 |      100 |     100 |      90 | 18                
+  chunkability.ts  |     100 |     62.5 |     100 |     100 | 24,31-32,35,49-53 
+  ...ionDensity.ts |   97.22 |    68.42 |     100 |     100 | 29,52,55-71,80    
+  ...tFreshness.ts |   66.66 |       50 |      50 |   66.66 | 6-8,19,30,38      
+  entitySignals.ts |    87.5 |    72.72 |     100 |   86.66 | 16,27             
+  ...actability.ts |   92.85 |      100 |     100 |      90 | 26                
+  ...ualDensity.ts |     100 |    95.34 |     100 |     100 | 79,96             
+  faqDetection.ts  |   88.88 |     64.7 |     100 |   94.11 | 26                
+  ...gStructure.ts |   85.71 |       90 |     100 |   83.33 | 11                
+  internalLinks.ts |   84.21 |       75 |     100 |     100 | 13,18-23          
+  llmsFullTxt.ts   |    92.3 |    92.85 |     100 |    90.9 | 42-44             
+  llmsTxt.ts       |      90 |      100 |     100 |    87.5 | 16                
+  robots.ts        |   95.45 |    94.11 |     100 |   94.11 | 38                
+  serverText.ts    |     100 |       75 |     100 |     100 | 15                
+  sitemap.ts       |   80.76 |    68.75 |      75 |      85 | 16,37-39          
+  ...cturedData.ts |   91.66 |      100 |     100 |   88.88 | 18                
+  ...lAuthority.ts |   89.09 |    89.47 |     100 |   97.82 | 75                
+ .../lib/citations |   93.33 |    88.09 |   89.79 |     100 |                   
+  classify.ts      |   96.42 |    94.44 |     100 |     100 | 39                
+  normalize.ts     |   97.22 |      100 |     100 |     100 |                   
+  query.ts         |   91.48 |    82.69 |   85.71 |     100 | 9,11,13,19,23     
+  report.ts        |    92.1 |    85.71 |    87.5 |     100 | ...50,163,194-204 
+ ...ib/competitors |   94.76 |    90.38 |   96.55 |   98.46 |                   
+  client.ts        |   87.03 |    80.76 |    90.9 |    97.5 | 72                
+  schema.ts        |   98.68 |    97.22 |     100 |     100 | 51-54             
+  store.ts         |   97.36 |       90 |     100 |   96.66 | 138               
+ Aiso/lib/cron     |     100 |       80 |     100 |     100 |                   
+  recordRun.ts     |     100 |       80 |     100 |     100 | 28-31             
+ Aiso/lib/delivery |    92.5 |    92.61 |   98.07 |   97.05 |                   
+  dto.ts           |    90.9 |    91.89 |     100 |     100 | 9,12,35           
+  export.ts        |    91.3 |    88.88 |     100 |     100 | 19-28,32,41,46    
+  input.ts         |   92.68 |     93.2 |     100 |     100 | 7,32,43-44,52-57  
+  service.ts       |   98.57 |      100 |     100 |   98.11 | 44                
+  store.ts         |   88.76 |    91.52 |   91.66 |   91.17 | ...20,196,277-295 
+ ...n-verification |   93.18 |    88.57 |     100 |   94.44 |                   
+  schema.ts        |   93.75 |    96.55 |     100 |   95.65 | 62                
+  service.ts       |   92.85 |    82.92 |     100 |   93.87 | 86,110,161        
+ Aiso/lib/entities |      94 |    82.85 |   94.44 |   96.15 |                   
+  schema.ts        |   96.15 |    96.29 |     100 |     100 | 24                
+  service.ts       |   96.61 |    85.71 |     100 |     100 | 40,65,76          
+  store.ts         |      80 |    63.63 |      75 |      80 | 31-33             
+ Aiso/lib/fix      |     100 |    91.66 |     100 |     100 |                   
+  guard.ts         |     100 |    91.66 |     100 |     100 | 73                
+ ...rations/google |   93.97 |    92.42 |     100 |   97.76 |                   
+  ...nt-reasons.ts |     100 |       50 |     100 |     100 | 12                
+  consent-state.ts |   90.62 |    97.43 |     100 |   92.59 | 63,72             
+  oauth.ts         |   94.28 |    91.93 |     100 |   98.21 | 128               
+  vault.ts         |   95.16 |    89.65 |     100 |     100 | 51,60,80          
+ ...search-console |   96.35 |    91.78 |   97.43 |   99.06 |                   
+  binding.ts       |   95.34 |     92.5 |     100 |   97.05 | 54                
+  client.ts        |   95.12 |    90.36 |   94.11 |   98.43 | 105               
+  sync.ts          |   96.03 |    87.93 |     100 |     100 | ...51,173,188,240 
+ ...lib/localTrust |   85.63 |    83.33 |   76.59 |   87.58 |                   
+  scan.ts          |   88.88 |    77.77 |     100 |     100 | 5-7               
+  scoring.ts       |   98.66 |    90.72 |   94.44 |    98.5 | 37                
+  store.ts         |   63.49 |     40.9 |   54.54 |   63.04 | 25-112,279-280    
+ Aiso/lib/members  |   97.27 |    91.46 |     100 |    96.7 |                   
+  service.ts       |    96.1 |    85.71 |     100 |   95.65 | 64,91,208         
+ .../observability |   91.22 |       90 |     100 |   95.34 |                   
+  ...base-error.ts |     100 |     90.9 |     100 |     100 | 25                
+  funnel.ts        |   89.36 |    89.79 |     100 |   94.11 | 39,48             
+ ...b/observations |    90.2 |    87.34 |   88.88 |    93.5 |                   
+  query.ts         |   93.05 |    93.33 |     100 |   98.18 | 52                
+  ...leshooting.ts |      10 |        0 |       0 |   14.28 | 7-20              
+  schema.ts        |   94.44 |    88.88 |   88.88 |   97.67 | 92                
+  store.ts         |    87.5 |    94.73 |      80 |   86.66 | 119-131           
+ ...lib/onboarding |      66 |    73.94 |   45.45 |      64 |                   
+  industry.ts      |     100 |    71.42 |     100 |     100 | 4-7               
+  schema.ts        |   98.11 |     97.1 |   85.71 |   97.29 | 45                
+  service.ts       |   18.75 |    52.63 |      50 |   23.07 | 21-31             
+  store.ts         |      20 |     5.88 |    9.09 |      20 | 15-25,79-126      
+ .../opportunities |   92.24 |    85.14 |   96.72 |   96.18 |                   
+  fingerprint.ts   |   96.35 |     92.2 |     100 |   99.13 | 139               
+  groups.ts        |    91.3 |    88.88 |     100 |     100 | 6                 
+  presentation.ts  |     100 |       40 |     100 |     100 | 7-8               
+  query.ts         |   28.57 |    16.66 |      50 |   35.71 | 9-17              
+  rules.ts         |   94.44 |    79.24 |     100 |     100 | ...1,61,91,99-108 
+  service.ts       |   98.24 |    94.87 |     100 |     100 | 36,64             
+  store.ts         |   98.03 |    93.18 |     100 |     100 | 35,107,142        
+ Aiso/lib/outcomes |   95.48 |    92.48 |     100 |     100 |                   
+  dto.ts           |   90.78 |    89.47 |     100 |     100 | ...34-46,67,79,90 
+  evaluate.ts      |     100 |    95.28 |     100 |     100 | 53-54,79,91       
+  service.ts       |     100 |    94.44 |     100 |     100 | 31                
+  sources.ts       |      93 |    91.39 |     100 |     100 | ...32-44,58,96-97 
+  time.ts          |   89.47 |    85.71 |     100 |     100 | 4,18              
+ Aiso/lib/prompts  |   89.78 |    84.61 |    91.3 |     100 |                   
+  bulk.ts          |    86.4 |    77.92 |   85.71 |     100 | 7-10,12-17        
+  context.ts       |     100 |    96.66 |     100 |     100 | 39                
+ Aiso/lib/pulse    |   93.92 |    83.91 |   98.82 |      98 |                   
+  ...s-fallback.ts |      95 |    91.93 |     100 |     100 | 46,81-85,96       
+  analysis.ts      |   84.21 |    71.42 |      75 |   93.33 | 55                
+  grounding.ts     |    93.1 |    80.48 |     100 |     100 | 68-69,86          
+  ...ed-summary.ts |   90.47 |    84.41 |     100 |     100 | 6,12,14,18-20     
+  ...-citations.ts |   89.65 |    89.47 |     100 |   95.23 | 12                
+  schedule.ts      |   90.32 |    71.11 |     100 |   89.28 | 52,117-119        
+  ...e-of-voice.ts |   97.34 |    84.74 |     100 |     100 | ...26,143,156,192 
+ ...lib/pulse/runs |    63.1 |    64.07 |   74.02 |   70.16 |                   
+  ...sification.ts |   91.66 |    82.35 |     100 |     100 | 12,59,76          
+  cron.ts          |   57.14 |    57.14 |      50 |   70.96 | ...25,35-38,42-43 
+  dispatch.ts      |       0 |        0 |       0 |       0 | 7-24              
+  legacy-repair.ts |   81.57 |    77.14 |   66.66 |     100 | 10,14,18-19,36-38 
+  queue.ts         |    87.5 |       80 |     100 |     100 | 39-41             
+  read-coverage.ts |   81.81 |      100 |     100 |     100 |                   
+  schema.ts        |     100 |    96.66 |     100 |     100 | 17                
+  service.ts       |   93.65 |       76 |   92.85 |   97.67 | 34                
+  store.ts         |    72.5 |     81.6 |    87.5 |   86.66 | 94,177-193        
+  user-access.ts   |     100 |    85.71 |     100 |     100 | 10,15             
+  user-dispatch.ts |     8.1 |    18.82 |    9.09 |   11.11 | 24-87             
+  worker.ts        |   61.41 |    57.14 |   81.25 |   62.16 | ...01-102,113-114 
+ .../lib/readiness |      95 |    91.82 |   94.37 |   99.38 |                   
+  config.ts        |   94.54 |    97.22 |   81.25 |      94 | 109-111           
+  dns.ts           |     100 |     90.9 |   91.66 |     100 | 27                
+  ...e-adapters.ts |   95.93 |    90.24 |    92.3 |     100 | ...77,185,206,209 
+  runtime-auth.ts  |      94 |    91.42 |   83.33 |     100 | 25-26,41          
+  ...e-contract.ts |    92.2 |    91.91 |     100 |     100 | ...06-108,116,156 
+  ...ime-report.ts |   91.53 |     91.6 |     100 |     100 | ...03-116,129,152 
+  runtime.ts       |   97.27 |       92 |   96.96 |     100 | ...36-140,148,150 
+ Aiso/lib/reports  |   88.41 |    86.16 |   97.12 |   93.01 |                   
+  ai.ts            |   97.22 |    95.83 |     100 |     100 | 53                
+  branding.ts      |   90.74 |    87.25 |     100 |   93.87 | 46,93-96,115      
+  client-dto.ts    |   78.46 |    87.64 |    92.3 |   81.35 | ...39,147,207-211 
+  comparison.ts    |   90.76 |    92.85 |     100 |   95.83 | 60,109            
+  ...on-blocker.ts |   92.52 |    84.88 |     100 |      97 | 120,142-143       
+  public.ts        |   97.36 |    90.19 |     100 |   97.14 | 129               
+  service.ts       |   83.53 |    84.21 |   94.44 |   89.09 | ...24,684,744-750 
+  share.ts         |   95.12 |    97.36 |     100 |   97.22 | 53                
+  snapshot.ts      |   94.11 |    93.24 |     100 |     100 | 32,69,89-91,96    
+  store.ts         |   86.44 |    81.54 |   96.77 |    92.7 | ...41,679,705-715 
+  summary.ts       |    92.3 |    68.18 |     100 |     100 | 15-16,19-20       
+ Aiso/lib/schema   |   40.74 |    78.57 |   10.52 |   39.21 |                   
+  introspect.ts    |    3.03 |        0 |       0 |    3.12 | 8-149             
+ Aiso/lib/security |   90.97 |    88.12 |   91.78 |   93.31 |                   
+  ...scan-quota.ts |   21.42 |    16.66 |      25 |      25 | 17-41,62-81       
+  ...rate-limit.ts |   87.75 |     82.5 |    90.9 |   90.47 | 91,136-138        
+  ...rate-limit.ts |      80 |        0 |      50 |      80 | 34                
+  public-url.ts    |   92.72 |    85.03 |     100 |    95.2 | 64,82-83,133-136  
+  ...aim-intent.ts |   86.95 |    90.19 |   85.71 |   94.59 | 64,109            
+ Aiso/lib/sources  |   77.04 |    72.67 |   85.13 |   79.32 |                   
+  ...rt-preview.ts |   96.87 |    88.57 |     100 |     100 | 6,10,19           
+  pagination.ts    |       0 |        0 |       0 |       0 | 13-42             
+  preview-state.ts |     100 |       90 |     100 |     100 | 11                
+  query.ts         |   87.09 |    86.48 |     100 |     100 | 13,19-21          
+  schema.ts        |   96.59 |     90.9 |     100 |     100 | ...39,145,147,153 
+  service.ts       |   60.17 |    64.07 |      75 |   63.95 | ...54-175,192-193 
+  store.ts         |   54.34 |    61.81 |   58.33 |   57.89 | 105-142,274-301   
+ .../lib/telemetry |     100 |    88.88 |     100 |     100 |                   
+  activation.ts    |     100 |    88.88 |     100 |     100 | 80                
+ ...ib/view-models |   95.38 |    85.76 |   96.15 |   97.72 |                   
+  ...onvergence.ts |      95 |    63.63 |     100 |     100 | 48,83-84          
+  ...k-priority.ts |     100 |    97.05 |     100 |     100 | 19                
+  daily-work.ts    |   87.87 |    76.19 |     100 |     100 | 13,16-18,23       
+  ...priorities.ts |   95.23 |     92.3 |     100 |   94.73 | 75                
+  portfolio.ts     |     100 |     87.5 |     100 |     100 | 19,22             
+  ...-next-step.ts |   91.66 |    92.85 |     100 |     100 | 4                 
+  pulse.ts         |   93.54 |    79.41 |   81.81 |   81.81 | 24-25             
+  scan-status.ts   |     100 |     87.5 |     100 |     100 | 12                
+  source-pack.ts   |     100 |    97.29 |     100 |     100 | 97                
+  ...space-home.ts |     100 |     77.5 |     100 |     100 | 50-51,54-55       
+ ...lib/work-items |   89.93 |     87.2 |   98.21 |   96.71 |                   
+  edit-input.ts    |      88 |    91.66 |     100 |   95.65 | 18                
+  ...ions-input.ts |   89.47 |    94.59 |     100 |     100 | 4                 
+  query.ts         |    84.9 |    83.67 |     100 |     100 | 7-20,27-33,44     
+  schema.ts        |   90.69 |    92.68 |     100 |     100 | 27,37,57          
+  service.ts       |   95.65 |    89.74 |     100 |     100 | 28,34,85,91       
+  snapshot.ts      |   84.61 |    88.88 |     100 |     100 | 16,23             
+  store.ts         |    82.5 |     72.5 |    87.5 |   83.33 | 16-18,23-29,38    
+ .../lib/workspace |   90.07 |       70 |     100 |   94.73 |                   
+  ...-portfolio.ts |   95.12 |    73.33 |     100 |   96.87 | 32                
+  ...-workspace.ts |      95 |     82.5 |     100 |     100 | 34-45,74,119      
+  maintenance.ts   |   42.85 |     42.3 |     100 |   55.55 | 31-34             
+ Aiso/scripts      |   56.61 |    67.21 |   59.59 |   56.43 |                   
+  ...p-project.mjs |   44.73 |    66.15 |   45.45 |   45.94 | ...13-264,266-267 
+  ...form-admin.ts |      50 |    57.69 |   44.44 |      45 | ...90,202,207-211 
+  migrate.ts       |   44.91 |    58.65 |   63.41 |   44.28 | ...76,422,515-522 
+  ...-branches.mjs |   41.02 |    56.75 |      40 |   37.14 | 78,92-137,145     
+  run-tests.mjs    |    97.7 |    90.66 |   94.11 |   98.73 | 298               
+  ...uivalence.mjs |    87.5 |    78.08 |   66.66 |   87.87 | ...16,145,149-155 
+  ...ci-server.cjs |   24.13 |    27.77 |      20 |   25.49 | 36-104            
+ Aiso/scripts/ci   |   56.22 |    65.56 |   57.47 |   58.95 |                   
+  ...gate-gate.mjs |   78.78 |    83.33 |   85.71 |      75 | 59-66,70-72       
+  ...laywright.mjs |    46.8 |    55.55 |   44.44 |   51.28 | 45-74,78-80       
+  ...fy-vitest.mjs |   57.77 |    69.84 |   68.42 |   57.89 | 55-80,84-86       
+  ...2e-shards.mjs |      70 |    90.32 |   77.77 |      75 | 33-35,39          
+  ...-fixtures.mjs |   88.88 |    83.33 |   83.33 |   94.73 | 32                
+  ...rovenance.mjs |     100 |    89.47 |     100 |     100 | 14,41             
+  ...orization.mjs |      40 |    76.92 |      50 |   41.66 | 15-22,26-28       
+  ...et-suites.mjs |    7.14 |     14.7 |       0 |    8.77 | 81-221,234-236    
+  ...-manifest.mjs |   78.15 |    70.63 |   57.14 |   82.52 | ...87-190,195-197 
+  ...b-summary.mjs |    25.8 |       36 |   42.85 |      28 | 38-59,72-74       
+ Aiso/scripts/e2e  |   88.23 |    93.75 |   33.33 |   88.23 |                   
+  auth-config.mjs  |   88.23 |    93.75 |   33.33 |   88.23 | 79-83             
+ ...ipts/readiness |   95.05 |       91 |   91.66 |   99.44 |                   
+  ...-contract.mjs |   99.37 |    95.16 |     100 |     100 | ...,92,97,115-117 
+  ...candidate.mjs |   88.46 |    84.21 |   61.53 |   98.61 | 105               
+ ...ma-equivalence |   96.47 |    92.32 |   95.23 |   96.71 |                   
+  contract.mjs     |   98.37 |    97.15 |   98.11 |   98.56 | 220,254-255,687   
+  local-ports.mjs  |   94.93 |    65.71 |   90.47 |   94.66 | 51,99,157,193     
+  neon-port.mjs    |   94.38 |    94.16 |   85.29 |   94.21 | 19-32             
+  runner.mjs       |   91.15 |    87.83 |     100 |   93.33 | ...50-251,254-255 
+  target.mjs       |     100 |    98.48 |     100 |     100 | 127               
+ .../authenticated |    92.1 |    81.81 |    87.5 |     100 |                   
+  ...nance.spec.ts |    92.1 |    81.81 |    87.5 |     100 | 7-9               
+ ...tests/fixtures |      30 |    62.79 |      40 |   23.52 |                   
+  audit-loop.tsx   |      80 |    83.33 |      50 |     100 | 14                
+  ...space-home.ts |       0 |        0 |       0 |       0 | 8-27              
+-------------------|---------|----------|---------|---------|-------------------
+
+=============================== Coverage summary ===============================
+Statements   : 77.21% ( 14373/18614 )
+Branches     : 73.96% ( 12471/16860 )
+Functions    : 74.05% ( 2675/3612 )
+Lines        : 80.99% ( 11906/14699 )
+================================================================================

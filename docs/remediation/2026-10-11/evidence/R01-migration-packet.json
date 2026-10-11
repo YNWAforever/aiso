@@ -1,0 +1,47 @@
+{
+  "environment": "task-owned local PostgreSQL only",
+  "targetVerified": true,
+  "migrations": [
+    {
+      "file": "063_search_execution_evidence.sql",
+      "sha256": "42cdf92fa9e445afd29e0fb982dacfe5f79ef44f403396dee5e15b142fd0225c",
+      "appliedLocal": true
+    },
+    {
+      "file": "064_onboarding_intent_hash.sql",
+      "sha256": "6c39b3478a124f72ca230e64665aa97781387d391dad9a340c58f28807a2d67c",
+      "appliedLocal": true
+    },
+    {
+      "file": "065_pulse_run_identity_and_repair.sql",
+      "sha256": "fef05656b8e87e3fccadb4a1eeaec11b881206bad2c5a506dfa9fc8f3ba00072",
+      "appliedLocal": true
+    },
+    {
+      "file": "066_pulse_attempt_grounding_grant.sql",
+      "sha256": "fc929b15d4f2695581aefdb3dcf0e6363a5c3dd2bf42160e35d495e7a2ea7552",
+      "appliedLocal": true
+    },
+    {
+      "file": "067_user_pulse_intents.sql",
+      "sha256": "4fb09021f3b076d7f6a921bb3339034ab4b6258a4c3df770e90ab9b483bc850c",
+      "appliedLocal": true
+    },
+    {
+      "file": "068_prompt_batch_intents.sql",
+      "sha256": "18b6e8648e45ab4a2f134520c19f00470b92a3914cc7bef5e3196f0b89588e75",
+      "appliedLocal": true
+    },
+    {
+      "file": "069_grouped_work_operations.sql",
+      "sha256": "14ad33c1825eefb8465b8501bbc5993dbf773b7957aa4bccd14d85d851779e09",
+      "appliedLocal": true
+    },
+    {
+      "file": "070_onboarding_recovery_intent_aliases.sql",
+      "sha256": "b7d40d330f023d8f36e5c143938bf84eef635c33295da78f1c7039370dafc400",
+      "appliedLocal": true
+    }
+  ],
+  "pendingLocal": []
+}

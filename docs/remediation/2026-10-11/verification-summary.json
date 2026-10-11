@@ -1,0 +1,552 @@
+{
+  "recordedAt": "2026-10-11T14:19:08.966Z",
+  "auditSha": "783e54e3fa99f8c14e4cab84a67b42b0b1513c3c",
+  "baseSha": "27dd057fa6d5ecaae5bbd342e25cc8579e529d3a",
+  "codeSha": "f0ed5c794fd612be541b14058fcd5c9eff20343e",
+  "pr": "https://github.com/YNWAforever/aiso/pull/86",
+  "taskOrder": [
+    "P00",
+    "T01",
+    "T02",
+    "T06",
+    "T08",
+    "T03",
+    "T04",
+    "T05",
+    "T09",
+    "T12",
+    "T07",
+    "T10",
+    "T11",
+    "R01"
+  ],
+  "implementation": {
+    "tasks": 12,
+    "findings": 13,
+    "status": "verified_local",
+    "verifiedLive": 0
+  },
+  "local": {
+    "static": {
+      "lint": "passed",
+      "typecheck": "passed",
+      "logs": [
+        "R01-lint-release.log",
+        "R01-typecheck-release.log"
+      ]
+    },
+    "build": {
+      "status": "passed",
+      "log": "R01-build-nullable-fixture.log"
+    },
+    "unit": {
+      "passed": 5877,
+      "failed": 0,
+      "skipped": 0,
+      "files": 417,
+      "coverage": {
+        "statements": 77.21,
+        "branches": 73.96,
+        "functions": 74.05,
+        "lines": 80.99
+      },
+      "log": "R01-unit-release.log"
+    },
+    "persistence": {
+      "passed": 39,
+      "failed": 0,
+      "skipped": 0,
+      "environment": "task-owned local PostgreSQL16, real SQL and application-role binding; Auth mocked; no external provider",
+      "log": "R01-persistence-context-green.log"
+    },
+    "browser": {
+      "fullHistorical": {
+        "passed": 910,
+        "failed": 28,
+        "skipped": 0,
+        "total": 938,
+        "log": "R01-e2e-final-full.log",
+        "status": "failure"
+      },
+      "affectedRerun": {
+        "passed": 28,
+        "failed": 0,
+        "skipped": 0,
+        "log": "R01-e2e-fixture-rerun.log",
+        "status": "passed"
+      },
+      "auditFocused": {
+        "passed": 48,
+        "failed": 0,
+        "log": "R01-audit-browser-final.log"
+      },
+      "limitation": "The affected rerun does not backfill the prior 938-case full run; final full four-shard CI is separately required."
+    },
+    "fixturePreparation": {
+      "passed": 125,
+      "files": 20,
+      "log": "R01-fixtures-final-candidate.log"
+    },
+    "worker": {
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "typecheck": "passed",
+      "dryRun": "passed",
+      "logs": [
+        "R01-worker-final.log",
+        "R01-worker-dry-run.log"
+      ],
+      "published": false
+    },
+    "migrations": {
+      "count": 8,
+      "range": "063–070",
+      "applied": "local fixture only",
+      "remoteDryRun": false,
+      "packet": "evidence/R01-migration-packet.json"
+    }
+  },
+  "review": {
+    "candidateSha": "f0ed5c794fd612be541b14058fcd5c9eff20343e",
+    "actionable": 0,
+    "critical": 0,
+    "important": 0,
+    "minor": 0,
+    "receipt": "review.md"
+  },
+  "preview": {
+    "candidateSha": "f0ed5c794fd612be541b14058fcd5c9eff20343e",
+    "origin": "https://aiso-audit-fixture-20261011-jfzu1ejwu-ynwaforevers-projects.vercel.app",
+    "environment": "protected synthetic static preview; actual remote assets; no Auth/DB/provider acceptance",
+    "verifiedAssets": 117,
+    "presentationChecks": 48,
+    "checks": [
+      {
+        "caseId": "UC01",
+        "lang": "en",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_ONBOARDING/{lang}.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC02",
+        "lang": "en",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_ONBOARDING/{lang}.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC03",
+        "lang": "en",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "C8A/{lang}-daily-partial.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC04",
+        "lang": "en",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_FIRST_PULSE/{lang}.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC05",
+        "lang": "en",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_PRIORITY/{lang}-incomplete.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC06",
+        "lang": "en",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "C8C/{lang}-ready.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC07",
+        "lang": "en",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_AUDIT_LOOP/{lang}-citations.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC08",
+        "lang": "en",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_AUDIT_LOOP/{lang}-citations.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC09",
+        "lang": "en",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "C8A/{lang}-ready.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC10",
+        "lang": "en",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_AUDIT_LOOP/{lang}-bulk.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC11",
+        "lang": "en",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_AUDIT_LOOP/{lang}-work.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC13",
+        "lang": "en",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_ONBOARDING/{lang}.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC01",
+        "lang": "en",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_ONBOARDING/{lang}.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC02",
+        "lang": "en",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_ONBOARDING/{lang}.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC03",
+        "lang": "en",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "C8A/{lang}-daily-partial.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC04",
+        "lang": "en",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_FIRST_PULSE/{lang}.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC05",
+        "lang": "en",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_PRIORITY/{lang}-incomplete.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC06",
+        "lang": "en",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "C8C/{lang}-ready.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC07",
+        "lang": "en",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_AUDIT_LOOP/{lang}-citations.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC08",
+        "lang": "en",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_AUDIT_LOOP/{lang}-citations.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC09",
+        "lang": "en",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "C8A/{lang}-ready.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC10",
+        "lang": "en",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_AUDIT_LOOP/{lang}-bulk.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC11",
+        "lang": "en",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_AUDIT_LOOP/{lang}-work.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC13",
+        "lang": "en",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_ONBOARDING/{lang}.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC01",
+        "lang": "zh-HK",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_ONBOARDING/{lang}.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC02",
+        "lang": "zh-HK",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_ONBOARDING/{lang}.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC03",
+        "lang": "zh-HK",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "C8A/{lang}-daily-partial.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC04",
+        "lang": "zh-HK",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_FIRST_PULSE/{lang}.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC05",
+        "lang": "zh-HK",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_PRIORITY/{lang}-incomplete.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC06",
+        "lang": "zh-HK",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "C8C/{lang}-ready.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC07",
+        "lang": "zh-HK",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_AUDIT_LOOP/{lang}-citations.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC08",
+        "lang": "zh-HK",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_AUDIT_LOOP/{lang}-citations.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC09",
+        "lang": "zh-HK",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "C8A/{lang}-ready.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC10",
+        "lang": "zh-HK",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_AUDIT_LOOP/{lang}-bulk.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC11",
+        "lang": "zh-HK",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_AUDIT_LOOP/{lang}-work.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC13",
+        "lang": "zh-HK",
+        "width": 375,
+        "status": "passed_presentation",
+        "path": "AISO_ONBOARDING/{lang}.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC01",
+        "lang": "zh-HK",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_ONBOARDING/{lang}.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC02",
+        "lang": "zh-HK",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_ONBOARDING/{lang}.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC03",
+        "lang": "zh-HK",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "C8A/{lang}-daily-partial.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC04",
+        "lang": "zh-HK",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_FIRST_PULSE/{lang}.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC05",
+        "lang": "zh-HK",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_PRIORITY/{lang}-incomplete.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC06",
+        "lang": "zh-HK",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "C8C/{lang}-ready.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC07",
+        "lang": "zh-HK",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_AUDIT_LOOP/{lang}-citations.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC08",
+        "lang": "zh-HK",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_AUDIT_LOOP/{lang}-citations.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC09",
+        "lang": "zh-HK",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "C8A/{lang}-ready.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC10",
+        "lang": "zh-HK",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_AUDIT_LOOP/{lang}-bulk.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC11",
+        "lang": "zh-HK",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_AUDIT_LOOP/{lang}-work.html",
+        "persistence": false
+      },
+      {
+        "caseId": "UC13",
+        "lang": "zh-HK",
+        "width": 1280,
+        "status": "passed_presentation",
+        "path": "AISO_ONBOARDING/{lang}.html",
+        "persistence": false
+      }
+    ],
+    "notApplicable": [
+      {
+        "caseId": "UC12",
+        "reason": "Tenant enforcement and private-suffix identity require real SQL/server functions, covered locally; static presentation cannot establish this"
+      }
+    ],
+    "receipt": "evidence/R01-preview-receipt.json",
+    "deploymentId": "dpl_7YU2gob4g767B9WK3uMdwZhq4aZG",
+    "status": "passed_presentation_only"
+  },
+  "ci": {
+    "status": "pending_final_evidence_head",
+    "requiredClasses": [
+      "static",
+      "unit-contract",
+      "integration",
+      "e2e-accessibility",
+      "build",
+      "cloudflare-worker"
+    ],
+    "aggregateRequired": true,
+    "unchangedGuard": true,
+    "disposableRoleApproval": "existing repository authorization enabled; no setting change in session"
+  },
+  "production": {
+    "sha": "27dd057fa6d5ecaae5bbd342e25cc8579e529d3a",
+    "candidate": false,
+    "readback": "evidence/deployment-readback.json"
+  },
+  "release": {
+    "status": "NO_GO",
+    "runbook": "release-runbook.md",
+    "blocked": [
+      "exact-head six-class CI and aggregate receipt",
+      "hosted Auth transactional preview and UC01–UC13",
+      "production Neon target identity/ledger/grants/backup/rollback rehearsal",
+      "approved real provider cap/provenance smoke",
+      "actual candidate Worker scheduled or controlled execution receipt",
+      "production flag/source/alias and compatible rollback bindings"
+    ]
+  },
+  "originalAuditExclusions": "audit-exclusions.md"
+}

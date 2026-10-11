@@ -1,0 +1,13 @@
+
+> test
+> vitest run
+
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/cloudflare/cron-worker
+
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  20:37:41
+   Duration  669ms (transform 28ms, setup 0ms, import 51ms, tests 11ms, environment 0ms)
+

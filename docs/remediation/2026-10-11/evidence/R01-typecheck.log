@@ -1,0 +1,7 @@
+
+> fimmick-aeo@0.1.0 typecheck
+> next typegen && tsc --noEmit
+
+Generating route types...
+✓ Types generated successfully
+__tests__/lib/pulse-evidence-boundaries.test.ts(186,139): error TS18046: 'run' is of type 'unknown'.
