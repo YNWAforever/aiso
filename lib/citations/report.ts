@@ -2,7 +2,7 @@ import type { db } from '@/lib/db'
 import { normalizeVerificationDomain } from '@/lib/domain-verification/schema'
 import { isoDate } from '@/lib/iso-date'
 import { classifyDomain, type CitationKind, type ClassifyContext } from '@/lib/citations/classify'
-import { normalizeCitationUrl, registrableDomain } from '@/lib/citations/normalize'
+import { normalizeCitationUrl, registrableDomain,CITATION_NORMALIZATION_VERSION } from '@/lib/citations/normalize'
 
 type Sql = ReturnType<typeof db>
 
@@ -33,6 +33,7 @@ export type CitationDomain = {
 export type CitationUrl = { url: string; title: string | null; domain: string; kind: CitationKind; competitor?: string; answers: number }
 export type CitationGap = { promptId: string | null; question: string; competitors: string[]; domains: string[] }
 export type CitationReport = {
+  normalizationVersion?:string
   gapCoverage: {state:'not_configured'|'partial_config'|'no_observations'|'ready';configuredCompetitors:number;competitorsWithDomains:number}
   weeks: string[]
   /** recordedEmpty: the provider returned no usable citation. unrecorded: no citation envelope was stored at all. */
@@ -89,6 +90,9 @@ export function buildCitationReport(input: { context: ClassifyContext; answers: 
         domains.set(domain, { domain, kind: kind.kind, ...(kind.competitor ? { competitor: kind.competitor } : {}),
           answers: 0, citations: 0, prompts: 0, platforms: [], promptKeys: new Set(), platformSet: new Set() })
       }
+      // Explicit priority across all hosts, not whichever URL arrived first.
+      const aggregate=domains.get(domain)!,priority: CitationKind[]=['owned','competitor','institutional','editorial','review','forum','social','other']
+      if(priority.indexOf(kind.kind)<priority.indexOf(aggregate.kind)||(kind.kind===aggregate.kind&&kind.competitor&&(kind.competitor< (aggregate.competitor??'')))){aggregate.kind=kind.kind;aggregate.competitor=kind.competitor}
       const u = urls.get(url) ?? { url, title, domain, kind: kind.kind, ...(kind.competitor ? { competitor: kind.competitor } : {}), answers: 0 }
       u.answers += 1
       if (!u.title && title) u.title = title
@@ -110,6 +114,7 @@ export function buildCitationReport(input: { context: ClassifyContext; answers: 
   }
 
   return {
+    normalizationVersion:CITATION_NORMALIZATION_VERSION,
     weeks,
     gapCoverage:{configuredCompetitors:input.context.competitors.length,competitorsWithDomains:input.context.competitors.filter(c=>c.domains.length>0).length,state:!input.context.competitors.length?'not_configured':input.context.competitors.some(c=>!c.domains.length)?'partial_config':counts.withCitations+counts.recordedEmpty===0?'no_observations':'ready'},
     answers: counts,

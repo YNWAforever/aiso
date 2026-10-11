@@ -1,0 +1,76 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ❯ __tests__/lib/citation-psl.test.ts (3 tests | 3 failed) 21ms
+     × isolates privately hosted sites and public suffixes 5ms
+     × keeps IP and localhost identities and rejects malformed hosts 2ms
+     × does not assign an aggregate kind based on citation order 13ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/lib/citation-psl.test.ts > citation PSL identity > isolates privately hosted sites and public suffixes
+AssertionError: expected 'github.io' to be 'foo.github.io' // Object.is equality
+
+Expected: "foo.github.io"
+Received: "github.io"
+
+ ❯ __tests__/lib/citation-psl.test.ts:6:45
+      4| describe('citation PSL identity',()=>{
+      5|  it('isolates privately hosted sites and public suffixes',()=>{
+      6|  expect(registrableDomain('foo.github.io')).toBe('foo.github.io');expe…
+       |                                             ^
+      7|  expect(registrableDomain('personal.hsbc.com.hk')).toBe('hsbc.com.hk')…
+      8|  expect(isWithin('bar.github.io','foo.github.io')).toBe(false)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  __tests__/lib/citation-psl.test.ts > citation PSL identity > keeps IP and localhost identities and rejects malformed hosts
+AssertionError: expected 'bücher.de' to be 'xn--bcher-kva.de' // Object.is equality
+
+Expected: "xn--bcher-kva.de"
+Received: "bücher.de"
+
+ ❯ __tests__/lib/citation-psl.test.ts:11:155
+      9|  })
+     10|  it('keeps IP and localhost identities and rejects malformed hosts',()…
+     11|  expect(registrableDomain('127.0.0.1')).toBe('127.0.0.1');expect(regis…
+       |                                                                                                                                                           ^
+     12|  expect(registrableDomain('a..com')).toMatch(/^invalid:/);expect(isWit…
+     13|  })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  __tests__/lib/citation-psl.test.ts > citation PSL identity > does not assign an aggregate kind based on citation order
+AssertionError: expected [ { domain: 'example.com', …(5) } ] to deeply equal [ { domain: 'example.com', …(5) } ]
+
+- Expected
++ Received
+
+@@ -1,11 +1,11 @@
+  [
+    {
+      "answers": 1,
+      "citations": 2,
+      "domain": "example.com",
+-     "kind": "forum",
++     "kind": "other",
+      "platforms": [
+        "fixture",
+      ],
+      "prompts": 1,
+    },
+
+ ❯ __tests__/lib/citation-psl.test.ts:17:25
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed (3)
+   Start at  20:06:02
+   Duration  287ms (transform 49ms, setup 30ms, import 47ms, tests 21ms, environment 0ms)
+

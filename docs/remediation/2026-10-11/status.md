@@ -17,7 +17,7 @@ All seven content hashes match. checksums.json alone has its known stale self-re
 | F46 | T09 | UC09 | reproduced | verified_local | 58/58 focused; real routes, setup outage distinct; CSS/accessibility preview matrix pending |
 | F47 | T10 | UC10 | still_present pending reproduction | untriaged | audit inputs |
 | F48 | T11 | UC11 | still_present pending reproduction | untriaged | audit inputs |
-| F49 | T12 | UC12 | still_present pending reproduction | untriaged | audit inputs |
+| F49 | T12 | UC12 | reproduced | verified_local | 45/45 PSL and citation fixtures; private suffixes, IDN, stable kinds; read-only dry-run spec |
 | F50 | T03 | UC13 | reproduced | verified_local | T03 canonical industry and safe URL syntax; legacy missing context stays pending |
 
 Task order: P00 → T01 → T02 → T06 → T08 → T03 → T04 → T05 → T09 → T12 → T07 → T10 → T11 → R01.
