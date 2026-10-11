@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-11T15:10:09.813Z",
+  "recordedAt": "2026-10-11T15:58:57.799Z",
   "auditSha": "783e54e3fa99f8c14e4cab84a67b42b0b1513c3c",
   "baseSha": "27dd057fa6d5ecaae5bbd342e25cc8579e529d3a",
   "codeSha": "b949145e5cae37d30276e3218403808448fde71e",
@@ -560,7 +560,14 @@
     "precedingMergeCheckout": "69446e10cac107a07ad165ad13e06760cda00968",
     "mergeCheckoutPolicy": "Verify synthetic merge parents and full tree equality with PR head, plus non-documentation source fingerprint equality with reviewed b949145.",
     "precedingConclusion": "failure",
-    "precedingReceipt": "evidence/R01-ci-a33c0ef-red.json"
+    "precedingReceipt": "evidence/R01-ci-a33c0ef-red.json",
+    "verifiedPredecessor": {
+      "headSha": "7abdca34f0e9ea25e1046797ef271039e83c1344",
+      "runId": 38150202887,
+      "status": "success",
+      "receipt": "evidence/R01-ci-7abdca3-green.json",
+      "sourceMatches": true
+    }
   },
   "production": {
     "sha": "27dd057fa6d5ecaae5bbd342e25cc8579e529d3a",
@@ -579,5 +586,10 @@
       "production flag/source/alias and compatible rollback bindings"
     ]
   },
-  "originalAuditExclusions": "audit-exclusions.md"
+  "originalAuditExclusions": "audit-exclusions.md",
+  "mergeAuthorization": {
+    "scope": "User explicitly requested commit and merge all remaining AISO work; normal required gate and exact-head match retained",
+    "allowed": "Repository merge and its existing Git-triggered application deployment",
+    "separateGates": "Production DB migration, Worker publication, external sending and paid provider execution remain target-bound"
+  }
 }
