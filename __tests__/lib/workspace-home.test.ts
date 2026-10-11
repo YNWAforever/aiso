@@ -9,6 +9,7 @@ vi.mock('@/lib/db', () => ({ db: () => async (strings: TemplateStringsArray, ...
   state.calls.push({ text, values })
   if (state.failed && text.includes(state.failed)) throw new Error('Database incident')
   if (text.includes('from clients') && !text.includes('join')) return state.missing || !values.includes('account-a') || !values.includes('client-a') ? [] : [{ id: 'client-a', brand_name: 'Acme', domain: 'example.com', industry: 'technology', status: 'active' }]
+  if (text.includes('from prompt_bank')) return [{language:'en',market:'HK'}]
   if (text.includes('agent_')) return state.agents
   if (text.includes('with recent_weeks')) {
     // Emulate the SQL window over 45 weeks: ascending-before-limit would lose the latest.

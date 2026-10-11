@@ -39,6 +39,7 @@ export type ActivationMilestone = (typeof ACTIVATION_MILESTONES)[number]
  * never be mistaken for an account that did nothing.
  */
 export type Activation = {
+  firstResults?:{resultAt:string|null;improvementAt:string|null}
   accountId: string
   observedAt: string
   reached: Record<ActivationMilestone, string | null>
@@ -72,7 +73,9 @@ export async function readActivation(accountId: string, now = new Date()): Promi
         where account_id = ${accountId} and decision = 'approved') as first_approved_work,
       (select min(exported_at) from work_item_export_events where account_id = ${accountId}) as first_export,
       (select min(recorded_at) from work_item_delivery_events
-        where account_id = ${accountId} and kind = 'attest') as first_declared_delivery
+        where account_id = ${accountId} and kind = 'attest') as first_declared_delivery,
+      (select min(m.created_at) from pulse_metrics m join clients c on c.id=m.client_id where c.account_id=${accountId} and m.classification_status='classified' and m.raw_answer ~ '[^[:space:]]' and (m.run_item_id is null or exists(select 1 from pulse_run_items i join pulse_runs r on r.id=i.run_id and r.account_id=i.account_id and r.client_id=i.client_id where i.id=m.run_item_id and r.account_id=${accountId} and r.purpose='canonical'))) as first_result,
+      (select min(created_at) from evidence_work_items where account_id=${accountId}) as first_improvement
   `
   const row = (rows[0] ?? {}) as Record<string, unknown>
   const reached = Object.fromEntries(
@@ -85,7 +88,7 @@ export async function readActivation(accountId: string, now = new Date()): Promi
     furthest = milestone
   }
 
-  return { accountId, observedAt: now.toISOString(), reached, furthest }
+  return { firstResults:{resultAt:iso(row.first_result),improvementAt:iso(row.first_improvement)},accountId, observedAt: now.toISOString(), reached, furthest }
 }
 
 /**

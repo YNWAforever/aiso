@@ -52,12 +52,16 @@ describe('dashboard sidebar on the brand portfolio', () => {
     expect(current).toEqual(['nav_home'])
   })
 
-  it('disables every step that needs a brand, and Home goes to the portfolio', () => {
+  it('guides a paid user to brand selection without a plan lock', () => {
     const byLabel = Object.fromEntries(render().map(l => [l.label, l]))
 
     for (const label of ['nav_scan', 'nav_results', 'nav_improve', 'nav_monitor', 'nav_roi']) {
-      expect(byLabel[label]?.disabled, label).toBe(true)
+      expect(byLabel[label]?.disabled, label).toBe(false)
+      expect(byLabel[label]?.href).toBe('/en/dashboard#portfolio-brands')
     }
+    const html=renderToStaticMarkup(<DashboardSidebar profile={{}} entitlement={entitlement}/>)
+    expect(html).toContain('select_brand_first')
+    expect(html).not.toContain('aria-label="Locked"')
     expect(byLabel.nav_home?.disabled).toBe(false)
     expect(byLabel.nav_home?.href).toBe('/en/dashboard')
   })

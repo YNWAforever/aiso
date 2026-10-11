@@ -16,7 +16,7 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
   function panel(title: string, section: { state: HomeDto['visibility']['state']; observedAt: string|null }, children: ReactNode) {
     return <section className="min-w-0 rounded-xl border border-dash-border bg-dash-surface p-5 sm:p-6">
       <h2 className="text-xl font-bold text-dash-text">{title}</h2>
-      <p className="mt-2 text-sm text-dash-muted">{copy.freshnessUnknown}</p>
+      <details className="mt-2 text-sm text-dash-muted"><summary>{copy.evidenceDetails}</summary>{copy.freshnessUnknown}</details>
       <p className="mt-1 text-sm text-dash-muted">{section.observedAt ? <>{copy.observedAt}: <time dateTime={section.observedAt}>{section.observedAt.replace('T', ' ').replace('.000Z', ' UTC')}</time></> : copy.noDate}</p>
       <div className="mt-5">{['ready','complete','partial'].includes(section.state) ? children : <p className="text-sm leading-relaxed text-dash-muted">{section.state==='ready'?'':copy.states[section.state]}</p>}</div>
       {section.state === 'locked' && <Link className={linkClass} href={`/${lang}/pricing`}>{copy.pricing}</Link>}
@@ -33,9 +33,11 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
       <h1 className="mt-2 text-3xl font-bold text-dash-text">{workspace.client.brand_name}</h1>
       <p className="mt-2 text-sm text-dash-muted">{workspace.client.domain}</p>
       <p className="mt-4 max-w-3xl text-sm leading-relaxed text-dash-muted">{copy.summary}</p>
+      {workspace.nextStep&&<Link className={`${linkClass} mt-4 bg-primary text-white no-underline`} href={workspace.nextStep.href.replace("__locale__",lang)}>{copy.nextStep[workspace.nextStep.labelKey]}</Link>}
+      {workspace.nextStep?.reasonKey==='unknown'&&<p>{copy.daily.unknown}</p>}
     </header>
-    {workspace.dailyWork&&<section aria-labelledby="daily-work-heading" className="mb-8 space-y-3 rounded-xl border border-dash-border bg-dash-surface p-5 sm:p-6">
-      <h2 id="daily-work-heading" className="text-xl font-bold text-dash-text">{copy.daily.title}</h2>
+    {workspace.dailyWork&&<details aria-labelledby="daily-work-heading" className="mb-8 space-y-3 rounded-xl border border-dash-border bg-dash-surface p-5 sm:p-6">
+      <summary id="daily-work-heading" className="text-xl font-bold text-dash-text">{copy.daily.title}</summary>
       <p className="text-dash-text">{copy.daily.states[workspace.dailyWork.state]}</p>
       {workspace.dailyWork.coverage&&<p className="text-dash-muted">{copy.daily.coverage.replace('{succeeded}',String(workspace.dailyWork.coverage.succeeded)).replace('{expected}',String(workspace.dailyWork.coverage.expected)).replace('{failed}',String(workspace.dailyWork.coverage.failed)).replace('{pending}',String(workspace.dailyWork.coverage.pending)).replace('{blocked}',String(workspace.dailyWork.coverage.blocked)).replace('{classified}',String(workspace.dailyWork.coverage.classified))}</p>}
       <p className="text-dash-muted">{copy.daily.lastComplete}: {workspace.dailyWork.lastCompleteAt??copy.daily.unknown}</p>
@@ -43,7 +45,7 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
       {workspace.dailyWork.partialReads&&<p>{copy.daily.partialReads}</p>}
       <ol>{workspace.dailyWork.nextActions.map(action=><li key={`${action.kind}:${action.path}`}><Link className={linkClass} href={`${base}${action.path}`}>{copy.daily.actions[action.kind]}</Link></li>)}</ol>
       <p className="text-sm text-dash-muted">{copy.daily.manual}</p>
-    </section>}
+    </details>}
     <section aria-labelledby="priorities-heading" className="mb-8 min-w-0 rounded-xl border border-dash-border bg-dash-surface p-5 sm:p-6">
       <h2 id="priorities-heading" className="text-xl font-bold text-dash-text">{pcopy.title}</h2>
       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-dash-muted">{pcopy.summary}</p>
@@ -74,7 +76,7 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
       {panel(copy.siteHealth, workspace.siteHealth, health && <>
         <p className="text-sm text-dash-muted">{copy.score}</p>
         <p className="mt-1 text-3xl font-bold text-dash-text">{health.score===null?(health.displayState==='failed'?(lang==='zh-HK'?zhHK:en).portfolio.scanIncomplete:(lang==='zh-HK'?zhHK:en).portfolio.scanUnknown):<>{health.score} / 100 <span className="text-lg">{health.grade}</span></>}</p>
-        <div className="mt-5">{health.pillarScores ? <PillarScoreCards results={{ pillarScores: health.pillarScores }} locale={lang} tone="dashboard" /> : <p className="text-sm text-dash-muted">{copy.noPillars}</p>}</div>
+        <div className="mt-5">{health.score!==null&&health.pillarScores ? <PillarScoreCards results={{ pillarScores: health.pillarScores }} locale={lang} tone="dashboard" /> : <p className="text-sm text-dash-muted">{copy.noPillars}</p>}</div>
         <Link className={linkClass} href={`${base}?step=results&scanId=${encodeURIComponent(health.scanId)}`}>{copy.results}</Link>
       </>)}
       {panel(copy.visibility, workspace.visibility, <>

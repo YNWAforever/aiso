@@ -13,8 +13,8 @@ All seven content hashes match. checksums.json alone has its known stale self-re
 | F42 | T06 | UC06 | reproduced | verified_local | T06 27/27 provider-response fixtures; request versus execution evidence; live provider untested |
 | F43 | T01 | UC05 | reproduced | verified_local | 108/108 synthetic tests; failed raw score preserved, display null; preview pending |
 | F44 | T07 | UC07 | still_present pending reproduction | untriaged | audit inputs |
-| F45 | T08 | UC08 | reproduced | verified_local | T08 52/52 prerequisites fixtures; competitor configuration CTA follow-up in T09 |
-| F46 | T09 | UC09 | reproduced | implementing | T09 next; Pro portfolio currently conflates selection with locked navigation |
+| F45 | T08 | UC08 | reproduced | verified_local | T08 52/52 prerequisites fixtures; competitor configuration CTA corrected in T09 |
+| F46 | T09 | UC09 | reproduced | verified_local | 58/58 focused; real routes, setup outage distinct; CSS/accessibility preview matrix pending |
 | F47 | T10 | UC10 | still_present pending reproduction | untriaged | audit inputs |
 | F48 | T11 | UC11 | still_present pending reproduction | untriaged | audit inputs |
 | F49 | T12 | UC12 | still_present pending reproduction | untriaged | audit inputs |

@@ -101,8 +101,8 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
           const unreachable = BRAND_STEPS.has(s.key) && !clientId || (!clientId && s.key !== 'home')
           const unentitled = (s.key === 'improve' && !features.agent_recs) ||
                              (s.key === 'roi' && !features.local_trust_roi)
-          const locked = unreachable || unentitled
-          const blocksNavigation = unreachable
+          const locked = !unreachable && unentitled
+          const blocksNavigation = false
 
           return (
             <Link
@@ -111,7 +111,7 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
               aria-disabled={blocksNavigation || undefined}
               tabIndex={blocksNavigation ? -1 : undefined}
               onClick={() => setNavigationOpen(false)}
-              href={clientId ? `/${lang}/dashboard/${clientId}?step=${s.key}` : `/${lang}/dashboard`}
+              href={clientId ? `/${lang}/dashboard/${clientId}?step=${s.key}` : `/${lang}/dashboard${unreachable?'#portfolio-brands':''}`}
               className={`flex min-h-11 items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group ${
                 active
                   ? 'bg-primary text-white shadow-sm'
@@ -126,10 +126,10 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
               <div className="min-w-0 flex-1">
                 <p className={`text-xs font-semibold ${active ? 'text-white' : ''}`}>{t(s.labelKey)}</p>
                 <p className={`text-[10px] leading-tight mt-0.5 truncate ${active ? 'text-white/70' : 'text-muted-foreground/60'}`}>
-                  {t(s.descKey)}
+                  {t(unreachable?'select_brand_first':unentitled?'plan_required':s.descKey)}
                 </p>
               </div>
-              {locked && <Lock className="size-3 ml-auto text-muted-foreground/80" aria-label="Locked" />}
+              {locked && <Lock className="size-3 ml-auto text-muted-foreground/80" aria-label={t('plan_required')} />}
             </Link>
           )
         })}

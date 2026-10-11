@@ -22,6 +22,8 @@ export function ActivationProgress({ progress, lang }: { progress: Progress; lan
         <p className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">{copy.unavailable}</p>
       ) : (
         <div className="rounded-xl border border-border bg-card p-6">
+          {progress.firstResults&&<ol className="mb-4 space-y-2 text-sm"><li>{progress.firstResults.resultAt?'✓':'·'} {copy.firstResult}</li><li>{progress.firstResults.improvementAt?'✓':'·'} {copy.firstImprovement}</li></ol>}
+          <details><summary className="min-h-11 text-sm font-semibold">{copy.auditMilestones}</summary>
           <p className="text-sm font-semibold text-foreground">
             {copy.progress}: {progress.reached} / {progress.total}
           </p>
@@ -47,6 +49,7 @@ export function ActivationProgress({ progress, lang }: { progress: Progress; lan
               {copy.outOfOrder}: {progress.outOfOrder.map(label).join(', ')}
             </p>
           )}
+          </details>
         </div>
       )}
     </section>

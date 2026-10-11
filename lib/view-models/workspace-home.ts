@@ -1,3 +1,4 @@
+import {projectPrimaryNextStep,type PrimaryNextStep} from './primary-next-step'
 import type { PulseDisplayState, PulseCoverageView } from '@/lib/pulse/observed-summary'
 import { projectScanStatus } from '@/lib/view-models/scan-status'
 import { isPillarScoreSnapshot, type PillarScoreSnapshot } from '@/lib/pillar-scores'
@@ -22,6 +23,7 @@ export type WorkspaceHome = {
    * tell" are different answers and must not render the same way.
    */
   priorities: OwnerPriorities
+  nextStep?:PrimaryNextStep
   dailyWork?:DailyWorkSummary
   siteHealth: WorkspaceSection<{ scanId: string; domain: string; score: number | null; displayState?: import('@/lib/view-models/scan-status').ScanDisplayState; grade: string | null; pillarScores: PillarScoreSnapshot | null }>
   history: WorkspaceSection<ClientOverview['scanHistory']>
@@ -45,6 +47,7 @@ export function buildWorkspaceHome(workspace: OwnedWorkspace): WorkspaceHome {
     // become a priority. buildOwnerPriorities returns 'unavailable' for a scan
     // that predates evidence recording rather than falling back to raw verdicts.
     priorities: buildOwnerPriorities(row?.results?.evidence),
+    nextStep:projectPrimaryNextStep({lang:"__locale__",clientId:workspace.client.id,setup:workspace.setup?.status==='ok'?workspace.setup.data:null,daily:buildDailyWorkSummary(workspace.maintenance?.status==='ok'?workspace.maintenance.data:null)}),
     dailyWork:buildDailyWorkSummary(workspace.maintenance?.status==='ok'?workspace.maintenance.data:null),
     siteHealth: section(scan, row ? { scanId: row.id, domain: row.domain, score: display.score, grade: display.grade, displayState: display.state,
       pillarScores: isPillarScoreSnapshot(persisted) ? persisted : null } : null, row?.created_at || null),

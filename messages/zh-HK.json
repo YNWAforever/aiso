@@ -952,7 +952,9 @@
     "local_trust_timeline_basis": "情境：以你輸入的平均潛在客戶價值（{leadValue}）及成交率（{closeRate}）計算，多 {low} 至 {high} 宗查詢。",
     "local_trust_timeline_movement": "此估算對應較 {month} 上升 {delta} 分。把分數換算成查詢數量 —— 低端每 {lowPoints} 分一宗、高端每 {highPoints} 分一宗 —— 是 AISO 並未量度過的假設。",
     "local_trust_timeline_limitation": "這是估算，不是觀察所得。這只是根據你輸入的數字所作的計算。AISO 並未量度過任何查詢、成交或收入；技術或能見度上的改善，並不等於已證實的搜尋或收入提升。",
-    "cited_sources": "被引用的來源"
+    "cited_sources": "被引用的來源",
+    "select_brand_first": "先選擇品牌",
+    "plan_required": "需要方案權益"
   },
   "reports": {
     "create_client_report": "建立客戶報告",
@@ -1505,6 +1507,15 @@
         "open-draft": "繼續私人草稿",
         "review-opportunities": "查看改善機會"
       }
+    },
+    "evidenceDetails": "證據詳情",
+    "nextStep": {
+      "configure": "確認監測問題",
+      "start": "開始首次監測",
+      "repair": "查看或修復監測",
+      "results": "查看回答與引用",
+      "opportunities": "查看改善工作",
+      "review": "查看監測狀態"
     }
   },
   "portfolio": {
@@ -2316,7 +2327,10 @@
       "first_approved_work": "首件已批核工作",
       "first_export": "首次匯出",
       "first_declared_delivery": "首次聲明交付"
-    }
+    },
+    "firstResult": "首次已分類監測結果",
+    "firstImprovement": "首次改善草稿（尚未發佈）",
+    "auditMilestones": "核准及交付里程碑"
   },
   "members": {
     "title": "成員",

@@ -952,7 +952,9 @@
     "local_trust_timeline_basis": "Scenario: {low}–{high} extra enquiries at the average lead value ({leadValue}) and close rate ({closeRate}) you entered.",
     "local_trust_timeline_movement": "Keyed to a {delta}-point rise since {month}. Turning points into enquiries — one per {lowPoints} points at the low end, one per {highPoints} at the high — is an assumption AISO has not measured.",
     "local_trust_timeline_limitation": "Estimated, not observed. This is arithmetic over the figures you entered. AISO has not measured any enquiry, sale or revenue, and a technical or visibility improvement is not proven search or revenue uplift.",
-    "cited_sources": "Cited sources"
+    "cited_sources": "Cited sources",
+    "select_brand_first": "Select a brand first",
+    "plan_required": "Plan access required"
   },
   "reports": {
     "create_client_report": "Create client report",
@@ -1505,6 +1507,15 @@
         "open-draft": "Continue a private draft",
         "review-opportunities": "Review opportunities"
       }
+    },
+    "evidenceDetails": "Evidence details",
+    "nextStep": {
+      "configure": "Confirm monitoring questions",
+      "start": "Start first monitoring",
+      "repair": "Review or repair monitoring",
+      "results": "Review answers and citations",
+      "opportunities": "Review improvement work",
+      "review": "Review monitoring status"
     }
   },
   "portfolio": {
@@ -2316,7 +2327,10 @@
       "first_approved_work": "First approved work item",
       "first_export": "First export",
       "first_declared_delivery": "First declared delivery"
-    }
+    },
+    "firstResult": "First classified monitoring result",
+    "firstImprovement": "First improvement draft (not published)",
+    "auditMilestones": "Approval and delivery milestones"
   },
   "members": {
     "title": "Members",

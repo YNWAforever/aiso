@@ -244,7 +244,7 @@ function WizardForm({
 
   function navigateToWorkspace(targetClientId: string) {
     if (scanId) { router.push(`/${lang}/dashboard/${targetClientId}/result/${scanId}`); return }
-    const scanUrl = '?step=questions'
+    const scanUrl = '/prompts'
     router.push(`/${lang}/dashboard/${targetClientId}${scanUrl}`)
   }
 
