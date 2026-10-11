@@ -39,7 +39,11 @@ for (const lang of ['en', 'zh-HK'] as const) for (const width of [375,1440]) for
     for(const state of ['partial','free','unknown','classification'] as const){
       const html=readFileSync(`${htmlDir}/${lang}-daily-${state}.html`,'utf8')
       await page.setContent(`<!doctype html><html lang="${lang}" class="${theme}"><head><title>Daily work acceptance</title><style>${css}</style></head><body>${html}</body></html>`)
-      const section=page.getByRole('region',{name:dailyCopy.title})
+      const section=page.getByRole('group',{name:dailyCopy.title})
+      const summary=section.locator('summary')
+      await summary.focus()
+      await page.keyboard.press('Enter')
+      await expect(section).toHaveAttribute('open','')
       await expect(section).toContainText(dailyCopy.states[state==='free'?'not_configured':state==='classification'?'partial':state])
       if(state==='partial')await expect(section).toContainText('13/15')
       await expect(section.locator('a[href*="/sources?source="][href*="&version="]')).toHaveCount(1)

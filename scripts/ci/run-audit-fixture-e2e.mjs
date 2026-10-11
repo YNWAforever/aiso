@@ -5,4 +5,5 @@ const root=process.cwd(),base=join(root,'.next/component-fixtures'),env={...proc
 for(const d of readdirSync(base,{withFileTypes:true}).filter(d=>d.isDirectory())){env[d.name+'_HTML_DIR']=join(base,d.name);env[d.name+'_CSS_PATH']=join(base,'build.css')}
 mkdirSync('artifacts/audit',{recursive:true});env.PLAYWRIGHT_JSON_OUTPUT_NAME=resolve('artifacts/audit/playwright.json');env.PLAYWRIGHT_JUNIT_OUTPUT_NAME=resolve('artifacts/audit/playwright.junit.xml')
 const args=['node_modules/@playwright/test/cli.js','test','--workers=1','--reporter=list,json,junit'];if(process.argv.includes('--audit-only'))args.push('--config','playwright.audit-fixtures.config.ts');if(process.argv.includes('--list'))args.push('--list')
+const separator=process.argv.indexOf('--');if(separator!==-1)args.push(...process.argv.slice(separator+1))
 const result=spawnSync(process.execPath,args,{cwd:root,env,stdio:'inherit'});if(result.error)throw result.error;process.exitCode=result.status??1
