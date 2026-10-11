@@ -1,3 +1,4 @@
+import {projectScanStatus} from '../../lib/view-models/scan-status'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   E2E_FIXTURE_SCAN_ID,
@@ -38,3 +39,5 @@ describe('E2E scan fixture', () => {
     expect(getE2EScanFixture('00000000-dead-beef-0000-000000000000')).toBeNull()
   })
 })
+
+it('numeric success fixture carries validated synthetic page evidence while missing evidence remains unknown',()=>{vi.stubEnv('E2E_FIXTURE_MODE','1');const scan=getE2EScanFixture(E2E_FIXTURE_SCAN_ID)!;expect(projectScanStatus({score:scan.score,grade:scan.grade,evidence:scan.results.evidence}).score).toBe(63.5);expect(projectScanStatus({score:scan.score,grade:scan.grade,evidence:undefined})).toMatchObject({state:'unknown',score:null})});
