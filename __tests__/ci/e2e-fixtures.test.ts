@@ -40,4 +40,4 @@ describe('E2E scan fixture', () => {
   })
 })
 
-it('numeric success fixture carries validated synthetic page evidence while missing evidence remains unknown',()=>{vi.stubEnv('E2E_FIXTURE_MODE','1');const scan=getE2EScanFixture(E2E_FIXTURE_SCAN_ID)!;expect(projectScanStatus({score:scan.score,grade:scan.grade,evidence:scan.results.evidence}).score).toBe(63.5);expect(projectScanStatus({score:scan.score,grade:scan.grade,evidence:undefined})).toMatchObject({state:'unknown',score:null})});
+it('numeric success fixture carries validated synthetic page evidence while missing evidence remains unknown',()=>{vi.stubEnv('E2E_FIXTURE_MODE','1');const scan=getE2EScanFixture(E2E_FIXTURE_SCAN_ID)!;expect(projectScanStatus({score:scan.score??null,grade:scan.grade??null,evidence:scan.results.evidence}).score).toBe(63.5);expect(projectScanStatus({score:scan.score??null,grade:scan.grade??null,evidence:undefined})).toMatchObject({state:'unknown',score:null})});

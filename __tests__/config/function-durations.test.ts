@@ -108,7 +108,9 @@ describe('Cloudflare cron-worker schedule', () => {
 
   it('runs the Search Console sync on the existing daily trigger, not a fourth one', () => {
     const worker = readFileSync(join(process.cwd(), 'cloudflare/cron-worker/src/index.ts'), 'utf8')
-    expect(worker).toMatch(/'0 9 \* \* \*':\s*\[\s*'\/api\/cron\/trial-emails',\s*'\/api\/cron\/search-console',\s*'\/api\/cron\/pulse\?mode=repair'\s*\]/)
+    expect(worker).toMatch(/'0 9 \* \* \*':\s*\[\s*'\/api\/cron\/trial-emails',\s*'\/api\/cron\/search-console'\s*\]/)
+    // The deployed AISO profile enables the Pulse trigger and leaves emails disabled.
+    expect(worker).toMatch(/'17 4 \* \* \*':\s*\[\s*'\/api\/cron\/pulse',\s*'\/api\/cron\/pulse\?mode=repair'\s*\]/)
   })
 
   it('maps every scheduled cron string to routes in the Worker', () => {
