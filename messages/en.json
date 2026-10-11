@@ -2684,9 +2684,10 @@
     "reviewNote": "AI can make mistakes. Check every field; this draft does not verify ownership or approve a source.",
     "apply": "Use these details",
     "change": "Change website or market",
-    "manual": "Prefer to enter details yourself? Continue with the form below.",
+    "manual": "Your website, language and market stay with you if you continue manually.",
     "limit": "You have used the hourly draft allowance. Try later or enter your details below.",
-    "unavailable": "We could not prepare a reliable draft. Your details are unchanged. Retry, or use manual setup below."
+    "unavailable": "We could not prepare a reliable draft. Your details are unchanged. Retry, or use manual setup below.",
+    "manualAction": "Continue manually with these details"
   },
   "adminDirectory": {
     "eyebrow": "Platform operations",
@@ -2771,6 +2772,26 @@
       "blocked": "Blocked",
       "draft": "Draft",
       "unprovisioned": "Account setup incomplete"
+    },
+    "schemaHealth": {
+      "title": "Data structure check",
+      "loading": "Checking recent feature requirements…",
+      "columns_present": "The inspected columns are present.",
+      "attention": "Some recent features need a database review.",
+      "unavailable": "The data structure check is unavailable.",
+      "scope": "Read-only check of selected columns required by recent features, using this deployment’s database connection. This does not verify migrations, write permissions, AI providers or successful user journeys.",
+      "nextStep": "Ask the release operator to verify the database binding, migration history and grants, then follow the backup and migration runbook. Reload this page after the repair. This panel makes no database changes.",
+      "details": "Affected features and technical details",
+      "checkedAt": "Checked at (UTC):",
+      "missing": "Columns absent or not visible to the application",
+      "present": "Inspected columns present",
+      "capabilities": {
+        "onboarding": "Brand setup and recovery",
+        "monitoring": "Monitoring and reruns",
+        "evidence": "Answer evidence and classification",
+        "questions": "Question batch updates",
+        "work": "Grouped improvement work"
+      }
     }
   }
 }

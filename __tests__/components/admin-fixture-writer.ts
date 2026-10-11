@@ -6,7 +6,7 @@ export async function writeAdminFixture() {
   if (!dir) return
   mkdirSync(dir, { recursive: true })
   const entry = join(resolve(dir), 'entry.tsx')
-  writeFileSync(entry, `import React from 'react';import{createRoot}from'react-dom/client';import{NextIntlClientProvider}from'next-intl';import{AdminDirectory}from'@/components/admin/AdminDirectory';import en from '@/messages/en.json';import zh from '@/messages/zh-HK.json';const lang=document.documentElement.lang;createRoot(document.getElementById('root')).render(React.createElement(NextIntlClientProvider,{locale:lang,messages:lang==='en'?en:zh,timeZone:'UTC'},React.createElement(AdminDirectory,{lang,query:{view:'users',page:1,q:'',accountId:null}})));`)
+  writeFileSync(entry, `import React from 'react';import{createRoot}from'react-dom/client';import{NextIntlClientProvider}from'next-intl';import{AdminDirectory}from'@/components/admin/AdminDirectory';import{SchemaHealthPanel}from'@/components/admin/SchemaHealthPanel';import en from '@/messages/en.json';import zh from '@/messages/zh-HK.json';const lang=document.documentElement.lang;createRoot(document.getElementById('root')).render(React.createElement(NextIntlClientProvider,{locale:lang,messages:lang==='en'?en:zh,timeZone:'UTC'},React.createElement(AdminDirectory,{lang,query:{view:'users',page:1,q:'',accountId:null}},React.createElement(SchemaHealthPanel,{health:{status:'attention',checkedAt:'2026-10-12T00:00:00Z',checks:[{key:'monitoring',missing:['pulse_runs.purpose']}]}}))));`)
   await build({ configFile: false, envDir: false, oxc: { jsx: { development: false } },
     resolve: { alias: { '@': resolve('.'), 'next/link': resolve('tests/fixtures/admin-link.tsx') } },
     define: { 'process.env.NODE_ENV': '"production"' },
