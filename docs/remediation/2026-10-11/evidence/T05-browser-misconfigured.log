@@ -1,0 +1,122 @@
+[globalSetup] In-memory E2E fixture ready — ID: e2e00000-0000-4000-a000-000000000001
+
+Running 395 tests using 1 worker
+
+(node:40180) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:40180) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok   1 [chromium] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in en (837ms)
+  ok   2 [chromium] › tests\e2e\first-pulse-run.spec.ts:28:6 › leaving the page stops pending polling in en (2.6s)
+  ok   3 [chromium] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in zh-HK (640ms)
+  ok   4 [chromium] › tests\e2e\first-pulse-run.spec.ts:28:6 › leaving the page stops pending polling in zh-HK (2.7s)
+(node:8860) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8860) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x    5 [mobile] › tests\e2e\accessibility.spec.ts:48:5 › English home page has no blocking accessibility violations and keyboard-reachable scan controls (2.4s)
+(node:22284) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22284) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x    6 [mobile] › tests\e2e\accessibility.spec.ts:58:5 › English login page has no blocking accessibility violations and keyboard-reachable primary controls (2.5s)
+(node:43672) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43672) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x    7 [mobile] › tests\e2e\accessibility.spec.ts:70:5 › fixture result page has no blocking accessibility violations before and after email unlock (2.4s)
+(node:47940) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:47940) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x    8 [mobile] › tests\e2e\auth-return-to.spec.ts:5:41 › real proxy/layout preserve all five deep links in en (300ms)
+(node:49660) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:49660) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x    9 [mobile] › tests\e2e\auth-return-to.spec.ts:5:41 › real proxy/layout preserve all five deep links in zh-HK (283ms)
+(node:5976) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5976) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   10 [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract google returns to entities (375ms)
+(node:40484) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:40484) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   11 [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract magic-link returns to entities (250ms)
+(node:47964) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:47964) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   12 [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract google returns to sources (269ms)
+(node:25680) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25680) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   13 [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract magic-link returns to sources (272ms)
+(node:27316) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:27316) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   14 [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract google returns to observations (257ms)
+(node:18196) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:18196) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   15 [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract magic-link returns to observations (252ms)
+(node:43292) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43292) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   16 [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract google returns to opportunities (252ms)
+(node:48500) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:48500) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   17 [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract magic-link returns to opportunities (274ms)
+(node:12428) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12428) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   18 [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract google returns to prompts (251ms)
+(node:22188) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22188) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   19 [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract magic-link returns to prompts (264ms)
+(node:25696) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25696) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   20 [mobile] › tests\e2e\auth-return-to.spec.ts:54:5 › failed completion retains safe destination on retry (254ms)
+(node:52140) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:52140) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   21 [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: valid session (235ms)
+(node:41596) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:41596) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   22 [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: valid session despite SecurityError housekeeping (240ms)
+(node:42272) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:42272) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   23 [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: valid session despite DataCloneError housekeeping (234ms)
+(node:5792) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5792) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   24 [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: missing user fails closed (253ms)
+(node:31168) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:31168) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   25 [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: empty verifier cannot reuse prior session (235ms)
+(node:45460) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:45460) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   26 [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: null session fails closed (242ms)

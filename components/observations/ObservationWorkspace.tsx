@@ -8,6 +8,7 @@ import { MaintenanceNextSteps } from '@/components/workspace/MaintenanceNextStep
 import type { ObservationCopy } from './copy'
 export type { ObservationCopy } from './copy'
 export type ObservationFilters = {
+  run?:string
   promptId?: string
   platform?: string
   week?: string

@@ -6,19 +6,19 @@ All seven content hashes match. checksums.json alone has its known stale self-re
 
 | Finding | Task | UC | Triage | Status | Evidence |
 |---|---|---|---|---|---|
-| F38 | T03 | UC01;UC02 | still_present pending reproduction | untriaged | audit inputs |
-| F39 | T05 | UC01;UC03;UC04 | still_present pending reproduction | untriaged | audit inputs |
-| F40 | T02 | UC03 | still_present pending reproduction | untriaged | audit inputs |
-| F41 | T04 | UC04 | still_present pending reproduction | untriaged | audit inputs |
-| F42 | T06 | UC06 | still_present pending reproduction | untriaged | audit inputs |
+| F38 | T03 | UC01;UC02 | reproduced | verified_local | T03 69/69 focused; concurrent same-intent brand persistence; Auth/seed browser pending |
+| F39 | T05 | UC01;UC03;UC04 | reproduced | verified_local | T05 26/26 focused; 26/26 real local SQL; 8/8 functional browser fixtures; preview persistence pending |
+| F40 | T02 | UC03 | reproduced | verified_local | T02 72/72 synthetic tests; partial classified denominator and null gaps; preview pending |
+| F41 | T04 | UC04 | reproduced | verified_local | T04 23/23 focused; real SQL fencing and immutable raw/citation repair; canonical/retest isolated |
+| F42 | T06 | UC06 | reproduced | verified_local | T06 27/27 provider-response fixtures; request versus execution evidence; live provider untested |
 | F43 | T01 | UC05 | reproduced | verified_local | 108/108 synthetic tests; failed raw score preserved, display null; preview pending |
 | F44 | T07 | UC07 | still_present pending reproduction | untriaged | audit inputs |
-| F45 | T08 | UC08 | still_present pending reproduction | untriaged | audit inputs |
-| F46 | T09 | UC09 | still_present pending reproduction | untriaged | audit inputs |
+| F45 | T08 | UC08 | reproduced | verified_local | T08 52/52 prerequisites fixtures; competitor configuration CTA follow-up in T09 |
+| F46 | T09 | UC09 | reproduced | implementing | T09 next; Pro portfolio currently conflates selection with locked navigation |
 | F47 | T10 | UC10 | still_present pending reproduction | untriaged | audit inputs |
 | F48 | T11 | UC11 | still_present pending reproduction | untriaged | audit inputs |
 | F49 | T12 | UC12 | still_present pending reproduction | untriaged | audit inputs |
-| F50 | T03 | UC13 | still_present pending reproduction | untriaged | audit inputs |
+| F50 | T03 | UC13 | reproduced | verified_local | T03 canonical industry and safe URL syntax; legacy missing context stays pending |
 
 Task order: P00 → T01 → T02 → T06 → T08 → T03 → T04 → T05 → T09 → T12 → T07 → T10 → T11 → R01.
 
@@ -27,3 +27,6 @@ Environment: Node 24.18.0, Next 16.3.8. Locked dependencies installed offline wi
 Safe test form: PowerShell CI=1; node node_modules/vitest/vitest.mjs run <read synthetic paths> --reporter=default. Integration provisioning/role authorization must be checked separately before invocation.
 
 Production alias readback 2026-10-11: READY, SHA 27dd057fa6d5ecaae5bbd342e25cc8579e529d3a, target production. This is the unchanged baseline, not the repair branch. Open PR #69 targets a different remediation branch at 216d0cb; do not merge/rebase it as part of this task.
+
+T05 browser fixture note: first mobile configuration inherited an oversized selection and was interrupted. That log is retained as T05-browser-misconfigured.log and is not acceptance evidence. A corrected --list showed exactly 8 intended cases; all 8 passed. These functional fixtures initially used no production CSS; the final CSS matrix remains pending.
+Local PostgreSQL: task-owned labeled cached container on 127.0.0.1:55439; external HTTP denied; real db binding and aeo_app enforced. Migrations 063-067 are local-only. No protected remote role or production mutation.

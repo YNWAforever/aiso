@@ -65,10 +65,9 @@ export async function runPulseChunk(scope: PulseScope, options: { scanWeek:strin
   const chunkCollector = collector ?? collectWith((await webSearchAllowance(db(),scope.accountId,run.scanWeek)).allowed)
   const items = await claimDueItems(scope,run.id,{owner:`http:${crypto.randomUUID()}`,leaseUntil:new Date(options.deadlineAt),limit:Math.min(5,Math.max(1,options.limit))})
   // Resumed manifests are immutable and can still include a previous plan's models.
-  const results = await Promise.allSettled(items.map(item => allowedModels.has(item.model)
-    ? processLeasedItem(item,options.deadlineAt,chunkCollector)
-    : commitAttempt(item,{kind:'blocked',errorCode:'PLAN_HAS_NO_PLATFORMS'})))
-  await classifySavedAnswers(scope,run.id,options.deadlineAt)
+  const results = await Promise.allSettled(items.map(async item => {const live=await readPulseTarget(scope.clientId);const allowed=live?.accountId===scope.accountId&&allowedModels.has(item.model)&&modelVariantsFor(live.allowedPlatforms).some(v=>v.model===item.model);return allowed?processLeasedItem(item,options.deadlineAt,chunkCollector):commitAttempt(item,{kind:'blocked',errorCode:'PLAN_HAS_NO_PLATFORMS'})}))
+  const live=await readPulseTarget(scope.clientId)
+  if(live?.accountId===scope.accountId&&live.allowedPlatforms.length)await classifySavedAnswers(scope,run.id,options.deadlineAt)
   const coverage = await readRunCoverage(scope,run.id)
   let summary = null
   if (coverage.status === 'completed'&&run.purpose!=='retest') summary = await computeWeeklySummary(db(),{clientId:scope.clientId,scanWeek:run.scanWeek})

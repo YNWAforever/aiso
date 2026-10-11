@@ -6,16 +6,20 @@ import { MAX_PROMPTS, PULSE_ANSWER_MAX_TOKENS, pulseAnswerMaxTokens } from '@/li
 import { coverageFromCounts, type AttemptOutput, type LeasedItem, type ModelVariant, type PulseRun, type PulseScope, type PulseIntent } from './schema'
 
 /** Noninteractive HTTP batch: lock first, then read a fresh snapshot. */
-export async function createOrResumeRun(scope: PulseScope, input: { scanWeek: string; manifest: ModelVariant[];intent?:PulseIntent }): Promise<PulseRun | null> {
+export async function createOrResumeRun(scope: PulseScope, input: { scanWeek: string; manifest: ModelVariant[];intent?:PulseIntent;dispatch?:{requestHash:string;reservationCap:number} }): Promise<PulseRun | null> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.scanWeek) || !input.manifest.length || input.manifest.length > 5
     || new Set(input.manifest.map(v => v.model)).size !== input.manifest.length) throw new Error('Invalid manifest')
   const sql = db()
   const purpose=input.intent?.kind==='retest'?'retest':'canonical'
   if(input.intent&&!/^[a-zA-Z0-9:_-]{8,128}$/.test(input.intent.intentKey))throw new Error('Invalid intent')
-  if(input.intent?.kind==='repair'){const [row]=await sql`select id,scan_week,manifest,purpose from pulse_runs where id=${input.intent.sourceRunId??null}::uuid and account_id=${scope.accountId} and client_id=${scope.clientId}::uuid`;return row?{id:String(row.id),scanWeek:isoDate(row.scan_week as string|Date,''),manifest:row.manifest as Record<string,unknown>,purpose:row.purpose as 'canonical'|'retest'}:null}
-  const [, result] = await sql.transaction([
+  if(input.intent?.kind==='repair'&&!input.dispatch){const [row]=await sql`select id,scan_week,manifest,purpose from pulse_runs where id=${input.intent.sourceRunId??null}::uuid and account_id=${scope.accountId} and client_id=${scope.clientId}::uuid`;return row?{id:String(row.id),scanWeek:isoDate(row.scan_week as string|Date,''),manifest:row.manifest as Record<string,unknown>,purpose:row.purpose as 'canonical'|'retest'}:null}
+  const results = await sql.transaction([
+    ...(input.dispatch?[sql`select id from accounts where id=${scope.accountId} for update`]:[]),
     sql`select id from clients where account_id = ${scope.accountId} and id = ${scope.clientId}::uuid for no key update`,
-    sql`with prompts as (
+    sql`with prior_intent as (
+      select u.request_hash,r.* from pulse_user_intents u join pulse_runs r on r.id=u.run_id and r.account_id=u.account_id and r.client_id=u.client_id
+      where ${!!input.dispatch} and u.account_id=${scope.accountId} and u.client_id=${scope.clientId}::uuid and u.intent_key=${input.intent?.intentKey??null}
+    ), prompts as (
       select pb.id, pb.question, pb.category, pb.language, to_jsonb(pb)->>'market' as market
       from prompt_bank pb join clients c on c.id = pb.client_id
       where c.account_id = ${scope.accountId} and c.id = ${scope.clientId}::uuid and pb.is_active
@@ -31,23 +35,57 @@ export async function createOrResumeRun(scope: PulseScope, input: { scanWeek: st
           'language',p.language,'market',p.market,'contextVersion','2026-10-03.v1','sourceSchemaVersion','2026-10-11.v1','platform',v->>'platform','model',v->>'model') order by p.id,v->>'model')
           from prompts p cross join jsonb_array_elements(${JSON.stringify(input.manifest)}::jsonb) v),'[]'::jsonb)) as manifest
       from clients c where c.account_id = ${scope.accountId} and c.id = ${scope.clientId}::uuid
+    ), candidate as (
+      select r.* from pulse_runs r where r.account_id=${scope.accountId} and r.client_id=${scope.clientId}::uuid and (
+        (${input.intent?.kind??'initial'}='repair' and r.id=${input.intent?.sourceRunId??null}::uuid)
+        or (${input.intent?.kind??'initial'}<>'repair' and r.purpose=${purpose} and ((${purpose}='canonical' and r.scan_week=${input.scanWeek}::date) or (${purpose}='retest' and r.intent_key=${input.intent?.intentKey??null}))))
+    ), commercial as (
+      select case when a.override_plan in ('free','basic','pro','enterprise') and (a.override_expires_at is null or a.override_expires_at>now()) then a.override_plan
+        when a.status in ('past_due','cancelled') then 'free'
+        when a.plan in ('basic','pro','enterprise') and ((a.status='active' and length(a.stripe_subscription_id)>0) or a.trial_ends_at>now() or (a.status='trialing' and length(a.stripe_subscription_id)>0)) then a.plan else 'free' end as plan
+      from accounts a where a.id=${scope.accountId}
+    ), gate as (
+      select case when not ${!!input.dispatch} then null
+       when exists(select 1 from prior_intent where request_hash<>${input.dispatch?.requestHash??null}) then 'PULSE_INTENT_CONFLICT'
+       when exists(select 1 from prior_intent) then null
+       when not exists(select 1 from commercial where plan in ('basic','pro','enterprise') and (plan<>'basic' or ${input.manifest.every(v=>v.platform==='gemini-flash')})) then 'PULSE_ENTITLEMENT_CHANGED'
+       when ${input.intent?.kind??'initial'}='repair' and not exists(select 1 from candidate) then 'PULSE_RUN_NOT_FOUND'
+       when ${input.intent?.sourceRunId??null}::uuid is not null and not exists(select 1 from pulse_runs source where source.id=${input.intent?.sourceRunId??null}::uuid and source.account_id=${scope.accountId} and source.client_id=${scope.clientId}::uuid) then 'PULSE_RUN_NOT_FOUND'
+       when not exists(select 1 from candidate) and not exists(select 1 from prompts) then 'PULSE_NOT_CONFIGURED'
+       when not exists(select 1 from candidate) and exists(select 1 from prompts where language not in ('en','zh-HK') or language is null or market is null or market not in ('HK','TW','SG','JP','KR','US','UK','EU','AU','CA','global')) then 'PULSE_CONTEXT_UNCONFIRMED'
+       when not exists(select 1 from pulse_run_reservations z join candidate r on r.id=z.run_id where z.account_id=${scope.accountId})
+         and coalesce((select sum(reserved_units) from pulse_run_reservations where account_id=${scope.accountId} and scan_week=${input.scanWeek}::date),0)
+           +coalesce((select sum(jsonb_array_length(unreserved.manifest->'items')) from pulse_runs unreserved where unreserved.account_id=${scope.accountId} and unreserved.scan_week=${input.scanWeek}::date and not exists(select 1 from pulse_run_reservations z where z.run_id=unreserved.id and z.account_id=unreserved.account_id) and not exists(select 1 from candidate where candidate.id=unreserved.id)),0)
+           +coalesce((select jsonb_array_length(manifest->'items') from candidate),(select count(*) from prompts)*${input.manifest.length})>${input.dispatch?.reservationCap??0} then 'PULSE_QUOTA_EXCEEDED'
+       else null end as reason
     ), created as (
       insert into pulse_runs(account_id,client_id,scan_week,manifest,purpose,intent_key,source_run_id)
       select ${scope.accountId},${scope.clientId}::uuid,${input.scanWeek}::date,manifest,${purpose},${input.intent?.intentKey??null},${input.intent?.sourceRunId??null}::uuid from snapshot
-      where (${input.intent?.sourceRunId??null}::uuid is null or exists(select 1 from pulse_runs source where source.id=${input.intent?.sourceRunId??null}::uuid and source.account_id=${scope.accountId} and source.client_id=${scope.clientId}::uuid))
+      where (select reason from gate) is null and not exists(select 1 from prior_intent) and ${input.intent?.kind??'initial'}<>'repair' and (${input.intent?.sourceRunId??null}::uuid is null or exists(select 1 from pulse_runs source where source.id=${input.intent?.sourceRunId??null}::uuid and source.account_id=${scope.accountId} and source.client_id=${scope.clientId}::uuid))
       on conflict do nothing returning *
     ), chosen as (
-      select * from created union all select * from pulse_runs
-      where account_id = ${scope.accountId} and client_id = ${scope.clientId}::uuid and purpose=${purpose} and ((${purpose}='canonical' and scan_week=${input.scanWeek}::date) or (${purpose}='retest' and intent_key=${input.intent?.intentKey??null}))
+      select id,account_id,client_id,scan_week,manifest,purpose from created
+      union all select id,account_id,client_id,scan_week,manifest,purpose from prior_intent where request_hash=${input.dispatch?.requestHash??null}
+      union all select id,account_id,client_id,scan_week,manifest,purpose from candidate where not exists(select 1 from prior_intent) and (select reason from gate) is null
     ), items as (
       insert into pulse_run_items(run_id,account_id,client_id,prompt_snapshot_id,snapshot,platform,model_id)
       select r.id,r.account_id,r.client_id,(v->>'promptId')::uuid,
         v - 'promptId' - 'platform' - 'model',v->>'platform',v->>'model'
       from chosen r cross join jsonb_array_elements(r.manifest->'items') v
       on conflict(run_id,prompt_snapshot_id,model_id) do nothing returning id
-    ) select id,scan_week,manifest,purpose from chosen`,
+    ), reserved as (
+      insert into pulse_run_reservations(run_id,account_id,client_id,scan_week,reserved_units)
+      select id,account_id,client_id,scan_week,jsonb_array_length(manifest->'items') from chosen where ${!!input.dispatch}
+      on conflict(run_id) do nothing returning run_id
+    ), intent_record as (
+      insert into pulse_user_intents(account_id,client_id,intent_key,request_hash,run_id,kind)
+      select account_id,client_id,${input.intent?.intentKey??null},${input.dispatch?.requestHash??null},id,${input.intent?.kind??'initial'} from chosen where ${!!input.dispatch}
+      on conflict(account_id,client_id,intent_key) do nothing returning run_id
+    ) select id,scan_week,manifest,purpose,null::text as reason from chosen
+      union all select null::uuid,null::date,null::jsonb,null::text,reason from gate where reason is not null`, 
   ])
-  const row = result[0]
+  const row = results.at(-1)?.[0]
+  if(row?.reason)throw new Error(String(row.reason))
   return row ? { id: String(row.id), scanWeek: isoDate(row.scan_week as string | Date, input.scanWeek), manifest: row.manifest as Record<string, unknown>,purpose:row.purpose as 'canonical'|'retest' } : null
 }
 

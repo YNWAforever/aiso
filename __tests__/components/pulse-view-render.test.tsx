@@ -15,5 +15,5 @@ afterAll(()=>{const dir=process.env.C8C_HTML_DIR;if(!dir)return;mkdirSync(dir,{r
 
 it.each(['en','zh-HK'])('shows partial coverage and keeps sample charts in %s',lang=>{
  const v=fixture('ready');v.observations.state='partial';v.observations.coverage={expected:null,recorded:40,collected:40,classified:31,mentioned:3,collectionRate:null,classificationRate:31/40,mentionRate:3/31,provenance:'legacy'};v.observations.latestKpi={sovScore:300/31,brandMentions:3,totalQueries:31,platformCount:1,scanWeek:'2026-10-05'};
- const html=renderToStaticMarkup(<ObservedPulseView view={v} lang={lang}/>);const c=(lang==='en'?en:zh).pulseView;expect(html).toContain(c.partial);expect(html).toContain(c.legacyCoverage);expect(html).toContain('classification=unknown');expect(html).toContain('9.7%');
+ const html=renderToStaticMarkup(<ObservedPulseView view={v} lang={lang}/>);const c=(lang==='en'?en:zh).pulseView;expect(html).toContain(c.partial);expect(html).toContain(c.legacyCoverage);expect(html).toContain('result=incomplete');expect(html).toContain('9.7%');
 });

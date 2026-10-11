@@ -1,0 +1,23 @@
+[globalSetup] In-memory E2E fixture ready — ID: e2e00000-0000-4000-a000-000000000001
+
+Running 8 tests using 1 worker
+
+(node:31128) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:31128) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 [chromium] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in en (640ms)
+  ok 2 [chromium] › tests\e2e\first-pulse-run.spec.ts:28:6 › leaving the page stops pending polling in en (2.6s)
+  ok 3 [chromium] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in zh-HK (543ms)
+  ok 4 [chromium] › tests\e2e\first-pulse-run.spec.ts:28:6 › leaving the page stops pending polling in zh-HK (2.7s)
+(node:19844) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19844) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 5 [mobile] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in en (697ms)
+  ok 6 [mobile] › tests\e2e\first-pulse-run.spec.ts:28:6 › leaving the page stops pending polling in en (2.8s)
+  ok 7 [mobile] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in zh-HK (731ms)
+  ok 8 [mobile] › tests\e2e\first-pulse-run.spec.ts:28:6 › leaving the page stops pending polling in zh-HK (2.7s)
+[globalTeardown] In-memory E2E fixture has no cleanup side effect.
+
+  8 passed (15.2s)

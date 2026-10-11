@@ -2526,5 +2526,52 @@
     "gap_no_observations": "Competitors are configured; no citation observations are available yet.",
     "gap_ready": "Comparison covers {domains} configured competitors.",
     "configure_competitors": "Configure competitor domains"
+  },
+  "runProgress": {
+    "title": "Monitor your brand",
+    "loading": "Reading monitoring status…",
+    "unavailable": "Monitoring status is unavailable. Reload to recover the saved request.",
+    "start": "Start first monitoring",
+    "repair": "Resume saved work",
+    "retest": "Start a separate retest",
+    "setup": "Confirm questions and context",
+    "disabled": "Monitoring is currently unavailable",
+    "workload": "{prompts} questions × {variants} model variants = {expected} answers",
+    "budget": "Remaining answer workload allowance: {remaining}",
+    "cost": "Provider cost estimate unavailable. Collection, classification and search can incur model charges.",
+    "search": "Optional web-search request: {requested}. Native-search models may also search; actual execution requires provider evidence.",
+    "schedule": "Next scheduled run: unknown",
+    "collected": "Collected {collected}/{expected}",
+    "classified": "Classified {classified}/{collected} collected answers",
+    "results": "Open answers and citations",
+    "legacy": "Saved historical answers are available. Repair their classification without collecting them again.",
+    "legacyLink": "Review saved answers",
+    "states": {
+      "queued": "Queued",
+      "running": "Running",
+      "partial": "Partially complete",
+      "completed": "Complete",
+      "failed": "Failed",
+      "blocked": "Blocked"
+    },
+    "reasons": {
+      "outcome_unknown": "The provider outcome is unknown. Automatic recollection is blocked to avoid another charge.",
+      "provider_not_configured": "The model provider is unavailable.",
+      "entitlement_changed": "The plan no longer allows this model.",
+      "collection_failed": "Collection failed.",
+      "classification_pending": "Saved answers still need classification."
+    },
+    "errors": {
+      "PULSE_NOT_CONFIGURED": "Add active questions before starting.",
+      "PULSE_CONTEXT_UNCONFIRMED": "Confirm the language and market of active questions.",
+      "PULSE_QUOTA_EXCEEDED": "The workload allowance is exhausted; no new work was created.",
+      "PULSE_INTENT_CONFLICT": "This request has a conflicting identity. Reload to inspect the saved work.",
+      "PULSE_LEGACY_REPAIR_REQUIRED": "Repair the saved historical answers first.",
+      "PULSE_ENTITLEMENT_CHANGED": "Your plan does not currently allow this monitoring."
+    },
+    "repairLegacy": "Repair saved answer classification",
+    "repairOutcome": "Classification repair: {classified} classified, {unchanged} unchanged, {failed} failed.",
+    "retestScope": "Separate retest",
+    "canonicalScope": "Canonical weekly run"
   }
 }

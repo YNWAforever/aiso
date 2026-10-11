@@ -1,3 +1,4 @@
+import {RunProgress} from '@/components/pulse/RunProgress'
 import {PulseCoverage} from '@/components/pulse/PulseCoverage'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
@@ -68,6 +69,7 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
         <p className="mt-1 max-w-3xl text-xs leading-relaxed text-dash-muted">{pcopy.needsEvidenceNote}</p>
       </div>}
     </section>
+    <RunProgress clientId={workspace.client.id} lang={lang}/>
     <div className="grid min-w-0 gap-5 xl:grid-cols-2">
       {panel(copy.siteHealth, workspace.siteHealth, health && <>
         <p className="text-sm text-dash-muted">{copy.score}</p>
@@ -77,7 +79,7 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
       </>)}
       {panel(copy.visibility, workspace.visibility, <>
         <p className="text-3xl font-bold text-dash-text">{visibility?`${Number(visibility.sovScore.toFixed(1))}%`:(lang==='zh-HK'?zhHK:en).pulseView.unknown}</p>
-        {workspace.visibility.state==='partial'&&<p>{(lang==='zh-HK'?zhHK:en).pulseView.partial}</p>}<PulseCoverage coverage={workspace.visibility.coverage} lang={lang} href={`${base}/observations?classification=unknown`}/><dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+        {workspace.visibility.state==='partial'&&<p>{(lang==='zh-HK'?zhHK:en).pulseView.partial}</p>}<PulseCoverage coverage={workspace.visibility.coverage} lang={lang} href={`${base}/observations?result=incomplete`}/><dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <div><dt className="text-dash-muted">{copy.mentions}</dt><dd className="font-semibold text-dash-text">{visibility?.brandMentions??'—'}</dd></div>
           <div><dt className="text-dash-muted">{copy.queries}</dt><dd className="font-semibold text-dash-text">{visibility?.totalQueries??'—'}</dd></div>
           <div><dt className="text-dash-muted">{copy.platforms}</dt><dd className="font-semibold text-dash-text">{visibility?.platformCount??'—'}</dd></div>

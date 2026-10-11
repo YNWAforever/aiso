@@ -2526,5 +2526,52 @@
     "gap_no_observations": "已設定競爭對手，尚未有引用觀測。",
     "gap_ready": "比較涵蓋 {domains} 個已設定競爭對手。",
     "configure_competitors": "設定競爭對手網域"
+  },
+  "runProgress": {
+    "title": "監測品牌",
+    "loading": "正在讀取監測狀態…",
+    "unavailable": "暫時無法讀取監測狀態。重新載入可恢復已保存的請求。",
+    "start": "開始首次監測",
+    "repair": "繼續已保存的工作",
+    "retest": "建立獨立重測",
+    "setup": "確認問題與背景",
+    "disabled": "監測目前未可使用",
+    "workload": "{prompts} 個問題 × {variants} 個模型版本 = {expected} 份回答",
+    "budget": "剩餘回答工作量額度：{remaining}",
+    "cost": "暫無供應商費用估算。採集、分類及搜尋可能產生模型費用。",
+    "search": "可選網頁搜尋請求：{requested}。原生搜尋模型亦可能搜尋；實際執行須有供應商證據。",
+    "schedule": "下次排程時間：未知",
+    "collected": "已採集 {collected}/{expected}",
+    "classified": "已分類 {classified}/{collected} 份已採集回答",
+    "results": "查看回答與引用",
+    "legacy": "已有歷史原文。可只修復分類，毋須重新採集原文。",
+    "legacyLink": "查看已保存回答",
+    "states": {
+      "queued": "已排隊",
+      "running": "處理中",
+      "partial": "部分完成",
+      "completed": "全部完成",
+      "failed": "失敗",
+      "blocked": "受阻"
+    },
+    "reasons": {
+      "outcome_unknown": "供應商結果不確定。為免重複收費，已阻止自動重採集。",
+      "provider_not_configured": "模型供應商暫不可用。",
+      "entitlement_changed": "目前方案不允許這個模型。",
+      "collection_failed": "採集失敗。",
+      "classification_pending": "已保存原文仍待分類。"
+    },
+    "errors": {
+      "PULSE_NOT_CONFIGURED": "請先新增啟用中的問題。",
+      "PULSE_CONTEXT_UNCONFIRMED": "請確認啟用中問題的語言與市場。",
+      "PULSE_QUOTA_EXCEEDED": "工作量額度已用盡，沒有新增工作。",
+      "PULSE_INTENT_CONFLICT": "請求身份有衝突。請重新載入查看已保存工作。",
+      "PULSE_LEGACY_REPAIR_REQUIRED": "請先修復已保存的歷史回答。",
+      "PULSE_ENTITLEMENT_CHANGED": "目前方案未提供這項監測。"
+    },
+    "repairLegacy": "只修復已保存回答的分類",
+    "repairOutcome": "分類修復：{classified} 份已分類、{unchanged} 份未變更、{failed} 份失敗。",
+    "retestScope": "獨立重測",
+    "canonicalScope": "每週標準監測"
   }
 }
