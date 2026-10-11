@@ -32,6 +32,13 @@ const render = (lang: (typeof LANGS)[number]) =>
   )
 
 describe('the onboarding wizard renders in both languages', () => {
+  it.each(LANGS)('offers website assistance without removing manual setup (%s)', lang => {
+    const markup = render(lang)
+    expect(markup).toContain('brand-assist-url')
+    expect(markup).toContain('brand-assist-language')
+    expect(markup).toContain('brand-assist-market')
+    expect(markup).toContain('onboarding-brand')
+  })
   it.each(LANGS)('renders step one (%s)', lang => {
     const markup = render(lang)
 

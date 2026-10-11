@@ -28,6 +28,7 @@ export type CallLabel =
   | 'fix.cluster_map'
   | 'fix.content_brief'
   | 'onboarding.seed_questions'
+  | 'onboarding.brand_draft'
   | 'pulse.platform'
   | 'pulse.answer_analysis'
   | 'pulse.suggest_questions'

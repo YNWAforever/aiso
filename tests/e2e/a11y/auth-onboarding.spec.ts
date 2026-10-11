@@ -8,7 +8,8 @@ const COPY = {
     google: 'Continue with Google', submit: 'Send Magic Link', success: 'Check your email',
     googleError: 'Could not start Google sign-in. Please try again.',
     emailError: 'Could not send the magic link. Please try again.',
-    steps: ["What's your brand name?", 'Your website domain', 'Your industry & region', 'Tell AI what you do'],
+    brand: "What's your brand name?",
+    steps: ['Set up your brand', 'Your website domain', 'Your industry & region', 'Tell AI what you do'],
     continue: 'Continue', back: 'Back', industry: 'Industry (optional)', region: 'Region (optional)',
     description: 'Brand description', competitors: 'Main competitors', finish: 'Go to my dashboard',
     completeError: 'Something went wrong',
@@ -18,7 +19,8 @@ const COPY = {
     google: '使用 Google 繼續', submit: '發送登入連結', success: '請查看你的電郵',
     googleError: '無法啟動 Google 登入，請再試一次。',
     emailError: '無法發送登入連結，請再試一次。',
-    steps: ['你的品牌名稱是？', '你的網站域名', '你的行業及地區', '讓 AI 了解你的業務'],
+    brand: '你的品牌名稱是？',
+    steps: ['設定你的品牌', '你的網站域名', '你的行業及地區', '讓 AI 了解你的業務'],
     continue: '繼續', back: '返回', industry: '行業（可選）', region: '地區（可選）',
     description: '品牌描述', competitors: '主要競爭對手', finish: '前往我的儀表板',
     completeError: '發生錯誤，請再試一次',
@@ -143,7 +145,7 @@ for (const locale of A11Y_LOCALES) {
     await openOnboardingComponent(page,locale)
     await expectShell(page, c.steps[0], c.skip)
     await page.keyboard.press('Tab')
-    await expect(page.getByRole('textbox', { name: c.steps[0], exact: true })).toBeFocused()
+    await expect(page.locator('#brand-assist-url')).toBeFocused()
     await expectZoomReflow(page)
   })
 
@@ -151,7 +153,7 @@ for (const locale of A11Y_LOCALES) {
     const requests = await mockRequests(page)
     await openOnboardingComponent(page,locale)
     const firstControls = [
-      page.getByRole('textbox', { name: c.steps[0], exact: true }),
+      page.getByRole('textbox', { name: c.brand, exact: true }),
       page.getByRole('textbox', { name: c.steps[1], exact: true }),
       page.getByRole('combobox', { name: locale==='en'?'Question language':'問題語言', exact: true }),
       page.getByRole('textbox', { name: new RegExp(c.description) }),
@@ -163,7 +165,8 @@ for (const locale of A11Y_LOCALES) {
       // avoids raising the mobile software keyboard until the user tabs.
       await expect(heading).toBeFocused()
       await page.keyboard.press('Tab')
-      await expect(firstControls[step]).toBeFocused()
+      // The website assistant is now the first interactive control on step one.
+      await expect(step === 0 ? page.locator('#brand-assist-url') : firstControls[step]).toBeFocused()
       await expectNoOverflow(page)
     }
     await firstControls[0].fill('Accessibility fixture')
