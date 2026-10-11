@@ -1,4 +1,5 @@
 import 'server-only'
+import { projectScanStatus } from '@/lib/view-models/scan-status'
 import { db } from '@/lib/db'
 import { resolveCommercialEntitlement, type CommercialAccount } from '@/lib/tier'
 import { projectObservedSummary, type ObservedPulseSummary } from '@/lib/pulse/observed-summary'
@@ -66,9 +67,9 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
       return rows[0] ? scanRow(rows[0] as Scan) : null
     }, null),
     read('history', async () => { const rows = await sql`
-      select id, domain, score, grade, created_at from scans
+      select id, domain, score, grade, created_at, results->'evidence' as evidence from scans
       where client_id = ${clientId} and account_id = ${accountId} order by created_at desc, id desc limit 10
-    `; return (rows as ClientOverview['scanHistory']).map(scanRow) }, []),
+    `; return rows.map(row => { const display = projectScanStatus({ score: number(row.score), grade: typeof row.grade === 'string' ? row.grade : null, evidence: row.evidence }); return { id: row.id as string, domain: row.domain as string, score: display.score, grade: display.grade, displayState: display.state, created_at: timestamp(row.created_at) } }) }, []),
     read('pulse', async () => {
       const rows = await sql`
         with recent_weeks as (

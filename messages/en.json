@@ -1525,7 +1525,9 @@
     "dateZone": "Dates shown in UTC.",
     "grade": "Grade",
     "loadErrorTitle": "Your portfolio could not load",
-    "loadErrorBody": "We could not retrieve your owned brands. Refresh later to try again."
+    "loadErrorBody": "We could not retrieve your owned brands. Refresh later to try again.",
+    "scanIncomplete": "Scan incomplete — view reason",
+    "scanUnknown": "Collection evidence unavailable"
   },
   "settings": {
     "title": "Settings",

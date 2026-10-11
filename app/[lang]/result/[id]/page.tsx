@@ -77,8 +77,13 @@ export async function generateMetadata({
     const title=isZh ? `${scan.domain} — 未能完成掃描` : `${scan.domain} — scan could not be completed`
     return {title,openGraph:{title},twitter:{card:'summary',title}}
   }
-  const score = Math.round(scan.score)
-  const grade = scan.grade ?? 'F'
+  const display = buildPublicResultSummary(scan)
+  if (display.score === null || display.grade === null) {
+    const title = isZh ? `${scan.domain} — 採集證據未能確認` : `${scan.domain} — collection evidence unavailable`
+    return { title, openGraph: { title }, twitter: { card: 'summary', title } }
+  }
+  const score = Math.round(display.score)
+  const grade = display.grade
   const title = isZh
     ? `${scan.domain} 的網站就緒分數 ${score}/100（${grade}）`
     : `${scan.domain} scored ${score}/100 (${grade}) on website readiness`

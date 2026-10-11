@@ -1,0 +1,45 @@
+{
+  "zipSha256": "8ae52d45fe4b7522a7a3a28fd2ec82fdf8a21d2cd478e787c14fab3ce8c5efdb",
+  "hashes": [
+    {
+      "file": "checksums.json",
+      "expected": "1aca69b75134ee446a63fa71bfdde272a770b222abb4813d9b4efdadaf3a4d75",
+      "actual": "2f9e62dbabab9a8dedf5367c05164881faf5e42da0615177bc9c8429ab0a263d"
+    },
+    {
+      "file": "evidence/manifest.json",
+      "expected": "ecb9cda3d679d8ae97278dde32bde878c456c79c3020eff11ac6f4d35f66f5ab",
+      "actual": "ecb9cda3d679d8ae97278dde32bde878c456c79c3020eff11ac6f4d35f66f5ab"
+    },
+    {
+      "file": "evidence/verification.json",
+      "expected": "be66fc1f85ced2ce829902c0e761b605fae900f193a469fbfdb96caebc03cd76",
+      "actual": "be66fc1f85ced2ce829902c0e761b605fae900f193a469fbfdb96caebc03cd76"
+    },
+    {
+      "file": "findings.csv",
+      "expected": "28599fb92fabf8aead3f29c39c2e61e3ca4359543b1a1e150cf4bc184e29d93a",
+      "actual": "28599fb92fabf8aead3f29c39c2e61e3ca4359543b1a1e150cf4bc184e29d93a"
+    },
+    {
+      "file": "operations.csv",
+      "expected": "6bc6994abded624f3fc197347c4c5218e99f04c6a6590838b6962d1f08877780",
+      "actual": "6bc6994abded624f3fc197347c4c5218e99f04c6a6590838b6962d1f08877780"
+    },
+    {
+      "file": "report.md",
+      "expected": "8915685fe6482558612acf9bc261b4ae35a2326736f065e243c49bf488194de9",
+      "actual": "8915685fe6482558612acf9bc261b4ae35a2326736f065e243c49bf488194de9"
+    },
+    {
+      "file": "tasks.csv",
+      "expected": "592ed6d1e5c235f6e4fd1139b08e556c06726624669d347f06b692ef7bc4e1ec",
+      "actual": "592ed6d1e5c235f6e4fd1139b08e556c06726624669d347f06b692ef7bc4e1ec"
+    },
+    {
+      "file": "user-cases.md",
+      "expected": "6bab3cde32d45f14bc2df1a157b69dab24c704ea5f6ccebd9d671c9269459359",
+      "actual": "6bab3cde32d45f14bc2df1a157b69dab24c704ea5f6ccebd9d671c9269459359"
+    }
+  ]
+}

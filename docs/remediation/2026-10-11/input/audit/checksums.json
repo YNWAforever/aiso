@@ -1,0 +1,10 @@
+{
+  "checksums.json": "1aca69b75134ee446a63fa71bfdde272a770b222abb4813d9b4efdadaf3a4d75",
+  "evidence/manifest.json": "ecb9cda3d679d8ae97278dde32bde878c456c79c3020eff11ac6f4d35f66f5ab",
+  "evidence/verification.json": "be66fc1f85ced2ce829902c0e761b605fae900f193a469fbfdb96caebc03cd76",
+  "findings.csv": "28599fb92fabf8aead3f29c39c2e61e3ca4359543b1a1e150cf4bc184e29d93a",
+  "operations.csv": "6bc6994abded624f3fc197347c4c5218e99f04c6a6590838b6962d1f08877780",
+  "report.md": "8915685fe6482558612acf9bc261b4ae35a2326736f065e243c49bf488194de9",
+  "tasks.csv": "592ed6d1e5c235f6e4fd1139b08e556c06726624669d347f06b692ef7bc4e1ec",
+  "user-cases.md": "6bab3cde32d45f14bc2df1a157b69dab24c704ea5f6ccebd9d671c9269459359"
+}

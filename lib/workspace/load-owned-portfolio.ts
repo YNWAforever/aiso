@@ -1,4 +1,5 @@
 import 'server-only'
+import { projectScanStatus } from '@/lib/view-models/scan-status'
 import { db } from '@/lib/db'
 import { resolveCommercialEntitlement, type CommercialAccount, type EffectivePlan } from '@/lib/tier'
 import { projectObservedSummary, type ObservedPulseSummary } from '@/lib/pulse/observed-summary'
@@ -51,13 +52,13 @@ export async function loadOwnedPortfolio({ profile }: { profile: { account_id: s
     }, null),
     optional('history', async () => {
       const scans = await sql`
-        select id, domain, score, grade, created_at from scans
+        select id, domain, score, grade, created_at, results->'evidence' as evidence from scans
         where account_id = ${accountId} order by created_at desc, id desc limit 10
       `
       return scans.map(row => {
         const score = numeric(row.score)
-        if (score === null) throw new Error('Unavailable stored score')
-        return { id: row.id as string, domain: row.domain as string, score, grade: typeof row.grade === 'string' ? row.grade : null, created_at: timestamp(row.created_at) }
+        const display = projectScanStatus({ score, grade: typeof row.grade === 'string' ? row.grade : null, evidence: row.evidence })
+        return { id: row.id as string, domain: row.domain as string, score: display.score, grade: display.grade, displayState: display.state, created_at: timestamp(row.created_at) }
       })
     }, []),
     ids.length ? optional('visibility', async () => {

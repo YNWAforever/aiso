@@ -1,10 +1,10 @@
 import Link from 'next/link'
-import type { Scan } from '@/lib/types'
+import type { ClientOverview } from '@/lib/types'
 import en from '@/messages/en.json'
 import zhHK from '@/messages/zh-HK.json'
 
 type Props = {
-  scans: (Pick<Scan, 'id'|'domain'|'score'|'created_at'> & {grade?: string|null})[]
+  scans: ClientOverview['scanHistory']
   lang: string
   clientId?: string
 }
@@ -26,7 +26,7 @@ export function RecentScans({ scans, lang, clientId }: Props) {
             <p className="text-sm font-semibold text-foreground">{scan.domain}</p>
             <p className="mt-1 text-xs text-muted-foreground">{validDate ? <time dateTime={scan.created_at}>{formatScanDate(scan.created_at,lang)}</time> : copy.dateUnknown}</p>
           </div>
-          <div className="shrink-0 text-right text-sm font-semibold text-foreground"><p>{scan.score} / 100</p>{scan.grade && <p className="mt-1 text-xs text-muted-foreground">{copy.grade}: {scan.grade}</p>}</div>
+          <div className="shrink-0 text-right text-sm font-semibold text-foreground">{scan.score !== null && scan.displayState !== 'failed' ? <p>{scan.score} / 100</p> : <p>{scan.displayState === 'failed' ? copy.scanIncomplete : copy.scanUnknown}</p>}{scan.score !== null && scan.displayState !== 'failed' && scan.grade && <p className="mt-1 text-xs text-muted-foreground">{copy.grade}: {scan.grade}</p>}</div>
         </Link>
       })}
     </div>

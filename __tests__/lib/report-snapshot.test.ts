@@ -1,3 +1,4 @@
+import { buildScanEvidence } from '@/lib/scan-evidence'
 import { describe, expect, it } from 'vitest'
 import {
   buildClientReportSnapshot,
@@ -127,4 +128,9 @@ describe('client report snapshot', () => {
     expect(() => replaceExecutiveSummary(snapshot, `${'x'.repeat(40)}\u0080`)).toThrow()
     expect(() => replaceExecutiveSummary(snapshot, `${'x'.repeat(40)}\u009f`)).toThrow()
   })
+})
+
+it('UC05 refuses a new scored export over recorded failed collection',()=>{
+ const evidence=buildScanEvidence({requestedUrl:'https://example.com',evaluatedUrl:'https://example.com',industry:null,region:null,sitemapSource:'unknown',checks:{},observations:[{check:'page',collection:'failed',httpStatus:503,target:{origin:'https://example.com'}}]})
+ expect(()=>buildClientReportSnapshot({...input,currentScan:{...input.currentScan,results:{...input.currentScan.results as Record<string,unknown>,evidence}}})).toThrow(/collection/i)
 })

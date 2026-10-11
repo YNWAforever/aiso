@@ -13,7 +13,7 @@ const scan = {
   created_at: '2026-07-16T00:00:00.000Z',
   results: {
     evidence: buildScanEvidence({ requestedUrl: 'https://example.com', evaluatedUrl: 'https://example.com', industry: 'technology', region: 'HK', sitemapSource: 'fetched',
-      checks: { c2_llms_txt: { assessment: 'fail', collection: 'complete' } } }),
+      observations: [{check:'page',collection:'complete',httpStatus:200,target:{origin:'https://example.com'}}], checks: { c2_llms_txt: { assessment: 'fail', collection: 'complete' } } }),
     c1_robots: { status: 'pass', message: 'robots_ai_allowed', details: 'private raw evidence' },
     c2_llms_txt: { status: 'fail', message: 'llms_txt_missing', details: 'private remediation detail' },
     c3_bot_access: { status: 'pass', message: 'bots_all_accessible' },
@@ -26,7 +26,7 @@ describe('result access', () => {
   it('marks a historical failed page collection as unscorable', () => {
     const evidence=buildScanEvidence({requestedUrl:'https://example.com',evaluatedUrl:'https://example.com',industry:null,region:null,sitemapSource:'unknown',checks:{},
       observations:[{check:'page',collection:'failed',httpStatus:503,target:{origin:'https://example.com'}}]})
-    expect(buildPublicResultSummary({...scan,results:{...scan.results,evidence}})).toMatchObject({collectionFailed:true})
+    expect(buildPublicResultSummary({...scan,results:{...scan.results,evidence}})).toMatchObject({collectionFailed:true,score:null,grade:null})
   })
   it('unlocks only for the owning account', () => {
     expect(canViewFullResult('account-1', 'account-1')).toBe(true)

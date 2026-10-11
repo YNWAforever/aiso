@@ -1,3 +1,5 @@
+import enMessages from '@/messages/en.json'
+import zhMessages from '@/messages/zh-HK.json'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
@@ -78,6 +80,12 @@ export default async function DashboardResultPage({
 
   if (!scan) notFound()
 
+  const display = buildPublicResultSummary(scan)
+  if (display.score === null) return <main className="mx-auto max-w-2xl space-y-4 px-4 py-12">
+    <p>{scan.domain}</p>
+    <h1>{(lang === 'zh-HK' ? zhMessages : enMessages).portfolio[display.collectionFailed ? 'scanIncomplete' : 'scanUnknown']}</h1>
+    <Link href={`/${lang}/dashboard/${clientId}?step=scan`}>{t('dashboard.run_new_scan')}</Link>
+  </main>
   const s = scan
   const grade = s.grade ?? 'F'
   const gradeConfig = GRADE_CONFIG[grade] ?? GRADE_CONFIG['F']!

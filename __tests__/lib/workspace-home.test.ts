@@ -1,3 +1,4 @@
+import { buildScanEvidence } from '@/lib/scan-evidence'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CommercialAccount } from '@/lib/tier'
 
@@ -15,7 +16,7 @@ vi.mock('@/lib/db', () => ({ db: () => async (strings: TemplateStringsArray, ...
     return newestFirst ? state.pulse.slice(-40) : state.pulse.slice(0, 40)
   }
   if (text.includes('from pulse_metrics')) return []
-  if (text.includes('select id, domain')) return [{ id: 'scan-a', domain: 'example.com', score: state.dateRows ? '30' : 30, grade: 'F', created_at: state.dateRows ? new Date('2026-09-01T00:00:00Z') : '2026-09-01' }]
+  if (text.includes('select id, domain')) return [{ id: 'scan-a', domain: 'example.com', score: state.dateRows ? '30' : 30, grade: 'F', created_at: state.dateRows ? new Date('2026-09-01T00:00:00Z') : '2026-09-01', evidence: state.scanResults.evidence }]
   if (text.includes('from scans')) return state.selectedMissing ? [] : [{ id: 'scan-a', domain: 'example.com', score: state.dateRows ? '30' : 30, grade: 'F', created_at: state.dateRows ? new Date('2026-09-01T00:00:00Z') : '2026-09-01', results: state.scanResults, agent_status: 'complete' }]
   throw new Error('Unexpected query')
 } }))
@@ -119,6 +120,7 @@ describe('owned workspace loader', () => {
   })
   it('normalizes driver Date timestamps and numeric scores without changing stored diagnostics', async () => {
     state.dateRows = true
+    state.scanResults = {evidence:buildScanEvidence({requestedUrl:'https://example.com',evaluatedUrl:'https://example.com',industry:null,region:null,sitemapSource:'unknown',checks:{},observations:[{check:'page',collection:'complete',httpStatus:200,target:{origin:'https://example.com'}}]})}
     const home = buildWorkspaceHome((await load())!)
     expect(home.siteHealth.observedAt).toBe('2026-09-01T00:00:00.000Z')
     expect(home.siteHealth.data?.score).toBe(30)
@@ -147,4 +149,12 @@ describe('owned workspace loader', () => {
     expect(home.recommendations.generated).toBe(true)
     expect(home.siteHealth.observedAt).toBe('2026-09-01')
   })
+})
+
+it('UC05 applies failed collection to brand site health without mutating raw storage', async () => {
+ state.scanResults={evidence:buildScanEvidence({requestedUrl:'https://example.com',evaluatedUrl:'https://example.com',industry:null,region:null,sitemapSource:'unknown',checks:{},observations:[{check:'page',collection:'failed',httpStatus:503,target:{origin:'https://example.com'}}]})}
+ const workspace=(await load())!; const home=buildWorkspaceHome(workspace)
+ expect(workspace.scan.data?.score).toBe(30)
+ expect(home.siteHealth.data?.score).toBeNull()
+ expect(home.siteHealth.data?.grade).toBeNull()
 })

@@ -134,7 +134,7 @@ describe('public result route access boundary', () => {
     expectSanitized(await renderPage('evidence-private'))
   })
 
-  it('projects validated evidence for the exact owner only, preserving the headline', async () => {
+  it('projects validated evidence for the exact owner, retaining raw storage while withholding an unproven score', async () => {
     const row = scan('evidence-owner', 'account-1')
     Object.assign(row.results, { evidence: buildScanEvidence({
       requestedUrl: 'https://example.com/private?token=SECRET', evaluatedUrl: 'https://example.com',
@@ -145,8 +145,9 @@ describe('public result route access boundary', () => {
     const props = await renderPage('evidence-owner')
     expect(props.ownedEvidence?.checks).toHaveLength(20)
     expect(JSON.stringify(props.ownedEvidence)).not.toMatch(/SECRET|example\.com|comparisonSignature/)
-    expect(props.summary.score).toBe(62)
-    expect(props.summary.grade).toBe('C')
+    expect(props.fullScan?.score).toBe(62)
+    expect(props.summary.score).toBeNull()
+    expect(props.summary.grade).toBeNull()
   })
   it('serializes the full scan only for the exact owning account', async () => {
     sqlMock.mockResolvedValue([scan('owner', 'account-1')])

@@ -1,0 +1,89 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+stderr | __tests__/lib/workspace-home.test.ts > owned workspace loader > throws for ownership lookup outage, but keeps optional failures distinct
+[workspace] pulse read failed
+
+ ❯ __tests__/lib/workspace-home.test.ts (32 tests | 2 failed) 40ms
+     ✓ partial_run_guides_to_failed_items instead of claiming 100 percent coverage 4ms
+     ✓ unapproved_source_links_to_exact_version and free_empty_is_not_scheduler_failure 1ms
+     ✓ binds ownership first and denies an actual mismatching account before other reads 1ms
+     ✓ binds every dependent read to both tenant and client and never writes 2ms
+     ✓ keeps an explicit missing scan empty and does not query agents or fall back 1ms
+     ✓ throws for ownership lookup outage, but keeps optional failures distinct 2ms
+     ✓ returns a true latest week after more than 40 historical weeks 10ms
+     ✓ withholds KPI for unproven denominator 0/0 1ms
+     ✓ withholds KPI for unproven denominator null/2 0ms
+     ✓ withholds KPI for unproven denominator 2/null 0ms
+     ✓ withholds KPI for unproven denominator 2/0 0ms
+     ✓ withholds KPI for unproven denominator 2/1 0ms
+     ✓ requires whitespace-aware raw answers in collection predicates 0ms
+     ✓ rejects a stale aggregate numerator after a same-count retry 0ms
+     ✓ does not use an older aggregate when newest week has only platform rows 0ms
+     ✓ projects real entitlement {"plan":"free"} before reading paid arrays 0ms
+     ✓ projects real entitlement {"plan":"basic","status":"active","stripe_subscription_id":"sub"} before reading paid arrays 0ms
+     ✓ projects real entitlement {"plan":"pro","status":"active","stripe_subscription_id":"sub"} before reading paid arrays 0ms
+     ✓ projects real entitlement {"plan":"enterprise","status":"active","stripe_subscription_id":"sub"} before reading paid arrays 0ms
+     ✓ projects real entitlement {"plan":"enterprise","status":"cancelled","stripe_subscription_id":"sub"} before reading paid arrays 1ms
+     ✓ projects real entitlement {"plan":"enterprise","status":"past_due","stripe_subscription_id":"sub"} before reading paid arrays 0ms
+     ✓ projects real entitlement {"plan":"pro","trial_ends_at":"2999-01-01"} before reading paid arrays 0ms
+     ✓ projects real entitlement {"plan":"pro","trial_ends_at":"2000-01-01"} before reading paid arrays 0ms
+     ✓ projects real entitlement {"plan":"enterprise","status":"cancelled","stripe_subscription_id":"sub","override_plan":"basic"} before reading paid arrays 0ms
+     ✓ projects real entitlement {"plan":"enterprise","status":"cancelled","stripe_subscription_id":"sub","override_plan":"basic","override_expires_at":"2000-01-01"} before reading paid arrays 0ms
+     ✓ projects real entitlement {"plan":"pro","status":"trialing","stripe_subscription_id":"sub"} before reading paid arrays 0ms
+     ✓ projects real entitlement {"plan":"unknown","status":"active","stripe_subscription_id":"sub"} before reading paid arrays 0ms
+     × normalizes driver Date timestamps and numeric scores without changing stored diagnostics 5ms
+     ✓ preserves permitted progress and competitor platform vocabularies 0ms
+     ✓ preserves the exact valid stored historical diagnostic snapshot 0ms
+     ✓ emits no synthetic diagnostic snapshot and marks recommendations generated 0ms
+   × UC05 applies failed collection to brand site health without mutating raw storage 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/lib/workspace-home.test.ts > owned workspace loader > normalizes driver Date timestamps and numeric scores without changing stored diagnostics
+AssertionError: expected null to be 30 // Object.is equality
+
+- Expected:
+30
+
++ Received:
+null
+
+ ❯ __tests__/lib/workspace-home.test.ts:127:42
+    125|     expect(home.siteHealth.data?.score).toBe(30)
+
+    126|     expect(home.history.data?.[0].created_at).toBe('2026-09-01T00:00:0…
+    127|     expect(home.history.data?.[0].score).toBe(30)
+       |                                          ^
+    128|   })
+    129|   it('preserves permitted progress and competitor platform vocabularie…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  __tests__/lib/workspace-home.test.ts > UC05 applies failed collection to brand site health without mutating raw storage
+AssertionError: expected 30 to be null
+
+- Expected:
+null
+
++ Received:
+30
+
+ ❯ __tests__/lib/workspace-home.test.ts:157:38
+    155|  const workspace=(await load())!; const home=buildWorkspaceHome(worksp…
+    156|  expect(workspace.scan.data?.score).toBe(30)
+    157|  expect(home.siteHealth.data?.score).toBeNull()
+       |                                      ^
+    158|  expect(home.siteHealth.data?.grade).toBeNull()
+    159| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 30 passed (32)
+   Start at  18:49:11
+   Duration  725ms (transform 174ms, setup 40ms, import 207ms, tests 40ms, environment 0ms)
+

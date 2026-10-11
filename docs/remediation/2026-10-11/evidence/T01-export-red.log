@@ -1,0 +1,45 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ❯ __tests__/lib/report-snapshot.test.ts (15 tests | 1 failed) 22ms
+     ✓ uses schema version one and produces deterministic JSON-safe output 5ms
+     ✓ omits comparison fields for a baseline and includes only supported evidence in English 1ms
+     ✓ computes a signed score delta and deterministic zh-HK summary for comparable scans 1ms
+     ✓ orders fixes ahead of regressions, failures, and warnings; deduplicates equivalent fixes; and caps at five 2ms
+     ✓ does not carry account, raw scan, model, prompt, assignee, or HTML fields into the public snapshot 1ms
+     ✓ renders truthful zh-HK summary text at runtime 0ms
+     ✓ rejects mismatched account, domain, chronology, and non-ISO scan evidence 1ms
+     ✓ rejects mismatched account, domain, chronology, and non-ISO scan evidence 0ms
+     ✓ rejects mismatched account, domain, chronology, and non-ISO scan evidence 0ms
+     ✓ rejects mismatched account, domain, chronology, and non-ISO scan evidence 0ms
+     ✓ rejects mismatched account, domain, chronology, and non-ISO scan evidence 0ms
+     ✓ rejects mismatched account, domain, chronology, and non-ISO scan evidence 0ms
+     ✓ deduplicates recommendation, regression, and failure fixes for the same reportable check 0ms
+     ✓ allows only a normalized 40-1200 character edited summary 1ms
+   × UC05 refuses a new scored export over recorded failed collection 7ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/lib/report-snapshot.test.ts > UC05 refuses a new scored export over recorded failed collection
+AssertionError: expected [Function] to throw an error
+
+- Expected:
+null
+
++ Received:
+undefined
+
+ ❯ __tests__/lib/report-snapshot.test.ts:135:161
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 14 passed (15)
+   Start at  18:49:43
+   Duration  427ms (transform 94ms, setup 47ms, import 98ms, tests 22ms, environment 0ms)
+

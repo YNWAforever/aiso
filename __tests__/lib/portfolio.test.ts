@@ -65,7 +65,7 @@ describe('owned portfolio read model', () => {
   })
   it('normalizes persisted history numbers and timestamps and strips account fields', async () => {
     const dto = buildPortfolio(await load())
-    expect(dto.history.data?.[0]).toEqual({ id: 'scan-a', domain: 'example.com', score: 42, grade: 'D', created_at: '2026-09-06T01:00:00.000Z' })
+    expect(dto.history.data?.[0]).toEqual({ id: 'scan-a', domain: 'example.com', score: null, grade: null, displayState: 'unknown', created_at: '2026-09-06T01:00:00.000Z' })
     expect(JSON.stringify(dto)).not.toContain('DO_NOT_EXPOSE')
     expect(state.calls.find(call => call.text.includes('from scans'))!.text).toMatch(/order by created_at desc, id desc limit 10/)
   })

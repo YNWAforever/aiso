@@ -1,0 +1,14 @@
+case_id,task,status,environment,sha,evidence,remaining
+UC05,T01,passed_focused,synthetic_local,precommit,evidence/T01-green.log,preview and live pending
+UC01,,pending,not_run,,,
+UC02,,pending,not_run,,,
+UC03,,pending,not_run,,,
+UC04,,pending,not_run,,,
+UC06,,pending,not_run,,,
+UC07,,pending,not_run,,,
+UC08,,pending,not_run,,,
+UC09,,pending,not_run,,,
+UC10,,pending,not_run,,,
+UC11,,pending,not_run,,,
+UC12,,pending,not_run,,,
+UC13,,pending,not_run,,,

@@ -27,11 +27,10 @@ describe('shared result card evidence', () => {
       c2_llms_txt: { status: 'fail', message: 'llms_txt_missing' },
       c3_bot_access: { status: 'warn', message: 'bots_partially_blocked' },
     })
-    expect(html).toContain('0 passing')
-    expect(html).toContain('0 warnings')
-    expect(html).toContain('0 failing')
-    expect(html).toContain('3 need evidence')
-    expect(html).toContain('62')
+    expect(html).not.toContain('/100')
+    expect(html).not.toContain(' passing')
+    expect(html).not.toContain(' failing')
+    expect(html).not.toContain('62')
     expect(html).not.toContain('PRIVATE_DETAIL')
   })
 

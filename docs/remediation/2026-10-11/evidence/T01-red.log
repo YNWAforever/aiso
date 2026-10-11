@@ -1,0 +1,58 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ❯ __tests__/components/recent-scans.test.ts (10 tests | 2 failed) 45ms
+     ✓ preserves guarded result URLs and locale dates in en 29ms
+     ✓ preserves guarded result URLs and locale dates in zh-HK 2ms
+     ✓ preserves the optional owned-workspace result destination 1ms
+     ✓ does not render invalid dates or fabricate grades 1ms
+   ✓ missing or invalid observation date null stays unknown 0ms
+   ✓ missing or invalid observation date undefined stays unknown 0ms
+   ✓ missing or invalid observation date  stays unknown 0ms
+   ✓ missing or invalid observation date not-a-date stays unknown 0ms
+   × UC05 hides failed scores and provides a reason destination in en 7ms
+   × UC05 hides failed scores and provides a reason destination in zh-HK 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/components/recent-scans.test.ts > UC05 hides failed scores and provides a reason destination in en
+AssertionError: expected 'Dates shown in UTC.example.comSep 5, …' not to contain '/ 100'
+
+Expected: "/ 100"
+Received: "Dates shown in UTC.example.comSep 5, 2026 / 100"
+
+ ❯ __tests__/components/recent-scans.test.ts:33:20
+     31|   const html = renderToStaticMarkup(createElement(RecentScans, { lang,…
+     32|   const text = html.replace(/<[^>]*>/g, '')
+     33|   expect(text).not.toContain('/ 100')
+       |                    ^
+     34|   expect(text).not.toContain('Grade:')
+     35|   expect(text).toContain(lang === 'zh-HK' ? '掃描未完成' : 'Scan incomplete…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  __tests__/components/recent-scans.test.ts > UC05 hides failed scores and provides a reason destination in zh-HK
+AssertionError: expected '日期以 UTC 顯示。example.com2026年9月5日 / 100' not to contain '/ 100'
+
+Expected: "/ 100"
+Received: "日期以 UTC 顯示。example.com2026年9月5日 / 100"
+
+ ❯ __tests__/components/recent-scans.test.ts:33:20
+
+     31|   const html = renderToStaticMarkup(createElement(RecentScans, { lang,…
+     32|   const text = html.replace(/<[^>]*>/g, '')
+     33|   expect(text).not.toContain('/ 100')
+       |                    ^
+     34|   expect(text).not.toContain('Grade:')
+     35|   expect(text).toContain(lang === 'zh-HK' ? '掃描未完成' : 'Scan incomplete…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 8 passed (10)
+   Start at  18:46:17
+   Duration  477ms (transform 110ms, setup 39ms, import 183ms, tests 45ms, environment 0ms)
+

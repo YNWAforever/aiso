@@ -1,0 +1,46 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ✓ __tests__/lib/scan-status.test.ts (7 tests) 21ms
+ ✓ __tests__/lib/result-access.test.ts (3 tests) 21ms
+ ✓ __tests__/result-page-access.test.ts (10 tests) 35ms
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count null unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count undefined unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count -1 unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count unknown unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] history read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] visibility read failed
+
+ ✓ __tests__/lib/report-snapshot.test.ts (15 tests) 33ms
+ ✓ __tests__/components/result-og-evidence.test.tsx (3 tests) 33ms
+ ✓ __tests__/lib/portfolio.test.ts (19 tests) 33ms
+stderr | __tests__/lib/workspace-home.test.ts > owned workspace loader > throws for ownership lookup outage, but keeps optional failures distinct
+[workspace] pulse read failed
+
+ ✓ __tests__/components/recent-scans.test.ts (10 tests) 37ms
+ ✓ __tests__/lib/workspace-home.test.ts (32 tests) 40ms
+ ✓ __tests__/components/workspace-home-render.test.tsx (3 tests) 26ms
+ ✓ __tests__/dashboard-result-page.test.ts (6 tests) 18ms
+
+ Test Files  10 passed (10)
+      Tests  108 passed (108)
+   Start at  18:53:46
+   Duration  960ms (transform 1.85s, setup 398ms, import 2.83s, tests 297ms, environment 1ms)
+

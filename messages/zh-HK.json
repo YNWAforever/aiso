@@ -1525,7 +1525,9 @@
     "dateZone": "日期以 UTC 顯示。",
     "grade": "評級",
     "loadErrorTitle": "未能載入你的品牌組合",
-    "loadErrorBody": "暫時無法取得你持有的品牌，請稍後重新整理再試。"
+    "loadErrorBody": "暫時無法取得你持有的品牌，請稍後重新整理再試。",
+    "scanIncomplete": "掃描未完成／查看原因",
+    "scanUnknown": "採集證據未能確認"
   },
   "settings": {
     "title": "設定",

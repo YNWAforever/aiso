@@ -1,0 +1,36 @@
+{
+  "aiso_sha": "783e54e3fa99f8c14e4cab84a67b42b0b1513c3c",
+  "deployment": {
+    "id": "dpl_8wUWAwt9GydS7fvhqj7oPU7AqLZR",
+    "state": "READY",
+    "target": "production",
+    "alias": "aiso-kappa.vercel.app",
+    "verified_sha": "783e54e3fa99f8c14e4cab84a67b42b0b1513c3c"
+  },
+  "typecheck": {
+    "command": "npm run typecheck",
+    "exit_code": 0
+  },
+  "focused_tests": {
+    "command": "CI=1 node_modules/.bin/vitest run __tests__/lib/share-of-voice.test.ts __tests__/lib/citation-sources.test.ts __tests__/lib/pulse-grounding.test.ts --reporter=json",
+    "files": 3,
+    "total": 64,
+    "passed": 64,
+    "failed": 0,
+    "success": true
+  },
+  "full_suite": {
+    "status": "blocked_by_automatic_review",
+    "reason": "An HTTP request to an untrusted host was detected; synthetic/authorized payload could not be established. No retry of the full suite or bypass was attempted. Inspected pure tests were run with CI network guard instead."
+  },
+  "not_run": [
+    "full successful unit suite",
+    "build",
+    "lint",
+    "fresh provider integration",
+    "cross-tenant mutation tests",
+    "load testing",
+    "mobile/accessibility suite"
+  ],
+  "product_changes": "No tracked product-source changes, commits, merges or deployments in this audit."
+}
