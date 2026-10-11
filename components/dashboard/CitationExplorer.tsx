@@ -31,7 +31,7 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
 
   const present = CITATION_KINDS.filter(k => report.availableKinds?report.availableKinds.includes(k):report.domains.some(d => d.kind === k))
   const shown = report.query?report.domains:domainsOfKind(report.domains, kind)
-  const queryHref=(updates:Record<string,string|number|undefined>)=>{const p=report.query?citationQueryParams(report.query):new URLSearchParams();for(const [k,v]of Object.entries(updates))v===undefined?p.delete(k):p.set(k,String(v));return `/${locale}/dashboard/${clientId}/citations?${p}`}
+  const queryHref=(updates:Record<string,string|number|undefined>)=>{const p=report.query?citationQueryParams(report.query):new URLSearchParams();for(const [k,v]of Object.entries(updates)){if(v===undefined)p.delete(k);else p.set(k,String(v));}return `/${locale}/dashboard/${clientId}/citations?${p}`}
   const csvHref = `/api/dashboard/clients/${encodeURIComponent(clientId)}/citations?format=csv${report.query?`&${citationQueryParams(report.query)}`:''}`
   const latest = report.weeks[0]
   const earliest = report.weeks.at(-1)

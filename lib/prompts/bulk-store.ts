@@ -1,0 +1,34 @@
+import 'server-only'
+import {createHash,randomUUID} from 'node:crypto'
+import {db} from '@/lib/db'
+import {previewPromptRows,type PromptBatchRow} from './bulk'
+import {resolveCommercialEntitlement,type CommercialAccount} from '@/lib/tier'
+export type PromptBatchScope={accountId:string;clientId:string}
+export async function readPromptBatch(scope:PromptBatchScope){
+ const [row]=await db()`select c.id,coalesce((select jsonb_agg(to_jsonb(p) order by p.id) from prompt_bank p where p.client_id=c.id),'[]'::jsonb) as prompts,(select md5(coalesce(string_agg(to_jsonb(p)::text,'|' order by p.id),'')) from prompt_bank p where p.client_id=c.id) as version from clients c where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId}`
+ if(!row)throw new Error('PROMPT_NOT_FOUND');const recentRows=await db()`with latest as(select distinct on (i.prompt_snapshot_id) i.prompt_snapshot_id,i.run_id,r.scan_week from pulse_run_items i join pulse_runs r on r.id=i.run_id and r.account_id=i.account_id and r.client_id=i.client_id where i.account_id=${scope.accountId} and i.client_id=${scope.clientId}::uuid and r.purpose='canonical' order by i.prompt_snapshot_id,r.created_at desc,r.id desc) select l.prompt_snapshot_id,l.run_id,l.scan_week,count(i.id)::int as expected,count(i.id) filter(where i.status='succeeded')::int as succeeded,count(i.id) filter(where i.classification_status='classified')::int as classified from latest l join pulse_run_items i on i.run_id=l.run_id and i.prompt_snapshot_id=l.prompt_snapshot_id and i.account_id=${scope.accountId} and i.client_id=${scope.clientId}::uuid group by l.prompt_snapshot_id,l.run_id,l.scan_week`;return{recent:Object.fromEntries(recentRows.map(r=>[String(r.prompt_snapshot_id),{runId:String(r.run_id),week:r.scan_week instanceof Date?r.scan_week.toISOString().slice(0,10):String(r.scan_week),expected:Number(r.expected),succeeded:Number(r.succeeded),classified:Number(r.classified)}])),prompts:row.prompts as PromptBatchRow[],version:String(row.version)}
+}
+export async function previewPromptImport(scope:PromptBatchScope,rows:PromptBatchRow[]){const current=await readPromptBatch(scope);return{...previewPromptRows(current.prompts,rows),version:current.version}}
+export async function applyPromptBatch(scope:PromptBatchScope,input:{intentKey:string;changes:PromptBatchRow[];expectedVersion:string}){
+ if(!/^[a-zA-Z0-9:_-]{8,128}$/.test(input.intentKey)||!Array.isArray(input.changes)||!input.changes.length||input.changes.length>50||!/^[a-f0-9]{32}$/.test(input.expectedVersion))throw new Error('INVALID_PROMPT_BATCH')
+ const sql=db(),hash=createHash('sha256').update(JSON.stringify(input)).digest('hex');const [previous]=await sql`select request_hash,result from prompt_batch_intents where account_id=${scope.accountId} and client_id=${scope.clientId}::uuid and intent_key=${input.intentKey}`
+ if(previous){if(previous.request_hash!==hash)throw new Error('PROMPT_INTENT_CONFLICT');return previous.result}
+ const [account]=await sql`select a.* from accounts a join clients c on c.account_id=a.id where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId}`
+ if(!account)throw new Error('PROMPT_NOT_FOUND');if(!resolveCommercialEntitlement(account as CommercialAccount).features.edit_prompts)throw new Error('PROMPT_ENTITLEMENT_CHANGED')
+ const current=await readPromptBatch(scope);if(current.version!==input.expectedVersion)throw new Error('PROMPT_VERSION_CONFLICT');const preview=previewPromptRows(current.prompts,input.changes);if(preview.errors.length)throw Object.assign(new Error('INVALID_PROMPT_ROWS'),{errors:preview.errors})
+ const changes=preview.validRows.map(r=>({...r,id:r.id??randomUUID()})),ids=changes.map(r=>r.id)
+ const result=await sql.transaction([
+ sql`select id from accounts where id=${scope.accountId} for update`,
+ sql`select id from clients where id=${scope.clientId}::uuid and account_id=${scope.accountId} for no key update`,
+ sql`with owned as(select c.id from clients c join accounts a on a.id=c.account_id where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId} and (case when a.override_plan is not null and (a.override_expires_at is null or a.override_expires_at>now()) then a.override_plan when a.stripe_subscription_id is not null and a.status in ('active','trialing') then a.plan when a.trial_ends_at>now() and a.status not in ('cancelled','past_due') then 'pro' else 'free' end) in ('pro','enterprise')),
+ permitted as(select id from owned where (select md5(coalesce(string_agg(to_jsonb(p)::text,'|' order by p.id),'')) from prompt_bank p where p.client_id=owned.id)=${input.expectedVersion} and not exists(select 1 from prompt_batch_intents where account_id=${scope.accountId} and client_id=owned.id and intent_key=${input.intentKey})),
+ intent as(insert into prompt_batch_intents(account_id,client_id,intent_key,request_hash) select ${scope.accountId},id,${input.intentKey},${hash} from permitted returning client_id),
+ rows as(select * from jsonb_to_recordset(${JSON.stringify(changes)}::jsonb) as x(id uuid,question text,category text,language text,market text,is_active boolean)),
+ updated as(update prompt_bank p set question=x.question,category=x.category,language=x.language,market=x.market,is_active=x.is_active from rows x,intent where p.id=x.id and p.client_id=intent.client_id returning p.id),
+ inserted as(insert into prompt_bank(id,client_id,question,category,language,market,is_active) select x.id,intent.client_id,x.question,x.category,x.language,x.market,x.is_active from rows x,intent where not exists(select 1 from prompt_bank p where p.id=x.id) returning id)
+ select (select count(*) from updated)+(select count(*) from inserted) as changed`,
+ sql`update prompt_batch_intents j set result=jsonb_build_object('updatedIds',${ids}::text[],'activeCount',(select count(*) from prompt_bank p where p.client_id=j.client_id and p.is_active),'version',(select md5(coalesce(string_agg(to_jsonb(p)::text,'|' order by p.id),'')) from prompt_bank p where p.client_id=j.client_id)) where j.account_id=${scope.accountId} and j.client_id=${scope.clientId}::uuid and j.intent_key=${input.intentKey} and j.request_hash=${hash} and j.result is null returning result`
+ ])
+ if(result[3]?.[0])return result[3][0].result
+ const [saved]=await sql`select request_hash,result from prompt_batch_intents where account_id=${scope.accountId} and client_id=${scope.clientId}::uuid and intent_key=${input.intentKey}`;if(saved?.request_hash===hash&&saved.result)return saved.result;throw new Error(saved?'PROMPT_INTENT_CONFLICT':'PROMPT_VERSION_CONFLICT')
+}

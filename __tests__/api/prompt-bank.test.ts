@@ -243,8 +243,8 @@ describe('POST /prompts', () => {
 describe('PATCH /prompts/[promptId]', () => {
   it('accepts context-only correction without rewriting the question', async () => {
     expect((await patch({ language: 'zh-HK', market: 'HK' })).status).toBe(200)
-    expect(calls[0].params).toContain('zh-HK')
-    expect(calls[0].params).toContain('HK')
+    expect(calls[1].params).toContain('zh-HK')
+    expect(calls[1].params).toContain('HK')
   })
   it('returns 400 when no updatable field is present, before any query', async () => {
     // Expressed in JS rather than SQL: `where $1 is not null` triggers "could
@@ -265,21 +265,22 @@ describe('PATCH /prompts/[promptId]', () => {
   it('sends only question and is_active to the statement', async () => {
     await patch({ question: 'Updated?', is_active: false, category: 'pain_point', id: 'other' })
 
-    expect(calls[0].params).toEqual(['Updated?', false, false, 'en', false, null, 'prompt-1', 'client-1', 'acc-1'])
+    expect(calls[1].params).toEqual(['Updated?', false, false, 'en', false, null, 'prompt-1', 'client-1', 'acc-1'])
   })
 
   it('scopes the update by prompt, client and account in one statement', async () => {
     await patch()
 
-    expect(calls).toHaveLength(1)
-    expect(calls[0].text).toMatch(/update prompt_bank p/i)
-    expect(calls[0].text).toMatch(/from clients c/i)
-    expect(calls[0].text).toMatch(/c\.account_id =/)
+    expect(calls).toHaveLength(2)
+    expect(calls[0].text).toMatch(/for no key update/)
+    expect(calls[1].text).toMatch(/update prompt_bank p/i)
+    expect(calls[1].text).toMatch(/from clients c/i)
+    expect(calls[1].text).toMatch(/c\.account_id =/)
     // Both predicates matter: c.account_id alone would let a prompt be reached
     // through any of the account's brands, and p.client_id alone would let it
     // be reached from another account entirely.
-    expect(calls[0].text).toMatch(/p\.client_id =/)
-    expect(calls[0].text).toMatch(/c\.id = p\.client_id/)
+    expect(calls[1].text).toMatch(/p\.client_id =/)
+    expect(calls[1].text).toMatch(/c\.id = p\.client_id/)
   })
 
   it('never selects the joined client columns back', async () => {
@@ -290,8 +291,8 @@ describe('PATCH /prompts/[promptId]', () => {
     // id that never existed.
     await patch()
 
-    expect(calls[0].text).toMatch(/returning p\./)
-    expect(calls[0].text).not.toMatch(/returning\s+\*/)
+    expect(calls[1].text).toMatch(/returning p\./)
+    expect(calls[1].text).not.toMatch(/returning\s+\*/)
   })
 
   it('returns 404 when the statement matches no row', async () => {
@@ -309,13 +310,14 @@ describe('DELETE /prompts/[promptId]', () => {
   it('scopes the delete by prompt, client and account in one statement', async () => {
     await del()
 
-    expect(calls).toHaveLength(1)
-    expect(calls[0].text).toMatch(/delete from prompt_bank p/i)
-    expect(calls[0].text).toMatch(/using clients c/i)
-    expect(calls[0].text).toMatch(/c\.account_id =/)
-    expect(calls[0].text).toMatch(/p\.client_id =/)
-    expect(calls[0].text).toMatch(/c\.id = p\.client_id/)
-    expect(calls[0].params).toEqual(['prompt-1', 'client-1', 'acc-1'])
+    expect(calls).toHaveLength(2)
+    expect(calls[0].text).toMatch(/for no key update/)
+    expect(calls[1].text).toMatch(/delete from prompt_bank p/i)
+    expect(calls[1].text).toMatch(/using clients c/i)
+    expect(calls[1].text).toMatch(/c\.account_id =/)
+    expect(calls[1].text).toMatch(/p\.client_id =/)
+    expect(calls[1].text).toMatch(/c\.id = p\.client_id/)
+    expect(calls[1].params).toEqual(['prompt-1', 'client-1', 'acc-1'])
   })
 
   it('returns 404 when the statement matches no row', async () => {

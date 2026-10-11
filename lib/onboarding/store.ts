@@ -59,7 +59,7 @@ export async function initializeOnboarding(scope: OnboardingScope, input: Onboar
       insert into onboarding_progress (account_id, intent_key, client_id, scan_id, draft,request_hash)
       select ${scope.accountId}, ${input.intentKey}, chosen.id, ${input.scanId}::uuid, ${JSON.stringify(input)}::jsonb,${onboardingInputHash(input)}
       from chosen join trial on true
-      on conflict (account_id, client_id) do update set draft = excluded.draft,request_hash=coalesce(onboarding_progress.request_hash,excluded.request_hash),
+      on conflict (account_id, client_id) do update set draft = case when onboarding_progress.intent_key<>excluded.intent_key and onboarding_progress.prompt_status in ('pending','failed') then excluded.draft else onboarding_progress.draft end,request_hash=coalesce(onboarding_progress.request_hash,excluded.request_hash),
         scan_id = coalesce(onboarding_progress.scan_id, excluded.scan_id), updated_at = now()
       returning *
     ), associated as (
