@@ -9,6 +9,7 @@ export type DatabaseCheck = RuntimeCheck & { id: 'database.identity' | 'database
 export type DatabasePortOutput = { observedDatabase: ObservedDatabaseIdentity; checks: DatabaseCheck[] }
 export type AuthCheck = RuntimeCheck & { id: 'auth.jwks' | 'auth.anonymous_session' }
 export type AuthPortOutput = AuthCheck[]
+export type OriginCheck = RuntimeCheck & { id: 'origin.resolves' }
 export type ProbePorts = {
   now(): number
   configuredTeam?(): unknown
@@ -16,6 +17,8 @@ export type ProbePorts = {
   configuration(policy: RuntimePolicy): unknown
   database(policy: RuntimePolicy, signal: AbortSignal): Promise<unknown>
   auth(policy: RuntimePolicy, signal: AbortSignal): Promise<unknown>
+  /** Whether NEXT_PUBLIC_APP_URL's host resolves to a public address. */
+  origin(signal: AbortSignal): Promise<unknown>
 }
 
 const emptyCandidate = (): ObservedCandidateIdentity => ({ teamId: null, projectId: null, deploymentId: null, commitSha: null, environment: null })
@@ -75,7 +78,7 @@ async function bounded(call: (signal: AbortSignal) => Promise<unknown>, parent: 
   }
 }
 
-function categoryChecks(value: unknown, policy: RuntimePolicy, category: 'database.' | 'auth.') {
+function categoryChecks(value: unknown, policy: RuntimePolicy, category: 'database.' | 'auth.' | 'origin.') {
   const checks = parseRuntimeChecks(value, policy)
   if (checks.some(check => !check.id.startsWith(category))) throw new Error('Invalid probe category')
   return checks
@@ -122,7 +125,23 @@ export async function runRuntimeProbe(input: ProbeRequest, ports: ProbePorts, si
       }
       return bounded(probeSignal => ports[category](structuredClone(request.policy), probeSignal), shared.signal, remaining())
     }
+    // Needs only a valid configured origin, not the candidate identity: a dead
+    // app URL (aeo.fimmick.com, until 2026-10-10) passed every other check.
+    const origin: Promise<Outcome> = allowed(['config.NEXT_PUBLIC_APP_URL'])
+      ? bounded(probeSignal => ports.origin(probeSignal), shared.signal, remaining())
+      : (checks.push({ id: 'origin.resolves', status: 'unknown', code: 'dependency_failed' }), Promise.resolve({ kind: 'value', value: null }))
     const results = await Promise.allSettled([run('database', dbDependencies), run('auth', authDependencies)])
+    const originResult = await origin
+    if (!checks.some(check => check.id === 'origin.resolves')) {
+      if (originResult.kind !== 'value') checks.push({ id: 'origin.resolves', status: 'unknown', code: originResult.kind === 'timeout' ? 'timeout' : 'probe_error' })
+      else {
+        try {
+          const parsed = categoryChecks(originResult.value, request.policy, 'origin.')
+          if (parsed.length !== 1) throw new Error('Invalid origin evidence')
+          checks.push(...parsed)
+        } catch { checks.push({ id: 'origin.resolves', status: 'unknown', code: 'malformed_response' }) }
+      }
+    }
     for (const [index, result] of results.entries()) {
       const id = index === 0 ? 'database.identity' : 'auth.jwks'
       if (checks.some(check => check.id === id)) continue

@@ -56,7 +56,7 @@ function unbracket(hostname: string) {
   return hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname
 }
 
-function isPublicAddress(address: string) {
+export function isPublicAddress(address: string) {
   const normalized = unbracket(address)
   const family = isIP(normalized)
   if (family === 4) return !blockedV4.check(normalized, 'ipv4')

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { hashPolicy, type RuntimePolicy } from '@/lib/readiness/runtime-contract'
 import { configurationCheckIds } from '@/lib/readiness/config'
-const { factory, database, auth } = vi.hoisted(() => ({ factory: vi.fn(), database: vi.fn(), auth: vi.fn() }))
+const { factory, database, auth, origin } = vi.hoisted(() => ({ factory: vi.fn(), database: vi.fn(), auth: vi.fn(), origin: vi.fn() }))
 vi.mock('@/lib/readiness/runtime-adapters', () => ({ createRuntimePorts: factory }))
 import * as route from '@/app/api/internal/readiness/route'
 const secret = 'fixture-readiness-secret-0000000001'
@@ -13,10 +13,11 @@ function request(body: BodyInit = JSON.stringify(payload), authorization = 'Bear
 }
 beforeEach(() => {
   vi.stubEnv('READINESS_PROBE_SECRET', secret)
-  factory.mockReset(); database.mockReset(); auth.mockReset()
+  factory.mockReset(); database.mockReset(); auth.mockReset(); origin.mockReset()
+  origin.mockResolvedValue([{ id: 'origin.resolves', status: 'pass', code: 'resolved' }])
   database.mockResolvedValue({ observedDatabase: policy.expectedDatabase, checks: [{ id: 'database.identity', status: 'pass', code: 'matched' }, { id: 'database.read_only', status: 'pass', code: 'read_only' }] })
   auth.mockResolvedValue([{ id: 'auth.jwks', status: 'pass', code: 'available' }, { id: 'auth.anonymous_session', status: 'pass', code: 'anonymous' }])
-  factory.mockImplementation(() => ({ now: Date.now, identity: () => expected, configuration: () => configurationCheckIds.map(id => ({ id, status: 'pass', code: 'valid' })), database, auth }))
+  factory.mockImplementation(() => ({ now: Date.now, identity: () => expected, configuration: () => configurationCheckIds.map(id => ({ id, status: 'pass', code: 'valid' })), database, auth, origin }))
 })
 afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers() })
 describe('internal readiness route', () => {

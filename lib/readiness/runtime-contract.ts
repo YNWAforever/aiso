@@ -37,6 +37,7 @@ export const runtimeCheckIds = [
   'database.relation',
   'auth.jwks',
   'auth.anonymous_session',
+  'origin.resolves',
 ] as const
 
 export const runtimeCheckCodes = [
@@ -61,6 +62,8 @@ export const runtimeCheckCodes = [
   'malformed_response',
   'timeout',
   'probe_error',
+  'resolved',
+  'unresolved',
 ] as const
 
 export type RuntimeCheckId = (typeof runtimeCheckIds)[number]

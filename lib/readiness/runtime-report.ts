@@ -33,7 +33,7 @@ const sqlIdentifier = /^[a-z_][a-z0-9_]{0,127}$/
 
 function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null && !Array.isArray(value) }
 function exact(value: Record<string, unknown>, keys: readonly string[]) { return Object.keys(value).length === keys.length && Object.keys(value).every((key) => keys.includes(key)) }
-const requiredRuntimeCheckIds = new Set(['candidate.identity', 'database.identity', 'database.read_only', 'auth.jwks', 'auth.anonymous_session'])
+const requiredRuntimeCheckIds = new Set(['candidate.identity', 'database.identity', 'database.read_only', 'auth.jwks', 'auth.anonymous_session', 'origin.resolves'])
 function status(checks: readonly RuntimeCheck[], policy: RuntimePolicy): ProbeStatus {
   if (checks.some((check) => check.status === 'fail')) return 'fail'
   const supplied = new Set<string>(checks.map((check) => check.id))

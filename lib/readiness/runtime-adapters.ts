@@ -1,11 +1,11 @@
 import { createPublicKey, type JsonWebKey } from 'node:crypto'
 import { neon, type NeonQueryFunctionInTransaction } from '@neondatabase/serverless'
 import { checkBinding } from '@/lib/security/db-binding'
-import { createPublicUrlFetcher, type PublicUrlFetch } from '@/lib/security/public-url'
+import { createPublicUrlFetcher, isPublicAddress, type LookupAll, type PublicUrlFetch } from '@/lib/security/public-url'
 import { validateConfiguration } from './config'
 import { createReadinessLookup } from './dns'
 import { toReleasePolicy, type RuntimePolicy } from './runtime-contract'
-import type { AuthCheck, DatabaseCheck, DatabasePortOutput, ProbePorts } from './runtime'
+import type { AuthCheck, DatabaseCheck, DatabasePortOutput, OriginCheck, ProbePorts } from './runtime'
 import type { ObservedDatabaseIdentity } from './runtime-report'
 
 export type RuntimeDependencies = {
@@ -13,6 +13,7 @@ export type RuntimeDependencies = {
   now?: () => number
   neonFactory?: typeof neon
   publicFetcher?: PublicUrlFetch
+  lookup?: LookupAll
 }
 type Row = Record<string, unknown>
 type Tx = NeonQueryFunctionInTransaction<false, false>
@@ -159,6 +160,23 @@ export function createRuntimePorts(dependencies: RuntimeDependencies): ProbePort
         finally { if (response?.body && !response.body.locked) await response.body.cancel().catch(() => {}) }
       }
       return checks
+    },
+    async origin(parent): Promise<OriginCheck[]> {
+      const signal = AbortSignal.any([parent, AbortSignal.timeout(5000)])
+      const check = (status: OriginCheck['status'], code: OriginCheck['code']): OriginCheck[] => [{ id: 'origin.resolves', status, code }]
+      let hostname: string
+      try { hostname = new URL((env.NEXT_PUBLIC_APP_URL ?? '').trim()).hostname } catch { return check('unknown', 'dependency_failed') }
+      try {
+        // Direct DNS, like the auth probes: a hosts-file entry must not make a dead host look alive.
+        const addresses = await (dependencies.lookup ?? createReadinessLookup())(hostname, signal)
+        signal.throwIfAborted()
+        return addresses.some(({ address }) => isPublicAddress(address)) ? check('pass', 'resolved') : check('fail', 'unresolved')
+      } catch (error) {
+        if (signal.aborted) return check('unknown', 'timeout')
+        // NXDOMAIN is the failure this check exists for; anything else is inconclusive.
+        const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
+        return code === 'ENOTFOUND' ? check('fail', 'unresolved') : check('unknown', 'probe_error')
+      }
     },
   }
 }

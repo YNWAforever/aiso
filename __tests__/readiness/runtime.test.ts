@@ -17,9 +17,10 @@ const db = { observedDatabase: policy.expectedDatabase, checks: [
   { id: 'database.relation', policyIndex: 0, privilege: 'SELECT', status: 'pass', code: 'privilege_present' },
 ] }
 const auth = [{ id: 'auth.jwks', status: 'pass', code: 'available' }, { id: 'auth.anonymous_session', status: 'pass', code: 'anonymous' }]
+const origin = [{ id: 'origin.resolves', status: 'pass', code: 'resolved' }]
 function ports() {
   return { now: vi.fn(() => Date.now()), identity: vi.fn(() => expected), configuration: vi.fn(() => config),
-    database: vi.fn(async () => db), auth: vi.fn(async () => auth) }
+    database: vi.fn(async () => db), auth: vi.fn(async () => auth), origin: vi.fn(async () => origin) }
 }
 const run = (p: ProbePorts, signal = new AbortController().signal) => runRuntimeProbe(request, p, signal)
 afterEach(() => vi.useRealTimers())
@@ -28,7 +29,7 @@ describe('runtime orchestration', () => {
     const p = ports(); const result = await run(p)
     expect(result.runtimeStatus).toBe('pass')
     expect(result.productionReady).toBe(false)
-    for (const key of ['identity', 'configuration', 'database', 'auth'] as const) expect(p[key]).toHaveBeenCalledTimes(1)
+    for (const key of ['identity', 'configuration', 'database', 'auth', 'origin'] as const) expect(p[key]).toHaveBeenCalledTimes(1)
     expect(p.database.mock.calls[0]).toEqual([policy, expect.any(AbortSignal)])
   })
   it.each([{ ...expected, commitSha: 'c'.repeat(40) }, { ...expected, teamId: null }, { raw: 'sentinel' }])('suppresses resources for unverified identity', async identity => {
