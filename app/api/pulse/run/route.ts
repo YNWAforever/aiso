@@ -1,3 +1,4 @@
+import {promptCollectionMessages} from '@/lib/prompts/context'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { callMultiPlatform } from '@/lib/openrouter'
@@ -150,12 +151,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  let prompts: Array<{ id: string; question: string; category: string | null }>
+  let prompts: Array<{id:string;question:string;category:string|null;language:string|null;market:string|null}>
   let scanWeek: string
   try {
     // Ordered by id so a cursor is stable across invocations.
     const rows = await sql`
-      select id, question, category from prompt_bank
+      select id, question, category,language,market from prompt_bank
       where client_id = ${clientId} and is_active = true
       order by id
       limit ${MAX_PROMPTS}
@@ -189,7 +190,7 @@ export async function POST(req: NextRequest) {
       // A platform outage must not abort the chunk — callMultiPlatform already
       // drops rejected platforms, and this catches a total failure.
       const responses = await callMultiPlatform(
-        [{ role: 'user', content: prompt.question }],
+        promptCollectionMessages({...prompt,contextVersion:'2026-10-03.v1'}),
         pulseAnswerMaxTokens,
         platforms,
         undefined,
@@ -235,13 +236,13 @@ export async function POST(req: NextRequest) {
             client_id, prompt_id, platform, question, raw_answer,
             brand_mentioned, sentiment, mention_position, competitors_mentioned, scan_week,
             classification_status,classifier_method,classifier_version,matched_text,
-            provider_citations,grounding,search_evidence
+            provider_citations,grounding,search_evidence,requested_model,actual_model,provider_request_id,collected_at,prompt_snapshot,brand_snapshot,provider_usage,provider_finish_reason,source_schema_version
           ) select
             ${clientId}, ${prompt.id}, ${response.platform}, ${prompt.question}, ${response.answer},
             ${analysis.brandMentioned}, ${analysis.sentiment}, ${analysis.mentionPosition},
             ${analysis.competitorsMentioned}::text[], ${scanWeek}::date,
             ${analysis.classificationStatus},${analysis.method},${analysis.version},${JSON.stringify(analysis.matchedText)}::jsonb,
-            ${response.providerCitations == null ? null : JSON.stringify(response.providerCitations)}::jsonb,${response.grounding ?? null},${response.searchEvidence?JSON.stringify(response.searchEvidence):null}::jsonb
+            ${response.providerCitations == null ? null : JSON.stringify(response.providerCitations)}::jsonb,${response.grounding ?? null},${response.searchEvidence?JSON.stringify(response.searchEvidence):null}::jsonb,${response.requestedModel??null},${response.providerEvidence?.actualModel??null},${response.providerEvidence?.requestId??null},${new Date().toISOString()}::timestamptz,${JSON.stringify({question:prompt.question,category:prompt.category,language:prompt.language??null,market:prompt.market??null,contextVersion:'2026-10-03.v1'})}::jsonb,${JSON.stringify({name:client.brand_name,competitors:client.competitors})}::jsonb,${response.providerEvidence?JSON.stringify({promptTokens:response.providerEvidence.promptTokens,completionTokens:response.providerEvidence.completionTokens,costUsd:response.providerEvidence.costUsd}):null}::jsonb,${response.providerEvidence?.providerFinishReason??null},'2026-10-11.v1'
           where exists(select 1 from clients where id = ${clientId} and account_id = ${client.account_id})
             and not exists(select 1 from pulse_metrics where client_id = ${clientId} and prompt_id = ${prompt.id}
               and scan_week = ${scanWeek}::date and platform = ${response.platform} and nullif(btrim(raw_answer),'') is not null)

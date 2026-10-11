@@ -45,12 +45,14 @@ export async function analyseAnswer(input: {
   competitors?: readonly CompetitorMatch[]
 }): Promise<AnswerAnalysis> {
   const competitors = input.competitors ?? []
-  const fallback = () => naiveAnalysis(input.answer, input.brandName, competitors)
+  let providerUsage:AnswerAnalysisV2['providerUsage']=null
+  const fallback = () => ({...naiveAnalysis(input.answer, input.brandName, competitors),providerUsage})
   if (!input.answer.trim()) return fallback()
 
   try {
     const raw = await callOpenRouter({
       label: 'pulse.answer_analysis',
+      onEvidence:e=>{providerUsage={requestId:e.requestId,model:e.actualModel,promptTokens:e.promptTokens,completionTokens:e.completionTokens,costUsd:e.costUsd}},
       model: ANALYSIS_MODEL,
       maxTokens: 300,
       signal: AbortSignal.timeout(ANALYSIS_TIMEOUT_MS),
@@ -75,7 +77,7 @@ export async function analyseAnswer(input: {
     })
     const match = raw.match(/\{[\s\S]*\}/)
     if (!match) return fallback()
-    return coerceAnalysis(JSON.parse(match[0]), input.answer, input.brandName, competitors) ?? fallback()
+    return {...(coerceAnalysis(JSON.parse(match[0]), input.answer, input.brandName, competitors) ?? fallback()),providerUsage}
   } catch {
     return fallback()
   }

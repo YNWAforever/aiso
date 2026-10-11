@@ -11,6 +11,7 @@ import type { LeasedItem,RunCoverage } from './schema'
 import type { WeeklyEnqueue } from './dispatch'
 
 export type PulseWorkerPorts={
+  refresh?:(run:DueRun)=>Promise<string[]>
   now:()=>number
   initialize:(deadlineAt:number,enqueue?:WeeklyEnqueue)=>Promise<{runs:DueRun[];exhausted:boolean;failures:number;enqueue?:WeeklyEnqueue}>
   page:(after:string|null)=>Promise<{runs:DueRun[];cursor:string|null;exhausted:boolean}>
@@ -53,7 +54,7 @@ async function initializeWeekly(deadlineAt:number,enqueue?:WeeklyEnqueue){
   }
   return {runs,exhausted,failures,enqueue:{scanWeek,after,failedClientIds:[...new Set(failedClientIds)],complete:exhausted&&!failedClientIds.length}}
 }
-const defaultPorts:PulseWorkerPorts={now:()=>Date.now(),initialize:initializeWeekly,page:listPendingRunPage,unblock:unblockConfiguredItems,
+const defaultPorts:PulseWorkerPorts={refresh:async run=>{const target=await readPulseTarget(run.clientId);return target?.accountId===run.accountId?target.allowedPlatforms:[]},now:()=>Date.now(),initialize:initializeWeekly,page:listPendingRunPage,unblock:unblockConfiguredItems,
   claim:(run,owner,deadlineAt)=>claimDueItems(run,run.id,{owner,leaseUntil:new Date(deadlineAt),limit:5}),
   process:processLeasedItem,classify:(run,deadlineAt)=>classifySavedAnswers(run,run.id,deadlineAt),block:item=>commitAttempt(item,{kind:'blocked',errorCode:'PLAN_HAS_NO_PLATFORMS'}),
   coverage:run=>readRunCoverage(run,run.id),summarize:run=>computeWeeklySummary(db(),{clientId:run.clientId,scanWeek:run.scanWeek}),due:hasDueItems}
@@ -79,16 +80,18 @@ export async function consumeDuePulseWork(options:{deadlineAt:number;owner:strin
       while(ports.now()+10_000<options.deadlineAt){
         const items=await ports.claim(run,options.owner,options.deadlineAt)
         if(!items.length)break
+        run.allowedPlatforms=await ports.refresh?.(run)??run.allowedPlatforms
         const allowed=new Set(modelVariantsFor(run.allowedPlatforms).map(v=>v.model))
         const outcomes=await Promise.allSettled(items.map(item=>allowed.has(item.model)?ports.process(item,options.deadlineAt):ports.block(item)))
         processed+=outcomes.filter(r=>r.status==='fulfilled' && r.value==='committed').length
         if(outcomes.some(r=>r.status==='rejected')){errors++;break}
       }
+      run.allowedPlatforms=await ports.refresh?.(run)??run.allowedPlatforms
       if(run.allowedPlatforms.length)await ports.classify?.(run,options.deadlineAt)
       const coverage=await ports.coverage(run)
       coverages[run.id]=coverage;remaining+=coverage.pending;failed+=coverage.failed;blocked+=coverage.blocked
       unclassified+=coverage.succeeded-coverage.classified
-      if(coverage.status==='completed')await ports.summarize(run)
+      if(coverage.status==='completed'&&run.purpose!=='retest')await ports.summarize(run)
       hasDue=await ports.due(run)||hasDue
     }catch{errors++;hasDue=true}
   }

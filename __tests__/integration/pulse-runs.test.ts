@@ -255,7 +255,7 @@ describe('T05 guarded Neon run ledger',()=>{
     for(let n=1;n<=3;n++){
       const lease=(await claim(scope,run.id,1))[0]
       expect(lease.attempt).toBe(n)
-      await commitAttempt(lease,{kind:'failed',errorCode:'SYNTHETIC_TIMEOUT_OUTCOME_UNKNOWN'})
+      await commitAttempt(lease,{kind:'failed',errorCode:'SYNTHETIC_CONFIRMED_FAILURE'})
       const [state]=await sql`select status,attempt_count,extract(epoch from next_attempt_at-now())::int as backoff from pulse_run_items where id=${lease.id}`
       expect(state.status).toBe(n<3?'retry_wait':'failed')
       expect(Number(state.backoff)).toBeGreaterThan([0,55,295,1795][n])
@@ -338,18 +338,16 @@ describe('T05 guarded Neon run ledger',()=>{
     expect(rows).toHaveLength(1)
     expect(['Synthetic original answer','Overwrite forbidden']).toContain(rows[0].raw_answer)
   },1))
-  it('late_worker_cannot_overwrite_new_lease and interrupted cost is unknown',async()=>fixture(async scope=>{
+  it('expired collection is blocked with unknown cost and stale workers cannot overwrite it',async()=>fixture(async scope=>{
     const run=(await runFor(scope))!,old=(await claim(scope,run.id,1))[0]
     await sql`update pulse_run_items set lease_until=now()-interval '1 second' where id=${old.id}`
-    const replacement=(await claim(scope,run.id,1))[0]
-    expect(replacement.id).toBe(old.id)
-    expect(replacement.fence).toBe(old.fence+1)
+    const replacements=await claim(scope,run.id,1)
+    expect(replacements.every(replacement=>replacement.id!==old.id)).toBe(true)
     expect(await commitAttempt(old,{kind:'succeeded',evidence})).toBe('stale-lease')
-    expect(await commitAttempt(replacement,{kind:'succeeded',evidence:{...evidence,answer:'Current lease answer'}})).toBe('committed')
     const [attempt]=await sql`select collection_status,cost_usd,error_code,accepted from pulse_item_attempts where id=${old.attemptId}`
     expect(attempt).toMatchObject({collection_status:'interrupted',cost_usd:null,error_code:'LEASE_EXPIRED_OUTCOME_UNKNOWN',accepted:false})
-    const [metric]=await sql`select raw_answer from pulse_metrics where run_item_id=${old.id}`
-    expect(metric.raw_answer).toBe('Current lease answer')
+    expect(await sql`select id from pulse_metrics where run_item_id=${old.id}`).toHaveLength(0)
+    const [item]=await sql`select status from pulse_run_items where id=${old.id}`;expect(item.status).toBe('blocked')
   }))
   it('manifest survives edited/deleted questions and repairs its original week',async()=>fixture(async scope=>{
     const run=(await runFor(scope))!

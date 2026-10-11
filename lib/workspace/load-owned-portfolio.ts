@@ -68,7 +68,7 @@ export async function loadOwnedPortfolio({ profile }: { profile: { account_id: s
         ), weeks as (
           select s.client_id, s.scan_week from pulse_weekly_summary s join owned_clients c on c.id = s.client_id
           union
-          select m.client_id, m.scan_week from pulse_metrics m join owned_clients c on c.id = m.client_id
+          select m.client_id, m.scan_week from pulse_metrics m join owned_clients c on c.id = m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
         ), latest_weeks as (
           select client_id, max(scan_week) as scan_week from weeks group by client_id
         ), observations as (
@@ -77,7 +77,7 @@ export async function loadOwnedPortfolio({ profile }: { profile: { account_id: s
             count(*) filter (where to_jsonb(m)->>'classification_status'='classified' and m.brand_mentioned = true and m.raw_answer ~ '[^[:space:]]')::int as observed_brand_mentions,
             count(*) filter (where to_jsonb(m)->>'classification_status'='classified' and m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_queries,
             count(distinct m.platform) filter (where to_jsonb(m)->>'classification_status'='classified' and m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_platform_count
-          from pulse_metrics m join owned_clients c on c.id = m.client_id
+          from pulse_metrics m join owned_clients c on c.id = m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
           join latest_weeks w on w.client_id = m.client_id and w.scan_week = m.scan_week
           group by m.client_id, m.scan_week
         )

@@ -69,10 +69,10 @@ export async function loadOwnedOpportunitySources(accountId: string, clientId: s
         m.scan_week::text as scan_week,
         to_char(m.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
         m.raw_answer, m.brand_mentioned,m.classification_status, coalesce(m.raw_answer ~ '[^[:space:]]', false) as has_answer
-      from pulse_metrics m join clients c on c.id = m.client_id
+      from pulse_metrics m join clients c on c.id = m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
       where c.id = ${clientId} and c.account_id = ${accountId}
         and m.scan_week = coalesce(${cursor?.week??null}::date,(select max(p.scan_week) from pulse_metrics p
-          join clients owner on owner.id = p.client_id
+          join clients owner on owner.id = p.client_id and (p.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=p.run_item_id and scope_item.client_id=p.client_id and scope_run.purpose='canonical'))
           where owner.id = ${clientId} and owner.account_id = ${accountId}))
         and (m.created_at is null or m.created_at<=${asOf}::timestamptz)
         and (${cursor===null} or

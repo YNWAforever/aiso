@@ -33,7 +33,7 @@ export async function loadObservationSnapshot(accountId: string, clientId: strin
     with owned as (
       select id, account_id from clients where id = ${clientId} and account_id = ${accountId}
     ), retained_weeks as (
-      select distinct m.scan_week from pulse_metrics m join owned c on c.id = m.client_id
+      select distinct m.scan_week from pulse_metrics m join owned c on c.id = m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=c.account_id and scope_run.client_id=c.id where scope_item.id=m.run_item_id and scope_item.account_id=c.account_id and scope_item.client_id=c.id and scope_run.purpose='canonical'))
       order by m.scan_week desc limit 40
     ), selected_week as (
       select coalesce(${query.week}::date, max(scan_week)) as week from retained_weeks
@@ -41,14 +41,14 @@ export async function loadObservationSnapshot(accountId: string, clientId: strin
       select m.id, m.prompt_id, m.question, m.platform, m.scan_week, m.created_at, m.brand_mentioned,
         coalesce(m.raw_answer ~ '[^[:space:]]', false) as has_answer,
         m.classification_status='classified' and m.brand_mentioned is not null as classified,
-        m.classification_status,a.actual_model,
-        to_char(a.finished_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as collected_at,
-        i.snapshot->>'market' as market,
+        m.classification_status,coalesce(a.actual_model,m.actual_model) as actual_model,
+        to_char(coalesce(a.finished_at,m.collected_at) at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as collected_at,
+        coalesce(i.snapshot,m.prompt_snapshot)->>'market' as market,
         case when p.id is null then null else jsonb_build_object(
           'id', p.id, 'question', p.question, 'category', p.category,
           'language', p.language, 'isActive', p.is_active
         ) end as current_prompt
-      from pulse_metrics m join owned c on c.id = m.client_id
+      from pulse_metrics m join owned c on c.id = m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=c.account_id and scope_run.client_id=c.id where scope_item.id=m.run_item_id and scope_item.account_id=c.account_id and scope_item.client_id=c.id and scope_run.purpose='canonical'))
       left join pulse_run_items i on i.id=m.run_item_id and i.client_id=c.id and i.account_id=c.account_id
       left join pulse_item_attempts a on a.id=i.accepted_attempt_id and a.item_id=i.id and a.client_id=c.id and a.account_id=c.account_id
       cross join selected_week w
@@ -119,8 +119,8 @@ export async function loadObservationDetail(accountId:string,clientId:string,obs
   const [row]=await db()`select m.id,m.prompt_id,m.question,m.platform,m.scan_week,
     to_char(m.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
     case when i.id is null then m.raw_answer else a.raw_answer end as raw_answer,m.brand_mentioned,m.classification_status,
-    i.snapshot,r.manifest->'brand' as brand_snapshot,a.requested_model,a.actual_model,a.collector,a.collector_version,a.provider_request_id,
-    coalesce(a.provider_citations,m.provider_citations) as provider_citations,a.provider_finish_reason,coalesce(a.grounding,m.grounding) as grounding,coalesce(a.search_evidence,m.search_evidence) as search_evidence,
+    coalesce(i.snapshot,m.prompt_snapshot) as snapshot,coalesce(r.manifest->'brand',m.brand_snapshot) as brand_snapshot,coalesce(a.requested_model,m.requested_model) as requested_model,coalesce(a.actual_model,m.actual_model) as actual_model,a.collector,a.collector_version,coalesce(a.provider_request_id,m.provider_request_id) as provider_request_id,
+    coalesce(a.provider_citations,m.provider_citations) as provider_citations,coalesce(a.provider_finish_reason,m.provider_finish_reason) as provider_finish_reason,coalesce(a.grounding,m.grounding) as grounding,coalesce(a.search_evidence,m.search_evidence) as search_evidence,
     to_char(a.finished_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as collected_at,
     i.snapshot->>'market' as market,m.classifier_method,m.classifier_version,m.sentiment,m.matched_text
     from clients c join pulse_metrics m on m.client_id=c.id

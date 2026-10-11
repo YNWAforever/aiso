@@ -76,7 +76,7 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
           select s.scan_week from pulse_weekly_summary s join clients c on c.id = s.client_id
           where c.id = ${clientId} and c.account_id = ${accountId}
           union
-          select m.scan_week from pulse_metrics m join clients c on c.id = m.client_id
+          select m.scan_week from pulse_metrics m join clients c on c.id = m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
           where c.id = ${clientId} and c.account_id = ${accountId}
           order by scan_week desc limit 40
         ), observations as (
@@ -85,7 +85,7 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
             count(*) filter (where to_jsonb(m)->>'classification_status'='classified' and m.brand_mentioned = true and m.raw_answer ~ '[^[:space:]]')::int as observed_brand_mentions,
             count(*) filter (where to_jsonb(m)->>'classification_status'='classified' and m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_queries,
             count(distinct m.platform) filter (where to_jsonb(m)->>'classification_status'='classified' and m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_platform_count
-          from pulse_metrics m join clients c on c.id = m.client_id
+          from pulse_metrics m join clients c on c.id = m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
           join recent_weeks w on w.scan_week = m.scan_week
           where c.id = ${clientId} and c.account_id = ${accountId}
           group by m.scan_week
@@ -101,7 +101,7 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
     }, { summary: [], kpi: null, latestWeek: null }),
     read('missed', async () => await sql`
       select m.platform, m.question, m.competitors_mentioned, m.scan_week
-      from pulse_metrics m join clients c on c.id = m.client_id
+      from pulse_metrics m join clients c on c.id = m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
       where c.id = ${clientId} and c.account_id = ${accountId} and m.brand_mentioned = false
         and m.raw_answer ~ '[^[:space:]]'
         and to_jsonb(m)->>'classification_status'='classified'

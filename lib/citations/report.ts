@@ -153,13 +153,13 @@ export async function readCitationReport(sql: Sql, accountId: string, clientId: 
       select m.scan_week, m.platform, m.prompt_id, coalesce(p.question, m.question) as question,
              coalesce(a.provider_citations, m.provider_citations) as provider_citations
       from pulse_metrics m
-      join clients c on c.id = m.client_id
+      join clients c on c.id = m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
       left join prompt_bank p on p.id = m.prompt_id and p.client_id = m.client_id
       left join pulse_run_items i on i.id = m.run_item_id and i.client_id = c.id and i.account_id = c.account_id
       left join pulse_item_attempts a on a.id = i.accepted_attempt_id and a.item_id = i.id and a.account_id = c.account_id
       where c.id = ${clientId} and c.account_id = ${accountId} and m.raw_answer ~ '[^[:space:]]'
         and m.scan_week in (
-          select distinct w.scan_week from pulse_metrics w where w.client_id = c.id order by 1 desc limit ${CITATION_WEEKS}
+          select distinct w.scan_week from pulse_metrics w where w.client_id = c.id and (w.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=w.run_item_id and scope_item.client_id=w.client_id and scope_run.purpose='canonical')) order by 1 desc limit ${CITATION_WEEKS}
         )
       order by m.scan_week desc, coalesce(p.question, m.question), m.platform
     `,

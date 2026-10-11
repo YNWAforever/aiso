@@ -41,7 +41,7 @@ export default defineConfig({
     // denylist would miss the next such directory; this cannot.
     // __tests__/config/vitest-discovery.test.ts pins both directions.
     include: ['__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)'],
-    exclude: ['**/node_modules/**', 'tests/e2e/**', 'e2e/**', '**/.superpowers/**', 'cloudflare/**'],
+    exclude: ['__tests__/local-persistence/**', '**/node_modules/**', 'tests/e2e/**', 'e2e/**', '**/.superpowers/**', 'cloudflare/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary', 'html'],

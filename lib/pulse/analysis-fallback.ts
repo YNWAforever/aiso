@@ -1,5 +1,6 @@
 /** Pure, offline classification safety rules. Literal evidence is not sentiment. */
 export type AnswerAnalysisV2 = {
+  providerUsage?:{requestId:string|null;model:string|null;promptTokens:number|null;completionTokens:number|null;costUsd:number|null}|null
   classificationStatus:'classified'|'fallback'|'failed'|'legacy_unknown'
   method:string;version:string;brandMentioned:boolean|null
   sentiment:'positive'|'neutral'|'negative'|'unknown'

@@ -34,6 +34,7 @@ export type CallLabel =
   | 'report.summary_polish'
 
 interface CallOptions {
+  onEvidence?:(evidence:import('@/lib/pulse/runs/schema').ProviderEvidence)=>void
   label: CallLabel
   model: string
   messages: Message[]
@@ -57,7 +58,7 @@ const WEB_SEARCH_MAX_RESULTS = 5
 const DEFAULT_TIMEOUT_MS = 30_000
 
 export async function callOpenRouter(options: CallOptions): Promise<string> {
-  return (await callOpenRouterWithEvidence(options)).answer
+  const evidence=await callOpenRouterWithEvidence(options);options.onEvidence?.(evidence);return evidence.answer
 }
 
 export async function callOpenRouterWithEvidence({ label, model, messages, maxTokens = 2000, signal, responseFormat, webSearch }: CallOptions): Promise<import('@/lib/pulse/runs/schema').ProviderEvidence> {
@@ -238,6 +239,8 @@ export type PlatformAnswer = {
   providerCitations: ProviderCitation[] | null
   grounding: Grounding
   searchEvidence?:import('@/lib/pulse/grounding').SearchEvidence
+  requestedModel?:string
+  providerEvidence?:import('@/lib/pulse/runs/schema').ProviderEvidence
 }
 
 export async function callMultiPlatform(
@@ -259,7 +262,7 @@ export async function callMultiPlatform(
       const grounding = groundingFor(platform, options.webSearch === true)
       // `model` already tells the platforms apart in the log.
       const evidence = await callOpenRouterWithEvidence({ label: 'pulse.platform', model, messages, maxTokens: limitFor(platform), webSearch: grounding === 'web' })
-      return { platform, answer: evidence.answer, providerCitations: evidence.providerCitations ?? null, grounding,searchEvidence:evidence.searchEvidence??undefined }
+      return { platform, answer: evidence.answer, providerCitations: evidence.providerCitations ?? null, grounding,searchEvidence:evidence.searchEvidence??undefined,providerEvidence:evidence,requestedModel:model }
     }),
   )
   return results

@@ -5,7 +5,7 @@ import { runtimePlatformsFor } from '@/lib/pulse/platforms'
 import { modelVariantsFor } from '@/lib/openrouter'
 import { isoDate } from '@/lib/iso-date'
 import type { PulseScope } from './schema'
-export type DueRun=PulseScope & {id:string;scanWeek:string;allowedPlatforms:string[]}
+export type DueRun=PulseScope & {id:string;scanWeek:string;allowedPlatforms:string[];purpose?:'canonical'|'retest'}
 
 /** Machine-only discovery; reachable from authenticated cron, never a session API. */
 export async function readPulseTarget(clientId:string){
@@ -17,7 +17,7 @@ export async function readPulseTarget(clientId:string){
 
 /** Machine-only inventory; saved answers and their derived rollup can need independent repair. */
 export async function listPendingRunPage(after:string|null){
-  const rows=await db()`select r.id,r.account_id,r.client_id,r.scan_week,a.plan,a.status,a.stripe_subscription_id,
+  const rows=await db()`select r.id,r.account_id,r.client_id,r.scan_week,r.purpose,a.plan,a.status,a.stripe_subscription_id,
       a.trial_ends_at,a.override_plan,a.override_expires_at
     from pulse_runs r join accounts a on a.id=r.account_id join clients c on c.id=r.client_id and c.account_id=r.account_id
     where c.status='active' and (${after}::uuid is null or r.id>${after}::uuid)
@@ -25,13 +25,13 @@ export async function listPendingRunPage(after:string|null){
       and (i.status in ('queued','running','retry_wait','blocked')
         or (i.status='succeeded' and i.classification_status<>'classified'
           and (i.classification_attempt_count<3 or i.classification_lease_until is not null))))
-        or (r.status='completed' and not exists(
+        or (r.purpose='canonical' and r.status='completed' and not exists(
           select 1 from pulse_weekly_summary s where s.client_id=r.client_id and s.scan_week=r.scan_week and s.platform is null
             and s.created_at >= (select max(latest.updated_at) from pulse_run_items latest
               where latest.run_id=r.id and latest.account_id=r.account_id and latest.client_id=r.client_id)
         ))) order by r.id limit 50`
   return {runs:rows.map(row=>({id:String(row.id),accountId:String(row.account_id),clientId:String(row.client_id),scanWeek:isoDate(row.scan_week as string|Date,''),
-    allowedPlatforms:runtimePlatformsFor(resolveCommercialEntitlement(row as CommercialAccount).features.platform_access)})),
+    allowedPlatforms:runtimePlatformsFor(resolveCommercialEntitlement(row as CommercialAccount).features.platform_access),purpose:row.purpose as 'canonical'|'retest'})),
     cursor:rows.length?String(rows.at(-1)!.id):null,exhausted:rows.length<50}
 }
 

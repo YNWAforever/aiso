@@ -3,13 +3,16 @@ import { randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
 import { isoDate } from '@/lib/iso-date'
 import { MAX_PROMPTS, PULSE_ANSWER_MAX_TOKENS, pulseAnswerMaxTokens } from '@/lib/pulse/limits'
-import { coverageFromCounts, type AttemptOutput, type LeasedItem, type ModelVariant, type PulseRun, type PulseScope } from './schema'
+import { coverageFromCounts, type AttemptOutput, type LeasedItem, type ModelVariant, type PulseRun, type PulseScope, type PulseIntent } from './schema'
 
 /** Noninteractive HTTP batch: lock first, then read a fresh snapshot. */
-export async function createOrResumeRun(scope: PulseScope, input: { scanWeek: string; manifest: ModelVariant[] }): Promise<PulseRun | null> {
+export async function createOrResumeRun(scope: PulseScope, input: { scanWeek: string; manifest: ModelVariant[];intent?:PulseIntent }): Promise<PulseRun | null> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.scanWeek) || !input.manifest.length || input.manifest.length > 5
     || new Set(input.manifest.map(v => v.model)).size !== input.manifest.length) throw new Error('Invalid manifest')
   const sql = db()
+  const purpose=input.intent?.kind==='retest'?'retest':'canonical'
+  if(input.intent&&!/^[a-zA-Z0-9:_-]{8,128}$/.test(input.intent.intentKey))throw new Error('Invalid intent')
+  if(input.intent?.kind==='repair'){const [row]=await sql`select id,scan_week,manifest,purpose from pulse_runs where id=${input.intent.sourceRunId??null}::uuid and account_id=${scope.accountId} and client_id=${scope.clientId}::uuid`;return row?{id:String(row.id),scanWeek:isoDate(row.scan_week as string|Date,''),manifest:row.manifest as Record<string,unknown>,purpose:row.purpose as 'canonical'|'retest'}:null}
   const [, result] = await sql.transaction([
     sql`select id from clients where account_id = ${scope.accountId} and id = ${scope.clientId}::uuid for no key update`,
     sql`with prompts as (
@@ -25,26 +28,27 @@ export async function createOrResumeRun(scope: PulseScope, input: { scanWeek: st
           from competitors k where k.client_id=c.id and k.account_id=c.account_id and k.archived_at is null),'[]'::jsonb)),
         'policy',jsonb_build_object('maxAttempts',3,'maxOutputTokens',${PULSE_ANSWER_MAX_TOKENS}::int,'maxOutputTokensGeminiFlash',${pulseAnswerMaxTokens('gemini-flash')}::int,'maxClassificationAttempts',3,'maxAnalysisOutputTokens',300),
         'items',coalesce((select jsonb_agg(jsonb_build_object('promptId',p.id,'question',p.question,'category',p.category,
-          'language',p.language,'market',p.market,'contextVersion','2026-10-03.v1','platform',v->>'platform','model',v->>'model') order by p.id,v->>'model')
+          'language',p.language,'market',p.market,'contextVersion','2026-10-03.v1','sourceSchemaVersion','2026-10-11.v1','platform',v->>'platform','model',v->>'model') order by p.id,v->>'model')
           from prompts p cross join jsonb_array_elements(${JSON.stringify(input.manifest)}::jsonb) v),'[]'::jsonb)) as manifest
       from clients c where c.account_id = ${scope.accountId} and c.id = ${scope.clientId}::uuid
     ), created as (
-      insert into pulse_runs(account_id,client_id,scan_week,manifest)
-      select ${scope.accountId},${scope.clientId}::uuid,${input.scanWeek}::date,manifest from snapshot
-      on conflict(client_id,scan_week) do nothing returning *
+      insert into pulse_runs(account_id,client_id,scan_week,manifest,purpose,intent_key,source_run_id)
+      select ${scope.accountId},${scope.clientId}::uuid,${input.scanWeek}::date,manifest,${purpose},${input.intent?.intentKey??null},${input.intent?.sourceRunId??null}::uuid from snapshot
+      where (${input.intent?.sourceRunId??null}::uuid is null or exists(select 1 from pulse_runs source where source.id=${input.intent?.sourceRunId??null}::uuid and source.account_id=${scope.accountId} and source.client_id=${scope.clientId}::uuid))
+      on conflict do nothing returning *
     ), chosen as (
       select * from created union all select * from pulse_runs
-      where account_id = ${scope.accountId} and client_id = ${scope.clientId}::uuid and scan_week = ${input.scanWeek}::date
+      where account_id = ${scope.accountId} and client_id = ${scope.clientId}::uuid and purpose=${purpose} and ((${purpose}='canonical' and scan_week=${input.scanWeek}::date) or (${purpose}='retest' and intent_key=${input.intent?.intentKey??null}))
     ), items as (
       insert into pulse_run_items(run_id,account_id,client_id,prompt_snapshot_id,snapshot,platform,model_id)
       select r.id,r.account_id,r.client_id,(v->>'promptId')::uuid,
         v - 'promptId' - 'platform' - 'model',v->>'platform',v->>'model'
       from chosen r cross join jsonb_array_elements(r.manifest->'items') v
       on conflict(run_id,prompt_snapshot_id,model_id) do nothing returning id
-    ) select id,scan_week,manifest from chosen`,
+    ) select id,scan_week,manifest,purpose from chosen`,
   ])
   const row = result[0]
-  return row ? { id: String(row.id), scanWeek: isoDate(row.scan_week as string | Date, input.scanWeek), manifest: row.manifest as Record<string, unknown> } : null
+  return row ? { id: String(row.id), scanWeek: isoDate(row.scan_week as string | Date, input.scanWeek), manifest: row.manifest as Record<string, unknown>,purpose:row.purpose as 'canonical'|'retest' } : null
 }
 
 export async function claimDueItems(scope: PulseScope, runId: string, options: { owner: string; leaseUntil: Date; limit: number }): Promise<LeasedItem[]> {
@@ -61,9 +65,9 @@ export async function claimDueItems(scope: PulseScope, runId: string, options: {
     sql`update pulse_item_attempts a set collection_status = 'interrupted',finished_at = now(),error_code = 'LEASE_EXPIRED_OUTCOME_UNKNOWN'
       from pulse_run_items i where a.item_id = i.id and a.account_id = ${scope.accountId} and a.client_id = ${scope.clientId}::uuid
         and i.run_id = ${runId}::uuid and i.status = 'running' and i.lease_until < now() and a.collection_status = 'started'`,
-    sql`update pulse_run_items set status = 'failed',lease_token = null,lease_until = null,lease_owner = null,updated_at = now()
+    sql`update pulse_run_items set status = 'blocked',lease_token = null,lease_until = null,lease_owner = null,updated_at = now()
       where account_id = ${scope.accountId} and client_id = ${scope.clientId}::uuid and run_id = ${runId}::uuid
-        and status = 'running' and lease_until < now() and attempt_count >= 3`,
+        and status = 'running' and lease_until < now()`,
     sql`with due as (
       select id from pulse_run_items where account_id = ${scope.accountId} and client_id = ${scope.clientId}::uuid and run_id = ${runId}::uuid
         and attempt_count < 3 and ((status in ('queued','retry_wait') and next_attempt_at <= now()) or (status = 'running' and lease_until < now()))
@@ -108,7 +112,7 @@ export async function commitAttempt(lease: LeasedItem, output: AttemptOutput): P
         and a.collection_status = 'started' returning a.id
     ), accepted as (
       update pulse_run_items i set status = case when ${output.kind} = 'succeeded' then 'succeeded'
-        when ${output.kind} = 'blocked' then 'blocked' when attempt_count >= 3 then 'failed' else 'retry_wait' end,
+        when ${output.kind} = 'blocked' or ${output.kind!=='succeeded'?output.errorCode.includes('OUTCOME_UNKNOWN'):false} then 'blocked' when attempt_count >= 3 then 'failed' else 'retry_wait' end,
         next_attempt_at = now() + case attempt_count when 1 then interval '60 seconds' when 2 then interval '300 seconds' else interval '1800 seconds' end,
         accepted_attempt_id = case when ${output.kind} = 'succeeded' then (select id from attempt) else null end,
         lease_token = null,lease_until = null,lease_owner = null,updated_at = now()

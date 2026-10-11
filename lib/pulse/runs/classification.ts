@@ -56,7 +56,7 @@ export async function commitClassification(item:ClassificationLease,result:Answe
         and accepted_attempt_id=${item.attemptId}::uuid and classification_status<>'classified'
         and classification_lease_token=${item.token}::uuid and classification_fence=${item.fence} and classification_lease_until>now() returning id
     ), history as (
-      update pulse_classification_attempts set status=${result.classificationStatus},analysis=${serialized}::jsonb,finished_at=now()
+      update pulse_classification_attempts set status=${result.classificationStatus},analysis=${serialized}::jsonb,usage=${result.providerUsage?JSON.stringify(result.providerUsage):null}::jsonb,finished_at=now()
       where id=${item.classificationAttemptId}::uuid and item_id in(select id from accepted)
         and account_id=${item.accountId} and client_id=${item.clientId}::uuid and status='started' returning id
     ), observation as (

@@ -16,7 +16,7 @@ export async function attachManifestCoverage(sql:ReturnType<typeof db>,accountId
     from pulse_runs r join clients c on c.id = r.client_id and c.account_id = r.account_id
     left join pulse_run_items i on i.run_id = r.id
     where r.account_id = ${accountId} and c.id = any(${clientIds}::uuid[])
-      and r.scan_week >= current_date - interval '280 days'
+      and r.purpose='canonical' and r.scan_week >= current_date - interval '280 days'
     group by grouping sets ((r.id,r.client_id,r.scan_week,i.platform),(r.id,r.client_id,r.scan_week))`
   const key=(row:Record<string,unknown>)=>`${row.client_id ?? clientIds[0]}:${isoDate(row.scan_week as string|Date,'')}:${row.platform ?? 'aggregate'}`
   const result=new Map(observations.map(row=>[key(row),{...row}]))

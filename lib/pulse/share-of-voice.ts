@@ -176,7 +176,7 @@ export async function readShareOfVoice(sql: Sql, accountId: string, clientId: st
       select m.scan_week, m.platform, m.prompt_id, coalesce(p.question, m.question) as question,
              m.brand_mentioned, m.competitors_mentioned
       from pulse_metrics m
-      join clients c on c.id = m.client_id
+      join clients c on c.id = m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
       left join prompt_bank p on p.id = m.prompt_id and p.client_id = m.client_id
       where c.id = ${clientId} and c.account_id = ${accountId}
         and to_jsonb(m)->>'classification_status' = 'classified'

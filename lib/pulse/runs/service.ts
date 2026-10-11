@@ -51,14 +51,14 @@ export async function processLeasedItem(item: LeasedItem, deadlineAt: number, co
   return committed
 }
 
-export async function runPulseChunk(scope: PulseScope, options: { scanWeek:string; platforms:string[]; limit:number; deadlineAt:number }, collector?: CollectAnswer) {
+export async function runPulseChunk(scope: PulseScope, options: { scanWeek:string; platforms:string[]; limit:number; deadlineAt:number;runId?:string }, collector?: CollectAnswer) {
   const target = await readPulseTarget(scope.clientId)
   if (!target || target.accountId !== scope.accountId) throw new Error('Run scope unavailable')
   const platforms = options.platforms.filter(platform => target.allowedPlatforms.includes(platform))
   const manifest = modelVariantsFor(platforms)
   if (!manifest.length) throw new Error('Run scope unavailable')
   const allowedModels = new Set(manifest.map(variant => variant.model))
-  const run = await createOrResumeRun(scope,{scanWeek:options.scanWeek,manifest})
+  const run = await createOrResumeRun(scope,{scanWeek:options.scanWeek,manifest,...(options.runId?{intent:{kind:'repair' as const,sourceRunId:options.runId,intentKey:'repair:'+options.runId}}:{})})
   if (!run) throw new Error('Run scope unavailable')
   // Decided once per chunk against this week's grounded-answer cap; an injected
   // collector (tests) is used as given.
@@ -71,7 +71,7 @@ export async function runPulseChunk(scope: PulseScope, options: { scanWeek:strin
   await classifySavedAnswers(scope,run.id,options.deadlineAt)
   const coverage = await readRunCoverage(scope,run.id)
   let summary = null
-  if (coverage.status === 'completed') summary = await computeWeeklySummary(db(),{clientId:scope.clientId,scanWeek:run.scanWeek})
+  if (coverage.status === 'completed'&&run.purpose!=='retest') summary = await computeWeeklySummary(db(),{clientId:scope.clientId,scanWeek:run.scanWeek})
   return { pulseRunId:run.id,scanWeek:run.scanWeek,coverage,processed:results.filter(r => r.status === 'fulfilled' && r.value === 'committed').length,
     nextCursor:coverage.pending > 0 ? 0 : null,citations:0,platforms:platforms.length,summary,
     outcome:results.some(r => r.status === 'rejected') || coverage.classified < coverage.succeeded ? 'partial' : coverage.status }
