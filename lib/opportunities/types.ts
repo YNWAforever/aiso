@@ -10,7 +10,9 @@ export interface SourceRef {
   checkKey?: EvidenceCheckKey
 }
 
+export type MonitoringContext={runId:string|null;language:string|null;market:string|null}
 export interface PulseSourceEvidence {
+  monitoringContext?:MonitoringContext
   kind: 'pulse-metric'
   observation: Observation
   /** Server-computed SHA-256 of the exact nullable answer used by the success predicate. */
@@ -100,6 +102,7 @@ export type PulseSnapshotEvidence = PulseSuggestionEvidence & { answerDigest: st
 export type DraftEvidence = PulseSnapshotEvidence | ScanSuggestionEvidence
 
 export interface Suggestion {
+  monitoringContext?:MonitoringContext
   key: string
   ruleVersion: 'pulse-brand-absent.v1' | 'scan-check-gap.v1'
   source: SourceRef
@@ -136,6 +139,7 @@ export interface OpportunityWindow {
   asOf?:string
 }
 export interface OpportunityResponse {
+  groups?:OpportunityGroup[]
   schemaVersion: 1
   window: OpportunityWindow
   sourceStates: { pulse: OpportunitySourceState; scan: OpportunitySourceState }
@@ -143,3 +147,5 @@ export interface OpportunityResponse {
   partial: boolean
   suggestions: (Suggestion & { savedState: 'saved' | 'unsaved' | 'unavailable'; saveAvailability: 'available' | 'limited-evidence' })[]
 }
+
+export type OpportunityGroup={key:string;promptId:string|null;scopeKey:string;evidenceRefs:SourceRef[];platforms:string[];savedWorkItemId:string|null;suggestionKeys:string[];question:string;context:MonitoringContext|null;latestEvidenceAt:string|null;historicalDraftConflict:boolean}

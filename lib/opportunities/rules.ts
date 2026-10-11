@@ -80,6 +80,7 @@ function pulseSuggestion(source: Extract<SourceEvidence, { kind: 'pulse-metric' 
   const actionKey = 'review-question-coverage' as const
   const args = { question, platform }
   return [{
+    monitoringContext:source.monitoringContext,
     key: opportunityKey(ruleVersion, sourceRef), ruleVersion, source: sourceRef,
     fingerprint: fingerprintEvidence({ ruleVersion, source: sourceRef, evidence: { ...evidence, answerDigest: source.answerDigest }, titleKey, actionKey, args }),
     titleKey, actionKey, args, evidence, limitations: [...evidence.limitations], savedDraftId: null,

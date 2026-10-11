@@ -16,7 +16,7 @@ All seven content hashes match. checksums.json alone has its known stale self-re
 | F45 | T08 | UC08 | reproduced | verified_local | T08 52/52 prerequisites fixtures; competitor configuration CTA corrected in T09 |
 | F46 | T09 | UC09 | reproduced | verified_local | 58/58 focused; real routes, setup outage distinct; CSS/accessibility preview matrix pending |
 | F47 | T10 | UC10 | reproduced | verified_local | 62 focused / 29 real SQL; atomic batches, version conflict, immutable manifest; browser matrix pending |
-| F48 | T11 | UC11 | still_present pending reproduction | untriaged | audit inputs |
+| F48 | T11 | UC11 | reproduced | verified_local | 118 focused / 30 real SQL; five sources into one existing work item, versioned manual operations, frozen retest and comparable-only delta; browser/preview pending |
 | F49 | T12 | UC12 | reproduced | verified_local | 45/45 PSL and citation fixtures; private suffixes, IDN, stable kinds; read-only dry-run spec |
 | F50 | T03 | UC13 | reproduced | verified_local | T03 canonical industry and safe URL syntax; legacy missing context stays pending |
 
@@ -29,4 +29,4 @@ Safe test form: PowerShell CI=1; node node_modules/vitest/vitest.mjs run <read s
 Production alias readback 2026-10-11: READY, SHA 27dd057fa6d5ecaae5bbd342e25cc8579e529d3a, target production. This is the unchanged baseline, not the repair branch. Open PR #69 targets a different remediation branch at 216d0cb; do not merge/rebase it as part of this task.
 
 T05 browser fixture note: first mobile configuration inherited an oversized selection and was interrupted. That log is retained as T05-browser-misconfigured.log and is not acceptance evidence. A corrected --list showed exactly 8 intended cases; all 8 passed. These functional fixtures initially used no production CSS; the final CSS matrix remains pending.
-Local PostgreSQL: task-owned labeled cached container on 127.0.0.1:55439; external HTTP denied; real db binding and aeo_app enforced. Migrations 063-067 are local-only. No protected remote role or production mutation.
+Local PostgreSQL: task-owned labeled cached container on 127.0.0.1:55439; external HTTP denied; real db binding and aeo_app enforced. Migrations 063-069 are local-only. No protected remote role or production mutation.

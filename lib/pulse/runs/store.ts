@@ -25,7 +25,7 @@ export async function createOrResumeRun(scope: PulseScope, input: { scanWeek: st
       where c.account_id = ${scope.accountId} and c.id = ${scope.clientId}::uuid and pb.is_active
       order by pb.id limit ${MAX_PROMPTS}
     ), snapshot as (
-      select jsonb_build_object('version','2026-10-03.v2','brand',jsonb_build_object(
+      select case when ${purpose}='retest' then (select source.manifest from pulse_runs source where source.id=${input.intent?.sourceRunId??null}::uuid and source.account_id=${scope.accountId} and source.client_id=${scope.clientId}::uuid) else jsonb_build_object('version','2026-10-03.v2','brand',jsonb_build_object(
         'name',c.brand_name,'competitors',coalesce(c.competitors,'{}'::text[]),'industry',c.industry,'domain',c.domain,
         -- 061: configured spellings, captured with the manifest so a later edit never rewrites a run.
         'competitorRefs',coalesce((select jsonb_agg(jsonb_build_object('name',k.name,'aliases',k.aliases) order by k.created_at,k.id)
@@ -33,7 +33,7 @@ export async function createOrResumeRun(scope: PulseScope, input: { scanWeek: st
         'policy',jsonb_build_object('maxAttempts',3,'maxOutputTokens',${PULSE_ANSWER_MAX_TOKENS}::int,'maxOutputTokensGeminiFlash',${pulseAnswerMaxTokens('gemini-flash')}::int,'maxClassificationAttempts',3,'maxAnalysisOutputTokens',300),
         'items',coalesce((select jsonb_agg(jsonb_build_object('promptId',p.id,'question',p.question,'category',p.category,
           'language',p.language,'market',p.market,'contextVersion','2026-10-03.v1','sourceSchemaVersion','2026-10-11.v1','platform',v->>'platform','model',v->>'model') order by p.id,v->>'model')
-          from prompts p cross join jsonb_array_elements(${JSON.stringify(input.manifest)}::jsonb) v),'[]'::jsonb)) as manifest
+          from prompts p cross join jsonb_array_elements(${JSON.stringify(input.manifest)}::jsonb) v),'[]'::jsonb)) end as manifest
       from clients c where c.account_id = ${scope.accountId} and c.id = ${scope.clientId}::uuid
     ), candidate as (
       select r.* from pulse_runs r where r.account_id=${scope.accountId} and r.client_id=${scope.clientId}::uuid and (
@@ -51,12 +51,12 @@ export async function createOrResumeRun(scope: PulseScope, input: { scanWeek: st
        when not exists(select 1 from commercial where plan in ('basic','pro','enterprise') and (plan<>'basic' or ${input.manifest.every(v=>v.platform==='gemini-flash')})) then 'PULSE_ENTITLEMENT_CHANGED'
        when ${input.intent?.kind??'initial'}='repair' and not exists(select 1 from candidate) then 'PULSE_RUN_NOT_FOUND'
        when ${input.intent?.sourceRunId??null}::uuid is not null and not exists(select 1 from pulse_runs source where source.id=${input.intent?.sourceRunId??null}::uuid and source.account_id=${scope.accountId} and source.client_id=${scope.clientId}::uuid) then 'PULSE_RUN_NOT_FOUND'
-       when not exists(select 1 from candidate) and not exists(select 1 from prompts) then 'PULSE_NOT_CONFIGURED'
-       when not exists(select 1 from candidate) and exists(select 1 from prompts where language not in ('en','zh-HK') or language is null or market is null or market not in ('HK','TW','SG','JP','KR','US','UK','EU','AU','CA','global')) then 'PULSE_CONTEXT_UNCONFIRMED'
+       when not exists(select 1 from candidate) and not exists(select 1 from snapshot where jsonb_array_length(manifest->'items')>0) then 'PULSE_NOT_CONFIGURED'
+       when not exists(select 1 from candidate) and exists(select 1 from snapshot cross join jsonb_array_elements(manifest->'items') item where item->>'language' not in ('en','zh-HK') or item->>'language' is null or item->>'market' is null or item->>'market' not in ('HK','TW','SG','JP','KR','US','UK','EU','AU','CA','global')) then 'PULSE_CONTEXT_UNCONFIRMED'
        when not exists(select 1 from pulse_run_reservations z join candidate r on r.id=z.run_id where z.account_id=${scope.accountId})
          and coalesce((select sum(reserved_units) from pulse_run_reservations where account_id=${scope.accountId} and scan_week=${input.scanWeek}::date),0)
            +coalesce((select sum(jsonb_array_length(unreserved.manifest->'items')) from pulse_runs unreserved where unreserved.account_id=${scope.accountId} and unreserved.scan_week=${input.scanWeek}::date and not exists(select 1 from pulse_run_reservations z where z.run_id=unreserved.id and z.account_id=unreserved.account_id) and not exists(select 1 from candidate where candidate.id=unreserved.id)),0)
-           +coalesce((select jsonb_array_length(manifest->'items') from candidate),(select count(*) from prompts)*${input.manifest.length})>${input.dispatch?.reservationCap??0} then 'PULSE_QUOTA_EXCEEDED'
+           +coalesce((select jsonb_array_length(manifest->'items') from candidate),(select jsonb_array_length(manifest->'items') from snapshot))>${input.dispatch?.reservationCap??0} then 'PULSE_QUOTA_EXCEEDED'
        else null end as reason
     ), created as (
       insert into pulse_runs(account_id,client_id,scan_week,manifest,purpose,intent_key,source_run_id)

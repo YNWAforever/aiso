@@ -1,4 +1,5 @@
 'use client'
+import {WorkOperationsPanel} from './WorkOperationsPanel'
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { parseDraftEdit } from '@/lib/work-items/edit-input'
@@ -192,6 +193,7 @@ export function DraftEditor({
           {status}
         </p>
       </form>
+      <WorkOperationsPanel clientId={clientId} itemId={item.id}/>
       <section className="space-y-3 border-t border-border pt-4">
         <h3 className="font-semibold">{t('savedEvidence')}</h3>
         <p>{t('snapshotNotice')}</p>

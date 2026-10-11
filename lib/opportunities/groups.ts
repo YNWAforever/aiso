@@ -1,0 +1,8 @@
+import 'server-only'
+import {createHash} from 'node:crypto'
+import type {Suggestion,OpportunityGroup} from './types'
+export function groupOpportunities(input:Suggestion[]):OpportunityGroup[]{
+ const groups=new Map<string,OpportunityGroup>()
+ for(const s of input){const e=s.evidence,c=s.monitoringContext,known=e.kind==='pulse-metric'&&c?.runId&&c.language&&c.market,scope=known?JSON.stringify([c!.runId,e.question.normalize('NFC'),c!.language,c!.market]):'single:'+s.key,key='group.v1:'+createHash('sha256').update(scope).digest('hex');const group=groups.get(key)??{key,promptId:e.kind==='pulse-metric'?e.promptId:null,scopeKey:scope,evidenceRefs:[],platforms:[],savedWorkItemId:s.savedDraftId,suggestionKeys:[],question:e.kind==='pulse-metric'?e.question:s.args.checkKey??'',context:c??null,latestEvidenceAt:e.recordedAt,historicalDraftConflict:false};if(group.savedWorkItemId&&s.savedDraftId&&group.savedWorkItemId!==s.savedDraftId)group.historicalDraftConflict=true;if(!group.savedWorkItemId)group.savedWorkItemId=s.savedDraftId;group.evidenceRefs.push(s.source);group.suggestionKeys.push(s.key);if(e.kind==='pulse-metric'&&!group.platforms.includes(e.platform))group.platforms.push(e.platform);if(e.recordedAt&&(group.latestEvidenceAt??'')<e.recordedAt)group.latestEvidenceAt=e.recordedAt;groups.set(key,group)}
+ return [...groups.values()].map(g=>({...g,evidenceRefs:g.evidenceRefs.sort((a,b)=>a.id.localeCompare(b.id)),suggestionKeys:g.suggestionKeys.sort(),platforms:g.platforms.sort()})).sort((a,b)=>(b.latestEvidenceAt??'').localeCompare(a.latestEvidenceAt??'')||b.evidenceRefs.length-a.evidenceRefs.length||a.key.localeCompare(b.key))
+}

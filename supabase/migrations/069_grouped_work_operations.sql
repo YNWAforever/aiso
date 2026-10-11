@@ -1,0 +1,4 @@
+create table public.work_item_groups(account_id uuid not null,client_id uuid not null,group_key text not null,work_item_id uuid not null,scope_snapshot jsonb not null,created_at timestamptz not null default now(),primary key(account_id,client_id,group_key),foreign key(work_item_id,client_id,account_id) references public.evidence_work_items(id,client_id,account_id) on delete cascade);
+grant select,insert on public.work_item_groups to aeo_app;
+alter table public.evidence_work_items add column target_url text,add column owner_id uuid,add column due_at date,add column acceptance_criteria text not null default '',add column operation_status text not null default 'todo' check(operation_status in ('todo','in_progress','done')),add constraint work_operations_owner_scope foreign key(owner_id,account_id) references public.profiles(id,account_id);
+grant update(target_url,owner_id,due_at,acceptance_criteria,operation_status) on public.evidence_work_items to aeo_app;

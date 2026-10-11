@@ -1,0 +1,21 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ✓ __tests__/work-items/operations-input.test.ts (7 tests) 9ms
+ ✓ __tests__/opportunities/grouping.test.ts (2 tests) 18ms
+ ✓ __tests__/opportunities/ac-06-convergence.test.ts (10 tests) 7ms
+ ✓ __tests__/opportunities/rules.test.ts (17 tests) 32ms
+ ✓ __tests__/opportunities/presentation.test.ts (2 tests) 21ms
+ ✓ __tests__/opportunities/fingerprint.test.ts (52 tests) 34ms
+ ✓ __tests__/opportunities/store.test.ts (8 tests) 30ms
+ ✓ __tests__/opportunities/service.test.ts (12 tests) 33ms
+ ✓ __tests__/components/opportunity-render.test.tsx (8 tests) 59ms
+
+ Test Files  9 passed (9)
+      Tests  118 passed (118)
+   Start at  20:30:41
+   Duration  1.20s (transform 1.25s, setup 402ms, import 2.08s, tests 243ms, environment 1ms)
+

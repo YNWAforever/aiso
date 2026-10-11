@@ -1,0 +1,3 @@
+import {saveAuthenticatedGroup} from '@/lib/work-items/group-service'
+import {readLimitedJson} from '@/lib/approvals/request'
+export async function POST(req:Request,{params}:{params:Promise<{clientId:string}>}){try{const {clientId}=await params;return Response.json(await saveAuthenticatedGroup(clientId,await readLimitedJson(req,8192)),{headers:{'Cache-Control':'no-store'}})}catch(e){const code=e instanceof Error?e.message:'WORK_ITEMS_UNAVAILABLE';return Response.json({error:code},{status:code==='UNAUTHENTICATED'?401:code==='MULTI_SOURCE_DISABLED'?409:code.includes('CONFLICT')||code==='EVIDENCE_CHANGED'?409:code.startsWith('INVALID_')?400:503})}}

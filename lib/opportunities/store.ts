@@ -7,7 +7,7 @@ import { readScanEvidence } from '@/lib/scan-evidence'
 import type { OpportunityResponse, OpportunityWindow, SourceEvidence } from '@/lib/opportunities/types'
 import { encodeOpportunityCursor,type OpportunityQuery } from './query'
 
-export type PersistedPulseInput = PulseSourceRow & { client_id: string; has_answer: boolean }
+export type PersistedPulseInput = PulseSourceRow & { client_id: string; has_answer: boolean;monitoring_context?:import('./types').MonitoringContext }
 export interface PersistedScanInput {
   id: string
   client_id: string
@@ -35,6 +35,7 @@ export function projectPulseOpportunityInput(accountId: string, row: PersistedPu
     classification_status:row.classification_status??'legacy_unknown',
   }
   const source: SourceEvidence = {
+    monitoringContext:row.monitoring_context,
     kind: 'pulse-metric', observation: projectObservation(input, null),
     answerDigest: createHash('sha256').update(JSON.stringify(input.raw_answer), 'utf8').digest('hex'),
   }
@@ -68,8 +69,9 @@ export async function loadOwnedOpportunitySources(accountId: string, clientId: s
       select m.id, m.client_id, m.prompt_id, m.question, m.platform,
         m.scan_week::text as scan_week,
         to_char(m.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-        m.raw_answer, m.brand_mentioned,m.classification_status, coalesce(m.raw_answer ~ '[^[:space:]]', false) as has_answer
+        jsonb_build_object('runId',i.run_id,'language',coalesce(i.snapshot,m.prompt_snapshot)->>'language','market',coalesce(i.snapshot,m.prompt_snapshot)->>'market') as monitoring_context,m.raw_answer, m.brand_mentioned,m.classification_status, coalesce(m.raw_answer ~ '[^[:space:]]', false) as has_answer
       from pulse_metrics m join clients c on c.id = m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
+      left join pulse_run_items i on i.id=m.run_item_id and i.account_id=c.account_id and i.client_id=c.id
       where c.id = ${clientId} and c.account_id = ${accountId}
         and m.scan_week = coalesce(${cursor?.week??null}::date,(select max(p.scan_week) from pulse_metrics p
           join clients owner on owner.id = p.client_id and (p.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=p.run_item_id and scope_item.client_id=p.client_id and scope_run.purpose='canonical'))
