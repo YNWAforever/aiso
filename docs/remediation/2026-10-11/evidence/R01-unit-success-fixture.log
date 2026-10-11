@@ -1,0 +1,1352 @@
+
+> fimmick-aeo@0.1.0 test:unit
+> vitest run --exclude '__tests__/integration/**' --coverage
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+      Coverage enabled with v8
+
+stderr | __tests__/api/cron-ledger-wiring.test.ts > every scheduled cron route records its invocation > /api/cron/pulse calls startCronRun
+[cron/pulse] no client has an active prompt bank; nothing will ever be scanned
+
+ ✓ __tests__/scripts/migrate-baseline-guard.test.ts (22 tests) 1989ms
+     ✓ passes a baseline whose objects all exist  371ms
+   ✓ refuses to baseline 044 when approved source storage is absent  621ms
+ ✓ __tests__/lib/app-origin.test.ts (7 tests) 3962ms
+     ✓ is the only origin every consumer resolves to  3952ms
+ ✓ __tests__/readiness/runtime-dns.test.ts (2 tests) 5027ms
+   ✓ cancels DNS on the real readiness five-second auth deadline  5010ms
+ ✓ __tests__/api/cron-ledger-wiring.test.ts (3 tests) 5413ms
+     ✓ /api/cron/pulse calls startCronRun  1072ms
+     ✓ /api/cron/evaluate-alerts calls startCronRun  4236ms
+ ✓ __tests__/migrations/provider-citations.test.ts (2 tests) 5953ms
+   ✓ stores bounded citation titles as valid Unicode JSONB, including emoji at the boundary  3261ms
+   ✓ permits citation evidence updates under the existing runtime role without widening immutable fields  2690ms
+ ✓ __tests__/security/tenancy-inventory.test.ts (6 tests) 5464ms
+     ✓ finds the statements at all  2092ms
+     ✓ keeps every account-blind declaration pointing at live tenant SQL the token rule passes  3351ms
+ ✓ __tests__/lib/pulse-evidence-boundaries.test.ts (12 tests) 5573ms
+ ✓ __tests__/config/lint-ignores.test.ts (10 tests) 6735ms
+     ✓ does not lint the repo copy under .worktrees  6432ms
+ ✓ __tests__/ci/component-fixtures.test.ts (2 tests) 182ms
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+ ✓ __tests__/ci/test-manifest.test.ts (21 tests) 374ms
+ ✓ __tests__/config/vitest-discovery.test.ts (1 test) 1836ms
+     ✓ collects exactly the test files under __tests__/, and no copy of them  1833ms
+ ✓ __tests__/lib/commercial-entitlement-wiring.test.ts (5 tests) 4478ms
+     ✓ does not derive commercial access from the raw stored plan  4394ms
+ ✓ __tests__/security/no-unguarded-fetch.test.ts (141 tests) 2192ms
+stderr | __tests__/lib/auth-rsc-session.test.ts > normal profile reads with installed Neon SDK in read-only Server Components > retains a verified user when upstream refreshes its cookie without mutating read-only render cookies
+[parseSessionData] Failed to parse session dates: {
+  error: 'Invalid date value for session.createdAt: undefined',
+  hasSession: true,
+  hasUser: true
+}
+
+stderr | __tests__/lib/auth-rsc-session.test.ts > normal profile reads with installed Neon SDK in read-only Server Components > does not turn an Auth upstream503 into a signed-out result
+[neon-auth] Upstream HTTP error {
+  component: 'proxy',
+  proxyPath: 'get-session',
+  status: 503,
+  statusText: '',
+  host: 'auth.fixture.invalid'
+}
+
+stderr | __tests__/lib/auth-rsc-session.test.ts > normal profile reads with installed Neon SDK in read-only Server Components > preserves transport failure as an error without querying the database
+[neon-auth] Upstream fetch failed {
+  component: 'proxy',
+  proxyPath: 'get-session',
+  code: 'NETWORK_RESET',
+  detail: 'ECONNRESET',
+  host: 'auth.fixture.invalid'
+}
+
+stderr | __tests__/lib/auth-rsc-session.test.ts > normal profile reads with installed Neon SDK in read-only Server Components > leaves a due renewal for the writable browser request after an RSC profile validation
+[parseSessionData] Failed to parse session dates: {
+  error: 'Invalid date value for session.createdAt: undefined',
+  hasSession: true,
+  hasUser: true
+}
+
+stderr | __tests__/lib/auth-rsc-session.test.ts > normal profile reads with installed Neon SDK in read-only Server Components > persists renewal cookies when the profile read runs in a writable Route Handler
+[parseSessionData] Failed to parse session dates: {
+  error: 'Invalid date value for session.createdAt: undefined',
+  hasSession: true,
+  hasUser: true
+}
+
+stderr | __tests__/api/auth-response-transport.test.ts > Neon Auth decoded response transport > preserves upstream error status and body after decoding
+[neon-auth] Upstream HTTP error {
+  component: 'proxy',
+  proxyPath: 'get-session',
+  status: 503,
+  statusText: '',
+  host: 'synthetic-auth.example.test'
+}
+
+ ✓ __tests__/lib/auth-rsc-session.test.ts (18 tests) 4109ms
+     ✓ returns anonymous when upstream clears an expired cookie, without an RSC cookie write escaping  4012ms
+ ✓ __tests__/api/auth-response-transport.test.ts (6 tests) 2070ms
+     ✓ serves decoded gzip session JSON without stale upstream encoding/length  1943ms
+ ✓ __tests__/ci/disposable-role-authorization.test.ts (19 tests) 765ms
+ ✓ __tests__/config/input-token-role.test.ts (1 test) 816ms
+     ✓ no file uses it as a border colour  814ms
+stderr | __tests__/api/auth-verifier-cache.test.ts > real Neon SDK verifier exchange with an existing identity cookie > preserves upstream failure instead of reporting old cached success
+[neon-auth] Upstream HTTP error {
+  component: 'proxy',
+  proxyPath: 'get-session',
+  status: 503,
+  statusText: '',
+  host: 'synthetic-auth.example.test'
+}
+
+ ✓ __tests__/api/auth-verifier-cache.test.ts (7 tests) 645ms
+     ✓ retains the ordinary session cache fast path  593ms
+ ✓ __tests__/change-sets/validation.test.ts (17 tests) 1388ms
+     ✓ accepts evidence immediately below 65536 bytes and rejects it immediately above  1341ms
+ ✓ __tests__/ci/gate-scripts.test.ts (21 tests) 560ms
+ ✓ __tests__/authority/layers-full.test.ts (23 tests) 10369ms
+     ✓ gives Wikipedia-present domains a higher score  2601ms
+     ✓ returns result with expected signal shape  588ms
+     ✓ does not throw when Wikipedia API is unavailable  420ms
+     ✓ returns a finalScore between 0 and 50 for any domain  455ms
+     ✓ high-authority domain scores more than unknown domain  4135ms
+     ✓ result includes breakdown by all four layers  2034ms
+ ✓ __tests__/components/local-trust.test.tsx (37 tests) 1022ms
+     ✓ renders a Basic locked preview with sample movement and pricing CTA  411ms
+ ✓ __tests__/migrations/rls-policy-freeze.test.mjs (6 tests) 316ms
+ ✓ __tests__/api/auth-route.test.ts (2 tests) 698ms
+     ✓ imports without constructing the auth client  692ms
+ ✓ __tests__/scripts/check-candidate.test.mjs (41 tests) 757ms
+     ✓ has no import side effects and actual CLI rejects secret arguments with fixed output  559ms
+(node:10076) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/lib/security/redact-secrets.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\laich\.codex\worktrees\aiso-audit-fixes-20261011\Aiso\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ __tests__/api/route-gate-inventory.test.ts (94 tests) 1498ms
+(node:37544) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/lib/security/redact-secrets.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\laich\.codex\worktrees\aiso-audit-fixes-20261011\Aiso\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ __tests__/scripts/neon-wrapper.test.ts (5 tests) 713ms
+     ✓ redacts a connection URI piped through stdin  386ms
+     ✓ passes clean output through unchanged  318ms
+ ✓ __tests__/lib/pulse-conflict-arbiter.test.ts (2 tests) 3071ms
+     ✓ every ON CONFLICT under lib/, app/ and scripts/ has a matching unique index  2989ms
+ ✓ __tests__/ci/branch-provenance.test.ts (16 tests) 480ms
+ ✓ __tests__/components/onboarding-wizard-bilingual.test.tsx (6 tests) 42ms
+ ✓ __tests__/outcomes/sources.test.ts (23 tests) 1109ms
+   ✓ suppresses certainty on scan overflow even when every raw candidate is outside all windows  1002ms
+ ✓ __tests__/components/scan-claim-retry.test.ts (9 tests) 988ms
+ ✓ __tests__/components/source-maintenance-fixture.test.tsx (2 tests) 557ms
+ ✓ __tests__/scripts/schema-equivalence.test.mjs (41 tests) 1017ms
+stderr | __tests__/api/fix.test.ts > POST /api/fix > returns 500 when the ownership check fails, not a silent success
+[fix] ownership check failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/fix.test.ts:180:20
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/fix.test.ts > POST /api/fix > returns 500 when the cache/scan lookup fails, not a silent success
+[fix] cache/scan lookup failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/fix.test.ts:194:7
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ __tests__/integrations/search-console-client.test.ts (30 tests) 1376ms
+     ✓ stops at MAX_PAGES without throwing when every page is still full  585ms
+stderr | __tests__/api/fix.test.ts > POST /api/fix/cluster-map > returns 500 when the ownership check fails, not a silent success
+[fix/cluster-map] ownership check failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/fix.test.ts:264:20
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/fix.test.ts > POST /api/fix/cluster-map > returns 500 when the cluster lookup fails, not a silent success
+[fix/cluster-map] cluster lookup failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/fix.test.ts:278:7
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/fix.test.ts > POST /api/fix/content-brief > returns 500 when the ownership check fails, not a silent success
+[fix/content-brief] ownership check failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/fix.test.ts:363:20
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/fix.test.ts > POST /api/fix/content-brief > returns 500 when the content_briefs insert fails, not a response with a missing id
+[fix/content-brief] brief save failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/fix.test.ts:412:7
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ __tests__/api/fix.test.ts (27 tests) 805ms
+ ✓ __tests__/scripts/schema-cli.test.mjs (31 tests) 2553ms
+     ✓ actual Node missing-argument entry fails safely with synthetic environment  1915ms
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > POST /api/cron/evaluate-alerts > returns 500 when CRON_SECRET is not configured
+[cron/evaluate-alerts] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > POST /api/cron/evaluate-alerts > returns 502 when emailFailures is greater than zero, so Vercel Cron sees a red run
+[cron/evaluate-alerts] 502: emailFailures=2 notificationFailures=0
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > POST /api/cron/evaluate-alerts > returns 502 when notificationFailures is greater than zero, even with no email failures
+[cron/evaluate-alerts] 502: emailFailures=0 notificationFailures=2
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > POST /api/cron/evaluate-alerts > returns 502 when the run evaluated nobody, mirroring the GET handler
+[cron/evaluate-alerts] 502: evaluated 0 of 2 configured client(s) -- the Pulse rollup likely never landed
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > accepts the Bearer header Vercel Cron actually sends
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: '2b4efdca-2f1c-4ff6-835d-caa9d3879d84',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when emailFailures is greater than zero, matching the POST handler
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: '086a73f1-5a1b-468a-b914-4ff8f56e1023',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when emailFailures is greater than zero, matching the POST handler
+[cron/evaluate-alerts] 502: emailFailures=2 notificationFailures=0
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when notificationFailures is greater than zero, even with no email failures
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: 'de4e66d5-a7db-4bb8-ab8b-9bd501a6d049',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when notificationFailures is greater than zero, even with no email failures
+[cron/evaluate-alerts] 502: emailFailures=0 notificationFailures=2
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 500 rather than running when CRON_SECRET is unset or too short
+[cron/evaluate-alerts] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 500 rather than running when CRON_SECRET is unset or too short
+[cron/evaluate-alerts] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > composes the same ports the POST handler does
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: '695db9e1-edfd-4f10-863c-6e3b70d7fb8e',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when every configured client was stale
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: '8ce12990-6732-4597-acda-cd5016010a5c',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when every configured client was stale
+[cron/evaluate-alerts] 502: evaluated 0 of 3 configured client(s) -- the Pulse rollup likely never landed
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when the evaluator ran but evaluated nobody, even with zero stale clients
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: '63a7ad90-4a23-4531-9d9f-2b96624ad987',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when the evaluator ran but evaluated nobody, even with zero stale clients
+[cron/evaluate-alerts] 502: evaluated 0 of 2 configured client(s) -- the Pulse rollup likely never landed
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > stays 200 when only some clients were stale
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: 'eef33573-a58b-46b4-ba9d-0b341e86706e',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > stays 200 when some clients were stale but at least one was evaluated
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: '6d0bc6f6-c505-469a-a6d7-75faa24173a1',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when the run was truncated before finishing
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: '4fd6e1a6-c5d6-479f-a636-eef6bbc7a2e6',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > returns 502 when the run was truncated before finishing
+[cron/evaluate-alerts] 502: deferred=180 alert(s) past the time budget
+
+stderr | __tests__/api/cron/evaluate-alerts.test.ts > GET /api/cron/evaluate-alerts > stays 200 for an empty run with zero configured clients
+{
+  event: 'cron_ledger_write_failed',
+  operation: 'start',
+  correlationId: '25224e6f-617d-4f2b-aad4-e31faade2f22',
+  database: { code: 'unknown', category: 'unknown' }
+}
+
+ ✓ __tests__/api/cron/evaluate-alerts.test.ts (20 tests) 209ms
+ ✓ __tests__/scripts/schema-manifest.test.mjs (80 tests) 697ms
+stderr | __tests__/api/scan-flow.test.ts > POST /api/scan — full scan flow > does not score or save a scan when origin collection fails: network
+[scan] page unreachable: Error
+
+ ✓ __tests__/components/source-pack-render.test.tsx (35 tests) 1130ms
+ ✓ __tests__/components/report-builder-navigation.test.ts (13 tests) 1640ms
+     ✓ rejects one Back prompt while preserving the URL, mounted builder, and dirty edit  1567ms
+ ✓ __tests__/components/auth-return-fixture.test.tsx (1 test) 116ms
+stderr | __tests__/api/scan-flow.test.ts > POST /api/scan — full scan flow > keeps write failure non-success and does not dispatch a webhook
+[scan] DB insert failed: mock database write failure
+
+stderr | __tests__/api/domain-verification.test.ts > POST domain-verification > answers 503 for a session-store outage, never 401
+[domain-verification] failed: session store unreachable
+
+stderr | __tests__/api/scan-flow.test.ts > POST /api/scan — full scan flow > refuses a site it cannot reach at all, and saves nothing
+[scan] page unreachable: TypeError
+
+ ✓ __tests__/api/domain-verification.test.ts (14 tests) 234ms
+ ✓ __tests__/api/scan-flow.test.ts (24 tests) 1358ms
+     ✓ does not score or save a scan when origin collection fails: network  984ms
+stderr | __tests__/api/account-members.test.ts > POST /api/account/invitations > still reports the invitation when the mail could not be sent, and says so
+[members] invitation email failed: Resend invitation email failed
+
+ ✓ __tests__/scripts/schema-neon-port.test.mjs (80 tests) 705ms
+ ✓ __tests__/api/account-members.test.ts (28 tests) 708ms
+     ✓ refuses an anonymous caller  406ms
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/competitors > returns 500 when CRON_SECRET is unset
+[agents/competitors] CRON_SECRET is unset or shorter than 16 characters
+
+ ✓ __tests__/components/reports-list.test.tsx (2 tests) 479ms
+     ✓ renders every report state and accurate unavailable engagement metrics  476ms
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/competitors > returns 503 when the scan lookup itself fails
+[agents/competitors] scan lookup failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/agent-routes.test.ts:89:20
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/competitors > upserts each competitor and returns 500 if the write fails
+[agents/competitors] write failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/agent-routes.test.ts:130:40
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ __tests__/scripts/verify-db-connection.test.ts (3 tests) 251ms
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/progress > returns 500 when CRON_SECRET is unset
+[agents/progress] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/progress > returns 503 when the scan lookup itself fails
+[agents/progress] scan lookup failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/agent-routes.test.ts:237:20
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/progress > upserts each metric and returns 500 if the write fails
+[agents/progress] write failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/agent-routes.test.ts:281:40
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/recommendations > returns 500 when CRON_SECRET is unset
+[agents/recommendations] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/recommendations > returns 503 when the scan lookup itself fails
+[agents/recommendations] scan lookup failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/agent-routes.test.ts:372:20
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/agent-routes.test.ts > POST /api/clients/[clientId]/agents/recommendations > upserts each recommendation and returns 500 if the write fails
+[agents/recommendations] write failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/agent-routes.test.ts:401:40
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ __tests__/api/agent-routes.test.ts (31 tests) 823ms
+ ✓ __tests__/components/report-branding-form.test.tsx (3 tests) 269ms
+stderr | __tests__/api/search-console-connections.test.ts > GET > is 503 when the read fails
+[account/integrations/google] listConnections failed { name: 'Error' }
+
+stderr | __tests__/api/search-console-connections.test.ts > DELETE > is 503 when the local delete fails
+[account/integrations/google] revokeConnectionRow failed { name: 'Error' }
+
+ ✓ __tests__/api/search-console-connections.test.ts (9 tests) 374ms
+     ✓ lists only the session account's connections  361ms
+ ✓ __tests__/config/typescript-discovery.test.ts (1 test) 247ms
+ ✓ __tests__/components/prompt-bank-editor.test.tsx (15 tests) 687ms
+ ✓ __tests__/components/change-set-render.test.tsx (8 tests) 325ms
+ ✓ __tests__/components/outcomes-render.test.tsx (24 tests) 348ms
+ ✓ __tests__/components/report-builder.test.tsx (6 tests) 427ms
+     ✓ renders the accessible three-step Compose, Review, Publish workflow  406ms
+ ✓ __tests__/ci/exact-target-suites.test.ts (17 tests) 384ms
+ ✓ __tests__/components/audit-loop-fixture.test.tsx (3 tests) 81ms
+ ✓ __tests__/scripts/schema-contract.test.mjs (82 tests) 360ms
+ ✓ __tests__/components/trust-signals-section.test.tsx (8 tests) 269ms
+ ✓ __tests__/components/first-pulse-fixture.test.tsx (2 tests) 56ms
+ ✓ __tests__/db/client-report-migration.test.ts (13 tests) 352ms
+     ✓ does not modify applied migrations 001 through 026 from the task base  311ms
+ ✓ __tests__/components/opportunity-render.test.tsx (8 tests) 159ms
+ ✓ __tests__/lib/tier-phase3b.test.ts (4 tests) 585ms
+   ✓ maps persisted brand success and commercial quota errors through the shared onboarding adapter  578ms
+ ✓ __tests__/components/delivery-render.test.tsx (5 tests) 50ms
+ ✓ __tests__/api/search-console-cron.test.ts (10 tests) 146ms
+ ✓ __tests__/components/approver-access-render.test.tsx (4 tests) 67ms
+ ✓ __tests__/api/funnel-events.test.ts (6 tests) 219ms
+ ✓ __tests__/components/domain-verification-first-use.test.tsx (3 tests) 29ms
+ ✓ __tests__/components/entity-render.test.tsx (2 tests) 171ms
+ ✓ __tests__/components/competitors-editor.test.tsx (7 tests) 1212ms
+     ✓ never renders a raw message key  556ms
+ ✓ __tests__/components/observation-render.test.tsx (19 tests) 1060ms
+ ✓ __tests__/components/alerts-interaction.test.tsx (11 tests) 209ms
+ ✓ __tests__/components/citation-explorer.test.tsx (10 tests) 1060ms
+     ✓ lists questions where a competitor is cited and the brand is not  364ms
+stderr | __tests__/api/search-console-consent.test.ts > GET start > refuses before redirecting when the encryption key is missing
+[google/start] GOOGLE_TOKEN_ENCRYPTION_KEY is missing or not 32 bytes
+
+stderr | __tests__/api/search-console-consent.test.ts > GET callback > never reports connected over a failed write
+[google/callback] failed to store connection { name: 'Error' }
+
+ ✓ __tests__/api/search-console-consent.test.ts (17 tests) 364ms
+ ✓ __tests__/components/factual-density-evidence.test.tsx (10 tests) 96ms
+ ✓ __tests__/api/client-reports.test.ts (68 tests) 1965ms
+     ✓ rebuilds create facts and branding from owned rows and preserves the server-selected previous scan id  308ms
+ ✓ __tests__/lib/public-url.test.ts (42 tests) 160ms
+ ✓ __tests__/components/draft-render.test.tsx (3 tests) 564ms
+     ✓ preserves saved locale, original snapshot and labelled editable fields in en  468ms
+stderr | __tests__/api/content-tools-gate.test.ts > POST /api/fix/content-brief > fails closed when the allowance cannot be checked
+[ai-tools] allowance check failed: Error
+
+stderr | __tests__/api/content-tools-gate.test.ts > POST /api/fix/content-brief > spends one allowance unit and calls the model for a paid account
+[fix/content-brief] brief save failed: TypeError: Cannot read properties of undefined (reading 'id')
+    at POST (C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/app/api/fix/content-brief/route.ts:118:38)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/content-tools-gate.test.ts:106:5
+    at async file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20
+
+stderr | __tests__/api/content-tools-gate.test.ts > POST /api/fix/cluster-map > fails closed when the allowance cannot be checked
+[ai-tools] allowance check failed: Error
+
+ ✓ __tests__/api/readiness.test.ts (26 tests) 113ms
+stderr | __tests__/api/content-tools-gate.test.ts > POST /api/fix/rewrite-chunks > fails closed when the allowance cannot be checked
+[ai-tools] allowance check failed: Error
+
+stderr | __tests__/api/content-tools-gate.test.ts > allowance is keyed to the account > does not spend allowance when the cluster-map data lookup fails
+[fix/cluster-map] cluster lookup failed: Error: db down
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/content-tools-gate.test.ts:32:95
+    at POST (C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/app/api/fix/cluster-map/route.ts:91:27)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/content-tools-gate.test.ts:125:17
+    at async file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20
+
+ ✓ __tests__/api/content-tools-gate.test.ts (23 tests) 742ms
+stderr | __tests__/api/stripe-entitlement-integrity.test.ts > Stripe entitlement integrity > best-effort releases the lease when canonical Stripe retrieval fails
+[stripe/webhook] processing failed Error: Stripe unavailable
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/stripe-entitlement-integrity.test.ts:364:50
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/stripe-entitlement-integrity.test.ts > Stripe entitlement integrity > returns 500 — never { ok: true } — when the database throws persisting the event, and still releases the lease
+[stripe/webhook] processing failed Error: connection terminated unexpectedly
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/stripe-entitlement-integrity.test.ts:466:25
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/api/stripe-entitlement-integrity.test.ts > Stripe entitlement integrity > returns 500 when Stripe cannot retrieve canonical subscription state
+[stripe/webhook] processing failed Error: Stripe unavailable
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/stripe-entitlement-integrity.test.ts:504:50
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ __tests__/api/stripe-entitlement-integrity.test.ts (32 tests) 449ms
+ ✓ __tests__/work-items/migration.test.ts (4 tests) 469ms
+     ✓ uses unused migration 041 without modifying historical migrations  459ms
+ ✓ __tests__/migrations/neon-role-portability.test.mjs (69 tests) 1679ms
+stderr | __tests__/api/scan-security.test.ts > POST /api/scan security boundaries > returns 503 when a surfaced Neon session error rejects profile lookup
+[scan] authentication lookup failed: Neon Auth unavailable
+
+ ✓ __tests__/api/scan-security.test.ts (18 tests) 247ms
+ ✓ __tests__/delivery/service.test.ts (80 tests) 163ms
+stderr | __tests__/api/search-console-binding.test.ts > PUT bind > is 503 when bindProperty throws
+[search-console/binding] bindProperty failed { name: 'Error' }
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — authentication > refuses to run at all when CRON_SECRET is unset
+[pulse/run] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — authentication > refuses a CRON_SECRET too short to be worth guessing against
+[pulse/run] CRON_SECRET is unset or shorter than 16 characters
+
+ ✓ __tests__/api/delivery.test.ts (35 tests) 97ms
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — request validation > returns 503, not 404, when the ownership lookup itself fails
+[pulse/run] client lookup failed
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — writes > returns 5xx rather than a success carrying counts it never persisted
+[pulse/run] metrics write failed
+
+ ✓ __tests__/api/search-console-binding.test.ts (20 tests) 282ms
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — provider failure > answers non-2xx when no prompt in the chunk got any response
+[pulse/run] no provider answered any prompt in this chunk
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — provider failure > treats a thrown provider call the same way
+[pulse/run] no provider answered any prompt in this chunk
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — provider failure > never deletes a prompt's existing rows when it got no new answer
+[pulse/run] no provider answered any prompt in this chunk
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — chunking > returns 500 when the rollup fails, not a 200 with a null summary
+[pulse/run] summary rollup failed
+
+ ✓ __tests__/components/members-panel.test.tsx (22 tests) 112ms
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — answer length > asks each platform for answers of up to its limit: 1500, or 4000 for Gemini
+[pulse/run] no provider answered any prompt in this chunk
+
+ ✓ __tests__/api/pulse-run.test.ts (43 tests) 170ms
+stderr | __tests__/api/admin-clients.test.ts > GET /api/admin/clients > returns 5xx when the query fails rather than an empty list
+[admin/clients] account query failed: connection failed
+
+stderr | __tests__/api/admin-clients.test.ts > PATCH /api/admin/clients > returns 5xx when the write fails
+[admin/clients] revoke failed: connection failed
+
+ ✓ __tests__/api/admin-clients.test.ts (22 tests) 115ms
+ ✓ __tests__/checks/extended-checks.test.ts (30 tests) 369ms
+ ✓ __tests__/supabase/migration-contract.test.ts (13 tests) 109ms
+ ✓ __tests__/lib/admin-guard.test.ts (4 tests) 145ms
+ ✓ __tests__/security/db-guard.test.ts (16 tests) 199ms
+ ✓ __tests__/components/search-console-bilingual.test.tsx (93 tests) 77ms
+ ✓ __tests__/components/notification-bell.test.tsx (7 tests) 118ms
+ ✓ __tests__/outcomes/route.test.ts (2 tests) 57ms
+ ✓ __tests__/api/client-entity.test.ts (11 tests) 65ms
+ ✓ __tests__/lib/report-snapshot.test.ts (16 tests) 64ms
+ ✓ __tests__/public-report-page.test.tsx (9 tests) 104ms
+ ✓ __tests__/work-items/service.test.ts (13 tests) 59ms
+ ✓ __tests__/components/session-refresh.test.ts (4 tests) 80ms
+ ✓ __tests__/components/workspace-home-priorities.test.tsx (14 tests) 125ms
+ ✓ __tests__/api/work-items.test.ts (3 tests) 143ms
+ ✓ __tests__/helpers/neon-branch.test.ts (28 tests) 110ms
+ ✓ __tests__/integrations/oauth.test.ts (29 tests) 72ms
+stderr | __tests__/api/cron/trial-emails.test.ts > GET /api/cron/trial-emails > returns 500 when CRON_SECRET is unset
+[cron/trial-emails] CRON_SECRET is unset or shorter than 16 characters
+
+ ✓ __tests__/approvals/access-service.test.ts (13 tests) 89ms
+ ✓ __tests__/api/cron/trial-emails.test.ts (14 tests) 253ms
+ ✓ __tests__/lib/openrouter-usage.test.ts (21 tests) 108ms
+ ✓ __tests__/api/work-item-sources-route.test.ts (16 tests) 56ms
+stderr | __tests__/api/authenticated-scan-entitlement.test.ts > authenticated scan commercial entitlement > refunds a Basic monthly scan when the site cannot be reached
+[scan] page unreachable: TypeError
+
+stderr | __tests__/api/authenticated-scan-entitlement.test.ts > authenticated scan commercial entitlement > refunds nothing for a plan whose scans are not counted
+[scan] page unreachable: TypeError
+
+stderr | __tests__/api/authenticated-scan-entitlement.test.ts > authenticated scan commercial entitlement > fails closed when authentication lookup fails before choosing a limiter
+[scan] authentication lookup failed: Neon Auth unavailable
+
+stderr | __tests__/api/authenticated-scan-entitlement.test.ts > authenticated scan commercial entitlement > fails closed when durable Basic quota persistence fails
+[scan] authenticated quota failed: database unavailable
+
+ ✓ __tests__/api/authenticated-scan-entitlement.test.ts (12 tests) 98ms
+ ✓ __tests__/api/onboarding-flow.test.ts (29 tests) 69ms
+ ✓ __tests__/config/public-redirects.test.ts (26 tests) 99ms
+stderr | __tests__/api/scan-funnel-contract.test.ts > Homepage scan funnel contracts > returns 503 when the profile lookup is unavailable
+[scan] authentication lookup failed: provider secret must not escape
+
+ ✓ __tests__/api/scan-funnel-contract.test.ts (7 tests) 71ms
+ ✓ __tests__/components/workspace-home-render.test.tsx (3 tests) 52ms
+ ✓ __tests__/api/source-import-preview.test.ts (3 tests) 59ms
+ ✓ __tests__/proxy.test.ts (25 tests) 151ms
+ ✓ __tests__/config/dark-mode-surfaces.test.ts (1 test) 49ms
+ ✓ __tests__/checks/llms-content-quality.test.ts (3 tests) 39ms
+ ✓ __tests__/api/prompt-bank.test.ts (47 tests) 88ms
+stderr | __tests__/api/cron-pulse.test.ts > retains exact PostgreSQL cursor time across a legacy continuation request
+[cron/pulse] no client has an active prompt bank; nothing will ever be scanned
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — authentication > refuses to run at all when CRON_SECRET is unset
+[cron/pulse] CRON_SECRET is unset or shorter than 16 characters
+
+ ✓ __tests__/ci/playwright-config.test.ts (3 tests) 78ms
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — authentication > refuses a secret too short to be worth guessing
+[cron/pulse] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — driving the producer > skips a plan that grants no platforms instead of spending a hop on a 403
+[cron/pulse] no client has an active prompt bank; nothing will ever be scanned
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — driving the producer > skips a cancelled account still carrying plan=pro
+[cron/pulse] no client has an active prompt bank; nothing will ever be scanned
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — driving the producer > reports zero configured clients when the feature was never set up
+[cron/pulse] no client has an active prompt bank; nothing will ever be scanned
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — driving the producer > returns 503 when the pending lookup fails
+[cron/pulse] pending-client lookup failed
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — chaining > never retries a failing client in the same chain, but moves on to the next
+[cron/pulse] producer returned 403 for client-1
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — chaining > stops the chain on a provider outage, which no other client would escape
+[cron/pulse] producer returned 502 for client-1
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — chaining > stops the chain on a server-side producer failure, which is not about the client
+[cron/pulse] producer returned 500 for client-1
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — chaining > carries one cursor forward across hops, bounded by the chain cap
+[cron/pulse] producer returned 404 for 00000000-0000-4000-8000-000000000002
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — chaining > does not chain when the producer is unreachable
+[cron/pulse] producer call failed
+
+stderr | __tests__/api/cron-pulse.test.ts > GET /api/cron/pulse — chaining > survives a dropped chain hop without failing the response
+[cron/pulse] chain hop failed
+
+stderr | __tests__/api/cron-pulse.test.ts > Pulse failure ledger classification > records lookup as an error with unchanged HTTP failure
+[cron/pulse] pending-client lookup failed
+
+stderr | __tests__/api/cron-pulse.test.ts > Pulse failure ledger classification > records producer-response as an error with unchanged HTTP failure
+[cron/pulse] producer returned 503 for client-1
+
+stderr | __tests__/api/cron-pulse.test.ts > Pulse failure ledger classification > records producer-network as an error with unchanged HTTP failure
+[cron/pulse] producer call failed
+
+ ✓ __tests__/api/cron-pulse.test.ts (34 tests) 79ms
+ ✓ __tests__/lib/scan-evidence.test.ts (11 tests) 51ms
+ ✓ __tests__/seo/discovery.test.ts (7 tests) 49ms
+ ✓ __tests__/api/approver-access.test.ts (5 tests) 62ms
+ ✓ __tests__/api/local-trust.test.ts (34 tests) 78ms
+ ✓ __tests__/readiness/runtime-auth.test.ts (13 tests) 60ms
+ ✓ __tests__/lib/report-branding.test.ts (41 tests) 70ms
+ ✓ __tests__/ci/e2e-shards.test.ts (11 tests) 66ms
+ ✓ __tests__/readiness/dns.test.ts (15 tests) 44ms
+ ✓ __tests__/api/audit-mutation-errors.test.ts (15 tests) 66ms
+ ✓ __tests__/lib/citation-query.test.ts (4 tests) 78ms
+ ✓ __tests__/components/portfolio-render.test.tsx (3 tests) 105ms
+ ✓ __tests__/components/generated-work.test.tsx (16 tests) 65ms
+ ✓ __tests__/api/citations.test.ts (6 tests) 75ms
+stderr | __tests__/api/assets-route.test.ts > POST /api/dashboard/clients/[clientId]/assets > fails loudly when the write throws, rather than reporting success
+[assets] register failed: Error: private-database-details
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/api/assets-route.test.ts:118:38
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ __tests__/api/assets-route.test.ts (15 tests) 76ms
+ ✓ __tests__/outcomes/service.test.ts (23 tests) 73ms
+ ✓ __tests__/lib/sitemap-fetch.test.ts (6 tests) 48ms
+ ✓ __tests__/components/public-impact-estimate.test.tsx (6 tests) 43ms
+ ✓ __tests__/change-sets/service.test.ts (18 tests) 104ms
+ ✓ __tests__/lib/scan-evidence-capture.test.ts (9 tests) 82ms
+ ✓ __tests__/opportunities/fingerprint.test.ts (52 tests) 62ms
+ ✓ __tests__/components/opportunity-page.test.tsx (11 tests) 78ms
+ ✓ __tests__/components/scan-industry-options.test.tsx (2 tests) 36ms
+ ✓ __tests__/api/observation-detail.test.ts (9 tests) 59ms
+ ✓ __tests__/work-items/store.test.ts (20 tests) 57ms
+ ✓ __tests__/delivery/store.test.ts (30 tests) 54ms
+ ✓ __tests__/api/competitors.test.ts (25 tests) 63ms
+ ✓ __tests__/components/top-issue-card.test.tsx (6 tests) 45ms
+stderr | __tests__/lib/workspace-home.test.ts > owned workspace loader > throws for ownership lookup outage, but keeps optional failures distinct
+[workspace] pulse read failed
+
+ ✓ __tests__/api/alerts-config.test.ts (15 tests) 85ms
+ ✓ __tests__/lib/workspace-home.test.ts (31 tests) 71ms
+ ✓ __tests__/api/change-set-versions.test.ts (5 tests) 80ms
+ ✓ __tests__/observations/service.test.ts (11 tests) 57ms
+ ✓ __tests__/lib/product-facts.test.ts (16 tests) 54ms
+ ✓ __tests__/components/portfolio-activation.test.tsx (14 tests) 72ms
+stderr | __tests__/api/webhooks-neon.test.ts > POST /api/webhooks/neon > returns 200 received/handled:false for an event type it does not handle
+[webhooks/neon] ignoring unhandled event_type: user.updated
+
+stderr | __tests__/api/webhooks-neon.test.ts > POST /api/webhooks/neon > rejects a forged payload whose user id does not exist in neon_auth.user, provisioning nothing
+[webhooks/neon] rejecting unverifiable user.created payload for user attacker-made-up-id — no such row in neon_auth.user
+
+stderr | __tests__/api/webhooks-neon.test.ts > POST /api/webhooks/neon > rejects a payload that binds a real user id to a different email, provisioning nothing
+[webhooks/neon] rejecting unverifiable user.created payload for user user-123 — email does not match neon_auth.user
+
+stderr | __tests__/api/webhooks-neon.test.ts > POST /api/webhooks/neon > returns the same opaque response for an unknown id and a mismatched email
+[webhooks/neon] rejecting unverifiable user.created payload for user user-123 — no such row in neon_auth.user
+
+stderr | __tests__/api/webhooks-neon.test.ts > POST /api/webhooks/neon > returns the same opaque response for an unknown id and a mismatched email
+[webhooks/neon] rejecting unverifiable user.created payload for user user-123 — email does not match neon_auth.user
+
+stderr | __tests__/api/webhooks-neon.test.ts > POST /api/webhooks/neon > returns 500 (so Neon retries) when the auth-DB lookup itself fails
+[webhooks/neon] auth-user lookup failed for user user-123: connection terminated unexpectedly
+
+stderr | __tests__/api/webhooks-neon.test.ts > POST /api/webhooks/neon > returns 500 without leaking internal error details when provisioning fails
+[webhooks/neon] provisioning failed for user user-123 (new@example.com): insert into profiles violates foreign key constraint "profiles_account_id_fkey" detail: Key (account_id)=(account-abc) is not present in table "accounts".
+
+ ✓ __tests__/lib/competitors-client.test.ts (21 tests) 55ms
+ ✓ __tests__/api/webhooks-neon.test.ts (16 tests) 67ms
+ ✓ __tests__/lib/openrouter-web-search.test.ts (6 tests) 51ms
+ ✓ __tests__/config/maintenance-uat-contract.test.ts (9 tests) 49ms
+ ✓ __tests__/lib/scan-check-comparison.test.ts (15 tests) 48ms
+ ✓ __tests__/api/source-version-approval.test.ts (7 tests) 50ms
+ ✓ __tests__/components/dashboard-sidebar-portfolio.test.tsx (3 tests) 49ms
+ ✓ __tests__/readiness/runtime.test.ts (20 tests) 50ms
+ ✓ __tests__/seo/route-wiring.test.ts (8 tests) 50ms
+ ✓ __tests__/api/share-of-voice.test.ts (6 tests) 49ms
+ ✓ __tests__/components/recent-scans.test.ts (10 tests) 45ms
+ ✓ __tests__/sample-report.test.tsx (8 tests) 56ms
+ ✓ __tests__/components/settings-render.test.tsx (3 tests) 33ms
+ ✓ __tests__/api/scan-claim.test.ts (17 tests) 49ms
+ ✓ __tests__/checks/robots-policy.test.ts (29 tests) 55ms
+ ✓ __tests__/agents/safety-eval.test.ts (16 tests) 51ms
+ ✓ __tests__/components/scan-error-copy.test.mjs (1 test) 31ms
+ ✓ __tests__/delivery/input.test.ts (72 tests) 32ms
+ ✓ __tests__/api/notifications.test.ts (5 tests) 48ms
+ ✓ __tests__/components/asset-convergence-view.test.tsx (17 tests) 47ms
+ ✓ __tests__/api/notifications-read-all.test.ts (4 tests) 42ms
+ ✓ __tests__/lib/pricing-billing-truth.test.ts (12 tests) 54ms
+ ✓ __tests__/opportunities/service.test.ts (12 tests) 42ms
+ ✓ __tests__/ci/pr-gate-workflow.test.ts (6 tests) 60ms
+ ✓ __tests__/opportunities/rules.test.ts (17 tests) 41ms
+stderr | __tests__/components/entity-page.test.tsx > entity page boundary > offers content retrieval after a secondary verification-read failure without minting on render
+[entities] verification lookup failed: Synthetic lookup failure
+
+stderr | __tests__/api/scan-claim-intent.test.ts > POST /api/scans/[id]/claim-intent > returns 500 when the scan lookup fails
+[scan-claim-intent] scan-lookup-failed Error: database connection unavailable
+
+ ✓ __tests__/api/client-report-preview-assets.test.ts (3 tests) 43ms
+ ✓ __tests__/api/scan-claim-intent.test.ts (8 tests) 44ms
+ ✓ __tests__/lib/funnel-client.test.ts (3 tests) 44ms
+ ✓ __tests__/components/entity-page.test.tsx (7 tests) 73ms
+ ✓ __tests__/components/change-set-pages.test.tsx (6 tests) 43ms
+ ✓ __tests__/lib/pulse-platforms.test.ts (8 tests) 30ms
+stderr | __tests__/api/public-client-reports.test.ts > published client report resolver > returns one null outcome for draft
+[public-report] unavailable { reason: 'state' }
+
+stderr | __tests__/api/public-client-reports.test.ts > published client report resolver > returns one null outcome for revoked
+[public-report] unavailable { reason: 'state' }
+
+stderr | __tests__/api/public-client-reports.test.ts > published client report resolver > returns one null outcome for missing pointer
+[public-report] unavailable { reason: 'state' }
+
+stderr | __tests__/api/public-client-reports.test.ts > published client report resolver > returns one null outcome for wrong published version
+[public-report] unavailable { reason: 'state' }
+
+stderr | __tests__/api/public-client-reports.test.ts > published client report resolver > returns one null outcome for downgrade
+[public-report] unavailable { reason: 'entitlement' }
+
+stderr | __tests__/api/public-client-reports.test.ts > published client report resolver > returns one null outcome for failed-closed account
+[public-report] unavailable { reason: 'entitlement' }
+
+stderr | __tests__/api/public-client-reports.test.ts > published client report resolver > returns one null outcome for malformed snapshot
+[public-report] unavailable { reason: 'snapshot' }
+
+stderr | __tests__/api/public-client-reports.test.ts > public report asset handlers > rejects unsafe contact destination http://agency.example/contact with the neutral 404
+[public-report] unavailable { reason: 'snapshot' }
+
+ ✓ __tests__/api/public-client-reports.test.ts (19 tests) 44ms
+ ✓ __tests__/result-page-access.test.ts (10 tests) 39ms
+ ✓ __tests__/components/result-og-evidence.test.tsx (3 tests) 38ms
+ ✓ __tests__/lib/check-priority.test.ts (8 tests) 39ms
+ ✓ __tests__/components/dashboard-sidebar.test.ts (12 tests) 46ms
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count null unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count undefined unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count -1 unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count unknown unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] history read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] visibility read failed
+
+ ✓ __tests__/lib/portfolio.test.ts (20 tests) 39ms
+stderr | __tests__/integrations/sync.test.ts > syncBinding > reports a vault failure as ours, not as a revoked login
+[search-console] vault failure { clientId: 'c', code: 'VAULT_KEY_UNKNOWN' }
+
+stderr | __tests__/integrations/sync.test.ts > syncBinding > maps a misconfigured query failure to config_error and leaves the connection alone
+[search-console] google misconfigured { clientId: 'c', status: 0, code: null }
+
+stderr | __tests__/integrations/sync.test.ts > syncBinding > does not mark the connection for a misconfigured refresh failure either
+[search-console] google misconfigured { clientId: 'c', status: 401, code: null }
+
+stderr | __tests__/lib/alerts/evaluate.test.ts > runAlertEvaluation > continues after notification or email adapter failures
+[alerts] notification failed: Error: notification unavailable
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/lib/alerts/evaluate.test.ts:236:63
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/lib/alerts/evaluate.test.ts > runAlertEvaluation > continues after notification or email adapter failures
+[alerts] email failed: Error: email unavailable
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/lib/alerts/evaluate.test.ts:237:59
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/lib/alerts/evaluate.test.ts > runAlertEvaluation > counts a failing upsertNotification independently of email delivery, which still reflects successful sends
+[alerts] notification failed: Error: 42P10 no unique or exclusion constraint
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/lib/alerts/evaluate.test.ts:259:63
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/integrations/sync.test.ts > syncBinding > turns a non-VaultError thrown by open into internal_error
+[search-console] sync failed {
+  clientId: 'c',
+  name: 'Error',
+  code: undefined,
+  constraint: undefined
+}
+
+stderr | __tests__/lib/alerts/evaluate.test.ts > runAlertEvaluation > skips a client whose latest aggregate week is not the current week
+[alerts] client client-1: latest aggregate week is 2026-08-10, expected 2026-08-17 — skipping. The Pulse rollup has not landed for this client this week.
+
+stderr | __tests__/lib/alerts/evaluate.test.ts > runAlertEvaluation > skips a stale client while a fresh client in the same run still fires
+[alerts] client client-stale: latest aggregate week is 2026-08-03, expected 2026-08-10 — skipping. The Pulse rollup has not landed for this client this week.
+
+stderr | __tests__/lib/alerts/evaluate.test.ts > runAlertEvaluation > stops on the time budget and reports the alerts it did not reach
+[alerts] time budget exhausted after 0 of 4 clients; 8 alert(s) deferred. Vercel Cron does not retry — these wait a week.
+
+stderr | __tests__/lib/alerts/evaluate.test.ts > email idempotence > releases the claim when the send fails, so the next run retries
+[alerts] email failed: Error: resend is down
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/lib/alerts/evaluate.test.ts:472:30
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/lib/alerts/evaluate.test.ts > email idempotence > does not send when the claim itself fails
+[alerts] email claim failed: Error: ledger unavailable
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/lib/alerts/evaluate.test.ts:495:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | __tests__/lib/alerts/evaluate.test.ts > email idempotence > does not send when the claim itself fails
+[alerts] email claim failed: Error: ledger unavailable
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/lib/alerts/evaluate.test.ts:495:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ __tests__/integrations/sync.test.ts (29 tests) 40ms
+ ✓ __tests__/lib/alerts/evaluate.test.ts (21 tests) 40ms
+ ✓ __tests__/delivery/migration.test.ts (5 tests) 38ms
+ ✓ __tests__/lib/navigation.test.ts (7 tests) 39ms
+ ✓ __tests__/lib/owner-priorities.test.ts (16 tests) 36ms
+ ✓ __tests__/api/dashboard-clients.test.ts (11 tests) 40ms
+ ✓ __tests__/components/account-unlock-continuation.test.ts (8 tests) 36ms
+ ✓ __tests__/checks/no-bare-fetch.test.ts (16 tests) 22ms
+ ✓ __tests__/components/share-of-voice-benchmark.test.tsx (7 tests) 35ms
+ ✓ __tests__/seo/public-families.test.ts (24 tests) 41ms
+ ✓ __tests__/seo/public-content.test.tsx (10 tests) 34ms
+ ✓ __tests__/api/stripe-webhook-full.test.ts (8 tests) 35ms
+ ✓ __tests__/lib/citation-psl.test.ts (3 tests) 24ms
+ ✓ __tests__/lib/asset-convergence.test.ts (15 tests) 29ms
+ ✓ __tests__/opportunities/store.test.ts (8 tests) 34ms
+ ✓ __tests__/components/provider-citations-render.test.tsx (4 tests) 31ms
+stderr | __tests__/lib/pulse-view.test.ts > owned Pulse observations > fails authoritative ownership closed and optional observations independently
+[pulse-view] observations read failed
+
+ ✓ __tests__/api/stripe-checkout.test.ts (9 tests) 37ms
+ ✓ __tests__/api/suggest-questions.test.ts (15 tests) 29ms
+ ✓ __tests__/lib/pulse-view.test.ts (10 tests) 33ms
+ ✓ __tests__/dashboard-result-page.test.ts (6 tests) 30ms
+ ✓ __tests__/lib/pillar-coverage.test.ts (19 tests) 29ms
+ ✓ __tests__/lib/impact.test.ts (21 tests) 31ms
+ ✓ __tests__/change-sets/store.test.ts (20 tests) 32ms
+ ✓ __tests__/components/prompt-bank-page.test.ts (9 tests) 23ms
+ ✓ __tests__/scripts/schema-target.test.mjs (52 tests) 36ms
+ ✓ __tests__/components/entity-editor.test.tsx (2 tests) 29ms
+ ✓ __tests__/lib/report-store.test.ts (27 tests) 30ms
+ ✓ __tests__/lib/result-access.test.ts (3 tests) 28ms
+ ✓ __tests__/components/pillar-evidence-rendering.test.tsx (6 tests) 27ms
+ ✓ __tests__/api/user-pulse-runs.test.ts (12 tests) 29ms
+ ✓ __tests__/checks/mcpCard.test.ts (6 tests) 26ms
+ ✓ __tests__/config/entity-integration.test.ts (2 tests) 89ms
+ ✓ __tests__/approvals/decision-store.test.ts (11 tests) 22ms
+ ✓ __tests__/seo/metadata-coverage.test.ts (12 tests) 23ms
+ ✓ __tests__/scripts/run-tests.test.mjs (30 tests) 24ms
+ ✓ __tests__/components/observation-page.test.tsx (6 tests) 26ms
+ ✓ __tests__/api/onboarding.test.ts (2 tests) 23ms
+ ✓ __tests__/readiness/origin-resolves.test.ts (9 tests) 23ms
+ ✓ __tests__/lib/result-evidence.test.ts (3 tests) 24ms
+ ✓ __tests__/config/node-engine.test.ts (1 test) 24ms
+ ✓ __tests__/lib/pulse-worker.test.ts (10 tests) 25ms
+ ✓ __tests__/approvals/access-store.test.ts (14 tests) 20ms
+ ✓ __tests__/lib/auth.test.ts (11 tests) 34ms
+ ✓ __tests__/delivery/export.test.ts (15 tests) 29ms
+ ✓ __tests__/lib/message-catalogue-parity.test.ts (9 tests) 25ms
+ ✓ __tests__/outcomes/evaluate.test.ts (22 tests) 23ms
+ ✓ __tests__/api/observations.test.ts (7 tests) 26ms
+ ✓ __tests__/readiness/candidate-cross-contract.test.ts (13 tests) 26ms
+ ✓ __tests__/api/brand-creation-contract.test.ts (1 test) 26ms
+ ✓ __tests__/lib/public-scan-rate-limit.test.ts (10 tests) 23ms
+ ✓ __tests__/lib/scan-status.test.ts (7 tests) 23ms
+ ✓ __tests__/scripts/package-test-script.test.mjs (1 test) 41ms
+stderr | __tests__/api/clients-overview.test.ts > GET /api/clients/[clientId]/overview > returns 500 instead of an empty 200 when a query fails
+[overview] query failed: connection terminated
+
+stderr | __tests__/api/clients-overview.test.ts > GET /api/clients/[clientId]/overview > returns 500 when a later parallel query fails after the client is found
+[workspace] scan read failed
+
+stderr | __tests__/api/clients-overview.test.ts > GET /api/clients/[clientId]/overview > returns 500 when a later parallel query fails after the client is found
+[overview] query failed: Failed to load overview
+
+ ✓ __tests__/api/clients-overview.test.ts (7 tests) 25ms
+ ✓ __tests__/lib/report-share.test.ts (36 tests) 26ms
+ ✓ __tests__/readiness/runtime-primitive-policy.test.ts (4 tests) 22ms
+ ✓ __tests__/lib/alerts/neon-store.test.ts (12 tests) 23ms
+ ✓ __tests__/opportunities/presentation.test.ts (2 tests) 26ms
+ ✓ __tests__/lib/pulse-analysis-fallback.test.ts (32 tests) 22ms
+ ✓ __tests__/lib/report-ai.test.ts (32 tests) 21ms
+ ✓ __tests__/lib/pulse-schedule.test.ts (5 tests) 24ms
+ ✓ __tests__/readiness/runtime-report.test.ts (29 tests) 21ms
+ ✓ __tests__/observations/store.test.ts (11 tests) 24ms
+ ✓ __tests__/api/report-branding.test.ts (11 tests) 26ms
+ ✓ __tests__/checks/factualDensity.test.ts (43 tests) 22ms
+ ✓ __tests__/db/brand-limit-entitlement.test.ts (7 tests) 17ms
+ ✓ __tests__/components/prompt-bank-network.test.tsx (4 tests) 17ms
+ ✓ __tests__/outcomes/store.test.ts (6 tests) 22ms
+ ✓ __tests__/ci/e2e-fixtures.test.ts (4 tests) 24ms
+ ✓ __tests__/opportunities/grouping.test.ts (2 tests) 25ms
+ ✓ __tests__/outcomes/dto.test.ts (25 tests) 21ms
+ ✓ __tests__/lib/pulse-classification.test.ts (1 test) 20ms
+ ✓ __tests__/lib/rate-limit-identity.test.ts (4 tests) 20ms
+ ✓ __tests__/config/work-item-integration.test.ts (2 tests) 21ms
+ ✓ __tests__/lib/commercial-surface-contract.test.ts (9 tests) 18ms
+ ✓ __tests__/lib/resend.test.ts (12 tests) 19ms
+ ✓ __tests__/settings-page.test.tsx (10 tests) 16ms
+ ✓ __tests__/lib/sources-schema.test.ts (29 tests) 19ms
+ ✓ __tests__/helpers/neon-branch-config.test.ts (4 tests) 19ms
+ ✓ __tests__/lib/pulse-legacy-repair.test.ts (4 tests) 16ms
+ ✓ __tests__/lib/report-message-parity.test.ts (2 tests) 32ms
+ ✓ __tests__/lib/onboarding-schema.test.ts (12 tests) 17ms
+ ✓ __tests__/integrations/vault.test.ts (20 tests) 15ms
+ ✓ __tests__/components/score-reveal.test.tsx (2 tests) 19ms
+ ✓ __tests__/lib/citation-sources.test.ts (42 tests) 18ms
+ ✓ __tests__/work-items/schema.test.ts (32 tests) 18ms
+ ❯ __tests__/config/function-durations.test.ts (17 tests | 1 failed) 22ms
+     ✓ app/api/scan/route.ts declares a maxDuration 3ms
+     ✓ app/api/fix/route.ts declares a maxDuration 0ms
+     ✓ app/api/fix/cluster-map/route.ts declares a maxDuration 0ms
+     ✓ app/api/fix/content-brief/route.ts declares a maxDuration 0ms
+     ✓ app/api/pulse/run/route.ts declares a maxDuration 0ms
+     ✓ app/api/cron/pulse/route.ts declares a maxDuration 0ms
+     ✓ app/api/cron/evaluate-alerts/route.ts declares a maxDuration 0ms
+     ✓ app/api/cron/trial-emails/route.ts declares a maxDuration 0ms
+     ✓ app/api/cron/search-console/route.ts declares a maxDuration 0ms
+     ✓ keeps every declared duration inside the Hobby ceiling 0ms
+     ✓ no longer schedules anything from vercel.json — Cloudflare owns that now 1ms
+     ✓ schedules exactly the approved cron routes, and every one exists 4ms
+     × runs the Search Console sync on the existing daily trigger, not a fourth one 8ms
+     ✓ maps every scheduled cron string to routes in the Worker 1ms
+     ✓ deploys only schedules the shared Worker source can route 1ms
+     ✓ evaluates alerts after the rollup they read, on the same day 0ms
+     ✓ stays within the Cloudflare free tier of 3 triggers per Worker 0ms
+ ✓ __tests__/config/authenticated-e2e.test.ts (22 tests) 17ms
+ ✓ __tests__/observations/query.test.ts (29 tests) 16ms
+ ✓ __tests__/lib/trust-signals.test.ts (19 tests) 18ms
+ ✓ __tests__/lib/scan-claim-intent.test.ts (7 tests) 17ms
+ ✓ __tests__/lib/source-pack.test.ts (19 tests) 13ms
+ ✓ __tests__/lib/source-import-preview.test.ts (3 tests) 18ms
+stderr | __tests__/dashboard-layout-entitlement.test.tsx > dashboard notification bell > preserves an unknown count without failing the page when the query throws
+[dashboard] unread notification count failed: Error: connection terminated
+    at C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/dashboard-layout-entitlement.test.tsx:137:24
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ __tests__/dashboard-layout-entitlement.test.tsx (9 tests) 20ms
+ ✓ __tests__/checks/scan-compatibility-freeze.test.ts (38 tests) 26ms
+ ✓ __tests__/readiness/runtime-contract.test.ts (16 tests) 16ms
+ ✓ __tests__/checks/citationDensity.test.ts (11 tests) 17ms
+ ✓ __tests__/lib/authenticated-scan-quota.test.ts (5 tests) 16ms
+ ✓ __tests__/security/db-binding.test.ts (20 tests) 14ms
+ ✓ __tests__/security/scan-claim-attempt.test.ts (9 tests) 20ms
+ ✓ __tests__/lib/pulse-schedule-pagination.test.ts (4 tests) 16ms
+ ✓ __tests__/delivery/dto.test.ts (19 tests) 18ms
+ ✓ __tests__/checks/topicalAuthority.test.ts (15 tests) 16ms
+ ✓ __tests__/lib/cron-ledger.test.ts (4 tests) 17ms
+ ✓ __tests__/lib/pulse-grounding.test.ts (15 tests) 15ms
+ ✓ __tests__/integrations/binding.test.ts (34 tests) 13ms
+ ✓ __tests__/lib/sources-grounding.test.ts (22 tests) 16ms
+ ✓ __tests__/lib/local-trust-baseline.test.ts (10 tests) 15ms
+ ✓ __tests__/readiness/config.test.ts (23 tests) 15ms
+ ✓ __tests__/lib/work-item-sources.test.ts (13 tests) 22ms
+ ✓ __tests__/integrations/guard.test.ts (7 tests) 16ms
+ ✓ __tests__/lib/sitemap-urls.test.ts (17 tests) 16ms
+ ✓ __tests__/portfolio-page.test.tsx (9 tests) 16ms
+ ✓ __tests__/onboarding-page.test.ts (6 tests) 15ms
+ ✓ __tests__/lib/local-trust.test.ts (11 tests) 13ms
+ ✓ __tests__/lib/roi-scenario.test.ts (26 tests) 15ms
+ ✓ __tests__/sources-review-page.test.tsx (3 tests) 13ms
+ ✓ __tests__/api/opportunities.test.ts (1 test) 18ms
+ ✓ __tests__/integrations/state.test.ts (26 tests) 14ms
+ ✓ __tests__/approvals/input.test.ts (19 tests) 13ms
+ ✓ __tests__/lib/share-of-voice.test.ts (12 tests) 12ms
+ ✓ __tests__/scripts/migrate-error-reporting.test.ts (16 tests) 15ms
+ ✓ __tests__/integrations/consent-state.test.ts (15 tests) 14ms
+ ✓ __tests__/lib/suggestion-inputs.test.ts (8 tests) 11ms
+ ✓ __tests__/lib/competitors-schema.test.ts (20 tests) 13ms
+stderr | __tests__/scripts/bootstrap-project.test.mjs
+Bootstrap failed: Refusing to run: BOOTSTRAP_PROJECT_ID, BOOTSTRAP_BRANCH_ID, BOOTSTRAP_DATABASE_URL not set (or empty). This script has no default target, deliberately -- name the project, branch and connection explicitly.
+
+ ✓ __tests__/observations/projection.test.ts (18 tests) 13ms
+ ✓ __tests__/scripts/bootstrap-project.test.mjs (20 tests) 14ms
+ ✓ __tests__/members/schema.test.ts (27 tests) 13ms
+ ✓ __tests__/components/scan-form.test.ts (35 tests) 14ms
+ ✓ __tests__/change-sets/input.test.ts (19 tests) 13ms
+ ✓ __tests__/components/account-unlock-card.test.ts (9 tests) 13ms
+ ✓ __tests__/lib/auth-client.test.ts (18 tests) 14ms
+ ✓ __tests__/lib/report-comparison.test.ts (6 tests) 13ms
+ ✓ __tests__/lib/entities/schema.test.ts (11 tests) 12ms
+ ✓ __tests__/lib/pillar-scores.test.ts (7 tests) 12ms
+ ✓ __tests__/lib/migrate-planning.test.ts (12 tests) 12ms
+ ✓ __tests__/lib/prompt-context.test.ts (9 tests) 14ms
+ ✓ __tests__/lib/entities/store.test.ts (6 tests) 13ms
+ ✓ __tests__/config/change-set-integration.test.ts (3 tests) 13ms
+ ✓ __tests__/lib/activation.test.ts (8 tests) 14ms
+ ✓ __tests__/lib/check-explanations-parity.test.ts (6 tests) 15ms
+ ✓ __tests__/e2e/funnel-verification-contract.test.ts (4 tests) 12ms
+ ✓ __tests__/lib/agent-budget.test.ts (19 tests) 13ms
+ ✓ __tests__/lib/pulse-run-ledger.test.ts (8 tests) 11ms
+ ✓ __tests__/lib/commercial-entitlement.test.ts (17 tests) 12ms
+ ✓ __tests__/lib/plan-catalog.test.ts (8 tests) 12ms
+ ✓ __tests__/lib/funnel-events.test.ts (9 tests) 13ms
+ ✓ __tests__/scripts/grant-platform-admin.test.ts (15 tests) 15ms
+ ✓ __tests__/lib/pulse-summary.test.ts (8 tests) 12ms
+ ✓ __tests__/lib/auth-return-to.test.ts (24 tests) 12ms
+ ✓ __tests__/lib/trial-emails.test.ts (10 tests) 11ms
+ ✓ __tests__/lib/domain-verification-schema.test.ts (23 tests) 14ms
+ ✓ __tests__/scripts/prune-preview-branches.test.ts (12 tests) 11ms
+ ✓ __tests__/lib/redact-secrets.test.ts (18 tests) 13ms
+ ✓ __tests__/outcomes/compare-outcome.test.ts (25 tests) 12ms
+ ✓ __tests__/outcomes/time.test.ts (16 tests) 12ms
+ ✓ __tests__/lib/entitlement-override.test.ts (16 tests) 9ms
+ ✓ __tests__/lib/onboarding-store-contract.test.ts (2 tests) 15ms
+ ✓ __tests__/readiness/report.test.ts (17 tests) 10ms
+ ✓ __tests__/lib/source-pagination.test.ts (2 tests) 12ms
+ ✓ __tests__/migrations/rls-scan-analyzer.test.mjs (12 tests) 10ms
+ ✓ __tests__/migrations/search-console-migration.test.ts (20 tests) 12ms
+ ✓ __tests__/lib/schema-diff.test.ts (9 tests) 11ms
+ ✓ __tests__/lib/agents.test.ts (6 tests) 10ms
+ ✓ __tests__/work-items/operations-input.test.ts (7 tests) 10ms
+ ✓ __tests__/lib/activation-progress.test.ts (8 tests) 10ms
+ ✓ __tests__/pulse-page.test.tsx (3 tests) 17ms
+ ✓ __tests__/components/pulse-view-render.test.tsx (5 tests) 134ms
+ ✓ __tests__/db/baseline-ledger.test.ts (7 tests) 11ms
+ ✓ __tests__/lib/asset-registry.test.ts (20 tests) 13ms
+ ✓ __tests__/lib/entitlement-timestamp-coercion.test.ts (12 tests) 10ms
+ ✓ __tests__/checks/robots.test.ts (4 tests) 12ms
+ ✓ __tests__/authority/layers.test.ts (16 tests) 10ms
+ ✓ __tests__/seo/platform-links.test.ts (3 tests) 11ms
+ ✓ __tests__/workspace-home-page.test.tsx (13 tests) 93ms
+ ✓ __tests__/lib/pulse-context.test.ts (3 tests) 43ms
+ ✓ __tests__/db/work-item-sources-migration.test.ts (12 tests) 12ms
+ ✓ __tests__/lib/daily-work.test.ts (4 tests) 9ms
+ ✓ __tests__/components/claim-scan-on-return.test.ts (16 tests) 11ms
+ ✓ __tests__/e2e/a11y-baseline.test.ts (10 tests) 10ms
+ ✓ __tests__/config/delivery-integration.test.ts (2 tests) 11ms
+ ✓ __tests__/components/report-workspace-review-fixes.test.ts (2 tests) 11ms
+ ✓ __tests__/change-sets/migration.test.ts (9 tests) 9ms
+ ✓ __tests__/opportunities/ac-06-convergence.test.ts (10 tests) 9ms
+ ✓ __tests__/lib/merge-suggestions.test.ts (5 tests) 9ms
+ ✓ __tests__/supabase/037_least_privilege_app_role.test.ts (8 tests) 8ms
+ ✓ __tests__/lib/prompt-categories.test.ts (5 tests) 10ms
+ ✓ __tests__/lib/report-client-dto.test.ts (3 tests) 8ms
+ ✓ __tests__/db/synthetic-seed.test.ts (4 tests) 16ms
+ ✓ __tests__/checks/extractability.test.ts (3 tests) 8ms
+ ✓ __tests__/lib/axe-report.test.ts (1 test) 7ms
+ ✓ __tests__/checks/llmsTxt.test.ts (3 tests) 8ms
+ ✓ __tests__/checks/botAccess.test.ts (3 tests) 8ms
+ ✓ __tests__/scripts/migrate-connection-source.test.ts (3 tests) 6ms
+ ✓ __tests__/lib/report-accessibility.test.ts (2 tests) 7ms
+ ✓ __tests__/migrations/client-entities.test.ts (2 tests) 8ms
+ ✓ __tests__/checks/structuredData.test.ts (3 tests) 8ms
+ ✓ __tests__/lib/trial.test.ts (3 tests) 8ms
+ ✓ __tests__/lib/prompt-bulk.test.ts (2 tests) 9ms
+ ✓ __tests__/lib/tier.test.ts (11 tests) 8ms
+ ✓ __tests__/checks/chunkability.test.ts (3 tests) 11ms
+ ✓ __tests__/lib/database-error.test.ts (6 tests) 9ms
+ ✓ __tests__/scripts/migrate-redaction.test.ts (8 tests) 9ms
+ ✓ __tests__/lib/plans/alerts-release.test.ts (3 tests) 8ms
+ ✓ __tests__/api/scan.test.ts (10 tests) 8ms
+ ✓ __tests__/components/google-auth-start-route.test.ts (1 test) 8ms
+ ✓ __tests__/lib/flags.test.ts (5 tests) 8ms
+ ✓ __tests__/work-items/cte-shape-parity.test.ts (5 tests) 8ms
+ ✓ __tests__/lib/iso-date.test.ts (6 tests) 7ms
+ ✓ __tests__/supabase/035_alert_email_delivery_ledger.test.ts (5 tests) 9ms
+ ✓ __tests__/migrations/role-guard-analyzer.test.mjs (2 tests) 7ms
+ ✓ __tests__/lib/multi-source-flag.test.ts (3 tests) 9ms
+ ✓ __tests__/checks/visibleText.test.ts (3 tests) 8ms
+ ✓ __tests__/lib/primary-next-step.test.ts (3 tests) 6ms
+ ✓ __tests__/lib/scoring.test.ts (2 tests) 7ms
+ ✓ __tests__/supabase/034_alert_evaluation_snapshot_refinement.test.ts (1 test) 7ms
+ ✓ __tests__/supabase/033_alert_evaluation_hardening.test.ts (1 test) 6ms
+ ✓ __tests__/api/fenced-routes.test.ts (1 test) 7ms
+ ✓ __tests__/components/result-platform-status.test.ts (2 tests) 7ms
+ ✓ __tests__/lib/types.test.ts (2 tests) 8ms
+ ✓ __tests__/components/scan-step-error.test.ts (2 tests) 6ms
+ ✓ __tests__/config/turbopack-root.test.ts (1 test) 7ms
+ ✓ __tests__/components/orphaned-components.test.ts (3 tests) 7ms
+ ✓ __tests__/config/playwright-projects.test.ts (5 tests) 60167ms
+     ✓ every configured project discovers at least one test  11952ms
+     ✓ mobile discovers tests/e2e specs but not the root e2e/ tree  17998ms
+     ✓ never collects specs from a sibling worktree  9184ms
+     ✓ adds authenticated-mobile only when a captured session exists  15762ms
+     ✓ resolves the authenticated journey to real specs, so deleting them fails here  5266ms
+ ✓ __tests__/readiness/runtime-adapters.test.ts (48 tests) 81016ms
+     ✓ keeps configured team separate and permits verified runtime probes  5057ms
+     ✓ suppresses I/O for configured team undefined  5019ms
+     ✓ suppresses I/O for configured team wrong  5047ms
+     ✓ suppresses I/O for configured team bad team  5105ms
+   ✓ suppresses I/O when runtime field VERCEL_PROJECT_ID is unavailable  5013ms
+   ✓ suppresses I/O when runtime field VERCEL_DEPLOYMENT_ID is unavailable  5017ms
+   ✓ suppresses I/O when runtime field VERCEL_GIT_COMMIT_SHA is unavailable  5028ms
+   ✓ suppresses I/O when runtime field VERCEL_ENV is unavailable  5015ms
+   ✓ suppresses I/O when runtime field VERCEL_URL is unavailable  5009ms
+   ✓ labels each Markdown policy index and privilege distinctly  5010ms
+   ✓ preserves real adapter connection failures through runner artifacts  5070ms
+   ✓ preserves real adapter mismatch failures through runner artifacts  5008ms
+   ✓ preserves real adapter read-only failures through runner artifacts  5011ms
+   ✓ preserves real adapter timeout failures through runner artifacts  5012ms
+   ✓ preserves real adapter auth-early failures through runner artifacts  5012ms
+   ✓ normalizes both real adapter categories after candidate identity prevents I/O  5016ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/config/function-durations.test.ts > Cloudflare cron-worker schedule > runs the Search Console sync on the existing daily trigger, not a fourth one
+AssertionError: expected 'export interface Env {\r\n  CRON_SECR…' to match /'0 9 \* \* \*':\s*\[\s*'\/api\/cr…/api\
+
+- Expected:
+/'0 9 \* \* \*':\s*\[\s*'\/api\/cron\/trial-emails',\s*'\/api\/cron\/search-console',\s*'\/api\/cron\/pulse\?mode=repair'\s*\]/
+
++ Received:
+"export interface Env {
+  CRON_SECRET: string
+  APP_BASE_URL: string
+}
+
+// Keep in sync with wrangler.jsonc's triggers.crons — test/scheduled.test.ts
+// asserts the keys agree. A schedule may call several routes: the free tier
+// allows three triggers per Worker and all three are used, so the daily trigger
+// carries trial emails and Search Console sync in the three-cron template.
+// The deployed two-cron AISO profile repairs saved raw on its existing Pulse
+// schedule; it does not activate the template email/search schedule.
+export const ROUTES: Record<string, readonly string[]> = {
+  // Daily: the driver only picks clients whose week is not yet rolled up, so
+  // the Tuesday–Sunday firings finish weeks a failed hop left incomplete.
+  '17 4 * * *': ['/api/cron/pulse', '/api/cron/pulse?mode=repair'],
+  '47 7 * * 1': ['/api/cron/evaluate-alerts'],
+  '0 9 * * *': ['/api/cron/trial-emails', '/api/cron/search-console'],
+}
+
+export default {
+  async scheduled(controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
+    // A downstream request can finish with an unknown external outcome.
+    // Disable runtime retry before the first request; the app ledger owns repair.
+    controller.noRetry()
+    const paths = ROUTES[controller.cron]
+    if (!paths?.length) {
+      console.error(`[cron-worker] no route mapped for cron \"${controller.cron}\"`)
+      throw new Error(`[cron-worker] no route mapped for cron \"${controller.cron}\"`)
+    }
+
+    // Independent calls: one route failing must never skip another.
+    const results = await Promise.allSettled(paths.map(async path => {
+      const res = await fetch(`${env.APP_BASE_URL}${path}`, {
+        headers: { Authorization: `Bearer ${env.CRON_SECRET}` },
+      })
+      if (!res.ok) throw new Error(`[cron-worker] ${path} responded ${res.status}`)
+      console.info({event:'cron_worker_response',route:path,status:res.status,outcome:res.headers?.get('x-aiso-outcome')??'unknown'})
+    }))
+
+    const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+    if (failures.length) {
+      // Propagate the failed attempt(s); this Worker does not implement retries.
+      throw new Error(failures.map(f => (f.reason as Error).message).join('; '))
+    }
+  },
+}
+"
+
+ ❯ __tests__/config/function-durations.test.ts:111:20
+    109|   it('runs the Search Console sync on the existing daily trigger, not …
+    110|     const worker = readFileSync(join(process.cwd(), 'cloudflare/cron-w…
+    111|     expect(worker).toMatch(/'0 9 \* \* \*':\s*\[\s*'\/api\/cron\/trial…
+       |                    ^
+    112|   })
+    113|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 416 passed (417)
+      Tests  1 failed | 5876 passed (5877)
+   Start at  22:02:44
+   Duration  86.37s (transform 57.74s, setup 21.29s, import 142.19s, tests 264.77s, environment 66ms)
+
+JSON report written to C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/artifacts/unit-contract/vitest.json
+JUNIT report written to C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/artifacts/unit-contract/vitest.junit.xml

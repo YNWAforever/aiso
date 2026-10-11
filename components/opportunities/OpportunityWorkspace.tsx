@@ -1,4 +1,5 @@
 'use client'
+import {GroupedOpportunityCards} from './GroupedOpportunityCards'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { scanOpportunityCopy } from '@/lib/opportunities/presentation'
@@ -313,7 +314,8 @@ function OpportunityContent({
               : t('empty')}
           </p>
         )}
-        {data?.suggestions.map((suggestion) => {
+        {data?.groups&&<GroupedOpportunityCards clientId={clientId} groups={data.groups.filter(g=>g.context?.runId&&g.platforms.length>1)} suggestions={data.suggestions} onOpen={id=>void open(id)}/>}
+        {data?.suggestions.filter(s=>!data.groups?.some(g=>g.context?.runId&&g.platforms.length>1&&g.suggestionKeys.includes(s.key))).map((suggestion) => {
           const copy = suggestion.evidence.kind === 'scan-check' ? scanOpportunityCopy(suggestion.evidence, locale) : null
           const displayArgs = copy ? { ...suggestion.args, checkTitle: copy.title, checkAction: copy.action } : suggestion.args
           return (

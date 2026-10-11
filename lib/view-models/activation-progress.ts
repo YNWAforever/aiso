@@ -21,6 +21,7 @@ export type ActivationProgress =
   | { state: 'unavailable' }
   | {
       state: 'ready'
+      firstResults?:Activation['firstResults']
       reached: number
       total: number
       furthest: ActivationMilestone | null
@@ -49,6 +50,7 @@ export function buildActivationProgress(activation: Activation | null): Activati
 
   return {
     state: 'ready',
+    firstResults:activation.firstResults,
     reached: furthestIndex + 1,
     total: ACTIVATION_MILESTONES.length,
     furthest: activation.furthest,

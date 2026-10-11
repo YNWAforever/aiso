@@ -61,10 +61,10 @@ describe('callMultiPlatform', () => {
     const byModel = Object.fromEntries(bodies().map(b => [b.model, b]))
     expect(byModel['perplexity/sonar'].plugins).toBeUndefined()
     expect(byModel['openai/gpt-4o'].plugins).toEqual([{ id: 'web', max_results: 5 }])
-    expect(results).toEqual(expect.arrayContaining([
+    expect(results).toMatchObject([
       { platform: 'perplexity-sonar', answer: 'An answer.', grounding: 'native', providerCitations: [{ url: 'https://hsbc.com.hk/', title: 'HSBC' }] },
       { platform: 'gpt-4o', answer: 'An answer.', grounding: 'web', providerCitations: [{ url: 'https://hsbc.com.hk/', title: 'HSBC' }] },
-    ]))
+    ])
   })
 
   it('never searches when web search is not allowed, and says so', async () => {

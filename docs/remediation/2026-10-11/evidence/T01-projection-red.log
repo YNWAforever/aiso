@@ -1,0 +1,55 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ❯ __tests__/lib/scan-status.test.ts (0 test)
+ ❯ __tests__/lib/result-access.test.ts (3 tests | 1 failed) 23ms
+     × marks a historical failed page collection as unscorable 19ms
+     ✓ unlocks only for the owning account 1ms
+     ✓ returns a teaser without the full results object 2ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/lib/scan-status.test.ts [ __tests__/lib/scan-status.test.ts ]
+Error: Cannot find package '@/lib/view-models/scan-status' imported from C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/lib/scan-status.test.ts
+ ❯ __tests__/lib/scan-status.test.ts:3:1
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/lib/result-access.test.ts > result access > marks a historical failed page collection as unscorable
+AssertionError: expected { id: 'scan-1', …(12) } to match object { collectionFailed: true, …(2) }
+(22 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "collectionFailed": true,
+-   "grade": null,
+-   "score": null,
++   "grade": "C",
++   "score": 62,
+  }
+
+ ❯ __tests__/lib/result-access.test.ts:29:84
+     27|     const evidence=buildScanEvidence({requestedUrl:'https://example.co…
+     28|       observations:[{check:'page',collection:'failed',httpStatus:503,t…
+     29|     expect(buildPublicResultSummary({...scan,results:{...scan.results,…
+       |                                                                                    ^
+     30|   })
+     31|   it('unlocks only for the owning account', () => {
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  2 failed (2)
+      Tests  1 failed | 2 passed (3)
+   Start at  18:46:46
+   Duration  322ms (transform 113ms, setup 49ms, import 95ms, tests 23ms, environment 0ms)
+

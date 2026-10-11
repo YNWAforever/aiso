@@ -1,3 +1,4 @@
+import { buildScanEvidence } from '@/lib/scan-evidence'
 ﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
@@ -47,6 +48,7 @@ const proProfile = {
     plan: 'pro', status: 'active', stripe_subscription_id: 'sub_pro', trial_ends_at: null,
   },
 }
+const collectedEvidence=buildScanEvidence({requestedUrl:'https://example.com',evaluatedUrl:'https://example.com',industry:null,region:null,sitemapSource:null,checks:{},observations:[{check:'page',collection:'complete',httpStatus:200,target:{origin:'https://example.com'},provenance:'validated-fetch'}]})
 const client = { id: '33333333-3333-4333-8333-333333333333', accountId: '22222222-2222-4222-8222-222222222222', name: 'Example Client', domain: 'example.com' }
 const currentScan = {
   id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
@@ -55,7 +57,7 @@ const currentScan = {
   createdAt: '2026-07-21T08:00:00.000Z',
   score: 82,
   grade: 'A',
-  results: { c1_robots: { status: 'pass' }, c2_llms_txt: { status: 'warn' } },
+  results: { evidence:collectedEvidence, c1_robots: { status: 'pass' }, c2_llms_txt: { status: 'warn' } },
 }
 const previousScan = {
   id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
@@ -64,7 +66,7 @@ const previousScan = {
   createdAt: '2026-07-20T08:00:00.000Z',
   score: 75,
   grade: 'B',
-  results: { c1_robots: { status: 'warn' }, c2_llms_txt: { status: 'warn' } },
+  results: { evidence:collectedEvidence, c1_robots: { status: 'warn' }, c2_llms_txt: { status: 'warn' } },
 }
 const branding = {
   accountId: '22222222-2222-4222-8222-222222222222',

@@ -1,0 +1,150 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ✓ __tests__/components/dashboard-sidebar.test.ts (12 tests) 33ms
+ ✓ __tests__/lib/message-catalogue-parity.test.ts (9 tests) 24ms
+ ✓ __tests__/lib/openrouter-web-search.test.ts (6 tests) 47ms
+ ❯ __tests__/lib/openrouter-usage.test.ts (21 tests | 1 failed) 86ms
+     ✓ retains bounded provider annotations with public links, not URLs inferred from answer text 34ms
+     ✓ distinguishes absent annotations from an explicitly empty annotation list 2ms
+     ✓ bounds citation payloads and leaves invalid usage unknown 4ms
+     ✓ bounds canonical citation URLs after Unicode percent encoding 10ms
+     × returns served model, request and usage evidence for durable attempts 10ms
+     ✓ logs one metadata line per completion and still returns the reply 4ms
+     ✓ never logs the prompt or the reply 1ms
+     ✓ warns when the reply was cut off at max_tokens 3ms
+     ✓ logs nulls rather than failing the call when metadata is missing 1ms
+     ✓ labels every call of a platform fan-out, distinguished by model 1ms
+     ✓ rejects blank output so a worker can record a failed attempt ("") 2ms
+     ✓ rejects blank output so a worker can record a failed attempt ("  \n\t") 1ms
+     ✓ rejects incomplete Pulse samples instead of counting them as observations: length 1ms
+     ✓ rejects incomplete Pulse samples instead of counting them as observations: content_filter 1ms
+     ✓ logs missing_api_key and never sends the request when the key is unset 1ms
+     ✓ logs the status and OpenRouter's own message for an HTTP error, and throws as before 1ms
+     ✓ logs a null providerMessage when the error body is not OpenRouter JSON 1ms
+     ✓ logs timeout and network failures apart 2ms
+     ✓ logs invalid_json when a 200 body does not parse 1ms
+     ✓ logs usage and no_content when a completion carries no text 1ms
+     ✓ never logs the prompt on a failure 1ms
+ ✓ __tests__/ci/component-fixtures.test.ts (2 tests) 372ms
+ ✓ __tests__/lib/tier-phase3b.test.ts (4 tests) 236ms
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — authentication > refuses to run at all when CRON_SECRET is unset
+[pulse/run] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — authentication > refuses a CRON_SECRET too short to be worth guessing against
+[pulse/run] CRON_SECRET is unset or shorter than 16 characters
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — request validation > returns 503, not 404, when the ownership lookup itself fails
+[pulse/run] client lookup failed
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — writes > returns 5xx rather than a success carrying counts it never persisted
+[pulse/run] metrics write failed
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — provider failure > answers non-2xx when no prompt in the chunk got any response
+[pulse/run] no provider answered any prompt in this chunk
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — provider failure > treats a thrown provider call the same way
+[pulse/run] no provider answered any prompt in this chunk
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — provider failure > never deletes a prompt's existing rows when it got no new answer
+[pulse/run] no provider answered any prompt in this chunk
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — chunking > returns 500 when the rollup fails, not a 200 with a null summary
+[pulse/run] summary rollup failed
+
+stderr | __tests__/api/pulse-run.test.ts > POST /api/pulse/run — answer length > asks each platform for answers of up to its limit: 1500, or 4000 for Gemini
+[pulse/run] no provider answered any prompt in this chunk
+
+ ✓ __tests__/api/pulse-run.test.ts (43 tests) 88ms
+ ✓ __tests__/observations/store.test.ts (11 tests) 22ms
+ ✓ __tests__/components/report-workspace-review-fixes.test.ts (2 tests) 7ms
+stderr | __tests__/api/clients-overview.test.ts > GET /api/clients/[clientId]/overview > returns 500 instead of an empty 200 when a query fails
+[overview] query failed: connection terminated
+
+stderr | __tests__/api/clients-overview.test.ts > GET /api/clients/[clientId]/overview > returns 500 when a later parallel query fails after the client is found
+[workspace] scan read failed
+
+stderr | __tests__/api/clients-overview.test.ts > GET /api/clients/[clientId]/overview > returns 500 when a later parallel query fails after the client is found
+[overview] query failed: Failed to load overview
+
+ ✓ __tests__/api/clients-overview.test.ts (7 tests) 23ms
+ ✓ __tests__/security/tenancy-inventory.test.ts (6 tests) 464ms
+ ✓ __tests__/lib/citation-psl.test.ts (3 tests) 45ms
+ ✓ __tests__/lib/citation-query.test.ts (4 tests) 57ms
+ ✓ __tests__/components/public-impact-estimate.test.tsx (6 tests) 30ms
+ ✓ __tests__/scripts/migrate-baseline-guard.test.ts (22 tests) 1068ms
+ ❯ __tests__/lib/pulse-evidence-boundaries.test.ts (12 tests | 1 failed) 2261ms
+     ✓ excludes paused targets from the flag-off schedule with an active control 31ms
+     ✓ excludes removed targets from the flag-off schedule with an active control 21ms
+     ✓ refuses a paused target before compatibility fan-out after an active control succeeds 44ms
+     ✓ refuses a removed target before compatibility fan-out after an active control succeeds 28ms
+     ✓ blocks old Pro manifest variants after a Basic downgrade without rewriting the manifest 60ms
+     ✓ keeps paused targets out of repair dispatch while an active owned control still collects 52ms
+     ✓ refuses a paused target before the direct chunk can spend 25ms
+     ✓ refuses a removed target before the direct chunk can spend 22ms
+     ✓ pulse excludes unknown classifications and foreign evidence 36ms
+     ✓ workspace excludes unknown classifications and foreign evidence 32ms
+     ✓ retries a failed final rollup on the next invocation without collecting the provider answer again 61ms
+     × refreshes an older rollup after the last classification and stops selecting it once current 63ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/lib/openrouter-usage.test.ts > callOpenRouter usage logging > returns served model, request and usage evidence for durable attempts
+AssertionError: expected { …(10) } to deeply equal { …(9) }
+
+- Expected
++ Received
+
+@@ -6,6 +6,11 @@
+    "httpStatus": 200,
+    "promptTokens": 120,
+    "providerCitations": null,
+    "providerFinishReason": "stop",
+    "requestId": "gen-123",
++   "searchEvidence": {
++     "basis": "request-only",
++     "execution": "unknown",
++     "requested": "none",
++   },
+  }
+
+ ❯ __tests__/lib/openrouter-usage.test.ts:91:8
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  __tests__/lib/pulse-evidence-boundaries.test.ts > recoverable Pulse rollups > refreshes an older rollup after the last classification and stops selecting it once current
+AssertionError: expected { outcome: 'complete', …(14) } to match object { outcome: 'complete', …(2) }
+(12 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "outcome": "complete",
+    "processed": 0,
+-   "runIds": [
+-     "6b6a70a1-5a0a-4b9e-b389-f8a41670ff79",
+-   ],
++   "runIds": [],
+  }
+
+ ❯ __tests__/lib/pulse-evidence-boundaries.test.ts:212:49
+    210|     await state.pg!.query("update pulse_weekly_summary set created_at=…
+    211|     await state.pg!.query("update pulse_metrics set brand_mentioned=tr…
+    212|     expect(await consumeDuePulseWork(repair())).toMatchObject({ outcom…
+       |                                                 ^
+    213|     expect((await state.pg!.query('select brand_mentions,sov_score::in…
+    214|       .toEqual([{ brand_mentions: 1, sov_score: 100 }])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed | 14 passed (16)
+      Tests  2 failed | 168 passed (170)
+   Start at  20:43:56
+   Duration  3.61s (transform 2.80s, setup 531ms, import 5.01s, tests 4.86s, environment 2ms)
+

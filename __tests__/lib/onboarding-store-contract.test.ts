@@ -1,0 +1,7 @@
+import {it,expect,vi} from 'vitest'
+vi.mock('server-only',()=>({}))
+const m=vi.hoisted(()=>({calls:[] as {text:string;values:unknown[]}[],conflict:false}));vi.mock('@/lib/db',()=>{const sql=(strings:TemplateStringsArray,...values:unknown[])=>{const text=strings.join('?');m.calls.push({text,values});return Promise.resolve(text.includes('with previous')?[{progress:null,reason:'intent_conflict'}]:[])};Object.assign(sql,{transaction:(q:Promise<unknown>[])=>Promise.all(q)});return {db:()=>sql}})
+import {initializeOnboarding} from '@/lib/onboarding/store'
+import {parseOnboardingInput,onboardingInputHash} from '@/lib/onboarding/schema'
+it('hashes immutable payload but permits retry with the returned owned client id',()=>{const a=parseOnboardingInput({brandName:'Acme',intentKey:'intent',language:'en',market:'HK'});expect(onboardingInputHash(a)).toBe(onboardingInputHash({...a,clientId:'11111111-1111-4111-8111-111111111111'}));expect(onboardingInputHash(a)).not.toBe(onboardingInputHash({...a,brandName:'Other'}))})
+it('detects hash conflict in the locked transaction before seed work',async()=>{await expect(initializeOnboarding({accountId:'account-a'},parseOnboardingInput({brandName:'Acme',intentKey:'intent'}))).rejects.toThrow('ONBOARDING_INTENT_CONFLICT');expect(m.calls[0].text).toContain('for update');expect(m.calls[1].text).toContain('request_hash <>');expect(m.calls[1].values).not.toContain('foreign')})

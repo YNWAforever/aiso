@@ -22,8 +22,9 @@ export async function loadOwnedDraftSource(accountId:string,clientId:string,sour
   if(source.kind==='pulse-metric') {
     const rows=await sql`select m.id,m.client_id,m.prompt_id,m.question,m.platform,m.scan_week::text as scan_week,
       to_char(m.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-      m.raw_answer,m.brand_mentioned,m.classification_status,coalesce(m.raw_answer ~ '[^[:space:]]',false) as has_answer
+      jsonb_build_object('runId',i.run_id,'language',coalesce(i.snapshot,m.prompt_snapshot)->>'language','market',coalesce(i.snapshot,m.prompt_snapshot)->>'market') as monitoring_context,m.raw_answer,m.brand_mentioned,m.classification_status,coalesce(m.raw_answer ~ '[^[:space:]]',false) as has_answer
       from pulse_metrics m join clients c on c.id=m.client_id
+      left join pulse_run_items i on i.id=m.run_item_id and i.account_id=c.account_id and i.client_id=c.id
       where c.account_id=${accountId} and c.id=${clientId} and m.id=${source.id} limit 1`
     return rows[0] ? projectPulseOpportunityInput(accountId,rows[0] as PersistedPulseInput) : null
   }

@@ -62,7 +62,7 @@ export async function selectPendingClientPage(sql: Sql, options: {
       from clients c join accounts a on a.id=c.account_id
       where c.status='active' and exists(select 1 from prompt_bank pb where pb.client_id=c.id and pb.is_active)
         and not exists(select 1 from pulse_runs r where r.client_id=c.id and r.account_id=c.account_id
-          and r.scan_week=${options.scanWeek}::date and r.status='completed')
+          and r.purpose='canonical' and r.scan_week=${options.scanWeek}::date and r.status='completed')
         and (a.override_plan is not null or a.plan in ('basic','pro','enterprise'))
         and (a.override_plan is not null or a.status not in ('past_due','cancelled'))
         and (${cursor?.createdAt??null}::timestamptz is null or (c.created_at,c.id)>(${cursor?.createdAt??null}::timestamptz,${cursor?.clientId??null}::uuid))

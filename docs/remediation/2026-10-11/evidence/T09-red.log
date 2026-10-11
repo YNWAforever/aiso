@@ -1,0 +1,49 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ❯ __tests__/lib/primary-next-step.test.ts (0 test)
+ ❯ __tests__/components/dashboard-sidebar-portfolio.test.tsx (3 tests | 1 failed) 31ms
+     ✓ marks only Home current, whatever the step in the URL says 14ms
+     × guides a paid user to brand selection without a plan lock 9ms
+     ✓ links every step to the brand once one is in the route 6ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/lib/primary-next-step.test.ts [ __tests__/lib/primary-next-step.test.ts ]
+Error: Cannot find package '@/lib/view-models/primary-next-step' imported from C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/__tests__/lib/primary-next-step.test.ts
+ ❯ __tests__/lib/primary-next-step.test.ts:2:1
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/components/dashboard-sidebar-portfolio.test.tsx > dashboard sidebar on the brand portfolio > guides a paid user to brand selection without a plan lock
+AssertionError: nav_scan: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ __tests__/components/dashboard-sidebar-portfolio.test.tsx:59:47
+     57|
+     58|     for (const label of ['nav_scan', 'nav_results', 'nav_improve', 'na…
+     59|       expect(byLabel[label]?.disabled, label).toBe(false)
+       |                                               ^
+     60|       expect(byLabel[label]?.href).toBe('/en/dashboard#portfolio-brand…
+     61|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  1 failed | 2 passed (3)
+   Start at  20:02:22
+   Duration  530ms (transform 234ms, setup 71ms, import 284ms, tests 31ms, environment 0ms)
+

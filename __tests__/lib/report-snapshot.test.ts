@@ -1,3 +1,4 @@
+import { buildScanEvidence } from '@/lib/scan-evidence'
 import { describe, expect, it } from 'vitest'
 import {
   buildClientReportSnapshot,
@@ -5,6 +6,7 @@ import {
   type ClientReportSnapshotInput,
 } from '@/lib/reports/snapshot'
 
+const collectedEvidence=buildScanEvidence({requestedUrl:'https://example.com',evaluatedUrl:'https://example.com',industry:null,region:null,sitemapSource:null,checks:{},observations:[{check:'page',collection:'complete',httpStatus:200,target:{origin:'https://example.com'},provenance:'validated-fetch'}]})
 const input: ClientReportSnapshotInput = {
   locale: 'en',
   branding: {
@@ -14,7 +16,7 @@ const input: ClientReportSnapshotInput = {
   client: { name: 'Example Client', domain: 'www.Example.com' },
   currentScan: {
     accountId: 'account-secret', domain: 'www.Example.com', createdAt: '2026-07-20T12:00:00.000Z',
-    score: 72, grade: 'B', results: { c1_robots: { status: 'pass' }, c2_llms_txt: { status: 'warn' } },
+    score: 72, grade: 'B', results: { evidence:collectedEvidence, c1_robots: { status: 'pass' }, c2_llms_txt: { status: 'warn' } },
   },
   previousScan: null,
   recommendations: [
@@ -49,7 +51,7 @@ describe('client report snapshot', () => {
         ...input.currentScan,
         createdAt: '2026-07-19T12:00:00.000Z',
         score: 65,
-        results: { c1_robots: { status: 'fail' }, c2_llms_txt: { status: 'warn' } },
+        results: { evidence:collectedEvidence, c1_robots: { status: 'fail' }, c2_llms_txt: { status: 'warn' } },
       },
     })
 
@@ -64,8 +66,8 @@ describe('client report snapshot', () => {
   it('orders fixes ahead of regressions, failures, and warnings; deduplicates equivalent fixes; and caps at five', () => {
     const snapshot = buildClientReportSnapshot({
       ...input,
-      currentScan: { ...input.currentScan, results: { c1_robots: { status: 'fail' }, c2_llms_txt: { status: 'warn' } } },
-      previousScan: { ...input.currentScan, createdAt: '2026-07-19T12:00:00.000Z', score: 75, results: { c1_robots: { status: 'pass' }, c2_llms_txt: { status: 'pass' } } },
+      currentScan: { ...input.currentScan, results: { evidence:collectedEvidence, c1_robots: { status: 'fail' }, c2_llms_txt: { status: 'warn' } } },
+      previousScan: { ...input.currentScan, createdAt: '2026-07-19T12:00:00.000Z', score: 75, results: { evidence:collectedEvidence, c1_robots: { status: 'pass' }, c2_llms_txt: { status: 'pass' } } },
       recommendations: Array.from({ length: 7 }, (_, index) => ({
         key: `fix-${index}`, title: index < 2 ? 'Fix robots' : `Fix ${index}`,
         rationale: index < 2 ? 'Allow AI crawlers.' : `Rationale ${index}`,
@@ -81,7 +83,7 @@ describe('client report snapshot', () => {
   it('does not carry account, raw scan, model, prompt, assignee, or HTML fields into the public snapshot', () => {
     const snapshot = buildClientReportSnapshot({
       ...input,
-      currentScan: { ...input.currentScan, results: { c1_robots: { status: 'pass', raw: '<b>secret</b>' }, prompt: 'secret', model: 'model', assignee: 'person' } },
+      currentScan: { ...input.currentScan, results: { evidence:collectedEvidence, c1_robots: { status: 'pass', raw: '<b>secret</b>' }, prompt: 'secret', model: 'model', assignee: 'person' } },
     }) as unknown as Record<string, unknown>
 
     const serialized = JSON.stringify(snapshot)
@@ -109,8 +111,8 @@ describe('client report snapshot', () => {
   it('deduplicates recommendation, regression, and failure fixes for the same reportable check', () => {
     const snapshot = buildClientReportSnapshot({
       ...input,
-      currentScan: { ...input.currentScan, results: { c1_robots: { status: 'fail' } } },
-      previousScan: { ...input.currentScan, createdAt: '2026-07-19T12:00:00.000Z', results: { c1_robots: { status: 'pass' } } },
+      currentScan: { ...input.currentScan, results: { evidence:collectedEvidence, c1_robots: { status: 'fail' } } },
+      previousScan: { ...input.currentScan, createdAt: '2026-07-19T12:00:00.000Z', results: { evidence:collectedEvidence, c1_robots: { status: 'pass' } } },
       recommendations: [{ key: 'c1_robots', title: 'Address robots access', rationale: 'The check requires attention.', expectedImpact: 'high', nextStep: 'Update robots access.' }],
     })
 
@@ -128,3 +130,10 @@ describe('client report snapshot', () => {
     expect(() => replaceExecutiveSummary(snapshot, `${'x'.repeat(40)}\u009f`)).toThrow()
   })
 })
+
+it('UC05 refuses a new scored export over recorded failed collection',()=>{
+ const evidence=buildScanEvidence({requestedUrl:'https://example.com',evaluatedUrl:'https://example.com',industry:null,region:null,sitemapSource:'unknown',checks:{},observations:[{check:'page',collection:'failed',httpStatus:503,target:{origin:'https://example.com'}}]})
+ expect(()=>buildClientReportSnapshot({...input,currentScan:{...input.currentScan,results:{...input.currentScan.results as Record<string,unknown>,evidence}}})).toThrow(/collection/i)
+})
+
+it('new scored exports refuse unknown current and previous collection',()=>{expect(()=>buildClientReportSnapshot({...input,currentScan:{...input.currentScan,results:{c1_robots:{status:'pass'}}}})).toThrow(/Unverified collection/);expect(()=>buildClientReportSnapshot({...input,previousScan:{...input.currentScan,createdAt:'2026-07-19T12:00:00.000Z',results:{c1_robots:{status:'pass'}}}})).toThrow(/Unverified collection/)})

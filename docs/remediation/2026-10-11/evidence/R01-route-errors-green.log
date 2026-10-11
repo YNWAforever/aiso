@@ -1,0 +1,114 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ✓ __tests__/api/audit-mutation-errors.test.ts (14 tests) 36ms
+stdout | __tests__/components/audit-loop-fixture.test.tsx
+vite v8.3.4 building client environment for production...
+
+transforming...
+✓ 36 modules transformed.
+rendering chunks...
+computing gzip size...
+stdout | __tests__/components/audit-loop-fixture.test.tsx
+.next/component-fixtures/AISO_AUDIT_LOOP/fixture.js  266.86 kB │ gzip: 80.98 kB
+
+
+stderr | __tests__/components/audit-loop-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/opportunities/GroupedOpportunityCards.tsx" may not be preserved when bundling.
+   ╭─[ components/opportunities/GroupedOpportunityCards.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/audit-loop-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js" may not be preserved when bundling.
+   ╭─[ node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/audit-loop-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/pulse/PromptBulkPanel.tsx" may not be preserved when bundling.
+   ╭─[ components/pulse/PromptBulkPanel.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/audit-loop-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/work-items/DraftEditor.tsx" may not be preserved when bundling.
+   ╭─[ components/work-items/DraftEditor.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/audit-loop-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/opportunities/EvidenceDetails.tsx" may not be preserved when bundling.
+   ╭─[ components/opportunities/EvidenceDetails.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/audit-loop-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/dashboard/CitationExplorer.tsx" may not be preserved when bundling.
+   ╭─[ components/dashboard/CitationExplorer.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/audit-loop-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/work-items/WorkOperationsPanel.tsx" may not be preserved when bundling.
+   ╭─[ components/work-items/WorkOperationsPanel.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stdout | __tests__/components/audit-loop-fixture.test.tsx
+✓ built in 185ms
+
+ ✓ __tests__/components/audit-loop-fixture.test.tsx (3 tests) 252ms
+
+ Test Files  2 passed (2)
+      Tests  17 passed (17)
+   Start at  21:04:06
+   Duration  1.05s (transform 454ms, setup 53ms, import 754ms, tests 288ms, environment 0ms)
+
+JSON report written to C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/artifacts/unit-contract/vitest.json
+JUNIT report written to C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/artifacts/unit-contract/vitest.junit.xml

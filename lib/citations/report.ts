@@ -1,8 +1,9 @@
+import {pageCitationReport,type CitationQuery,type CitationPage} from './query'
 import type { db } from '@/lib/db'
 import { normalizeVerificationDomain } from '@/lib/domain-verification/schema'
 import { isoDate } from '@/lib/iso-date'
 import { classifyDomain, type CitationKind, type ClassifyContext } from '@/lib/citations/classify'
-import { normalizeCitationUrl, registrableDomain } from '@/lib/citations/normalize'
+import { normalizeCitationUrl, registrableDomain,CITATION_NORMALIZATION_VERSION } from '@/lib/citations/normalize'
 
 type Sql = ReturnType<typeof db>
 
@@ -17,9 +18,13 @@ type Sql = ReturnType<typeof db>
  */
 
 export const CITATION_WEEKS = 8
-const TOP = 50
+export const MAX_CITATION_ANSWERS=2000
 
 export type CitationAnswer = {
+  id?:string
+  run_id?:string|null
+  market?:string|null
+  language?:string|null
   scan_week: string | Date
   platform: string
   prompt_id: string | null
@@ -33,6 +38,13 @@ export type CitationDomain = {
 export type CitationUrl = { url: string; title: string | null; domain: string; kind: CitationKind; competitor?: string; answers: number }
 export type CitationGap = { promptId: string | null; question: string; competitors: string[]; domains: string[] }
 export type CitationReport = {
+  query?:CitationQuery
+  availableKinds?:CitationKind[]
+  pages?:{domains:CitationPage<CitationDomain>;urls:CitationPage<CitationUrl>;gaps:CitationPage<CitationGap>}
+  evidence?:{domain:string;url:string;observationId:string;question:string;platform:string;runId:string|null;week:string;market:string|null;language:string|null}[]
+  evidenceWindow?:{total:number;page:number;pageSize:number}
+  normalizationVersion?:string
+  gapCoverage: {state:'not_configured'|'partial_config'|'no_observations'|'ready';configuredCompetitors:number;competitorsWithDomains:number}
   weeks: string[]
   /** recordedEmpty: the provider returned no usable citation. unrecorded: no citation envelope was stored at all. */
   answers: { withCitations: number; recordedEmpty: number; unrecorded: number }
@@ -56,9 +68,9 @@ function citedUrls(value: unknown): Map<string, string | null> | null {
   return urls
 }
 
-export function buildCitationReport(input: { context: ClassifyContext; answers: CitationAnswer[] }): CitationReport {
+export function buildCitationReport(input: { context: ClassifyContext; answers: CitationAnswer[];weekLimit?:number }): CitationReport {
   const answers = input.answers.map(a => ({ ...a, scan_week: isoDate(a.scan_week, '') })).filter(a => a.scan_week)
-  const weeks = [...new Set(answers.map(a => a.scan_week))].sort().reverse().slice(0, CITATION_WEEKS)
+  const weeks = [...new Set(answers.map(a => a.scan_week))].sort().reverse().slice(0, input.weekLimit??CITATION_WEEKS)
   const latest = weeks[0]
   const counts = { withCitations: 0, recordedEmpty: 0, unrecorded: 0 }
   const kinds = new Map<string, ReturnType<typeof classifyDomain>>()
@@ -69,6 +81,7 @@ export function buildCitationReport(input: { context: ClassifyContext; answers: 
 
   const domains = new Map<string, CitationDomain & { promptKeys: Set<string>; platformSet: Set<string> }>()
   const urls = new Map<string, CitationUrl>()
+  const evidence:NonNullable<CitationReport['evidence']>=[]
   const latestByPrompt = new Map<string, { promptId: string | null; question: string; owned: boolean; competitors: Set<string>; domains: Set<string> }>()
 
   for (const a of answers) {
@@ -83,11 +96,15 @@ export function buildCitationReport(input: { context: ClassifyContext; answers: 
       const host = new URL(url).hostname
       const domain = registrableDomain(host)
       const kind = kindOf(host)
+      if(a.id)evidence.push({domain,url,observationId:a.id,question:a.question??'',platform:a.platform,runId:a.run_id??null,week:a.scan_week,market:a.market??null,language:a.language??null})
       seenDomains.set(domain, (seenDomains.get(domain) ?? 0) + 1)
       if (!domains.has(domain)) {
         domains.set(domain, { domain, kind: kind.kind, ...(kind.competitor ? { competitor: kind.competitor } : {}),
           answers: 0, citations: 0, prompts: 0, platforms: [], promptKeys: new Set(), platformSet: new Set() })
       }
+      // Explicit priority across all hosts, not whichever URL arrived first.
+      const aggregate=domains.get(domain)!,priority: CitationKind[]=['owned','competitor','institutional','editorial','review','forum','social','other']
+      if(priority.indexOf(kind.kind)<priority.indexOf(aggregate.kind)||(kind.kind===aggregate.kind&&kind.competitor&&(kind.competitor< (aggregate.competitor??'')))){aggregate.kind=kind.kind;aggregate.competitor=kind.competitor}
       const u = urls.get(url) ?? { url, title, domain, kind: kind.kind, ...(kind.competitor ? { competitor: kind.competitor } : {}), answers: 0 }
       u.answers += 1
       if (!u.title && title) u.title = title
@@ -109,13 +126,16 @@ export function buildCitationReport(input: { context: ClassifyContext; answers: 
   }
 
   return {
+    evidence,
+    normalizationVersion:CITATION_NORMALIZATION_VERSION,
     weeks,
+    gapCoverage:{configuredCompetitors:input.context.competitors.length,competitorsWithDomains:input.context.competitors.filter(c=>c.domains.length>0).length,state:!input.context.competitors.length?'not_configured':input.context.competitors.some(c=>!c.domains.length)?'partial_config':counts.withCitations+counts.recordedEmpty===0?'no_observations':'ready'},
     answers: counts,
     domains: [...domains.values()]
       .map(({ promptKeys, platformSet, ...d }) => ({ ...d, prompts: promptKeys.size, platforms: [...platformSet].sort() }))
       .sort((a, b) => b.answers - a.answers || b.citations - a.citations || a.domain.localeCompare(b.domain))
-      .slice(0, TOP),
-    urls: [...urls.values()].sort((a, b) => b.answers - a.answers || a.url.localeCompare(b.url)).slice(0, TOP),
+,
+    urls: [...urls.values()].sort((a, b) => b.answers - a.answers || a.url.localeCompare(b.url)),
     gaps: [...latestByPrompt.values()]
       .filter(p => !p.owned && p.competitors.size > 0)
       .map(p => ({ promptId: p.promptId, question: p.question, competitors: [...p.competitors].sort(), domains: [...p.domains].sort() })),
@@ -137,9 +157,10 @@ export function citationReportCsv(report: CitationReport): string {
 }
 
 /** Null when the client is not the account's. Every statement carries the account. */
-export async function readCitationReport(sql: Sql, accountId: string, clientId: string): Promise<CitationReport | null> {
-  const [client] = await sql`select domain from clients where id = ${clientId} and account_id = ${accountId} limit 1`
+export async function readCitationReport(sql: Sql, accountId: string, clientId: string,query?:CitationQuery,exportAll=false): Promise<CitationReport | null> {
+  const [client] = await sql`select domain,competitors from clients where id = ${clientId} and account_id = ${accountId} limit 1`
   if (!client) return null
+  if(query?.runId){const [run]=await sql`select id from pulse_runs where id=${query.runId}::uuid and account_id=${accountId} and client_id=${clientId}::uuid`;if(!run)return null}
   const [verified, competitors, answers] = await Promise.all([
     sql`select domain from client_domain_verifications
         where account_id = ${accountId} and client_id = ${clientId} and verified_at is not null`,
@@ -148,28 +169,37 @@ export async function readCitationReport(sql: Sql, accountId: string, clientId: 
     // Provider citations from the ledger attempt when there is one, else the
     // row's own (062); the same precedence observation detail uses.
     sql`
-      select m.scan_week, m.platform, m.prompt_id, coalesce(p.question, m.question) as question,
+      select m.id,i.run_id,coalesce(i.snapshot,m.prompt_snapshot)->>'market' as market,coalesce(i.snapshot,m.prompt_snapshot)->>'language' as language,m.scan_week, m.platform, m.prompt_id, coalesce(i.snapshot->>'question',m.prompt_snapshot->>'question',m.question) as question,
              coalesce(a.provider_citations, m.provider_citations) as provider_citations
       from pulse_metrics m
       join clients c on c.id = m.client_id
       left join prompt_bank p on p.id = m.prompt_id and p.client_id = m.client_id
       left join pulse_run_items i on i.id = m.run_item_id and i.client_id = c.id and i.account_id = c.account_id
+      left join pulse_runs r on r.id=i.run_id and r.account_id=c.account_id and r.client_id=c.id
       left join pulse_item_attempts a on a.id = i.accepted_attempt_id and a.item_id = i.id and a.account_id = c.account_id
       where c.id = ${clientId} and c.account_id = ${accountId} and m.raw_answer ~ '[^[:space:]]'
-        and m.scan_week in (
-          select distinct w.scan_week from pulse_metrics w where w.client_id = c.id order by 1 desc limit ${CITATION_WEEKS}
-        )
-      order by m.scan_week desc, coalesce(p.question, m.question), m.platform
+        and ((${query?.runId??null}::uuid is null and (m.run_item_id is null or r.purpose='canonical')) or r.id=${query?.runId??null}::uuid)
+        and (${query?.platform??null}::text is null or m.platform=${query?.platform??null})
+        and (${query?.promptId??null}::uuid is null or m.prompt_id=${query?.promptId??null}::uuid)
+        and (${query?.from??null}::date is null or m.scan_week>=${query?.from??null}::date)
+        and (${query?.to??null}::date is null or m.scan_week<=${query?.to??null}::date)
+        and ((${query?.from??null}::date is not null or ${query?.to??null}::date is not null or ${query?.runId??null}::uuid is not null) or m.scan_week in (
+          select distinct w.scan_week from pulse_metrics w where w.client_id = c.id and (w.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=w.run_item_id and scope_item.client_id=w.client_id and scope_run.purpose='canonical')) order by 1 desc limit ${CITATION_WEEKS}
+        ))
+      order by m.scan_week desc,m.id limit ${MAX_CITATION_ANSWERS+1}
     `,
   ])
   const owned = [normalizeVerificationDomain(client.domain as string | null), ...verified.map(v => normalizeVerificationDomain(v.domain as string))]
     .filter((d): d is string => !!d)
-    .map(d => d.replace(/^www\./, ''))
-  return buildCitationReport({
+    .map(d => {const url=normalizeCitationUrl('https://'+d);return url?new URL(url).hostname:d})
+  if(answers.length>MAX_CITATION_ANSWERS)throw new Error('CITATION_SCOPE_TOO_LARGE')
+  const report=buildCitationReport({
     context: {
       ownedDomains: [...new Set(owned)],
-      competitors: competitors.map(c => ({ name: String(c.name), domains: Array.isArray(c.domains) ? c.domains.filter((d): d is string => typeof d === 'string') : [] })),
+      competitors: [...competitors.map(c => ({ name: String(c.name), domains: Array.isArray(c.domains) ? c.domains.filter((d): d is string => typeof d === 'string') : [] })),...(Array.isArray(client.competitors)?client.competitors:[]).filter((n):n is string=>typeof n==='string'&&!!n.trim()&&!competitors.some(c=>String(c.name).toLowerCase()===n.trim().toLowerCase())).map(name=>({name,domains:[]}))],
     },
+    weekLimit:query?.from||query?.to||query?.runId?MAX_CITATION_ANSWERS:CITATION_WEEKS,
     answers: answers as CitationAnswer[],
   })
+  return query?pageCitationReport(report,query,exportAll):report
 }

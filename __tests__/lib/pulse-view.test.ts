@@ -9,7 +9,7 @@ vi.mock('@/lib/db',()=>({db:()=>async(strings:TemplateStringsArray,...values:unk
 }}))
 import {loadOwnedPulse} from '@/lib/workspace/load-owned-pulse'
 import {buildPulseView} from '@/lib/view-models/pulse'
-const row=(week:string,platform:string|null=null)=>({scan_week:week,platform,total_queries:2,observed_queries:2,successful_queries:2,observed_brand_mentions:0,brand_mentions:0,sov_score:0,successful_platform_count:1})
+const row=(week:string,platform:string|null=null)=>({scan_week:week,platform,total_queries:2,observed_queries:2,collected_queries:2,successful_queries:2,observed_brand_mentions:0,brand_mentions:0,sov_score:0,successful_platform_count:1})
 const load=()=>loadOwnedPulse({clientId:'11111111-1111-4111-8111-111111111111',profile:{account_id:'account-a'}})
 beforeEach(()=>{mocks.calls=[];mocks.failure='';mocks.rows=[]})
 describe('owned Pulse observations',()=>{
@@ -23,3 +23,15 @@ describe('owned Pulse observations',()=>{
 })
 
 it('rejects malformed identifiers without querying',async()=>{expect(await loadOwnedPulse({clientId:'not-a-uuid',profile:{account_id:'account-a'}})).toBeNull();expect(mocks.calls).toHaveLength(0)})
+
+it('retains partial samples with a classified denominator and unknown legacy expectation',async()=>{
+ mocks.rows=[{...row('2026-10-05'),observed_queries:40,collected_queries:40,successful_queries:31,total_queries:40,observed_brand_mentions:3,brand_mentions:3,sov_score:7.5}];
+ const v=buildPulseView((await load())!).observations;
+ expect(v.state).toBe('partial');expect(v.coverage).toMatchObject({expected:null,recorded:40,collected:40,classified:31,mentioned:3,provenance:'legacy'});
+ expect(v.coverage?.mentionRate).toBeCloseTo(3/31);expect(v.latestKpi?.sovScore).toBeCloseTo(100*3/31);expect(v.series[0].points[0].state).toBe('partial');
+});
+it('keeps all-negative classified samples at zero but unclassified answers unknown',async()=>{
+ mocks.rows=[{...row('2026-10-05'),observed_queries:40,collected_queries:40,successful_queries:31,total_queries:40}];
+ expect(buildPulseView((await load())!).observations.coverage?.mentionRate).toBe(0);
+ mocks.rows[0].successful_queries=0;expect(buildPulseView((await load())!).observations.latestKpi).toBeNull();
+});

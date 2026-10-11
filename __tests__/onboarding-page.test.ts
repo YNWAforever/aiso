@@ -72,7 +72,7 @@ describe('onboarding page scan pre-fill', () => {
     expect(props).toMatchObject({
       scanId: 'scan-1',
       initialDomain: 'testbrand.com',
-      initialBrand: 'Testbrand',
+      initialBrand: '',
       initialIndustry: 'technology',
       initialRegion: 'HK',
     })

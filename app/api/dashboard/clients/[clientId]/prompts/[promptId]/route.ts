@@ -72,7 +72,7 @@ export async function PATCH(
     // type from its typed sibling — but they match the repo's idiom, they make
     // the inference error structurally impossible under later edits, and they
     // document that null means "absent" rather than "set to null".
-    const updated = await sql`
+    const [,updated] = await sql.transaction([sql`select id from clients where id=${clientId} and account_id=${access.accountId} for no key update`,sql`
       update prompt_bank p
          set question  = coalesce(${question}::text, p.question),
              is_active = coalesce(${isActive}::boolean, p.is_active),
@@ -85,7 +85,7 @@ export async function PATCH(
          and c.account_id = ${access.accountId}
       returning p.id, p.client_id, p.category, p.question,
                 p.language, p.market, p.is_active, p.created_at
-    `
+    `])
     if (!updated[0]) return Response.json({ error: 'Not found' }, { status: 404 })
     return Response.json({ prompt: updated[0] })
   } catch {
@@ -103,7 +103,7 @@ export async function DELETE(
 
   const sql = db()
   try {
-    const deleted = await sql`
+    const [,deleted] = await sql.transaction([sql`select id from clients where id=${clientId} and account_id=${access.accountId} for no key update`,sql`
       delete from prompt_bank p
        using clients c
        where p.id = ${promptId}
@@ -111,7 +111,7 @@ export async function DELETE(
          and c.id = p.client_id
          and c.account_id = ${access.accountId}
       returning p.id
-    `
+    `])
     if (!deleted[0]) return Response.json({ error: 'Not found' }, { status: 404 })
     return new Response(null, { status: 204 })
   } catch {

@@ -49,7 +49,7 @@ export function groundedAnswersCap(env: Record<string, string | undefined> = pro
  * writer rows; ledger projections into pulse_metrics carry a run_item_id and
  * are excluded so they are not counted twice.
  */
-export async function webSearchAllowance(sql: Sql, accountId: string, scanWeek: string): Promise<{ allowed: boolean; used: number; cap: number }> {
+export async function webSearchAllowance(sql: Sql, accountId: string, scanWeek: string): Promise<{ allowed: boolean; used: number|null; cap: number }> {
   const cap = groundedAnswersCap()
   if (!isFeatureEnabled('pulse_grounding') || cap === 0) return { allowed: false, used: 0, cap }
   try {
@@ -65,10 +65,24 @@ export async function webSearchAllowance(sql: Sql, accountId: string, scanWeek: 
         where a.account_id = ${accountId} and r.scan_week = ${scanWeek}::date and a.grounding = 'web'
       ) as used
     `
-    const used = Number((row as { used?: unknown } | undefined)?.used ?? 0)
+    const raw=(row as {used?:unknown}|undefined)?.used;const used=raw===null||raw===undefined?null:Number(raw)
+    if(used===null||!Number.isSafeInteger(used)||used<0)return {allowed:false,used:null,cap}
     return { allowed: used < cap, used, cap }
   } catch {
     console.error('[pulse] grounded-answer usage could not be read; web search disabled for this chunk')
-    return { allowed: false, used: 0, cap }
+    return { allowed: false, used: null, cap }
   }
+}
+
+export type SearchEvidence = {requested:'web'|'native'|'none'|'unknown';execution:'confirmed'|'unknown';basis:'provider-search-event'|'request-only'|'legacy'}
+/** OpenRouter documents usage.server_tool_use.web_search_requests. Citations alone never prove execution. */
+export function searchEvidenceFor(grounding:Grounding|null|undefined,usage?:unknown):SearchEvidence {
+ const value=(usage as {server_tool_use?:{web_search_requests?:unknown}}|null)?.server_tool_use?.web_search_requests
+ const confirmed=typeof value==='number'&&Number.isSafeInteger(value)&&value>0
+ return {requested:grounding??'unknown',execution:confirmed?'confirmed':'unknown',basis:confirmed?'provider-search-event':grounding?'request-only':'legacy'}
+}
+export function readSearchEvidence(value:unknown,grounding:Grounding|null):SearchEvidence {
+ const v=value as Partial<SearchEvidence>|null
+ if(v&&['web','native','none','unknown'].includes(v.requested??'')&&((v.execution==='confirmed'&&v.basis==='provider-search-event')||(v.execution==='unknown'&&['request-only','legacy'].includes(v.basis??''))))return v as SearchEvidence
+ return searchEvidenceFor(grounding)
 }

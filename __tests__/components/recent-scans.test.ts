@@ -26,3 +26,12 @@ describe('real RecentScans rendering', () => {
 it.each([null, undefined, '', 'not-a-date'])('missing or invalid observation date %s stays unknown', value => {
   expect(formatScanDate(value, 'en')).toBe('Date unavailable')
 })
+
+it.each(['en', 'zh-HK'])('UC05 hides failed scores and provides a reason destination in %s', lang => {
+  const html = renderToStaticMarkup(createElement(RecentScans, { lang, scans: [{...scan, score: null, grade: null, displayState: 'failed'}] }))
+  const text = html.replace(/<[^>]*>/g, '')
+  expect(text).not.toContain('/ 100')
+  expect(text).not.toContain('Grade:')
+  expect(text).toContain(lang === 'zh-HK' ? '掃描未完成' : 'Scan incomplete')
+  expect(html).toContain('href="/'+lang+'/result/scan-a"')
+})

@@ -1,0 +1,940 @@
+Listing tests:
+  [chromium] › tests\e2e\accessibility.spec.ts:48:5 › English home page has no blocking accessibility violations and keyboard-reachable scan controls
+  [chromium] › tests\e2e\accessibility.spec.ts:58:5 › English login page has no blocking accessibility violations and keyboard-reachable primary controls
+  [chromium] › tests\e2e\accessibility.spec.ts:70:5 › fixture result page has no blocking accessibility violations before and after email unlock
+  [chromium] › tests\e2e\audit-action-loop.spec.ts:11:6 › 24 selected prompt edits survive lost response and commit once en
+  [chromium] › tests\e2e\audit-action-loop.spec.ts:12:6 › source 51 is filterable, paginated and fully exportable en
+  [chromium] › tests\e2e\audit-action-loop.spec.ts:13:6 › five sources save one work item; manual done and retest are separate en
+  [chromium] › tests\e2e\audit-action-loop.spec.ts:11:6 › 24 selected prompt edits survive lost response and commit once zh-HK
+  [chromium] › tests\e2e\audit-action-loop.spec.ts:12:6 › source 51 is filterable, paginated and fully exportable zh-HK
+  [chromium] › tests\e2e\audit-action-loop.spec.ts:13:6 › five sources save one work item; manual done and retest are separate zh-HK
+  [chromium] › tests\e2e\audit-action-loop.spec.ts:16:38 › dirty work form retains conflict revision until explicit reload en
+  [chromium] › tests\e2e\audit-action-loop.spec.ts:16:38 › dirty work form retains conflict revision until explicit reload zh-HK
+  [chromium] › tests\e2e\auth-return-to.spec.ts:5:41 › real proxy/layout preserve all five deep links in en
+  [chromium] › tests\e2e\auth-return-to.spec.ts:5:41 › real proxy/layout preserve all five deep links in zh-HK
+  [chromium] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract google returns to entities
+  [chromium] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract magic-link returns to entities
+  [chromium] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract google returns to sources
+  [chromium] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract magic-link returns to sources
+  [chromium] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract google returns to observations
+  [chromium] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract magic-link returns to observations
+  [chromium] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract google returns to opportunities
+  [chromium] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract magic-link returns to opportunities
+  [chromium] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract google returns to prompts
+  [chromium] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract magic-link returns to prompts
+  [chromium] › tests\e2e\auth-return-to.spec.ts:54:5 › failed completion retains safe destination on retry
+  [chromium] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: valid session
+  [chromium] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: valid session despite SecurityError housekeeping
+  [chromium] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: valid session despite DataCloneError housekeeping
+  [chromium] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: missing user fails closed
+  [chromium] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: empty verifier cannot reuse prior session
+  [chromium] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: null session fails closed
+  [chromium] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: unauthorized fails closed
+  [chromium] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: invalid JSON fails closed
+  [chromium] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion zh-HK: valid session
+  [chromium] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion zh-HK: valid session despite SecurityError housekeeping
+  [chromium] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion zh-HK: valid session despite DataCloneError housekeeping
+  [chromium] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion zh-HK: missing user fails closed
+  [chromium] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion zh-HK: empty verifier cannot reuse prior session
+  [chromium] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion zh-HK: null session fails closed
+  [chromium] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion zh-HK: unauthorized fails closed
+  [chromium] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion zh-HK: invalid JSON fails closed
+  [chromium] › tests\e2e\auth-rsc-session.spec.ts:70:7 › RSC expired session 200 keeps all five en tool destinations
+  [chromium] › tests\e2e\auth-rsc-session.spec.ts:70:7 › RSC expired session 401 keeps all five en tool destinations
+  [chromium] › tests\e2e\auth-rsc-session.spec.ts:70:7 › RSC expired session 200 keeps all five zh-HK tool destinations
+  [chromium] › tests\e2e\auth-rsc-session.spec.ts:70:7 › RSC expired session 401 keeps all five zh-HK tool destinations
+  [chromium] › tests\e2e\auth.spec.ts:25:7 › Auth — login page › login page renders email input
+  [chromium] › tests\e2e\auth.spec.ts:30:7 › Auth — login page › login page renders magic-link submit button
+  [chromium] › tests\e2e\auth.spec.ts:35:7 › Auth — login page › login page shows Google OAuth option
+  [chromium] › tests\e2e\auth.spec.ts:42:7 › Auth — login page › login page has correct title
+  [chromium] › tests\e2e\auth.spec.ts:46:7 › Auth — login page › submitting empty email shows HTML5 validation
+  [chromium] › tests\e2e\auth.spec.ts:64:9 › Auth — login page › submitting a valid email requests Neon magic link and confirms success in en
+  [chromium] › tests\e2e\auth.spec.ts:64:9 › Auth — login page › submitting a valid email requests Neon magic link and confirms success in zh-HK
+  [chromium] › tests\e2e\auth.spec.ts:104:9 › Auth — login page › provider error recovery renders localized generic copy in en
+  [chromium] › tests\e2e\auth.spec.ts:104:9 › Auth — login page › provider error recovery renders localized generic copy in zh-HK
+  [chromium] › tests\e2e\auth.spec.ts:130:7 › Auth — access control › dashboard redirects unauthenticated users to login
+  [chromium] › tests\e2e\auth.spec.ts:142:7 › Auth — locale routing › bare /auth/login redirects to localised route
+  [chromium] › tests\e2e\c7-public.spec.ts:10:9 › C7 public routes en 375 light
+  [chromium] › tests\e2e\c7-public.spec.ts:10:9 › C7 public routes en 375 dark
+  [chromium] › tests\e2e\c7-public.spec.ts:10:9 › C7 public routes en 1440 light
+  [chromium] › tests\e2e\c7-public.spec.ts:10:9 › C7 public routes en 1440 dark
+  [chromium] › tests\e2e\c7-public.spec.ts:29:7 › C7 localized failures and retry en
+  [chromium] › tests\e2e\c7-public.spec.ts:66:7 › C7 malformed success stays retryable en
+  [chromium] › tests\e2e\c7-public.spec.ts:86:9 › C7 pending and complete result routing en
+  [chromium] › tests\e2e\c7-public.spec.ts:86:9 › C7 pending and partial result routing en
+  [chromium] › tests\e2e\c7-public.spec.ts:10:9 › C7 public routes zh-HK 375 light
+  [chromium] › tests\e2e\c7-public.spec.ts:10:9 › C7 public routes zh-HK 375 dark
+  [chromium] › tests\e2e\c7-public.spec.ts:10:9 › C7 public routes zh-HK 1440 light
+  [chromium] › tests\e2e\c7-public.spec.ts:10:9 › C7 public routes zh-HK 1440 dark
+  [chromium] › tests\e2e\c7-public.spec.ts:29:7 › C7 localized failures and retry zh-HK
+  [chromium] › tests\e2e\c7-public.spec.ts:66:7 › C7 malformed success stays retryable zh-HK
+  [chromium] › tests\e2e\c7-public.spec.ts:86:9 › C7 pending and complete result routing zh-HK
+  [chromium] › tests\e2e\c7-public.spec.ts:86:9 › C7 pending and partial result routing zh-HK
+  [chromium] › tests\e2e\c8a-workspace-home.spec.ts:11:7 › C8a workspace component en 375 light
+  [chromium] › tests\e2e\c8a-workspace-home.spec.ts:11:7 › C8a workspace component en 375 dark
+  [chromium] › tests\e2e\c8a-workspace-home.spec.ts:11:7 › C8a workspace component en 1440 light
+  [chromium] › tests\e2e\c8a-workspace-home.spec.ts:11:7 › C8a workspace component en 1440 dark
+  [chromium] › tests\e2e\c8a-workspace-home.spec.ts:11:7 › C8a workspace component zh-HK 375 light
+  [chromium] › tests\e2e\c8a-workspace-home.spec.ts:11:7 › C8a workspace component zh-HK 375 dark
+  [chromium] › tests\e2e\c8a-workspace-home.spec.ts:11:7 › C8a workspace component zh-HK 1440 light
+  [chromium] › tests\e2e\c8a-workspace-home.spec.ts:11:7 › C8a workspace component zh-HK 1440 dark
+  [chromium] › tests\e2e\c8b-portfolio.spec.ts:8:7 › C8b portfolio en 375 light
+  [chromium] › tests\e2e\c8b-portfolio.spec.ts:8:7 › C8b portfolio en 375 dark
+  [chromium] › tests\e2e\c8b-portfolio.spec.ts:8:7 › C8b portfolio en 1440 light
+  [chromium] › tests\e2e\c8b-portfolio.spec.ts:8:7 › C8b portfolio en 1440 dark
+  [chromium] › tests\e2e\c8b-portfolio.spec.ts:8:7 › C8b portfolio zh-HK 375 light
+  [chromium] › tests\e2e\c8b-portfolio.spec.ts:8:7 › C8b portfolio zh-HK 375 dark
+  [chromium] › tests\e2e\c8b-portfolio.spec.ts:8:7 › C8b portfolio zh-HK 1440 light
+  [chromium] › tests\e2e\c8b-portfolio.spec.ts:8:7 › C8b portfolio zh-HK 1440 dark
+  [chromium] › tests\e2e\c8c-pulse.spec.ts:5:113 › C8c Pulse en 375 light
+  [chromium] › tests\e2e\c8c-pulse.spec.ts:5:113 › C8c Pulse en 375 dark
+  [chromium] › tests\e2e\c8c-pulse.spec.ts:5:113 › C8c Pulse en 1440 light
+  [chromium] › tests\e2e\c8c-pulse.spec.ts:5:113 › C8c Pulse en 1440 dark
+  [chromium] › tests\e2e\c8c-pulse.spec.ts:5:113 › C8c Pulse zh-HK 375 light
+  [chromium] › tests\e2e\c8c-pulse.spec.ts:5:113 › C8c Pulse zh-HK 375 dark
+  [chromium] › tests\e2e\c8c-pulse.spec.ts:5:113 › C8c Pulse zh-HK 1440 light
+  [chromium] › tests\e2e\c8c-pulse.spec.ts:5:113 › C8c Pulse zh-HK 1440 dark
+  [chromium] › tests\e2e\c8e-sample-report.spec.ts:6:7 › C8e public sample en 375 light
+  [chromium] › tests\e2e\c8e-sample-report.spec.ts:6:7 › C8e public sample en 375 dark
+  [chromium] › tests\e2e\c8e-sample-report.spec.ts:6:7 › C8e public sample en 1440 light
+  [chromium] › tests\e2e\c8e-sample-report.spec.ts:6:7 › C8e public sample en 1440 dark
+  [chromium] › tests\e2e\c8e-sample-report.spec.ts:6:7 › C8e public sample zh-HK 375 light
+  [chromium] › tests\e2e\c8e-sample-report.spec.ts:6:7 › C8e public sample zh-HK 375 dark
+  [chromium] › tests\e2e\c8e-sample-report.spec.ts:6:7 › C8e public sample zh-HK 1440 light
+  [chromium] › tests\e2e\c8e-sample-report.spec.ts:6:7 › C8e public sample zh-HK 1440 dark
+  [chromium] › tests\e2e\c8g-settings.spec.ts:8:7 › C8g settings en 375 light
+  [chromium] › tests\e2e\c8g-settings.spec.ts:8:7 › C8g settings en 375 dark
+  [chromium] › tests\e2e\c8g-settings.spec.ts:8:7 › C8g settings en 1440 light
+  [chromium] › tests\e2e\c8g-settings.spec.ts:8:7 › C8g settings en 1440 dark
+  [chromium] › tests\e2e\c8g-settings.spec.ts:8:7 › C8g settings zh-HK 375 light
+  [chromium] › tests\e2e\c8g-settings.spec.ts:8:7 › C8g settings zh-HK 375 dark
+  [chromium] › tests\e2e\c8g-settings.spec.ts:8:7 › C8g settings zh-HK 1440 light
+  [chromium] › tests\e2e\c8g-settings.spec.ts:8:7 › C8g settings zh-HK 1440 dark
+  [chromium] › tests\e2e\c9a-entities.spec.ts:53:7 › verification gets content before probing in en
+  [chromium] › tests\e2e\c9a-entities.spec.ts:82:7 › verification content failure can retry in en
+  [chromium] › tests\e2e\c9a-entities.spec.ts:53:7 › verification gets content before probing in zh-HK
+  [chromium] › tests\e2e\c9a-entities.spec.ts:82:7 › verification content failure can retry in zh-HK
+  [chromium] › tests\e2e\c9a-entities.spec.ts:98:5 › verification reload keeps issued token; changed domain requires new content
+  [chromium] › tests\e2e\c9a-entities.spec.ts:115:11 › C9a identity en 375 light
+  [chromium] › tests\e2e\c9a-entities.spec.ts:115:11 › C9a identity en 375 dark
+  [chromium] › tests\e2e\c9a-entities.spec.ts:115:11 › C9a identity en 1440 light
+  [chromium] › tests\e2e\c9a-entities.spec.ts:115:11 › C9a identity en 1440 dark
+  [chromium] › tests\e2e\c9a-entities.spec.ts:115:11 › C9a identity zh-HK 375 light
+  [chromium] › tests\e2e\c9a-entities.spec.ts:115:11 › C9a identity zh-HK 375 dark
+  [chromium] › tests\e2e\c9a-entities.spec.ts:115:11 › C9a identity zh-HK 1440 light
+  [chromium] › tests\e2e\c9a-entities.spec.ts:115:11 › C9a identity zh-HK 1440 dark
+  [chromium] › tests\e2e\c9a-entities.spec.ts:150:5 › save is explicit, normalized and guarded against duplicate submissions
+  [chromium] › tests\e2e\c9a-entities.spec.ts:187:5 › conflict preserves draft until explicit reload; reload failure keeps conflict and draft
+  [chromium] › tests\e2e\c9a-entities.spec.ts:234:7 › preserves draft on network save failure
+  [chromium] › tests\e2e\c9a-entities.spec.ts:234:7 › preserves draft on 500 save failure
+  [chromium] › tests\e2e\c9a-entities.spec.ts:234:7 › preserves draft on 401 save failure
+  [chromium] › tests\e2e\c9a-entities.spec.ts:234:7 › preserves draft on 404 save failure
+  [chromium] › tests\e2e\c9a-entities.spec.ts:234:7 › preserves draft on malformed save failure
+  [chromium] › tests\e2e\c9a-entities.spec.ts:234:7 › preserves draft on wrong-client save failure
+  [chromium] › tests\e2e\c9a-entities.spec.ts:234:7 › preserves draft on wrong-revision save failure
+  [chromium] › tests\e2e\c9a-entities.spec.ts:273:5 › late save response cannot populate a changed client
+  [chromium] › tests\e2e\c9a-entities.spec.ts:307:5 › retry saves the preserved draft using the saved revision
+  [chromium] › tests\e2e\c9a-entities.spec.ts:340:5 › client validation prevents oversized alias lists from reaching the API
+  [chromium] › tests\e2e\c9a-entities.spec.ts:356:5 › missing entity on reload is an error, while explicit null restores an unsaved suggestion
+  [chromium] › tests\e2e\c9a-entities.spec.ts:384:5 › identical normalized replay at a newer revision is saved
+  [chromium] › tests\e2e\c9a-entities.spec.ts:419:7 › rejects replay with different display name
+  [chromium] › tests\e2e\c9a-entities.spec.ts:419:7 › rejects replay with different aliases
+  [chromium] › tests\e2e\c9a-entities.spec.ts:419:7 › rejects replay with unchanged revision
+  [chromium] › tests\e2e\c9a-entities.spec.ts:419:7 › rejects replay with older revision
+  [chromium] › tests\e2e\c9b-observations.spec.ts:65:7 › T09 original answer modal retries, keeps filters and restores focus in en
+  [chromium] › tests\e2e\c9b-observations.spec.ts:96:7 › C9b filters, preserves localized copy and reflows in en
+  [chromium] › tests\e2e\c9b-observations.spec.ts:134:7 › C9b keyboard loading, failure and retry in en
+  [chromium] › tests\e2e\c9b-observations.spec.ts:174:7 › C9b later filter wins a response race in en
+  [chromium] › tests\e2e\c9b-observations.spec.ts:239:7 › C9b accepts and clears an unlisted bounded platform in en
+  [chromium] › tests\e2e\c9b-observations.spec.ts:275:7 › C9b pins filters, resets paging and retries the same page in en
+  [chromium] › tests\e2e\c9b-observations.spec.ts:65:7 › T09 original answer modal retries, keeps filters and restores focus in zh-HK
+  [chromium] › tests\e2e\c9b-observations.spec.ts:96:7 › C9b filters, preserves localized copy and reflows in zh-HK
+  [chromium] › tests\e2e\c9b-observations.spec.ts:134:7 › C9b keyboard loading, failure and retry in zh-HK
+  [chromium] › tests\e2e\c9b-observations.spec.ts:174:7 › C9b later filter wins a response race in zh-HK
+  [chromium] › tests\e2e\c9b-observations.spec.ts:239:7 › C9b accepts and clears an unlisted bounded platform in zh-HK
+  [chromium] › tests\e2e\c9b-observations.spec.ts:275:7 › C9b pins filters, resets paging and retries the same page in zh-HK
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:59:7 › T12 empty candidate pages can continue and preserve existing candidates in en
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:73:7 › T19 all sixteen candidates have human next steps in en
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:88:7 › C9c initial source failure preserves saved draft editing and explicit retry in en
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:169:7 › C9c selected save, duplicate protection, focus and retained source in en
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:220:7 › C9c failed save, changed evidence and explicit refresh in en
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:259:7 › C9c independent list failure, pagination and detail reads in en
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:316:7 › C9c edits survive failures and conflicts; reload is explicit in en
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:407:7 › C9c Unicode validation and normalized retry in en
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:439:7 › C9c scan save uses exact check reference in en
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:485:7 › C9c opens existing saved draft by id even when current evidence is limited in en
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:526:7 › C9c late draft reads do not replace a later view selection in en
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:560:9 › C9c two candidate evidence conflict survives other save 200 in en
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:560:9 › C9c two candidate evidence conflict survives other save 503 in en
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:59:7 › T12 empty candidate pages can continue and preserve existing candidates in zh-HK
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:73:7 › T19 all sixteen candidates have human next steps in zh-HK
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:88:7 › C9c initial source failure preserves saved draft editing and explicit retry in zh-HK
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:169:7 › C9c selected save, duplicate protection, focus and retained source in zh-HK
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:220:7 › C9c failed save, changed evidence and explicit refresh in zh-HK
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:259:7 › C9c independent list failure, pagination and detail reads in zh-HK
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:316:7 › C9c edits survive failures and conflicts; reload is explicit in zh-HK
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:407:7 › C9c Unicode validation and normalized retry in zh-HK
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:439:7 › C9c scan save uses exact check reference in zh-HK
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:485:7 › C9c opens existing saved draft by id even when current evidence is limited in zh-HK
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:526:7 › C9c late draft reads do not replace a later view selection in zh-HK
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:560:9 › C9c two candidate evidence conflict survives other save 200 in zh-HK
+  [chromium] › tests\e2e\c9c-opportunities.spec.ts:560:9 › C9c two candidate evidence conflict survives other save 503 in zh-HK
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:56:7 › C9d saved submission conflict, explicit revision reload and immutable history en
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:129:9 › C9d approved timeout retry retains exact request and focus en
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:129:9 › C9d changes_requested timeout retry retains exact request and focus en
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:191:7 › C9d changed reason rotates request identity, revoked write preserves text en
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:219:7 › C9d revoked detail and initial outage have no false success en
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:234:7 › C9d admin grant replay and revoke bind expected revision and identity en
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:296:7 › C9d admin independent cursors, conflict and unavailable permission lookup en
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:401:7 › C9d admin initial outage cannot grant or show zero approvers en
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:414:7 › C9d draft version link protects unsaved text and uses current locale en
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:56:7 › C9d saved submission conflict, explicit revision reload and immutable history zh-HK
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:129:9 › C9d approved timeout retry retains exact request and focus zh-HK
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:129:9 › C9d changes_requested timeout retry retains exact request and focus zh-HK
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:191:7 › C9d changed reason rotates request identity, revoked write preserves text zh-HK
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:219:7 › C9d revoked detail and initial outage have no false success zh-HK
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:234:7 › C9d admin grant replay and revoke bind expected revision and identity zh-HK
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:296:7 › C9d admin independent cursors, conflict and unavailable permission lookup zh-HK
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:401:7 › C9d admin initial outage cannot grant or show zero approvers zh-HK
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:414:7 › C9d draft version link protects unsaved text and uses current locale zh-HK
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:457:7 › C9d conflict refresh retains reason while capabilities change en
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:457:7 › C9d conflict refresh retains reason while capabilities change zh-HK
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:489:7 › C9d deferred history cannot undo a confirmed decision en
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:560:7 › C9d deferred selection retains a reason typed during the read en
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:489:7 › C9d deferred history cannot undo a confirmed decision zh-HK
+  [chromium] › tests\e2e\c9d-change-sets.spec.ts:560:7 › C9d deferred selection retains a reason typed during the read zh-HK
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:64:7 › C9e actual downloads preserve bytes and never attest en
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:80:7 › C9e attestation withdrawal and correction are distinct audited events en
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:100:7 › C9e lost-response retry preserves normalized request identity en
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e 503 read fails closed and preserves input for recovery en
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e network read fails closed and preserves input for recovery en
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e malformed read fails closed and preserves input for recovery en
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e 401 read fails closed and preserves input for recovery en
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e 403 read fails closed and preserves input for recovery en
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:126:7 › C9e pending approval refreshes delivery on the same selected version en
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:134:7 › C9e historical active state remains outside a bounded page en
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:147:7 › C9e future before-approval and stale-hash errors retain input en
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:159:7 › C9e typing during a pending version selection keeps the current delivery form en
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:64:7 › C9e actual downloads preserve bytes and never attest zh-HK
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:80:7 › C9e attestation withdrawal and correction are distinct audited events zh-HK
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:100:7 › C9e lost-response retry preserves normalized request identity zh-HK
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e 503 read fails closed and preserves input for recovery zh-HK
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e network read fails closed and preserves input for recovery zh-HK
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e malformed read fails closed and preserves input for recovery zh-HK
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e 401 read fails closed and preserves input for recovery zh-HK
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e 403 read fails closed and preserves input for recovery zh-HK
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:126:7 › C9e pending approval refreshes delivery on the same selected version zh-HK
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:134:7 › C9e historical active state remains outside a bounded page zh-HK
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:147:7 › C9e future before-approval and stale-hash errors retain input zh-HK
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:159:7 › C9e typing during a pending version selection keeps the current delivery form zh-HK
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:177:7 › C9e withdrawal preserves independently entered correction fields en
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:190:7 › C9e decision and delivery dirty states cannot clear each other en
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:203:7 › C9e withdrawal reason typed during version selection survives late response en
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:177:7 › C9e withdrawal preserves independently entered correction fields zh-HK
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:190:7 › C9e decision and delivery dirty states cannot clear each other zh-HK
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:203:7 › C9e withdrawal reason typed during version selection survives late response zh-HK
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:221:41 › C9e delayed permission response cannot erase confirmed mutation en
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:221:41 › C9e delayed permission response cannot erase confirmed mutation zh-HK
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:250:41 › C9e pending submission retains delivery input and records new history en
+  [chromium] › tests\e2e\c9e-delivery.spec.ts:250:41 › C9e pending submission retains delivery input and records new history zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f noDelivery separates timing and limitations en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f withdrawn separates timing and limitations en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f awaiting separates timing and limitations en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f missing separates timing and limitations en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f scan separates timing and limitations en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f pulse separates timing and limitations en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f overflow separates timing and limitations en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f unavailable separates timing and limitations en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f deleted separates timing and limitations en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f invalid separates timing and limitations en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f unsupported separates timing and limitations en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:86:7 › C9f outcome refresh preserves typed delivery input and keyboard focus en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f 503 clears protected outcome data and retries without erasing input en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f network clears protected outcome data and retries without erasing input en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f malformed clears protected outcome data and retries without erasing input en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f scope clears protected outcome data and retries without erasing input en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f 401 clears protected outcome data and retries without erasing input en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f 403 clears protected outcome data and retries without erasing input en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:111:7 › C9f late result cannot replace a newly selected version en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:130:7 › C9f withdrawal replacement invalidates pending reads and retains correction input en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:160:7 › C9f malformed delivery success does not invalidate outcomes en
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f noDelivery separates timing and limitations zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f withdrawn separates timing and limitations zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f awaiting separates timing and limitations zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f missing separates timing and limitations zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f scan separates timing and limitations zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f pulse separates timing and limitations zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f overflow separates timing and limitations zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f unavailable separates timing and limitations zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f deleted separates timing and limitations zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f invalid separates timing and limitations zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f unsupported separates timing and limitations zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:86:7 › C9f outcome refresh preserves typed delivery input and keyboard focus zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f 503 clears protected outcome data and retries without erasing input zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f network clears protected outcome data and retries without erasing input zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f malformed clears protected outcome data and retries without erasing input zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f scope clears protected outcome data and retries without erasing input zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f 401 clears protected outcome data and retries without erasing input zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f 403 clears protected outcome data and retries without erasing input zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:111:7 › C9f late result cannot replace a newly selected version zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:130:7 › C9f withdrawal replacement invalidates pending reads and retains correction input zh-HK
+  [chromium] › tests\e2e\c9f-outcomes.spec.ts:160:7 › C9f malformed delivery success does not invalidate outcomes zh-HK
+  [chromium] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority en mixed
+  [chromium] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority en warning
+  [chromium] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority en incomplete
+  [chromium] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority en unknown
+  [chromium] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority en pass
+  [chromium] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority en not-applicable
+  [chromium] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority zh-HK mixed
+  [chromium] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority zh-HK warning
+  [chromium] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority zh-HK incomplete
+  [chromium] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority zh-HK unknown
+  [chromium] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority zh-HK pass
+  [chromium] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority zh-HK not-applicable
+  [chromium] › tests\e2e\email-gate.spec.ts:18:7 › Account unlock on a seeded public result › shows one account unlock without the private breakdown
+  [chromium] › tests\e2e\email-gate.spec.ts:29:7 › Account unlock on a seeded public result › magic-link callback preserves locale and scan ID
+  [chromium] › tests\e2e\email-gate.spec.ts:45:7 › Account unlock on a seeded public result › invalid email format prevents submission
+  [chromium] › tests\e2e\email-gate.spec.ts:53:5 › unknown scan ID returns not-found
+  [chromium] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in en
+  [chromium] › tests\e2e\first-pulse-run.spec.ts:29:6 › leaving the page stops pending polling in en
+  [chromium] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in zh-HK
+  [chromium] › tests\e2e\first-pulse-run.spec.ts:29:6 › leaving the page stops pending polling in zh-HK
+  [chromium] › tests\e2e\first-pulse-run.spec.ts:34:38 › prior-week completion still permits current canonical monitoring en
+  [chromium] › tests\e2e\first-pulse-run.spec.ts:34:38 › prior-week completion still permits current canonical monitoring zh-HK
+  [chromium] › tests\e2e\google-auth-bridge.spec.ts:25:7 › top-level Google auth bridge › starts once and preserves locale plus scan target in the callback
+  [chromium] › tests\e2e\google-auth-bridge.spec.ts:38:7 › top-level Google auth bridge › normalizes a hostile next target before starting Google auth
+  [chromium] › tests\e2e\google-auth-bridge.spec.ts:49:7 › top-level Google auth bridge › announces a returned startup failure
+  [chromium] › tests\e2e\google-popup-callback.spec.ts:6:7 › embedded Google popup completes in en (challenge=false)
+  [chromium] › tests\e2e\google-popup-callback.spec.ts:6:7 › embedded Google popup completes in en (challenge=true)
+  [chromium] › tests\e2e\google-popup-callback.spec.ts:6:7 › embedded Google popup completes in zh-HK (challenge=false)
+  [chromium] › tests\e2e\google-popup-callback.spec.ts:6:7 › embedded Google popup completes in zh-HK (challenge=true)
+  [chromium] › tests\e2e\onboarding-recovery.spec.ts:25:7 › partial seed resumes the same intent and brand after reload in en
+  [chromium] › tests\e2e\onboarding-recovery.spec.ts:48:7 › network_rejection_releases_loading and preserves draft in en
+  [chromium] › tests\e2e\onboarding-recovery.spec.ts:58:7 › invalid JSON releases loading in en
+  [chromium] › tests\e2e\onboarding-recovery.spec.ts:25:7 › partial seed resumes the same intent and brand after reload in zh-HK
+  [chromium] › tests\e2e\onboarding-recovery.spec.ts:48:7 › network_rejection_releases_loading and preserves draft in zh-HK
+  [chromium] › tests\e2e\onboarding-recovery.spec.ts:58:7 › invalid JSON releases loading in zh-HK
+  [chromium] › tests\e2e\onboarding-recovery.spec.ts:66:38 › skipped context is recovered with a new intent for the same brand en
+  [chromium] › tests\e2e\onboarding-recovery.spec.ts:66:38 › skipped context is recovered with a new intent for the same brand zh-HK
+  [chromium] › tests\e2e\onboarding-recovery.spec.ts:68:38 › changed draft after lost create response reconciles the original intent before rebinding en
+  [chromium] › tests\e2e\onboarding-recovery.spec.ts:68:38 › changed draft after lost create response reconciles the original intent before rebinding zh-HK
+  [chromium] › tests\e2e\opportunity-draft-list.spec.ts:20:7 › saving B loads existing A without overwriting B editor in en
+  [chromium] › tests\e2e\opportunity-draft-list.spec.ts:43:7 › list failure and third-page duplicates preserve selected B in en
+  [chromium] › tests\e2e\opportunity-draft-list.spec.ts:65:7 › opening B loads first page and reload restores selected B in en
+  [chromium] › tests\e2e\opportunity-draft-list.spec.ts:20:7 › saving B loads existing A without overwriting B editor in zh-HK
+  [chromium] › tests\e2e\opportunity-draft-list.spec.ts:43:7 › list failure and third-page duplicates preserve selected B in zh-HK
+  [chromium] › tests\e2e\opportunity-draft-list.spec.ts:65:7 › opening B loads first page and reload restores selected B in zh-HK
+  [chromium] › tests\e2e\prompt-bank-accessibility.spec.ts:15:73 › keyboard names, retry and touch areas en 360
+  [chromium] › tests\e2e\prompt-bank-accessibility.spec.ts:15:73 › keyboard names, retry and touch areas en 390
+  [chromium] › tests\e2e\prompt-bank-accessibility.spec.ts:15:73 › keyboard names, retry and touch areas zh-HK 360
+  [chromium] › tests\e2e\prompt-bank-accessibility.spec.ts:15:73 › keyboard names, retry and touch areas zh-HK 390
+  [chromium] › tests\e2e\prompt-context.spec.ts:15:41 › confirmed language market survives add and edit retry en
+  [chromium] › tests\e2e\prompt-context.spec.ts:15:41 › confirmed language market survives add and edit retry zh-HK
+  [chromium] › tests\e2e\prompt-context.spec.ts:55:9 › IME composing Enter keeps the draft without saving or cancelling en
+  [chromium] › tests\e2e\prompt-context.spec.ts:55:9 › IME boundary Enter keeps the draft without saving or cancelling en
+  [chromium] › tests\e2e\prompt-context.spec.ts:55:9 › IME composing Escape keeps the draft without saving or cancelling en
+  [chromium] › tests\e2e\prompt-context.spec.ts:55:9 › IME composing Enter keeps the draft without saving or cancelling zh-HK
+  [chromium] › tests\e2e\prompt-context.spec.ts:55:9 › IME boundary Enter keeps the draft without saving or cancelling zh-HK
+  [chromium] › tests\e2e\prompt-context.spec.ts:55:9 › IME composing Escape keeps the draft without saving or cancelling zh-HK
+  [chromium] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage en light 375
+  [chromium] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage en light 768
+  [chromium] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage en light 1024
+  [chromium] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage en light 1440
+  [chromium] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage en dark 375
+  [chromium] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage en dark 768
+  [chromium] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage en dark 1024
+  [chromium] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage en dark 1440
+  [chromium] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage zh-HK light 375
+  [chromium] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage zh-HK light 768
+  [chromium] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage zh-HK light 1024
+  [chromium] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage zh-HK light 1440
+  [chromium] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage zh-HK dark 375
+  [chromium] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage zh-HK dark 768
+  [chromium] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage zh-HK dark 1024
+  [chromium] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage zh-HK dark 1440
+  [chromium] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation en light 375
+  [chromium] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation en light 768
+  [chromium] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation en light 1024
+  [chromium] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation en light 1440
+  [chromium] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation en dark 375
+  [chromium] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation en dark 768
+  [chromium] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation en dark 1024
+  [chromium] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation en dark 1440
+  [chromium] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation zh-HK light 375
+  [chromium] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation zh-HK light 768
+  [chromium] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation zh-HK light 1024
+  [chromium] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation zh-HK light 1440
+  [chromium] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation zh-HK dark 375
+  [chromium] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation zh-HK dark 768
+  [chromium] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation zh-HK dark 1024
+  [chromium] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation zh-HK dark 1440
+  [chromium] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /platform/search-visibility returns 308 and renders its destination
+  [chromium] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /en/platform/search-visibility returns 308 and renders its destination
+  [chromium] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /zh-HK/platform/search-visibility returns 308 and renders its destination
+  [chromium] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /foundation returns 308 and renders its destination
+  [chromium] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /en/foundation returns 308 and renders its destination
+  [chromium] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /zh-HK/foundation returns 308 and renders its destination
+  [chromium] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /answer-readiness returns 308 and renders its destination
+  [chromium] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /en/answer-readiness returns 308 and renders its destination
+  [chromium] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /zh-HK/answer-readiness returns 308 and renders its destination
+  [chromium] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /citation-readiness returns 308 and renders its destination
+  [chromium] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /en/citation-readiness returns 308 and renders its destination
+  [chromium] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /zh-HK/citation-readiness returns 308 and renders its destination
+  [chromium] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /ai-pulse returns 308 and renders its destination
+  [chromium] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /en/ai-pulse returns 308 and renders its destination
+  [chromium] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /zh-HK/ai-pulse returns 308 and renders its destination
+  [chromium] › tests\e2e\public-redirects.spec.ts:31:9 › public alias redirects › bare /pricing redirects to English
+  [chromium] › tests\e2e\public-redirects.spec.ts:31:9 › public alias redirects › bare /auth/login redirects to English
+  [chromium] › tests\e2e\public-redirects.spec.ts:31:9 › public alias redirects › bare /how-it-works redirects to English
+  [chromium] › tests\e2e\scan-flow.spec.ts:19:7 › Scan to result journey › homepage loads with a URL input and scan button
+  [chromium] › tests\e2e\scan-flow.spec.ts:26:7 › Scan to result journey › scan form requires a URL before submitting
+  [chromium] › tests\e2e\scan-flow.spec.ts:32:7 › Scan to result journey › entering a URL and submitting shows progress indicator
+  [chromium] › tests\e2e\scan-flow.spec.ts:41:7 › Scan to result journey › after scan completes, page navigates to the fixture result
+  [chromium] › tests\e2e\scan-flow.spec.ts:48:7 › Scan to result journey › fixture result page loads and shows a numeric score
+  [chromium] › tests\e2e\scan-flow.spec.ts:56:7 › Scan to result journey › fixture result page shows the email capture gate
+  [chromium] › tests\e2e\scan-flow.spec.ts:63:7 › Scan to result journey › personalise panel reveals industry and region selects
+  [chromium] › tests\e2e\scan-flow.spec.ts:76:7 › 375px pricing containment › pricing comparison stays inside the page and scrolls within its narrow region
+  [chromium] › tests\e2e\source-maintenance.spec.ts:11:6 › T04 successful import identifies the acknowledged source key and version in en
+  [chromium] › tests\e2e\source-maintenance.spec.ts:29:6 › T04 reviewed approval identifies its persisted source in en
+  [chromium] › tests\e2e\source-maintenance.spec.ts:56:6 › T17 paste and submitted metadata stay fixed while importing in en
+  [chromium] › tests\e2e\source-maintenance.spec.ts:96:6 › T12 source pages and filters reach all 201 in en
+  [chromium] › tests\e2e\source-maintenance.spec.ts:122:6 › T12 CSV retries only invalid rows and imports all 200 in en
+  [chromium] › tests\e2e\source-maintenance.spec.ts:11:6 › T04 successful import identifies the acknowledged source key and version in zh-HK
+  [chromium] › tests\e2e\source-maintenance.spec.ts:29:6 › T04 reviewed approval identifies its persisted source in zh-HK
+  [chromium] › tests\e2e\source-maintenance.spec.ts:56:6 › T17 paste and submitted metadata stay fixed while importing in zh-HK
+  [chromium] › tests\e2e\source-maintenance.spec.ts:96:6 › T12 source pages and filters reach all 201 in zh-HK
+  [chromium] › tests\e2e\source-maintenance.spec.ts:122:6 › T12 CSV retries only invalid rows and imports all 200 in zh-HK
+  [mobile] › tests\e2e\accessibility.spec.ts:48:5 › English home page has no blocking accessibility violations and keyboard-reachable scan controls
+  [mobile] › tests\e2e\accessibility.spec.ts:58:5 › English login page has no blocking accessibility violations and keyboard-reachable primary controls
+  [mobile] › tests\e2e\accessibility.spec.ts:70:5 › fixture result page has no blocking accessibility violations before and after email unlock
+  [mobile] › tests\e2e\audit-action-loop.spec.ts:11:6 › 24 selected prompt edits survive lost response and commit once en
+  [mobile] › tests\e2e\audit-action-loop.spec.ts:12:6 › source 51 is filterable, paginated and fully exportable en
+  [mobile] › tests\e2e\audit-action-loop.spec.ts:13:6 › five sources save one work item; manual done and retest are separate en
+  [mobile] › tests\e2e\audit-action-loop.spec.ts:11:6 › 24 selected prompt edits survive lost response and commit once zh-HK
+  [mobile] › tests\e2e\audit-action-loop.spec.ts:12:6 › source 51 is filterable, paginated and fully exportable zh-HK
+  [mobile] › tests\e2e\audit-action-loop.spec.ts:13:6 › five sources save one work item; manual done and retest are separate zh-HK
+  [mobile] › tests\e2e\audit-action-loop.spec.ts:16:38 › dirty work form retains conflict revision until explicit reload en
+  [mobile] › tests\e2e\audit-action-loop.spec.ts:16:38 › dirty work form retains conflict revision until explicit reload zh-HK
+  [mobile] › tests\e2e\auth-return-to.spec.ts:5:41 › real proxy/layout preserve all five deep links in en
+  [mobile] › tests\e2e\auth-return-to.spec.ts:5:41 › real proxy/layout preserve all five deep links in zh-HK
+  [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract google returns to entities
+  [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract magic-link returns to entities
+  [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract google returns to sources
+  [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract magic-link returns to sources
+  [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract google returns to observations
+  [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract magic-link returns to observations
+  [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract google returns to opportunities
+  [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract magic-link returns to opportunities
+  [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract google returns to prompts
+  [mobile] › tests\e2e\auth-return-to.spec.ts:36:95 › callback contract magic-link returns to prompts
+  [mobile] › tests\e2e\auth-return-to.spec.ts:54:5 › failed completion retains safe destination on retry
+  [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: valid session
+  [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: valid session despite SecurityError housekeeping
+  [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: valid session despite DataCloneError housekeeping
+  [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: missing user fails closed
+  [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: empty verifier cannot reuse prior session
+  [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: null session fails closed
+  [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: unauthorized fails closed
+  [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion en: invalid JSON fails closed
+  [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion zh-HK: valid session
+  [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion zh-HK: valid session despite SecurityError housekeeping
+  [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion zh-HK: valid session despite DataCloneError housekeeping
+  [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion zh-HK: missing user fails closed
+  [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion zh-HK: empty verifier cannot reuse prior session
+  [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion zh-HK: null session fails closed
+  [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion zh-HK: unauthorized fails closed
+  [mobile] › tests\e2e\auth-return-to.spec.ts:72:74 › SDK completion zh-HK: invalid JSON fails closed
+  [mobile] › tests\e2e\auth-rsc-session.spec.ts:70:7 › RSC expired session 200 keeps all five en tool destinations
+  [mobile] › tests\e2e\auth-rsc-session.spec.ts:70:7 › RSC expired session 401 keeps all five en tool destinations
+  [mobile] › tests\e2e\auth-rsc-session.spec.ts:70:7 › RSC expired session 200 keeps all five zh-HK tool destinations
+  [mobile] › tests\e2e\auth-rsc-session.spec.ts:70:7 › RSC expired session 401 keeps all five zh-HK tool destinations
+  [mobile] › tests\e2e\auth.spec.ts:25:7 › Auth — login page › login page renders email input
+  [mobile] › tests\e2e\auth.spec.ts:30:7 › Auth — login page › login page renders magic-link submit button
+  [mobile] › tests\e2e\auth.spec.ts:35:7 › Auth — login page › login page shows Google OAuth option
+  [mobile] › tests\e2e\auth.spec.ts:42:7 › Auth — login page › login page has correct title
+  [mobile] › tests\e2e\auth.spec.ts:46:7 › Auth — login page › submitting empty email shows HTML5 validation
+  [mobile] › tests\e2e\auth.spec.ts:64:9 › Auth — login page › submitting a valid email requests Neon magic link and confirms success in en
+  [mobile] › tests\e2e\auth.spec.ts:64:9 › Auth — login page › submitting a valid email requests Neon magic link and confirms success in zh-HK
+  [mobile] › tests\e2e\auth.spec.ts:104:9 › Auth — login page › provider error recovery renders localized generic copy in en
+  [mobile] › tests\e2e\auth.spec.ts:104:9 › Auth — login page › provider error recovery renders localized generic copy in zh-HK
+  [mobile] › tests\e2e\auth.spec.ts:130:7 › Auth — access control › dashboard redirects unauthenticated users to login
+  [mobile] › tests\e2e\auth.spec.ts:142:7 › Auth — locale routing › bare /auth/login redirects to localised route
+  [mobile] › tests\e2e\c7-public.spec.ts:10:9 › C7 public routes en 375 light
+  [mobile] › tests\e2e\c7-public.spec.ts:10:9 › C7 public routes en 375 dark
+  [mobile] › tests\e2e\c7-public.spec.ts:10:9 › C7 public routes en 1440 light
+  [mobile] › tests\e2e\c7-public.spec.ts:10:9 › C7 public routes en 1440 dark
+  [mobile] › tests\e2e\c7-public.spec.ts:29:7 › C7 localized failures and retry en
+  [mobile] › tests\e2e\c7-public.spec.ts:66:7 › C7 malformed success stays retryable en
+  [mobile] › tests\e2e\c7-public.spec.ts:86:9 › C7 pending and complete result routing en
+  [mobile] › tests\e2e\c7-public.spec.ts:86:9 › C7 pending and partial result routing en
+  [mobile] › tests\e2e\c7-public.spec.ts:10:9 › C7 public routes zh-HK 375 light
+  [mobile] › tests\e2e\c7-public.spec.ts:10:9 › C7 public routes zh-HK 375 dark
+  [mobile] › tests\e2e\c7-public.spec.ts:10:9 › C7 public routes zh-HK 1440 light
+  [mobile] › tests\e2e\c7-public.spec.ts:10:9 › C7 public routes zh-HK 1440 dark
+  [mobile] › tests\e2e\c7-public.spec.ts:29:7 › C7 localized failures and retry zh-HK
+  [mobile] › tests\e2e\c7-public.spec.ts:66:7 › C7 malformed success stays retryable zh-HK
+  [mobile] › tests\e2e\c7-public.spec.ts:86:9 › C7 pending and complete result routing zh-HK
+  [mobile] › tests\e2e\c7-public.spec.ts:86:9 › C7 pending and partial result routing zh-HK
+  [mobile] › tests\e2e\c8a-workspace-home.spec.ts:11:7 › C8a workspace component en 375 light
+  [mobile] › tests\e2e\c8a-workspace-home.spec.ts:11:7 › C8a workspace component en 375 dark
+  [mobile] › tests\e2e\c8a-workspace-home.spec.ts:11:7 › C8a workspace component en 1440 light
+  [mobile] › tests\e2e\c8a-workspace-home.spec.ts:11:7 › C8a workspace component en 1440 dark
+  [mobile] › tests\e2e\c8a-workspace-home.spec.ts:11:7 › C8a workspace component zh-HK 375 light
+  [mobile] › tests\e2e\c8a-workspace-home.spec.ts:11:7 › C8a workspace component zh-HK 375 dark
+  [mobile] › tests\e2e\c8a-workspace-home.spec.ts:11:7 › C8a workspace component zh-HK 1440 light
+  [mobile] › tests\e2e\c8a-workspace-home.spec.ts:11:7 › C8a workspace component zh-HK 1440 dark
+  [mobile] › tests\e2e\c8b-portfolio.spec.ts:8:7 › C8b portfolio en 375 light
+  [mobile] › tests\e2e\c8b-portfolio.spec.ts:8:7 › C8b portfolio en 375 dark
+  [mobile] › tests\e2e\c8b-portfolio.spec.ts:8:7 › C8b portfolio en 1440 light
+  [mobile] › tests\e2e\c8b-portfolio.spec.ts:8:7 › C8b portfolio en 1440 dark
+  [mobile] › tests\e2e\c8b-portfolio.spec.ts:8:7 › C8b portfolio zh-HK 375 light
+  [mobile] › tests\e2e\c8b-portfolio.spec.ts:8:7 › C8b portfolio zh-HK 375 dark
+  [mobile] › tests\e2e\c8b-portfolio.spec.ts:8:7 › C8b portfolio zh-HK 1440 light
+  [mobile] › tests\e2e\c8b-portfolio.spec.ts:8:7 › C8b portfolio zh-HK 1440 dark
+  [mobile] › tests\e2e\c8c-pulse.spec.ts:5:113 › C8c Pulse en 375 light
+  [mobile] › tests\e2e\c8c-pulse.spec.ts:5:113 › C8c Pulse en 375 dark
+  [mobile] › tests\e2e\c8c-pulse.spec.ts:5:113 › C8c Pulse en 1440 light
+  [mobile] › tests\e2e\c8c-pulse.spec.ts:5:113 › C8c Pulse en 1440 dark
+  [mobile] › tests\e2e\c8c-pulse.spec.ts:5:113 › C8c Pulse zh-HK 375 light
+  [mobile] › tests\e2e\c8c-pulse.spec.ts:5:113 › C8c Pulse zh-HK 375 dark
+  [mobile] › tests\e2e\c8c-pulse.spec.ts:5:113 › C8c Pulse zh-HK 1440 light
+  [mobile] › tests\e2e\c8c-pulse.spec.ts:5:113 › C8c Pulse zh-HK 1440 dark
+  [mobile] › tests\e2e\c8e-sample-report.spec.ts:6:7 › C8e public sample en 375 light
+  [mobile] › tests\e2e\c8e-sample-report.spec.ts:6:7 › C8e public sample en 375 dark
+  [mobile] › tests\e2e\c8e-sample-report.spec.ts:6:7 › C8e public sample en 1440 light
+  [mobile] › tests\e2e\c8e-sample-report.spec.ts:6:7 › C8e public sample en 1440 dark
+  [mobile] › tests\e2e\c8e-sample-report.spec.ts:6:7 › C8e public sample zh-HK 375 light
+  [mobile] › tests\e2e\c8e-sample-report.spec.ts:6:7 › C8e public sample zh-HK 375 dark
+  [mobile] › tests\e2e\c8e-sample-report.spec.ts:6:7 › C8e public sample zh-HK 1440 light
+  [mobile] › tests\e2e\c8e-sample-report.spec.ts:6:7 › C8e public sample zh-HK 1440 dark
+  [mobile] › tests\e2e\c8g-settings.spec.ts:8:7 › C8g settings en 375 light
+  [mobile] › tests\e2e\c8g-settings.spec.ts:8:7 › C8g settings en 375 dark
+  [mobile] › tests\e2e\c8g-settings.spec.ts:8:7 › C8g settings en 1440 light
+  [mobile] › tests\e2e\c8g-settings.spec.ts:8:7 › C8g settings en 1440 dark
+  [mobile] › tests\e2e\c8g-settings.spec.ts:8:7 › C8g settings zh-HK 375 light
+  [mobile] › tests\e2e\c8g-settings.spec.ts:8:7 › C8g settings zh-HK 375 dark
+  [mobile] › tests\e2e\c8g-settings.spec.ts:8:7 › C8g settings zh-HK 1440 light
+  [mobile] › tests\e2e\c8g-settings.spec.ts:8:7 › C8g settings zh-HK 1440 dark
+  [mobile] › tests\e2e\c9a-entities.spec.ts:53:7 › verification gets content before probing in en
+  [mobile] › tests\e2e\c9a-entities.spec.ts:82:7 › verification content failure can retry in en
+  [mobile] › tests\e2e\c9a-entities.spec.ts:53:7 › verification gets content before probing in zh-HK
+  [mobile] › tests\e2e\c9a-entities.spec.ts:82:7 › verification content failure can retry in zh-HK
+  [mobile] › tests\e2e\c9a-entities.spec.ts:98:5 › verification reload keeps issued token; changed domain requires new content
+  [mobile] › tests\e2e\c9a-entities.spec.ts:115:11 › C9a identity en 375 light
+  [mobile] › tests\e2e\c9a-entities.spec.ts:115:11 › C9a identity en 375 dark
+  [mobile] › tests\e2e\c9a-entities.spec.ts:115:11 › C9a identity en 1440 light
+  [mobile] › tests\e2e\c9a-entities.spec.ts:115:11 › C9a identity en 1440 dark
+  [mobile] › tests\e2e\c9a-entities.spec.ts:115:11 › C9a identity zh-HK 375 light
+  [mobile] › tests\e2e\c9a-entities.spec.ts:115:11 › C9a identity zh-HK 375 dark
+  [mobile] › tests\e2e\c9a-entities.spec.ts:115:11 › C9a identity zh-HK 1440 light
+  [mobile] › tests\e2e\c9a-entities.spec.ts:115:11 › C9a identity zh-HK 1440 dark
+  [mobile] › tests\e2e\c9a-entities.spec.ts:150:5 › save is explicit, normalized and guarded against duplicate submissions
+  [mobile] › tests\e2e\c9a-entities.spec.ts:187:5 › conflict preserves draft until explicit reload; reload failure keeps conflict and draft
+  [mobile] › tests\e2e\c9a-entities.spec.ts:234:7 › preserves draft on network save failure
+  [mobile] › tests\e2e\c9a-entities.spec.ts:234:7 › preserves draft on 500 save failure
+  [mobile] › tests\e2e\c9a-entities.spec.ts:234:7 › preserves draft on 401 save failure
+  [mobile] › tests\e2e\c9a-entities.spec.ts:234:7 › preserves draft on 404 save failure
+  [mobile] › tests\e2e\c9a-entities.spec.ts:234:7 › preserves draft on malformed save failure
+  [mobile] › tests\e2e\c9a-entities.spec.ts:234:7 › preserves draft on wrong-client save failure
+  [mobile] › tests\e2e\c9a-entities.spec.ts:234:7 › preserves draft on wrong-revision save failure
+  [mobile] › tests\e2e\c9a-entities.spec.ts:273:5 › late save response cannot populate a changed client
+  [mobile] › tests\e2e\c9a-entities.spec.ts:307:5 › retry saves the preserved draft using the saved revision
+  [mobile] › tests\e2e\c9a-entities.spec.ts:340:5 › client validation prevents oversized alias lists from reaching the API
+  [mobile] › tests\e2e\c9a-entities.spec.ts:356:5 › missing entity on reload is an error, while explicit null restores an unsaved suggestion
+  [mobile] › tests\e2e\c9a-entities.spec.ts:384:5 › identical normalized replay at a newer revision is saved
+  [mobile] › tests\e2e\c9a-entities.spec.ts:419:7 › rejects replay with different display name
+  [mobile] › tests\e2e\c9a-entities.spec.ts:419:7 › rejects replay with different aliases
+  [mobile] › tests\e2e\c9a-entities.spec.ts:419:7 › rejects replay with unchanged revision
+  [mobile] › tests\e2e\c9a-entities.spec.ts:419:7 › rejects replay with older revision
+  [mobile] › tests\e2e\c9b-observations.spec.ts:65:7 › T09 original answer modal retries, keeps filters and restores focus in en
+  [mobile] › tests\e2e\c9b-observations.spec.ts:96:7 › C9b filters, preserves localized copy and reflows in en
+  [mobile] › tests\e2e\c9b-observations.spec.ts:134:7 › C9b keyboard loading, failure and retry in en
+  [mobile] › tests\e2e\c9b-observations.spec.ts:174:7 › C9b later filter wins a response race in en
+  [mobile] › tests\e2e\c9b-observations.spec.ts:239:7 › C9b accepts and clears an unlisted bounded platform in en
+  [mobile] › tests\e2e\c9b-observations.spec.ts:275:7 › C9b pins filters, resets paging and retries the same page in en
+  [mobile] › tests\e2e\c9b-observations.spec.ts:65:7 › T09 original answer modal retries, keeps filters and restores focus in zh-HK
+  [mobile] › tests\e2e\c9b-observations.spec.ts:96:7 › C9b filters, preserves localized copy and reflows in zh-HK
+  [mobile] › tests\e2e\c9b-observations.spec.ts:134:7 › C9b keyboard loading, failure and retry in zh-HK
+  [mobile] › tests\e2e\c9b-observations.spec.ts:174:7 › C9b later filter wins a response race in zh-HK
+  [mobile] › tests\e2e\c9b-observations.spec.ts:239:7 › C9b accepts and clears an unlisted bounded platform in zh-HK
+  [mobile] › tests\e2e\c9b-observations.spec.ts:275:7 › C9b pins filters, resets paging and retries the same page in zh-HK
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:59:7 › T12 empty candidate pages can continue and preserve existing candidates in en
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:73:7 › T19 all sixteen candidates have human next steps in en
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:88:7 › C9c initial source failure preserves saved draft editing and explicit retry in en
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:169:7 › C9c selected save, duplicate protection, focus and retained source in en
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:220:7 › C9c failed save, changed evidence and explicit refresh in en
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:259:7 › C9c independent list failure, pagination and detail reads in en
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:316:7 › C9c edits survive failures and conflicts; reload is explicit in en
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:407:7 › C9c Unicode validation and normalized retry in en
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:439:7 › C9c scan save uses exact check reference in en
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:485:7 › C9c opens existing saved draft by id even when current evidence is limited in en
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:526:7 › C9c late draft reads do not replace a later view selection in en
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:560:9 › C9c two candidate evidence conflict survives other save 200 in en
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:560:9 › C9c two candidate evidence conflict survives other save 503 in en
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:59:7 › T12 empty candidate pages can continue and preserve existing candidates in zh-HK
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:73:7 › T19 all sixteen candidates have human next steps in zh-HK
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:88:7 › C9c initial source failure preserves saved draft editing and explicit retry in zh-HK
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:169:7 › C9c selected save, duplicate protection, focus and retained source in zh-HK
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:220:7 › C9c failed save, changed evidence and explicit refresh in zh-HK
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:259:7 › C9c independent list failure, pagination and detail reads in zh-HK
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:316:7 › C9c edits survive failures and conflicts; reload is explicit in zh-HK
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:407:7 › C9c Unicode validation and normalized retry in zh-HK
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:439:7 › C9c scan save uses exact check reference in zh-HK
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:485:7 › C9c opens existing saved draft by id even when current evidence is limited in zh-HK
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:526:7 › C9c late draft reads do not replace a later view selection in zh-HK
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:560:9 › C9c two candidate evidence conflict survives other save 200 in zh-HK
+  [mobile] › tests\e2e\c9c-opportunities.spec.ts:560:9 › C9c two candidate evidence conflict survives other save 503 in zh-HK
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:56:7 › C9d saved submission conflict, explicit revision reload and immutable history en
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:129:9 › C9d approved timeout retry retains exact request and focus en
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:129:9 › C9d changes_requested timeout retry retains exact request and focus en
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:191:7 › C9d changed reason rotates request identity, revoked write preserves text en
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:219:7 › C9d revoked detail and initial outage have no false success en
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:234:7 › C9d admin grant replay and revoke bind expected revision and identity en
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:296:7 › C9d admin independent cursors, conflict and unavailable permission lookup en
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:401:7 › C9d admin initial outage cannot grant or show zero approvers en
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:414:7 › C9d draft version link protects unsaved text and uses current locale en
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:56:7 › C9d saved submission conflict, explicit revision reload and immutable history zh-HK
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:129:9 › C9d approved timeout retry retains exact request and focus zh-HK
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:129:9 › C9d changes_requested timeout retry retains exact request and focus zh-HK
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:191:7 › C9d changed reason rotates request identity, revoked write preserves text zh-HK
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:219:7 › C9d revoked detail and initial outage have no false success zh-HK
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:234:7 › C9d admin grant replay and revoke bind expected revision and identity zh-HK
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:296:7 › C9d admin independent cursors, conflict and unavailable permission lookup zh-HK
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:401:7 › C9d admin initial outage cannot grant or show zero approvers zh-HK
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:414:7 › C9d draft version link protects unsaved text and uses current locale zh-HK
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:457:7 › C9d conflict refresh retains reason while capabilities change en
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:457:7 › C9d conflict refresh retains reason while capabilities change zh-HK
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:489:7 › C9d deferred history cannot undo a confirmed decision en
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:560:7 › C9d deferred selection retains a reason typed during the read en
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:489:7 › C9d deferred history cannot undo a confirmed decision zh-HK
+  [mobile] › tests\e2e\c9d-change-sets.spec.ts:560:7 › C9d deferred selection retains a reason typed during the read zh-HK
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:64:7 › C9e actual downloads preserve bytes and never attest en
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:80:7 › C9e attestation withdrawal and correction are distinct audited events en
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:100:7 › C9e lost-response retry preserves normalized request identity en
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e 503 read fails closed and preserves input for recovery en
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e network read fails closed and preserves input for recovery en
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e malformed read fails closed and preserves input for recovery en
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e 401 read fails closed and preserves input for recovery en
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e 403 read fails closed and preserves input for recovery en
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:126:7 › C9e pending approval refreshes delivery on the same selected version en
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:134:7 › C9e historical active state remains outside a bounded page en
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:147:7 › C9e future before-approval and stale-hash errors retain input en
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:159:7 › C9e typing during a pending version selection keeps the current delivery form en
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:64:7 › C9e actual downloads preserve bytes and never attest zh-HK
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:80:7 › C9e attestation withdrawal and correction are distinct audited events zh-HK
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:100:7 › C9e lost-response retry preserves normalized request identity zh-HK
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e 503 read fails closed and preserves input for recovery zh-HK
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e network read fails closed and preserves input for recovery zh-HK
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e malformed read fails closed and preserves input for recovery zh-HK
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e 401 read fails closed and preserves input for recovery zh-HK
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:113:76 › C9e 403 read fails closed and preserves input for recovery zh-HK
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:126:7 › C9e pending approval refreshes delivery on the same selected version zh-HK
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:134:7 › C9e historical active state remains outside a bounded page zh-HK
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:147:7 › C9e future before-approval and stale-hash errors retain input zh-HK
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:159:7 › C9e typing during a pending version selection keeps the current delivery form zh-HK
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:177:7 › C9e withdrawal preserves independently entered correction fields en
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:190:7 › C9e decision and delivery dirty states cannot clear each other en
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:203:7 › C9e withdrawal reason typed during version selection survives late response en
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:177:7 › C9e withdrawal preserves independently entered correction fields zh-HK
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:190:7 › C9e decision and delivery dirty states cannot clear each other zh-HK
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:203:7 › C9e withdrawal reason typed during version selection survives late response zh-HK
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:221:41 › C9e delayed permission response cannot erase confirmed mutation en
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:221:41 › C9e delayed permission response cannot erase confirmed mutation zh-HK
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:250:41 › C9e pending submission retains delivery input and records new history en
+  [mobile] › tests\e2e\c9e-delivery.spec.ts:250:41 › C9e pending submission retains delivery input and records new history zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f noDelivery separates timing and limitations en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f withdrawn separates timing and limitations en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f awaiting separates timing and limitations en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f missing separates timing and limitations en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f scan separates timing and limitations en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f pulse separates timing and limitations en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f overflow separates timing and limitations en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f unavailable separates timing and limitations en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f deleted separates timing and limitations en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f invalid separates timing and limitations en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f unsupported separates timing and limitations en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:86:7 › C9f outcome refresh preserves typed delivery input and keyboard focus en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f 503 clears protected outcome data and retries without erasing input en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f network clears protected outcome data and retries without erasing input en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f malformed clears protected outcome data and retries without erasing input en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f scope clears protected outcome data and retries without erasing input en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f 401 clears protected outcome data and retries without erasing input en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f 403 clears protected outcome data and retries without erasing input en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:111:7 › C9f late result cannot replace a newly selected version en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:130:7 › C9f withdrawal replacement invalidates pending reads and retains correction input en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:160:7 › C9f malformed delivery success does not invalidate outcomes en
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f noDelivery separates timing and limitations zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f withdrawn separates timing and limitations zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f awaiting separates timing and limitations zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f missing separates timing and limitations zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f scan separates timing and limitations zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f pulse separates timing and limitations zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f overflow separates timing and limitations zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f unavailable separates timing and limitations zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f deleted separates timing and limitations zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f invalid separates timing and limitations zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:69:61 › C9f unsupported separates timing and limitations zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:86:7 › C9f outcome refresh preserves typed delivery input and keyboard focus zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f 503 clears protected outcome data and retries without erasing input zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f network clears protected outcome data and retries without erasing input zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f malformed clears protected outcome data and retries without erasing input zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f scope clears protected outcome data and retries without erasing input zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f 401 clears protected outcome data and retries without erasing input zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:98:85 › C9f 403 clears protected outcome data and retries without erasing input zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:111:7 › C9f late result cannot replace a newly selected version zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:130:7 › C9f withdrawal replacement invalidates pending reads and retains correction input zh-HK
+  [mobile] › tests\e2e\c9f-outcomes.spec.ts:160:7 › C9f malformed delivery success does not invalidate outcomes zh-HK
+  [mobile] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority en mixed
+  [mobile] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority en warning
+  [mobile] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority en incomplete
+  [mobile] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority en unknown
+  [mobile] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority en pass
+  [mobile] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority en not-applicable
+  [mobile] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority zh-HK mixed
+  [mobile] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority zh-HK warning
+  [mobile] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority zh-HK incomplete
+  [mobile] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority zh-HK unknown
+  [mobile] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority zh-HK pass
+  [mobile] › tests\e2e\check-priority.spec.ts:4:137 › public and owner priority zh-HK not-applicable
+  [mobile] › tests\e2e\email-gate.spec.ts:18:7 › Account unlock on a seeded public result › shows one account unlock without the private breakdown
+  [mobile] › tests\e2e\email-gate.spec.ts:29:7 › Account unlock on a seeded public result › magic-link callback preserves locale and scan ID
+  [mobile] › tests\e2e\email-gate.spec.ts:45:7 › Account unlock on a seeded public result › invalid email format prevents submission
+  [mobile] › tests\e2e\email-gate.spec.ts:53:5 › unknown scan ID returns not-found
+  [mobile] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in en
+  [mobile] › tests\e2e\first-pulse-run.spec.ts:29:6 › leaving the page stops pending polling in en
+  [mobile] › tests\e2e\first-pulse-run.spec.ts:10:6 › lost response keeps intent, partial run recovers and classification controls completion in zh-HK
+  [mobile] › tests\e2e\first-pulse-run.spec.ts:29:6 › leaving the page stops pending polling in zh-HK
+  [mobile] › tests\e2e\first-pulse-run.spec.ts:34:38 › prior-week completion still permits current canonical monitoring en
+  [mobile] › tests\e2e\first-pulse-run.spec.ts:34:38 › prior-week completion still permits current canonical monitoring zh-HK
+  [mobile] › tests\e2e\google-auth-bridge.spec.ts:25:7 › top-level Google auth bridge › starts once and preserves locale plus scan target in the callback
+  [mobile] › tests\e2e\google-auth-bridge.spec.ts:38:7 › top-level Google auth bridge › normalizes a hostile next target before starting Google auth
+  [mobile] › tests\e2e\google-auth-bridge.spec.ts:49:7 › top-level Google auth bridge › announces a returned startup failure
+  [mobile] › tests\e2e\google-popup-callback.spec.ts:6:7 › embedded Google popup completes in en (challenge=false)
+  [mobile] › tests\e2e\google-popup-callback.spec.ts:6:7 › embedded Google popup completes in en (challenge=true)
+  [mobile] › tests\e2e\google-popup-callback.spec.ts:6:7 › embedded Google popup completes in zh-HK (challenge=false)
+  [mobile] › tests\e2e\google-popup-callback.spec.ts:6:7 › embedded Google popup completes in zh-HK (challenge=true)
+  [mobile] › tests\e2e\onboarding-recovery.spec.ts:25:7 › partial seed resumes the same intent and brand after reload in en
+  [mobile] › tests\e2e\onboarding-recovery.spec.ts:48:7 › network_rejection_releases_loading and preserves draft in en
+  [mobile] › tests\e2e\onboarding-recovery.spec.ts:58:7 › invalid JSON releases loading in en
+  [mobile] › tests\e2e\onboarding-recovery.spec.ts:25:7 › partial seed resumes the same intent and brand after reload in zh-HK
+  [mobile] › tests\e2e\onboarding-recovery.spec.ts:48:7 › network_rejection_releases_loading and preserves draft in zh-HK
+  [mobile] › tests\e2e\onboarding-recovery.spec.ts:58:7 › invalid JSON releases loading in zh-HK
+  [mobile] › tests\e2e\onboarding-recovery.spec.ts:66:38 › skipped context is recovered with a new intent for the same brand en
+  [mobile] › tests\e2e\onboarding-recovery.spec.ts:66:38 › skipped context is recovered with a new intent for the same brand zh-HK
+  [mobile] › tests\e2e\onboarding-recovery.spec.ts:68:38 › changed draft after lost create response reconciles the original intent before rebinding en
+  [mobile] › tests\e2e\onboarding-recovery.spec.ts:68:38 › changed draft after lost create response reconciles the original intent before rebinding zh-HK
+  [mobile] › tests\e2e\opportunity-draft-list.spec.ts:20:7 › saving B loads existing A without overwriting B editor in en
+  [mobile] › tests\e2e\opportunity-draft-list.spec.ts:43:7 › list failure and third-page duplicates preserve selected B in en
+  [mobile] › tests\e2e\opportunity-draft-list.spec.ts:65:7 › opening B loads first page and reload restores selected B in en
+  [mobile] › tests\e2e\opportunity-draft-list.spec.ts:20:7 › saving B loads existing A without overwriting B editor in zh-HK
+  [mobile] › tests\e2e\opportunity-draft-list.spec.ts:43:7 › list failure and third-page duplicates preserve selected B in zh-HK
+  [mobile] › tests\e2e\opportunity-draft-list.spec.ts:65:7 › opening B loads first page and reload restores selected B in zh-HK
+  [mobile] › tests\e2e\prompt-bank-accessibility.spec.ts:15:73 › keyboard names, retry and touch areas en 360
+  [mobile] › tests\e2e\prompt-bank-accessibility.spec.ts:15:73 › keyboard names, retry and touch areas en 390
+  [mobile] › tests\e2e\prompt-bank-accessibility.spec.ts:15:73 › keyboard names, retry and touch areas zh-HK 360
+  [mobile] › tests\e2e\prompt-bank-accessibility.spec.ts:15:73 › keyboard names, retry and touch areas zh-HK 390
+  [mobile] › tests\e2e\prompt-context.spec.ts:15:41 › confirmed language market survives add and edit retry en
+  [mobile] › tests\e2e\prompt-context.spec.ts:15:41 › confirmed language market survives add and edit retry zh-HK
+  [mobile] › tests\e2e\prompt-context.spec.ts:55:9 › IME composing Enter keeps the draft without saving or cancelling en
+  [mobile] › tests\e2e\prompt-context.spec.ts:55:9 › IME boundary Enter keeps the draft without saving or cancelling en
+  [mobile] › tests\e2e\prompt-context.spec.ts:55:9 › IME composing Escape keeps the draft without saving or cancelling en
+  [mobile] › tests\e2e\prompt-context.spec.ts:55:9 › IME composing Enter keeps the draft without saving or cancelling zh-HK
+  [mobile] › tests\e2e\prompt-context.spec.ts:55:9 › IME boundary Enter keeps the draft without saving or cancelling zh-HK
+  [mobile] › tests\e2e\prompt-context.spec.ts:55:9 › IME composing Escape keeps the draft without saving or cancelling zh-HK
+  [mobile] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage en light 375
+  [mobile] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage en light 768
+  [mobile] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage en light 1024
+  [mobile] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage en light 1440
+  [mobile] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage en dark 375
+  [mobile] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage en dark 768
+  [mobile] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage en dark 1024
+  [mobile] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage en dark 1440
+  [mobile] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage zh-HK light 375
+  [mobile] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage zh-HK light 768
+  [mobile] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage zh-HK light 1024
+  [mobile] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage zh-HK light 1440
+  [mobile] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage zh-HK dark 375
+  [mobile] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage zh-HK dark 768
+  [mobile] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage zh-HK dark 1024
+  [mobile] › tests\e2e\public-pages.spec.ts:15:7 › public page coverage zh-HK dark 1440
+  [mobile] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation en light 375
+  [mobile] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation en light 768
+  [mobile] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation en light 1024
+  [mobile] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation en light 1440
+  [mobile] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation en dark 375
+  [mobile] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation en dark 768
+  [mobile] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation en dark 1024
+  [mobile] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation en dark 1440
+  [mobile] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation zh-HK light 375
+  [mobile] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation zh-HK light 768
+  [mobile] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation zh-HK light 1024
+  [mobile] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation zh-HK light 1440
+  [mobile] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation zh-HK dark 375
+  [mobile] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation zh-HK dark 768
+  [mobile] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation zh-HK dark 1024
+  [mobile] › tests\e2e\public-platform.spec.ts:4:7 › public platform navigation zh-HK dark 1440
+  [mobile] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /platform/search-visibility returns 308 and renders its destination
+  [mobile] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /en/platform/search-visibility returns 308 and renders its destination
+  [mobile] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /zh-HK/platform/search-visibility returns 308 and renders its destination
+  [mobile] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /foundation returns 308 and renders its destination
+  [mobile] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /en/foundation returns 308 and renders its destination
+  [mobile] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /zh-HK/foundation returns 308 and renders its destination
+  [mobile] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /answer-readiness returns 308 and renders its destination
+  [mobile] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /en/answer-readiness returns 308 and renders its destination
+  [mobile] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /zh-HK/answer-readiness returns 308 and renders its destination
+  [mobile] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /citation-readiness returns 308 and renders its destination
+  [mobile] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /en/citation-readiness returns 308 and renders its destination
+  [mobile] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /zh-HK/citation-readiness returns 308 and renders its destination
+  [mobile] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /ai-pulse returns 308 and renders its destination
+  [mobile] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /en/ai-pulse returns 308 and renders its destination
+  [mobile] › tests\e2e\public-redirects.spec.ts:14:11 › public alias redirects › /zh-HK/ai-pulse returns 308 and renders its destination
+  [mobile] › tests\e2e\public-redirects.spec.ts:31:9 › public alias redirects › bare /pricing redirects to English
+  [mobile] › tests\e2e\public-redirects.spec.ts:31:9 › public alias redirects › bare /auth/login redirects to English
+  [mobile] › tests\e2e\public-redirects.spec.ts:31:9 › public alias redirects › bare /how-it-works redirects to English
+  [mobile] › tests\e2e\scan-flow.spec.ts:19:7 › Scan to result journey › homepage loads with a URL input and scan button
+  [mobile] › tests\e2e\scan-flow.spec.ts:26:7 › Scan to result journey › scan form requires a URL before submitting
+  [mobile] › tests\e2e\scan-flow.spec.ts:32:7 › Scan to result journey › entering a URL and submitting shows progress indicator
+  [mobile] › tests\e2e\scan-flow.spec.ts:41:7 › Scan to result journey › after scan completes, page navigates to the fixture result
+  [mobile] › tests\e2e\scan-flow.spec.ts:48:7 › Scan to result journey › fixture result page loads and shows a numeric score
+  [mobile] › tests\e2e\scan-flow.spec.ts:56:7 › Scan to result journey › fixture result page shows the email capture gate
+  [mobile] › tests\e2e\scan-flow.spec.ts:63:7 › Scan to result journey › personalise panel reveals industry and region selects
+  [mobile] › tests\e2e\scan-flow.spec.ts:76:7 › 375px pricing containment › pricing comparison stays inside the page and scrolls within its narrow region
+  [mobile] › tests\e2e\source-maintenance.spec.ts:11:6 › T04 successful import identifies the acknowledged source key and version in en
+  [mobile] › tests\e2e\source-maintenance.spec.ts:29:6 › T04 reviewed approval identifies its persisted source in en
+  [mobile] › tests\e2e\source-maintenance.spec.ts:56:6 › T17 paste and submitted metadata stay fixed while importing in en
+  [mobile] › tests\e2e\source-maintenance.spec.ts:96:6 › T12 source pages and filters reach all 201 in en
+  [mobile] › tests\e2e\source-maintenance.spec.ts:122:6 › T12 CSV retries only invalid rows and imports all 200 in en
+  [mobile] › tests\e2e\source-maintenance.spec.ts:11:6 › T04 successful import identifies the acknowledged source key and version in zh-HK
+  [mobile] › tests\e2e\source-maintenance.spec.ts:29:6 › T04 reviewed approval identifies its persisted source in zh-HK
+  [mobile] › tests\e2e\source-maintenance.spec.ts:56:6 › T17 paste and submitted metadata stay fixed while importing in zh-HK
+  [mobile] › tests\e2e\source-maintenance.spec.ts:96:6 › T12 source pages and filters reach all 201 in zh-HK
+  [mobile] › tests\e2e\source-maintenance.spec.ts:122:6 › T12 CSV retries only invalid rows and imports all 200 in zh-HK
+  [a11y-375] › tests\e2e\a11y\auth-onboarding.spec.ts:103:7 › login keyboard landmark and reflow en
+  [a11y-375] › tests\e2e\a11y\auth-onboarding.spec.ts:116:7 › login announces mocked failure and success en
+  [a11y-375] › tests\e2e\a11y\auth-onboarding.spec.ts:138:7 › onboarding keyboard landmark and reflow en
+  [a11y-375] › tests\e2e\a11y\auth-onboarding.spec.ts:150:7 › onboarding steps retain keyboard focus and announce HTTP failure en
+  [a11y-375] › tests\e2e\a11y\auth-onboarding.spec.ts:103:7 › login keyboard landmark and reflow zh-HK
+  [a11y-375] › tests\e2e\a11y\auth-onboarding.spec.ts:116:7 › login announces mocked failure and success zh-HK
+  [a11y-375] › tests\e2e\a11y\auth-onboarding.spec.ts:138:7 › onboarding keyboard landmark and reflow zh-HK
+  [a11y-375] › tests\e2e\a11y\auth-onboarding.spec.ts:150:7 › onboarding steps retain keyboard focus and announce HTTP failure zh-HK
+  [a11y-375] › tests\e2e\a11y\pricing-contrast.spec.ts:11:9 › pricing primary surfaces contrast en light
+  [a11y-375] › tests\e2e\a11y\pricing-contrast.spec.ts:11:9 › pricing primary surfaces contrast en dark
+  [a11y-375] › tests\e2e\a11y\pricing-contrast.spec.ts:11:9 › pricing primary surfaces contrast zh-HK light
+  [a11y-375] › tests\e2e\a11y\pricing-contrast.spec.ts:11:9 › pricing primary surfaces contrast zh-HK dark
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y home en light
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y pricing en light
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y login en light
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y onboarding en light
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result en light
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y home en dark
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y pricing en dark
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y login en dark
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y onboarding en dark
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result en dark
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y home zh-HK light
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y pricing zh-HK light
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y login zh-HK light
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y onboarding zh-HK light
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result zh-HK light
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y home zh-HK dark
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y pricing zh-HK dark
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y login zh-HK dark
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y onboarding zh-HK dark
+  [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result zh-HK dark
+  [a11y-768] › tests\e2e\a11y\auth-onboarding.spec.ts:103:7 › login keyboard landmark and reflow en
+  [a11y-768] › tests\e2e\a11y\auth-onboarding.spec.ts:116:7 › login announces mocked failure and success en
+  [a11y-768] › tests\e2e\a11y\auth-onboarding.spec.ts:138:7 › onboarding keyboard landmark and reflow en
+  [a11y-768] › tests\e2e\a11y\auth-onboarding.spec.ts:150:7 › onboarding steps retain keyboard focus and announce HTTP failure en
+  [a11y-768] › tests\e2e\a11y\auth-onboarding.spec.ts:103:7 › login keyboard landmark and reflow zh-HK
+  [a11y-768] › tests\e2e\a11y\auth-onboarding.spec.ts:116:7 › login announces mocked failure and success zh-HK
+  [a11y-768] › tests\e2e\a11y\auth-onboarding.spec.ts:138:7 › onboarding keyboard landmark and reflow zh-HK
+  [a11y-768] › tests\e2e\a11y\auth-onboarding.spec.ts:150:7 › onboarding steps retain keyboard focus and announce HTTP failure zh-HK
+  [a11y-768] › tests\e2e\a11y\pricing-contrast.spec.ts:11:9 › pricing primary surfaces contrast en light
+  [a11y-768] › tests\e2e\a11y\pricing-contrast.spec.ts:11:9 › pricing primary surfaces contrast en dark
+  [a11y-768] › tests\e2e\a11y\pricing-contrast.spec.ts:11:9 › pricing primary surfaces contrast zh-HK light
+  [a11y-768] › tests\e2e\a11y\pricing-contrast.spec.ts:11:9 › pricing primary surfaces contrast zh-HK dark
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y home en light
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y pricing en light
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y login en light
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y onboarding en light
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result en light
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y home en dark
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y pricing en dark
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y login en dark
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y onboarding en dark
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result en dark
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y home zh-HK light
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y pricing zh-HK light
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y login zh-HK light
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y onboarding zh-HK light
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result zh-HK light
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y home zh-HK dark
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y pricing zh-HK dark
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y login zh-HK dark
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y onboarding zh-HK dark
+  [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result zh-HK dark
+  [a11y-1024] › tests\e2e\a11y\auth-onboarding.spec.ts:103:7 › login keyboard landmark and reflow en
+  [a11y-1024] › tests\e2e\a11y\auth-onboarding.spec.ts:116:7 › login announces mocked failure and success en
+  [a11y-1024] › tests\e2e\a11y\auth-onboarding.spec.ts:138:7 › onboarding keyboard landmark and reflow en
+  [a11y-1024] › tests\e2e\a11y\auth-onboarding.spec.ts:150:7 › onboarding steps retain keyboard focus and announce HTTP failure en
+  [a11y-1024] › tests\e2e\a11y\auth-onboarding.spec.ts:103:7 › login keyboard landmark and reflow zh-HK
+  [a11y-1024] › tests\e2e\a11y\auth-onboarding.spec.ts:116:7 › login announces mocked failure and success zh-HK
+  [a11y-1024] › tests\e2e\a11y\auth-onboarding.spec.ts:138:7 › onboarding keyboard landmark and reflow zh-HK
+  [a11y-1024] › tests\e2e\a11y\auth-onboarding.spec.ts:150:7 › onboarding steps retain keyboard focus and announce HTTP failure zh-HK
+  [a11y-1024] › tests\e2e\a11y\pricing-contrast.spec.ts:11:9 › pricing primary surfaces contrast en light
+  [a11y-1024] › tests\e2e\a11y\pricing-contrast.spec.ts:11:9 › pricing primary surfaces contrast en dark
+  [a11y-1024] › tests\e2e\a11y\pricing-contrast.spec.ts:11:9 › pricing primary surfaces contrast zh-HK light
+  [a11y-1024] › tests\e2e\a11y\pricing-contrast.spec.ts:11:9 › pricing primary surfaces contrast zh-HK dark
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y home en light
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y pricing en light
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y login en light
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y onboarding en light
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result en light
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y home en dark
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y pricing en dark
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y login en dark
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y onboarding en dark
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result en dark
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y home zh-HK light
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y pricing zh-HK light
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y login zh-HK light
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y onboarding zh-HK light
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result zh-HK light
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y home zh-HK dark
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y pricing zh-HK dark
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y login zh-HK dark
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y onboarding zh-HK dark
+  [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result zh-HK dark
+  [a11y-1440] › tests\e2e\a11y\auth-onboarding.spec.ts:103:7 › login keyboard landmark and reflow en
+  [a11y-1440] › tests\e2e\a11y\auth-onboarding.spec.ts:116:7 › login announces mocked failure and success en
+  [a11y-1440] › tests\e2e\a11y\auth-onboarding.spec.ts:138:7 › onboarding keyboard landmark and reflow en
+  [a11y-1440] › tests\e2e\a11y\auth-onboarding.spec.ts:150:7 › onboarding steps retain keyboard focus and announce HTTP failure en
+  [a11y-1440] › tests\e2e\a11y\auth-onboarding.spec.ts:103:7 › login keyboard landmark and reflow zh-HK
+  [a11y-1440] › tests\e2e\a11y\auth-onboarding.spec.ts:116:7 › login announces mocked failure and success zh-HK
+  [a11y-1440] › tests\e2e\a11y\auth-onboarding.spec.ts:138:7 › onboarding keyboard landmark and reflow zh-HK
+  [a11y-1440] › tests\e2e\a11y\auth-onboarding.spec.ts:150:7 › onboarding steps retain keyboard focus and announce HTTP failure zh-HK
+  [a11y-1440] › tests\e2e\a11y\pricing-contrast.spec.ts:11:9 › pricing primary surfaces contrast en light
+  [a11y-1440] › tests\e2e\a11y\pricing-contrast.spec.ts:11:9 › pricing primary surfaces contrast en dark
+  [a11y-1440] › tests\e2e\a11y\pricing-contrast.spec.ts:11:9 › pricing primary surfaces contrast zh-HK light
+  [a11y-1440] › tests\e2e\a11y\pricing-contrast.spec.ts:11:9 › pricing primary surfaces contrast zh-HK dark
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y home en light
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y pricing en light
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y login en light
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y onboarding en light
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result en light
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y home en dark
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y pricing en dark
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y login en dark
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y onboarding en dark
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result en dark
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y home zh-HK light
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y pricing zh-HK light
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y login zh-HK light
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y onboarding zh-HK light
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result zh-HK light
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y home zh-HK dark
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y pricing zh-HK dark
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y login zh-HK dark
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y onboarding zh-HK dark
+  [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result zh-HK dark
+Total: 938 tests in 34 files

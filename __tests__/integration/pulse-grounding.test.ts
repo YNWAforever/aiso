@@ -38,7 +38,7 @@ async function fixture(test: (scope: PulseScope) => Promise<void>) {
   await sql`insert into accounts(id, plan, status) values (${accountId}, 'basic', 'active')`
   const [client] = await sql`insert into clients(account_id, brand_name) values (${accountId}, 'Grounding Brand') returning id`
   const scope = { accountId, clientId: client.id as string }
-  await sql`insert into prompt_bank(client_id, question, language) values (${scope.clientId}, 'Grounded question', 'en')`
+  await sql`insert into prompt_bank(client_id, question, language, market) values (${scope.clientId}, 'Grounded question', 'en', 'HK')`
   try { await test(scope) } finally {
     await sql`delete from pulse_metrics where client_id = ${scope.clientId}`
     await sql`update pulse_run_items set accepted_attempt_id = null where account_id = ${accountId}`

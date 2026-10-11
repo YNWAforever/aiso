@@ -1,0 +1,4 @@
+
+> fimmick-aeo@0.1.0 lint
+> eslint . --ignore-pattern ".claude/" --ignore-pattern ".superpowers/" --ignore-pattern ".codebase-memory/**" --ignore-pattern "coverage/" --ignore-pattern "cloudflare/**" --ignore-pattern ".playwright-ci-server/**" --ignore-pattern ".worktrees/" --ignore-pattern ".codex/" --ignore-pattern "artifacts/"
+

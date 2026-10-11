@@ -1,3 +1,7 @@
+import {normalizeCitationUrl} from '@/lib/citations/normalize'
+import {normalizeScanUrl} from '@/lib/scan-input'
+import {normalizeVerificationDomain} from '@/lib/domain-verification/schema'
+import {readIndustry} from './industry'
 import { createHash } from 'node:crypto'
 import { isPromptCategory } from '@/lib/prompts/categories'
 import { isPromptLanguage, parsePromptContext, type PromptLanguage, type PromptContext } from '@/lib/prompts/context'
@@ -21,7 +25,11 @@ export function parseOnboardingInput(raw: Record<string, unknown>): OnboardingIn
     if (typeof raw[key] !== 'string' || raw[key].length > max) throw new Error('Invalid onboarding input')
     return raw[key].normalize('NFC').trim() || null
   }
-  const brandName = raw.brandName.normalize('NFC').trim(), domain = text('domain', 255)
+  const brandName = raw.brandName.normalize('NFC').trim(), domainInput = text('domain', 255)
+  const verifiedDomain=domainInput?normalizeVerificationDomain(normalizeScanUrl(domainInput)):null
+  const normalizedDomainUrl=verifiedDomain?normalizeCitationUrl('https://'+verifiedDomain):null
+  const domain=normalizedDomainUrl?new URL(normalizedDomainUrl).hostname:null
+  if(domainInput&&!domain)throw new Error('Invalid domain')
   const scanId = text('scanId', 36), clientId = text('clientId', 36)
   if ([scanId, clientId].some(id => id && !UUID.test(id))) throw new Error('Invalid onboarding input')
   const intentKey = text('intentKey', 128) ?? `legacy:${createHash('sha256').update(`${brandName.toLowerCase()}\n${domain ?? ''}`).digest('hex')}`
@@ -32,7 +40,7 @@ export function parseOnboardingInput(raw: Record<string, unknown>): OnboardingIn
   if (raw.language !== undefined && !isPromptLanguage(raw.language)) throw new Error('Invalid prompt context')
   const region = text('region', 20)
   const context = parsePromptContext({ language: raw.language ?? 'en', market: raw.market }, { market: region })
-  return { intentKey, brandName, domain, scanId, clientId, industry: text('industry', 60), region,
+  return { intentKey, brandName, domain, scanId, clientId, industry: readIndustry(text('industry', 60)), region,
     language: raw.language === undefined ? null : context.language, market: context.market,
     description: text('description', 4000), competitors: [...new Set((raw.competitors as string[] ?? []).map(value => value.trim()))] }
 }
@@ -56,3 +64,5 @@ export function parseSeedPrompts(raw: string, context?: PromptContext): SeedProm
 export function seedKey(prompt: SeedPrompt): string {
   return createHash('sha256').update(JSON.stringify(prompt)).digest('hex')
 }
+
+export function onboardingInputHash(input:OnboardingInput):string {const {intentKey:_intent,clientId:_client,...payload}=input;void _intent;void _client;return createHash('sha256').update(JSON.stringify(payload)).digest('hex')}

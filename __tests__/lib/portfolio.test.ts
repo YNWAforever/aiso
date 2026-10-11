@@ -14,7 +14,7 @@ vi.mock('@/lib/db', () => ({ db: () => async (strings: TemplateStringsArray, ...
 import { loadOwnedPortfolio } from '@/lib/workspace/load-owned-portfolio'
 import { buildPortfolio } from '@/lib/view-models/portfolio'
 const load = (accounts: CommercialAccount = { plan: 'pro', status: 'active', stripe_subscription_id: 'sub' }) => loadOwnedPortfolio({ profile: { account_id: 'account-a', accounts } })
-const observation = { client_id: 'active-a', scan_week: '2026-09-01', platform: null, total_queries: 2, observed_queries: 2, successful_queries: 2, brand_mentions: 0, observed_brand_mentions: 0, sov_score: 0, successful_platform_count: 1 }
+const observation = { client_id: 'active-a', scan_week: '2026-09-01', platform: null, total_queries: 2, observed_queries: 2, collected_queries: 2, successful_queries: 2, brand_mentions: 0, observed_brand_mentions: 0, sov_score: 0, successful_platform_count: 1 }
 beforeEach(() => { state.calls = []; state.failure = ''; state.count = 3; state.clients = [{ id: 'active-a', brand_name: 'Acme', domain: 'example.com', industry: 'technology', status: 'active', account_id: 'DO_NOT_EXPOSE' }]; state.pulse = [] })
 
 describe('owned portfolio read model', () => {
@@ -65,7 +65,7 @@ describe('owned portfolio read model', () => {
   })
   it('normalizes persisted history numbers and timestamps and strips account fields', async () => {
     const dto = buildPortfolio(await load())
-    expect(dto.history.data?.[0]).toEqual({ id: 'scan-a', domain: 'example.com', score: 42, grade: 'D', created_at: '2026-09-06T01:00:00.000Z' })
+    expect(dto.history.data?.[0]).toEqual({ id: 'scan-a', domain: 'example.com', score: null, grade: null, displayState: 'unknown', created_at: '2026-09-06T01:00:00.000Z' })
     expect(JSON.stringify(dto)).not.toContain('DO_NOT_EXPOSE')
     expect(state.calls.find(call => call.text.includes('from scans'))!.text).toMatch(/order by created_at desc, id desc limit 10/)
   })
@@ -88,8 +88,8 @@ describe('owned portfolio read model', () => {
     ]
     const dto = buildPortfolio(await load())
     expect(dto.clients.map(client => client.id)).toEqual(['active-a', 'active-b'])
-    expect(dto.clients[0].visibility).toMatchObject({ state: 'empty', observedAt: '2026-09-08' })
-    expect(dto.clients[1].visibility).toMatchObject({ state: 'ready', observedAt: '2026-08-25', data: { sovScore: 100 } })
+    expect(dto.clients[0].visibility).toMatchObject({ state: 'partial', observedAt: '2026-09-08', data:null })
+    expect(dto.clients[1].visibility).toMatchObject({ state: 'complete', observedAt: '2026-08-25', data: { sovScore: 100 } })
     expect(JSON.stringify(dto)).not.toMatch(/foreign|2099|PRIVATE RAW TEXT|raw_answer/)
     const query = state.calls.find(call => call.text.includes('with owned_clients'))!.text
     expect(query).toContain('max(scan_week) as scan_week from weeks group by client_id')
@@ -99,7 +99,7 @@ describe('owned portfolio read model', () => {
   it('preserves genuine zero visibility with a usable observed denominator', async () => {
     state.pulse = [observation]
     const visibility = buildPortfolio(await load()).clients[0].visibility
-    expect(visibility.state).toBe('ready')
+    expect(visibility.state).toBe('complete')
     expect(visibility.data?.sovScore).toBe(0)
     expect(visibility.observedAt).toBe('2026-09-01')
     expect(visibility.freshness).toBe('unknown')
@@ -107,11 +107,16 @@ describe('owned portfolio read model', () => {
   it('does not fall back to an older aggregate for a newer raw-only week', async () => {
     state.pulse = [observation, { client_id: 'active-a', scan_week: '2026-09-08', platform: null, total_queries: null }]
     const visibility = buildPortfolio(await load()).clients[0].visibility
-    expect(visibility.state).toBe('empty'); expect(visibility.observedAt).toBe('2026-09-08')
+    expect(visibility.state).toBe('partial');expect(visibility.data).toBeNull(); expect(visibility.observedAt).toBe('2026-09-08')
   })
   it.each([{ successful_queries: 0 }, { successful_queries: null }, { observed_brand_mentions: 1 }, { total_queries: 0 }])('shares conservative C8a invalid-observation rule %j', async invalid => {
     state.pulse = [{ ...observation, ...invalid }]
-    expect(buildPortfolio(await load()).clients[0].visibility.state).toBe('empty')
+    const visibility=buildPortfolio(await load()).clients[0].visibility;expect(visibility.state).toBe('partial');expect(visibility.data).toBeNull()
     expect(state.calls.find(call => call.text.includes('with owned_clients'))!.text).toContain("raw_answer ~ '[^[:space:]]'")
   })
 })
+
+it('carries partial classification and unknown legacy expectation into brand cards',async()=>{
+ state.pulse=[{...observation,observed_queries:40,collected_queries:40,total_queries:40,successful_queries:31,observed_brand_mentions:3,brand_mentions:3}];
+ const v=buildPortfolio(await load()).clients[0].visibility;expect(v.state).toBe('partial');expect(v.coverage?.expected).toBeNull();expect(v.data?.sovScore).toBeCloseTo(300/31);
+});

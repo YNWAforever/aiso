@@ -1,0 +1,95 @@
+{
+  "recordedAt": "2026-10-11T15:58:57.792Z",
+  "status": "success",
+  "auditSha": "783e54e3fa99f8c14e4cab84a67b42b0b1513c3c",
+  "baseSha": "27dd057fa6d5ecaae5bbd342e25cc8579e529d3a",
+  "codeSha": "b949145e5cae37d30276e3218403808448fde71e",
+  "headSha": "7abdca34f0e9ea25e1046797ef271039e83c1344",
+  "mergeCheckout": "66b5432b6fa516ca06378d191497facfa3cb1881",
+  "sourceFingerprint": "6c231efca46297fa30dcdf2c36f68895b5dd187607a01d563f85ed36f53c83d7",
+  "parents": [
+    "27dd057fa6d5ecaae5bbd342e25cc8579e529d3a",
+    "7abdca34f0e9ea25e1046797ef271039e83c1344"
+  ],
+  "headTree": "cacd7cfdd43a9083782c36bceb8cf832838b38e7",
+  "mergeTree": "cacd7cfdd43a9083782c36bceb8cf832838b38e7",
+  "sourceMatches": true,
+  "runId": 38150202887,
+  "url": "https://github.com/YNWAforever/aiso/actions/runs/38150202887",
+  "classes": {
+    "static": {
+      "status": "success",
+      "executed": 2,
+      "skipped": 0
+    },
+    "unit-contract": {
+      "status": "success",
+      "executed": 5877,
+      "skipped": 0
+    },
+    "integration": {
+      "status": "success",
+      "executed": 419,
+      "skipped": 0
+    },
+    "e2e-accessibility": {
+      "status": "success",
+      "executed": 938,
+      "skipped": 0
+    },
+    "build": {
+      "status": "success",
+      "executed": 1,
+      "skipped": 0
+    },
+    "cloudflare-worker": {
+      "status": "success",
+      "executed": 1,
+      "skipped": 0
+    }
+  },
+  "aggregate": {
+    "status": "success",
+    "executed": 6,
+    "skipped": 0
+  },
+  "integrationCounts": {
+    "core": {
+      "total": 241,
+      "passed": 241,
+      "failed": 0,
+      "pending": 0,
+      "success": true
+    },
+    "exactTarget": {
+      "total": 178,
+      "passed": 178,
+      "failed": 0,
+      "pending": 0,
+      "suites": 10,
+      "allSuccess": true
+    },
+    "overall": {
+      "total": 419,
+      "passed": 419,
+      "failed": 0,
+      "pending": 0
+    }
+  },
+  "disposableCleanup": {
+    "children": 2,
+    "bothDeleted": true,
+    "migrationsApplied": [
+      68,
+      68
+    ]
+  },
+  "review": {
+    "actionable": 0,
+    "rawReceiptsVerified": true
+  },
+  "hostedAuthAccepted": false,
+  "providerAccepted": false,
+  "productionAccepted": false,
+  "privacy": "No private Neon identities, DSNs, role passwords, provider keys or customer raw data included"
+}

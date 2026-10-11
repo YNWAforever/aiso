@@ -49,6 +49,7 @@ export async function computeWeeklySummary(
         case when to_jsonb(m)->>'classification_status'='classified' then competitors_mentioned else '{}'::text[] end as competitors_mentioned
       from pulse_metrics m
       where client_id = ${clientId}::uuid
+        and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
         and scan_week = date_trunc('week', ${scanWeek}::date)::date
     ),
     -- Competitor tallies need their own grouping sets: unnesting in the main

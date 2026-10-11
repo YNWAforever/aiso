@@ -1,4 +1,6 @@
 'use client'
+import enMessages from '@/messages/en.json'
+import zhMessages from '@/messages/zh-HK.json'
 import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Zap } from 'lucide-react'
@@ -202,6 +204,12 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
     <h1 className="text-2xl font-bold">{ui.collectionFailedTitle}</h1>
     <p>{ui.collectionFailedBody}</p>
     <Link href={`/${lang}/scan`} className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-primary-foreground">{ui.scanAnother}</Link>
+  </main>
+
+  if (summary.score === null || summary.grade === null) return <main className="mx-auto max-w-2xl space-y-4 px-4 py-12" data-testid="collection-unknown">
+    <h1 className="text-2xl font-bold">{(locale === 'zh-HK' ? zhMessages : enMessages).portfolio.scanUnknown}</h1>
+    <ScanEvidencePanel evidence={ownedEvidence ?? null} locale={locale} />
+    <Link href={`/${lang}/scan`}>{ui.scanAnother}</Link>
   </main>
 
   // GEO rich data

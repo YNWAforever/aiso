@@ -28,8 +28,8 @@ export default async function Image({ params }: { params: Promise<{ id: string }
       const summary = buildPublicResultSummary({ ...scan, id, score: Number(scan.score ?? 0), results: scan.results ?? {} as Scan['results'] })
       domain = scan.domain
       collectionFailed = summary.collectionFailed
-      score = collectionFailed || scan.score===null ? null : Math.round(Number(scan.score))
-      grade = scan.grade ?? 'F'
+      score = summary.score === null ? null : Math.round(summary.score)
+      grade = summary.grade ?? ''
       counts = summary.counts
     }
   } catch { /* unknown scan — render generic branded card */ }

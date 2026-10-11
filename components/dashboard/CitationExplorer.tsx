@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { useTranslations } from 'next-intl'
+import {citationQueryParams} from '@/lib/citations/query'
+import { useLocale, useTranslations } from 'next-intl'
 
 import type { CitationKind } from '@/lib/citations/classify'
 import type { CitationDomain, CitationReport } from '@/lib/citations/report'
@@ -22,14 +23,16 @@ export function domainsOfKind(domains: CitationDomain[], kind: CitationKind | 'a
  * cited instead of the brand. Reads the Step 4 report; no writes.
  */
 export function CitationExplorer({ report, clientId }: { report: CitationReport; clientId: string }) {
-  const t = useTranslations('citations')
-  const [kind, setKind] = useState<CitationKind | 'all'>('all')
+  const [exportError,setExportError]=useState(false)
+  const t = useTranslations('citations');const locale=useLocale()
+  const [kind, setKind] = useState<CitationKind | 'all'>(report.query?.kind??'all')
   const typeLabel = (d: { kind: CitationKind; competitor?: string }) =>
     d.kind === 'competitor' && d.competitor ? `${t('kind_competitor')} · ${d.competitor}` : t(`kind_${d.kind}`)
 
-  const present = CITATION_KINDS.filter(k => report.domains.some(d => d.kind === k))
-  const shown = domainsOfKind(report.domains, kind)
-  const csvHref = `/api/dashboard/clients/${encodeURIComponent(clientId)}/citations?format=csv`
+  const present = CITATION_KINDS.filter(k => report.availableKinds?report.availableKinds.includes(k):report.domains.some(d => d.kind === k))
+  const shown = report.query?report.domains:domainsOfKind(report.domains, kind)
+  const queryHref=(updates:Record<string,string|number|undefined>)=>{const p=report.query?citationQueryParams(report.query):new URLSearchParams();for(const [k,v]of Object.entries(updates)){if(v===undefined)p.delete(k);else p.set(k,String(v));}return `/${locale}/dashboard/${clientId}/citations?${p}`}
+  const csvHref = `/api/dashboard/clients/${encodeURIComponent(clientId)}/citations?format=csv${report.query?`&${citationQueryParams(report.query)}`:''}`
   const latest = report.weeks[0]
   const earliest = report.weeks.at(-1)
 
@@ -42,14 +45,22 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
         <p className="text-xs text-muted-foreground">{t('coverage_note')}</p>
       </div>
 
-      {report.domains.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t('empty')}</p>
+      <form method="get" className="flex flex-wrap gap-3" aria-label={t('scope_label')}>
+        {(['domain','platform','promptId','runId','from','to'] as const).map(key=><label key={key} className="text-sm">{t(`scope_${key}`)}<input className="block min-h-11 max-w-full rounded border px-2" type={key==='from'||key==='to'?'date':'text'} name={key} defaultValue={report.query?.[key]??''}/></label>)}
+        {report.query?.kind&&<input type="hidden" name="kind" value={report.query.kind}/>}<button className="min-h-11 rounded border px-3">{t('apply_filters')}</button>
+      </form>
+      <p className="text-sm">{t('scope_note')}{report.pages&&` · ${report.pages.domains.total} ${t('col_site')}`}</p>
+      {report.pages&&<nav aria-label={t('pagination')} className="flex flex-wrap gap-3"><span>{t('page_label',{page:report.pages.domains.page,total:report.pages.domains.total})}</span>{report.query!.page>1&&<a className="min-h-11 underline" href={queryHref({page:report.query!.page-1,evidencePage:1})}>{t('previous')}</a>}{[report.pages.domains,report.pages.urls,report.pages.gaps].some(p=>p.page*p.pageSize<p.total)&&<a className="min-h-11 underline" href={queryHref({page:report.query!.page+1,evidencePage:1})}>{t('next')}</a>}</nav>}
+      {report.evidenceWindow&&<nav aria-label={t('answer_evidence')} className="flex flex-wrap gap-3"><p>{t('evidence_window',{shown:report.evidence?.length??0,total:report.evidenceWindow.total,page:report.evidenceWindow.page})}</p>{report.evidenceWindow.page>1&&<a className="min-h-11 underline" href={queryHref({evidencePage:report.evidenceWindow.page-1})}>{t('previous')}</a>}{report.evidenceWindow.page*report.evidenceWindow.pageSize<report.evidenceWindow.total&&<a className="min-h-11 underline" href={queryHref({evidencePage:report.evidenceWindow.page+1})}>{t('next_evidence')}</a>}</nav>}
+      <section className="space-y-2"><p>{t('gap_'+report.gapCoverage.state,{configured:report.gapCoverage.configuredCompetitors,domains:report.gapCoverage.competitorsWithDomains})}</p>{['not_configured','partial_config'].includes(report.gapCoverage.state)&&<a className="inline-flex min-h-11 items-center underline" href={`/${locale}/dashboard/${clientId}/competitors`}>{t('configure_competitors')}</a>}</section>
+      {report.domains.length === 0 && (!report.pages||report.pages.domains.total===0) ? (
+        <p className="text-sm text-muted-foreground">{report.query?.kind||report.query?.domain?t('filtered_empty'):t('empty')}</p>
       ) : (
         <>
           <section aria-labelledby="citation-gaps-title" className="space-y-2">
             <h2 id="citation-gaps-title" className="text-lg font-bold">{t('gaps_title')}</h2>
             <p className="text-sm text-muted-foreground">{t('gaps_note')}</p>
-            {report.gaps.length === 0 ? <p className="text-sm">{t('gaps_none')}</p> : (
+            {report.gaps.length === 0 ? <p className="text-sm">{report.pages&&report.pages.gaps.total>0?t('gaps_page_empty'):report.gapCoverage.state==='ready'?t('gaps_none'):t('gap_'+report.gapCoverage.state,{configured:report.gapCoverage.configuredCompetitors,domains:report.gapCoverage.competitorsWithDomains})}</p> : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[28rem] text-sm">
                   <thead>
@@ -75,13 +86,13 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
             <h2 id="citation-domains-title" className="text-lg font-bold">{t('domains_title')}</h2>
             <div role="group" aria-label={t('filter_label')} className="flex flex-wrap gap-2">
               {(['all', ...present] as const).map(option => (
-                <button key={option} type="button" aria-pressed={kind === option} onClick={() => setKind(option)}
+                <button key={option} type="button" aria-pressed={kind === option} onClick={() => {setKind(option);if(report.query)window.location.assign(queryHref({kind:option==='all'?undefined:option,page:1,evidencePage:1}))}}
                   className={`min-h-11 rounded-full border px-4 text-sm ${kind === option ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background'}`}>
                   {option === 'all' ? t('filter_all') : t(`kind_${option}`)}
                 </button>
               ))}
             </div>
-            {shown.length === 0 ? <p className="text-sm text-muted-foreground">{t('filtered_empty')}</p> : (
+            {shown.length === 0 ? <p className="text-sm text-muted-foreground">{report.pages&&report.pages.domains.total>0?t('page_empty'):t('filtered_empty')}</p> : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[40rem] text-sm">
                   <thead>
@@ -97,7 +108,7 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
                   <tbody>
                     {shown.map(d => (
                       <tr key={d.domain} className="border-b last:border-0">
-                        <th scope="row" className="py-2 pr-4 text-left font-medium break-all">{d.domain}</th>
+                        <th scope="row" className="py-2 pr-4 text-left font-medium break-all">{d.domain}<a className="block min-h-11 text-xs underline" href={queryHref({domain:d.domain,page:1,evidencePage:1})}>{t('scope_evidence')}</a><details><summary className="min-h-11 text-xs underline">{t('answer_evidence')}</summary><ul>{report.evidence?.filter(e=>e.domain===d.domain).map(e=><li key={`${e.observationId}:${e.url}`}><a className="min-h-11 underline" href={`/${locale}/dashboard/${clientId}/observations?week=${e.week}&observation=${e.observationId}${e.runId?`&run=${e.runId}`:''}`}>{e.question} · {e.platform} · {e.market??t('context_unknown')} · {e.language??t('context_unknown')} · {e.runId??'legacy'}</a></li>)}</ul></details></th>
                         <td className="py-2 pr-4">{typeLabel(d)}</td>
                         <td className="py-2 pr-4 tabular-nums">{d.answers}</td>
                         <td className="py-2 pr-4 tabular-nums">{d.citations}</td>
@@ -131,6 +142,7 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
                           {u.title ?? u.url}
                         </a>
                         {u.title && <span className="block break-all text-xs text-muted-foreground">{u.url}</span>}
+                        <details><summary className="min-h-11 text-xs underline">{t('answer_evidence')}</summary><p className="text-xs">{t('evidence_window',{shown:report.evidence?.filter(e=>e.url===u.url).length??0,total:u.answers,page:report.evidenceWindow?.page??1})}</p><ul>{report.evidence?.filter(e=>e.url===u.url).map(e=><li key={e.observationId}><a className="min-h-11 underline" href={`/${locale}/dashboard/${clientId}/observations?week=${e.week}&observation=${e.observationId}${e.runId?`&run=${e.runId}`:''}`}>{e.question} · {e.platform} · {e.market??t('context_unknown')} · {e.language??t('context_unknown')}</a></li>)}</ul></details>
                       </th>
                       <td className="py-2 pr-4">{typeLabel(u)}</td>
                       <td className="py-2 tabular-nums">{u.answers}</td>
@@ -141,7 +153,9 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
             </div>
           </section>
 
-          <a href={csvHref} download className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline">{t('download')}</a>
+          <p className="text-sm">{t('export_scope',{count:report.pages?.domains.total??report.domains.length})}</p>
+          {exportError&&<p role="alert">{t('export_error')}</p>}
+          <a href={csvHref} download onClick={async event=>{event.preventDefault();setExportError(false);try{const response=await fetch(csvHref,{cache:'no-store'});if(!response.ok)throw new Error('export');const blob=await response.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='cited-sources.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch{setExportError(true)}}} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-accessible underline">{t('download')}</a>
         </>
       )}
     </div>

@@ -663,7 +663,31 @@
     "qb_language": "Question language",
     "qb_market": "Question market",
     "qb_unknown_context": "Unknown language",
-    "qb_unspecified_market": "Market unspecified"
+    "qb_unspecified_market": "Market unspecified",
+    "qb_bulk_title": "Bulk maintenance and CSV import",
+    "qb_bulk_scope": "Selected {count} questions; changes apply only to this selection.",
+    "qb_bulk_frozen": "Changes affect the next monitoring manifest. Running snapshots and saved answers remain intact.",
+    "qb_bulk_filter": "Search questions",
+    "qb_bulk_sort": "Sort",
+    "qb_bulk_question": "Question",
+    "qb_bulk_select_visible": "Select the {count} visible questions",
+    "qb_bulk_clear": "Clear selection",
+    "qb_bulk_keep": "Keep current value",
+    "qb_bulk_active": "Monitoring state",
+    "qb_bulk_enable": "Enable",
+    "qb_bulk_disable": "Disable",
+    "qb_bulk_preview_selected": "Preview selected changes",
+    "qb_bulk_csv": "Paste CSV (question,category,language,market,is_active)",
+    "qb_bulk_preview_csv": "Preview CSV",
+    "qb_bulk_preview": "Change preview",
+    "qb_bulk_preview_count": "Change {count} questions; {active} will be active after confirmation.",
+    "qb_bulk_confirm": "Confirm and save all changes",
+    "qb_bulk_failed": "Read or validation failed; changes were not saved. Correct CSV/context or retry.",
+    "qb_bulk_unknown": "Save response unknown. Retry this same preview; do not create another import.",
+    "qb_bulk_conflict": "Questions changed. Reload and prepare a fresh preview.",
+    "qb_bulk_row_error": "Row {row}: {field} ({code})",
+    "qb_bulk_run_unknown": "Latest run coverage not read or not recorded",
+    "qb_bulk_coverage": "Collected {succeeded}/{expected}; classified {classified}/{expected}"
   },
   "upsell": {
     "title": "Track {domain}'s AI presence every week",
@@ -952,7 +976,9 @@
     "local_trust_timeline_basis": "Scenario: {low}–{high} extra enquiries at the average lead value ({leadValue}) and close rate ({closeRate}) you entered.",
     "local_trust_timeline_movement": "Keyed to a {delta}-point rise since {month}. Turning points into enquiries — one per {lowPoints} points at the low end, one per {highPoints} at the high — is an assumption AISO has not measured.",
     "local_trust_timeline_limitation": "Estimated, not observed. This is arithmetic over the figures you entered. AISO has not measured any enquiry, sale or revenue, and a technical or visibility improvement is not proven search or revenue uplift.",
-    "cited_sources": "Cited sources"
+    "cited_sources": "Cited sources",
+    "select_brand_first": "Select a brand first",
+    "plan_required": "Plan access required"
   },
   "reports": {
     "create_client_report": "Create client report",
@@ -1445,7 +1471,13 @@
     "states": {
       "empty": "No usable observations yet.",
       "error": "This section could not load. Refresh the page later to try again.",
-      "locked": "This section is not included in your current plan."
+      "locked": "This section is not included in your current plan.",
+      "partial": "Partial sample",
+      "complete": "Monitoring results are available",
+      "pending": "Monitoring pending",
+      "failed": "Collection failed",
+      "blocked": "Monitoring blocked",
+      "not_configured": "Monitoring not configured"
     },
     "scan": "Scan website",
     "results": "View results",
@@ -1499,6 +1531,15 @@
         "open-draft": "Continue a private draft",
         "review-opportunities": "Review opportunities"
       }
+    },
+    "evidenceDetails": "Evidence details",
+    "nextStep": {
+      "configure": "Confirm monitoring questions",
+      "start": "Start first monitoring",
+      "repair": "Review or repair monitoring",
+      "results": "Review answers and citations",
+      "opportunities": "Review improvement work",
+      "review": "Review monitoring status"
     }
   },
   "portfolio": {
@@ -1525,7 +1566,10 @@
     "dateZone": "Dates shown in UTC.",
     "grade": "Grade",
     "loadErrorTitle": "Your portfolio could not load",
-    "loadErrorBody": "We could not retrieve your owned brands. Refresh later to try again."
+    "loadErrorBody": "We could not retrieve your owned brands. Refresh later to try again.",
+    "scanIncomplete": "Scan incomplete — view reason",
+    "scanUnknown": "Collection evidence unavailable",
+    "visibilityPartial": "Partial sample"
   },
   "settings": {
     "title": "Settings",
@@ -1570,7 +1614,12 @@
     "platform": "Platform",
     "competitors": "Other mentioned brands",
     "active": "Active",
-    "inactive": "Inactive"
+    "inactive": "Inactive",
+    "partial": "Partial sample",
+    "classifiedCoverage": "{classified}/{recorded} recorded answers classified",
+    "collectionCoverage": "{collected}/{expected} expected answers collected",
+    "legacyCoverage": "Expected run size was not recorded for this legacy sample",
+    "unclassified": "Read unclassified answers"
   },
   "sampleReport": {
     "eyebrow": "Synthetic sample — no customer data",
@@ -1759,9 +1808,12 @@
     "workflowOpportunities": "Edit private drafts",
     "workflowSources": "Review source versions",
     "grounding": "How the answer was produced",
-    "groundingWeb": "Live web search",
-    "groundingNative": "Built-in search (Perplexity)",
-    "groundingNone": "Training data only, no web search"
+    "groundingWeb": "Web search requested",
+    "groundingNative": "Native search capability (execution unknown)",
+    "groundingNone": "Web search not requested",
+    "searchExecution": "Search execution evidence",
+    "searchUnknown": "Provider has not confirmed search execution",
+    "searchConfirmed": "Provider confirmed search execution"
   },
   "opportunities": {
     "title": "Opportunities",
@@ -1829,7 +1881,7 @@
     "collectedAt": "Collection time",
     "unknownCollectionTime": "Collection time not recorded",
     "origin": "Evaluated origin",
-    "unknown": "Not recorded",
+    "unknown": "Unknown",
     "redacted": "Only origins are retained. Page paths, query strings and fragments are withheld; this evidence does not identify an exact page or establish comparable impact.",
     "limitedScan": "This scan retained only limited evidence.",
     "collectionDetails": "Collection details",
@@ -1882,7 +1934,38 @@
     "workflowNote": "Check original observations, edit a private draft, then review the source version. Source approval and permission for agent use are separate. Recommendations do not prove improved exposure.",
     "workflowObservations": "Review observation evidence",
     "workflowOpportunities": "Edit private drafts",
-    "workflowSources": "Review source versions"
+    "workflowSources": "Review source versions",
+    "groupTitle": "Grouped improvement work",
+    "groupEvidence": "Retains {count} evidence sources",
+    "groupPriority": "Ordered by evidence date and source count. Confirm business importance and effort; ROI is unknown.",
+    "groupTargetUnknown": "Target page unconfirmed. Add the specific page and acceptance criteria after saving.",
+    "groupEvidenceDetails": "Review original answer evidence",
+    "groupCitations": "Review citations for this run",
+    "groupSave": "Save one grouped work item",
+    "groupHistoricalConflict": "These sources belong to separate historical drafts. Review them manually; IDs are preserved.",
+    "groupSaveError": "Grouped save was not confirmed. Retry the same evidence.",
+    "groupFeatureDisabled": "Multi-source work is not enabled. Await the administrator configuration.",
+    "operationsTitle": "Improvement execution and acceptance",
+    "operationsNotice": "This records manual work. Saving or marking done does not approve, publish or verify impact.",
+    "operationsError": "Operation not confirmed. Reload its state; do not create another work item.",
+    "targetUrl": "Specific target page (HTTP/HTTPS)",
+    "acceptanceCriteria": "Acceptance criteria",
+    "owner": "Owner",
+    "unassigned": "Unassigned",
+    "dueAt": "Due date",
+    "operationStatus": "Work progress",
+    "operation_todo": "To do",
+    "operation_in_progress": "In progress",
+    "operation_done": "Manually recorded done",
+    "saveOperations": "Save work record",
+    "retestNotice": "Retest retains original questions, context and models; monitoring access and allowance are required. Differences are observations, not guaranteed impact.",
+    "startRetest": "Start separate retest",
+    "openRetest": "View retest status",
+    "compareRetest": "Compare completed observations",
+    "observedDelta": "Comparable observations: mention difference {delta}; causality and ROI unproven.",
+    "notComparable": "Cannot directly compare: {reasons}",
+    "operationsConflict": "This work record changed in another session. Your unsaved changes are retained. Reload the saved version to reconcile before saving.",
+    "reloadOperations": "Reload saved work record"
   },
   "changeSets": {
     "title": "Version review",
@@ -2299,7 +2382,10 @@
       "first_approved_work": "First approved work item",
       "first_export": "First export",
       "first_declared_delivery": "First declared delivery"
-    }
+    },
+    "firstResult": "First classified monitoring result",
+    "firstImprovement": "First improvement draft (not published)",
+    "auditMilestones": "Approval and delivery milestones"
   },
   "members": {
     "title": "Members",
@@ -2474,7 +2560,7 @@
     "title": "Cited sources",
     "intro": "The websites AI answers cite when they answer your monitored questions, over the last 8 weeks. Only sources the AI provider says it used are counted; links that merely appear in an answer are not.",
     "coverage": "{withCitations} answers listed sources · {recordedEmpty} listed none · {unrecorded} have no record of sources",
-    "coverage_note": "Perplexity always lists its sources. GPT, Claude and Gemini only do when web search is turned on.",
+    "coverage_note": "Sources vary by API answer. Search capability or a search request does not guarantee returned citations. These samples are not consumer AI product rankings.",
     "weeks": "{from} to {to}",
     "gaps_title": "Questions where competitors are cited and you are not",
     "gaps_note": "This week's answers to these questions cite a competitor's website but never yours.",
@@ -2503,6 +2589,80 @@
     "download": "Download CSV",
     "empty": "No cited sources yet. They appear once Pulse has answers that list their sources.",
     "filtered_empty": "No websites of this type.",
-    "back": "Back to workspace"
+    "back": "Back to workspace",
+    "gap_not_configured": "Competitor domains are not configured.",
+    "gap_partial_config": "Comparison covers {domains} of {configured} competitors. Add the missing domains.",
+    "gap_no_observations": "Competitors are configured; no citation observations are available yet.",
+    "gap_ready": "Comparison covers {domains} configured competitors.",
+    "configure_competitors": "Configure competitor domains",
+    "scope_label": "Citation scope",
+    "scope_domain": "Site",
+    "scope_platform": "Platform",
+    "scope_promptId": "Prompt ID",
+    "scope_runId": "Run ID",
+    "scope_from": "From",
+    "scope_to": "To",
+    "apply_filters": "Apply filters",
+    "scope_note": "Default: latest 8 recorded weeks. Maximum 2,000 answers; narrow the scope when exceeded.",
+    "pagination": "Citation pages",
+    "page_label": "Page {page}; {total} sites",
+    "previous": "Previous",
+    "next": "Next",
+    "answer_evidence": "Answer evidence",
+    "context_unknown": "Context unknown",
+    "export_scope": "Export all {count} sites in this filtered scope, across every page.",
+    "export_error": "Export failed. Narrow the scope or retry; no partial file was downloaded.",
+    "evidence_window": "Evidence page {page}: showing {shown} of {total} references. Use evidence pages to reach every saved answer.",
+    "next_evidence": "Next evidence page",
+    "scope_evidence": "Explore all evidence for this site",
+    "gaps_page_empty": "No gaps on this page. Other pages contain gaps in this scope.",
+    "page_empty": "No sources on this page. Return to an earlier page in this scope."
+  },
+  "runProgress": {
+    "title": "Monitor your brand",
+    "loading": "Reading monitoring status…",
+    "unavailable": "Monitoring status is unavailable. Reload to recover the saved request.",
+    "start": "Start first monitoring",
+    "repair": "Resume saved work",
+    "retest": "Start a separate retest",
+    "setup": "Confirm questions and context",
+    "disabled": "Monitoring is currently unavailable",
+    "workload": "{prompts} questions × {variants} model variants = {expected} answers",
+    "budget": "Remaining answer workload allowance: {remaining}",
+    "cost": "Provider cost estimate unavailable. Collection, classification and search can incur model charges.",
+    "search": "Optional web-search request: {requested}. Native-search models may also search; actual execution requires provider evidence.",
+    "schedule": "Next scheduled run: unknown",
+    "collected": "Collected {collected}/{expected}",
+    "classified": "Classified {classified}/{collected} collected answers",
+    "results": "Open answers and citations",
+    "legacy": "Saved historical answers are available. Repair their classification without collecting them again.",
+    "legacyLink": "Review saved answers",
+    "states": {
+      "queued": "Queued",
+      "running": "Running",
+      "partial": "Partially complete",
+      "completed": "Complete",
+      "failed": "Failed",
+      "blocked": "Blocked"
+    },
+    "reasons": {
+      "outcome_unknown": "The provider outcome is unknown. Automatic recollection is blocked to avoid another charge.",
+      "provider_not_configured": "The model provider is unavailable.",
+      "entitlement_changed": "The plan no longer allows this model.",
+      "collection_failed": "Collection failed.",
+      "classification_pending": "Saved answers still need classification."
+    },
+    "errors": {
+      "PULSE_NOT_CONFIGURED": "Add active questions before starting.",
+      "PULSE_CONTEXT_UNCONFIRMED": "Confirm the language and market of active questions.",
+      "PULSE_QUOTA_EXCEEDED": "The workload allowance is exhausted; no new work was created.",
+      "PULSE_INTENT_CONFLICT": "This request has a conflicting identity. Reload to inspect the saved work.",
+      "PULSE_LEGACY_REPAIR_REQUIRED": "Repair the saved historical answers first.",
+      "PULSE_ENTITLEMENT_CHANGED": "Your plan does not currently allow this monitoring."
+    },
+    "repairLegacy": "Repair saved answer classification",
+    "repairOutcome": "Classification repair: {classified} classified, {unchanged} unchanged, {failed} failed.",
+    "retestScope": "Separate retest",
+    "canonicalScope": "Canonical weekly run"
   }
 }

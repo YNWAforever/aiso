@@ -1,0 +1,8 @@
+{
+  "codeSha": "b949145e5cae37d30276e3218403808448fde71e",
+  "auditSha": "783e54e3fa99f8c14e4cab84a67b42b0b1513c3c",
+  "mainBase": "27dd057fa6d5ecaae5bbd342e25cc8579e529d3a",
+  "method": "SHA256 of sorted git ls-tree entries excluding docs/; documentation-only descendants must match",
+  "sourceFingerprint": "6c231efca46297fa30dcdf2c36f68895b5dd187607a01d563f85ed36f53c83d7",
+  "entries": 1252
+}

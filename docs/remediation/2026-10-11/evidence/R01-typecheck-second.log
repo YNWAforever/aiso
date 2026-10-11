@@ -1,0 +1,13 @@
+
+> fimmick-aeo@0.1.0 typecheck
+> next typegen && tsc --noEmit
+
+Generating route types...
+✓ Types generated successfully
+__tests__/components/audit-loop-fixture.test.tsx(13,47): error TS2322: Type '{ id: string; client_id: string; question: string; category: string; language: string; market: string; is_active: true; }[]' is not assignable to type 'PromptBankItem[]'.
+  Property 'created_at' is missing in type '{ id: string; client_id: string; question: string; category: string; language: string; market: string; is_active: true; }' but required in type 'PromptBankItem'.
+tests/e2e/audit-action-loop.spec.ts(11,601): error TS2345: Argument of type 'PromptBankItem[]' is not assignable to parameter of type 'PromptBatchRow[]'.
+  Type 'PromptBankItem' is not assignable to type 'PromptBatchRow'.
+    Types of property 'category' are incompatible.
+      Type 'string | null' is not assignable to type 'string'.
+        Type 'null' is not assignable to type 'string'.

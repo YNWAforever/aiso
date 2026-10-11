@@ -46,7 +46,7 @@ function listCollectedFiles(): string[] {
 function testFilesOnDisk(): string[] {
   return (readdirSync('__tests__', { recursive: true, encoding: 'utf8' }) as string[])
     .map(file => `__tests__/${file.replaceAll('\\', '/')}`)
-    .filter(file => TEST_FILE.test(file))
+    .filter(file => TEST_FILE.test(file) && !file.startsWith('__tests__/local-persistence/'))
     .sort()
 }
 

@@ -8,14 +8,14 @@ export type MaintenanceSnapshot={eligible:boolean;ledgerEnabled:boolean;runRead:
 export async function loadMaintenanceSnapshot(accountId:string,clientId:string,eligible:boolean):Promise<MaintenanceSnapshot>{
  const sql=db()
  const [runs,sources,drafts]=await Promise.allSettled([
-  sql`with latest as (select r.* from pulse_runs r join clients c on c.id=r.client_id and c.account_id=r.account_id where r.account_id=${accountId} and r.client_id=${clientId} order by r.scan_week desc,r.id desc limit 1)
+  sql`with latest as (select r.* from pulse_runs r join clients c on c.id=r.client_id and c.account_id=r.account_id where r.account_id=${accountId} and r.client_id=${clientId} and r.purpose='canonical' order by r.scan_week desc,r.id desc limit 1)
    select r.id,r.scan_week::text as week,jsonb_array_length(r.manifest->'items') as expected,count(i.id)::int as actual,
     count(i.id) filter(where i.status='succeeded')::int as succeeded,count(i.id) filter(where i.status='failed')::int as failed,
     count(i.id) filter(where i.status in ('queued','running','retry_wait'))::int as pending,count(i.id) filter(where i.status='blocked')::int as blocked,
     count(i.id) filter(where i.status='succeeded' and i.classification_status='classified')::int as classified,
     count(i.id) filter(where i.status='succeeded' and i.classification_status='classified' and a.classification->>'brandMentioned'='true')::int as mentioned,
     (select to_char(max(done.updated_at) at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') from pulse_runs done
-      where done.account_id=${accountId} and done.client_id=${clientId} and jsonb_array_length(done.manifest->'items')>0
+      where done.account_id=${accountId} and done.client_id=${clientId} and done.purpose='canonical' and jsonb_array_length(done.manifest->'items')>0
       and jsonb_array_length(done.manifest->'items')=(select count(*) from pulse_run_items all_items where all_items.account_id=${accountId} and all_items.client_id=${clientId} and all_items.run_id=done.id)
       and jsonb_array_length(done.manifest->'items')=(select count(*) from pulse_run_items complete where complete.account_id=${accountId} and complete.client_id=${clientId} and complete.run_id=done.id and complete.status='succeeded' and complete.classification_status='classified')
     ) as last_complete_at

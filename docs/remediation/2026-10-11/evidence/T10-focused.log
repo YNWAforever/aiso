@@ -1,0 +1,16 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ✓ __tests__/lib/prompt-bulk.test.ts (2 tests) 6ms
+ ✓ __tests__/components/prompt-bank-network.test.tsx (4 tests) 17ms
+ ✓ __tests__/lib/prompt-context.test.ts (9 tests) 10ms
+ ✓ __tests__/api/prompt-bank.test.ts (47 tests) 57ms
+
+ Test Files  4 passed (4)
+      Tests  62 passed (62)
+   Start at  20:18:26
+   Duration  455ms (transform 404ms, setup 123ms, import 480ms, tests 89ms, environment 0ms)
+

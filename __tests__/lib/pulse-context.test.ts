@@ -15,6 +15,8 @@ it('uses only frozen confirmed context in new collection requests', async () => 
 })
 it('preserves the actual original request contract of an already started legacy run', async () => {
   vi.stubEnv('OPENROUTER_API_KEY', 'synthetic-never-sent')
-  await processLeasedItem({ ...item, snapshot: { question: 'Original?', language: 'legacy', market: null, category: null } }, Date.now() + 45_000)
+  await processLeasedItem({ ...item, snapshot: { question: 'Original?', language: 'zh-HK', market: 'HK', category: null } }, Date.now() + 45_000)
   expect(request.mock.calls[0][0]).toMatchObject({ messages: [{ role: 'user', content: 'Original?' }] })
 })
+
+it('blocks a legacy manifest without confirmed context before collection',async()=>{await processLeasedItem({...item,snapshot:{question:'Original?',language:'legacy',market:null,category:null}},Date.now()+45000);expect(request).not.toHaveBeenCalled()})

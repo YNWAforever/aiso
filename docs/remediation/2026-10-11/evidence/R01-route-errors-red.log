@@ -1,0 +1,30 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ❯ __tests__/api/audit-mutation-errors.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/api/audit-mutation-errors.test.ts [ __tests__/api/audit-mutation-errors.test.ts ]
+Error: [vitest] There was an error when mocking a module. If you are using "vi.mock" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock
+ ❯ app/api/clients/[clientId]/work-items/[workItemId]/operations/route.ts:5:1
+
+
+Caused by: Error: Cannot find package 'server-only' imported from C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/lib/pulse/runs/user-dispatch.ts
+ ❯ lib/pulse/runs/user-dispatch.ts:1:1
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: 'ERR_MODULE_NOT_FOUND' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  21:02:52
+   Duration  259ms (transform 64ms, setup 34ms, import 0ms, tests 0ms, environment 0ms)
+
+JSON report written to C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/artifacts/unit-contract/vitest.json
+JUNIT report written to C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/artifacts/unit-contract/vitest.junit.xml

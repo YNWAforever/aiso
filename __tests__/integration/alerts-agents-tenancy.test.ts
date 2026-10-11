@@ -140,8 +140,9 @@ beforeEach(async () => {
       insert into pulse_weekly_summary (client_id, scan_week, platform, total_queries, brand_mentions, sov_score)
       values (${client}::uuid, ${week}::date, null, 10, 1, ${sov})
     `
-    await sql`insert into prompt_bank(client_id,question,language)values(${client},'Synthetic question one','en'),(${client},'Synthetic question two','en')`
+    await sql`insert into prompt_bank(client_id,question,language,market)values(${client},'Synthetic question one','en','HK'),(${client},'Synthetic question two','en','HK')`
     const scope={accountId:account,clientId:client},run=(await createOrResumeRun(scope,{scanWeek:week,manifest:[{platform:'synthetic',model:'fixture'}]}))!
+    expect(run).not.toBeNull()
     const leases=await claimDueItems(scope,run.id,{owner:'synthetic-alert',leaseUntil:new Date(Date.now()+60000),limit:2})
     for(const lease of leases){
       await commitAttempt(lease,{kind:'succeeded',evidence:{answer:'Synthetic complete answer',actualModel:'fixture',requestId:null,promptTokens:1,completionTokens:1,costUsd:null,httpStatus:200}})

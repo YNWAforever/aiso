@@ -90,7 +90,7 @@ describe('monitor and roi navigation', () => {
     // own locked card and pricing link, which pointer-events-none would hide.
     const sidebar = code(SIDEBAR)
 
-    expect(sidebar).toContain('const blocksNavigation = unreachable')
+    expect(sidebar).toContain('portfolio-brands')
     expect(sidebar).toContain('BRAND_STEPS.has(s.key) && !clientId')
     expect(sidebar).toContain("(s.key === 'roi' && !features.local_trust_roi)")
   })

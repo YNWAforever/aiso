@@ -8,6 +8,7 @@ import { MaintenanceNextSteps } from '@/components/workspace/MaintenanceNextStep
 import type { ObservationCopy } from './copy'
 export type { ObservationCopy } from './copy'
 export type ObservationFilters = {
+  run?:string
   promptId?: string
   platform?: string
   week?: string
@@ -15,6 +16,7 @@ export type ObservationFilters = {
   limit?: string
 }
 type Props = {
+  initialObservationId?:string
   clientId: string
   initial: ObservationResponse
   copy: ObservationCopy
@@ -30,7 +32,7 @@ export function ObservationWorkspace(props: Props) {
 }
 
 function Workspace({
-  clientId,
+  clientId,initialObservationId,
   initial,
   copy,
   lang,
@@ -44,7 +46,7 @@ function Workspace({
   })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
-  const [detailId,setDetailId]=useState<string|null>(null)
+  const [detailId,setDetailId]=useState<string|null>(initialObservationId??null)
   const [platformDraft, setPlatformDraft] = useState(initialFilters.platform ?? '')
   const [platformError, setPlatformError] = useState(false)
   const sequence = useRef(0)

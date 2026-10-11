@@ -149,10 +149,6 @@ const DECLARED: Record<string, string> = {
   'lib/pulse/schedule.ts::countConfiguredClients':
     'Cron scheduling. Returns a single integer — the configuredClients signal that distinguishes ' +
     '"nothing was ever set up" from "nothing was due" — and no row, column or id of any account.',
-  'lib/pulse/summary.ts::computeWeeklySummary':
-    'The weekly rollup, called once per client from pulse/run (route.ts:250) with a clientId the ' +
-    'scheduler selected. That POST resolves the account through the client and checks entitlement ' +
-    'before any of this runs — the documented inversion in CLAUDE.md, not an ungated path.',
 }
 
 /**
@@ -184,7 +180,7 @@ const ACCOUNT_BLIND_BY_DESIGN: Record<string, string> = {
  * it a visible edit.
  */
 // T10 scopes the onboarding prefill to the session or its signed public-scan intent.
-const EXPECTED_UNSCOPED_TOTAL = 16
+const EXPECTED_UNSCOPED_TOTAL = 15
 
 const ROOT = process.cwd()
 const BACKSLASH = String.fromCharCode(92)

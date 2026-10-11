@@ -1,0 +1,3 @@
+import {defineConfig} from 'vitest/config'
+import {resolve} from 'node:path'
+export default defineConfig({test:{environment:'node',globals:true,include:['__tests__/integration/pulse-runs.test.ts','__tests__/local-persistence/**/*.test.ts'],setupFiles:['scripts/ci/local-pg-transport.mjs'],fileParallelism:false,testTimeout:30000,hookTimeout:60000,env:{TEST_DATABASE_URL:'postgresql://fixture_owner@127.0.0.1:55439/aiso_audit_fixture',DATABASE_URL:'postgresql://aeo_app@127.0.0.1:55439/aiso_audit_fixture',EXPECTED_NEON_PROJECT_ID:'local-aiso-audit-fixture',EXPECTED_NEON_BRANCH_ID:'local-20261011-isolated',EXPECTED_DB_ROLE:'aeo_app',EXPECTED_DB_NAME:'aiso_audit_fixture'}},resolve:{alias:{'@':resolve('.'),'next/headers':resolve('__tests__/stubs/next-headers.ts')}}})

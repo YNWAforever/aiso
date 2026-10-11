@@ -1,5 +1,6 @@
 import { computeImpact } from '@/lib/impact'
 import type { Scan } from '@/lib/types'
+import { hasFailedScanEvidence, projectScanStatus } from '@/lib/view-models/scan-status'
 import { readScanEvidence } from '@/lib/scan-evidence'
 import { resolveCheckPriorities } from '@/lib/view-models/check-priority'
 import { projectFactualDensityChecks } from '@/lib/factual-density-evidence'
@@ -14,9 +15,7 @@ export function canViewFullResult(
 /** A recorded collection failure is not a poor website score. Legacy unknown remains unknown. */
 export function hasFailedScanPage(results: Record<string, unknown>): boolean {
   const evidence=readScanEvidence(results.evidence)
-  return !!evidence && evidence.completedPages===0 && (
-    ['failed','blocked'].includes(evidence.collection) || evidence.observations.some(observation=>
-      observation.check==='page' && (['failed','blocked'].includes(observation.collection) || (observation.httpStatus??0)>=400)))
+  return hasFailedScanEvidence(evidence)
 }
 
 export function buildPublicResultSummary(
@@ -25,6 +24,7 @@ export function buildPublicResultSummary(
 ) {
   const results = scan.results as Record<string, { status?: string } | unknown>
   const envelope = readScanEvidence(results.evidence)
+  const display = projectScanStatus({ score: scan.score, grade: scan.grade ?? null, evidence: results.evidence })
   const checks = projectFactualDensityChecks(envelope?.checks ?? Object.fromEntries(Object.keys(results).map(key => [key, {}])), results)
   // Legacy verdicts are retained in storage/owner details; they cannot establish
   // a confirmed fix or a success count without collection evidence.
@@ -41,9 +41,9 @@ export function buildPublicResultSummary(
   return {
     id: scan.id,
     domain: scan.domain,
-    collectionFailed: hasFailedScanPage(results),
-    score: scan.score,
-    grade: scan.grade ?? 'F',
+    collectionFailed: display.state === 'failed',
+    score: display.score,
+    grade: display.grade,
     industry: scan.industry ?? null,
     region: scan.region ?? null,
     createdAt: scan.created_at ?? null,

@@ -1,0 +1,35 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count null unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count undefined unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count -1 unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count unknown unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] history read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] visibility read failed
+
+ ✓ __tests__/lib/portfolio.test.ts (19 tests) 23ms
+ ✓ __tests__/components/recent-scans.test.ts (8 tests) 56ms
+
+ Test Files  2 passed (2)
+      Tests  27 passed (27)
+   Start at  18:45:18
+   Duration  1.62s (transform 219ms, setup 83ms, import 958ms, tests 79ms, environment 0ms)
+

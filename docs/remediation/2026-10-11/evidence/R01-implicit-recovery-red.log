@@ -1,0 +1,43 @@
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ❯ __tests__/local-persistence/audit-remediation.test.ts (17 tests | 1 failed | 16 skipped) 337ms
+   × implicit same-brand recovery cannot change a running or ready seed context 335ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/local-persistence/audit-remediation.test.ts > implicit same-brand recovery cannot change a running or ready seed context
+AssertionError: promise resolved "{ intentKey: 'implicit-original', …(4) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "clientId": "d68f2b27-81af-42b4-9da6-dee6f42c886b",
++   "intentKey": "implicit-original",
++   "progress": {
++     "brand": "ready",
++     "clientId": "d68f2b27-81af-42b4-9da6-dee6f42c886b",
++     "errorCode": null,
++     "promptCount": 0,
++     "prompts": "running",
++     "retryable": false,
++     "scanId": null,
++   },
++   "scanId": null,
++   "trialEndsAt": "2026-10-18T13:39:51.128Z",
+  }
+
+ ❯ __tests__/local-persistence/audit-remediation.test.ts:80:602
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 16 skipped (17)
+   Start at  21:39:48
+   Duration  2.96s (transform 700ms, setup 985ms, import 843ms, tests 337ms, environment 0ms)
+

@@ -1,0 +1,21 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ✓ __tests__/lib/primary-next-step.test.ts (3 tests) 4ms
+ ✓ __tests__/lib/daily-work.test.ts (4 tests) 7ms
+ ✓ __tests__/components/dashboard-sidebar-portfolio.test.tsx (3 tests) 40ms
+stderr | __tests__/lib/workspace-home.test.ts > owned workspace loader > throws for ownership lookup outage, but keeps optional failures distinct
+[workspace] pulse read failed
+
+ ✓ __tests__/lib/workspace-home.test.ts (31 tests) 42ms
+ ✓ __tests__/components/workspace-home-render.test.tsx (3 tests) 36ms
+ ✓ __tests__/components/portfolio-activation.test.tsx (14 tests) 32ms
+
+ Test Files  6 passed (6)
+      Tests  58 passed (58)
+   Start at  20:04:14
+   Duration  676ms (transform 826ms, setup 175ms, import 1.40s, tests 162ms, environment 1ms)
+

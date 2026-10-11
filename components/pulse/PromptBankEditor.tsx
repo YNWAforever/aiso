@@ -1,4 +1,5 @@
 'use client'
+import {PromptBulkPanel} from './PromptBulkPanel'
 import { useEffect, useId, useRef, useState, type RefObject } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { PROMPT_CATEGORIES, promptCategoryLabelKey } from '@/lib/prompts/categories'
@@ -287,11 +288,10 @@ export function PromptBankEditor({ clientId, prompts, onPromptsChange, contextDe
 
   const handleAdd = (prompt: PromptBankItem) => { setPrompts(ps => [...ps, prompt]); setError(null); setStatus(t('qb_saved')) }
 
-  const activeCount = prompts.filter(p => p.is_active).length
 
   return (
     <div>
-      <p className="text-sm text-muted-foreground mb-4">{t('qb_count', { active: activeCount, total: prompts.length })}</p>
+      <PromptBulkPanel clientId={clientId} prompts={prompts} onPromptsChange={onPromptsChange}/>
       <p role="status" className="text-sm text-muted-foreground" aria-live="polite">{status}</p>
       {error && (
         <p role="alert" className="text-xs text-red-600 mb-4">{error}</p>

@@ -116,3 +116,9 @@ describe('buildCitationReport', () => {
     expect(bad.domains).toEqual([])
   })
 })
+
+describe('citation comparison prerequisites',()=>{
+ const answers: CitationAnswer[]=[{scan_week:'2026-10-05',platform:'gpt-4o',prompt_id:'p',question:'Question',provider_citations:[]}];
+ it.each([[[], 'not_configured'],[[{name:'Other',domains:[]}],'partial_config'],[[{name:'Other',domains:['other.example']}],'ready']] as const)('does not equate missing setup with no gap', (competitors,state)=>{expect(buildCitationReport({context:{ownedDomains:[],competitors:competitors.map(c=>({...c,domains:[...c.domains]}))},answers}).gapCoverage.state).toBe(state)});
+ it('distinguishes fully configured with no observations',()=>{expect(buildCitationReport({context:{ownedDomains:[],competitors:[{name:'Other',domains:['other.example']}]},answers:[]}).gapCoverage.state).toBe('no_observations')});
+});

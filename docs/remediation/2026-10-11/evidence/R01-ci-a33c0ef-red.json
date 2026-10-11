@@ -1,0 +1,86 @@
+{
+  "recordedAt": "2026-10-11T15:02:56.657Z",
+  "headSha": "a33c0ef8ddea4d1443126a6a8ab6fcd39547616e",
+  "mergeCheckout": "69446e10cac107a07ad165ad13e06760cda00968",
+  "runId": 38147437065,
+  "url": "https://github.com/YNWAforever/aiso/actions/runs/38147437065",
+  "runConclusion": "failure",
+  "allRequiredGreen": false,
+  "classes": {
+    "static": {
+      "status": "success",
+      "executed": 2,
+      "skipped": 0,
+      "receipts": [
+        "artifacts\\audit\\final-a33c0ef\\static\\static-summary.json"
+      ]
+    },
+    "unit-contract": {
+      "status": "success",
+      "executed": 5877,
+      "skipped": 0,
+      "receipts": [
+        "artifacts\\audit\\final-a33c0ef\\unit\\artifacts\\unit-contract-summary.json"
+      ]
+    },
+    "integration": {
+      "status": "failure",
+      "executed": 419,
+      "skipped": 0,
+      "receipts": [
+        "artifacts\\audit\\final-a33c0ef\\integration\\integration-summary.json"
+      ]
+    },
+    "e2e-accessibility": {
+      "status": "success",
+      "executed": 938,
+      "skipped": 0,
+      "receipts": [
+        "artifacts\\audit\\final-a33c0ef\\e2e-1\\artifacts\\e2e-accessibility-1-summary.json",
+        "artifacts\\audit\\final-a33c0ef\\e2e-2\\artifacts\\e2e-accessibility-2-summary.json",
+        "artifacts\\audit\\final-a33c0ef\\e2e-3\\artifacts\\e2e-accessibility-3-summary.json",
+        "artifacts\\audit\\final-a33c0ef\\e2e-4\\artifacts\\e2e-accessibility-4-summary.json"
+      ]
+    },
+    "build": {
+      "status": "success",
+      "executed": 1,
+      "skipped": 0,
+      "receipts": [
+        "artifacts\\audit\\final-a33c0ef\\build\\build-summary.json"
+      ]
+    },
+    "cloudflare-worker": {
+      "status": "success",
+      "executed": 1,
+      "skipped": 0,
+      "receipts": [
+        "artifacts\\audit\\final-a33c0ef\\worker\\cloudflare-worker-summary.json"
+      ]
+    }
+  },
+  "integration": {
+    "executed": 419,
+    "passed": 401,
+    "failed": 18,
+    "skipped": 0,
+    "core": {
+      "executed": 241,
+      "passed": 231,
+      "failed": 10
+    },
+    "exactTarget": {
+      "executed": 178,
+      "passed": 170,
+      "failed": 8
+    }
+  },
+  "e2e": {
+    "passed": 938,
+    "failed": 0,
+    "skipped": 0,
+    "shards": 4
+  },
+  "classification": "historical RED; not backfilled by local fixture rerun",
+  "privacy": "branch identities, role passwords, DSNs and raw customer data omitted"
+}

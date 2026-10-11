@@ -35,7 +35,7 @@ describe('CitationExplorer', () => {
     const html = render()
     expect(html).toContain('2026-09-28 to 2026-10-05')
     expect(html).toContain('3 answers listed sources · 0 listed none · 1 have no record of sources')
-    expect(html).toContain('GPT, Claude and Gemini only do when web search is turned on.')
+    expect(html).toContain('Search capability or a search request does not guarantee returned citations.')
   })
 
   it('lists questions where a competitor is cited and the brand is not', () => {
@@ -91,3 +91,7 @@ describe('domainsOfKind', () => {
     expect(domainsOfKind(report.domains, 'social')).toEqual([])
   })
 })
+
+it.each(['en','zh-HK'] as const)('renders prerequisite states and never claims no gap without domains in %s',locale=>{
+ const r=buildCitationReport({context:{ownedDomains:[],competitors:[]},answers:[answer({provider_citations:[{url:'https://source.example/x'}]})]});const html=render(r,locale);const c=messages(locale).citations;expect(html).toContain(c.gap_not_configured);expect(html).toContain('/competitors');expect(html).not.toContain(c.gaps_none);
+});

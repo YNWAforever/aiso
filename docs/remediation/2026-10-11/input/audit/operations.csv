@@ -1,0 +1,42 @@
+﻿operation_id,route_or_area,role,control_or_flow,precondition,expected,actual_or_limit,user_case_ids,evidence_ids,coverage,result
+A01,AISO portfolio,AISO Pro既有品牌,品牌及容量讀取,唯讀既有資料；不提交業務寫入,容量、品牌及狀態可讀,顯示1/3品牌、Pro,UC09,E01,live,verified
+A02,AISO portfolio,AISO Pro既有品牌,啟用進度與下一步,唯讀既有資料；不提交業務寫入,下一步直接導向首個可用成果,2/6；來源核准next step無連結,UC01;UC09,E01;E21,live,finding
+A03,AISO portfolio,AISO Pro既有品牌,無品牌選擇的navigation,唯讀既有資料；不提交業務寫入,需先選品牌與方案限制清楚區分,有Pro仍以Locked表示需先選品牌,UC09,E01,live,finding
+A04,AISO add brand,AISO Pro既有品牌,步驟1→2→取消,唯讀既有資料；不提交業務寫入,與正式onboarding共用可恢復設定,兩步表單已查看；未按新增品牌,UC02,E02;E14,live+code,finding
+A05,AISO onboarding,AISO Pro既有品牌,正式流程入口及service,唯讀既有資料；不提交業務寫入,新用戶可完成品牌至首次結果,live只到第一步；四步及seed流程源碼核對,UC01,E14,live+code,finding
+A06,AISO brand home,AISO Pro既有品牌,每日狀態及下一步,唯讀既有資料；不提交業務寫入,執行完整度、最近成功及下次執行明確,上次完整及下次執行均未知,UC03,E03;E17,live+code,finding
+A07,AISO monitor,AISO Pro既有品牌,KPI與平台圖表,唯讀既有資料；不提交業務寫入,partial不當empty；已分類分母透明,部分紀錄時不可用；沒有partial呈現,UC03,E03;E15,live+code,finding
+A08,AISO observations,AISO Pro既有品牌,回答列表與完整度,唯讀既有資料；不提交業務寫入,逐筆狀態及合計可查,40條、31成功、9不完整,UC03,E04,live,verified
+A09,AISO observations,AISO Pro既有品牌,打開原文證據,唯讀既有資料；不提交業務寫入,原文及採集背景可追溯,原文可讀；多項採集背景未知,UC04,E04;E16,live+code,finding
+A10,AISO citations,AISO Pro既有品牌,報表、來源類型及缺口,唯讀既有資料；不提交業務寫入,完整scope與gap前置狀態清楚,35有來源、5未記錄；TOP50及空競爭者缺口,UC07;UC08,E06;E20,live+code,finding
+A11,AISO competitors,AISO Pro既有品牌,讀取及新增表單,唯讀既有資料；不提交業務寫入,設定欄位及數量清楚,0/10；名稱alias/domain欄位可見，未提交,UC08,E07,live,verified
+A12,AISO prompts,AISO Pro既有品牌,列表、逐題編輯控制,唯讀既有資料；不提交業務寫入,市場語言、批次及每題結果容易管理,8/8；缺批次營運及範圍摘要,UC10,E05,live,finding
+A13,AISO opportunities,AISO Pro既有品牌,候選建議,唯讀既有資料；不提交業務寫入,同問題跨平台證據合併成行動,同題多平台多張同標題卡,UC11,E08,live,finding
+A14,AISO opportunities,AISO Pro既有品牌,打開既有草稿,唯讀既有資料；不提交業務寫入,既有草稿及證據可讀,可見title/action/notes及版本入口；未儲存,UC11,E08,live,verified
+A15,AISO sources,AISO Pro既有品牌,列表及import/review入口,唯讀既有資料；不提交業務寫入,來源版本、核准、使用授權可區分,1待核准；approval與agent-use分開；未操作寫入,UC01,E09,live,verified
+A16,AISO history,AISO Pro既有品牌,失敗掃描卡片→詳情,唯讀既有資料；不提交業務寫入,列表與詳情一致顯示失敗無分數,卡片有分數而詳情無可靠分數,UC05,E10;E19,live+code,finding
+A17,AISO public,公開頁面訪客,首頁能力與樣本說明,唯讀既有資料；不提交業務寫入,區分網站就緒與API觀測能力,網站檢查與API樣本分開；沒有當作消費者排名,UC06,E11,live,verified
+A18,AISO public,公開頁面訪客,無效URL提交,唯讀既有資料；不提交業務寫入,拒絕無效hostname,not-a-valid-url即時顯示有效網址錯誤,UC05,E11,live,verified
+A19,AISO citations,AISO Pro既有品牌,CSV輸出範圍,源碼snapshot；不向production發測試請求,CSV範圍完整或明確標示截斷,csv輸出TOP50 report.domains；未download,UC07,E20,code-only,finding
+A20,AISO create API,AISO Pro既有品牌,異常型別及網絡恢復,源碼snapshot；不向production發測試請求,格式錯誤可修正且網絡失敗可重試,缺完整schema及try/finally；未向production發惡意輸入,UC13,E14,code-only,finding
+A21,AISO provider,AISO Pro既有品牌,classification retry及metadata,源碼snapshot；不向production發測試請求,已存原文可只重分類並保留metadata,有raw answer的unknown被compat insert guard阻擋,UC04,E16,code-only,finding
+A22,AISO domain normalization,AISO Pro既有品牌,私有公共後綴,源碼snapshot；不向production發測試請求,獨立hosting租戶不錯合併,手寫suffix對github.io過度聚合,UC12,E24,code-only,finding
+B01,Ansvisor insights,Ansvisor既有品牌使用者,登入、品牌與KPI,唯讀既有資料；不提交業務寫入,可讀取該功能並區分未執行與已驗證成果,登入成功；可見既有品牌及coverage,—,E12,live,verified
+B02,Ansvisor insights,Ansvisor既有品牌使用者,公式說明,唯讀既有資料；不提交業務寫入,可讀取該功能並區分未執行與已驗證成果,visibility拆mention/citation/position；SOV另有分母,—,E12,live,verified
+B03,Ansvisor prompts,Ansvisor既有品牌使用者,批次清單與題目詳情,唯讀既有資料；不提交業務寫入,可讀取該功能並區分未執行與已驗證成果,35題列表，inline及bulk控制；未執行Analyze,—,E12,live,verified
+B04,Ansvisor response,Ansvisor既有品牌使用者,回答原文及引用,唯讀既有資料；不提交業務寫入,可讀取該功能並區分未執行與已驗證成果,抽樣回答及17引用可讀；brand citation另計,—,E12,live,verified
+B05,Ansvisor actions,Ansvisor既有品牌使用者,行動及任務展開,唯讀既有資料；不提交業務寫入,可讀取該功能並區分未執行與已驗證成果,可見行動、signal、task、owner/due；未修改,—,E12,live,verified
+B06,Ansvisor citations,Ansvisor既有品牌使用者,篩選與空白狀態,唯讀既有資料；不提交業務寫入,可讀取該功能並區分未執行與已驗證成果,日期/region/platform/topic/prompt、domains/URLs/gaps；見window提示,—,E12,live,verified
+B07,Ansvisor content,Ansvisor既有品牌使用者,內容機會與狀態,唯讀既有資料；不提交業務寫入,可讀取該功能並區分未執行與已驗證成果,8機會、37signal，可見篩選及Send；僅讀取,—,E13;E23,live+code,verified
+B08,Ansvisor audit,Ansvisor既有品牌使用者,Audit表單及配額,唯讀既有資料；不提交業務寫入,可讀取該功能並區分未執行與已驗證成果,47signal說明及100/100 quota；未執行收費工作,—,E13,live,verified
+B09,Ansvisor traffic,Ansvisor既有品牌使用者,Tracking空白狀態,唯讀既有資料；不提交業務寫入,可讀取該功能並區分未執行與已驗證成果,需安装snippet；無traffic，不作ROI證明,—,E13,live,verified
+B10,Ansvisor brand settings,Ansvisor既有品牌使用者,既有brand設定,唯讀既有資料；不提交業務寫入,可讀取該功能並區分未執行與已驗證成果,General及Tracking可讀，未修改,—,E12,live,verified
+N01,AISO onboarding,待建立隔離驗證情境,新帳戶註冊→建立→seed→首次run,本輪未具備或未執行所需測試情境,可讀取該功能並區分未執行與已驗證成果,未建立新正式帳戶或品牌,—,—,not-tested,not-tested
+N02,AISO scan,待建立隔離驗證情境,有效網址fresh scan／重試及PDF,本輪未具備或未執行所需測試情境,可讀取該功能並區分未執行與已驗證成果,本輪只檢視已存結果與無效輸入,—,—,not-tested,not-tested
+N03,AISO write flows,待建立隔離驗證情境,來源核准、草稿儲存、交付、撤回,本輪未具備或未執行所需測試情境,可讀取該功能並區分未執行與已驗證成果,未變更持久業務資料,—,—,not-tested,not-tested
+N04,AISO authz,待建立隔離驗證情境,跨tenant及多角色寫入隔離,本輪未具備或未執行所需測試情境,可讀取該功能並區分未執行與已驗證成果,沒有第二個隔離帳戶；不是滲透測試,—,—,not-tested,not-tested
+N05,AISO billing/admin,待建立隔離驗證情境,付款、退款、方案及admin改動,本輪未具備或未執行所需測試情境,可讀取該功能並區分未執行與已驗證成果,不在本輪已登入品牌實測範圍,—,—,not-tested,not-tested
+N06,AISO operations,待建立隔離驗證情境,production cron/flag/db完整核實,本輪未具備或未執行所需測試情境,可讀取該功能並區分未執行與已驗證成果,未讀秘密或改排程；配置不等於部署,—,—,not-tested,not-tested
+N07,AISO delivery,待建立隔離驗證情境,email/webhook/CMS發佈,本輪未具備或未執行所需測試情境,可讀取該功能並區分未執行與已驗證成果,未外寄、未發佈,—,—,not-tested,not-tested
+N08,AISO quality,待建立隔離驗證情境,mobile、鍵盤、螢幕閱讀器、性能壓測,本輪未具備或未執行所需測試情境,可讀取該功能並區分未執行與已驗證成果,本輪desktop查核；非完整WCAG/性能認證,—,—,not-tested,not-tested
+N09,Ansvisor execution,待建立隔離驗證情境,Analyze/Audit/Send/export結果,本輪未具備或未執行所需測試情境,可讀取該功能並區分未執行與已驗證成果,只驗證可見控制與既有結果；未觸發執行,—,—,not-tested,not-tested

@@ -1,0 +1,36 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ❯ __tests__/ci/e2e-fixtures.test.ts (4 tests | 1 failed) 12ms
+     ✓ returns a stable scan with core, extended, and GEO results in fixture mode 4ms
+     ✓ is disabled by default 1ms
+     ✓ returns null for an unrecognized scan ID 0ms
+   × numeric success fixture carries validated synthetic page evidence while missing evidence remains unknown 5ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/ci/e2e-fixtures.test.ts > numeric success fixture carries validated synthetic page evidence while missing evidence remains unknown
+AssertionError: expected null to be 63.5 // Object.is equality
+
+- Expected:
+63.5
+
++ Received:
+null
+
+ ❯ __tests__/ci/e2e-fixtures.test.ts:43:302
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 passed (4)
+   Start at  21:56:53
+   Duration  2.04s (transform 582ms, setup 217ms, import 444ms, tests 12ms, environment 0ms)
+
+JSON report written to C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/artifacts/unit-contract/vitest.json
+JUNIT report written to C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/artifacts/unit-contract/vitest.junit.xml

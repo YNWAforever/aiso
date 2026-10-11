@@ -1,0 +1,43 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ✓ __tests__/lib/scan-status.test.ts (7 tests) 21ms
+ ✓ __tests__/lib/result-access.test.ts (3 tests) 21ms
+ ✓ __tests__/lib/report-snapshot.test.ts (15 tests) 28ms
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count null unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count undefined unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count -1 unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps invalid count unknown unavailable instead of zero
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] capacity read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] history read failed
+
+stderr | __tests__/lib/portfolio.test.ts > owned portfolio read model > keeps optional count/history/Pulse failures independent
+[portfolio] visibility read failed
+
+ ✓ __tests__/components/recent-scans.test.ts (10 tests) 46ms
+stderr | __tests__/lib/workspace-home.test.ts > owned workspace loader > throws for ownership lookup outage, but keeps optional failures distinct
+[workspace] pulse read failed
+
+ ✓ __tests__/lib/portfolio.test.ts (19 tests) 40ms
+ ✓ __tests__/lib/workspace-home.test.ts (32 tests) 50ms
+ ✓ __tests__/components/workspace-home-render.test.tsx (3 tests) 28ms
+
+ Test Files  7 passed (7)
+      Tests  89 passed (89)
+   Start at  18:50:15
+   Duration  738ms (transform 1.43s, setup 291ms, import 1.85s, tests 234ms, environment 1ms)
+

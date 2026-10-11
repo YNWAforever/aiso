@@ -17,7 +17,7 @@ beforeAll(async () => {
   vi.stubEnv('EXPECTED_NEON_BRANCH_ID', identity.branch)
   vi.stubEnv('EXPECTED_DB_ROLE', identity.role)
 })
-const prompts = Array.from({ length: 24 }, (_, n) => ({ category: 'brand_query', question: `Synthetic question ${n + 1}?`, language: 'en' }))
+const prompts = Array.from({ length: 24 }, (_, n) => ({ category: 'brand_query', question: `Synthetic question ${n + 1}?`, language: 'en', region: 'HK', market: 'HK' }))
 async function fixture(run: (accountId: string) => Promise<void>) {
   const accountId = randomUUID()
   await sql`insert into accounts (id, plan, status) values (${accountId}, 'basic', 'active')`
@@ -76,11 +76,11 @@ describe('T10 persistent onboarding resume through guarded HTTP SQL', () => {
   it('T11 missing confirmed language saves progress but spends no provider call', async () => fixture(async accountId => {
     const generate = vi.fn(async () => JSON.stringify(prompts))
     const result = await completeOnboarding({ accountId }, parseOnboardingInput({ brandName: 'Legacy without context', intentKey: randomUUID() }), generate)
-    expect(result?.progress).toMatchObject({ prompts: 'failed', promptCount: 0, retryable: true })
+    expect(result?.progress).toMatchObject({ prompts: 'pending', promptCount: 0, retryable: true })
     expect(generate).not.toHaveBeenCalled()
   }))
   it('rolls back the entire seed insertion after a mid-write failure and resumes the saved brand', async () => fixture(async accountId => {
-    const input = parseOnboardingInput({ intentKey: randomUUID(), brandName: 'Rollback synthetic', language: 'en' })
+    const input = parseOnboardingInput({ intentKey: randomUUID(), brandName: 'Rollback synthetic', language: 'en', region: 'HK', market: 'HK' })
     await sql`create function public.t10_fail_seed_fixture() returns trigger language plpgsql as $$
       begin if new.question = 'T10_FAIL_INSERT_SENTINEL' then raise exception 'Synthetic seed write failure'; end if; return new; end $$`
     await sql`create trigger t10_fail_seed_fixture before insert on prompt_bank for each row execute function public.t10_fail_seed_fixture()`
@@ -98,7 +98,7 @@ describe('T10 persistent onboarding resume through guarded HTTP SQL', () => {
     expect(next?.progress.promptCount).toBe(24)
   }))
   it('seed_failure_resumes_same_client and trial without losing draft or manual questions', async () => fixture(async accountId => {
-    const input = parseOnboardingInput({ intentKey: randomUUID(), brandName: 'Synthetic Brand', description: 'Persistent draft', language: 'en' })
+    const input = parseOnboardingInput({ intentKey: randomUUID(), brandName: 'Synthetic Brand', description: 'Persistent draft', language: 'en', region: 'HK', market: 'HK' })
     const first = await completeOnboarding({ accountId }, input, async () => { throw new Error('synthetic timeout') })
     expect(first?.progress).toMatchObject({ prompts: 'failed', promptCount: 0, retryable: true, errorCode: 'ONBOARDING_SEED_FAILED' })
     await sql`insert into prompt_bank (client_id, question) values (${first!.clientId}, 'Manual question survives?')`
@@ -112,7 +112,7 @@ describe('T10 persistent onboarding resume through guarded HTTP SQL', () => {
     expect(draft.draft.description).toBe('Persistent draft')
   }))
   it('two concurrent retries seed exactly once and do not create extra trials or brands', async () => fixture(async accountId => {
-    const input = parseOnboardingInput({ intentKey: randomUUID(), brandName: 'Concurrent synthetic', language: 'en' })
+    const input = parseOnboardingInput({ intentKey: randomUUID(), brandName: 'Concurrent synthetic', language: 'en', region: 'HK', market: 'HK' })
     const generate = vi.fn(async () => JSON.stringify(prompts))
     const results = await Promise.all([completeOnboarding({ accountId }, input, generate), completeOnboarding({ accountId }, input, generate)])
     expect(new Set(results.map(r => r?.clientId)).size).toBe(1)
@@ -137,7 +137,7 @@ describe('T10 persistent onboarding resume through guarded HTTP SQL', () => {
     }
   }))
   it('caps generated insertion at 50 while preserving manual rows', async () => fixture(async accountId => {
-    const input = parseOnboardingInput({ intentKey: randomUUID(), brandName: 'Capped fixture', language: 'en' })
+    const input = parseOnboardingInput({ intentKey: randomUUID(), brandName: 'Capped fixture', language: 'en', region: 'HK', market: 'HK' })
     const initialized = await initializeOnboarding({ accountId }, input)
     await sql`insert into prompt_bank (client_id, question) select ${initialized!.clientId}, 'Manual ' || n from generate_series(1,49) n`
     await completeOnboarding({ accountId }, input, async () => JSON.stringify(prompts))
@@ -146,7 +146,7 @@ describe('T10 persistent onboarding resume through guarded HTTP SQL', () => {
     expect(counts).toMatchObject({ total: 50, manual: 49 })
   }))
   it('fences a late seed worker after lease expiry and preserves the new lease', async () => fixture(async accountId => {
-    const input = parseOnboardingInput({ intentKey: randomUUID(), brandName: 'Fenced fixture', language: 'en' })
+    const input = parseOnboardingInput({ intentKey: randomUUID(), brandName: 'Fenced fixture', language: 'en', region: 'HK', market: 'HK' })
     await initializeOnboarding({ accountId }, input)
     const old = await claimOnboardingSeed({ accountId }, input.intentKey)
     await sql`update onboarding_progress set lease_until = now() - interval '1 second' where account_id = ${accountId}`

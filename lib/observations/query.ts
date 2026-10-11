@@ -1,4 +1,5 @@
 export interface ObservationQuery {
+  runId?:string|null
   promptId: string | null
   platform: string | null
   week: string | null
@@ -7,7 +8,7 @@ export interface ObservationQuery {
   cursor: { recordedAt: string | null; id: string } | null
 }
 
-const QUERY_KEYS = new Set(['promptId', 'platform', 'week', 'result', 'limit', 'cursor'])
+const QUERY_KEYS = new Set(['run', 'promptId', 'platform', 'week', 'result', 'limit', 'cursor'])
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/
 const POSTGRES_TIMESTAMP = /^(\d{4}-\d{2}-\d{2})[T ](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,6})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/
@@ -97,6 +98,7 @@ export function parseObservationQuery(params: URLSearchParams): ObservationQuery
   }
 
   return {
+    ...(params.has('run')?{runId:parseUuid(params.get('run'))}:{}),
     promptId: promptIdValue === null ? null : parseUuid(promptIdValue),
     platform,
     week,

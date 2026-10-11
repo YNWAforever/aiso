@@ -73,3 +73,7 @@ describe('T07 durable Pulse consumer',()=>{
     expect(persistence.commit).toHaveBeenCalledTimes(1)
   })
 })
+
+it('retest completion never rewrites the canonical weekly summary',async()=>{const {p}=ports();p.page=vi.fn(async()=>({runs:[{...run(),purpose:'retest' as const}],cursor:null,exhausted:true}));expect((await consumeDuePulseWork({mode:'repair',owner:'repair',deadlineAt:45000},p)).outcome).toBe('complete');expect(p.summarize).not.toHaveBeenCalled()});
+
+it('rechecks entitlement after claim and prevents newly downgraded collection',async()=>{const {p}=ports();p.refresh=vi.fn(async()=>[]);p.claim=vi.fn().mockResolvedValueOnce([item()]).mockResolvedValue([]);await consumeDuePulseWork({mode:'repair',owner:'repair',deadlineAt:45000},p);expect(p.process).not.toHaveBeenCalled();expect(p.block).toHaveBeenCalledTimes(1)});

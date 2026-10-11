@@ -1,0 +1,20 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ✓ __tests__/onboarding-page.test.ts (6 tests) 13ms
+ ✓ __tests__/lib/onboarding-store-contract.test.ts (2 tests) 9ms
+ ✓ __tests__/lib/onboarding-schema.test.ts (12 tests) 13ms
+ ✓ __tests__/api/brand-creation-contract.test.ts (1 test) 21ms
+ ✓ __tests__/api/onboarding-flow.test.ts (29 tests) 65ms
+ ✓ __tests__/api/dashboard-clients.test.ts (11 tests) 37ms
+ ✓ __tests__/api/onboarding.test.ts (2 tests) 19ms
+ ✓ __tests__/components/onboarding-wizard-bilingual.test.tsx (6 tests) 40ms
+
+ Test Files  8 passed (8)
+      Tests  69 passed (69)
+   Start at  19:17:36
+   Duration  1.10s (transform 1.01s, setup 292ms, import 2.24s, tests 217ms, environment 2ms)
+

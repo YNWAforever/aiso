@@ -1,0 +1,38 @@
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ❯ __tests__/integration/pulse-runs.test.ts (21 tests | 1 failed) 1228ms
+     × manifest survives edited/deleted questions and repairs its original week 43ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > manifest survives edited/deleted questions and repairs its original week
+AssertionError: expected { market: 'HK', category: null, …(4) } to match object { language: 'zh-HK', market: null }
+(4 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "language": "zh-HK",
+-   "market": null,
++   "market": "HK",
+  }
+
+ ❯ __tests__/integration/pulse-runs.test.ts:360:27
+    358|     expect(reused.manifest).toEqual(run.manifest)
+    359|     const item=(await claim(scope,run.id,1))[0]
+    360|     expect(item.snapshot).toMatchObject({language:'zh-HK',market:null})
+       |                           ^
+    361|     expect(item.brand.name).toBe('Synthetic Brand')
+    362|     expect(item.scanWeek).toBe('2026-09-28')
+ ❯ fixture __tests__/integration/pulse-runs.test.ts:47:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 33 passed (34)
+   Start at  21:00:47
+   Duration  3.37s (transform 447ms, setup 105ms, import 649ms, tests 2.33s, environment 0ms)
+

@@ -663,7 +663,31 @@
     "qb_language": "問題語言",
     "qb_market": "問題市場",
     "qb_unknown_context": "語言未知",
-    "qb_unspecified_market": "未指定市場"
+    "qb_unspecified_market": "未指定市場",
+    "qb_bulk_title": "批次維護及 CSV 匯入",
+    "qb_bulk_scope": "已選 {count} 題；僅更改明確選取的題目。",
+    "qb_bulk_frozen": "修改只影響下一次監測；執行中的問題快照及舊回答保持原樣。",
+    "qb_bulk_filter": "搜尋題目",
+    "qb_bulk_sort": "排序",
+    "qb_bulk_question": "問題",
+    "qb_bulk_select_visible": "選取目前顯示的 {count} 題",
+    "qb_bulk_clear": "取消選取",
+    "qb_bulk_keep": "保持現有值",
+    "qb_bulk_active": "監測狀態",
+    "qb_bulk_enable": "啟用",
+    "qb_bulk_disable": "停用",
+    "qb_bulk_preview_selected": "預覽選取修改",
+    "qb_bulk_csv": "貼上 CSV（question,category,language,market,is_active）",
+    "qb_bulk_preview_csv": "預覽 CSV",
+    "qb_bulk_preview": "修改預覽",
+    "qb_bulk_preview_count": "將修改 {count} 題；修改後啟用 {active} 題。",
+    "qb_bulk_confirm": "確認並儲存全部修改",
+    "qb_bulk_failed": "讀取或驗證失敗，未儲存修改。請修正 CSV／背景或重試。",
+    "qb_bulk_unknown": "儲存回應未確認，請用同一預覽重試；不要重新建立匯入。",
+    "qb_bulk_conflict": "題目已被更改，請重新讀取及預覽。",
+    "qb_bulk_row_error": "第 {row} 行：{field}（{code}）",
+    "qb_bulk_run_unknown": "最近監測覆蓋尚未讀取或沒有紀錄",
+    "qb_bulk_coverage": "採集 {succeeded}/{expected}；分類 {classified}/{expected}"
   },
   "upsell": {
     "title": "每週追蹤 {domain} 的 AI 能見度",
@@ -952,7 +976,9 @@
     "local_trust_timeline_basis": "情境：以你輸入的平均潛在客戶價值（{leadValue}）及成交率（{closeRate}）計算，多 {low} 至 {high} 宗查詢。",
     "local_trust_timeline_movement": "此估算對應較 {month} 上升 {delta} 分。把分數換算成查詢數量 —— 低端每 {lowPoints} 分一宗、高端每 {highPoints} 分一宗 —— 是 AISO 並未量度過的假設。",
     "local_trust_timeline_limitation": "這是估算，不是觀察所得。這只是根據你輸入的數字所作的計算。AISO 並未量度過任何查詢、成交或收入；技術或能見度上的改善，並不等於已證實的搜尋或收入提升。",
-    "cited_sources": "被引用的來源"
+    "cited_sources": "被引用的來源",
+    "select_brand_first": "先選擇品牌",
+    "plan_required": "需要方案權益"
   },
   "reports": {
     "create_client_report": "建立客戶報告",
@@ -1445,7 +1471,13 @@
     "states": {
       "empty": "尚未有可用觀察。",
       "error": "暫時無法載入此部分，請稍後重新整理。",
-      "locked": "你目前的方案未包含此部分。"
+      "locked": "你目前的方案未包含此部分。",
+      "partial": "部分樣本",
+      "complete": "監測結果已可查看",
+      "pending": "監測待完成",
+      "failed": "採集失敗",
+      "blocked": "監測受阻",
+      "not_configured": "尚未設定監測"
     },
     "scan": "掃描網站",
     "results": "查看結果",
@@ -1499,6 +1531,15 @@
         "open-draft": "繼續私人草稿",
         "review-opportunities": "查看改善機會"
       }
+    },
+    "evidenceDetails": "證據詳情",
+    "nextStep": {
+      "configure": "確認監測問題",
+      "start": "開始首次監測",
+      "repair": "查看或修復監測",
+      "results": "查看回答與引用",
+      "opportunities": "查看改善工作",
+      "review": "查看監測狀態"
     }
   },
   "portfolio": {
@@ -1525,7 +1566,10 @@
     "dateZone": "日期以 UTC 顯示。",
     "grade": "評級",
     "loadErrorTitle": "未能載入你的品牌組合",
-    "loadErrorBody": "暫時無法取得你持有的品牌，請稍後重新整理再試。"
+    "loadErrorBody": "暫時無法取得你持有的品牌，請稍後重新整理再試。",
+    "scanIncomplete": "掃描未完成／查看原因",
+    "scanUnknown": "採集證據未能確認",
+    "visibilityPartial": "部分樣本"
   },
   "settings": {
     "title": "設定",
@@ -1570,7 +1614,12 @@
     "platform": "平台",
     "competitors": "其他獲提及品牌",
     "active": "啟用",
-    "inactive": "停用"
+    "inactive": "停用",
+    "partial": "部分樣本",
+    "classifiedCoverage": "{classified}／{recorded} 個已記錄回答完成分類",
+    "collectionCoverage": "{collected}／{expected} 個預期回答已採集",
+    "legacyCoverage": "這個舊樣本沒有記錄整次工作的預期數量",
+    "unclassified": "查看未分類回答"
   },
   "sampleReport": {
     "eyebrow": "合成示範 — 不含客戶資料",
@@ -1759,9 +1808,12 @@
     "workflowOpportunities": "修訂私人草稿",
     "workflowSources": "覆核來源版本",
     "grounding": "回答的產生方式",
-    "groundingWeb": "即時網絡搜尋",
-    "groundingNative": "內置搜尋（Perplexity）",
-    "groundingNone": "只用訓練資料，沒有網絡搜尋"
+    "groundingWeb": "已要求網絡搜尋",
+    "groundingNative": "原生搜尋能力（是否執行未知）",
+    "groundingNone": "未要求網絡搜尋",
+    "searchExecution": "搜尋執行證據",
+    "searchUnknown": "供應商未確認搜尋已執行",
+    "searchConfirmed": "供應商已確認搜尋執行"
   },
   "opportunities": {
     "title": "改善機會",
@@ -1829,7 +1881,7 @@
     "collectedAt": "收集時間",
     "unknownCollectionTime": "未記錄收集時間",
     "origin": "已評估的來源網域",
-    "unknown": "未記錄",
+    "unknown": "未知",
     "redacted": "只保留來源網域。頁面路徑、查詢字串及片段已隱去；此證據無法識別確切頁面，也不能證明可比較的成效。",
     "limitedScan": "此掃描只保留了有限證據。",
     "collectionDetails": "收集詳情",
@@ -1882,7 +1934,38 @@
     "workflowNote": "核對觀察原文，整理私人草稿，再覆核來源版本。核准來源與允許代理使用須分別處理；改善建議不代表曝光提升。",
     "workflowObservations": "查看觀察證據",
     "workflowOpportunities": "修訂私人草稿",
-    "workflowSources": "覆核來源版本"
+    "workflowSources": "覆核來源版本",
+    "groupTitle": "合併改善工作",
+    "groupEvidence": "保留 {count} 項證據",
+    "groupPriority": "優先序依據：證據時間、數量；商業重要性及工作量待你確認，ROI 未知。",
+    "groupTargetUnknown": "目標頁尚未確認，儲存後請填寫具體頁面及完成條件。",
+    "groupEvidenceDetails": "查看原始回答證據",
+    "groupCitations": "查看同 run 引用",
+    "groupSave": "儲存一項合併工作",
+    "groupHistoricalConflict": "證據已分屬不同舊草稿，請人工檢視；不自動合併或更換 ID。",
+    "groupSaveError": "合併儲存未確認，請重試相同證據。",
+    "groupFeatureDisabled": "合併來源功能尚未啟用，請待管理員確認設定。",
+    "operationsTitle": "改善執行及驗收",
+    "operationsNotice": "這是人工操作紀錄；儲存或完成不等於核准、發佈或成效確認。",
+    "operationsError": "操作未確認，請重新讀取狀態；不建立第二項工作。",
+    "targetUrl": "具體目標頁（HTTP／HTTPS）",
+    "acceptanceCriteria": "完成條件",
+    "owner": "負責人",
+    "unassigned": "未指派",
+    "dueAt": "期限",
+    "operationStatus": "操作進度",
+    "operation_todo": "待處理",
+    "operation_in_progress": "進行中",
+    "operation_done": "人工記錄完成",
+    "saveOperations": "儲存操作紀錄",
+    "retestNotice": "重測沿用原問題、市場、語言與模型；需有監測權益及配額。結果只顯示觀察差異，不保證改善成效。",
+    "startRetest": "開始獨立重測",
+    "openRetest": "查看重測狀態",
+    "compareRetest": "比較已完成的觀測",
+    "observedDelta": "可比觀測：品牌提及差異 {delta}；未證明因果或 ROI。",
+    "notComparable": "不能直接比較：{reasons}",
+    "operationsConflict": "另一個視窗已更改工作紀錄。已保留你的未儲存內容；請重新載入已儲存版本並核對後再儲存。",
+    "reloadOperations": "重新載入已儲存工作紀錄"
   },
   "changeSets": {
     "title": "版本審核",
@@ -2299,7 +2382,10 @@
       "first_approved_work": "首件已批核工作",
       "first_export": "首次匯出",
       "first_declared_delivery": "首次聲明交付"
-    }
+    },
+    "firstResult": "首次已分類監測結果",
+    "firstImprovement": "首次改善草稿（尚未發佈）",
+    "auditMilestones": "核准及交付里程碑"
   },
   "members": {
     "title": "成員",
@@ -2474,7 +2560,7 @@
     "title": "被引用的來源",
     "intro": "過去 8 週，AI 回答您所監察的問題時所引用的網站。只計算 AI 供應商表明曾使用的來源；僅出現在回答中的連結不計算在內。",
     "coverage": "{withCitations} 個回答列出來源 · {recordedEmpty} 個沒有列出 · {unrecorded} 個沒有來源記錄",
-    "coverage_note": "Perplexity 一定會列出來源；GPT、Claude 和 Gemini 只會在開啟網絡搜尋後列出。",
+    "coverage_note": "API 回答不一定回傳來源。搜尋能力或搜尋請求不保證有引用；這些樣本不代表消費者 AI 產品排名。",
     "weeks": "{from} 至 {to}",
     "gaps_title": "競爭對手被引用而您沒有的問題",
     "gaps_note": "本週這些問題的回答引用了競爭對手的網站，卻從未引用您的網站。",
@@ -2503,6 +2589,80 @@
     "download": "下載 CSV",
     "empty": "尚未有被引用的來源。當 Pulse 的回答列出來源後，便會在此顯示。",
     "filtered_empty": "沒有此類型的網站。",
-    "back": "返回工作區"
+    "back": "返回工作區",
+    "gap_not_configured": "尚未設定競爭對手網域。",
+    "gap_partial_config": "比較涵蓋 {configured} 個競爭對手中的 {domains} 個，請補上缺少的網域。",
+    "gap_no_observations": "已設定競爭對手，尚未有引用觀測。",
+    "gap_ready": "比較涵蓋 {domains} 個已設定競爭對手。",
+    "configure_competitors": "設定競爭對手網域",
+    "scope_label": "引用範圍",
+    "scope_domain": "網站",
+    "scope_platform": "平台",
+    "scope_promptId": "問題 ID",
+    "scope_runId": "Run ID",
+    "scope_from": "開始日期",
+    "scope_to": "結束日期",
+    "apply_filters": "套用篩選",
+    "scope_note": "預設最近 8 個有紀錄的週；最多 2,000 個回答，超出時請縮小範圍。",
+    "pagination": "引用分頁",
+    "page_label": "第 {page} 頁，共 {total} 個網站",
+    "previous": "上一頁",
+    "next": "下一頁",
+    "answer_evidence": "查看回答證據",
+    "context_unknown": "背景未知",
+    "export_scope": "匯出同一篩選範圍的全部 {count} 個網站；不受目前分頁限制。",
+    "export_error": "匯出失敗，請縮小範圍或重試；未下載部分檔案。",
+    "evidence_window": "證據第 {page} 頁：顯示 {total} 個引用中的 {shown} 個。可翻頁查看全部已保存回答。",
+    "next_evidence": "下一頁證據",
+    "scope_evidence": "查看此網站全部證據",
+    "gaps_page_empty": "這一頁沒有差距；此範圍的其他頁仍有差距。",
+    "page_empty": "這一頁沒有來源；請返回此範圍的較早頁面。"
+  },
+  "runProgress": {
+    "title": "監測品牌",
+    "loading": "正在讀取監測狀態…",
+    "unavailable": "暫時無法讀取監測狀態。重新載入可恢復已保存的請求。",
+    "start": "開始首次監測",
+    "repair": "繼續已保存的工作",
+    "retest": "建立獨立重測",
+    "setup": "確認問題與背景",
+    "disabled": "監測目前未可使用",
+    "workload": "{prompts} 個問題 × {variants} 個模型版本 = {expected} 份回答",
+    "budget": "剩餘回答工作量額度：{remaining}",
+    "cost": "暫無供應商費用估算。採集、分類及搜尋可能產生模型費用。",
+    "search": "可選網頁搜尋請求：{requested}。原生搜尋模型亦可能搜尋；實際執行須有供應商證據。",
+    "schedule": "下次排程時間：未知",
+    "collected": "已採集 {collected}/{expected}",
+    "classified": "已分類 {classified}/{collected} 份已採集回答",
+    "results": "查看回答與引用",
+    "legacy": "已有歷史原文。可只修復分類，毋須重新採集原文。",
+    "legacyLink": "查看已保存回答",
+    "states": {
+      "queued": "已排隊",
+      "running": "處理中",
+      "partial": "部分完成",
+      "completed": "全部完成",
+      "failed": "失敗",
+      "blocked": "受阻"
+    },
+    "reasons": {
+      "outcome_unknown": "供應商結果不確定。為免重複收費，已阻止自動重採集。",
+      "provider_not_configured": "模型供應商暫不可用。",
+      "entitlement_changed": "目前方案不允許這個模型。",
+      "collection_failed": "採集失敗。",
+      "classification_pending": "已保存原文仍待分類。"
+    },
+    "errors": {
+      "PULSE_NOT_CONFIGURED": "請先新增啟用中的問題。",
+      "PULSE_CONTEXT_UNCONFIRMED": "請確認啟用中問題的語言與市場。",
+      "PULSE_QUOTA_EXCEEDED": "工作量額度已用盡，沒有新增工作。",
+      "PULSE_INTENT_CONFLICT": "請求身份有衝突。請重新載入查看已保存工作。",
+      "PULSE_LEGACY_REPAIR_REQUIRED": "請先修復已保存的歷史回答。",
+      "PULSE_ENTITLEMENT_CHANGED": "目前方案未提供這項監測。"
+    },
+    "repairLegacy": "只修復已保存回答的分類",
+    "repairOutcome": "分類修復：{classified} 份已分類、{unchanged} 份未變更、{failed} 份失敗。",
+    "retestScope": "獨立重測",
+    "canonicalScope": "每週標準監測"
   }
 }

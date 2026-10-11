@@ -1,0 +1,1074 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+stdout | __tests__/components/prompt-bank-editor.test.tsx
+vite v8.3.4 building client environment for production...
+
+transforming...
+✓ 29 modules transformed.
+rendering chunks...
+computing gzip size...
+stdout | __tests__/components/prompt-bank-editor.test.tsx
+.next/component-fixtures/PROMPT_BANK/fixture.js  250.29 kB │ gzip: 77.55 kB
+
+
+stderr | __tests__/components/prompt-bank-editor.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js" may not be preserved when bundling.
+   ╭─[ node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/prompt-bank-editor.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/pulse/PromptBankEditor.tsx" may not be preserved when bundling.
+   ╭─[ components/pulse/PromptBankEditor.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/prompt-bank-editor.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/pulse/PromptBulkPanel.tsx" may not be preserved when bundling.
+   ╭─[ components/pulse/PromptBulkPanel.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stdout | __tests__/components/prompt-bank-editor.test.tsx
+✓ built in 223ms
+
+ ✓ __tests__/components/prompt-bank-editor.test.tsx (15 tests) 434ms
+stdout | __tests__/components/outcomes-render.test.tsx
+vite v8.3.4 building client environment for production...
+
+transforming...
+✓ 40 modules transformed.
+rendering chunks...
+computing gzip size...
+stdout | __tests__/components/outcomes-render.test.tsx
+.next/component-fixtures/C9F/fixture.js  274.10 kB │ gzip: 83.69 kB
+
+
+stderr | __tests__/components/outcomes-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js" may not be preserved when bundling.
+   ╭─[ node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/outcomes-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/change-sets/VersionWorkspace.tsx" may not be preserved when bundling.
+   ╭─[ components/change-sets/VersionWorkspace.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/outcomes-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/change-sets/DecisionForm.tsx" may not be preserved when bundling.
+   ╭─[ components/change-sets/DecisionForm.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/outcomes-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/change-sets/VersionDetails.tsx" may not be preserved when bundling.
+   ╭─[ components/change-sets/VersionDetails.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/outcomes-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/outcomes/OutcomeWorkspace.tsx" may not be preserved when bundling.
+   ╭─[ components/outcomes/OutcomeWorkspace.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/outcomes-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/opportunities/EvidenceDetails.tsx" may not be preserved when bundling.
+   ╭─[ components/opportunities/EvidenceDetails.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/outcomes-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/outcomes/OutcomeWindows.tsx" may not be preserved when bundling.
+   ╭─[ components/outcomes/OutcomeWindows.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/outcomes-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/delivery/DeliveryWorkspace.tsx" may not be preserved when bundling.
+   ╭─[ components/delivery/DeliveryWorkspace.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/outcomes-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/delivery/DeliveryHistory.tsx" may not be preserved when bundling.
+   ╭─[ components/delivery/DeliveryHistory.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/outcomes-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/delivery/DeliveryForm.tsx" may not be preserved when bundling.
+   ╭─[ components/delivery/DeliveryForm.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stdout | __tests__/components/outcomes-render.test.tsx
+✓ built in 281ms
+
+ ✓ __tests__/components/outcomes-render.test.tsx (24 tests) 467ms
+stdout | __tests__/components/opportunity-render.test.tsx
+vite v8.3.4 building client environment for production...
+
+transforming...
+✓ 35 modules transformed.
+rendering chunks...
+computing gzip size...
+stdout | __tests__/components/opportunity-render.test.tsx
+.next/component-fixtures/C9C/fixture.js  289.49 kB │ gzip: 91.98 kB
+
+
+stderr | __tests__/components/opportunity-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js" may not be preserved when bundling.
+   ╭─[ node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/opportunity-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/opportunities/OpportunityWorkspace.tsx" may not be preserved when bundling.
+   ╭─[ components/opportunities/OpportunityWorkspace.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/opportunity-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/opportunities/GroupedOpportunityCards.tsx" may not be preserved when bundling.
+   ╭─[ components/opportunities/GroupedOpportunityCards.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/opportunity-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/opportunities/EvidenceDetails.tsx" may not be preserved when bundling.
+   ╭─[ components/opportunities/EvidenceDetails.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/opportunity-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/work-items/DraftEditor.tsx" may not be preserved when bundling.
+   ╭─[ components/work-items/DraftEditor.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/opportunity-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/work-items/WorkOperationsPanel.tsx" may not be preserved when bundling.
+   ╭─[ components/work-items/WorkOperationsPanel.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stdout | __tests__/components/opportunity-render.test.tsx
+✓ built in 196ms
+
+ ✓ __tests__/components/opportunity-render.test.tsx (8 tests) 434ms
+stdout | __tests__/components/source-maintenance-fixture.test.tsx
+vite v8.3.4 building client environment for production...
+
+transforming...
+✓ 29 modules transformed.
+rendering chunks...
+computing gzip size...
+stdout | __tests__/components/source-maintenance-fixture.test.tsx
+.next/component-fixtures/AISO_SOURCES/fixture.js  252.55 kB │ gzip: 77.31 kB
+
+
+stderr | __tests__/components/source-maintenance-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js" may not be preserved when bundling.
+   ╭─[ node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/source-maintenance-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/sources/SourcePackWorkspace.tsx" may not be preserved when bundling.
+   ╭─[ components/sources/SourcePackWorkspace.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stdout | __tests__/components/source-maintenance-fixture.test.tsx
+✓ built in 170ms
+
+ ✓ __tests__/components/source-maintenance-fixture.test.tsx (2 tests) 350ms
+stdout | __tests__/components/audit-loop-fixture.test.tsx
+vite v8.3.4 building client environment for production...
+
+transforming...
+✓ 36 modules transformed.
+rendering chunks...
+computing gzip size...
+stdout | __tests__/components/audit-loop-fixture.test.tsx
+.next/component-fixtures/AISO_AUDIT_LOOP/fixture.js  266.86 kB │ gzip: 80.98 kB
+
+
+stderr | __tests__/components/audit-loop-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/opportunities/GroupedOpportunityCards.tsx" may not be preserved when bundling.
+   ╭─[ components/opportunities/GroupedOpportunityCards.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/audit-loop-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js" may not be preserved when bundling.
+   ╭─[ node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/audit-loop-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/work-items/DraftEditor.tsx" may not be preserved when bundling.
+   ╭─[ components/work-items/DraftEditor.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/audit-loop-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/pulse/PromptBulkPanel.tsx" may not be preserved when bundling.
+   ╭─[ components/pulse/PromptBulkPanel.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/audit-loop-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/dashboard/CitationExplorer.tsx" may not be preserved when bundling.
+   ╭─[ components/dashboard/CitationExplorer.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/audit-loop-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/opportunities/EvidenceDetails.tsx" may not be preserved when bundling.
+   ╭─[ components/opportunities/EvidenceDetails.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/audit-loop-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/work-items/WorkOperationsPanel.tsx" may not be preserved when bundling.
+   ╭─[ components/work-items/WorkOperationsPanel.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stdout | __tests__/components/audit-loop-fixture.test.tsx
+✓ built in 179ms
+
+ ✓ __tests__/components/audit-loop-fixture.test.tsx (3 tests) 263ms
+ ✓ __tests__/components/portfolio-render.test.tsx (3 tests) 51ms
+stdout | __tests__/components/observation-render.test.tsx
+vite v8.3.4 building client environment for production...
+
+transforming...
+✓ 15 modules transformed.
+rendering chunks...
+computing gzip size...
+stdout | __tests__/components/observation-render.test.tsx
+.next/component-fixtures/C9B/observation-fixture.js  202.99 kB │ gzip: 63.64 kB
+
+
+stderr | __tests__/components/observation-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/observations/ObservationWorkspace.tsx" may not be preserved when bundling.
+   ╭─[ components/observations/ObservationWorkspace.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/observation-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/observations/ObservationDetail.tsx" may not be preserved when bundling.
+   ╭─[ components/observations/ObservationDetail.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stdout | __tests__/components/observation-render.test.tsx
+✓ built in 149ms
+
+ ✓ __tests__/components/observation-render.test.tsx (19 tests) 229ms
+stdout | __tests__/components/change-set-render.test.tsx
+vite v8.3.4 building client environment for production...
+
+transforming...
+✓ 40 modules transformed.
+rendering chunks...
+computing gzip size...
+stdout | __tests__/components/change-set-render.test.tsx
+.next/component-fixtures/C9D/fixture.js  274.10 kB │ gzip: 83.69 kB
+
+
+stderr | __tests__/components/change-set-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js" may not be preserved when bundling.
+   ╭─[ node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/change-set-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/change-sets/VersionWorkspace.tsx" may not be preserved when bundling.
+   ╭─[ components/change-sets/VersionWorkspace.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/change-set-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/change-sets/DecisionForm.tsx" may not be preserved when bundling.
+   ╭─[ components/change-sets/DecisionForm.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/change-set-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/change-sets/VersionDetails.tsx" may not be preserved when bundling.
+   ╭─[ components/change-sets/VersionDetails.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/change-set-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/outcomes/OutcomeWorkspace.tsx" may not be preserved when bundling.
+   ╭─[ components/outcomes/OutcomeWorkspace.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/change-set-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/opportunities/EvidenceDetails.tsx" may not be preserved when bundling.
+   ╭─[ components/opportunities/EvidenceDetails.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/change-set-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/delivery/DeliveryWorkspace.tsx" may not be preserved when bundling.
+   ╭─[ components/delivery/DeliveryWorkspace.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/change-set-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/outcomes/OutcomeWindows.tsx" may not be preserved when bundling.
+   ╭─[ components/outcomes/OutcomeWindows.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/change-set-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/delivery/DeliveryForm.tsx" may not be preserved when bundling.
+   ╭─[ components/delivery/DeliveryForm.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+stdout | __tests__/components/change-set-render.test.tsx
+✓ built in 171ms
+
+ ✓ __tests__/components/change-set-render.test.tsx (8 tests) 275ms
+
+stderr | __tests__/components/change-set-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/delivery/DeliveryHistory.tsx" may not be preserved when bundling.
+   ╭─[ components/delivery/DeliveryHistory.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stdout | __tests__/components/approver-access-render.test.tsx
+vite v8.3.4 building client environment for production...
+
+transforming...
+✓ 26 modules transformed.
+rendering chunks...
+computing gzip size...
+stdout | __tests__/components/approver-access-render.test.tsx
+.next/component-fixtures/C9D_APPROVERS/fixture.js  238.57 kB │ gzip: 74.55 kB
+
+
+stderr | __tests__/components/approver-access-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/approvals/ApproverAccessWorkspace.tsx" may not be preserved when bundling.
+   ╭─[ components/approvals/ApproverAccessWorkspace.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/approver-access-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js" may not be preserved when bundling.
+   ╭─[ node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stdout | __tests__/components/approver-access-render.test.tsx
+✓ built in 175ms
+
+ ✓ __tests__/components/approver-access-render.test.tsx (4 tests) 237ms
+ ✓ __tests__/components/workspace-home-render.test.tsx (3 tests) 74ms
+ ✓ __tests__/components/pulse-view-render.test.tsx (5 tests) 43ms
+stdout | __tests__/components/delivery-render.test.tsx
+vite v8.3.4 building client environment for production...
+
+transforming...
+✓ 40 modules transformed.
+rendering chunks...
+computing gzip size...
+stdout | __tests__/components/delivery-render.test.tsx
+.next/component-fixtures/C9E/fixture.js  274.10 kB │ gzip: 83.69 kB
+
+
+stderr | __tests__/components/delivery-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js" may not be preserved when bundling.
+   ╭─[ node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/delivery-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/change-sets/VersionWorkspace.tsx" may not be preserved when bundling.
+   ╭─[ components/change-sets/VersionWorkspace.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/delivery-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/change-sets/DecisionForm.tsx" may not be preserved when bundling.
+   ╭─[ components/change-sets/DecisionForm.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/delivery-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/change-sets/VersionDetails.tsx" may not be preserved when bundling.
+   ╭─[ components/change-sets/VersionDetails.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/delivery-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/outcomes/OutcomeWorkspace.tsx" may not be preserved when bundling.
+   ╭─[ components/outcomes/OutcomeWorkspace.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/delivery-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/opportunities/EvidenceDetails.tsx" may not be preserved when bundling.
+   ╭─[ components/opportunities/EvidenceDetails.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/delivery-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/outcomes/OutcomeWindows.tsx" may not be preserved when bundling.
+   ╭─[ components/outcomes/OutcomeWindows.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/delivery-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/delivery/DeliveryWorkspace.tsx" may not be preserved when bundling.
+   ╭─[ components/delivery/DeliveryWorkspace.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/delivery-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/delivery/DeliveryForm.tsx" may not be preserved when bundling.
+   ╭─[ components/delivery/DeliveryForm.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/delivery-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/delivery/DeliveryHistory.tsx" may not be preserved when bundling.
+   ╭─[ components/delivery/DeliveryHistory.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stdout | __tests__/components/delivery-render.test.tsx
+✓ built in 181ms
+
+ ✓ __tests__/components/delivery-render.test.tsx (5 tests) 263ms
+ ✓ __tests__/components/top-issue-card.test.tsx (6 tests) 53ms
+stdout | __tests__/components/entity-render.test.tsx
+vite v8.3.4 building client environment for production...
+
+transforming...
+✓ 21 modules transformed.
+rendering chunks...
+computing gzip size...
+stdout | __tests__/components/entity-render.test.tsx
+.next/component-fixtures/C9A/entity-fixture.js  227.34 kB │ gzip: 71.93 kB
+
+
+stderr | __tests__/components/entity-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/entities/EntityEditor.tsx" may not be preserved when bundling.
+   ╭─[ components/entities/EntityEditor.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stdout | __tests__/components/entity-render.test.tsx
+✓ built in 162ms
+
+ ✓ __tests__/components/entity-render.test.tsx (2 tests) 209ms
+stdout | __tests__/components/onboarding-wizard-bilingual.test.tsx
+vite v8.3.4 building client environment for production...
+
+transforming...
+✓ 1725 modules transformed.
+rendering chunks...
+computing gzip size...
+stdout | __tests__/components/onboarding-wizard-bilingual.test.tsx
+.next/component-fixtures/AISO_ONBOARDING/fixture.js  210.02 kB │ gzip: 66.63 kB
+
+
+stderr | __tests__/components/onboarding-wizard-bilingual.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/onboarding/OnboardingWizard.tsx" may not be preserved when bundling.
+   ╭─[ components/onboarding/OnboardingWizard.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/onboarding-wizard-bilingual.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "node_modules/lucide-react/dist/esm/context.mjs" may not be preserved when bundling.
+   ╭─[ node_modules/lucide-react/dist/esm/context.mjs:2:1 ]
+   │
+ 2 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/onboarding-wizard-bilingual.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "node_modules/lucide-react/dist/esm/Icon.mjs" may not be preserved when bundling.
+   ╭─[ node_modules/lucide-react/dist/esm/Icon.mjs:2:1 ]
+   │
+ 2 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stdout | __tests__/components/onboarding-wizard-bilingual.test.tsx
+✓ built in 428ms
+
+ ✓ __tests__/components/onboarding-wizard-bilingual.test.tsx (6 tests) 478ms
+stdout | __tests__/components/draft-render.test.tsx
+vite v8.3.4 building client environment for production...
+
+transforming...
+✓ 30 modules transformed.
+rendering chunks...
+computing gzip size...
+stdout | __tests__/components/draft-render.test.tsx
+.next/component-fixtures/C9C_DRAFT/fixture.js  246.40 kB │ gzip: 76.60 kB
+
+
+stderr | __tests__/components/draft-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js" may not be preserved when bundling.
+   ╭─[ node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/draft-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/work-items/DraftEditor.tsx" may not be preserved when bundling.
+   ╭─[ components/work-items/DraftEditor.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/draft-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/opportunities/EvidenceDetails.tsx" may not be preserved when bundling.
+   ╭─[ components/opportunities/EvidenceDetails.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/draft-render.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/work-items/WorkOperationsPanel.tsx" may not be preserved when bundling.
+   ╭─[ components/work-items/WorkOperationsPanel.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stdout | __tests__/components/draft-render.test.tsx
+✓ built in 188ms
+
+ ✓ __tests__/components/draft-render.test.tsx (3 tests) 256ms
+stdout | __tests__/components/auth-return-fixture.test.tsx
+vite v8.3.4 building client environment for production...
+
+transforming...
+✓ 279 modules transformed.
+rendering chunks...
+computing gzip size...
+stdout | __tests__/components/auth-return-fixture.test.tsx
+.next/component-fixtures/AUTH_RETURN/fixture.js  562.21 kB │ gzip: 155.17 kB
+
+
+stderr | __tests__/components/auth-return-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/auth/AuthComplete.tsx" may not be preserved when bundling.
+   ╭─[ components/auth/AuthComplete.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/auth-return-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/auth/LoginForm.tsx" may not be preserved when bundling.
+   ╭─[ components/auth/LoginForm.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/auth-return-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js" may not be preserved when bundling.
+   ╭─[ node_modules/next-intl/dist/esm/development/shared/NextIntlClientProvider.js:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/auth-return-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "lib/auth-client.ts" may not be preserved when bundling.
+   ╭─[ lib/auth-client.ts:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stdout | __tests__/components/auth-return-fixture.test.tsx
+✓ built in 228ms
+
+stdout | __tests__/components/auth-return-fixture.test.tsx
+vite v8.3.4 building client environment for production...
+
+transforming...
+✓ 256 modules transformed.
+rendering chunks...
+computing gzip size...
+stdout | __tests__/components/auth-return-fixture.test.tsx
+.next/component-fixtures/AUTH_RETURN/sdk-fixture.js  521.29 kB │ gzip: 141.68 kB
+
+
+stderr | __tests__/components/auth-return-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/auth/AuthComplete.tsx" may not be preserved when bundling.
+   ╭─[ components/auth/AuthComplete.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stderr | __tests__/components/auth-return-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "lib/auth-client.ts" may not be preserved when bundling.
+   ╭─[ lib/auth-client.ts:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stdout | __tests__/components/auth-return-fixture.test.tsx
+✓ built in 147ms
+
+ ✓ __tests__/components/auth-return-fixture.test.tsx (1 test) 429ms
+ ✓ __tests__/components/settings-render.test.tsx (3 tests) 25ms
+stdout | __tests__/components/domain-verification-first-use.test.tsx
+vite v8.3.4 building client environment for production...
+
+transforming...
+✓ 13 modules transformed.
+rendering chunks...
+computing gzip size...
+stdout | __tests__/components/domain-verification-first-use.test.tsx
+.next/component-fixtures/C9A/verification-fixture.js  194.27 kB │ gzip: 61.28 kB
+
+
+stderr | __tests__/components/domain-verification-first-use.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/entities/DomainVerificationPanel.tsx" may not be preserved when bundling.
+   ╭─[ components/entities/DomainVerificationPanel.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stdout | __tests__/components/domain-verification-first-use.test.tsx
+✓ built in 173ms
+
+ ✓ __tests__/components/domain-verification-first-use.test.tsx (3 tests) 218ms
+stdout | __tests__/components/first-pulse-fixture.test.tsx
+vite v8.3.4 building client environment for production...
+
+transforming...
+✓ 16 modules transformed.
+rendering chunks...
+computing gzip size...
+stdout | __tests__/components/first-pulse-fixture.test.tsx
+.next/component-fixtures/AISO_FIRST_PULSE/fixture.js  456.45 kB │ gzip: 151.53 kB
+
+
+stderr | __tests__/components/first-pulse-fixture.test.tsx
+[MODULE_LEVEL_DIRECTIVE] The semantics of the module level directive "use client" in "components/pulse/RunProgress.tsx" may not be preserved when bundling.
+   ╭─[ components/pulse/RunProgress.tsx:1:1 ]
+   │
+ 1 │ "use client";
+   │ ──────┬──────  
+   │       ╰──────── module level directive may not be preserved
+   │ 
+   │ Help: For more information, see https://rolldown.rs/in-depth/directives#other-directives
+───╯
+
+
+stdout | __tests__/components/first-pulse-fixture.test.tsx
+✓ built in 170ms
+
+ ✓ __tests__/components/first-pulse-fixture.test.tsx (2 tests) 261ms
+
+ Test Files  20 passed (20)
+      Tests  125 passed (125)
+   Start at  21:01:26
+   Duration  13.14s (transform 893ms, setup 235ms, import 4.63s, tests 5.05s, environment 2ms)
+
+JSON report written to C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/artifacts/unit-contract/vitest.json
+JUNIT report written to C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/artifacts/unit-contract/vitest.junit.xml

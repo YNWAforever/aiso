@@ -6,7 +6,7 @@ import { claimDueItems, commitAttempt, createOrResumeRun, readRunCoverage } from
 import {classifySavedAnswers} from './classification'
 import { readPulseTarget } from './queue'
 import type { LeasedItem, ProviderEvidence, PulseScope } from './schema'
-import { promptCollectionMessages } from '@/lib/prompts/context'
+import { promptCollectionMessages,isPromptLanguage,isPromptMarket } from '@/lib/prompts/context'
 import { groundingFor, webSearchAllowance } from '@/lib/pulse/grounding'
 import { pulseAnswerMaxTokens } from '@/lib/pulse/limits'
 
@@ -28,6 +28,7 @@ function collectWith(webSearchAllowed: boolean): CollectAnswer {
 const collect = collectWith(false)
 
 export async function processLeasedItem(item: LeasedItem, deadlineAt: number, collector: CollectAnswer = collect) {
+  if(!isPromptLanguage(item.snapshot.language)||!isPromptMarket(item.snapshot.market))return commitAttempt(item,{kind:'blocked',errorCode:'PULSE_CONTEXT_UNCONFIRMED'})
   let evidence: ProviderEvidence
   if (!process.env.OPENROUTER_API_KEY && defaultCollectors.has(collector)) {
     return await commitAttempt(item,{kind:'blocked',errorCode:'PROVIDER_NOT_CONFIGURED'})
@@ -51,27 +52,26 @@ export async function processLeasedItem(item: LeasedItem, deadlineAt: number, co
   return committed
 }
 
-export async function runPulseChunk(scope: PulseScope, options: { scanWeek:string; platforms:string[]; limit:number; deadlineAt:number }, collector?: CollectAnswer) {
+export async function runPulseChunk(scope: PulseScope, options: { scanWeek:string; platforms:string[]; limit:number; deadlineAt:number;runId?:string }, collector?: CollectAnswer) {
   const target = await readPulseTarget(scope.clientId)
   if (!target || target.accountId !== scope.accountId) throw new Error('Run scope unavailable')
   const platforms = options.platforms.filter(platform => target.allowedPlatforms.includes(platform))
   const manifest = modelVariantsFor(platforms)
   if (!manifest.length) throw new Error('Run scope unavailable')
   const allowedModels = new Set(manifest.map(variant => variant.model))
-  const run = await createOrResumeRun(scope,{scanWeek:options.scanWeek,manifest})
+  const run = await createOrResumeRun(scope,{scanWeek:options.scanWeek,manifest,...(options.runId?{intent:{kind:'repair' as const,sourceRunId:options.runId,intentKey:'repair:'+options.runId}}:{})})
   if (!run) throw new Error('Run scope unavailable')
   // Decided once per chunk against this week's grounded-answer cap; an injected
   // collector (tests) is used as given.
   const chunkCollector = collector ?? collectWith((await webSearchAllowance(db(),scope.accountId,run.scanWeek)).allowed)
   const items = await claimDueItems(scope,run.id,{owner:`http:${crypto.randomUUID()}`,leaseUntil:new Date(options.deadlineAt),limit:Math.min(5,Math.max(1,options.limit))})
   // Resumed manifests are immutable and can still include a previous plan's models.
-  const results = await Promise.allSettled(items.map(item => allowedModels.has(item.model)
-    ? processLeasedItem(item,options.deadlineAt,chunkCollector)
-    : commitAttempt(item,{kind:'blocked',errorCode:'PLAN_HAS_NO_PLATFORMS'})))
-  await classifySavedAnswers(scope,run.id,options.deadlineAt)
+  const results = await Promise.allSettled(items.map(async item => {const live=await readPulseTarget(scope.clientId);const allowed=live?.accountId===scope.accountId&&allowedModels.has(item.model)&&modelVariantsFor(live.allowedPlatforms).some(v=>v.model===item.model);return allowed?processLeasedItem(item,options.deadlineAt,chunkCollector):commitAttempt(item,{kind:'blocked',errorCode:'PLAN_HAS_NO_PLATFORMS'})}))
+  const live=await readPulseTarget(scope.clientId)
+  if(live?.accountId===scope.accountId&&live.allowedPlatforms.length)await classifySavedAnswers(scope,run.id,options.deadlineAt)
   const coverage = await readRunCoverage(scope,run.id)
   let summary = null
-  if (coverage.status === 'completed') summary = await computeWeeklySummary(db(),{clientId:scope.clientId,scanWeek:run.scanWeek})
+  if (coverage.status === 'completed'&&run.purpose!=='retest') summary = await computeWeeklySummary(db(),{clientId:scope.clientId,scanWeek:run.scanWeek})
   return { pulseRunId:run.id,scanWeek:run.scanWeek,coverage,processed:results.filter(r => r.status === 'fulfilled' && r.value === 'committed').length,
     nextCursor:coverage.pending > 0 ? 0 : null,citations:0,platforms:platforms.length,summary,
     outcome:results.some(r => r.status === 'rejected') || coverage.classified < coverage.succeeded ? 'partial' : coverage.status }

@@ -1,0 +1,17 @@
+Retrieving project…
+Deploying ynwaforevers-projects/aiso-audit-fixture-20261011
+Uploading [--------------------] (0.0B/7.3MB)
+Uploading [=====---------------] (1.8MB/7.3MB)
+Uploading [==========----------] (3.6MB/7.3MB)
+Uploading [===============-----] (5.5MB/7.3MB)
+Uploading [====================] (7.3MB/7.3MB)
+Inspect: https://vercel.com/ynwaforevers-projects/aiso-audit-fixture-20261011/DzaL96bV2hqZ8iVTqo6N3qda43Si [24s]
+Production: https://aiso-audit-fixture-20261011-kn2cshueh-ynwaforevers-projects.vercel.app [24s]
+Building...
+Building...
+Building: Running build in Washington, D.C., USA (East) – iad1
+Building: Build machine configuration: 4 cores, 8 GB
+Building: Retrieving list of deployment files...
+Building: Previous build caches not available.
+Building: Downloading 119 deployment files...
+Error: The pattern "app/api/scan/route.ts" defined in `functions` doesn't match any Serverless Functions inside the `api` directory.

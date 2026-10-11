@@ -38,7 +38,7 @@ describe('loadObservationSnapshot', () => {
     sqlMock.mockResolvedValue([snapshot()])
     await loadObservationSnapshot(ACCOUNT, CLIENT, query('promptId=' + PROMPT + '&platform=chatgpt&result=incomplete'))
     const { text, values } = captured()
-    expect(text).toMatch(/owned as \( select id, account_id from clients where id = \? and account_id = \? \)/)
+    expect(text).toContain('owned as ( select id, account_id from clients where id = ? and account_id = ? and (?::uuid is null or exists(select 1 from pulse_runs selected_run')
     expect(text.match(/from pulse_metrics m join owned c on c.id = m.client_id/g)).toHaveLength(2)
     expect(text).toContain('from prompt_bank p join owned c on c.id = p.client_id')
     expect(text).toContain('left join prompt_bank p on p.id = m.prompt_id and p.client_id = m.client_id and p.client_id = c.id')

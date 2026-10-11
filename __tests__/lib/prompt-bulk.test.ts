@@ -1,0 +1,4 @@
+import {it,expect} from 'vitest'
+import {parsePromptCsv,previewPromptRows} from '@/lib/prompts/bulk'
+it('parses quoted commas, newlines, escaped quotes and BOM',()=>{const rows=parsePromptCsv('\ufeffquestion,category,language,market,is_active\r\n"A, B\nC ""quote""",brand_query,en,HK,true');expect(rows[0].question).toBe('A, B\nC "quote"')})
+it('validates every row and refuses duplicates and limits',()=>{const row={question:'Unique',category:'brand_query',language:'en',market:'HK',is_active:true};expect(previewPromptRows([],Array.from({length:24},(_,i)=>({...row,question:'q'+i}))).errors).toEqual([]);expect(previewPromptRows([],[row,row]).duplicates).toEqual([2]);expect(previewPromptRows([],Array.from({length:51},(_,i)=>({...row,question:'q'+i}))).errors.some(e=>e.code==='PROMPT_LIMIT_REACHED')).toBe(true);expect(previewPromptRows([],[{...row,language:'fake',market:'',question:' '}]).errors.length).toBeGreaterThan(0)})

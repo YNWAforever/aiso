@@ -31,6 +31,7 @@ export default async function ObservationsPage({
   const href = `/${lang}/dashboard/${encodeURIComponent(clientId)}/observations`
   const query = new URLSearchParams()
   for (const key of [
+    'run',
     'promptId',
     'platform',
     'week',
@@ -70,12 +71,14 @@ export default async function ObservationsPage({
   ) as ObservationCopy
   return (
     <ObservationWorkspace
+      initialObservationId={typeof raw.observation==='string'&&/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(raw.observation)?raw.observation:undefined}
       clientId={clientId}
       initial={initial}
       copy={copy}
       lang={lang}
       runPanel={runId?<RunTroubleshooting data={runData} error={runError} lang={lang} clientId={clientId} filter={runFilter}/>:undefined}
       initialFilters={{
+        run:runId??undefined,
         promptId: typeof raw.promptId === 'string' ? raw.promptId : undefined,
         platform: typeof raw.platform === 'string' ? raw.platform : undefined,
         week: typeof raw.week === 'string' ? raw.week : undefined,

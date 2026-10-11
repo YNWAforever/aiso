@@ -1,4 +1,5 @@
 import 'server-only'
+import { projectScanStatus } from '@/lib/view-models/scan-status'
 import { db } from '@/lib/db'
 import { resolveCommercialEntitlement, type CommercialAccount, type EffectivePlan } from '@/lib/tier'
 import { projectObservedSummary, type ObservedPulseSummary } from '@/lib/pulse/observed-summary'
@@ -51,13 +52,13 @@ export async function loadOwnedPortfolio({ profile }: { profile: { account_id: s
     }, null),
     optional('history', async () => {
       const scans = await sql`
-        select id, domain, score, grade, created_at from scans
+        select id, domain, score, grade, created_at, results->'evidence' as evidence from scans
         where account_id = ${accountId} order by created_at desc, id desc limit 10
       `
       return scans.map(row => {
         const score = numeric(row.score)
-        if (score === null) throw new Error('Unavailable stored score')
-        return { id: row.id as string, domain: row.domain as string, score, grade: typeof row.grade === 'string' ? row.grade : null, created_at: timestamp(row.created_at) }
+        const display = projectScanStatus({ score, grade: typeof row.grade === 'string' ? row.grade : null, evidence: row.evidence })
+        return { id: row.id as string, domain: row.domain as string, score: display.score, grade: display.grade, displayState: display.state, created_at: timestamp(row.created_at) }
       })
     }, []),
     ids.length ? optional('visibility', async () => {
@@ -67,19 +68,20 @@ export async function loadOwnedPortfolio({ profile }: { profile: { account_id: s
         ), weeks as (
           select s.client_id, s.scan_week from pulse_weekly_summary s join owned_clients c on c.id = s.client_id
           union
-          select m.client_id, m.scan_week from pulse_metrics m join owned_clients c on c.id = m.client_id
+          select m.client_id, m.scan_week from pulse_metrics m join owned_clients c on c.id = m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
         ), latest_weeks as (
           select client_id, max(scan_week) as scan_week from weeks group by client_id
         ), observations as (
           select m.client_id, m.scan_week, count(*)::int as observed_queries,
-            count(*) filter (where m.brand_mentioned = true and m.raw_answer ~ '[^[:space:]]')::int as observed_brand_mentions,
+     count(*) filter(where m.raw_answer ~ '[^[:space:]]')::int as collected_queries,
+            count(*) filter (where to_jsonb(m)->>'classification_status'='classified' and m.brand_mentioned = true and m.raw_answer ~ '[^[:space:]]')::int as observed_brand_mentions,
             count(*) filter (where to_jsonb(m)->>'classification_status'='classified' and m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_queries,
-            count(distinct m.platform) filter (where m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_platform_count
-          from pulse_metrics m join owned_clients c on c.id = m.client_id
+            count(distinct m.platform) filter (where to_jsonb(m)->>'classification_status'='classified' and m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_platform_count
+          from pulse_metrics m join owned_clients c on c.id = m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
           join latest_weeks w on w.client_id = m.client_id and w.scan_week = m.scan_week
           group by m.client_id, m.scan_week
         )
-        select s.*, w.client_id, w.scan_week, o.observed_queries, o.observed_brand_mentions, o.successful_queries, o.successful_platform_count
+        select s.*, w.client_id, w.scan_week, o.observed_queries,o.collected_queries, o.observed_brand_mentions, o.successful_queries, o.successful_platform_count
         from latest_weeks w
         left join pulse_weekly_summary s on s.client_id = w.client_id and s.scan_week = w.scan_week and s.platform is null
         left join observations o on o.client_id = w.client_id and o.scan_week = w.scan_week

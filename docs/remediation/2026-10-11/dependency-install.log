@@ -1,0 +1,27 @@
+npm warn deprecated @react-email/components@1.0.12: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/section@0.0.17: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/row@0.0.13: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/link@0.0.13: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/html@0.0.12: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/container@0.0.16: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/head@0.0.13: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/hr@0.0.12: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/img@0.0.12: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/column@0.0.14: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/font@0.0.10: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/heading@0.0.16: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/code-inline@0.0.6: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/preview@0.0.14: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/text@0.1.6: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/body@0.3.0: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/button@0.2.1: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/markdown@0.0.18: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/tailwind@2.0.7: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @react-email/code-block@0.2.1: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+
+added 684 packages, and audited 685 packages in 34s
+
+201 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities

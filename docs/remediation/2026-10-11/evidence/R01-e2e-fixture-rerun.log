@@ -1,0 +1,193 @@
+[WebServer] (node:24320) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[globalSetup] In-memory E2E fixture ready — ID: e2e00000-0000-4000-a000-000000000001
+
+Running 28 tests using 4 workers
+
+(node:49148) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:13280) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:36268) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1500) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:36268) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:13280) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:49148) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1500) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+  ok  3 [chromium] › tests\e2e\email-gate.spec.ts:18:7 › Account unlock on a seeded public result › shows one account unlock without the private breakdown (2.1s)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+  ok  2 [chromium] › tests\e2e\email-gate.spec.ts:45:7 › Account unlock on a seeded public result › invalid email format prevents submission (3.7s)
+  ok  1 [chromium] › tests\e2e\email-gate.spec.ts:29:7 › Account unlock on a seeded public result › magic-link callback preserves locale and scan ID (3.7s)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+  ok  5 [chromium] › tests\e2e\scan-flow.spec.ts:48:7 › Scan to result journey › fixture result page loads and shows a numeric score (1.9s)
+[WebServer] [funnel] rate-limit-failed
+(node:23564) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23564) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:42760) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:42760) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+  ok  6 [chromium] › tests\e2e\scan-flow.spec.ts:56:7 › Scan to result journey › fixture result page shows the email capture gate (1.9s)
+  ok  4 [chromium] › tests\e2e\accessibility.spec.ts:70:5 › fixture result page has no blocking accessibility violations before and after email unlock (5.7s)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+  ok  8 [mobile] › tests\e2e\email-gate.spec.ts:18:7 › Account unlock on a seeded public result › shows one account unlock without the private breakdown (1.8s)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+  ok  9 [mobile] › tests\e2e\scan-flow.spec.ts:48:7 › Scan to result journey › fixture result page loads and shows a numeric score (2.9s)
+[WebServer] [funnel] rate-limit-failed
+  ok  7 [mobile] › tests\e2e\accessibility.spec.ts:70:5 › fixture result page has no blocking accessibility violations before and after email unlock (7.2s)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+  ok 10 [mobile] › tests\e2e\scan-flow.spec.ts:56:7 › Scan to result journey › fixture result page shows the email capture gate (2.7s)
+(node:37212) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:37212) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:26660) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:26660) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+  ok 12 [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result en light (3.9s)
+[WebServer] [funnel] rate-limit-failed
+  ok 11 [mobile] › tests\e2e\email-gate.spec.ts:29:7 › Account unlock on a seeded public result › magic-link callback preserves locale and scan ID (5.1s)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+  ok 13 [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result zh-HK light (3.0s)
+(node:18452) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:18452) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:29200) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:29200) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+(node:13232) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15424) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:13232) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15424) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 15 [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result zh-HK dark (3.6s)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+  ok 17 [a11y-375] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result en dark (4.0s)
+  ok 16 [mobile] › tests\e2e\email-gate.spec.ts:45:7 › Account unlock on a seeded public result › invalid email format prevents submission (5.4s)
+  ok 14 [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result en light (8.9s)
+(node:13180) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:13180) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+(node:13760) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:13760) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12044) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12044) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 18 [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result en dark (3.3s)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+  ok 19 [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result zh-HK light (4.1s)
+  ok 20 [a11y-768] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result zh-HK dark (4.3s)
+(node:41176) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:41176) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+(node:7292) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:7292) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16468) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16468) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+  ok 21 [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result zh-HK dark (4.6s)
+(node:41652) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:41652) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+  ok 22 [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result en dark (5.2s)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+(node:41688) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:41688) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 23 [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result zh-HK light (5.6s)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+  ok 24 [a11y-1024] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result en light (5.4s)
+(node:4432) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4432) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+(node:22188) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22188) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 25 [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result en light (5.9s)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+  ok 26 [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result zh-HK light (4.2s)
+  ok 27 [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result zh-HK dark (3.1s)
+(node:49024) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:49024) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [funnel] rate-limit-failed
+[WebServer] [funnel] rate-limit-failed
+  ok 28 [a11y-1440] › tests\e2e\a11y\scan.spec.ts:115:11 › a11y result en dark (2.0s)
+[globalTeardown] In-memory E2E fixture has no cleanup side effect.
+
+  28 passed (1.3m)

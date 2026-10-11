@@ -1,0 +1,237 @@
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+ ❯ __tests__/integration/pulse-runs.test.ts (21 tests | 16 failed) 589ms
+     × preserves provider citations through accepted attempt and tenant-scoped detail 55ms
+     × T15 reads partial coverage and scoped failed items without mutating run evidence 29ms
+     × T09 original answer, model and question snapshots survive edits across two weeks 24ms
+     × T08 retries classification using the saved answer without collecting it again 21ms
+     × T08 fallback/legacy evidence stays outside classified and sentiment denominators 20ms
+     × T08 concurrent and stale classifiers cannot overwrite a fenced result or tenant 20ms
+     × T07 raw-only and partial rollups cannot create definite alerts 20ms
+     × T07 lost self-call recovers on a new repair consumer in the original week 27ms
+     × T07 backoff and maximum three attempts persist across consumers 23ms
+     × two simultaneous creators share one immutable manifest with tenant-scoped coverage 35ms
+     × three_by_five_has_fifteen_items after first question entirely fails 24ms
+     × two_workers_one_item_one_commit and rerun_keeps_success 24ms
+     × expired collection is blocked with unknown cost and stale workers cannot overwrite it 23ms
+     × manifest survives edited/deleted questions and repairs its original week 37ms
+     × classifier outage retains raw answer and does not classify it 20ms
+     × provider success followed by DB failure rolls back acceptance and remains recoverable 19ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 16 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > preserves provider citations through accepted attempt and tenant-scoped detail
+TypeError: Cannot read properties of null (reading 'id')
+ ❯ __tests__/integration/pulse-runs.test.ts:64:41
+     62|   it('preserves provider citations through accepted attempt and tenant…
+     63|     const run=(await runFor(scope))!
+     64|     const [lease]=await claim(scope,run.id,1)
+       |                                         ^
+     65|     const providerCitations=[{url:'https://source.example/report',titl…
+     66|     expect(await commitAttempt(lease,{kind:'succeeded',evidence:{...ev…
+ ❯ fixture __tests__/integration/pulse-runs.test.ts:47:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/16]⎯
+
+ FAIL  __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > T15 reads partial coverage and scoped failed items without mutating run evidence
+TypeError: Cannot read properties of null (reading 'id')
+ ❯ __tests__/integration/pulse-runs.test.ts:77:40
+     75|   it('T15 reads partial coverage and scoped failed items without mutat…
+     76|     const run=(await runFor(scope))!
+     77|     const leased=await claim(scope,run.id,15)
+       |                                        ^
+     78|     expect(leased).toHaveLength(15)
+     79|     for(const [index,item]of leased.entries())await commitAttempt(item…
+ ❯ fixture __tests__/integration/pulse-runs.test.ts:47:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/16]⎯
+
+ FAIL  __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > T09 original answer, model and question snapshots survive edits across two weeks
+TypeError: Cannot read properties of null (reading 'id')
+ ❯ __tests__/integration/pulse-runs.test.ts:133:41
+    131|     for(const week of ['2026-09-14','2026-09-21']){
+    132|       const run=(await createOrResumeRun(scope,{scanWeek:week,manifest…
+    133|       const item=(await claim(scope,run.id,1))[0]
+       |                                         ^
+    134|       await commitAttempt(item,{kind:'succeeded',evidence:{...evidence…
+    135|     }
+ ❯ fixture __tests__/integration/pulse-runs.test.ts:47:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/16]⎯
+
+ FAIL  __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > T08 retries classification using the saved answer without collecting it again
+TypeError: Cannot read properties of null (reading 'id')
+ ❯ __tests__/integration/pulse-runs.test.ts:152:52
+    150|     const run=(await createOrResumeRun(scope,{scanWeek:'2026-09-21',ma…
+    151|     const collect=vi.fn(async()=>({...evidence,answer:'Synthetic Brand…
+    152|     await processLeasedItem((await claim(scope,run.id,1))[0],Date.now(…
+       |                                                    ^
+    153|     const classifier=vi.fn<typeof import('@/lib/pulse/analysis').analy…
+    154|       .mockRejectedValueOnce(new Error('Synthetic analysis outage'))
+ ❯ fixture __tests__/integration/pulse-runs.test.ts:47:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/16]⎯
+
+ FAIL  __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > T08 fallback/legacy evidence stays outside classified and sentiment denominators
+TypeError: Cannot read properties of null (reading 'id')
+ ❯ __tests__/integration/pulse-runs.test.ts:172:39
+    170|   it('T08 fallback/legacy evidence stays outside classified and sentim…
+    171|     const run=(await createOrResumeRun(scope,{scanWeek:'2026-09-21',ma…
+    172|     const item=(await claim(scope,run.id,1))[0]
+       |                                       ^
+    173|     await commitAttempt(item,{kind:'succeeded',evidence:{...evidence,a…
+    174|     const classifier=vi.fn<typeof import('@/lib/pulse/analysis').analy…
+ ❯ fixture __tests__/integration/pulse-runs.test.ts:47:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/16]⎯
+
+ FAIL  __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > T08 concurrent and stale classifiers cannot overwrite a fenced result or tenant
+TypeError: Cannot read properties of null (reading 'id')
+ ❯ __tests__/integration/pulse-runs.test.ts:190:48
+    188|   it('T08 concurrent and stale classifiers cannot overwrite a fenced r…
+    189|     const run=(await createOrResumeRun(scope,{scanWeek:'2026-09-21',ma…
+    190|     await commitAttempt((await claim(scope,run.id,1))[0],{kind:'succee…
+       |                                                ^
+    191|     const leases=await Promise.all([claimClassifications(scope,run.id,…
+    192|     expect(leases.flat()).toHaveLength(1)
+ ❯ fixture __tests__/integration/pulse-runs.test.ts:47:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/16]⎯
+
+ FAIL  __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > T07 raw-only and partial rollups cannot create definite alerts
+TypeError: Cannot read properties of null (reading 'id')
+ ❯ __tests__/integration/pulse-runs.test.ts:219:40
+    217|   it('T07 raw-only and partial rollups cannot create definite alerts',…
+    218|     const run=(await createOrResumeRun(scope,{scanWeek:currentScanWeek…
+    219|     const lease=(await claim(scope,run.id,1))[0]
+       |                                        ^
+    220|     await commitAttempt(lease,{kind:'succeeded',evidence})
+    221|     await recordClassification(lease,{status:'classified',method:'synt…
+ ❯ fixture __tests__/integration/pulse-runs.test.ts:47:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/16]⎯
+
+ FAIL  __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > T07 lost self-call recovers on a new repair consumer in the original week
+TypeError: Cannot read properties of null (reading 'id')
+ ❯ __tests__/integration/pulse-runs.test.ts:244:101
+    242|     }}
+    243|     const first=await consumeDuePulseWork({mode:'repair',owner:'lost-s…
+    244|     expect(first).toMatchObject({outcome:'partial',processed:5,remaini…
+       |                                                                                                     ^
+    245|     const second=await consumeDuePulseWork({mode:'repair',owner:'next-…
+    246|       {...pulseWorkerPorts(),process:(i,end)=>processLeasedItem(i,end,…
+ ❯ fixture __tests__/integration/pulse-runs.test.ts:47:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/16]⎯
+
+ FAIL  __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > T07 backoff and maximum three attempts persist across consumers
+TypeError: Cannot read properties of null (reading 'id')
+ ❯ __tests__/integration/pulse-runs.test.ts:256:42
+    254|     const run=(await createOrResumeRun(scope,{scanWeek:'2026-09-21',ma…
+    255|     for(let n=1;n<=3;n++){
+    256|       const lease=(await claim(scope,run.id,1))[0]
+       |                                          ^
+    257|       expect(lease.attempt).toBe(n)
+    258|       await commitAttempt(lease,{kind:'failed',errorCode:'SYNTHETIC_CO…
+ ❯ fixture __tests__/integration/pulse-runs.test.ts:47:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/16]⎯
+
+ FAIL  __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > two simultaneous creators share one immutable manifest with tenant-scoped coverage
+TypeError: Cannot read properties of null (reading 'id')
+ ❯ __tests__/integration/pulse-runs.test.ts:308:49
+    306|     const runs=await Promise.all([runFor(scope),runFor(scope)])
+    307|     expect(runs[0]?.id).toBe(runs[1]?.id)
+    308|     expect(await readRunCoverage(scope,runs[0]!.id)).toMatchObject({ex…
+       |                                                 ^
+    309|     vi.stubEnv('FEATURE_PULSE_ATTEMPTS','1')
+    310|     const rows=await attachManifestCoverage(db(),scope.accountId,[scop…
+ ❯ fixture __tests__/integration/pulse-runs.test.ts:47:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/16]⎯
+
+ FAIL  __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > three_by_five_has_fifteen_items after first question entirely fails
+TypeError: Cannot read properties of null (reading 'id')
+ ❯ __tests__/integration/pulse-runs.test.ts:317:39
+    315|   it('three_by_five_has_fifteen_items after first question entirely fa…
+    316|     const run=(await runFor(scope))!
+    317|     const first=await claim(scope,run.id)
+       |                                       ^
+    318|     expect(first).toHaveLength(5)
+    319|     expect(new Set(first.map(i=>i.snapshot.question)).size).toBe(1)
+ ❯ fixture __tests__/integration/pulse-runs.test.ts:47:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/16]⎯
+
+ FAIL  __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > two_workers_one_item_one_commit and rerun_keeps_success
+TypeError: Cannot read properties of null (reading 'id')
+ ❯ __tests__/integration/pulse-runs.test.ts:330:53
+    328|   it('two_workers_one_item_one_commit and rerun_keeps_success',async()…
+    329|     const run=(await createOrResumeRun(scope,{scanWeek:'2026-09-28',ma…
+    330|     const claims=await Promise.all([claim(scope,run.id,1),claim(scope,…
+       |                                                     ^
+    331|     expect(claims.flat()).toHaveLength(1)
+    332|     const item=claims.flat()[0]
+ ❯ fixture __tests__/integration/pulse-runs.test.ts:47:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/16]⎯
+
+ FAIL  __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > expired collection is blocked with unknown cost and stale workers cannot overwrite it
+TypeError: Cannot read properties of null (reading 'id')
+ ❯ __tests__/integration/pulse-runs.test.ts:342:65
+    340|   },1))
+    341|   it('expired collection is blocked with unknown cost and stale worker…
+    342|     const run=(await runFor(scope))!,old=(await claim(scope,run.id,1))…
+       |                                                                 ^
+    343|     await sql`update pulse_run_items set lease_until=now()-interval '1…
+    344|     const replacements=await claim(scope,run.id,1)
+ ❯ fixture __tests__/integration/pulse-runs.test.ts:47:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/16]⎯
+
+ FAIL  __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > manifest survives edited/deleted questions and repairs its original week
+TypeError: Cannot read properties of null (reading 'manifest')
+ ❯ __tests__/integration/pulse-runs.test.ts:358:41
+    356|     await sql`update clients set brand_name='Edited brand' where id=${…
+    357|     const reused=(await runFor(scope))!
+    358|     expect(reused.manifest).toEqual(run.manifest)
+       |                                         ^
+    359|     const item=(await claim(scope,run.id,1))[0]
+    360|     expect(item.snapshot).toMatchObject({language:'zh-HK',market:null})
+ ❯ fixture __tests__/integration/pulse-runs.test.ts:47:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/16]⎯
+
+ FAIL  __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > classifier outage retains raw answer and does not classify it
+TypeError: Cannot read properties of null (reading 'id')
+ ❯ __tests__/integration/pulse-runs.test.ts:370:66
+    368|   }))
+    369|   it('classifier outage retains raw answer and does not classify it',a…
+    370|     const run=(await runFor(scope))!,item=(await claim(scope,run.id,1)…
+       |                                                                  ^
+    371|     expect(await processLeasedItem(item,Date.now()+45_000,async()=>evi…
+    372|     expect(await readRunCoverage(scope,run.id)).toMatchObject({succeed…
+ ❯ fixture __tests__/integration/pulse-runs.test.ts:47:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/16]⎯
+
+ FAIL  __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > provider success followed by DB failure rolls back acceptance and remains recoverable
+TypeError: Cannot read properties of null (reading 'id')
+ ❯ __tests__/integration/pulse-runs.test.ts:377:66
+    375|   }))
+    376|   it('provider success followed by DB failure rolls back acceptance an…
+    377|     const run=(await runFor(scope))!,item=(await claim(scope,run.id,1)…
+       |                                                                  ^
+    378|     await sql`create function t05_fail_projection() returns trigger la…
+    379|     await sql`create trigger t05_fail_projection before insert on puls…
+ ❯ fixture __tests__/integration/pulse-runs.test.ts:47:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/16]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  16 failed | 18 passed (34)
+   Start at  20:59:48
+   Duration  3.18s (transform 519ms, setup 126ms, import 742ms, tests 1.99s, environment 0ms)
+

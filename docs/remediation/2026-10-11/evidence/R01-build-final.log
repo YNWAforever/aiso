@@ -1,0 +1,175 @@
+
+> fimmick-aeo@0.1.0 build
+> next build
+
+▲ Next.js 16.3.8 (Turbopack)
+✓ Running next.config.ts took 52ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 11.4s
+  Running TypeScript ...
+  Finished TypeScript in 11.1s ...
+  Collecting page data using 11 workers ...
+  Generating static pages using 11 workers (0/17) ...
+  Generating static pages using 11 workers (4/17) 
+  Generating static pages using 11 workers (8/17) 
+  Generating static pages using 11 workers (12/17) 
+✓ Generating static pages using 11 workers (17/17) in 415ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /[lang]
+├ ƒ /[lang]/admin/authority
+├ ƒ /[lang]/auth/complete
+├ ƒ /[lang]/auth/google
+├ ƒ /[lang]/auth/login
+├ ƒ /[lang]/auth/logout
+├ ƒ /[lang]/contact
+├ ƒ /[lang]/dashboard
+├ ƒ /[lang]/dashboard/[clientId]
+├ ƒ /[lang]/dashboard/[clientId]/assets
+├ ƒ /[lang]/dashboard/[clientId]/citations
+├ ƒ /[lang]/dashboard/[clientId]/competitors
+├ ƒ /[lang]/dashboard/[clientId]/entities
+├ ƒ /[lang]/dashboard/[clientId]/observations
+├ ƒ /[lang]/dashboard/[clientId]/opportunities
+├ ƒ /[lang]/dashboard/[clientId]/prompts
+├ ƒ /[lang]/dashboard/[clientId]/reports
+├ ƒ /[lang]/dashboard/[clientId]/reports/[reportId]
+├ ƒ /[lang]/dashboard/[clientId]/reports/new
+├ ƒ /[lang]/dashboard/[clientId]/result/[scanId]
+├ ƒ /[lang]/dashboard/[clientId]/sources
+├ ƒ /[lang]/dashboard/[clientId]/work-items/[workItemId]/versions
+├ ƒ /[lang]/dashboard/settings
+├ ƒ /[lang]/how-it-works
+├ ƒ /[lang]/integrations
+├ ƒ /[lang]/methodology
+├ ƒ /[lang]/onboarding
+├ ƒ /[lang]/platform
+├ ƒ /[lang]/platform/action-studio
+├ ƒ /[lang]/platform/ai-visibility
+├ ƒ /[lang]/platform/brand-product-discovery
+├ ƒ /[lang]/platform/demand-intelligence
+├ ƒ /[lang]/platform/governed-agents
+├ ƒ /[lang]/platform/proof
+├ ƒ /[lang]/platform/search-intelligence
+├ ƒ /[lang]/platform/site-health
+├ ƒ /[lang]/pricing
+├ ƒ /[lang]/pulse/[clientId]
+├ ƒ /[lang]/r/[slug]
+├ ƒ /[lang]/resources
+├ ƒ /[lang]/result/[id]
+├ ƒ /[lang]/result/[id]/opengraph-image
+├ ƒ /[lang]/sample-report
+├ ƒ /[lang]/scan
+├ ƒ /[lang]/security
+├ ƒ /[lang]/solutions
+├ ƒ /[lang]/solutions/agencies
+├ ƒ /[lang]/solutions/enterprise
+├ ƒ /[lang]/solutions/regulated-industries
+├ ƒ /[lang]/solutions/sme
+├ ƒ /[lang]/trust
+├ ƒ /admin
+├ ƒ /admin/accounts/[accountId]/approvers
+├ ƒ /api/account/integrations/google
+├ ƒ /api/account/invitations
+├ ƒ /api/account/invitations/[invitationId]
+├ ƒ /api/account/members
+├ ƒ /api/account/members/[profileId]
+├ ƒ /api/admin/accounts/[accountId]/approvers
+├ ƒ /api/admin/clients
+├ ƒ /api/auth/[...path]
+├ ƒ /api/authority/diagnostics/[domain]
+├ ƒ /api/authority/override
+├ ƒ /api/authority/score
+├ ƒ /api/authority/score-bulk
+├ ƒ /api/client-reports/[reportId]/ai-summary
+├ ƒ /api/client-reports/[reportId]/publish
+├ ƒ /api/client-reports/[reportId]/revoke
+├ ƒ /api/client-reports/[reportId]/rotate-link
+├ ƒ /api/client-reports/[reportId]/versions
+├ ƒ /api/client-reports/[reportId]/versions/[versionId]/contact
+├ ƒ /api/client-reports/[reportId]/versions/[versionId]/logo
+├ ƒ /api/clients/[clientId]/agents/competitors
+├ ƒ /api/clients/[clientId]/agents/progress
+├ ƒ /api/clients/[clientId]/agents/recommendations
+├ ƒ /api/clients/[clientId]/entity
+├ ƒ /api/clients/[clientId]/observations
+├ ƒ /api/clients/[clientId]/observations/[observationId]
+├ ƒ /api/clients/[clientId]/opportunities
+├ ƒ /api/clients/[clientId]/overview
+├ ƒ /api/clients/[clientId]/reports
+├ ƒ /api/clients/[clientId]/sources
+├ ƒ /api/clients/[clientId]/sources/[sourceId]
+├ ƒ /api/clients/[clientId]/sources/[sourceId]/versions/[versionId]/approve
+├ ƒ /api/clients/[clientId]/sources/import-preview
+├ ƒ /api/clients/[clientId]/work-items
+├ ƒ /api/clients/[clientId]/work-items/[workItemId]
+├ ƒ /api/clients/[clientId]/work-items/[workItemId]/operations
+├ ƒ /api/clients/[clientId]/work-items/[workItemId]/versions
+├ ƒ /api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]
+├ ƒ /api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/decision
+├ ƒ /api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/delivery
+├ ƒ /api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/delivery/[attestationId]/withdraw
+├ ƒ /api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/export
+├ ƒ /api/clients/[clientId]/work-items/[workItemId]/versions/[versionId]/outcomes
+├ ƒ /api/clients/[clientId]/work-items/groups
+├ ƒ /api/cron/evaluate-alerts
+├ ƒ /api/cron/pulse
+├ ƒ /api/cron/search-console
+├ ƒ /api/cron/trial-emails
+├ ƒ /api/dashboard/clients
+├ ƒ /api/dashboard/clients/[clientId]/alerts
+├ ƒ /api/dashboard/clients/[clientId]/assets
+├ ƒ /api/dashboard/clients/[clientId]/assets/declarations
+├ ƒ /api/dashboard/clients/[clientId]/citations
+├ ƒ /api/dashboard/clients/[clientId]/competitors
+├ ƒ /api/dashboard/clients/[clientId]/competitors/[competitorId]
+├ ƒ /api/dashboard/clients/[clientId]/domain-verification
+├ ƒ /api/dashboard/clients/[clientId]/local-trust/actions/[actionId]
+├ ƒ /api/dashboard/clients/[clientId]/local-trust/export
+├ ƒ /api/dashboard/clients/[clientId]/local-trust/profile
+├ ƒ /api/dashboard/clients/[clientId]/prompts
+├ ƒ /api/dashboard/clients/[clientId]/prompts/[promptId]
+├ ƒ /api/dashboard/clients/[clientId]/prompts/bulk
+├ ƒ /api/dashboard/clients/[clientId]/pulse-runs
+├ ƒ /api/dashboard/clients/[clientId]/pulse-runs/[runId]
+├ ƒ /api/dashboard/clients/[clientId]/pulse-runs/legacy-repair
+├ ƒ /api/dashboard/clients/[clientId]/search-console
+├ ƒ /api/dashboard/clients/[clientId]/share-of-voice
+├ ƒ /api/dashboard/clients/[clientId]/work-items/[itemId]/sources
+├ ƒ /api/fix
+├ ƒ /api/fix/cluster-map
+├ ƒ /api/fix/content-brief
+├ ƒ /api/fix/rewrite-chunks
+├ ƒ /api/funnel-events
+├ ƒ /api/integrations/google/callback
+├ ƒ /api/integrations/google/start
+├ ƒ /api/internal/readiness
+├ ƒ /api/notifications
+├ ƒ /api/notifications/read-all
+├ ƒ /api/onboarding/complete
+├ ƒ /api/public/client-reports/[slug]/contact
+├ ƒ /api/public/client-reports/[slug]/logo
+├ ƒ /api/pulse/run
+├ ƒ /api/pulse/suggest-questions
+├ ƒ /api/report-branding
+├ ƒ /api/scan
+├ ƒ /api/scans/[id]/claim
+├ ƒ /api/scans/[id]/claim-intent
+├ ƒ /api/stripe/checkout
+├ ƒ /api/stripe/portal
+├ ƒ /api/stripe/webhook
+├ ƒ /api/webhooks/neon
+├ ƒ /llms.txt
+├ ○ /robots.txt
+└ ○ /sitemap.xml
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

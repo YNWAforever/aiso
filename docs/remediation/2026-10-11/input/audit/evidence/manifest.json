@@ -1,0 +1,176 @@
+{
+  "captured_date_utc": "2026-10-11",
+  "aiso_sha": "783e54e3fa99f8c14e4cab84a67b42b0b1513c3c",
+  "notes": "Text summaries of direct browser observations and code inspection; not screenshots or raw network logs. No credentials, customer answer bodies or tracking identifiers included.",
+  "evidence": {
+    "E01": {
+      "kind": "live",
+      "scope": "AISO /zh-HK/dashboard",
+      "observation": "Pro；1/3品牌；activation2/6；需選品牌項目Locked；legacy failed scan card3.5/F"
+    },
+    "E02": {
+      "kind": "live",
+      "scope": "AISO AddBrandWizard",
+      "observation": "輸入合成預覽名稱，next到第2/2步後取消；未建品牌；copy稱下次scan自動開始"
+    },
+    "E03": {
+      "kind": "live",
+      "scope": "AISO existing brand home and step=monitor",
+      "observation": "last complete/next due未知；KPI沒有可用數據；平台圖表空白；missed answers與prompts存在"
+    },
+    "E04": {
+      "kind": "live",
+      "scope": "AISO observations week2026-10-05",
+      "observation": "40 recorded/31 successful/9 incomplete；抽樣raw answer可讀；actual model/market/collected time未知；web search標籤"
+    },
+    "E05": {
+      "kind": "live",
+      "scope": "AISO prompts",
+      "observation": "8/8重複；en且未指定market；四組逐題控制，未見bulk/import/first run"
+    },
+    "E06": {
+      "kind": "live",
+      "scope": "AISO citations",
+      "observation": "35 with sources/0 recorded empty/5 unrecorded；50domains/50URLs；空缺口文案，無pagination/truncation提示"
+    },
+    "E07": {
+      "kind": "live",
+      "scope": "AISO competitors",
+      "observation": "0/10 competitors；name/aliases/domains fields，未提交"
+    },
+    "E08": {
+      "kind": "live",
+      "scope": "AISO opportunities and existing draft",
+      "observation": "同題跨平台重複候選；既有private synthetic draft可讀title/action/notes及evidence snapshot；未儲存"
+    },
+    "E09": {
+      "kind": "live",
+      "scope": "AISO sources",
+      "observation": "1待核准；approval、agent-use、withdraw分開；CSV preview說明；未修改"
+    },
+    "E10": {
+      "kind": "live",
+      "scope": "AISO historical failed result",
+      "observation": "與card同一紀錄：未能完成，未成功採集，無可靠分數或改善估算"
+    },
+    "E11": {
+      "kind": "live",
+      "scope": "AISO public /zh-HK",
+      "observation": "API樣本限制文案合理；not-a-valid-url被拒絕，顯示有效網址提示"
+    },
+    "E12": {
+      "kind": "live",
+      "scope": "Ansvisor signed-in read-only pages",
+      "observation": "insights formula/prompts/detail/answer/actions/citations/brand settings；業務原文與tracking identifier不存入報告"
+    },
+    "E13": {
+      "kind": "live",
+      "scope": "Ansvisor content/audit/traffic",
+      "observation": "content8機會37signals；audit47signals及quota；traffic需snippet且無data；未執行工作"
+    },
+    "E14": {
+      "kind": "code",
+      "files": [
+        "components/dashboard/AddBrandWizard.tsx",
+        "app/api/dashboard/clients/route.ts",
+        "components/onboarding/OnboardingWizard.tsx",
+        "lib/onboarding/service.ts",
+        "lib/onboarding/store.ts"
+      ],
+      "observation": "兩條建立流程、24種子、context/schema/recovery差異"
+    },
+    "E15": {
+      "kind": "code",
+      "files": [
+        "lib/pulse/observed-summary.ts",
+        "lib/view-models/pulse.ts",
+        "lib/workspace/load-owned-pulse.ts"
+      ],
+      "observation": "strict full denominator與無partial presentation"
+    },
+    "E16": {
+      "kind": "code",
+      "files": [
+        "lib/openrouter.ts",
+        "app/api/pulse/run/route.ts",
+        "app/api/cron/pulse/route.ts"
+      ],
+      "observation": "compat metadata丟棄、question-only context、nonblank raw insert guard、repair依flag"
+    },
+    "E17": {
+      "kind": "code",
+      "files": [
+        "lib/view-models/daily-work.ts",
+        "lib/onboarding/service.ts",
+        "cloudflare/aiso-worker/wrangler.jsonc"
+      ],
+      "observation": "nextDueAt:null；service不dispatch run；cron只有repo配置，不確認已部署"
+    },
+    "E18": {
+      "kind": "code",
+      "files": [
+        "lib/pulse/grounding.ts",
+        "lib/openrouter.ts",
+        "messages/zh-HK.json"
+      ],
+      "observation": "web/native是請求配置；UI搜尋完成感文案"
+    },
+    "E19": {
+      "kind": "code",
+      "files": [
+        "components/dashboard/RecentScans.tsx",
+        "lib/scan-input.ts"
+      ],
+      "observation": "歷史列表直接score/grade；URL validation已修"
+    },
+    "E20": {
+      "kind": "code",
+      "files": [
+        "lib/citations/report.ts",
+        "components/dashboard/CitationExplorer.tsx",
+        "lib/competitors/store.ts"
+      ],
+      "observation": "TOP50後篩選與CSV；competitor domains前置；legacy names有sync/mirror，未報雙儲存失同步"
+    },
+    "E21": {
+      "kind": "code",
+      "files": [
+        "components/dashboard/ActivationProgress.tsx",
+        "components/dashboard/DashboardSidebar.tsx",
+        "components/dashboard/PortfolioView.tsx"
+      ],
+      "observation": "下一步文字而無CTA；brand-required鎖"
+    },
+    "E22": {
+      "kind": "code",
+      "files": [
+        "components/pulse/PromptBankEditor.tsx",
+        "components/pulse/QuestionBankSection.tsx"
+      ],
+      "observation": "逐題維護架構"
+    },
+    "E23": {
+      "kind": "comparison",
+      "aiso": [
+        "components/opportunities/OpportunityWorkspace.tsx"
+      ],
+      "ansvisor": [
+        "server/src/lib/prompt-clusters.js",
+        "server/src/lib/action-center/from-opportunity.js"
+      ],
+      "observation": "Ansvisor有cluster維持identity及action去重/驗收結構；code不能證明live版本等同"
+    },
+    "E24": {
+      "kind": "code",
+      "files": [
+        "lib/citations/normalize.ts",
+        "lib/citations/report.ts"
+      ],
+      "observation": "有限suffix table；未受列入的private suffix過度聚合"
+    },
+    "E25": {
+      "kind": "verification",
+      "observation": "AISO production READY，alias與main SHA一致；typecheck exit0；3純synthetic測試檔64/64通過；完整unit suite自動審核拒絕，沒有完整通過結論"
+    }
+  }
+}

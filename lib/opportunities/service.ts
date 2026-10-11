@@ -1,3 +1,4 @@
+import {groupOpportunities} from './groups'
 import { buildInitialDraftSnapshot } from '@/lib/work-items/snapshot'
 import 'server-only'
 import { getProfile } from '@/lib/auth'
@@ -56,6 +57,7 @@ export async function loadAuthenticatedOpportunities(clientId: string,params=new
     try { saved = await loadSavedDraftMapping(profile.account_id, clientId, suggestions.map(item => item.key)) }
     catch { savedDraftsState = 'unavailable'; diagnostic('saved-drafts') }
     return {
+      groups:groupOpportunities(suggestions.map(s=>({...s,savedDraftId:saved.get(s.key)??null}))),
       schemaVersion: 1,
       window: { ...snapshot.window },
       sourceStates, savedDraftsState, partial: partial || limitedEvidence || savedDraftsState === 'unavailable',

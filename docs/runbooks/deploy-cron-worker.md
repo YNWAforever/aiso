@@ -1,5 +1,11 @@
 # Runbook: activate the dedicated AISO cron Worker
 
+## 2026-10-11 audit correction
+
+The dated schedule discussion below is retained as historical evidence and is superseded by the current dedicated config: only `17 4 * * *` and `47 7 * * 1` are enabled. Pulse saved-raw repair is now dispatched independently on the existing17:04 Pulse trigger. The template09:00 email/Search Console trigger is not enabled. The Worker calls `controller.noRetry()` before requests; no live deployment or scheduled receipt follows from this code. Use the [current release packet](../remediation/2026-10-11/release-runbook.md) for exact source, approval, migration and rollback gates.
+
+The previous table is a dated plan, not current deployed-source acceptance.
+
 ## Current status and scope
 
 The dedicated `aiso-cron-worker` was created on 2026-09-07 in Cloudflare account

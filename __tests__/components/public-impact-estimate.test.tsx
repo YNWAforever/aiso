@@ -4,6 +4,7 @@ import { ResultClient } from '@/components/result/ResultClient'
 import { buildPublicResultSummary } from '@/lib/result-access'
 import { ScoreReveal } from '@/components/result/ScoreReveal'
 import { computeImpact } from '@/lib/impact'
+import {buildScanEvidence} from '@/lib/scan-evidence'
 
 const language = vi.hoisted(() => ({ value: 'en' }))
 vi.mock('next-intl', () => ({ useLocale: () => language.value, useTranslations: () => (key: string) => key }))
@@ -13,6 +14,7 @@ vi.mock('@/components/result/ShareButton', () => ({ ShareButton: () => null }))
 vi.mock('@/lib/auth-client', () => ({ authClient: {}, buildAuthCompleteUrl: vi.fn() }))
 
 const summary = buildPublicResultSummary({ id: 'public-scan', domain: 'example.com', score: 20, grade: 'F', industry: 'general_b2c', region: 'HK', results: {
+  evidence:buildScanEvidence({requestedUrl:'https://example.com',evaluatedUrl:'https://example.com',industry:'general_b2c',region:'HK',sitemapSource:null,checks:{},observations:[{target:'https://example.com',check:'page',collection:'complete',provenance:'validated-fetch',httpStatus:200}]}),
   c1_robots: { status: 'fail', message: 'robots_blocked' },
   c2_llms_txt: { status: 'fail', message: 'llms_missing' },
   c3_bot_access: { status: 'warn', message: 'bot_partial' },

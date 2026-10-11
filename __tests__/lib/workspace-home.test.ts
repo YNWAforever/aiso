@@ -1,3 +1,4 @@
+import { buildScanEvidence } from '@/lib/scan-evidence'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CommercialAccount } from '@/lib/tier'
 
@@ -8,6 +9,7 @@ vi.mock('@/lib/db', () => ({ db: () => async (strings: TemplateStringsArray, ...
   state.calls.push({ text, values })
   if (state.failed && text.includes(state.failed)) throw new Error('Database incident')
   if (text.includes('from clients') && !text.includes('join')) return state.missing || !values.includes('account-a') || !values.includes('client-a') ? [] : [{ id: 'client-a', brand_name: 'Acme', domain: 'example.com', industry: 'technology', status: 'active' }]
+  if (text.includes('from prompt_bank')) return [{language:'en',market:'HK'}]
   if (text.includes('agent_')) return state.agents
   if (text.includes('with recent_weeks')) {
     // Emulate the SQL window over 45 weeks: ascending-before-limit would lose the latest.
@@ -15,7 +17,7 @@ vi.mock('@/lib/db', () => ({ db: () => async (strings: TemplateStringsArray, ...
     return newestFirst ? state.pulse.slice(-40) : state.pulse.slice(0, 40)
   }
   if (text.includes('from pulse_metrics')) return []
-  if (text.includes('select id, domain')) return [{ id: 'scan-a', domain: 'example.com', score: state.dateRows ? '30' : 30, grade: 'F', created_at: state.dateRows ? new Date('2026-09-01T00:00:00Z') : '2026-09-01' }]
+  if (text.includes('select id, domain')) return [{ id: 'scan-a', domain: 'example.com', score: state.dateRows ? '30' : 30, grade: 'F', created_at: state.dateRows ? new Date('2026-09-01T00:00:00Z') : '2026-09-01', evidence: state.scanResults.evidence }]
   if (text.includes('from scans')) return state.selectedMissing ? [] : [{ id: 'scan-a', domain: 'example.com', score: state.dateRows ? '30' : 30, grade: 'F', created_at: state.dateRows ? new Date('2026-09-01T00:00:00Z') : '2026-09-01', results: state.scanResults, agent_status: 'complete' }]
   throw new Error('Unexpected query')
 } }))
@@ -25,7 +27,7 @@ import { buildWorkspaceHome } from '@/lib/view-models/workspace-home'
 import type { OwnedWorkspace } from '@/lib/workspace/load-owned-workspace'
 const paid: CommercialAccount = { plan: 'enterprise', status: 'active', stripe_subscription_id: 'sub' }
 const load = (account: CommercialAccount = paid, scanId?: string) => loadOwnedWorkspace({ clientId: 'client-a', profile: { account_id: 'account-a', accounts: account }, scanId })
-const pulseRow = (week: string, total: unknown = 2, successful: unknown = 2) => ({ scan_week: week, platform: null, total_queries: total, brand_mentions: 0, sov_score: 0, successful_queries: successful, observed_queries: 2, observed_brand_mentions: 0, successful_platform_count: 1 })
+const pulseRow = (week: string, total: unknown = 2, successful: unknown = 2) => ({ scan_week: week, platform: null, total_queries: total, brand_mentions: 0, sov_score: 0, successful_queries: successful, observed_queries: 2, collected_queries: 2, observed_brand_mentions: 0, successful_platform_count: 1 })
 
 beforeEach(() => { state.calls = []; state.missing = false; state.failed = ''; state.selectedMissing = false; state.dateRows = false; state.scanResults = {}; state.pulse = [] })
 
@@ -78,9 +80,9 @@ describe('owned workspace loader', () => {
     expect(home.visibility.data?.sovScore).toBe(0)
     expect(home.visibility.freshness).toBe('unknown')
   })
-  it.each([[0, 0], [null, 2], [2, null], [2, 0], [2, 1]])('withholds KPI for unproven denominator %s/%s', async (total, successful) => {
+  it.each([[0, 0], [2, null], [2, 0]])('withholds KPI for unproven denominator %s/%s', async (total, successful) => {
     state.pulse = [pulseRow('2026-09-01', total, successful)]
-    expect(buildWorkspaceHome((await load())!).visibility.state).toBe('empty')
+    const v=buildWorkspaceHome((await load())!).visibility;expect(v.state).toBe('partial');expect(v.data).toBeNull()
   })
   it('requires whitespace-aware raw answers in collection predicates', async () => {
     await load()
@@ -89,7 +91,7 @@ describe('owned workspace loader', () => {
   })
   it('rejects a stale aggregate numerator after a same-count retry', async () => {
     state.pulse = [{ ...pulseRow('2026-09-01'), observed_brand_mentions: 1 }]
-    expect(buildWorkspaceHome((await load())!).visibility.state).toBe('empty')
+    const v=buildWorkspaceHome((await load())!).visibility;expect(v.state).toBe('partial');expect(v.data).toBeNull()
   })
   it('does not use an older aggregate when newest week has only platform rows', async () => {
     state.pulse = [pulseRow('2026-08-24'), { ...pulseRow('2026-08-31'), platform: 'gemini-flash' }]
@@ -119,6 +121,7 @@ describe('owned workspace loader', () => {
   })
   it('normalizes driver Date timestamps and numeric scores without changing stored diagnostics', async () => {
     state.dateRows = true
+    state.scanResults = {evidence:buildScanEvidence({requestedUrl:'https://example.com',evaluatedUrl:'https://example.com',industry:null,region:null,sitemapSource:'unknown',checks:{},observations:[{check:'page',collection:'complete',httpStatus:200,target:{origin:'https://example.com'}}]})}
     const home = buildWorkspaceHome((await load())!)
     expect(home.siteHealth.observedAt).toBe('2026-09-01T00:00:00.000Z')
     expect(home.siteHealth.data?.score).toBe(30)
@@ -148,3 +151,16 @@ describe('owned workspace loader', () => {
     expect(home.siteHealth.observedAt).toBe('2026-09-01')
   })
 })
+
+it('UC05 applies failed collection to brand site health without mutating raw storage', async () => {
+ state.scanResults={evidence:buildScanEvidence({requestedUrl:'https://example.com',evaluatedUrl:'https://example.com',industry:null,region:null,sitemapSource:'unknown',checks:{},observations:[{check:'page',collection:'failed',httpStatus:503,target:{origin:'https://example.com'}}]})}
+ const workspace=(await load())!; const home=buildWorkspaceHome(workspace)
+ expect(workspace.scan.data?.score).toBe(30)
+ expect(home.siteHealth.data?.score).toBeNull()
+ expect(home.siteHealth.data?.grade).toBeNull()
+})
+
+it('shows complete raw samples without a rollup and partial negative samples with their actual denominator',async()=>{
+ state.pulse=[pulseRow('2026-09-01',null,2)];expect(buildWorkspaceHome((await load())!).visibility.data?.totalQueries).toBe(2);
+ state.pulse=[pulseRow('2026-09-01',2,1)];const v=buildWorkspaceHome((await load())!).visibility;expect(v.state).toBe('partial');expect(v.data?.sovScore).toBe(0);expect(v.data?.totalQueries).toBe(1);
+});

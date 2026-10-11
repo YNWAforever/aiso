@@ -338,7 +338,7 @@ export interface AgentCompetitor {
 export interface ClientOverview {
   client: { brand_name: string }
   latestScan: Scan | null
-  scanHistory: Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'created_at'>[]
+  scanHistory: (Pick<Scan, 'id' | 'domain' | 'created_at'> & { score: number | null; grade?: string | null; displayState?: import('@/lib/view-models/scan-status').ScanDisplayState })[]
   recommendations: AgentRecommendation[]
   progress: AgentProgress[]
   competitors: AgentCompetitor[]

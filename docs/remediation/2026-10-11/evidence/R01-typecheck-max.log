@@ -1,0 +1,8 @@
+
+> fimmick-aeo@0.1.0 typecheck
+> next typegen && tsc --noEmit
+
+Generating route types...
+✓ Types generated successfully
+__tests__/local-persistence/audit-performance.test.ts(4,22): error TS7016: Could not find a declaration file for module 'pg'. 'C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/node_modules/pg/esm/index.mjs' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/pg` if it exists or add a new declaration (.d.ts) file containing `declare module 'pg';`

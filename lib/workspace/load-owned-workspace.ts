@@ -1,4 +1,6 @@
 import 'server-only'
+import {isPromptLanguage,isPromptMarket} from '@/lib/prompts/context'
+import { projectScanStatus } from '@/lib/view-models/scan-status'
 import { db } from '@/lib/db'
 import { resolveCommercialEntitlement, type CommercialAccount } from '@/lib/tier'
 import { projectObservedSummary, type ObservedPulseSummary } from '@/lib/pulse/observed-summary'
@@ -17,6 +19,7 @@ export type OwnedWorkspace = {
   recommendations: WorkspaceRead<AgentRecommendation[]>
   progress: WorkspaceRead<AgentProgress[]>
   competitors: WorkspaceRead<AgentCompetitor[]>
+  setup?:WorkspaceRead<{active:number;contextConfirmed:boolean}|null>
   maintenance?:WorkspaceRead<MaintenanceSnapshot|null>
 }
 
@@ -58,7 +61,7 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
   if (!clientRows[0]) return null
   const client = clientRows[0] as WorkspaceClient
   const { features } = resolveCommercialEntitlement(profile.accounts)
-  const [scan, history, pulse, missed,maintenance] = await Promise.all([
+  const [scan, history, pulse, missed,setup,maintenance] = await Promise.all([
     read('scan', async () => {
       const rows = scanId !== undefined
         ? await sql`select * from scans where id = ${scanId} and client_id = ${clientId} and account_id = ${accountId} limit 1`
@@ -66,29 +69,30 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
       return rows[0] ? scanRow(rows[0] as Scan) : null
     }, null),
     read('history', async () => { const rows = await sql`
-      select id, domain, score, grade, created_at from scans
+      select id, domain, score, grade, created_at, results->'evidence' as evidence from scans
       where client_id = ${clientId} and account_id = ${accountId} order by created_at desc, id desc limit 10
-    `; return (rows as ClientOverview['scanHistory']).map(scanRow) }, []),
+    `; return rows.map(row => { const display = projectScanStatus({ score: number(row.score), grade: typeof row.grade === 'string' ? row.grade : null, evidence: row.evidence }); return { id: row.id as string, domain: row.domain as string, score: display.score, grade: display.grade, displayState: display.state, created_at: timestamp(row.created_at) } }) }, []),
     read('pulse', async () => {
       const rows = await sql`
         with recent_weeks as (
           select s.scan_week from pulse_weekly_summary s join clients c on c.id = s.client_id
           where c.id = ${clientId} and c.account_id = ${accountId}
           union
-          select m.scan_week from pulse_metrics m join clients c on c.id = m.client_id
+          select m.scan_week from pulse_metrics m join clients c on c.id = m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
           where c.id = ${clientId} and c.account_id = ${accountId}
           order by scan_week desc limit 40
         ), observations as (
           select m.scan_week, count(*)::int as observed_queries,
-            count(*) filter (where m.brand_mentioned = true and m.raw_answer ~ '[^[:space:]]')::int as observed_brand_mentions,
+     count(*) filter(where m.raw_answer ~ '[^[:space:]]')::int as collected_queries,
+            count(*) filter (where to_jsonb(m)->>'classification_status'='classified' and m.brand_mentioned = true and m.raw_answer ~ '[^[:space:]]')::int as observed_brand_mentions,
             count(*) filter (where to_jsonb(m)->>'classification_status'='classified' and m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_queries,
-            count(distinct m.platform) filter (where m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_platform_count
-          from pulse_metrics m join clients c on c.id = m.client_id
+            count(distinct m.platform) filter (where to_jsonb(m)->>'classification_status'='classified' and m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null)::int as successful_platform_count
+          from pulse_metrics m join clients c on c.id = m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
           join recent_weeks w on w.scan_week = m.scan_week
           where c.id = ${clientId} and c.account_id = ${accountId}
           group by m.scan_week
         )
-        select s.*, w.scan_week, o.observed_queries, o.observed_brand_mentions, o.successful_queries, o.successful_platform_count
+        select s.*, w.scan_week, o.observed_queries,o.collected_queries, o.observed_brand_mentions, o.successful_queries, o.successful_platform_count
         from recent_weeks w
         left join pulse_weekly_summary s on s.scan_week = w.scan_week and s.client_id = ${clientId}
           and exists (select 1 from clients c where c.id = s.client_id and c.account_id = ${accountId})
@@ -99,13 +103,14 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
     }, { summary: [], kpi: null, latestWeek: null }),
     read('missed', async () => await sql`
       select m.platform, m.question, m.competitors_mentioned, m.scan_week
-      from pulse_metrics m join clients c on c.id = m.client_id
+      from pulse_metrics m join clients c on c.id = m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
       where c.id = ${clientId} and c.account_id = ${accountId} and m.brand_mentioned = false
         and m.raw_answer ~ '[^[:space:]]'
         and to_jsonb(m)->>'classification_status'='classified'
       order by m.scan_week desc, m.id desc limit 10
     ` as ClientOverview['missedOpportunities'], []),
-    read('maintenance',()=>loadMaintenanceSnapshot(accountId,clientId,features.edit_prompts),null),
+    read('setup',async()=>{const rows=await sql`select p.language,p.market from prompt_bank p join clients c on c.id=p.client_id and c.account_id=${accountId} where p.client_id=${clientId} and c.account_id=${accountId} and p.is_active=true`;return{active:rows.length,contextConfirmed:rows.length>0&&rows.every(row=>isPromptLanguage(row.language)&&isPromptMarket(row.market))}},null),
+    read('maintenance',()=>loadMaintenanceSnapshot(accountId,clientId,features.platform_access.length>0),null),
   ])
   const selected = scan.data
   const platforms = features.platform_access
@@ -133,7 +138,7 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
         order by a.mention_rate desc
     ` as AgentCompetitor[]),
   ])
-  return { client, scan, history, pulse, missed, recommendations, progress, competitors,maintenance }
+  return { client, scan, history, pulse, missed, recommendations, progress, competitors,maintenance,setup }
 }
 
 /** Existing API shape remains stable; unlike home it must not return partial success. */

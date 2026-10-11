@@ -1,0 +1,27 @@
+
+> test
+> vitest run
+
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso/cloudflare/cron-worker
+
+ ❯ test/scheduled.test.ts (11 tests | 2 failed) 25ms
+   × disables runtime retry before dispatch on http failure 5ms
+   × disables runtime retry before dispatch on network failure 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/scheduled.test.ts > disables runtime retry before dispatch on http failure
+ FAIL  test/scheduled.test.ts > disables runtime retry before dispatch on network failure
+AssertionError: expected "vi.fn()" to be called once, but got 0 times
+ ❯ test/scheduled.test.ts:119:376
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 9 passed (11)
+   Start at  21:52:28
+   Duration  3.02s (transform 180ms, setup 0ms, import 219ms, tests 25ms, environment 0ms)
+

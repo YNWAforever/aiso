@@ -17,7 +17,7 @@ describe('T05 fixed Pulse denominators',()=>{
     expect(coverageFromCounts({...counts,succeeded:1,pending:14,classified:1,mentioned:1})).toMatchObject({status:'partial',coverage:1/15,mentionRate:1})
   })
   it('only completes a positive, wholly successful denominator',()=>{
-    expect(coverageFromCounts({...counts,succeeded:15,pending:0}).status).toBe('completed')
+    expect(coverageFromCounts({...counts,succeeded:15,pending:0,classified:15}).status).toBe('completed')
     expect(coverageFromCounts({...counts,expected:0,pending:0})).toMatchObject({status:'blocked',coverage:null,mentionRate:null})
   })
   it('keeps blocked work and unknown classifications outside classified ratios',()=>{
@@ -28,10 +28,12 @@ describe('T05 fixed Pulse denominators',()=>{
     expect(()=>coverageFromCounts({...counts,classified:1})).toThrow()
   })
   it('suppresses a 100-percent KPI from one success in a fifteen-item manifest',()=>{
-    const result=projectObservedSummary([{platform:null,scan_week:'2026-09-28',total_queries:1,successful_queries:1,observed_queries:1,
+    const result=projectObservedSummary([{platform:null,scan_week:'2026-09-28',total_queries:1,successful_queries:1,observed_queries:1,collected_queries:1,
       brand_mentions:1,observed_brand_mentions:1,sov_score:100,successful_platform_count:1,
       expected_items:15,succeeded_items:1,classified_items:1,pending_items:14,failed_items:0,blocked_items:0}])
-    expect(result.kpi).toBeNull()
-    expect(result.coverage).toMatchObject({expected:15,succeeded:1,pending:14})
+    expect(result.state).toBe('partial');expect(result.kpi?.sovScore).toBe(100)
+    expect(result.coverage).toMatchObject({expected:15,collected:1,classified:1,collectionRate:1/15})
   })
 })
+
+it('does not complete when collection is done but classification is pending',()=>{expect(coverageFromCounts({expected:2,succeeded:2,failed:0,pending:0,blocked:0,classified:1,mentioned:0}).status).toBe('partial')});

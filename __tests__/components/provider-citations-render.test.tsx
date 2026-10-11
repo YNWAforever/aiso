@@ -22,3 +22,8 @@ describe('citation provenance rendering',()=>{
     expect(html).toContain(copy.providerComplete)
   })
 })
+
+it.each([en,zh])('does not call legacy web or native grounding confirmed',messages=>{
+ const c=messages.observations as ObservationCopy;
+ for(const grounding of ['web','native']){const d=projectObservationDetail({...row,grounding,provider_citations:[]});const html=renderToString(<ObservationDetailContent observation={d} copy={c}/>);expect(d.searchEvidence?.execution).toBe('unknown');expect(html).toContain(c.searchUnknown);expect(html).not.toContain(c.searchConfirmed)}
+});

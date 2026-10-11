@@ -19,7 +19,7 @@ describe('scheduled', () => {
   })
 
   it('T07 daily trigger repairs original runs independently of email and search jobs',async()=>{
-    await worker.scheduled(controller('0 9 * * *'),env,ctx)
+    await worker.scheduled(controller('17 4 * * *'),env,ctx)
     expect(fetchMock.mock.calls.map(call=>call[0])).toContain('https://app.example.com/api/cron/pulse?mode=repair')
   })
 
@@ -60,7 +60,7 @@ describe('scheduled', () => {
 
     await expect(worker.scheduled(controller('0 9 * * *'), env, ctx))
       .rejects.toThrow('[cron-worker] /api/cron/trial-emails responded 500')
-    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it('propagates a downstream failure without retrying in this invocation', async () => {
@@ -69,7 +69,7 @@ describe('scheduled', () => {
     await expect(worker.scheduled(controller('17 4 * * *'), env, ctx)).rejects.toThrow(
       '[cron-worker] /api/cron/pulse responded 500',
     )
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it('rejects an unmapped cron without making a request', async () => {
@@ -113,3 +113,7 @@ describe('ROUTES stays in sync with wrangler.jsonc', () => {
     expect(Object.keys(ROUTES)).toHaveLength(configCrons.length)
   })
 })
+
+it('AISO deployed profile schedules raw-only repair without adding email dispatch',()=>{const config=parseWranglerJsonc(readFileSync(join(import.meta.dirname,'..','..','aiso-worker','wrangler.jsonc'),'utf8'));expect(config.triggers?.crons).toEqual(['17 4 * * *','47 7 * * 1']);expect(ROUTES['17 4 * * *']).toContain('/api/cron/pulse?mode=repair');expect(ROUTES['17 4 * * *'].every(route=>!route.includes('trial-emails')&&!route.includes('search-console'))).toBe(true)});
+
+it.each(['http','network'])('disables runtime retry before dispatch on %s failure',async(kind)=>{const scheduled=controller('17 4 * * *'),fetchSpy=vi.fn(kind==='network'?async()=>{throw Error('outcome unknown')}:async()=>({ok:false,status:503}));globalThis.fetch=fetchSpy as never;await expect(worker.scheduled(scheduled,env,ctx)).rejects.toThrow();expect(scheduled.noRetry).toHaveBeenCalledOnce();expect(scheduled.noRetry.mock.invocationCallOrder[0]).toBeLessThan(fetchSpy.mock.invocationCallOrder[0]);expect(fetchSpy).toHaveBeenCalledTimes(2)});

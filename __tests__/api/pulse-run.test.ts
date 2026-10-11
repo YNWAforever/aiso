@@ -31,6 +31,7 @@ const mockSql = vi.fn((strings: TemplateStringsArray, ...params: unknown[]) => {
   if (lookupError && lookupError.test(text)) return Promise.reject(new Error('boom'))
   if (failOn && failOn.test(text)) return Promise.reject(new Error('write failed'))
 
+  if (/as used/i.test(text)) return Promise.resolve([{used:0}])
   if (/from clients c/i.test(text)) return Promise.resolve(clientRow ? [clientRow] : [])
   if (/from prompt_bank/i.test(text)) return Promise.resolve(promptRows)
   if (/as scan_week/i.test(text)) return Promise.resolve([{ scan_week: '2026-08-03' }])

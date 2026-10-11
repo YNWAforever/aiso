@@ -87,7 +87,7 @@ describe('GET /api/clients/[clientId]/overview', () => {
 
   it('binds recommendation query ownership and platform allow-list for Basic', async () => {
     vi.mocked(getProfile).mockResolvedValue({ ...PROFILE, accounts: { plan: 'basic', status: 'active', stripe_subscription_id: 'sub' } } as never)
-    nextResults = [[{ brand_name: 'Acme' }], [{ id: 'scan-a', results: {}, score: 30, created_at: '2026-09-01' }], [], [], [], [{ platform: 'gemini' }, { platform: 'gpt4o', recommendation: 'FORBIDDEN' }]]
+    nextResults = [[{ brand_name: 'Acme' }], [{ id: 'scan-a', results: {}, score: 30, created_at: '2026-09-01' }], [], [], [], [], [{ platform: 'gemini' }, { platform: 'gpt4o', recommendation: 'FORBIDDEN' }]]
     const res = await GET(request(), ctx())
     const dto = await res.json()
     expect(dto.recommendations).toEqual([{ platform: 'gemini' }])
