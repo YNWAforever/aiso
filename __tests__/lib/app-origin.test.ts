@@ -41,6 +41,13 @@ describe('appOrigin', () => {
     }
   })
 
+  // aeo.fimmick.com stopped resolving, and as both the configured origin and
+  // this fallback it broke every Pulse driver self-call (502) until 2026-10-10.
+  it('falls back to the live production host, never the dead one', () => {
+    expect(DEFAULT_APP_ORIGIN).toBe('https://aiso-kappa.vercel.app')
+    expect(DEFAULT_APP_ORIGIN).not.toContain('aeo.fimmick.com')
+  })
+
   it('is the only origin every consumer resolves to', async () => {
     // The regression: lib/seo.ts, lib/stripe.ts and lib/reports/service.ts each
     // carried a *different* hardcoded fallback, so an unconfigured deploy put

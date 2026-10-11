@@ -12,9 +12,11 @@
  * has no business importing the metadata layer to learn its own redirect host.
  */
 
-// The report/share host — the only real domain of the three, and the one an
-// external recipient of a share link actually sees.
-export const DEFAULT_APP_ORIGIN = 'https://aeo.fimmick.com'
+// The live production host. This used to be https://aeo.fimmick.com, the old
+// report/share host, which no longer resolves (NXDOMAIN): with production's
+// NEXT_PUBLIC_APP_URL also pointing there, every Pulse driver self-call failed
+// with 502 until 2026-10-10. A fallback must be a host that answers.
+export const DEFAULT_APP_ORIGIN = 'https://aiso-kappa.vercel.app'
 
 /**
  * `?.trim() ||`, not `??`. Nullish coalescing falls back only on null and

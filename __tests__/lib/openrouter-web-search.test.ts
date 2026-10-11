@@ -16,6 +16,16 @@ beforeEach(() => {
 })
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals() })
 
+describe('attribution', () => {
+  // It used to hardcode aeo.fimmick.com, which no longer resolves.
+  it('names the app origin as the referer', async () => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://one-host.example.com')
+    await callOpenRouterWithEvidence({ label: 'pulse.platform', model: 'openai/gpt-4o', messages: [{ role: 'user', content: 'Q' }] })
+    const headers = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>
+    expect(headers['HTTP-Referer']).toBe('https://one-host.example.com')
+  })
+})
+
 describe('web search request shape', () => {
   it('adds the web plugin and low search context only when asked', async () => {
     await callOpenRouterWithEvidence({ label: 'pulse.platform', model: 'anthropic/claude-haiku-4-5', messages: [{ role: 'user', content: 'Q' }], webSearch: true })
