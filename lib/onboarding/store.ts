@@ -31,8 +31,15 @@ export async function initializeOnboarding(scope: OnboardingScope, input: Onboar
     sql`select id from accounts where id = ${scope.accountId} for update`,
     sql`with previous as (
       select client_id,scan_id,case when intent_key=${input.intentKey} then request_hash else request_aliases->>${input.intentKey} end as request_hash,draft from onboarding_progress where account_id=${scope.accountId} and (intent_key=${input.intentKey} or request_aliases ? ${input.intentKey})
+    ), existing as (
+      select id from clients where account_id = ${scope.accountId} and (
+        id = (select client_id from previous)
+        or (not exists (select 1 from previous) and id = ${input.clientId}::uuid)
+        or (not exists (select 1 from previous) and ${input.clientId}::uuid is null
+          and lower(brand_name) = lower(${input.brandName}) and domain is not distinct from ${input.domain}))
+      order by created_at, id limit 1
     ), locked_context as (
-      select client_id from onboarding_progress where account_id=${scope.accountId} and client_id=${input.clientId}::uuid and not exists(select 1 from previous) and prompt_status in ('running','ready') and (draft-'intentKey'-'clientId')<>(${JSON.stringify(input)}::jsonb-'intentKey'-'clientId')
+      select client_id from onboarding_progress where account_id=${scope.accountId} and client_id=(select id from existing) and not exists(select 1 from previous) and prompt_status in ('running','ready') and (draft-'intentKey'-'clientId')<>(${JSON.stringify(input)}::jsonb-'intentKey'-'clientId')
     ), permitted as (
       select id from accounts where id = ${scope.accountId}
         and not exists(select 1 from locked_context)
@@ -43,13 +50,6 @@ export async function initializeOnboarding(scope: OnboardingScope, input: Onboar
           select 1 from clients where id = ${input.clientId}::uuid and account_id = ${scope.accountId}))
         and not exists (select 1 from previous where ${input.clientId}::uuid is not null and client_id <> ${input.clientId}::uuid)
         and not exists (select 1 from previous where ${input.scanId}::uuid is not null and scan_id is not null and scan_id <> ${input.scanId}::uuid)
-    ), existing as (
-      select id from clients where account_id = ${scope.accountId} and (
-        id = (select client_id from previous)
-        or (not exists (select 1 from previous) and id = ${input.clientId}::uuid)
-        or (not exists (select 1 from previous) and ${input.clientId}::uuid is null
-          and lower(brand_name) = lower(${input.brandName}) and domain is not distinct from ${input.domain}))
-      order by created_at, id limit 1
     ), trial as (
       update accounts set trial_started_at = coalesce(trial_started_at, now()),
         trial_ends_at = coalesce(trial_ends_at, coalesce(trial_started_at, now()) + interval '7 days')
@@ -81,13 +81,16 @@ export async function initializeOnboarding(scope: OnboardingScope, input: Onboar
 
 export async function claimOnboardingSeed(scope: OnboardingScope, intentKey: string) {
   const sql = db(), token = randomUUID()
-  const rows = await sql`update onboarding_progress set prompt_status = 'running', error_code = null,
+  const [, rows] = await sql.transaction([
+    sql`select id from accounts where id=${scope.accountId} for update`,
+    sql`update onboarding_progress set prompt_status = 'running', error_code = null,
     lease_token = ${token}::uuid, lease_until = now() + interval '90 seconds', updated_at = now()
     from clients c where onboarding_progress.account_id = ${scope.accountId} and intent_key = ${intentKey}
       and c.id = onboarding_progress.client_id and c.account_id = onboarding_progress.account_id
       and draft->>'language' in ('en','zh-HK') and draft->>'market' is not null
       and (prompt_status in ('pending','failed') or (prompt_status = 'running' and lease_until < now()))
-    returning client_id, draft, c.brand_name, c.domain, c.industry, c.region, c.description, c.competitors`
+    returning client_id, draft, c.brand_name, c.domain, c.industry, c.region, c.description, c.competitors`,
+  ])
   const row = rows[0]
   return row ? { token, clientId: row.client_id as string, input: { ...(row.draft as OnboardingInput),
     brandName: row.brand_name as string, domain: row.domain as string | null, industry: row.industry as string | null,
