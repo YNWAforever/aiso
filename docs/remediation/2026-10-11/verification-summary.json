@@ -1,8 +1,8 @@
 {
-  "recordedAt": "2026-10-11T14:25:55.260Z",
+  "recordedAt": "2026-10-11T15:10:09.813Z",
   "auditSha": "783e54e3fa99f8c14e4cab84a67b42b0b1513c3c",
   "baseSha": "27dd057fa6d5ecaae5bbd342e25cc8579e529d3a",
-  "codeSha": "f0ed5c794fd612be541b14058fcd5c9eff20343e",
+  "codeSha": "b949145e5cae37d30276e3218403808448fde71e",
   "pr": "https://github.com/YNWAforever/aiso/pull/86",
   "taskOrder": [
     "P00",
@@ -33,6 +33,10 @@
       "logs": [
         "R01-lint-release.log",
         "R01-typecheck-release.log"
+      ],
+      "deltaLogs": [
+        "R01-ci-fixture-lint.log",
+        "R01-ci-fixture-typecheck.log"
       ]
     },
     "build": {
@@ -105,10 +109,30 @@
       "applied": "local fixture only",
       "remoteDryRun": false,
       "packet": "evidence/R01-migration-packet.json"
+    },
+    "integrationFixtureRecovery": {
+      "red": {
+        "passed": 7,
+        "failed": 10,
+        "total": 17,
+        "files": 4,
+        "log": "R01-ci-fixture-red.log"
+      },
+      "green": {
+        "passed": 17,
+        "failed": 0,
+        "skipped": 0,
+        "files": 4,
+        "log": "R01-ci-fixture-green.log"
+      },
+      "lint": "passed",
+      "typecheck": "passed",
+      "candidateSha": "b949145e5cae37d30276e3218403808448fde71e",
+      "scope": "four core integration files on actual local PostgreSQL; alerts exact-target and full Neon acceptance require fresh CI"
     }
   },
   "review": {
-    "candidateSha": "f0ed5c794fd612be541b14058fcd5c9eff20343e",
+    "candidateSha": "b949145e5cae37d30276e3218403808448fde71e",
     "actionable": 0,
     "critical": 0,
     "important": 0,
@@ -116,8 +140,8 @@
     "receipt": "review.md"
   },
   "preview": {
-    "candidateSha": "f0ed5c794fd612be541b14058fcd5c9eff20343e",
-    "origin": "https://aiso-audit-fixture-20261011-jfzu1ejwu-ynwaforevers-projects.vercel.app",
+    "candidateSha": "b949145e5cae37d30276e3218403808448fde71e",
+    "origin": "https://aiso-audit-fixture-20261011-i0wl108qx-ynwaforevers-projects.vercel.app",
     "environment": "protected synthetic static preview; actual remote assets; no Auth/DB/provider acceptance",
     "verifiedAssets": 117,
     "presentationChecks": 48,
@@ -514,7 +538,7 @@
       }
     ],
     "receipt": "evidence/R01-preview-receipt.json",
-    "deploymentId": "dpl_7YU2gob4g767B9WK3uMdwZhq4aZG",
+    "deploymentId": "dpl_HNdqHoK1xiHdaPFrKYnqBoPTCBXW",
     "status": "passed_presentation_only"
   },
   "ci": {
@@ -531,10 +555,12 @@
     "unchangedGuard": true,
     "disposableRoleApproval": "existing repository authorization enabled; no setting change in session",
     "receiptPolicy": "Latest exact PR head run/merge-checkout receipt is downloaded after commit to ignored artifacts/audit/final-ci-receipt.json and summarized in the PR body. Never treat this timestamped pending snapshot as a future pass.",
-    "precedingHead": "7548254394cfab2bf3dd4bf9b734aefac62a706a",
-    "precedingRun": "38146746468",
-    "precedingMergeCheckout": "af1ae8d8edd54893476071716a27e3075eedc76d",
-    "mergeCheckoutPolicy": "Verify synthetic merge parents and full tree equality with PR head, plus code fingerprint equality with reviewed f0ed5c7."
+    "precedingHead": "a33c0ef8ddea4d1443126a6a8ab6fcd39547616e",
+    "precedingRun": "38147437065",
+    "precedingMergeCheckout": "69446e10cac107a07ad165ad13e06760cda00968",
+    "mergeCheckoutPolicy": "Verify synthetic merge parents and full tree equality with PR head, plus non-documentation source fingerprint equality with reviewed b949145.",
+    "precedingConclusion": "failure",
+    "precedingReceipt": "evidence/R01-ci-a33c0ef-red.json"
   },
   "production": {
     "sha": "27dd057fa6d5ecaae5bbd342e25cc8579e529d3a",

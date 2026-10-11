@@ -1,6 +1,6 @@
 # Release and rollback packet — NO_GO pending external gates
 
-Code candidate: f0ed5c794fd612be541b14058fcd5c9eff20343e. Audit: 783e54e3fa99f8c14e4cab84a67b42b0b1513c3c. Main base: 27dd057fa6d5ecaae5bbd342e25cc8579e529d3a. Draft PR86: https://github.com/YNWAforever/aiso/pull/86 . Later evidence-only commits do not change the code tree; verification-summary.json records the source fingerprint and final CI head.
+Code candidate: b949145e5cae37d30276e3218403808448fde71e. Audit: 783e54e3fa99f8c14e4cab84a67b42b0b1513c3c. Main base: 27dd057fa6d5ecaae5bbd342e25cc8579e529d3a. Draft PR86: https://github.com/YNWAforever/aiso/pull/86 . Later evidence-only commits do not change the code tree; verification-summary.json records the source fingerprint and final CI head.
 
 This packet prepares execution; no production migration, merge, provider smoke, cron trigger, Worker publication or email/publication has been performed in this session. Local SQL and a protected static fixture preview are available. A hosted authenticated transactional preview and the remaining gates below must pass before production release. Never promote the static fixture project to the application alias.
 
@@ -91,3 +91,6 @@ After explicit rollback authorization: publish the approved pause config, reconc
 - Production flags, deployed source SHA, alias and compatible rollback targets.
 
 Release remains NO_GO until those gates have evidence. No finding is verified_live in this session.
+
+
+Candidate update: b949145 includes test-fixture corrections over the application candidate f0ed5c7. The preceding CI38147437065 failed integration18/419 while E2E938/938 passed; fresh exact-head CI is mandatory. The protected static preview was rebound to b949145 with117 asset checks and48 presentation checks. No test failure is relabeled as an environment blocker.

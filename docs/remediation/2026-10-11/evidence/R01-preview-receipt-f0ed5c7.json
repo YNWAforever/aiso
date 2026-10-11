@@ -1,0 +1,399 @@
+{
+  "candidateSha": "f0ed5c794fd612be541b14058fcd5c9eff20343e",
+  "origin": "https://aiso-audit-fixture-20261011-jfzu1ejwu-ynwaforevers-projects.vercel.app",
+  "environment": "protected synthetic static preview; actual remote assets; no Auth/DB/provider acceptance",
+  "verifiedAssets": 117,
+  "presentationChecks": 48,
+  "checks": [
+    {
+      "caseId": "UC01",
+      "lang": "en",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_ONBOARDING/{lang}.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC02",
+      "lang": "en",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_ONBOARDING/{lang}.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC03",
+      "lang": "en",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "C8A/{lang}-daily-partial.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC04",
+      "lang": "en",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_FIRST_PULSE/{lang}.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC05",
+      "lang": "en",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_PRIORITY/{lang}-incomplete.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC06",
+      "lang": "en",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "C8C/{lang}-ready.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC07",
+      "lang": "en",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_AUDIT_LOOP/{lang}-citations.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC08",
+      "lang": "en",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_AUDIT_LOOP/{lang}-citations.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC09",
+      "lang": "en",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "C8A/{lang}-ready.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC10",
+      "lang": "en",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_AUDIT_LOOP/{lang}-bulk.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC11",
+      "lang": "en",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_AUDIT_LOOP/{lang}-work.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC13",
+      "lang": "en",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_ONBOARDING/{lang}.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC01",
+      "lang": "en",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_ONBOARDING/{lang}.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC02",
+      "lang": "en",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_ONBOARDING/{lang}.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC03",
+      "lang": "en",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "C8A/{lang}-daily-partial.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC04",
+      "lang": "en",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_FIRST_PULSE/{lang}.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC05",
+      "lang": "en",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_PRIORITY/{lang}-incomplete.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC06",
+      "lang": "en",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "C8C/{lang}-ready.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC07",
+      "lang": "en",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_AUDIT_LOOP/{lang}-citations.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC08",
+      "lang": "en",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_AUDIT_LOOP/{lang}-citations.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC09",
+      "lang": "en",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "C8A/{lang}-ready.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC10",
+      "lang": "en",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_AUDIT_LOOP/{lang}-bulk.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC11",
+      "lang": "en",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_AUDIT_LOOP/{lang}-work.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC13",
+      "lang": "en",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_ONBOARDING/{lang}.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC01",
+      "lang": "zh-HK",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_ONBOARDING/{lang}.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC02",
+      "lang": "zh-HK",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_ONBOARDING/{lang}.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC03",
+      "lang": "zh-HK",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "C8A/{lang}-daily-partial.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC04",
+      "lang": "zh-HK",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_FIRST_PULSE/{lang}.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC05",
+      "lang": "zh-HK",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_PRIORITY/{lang}-incomplete.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC06",
+      "lang": "zh-HK",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "C8C/{lang}-ready.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC07",
+      "lang": "zh-HK",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_AUDIT_LOOP/{lang}-citations.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC08",
+      "lang": "zh-HK",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_AUDIT_LOOP/{lang}-citations.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC09",
+      "lang": "zh-HK",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "C8A/{lang}-ready.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC10",
+      "lang": "zh-HK",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_AUDIT_LOOP/{lang}-bulk.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC11",
+      "lang": "zh-HK",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_AUDIT_LOOP/{lang}-work.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC13",
+      "lang": "zh-HK",
+      "width": 375,
+      "status": "passed_presentation",
+      "path": "AISO_ONBOARDING/{lang}.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC01",
+      "lang": "zh-HK",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_ONBOARDING/{lang}.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC02",
+      "lang": "zh-HK",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_ONBOARDING/{lang}.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC03",
+      "lang": "zh-HK",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "C8A/{lang}-daily-partial.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC04",
+      "lang": "zh-HK",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_FIRST_PULSE/{lang}.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC05",
+      "lang": "zh-HK",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_PRIORITY/{lang}-incomplete.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC06",
+      "lang": "zh-HK",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "C8C/{lang}-ready.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC07",
+      "lang": "zh-HK",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_AUDIT_LOOP/{lang}-citations.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC08",
+      "lang": "zh-HK",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_AUDIT_LOOP/{lang}-citations.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC09",
+      "lang": "zh-HK",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "C8A/{lang}-ready.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC10",
+      "lang": "zh-HK",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_AUDIT_LOOP/{lang}-bulk.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC11",
+      "lang": "zh-HK",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_AUDIT_LOOP/{lang}-work.html",
+      "persistence": false
+    },
+    {
+      "caseId": "UC13",
+      "lang": "zh-HK",
+      "width": 1280,
+      "status": "passed_presentation",
+      "path": "AISO_ONBOARDING/{lang}.html",
+      "persistence": false
+    }
+  ],
+  "notApplicable": [
+    {
+      "caseId": "UC12",
+      "reason": "Tenant enforcement and private-suffix identity require real SQL/server functions, covered locally; static presentation cannot establish this"
+    }
+  ]
+}

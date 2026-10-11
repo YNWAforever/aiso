@@ -101,6 +101,34 @@
       "committedBytes": 7311
     },
     {
+      "path": "R01-ci-fixture-green.log",
+      "sha256": "95bad65a0f25574790488cf7d597b19d81b544901c97991dd79f31646a48494b",
+      "bytes": 260,
+      "committedSha256": "2d2716625fd99caef2ee21a9196f1771de7b355251181d458cf11ec5aadf4c50",
+      "committedBytes": 251
+    },
+    {
+      "path": "R01-ci-fixture-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "committedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "committedBytes": 0
+    },
+    {
+      "path": "R01-ci-fixture-red.log",
+      "sha256": "ee12e326b5f8dc385b9549ba3ef68eb6823de11d827c2f39c12e1ecf87080815",
+      "bytes": 11240,
+      "committedSha256": "9a171a7e8a6f9bda508e5721c08ba67f1ded336504c990db15bfb07ce323cc97",
+      "committedBytes": 11025
+    },
+    {
+      "path": "R01-ci-fixture-typecheck.log",
+      "sha256": "4a06afe6769dc38765d059f77c098e507693ba8a824ccdc262a2c595bd8f9e48",
+      "bytes": 128,
+      "committedSha256": "4538f6a9c3cae187770b75626197841be05d727c86bd5579a41d928b0871fa5d",
+      "committedBytes": 122
+    },
+    {
       "path": "R01-context-route-green.log",
       "sha256": "3ca05620fb6a75374c0a24353189bf867c7a9f4e4f32a751a3c861198a276b14",
       "bytes": 1010,
@@ -318,6 +346,13 @@
       "committedBytes": 312
     },
     {
+      "path": "R01-preview-browser-b949145.log",
+      "sha256": "1cde3529a851b83f44721a6e18b057808f7b17bac81892a65593fa2d57ef6549",
+      "bytes": 169,
+      "committedSha256": "55324f6ddbd2a1d1810d87c45c95ab58a33885d0467a603dd1aa683bf55f15d0",
+      "committedBytes": 166
+    },
+    {
       "path": "R01-preview-browser-bound.log",
       "sha256": "b7d6a918f9a3bc4ec3c0af380123b6079e28e201630da13fdc0133922329d1d3",
       "bytes": 169,
@@ -414,6 +449,13 @@
       "bytes": 2343,
       "committedSha256": "7c6c586b0a9ad6f28631418d6e7a4ba9de2a632f265e1e8b1d9d1459ca3b4e1d",
       "committedBytes": 2274
+    },
+    {
+      "path": "R01-rollback-worker-dry-run.log",
+      "sha256": "1e056cf468ba12adc8d9c488bf010cd8123e391610268667035f19b3d25a9cf1",
+      "bytes": 377,
+      "committedSha256": "2842159b7ddccc161c4c28f585de0d9737eacb006df1344cb288aaa166da1686",
+      "committedBytes": 368
     },
     {
       "path": "R01-route-errors-green.log",
@@ -918,17 +960,10 @@
       "bytes": 3285,
       "committedSha256": "22d290be3d92460c7034074c715cdce60ebccfb6b37ae9bfa9065169979e085a",
       "committedBytes": 3209
-    },
-    {
-      "path": "R01-rollback-worker-dry-run.log",
-      "sha256": "1e056cf468ba12adc8d9c488bf010cd8123e391610268667035f19b3d25a9cf1",
-      "bytes": 377,
-      "committedSha256": "2842159b7ddccc161c4c28f585de0d9737eacb006df1344cb288aaa166da1686",
-      "committedBytes": 368
     }
   ],
   "hashPolicy": {
     "sha256": "captured local log bytes, including Windows CRLF",
-    "committedSha256": "Git blob bytes at 4444d566, normalized LF by existing repository Git configuration; log blobs unchanged by the evidence index correction"
+    "committedSha256": "Git index blob bytes normalized by existing Git attributes/configuration; final evidence commit preserves these blobs"
   }
 }

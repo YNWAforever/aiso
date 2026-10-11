@@ -1,6 +1,6 @@
 # AISO audit remediation — current R01 status
 
-Audit SHA: 783e54e3fa99f8c14e4cab84a67b42b0b1513c3c. Fresh main base: 27dd057fa6d5ecaae5bbd342e25cc8579e529d3a. PR: https://github.com/YNWAforever/aiso/pull/86 . Code candidate: f0ed5c794fd612be541b14058fcd5c9eff20343e. Original checkout and user documents remain untouched. DNS readiness from PR85 preserved.
+Audit SHA: 783e54e3fa99f8c14e4cab84a67b42b0b1513c3c. Fresh main base: 27dd057fa6d5ecaae5bbd342e25cc8579e529d3a. PR: https://github.com/YNWAforever/aiso/pull/86 . Code candidate: b949145e5cae37d30276e3218403808448fde71e. Original checkout and user documents remain untouched. DNS readiness from PR85 preserved.
 
 T01–T12 implemented. R01 local remediation and independent review complete; exact-head CI and external acceptance status is recorded in verification-summary.json. Release: NO_GO until those gates are green. None of F38–F50 is verified_live.
 
@@ -27,3 +27,6 @@ Historical task-stage statuses are retained in status-before-R01.md; input audit
 Evidence boundaries: PostgreSQL16 loopback fixture uses real SQL, account binding and aeo_app checks; it does not prove Neon Auth. The protected isolated static preview serves actual components/CSS with synthetic data;117 asset hashes and48 presentation checks do not prove hosted transactions or providers. UC12 has no applicable static tenant-enforcement test. Authenticated owner/mobile journey remains a manual gate. All skipped/excluded live/manual cases remain outside the automated-pass claim.
 
 Production Vercel readback still points at baseline27dd057, independent of preview. Latest read-only Worker version receipt7f252113-0809-45bd-a5e6-c99432ee2cd8 has no Git source binding; no candidate Worker deployment or scheduled execution is claimed. Production flags and migrations are unverified. Existing repository disposable-role authorization is enabled; CI uses its unchanged guard, not an override.
+
+
+CI fixture recovery at b949145: preceding exact-head CI38147437065 is FAILURE, not a timeout: core231/241 plus exact-target170/178 =401 passed /18 failed /0 skipped; four E2E shards938/938 passed. Five fixture repairs supply confirmed market/region for valid contexts, create the canonical citation manifest before inserting the retained legacy row, expect missing onboarding context to remain pending, and assert the immutable stored SOV question after editing the prompt bank. No application/guard code changed. Actual local PostgreSQL reproduced10 failures/7 passes then17/17 passed; the new strict config covers four core files, not alerts exact-target or the whole Neon suite. Original RED remains evidence/R01-ci-a33c0ef-red.json and R01-ci-fixture-red.log. Fresh full six-class CI remains required.

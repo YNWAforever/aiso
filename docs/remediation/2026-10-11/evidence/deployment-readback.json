@@ -1,5 +1,5 @@
 {
-  "readAt": "2026-10-11T14:18:14.788Z",
+  "readAt": "2026-10-11T15:10:09.897Z",
   "production": {
     "url": "https://aiso-kappa.vercel.app",
     "deploymentId": "dpl_HT7JyJHKRXC3QSSvWcbAJPjTtor9",
@@ -10,12 +10,12 @@
     "source": "Vercel get_deployment plus latest production list and alias readback"
   },
   "isolatedFixturePreview": {
-    "url": "https://aiso-audit-fixture-20261011-jfzu1ejwu-ynwaforevers-projects.vercel.app",
-    "deploymentId": "dpl_7YU2gob4g767B9WK3uMdwZhq4aZG",
+    "url": "https://aiso-audit-fixture-20261011-i0wl108qx-ynwaforevers-projects.vercel.app",
+    "deploymentId": "dpl_HNdqHoK1xiHdaPFrKYnqBoPTCBXW",
     "state": "READY",
     "target": null,
     "source": "CLI static upload; candidate attested by manifest/hash verification",
-    "candidateSha": "f0ed5c794fd612be541b14058fcd5c9eff20343e",
+    "candidateSha": "b949145e5cae37d30276e3218403808448fde71e",
     "backend": false,
     "authAcceptance": false
   },

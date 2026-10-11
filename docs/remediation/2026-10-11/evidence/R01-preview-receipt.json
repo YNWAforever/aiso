@@ -1,6 +1,6 @@
 {
-  "candidateSha": "f0ed5c794fd612be541b14058fcd5c9eff20343e",
-  "origin": "https://aiso-audit-fixture-20261011-jfzu1ejwu-ynwaforevers-projects.vercel.app",
+  "candidateSha": "b949145e5cae37d30276e3218403808448fde71e",
+  "origin": "https://aiso-audit-fixture-20261011-i0wl108qx-ynwaforevers-projects.vercel.app",
   "environment": "protected synthetic static preview; actual remote assets; no Auth/DB/provider acceptance",
   "verifiedAssets": 117,
   "presentationChecks": 48,
