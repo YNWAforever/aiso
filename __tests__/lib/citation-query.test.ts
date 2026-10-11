@@ -1,0 +1,7 @@
+import {it,expect} from 'vitest'
+import {buildCitationReport,citationReportCsv} from '@/lib/citations/report'
+import {parseCitationQuery,pageCitationReport} from '@/lib/citations/query'
+const report=()=>buildCitationReport({context:{ownedDomains:[],competitors:[]},answers:Array.from({length:60},(_,i)=>({scan_week:'2026-10-05',platform:'fixture',prompt_id:'p'+i,question:'q'+i,provider_citations:[{url:i===50?'https://trustpilot.com/review':'https://site'+String(i).padStart(2,'0')+'.example/page'}]}))})
+it('filters the 51st site from the full 60-site scope',()=>{const r=report();expect(r.domains).toHaveLength(60);const p=pageCitationReport(r,parseCitationQuery(new URLSearchParams('kind=review')));expect(p.domains.map(x=>x.domain)).toEqual(['trustpilot.com']);expect(p.pages?.domains.total).toBe(1);expect(p.availableKinds).toContain('review')})
+it('pages without duplicates and exports every matched row',()=>{const r=report(),a=pageCitationReport(r,{page:1,pageSize:25}),b=pageCitationReport(r,{page:2,pageSize:25}),c=pageCitationReport(r,{page:3,pageSize:25});expect(new Set([...a.domains,...b.domains,...c.domains].map(x=>x.domain)).size).toBe(60);expect(citationReportCsv(pageCitationReport(r,{page:2,pageSize:25},true)).trim().split('\r\n')).toHaveLength(61)})
+it('rejects invalid dates, IDs and unbounded pages',()=>{for(const q of ['pageSize=101','kind=fake','from=2026-02-30','runId=foreign','page=0'])expect(()=>parseCitationQuery(new URLSearchParams(q))).toThrow()})

@@ -1,0 +1,14 @@
+
+ RUN  v4.1.11 C:/Users/laich/.codex/worktrees/aiso-audit-fixes-20261011/Aiso
+
+stderr | __tests__/integration/pulse-runs.test.ts > T05 guarded Neon run ledger > compatibility writer preserves three old successes after an all-failed retry
+[pulse/run] no provider answered any prompt in this chunk
+
+ ✓ __tests__/integration/pulse-runs.test.ts (21 tests) 1424ms
+ ✓ __tests__/local-persistence/audit-remediation.test.ts (6 tests) 681ms
+
+ Test Files  2 passed (2)
+      Tests  27 passed (27)
+   Start at  20:10:48
+   Duration  3.24s (transform 458ms, setup 127ms, import 682ms, tests 2.11s, environment 0ms)
+

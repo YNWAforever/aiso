@@ -1,3 +1,4 @@
+import {parseCitationQuery} from '@/lib/citations/query'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
@@ -15,8 +16,9 @@ export const dynamic = 'force-dynamic'
  * a reader with.
  */
 export default async function CitationsPage({
-  params,
+  params,searchParams,
 }: {
+  searchParams:Promise<Record<string,string|string[]|undefined>>
   params: Promise<{ lang: string; clientId: string }>
 }) {
   const { lang, clientId } = await params
@@ -28,7 +30,9 @@ export default async function CitationsPage({
   const [client] = await sql`select brand_name from clients where id = ${clientId} and account_id = ${profile.account_id} limit 1`
   // 404 rather than 403: the id came from the caller.
   if (!client) notFound()
-  const report = await readCitationReport(sql, profile.account_id, clientId)
+  const raw=await searchParams
+  let query;try{query=parseCitationQuery(new URLSearchParams(Object.entries(raw??{}).filter(([,v])=>typeof v==='string') as [string,string][]))}catch{return <main><p>{locale==='en'?'Invalid citation filters':'引用篩選條件不正確'}</p></main>}
+  let report;try{report=await readCitationReport(sql, profile.account_id, clientId,query)}catch{return <main><p>{locale==='en'?'Citation read unavailable or scope too large. Narrow filters and retry.':'引用讀取暫時無法使用或範圍太大，請縮小範圍再試。'}</p></main>}
   if (!report) notFound()
 
   return (
