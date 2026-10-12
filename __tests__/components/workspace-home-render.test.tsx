@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { workspaceHomeFixture,dailyHomeFixture } from '../../tests/fixtures/workspace-home'
+import { workspaceHomeFixture,dailyHomeFixture,nextStepHomeFixture } from '../../tests/fixtures/workspace-home'
 import { afterAll, describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { WorkspaceHome } from '@/components/dashboard/WorkspaceHome'
@@ -54,4 +54,8 @@ afterAll(() => {
   for(const lang of ['en','zh-HK'])for(const state of ['partial','free','unknown','classification'] as const){
     writeFileSync(join(directory,`${lang}-daily-${state}.html`),renderToStaticMarkup(<WorkspaceHome workspace={dailyHomeFixture(state,lang)} lang={lang}/>),'utf8')
   }
+  for(const lang of ['en','zh-HK'])for(const state of ['unknown','paused','active','missing','pending','partial','source','draft','complete'] as const){
+    writeFileSync(join(directory,`${lang}-next-${state}.html`),renderToStaticMarkup(<WorkspaceHome workspace={nextStepHomeFixture(state,lang)} lang={lang}/>),'utf8')
+  }
+
 })

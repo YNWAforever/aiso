@@ -1,3 +1,4 @@
+import {projectPrimaryNextStep} from '../../lib/view-models/primary-next-step'
 import type { WorkspaceHome as HomeDto } from '../../lib/view-models/workspace-home'
 import { calculatePillarScores } from '../../lib/pillar-scores'
 import { buildOwnerPriorities } from '../../lib/view-models/owner-priorities'
@@ -25,4 +26,15 @@ export function workspaceHomeFixture(state: 'empty'|'error'|'locked'|'ready', la
         workspace.recommendations = {state,data:[{id:'fixture-rec',scan_id:'fixture-scan',platform:'gemini',category:'content',priority:'high',recommendation:lang==='en'?'Explain the product clearly.':'清楚說明產品用途。',impact_score:4,created_at:'2026-09-05T10:00:00.000Z'}],observedAt:'2026-09-05T10:00:00.000Z',freshness:'unknown',generated:true}
       }
   return workspace
+}
+
+export function nextStepHomeFixture(state:'unknown'|'paused'|'active'|'missing'|'pending'|'partial'|'source'|'draft'|'complete',lang:string):HomeDto{
+ const home=workspaceHomeFixture('empty',lang),configured={active:2,contextConfirmed:true}
+ const availability=state==='unknown'?null:{canStart:state==='active',reasons:state==='paused'?['paused' as const]:[],action:state==='active'?'start' as const:'wait' as const}
+ const daily=buildDailyWorkSummary(null)
+ if(['pending','partial','complete'].includes(state))daily.state=state==='complete'?'complete':state==='partial'?'partial':'pending'
+ if(state==='pending'||state==='partial')daily.nextActions=[{kind:state==='pending'?'review-pending-run':'review-classification',path:'/observations?run=saved#run-status'}]
+ if(state==='source'||state==='draft'){daily.state='complete';daily.nextActions=[{kind:state==='source'?'review-source':'open-draft',path:state==='source'?'/sources?source=s&version=v':'/opportunities?draft=d'}]}
+ home.nextStep=projectPrimaryNextStep({lang,clientId:home.client.id,setup:state==='missing'?{active:0,contextConfirmed:false}:configured,daily,availability})
+ return home
 }

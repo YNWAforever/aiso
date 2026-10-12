@@ -1595,7 +1595,9 @@
       "repair": "Review or repair monitoring",
       "results": "Review answers and citations",
       "opportunities": "Review improvement work",
-      "review": "Review monitoring status"
+      "review": "Review monitoring status",
+      "status": "Check monitoring availability",
+      "work": "Review saved work"
     }
   },
   "portfolio": {

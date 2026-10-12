@@ -1595,7 +1595,9 @@
       "repair": "查看或修復監測",
       "results": "查看回答與引用",
       "opportunities": "查看改善工作",
-      "review": "查看監測狀態"
+      "review": "查看監測狀態",
+      "status": "查看監測可用性",
+      "work": "覆核已保存的工作"
     }
   },
   "portfolio": {

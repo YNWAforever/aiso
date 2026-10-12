@@ -47,7 +47,7 @@ export function buildWorkspaceHome(workspace: OwnedWorkspace): WorkspaceHome {
     // become a priority. buildOwnerPriorities returns 'unavailable' for a scan
     // that predates evidence recording rather than falling back to raw verdicts.
     priorities: buildOwnerPriorities(row?.results?.evidence),
-    nextStep:projectPrimaryNextStep({lang:"__locale__",clientId:workspace.client.id,setup:workspace.setup?.status==='ok'?workspace.setup.data:null,daily:buildDailyWorkSummary(workspace.maintenance?.status==='ok'?workspace.maintenance.data:null)}),
+    nextStep:projectPrimaryNextStep({lang:"__locale__",clientId:workspace.client.id,availability:workspace.monitoring?.status==='ok'?workspace.monitoring.data:null,setup:workspace.setup?.status==='ok'?workspace.setup.data:null,daily:buildDailyWorkSummary(workspace.maintenance?.status==='ok'?workspace.maintenance.data:null)}),
     dailyWork:buildDailyWorkSummary(workspace.maintenance?.status==='ok'?workspace.maintenance.data:null),
     siteHealth: section(scan, row ? { scanId: row.id, domain: row.domain, score: display.score, grade: display.grade, displayState: display.state,
       pillarScores: isPillarScoreSnapshot(persisted) ? persisted : null } : null, row?.created_at || null),

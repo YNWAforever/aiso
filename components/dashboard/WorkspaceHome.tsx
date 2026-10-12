@@ -33,8 +33,8 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
       <h1 className="mt-2 text-3xl font-bold text-dash-text">{workspace.client.brand_name}</h1>
       <p className="mt-2 text-sm text-dash-muted">{workspace.client.domain}</p>
       <p className="mt-4 max-w-3xl text-sm leading-relaxed text-dash-muted">{copy.summary}</p>
-      {workspace.nextStep&&<Link className={`${linkClass} mt-4 bg-primary text-white no-underline`} href={workspace.nextStep.href.replace("__locale__",lang)}>{copy.nextStep[workspace.nextStep.labelKey]}</Link>}
-      {workspace.nextStep?.reasonKey==='unknown'&&<p>{copy.daily.unknown}</p>}
+      {workspace.nextStep&&<Link className={`${linkClass.replace('text-primary','text-primary-foreground')} mt-4 bg-primary no-underline`} href={workspace.nextStep.href.replace("__locale__",lang)}>{copy.nextStep[workspace.nextStep.labelKey]}</Link>}
+      {workspace.nextStep?.reasonKey&&<p>{workspace.nextStep.reasonKey==='unknown'?copy.daily.unknown:(lang==='zh-HK'?zhHK:en).runProgress.availabilityReasons[workspace.nextStep.reasonKey]}</p>}
     </header>
     {workspace.dailyWork&&<details aria-labelledby="daily-work-heading" className="mb-8 space-y-3 rounded-xl border border-dash-border bg-dash-surface p-5 sm:p-6">
       <summary id="daily-work-heading" className="text-xl font-bold text-dash-text">{copy.daily.title}</summary>

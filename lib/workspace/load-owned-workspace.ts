@@ -1,4 +1,6 @@
 import 'server-only'
+import {readUserPulseOptions} from '@/lib/pulse/runs/user-dispatch'
+import type {PulseAvailability} from '@/lib/pulse/runs/availability'
 import {isPromptLanguage,isPromptMarket} from '@/lib/prompts/context'
 import { projectScanStatus } from '@/lib/view-models/scan-status'
 import { db } from '@/lib/db'
@@ -19,6 +21,7 @@ export type OwnedWorkspace = {
   recommendations: WorkspaceRead<AgentRecommendation[]>
   progress: WorkspaceRead<AgentProgress[]>
   competitors: WorkspaceRead<AgentCompetitor[]>
+  monitoring?:WorkspaceRead<PulseAvailability|null>
   setup?:WorkspaceRead<{active:number;contextConfirmed:boolean}|null>
   maintenance?:WorkspaceRead<MaintenanceSnapshot|null>
 }
@@ -61,7 +64,7 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
   if (!clientRows[0]) return null
   const client = clientRows[0] as WorkspaceClient
   const { features } = resolveCommercialEntitlement(profile.accounts)
-  const [scan, history, pulse, missed,setup,maintenance] = await Promise.all([
+  const [scan, history, pulse, missed,setup,maintenance,monitoring] = await Promise.all([
     read('scan', async () => {
       const rows = scanId !== undefined
         ? await sql`select * from scans where id = ${scanId} and client_id = ${clientId} and account_id = ${accountId} limit 1`
@@ -111,6 +114,7 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
     ` as ClientOverview['missedOpportunities'], []),
     read('setup',async()=>{const rows=await sql`select p.language,p.market from prompt_bank p join clients c on c.id=p.client_id and c.account_id=${accountId} where p.client_id=${clientId} and c.account_id=${accountId} and p.is_active=true`;return{active:rows.length,contextConfirmed:rows.length>0&&rows.every(row=>isPromptLanguage(row.language)&&isPromptMarket(row.market))}},null),
     read('maintenance',()=>loadMaintenanceSnapshot(accountId,clientId,features.platform_access.length>0),null),
+    read('monitoring',async()=>(await readUserPulseOptions({accountId,clientId})).availability,null),
   ])
   const selected = scan.data
   const platforms = features.platform_access
@@ -138,7 +142,7 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
         order by a.mention_rate desc
     ` as AgentCompetitor[]),
   ])
-  return { client, scan, history, pulse, missed, recommendations, progress, competitors,maintenance,setup }
+  return { client, scan, history, pulse, missed, recommendations, progress, competitors,maintenance,setup,monitoring }
 }
 
 /** Existing API shape remains stable; unlike home it must not return partial success. */
