@@ -27,6 +27,8 @@ The patch adds 25 response/write behavior cases, two bilingual SSR cases and 36 
 
 At the commit checkpoint: 42 focused tests, all 5,951 cases in the non-network local suite, TypeScript, lint and the production build passed. The 42-case network file remains excluded only from this explicitly scoped local run; required CI runs it. Browser discovery found 36 cases; discovery alone is not a browser pass. The PR body records final run URLs/counts without rewriting historical release receipts.
 
+First CI run `38192102708` passed 5,993 unit cases (zero skipped), static/build/Worker and browser shards 1/3. Shards 2/4 then exposed two actual accessibility defects in both locales and viewports: Chromium's native dialog moved Tab out of the document after the last control, and the question-bank count/opener failed contrast (2.51/4.31). Browser total: 986 passed and 8 failed, zero skipped/flaky. The other 28 new drawer cases passed, including ambiguous-save warning persistence and both bounded waits. The patch now explicitly wraps Tab at the enabled-control boundaries, uses accessible theme text for the parent count/opener, and maintains CTA contrast on hover. The original keyboard and axe assertions are retained; fresh candidate CI remains required. The earlier run is preserved as failed evidence, not relabelled as a pass.
+
 ## Status and release acceptance
 
 F58 is **implemented / validation pending / not deployed**, not verified_live. Before closing it: all required PR checks must pass on the candidate, inspect the bilingual mobile/desktop screenshots, then after authorized merge/deployment repeat the keyboard journey against the deployed commit. Rollback is a revert of this UI/helper/test patch; it has no SQL migration or new runtime dependency.

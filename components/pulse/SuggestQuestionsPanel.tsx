@@ -163,6 +163,20 @@ export function SuggestQuestionsPanel({ clientId, onClose, onAccepted, onError, 
   return (
     <dialog ref={dialog} aria-labelledby={titleId} aria-describedby={introId}
       onCancel={event => { event.preventDefault(); close() }}
+      onKeyDown={event => {
+        if (event.key !== 'Tab' || event.altKey || event.ctrlKey || event.metaKey) return
+        // Native inertness blocks background controls, but Chromium can move Tab
+        // into browser chrome at the boundary. Keep the review loop in the panel.
+        const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), select:not(:disabled), textarea:not(:disabled)',
+        )).filter(node => node.tabIndex >= 0 && node.getClientRects().length > 0)
+        const first = controls[0], last = controls[controls.length - 1]
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault(); last?.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault(); first?.focus()
+        }
+      }}
       className="fixed inset-y-0 left-auto right-0 m-0 ml-auto h-dvh max-h-none w-full max-w-md overflow-hidden border-l border-border bg-background p-0 text-foreground shadow-2xl backdrop:bg-black/40">
       <div className="flex h-full min-h-0 flex-col">
         <header className="shrink-0 border-b border-border px-5 py-4">
@@ -199,7 +213,7 @@ export function SuggestQuestionsPanel({ clientId, onClose, onAccepted, onError, 
             <div className="py-4">
               {fetched && <p className="mb-3 text-sm">{t('panel_empty')}</p>}
               <button type="button" onClick={fetchSuggestions} disabled={loading || busy}
-                className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
+                className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-accessible disabled:opacity-60">
                 {loading ? t('generating') : t('generate_btn')}
               </button>
             </div>
@@ -226,7 +240,7 @@ export function SuggestQuestionsPanel({ clientId, onClose, onAccepted, onError, 
                       <button type="button" onClick={() => { void accept(i) }}
                         disabled={busy || unknown.has(i) || !currentText.trim() || currentText.trim().length > 500}
                         aria-label={t('panel_accept_label', { number: i + 1 })}
-                        className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+                        className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary-accessible disabled:opacity-50">
                         <Check aria-hidden="true" className="size-4" />{savingIndex === i ? t('panel_saving_short') : t('accept')}
                       </button>
                       <button type="button" onClick={() => { if (!saving.current) { dismiss(i); setStatus(t('panel_dismissed')) } }}

@@ -61,12 +61,12 @@ export function QuestionBankSection({ clientId, initialPrompts, isFirstTime, con
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest">{t('qb_title')}</h2>
-          <p className="text-xs text-slate-400 mt-0.5">{t('qb_count', { active: activeCount, total: prompts.length })}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{t('qb_count', { active: activeCount, total: prompts.length })}</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => { setError(null); setShowPanel(true) }}
-            className="inline-flex items-center gap-1.5 text-xs bg-primary/10 text-primary font-semibold px-3 py-1.5 rounded-lg hover:bg-primary/20 transition"
+            className="inline-flex min-h-11 items-center gap-1.5 text-xs bg-primary/10 text-primary-accessible font-semibold px-3 py-1.5 rounded-lg hover:bg-primary/20 transition"
           >
             <Sparkles className="size-3" /> {t('suggest_more')}
           </button>
