@@ -162,36 +162,8 @@ describe('PromptBankEditor failure handling', () => {
     expect(source).toContain("t('qb_save_failed')")
   })
 
-  it('only dismisses an accepted suggestion when the write actually happened', () => {
-    // It used to fire-and-forget the POST and dismiss unconditionally, so a
-    // refused write made the suggestion disappear having been saved nowhere.
-    const panel = readFileSync(
-      join(process.cwd(), 'components/pulse/SuggestQuestionsPanel.tsx'), 'utf8',
-    )
-    const accept = panel.slice(panel.indexOf('async function accept'))
-
-    expect(accept).toContain('if (!res.ok)')
-    // The early return must come before the dismissal, not after it.
-    expect(accept.indexOf('return')).toBeLessThan(accept.indexOf('setDismissed'))
-    expect(accept).toContain("t('qb_limit_reached'")
-  })
-
-  it('hands back the row the server created, not the text that was sent', () => {
-    // The parent used to fabricate a `temp-` id from the strings, so the new
-    // question could never be edited or deleted — no such prompt existed.
-    const panel = readFileSync(
-      join(process.cwd(), 'components/pulse/SuggestQuestionsPanel.tsx'), 'utf8',
-    )
-    // Comments stripped: the fix is explained in a comment that names the very
-    // string this asserts is gone, and prose must not fail a behavioural check.
-    const section = readFileSync(
-      join(process.cwd(), 'components/pulse/QuestionBankSection.tsx'), 'utf8',
-    ).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
-
-    expect(panel).toContain('const { prompt } = await res.json()')
-    expect(panel).toContain('onAccepted(prompt)')
-    expect(section).not.toContain('temp-')
-  })
+  // Suggestion acknowledgement behavior is covered by suggestion-client.test.ts
+  // and the real QuestionBankSection browser fixture, rather than source-string checks.
 
   it('keeps one list, so the panel and the editor cannot disagree', () => {
     // QuestionBankSection owned a copy and PromptBankEditor seeded its own from

@@ -26,6 +26,7 @@ export async function prepareComponentFixtures(root, environment = process.env, 
   const files = ['workspace-home','portfolio','pulse-view','settings','entity','observation','opportunity','draft','change-set','approver-access','delivery','outcomes'].map(name=>`__tests__/components/${name}-render.test.tsx`)
   files.push(...['domain-verification-first-use','onboarding-wizard-bilingual','prompt-bank-editor','top-issue-card','auth-return-fixture','source-maintenance-fixture','first-pulse-fixture','audit-loop-fixture'].map(name=>`__tests__/components/${name}.test.tsx`))
   files.push('__tests__/components/admin-directory.test.tsx')
+  files.push('__tests__/components/suggest-questions-panel.test.tsx')
   const result = run(process.execPath,[join(root,'node_modules/vitest/vitest.mjs'),'run',...files,'--maxWorkers=1'],{cwd:root,env,stdio:'inherit'})
   if(result.error || result.status !== 0) throw new Error('Component fixture renderer failed')
 }

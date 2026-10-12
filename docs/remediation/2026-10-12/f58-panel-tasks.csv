@@ -1,0 +1,8 @@
+id,priority,scope,status,dependency,acceptance,evidence
+F58-A,P1,Named keyboard accessible modal,implemented_ci_pending,,Focus stays inside; Escape restores opener; EN and zh-HK; desktop and mobile,tests/e2e/suggest-questions-panel.spec.ts
+F58-B,P1,Save acknowledgement and duplicate prevention,implemented_ci_pending,,One pending POST; known rejection retains edits; acknowledged server row enters bank,__tests__/lib/suggestion-client.test.ts
+F58-C,P1,Unknown outcome recovery,implemented_ci_pending,F58-B,No blind retry; warning survives another success and reopening; timeout permits close,tests/e2e/suggest-questions-panel.spec.ts
+F58-D,P2,Generation and context recovery,implemented_ci_pending,F58-A,Explicit generation; inline retry; 30s bound; late response ignored; empty differs from complete,tests/e2e/suggest-questions-panel.spec.ts
+F58-E,P1,Deployment verification,pending,F58-A F58-B F58-C F58-D,Required exact-head CI and screenshots pass then verify deployed commit keyboard journey,f58-panel-audit.md
+F57,P1,Super admin identity designation,blocked_owner_identity,,Owner supplies exact intended login identity before any grant,progress.md
+F59,P1,Primary Preview configuration,open,,Validate primary project protected Preview without exposing secrets or weakening authentication,progress.md

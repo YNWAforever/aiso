@@ -23,6 +23,8 @@ export function QuestionBankSection({ clientId, initialPrompts, isFirstTime, con
   // in the same array — they used to be two, and only one of them rendered.
   const [prompts, setPrompts] = useState<PromptBankItem[]>(initialPrompts)
   const [error, setError] = useState<string | null>(null)
+  // Only a reload from the server reconciles a write whose acknowledgement was lost.
+  const [hasUnresolvedSave, setHasUnresolvedSave] = useState(false)
   const [bannerDismissed, setBannerDismissed] = useState(false)
 
   const activeCount = prompts.filter(p => p.is_active).length
@@ -31,7 +33,8 @@ export function QuestionBankSection({ clientId, initialPrompts, isFirstTime, con
   // editable and deletable like any other. It used to fabricate a `temp-` id
   // that matched no row, so the first edit of it would 404.
   function handleAccepted(prompt: PromptBankItem) {
-    setPrompts(prev => [...prev, prompt])
+    setPrompts(prev => prev.some(row => row.id === prompt.id) ? prev : [...prev, prompt])
+    setError(null)
   }
 
   return (
@@ -62,7 +65,7 @@ export function QuestionBankSection({ clientId, initialPrompts, isFirstTime, con
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => setShowPanel(true)}
+            onClick={() => { setError(null); setShowPanel(true) }}
             className="inline-flex items-center gap-1.5 text-xs bg-primary/10 text-primary font-semibold px-3 py-1.5 rounded-lg hover:bg-primary/20 transition"
           >
             <Sparkles className="size-3" /> {t('suggest_more')}
@@ -70,22 +73,23 @@ export function QuestionBankSection({ clientId, initialPrompts, isFirstTime, con
         </div>
       </div>
 
-      {error && <p role="alert" className="text-xs text-red-600 mb-3">{error}</p>}
+      {(hasUnresolvedSave || error) && <p role="alert" className="text-xs text-red-600 mb-3">{hasUnresolvedSave ? t('panel_save_unknown') : error}</p>}
 
       <PromptBankEditor clientId={clientId} prompts={prompts} onPromptsChange={setPrompts} contextDefaults={contextDefaults} />
 
       {/* Slide-in suggest panel */}
       {showPanel && (
-        <>
-          <div className="fixed inset-0 bg-black/20 z-40" onClick={() => setShowPanel(false)} />
           <SuggestQuestionsPanel
             clientId={clientId}
             contextDefaults={contextDefaults}
             onClose={() => setShowPanel(false)}
             onAccepted={handleAccepted}
-            onError={setError}
+            hasUnresolvedSave={hasUnresolvedSave}
+            onError={(message, unresolved) => {
+              setError(message)
+              if (unresolved) setHasUnresolvedSave(true)
+            }}
           />
-        </>
       )}
     </div>
   )
