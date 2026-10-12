@@ -2865,7 +2865,8 @@
         "questions": "批量更新問題",
         "work": "分組改善工作"
       }
-    }
+    },
+    "currentScope": "目前範圍"
   },
   "notFound": {
     "eyebrow": "錯誤 404",

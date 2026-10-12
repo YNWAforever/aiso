@@ -2865,7 +2865,8 @@
         "questions": "Question batch updates",
         "work": "Grouped improvement work"
       }
-    }
+    },
+    "currentScope": "Current scope"
   },
   "notFound": {
     "eyebrow": "Error 404",
