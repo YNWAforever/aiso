@@ -397,7 +397,11 @@
     "faq_q3": "掃描後我會得到甚麼？",
     "faq_a3": "一個 0–100 的就緒分數及字母評級、{count} 項檢查各自的通過、警告及失敗證據，以及涵蓋 llms.txt、robots.txt 修補及 FAQ JSON-LD 的優先修正包。",
     "faq_q4": "會考慮哪些 AI 產品？",
-    "faq_a4": "{platforms}。就緒檢查適用於所有這些產品；抽樣模型回答的持續監測屬付費方案的一部分。"
+    "faq_a4": "{platforms}。就緒檢查適用於所有這些產品；抽樣模型回答的持續監測屬付費方案的一部分。",
+    "score_grade_interval": "{min} ≤ 分數 < {max}",
+    "score_grade_last": "{min} ≤ 分數 ≤ {max}",
+    "score_grade_interval_label": "評級 {grade}：{min} ≤ 分數小於 {max}",
+    "score_grade_last_label": "評級 {grade}：分數由 {min} 至 {max}，包括兩端"
   },
   "result": {
     "score_label": "AI 就緒分數",

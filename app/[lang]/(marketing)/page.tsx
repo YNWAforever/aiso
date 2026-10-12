@@ -17,12 +17,11 @@ import { getTranslations } from 'next-intl/server'
 import { ScanForm } from '@/components/home/ScanForm'
 import { PRODUCT_FACTS } from '@/lib/product-facts'
 import { CORE_PTS, EXT_PTS, GEO_PTS, assignGrade } from '@/lib/scoring'
+import { SCAN_GRADE_BANDS } from '@/lib/score-display'
 import { buildLocalizedMetadata, buildSoftwareApplicationJsonLd } from '@/lib/seo'
 
 /** The hero's example score. Its grade is derived, never typed, so the preview can't show a grade the scorer would never assign. */
 const PREVIEW_SCORE = 74
-/** Lower bound of each grade band, highest first; labels come from assignGrade itself. */
-const GRADE_FLOORS = [90, 80, 70, 60, 50, 0]
 
 const sumPoints = (weights: Record<string, number>) => Object.values(weights).reduce((sum, pts) => sum + pts, 0)
 
@@ -227,10 +226,10 @@ export default async function HomePage({ params }: HomePageProps) {
               </div>
               <p className="mt-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('score_grades_label')}</p>
               <ul className="mt-2 flex flex-wrap gap-2">
-                {GRADE_FLOORS.map((floor, index) => (
-                  <li key={floor} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground">
-                    <span className="font-black text-foreground">{assignGrade(floor)}</span>
-                    {index === 0 ? `≥ ${floor}` : floor === 0 ? `< ${GRADE_FLOORS[index - 1]}` : `${floor}–${GRADE_FLOORS[index - 1] - 1}`}
+                {[...SCAN_GRADE_BANDS].reverse().map(band => (
+                  <li key={band.grade} aria-label={band.maxExclusive === null ? t('score_grade_last_label', { grade: band.grade, min: band.minInclusive, max: 100 }) : t('score_grade_interval_label', { grade: band.grade, min: band.minInclusive, max: band.maxExclusive })} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground">
+                    <span className="font-black text-foreground">{band.grade}</span>
+                    {band.maxExclusive === null ? t('score_grade_last', { min: band.minInclusive, max: 100 }) : t('score_grade_interval', { min: band.minInclusive, max: band.maxExclusive })}
                   </li>
                 ))}
               </ul>

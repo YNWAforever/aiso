@@ -39,10 +39,11 @@
       "candidateSha": "a7ab604e4b49a85e080e9cf447d2785c52b39968",
       "testedTree": "fbd9260a63d0290330f2b0d3fbac0ae6f35acc37",
       "environment": "read-only baseline plus local unit",
-      "result": "pass",
+      "result": "blocked",
       "observedAt": "2026-10-12T17:57:07.579Z",
       "evidencePath": "baseline.md",
-      "cleanup": "no external mutation"
+      "cleanup": "no external mutation",
+      "taskResult": "baseline_complete_final_candidate_CI_pending"
     },
     {
       "taskId": "T25",
@@ -50,10 +51,11 @@
       "candidateSha": "a7ab604e4b49a85e080e9cf447d2785c52b39968",
       "testedTree": "fbd9260a63d0290330f2b0d3fbac0ae6f35acc37",
       "environment": "source and read-only formal controls",
-      "result": "pass",
+      "result": "blocked",
       "observedAt": "2026-10-12T17:57:07.579Z",
       "evidencePath": "monitoring-readiness.md",
-      "cleanup": "pause preserved; not product UC35 success"
+      "cleanup": "pause preserved; not product UC35 success",
+      "taskResult": "read_only_investigation_complete"
     }
   ],
   "originalAuditChecksumsVerified": 20,
