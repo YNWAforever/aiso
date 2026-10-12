@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "job": "unit-contract",
+  "commitSha": "399b35ff372ff4e1064fd1aa2dc31072b9236771",
+  "status": "success",
+  "executed": 5977,
+  "skipped": 0,
+  "failurePriorities": [],
+  "artifacts": [
+    "unit-contract/vitest.json",
+    "unit-contract/vitest.junit.xml"
+  ]
+}

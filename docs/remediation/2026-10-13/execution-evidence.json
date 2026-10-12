@@ -1,0 +1,132 @@
+{
+  "at": "2026-10-12T17:55:11.878Z",
+  "timezone": "Asia/Hong_Kong",
+  "branch": "codex/aiso-development-20261013",
+  "sha": "a7ab604e4b49a85e080e9cf447d2785c52b39968",
+  "tree": "fbd9260a63d0290330f2b0d3fbac0ae6f35acc37",
+  "originalCheckoutPreserved": true,
+  "packetChecksumsVerified": 29,
+  "sourceZipSha256": "da78937890270fb1aca6a695c3afa47c932e3eb6737c08531b7007b314db20ca",
+  "prs": {
+    "90": {
+      "state": "OPEN",
+      "draft": true,
+      "sha": "ee9a457a26b274fd099616a325817c70f709a833"
+    },
+    "91": {
+      "state": "MERGED",
+      "merge": "a7ab604e4b49a85e080e9cf447d2785c52b39968"
+    },
+    "92": {
+      "state": "OPEN",
+      "draft": false,
+      "sha": "03c7b806facfde73d20792f7ac2c121a72c9c18c"
+    }
+  },
+  "authorization": {
+    "productionWrites": false,
+    "roleGrant": false,
+    "migration": false,
+    "paidProvider": false,
+    "externalMergeDeploy": false,
+    "cronActivation": false,
+    "priorApproval": "consumed_expired_not_reused"
+  },
+  "results": [
+    {
+      "taskId": "T30",
+      "caseId": "UC79",
+      "candidateSha": "a7ab604e4b49a85e080e9cf447d2785c52b39968",
+      "testedTree": "fbd9260a63d0290330f2b0d3fbac0ae6f35acc37",
+      "environment": "read-only baseline plus local unit",
+      "result": "pass",
+      "observedAt": "2026-10-12T17:57:07.579Z",
+      "evidencePath": "baseline.md",
+      "cleanup": "no external mutation"
+    },
+    {
+      "taskId": "T25",
+      "caseId": "UC35",
+      "candidateSha": "a7ab604e4b49a85e080e9cf447d2785c52b39968",
+      "testedTree": "fbd9260a63d0290330f2b0d3fbac0ae6f35acc37",
+      "environment": "source and read-only formal controls",
+      "result": "pass",
+      "observedAt": "2026-10-12T17:57:07.579Z",
+      "evidencePath": "monitoring-readiness.md",
+      "cleanup": "pause preserved; not product UC35 success"
+    }
+  ],
+  "originalAuditChecksumsVerified": 20,
+  "production": {
+    "id": "dpl_84bNqzMXQm9s4dY4w4N3GtSoZDWq",
+    "sha": "a7ab604e4b49a85e080e9cf447d2785c52b39968",
+    "readyState": "READY",
+    "alias": "aiso-kappa.vercel.app"
+  },
+  "neon": {
+    "ledgerCount": 69,
+    "appRole": "aeo_app",
+    "lastEight": [
+      {
+        "filename": "063_search_execution_evidence.sql",
+        "checksum": "42cdf92fa9e445afd29e0fb982dacfe5f79ef44f403396dee5e15b142fd0225c"
+      },
+      {
+        "filename": "064_onboarding_intent_hash.sql",
+        "checksum": "6c39b3478a124f72ca230e64665aa97781387d391dad9a340c58f28807a2d67c"
+      },
+      {
+        "filename": "065_pulse_run_identity_and_repair.sql",
+        "checksum": "fef05656b8e87e3fccadb4a1eeaec11b881206bad2c5a506dfa9fc8f3ba00072"
+      },
+      {
+        "filename": "066_pulse_attempt_grounding_grant.sql",
+        "checksum": "fc929b15d4f2695581aefdb3dcf0e6363a5c3dd2bf42160e35d495e7a2ea7552"
+      },
+      {
+        "filename": "067_user_pulse_intents.sql",
+        "checksum": "4fb09021f3b076d7f6a921bb3339034ab4b6258a4c3df770e90ab9b483bc850c"
+      },
+      {
+        "filename": "068_prompt_batch_intents.sql",
+        "checksum": "18b6e8648e45ab4a2f134520c19f00470b92a3914cc7bef5e3196f0b89588e75"
+      },
+      {
+        "filename": "069_grouped_work_operations.sql",
+        "checksum": "14ad33c1825eefb8465b8501bbc5993dbf773b7957aa4bccd14d85d851779e09"
+      },
+      {
+        "filename": "070_onboarding_recovery_intent_aliases.sql",
+        "checksum": "b7d40d330f023d8f36e5c143938bf84eef635c33295da78f1c7039370dafc400"
+      }
+    ]
+  },
+  "worker": {
+    "versions": [
+      {
+        "version_id": "a3f46e65-aa0f-4d62-9a7c-a007e1abde64",
+        "percentage": 100
+      }
+    ],
+    "crons": [
+      "47 7 * * 1"
+    ],
+    "appBase": "https://aiso-kappa.vercel.app",
+    "cronSecretBound": true,
+    "dailyPulseScheduled": false
+  },
+  "environments": {
+    "unit": "CI network guard enabled; synthetic mocks",
+    "browser": "local fixture only; hosted protected preview blocked",
+    "realAuthAB": "fresh current-candidate credentials not configured",
+    "admin": "owner nominated identity; no matching active formal profile; grant not authorized",
+    "provider": "no dedicated bounded key/budget; no paid request"
+  },
+  "baselineUnit": {
+    "passed": 5977,
+    "failed": 0,
+    "skipped": 0,
+    "sha": "a7ab604e4b49a85e080e9cf447d2785c52b39968",
+    "tree": "fbd9260a63d0290330f2b0d3fbac0ae6f35acc37"
+  }
+}

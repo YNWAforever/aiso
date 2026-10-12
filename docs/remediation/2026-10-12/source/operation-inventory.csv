@@ -1,0 +1,41 @@
+﻿operation_id,route,role,action,precondition,expected,actual,case_id,evidence,result
+OP20,/,訪客,開啟根網址,無需登入,進入有效語言首頁及可用掃描入口,導向 /zh-HK，首頁及掃描表單可見,UC20,E02,pass
+OP21,/zh-HK,訪客,查看示例74分；對照assignGrade(74),正式版本 a7ab604,74應為B,正式站74/B+；候選已改assignGrade(74),UC21,E02;E04,fail
+OP22,/zh-HK,訪客,填網址並提交；檢查錯誤與焦點,URL=not-a-domain,不開始掃描；清楚提示；焦點返回網址,顯示有效網址例子、重試掃描；焦點在網址,UC22,E03,pass
+OP23,/zh-HK,訪客,展開個人化→選擇→無效提交,能源及公用事業；香港；無效網址,行業及地區保留,兩值保留；沒有執行有效掃描,UC23,E03,pass
+OP24,/{lang}/sample-report,訪客,開範例→切EN,EN/zh-HK,保留同一路由；清楚標示合成及不能推論改善,兩語均標示合成；62/C；無基準／未發布限制可見,UC24,E05,pass
+OP25,/en/sample-report,鍵盤使用者,展開Platform→Escape,桌面,選單收起並返回原控制,正確收起、焦點留在Platform,UC25,E05,pass
+OP26,/en/pricing,購買前訪客,讀方案→開What is AI Pulse FAQ,不購買,未推出能力明示planned/coming soon,週期監測卡及FAQ均標為計劃中,UC26,E06,pass
+OP27,/en/platform/brand-product-discovery,訪客,由頁尾開功能頁,不登入,明示不可用，不冒充可操作功能,Planned/not available及無live backend說明可見,UC27,E06,pass
+OP28,/zh-HK/audit-missing-page-20261012,迷路訪客,開指定不存在頁,不存在路由,中文說明、首頁及掃描恢復入口,英文預設404；沒有恢復連結；舊AEO標題,UC28,E07,fail
+OP29,/api/auth/get-session,未登入請求,GET一次,無Cookie的HTTP客戶端,200 null且不帶登入資料,"200 null；private,no-store",UC29,E08,pass
+OP30,/api/admin/directory?view=users ; /api/admin/clients,未登入請求,各GET一次,無Cookie,401且沒有資料,兩者401 Unauthorized,UC30,E08,pass
+OP31,/admin,一般Pro租戶,開/admin,沿用已登入租戶,拒絕平台管理資料,導向/en/dashboard；未顯示Admin目錄,UC31,E09,pass
+OP32,/zh-HK/onboarding,首次設定用戶,填網址/語言/市場→人工→填合成名稱→下一步,空白暫存；example.com；zh-HK；HK,焦點到名稱；域名正規化；市場語言保留,全部符合；未按生成或建立品牌,UC32,E10,pass
+OP33,/zh-HK/onboarding,首次設定用戶,reload→返回兩步,承UC32到第三步,步驟、名稱、URL及語言/市场保留,全部保留；結束時關閉此暫存分頁,UC33,E10,pass
+OP34,/zh-HK/dashboard,品牌經理,開組合→查看品牌與里程碑,既有Pro租戶1品牌,資料可讀；部分樣本及新鮮度限制明確,1/3品牌；31/40分類；新鮮度未知；里程碑可讀,UC34,E11,pass
+OP35,/zh-HK/dashboard/{ownedClientId},品牌經理,等待prepare狀態；檢查開始入口,8問題×5模型,經核准可用環境可開始；停用時解釋下一步,40回答及1500剩餘額度可讀；監測未可使用、開始停用；未執行,UC35,E11,fail
+OP36,/zh-HK/dashboard/{ownedClientId}/observations,品牌經理,讀總數及分類狀態,既有2026-10-05樣本,總數等於成功+未知,40=31+9；未知沒有當作未提及,UC36,E12,pass
+OP37,/zh-HK/dashboard/{ownedClientId}/observations,品牌經理,結果選不完整或未知,承UC36,顯示9筆；不改資料,9個證據按鈕，與未完整總數吻合,UC37,E12,pass
+OP38,/zh-HK/dashboard/{ownedClientId}/observations,品牌經理,開首項證據→讀限制→Escape,承UC37,原文可讀；未知來源標明；返回原按鈕,原文可讀；模型API非消費者排名提示；Escape返回原按鈕,UC38,E12,pass
+OP39,/zh-HK/dashboard/{ownedClientId}/prompts,品牌經理,開問題庫→展開批次,既有8題,正確數量及可選清單,8/8；批次載入8題,UC39,E13,pass
+OP40,/zh-HK/dashboard/{ownedClientId}/prompts,鍵盤使用者,建議更多→Tab→Escape→關閉,不按生成,命名dialog、焦點留面板、Escape返回開啟按鈕,焦點仍開啟鈕；Tab到背景CSV；Escape無效；關閉鈕無名,UC40,E13,fail
+OP41,/zh-HK/dashboard/{ownedClientId}/prompts,匯入使用者,貼上→預覽，不套用,synthetic-invalid-market.csv,錯列列號；儲存停用,hk被拒；MARKET_REQUIRED；儲存停用,UC41,E14,pass
+OP42,/zh-HK/dashboard/{ownedClientId}/prompts,匯入使用者,貼上→預覽→檢查按鈕→reload,synthetic-mixed.csv；HK大寫,第二列重複；第三列分類無效；不能套用；原8题不變,重複及分類錯誤均指出；儲存停用；reload仍8題,UC42,E14,pass
+OP43,/zh-HK/dashboard/{ownedClientId}/prompts,中小企操作員,閱讀錯誤及修改預覽,承UC41/42,顯示中文原因、合法代碼示例及可套用數,只顯示market/category及原始錯誤代碼；重複列被列入2修改/10啟用投影,UC43,E14,fail
+OP44,components/result/ScoreReveal.tsx,報告讀者,執行repro/audit-score-boundary.test.tsx,PR92；計算得到59.97/D；兩語,文字保留59.97且不顯示60.0/D,2/2重現失敗；新formatter變成60.0/100，grade仍D,UC44,E15,fail
+OP45,home score section + lib/scoring.ts,報告讀者,對照新區間文字與assignGrade,PR92；59.5/69.5/79.5/89.5,半開區間覆蓋所有小數,新文案50–59等漏小數尾段；函數正確給D/C/B/A,UC45,E16,fail
+OP46,public pages / a11y matrix,不同裝置訪客,覆核四個Playwright分片原始摘要與測試來源,PR92 exact candidate；CI fixtures,已定義958案例無失敗/跳過/flaky,958全部pass；涵蓋EN/zh-HK與多寬度；不等於新404/500/全站200%都測過,UC46,E17,pass
+OP47,lib/readiness/runtime-adapters.ts,維運,重跑runtime-adapters及相關118項選定測試,PR91已部署；PR92包含同碼,request OIDC限同部署；無context不借env token；失敗redact,選定7檔118全部pass；不能代替production readiness授權POST,UC47,E18,pass
+OP48,/{lang}/onboarding,首次設定用戶,確認→丟失成功回應→reload/retry→查brand及intent,隔離租戶A；Pro配額；合成資料；合成provider,同intent只一品牌；問題context正確；回原角色確認,本輪未建立品牌；既有CI/隔離歷史不能當今次正式寫入證據,UC48,E19,blocked
+OP49,API owned/foreign pairs,另一租戶,A可讀200；B同ID404；撤銷session後401,隔離租戶A/B及同一版本,無跨租戶資料或寫入,本輪只有一個沿用session；未新建兩帳戶,UC49,E19,blocked
+OP50,/admin + /api/admin/directory,Super Admin,逐一讀users/accounts/brands/scans/prompts/observations/runs/sources/work,指定並已授權Admin；兩帳戶合成資料,九類資料、scope、失敗態正確；不能顯示token/密鑰,源碼有9視圖、API guard；本輪無Admin工作階段,UC50,E20,blocked
+OP51,/admin,Super Admin,篩選A→翻頁→搜尋→重設,26+合成記錄；A/B各有資料,25/page；無重複或漏列；查詢變更回首頁,本輪未以Admin操作,UC51,E20,blocked
+OP52,/admin schema panel,Super Admin,分別測present/missing/unavailable,隔離缺列及查詢失敗fixture,三態不同；不執行DDL、不當完整journey通過,源碼及CI已有覆蓋；本輪無Admin live驗收,UC52,E20,blocked
+OP53,onboarding assist,品牌經理,人工參考答案→生成→核實每句來源→失敗轉人工,5個已批准公開首頁×2次；明確費用上限,10樣本零無來源claims；語言/市場不猜；計時/費用/模型記錄,未批准本輪provider樣本與費用；零本輪生成,UC53,E19,blocked
+OP54,PR90 suggestion panel,品牌經理,雙擊→timeout/5xx→另一成功→關閉重開,隔離HTTP fault fixtures；EN/zh-HK桌面/手機,一次POST；未知保留；禁止盲重試；告警不消失,PR90既有994 browser含36新增案例pass；尚未部署且非PR92組合,UC54,E21,pass
+OP55,PR92 not-found/error,訪客,兩語unknown URL；500→retry→home；驗support digest,候選隔離preview；可控錯誤fixture,恢復按鈕可用、無內部訊息、同語言,程式碼有新頁；本輪未能操作候選preview；500未注入,UC55,E22,blocked
+OP56,PR92 deployment,QA,開候選preview→登入保護→應用流程,可獲授權的Vercel預覽登入,可操作候選部署，不只READY,跳Vercel登入被自動審批拒绝；未繞過,UC56,E22,blocked
+OP57,/{lang}/pricing,放大文字使用者,放大root文字→讀方案/表格/CTA,375px；200%文字；EN/zh-HK；light/dark,整頁不水平溢出；表格只在命名容器內捲動,PR92作者報告約23px溢出；本輪未獨立重現，CI未覆蓋此組合,UC57,E23,not-tested
+OP58,prompts/bulk,批次維護使用者,A預覽→B改題→A提交；再測回應遺失重送,隔離資料庫；兩操作員；同intent,409不覆寫；重新預覽；同intent只套一次；舊回答不改,本輪只執行read-only preview，無正式apply,UC58,E19,blocked
+OP59,/{lang}/auth/login,首次登入用戶,分別兩方法→原next頁→過期連結恢復,使用者選擇正確登入帳戶；隔離環境,session正確且不遺失return-to；帳戶選擇明確,本輪沿用已登入session；未登出及未傳送登入電郵,UC59,E19,not-tested

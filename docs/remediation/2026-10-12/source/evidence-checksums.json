@@ -1,0 +1,22 @@
+{
+  "AISO-Audit-2026-10-12.md": "fe5f8d31e2f3756b86dce56f33fe6ca5b5f1cc1eff926f85fd4c02bf99664f6d",
+  "AISO-Remediation-Tasks-2026-10-12.csv": "948ba9eff769768bf2fa80d7f3fbc990cddbf1d3d91bc9170296ccbe21060d27",
+  "AISO-Use-Cases-2026-10-12.csv": "9fe1635ba6bf2f01953efd38fb8d98787d1467872574b7af1ed45987535a4783",
+  "README.md": "10c02c0da103f945d5734509879285950df94db0488b5590aeb1f42f3b9a6d0e",
+  "evidence/2-unit-contract-summary.json": "89ff84559fc9f4182183573b695414a404a8a678904924a5a9fe45b8d8ed042c",
+  "evidence/3-e2e-accessibility-1-summary.json": "ffa3302cd28e70f449cbd27b00dfc630c4c533db081cb857a14e907151d8ea89",
+  "evidence/4-e2e-accessibility-2-summary.json": "ffa3302cd28e70f449cbd27b00dfc630c4c533db081cb857a14e907151d8ea89",
+  "evidence/5-e2e-accessibility-3-summary.json": "903c01c496b97fb05bdeba8dde364b7ac77b0291635c45bd13d002bd94f864b7",
+  "evidence/6-e2e-accessibility-4-summary.json": "903c01c496b97fb05bdeba8dde364b7ac77b0291635c45bd13d002bd94f864b7",
+  "evidence/anonymous-http.json": "aafc09c3d559d6a2906a1d0885b23aa57666c99281fe505e767c76f815218e3e",
+  "evidence/gate-summary.json": "8daf3cd289dfb8f2b432f93a75a2be97327ba421034776bbd5919bcd578f8664",
+  "evidence/integration-summary.json": "a9e86682cdd6357598c26a4f84e19ee1a14f06d94ba74f7b3bfe4c0e8359ca88",
+  "evidence/score-boundary-results.json": "fa6dbb49e04385078ded23cd57b33142d1900790170152acee1ebfd366940bb5",
+  "evidence/targeted-tests-summary.json": "c4550bfb81fb1bc51397a058571a343bbe8474646c89767f906de54bcc03b0a8",
+  "evidence-index.csv": "c6dd7123993dd5c7ee4eba6971047dd591d75cdb778b2263bc9bc0f1b3b7f485",
+  "operation-inventory.csv": "77273d47f7f05d872b7baa3f62bcc3698415112fcf9239e000bae2a78b6f7a56",
+  "repro/audit-score-boundary.test.tsx": "71b3f5551e0f77462f5ee81c989b79dc51601abdefe26e10eae760c520e545a4",
+  "synthetic-invalid-market.csv": "13efd110a434f374a24434480c28343da48a5222c5407f73483231cdc50f212e",
+  "synthetic-mixed.csv": "a2317e271ebd4cb7d873307d530788f6f5b6525c4e48043be8ec438ffee0073a",
+  "use-cases.json": "e1a1e216e1c79a584817c30885f73b3b3092914ac94c614fc6a317abdb73eafe"
+}

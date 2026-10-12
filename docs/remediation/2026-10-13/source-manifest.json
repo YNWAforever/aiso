@@ -1,0 +1,10 @@
+{
+  "plan_date": "2026-10-13",
+  "timezone": "Asia/Hong_Kong",
+  "source_zip": "source/AISO-Audit-2026-10-12.zip",
+  "source_zip_sha256": "da78937890270fb1aca6a695c3afa47c932e3eb6737c08531b7007b314db20ca",
+  "source_files": 21,
+  "source_checksums_verified": 20,
+  "code_reference_sha": "03c7b806facfde73d20792f7ac2c121a72c9c18c",
+  "verification_this_turn": "Archive integrity, document/code-location review and plan validation only; no product test or live re-audit."
+}
