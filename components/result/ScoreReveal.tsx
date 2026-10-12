@@ -51,9 +51,13 @@ interface Props {
   region?: string | null
 }
 
-/** One decimal only when the score has one, so the ring and the text always agree. */
-function formatScore(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1)
+/**
+ * The stored precision (scans.score keeps two decimals), with trailing zeros
+ * dropped: 74 -> "74", 63.5 -> "63.5", 89.97 -> "89.97". Rounding to one
+ * decimal would print 89.97 as "90.0" beside an "A" — the grade for < 90.
+ */
+export function formatScore(value: number): string {
+  return String(Math.round(value * 100) / 100)
 }
 
 export function ScoreReveal({ score, grade, domain, industry, region }: Props) {
