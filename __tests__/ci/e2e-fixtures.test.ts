@@ -41,3 +41,23 @@ describe('E2E scan fixture', () => {
 })
 
 it('numeric success fixture carries validated synthetic page evidence while missing evidence remains unknown',()=>{vi.stubEnv('E2E_FIXTURE_MODE','1');const scan=getE2EScanFixture(E2E_FIXTURE_SCAN_ID)!;expect(projectScanStatus({score:scan.score??null,grade:scan.grade??null,evidence:scan.results.evidence}).score).toBe(63.5);expect(projectScanStatus({score:scan.score??null,grade:scan.grade??null,evidence:undefined})).toMatchObject({state:'unknown',score:null})});
+
+import { assignGrade } from '@/lib/scoring'
+it('uses the real grade for the stored fractional fixture',()=>{
+ vi.stubEnv('E2E_FIXTURE_MODE','1')
+ const scan=getE2EScanFixture(E2E_FIXTURE_SCAN_ID)!
+ expect(scan.score).toBe(63.5)
+ expect(scan.grade).toBe('C')
+ expect(scan.grade).toBe(assignGrade(scan.score))
+})
+
+it('fractional boundary fixtures are gated and carry the scorer grade',()=>{
+ const scores=[49.97,59.97,69.97,79.97,89.97,63.5,0,50,60,70,80,90,100]
+ scores.forEach((score,index)=>{
+  const id='e2e00000-0000-4000-a000-'+String(index+2).padStart(12,'0')
+  vi.stubEnv('E2E_FIXTURE_MODE','')
+  expect(getE2EScanFixture(id)).toBeNull()
+  vi.stubEnv('E2E_FIXTURE_MODE','1')
+  expect(getE2EScanFixture(id)).toMatchObject({score,grade:assignGrade(score)})
+ })
+})

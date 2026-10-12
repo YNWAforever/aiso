@@ -50,7 +50,7 @@ test.describe('Scan to result journey', () => {
     await home.scan('https://example.com')
     await home.waitForNavToResult()
     await expect(page.locator('body')).not.toContainText('This page could not be found')
-    await expect(page.locator('text=/^\\d{1,3}$/')).toBeVisible()
+    await expect(page.getByTestId('result-score').getByText('63.5/100', { exact: true })).toBeVisible()
   })
 
   test('fixture result page shows the email capture gate', async ({ page }) => {

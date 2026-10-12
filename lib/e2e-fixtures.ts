@@ -1,3 +1,4 @@
+import {assignGrade} from './scoring'
 import {buildScanEvidence} from './scan-evidence'
 import type { Scan } from '@/lib/types'
 
@@ -12,7 +13,7 @@ export const E2E_FIXTURE_SCAN: Scan = {
   url: 'https://e2e-test.example.com',
   domain: 'e2e-test.example.com',
   score: 63.5,
-  grade: 'D',
+  grade: assignGrade(63.5),
   industry: null,
   region: null,
   account_id: null,
@@ -30,7 +31,14 @@ export const E2E_FIXTURE_SCAN: Scan = {
   },
 }
 
+const PRECISION_SCORES = [49.97,59.97,69.97,79.97,89.97,63.5,0,50,60,70,80,90,100]
+const precisionFixtureId = (index: number) => 'e2e00000-0000-4000-a000-'+String(index+2).padStart(12,'0')
+
 export function getE2EScanFixture(id: string): Scan | null {
-  if (process.env.E2E_FIXTURE_MODE !== '1' || id !== E2E_FIXTURE_SCAN_ID) return null
-  return structuredClone(E2E_FIXTURE_SCAN)
+  if (process.env.E2E_FIXTURE_MODE !== '1') return null
+  if (id === E2E_FIXTURE_SCAN_ID) return structuredClone(E2E_FIXTURE_SCAN)
+  const index = PRECISION_SCORES.findIndex((_, index) => id === precisionFixtureId(index))
+  if (index < 0) return null
+  const score = PRECISION_SCORES[index]
+  return { ...structuredClone(E2E_FIXTURE_SCAN), id, score, grade: assignGrade(score) }
 }

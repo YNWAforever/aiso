@@ -4,7 +4,7 @@ type SupportedLang = 'en' | 'zh-HK'
 
 const COPY = {
   en: {
-    heading: 'See whether AI recommends your brand.',
+    heading: 'Prepare your website for AI search.',
     url: 'Website URL',
     scan: 'Run Free Scan',
     personalise: /Personalise/i,
@@ -12,7 +12,7 @@ const COPY = {
     region: 'Region (optional)',
   },
   'zh-HK': {
-    heading: '了解 AI 會否推薦你的品牌。',
+    heading: '為 AI 搜尋做好網站準備。',
     url: '網站網址',
     scan: '立即免費掃描',
     personalise: /個人化/,
