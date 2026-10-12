@@ -112,8 +112,8 @@ function MetricBar({ label, value, max = 100, color = 'bg-primary' }: MetricBarP
 interface TierBadgeProps { tier: string; count: number; otherLabel?: string }
 function TierBadge({ tier, count, otherLabel }: TierBadgeProps) {
   const colors: Record<string, string> = {
-    tier1: 'bg-emerald-100 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60',
-    tier2: 'bg-blue-100 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/60',
+    tier1: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60',
+    tier2: 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/60',
     tier3: 'bg-muted text-muted-foreground border-border',
     other: 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-300 border-orange-200 dark:border-orange-800/60',
   }
@@ -324,8 +324,8 @@ export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
                   <div key={i} className="flex items-center gap-3">
                     <span className="text-xs text-muted-foreground flex-1 truncate">{ch.heading || c.section(i + 1)}</span>
                     <div className="flex gap-1">
-                      {ch.isAnswerFirst && <span className="text-[10px] bg-emerald-100 text-emerald-700 dark:text-emerald-300 px-1 rounded">{c.answerFirst}</span>}
-                      {ch.isSelfContained && <span className="text-[10px] bg-blue-100 text-blue-700 dark:text-blue-300 px-1 rounded">{c.selfContained}</span>}
+                      {ch.isAnswerFirst && <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 px-1 rounded">{c.answerFirst}</span>}
+                      {ch.isSelfContained && <span className="text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 px-1 rounded">{c.selfContained}</span>}
                     </div>
                     <span className={`text-xs font-bold w-8 text-right ${ch.extractabilityScore >= 60 ? 'text-emerald-600 dark:text-emerald-300' : ch.extractabilityScore >= 30 ? 'text-amber-600 dark:text-amber-300' : 'text-red-500'}`}>
                       {Math.round(ch.extractabilityScore)}

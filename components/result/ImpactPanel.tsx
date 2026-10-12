@@ -15,8 +15,8 @@ const STATUS_LABELS_ZH_HK: Record<PlatformStatus, string> = {
 }
 
 const EFFORT_STYLES: Record<Effort, { label: string; cls: string }> = {
-  minutes: { label: '~10 min',  cls: 'bg-emerald-100 text-emerald-700 dark:text-emerald-300' },
-  hours:   { label: 'hours',    cls: 'bg-blue-100 text-blue-700 dark:text-blue-300' },
+  minutes: { label: '~10 min',  cls: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300' },
+  hours:   { label: 'hours',    cls: 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300' },
   days:    { label: 'days+',    cls: 'bg-muted text-muted-foreground' },
 }
 
@@ -152,7 +152,7 @@ export function ImpactPanel({ impact, score, grade }: Props) {
             <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300 tabular-nums leading-none">{projectedScore}</p>
             <p className="text-2xs text-emerald-700 dark:text-emerald-300 font-semibold mt-1">{ui.after} · {projectedGrade}</p>
           </div>
-          <span className="text-xs font-bold bg-emerald-100 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded-full">{ui.pts(delta)}</span>
+          <span className="text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded-full">{ui.pts(delta)}</span>
         </div>
       )}
 
@@ -167,7 +167,7 @@ export function ImpactPanel({ impact, score, grade }: Props) {
                 href={`#${w.key}`}
                 className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 hover:bg-muted transition group"
               >
-                <span className="text-xs font-bold bg-emerald-100 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full shrink-0 tabular-nums">
+                <span className="text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full shrink-0 tabular-nums">
                   {ui.pts(w.pointsGain)}
                 </span>
                 <span className="text-xs text-foreground/80 font-medium min-w-0 truncate group-hover:text-foreground">

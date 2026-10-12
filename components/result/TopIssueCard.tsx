@@ -67,7 +67,7 @@ export function TopIssueCard({ results, failCount, priorityState, retryHref }: P
         card: 'border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/40',
         icon: 'bg-amber-500',
         eyebrow: 'text-amber-800 dark:text-amber-300',
-        badge: 'bg-amber-100 text-amber-800 dark:text-amber-300 ring-amber-200',
+        badge: 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 ring-amber-200 dark:ring-amber-800/60',
         quickFix: 'border-amber-100',
         more: 'text-amber-700 dark:text-amber-300',
       }
@@ -75,7 +75,7 @@ export function TopIssueCard({ results, failCount, priorityState, retryHref }: P
         card: 'border-red-200 dark:border-red-800/60 bg-red-50 dark:bg-red-950/40',
         icon: 'bg-red-500',
         eyebrow: 'text-red-700 dark:text-red-300',
-        badge: 'bg-red-100 text-red-800 dark:text-red-300 ring-red-200',
+        badge: 'bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300 ring-red-200 dark:ring-red-800/60',
         quickFix: 'border-red-100',
         more: 'text-red-700 dark:text-red-300',
       }

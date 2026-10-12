@@ -43,7 +43,7 @@ export function ImpactTeaser({ impact, score }: Props) {
   return (
     <div className={`rounded-2xl border p-6 ${isAlarm ? 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800/60' : 'bg-card border-border'}`}>
       <div className="flex items-start gap-3">
-        <div className={`shrink-0 size-9 rounded-lg flex items-center justify-center ${isAlarm ? 'bg-red-100' : 'bg-emerald-100'}`}>
+        <div className={`shrink-0 size-9 rounded-lg flex items-center justify-center ${isAlarm ? 'bg-red-100 dark:bg-red-950/60' : 'bg-emerald-100 dark:bg-emerald-950/60'}`}>
           {isAlarm
             ? <AlertTriangle className="size-4.5 text-red-600 dark:text-red-300" />
             : <TrendingUp className="size-4.5 text-emerald-600 dark:text-emerald-300" />}
@@ -53,7 +53,7 @@ export function ImpactTeaser({ impact, score }: Props) {
             {headline}
           </p>
           {delta > 0 && (
-            <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-100 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-full">
+            <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-full">
               <TrendingUp className="size-3" />
               {unlockCopy}
             </p>

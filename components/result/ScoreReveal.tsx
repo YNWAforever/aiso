@@ -52,6 +52,9 @@ interface Props {
   region?: string | null
 }
 
+/** Compatibility export retained from merged PR92; all scan displays share the same precision contract. */
+export const formatScore = formatScanScore
+
 export function ScoreReveal({ score, grade, domain, industry, region }: Props) {
   const locale = useLocale()
   const isZh = locale === 'zh-HK'

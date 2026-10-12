@@ -35,9 +35,9 @@ export function LockedPreview({ checkCount }: { checkCount: number }) {
           {fakeRows.map((r, i) => (
             <div key={i} className="flex items-center gap-3 py-2 border-b border-border/60">
               <div className={`size-5 rounded-full flex items-center justify-center text-[10px] font-black ${
-                r.status === 'pass' ? 'bg-emerald-100 text-emerald-600 dark:text-emerald-300' :
-                r.status === 'warn' ? 'bg-amber-100 text-amber-600 dark:text-amber-300' :
-                'bg-red-100 text-red-600 dark:text-red-300'
+                r.status === 'pass' ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300' :
+                r.status === 'warn' ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-300' :
+                'bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-300'
               }`}>
                 {r.status === 'pass' ? '✓' : r.status === 'warn' ? '!' : '✗'}
               </div>

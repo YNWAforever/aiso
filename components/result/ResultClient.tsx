@@ -267,9 +267,9 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
         <div className="flex items-center gap-2 flex-wrap text-xs">
           <span className="text-muted-foreground">{ui.checksScanned(total)}</span>
           <span className="ml-auto flex gap-2">
-            {pass > 0 && <span className="bg-emerald-100 text-emerald-700 dark:text-emerald-300 font-semibold px-2.5 py-1 rounded-full">✅ {ui.passing(pass)}</span>}
-            {warn > 0 && <span className="bg-amber-100  text-amber-700 dark:text-amber-300  font-semibold px-2.5 py-1 rounded-full">⚠️ {ui.warnings(warn)}</span>}
-            {fail > 0 && <span className="bg-red-100    text-red-700 dark:text-red-300    font-semibold px-2.5 py-1 rounded-full">❌ {ui.failing(fail)}</span>}
+            {pass > 0 && <span className="bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-semibold px-2.5 py-1 rounded-full">✅ {ui.passing(pass)}</span>}
+            {warn > 0 && <span className="bg-amber-100 dark:bg-amber-950/60  text-amber-700 dark:text-amber-300  font-semibold px-2.5 py-1 rounded-full">⚠️ {ui.warnings(warn)}</span>}
+            {fail > 0 && <span className="bg-red-100 dark:bg-red-950/60    text-red-700 dark:text-red-300    font-semibold px-2.5 py-1 rounded-full">❌ {ui.failing(fail)}</span>}
             {summary.counts.unknown > 0 && <span className="rounded-full bg-muted px-2.5 py-1 font-semibold text-muted-foreground">{locale === 'zh-HK' ? `${summary.counts.unknown} 項資料不足` : `${summary.counts.unknown} need evidence`}</span>}
           </span>
         </div>
@@ -296,10 +296,10 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
                   aria-label={`${platform.label}: ${getPlatformStatusLabel(platform.status, locale)}`}
                   className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                     platform.status === 'visible'
-                      ? 'bg-emerald-100 text-emerald-700 dark:text-emerald-300'
+                      ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
                       : platform.status === 'partial'
-                        ? 'bg-amber-100 text-amber-700 dark:text-amber-300'
-                        : platform.status === 'not_measured' ? 'bg-muted text-foreground/80' : 'bg-red-100 text-red-700 dark:text-red-300'
+                        ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
+                        : platform.status === 'not_measured' ? 'bg-muted text-foreground/80' : 'bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300'
                   }`}
                 >
                   {getPlatformStatusLabel(platform.status, locale)}

@@ -242,13 +242,14 @@ export default function PricingPage() {
             <h2 className="text-2xl font-black text-foreground">{t('paid_plans_title')}</h2>
             <p className="mt-2 text-sm text-muted-foreground">{t('paid_plans_body')}</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* rem-based track minimum, not a breakpoint: media queries ignore the root font size, so md:grid-cols-3 kept three 197px columns under 200% text and the price overflowed. */}
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-[repeat(auto-fit,minmax(13rem,1fr))]">
             {plans.map(plan => {
               const isPro = plan.key === 'pro'
               return (
                 <div
                   key={plan.key}
-                  className={`relative rounded-2xl p-7 flex flex-col transition-colors transition-shadow duration-200 ${
+                  className={`relative min-w-0 rounded-2xl p-7 flex flex-col transition-colors transition-shadow duration-200 ${
                     isPro
                       ? 'border-2 border-primary bg-card shadow-2xl shadow-primary/15'
                       : 'border border-border bg-card shadow-sm hover:shadow-md'
@@ -286,7 +287,7 @@ export default function PricingPage() {
                           aria-hidden="true"
                           className={`mt-0.5 size-3.5 shrink-0 ${plan.key === 'pro' ? 'text-primary' : 'text-emerald-500'}`}
                         />
-                        <span className="text-xs text-foreground">{feature}</span>
+                        <span className="min-w-0 text-xs text-foreground">{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -337,7 +338,7 @@ export default function PricingPage() {
             role="region"
             aria-label={t('comparison_label')}
             tabIndex={0}
-            className="w-full max-w-full overflow-x-auto rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="relative w-full max-w-full overflow-x-auto rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <table className="w-full table-fixed min-w-[400px] overflow-hidden rounded-2xl sm:min-w-[720px] border border-border bg-card shadow-sm">
               <thead>

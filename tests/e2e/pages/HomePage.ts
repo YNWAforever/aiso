@@ -1,25 +1,23 @@
 import type { Locator, Page } from '@playwright/test'
+import en from '@/messages/en.json'
+import zhHK from '@/messages/zh-HK.json'
 
 type SupportedLang = 'en' | 'zh-HK'
 
-const COPY = {
-  en: {
-    heading: 'Prepare your website for AI search.',
-    url: 'Website URL',
-    scan: 'Run Free Scan',
-    personalise: /Personalise/i,
-    industry: 'Industry (optional)',
-    region: 'Region (optional)',
-  },
-  'zh-HK': {
-    heading: '為 AI 搜尋做好網站準備。',
-    url: '網站網址',
-    scan: '立即免費掃描',
-    personalise: /個人化/,
-    industry: '行業（可選）',
-    region: '地區（可選）',
-  },
-} as const
+// Read from the catalogues rather than copied: the hard-coded heading here
+// went stale when the hero copy changed, and nothing noticed because a
+// locator that matches nothing only fails when a test uses it.
+const copyFor = (catalogue: typeof en) => ({
+  heading: catalogue.home.proof_headline,
+  url: catalogue.home.website_url,
+  scan: catalogue.home.cta,
+  personalise: catalogue.home.personalise_toggle,
+  industry: catalogue.home.industry_placeholder,
+  region: catalogue.home.region_placeholder,
+})
+
+const COPY = { en: copyFor(en), 'zh-HK': copyFor(zhHK) } as const
+
 
 export class HomePage {
   readonly heading: Locator
