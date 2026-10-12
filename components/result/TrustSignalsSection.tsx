@@ -7,9 +7,9 @@ import { TRUST_SIGNAL_KEYS, type TrustSignalKey, type TrustSignalStatus } from '
 const STATUSES: readonly TrustSignalStatus[] = ['pass', 'warn', 'fail']
 const MARK: Record<TrustSignalStatus, string> = { pass: '✓', warn: '!', fail: '✕' }
 const TONE: Record<TrustSignalStatus, string> = {
-  pass: 'bg-emerald-50 text-emerald-800',
-  warn: 'bg-amber-50 text-amber-900',
-  fail: 'bg-rose-50 text-rose-800',
+  pass: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300',
+  warn: 'bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300',
+  fail: 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300',
 }
 
 /** The stored value, validated: scans from before 2026-10-10 have none, and stored JSON is never trusted blind. */
@@ -33,12 +33,12 @@ export function TrustSignalsSection({ value }: { value: unknown }) {
   const present = signals.filter(s => s.status === 'pass').length
 
   return (
-    <section aria-labelledby="trust-signals-title" className="rounded-2xl border border-slate-200 bg-white p-5">
+    <section aria-labelledby="trust-signals-title" className="rounded-2xl border border-border bg-card p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="trust-signals-title" className="text-base font-bold text-slate-900">{t('title')}</h2>
-        <p className="text-sm text-slate-600">{t('summary', { count: present, total: signals.length })}</p>
+        <h2 id="trust-signals-title" className="text-base font-bold text-foreground">{t('title')}</h2>
+        <p className="text-sm text-muted-foreground">{t('summary', { count: present, total: signals.length })}</p>
       </div>
-      <p className="mt-1 text-sm leading-6 text-slate-600">{t('intro')}</p>
+      <p className="mt-1 text-sm leading-6 text-muted-foreground">{t('intro')}</p>
       <ul className="mt-4 space-y-3">
         {signals.map(({ key, status }) => (
           <li key={key} className="flex gap-3">
@@ -46,10 +46,10 @@ export function TrustSignalsSection({ value }: { value: unknown }) {
               {MARK[status]}
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-900">
-                {t(`${key}_label`)} <span className="font-normal text-slate-600">· {t(`status_${status}`)}</span>
+              <p className="text-sm font-medium text-foreground">
+                {t(`${key}_label`)} <span className="font-normal text-muted-foreground">· {t(`status_${status}`)}</span>
               </p>
-              {status !== 'pass' && <p className="mt-0.5 text-sm text-slate-600">{t(`${key}_fix`)}</p>}
+              {status !== 'pass' && <p className="mt-0.5 text-sm text-muted-foreground">{t(`${key}_fix`)}</p>}
             </div>
           </li>
         ))}

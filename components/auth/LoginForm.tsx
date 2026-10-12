@@ -4,6 +4,7 @@ import { useLocale } from 'next-intl'
 import { authClient, buildAuthCompleteUrl } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
 import { Input }  from '@/components/ui/input'
+import { MailCheck } from 'lucide-react'
 
 const COPY_EN = {
   checkEmail: 'Check your email',
@@ -79,6 +80,9 @@ export function LoginForm({ next }: { next?: string }) {
   if (sent) {
     return (
       <div ref={sentMessageRef} role="status" aria-live="polite" tabIndex={-1} className="text-center">
+        <span aria-hidden="true" className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-accent text-primary">
+          <MailCheck className="size-6" />
+        </span>
         <p className="text-foreground font-medium">{c.checkEmail}</p>
         <p className="text-muted-foreground text-sm mt-1">{c.sentTo(email)}</p>
       </div>
@@ -90,7 +94,7 @@ export function LoginForm({ next }: { next?: string }) {
       <Button
         variant="outline"
         onClick={signInWithGoogle}
-        className="w-full justify-center gap-3"
+        className="h-11 w-full justify-center gap-3 font-semibold"
       >
         <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/><path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 0 1-7.18-2.54H1.83v2.07A8 8 0 0 0 8.98 17z"/><path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/><path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/></svg>
         {c.continueWithGoogle}
@@ -103,17 +107,20 @@ export function LoginForm({ next }: { next?: string }) {
       </div>
 
       <form onSubmit={signInWithMagicLink} className="space-y-3">
-        <label className="sr-only" htmlFor="login-email">{c.emailLabel}</label>
+        <label className="block text-sm font-semibold text-foreground" htmlFor="login-email">{c.emailLabel}</label>
         <Input
           id="login-email"
           type="email"
           value={email}
           onChange={e => setEmail(e.target.value)}
           placeholder={c.emailPlaceholder}
+          autoComplete="email"
+          inputMode="email"
           required
+          className="h-11"
           aria-describedby={errorMsg ? 'login-email-error' : undefined}
         />
-        <Button type="submit" disabled={loading} className="w-full">
+        <Button type="submit" disabled={loading} className="h-11 w-full font-semibold">
           {loading ? c.sending : c.sendMagicLink}
         </Button>
         {errorMsg && (

@@ -27,9 +27,9 @@ describe('TrustSignalsSection', () => {
     expect(html).toContain('Trust and E-E-A-T signals')
     expect(html).toContain('they do not change your score')
     expect(html).toContain('2 of 10 present')          // author and HTTPS
-    expect(html).toContain('Named author <span class="font-normal text-slate-600">· Present</span>')
-    expect(html).toContain('Privacy policy and terms <span class="font-normal text-slate-600">· Partly there</span>')
-    expect(html).toContain('Physical address <span class="font-normal text-slate-600">· Missing</span>')
+    expect(html).toContain('Named author <span class="font-normal text-muted-foreground">· Present</span>')
+    expect(html).toContain('Privacy policy and terms <span class="font-normal text-muted-foreground">· Partly there</span>')
+    expect(html).toContain('Physical address <span class="font-normal text-muted-foreground">· Missing</span>')
   })
 
   it('shows a fix only for signals that are not present', () => {

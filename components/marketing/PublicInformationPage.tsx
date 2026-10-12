@@ -28,11 +28,11 @@ export async function PublicInformationPage({ lang, copy, planned = false, relat
           {!planned && <Link href={`/${lang}/auth/login`} className="inline-flex min-h-11 items-center rounded-xl border border-border px-5 py-3 font-semibold">{t('signIn')}</Link>}
         </div>
       </section>
-      <div className="mt-12 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+      <div className="mt-12 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
         <section className="rounded-2xl border border-border bg-card p-6 sm:p-8">
           <h2 className="text-xl font-semibold">{planned ? t('proposed') : t('actions')}</h2>
           <ol className="mt-6 space-y-5">
-            {copy.actions.map((action, index) => <li key={action} className="flex gap-4 leading-relaxed"><span aria-hidden="true" className="font-mono font-semibold text-primary">0{index + 1}</span><span>{action}</span></li>)}
+            {copy.actions.map((action, index) => <li key={action} className="flex gap-4 leading-relaxed"><span aria-hidden="true" className="font-mono font-semibold text-primary">0{index + 1}</span><span className="min-w-0">{action}</span></li>)}
           </ol>
         </section>
         <div className="space-y-6">

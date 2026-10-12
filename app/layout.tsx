@@ -5,7 +5,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   metadataBase: SITE_URL,
-  title: 'Fimmick AEO — AI Search Readiness Check',
+  title: 'Fimmick AISO — AI Search Readiness Check',
   description: 'Check if your website is visible to AI search engines. Free Fix Pack included.',
 }
 

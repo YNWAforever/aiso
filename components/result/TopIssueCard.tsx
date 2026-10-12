@@ -64,20 +64,20 @@ export function TopIssueCard({ results, failCount, priorityState, retryHref }: P
   const severityLabel = ui.severity[severity]
   const styles = severity === 'warn'
     ? {
-        card: 'border-amber-200 bg-amber-50',
+        card: 'border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/40',
         icon: 'bg-amber-500',
-        eyebrow: 'text-amber-800',
-        badge: 'bg-amber-100 text-amber-800 ring-amber-200',
+        eyebrow: 'text-amber-800 dark:text-amber-300',
+        badge: 'bg-amber-100 text-amber-800 dark:text-amber-300 ring-amber-200',
         quickFix: 'border-amber-100',
-        more: 'text-amber-700',
+        more: 'text-amber-700 dark:text-amber-300',
       }
     : {
-        card: 'border-red-200 bg-red-50',
+        card: 'border-red-200 dark:border-red-800/60 bg-red-50 dark:bg-red-950/40',
         icon: 'bg-red-500',
-        eyebrow: 'text-red-700',
-        badge: 'bg-red-100 text-red-800 ring-red-200',
+        eyebrow: 'text-red-700 dark:text-red-300',
+        badge: 'bg-red-100 text-red-800 dark:text-red-300 ring-red-200',
         quickFix: 'border-red-100',
-        more: 'text-red-700',
+        more: 'text-red-700 dark:text-red-300',
       }
 
   return (
@@ -96,13 +96,13 @@ export function TopIssueCard({ results, failCount, priorityState, retryHref }: P
               {severityLabel}
             </span>
           </div>
-          <h2 className="text-lg font-black text-slate-900 leading-snug">{issue.headline}</h2>
+          <h2 className="text-lg font-black text-foreground leading-snug">{issue.headline}</h2>
         </div>
       </div>
-      <p className="text-sm text-slate-600 leading-relaxed mb-4 pl-12">{issue.why}</p>
+      <p className="text-sm text-muted-foreground leading-relaxed mb-4 pl-12">{issue.why}</p>
       <div className="pl-12">
-        <div className={`flex items-center gap-1.5 text-xs text-slate-500 bg-white rounded-lg px-3 py-2 border inline-flex ${styles.quickFix}`}>
-          <span className="font-semibold text-slate-700">{ui.quickFix}</span> {issue.fix}
+        <div className={`flex items-center gap-1.5 text-xs text-muted-foreground bg-card rounded-lg px-3 py-2 border inline-flex ${styles.quickFix}`}>
+          <span className="font-semibold text-foreground/80">{ui.quickFix}</span> {issue.fix}
         </div>
       </div>
       {failCount > 1 && (

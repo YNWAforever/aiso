@@ -50,9 +50,9 @@ export function ShareButton({ domain, score, grade }: Props) {
   return (
     <button
       onClick={share}
-      className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition"
+      className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground border border-border px-3 py-1.5 rounded-lg hover:bg-muted transition"
     >
-      {copied ? <Check className="size-3.5 text-emerald-600" /> : <Share2 className="size-3.5" />}
+      {copied ? <Check className="size-3.5 text-emerald-600 dark:text-emerald-300" /> : <Share2 className="size-3.5" />}
       {copied ? c.copied : c.share}
     </button>
   )

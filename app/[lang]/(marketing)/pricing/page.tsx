@@ -215,7 +215,7 @@ export default function PricingPage() {
     <div className="bg-background">
         {/* ── Hero ────────────────────────────────────────────── */}
         <section className="max-w-3xl mx-auto px-6 pt-16 pb-10 text-center">
-          <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-bold tracking-widest px-4 py-1.5 rounded-full mb-5 border border-primary/20">
+          <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary-accessible text-xs font-bold tracking-widest px-4 py-1.5 rounded-full mb-5 border border-primary/20">
             <Zap aria-hidden="true" className="size-3" />
             {t('badge')}
           </span>
@@ -349,7 +349,7 @@ export default function PricingPage() {
                     <th
                       key={col}
                       scope="col"
-                      className={`border-b border-border p-4 text-center text-xs font-bold tracking-wide ${col === 'pro' ? 'bg-primary/5 text-primary' : 'text-muted-foreground'}`}
+                      className={`border-b border-border p-4 text-center text-xs font-bold tracking-wide ${col === 'pro' ? 'bg-primary/5 text-primary-accessible' : 'text-muted-foreground'}`}
                     >
                       {col === 'basic' ? t('col_basic') : col === 'pro' ? t('col_pro') : t('col_enterprise')}
                     </th>

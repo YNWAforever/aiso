@@ -141,9 +141,9 @@ function CheckSection({ title, subtitle, keys, results }: {
   const labels = locale === 'zh-HK' ? CHECK_LABELS_ZH_HK : CHECK_LABELS_EN
   const explanations = getCheckExplanations(locale)
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6">
-      <p className="text-xs font-bold text-slate-500 tracking-widest mb-1">{title}</p>
-      {subtitle && <p className="text-xs text-slate-500 mb-4">{subtitle}</p>}
+    <div className="bg-card rounded-2xl border border-border p-6">
+      <p className="text-xs font-bold text-muted-foreground tracking-widest mb-1">{title}</p>
+      {subtitle && <p className="text-xs text-muted-foreground mb-4">{subtitle}</p>}
       {!subtitle && <div className="mb-4" />}
       {keys.map(key => {
         const r = getResult(results, key)
@@ -224,15 +224,15 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
   const c20 = (r['c20_chunkability_data']      ?? r['c20']) as C20 | undefined
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-background">
 
       {/* Nav */}
-      <nav className="bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center sticky top-0 z-50">
+      <nav className="bg-card border-b border-border px-6 py-3 flex justify-between items-center sticky top-0 z-50">
         <Link href={`/${lang}`} className="flex items-center gap-2">
           <div className="size-6 rounded-md bg-primary flex items-center justify-center">
             <Zap className="size-3.5 text-primary-foreground" />
           </div>
-          <span className="font-black text-slate-900 text-sm">
+          <span className="font-black text-foreground text-sm">
             Fimmick <span className="text-primary">AISO</span>
           </span>
         </Link>
@@ -265,12 +265,12 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
 
         {/* 2. Summary pills */}
         <div className="flex items-center gap-2 flex-wrap text-xs">
-          <span className="text-slate-500">{ui.checksScanned(total)}</span>
+          <span className="text-muted-foreground">{ui.checksScanned(total)}</span>
           <span className="ml-auto flex gap-2">
-            {pass > 0 && <span className="bg-emerald-100 text-emerald-700 font-semibold px-2.5 py-1 rounded-full">✅ {ui.passing(pass)}</span>}
-            {warn > 0 && <span className="bg-amber-100  text-amber-700  font-semibold px-2.5 py-1 rounded-full">⚠️ {ui.warnings(warn)}</span>}
-            {fail > 0 && <span className="bg-red-100    text-red-700    font-semibold px-2.5 py-1 rounded-full">❌ {ui.failing(fail)}</span>}
-            {summary.counts.unknown > 0 && <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">{locale === 'zh-HK' ? `${summary.counts.unknown} 項資料不足` : `${summary.counts.unknown} need evidence`}</span>}
+            {pass > 0 && <span className="bg-emerald-100 text-emerald-700 dark:text-emerald-300 font-semibold px-2.5 py-1 rounded-full">✅ {ui.passing(pass)}</span>}
+            {warn > 0 && <span className="bg-amber-100  text-amber-700 dark:text-amber-300  font-semibold px-2.5 py-1 rounded-full">⚠️ {ui.warnings(warn)}</span>}
+            {fail > 0 && <span className="bg-red-100    text-red-700 dark:text-red-300    font-semibold px-2.5 py-1 rounded-full">❌ {ui.failing(fail)}</span>}
+            {summary.counts.unknown > 0 && <span className="rounded-full bg-muted px-2.5 py-1 font-semibold text-muted-foreground">{locale === 'zh-HK' ? `${summary.counts.unknown} 項資料不足` : `${summary.counts.unknown} need evidence`}</span>}
           </span>
         </div>
 
@@ -284,22 +284,22 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
         </div>
 
         {/* 4. Public teaser or owner-only full results */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <p className="text-xs font-bold text-slate-500 tracking-widest mb-3">{ui.platforms}</p>
-          <p className="mb-3 text-xs text-slate-500">{ui.platformNote}</p>
+        <div className="bg-card rounded-2xl border border-border p-5">
+          <p className="text-xs font-bold text-muted-foreground tracking-widest mb-3">{ui.platforms}</p>
+          <p className="mb-3 text-xs text-muted-foreground">{ui.platformNote}</p>
           <div className="grid gap-2 sm:grid-cols-2">
             {summary.teaser.platformVisibility.map(platform => (
               <div key={platform.platform} className="flex items-center justify-between gap-3 text-sm">
-                <span className="font-medium text-slate-700">{platform.label}</span>
+                <span className="font-medium text-foreground/80">{platform.label}</span>
                 <span
                   data-status={platform.status}
                   aria-label={`${platform.label}: ${getPlatformStatusLabel(platform.status, locale)}`}
                   className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                     platform.status === 'visible'
-                      ? 'bg-emerald-100 text-emerald-700'
+                      ? 'bg-emerald-100 text-emerald-700 dark:text-emerald-300'
                       : platform.status === 'partial'
-                        ? 'bg-amber-100 text-amber-700'
-                        : platform.status === 'not_measured' ? 'bg-slate-100 text-slate-700' : 'bg-red-100 text-red-700'
+                        ? 'bg-amber-100 text-amber-700 dark:text-amber-300'
+                        : platform.status === 'not_measured' ? 'bg-muted text-foreground/80' : 'bg-red-100 text-red-700 dark:text-red-300'
                   }`}
                 >
                   {getPlatformStatusLabel(platform.status, locale)}
@@ -307,7 +307,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
               </div>
             ))}
           </div>
-          {(summary.teaser.collectorAccess ?? []).length > 0 && <ul className="mt-4 space-y-2 text-xs text-slate-600" aria-label={locale === 'zh-HK' ? '爬蟲技術存取' : 'Crawler technical access'}>
+          {(summary.teaser.collectorAccess ?? []).length > 0 && <ul className="mt-4 space-y-2 text-xs text-muted-foreground" aria-label={locale === 'zh-HK' ? '爬蟲技術存取' : 'Crawler technical access'}>
             {summary.teaser.collectorAccess.map(collector => <li key={collector.crawler}>
               {collector.crawler} · {locale === 'zh-HK'
                 ? ({ search: '搜尋', training: '訓練', user_triggered: '使用者觸發' }[collector.role]) : collector.role.replace('_', ' ')} · {locale === 'zh-HK'
@@ -322,7 +322,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
             <PillarScoreCards results={r} locale={locale} evidenceInputs={ownedEvidence?.pillarInputs} />
             <ScanEvidencePanel evidence={ownedEvidence ?? null} locale={locale} />
             <section aria-label={ui.estimatedImpact}>
-              <p className="mb-2 text-sm font-semibold text-slate-700">{ui.estimatedImpact}</p>
+              <p className="mb-2 text-sm font-semibold text-foreground/80">{ui.estimatedImpact}</p>
               <ImpactPanel impact={impact} score={fullScan.score} grade={fullScan.grade ?? 'F'} />
             </section>
 
@@ -347,7 +347,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
             <Link
               href={`/${lang}/dashboard`}
               data-testid="fix-pack-action"
-              className="block rounded-2xl bg-slate-900 px-6 py-4 text-center text-sm font-bold text-white hover:bg-slate-800 transition"
+              className="block rounded-2xl bg-foreground px-6 py-4 text-center text-sm font-bold text-background hover:bg-foreground/90 transition"
             >
               {ui.openFixPack}
             </Link>
@@ -355,7 +355,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
         ) : (
           <>
             <section aria-label={ui.estimatedImpact}>
-              <p className="mb-2 text-sm font-semibold text-slate-700">{ui.estimatedImpact}</p>
+              <p className="mb-2 text-sm font-semibold text-foreground/80">{ui.estimatedImpact}</p>
               <ImpactTeaser impact={publicImpact} score={summary.score} />
             </section>
             <LockedPreview checkCount={total} />
@@ -365,7 +365,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
 
         {/* Scan another */}
         <div className="text-center pb-4">
-          <Link href={`/${lang}`} className="text-sm text-slate-500 hover:text-slate-700 transition underline underline-offset-2">
+          <Link href={`/${lang}`} className="text-sm text-muted-foreground hover:text-foreground transition underline underline-offset-2">
             {ui.scanAnother}
           </Link>
         </div>

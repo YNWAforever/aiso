@@ -112,6 +112,7 @@
     "footer_label": "頁尾導覽",
     "locale_label": "語言",
     "sections": {
+      "product": "產品",
       "platform": "平台",
       "solutions": "解決方案",
       "company": "公司"
@@ -155,7 +156,8 @@
       "terms": "條款",
       "contact": "聯絡我們"
     },
-    "menu": "選單"
+    "menu": "選單",
+    "footer_blurb": "透過就緒檢查、修正包及持續監測，協助 AI 答案引擎找到、理解並引用您的網站。"
   },
   "auth": {
     "signing_out": "登出中…",
@@ -173,9 +175,9 @@
     "platforms_label": "追蹤所有主要 AI 平台",
     "how_title": "AISO 如何運作",
     "how_subtitle": "從網址到可操作的權威分數，不到一分鐘。",
-    "score_label": "100 分評分系統",
-    "score_title": "透明、加權的\nAISO 分數",
-    "score_body": "每一分都可追溯。核心技術檢查奠定基礎，GEO 內容檢查獎勵 AI 可引用的寫作，而你的權威引擎分數根據你的行業和地區進行校準。",
+    "score_label": "分數如何計算",
+    "score_title": "一個 100 分制分數，三層證據",
+    "score_body": "每項檢查通過可得全數分值，警告得一半，失敗不得分。分值反映該訊號對 AI 系統能否存取、讀取及引用頁面的直接影響程度。",
     "features_title": "AISO 平台全功能",
     "features_subtitle": "一個完整的系統，用於獲得並維持 AI 搜尋可見度。",
     "authority_title": "5 層權威引擎",
@@ -337,7 +339,7 @@
     "proof_failing": "項不合格",
     "proof_priority_title": "最高影響問題",
     "proof_priority_body": "主要服務頁面缺乏可直接回答的事實及結構化證據，令 AI 難以引用。",
-    "proof_platform_section": "了解 AI 搜尋生態",
+    "proof_platform_section": "為你的客戶已在使用的答案引擎而設",
     "proof_how_label": "由掃描到行動",
     "proof_how_title": "先審閱網站證據，再選擇改善項目",
     "proof_how_body": "掃描把技術及內容證據整理成清晰、適合業務決策的報告。",
@@ -375,7 +377,27 @@
     "scan_upgrade_required": "你目前的方案不包含已登入掃描。請先查看方案再重試。",
     "scan_quota_reached": "你已用盡方案的掃描額度。請等待額度重設或查看方案。",
     "scan_rate_limited": "掃描請求過多，請稍候再試。",
-    "scan_save_failed": "未能儲存這次掃描，沒有已儲存的結果可供查看。請重試。"
+    "scan_save_failed": "未能儲存這次掃描，沒有已儲存的結果可供查看。請重試。",
+    "proof_sample_link": "或先瀏覽範例報告",
+    "score_checks": "{count} 項檢查",
+    "score_points": "{points} 分",
+    "score_core_title": "核心存取",
+    "score_core_body": "AI 爬蟲能否存取及讀取你的網站？包括 robots.txt 規則、llms.txt、AI 機械人存取、結構化資料及內容可擷取性。",
+    "score_extended_title": "延伸結構",
+    "score_extended_body": "令頁面易於解析的訊號：網站地圖、標題、FAQ 標記、canonical 標籤、渲染、內部連結、實體資料及內容新鮮度。",
+    "score_geo_title": "生成式引擎優化",
+    "score_geo_body": "內容是否值得引用：引用密度、事實密度、主題權威，以及能否清晰拆分成答案大小的段落。",
+    "score_grades_label": "評級標準",
+    "faq_label": "常見問題",
+    "faq_title": "常見問題",
+    "faq_q1": "掃描真的免費嗎？",
+    "faq_a1": "是的。首次網站就緒掃描毋須帳戶及信用卡。如想保存報告並繼續使用，可建立免費帳戶。",
+    "faq_q2": "高分是否保證 AI 引擎會引用我的品牌？",
+    "faq_a2": "不會。分數衡量的是可供你核實的技術及內容就緒程度。實際的品牌提及及引用會另外根據抽樣 AI 模型回答量度，而抽樣結果並不代表消費者端的 AI 排名。",
+    "faq_q3": "掃描後我會得到甚麼？",
+    "faq_a3": "一個 0–100 的就緒分數及字母評級、{count} 項檢查各自的通過、警告及失敗證據，以及涵蓋 llms.txt、robots.txt 修補及 FAQ JSON-LD 的優先修正包。",
+    "faq_q4": "會考慮哪些 AI 產品？",
+    "faq_a4": "{platforms}。就緒檢查適用於所有這些產品；抽樣模型回答的持續監測屬付費方案的一部分。"
   },
   "result": {
     "score_label": "AI 就緒分數",
@@ -2793,5 +2815,22 @@
         "work": "分組改善工作"
       }
     }
+  },
+  "notFound": {
+    "eyebrow": "錯誤 404",
+    "title": "找不到此頁面",
+    "body": "連結可能已失效，或頁面已移動。您可以開始免費掃描，或返回熟悉的頁面。",
+    "home": "返回首頁",
+    "scan": "免費掃描",
+    "links_label": "熱門頁面",
+    "meta_title": "找不到頁面"
+  },
+  "errorPage": {
+    "eyebrow": "發生錯誤",
+    "title": "無法載入此頁面",
+    "body": "問題出在我們這邊。請再試一次；如問題持續，請聯絡我們並提供以下參考編號。",
+    "retry": "再試一次",
+    "home": "返回首頁",
+    "reference": "參考編號"
   }
 }
