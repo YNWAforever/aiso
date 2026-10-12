@@ -13,6 +13,8 @@ const mockSql = vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => {
 })
 
 vi.mock('server-only', () => ({}))
+const monitoring=vi.hoisted(()=>vi.fn(async()=>({availability:null})))
+vi.mock('@/lib/pulse/runs/user-dispatch',()=>({readUserPulseOptions:monitoring}))
 vi.mock('@/lib/workspace/maintenance', () => ({ loadMaintenanceSnapshot: async () => null }))
 vi.mock('@/lib/db', () => ({ db: () => mockSql }))
 vi.mock('@/lib/auth', () => ({ getProfile: vi.fn() }))
@@ -32,6 +34,7 @@ function ctx(clientId = 'client-1') {
 
 describe('GET /api/clients/[clientId]/overview', () => {
   beforeEach(() => {
+    monitoring.mockClear()
     queries.length = 0
     bindings.length = 0
     nextResults = []
@@ -43,6 +46,7 @@ describe('GET /api/clients/[clientId]/overview', () => {
     const res = await GET(request(), ctx())
     expect(res.status).toBe(401)
     expect(queries).toHaveLength(0)
+    expect(monitoring).not.toHaveBeenCalled()
   })
 
   it('returns 404 when the client is not owned by the caller account', async () => {
@@ -91,6 +95,7 @@ describe('GET /api/clients/[clientId]/overview', () => {
     const res = await GET(request(), ctx())
     const dto = await res.json()
     expect(dto.recommendations).toEqual([{ platform: 'gemini' }])
+    expect(monitoring).toHaveBeenCalledWith({accountId:'acc-1',clientId:'client-1'})
     expect(JSON.stringify(dto)).not.toContain('FORBIDDEN')
     const index = queries.findIndex(q => q.includes('from agent_recommendations'))
     expect(bindings[index]).toEqual(['scan-a', 'client-1', 'acc-1', ['gemini']])
