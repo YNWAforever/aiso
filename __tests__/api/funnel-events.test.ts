@@ -91,3 +91,14 @@ describe('POST /api/funnel-events', () => {
     expect(response.headers.get('ratelimit-remaining')).toBe('119')
   })
 })
+
+describe('T35 minimal onboarding diagnostics',()=>{
+ it.each(['onboarding_started','brand_draft_requested','brand_draft_reviewed','onboarding_manual_selected'])('accepts %s as an attempt, without declaring success',async name=>{
+  const payload={...VALID,name};expect((await post(JSON.stringify(payload))).status).toBe(200)
+  expect(info).toHaveBeenCalledWith('[funnel]',JSON.stringify(payload))
+ })
+ it.each(['nameText','email','url','draft','prompt','rawAnswer','metadata','scanId','provider','errorCode'])('rejects nonminimal %s for onboarding events',async key=>{
+  expect((await post(JSON.stringify({...VALID,name:'onboarding_started',[key]:'synthetic-private'}))).status).toBe(400)
+  expect(info).not.toHaveBeenCalled()
+ })
+})

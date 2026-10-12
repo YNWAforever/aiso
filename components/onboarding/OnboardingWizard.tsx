@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronRight, Zap, X } from 'lucide-react'
+import {trackFunnelEvent,consumeOneTimeFunnelEvent} from '@/lib/funnel-client'
 import { BrandAssistant } from './BrandAssistant'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
@@ -160,6 +161,8 @@ function WizardForm({
   const isZh = lang === 'zh-HK'
   const c = isZh ? COPY_ZH_HK : COPY_EN
   const recoveryCopy = (isZh ? zh : en).onboardingSetup
+  const started=useRef(false)
+  useEffect(()=>{if(draftReady&&consumeOneTimeFunnelEvent(started))trackFunnelEvent({name:'onboarding_started',locale:lang==='zh-HK'?'zh-HK':'en'})},[draftReady,lang])
   const hasScanPrefill = Boolean(scanId && initialBrand && initialDomain)
   const [step, setStep] = useState(draft.step ?? (hasScanPrefill ? 3 : 1))
   const previousStepRef = useRef(step)

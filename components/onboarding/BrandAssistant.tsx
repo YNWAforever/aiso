@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { NextIntlClientProvider, useTranslations } from 'next-intl'
+import {trackFunnelEvent} from '@/lib/funnel-client'
 import { Sparkles } from 'lucide-react'
 import { INDUSTRY_CODES, industryLabel } from '@/lib/onboarding/industry'
 import { PROMPT_MARKETS, type PromptLanguage } from '@/lib/prompts/context'
@@ -45,12 +46,13 @@ function AssistantForm({ lang, context, onContextChange, onApply, onManual }: Pr
   }
   function takeManual(){
     generation.current++;controller.current?.abort();controller.current=null
-    setBusy(false);setDraft(null);setError('');onManual()
+    setBusy(false);setDraft(null);setError('');trackFunnelEvent({name:'onboarding_manual_selected',locale:lang==='zh-HK'?'zh-HK':'en'});onManual()
   }
   const field = 'mt-1 min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm'
   async function suggest(event: React.FormEvent) {
     event.preventDefault()
     if (controller.current || !url.trim() || !language || !market) return
+    trackFunnelEvent({name:'brand_draft_requested',locale:lang==='zh-HK'?'zh-HK':'en'})
     const request = new AbortController(),version=++generation.current,key=contextKey
     controller.current=request;setBusy(true);setError('');setDraft(null)
     try {
@@ -102,7 +104,7 @@ function AssistantForm({ lang, context, onContextChange, onApply, onManual }: Pr
         <option value="">{t('unknown')}</option>{INDUSTRY_CODES.map(i => <option key={i} value={i}>{industryLabel(i, lang)}</option>)}
       </select></label>
       <p className="text-xs text-muted-foreground">{t('reviewNote')}</p>
-      <button type="button" disabled={!draft.brandName.trim()} onClick={() => {onApply(draft)}} className="min-h-11 w-full rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground disabled:opacity-50">{t('apply')}</button>
+      <button type="button" disabled={!draft.brandName.trim()} onClick={() => {trackFunnelEvent({name:'brand_draft_reviewed',locale:lang==='zh-HK'?'zh-HK':'en'});onApply(draft)}} className="min-h-11 w-full rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground disabled:opacity-50">{t('apply')}</button>
       <button type="button" onClick={() => setDraft(null)} className="min-h-11 w-full rounded-lg border border-border px-4 py-3 text-sm">{t('change')}</button>
     </div>}
     {error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}

@@ -150,3 +150,21 @@ for(const lang of ['en','zh-HK']){
   expect(bodies).toHaveLength(1)
  })
 }
+
+for(const lang of ['en','zh-HK'])test('T35 minimal events remain nonblocking during actual onboarding '+lang,async({page})=>{
+ const events:Array<Record<string,unknown>>=[]
+ page.on('request',request=>{if(request.url().endsWith('/api/funnel-events'))events.push(request.postDataJSON())})
+ await openOnboardingComponent(page,lang)
+ await page.route('**/api/funnel-events',r=>r.abort('failed'))
+ await page.getByRole('button',{name:lang==='en'?'Continue manually with these details':'保留資料並自行填寫',exact:true}).click()
+ await expect(page.locator('#onboarding-brand')).toBeFocused()
+ await page.route('**/api/onboarding/assist',route=>route.fulfill({json:{brandName:'Synthetic reviewed',description:'Private draft not telemetry',domain:'private.fixture',language:'en',market:'HK',sourceUrl:'https://private.fixture/',fetchedAt:'2026-10-13T00:00:00Z'}}))
+ await page.locator('#brand-assist-url').fill('private.fixture');await page.locator('#brand-assist-language').selectOption('en');await page.locator('#brand-assist-market').selectOption('HK')
+ await page.getByRole('button',{name:lang==='en'?'Draft my brand profile':'草擬我的品牌資料',exact:true}).click()
+ await page.getByRole('button',{name:lang==='en'?'Use these details':'使用這些資料',exact:true}).click()
+ await expect(page.locator('#onboarding-description')).toHaveValue('Private draft not telemetry')
+ await expect.poll(()=>events.length).toBe(4)
+ expect(events.map(e=>e.name)).toEqual(['onboarding_started','onboarding_manual_selected','brand_draft_requested','brand_draft_reviewed'])
+ expect(new Set(events.map(e=>e.attemptId)).size).toBe(1)
+ for(const event of events){expect(Object.keys(event).sort()).toEqual(['attemptId','locale','name']);expect(event.locale).toBe(lang)}
+})
