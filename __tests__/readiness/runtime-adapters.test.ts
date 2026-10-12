@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { generateKeyPairSync } from 'node:crypto'
 import { validateReport } from '../../scripts/readiness/candidate-contract.mjs'
 import { runCandidateCheck } from '../../scripts/readiness/check-candidate.mjs'
@@ -26,7 +27,7 @@ function fixture(overrides: Record<string, string | undefined> = {}, rows = iden
   })
   const neonFactory = vi.fn(() => ({ transaction })) as unknown as typeof neon
   const publicFetcher = vi.fn(async (url: string | URL | Request) => Response.json(String(url).endsWith('/.well-known/jwks.json') ? { keys: [publicJwk] } : null))
-  const ports = createRuntimePorts({ env: { ...env, ...overrides }, now: () => 1000, neonFactory, publicFetcher })
+  const ports = createRuntimePorts({ env: { ...env, ...overrides }, now: () => 1000, neonFactory, publicFetcher, getOidcToken: () => 'synthetic-request-oidc' })
   return { ports, queries, transaction, neonFactory, publicFetcher }
 }
 const request = { schemaVersion: 1 as const, nonce: 'a'.repeat(32), expected, policy, policyHash: hashPolicy(policy) }
@@ -185,4 +186,129 @@ it('preserves timeout evidence from a cancelled real adapter through strict repo
 it('accepts genuine synthetic public signing key material', async () => {
   const f = fixture()
   expect(await f.ports.auth(policy, signal())).toContainEqual({ id: 'auth.jwks', status: 'pass', code: 'available' })
+})
+
+it('authenticates a protected self-call with request-scoped OIDC while keeping the session anonymous', async () => {
+  const f = fixture()
+  const getOidcToken = vi.fn(() => 'short-lived-synthetic-oidc')
+  const requests: { url: string; init: RequestInit | undefined }[] = []
+  const publicFetcher = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+    requests.push({ url: String(url), init })
+    if (String(url).endsWith('/.well-known/jwks.json')) return Response.json({ keys: [publicJwk] })
+    return new Headers(init?.headers).get('x-vercel-trusted-oidc-idp-token') === 'short-lived-synthetic-oidc'
+      ? Response.json(null) : new Response(null, { status: 302 })
+  })
+  const ports = createRuntimePorts({ env, neonFactory: f.neonFactory, publicFetcher, getOidcToken })
+  expect(await ports.auth(policy, signal())).toContainEqual({ id: 'auth.anonymous_session', status: 'pass', code: 'anonymous' })
+  expect(getOidcToken).toHaveBeenCalledOnce()
+  expect(requests).toHaveLength(2)
+  expect(new Headers(requests[0].init?.headers).get('x-vercel-trusted-oidc-idp-token')).toBeNull()
+  expect(requests[1].url).toBe('https://candidate-test.vercel.app/api/auth/get-session')
+  expect(requests[1].init).toEqual(expect.objectContaining({ method: 'GET', credentials: 'omit', redirect: 'manual' }))
+  for (const { init } of requests) {
+    expect(new Headers(init?.headers).get('cookie')).toBeNull()
+    expect(new Headers(init?.headers).get('authorization')).toBeNull()
+  }
+})
+
+it('reads the official SDK request context for each self-call without caching or env-token precedence', async () => {
+  const contextKey = Symbol.for('@vercel/request-context')
+  const globals = globalThis as unknown as Record<symbol, unknown>
+  const previous = globals[contextKey]
+  const storage = new AsyncLocalStorage<{ headers: Record<string, string> }>()
+  globals[contextKey] = { get: () => storage.getStore() }
+  const previousToken = process.env.VERCEL_OIDC_TOKEN
+  process.env.VERCEL_OIDC_TOKEN = 'stale-env-sentinel'
+  try {
+    const f = fixture()
+    const calls: { url: string; headers: Headers }[] = []
+    const publicFetcher = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), headers: new Headers(init?.headers) })
+      return Response.json(String(url).endsWith('/.well-known/jwks.json') ? { keys: [publicJwk] } : null)
+    })
+    const ports = createRuntimePorts({ env, publicFetcher })
+    for (const token of ['first-request-token', 'second-request-token']) {
+      await storage.run({ headers: { 'x-vercel-oidc-token': token } }, async () => {
+        expect(await ports.auth(policy, signal())).toContainEqual({ id: 'auth.anonymous_session', status: 'pass', code: 'anonymous' })
+      })
+    }
+    expect(calls.map(c => c.headers.get('x-vercel-trusted-oidc-idp-token'))).toEqual([null, 'first-request-token', null, 'second-request-token'])
+    expect(f.publicFetcher).not.toHaveBeenCalled()
+  } finally {
+    if (previous === undefined) delete globals[contextKey]; else globals[contextKey] = previous
+    if (previousToken === undefined) delete process.env.VERCEL_OIDC_TOKEN; else process.env.VERCEL_OIDC_TOKEN = previousToken
+  }
+})
+
+it.each(['', 'invalid\r\nsecret-sentinel', 'x'.repeat(16385)])('blocks unusable self-access tokens without fallback, leakage or retry', async token => {
+  const f = fixture()
+  const getOidcToken = vi.fn(() => token)
+  const ports = createRuntimePorts({ env, publicFetcher: f.publicFetcher, getOidcToken })
+  const checks = await ports.auth(policy, signal())
+  expect(checks).toContainEqual({ id: 'auth.anonymous_session', status: 'unknown', code: 'unavailable' })
+  expect(f.publicFetcher).toHaveBeenCalledOnce()
+  expect(getOidcToken).toHaveBeenCalledOnce()
+  expect(JSON.stringify(checks)).not.toContain('sentinel')
+})
+
+it('redacts missing OIDC context errors and keeps the explicit legacy bypass scoped to self-access', async () => {
+  const f = fixture()
+  const getOidcToken = vi.fn(() => { throw new Error('secret-context-sentinel') })
+  const ports = createRuntimePorts({ env, publicFetcher: f.publicFetcher, getOidcToken })
+  const checks = await ports.auth(policy, signal())
+  expect(checks).toContainEqual({ id: 'auth.anonymous_session', status: 'unknown', code: 'unavailable' })
+  expect(JSON.stringify(checks)).not.toContain('sentinel')
+  expect(f.publicFetcher).toHaveBeenCalledOnce()
+  const transport = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+    const headers = new Headers(init?.headers)
+    expect(headers.get('x-vercel-trusted-oidc-idp-token')).toBeNull()
+    if (String(url).endsWith('/.well-known/jwks.json')) {
+      expect(headers.get('x-vercel-protection-bypass')).toBeNull()
+      return Response.json({ keys: [publicJwk] })
+    }
+    expect(headers.get('x-vercel-protection-bypass')).toBe('explicit-legacy-bypass')
+    return Response.json(null)
+  })
+  const legacy = createRuntimePorts({ env: { ...env, VERCEL_AUTOMATION_BYPASS_SECRET: 'explicit-legacy-bypass' }, publicFetcher: transport, getOidcToken })
+  expect(await legacy.auth(policy, signal())).toContainEqual({ id: 'auth.anonymous_session', status: 'pass', code: 'anonymous' })
+  expect(transport).toHaveBeenCalledTimes(2)
+})
+
+it('does not obtain a token or send a self-call for an invalid candidate or cancelled request', async () => {
+  const f = fixture(), getOidcToken = vi.fn(() => 'synthetic-oidc')
+  const invalid = createRuntimePorts({ env: { ...env, VERCEL_URL: 'foreign.example' }, publicFetcher: f.publicFetcher, getOidcToken })
+  await invalid.auth(policy, signal())
+  const controller = new AbortController(); controller.abort()
+  await createRuntimePorts({ env, publicFetcher: f.publicFetcher, getOidcToken }).auth(policy, controller.signal)
+  expect(getOidcToken).not.toHaveBeenCalled()
+  expect(f.publicFetcher).not.toHaveBeenCalled()
+})
+
+it('never follows a protected self-call redirect or retries the token-bearing request', async () => {
+  const transport = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+    if (String(url).endsWith('/.well-known/jwks.json')) return Response.json({ keys: [publicJwk] })
+    expect(new Headers(init?.headers).get('x-vercel-trusted-oidc-idp-token')).toBe('synthetic-oidc')
+    return new Response(null, { status: 302, headers: { location: 'https://foreign.example/steal' } })
+  })
+  const fetcher = createPublicUrlFetcher({ lookup: async () => [{ address: '8.8.8.8', family: 4 as const }], fetchImpl: transport, allowedProtocols: ['https:'], maxRedirects: 0, maxResponseBytes: 65536, timeoutMs: 5000 })
+  const getOidcToken = vi.fn(() => 'synthetic-oidc')
+  const ports = createRuntimePorts({ env, publicFetcher: fetcher, getOidcToken })
+  expect(await ports.auth(policy, signal())).toContainEqual({ id: 'auth.anonymous_session', status: 'fail', code: 'malformed_response' })
+  expect(getOidcToken).toHaveBeenCalledOnce()
+  expect(transport).toHaveBeenCalledTimes(2)
+  expect(transport.mock.calls.every(([url]) => String(url) !== 'https://foreign.example/steal')).toBe(true)
+})
+
+it('refuses a process-level OIDC token when the current request context is missing', async () => {
+  const contextKey = Symbol.for('@vercel/request-context'), globals = globalThis as unknown as Record<symbol, unknown>
+  const previousContext = globals[contextKey], previousToken = process.env.VERCEL_OIDC_TOKEN
+  delete globals[contextKey]; process.env.VERCEL_OIDC_TOKEN = 'process-level-token-sentinel'
+  try {
+    const f = fixture(), ports = createRuntimePorts({ env, publicFetcher: f.publicFetcher })
+    expect(await ports.auth(policy, signal())).toContainEqual({ id: 'auth.anonymous_session', status: 'unknown', code: 'unavailable' })
+    expect(f.publicFetcher).toHaveBeenCalledOnce()
+  } finally {
+    if (previousContext === undefined) delete globals[contextKey]; else globals[contextKey] = previousContext
+    if (previousToken === undefined) delete process.env.VERCEL_OIDC_TOKEN; else process.env.VERCEL_OIDC_TOKEN = previousToken
+  }
 })
