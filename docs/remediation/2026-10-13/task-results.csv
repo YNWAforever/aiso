@@ -14,5 +14,5 @@ task_id,status,scope,commit
 "T35","待驗收","unit33/33; browser32/32; humanUC74 not-tested","ea8b71fb"
 "T27","待驗收","unit40/40; browser30/30; hostedAdmin blocked","674cf220"
 "T26","受阻","nominated email lacks bound active AISO profile; no grant authority",""
-"T34","待驗收","app-roleSQL30/30 with mockedsession; actualAuth blocked","pending commit"
+"T34","待驗收","app-roleSQL30/30 with mockedsession; actualAuth blocked","e532e04f"
 "T36","待開始","same-candidate CI/hosted gate/release packet",""

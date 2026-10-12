@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { useRouter } from 'next/navigation'
 import { ChevronRight, Zap, X } from 'lucide-react'
 import {trackFunnelEvent,consumeOneTimeFunnelEvent} from '@/lib/funnel-client'
+import {loadBrowserDraft,saveBrowserDraft,removeBrowserDraft} from '@/lib/onboarding/browser-draft'
 import { BrandAssistant } from './BrandAssistant'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
@@ -134,7 +135,7 @@ export function OnboardingWizard(props: Props) {
   const draft = useMemo((): Draft => {
     if (!ready) return {}
     try {
-      const raw = sessionStorage.getItem(draftKey)
+      const raw = loadBrowserDraft(draftKey)
       if (!raw || raw.length > 20000) return {}
       const saved = JSON.parse(raw)
       if (!saved || typeof saved.intentKey !== 'string') return {}
@@ -197,7 +198,7 @@ function WizardForm({
   const draftKey = `aiso:onboarding:${accountId}:${scanId ?? 'new'}`
   useEffect(() => {
     if (!draftReady || submitted.current) return
-    try { sessionStorage.setItem(draftKey, JSON.stringify({ intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, step, clientId, partial,recoveredReady,submittedPayload:submittedPayload.current })) }
+    try { saveBrowserDraft(draftKey, JSON.stringify({ intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, step, clientId, partial,recoveredReady,submittedPayload:submittedPayload.current })) }
     catch { /* Form state still survives in this tab when storage is unavailable. */ }
   }, [draftReady, draftKey, intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, step, clientId, partial, recoveredReady])
 
@@ -243,13 +244,13 @@ function WizardForm({
         if(body.progress.prompts==='ready'){
           // Original setup committed. Preserve the edited draft without rewriting it.
           setPartial(false);setRecoveredReady(true)
-          try{sessionStorage.setItem(draftKey,JSON.stringify({intentKey,...values,websiteUrl,step,clientId:body.clientId,partial:false,recoveredReady:true,submittedPayload:previous}))}catch{}
+          try{saveBrowserDraft(draftKey,JSON.stringify({intentKey,...values,websiteUrl,step,clientId:body.clientId,partial:false,recoveredReady:true,submittedPayload:previous}))}catch{}
           return
         }
       }
       const requestIntent=targetClientId&&previous!==undefined&&previous!==payload?crypto.randomUUID():intentKey
+      if(!saveBrowserDraft(draftKey,JSON.stringify({intentKey:requestIntent,...values,websiteUrl,step,clientId:targetClientId,partial,submittedPayload:payload}))){setError(recoveryCopy.cacheUnavailable);return}
       submittedPayload.current=payload;setIntentKey(requestIntent)
-      try{sessionStorage.setItem(draftKey,JSON.stringify({intentKey:requestIntent,...values,websiteUrl,step,clientId:targetClientId,partial,submittedPayload:payload}))}catch{}
       const res=await send(values,requestIntent,targetClientId)
       const data = await res.json()
       if (!res.ok) { setError(typeof data.error === 'string' ? data.error : c.genericError); return }
@@ -258,7 +259,7 @@ function WizardForm({
       // Keep the request intent: recovery may reuse the original progress row's identity.
       if (data.progress.prompts !== 'ready') { setPartial(true); setError(c.seedPartial); return }
       submitted.current = true
-      try { sessionStorage.removeItem(draftKey) } catch { /* optional storage */ }
+      try { removeBrowserDraft(draftKey) } catch { /* optional storage */ }
       navigateToWorkspace(data.clientId)
     } catch { setError(c.genericError) }
     finally { inFlight.current=false;setLoading(false) }
@@ -482,6 +483,7 @@ function WizardForm({
 
             {recoveredReady && <p role="status" className="text-sm mb-4">{recoveryCopy.reconciledReady}</p>}
             {error && <p role="alert" className="text-destructive text-sm mb-4">{error}</p>}
+            {error===recoveryCopy.cacheUnavailable&&<a href={`/${lang}/dashboard`} className={btnBack}>{recoveryCopy.reviewBrands}</a>}
 
             <div className="flex flex-wrap gap-3">
               <button onClick={() => setStep(3)} className={btnBack}>{c.back}</button>

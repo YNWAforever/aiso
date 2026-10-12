@@ -3,15 +3,12 @@ import { expect, test } from '@playwright/test'
 import { ResultPage } from './pages/ResultPage.js'
 
 const LANG = 'en'
-const hasSeededResult = Boolean(
-  process.env.NEXT_PUBLIC_SUPABASE_URL &&
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-)
+// Offline public-result contract, not real Auth or mail acceptance.
+const hasIsolatedFixture = process.env.E2E_FIXTURE_MODE === '1'
 
 test.describe('Account unlock on a seeded public result', () => {
   test.beforeEach(async ({ page }) => {
-    test.skip(!hasSeededResult, 'Requires Supabase URL, anon key, and service-role key for the seeded result fixture.')
+    if(!hasIsolatedFixture)throw new Error('Isolated E2E scan fixture required; no Supabase dependency or real login/email request is authorized by this test')
     await page.goto('/' + LANG + '/result/' + TEST_SCAN_ID, { waitUntil: 'networkidle' })
   })
 

@@ -2732,7 +2732,10 @@
       "quota_exceeded": "Insufficient answer quota",
       "existing_run": "This week already has a saved monitoring run",
       "legacy_review_required": "Saved legacy answers require review before collection"
-    }
+    },
+    "retestWorkload": "A separate retest uses the saved run workload: {expected} answers.",
+    "reviewQuestions": "Review tracking questions",
+    "refresh": "Refresh saved status"
   },
   "brandAssistant": {
     "title": "Set up faster with AI",
@@ -2892,6 +2895,8 @@
     "questionSummary": "Create one brand and draft up to 24 tracking questions using this language and market.",
     "contextPending": "Create the brand now; confirm language and market before drafting questions.",
     "monitoringSeparate": "First monitoring is confirmed separately in the workspace.",
-    "reconciledReady": "Your original brand and questions are ready. Your edits have not been applied; they remain in this draft. Open the workspace to review the saved brand."
+    "reconciledReady": "Your original brand and questions are ready. Your edits have not been applied; they remain in this draft. Open the workspace to review the saved brand.",
+    "cacheUnavailable": "This tab cannot save this setup request. Your input is still here. Review saved brands before trying again, or use a tab that can save drafts.",
+    "reviewBrands": "Review saved brands"
   }
 }

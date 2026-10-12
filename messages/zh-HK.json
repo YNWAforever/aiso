@@ -2732,7 +2732,10 @@
       "quota_exceeded": "回答額度不足",
       "existing_run": "本週已有已保存的監測 run",
       "legacy_review_required": "已有舊版回答，需先覆核再收集"
-    }
+    },
+    "retestWorkload": "獨立重測沿用原 run 的工作量：{expected} 個回答。",
+    "reviewQuestions": "覆核監測問題",
+    "refresh": "重新讀取已保存的狀態"
   },
   "brandAssistant": {
     "title": "用 AI 更快設定品牌",
@@ -2892,6 +2895,8 @@
     "questionSummary": "建立一個品牌，按此語言及市場草擬最多 24 條監測問題。",
     "contextPending": "先建立品牌；確認語言及市場後才草擬問題。",
     "monitoringSeparate": "首次監測會在工作區另行確認。",
-    "reconciledReady": "原品牌及問題設定已完成。新的修改尚未套用，仍保留在這份草稿；可開啟工作區覆核已儲存的品牌。"
+    "reconciledReady": "原品牌及問題設定已完成。新的修改尚未套用，仍保留在這份草稿；可開啟工作區覆核已儲存的品牌。",
+    "cacheUnavailable": "此分頁無法保留這次設定請求，輸入仍在這裡。請先覆核已儲存的品牌，或使用可保留草稿的分頁再試。",
+    "reviewBrands": "覆核已儲存的品牌"
   }
 }
