@@ -1,0 +1,13 @@
+# Candidate self-review
+
+Reviewed against latest main117c0e85 after a local merge of PR92's newer implementation. The original checkout and its untracked documents are preserved. PR90's relevant drawer/safe-save change is in this candidate; its open draft is not merged remotely. Old and new scorer assertions survived the merge. No Supabase/Auth replacement, schema migration, permission weakening or producer activation was added.
+
+Review found and fixed storage-denied reload losing the original create intent, known-quota retest availability, and a paused configured view missing a useful next step. Retest now uses the frozen original workload; read failures allow GET refresh and prevent mutations. Cache revisions/tombstones retain private per-scope drafts while preserving Next history state; failure of both caches prevents an unsafe new create request. Server request hashes, ownership, reservations and canonical-week rules remain authoritative.
+
+Reviewed tagged SQL changes: added setup/monitoring reads use the authenticated account and existing owned client. All cross-account Admin queries still pass the existing server guard and whitelist. The nine-view UI now tags result/error by query and keeps the late-response fence. CSV rejected updates restore original rows while accepted simultaneous swaps remain supported. Any invalid/duplicate row blocks the full apply. Unknown receipt outcomes preserve the original intent/payload; no automatic paid/mutation retry was introduced.
+
+AI quotes are exact normalized substrings of the safely fetched homepage, not semantic proof of a claim. Unsupported fields remain blank and drafts remain editable. Five synthetic HTML categories passed; actual provider factual quality and ten samples remain blocked. Diagnostics use minimal allowlisted fields, never claim durable success and never block the core flow.
+
+Testing repairs preserved every behavior assertion: removed obsolete Supabase-credential skip in favor of the existing required isolated fixture mode; kept deleted Supabase deleted. Local additional socket guard still rejects external sockets/fetch and nonloopback lookup results. Ordered overview SQL mock explicitly isolates the new monitoring read. No timeout increase, network-guard disable, failed assertion suppression or skipped-as-pass classification.
+
+Self-review used graph snippets/call scope and candidate diffs. Per the user's no-subagent instruction, no reviewer agent was dispatched. This is not independent review; a human review of the draft PR is still pending. Public publication scan must pass before push; private Auth/runtime material stays ignored.
