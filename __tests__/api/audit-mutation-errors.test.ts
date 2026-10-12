@@ -24,3 +24,10 @@ describe('audit mutation public error contracts',()=>{
  it('invalid bulk POST client is denied before mutation',async()=>{const r=await bulk.POST(request({mode:'preview',rows:[]}),{params:Promise.resolve({clientId:'malformed'})});expect(r.status).toBe(404);expect(mocks.preview).not.toHaveBeenCalled();expect(mocks.apply).not.toHaveBeenCalled()})
  it('invalid CSV header is 400 and performs no mutation',async()=>{const r=await bulk.POST(request({mode:'preview',csv:'question\nFixture'}),{params});expect(r.status).toBe(400);expect(await r.json()).toEqual({error:'INVALID_CSV_HEADERS'});expect(mocks.apply).not.toHaveBeenCalled()})
 })
+
+it('unfinished bulk receipt remains a503 pending outcome',async()=>{
+ mocks.apply.mockRejectedValueOnce(new Error('PROMPT_BATCH_PENDING'))
+ const response=await bulk.POST(request({intentKey:'pending-batch-01',expectedVersion:'a'.repeat(32),changes:[]}),{params})
+ expect(response.status).toBe(503)
+ expect(await response.json()).toEqual({error:'PROMPT_BATCH_PENDING'})
+})
