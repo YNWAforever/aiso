@@ -21,3 +21,7 @@ supabase/migrations/*.sql text eol=lf
 # the commit and broke after, because the commit is where the conversion
 # happened.
 scripts/*.mjs text eol=lf
+
+# Audit attachments are immutable evidence: retain their verified source bytes.
+docs/remediation/2026-10-12/source/** -text
+docs/remediation/2026-10-13/handoff/** -text
