@@ -1,6 +1,7 @@
 'use client'
 import {useEffect,useRef,useState} from 'react'
 import Link from 'next/link'
+import {derivePulseAvailability} from '@/lib/pulse/runs/availability'
 import type {readUserPulseOptions,UserPulseRun} from '@/lib/pulse/runs/user-dispatch'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
@@ -8,12 +9,13 @@ type Options=Awaited<ReturnType<typeof readUserPulseOptions>>
 export function RunProgress({clientId,lang}:{clientId:string;lang:string}){
  const copy=(lang==='zh-HK'?zh:en).runProgress,endpoint=`/api/dashboard/clients/${encodeURIComponent(clientId)}/pulse-runs`,base=`/${lang}/dashboard/${encodeURIComponent(clientId)}`
  const [options,setOptions]=useState<Options|null>(null),[run,setRun]=useState<UserPulseRun|null>(null),[error,setError]=useState<string|null>(null),[repairOutcome,setRepairOutcome]=useState<{classified:number;unchanged:number;failed:number}|null>(null),[busy,setBusy]=useState(false),[revision,setRevision]=useState(0)
+ const availability=options?(options.availability??derivePulseAvailability({...options,currentCanonicalId:options.currentCanonicalId??null,legacyCurrentWeek:options.legacyCurrentWeek===true})):null
  const inFlight=useRef(false),selectedRun=useRef<string|null>(null)
  useEffect(()=>{
   let active=true,timer:ReturnType<typeof setTimeout>|undefined,delay=2000
   const controller=new AbortController();const requested=new URLSearchParams(window.location.search).get('run');if(!selectedRun.current&&requested&&/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(requested))selectedRun.current=requested
   async function poll(){
-   try{const response=await fetch(endpoint,{cache:'no-store',signal:controller.signal});if(!response.ok)throw new Error('unavailable');const next=await response.json() as Options;if(selectedRun.current){const selected=await fetch(endpoint+'/'+selectedRun.current,{cache:'no-store',signal:controller.signal});if(!selected.ok)throw new Error('unavailable');next.latest=await selected.json() as UserPulseRun}if(!active)return;setOptions(next);setRun(next.latest);setError(null)
+   try{const response=await fetch(endpoint,{cache:'no-store',signal:controller.signal});if(!response.ok)throw new Error('unavailable');const next=await response.json() as Options;if(![next.prompts,next.variants,next.expected,next.remaining].every(n=>Number.isSafeInteger(n)&&n>=0))throw new Error('unavailable');if(selectedRun.current){const selected=await fetch(endpoint+'/'+selectedRun.current,{cache:'no-store',signal:controller.signal});if(!selected.ok)throw new Error('unavailable');next.latest=await selected.json() as UserPulseRun}if(!active)return;setOptions(next);setRun(next.latest);setError(null)
     const coverage=next.latest?.coverage
     if(coverage&&next.latest?.retryable&&(coverage.pending>0||coverage.classified<coverage.succeeded)){timer=setTimeout(poll,delay);delay=Math.min(30000,Math.round(delay*1.7))}
    }catch{if(active)setError(copy.unavailable)}
@@ -22,7 +24,7 @@ export function RunProgress({clientId,lang}:{clientId:string;lang:string}){
   return()=>{active=false;controller.abort();clearTimeout(timer)}
  },[endpoint,copy.unavailable,revision])
  async function start(kind:'initial'|'repair'|'retest'){
-  if(inFlight.current||!options)return
+  if(inFlight.current||!options||(kind==='initial'&&!availability?.canStart))return
   inFlight.current=true;setBusy(true);setError(null)
   const sourceRunId=kind==='initial'?undefined:run?.id
   const storageKey=`aiso:pulse:${clientId}:${kind}:${sourceRunId??options.week}`
@@ -50,13 +52,15 @@ export function RunProgress({clientId,lang}:{clientId:string;lang:string}){
    <p>{fill(copy.budget,{remaining:options.remaining})}</p><p className="text-sm">{copy.cost}</p>
    <p className="text-sm">{fill(copy.search,{requested:options.search.requested==='off'?(lang==='zh-HK'?'關閉':'off'):(lang==='zh-HK'?'視可用額度而定':'subject to allowance')})}</p>
    <p className="text-sm">{copy.schedule}</p>
-   {(!options.prompts||!options.contextConfirmed)&&<Link className={button} href={`${base}/prompts`}>{copy.setup}</Link>}
+   {!!availability?.reasons.length&&<ul aria-label={copy.availabilityTitle} className="list-disc pl-5">{availability.reasons.map(reason=><li key={reason}>{copy.availabilityReasons[reason]}</li>)}</ul>}
+   {availability?.action==='view_existing'&&<Link className={button} href={options.currentCanonicalId?`${base}/observations?run=${encodeURIComponent(options.currentCanonicalId)}&week=${options.week}`:`${base}/observations?result=incomplete`}>{copy.viewExisting}</Link>}
+   {availability?.action==='edit_prompts'&&<Link className={button} href={`${base}/prompts`}>{copy.setup}</Link>}
    {!options.enabled&&<p>{copy.disabled}</p>}
    {options.legacyCurrentWeek&&!run&&<p>{copy.legacy} <Link className="underline" href={`${base}/observations?result=incomplete`}>{copy.legacyLink}</Link></p>}
    {run&&<div aria-live="polite"><p>{run.purpose==='retest'?copy.retestScope:copy.canonicalScope} · {run.week}</p><p className="font-semibold">{copy.states[run.coverage.status]}</p><p>{fill(copy.collected,{collected:run.coverage.succeeded,expected:run.coverage.expected})}</p><p>{fill(copy.classified,{classified:run.coverage.classified,collected:run.coverage.succeeded})}</p>{run.reasons.map(reason=><p key={reason}>{copy.reasons[reason as keyof typeof copy.reasons]??copy.unavailable}</p>)}<Link className="inline-flex min-h-11 items-center underline" href={`${base}/observations?run=${encodeURIComponent(run.id)}&week=${run.week}`}>{copy.results}</Link></div>}
    <div className="flex flex-wrap gap-3">
     {!!options.legacyObservationIds.length&&<button className={button} disabled={busy||!options.enabled} onClick={repairLegacy}>{copy.repairLegacy}</button>}
-    {!options.currentCanonicalId&&(!run||run.purpose!=='canonical'||run.week!==options.week)&&!options.legacyCurrentWeek&&<button className={button} disabled={busy||!options.enabled||!options.prompts||!options.contextConfirmed} onClick={()=>start('initial')}>{copy.start}</button>}
+    {!options.currentCanonicalId&&(!run||run.purpose!=='canonical'||run.week!==options.week)&&!options.legacyCurrentWeek&&<button className={button} disabled={busy||!availability?.canStart} onClick={()=>start('initial')}>{copy.start}</button>}
     {run?.retryable&&<button className={button} disabled={busy||!options.enabled} onClick={()=>start('repair')}>{copy.repair}</button>}
     {run?.coverage.status==='completed'&&<button className={button} disabled={busy||!options.enabled||!options.contextConfirmed} onClick={()=>start('retest')}>{copy.retest}</button>}
    </div>

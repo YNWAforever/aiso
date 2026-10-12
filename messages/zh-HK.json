@@ -2719,7 +2719,18 @@
     "repairLegacy": "只修復已保存回答的分類",
     "repairOutcome": "分類修復：{classified} 份已分類、{unchanged} 份未變更、{failed} 份失敗。",
     "retestScope": "獨立重測",
-    "canonicalScope": "每週標準監測"
+    "canonicalScope": "每週標準監測",
+    "availabilityTitle": "監測可用性",
+    "viewExisting": "覆核既有監測",
+    "availabilityReasons": {
+      "paused": "監測已暫停",
+      "no_models": "未設定監測模型",
+      "no_prompts": "請加入監測問題",
+      "context_missing": "請確認問題語言及市場",
+      "quota_exceeded": "回答額度不足",
+      "existing_run": "本週已有已保存的監測 run",
+      "legacy_review_required": "已有舊版回答，需先覆核再收集"
+    }
   },
   "brandAssistant": {
     "title": "用 AI 更快設定品牌",

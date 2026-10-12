@@ -2719,7 +2719,18 @@
     "repairLegacy": "Repair saved answer classification",
     "repairOutcome": "Classification repair: {classified} classified, {unchanged} unchanged, {failed} failed.",
     "retestScope": "Separate retest",
-    "canonicalScope": "Canonical weekly run"
+    "canonicalScope": "Canonical weekly run",
+    "availabilityTitle": "Monitoring availability",
+    "viewExisting": "Review existing monitoring",
+    "availabilityReasons": {
+      "paused": "Monitoring is paused",
+      "no_models": "No monitoring models configured",
+      "no_prompts": "Add tracking questions",
+      "context_missing": "Confirm question language and market",
+      "quota_exceeded": "Insufficient answer quota",
+      "existing_run": "This week already has a saved monitoring run",
+      "legacy_review_required": "Saved legacy answers require review before collection"
+    }
   },
   "brandAssistant": {
     "title": "Set up faster with AI",

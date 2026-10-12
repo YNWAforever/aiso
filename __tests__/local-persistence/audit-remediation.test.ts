@@ -143,3 +143,9 @@ it('T28 failed seed and expired lease retain manual questions and fence late com
  expect((await readOnboardingProgress(scope,input.intentKey))?.progress).toMatchObject({prompts:'ready',promptCount:2})
  expect(await admin`select question from prompt_bank where client_id=${first!.clientId} order by question`).toEqual([{question:'Manual row must survive'},{question:'Recovered seed question'}])
 })
+
+it('T31 actual app-role option reads return availability with unknown cost and schedule',async()=>{
+ const scope=await fixture(),{readUserPulseOptions}=await import('@/lib/pulse/runs/user-dispatch')
+ vi.stubEnv('FEATURE_PULSE_ATTEMPTS','0')
+ try{const options=await readUserPulseOptions(scope);expect(options.availability).toMatchObject({canStart:false,action:'wait'});expect(options.availability.reasons).toContain('paused');expect(options.costEstimateUsd).toBeNull();expect(options.nextDueAt).toBeNull();expect(options.scheduleState).toBe('unknown');await expect(readUserPulseOptions({...scope,accountId:randomUUID()})).rejects.toThrow('PULSE_RUN_NOT_FOUND')}finally{vi.unstubAllEnvs()}
+})
