@@ -21,8 +21,8 @@ export function ScanEvidencePanel({ evidence, locale }: { evidence: OwnedResultE
   const copy = COPY[locale === 'zh-HK' ? 'zh-HK' : 'en']
   const label = (state: string) => copy.states[state as keyof typeof copy.states] ?? copy.states.unknown
   return (
-    <section aria-label={copy.title} data-testid="owned-scan-evidence" className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-700">
-      <h2 className="font-bold text-slate-900">{copy.title}</h2>
+    <section aria-label={copy.title} data-testid="owned-scan-evidence" className="rounded-2xl border border-border bg-card p-5 text-sm text-foreground/80">
+      <h2 className="font-bold text-foreground">{copy.title}</h2>
       <p className="mt-2 text-xs leading-relaxed">{copy.scope}</p>
       {!evidence ? <p className="mt-3">{copy.absent}</p> : <>
         {evidence.limited && <p className="mt-3 text-xs">{copy.limited}</p>}

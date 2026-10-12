@@ -136,8 +136,8 @@ export function ClaimScanOnReturn({ scanId, lang }: { scanId: string; lang: stri
   const retryable = state === 'not-found' || state === 'conflict' || state === 'error'
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3" data-testid="claim-status">
-      <p role="status" aria-live="polite" className="text-sm font-medium text-slate-700">
+    <div className="rounded-xl border border-border bg-card px-4 py-3" data-testid="claim-status">
+      <p role="status" aria-live="polite" className="text-sm font-medium text-foreground/80">
         {message}
       </p>
       {retryable ? (

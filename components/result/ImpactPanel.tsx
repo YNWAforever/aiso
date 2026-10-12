@@ -4,10 +4,10 @@ import { useLocale } from 'next-intl'
 import type { ImpactReport, PlatformStatus, Effort } from '@/lib/impact'
 
 const STATUS_STYLES: Record<PlatformStatus, { dot: string; label: string; text: string }> = {
-  visible: { dot: 'bg-emerald-500', label: 'Visible',  text: 'text-emerald-700' },
-  partial: { dot: 'bg-amber-500',   label: 'Partial',  text: 'text-amber-700' },
-  blocked: { dot: 'bg-red-500',     label: 'Blocked',  text: 'text-red-700' },
-  not_measured: { dot: 'bg-slate-400', label: 'Not measured', text: 'text-slate-600' },
+  visible: { dot: 'bg-emerald-500', label: 'Visible',  text: 'text-emerald-700 dark:text-emerald-300' },
+  partial: { dot: 'bg-amber-500',   label: 'Partial',  text: 'text-amber-700 dark:text-amber-300' },
+  blocked: { dot: 'bg-red-500',     label: 'Blocked',  text: 'text-red-700 dark:text-red-300' },
+  not_measured: { dot: 'bg-muted-foreground', label: 'Not measured', text: 'text-muted-foreground' },
 }
 
 const STATUS_LABELS_ZH_HK: Record<PlatformStatus, string> = {
@@ -15,9 +15,9 @@ const STATUS_LABELS_ZH_HK: Record<PlatformStatus, string> = {
 }
 
 const EFFORT_STYLES: Record<Effort, { label: string; cls: string }> = {
-  minutes: { label: '~10 min',  cls: 'bg-emerald-100 text-emerald-700' },
-  hours:   { label: 'hours',    cls: 'bg-blue-100 text-blue-700' },
-  days:    { label: 'days+',    cls: 'bg-slate-100 text-slate-600' },
+  minutes: { label: '~10 min',  cls: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300' },
+  hours:   { label: 'hours',    cls: 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300' },
+  days:    { label: 'days+',    cls: 'bg-muted text-muted-foreground' },
 }
 
 const EFFORT_LABELS_ZH_HK: Record<Effort, string> = {
@@ -89,30 +89,30 @@ export function ImpactPanel({ impact, score, grade }: Props) {
   const topWins = quickWins.slice(0, 6)
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6">
+    <div className="bg-card rounded-2xl border border-border p-6 space-y-6">
       <div>
-        <p className="text-xs font-bold text-slate-500 tracking-widest mb-1">{ui.title}</p>
-        <p className="text-xs text-slate-600">{ui.subtitle}</p>
+        <p className="text-xs font-bold text-muted-foreground tracking-widest mb-1">{ui.title}</p>
+        <p className="text-xs text-muted-foreground">{ui.subtitle}</p>
       </div>
 
       {/* Platform visibility */}
       {platformVisibility.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-slate-600 mb-2">{ui.platformVisibility}</p>
+          <p className="text-xs font-semibold text-muted-foreground mb-2">{ui.platformVisibility}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {platformVisibility.map(p => {
               const s = STATUS_STYLES[p.status]
               return (
-                <div key={p.platform} className="flex items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                <div key={p.platform} className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/50 px-3 py-2">
                   <span className={`size-2 rounded-full shrink-0 ${s.dot}`} />
-                  <span className="text-xs font-semibold text-slate-800 shrink-0">{p.label}</span>
+                  <span className="text-xs font-semibold text-foreground shrink-0">{p.label}</span>
                   <span className={`text-2xs font-bold ml-auto shrink-0 ${s.text}`}>{isZh ? STATUS_LABELS_ZH_HK[p.status] : s.label}</span>
                 </div>
               )
             })}
           </div>
           {platformVisibility.some(p => p.status !== 'visible') && (
-            <p className="text-2xs text-slate-600 mt-1.5">
+            <p className="text-2xs text-muted-foreground mt-1.5">
               {platformVisibility.find(p => p.status === 'blocked')?.reason
                 ?? platformVisibility.find(p => p.status === 'partial')?.reason}
             </p>
@@ -124,12 +124,12 @@ export function ImpactPanel({ impact, score, grade }: Props) {
       {aiReadablePercent !== null && (
         <div>
           <div className="flex items-baseline justify-between mb-1.5">
-            <p className="text-xs font-semibold text-slate-600">{ui.aiReadable}</p>
+            <p className="text-xs font-semibold text-muted-foreground">{ui.aiReadable}</p>
             <p className={`text-sm font-black tabular-nums ${
-              aiReadablePercent >= 75 ? 'text-emerald-700' : aiReadablePercent >= 50 ? 'text-amber-700' : 'text-red-700'
+              aiReadablePercent >= 75 ? 'text-emerald-700 dark:text-emerald-300' : aiReadablePercent >= 50 ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'
             }`}>{aiReadablePercent}%</p>
           </div>
-          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all ${
                 aiReadablePercent >= 75 ? 'bg-emerald-500' : aiReadablePercent >= 50 ? 'bg-amber-500' : 'bg-red-500'
@@ -142,35 +142,35 @@ export function ImpactPanel({ impact, score, grade }: Props) {
 
       {/* Now → After projection */}
       {delta > 0 && (
-        <div className="flex items-center justify-center gap-4 rounded-xl bg-slate-50 border border-slate-100 py-4">
+        <div className="flex items-center justify-center gap-4 rounded-xl bg-muted/50 border border-border py-4">
           <div className="text-center">
-            <p className="text-2xl font-black text-slate-900 tabular-nums leading-none">{score}</p>
-            <p className="text-2xs text-slate-600 font-semibold mt-1">{ui.now} · {grade}</p>
+            <p className="text-2xl font-black text-foreground tabular-nums leading-none">{score}</p>
+            <p className="text-2xs text-muted-foreground font-semibold mt-1">{ui.now} · {grade}</p>
           </div>
-          <ArrowRight className="size-4 text-slate-300" />
+          <ArrowRight className="size-4 text-muted-foreground/60" />
           <div className="text-center">
-            <p className="text-2xl font-black text-emerald-700 tabular-nums leading-none">{projectedScore}</p>
-            <p className="text-2xs text-emerald-700 font-semibold mt-1">{ui.after} · {projectedGrade}</p>
+            <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300 tabular-nums leading-none">{projectedScore}</p>
+            <p className="text-2xs text-emerald-700 dark:text-emerald-300 font-semibold mt-1">{ui.after} · {projectedGrade}</p>
           </div>
-          <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">{ui.pts(delta)}</span>
+          <span className="text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded-full">{ui.pts(delta)}</span>
         </div>
       )}
 
       {/* Quick wins */}
       {topWins.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-slate-600 mb-2">{ui.quickWinsTitle}</p>
+          <p className="text-xs font-semibold text-muted-foreground mb-2">{ui.quickWinsTitle}</p>
           <div className="space-y-1.5">
             {topWins.map(w => (
               <a
                 key={w.key}
                 href={`#${w.key}`}
-                className="flex items-center gap-3 rounded-lg border border-slate-100 px-3 py-2.5 hover:bg-slate-50 transition group"
+                className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 hover:bg-muted transition group"
               >
-                <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full shrink-0 tabular-nums">
+                <span className="text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full shrink-0 tabular-nums">
                   {ui.pts(w.pointsGain)}
                 </span>
-                <span className="text-xs text-slate-700 font-medium min-w-0 truncate group-hover:text-slate-900">
+                <span className="text-xs text-foreground/80 font-medium min-w-0 truncate group-hover:text-foreground">
                   {isZh ? (QUICK_WIN_LABELS_ZH_HK[w.key] ?? w.label) : w.label}
                 </span>
                 <span className={`ml-auto shrink-0 inline-flex items-center gap-1 text-2xs font-semibold px-1.5 py-0.5 rounded ${EFFORT_STYLES[w.effort].cls}`}>

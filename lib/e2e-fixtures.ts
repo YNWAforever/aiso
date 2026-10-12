@@ -1,5 +1,6 @@
 import {buildScanEvidence} from './scan-evidence'
 import type { Scan } from '@/lib/types'
+import { assignGrade } from '@/lib/scoring'
 
 export const E2E_FIXTURE_SCAN_ID = 'e2e00000-0000-4000-a000-000000000001'
 
@@ -7,12 +8,17 @@ const pass = (message: string) => ({ status: 'pass' as const, message })
 const fail = (message: string) => ({ status: 'fail' as const, message })
 const warn = (message: string) => ({ status: 'warn' as const, message })
 
+// Derived, never typed: the fixture stored grade 'D' beside 63.5, a pairing
+// assignGrade cannot produce (60-69 is 'C'), so the result page showed a
+// grade the scorer would never assign.
+const E2E_FIXTURE_SCORE = 63.5
+
 export const E2E_FIXTURE_SCAN: Scan = {
   id: E2E_FIXTURE_SCAN_ID,
   url: 'https://e2e-test.example.com',
   domain: 'e2e-test.example.com',
-  score: 63.5,
-  grade: 'D',
+  score: E2E_FIXTURE_SCORE,
+  grade: assignGrade(E2E_FIXTURE_SCORE),
   industry: null,
   region: null,
   account_id: null,

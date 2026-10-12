@@ -1,17 +1,9 @@
 {
   "accepted": {
-    "/en | dark | 1024": {
-      "color-contrast": 1
-    },
-    "/en | dark | 1440": {
-      "color-contrast": 1
-    },
-    "/en | dark | 375": {
-      "color-contrast": 1
-    },
-    "/en | dark | 768": {
-      "color-contrast": 1
-    },
+    "/en | dark | 1024": {},
+    "/en | dark | 1440": {},
+    "/en | dark | 375": {},
+    "/en | dark | 768": {},
     "/en | light | 1024": {},
     "/en | light | 1440": {},
     "/en | light | 375": {},
@@ -36,58 +28,22 @@
     "/en/pricing | dark | 1440": {},
     "/en/pricing | dark | 375": {},
     "/en/pricing | dark | 768": {},
-    "/en/pricing | light | 1024": {
-      "color-contrast": 2
-    },
-    "/en/pricing | light | 1440": {
-      "color-contrast": 2
-    },
-    "/en/pricing | light | 375": {
-      "color-contrast": 2
-    },
-    "/en/pricing | light | 768": {
-      "color-contrast": 2
-    },
-    "/en/result/e2e00000-0000-4000-a000-000000000001 | dark | 1024": {
-      "color-contrast": 1,
-      "page-has-heading-one": 1
-    },
-    "/en/result/e2e00000-0000-4000-a000-000000000001 | dark | 1440": {
-      "color-contrast": 1,
-      "page-has-heading-one": 1
-    },
-    "/en/result/e2e00000-0000-4000-a000-000000000001 | dark | 375": {
-      "color-contrast": 1,
-      "page-has-heading-one": 1
-    },
-    "/en/result/e2e00000-0000-4000-a000-000000000001 | dark | 768": {
-      "color-contrast": 1,
-      "page-has-heading-one": 1
-    },
-    "/en/result/e2e00000-0000-4000-a000-000000000001 | light | 1024": {
-      "page-has-heading-one": 1
-    },
-    "/en/result/e2e00000-0000-4000-a000-000000000001 | light | 1440": {
-      "page-has-heading-one": 1
-    },
-    "/en/result/e2e00000-0000-4000-a000-000000000001 | light | 375": {
-      "page-has-heading-one": 1
-    },
-    "/en/result/e2e00000-0000-4000-a000-000000000001 | light | 768": {
-      "page-has-heading-one": 1
-    },
-    "/zh-HK | dark | 1024": {
-      "color-contrast": 1
-    },
-    "/zh-HK | dark | 1440": {
-      "color-contrast": 1
-    },
-    "/zh-HK | dark | 375": {
-      "color-contrast": 1
-    },
-    "/zh-HK | dark | 768": {
-      "color-contrast": 1
-    },
+    "/en/pricing | light | 1024": {},
+    "/en/pricing | light | 1440": {},
+    "/en/pricing | light | 375": {},
+    "/en/pricing | light | 768": {},
+    "/en/result/e2e00000-0000-4000-a000-000000000001 | dark | 1024": {},
+    "/en/result/e2e00000-0000-4000-a000-000000000001 | dark | 1440": {},
+    "/en/result/e2e00000-0000-4000-a000-000000000001 | dark | 375": {},
+    "/en/result/e2e00000-0000-4000-a000-000000000001 | dark | 768": {},
+    "/en/result/e2e00000-0000-4000-a000-000000000001 | light | 1024": {},
+    "/en/result/e2e00000-0000-4000-a000-000000000001 | light | 1440": {},
+    "/en/result/e2e00000-0000-4000-a000-000000000001 | light | 375": {},
+    "/en/result/e2e00000-0000-4000-a000-000000000001 | light | 768": {},
+    "/zh-HK | dark | 1024": {},
+    "/zh-HK | dark | 1440": {},
+    "/zh-HK | dark | 375": {},
+    "/zh-HK | dark | 768": {},
     "/zh-HK | light | 1024": {},
     "/zh-HK | light | 1440": {},
     "/zh-HK | light | 375": {},
@@ -112,45 +68,17 @@
     "/zh-HK/pricing | dark | 1440": {},
     "/zh-HK/pricing | dark | 375": {},
     "/zh-HK/pricing | dark | 768": {},
-    "/zh-HK/pricing | light | 1024": {
-      "color-contrast": 2
-    },
-    "/zh-HK/pricing | light | 1440": {
-      "color-contrast": 2
-    },
-    "/zh-HK/pricing | light | 375": {
-      "color-contrast": 2
-    },
-    "/zh-HK/pricing | light | 768": {
-      "color-contrast": 2
-    },
-    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | dark | 1024": {
-      "color-contrast": 1,
-      "page-has-heading-one": 1
-    },
-    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | dark | 1440": {
-      "color-contrast": 1,
-      "page-has-heading-one": 1
-    },
-    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | dark | 375": {
-      "color-contrast": 1,
-      "page-has-heading-one": 1
-    },
-    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | dark | 768": {
-      "color-contrast": 1,
-      "page-has-heading-one": 1
-    },
-    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | light | 1024": {
-      "page-has-heading-one": 1
-    },
-    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | light | 1440": {
-      "page-has-heading-one": 1
-    },
-    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | light | 375": {
-      "page-has-heading-one": 1
-    },
-    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | light | 768": {
-      "page-has-heading-one": 1
-    }
+    "/zh-HK/pricing | light | 1024": {},
+    "/zh-HK/pricing | light | 1440": {},
+    "/zh-HK/pricing | light | 375": {},
+    "/zh-HK/pricing | light | 768": {},
+    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | dark | 1024": {},
+    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | dark | 1440": {},
+    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | dark | 375": {},
+    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | dark | 768": {},
+    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | light | 1024": {},
+    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | light | 1440": {},
+    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | light | 375": {},
+    "/zh-HK/result/e2e00000-0000-4000-a000-000000000001 | light | 768": {}
   }
 }

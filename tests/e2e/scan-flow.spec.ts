@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { HomePage } from './pages/HomePage'
 import { TEST_SCAN_ID } from '../constants.js'
+import { E2E_FIXTURE_SCAN } from '@/lib/e2e-fixtures'
 
 const STUB_SCAN_ID = TEST_SCAN_ID
 
@@ -18,6 +19,7 @@ test.describe('Scan to result journey', () => {
 
   test('homepage loads with a URL input and scan button', async ({ page }) => {
     await home.goto()
+    await expect(home.heading).toBeVisible()
     await expect(home.urlInput).toBeVisible()
     await expect(home.scanButton).toBeVisible()
     await expect(page).toHaveTitle(/AISO|AEO|GEO|Fimmick/i)
@@ -50,7 +52,10 @@ test.describe('Scan to result journey', () => {
     await home.scan('https://example.com')
     await home.waitForNavToResult()
     await expect(page.locator('body')).not.toContainText('This page could not be found')
-    await expect(page.locator('text=/^\\d{1,3}$/')).toBeVisible()
+    // The exact stored score, once the count-up settles. The old /^\d{1,3}$/
+    // matched nothing at rest (the ring shows 63.5) and passed only by
+    // catching an intermediate frame of the animation.
+    await expect(page.getByTestId('score-reveal')).toContainText(`${E2E_FIXTURE_SCAN.score}/100`)
   })
 
   test('fixture result page shows the email capture gate', async ({ page }) => {

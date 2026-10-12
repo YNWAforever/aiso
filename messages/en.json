@@ -112,6 +112,7 @@
     "footer_label": "Footer navigation",
     "locale_label": "Language",
     "sections": {
+      "product": "Product",
       "platform": "Platform",
       "solutions": "Solutions",
       "company": "Company"
@@ -155,7 +156,8 @@
       "terms": "Terms",
       "contact": "Contact"
     },
-    "menu": "Menu"
+    "menu": "Menu",
+    "footer_blurb": "Readiness checks, fix packs and ongoing monitoring that help AI answer engines find, understand and cite your website."
   },
   "auth": {
     "signing_out": "Signing out…",
@@ -173,9 +175,9 @@
     "platforms_label": "Tracked across all major AI platforms",
     "how_title": "How AISO Works",
     "how_subtitle": "From raw URL to actionable authority score in under a minute.",
-    "score_label": "100-POINT SCORING",
-    "score_title": "A transparent, weighted\nAISO score",
-    "score_body": "Every point is traceable. Core technical checks form the foundation. GEO content checks reward AI-citable writing. Your Authority Engine score calibrates everything to your industry and region.",
+    "score_label": "How the score is built",
+    "score_title": "One 100-point score, three layers of evidence",
+    "score_body": "Each check passes for full weight, warns for half, or fails for none. Weights reflect how directly a signal decides whether AI systems can reach, read and cite a page.",
     "features_title": "Everything in the AISO Platform",
     "features_subtitle": "A complete system for earning and maintaining AI search visibility.",
     "authority_title": "5-Layer Authority Engine",
@@ -337,7 +339,7 @@
     "proof_failing": "failing",
     "proof_priority_title": "Highest-impact issue",
     "proof_priority_body": "Key service pages lack answer-ready facts and structured evidence that AI systems can cite.",
-    "proof_platform_section": "Understand the AI search ecosystem",
+    "proof_platform_section": "Built for the answer engines your customers already use",
     "proof_how_label": "From scan to action",
     "proof_how_title": "Review your website evidence, then choose a fix",
     "proof_how_body": "The scan turns technical and content evidence into a clear business-ready dossier.",
@@ -375,7 +377,27 @@
     "scan_upgrade_required": "Your current plan does not include authenticated scans. Review your plan before trying again.",
     "scan_quota_reached": "You have reached your plan’s scan allowance. Wait for it to reset or review your plan.",
     "scan_rate_limited": "Too many scan requests. Please wait before trying again.",
-    "scan_save_failed": "We could not save this scan. Please try again; no saved result is available."
+    "scan_save_failed": "We could not save this scan. Please try again; no saved result is available.",
+    "proof_sample_link": "Or explore a sample report first",
+    "score_checks": "{count} checks",
+    "score_points": "{points} pts",
+    "score_core_title": "Core access",
+    "score_core_body": "Can AI crawlers reach and read you? robots.txt rules, llms.txt, AI bot access, structured data and content extractability.",
+    "score_extended_title": "Extended structure",
+    "score_extended_body": "Signals that make pages easy to parse: sitemap, headings, FAQ markup, canonical tags, rendering, internal links, entity data and freshness.",
+    "score_geo_title": "Generative engine optimisation",
+    "score_geo_body": "Whether content is worth citing: citation density, factual density, topical authority and how cleanly it splits into answer-sized chunks.",
+    "score_grades_label": "Grade scale",
+    "faq_label": "Questions",
+    "faq_title": "Frequently asked questions",
+    "faq_q1": "Is the scan really free?",
+    "faq_a1": "Yes. Your first website readiness scan needs no account and no credit card. Create a free account if you want to keep the report and continue from it.",
+    "faq_q2": "Does a high score guarantee that AI engines will cite my brand?",
+    "faq_a2": "No. The score measures technical and content readiness that you can verify. Actual brand mentions and citations are measured separately from sampled AI model answers, and samples do not establish consumer AI rankings.",
+    "faq_q3": "What do I get after a scan?",
+    "faq_a3": "A 0–100 readiness score with a letter grade, pass, warning and fail evidence for each of the {count} checks, and a prioritised Fix Pack covering llms.txt, a robots.txt patch and FAQ JSON-LD.",
+    "faq_q4": "Which AI products does it consider?",
+    "faq_a4": "{platforms}. The readiness checks apply to all of them; ongoing monitoring of sampled model answers is part of the paid plans."
   },
   "result": {
     "score_label": "AI Readiness Score",
@@ -2793,5 +2815,22 @@
         "work": "Grouped improvement work"
       }
     }
+  },
+  "notFound": {
+    "eyebrow": "Error 404",
+    "title": "This page isn’t in our index",
+    "body": "The link may be broken, or the page may have moved. Start a free scan, or head back to familiar ground.",
+    "home": "Back to home",
+    "scan": "Run a free scan",
+    "links_label": "Popular destinations",
+    "meta_title": "Page not found"
+  },
+  "errorPage": {
+    "eyebrow": "Something went wrong",
+    "title": "We couldn’t load this page",
+    "body": "This is on our side, not yours. Try again — if it keeps happening, contact us and quote the reference below.",
+    "retry": "Try again",
+    "home": "Back to home",
+    "reference": "Reference"
   }
 }

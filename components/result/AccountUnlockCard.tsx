@@ -276,7 +276,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
           onClick={signInWithGoogle}
           disabled={loading !== null || intentState !== 'ready'}
           data-testid="google-signup"
-          className="mt-6 w-full justify-center gap-3 bg-white text-slate-900 hover:bg-slate-100"
+          className="mt-6 h-auto min-h-11 w-full justify-center gap-3 whitespace-normal bg-white py-2.5 text-center leading-snug text-slate-900 hover:bg-slate-100"
         >
           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18">
             <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z" />
@@ -313,7 +313,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
             type="submit"
             disabled={loading !== null || intentState !== 'ready'}
             data-testid="create-account"
-            className="mt-3 w-full"
+            className="mt-3 h-auto min-h-11 w-full whitespace-normal py-2.5 leading-snug"
           >
             {loading === 'email' ? c.sending : c.createAccount}
           </Button>
