@@ -2743,7 +2743,11 @@
     "manual": "自行填寫時，會保留你輸入的網站、語言及市場。",
     "limit": "已達本小時草稿上限。可稍後再試，或在下方自行填寫。",
     "unavailable": "暫時無法草擬可靠資料，你的設定未有更改。可重試，或使用下方手動設定。",
-    "manualAction": "保留資料並自行填寫"
+    "manualAction": "保留資料並自行填寫",
+    "fetchedAt": "讀取時間",
+    "evidenceTitle": "待核對的來源引文",
+    "evidenceNote": "引文相符只代表原頁有此文字；請核對是否支持每項描述。",
+    "missingEvidence": "未能核實可靠引文，請手動補充並核對資料。"
   },
   "adminDirectory": {
     "eyebrow": "平台營運",

@@ -89,3 +89,64 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(page.locator('#brand-assist-url')).toHaveValue('example.test')
   })
 }
+
+for(const lang of ['en','zh-HK']){
+ test('T32 source quotes and fetch time remain reviewable before any brand is created '+lang,async({page})=>{
+  await openOnboardingComponent(page,lang)
+  let creates=0
+  await page.route('**/api/onboarding/complete',route=>{creates++;return route.fulfill({json:{}})})
+  await page.route('**/api/onboarding/assist',route=>{
+   const body=route.request().postDataJSON()
+   return route.fulfill({json:{brandName:'Safe Studio',domain:'source.test',description:'Design workshops.',industry:null,language:body.language,market:body.market,sourceUrl:'https://source.test/',fetchedAt:'2026-10-13T00:00:00.000Z',reviewRequired:true,evidence:[{field:'brandName',quote:'Safe Studio provides design.'}]}})
+  })
+  await page.locator('#brand-assist-url').fill('source.test');await page.locator('#brand-assist-language').selectOption('en');await page.locator('#brand-assist-market').selectOption('HK')
+  await page.getByRole('button',{name:lang==='en'?'Draft my brand profile':'草擬我的品牌資料',exact:true}).click()
+  await expect(page.getByRole('heading',{name:lang==='en'?'Source excerpts to review':'待核對的來源引文',level:3})).toBeVisible()
+  await expect(page.getByText('Safe Studio provides design.',{exact:true})).toBeVisible()
+  await expect(page.locator('time')).toHaveAttribute('datetime','2026-10-13T00:00:00.000Z')
+  await expect(page.getByText(lang==='en'?'A matching quote only confirms that text exists on the page. Check whether it supports each claim.':'引文相符只代表原頁有此文字；請核對是否支持每項描述。',{exact:true})).toBeVisible()
+  expect(creates).toBe(0)
+ })
+ test('T32 missing source evidence stays unknown and accepts manual supplementation '+lang,async({page})=>{
+  await openOnboardingComponent(page,lang)
+  let creates=0
+  await page.route('**/api/onboarding/complete',route=>{creates++;return route.fulfill({json:{}})})
+  await page.route('**/api/onboarding/assist',route=>{
+   const body=route.request().postDataJSON()
+   return route.fulfill({json:{brandName:'',domain:'sparse.test',description:'',industry:null,language:body.language,market:body.market,sourceUrl:'https://sparse.test/',fetchedAt:'2026-10-13T00:00:00.000Z',reviewRequired:true,evidence:[]}})
+  })
+  await page.locator('#brand-assist-url').fill('sparse.test');await page.locator('#brand-assist-language').selectOption('en');await page.locator('#brand-assist-market').selectOption('HK')
+  await page.getByRole('button',{name:lang==='en'?'Draft my brand profile':'草擬我的品牌資料',exact:true}).click()
+  await expect(page.getByText(lang==='en'?'No reliable excerpt was found. Add and verify the missing details manually.':'未能核實可靠引文，請手動補充並核對資料。',{exact:true})).toBeVisible()
+  await expect(page.locator('#brand-draft-name')).toHaveValue('')
+  await expect(page.locator('#brand-draft-industry')).toHaveValue('')
+  const use=page.getByRole('button',{name:lang==='en'?'Use these details':'使用這些資料',exact:true});await expect(use).toBeDisabled()
+  await page.locator('#brand-draft-name').fill('Manually reviewed brand')
+  await page.locator('#brand-draft-description').fill('Manual description')
+  await use.click();await expect(page.locator('#onboarding-description')).toHaveValue('Manual description')
+  expect(creates).toBe(0)
+ })
+}
+
+for(const lang of ['en','zh-HK']){
+ test('T32 changing request context ignores late replies and does not generate again '+lang,async({page})=>{
+  await openOnboardingComponent(page,lang)
+  let release!:()=>void
+  const held=new Promise<void>(resolve=>{release=resolve}),bodies:Record<string,unknown>[]=[]
+  await page.route('**/api/onboarding/assist',async route=>{
+   const body=route.request().postDataJSON();bodies.push(body);await held
+   await route.fulfill({json:{brandName:'Old context brand',domain:'old.test',description:'Old context description',industry:null,language:body.language,market:body.market,sourceUrl:'https://old.test/',fetchedAt:'2026-10-13T00:00:00.000Z',reviewRequired:true,evidence:[]}}).catch(()=>{})
+  })
+  await page.locator('#brand-assist-url').fill('old.test');await page.locator('#brand-assist-language').selectOption('en');await page.locator('#brand-assist-market').selectOption('HK')
+  await page.getByRole('button',{name:lang==='en'?'Draft my brand profile':'草擬我的品牌資料',exact:true}).click()
+  await expect.poll(()=>bodies.length).toBe(1)
+  await expect(page.locator('#brand-assist-url')).toBeEnabled()
+  await page.locator('#brand-assist-url').fill('new.test');await page.locator('#brand-assist-language').selectOption('zh-HK');await page.locator('#brand-assist-market').selectOption('TW')
+  release()
+  await expect(page.getByRole('button',{name:lang==='en'?'Draft my brand profile':'草擬我的品牌資料',exact:true})).toBeEnabled()
+  await expect(page.locator('#brand-draft-name')).toHaveCount(0)
+  await expect(page.locator('#brand-assist-url')).toHaveValue('new.test')
+  await expect(page.locator('#brand-assist-language')).toHaveValue('zh-HK');await expect(page.locator('#brand-assist-market')).toHaveValue('TW')
+  expect(bodies).toHaveLength(1)
+ })
+}

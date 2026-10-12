@@ -2743,7 +2743,11 @@
     "manual": "Your website, language and market stay with you if you continue manually.",
     "limit": "You have used the hourly draft allowance. Try later or enter your details below.",
     "unavailable": "We could not prepare a reliable draft. Your details are unchanged. Retry, or use manual setup below.",
-    "manualAction": "Continue manually with these details"
+    "manualAction": "Continue manually with these details",
+    "fetchedAt": "Fetched at",
+    "evidenceTitle": "Source excerpts to review",
+    "evidenceNote": "A matching quote only confirms that text exists on the page. Check whether it supports each claim.",
+    "missingEvidence": "No reliable excerpt was found. Add and verify the missing details manually."
   },
   "adminDirectory": {
     "eyebrow": "Platform operations",
