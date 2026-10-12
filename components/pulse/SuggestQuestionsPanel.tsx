@@ -47,6 +47,8 @@ export function SuggestQuestionsPanel({ clientId, onClose, onAccepted, onError, 
     mounted.current = true
     const node = dialog.current
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
     node?.showModal()
     closeButton.current?.focus()
     return () => {
@@ -54,6 +56,7 @@ export function SuggestQuestionsPanel({ clientId, onClose, onAccepted, onError, 
       generation.current?.abort()
       saving.current?.abort()
       node?.close()
+      document.body.style.overflow = previousOverflow
       if (previous?.isConnected) previous.focus()
     }
   }, [])

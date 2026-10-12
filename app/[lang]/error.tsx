@@ -12,10 +12,10 @@ import { StatusPage } from '@/components/marketing/StatusPage'
  */
 export default function LocalisedError({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string }
-  reset: () => void
+  retry: () => void
 }) {
   const t = useTranslations('errorPage')
   const locale = useLocale()
@@ -31,7 +31,7 @@ export default function LocalisedError({
         eyebrow={t('eyebrow')}
         title={t('title')}
         body={t('body')}
-        primary={{ label: t('retry'), onClick: reset }}
+        primary={{ label: t('retry'), onClick: retry }}
         secondary={{ href: `/${locale}`, label: t('home') }}
       >
         {error.digest ? (

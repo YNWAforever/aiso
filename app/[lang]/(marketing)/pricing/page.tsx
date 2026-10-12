@@ -36,7 +36,7 @@ function Cell({
 }) {
   if (typeof value === 'boolean') {
     return (
-      <span className="inline-flex items-center justify-center">
+      <span className="relative inline-flex items-center justify-center">
         {value
           ? <Check aria-hidden="true" className="size-4 text-emerald-500" />
           : <Minus aria-hidden="true" className="size-4 text-slate-300" />}

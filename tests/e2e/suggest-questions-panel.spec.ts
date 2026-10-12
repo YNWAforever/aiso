@@ -228,3 +228,23 @@ for (const lang of ['en', 'zh-HK']) {
     expect(writes).toBe(1)
   })
 }
+
+for(const lang of ['en','zh-HK']){
+ test('modal locks background scroll and restores original body style '+lang,async({page})=>{
+  const copy=await fixture(page,lang)
+  await page.addStyleTag({content:'body{min-height:300vh}'})
+  await page.evaluate(()=>{document.body.style.overflow='auto'})
+  await page.getByRole('button',{name:copy.suggest_more,exact:true}).click()
+  const dialog=page.getByRole('dialog',{name:copy.panel_title,exact:true})
+  await expect(dialog).toBeVisible()
+  const before=await page.evaluate(()=>scrollY), y=page.viewportSize()!.height-8
+  await page.mouse.move(2,y);await page.mouse.wheel(0,500)
+  await page.waitForTimeout(100)
+  expect(await page.evaluate(()=>scrollY)).toBe(before)
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  expect(await page.evaluate(()=>document.body.style.overflow)).toBe('auto')
+  await page.mouse.move(2,y);await page.mouse.wheel(0,500)
+  await expect.poll(()=>page.evaluate(()=>scrollY)).toBeGreaterThan(before)
+ })
+}
