@@ -109,3 +109,37 @@ it('T24 pending receipt stays unknown and original draft applies only once',asyn
  expect(await admin`select count(*)::int n from prompt_batch_intents where account_id=${scope.accountId} and client_id=${scope.clientId} and intent_key=${valid.intentKey}`).toEqual([{n:1}])
  await expect(applyPromptBatch({accountId:randomUUID(),clientId:scope.clientId},valid)).rejects.toThrow('PROMPT_NOT_FOUND')
 })
+
+it('T28 committed response loss plus concurrent tabs preserves one ready brand and seed',async()=>{
+ const accountId=randomUUID();accounts.push(accountId);await admin`insert into accounts(id,plan,status) values(${accountId},'basic','active')`
+ const scope={accountId},input=parseOnboardingInput({intentKey:'T28-committed',brandName:'One saved brand',description:'Original saved draft',domain:'saved.fixture',language:'en',market:'HK'})
+ const generate=vi.fn(async()=>JSON.stringify({questions:Array.from({length:24},(_,i)=>({question:'Saved question '+i,category:'brand_query',language:'en'}))}))
+ const responses=await Promise.all([completeOnboarding(scope,input,generate),completeOnboarding(scope,input,generate)])
+ expect(new Set(responses.map(r=>r?.clientId)).size).toBe(1)
+ const recovered=await completeOnboarding(scope,input,generate);expect(recovered?.progress).toMatchObject({brand:'ready',prompts:'ready',promptCount:24})
+ const clientId=recovered!.clientId,before=await admin`select id,question,onboarding_seed_key from prompt_bank where client_id=${clientId} order by id`
+ await expect(completeOnboarding(scope,{...input,description:'Conflict under original'},generate)).rejects.toThrow('ONBOARDING_INTENT_CONFLICT')
+ await expect(completeOnboarding(scope,{...input,clientId,intentKey:'T28-edited',description:'Conflict after ready'},generate)).rejects.toThrow('ONBOARDING_INTENT_CONFLICT')
+ expect(generate).toHaveBeenCalledOnce();expect(await admin`select id,question,onboarding_seed_key from prompt_bank where client_id=${clientId} order by id`).toEqual(before)
+ expect(await admin`select count(*)::int n from clients where account_id=${accountId}`).toEqual([{n:1}])
+ expect(await admin`select description from clients where id=${clientId}`).toEqual([{description:'Original saved draft'}])
+ expect(await admin`select count(*)::int n from pulse_runs where account_id=${accountId}`).toEqual([{n:0}])
+})
+it('T28 failed seed and expired lease retain manual questions and fence late completion',async()=>{
+ const accountId=randomUUID();accounts.push(accountId);await admin`insert into accounts(id,plan,status) values(${accountId},'basic','active')`
+ const scope={accountId},input=parseOnboardingInput({intentKey:'T28-seed-recovery',brandName:'Recovery fixture',language:'en',market:'HK'})
+ const first=await completeOnboarding(scope,input,async()=>{throw Error('Synthetic seed outage')})
+ expect(first?.progress).toMatchObject({brand:'ready',prompts:'failed',retryable:true})
+ await admin`insert into prompt_bank(client_id,question) values(${first!.clientId},'Manual row must survive')`
+ const {claimOnboardingSeed,commitOnboardingSeed,readOnboardingProgress}=await import('@/lib/onboarding/store')
+ const {parseSeedPrompts}=await import('@/lib/onboarding/schema')
+ const old=await claimOnboardingSeed(scope,input.intentKey)
+ await admin`update onboarding_progress set lease_until=now()-interval '1 second' where account_id=${accountId}`
+ const current=await claimOnboardingSeed(scope,input.intentKey)
+ const prompts=parseSeedPrompts(JSON.stringify({questions:[{question:'Recovered seed question',category:'brand_query',language:'en'}]}),{language:'en',market:'HK'})
+ await commitOnboardingSeed(scope,input.intentKey,old!.token,prompts)
+ expect((await readOnboardingProgress(scope,input.intentKey))?.progress.prompts).toBe('running')
+ await commitOnboardingSeed(scope,input.intentKey,current!.token,prompts)
+ expect((await readOnboardingProgress(scope,input.intentKey))?.progress).toMatchObject({prompts:'ready',promptCount:2})
+ expect(await admin`select question from prompt_bank where client_id=${first!.clientId} order by question`).toEqual([{question:'Manual row must survive'},{question:'Recovered seed question'}])
+})

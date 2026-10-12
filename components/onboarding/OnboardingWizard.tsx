@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { useRouter } from 'next/navigation'
 import { ChevronRight, Zap, X } from 'lucide-react'
 import { BrandAssistant } from './BrandAssistant'
+import en from '@/messages/en.json'
+import zh from '@/messages/zh-HK.json'
 import { PROMPT_MARKETS, isPromptLanguage, type PromptLanguage } from '@/lib/prompts/context'
 
 const INDUSTRIES = [
@@ -123,7 +125,7 @@ interface Props {
   scanId?: string
 }
 
-type Draft = { intentKey?: string; brand?: string; domain?: string; websiteUrl?: string; industry?: string; region?: string; language?: PromptLanguage; description?: string; competitors?: string[]; step?: number; clientId?: string; partial?: boolean; submittedPayload?: string }
+type Draft = { intentKey?: string; brand?: string; domain?: string; websiteUrl?: string; industry?: string; region?: string; language?: PromptLanguage; description?: string; competitors?: string[]; step?: number; clientId?: string; partial?: boolean; recoveredReady?: boolean; submittedPayload?: string }
 const subscribeHydration = () => () => {}
 export function OnboardingWizard(props: Props) {
   const ready = useSyncExternalStore(subscribeHydration, () => true, () => false)
@@ -142,6 +144,7 @@ export function OnboardingWizard(props: Props) {
       if (Array.isArray(saved.competitors) && saved.competitors.every((v: unknown) => typeof v === 'string')) clean.competitors = saved.competitors
       if (Number.isInteger(saved.step) && saved.step >= 1 && saved.step <= TOTAL_STEPS) clean.step = saved.step
       clean.partial = saved.partial === true
+      clean.recoveredReady = saved.recoveredReady === true
       if (isPromptLanguage(saved.language)) clean.language = saved.language
       return clean
     } catch { return {} }
@@ -156,6 +159,7 @@ function WizardForm({
   const router = useRouter()
   const isZh = lang === 'zh-HK'
   const c = isZh ? COPY_ZH_HK : COPY_EN
+  const recoveryCopy = (isZh ? zh : en).onboardingSetup
   const hasScanPrefill = Boolean(scanId && initialBrand && initialDomain)
   const [step, setStep] = useState(draft.step ?? (hasScanPrefill ? 3 : 1))
   const previousStepRef = useRef(step)
@@ -185,13 +189,14 @@ function WizardForm({
   const [intentKey, setIntentKey] = useState(() => draft.intentKey ?? (draftReady ? crypto.randomUUID() : ''))
   const [clientId, setClientId] = useState<string | null>(draft.clientId ?? null)
   const [partial, setPartial] = useState(draft.partial ?? false)
+  const [recoveredReady, setRecoveredReady] = useState(draft.recoveredReady ?? false)
   const submitted = useRef(false),submittedPayload=useRef(draft.submittedPayload)
   const draftKey = `aiso:onboarding:${accountId}:${scanId ?? 'new'}`
   useEffect(() => {
     if (!draftReady || submitted.current) return
-    try { sessionStorage.setItem(draftKey, JSON.stringify({ intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, step, clientId, partial,submittedPayload:submittedPayload.current })) }
+    try { sessionStorage.setItem(draftKey, JSON.stringify({ intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, step, clientId, partial,recoveredReady,submittedPayload:submittedPayload.current })) }
     catch { /* Form state still survives in this tab when storage is unavailable. */ }
-  }, [draftReady, draftKey, intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, step, clientId, partial])
+  }, [draftReady, draftKey, intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, step, clientId, partial, recoveredReady])
 
   function handleDomainChange(raw: string) {
     // Normalise on the fly as the user types
@@ -213,7 +218,7 @@ function WizardForm({
 
   const inFlight=useRef(false)
   async function complete() {
-    if(inFlight.current)return
+    if(inFlight.current||recoveredReady)return
     inFlight.current=true
     setLoading(true)
     setError('')
@@ -232,6 +237,12 @@ function WizardForm({
         if(!recovered.ok){setError(typeof body.error==='string'?body.error:c.genericError);return}
         if(typeof body.clientId!=='string'||!body.progress)throw new Error('Invalid progress')
         targetClientId=body.clientId;setClientId(body.clientId)
+        if(body.progress.prompts==='ready'){
+          // Original setup committed. Preserve the edited draft without rewriting it.
+          setPartial(false);setRecoveredReady(true)
+          try{sessionStorage.setItem(draftKey,JSON.stringify({intentKey,...values,websiteUrl,step,clientId:body.clientId,partial:false,recoveredReady:true,submittedPayload:previous}))}catch{}
+          return
+        }
       }
       const requestIntent=targetClientId&&previous!==undefined&&previous!==payload?crypto.randomUUID():intentKey
       submittedPayload.current=payload;setIntentKey(requestIntent)
@@ -399,6 +410,13 @@ function WizardForm({
               {c.s4Subtitle}
             </p>
 
+            <section aria-label={recoveryCopy.summaryTitle} className="mb-4 rounded-lg border p-3 text-sm">
+              <h2 className="font-semibold mb-2">{recoveryCopy.summaryTitle}</h2>
+              <p>{brand} · {domain || recoveryCopy.websiteMissing}</p>
+              <p>{language || recoveryCopy.contextMissing} · {region || recoveryCopy.contextMissing}</p>
+              <p className="mt-2">{language && region ? recoveryCopy.questionSummary : recoveryCopy.contextPending}</p>
+              <p>{recoveryCopy.monitoringSeparate}</p>
+            </section>
             {/* Brand description */}
             <p className="mb-2 font-semibold">{brand} · {domain}</p>
             <p className="mb-4 text-sm text-muted-foreground">{c.questionLanguage}: {language === 'en' ? 'English' : language === 'zh-HK' ? '繁體中文（香港）' : '—'} · {REGIONS.find(r => r.value === region)?.[isZh ? 'labelZh' : 'labelEn'] ?? c.regionPlaceholder}</p>
@@ -459,17 +477,18 @@ function WizardForm({
               )}
             </div>
 
+            {recoveredReady && <p role="status" className="text-sm mb-4">{recoveryCopy.reconciledReady}</p>}
             {error && <p role="alert" className="text-destructive text-sm mb-4">{error}</p>}
 
             <div className="flex flex-wrap gap-3">
               <button onClick={() => setStep(3)} className={btnBack}>{c.back}</button>
-              <button onClick={complete} disabled={loading} className={`${btnPrimary} disabled:opacity-60`}>
+              <button onClick={complete} disabled={loading || recoveredReady} className={`${btnPrimary} disabled:opacity-60`}>
                 {loading ? c.settingUp : partial ? c.retrySeed : c.goToDashboard}
                 {!loading && <ChevronRight className="size-4" />}
               </button>
             </div>
-            {partial && clientId && <button type="button" onClick={() => navigateToWorkspace(clientId)} className={`${btnBack} mt-3 w-full`}>{c.openWorkspace}</button>}
-            <button onClick={complete} disabled={loading} className="w-full text-xs text-muted-foreground hover:text-foreground mt-3 transition">
+            {(partial || recoveredReady) && clientId && <button type="button" onClick={() => navigateToWorkspace(clientId)} className={`${btnBack} mt-3 w-full`}>{c.openWorkspace}</button>}
+            <button onClick={complete} disabled={loading || recoveredReady} className="w-full text-xs text-muted-foreground hover:text-foreground mt-3 transition">
               {c.s4Skip}
             </button>
           </div>

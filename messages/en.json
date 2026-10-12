@@ -2870,5 +2870,14 @@
     "retry": "Try again",
     "home": "Back to home",
     "reference": "Reference"
+  },
+  "onboardingSetup": {
+    "summaryTitle": "Confirm brand setup",
+    "websiteMissing": "Website to add later",
+    "contextMissing": "Context to confirm",
+    "questionSummary": "Create one brand and draft up to 24 tracking questions using this language and market.",
+    "contextPending": "Create the brand now; confirm language and market before drafting questions.",
+    "monitoringSeparate": "First monitoring is confirmed separately in the workspace.",
+    "reconciledReady": "Your original brand and questions are ready. Your edits have not been applied; they remain in this draft. Open the workspace to review the saved brand."
   }
 }
