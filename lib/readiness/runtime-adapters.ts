@@ -1,3 +1,4 @@
+import { getContext, getVercelOidcTokenSync } from '@vercel/oidc'
 import { createPublicKey, type JsonWebKey } from 'node:crypto'
 import { neon, type NeonQueryFunctionInTransaction } from '@neondatabase/serverless'
 import { checkBinding } from '@/lib/security/db-binding'
@@ -13,6 +14,7 @@ export type RuntimeDependencies = {
   now?: () => number
   neonFactory?: typeof neon
   publicFetcher?: PublicUrlFetch
+  getOidcToken?: () => string
   lookup?: LookupAll
 }
 type Row = Record<string, unknown>
@@ -148,7 +150,25 @@ export function createRuntimePorts(dependencies: RuntimeDependencies): ProbePort
           // Neon Auth exposes managed public signing keys at this canonical path: https://raw.githubusercontent.com/neondatabase/website/main/content/docs/auth/guides/plugins/jwt.md
           const url = id === 'auth.jwks' ? new URL(`${issuer.href.replace(/\/$/, '')}/.well-known/jwks.json`) : new URL('/api/auth/get-session', candidateUrl()!)
           const headers: Record<string, string> = { accept: 'application/json' }
-          if (id === 'auth.anonymous_session' && env.VERCEL_AUTOMATION_BYPASS_SECRET) headers['x-vercel-protection-bypass'] = env.VERCEL_AUTOMATION_BYPASS_SECRET
+          if (id === 'auth.anonymous_session') {
+            // Read inside this request, without caching or the SDK's async refresh path.
+            // Trusted self-access authenticates the deployment, not an end-user session.
+            try {
+              const token = dependencies.getOidcToken ? dependencies.getOidcToken() : (() => {
+                // The SDK permits an env-token fallback; this runtime probe requires this request.
+                if (!getContext().headers?.['x-vercel-oidc-token']) throw new Error('OIDC context unavailable')
+                return getVercelOidcTokenSync()
+              })()
+              if (!token || token.length > 16384 || /\s/.test(token)) throw new Error('Invalid OIDC token')
+              headers['x-vercel-trusted-oidc-idp-token'] = token
+            } catch {
+              if (!env.VERCEL_AUTOMATION_BYPASS_SECRET) {
+                checks.push({ id, status: 'unknown', code: 'unavailable' })
+                continue
+              }
+            }
+            if (env.VERCEL_AUTOMATION_BYPASS_SECRET) headers['x-vercel-protection-bypass'] = env.VERCEL_AUTOMATION_BYPASS_SECRET
+          }
           response = await fetcher(url, { method: 'GET', headers, credentials: 'omit', redirect: 'manual', signal })
           if (response.status !== 200) { checks.push({ id, status: 'fail', code: 'unavailable' }); continue }
           const body = await readJson(response, signal)
