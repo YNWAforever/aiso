@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useLocale } from 'next-intl'
+import { formatScanScore } from '@/lib/score-display'
 
 const GRADE_CONFIG: Record<string, { ring: string; badge: string; text: string; label: string }> = {
   // Badge fills are the -700 step: white text on every one of them clears
@@ -51,11 +52,6 @@ interface Props {
   region?: string | null
 }
 
-/** One decimal only when the score has one, so the ring and the text always agree. */
-function formatScore(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1)
-}
-
 export function ScoreReveal({ score, grade, domain, industry, region }: Props) {
   const locale = useLocale()
   const isZh = locale === 'zh-HK'
@@ -87,10 +83,10 @@ export function ScoreReveal({ score, grade, domain, industry, region }: Props) {
     const start = performance.now()
     const duration = 1200
     const animate = (now: number) => {
-      const progress = Math.min(1, (now - start) / duration)
+      const progress = Math.min(1, Math.max(0, (now - start) / duration))
       const ease = 1 - Math.pow(1 - progress, 3)
-      // Count up in whole numbers, then land on the exact score.
-      setDisplayed(progress < 1 ? Math.round(ease * score) : score)
+      // Keep every intermediate value below the final persisted score.
+      setDisplayed(progress < 1 ? Math.floor(ease * score * 100) / 100 : score)
       if (progress < 1) raf.current = requestAnimationFrame(animate)
     }
     raf.current = requestAnimationFrame(animate)
@@ -114,7 +110,7 @@ export function ScoreReveal({ score, grade, domain, industry, region }: Props) {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-4xl font-black text-foreground tabular-nums leading-none">{formatScore(displayed)}</span>
+            <span className="text-4xl font-black text-foreground tabular-nums leading-none">{formatScanScore(Math.min(displayed, score))}</span>
             <span className="text-xs text-muted-foreground font-medium">/100</span>
           </div>
         </div>
@@ -139,7 +135,7 @@ export function ScoreReveal({ score, grade, domain, industry, region }: Props) {
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">{ui.yourScore}</span>
-              <span className="font-bold text-foreground tabular-nums">{formatScore(score)}/100</span>
+              <span className="font-bold text-foreground tabular-nums">{formatScanScore(score)}/100</span>
             </div>
           </div>
         </div>

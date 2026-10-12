@@ -24,3 +24,13 @@ describe('ScoreReveal', () => {
     expect(html).toContain('73/100')
   })
 })
+
+import { assignGrade } from '@/lib/scoring'
+it.each([49.97,59.97,63.5,69.97,79.97,89.97,0,50,60,70,80,90,100])('shows the exact score and scorer grade %s in both languages',score=>{
+  for(const locale of ['en','zh-HK']) {
+    intl.locale=locale
+    const html=renderToStaticMarkup(<ScoreReveal score={score} grade={assignGrade(score)} domain="example.invalid" />)
+    expect(html).toContain('>'+score+'/100</span>')
+    expect(html).toContain('>'+assignGrade(score)+' <span')
+  }
+})
