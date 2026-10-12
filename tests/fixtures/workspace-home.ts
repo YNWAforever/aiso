@@ -28,8 +28,9 @@ export function workspaceHomeFixture(state: 'empty'|'error'|'locked'|'ready', la
   return workspace
 }
 
-export function nextStepHomeFixture(state:'unknown'|'paused'|'active'|'missing'|'pending'|'partial'|'source'|'draft'|'complete',lang:string):HomeDto{
+export function nextStepHomeFixture(state:'unknown'|'paused'|'active'|'missing'|'pending'|'partial'|'source'|'draft'|'complete',lang:string,clientId='fixture-client'):HomeDto{
  const home=workspaceHomeFixture('empty',lang),configured={active:2,contextConfirmed:true}
+ home.client.id=clientId
  const availability=state==='unknown'?null:{canStart:state==='active',reasons:state==='paused'?['paused' as const]:[],action:state==='active'?'start' as const:'wait' as const}
  const daily=buildDailyWorkSummary(null)
  if(['pending','partial','complete'].includes(state))daily.state=state==='complete'?'complete':state==='partial'?'partial':'pending'

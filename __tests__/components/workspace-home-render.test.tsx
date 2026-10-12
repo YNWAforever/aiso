@@ -54,6 +54,7 @@ afterAll(() => {
   for(const lang of ['en','zh-HK'])for(const state of ['partial','free','unknown','classification'] as const){
     writeFileSync(join(directory,`${lang}-daily-${state}.html`),renderToStaticMarkup(<WorkspaceHome workspace={dailyHomeFixture(state,lang)} lang={lang}/>),'utf8')
   }
+  for(const lang of ['en','zh-HK'])writeFileSync(join(directory,`${lang}-uc75.html`),renderToStaticMarkup(<WorkspaceHome workspace={nextStepHomeFixture('partial',lang,'11111111-1111-4111-8111-111111111111')} lang={lang}/>),'utf8')
   for(const lang of ['en','zh-HK'])for(const state of ['unknown','paused','active','missing','pending','partial','source','draft','complete'] as const){
     writeFileSync(join(directory,`${lang}-next-${state}.html`),renderToStaticMarkup(<WorkspaceHome workspace={nextStepHomeFixture(state,lang)} lang={lang}/>),'utf8')
   }

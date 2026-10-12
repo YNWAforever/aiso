@@ -63,4 +63,3 @@ it('fractional boundary fixtures are gated and carry the scorer grade',()=>{
  })
 })
 it('fixture grade is the one the scorer assigns to its score',()=>{expect(E2E_FIXTURE_SCAN.grade).toBe(assignGrade(E2E_FIXTURE_SCAN.score!))});
-
