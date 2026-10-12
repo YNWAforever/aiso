@@ -15,8 +15,8 @@ const COPY_EN = {
   authorityBreakdown: 'Citation authority breakdown',
   tierNote: 'Tier 1 groups academic, government and major publications under AISO’s heuristic. These weights are not platform ranking rules.',
   tierOther: 'Other',
-  totalLinks: (n: number) => <><strong className="text-slate-700">{n}</strong> total links</>,
-  externalLinks: (n: number) => <><strong className="text-slate-700">{n}</strong> external</>,
+  totalLinks: (n: number) => <><strong className="text-foreground/80">{n}</strong> total links</>,
+  externalLinks: (n: number) => <><strong className="text-foreground/80">{n}</strong> external</>,
   // C18
   c18Title: 'Factual Density',
   c18Desc: 'Page counts and a model assessment of factual uniqueness. Real search and consumer visibility are not measured by this check.',
@@ -60,8 +60,8 @@ const COPY_ZH_HK: typeof COPY_EN = {
   authorityBreakdown: '引用權威分佈',
   tierNote: 'Tier 1 按 AISO 的啟發式規則包括學術、政府及主要刊物。這些權重並非平台排名規則。',
   tierOther: '其他',
-  totalLinks: (n: number) => <>連結總數 <strong className="text-slate-700">{n}</strong></>,
-  externalLinks: (n: number) => <>對外連結 <strong className="text-slate-700">{n}</strong></>,
+  totalLinks: (n: number) => <>連結總數 <strong className="text-foreground/80">{n}</strong></>,
+  externalLinks: (n: number) => <>對外連結 <strong className="text-foreground/80">{n}</strong></>,
   // C18
   c18Title: '事實密度',
   c18Desc: '頁面數量統計及模型對事實獨特性的評估。本檢查尚未量度真實搜尋及消費者可見度。',
@@ -100,11 +100,11 @@ function MetricBar({ label, value, max = 100, color = 'bg-primary' }: MetricBarP
   const barColor = pct >= 60 ? 'bg-emerald-500' : pct >= 30 ? 'bg-amber-400' : 'bg-red-400'
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs text-slate-500 w-36 shrink-0">{label}</span>
-      <div className="flex-1 h-2 rounded-full bg-slate-100">
+      <span className="text-xs text-muted-foreground w-36 shrink-0">{label}</span>
+      <div className="flex-1 h-2 rounded-full bg-muted">
         <div className={`h-full rounded-full ${color === 'auto' ? barColor : color} transition-all duration-700`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-xs font-bold text-slate-700 w-12 text-right">{Math.round(value)}{max === 100 ? '/100' : ''}</span>
+      <span className="text-xs font-bold text-foreground/80 w-12 text-right">{Math.round(value)}{max === 100 ? '/100' : ''}</span>
     </div>
   )
 }
@@ -112,10 +112,10 @@ function MetricBar({ label, value, max = 100, color = 'bg-primary' }: MetricBarP
 interface TierBadgeProps { tier: string; count: number; otherLabel?: string }
 function TierBadge({ tier, count, otherLabel }: TierBadgeProps) {
   const colors: Record<string, string> = {
-    tier1: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    tier2: 'bg-blue-100 text-blue-700 border-blue-200',
-    tier3: 'bg-slate-100 text-slate-600 border-slate-200',
-    other: 'bg-orange-50 text-orange-600 border-orange-200',
+    tier1: 'bg-emerald-100 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60',
+    tier2: 'bg-blue-100 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/60',
+    tier3: 'bg-muted text-muted-foreground border-border',
+    other: 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-300 border-orange-200 dark:border-orange-800/60',
   }
   const labels: Record<string, string> = { tier1: 'Tier 1', tier2: 'Tier 2', tier3: 'Tier 3', other: otherLabel ?? 'Other' }
   return (
@@ -148,19 +148,19 @@ export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
     <div className="space-y-5">
       <div className="flex items-center gap-2">
         <Brain className="size-4 text-violet-500" />
-        <h2 className="text-sm font-black text-slate-900 tracking-widest uppercase">{c.sectionTitle}</h2>
+        <h2 className="text-sm font-black text-foreground tracking-widest uppercase">{c.sectionTitle}</h2>
         <span className="text-xs bg-violet-100 text-violet-700 font-bold px-2 py-0.5 rounded-full">{c.unlocked}</span>
       </div>
 
       {/* C17 — Citation Density */}
       {c17 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <div className="bg-card rounded-2xl border border-border p-6">
           <div className="flex items-center gap-2 mb-1">
             <Link2 className="size-4 text-blue-500" />
-            <h3 className="text-sm font-bold text-slate-900">{c.c17Title}</h3>
-            <span className="ml-auto text-xs text-slate-400">{c.checkNo(17)}</span>
+            <h3 className="text-sm font-bold text-foreground">{c.c17Title}</h3>
+            <span className="ml-auto text-xs text-muted-foreground">{c.checkNo(17)}</span>
           </div>
-          <p className="text-xs text-slate-500 mb-5 leading-relaxed">
+          <p className="text-xs text-muted-foreground mb-5 leading-relaxed">
             {c.c17Desc}
           </p>
           <div className="space-y-3 mb-5">
@@ -173,18 +173,18 @@ export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
           </div>
           {c17.authorityBreakdown && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 mb-3">{c.authorityBreakdown}</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-3">{c.authorityBreakdown}</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {(['tier1','tier2','tier3','other'] as const).map(t => (
                   <TierBadge key={t} tier={t} count={c17.authorityBreakdown?.[t] ?? 0} otherLabel={c.tierOther} />
                 ))}
               </div>
-              <p className="text-xs text-slate-400 mt-3">
+              <p className="text-xs text-muted-foreground mt-3">
                 {c.tierNote}
               </p>
             </div>
           )}
-          <div className="mt-4 pt-4 border-t border-slate-100 flex gap-4 text-xs text-slate-500">
+          <div className="mt-4 pt-4 border-t border-border flex gap-4 text-xs text-muted-foreground">
             {c17.totalLinks !== undefined && <span>{c.totalLinks(c17.totalLinks)}</span>}
             {c17.externalLinks !== undefined && <span>{c.externalLinks(c17.externalLinks)}</span>}
           </div>
@@ -193,17 +193,17 @@ export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
 
       {/* C18 — Factual Density */}
       {c18 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <div className="bg-card rounded-2xl border border-border p-6">
           <div className="flex items-center gap-2 mb-1">
             <TrendingUp className="size-4 text-emerald-500" />
-            <h3 className="text-sm font-bold text-slate-900">{c.c18Title}</h3>
-            <span className="ml-auto text-xs text-slate-400">{c.checkNo(18)}</span>
+            <h3 className="text-sm font-bold text-foreground">{c.c18Title}</h3>
+            <span className="ml-auto text-xs text-muted-foreground">{c.checkNo(18)}</span>
           </div>
-          <p className="text-xs text-slate-500 mb-5 leading-relaxed">
+          <p className="text-xs text-muted-foreground mb-5 leading-relaxed">
             {c.c18Desc}
           </p>
           <div className="space-y-3 mb-5">
-            {c18State !== 'observed' && <p className="text-xs text-slate-500" role="status">{c18State === 'legacy' ? c.c18Legacy : c.c18Unavailable}</p>}
+            {c18State !== 'observed' && <p className="text-xs text-muted-foreground" role="status">{c18State === 'legacy' ? c.c18Legacy : c.c18Unavailable}</p>}
             {c18State === 'observed' && typeof c18.qualityScore === 'number' && (
               <MetricBar label={c.overallQuality} value={c18.qualityScore} color="auto" />
             )}
@@ -219,17 +219,17 @@ export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
           </div>
           <div className="flex flex-wrap gap-2">
             {c18.dateReferences !== undefined && (
-              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${(c18.dateReferences ?? 0) > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${(c18.dateReferences ?? 0) > 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60' : 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 border-red-200 dark:border-red-800/60'}`}>
                 {c.dateRefs(c18.dateReferences)}
               </span>
             )}
             {c18.hasComparativeData !== undefined && (
-              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${c18.hasComparativeData ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${c18.hasComparativeData ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60' : 'bg-muted/50 text-muted-foreground border-border'}`}>
                 {c18.hasComparativeData ? '✓' : '✗'} {c.comparativeData}
               </span>
             )}
             {c18.hasTimeSeriesData !== undefined && (
-              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${c18.hasTimeSeriesData ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${c18.hasTimeSeriesData ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60' : 'bg-muted/50 text-muted-foreground border-border'}`}>
                 {c18.hasTimeSeriesData ? '✓' : '✗'} {c.timeSeriesData}
               </span>
             )}
@@ -239,13 +239,13 @@ export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
 
       {/* C19 — Topical Authority */}
       {c19 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <div className="bg-card rounded-2xl border border-border p-6">
           <div className="flex items-center gap-2 mb-1">
             <Layers className="size-4 text-violet-500" />
-            <h3 className="text-sm font-bold text-slate-900">{c.c19Title}</h3>
-            <span className="ml-auto text-xs text-slate-400">{c.checkNo(19)}</span>
+            <h3 className="text-sm font-bold text-foreground">{c.c19Title}</h3>
+            <span className="ml-auto text-xs text-muted-foreground">{c.checkNo(19)}</span>
           </div>
-          <p className="text-xs text-slate-500 mb-5 leading-relaxed">
+          <p className="text-xs text-muted-foreground mb-5 leading-relaxed">
             {c.c19Desc}
           </p>
           <div className="space-y-3 mb-5">
@@ -254,28 +254,28 @@ export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
             )}
           </div>
           <div className="flex flex-wrap gap-2 mb-4">
-            <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${(c19.totalClusters ?? 0) > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+            <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${(c19.totalClusters ?? 0) > 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60' : 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 border-red-200 dark:border-red-800/60'}`}>
               {c.clustersDetected(c19.totalClusters ?? 0)}
             </span>
             {(c19.hasOrphanPages ?? 0) > 0 && (
-              <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-amber-50 text-amber-700 border-amber-200">
+              <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/60">
                 {c.orphanPages(c19.hasOrphanPages ?? 0)}
               </span>
             )}
           </div>
           {(c19.detectedClusters?.length ?? 0) > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-slate-500 mb-2">{c.detectedClusters}</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-2">{c.detectedClusters}</p>
               {c19.detectedClusters!.slice(0, 5).map((cl, i) => (
                 <div key={i} className="flex items-center gap-3">
-                  <span className="text-xs text-slate-600 flex-1 truncate capitalize">{cl.topic}</span>
-                  <div className="w-24 h-1.5 rounded-full bg-slate-100">
+                  <span className="text-xs text-muted-foreground flex-1 truncate capitalize">{cl.topic}</span>
+                  <div className="w-24 h-1.5 rounded-full bg-muted">
                     <div
                       className={`h-full rounded-full ${cl.completenessScore >= 60 ? 'bg-emerald-500' : cl.completenessScore >= 30 ? 'bg-amber-400' : 'bg-red-400'}`}
                       style={{ width: `${cl.completenessScore}%` }}
                     />
                   </div>
-                  <span className="text-xs font-semibold text-slate-500 w-8 text-right">{Math.round(cl.completenessScore)}%</span>
+                  <span className="text-xs font-semibold text-muted-foreground w-8 text-right">{Math.round(cl.completenessScore)}%</span>
                 </div>
               ))}
             </div>
@@ -285,13 +285,13 @@ export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
 
       {/* C20 — Chunkability */}
       {c20 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <div className="bg-card rounded-2xl border border-border p-6">
           <div className="flex items-center gap-2 mb-1">
             <Brain className="size-4 text-orange-500" />
-            <h3 className="text-sm font-bold text-slate-900">{c.c20Title}</h3>
-            <span className="ml-auto text-xs text-slate-400">{c.checkNo(20)}</span>
+            <h3 className="text-sm font-bold text-foreground">{c.c20Title}</h3>
+            <span className="ml-auto text-xs text-muted-foreground">{c.checkNo(20)}</span>
           </div>
-          <p className="text-xs text-slate-500 mb-5 leading-relaxed">
+          <p className="text-xs text-muted-foreground mb-5 leading-relaxed">
             {c.c20Desc}
           </p>
           <div className="space-y-3 mb-5">
@@ -301,33 +301,33 @@ export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
           </div>
           <div className="flex flex-wrap gap-2 mb-4">
             {c20.totalChunks !== undefined && (
-              <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-slate-50 text-slate-600 border-slate-200">
+              <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-muted/50 text-muted-foreground border-border">
                 {c.contentChunks(c20.totalChunks)}
               </span>
             )}
             {c20.avgChunkLength !== undefined && (
-              <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-slate-50 text-slate-600 border-slate-200">
+              <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-muted/50 text-muted-foreground border-border">
                 {c.avgWords(Math.round(c20.avgChunkLength))}
               </span>
             )}
             {c20.hasFaqStyle && (
-              <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200">
+              <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60">
                 {c.faqStyle}
               </span>
             )}
           </div>
           {(c20.chunkAnalysis?.length ?? 0) > 0 && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 mb-2">{c.topChunks}</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-2">{c.topChunks}</p>
               <div className="space-y-2">
                 {c20.chunkAnalysis!.slice(0, 4).map((ch, i) => (
                   <div key={i} className="flex items-center gap-3">
-                    <span className="text-xs text-slate-600 flex-1 truncate">{ch.heading || c.section(i + 1)}</span>
+                    <span className="text-xs text-muted-foreground flex-1 truncate">{ch.heading || c.section(i + 1)}</span>
                     <div className="flex gap-1">
-                      {ch.isAnswerFirst && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1 rounded">{c.answerFirst}</span>}
-                      {ch.isSelfContained && <span className="text-[10px] bg-blue-100 text-blue-700 px-1 rounded">{c.selfContained}</span>}
+                      {ch.isAnswerFirst && <span className="text-[10px] bg-emerald-100 text-emerald-700 dark:text-emerald-300 px-1 rounded">{c.answerFirst}</span>}
+                      {ch.isSelfContained && <span className="text-[10px] bg-blue-100 text-blue-700 dark:text-blue-300 px-1 rounded">{c.selfContained}</span>}
                     </div>
-                    <span className={`text-xs font-bold w-8 text-right ${ch.extractabilityScore >= 60 ? 'text-emerald-600' : ch.extractabilityScore >= 30 ? 'text-amber-600' : 'text-red-500'}`}>
+                    <span className={`text-xs font-bold w-8 text-right ${ch.extractabilityScore >= 60 ? 'text-emerald-600 dark:text-emerald-300' : ch.extractabilityScore >= 30 ? 'text-amber-600 dark:text-amber-300' : 'text-red-500'}`}>
                       {Math.round(ch.extractabilityScore)}
                     </span>
                   </div>

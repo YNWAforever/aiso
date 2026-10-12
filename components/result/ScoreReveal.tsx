@@ -3,12 +3,14 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocale } from 'next-intl'
 
 const GRADE_CONFIG: Record<string, { ring: string; badge: string; text: string; label: string }> = {
-  'A+': { ring: 'stroke-emerald-500', badge: 'bg-emerald-500', text: 'text-white', label: 'Excellent' },
-  'A':  { ring: 'stroke-green-500',   badge: 'bg-green-500',   text: 'text-white', label: 'Very Good' },
-  'B':  { ring: 'stroke-blue-500',    badge: 'bg-blue-500',    text: 'text-white', label: 'Good' },
-  'C':  { ring: 'stroke-yellow-500',  badge: 'bg-yellow-500',  text: 'text-white', label: 'Fair' },
+  // Badge fills are the -700 step: white text on every one of them clears
+  // WCAG AA (4.5:1). The -500 fills it replaced did not — C was 1.9:1.
+  'A+': { ring: 'stroke-emerald-500', badge: 'bg-emerald-700', text: 'text-white', label: 'Excellent' },
+  'A':  { ring: 'stroke-green-500',   badge: 'bg-green-700',   text: 'text-white', label: 'Very Good' },
+  'B':  { ring: 'stroke-blue-500',    badge: 'bg-blue-700',    text: 'text-white', label: 'Good' },
+  'C':  { ring: 'stroke-yellow-500',  badge: 'bg-yellow-700',  text: 'text-white', label: 'Fair' },
   'D':  { ring: 'stroke-orange-500',  badge: 'bg-orange-700',  text: 'text-white', label: 'Poor' },
-  'F':  { ring: 'stroke-red-500',     badge: 'bg-red-500',     text: 'text-white', label: 'Critical' },
+  'F':  { ring: 'stroke-red-500',     badge: 'bg-red-700',     text: 'text-white', label: 'Critical' },
 }
 
 const GRADE_LABELS_ZH_HK: Record<string, string> = {
@@ -49,6 +51,11 @@ interface Props {
   region?: string | null
 }
 
+/** One decimal only when the score has one, so the ring and the text always agree. */
+function formatScore(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
 export function ScoreReveal({ score, grade, domain, industry, region }: Props) {
   const locale = useLocale()
   const isZh = locale === 'zh-HK'
@@ -73,12 +80,17 @@ export function ScoreReveal({ score, grade, domain, industry, region }: Props) {
 
   useEffect(() => {
     if (!visible) return
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      raf.current = requestAnimationFrame(() => setDisplayed(score))
+      return () => { if (raf.current) cancelAnimationFrame(raf.current) }
+    }
     const start = performance.now()
     const duration = 1200
     const animate = (now: number) => {
       const progress = Math.min(1, (now - start) / duration)
       const ease = 1 - Math.pow(1 - progress, 3)
-      setDisplayed(Math.round(ease * score))
+      // Count up in whole numbers, then land on the exact score.
+      setDisplayed(progress < 1 ? Math.round(ease * score) : score)
       if (progress < 1) raf.current = requestAnimationFrame(animate)
     }
     raf.current = requestAnimationFrame(animate)
@@ -86,32 +98,32 @@ export function ScoreReveal({ score, grade, domain, industry, region }: Props) {
   }, [visible, score])
 
   return (
-    <div data-testid="score-reveal" className={`transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-      <div className="flex flex-col sm:flex-row items-center gap-8 bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
+    <div data-testid="score-reveal" className={`transition-all duration-700 motion-reduce:transition-none ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+      <div className="flex flex-col sm:flex-row items-center gap-8 bg-card rounded-2xl border border-border p-8 shadow-sm">
 
         {/* Animated ring */}
-        <div className="relative shrink-0" style={{ width: size, height: size }}>
+        <div aria-hidden="true" className="relative shrink-0" style={{ width: size, height: size }}>
           <svg width={size} height={size} className="-rotate-90">
-            <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={10} className="stroke-slate-100" />
+            <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={10} className="stroke-muted" />
             <circle
               cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={10}
-              className={`${cfg.ring} transition-all duration-1000`}
+              className={`${cfg.ring} transition-all duration-1000 motion-reduce:transition-none`}
               strokeDasharray={circ}
               strokeDashoffset={circ * (1 - pct)}
               strokeLinecap="round"
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-4xl font-black text-slate-900 tabular-nums leading-none">{displayed}</span>
-            <span className="text-xs text-slate-500 font-medium">/100</span>
+            <span className="text-4xl font-black text-foreground tabular-nums leading-none">{formatScore(displayed)}</span>
+            <span className="text-xs text-muted-foreground font-medium">/100</span>
           </div>
         </div>
 
         {/* Info */}
         <div className="flex-1 text-center sm:text-left">
-          <p className="text-xl font-black text-slate-900 mb-1 truncate">{domain}</p>
+          <h1 className="text-xl font-black text-foreground mb-1 truncate">{domain}</h1>
           {(industryLabel || region) && (
-            <p className="text-xs text-slate-500 mb-3">
+            <p className="text-xs text-muted-foreground mb-3">
               {[industryLabel, region].filter(Boolean).join(' · ')}
             </p>
           )}
@@ -126,8 +138,8 @@ export function ScoreReveal({ score, grade, domain, industry, region }: Props) {
           {/* Technical score */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-slate-500">{ui.yourScore}</span>
-              <span className="font-bold text-slate-900">{score}/100</span>
+              <span className="text-muted-foreground">{ui.yourScore}</span>
+              <span className="font-bold text-foreground tabular-nums">{formatScore(score)}/100</span>
             </div>
           </div>
         </div>
