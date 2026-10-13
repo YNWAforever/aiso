@@ -44,13 +44,14 @@ export function QuestionBankSection({ clientId, initialPrompts, isFirstTime, con
         <div className="flex items-center justify-between bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 mb-4">
           <div className="flex items-center gap-2 text-sm">
             <Sparkles className="size-4 text-primary shrink-0" />
-            <span className="text-slate-700">
+            <span className="text-foreground/80">
               {t('qb_banner', { count: prompts.length })}
             </span>
           </div>
           <button
+            type="button"
             onClick={() => setBannerDismissed(true)}
-            className="text-slate-400 hover:text-slate-600 text-xs ml-4 shrink-0"
+            className="ml-4 inline-flex min-h-11 shrink-0 items-center rounded-lg px-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             {t('dismiss')}
           </button>
@@ -60,7 +61,7 @@ export function QuestionBankSection({ clientId, initialPrompts, isFirstTime, con
       {/* Section header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest">{t('qb_title')}</h2>
+          <h2 className="text-sm font-black text-foreground uppercase tracking-widest">{t('qb_title')}</h2>
           <p className="text-xs text-muted-foreground mt-0.5">{t('qb_count', { active: activeCount, total: prompts.length })}</p>
         </div>
         <div className="flex gap-2">
