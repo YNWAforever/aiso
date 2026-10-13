@@ -129,5 +129,14 @@
         }
       ]
     }
+  ],
+  "failedCiSnapshots": [
+    {
+      "path": "ci-180-failure-receipt.json",
+      "runId": 38328545337,
+      "sourceHead": "e36d1599af4bd418fce4727b8aaf6914e8f13c24",
+      "status": "failure",
+      "sha256": "d15278aea9c89808115c0a79eb8dd605d0686f7970434bcc0e7da5785a0bf4a6"
+    }
   ]
 }
