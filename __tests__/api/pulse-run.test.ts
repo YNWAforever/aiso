@@ -322,7 +322,12 @@ describe('POST /api/pulse/run — writes', () => {
     // rather than replace — two rows for one prompt × platform × week.
     const deletes = calls.filter(c => /delete from pulse_metrics/i.test(c.text))
     expect(deletes.length).toBeGreaterThan(0)
-    for (const d of deletes) expect(d.text).toContain("nullif(btrim(raw_answer),'') is null")
+    for (const d of deletes) {
+      expect(d.text).toContain("raw_answer is null or raw_answer !~ '[^[:space:]]'")
+      expect(d.text).toContain('run_item_id is null')
+      expect(d.text).toContain('c.account_id =')
+      expect(d.params).toContain('account-1')
+    }
     const delIndex = calls.findIndex(c => /for update/i.test(c.text))
     const insIndex = calls.findIndex(c => /insert into pulse_metrics/i.test(c.text))
     expect(delIndex).toBeLessThan(insIndex)

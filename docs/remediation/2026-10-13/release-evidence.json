@@ -109,5 +109,25 @@
     "cases": "acceptance-results.csv",
     "findings": "finding-results.csv",
     "asOfCiRun": 38320349542
-  }
+  },
+  "continuationLocalSnapshots": [
+    {
+      "path": "legacy-recovery-local-receipt.json",
+      "sha256": "ff535bcdabbf7a071e32ed25fbadcfdc1427e01c9bdf635d368da0697f60c686",
+      "reports": [
+        {
+          "name": "T36-legacy-cache-final2",
+          "passed": 47
+        },
+        {
+          "name": "T36-cache-full-unit-final",
+          "passed": 6143
+        },
+        {
+          "name": "T36-cache-app-role-final",
+          "passed": 36
+        }
+      ]
+    }
+  ]
 }
