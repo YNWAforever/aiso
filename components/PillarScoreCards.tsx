@@ -107,7 +107,7 @@ export function PillarScoreCards({ results, locale = 'en', tone = 'light', evide
                 </div>
                 {score.score !== null && <p className={`shrink-0 font-mono text-2xl font-black ${headingClass}`}>
                   {score.score}
-                  <span className={`ml-0.5 text-[10px] font-medium ${mutedClass}`}>/100</span>
+                  <span className={`ml-0.5 text-xs font-medium ${mutedClass}`}>/100</span>
                 </p>}
               </div>
 
@@ -127,7 +127,7 @@ export function PillarScoreCards({ results, locale = 'en', tone = 'light', evide
               </div>}
 
               <p className={`mt-3 text-xs ${mutedClass}`}>{copy.coverage}: {Math.round(score.coverage * 10000) / 100}%</p>
-              <p className={`mt-3 text-[10px] font-mono ${mutedClass}`}>
+              <p className={`mt-3 text-xs tabular-nums ${mutedClass}`}>
                 {score.passing} {copy.pass} · {score.warnings} {copy.warn} · {score.failing} {copy.fail}
               </p>
             </article>
@@ -136,15 +136,15 @@ export function PillarScoreCards({ results, locale = 'en', tone = 'light', evide
       </div>
 
       {!stored && (
-        <p className={`mt-2 text-[10px] font-semibold ${mutedClass}`}>
+        <p className={`mt-2 text-xs font-semibold ${mutedClass}`}>
           {copy.recalculated}
         </p>
       )}
-      {stored && <p className={`mt-2 text-[10px] font-semibold ${mutedClass}`}>
+      {stored && <p className={`mt-2 text-xs font-semibold ${mutedClass}`}>
         {snapshot.seo.state === undefined ? copy.legacy : copy.stored}
       </p>}
-      <p className={`mt-2 text-[10px] ${mutedClass}`}>{copy.version}: {snapshot.methodologyVersion}</p>
-      <p className={`mt-3 text-[10px] leading-relaxed ${mutedClass}`}>
+      <p className={`mt-2 text-xs ${mutedClass}`}>{copy.version}: {snapshot.methodologyVersion}</p>
+      <p className={`mt-3 text-xs leading-relaxed ${mutedClass}`}>
         {copy.note}
       </p>
     </section>

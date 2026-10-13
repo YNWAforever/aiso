@@ -5,6 +5,15 @@ import en from '@/messages/en.json'
 import zhHK from '@/messages/zh-HK.json'
 
 export type SettingsStatus = 'active'|'trialing'|'past_due'|'cancelled'|'unknown'
+
+/** Status reads by colour as well as text; every pair clears 4.5:1 in both themes. */
+const STATUS_TONE: Record<SettingsStatus,string> = {
+  active: 'bg-emerald-50 text-emerald-800 ring-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800/60',
+  trialing: 'bg-blue-50 text-blue-800 ring-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:ring-blue-800/60',
+  past_due: 'bg-amber-50 text-amber-900 ring-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800/60',
+  cancelled: 'bg-red-50 text-red-800 ring-red-200 dark:bg-red-950/60 dark:text-red-300 dark:ring-red-800/60',
+  unknown: 'bg-muted text-muted-foreground ring-border',
+}
 export function normalizeSettingsStatus(value: unknown): SettingsStatus {
   return value === 'active' || value === 'trialing' || value === 'past_due' || value === 'cancelled' ? value : 'unknown'
 }
@@ -17,10 +26,10 @@ export function SettingsView({lang,plan,status,hasStripe,children}: {
   const price=getPlanDefinition(plan).monthlyPriceUsd
   return <main className="mx-auto w-full min-w-0 max-w-5xl space-y-8 break-words px-4 py-8 sm:px-6">
     <header><h1 className="text-2xl font-bold text-foreground">{copy.title}</h1><p className="mt-3 text-sm text-muted-foreground">{copy.intro}</p></header>
-    <section className="space-y-6 rounded-xl border border-border bg-card p-5 sm:p-6" aria-labelledby="settings-plan">
-      <div><h2 id="settings-plan" className="text-lg font-bold text-foreground">{copy.currentPlan}</h2><p className="mt-2 text-xl font-semibold text-foreground">{label}</p>
+    <section className="space-y-6 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6" aria-labelledby="settings-plan">
+      <div><h2 id="settings-plan" className="text-lg font-bold text-foreground">{copy.currentPlan}</h2><p className="mt-2 text-2xl font-black tracking-tight text-foreground">{label}</p>
         {plan!=='free'&&<p className="mt-2 text-sm text-muted-foreground">{copy.cataloguePrice}: USD {price} / {copy.perMonth}</p>}
-        <p className="mt-3 text-sm text-foreground">{copy.status}: <span className="font-semibold">{copy.statusLabels[status]}</span></p>
+        <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-foreground">{copy.status}: <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${STATUS_TONE[status]}`}>{copy.statusLabels[status]}</span></p>
       </div>
       <div className="border-t border-border pt-5"><h2 className="text-lg font-bold text-foreground">{copy.billing}</h2>
         {hasStripe?<>

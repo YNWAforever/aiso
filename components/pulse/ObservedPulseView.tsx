@@ -6,20 +6,20 @@ import en from '@/messages/en.json'
 import zhHK from '@/messages/zh-HK.json'
 export function ObservedPulseView({view,lang}:{view:PulseView;lang:string}){
  const copy=(lang==='zh-HK'?zhHK:en).pulseView;const observed=view.observations
- const hasSamples=observed.state!=='error'&&observed.state!=='empty'&&observed.state!=='not_configured';const panel='min-w-0 rounded-xl border border-border bg-card p-5'
+ const hasSamples=observed.state!=='error'&&observed.state!=='empty'&&observed.state!=='not_configured';const panel='min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6'
  return <div className="min-w-0 space-y-5 break-words">
   <RunProgress clientId={view.client.id} lang={lang}/>
   <p className="text-sm text-muted-foreground">{copy.intro}</p>
   <section className={panel}><h2 className="text-xl font-bold text-foreground">{copy.aggregate}</h2><p className="mt-2 text-sm text-muted-foreground">{copy.week}: {observed.latestWeek??copy.unknown} · {copy.freshness}</p>
-   <p className="my-4 text-2xl font-bold text-foreground">{observed.state==='error'?copy.error:observed.latestKpi?`${Number(observed.latestKpi.sovScore.toFixed(1))}%`:observed.state==='empty'?copy.empty:copy.unknown}</p>
+   <p className={observed.state!=='error'&&observed.latestKpi?'my-4 text-4xl font-black tracking-tight tabular-nums text-foreground':'my-4 text-xl font-semibold text-muted-foreground'}>{observed.state==='error'?copy.error:observed.latestKpi?`${Number(observed.latestKpi.sovScore.toFixed(1))}%`:observed.state==='empty'?copy.empty:copy.unknown}</p>
    {observed.state==='partial'&&<p>{copy.partial}</p>}<PulseCoverage coverage={observed.coverage} lang={lang} href={`/${lang}/dashboard/${view.client.id}/observations?result=incomplete`}/>{hasSamples&&observed.series[0]&&<SovChart data={observed.series[0].points} lang={lang}/>}
   </section>
   {hasSamples&&observed.series.slice(1).map(series=><section key={series.platform} className={panel}><h2 className="text-lg font-bold text-foreground">{series.platform}</h2><SovChart data={series.points} lang={lang} label={series.platform??copy.aggregate}/></section>)}
   <section className={panel}><h2 className="text-lg font-bold text-foreground">{copy.prompts}</h2>
-   {view.prompts.state!=='ready'?<p className="mt-3 text-sm text-muted-foreground">{view.prompts.state==='error'?copy.error:copy.empty}</p>:<ul className="mt-3 space-y-3">{view.prompts.data.map(prompt=><li key={prompt.id} className="text-sm text-foreground">{prompt.question}<span className="ml-2 text-xs text-muted-foreground">{prompt.is_active?copy.active:copy.inactive}</span></li>)}</ul>}
+   {view.prompts.state!=='ready'?<p className="mt-3 text-sm text-muted-foreground">{view.prompts.state==='error'?copy.error:copy.empty}</p>:<ul className="mt-3 divide-y divide-border">{view.prompts.data.map(prompt=><li key={prompt.id} className="flex items-start justify-between gap-3 py-2.5 text-sm text-foreground first:pt-0 last:pb-0"><span className="min-w-0">{prompt.question}</span><span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${prompt.is_active?'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300':'bg-muted text-muted-foreground'}`}>{prompt.is_active?copy.active:copy.inactive}</span></li>)}</ul>}
   </section>
   <section className={panel}><h2 className="text-lg font-bold text-foreground">{copy.missed}</h2>
-   {view.missed.state!=='ready'?<p className="mt-3 text-sm text-muted-foreground">{view.missed.state==='error'?copy.error:copy.empty}</p>:<ul className="mt-3 space-y-4">{view.missed.data.map((row,index)=><li key={`${row.platform}-${index}`} className="text-sm text-foreground"><p>{row.question}</p><p className="mt-1 text-xs text-muted-foreground">{row.platform} · {row.scan_week}</p><p className="mt-1 text-xs text-muted-foreground">{copy.competitors}: {row.competitors_mentioned.join(', ')||'—'}</p></li>)}</ul>}
+   {view.missed.state!=='ready'?<p className="mt-3 text-sm text-muted-foreground">{view.missed.state==='error'?copy.error:copy.empty}</p>:<ul className="mt-3 divide-y divide-border">{view.missed.data.map((row,index)=><li key={`${row.platform}-${index}`} className="py-3 text-sm text-foreground first:pt-0 last:pb-0"><p>{row.question}</p><p className="mt-1 text-xs text-muted-foreground">{row.platform} · {row.scan_week}</p><p className="mt-1 text-xs text-muted-foreground">{copy.competitors}: {row.competitors_mentioned.join(', ')||'—'}</p></li>)}</ul>}
   </section>
  </div>
 }
