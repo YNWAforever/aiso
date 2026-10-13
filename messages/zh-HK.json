@@ -709,7 +709,22 @@
     "qb_bulk_conflict": "題目已被更改，請重新讀取及預覽。",
     "qb_bulk_row_error": "第 {row} 行：{field}（{code}）",
     "qb_bulk_run_unknown": "最近監測覆蓋尚未讀取或沒有紀錄",
-    "qb_bulk_coverage": "採集 {succeeded}/{expected}；分類 {classified}/{expected}"
+    "qb_bulk_coverage": "採集 {succeeded}/{expected}；分類 {classified}/{expected}",
+    "panel_close": "關閉問題建議",
+    "panel_context": "問題背景",
+    "panel_review_note": "請核對及修改每份 AI 草稿，只有按「接受」才會加入問題庫。生成可能使用 AI 額度；關閉只會停止等候，不會取消已開始的工作。",
+    "panel_change_context": "捨棄餘下草稿並更改背景",
+    "panel_ready": "已有 {count} 項建議可供核對。",
+    "panel_generate_failed": "暫時無法載入建議，問題庫未有更改。你可以重試。",
+    "panel_empty": "未能取得可供核對的建議。你可以重試，或自行新增問題。",
+    "panel_question_hint": "請輸入 1–500 字，接受前先核對內容。",
+    "panel_question_label": "建議問題 {number}",
+    "panel_accept_label": "接受建議問題 {number}",
+    "panel_dismiss_label": "捨棄建議問題 {number}",
+    "panel_dismissed": "已捨棄草稿，問題庫未有更改。",
+    "panel_saving": "正在儲存問題，請等待完成後再關閉。",
+    "panel_saving_short": "儲存中…",
+    "panel_save_unknown": "未能確認這條問題是否已儲存。請先關閉面板並重新載入問題庫核對，再決定是否重新新增。"
   },
   "upsell": {
     "title": "每週追蹤 {domain} 的 AI 能見度",

@@ -709,7 +709,22 @@
     "qb_bulk_conflict": "Questions changed. Reload and prepare a fresh preview.",
     "qb_bulk_row_error": "Row {row}: {field} ({code})",
     "qb_bulk_run_unknown": "Latest run coverage not read or not recorded",
-    "qb_bulk_coverage": "Collected {succeeded}/{expected}; classified {classified}/{expected}"
+    "qb_bulk_coverage": "Collected {succeeded}/{expected}; classified {classified}/{expected}",
+    "panel_close": "Close question suggestions",
+    "panel_context": "Question context",
+    "panel_review_note": "Review and edit each AI draft. Only Accept adds a question to your bank. Generation may use AI credits; closing stops waiting, not work already started.",
+    "panel_change_context": "Discard remaining drafts and change context",
+    "panel_ready": "{count} suggestions ready to review.",
+    "panel_generate_failed": "Suggestions could not be loaded. Your question bank has not changed. You can try again.",
+    "panel_empty": "No usable suggestions were returned. You can try again or add a question manually.",
+    "panel_question_hint": "Use 1–500 characters. Review the wording before accepting.",
+    "panel_question_label": "Suggested question {number}",
+    "panel_accept_label": "Accept suggested question {number}",
+    "panel_dismiss_label": "Dismiss suggested question {number}",
+    "panel_dismissed": "Draft dismissed; your question bank has not changed.",
+    "panel_saving": "Saving the question. Please wait before closing.",
+    "panel_saving_short": "Saving…",
+    "panel_save_unknown": "We could not confirm whether this question was saved. Close this panel and reload the question bank to check before adding it again."
   },
   "upsell": {
     "title": "Track {domain}'s AI presence every week",
