@@ -46,7 +46,7 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
       <p className="mt-1 text-sm font-medium text-dash-muted">{workspace.client.domain}</p>
       <p className="mt-4 max-w-3xl text-sm leading-relaxed text-dash-muted">{copy.summary}</p>
       {workspace.nextStep&&<Link className={`${primaryClass} mt-5`} href={workspace.nextStep.href.replace("__locale__",lang)}>{copy.nextStep[workspace.nextStep.labelKey]}<ArrowRight aria-hidden="true" className="size-4" /></Link>}
-      {workspace.nextStep?.reasonKey==='unknown'&&<p>{copy.daily.unknown}</p>}
+      {workspace.nextStep?.reasonKey&&<p className="mt-2 max-w-3xl text-sm leading-relaxed text-dash-muted">{workspace.nextStep.reasonKey==='unknown'?copy.daily.unknown:(lang==='zh-HK'?zhHK:en).runProgress.availabilityReasons[workspace.nextStep.reasonKey]}</p>}
     </header>
     {workspace.dailyWork&&<details aria-labelledby="daily-work-heading" className="group mb-8 space-y-3 rounded-2xl border border-dash-border bg-dash-surface p-5 shadow-sm sm:p-6">
       <summary id="daily-work-heading" className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg text-lg font-bold text-dash-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">{copy.daily.title}<ChevronDown aria-hidden="true" className="size-5 shrink-0 text-dash-muted transition-transform group-open:rotate-180 motion-reduce:transition-none" /></summary>

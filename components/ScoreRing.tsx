@@ -1,4 +1,5 @@
 'use client'
+import { formatScanScore } from '@/lib/score-display'
 
 interface Props { score: number }
 
@@ -15,7 +16,7 @@ export function ScoreRing({ score }: Props) {
       className="flex items-center justify-center rounded-full w-20 h-20 text-2xl font-black"
       style={{ background: bg, border: `4px solid ${ring}`, color: text }}
     >
-      {Math.round(score)}
+      {formatScanScore(score)}
     </div>
   )
 }

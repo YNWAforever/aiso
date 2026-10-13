@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og'
+import { formatScanScore } from '@/lib/score-display'
 import { db } from '@/lib/db'
 import { buildPublicResultSummary, type PublicResultSummary } from '@/lib/result-access'
 import type { Scan } from '@/lib/types'
@@ -25,10 +26,10 @@ export default async function Image({ params }: { params: Promise<{ id: string }
     const rows = await db()`select domain, score, grade, results, industry, region from scans where id = ${id} limit 1`
     const scan = rows[0] as { domain: string; score: string | number | null; grade: string | null; results: Scan['results']; industry: string | null; region: string | null } | undefined
     if (scan) {
-      const summary = buildPublicResultSummary({ ...scan, id, score: Number(scan.score ?? 0), results: scan.results ?? {} as Scan['results'] })
+      const summary = buildPublicResultSummary({ ...scan, id, score: scan.score === null ? Number.NaN : Number(scan.score), results: scan.results ?? {} as Scan['results'] })
       domain = scan.domain
       collectionFailed = summary.collectionFailed
-      score = summary.score === null ? null : Math.round(summary.score)
+      score = summary.score
       grade = summary.grade ?? ''
       counts = summary.counts
     }
@@ -102,7 +103,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
               flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               border: `20px solid ${gradeColor}`, background: '#0f172a',
             }}>
-              <div style={{ display: 'flex', fontSize: 88, fontWeight: 900, color: 'white', lineHeight: 1 }}>{score}</div>
+              <div style={{ display: 'flex', fontSize: 88, fontWeight: 900, color: 'white', lineHeight: 1 }}>{formatScanScore(score)}</div>
               <div style={{ display: 'flex', fontSize: 28, color: '#94a3b8', fontWeight: 600 }}>/100</div>
             </div>
           </div>

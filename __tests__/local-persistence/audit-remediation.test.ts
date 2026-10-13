@@ -78,3 +78,74 @@ it('Unicode-equivalent grouped questions compare every frozen source identity',a
 it('recovery B is immutable, preserves A and persists owned pending metadata edits',async()=>{const accountId=randomUUID();accounts.push(accountId);await admin`insert into accounts(id,plan,status) values(${accountId},'basic','active')`;const scope={accountId},initial=parseOnboardingInput({intentKey:'initial-alias-A',brandName:'Original pending',domain:'old.example'}),a=(await initializeOnboarding(scope,initial))!,recovery=parseOnboardingInput({...initial,intentKey:'recovery-alias-B',clientId:a.clientId,brandName:'Corrected pending',domain:'corrected.example',language:'en',market:'HK'});await initializeOnboarding(scope,recovery);const before=await admin`select draft,request_hash,request_aliases from onboarding_progress where account_id=${accountId}`;await expect(initializeOnboarding(scope,{...recovery,market:'TW',language:'zh-HK'})).rejects.toThrow('ONBOARDING_INTENT_CONFLICT');expect(await admin`select draft,request_hash,request_aliases from onboarding_progress where account_id=${accountId}`).toEqual(before);expect(await admin`select brand_name,domain from clients where id=${a.clientId}::uuid`).toEqual([{brand_name:'Corrected pending',domain:'corrected.example'}]);const generate=vi.fn(async input=>{expect(input.brandName).toBe('Corrected pending');return JSON.stringify([{question:'Corrected brand?',category:'brand_query',language:'en'}])});await completeOnboarding(scope,recovery,generate);expect(generate).toHaveBeenCalledOnce();await expect(initializeOnboarding(scope,{...recovery,intentKey:'new-after-ready',domain:'different.example'})).rejects.toThrow('ONBOARDING_INTENT_CONFLICT');expect(await initializeOnboarding({accountId:randomUUID()},recovery)).toBeNull()});
 
 it('implicit same-brand recovery cannot change a running or ready seed context',async()=>{const scope=await fixture(),initial=parseOnboardingInput({intentKey:'implicit-original',clientId:scope.clientId,brandName:'Fixture brand',domain:'fixture.example',language:'en',market:'HK'});await initializeOnboarding(scope,initial);const {claimOnboardingSeed}=await import('@/lib/onboarding/store');const lease=await claimOnboardingSeed(scope,initial.intentKey);expect(lease).not.toBeNull();await expect(initializeOnboarding(scope,{...initial,clientId:null,intentKey:'implicit-different-running',market:'TW'})).rejects.toThrow('ONBOARDING_INTENT_CONFLICT');await admin`update onboarding_progress set prompt_status='ready' where account_id=${scope.accountId}`;await expect(initializeOnboarding(scope,{...initial,clientId:null,intentKey:'implicit-different-ready',market:'TW'})).rejects.toThrow('ONBOARDING_INTENT_CONFLICT')});
+
+it('T24 original mixed CSV is mutually exclusive and never partially persists',async()=>{
+ const scope=await fixture()
+ await admin`update accounts set plan='pro',stripe_subscription_id='sub_local_fixture' where id=${scope.accountId}`
+ await admin`update prompt_bank set category='brand_query' where client_id=${scope.clientId}`
+ for(let i=1;i<8;i++)await admin`insert into prompt_bank(client_id,question,category,language,market,is_active) values(${scope.clientId},${'Existing fixture '+i},'brand_query','en','HK',true)`
+ const before=await readPromptBatch(scope)
+ const {parsePromptCsv}=await import('@/lib/prompts/bulk')
+ const {readFileSync}=await import('node:fs')
+ const changes=parsePromptCsv(readFileSync('docs/remediation/2026-10-12/source/synthetic-mixed.csv','utf8'))
+ expect(await previewPromptImport(scope,changes)).toMatchObject({summary:{totalRows:3,applicableRows:1,duplicateRows:1,invalidRows:1},activeAfter:9})
+ await expect(applyPromptBatch(scope,{intentKey:'T24-mixed-fixture',expectedVersion:before.version,changes})).rejects.toThrow('INVALID_PROMPT_ROWS')
+ expect(await readPromptBatch(scope)).toMatchObject({prompts:before.prompts,version:before.version})
+ expect(await admin`select count(*)::int n from prompt_batch_intents where account_id=${scope.accountId} and client_id=${scope.clientId}`).toEqual([{n:0}])
+})
+it('T24 pending receipt stays unknown and original draft applies only once',async()=>{
+ const scope=await fixture()
+ await admin`update accounts set plan='pro',stripe_subscription_id='sub_local_fixture' where id=${scope.accountId}`
+ await admin`update prompt_bank set category='brand_query' where client_id=${scope.clientId}`
+ const before=await readPromptBatch(scope),changes=[{question:'New receipt fixture',category:'brand_query',language:'en',market:'HK',is_active:true}]
+ const input={intentKey:'T24-pending-fixture',expectedVersion:before.version,changes},hash=createHash('sha256').update(JSON.stringify(input)).digest('hex')
+ await admin`insert into prompt_batch_intents(account_id,client_id,intent_key,request_hash,result) values(${scope.accountId},${scope.clientId},${input.intentKey},${hash},null)`
+ await expect(applyPromptBatch(scope,input)).rejects.toThrow('PROMPT_BATCH_PENDING')
+ expect((await readPromptBatch(scope)).version).toBe(before.version)
+ const valid={...input,intentKey:'T24-ack-fixture'}
+ const first=await applyPromptBatch(scope,valid),again=await applyPromptBatch(scope,valid)
+ expect(again).toEqual(first)
+ expect((await readPromptBatch(scope)).prompts).toHaveLength(2)
+ expect(await admin`select count(*)::int n from prompt_batch_intents where account_id=${scope.accountId} and client_id=${scope.clientId} and intent_key=${valid.intentKey}`).toEqual([{n:1}])
+ await expect(applyPromptBatch({accountId:randomUUID(),clientId:scope.clientId},valid)).rejects.toThrow('PROMPT_NOT_FOUND')
+})
+
+it('T28 committed response loss plus concurrent tabs preserves one ready brand and seed',async()=>{
+ const accountId=randomUUID();accounts.push(accountId);await admin`insert into accounts(id,plan,status) values(${accountId},'basic','active')`
+ const scope={accountId},input=parseOnboardingInput({intentKey:'T28-committed',brandName:'One saved brand',description:'Original saved draft',domain:'saved.fixture',language:'en',market:'HK'})
+ const generate=vi.fn(async()=>JSON.stringify({questions:Array.from({length:24},(_,i)=>({question:'Saved question '+i,category:'brand_query',language:'en'}))}))
+ const responses=await Promise.all([completeOnboarding(scope,input,generate),completeOnboarding(scope,input,generate)])
+ expect(new Set(responses.map(r=>r?.clientId)).size).toBe(1)
+ const recovered=await completeOnboarding(scope,input,generate);expect(recovered?.progress).toMatchObject({brand:'ready',prompts:'ready',promptCount:24})
+ const clientId=recovered!.clientId,before=await admin`select id,question,onboarding_seed_key from prompt_bank where client_id=${clientId} order by id`
+ await expect(completeOnboarding(scope,{...input,description:'Conflict under original'},generate)).rejects.toThrow('ONBOARDING_INTENT_CONFLICT')
+ await expect(completeOnboarding(scope,{...input,clientId,intentKey:'T28-edited',description:'Conflict after ready'},generate)).rejects.toThrow('ONBOARDING_INTENT_CONFLICT')
+ expect(generate).toHaveBeenCalledOnce();expect(await admin`select id,question,onboarding_seed_key from prompt_bank where client_id=${clientId} order by id`).toEqual(before)
+ expect(await admin`select count(*)::int n from clients where account_id=${accountId}`).toEqual([{n:1}])
+ expect(await admin`select description from clients where id=${clientId}`).toEqual([{description:'Original saved draft'}])
+ expect(await admin`select count(*)::int n from pulse_runs where account_id=${accountId}`).toEqual([{n:0}])
+})
+it('T28 failed seed and expired lease retain manual questions and fence late completion',async()=>{
+ const accountId=randomUUID();accounts.push(accountId);await admin`insert into accounts(id,plan,status) values(${accountId},'basic','active')`
+ const scope={accountId},input=parseOnboardingInput({intentKey:'T28-seed-recovery',brandName:'Recovery fixture',language:'en',market:'HK'})
+ const first=await completeOnboarding(scope,input,async()=>{throw Error('Synthetic seed outage')})
+ expect(first?.progress).toMatchObject({brand:'ready',prompts:'failed',retryable:true})
+ await admin`insert into prompt_bank(client_id,question) values(${first!.clientId},'Manual row must survive')`
+ const {claimOnboardingSeed,commitOnboardingSeed,readOnboardingProgress}=await import('@/lib/onboarding/store')
+ const {parseSeedPrompts}=await import('@/lib/onboarding/schema')
+ const old=await claimOnboardingSeed(scope,input.intentKey)
+ await admin`update onboarding_progress set lease_until=now()-interval '1 second' where account_id=${accountId}`
+ const current=await claimOnboardingSeed(scope,input.intentKey)
+ const prompts=parseSeedPrompts(JSON.stringify({questions:[{question:'Recovered seed question',category:'brand_query',language:'en'}]}),{language:'en',market:'HK'})
+ await commitOnboardingSeed(scope,input.intentKey,old!.token,prompts)
+ expect((await readOnboardingProgress(scope,input.intentKey))?.progress.prompts).toBe('running')
+ await commitOnboardingSeed(scope,input.intentKey,current!.token,prompts)
+ expect((await readOnboardingProgress(scope,input.intentKey))?.progress).toMatchObject({prompts:'ready',promptCount:2})
+ expect(await admin`select question from prompt_bank where client_id=${first!.clientId} order by question`).toEqual([{question:'Manual row must survive'},{question:'Recovered seed question'}])
+})
+
+it('T31 actual app-role option reads return availability with unknown cost and schedule',async()=>{
+ const scope=await fixture(),{readUserPulseOptions}=await import('@/lib/pulse/runs/user-dispatch')
+ vi.stubEnv('FEATURE_PULSE_ATTEMPTS','0')
+ try{const options=await readUserPulseOptions(scope);expect(options.availability).toMatchObject({canStart:false,action:'wait'});expect(options.availability.reasons).toContain('paused');expect(options.costEstimateUsd).toBeNull();expect(options.nextDueAt).toBeNull();expect(options.scheduleState).toBe('unknown');await expect(readUserPulseOptions({...scope,accountId:randomUUID()})).rejects.toThrow('PULSE_RUN_NOT_FOUND')}finally{vi.unstubAllEnvs()}
+})

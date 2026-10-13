@@ -1,0 +1,41 @@
+﻿case_id,role,goal,route,preconditions_data,steps,expected,actual,result,environment,evidence_ids,finding_ids,related_previous_cases,elapsed,cleanup
+UC20,訪客,根網址及香港中文入口,/,無需登入,開啟根網址,進入有效語言首頁及可用掃描入口,導向 /zh-HK，首頁及掃描表單可見,pass,live,E02,,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC21,訪客,首頁示例分數與評級一致,/zh-HK,正式版本 a7ab604,查看示例74分；對照assignGrade(74),74應為B,正式站74/B+；候選已改assignGrade(74),fail,live+code,E02;E04,F60,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC22,訪客,無效網址可恢復,/zh-HK,URL=not-a-domain,填網址並提交；檢查錯誤與焦點,不開始掃描；清楚提示；焦點返回網址,顯示有效網址例子、重試掃描；焦點在網址,pass,live,E03,,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC23,訪客,個人化背景保留,/zh-HK,能源及公用事業；香港；無效網址,展開個人化→選擇→無效提交,行業及地區保留,兩值保留；沒有執行有效掃描,pass,live,E03,,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC24,訪客,範例報告雙語及證據限制,/{lang}/sample-report,EN/zh-HK,開範例→切EN,保留同一路由；清楚標示合成及不能推論改善,兩語均標示合成；62/C；無基準／未發布限制可見,pass,live,E05,,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC25,鍵盤使用者,導覽Escape與焦點,/en/sample-report,桌面,展開Platform→Escape,選單收起並返回原控制,正確收起、焦點留在Platform,pass,live,E05,,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC26,購買前訪客,定價與監測供應狀態,/en/pricing,不購買,讀方案→開What is AI Pulse FAQ,未推出能力明示planned/coming soon,週期監測卡及FAQ均標為計劃中,pass,live,E06,,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC27,訪客,未推出品牌發現能力,/en/platform/brand-product-discovery,不登入,由頁尾開功能頁,明示不可用，不冒充可操作功能,Planned/not available及無live backend說明可見,pass,live,E06,,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC28,迷路訪客,香港中文404恢復,/zh-HK/audit-missing-page-20261012,不存在路由,開指定不存在頁,中文說明、首頁及掃描恢復入口,英文預設404；沒有恢復連結；舊AEO標題,fail,live,E07,F63,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC29,未登入請求,匿名Auth健康控制,/api/auth/get-session,無Cookie的HTTP客戶端,GET一次,200 null且不帶登入資料,"200 null；private,no-store",pass,live-api,E08,,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC30,未登入請求,管理API拒絕存取,/api/admin/directory?view=users ; /api/admin/clients,無Cookie,各GET一次,401且沒有資料,兩者401 Unauthorized,pass,live-api,E08,,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC31,一般Pro租戶,不能看平台Admin,/admin,沿用已登入租戶,開/admin,拒絕平台管理資料,導向/en/dashboard；未顯示Admin目錄,pass,live,E09,F57,UC16,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC32,首次設定用戶,AI转人工保留背景,/zh-HK/onboarding,空白暫存；example.com；zh-HK；HK,填網址/語言/市場→人工→填合成名稱→下一步,焦點到名稱；域名正規化；市場語言保留,全部符合；未按生成或建立品牌,pass,live,E10,F55,UC14,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC33,首次設定用戶,重新載入與返回恢復,/zh-HK/onboarding,承UC32到第三步,reload→返回兩步,步驟、名稱、URL及語言/市场保留,全部保留；結束時關閉此暫存分頁,pass,live,E10,F55,UC14,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC34,品牌經理,品牌組合與啟用進度,/zh-HK/dashboard,既有Pro租戶1品牌,開組合→查看品牌與里程碑,資料可讀；部分樣本及新鮮度限制明確,1/3品牌；31/40分類；新鮮度未知；里程碑可讀,pass,live,E11,F51,UC18,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC35,品牌經理,開始首次監測,/zh-HK/dashboard/{ownedClientId},8問題×5模型,等待prepare狀態；檢查開始入口,經核准可用環境可開始；停用時解釋下一步,40回答及1500剩餘額度可讀；監測未可使用、開始停用；未執行,fail,live,E11,F51,UC18,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC36,品牌經理,觀察列表及分母,/zh-HK/dashboard/{ownedClientId}/observations,既有2026-10-05樣本,讀總數及分類狀態,總數等於成功+未知,40=31+9；未知沒有當作未提及,pass,live,E12,F51,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC37,品牌經理,只看未完整回答,/zh-HK/dashboard/{ownedClientId}/observations,承UC36,結果選不完整或未知,顯示9筆；不改資料,9個證據按鈕，與未完整總數吻合,pass,live,E12,,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC38,品牌經理,查看原文與人工覆核,/zh-HK/dashboard/{ownedClientId}/observations,承UC37,開首項證據→讀限制→Escape,原文可讀；未知來源標明；返回原按鈕,原文可讀；模型API非消費者排名提示；Escape返回原按鈕,pass,live,E12,,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC39,品牌經理,問題庫與批次入口,/zh-HK/dashboard/{ownedClientId}/prompts,既有8題,開問題庫→展開批次,正確數量及可選清單,8/8；批次載入8題,pass,live,E13,F51,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC40,鍵盤使用者,AI建議面板開關與焦點,/zh-HK/dashboard/{ownedClientId}/prompts,不按生成,建議更多→Tab→Escape→關閉,命名dialog、焦點留面板、Escape返回開啟按鈕,焦點仍開啟鈕；Tab到背景CSV；Escape無效；關閉鈕無名,fail,live,E13,F58,UC17,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC41,匯入使用者,CSV市場代碼錯誤,/zh-HK/dashboard/{ownedClientId}/prompts,synthetic-invalid-market.csv,貼上→預覽，不套用,錯列列號；儲存停用,hk被拒；MARKET_REQUIRED；儲存停用,pass,live-readonly-preview,E14,,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC42,匯入使用者,CSV重複與無效分類,/zh-HK/dashboard/{ownedClientId}/prompts,synthetic-mixed.csv；HK大寫,貼上→預覽→檢查按鈕→reload,第二列重複；第三列分類無效；不能套用；原8题不變,重複及分類錯誤均指出；儲存停用；reload仍8題,pass,live-readonly-preview,E14,,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC43,中小企操作員,CSV錯誤能自行修正,/zh-HK/dashboard/{ownedClientId}/prompts,承UC41/42,閱讀錯誤及修改預覽,顯示中文原因、合法代碼示例及可套用數,只顯示market/category及原始錯誤代碼；重複列被列入2修改/10啟用投影,fail,live+code,E14,F65,,未作可靠計時,沒有提交正式修改；表單/CSV暫存以reload或關閉測試分頁清除
+UC44,報告讀者,精確分數跨評級門檻,components/result/ScoreReveal.tsx,PR92；計算得到59.97/D；兩語,執行repro/audit-score-boundary.test.tsx,文字保留59.97且不顯示60.0/D,2/2重現失敗；新formatter變成60.0/100，grade仍D,fail,local-component,E15,F61,,未作可靠計時,不適用；僅合成測試或待執行
+UC45,報告讀者,小數評級區間無缺口,home score section + lib/scoring.ts,PR92；59.5/69.5/79.5/89.5,對照新區間文字與assignGrade,半開區間覆蓋所有小數,新文案50–59等漏小數尾段；函數正確給D/C/B/A,fail,code+local-function,E16,F62,,未作可靠計時,不適用；僅合成測試或待執行
+UC46,不同裝置訪客,既有公開頁響應與可及性回歸,public pages / a11y matrix,PR92 exact candidate；CI fixtures,覆核四個Playwright分片原始摘要與測試來源,已定義958案例無失敗/跳過/flaky,958全部pass；涵蓋EN/zh-HK與多寬度；不等於新404/500/全站200%都測過,pass,ci-fixture,E17,,,未作可靠計時,不適用；僅合成測試或待執行
+UC47,維運,OIDC自呼叫與不洩露驗證,lib/readiness/runtime-adapters.ts,PR91已部署；PR92包含同碼,重跑runtime-adapters及相關118項選定測試,request OIDC限同部署；無context不借env token；失敗redact,選定7檔118全部pass；不能代替production readiness授權POST,pass,local-mocked,E18,,,未作可靠計時,不適用；僅合成測試或待執行
+UC48,首次設定用戶,確認品牌及遺失回應重試,/{lang}/onboarding,隔離租戶A；Pro配額；合成資料；合成provider,確認→丟失成功回應→reload/retry→查brand及intent,同intent只一品牌；問題context正確；回原角色確認,本輪未建立品牌；既有CI/隔離歷史不能當今次正式寫入證據,blocked,planned-isolated,E19,F51;F52,UC18,未作可靠計時,不適用；僅合成測試或待執行
+UC49,另一租戶,跨帳戶讀寫拒絕,API owned/foreign pairs,隔離租戶A/B及同一版本,A可讀200；B同ID404；撤銷session後401,無跨租戶資料或寫入,本輪只有一個沿用session；未新建兩帳戶,blocked,planned-isolated,E19,F53,UC12,未作可靠計時,不適用；僅合成測試或待執行
+UC50,Super Admin,九類全平台目錄,/admin + /api/admin/directory,指定並已授權Admin；兩帳戶合成資料,逐一讀users/accounts/brands/scans/prompts/observations/runs/sources/work,九類資料、scope、失敗態正確；不能顯示token/密鑰,源碼有9視圖、API guard；本輪無Admin工作階段,blocked,planned-hosted-admin,E20,F57,UC16,未作可靠計時,不適用；僅合成測試或待執行
+UC51,Super Admin,搜尋分頁與帳戶篩選,/admin,26+合成記錄；A/B各有資料,篩選A→翻頁→搜尋→重設,25/page；無重複或漏列；查詢變更回首頁,本輪未以Admin操作,blocked,planned-hosted-admin,E20,F57,UC16,未作可靠計時,不適用；僅合成測試或待執行
+UC52,Super Admin,結構診斷不誤報就緒,/admin schema panel,隔離缺列及查詢失敗fixture,分別測present/missing/unavailable,三態不同；不執行DDL、不當完整journey通過,源碼及CI已有覆蓋；本輪無Admin live驗收,blocked,planned-hosted-admin,E20,F56;F57,UC15,未作可靠計時,不適用；僅合成測試或待執行
+UC53,品牌經理,AI草稿事實品質與人手接管,onboarding assist,5個已批准公開首頁×2次；明確費用上限,人工參考答案→生成→核實每句來源→失敗轉人工,10樣本零無來源claims；語言/市場不猜；計時/費用/模型記錄,未批准本輪provider樣本與費用；零本輪生成,blocked,planned-real-provider,E19,F52,UC19,未作可靠計時,不適用；僅合成測試或待執行
+UC54,品牌經理,建議儲存未知結果及防重複,PR90 suggestion panel,隔離HTTP fault fixtures；EN/zh-HK桌面/手機,雙擊→timeout/5xx→另一成功→關閉重開,一次POST；未知保留；禁止盲重試；告警不消失,PR90既有994 browser含36新增案例pass；尚未部署且非PR92組合,pass,prior-ci-fixture,E21,F58,UC17,未作可靠計時,不適用；僅合成測試或待執行
+UC55,訪客,新版404及500恢復,PR92 not-found/error,候選隔離preview；可控錯誤fixture,兩語unknown URL；500→retry→home；驗support digest,恢復按鈕可用、無內部訊息、同語言,程式碼有新頁；本輪未能操作候選preview；500未注入,blocked,planned-preview,E22,F63,,未作可靠計時,不適用；僅合成測試或待執行
+UC56,QA,候選Preview真實功能驗收,PR92 deployment,可獲授權的Vercel預覽登入,開候選preview→登入保護→應用流程,可操作候選部署，不只READY,跳Vercel登入被自動審批拒绝；未繞過,blocked,preview,E22,F59,,未作可靠計時,不適用；僅合成測試或待執行
+UC57,放大文字使用者,定價200%文字重排,/{lang}/pricing,375px；200%文字；EN/zh-HK；light/dark,放大root文字→讀方案/表格/CTA,整頁不水平溢出；表格只在命名容器內捲動,PR92作者報告約23px溢出；本輪未獨立重現，CI未覆蓋此組合,not-tested,planned-preview,E23,,,未作可靠計時,不適用；僅合成測試或待執行
+UC58,批次維護使用者,CSV套用版本衝突與重送,prompts/bulk,隔離資料庫；兩操作員；同intent,A預覽→B改題→A提交；再測回應遺失重送,409不覆寫；重新預覽；同intent只套一次；舊回答不改,本輪只執行read-only preview，無正式apply,blocked,planned-isolated,E19,,,未作可靠計時,不適用；僅合成測試或待執行
+UC59,首次登入用戶,全新Google/magic-link及回到原頁,/{lang}/auth/login,使用者選擇正確登入帳戶；隔離環境,分別兩方法→原next頁→過期連結恢復,session正確且不遺失return-to；帳戶選擇明確,本輪沿用已登入session；未登出及未傳送登入電郵,not-tested,planned-human-uat,E19,,,未作可靠計時,不適用；僅合成測試或待執行

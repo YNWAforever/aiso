@@ -1,0 +1,25 @@
+﻿evidence_id,subject,source,observation,evidence_status,limitations
+E01,GitHub/Vercel baseline,GitHub PR metadata + production deployment API,main a7ab604；PR90 open draft；PR91 merged；PR92 open；production READY same SHA,verified,版本在本輪收尾重讀；詳細SHA見報告
+E02,Live homepage,/zh-HK,74/B+實際可見；assignGrade規則給B,verified,正式a7ab604
+E03,Live scan form,/zh-HK,not-a-domain→中文錯誤/焦點；energy+HK保留,verified,未執行有效掃描
+E04,PR92 diff,03c7b806: app/[lang]/(marketing)/page.tsx,PREVIEW_SCORE=74；assignGrade(PREVIEW_SCORE),code-only,尚未正式上線
+E05,Sample and navigation,/zh-HK/sample-report→/en/sample-report,合成說明；語言保留路由；Platform Escape焦點,verified,正式a7ab604
+E06,Pricing/planned surfaces,/en/pricing ; /en/platform/brand-product-discovery,監測planned/coming soon；品牌發現planned not available,verified,未購買
+E07,Missing route,/zh-HK/audit-missing-page-20261012,英文預設404；無恢復連結；舊AEOtitle,verified,正式a7ab604
+E08,Anonymous HTTP,evidence/anonymous-http.json,Auth200 null；兩管理API401；不支援GET回405,verified,無Cookie客戶端；5 GET；POST被自動審批拒絕，沒有結果
+E09,Tenant admin denial,/admin→/en/dashboard,沿用一般Pro session，被導回dashboard,verified,沒有Admin正向授權
+E10,Onboarding recovery,/zh-HK/onboarding,人工接手focus；example.com正規化；第三步reload及back保留context,verified,合成表單；未生成／建立品牌；測試分頁已關
+E11,Portfolio/monitor,/zh-HK/dashboard + owned client home,1/3品牌；資料恢復；40回答／1500額度／下次未知／開始停用,verified,不把停用猜成SQL錯誤；未觸發監測
+E12,Observation consistency,owned observations page,40=31+9；incomplete篩選9；原文可讀；Escape還focus,verified,既有原文未匯出；舊模型/市場資訊unknown
+E13,Suggestion keyboard,owned prompts page,8/8；開面板焦點在背景；Tab到CSV；Escape無效；關閉回body,verified,本輪內部截圖目視；沒有附私有截圖或生成
+E14,CSV preview,owned prompts/bulk read-only mode,小寫hk報市場錯；HK後第2重複、第3分類錯；儲存停用；reload8/8,verified,只有preview；counts仍含dup、raw error code屬UX問題
+E15,Score precision RED,repro/audit-score-boundary.test.tsx + evidence/score-boundary-results.json,EN/zh-HK兩case有效失敗：59.97/D被render60.0,verified,PR92 local component；未改產品
+E16,Grade interval review,PR92 home grade floors + lib/scoring.ts,59.5/69.5/79.5/89.5分別D/C/B/A；50–59等文案漏小數尾段,code-only,本機直接呼叫scorer核實
+E17,PR92 CI,https://github.com/YNWAforever/aiso/actions/runs/38269270215,5977unit；958browser；419integration；aggregate6 groups success,verified,下載摘要及4browser JSON；candidate與CI tree相同
+E18,Selected local tests,evidence/targeted-tests-summary.json,7檔118pass；OIDC/AI draft/Admin守衛及SQL契約,verified,DB/provider為合成；不是production旅程
+E19,Unexercised gates,本輪範圍與既有release evidence,新brand commit、兩租戶、paid provider、CSV apply、fresh human login未執行,blocked,明示缺口，不算pass
+E20,Admin source,main: directory-schema.ts/directory.ts/admin-guard.ts/schema-health.ts/admin page,9views；25/page；guard；no-store；schema metadata-only,code-only,只有一般tenant/匿名負向live；沒有Admin正向
+E21,PR90 prior evidence,https://github.com/YNWAforever/aiso/actions/runs/38193240866,5993unit；994browser；419integration；含36新面板case,verified,沿用先前本session核實的歷史CI；非本輪重跑，不是組合候選
+E22,Preview blocker,PR92 preview→Vercel login,自動審批拒絕存取帳戶登入頁；沒有繞過,blocked,不能由READY或舊F59根因推定現有runtime
+E23,Author-reported text zoom,https://github.com/YNWAforever/aiso/pull/92,作者報pricing375px/200%約23px溢出,not-tested,本輪未獨立重現
+E24,Fixture semantics,PR92 lib/e2e-fixtures.ts:14–15 ; original score-reveal test,63.5/D不一致；原元件test只用整數73,code-only,會削弱評級／精度驗證

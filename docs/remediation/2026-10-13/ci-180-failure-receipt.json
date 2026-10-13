@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "kind": "frozen_failed_ci_snapshot",
+  "recordedAt": "2026-10-13T01:10:53.367Z",
+  "runId": 38328545337,
+  "url": "https://github.com/YNWAforever/aiso/actions/runs/38328545337",
+  "sourceHead": "e36d1599af4bd418fce4727b8aaf6914e8f13c24",
+  "testedMerge": "15236690acaf3f6be2aa7579f434fb0138505dc2",
+  "tree": "24705efd120b00a7cbbc8883d81aad5362e843aa",
+  "status": "failure",
+  "counts": {
+    "unit": {
+      "passed": 6143,
+      "failed": 0,
+      "skipped": 0
+    },
+    "sql": {
+      "total": 419,
+      "passed": 418,
+      "failed": 1,
+      "skipped": 0,
+      "defaultTotal": 241,
+      "defaultPassed": 240,
+      "exactTargetPassed": 178
+    },
+    "browser": {
+      "passed": 1366,
+      "failed": 0,
+      "skipped": 0,
+      "flaky": 0
+    },
+    "worker": {
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "failedContract": "T05 guarded Neon run ledger / compatibility writer preserves three old successes after an all-failed retry",
+  "cause": "Obsolete502 expectation after all allowed raw answers are already retained; new route does not dispatch providers and legitimately returns200",
+  "remediation": "Assert200 + provider/classifier zero calls + exact metric snapshot equality; add separate genuine uncached all-platform outage502 with no metric/summary writes",
+  "localFollowup": {
+    "suite": "real loopback owner-role ledger SQL; not app-role/Auth/live",
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "reportSha256": "054b9e745d9813a183254f35b355d29f0deb5e24bd744ff8e968c7b64c1915b9"
+  },
+  "cleanup": {
+    "taskOwnedBranches": 2,
+    "deletionLogsConfirmed": 2,
+    "readOnlyHTTP404Confirmed": 2,
+    "extraDeleteCalls": 0
+  },
+  "workflowReruns": 0,
+  "productionMutations": 0,
+  "paidProviderRequests": 0
+}

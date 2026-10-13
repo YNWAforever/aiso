@@ -48,14 +48,21 @@ describe('PromptBankEditor category vocabulary', () => {
     // The bug this replaces: sections were keyed on display labels ('Brand
     // Queries') while rows carry 'brand_query', so every section rendered
     // empty and the real categories appeared beneath them as raw snake_case.
-    const html = render([
+    const rendered = render([
       prompt({ id: 'p1', category: 'brand_query', question: 'Brand one' }),
       prompt({ id: 'p2', category: 'pain_point', question: 'Pain one' }),
     ])
+    // Exclude only the named bulk-maintenance details subtree. These positive
+    // row assertions now inspect the real category sections, not the bulk list.
+    const start=rendered.indexOf('<details'),end=rendered.indexOf('</details>',start)
+    expect(start).toBeGreaterThanOrEqual(0)
+    expect(end).toBeGreaterThan(start)
+    expect(rendered.slice(start,end)).toContain(messages('en').pulse.qb_bulk_title)
+    const html=rendered.slice(0,start)+rendered.slice(end+'</details>'.length)
 
     expect(html).toContain('Brand one')
     expect(html).toContain('Pain one')
-    // The stored keys must never be shown to a user.
+    // Category sections retain translated labels, not stored category keys.
     expect(html).not.toContain('brand_query')
     expect(html).not.toContain('pain_point')
   })

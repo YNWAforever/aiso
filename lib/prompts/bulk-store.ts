@@ -12,7 +12,7 @@ export async function previewPromptImport(scope:PromptBatchScope,rows:PromptBatc
 export async function applyPromptBatch(scope:PromptBatchScope,input:{intentKey:string;changes:PromptBatchRow[];expectedVersion:string}){
  if(typeof input?.intentKey!=='string'||typeof input?.expectedVersion!=='string'||!/^[a-zA-Z0-9:_-]{8,128}$/.test(input.intentKey)||!Array.isArray(input.changes)||!input.changes.length||input.changes.length>50||!/^[a-f0-9]{32}$/.test(input.expectedVersion))throw new Error('INVALID_PROMPT_BATCH')
  const sql=db(),hash=createHash('sha256').update(JSON.stringify(input)).digest('hex');const [previous]=await sql`select request_hash,result from prompt_batch_intents where account_id=${scope.accountId} and client_id=${scope.clientId}::uuid and intent_key=${input.intentKey}`
- if(previous){if(previous.request_hash!==hash)throw new Error('PROMPT_INTENT_CONFLICT');return previous.result}
+ if(previous){if(previous.request_hash!==hash)throw new Error('PROMPT_INTENT_CONFLICT');if(!previous.result)throw new Error('PROMPT_BATCH_PENDING');return previous.result}
  const [account]=await sql`select a.* from accounts a join clients c on c.account_id=a.id where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId}`
  if(!account)throw new Error('PROMPT_NOT_FOUND');if(!resolveCommercialEntitlement(account as CommercialAccount).features.edit_prompts)throw new Error('PROMPT_ENTITLEMENT_CHANGED')
  const current=await readPromptBatch(scope);if(current.version!==input.expectedVersion)throw new Error('PROMPT_VERSION_CONFLICT');const preview=previewPromptRows(current.prompts,input.changes);if(preview.errors.length)throw Object.assign(new Error('INVALID_PROMPT_ROWS'),{errors:preview.errors})

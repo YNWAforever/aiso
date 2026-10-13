@@ -187,12 +187,35 @@ export async function POST(req: NextRequest) {
 
   try {
     for (const prompt of slice) {
+      let retained: Array<{ platform: string }>
+      try {
+        retained = await sql`
+          select distinct m.platform from pulse_metrics m
+          join clients c on c.id = m.client_id and c.account_id = ${client.account_id}
+          where m.client_id = ${clientId} and m.prompt_id = ${prompt.id}
+            and m.scan_week = ${scanWeek}::date and m.raw_answer ~ '[^[:space:]]'
+            and (m.run_item_id is null or exists (
+              select 1 from pulse_run_items i join pulse_runs r
+                on r.id = i.run_id and r.account_id = i.account_id and r.client_id = i.client_id
+              where i.id = m.run_item_id and i.account_id = ${client.account_id}
+                and i.client_id = ${clientId} and r.purpose = 'canonical'
+            ))
+        ` as Array<{ platform: string }>
+      } catch {
+        console.error('[pulse/run] saved-answer lookup failed')
+        return NextResponse.json({ error: 'Saved answer lookup failed', cursor }, { status: 503 })
+      }
+      const savedPlatforms = new Set(retained.map(row => row.platform))
+      const missingPlatforms = platforms.filter(platform => !savedPlatforms.has(platform))
+      // Raw answers remain authoritative even while their classification is unknown.
+      if (missingPlatforms.length === 0) continue
+
       // A platform outage must not abort the chunk — callMultiPlatform already
       // drops rejected platforms, and this catches a total failure.
       const responses = await callMultiPlatform(
         promptCollectionMessages({...prompt,contextVersion:'2026-10-03.v1'}),
         pulseAnswerMaxTokens,
-        platforms,
+        missingPlatforms,
         undefined,
         { webSearch },
       ).catch(() => [])
@@ -229,7 +252,8 @@ export async function POST(req: NextRequest) {
           delete from pulse_metrics
           where client_id = ${clientId} and prompt_id = ${prompt.id}
             and scan_week = ${scanWeek}::date and platform = ${response.platform}
-            and nullif(btrim(raw_answer),'') is null
+            and (raw_answer is null or raw_answer !~ '[^[:space:]]') and run_item_id is null
+            and exists (select 1 from clients c where c.id = pulse_metrics.client_id and c.account_id = ${client.account_id})
         `,
           sql`
           insert into pulse_metrics (
@@ -244,8 +268,17 @@ export async function POST(req: NextRequest) {
             ${analysis.classificationStatus},${analysis.method},${analysis.version},${JSON.stringify(analysis.matchedText)}::jsonb,
             ${response.providerCitations == null ? null : JSON.stringify(response.providerCitations)}::jsonb,${response.grounding ?? null},${response.searchEvidence?JSON.stringify(response.searchEvidence):null}::jsonb,${response.requestedModel??null},${response.providerEvidence?.actualModel??null},${response.providerEvidence?.requestId??null},${new Date().toISOString()}::timestamptz,${JSON.stringify({question:prompt.question,category:prompt.category,language:prompt.language??null,market:prompt.market??null,contextVersion:'2026-10-03.v1'})}::jsonb,${JSON.stringify({name:client.brand_name,competitors:client.competitors})}::jsonb,${response.providerEvidence?JSON.stringify({promptTokens:response.providerEvidence.promptTokens,completionTokens:response.providerEvidence.completionTokens,costUsd:response.providerEvidence.costUsd}):null}::jsonb,${response.providerEvidence?.providerFinishReason??null},'2026-10-11.v1'
           where exists(select 1 from clients where id = ${clientId} and account_id = ${client.account_id})
-            and not exists(select 1 from pulse_metrics where client_id = ${clientId} and prompt_id = ${prompt.id}
-              and scan_week = ${scanWeek}::date and platform = ${response.platform} and nullif(btrim(raw_answer),'') is not null)
+            and not exists (
+              select 1 from pulse_metrics saved where saved.client_id = ${clientId} and saved.prompt_id = ${prompt.id}
+                and saved.scan_week = ${scanWeek}::date and saved.platform = ${response.platform}
+                and saved.raw_answer ~ '[^[:space:]]'
+                and (saved.run_item_id is null or exists (
+                  select 1 from pulse_run_items i join pulse_runs r
+                    on r.id = i.run_id and r.account_id = i.account_id and r.client_id = i.client_id
+                  where i.id = saved.run_item_id and i.account_id = ${client.account_id}
+                    and i.client_id = ${clientId} and r.purpose = 'canonical'
+                ))
+            )
           returning id
         `,
         ])

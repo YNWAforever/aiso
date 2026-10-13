@@ -50,3 +50,16 @@ describe('trackFunnelEvent', () => {
       .toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
   })
 })
+
+it('T35 client sends only attempt and locale for onboarding, strips runtime extras',()=>{
+ const storage=new Map<string,string>(),send=vi.fn<(input: RequestInfo | URL, init?: RequestInit)=>Promise<Response>>(async()=>new Response())
+ vi.stubGlobal('window',{sessionStorage:{getItem:(k:string)=>storage.get(k)??null,setItem:(k:string,v:string)=>storage.set(k,v)}})
+ vi.stubGlobal('fetch',send)
+ trackFunnelEvent({name:'onboarding_started',locale:'zh-HK',email:'synthetic-private',url:'https://private.fixture',draft:'secret',scanId:'private-id',provider:'google'} as never)
+ expect(send).toHaveBeenCalledOnce();expect(Object.keys(JSON.parse(send.mock.calls[0][1]!.body as string)).sort()).toEqual(['attemptId','locale','name'])
+})
+it('T35 rejected telemetry never throws or retries',async()=>{
+ vi.stubGlobal('window',{sessionStorage:{getItem:()=>null,setItem:()=>{}}})
+ const send=vi.fn(async()=>{throw Error('Synthetic diagnostics outage')});vi.stubGlobal('fetch',send)
+ expect(()=>trackFunnelEvent({name:'onboarding_manual_selected',locale:'en'} as never)).not.toThrow();await Promise.resolve();expect(send).toHaveBeenCalledOnce()
+})

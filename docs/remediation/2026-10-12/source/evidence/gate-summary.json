@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "job": "pr-gate",
+  "commitSha": "399b35ff372ff4e1064fd1aa2dc31072b9236771",
+  "status": "success",
+  "executed": 6,
+  "skipped": 0,
+  "failurePriorities": [],
+  "artifacts": [
+    "gate-summary.json"
+  ]
+}

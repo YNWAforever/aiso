@@ -1,6 +1,9 @@
 'use client'
 
+export const ONBOARDING_EVENTS = ['onboarding_started','brand_draft_requested','brand_draft_reviewed','onboarding_manual_selected'] as const
+
 export const FUNNEL_EVENTS = [
+  ...ONBOARDING_EVENTS,
   'scan_completed', 'scan_result_viewed', 'signup_cta_viewed',
   'signup_started', 'signup_succeeded', 'scan_claim_succeeded',
   'scan_claim_failed', 'scan_retry_clicked',
@@ -45,12 +48,12 @@ function getAttemptId() {
 }
 
 export function trackFunnelEvent(input: Omit<FunnelEventInput, 'attemptId'>): void {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined' || !FUNNEL_EVENTS.includes(input.name) || !['en','zh-HK'].includes(input.locale)) return
   try {
     void fetch('/api/funnel-events', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...input, attemptId: getAttemptId() }),
+      body: JSON.stringify(ONBOARDING_EVENTS.includes(input.name as typeof ONBOARDING_EVENTS[number])?{name:input.name,locale:input.locale,attemptId:getAttemptId()}:{name:input.name,locale:input.locale,attemptId:getAttemptId(),...(input.scanId?{scanId:input.scanId}:{}),...(input.provider?{provider:input.provider}:{}),...(input.errorCode?{errorCode:input.errorCode}:{})}),
       keepalive: true,
     }).catch(() => undefined)
   } catch {

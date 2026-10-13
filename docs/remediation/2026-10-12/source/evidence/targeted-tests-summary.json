@@ -1,0 +1,16 @@
+{
+  "candidate": "03c7b806facfde73d20792f7ac2c121a72c9c18c",
+  "files": 7,
+  "passed": 118,
+  "failed": 0,
+  "scope": [
+    "readiness/runtime-adapters",
+    "components/score-reveal",
+    "lib/message-catalogue-parity",
+    "api/onboarding-assist",
+    "lib/brand-assistant",
+    "api/admin-directory",
+    "lib/admin-directory-sql"
+  ],
+  "environment": "local mocks; no live provider or database"
+}

@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-13T00:41:14.306Z",
+  "kind": "local_recovery_supplement",
+  "taskIds": [
+    "T36",
+    "T34"
+  ],
+  "caseIds": [
+    "UC66",
+    "UC78"
+  ],
+  "parentHead": "cf124d2641c6a1c443e429af8498950084246c75",
+  "source": [
+    {
+      "path": "app/api/pulse/run/route.ts",
+      "normalizedSha256": "3a5b7681701341374fdc0efe0fb228a6faee135ad479926344acc3a74fcaafca"
+    },
+    {
+      "path": "__tests__/api/pulse-run.test.ts",
+      "normalizedSha256": "918a8fd5c117d26d768d153f414c5bf52266d0f815392872f8695a0537598ba9"
+    },
+    {
+      "path": "__tests__/api/pulse-run-recovery.test.ts",
+      "normalizedSha256": "d58251ff6eec1d3fe34c308d78a33f9f4b5f7a9301e7cc182ca0e2c7897aacf4"
+    },
+    {
+      "path": "__tests__/local-persistence/pulse-legacy-recovery.test.ts",
+      "normalizedSha256": "312582ab8023c3281e888d749af258fb346643f3e75c45c09932d944b1c4891a"
+    }
+  ],
+  "reports": [
+    {
+      "name": "T36-legacy-cache-final2",
+      "passed": 47,
+      "failed": 0,
+      "skipped": 0,
+      "todo": 0,
+      "sha256": "b114fa7da727f82f781e44ee97cd9556684e19e1407b9003602f4b55021c1e2f"
+    },
+    {
+      "name": "T36-cache-full-unit-final",
+      "passed": 6143,
+      "failed": 0,
+      "skipped": 0,
+      "todo": 0,
+      "sha256": "fe20dc890874197ad48743464270b4f8dce168ac1c949a8608e1e45e5b194b98"
+    },
+    {
+      "name": "T36-cache-app-role-final",
+      "passed": 36,
+      "failed": 0,
+      "skipped": 0,
+      "todo": 0,
+      "sha256": "b936fb23bd1bb079de79e1023dd5c8cc0e296bab54a4a59d35863f55cc2e1afa"
+    }
+  ],
+  "cleanup": {
+    "at": "2026-10-13T00:39:28.258Z",
+    "testOwnedAccounts": 6,
+    "counts": {
+      "accounts": 0,
+      "brands": 0,
+      "runs": 0
+    },
+    "auth": "none; cron fixture only"
+  },
+  "redEvidence": [
+    {
+      "name": "T36-legacy-cache-red2",
+      "sha256": "a6c3c26882e24b9929db116c81957e61c297a509ec31189e7cb6bd6a96631766"
+    },
+    {
+      "name": "T36-legacy-sql-red2",
+      "sha256": "ee245759f43d0084196227fc145e654e467c97b2859dcbbb60edabba42f1a22f"
+    },
+    {
+      "name": "T36-legacy-edges-red2",
+      "sha256": "e6b1bfc6202566a5650f68a3676d1ca316d4c0b10b2ca008091387430f681f66"
+    }
+  ],
+  "static": {
+    "fullLint": "exit0; one historical generated-bundle warning",
+    "affectedLint": "exit0",
+    "typecheck": "exit0",
+    "nextBuild": "exit0"
+  },
+  "environment": "network guard enabled; loopback PostgreSQL aeo_app; provider mock; cron fixture secret/mock sessions",
+  "actualAuthExecuted": 0,
+  "hostedAcceptanceExecuted": 0,
+  "providerRequests": 0,
+  "verifiedLive": 0,
+  "currentHeadCi": "pending_new_source_commit_and_required_exact_head_ci",
+  "limits": [
+    "Accepted raw sequential retries only; concurrent initial legacy/unknown paid outcomes require existing run ledger",
+    "n8n live producer inventory incomplete",
+    "Auth/account-only proposed external scope; business writers excluded"
+  ]
+}

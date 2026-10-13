@@ -280,27 +280,48 @@ describe('T05 guarded Neon run ledger',()=>{
       expect(row.enqueue).toEqual(completed)
     }finally{await sql`delete from cron_runs where id in (${oldId},${newId})`}
   })
-  it('compatibility writer preserves three old successes after an all-failed retry',async()=>fixture(async scope=>{
+  it('compatibility writer reuses three saved successes without paying for a retry',async()=>fixture(async scope=>{
     vi.stubEnv('FEATURE_PULSE_ATTEMPTS','0')
     vi.stubEnv('CRON_SECRET','synthetic-cron-secret-1234')
-    await sql`update accounts set stripe_subscription_id='sub_synthetic' where id=${scope.accountId}`
-    external.classify.mockResolvedValue({classificationStatus:'classified',method:'synthetic-fixture',version:'fixture.v1',matchedText:[],brandMentioned:true,sentiment:'neutral',mentionPosition:0,competitorsMentioned:[]})
-    external.fanout.mockResolvedValue([{platform:'gemini-flash',answer:'Synthetic preserved'}])
+    await sql`update accounts set stripe_subscription_id=${'synthetic-'+scope.accountId} where id=${scope.accountId}`
+    external.classify.mockReset().mockResolvedValue({classificationStatus:'classified',method:'synthetic-fixture',version:'fixture.v1',matchedText:[],brandMentioned:true,sentiment:'neutral',mentionPosition:0,competitorsMentioned:[]})
+    external.fanout.mockReset().mockResolvedValue([{platform:'gemini-flash',answer:'Synthetic preserved'}])
     const post=()=>POST(new Request('http://localhost/api/pulse/run',{method:'POST',headers:{'Content-Type':'application/json','x-cron-secret':'synthetic-cron-secret-1234'},body:JSON.stringify({clientId:scope.clientId})}) as never)
     try{
       expect((await post()).status).toBe(200)
-      external.fanout.mockResolvedValue([])
-      // An all-failed chunk is reported as a provider outage (#70), so the
-      // driver stops instead of re-buying LLM calls; it still writes nothing.
+      expect(external.fanout).toHaveBeenCalledTimes(3)
+      const before=await sql`select * from pulse_metrics where client_id=${scope.clientId} order by id`
+      expect(before).toHaveLength(3)
+      external.fanout.mockClear().mockResolvedValue([])
+      external.classify.mockClear()
+      // All allowed answers are retained. No new collection is needed, even
+      // when a hypothetical next provider request would fail.
       const retry=await post()
-      expect(retry.status).toBe(502)
-      expect(await retry.json()).toMatchObject({error:'NO_PROVIDER_RESPONSES'})
-      const [counts]=await sql`select count(*)::int as n from pulse_metrics where client_id=${scope.clientId}`
-      expect(counts.n).toBe(3)
+      expect(retry.status).toBe(200)
+      expect(await retry.json()).toMatchObject({processed:3,failedPrompts:0,nextCursor:null})
+      expect(external.fanout).not.toHaveBeenCalled()
+      expect(external.classify).not.toHaveBeenCalled()
+      expect(await sql`select * from pulse_metrics where client_id=${scope.clientId} order by id`).toEqual(before)
     }finally{
-      await sql`delete from pulse_weekly_summary where client_id=${scope.clientId}`
       external.classify.mockReset().mockRejectedValue(new Error('Synthetic classifier outage'))
+      external.fanout.mockReset()
     }
+  }))
+  it('compatibility writer reports a genuine uncached all-platform outage as502 and writes nothing',async()=>fixture(async scope=>{
+    vi.stubEnv('FEATURE_PULSE_ATTEMPTS','0')
+    vi.stubEnv('CRON_SECRET','synthetic-cron-secret-1234')
+    await sql`update accounts set stripe_subscription_id=${'synthetic-'+scope.accountId} where id=${scope.accountId}`
+    external.fanout.mockReset().mockResolvedValue([])
+    external.classify.mockClear()
+    try{
+      const res=await POST(new Request('http://localhost/api/pulse/run',{method:'POST',headers:{'Content-Type':'application/json','x-cron-secret':'synthetic-cron-secret-1234'},body:JSON.stringify({clientId:scope.clientId})}) as never)
+      expect(res.status).toBe(502)
+      expect(await res.json()).toMatchObject({error:'NO_PROVIDER_RESPONSES'})
+      expect(external.fanout).toHaveBeenCalledTimes(3)
+      expect(external.classify).not.toHaveBeenCalled()
+      expect(await sql`select id from pulse_metrics where client_id=${scope.clientId}`).toEqual([])
+      expect(await sql`select id from pulse_weekly_summary where client_id=${scope.clientId}`).toEqual([])
+    }finally{external.fanout.mockReset()}
   }))
   it('two simultaneous creators share one immutable manifest with tenant-scoped coverage',async()=>fixture(async scope=>{
     const runs=await Promise.all([runFor(scope),runFor(scope)])

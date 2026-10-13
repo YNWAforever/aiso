@@ -1,0 +1,142 @@
+{
+  "at": "2026-10-12T23:02:18.271Z",
+  "branch": "codex/aiso-development-20261013",
+  "localCode": {
+    "sha": "8de66695b8db92e1ae6079aa2daf4514d3121e22",
+    "tree": "f5e39cfa855eee1611ea174406e0ed066890fd10"
+  },
+  "finalPublicationBinding": "draft PR head/tree plus same-head CI receipt after commit; no self-referential SHA",
+  "production": {
+    "sha": "117c0e854c51d95f77ca6f07b5f685ff5209568f",
+    "deploymentId": "dpl_BH5bE72VqSoiiwWRWgRsRq619kto",
+    "source": "other publisher; not this candidate"
+  },
+  "local": {
+    "unit": {
+      "passed": 6139,
+      "failed": 0,
+      "skipped": 0,
+      "report": "T36-final-candidate-unit.json"
+    },
+    "affectedBrowser": {
+      "passed": 128,
+      "failed": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "report": "T36-final-affected-browser.json"
+    },
+    "privateWorkflow": {
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "report": "T36-uc75-final.json",
+      "sha": "f944473ffa5aef90e1f817c0d17da9b47ddf416f",
+      "tree": "aaa1f0998439c30d9db5381fd4e24d3c13568282"
+    },
+    "appRoleSql": {
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "session": "mock only",
+      "report": "T36-final-local-sql.json"
+    },
+    "workerDryRun": {
+      "exitCode": 0,
+      "publish": false,
+      "crons": [
+        "47 7 * * 1"
+      ]
+    },
+    "static": {
+      "lintExit": 0,
+      "typecheckExit": 0,
+      "lintWarnings": 1,
+      "note": "existing ignored generated pause-bundle artifact warning; no errors",
+      "typecheckReport": "T36-uc75-type-green.log"
+    }
+  },
+  "earlierBrowser": {
+    "sha": "fc5b3119",
+    "passed": 1332,
+    "skipped": 6,
+    "failed": 0,
+    "flaky": 0,
+    "finalHead": false
+  },
+  "cleanup": {
+    "at": "2026-10-12T22:50:34.870Z",
+    "testOwnedAccounts": 16,
+    "role": "aeo_app",
+    "sessionEvidence": "mock only",
+    "counts": {
+      "accounts": 0,
+      "brands": 0,
+      "runs": 0,
+      "onboarding": 0,
+      "batches": 0
+    }
+  },
+  "migrations": {
+    "checkedAt": "2026-10-12T21:25:01.754Z",
+    "ledgerRows": 69,
+    "sourceMatches": 8,
+    "mutations": 0
+  },
+  "authorization": {
+    "productionWrites": false,
+    "grant": false,
+    "provider": false,
+    "mergeDeploy": false,
+    "cron": false
+  },
+  "actualAuthExecuted": 0,
+  "paidProviderRequests": 0,
+  "qualitySamples": 0,
+  "humanUsers": 0,
+  "verifiedLiveFindings": 0,
+  "completedCiSnapshots": [
+    {
+      "path": "ci-178-receipt.json",
+      "runId": 38320349542,
+      "sourceHead": "9b16d704b005872aa5f07530d7980ded067f5ef7",
+      "sourceTree": "add6d7ec2777fd51aad50b4790004e020b3bb2e9",
+      "sha256": "133a8ec3c67ab6309ca005efffd3c49818e4fd35b9e33880875f96cd4a430ae0"
+    }
+  ],
+  "currentOutcomeSnapshots": {
+    "tasks": "task-results.csv",
+    "cases": "acceptance-results.csv",
+    "findings": "finding-results.csv",
+    "asOfCiRun": 38320349542
+  },
+  "continuationLocalSnapshots": [
+    {
+      "path": "legacy-recovery-local-receipt.json",
+      "sha256": "ff535bcdabbf7a071e32ed25fbadcfdc1427e01c9bdf635d368da0697f60c686",
+      "reports": [
+        {
+          "name": "T36-legacy-cache-final2",
+          "passed": 47
+        },
+        {
+          "name": "T36-cache-full-unit-final",
+          "passed": 6143
+        },
+        {
+          "name": "T36-cache-app-role-final",
+          "passed": 36
+        }
+      ]
+    }
+  ],
+  "failedCiSnapshots": [
+    {
+      "path": "ci-180-failure-receipt.json",
+      "runId": 38328545337,
+      "sourceHead": "e36d1599af4bd418fce4727b8aaf6914e8f13c24",
+      "status": "failure",
+      "sha256": "d15278aea9c89808115c0a79eb8dd605d0686f7970434bcc0e7da5785a0bf4a6"
+    }
+  ]
+}

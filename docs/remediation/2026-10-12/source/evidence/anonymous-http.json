@@ -1,0 +1,65 @@
+[
+  {
+    "path": "/api/auth/get-session",
+    "status": 200,
+    "body": null,
+    "cache_control": "private, no-store",
+    "latency_ms": 9900,
+    "redirected": false
+  },
+  {
+    "path": "/api/admin/directory?view=users",
+    "status": 401,
+    "body": {
+      "error": "Unauthorized"
+    },
+    "cache_control": "public, max-age=0, must-revalidate",
+    "latency_ms": 8032,
+    "redirected": false
+  },
+  {
+    "path": "/api/admin/clients",
+    "status": 401,
+    "body": {
+      "error": "Unauthorized"
+    },
+    "cache_control": "public, max-age=0, must-revalidate",
+    "latency_ms": 7085,
+    "redirected": false
+  },
+  {
+    "path": "/api/dashboard/clients",
+    "status": 405,
+    "body": {
+      "non_json": true
+    },
+    "cache_control": "public, max-age=0, must-revalidate",
+    "latency_ms": 6269,
+    "redirected": false
+  },
+  {
+    "path": "/api/internal/readiness",
+    "status": 405,
+    "body": {
+      "non_json": true
+    },
+    "cache_control": "no-store",
+    "latency_ms": 6196,
+    "redirected": false
+  },
+  {
+    "path": "/api/onboarding/assist",
+    "method": "POST",
+    "error": "URLError"
+  },
+  {
+    "path": "/api/onboarding/complete",
+    "method": "POST",
+    "error": "URLError"
+  },
+  {
+    "path": "/api/internal/readiness",
+    "method": "POST",
+    "error": "URLError"
+  }
+]

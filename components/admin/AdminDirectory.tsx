@@ -6,9 +6,12 @@ import { DIRECTORY_VIEWS, DIRECTORY_COLUMNS, type DirectoryQuery, type Directory
 
 export function AdminDirectory({ lang, query, children }: { lang: string; query: DirectoryQuery; children?: React.ReactNode }) {
   const t = useTranslations('adminDirectory')
-  const [result, setResult] = useState<DirectoryResult | null>(null), [error, setError] = useState(''), [revision, setRevision] = useState(0)
+  const [revision, setRevision] = useState(0)
   const { view, q, accountId, page } = query
   const params = new URLSearchParams({ view, q, page: String(page), ...(accountId ? { accountId } : {}) }).toString()
+  const requestKey=params+':'+revision
+  const [loadState,setLoadState]=useState<{key:string;result:DirectoryResult|null;error:string}>({key:requestKey,result:null,error:''})
+  const {result,error}=loadState.key===requestKey?loadState:{result:null,error:''}
   useEffect(() => {
     const controller = new AbortController()
     async function load() {
@@ -16,15 +19,15 @@ export function AdminDirectory({ lang, query, children }: { lang: string; query:
         const response = await fetch('/api/admin/directory?' + params, { cache: 'no-store', signal: controller.signal })
         if (!response.ok) throw new Error(response.status === 403 || response.status === 401 ? 'denied' : 'unavailable')
         const data = await response.json() as DirectoryResult
-        if (!Array.isArray(data.rows) || data.view !== view || data.page !== page) throw new Error('unavailable')
-        if (!controller.signal.aborted) { setResult(data); setError('') }
+        if (!Array.isArray(data.rows) || data.rows.length>25 || data.view !== view || data.page !== page || typeof data.hasMore!=='boolean' || data.rows.some(row=>!row||typeof row.id!=='string')) throw new Error('unavailable')
+        if (!controller.signal.aborted) setLoadState({key:requestKey,result:data,error:''})
       } catch (err) {
-        if (!controller.signal.aborted) setError(err instanceof Error && err.message === 'denied' ? 'denied' : 'unavailable')
+        if (!controller.signal.aborted) setLoadState({key:requestKey,result:null,error:err instanceof Error && err.message === 'denied' ? 'denied' : 'unavailable'})
       }
     }
     void load()
     return () => controller.abort()
-  }, [params, view, page, revision])
+  }, [params, view, page, requestKey])
   const href = (changes: Partial<DirectoryQuery> = {}) => {
     const next = { ...query, ...changes }
     return '/admin?' + new URLSearchParams({ lang, view: next.view, page: String(next.page), ...(next.q ? { q: next.q } : {}), ...(next.accountId ? { accountId: next.accountId } : {}) })
@@ -46,14 +49,15 @@ export function AdminDirectory({ lang, query, children }: { lang: string; query:
       <Link href="/admin/billing" className={link}>{t('billing')}</Link>
       <Link href={'/admin?' + new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(params)), lang: lang === 'en' ? 'zh-HK' : 'en' })} className={link}>{lang === 'en' ? '繁體中文' : 'English'}</Link>
     </nav>
+    <p aria-live="polite" className="break-all text-sm">{t('currentScope')}: {accountId ?? t('allAccounts')}</p>
     {accountId && <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm"><strong>{t('accountScope')}</strong><p className="break-all font-mono">{accountId}</p><Link href={`/admin/accounts/${encodeURIComponent(accountId)}/approvers?lang=${lang}`} className={`${link} mt-2`}>{t('approvers')}</Link></div>}
     <nav aria-label={t('datasets')} className="flex flex-wrap gap-2">{DIRECTORY_VIEWS.map(v => <Link key={v} href={href({ view: v, page: 1, q: '' })} aria-current={v === view ? 'page' : undefined} className={`${link} ${v === view ? 'border-blue-700 bg-blue-50 text-blue-800' : 'bg-white'}`}>{t(`views.${v}`)}</Link>)}</nav>
     <form action="/admin" method="get" className="flex flex-wrap items-end gap-3">
       <input type="hidden" name="view" value={view} /><input type="hidden" name="lang" value={lang} />{accountId && <input type="hidden" name="accountId" value={accountId} />}
-      <label className="flex-1 text-sm font-medium" htmlFor="admin-search">{t('search')}<input id="admin-search" name="q" defaultValue={q} maxLength={120} className="mt-1 block min-h-11 w-full min-w-44 rounded-lg border border-slate-300 bg-white px-3" /></label>
+      <label className="flex-1 text-sm font-medium" htmlFor="admin-search">{t('search')}<input key={params} id="admin-search" name="q" defaultValue={q} maxLength={120} className="mt-1 block min-h-11 w-full min-w-44 rounded-lg border border-slate-300 bg-white px-3" /></label>
       <button type="submit" className={link}>{t('searchButton')}</button>
     </form>
-    {error ? <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5"><p>{t(error)}</p><button type="button" onClick={() => { setError(''); setResult(null); setRevision(n => n + 1) }} className={`${link} mt-3`}>{t('retry')}</button></div>
+    {error ? <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5"><p>{t(error)}</p><button type="button" onClick={() => setRevision(n => n + 1)} className={`${link} mt-3`}>{t('retry')}</button></div>
       : !result ? <p role="status">{t('loading')}</p>
       : <section aria-label={t(`views.${view}`)}>
         <p role="status" className="mb-3 text-sm text-slate-600">{t('pageSummary', { page: result.page, count: result.rows.length })}</p>

@@ -1,0 +1,4 @@
+question,category,language,market,is_active
+Audit synthetic question?,brand_query,zh-HK,hk,true
+Audit synthetic question?,brand_query,zh-HK,hk,true
+Invalid category question?,not_a_category,zh-HK,hk,true

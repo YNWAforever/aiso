@@ -397,7 +397,11 @@
     "faq_q3": "掃描後我會得到甚麼？",
     "faq_a3": "一個 0–100 的就緒分數及字母評級、{count} 項檢查各自的通過、警告及失敗證據，以及涵蓋 llms.txt、robots.txt 修補及 FAQ JSON-LD 的優先修正包。",
     "faq_q4": "會考慮哪些 AI 產品？",
-    "faq_a4": "{platforms}。就緒檢查適用於所有這些產品；抽樣模型回答的持續監測屬付費方案的一部分。"
+    "faq_a4": "{platforms}。就緒檢查適用於所有這些產品；抽樣模型回答的持續監測屬付費方案的一部分。",
+    "score_grade_interval": "{min} ≤ 分數 < {max}",
+    "score_grade_last": "{min} ≤ 分數 ≤ {max}",
+    "score_grade_interval_label": "評級 {grade}：{min} ≤ 分數小於 {max}",
+    "score_grade_last_label": "評級 {grade}：分數由 {min} 至 {max}，包括兩端"
   },
   "result": {
     "score_label": "AI 就緒分數",
@@ -705,7 +709,7 @@
     "qb_bulk_preview_count": "將修改 {count} 題；修改後啟用 {active} 題。",
     "qb_bulk_confirm": "確認並儲存全部修改",
     "qb_bulk_failed": "讀取或驗證失敗，未儲存修改。請修正 CSV／背景或重試。",
-    "qb_bulk_unknown": "儲存回應未確認，請用同一預覽重試；不要重新建立匯入。",
+    "qb_bulk_unknown": "儲存結果未能確認，草稿已鎖定。再次確認會先核對並恢復同一次更改，不會建立新請求。",
     "qb_bulk_conflict": "題目已被更改，請重新讀取及預覽。",
     "qb_bulk_row_error": "第 {row} 行：{field}（{code}）",
     "qb_bulk_run_unknown": "最近監測覆蓋尚未讀取或沒有紀錄",
@@ -724,7 +728,22 @@
     "panel_dismissed": "已捨棄草稿，問題庫未有更改。",
     "panel_saving": "正在儲存問題，請等待完成後再關閉。",
     "panel_saving_short": "儲存中…",
-    "panel_save_unknown": "未能確認這條問題是否已儲存。請先關閉面板並重新載入問題庫核對，再決定是否重新新增。"
+    "panel_save_unknown": "未能確認這條問題是否已儲存。請先關閉面板並重新載入問題庫核對，再決定是否重新新增。",
+    "qb_bulk_summary": "共 {totalRows} 列：{applicableRows} 列可套用、{duplicateRows} 列重複、{invalidRows} 列無效。",
+    "qb_bulk_projection": "套用後預計有 {active} 條啟用問題；目前尚未套用。",
+    "qb_bulk_guidance": "CSV 必須包含 question、category、language、market、is_active。語言使用 en 或 zh-HK；香港市場使用大寫 HK；is_active 使用 true 或 false。類別只可使用 brand_query、category_query、intent_query、pain_point。",
+    "qb_bulk_sample": "下載 CSV 範例",
+    "qb_bulk_row_guidance": "第 {row} 列：{reason}",
+    "qb_bulk_fix_duplicate": "刪除重複列或修改問題文字；相同問題、語言及市場只算一次。",
+    "qb_bulk_fix_category": "類別請選 brand_query、category_query、intent_query 或 pain_point。",
+    "qb_bulk_fix_market": "使用大寫 HK（香港），或上列其他市場代碼。",
+    "qb_bulk_fix_language": "使用 en 或 zh-HK，並確認回答應使用的語言。",
+    "qb_bulk_fix_question": "填寫非空白問題，長度不可超過 500 字。",
+    "qb_bulk_fix_active": "is_active 請填 true 或 false。",
+    "qb_bulk_fix_id": "從此品牌的問題列表重新選取；不要重複 id 或使用其他品牌的 id。",
+    "qb_bulk_fix_limit": "修正後的問題庫不可超過 50 題。",
+    "qb_bulk_fix_row": "修正此列後重新預覽。",
+    "qb_bulk_projection_unknown": "原預覽投影為 {active} 條啟用問題。儲存結果未確認，可能已套用；請核對同一次更改。"
   },
   "upsell": {
     "title": "每週追蹤 {domain} 的 AI 能見度",
@@ -1576,7 +1595,9 @@
       "repair": "查看或修復監測",
       "results": "查看回答與引用",
       "opportunities": "查看改善工作",
-      "review": "查看監測狀態"
+      "review": "查看監測狀態",
+      "status": "查看監測可用性",
+      "work": "覆核已保存的工作"
     }
   },
   "portfolio": {
@@ -2700,7 +2721,21 @@
     "repairLegacy": "只修復已保存回答的分類",
     "repairOutcome": "分類修復：{classified} 份已分類、{unchanged} 份未變更、{failed} 份失敗。",
     "retestScope": "獨立重測",
-    "canonicalScope": "每週標準監測"
+    "canonicalScope": "每週標準監測",
+    "availabilityTitle": "監測可用性",
+    "viewExisting": "覆核既有監測",
+    "availabilityReasons": {
+      "paused": "監測已暫停",
+      "no_models": "未設定監測模型",
+      "no_prompts": "請加入監測問題",
+      "context_missing": "請確認問題語言及市場",
+      "quota_exceeded": "回答額度不足",
+      "existing_run": "本週已有已保存的監測 run",
+      "legacy_review_required": "已有舊版回答，需先覆核再收集"
+    },
+    "retestWorkload": "獨立重測沿用原 run 的工作量：{expected} 個回答。",
+    "reviewQuestions": "覆核監測問題",
+    "refresh": "重新讀取已保存的狀態"
   },
   "brandAssistant": {
     "title": "用 AI 更快設定品牌",
@@ -2724,7 +2759,11 @@
     "manual": "自行填寫時，會保留你輸入的網站、語言及市場。",
     "limit": "已達本小時草稿上限。可稍後再試，或在下方自行填寫。",
     "unavailable": "暫時無法草擬可靠資料，你的設定未有更改。可重試，或使用下方手動設定。",
-    "manualAction": "保留資料並自行填寫"
+    "manualAction": "保留資料並自行填寫",
+    "fetchedAt": "讀取時間",
+    "evidenceTitle": "待核對的來源引文",
+    "evidenceNote": "引文相符只代表原頁有此文字；請核對是否支持每項描述。",
+    "missingEvidence": "未能核實可靠引文，請手動補充並核對資料。"
   },
   "adminDirectory": {
     "eyebrow": "平台營運",
@@ -2829,7 +2868,8 @@
         "questions": "批量更新問題",
         "work": "分組改善工作"
       }
-    }
+    },
+    "currentScope": "目前範圍"
   },
   "notFound": {
     "eyebrow": "錯誤 404",
@@ -2847,5 +2887,16 @@
     "retry": "再試一次",
     "home": "返回首頁",
     "reference": "參考編號"
+  },
+  "onboardingSetup": {
+    "summaryTitle": "確認品牌設定",
+    "websiteMissing": "網站待補充",
+    "contextMissing": "語言／市場待確認",
+    "questionSummary": "建立一個品牌，按此語言及市場草擬最多 24 條監測問題。",
+    "contextPending": "先建立品牌；確認語言及市場後才草擬問題。",
+    "monitoringSeparate": "首次監測會在工作區另行確認。",
+    "reconciledReady": "原品牌及問題設定已完成。新的修改尚未套用，仍保留在這份草稿；可開啟工作區覆核已儲存的品牌。",
+    "cacheUnavailable": "此分頁無法保留這次設定請求，輸入仍在這裡。請先覆核已儲存的品牌，或使用可保留草稿的分頁再試。",
+    "reviewBrands": "覆核已儲存的品牌"
   }
 }

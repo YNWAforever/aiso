@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto'
 
+export const ONBOARDING_EVENTS = ['onboarding_started','brand_draft_requested','brand_draft_reviewed','onboarding_manual_selected'] as const
+
 export const FUNNEL_EVENTS = [
+  ...ONBOARDING_EVENTS,
   'scan_completed', 'scan_result_viewed', 'signup_cta_viewed',
   'signup_started', 'signup_succeeded', 'scan_claim_succeeded',
   'scan_claim_failed', 'scan_retry_clicked',
@@ -55,6 +58,7 @@ function containsSensitiveKey(value: unknown, visited = new WeakSet<object>()): 
 export function redactFunnelEvent(input: unknown): Record<string, string> | null {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return null
   const candidate = input as Record<string, unknown>
+  if(ONBOARDING_EVENTS.includes(candidate.name as typeof ONBOARDING_EVENTS[number])&&Object.keys(candidate).some(key=>!['name','attemptId','locale'].includes(key)))return null
   if (containsSensitiveKey(candidate)) return null
   if (
     !FUNNEL_EVENTS.includes(candidate.name as FunnelEventName)

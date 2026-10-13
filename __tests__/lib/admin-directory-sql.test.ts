@@ -68,3 +68,34 @@ describe('admin directory SQL on local PostgreSQL', () => {
     expect((await readAdminDirectory({ view: 'users', page: 1, q: 'unprovisioned@', accountId: a })).rows).toHaveLength(0)
   })
 })
+
+it('T27 all nine directories paginate at least 26 records with stable scope and literal search',async()=>{
+ const {randomUUID}=await import('node:crypto'),pg=state.pg!
+ for(let i=0;i<24;i++){
+  const id=randomUUID(),user=randomUUID(),tenant=i%2?a:b
+  await pg.query("insert into accounts(id,plan,status) values($1,'basic','active')",[id])
+  await pg.query('insert into neon_auth."user" values($1,$2)',[id,'t27-account-'+i+'@example.test'])
+  await pg.query("insert into profiles(id,account_id,display_name,is_admin) values($1,$1,$2,false)",[id,'T27 Account '+i])
+  await pg.query('insert into neon_auth."user" values($1,$2)',[user,'t27-user-'+i+'@example.test'])
+  await pg.query("insert into profiles(id,account_id,display_name,is_admin) values($1,$2,$3,false)",[user,tenant,'T27 scoped user '+i])
+  await pg.query("insert into clients(id,account_id,brand_name,domain,status) values($1,$2,$3,$4,'active')",[id,tenant,'T27 Brand '+i,'t27-'+i+'.example'])
+  await pg.query("insert into scans(id,account_id,domain,score,grade,results) values($1,$2,$3,63.5,'C','{}')",[id,tenant,'t27-'+i+'.example'])
+  await pg.query("insert into prompt_bank(id,client_id,question,language,market,is_active) values($1,$2,$3,'en','HK',true)",[id,tenant,'T27 question '+i])
+  await pg.query("insert into pulse_metrics(id,client_id,question,platform,scan_week,raw_answer) values($1,$2,$3,'fixture','2026-10-05','Saved T27 answer')",[id,tenant,'T27 question '+i])
+  await pg.query("insert into pulse_runs(id,account_id,client_id,status,scan_week) values($1,$2,$2,'queued','2026-10-05')",[id,tenant])
+  await pg.query("insert into client_sources(id,account_id,client_id,label,kind,latest_version,agent_use_allowed) values($1,$2,$2,$3,'facts',1,false)",[id,tenant,'T27 Source '+i])
+  await pg.query("insert into evidence_work_items(id,account_id,client_id,title,status) values($1,$2,$2,$3,'draft')",[id,tenant,'T27 Work '+i])
+ }
+ const tables={users:'neon_auth."user"',accounts:'accounts',brands:'clients',scans:'scans',prompts:'prompt_bank',observations:'pulse_metrics',runs:'pulse_runs',sources:'client_sources',work:'evidence_work_items'}
+ for(const view of DIRECTORY_VIEWS){
+  const all=[];let page=1,more=true
+  while(more&&page<=4){const result=await readAdminDirectory({view,page,q:'',accountId:null});expect(result.rows.length).toBeLessThanOrEqual(25);if(page===1){expect(result.rows).toHaveLength(25);expect(result.hasMore).toBe(true)}all.push(...result.rows);more=result.hasMore;page++}
+  expect(more).toBe(false);expect(all.length).toBeGreaterThanOrEqual(26);expect(new Set(all.map(row=>row.id)).size).toBe(all.length)
+  const expected=await pg.query<{id:string}>('select id from '+tables[view]);expect(new Set(all.map(row=>row.id))).toEqual(new Set(expected.rows.map(row=>row.id)))
+  const again=await readAdminDirectory({view,page:1,q:'',accountId:null});expect(again.rows.map(r=>r.id)).toEqual(all.slice(0,25).map(r=>r.id))
+  for(const tenant of [a,b]){const scoped=await readAdminDirectory({view,page:1,q:'',accountId:tenant});expect(scoped.rows.length).toBeGreaterThan(0);expect(scoped.rows.every(r=>r.account_id===tenant)).toBe(true)}
+  const search=await readAdminDirectory({view,page:1,q:view==='runs'?'queued':'T27',accountId:null});expect(search.rows.length).toBeGreaterThan(0)
+  const fields=['id','account_id',...(await import('@/lib/admin/directory-schema')).DIRECTORY_COLUMNS[view]]
+  for(const row of all)expect(Object.keys(row).sort()).toEqual([...fields].sort())
+ }
+})

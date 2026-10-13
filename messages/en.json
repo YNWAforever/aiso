@@ -397,7 +397,11 @@
     "faq_q3": "What do I get after a scan?",
     "faq_a3": "A 0–100 readiness score with a letter grade, pass, warning and fail evidence for each of the {count} checks, and a prioritised Fix Pack covering llms.txt, a robots.txt patch and FAQ JSON-LD.",
     "faq_q4": "Which AI products does it consider?",
-    "faq_a4": "{platforms}. The readiness checks apply to all of them; ongoing monitoring of sampled model answers is part of the paid plans."
+    "faq_a4": "{platforms}. The readiness checks apply to all of them; ongoing monitoring of sampled model answers is part of the paid plans.",
+    "score_grade_interval": "{min} ≤ score < {max}",
+    "score_grade_last": "{min} ≤ score ≤ {max}",
+    "score_grade_interval_label": "Grade {grade}: score at least {min} and below {max}",
+    "score_grade_last_label": "Grade {grade}: score from {min} through {max}, inclusive"
   },
   "result": {
     "score_label": "AI Readiness Score",
@@ -705,7 +709,7 @@
     "qb_bulk_preview_count": "Change {count} questions; {active} will be active after confirmation.",
     "qb_bulk_confirm": "Confirm and save all changes",
     "qb_bulk_failed": "Read or validation failed; changes were not saved. Correct CSV/context or retry.",
-    "qb_bulk_unknown": "Save response unknown. Retry this same preview; do not create another import.",
+    "qb_bulk_unknown": "Save outcome is unknown. The draft is locked. Confirming again checks and resumes this same intent; it does not create a new request.",
     "qb_bulk_conflict": "Questions changed. Reload and prepare a fresh preview.",
     "qb_bulk_row_error": "Row {row}: {field} ({code})",
     "qb_bulk_run_unknown": "Latest run coverage not read or not recorded",
@@ -724,7 +728,22 @@
     "panel_dismissed": "Draft dismissed; your question bank has not changed.",
     "panel_saving": "Saving the question. Please wait before closing.",
     "panel_saving_short": "Saving…",
-    "panel_save_unknown": "We could not confirm whether this question was saved. Close this panel and reload the question bank to check before adding it again."
+    "panel_save_unknown": "We could not confirm whether this question was saved. Close this panel and reload the question bank to check before adding it again.",
+    "qb_bulk_summary": "{totalRows} rows: {applicableRows} applicable, {duplicateRows} duplicate, {invalidRows} invalid.",
+    "qb_bulk_projection": "Projected {active} active questions after applying; nothing has been applied yet.",
+    "qb_bulk_guidance": "CSV requires question, category, language, market and is_active. Use en or zh-HK; uppercase HK for Hong Kong; true or false for is_active. Categories: brand_query, category_query, intent_query, pain_point.",
+    "qb_bulk_sample": "Download sample CSV",
+    "qb_bulk_row_guidance": "Row {row}: {reason}",
+    "qb_bulk_fix_duplicate": "Remove the duplicate row or change its question; identical question, language and market count once.",
+    "qb_bulk_fix_category": "Choose brand_query, category_query, intent_query or pain_point.",
+    "qb_bulk_fix_market": "Use uppercase HK (Hong Kong), or another market code listed above.",
+    "qb_bulk_fix_language": "Use en or zh-HK and confirm the intended answer language.",
+    "qb_bulk_fix_question": "Enter a non-empty question of at most 500 characters.",
+    "qb_bulk_fix_active": "Set is_active to true or false.",
+    "qb_bulk_fix_id": "Select an existing question from this brand; do not repeat its id or use an id from another brand.",
+    "qb_bulk_fix_limit": "Keep the projected question bank within 50 questions.",
+    "qb_bulk_fix_row": "Correct this row and prepare a fresh preview.",
+    "qb_bulk_projection_unknown": "Original preview projects {active} active questions. Save outcome is unknown and may already be applied; reconcile this same intent."
   },
   "upsell": {
     "title": "Track {domain}'s AI presence every week",
@@ -1576,7 +1595,9 @@
       "repair": "Review or repair monitoring",
       "results": "Review answers and citations",
       "opportunities": "Review improvement work",
-      "review": "Review monitoring status"
+      "review": "Review monitoring status",
+      "status": "Check monitoring availability",
+      "work": "Review saved work"
     }
   },
   "portfolio": {
@@ -2700,7 +2721,21 @@
     "repairLegacy": "Repair saved answer classification",
     "repairOutcome": "Classification repair: {classified} classified, {unchanged} unchanged, {failed} failed.",
     "retestScope": "Separate retest",
-    "canonicalScope": "Canonical weekly run"
+    "canonicalScope": "Canonical weekly run",
+    "availabilityTitle": "Monitoring availability",
+    "viewExisting": "Review existing monitoring",
+    "availabilityReasons": {
+      "paused": "Monitoring is paused",
+      "no_models": "No monitoring models configured",
+      "no_prompts": "Add tracking questions",
+      "context_missing": "Confirm question language and market",
+      "quota_exceeded": "Insufficient answer quota",
+      "existing_run": "This week already has a saved monitoring run",
+      "legacy_review_required": "Saved legacy answers require review before collection"
+    },
+    "retestWorkload": "A separate retest uses the saved run workload: {expected} answers.",
+    "reviewQuestions": "Review tracking questions",
+    "refresh": "Refresh saved status"
   },
   "brandAssistant": {
     "title": "Set up faster with AI",
@@ -2724,7 +2759,11 @@
     "manual": "Your website, language and market stay with you if you continue manually.",
     "limit": "You have used the hourly draft allowance. Try later or enter your details below.",
     "unavailable": "We could not prepare a reliable draft. Your details are unchanged. Retry, or use manual setup below.",
-    "manualAction": "Continue manually with these details"
+    "manualAction": "Continue manually with these details",
+    "fetchedAt": "Fetched at",
+    "evidenceTitle": "Source excerpts to review",
+    "evidenceNote": "A matching quote only confirms that text exists on the page. Check whether it supports each claim.",
+    "missingEvidence": "No reliable excerpt was found. Add and verify the missing details manually."
   },
   "adminDirectory": {
     "eyebrow": "Platform operations",
@@ -2829,7 +2868,8 @@
         "questions": "Question batch updates",
         "work": "Grouped improvement work"
       }
-    }
+    },
+    "currentScope": "Current scope"
   },
   "notFound": {
     "eyebrow": "Error 404",
@@ -2847,5 +2887,16 @@
     "retry": "Try again",
     "home": "Back to home",
     "reference": "Reference"
+  },
+  "onboardingSetup": {
+    "summaryTitle": "Confirm brand setup",
+    "websiteMissing": "Website to add later",
+    "contextMissing": "Context to confirm",
+    "questionSummary": "Create one brand and draft up to 24 tracking questions using this language and market.",
+    "contextPending": "Create the brand now; confirm language and market before drafting questions.",
+    "monitoringSeparate": "First monitoring is confirmed separately in the workspace.",
+    "reconciledReady": "Your original brand and questions are ready. Your edits have not been applied; they remain in this draft. Open the workspace to review the saved brand.",
+    "cacheUnavailable": "This tab cannot save this setup request. Your input is still here. Review saved brands before trying again, or use a tab that can save drafts.",
+    "reviewBrands": "Review saved brands"
   }
 }

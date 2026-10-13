@@ -4,6 +4,8 @@ import type { CommercialAccount } from '@/lib/tier'
 
 const state = vi.hoisted(() => ({ calls: [] as { text: string; values: unknown[] }[], missing: false, failed: '', selectedMissing: false, dateRows: false, scanResults: {} as Record<string, unknown>, pulse: [] as Record<string, unknown>[], agents: [{ platform: 'gemini', recommendation: 'Draft', created_at: '2026-09-01' }, { platform: 'gpt4o', recommendation: 'Paid draft', created_at: '2026-09-01' }] }))
 vi.mock('server-only', () => ({}))
+const monitoringMock=vi.hoisted(()=>vi.fn())
+vi.mock('@/lib/pulse/runs/user-dispatch',()=>({readUserPulseOptions:monitoringMock}))
 vi.mock('@/lib/db', () => ({ db: () => async (strings: TemplateStringsArray, ...values: unknown[]) => {
   const text = strings.join('?')
   state.calls.push({ text, values })
@@ -29,7 +31,7 @@ const paid: CommercialAccount = { plan: 'enterprise', status: 'active', stripe_s
 const load = (account: CommercialAccount = paid, scanId?: string) => loadOwnedWorkspace({ clientId: 'client-a', profile: { account_id: 'account-a', accounts: account }, scanId })
 const pulseRow = (week: string, total: unknown = 2, successful: unknown = 2) => ({ scan_week: week, platform: null, total_queries: total, brand_mentions: 0, sov_score: 0, successful_queries: successful, observed_queries: 2, collected_queries: 2, observed_brand_mentions: 0, successful_platform_count: 1 })
 
-beforeEach(() => { state.calls = []; state.missing = false; state.failed = ''; state.selectedMissing = false; state.dateRows = false; state.scanResults = {}; state.pulse = [] })
+beforeEach(() => { monitoringMock.mockReset().mockRejectedValue(new Error('Synthetic monitoring unknown')); state.calls = []; state.missing = false; state.failed = ''; state.selectedMissing = false; state.dateRows = false; state.scanResults = {}; state.pulse = [] })
 
 describe('owned workspace loader', () => {
   it('partial_run_guides_to_failed_items instead of claiming 100 percent coverage',async()=>{
@@ -164,3 +166,16 @@ it('shows complete raw samples without a rollup and partial negative samples wit
  state.pulse=[pulseRow('2026-09-01',null,2)];expect(buildWorkspaceHome((await load())!).visibility.data?.totalQueries).toBe(2);
  state.pulse=[pulseRow('2026-09-01',2,1)];const v=buildWorkspaceHome((await load())!).visibility;expect(v.state).toBe('partial');expect(v.data?.sovScore).toBe(0);expect(v.data?.totalQueries).toBe(1);
 });
+
+it('T33 owned monitoring read projects availability and never probes a foreign client',async()=>{
+ const availability={canStart:false,reasons:['paused'],action:'wait'}
+ monitoringMock.mockResolvedValue({availability})
+ const owned=await load();expect(owned?.monitoring).toEqual({status:'ok',data:availability})
+ expect(monitoringMock).toHaveBeenCalledWith({accountId:'account-a',clientId:'client-a'})
+ expect(buildWorkspaceHome(owned!).nextStep).toMatchObject({kind:'monitoring_status',reasonKey:'paused'})
+ monitoringMock.mockClear();state.missing=true;expect(await load()).toBeNull();expect(monitoringMock).not.toHaveBeenCalled()
+})
+it('T33 failed monitoring read stays unknown while prompt setup is available',async()=>{
+ const owned=await load();expect(owned?.monitoring).toEqual({status:'error',data:null})
+ expect(owned?.setup?.status).toBe('ok');expect(buildWorkspaceHome(owned!).nextStep).toMatchObject({kind:'monitoring_status',reasonKey:'unknown'})
+})

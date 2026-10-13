@@ -7,7 +7,7 @@ import zh from '../../messages/zh-HK.json'
 // Component acceptance only: no authenticated route or provider request is bypassed.
 // Generate HTML by running workspace-home-render.test.tsx with C8A_HTML_DIR set.
 // Supply the CSS emitted by the sanitized local build, never production credentials.
-for (const lang of ['en', 'zh-HK'] as const) for (const width of [375,1440]) for (const theme of ['light','dark'] as const) {
+for (const lang of ['en', 'zh-HK'] as const) for (const width of [375,768,1440]) for (const theme of ['light','dark'] as const) {
   test(`C8a workspace component ${lang} ${width} ${theme}`, async ({ page }) => {
     const cssPath = process.env.C8A_CSS_PATH
     const htmlDir = process.env.C8A_HTML_DIR
@@ -54,3 +54,20 @@ for (const lang of ['en', 'zh-HK'] as const) for (const width of [375,1440]) for
     }
   })
 }
+
+for(const lang of ['en','zh-HK'] as const)for(const width of [375,768,1440])for(const theme of ['light','dark'])test('T33 one useful header action '+lang+' '+width+' '+theme,async({page})=>{
+ const dir=process.env.C8A_HTML_DIR,css=process.env.C8A_CSS_PATH;if(!dir||!css)throw Error('Generate actual workspace fixtures')
+ await page.route('**/*',r=>r.abort());await page.setViewportSize({width,height:900})
+ const copy=(lang==='en'?en:zh).workspaceHome
+ const cases={unknown:['status','?step=monitor#first-monitoring'],paused:['status','?step=monitor#first-monitoring'],active:['start','?step=monitor#first-monitoring'],missing:['configure','/prompts'],pending:['review','/observations?run=saved#run-status'],partial:['repair','/observations?run=saved#run-status'],source:['work','/sources?source=s&version=v'],draft:['work','/opportunities?draft=d'],complete:['results','/observations']} as const
+ for(const [state,[label,path]] of Object.entries(cases)){
+  const html=readFileSync(dir+'/'+lang+'-next-'+state+'.html','utf8')
+  await page.setContent('<!doctype html><html lang="'+lang+'" class="'+theme+'"><head><meta charset="utf-8"><title>Next useful action</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+readFileSync(css,'utf8')+'</style></head><body>'+html+'</body></html>')
+  const header=page.locator('header');await expect(header.getByRole('link')).toHaveCount(1)
+  await expect(header.getByRole('link',{name:copy.nextStep[label],exact:true})).toHaveAttribute('href','/'+lang+'/dashboard/fixture-client'+path)
+  if(state==='unknown')await expect(header).toContainText(copy.daily.unknown)
+  if(state==='paused')await expect(header).toContainText((lang==='en'?en:zh).runProgress.availabilityReasons.paused)
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+  expect((await new AxeBuilder({page}).analyze()).violations).toEqual([])
+ }
+})

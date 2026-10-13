@@ -52,10 +52,12 @@ test.describe('Scan to result journey', () => {
     await home.scan('https://example.com')
     await home.waitForNavToResult()
     await expect(page.locator('body')).not.toContainText('This page could not be found')
+    await expect(page.getByTestId('result-score').getByText('63.5/100', { exact: true })).toBeVisible()
     // The exact stored score, once the count-up settles. The old /^\d{1,3}$/
     // matched nothing at rest (the ring shows 63.5) and passed only by
     // catching an intermediate frame of the animation.
     await expect(page.getByTestId('score-reveal')).toContainText(`${E2E_FIXTURE_SCAN.score}/100`)
+
   })
 
   test('fixture result page shows the email capture gate', async ({ page }) => {

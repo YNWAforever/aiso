@@ -9,6 +9,7 @@ import {runtimePlatformsFor} from '@/lib/pulse/platforms'
 import {isPromptLanguage,isPromptMarket} from '@/lib/prompts/context'
 import {currentScanWeek} from '@/lib/pulse/schedule'
 import {isoDate} from '@/lib/iso-date'
+import {derivePulseAvailability} from './availability'
 import {createOrResumeRun} from './store'
 import {coverageFromCounts,type PulseScope,type PulseIntent,type RunCoverage} from './schema'
 import {runPulseChunk} from './service'
@@ -63,7 +64,8 @@ export async function readUserPulseOptions(scope:PulseScope){
  const latest=runs[0]?await readUserPulseRun(scope,String(runs[0].id)):null
  const [legacy]=await sql`select exists(select 1 from pulse_metrics m join clients c on c.id=m.client_id where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId} and m.run_item_id is null and m.scan_week=${week}::date and m.raw_answer ~ '[^[:space:]]') as present`
  const legacyRows=await sql`select m.id from pulse_metrics m join clients c on c.id=m.client_id where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId} and m.run_item_id is null and m.scan_week=${week}::date and m.raw_answer ~ '[^[:space:]]' and m.classification_status<>'classified' order by m.created_at,m.id limit 50`
- return{currentCanonicalId,legacyObservationIds:legacyRows.map(row=>String(row.id)),prompts:prompts.length,variants:variants.length,models:variants,expected:prompts.length*variants.length,contextConfirmed:prompts.length<=MAX_PROMPTS&&prompts.every(p=>isPromptLanguage(p.language)&&isPromptMarket(p.market)),remaining:Math.max(0,cap-Number(budget.reserved)),cap,week,latest,legacyCurrentWeek:legacy?.present===true,search:{requested:isFeatureEnabled('pulse_grounding')?'subject_to_allowance':'off',execution:'unknown',nativeVariants:variants.filter(v=>v.platform.startsWith('perplexity')).length},costEstimateUsd:null,nextDueAt:null,scheduleState:'unknown' as const,enabled:isFeatureEnabled('pulse_attempts')}
+ const options={currentCanonicalId,legacyObservationIds:legacyRows.map(row=>String(row.id)),prompts:prompts.length,variants:variants.length,models:variants,expected:prompts.length*variants.length,contextConfirmed:prompts.length<=MAX_PROMPTS&&prompts.every(p=>isPromptLanguage(p.language)&&isPromptMarket(p.market)),remaining:Math.max(0,cap-Number(budget.reserved)),cap,week,latest,legacyCurrentWeek:legacy?.present===true,search:{requested:isFeatureEnabled('pulse_grounding')?'subject_to_allowance':'off',execution:'unknown',nativeVariants:variants.filter(v=>v.platform.startsWith('perplexity')).length},costEstimateUsd:null,nextDueAt:null,scheduleState:'unknown' as const,enabled:isFeatureEnabled('pulse_attempts')}
+ return{...options,availability:derivePulseAvailability(options)}
 }
 export async function startOrResumeUserPulse(scope:PulseScope,intent:PulseIntent):Promise<PulseStartResult>{
  const options=await readUserPulseOptions(scope)
