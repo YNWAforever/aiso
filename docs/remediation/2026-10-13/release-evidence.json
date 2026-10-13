@@ -94,5 +94,20 @@
   "paidProviderRequests": 0,
   "qualitySamples": 0,
   "humanUsers": 0,
-  "verifiedLiveFindings": 0
+  "verifiedLiveFindings": 0,
+  "completedCiSnapshots": [
+    {
+      "path": "ci-178-receipt.json",
+      "runId": 38320349542,
+      "sourceHead": "9b16d704b005872aa5f07530d7980ded067f5ef7",
+      "sourceTree": "add6d7ec2777fd51aad50b4790004e020b3bb2e9",
+      "sha256": "133a8ec3c67ab6309ca005efffd3c49818e4fd35b9e33880875f96cd4a430ae0"
+    }
+  ],
+  "currentOutcomeSnapshots": {
+    "tasks": "task-results.csv",
+    "cases": "acceptance-results.csv",
+    "findings": "finding-results.csv",
+    "asOfCiRun": 38320349542
+  }
 }

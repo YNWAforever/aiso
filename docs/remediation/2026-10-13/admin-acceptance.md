@@ -7,3 +7,5 @@ No role writer invoked and no invented UUID passed to the dry-run. Existing gran
 Hosted positive acceptance blocked by a verified AISO active profile, existing approved session/preview access and separate scoped grant authority if needed. Ordinary tenant and anonymous refusal can be tested with synthetic roles locally. Exact grant/revoke packet and cleanup will be prepared after identity and candidate are concrete. No identity from another product is reused.
 
 Fresh scoped Neon read at2026-10-12T20:45:33.385Z onweathered-wave-50814522/br-square-mountain-az6f82vi/neondb confirmedAuthmatches0 andactiveprofilematches0. This closes the earlier unprovisioned-user ambiguity for the nominated exact email; no identity UUID exists to bind in this target. No role writer/dry-run invoked. Owner registration/provisioning and then exactidentityreadback are prerequisites; prior protected login/POST denials remain blocked.
+
+Continuation read at2026-10-13T00:09:12.304Z (08:09 Hong Kong) on the same verified AISO target again returned Auth0/active-profile0. Identity establishment remains blocked; no grant/dry-run or login request was sent.

@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 1,
+  "kind": "frozen_completed_ci_snapshot",
+  "observedAt": "2026-10-12T23:36:53.942Z",
+  "runId": 38320349542,
+  "url": "https://github.com/YNWAforever/aiso/actions/runs/38320349542",
+  "sourceHead": "9b16d704b005872aa5f07530d7980ded067f5ef7",
+  "sourceTree": "add6d7ec2777fd51aad50b4790004e020b3bb2e9",
+  "testedMerge": "37f5d23cc1ed5c182bfab531414c5ae67d011558",
+  "testedTree": "add6d7ec2777fd51aad50b4790004e020b3bb2e9",
+  "treesMatch": true,
+  "result": "success",
+  "counts": {
+    "unit": {
+      "passed": 6139,
+      "failed": 0,
+      "skipped": 0
+    },
+    "integration": {
+      "passed": 419,
+      "failed": 0,
+      "skipped": 0,
+      "defaultSuite": 241,
+      "exactTargetSuites": 10,
+      "exactTargetTests": 178
+    },
+    "browser": {
+      "passed": 1366,
+      "failed": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "shards": [
+        {
+          "shard": 1,
+          "passed": 342,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "summarySha256": "6858d7661c6ae5f2cf7c88291f163e89b34994c535679d21569fd7aa2e5b3fc3"
+        },
+        {
+          "shard": 2,
+          "passed": 342,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "summarySha256": "6858d7661c6ae5f2cf7c88291f163e89b34994c535679d21569fd7aa2e5b3fc3"
+        },
+        {
+          "shard": 3,
+          "passed": 341,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "summarySha256": "5160f7a7f267df5cef069c6aae14aa055d0efde78fc6fc2fb2427453ec85a368"
+        },
+        {
+          "shard": 4,
+          "passed": 341,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "summarySha256": "5160f7a7f267df5cef069c6aae14aa055d0efde78fc6fc2fb2427453ec85a368"
+        }
+      ]
+    },
+    "worker": {
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "completedClasses": [
+    {
+      "name": "unit-contract",
+      "result": "success",
+      "executed": 6139,
+      "skipped": 0,
+      "summarySha256": "2d41179e05bbaf6acf1c731fb6c51ab521509714b759f61cfbcb64e73f8a3d02"
+    },
+    {
+      "name": "static",
+      "result": "success",
+      "executed": 2,
+      "skipped": 0,
+      "summarySha256": "484d663354207ea9e1cc797c24e86f90b0551ddf43488438f2e126765952cf88"
+    },
+    {
+      "name": "build",
+      "result": "success",
+      "executed": 1,
+      "skipped": 0,
+      "summarySha256": "60893fa9628615046d3b948f7dccd589c8257c02ea5c8b930e7b4d6cd45c7367"
+    },
+    {
+      "name": "cloudflare-worker",
+      "result": "success",
+      "executed": 1,
+      "skipped": 0,
+      "summarySha256": "e7cde4583c847027b0d52d243b62812c096cc566b9b5ede71b13f3936a7ae677"
+    },
+    {
+      "name": "integration",
+      "result": "success",
+      "executed": 419,
+      "skipped": 0
+    },
+    {
+      "name": "e2e-accessibility",
+      "result": "success",
+      "executed": 1366,
+      "skipped": 0,
+      "flaky": 0,
+      "source": "four original shard reports"
+    }
+  ],
+  "aggregate": {
+    "schemaVersion": 1,
+    "job": "pr-gate",
+    "commitSha": "37f5d23cc1ed5c182bfab531414c5ae67d011558",
+    "status": "success",
+    "executed": 6,
+    "skipped": 0,
+    "failurePriorities": [],
+    "artifacts": [
+      "gate-summary.json"
+    ]
+  },
+  "cleanup": {
+    "taskOwnedCiChildren": 2,
+    "deletedByAuditedTeardown": true,
+    "readOnlyNotFound": 2,
+    "localTestOwnedAccounts": 16,
+    "remainingOwnedLocalRows": {
+      "accounts": 0,
+      "brands": 0,
+      "runs": 0,
+      "onboarding": 0,
+      "batches": 0
+    }
+  },
+  "cases": {
+    "original40": {
+      "blocked": 34,
+      "pass": 5,
+      "not-tested": 1
+    },
+    "additional20": {
+      "pass": 13,
+      "blocked": 6,
+      "not-tested": 1
+    },
+    "historicalSourceRowsUnchanged": true,
+    "verifiedLive": 0
+  },
+  "hosted": {
+    "executed": 0,
+    "result": "blocked",
+    "reason": "previous protected-preview-login automatic approval rejection retained"
+  },
+  "actualAuthExecuted": 0,
+  "providerRequests": 0,
+  "humanUsability": {
+    "participants": 0,
+    "required": 5,
+    "result": "not-tested"
+  },
+  "verifiedLive": 0,
+  "releaseGate": "NO_GO",
+  "independentReview": "pending"
+}

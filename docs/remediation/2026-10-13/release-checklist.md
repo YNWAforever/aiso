@@ -13,7 +13,7 @@ Local main initially a7ab604e. Origin main advanced to117c0e854c51d95f77ca6f07b5
 | Worker |11/11 local tests/typecheck; paused dry-run exit0|unchanged Worker source; no upload/invocation|
 | Static/build |lint/typecheck exit0 (one ignored generated-bundle lint warning); Next16.3.8 build completed18/18 static pages|sanitized fixtures, no formal credentials|
 | Earlier browser baseline |1332 pass,6skip,0fail/flaky|fc5b source; not final same-head evidence|
-| Required final CI |pending draft PR head/tree receipt|static/unit/integration/four browser shards/build/Worker; zero required skip/flaky|
+| Completed CI178 |6139 unit/419 SQL/1366 browser/11 Worker;0fail/skip/flaky|source9b16d704; tested merge37f5d23c; identical treeadd6d7ec; see ci-178-receipt.json|
 | Hosted candidate acceptance |0 executed; blocked|prior protected-login auto-review rejection; no bypass|
 | Real Auth / Admin |0 actual sessions/grants|identity not provisioned; synthetic guard evidence separate|
 | Real provider / humans |0paid;0/10quality;0/5humans|budgets, keys and people missing|
@@ -26,4 +26,6 @@ Exact formal Neon read: ledger69,063–070 normalized source checksums8/8 match;
 
 Cleanup: latest app-role readback16 test-owned account IDs; accounts/brands/runs/onboarding/batches all0. Existing local fixture container retained; no blanket reset. Browser contexts disposed and synthetic fixture teardown has no external effect. No formal Auth/account creation, role grant, migration, provider request, Worker publish or production merge/deploy by this execution.
 
-Final CI/preview receipt belongs in ignored artifacts and the draft PR body after publication; compare tested tree to final head tree, record each shard denominator/failure/skip and disposable branch cleanup. Preview READY without approved access remains blocked. Release operations and compatible rollback are in release-operations.md.
+Completed CI178 is published in ci-178-receipt.json; its source SHA/tree are frozen historical evidence. Current task/case results now include UC46 and UC79 passing that snapshot. A subsequent documentation commit has a different tree and requires its own exact-head CI receipt before claiming current-head CI completion. Earlier pending-CI records are preserved in snapshots/. Preview READY without approved access remains blocked. Release operations and compatible rollback are in release-operations.md.
+
+Continuation on2026-10-13: PR93 still open/draft, mergeable, no review submissions or threads; CI178 remains successful. Formal alias metadata still source117c0e85 / dpl_BH5bE72VqSoiiwWRWgRsRq619kto. No protected-preview fetch, production POST, provider call, migration or grant was attempted.
