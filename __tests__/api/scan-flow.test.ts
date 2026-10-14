@@ -3,6 +3,7 @@
  * Tests the complete path: POST /api/scan → score → DB insert → n8n webhook fire
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { NextRequest } from 'next/server'
 import { checkRobots } from '@/lib/checks/robots'
 
@@ -10,6 +11,11 @@ import { checkRobots } from '@/lib/checks/robots'
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test'
 
 const dbState = vi.hoisted(() => ({ insertValues: [] as unknown[], failInsert: false }))
+const afterState = vi.hoisted(() => ({ callbacks: [] as Array<() => Promise<void> | void> }))
+vi.mock('next/server', async importOriginal => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: (callback: () => Promise<void> | void) => { afterState.callbacks.push(callback) },
+}))
 
 // ── Mocks ───────────────────────────────────────────────────────
 // Mock all 20 checks to return known values
@@ -84,6 +90,8 @@ describe('POST /api/scan — full scan flow', () => {
     // Clear call history only — don't wipe mock implementations
     fetchMock.mockClear()
     fetchMock.mockResolvedValue(new Response('ok', { status: 200 }))
+
+    afterState.callbacks.length = 0
     dbState.insertValues = []
     dbState.failInsert = false
     vi.mocked(checkRobots).mockClear()
@@ -182,9 +190,10 @@ describe('POST /api/scan — full scan flow', () => {
       body: JSON.stringify({ url: 'https://example.com' }),
       headers: { 'Content-Type': 'application/json' },
     })
-    await POST(req)
-    // Webhook is fire-and-forget — flush microtasks
-    await new Promise(r => setTimeout(r, 100))
+    const response = await POST(req)
+    expect(response.status).toBe(200)
+    expect(afterState.callbacks).toHaveLength(1)
+    await afterState.callbacks[0]!()
     // Find any fetch call to the n8n URL
     const webhookCall = fetchMock.mock.calls.find(
       ([url]) => typeof url === 'string' && (url as string).includes('n8n.example.com')
@@ -199,6 +208,19 @@ describe('POST /api/scan — full scan flow', () => {
     delete process.env.N8N_SCAN_WEBHOOK_URL
   })
 
+  it('keeps the n8n scan workflow compatible with object results and out of agent completion', () => {
+    const workflow = JSON.parse(readFileSync(new URL('../../n8n/aiso-scan-webhook.json', import.meta.url), 'utf8')) as {
+      nodes: Array<{ id: string; name: string; parameters: Record<string, string> }>
+    }
+    const summary = workflow.nodes.find(node => node.id === 'node-ai-summary')?.parameters.jsonBody ?? ''
+    const updateNode = workflow.nodes.find(node => node.id === 'node-update-scan')
+    const update = updateNode?.parameters.query ?? ''
+
+    expect(summary).toContain('Object.values(')
+    expect(updateNode?.name).toBe('Update Scan (AI Summary)')
+    expect(update).toContain('ai_summary')
+    expect(update).not.toMatch(/\bagent_status\b/i)
+  })
   it('does NOT fire n8n webhook when N8N_SCAN_WEBHOOK_URL is not set', async () => {
     delete process.env.N8N_SCAN_WEBHOOK_URL
     fetchMock.mockClear()
@@ -209,7 +231,7 @@ describe('POST /api/scan — full scan flow', () => {
       headers: { 'Content-Type': 'application/json' },
     })
     await POST(req)
-    await new Promise(r => setTimeout(r, 100))
+    expect(afterState.callbacks).toHaveLength(0)
     const n8nCall = fetchMock.mock.calls.find(
       ([url]) => typeof url === 'string' && (url as string).includes('n8n')
     )
@@ -310,7 +332,9 @@ describe('POST /api/scan — full scan flow', () => {
     const { POST } = await import('@/app/api/scan/route')
     const scan = async (html: string) => {
       fetchMock.mockResolvedValueOnce(new Response(html, { status: 200, headers: { 'content-type': 'text/html' } }))
-      dbState.insertValues = []
+
+    afterState.callbacks.length = 0
+    dbState.insertValues = []
       const res = await POST(new NextRequest('http://localhost/api/scan', { method: 'POST', body: JSON.stringify({ url: 'https://example.com' }) }))
       expect(res.status).toBe(200)
       return { score: dbState.insertValues[2], results: JSON.parse(dbState.insertValues[3] as string) }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { cronSecret, markCompleteIfAllPresent } from '@/lib/agents'
+import { cronSecret, markCompleteIfAllPresent, type AgentRequirements } from '@/lib/agents'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,19 +47,20 @@ export async function POST(
   // Scoped to both scanId and the URL's clientId — the pre-fence version only
   // checked scanId, so a stale/wrong client mapping would silently write into
   // the wrong place with no signal anything was off.
-  let scanFound: boolean
+  let scanContext: { account_id: string; agent_requirements?: AgentRequirements | null } | undefined
   try {
     const rows = await sql`
-      select id from scans where id = ${scanId} and client_id = ${clientId} limit 1
+      select account_id, results->'_agent_requirements' as agent_requirements
+      from scans where id = ${scanId} and client_id = ${clientId} limit 1
     `
-    scanFound = rows.length > 0
+    scanContext = rows[0] as { account_id: string; agent_requirements?: AgentRequirements | null } | undefined
   } catch (error) {
     // A failed lookup is a database incident, not "no such scan" — never let
     // an outage read as a 404.
     console.error('[agents/recommendations] scan lookup failed:', error)
     return NextResponse.json({ error: 'Scan lookup failed' }, { status: 503 })
   }
-  if (!scanFound) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (!scanContext?.account_id) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   if (recommendations.length === 0) return NextResponse.json({ count: 0 })
 
@@ -96,7 +97,7 @@ export async function POST(
     console.error('[agents/recommendations] status update failed:', error)
   }
 
-  await markCompleteIfAllPresent(sql, scanId)
+  await markCompleteIfAllPresent(sql, scanId, scanContext.account_id, scanContext.agent_requirements)
 
   return NextResponse.json({ count: recommendations.length })
 }

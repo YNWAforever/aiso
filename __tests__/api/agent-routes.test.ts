@@ -104,7 +104,7 @@ describe('POST /api/clients/[clientId]/agents/competitors', () => {
   })
 
   it('scopes the scan lookup to both the scanId and the URL clientId', async () => {
-    nextResults = [[{ id: 'scan-1' }]]
+    nextResults = [[{ id: 'scan-1', account_id: 'account-1' }]]
     const { POST } = await importRoute(ROUTE)
 
     await POST(request({ scanId: 'scan-1', competitors: [] }, 'test-cron-secret-0123'), { params })
@@ -116,7 +116,7 @@ describe('POST /api/clients/[clientId]/agents/competitors', () => {
   })
 
   it('returns { count: 0 } for an empty array without upserting or checking completion', async () => {
-    nextResults = [[{ id: 'scan-1' }]]
+    nextResults = [[{ id: 'scan-1', account_id: 'account-1' }]]
     const { POST } = await importRoute(ROUTE)
 
     const res = await POST(request({ scanId: 'scan-1', competitors: [] }, 'test-cron-secret-0123'), { params })
@@ -127,7 +127,7 @@ describe('POST /api/clients/[clientId]/agents/competitors', () => {
   })
 
   it('upserts each competitor and returns 500 if the write fails', async () => {
-    nextResults = [[{ id: 'scan-1' }], new Error('connection terminated') as never]
+    nextResults = [[{ id: 'scan-1', account_id: 'account-1' }], new Error('connection terminated') as never]
     const { POST } = await importRoute(ROUTE)
 
     const res = await POST(request({ scanId: 'scan-1', competitors: [COMPETITOR] }, 'test-cron-secret-0123'), { params })
@@ -139,7 +139,7 @@ describe('POST /api/clients/[clientId]/agents/competitors', () => {
 
   it('upserts successfully and checks completion, returning the count', async () => {
     nextResults = [
-      [{ id: 'scan-1' }],          // scan lookup
+      [{ id: 'scan-1', account_id: 'account-1' }],          // scan lookup
       [],                          // upsert (no rows returned)
       [{ exists: 1 }], [], [{ exists: 1 }], // markCompleteIfAllPresent: recs, progress, competitors — not all present, no update
     ]
@@ -155,7 +155,7 @@ describe('POST /api/clients/[clientId]/agents/competitors', () => {
 
   it('accepts a competitor with no competitorName, inserting null', async () => {
     nextResults = [
-      [{ id: 'scan-1' }],
+      [{ id: 'scan-1', account_id: 'account-1' }],
       [],
       [{ exists: 1 }], [], [{ exists: 1 }],
     ]
@@ -252,7 +252,7 @@ describe('POST /api/clients/[clientId]/agents/progress', () => {
   })
 
   it('returns { count: 0 } for an empty array without upserting or checking completion', async () => {
-    nextResults = [[{ id: 'scan-1' }]]
+    nextResults = [[{ id: 'scan-1', account_id: 'account-1' }]]
     const { POST } = await importRoute(ROUTE)
 
     const res = await POST(request({ scanId: 'scan-1', progress: [] }, 'test-cron-secret-0123'), { params })
@@ -264,7 +264,7 @@ describe('POST /api/clients/[clientId]/agents/progress', () => {
 
   it('computes delta from currentValue - previousValue when delta is not provided', async () => {
     nextResults = [
-      [{ id: 'scan-1' }],
+      [{ id: 'scan-1', account_id: 'account-1' }],
       [],
       [{ exists: 1 }], [{ exists: 1 }], [{ exists: 1 }], // all present
     ]
@@ -278,7 +278,7 @@ describe('POST /api/clients/[clientId]/agents/progress', () => {
   })
 
   it('upserts each metric and returns 500 if the write fails', async () => {
-    nextResults = [[{ id: 'scan-1' }], new Error('connection terminated') as never]
+    nextResults = [[{ id: 'scan-1', account_id: 'account-1' }], new Error('connection terminated') as never]
     const { POST } = await importRoute(ROUTE)
 
     const res = await POST(request({ scanId: 'scan-1', progress: [METRIC] }, 'test-cron-secret-0123'), { params })
@@ -290,7 +290,7 @@ describe('POST /api/clients/[clientId]/agents/progress', () => {
 
   it('upserts successfully, marks complete when all three tables have data, returns the count', async () => {
     nextResults = [
-      [{ id: 'scan-1' }],
+      [{ id: 'scan-1', account_id: 'account-1' }],
       [],
       [{ exists: 1 }], [{ exists: 1 }], [{ exists: 1 }], // all three present
       [],
@@ -302,6 +302,25 @@ describe('POST /api/clients/[clientId]/agents/progress', () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ count: 1 })
     expect(queries[queries.length - 1]).toMatch(/update scans set agent_status = 'complete'/i)
+  })
+
+  it('completes a Pro scan after recommendations and progress arrive without competitors', async () => {
+    nextResults = [
+      [{ id: 'scan-1', account_id: 'account-1', agent_requirements: { agent_recs: true, agent_progress: true, agent_competitors: false } }],
+      [],
+      [{ exists: 1 }], [{ exists: 1 }], // required recommendations and progress are present
+      [], // agent_status completion update
+    ]
+    const { POST } = await importRoute(ROUTE)
+
+    const res = await POST(request({ scanId: 'scan-1', progress: [METRIC] }, 'test-cron-secret-0123'), { params })
+
+    expect(res.status).toBe(200)
+    expect(queries[2]).toMatch(/from agent_recommendations/i)
+    expect(queries[3]).toMatch(/from agent_progress/i)
+    expect(queries[2]).not.toMatch(/agent_competitors/i)
+    expect(queries[4]).toMatch(/update scans set agent_status = 'complete'/i)
+    expect(mockSql.mock.calls[4]!.slice(1)).toEqual(['scan-1', 'account-1'])
   })
 })
 
@@ -387,7 +406,7 @@ describe('POST /api/clients/[clientId]/agents/recommendations', () => {
   })
 
   it('returns { count: 0 } for an empty array without upserting, flipping status, or checking completion', async () => {
-    nextResults = [[{ id: 'scan-1' }]]
+    nextResults = [[{ id: 'scan-1', account_id: 'account-1' }]]
     const { POST } = await importRoute(ROUTE)
 
     const res = await POST(request({ scanId: 'scan-1', recommendations: [] }, 'test-cron-secret-0123'), { params })
@@ -398,7 +417,7 @@ describe('POST /api/clients/[clientId]/agents/recommendations', () => {
   })
 
   it('upserts each recommendation and returns 500 if the write fails', async () => {
-    nextResults = [[{ id: 'scan-1' }], new Error('connection terminated') as never]
+    nextResults = [[{ id: 'scan-1', account_id: 'account-1' }], new Error('connection terminated') as never]
     const { POST } = await importRoute(ROUTE)
 
     const res = await POST(request({ scanId: 'scan-1', recommendations: [REC] }, 'test-cron-secret-0123'), { params })
@@ -410,7 +429,7 @@ describe('POST /api/clients/[clientId]/agents/recommendations', () => {
 
   it('flips agent_status from pending/null to running only on first write, before checking completion', async () => {
     nextResults = [
-      [{ id: 'scan-1' }], // scan lookup
+      [{ id: 'scan-1', account_id: 'account-1' }], // scan lookup
       [],                 // upsert
       [],                 // running-status update
       [{ exists: 1 }], [], [{ exists: 1 }], // not all three present yet
@@ -427,7 +446,7 @@ describe('POST /api/clients/[clientId]/agents/recommendations', () => {
 
   it('upserts successfully, marks complete when all three tables have data, returns the count', async () => {
     nextResults = [
-      [{ id: 'scan-1' }],
+      [{ id: 'scan-1', account_id: 'account-1' }],
       [],
       [],                                     // running-status update
       [{ exists: 1 }], [{ exists: 1 }], [{ exists: 1 }], // all three present

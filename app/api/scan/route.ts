@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
@@ -28,6 +28,7 @@ import { checkChunkability }     from '@/lib/checks/chunkability'
 
 import { db }               from '@/lib/db'
 import { getProfile }       from '@/lib/auth'
+import { type AgentRequirements } from '@/lib/agents'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { fetchPublicUrl, PublicUrlError } from '@/lib/security/public-url'
 import { consumePublicScanRateLimit, rateLimitHeaders } from '@/lib/security/public-scan-rate-limit'
@@ -366,13 +367,26 @@ export async function POST(req: NextRequest) {
 
   // Dashboard behavior is enabled only for the already verified owned client.
   const isDashboardScan = !!ownedClient
+  const agentRequirements: AgentRequirements = {
+    agent_recs: entitlement.features.agent_recs,
+    agent_progress: entitlement.features.agent_progress,
+    agent_competitors: entitlement.features.agent_competitors,
+  }
+  const queueAgentAnalysis = isDashboardScan
+    && !!ownedClient?.webhook_url
+    && Object.values(agentRequirements).some(Boolean)
 
   let scanId: string
   try {
     // Trust signals are a diagnostic outside the score (lib/trust-signals.ts):
     // computed from the page already fetched, after scoring, so they cannot
     // move a grade. Omitted when there is no page body to read.
-    const combinedResults = { ...results, ...geoDetails, ...(html.trim() ? { trust_signals: assessTrustSignals(html, baseUrl) } : {}) }
+    const combinedResults = {
+      ...results,
+      ...geoDetails,
+      ...(queueAgentAnalysis ? { _agent_requirements: agentRequirements } : {}),
+      ...(html.trim() ? { trust_signals: assessTrustSignals(html, baseUrl) } : {}),
+    }
     const evidence = buildScanEvidence({
       requestedUrl: /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : 'https://' + url,
       evaluatedUrl: baseUrl, industry: geoIndustry, region: geoRegion,
@@ -386,7 +400,7 @@ export async function POST(req: NextRequest) {
       values (${baseUrl}, ${domain}, ${totalScore},
               ${JSON.stringify({ ...combinedResults, pillarScores, evidence })}::jsonb,
               ${geoIndustry}, ${geoRegion}, ${grade}, ${account_id},
-              ${isDashboardScan ? 'pending' : null}, ${clientId ?? null})
+              ${queueAgentAnalysis ? 'pending' : null}, ${clientId ?? null})
       returning id
     `
     const inserted = rows[0] as { id: string } | undefined
@@ -397,52 +411,76 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Database error — check Neon configuration' }, { status: 500 })
   }
 
-  // Fire agent webhook only for the service-client-verified owned client.
-  if (isDashboardScan && ownedClient) {
+  // Queue agent work only when an entitled output has a verified owned-client endpoint.
+  if (queueAgentAnalysis && ownedClient?.webhook_url) {
     const webhookUrl = ownedClient.webhook_url
-    if (webhookUrl) {
-      const features = entitlement.features
-      const platforms = features.platform_access
+    const platforms = entitlement.features.platform_access
 
+    try {
+      await sql`update scans set agent_platforms = ${platforms} where id = ${scanId} and account_id = ${account_id}`
+    } catch { /* non-fatal — webhook payload still carries platforms */ }
+
+    const dispatch = async () => {
       try {
-        await sql`update scans set agent_platforms = ${platforms} where id = ${scanId}`
-      } catch { /* non-fatal — webhook payload still carries platforms */ }
+        await fetchPublicUrl(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientId,
+            brandName: ownedClient.brand_name ?? '',
+            domain,
+            industry: geoIndustry,
+            scanId,
+            score: totalScore,
+            grade,
+            platforms,
+            agentRequirements,
+            results: { ...results, ...geoDetails },
+          }),
+          signal: AbortSignal.timeout(5_000),
+        })
+      } catch (error) {
+        console.error('[scan] webhook trigger failed:', error)
+      }
+    }
 
-      void fetchPublicUrl(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientId,
-          brandName: ownedClient.brand_name ?? '',
-          domain,
-          industry: geoIndustry,
-          scanId,
-          score: totalScore,
-          grade,
-          platforms,
-          results: { ...results, ...geoDetails },
-        }),
-        signal: AbortSignal.timeout(5_000),
-      }).catch(error => console.error('[scan] webhook trigger failed:', error))
+    try {
+      after(dispatch)
+    } catch (error) {
+      console.error('[scan] webhook scheduling failed:', error)
+      await dispatch()
     }
   }
 
-  // Fire n8n AISO Scan Webhook (fire-and-forget — never blocks the response)
+  // Schedule summary processing after the response so serverless runtimes keep it alive.
   const n8nWebhook = process.env.N8N_SCAN_WEBHOOK_URL
   if (n8nWebhook) {
-    fetch(n8nWebhook, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        scanId,
-        clientId: clientId ?? null,
-        domain,
-        score:    totalScore,
-        grade,
-        results:  { ...results, ...geoDetails },
-      }),
-      signal: AbortSignal.timeout(5_000),
-    }).catch(err => console.error('[scan] n8n webhook failed:', err))
+    const dispatch = async () => {
+      try {
+        await fetch(n8nWebhook, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scanId,
+            clientId: clientId ?? null,
+            domain,
+            score: totalScore,
+            grade,
+            results: { ...results, ...geoDetails },
+          }),
+          signal: AbortSignal.timeout(5_000),
+        })
+      } catch (error) {
+        console.error('[scan] n8n webhook failed:', error)
+      }
+    }
+
+    try {
+      after(dispatch)
+    } catch (error) {
+      console.error('[scan] n8n webhook scheduling failed:', error)
+      await dispatch()
+    }
   }
 
   return NextResponse.json(
