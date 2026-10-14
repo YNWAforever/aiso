@@ -15,6 +15,7 @@ type Copy = {
   competitorsLabel: string
   saveLabel: string
   savingLabel: string
+  savedLabel: string
   errorMessage: string
 }
 
@@ -65,6 +66,7 @@ const defaultCopy: Copy = {
   competitorsLabel: 'Competitors',
   saveLabel: 'Save assumptions',
   savingLabel: 'Saving...',
+  savedLabel: 'Saved',
   errorMessage: 'Something went wrong. Please try again.',
 }
 
@@ -178,10 +180,13 @@ export function LocalTrustSetupForm({ clientId, profile, copy }: Props) {
   const [competitors, setCompetitors] = useState(profile?.competitors.join(', ') ?? '')
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // A successful save only refreshed the page, so nothing told the owner it worked.
+  const [saved, setSaved] = useState(false)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    await submitLocalTrustSetup({
+    setSaved(false)
+    const result = await submitLocalTrustSetup({
       clientId,
       values: {
         primaryServices,
@@ -202,6 +207,7 @@ export function LocalTrustSetupForm({ clientId, profile, copy }: Props) {
       },
       onRefresh: () => router.refresh(),
     })
+    setSaved(result.ok)
   }
 
   const inputClass = 'min-h-11 rounded-lg border border-dash-border bg-dash-elevated px-3 py-2.5 text-sm text-dash-text outline-none transition focus:border-dash-accent focus-visible:border-dash-accent focus-visible:ring-2 focus-visible:ring-dash-accent/30 disabled:cursor-not-allowed disabled:opacity-60'
@@ -289,6 +295,7 @@ export function LocalTrustSetupForm({ clientId, profile, copy }: Props) {
             {isSaving ? labels.savingLabel : labels.saveLabel}
           </button>
           {error ? <p className="text-xs font-medium text-dash-danger" role="alert">{error}</p> : null}
+          {saved && !error ? <p className="text-xs font-medium text-dash-success" role="status">{labels.savedLabel}</p> : null}
         </div>
       </form>
     </section>

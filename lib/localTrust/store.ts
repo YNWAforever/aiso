@@ -26,6 +26,21 @@ async function runQuery<T>(query: () => Promise<T>): Promise<T> {
   }
 }
 
+// The Neon driver parses `date` and `timestamptz` into Date objects, but the
+// scorer keys months off string prefixes: a Date fell through to its '1970-01'
+// fallback, so every snapshot was filed — and upserted — under 1970-01-01, and
+// a second Pulse week crashed the sort on `.localeCompare`. pg-types builds a
+// `date` at local midnight, so read it back with local getters; a timestamptz
+// is an instant and stays an ISO string.
+function dateColumn(value: unknown): string {
+  if (!(value instanceof Date)) return value as string
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`
+}
+function timestampColumn(value: unknown): string {
+  return value instanceof Date ? value.toISOString() : value as string
+}
+
 export async function verifyClientOwnership(clientId: string, accountId: string): Promise<Client | null> {
   const sql = db()
   const rows = await runQuery(() => sql`
@@ -176,6 +191,11 @@ export async function getOrCreateLocalTrustSnapshot(input: {
   roi: RoiScenario
 }> {
   const sql = db()
+  input = {
+    ...input,
+    latestScan: input.latestScan && { ...input.latestScan, created_at: timestampColumn(input.latestScan.created_at) },
+    pulseSummary: input.pulseSummary.map(row => ({ ...row, scan_week: dateColumn(row.scan_week) })),
+  }
 
   // The month has to be resolved before the score can be computed, because this
   // month's enquiry-value scenario is measured against the previous month's row.
