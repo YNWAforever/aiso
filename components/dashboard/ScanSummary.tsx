@@ -31,7 +31,7 @@ export function ScanSummary({ scan }: Props) {
   const r = scan.results as Record<string, unknown>
   const isPassing = (key: string) => (r[key] as CheckResult)?.status === 'pass'
     && (key !== 'c18_factual_density' || factualDensityState(r.c18_factual_density_data ?? r.c18, (r[key] as CheckResult)?.diagnostic) === 'observed')
-  const date = new Date(scan.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const date = new Date(scan.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 
   const totalChecks = GROUPS.reduce((s, g) => s + g.keys.length, 0)
   const totalPassed = GROUPS.reduce((s, g) => s + g.keys.filter(isPassing).length, 0)

@@ -22,6 +22,18 @@ import type {
   AgentCompetitor, PulseWeeklySummary, PulseMetric, Client, LocalTrustProfile,
 } from '@/lib/types'
 
+// Neon returns numeric(5,2) as a string ("18.00"), and formatScanScore rejects
+// anything but a finite number — a raw row crashed the results step with a 500.
+// Convert at the boundary, as loadOwnedWorkspace does. null (a scan that never
+// produced a score) passes through untouched.
+function withNumericScore<T extends { score: unknown } | null>(row: T): T {
+  if (row === null || typeof row.score !== 'string') return row
+  return { ...row, score: Number(row.score) }
+}
+function hasDisplayableScore(scan: Scan | null): scan is Scan {
+  return scan !== null && Number.isFinite(scan.score)
+}
+
 async function StepHeader({ step, features }: { step: string; features: PlanFeatures }) {
   const t = await getTranslations('dashboard')
   const info: Record<string, { title: string; body: string }> = {
@@ -163,13 +175,14 @@ export default async function DashboardPage({
           localTrustScansPromise,
         ])
 
-      const latestScan = (latestRows[0] ?? null) as Scan | null
-      const specificScan = (specificRows[0] ?? null) as Scan | null
+      const latestScan = withNumericScore((latestRows[0] ?? null) as Scan | null)
+      const specificScan = withNumericScore((specificRows[0] ?? null) as Scan | null)
 
       // Use specific scan if scanId was provided, otherwise use latest
       const scan = (scanId ? specificScan : latestScan)
 
-      const scanHistory = scanHistoryRows as unknown as Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'created_at'>[]
+      const scanHistory = (scanHistoryRows as unknown as Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'created_at'>[])
+        .map(withNumericScore)
       const summary = pulseSummaryRows as unknown as PulseWeeklySummary[]
       const missed  = pulseMetricsRows as unknown as PulseMetric[]
 
@@ -177,7 +190,7 @@ export default async function DashboardPage({
       // by the scans_client_tenant_fkey composite FK), so the newest row — the
       // list is ordered created_at desc — is the answer. No domain-matching
       // heuristic needed now that client_id ties each scan to its brand.
-      const localTrustScanRows = localTrustRows as unknown as Scan[]
+      const localTrustScanRows = (localTrustRows as unknown as Scan[]).map(withNumericScore)
       const localTrustScan = localTrustScanRows[0] ?? null
 
       // Enforce existing permissions before data reaches client component props.
@@ -286,8 +299,8 @@ export default async function DashboardPage({
       <main className="flex-1 px-6 pb-10 max-w-3xl">
         {step === 'scan' && <ScanStep lang={lang} clientId={clientId} scan={scan} scanHistory={scanHistory} />}
 
-        {step === 'results' && scan && <ResultsStep scan={scan} lang={lang} clientId={clientId} />}
-        {step === 'results' && !scan && (
+        {step === 'results' && hasDisplayableScore(scan) && <ResultsStep scan={scan} lang={lang} clientId={clientId} />}
+        {step === 'results' && !hasDisplayableScore(scan) && (
           <div className="rounded-xl border border-dash-border bg-dash-surface p-8 text-center">
             <p className="text-sm text-dash-text mb-1">{t('no_scan_selected')}</p>
             <p className="text-xs text-dash-muted">{t('no_scan_selected_body')}</p>

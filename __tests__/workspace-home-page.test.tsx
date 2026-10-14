@@ -11,6 +11,7 @@ vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NOT_FOUND
 vi.mock('next-intl/server', () => ({ getTranslations: async () => (key: string) => key }))
 vi.mock('@/components/dashboard/WorkspaceHome', () => ({ WorkspaceHome: () => null }))
 import { ImproveStep } from '@/components/dashboard/ImproveStep'
+import { ResultsStep } from '@/components/dashboard/ResultsStep'
 import type { ReactElement } from 'react'
 import Page from '@/app/[lang]/dashboard/[clientId]/page'
 const profile = { account_id: 'account-a', accounts: { plan: 'free' } }
@@ -93,4 +94,39 @@ it('routes explicit monitor through the owned Pulse loader before legacy reads',
   expect(mocks.load).not.toHaveBeenCalled()
   expect(mocks.sql).not.toHaveBeenCalled()
   expect(mocks.roi).not.toHaveBeenCalled()
+})
+
+function findResults(node: unknown): ReactElement<{ scan: { score: unknown } }> | undefined {
+  if (!node || typeof node !== 'object') return undefined
+  if (Array.isArray(node)) return node.map(findResults).find(Boolean)
+  const element = node as ReactElement<{ children?: unknown }>
+  if (element.type === ResultsStep) return element as ReturnType<typeof findResults>
+  return findResults(element.props?.children)
+}
+function texts(node: unknown): string[] {
+  if (typeof node === 'string') return [node]
+  if (!node || typeof node !== 'object') return []
+  if (Array.isArray(node)) return node.flatMap(texts)
+  return texts((node as ReactElement<{ children?: unknown }>).props?.children)
+}
+function stubScanScore(score: unknown) {
+  mocks.sql.mockImplementation(async (strings: TemplateStringsArray) => {
+    const query = strings.join('?')
+    if (query.includes('from clients')) return [{id:'client-a',brand_name:'Example',domain:'example.com'}]
+    if (query.includes('from scans')) return [{id:'scan-a',score,grade:'F',domain:'example.com',results:{},created_at:'2026-09-11'}]
+    return []
+  })
+}
+// Neon returns numeric(5,2) as a string. formatScanScore rejects anything but a
+// finite number, so a raw "18.00" crashed the whole results step with a 500.
+it('hands the results step a numeric score when Neon returns numeric as a string', async () => {
+  stubScanScore('18.00')
+  const results = findResults(await render({step:'results'}))
+  expect(results?.props.scan.score).toBe(18)
+})
+it('shows the empty state rather than crashing for a scan with no stored score', async () => {
+  stubScanScore(null)
+  const page = await render({step:'results'})
+  expect(findResults(page)).toBeUndefined()
+  expect(texts(page)).toContain('no_scan_selected')
 })

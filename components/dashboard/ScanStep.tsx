@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import type { Scan } from '@/lib/types'
 
 const INDUSTRY_VALUES = [
@@ -28,6 +28,7 @@ type Props = {
 
 export function ScanStep({ lang, clientId, scanHistory }: Props) {
   const t            = useTranslations('dashboard')
+  const locale       = useLocale()
   const router       = useRouter()
   const searchParams = useSearchParams()
   const autoUrl      = searchParams.get('url') ?? ''
@@ -190,7 +191,9 @@ export function ScanStep({ lang, clientId, scanHistory }: Props) {
                   <span className="text-[12px] text-dash-text font-mono truncate">{s.domain}</span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0 ml-3">
-                  <span className="text-[11px] text-dash-muted font-mono">{new Date(s.created_at).toLocaleDateString()}</span>
+                  <span className="text-[11px] text-dash-muted font-mono">{/* Locale and zone pinned: the server renders in UTC/en-US, the browser in
+                      its own, and the mismatch failed hydration (React #418). */}
+                  {new Date(s.created_at).toLocaleDateString(locale, { timeZone: 'UTC' })}</span>
                   <span className={`text-[12px] font-bold font-mono ${
                     s.score >= 80 ? 'text-dash-success' : s.score >= 50 ? 'text-dash-warning' : 'text-dash-danger'
                   }`}>{s.score}</span>
