@@ -2,6 +2,7 @@
 import { Brain, Link2, TrendingUp, Layers } from 'lucide-react'
 import { useLocale } from 'next-intl'
 import { factualDensityState, type FactualDensityView } from '@/lib/factual-density-evidence'
+import { topicalAuthorityState } from '@/lib/topical-authority-evidence'
 
 const COPY_EN = {
   sectionTitle: 'Deep GEO Analysis',
@@ -30,6 +31,8 @@ const COPY_EN = {
   timeSeriesData: 'Time-series data',
   // C19
   c19Title: 'Topical Authority',
+  c19Unavailable: 'Unavailable — no usable topical evidence was collected. Review the sitemap or run a new scan.',
+  c19Legacy: 'Legacy / unverifiable — topical collection provenance is unknown. Run a new scan.',
   c19Desc: 'A local heuristic for topic clusters in the sampled sitemap. Coverage does not establish search ranking or citation performance.',
   coverageScore: 'Topical coverage score',
   clustersDetected: (n: number) => `${n} topic cluster${n !== 1 ? 's' : ''} detected`,
@@ -75,6 +78,8 @@ const COPY_ZH_HK: typeof COPY_EN = {
   timeSeriesData: '時間序列數據',
   // C19
   c19Title: '主題權威',
+  c19Unavailable: '未能取得資料 — 未採集到可用的主題證據。請檢視 sitemap 或重新掃描。',
+  c19Legacy: '歷史／未能核實 — 主題採集來源不明。請重新掃描。',
   c19Desc: '以本地啟發式規則評估已抽樣 sitemap 的主題群組。覆蓋程度不能證明搜尋排名或引用成效。',
   coverageScore: '主題覆蓋分數',
   clustersDetected: (n: number) => `偵測到 ${n} 個主題群組`,
@@ -135,13 +140,15 @@ interface Props {
   c17?: C17Data
   c18?: C18Data
   c19?: C19Data
+  c19Check?: unknown
   c20?: C20Data
 }
 
-export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
+export function DeepGeoSection({ c17, c18, c19, c19Check, c20 }: Props) {
   const locale = useLocale()
   const c = locale === 'zh-HK' ? COPY_ZH_HK : COPY_EN
   const c18State = factualDensityState(c18)
+  const c19State = topicalAuthorityState(c19Check)
   if (!c17 && !c18 && !c19 && !c20) return null
 
   return (
@@ -248,6 +255,8 @@ export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
           <p className="text-xs text-muted-foreground mb-5 leading-relaxed">
             {c.c19Desc}
           </p>
+          {c19State !== 'observed' && <p className="text-xs text-muted-foreground" role="status">{c19State === 'legacy' ? c.c19Legacy : c.c19Unavailable}</p>}
+          {c19State === 'observed' && <>
           <div className="space-y-3 mb-5">
             {c19.topicalCoverageScore !== undefined && (
               <MetricBar label={c.coverageScore} value={c19.topicalCoverageScore} color="auto" />
@@ -280,6 +289,7 @@ export function DeepGeoSection({ c17, c18, c19, c20 }: Props) {
               ))}
             </div>
           )}
+          </>}
         </div>
       )}
 

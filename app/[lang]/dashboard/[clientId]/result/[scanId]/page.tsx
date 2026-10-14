@@ -12,6 +12,7 @@ import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
 import { getCheckExplanations } from '@/lib/checkExplanations'
 import type { Scan, CheckResult } from '@/lib/types'
 import { factualDensityState, type FactualDensityView } from '@/lib/factual-density-evidence'
+import { topicalAuthorityState } from '@/lib/topical-authority-evidence'
 import { buildPublicResultSummary } from '@/lib/result-access'
 
 const CORE_CHECK_KEYS = [
@@ -112,6 +113,7 @@ export default async function DashboardResultPage({
   const c18data = (r['c18_factual_density_data']  ?? r['c18']) as C18Data | undefined
   const c18State = factualDensityState(c18data, (r.c18_factual_density as CheckResult | undefined)?.diagnostic)
   const c19data = (r['c19_topical_authority_data'] ?? r['c19']) as C19Data | undefined
+  const c19State = topicalAuthorityState(r.c19_topical_authority)
   const c20data = (r['c20_chunkability_data']      ?? r['c20']) as C20Data | undefined
   const hasGeo  = !!(c17data || c18data || c19data || c20data ||
                      r['c17_citation_density'] || r['c18_factual_density'] ||
@@ -122,7 +124,7 @@ export default async function DashboardResultPage({
   const geoQualityScores = [
     c17data?.qualityScore,
     c18State === 'observed' ? c18data?.qualityScore : undefined,
-    c19data?.topicalCoverageScore,
+    c19State === 'observed' ? c19data?.topicalCoverageScore : undefined,
     c20data ? Math.round(((c20data.optimalChunkRatio ?? 0) * 100)) : undefined,
   ]
   const geoScore = geoQualityScores.reduce<number>((acc, q, i) => {
@@ -336,7 +338,7 @@ export default async function DashboardResultPage({
                       )}
                     </div>
                   )}
-                  {isC19 && c19data && (
+                  {isC19 && c19data && c19State === 'observed' && (
                     <div className="flex gap-3 px-2 pb-2 text-xs text-dash-muted">
                       <span>{c19data.totalClusters ?? 0} {t('result.geo_clusters')}</span>
                       {(c19data.hasOrphanPages ?? 0) > 0 && (

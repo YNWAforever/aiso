@@ -28,6 +28,7 @@ vi.mock('@/lib/openrouter', () => ({
 vi.mock('@/lib/auth', () => ({
   getProfile: vi.fn(),
 }))
+vi.mock('@/lib/security/public-url', () => ({ fetchPublicUrl: vi.fn() }))
 
 // These routes now spend a per-account daily allowance before any model call
 // (lib/fix/guard.ts). The counter is out of scope here — always allowed — and
@@ -46,6 +47,13 @@ vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
 import { parseFixPack } from '@/app/api/fix/route'
 import { getProfile } from '@/lib/auth'
 import { callOpenRouter } from '@/lib/openrouter'
+import { fetchPublicUrl } from '@/lib/security/public-url'
+
+const GROUNDED_PACK = {
+  llms_txt: '# example.com\n\n> Review draft. Source quotes are not independently verified.\n\n## Observed source\n- Origin: https://example.com\n- Page title (source quote): "Example"\n\n## Evidence limits\n- Site sections and business policies were not verified.\n- No supported FAQ pairs were found. The FAQ draft is empty and must not be published as a completed FAQ.',
+  robots_patch: '# REVIEW REQUIRED: crawler access and training policies were not supplied.\n# No access directives generated. Confirm your policy before editing robots.txt.',
+  faq_schema: '{\n  "@context": "https://schema.org",\n  "@type": "FAQPage",\n  "mainEntity": []\n}',
+}
 
 // A paid account: the content tools are refused to free, cancelled and
 // expired-trial accounts (content-tools-gate.test.ts covers those).
@@ -73,6 +81,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   queries.length = 0
   nextResults = []
+  vi.mocked(fetchPublicUrl).mockResolvedValue(new Response('<title>Example</title>'))
   vi.mocked(callOpenRouter).mockResolvedValue(
     '{"llms_txt":"# About","robots_patch":"Allow: /","faq_schema":"{}"}'
   )
@@ -91,6 +100,59 @@ describe('parseFixPack', () => {
 })
 
 describe('POST /api/fix', () => {
+  it('copies only FAQ pairs corroborated by page text and ignores hidden-only schema claims', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    const faq = { '@type': 'FAQPage', mainEntity: [
+      { '@type': 'Question', name: 'What is this page?', acceptedAnswer: { '@type': 'Answer', text: 'A published example.' } },
+      { '@type': 'Question', name: 'Is training permitted?', acceptedAnswer: { '@type': 'Answer', text: 'Yes, everything is permitted.' } },
+    ] }
+    vi.mocked(fetchPublicUrl).mockResolvedValue(new Response('<h1>What is this page?</h1><p>A published example.</p><script type="application/ld+json">' + JSON.stringify(faq) + '</script>'))
+    nextResults = [[{ id: 'scan-1' }], [], [SCAN_ROW], []]
+    const { POST } = await import('@/app/api/fix/route')
+    const response = await POST(post('/api/fix', { scanId: 'scan-1' }))
+    const pack = await response.json()
+    expect(response.status).toBe(200)
+    expect(JSON.parse(pack.faq_schema).mainEntity).toEqual([
+      { '@type': 'Question', name: 'What is this page?', acceptedAnswer: { '@type': 'Answer', text: 'A published example.' } },
+    ])
+    expect(pack.faq_schema).not.toContain('training')
+    expect(callOpenRouter).not.toHaveBeenCalled()
+  })
+  it('labels failed page fetch as missing evidence without copying an error page', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    vi.mocked(fetchPublicUrl).mockResolvedValue(new Response('<title>Secret admin policy</title>', { status: 503 }))
+    nextResults = [[{ id: 'scan-1' }], [], [SCAN_ROW], []]
+    const { POST } = await import('@/app/api/fix/route')
+    const response = await POST(post('/api/fix', { scanId: 'scan-1' }))
+    const pack = await response.json()
+    expect(pack.llms_txt).toContain('Page content could not be fetched')
+    expect(pack.llms_txt).not.toContain('Secret admin policy')
+    expect(JSON.parse(pack.faq_schema).mainEntity).toEqual([])
+    expect(pack.robots_patch).not.toMatch(/^(Allow|Disallow):/m)
+  })
+  it('does not turn a bare page title into invented pages, policies or FAQ claims', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    nextResults = [[{ id: 'scan-1' }], [], [SCAN_ROW], []]
+    const { POST } = await import('@/app/api/fix/route')
+    const res = await POST(post('/api/fix', { scanId: 'scan-1' }))
+    const pack = await res.json()
+    expect(res.status).toBe(200)
+    expect(pack.llms_txt).toContain('https://example.com')
+    expect(pack.llms_txt).not.toMatch(/\/about|\/faq|Last Updated|2024/)
+    expect(pack.robots_patch).not.toMatch(/^(?:Allow|Disallow|Sitemap|User-agent):/m)
+    expect(JSON.parse(pack.faq_schema).mainEntity).toEqual([])
+  })
+  it('does not replay an ungrounded legacy cache', async () => {
+    vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
+    nextResults = [[{ id: 'scan-1' }], [{ llms_txt: '# Invented 2024 policy', robots_patch: 'Allow: /', faq_schema: '{}' }], [SCAN_ROW], []]
+    const { POST } = await import('@/app/api/fix/route')
+    const res = await POST(post('/api/fix', { scanId: 'scan-1' }))
+    const pack = await res.json()
+    expect(res.status).toBe(200)
+    expect(pack.llms_txt).not.toContain('Invented 2024 policy')
+    expect(pack.robots_patch).not.toMatch(/^Allow:/m)
+    expect(JSON.parse(pack.faq_schema).mainEntity).toEqual([])
+  })
   it('rejects an anonymous caller with 401 and never calls OpenRouter', async () => {
     vi.mocked(getProfile).mockResolvedValue(null)
     const { POST } = await import('@/app/api/fix/route')
@@ -129,20 +191,21 @@ describe('POST /api/fix', () => {
     expect(params).toEqual(['scan-1', 'acc-1'])
   })
 
-  it('returns the cached fix pack without calling OpenRouter', async () => {
+  it('reuses a source-matching grounded cache without a new cache write or model call', async () => {
     vi.mocked(getProfile).mockResolvedValue(PROFILE as never)
     nextResults = [
       [{ id: 'scan-1' }], // ownership check
-      [{ llms_txt: 'cached', robots_patch: 'cached-robots', faq_schema: 'cached-faq' }], // cache hit
+      [GROUNDED_PACK], // grounded cache
+      [SCAN_ROW], // recheck source evidence
     ]
     const { POST } = await import('@/app/api/fix/route')
 
     const res = await POST(post('/api/fix', { scanId: 'scan-1' }))
 
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ llms_txt: 'cached', robots_patch: 'cached-robots', faq_schema: 'cached-faq' })
+    expect(await res.json()).toEqual(GROUNDED_PACK)
     expect(callOpenRouter).not.toHaveBeenCalled()
-    expect(queries).toHaveLength(2) // ownership + cache read only, no scan read, no insert
+    expect(queries).toHaveLength(3) // ownership + cache + owned scan; no insert
   })
 
   it('generates the fix pack for an owned scan on a cache miss', async () => {
@@ -158,8 +221,8 @@ describe('POST /api/fix', () => {
     const res = await POST(post('/api/fix', { scanId: 'scan-1' }))
 
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ llms_txt: '# About', robots_patch: 'Allow: /', faq_schema: '{}' })
-    expect(callOpenRouter).toHaveBeenCalledTimes(1)
+    expect(await res.json()).toEqual(GROUNDED_PACK)
+    expect(callOpenRouter).not.toHaveBeenCalled()
     expect(queries).toHaveLength(4)
     expect(queries[3]).toMatch(/insert into fix_packs/i)
   })
@@ -216,7 +279,7 @@ describe('POST /api/fix', () => {
     const res = await POST(post('/api/fix', { scanId: 'scan-1' }))
 
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ llms_txt: '# About', robots_patch: 'Allow: /', faq_schema: '{}' })
+    expect(await res.json()).toEqual(GROUNDED_PACK)
     consoleError.mockRestore()
   })
 })

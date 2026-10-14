@@ -31,7 +31,11 @@ vi.mock('@/lib/db', () => ({
     if (text.includes('from clients')) return Promise.resolve(h.owns ? [{ id: 'client-1' }] : [])
     if (text.includes('from topical_clusters') && h.clusterLookupFails) return Promise.reject(new Error('db down'))
     if (text.includes('from fix_packs')) {
-      return Promise.resolve(h.cachedFixPack ? [{ llms_txt: 'x', robots_patch: 'y', faq_schema: '{}' }] : [])
+      return Promise.resolve(h.cachedFixPack ? [{
+        llms_txt: '# example.com\n\n> Review draft. Source quotes are not independently verified.\n\n## Observed source\n- Origin: https://example.com\n\n## Evidence limits\n- Site sections and business policies were not verified.\n- No supported FAQ pairs were found. The FAQ draft is empty and must not be published as a completed FAQ.',
+        robots_patch: '# REVIEW REQUIRED: crawler access and training policies were not supplied.\n# No access directives generated. Confirm your policy before editing robots.txt.',
+        faq_schema: '{\n  "@context": "https://schema.org",\n  "@type": "FAQPage",\n  "mainEntity": []\n}',
+      }] : [])
     }
     if (text.includes('from scans')) return Promise.resolve(h.owns ? [{ id: 'scan-1', url: 'https://example.com', domain: 'example.com', results: {} }] : [])
     return Promise.resolve([])
