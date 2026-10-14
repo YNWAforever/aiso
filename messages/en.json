@@ -2307,7 +2307,7 @@
       "threshold": "Counted as old after"
     },
     "states": {
-      "empty": "No facts imported yet. Until you import some, a draft has nothing approved to quote and will say so rather than guess.",
+      "empty": "No sources match this view. Try another filter, or import facts below. A draft can only quote approved sources that permit agent use and have not been revoked.",
       "error": "The source list could not be loaded. Nothing has been changed."
     },
     "actions": {

@@ -131,7 +131,7 @@ describe.each(['en', 'zh-HK'])('the source pack in %s', lang => {
     expect(card([source({ revokedAt: daysAgo(1) })])).toContain(copy.why.revoked)
   })
 
-  it('distinguishes "nothing imported" from "could not load"', () => {
+  it('distinguishes an empty source view from "could not load"', () => {
     // An empty list rendered over a failed read would tell an owner their facts
     // are gone.
     const empty = render([], lang)
@@ -141,6 +141,17 @@ describe.each(['en', 'zh-HK'])('the source pack in %s', lang => {
     expect(empty).not.toContain(copy.states.error)
     expect(failed).toContain(copy.states.error)
     expect(failed).not.toContain(copy.states.empty)
+  })
+
+  it('does not claim the whole workspace has no imports when a source view is empty', () => {
+    // Filtering to In use can be empty while an imported source awaits approval.
+    // The shared empty message must describe this view and offer another filter.
+    const html = render([], lang)
+    const accountWideClaim = lang === 'en' ? 'No facts imported yet.' : '尚未匯入任何資料。'
+    const filterGuidance = lang === 'en' ? 'Try another filter' : '嘗試其他篩選'
+
+    expect(html).not.toContain(accountWideClaim)
+    expect(html).toContain(filterGuidance)
   })
 
   it('escapes imported text rather than rendering it as markup', () => {
