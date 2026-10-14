@@ -8,8 +8,11 @@
  * ?scanId= deep-link that established this pattern.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ReactElement } from 'react'
+import { isValidElement, type ReactElement } from 'react'
 import type { Scan } from '@/lib/types'
+import { buildScanEvidence } from '@/lib/scan-evidence'
+import { FixPackClient } from '@/components/FixPackClient'
+import { ScoreRing } from '@/components/ScoreRing'
 
 const { requireAuthMock, notFoundMock, sqlMock } = vi.hoisted(() => ({
   requireAuthMock: vi.fn(),
@@ -73,6 +76,59 @@ function renderPage(overrides: { lang?: string; clientId?: string; scanId?: stri
     }),
   })
 }
+function renderedElements(value: unknown): ReactElement<Record<string, unknown>>[] {
+  if (Array.isArray(value)) return value.flatMap(renderedElements)
+  if (!isValidElement<Record<string, unknown>>(value)) return []
+  return [value, ...renderedElements(value.props.children)]
+}
+
+function collectionEvidence(collection: 'complete' | 'failed' = 'complete') {
+  return buildScanEvidence({
+    requestedUrl: 'https://example.com', evaluatedUrl: 'https://example.com',
+    industry: null, region: null, sitemapSource: 'unknown',
+    checks: { c1_robots: { collection: 'complete', assessment: 'fail' } },
+    observations: [{ check: 'page', collection, httpStatus: collection === 'complete' ? 200 : 503,
+      target: { origin: 'https://example.com' } }],
+  })
+}
+
+describe('dashboard result database score normalization', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    requireAuthMock.mockResolvedValue(PROFILE)
+  })
+
+  it.each([
+    { stored: 14.17, expected: 14.17 },
+    { stored: '14.17', expected: 14.17 },
+    { stored: 0, expected: 0 },
+    { stored: '0', expected: 0 },
+  ])('retains a completed scan score and its generation actions: $stored', async ({ stored, expected }) => {
+    sqlMock.mockResolvedValue([scan({
+      score: stored as unknown as number,
+      results: { ...scan().results, evidence: collectionEvidence() },
+    })])
+    const elements = renderedElements(await renderPage())
+    expect(elements.find(element => element.type === ScoreRing)?.props.score).toBe(expected)
+    expect(elements.find(element => element.type === FixPackClient)?.props.scanId).toBe('scan-1')
+    expect(elements.some(element => element.props.href === '/en/dashboard/client-1/reports/new?scanId=scan-1')).toBe(true)
+  })
+
+  it.each([
+    { stored: null, collection: 'complete' as const },
+    { stored: 'not-a-score', collection: 'complete' as const },
+    { stored: '14.17', collection: 'failed' as const },
+  ])('withholds score and generation actions for unavailable evidence: $stored / $collection', async ({ stored, collection }) => {
+    sqlMock.mockResolvedValue([scan({
+      score: stored as unknown as number,
+      results: { ...scan().results, evidence: collectionEvidence(collection) },
+    })])
+    const elements = renderedElements(await renderPage())
+    expect(elements.some(element => element.type === ScoreRing)).toBe(false)
+    expect(elements.some(element => element.type === FixPackClient)).toBe(false)
+    expect(elements.some(element => element.props.href === '/en/dashboard/client-1/reports/new?scanId=scan-1')).toBe(false)
+  })
+})
 
 describe('dashboard result page brand scoping', () => {
   beforeEach(() => {

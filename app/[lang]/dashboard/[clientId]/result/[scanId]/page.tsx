@@ -61,7 +61,12 @@ export default async function DashboardResultPage({
       where id = ${scanId} and account_id = ${profile.account_id} and client_id = ${clientId}
       limit 1
     `
-    scan = (rows[0] ?? null) as Scan | null
+    const row = rows[0] as Record<string, unknown> | undefined
+    // Postgres numeric values arrive as strings. Preserve an unavailable score.
+    scan = row ? {
+      ...row,
+      score: row.score === null ? null : Number(row.score),
+    } as Scan : null
   } catch (err) {
     loadError = true
     const message = err instanceof Error ? err.message : String(err)
