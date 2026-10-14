@@ -39,6 +39,14 @@ function invitation(status: (typeof STATUSES)[number], index = 0) {
 }
 
 describe('MembersPanel', () => {
+  // A profile provisioned without a display name used to be listed as its raw
+  // UUID. The sign-in email is the next thing a member would recognise.
+  it('names a member without a display name by email, never by bare uuid', () => {
+    const html = render({ members: [{ profileId: SELF, displayName: null, email: 'owner@example.com', approver: false, active: true, joinedAt: '2026-09-01T00:00:00.000000Z' }] })
+    expect(html).toContain('owner@example.com')
+    expect(html).not.toContain(SELF)
+  })
+
   it.each(['en', 'zh-HK'])('marks which member is the viewer in %s', lang => {
     const html = render({}, lang)
     expect(html).toContain((lang === 'en' ? en : zh).members.you)

@@ -280,6 +280,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
             results={topIssueResults as ScanResults & Record<string, unknown>}
             failCount={fail + warn}
             priorityState={summary.priorityState}
+            owner={Boolean(fullScan)}
           />
         </div>
 

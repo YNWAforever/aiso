@@ -12,6 +12,7 @@ const UI_EN = {
   severityAria: (label: string) => `Severity: ${label}`,
   more: (n: number) =>
     `+ ${n} more issue${n > 1 ? 's' : ''} found — create a free account to see the full breakdown ↓`,
+  moreOwner: (n: number) => `+ ${n} more issue${n > 1 ? 's' : ''} found — see the full breakdown below ↓`,
 }
 
 const UI_ZH_HK: typeof UI_EN = {
@@ -20,6 +21,7 @@ const UI_ZH_HK: typeof UI_EN = {
   severity: { warn: '警告', fail: '不及格' },
   severityAria: (label: string) => `嚴重程度：${label}`,
   more: (n: number) => `+ 還發現 ${n} 個問題——免費建立帳戶即可查看完整分析 ↓`,
+  moreOwner: (n: number) => `+ 還發現 ${n} 個問題——完整分析在下方 ↓`,
 }
 
 interface Props {
@@ -27,9 +29,11 @@ interface Props {
   failCount: number
   priorityState?: CheckPriorityState
   retryHref?: string
+  /** The viewer owns this scan: they have an account and the full breakdown below. */
+  owner?: boolean
 }
 
-export function TopIssueCard({ results, failCount, priorityState, retryHref }: Props) {
+export function TopIssueCard({ results, failCount, priorityState, retryHref, owner = false }: Props) {
   const locale = useLocale()
   const isZh = locale === 'zh-HK'
   const ui = isZh ? UI_ZH_HK : UI_EN
@@ -107,7 +111,7 @@ export function TopIssueCard({ results, failCount, priorityState, retryHref }: P
       </div>
       {failCount > 1 && (
         <p className={`pl-12 mt-4 text-xs font-semibold ${styles.more}`}>
-          {ui.more(failCount - 1)}
+          {(owner ? ui.moreOwner : ui.more)(failCount - 1)}
         </p>
       )}
     </div>

@@ -133,7 +133,7 @@ export function MembersPanel({ self, limit, members, invitations }: MembersPanel
           {people.map(person => (
             <li key={person.profileId} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3">
               <span className="font-medium text-foreground">
-                {person.displayName ?? person.profileId}
+                {person.displayName || person.email || person.profileId}
               </span>
               {person.profileId === self && (
                 <span className="rounded bg-secondary px-2 py-0.5 text-xs font-semibold text-foreground">

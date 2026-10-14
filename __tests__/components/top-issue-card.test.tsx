@@ -73,6 +73,15 @@ describe('public top issue presentation', () => {
     expect(html).toContain('免費建立帳戶即可查看完整分析')
     expect(html).not.toContain('輸入電郵')
   })
+  // The owner already has an account and the full breakdown on the same page.
+  it.each([['en', 'create a free account', 'full breakdown below'], ['zh-HK', '免費建立帳戶', '完整分析在下方']])(
+    'does not ask the owner to sign up in %s', (lang, signup, below) => {
+      locale.value = lang
+      const results = { c2_llms_txt: { status: 'fail', assessment: 'fail', collection: 'complete', applicability: 'applicable', message: 'public_summary' } } as never
+      const html = renderToStaticMarkup(<TopIssueCard results={results} failCount={3} owner />)
+      expect(html).not.toContain(signup)
+      expect(html).toContain(below)
+    })
   it.each(['en', 'zh-HK'])('offers retry instead of a confirmed fix for unknown collection %s', lang => {
     locale.value = lang
     const html = renderToStaticMarkup(<TopIssueCard results={{ c1_robots: { status: 'fail' } } as never} failCount={0} />)

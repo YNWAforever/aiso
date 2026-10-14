@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { Sun, Moon } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 export function ThemeToggle() {
+  const t = useTranslations('dashboard')
   const [dark, setDark] = useState(false)
   const [mounted, setMounted] = useState(false)
 
@@ -30,10 +32,10 @@ export function ThemeToggle() {
     <button
       onClick={toggle}
       className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] text-dash-muted hover:bg-dash-elevated hover:text-dash-text transition-colors w-full"
-      title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={dark ? t('theme_switch_light') : t('theme_switch_dark')}
     >
       {dark ? <Sun size={14} /> : <Moon size={14} />}
-      <span>{dark ? 'Light' : 'Dark'} mode</span>
+      <span>{dark ? t('theme_light') : t('theme_dark')}</span>
     </button>
   )
 }
