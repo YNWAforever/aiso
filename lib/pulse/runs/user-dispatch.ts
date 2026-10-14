@@ -55,15 +55,20 @@ export async function readUserPulseOptions(scope:PulseScope){
  const sql=db();const [client]=await sql`select a.plan,a.status,a.stripe_subscription_id,a.trial_ends_at,a.override_plan,a.override_expires_at from clients c join accounts a on a.id=c.account_id where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId} and c.status='active'`
  if(!client)throw new Error('PULSE_RUN_NOT_FOUND')
  const entitlement=resolveCommercialEntitlement(client as CommercialAccount),variants=modelVariantsFor(runtimePlatformsFor(entitlement.features.platform_access))
- const prompts=await sql`select language,market from prompt_bank p join clients c on c.id=p.client_id where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId} and p.is_active order by p.id limit ${MAX_PROMPTS+1}`
  const week=currentScanWeek(),cap=userPulseBudget(entitlement.features.max_brands,variants.length)
- const [budget]=await sql`select (coalesce((select sum(reserved_units) from pulse_run_reservations where account_id=${scope.accountId} and scan_week=${week}::date),0)+coalesce((select sum(jsonb_array_length(r.manifest->'items')) from pulse_runs r where r.account_id=${scope.accountId} and r.scan_week=${week}::date and not exists(select 1 from pulse_run_reservations z where z.run_id=r.id and z.account_id=r.account_id)),0))::int as reserved`
+ // Independent reads, so they go out together: run back to back over Neon's
+ // HTTP driver they held the monitor panel on "loading" for ~4 s.
+ const [prompts,[budget],runs,[canonical],[legacy],legacyRows]=await Promise.all([
+  sql`select language,market from prompt_bank p join clients c on c.id=p.client_id where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId} and p.is_active order by p.id limit ${MAX_PROMPTS+1}`,
+  sql`select (coalesce((select sum(reserved_units) from pulse_run_reservations where account_id=${scope.accountId} and scan_week=${week}::date),0)+coalesce((select sum(jsonb_array_length(r.manifest->'items')) from pulse_runs r where r.account_id=${scope.accountId} and r.scan_week=${week}::date and not exists(select 1 from pulse_run_reservations z where z.run_id=r.id and z.account_id=r.account_id)),0))::int as reserved`,
+  sql`select id,scan_week,purpose from pulse_runs where account_id=${scope.accountId} and client_id=${scope.clientId}::uuid order by created_at desc,id desc limit 10`,
+  sql`select id from pulse_runs where account_id=${scope.accountId} and client_id=${scope.clientId}::uuid and purpose='canonical' and scan_week=${week}::date`,
+  sql`select exists(select 1 from pulse_metrics m join clients c on c.id=m.client_id where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId} and m.run_item_id is null and m.scan_week=${week}::date and m.raw_answer ~ '[^[:space:]]') as present`,
+  sql`select m.id from pulse_metrics m join clients c on c.id=m.client_id where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId} and m.run_item_id is null and m.scan_week=${week}::date and m.raw_answer ~ '[^[:space:]]' and m.classification_status<>'classified' order by m.created_at,m.id limit 50`,
+ ])
  if(!Number.isSafeInteger(Number(budget?.reserved))||Number(budget.reserved)<0)throw new Error('PULSE_BUDGET_UNAVAILABLE')
- const runs=await sql`select id,scan_week,purpose from pulse_runs where account_id=${scope.accountId} and client_id=${scope.clientId}::uuid order by created_at desc,id desc limit 10`
- const [canonical]=await sql`select id from pulse_runs where account_id=${scope.accountId} and client_id=${scope.clientId}::uuid and purpose='canonical' and scan_week=${week}::date`;const currentCanonicalId=canonical?.id??null
+ const currentCanonicalId=canonical?.id??null
  const latest=runs[0]?await readUserPulseRun(scope,String(runs[0].id)):null
- const [legacy]=await sql`select exists(select 1 from pulse_metrics m join clients c on c.id=m.client_id where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId} and m.run_item_id is null and m.scan_week=${week}::date and m.raw_answer ~ '[^[:space:]]') as present`
- const legacyRows=await sql`select m.id from pulse_metrics m join clients c on c.id=m.client_id where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId} and m.run_item_id is null and m.scan_week=${week}::date and m.raw_answer ~ '[^[:space:]]' and m.classification_status<>'classified' order by m.created_at,m.id limit 50`
  const options={currentCanonicalId,legacyObservationIds:legacyRows.map(row=>String(row.id)),prompts:prompts.length,variants:variants.length,models:variants,expected:prompts.length*variants.length,contextConfirmed:prompts.length<=MAX_PROMPTS&&prompts.every(p=>isPromptLanguage(p.language)&&isPromptMarket(p.market)),remaining:Math.max(0,cap-Number(budget.reserved)),cap,week,latest,legacyCurrentWeek:legacy?.present===true,search:{requested:isFeatureEnabled('pulse_grounding')?'subject_to_allowance':'off',execution:'unknown',nativeVariants:variants.filter(v=>v.platform.startsWith('perplexity')).length},costEstimateUsd:null,nextDueAt:null,scheduleState:'unknown' as const,enabled:isFeatureEnabled('pulse_attempts')}
  return{...options,availability:derivePulseAvailability(options)}
 }

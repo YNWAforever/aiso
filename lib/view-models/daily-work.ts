@@ -17,6 +17,7 @@ export function buildDailyWorkSummary(snapshot:MaintenanceSnapshot|null):DailyWo
     else if(coverage.classified<coverage.succeeded){query.set('runStatus','unclassified');nextActions.push({kind:'review-classification',path:`/observations?${query}#run-status`})}
    }else if(coverage)state='not_configured'
   }else if(!snapshot.eligible)state='not_configured'
+  else if(!snapshot.ledgerEnabled)state='disabled'
  }
  if(snapshot?.awaitingSource){const query=new URLSearchParams({source:snapshot.awaitingSource.id,version:snapshot.awaitingSource.versionId});nextActions.push({kind:'review-source',path:`/sources?${query}#source-review`})}
  if(snapshot?.latestDraftId)nextActions.push({kind:'open-draft',path:`/opportunities?draft=${encodeURIComponent(snapshot.latestDraftId)}`})

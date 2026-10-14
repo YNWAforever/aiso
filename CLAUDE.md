@@ -167,7 +167,9 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   happened.
 - Deployment config lives outside the code and is easy to miss: `vercel.json` sets
   `maxDuration` (60s scan, 30s fix, 60s each for `pulse/run`, `cron/pulse`,
-  `cron/evaluate-alerts`, `cron/trial-emails` and `cron/search-console`) but **no longer schedules anything itself**
+  `cron/evaluate-alerts`, `cron/trial-emails` and `cron/search-console`) and `"regions": ["sin1"]` (2026-10-14:
+  functions had defaulted to `iad1` while Neon is `ap-southeast-1`, putting a Pacific round trip on every
+  query — even `get-session` took ~1.5 s), but **no longer schedules anything itself**
   (2026-08-22) — its `crons` array was removed. Scheduling now belongs to a Cloudflare
   Worker whose source is `cloudflare/cron-worker/src/index.ts` (own `package.json`/toolchain,
   excluded from this repo's root `tsconfig.json`/`vitest.config.ts`/lint). **The deployable
