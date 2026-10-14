@@ -210,6 +210,7 @@ export function LocalTrustStep({ lang, clientId, features, profile, snapshot, ac
           competitorsLabel: t('competitors'),
           saveLabel: t('save_assumptions'),
           savingLabel: t('alerts_saving'),
+          savedLabel: t('alerts_saved'),
           errorMessage: t('generic_error'),
         }}
       />

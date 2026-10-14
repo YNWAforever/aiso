@@ -38,6 +38,8 @@ export function CompetitorsEditor({
   const [rows, setRows] = useState<Row[]>(() => initialCompetitors.map(toRow))
   const [draft, setDraft] = useState({ name: '', aliases: '', domains: '' })
   const [busy, setBusy] = useState<string | null>(null)
+  // Which busy row is being removed, so its card does not claim to be saving.
+  const [removing, setRemoving] = useState<string | null>(null)
   const [notice, setNotice] = useState<Notice>(null)
 
   const fail = (error: CompetitorErrorKey) => setNotice({ kind: 'alert', text: t(error, { max }) })
@@ -55,9 +57,9 @@ export function CompetitorsEditor({
   }
 
   async function remove(row: Row) {
-    setBusy(row.key); setNotice(null)
+    setBusy(row.key); setRemoving(row.key); setNotice(null)
     const result = await removeCompetitor(fetch, clientId, row.id, row.legacyName ?? undefined)
-    setBusy(null)
+    setBusy(null); setRemoving(null)
     if (!result.ok) return fail(result.error)
     setRows(current => current.filter(r => r.key !== row.key))
     setNotice({ kind: 'status', text: t('removed') })
@@ -120,10 +122,10 @@ export function CompetitorsEditor({
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" className="min-h-11" aria-label={t('save_label', { name: label })} onClick={() => save(row)}>
-                    {busy === row.key ? t('saving') : t('save')}
+                    {busy === row.key && removing !== row.key ? t('saving') : t('save')}
                   </Button>
                   <Button type="button" variant="outline" className="min-h-11" aria-label={t('remove_label', { name: label })} onClick={() => remove(row)}>
-                    {t('remove')}
+                    {removing === row.key ? t('removing') : t('remove')}
                   </Button>
                 </div>
               </fieldset>

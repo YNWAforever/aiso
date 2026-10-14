@@ -29,6 +29,8 @@ function uuid(value: string): string {
 export type AccountMember = {
   profileId: string
   displayName: string | null
+  /** Sign-in email from `neon_auth.user`; the label when there is no display name. */
+  email?: string | null
   /** Holds a live `account_approver` grant, i.e. `can_decide` can be true. */
   approver: boolean
   /** False once removed. The row stays; it stops being a way in. */
@@ -60,7 +62,7 @@ export async function loadAccountMembers(accountId: string): Promise<AccountMemb
   // (lib/change-sets/store.ts): state alone is not enough, because a revoke
   // writes state too — the event behind the current revision must be a grant.
   const memberRows = (await sql`
-    select p.id, p.display_name,
+    select p.id, p.display_name, u.email,
       to_char(p.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as joined_at,
       coalesce(s.active and e.action = 'grant', false) as approver,
       p.deactivated_at is null as active
@@ -70,6 +72,7 @@ export async function loadAccountMembers(accountId: string): Promise<AccountMemb
     left join account_approver_events e
       on e.account_id = s.account_id and e.profile_id = s.profile_id
      and e.new_revision = s.revision and e.id = s.last_event_id
+    left join neon_auth."user" u on u.id = p.id
     where p.account_id = ${account}::uuid
     order by p.created_at asc, p.id asc
   `) as Array<Record<string, unknown>>
@@ -97,6 +100,7 @@ export async function loadAccountMembers(accountId: string): Promise<AccountMemb
     members: memberRows.map(row => ({
       profileId: String(row.id),
       displayName: (row.display_name as string | null) ?? null,
+      email: (row.email as string | null) ?? null,
       approver: row.approver === true,
       active: row.active === true,
       joinedAt: String(row.joined_at),

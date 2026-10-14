@@ -30,6 +30,8 @@ const BRAND_STEPS: ReadonlySet<string> = new Set(['results', 'monitor', 'roi'])
 type Props = {
   profile: {
     display_name?: string | null
+    /** Label fallback: profiles are provisioned without a display name. */
+    email?: string | null
     is_admin?: boolean
   }
   entitlement: CommercialEntitlement
@@ -253,11 +255,11 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
         <div className="flex items-center gap-2 px-2">
           <div className="size-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
             <span className="text-[10px] font-bold text-primary">
-              {(profile.display_name ?? 'U')[0]?.toUpperCase()}
+              {(profile.display_name || profile.email || 'U')[0]?.toUpperCase()}
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-medium text-foreground truncate">{profile.display_name ?? 'User'}</p>
+            <p className="text-[11px] font-medium text-foreground truncate">{profile.display_name || profile.email || 'User'}</p>
             <p className="text-[10px] text-muted-foreground">{plan}</p>
           </div>
           {profile.is_admin && (

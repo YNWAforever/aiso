@@ -6,6 +6,8 @@ describe('daily work uses complete recorded counts without inventing scheduling 
  it('distinguishes Free empty state, unavailable ledger and unknown paid schedule',()=>{
   expect(buildDailyWorkSummary(snapshot({eligible:false})).state).toBe('not_configured')
   expect(buildDailyWorkSummary(snapshot()).state).toBe('unknown')
+  // The ledger is switched off, so no run can exist: that is known, not "unknown".
+  expect(buildDailyWorkSummary(snapshot({ledgerEnabled:false})).state).toBe('disabled')
   expect(buildDailyWorkSummary(null)).toMatchObject({state:'unknown',coverage:null,nextDueAt:null,partialReads:true})
  })
  it('does not count collected unknown classifications as complete',()=>{

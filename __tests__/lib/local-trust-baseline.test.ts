@@ -174,3 +174,31 @@ describe('getOrCreateLocalTrustSnapshot', () => {
     expect(roi.estimate).toEqual(draft.roi_estimate)
   })
 })
+
+describe('date columns as the Neon driver actually returns them', () => {
+  // `@neondatabase/serverless` parses `timestamptz` and `date` into Date objects.
+  // The scorer keyed months off string prefixes, so a Date fell through to its
+  // '1970-01' fallback and every snapshot was filed — and upserted — under
+  // 1970-01-01. The owner saw "January 1970" above their enquiry-value scenario.
+  const writtenMonth = () => queries.find(query => query.text.includes('insert into local_trust_snapshots'))!.values[2]
+
+  it('files a snapshot under the scan month when created_at is a Date', async () => {
+    const { draft } = await snapshotFor({ latestScan: { ...scan, created_at: new Date('2026-06-20T00:00:00.000Z') } })
+
+    expect(draft.snapshot_month).toBe('2026-06-01')
+    expect(writtenMonth()).toBe('2026-06-01')
+    expect(queries[0].values).toEqual(['client-1', 'account-1', '2026-06-01'])
+  })
+
+  it('reads Date scan_weeks — the driver builds a `date` at local midnight — and picks the newest', async () => {
+    const week = (y: number, m: number, d: number) => ({
+      platform: null, scan_week: new Date(y, m - 1, d), sov_score: '10.00', avg_sentiment_score: null, top_competitors: {},
+    })
+
+    // Two weeks also exercises the sort, which called .localeCompare on a Date.
+    const { draft } = await snapshotFor({ pulseSummary: [week(2026, 8, 31), week(2026, 7, 6)] })
+
+    expect(draft.snapshot_month).toBe('2026-08-01')
+    expect(draft.source_pulse_week).toBe('2026-08-31')
+  })
+})

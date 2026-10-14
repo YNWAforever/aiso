@@ -37,6 +37,11 @@ function links(html: string) {
 const render = () => links(renderToStaticMarkup(<DashboardSidebar profile={{}} entitlement={entitlement} />))
 
 describe('dashboard sidebar on the brand portfolio', () => {
+  it('labels a user without a display name by email rather than a generic "User"', () => {
+    const html = renderToStaticMarkup(<DashboardSidebar profile={{ display_name: null, email: 'owner@example.com' }} entitlement={entitlement} />)
+    expect(html).toContain('owner@example.com')
+    expect(html).not.toContain('>User<')
+  })
   it('routes platform admins to the unlocalized protected directory', () => {
     const html = renderToStaticMarkup(<DashboardSidebar profile={{ is_admin: true }} entitlement={entitlement} />)
     expect(html).toContain('href="/admin?lang=en"')
