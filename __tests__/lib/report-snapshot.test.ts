@@ -1,4 +1,4 @@
-import { buildScanEvidence } from '@/lib/scan-evidence'
+import { buildScanEvidence, CHECK_VERSIONS, describeEvidenceUrl } from '@/lib/scan-evidence'
 import { describe, expect, it } from 'vitest'
 import {
   buildClientReportSnapshot,
@@ -7,6 +7,7 @@ import {
 } from '@/lib/reports/snapshot'
 
 const collectedEvidence=buildScanEvidence({requestedUrl:'https://example.com',evaluatedUrl:'https://example.com',industry:null,region:null,sitemapSource:null,checks:{},observations:[{check:'page',collection:'complete',httpStatus:200,target:{origin:'https://example.com'},provenance:'validated-fetch'}]})
+const comparableEvidence = buildScanEvidence({ requestedUrl: 'https://example.com', evaluatedUrl: 'https://example.com', industry: 'technology', region: 'global', sitemapSource: 'fetched', checks: Object.fromEntries(Object.keys(CHECK_VERSIONS).map(key => [key, { collection: 'complete', assessment: 'pass' }])), observations: [{ check: 'page', collection: 'complete', httpStatus: 200, target: describeEvidenceUrl('https://example.com') }] })
 const input: ClientReportSnapshotInput = {
   locale: 'en',
   branding: {
@@ -27,6 +28,32 @@ const input: ClientReportSnapshotInput = {
 }
 
 describe('client report snapshot', () => {
+  it('describes a complete root-page baseline without inventing an identity limitation', () => {
+    const snapshot = buildClientReportSnapshot({ ...input, currentScan: { ...input.currentScan, results: { evidence: comparableEvidence } } })
+    expect(snapshot.methodology).toContain('complete')
+    expect(snapshot.methodology).toContain('No earlier scan')
+    expect(snapshot.methodology).not.toContain('origin-only identity')
+  })
+  it('discloses the actual method or scope mismatch for complete root-page evidence', () => {
+    const otherScope = buildScanEvidence({ requestedUrl: 'https://example.com', evaluatedUrl: 'https://example.com', industry: 'finance', region: 'global', sitemapSource: 'fetched', checks: Object.fromEntries(Object.keys(CHECK_VERSIONS).map(key => [key, { collection: 'complete', assessment: 'pass' }])), observations: [{ check: 'page', collection: 'complete', httpStatus: 200, target: describeEvidenceUrl('https://example.com') }] })
+    const snapshot = buildClientReportSnapshot({ ...input, currentScan: { ...input.currentScan, results: { evidence: comparableEvidence } }, previousScan: { ...input.currentScan, createdAt: '2026-07-19T12:00:00.000Z', results: { evidence: otherScope } } })
+    expect(snapshot.score.comparisonState).toBe('not_comparable')
+    expect(snapshot.methodology).toContain('different methods or scope')
+    expect(snapshot.methodology).not.toContain('origin-only identity')
+  })
+  it.each(['en', 'zh-HK'] as const)('does not compare partial origin-only scans or invent regression fixes in %s', locale => {
+    const redactedEvidence = buildScanEvidence({ requestedUrl: 'https://example.com/page', evaluatedUrl: 'https://example.com/page', industry: 'technology', region: 'global', sitemapSource: 'fetched', checks: {}, observations: [{ check: 'page', collection: 'complete', httpStatus: 200, target: describeEvidenceUrl('https://example.com/page') }] })
+    const snapshot = buildClientReportSnapshot({ ...input, locale, recommendations: [], currentScan: { ...input.currentScan, results: { evidence: redactedEvidence } }, previousScan: {
+      ...input.currentScan, score: 75, createdAt: '2026-07-19T12:00:00.000Z',
+      results: { evidence: redactedEvidence, c1_robots: { status: 'fail' }, c2_llms_txt: { status: 'pass' } },
+    } })
+    expect(snapshot.score).toEqual({ current: 72, grade: 'B', comparisonState: 'not_comparable' })
+    expect(snapshot.changes).toEqual([])
+    expect(snapshot.priorityFixes.some(fix => /regression|regressed/i.test(fix.title + fix.rationale))).toBe(false)
+    expect(snapshot.executiveSummary).toContain(locale === 'en' ? 'not comparable' : '不具可比性')
+    expect(snapshot.methodology).toContain(locale === 'en' ? 'origin-only' : '網站來源')
+    expect(snapshot.methodology).toContain(locale === 'en' ? 'partial' : '部分')
+  })
   it('uses schema version one and produces deterministic JSON-safe output', () => {
     const first = buildClientReportSnapshot(input)
     const second = buildClientReportSnapshot(input)
@@ -47,11 +74,12 @@ describe('client report snapshot', () => {
     const snapshot = buildClientReportSnapshot({
       ...input,
       locale: 'zh-HK',
+      currentScan: { ...input.currentScan, results: { evidence: comparableEvidence, c1_robots: { status: 'pass' }, c2_llms_txt: { status: 'warn' } } },
       previousScan: {
         ...input.currentScan,
         createdAt: '2026-07-19T12:00:00.000Z',
         score: 65,
-        results: { evidence:collectedEvidence, c1_robots: { status: 'fail' }, c2_llms_txt: { status: 'warn' } },
+        results: { evidence:comparableEvidence, c1_robots: { status: 'fail' }, c2_llms_txt: { status: 'warn' } },
       },
     })
 
@@ -66,8 +94,8 @@ describe('client report snapshot', () => {
   it('orders fixes ahead of regressions, failures, and warnings; deduplicates equivalent fixes; and caps at five', () => {
     const snapshot = buildClientReportSnapshot({
       ...input,
-      currentScan: { ...input.currentScan, results: { evidence:collectedEvidence, c1_robots: { status: 'fail' }, c2_llms_txt: { status: 'warn' } } },
-      previousScan: { ...input.currentScan, createdAt: '2026-07-19T12:00:00.000Z', score: 75, results: { evidence:collectedEvidence, c1_robots: { status: 'pass' }, c2_llms_txt: { status: 'pass' } } },
+      currentScan: { ...input.currentScan, results: { evidence:comparableEvidence, c1_robots: { status: 'fail' }, c2_llms_txt: { status: 'warn' } } },
+      previousScan: { ...input.currentScan, createdAt: '2026-07-19T12:00:00.000Z', score: 75, results: { evidence:comparableEvidence, c1_robots: { status: 'pass' }, c2_llms_txt: { status: 'pass' } } },
       recommendations: Array.from({ length: 7 }, (_, index) => ({
         key: `fix-${index}`, title: index < 2 ? 'Fix robots' : `Fix ${index}`,
         rationale: index < 2 ? 'Allow AI crawlers.' : `Rationale ${index}`,

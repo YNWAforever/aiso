@@ -1714,7 +1714,7 @@
   },
   "generatedWork": {
     "title": "Generated work",
-    "draftNotice": "Generated suggestions are drafts for your review. Copying a draft does not publish it to your website.",
+    "draftNotice": "These files are review drafts. Missing FAQ evidence is left blank; crawler policies are not inferred. Copying a draft does not publish it to your website.",
     "storageNotice": "Keep a local copy of the drafts you need. This response does not confirm storage.",
     "generationFailed": "The Fix Pack is unavailable or could not be generated. Try again; no draft is shown as completed.",
     "generating": "Generating drafts…",

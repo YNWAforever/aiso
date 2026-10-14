@@ -341,7 +341,9 @@ describe('authenticated client report APIs', () => {
       locale: 'zh-HK',
       createdBy: '11111111-1111-4111-8111-111111111111',
     })
-    expect(write.snapshot.score).toMatchObject({ current: 82, previous: 75, delta: 7 })
+    expect(write.snapshot.score).toEqual({ current: 82, grade: 'A', comparisonState: 'not_comparable' })
+    expect(write.snapshot.changes).toEqual([])
+    expect(write.snapshot.methodology).toContain('部分')
     expect(write.snapshot.branding).toMatchObject({ agencyName: 'Acme Agency', primaryColor: '#123ABC' })
   })
 

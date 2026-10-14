@@ -341,7 +341,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
                 keys={GEO_KEYS}
                 results={r}
               />
-              <DeepGeoSection c17={c17} c18={c18} c19={c19} c20={c20} />
+              <DeepGeoSection c17={c17} c18={c18} c19={c19} c19Check={r.c19_topical_authority} c20={c20} />
               <TrustSignalsSection value={r.trust_signals} />
             </div>
 

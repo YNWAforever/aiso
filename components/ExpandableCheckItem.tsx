@@ -4,6 +4,7 @@ import { useLocale } from 'next-intl'
 import type { CheckResult } from '@/lib/types'
 import type { CheckExplanation } from '@/lib/checkExplanations'
 import type { FactualDensityState } from '@/lib/factual-density-evidence'
+import { topicalAuthorityState } from '@/lib/topical-authority-evidence'
 
 const COPY_EN = {
   question: 'What this checks',
@@ -13,6 +14,7 @@ const COPY_EN = {
   howToFix: 'How to fix',
   unavailable: 'Unavailable — retry to obtain provider evidence',
   legacy: 'Legacy / unverifiable — run a new scan',
+  topicalUnavailable: 'Unavailable — no usable topical evidence was collected. Review the sitemap or run a new scan.',
 }
 
 // Typed `typeof COPY_EN` deliberately: adding a key above forces it here too,
@@ -25,6 +27,7 @@ const COPY_ZH_HK: typeof COPY_EN = {
   howToFix: '如何修復',
   unavailable: '未能取得資料 — 請重試以取得供應商證據',
   legacy: '歷史／未能核實 — 請重新掃描',
+  topicalUnavailable: '未能取得資料 — 未採集到可用的主題證據。請檢視 sitemap 或重新掃描。',
 }
 
 const STATUS_ICON  = { pass: '✅', warn: '⚠️', fail: '❌' } as const
@@ -51,8 +54,10 @@ export function ExpandableCheckItem({ label, result, message, explanation, factu
   const locale = useLocale()
   const c = locale === 'zh-HK' ? COPY_ZH_HK : COPY_EN
   const [open, setOpen] = useState(false)
-  const unavailable = factualState === 'unavailable' || factualState === 'legacy' || result.message === 'factual_density_unavailable'
-  const displayedMessage = unavailable ? factualState === 'legacy' ? c.legacy : c.unavailable : message
+  const topicalState = result.message.startsWith('topical_authority_') ? topicalAuthorityState(result) : null
+  const unavailable = (topicalState !== null && topicalState !== 'observed') || factualState === 'unavailable' || factualState === 'legacy' || result.message === 'factual_density_unavailable'
+  const displayedMessage = topicalState === 'legacy' || factualState === 'legacy' ? c.legacy
+    : topicalState === 'unavailable' ? c.topicalUnavailable : unavailable ? c.unavailable : message
 
   if (unavailable) return (
     <div className="border-b border-slate-100 last:border-0 py-2.5">

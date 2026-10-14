@@ -1,5 +1,6 @@
 import {projectScanStatus} from '@/lib/view-models/scan-status'
 import { hasFailedScanPage } from '@/lib/result-access'
+import { compareScanEvidence, readScanEvidence } from '@/lib/scan-evidence'
 import { compareReportEvidence, isReportEvidence, normalizeReportDomain, parseReportTimestamp, REPORTABLE_CHECKS } from './comparison'
 import { buildDeterministicReportSummary } from './summary'
 import {
@@ -102,8 +103,14 @@ export function buildClientReportSnapshot(input: ClientReportSnapshotInput): Cli
       throw new Error('Previous scan must be earlier evidence for the same account and domain')
     }
   }
+  const evidenceComparison = input.previousScan ? compareScanEvidence(
+        (input.previousScan.results as Record<string, unknown>).evidence,
+        (input.currentScan.results as Record<string, unknown>).evidence,
+      ) : null
   const comparison = input.previousScan
-    ? compareReportEvidence(input.currentScan.results, input.previousScan.results)
+    ? evidenceComparison?.comparable
+      ? compareReportEvidence(input.currentScan.results, input.previousScan.results)
+      : { comparisonState: 'not_comparable' as const, changes: [] }
     : { comparisonState: 'baseline' as const, changes: [] }
   const comparable = comparison.comparisonState === 'comparable' && input.previousScan !== null && Number.isFinite(input.previousScan.score)
   const comparisonState = comparable ? 'comparable' : comparison.comparisonState
@@ -126,6 +133,30 @@ export function buildClientReportSnapshot(input: ClientReportSnapshotInput): Cli
     locale: input.locale, comparisonState, currentScore: input.currentScan.score,
     delta: 'delta' in score ? score.delta : undefined, changes: comparison.changes,
   })
+  const coverage = readScanEvidence((input.currentScan.results as Record<string, unknown>).evidence)!
+  const collectionLabel = input.locale === 'zh-HK'
+    ? coverage.collection === 'complete' ? '完整' : '部分' : coverage.collection
+  const reasons = input.locale === 'zh-HK' ? {
+    baseline: '未選取較早掃描作比較。', comparable: '比較只限於完整採集且保留頁面身份及方法一致的檢查。',
+    'unknown-evidence': '較早或目前的採集證據未能核實，不能量度變化。',
+    'different-methods-or-scope': '所選掃描的方法或範圍不同，不能量度可比較的變化。',
+    'incomplete-collection': '部分採集不能量度可比較的變化。',
+    'final-path-identity-withheld': '證據僅保留網站來源，確切頁面身份未保留，不能量度可比較的變化。',
+  } : {
+    baseline: 'No earlier scan was selected for comparison.', comparable: 'Comparison is limited to complete collection with matching retained page identity and methods.',
+    'unknown-evidence': 'Current or earlier collection evidence is unverified; no measured change is established.',
+    'different-methods-or-scope': 'The selected scans have different methods or scope; no comparable change is established.',
+    'incomplete-collection': 'Partial collection does not establish comparable change.',
+    'final-path-identity-withheld': 'Evidence retains origin-only identity; exact page identity is withheld and no comparable change is established.',
+  }
+  const identityLimited = !coverage.final || coverage.final.pathRedacted || coverage.final.queryRedacted || coverage.final.fragmentRedacted || coverage.final.originNormalized
+  const identityNote = identityLimited
+    ? input.locale === 'zh-HK' ? 'URL 證據僅保留網站來源。' : 'URL evidence retains origin-only identity.' : ''
+  const comparisonNote = !input.previousScan ? reasons.baseline : comparable ? reasons.comparable
+    : reasons[evidenceComparison?.reason ?? 'unknown-evidence']
+  const methodology = input.locale === 'zh-HK'
+    ? `分數只根據此掃描已採集的檢查。採集狀態：${collectionLabel}；完成頁數：${coverage.completedPages}。${identityNote}${comparisonNote}技術分數並非消費者 AI 曝光量度。`
+    : `Scores use checks captured in this scan. Collection coverage: ${collectionLabel}; completed pages: ${coverage.completedPages}. ${identityNote} ${comparisonNote} Technical scores do not measure consumer AI visibility.`
   return {
     snapshotSchemaVersion: REPORT_SNAPSHOT_SCHEMA_VERSION,
     locale: input.locale,
@@ -136,7 +167,7 @@ export function buildClientReportSnapshot(input: ClientReportSnapshotInput): Cli
     changes: comparison.changes,
     priorityFixes,
     executiveSummary,
-    methodology: 'Scores and changes are based only on the reportable checks captured in the selected scans.',
+    methodology,
   }
 }
 
