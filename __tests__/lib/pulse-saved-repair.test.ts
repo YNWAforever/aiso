@@ -20,6 +20,8 @@ import {repairLegacyClassifications} from '@/lib/pulse/runs/legacy-repair'
 import {db} from '@/lib/db'
 import {claimClassifications} from '@/lib/pulse/runs/classification'
 import {readUserPulseRun} from '@/lib/pulse/runs/user-dispatch'
+import {attachManifestCoverage} from '@/lib/pulse/runs/read-coverage'
+import {projectObservedSummary} from '@/lib/pulse/observed-summary'
 import {ANALYSIS_VERSION,coerceAnalysis,naiveAnalysis} from '@/lib/pulse/analysis-fallback'
 const account='10000000-0000-4000-8000-000000000001',client='20000000-0000-4000-8000-000000000001'
 const run='30000000-0000-4000-8000-000000000001',item='40000000-0000-4000-8000-000000000001'
@@ -230,5 +232,29 @@ describe('versioned repair of saved run answers',()=>{
    .toEqual(platforms.map((platform,index)=>({platform,total_queries:8,brand_mentions:index<3?2:1})))
   expect((await state.pg!.query('select status from pulse_runs')).rows).toEqual([{status:'completed'}])
   expect(await collectionEvidence()).toEqual(before)
+ })
+})
+
+describe('saved canonical coverage when collection is paused',()=>{
+ const observations=()=>[{client_id:client,scan_week:week,platform:null,observed_queries:40,collected_queries:40,successful_queries:32,observed_brand_mentions:0,successful_platform_count:5}]
+ it.each(['0','1'])('keeps the frozen 40-answer workload readable with FEATURE_PULSE_ATTEMPTS=%s',async flag=>{
+  await seedRun(40)
+  vi.stubEnv('FEATURE_PULSE_ATTEMPTS',flag)
+  const result=projectObservedSummary(await attachManifestCoverage(db(),account,[client],observations()))
+  expect(result.coverage).toMatchObject({expected:40,recorded:40,collected:40,classified:32,collectionRate:1,classificationRate:0.8,provenance:'ledger'})
+  expect(result.state).toBe('partial')
+ })
+ it('does not attach another account canonical workload to legacy observations while paused',async()=>{
+  await seedRun(40)
+  vi.stubEnv('FEATURE_PULSE_ATTEMPTS','0')
+  const rows=await attachManifestCoverage(db(),'10000000-0000-4000-8000-000000000002',[client],observations())
+  expect(projectObservedSummary(rows).coverage).toMatchObject({expected:null,collectionRate:null,provenance:'legacy'})
+ })
+ it('does not invent a denominator for an owned client without a saved manifest',async()=>{
+  vi.stubEnv('FEATURE_PULSE_ATTEMPTS','0')
+  const legacyClient='20000000-0000-4000-8000-000000000002'
+  await state.pg!.query("insert into clients values($1,$2,'Legacy client','{}')",[legacyClient,account])
+  const rows=await attachManifestCoverage(db(),account,[legacyClient],[{...observations()[0],client_id:legacyClient}])
+  expect(projectObservedSummary(rows).coverage).toMatchObject({expected:null,collectionRate:null,provenance:'legacy'})
  })
 })

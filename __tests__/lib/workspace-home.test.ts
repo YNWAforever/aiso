@@ -11,6 +11,7 @@ vi.mock('@/lib/db', () => ({ db: () => async (strings: TemplateStringsArray, ...
   state.calls.push({ text, values })
   if (state.failed && text.includes(state.failed)) throw new Error('Database incident')
   if (text.includes('from clients') && !text.includes('join')) return state.missing || !values.includes('account-a') || !values.includes('client-a') ? [] : [{ id: 'client-a', brand_name: 'Acme', domain: 'example.com', industry: 'technology', status: 'active' }]
+  if (text.includes('select r.id as run_id')) return []
   if (text.includes('from prompt_bank')) return [{language:'en',market:'HK'}]
   if (text.includes('agent_')) return state.agents
   if (text.includes('with recent_weeks')) {
@@ -65,8 +66,12 @@ describe('owned workspace loader', () => {
   })
   it('binds every dependent read to both tenant and client and never writes', async () => {
     await load()
+    const manifests = state.calls.filter(call => call.text.includes('select r.id as run_id'))
+    expect(manifests).toHaveLength(1)
+    expect(manifests[0].values).toEqual(['account-a', ['client-a']])
     for (const call of state.calls) {
-      expect(call.values).toContain('client-a'); expect(call.values).toContain('account-a')
+      if (call !== manifests[0]) expect(call.values).toContain('client-a')
+      expect(call.values).toContain('account-a')
       expect(call.text).toContain('account_id')
       expect(call.text).not.toMatch(/\b(insert|update|delete)\b/i)
     }
