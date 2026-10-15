@@ -48,6 +48,40 @@ describe('checkCitationDensity', () => {
     })
   })
 
+  it('formats a fractional citation score without rounding the stored metric', async () => {
+    vi.mocked(computeAuthority).mockResolvedValueOnce({
+      layer1_tld: { baseScore: 0, category: 'other' },
+      layer2_signals: { signalScore: 0, signals: {} },
+      layer3_industry: { score: 0, tier: 'other', multiplier: 1 },
+      layer4_regional: { score: 0, tier: 'other' },
+      layer5_dynamic: null,
+      totalScore: 0, layer1Score: 0, layer2Score: 0, layer3Score: 0, layer4Score: 0,
+      tier: 'other', finalScore: 0,
+    })
+    // One external link and 700 visible words: the density term is 5000/700.
+    const html = '<p>' + Array(699).fill('word').join(' ') + '</p>' +
+      '<a href="https://external.example/page">Source</a>'
+    const result = await checkCitationDensity(html, 'https://example.com', { industry: 'technology', region: 'HK' })
+
+    expect(result.details).toBe('Quality score 7.14/100')
+    expect(result.geoDetails!.qualityScore).toBeCloseTo(7.142857142857143, 12)
+    expect(result.status).toBe('fail')
+    expect(result.geoDetails!.externalLinks).toBe(1)
+  })
+
+  it('keeps a below-30 citation score at warn when the displayed number rounds to 30', async () => {
+    // One tier-1 domain contributes 15; one attributed statistic contributes 5.
+    // Four links in 2001 visible words contribute 20000/2001, just below 10.
+    const html = '<p>According to 10% ' + Array(1994).fill('word').join(' ') + '</p>' +
+      [1, 2, 3, 4].map(i => '<a href="https://external.example/' + i + '">link</a>').join(' ')
+    const result = await checkCitationDensity(html, 'https://example.com', { industry: 'technology', region: 'HK' })
+
+    expect(result.details).toBe('Quality score 30/100')
+    expect(result.geoDetails!.qualityScore).toBeCloseTo(29.995002498750624, 10)
+    expect(result.status).toBe('warn')
+    expect(result.geoDetails!.externalLinks).toBe(4)
+  })
+
   it('returns pass for well-cited content', async () => {
     const result = await checkCitationDensity(HTML_RICH, 'https://example.com', { industry: 'finance', region: 'global' })
     expect(result.status).toBe('pass')

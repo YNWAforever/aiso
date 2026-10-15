@@ -4,8 +4,8 @@ export function formatScanScore(value: number): string {
   return String(Number(value.toFixed(2)))
 }
 
-/** Formats old and new human-readable C18 details without changing stored evidence. */
-export function formatFactualDensityDetails(details: string): string {
+/** Formats old and new human-readable C17/C18 details without changing stored evidence. */
+export function formatDensityDetails(details: string): string {
   const match = /^Quality score (\d+(?:\.\d+)?)\/100$/.exec(details)
   if (!match) return details
   const value = Number(match[1])
