@@ -944,6 +944,7 @@
     "print_report": "列印報告",
     "mark_done": "完成",
     "mark_skipped": "略過",
+    "reopen_action": "重新開啟",
     "workflow": "工作流程",
     "tools": "工具",
     "brand_label": "品牌",

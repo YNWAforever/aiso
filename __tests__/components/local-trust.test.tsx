@@ -841,6 +841,84 @@ describe('Local Trust interactive controls', () => {
     expect(html).toContain('Skip')
   })
 
+  it.each(['done', 'skipped'] as const)('offers an enabled Reopen control for a %s item', async status => {
+    const { TrustGapChecklist } = await import('@/components/dashboard/local-trust/TrustGapChecklist')
+    const html = renderToStaticMarkup(
+      <TrustGapChecklist clientId="client-1" actions={[{ ...actions[0], status }]} />,
+    )
+    const buttons = [...html.matchAll(/<button([^>]*)>([^<]*)<\/button>/g)]
+      .map(([, attributes, label]) => ({ label, disabled: /\bdisabled=/.test(attributes) }))
+
+    expect(buttons.filter(button => !button.disabled).map(button => button.label)).toEqual(['Reopen'])
+    expect(buttons.filter(button => button.disabled).map(button => button.label)).toEqual(['Done', 'Skip'])
+  })
+
+  it.each(['open', 'planned'] as const)('keeps Done and Skip available for a %s item', async status => {
+    const { TrustGapChecklist } = await import('@/components/dashboard/local-trust/TrustGapChecklist')
+    const html = renderToStaticMarkup(
+      <TrustGapChecklist clientId="client-1" actions={[{ ...actions[0], status }]} />,
+    )
+    const buttons = [...html.matchAll(/<button([^>]*)>([^<]*)<\/button>/g)]
+      .map(([, attributes, label]) => ({ label, disabled: /\bdisabled=/.test(attributes) }))
+
+    expect(buttons.filter(button => !button.disabled).map(button => button.label)).toEqual(['Done', 'Skip'])
+    expect(buttons.some(button => button.label === 'Reopen')).toBe(false)
+  })
+
+  it.each([
+    ['en', 'Reopen'],
+    ['zh-HK', '重新開啟'],
+  ] as const)('localizes the integrated Reopen control in %s', async (locale, label) => {
+    const { LocalTrustStep } = await import('@/components/dashboard/local-trust/LocalTrustStep')
+    const html = renderToStaticMarkup(
+      <NextIntlClientProvider locale={locale} messages={messages(locale)} timeZone="Asia/Hong_Kong">
+        <LocalTrustStep
+          lang={locale}
+          clientId="client-1"
+          features={getPlanFeatures('pro')}
+          profile={null}
+          snapshot={snapshot}
+          actions={[{ ...actions[0], status: 'done' }]}
+          competitors={[]}
+          roiUnavailable={null}
+        />
+      </NextIntlClientProvider>,
+    )
+
+    expect(html).toMatch(new RegExp('<button[^>]*>' + label + '</button>'))
+    if (locale === 'zh-HK') expect(html).not.toContain('>Reopen</button>')
+  })
+
+  it.each(['done', 'skipped'] as const)('persists reopening a %s item and reconciles it to Open', async status => {
+    const { patchTrustGapActionStatus } = await import('@/components/dashboard/local-trust/TrustGapChecklist')
+    let savedStatus: string = status
+    let refreshed = false
+    const pending = new Set<string>()
+    const result = await patchTrustGapActionStatus({
+      clientId: 'client/1 #',
+      actionId: 'action/1 #',
+      status: 'open',
+      errorMessage: 'Unable to update action.',
+      fetcher: async (url, init) => {
+        expect(url).toBe('/api/dashboard/clients/client%2F1%20%23/local-trust/actions/action%2F1%20%23')
+        expect(init.method).toBe('PATCH')
+        expect(JSON.parse(String(init.body))).toEqual({ status: 'open' })
+        expect(pending.has('action/1 #')).toBe(true)
+        return responseJson({ action: { ...actions[0], id: 'action/1 #', status: 'open' } })
+      },
+      isPending: id => pending.has(id),
+      setPending: (id, busy) => { if (busy) pending.add(id); else pending.delete(id) },
+      setError: () => undefined,
+      setStatus: (_id, value) => { savedStatus = value },
+      onRefresh: () => { refreshed = true },
+    })
+
+    expect(result).toEqual({ ok: true, status: 'open' })
+    expect(savedStatus).toBe('open')
+    expect(pending.size).toBe(0)
+    expect(refreshed).toBe(true)
+  })
+
   it('patches an encoded action route with the requested status', async () => {
     const { patchTrustGapActionStatus } = await import('@/components/dashboard/local-trust/TrustGapChecklist')
     const fetcher = vi.fn().mockResolvedValue(responseJson({ action: { ...actions[0], id: 'action/1 #', status: 'done' } }))
@@ -871,7 +949,7 @@ describe('Local Trust interactive controls', () => {
     expect(refresh).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps pending state per action and ignores duplicate clicks for the same action', async () => {
+  it.each(['done', 'open'] as const)('keeps pending state per action and ignores duplicate %s clicks', async requestedStatus => {
     const { patchTrustGapActionStatus } = await import('@/components/dashboard/local-trust/TrustGapChecklist')
     const pending = new Set<string>()
     const statuses = new Map<string, string>()
@@ -882,7 +960,7 @@ describe('Local Trust interactive controls', () => {
 
     const baseOptions = {
       clientId: 'client-1',
-      status: 'done' as const,
+      status: requestedStatus,
       errorMessage: 'Unable to update action.',
       fetcher,
       isPending: (actionId: string) => pending.has(actionId),
@@ -904,17 +982,17 @@ describe('Local Trust interactive controls', () => {
     expect(fetcher).toHaveBeenCalledTimes(2)
     expect(await duplicate).toEqual({ ok: false, skipped: true })
 
-    resolvers[0](responseJson({ action: { ...actions[0], status: 'done' } }))
-    resolvers[1](responseJson({ action: { ...actions[0], id: 'action-2', status: 'done' } }))
+    resolvers[0](responseJson({ action: { ...actions[0], status: requestedStatus } }))
+    resolvers[1](responseJson({ action: { ...actions[0], id: 'action-2', status: requestedStatus } }))
 
     await Promise.all([first, secondAction])
 
     expect(pending.size).toBe(0)
-    expect(statuses.get('action-1')).toBe('done')
-    expect(statuses.get('action-2')).toBe('done')
+    expect(statuses.get('action-1')).toBe(requestedStatus)
+    expect(statuses.get('action-2')).toBe(requestedStatus)
   })
 
-  it('records action update errors against the failing action only', async () => {
+  it.each(['skipped', 'open'] as const)('records %s update errors against the failing action only', async requestedStatus => {
     const { patchTrustGapActionStatus } = await import('@/components/dashboard/local-trust/TrustGapChecklist')
     const pending = new Set<string>()
     const errors = new Map<string, string | null>()
@@ -923,7 +1001,7 @@ describe('Local Trust interactive controls', () => {
     const result = await patchTrustGapActionStatus({
       clientId: 'client-1',
       actionId: 'action-1',
-      status: 'skipped',
+      status: requestedStatus,
       errorMessage: 'Unable to update action.',
       fetcher,
       isPending: actionId => pending.has(actionId),

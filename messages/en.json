@@ -944,6 +944,7 @@
     "print_report": "Print report",
     "mark_done": "Done",
     "mark_skipped": "Skip",
+    "reopen_action": "Reopen",
     "workflow": "Workflow",
     "tools": "Tools",
     "brand_label": "Brand",
