@@ -970,7 +970,7 @@
     "progress_title": "進度",
     "progress_empty": "進度追蹤將於你下次掃描後顯示。",
     "competitors_title": "競爭對手",
-    "competitors_empty": "競爭對手分析將於代理分析完成後顯示。",
+    "competitors_empty": "此掃描暫無具證據來源的競爭對手測量資料。",
     "you_label": "你 {rate}%",
     "them_label": "對方 {rate}%",
     "gap_label": "差距 +{gap}%",

@@ -970,7 +970,7 @@
     "progress_title": "Progress",
     "progress_empty": "Progress tracking will appear after your next scan.",
     "competitors_title": "Competitors",
-    "competitors_empty": "Competitor analysis will appear after agent analysis completes.",
+    "competitors_empty": "No sourced competitor measurements are available for this scan.",
     "you_label": "You {rate}%",
     "them_label": "Them {rate}%",
     "gap_label": "+{gap}% gap",
