@@ -140,6 +140,7 @@ function CheckSection({ title, subtitle, keys, results }: {
   const locale = useLocale()
   const labels = locale === 'zh-HK' ? CHECK_LABELS_ZH_HK : CHECK_LABELS_EN
   const explanations = getCheckExplanations(locale)
+  const messages = (locale === 'zh-HK' ? zhMessages : enMessages).checks as Record<string, string>
   return (
     <div className="bg-card rounded-2xl border border-border p-6">
       <p className="text-xs font-bold text-muted-foreground tracking-widest mb-1">{title}</p>
@@ -153,7 +154,7 @@ function CheckSection({ title, subtitle, keys, results }: {
             <ExpandableCheckItem
               label={labels[key] ?? key}
               result={r}
-              message={r.message}
+              message={Object.hasOwn(messages, r.message) ? messages[r.message] : r.message}
               explanation={explanations[key]}
               factualState={key === 'c18_factual_density' ? factualDensityState(results.c18_factual_density_data ?? results.c18, r.diagnostic) : undefined}
             />
