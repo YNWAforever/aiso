@@ -51,7 +51,7 @@ export async function readUserPulseRun(scope:PulseScope,runId:string):Promise<Us
    and (i.classification_lease_until is null or i.classification_lease_until<now())
    and a.classifier_version is distinct from ${ANALYSIS_VERSION} and a.raw_answer=m.raw_answer and a.raw_answer ~ '[^[:space:]]'
    and not exists(select 1 from pulse_legacy_classification_attempts j where j.account_id=${scope.accountId} and j.client_id=${scope.clientId}::uuid and j.observation_id=m.id and j.context->>'version'=${ANALYSIS_VERSION})
-  order by m.id limit 5`
+  order by m.id limit 1`
  if(Number(row.expected)!==Number(row.manifest_expected))throw new Error('PULSE_STATUS_UNAVAILABLE')
  const coverage=coverageFromCounts({expected:Number(row.expected),succeeded:Number(row.succeeded),failed:Number(row.failed),pending:Number(row.pending),blocked:Number(row.blocked),classified:Number(row.classified),mentioned:Number(row.mentioned)})
  if(coverage.status==='queued'&&Number(row.running)>0)coverage.status='running'

@@ -86,6 +86,17 @@ async function collectionEvidence(){
  }
 }
 describe('versioned repair of saved run answers',()=>{
+ it('the real classifier repairs literal absence without provider network calls or changing collection receipts',async()=>{
+  const before=await collectionEvidence(),network=vi.fn(async()=>{throw new Error('Provider must not run')})
+  vi.stubEnv('OPENROUTER_API_KEY','offline-fixture-must-not-be-used');vi.stubGlobal('fetch',network)
+  expect(await repairLegacyClassifications(scope,input())).toEqual({classified:1,unchanged:0,failed:0})
+  expect(network).not.toHaveBeenCalled()
+  expect((await state.pg!.query('select brand_mentioned,classification_status,classifier_method from pulse_metrics')).rows)
+   .toEqual([{brand_mentioned:false,classification_status:'classified',classifier_method:'literal-absence'}])
+  const journal=(await state.pg!.query<{analysis:Record<string,unknown>;usage:unknown}>('select analysis,usage from pulse_legacy_classification_attempts')).rows[0]!
+  expect(journal.analysis).toMatchObject({version:ANALYSIS_VERSION,method:'literal-absence',brandMentioned:false,providerUsage:null})
+  expect(journal.usage).toBeNull();expect(await collectionEvidence()).toEqual(before)
+ })
  it('executes application SQL with the real column grants and ledger constraints',async()=>{
   expect(await db()`select current_user as role`).toEqual([{role:'aeo_app'}])
   await expect(db()`update pulse_runs set manifest='{}'::jsonb where id=${run}::uuid`).rejects.toThrow(/permission denied/)
@@ -200,13 +211,14 @@ describe('versioned repair of saved run answers',()=>{
    coerceAnalysis({brand_mentioned:true,sentiment:'unknown',competitors_mentioned:[]},answer,brandName)!)
   const initial=await readUserPulseRun(scope,run)
   expect(initial).toMatchObject({week,coverage:{expected:40,succeeded:40,classified:32,status:'partial'},retryable:false})
-  expect(initial?.classificationRepairIds).toEqual(Array.from({length:5},(_,n)=>idFor('6',n+1)))
-  expect(await repairLegacyClassifications(scope,{...input(),observationIds:initial!.classificationRepairIds!},classifier)).toEqual({classified:5,unchanged:0,failed:0})
-  const remaining=await readUserPulseRun(scope,run)
-  expect(remaining).toMatchObject({week,coverage:{expected:40,succeeded:40,classified:37,status:'partial'}})
-  expect(remaining?.classificationRepairIds).toEqual(Array.from({length:3},(_,n)=>idFor('6',n+6)))
-  expect(await repairLegacyClassifications(scope,{...input(),intentKey:'saved-repair-final-batch',observationIds:remaining!.classificationRepairIds!},classifier))
-   .toEqual({classified:3,unchanged:0,failed:0})
+  expect(initial?.classificationRepairIds).toEqual([idFor('6',1)])
+  for(let n=1;n<=8;n++){
+    const current=await readUserPulseRun(scope,run)
+    expect(current).toMatchObject({week,coverage:{expected:40,succeeded:40,classified:31+n,status:'partial'}})
+    expect(current?.classificationRepairIds).toEqual([idFor('6',n)])
+    expect(await repairLegacyClassifications(scope,{...input(),intentKey:`saved-repair-single-${n}`,observationIds:current!.classificationRepairIds!},classifier))
+      .toEqual({classified:1,unchanged:0,failed:0})
+  }
   expect(await readUserPulseRun(scope,run)).toMatchObject({week,classificationRepairIds:[],coverage:{expected:40,succeeded:40,classified:40,mentioned:8,mentionRate:0.2,status:'completed'}})
   expect(classifier).toHaveBeenCalledTimes(8)
   expect(classifier.mock.calls.every(([value])=>value.brandName==='Frozen Brand')).toBe(true)

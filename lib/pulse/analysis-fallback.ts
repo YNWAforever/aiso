@@ -9,8 +9,8 @@ export type AnswerAnalysisV2 = {
   /** Normalized literal excerpts, never consumer ranking. */
   matchedText:string[];mentionPosition:number|null;competitorsMentioned:string[]
 }
-// v4: brand identity and sentiment uncertainty are independent; null stays an abstention.
-export const ANALYSIS_VERSION='2026-10-15.v4'
+// v5: an absent configured spelling is a deterministic negative; literal presence still needs semantic assessment.
+export const ANALYSIS_VERSION='2026-10-15.v5'
 const normalize=(value:string)=>value.normalize('NFKC').normalize('NFC')
 const latinWord=(value:string|undefined)=>!!value&&/[\p{Script=Latin}\p{N}\p{M}_]/u.test(value)
 const latin=(value:string|undefined)=>!!value&&/\p{Script=Latin}/u.test(value)
@@ -77,6 +77,13 @@ export function naiveAnalysis(answer:string,brandName:string,competitors:readonl
   return {classificationStatus:'fallback',method:'literal-evidence-abstention',version:ANALYSIS_VERSION,
     brandMentioned:null,sentiment:'unknown',matchedText:match?[match.text]:[],mentionPosition:match?.position??null,
     competitorsMentioned:[...new Set(literalCompetitors(answer,competitors))].slice(0,10)}
+}
+/** The positive literal guard makes absence decisive under the same configured-name contract. */
+export function literalAbsenceAnalysis(answer:string,brandName:string,competitors:readonly CompetitorMatch[]=[]):AnswerAnalysisV2|null{
+  if(!answer.trim()||!fold(normalize(brandName)).folded.split(new RegExp(`${SEPARATORS}+`,'u')).some(Boolean))return null
+  const evidence=naiveAnalysis(answer,brandName,competitors)
+  if(evidence.matchedText.length)return null
+  return {...evidence,classificationStatus:'classified',method:'literal-absence',brandMentioned:false,providerUsage:null}
 }
 /** Validate classifier output against saved text; only configured aliases are used, never inferred ones. */
 export function coerceAnalysis(value:unknown,answer:string,brandName:string,competitors:readonly CompetitorMatch[]=[]):AnswerAnalysisV2|null{

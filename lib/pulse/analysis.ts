@@ -1,5 +1,5 @@
 import { callOpenRouter, type JsonSchemaFormat } from '@/lib/openrouter'
-import {naiveAnalysis,coerceAnalysis,type AnswerAnalysisV2,type CompetitorMatch} from './analysis-fallback'
+import {naiveAnalysis,literalAbsenceAnalysis,coerceAnalysis,type AnswerAnalysisV2,type CompetitorMatch} from './analysis-fallback'
 export {naiveAnalysis} from './analysis-fallback'
 export type {AnswerAnalysisV2,CompetitorMatch} from './analysis-fallback'
 
@@ -49,6 +49,8 @@ export async function analyseAnswer(input: {
   const fallback = (diagnosticReason:NonNullable<AnswerAnalysisV2['diagnosticReason']>):AnswerAnalysisV2 =>
     ({...naiveAnalysis(input.answer, input.brandName, competitors),providerUsage,diagnosticReason})
   if (!input.answer.trim()) return fallback('empty_answer')
+  const absent=literalAbsenceAnalysis(input.answer,input.brandName,competitors)
+  if(absent)return absent
 
   let raw:string
   try {

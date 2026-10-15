@@ -17,7 +17,7 @@ afterEach(()=>vi.restoreAllMocks())
 
 describe('Pulse classifier provider contract',()=>{
   it.each([
-    {decision:{brand_mentioned:false,sentiment:'not_mentioned',competitors_mentioned:[]},answer:'Other companies are listed.',
+    {decision:{brand_mentioned:false,sentiment:'not_mentioned',competitors_mentioned:[]},answer:'Fimmick is a fictional character in this story.',
       expected:{classificationStatus:'classified',brandMentioned:false,sentiment:'unknown',matchedText:[]}},
     {decision:{brand_mentioned:true,sentiment:'unknown',competitors_mentioned:[]},answer:'Fimmick is listed.',
       expected:{classificationStatus:'classified',brandMentioned:true,sentiment:'unknown',matchedText:['Fimmick']}},
@@ -44,10 +44,31 @@ describe('Pulse classifier provider contract',()=>{
     expect(JSON.stringify(result)).not.toContain(reply)
     expect(log).not.toHaveBeenCalled()
   })
-  it('rejects an affirmative provider guess without saved literal evidence',async()=>{
+  it.each([
+    ['Other companies are listed.','AISO Dev Brand'],
+    ['Fresh pineapple juice.','Apple'],
+    ['A private alias is listed.','Fimmick'],
+  ])('classifies absent configured spelling without asking the provider: %s',async(answer,brandName)=>{
     provider.reply='{"brand_mentioned":true,"sentiment":"unknown","competitors_mentioned":[]}'
-    expect(await analyseAnswer({answer:'Fresh pineapple juice.',brandName:'Apple'}))
-      .toMatchObject({classificationStatus:'fallback',brandMentioned:null,sentiment:'unknown',matchedText:[],diagnosticReason:'invalid_classifier_output'})
+    expect(await analyseAnswer({answer,brandName}))
+      .toMatchObject({classificationStatus:'classified',method:'literal-absence',brandMentioned:false,sentiment:'unknown',matchedText:[],mentionPosition:null,providerUsage:null})
+    expect(callOpenRouter).not.toHaveBeenCalled()
+  })
+  it('keeps configured literal competitor evidence when the target spelling is absent',async()=>{
+    expect(await analyseAnswer({answer:'HSBC is listed here. Invisible is not configured.',brandName:'AISO Dev Brand',competitors:[{name:'HSBC Holdings',aliases:['HSBC']}]}))
+      .toMatchObject({classificationStatus:'classified',method:'literal-absence',brandMentioned:false,competitorsMentioned:['HSBC Holdings'],providerUsage:null})
+    expect(callOpenRouter).not.toHaveBeenCalled()
+  })
+  it('retains semantic abstention when an actual configured spelling may be a homonym',async()=>{
+    provider.reply='{"brand_mentioned":null,"sentiment":"unknown","competitors_mentioned":[]}'
+    expect(await analyseAnswer({answer:'An Apple is a fruit in this story.',brandName:'Apple'}))
+      .toMatchObject({classificationStatus:'fallback',brandMentioned:null,diagnosticReason:'brand_identity_uncertain',matchedText:['Apple']})
+    expect(callOpenRouter).toHaveBeenCalledTimes(1)
+  })
+  it.each(['','---'])('does not turn an invalid empty configured spelling into a certain negative: %j',async brandName=>{
+    provider.reply='{"brand_mentioned":null,"sentiment":"unknown","competitors_mentioned":[]}'
+    expect(await analyseAnswer({answer:'Other companies are listed.',brandName}))
+      .toMatchObject({classificationStatus:'fallback',brandMentioned:null})
   })
   it('distinguishes a provider exception from invalid classifier output',async()=>{
     provider.fails=true
