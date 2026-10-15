@@ -5,6 +5,7 @@ import type { CheckResult } from '@/lib/types'
 import type { CheckExplanation } from '@/lib/checkExplanations'
 import type { FactualDensityState } from '@/lib/factual-density-evidence'
 import { topicalAuthorityState } from '@/lib/topical-authority-evidence'
+import { formatFactualDensityDetails } from '@/lib/score-display'
 
 const COPY_EN = {
   question: 'What this checks',
@@ -52,6 +53,8 @@ interface Props {
 
 export function ExpandableCheckItem({ label, result, message, explanation, factualState }: Props) {
   const locale = useLocale()
+  const details = result.details && result.message.startsWith('factual_density_')
+    ? formatFactualDensityDetails(result.details) : result.details
   const c = locale === 'zh-HK' ? COPY_ZH_HK : COPY_EN
   const [open, setOpen] = useState(false)
   const topicalState = result.message.startsWith('topical_authority_') ? topicalAuthorityState(result) : null
@@ -106,10 +109,10 @@ export function ExpandableCheckItem({ label, result, message, explanation, factu
           </div>
 
           {/* What we found */}
-          {result.details && (
+          {details && (
             <div>
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{c.whatWeFound}</p>
-              <p className="text-slate-700 font-mono text-xs bg-white/60 rounded px-2 py-1">{result.details}</p>
+              <p className="text-slate-700 font-mono text-xs bg-white/60 rounded px-2 py-1">{details}</p>
             </div>
           )}
 

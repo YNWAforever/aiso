@@ -30,6 +30,22 @@ Many customers love what we do. We have been around for a long time.</p>
 </body></html>`
 
 describe('checkFactualDensity', () => {
+  it.each([
+    { words: 27, uniqueness: 15, displayed: '20.02', raw: 20.018518518518515, status: 'warn' },
+    { words: 41, uniqueness: 78, displayed: '20', raw: 19.995121951219513, status: 'fail' },
+    { words: 50, uniqueness: 0, displayed: '10', raw: 10, status: 'fail' },
+  ] as const)('formats a $words-word result without changing its raw score or assessment', async fixture => {
+    vi.mocked(callOpenRouter).mockResolvedValueOnce(JSON.stringify({ score: fixture.uniqueness, claims: [] }))
+    // One named entity (Acme Corp), no numbers or dates. These literal expected
+    // scores were calculated from the method independently of the display formatter.
+    const html = '<p>Acme Corp ' + Array(fixture.words - 2).fill('word').join(' ') + '</p>'
+    const result = await checkFactualDensity(html, { industry: 'technology', region: 'global' })
+
+    expect(result.details).toBe('Quality score ' + fixture.displayed + '/100')
+    expect(result.geoDetails!.qualityScore).toBeCloseTo(fixture.raw, 10)
+    expect(result.status).toBe(fixture.status)
+  })
+
   it('provider outage preserves deterministic counts but never invents uniqueness or quality', async () => {
     vi.mocked(callOpenRouter).mockRejectedValue(new Error('synthetic provider outage'))
     const r = await checkFactualDensity(HTML_FACTUAL, { industry: 'finance', region: 'US' })
