@@ -1,14 +1,16 @@
 /** Pure, offline classification safety rules. Literal evidence is not sentiment. */
 export type AnswerAnalysisV2 = {
   providerUsage?:{requestId:string|null;model:string|null;promptTokens:number|null;completionTokens:number|null;costUsd:number|null}|null
+  /** Safe categories only; never provider bodies, answer text or exception messages. */
+  diagnosticReason?:'brand_identity_uncertain'|'invalid_classifier_output'|'empty_answer'|'provider_error'
   classificationStatus:'classified'|'fallback'|'failed'|'legacy_unknown'
   method:string;version:string;brandMentioned:boolean|null
   sentiment:'positive'|'neutral'|'negative'|'unknown'
   /** Normalized literal excerpts, never consumer ranking. */
   matchedText:string[];mentionPosition:number|null;competitorsMentioned:string[]
 }
-// v3 (2026-10-10): separator, Latin-accent and dotted-acronym variants match.
-export const ANALYSIS_VERSION='2026-10-10.v3'
+// v4: brand identity and sentiment uncertainty are independent; null stays an abstention.
+export const ANALYSIS_VERSION='2026-10-15.v4'
 const normalize=(value:string)=>value.normalize('NFKC').normalize('NFC')
 const latinWord=(value:string|undefined)=>!!value&&/[\p{Script=Latin}\p{N}\p{M}_]/u.test(value)
 const latin=(value:string|undefined)=>!!value&&/\p{Script=Latin}/u.test(value)
@@ -80,19 +82,24 @@ export function naiveAnalysis(answer:string,brandName:string,competitors:readonl
 export function coerceAnalysis(value:unknown,answer:string,brandName:string,competitors:readonly CompetitorMatch[]=[]):AnswerAnalysisV2|null{
   if(!value||typeof value!=='object')return null
   const row=value as Record<string,unknown>
-  if(typeof row.brand_mentioned!=='boolean'||!Array.isArray(row.competitors_mentioned))return null
+  if((typeof row.brand_mentioned!=='boolean'&&row.brand_mentioned!==null)
+    ||!Array.isArray(row.competitors_mentioned)||row.competitors_mentioned.some(c=>typeof c!=='string'))return null
   const allowed=['positive','neutral','negative','not_mentioned','unknown']
   if(typeof row.sentiment!=='string'||!allowed.includes(row.sentiment))return null
   const match=literalBrandEvidence(answer,brandName)
-  if(row.brand_mentioned&&(!match||!['positive','neutral','negative'].includes(row.sentiment)))return null
+  if(row.brand_mentioned===null&&row.sentiment!=='unknown')return null
+  if(row.brand_mentioned&&(!match||!['positive','neutral','negative','unknown'].includes(row.sentiment)))return null
   // A classifier-named spelling of a configured competitor is reported under
   // that competitor's canonical name, so one brand is never counted twice.
   const canonical=new Map(refsOf(competitors).flatMap(ref=>ref.forms.map(form=>[form.trim().toLowerCase(),ref.name] as const)))
   const named=row.competitors_mentioned.filter((c):c is string=>typeof c==='string'&&!!c.trim())
     .map(c=>c.trim().slice(0,120)).filter(c=>literalBrandEvidence(answer,c))
     .map(c=>canonical.get(c.toLowerCase())??c)
+  const competitorsMentioned=[...new Set([...named,...literalCompetitors(answer,competitors)])].slice(0,10)
+  if(row.brand_mentioned===null)return {...naiveAnalysis(answer,brandName,competitors),
+    competitorsMentioned,diagnosticReason:'brand_identity_uncertain'}
   return {classificationStatus:'classified',method:'openrouter-json-literal-guard',version:ANALYSIS_VERSION,
     brandMentioned:row.brand_mentioned,sentiment:row.brand_mentioned?row.sentiment as AnswerAnalysisV2['sentiment']:'unknown',
     matchedText:row.brand_mentioned&&match?[match.text]:[],mentionPosition:row.brand_mentioned?match?.position??null:null,
-    competitorsMentioned:[...new Set([...named,...literalCompetitors(answer,competitors)])].slice(0,10)}
+    competitorsMentioned}
 }

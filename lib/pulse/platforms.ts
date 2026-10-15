@@ -1,5 +1,3 @@
-import { PLATFORM_KEYS } from '@/lib/openrouter'
-
 /**
  * Three platform vocabularies exist in this codebase, and they do not agree.
  *
@@ -64,10 +62,9 @@ export const CITATION_PLATFORMS: readonly string[] = [
  * which is what an untranslated empty filter would have done.
  */
 export function runtimePlatformsFor(platformAccess: readonly string[]): string[] {
-  const known = new Set(PLATFORM_KEYS)
   return platformAccess
     .map(key => ENTITLEMENT_TO_RUNTIME[key])
-    .filter((key): key is string => Boolean(key) && known.has(key))
+    .filter((key): key is string => typeof key==='string')
 }
 
 /** Runtime key → citation key, or `null` when the platform cannot be logged. */

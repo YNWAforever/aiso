@@ -4,9 +4,11 @@ import {db} from '@/lib/db'
 import {analyseAnswer} from '@/lib/pulse/analysis'
 import {ANALYSIS_VERSION,naiveAnalysis,type AnswerAnalysisV2} from '@/lib/pulse/analysis-fallback'
 import type {PulseScope} from './schema'
+import {repairSavedRunClassifications} from './saved-repair'
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i
 /** Classification-only repair. The journal records current repair context, never invented historical collection metadata. */
-export async function repairLegacyClassifications(scope:PulseScope,input:{observationIds:string[];intentKey:string;deadlineAt:number},classifier:typeof analyseAnswer=analyseAnswer):Promise<{classified:number;unchanged:number;failed:number}>{
+export async function repairLegacyClassifications(scope:PulseScope,input:{observationIds:string[];intentKey:string;deadlineAt:number;runId?:string},classifier:typeof analyseAnswer=analyseAnswer):Promise<{classified:number;unchanged:number;failed:number}>{
+ if(input.runId!==undefined)return repairSavedRunClassifications(scope,{...input,runId:input.runId},classifier)
  if(!input.observationIds.length||input.observationIds.length>50||new Set(input.observationIds).size!==input.observationIds.length||input.observationIds.some(id=>!uuid.test(id))||!/^[a-zA-Z0-9:_-]{8,128}$/.test(input.intentKey)||input.deadlineAt<=Date.now()||input.deadlineAt>Date.now()+120000)throw new Error('INVALID_LEGACY_REPAIR')
  const sql=db()
  const rows=await sql`select m.id,m.raw_answer,m.classification_status,c.brand_name,c.competitors from pulse_metrics m join clients c on c.id=m.client_id where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId} and m.id=any(${input.observationIds}::uuid[]) and m.run_item_id is null`

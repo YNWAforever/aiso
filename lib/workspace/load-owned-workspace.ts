@@ -9,6 +9,7 @@ import { projectObservedSummary, type ObservedPulseSummary } from '@/lib/pulse/o
 import { attachManifestCoverage } from '@/lib/pulse/runs/read-coverage'
 import type { AgentCompetitor, AgentProgress, AgentRecommendation, Client, ClientOverview, Scan } from '@/lib/types'
 import { loadMaintenanceSnapshot,type MaintenanceSnapshot } from './maintenance'
+import {normalizeAgentNumbers} from './agent-numbers'
 
 export type WorkspaceRead<T> = { status: 'ok' | 'error' | 'locked'; data: T }
 export type WorkspaceClient = Pick<Client, 'id' | 'brand_name' | 'domain' | 'industry' | 'status'>
@@ -34,7 +35,7 @@ async function read<T>(name: string, work: () => Promise<T>, empty: T): Promise<
 }
 function unavailable<T>(data: T, status: 'locked' | 'error' | 'ok' = 'ok'): WorkspaceRead<T> { return { status, data } }
 function number(value: unknown): number | null {
-  if ((typeof value !== 'number' && typeof value !== 'string') || value === '') return null
+  if ((typeof value !== 'number' && typeof value !== 'string') || typeof value==='string'&&value.trim()==='') return null
   const n = Number(value)
   return Number.isFinite(n) ? n : null
 }
@@ -118,12 +119,12 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
   ])
   const selected = scan.data
   const platforms = features.platform_access
-  const agentRead = async <T extends { platform: string }>(allowed: boolean, name: string, work: () => Promise<T[]>): Promise<WorkspaceRead<T[]>> => {
+  const agentRead = async <T extends { platform: string }>(allowed: boolean, name: 'recommendations'|'progress'|'competitors', work: () => Promise<T[]>): Promise<WorkspaceRead<T[]>> => {
     if (!allowed) return unavailable([], 'locked')
     if (scan.status === 'error') return unavailable([], 'error')
     if (!selected) return unavailable([])
     return read(name, async () => (await work()).filter(row => name !== 'recommendations' || platforms.includes(row.platform))
-      .map(row => ({ ...row, ...('created_at' in row ? { created_at: timestamp(row.created_at) } : {}) })), [])
+      .map(row => normalizeAgentNumbers({ ...row, ...('created_at' in row ? { created_at: timestamp(row.created_at) } : {}) },name)), [])
   }
   const [recommendations, progress, competitors] = await Promise.all([
     agentRead<AgentRecommendation>(features.agent_recs, 'recommendations', async () => await sql`

@@ -29,6 +29,7 @@ import { checkChunkability }     from '@/lib/checks/chunkability'
 import { db }               from '@/lib/db'
 import { getProfile }       from '@/lib/auth'
 import { type AgentRequirements } from '@/lib/agents'
+import { generateImprove } from '@/lib/agents/generate'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { fetchPublicUrl, PublicUrlError } from '@/lib/security/public-url'
 import { consumePublicScanRateLimit, rateLimitHeaders } from '@/lib/security/public-scan-rate-limit'
@@ -373,7 +374,6 @@ export async function POST(req: NextRequest) {
     agent_competitors: entitlement.features.agent_competitors,
   }
   const queueAgentAnalysis = isDashboardScan
-    && !!ownedClient?.webhook_url
     && Object.values(agentRequirements).some(Boolean)
 
   let scanId: string
@@ -411,7 +411,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Database error — check Neon configuration' }, { status: 500 })
   }
 
-  // Queue agent work only when an entitled output has a verified owned-client endpoint.
+  // Exactly one producer owns the entitled scan: the configured webhook, or
+  // the native grounded producer. Both recover against this retained scan ID.
   if (queueAgentAnalysis && ownedClient?.webhook_url) {
     const webhookUrl = ownedClient.webhook_url
     const platforms = entitlement.features.platform_access
@@ -448,6 +449,14 @@ export async function POST(req: NextRequest) {
       after(dispatch)
     } catch (error) {
       console.error('[scan] webhook scheduling failed:', error)
+      await dispatch()
+    }
+  } else if (queueAgentAnalysis && ownedClient && account_id) {
+    const dispatch = async () => {
+      await generateImprove({ accountId: account_id, clientId: ownedClient.id, scanId })
+    }
+    try { after(dispatch) } catch {
+      // Direct fallback is still fenced by the same persisted native claim.
       await dispatch()
     }
   }
