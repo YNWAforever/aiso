@@ -50,6 +50,7 @@ export async function beginSummaryExecution(identity: ExecutionIdentity, token: 
   const receipt = readSummaryReceipt(rows[0]?.receipt) ?? await readScoped(identity, token)
   if (!receipt || receipt.id !== identity.dispatchId) return { status: 404, mayProcess: false }
   if (rows.length === 1) return { status: 200, mayProcess: true, receipt: presentSummaryReceipt(receipt), input: receipt.input }
+  if (Date.parse(receipt.expiresAt) <= Date.now()) return { status: 409, mayProcess: false }
   const same = receipt.executionId === identity.executionId && receipt.workflowId === identity.workflowId
   return { status: same ? 200 : 409, mayProcess: false, receipt: presentSummaryReceipt(receipt) }
 }
@@ -63,11 +64,13 @@ export async function finishSummaryExecution(identity: ExecutionIdentity, token:
       and client_id is not distinct from ${identity.clientId}::uuid
       and results#>>'{_n8n,tokenHash}'=${capabilityHash(token)}
       and results#>>'{_n8n,id}'=${identity.dispatchId} and results#>>'{_n8n,state}'='running'
+      and (results#>>'{_n8n,expiresAt}')::timestamptz>clock_timestamp()
       and results#>>'{_n8n,executionId}'=${identity.executionId}
       and results#>>'{_n8n,workflowId}'=${identity.workflowId}
     returning results->'_n8n' as receipt`
   const receipt = readSummaryReceipt(rows[0]?.receipt) ?? await readScoped(identity, token)
   if (!receipt || receipt.id !== identity.dispatchId) return { status: 404 }
+  if (!rows.length && Date.parse(receipt.expiresAt) <= Date.now()) return { status: 409 }
   const same = receipt.executionId === identity.executionId && receipt.workflowId === identity.workflowId
     && (completion.phase === 'succeeded'
       ? receipt.state === 'succeeded' && receipt.summary?.hash === digest(completion.summary)

@@ -191,6 +191,26 @@ describe('n8n persisted execution receipts (offline PostgreSQL)', () => {
     expect(await readOwnedSummary({ scanId: f.scope.scanId, accountId })).toMatchObject({ state: 'outcome_unknown' })
     expect(await stored(f.scope.scanId)).toEqual(before)
   })
+  it.each(['running', 'succeeded'])('an expired capability cannot finish or read back a %s execution', async state => {
+    const f = await fixture()
+    await beginSummaryExecution(f.identity, f.token)
+    const completion = { phase: 'succeeded' as const, summary: 'A retained source-grounded summary.', provider }
+    if (state === 'succeeded') await finishSummaryExecution(f.identity, f.token, completion)
+    await pg.query("update scans set results=jsonb_set(results,'{_n8n,expiresAt}',to_jsonb($1::text)) where id=$2",
+      [new Date(Date.now() - 1000).toISOString(), f.scope.scanId])
+    const before = await stored(f.scope.scanId)
+    const finish = await finishSummaryExecution(f.identity, f.token, completion)
+    expect(finish.status).toBe(409)
+    expect(finish).not.toHaveProperty('receipt')
+    const restarted = await beginSummaryExecution(f.identity, f.token)
+    expect(restarted.status).toBe(409)
+    expect(restarted.mayProcess).toBe(false)
+    expect(restarted).not.toHaveProperty('receipt')
+    expect(await stored(f.scope.scanId)).toEqual(before)
+    expect(await readOwnedSummary({ scanId: f.scope.scanId, accountId })).toMatchObject({
+      state: state === 'running' ? 'outcome_unknown' : 'succeeded',
+    })
+  })
   it('a lost database write never reports persisted completion', async () => {
     const f = await fixture()
     await beginSummaryExecution(f.identity, f.token)

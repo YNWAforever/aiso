@@ -22,6 +22,11 @@ The workflow derives its callback origin from the operator-managed n8n variable
 cannot supply a different callback URL. An invalid capability is refused before
 any provider work. The start callback atomically binds the first n8n execution
 and workflow IDs; a duplicate full delivery cannot acquire another provider claim.
+The capability expires after 15 minutes for both start and completion callbacks.
+After expiry only the authenticated owner can read the retained receipt; recovery
+requires reconciliation and a separately authorized write, not a model retry.
+The webhook destination must be public HTTPS; cross-origin or other redirects
+are refused before forwarding the capability.
 
 Acknowledgement is HTTP 202 after that claim. It means accepted, not completed.
 Provider errors, empty output, failed writes and unknown outcomes cannot become
