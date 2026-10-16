@@ -40,6 +40,8 @@ import { calculatePillarScores } from '@/lib/pillar-scores'
 import { buildScanEvidence, CHECK_VERSIONS, type EvidenceCheckKey } from '@/lib/scan-evidence'
 import { createScanEvidenceCapture } from '@/lib/scan-evidence-capture'
 import { fetchSitemapPageUrls } from '@/lib/sitemap-fetch'
+import { createSummaryReceipt } from '@/lib/n8n/schema'
+import { dispatchScanSummary } from '@/lib/n8n/dispatch'
 
 const IPV4 = /^(?:\d{1,3}\.){3}\d{1,3}$/
 const TLD = /^(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$/i
@@ -377,6 +379,8 @@ export async function POST(req: NextRequest) {
     && Object.values(agentRequirements).some(Boolean)
 
   let scanId: string
+  const summaryWebhook = process.env.N8N_SCAN_WEBHOOK_URL?.trim()
+  let summaryDispatch: ReturnType<typeof createSummaryReceipt> | undefined
   try {
     // Trust signals are a diagnostic outside the score (lib/trust-signals.ts):
     // computed from the page already fetched, after scoring, so they cannot
@@ -395,10 +399,11 @@ export async function POST(req: NextRequest) {
       observations: capture.observations, limited: capture.limited, collectedAt: new Date().toISOString(),
     })
     const pillarScores = calculatePillarScores(combinedResults, evidence.checks)
+    if (summaryWebhook) summaryDispatch = createSummaryReceipt({ domain, score: totalScore, grade, results: { ...combinedResults, evidence } })
     const rows = await sql`
       insert into scans (url, domain, score, results, industry, region, grade, account_id, agent_status, client_id)
       values (${baseUrl}, ${domain}, ${totalScore},
-              ${JSON.stringify({ ...combinedResults, pillarScores, evidence })}::jsonb,
+              ${JSON.stringify({ ...combinedResults, pillarScores, evidence, ...(summaryDispatch ? { _n8n: summaryDispatch.receipt } : {}) })}::jsonb,
               ${geoIndustry}, ${geoRegion}, ${grade}, ${account_id},
               ${queueAgentAnalysis ? 'pending' : null}, ${clientId ?? null})
       returning id
@@ -461,33 +466,22 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Schedule summary processing after the response so serverless runtimes keep it alive.
-  const n8nWebhook = process.env.N8N_SCAN_WEBHOOK_URL
-  if (n8nWebhook) {
+  // The capability hash and frozen input are already retained with this scan.
+  // A durable dispatch claim prevents retries from repeating the provider work.
+  if (summaryWebhook && summaryDispatch?.receipt.state === 'queued') {
+    const prepared = summaryDispatch
     const dispatch = async () => {
       try {
-        await fetch(n8nWebhook, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            scanId,
-            clientId: clientId ?? null,
-            domain,
-            score: totalScore,
-            grade,
-            results: { ...results, ...geoDetails },
-          }),
-          signal: AbortSignal.timeout(5_000),
-        })
-      } catch (error) {
-        console.error('[scan] n8n webhook failed:', error)
+        await dispatchScanSummary({ scanId, accountId: account_id, clientId: clientId ?? null },
+          prepared.token, prepared.receipt, summaryWebhook)
+      } catch {
+        console.error('[scan] n8n receipt dispatch unavailable')
       }
     }
 
     try {
       after(dispatch)
-    } catch (error) {
-      console.error('[scan] n8n webhook scheduling failed:', error)
+    } catch {
       await dispatch()
     }
   }

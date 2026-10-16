@@ -97,6 +97,12 @@ entry there says what breaks when it is missing. The highlights:
 Optional (have fallbacks): `RESEND_FROM_EMAIL`, `WIKIPEDIA_USER_AGENT`.
 E2E only: `BASE_URL`, `START_DEV_SERVER`, `PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_TEST_PASSWORD`.
 
+Scan-summary receipts and their offline/live verification procedure are documented
+in [`n8n/README.md`](n8n/README.md). The summary workflow writes through a scan-bound
+AISO callback, without database credentials. Optional tooling-only `N8N_API_KEY`
+and `N8N_API_BASE_URL` allow a read-only comparison with the exact n8n execution.
+The application and workflow must be rolled out together in the documented order.
+
 Auth and database clients are lazy. A successful build does not verify runtime configuration.
 The readiness configuration report applies a stricter, explicit release policy to supplied
 values, including values that current runtime paths only require when used. It is report-only:
