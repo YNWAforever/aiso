@@ -11,4 +11,6 @@ export async function openOnboardingComponent(page: Page, lang: string) {
   await page.route(`https://onboarding.fixture/${lang}/onboarding`,route=>route.fulfill({contentType:'text/html; charset=utf-8',body:`<!doctype html><html lang="${lang}" class="${theme}"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Protected onboarding component acceptance</title><style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`}))
   await page.goto(`https://onboarding.fixture/${lang}/onboarding`)
   await page.waitForFunction(()=>Boolean((window as Window&{aisoFixtureReady?:boolean}).aisoFixtureReady))
+  const assistant = page.locator('details').filter({ has: page.locator('#brand-assist-url') })
+  if (await assistant.count()) await assistant.locator('summary').click()
 }

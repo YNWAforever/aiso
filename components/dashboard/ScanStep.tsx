@@ -34,11 +34,12 @@ export function ScanStep({ lang, clientId, scanHistory }: Props) {
   const autoUrl      = searchParams.get('url') ?? ''
 
   const [url, setUrl]           = useState(autoUrl)
-  const [industry, setIndustry] = useState('')
-  const [region, setRegion]     = useState('')
+  const [industry, setIndustry] = useState(searchParams.get('industry') ?? '')
+  const [region, setRegion]     = useState(searchParams.get('region') ?? '')
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
   const autoSubmitted           = useRef(false)
+  const inFlight = useRef(false)
 
   // Auto-submit when arriving from onboarding with a pre-filled URL
   useEffect(() => {
@@ -50,7 +51,9 @@ export function ScanStep({ lang, clientId, scanHistory }: Props) {
   }, [autoUrl])
 
   async function runScan(scanUrl: string) {
-    if (!scanUrl.trim()) return
+    if (!scanUrl.trim() || inFlight.current) return
+    inFlight.current = true
+    let navigating = false
     setLoading(true)
     setError('')
     try {
@@ -66,10 +69,15 @@ export function ScanStep({ lang, clientId, scanHistory }: Props) {
         setLoading(false)
         return
       }
-      router.push(`/${lang}/dashboard/${clientId}?step=results&scanId=${data.id}`)
+      if (typeof data?.id !== 'string' || !data.id.trim()) { setError(t('scan_failed')); return }
+      router.push(`/${lang}/dashboard/${clientId}?step=results&scanId=${encodeURIComponent(data.id)}`)
+      navigating = true
     } catch {
       setError(t('network_error'))
       setLoading(false)
+    } finally {
+      // Keep the successful request locked until navigation unmounts this screen.
+      if (!navigating) { inFlight.current = false; setLoading(false) }
     }
   }
 
