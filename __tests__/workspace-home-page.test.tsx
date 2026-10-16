@@ -130,3 +130,73 @@ it('shows the empty state rather than crashing for a scan with no stored score',
   expect(findResults(page)).toBeUndefined()
   expect(texts(page)).toContain('no_scan_selected')
 })
+
+// Offline ownership fixtures for the saved-summary entry point. No live DB/provider.
+function stubOwnedSummarySelection(selectedExists = true) {
+  const latest = { id: 'latest-scan', account_id: 'account-a', client_id: 'client-a',
+    score: '18.00', grade: 'F', domain: 'same.example', created_at: '2026-10-17',
+    results: { _n8n: { fixtureMarker: 'LATEST_SUMMARY' } } }
+  const selected = { ...latest, id: 'selected-scan',
+    results: { _n8n: { fixtureMarker: 'SELECTED_SUMMARY' } } }
+  const observed: { query: string; values: unknown[] }[] = []
+  mocks.sql.mockImplementation(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+    const query = strings.join('?')
+    observed.push({ query, values })
+    if (query.includes('from clients')) return [{ id: 'client-a', domain: 'same.example' }]
+    if (!query.includes('from scans')) return []
+    if (query.includes('where id =')) return selectedExists ? [selected] : []
+    return [latest]
+  })
+  return { selected, latest, observed }
+}
+for (const lang of ['en', 'zh-HK']) {
+  const resultsPage = (scanId?: string) => Page({
+    params: Promise.resolve({ lang, clientId: 'client-a' }),
+    searchParams: Promise.resolve({ step: 'results', ...(scanId ? { scanId } : {}) }),
+  })
+  it(`binds the summary Results props to the exact owned selected scan, including reload (${lang})`, async () => {
+    const { selected, observed } = stubOwnedSummarySelection()
+    const first = findResults(await resultsPage('selected-scan'))
+    const reload = findResults(await resultsPage('selected-scan'))
+    expect(first?.props.scan).toEqual({ ...selected, score: 18 })
+    expect(reload?.props.scan).toEqual(first?.props.scan)
+    const lookups = observed.filter(row => row.query.includes('from scans') && row.query.includes('where id ='))
+    expect(lookups).toHaveLength(2)
+    for (const row of lookups) {
+      expect(row.query).toMatch(/id = \? and account_id = \? and client_id = \?/)
+      expect(row.values).toEqual(['selected-scan', 'account-a', 'client-a'])
+    }
+    expect(mocks.auth).toHaveBeenCalledWith(lang)
+    expect(mocks.roi).not.toHaveBeenCalled()
+  })
+  it(`uses only the owned latest scan when no scanId is requested (${lang})`, async () => {
+    const { latest, observed } = stubOwnedSummarySelection()
+    expect(findResults(await resultsPage())?.props.scan).toEqual({ ...latest, score: 18 })
+    const latestLookup = observed.find(row => row.query.includes('select * from scans'))
+    expect(latestLookup?.values).toEqual(['client-a', 'account-a'])
+    expect(observed.some(row => row.query.includes('from scans') && row.query.includes('where id ='))).toBe(false)
+  })
+  it(`does not fall back to another summary when the explicit scan is unavailable (${lang})`, async () => {
+    stubOwnedSummarySelection(false)
+    const page = await resultsPage('foreign-or-missing-scan')
+    expect(findResults(page)).toBeUndefined()
+    expect(texts(page)).toContain('no_scan_selected')
+    const visited = new WeakSet<object>()
+    const serialized = JSON.stringify(page, (_key, value) => {
+      if (value && typeof value === 'object') {
+        if (visited.has(value)) return '[circular]'
+        visited.add(value)
+      }
+      return value
+    })
+    expect(serialized).not.toContain('LATEST_SUMMARY')
+  })
+  it(`stops before any summary query for a workspace outside the session account (${lang})`, async () => {
+    mocks.sql.mockResolvedValue([])
+    await expect(resultsPage('selected-scan')).rejects.toThrow('NOT_FOUND')
+    expect(mocks.sql).toHaveBeenCalledTimes(1)
+    const [strings, ...values] = mocks.sql.mock.calls[0]!
+    expect((strings as TemplateStringsArray).join('?')).toMatch(/from clients[\s\S]*id = \? and account_id = \?/)
+    expect(values).toEqual(['client-a', 'account-a'])
+  })
+}
