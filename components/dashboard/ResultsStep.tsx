@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { ScanSummary } from '@/components/dashboard/ScanSummary'
+import { SavedScanSummary } from '@/components/dashboard/SavedScanSummary'
 import type { Scan } from '@/lib/types'
 
 type Props = { scan: Scan; lang: string; clientId: string }
@@ -10,6 +11,7 @@ export function ResultsStep({ scan, lang, clientId }: Props) {
   return (
     <div className="space-y-5">
       <ScanSummary scan={scan} />
+      <SavedScanSummary value={(scan.results as Record<string, unknown>)._n8n} />
 
       <div className="flex items-center gap-3">
         <Link

@@ -2937,5 +2937,21 @@
     "reconciledReady": "Your original brand and questions are ready. Your edits have not been applied; they remain in this draft. Open the workspace to review the saved brand.",
     "cacheUnavailable": "This tab cannot save this setup request. Your input is still here. Review saved brands before trying again, or use a tab that can save drafts.",
     "reviewBrands": "Review saved brands"
+  },
+  "savedScanSummary": {
+    "title": "Saved scan summary",
+    "saved": "Summary saved",
+    "pending": "Summary queued",
+    "running": "Summary processing",
+    "failed": "Summary not completed",
+    "unconfirmed": "Outcome unconfirmed",
+    "unavailable": "Summary unavailable",
+    "source": "Based on this scan's saved check findings. Review each suggestion against its source.",
+    "pending_body": "This scan has a queued summary. Reload this page to check its saved status.",
+    "running_body": "The summary is processing. Reload this page to check its saved status.",
+    "failed_body": "The summary did not complete. Your existing scan and improvement suggestions are preserved.",
+    "unconfirmed_body": "The execution outcome could not be confirmed. Keep the saved work while an administrator checks the execution.",
+    "unavailable_body": "A complete saved summary could not be verified. Your existing scan results remain available."
   }
+
 }
