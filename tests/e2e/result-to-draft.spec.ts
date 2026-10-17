@@ -14,7 +14,8 @@ import { scanOpportunityCopy } from '../../lib/opportunities/presentation'
 const dir = resolve(process.env.AISO_RESULT_DRAFT_DIR || 'artifacts/result-to-draft-20261017/browser')
 const data = () => JSON.parse(readFileSync(resolve(dir, 'data.json'), 'utf8'))
 const fixtureState=()=>({ item: null as WorkItem | null, version: null as VersionDetail | null, creates: 0, edits: 0, submissions: 0, decisions: 0,
-    authenticated: true, failCreate: false, loseCreateReply: false, failEdit: false, timeoutCreate: false, scanRequests: [] as string[],
+    authenticated: true, failCreate: false, createConflict: false, wrongCreate: null as 'client' | 'scan' | null,
+    opportunityReads: 0, loseCreateReply: false, failEdit: false, timeoutCreate: false, scanRequests: [] as string[],
     setups:0,scanCreates:0,readStatus:200, operationsReadStatus:200, failOperationsSave:false,
     operationWrites:0, operationRetests:0,
     operations:{targetUrl:null,acceptanceCriteria:'',ownerId:null,dueAt:null,operationStatus:'todo',expectedRevision:1} as WorkOperations })
@@ -27,6 +28,7 @@ async function fixture(page: Page, lang: string, mode = '', scenario = '', share
     state.item.evidenceSnapshot.source.id='99999999-9999-4999-8999-999999999999'
     if(state.item.evidenceSnapshot.evidence.kind==='scan-check')state.item.evidenceSnapshot.evidence.scanId=state.item.evidenceSnapshot.source.id
   }
+  if(scenario==='priority-saved') state.item=structuredClone(d.drafts[lang])
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.route('**/*', route => route.abort())
@@ -52,6 +54,7 @@ async function fixture(page: Page, lang: string, mode = '', scenario = '', share
       return route.fulfill({json:{...state.operations,expectedRevision:state.item!.revision,owners:[],evidence:[],groupScope:null}})
     }
     if (path.endsWith('/opportunities')) {
+      state.opportunityReads++
       expect(new URL(request.url()).searchParams.get('scanId')).toBe(d.scanId)
       return route.fulfill({ json: d.opportunities })
     }
@@ -60,10 +63,18 @@ async function fixture(page: Page, lang: string, mode = '', scenario = '', share
       state.creates++
       if (state.timeoutCreate) return
       if (state.failCreate) return route.fulfill({ status: 503, json: {} })
+      if (state.createConflict) return route.fulfill({ status: 409, json: { error: 'EVIDENCE_CHANGED' } })
       const input = request.postDataJSON()
-      expect(input.source).toEqual(d.opportunities.suggestions[0].source)
-      expect(input.fingerprint).toBe(d.opportunities.suggestions[0].fingerprint)
+      expect(input).toEqual({
+        source: d.opportunities.suggestions[0].source,
+        ruleVersion: d.opportunities.suggestions[0].ruleVersion,
+        fingerprint: d.opportunities.suggestions[0].fingerprint,
+        locale: lang,
+      })
       state.item ??= structuredClone(d.drafts[lang])
+      if (state.wrongCreate) return route.fulfill({ status: 201, json: { item: state.wrongCreate === 'client'
+        ? { ...state.item, clientId: '77777777-7777-4777-8777-777777777777' }
+        : { ...state.item, sourceScanIds: ['99999999-9999-4999-8999-999999999999'] } } })
       if (state.loseCreateReply) return route.abort()
       return route.fulfill({ status: 201, json: { item: state.item } })
     }
@@ -128,6 +139,93 @@ async function fixture(page: Page, lang: string, mode = '', scenario = '', share
 }
 
 for (const lang of ['en', 'zh-HK'] as const) {
+  test(`Results first action reaches the saved draft directly ${lang}`, async ({ page }) => {
+    const { state, copy: c, d, errors } = await fixture(page, lang)
+    const create = page.getByRole('button', { name: lang === 'en' ? 'Create draft' : '建立草稿', exact: true })
+    await expect(create).toBeVisible()
+    const box = await create.boundingBox()
+    expect(box!.y).toBeGreaterThanOrEqual(0)
+    expect(box!.y + box!.height).toBeLessThanOrEqual(page.viewportSize()!.height)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: test.info().outputPath(`${lang}-results-first-action.png`), fullPage: true })
+    await create.dblclick()
+    await expect(page).toHaveURL(new RegExp(`step=improve&scanId=${d.scanId}&draft=${d.drafts[lang].id}`))
+    await expect(page.getByLabel(c.opportunities.action, { exact: true })).toHaveValue(/<meta name="description"/)
+    expect(state.creates).toBe(1)
+    expect(state.item!.evidenceSnapshot.source).toEqual(d.opportunities.suggestions[0].source)
+    expect(state.scanRequests).toHaveLength(0)
+    expect(errors).toEqual([])
+  })
+  test(`Results first action retains evidence on save failure and blocks a changed-source retry ${lang}`, async ({ page }) => {
+    const { state, copy: c, d, errors } = await fixture(page, lang)
+    const card = page.getByTestId('result-priority'), create = card.getByRole('button', { name: c.resultSummary.createDraft, exact: true })
+    state.failCreate = true
+    await create.click()
+    await expect(card.getByRole('alert')).toHaveText(c.resultSummary.saveFailed)
+    await expect(create).toBeEnabled()
+    expect(state.creates).toBe(1)
+    state.failCreate = false; state.createConflict = true
+    await create.click()
+    await expect(card.getByRole('alert')).toHaveText(c.resultSummary.evidenceChanged)
+    await expect(create).toBeDisabled()
+    expect(state.creates).toBe(2)
+    expect(new URL(page.url()).searchParams.get('step')).toBe('results')
+    state.createConflict = false
+    await card.getByRole('button', { name: c.resultSummary.refreshPriority, exact: true }).click()
+    await expect(create).toBeEnabled()
+    expect(state.opportunityReads).toBe(1)
+    await create.click()
+    await expect(page.getByLabel(c.opportunities.action, { exact: true })).toHaveValue(/<meta name="description"/)
+    expect(state.item!.evidenceSnapshot.source.id).toBe(d.scanId)
+    expect(state.scanRequests).toHaveLength(0)
+    expect(errors).toEqual([])
+  })
+  test(`Results first action loads only on explicit retry and opens an existing draft without creating ${lang}`, async ({ page }) => {
+    const { state, copy: c, url } = await fixture(page, lang, '', 'priority-unavailable')
+    const card = page.getByTestId('result-priority')
+    await expect(card).toContainText(c.resultSummary.priorityUnavailable)
+    expect(state.opportunityReads).toBe(0)
+    await card.getByRole('button', { name: c.resultSummary.refreshPriority, exact: true }).click()
+    await expect(card.getByRole('button', { name: c.resultSummary.createDraft, exact: true })).toBeVisible()
+    expect(state.opportunityReads).toBe(1)
+    await page.goto(url.replace('priority-unavailable', 'priority-saved'))
+    state.item = structuredClone(data().drafts[lang])
+    await page.getByTestId('result-priority').getByRole('link', { name: c.resultSummary.openDraft, exact: true }).click()
+    await expect(page.getByLabel(c.opportunities.titleField, { exact: true })).toHaveValue(state.item!.title)
+    expect(state.creates).toBe(0)
+  })
+  for (const wrong of ['client', 'scan'] as const) test(`Results first action rejects a successful wrong-${wrong} response ${lang}`, async ({ page }) => {
+    const { state, copy: c, errors } = await fixture(page, lang)
+    state.wrongCreate = wrong
+    const card = page.getByTestId('result-priority')
+    await card.getByRole('button', { name: c.resultSummary.createDraft, exact: true }).click()
+    await expect(card.getByRole('alert')).toHaveText(c.resultSummary.saveFailed)
+    expect(new URL(page.url()).searchParams.get('step')).toBe('results')
+    expect(new URL(page.url()).searchParams.has('draft')).toBe(false)
+    expect(errors).toEqual([])
+  })
+  test(`Results first action cannot navigate a later scope after its old request settles ${lang}`, async ({ page }) => {
+    const { state, copy: c, d, url } = await fixture(page, lang)
+    let release!: () => void
+    const held = new Promise<void>(done => { release = done })
+    let requested = false, settled = false
+    await page.route('**/work-items', async route => {
+      if (route.request().method() !== 'POST') return route.fulfill({ json: { items: [], nextCursor: null } })
+      requested = true
+      await held
+      try { await route.fulfill({ status: 201, json: { item: d.drafts[lang] } }) } catch { /* the scoped cleanup may have aborted this request */ }
+      settled = true
+    })
+    await page.getByTestId('result-priority').getByRole('button', { name: c.resultSummary.createDraft, exact: true }).click()
+    await expect.poll(() => requested).toBe(true)
+    await page.evaluate(() => window.dispatchEvent(new Event('fixture-priority-scope')))
+    await expect(page.getByTestId('result-priority')).toContainText('Synthetic second scope')
+    release()
+    await expect.poll(() => settled).toBe(true)
+    await expect(page).toHaveURL(url)
+    await expect(page.getByTestId('result-priority').getByRole('link', { name: c.resultSummary.openDraft, exact: true })).toHaveCount(0)
+    expect(state.scanRequests).toHaveLength(0)
+  })
   test(`observed coverage and passing fraction remain distinct after reload ${lang}`, async ({ page }) => {
     const { state, copy: c, errors } = await fixture(page, lang, '', 'coverage')
     const findings = page.getByRole('region', { name: c.resultSummary.title, exact: true })

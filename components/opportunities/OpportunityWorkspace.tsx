@@ -8,6 +8,7 @@ import type { OpportunityResponse } from '@/lib/opportunities/types'
 import type { WorkItem } from '@/lib/work-items/schema'
 import { DraftEditor } from '@/components/work-items/DraftEditor'
 import { EvidenceDetails } from './EvidenceDetails'
+import { selectScanOpportunities } from '@/lib/opportunities/scan-selection'
 type WorkspaceProps = { clientId: string; scanId?: string } & (
   | { initial: OpportunityResponse; initialError?: never }
   | { initial: null; initialError: 'unavailable' }
@@ -59,9 +60,8 @@ function OpportunityContent({
     item.evidenceSnapshot?.source.kind === 'scan-check' && item.evidenceSnapshot.source.id === scanId
   )), [scanId])
   const selectedId = selected?.id
-  const visibleSuggestions = data?.suggestions.filter(s =>
-    (!scanId || s.source.kind === 'scan-check' && s.source.id === scanId && s.saveAvailability !== 'limited-evidence') &&
-    !data.groups?.some(g => g.context?.runId && g.platforms.length > 1 && g.suggestionKeys.includes(s.key))) ?? []
+  const visibleSuggestions = (scanId ? selectScanOpportunities(data, scanId) : data?.suggestions)?.filter(s =>
+    !data?.groups?.some(g => g.context?.runId && g.platforms.length > 1 && g.suggestionKeys.includes(s.key))) ?? []
   const displayedSuggestions = scanId ? visibleSuggestions.slice(0, 3) : visibleSuggestions
   useEffect(() => {
     if (selectedId && view === 'drafts') editor.current?.focus()

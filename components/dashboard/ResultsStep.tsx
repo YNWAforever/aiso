@@ -5,10 +5,11 @@ import { SavedScanSummary } from '@/components/dashboard/SavedScanSummary'
 import { ScanRunState } from '@/components/dashboard/ScanRunState'
 import type { Scan } from '@/lib/types'
 import type { ScanSummaryView } from '@/lib/view-models/scan-summary'
+import type { ReactNode } from 'react'
 
-type Props = { scan: Scan; lang: string; clientId: string; view?: ScanSummaryView | null; brandName?: string | null }
+type Props = { scan: Scan; lang: string; clientId: string; view?: ScanSummaryView | null; brandName?: string | null; priority?: ReactNode }
 
-export function ResultsStep({ scan, lang, clientId, view, brandName }: Props) {
+export function ResultsStep({ scan, lang, clientId, view, brandName, priority }: Props) {
   const t = useTranslations('dashboard')
   const results = (scan.results ?? {}) as Record<string, unknown>
   const runState = results._scan_request && typeof results._scan_request === 'object'
@@ -19,11 +20,12 @@ export function ResultsStep({ scan, lang, clientId, view, brandName }: Props) {
 
   if (!hasScore && !view?.evidence) {
     const retryHref = `/${lang}/dashboard/${clientId}?step=scan${scan.url ? `&url=${encodeURIComponent(scan.url)}` : ''}`
-    return <><ScanRunState processing={processing} retryHref={retryHref} /><SavedScanSummary value={results._n8n} /></>
+    return <>{priority}<ScanRunState processing={processing} retryHref={retryHref} /><SavedScanSummary value={results._n8n} /></>
   }
 
   return (
     <div className="space-y-5">
+      {priority}
       <ScanSummary scan={scan} view={view} brandName={brandName} />
       <SavedScanSummary value={results._n8n} />
 

@@ -132,6 +132,14 @@ for (const lang of ['en', 'zh-HK']) {
         client_id: fixture.clientId, url: audit.scanRequest.url, domain: 'fixture-aiso.example' })
       expect(storedScan.results.localFixture.collectedExternally).toBe(false)
       const findings = page.getByRole('region', { name: lang === 'en' ? 'Scan findings' : '掃描發現', exact: true })
+      const firstAction = page.getByTestId('result-priority')
+      const createDraft = firstAction.getByRole('button', { name: messages[lang].resultSummary.createDraft, exact: true })
+      await expect(createDraft).toBeVisible()
+      const actionBox = await createDraft.boundingBox()
+      expect(actionBox.y).toBeGreaterThanOrEqual(0)
+      expect(actionBox.y + actionBox.height).toBeLessThanOrEqual(page.viewportSize().height)
+      await expect(firstAction).toContainText('fixture-aiso.example')
+      await shot(page, `${prefix}-00-results-first-action.png`)
       await expect(findings).toBeVisible()
       await expect(findings.getByRole('heading', { name: brandName, exact: true })).toBeVisible()
       const evidence = page.getByTestId('owned-scan-evidence')
@@ -146,17 +154,9 @@ for (const lang of ['en', 'zh-HK']) {
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
       await shot(page, `${prefix}-01-result-evidence.png`)
 
-      const improve = page.getByRole('link', { name: messages[lang].dashboard.next_improve, exact: true })
-      await expect(improve).toHaveAttribute('href',
-        `/${lang}/dashboard/${fixture.clientId}?step=improve&scanId=${fixture.scanId}`)
-      await improve.click()
-      await page.waitForURL(url => url.pathname === `/${lang}/dashboard/${fixture.clientId}` &&
-        url.searchParams.get('step') === 'improve' && url.searchParams.get('scanId') === fixture.scanId)
-      const save = page.getByRole('button', { name: copy.saveDraft, exact: true }).first()
-      await expect(save).toBeVisible()
       const create = page.waitForResponse(response => response.request().method() === 'POST' &&
         new URL(response.url()).pathname === `/api/clients/${fixture.clientId}/work-items`)
-      await save.click()
+      await createDraft.click()
       const created = await create
       expect(created.status()).toBe(201)
       const sourcePayload = created.request().postDataJSON()
@@ -167,6 +167,8 @@ for (const lang of ['en', 'zh-HK']) {
       expect(Object.keys(sourcePayload).sort()).toEqual(['fingerprint', 'locale', 'ruleVersion', 'source'])
       audit.sourcePayload = sourcePayload
       const item = (await created.json()).item
+      await page.waitForURL(url => url.pathname === `/${lang}/dashboard/${fixture.clientId}` &&
+        url.searchParams.get('step') === 'improve' && url.searchParams.get('scanId') === fixture.scanId && url.searchParams.get('draft') === item.id)
       expect(item.clientId).toBe(fixture.clientId)
       expect(item.evidenceSnapshot.source).toEqual(sourcePayload.source)
       expect(item.evidenceSnapshot.ruleVersion).toBe(sourcePayload.ruleVersion)
@@ -207,6 +209,15 @@ for (const lang of ['en', 'zh-HK']) {
       audit.controls.sourceAssociationReadback = true
       audit.persisted = true
       await shot(page, `${prefix}-02-saved-and-reloaded.png`)
+      const createCount = audit.realApiResponses.filter(row => row.method === 'POST' && row.path === `/api/clients/${fixture.clientId}/work-items`).length
+      await page.goto(`/${lang}/dashboard/${fixture.clientId}?step=results&scanId=${fixture.scanId}`)
+      const reopen = page.getByTestId('result-priority').getByRole('link', { name: messages[lang].resultSummary.openDraft, exact: true })
+      await expect(reopen).toHaveAttribute('href',
+        `/${lang}/dashboard/${fixture.clientId}?step=improve&scanId=${fixture.scanId}&draft=${item.id}`)
+      await reopen.click()
+      await expect(page.getByLabel(copy.titleField, { exact: true })).toHaveValue(title)
+      expect(audit.realApiResponses.filter(row => row.method === 'POST' && row.path === `/api/clients/${fixture.clientId}/work-items`).length).toBe(createCount)
+      audit.reopenedFromResultsWithoutCreate = true
 
       const own = await get(page, `/api/clients/${fixture.clientId}/work-items/${item.id}`)
       audit.controls.ownedRead = own.status

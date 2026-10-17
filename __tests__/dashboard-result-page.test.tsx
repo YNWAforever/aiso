@@ -26,6 +26,7 @@ const { requireAuthMock, notFoundMock, sqlMock } = vi.hoisted(() => ({
 
 vi.mock('@/lib/auth', () => ({ requireAuth: requireAuthMock }))
 vi.mock('@/lib/db', () => ({ db: () => sqlMock }))
+vi.mock('@/components/dashboard/ScanImprovements', () => ({ ScanImprovements: () => null }))
 vi.mock('next/navigation', () => ({ notFound: notFoundMock }))
 vi.mock('next-intl/server', () => ({
   getTranslations: async () => (key: string) => key,

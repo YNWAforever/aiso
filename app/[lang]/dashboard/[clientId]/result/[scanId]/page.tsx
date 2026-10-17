@@ -1,5 +1,8 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { Suspense } from 'react'
+import { ScanImprovements } from '@/components/dashboard/ScanImprovements'
+import { ResultPriorityLoading } from '@/components/dashboard/ResultPriorityCard'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
@@ -94,9 +97,10 @@ export default async function DashboardResultPage({
   const display = buildPublicResultSummary(scan)
   const view = buildScanSummaryView(scan)
   const selected = encodeURIComponent(scan.id)
+  const priority = <Suspense fallback={<ResultPriorityLoading />}><ScanImprovements clientId={clientId} scanId={scan.id} featured brandName={brandName} /></Suspense>
   if (view.state !== 'scored') return <main className="mx-auto max-w-3xl space-y-5 px-4 py-8">
     <Link className="inline-flex min-h-11 items-center underline" href={`/${lang}/dashboard/${clientId}?step=results&scanId=${selected}`}>{t('resultSummary.backToResults')}</Link>
-    <ResultsStep scan={scan} view={view} brandName={brandName} lang={lang} clientId={clientId} />
+    <ResultsStep scan={scan} view={view} brandName={brandName} lang={lang} clientId={clientId} priority={priority} />
     {display.score !== null && <>
       <Link className="inline-flex min-h-11 items-center underline" href={`/${lang}/dashboard/${clientId}/reports/new?scanId=${selected}`}>{t('reports.create_client_report')}</Link>
       <FixPackClient scanId={scan.id} fixCta={t('generatedWork.packCta')} fixSubtitle={t('generatedWork.draftNotice')}
@@ -157,6 +161,7 @@ export default async function DashboardResultPage({
 
   return (
     <>
+      <div className="mx-auto w-full max-w-2xl px-4 pt-4 sm:px-6">{priority}</div>
       {/* Top nav bar */}
       <div className="flex flex-col gap-3 border-b border-dash-border bg-dash-surface px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="flex min-w-0 flex-wrap items-center gap-3">

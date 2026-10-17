@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
+import { ResultPriorityLoading } from '@/components/dashboard/ResultPriorityCard'
 import { WorkspaceHome } from '@/components/dashboard/WorkspaceHome'
 import { loadOwnedPulse } from '@/lib/workspace/load-owned-pulse'
 import { buildPulseView } from '@/lib/view-models/pulse'
@@ -274,30 +276,33 @@ export default async function DashboardPage({
 
   const hasAggregatePulseBaseline = summary.some(row => !row.platform)
   const hasLocalTrustBaseline = Boolean(localTrustScan || hasAggregatePulseBaseline)
+  const focusedResults = step === 'results' && scan !== null
 
+  const reportEntry = (
+    <div className="px-6 pt-5">
+      <Link
+        href={`/${lang}/dashboard/${clientId}/reports`}
+        className="flex min-h-11 items-center justify-between gap-4 rounded-xl border border-dash-border bg-dash-surface px-4 py-3 text-sm transition-colors hover:bg-dash-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span>
+          <span className="block font-semibold text-dash-text">{reportT('list_title')}</span>
+          <span className="block text-xs text-dash-muted">{reportT('dashboard_entry_body')}</span>
+        </span>
+        <span className="shrink-0 font-semibold text-primary">
+          {features.client_reports_online ? reportT('open_reports') : reportT('upgrade_badge')}
+        </span>
+      </Link>
+    </div>
+  )
   return (
     <>
-      <StepHeader step={step} features={features} />
+      {!focusedResults && <><StepHeader step={step} features={features} />{reportEntry}</>}
 
-      <div className="px-6 pt-5">
-        <Link
-          href={`/${lang}/dashboard/${clientId}/reports`}
-          className="flex min-h-11 items-center justify-between gap-4 rounded-xl border border-dash-border bg-dash-surface px-4 py-3 text-sm transition-colors hover:bg-dash-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <span>
-            <span className="block font-semibold text-dash-text">{reportT('list_title')}</span>
-            <span className="block text-xs text-dash-muted">{reportT('dashboard_entry_body')}</span>
-          </span>
-          <span className="shrink-0 font-semibold text-primary">
-            {features.client_reports_online ? reportT('open_reports') : reportT('upgrade_badge')}
-          </span>
-        </Link>
-      </div>
-
-      <main className="flex-1 px-6 pb-10 max-w-3xl">
+      <main className={`flex-1 pb-10 max-w-3xl ${focusedResults ? 'px-4 pt-4 sm:px-6' : 'px-6'}`}>
         {step === 'scan' && <ScanStep lang={lang} clientId={clientId} scan={scan} scanHistory={scanHistory} />}
 
-        {step === 'results' && scan && <ResultsStep scan={scan} view={buildScanSummaryView(scan)} brandName={typedClient.brand_name} lang={lang} clientId={clientId} />}
+        {step === 'results' && scan && <ResultsStep scan={scan} view={buildScanSummaryView(scan)} brandName={typedClient.brand_name} lang={lang} clientId={clientId}
+          priority={<Suspense fallback={<ResultPriorityLoading />}><ScanImprovements clientId={clientId} scanId={scan.id} featured brandName={typedClient.brand_name} /></Suspense>} />}
         {step === 'results' && !scan && (
           <div className="rounded-xl border border-dash-border bg-dash-surface p-8 text-center">
             <p className="text-sm text-dash-text mb-1">{t('no_scan_selected')}</p>
@@ -338,6 +343,7 @@ export default async function DashboardPage({
           />
         )}
       </main>
+      {focusedResults && reportEntry}
     </>
   )
 }
