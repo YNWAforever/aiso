@@ -78,6 +78,20 @@ touch .env.local   # then fill in the variables below
 npm run dev        # http://localhost:3000
 ```
 
+For local build verification without live account or provider settings, run
+`npm run build:offline`. It runs the normal Turbopack production build with
+test-only Auth settings, blanks variables found in local dotenv files and
+provider/database credentials, and disables telemetry and monitoring in that
+build process. It does not edit `.env.local`, deploy, migrate, or run a scan.
+`npm run build` remains the standard deployment build.
+
+Turbopack needs child processes to connect to a local TCP listener and, on
+Windows, to create generated build junctions. The offline command checks child
+IPC before building and reports `BUILD_IPC_UNAVAILABLE` if the child exits
+without connecting, even with exit code zero. Run it from a terminal permitted
+to use those resources; a restricted agent must request approval to run outside
+its sandbox. The command never changes OS permissions, elevates, or retries.
+
 **`.env.example` is the authoritative list** — copy it to `.env.local` and fill it in. Each
 entry there says what breaks when it is missing. The highlights:
 
