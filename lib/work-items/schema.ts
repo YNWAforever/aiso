@@ -15,6 +15,8 @@ export type WorkItem = {
   id: string; clientId: string; status: 'draft'; title: string; action: string; notes: string
   locale: OpportunityLocale; revision: number; createdAt: string; updatedAt: string
   evidenceSnapshot: DraftSnapshotV1
+  /** Read-only projection of current, owned, non-withdrawn scan attachments. */
+  sourceScanIds?: string[]
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i

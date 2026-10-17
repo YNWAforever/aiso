@@ -19,6 +19,7 @@ export type VersionWorkspaceProps = {
   initial: VersionPageDTO | null
   initialVersion?: VersionDetail | null
   initialError?: string
+  returnScanId?: string
 }
 export function VersionWorkspace({
   clientId,
@@ -27,7 +28,12 @@ export function VersionWorkspace({
   initial,
   initialVersion = null,
   initialError = '',
+  returnScanId,
 }: VersionWorkspaceProps) {
+  const originalScan = initialDraft?.evidenceSnapshot.source.kind === 'scan-check' ? initialDraft.evidenceSnapshot.source.id : null
+  const liveScans = initialDraft?.sourceScanIds ?? (originalScan ? [originalScan] : [])
+  const resumeScan = returnScanId && liveScans.includes(returnScanId) ? returnScanId
+    : originalScan && liveScans.includes(originalScan) ? originalScan : liveScans.length === 1 ? liveScans[0] : null
   const t = useTranslations('changeSets'),
     lang = useLocale(),
     [draft, setDraft] = useState(initialDraft),
@@ -196,7 +202,9 @@ export function VersionWorkspace({
     >
       <a
         className="inline-flex min-h-11 items-center underline"
-        href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/opportunities`}
+        href={resumeScan
+          ? `/${lang}/dashboard/${encodeURIComponent(clientId)}?step=improve&scanId=${encodeURIComponent(resumeScan)}&draft=${encodeURIComponent(workItemId)}`
+          : `/${lang}/dashboard/${encodeURIComponent(clientId)}/opportunities?draft=${encodeURIComponent(workItemId)}`}
       >
         {t('backToDrafts')}
       </a>

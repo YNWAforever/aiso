@@ -345,7 +345,7 @@ for (const lang of ['en', 'zh-HK']) {
                 item: {
                   ...draft,
                   ...route.request().postDataJSON(),
-                  revision: 2,
+                  revision: route.request().postDataJSON().expectedRevision + 1,
                 },
               },
             }

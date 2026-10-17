@@ -1,4 +1,5 @@
-import { mkdir, writeFile, readFile, readdir } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { compileFixtureStyles } from './result-draft-build.mjs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 
@@ -8,7 +9,7 @@ const output = resolve('artifacts/onboarding-20261016/browser')
 await mkdir(output, { recursive: true })
 const { build } = await import(pathToFileURL(join(repo, 'node_modules/vite/dist/node/index.js')).href)
 await writeFile(join(output, 'navigation.ts'), `
-export function useRouter(){return{push(path:string){history.pushState({},'',path);document.documentElement.dataset.navigation=path;window.dispatchEvent(new Event('fixture-navigation'))}}}
+export function useRouter(){return{refresh(){},push(path:string){history.pushState({},'',path);document.documentElement.dataset.navigation=path;window.dispatchEvent(new Event('fixture-navigation'))}}}
 export function useSearchParams(){return new URLSearchParams(location.search)}
 `)
 await writeFile(join(output, 'link.tsx'), `import React from 'react';export default function Link({href,children,prefetch,...props}:any){return <a href={href} {...props}>{children}</a>}`)
@@ -48,10 +49,7 @@ await build({
     entry: join(output, 'entry.tsx'), name: 'OnboardingFirstResult', formats: ['iife'], fileName: () => 'fixture.js',
   } },
 })
-const chunks = join(repo, '.next/static/chunks')
-const css = (await readdir(chunks)).filter(name => name.endsWith('.css')).sort()
-if (!css.length) throw new Error('Existing built application CSS is required')
-await writeFile(join(output, 'build.css'), (await Promise.all(css.map(name => readFile(join(chunks, name), 'utf8')))).join('\n'))
+await compileFixtureStyles(repo, join(output, 'build.css'))
 console.log('Built real onboarding/scan/result components with only navigation and API boundaries substituted.')
 }
 

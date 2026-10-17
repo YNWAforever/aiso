@@ -65,7 +65,7 @@ export async function loadOwnedOpportunitySources(accountId: string, clientId: s
     sourceStates: { pulse: 'unavailable', scan: 'unavailable' }, sources: [], evidenceVersions: [],
   }
   const [pulse, scan] = await Promise.allSettled([
-    sql`
+    query.scanId ? Promise.resolve([]) : sql`
       select m.id, m.client_id, m.prompt_id, m.question, m.platform,
         m.scan_week::text as scan_week,
         to_char(m.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
@@ -88,6 +88,7 @@ export async function loadOwnedOpportunitySources(accountId: string, clientId: s
         s.results -> 'evidence' as envelope
       from scans s join clients c on c.id = s.client_id and c.account_id = s.account_id
       where s.client_id = ${clientId} and s.account_id = ${accountId}
+        and (${query.scanId??null}::uuid is null or s.id = ${query.scanId??null}::uuid)
       order by s.created_at desc nulls last, s.id desc limit 1
     `,
   ])

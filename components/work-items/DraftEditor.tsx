@@ -1,6 +1,6 @@
 'use client'
 import {WorkOperationsPanel} from './WorkOperationsPanel'
-import { useId, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { parseDraftEdit } from '@/lib/work-items/edit-input'
 import type { WorkItem } from '@/lib/work-items/schema'
@@ -9,10 +9,14 @@ export function DraftEditor({
   clientId,
   item,
   onSaved,
+  onDirtyChange,
+  scanId,
 }: {
   clientId: string
   item: WorkItem
   onSaved: (item: WorkItem) => void
+  onDirtyChange?: (dirty: boolean) => void
+  scanId?: string
 }) {
   const lang = useLocale()
   const fieldId = useId()
@@ -57,6 +61,7 @@ export function DraftEditor({
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
+        signal: AbortSignal.timeout(15_000),
       })
       const data = await response.json()
       if (!response.ok) {
@@ -69,6 +74,8 @@ export function DraftEditor({
         )
         return
       }
+      if (!data.item || data.item.id !== item.id || data.item.clientId !== clientId ||
+        !Number.isSafeInteger(data.item.revision) || data.item.revision < saved.revision) throw new Error()
       accept(data.item)
       setStatus(t('changesSaved'))
     } catch {
@@ -84,9 +91,11 @@ export function DraftEditor({
     setBusy(true)
     setStatus('')
     try {
-      const response = await fetch(endpoint, { cache: 'no-store' })
+      const response = await fetch(endpoint, { cache: 'no-store', signal: AbortSignal.timeout(15_000) })
       if (!response.ok) throw new Error()
-      accept((await response.json()).item)
+      const next = (await response.json()).item
+      if (!next || next.id !== item.id || next.clientId !== clientId) throw new Error()
+      accept(next)
       setError('')
       setStatus(t('reloaded'))
     } catch {
@@ -98,6 +107,13 @@ export function DraftEditor({
   }
   const dirty =
     title !== saved.title || action !== saved.action || notes !== saved.notes
+  useEffect(() => { onDirtyChange?.(dirty || busy) }, [dirty, busy, onDirtyChange])
+  useEffect(() => {
+    if (!dirty) return
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
   const field =
     'w-full rounded-lg border border-border bg-background p-3 text-foreground'
   const button =
@@ -109,12 +125,13 @@ export function DraftEditor({
     >
       <h2 className="text-xl font-semibold">{t('savedDraft')}</h2>
       <p>{t('draftOnly')}</p>
+      <p aria-live="polite">{t(busy ? 'saving' : dirty ? 'unsavedChanges' : 'savedRevision', { revision: saved.revision })}</p>
       {dirty || busy ? (
         <p>{t('saveBeforeVersions')}</p>
       ) : (
         <a
           className="inline-flex min-h-11 items-center underline"
-          href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(saved.id)}/versions`}
+          href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(saved.id)}/versions${scanId ? `?scanId=${encodeURIComponent(scanId)}` : ''}`}
         >
           {t('versionHistory')}
         </a>
@@ -193,6 +210,10 @@ export function DraftEditor({
           {status}
         </p>
       </form>
+      <section className="space-y-2 rounded-lg border border-border p-4">
+        <h3 className="font-semibold">{t('manualApplyTitle')}</h3>
+        <p>{t('manualApplySteps')}</p>
+      </section>
       <WorkOperationsPanel clientId={clientId} itemId={item.id} revision={saved.revision} onRevision={revision=>{const next={...saved,revision};setSaved(next);onSaved(next)}}/>
       <section className="space-y-3 border-t border-border pt-4">
         <h3 className="font-semibold">{t('savedEvidence')}</h3>

@@ -199,21 +199,15 @@ export async function POST(req: NextRequest) {
       console.error('[scan] claim failure marker failed:', (markError as Error)?.name ?? 'Error')
     }
   }
-  if (claimKey) {
+  if (claimKey && account_id && clientId) {
     try {
-      const existing = await sql`
-        select id, score, grade, created_at, results
-        from scans
-        where account_id = ${account_id} and client_id = ${clientId}
-          and results @> ${JSON.stringify({ _scan_request: { key: claimKey } })}::jsonb
-        order by created_at asc
-        limit 1
-      `
-      const row = existing[0] as {
-        id: string; score: number | string | null; grade: string | null
-        created_at: string; results?: Record<string, unknown>
-      } | undefined
-      if (row) {
+      const { claimOwnedScan } = await import('@/lib/scans/request-claim')
+      const claim = await claimOwnedScan({
+        accountId: account_id, clientId, key: claimKey, url: baseUrl, domain,
+        industry: geoIndustry, region: geoRegion, results: claimResults('processing'),
+      })
+      const row = claim.row
+      if (!claim.created) {
         const run = (row.results?._scan_request ?? {}) as Record<string, unknown>
         const savedScore = row.score === null ? null : Number(row.score)
         if (savedScore !== null && Number.isFinite(savedScore)) {
@@ -231,32 +225,17 @@ export async function POST(req: NextRequest) {
         if (!Number.isFinite(age) || age < PROCESSING_CLAIM_TTL_MS) {
           return NextResponse.json({ id: row.id, state: 'processing', reused: true }, { status: 202 })
         }
-        // The original request died mid-scan. Reuse its row instead of
-        // inserting a second one; only one retry can win this conditional update.
-        const takeover = await sql`
-          update scans
-          set results = jsonb_set(results, '{_scan_request}',
-            ${JSON.stringify(claimResults('processing')._scan_request)}::jsonb, true)
-          where id = ${row.id} and account_id = ${account_id}
-            and results->'_scan_request'->>'state' = 'processing'
-          returning id
-        `
-        if (!takeover[0]) return NextResponse.json({ id: row.id, state: 'processing', reused: true }, { status: 202 })
-        claimId = row.id
+        // A timed-out invocation may already have charged a provider. Preserve
+        // its row/evidence and require an explicit new intent, never takeover.
+        await sql`update scans set results=jsonb_set(results,'{_scan_request}',
+          ${JSON.stringify({ ...run, state: 'failed', error: 'SCAN_OUTCOME_UNKNOWN', status: 409 })}::jsonb,true)
+          where id=${row.id} and account_id=${account_id} and client_id=${clientId} and score is null
+            and results->'_scan_request'=${JSON.stringify(run)}::jsonb`
+        return NextResponse.json({ scanId: row.id, state: 'failed', error: 'SCAN_OUTCOME_UNKNOWN', reused: true }, { status: 409 })
       }
-      if (!claimId) {
-        const claimed = await sql`
-          insert into scans (url, domain, score, results, industry, region, grade, account_id, agent_status, client_id)
-          values (${baseUrl}, ${domain}, null, ${JSON.stringify(claimResults('processing'))}::jsonb,
-                  ${geoIndustry}, ${geoRegion}, null, ${account_id}, null, ${clientId})
-          returning id
-        `
-        const claimedRow = claimed[0] as { id: string } | undefined
-        if (!claimedRow) return NextResponse.json({ error: 'Insert returned no data' }, { status: 500 })
-        claimId = claimedRow.id
-      }
+      claimId = row.id
     } catch (claimError) {
-      console.error('[scan] request claim failed:', (claimError as Error)?.message ?? String(claimError))
+      console.error('[scan] request claim failed:', (claimError as Error)?.name ?? 'Error')
       return NextResponse.json({ error: 'Scan request unavailable' }, { status: 503 })
     }
   }

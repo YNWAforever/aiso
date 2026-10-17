@@ -11,4 +11,7 @@ describe('dashboard scan errors', () => {
     expect(getDashboardScanErrorKey(500, { error: 'SCAN_UNREACHABLE' })).toBeNull()
     expect(getDashboardScanErrorKey(422, null)).toBeNull()
   })
+  it('explains an expired unknown outcome without suggesting an automatic paid retry', () => {
+    expect(getDashboardScanErrorKey(409, { error: 'SCAN_OUTCOME_UNKNOWN' })).toBe('scan_outcome_unknown')
+  })
 })

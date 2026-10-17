@@ -14,6 +14,7 @@ import type { PlanFeatures } from '@/lib/types'
 import { ScanStep } from '@/components/dashboard/ScanStep'
 import { ResultsStep } from '@/components/dashboard/ResultsStep'
 import { ImproveStep } from '@/components/dashboard/ImproveStep'
+import { ScanImprovements } from '@/components/dashboard/ScanImprovements'
 import { MonitorStep } from '@/components/dashboard/MonitorStep'
 import { LocalTrustStep } from '@/components/dashboard/local-trust/LocalTrustStep'
 import { getLocalTrustProfile, getOrCreateLocalTrustSnapshot } from '@/lib/localTrust/store'
@@ -304,6 +305,8 @@ export default async function DashboardPage({
         )}
 
         {step === 'improve' && scan && (
+          <div className="space-y-8">
+          <ScanImprovements clientId={clientId} scanId={scan.id} />
           <ImproveStep
             scan={scan}
             features={features}
@@ -311,6 +314,7 @@ export default async function DashboardPage({
             progress={agentProg}
             competitors={agentCompetitors}
           />
+          </div>
         )}
         {step === 'improve' && !scan && (
           <div className="rounded-xl border border-dash-border bg-dash-surface p-8 text-center">

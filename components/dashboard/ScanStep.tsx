@@ -14,8 +14,9 @@ const INDUSTRY_VALUES = [
 const REGION_VALUES = ['global', 'HK', 'TW', 'SG', 'JP', 'KR', 'US', 'UK', 'EU', 'AU', 'CA'] as const
 
 /** A translated message key for a known scan failure, or null to keep the existing handling. */
-export function getDashboardScanErrorKey(status: number, payload: unknown): 'scan_unreachable' | null {
+export function getDashboardScanErrorKey(status: number, payload: unknown): 'scan_unreachable' | 'scan_outcome_unknown' | null {
   const error = payload && typeof payload === 'object' && 'error' in payload ? payload.error : undefined
+  if(status === 409 && error === 'SCAN_OUTCOME_UNKNOWN') return 'scan_outcome_unknown'
   return status === 422 && error === 'SCAN_UNREACHABLE' ? 'scan_unreachable' : null
 }
 
@@ -89,7 +90,8 @@ export function ScanStep({ lang, clientId, scanHistory }: Props) {
       })
       const data = await res.json()
       if (!res.ok) {
-        try { sessionStorage.removeItem(intent.storageKey) } catch { /* optional storage */ }
+        // A failed response can follow completed/charged work. Keep its identity
+        // for automatic reentry; only an explicit form submit creates a new run.
         const key = getDashboardScanErrorKey(res.status, data)
         setError(key ? t(key) : (data.error || t('scan_failed')))
         setLoading(false)
@@ -182,7 +184,7 @@ export function ScanStep({ lang, clientId, scanHistory }: Props) {
           </div>
 
           {error && (
-            <p className="text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>
+            <p role="alert" className="text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>
           )}
 
           <button

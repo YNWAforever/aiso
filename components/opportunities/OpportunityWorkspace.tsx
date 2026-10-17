@@ -8,15 +8,16 @@ import type { OpportunityResponse } from '@/lib/opportunities/types'
 import type { WorkItem } from '@/lib/work-items/schema'
 import { DraftEditor } from '@/components/work-items/DraftEditor'
 import { EvidenceDetails } from './EvidenceDetails'
-type WorkspaceProps = { clientId: string } & (
+type WorkspaceProps = { clientId: string; scanId?: string } & (
   | { initial: OpportunityResponse; initialError?: never }
   | { initial: null; initialError: 'unavailable' }
 )
 export function OpportunityWorkspace(props: WorkspaceProps) {
-  return <OpportunityContent key={props.clientId} {...props} />
+  return <OpportunityContent key={`${props.clientId}:${props.scanId ?? ''}`} {...props} />
 }
 function OpportunityContent({
   clientId,
+  scanId,
   initial,
   initialError,
 }: WorkspaceProps) {
@@ -29,6 +30,7 @@ function OpportunityContent({
     [items, setItems] = useState<WorkItem[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
     [listState, setListState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
+  const [editorDirty, setEditorDirty] = useState(false)
   const listed = listState === 'loaded', listing = listState === 'loading', listError = listState === 'error'
   const [selected, setSelected] = useState<WorkItem | null>(null),
     [opening, setOpening] = useState(false),
@@ -53,6 +55,9 @@ function OpportunityContent({
     selectionEpoch = useRef(0),
     editor = useRef<HTMLDivElement>(null)
   const base = `/api/clients/${encodeURIComponent(clientId)}`
+  const belongsToScan = useCallback((item: WorkItem) => !scanId || (item.sourceScanIds ? item.sourceScanIds.includes(scanId) : (
+    item.evidenceSnapshot?.source.kind === 'scan-check' && item.evidenceSnapshot.source.id === scanId
+  )), [scanId])
   const selectedId = selected?.id
   useEffect(() => {
     if (selectedId && view === 'drafts') editor.current?.focus()
@@ -84,7 +89,8 @@ function OpportunityContent({
       if (!Array.isArray(result.items) || result.items.some(row => !row || typeof row.id !== 'string' || row.clientId !== clientId) || (result.nextCursor !== null && typeof result.nextCursor !== 'string')) throw new Error()
       setItems((old) => {
         const selected = selectedItem.current
-        const rows = more ? [...old, ...result.items] : [...result.items, ...(selected && !result.items.some(row => row.id === selected.id) ? [selected] : [])]
+        const matching = result.items.filter(belongsToScan)
+        const rows = more ? [...old, ...matching] : [...matching, ...(selected && !matching.some(row => row.id === selected.id) ? [selected] : [])]
         const seen = new Set<string>()
         return rows.filter(row => seen.has(row.id) ? false : Boolean(seen.add(row.id)))
       })
@@ -101,7 +107,7 @@ function OpportunityContent({
     })()
     listRequest.current = task
     return task
-  }, [base, clientId])
+  }, [base, clientId, belongsToScan])
   const ensureDraftListLoaded = useCallback((): Promise<void> => listLoaded.current ? Promise.resolve() : list(), [list])
   function showView(next: 'suggestions' | 'drafts') {
     selectionEpoch.current++
@@ -122,13 +128,13 @@ function OpportunityContent({
     setRefreshing(true)
     setLoadError(false)
     try {
-      const response = await fetch(`${base}/opportunities${more&&data?.window.nextCursor?`?cursor=${encodeURIComponent(data.window.nextCursor)}`:''}`, {
+      const response = await fetch(`${base}/opportunities${scanId?`?scanId=${encodeURIComponent(scanId)}`:more&&data?.window.nextCursor?`?cursor=${encodeURIComponent(data.window.nextCursor)}`:''}`, {
         cache: 'no-store',
         signal:AbortSignal.timeout(15000),
       })
       if (!response.ok) throw new Error()
       const next=await response.json() as OpportunityResponse
-      if(!Array.isArray(next.suggestions)||!next.window)throw new Error()
+      if(!Array.isArray(next.suggestions)||!next.window||scanId&&next.window.scanId!==null&&next.window.scanId!==scanId)throw new Error()
       setData(old=>more&&old?{...next,suggestions:[...old.suggestions,...next.suggestions].filter((row,index,rows)=>rows.findIndex(item=>item.key===row.key)===index)}:next)
       if(!more){setEvidenceChangedKeys(new Set());setSaveError(null)}
       setStatus(t('refreshed'))
@@ -143,11 +149,11 @@ function OpportunityContent({
     const response = await fetch(`${base}/work-items/${encodeURIComponent(id)}`, { cache: 'no-store', signal: AbortSignal.timeout(15_000) })
     if (!response.ok) throw new Error()
     const item = (await response.json()).item as WorkItem
-    if (!item || item.id !== id || item.clientId !== clientId) throw new Error()
+    if (!item || item.id !== id || item.clientId !== clientId || !belongsToScan(item)) throw new Error()
     return item
-  }, [base, clientId])
+  }, [base, clientId, belongsToScan])
   const open = useCallback(async (id: string) => {
-    if (openLock.current) return
+    if (openLock.current || editorDirty) return
     openLock.current = true
     const epoch = ++selectionEpoch.current
     setOpening(true)
@@ -164,7 +170,7 @@ function OpportunityContent({
       openLock.current = false
       setOpening(false)
     }
-  }, [readDraft, remember, ensureDraftListLoaded])
+  }, [readDraft, remember, ensureDraftListLoaded, editorDirty])
   useEffect(() => {
     if (restored.current) return
     restored.current = true
@@ -182,6 +188,7 @@ function OpportunityContent({
   async function save(suggestion: OpportunityResponse['suggestions'][number]) {
     if (
       savingLock.current ||
+      editorDirty ||
       refreshLock.current ||
       evidenceChangedKeys.has(suggestion.key)
     )
@@ -194,6 +201,7 @@ function OpportunityContent({
       const response = await fetch(`${base}/work-items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(15_000),
         body: JSON.stringify({
           source: suggestion.source,
           ruleVersion: suggestion.ruleVersion,
@@ -213,7 +221,7 @@ function OpportunityContent({
         return
       }
       const item = result.item as WorkItem
-      if (!item || typeof item.id !== 'string' || item.clientId !== clientId) throw new Error()
+      if (!item || typeof item.id !== 'string' || item.clientId !== clientId || !belongsToScan(item)) throw new Error()
       remember(item)
       setData(
         (old) =>
@@ -238,11 +246,13 @@ function OpportunityContent({
   }
   const button =
     'min-h-11 rounded-lg border border-border px-4 py-2 font-semibold disabled:opacity-50'
+  const Container = scanId ? 'section' : 'main'
   return (
-    <main className="mx-auto w-full min-w-0 max-w-5xl space-y-6 p-4 text-foreground sm:p-8">
+    <Container className={`mx-auto w-full min-w-0 max-w-5xl space-y-6 text-foreground ${scanId ? '' : 'p-4 sm:p-8'}`}>
       <header className="space-y-2">
-        <h1 className="text-2xl font-bold">{t('title')}</h1>
-        <p>{t('intro')}</p>
+        {scanId ? <h2 className="text-2xl font-bold">{t('scanDraftTitle')}</h2> : <h1 className="text-2xl font-bold">{t('title')}</h1>}
+        <p>{t(scanId ? 'scanDraftIntro' : 'intro')}</p>
+        {scanId && <p className="break-all text-sm">{t('sourceScan')}: {scanId}</p>}
       </header>
       <div
         role="group"
@@ -269,6 +279,7 @@ function OpportunityContent({
       <p role="status" aria-live="polite">
         {status || (saving ? t('saving') : opening ? t('loadingDraft') : '')}
       </p>
+      {editorDirty && <p>{t('finishEditing')}</p>}
       {openError && <p role="alert">{t('openError')}</p>}
       <section
         hidden={view !== 'suggestions'}
@@ -277,17 +288,17 @@ function OpportunityContent({
         aria-busy={refreshing}
       >
         <div className="space-y-2 rounded-xl border border-border bg-card p-4">
-          <p>{t('window')}</p>
+          <p>{t(scanId ? 'scanPriorityReason' : 'window')}</p>
           {data && (
             <>
-              <p>
+              {!scanId && <p>
                 {t('week')}: {data.window.pulseWeek ?? t('noWeek')}
-              </p>
+              </p>}
               {data.window.pulseTruncated && <p>{t('pulseTruncated')}</p>}
               {data.partial && <p>{t('partial')}</p>}
-              <p>
+              {!scanId && <p>
                 {t('pulse')}: {t(`sourceStates.${data.sourceStates.pulse}`)}
-              </p>
+              </p>}
               <p>
                 {t('scan')}: {t(`sourceStates.${data.sourceStates.scan}`)}
               </p>
@@ -369,6 +380,7 @@ function OpportunityContent({
                   refreshing ||
                   opening ||
                   saving !== null ||
+                  editorDirty ||
                   suggestion.saveAvailability === 'limited-evidence' ||
                   evidenceChangedKeys.has(suggestion.key)
                 }
@@ -399,7 +411,7 @@ function OpportunityContent({
               <li key={item.id}>
                 <button
                   className={`${button} w-full break-words text-left`}
-                  disabled={opening || saving !== null}
+                  disabled={opening || saving !== null || editorDirty}
                   onClick={() => open(item.id)}
                 >
                   {item.title}
@@ -422,7 +434,9 @@ function OpportunityContent({
             <DraftEditor
               key={`${selected.id}:${selected.revision}`}
               clientId={clientId}
+              scanId={scanId}
               item={selected}
+              onDirtyChange={setEditorDirty}
               onSaved={(item) => {
                 setItems((old) =>
                   old.map((row) => (row.id === item.id ? item : row)),
@@ -432,7 +446,7 @@ function OpportunityContent({
           </div>
         )}
       </section>
-      <MaintenanceNextSteps clientId={clientId} lang={locale} current="opportunities" copy={Object.fromEntries(workflowCopyKeys.map(key=>[key,t(key)])) as WorkflowCopy}/>
-    </main>
+      {!scanId && <MaintenanceNextSteps clientId={clientId} lang={locale} current="opportunities" copy={Object.fromEntries(workflowCopyKeys.map(key=>[key,t(key)])) as WorkflowCopy}/>}
+    </Container>
   )
 }

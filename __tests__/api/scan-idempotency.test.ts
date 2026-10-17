@@ -37,6 +37,14 @@ const state = vi.hoisted(() => ({
 const checkRobots = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/auth', () => ({ getProfile: async () => state.profile }))
+vi.mock('@/lib/scans/request-claim', () => ({
+  claimOwnedScan: async (input: { results: Record<string, unknown> }) => {
+    const existing = state.existing[0]
+    if (existing) return { row: existing, created: false }
+    state.claimInserts++
+    return { row: { id: 'scan-claim', results: input.results, created_at: new Date().toISOString(), score: null, grade: null }, created: true }
+  },
+}))
 vi.mock('next/server', async importOriginal => ({
   ...(await importOriginal<typeof import('next/server')>()),
   after: () => {},
@@ -191,18 +199,18 @@ describe('POST /api/scan — first-use request idempotency', () => {
     expect(state.claimInserts).toBe(0)
   })
 
-  it('takes over a stale processing claim without creating a second scan', async () => {
+  it('stops an expired claim without repeating checks or potentially charged work', async () => {
     state.existing = [{
       id: 'scan-claim', score: null, grade: null, created_at: new Date(Date.now() - 10 * 60_000).toISOString(),
       results: { _scan_request: { key: body.requestKey, state: 'processing', startedAt: new Date(Date.now() - 10 * 60_000).toISOString() } },
     }]
     const { POST } = await import('@/app/api/scan/route')
     const res = await POST(request(body))
-    expect(res.status).toBe(200)
-    expect((await res.json()).id).toBe('scan-claim')
-    expect(checkRobots).toHaveBeenCalled()
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ scanId: 'scan-claim', state: 'failed', error: 'SCAN_OUTCOME_UNKNOWN' })
+    expect(checkRobots).not.toHaveBeenCalled()
     expect(state.claimInserts).toBe(0)
-    expect(state.finalUpdates).toHaveLength(1)
+    expect(state.finalUpdates).toHaveLength(0)
   })
 
   it('keeps anonymous scans non-idempotent: a replay still inserts another row', async () => {

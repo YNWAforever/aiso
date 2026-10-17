@@ -6,11 +6,13 @@ import type { DraftSnapshotV1, SourceRef } from '@/lib/opportunities/types'
 import type { CreateDraftInput, DraftEditInput, WorkItem } from './schema'
 import { encodeWorkItemCursor, type WorkItemListQuery } from './query'
 
-type Row = {id:string;client_id:string;status:'draft';title:string;action:string;notes:string;locale:WorkItem['locale'];revision:number;created_at:string;updated_at:string;evidence_snapshot:DraftSnapshotV1}
+type Row = {id:string;client_id:string;status:'draft';title:string;action:string;notes:string;locale:WorkItem['locale'];revision:number;created_at:string;updated_at:string;evidence_snapshot:DraftSnapshotV1;source_scan_ids?:string[]}
 function dto(row: Row): WorkItem {
   // Validate the persisted snapshot before exposing any stored data.
   const evidenceSnapshot = JSON.parse(serializeDraftSnapshot(row.evidence_snapshot)) as DraftSnapshotV1
-  return {id:row.id,clientId:row.client_id,status:row.status,title:row.title,action:row.action,notes:row.notes,locale:row.locale,revision:row.revision,createdAt:row.created_at,updatedAt:row.updated_at,evidenceSnapshot}
+  return {id:row.id,clientId:row.client_id,status:row.status,title:row.title,action:row.action,notes:row.notes,locale:row.locale,revision:row.revision,createdAt:row.created_at,updatedAt:row.updated_at,evidenceSnapshot,
+    sourceScanIds:Array.isArray(row.source_scan_ids)?row.source_scan_ids
+      :evidenceSnapshot.source.kind==='scan-check'?[evidenceSnapshot.source.id]:[]}
 }
 export async function loadOwnedDraftClient(accountId:string, clientId:string) {
   const sql=db()
@@ -49,7 +51,10 @@ export async function findOwnedDraft(accountId:string,clientId:string,key:string
   // exactly that collision on `id`.
   const rows=await sql`select d.id,d.client_id,d.status,d.title,d.action,d.notes,d.locale,d.revision,
     to_char(d.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot
+    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot,
+    (select coalesce(jsonb_agg(distinct live_source.source_id::text),'[]'::jsonb) from work_item_sources live_source
+      where live_source.account_id=d.account_id and live_source.client_id=d.client_id and live_source.work_item_id=d.id
+        and live_source.source_kind='scan-check' and live_source.withdrawn_at is null) as source_scan_ids
     from evidence_work_items d join clients c on c.id=d.client_id and c.account_id=d.account_id
     join work_item_sources s on s.work_item_id=d.id and s.account_id=d.account_id and s.client_id=d.client_id and s.withdrawn_at is null
     where s.source_kind in ('pulse-metric','scan-check') and d.account_id=${accountId} and d.client_id=${clientId} and s.opportunity_key=${key} limit 1`
@@ -127,7 +132,10 @@ export async function createDraftIfEvidenceCurrent(accountId:string,clientId:str
   // A separate READ COMMITTED statement sees concurrent winners after conflict waiting.
   const replay=sql`select d.id,d.client_id,d.status,d.title,d.action,d.notes,d.locale,d.revision,
     to_char(d.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot
+    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot,
+    (select coalesce(jsonb_agg(distinct live_source.source_id::text),'[]'::jsonb) from work_item_sources live_source
+      where live_source.account_id=d.account_id and live_source.client_id=d.client_id and live_source.work_item_id=d.id
+        and live_source.source_kind='scan-check' and live_source.withdrawn_at is null) as source_scan_ids
     from evidence_work_items d join clients c on c.id=d.client_id and c.account_id=d.account_id
     where d.source_kind in ('pulse-metric','scan-check') and d.account_id=${accountId} and d.client_id=${clientId} and d.opportunity_key=${key} limit 1`
   const [written,current]=await sql.transaction([mutation,replay],{isolationLevel:'ReadCommitted'})
@@ -141,10 +149,16 @@ export async function updateOwnedDraft(accountId:string,clientId:string,itemId:s
       and exists(select 1 from clients c where c.id=d.client_id and c.account_id=d.account_id)
     returning id,client_id,status,title,action,notes,locale,revision,
       to_char(created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-      to_char(updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,evidence_snapshot`
+      to_char(updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,evidence_snapshot,
+      (select coalesce(jsonb_agg(distinct live_source.source_id::text),'[]'::jsonb) from work_item_sources live_source
+        where live_source.account_id=d.account_id and live_source.client_id=d.client_id and live_source.work_item_id=d.id
+          and live_source.source_kind='scan-check' and live_source.withdrawn_at is null) as source_scan_ids`
   const replay=sql`select d.id,d.client_id,d.status,d.title,d.action,d.notes,d.locale,d.revision,
     to_char(d.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot
+    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot,
+    (select coalesce(jsonb_agg(distinct live_source.source_id::text),'[]'::jsonb) from work_item_sources live_source
+      where live_source.account_id=d.account_id and live_source.client_id=d.client_id and live_source.work_item_id=d.id
+        and live_source.source_kind='scan-check' and live_source.withdrawn_at is null) as source_scan_ids
     from evidence_work_items d join clients c on c.id=d.client_id and c.account_id=d.account_id
     where d.source_kind in ('pulse-metric','scan-check') and d.account_id=${accountId} and d.client_id=${clientId} and d.id=${itemId}
       and d.revision > ${input.expectedRevision}::bigint and d.title = ${input.title} and d.action = ${input.action} and d.notes = ${input.notes}`
@@ -156,7 +170,10 @@ export async function readOwnedDraft(accountId:string,clientId:string,itemId:str
   const sql=db()
   const rows=await sql`select d.id,d.client_id,d.status,d.title,d.action,d.notes,d.locale,d.revision,
     to_char(d.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot
+    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot,
+    (select coalesce(jsonb_agg(distinct live_source.source_id::text),'[]'::jsonb) from work_item_sources live_source
+      where live_source.account_id=d.account_id and live_source.client_id=d.client_id and live_source.work_item_id=d.id
+        and live_source.source_kind='scan-check' and live_source.withdrawn_at is null) as source_scan_ids
     from evidence_work_items d join clients c on c.id=d.client_id and c.account_id=d.account_id
     where d.source_kind in ('pulse-metric','scan-check') and d.account_id=${accountId} and d.client_id=${clientId} and d.id=${itemId} limit 1`
   return rows[0] ? dto(rows[0] as Row) : null
@@ -165,7 +182,10 @@ export async function listOwnedDrafts(accountId:string,clientId:string,query:Wor
   const sql=db()
   const rows=await sql`select d.id,d.client_id,d.status,d.title,d.action,d.notes,d.locale,d.revision,
     to_char(d.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at,
-    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot
+    to_char(d.updated_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as updated_at,d.evidence_snapshot,
+    (select coalesce(jsonb_agg(distinct live_source.source_id::text),'[]'::jsonb) from work_item_sources live_source
+      where live_source.account_id=d.account_id and live_source.client_id=d.client_id and live_source.work_item_id=d.id
+        and live_source.source_kind='scan-check' and live_source.withdrawn_at is null) as source_scan_ids
     from evidence_work_items d join clients c on c.id=d.client_id and c.account_id=d.account_id
     where d.source_kind in ('pulse-metric','scan-check') and d.account_id=${accountId} and d.client_id=${clientId}
       and (${query.cursor===null} or (d.created_at,d.id)<(${query.cursor?.createdAt??null}::timestamptz,${query.cursor?.id??null}::uuid))
