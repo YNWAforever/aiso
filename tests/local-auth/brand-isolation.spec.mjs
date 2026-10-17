@@ -6,6 +6,26 @@ import { config, messages, control, login, get, shot } from './support.mjs'
 
 if (config.scenario !== 'brand-isolation') throw new Error('LOCAL_AUTH_MULTI_BRAND_TARGET')
 
+async function openPortfolio(page, lang, copy) {
+  await page.locator('aside').getByRole('link', { name: /Fimmick AISO/i }).click()
+  await page.waitForURL(url => url.pathname === `/${lang}/dashboard`)
+  await expect(page.getByRole('heading', { name: copy.portfolio.title, exact: true })).toBeVisible()
+}
+
+async function selectBrand(page, lang, brand, copy) {
+  const card = page.locator('main a').filter({ hasText: brand.brandName }).first()
+  await expect(card).toHaveCount(1)
+  await card.click()
+  await page.waitForURL(url => url.pathname === `/${lang}/dashboard/${brand.clientId}`)
+  await expect(page.getByRole('heading', { name: brand.brandName, exact: true })).toBeVisible()
+  const scan = page.getByRole('link').filter({ hasText: `${copy.workspaceHome.openScan}: ${brand.score}` }).first()
+  await expect(scan).toBeVisible()
+  await scan.click()
+  await page.waitForURL(url => url.pathname === `/${lang}/dashboard/${brand.clientId}` &&
+    url.searchParams.get('step') === 'results' && url.searchParams.get('scanId') === brand.scanId)
+  await expect(page.getByTestId('result-priority')).toContainText(brand.brandName)
+}
+
 for (const lang of ['en', 'zh-HK']) {
   test(`${lang} same-account brands isolate results sources and persisted drafts`, async ({ page, context, request }, testInfo) => {
     const project = testInfo.project.name, prefix = `${project}-${lang}`
@@ -78,7 +98,9 @@ for (const lang of ['en', 'zh-HK']) {
           id: item.id, title, action, notes, revision: 2, source_id: fixture.scanId })
         expect(persisted.sources[0]).toMatchObject({ account_id: plan.accountId, client_id: fixture.clientId,
           work_item_id: item.id, source_id: fixture.scanId, evidence_fingerprint: body.fingerprint })
-        audit.brands.push({ ...fixture, fingerprint: body.fingerprint, item: { id: item.id, title, action, notes,
+        const retained = await control(request, '/__local/scan', { id: fixture.scanId })
+        const score = Number(retained.rows[0].score)
+        audit.brands.push({ ...fixture, brandName, score, fingerprint: body.fingerprint, item: { id: item.id, title, action, notes,
           revision: 2, evidenceSnapshot: item.evidenceSnapshot } })
       }
       const [a, b] = audit.brands
@@ -124,13 +146,35 @@ for (const lang of ['en', 'zh-HK']) {
       await expect(page.getByRole('alert').filter({ hasText: copy.opportunities.openError })).toHaveText(copy.opportunities.openError)
       await expect(page.getByLabel(copy.opportunities.titleField, { exact: true })).toHaveCount(0)
       await shot(page, `${prefix}-01-cross-brand-refused.png`)
-      for (const brand of [a, b]) {
-        await page.goto(resultPath(brand))
-        const open = page.getByTestId('result-priority').getByRole('link', { name: copy.resultSummary.openDraft, exact: true })
-        await expect(open).toHaveAttribute('href', draftPath(brand))
-        await open.click()
+      audit.uiSwitches = []
+      for (const [brand, other] of [[a, b], [b, a]]) {
+        await openPortfolio(page, lang, copy)
+        for (const visible of [a, b]) {
+          await expect(page.locator('main a').filter({ hasText: visible.brandName }).first()).toBeVisible()
+        }
+        await selectBrand(page, lang, brand, copy)
+        await expect(page.getByTestId('result-priority')).not.toContainText(other.brandName)
+        await expect(page.getByText(other.item.title, { exact: true })).toHaveCount(0)
+        await page.getByTestId('result-priority').scrollIntoViewIfNeeded()
+        await shot(page, `${prefix}-03-ui-results-${brand.brandName.includes(' A ') ? 'a' : 'b'}.png`)
+        await page.getByRole('link', { name: copy.dashboard.next_improve, exact: true }).click()
+        await page.waitForURL(url => url.pathname === `/${lang}/dashboard/${brand.clientId}` &&
+          url.searchParams.get('step') === 'improve' && url.searchParams.get('scanId') === brand.scanId)
+        await expect(page.getByText(`${copy.opportunities.sourceScan}: ${brand.scanId}`, { exact: true }).first()).toBeVisible()
+        await expect(page.getByText(`${copy.opportunities.sourceScan}: ${other.scanId}`, { exact: true })).toHaveCount(0)
+        await page.getByRole('button', { name: copy.opportunities.savedDrafts, exact: true }).click()
+        const savedDrafts = page.getByRole('region', { name: copy.opportunities.savedDrafts, exact: true })
+        await expect(savedDrafts.getByRole('button', { name: brand.item.title, exact: true })).toBeVisible()
+        await expect(savedDrafts.getByRole('button', { name: other.item.title, exact: true })).toHaveCount(0)
+        await savedDrafts.getByRole('button', { name: brand.item.title, exact: true }).click()
         await expect(page.getByLabel(copy.opportunities.titleField, { exact: true })).toHaveValue(brand.item.title)
         await expect(page.getByLabel(copy.opportunities.notes, { exact: true })).toHaveValue(brand.item.notes)
+        await expect(page.getByText(other.item.notes, { exact: true })).toHaveCount(0)
+        audit.uiSwitches.push({ clientId: brand.clientId, brandName: brand.brandName, scanId: brand.scanId,
+          draftId: brand.item.id, selectedVia: 'portfolio-card-and-scan-history', improveSourceVerified: true })
+        await page.getByLabel(copy.opportunities.titleField, { exact: true })
+          .evaluate(element => element.scrollIntoView({ block: 'center' }))
+        await shot(page, `${prefix}-03-ui-switch-${brand.brandName.includes(' A ') ? 'a' : 'b'}.png`)
       }
       await page.goto(`/${lang}/auth/logout`)
       await page.waitForURL(`**/${lang}/auth/login`)
@@ -139,6 +183,8 @@ for (const lang of ['en', 'zh-HK']) {
       const restored = await get(page, `/api/clients/${b.clientId}/work-items/${b.item.id}`)
       expect(restored.status).toBe(200)
       expect(restored.body.item).toMatchObject({ ...b.item, clientId: b.clientId })
+      await page.getByLabel(copy.opportunities.titleField, { exact: true })
+        .evaluate(element => element.scrollIntoView({ block: 'center' }))
       await shot(page, `${prefix}-02-brand-b-relogin.png`)
       audit.restored = true
       audit.completed = true
