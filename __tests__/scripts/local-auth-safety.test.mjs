@@ -17,6 +17,29 @@ const inspect = () => ({
 })
 
 describe('local real Auth harness safety boundaries', () => {
+  it('selects a bounded scenario only from one explicit CLI option', () => {
+    expect(typeof tools.parseLocalAuthScenario).toBe('function')
+    expect(tools.parseLocalAuthScenario([])).toBe('first-value')
+    expect(tools.parseLocalAuthScenario(['--scenario=brand-isolation'])).toBe('brand-isolation')
+    for (const args of [['--scenario=production'], ['--scenario='], ['--scenario=brand-isolation', '--scenario=first-value']]) {
+      expect(() => tools.parseLocalAuthScenario(args)).toThrow('LOCAL_AUTH_SCENARIO_INVALID')
+    }
+  })
+  it('allows a local synthetic Pro fixture only for its exact run identity and dedicated scenario', () => {
+    expect(typeof tools.verifyMultiBrandFixture).toBe('function')
+    const config = { ...spec(), mode: tools.evidenceMode, scenario: 'brand-isolation',
+      database: spec().database, containerVerified: true, containerId, dbHost: '127.0.0.1' }
+    const identity = { id: runId, account_id: 'c1111111-1111-4111-8111-111111111111' }
+    const email = `desktop-en-${runId}@fixture-aiso.example`
+    expect(tools.verifyMultiBrandFixture(config, identity, email)).toBe(identity.account_id)
+    for (const patch of [{ scenario: 'first-value' }, { containerVerified: false }, { mode: 'production' },
+      { dbHost: 'shared.example' }, { database: 'shared_db' }, { containerId: 'unknown' }]) {
+      expect(() => tools.verifyMultiBrandFixture({ ...config, ...patch }, identity, email)).toThrow('LOCAL_AUTH_MULTI_BRAND_TARGET')
+    }
+    expect(() => tools.verifyMultiBrandFixture(config, { ...identity, account_id: null }, email)).toThrow('LOCAL_AUTH_MULTI_BRAND_TARGET')
+    expect(() => tools.verifyMultiBrandFixture(config, identity, 'real-user@example.com')).toThrow('LOCAL_AUTH_MULTI_BRAND_TARGET')
+    expect(() => tools.verifyMultiBrandFixture(config, identity, `desktop-en-foreign-run@fixture-aiso.example`)).toThrow('LOCAL_AUTH_MULTI_BRAND_TARGET')
+  })
   it('requires the local Docker named-pipe context before creating or recovering resources', () => {
     expect(typeof tools.verifyLocalDockerContext).toBe('function')
     expect(tools.verifyLocalDockerContext({ Endpoints: { docker: { Host: 'npipe:////./pipe/dockerDesktopLinuxEngine' } } })).toBe(true)

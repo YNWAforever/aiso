@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { betterAuth } from 'better-auth'
 import { magicLink } from 'better-auth/plugins'
 import { toNodeHandler } from 'better-auth/node'
-import { verifyOwnedFixtureBrand } from './local-auth-safety.mjs'
+import { verifyOwnedFixtureBrand, verifyMultiBrandFixture } from './local-auth-safety.mjs'
 
 export function engineOptions(config, database, mailbox, onUser) {
   return {
@@ -34,7 +34,7 @@ export function engineOptions(config, database, mailbox, onUser) {
 }
 
 export async function startAuthService(config, authPool, ownerPool, fixture, record) {
-  const mailbox = new Map(), fixtureByEmail = new Map()
+  const mailbox = new Map(), fixtureByEmail = new Map(), multiBrandPlans = new Map()
   let nextLoginAt = 0, loginSlots = 0, lastMagicRequestAt = 0
   const options = engineOptions(config, authPool, mailbox, async user => {
     const response = await fetch(`${config.appOrigin}/api/webhooks/neon`, {
@@ -76,9 +76,36 @@ export async function startAuthService(config, authPool, ownerPool, fixture, rec
           response.end(JSON.stringify(link ? { link } : { pending: true }))
           return
         }
+        if (url.pathname === '/__local/multi-brand-account') {
+          if (config.scenario !== 'brand-isolation') throw new Error('LOCAL_AUTH_MULTI_BRAND_TARGET')
+          const identity = await ownerPool.query(`select u.id,p.account_id from neon_auth."user" u
+            join public.profiles p on p.id=u.id where u.email=$1`, [email])
+          if (identity.rowCount !== 1) throw new Error('LOCAL_AUTH_REAL_PROFILE_REQUIRED')
+          const accountId = verifyMultiBrandFixture(config, identity.rows[0], email)
+          let data = multiBrandPlans.get(accountId)
+          if (!data) {
+            // Only a new, run-owned synthetic account, before any brand exists.
+            // Keep real entitlement rules and triggers active. No checkout,
+            // subscription identity, role grant or production setting is used.
+            const result = await ownerPool.query(`update public.accounts a set plan='pro'
+              where a.id=$1 and a.plan='basic' and a.status='active'
+                and a.stripe_customer_id is null and a.stripe_subscription_id is null
+                and a.override_plan is null
+                and not exists(select 1 from public.clients c where c.account_id=a.id)
+              returning a.id,a.plan,a.status`, [accountId])
+            if (result.rowCount !== 1) throw new Error('LOCAL_AUTH_FRESH_ACCOUNT_REQUIRED')
+            data = { accountId, plan: result.rows[0].plan, status: result.rows[0].status,
+              fixtureOnly: true, checkoutCalled: false, subscriptionConfigured: false }
+            multiBrandPlans.set(accountId, data)
+            record({ event: 'LOCAL_SYNTHETIC_PRO_PLAN_FIXTURE', ...data })
+          }
+          response.setHeader('Content-Type', 'application/json')
+          response.end(JSON.stringify(data)); return
+        }
         if (url.pathname === '/__local/fixture') {
           if (!email || !email.endsWith('@fixture-aiso.example')) throw new Error('LOCAL_AUTH_FIXTURE_EMAIL')
-          let data = fixtureByEmail.get(email)
+          const fixtureKey = config.scenario === 'brand-isolation' ? `${email}:${url.searchParams.get('clientId')}` : email
+          let data = fixtureByEmail.get(fixtureKey)
           if (!data) {
             const identity = await ownerPool.query(
               `select u.id, p.account_id from neon_auth."user" u join public.profiles p on p.id=u.id where u.email=$1`,
@@ -113,7 +140,7 @@ export async function startAuthService(config, authPool, ownerPool, fixture, rec
               await connection.query('commit')
             } catch (error) { await connection.query('rollback'); throw error }
             finally { connection.release() }
-            fixtureByEmail.set(email, data)
+            fixtureByEmail.set(fixtureKey, data)
             record({ event: 'SYNTHETIC-scan-fixture-created-for-existing-brand', ...data })
           }
           if (data.clientId !== url.searchParams.get('clientId')) throw new Error('LOCAL_AUTH_FIXTURE_REBIND_DENIED')

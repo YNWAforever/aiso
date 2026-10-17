@@ -4,6 +4,30 @@ import { offlineBuildEnvironment } from './build-offline.mjs'
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/
 export const evidenceMode = 'LOCAL_REAL_AUTH_ENGINE_AND_POSTGRES_WITH_SYNTHETIC_SCAN'
 
+export function parseLocalAuthScenario(args) {
+  const values = args.filter(value => value.startsWith('--scenario='))
+  if (!values.length) return 'first-value'
+  if (values.length !== 1 || !['first-value', 'brand-isolation'].includes(values[0].slice(11))) {
+    throw new Error('LOCAL_AUTH_SCENARIO_INVALID')
+  }
+  return values[0].slice(11)
+}
+
+export function verifyMultiBrandFixture(config, identity, email) {
+  let expected
+  try { expected = runSpec(config.runId, config.imageId) }
+  catch { throw new Error('LOCAL_AUTH_MULTI_BRAND_TARGET') }
+  if (config.scenario !== 'brand-isolation' || config.mode !== evidenceMode ||
+      config.containerVerified !== true || !/^[a-f0-9]{64}$/.test(config.containerId ?? '') ||
+      config.dbHost !== '127.0.0.1' || config.database !== expected.database ||
+      !uuid.test(identity?.id ?? '') || !uuid.test(identity?.account_id ?? '') ||
+      typeof email !== 'string' || !/^[a-z0-9-]+@fixture-aiso\.example$/.test(email) ||
+      !email.endsWith(`-${config.runId}@fixture-aiso.example`)) {
+    throw new Error('LOCAL_AUTH_MULTI_BRAND_TARGET')
+  }
+  return identity.account_id
+}
+
 export function verifyLocalDockerContext(metadata) {
   if (!metadata?.Endpoints?.docker?.Host?.startsWith('npipe://')) {
     throw new Error('LOCAL_AUTH_DOCKER_MUST_BE_LOCAL')

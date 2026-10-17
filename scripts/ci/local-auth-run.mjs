@@ -12,9 +12,10 @@ import { ownRuntimeChildren } from './runtime-processes.mjs'
 import { engineOptions, startAuthService } from './local-auth-service.mjs'
 import { fixtureResults } from './local-auth-fixture.mjs'
 import { runSpec, verifyContainer, verifyDatabase, verifyLocalDockerContext, artifactDirectory,
-  localEnvironment, redactLocalAuth, allowLocalUrl, evidenceMode } from './local-auth-safety.mjs'
+  localEnvironment, redactLocalAuth, allowLocalUrl, evidenceMode, parseLocalAuthScenario } from './local-auth-safety.mjs'
 
 const exec = promisify(execFile), root = process.cwd(), runId = randomUUID()
+const scenario = parseLocalAuthScenario(process.argv.slice(2))
 const output = artifactDirectory(root, runId), privateDir = join(output, '.private')
 mkdirSync(privateDir, { recursive: true, mode: 0o700 })
 const secret = () => randomBytes(32).toString('hex')
@@ -23,7 +24,7 @@ const [ownerPassword, appPassword, authPassword, engineSecret, controlSecret] = 
 const envFiles = ['.env', '.env.local', '.env.production', '.env.production.local']
 const dotenv = envFiles.filter(file => existsSync(join(root, file))).map(file => readFileSync(join(root, file), 'utf8'))
 const cleanEnv = localEnvironment(process.env, dotenv)
-const proof = { mode: evidenceMode, runId, managedNeonAuthVerified: false, externalCollectionVerified: false,
+const proof = { mode: evidenceMode, runId, scenario, managedNeonAuthVerified: false, externalCollectionVerified: false,
   providerCallsAllowed: false, monitoringEnabled: false, startedAt: new Date().toISOString(), status: 'starting',
   authEngineVersion: JSON.parse(readFileSync('node_modules/better-auth/package.json', 'utf8')).version,
   neonSdkVersion: JSON.parse(readFileSync('node_modules/@neondatabase/auth/package.json', 'utf8')).version }
@@ -152,7 +153,7 @@ try {
   record({ event: 'in-band-target-verified-before-client', ...sqlIdentity, localAssignedBinding: true })
   const appPort = await freePort(), authPort = await freePort()
   config = {
-    ...spec, mode: evidenceMode, containerId, containerVerified: true,
+    ...spec, mode: evidenceMode, scenario, containerId, containerVerified: true,
     dbHost: endpoint.host, dbPort: endpoint.port, dsnHost: 'localhost', ownerPassword,
     appRole: 'aeo_app', appPassword, authRole: 'local_auth_engine', authPassword,
     engineSecret, controlSecret, cookieSecret: secret(),
