@@ -41,5 +41,7 @@ describe('npm run lint ignores', () => {
 it('excludes generated evidence while retaining the checked-in CI policy', async () => {
   const eslint = new ESLint({ cwd: process.cwd(), ignorePatterns: lintScriptIgnorePatterns() })
   expect(await eslint.isPathIgnored(join(process.cwd(), 'artifacts/aiso/T17/stage-evidence.mjs'))).toBe(true)
+  expect(await eslint.isPathIgnored(join(process.cwd(), 'playwright-report/trace/assets/viewer.js'))).toBe(true)
+  expect(await eslint.isPathIgnored(join(process.cwd(), 'test-results/journey/trace/viewer.js'))).toBe(true)
   expect(await eslint.isPathIgnored(join(process.cwd(), 'scripts/ci/resolve-disposable-role-authorization.mjs'))).toBe(false)
 }, 120_000)
