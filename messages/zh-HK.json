@@ -1,4 +1,10 @@
 {
+  "authRateLimit": {
+    "message": "驗證請求暫時受到限流，今次操作尚未完成。",
+    "retryIn": "可於 {seconds} 秒後重試。未保存嘅輸入仍然保留。",
+    "ready": "等待時間已過，可以手動重試；系統未有自動重送。",
+    "unknown": "伺服器未提供重試時間。請稍候再手動重試；輸入仍然保留。"
+  },
   "seo": {
     "home": {
       "title": "Fimmick AISO｜AI 搜尋網站就緒檢查",

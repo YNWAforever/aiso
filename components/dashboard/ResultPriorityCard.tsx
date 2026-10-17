@@ -8,6 +8,7 @@ import { getCheckActionCopy, getCheckExplanations } from '@/lib/checkExplanation
 import { firstScanOpportunity, isEligibleScanOpportunity } from '@/lib/opportunities/scan-selection'
 import type { OpportunityResponse } from '@/lib/opportunities/types'
 import type { WorkItem } from '@/lib/work-items/schema'
+import { useAuthRateLimit } from '@/components/auth/useAuthRateLimit'
 
 type Props = {
   clientId: string; scanId: string; brandName?: string | null
@@ -26,6 +27,7 @@ export function ResultPriorityCard(props: Props) {
 function PriorityContent({ clientId, scanId, brandName, initial }: Props) {
   const t = useTranslations('resultSummary'), checks = useTranslations('checks')
   const locale = useLocale() === 'zh-HK' ? 'zh-HK' : 'en', router = useRouter()
+  const { captureAuthLimit, clearAuthLimit, authWaiting, authNotice } = useAuthRateLimit()
   const [data, setData] = useState(initial), [busy, setBusy] = useState<'saving' | 'refreshing' | null>(null)
   const [error, setError] = useState<'saveFailed' | 'evidenceChanged' | null>(null), [savedId, setSavedId] = useState<string | null>(null)
   const active = useRef(true), lock = useRef(false), request = useRef<AbortController | null>(null)
@@ -36,22 +38,24 @@ function PriorityContent({ clientId, scanId, brandName, initial }: Props) {
   const suggestion = data.suggestion, draftId = savedId ?? suggestion?.savedDraftId
   const draftHref = (id: string) => `/${locale}/dashboard/${clientId}?step=improve&scanId=${encodeURIComponent(scanId)}&draft=${encodeURIComponent(id)}`
   async function refresh() {
-    if (lock.current) return
+    if (lock.current || authWaiting) return
     lock.current = true; setBusy('refreshing')
     const controller = new AbortController(); request.current = controller
     const timer = setTimeout(() => controller.abort(), 15000)
     try {
       const response = await fetch(`/api/clients/${clientId}/opportunities?scanId=${encodeURIComponent(scanId)}`, { cache: 'no-store', signal: controller.signal })
+      if (await captureAuthLimit(response)) return
       if (!response.ok) throw new Error()
       const next = await response.json() as OpportunityResponse
       if (!next.window || next.window.scanId !== scanId || !Array.isArray(next.suggestions)) throw new Error()
       if (!active.current || controller.signal.aborted) return
       setData(firstScanOpportunity(next, scanId)); setError(null); setSavedId(null)
+      clearAuthLimit()
     } catch { if (active.current) setData(old => ({ ...old, unavailable: true })) }
     finally { clearTimeout(timer); if (active.current) { lock.current = false; setBusy(null) } }
   }
   async function create() {
-    if (!suggestion || lock.current || error === 'evidenceChanged') return
+    if (!suggestion || lock.current || error === 'evidenceChanged' || authWaiting) return
     lock.current = true; setBusy('saving'); setError(null)
     const controller = new AbortController(); request.current = controller
     const timer = setTimeout(() => controller.abort(), 15000)
@@ -61,6 +65,7 @@ function PriorityContent({ clientId, scanId, brandName, initial }: Props) {
         body: JSON.stringify({ source: suggestion.source, ruleVersion: suggestion.ruleVersion, fingerprint: suggestion.fingerprint, locale }),
       })
       if (!active.current || controller.signal.aborted) return
+      if (await captureAuthLimit(response)) return
       if (response.status === 409) { setError('evidenceChanged'); return }
       if (![200, 201].includes(response.status)) throw new Error()
       const item = (await response.json()).item as WorkItem
@@ -69,6 +74,7 @@ function PriorityContent({ clientId, scanId, brandName, initial }: Props) {
       if (!item || !UUID.test(item.id) || item.clientId !== clientId || !scoped || item.status !== 'draft' || !Number.isSafeInteger(item.revision) || item.revision < 1) throw new Error()
       if (!active.current || controller.signal.aborted) return
       setSavedId(item.id)
+      clearAuthLimit()
       router.push(draftHref(item.id))
     } catch { if (active.current) setError('saveFailed') }
     finally { clearTimeout(timer); if (active.current) { lock.current = false; setBusy(null) } }
@@ -93,7 +99,7 @@ function PriorityContent({ clientId, scanId, brandName, initial }: Props) {
       </p>
       {draftId && UUID.test(draftId)
         ? <Link className={`${button} bg-primary text-primary-foreground`} href={draftHref(draftId)}>{t('openDraft')}</Link>
-        : <button className={`${button} bg-primary text-primary-foreground disabled:opacity-50`} disabled={busy !== null || error === 'evidenceChanged'} onClick={() => void create()}>{t(busy === 'saving' ? 'creatingDraft' : 'createDraft')}</button>}
+        : <button className={`${button} bg-primary text-primary-foreground disabled:opacity-50`} disabled={busy !== null || error === 'evidenceChanged' || authWaiting} onClick={() => void create()}>{t(busy === 'saving' ? 'creatingDraft' : 'createDraft')}</button>}
       {savedId && <p role="status" className="text-sm">{t('priorityDraftSaved')}</p>}
       <details>
         <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">{t('priorityEvidence')}</summary>
@@ -106,7 +112,8 @@ function PriorityContent({ clientId, scanId, brandName, initial }: Props) {
       </details>
     </> : <p>{t('priorityEmpty')}</p>}
     {error && <p role="alert" className="text-sm">{t(error)}</p>}
-    {(data.unavailable || error === 'evidenceChanged') && <button className={`${button} border border-dash-border`} disabled={busy !== null} onClick={() => void refresh()}>{t(busy === 'refreshing' ? 'refreshingPriority' : 'refreshPriority')}</button>}
+    {authNotice}
+    {(data.unavailable || error === 'evidenceChanged') && <button className={`${button} border border-dash-border`} disabled={busy !== null || authWaiting} onClick={() => void refresh()}>{t(busy === 'refreshing' ? 'refreshingPriority' : 'refreshPriority')}</button>}
     <p className="text-xs text-dash-muted">{t('priorityDraftNotice')}</p>
   </section>
 }

@@ -1,4 +1,10 @@
 {
+  "authRateLimit": {
+    "message": "Authentication checks are temporarily limited. This action has not completed.",
+    "retryIn": "Try again in {seconds} seconds. Your unsaved input is still here.",
+    "ready": "The wait has ended. You can retry manually; nothing has been resubmitted automatically.",
+    "unknown": "The server did not provide a retry time. Wait before retrying manually; your input is still here."
+  },
   "seo": {
     "home": {
       "title": "Fimmick AISO | Website Readiness for AI Search",

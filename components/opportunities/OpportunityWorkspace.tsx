@@ -9,6 +9,8 @@ import type { WorkItem } from '@/lib/work-items/schema'
 import { DraftEditor } from '@/components/work-items/DraftEditor'
 import { EvidenceDetails } from './EvidenceDetails'
 import { selectScanOpportunities } from '@/lib/opportunities/scan-selection'
+import { useAuthRateLimit } from '@/components/auth/useAuthRateLimit'
+import { AuthRateLimitError } from '@/lib/auth-rate-limit'
 type WorkspaceProps = { clientId: string; scanId?: string } & (
   | { initial: OpportunityResponse; initialError?: never }
   | { initial: null; initialError: 'unavailable' }
@@ -24,6 +26,7 @@ function OpportunityContent({
 }: WorkspaceProps) {
   const t = useTranslations('opportunities'),
     locale = useLocale() === 'zh-HK' ? 'zh-HK' : 'en'
+  const { captureAuthLimit, clearAuthLimit, authWaiting, authNotice } = useAuthRateLimit()
   const [data, setData] = useState(initial),
     [refreshing, setRefreshing] = useState(false),
     [loadError, setLoadError] = useState(Boolean(initialError))
@@ -81,6 +84,7 @@ function OpportunityContent({
     window.history.replaceState(window.history.state, '', url)
   }, [])
   const list = useCallback((more = false): Promise<void> => {
+    if (authWaiting) return Promise.resolve()
     if (listRequest.current) return listRequest.current
     const task = (async () => {
     setListState('loading')
@@ -91,6 +95,10 @@ function OpportunityContent({
         `${base}/work-items${more && listCursor.current ? `?cursor=${encodeURIComponent(listCursor.current)}` : ''}`,
         { cache: 'no-store', signal: controller.signal },
       )
+      if (await captureAuthLimit(response)) {
+        setListState(listLoaded.current ? 'loaded' : 'idle')
+        return
+      }
       if (!response.ok) throw new Error()
       const result = (await response.json()) as {
         items: WorkItem[]
@@ -108,6 +116,7 @@ function OpportunityContent({
       setCursor(result.nextCursor)
       listLoaded.current = true
       setListState('loaded')
+      clearAuthLimit()
     } catch {
       setListState('error')
     } finally {
@@ -117,7 +126,7 @@ function OpportunityContent({
     })()
     listRequest.current = task
     return task
-  }, [base, clientId, belongsToScan])
+  }, [base, clientId, belongsToScan, authWaiting, captureAuthLimit, clearAuthLimit])
   const ensureDraftListLoaded = useCallback((): Promise<void> => listLoaded.current ? Promise.resolve() : list(), [list])
   function showView(next: 'suggestions' | 'drafts') {
     selectionEpoch.current++
@@ -133,7 +142,7 @@ function OpportunityContent({
     void ensureDraftListLoaded()
   }
   async function refresh(more=false) {
-    if (refreshLock.current || savingLock.current) return
+    if (refreshLock.current || savingLock.current || authWaiting) return
     refreshLock.current = true
     setRefreshing(true)
     setLoadError(false)
@@ -142,12 +151,14 @@ function OpportunityContent({
         cache: 'no-store',
         signal:AbortSignal.timeout(15000),
       })
+      if (await captureAuthLimit(response)) return
       if (!response.ok) throw new Error()
       const next=await response.json() as OpportunityResponse
       if(!Array.isArray(next.suggestions)||!next.window||scanId&&next.window.scanId!==null&&next.window.scanId!==scanId)throw new Error()
       setData(old=>more&&old?{...next,suggestions:[...old.suggestions,...next.suggestions].filter((row,index,rows)=>rows.findIndex(item=>item.key===row.key)===index)}:next)
       if(!more){setEvidenceChangedKeys(new Set());setSaveError(null)}
       setStatus(t('refreshed'))
+      clearAuthLimit()
     } catch {
       setLoadError(true)
     } finally {
@@ -157,13 +168,15 @@ function OpportunityContent({
   }
   const readDraft = useCallback(async (id: string): Promise<WorkItem> => {
     const response = await fetch(`${base}/work-items/${encodeURIComponent(id)}`, { cache: 'no-store', signal: AbortSignal.timeout(15_000) })
+    const limited = await captureAuthLimit(response)
+    if (limited) throw limited
     if (!response.ok) throw new Error()
     const item = (await response.json()).item as WorkItem
     if (!item || item.id !== id || item.clientId !== clientId || !belongsToScan(item)) throw new Error()
     return item
-  }, [base, clientId, belongsToScan])
+  }, [base, clientId, belongsToScan, captureAuthLimit])
   const open = useCallback(async (id: string) => {
-    if (openLock.current || editorDirty) return
+    if (openLock.current || editorDirty || authWaiting) return
     openLock.current = true
     const epoch = ++selectionEpoch.current
     setOpening(true)
@@ -174,13 +187,14 @@ function OpportunityContent({
       remember(item)
       setView('drafts')
       void ensureDraftListLoaded()
-    } catch {
+    } catch (error) {
+      if (error instanceof AuthRateLimitError) return
       if (epoch === selectionEpoch.current) setOpenError(true)
     } finally {
       openLock.current = false
       setOpening(false)
     }
-  }, [readDraft, remember, ensureDraftListLoaded, editorDirty])
+  }, [readDraft, remember, ensureDraftListLoaded, editorDirty, authWaiting])
   useEffect(() => {
     if (restored.current) return
     restored.current = true
@@ -191,13 +205,14 @@ function OpportunityContent({
       void readDraft(id).then(item => {
         if (cancelled || epoch !== selectionEpoch.current) return
         remember(item); setView('drafts'); void ensureDraftListLoaded()
-      }).catch(() => { if (!cancelled && epoch === selectionEpoch.current) setOpenError(true) })
+      }).catch(error => { if (!(error instanceof AuthRateLimitError) && !cancelled && epoch === selectionEpoch.current) setOpenError(true) })
     }
     return () => { cancelled = true }
   }, [readDraft, remember, ensureDraftListLoaded])
   async function save(suggestion: OpportunityResponse['suggestions'][number]) {
     if (
       savingLock.current ||
+      authWaiting ||
       editorDirty ||
       refreshLock.current ||
       evidenceChangedKeys.has(suggestion.key)
@@ -219,6 +234,7 @@ function OpportunityContent({
           locale,
         }),
       })
+      if (await captureAuthLimit(response)) return
       const result = await response.json()
       if (!active.current) return
       if (!response.ok) {
@@ -248,6 +264,7 @@ function OpportunityContent({
       setView('drafts')
       void ensureDraftListLoaded()
       setStatus(t('draftSaved'))
+      clearAuthLimit()
     } catch {
       setSaveError({ key: suggestion.key, message: 'saveError' })
     } finally {
@@ -273,7 +290,7 @@ function OpportunityContent({
         <button
           className={button}
           aria-pressed={view === 'suggestions'}
-          disabled={saving !== null}
+          disabled={saving !== null || authWaiting}
           onClick={() => showView('suggestions')}
         >
           {t('suggestions')}
@@ -281,7 +298,7 @@ function OpportunityContent({
         <button
           className={button}
           aria-pressed={view === 'drafts'}
-          disabled={saving !== null}
+          disabled={saving !== null || authWaiting}
           onClick={showDrafts}
         >
           {t('savedDrafts')}
@@ -292,6 +309,7 @@ function OpportunityContent({
       </p>
       {editorDirty && <p>{t('finishEditing')}</p>}
       {openError && <p role="alert">{t('openError')}</p>}
+      {authNotice}
       <section
         hidden={view !== 'suggestions'}
         aria-label={t('suggestions')}
@@ -322,7 +340,7 @@ function OpportunityContent({
           )}
           <button
             className={button}
-            disabled={refreshing || saving !== null}
+            disabled={refreshing || saving !== null || authWaiting}
             onClick={() => refresh()}
           >
             {refreshing ? t('loadingSuggestions') : t('refresh')}
@@ -371,7 +389,7 @@ function OpportunityContent({
                 <p>{t('evidenceChanged')}</p>
                 <button
                   className={button}
-                  disabled={refreshing || saving !== null}
+                  disabled={refreshing || saving !== null || authWaiting}
                   onClick={() => refresh()}
                 >
                   {t('refresh')}
@@ -380,7 +398,7 @@ function OpportunityContent({
             )}
             {suggestion.savedDraftId ? (
               <button
-                disabled={opening || saving !== null}
+                disabled={opening || saving !== null || authWaiting}
                 className={button}
                 onClick={() => open(suggestion.savedDraftId!)}
               >
@@ -391,6 +409,7 @@ function OpportunityContent({
                 className={`${button} bg-primary text-primary-foreground`}
                 disabled={
                   refreshing ||
+                  authWaiting ||
                   opening ||
                   saving !== null ||
                   editorDirty ||
@@ -414,7 +433,7 @@ function OpportunityContent({
       >
         <div className="space-y-3" aria-busy={listing}>
           <h2 className="text-xl font-semibold">{t('savedDrafts')}</h2>
-          <button className={button} disabled={listing} onClick={() => list()}>
+          <button className={button} disabled={listing || authWaiting} onClick={() => list()}>
             {listing ? t('loadingDrafts') : t('refreshDrafts')}
           </button>
           {listError && <p role="alert">{t('listError')}</p>}
@@ -424,7 +443,7 @@ function OpportunityContent({
               <li key={item.id}>
                 <button
                   className={`${button} w-full break-words text-left`}
-                  disabled={opening || saving !== null || editorDirty}
+                  disabled={opening || saving !== null || editorDirty || authWaiting}
                   onClick={() => open(item.id)}
                 >
                   {item.title}
@@ -435,7 +454,7 @@ function OpportunityContent({
           {cursor && (
             <button
               className={button}
-              disabled={listing}
+              disabled={listing || authWaiting}
               onClick={() => list(true)}
             >
               {t('loadMore')}

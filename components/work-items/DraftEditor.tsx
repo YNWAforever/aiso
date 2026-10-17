@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { parseDraftEdit } from '@/lib/work-items/edit-input'
 import type { WorkItem } from '@/lib/work-items/schema'
 import { EvidenceDetails } from '@/components/opportunities/EvidenceDetails'
+import { useAuthRateLimit } from '@/components/auth/useAuthRateLimit'
 export function DraftEditor({
   clientId,
   item,
@@ -30,6 +31,7 @@ export function DraftEditor({
     [status, setStatus] = useState('')
   const [preparationDirty, setPreparationDirty] = useState(false)
   const lock = useRef(false)
+  const { captureAuthLimit, clearAuthLimit, authWaiting, authNotice } = useAuthRateLimit()
   const endpoint = `/api/clients/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(item.id)}`
   function accept(next: WorkItem) {
     setSaved(next)
@@ -40,7 +42,7 @@ export function DraftEditor({
   }
   async function save(event: FormEvent) {
     event.preventDefault()
-    if (lock.current) return
+    if (lock.current || authWaiting) return
     let input
     try {
       input = parseDraftEdit({
@@ -64,6 +66,7 @@ export function DraftEditor({
         body: JSON.stringify(input),
         signal: AbortSignal.timeout(15_000),
       })
+      if (await captureAuthLimit(response)) return
       const data = await response.json()
       if (!response.ok) {
         setError(
@@ -78,6 +81,7 @@ export function DraftEditor({
       if (!data.item || data.item.id !== item.id || data.item.clientId !== clientId ||
         !Number.isSafeInteger(data.item.revision) || data.item.revision < saved.revision) throw new Error()
       accept(data.item)
+      clearAuthLimit()
       setStatus(t('changesSaved'))
     } catch {
       setError('editError')
@@ -87,16 +91,18 @@ export function DraftEditor({
     }
   }
   async function reload() {
-    if (lock.current) return false
+    if (lock.current || authWaiting) return false
     lock.current = true
     setBusy(true)
     setStatus('')
     try {
       const response = await fetch(endpoint, { cache: 'no-store', signal: AbortSignal.timeout(15_000) })
+      if (await captureAuthLimit(response)) return false
       if (!response.ok) throw new Error()
       const next = (await response.json()).item
       if (!next || next.id !== item.id || next.clientId !== clientId) throw new Error()
       accept(next)
+      clearAuthLimit()
       setError('')
       setStatus(t('reloaded'))
       return true
@@ -193,10 +199,11 @@ export function DraftEditor({
         </div>
         <p className="text-sm">{t('fieldLimits')}</p>
         {error && <p role="alert">{t(error)}</p>}
+        {authNotice}
         <div className="flex flex-wrap gap-3">
           <button
             className={`${button} bg-primary text-primary-foreground`}
-            disabled={busy}
+            disabled={busy || authWaiting}
             type="submit"
           >
             {busy ? t('saving') : t('saveChanges')}
@@ -204,7 +211,7 @@ export function DraftEditor({
           {error === 'editConflict' && (
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || authWaiting}
               className={button}
               onClick={reload}
             >

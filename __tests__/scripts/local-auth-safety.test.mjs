@@ -21,6 +21,7 @@ describe('local real Auth harness safety boundaries', () => {
     expect(typeof tools.parseLocalAuthScenario).toBe('function')
     expect(tools.parseLocalAuthScenario([])).toBe('first-value')
     expect(tools.parseLocalAuthScenario(['--scenario=brand-isolation'])).toBe('brand-isolation')
+    expect(tools.parseLocalAuthScenario(['--scenario=auth-rate-limit'])).toBe('auth-rate-limit')
     for (const args of [['--scenario=production'], ['--scenario='], ['--scenario=brand-isolation', '--scenario=first-value']]) {
       expect(() => tools.parseLocalAuthScenario(args)).toThrow('LOCAL_AUTH_SCENARIO_INVALID')
     }

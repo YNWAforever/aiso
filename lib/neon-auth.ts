@@ -1,7 +1,9 @@
 import { createNeonAuth } from '@neondatabase/auth/next/server'
+import { handleAuthRequest, handleAuthResponse } from '@neondatabase/auth/server'
 import { cookies, headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { cache } from 'react'
+import { AuthRateLimitError, authRetryAfter } from '@/lib/auth-rate-limit'
 
 // Lazy singleton — createNeonAuth is deferred until first use so that
 // module evaluation at Next.js build time (when env vars may be absent)
@@ -73,12 +75,17 @@ const record = (value: unknown): value is Record<string, unknown> =>
  * signed cookie cache so revoked/expired sessions cannot keep a page open.
  */
 export const getServerSession = cache(async (): Promise<SessionResult> => {
-  const response = await auth().handler().GET(
-    new Request(new URL('get-session?disableCookieCache=true&disableRefresh=true', `${requiredEnv('NEON_AUTH_BASE_URL').replace(/\/$/, '')}/`), {
+  auth() // Retain the existing configuration/secret validation before I/O.
+  const baseUrl = requiredEnv('NEON_AUTH_BASE_URL')
+  // The installed SDK proxy allowlist drops Retry-After/X-Retry-After.
+  // Use its public helpers separately: one upstream request, unchanged cookie
+  // handling and validation, with only bounded retry metadata retained.
+  const upstream = await handleAuthRequest(baseUrl,
+    new Request(new URL('get-session?disableCookieCache=true&disableRefresh=true', `${baseUrl.replace(/\/$/, '')}/`), {
       headers: await headers(),
-    }),
-    { params: Promise.resolve({ path: ['get-session'] }) },
-  )
+    }), 'get-session')
+  const retryAfterSeconds = upstream.status === 429 ? authRetryAfter(upstream.headers) : null
+  const response = await handleAuthResponse(upstream, baseUrl, { secret: requiredEnv('NEON_AUTH_COOKIE_SECRET') })
   const body: unknown = await response.json().catch((error: unknown) => {
     if (error instanceof SyntaxError) return null
     throw error
@@ -104,6 +111,7 @@ export const getServerSession = cache(async (): Promise<SessionResult> => {
     }
   }
   if (response.status === 401) return { data: null, error: null }
+  if (response.status === 429) throw new AuthRateLimitError(retryAfterSeconds)
   if (!response.ok) {
     return {
       data: null,

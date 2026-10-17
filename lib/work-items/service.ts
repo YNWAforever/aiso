@@ -1,4 +1,5 @@
 import { buildInitialDraftSnapshot } from './snapshot'
+import { AuthRateLimitError, authRateLimitResponse } from '@/lib/auth-rate-limit'
 import 'server-only'
 import { getProfile } from '@/lib/auth'
 import { opportunityKey } from '@/lib/opportunities/fingerprint'
@@ -16,7 +17,7 @@ export class WorkItemServiceError extends Error {
 }
 async function safely<T>(operation:()=>Promise<T>):Promise<T> {
  try{return await operation()}catch(error){
-  if(error instanceof WorkItemServiceError)throw error
+  if(error instanceof WorkItemServiceError||error instanceof AuthRateLimitError)throw error
   console.error({event:'work_items_unavailable'})
   throw new WorkItemServiceError('WORK_ITEMS_UNAVAILABLE')
  }
@@ -88,6 +89,7 @@ export async function readAuthenticatedDraft(clientId:string,itemId:string) {
 }
 export function workItemResponse(value:unknown,status=200) {return Response.json(value,{status,headers:{'Cache-Control':'no-store'}})}
 export function workItemErrorResponse(error:unknown) {
+ const limited=authRateLimitResponse(error);if(limited)return limited
  const safe=error instanceof WorkItemServiceError?error:new WorkItemServiceError('WORK_ITEMS_UNAVAILABLE')
  return workItemResponse({error:safe.code},safe.status)
 }
