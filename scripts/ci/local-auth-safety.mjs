@@ -7,7 +7,7 @@ export const evidenceMode = 'LOCAL_REAL_AUTH_ENGINE_AND_POSTGRES_WITH_SYNTHETIC_
 export function parseLocalAuthScenario(args) {
   const values = args.filter(value => value.startsWith('--scenario='))
   if (!values.length) return 'first-value'
-  if (values.length !== 1 || !['first-value', 'brand-isolation', 'auth-rate-limit', 'login-rate-limit'].includes(values[0].slice(11))) {
+  if (values.length !== 1 || !['first-value', 'brand-isolation', 'auth-rate-limit', 'login-rate-limit', 'account-unlock-rate-limit'].includes(values[0].slice(11))) {
     throw new Error('LOCAL_AUTH_SCENARIO_INVALID')
   }
   return values[0].slice(11)
