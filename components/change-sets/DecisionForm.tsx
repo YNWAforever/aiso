@@ -56,6 +56,7 @@ export function DecisionForm({
           ...JSON.parse(payload),
           requestId: request.current.requestId,
         }),
+        signal: AbortSignal.timeout(15_000),
       })
       if (!res.ok) {
         setError(

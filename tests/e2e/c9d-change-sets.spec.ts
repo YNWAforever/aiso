@@ -252,6 +252,94 @@ for (const lang of ['en', 'zh-HK']) {
       fullPage: true,
     })
   })
+  test(`C9d stalled decision request unlocks one manual retry ${lang}`, async ({
+    page,
+  }, testInfo) => {
+    const { changeSets: c } = await fixture(page, lang)
+    const bodies: Record<string, unknown>[] = []
+    let releaseFirst!: () => void
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+    await page.route('**/versions/*/decision', async (route) => {
+      const body = route.request().postDataJSON()
+      bodies.push(body)
+      if (bodies.length === 1) {
+        await firstGate
+        try {
+          await route.abort()
+        } catch {
+          // The browser may already have aborted after its timeout.
+        }
+        return
+      }
+      await route.fulfill({
+        status: 200,
+        json: {
+          version: {
+            ...version,
+            decision: {
+              decision: 'approved',
+              reason: body.reason,
+              decidedBy: {
+                profileId: clientId,
+                displayName: 'Independent reviewer',
+                role: 'account_approver',
+              },
+              decidedAt: '2026-09-07T00:00:00Z',
+            },
+            capabilities: { canDecide: false },
+          },
+        },
+      })
+    })
+
+    const decision = page.getByLabel(c.decision, { exact: true })
+    const reason = page.getByLabel(c.reason, { exact: true })
+    const submit = page.getByRole('button', {
+      name: c.recordDecision,
+      exact: true,
+    })
+    await decision.selectOption('approved')
+    await reason.fill('Review reason')
+    await submit.click()
+
+    await expect(page.getByRole('alert')).toHaveText(c.unavailable, {
+      timeout: 17_000,
+    })
+    expect(bodies).toHaveLength(1)
+    expect(bodies[0]).toEqual({
+      decision: 'approved',
+      reason: 'Review reason',
+      requestId: expect.any(String),
+    })
+    await expect(decision).toHaveValue('approved')
+    await expect(reason).toHaveValue('Review reason')
+    await expect(reason).toBeFocused()
+    await expect(submit).toBeEnabled()
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true)
+    await page.screenshot({
+      path: testInfo.outputPath(`${lang}-${testInfo.project.name}-decision-network-timeout.png`),
+      fullPage: true,
+    })
+
+    releaseFirst()
+    await submit.click()
+    await expect(
+      page.getByRole('status', { name: c.versionReviewStatus, exact: true }),
+    ).toHaveText(c.decisionRecorded)
+    expect(bodies).toHaveLength(2)
+    expect(bodies[1]).toEqual(bodies[0])
+    await page.screenshot({
+      path: testInfo.outputPath(`${lang}-${testInfo.project.name}-decision-network-retried.png`),
+      fullPage: true,
+    })
+  })
   for (const decision of ['approved', 'changes_requested'] as const)
     test(`C9d ${decision} timeout retry retains exact request and focus ${lang}`, async ({
       page,
