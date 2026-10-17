@@ -17,6 +17,7 @@ async function fixture(page: Page, lang: string, variant = 'default') {
     reason: (variant === 'pending' ? 'not_approved' : null) as DeliveryPage['capabilities']['attestReason'],
     readHook: null as ((route: Route) => Promise<void>) | null,
     postHook: null as ((route: Route) => Promise<void>) | null,
+    exportHook: null as ((route: Route) => Promise<void>) | null,
     versionHook: null as ((route: Route) => Promise<void>) | null }
   const history = (): DeliveryPage => ({ events: context.events, activeAttestationId: context.active, nextCursor: null,
     capabilities: { canExport: context.reason !== 'not_approved', canAttest: context.reason === null && context.active === null,
@@ -35,6 +36,7 @@ async function fixture(page: Page, lang: string, variant = 'default') {
     const url = new URL(route.request().url())
     if (url.pathname.endsWith('/outcomes')) return route.fulfill({ json: outcome({ versionId: url.pathname.split('/').at(-2)!, anchorState: 'no-delivery', anchor: null }) })
     if (url.pathname.endsWith('/export')) {
+      if (context.exportHook) return context.exportHook(route)
       const artifact = JSON.parse(readFileSync(dir + '/export-' + url.searchParams.get('format') + '.json', 'utf8'))
       return route.fulfill({ body: artifact.body, headers: { 'Content-Type': artifact.contentType, 'Content-Disposition': `attachment; filename="${artifact.filename}"`, 'X-Aiso-Export-Sha256': artifact.exportHash } })
     }
@@ -60,6 +62,151 @@ async function fixture(page: Page, lang: string, variant = 'default') {
   return { c, props, version, section, context, history, commit, event, fill, dir }
 }
 test.afterEach(({ page }) => expect(errors.get(page) ?? []).toEqual([]))
+function stalledRequest() {
+  let release!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  return {
+    release,
+    handle: async (route: Route) => {
+      await gate
+      try { await route.abort() } catch {
+        // The request may already have been aborted by the browser deadline.
+      }
+    },
+  }
+}
+async function timeoutEvidence(page: Page, section: ReturnType<Page['getByRole']>, name: string) {
+  await expect(section).toHaveAttribute('aria-busy', 'false')
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await section.screenshot({ path: test.info().outputPath(name + '-timeout.png') })
+}
+for (const lang of ['en', 'zh-HK']) {
+  test(`C9e stalled read releases refresh and retains input ${lang}`, async ({ page }) => {
+    const { c, section, context, fill } = await fixture(page, lang)
+    const stalled = stalledRequest()
+    await fill()
+    const reads = context.reads
+    context.readHook = stalled.handle
+    try {
+      await section.getByRole('button', { name: c.refresh, exact: true }).dblclick()
+      await expect(section.getByRole('alert')).toHaveText(c.unavailable, { timeout: 17_000 })
+      expect(context.reads).toBe(reads + 1)
+      expect(context.posts).toHaveLength(0)
+      await expect(section.getByRole('button', { name: c.record, exact: true })).toBeDisabled()
+      await expect(section.getByRole('button', { name: c.exportJson, exact: true })).toBeDisabled()
+      await expect(section.getByLabel(c.note, { exact: true })).toHaveValue(' e\u0301\n交付 ')
+      await expect(section.getByRole('button', { name: c.refresh, exact: true })).toBeEnabled()
+      await timeoutEvidence(page, section, lang + '-read')
+      context.readHook = null
+      stalled.release()
+      await section.getByRole('button', { name: c.refresh, exact: true }).click()
+      await expect(section.getByRole('button', { name: c.record, exact: true })).toBeEnabled()
+      expect(context.reads).toBe(reads + 2)
+      await expect(section.getByRole('alert')).toHaveCount(0)
+    } finally { stalled.release() }
+  })
+  for (const kind of ['attest', 'withdraw'] as const) {
+    test(`C9e stalled ${kind} requires refresh before same-identity retry ${lang}`, async ({ page }) => {
+      const f = await fixture(page, lang), { c, section, context } = f
+      if (kind === 'withdraw') {
+        const active = f.event({ destination: 'Original', deliveredAt: '2026-09-07T00:00:00.000Z', note: 'Original' })
+        context.events = [active]; context.active = active.eventId
+        await section.getByRole('button', { name: c.refresh, exact: true }).click()
+        await expect(section.getByRole('button', { name: c.withdraw, exact: true })).toBeEnabled()
+      }
+      await f.fill()
+      if (kind === 'withdraw') {
+        await section.getByRole('button', { name: c.withdraw, exact: true }).click()
+        await section.getByLabel(c.withdrawReason, { exact: true }).fill('Correction reason')
+      }
+      const stalled = stalledRequest()
+      context.postHook = stalled.handle
+      const submit = section.getByRole('button', { name: kind === 'attest' ? c.record : c.confirmWithdraw, exact: true })
+      try {
+        await submit.dblclick()
+        await expect(section.getByRole('alert')).toHaveText(c.unavailable, { timeout: 17_000 })
+        expect(context.posts).toHaveLength(1)
+        await expect(submit).toBeDisabled()
+        await expect(section.getByText(kind === 'attest' ? c.recorded : c.withdrawalRecorded, { exact: true })).toHaveCount(0)
+        await expect(section.getByLabel(c.destination, { exact: true })).toHaveValue(' Site ')
+        await expect(section.getByLabel(c.note, { exact: true })).toHaveValue(' e\u0301\n交付 ')
+        if (kind === 'withdraw') {
+          await expect(section.getByLabel(c.withdrawReason, { exact: true })).toHaveValue('Correction reason')
+          await expect(section.getByLabel(c.withdrawReason, { exact: true })).toBeFocused()
+        }
+        await timeoutEvidence(page, section, `${lang}-${kind}`)
+        context.postHook = null
+        stalled.release()
+        await section.getByRole('button', { name: c.refresh, exact: true }).click()
+        await expect(submit).toBeEnabled()
+        expect(context.posts).toHaveLength(1)
+        await submit.dblclick()
+        await expect(section.getByText(kind === 'attest' ? c.recorded : c.withdrawalRecorded, { exact: true })).toBeFocused()
+        expect(context.posts).toHaveLength(2)
+        expect(context.posts[1]).toEqual(context.posts[0])
+        await expect(section).toHaveAttribute('aria-busy', 'false')
+        await section.screenshot({ path: test.info().outputPath(`${lang}-${kind}-recovered.png`) })
+      } finally { stalled.release() }
+    })
+  }
+  test(`C9e committed stalled attestation is reconciled without another write ${lang}`, async ({ page }) => {
+    const f = await fixture(page, lang), { c, section, context } = f
+    await f.fill('Already recorded')
+    const stalled = stalledRequest()
+    context.postHook = async route => {
+      const saved = f.event(route.request().postDataJSON())
+      context.events = [saved]; context.active = saved.eventId
+      await stalled.handle(route)
+    }
+    try {
+      await section.getByRole('button', { name: c.record, exact: true }).click()
+      await expect(section.getByRole('alert')).toHaveText(c.unavailable, { timeout: 17_000 })
+      expect(context.posts).toHaveLength(1)
+      await expect(section.getByText(c.recorded, { exact: true })).toHaveCount(0)
+      stalled.release()
+      context.postHook = null
+      await section.getByRole('button', { name: c.refresh, exact: true }).click()
+      await expect(section.getByText('Already recorded', { exact: true })).toBeVisible()
+      await expect(section.getByRole('button', { name: c.record, exact: true })).toBeDisabled()
+      await expect(section.getByRole('button', { name: c.withdraw, exact: true })).toBeEnabled()
+      expect(context.posts).toHaveLength(1)
+      await expect(section.getByLabel(c.destination, { exact: true })).toHaveValue('Already recorded')
+    } finally { stalled.release() }
+  })
+  for (const format of ['json', 'text'] as const) {
+    test(`C9e stalled ${format} export unlocks without false download or attestation ${lang}`, async ({ page }) => {
+      const { c, section, context, dir, fill } = await fixture(page, lang)
+      await fill()
+      const stalled = stalledRequest()
+      let requests = 0, downloads = 0
+      page.on('download', () => { downloads++ })
+      context.exportHook = route => { requests++; return stalled.handle(route) }
+      const button = section.getByRole('button', { name: format === 'json' ? c.exportJson : c.exportText, exact: true })
+      try {
+        await button.dblclick()
+        await expect(section.getByRole('alert')).toHaveText(c.unavailable, { timeout: 17_000 })
+        expect(requests).toBe(1)
+        expect(downloads).toBe(0)
+        expect(context.posts).toHaveLength(0)
+        await expect(section.getByText(c.downloaded, { exact: true })).toHaveCount(0)
+        await expect(section.getByLabel(c.destination, { exact: true })).toHaveValue(' Site ')
+        await expect(button).toBeDisabled()
+        await timeoutEvidence(page, section, `${lang}-export-${format}`)
+        stalled.release()
+        context.exportHook = null
+        await section.getByRole('button', { name: c.refresh, exact: true }).click()
+        await expect(button).toBeEnabled()
+        const [download] = await Promise.all([page.waitForEvent('download'), button.click()])
+        const artifact = JSON.parse(readFileSync(dir + '/export-' + format + '.json', 'utf8'))
+        expect(readFileSync((await download.path())!, 'utf8')).toBe(artifact.body)
+        expect(downloads).toBe(1)
+        expect(context.posts).toHaveLength(0)
+        await expect(section.getByText(c.downloaded, { exact: true })).toBeVisible()
+      } finally { stalled.release() }
+    })
+  }
+}
 for (const lang of ['en', 'zh-HK']) {
   test(`C9e actual downloads preserve bytes and never attest ${lang}`, async ({ page }) => {
     const { c, section, context, fill, dir, version } = await fixture(page, lang)

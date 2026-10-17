@@ -47,7 +47,7 @@ export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDelivery
     const token = ++generation.current
     setLoading(true); setAuthority(false); setError('')
     try {
-      const res = await fetch(endpoint + (cursor ? '?cursor=' + encodeURIComponent(cursor) : ''), { cache: 'no-store' })
+      const res = await fetch(endpoint + (cursor ? '?cursor=' + encodeURIComponent(cursor) : ''), { cache: 'no-store', signal: AbortSignal.timeout(15_000) })
       if (!res.ok) throw Error(responseError(res.status))
       const next = pageDTO(await res.json(), version)
       if (!alive.current || token !== generation.current) return
@@ -79,7 +79,7 @@ export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDelivery
     if (operation.current?.payload !== payload) operation.current = { payload, requestId: crypto.randomUUID() }
     lock.current = true; generation.current++; setBusy(true); setLoading(false); setError(''); setStatus('')
     try {
-      const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...value, requestId: operation.current.requestId }) })
+      const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...value, requestId: operation.current.requestId }), signal: AbortSignal.timeout(15_000) })
       if (!res.ok) throw Error(responseError(res.status))
       const event = eventDTO((await res.json()).event, version)
       if (event.kind !== kind || (event.kind === 'withdraw' && event.targetAttestationId !== target)) throw Error()
@@ -100,7 +100,7 @@ export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDelivery
     if (lock.current || !authorized || !page?.capabilities.canExport) return
     lock.current = true; setBusy(true); setError('')
     try {
-      const res = await fetch(base + '/export?format=' + format, { cache: 'no-store' })
+      const res = await fetch(base + '/export?format=' + format, { cache: 'no-store', signal: AbortSignal.timeout(15_000) })
       if (!res.ok) throw Error(responseError(res.status))
       const filename = `delivery-${deliveryId(version.id)}.${format === 'json' ? 'json' : 'txt'}`
       if (res.headers.get('Content-Disposition') !== `attachment; filename="${filename}"` || !/^[a-f0-9]{64}$/.test(res.headers.get('X-Aiso-Export-Sha256') ?? '') || !res.headers.get('Content-Type')?.startsWith(format === 'json' ? 'application/json' : 'text/plain')) throw Error()
