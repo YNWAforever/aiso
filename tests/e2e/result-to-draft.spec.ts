@@ -9,6 +9,7 @@ import en from '../../messages/en.json'
 import zh from '../../messages/zh-HK.json'
 import { version as reviewFixture } from '../../__tests__/components/c9d-fixtures'
 import AxeBuilder from '@axe-core/playwright'
+import { scanOpportunityCopy } from '../../lib/opportunities/presentation'
 
 const dir = resolve(process.env.AISO_RESULT_DRAFT_DIR || 'artifacts/result-to-draft-20261017/browser')
 const data = () => JSON.parse(readFileSync(resolve(dir, 'data.json'), 'utf8'))
@@ -126,7 +127,69 @@ async function fixture(page: Page, lang: string, mode = '', scenario = '', share
   return { state, copy, d, errors, url }
 }
 
-for (const lang of ['en', 'zh-HK']) {
+for (const lang of ['en', 'zh-HK'] as const) {
+  test(`observed coverage and passing fraction remain distinct after reload ${lang}`, async ({ page }) => {
+    const { state, copy: c, errors } = await fixture(page, lang, '', 'coverage')
+    const findings = page.getByRole('region', { name: c.resultSummary.title, exact: true })
+    await expect(findings.getByText(c.resultSummary.provisional, { exact: true })).toBeVisible()
+    await expect(findings.getByText(c.resultSummary.observed.replace('{observed}', '2').replace('{total}', '20'), { exact: true })).toBeVisible()
+    await expect(findings.getByText(c.resultSummary.passing.replace('{pass}', '1').replace('{observed}', '2'), { exact: true })).toBeVisible()
+    await expect(findings.getByText('1/20', { exact: true })).toHaveCount(0)
+    await expect(findings.getByText(c.resultSummary.scope, { exact: true })).toBeVisible()
+    await findings.getByText(new RegExp(`^${c.resultSummary.extended} ·`)).click()
+    await expect(findings.getByText(c.checks.c9_meta_desc, { exact: true })).toBeVisible()
+    await expect(findings.getByText(c.checks.meta_desc_missing, { exact: true })).toBeVisible()
+    await page.screenshot({ path: test.info().outputPath(`${lang}-observed-scope.png`), fullPage: true })
+    await page.reload()
+    await expect(findings.getByText(c.resultSummary.observed.replace('{observed}', '2').replace('{total}', '20'), { exact: true })).toBeVisible()
+    expect(state.scanRequests).toHaveLength(0)
+    expect(errors).toEqual([])
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  })
+  for (const scenario of ['unknown-evidence', 'failed-evidence'] as const)
+    test(`unavailable evidence cannot become a zero, grade or raw stored score: ${scenario} ${lang}`, async ({ page }) => {
+      const { state, copy: c, errors } = await fixture(page, lang, '', scenario)
+      await expect(page.getByText(scenario === 'failed-evidence' ? c.resultSummary.collectionFailed : c.resultSummary.unavailable, { exact: true })).toBeVisible()
+      await expect(page.getByText('88', { exact: true })).toHaveCount(0)
+      // A failed collection truthfully reports zero completed pages; it must
+      // not present that count as a zero diagnostic or pillar score.
+      await expect(page.getByRole('region', { name: c.resultSummary.title, exact: true }).locator('header').getByText('0', { exact: true })).toHaveCount(0)
+      await expect(page.getByRole('progressbar')).toHaveCount(0)
+      await expect(page.getByText(c.resultSummary.grade + ': F', { exact: true })).toHaveCount(0)
+      expect(state.scanRequests).toHaveLength(0)
+      expect(errors).toEqual([])
+    })
+  test(`score unavailable still permits opening verified findings and the same scan draft ${lang}`, async ({ page }) => {
+    const { state, copy: c, d, errors } = await fixture(page, lang, '', 'score-missing')
+    await expect(page.getByTestId('owned-scan-evidence')).toBeVisible()
+    await page.getByText(new RegExp(`^${c.resultSummary.extended} ·`)).click()
+    await expect(page.getByText(c.checks.meta_desc_missing, { exact: true })).toBeVisible()
+    const improve = page.getByRole('link', { name: c.dashboard.next_improve, exact: true })
+    expect(await improve.getAttribute('href')).toContain(`scanId=${d.scanId}`)
+    await improve.click()
+    await page.getByRole('button', { name: c.opportunities.saveDraft, exact: true }).first().click()
+    await expect(page.getByLabel(c.opportunities.action, { exact: true })).toHaveValue(/<meta name="description"/)
+    expect(state.item!.evidenceSnapshot.source.id).toBe(d.scanId)
+    expect(state.scanRequests).toHaveLength(0)
+    expect(errors).toEqual([])
+  })
+  test(`selected scan offers at most three of six ranked evidenced improvements ${lang}`, async ({ page }) => {
+    const { state, copy: c, d, errors } = await fixture(page, lang, 'improve', 'priorities')
+    await expect(page.getByRole('button', { name: c.opportunities.saveDraft, exact: true })).toHaveCount(3)
+    await expect(page.getByText(c.opportunities.scanPriorityCount.replace('{shown}', '3').replace('{available}', '6'), { exact: true })).toBeVisible()
+    await expect(page.getByText(c.opportunities.scanPriorityReason, { exact: true })).toBeVisible()
+    const cards = page.getByRole('region', { name: c.opportunities.suggestions, exact: true }).getByRole('article')
+    for (let i = 0; i < 3; i++) {
+      const expected = d.priorities.suggestions[i]
+      await expect(cards.nth(i).getByRole('heading')).toHaveText(scanOpportunityCopy(expected.evidence, lang).title)
+      await expect(cards.nth(i)).toContainText(expected.evidence.checkKey)
+      await expect(cards.nth(i)).toContainText(d.scanId)
+    }
+    await page.screenshot({ path: test.info().outputPath(`${lang}-top-three-improvements.png`), fullPage: true })
+    expect(state.creates).toBe(0)
+    expect(errors).toEqual([])
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  })
   const preparationTitle=lang==='en'?'Before submitting for review':'送審前準備'
   const unconfirmed=lang==='en'?'Target page not confirmed':'目標頁尚未確認'
   test(`loading and empty preparation never claim a verified target page ${lang}`,async({page})=>{

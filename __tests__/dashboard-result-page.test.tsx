@@ -10,9 +10,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { isValidElement, type ReactElement } from 'react'
 import type { Scan } from '@/lib/types'
-import { buildScanEvidence } from '@/lib/scan-evidence'
+import { buildScanEvidence, CHECK_VERSIONS } from '@/lib/scan-evidence'
 import { FixPackClient } from '@/components/FixPackClient'
 import { ScoreRing } from '@/components/ScoreRing'
+import { ResultsStep } from '@/components/dashboard/ResultsStep'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { NextIntlClientProvider } from 'next-intl'
+import en from '@/messages/en.json'
 
 const { requireAuthMock, notFoundMock, sqlMock } = vi.hoisted(() => ({
   requireAuthMock: vi.fn(),
@@ -98,6 +102,22 @@ describe('dashboard result database score normalization', () => {
     requireAuthMock.mockResolvedValue(PROFILE)
   })
 
+  it('preserves the full report, localized navigation and grade for fully observed evidence', async () => {
+    const evidence = buildScanEvidence({
+      requestedUrl: 'https://example.com', evaluatedUrl: 'https://example.com', industry: 'technology', region: 'HK', sitemapSource: 'unknown',
+      checks: Object.fromEntries(Object.keys(CHECK_VERSIONS).map(key => [key, { collection: 'complete', assessment: 'pass' }])),
+      observations: [{ check: 'page', collection: 'complete', httpStatus: 200, target: { origin: 'https://example.com' } }],
+    })
+    sqlMock.mockResolvedValue([scan({ results: { ...scan().results, evidence,
+      c18_factual_density_data: { uniquenessStatus: 'observed', qualityScore: 80, uniquenessScore: 80 },
+    } })])
+    const elements = renderedElements(await renderPage({ lang: 'zh-HK' }))
+    expect(elements.find(element => element.type === ScoreRing)?.props.score).toBe(62)
+    expect(elements.some(element => element.type === ResultsStep)).toBe(false)
+    expect(elements.some(element => element.props.href === '/zh-HK/dashboard/client-1?step=improve&scanId=scan-1')).toBe(true)
+    expect(safeStringify(elements)).toContain('resultSummary.grades.C')
+  })
+
   it.each([
     { stored: 14.17, expected: 14.17 },
     { stored: '14.17', expected: 14.17 },
@@ -109,7 +129,9 @@ describe('dashboard result database score normalization', () => {
       results: { ...scan().results, evidence: collectionEvidence() },
     })])
     const elements = renderedElements(await renderPage())
-    expect(elements.find(element => element.type === ScoreRing)?.props.score).toBe(expected)
+    const shared = elements.find(element => element.type === ResultsStep)
+    expect(shared?.props.scan).toMatchObject({ id: 'scan-1', score: expected })
+    expect(shared?.props.view).toMatchObject({ scanId: 'scan-1', state: 'limited', score: expected, grade: null })
     expect(elements.find(element => element.type === FixPackClient)?.props.scanId).toBe('scan-1')
     expect(elements.some(element => element.props.href === '/en/dashboard/client-1/reports/new?scanId=scan-1')).toBe(true)
   })
@@ -125,6 +147,7 @@ describe('dashboard result database score normalization', () => {
     })])
     const elements = renderedElements(await renderPage())
     expect(elements.some(element => element.type === ScoreRing)).toBe(false)
+    expect(elements.find(element => element.type === ResultsStep)?.props.view).toMatchObject({ score: null, grade: null })
     expect(elements.some(element => element.type === FixPackClient)).toBe(false)
     expect(elements.some(element => element.props.href === '/en/dashboard/client-1/reports/new?scanId=scan-1')).toBe(false)
   })
@@ -177,6 +200,13 @@ describe('dashboard result page brand scoping', () => {
 
     expect(notFoundMock).not.toHaveBeenCalled()
     expect(safeStringify(element)).toContain('brand-a.example')
+  })
+  it('keeps the selected scan on both return and draft navigation', async () => {
+    sqlMock.mockResolvedValue([scan({ results: { ...scan().results, evidence: collectionEvidence() } })])
+    const element = await renderPage()
+    const html = renderToStaticMarkup(<NextIntlClientProvider locale="en" timeZone="UTC" messages={en}>{element}</NextIntlClientProvider>)
+    expect(html).toContain('step=improve&amp;scanId=scan-1')
+    expect(html).toContain('step=results&amp;scanId=scan-1')
   })
 
   it('renders an error state rather than not-found when the database query fails', async () => {

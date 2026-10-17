@@ -19,9 +19,13 @@ import d from './data.json'
 function Fixture(){
  const lang=document.documentElement.lang
  const scenario=new URLSearchParams(location.search).get('case')
- const opportunities=scenario==='empty'?{...d.opportunities,suggestions:[],sourceStates:{pulse:'empty',scan:'empty'}}:
+ const opportunities=scenario==='priorities'?d.priorities:scenario==='empty'?{...d.opportunities,suggestions:[],sourceStates:{pulse:'empty',scan:'empty'}}:
  scenario==='attached'?{...d.opportunities,suggestions:d.opportunities.suggestions.map((s,i)=>i===0?{...s,savedDraftId:d.drafts.en.id,savedState:'saved'}:s)}:d.opportunities
- const result=scenario==='provider-failed'?{...d.result,results:{...d.result.results,_n8n:d.failedReceipt}}:d.result
+ const result=scenario==='provider-failed'?{...d.result,results:{...d.result.results,_n8n:d.failedReceipt}}:
+ scenario==='coverage'?d.coverageResult:scenario==='failed-evidence'?d.failedResult:scenario==='unknown-evidence'?d.unknownResult:
+ scenario==='score-missing'?{...d.result,score:null,grade:null}:d.result
+ const summaryView=scenario==='coverage'?d.coverageView:scenario==='failed-evidence'?d.failedView:scenario==='unknown-evidence'?d.unknownView:
+ scenario==='score-missing'?{...d.summaryView,score:null,grade:null,state:'unknown'}:d.summaryView
  const[v,setV]=useState(null)
  const review=location.pathname.includes('/versions')
  useEffect(()=>{window.aisoDraftFixtureReady=true;if(review)Promise.all([
@@ -34,7 +38,7 @@ function Fixture(){
  review?(v?<VersionWorkspace clientId={d.clientId} workItemId={d.drafts.en.id} initialDraft={v.draft} initial={v.history} returnScanId={new URLSearchParams(location.search).get('scanId')??undefined}/>:<p>Loading fixture</p>):
  location.search.includes('step=scan')?<ScanStep clientId={d.clientId} lang={lang} scan={null} scanHistory={[]}/>:
  location.search.includes('step=improve')?<OpportunityWorkspace clientId={d.clientId} scanId={d.scanId} initial={opportunities}/>:
- <main><ResultsStep scan={result} clientId={d.clientId} lang={lang}/></main>}
+ <main><ResultsStep scan={result} view={summaryView} brandName="Synthetic Browser Brand" clientId={d.clientId} lang={lang}/></main>}
  </NextIntlClientProvider>
 }
 createRoot(document.getElementById('root')).render(<Fixture/>)

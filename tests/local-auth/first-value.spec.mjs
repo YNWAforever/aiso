@@ -1,0 +1,294 @@
+import { readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { test, expect } from '@playwright/test'
+import { allowLocalUrl, evidenceMode, redactLocalAuth } from '../../scripts/ci/local-auth-safety.mjs'
+
+const config = JSON.parse(readFileSync(process.env.AISO_LOCAL_AUTH_CONFIG, 'utf8'))
+const messages = {
+  en: JSON.parse(readFileSync('messages/en.json', 'utf8')),
+  'zh-HK': JSON.parse(readFileSync('messages/zh-HK.json', 'utf8')),
+}
+const control = async (request, path, params) => {
+  const url = new URL(path, config.authOrigin)
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value)
+  allowLocalUrl(url, config.allowedOrigins)
+  const response = await request.get(url.href, { headers: { Authorization: `Bearer ${config.controlSecret}` } })
+  if (response.status() !== 200) throw new Error(`LOCAL_AUTH_CONTROL_${response.status()}`)
+  return response.json()
+}
+async function login(page, request, lang, email, next) {
+  // Keep the installed limiter unchanged, including its required quiet window.
+  // Timers are bounded chunks so the supervising process remains responsive.
+  const slot = await control(request, '/__local/login-slot', {})
+  if (!Number.isInteger(slot.delayMs) || slot.delayMs < 0 || slot.delayMs > 61000) throw new Error('LOCAL_AUTH_LOGIN_SLOT_OUT_OF_BOUNDS')
+  const until = Date.now() + slot.delayMs
+  while (Date.now() < until) await new Promise(done => setTimeout(done, Math.min(30000, until - Date.now())))
+  await page.goto(`/${lang}/auth/login?next=${encodeURIComponent(next)}`)
+  await page.locator('#login-email').fill(email)
+  const sent = page.waitForResponse(response => new URL(response.url()).pathname === '/api/auth/sign-in/magic-link')
+  await page.locator('form').filter({ has: page.locator('#login-email') }).getByRole('button', { name: /.+/ }).click()
+  expect((await sent).status()).toBe(200)
+  let link
+  await expect.poll(async () => {
+    const mail = await control(request, '/__local/mailbox', { email })
+    link = mail.link
+    return Boolean(link)
+  }).toBe(true)
+  allowLocalUrl(link, [config.authOrigin])
+  await page.goto(link)
+  await page.waitForURL(url => !url.pathname.includes('/auth/') && !url.searchParams.has('token'))
+}
+async function get(page, path, method = 'GET', body) {
+  return page.evaluate(async ({ path, method, body }) => {
+    const response = await fetch(path, { method, cache: 'no-store',
+      ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) })
+    return { status: response.status, body: await response.json() }
+  }, { path, method, body })
+}
+async function shot(page, filename) {
+  await page.evaluate(label => {
+    let element = document.getElementById('local-evidence-label')
+    if (!element) { element = document.createElement('div'); element.id = 'local-evidence-label'; document.body.append(element) }
+    element.textContent = label
+    element.style.cssText = 'position:fixed;left:0;bottom:0;right:0;z-index:2147483647;padding:6px;background:#082f49;color:#fff;font:11px monospace;pointer-events:none'
+  }, 'LOCAL REAL BETTER AUTH + POSTGRES | SYNTHETIC SCAN | NOT MANAGED NEON / PROVIDER UAT')
+  await page.screenshot({ path: join(config.output, filename), fullPage: true })
+}
+
+for (const lang of ['en', 'zh-HK']) {
+  test(`${lang} real local Auth result evidence draft save reload signout relogin`, async ({ page, context, request }, testInfo) => {
+    const project = testInfo.project.name, prefix = `${project}-${lang}`
+    const email = `${project.endsWith('mobile') ? 'mobile' : 'desktop'}-${lang.toLowerCase()}-${config.runId}@fixture-aiso.example`
+    const copy = messages[lang].opportunities
+    const audit = { mode: evidenceMode, lang, project, scanIntercepted: 0, blockedExternal: 0,
+      realApiResponses: [], persisted: false, oldSessionDenied: false,
+      controls: { ownedRead: 'not-run', foreignAccount: 'not-run', foreignWorkspaceWrite: 'not-run',
+        foreignEvidence: 'not-run', duplicateCreate: 'not-run', staleCas: 'not-run',
+        existingBrandReentry: 'not-run', brandUnchanged: false, sourceAssociationReadback: false } }
+    let fixture, onboarding, onboardingPayload
+    await context.route('**/*', async route => {
+      const url = new URL(route.request().url())
+      try { allowLocalUrl(url, config.allowedOrigins) }
+      catch { audit.blockedExternal++; await route.abort('blockedbyclient'); return }
+      if (url.pathname === '/api/scan' && route.request().method() === 'POST') {
+        const input = route.request().postDataJSON()
+        if (!input || typeof input.clientId !== 'string') throw new Error('LOCAL_AUTH_ONBOARDING_SCAN_SCOPE_REQUIRED')
+        // The real onboarding response has already committed this client. The
+        // control only verifies it and seeds declared scan data, never a brand.
+        fixture ??= await control(request, '/__local/fixture', { email, clientId: input.clientId })
+        if (input.clientId !== fixture.clientId) throw new Error('LOCAL_AUTH_SCAN_REBIND_DENIED')
+        audit.scanIntercepted++
+        audit.scanRequest = input
+        await route.fulfill({ status: 200, contentType: 'application/json',
+          body: JSON.stringify({ id: fixture.scanId, localFixture: 'SYNTHETIC_SCAN_NO_EXTERNAL_COLLECTION' }) })
+        return
+      }
+      await route.continue()
+    })
+    page.on('response', response => {
+      const path = new URL(response.url()).pathname
+      if (path.includes('/work-items') || path.includes('/opportunities') || path === '/api/onboarding/complete') {
+        audit.realApiResponses.push({ path, method: response.request().method(), status: response.status() })
+      }
+    })
+    try {
+      const brandName = `SYNTHETIC first value ${lang} ${project}`
+      await login(page, request, lang, email, `/${lang}/onboarding`)
+      await expect(page.locator('#onboarding-brand')).toBeVisible()
+      await page.locator('#onboarding-brand').fill(brandName)
+      await page.locator('#onboarding-website').fill('https://fixture-aiso.example')
+      const completed = page.waitForResponse(response => response.request().method() === 'POST' &&
+        new URL(response.url()).pathname === '/api/onboarding/complete')
+      await page.getByRole('button', { name: lang === 'en' ? 'Save and check my website' : '儲存並分析我的網站', exact: true }).click()
+      const completedResponse = await completed
+      expect(completedResponse.status()).toBe(200)
+      onboardingPayload = completedResponse.request().postDataJSON()
+      onboarding = await completedResponse.json()
+      expect(onboardingPayload).toMatchObject({ brandName, domain: 'fixture-aiso.example', market: null })
+      expect(onboardingPayload).not.toHaveProperty('language')
+      expect(onboardingPayload).not.toHaveProperty('clientId')
+      expect(onboardingPayload).not.toHaveProperty('scanId')
+      expect(onboarding.progress).toMatchObject({ brand: 'ready', prompts: 'pending', promptCount: 0 })
+      await page.waitForURL(url => url.pathname === `/${lang}/dashboard/${onboarding.clientId}` &&
+        url.searchParams.get('step') === 'results' && Boolean(url.searchParams.get('scanId')))
+      expect(fixture).toBeTruthy()
+      expect(fixture.mode).toBe(evidenceMode)
+      expect(fixture.clientId).toBe(onboarding.clientId)
+      expect(new URL(page.url()).searchParams.get('scanId')).toBe(fixture.scanId)
+      expect(audit.scanRequest).toMatchObject({ clientId: onboarding.clientId, url: 'https://fixture-aiso.example/' })
+      expect(audit.scanRequest.requestKey).toMatch(/^[a-f0-9-]{36}$/)
+      expect(audit.scanRequest).not.toHaveProperty('accountId')
+      expect(audit.scanIntercepted).toBe(1)
+      audit.onboarding = { request: onboardingPayload, response: onboarding, clientId: fixture.clientId }
+      const brandBefore = await control(request, '/__local/brand', { email, clientId: fixture.clientId })
+      expect(brandBefore.brand).toMatchObject({ id: fixture.clientId, account_id: fixture.accountId,
+        brand_name: brandName, domain: 'fixture-aiso.example', industry: null, region: null, description: null })
+      expect(brandBefore.clientCount).toBe(1)
+      expect(brandBefore.promptCount).toBe(0)
+      const retainedScan = await control(request, '/__local/scan', { id: fixture.scanId })
+      expect(retainedScan.rows).toHaveLength(1)
+      const storedScan = retainedScan.rows[0]
+      expect(storedScan).toMatchObject({ id: fixture.scanId, account_id: fixture.accountId,
+        client_id: fixture.clientId, url: audit.scanRequest.url, domain: 'fixture-aiso.example' })
+      expect(storedScan.results.localFixture.collectedExternally).toBe(false)
+      const findings = page.getByRole('region', { name: lang === 'en' ? 'Scan findings' : '掃描發現', exact: true })
+      await expect(findings).toBeVisible()
+      await expect(findings.getByRole('heading', { name: brandName, exact: true })).toBeVisible()
+      const evidence = page.getByTestId('owned-scan-evidence')
+      await expect(evidence).toBeVisible()
+      await evidence.locator('summary').click()
+      await expect(evidence).toContainText('c1_robots')
+      await expect(evidence).toContainText(storedScan.results.evidence.scannerVersion)
+      // A newer all-clear scan is present. URL and findings must remain bound
+      // to the scan selected by the onboarding request.
+      expect(fixture.decoyScanId).not.toBe(fixture.scanId)
+      await expect(findings).toContainText(String(Number(storedScan.score)))
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+      await shot(page, `${prefix}-01-result-evidence.png`)
+
+      const improve = page.getByRole('link', { name: messages[lang].dashboard.next_improve, exact: true })
+      await expect(improve).toHaveAttribute('href',
+        `/${lang}/dashboard/${fixture.clientId}?step=improve&scanId=${fixture.scanId}`)
+      await improve.click()
+      await page.waitForURL(url => url.pathname === `/${lang}/dashboard/${fixture.clientId}` &&
+        url.searchParams.get('step') === 'improve' && url.searchParams.get('scanId') === fixture.scanId)
+      const save = page.getByRole('button', { name: copy.saveDraft, exact: true }).first()
+      await expect(save).toBeVisible()
+      const create = page.waitForResponse(response => response.request().method() === 'POST' &&
+        new URL(response.url()).pathname === `/api/clients/${fixture.clientId}/work-items`)
+      await save.click()
+      const created = await create
+      expect(created.status()).toBe(201)
+      const sourcePayload = created.request().postDataJSON()
+      expect(sourcePayload.source).toEqual({ kind: 'scan-check', id: fixture.scanId, checkKey: 'c1_robots' })
+      expect(sourcePayload.ruleVersion).toBe('scan-check-gap.v1')
+      expect(sourcePayload.locale).toBe(lang)
+      expect(sourcePayload.fingerprint).toMatch(/^[a-f0-9]{64}$/)
+      expect(Object.keys(sourcePayload).sort()).toEqual(['fingerprint', 'locale', 'ruleVersion', 'source'])
+      audit.sourcePayload = sourcePayload
+      const item = (await created.json()).item
+      expect(item.clientId).toBe(fixture.clientId)
+      expect(item.evidenceSnapshot.source).toEqual(sourcePayload.source)
+      expect(item.evidenceSnapshot.ruleVersion).toBe(sourcePayload.ruleVersion)
+      expect(item.evidenceSnapshot.evidence).toMatchObject({ kind: 'scan-check', scanId: fixture.scanId,
+        checkKey: sourcePayload.source.checkKey, comparisonSignature: storedScan.results.evidence.comparisonSignature,
+        scannerVersion: storedScan.results.evidence.scannerVersion })
+      const duplicate = await get(page, `/api/clients/${fixture.clientId}/work-items`, 'POST', sourcePayload)
+      audit.controls.duplicateCreate = duplicate.status
+      expect(duplicate.status).toBe(200)
+      expect(duplicate.body.item).toMatchObject({ id: item.id, revision: 1 })
+      const duplicateRows = await get(page, `/api/clients/${fixture.clientId}/work-items`)
+      expect(duplicateRows.status).toBe(200)
+      expect(duplicateRows.body.items.filter(row => row.id === item.id)).toHaveLength(1)
+      const editor = page.getByRole('region', { name: copy.savedDraft, exact: true })
+      await expect(editor).toBeVisible()
+      const title = `SYNTHETIC persisted ${lang} ${project}`
+      await editor.getByLabel(copy.titleField, { exact: true }).fill(title)
+      await editor.getByLabel(copy.action, { exact: true }).fill('SYNTHETIC manual review action. No provider or external publication.')
+      await editor.getByLabel(copy.notes, { exact: true }).fill(`Owned disposable local test ${config.runId}`)
+      const patch = page.waitForResponse(response => response.request().method() === 'PATCH' &&
+        new URL(response.url()).pathname === `/api/clients/${fixture.clientId}/work-items/${item.id}`)
+      await editor.getByRole('button', { name: copy.saveChanges, exact: true }).click()
+      expect((await patch).status()).toBe(200)
+      await expect(editor.getByRole('status', { name: copy.draftSaveStatus })).toHaveText(copy.changesSaved)
+      await page.reload()
+      await expect(page.getByLabel(copy.titleField, { exact: true })).toHaveValue(title)
+      const persisted = await control(request, '/__local/persisted', { id: item.id })
+      expect(persisted.rows).toHaveLength(1)
+      expect(persisted.rows[0]).toMatchObject({ id: item.id, account_id: fixture.accountId,
+        client_id: fixture.clientId, title, revision: 2, source_kind: 'scan-check', source_id: fixture.scanId,
+        check_key: sourcePayload.source.checkKey, rule_version: sourcePayload.ruleVersion,
+        evidence_fingerprint: sourcePayload.fingerprint, evidence_snapshot: item.evidenceSnapshot })
+      expect(persisted.sources).toHaveLength(1)
+      expect(persisted.sources[0]).toMatchObject({ account_id: fixture.accountId, client_id: fixture.clientId,
+        work_item_id: item.id, source_kind: 'scan-check', source_id: fixture.scanId,
+        check_key: sourcePayload.source.checkKey, rule_version: sourcePayload.ruleVersion,
+        evidence_fingerprint: sourcePayload.fingerprint, evidence_snapshot: item.evidenceSnapshot })
+      audit.controls.sourceAssociationReadback = true
+      audit.persisted = true
+      await shot(page, `${prefix}-02-saved-and-reloaded.png`)
+
+      const own = await get(page, `/api/clients/${fixture.clientId}/work-items/${item.id}`)
+      audit.controls.ownedRead = own.status
+      expect(own.status).toBe(200)
+      expect(own.body.item.id).toBe(item.id)
+      expect(own.body.item.sourceScanIds).toEqual([fixture.scanId])
+      expect(own.body.item.evidenceSnapshot).toEqual(item.evidenceSnapshot)
+      const staleCas = await get(page, `/api/clients/${fixture.clientId}/work-items/${item.id}`, 'PATCH', {
+        title: 'SYNTHETIC stale overwrite must fail', action: 'Stale write', notes: '', expectedRevision: 1,
+      })
+      audit.controls.staleCas = staleCas.status
+      expect(staleCas).toEqual({ status: 409, body: { error: 'WORK_ITEM_CONFLICT' } })
+      const afterStale = await get(page, `/api/clients/${fixture.clientId}/work-items/${item.id}`)
+      expect(afterStale.body.item).toMatchObject({ id: item.id, title, revision: 2 })
+      const foreign = await get(page, `/api/clients/${fixture.foreignClientId}/work-items/${item.id}`)
+      audit.controls.foreignAccount = foreign.status
+      expect(foreign).toEqual({ status: 404, body: { error: 'CLIENT_NOT_FOUND' } })
+      const foreignWrite = await get(page, `/api/clients/${fixture.foreignClientId}/work-items/${item.id}`, 'PATCH', {
+        title: 'Foreign write must fail', action: 'Denied', notes: '', expectedRevision: 2,
+      })
+      audit.controls.foreignWorkspaceWrite = foreignWrite.status
+      expect(foreignWrite).toEqual({ status: 404, body: { error: 'CLIENT_NOT_FOUND' } })
+      const foreignScan = await get(page, `/api/clients/${fixture.clientId}/work-items`, 'POST', {
+        source: { kind: 'scan-check', id: fixture.foreignScanId, checkKey: 'c1_robots' },
+        ruleVersion: 'scan-check-gap.v1', fingerprint: 'a'.repeat(64), locale: lang,
+      })
+      audit.controls.foreignEvidence = foreignScan.status
+      expect(foreignScan).toEqual({ status: 409, body: { error: 'EVIDENCE_CHANGED' } })
+      const reentry = await get(page, '/api/onboarding/complete', 'POST', { ...onboardingPayload,
+        intentKey: crypto.randomUUID(), industry: 'finance', region: 'TW',
+        description: 'SYNTHETIC reentry must not overwrite the existing brand', competitors: ['SYNTHETIC alternative'] })
+      audit.controls.existingBrandReentry = reentry.status
+      expect(reentry.status).toBe(200)
+      expect(reentry.body.clientId).toBe(fixture.clientId)
+      const brandAfter = await control(request, '/__local/brand', { email, clientId: fixture.clientId })
+      expect(brandAfter.brand).toEqual(brandBefore.brand)
+      expect(brandAfter.clientCount).toBe(1)
+      expect(brandAfter.promptCount).toBe(0)
+      audit.controls.brandUnchanged = true
+      audit.controls = { ownedRead: own.status, foreignAccount: foreign.status,
+        foreignWorkspaceWrite: foreignWrite.status, foreignEvidence: foreignScan.status,
+        duplicateCreate: duplicate.status, duplicateItemId: duplicate.body.item.id,
+        staleCas: staleCas.status, existingBrandReentry: reentry.status, brandUnchanged: true,
+        sourceAssociationReadback: true, selectedScanId: fixture.scanId, newerUnselectedScanId: fixture.decoyScanId }
+
+      const savedPath = new URL(page.url()).pathname + new URL(page.url()).search
+      const oldCookies = await context.cookies(config.appOrigin)
+      const old = await page.context().browser().newContext({ baseURL: config.appOrigin,
+        ignoreHTTPSErrors: true, storageState: { cookies: oldCookies, origins: [] } })
+      await old.route('**/*', route => {
+        try { allowLocalUrl(route.request().url(), config.allowedOrigins); return route.continue() }
+        catch { return route.abort('blockedbyclient') }
+      })
+      try {
+        const oldPage = await old.newPage()
+        await oldPage.goto(`/${lang}`)
+        await page.goto(`/${lang}/auth/logout`)
+        await page.waitForURL(`**/${lang}/auth/login`)
+        const denied = await get(oldPage, `/api/clients/${fixture.clientId}/work-items/${item.id}`)
+        expect(denied).toEqual({ status: 401, body: { error: 'UNAUTHENTICATED' } })
+        audit.oldSessionDenied = true
+      } finally { await old.close() }
+      await login(page, request, lang, email, savedPath)
+      const returned = new URL(page.url()), requested = new URL(savedPath, config.appOrigin)
+      audit.reloginReturn = { requested: savedPath, actual: returned.pathname + returned.search }
+      expect(returned.pathname).toBe(requested.pathname)
+      for (const key of ['step', 'scanId', 'draft']) expect(returned.searchParams.get(key)).toBe(requested.searchParams.get(key))
+      await expect(page.getByLabel(copy.titleField, { exact: true })).toHaveValue(title)
+      const restored = await get(page, `/api/clients/${fixture.clientId}/work-items/${item.id}`)
+      expect(restored.status).toBe(200)
+      expect(restored.body.item).toMatchObject({ id: item.id, title, revision: 2 })
+      expect(restored.body.item.sourceScanIds).toEqual([fixture.scanId])
+      expect(restored.body.item.evidenceSnapshot).toEqual(item.evidenceSnapshot)
+      audit.restored = true
+      await shot(page, `${prefix}-03-real-relogin-same-draft.png`)
+    } catch (error) {
+      // Playwright also writes its own failure context. Sanitize the error
+      // before the runner receives it, not only in our JSON reporter.
+      throw new Error(redactLocalAuth(error.message, [config.controlSecret, config.ownerPassword,
+        config.appPassword, config.authPassword, config.engineSecret, config.cookieSecret]))
+    } finally {
+      writeFileSync(join(config.output, `${prefix}-JOURNEY.json`), JSON.stringify(audit, null, 2))
+    }
+  })
+}

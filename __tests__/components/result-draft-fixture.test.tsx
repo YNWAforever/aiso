@@ -10,6 +10,7 @@ import { writeFileSync, mkdirSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import type { OpportunityResponse } from '@/lib/opportunities/types'
 import { writeResultDraftFixture } from '../../tests/fixtures/result-draft-build.mjs'
+import { buildScanSummaryView } from '@/lib/view-models/scan-summary'
 
 const clientId = '11111111-1111-4111-8111-111111111111'
 const scanId = '22222222-2222-4222-8222-222222222222'
@@ -24,6 +25,26 @@ const opportunities: OpportunityResponse = { schemaVersion: 1, window: { pulseWe
   suggestions: suggestions.map(row => ({ ...row, savedState: 'unsaved', saveAvailability: 'available' })) }
 const result = { id: scanId, client_id: clientId, domain: 'example.test', url: 'https://example.test', score: 10, grade: 'F',
   created_at: source.recordedAt, results: { evidence: envelope, c9_meta_desc: { status: 'fail', message: 'meta_desc_missing' } } }
+const summaryView = buildScanSummaryView(result)
+const coverageResult = { ...result, results: { ...result.results, c11_faq: { status: 'pass', message: 'faq_present' },
+  evidence: buildScanEvidence({ requestedUrl: result.url, evaluatedUrl: result.url,
+    industry: 'general_b2b', region: 'HK', sitemapSource: 'unknown', collectedAt: source.recordedAt,
+    checks: { c9_meta_desc: { assessment: 'fail', collection: 'complete' }, c11_faq: { assessment: 'pass', collection: 'complete' } },
+    observations: [{ check: 'page', collection: 'complete', httpStatus: 200, target: { origin: 'https://example.test' } }] }) } }
+const coverageView = buildScanSummaryView(coverageResult)
+const failedResult = { ...result, score: 88, results: { ...result.results,
+  evidence: buildScanEvidence({ requestedUrl: result.url, evaluatedUrl: result.url, industry: 'general_b2b', region: 'HK',
+    sitemapSource: 'unknown', checks: {}, observations: [{ check: 'page', collection: 'failed', httpStatus: 503, target: { origin: 'https://example.test' } }] }) } }
+const failedView = buildScanSummaryView(failedResult)
+const unknownResult = { ...result, score: 88, results: { c9_meta_desc: result.results.c9_meta_desc } }
+const unknownView = buildScanSummaryView(unknownResult)
+const priorityEnvelope = buildScanEvidence({
+  requestedUrl: 'https://example.test', evaluatedUrl: 'https://example.test', industry: 'general_b2b', region: 'HK', sitemapSource: 'unknown',
+  checks: Object.fromEntries(['c1_robots', 'c9_meta_desc', 'c10_headings', 'c11_faq', 'c15_entity', 'c17_citation_density']
+    .map((key, index) => [key, { assessment: index < 2 ? 'fail' as const : 'warn' as const, collection: 'complete' as const }])),
+})
+const priorities = { ...opportunities, suggestions: deriveSuggestions({ ...source, envelope: priorityEnvelope })
+  .map(row => ({ ...row, savedState: 'unsaved' as const, saveAvailability: 'available' as const })) }
 const failedReceipt = { ...createSummaryReceipt(result).receipt, state: 'failed', error: 'PROVIDER_FAILED' }
 const drafts = Object.fromEntries((['en', 'zh-HK'] as const).map(locale => {
   const snapshot = buildInitialDraftSnapshot(suggestions[0], source, locale)
@@ -50,6 +71,7 @@ afterAll(async () => {
   if (process.env.AISO_RESULT_DRAFT_FIXTURE !== '1') return
   const dir = resolve(process.env.AISO_RESULT_DRAFT_DIR || 'artifacts/result-to-draft-20261017/browser')
   mkdirSync(dir, { recursive: true })
-  writeFileSync(join(dir, 'data.json'), JSON.stringify({ clientId, scanId, result, failedReceipt, opportunities, drafts, legacyVersions }))
+  writeFileSync(join(dir, 'data.json'), JSON.stringify({ clientId, scanId, result, summaryView, coverageResult, coverageView,
+    failedResult, failedView, unknownResult, unknownView, priorities, failedReceipt, opportunities, drafts, legacyVersions }))
   await writeResultDraftFixture()
 })

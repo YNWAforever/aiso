@@ -27,9 +27,12 @@ export function safeReturnTo(raw: unknown, requestedLang: string): string {
     const scan = single('scan')
     if(onboarding && scan && uuid.test(scan)) kept.set('scan',scan)
     const step = single('step')
-    if ((path === dashboard || clientRoot.test(path)) && step && ['home', 'scan', 'results', 'improve', 'monitor', 'roi'].includes(step)) kept.set('step', step)
+    const clientWorkspace = clientRoot.test(path)
+    if ((path === dashboard || clientWorkspace) && step && ['home', 'scan', 'results', 'improve', 'monitor', 'roi'].includes(step)) kept.set('step', step)
+    const scanId = single('scanId')
+    if (clientWorkspace && scanId && uuid.test(scanId)) kept.set('scanId', scanId)
     const draft = single('draft')
-    if (path.endsWith('/opportunities') && draft && uuid.test(draft)) kept.set('draft', draft)
+    if ((clientWorkspace || path.endsWith('/opportunities')) && draft && uuid.test(draft)) kept.set('draft', draft)
     if(path.endsWith('/sources')){
       const source=single('source'),version=single('version')
       if(source&&version&&uuid.test(source)&&uuid.test(version)){kept.set('source',source);kept.set('version',version)}

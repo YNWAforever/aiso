@@ -33,7 +33,7 @@ function Fixture(){
  <p>SYNTHETIC FIXTURE — API and session are simulated</p>
  {path.includes('/onboarding')?<OnboardingWizard lang={lang} accountId="synthetic-first-result" scanId={new URL(path,location.origin).searchParams.get('scan')||undefined}/>:
  query.get('step')==='scan'?<ScanStep lang={lang} clientId={clientId} scan={null} scanHistory={[]}/>:
- query.get('step')==='results'&&saved?.id===query.get('scanId')?<ResultsStep scan={saved} lang={lang} clientId={clientId}/>:
+ query.get('step')==='results'&&saved?.id===query.get('scanId')?<ResultsStep scan={saved} view={saved.summaryView} lang={lang} clientId={clientId}/>:
  <p data-testid="missing-first-result">No first result route</p>}
  </NextIntlClientProvider>
 }

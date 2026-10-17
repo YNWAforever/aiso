@@ -59,6 +59,10 @@ function OpportunityContent({
     item.evidenceSnapshot?.source.kind === 'scan-check' && item.evidenceSnapshot.source.id === scanId
   )), [scanId])
   const selectedId = selected?.id
+  const visibleSuggestions = data?.suggestions.filter(s =>
+    (!scanId || s.source.kind === 'scan-check' && s.source.id === scanId && s.saveAvailability !== 'limited-evidence') &&
+    !data.groups?.some(g => g.context?.runId && g.platforms.length > 1 && g.suggestionKeys.includes(s.key))) ?? []
+  const displayedSuggestions = scanId ? visibleSuggestions.slice(0, 3) : visibleSuggestions
   useEffect(() => {
     if (selectedId && view === 'drafts') editor.current?.focus()
   }, [selectedId, view])
@@ -289,6 +293,8 @@ function OpportunityContent({
       >
         <div className="space-y-2 rounded-xl border border-border bg-card p-4">
           <p>{t(scanId ? 'scanPriorityReason' : 'window')}</p>
+          {scanId && <p>{t('scanPriorityCount', { shown: displayedSuggestions.length, available: visibleSuggestions.length })}</p>}
+          {scanId && data?.suggestions.some(s => s.saveAvailability === 'limited-evidence') && <p>{t('limitedEvidence')}</p>}
           {data && (
             <>
               {!scanId && <p>
@@ -326,7 +332,7 @@ function OpportunityContent({
           </p>
         )}
         {data?.groups&&<GroupedOpportunityCards clientId={clientId} groups={data.groups.filter(g=>g.context?.runId&&g.platforms.length>1)} suggestions={data.suggestions} onOpen={id=>void open(id)}/>}
-        {data?.suggestions.filter(s=>!data.groups?.some(g=>g.context?.runId&&g.platforms.length>1&&g.suggestionKeys.includes(s.key))).map((suggestion) => {
+        {displayedSuggestions.map((suggestion) => {
           const copy = suggestion.evidence.kind === 'scan-check' ? scanOpportunityCopy(suggestion.evidence, locale) : null
           const displayArgs = copy ? { ...suggestion.args, checkTitle: copy.title, checkAction: copy.action } : suggestion.args
           return (
