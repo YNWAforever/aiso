@@ -98,11 +98,11 @@ for (const lang of ['en', 'zh-HK']) {
       page.getByRole('heading', { name: draft.title, exact: true }),
     ).toBeVisible()
     await page.getByRole('button', { name: c.reloadDraft, exact: true }).click()
-    await expect(page.getByRole('status')).toHaveText(c.draftReloaded)
+    await expect(page.getByRole('status', { name: c.versionReviewStatus, exact: true })).toHaveText(c.draftReloaded)
     await page
       .getByRole('button', { name: c.submitVersion, exact: true })
       .click()
-    await expect(page.getByRole('status')).toHaveText(c.versionSubmitted)
+    await expect(page.getByRole('status', { name: c.versionReviewStatus, exact: true })).toHaveText(c.versionSubmitted)
     expect(posts).toBe(2)
     await expect(page.getByText(c.notDelivery, { exact: true })).toBeVisible()
     await page.route('**/versions/' + version.id, (route) =>
@@ -178,8 +178,8 @@ for (const lang of ['en', 'zh-HK']) {
       await page
         .getByRole('button', { name: c.recordDecision, exact: true })
         .click()
-      await expect(page.getByRole('status')).toHaveText(c.decisionRecorded)
-      await expect(page.getByRole('status')).toBeFocused()
+      await expect(page.getByRole('status', { name: c.versionReviewStatus, exact: true })).toHaveText(c.decisionRecorded)
+      await expect(page.getByRole('status', { name: c.versionReviewStatus, exact: true })).toBeFocused()
       expect(bodies).toHaveLength(2)
       expect(bodies[1]).toEqual(bodies[0])
       await expect(
@@ -543,7 +543,7 @@ for (const lang of ['en', 'zh-HK']) {
       release()
     }
     await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false')
-    await expect(page.getByRole('status')).toHaveText(c.decisionRecorded)
+    await expect(page.getByRole('status', { name: c.versionReviewStatus, exact: true })).toHaveText(c.decisionRecorded)
     await expect(page.getByText(reason, { exact: true })).toBeVisible()
     await expect(
       page.getByRole('button', { name: c.recordDecision, exact: true }),

@@ -2073,9 +2073,22 @@
     "observedDelta": "Comparable observations: mention difference {delta}; causality and ROI unproven.",
     "notComparable": "Cannot directly compare: {reasons}",
     "operationsConflict": "This work record changed in another session. Your unsaved changes are retained. Reload the saved version to reconcile before saving.",
-    "reloadOperations": "Reload saved work record"
+    "reloadOperations": "Reload saved work record",
+    "draftSaveStatus": "Draft save status",
+    "reviewPreparationTitle": "Before submitting for review",
+    "targetPageUnconfirmed": "Target page not confirmed",
+    "targetPageUnconfirmedHelp": "Confirm the exact page and how to check the change with the website owner. Entering or saving a URL does not verify the page, apply the draft or prove an improvement.",
+    "reviewPreparationScope": "These are current work details, saved separately from review versions. Include anything the reviewer must approve in the draft content or notes.",
+    "targetPageMissing": "No target page has been specified.",
+    "acceptanceMissing": "No acceptance criteria have been recorded.",
+    "preparationLoading": "Loading saved work details…",
+    "preparationUnavailable": "Saved work details could not be loaded. Their state is unknown; reload to check them.",
+    "preparationSaved": "Work details saved. The target page still needs manual confirmation.",
+    "preparationUnsaved": "Unsaved work details. Save before opening version history.",
+    "reloadPreparationHelp": "Reloading replaces unsaved draft text and work details with the saved versions."
   },
   "changeSets": {
+    "versionReviewStatus": "Version review status",
     "title": "Version review",
     "notDelivery": "Approval records a review decision only. It does not publish, deliver, or implement this draft.",
     "immutableNotice": "Versions retain the submitted content and original evidence limitations. Current draft changes do not alter previous versions.",

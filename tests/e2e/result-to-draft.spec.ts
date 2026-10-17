@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { WorkItem } from '../../lib/work-items/schema'
+import type { WorkOperations } from '../../lib/work-items/operations-input'
 import type { VersionDetail } from '../../lib/change-sets/types'
 import { fingerprintEvidence } from '../../lib/opportunities/fingerprint'
 import en from '../../messages/en.json'
@@ -13,7 +14,9 @@ const dir = resolve(process.env.AISO_RESULT_DRAFT_DIR || 'artifacts/result-to-dr
 const data = () => JSON.parse(readFileSync(resolve(dir, 'data.json'), 'utf8'))
 const fixtureState=()=>({ item: null as WorkItem | null, version: null as VersionDetail | null, creates: 0, edits: 0, submissions: 0, decisions: 0,
     authenticated: true, failCreate: false, loseCreateReply: false, failEdit: false, timeoutCreate: false, scanRequests: [] as string[],
-    setups:0,scanCreates:0,readStatus:200 })
+    setups:0,scanCreates:0,readStatus:200, operationsReadStatus:200, failOperationsSave:false,
+    operationWrites:0, operationRetests:0,
+    operations:{targetUrl:null,acceptanceCriteria:'',ownerId:null,dueAt:null,operationStatus:'todo',expectedRevision:1} as WorkOperations })
 async function fixture(page: Page, lang: string, mode = '', scenario = '', shared?:ReturnType<typeof fixtureState>) {
   const d = data(), copy = lang === 'en' ? en : zh
   const state = shared??fixtureState()
@@ -34,6 +37,19 @@ async function fixture(page: Page, lang: string, mode = '', scenario = '', share
     const request = route.request(), path = new URL(request.url()).pathname, method = request.method()
     if (!state.authenticated) return route.fulfill({ status: 401, json: { error: 'UNAUTHENTICATED' } })
     if (!path.startsWith(`/api/clients/${d.clientId}/`)) return route.fulfill({ status: 404, json: {} })
+    if(path.endsWith('/operations')){
+      if(method==='POST'){state.operationRetests++;return route.fulfill({status:503,json:{}})}
+      if(method==='GET'&&state.operationsReadStatus!==200)return route.fulfill({status:state.operationsReadStatus,json:{error:'UNAVAILABLE'}})
+      if(method==='PATCH'){
+        state.operationWrites++
+        if(state.failOperationsSave)return route.fulfill({status:503,json:{}})
+        const input=request.postDataJSON()
+        if(input.expectedRevision!==state.item!.revision)return route.fulfill({status:409,json:{error:'WORK_OPERATIONS_CONFLICT'}})
+        state.operations=input
+        state.item={...state.item!,revision:state.item!.revision+1}
+      }
+      return route.fulfill({json:{...state.operations,expectedRevision:state.item!.revision,owners:[],evidence:[],groupScope:null}})
+    }
     if (path.endsWith('/opportunities')) {
       expect(new URL(request.url()).searchParams.get('scanId')).toBe(d.scanId)
       return route.fulfill({ json: d.opportunities })
@@ -110,6 +126,139 @@ async function fixture(page: Page, lang: string, mode = '', scenario = '', share
 }
 
 for (const lang of ['en', 'zh-HK']) {
+  const preparationTitle=lang==='en'?'Before submitting for review':'送審前準備'
+  const unconfirmed=lang==='en'?'Target page not confirmed':'目標頁尚未確認'
+  test(`loading and empty preparation never claim a verified target page ${lang}`,async({page})=>{
+    const{state,copy:c}=await fixture(page,lang,'improve')
+    let release!:()=>void
+    const pending=new Promise<void>(done=>{release=done})
+    await page.route('**/operations',async route=>{
+      expect(route.request().method()).toBe('GET')
+      await pending
+      await route.fulfill({json:{...state.operations,expectedRevision:state.item!.revision,owners:[],evidence:[],groupScope:null}})
+    })
+    await page.getByRole('button',{name:c.opportunities.saveDraft,exact:true}).first().click()
+    const preparation=page.getByRole('region',{name:preparationTitle,exact:true})
+    await expect(preparation.getByText(c.opportunities.preparationLoading,{exact:true})).toBeVisible()
+    await expect(preparation.getByText(unconfirmed,{exact:true})).toBeVisible()
+    await expect(preparation.getByRole('textbox')).toHaveCount(0)
+    release()
+    await expect(preparation.getByRole('textbox',{name:c.opportunities.targetUrl,exact:true})).toHaveValue('')
+    await page.getByRole('link',{name:c.opportunities.versionHistory,exact:true}).click()
+    await expect(preparation.getByText(c.opportunities.targetPageMissing,{exact:true})).toBeVisible()
+    await expect(preparation.getByText(c.opportunities.acceptanceMissing,{exact:true})).toBeVisible()
+    await expect(preparation.getByText(unconfirmed,{exact:true})).toBeVisible()
+    await preparation.screenshot({path:test.info().outputPath(`${lang}-empty-review-preparation.png`)})
+    expect(state.operationWrites).toBe(0)
+    expect(state.submissions).toBe(0)
+    expect(state.operationRetests).toBe(0)
+  })
+  test(`review preparation exposes saved target and criteria without claiming verification ${lang}`,async({page})=>{
+    const{state,copy:c}=await fixture(page,lang,'improve')
+    await page.getByRole('button',{name:c.opportunities.saveDraft,exact:true}).first().click()
+    await page.screenshot({path:test.info().outputPath(`${lang}-preparation-before.png`),fullPage:true})
+    const preparation=page.getByRole('region',{name:preparationTitle,exact:true})
+    await expect(preparation).toBeVisible()
+    await expect(preparation.getByText(unconfirmed,{exact:true})).toBeVisible()
+    const target=preparation.getByRole('textbox',{name:c.opportunities.targetUrl,exact:true})
+    const criteria=preparation.getByRole('textbox',{name:c.opportunities.acceptanceCriteria,exact:true})
+    await expect(target).toBeVisible()
+    await expect(criteria).toBeVisible()
+    const prepareBox=await preparation.boundingBox(),versionsBox=await page.getByRole('link',{name:c.opportunities.versionHistory,exact:true}).boundingBox()
+    expect(prepareBox!.y+prepareBox!.height).toBeLessThanOrEqual(versionsBox!.y)
+    await target.fill('https://example.test/confirmed-by-owner-later')
+    await criteria.fill('Synthetic criterion: the owner checks the exact page description after manual application.')
+    await expect(page.getByRole('link',{name:c.opportunities.versionHistory,exact:true})).toHaveCount(0)
+    await preparation.getByRole('button',{name:c.opportunities.saveOperations,exact:true}).dblclick()
+    await expect(page.getByRole('link',{name:c.opportunities.versionHistory,exact:true})).toBeVisible()
+    expect(state.operationWrites).toBe(1)
+    expect(state.operations).toMatchObject({targetUrl:'https://example.test/confirmed-by-owner-later',acceptanceCriteria:'Synthetic criterion: the owner checks the exact page description after manual application.'})
+    expect(state.item!.revision).toBe(2)
+    const evidence=structuredClone(state.item!.evidenceSnapshot)
+    await page.reload()
+    await expect(preparation.getByRole('textbox',{name:c.opportunities.targetUrl,exact:true})).toHaveValue('https://example.test/confirmed-by-owner-later')
+    await expect(preparation.getByText(unconfirmed,{exact:true})).toBeVisible()
+    await preparation.screenshot({path:test.info().outputPath(`${lang}-saved-preparation.png`)})
+    await page.getByRole('link',{name:c.opportunities.versionHistory,exact:true}).click()
+    const review=page.getByRole('region',{name:preparationTitle,exact:true})
+    await expect(review.getByText('https://example.test/confirmed-by-owner-later',{exact:true})).toBeVisible()
+    await expect(review).toContainText('Synthetic criterion: the owner checks the exact page description after manual application.')
+    await expect(review.getByText(unconfirmed,{exact:true})).toBeVisible()
+    await expect(review.getByText(c.opportunities.reviewPreparationScope,{exact:true})).toBeVisible()
+    await expect(review.getByRole('textbox')).toHaveCount(0)
+    await review.screenshot({path:test.info().outputPath(`${lang}-review-preparation.png`)})
+    await page.getByRole('button',{name:c.changeSets.submitVersion,exact:true}).click()
+    expect(state.version!.draftRevision).toBe(2)
+    expect(state.version!.schemaVersion).toBe(1)
+    if(state.version!.schemaVersion===1)expect(state.version!.evidenceSnapshot).toEqual(evidence)
+    expect(state.version).not.toHaveProperty('targetUrl')
+    await page.reload()
+    await expect(review).toContainText('https://example.test/confirmed-by-owner-later')
+    expect(state.operationWrites).toBe(1)
+    expect(state.operationRetests).toBe(0)
+    expect(state.scanRequests).toHaveLength(0)
+    expect((await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa']).analyze()).violations).toEqual([])
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+  })
+  test(`preparation load retry and failed save retain the unsaved page and criteria ${lang}`,async({page})=>{
+    const state=fixtureState()
+    state.operationsReadStatus=503
+    const{copy:c}=await fixture(page,lang,'improve','',state)
+    await page.getByRole('button',{name:c.opportunities.saveDraft,exact:true}).first().click()
+    const preparation=page.getByRole('region',{name:preparationTitle,exact:true})
+    await expect(preparation).toBeVisible()
+    await expect(preparation.getByText(unconfirmed,{exact:true})).toBeVisible()
+    await expect(preparation.getByRole('textbox')).toHaveCount(0)
+    state.operationsReadStatus=200
+    await preparation.getByRole('button',{name:c.opportunities.reloadOperations,exact:true}).click()
+    await preparation.getByRole('textbox',{name:c.opportunities.targetUrl,exact:true}).fill('https://example.test/unsaved')
+    await preparation.getByRole('textbox',{name:c.opportunities.acceptanceCriteria,exact:true}).fill('Synthetic unsaved acceptance check')
+    state.failOperationsSave=true
+    await preparation.getByRole('button',{name:c.opportunities.saveOperations,exact:true}).click()
+    await expect(preparation.getByRole('alert')).toBeVisible()
+    await expect(preparation.getByRole('textbox',{name:c.opportunities.targetUrl,exact:true})).toHaveValue('https://example.test/unsaved')
+    await expect(preparation.getByRole('textbox',{name:c.opportunities.acceptanceCriteria,exact:true})).toHaveValue('Synthetic unsaved acceptance check')
+    await expect(page.getByRole('link',{name:c.opportunities.versionHistory,exact:true})).toHaveCount(0)
+    expect(state.item!.revision).toBe(1)
+    state.failOperationsSave=false
+    await preparation.getByRole('button',{name:c.opportunities.saveOperations,exact:true}).click()
+    await expect(page.getByRole('link',{name:c.opportunities.versionHistory,exact:true})).toBeVisible()
+    expect(state.item!.revision).toBe(2)
+    await page.getByRole('link',{name:c.opportunities.versionHistory,exact:true}).click()
+    state.operationsReadStatus=403
+    await page.reload()
+    await expect(preparation.getByText(c.opportunities.preparationUnavailable,{exact:true})).toBeVisible()
+    await expect(preparation.getByText(unconfirmed,{exact:true})).toBeVisible()
+    await expect(preparation.getByText('https://example.test/unsaved',{exact:true})).toHaveCount(0)
+    expect(state.operationRetests).toBe(0)
+    expect(state.scanRequests).toHaveLength(0)
+  })
+  test(`newer work details cannot authorize saving stale draft text ${lang}`,async({page})=>{
+    const{state,copy:c}=await fixture(page,lang,'improve')
+    await page.getByRole('button',{name:c.opportunities.saveDraft,exact:true}).first().click()
+    const preparation=page.getByRole('region',{name:preparationTitle,exact:true})
+    await expect(preparation.getByRole('textbox',{name:c.opportunities.targetUrl,exact:true})).toBeVisible()
+    await preparation.getByRole('textbox',{name:c.opportunities.targetUrl,exact:true}).fill('https://example.test/local-unsaved')
+    state.item={...state.item!,notes:'Newer saved draft text from another session',revision:2}
+    const refreshed=page.waitForResponse(response=>response.url().endsWith('/operations'))
+    await preparation.getByText(c.opportunities.operationsTitle,{exact:true}).click()
+    // The metadata refresh has revision 2, while this editor still holds draft 1.
+    await refreshed
+    await preparation.getByRole('button',{name:c.opportunities.saveOperations,exact:true}).click()
+    await expect(preparation.getByRole('alert')).toHaveText(c.opportunities.operationsConflict)
+    expect(state.operationWrites).toBe(0)
+    await expect(preparation.getByRole('textbox',{name:c.opportunities.targetUrl,exact:true})).toHaveValue('https://example.test/local-unsaved')
+    await preparation.getByRole('button',{name:c.opportunities.reloadOperations,exact:true}).click()
+    await expect(page.getByRole('textbox',{name:c.opportunities.notes,exact:true})).toHaveValue('Newer saved draft text from another session')
+    await expect(preparation.getByRole('textbox',{name:c.opportunities.targetUrl,exact:true})).toHaveValue('')
+    await preparation.getByRole('textbox',{name:c.opportunities.targetUrl,exact:true}).fill('https://example.test/explicitly-reconciled')
+    await preparation.getByRole('button',{name:c.opportunities.saveOperations,exact:true}).click()
+    await expect(page.getByRole('link',{name:c.opportunities.versionHistory,exact:true})).toBeVisible()
+    expect(state.item).toMatchObject({revision:3,notes:'Newer saved draft text from another session'})
+    expect(state.operationWrites).toBe(1)
+    expect(state.operationRetests).toBe(0)
+    expect(state.scanRequests).toHaveLength(0)
+  })
   test(`two browser tabs retain the newer draft and reject a stale revision ${lang}`,async({page,context})=>{
     const {state,copy:c}=await fixture(page,lang,'improve')
     await page.getByRole('button',{name:c.opportunities.saveDraft,exact:true}).first().click()

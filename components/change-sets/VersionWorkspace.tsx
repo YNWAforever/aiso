@@ -7,6 +7,7 @@ import { VersionDetails } from './VersionDetails'
 import { DecisionForm } from './DecisionForm'
 import { DeliveryWorkspace } from '@/components/delivery/DeliveryWorkspace'
 import { OutcomeWorkspace } from '@/components/outcomes/OutcomeWorkspace'
+import { WorkOperationsPanel } from '@/components/work-items/WorkOperationsPanel'
 export type VersionPageDTO = {
   versions: VersionSummary[]
   nextCursor: string | null
@@ -212,7 +213,7 @@ export function VersionWorkspace({
       <p>{t('notDelivery')}</p>
       <p>{t('immutableNotice')}</p>
       {error && <p role="alert">{t(error)}</p>}
-      <p role="status" tabIndex={-1} ref={statusRef}>
+      <p role="status" aria-label={t('versionReviewStatus')} tabIndex={-1} ref={statusRef}>
         {busy ? t('loading') : status ? t(status) : ''}
       </p>
       <section className="space-y-3 rounded-xl border border-border p-4">
@@ -223,6 +224,7 @@ export function VersionWorkspace({
             <h3 className="whitespace-pre-wrap break-words">{draft.title}</h3>
             <p className="whitespace-pre-wrap break-words">{draft.action}</p>
             <p className="whitespace-pre-wrap break-words">{draft.notes}</p>
+            <WorkOperationsPanel key={workItemId} clientId={clientId} itemId={workItemId} revision={draft.revision} mode="review" />
             <form onSubmit={submit}>
               <button className={button} disabled={busy || anyDirty} type="submit">
                 {t('submitVersion')}

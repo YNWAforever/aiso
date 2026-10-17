@@ -2073,9 +2073,22 @@
     "observedDelta": "可比觀測：品牌提及差異 {delta}；未證明因果或 ROI。",
     "notComparable": "不能直接比較：{reasons}",
     "operationsConflict": "另一個視窗已更改工作紀錄。已保留你的未儲存內容；請重新載入已儲存版本並核對後再儲存。",
-    "reloadOperations": "重新載入已儲存工作紀錄"
+    "reloadOperations": "重新載入已儲存工作紀錄",
+    "draftSaveStatus": "草稿儲存狀態",
+    "reviewPreparationTitle": "送審前準備",
+    "targetPageUnconfirmed": "目標頁尚未確認",
+    "targetPageUnconfirmedHelp": "請與網站擁有人核對實際目標頁，以及如何檢查修改。填寫或儲存網址不代表已驗證頁面、套用草稿或證明成效改善。",
+    "reviewPreparationScope": "這些是目前的工作詳情，與審閱版本分開儲存。凡需要審閱者確認的內容，請一併寫入草稿內容或備註。",
+    "targetPageMissing": "尚未指定目標頁。",
+    "acceptanceMissing": "尚未填寫完成條件。",
+    "preparationLoading": "正在載入已儲存工作詳情…",
+    "preparationUnavailable": "未能載入已儲存工作詳情，目前狀態未明；請重新載入核對。",
+    "preparationSaved": "已儲存工作詳情；目標頁仍待人工確認。",
+    "preparationUnsaved": "工作詳情有未儲存修改，請先儲存，再開啟版本紀錄。",
+    "reloadPreparationHelp": "重新載入會以已儲存版本取代未儲存的草稿文字及工作詳情。"
   },
   "changeSets": {
+    "versionReviewStatus": "版本審閱狀態",
     "title": "版本審核",
     "notDelivery": "批准只會記錄審核決定，不會發佈、交付或執行此草稿。",
     "immutableNotice": "版本保留提交時的內容及原始證據限制。修改目前草稿不會改變過往版本。",

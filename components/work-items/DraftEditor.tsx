@@ -28,6 +28,7 @@ export function DraftEditor({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [status, setStatus] = useState('')
+  const [preparationDirty, setPreparationDirty] = useState(false)
   const lock = useRef(false)
   const endpoint = `/api/clients/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(item.id)}`
   function accept(next: WorkItem) {
@@ -86,7 +87,7 @@ export function DraftEditor({
     }
   }
   async function reload() {
-    if (lock.current) return
+    if (lock.current) return false
     lock.current = true
     setBusy(true)
     setStatus('')
@@ -98,8 +99,10 @@ export function DraftEditor({
       accept(next)
       setError('')
       setStatus(t('reloaded'))
+      return true
     } catch {
       setStatus(t('reloadError'))
+      return false
     } finally {
       lock.current = false
       setBusy(false)
@@ -107,13 +110,13 @@ export function DraftEditor({
   }
   const dirty =
     title !== saved.title || action !== saved.action || notes !== saved.notes
-  useEffect(() => { onDirtyChange?.(dirty || busy) }, [dirty, busy, onDirtyChange])
+  useEffect(() => { onDirtyChange?.(dirty || busy || preparationDirty) }, [dirty, busy, preparationDirty, onDirtyChange])
   useEffect(() => {
-    if (!dirty) return
+    if (!dirty && !preparationDirty) return
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
-  }, [dirty])
+  }, [dirty, preparationDirty])
   const field =
     'w-full rounded-lg border border-border bg-background p-3 text-foreground'
   const button =
@@ -126,7 +129,10 @@ export function DraftEditor({
       <h2 className="text-xl font-semibold">{t('savedDraft')}</h2>
       <p>{t('draftOnly')}</p>
       <p aria-live="polite">{t(busy ? 'saving' : dirty ? 'unsavedChanges' : 'savedRevision', { revision: saved.revision })}</p>
-      {dirty || busy ? (
+      <WorkOperationsPanel clientId={clientId} itemId={item.id} revision={saved.revision} mode="prepare"
+        onDirtyChange={setPreparationDirty} onReloadDraft={reload}
+        onRevision={revision=>{const next={...saved,revision};setSaved(next);onSaved(next)}}/>
+      {dirty || busy || preparationDirty ? (
         <p>{t('saveBeforeVersions')}</p>
       ) : (
         <a
@@ -206,7 +212,7 @@ export function DraftEditor({
             </button>
           )}
         </div>
-        <p role="status" aria-live="polite">
+        <p role="status" aria-label={t('draftSaveStatus')} aria-live="polite">
           {status}
         </p>
       </form>
@@ -214,7 +220,6 @@ export function DraftEditor({
         <h3 className="font-semibold">{t('manualApplyTitle')}</h3>
         <p>{t('manualApplySteps')}</p>
       </section>
-      <WorkOperationsPanel clientId={clientId} itemId={item.id} revision={saved.revision} onRevision={revision=>{const next={...saved,revision};setSaved(next);onSaved(next)}}/>
       <section className="space-y-3 border-t border-border pt-4">
         <h3 className="font-semibold">{t('savedEvidence')}</h3>
         <p>{t('snapshotNotice')}</p>

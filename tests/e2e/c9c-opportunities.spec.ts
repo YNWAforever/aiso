@@ -138,7 +138,7 @@ for (const lang of ['en', 'zh-HK']) {
       .getByRole('button', { name: copy.saveChanges, exact: true })
       .click()
     await expect(
-      page.getByRole('status').filter({ hasText: copy.changesSaved }),
+      page.getByRole('status', { name: copy.draftSaveStatus, exact: true }).filter({ hasText: copy.changesSaved }),
     ).toBeVisible()
     expect(writes).toBe(1)
     expect(sourceReads).toBe(0)
@@ -383,7 +383,7 @@ for (const lang of ['en', 'zh-HK']) {
       await expect(page.getByLabel(label, { exact: true })).toHaveValue(value)
     expect(gets).toBe(0)
     await page.getByRole('button', { name: copy.reloadDraft }).click()
-    await expect(page.getByRole('status')).toHaveText(copy.reloadError)
+    await expect(page.getByRole('status', { name: copy.draftSaveStatus, exact: true })).toHaveText(copy.reloadError)
     await expect(page.getByLabel(copy.notes, { exact: true })).toHaveValue(
       'Keep notes',
     )
@@ -398,7 +398,7 @@ for (const lang of ['en', 'zh-HK']) {
     status = 200
     await page.getByLabel(copy.notes, { exact: true }).fill('Retry notes')
     await save.click()
-    await expect(page.getByRole('status')).toHaveText(copy.changesSaved)
+    await expect(page.getByRole('status', { name: copy.draftSaveStatus, exact: true })).toHaveText(copy.changesSaved)
     await expect(page.getByLabel(copy.notes, { exact: true })).toHaveValue(
       'Retry notes',
     )
@@ -433,7 +433,7 @@ for (const lang of ['en', 'zh-HK']) {
       .getByLabel(copy.titleField, { exact: true })
       .fill(' e\u0301'.replace(' ', '').repeat(160))
     await page.getByRole('button', { name: copy.saveChanges }).click()
-    await expect(page.getByRole('status')).toHaveText(copy.changesSaved)
+    await expect(page.getByRole('status', { name: copy.draftSaveStatus, exact: true })).toHaveText(copy.changesSaved)
     expect(writes).toBe(1)
   })
   test(
