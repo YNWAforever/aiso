@@ -124,11 +124,14 @@ it('hands the results step a numeric score when Neon returns numeric as a string
   const results = findResults(await render({step:'results'}))
   expect(results?.props.scan.score).toBe(18)
 })
-it('shows the empty state rather than crashing for a scan with no stored score', async () => {
+it('shows an explicit scan state rather than crashing for a scan with no stored score', async () => {
   stubScanScore(null)
   const page = await render({step:'results'})
-  expect(findResults(page)).toBeUndefined()
-  expect(texts(page)).toContain('no_scan_selected')
+  // A selected scan that has no score is a visible run state (failed or
+  // processing), never "no scan selected" now that claim rows exist.
+  const results = findResults(page)
+  expect(results).toBeDefined()
+  expect(results?.props.scan.score).toBeNull()
 })
 
 // Offline ownership fixtures for the saved-summary entry point. No live DB/provider.

@@ -19,6 +19,27 @@ export function getDashboardScanErrorKey(status: number, payload: unknown): 'sca
   return status === 422 && error === 'SCAN_UNREACHABLE' ? 'scan_unreachable' : null
 }
 
+/**
+ * Persist one request identity per unchanged first-use setup so a reload,
+ * Back or remount of the auto-scan resolves to the same server claim instead
+ * of paying for a second scan. Explicit form submissions always mint a fresh
+ * identity because the user asked for a new run.
+ */
+function scanIntent(clientId: string, url: string, industry: string, region: string, reuse: boolean) {
+  const storageKey = `aiso:scan-request:${clientId}:${url.trim()}:${industry}:${region}`
+  try {
+    if (reuse) {
+      const existing = sessionStorage.getItem(storageKey)
+      if (existing && /^[0-9a-z-]{8,128}$/i.test(existing)) return { storageKey, requestKey: existing }
+    }
+    const requestKey = crypto.randomUUID()
+    sessionStorage.setItem(storageKey, requestKey)
+    return { storageKey, requestKey }
+  } catch {
+    return { storageKey, requestKey: crypto.randomUUID() }
+  }
+}
+
 type Props = {
   lang: string
   clientId: string
@@ -45,28 +66,38 @@ export function ScanStep({ lang, clientId, scanHistory }: Props) {
   useEffect(() => {
     if (autoUrl && !autoSubmitted.current && !loading) {
       autoSubmitted.current = true
-      runScan(autoUrl)
+      runScan(autoUrl, true)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoUrl])
 
-  async function runScan(scanUrl: string) {
+  async function runScan(scanUrl: string, reuseIntent = false) {
     if (!scanUrl.trim() || inFlight.current) return
     inFlight.current = true
     let navigating = false
     setLoading(true)
     setError('')
+    const intent = scanIntent(clientId, scanUrl, industry, region, reuseIntent)
     try {
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: scanUrl.trim(), industry: industry || undefined, region: region || undefined, clientId }),
+        body: JSON.stringify({
+          url: scanUrl.trim(), industry: industry || undefined, region: region || undefined,
+          clientId, requestKey: intent.requestKey,
+        }),
       })
       const data = await res.json()
       if (!res.ok) {
+        try { sessionStorage.removeItem(intent.storageKey) } catch { /* optional storage */ }
         const key = getDashboardScanErrorKey(res.status, data)
         setError(key ? t(key) : (data.error || t('scan_failed')))
         setLoading(false)
+        return
+      }
+      if (data?.state === 'processing' && typeof data.id === 'string' && data.id.trim()) {
+        router.push(`/${lang}/dashboard/${clientId}?step=results&scanId=${encodeURIComponent(data.id)}`)
+        navigating = true
         return
       }
       if (typeof data?.id !== 'string' || !data.id.trim()) { setError(t('scan_failed')); return }

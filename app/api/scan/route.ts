@@ -75,10 +75,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { url, industry, region, sitemapUrls, clientId: requestedClientId } =
+  const { url, industry, region, sitemapUrls, clientId: requestedClientId, requestKey } =
     body as Record<string, unknown>
   if (!url || typeof url !== 'string') {
     return NextResponse.json({ error: 'Invalid URL' }, { status: 400 })
+  }
+  if (requestKey !== undefined && requestKey !== null
+    && (typeof requestKey !== 'string' || requestKey.length < 8 || requestKey.length > 128)) {
+    return NextResponse.json({ error: 'Invalid requestKey' }, { status: 400 })
   }
 
   let baseUrl: string
@@ -165,6 +169,98 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Server misconfiguration: missing DATABASE_URL' }, { status: 500 })
   }
 
+  const account_id = profile?.account_id ?? null
+  const clientId = ownedClient?.id
+  const geoIndustry = ((industry as string | undefined) ?? 'general_b2c') as IndustryCode
+  const geoRegion   = ((region   as string | undefined) ?? 'global')       as RegionCode
+
+  // First-use scans are claimed before any check runs. The browser keeps one
+  // requestKey per unchanged setup, so a double click, reload or Back resolves
+  // to this row instead of paying for a second scan. The claim lives in the
+  // existing scans row (results._scan_request) so no schema change is needed.
+  const claimKey = ownedClient && account_id && typeof requestKey === 'string' ? requestKey : null
+  const PROCESSING_CLAIM_TTL_MS = 2 * 60_000
+  let claimId: string | null = null
+  const claimResults = (state: 'processing' | 'failed' | 'complete', extra: Record<string, unknown> = {}) => ({
+    _scan_request: {
+      key: claimKey, state, startedAt: new Date().toISOString(), ...extra,
+    },
+  })
+  const markClaimFailed = async (error: string, status: number) => {
+    if (!claimId) return
+    try {
+      await sql`
+        update scans
+        set results = jsonb_set(results, '{_scan_request}',
+          ${JSON.stringify(claimResults('failed', { error, status, finishedAt: new Date().toISOString() })._scan_request)}::jsonb, true)
+        where id = ${claimId} and account_id = ${account_id}
+      `
+    } catch (markError) {
+      console.error('[scan] claim failure marker failed:', (markError as Error)?.name ?? 'Error')
+    }
+  }
+  if (claimKey) {
+    try {
+      const existing = await sql`
+        select id, score, grade, created_at, results
+        from scans
+        where account_id = ${account_id} and client_id = ${clientId}
+          and results @> ${JSON.stringify({ _scan_request: { key: claimKey } })}::jsonb
+        order by created_at asc
+        limit 1
+      `
+      const row = existing[0] as {
+        id: string; score: number | string | null; grade: string | null
+        created_at: string; results?: Record<string, unknown>
+      } | undefined
+      if (row) {
+        const run = (row.results?._scan_request ?? {}) as Record<string, unknown>
+        const savedScore = row.score === null ? null : Number(row.score)
+        if (savedScore !== null && Number.isFinite(savedScore)) {
+          return NextResponse.json({ id: row.id, score: savedScore, grade: row.grade, reused: true })
+        }
+        if (run.state === 'failed') {
+          const status = typeof run.status === 'number' && run.status >= 400 && run.status <= 599 ? run.status : 502
+          return NextResponse.json({
+            error: typeof run.error === 'string' ? run.error : 'SCAN_FAILED',
+            scanId: row.id, state: 'failed', reused: true,
+          }, { status })
+        }
+        const started = typeof run.startedAt === 'string' ? run.startedAt : row.created_at
+        const age = Date.now() - new Date(started).getTime()
+        if (!Number.isFinite(age) || age < PROCESSING_CLAIM_TTL_MS) {
+          return NextResponse.json({ id: row.id, state: 'processing', reused: true }, { status: 202 })
+        }
+        // The original request died mid-scan. Reuse its row instead of
+        // inserting a second one; only one retry can win this conditional update.
+        const takeover = await sql`
+          update scans
+          set results = jsonb_set(results, '{_scan_request}',
+            ${JSON.stringify(claimResults('processing')._scan_request)}::jsonb, true)
+          where id = ${row.id} and account_id = ${account_id}
+            and results->'_scan_request'->>'state' = 'processing'
+          returning id
+        `
+        if (!takeover[0]) return NextResponse.json({ id: row.id, state: 'processing', reused: true }, { status: 202 })
+        claimId = row.id
+      }
+      if (!claimId) {
+        const claimed = await sql`
+          insert into scans (url, domain, score, results, industry, region, grade, account_id, agent_status, client_id)
+          values (${baseUrl}, ${domain}, null, ${JSON.stringify(claimResults('processing'))}::jsonb,
+                  ${geoIndustry}, ${geoRegion}, null, ${account_id}, null, ${clientId})
+          returning id
+        `
+        const claimedRow = claimed[0] as { id: string } | undefined
+        if (!claimedRow) return NextResponse.json({ error: 'Insert returned no data' }, { status: 500 })
+        claimId = claimedRow.id
+      }
+    } catch (claimError) {
+      console.error('[scan] request claim failed:', (claimError as Error)?.message ?? String(claimError))
+      return NextResponse.json({ error: 'Scan request unavailable' }, { status: 503 })
+    }
+  }
+
   const entitlement = resolveCommercialEntitlement(profile?.accounts)
   let scanHeaders: Headers | undefined
   // Set once a monthly scan has been spent, so a scan that turns out to have
@@ -175,6 +271,7 @@ export async function POST(req: NextRequest) {
       const decision = await consumePublicScanRateLimit(req)
       scanHeaders = rateLimitHeaders(decision)
       if (!decision.allowed) {
+        await markClaimFailed('Too many scan requests. Please try again later.', 429)
         return NextResponse.json(
           { error: 'Too many scan requests. Please try again later.' },
           { status: 429, headers: scanHeaders },
@@ -191,6 +288,7 @@ export async function POST(req: NextRequest) {
       const decision = await consumeAuthenticatedScanQuota(profile.account_id)
       scanHeaders = authenticatedScanQuotaHeaders(decision)
       if (!decision.allowed) {
+        await markClaimFailed('AUTHENTICATED_SCAN_LIMIT_REACHED', 429)
         return NextResponse.json(
           { error: 'AUTHENTICATED_SCAN_LIMIT_REACHED' },
           { status: 429, headers: scanHeaders },
@@ -199,12 +297,10 @@ export async function POST(req: NextRequest) {
       quotaSpentBy = profile.account_id
     } catch (error) {
       console.error('[scan] authenticated quota failed:', (error as Error)?.message ?? String(error))
+      await markClaimFailed('Authenticated scan quota unavailable', 503)
       return NextResponse.json({ error: 'Authenticated scan quota unavailable' }, { status: 503 })
     }
   }
-
-  const account_id = profile?.account_id ?? null
-  const clientId = ownedClient?.id
 
   // Fetch page HTML once — shared by extended checks + GEO checks.
   // The reusable boundary validates DNS and every redirect hop.
@@ -213,6 +309,7 @@ export async function POST(req: NextRequest) {
   // given back. A failed refund is logged, not surfaced: the refusal is still
   // the true answer.
   const refuse = async (error: string, status: number) => {
+    await markClaimFailed(error, status)
     if (quotaSpentBy) {
       try {
         await releaseAuthenticatedScanQuota(quotaSpentBy)
@@ -231,6 +328,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     if (error instanceof PublicUrlError) {
+      await markClaimFailed('URL must resolve to a public HTTP or HTTPS address', 400)
       return NextResponse.json({ error: 'URL must resolve to a public HTTP or HTTPS address' }, {
         status: 400,
         headers: scanHeaders,
@@ -318,8 +416,6 @@ export async function POST(req: NextRequest) {
   const score = calculateScore(results)   // 0–75 before GEO
 
   // GEO checks — always run, default to general_b2c / global when not specified
-  const geoIndustry = ((industry as string | undefined) ?? 'general_b2c') as IndustryCode
-  const geoRegion   = ((region   as string | undefined) ?? 'global')       as RegionCode
   const geoContext  = { industry: geoIndustry, region: geoRegion, clientId: clientId }
 
   // Fetch sitemap URLs for c19 (Topical Authority) — reuse caller-supplied list or fetch /sitemap.xml
@@ -400,19 +496,38 @@ export async function POST(req: NextRequest) {
     })
     const pillarScores = calculatePillarScores(combinedResults, evidence.checks)
     if (summaryWebhook) summaryDispatch = createSummaryReceipt({ domain, score: totalScore, grade, results: { ...combinedResults, evidence } })
-    const rows = await sql`
-      insert into scans (url, domain, score, results, industry, region, grade, account_id, agent_status, client_id)
-      values (${baseUrl}, ${domain}, ${totalScore},
-              ${JSON.stringify({ ...combinedResults, pillarScores, evidence, ...(summaryDispatch ? { _n8n: summaryDispatch.receipt } : {}) })}::jsonb,
-              ${geoIndustry}, ${geoRegion}, ${grade}, ${account_id},
-              ${queueAgentAnalysis ? 'pending' : null}, ${clientId ?? null})
-      returning id
-    `
+    const persisted = {
+      ...combinedResults,
+      pillarScores,
+      evidence,
+      ...(summaryDispatch ? { _n8n: summaryDispatch.receipt } : {}),
+      ...(claimKey ? { _scan_request: claimResults('complete', { finishedAt: new Date().toISOString() })._scan_request } : {}),
+    }
+    // The claim row created before the checks ran is finalised in place, so
+    // every replay of this requestKey resolves to the same scan id.
+    const rows = claimId
+      ? await sql`
+          update scans
+          set url = ${baseUrl}, domain = ${domain}, score = ${totalScore},
+              results = ${JSON.stringify(persisted)}::jsonb,
+              industry = ${geoIndustry}, region = ${geoRegion}, grade = ${grade},
+              agent_status = ${queueAgentAnalysis ? 'pending' : null}
+          where id = ${claimId} and account_id = ${account_id}
+          returning id
+        `
+      : await sql`
+          insert into scans (url, domain, score, results, industry, region, grade, account_id, agent_status, client_id)
+          values (${baseUrl}, ${domain}, ${totalScore}, ${JSON.stringify(persisted)}::jsonb,
+                  ${geoIndustry}, ${geoRegion}, ${grade}, ${account_id},
+                  ${queueAgentAnalysis ? 'pending' : null}, ${clientId ?? null})
+          returning id
+        `
     const inserted = rows[0] as { id: string } | undefined
     if (!inserted) return NextResponse.json({ error: 'Insert returned no data' }, { status: 500 })
     scanId = inserted.id
   } catch (dbErr) {
     console.error('[scan] DB insert failed:', (dbErr as Error)?.message ?? String(dbErr))
+    await markClaimFailed('Database error — check Neon configuration', 500)
     return NextResponse.json({ error: 'Database error — check Neon configuration' }, { status: 500 })
   }
 

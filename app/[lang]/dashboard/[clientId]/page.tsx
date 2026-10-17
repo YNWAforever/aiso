@@ -30,10 +30,6 @@ function withNumericScore<T extends { score: unknown } | null>(row: T): T {
   if (row === null || typeof row.score !== 'string') return row
   return { ...row, score: Number(row.score) }
 }
-function hasDisplayableScore(scan: Scan | null): scan is Scan {
-  return scan !== null && Number.isFinite(scan.score)
-}
-
 async function StepHeader({ step, features }: { step: string; features: PlanFeatures }) {
   const t = await getTranslations('dashboard')
   const info: Record<string, { title: string; body: string }> = {
@@ -299,8 +295,8 @@ export default async function DashboardPage({
       <main className="flex-1 px-6 pb-10 max-w-3xl">
         {step === 'scan' && <ScanStep lang={lang} clientId={clientId} scan={scan} scanHistory={scanHistory} />}
 
-        {step === 'results' && hasDisplayableScore(scan) && <ResultsStep scan={scan} lang={lang} clientId={clientId} />}
-        {step === 'results' && !hasDisplayableScore(scan) && (
+        {step === 'results' && scan && <ResultsStep scan={scan} lang={lang} clientId={clientId} />}
+        {step === 'results' && !scan && (
           <div className="rounded-xl border border-dash-border bg-dash-surface p-8 text-center">
             <p className="text-sm text-dash-text mb-1">{t('no_scan_selected')}</p>
             <p className="text-xs text-dash-muted">{t('no_scan_selected_body')}</p>

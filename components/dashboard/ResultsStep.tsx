@@ -2,27 +2,40 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { ScanSummary } from '@/components/dashboard/ScanSummary'
 import { SavedScanSummary } from '@/components/dashboard/SavedScanSummary'
+import { ScanRunState } from '@/components/dashboard/ScanRunState'
 import type { Scan } from '@/lib/types'
 
 type Props = { scan: Scan; lang: string; clientId: string }
 
 export function ResultsStep({ scan, lang, clientId }: Props) {
   const t = useTranslations('dashboard')
+  const results = (scan.results ?? {}) as Record<string, unknown>
+  const runState = results._scan_request && typeof results._scan_request === 'object'
+    ? (results._scan_request as Record<string, unknown>).state
+    : null
+  const hasScore = Number.isFinite(scan.score)
+  const processing = !hasScore && runState === 'processing'
+
+  if (!hasScore) {
+    const retryHref = `/${lang}/dashboard/${clientId}?step=scan${scan.url ? `&url=${encodeURIComponent(scan.url)}` : ''}`
+    return <ScanRunState processing={processing} retryHref={retryHref} />
+  }
+
   return (
     <div className="space-y-5">
       <ScanSummary scan={scan} />
-      <SavedScanSummary value={(scan.results as Record<string, unknown>)._n8n} />
+      <SavedScanSummary value={results._n8n} />
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Link
-          href={`/${lang}/dashboard/${clientId}?step=improve`}
-          className="inline-flex items-center px-5 py-2.5 text-sm font-medium rounded-lg text-primary-foreground bg-dash-accent hover:opacity-90 transition-opacity"
+          href={`/${lang}/dashboard/${clientId}?step=improve&scanId=${encodeURIComponent(scan.id)}`}
+          className="inline-flex min-h-11 items-center rounded-lg bg-dash-accent px-5 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
         >
           {t('next_improve')}
         </Link>
         <Link
           href={`/${lang}/dashboard/${clientId}?step=scan`}
-          className="inline-flex items-center px-5 py-2.5 text-sm font-medium rounded-lg text-dash-text bg-dash-elevated border border-dash-border hover:bg-dash-border transition-colors"
+          className="inline-flex min-h-11 items-center rounded-lg border border-dash-border bg-dash-elevated px-5 py-2.5 text-sm font-medium text-dash-text transition-colors hover:bg-dash-border"
         >
           {t('run_another_scan')}
         </Link>

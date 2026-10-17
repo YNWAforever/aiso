@@ -68,7 +68,9 @@ for (const lang of ['en', 'zh-HK']) {
     expect(setups).toHaveLength(1)
     expect(setups[0]).toMatchObject({ brandName: 'Synthetic First Result', domain: 'example.com' })
     expect(setups[0].language).toBeUndefined()
-    expect(scans).toEqual([{ url: 'https://example.com/', clientId }])
+    expect(scans).toHaveLength(1)
+    expect(scans[0]).toMatchObject({ url: 'https://example.com/', clientId })
+    expect(typeof (scans[0] as Record<string, unknown>).requestKey).toBe('string')
     await page.reload()
     await expect(page.getByText('example.com', { exact: true })).toBeVisible()
     expect(scans).toHaveLength(1)
@@ -166,3 +168,67 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(page.getByText(lang === 'en' ? 'Latest Scan' : '最新掃描', { exact: true })).toHaveCount(0)
   })
 }
+
+const runStateScan = (state: 'processing' | 'failed') => ({
+  id: scanId, url: 'https://example.com/', domain: 'example.com', score: null, grade: null,
+  created_at: '2026-10-17T00:00:00.000Z',
+  results: {
+    _scan_request: {
+      key: '11111111-1111-4111-8111-111111111111', state,
+      startedAt: new Date().toISOString(), ...(state === 'failed' ? { error: 'SCAN_UNREACHABLE', status: 422 } : {}),
+    },
+  },
+})
+async function openResult(page: Page, lang: string, value: unknown) {
+  await open(page, lang)
+  await page.evaluate(saved => localStorage.setItem('synthetic:first-result', JSON.stringify(saved)), value)
+  await page.goto(`https://onboarding.fixture/${lang}/dashboard/${clientId}?step=results&scanId=${scanId}`)
+  await page.waitForFunction(() => Boolean((window as Window & { aisoFixtureReady?: boolean }).aisoFixtureReady))
+}
+
+for (const lang of ['en', 'zh-HK']) {
+  test(`a running claim shows progress without a second scan ${lang}`, async ({ page }) => {
+    let scans = 0
+    await page.route('**/api/scan', route => { scans++; return route.abort() })
+    await openResult(page, lang, runStateScan('processing'))
+    await expect(page.getByText(lang === 'en' ? 'Your scan is still running' : '掃描仍在進行中', { exact: true })).toBeVisible()
+    await page.screenshot({ path: test.info().outputPath(`${lang}-scan-processing.png`), fullPage: true })
+    expect(scans).toBe(0)
+  })
+  test(`a failed claim explains the next step and offers retry ${lang}`, async ({ page }) => {
+    await openResult(page, lang, runStateScan('failed'))
+    await expect(page.getByText(lang === 'en' ? 'This scan could not finish' : '這次掃描未能完成', { exact: true })).toBeVisible()
+    const retry = page.getByRole('link', { name: lang === 'en' ? 'Try this scan again' : '重新嘗試這次掃描', exact: true })
+    await expect(retry).toBeVisible()
+    expect(new URL((await retry.getAttribute('href'))!, 'https://onboarding.fixture').searchParams.get('step')).toBe('scan')
+    await page.screenshot({ path: test.info().outputPath(`${lang}-scan-failed.png`), fullPage: true })
+  })
+}
+
+test('a reload during the automatic scan reuses the same request key', async ({ page }) => {
+  await open(page, 'en'); await details(page)
+  await page.route('**/api/onboarding/complete', route => route.fulfill({
+    json: { clientId, progress: { brand: 'ready', prompts: 'pending' } },
+  }))
+  const scans: Record<string, unknown>[] = []
+  let release!: () => void
+  const held = new Promise<void>(resolve => { release = resolve })
+  await page.route('**/api/scan', async route => {
+    scans.push(route.request().postDataJSON())
+    if (scans.length === 1) {
+      await held
+      try { await route.abort() } catch { /* the reload already cancelled it */ }
+      return
+    }
+    await page.evaluate(value => localStorage.setItem('synthetic:first-result', JSON.stringify(value)), result)
+    await route.fulfill({ json: result })
+  })
+  await quick(page, 'en').click()
+  await expect.poll(() => scans.length).toBe(1)
+  await page.reload()
+  await expect.poll(() => scans.length).toBe(2)
+  expect(typeof scans[0]!.requestKey).toBe('string')
+  expect(scans[1]!.requestKey).toBe(scans[0]!.requestKey)
+  release()
+  await expect(page.getByText('Latest Scan', { exact: true })).toBeVisible()
+})
