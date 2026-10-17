@@ -3,6 +3,7 @@ import { renderToString } from 'react-dom/server'
 import { NextIntlClientProvider } from 'next-intl'
 import { VersionDetails } from '@/components/change-sets/VersionDetails'
 import { VersionWorkspace } from '@/components/change-sets/VersionWorkspace'
+import { DecisionForm } from '@/components/change-sets/DecisionForm'
 import { draft, clientId } from './c9c-fixtures'
 import { version } from './c9d-fixtures'
 import { scanSuggestion } from './c9c-fixtures'
@@ -29,3 +30,21 @@ it('version history returns to a live scan attachment when the original snapshot
   </NextIntlClientProvider>)
   expect(html).toContain(`step=improve&amp;scanId=${selected}&amp;draft=${draft.id}`)
 })
+it.each(['en', 'zh-HK'] as const)(
+  'does not preselect approval or record a decision without an explicit choice in %s',
+  lang => {
+    const copy = (lang === 'en' ? en : zh).changeSets
+    const html = renderToString(
+      <NextIntlClientProvider locale={lang} messages={lang === 'en' ? en : zh} timeZone="UTC">
+        <DecisionForm
+          endpoint="/api/synthetic/decision"
+          version={{ ...version, capabilities: { canDecide: true } }}
+          onCompleted={() => undefined}
+          onDirty={() => undefined}
+        />
+      </NextIntlClientProvider>,
+    )
+    expect(html).toContain(`<option value="" disabled="" selected="">${copy.decisionPlaceholder}</option>`)
+    expect(html).not.toMatch(/<option value="approved" selected=""/)
+  },
+)

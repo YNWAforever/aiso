@@ -125,6 +125,73 @@ for (const lang of ['en', 'zh-HK']) {
     ).toBe(true)
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
   })
+  test(`C9d requires an explicit decision before recording ${lang}`, async ({
+    page,
+  }, testInfo) => {
+    const { changeSets: c } = await fixture(page, lang)
+    const decision = page.getByLabel(c.decision, { exact: true })
+    const reason = page.getByLabel(c.reason, { exact: true })
+    let posts = 0
+    await page.route('**/versions/*/decision', (route) => {
+      posts++
+      return route.fulfill({
+        status: 200,
+        json: {
+          version: {
+            ...version,
+            decision: {
+              decision: 'changes_requested',
+              reason: 'Check the page first.',
+              decidedBy: {
+                profileId: clientId,
+                displayName: 'Independent reviewer',
+                role: 'account_approver',
+              },
+              decidedAt: '2026-09-07T00:00:00Z',
+            },
+            capabilities: { canDecide: false },
+          },
+        },
+      })
+    })
+
+    await expect(decision).toHaveValue('')
+    await expect(decision.locator('option[value=""]')).toHaveText(
+      c.decisionPlaceholder,
+    )
+    await reason.fill('Check the page first.')
+    await page
+      .getByRole('button', { name: c.recordDecision, exact: true })
+      .click()
+    await expect(page.getByRole('alert')).toHaveText(c.decisionRequired)
+    await expect(decision).toBeFocused()
+    await expect(reason).toHaveValue('Check the page first.')
+    expect(posts).toBe(0)
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true)
+    await page.screenshot({
+      path: testInfo.outputPath(`${lang}-${testInfo.project.name}-decision-required.png`),
+      fullPage: true,
+    })
+
+    await decision.selectOption('changes_requested')
+    await expect(page.getByRole('alert')).toHaveCount(0)
+    await page
+      .getByRole('button', { name: c.recordDecision, exact: true })
+      .click()
+    await expect.poll(() => posts).toBe(1)
+    await expect(
+      page.getByRole('status', { name: c.versionReviewStatus, exact: true }),
+    ).toHaveText(c.decisionRecorded)
+    await page.screenshot({
+      path: testInfo.outputPath(`${lang}-${testInfo.project.name}-decision-recorded.png`),
+      fullPage: true,
+    })
+  })
   for (const decision of ['approved', 'changes_requested'] as const)
     test(`C9d ${decision} timeout retry retains exact request and focus ${lang}`, async ({
       page,
@@ -200,6 +267,7 @@ for (const lang of ['en', 'zh-HK']) {
         json: { error: 'CHANGE_SET_DENIED' },
       })
     })
+    await page.getByLabel(c.decision, { exact: true }).selectOption('approved')
     await page.getByLabel(c.reason, { exact: true }).fill('First reason')
     await page
       .getByRole('button', { name: c.recordDecision, exact: true })
@@ -469,6 +537,7 @@ for (const lang of ['en', 'zh-HK'])
         },
       }),
     )
+    await page.getByLabel(c.decision, { exact: true }).selectOption('approved')
     await page.getByLabel(c.reason, { exact: true }).fill('Retained review')
     await page
       .getByRole('button', { name: c.recordDecision, exact: true })
@@ -533,6 +602,7 @@ for (const lang of ['en', 'zh-HK']) {
       .getByRole('button', { name: c.reloadHistory, exact: true })
       .click()
     await expect.poll(() => reads).toBe(1)
+    await page.getByLabel(c.decision, { exact: true }).selectOption('approved')
     try {
       await page.getByLabel(c.reason, { exact: true }).fill(reason)
       await page

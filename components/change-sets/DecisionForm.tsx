@@ -18,10 +18,11 @@ export function DecisionForm({
 }) {
   const t = useTranslations('changeSets'),
     id = useId(),
-    reasonRef = useRef<HTMLTextAreaElement>(null)
+    reasonRef = useRef<HTMLTextAreaElement>(null),
+    decisionRef = useRef<HTMLSelectElement>(null)
   const [reason, setReason] = useState(''),
     [decision, setDecision] =
-      useState<ReviewDecisionInput['decision']>('approved'),
+      useState<ReviewDecisionInput['decision'] | ''>(''),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('')
   const request = useRef<{ payload: string; requestId: string } | null>(null),
@@ -29,6 +30,11 @@ export function DecisionForm({
   async function submit(e: FormEvent) {
     e.preventDefault()
     if (lock.current) return
+    if (!decision) {
+      setError('decisionRequired')
+      decisionRef.current?.focus()
+      return
+    }
     const normalized = reason.trim().normalize('NFC')
     if (!normalized || [...normalized].length > 2000) {
       setError('invalidReason')
@@ -85,15 +91,20 @@ export function DecisionForm({
         {t('decision')}
       </label>
       <select
+        ref={decisionRef}
         id={id + 'decision'}
         className="min-h-11 w-full border border-border bg-background p-2"
         value={decision}
         disabled={busy}
+        aria-required="true"
         onChange={(e) => {
-          setDecision(e.target.value as ReviewDecisionInput['decision'])
+          const next = e.target.value
+          setDecision(next === 'approved' || next === 'changes_requested' ? next : '')
+          setError('')
           onDirty(true)
         }}
       >
+        <option value="" disabled>{t('decisionPlaceholder')}</option>
         <option value="approved">{t('approved')}</option>
         <option value="changes_requested">{t('changes_requested')}</option>
       </select>
@@ -128,7 +139,7 @@ export function DecisionForm({
         disabled={busy}
         onClick={() => {
           setReason('')
-          setDecision('approved')
+          setDecision('')
           setError('')
           onDirty(false)
         }}

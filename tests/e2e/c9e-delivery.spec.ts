@@ -127,6 +127,7 @@ for (const lang of ['en', 'zh-HK']) {
     const { c, section, context, version } = await fixture(page, lang, 'pending'), review = (lang === 'en' ? en : zh).changeSets
     await expect(section.getByRole('button', { name: c.record, exact: true })).toBeDisabled()
     context.versionHook = route => { context.reason = null; return route.fulfill({ json: { version } }) }
+    await page.getByLabel(review.decision, { exact: true }).selectOption('approved')
     await page.getByLabel(review.reason, { exact: true }).fill('Reviewed')
     await page.getByRole('button', { name: review.recordDecision, exact: true }).click()
     await expect(section.getByRole('button', { name: c.record, exact: true })).toBeEnabled()

@@ -2180,6 +2180,8 @@
     "approved": "已批准",
     "changes_requested": "要求修改",
     "decision": "決定",
+    "decisionPlaceholder": "請選擇決定",
+    "decisionRequired": "記錄決定前，請明確選擇「批准」或「要求修改」。",
     "reason": "審核原因",
     "reasonLimit": "必填：刪除首尾空白後須為 1–2000 個字元。",
     "invalidReason": "請輸入 1–2000 個字元的原因。",

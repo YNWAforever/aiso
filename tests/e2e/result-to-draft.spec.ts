@@ -574,6 +574,7 @@ for (const lang of ['en', 'zh-HK'] as const) {
     await expect(page.getByRole('region', { name: c.changeSets.versionDetails })).toContainText(saved!.notes)
     expect(state.version!.draftRevision).toBe(2)
     expect(state.version).toMatchObject({ schemaVersion: 1, evidenceSnapshot: saved!.evidenceSnapshot })
+    await page.getByLabel(c.changeSets.decision, { exact: true }).selectOption('approved')
     await page.getByLabel(c.changeSets.reason, { exact: true }).fill('Synthetic independent reviewer checked the source. Manual application is still required.')
     await page.getByRole('button', { name: c.changeSets.recordDecision, exact: true }).click()
     await expect(page.getByRole('region', { name: c.changeSets.versionDetails })).toContainText(c.changeSets.approved)

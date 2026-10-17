@@ -2180,6 +2180,8 @@
     "approved": "Approved",
     "changes_requested": "Changes requested",
     "decision": "Decision",
+    "decisionPlaceholder": "Select a decision",
+    "decisionRequired": "Choose Approved or Request changes before recording a decision.",
     "reason": "Review reason",
     "reasonLimit": "Required: 1–2000 characters after trimming.",
     "invalidReason": "Enter a reason of 1–2000 characters.",
