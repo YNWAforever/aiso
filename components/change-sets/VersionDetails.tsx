@@ -10,6 +10,7 @@ export function VersionDetails({
   latestVersionId: string | null
 }) {
   const t = useTranslations('changeSets')
+  const work = useTranslations('opportunities')
   return (
     <section
       className="min-w-0 space-y-4 rounded-xl border border-border p-4"
@@ -29,6 +30,19 @@ export function VersionDetails({
       </h3>
       <p className="whitespace-pre-wrap break-words">{version.action}</p>
       <p className="whitespace-pre-wrap break-words">{version.notes}</p>
+      <section className="space-y-3 rounded-lg border border-border p-4" aria-label={t('preparationTitle')}>
+        <h3 className="font-semibold">{t('preparationTitle')}</h3>
+        {version.preparation ? <>
+          <p>{t('preparationFrozenNotice')}</p>
+          <p className="font-semibold">{work('targetPageUnconfirmed')}</p>
+          <dl className="space-y-2">
+            <dt className="font-semibold">{work('targetUrl')}</dt>
+            <dd className="break-all">{version.preparation.targetUrl ?? t('preparationNoTarget')}</dd>
+            <dt className="font-semibold">{work('acceptanceCriteria')}</dt>
+            <dd className="whitespace-pre-wrap break-words">{version.preparation.acceptanceCriteria || t('preparationNoCriteria')}</dd>
+          </dl>
+        </> : <p>{t('preparationLegacy')}</p>}
+      </section>
       <p>
         {t('submittedBy')}:{' '}
         {version.submittedBy.displayName ?? version.submittedBy.profileId} ·{' '}

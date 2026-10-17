@@ -2078,7 +2078,7 @@
     "reviewPreparationTitle": "送審前準備",
     "targetPageUnconfirmed": "目標頁尚未確認",
     "targetPageUnconfirmedHelp": "請與網站擁有人核對實際目標頁，以及如何檢查修改。填寫或儲存網址不代表已驗證頁面、套用草稿或證明成效改善。",
-    "reviewPreparationScope": "這些是目前的工作詳情，與審閱版本分開儲存。凡需要審閱者確認的內容，請一併寫入草稿內容或備註。",
+    "reviewPreparationScope": "新提交會把這些已儲存工作詳情一併保留於審閱版本。之後修改只影響未來提交；請在各個已提交版本查看當時保留的詳情。",
     "targetPageMissing": "尚未指定目標頁。",
     "acceptanceMissing": "尚未填寫完成條件。",
     "preparationLoading": "正在載入已儲存工作詳情…",
@@ -2088,6 +2088,11 @@
     "reloadPreparationHelp": "重新載入會以已儲存版本取代未儲存的草稿文字及工作詳情。"
   },
   "changeSets": {
+    "preparationTitle": "提交時的目標頁及完成條件",
+    "preparationFrozenNotice": "這些詳情已隨此版本保留，之後修改工作紀錄不會改變它們；這不代表已驗證頁面、發佈或成效。",
+    "preparationLegacy": "此版本提交時未記錄目標頁或完成條件，沒有以目前工作詳情代替。",
+    "preparationNoTarget": "提交時尚未指定目標頁。",
+    "preparationNoCriteria": "提交時尚未填寫完成條件。",
     "versionReviewStatus": "版本審閱狀態",
     "title": "版本審核",
     "notDelivery": "批准只會記錄審核決定，不會發佈、交付或執行此草稿。",

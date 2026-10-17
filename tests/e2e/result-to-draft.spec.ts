@@ -72,7 +72,8 @@ async function fixture(page: Page, lang: string, mode = '', scenario = '', share
       expect(request.postDataJSON()).toEqual({ expectedRevision: state.item!.revision })
       const content = { schemaVersion: 1 as const, workItemId: state.item!.id, draftRevision: state.item!.revision,
         title: state.item!.title, action: state.item!.action, notes: state.item!.notes, locale: state.item!.locale,
-        evidenceSnapshot: state.item!.evidenceSnapshot }
+        evidenceSnapshot: state.item!.evidenceSnapshot,
+        preparation:{schemaVersion:1 as const,targetUrl:state.operations.targetUrl,acceptanceCriteria:state.operations.acceptanceCriteria} }
       state.version ??= { ...reviewFixture, ...content, contentHash: fingerprintEvidence(content), submittedAt: '2026-10-17T00:30:00Z' }
       return route.fulfill({ status: 201, json: { version: state.version } })
     }
@@ -191,14 +192,59 @@ for (const lang of ['en', 'zh-HK']) {
     expect(state.version!.draftRevision).toBe(2)
     expect(state.version!.schemaVersion).toBe(1)
     if(state.version!.schemaVersion===1)expect(state.version!.evidenceSnapshot).toEqual(evidence)
-    expect(state.version).not.toHaveProperty('targetUrl')
+    expect(state.version!.preparation).toEqual({schemaVersion:1,targetUrl:'https://example.test/confirmed-by-owner-later',
+      acceptanceCriteria:'Synthetic criterion: the owner checks the exact page description after manual application.'})
+    const retainedHash=state.version!.contentHash
+    const submitted=page.getByRole('region',{name:c.changeSets.preparationTitle,exact:true})
+    await expect(submitted).toContainText('https://example.test/confirmed-by-owner-later')
+    await page.getByRole('link',{name:c.changeSets.backToDrafts,exact:true}).click()
+    await preparation.getByRole('textbox',{name:c.opportunities.targetUrl,exact:true}).fill('https://example.test/current-after-submission')
+    await preparation.getByRole('textbox',{name:c.opportunities.acceptanceCriteria,exact:true}).fill('Synthetic later work criteria')
+    await preparation.getByRole('button',{name:c.opportunities.saveOperations,exact:true}).click()
+    await page.getByRole('link',{name:c.opportunities.versionHistory,exact:true}).click()
+    await page.getByRole('button',{name:new RegExp(`^${c.changeSets.versionNumber.replace('{number}','1')}`)}).click()
+    await expect(review).toContainText('https://example.test/current-after-submission')
+    await expect(submitted.getByText('https://example.test/confirmed-by-owner-later',{exact:true})).toBeVisible()
+    await expect(submitted).toContainText('Synthetic criterion: the owner checks the exact page description after manual application.')
+    await expect(submitted).not.toContainText('current-after-submission')
+    await expect(submitted).not.toContainText('Synthetic later work criteria')
+    await submitted.screenshot({path:test.info().outputPath(`${lang}-immutable-submitted-preparation.png`)})
     await page.reload()
-    await expect(review).toContainText('https://example.test/confirmed-by-owner-later')
-    expect(state.operationWrites).toBe(1)
+    await page.getByRole('button',{name:new RegExp(`^${c.changeSets.versionNumber.replace('{number}','1')}`)}).click()
+    await expect(submitted).toContainText('https://example.test/confirmed-by-owner-later')
+    expect(state.version!.contentHash).toBe(retainedHash)
+    expect(state.version!.draftRevision).toBe(2)
+    expect(state.item!.revision).toBe(3)
+    expect(state.operationWrites).toBe(2)
+    expect(state.submissions).toBe(1)
     expect(state.operationRetests).toBe(0)
     expect(state.scanRequests).toHaveLength(0)
     expect((await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa']).analyze()).violations).toEqual([])
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+  })
+  for(const schema of [1,2] as const)test(`legacy schema ${schema} never substitutes current work details ${lang}`,async({page})=>{
+    const state=fixtureState(),d=data()
+    state.item=structuredClone(d.drafts[lang])
+    state.version=structuredClone(d.legacyVersions[schema][lang])
+    state.operations.targetUrl='https://example.test/live-only'
+    state.operations.acceptanceCriteria='Synthetic live-only acceptance'
+    const{copy:c}=await fixture(page,lang,'improve','',state)
+    await page.getByRole('link',{name:c.opportunities.versionHistory,exact:true}).click()
+    const select=()=>page.getByRole('button',{name:new RegExp(`^${c.changeSets.versionNumber.replace('{number}','1')}`)}).click()
+    await select()
+    const submitted=page.getByRole('region',{name:c.changeSets.preparationTitle,exact:true})
+    await expect(submitted.getByText(c.changeSets.preparationLegacy,{exact:true})).toBeVisible()
+    await expect(submitted).not.toContainText('https://example.test/live-only')
+    await expect(submitted).not.toContainText('Synthetic live-only acceptance')
+    await submitted.screenshot({path:test.info().outputPath(`${lang}-legacy-${schema}-preparation.png`)})
+    await page.reload()
+    await select()
+    await expect(submitted.getByText(c.changeSets.preparationLegacy,{exact:true})).toBeVisible()
+    expect(state.version!.schemaVersion).toBe(schema)
+    expect(state.version).not.toHaveProperty('preparation')
+    expect(state.operationWrites).toBe(0)
+    expect(state.submissions).toBe(0)
+    expect(state.scanRequests).toHaveLength(0)
   })
   test(`preparation load retry and failed save retain the unsaved page and criteria ${lang}`,async({page})=>{
     const state=fixtureState()

@@ -2078,7 +2078,7 @@
     "reviewPreparationTitle": "Before submitting for review",
     "targetPageUnconfirmed": "Target page not confirmed",
     "targetPageUnconfirmedHelp": "Confirm the exact page and how to check the change with the website owner. Entering or saving a URL does not verify the page, apply the draft or prove an improvement.",
-    "reviewPreparationScope": "These are current work details, saved separately from review versions. Include anything the reviewer must approve in the draft content or notes.",
+    "reviewPreparationScope": "New submissions retain these saved work details with the review version. Later edits affect future submissions only; check each submitted version for its retained details.",
     "targetPageMissing": "No target page has been specified.",
     "acceptanceMissing": "No acceptance criteria have been recorded.",
     "preparationLoading": "Loading saved work details…",
@@ -2088,6 +2088,11 @@
     "reloadPreparationHelp": "Reloading replaces unsaved draft text and work details with the saved versions."
   },
   "changeSets": {
+    "preparationTitle": "Submitted target page and acceptance criteria",
+    "preparationFrozenNotice": "These details were retained with this version. Later work-record edits do not change them. They do not verify the page, publication or impact.",
+    "preparationLegacy": "This version did not record target-page or acceptance details. Current work details have not been substituted.",
+    "preparationNoTarget": "No target page was specified at submission.",
+    "preparationNoCriteria": "No acceptance criteria were recorded at submission.",
     "versionReviewStatus": "Version review status",
     "title": "Version review",
     "notDelivery": "Approval records a review decision only. It does not publish, deliver, or implement this draft.",

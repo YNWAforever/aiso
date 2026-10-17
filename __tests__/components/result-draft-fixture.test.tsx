@@ -4,6 +4,8 @@ import { buildScanEvidence } from '@/lib/scan-evidence'
 import { deriveSuggestions } from '@/lib/opportunities/rules'
 import { buildInitialDraftSnapshot } from '@/lib/work-items/snapshot'
 import { createSummaryReceipt } from '@/lib/n8n/schema'
+import { freezeReview, freezeMultiSourceReview } from '@/lib/change-sets/validation'
+import { versionDTO } from '@/lib/change-sets/store'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import type { OpportunityResponse } from '@/lib/opportunities/types'
@@ -25,9 +27,21 @@ const result = { id: scanId, client_id: clientId, domain: 'example.test', url: '
 const failedReceipt = { ...createSummaryReceipt(result).receipt, state: 'failed', error: 'PROVIDER_FAILED' }
 const drafts = Object.fromEntries((['en', 'zh-HK'] as const).map(locale => {
   const snapshot = buildInitialDraftSnapshot(suggestions[0], source, locale)
-  return [locale, { id: '44444444-4444-4444-8444-444444444444', clientId, status: 'draft', title: snapshot.initialTitle,
+  return [locale, { id: '44444444-4444-4444-8444-444444444444', clientId, status: 'draft' as const, title: snapshot.initialTitle,
     action: snapshot.initialAction, notes: '', locale, revision: 1, createdAt: source.recordedAt, updatedAt: source.recordedAt, evidenceSnapshot: snapshot }]
 }))
+const legacyVersions = Object.fromEntries(([1, 2] as const).map(schema => [schema,
+  Object.fromEntries((['en', 'zh-HK'] as const).map(locale => {
+    const item = drafts[locale]
+    const frozen = schema === 1 ? freezeReview(item) : freezeMultiSourceReview(item, [item.evidenceSnapshot])
+    return [locale, versionDTO({
+      id: '55555555-5555-4555-8555-555555555555', work_item_id: item.id, version_number: 1, draft_revision: item.revision,
+      content: frozen.content, content_hash: frozen.contentHash, validation: frozen.validation,
+      submitter: { profileId: clientId, displayName: 'Synthetic legacy submitter', role: 'account_member' },
+      submitted_at: '2026-10-17T00:00:00Z', decision_record: null, can_decide: false,
+    })]
+  })),
+]))
 it('fixture uses real source ranking, snapshots and a selected scan; no provider call', () => {
   expect(suggestions[0].source).toMatchObject({ id: scanId, checkKey: 'c9_meta_desc' })
   expect(drafts.en.evidenceSnapshot.evidence).toMatchObject({ scanId, checkKey: 'c9_meta_desc' })
@@ -36,6 +50,6 @@ afterAll(async () => {
   if (process.env.AISO_RESULT_DRAFT_FIXTURE !== '1') return
   const dir = resolve(process.env.AISO_RESULT_DRAFT_DIR || 'artifacts/result-to-draft-20261017/browser')
   mkdirSync(dir, { recursive: true })
-  writeFileSync(join(dir, 'data.json'), JSON.stringify({ clientId, scanId, result, failedReceipt, opportunities, drafts }))
+  writeFileSync(join(dir, 'data.json'), JSON.stringify({ clientId, scanId, result, failedReceipt, opportunities, drafts, legacyVersions }))
   await writeResultDraftFixture()
 })

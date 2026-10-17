@@ -31,7 +31,7 @@ export function createDeliveryExport(version: VersionDetail, format: 'json' | 't
     const itemId = deliveryId(version.workItemId)
     if (itemId !== version.workItemId) invalid()
     const frozen = freezeReview({ id: itemId, revision: version.draftRevision, title: version.title, action: version.action,
-      notes: version.notes, locale: version.locale, evidenceSnapshot: version.evidenceSnapshot } as WorkItem)
+      notes: version.notes, locale: version.locale, evidenceSnapshot: version.evidenceSnapshot } as WorkItem, version.preparation)
     if (deliveryHash(version.contentHash) !== frozen.contentHash || fingerprintEvidence(version.validation) !== fingerprintEvidence(frozen.validation)) invalid()
     const submittedBy = deliveryActor(version.submittedBy)
     const submittedAt = deliveryTime(version.submittedAt, 6)
