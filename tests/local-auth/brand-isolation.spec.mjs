@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { test, expect } from '@playwright/test'
 import { allowLocalUrl, evidenceMode, redactLocalAuth } from '../../scripts/ci/local-auth-safety.mjs'
 import { config, messages, control, login, get, shot } from './support.mjs'
+import { delayOwnedResponse } from './delayed-response.mjs'
 
 if (config.scenario !== 'brand-isolation') throw new Error('LOCAL_AUTH_MULTI_BRAND_TARGET')
 
@@ -175,6 +176,90 @@ for (const lang of ['en', 'zh-HK']) {
         await page.getByLabel(copy.opportunities.titleField, { exact: true })
           .evaluate(element => element.scrollIntoView({ block: 'center' }))
         await shot(page, `${prefix}-03-ui-switch-${brand.brandName.includes(' A ') ? 'a' : 'b'}.png`)
+      }
+      audit.responseRaces = []
+      for (const [raceIndex, scenario] of [
+        { name: 'open-to-results', operation: 'open', destination: 'results' },
+        { name: 'open-to-draft', operation: 'open', destination: 'draft' },
+        { name: 'refresh-to-improve', operation: 'refresh', destination: 'improve' },
+        { name: 'save-to-draft', operation: 'save', destination: 'draft' },
+      ].entries()) {
+        // The installed engine's unchanged shared session limiter needs a
+        // quiet 10s window. Pace groups before starting requests; response
+        // release itself remains deterministic and never uses this delay.
+        if (raceIndex % 2 === 0) await new Promise(done => setTimeout(done, 11000))
+        await page.goto(scenario.operation === 'save' ? draftPath(a)
+          : `/${lang}/dashboard/${a.clientId}?step=improve&scanId=${a.scanId}`)
+        if (scenario.operation === 'open') {
+          await page.getByRole('button', { name: copy.opportunities.savedDrafts, exact: true }).click()
+          await expect(page.getByRole('region', { name: copy.opportunities.savedDrafts, exact: true })
+            .getByRole('button', { name: a.item.title, exact: true })).toBeVisible()
+        }
+        const pathname = `/api/clients/${a.clientId}/${scenario.operation === 'refresh'
+          ? 'opportunities' : `work-items/${a.item.id}`}`
+        const delayed = await delayOwnedResponse(page, pathname, scenario.operation === 'save' ? 'PATCH' : 'GET')
+        try {
+          if (scenario.operation === 'open') {
+            await page.getByRole('region', { name: copy.opportunities.savedDrafts, exact: true })
+              .getByRole('button', { name: a.item.title, exact: true }).click()
+          } else if (scenario.operation === 'refresh') {
+            await page.getByRole('button', { name: copy.opportunities.refresh, exact: true }).click()
+          } else {
+            await expect(page.getByLabel(copy.opportunities.titleField, { exact: true })).toHaveValue(a.item.title)
+            await page.getByLabel(copy.opportunities.notes, { exact: true }).fill(`${a.item.notes} — delayed save`)
+            await page.getByRole('button', { name: copy.opportunities.saveChanges, exact: true }).click()
+          }
+          const oldResponse = await delayed.captured()
+          if (scenario.operation === 'refresh') expect(oldResponse.window.scanId).toBe(a.scanId)
+          else expect(oldResponse.item).toMatchObject({ id: a.item.id, clientId: a.clientId })
+          await openPortfolio(page, lang, copy)
+          await selectBrand(page, lang, b, copy)
+          if (scenario.destination !== 'results') {
+            await page.getByRole('link', { name: copy.dashboard.next_improve, exact: true }).click()
+            await page.waitForURL(url => url.pathname === `/${lang}/dashboard/${b.clientId}` &&
+              url.searchParams.get('step') === 'improve' && url.searchParams.get('scanId') === b.scanId)
+            await expect(page.getByText(`${copy.opportunities.sourceScan}: ${b.scanId}`, { exact: true }).first()).toBeVisible()
+            if (scenario.destination === 'draft') {
+              await page.getByRole('button', { name: copy.opportunities.savedDrafts, exact: true }).click()
+              await page.getByRole('region', { name: copy.opportunities.savedDrafts, exact: true })
+                .getByRole('button', { name: b.item.title, exact: true }).click()
+              await expect(page.getByLabel(copy.opportunities.titleField, { exact: true })).toHaveValue(b.item.title)
+            }
+          }
+          const expectedUrl = page.url()
+          const settled = await delayed.release()
+          const observation = { ...scenario, ...settled, expectedUrl, observedUrl: page.url(),
+            oldClientId: a.clientId, currentClientId: b.clientId, currentScanId: b.scanId, passed: false }
+          audit.responseRaces.push(observation)
+          await shot(page, `${prefix}-04-race-${scenario.name}.png`)
+          expect(observation.observedUrl, `late ${scenario.operation} must not rewrite the selected brand URL`).toBe(expectedUrl)
+          if (scenario.destination === 'results') {
+            await expect(page.getByTestId('result-priority')).toContainText(b.brandName)
+            await expect(page.getByTestId('result-priority')).not.toContainText(a.brandName)
+            await expect(page.getByTestId('result-priority').getByRole('link', { name: copy.resultSummary.openDraft, exact: true }))
+              .toHaveAttribute('href', draftPath(b))
+          } else {
+            await expect(page.getByText(`${copy.opportunities.sourceScan}: ${a.scanId}`, { exact: true })).toHaveCount(0)
+            await expect(page.getByText(a.item.title, { exact: true })).toHaveCount(0)
+            if (scenario.destination === 'draft') {
+              await expect(page.getByLabel(copy.opportunities.titleField, { exact: true })).toHaveValue(b.item.title)
+              await expect(page.getByLabel(copy.opportunities.notes, { exact: true })).toHaveValue(b.item.notes)
+            }
+          }
+          const current = await control(request, '/__local/persisted', { id: b.item.id })
+          expect(current.rows[0]).toMatchObject({ account_id: b.accountId, client_id: b.clientId,
+            id: b.item.id, title: b.item.title, notes: b.item.notes, revision: 2, source_id: b.scanId })
+          observation.currentRevision = current.rows[0].revision
+          if (scenario.operation === 'save') {
+            const previous = await control(request, '/__local/persisted', { id: a.item.id })
+            expect(previous.rows[0]).toMatchObject({ account_id: a.accountId, client_id: a.clientId,
+              id: a.item.id, notes: `${a.item.notes} — delayed save`, revision: 3, source_id: a.scanId })
+            observation.oldSavedRevision = previous.rows[0].revision
+          }
+          observation.passed = true
+        } finally {
+          await delayed.close()
+        }
       }
       await page.goto(`/${lang}/auth/logout`)
       await page.waitForURL(`**/${lang}/auth/login`)

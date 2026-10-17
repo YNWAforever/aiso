@@ -53,6 +53,7 @@ function OpportunityContent({
     restored = useRef(false),
     refreshLock = useRef(false),
     openLock = useRef(false),
+    active = useRef(true),
     selectionEpoch = useRef(0),
     editor = useRef<HTMLDivElement>(null)
   const base = `/api/clients/${encodeURIComponent(clientId)}`
@@ -64,9 +65,14 @@ function OpportunityContent({
     !data?.groups?.some(g => g.context?.runId && g.platforms.length > 1 && g.suggestionKeys.includes(s.key))) ?? []
   const displayedSuggestions = scanId ? visibleSuggestions.slice(0, 3) : visibleSuggestions
   useEffect(() => {
+    active.current = true
+    return () => { active.current = false }
+  }, [])
+  useEffect(() => {
     if (selectedId && view === 'drafts') editor.current?.focus()
   }, [selectedId, view])
   const remember = useCallback((item: WorkItem) => {
+    if (!active.current) return
     setItems((old) => [item, ...old.filter((row) => row.id !== item.id)])
     setSelected(item)
     selectedItem.current = item
@@ -164,7 +170,7 @@ function OpportunityContent({
     setOpenError(false)
     try {
       const item = await readDraft(id)
-      if (epoch !== selectionEpoch.current) return
+      if (!active.current || epoch !== selectionEpoch.current) return
       remember(item)
       setView('drafts')
       void ensureDraftListLoaded()
@@ -214,6 +220,7 @@ function OpportunityContent({
         }),
       })
       const result = await response.json()
+      if (!active.current) return
       if (!response.ok) {
         if (response.status === 409) {
           setEvidenceChangedKeys((previous) =>

@@ -5,6 +5,13 @@ import { engineOptions } from '../../scripts/ci/local-auth-service.mjs'
 import { fixtureResults } from '../../scripts/ci/local-auth-fixture.mjs'
 
 describe('installed real Better Auth local protocol contracts (unit, memory store only)', () => {
+  it('keeps the installed session limiter intact for the browser quiet-window pacing', async () => {
+    const engine = betterAuth(engineOptions({
+      authOrigin: 'https://127.0.0.1:44461', appOrigin: 'https://127.0.0.1:44462',
+      engineSecret: 'local-unit-rate-limit-contract-'.repeat(4),
+    }, undefined, new Map(), async () => {}))
+    expect((await engine.$context).rateLimit).toMatchObject({ enabled: true, window: 10, max: 100 })
+  })
   it('delivers a real magic link whose redirect preserves the nested selected scan and draft', async () => {
     const config = { authOrigin: 'https://127.0.0.1:44451', appOrigin: 'https://127.0.0.1:44452',
       engineSecret: 'local-unit-nested-callback-'.repeat(4) }
