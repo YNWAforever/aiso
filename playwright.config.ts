@@ -57,6 +57,7 @@ const testIgnore = [
   // so an authenticated spec would fail under them for want of a cookie — and a
   // failure like that teaches nothing about the page it names.
   'tests/e2e/authenticated/**',
+  ...(process.env.AISO_RUNTIME_RUN_ID && process.env.AISO_RUNTIME_IDENTITY_FILE ? [] : ['tests/e2e/isolated-runtime-readonly.spec.ts']),
 ]
 
 export default defineConfig({

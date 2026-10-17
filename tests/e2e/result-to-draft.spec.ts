@@ -9,12 +9,14 @@ import zh from '../../messages/zh-HK.json'
 import { version as reviewFixture } from '../../__tests__/components/c9d-fixtures'
 import AxeBuilder from '@axe-core/playwright'
 
-const dir = resolve('artifacts/result-to-draft-20261017/browser')
+const dir = resolve(process.env.AISO_RESULT_DRAFT_DIR || 'artifacts/result-to-draft-20261017/browser')
 const data = () => JSON.parse(readFileSync(resolve(dir, 'data.json'), 'utf8'))
-async function fixture(page: Page, lang: string, mode = '', scenario = '') {
+const fixtureState=()=>({ item: null as WorkItem | null, version: null as VersionDetail | null, creates: 0, edits: 0, submissions: 0, decisions: 0,
+    authenticated: true, failCreate: false, loseCreateReply: false, failEdit: false, timeoutCreate: false, scanRequests: [] as string[],
+    setups:0,scanCreates:0,readStatus:200 })
+async function fixture(page: Page, lang: string, mode = '', scenario = '', shared?:ReturnType<typeof fixtureState>) {
   const d = data(), copy = lang === 'en' ? en : zh
-  const state = { item: null as WorkItem | null, version: null as VersionDetail | null, creates: 0, edits: 0, submissions: 0, decisions: 0,
-    authenticated: true, failCreate: false, loseCreateReply: false, failEdit: false, timeoutCreate: false, scanRequests: [] as string[] }
+  const state = shared??fixtureState()
   if(scenario==='attached') {
     state.item=structuredClone(d.drafts[lang]) as WorkItem
     state.item.sourceScanIds=[d.scanId]
@@ -74,6 +76,7 @@ async function fixture(page: Page, lang: string, mode = '', scenario = '') {
         capabilities: { canExport: approved, canAttest: approved, canWithdraw: false, attestReason: approved?null:'not_approved', withdrawReason: 'no_active_attestation' } } })
     }
     if (path.endsWith(`/work-items/${d.drafts.en.id}`)) {
+      if(method==='GET'&&state.readStatus!==200)return route.fulfill({status:state.readStatus,json:{error:'WORK_ITEM_NOT_FOUND'}})
       if (method === 'PATCH') {
         state.edits++
         if (state.failEdit) return route.fulfill({ status: 503, json: {} })
@@ -88,15 +91,59 @@ async function fixture(page: Page, lang: string, mode = '', scenario = '') {
   })
   await page.route('**/api/scan', route => {
     state.scanRequests.push(route.request().postDataJSON().requestKey)
+    if(scenario==='first-use'){
+      state.scanCreates=new Set(state.scanRequests).size
+      return route.fulfill({json:d.result})
+    }
     return route.fulfill({ status: 409, json: { error: 'SCAN_OUTCOME_UNKNOWN', state: 'failed', scanId: d.scanId } })
   })
-  const url = `https://journey.fixture/${lang}/dashboard/${d.clientId}?step=${mode || 'results'}&scanId=${d.scanId}${scenario ? `&case=${scenario}` : ''}${mode === 'scan' ? '&url=https%3A%2F%2Fexample.test' : ''}`
+  await page.route('**/api/onboarding/complete',route=>{
+    state.setups++
+    expect(route.request().postDataJSON().brandName).toBe('Synthetic Browser Brand')
+    return route.fulfill({json:{clientId:d.clientId,progress:{brand:'ready',prompts:'pending',promptCount:0}}})
+  })
+  const url = mode==='onboarding'?`https://journey.fixture/${lang}/onboarding?case=first-use`:
+    `https://journey.fixture/${lang}/dashboard/${d.clientId}?step=${mode || 'results'}&scanId=${d.scanId}${scenario ? `&case=${scenario}` : ''}${mode === 'scan' ? '&url=https%3A%2F%2Fexample.test' : ''}${shared?.item?`&draft=${encodeURIComponent(shared.item.id)}`:''}`
   await page.goto(url)
   await page.waitForFunction(() => Boolean((window as Window & { aisoDraftFixtureReady?: boolean }).aisoDraftFixtureReady))
   return { state, copy, d, errors, url }
 }
 
 for (const lang of ['en', 'zh-HK']) {
+  test(`two browser tabs retain the newer draft and reject a stale revision ${lang}`,async({page,context})=>{
+    const {state,copy:c}=await fixture(page,lang,'improve')
+    await page.getByRole('button',{name:c.opportunities.saveDraft,exact:true}).first().click()
+    await page.getByLabel(c.opportunities.notes,{exact:true}).fill('Unsaved older tab')
+    const newer=await context.newPage()
+    await fixture(newer,lang,'improve','',state)
+    await newer.getByLabel(c.opportunities.notes,{exact:true}).fill('Saved in newer tab')
+    await newer.getByRole('button',{name:c.opportunities.saveChanges,exact:true}).click()
+    await expect(newer.getByText(c.opportunities.savedRevision.replace('{revision}','2'),{exact:true})).toBeVisible()
+    await page.getByRole('button',{name:c.opportunities.saveChanges,exact:true}).click()
+    await expect(page.getByRole('alert')).toContainText(c.opportunities.editConflict)
+    await expect(page.getByLabel(c.opportunities.notes,{exact:true})).toHaveValue('Unsaved older tab')
+    expect(state.item).toMatchObject({notes:'Saved in newer tab',revision:2})
+    await page.screenshot({path:test.info().outputPath(`${lang}-stale-tab-conflict.png`),fullPage:true})
+    await page.getByRole('button',{name:c.opportunities.reloadDraft,exact:true}).click()
+    await expect(page.getByLabel(c.opportunities.notes,{exact:true})).toHaveValue('Saved in newer tab')
+    await newer.close()
+  })
+  test(`access denial and a wrong-workspace response never display private draft content ${lang}`,async({page})=>{
+    const state=fixtureState(),d=data(),privateTitle='FORBIDDEN FOREIGN DRAFT'
+    state.item={...structuredClone(d.drafts[lang]),title:privateTitle}
+    state.readStatus=404
+    const {copy:c}=await fixture(page,lang,'improve','',state)
+    await expect(page.getByRole('alert')).toContainText(c.opportunities.openError)
+    await expect(page.getByText(privateTitle,{exact:true})).toHaveCount(0)
+    state.readStatus=200
+    state.item!.clientId='99999999-9999-4999-8999-999999999999'
+    await page.reload()
+    await expect(page.getByRole('alert')).toContainText(c.opportunities.openError)
+    await expect(page.getByLabel(c.opportunities.titleField,{exact:true})).toHaveCount(0)
+    await expect(page.getByText(privateTitle,{exact:true})).toHaveCount(0)
+    expect(state.edits).toBe(0)
+    expect(state.decisions).toBe(0)
+  })
   test(`selected scan attached to an existing draft opens it without creating another ${lang}`, async ({page})=>{
     const {state,copy:c}=await fixture(page,lang,'improve','attached')
     await page.getByRole('button',{name:c.opportunities.openDraft,exact:true}).click()
@@ -130,8 +177,17 @@ for (const lang of ['en', 'zh-HK']) {
     await expect(page.getByRole('button', { name: c.opportunities.saveDraft, exact: true })).toHaveCount(2)
     expect(state.creates).toBe(0)
   })
-  test(`source result → metadata draft → edit/save → review → return/reload ${lang}`, async ({ page }) => {
-    const { state, copy: c, d, errors } = await fixture(page, lang)
+  for(const entry of ['first-use','return'] as const)test(`${entry}: source result → metadata draft → edit/save → review → return/reload ${lang}`, async ({ page }) => {
+    const { state, copy: c, d, errors } = await fixture(page, lang,entry==='first-use'?'onboarding':'',entry==='first-use'?'first-use':'')
+    if(entry==='first-use'){
+      await page.locator('#onboarding-brand').fill('Synthetic Browser Brand')
+      await page.locator('#onboarding-website').fill('https://example.test')
+      await page.getByRole('button',{name:lang==='en'?'Save and check my website':'儲存並分析我的網站',exact:true}).click()
+      await expect(page).toHaveURL(new RegExp(`step=results&scanId=${d.scanId}`))
+      expect(state.setups).toBe(1)
+      expect(state.scanCreates).toBe(1)
+      expect(state.scanRequests).toHaveLength(1)
+    }
     await page.getByRole('link', { name: c.dashboard.next_improve, exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`scanId=${d.scanId}`))
     await expect(page.getByText(c.opportunities.scanPriorityReason)).toBeVisible()
@@ -178,6 +234,7 @@ for (const lang of ['en', 'zh-HK']) {
     expect(state.edits).toBe(1)
     expect(state.submissions).toBe(1)
     expect(state.decisions).toBe(1)
+    expect(state.scanRequests).toHaveLength(entry==='first-use'?1:0)
     expect(errors).toEqual([])
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   })

@@ -92,6 +92,13 @@ without connecting, even with exit code zero. Run it from a terminal permitted
 to use those resources; a restricted agent must request approval to run outside
 its sandbox. The command never changes OS permissions, elevates, or retries.
 
+`npm run e2e:runtime-isolation` starts the existing local production build on
+an owned ephemeral loopback port, applies the same credential isolation at
+runtime, and blocks outbound sockets and fetch. It tests public rendering and
+unauthenticated access denial, then stops that server. Its existing fixture
+Auth mode returns no session; it does not prove real sign-in or DB persistence.
+Evidence goes to a unique directory under `artifacts/isolated-runtime/`.
+
 **`.env.example` is the authoritative list** — copy it to `.env.local` and fill it in. Each
 entry there says what breaks when it is missing. The highlights:
 

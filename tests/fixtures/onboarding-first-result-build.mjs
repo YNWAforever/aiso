@@ -5,7 +5,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url'
 
 export async function writeFirstResultFixture() {
 const repo = process.cwd()
-const output = resolve('artifacts/onboarding-20261016/browser')
+const output = resolve(process.env.AISO_FIRST_RESULT_DIR || 'artifacts/onboarding-20261016/browser')
 await mkdir(output, { recursive: true })
 const { build } = await import(pathToFileURL(join(repo, 'node_modules/vite/dist/node/index.js')).href)
 await writeFile(join(output, 'navigation.ts'), `
@@ -30,6 +30,7 @@ function Fixture(){
  const clientId='11111111-1111-4111-8111-111111111111'
  const saved=JSON.parse(localStorage.getItem('synthetic:first-result')||'null')
  return <NextIntlClientProvider locale={lang} messages={lang==='en'?en:zh} timeZone="UTC">
+ <p>SYNTHETIC FIXTURE — API and session are simulated</p>
  {path.includes('/onboarding')?<OnboardingWizard lang={lang} accountId="synthetic-first-result" scanId={new URL(path,location.origin).searchParams.get('scan')||undefined}/>:
  query.get('step')==='scan'?<ScanStep lang={lang} clientId={clientId} scan={null} scanHistory={[]}/>:
  query.get('step')==='results'&&saved?.id===query.get('scanId')?<ResultsStep scan={saved} lang={lang} clientId={clientId}/>:

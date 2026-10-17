@@ -34,7 +34,7 @@ it('fixture uses real source ranking, snapshots and a selected scan; no provider
 })
 afterAll(async () => {
   if (process.env.AISO_RESULT_DRAFT_FIXTURE !== '1') return
-  const dir = resolve('artifacts/result-to-draft-20261017/browser')
+  const dir = resolve(process.env.AISO_RESULT_DRAFT_DIR || 'artifacts/result-to-draft-20261017/browser')
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'data.json'), JSON.stringify({ clientId, scanId, result, failedReceipt, opportunities, drafts }))
   await writeResultDraftFixture()

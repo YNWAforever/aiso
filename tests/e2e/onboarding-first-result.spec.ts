@@ -20,7 +20,7 @@ const result = {
   },
 }
 async function open(page: Page, lang: string) {
-  const dir = resolve('artifacts/onboarding-20261016/browser')
+  const dir = resolve(process.env.AISO_FIRST_RESULT_DIR || 'artifacts/onboarding-20261016/browser')
   const script = readFileSync(`${dir}/fixture.js`, 'utf8')
   const css = readFileSync(`${dir}/build.css`, 'utf8')
   await page.route('**/*', route => route.abort())

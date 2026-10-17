@@ -2,7 +2,7 @@ import { mkdir, writeFile, readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 export async function writeResultDraftFixture() {
-  const repo = process.cwd(), output = resolve('artifacts/result-to-draft-20261017/browser')
+  const repo = process.cwd(), output = resolve(process.env.AISO_RESULT_DRAFT_DIR || 'artifacts/result-to-draft-20261017/browser')
   await mkdir(output, { recursive: true })
   await writeFile(join(output, 'entry.tsx'), `
 import React,{useEffect,useState}from'react'
@@ -10,6 +10,7 @@ import{createRoot}from'react-dom/client'
 import{NextIntlClientProvider}from'next-intl'
 import{ResultsStep}from'@/components/dashboard/ResultsStep'
 import{ScanStep}from'@/components/dashboard/ScanStep'
+import{OnboardingWizard}from'@/components/onboarding/OnboardingWizard'
 import{OpportunityWorkspace}from'@/components/opportunities/OpportunityWorkspace'
 import{VersionWorkspace}from'@/components/change-sets/VersionWorkspace'
 import en from '@/messages/en.json'
@@ -29,7 +30,8 @@ function Fixture(){
  ]).then(([a,b])=>setV({draft:a.item,history:b}))},[])
  return <NextIntlClientProvider locale={lang} messages={lang==='en'?en:zh} timeZone="UTC">
  <p>SYNTHETIC FIXTURE — no live AI, account or database</p>
- {review?(v?<VersionWorkspace clientId={d.clientId} workItemId={d.drafts.en.id} initialDraft={v.draft} initial={v.history} returnScanId={new URLSearchParams(location.search).get('scanId')??undefined}/>:<p>Loading fixture</p>):
+ {location.pathname.endsWith('/onboarding')?<OnboardingWizard lang={lang} accountId="11111111-1111-4111-8111-111111111119"/>:
+ review?(v?<VersionWorkspace clientId={d.clientId} workItemId={d.drafts.en.id} initialDraft={v.draft} initial={v.history} returnScanId={new URLSearchParams(location.search).get('scanId')??undefined}/>:<p>Loading fixture</p>):
  location.search.includes('step=scan')?<ScanStep clientId={d.clientId} lang={lang} scan={null} scanHistory={[]}/>:
  location.search.includes('step=improve')?<OpportunityWorkspace clientId={d.clientId} scanId={d.scanId} initial={opportunities}/>:
  <main><ResultsStep scan={result} clientId={d.clientId} lang={lang}/></main>}
