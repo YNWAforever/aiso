@@ -11,6 +11,9 @@ describe('installed real Better Auth local protocol contracts (unit, memory stor
       engineSecret: 'local-unit-rate-limit-contract-'.repeat(4),
     }, undefined, new Map(), async () => {}))
     expect((await engine.$context).rateLimit).toMatchObject({ enabled: true, window: 10, max: 100 })
+    const rule = (await engine.$context).options.plugins.find(plugin => plugin.id === 'magic-link').rateLimit[0]
+    expect(rule).toMatchObject({ window: 60, max: 5 })
+    expect(rule.pathMatcher('/sign-in/magic-link')).toBe(true)
   })
   it('delivers a real magic link whose redirect preserves the nested selected scan and draft', async () => {
     const config = { authOrigin: 'https://127.0.0.1:44451', appOrigin: 'https://127.0.0.1:44452',

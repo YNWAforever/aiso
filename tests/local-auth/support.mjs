@@ -45,12 +45,12 @@ export async function get(page, path, method = 'GET', body) {
     return { status: response.status, body: await response.json() }
   }, { path, method, body })
 }
-export async function shot(page, filename) {
+export async function shot(page, filename, evidenceLabel = 'LOCAL REAL BETTER AUTH + POSTGRES | SYNTHETIC SCAN | NOT MANAGED NEON / PROVIDER UAT') {
   await page.evaluate(label => {
     let element = document.getElementById('local-evidence-label')
     if (!element) { element = document.createElement('div'); element.id = 'local-evidence-label'; document.body.append(element) }
     element.textContent = label
     element.style.cssText = 'position:fixed;left:0;bottom:0;right:0;z-index:2147483647;padding:6px;background:#082f49;color:#fff;font:11px monospace;pointer-events:none'
-  }, 'LOCAL REAL BETTER AUTH + POSTGRES | SYNTHETIC SCAN | NOT MANAGED NEON / PROVIDER UAT')
+  }, evidenceLabel)
   await page.screenshot({ path: join(config.output, filename), fullPage: true })
 }

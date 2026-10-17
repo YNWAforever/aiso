@@ -1,5 +1,9 @@
 {
   "authRateLimit": {
+    "magicLinkMessage": "登入連結請求次數過多，今次未有發送新連結。",
+    "magicLinkRetryIn": "可於 {seconds} 秒後再發送。已輸入嘅電郵仍然保留。",
+    "magicLinkReady": "而家可以手動再發送；系統未有自動重送。",
+    "magicLinkUnknown": "伺服器未提供重試時間。請稍候再試；已輸入嘅電郵仍然保留。",
     "message": "驗證請求暫時受到限流，今次操作尚未完成。",
     "retryIn": "可於 {seconds} 秒後重試。未保存嘅輸入仍然保留。",
     "ready": "等待時間已過，可以手動重試；系統未有自動重送。",

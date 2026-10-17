@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { AuthRateLimitError, authRetryAfter } from '@/lib/auth-rate-limit'
 
-export function useAuthRateLimit() {
+export function useAuthRateLimit(purpose: 'action' | 'magicLink' = 'action') {
   const t = useTranslations('authRateLimit')
   const [deadline, setDeadline] = useState<number | null | undefined>()
   const [remaining, setRemaining] = useState(0)
@@ -39,8 +39,10 @@ export function useAuthRateLimit() {
   }, [])
   const authNotice = deadline === undefined ? null : (
     <div role="alert" className="space-y-2 rounded-lg border border-border bg-card p-4">
-      <p>{t('message')}</p>
-      <p role="status">{deadline === null ? t('unknown') : remaining > 0 ? t('retryIn', { seconds: remaining }) : t('ready')}</p>
+      <p>{t(purpose === 'magicLink' ? 'magicLinkMessage' : 'message')}</p>
+      <p role="status">{deadline === null ? t(purpose === 'magicLink' ? 'magicLinkUnknown' : 'unknown')
+        : remaining > 0 ? t(purpose === 'magicLink' ? 'magicLinkRetryIn' : 'retryIn', { seconds: remaining })
+          : t(purpose === 'magicLink' ? 'magicLinkReady' : 'ready')}</p>
     </div>
   )
   return { captureAuthLimit, clearAuthLimit, authWaiting: deadline !== undefined && deadline !== null && remaining > 0, authNotice }

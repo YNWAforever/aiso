@@ -3,7 +3,7 @@ import { handleAuthRequest, handleAuthResponse } from '@neondatabase/auth/server
 import { cookies, headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { cache } from 'react'
-import { AuthRateLimitError, authRetryAfter } from '@/lib/auth-rate-limit'
+import { AuthRateLimitError, authRetryAfter, authRateLimitResponse } from '@/lib/auth-rate-limit'
 
 // Lazy singleton — createNeonAuth is deferred until first use so that
 // module evaluation at Next.js build time (when env vars may be absent)
@@ -53,6 +53,18 @@ export function auth(): NeonAuthInstance {
     })
   }
   return _instance
+}
+
+export async function magicLinkAuthResponse(request: Request): Promise<Response> {
+  auth()
+  const baseUrl = requiredEnv('NEON_AUTH_BASE_URL')
+  const upstream = await handleAuthRequest(baseUrl, request, 'sign-in/magic-link')
+  const retryAfterSeconds = upstream.status === 429 ? authRetryAfter(upstream.headers) : null
+  const response = await handleAuthResponse(upstream, baseUrl, { secret: requiredEnv('NEON_AUTH_COOKIE_SECRET') })
+  if (response.status !== 429) return response
+  const limited = authRateLimitResponse(new AuthRateLimitError(retryAfterSeconds))!
+  for (const cookie of response.headers.getSetCookie()) limited.headers.append('Set-Cookie', cookie)
+  return limited
 }
 
 

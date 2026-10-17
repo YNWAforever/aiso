@@ -1,5 +1,9 @@
 {
   "authRateLimit": {
+    "magicLinkMessage": "Too many sign-in link requests. No new link was sent for this attempt.",
+    "magicLinkRetryIn": "You can request a new link in {seconds, plural, one {# second} other {# seconds}}. Your email is still here.",
+    "magicLinkReady": "You can request a link now. Send it manually; no link has been requested automatically.",
+    "magicLinkUnknown": "The server did not provide a retry time. Please wait before trying again. Your email is still here.",
     "message": "Authentication checks are temporarily limited. This action has not completed.",
     "retryIn": "Try again in {seconds} seconds. Your unsaved input is still here.",
     "ready": "The wait has ended. You can retry manually; nothing has been resubmitted automatically.",
