@@ -125,6 +125,66 @@ for (const lang of ['en', 'zh-HK']) {
     ).toBe(true)
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
   })
+  test(`C9d saved-version timeout unlocks one manual retry ${lang}`, async ({
+    page,
+  }, testInfo) => {
+    const { changeSets: c } = await fixture(page, lang)
+    let attempts = 0
+    let releaseFirst!: () => void
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+    await page.route('**/api/clients/*/work-items/*/versions', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue()
+      attempts++
+      expect(route.request().postDataJSON()).toEqual({
+        expectedRevision: draft.revision,
+      })
+      if (attempts === 1) {
+        await firstGate
+        try {
+          await route.abort()
+        } catch {
+          // The browser may already have aborted after its timeout.
+        }
+        return
+      }
+      await route.fulfill({ status: 201, json: { version } })
+    })
+
+    const submit = page.getByRole('button', {
+      name: c.submitVersion,
+      exact: true,
+    })
+    await submit.click()
+    await expect(page.getByRole('alert')).toHaveText(c.unavailable, {
+      timeout: 17_000,
+    })
+    expect(attempts).toBe(1)
+    await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false')
+    await expect(submit).toBeEnabled()
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true)
+    await page.screenshot({
+      path: testInfo.outputPath(`${lang}-${testInfo.project.name}-submit-timeout.png`),
+      fullPage: true,
+    })
+
+    releaseFirst()
+    await submit.click()
+    await expect(
+      page.getByRole('status', { name: c.versionReviewStatus, exact: true }),
+    ).toHaveText(c.versionSubmitted)
+    expect(attempts).toBe(2)
+    await page.screenshot({
+      path: testInfo.outputPath(`${lang}-${testInfo.project.name}-submit-retried.png`),
+      fullPage: true,
+    })
+  })
   test(`C9d requires an explicit decision before recording ${lang}`, async ({
     page,
   }, testInfo) => {

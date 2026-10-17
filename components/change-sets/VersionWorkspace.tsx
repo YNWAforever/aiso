@@ -113,6 +113,7 @@ export function VersionWorkspace({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ expectedRevision: draft.revision }),
+        signal: AbortSignal.timeout(15_000),
       })
       if (!res.ok) {
         setError(
@@ -133,7 +134,10 @@ export function VersionWorkspace({
   }
   async function reload() {
     await run(async () => {
-      const res = await fetch(base, { cache: 'no-store' })
+      const res = await fetch(base, {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(15_000),
+      })
       if (!res.ok) throw Error()
       setDraft((await res.json()).item)
       setStatus('draftReloaded')
@@ -147,7 +151,7 @@ export function VersionWorkspace({
           (more && page?.nextCursor
             ? '?cursor=' + encodeURIComponent(page.nextCursor)
             : ''),
-        { cache: 'no-store' },
+        { cache: 'no-store', signal: AbortSignal.timeout(15_000) },
       )
       if (!res.ok) throw Error()
       const next: VersionPageDTO = await res.json()
@@ -186,6 +190,7 @@ export function VersionWorkspace({
       const generation = versionReadGeneration.current
       const res = await fetch(endpoint + '/' + encodeURIComponent(id), {
         cache: 'no-store',
+        signal: AbortSignal.timeout(15_000),
       })
       if (!res.ok) throw Error()
       const next: { version: VersionDetail } = await res.json()
