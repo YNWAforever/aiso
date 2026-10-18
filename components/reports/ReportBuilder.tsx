@@ -384,7 +384,8 @@ export function ReportBuilder({
       <nav aria-label={t('progress_label')} className="overflow-x-auto">
         <ol className="grid min-w-[32rem] grid-cols-3 gap-2">
           {steps.map((item, index) => {
-            const isDisabled = item.key === 'publish' && (step === 'compose' || !reviewedArtifact)
+            const isDisabled = pending !== null
+              || (item.key === 'publish' && (step === 'compose' || !reviewedArtifact))
             return (
               <li key={item.key}>
                 <button
