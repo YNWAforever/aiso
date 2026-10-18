@@ -5,6 +5,7 @@ import { betterAuth } from 'better-auth'
 import { magicLink } from 'better-auth/plugins'
 import { toNodeHandler } from 'better-auth/node'
 import { verifyOwnedFixtureBrand, verifyMultiBrandFixture } from './local-auth-safety.mjs'
+import { prepareReportRecoveryFixture } from './local-report-fixture.mjs'
 
 export function engineOptions(config, database, mailbox, onUser) {
   return {
@@ -35,6 +36,7 @@ export function engineOptions(config, database, mailbox, onUser) {
 
 export async function startAuthService(config, authPool, ownerPool, fixture, record) {
   const mailbox = new Map(), fixtureByEmail = new Map(), multiBrandPlans = new Map()
+  const reportFixtures = new Map()
   let nextLoginAt = 0, loginSlots = 0, lastMagicRequestAt = 0
   const options = engineOptions(config, authPool, mailbox, async user => {
     const response = await fetch(`${config.appOrigin}/api/webhooks/neon`, {
@@ -56,6 +58,14 @@ export async function startAuthService(config, authPool, ownerPool, fixture, rec
           response.writeHead(403); response.end(); return
         }
         const email = url.searchParams.get('email')
+        if (url.pathname === '/__local/report-fixture') {
+          if (config.scenario !== 'report-recovery') throw new Error('LOCAL_AUTH_REPORT_TARGET')
+          if (!reportFixtures.has(email)) reportFixtures.set(email,
+            prepareReportRecoveryFixture(config, ownerPool, email, fixture.selected, record))
+          const data = await reportFixtures.get(email)
+          response.setHeader('Content-Type', 'application/json')
+          response.end(JSON.stringify(data)); return
+        }
         if (url.pathname === '/__local/login-slot') {
           // Better Auth's pinned memory limiter resets after a quiet window,
           // rather than subtracting old requests continuously. Four sessions

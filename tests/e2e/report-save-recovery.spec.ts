@@ -20,7 +20,7 @@ const copyFor = (lang: Locale) => ({
     : '儲存結果尚未確認。請先核對已儲存草稿再重試；原本的請求可能已經完成。',
 })
 
-async function fixture(page: Page, lang: Locale, existing = false) {
+async function fixture(page: Page, lang: Locale, existing = false, newReportRoute = false) {
   const dir = process.env.AISO_REPORT_HTML_DIR || '.next/component-fixtures/AISO_REPORT'
   const css = process.env.AISO_REPORT_CSS_PATH || '.next/component-fixtures/build.css'
   const copy = copyFor(lang)
@@ -29,7 +29,7 @@ async function fixture(page: Page, lang: Locale, existing = false) {
   const readGate = new Promise<void>(resolve => { releaseRead = resolve })
   const state = {
     calls: [] as Call[], errors: [] as string[], unexpected: [] as string[],
-    receipts: new Map<string, unknown>(), writes: 0,
+    receipts: new Map<string, unknown>(), writes: 0, versionNumber: existing ? 1 : 0,
     commit: true, transport: 'success' as 'success' | 'hold' | 'drop',
     read: 'success' as 'success' | 'hold' | 'invalid' | 'wrong-scan' | 'forbidden',
     scope: 'synthetic-account:synthetic-owner',
@@ -57,7 +57,7 @@ async function fixture(page: Page, lang: Locale, existing = false) {
             reportId: call.path === createPath ? null : 'synthetic-report',
             scanId: reportScanId, locale: lang, executiveSummary: call.body!.executiveSummary.trim(),
           },
-          result: reportSaveFixture(lang, call.body!.executiveSummary.trim(), existing ? 2 : 1),
+          result: reportSaveFixture(lang, call.body!.executiveSummary.trim(), ++state.versionNumber),
         })
       }
       if (state.transport === 'hold') {
@@ -85,12 +85,15 @@ async function fixture(page: Page, lang: Locale, existing = false) {
     state.unexpected.push(call.path)
     return route.abort()
   })
-  await page.route(`https://report-recovery.fixture/${lang}`, route => route.fulfill({
+  const startUrl = newReportRoute
+    ? `https://report-recovery.fixture/${lang}/dashboard/${reportClientId}/reports/new?scanId=${reportScanId}`
+    : `https://report-recovery.fixture/${lang}`
+  await page.route(startUrl, route => route.fulfill({
     contentType: 'text/html; charset=utf-8',
     body: `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Synthetic report recovery</title><style>${readFileSync(css, 'utf8')}</style></head><body><main><h1>${lang === 'en' ? 'Synthetic report fixture' : '合成報告測試'}</h1>${readFileSync(join(dir, `${lang}-${existing ? 'existing' : 'new'}.html`), 'utf8').replace('synthetic-account:synthetic-owner', state.scope)}</main><script>${readFileSync(join(dir, 'fixture.js'), 'utf8')}</script></body></html>`,
   }))
   const open = async () => {
-    await page.goto(`https://report-recovery.fixture/${lang}`)
+    await page.goto(startUrl)
     await page.waitForFunction(() => Boolean((window as Window & { reportFixtureReady?: boolean }).reportFixtureReady))
   }
   await open()
@@ -176,6 +179,7 @@ for (const lang of ['en', 'zh-HK'] as const) {
           result: reportSaveFixture(lang, f.original),
         })
         f.state.writes = 1
+        f.state.versionNumber = 1
       }
       f.state.commit = true
       f.state.transport = 'success'
@@ -297,6 +301,33 @@ for (const lang of ['en', 'zh-HK'] as const) {
     await expect(f.input).toHaveValue(canonical)
     expect(writes(f.state.calls)).toHaveLength(1)
     expect(f.state.writes).toBe(1)
+    await isolated(f.state)
+  })
+  test(`Report saved-create URL binds the owned report while newer input and pending version survive ${lang}`, async ({ page }) => {
+    const f = await fixture(page, lang, false, true)
+    const newer = lang === 'zh-HK' ? `${f.edited} 請核對完整來源及操作內容。` : f.edited
+    expect(newer.length).toBeGreaterThanOrEqual(40)
+    f.state.transport = 'drop'
+    await page.getByRole('button', { name: f.copy.save_draft, exact: true }).click()
+    await unconfirmed(page, f)
+    await f.input.fill(newer)
+    await f.check.click()
+    await expect(page.locator('[data-notice-kind="warning"]')).toHaveText(f.copy.save_again)
+    await expect(page).toHaveURL(`https://report-recovery.fixture/${lang}/dashboard/${reportClientId}/reports/synthetic-report`)
+    await expect(f.input).toHaveValue(newer)
+    f.state.transport = 'drop'
+    await page.getByRole('button', { name: f.copy.save_draft, exact: true }).click()
+    await expect(f.check).toBeEnabled()
+    expect(writes(f.state.calls)[1].path).toBe(versionPath)
+    const retained = await page.evaluate(() => Object.keys(sessionStorage).map(key => ({ key, data: JSON.parse(sessionStorage.getItem(key)!) })))
+    expect(retained).toHaveLength(1)
+    expect(retained[0].key).toContain(':synthetic-report:')
+    expect(retained[0].data.request.reportId).toBe('synthetic-report')
+    await f.check.click()
+    await expect(page.locator('[data-notice-kind="success"]')).toBeVisible()
+    await expect(f.input).toHaveValue(newer)
+    expect(writes(f.state.calls)).toHaveLength(2)
+    expect(f.state.versionNumber).toBe(2)
     await isolated(f.state)
   })
 }

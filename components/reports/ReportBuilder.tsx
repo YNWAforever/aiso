@@ -107,9 +107,9 @@ export function ReportBuilder({
   const revisionRef = useRef(0)
   const allowUnloadRef = useRef(false)
   const dirty = hasUnsavedReportChanges(savedSummary, summary)
-  const initialReportId = initialReport?.id ?? null
+  const activeReportId = report?.id ?? null
   const saveStorageKey = saveScope
-    ? `aiso-report-save-v1:${saveScope}:${clientId}:${scanId}:${initialReportId ?? 'new'}:${lang}` : null
+    ? `aiso-report-save-v1:${saveScope}:${clientId}:${scanId}:${activeReportId ?? 'new'}:${lang}` : null
   const blocked = pending !== null || unconfirmed !== null || restoringSave || restoreError
 
   useEffect(() => {
@@ -120,7 +120,7 @@ export function ReportBuilder({
         if (raw.length > 8192) throw new Error('Invalid stored save')
         const stored = parsePendingReportSave(JSON.parse(raw))
         if (!stored || stored.request.scanId !== scanId || stored.request.locale !== lang
-          || (initialReportId !== null && stored.request.reportId !== initialReportId)) throw new Error('Invalid stored save')
+          || (activeReportId !== null && stored.request.reportId !== activeReportId)) throw new Error('Invalid stored save')
         const attempt = { ...stored, startingSummary: summaryRef.current, startingRevision: revisionRef.current }
         saveAttemptRef.current = attempt
         setUnconfirmed(attempt)
@@ -130,7 +130,7 @@ export function ReportBuilder({
       setRestoreError(true)
       setNotice({ kind: 'error', text: t('save_storage_error') })
     } finally { setRestoringSave(false) }
-  }, [saveStorageKey, scanId, lang, initialReportId, t])
+  }, [saveStorageKey, scanId, lang, activeReportId, t])
 
   function rememberSave(attempt: SaveAttempt) {
     if (saveStorageKey) sessionStorage.setItem(saveStorageKey, JSON.stringify({
@@ -202,7 +202,7 @@ export function ReportBuilder({
       document.removeEventListener('click', guardSameAppNavigation, true)
       restoreUnloadGuard()
     }
-  }, [dirty, t])
+  }, [dirty, t, activeReportId])
 
   function updateSummary(value: string) {
     summaryRef.current = value
@@ -238,6 +238,15 @@ export function ReportBuilder({
     setUnconfirmed(null)
     setCanRetrySave(false)
     forgetSave(attempt)
+    const newPath = `/${lang}/dashboard/${encodeURIComponent(clientId)}/reports/new`
+    if (window.location.pathname === newPath) {
+      try {
+        // Keep the mounted editor and its newer text while making reload and
+        // sign-in return to the exact server-confirmed report.
+        window.history.replaceState(window.history.state, '',
+          `/${lang}/dashboard/${encodeURIComponent(clientId)}/reports/${encodeURIComponent(data.report.id)}`)
+      } catch { /* The saved-report link still provides the confirmed destination. */ }
+    }
     setNotice(summaryRef.current === data.reviewArtifact.snapshot.executiveSummary
       ? { kind: 'success', text: t('saved') }
       : { kind: 'warning', text: t('save_again') })
@@ -503,6 +512,17 @@ export function ReportBuilder({
         <ArrowLeft aria-hidden="true" />
         {t('back_to_reports')}
       </Link>
+
+      {report && initialReport === null && (
+        <Link
+          href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/reports/${encodeURIComponent(report.id)}`}
+          data-report-guarded="true"
+          onNavigate={guardBackToReports}
+          className="inline-flex min-h-11 items-center rounded-md px-3 text-sm font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {t('edit_title')}
+        </Link>
+      )}
 
       <nav aria-label={t('progress_label')} className="overflow-x-auto">
         <ol className="grid min-w-[32rem] grid-cols-3 gap-2">

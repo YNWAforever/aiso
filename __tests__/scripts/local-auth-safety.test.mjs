@@ -24,9 +24,30 @@ describe('local real Auth harness safety boundaries', () => {
     expect(tools.parseLocalAuthScenario(['--scenario=auth-rate-limit'])).toBe('auth-rate-limit')
     expect(tools.parseLocalAuthScenario(['--scenario=login-rate-limit'])).toBe('login-rate-limit')
     expect(tools.parseLocalAuthScenario(['--scenario=account-unlock-rate-limit'])).toBe('account-unlock-rate-limit')
+    expect(tools.parseLocalAuthScenario(['--scenario=report-recovery'])).toBe('report-recovery')
     for (const args of [['--scenario=production'], ['--scenario='], ['--scenario=brand-isolation', '--scenario=first-value']]) {
       expect(() => tools.parseLocalAuthScenario(args)).toThrow('LOCAL_AUTH_SCENARIO_INVALID')
     }
+  })
+  it('permits report fixture writes only for the exact local run and synthetic authenticated identity', () => {
+    expect(typeof tools.verifyReportRecoveryFixture).toBe('function')
+    const config = { ...spec(), mode: tools.evidenceMode, scenario: 'report-recovery',
+      containerVerified: true, containerId, dbHost: '127.0.0.1' }
+    const identity = { id: runId, account_id: 'c1111111-1111-4111-8111-111111111111' }
+    const email = `desktop-en-${runId}@fixture-aiso.example`
+    expect(tools.verifyReportRecoveryFixture(config, identity, email)).toBe(identity.account_id)
+    for (const patch of [{ scenario: 'first-value' }, { scenario: 'brand-isolation' }, { containerVerified: false },
+      { mode: 'production' }, { dbHost: 'other-host' }, { database: 'shared' }, { containerId: 'unknown' }]) {
+      expect(() => tools.verifyReportRecoveryFixture({ ...config, ...patch }, identity, email)).toThrow('LOCAL_AUTH_REPORT_TARGET')
+    }
+    for (const input of [null, { ...identity, account_id: null }, { ...identity, id: 'not-owned' }]) {
+      expect(() => tools.verifyReportRecoveryFixture(config, input, email)).toThrow('LOCAL_AUTH_REPORT_TARGET')
+    }
+    for (const other of ['real-user@example.com', 'desktop-en-other-run@fixture-aiso.example']) {
+      expect(() => tools.verifyReportRecoveryFixture(config, identity, other)).toThrow('LOCAL_AUTH_REPORT_TARGET')
+    }
+    expect(tools.artifactDirectory(process.cwd(), runId, 'report-recovery'))
+      .toBe(resolve('artifacts', 'report-local-integration-20261019', `local-auth-${runId}`))
   })
   it('allows a local synthetic Pro fixture only for its exact run identity and dedicated scenario', () => {
     expect(typeof tools.verifyMultiBrandFixture).toBe('function')

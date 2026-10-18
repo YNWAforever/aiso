@@ -10,7 +10,7 @@ export default class LocalAuthReporter {
   clean(value) {
     const cfg = this.config
     return redactLocalAuth(value, [cfg.ownerPassword, cfg.appPassword, cfg.authPassword,
-      cfg.engineSecret, cfg.cookieSecret, cfg.controlSecret])
+      cfg.engineSecret, cfg.cookieSecret, cfg.controlSecret, cfg.reportShareSecret])
   }
   onTestEnd(test, result) {
     const row = { title: test.titlePath().join(' / '), status: result.status,

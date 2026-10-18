@@ -1,7 +1,7 @@
 import { execFile, spawn } from 'node:child_process'
 import { promisify } from 'node:util'
 import { createServer as createNetServer, Socket } from 'node:net'
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync, unlinkSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync, unlinkSync, copyFileSync } from 'node:fs'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -11,12 +11,15 @@ import { getMigrations } from 'better-auth/db/migration'
 import { ownRuntimeChildren } from './runtime-processes.mjs'
 import { engineOptions, startAuthService } from './local-auth-service.mjs'
 import { fixtureResults } from './local-auth-fixture.mjs'
+import { buildLocalReportRuntime } from './local-report-build.mjs'
 import { runSpec, verifyContainer, verifyDatabase, verifyLocalDockerContext, artifactDirectory,
   localEnvironment, redactLocalAuth, allowLocalUrl, evidenceMode, parseLocalAuthScenario } from './local-auth-safety.mjs'
 
 const exec = promisify(execFile), root = process.cwd(), runId = randomUUID()
 const scenario = parseLocalAuthScenario(process.argv.slice(2))
-const output = artifactDirectory(root, runId), privateDir = join(output, '.private')
+const buildLocalOrigin = process.argv.includes('--build-local-origin')
+if (buildLocalOrigin && scenario !== 'report-recovery') throw new Error('LOCAL_AUTH_BUILD_TARGET')
+const output = artifactDirectory(root, runId, scenario), privateDir = join(output, '.private')
 mkdirSync(privateDir, { recursive: true, mode: 0o700 })
 const secret = () => randomBytes(32).toString('hex')
 const privateValues = [secret(), secret(), secret(), secret(), secret()]
@@ -28,6 +31,23 @@ const proof = { mode: evidenceMode, runId, scenario, managedNeonAuthVerified: fa
   providerCallsAllowed: false, monitoringEnabled: false, startedAt: new Date().toISOString(), status: 'starting',
   authEngineVersion: JSON.parse(readFileSync('node_modules/better-auth/package.json', 'utf8')).version,
   neonSdkVersion: JSON.parse(readFileSync('node_modules/@neondatabase/auth/package.json', 'utf8')).version }
+if (scenario === 'report-recovery') {
+  const files = [
+    'scripts/ci/local-auth-run.mjs', 'scripts/ci/local-auth-app.mjs', 'scripts/ci/local-auth-service.mjs',
+    'scripts/ci/local-auth-preload.mjs', 'scripts/ci/local-auth-safety.mjs', 'scripts/ci/local-report-fixture.mjs',
+    'scripts/ci/local-report-build.mjs',
+    'tests/local-auth/report-recovery.spec.mjs', 'tests/local-auth/report-support.mjs',
+    'tests/local-auth/support.mjs', 'tests/local-auth/playwright.config.mjs', 'tests/local-auth/reporter.mjs',
+  ]
+  const snapshots = join(output, 'harness-source')
+  mkdirSync(snapshots, { recursive: true })
+  proof.harnessSource = files.map(file => {
+    const snapshot = file.replaceAll('/', '__')
+    const bytes = readFileSync(join(root, file))
+    copyFileSync(join(root, file), join(snapshots, snapshot))
+    return { file, snapshot, sha256: createHash('sha256').update(bytes).digest('hex') }
+  })
+}
 const redact = value => redactLocalAuth(value, privateValues)
 const record = value => {
   const line = `${redact(JSON.stringify({ at: new Date().toISOString(), ...value }))}\n`
@@ -157,10 +177,12 @@ try {
     dbHost: endpoint.host, dbPort: endpoint.port, dsnHost: 'localhost', ownerPassword,
     appRole: 'aeo_app', appPassword, authRole: 'local_auth_engine', authPassword,
     engineSecret, controlSecret, cookieSecret: secret(),
+    reportShareSecret: scenario === 'report-recovery' ? secret() : undefined,
     appOrigin: `https://127.0.0.1:${appPort}`, authOrigin: `https://127.0.0.1:${authPort}`,
     output, root, ...await certificate(),
   }
   privateValues.push(config.cookieSecret)
+  if (config.reportShareSecret) privateValues.push(config.reportShareSecret)
   config.allowedOrigins = [config.appOrigin, config.authOrigin]
   proof.sqlTransport = { logicalDsnHost: config.dsnHost, physicalHost: config.dbHost,
     physicalPort: config.dbPort, kind: 'NEON_HTTP_WIRE_TO_OWNED_REAL_POSTGRES' }
@@ -191,6 +213,21 @@ try {
   await provePool(appProbe, 'aeo_app')
   record({ event: 'application-schema-installed', baselineChecksum: checksum, migrations: migrationFiles })
   const fixture = { selected: await fixtureResults(root), decoy: await fixtureResults(root, { clear: true }) }
+  if (buildLocalOrigin) {
+    let buildLog = ''
+    proof.baseBuildId = proof.buildId
+    proof.localOriginBuild = await buildLocalReportRuntime(root, config, process.env, dotenv, bytes => {
+      buildLog += bytes.toString()
+      const lines = buildLog.split('\n'); buildLog = lines.pop() ?? ''
+      for (const line of lines) writeFileSync(join(output, 'local-build.log'), `${redact(line)}\n`, { flag: 'a' })
+    }, { spawnProcess: (...args) => owned.track(spawn(...args)) })
+    if (buildLog) writeFileSync(join(output, 'local-build.log'), redact(buildLog) + '\n', { flag: 'a' })
+    if (proof.localOriginBuild.exitCode !== 0 || !proof.localOriginBuild.credentialsCleared ||
+      !proof.localOriginBuild.monitoringDisabled) throw new Error('LOCAL_AUTH_HTTPS_BUILD_FAILED')
+    proof.buildId = readFileSync(join(root, '.next/BUILD_ID'), 'utf8').trim()
+    record({ event: 'OWNED_HTTPS_BUILD_READY', ...proof.localOriginBuild, buildId: proof.buildId,
+      runtimeSigningSecretPresent: Boolean(config.reportShareSecret) })
+  }
   const tls = await import('node:tls')
   tls.setDefaultCACertificates([...tls.getCACertificates('default'), readFileSync(config.certPath, 'utf8')])
   installNetworkPolicy()
@@ -203,6 +240,7 @@ try {
     EXPECTED_DB_ROLE: 'aeo_app', EXPECTED_DB_NAME: spec.database,
     NEON_AUTH_BASE_URL: `${config.authOrigin}/api/auth`, NEON_AUTH_COOKIE_SECRET: config.cookieSecret,
     NEXT_PUBLIC_APP_URL: config.appOrigin,
+    ...(config.reportShareSecret ? { REPORT_SHARE_SECRET: config.reportShareSecret } : {}),
   }
   if (process.argv.includes('--prepare-only')) {
     proof.status = 'prepared'
