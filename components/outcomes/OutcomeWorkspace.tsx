@@ -23,7 +23,7 @@ export function OutcomeWorkspace({ clientId, itemId, versionId, refreshKey }: { 
       if (!active()) return
       setRead({ key, value: null, error: '', loading: true })
       try {
-        const response = await fetch('/api/clients/' + encodeURIComponent(clientId) + '/work-items/' + encodeURIComponent(itemId) + '/versions/' + encodeURIComponent(versionId) + '/outcomes', { cache: 'no-store', signal: controller.signal })
+        const response = await fetch('/api/clients/' + encodeURIComponent(clientId) + '/work-items/' + encodeURIComponent(itemId) + '/versions/' + encodeURIComponent(versionId) + '/outcomes', { cache: 'no-store', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]) })
         if (!response.ok) throw Error(response.status === 401 ? 'unauthenticated' : response.status === 403 ? 'denied' : 'unavailable')
         const value = parseOutcomeResponse(await response.json())
         if (value.clientId !== clientId || value.itemId !== itemId || value.versionId !== versionId) throw Error('unavailable')

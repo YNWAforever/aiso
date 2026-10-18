@@ -1,4 +1,4 @@
-import { test, expect, type Page, type Route } from '@playwright/test'
+import { test, expect, type Page, type Route, type Locator } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
@@ -9,18 +9,21 @@ import type { VersionWorkspaceProps } from '../../components/change-sets/Version
 import type { OutcomeResponse } from '../../lib/outcomes/types'
 import type { DeliveryEvent, DeliveryPage } from '../../lib/delivery/types'
 const errors = new WeakMap<Page, string[]>()
-async function fixture(page: Page, lang: string, initial: OutcomeResponse = outcomes.noDelivery) {
+async function fixture(page: Page, lang: string, initial: OutcomeResponse = outcomes.noDelivery, options: {
+  nativeAbort?: boolean
+  initialHook?: (route: Route) => Promise<void>
+} = {}) {
   const dir = process.env.C9F_HTML_DIR!, css = process.env.C9F_CSS_PATH!
   if (!dir || !css) throw Error('C9F fixtures required')
   const props = JSON.parse(readFileSync(dir + '/' + lang + '-data.json', 'utf8')) as VersionWorkspaceProps
   const version = props.initialVersion!, older = { ...version, id: props.initial!.versions[1].id }
   const c = (lang === 'en' ? en : zh).outcomes, d = (lang === 'en' ? en : zh).delivery
   const state = { value: initial, reads: 0, mutations: [] as string[], events: [] as DeliveryEvent[], active: null as string | null,
-    hook: null as ((route: Route) => Promise<void>) | null, mutationHook: null as ((route: Route) => Promise<void>) | null }
+    hook: options.initialHook ?? null as ((route: Route) => Promise<void>) | null, mutationHook: null as ((route: Route) => Promise<void>) | null }
   const pageErrors: string[] = []; errors.set(page, pageErrors); page.on('pageerror', e => pageErrors.push(e.message))
   // Deliberately model an uncancellable transport so request-generation guards,
   // independently of AbortController, must reject late fulfilled bodies.
-  await page.addInitScript(() => {
+  if (!options.nativeAbort) await page.addInitScript(() => {
     const original = window.fetch
     window.fetch = (input, options) => original(input, String(input).endsWith('/outcomes') ? { ...options, signal: undefined } : options)
   })
@@ -54,7 +57,7 @@ async function fixture(page: Page, lang: string, initial: OutcomeResponse = outc
   await page.goto(`https://outcomes.fixture/${lang}`)
   await page.waitForFunction(() => Boolean((window as Window & { c9cFixtureReady?: boolean }).c9cFixtureReady))
   const section = page.getByRole('region', { name: c.title, exact: true }), delivery = page.getByRole('region', { name: d.title, exact: true })
-  await expect(section).toHaveAttribute('aria-busy', 'false')
+  if (!options.initialHook) await expect(section).toHaveAttribute('aria-busy', 'false')
   await expect(delivery).toHaveAttribute('aria-busy', 'false')
   const refresh = () => section.getByRole('button', { name: c.refresh, exact: true }).click()
   const fill = async () => {
@@ -65,6 +68,112 @@ async function fixture(page: Page, lang: string, initial: OutcomeResponse = outc
   return { c, d, state, section, delivery, refresh, fill, older }
 }
 test.afterEach(({ page }) => expect(errors.get(page) ?? []).toEqual([]))
+function stalledRead() {
+  let release!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  return {
+    release,
+    handle: async (route: Route) => {
+      await gate
+      try { await route.abort() } catch {
+        // A deadline or a newer read may already have aborted this request.
+      }
+    },
+  }
+}
+async function expectOutcomeTimeout(page: Page, section: Locator, c: typeof en.outcomes, name: string) {
+  try {
+    await expect(section.getByRole('alert')).toHaveText(c.unavailable, { timeout: 17_000 })
+  } catch (failure) {
+    // Capture the stalled state before releasing the test transport in cleanup.
+    await section.screenshot({ path: test.info().outputPath(name + '-stalled.png') })
+    throw failure
+  }
+  await expect(section).toHaveAttribute('aria-busy', 'false')
+  await expect(section.getByText(c.loading, { exact: true })).toHaveCount(0)
+  await expect(section.getByText(c.loaded, { exact: true })).toHaveCount(0)
+  await expect(section.getByRole('article')).toHaveCount(0)
+  await expect(section.getByRole('button', { name: c.retry, exact: true })).toBeEnabled()
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await section.screenshot({ path: test.info().outputPath(name + '-timeout.png') })
+}
+for (const lang of ['en', 'zh-HK']) {
+  test(`C9f stalled initial read times out and permits one manual retry ${lang}`, async ({ page }) => {
+    const stalled = stalledRead()
+    const { c, section, state } = await fixture(page, lang, outcomes.pulse, { nativeAbort: true, initialHook: stalled.handle })
+    try {
+      await expect(section).toHaveAttribute('aria-busy', 'true')
+      await expectOutcomeTimeout(page, section, c, lang + '-initial')
+      expect(state.reads).toBe(1)
+      expect(state.mutations).toEqual([])
+      state.hook = null
+      stalled.release()
+      await section.getByRole('button', { name: c.retry, exact: true }).click()
+      await expect(section.getByText('retained-pulse', { exact: true })).toBeVisible()
+      await expect(section.getByText(c.loaded, { exact: true })).toBeVisible()
+      expect(state.reads).toBe(2)
+      await page.reload()
+      await expect(section.getByText('retained-pulse', { exact: true })).toBeVisible()
+      await expect(section).toHaveAttribute('aria-busy', 'false')
+      await expect(section.getByRole('alert')).toHaveCount(0)
+      expect(state.reads).toBe(3)
+      expect(state.mutations).toEqual([])
+      await section.screenshot({ path: test.info().outputPath(lang + '-initial-reloaded.png') })
+    } finally { stalled.release() }
+  })
+  test(`C9f stalled refresh times out without stale success or lost delivery input ${lang}`, async ({ page }) => {
+    const { c, d, section, delivery, state, fill } = await fixture(page, lang, outcomes.scan, { nativeAbort: true })
+    const stalled = stalledRead()
+    await fill()
+    state.hook = stalled.handle
+    const button = section.getByRole('button')
+    try {
+      await button.focus()
+      await page.keyboard.press('Enter')
+      await expect(section).toHaveAttribute('aria-busy', 'true')
+      await expect(section.getByText('selected-scan', { exact: true })).toHaveCount(0)
+      await expectOutcomeTimeout(page, section, c, lang + '-refresh')
+      await expect(button).toBeFocused()
+      await expect(delivery.getByLabel(d.destination, { exact: true })).toHaveValue('Keep my destination')
+      await expect(delivery.getByLabel(d.note, { exact: true })).toHaveValue('Keep my note')
+      expect(state.reads).toBe(2)
+      expect(state.mutations).toEqual([])
+      state.hook = null; state.value = outcomes.pulse
+      stalled.release()
+      await page.keyboard.press('Enter')
+      await expect(section.getByText('retained-pulse', { exact: true })).toBeVisible()
+      await expect(section.getByText('selected-scan', { exact: true })).toHaveCount(0)
+      await expect(section.getByRole('alert')).toHaveCount(0)
+      await expect(section).toHaveAttribute('aria-busy', 'false')
+      await expect(button).toBeFocused()
+      expect(state.reads).toBe(3)
+      expect(state.mutations).toEqual([])
+      await section.screenshot({ path: test.info().outputPath(lang + '-refresh-recovered.png') })
+    } finally { stalled.release() }
+  })
+  test(`C9f explicit refresh cancels the older native request without overwriting current data ${lang}`, async ({ page }) => {
+    const { c, section, state, refresh } = await fixture(page, lang, outcomes.scan, { nativeAbort: true })
+    const stalled = stalledRead()
+    state.hook = stalled.handle
+    try {
+      await refresh()
+      await expect.poll(() => state.reads).toBe(2)
+      state.hook = null; state.value = outcomes.pulse
+      const aborted = page.waitForEvent('requestfailed', request => new URL(request.url()).pathname.endsWith('/outcomes'))
+      await refresh()
+      await expect(section.getByText('retained-pulse', { exact: true })).toBeVisible()
+      stalled.release()
+      const request = await aborted
+      expect(request.failure()?.errorText).toContain('ERR_ABORTED')
+      await expect(section.getByText(c.loaded, { exact: true })).toBeVisible()
+      await expect(section.getByRole('alert')).toHaveCount(0)
+      await expect(section.getByText('selected-scan', { exact: true })).toHaveCount(0)
+      expect(state.reads).toBe(3)
+      expect(state.mutations).toEqual([])
+    } finally { stalled.release() }
+  })
+}
 for (const lang of ['en', 'zh-HK']) {
   for (const [name, value] of Object.entries(outcomes)) test(`C9f ${name} separates timing and limitations ${lang}`, async ({ page }) => {
     const { c, section, state, refresh } = await fixture(page, lang, value)
