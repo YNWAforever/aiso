@@ -59,7 +59,7 @@ export async function startAuthService(config, authPool, ownerPool, fixture, rec
         }
         const email = url.searchParams.get('email')
         if (url.pathname === '/__local/report-fixture') {
-          if (!['report-recovery', 'report-list'].includes(config.scenario)) throw new Error('LOCAL_AUTH_REPORT_TARGET')
+          if (!['report-recovery', 'report-list', 'report-multi'].includes(config.scenario)) throw new Error('LOCAL_AUTH_REPORT_TARGET')
           if (!reportFixtures.has(email)) reportFixtures.set(email,
             prepareReportRecoveryFixture(config, ownerPool, email, fixture.selected, record))
           const data = await reportFixtures.get(email)

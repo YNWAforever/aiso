@@ -9,6 +9,40 @@ const messages = JSON.parse(
 )
 
 describe('ReportsList', () => {
+  it.each(['en', 'zh-HK'] as const)('shows distinct saved draft content and version timestamps in %s', async lang => {
+    const { ReportsList } = await import('@/components/reports/ReportsList')
+    const localized = JSON.parse(readFileSync(join(process.cwd(), `messages/${lang}.json`), 'utf8'))
+    const reports = [
+      { id: 'alpha', status: 'draft' as const, latestVersionNumber: 2, publishedVersionNumber: null,
+        publishedAt: null, firstViewedAt: null, lastViewedAt: null, viewCount: 0, ctaClickCount: 0,
+        savedAt: '2026-10-19T00:02:00.000Z', summaryPreview: 'SYNTHETIC ALPHA saved draft content.' },
+      { id: 'beta', status: 'draft' as const, latestVersionNumber: 1, publishedVersionNumber: null,
+        publishedAt: null, firstViewedAt: null, lastViewedAt: null, viewCount: 0, ctaClickCount: 0,
+        savedAt: '2026-10-19T00:01:00.000Z', summaryPreview: 'SYNTHETIC BETA separate draft content.' },
+      { id: 'legacy', status: 'draft' as const, latestVersionNumber: 1, publishedVersionNumber: null,
+        publishedAt: null, firstViewedAt: null, lastViewedAt: null, viewCount: 0, ctaClickCount: 0 },
+    ]
+    const html = renderToStaticMarkup(
+      <NextIntlClientProvider locale={lang} messages={localized} timeZone="Asia/Hong_Kong">
+        <ReportsList lang={lang} clientId="synthetic-brand" clientName="SYNTHETIC brand"
+          domain="fixture-aiso.example" reports={reports} />
+      </NextIntlClientProvider>,
+    )
+    const items = html.split('<li>').slice(1)
+    expect(items).toHaveLength(3)
+    expect(items[0]).toContain('SYNTHETIC ALPHA saved draft content.')
+    expect(items[0]).toContain('2026-10-19T00:02:00.000Z')
+    expect(items[0]).toContain(`/${lang}/dashboard/synthetic-brand/reports/alpha`)
+    expect(items[0]).not.toContain('SYNTHETIC BETA')
+    expect(items[1]).toContain('SYNTHETIC BETA separate draft content.')
+    expect(items[1]).toContain('2026-10-19T00:01:00.000Z')
+    expect(items[1]).toContain(`/${lang}/dashboard/synthetic-brand/reports/beta`)
+    expect(items[2]).toContain(localized.reports.unavailable)
+    expect(items[2]).not.toContain('<time')
+    expect(items[2]).not.toContain('SYNTHETIC ALPHA')
+    expect(html).toContain(lang === 'en' ? 'Saved' : '儲存時間')
+    expect(html).not.toContain('Open report')
+  })
   it('renders every report state and accurate unavailable engagement metrics', async () => {
     const { ReportsList } = await import('@/components/reports/ReportsList')
 

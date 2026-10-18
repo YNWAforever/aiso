@@ -11,6 +11,7 @@ import { GET as READ_RECEIPT } from '@/app/api/clients/[clientId]/report-save-re
 import { POST as CREATE_REPORT } from '@/app/api/clients/[clientId]/reports/route'
 import { POST as APPEND_REPORT } from '@/app/api/client-reports/[reportId]/versions/route'
 import { saveClientReportRequest } from '@/lib/reports/save-store'
+import { listClientReports } from '@/lib/reports/store'
 import { buildScanEvidence } from '@/lib/scan-evidence'
 
 let pg: PGlite
@@ -269,4 +270,48 @@ it('replays the same whitespace normalization request through the API without in
   expect(replay.status).toBe(201)
   expect(await replay.json()).toEqual(body)
   expect(await counts()).toEqual({ reports: before.reports + 1, versions: before.versions + 1, receipts: before.receipts + 1 })
+})
+it('lists the most recently saved draft ahead of newer-created reports and unrelated report updates', async () => {
+  const sortedClient = crypto.randomUUID()
+  await pg.query('insert into clients(id,account_id,domain) values($1,$2,$3)', [sortedClient, account, 'example.test'])
+  const a = await save(crypto.randomUUID(), null, summary + ' Alpha.', sortedClient)
+  const b = await save(crypto.randomUUID(), null, summary + ' Beta.', sortedClient)
+  const c = await save(crypto.randomUUID(), null, summary + ' Gamma.', sortedClient)
+  const a2 = await save(crypto.randomUUID(), a.report.id, summary + ' Alpha second version.', sortedClient)
+  for (const [id, created, updated] of [
+    [a.report.id, '2026-10-01T00:00:00Z', '2026-10-04T00:00:00Z'],
+    [b.report.id, '2026-10-02T00:00:00Z', '2026-10-09T00:00:00Z'],
+    [c.report.id, '2026-10-03T00:00:00Z', '2026-10-03T00:00:00Z'],
+  ]) await pg.query('update client_reports set created_at=$1,updated_at=$2 where id=$3 and account_id=$4',
+    [created, updated, id, account])
+  for (const [id, savedAt] of [
+    [a.version.id, '2026-10-01T00:00:00Z'], [b.version.id, '2026-10-02T00:00:00Z'],
+    [c.version.id, '2026-10-03T00:00:00Z'], [a2.version.id, '2026-10-04T00:00:00Z'],
+  ]) await pg.query('update client_report_versions set created_at=$1 where id=$2 and account_id=$3', [savedAt, id, account])
+  const rows = await listClientReports({ accountId: account, clientId: sortedClient })
+  expect(rows.map(row => row.id)).toEqual([a.report.id, c.report.id, b.report.id])
+  expect(rows.map(row => row.latest_version_id)).toEqual([a2.version.id, c.version.id, b.version.id])
+  expect(await listClientReports({ accountId: crypto.randomUUID(), clientId: sortedClient })).toEqual([])
+})
+it('uses deterministic creation and report-id tie breaks when saved times match', async () => {
+  const sortedClient = crypto.randomUUID()
+  await pg.query('insert into clients(id,account_id,domain) values($1,$2,$3)', [sortedClient, account, 'example.test'])
+  const ids = ['eeeeeeee-0000-4000-8000-000000000001', 'eeeeeeee-0000-4000-8000-000000000002', 'eeeeeeee-0000-4000-8000-000000000003']
+  for (let index = 0; index < ids.length; index++) {
+    const versionId = `ffffffff-0000-4000-8000-00000000000${index + 1}`
+    const created = index === 0 ? '2026-10-01T00:00:00Z' : '2026-10-02T00:00:00Z'
+    await pg.query(`insert into client_reports(id,account_id,client_id,created_by,created_at)
+      values($1,$2,$3,$4,$5)`, [ids[index], account, sortedClient, actor, created])
+    await pg.query(`insert into client_report_versions(id,report_id,account_id,client_id,version_number,
+      source_scan_id,locale,executive_summary,snapshot_schema_version,snapshot,created_by,created_at)
+      values($1,$2,$3,$4,1,$5,'en',$6,1,$7::jsonb,$8,'2026-10-04T00:00:00Z')`,
+    [versionId, ids[index], account, sortedClient, scan, summary, JSON.stringify(reportSnapshot('en')), actor])
+    await pg.query('update client_reports set latest_version_id=$1 where id=$2 and account_id=$3', [versionId, ids[index], account])
+  }
+  for (let pass = 0; pass < 3; pass++) {
+    const rows = await listClientReports({ accountId: account, clientId: sortedClient })
+    expect(rows.map(row => row.id)).toEqual([
+      'eeeeeeee-0000-4000-8000-000000000003', 'eeeeeeee-0000-4000-8000-000000000002', 'eeeeeeee-0000-4000-8000-000000000001',
+    ])
+  }
 })

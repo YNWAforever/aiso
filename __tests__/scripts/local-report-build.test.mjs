@@ -34,6 +34,14 @@ it('permits report-list on the verified local HTTPS target without enabling prov
   expect(env.OPENROUTER_API_KEY).toBe('')
   expect(env.FEATURE_PULSE_ATTEMPTS).toBe('false')
 })
+it('permits report-multi only with the same owned build isolation', () => {
+  const env = tools.localReportBuildEnvironment({}, [], { ...config(), scenario: 'report-multi' })
+  expect(env.NEXT_PUBLIC_APP_URL).toBe('https://127.0.0.1:44441')
+  expect(env.DATABASE_URL).toBe('')
+  expect(env.NEON_AUTH_BASE_URL).toBe('https://fixture.invalid')
+  expect(env.OPENROUTER_API_KEY).toBe('')
+  expect(env.FEATURE_PULSE_ATTEMPTS).toBe('false')
+})
 it('rejects remote, HTTP, unowned or malformed origins and target metadata before any build', () => {
   expect(typeof tools.localReportBuildEnvironment).toBe('function')
   for (const patch of [

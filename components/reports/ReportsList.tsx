@@ -28,6 +28,8 @@ export interface ReportsListItem {
   ctaClickCount: number | null
   metricsUnavailable?: boolean
   signedUrl?: string
+  savedAt?: string | null
+  summaryPreview?: string
 }
 
 function updateItem(items: ReportsListItem[], next: ReportsListItem): ReportsListItem[] {
@@ -120,6 +122,7 @@ export function ReportsList({
   return (
     <div className="space-y-4">
       <div aria-live="polite" className="min-h-6 text-sm">{notice}</div>
+      <p className="text-sm text-muted-foreground">{t('saved_order')}</p>
       <ul className="grid gap-4">
         {reports.map(report => (
           <li key={report.id}>
@@ -132,8 +135,16 @@ export function ReportsList({
                       <ReportStatusBadge report={report} />
                     </div>
                     <p className="mt-1 break-all text-sm text-muted-foreground">{domain}</p>
+                    {report.summaryPreview && (
+                      <p className="mt-3 line-clamp-2 break-words text-sm">{report.summaryPreview}</p>
+                    )}
                     <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
                       <span>{t('latest_version', { version: report.latestVersionNumber ?? t('unavailable') })}</span>
+                      {report.savedAt ? (
+                        <time dateTime={report.savedAt}>{t('saved_date', { date: formatDate(report.savedAt) })}</time>
+                      ) : (
+                        <span>{t('saved_date', { date: t('unavailable') })}</span>
+                      )}
                       <span>{t('published_version', { version: report.publishedVersionNumber ?? t('not_yet') })}</span>
                       <span>{t('published_date', { date: formatDate(report.publishedAt) })}</span>
                     </div>

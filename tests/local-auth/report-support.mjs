@@ -5,7 +5,7 @@ import { allowLocalUrl, runSpec, verifyDatabase } from '../../scripts/ci/local-a
 
 export async function reportDatabase(role = 'local_owner') {
   const spec = runSpec(config.runId, config.imageId)
-  if (!['report-recovery', 'report-list'].includes(config.scenario) || !config.containerVerified ||
+  if (!['report-recovery', 'report-list', 'report-multi'].includes(config.scenario) || !config.containerVerified ||
     config.database !== spec.database || config.dbHost !== '127.0.0.1') throw new Error('LOCAL_AUTH_REPORT_TARGET')
   const pool = new pg.Pool({
     host: config.dbHost, port: config.dbPort, database: config.database, user: role,
@@ -55,7 +55,7 @@ export async function reportRows(pool, fixture) {
     from public.client_reports where account_id=$1 and client_id=$2 order by created_at,id`,
   [fixture.accountId, fixture.clientId])).rows
   const versions = (await pool.query(`select id,report_id,version_number,source_scan_id,locale,executive_summary,snapshot
-    from public.client_report_versions where account_id=$1 and client_id=$2 order by version_number`,
+    from public.client_report_versions where account_id=$1 and client_id=$2 order by report_id,version_number`,
   [fixture.accountId, fixture.clientId])).rows
   const receipts = (await pool.query(`select request_id,report_id,version_id,request_payload,
     result->'version'->>'id' as acknowledged_version_id

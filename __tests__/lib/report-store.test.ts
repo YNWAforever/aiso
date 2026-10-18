@@ -368,11 +368,13 @@ describe('report store tenant boundary', () => {
     queue([], [])
 
     await listClientReports({ accountId: 'account-1', clientId: 'client-1' })
+    const reportsQuery = lastCall()
     await listClientReportVersions({ accountId: 'account-1', clientId: 'client-1', reportId: 'report-1' })
 
-    const reportsQuery = callsContaining('from client_reports')[0]
+    expect(reportsQuery?.text).toContain('from client_reports')
     expect(reportsQuery?.values).toEqual(expect.arrayContaining(['account-1', 'client-1']))
-    const versionsQuery = callsContaining('from client_report_versions')[0]
+    const versionsQuery = lastCall()
+    expect(versionsQuery?.text).toContain('from client_report_versions')
     expect(versionsQuery?.values).toEqual(expect.arrayContaining(['account-1', 'client-1', 'report-1']))
   })
 

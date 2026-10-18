@@ -1107,6 +1107,8 @@
     "create_client_report": "Create client report",
     "list_title": "Client reports",
     "list_body": "Review, publish, and control the client-facing reports created from this brand's scans.",
+    "saved_order": "Most recently saved first.",
+    "saved_date": "Saved {date}",
     "loading": "Loading reports…",
     "dashboard_entry_body": "Turn scan evidence into a reviewed, revocable client link.",
     "open_reports": "View reports",

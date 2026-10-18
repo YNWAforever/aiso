@@ -6,7 +6,7 @@ import { evidenceMode } from '../../scripts/ci/local-auth-safety.mjs'
 const config = JSON.parse(readFileSync(process.env.AISO_LOCAL_AUTH_CONFIG, 'utf8'))
 if (config.mode !== evidenceMode || config.containerVerified !== true) throw new Error('LOCAL_AUTH_BROWSER_TARGET_REQUIRED')
 const scenario = config.scenario ?? 'first-value'
-if (!['first-value', 'brand-isolation', 'auth-rate-limit', 'login-rate-limit', 'account-unlock-rate-limit', 'report-recovery', 'report-list'].includes(scenario)) throw new Error('LOCAL_AUTH_SCENARIO_INVALID')
+if (!['first-value', 'brand-isolation', 'auth-rate-limit', 'login-rate-limit', 'account-unlock-rate-limit', 'report-recovery', 'report-list', 'report-multi'].includes(scenario)) throw new Error('LOCAL_AUTH_SCENARIO_INVALID')
 export default defineConfig({
   testDir: '.', testMatch: `**/${scenario}.spec.mjs`,
   fullyParallel: false, workers: 1, retries: 0, maxFailures: 1,

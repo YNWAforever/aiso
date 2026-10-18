@@ -1107,6 +1107,8 @@
     "create_client_report": "建立客戶報告",
     "list_title": "客戶報告",
     "list_body": "審閱、發布及管理由此品牌掃描建立的客戶報告。",
+    "saved_order": "按最近儲存時間排列。",
+    "saved_date": "儲存時間：{date}",
     "loading": "正在載入報告…",
     "dashboard_entry_body": "把掃描實證整理成經審閱、可隨時撤銷的客戶連結。",
     "open_reports": "查看報告",
