@@ -18,7 +18,7 @@ import { runSpec, verifyContainer, verifyDatabase, verifyLocalDockerContext, art
 const exec = promisify(execFile), root = process.cwd(), runId = randomUUID()
 const scenario = parseLocalAuthScenario(process.argv.slice(2))
 const buildLocalOrigin = process.argv.includes('--build-local-origin')
-if (buildLocalOrigin && scenario !== 'report-recovery') throw new Error('LOCAL_AUTH_BUILD_TARGET')
+if (buildLocalOrigin && !['report-recovery', 'report-list'].includes(scenario)) throw new Error('LOCAL_AUTH_BUILD_TARGET')
 const output = artifactDirectory(root, runId, scenario), privateDir = join(output, '.private')
 mkdirSync(privateDir, { recursive: true, mode: 0o700 })
 const secret = () => randomBytes(32).toString('hex')
@@ -31,12 +31,12 @@ const proof = { mode: evidenceMode, runId, scenario, managedNeonAuthVerified: fa
   providerCallsAllowed: false, monitoringEnabled: false, startedAt: new Date().toISOString(), status: 'starting',
   authEngineVersion: JSON.parse(readFileSync('node_modules/better-auth/package.json', 'utf8')).version,
   neonSdkVersion: JSON.parse(readFileSync('node_modules/@neondatabase/auth/package.json', 'utf8')).version }
-if (scenario === 'report-recovery') {
+if (['report-recovery', 'report-list'].includes(scenario)) {
   const files = [
     'scripts/ci/local-auth-run.mjs', 'scripts/ci/local-auth-app.mjs', 'scripts/ci/local-auth-service.mjs',
     'scripts/ci/local-auth-preload.mjs', 'scripts/ci/local-auth-safety.mjs', 'scripts/ci/local-report-fixture.mjs',
     'scripts/ci/local-report-build.mjs',
-    'tests/local-auth/report-recovery.spec.mjs', 'tests/local-auth/report-support.mjs',
+    `tests/local-auth/${scenario}.spec.mjs`, 'tests/local-auth/report-support.mjs',
     'tests/local-auth/support.mjs', 'tests/local-auth/playwright.config.mjs', 'tests/local-auth/reporter.mjs',
   ]
   const snapshots = join(output, 'harness-source')
@@ -177,7 +177,7 @@ try {
     dbHost: endpoint.host, dbPort: endpoint.port, dsnHost: 'localhost', ownerPassword,
     appRole: 'aeo_app', appPassword, authRole: 'local_auth_engine', authPassword,
     engineSecret, controlSecret, cookieSecret: secret(),
-    reportShareSecret: scenario === 'report-recovery' ? secret() : undefined,
+    reportShareSecret: ['report-recovery', 'report-list'].includes(scenario) ? secret() : undefined,
     appOrigin: `https://127.0.0.1:${appPort}`, authOrigin: `https://127.0.0.1:${authPort}`,
     output, root, ...await certificate(),
   }

@@ -8,7 +8,7 @@ export function localReportBuildEnvironment(ambient, dotenv, config) {
     const spec = runSpec(config.runId, config.imageId)
     const origin = new URL(config.appOrigin)
     allowLocalUrl(config.appOrigin, config.allowedOrigins)
-    if (config.mode !== evidenceMode || config.scenario !== 'report-recovery' ||
+    if (config.mode !== evidenceMode || !['report-recovery', 'report-list'].includes(config.scenario) ||
       !config.containerVerified || !/^[a-f0-9]{64}$/.test(config.containerId ?? '') ||
       config.dbHost !== '127.0.0.1' || config.database !== spec.database ||
       origin.protocol !== 'https:' || origin.origin !== config.appOrigin ||

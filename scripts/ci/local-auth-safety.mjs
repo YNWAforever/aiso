@@ -7,7 +7,7 @@ export const evidenceMode = 'LOCAL_REAL_AUTH_ENGINE_AND_POSTGRES_WITH_SYNTHETIC_
 export function parseLocalAuthScenario(args) {
   const values = args.filter(value => value.startsWith('--scenario='))
   if (!values.length) return 'first-value'
-  if (values.length !== 1 || !['first-value', 'brand-isolation', 'auth-rate-limit', 'login-rate-limit', 'account-unlock-rate-limit', 'report-recovery'].includes(values[0].slice(11))) {
+  if (values.length !== 1 || !['first-value', 'brand-isolation', 'auth-rate-limit', 'login-rate-limit', 'account-unlock-rate-limit', 'report-recovery', 'report-list'].includes(values[0].slice(11))) {
     throw new Error('LOCAL_AUTH_SCENARIO_INVALID')
   }
   return values[0].slice(11)
@@ -17,7 +17,7 @@ export function verifyReportRecoveryFixture(config, identity, email) {
   let expected
   try { expected = runSpec(config.runId, config.imageId) }
   catch { throw new Error('LOCAL_AUTH_REPORT_TARGET') }
-  if (config.scenario !== 'report-recovery' || config.mode !== evidenceMode ||
+  if (!['report-recovery', 'report-list'].includes(config.scenario) || config.mode !== evidenceMode ||
       config.containerVerified !== true || !/^[a-f0-9]{64}$/.test(config.containerId ?? '') ||
       config.dbHost !== '127.0.0.1' || config.database !== expected.database ||
       !uuid.test(identity?.id ?? '') || !uuid.test(identity?.account_id ?? '') ||
@@ -62,8 +62,9 @@ export function runSpec(runId, imageId) {
 
 export function artifactDirectory(root, runId, scenario = 'first-value') {
   runSpec(runId, `sha256:${'0'.repeat(64)}`)
-  return resolve(root, 'artifacts', scenario === 'report-recovery'
-    ? 'report-local-integration-20261019' : 'first-value-flow-20261017', `local-auth-${runId}`)
+  return resolve(root, 'artifacts', scenario === 'report-list' ? 'report-list-local-20261019'
+    : scenario === 'report-recovery' ? 'report-local-integration-20261019'
+      : 'first-value-flow-20261017', `local-auth-${runId}`)
 }
 
 export function verifyContainer(value, spec, returnedId) {

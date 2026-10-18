@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   ArrowLeft,
   ArrowRight,
@@ -88,6 +89,7 @@ export function ReportBuilder({
   saveScope?: string
 }) {
   const t = useTranslations('reports')
+  const router = useRouter()
   const [step, setStep] = useState<BuilderStep>('compose')
   const [report, setReport] = useState(initialReport)
   const [summary, setSummary] = useState(initialSnapshot.executiveSummary)
@@ -250,6 +252,12 @@ export function ReportBuilder({
     setNotice(summaryRef.current === data.reviewArtifact.snapshot.executiveSummary
       ? { kind: 'success', text: t('saved') }
       : { kind: 'warning', text: t('save_again') })
+    // Invalidate stale Reports/back-forward data only from a server-loaded edit
+    // route. A new form changes its URL via History above; refreshing that
+    // transitional tree can reload /new and lose its confirmed report context.
+    if (initialReport !== null) {
+      router.refresh()
+    }
   }
 
   async function sendSave(attempt: SaveAttempt): Promise<ReportSaveResponse | null> {

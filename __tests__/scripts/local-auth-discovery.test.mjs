@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url'
 import { expect, it } from 'vitest'
 import { evidenceMode, localEnvironment } from '../../scripts/ci/local-auth-safety.mjs'
 
-for (const [scenario, file] of [['first-value', 'first-value.spec.mjs'], ['brand-isolation', 'brand-isolation.spec.mjs'], ['auth-rate-limit', 'auth-rate-limit.spec.mjs'], ['login-rate-limit', 'login-rate-limit.spec.mjs'], ['account-unlock-rate-limit', 'account-unlock-rate-limit.spec.mjs'], ['report-recovery', 'report-recovery.spec.mjs']]) {
+for (const [scenario, file] of [['first-value', 'first-value.spec.mjs'], ['brand-isolation', 'brand-isolation.spec.mjs'], ['auth-rate-limit', 'auth-rate-limit.spec.mjs'], ['login-rate-limit', 'login-rate-limit.spec.mjs'], ['account-unlock-rate-limit', 'account-unlock-rate-limit.spec.mjs'], ['report-recovery', 'report-recovery.spec.mjs'], ['report-list', 'report-list.spec.mjs']]) {
   it(`discovers only the four requested ${scenario} cases without starting a runtime`, () => {
     const dir = mkdtempSync(join(tmpdir(), 'aiso-local-auth-discovery-')), config = join(dir, 'discovery-only.json')
     writeFileSync(config, JSON.stringify({

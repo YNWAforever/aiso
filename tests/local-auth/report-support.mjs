@@ -5,7 +5,7 @@ import { allowLocalUrl, runSpec, verifyDatabase } from '../../scripts/ci/local-a
 
 export async function reportDatabase(role = 'local_owner') {
   const spec = runSpec(config.runId, config.imageId)
-  if (config.scenario !== 'report-recovery' || !config.containerVerified ||
+  if (!['report-recovery', 'report-list'].includes(config.scenario) || !config.containerVerified ||
     config.database !== spec.database || config.dbHost !== '127.0.0.1') throw new Error('LOCAL_AUTH_REPORT_TARGET')
   const pool = new pg.Pool({
     host: config.dbHost, port: config.dbPort, database: config.database, user: role,

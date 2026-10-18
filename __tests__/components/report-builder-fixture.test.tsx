@@ -7,12 +7,13 @@ import { ReportBuilder } from '@/components/reports/ReportBuilder'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 import { reportBuilderProps } from './report-builder-fixtures'
+import { ReportRouterFixture } from './report-router-fixture'
 
 function markup(lang: 'en' | 'zh-HK', existing: boolean) {
   const props = reportBuilderProps(lang, existing)
   return renderToString(
     <NextIntlClientProvider locale={lang} messages={lang === 'en' ? en : zh} timeZone="UTC">
-      <ReportBuilder {...props} />
+      <ReportRouterFixture><ReportBuilder {...props} /></ReportRouterFixture>
     </NextIntlClientProvider>,
   )
 }
@@ -43,11 +44,12 @@ import React,{useEffect} from 'react';
 import {hydrateRoot} from 'react-dom/client';
 import {NextIntlClientProvider} from 'next-intl';
 import {ReportBuilder} from '@/components/reports/ReportBuilder';
+import {ReportRouterFixture} from '@/__tests__/components/report-router-fixture';
 const d=JSON.parse(document.getElementById('fixture-props').textContent);
 function Fixture(){
   useEffect(()=>{window.reportFixtureReady=true},[]);
   return React.createElement(NextIntlClientProvider,{locale:d.lang,messages:d.messages,timeZone:'UTC'},
-    React.createElement(ReportBuilder,d.props));
+    React.createElement(ReportRouterFixture,null,React.createElement(ReportBuilder,d.props)));
 }
 hydrateRoot(document.getElementById('root'),React.createElement(Fixture));
 `)

@@ -27,6 +27,13 @@ it('builds only the owned HTTPS origin while keeping database, provider and prel
   expect(env.NEON_AUTH_BASE_URL).toBe('https://fixture.invalid')
   expect(JSON.stringify(env)).not.toMatch(/live-|unwanted/)
 })
+it('permits report-list on the verified local HTTPS target without enabling providers or monitoring', () => {
+  const env = tools.localReportBuildEnvironment({}, [], { ...config(), scenario: 'report-list' })
+  expect(env.NEXT_PUBLIC_APP_URL).toBe('https://127.0.0.1:44441')
+  expect(env.DATABASE_URL).toBe('')
+  expect(env.OPENROUTER_API_KEY).toBe('')
+  expect(env.FEATURE_PULSE_ATTEMPTS).toBe('false')
+})
 it('rejects remote, HTTP, unowned or malformed origins and target metadata before any build', () => {
   expect(typeof tools.localReportBuildEnvironment).toBe('function')
   for (const patch of [
