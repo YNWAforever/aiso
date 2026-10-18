@@ -50,6 +50,8 @@ export default async function EditClientReportPage({
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{t('edit_body')}</p>
       </div>
       <ReportBuilder
+        key={`${profile.account_id}:${profile.id}:${clientId}:${reportId}`}
+        saveScope={`${profile.account_id}:${profile.id}`}
         lang={locale}
         clientId={clientId}
         scanId={latest.source_scan_id}

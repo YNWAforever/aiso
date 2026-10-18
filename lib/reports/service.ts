@@ -32,6 +32,8 @@ import {
   type ReportBrandingRow,
 } from './store'
 import type { ChangeKind, ClientReportSnapshotV1, ReportBrandingInput, ReportLocale } from './types'
+import { loadReportSaveReceipt, saveClientReportRequest, storedReportSaveMutation, reportSaveInput } from './save-store'
+import { parseReportSaveInput, sameReportSaveInput, type ReportSaveInput } from './save-request'
 
 export type ReportServiceErrorCode =
   | 'invalid_request'
@@ -96,6 +98,7 @@ async function authenticatedProfile(): Promise<ProfileWithAccount> {
 }
 
 function mapStoreError(error: ReportStoreError): ReportServiceError {
+  if (error.message === 'CLIENT_REPORT_SAVE_CONFLICT') return new ReportServiceError('conflict')
   if (/reviewed version is stale/i.test(error.message)) {
     return new ReportServiceError('conflict')
   }
@@ -534,12 +537,21 @@ export async function createAuthenticatedClientReport(input: {
   scanId: string
   locale: ReportLocale
   executiveSummary?: string
+  requestId?: string
 }) {
   return serviceOperation(async () => {
     const profile = await authenticatedProfile()
     const client = await ownedClient(profile, input.clientId)
+    const request = input.requestId && input.executiveSummary !== undefined
+      ? reportSaveInput({ reportId: null, scanId: input.scanId, locale: input.locale, executiveSummary: input.executiveSummary })
+      : null
+    if (input.requestId && !request) throw new ReportServiceError('invalid_request')
+    if (request && input.requestId) {
+      const replay = await savedReportRequest(profile, client, input.requestId, request)
+      if (replay) return replay.result
+    }
     const built = await reportSnapshot({ profile, client, ...input })
-    const created = authoritativeCreateResult(await createClientReport({
+    const write = {
       accountId: profile.account_id,
       clientId: client.id,
       sourceScanId: built.sourceScanId,
@@ -549,7 +561,10 @@ export async function createAuthenticatedClientReport(input: {
       snapshotSchemaVersion: built.snapshot.snapshotSchemaVersion,
       snapshot: built.snapshot,
       createdBy: profile.id,
-    }), { accountId: profile.account_id, clientId: client.id })
+    }
+    const created = authoritativeCreateResult(input.requestId
+      ? await saveClientReportRequest({ ...write, requestId: input.requestId, reportId: null })
+      : await createClientReport(write), { accountId: profile.account_id, clientId: client.id })
     if (!created) throw new ReportServiceError('service_unavailable')
     return {
       report: reportDto(created.report, { latest: created.version, published: null }),
@@ -561,13 +576,24 @@ export async function appendAuthenticatedClientReportVersion(input: {
   reportId: string
   locale: ReportLocale
   executiveSummary: string
+  requestId?: string
+  scanId?: string
 }) {
   return serviceOperation(async () => {
     const profile = await authenticatedProfile()
     const context = await ownedReport(profile, input.reportId)
+    const request = input.requestId && input.scanId ? reportSaveInput({
+      reportId: input.reportId, scanId: input.scanId, locale: input.locale, executiveSummary: input.executiveSummary,
+    }) : null
+    if (input.requestId && !request) throw new ReportServiceError('invalid_request')
+    if (request && input.requestId) {
+      const replay = await savedReportRequest(profile, context.client, input.requestId, request)
+      if (replay) return replay.result
+    }
     const versions = resolvedReportVersions(context.report, await versionsFor(context.report))
     const latest = versions.latest
     if (!latest?.source_scan_id) throw new ReportServiceError('conflict')
+    if (request && latest.source_scan_id !== request.scanId) throw new ReportServiceError('conflict')
 
     const shareUrlBuilder = prepareReportShareUrl(reportOrigin())
     const built = await reportSnapshot({
@@ -582,7 +608,7 @@ export async function appendAuthenticatedClientReportVersion(input: {
       clientId: context.client.id,
       reportId: context.report.id,
     }
-    const updated = authoritativeAppendResult(await appendClientReportVersion({
+    const write = {
       reportId: context.report.id,
       accountId: profile.account_id,
       clientId: context.client.id,
@@ -593,7 +619,10 @@ export async function appendAuthenticatedClientReportVersion(input: {
       snapshotSchemaVersion: built.snapshot.snapshotSchemaVersion,
       snapshot: built.snapshot,
       createdBy: profile.id,
-    }), expected)
+    }
+    const updated = authoritativeAppendResult(input.requestId
+      ? await saveClientReportRequest({ ...write, requestId: input.requestId })
+      : await appendClientReportVersion(write), expected)
     if (!updated) throw new ReportServiceError('service_unavailable')
 
     const signedUrl = updated.report.status === 'published' && updated.publishedVersion
@@ -611,6 +640,49 @@ export async function appendAuthenticatedClientReportVersion(input: {
       ),
       reviewArtifact: reviewArtifact(updated.version),
     }
+  })
+}
+
+async function savedReportRequest(
+  profile: ProfileWithAccount,
+  client: OwnedReportClient,
+  requestId: string,
+  expected?: ReportSaveInput,
+) {
+  const row = await loadReportSaveReceipt({
+    accountId: profile.account_id, clientId: client.id, actorId: profile.id, requestId,
+  })
+  if (!row) return null
+  const request = parseReportSaveInput(row.request_payload)
+  if (!request) throw new ReportServiceError('service_unavailable')
+  if (expected && !sameReportSaveInput(request, expected)) throw new ReportServiceError('conflict')
+  const scope = { accountId: profile.account_id, clientId: client.id }
+  const mutation = storedReportSaveMutation(row.result, scope, request.reportId)
+  const created = request.reportId === null ? authoritativeCreateResult(mutation, scope) : null
+  const appended = request.reportId === null ? null
+    : authoritativeAppendResult(mutation, { ...scope, reportId: request.reportId })
+  const saved = created ?? appended
+  if (!saved || saved.version.source_scan_id !== request.scanId
+    || saved.version.locale !== request.locale || saved.version.executive_summary !== request.executiveSummary) {
+    throw new ReportServiceError('service_unavailable')
+  }
+  return {
+    requestId, request,
+    result: {
+      report: reportDto(saved.report, {
+        latest: saved.version,
+        published: appended?.publishedVersion ?? null,
+      }),
+      reviewArtifact: reviewArtifact(saved.version),
+    },
+  }
+}
+
+export async function readAuthenticatedReportSaveReceipt(clientId: string, requestId: string) {
+  return serviceOperation(async () => {
+    const profile = await authenticatedProfile()
+    const client = await ownedClient(profile, clientId)
+    return { receipt: await savedReportRequest(profile, client, requestId) }
   })
 }
 function isRecord(value: unknown): value is Record<string, unknown> {

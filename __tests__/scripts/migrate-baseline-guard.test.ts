@@ -133,6 +133,8 @@ function allRelations() {
     'competitors',
     // 065-069: verified against task-owned local PG16 only; not hosted evidence.
     'pulse_legacy_classification_attempts','pulse_user_intents','pulse_run_reservations','prompt_batch_intents','work_item_groups',
+    // 071: authored and verified with in-memory PGlite; not a hosted migration.
+    'report_save_receipts',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }

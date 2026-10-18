@@ -33,7 +33,7 @@ export function reportSnapshot(lang: 'en' | 'zh-HK'): ClientReportSnapshotV1 {
     }],
     executiveSummary: english
       ? 'Synthetic fixture summary: review crawler access using only the selected scan evidence.'
-      : '合成測試摘要：只根據指定掃描的測試證據核對爬蟲存取設定，並在修改前由人手確認。',
+      : '合成測試摘要：只根據指定掃描的完整測試證據核對爬蟲存取設定，並在任何修改前由人手確認所有相關內容。',
     methodology: english ? 'Synthetic fixture only; not a real analysis.' : '僅供合成測試，並非真實分析。',
   }
 }
@@ -62,6 +62,7 @@ export function reportBuilderProps(lang: 'en' | 'zh-HK', existing: boolean) {
   const saved = reportSaveFixture(lang)
   return {
     lang,
+    saveScope: 'synthetic-account:synthetic-owner',
     clientId: reportClientId,
     scanId: reportScanId,
     initialReport: existing ? saved.report : null,

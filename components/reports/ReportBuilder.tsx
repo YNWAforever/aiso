@@ -28,6 +28,10 @@ import {
 } from '@/lib/reports/client-dto'
 import { installReportNavigationBlocker } from '@/lib/reports/navigation-blocker'
 import type { ClientReportSnapshotV1 } from '@/lib/reports/types'
+import {
+  parsePendingReportSave, parseReportSaveInput, parseReportSaveReadback,
+  type PendingReportSave,
+} from '@/lib/reports/save-request'
 import { ReportPreview } from './ReportPreview'
 import { ReportStatusBadge } from './ReportStatusBadge'
 
@@ -36,6 +40,7 @@ export { installReportNavigationBlocker } from '@/lib/reports/navigation-blocker
 
 type BuilderStep = 'compose' | 'review' | 'publish'
 type NoticeKind = 'idle' | 'loading' | 'success' | 'warning' | 'error'
+type SaveAttempt = PendingReportSave & { startingSummary: string; startingRevision: number }
 
 export function hasUnsavedReportChanges(savedSummary: string, currentSummary: string): boolean {
   return savedSummary !== currentSummary
@@ -72,6 +77,7 @@ export function ReportBuilder({
   initialReport,
   initialSnapshot,
   initialReviewArtifact = null,
+  saveScope,
 }: {
   lang: 'en' | 'zh-HK'
   clientId: string
@@ -79,6 +85,7 @@ export function ReportBuilder({
   initialReport: ReportWorkspaceReport | null
   initialSnapshot: ClientReportSnapshotV1
   initialReviewArtifact?: ReportReviewArtifact | null
+  saveScope?: string
 }) {
   const t = useTranslations('reports')
   const [step, setStep] = useState<BuilderStep>('compose')
@@ -90,10 +97,53 @@ export function ReportBuilder({
   const [shareUrl, setShareUrl] = useState(initialReport?.signedUrl ?? '')
   const [notice, setNotice] = useState<{ kind: NoticeKind; text: string }>({ kind: 'idle', text: '' })
   const [pending, setPending] = useState<string | null>(null)
+  const [unconfirmed, setUnconfirmed] = useState<SaveAttempt | null>(null)
+  const [canRetrySave, setCanRetrySave] = useState(false)
+  const [restoringSave, setRestoringSave] = useState(Boolean(saveScope))
+  const [restoreError, setRestoreError] = useState(false)
+  const saveAttemptRef = useRef<SaveAttempt | null>(null)
+  const saveBusyRef = useRef(false)
   const summaryRef = useRef(initialSnapshot.executiveSummary)
   const revisionRef = useRef(0)
   const allowUnloadRef = useRef(false)
   const dirty = hasUnsavedReportChanges(savedSummary, summary)
+  const initialReportId = initialReport?.id ?? null
+  const saveStorageKey = saveScope
+    ? `aiso-report-save-v1:${saveScope}:${clientId}:${scanId}:${initialReportId ?? 'new'}:${lang}` : null
+  const blocked = pending !== null || unconfirmed !== null || restoringSave || restoreError
+
+  useEffect(() => {
+    if (!saveStorageKey) return
+    try {
+      const raw = sessionStorage.getItem(saveStorageKey)
+      if (raw) {
+        if (raw.length > 8192) throw new Error('Invalid stored save')
+        const stored = parsePendingReportSave(JSON.parse(raw))
+        if (!stored || stored.request.scanId !== scanId || stored.request.locale !== lang
+          || (initialReportId !== null && stored.request.reportId !== initialReportId)) throw new Error('Invalid stored save')
+        const attempt = { ...stored, startingSummary: summaryRef.current, startingRevision: revisionRef.current }
+        saveAttemptRef.current = attempt
+        setUnconfirmed(attempt)
+        setNotice({ kind: 'warning', text: t('save_unknown') })
+      }
+    } catch {
+      setRestoreError(true)
+      setNotice({ kind: 'error', text: t('save_storage_error') })
+    } finally { setRestoringSave(false) }
+  }, [saveStorageKey, scanId, lang, initialReportId, t])
+
+  function rememberSave(attempt: SaveAttempt) {
+    if (saveStorageKey) sessionStorage.setItem(saveStorageKey, JSON.stringify({
+      requestId: attempt.requestId, request: attempt.request,
+    }))
+  }
+  function forgetSave(attempt: SaveAttempt) {
+    if (!saveStorageKey) return
+    try {
+      const stored = parsePendingReportSave(JSON.parse(sessionStorage.getItem(saveStorageKey) ?? 'null'))
+      if (stored?.requestId === attempt.requestId) sessionStorage.removeItem(saveStorageKey)
+    } catch { /* Keeping an acknowledged ID permits a read-only reconciliation after reload. */ }
+  }
 
   useEffect(() => {
     let rearmUnloadGuardTimeout: number | null = null
@@ -170,53 +220,125 @@ export function ReportBuilder({
     if (dirty && !window.confirm(t('unsaved_warning'))) event.preventDefault()
   }
 
-  async function saveDraft(): Promise<ReportSaveResponse | null> {
-    if (!dirty && report && savedArtifact) {
-      return { report, reviewArtifact: savedArtifact }
+  function applySavedDraft(data: ReportSaveResponse, attempt: SaveAttempt) {
+    setReport(data.report)
+    setSavedArtifact(data.reviewArtifact)
+    setSavedSummary(data.reviewArtifact.snapshot.executiveSummary)
+    if (data.report.signedUrl) setShareUrl(data.report.signedUrl)
+    if (shouldApplyAiSummary({
+      startingSummary: attempt.startingSummary,
+      currentSummary: summaryRef.current,
+      startingRevision: attempt.startingRevision,
+      currentRevision: revisionRef.current,
+    })) {
+      summaryRef.current = data.reviewArtifact.snapshot.executiveSummary
+      setSummary(data.reviewArtifact.snapshot.executiveSummary)
     }
-    const requestSummary = summaryRef.current
-    const startingRevision = revisionRef.current
+    saveAttemptRef.current = null
+    setUnconfirmed(null)
+    setCanRetrySave(false)
+    forgetSave(attempt)
+    setNotice(summaryRef.current === data.reviewArtifact.snapshot.executiveSummary
+      ? { kind: 'success', text: t('saved') }
+      : { kind: 'warning', text: t('save_again') })
+  }
+
+  async function sendSave(attempt: SaveAttempt): Promise<ReportSaveResponse | null> {
+    if (saveBusyRef.current) return null
+    saveBusyRef.current = true
+    saveAttemptRef.current = attempt
+    setCanRetrySave(false)
     setPending('save')
     setNotice({ kind: 'loading', text: t('saving') })
-    const url = report
-      ? `/api/client-reports/${encodeURIComponent(report.id)}/versions`
+    const request = attempt.request
+    const url = request.reportId
+      ? `/api/client-reports/${encodeURIComponent(request.reportId)}/versions`
       : `/api/clients/${encodeURIComponent(clientId)}/reports`
-    const body = report
-      ? { locale: lang, executiveSummary: requestSummary }
-      : { scanId, locale: lang, executiveSummary: requestSummary }
+    const body = request.reportId
+      ? { locale: request.locale, executiveSummary: request.executiveSummary }
+      : { scanId: request.scanId, locale: request.locale, executiveSummary: request.executiveSummary }
 
     try {
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Report-Request-Id': attempt.requestId,
+          'X-Report-Scan-Id': request.scanId,
+        },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15_000),
       })
       const data = parseReportSaveResponse(await responseBody(response))
-      if (!response.ok || !data) throw new Error('Invalid report save response')
-      setReport(data.report)
-      setSavedArtifact(data.reviewArtifact)
-      setSavedSummary(data.reviewArtifact.snapshot.executiveSummary)
-      if (data.report.signedUrl) setShareUrl(data.report.signedUrl)
-      if (shouldApplyAiSummary({
-        startingSummary: requestSummary,
-        currentSummary: summaryRef.current,
-        startingRevision,
-        currentRevision: revisionRef.current,
-      })) {
-        summaryRef.current = data.reviewArtifact.snapshot.executiveSummary
-        setSummary(data.reviewArtifact.snapshot.executiveSummary)
-      }
-      setNotice({ kind: 'success', text: t('saved') })
+      if (!response.ok || !data || data.reviewArtifact.snapshot.locale !== request.locale
+        || data.reviewArtifact.snapshot.executiveSummary !== request.executiveSummary
+        || (request.reportId !== null && data.report.id !== request.reportId)) throw new Error('Invalid report save response')
+      applySavedDraft(data, attempt)
       return data
     } catch {
-      setNotice({ kind: 'error', text: t('save_error') })
+      setUnconfirmed(attempt)
+      setNotice({ kind: 'warning', text: t('save_unknown') })
       return null
     } finally {
+      saveBusyRef.current = false
       setPending(null)
     }
   }
 
+  async function saveDraft(): Promise<ReportSaveResponse | null> {
+    if (saveBusyRef.current || saveAttemptRef.current || restoringSave || restoreError) return null
+    if (!dirty && report && savedArtifact) return { report, reviewArtifact: savedArtifact }
+    const request = parseReportSaveInput({
+      reportId: report?.id ?? null, scanId, locale: lang, executiveSummary: summaryRef.current,
+    })
+    if (!request) {
+      setNotice({ kind: 'error', text: t('save_error') })
+      return null
+    }
+    const attempt: SaveAttempt = {
+      requestId: crypto.randomUUID(), request,
+      startingSummary: summaryRef.current, startingRevision: revisionRef.current,
+    }
+    try { rememberSave(attempt) } catch {
+      setNotice({ kind: 'error', text: t('save_storage_error') })
+      return null
+    }
+    return sendSave(attempt)
+  }
+
+  async function checkSavedDraft() {
+    const attempt = saveAttemptRef.current
+    if (!attempt || saveBusyRef.current) return
+    saveBusyRef.current = true
+    setCanRetrySave(false)
+    setPending('read-save')
+    setNotice({ kind: 'loading', text: t('checking_saved_draft') })
+    try {
+      const response = await fetch(
+        `/api/clients/${encodeURIComponent(clientId)}/report-save-requests/${encodeURIComponent(attempt.requestId)}`,
+        { cache: 'no-store', signal: AbortSignal.timeout(15_000) },
+      )
+      const data = parseReportSaveReadback(await responseBody(response), attempt)
+      if (!response.ok || !data) throw new Error('Invalid report recovery response')
+      if (data.result) applySavedDraft(data.result, attempt)
+      else {
+        setCanRetrySave(true)
+        setNotice({ kind: 'warning', text: t('save_not_found') })
+      }
+    } catch {
+      setNotice({ kind: 'error', text: t('save_read_error') })
+    } finally {
+      saveBusyRef.current = false
+      setPending(null)
+    }
+  }
+  async function retryOriginalSave() {
+    const attempt = saveAttemptRef.current
+    if (attempt && canRetrySave && !saveBusyRef.current) await sendSave(attempt)
+  }
+
   async function polishWithAi() {
+    if (saveAttemptRef.current || restoringSave || restoreError) return
     const startingSummary = summaryRef.current
     const startingRevision = revisionRef.current
     let target = report
@@ -255,6 +377,7 @@ export function ReportBuilder({
   }
 
   async function reviewReport() {
+    if (saveAttemptRef.current || restoringSave || restoreError) return
     const saved = dirty || !report || !savedArtifact
       ? await saveDraft()
       : { report, reviewArtifact: savedArtifact }
@@ -384,7 +507,7 @@ export function ReportBuilder({
       <nav aria-label={t('progress_label')} className="overflow-x-auto">
         <ol className="grid min-w-[32rem] grid-cols-3 gap-2">
           {steps.map((item, index) => {
-            const isDisabled = pending !== null
+            const isDisabled = blocked
               || (item.key === 'publish' && (step === 'compose' || !reviewedArtifact))
             return (
               <li key={item.key}>
@@ -414,6 +537,25 @@ export function ReportBuilder({
       <div aria-live="polite" className="min-h-6 text-sm" data-notice-kind={notice.kind}>
         {notice.text}
       </div>
+
+      {unconfirmed && (
+        <section aria-label={t('save_recovery_title')} className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
+          <h2 className="font-semibold">{t('save_recovery_title')}</h2>
+          <p className="text-sm text-muted-foreground">{t('retry_original_help')}</p>
+          <details className="text-sm">
+            <summary className="min-h-11 cursor-pointer py-3">{t('original_summary')}</summary>
+            <p className="whitespace-pre-wrap break-words">{unconfirmed.request.executiveSummary}</p>
+          </details>
+          <div className="flex flex-wrap gap-3">
+            <Button type="button" variant="outline" className="min-h-11" onClick={checkSavedDraft} disabled={pending !== null}>
+              {pending === 'read-save' ? t('checking_saved_draft') : t('check_saved_draft')}
+            </Button>
+            <Button type="button" variant="outline" className="min-h-11" onClick={retryOriginalSave} disabled={pending !== null || !canRetrySave}>
+              {t('retry_original_save')}
+            </Button>
+          </div>
+        </section>
+      )}
 
       {step === 'compose' && (
         <Card>
@@ -450,11 +592,11 @@ export function ReportBuilder({
                 className="mt-3 min-h-40 w-full resize-y rounded-lg border border-border bg-background px-3 py-3 text-base leading-6 text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               <div className="mt-3 flex flex-wrap gap-3">
-                <Button type="button" variant="secondary" className="min-h-11" onClick={polishWithAi} disabled={pending !== null}>
+                <Button type="button" variant="secondary" className="min-h-11" onClick={polishWithAi} disabled={blocked}>
                   {pending === 'ai' ? <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}
                   {pending === 'ai' ? t('ai_loading') : t('polish_ai')}
                 </Button>
-                <Button type="button" variant="outline" className="min-h-11" onClick={saveDraft} disabled={pending !== null || (!dirty && report !== null && savedArtifact !== null)}>
+                <Button type="button" variant="outline" className="min-h-11" onClick={saveDraft} disabled={blocked || (!dirty && report !== null && savedArtifact !== null)}>
                   {pending === 'save' ? <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Check aria-hidden="true" />}
                   {pending === 'save' ? t('saving') : t('save_draft')}
                 </Button>
@@ -462,7 +604,7 @@ export function ReportBuilder({
             </div>
 
             <div className="flex justify-end">
-              <Button type="button" className="min-h-11" onClick={reviewReport} disabled={pending !== null}>
+              <Button type="button" className="min-h-11" onClick={reviewReport} disabled={blocked}>
                 {t('review_report')}
                 <ArrowRight aria-hidden="true" />
               </Button>

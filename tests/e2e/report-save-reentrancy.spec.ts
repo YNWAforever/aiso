@@ -28,6 +28,9 @@ async function fixture(page: Page, lang: Locale, existing: boolean) {
     const req = route.request()
     const call = { method: req.method(), path: new URL(req.url()).pathname, body: req.postDataJSON() }
     state.calls.push(call)
+    if (call.method === 'GET' && call.path.startsWith(`/api/clients/${reportClientId}/report-save-requests/`)) {
+      return route.fulfill({ json: { receipt: null } })
+    }
     if (![createPath, versionPath].includes(call.path) || call.method !== 'POST') {
       state.unexpected.push(call.path)
       return route.abort()
@@ -49,7 +52,7 @@ async function fixture(page: Page, lang: Locale, existing: boolean) {
   const input = page.getByLabel(copy.executive_summary, { exact: true })
   const edited = lang === 'en'
     ? 'Edited synthetic summary: verify this scan evidence before changing crawler access.'
-    : '已修改的合成摘要：修改爬蟲存取設定前，先核對本次掃描的測試證據及目標頁面。'
+    : '已修改的合成摘要：修改爬蟲存取設定前，先核對本次掃描的完整測試證據、來源內容及相關的目標頁面。'
   if (existing) await input.fill(edited)
   return { state, copy, rail, input, edited, summary: existing ? edited : reportSnapshot(lang).executiveSummary }
 }
@@ -79,7 +82,8 @@ async function assertReview(page: Page, lang: Locale, summary: string) {
 async function assertIsolated(state: { calls: Call[]; errors: string[]; unexpected: string[] }) {
   expect(state.errors).toEqual([])
   expect(state.unexpected).toEqual([])
-  expect(state.calls.every(call => [createPath, versionPath].includes(call.path))).toBe(true)
+  expect(state.calls.every(call => [createPath, versionPath].includes(call.path)
+    || (call.method === 'GET' && call.path.startsWith(`/api/clients/${reportClientId}/report-save-requests/`)))).toBe(true)
 }
 
 for (const lang of ['en', 'zh-HK'] as const) {
@@ -154,16 +158,22 @@ for (const lang of ['en', 'zh-HK'] as const) {
         f.state.hook = route => route.fulfill({ json: invalid })
       }
       await page.getByRole('button', { name: f.copy.review_report, exact: true }).click()
-      await expect(page.locator('[data-notice-kind="error"]')).toHaveText(f.copy.save_error)
+      await expect(page.locator('[data-notice-kind="warning"]')).toHaveText(f.copy.save_unknown)
       await expect(f.input).toHaveValue(f.summary)
       await expect(f.rail.locator('[aria-current="step"]')).toContainText(f.copy.step_compose)
       await expect(f.rail.getByRole('button', { name: `3${f.copy.step_publish}`, exact: true })).toBeDisabled()
       expect(f.state.calls).toHaveLength(1)
+      await page.getByRole('button', { name: f.copy.check_saved_draft, exact: true }).click()
+      await expect(page.locator('[data-notice-kind="warning"]')).toHaveText(f.copy.save_not_found)
       f.state.hook = route => route.fulfill({ json: reportSaveFixture(lang, f.summary, 2) })
+      await page.getByRole('button', { name: f.copy.retry_original_save, exact: true }).click()
+      await expect(page.locator('[data-notice-kind="success"]')).toHaveText(f.copy.saved)
       await f.rail.getByRole('button', { name: `2${f.copy.step_review}`, exact: true }).click()
       await assertReview(page, lang, f.summary)
-      expect(f.state.calls).toHaveLength(2)
-      expect(f.state.calls[1]).toEqual(f.state.calls[0])
+      const writes = f.state.calls.filter(call => call.method === 'POST')
+      expect(writes).toHaveLength(2)
+      expect(writes[1]).toEqual(writes[0])
+      expect(f.state.calls.filter(call => call.method === 'GET')).toHaveLength(1)
       await assertIsolated(f.state)
     })
   }
