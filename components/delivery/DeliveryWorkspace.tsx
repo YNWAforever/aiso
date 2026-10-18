@@ -98,7 +98,7 @@ export function DeliveryWorkspace({ clientId, version, onDirtyChange, onDelivery
   }
   async function download(format: 'json' | 'text') {
     if (lock.current || !authorized || !page?.capabilities.canExport) return
-    lock.current = true; setBusy(true); setError('')
+    lock.current = true; setBusy(true); setError(''); setStatus('')
     try {
       const res = await fetch(base + '/export?format=' + format, { cache: 'no-store', signal: AbortSignal.timeout(15_000) })
       if (!res.ok) throw Error(responseError(res.status))

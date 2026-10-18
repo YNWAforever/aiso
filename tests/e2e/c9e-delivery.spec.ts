@@ -81,6 +81,71 @@ async function timeoutEvidence(page: Page, section: ReturnType<Page['getByRole']
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await section.screenshot({ path: test.info().outputPath(name + '-timeout.png') })
 }
+for (const lang of ['en', 'zh-HK']) for (const format of ['json', 'text'] as const) {
+  for (const failure of ['503', 'network', 'headers'] as const) {
+    test(`C9e repeated ${format} export ${failure} clears prior success ${lang}`, async ({ page }) => {
+      const { c, section, context, fill, dir } = await fixture(page, lang)
+      await fill()
+      const artifact = JSON.parse(readFileSync(dir + '/export-' + format + '.json', 'utf8'))
+      const button = section.getByRole('button', { name: format === 'json' ? c.exportJson : c.exportText, exact: true })
+      let downloads = 0, attempts = 0, release!: () => void
+      const gate = new Promise<void>(resolve => { release = resolve })
+      page.on('download', () => { downloads++ })
+      const [first] = await Promise.all([page.waitForEvent('download'), button.click()])
+      expect(readFileSync((await first.path())!, 'utf8')).toBe(artifact.body)
+      await expect(section.getByText(c.downloaded, { exact: true })).toBeVisible()
+      context.exportHook = async route => {
+        attempts++
+        expect(route.request().method()).toBe('GET')
+        expect(new URL(route.request().url()).searchParams.get('format')).toBe(format)
+        await gate
+        if (failure === 'network') return route.abort()
+        if (failure === '503') return route.fulfill({ status: 503, json: { error: 'UNAVAILABLE' } })
+        return route.fulfill({ body: artifact.body, headers: {
+          'Content-Type': artifact.contentType,
+          'Content-Disposition': `attachment; filename="${artifact.filename}"`,
+          'X-Aiso-Export-Sha256': 'invalid',
+        } })
+      }
+      try {
+        await button.dblclick()
+        await expect(section).toHaveAttribute('aria-busy', 'true')
+        const showedOldSuccessWhilePending = await section.getByText(c.downloaded, { exact: true }).isVisible()
+        expect(downloads).toBe(1)
+        release()
+        await expect(section.getByRole('alert')).toHaveText(c.unavailable)
+        await expect(section).toHaveAttribute('aria-busy', 'false')
+        try {
+          await expect(section.getByText(c.downloaded, { exact: true })).toHaveCount(0)
+        } catch (error) {
+          await section.screenshot({ path: test.info().outputPath(`${lang}-${format}-${failure}-stale-success.png`) })
+          throw error
+        }
+        expect(showedOldSuccessWhilePending).toBe(false)
+        expect(attempts).toBe(1)
+        expect(downloads).toBe(1)
+        expect(context.posts).toEqual([])
+        await expect(section.getByLabel(c.destination, { exact: true })).toHaveValue(' Site ')
+        await expect(section.getByLabel(c.note, { exact: true })).toHaveValue(' e\u0301\n交付 ')
+        await expect(button).toBeDisabled()
+        await expect(section.getByRole('button', { name: c.record, exact: true })).toBeDisabled()
+        expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+        await section.screenshot({ path: test.info().outputPath(`${lang}-${format}-${failure}-failed.png`) })
+        context.exportHook = null
+        await section.getByRole('button', { name: c.refresh, exact: true }).click()
+        await expect(button).toBeEnabled()
+        await expect(section.getByText(c.downloaded, { exact: true })).toHaveCount(0)
+        const [retried] = await Promise.all([page.waitForEvent('download'), button.click()])
+        expect(readFileSync((await retried.path())!, 'utf8')).toBe(artifact.body)
+        await expect(section.getByText(c.downloaded, { exact: true })).toBeVisible()
+        expect(downloads).toBe(2)
+        expect(context.posts).toEqual([])
+        await section.screenshot({ path: test.info().outputPath(`${lang}-${format}-${failure}-recovered.png`) })
+      } finally { release() }
+    })
+  }
+}
 for (const lang of ['en', 'zh-HK']) {
   test(`C9e stalled read releases refresh and retains input ${lang}`, async ({ page }) => {
     const { c, section, context, fill } = await fixture(page, lang)
