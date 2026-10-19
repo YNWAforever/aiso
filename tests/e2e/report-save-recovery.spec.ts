@@ -7,7 +7,10 @@ import en from '../../messages/en.json'
 import zh from '../../messages/zh-HK.json'
 
 type Locale = 'en' | 'zh-HK'
-type Call = { method: string; path: string; id: string | undefined; scan: string | undefined; body: Record<string, string> | null }
+type Call = {
+  method: string; path: string; id: string | undefined; scan: string | undefined
+  expectedVersion: string | undefined; body: Record<string, string> | null
+}
 const createPath = `/api/clients/${reportClientId}/reports`
 const versionPath = '/api/client-reports/synthetic-report/versions'
 const readBase = `/api/clients/${reportClientId}/report-save-requests/`
@@ -44,11 +47,16 @@ async function fixture(page: Page, lang: Locale, existing = false, newReportRout
     const call: Call = {
       method: req.method(), path: new URL(req.url()).pathname,
       id: headers['x-report-request-id'], scan: headers['x-report-scan-id'],
+      expectedVersion: headers['x-report-expected-version-id'],
       body: req.postData() ? req.postDataJSON() : null,
     }
     state.calls.push(call)
     if (call.method === 'POST' && [createPath, versionPath].includes(call.path)) {
       const id = call.id ?? 'baseline-without-identity'
+      if (call.path === versionPath && call.expectedVersion
+        && call.expectedVersion !== `synthetic-version-${state.versionNumber}`) {
+        return route.fulfill({ status: 409, json: { error: 'conflict' } })
+      }
       if (state.commit && !state.receipts.has(id)) {
         state.writes++
         state.receipts.set(id, {
@@ -56,6 +64,8 @@ async function fixture(page: Page, lang: Locale, existing = false, newReportRout
           request: {
             reportId: call.path === createPath ? null : 'synthetic-report',
             scanId: reportScanId, locale: lang, executiveSummary: call.body!.executiveSummary.trim(),
+            ...(call.path === versionPath && call.expectedVersion
+              ? { expectedLatestVersionId: call.expectedVersion } : {}),
           },
           result: reportSaveFixture(lang, call.body!.executiveSummary.trim(), ++state.versionNumber),
         })
@@ -103,7 +113,8 @@ async function fixture(page: Page, lang: Locale, existing = false, newReportRout
     : '合成復原摘要：只核對指定掃描的測試證據，並在修改前由人手確認相關內容及目標頁面。'
   const edited = lang === 'en'
     ? 'Newer human edits must remain intact while the original save is reconciled or retried.'
-    : '核對或重試原本儲存時，必須保留這段較新的人手修改，不可以被晚到的回應覆蓋。'
+    : '核對或重試原本儲存時，必須保留這段較新的人手修改，不可以被晚到的回應覆蓋，並且保留來源。'
+  expect(edited.trim().length).toBeGreaterThanOrEqual(40)
   await input.fill(original)
   return { state, copy, input, original, edited, open, releaseWrite, releaseRead,
     check: page.getByRole('button', { name: copy.check, exact: true }),
@@ -328,6 +339,22 @@ for (const lang of ['en', 'zh-HK'] as const) {
     await expect(f.input).toHaveValue(newer)
     expect(writes(f.state.calls)).toHaveLength(2)
     expect(f.state.versionNumber).toBe(2)
+    await isolated(f.state)
+  })
+  test(`Report stale tab preserves its text and blocks another save after a newer version ${lang}`, async ({ page }) => {
+    const f = await fixture(page, lang, true)
+    f.state.versionNumber = 2
+    await f.input.fill(f.edited)
+    await page.getByRole('button', { name: f.copy.save_draft, exact: true }).click()
+    await expect(page.locator('[data-notice-kind="error"]')).toHaveText(f.copy.save_conflict)
+    await expect(page.getByRole('heading', { name: f.copy.save_conflict_title, exact: true })).toBeVisible()
+    await expect(f.input).toHaveValue(f.edited)
+    await expect(page.getByRole('button', { name: f.copy.save_draft, exact: true })).toBeDisabled()
+    await expect(page.getByRole('button', { name: f.copy.reload_latest, exact: true })).toBeEnabled()
+    expect(writes(f.state.calls)).toHaveLength(1)
+    expect(writes(f.state.calls)[0].expectedVersion).toBe('synthetic-version-1')
+    expect(f.state.writes).toBe(0)
+    expect(f.state.receipts.size).toBe(0)
     await isolated(f.state)
   })
 }

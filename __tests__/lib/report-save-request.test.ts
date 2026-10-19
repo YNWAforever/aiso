@@ -1,5 +1,10 @@
 import { expect, it } from 'vitest'
-import { parsePendingReportSave, parseReportSaveReadback, reportSaveHeaders } from '@/lib/reports/save-request'
+import {
+  parsePendingReportSave,
+  parseReportSaveInput,
+  parseReportSaveReadback,
+  reportSaveHeaders,
+} from '@/lib/reports/save-request'
 import { reportSaveFixture } from '../components/report-builder-fixtures'
 
 const id = '11111111-1111-4111-8111-111111111111'
@@ -37,13 +42,33 @@ it.each([null, {}, { requestId: 'bad', request }, { requestId: id, request: { ..
   { requestId: id, request: { ...request, executiveSummary: request.executiveSummary + '\n' } }])(
   'refuses invalid retained requests %#', value => expect(parsePendingReportSave(value)).toBeNull(),
 )
+it('accepts a bounded opaque fixture version while rejecting unsafe retained ids', () => {
+  expect(parseReportSaveInput({ ...request, expectedLatestVersionId: 'synthetic-version-1' })).toEqual({
+    ...request, expectedLatestVersionId: 'synthetic-version-1',
+  })
+  for (const expectedLatestVersionId of ['', ' leading', 'trailing ', 'line\nbreak', 'x'.repeat(129)]) {
+    expect(parseReportSaveInput({ ...request, expectedLatestVersionId })).toBeNull()
+  }
+  expect(parseReportSaveInput({
+    ...request, reportId: null, expectedLatestVersionId: 'synthetic-version-1',
+  })).toBeNull()
+})
 it('preserves the legacy headers contract while requiring a valid paired request and scan identity', () => {
   const read = (headers: Record<string, string>) => reportSaveHeaders(new Request('https://fixture.invalid', { headers }))
   expect(read({})).toEqual({})
   expect(read({ 'X-Report-Request-Id': id, 'X-Report-Scan-Id': id })).toEqual({ requestId: id, scanId: id })
+  expect(read({ 'X-Report-Request-Id': id, 'X-Report-Scan-Id': id,
+    'X-Report-Expected-Version-Id': crypto.randomUUID() })).toEqual({
+    requestId: id, scanId: id, expectedLatestVersionId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+  })
   expect(() => read({ 'X-Report-Request-Id': id })).toThrow()
   expect(() => read({ 'X-Report-Scan-Id': id })).toThrow()
   expect(() => read({ 'X-Report-Request-Id': 'invalid', 'X-Report-Scan-Id': id })).toThrow()
+  expect(() => read({ 'X-Report-Expected-Version-Id': crypto.randomUUID() })).toThrow()
+  expect(() => read({ 'X-Report-Request-Id': id, 'X-Report-Scan-Id': id,
+    'X-Report-Expected-Version-Id': 'invalid' })).toThrow()
+  expect(() => read({ 'X-Report-Request-Id': id, 'X-Report-Scan-Id': id,
+    'X-Report-Expected-Version-Id': 'synthetic-version-1' })).toThrow()
 })
 it('uses the same whitespace normalization as the saved snapshot during retained-request readback', () => {
   const raw = {

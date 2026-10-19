@@ -103,6 +103,7 @@ export function ReportBuilder({
   const [canRetrySave, setCanRetrySave] = useState(false)
   const [restoringSave, setRestoringSave] = useState(Boolean(saveScope))
   const [restoreError, setRestoreError] = useState(false)
+  const [versionConflict, setVersionConflict] = useState(false)
   const saveAttemptRef = useRef<SaveAttempt | null>(null)
   const saveBusyRef = useRef(false)
   const summaryRef = useRef(initialSnapshot.executiveSummary)
@@ -112,7 +113,7 @@ export function ReportBuilder({
   const activeReportId = report?.id ?? null
   const saveStorageKey = saveScope
     ? `aiso-report-save-v1:${saveScope}:${clientId}:${scanId}:${activeReportId ?? 'new'}:${lang}` : null
-  const blocked = pending !== null || unconfirmed !== null || restoringSave || restoreError
+  const blocked = pending !== null || unconfirmed !== null || restoringSave || restoreError || versionConflict
 
   useEffect(() => {
     if (!saveStorageKey) return
@@ -239,6 +240,7 @@ export function ReportBuilder({
     saveAttemptRef.current = null
     setUnconfirmed(null)
     setCanRetrySave(false)
+    setVersionConflict(false)
     forgetSave(attempt)
     const newPath = `/${lang}/dashboard/${encodeURIComponent(clientId)}/reports/new`
     if (window.location.pathname === newPath) {
@@ -282,10 +284,21 @@ export function ReportBuilder({
           'Content-Type': 'application/json',
           'X-Report-Request-Id': attempt.requestId,
           'X-Report-Scan-Id': request.scanId,
+          ...(request.expectedLatestVersionId
+            ? { 'X-Report-Expected-Version-Id': request.expectedLatestVersionId } : {}),
         },
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(15_000),
       })
+      if (response.status === 409) {
+        saveAttemptRef.current = null
+        setUnconfirmed(null)
+        setCanRetrySave(false)
+        setVersionConflict(true)
+        forgetSave(attempt)
+        setNotice({ kind: 'error', text: t('save_conflict') })
+        return null
+      }
       const data = parseReportSaveResponse(await responseBody(response))
       if (!response.ok || !data || data.reviewArtifact.snapshot.locale !== request.locale
         || data.reviewArtifact.snapshot.executiveSummary !== request.executiveSummary
@@ -307,6 +320,7 @@ export function ReportBuilder({
     if (!dirty && report && savedArtifact) return { report, reviewArtifact: savedArtifact }
     const request = parseReportSaveInput({
       reportId: report?.id ?? null, scanId, locale: lang, executiveSummary: summaryRef.current,
+      ...(report && savedArtifact ? { expectedLatestVersionId: savedArtifact.versionId } : {}),
     })
     if (!request) {
       setNotice({ kind: 'error', text: t('save_error') })
@@ -352,6 +366,12 @@ export function ReportBuilder({
   async function retryOriginalSave() {
     const attempt = saveAttemptRef.current
     if (attempt && canRetrySave && !saveBusyRef.current) await sendSave(attempt)
+  }
+
+  function reloadLatestDraft() {
+    if (!window.confirm(t('reload_conflict_confirm'))) return
+    allowUnloadRef.current = true
+    window.location.reload()
   }
 
   async function polishWithAi() {
@@ -565,6 +585,16 @@ export function ReportBuilder({
       <div aria-live="polite" className="min-h-6 text-sm" data-notice-kind={notice.kind}>
         {notice.text}
       </div>
+
+      {versionConflict && (
+        <section aria-label={t('save_conflict_title')} className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+          <h2 className="font-semibold">{t('save_conflict_title')}</h2>
+          <p className="text-sm text-muted-foreground">{t('save_conflict')}</p>
+          <Button type="button" variant="outline" className="min-h-11" onClick={reloadLatestDraft}>
+            {t('reload_latest')}
+          </Button>
+        </section>
+      )}
 
       {unconfirmed && (
         <section aria-label={t('save_recovery_title')} className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">

@@ -578,12 +578,15 @@ export async function appendAuthenticatedClientReportVersion(input: {
   executiveSummary: string
   requestId?: string
   scanId?: string
+  expectedLatestVersionId?: string
 }) {
   return serviceOperation(async () => {
     const profile = await authenticatedProfile()
     const context = await ownedReport(profile, input.reportId)
     const request = input.requestId && input.scanId ? reportSaveInput({
-      reportId: input.reportId, scanId: input.scanId, locale: input.locale, executiveSummary: input.executiveSummary,
+      reportId: input.reportId, scanId: input.scanId, locale: input.locale,
+      executiveSummary: input.executiveSummary,
+      ...(input.expectedLatestVersionId ? { expectedLatestVersionId: input.expectedLatestVersionId } : {}),
     }) : null
     if (input.requestId && !request) throw new ReportServiceError('invalid_request')
     if (request && input.requestId) {
@@ -621,7 +624,10 @@ export async function appendAuthenticatedClientReportVersion(input: {
       createdBy: profile.id,
     }
     const updated = authoritativeAppendResult(input.requestId
-      ? await saveClientReportRequest({ ...write, requestId: input.requestId })
+      ? await saveClientReportRequest({
+          ...write, requestId: input.requestId,
+          ...(input.expectedLatestVersionId ? { expectedLatestVersionId: input.expectedLatestVersionId } : {}),
+        })
       : await appendClientReportVersion(write), expected)
     if (!updated) throw new ReportServiceError('service_unavailable')
 

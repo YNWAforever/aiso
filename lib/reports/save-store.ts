@@ -36,10 +36,29 @@ export async function loadReportSaveReceipt(input: {
   } catch (error) { return failure(error) }
 }
 export async function saveClientReportRequest(
-  input: ReportVersionWriteInput & { requestId: string; reportId: string | null },
+  input: ReportVersionWriteInput & {
+    requestId: string
+    reportId: string | null
+    expectedLatestVersionId?: string
+  },
 ) {
   const sql = db()
   try {
+    if (input.expectedLatestVersionId !== undefined) {
+      if (!input.reportId) throw new Error('CLIENT_REPORT_SAVE_INVALID')
+      const rows = await sql`
+        select public.save_client_report_draft_request_with_version(
+          p_request_id=>${input.requestId}::uuid, p_report_id=>${input.reportId}::uuid,
+          p_account_id=>${input.accountId}::uuid, p_client_id=>${input.clientId}::uuid,
+          p_source_scan_id=>${input.sourceScanId}::uuid, p_previous_scan_id=>${input.previousScanId}::uuid,
+          p_locale=>${input.locale}, p_executive_summary=>${input.executiveSummary},
+          p_snapshot_schema_version=>${input.snapshotSchemaVersion}::int,
+          p_snapshot=>${JSON.stringify(input.snapshot)}::jsonb, p_created_by=>${input.createdBy}::uuid,
+          p_expected_latest_version_id=>${input.expectedLatestVersionId}::uuid
+        ) as result
+      `
+      return storedReportSaveMutation(rows[0]?.result, input, input.reportId)
+    }
     const rows = await sql`
       select public.save_client_report_draft_request(
         p_request_id=>${input.requestId}::uuid, p_report_id=>${input.reportId}::uuid,

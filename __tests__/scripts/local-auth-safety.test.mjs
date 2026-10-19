@@ -27,8 +27,22 @@ describe('local real Auth harness safety boundaries', () => {
     expect(tools.parseLocalAuthScenario(['--scenario=report-recovery'])).toBe('report-recovery')
     expect(tools.parseLocalAuthScenario(['--scenario=report-list'])).toBe('report-list')
     expect(tools.parseLocalAuthScenario(['--scenario=report-multi'])).toBe('report-multi')
+    expect(tools.parseLocalAuthScenario(['--scenario=report-conflict'])).toBe('report-conflict')
     for (const args of [['--scenario=production'], ['--scenario='], ['--scenario=brand-isolation', '--scenario=first-value']]) {
       expect(() => tools.parseLocalAuthScenario(args)).toThrow('LOCAL_AUTH_SCENARIO_INVALID')
+    }
+  })
+  it('allows the two-tab conflict journey only on its exact isolated target', () => {
+    const config = { ...spec(), mode: tools.evidenceMode, scenario: 'report-conflict',
+      containerVerified: true, containerId, dbHost: '127.0.0.1' }
+    const identity = { id: runId, account_id: 'c1111111-1111-4111-8111-111111111111' }
+    const email = `desktop-en-${runId}@fixture-aiso.example`
+    expect(tools.verifyReportRecoveryFixture(config, identity, email)).toBe(identity.account_id)
+    expect(tools.artifactDirectory(process.cwd(), runId, 'report-conflict'))
+      .toBe(resolve('artifacts', 'report-conflict-local-20261019', `local-auth-${runId}`))
+    for (const patch of [{ mode: 'production' }, { scenario: 'unknown' }, { database: 'shared' },
+      { dbHost: 'shared-host' }, { containerVerified: false }, { containerId: 'unknown' }]) {
+      expect(() => tools.verifyReportRecoveryFixture({ ...config, ...patch }, identity, email)).toThrow('LOCAL_AUTH_REPORT_TARGET')
     }
   })
   it('allows multi-report fixtures only for their exact isolated run and identity', () => {

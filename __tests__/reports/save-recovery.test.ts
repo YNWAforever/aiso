@@ -50,6 +50,8 @@ beforeAll(async () => {
   const file = 'supabase/migrations/071_report_save_receipts.sql'
   // An absent migration leaves the old schema intact for the first RED run.
   if (existsSync(file)) await pg.exec(readFileSync(file, 'utf8'))
+  const optimisticFile = 'supabase/migrations/072_report_expected_version.sql'
+  if (existsSync(optimisticFile)) await pg.exec(readFileSync(optimisticFile, 'utf8'))
   await pg.exec(`alter table scans add column score numeric default 40,add column grade text default 'D',add column results jsonb;
     create table agent_recommendations(id uuid,scan_id uuid,category text,priority text,recommendation text,impact_score numeric);
     insert into account_report_branding(account_id,agency_name) values('${account}','Synthetic agency');`)
@@ -71,6 +73,17 @@ async function save(requestId: string, reportId: string | null = null, text = su
       p_source_scan_id=>$5::uuid,p_previous_scan_id=>null::uuid,p_locale=>'en',
       p_executive_summary=>$6,p_snapshot_schema_version=>1,p_snapshot=>$7::jsonb,p_created_by=>$8::uuid) as result`,
   [requestId, reportId, account, clientId, scan, text, JSON.stringify({ ...reportSnapshot('en'), executiveSummary: text }), actor])
+  return result.rows[0].result
+}
+async function saveExpected(requestId: string, reportId: string, expectedVersionId: string, text: string) {
+  const result = await pg.query<{ result: { report: { id: string; latest_version_id: string }; version: { id: string; version_number: number } } }>(`
+    select public.save_client_report_draft_request_with_version(
+      p_request_id=>$1::uuid,p_report_id=>$2::uuid,p_account_id=>$3::uuid,p_client_id=>$4::uuid,
+      p_source_scan_id=>$5::uuid,p_previous_scan_id=>null::uuid,p_locale=>'en',
+      p_executive_summary=>$6,p_snapshot_schema_version=>1,p_snapshot=>$7::jsonb,
+      p_created_by=>$8::uuid,p_expected_latest_version_id=>$9::uuid) as result`,
+  [requestId, reportId, account, client, scan, text,
+    JSON.stringify({ ...reportSnapshot('en'), executiveSummary: text }), actor, expectedVersionId])
   return result.rows[0].result
 }
 async function counts() {
@@ -101,7 +114,7 @@ it('replays an append after later versions without overwriting the frozen acknow
   const id = crypto.randomUUID()
   const appended = await save(id, reportId, summary + ' Version two.')
   await save(crypto.randomUUID(), reportId, summary + ' Version three.')
-  const before = await counts()
+  const before = await counts() as { reports: number; versions: number; receipts: number }
   expect(await save(id, reportId, summary + ' Version two.')).toEqual(appended)
   expect(appended.version.version_number).toBe(2)
   expect(await counts()).toEqual(before)
@@ -116,6 +129,52 @@ it('rejects reusing an identity for changed content, operation or client without
   await expect(save(id, original.report.id)).rejects.toThrow('CLIENT_REPORT_SAVE_CONFLICT')
   await expect(save(id, null, summary, otherClient)).rejects.toThrow('CLIENT_REPORT_SAVE_CONFLICT')
   expect(await counts()).toEqual(before)
+})
+it('allows one append from an expected version and rejects a stale concurrent tab without a receipt', async () => {
+  profile = owner
+  const created = await save(crypto.randomUUID()), reportId = created.report.id
+  const before = await counts() as { reports: number; versions: number; receipts: number }
+  const winningId = crypto.randomUUID(), winningText = summary + ' Winning tab.'
+  const winning = await saveExpected(winningId, reportId, created.version.id, winningText)
+  expect(winning.version.version_number).toBe(2)
+  const losingId = crypto.randomUUID(), losingText = summary + ' Stale tab.'
+  await expect(saveExpected(losingId, reportId, created.version.id, losingText))
+    .rejects.toThrow('CLIENT_REPORT_SAVE_CONFLICT')
+  expect(await saveExpected(winningId, reportId, created.version.id, winningText)).toEqual(winning)
+  expect(await counts()).toEqual({ reports: before.reports, versions: before.versions + 1, receipts: before.receipts + 1 })
+  const current = (await pg.query<{ latest_version_id: string; version_number: number }>(`
+    select r.latest_version_id,v.version_number from client_reports r
+    join client_report_versions v on v.id=r.latest_version_id where r.id=$1`, [reportId])).rows[0]
+  expect(current).toEqual({ latest_version_id: winning.version.id, version_number: 2 })
+  const receipts = (await pg.query<{ request_id: string; request_payload: unknown }>(
+    'select request_id,request_payload from report_save_receipts where report_id=$1 order by created_at', [reportId])).rows
+  expect(receipts.find(row => row.request_id === losingId)).toBeUndefined()
+  expect(receipts.find(row => row.request_id === winningId)?.request_payload).toEqual({
+    reportId, scanId: scan, locale: 'en', executiveSummary: winningText,
+    expectedLatestVersionId: created.version.id,
+  })
+})
+it('carries the expected version through the authenticated append API and returns 409 for a stale tab', async () => {
+  profile = owner
+  const created = await save(crypto.randomUUID()), reportId = created.report.id
+  const before = await counts() as { reports: number; versions: number; receipts: number }
+  const post = (id: string, text: string) => APPEND_REPORT(new Request(
+    `https://fixture.invalid/api/client-reports/${reportId}/versions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json', 'X-Report-Request-Id': id,
+        'X-Report-Scan-Id': scan, 'X-Report-Expected-Version-Id': created.version.id,
+      },
+      body: JSON.stringify({ locale: 'en', executiveSummary: text }),
+    },
+  ), { params: Promise.resolve({ reportId }) })
+  const winner = await post(crypto.randomUUID(), summary + ' API winner.')
+  expect(winner.status).toBe(201)
+  expect((await winner.json()).reviewArtifact.versionNumber).toBe(2)
+  const stale = await post(crypto.randomUUID(), summary + ' API stale.')
+  expect(stale.status).toBe(409)
+  expect(await stale.json()).toEqual({ error: 'conflict' })
+  expect(await counts()).toEqual({ reports: before.reports, versions: before.versions + 1, receipts: before.receipts + 1 })
 })
 it('rolls back both the report/version and receipt if receipt persistence fails', async () => {
   const before = await counts()
