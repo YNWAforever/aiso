@@ -50,6 +50,14 @@ it('permits report-conflict only with the same owned build isolation', () => {
   expect(env.OPENROUTER_API_KEY).toBe('')
   expect(env.FEATURE_PULSE_ATTEMPTS).toBe('false')
 })
+it('permits report-task only with the same owned build isolation', () => {
+  const env = tools.localReportBuildEnvironment({}, [], { ...config(), scenario: 'report-task' })
+  expect(env.FEATURE_PULSE_ATTEMPTS).toBe('false')
+  expect(env.DATABASE_URL).toBe('')
+  expect(env.OPENROUTER_API_KEY).toBe('')
+  expect(env.REPORT_SHARE_SECRET).toBe('')
+  expect(() => tools.localReportBuildEnvironment({}, [], { ...config(), scenario: 'unknown-report' })).toThrow('LOCAL_AUTH_BUILD_TARGET')
+})
 it('rejects remote, HTTP, unowned or malformed origins and target metadata before any build', () => {
   expect(typeof tools.localReportBuildEnvironment).toBe('function')
   for (const patch of [

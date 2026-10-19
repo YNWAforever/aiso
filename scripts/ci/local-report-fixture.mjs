@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { verifyReportRecoveryFixture } from './local-auth-safety.mjs'
 
 export async function prepareReportRecoveryFixture(config, pool, email, scanFixture, record) {
-  if (!['report-recovery', 'report-list', 'report-multi', 'report-conflict'].includes(config.scenario) || typeof email !== 'string'
+  if (!['report-recovery', 'report-list', 'report-multi', 'report-conflict', 'report-task'].includes(config.scenario) || typeof email !== 'string'
     || !email.endsWith(`-${config.runId}@fixture-aiso.example`)) throw new Error('LOCAL_AUTH_REPORT_TARGET')
   const identities = await pool.query(`select u.id,p.account_id from neon_auth."user" u
     join public.profiles p on p.id=u.id where u.email=$1`, [email])

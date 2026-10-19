@@ -20,7 +20,7 @@ function normalizedText(value: string, maximum: number): string | null {
 
 function normalizedNullableTimestamp(value: string | null): string | null {
   if (value === null) return null
-  return Number.isFinite(Date.parse(value)) ? value : null
+  return Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null
 }
 
 function normalizedLimitations(values: readonly string[]): string[] {
