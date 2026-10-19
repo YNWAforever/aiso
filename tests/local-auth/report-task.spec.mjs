@@ -29,6 +29,17 @@ async function ensureOperationsOpen(page, label) {
   if (!open) await details.locator('summary').click()
 }
 
+async function setVisibleDueDateWithoutInputEvent(page, dueAtValue) {
+  await page.evaluate(({ dueAtValue }) => {
+    const date = document.querySelector('input[type="date"]')
+    if (!(date instanceof HTMLInputElement)) throw new Error('SYNTHETIC_DUE_DATE_CONTROL_NOT_FOUND')
+
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+    if (!setter) throw new Error('SYNTHETIC_NATIVE_VALUE_SETTER_NOT_FOUND')
+    setter.call(date, dueAtValue)
+  }, { dueAtValue })
+}
+
 for (const lang of ['en', 'zh-HK']) {
   test(`${lang} report finding v2 task provenance, v3 warning, report and reload`, async ({ page, context, request }, info) => {
     const project = info.project.name, prefix = `${project}-${lang}`
@@ -232,13 +243,19 @@ for (const lang of ['en', 'zh-HK']) {
       await expect(page.locator('[data-operation-revision="2"]')).toBeVisible()
       await target.fill(changedTarget)
       await acceptance.fill(changedAcceptance)
-      await dueAt.fill(changedDueAt)
       await status.selectOption('done')
+      await setVisibleDueDateWithoutInputEvent(page, changedDueAt)
+      await expect(dueAt).toHaveValue(changedDueAt)
       const operationSave = page.waitForResponse(response => response.request().method() === 'PATCH'
         && new URL(response.url()).pathname === `/api/clients/${fixture.clientId}/work-items/${taskId}/operations`)
       await page.getByRole('button', { name: opportunityCopy.saveOperations, exact: true }).click()
       const operationResponse = await operationSave
       expect(operationResponse.status()).toBe(200)
+      const operationBody = operationResponse.request().postDataJSON()
+      expect(operationBody).toMatchObject({
+        dueAt: changedDueAt,
+        operationStatus: 'done',
+      })
       await expect(page.locator('[data-operation-reported="pending-verification"]')).toBeVisible()
       await expect(page.locator('[data-verification-state="insufficient_evidence"]')).toBeVisible()
       await expect(page.getByText(opportunityCopy.verificationInsufficient, { exact: true })).toBeVisible()
@@ -256,6 +273,12 @@ for (const lang of ['en', 'zh-HK']) {
         operation_status: 'done',
         notes: changedNotes,
       })
+      audit.dueAtPersistence = {
+        requestDueAt: operationBody.dueAt,
+        databaseDueAt: databaseAfterReport.items[0].due_at,
+        reloadVerified: false,
+        reloginVerified: false,
+      }
       expect(databaseAfterReport.items[0].evidence_snapshot.reportProvenance).toMatchObject({
         reportVersionId: v2Id,
         reportVersionNumber: 2,
@@ -292,6 +315,7 @@ for (const lang of ['en', 'zh-HK']) {
       await expect(target).toHaveValue(changedTarget)
       await expect(acceptance).toHaveValue(changedAcceptance)
       await expect(dueAt).toHaveValue(changedDueAt)
+      audit.dueAtPersistence.reloadVerified = true
       await expect(page.locator('[data-operation-reported="pending-verification"]')).toBeVisible()
 
       audit.step = 'relogin-task'
@@ -329,6 +353,7 @@ for (const lang of ['en', 'zh-HK']) {
       await expect(notes).toHaveValue(changedNotes)
       await expect(target).toHaveValue(changedTarget)
       await expect(dueAt).toHaveValue(changedDueAt)
+      audit.dueAtPersistence.reloginVerified = true
       await expect(page.locator('[data-operation-reported="pending-verification"]')).toBeVisible()
       await expect(page.locator('[data-verification-state="insufficient_evidence"]')).toBeVisible()
 

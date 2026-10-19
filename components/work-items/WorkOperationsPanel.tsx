@@ -42,9 +42,11 @@ export function WorkOperationsPanel({
   const [comparison, setComparison] = useState<{ comparable: boolean; delta: number | null; reasons: string[] } | null>(null)
   const pending = useRef(false), intent = useRef<{ key: string; value: string } | null>(null)
   const persisted = useRef<string | null>(null), planRef = useRef<Plan | null>(null)
+  const dueAtInput = useRef<HTMLInputElement | null>(null)
   const endpoint = `/api/clients/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(itemId)}/operations`
   const preparing = mode !== 'details', readOnly = mode === 'review'
   const dirty = Boolean(plan && savedSignature && operationFields(plan) !== operationFields(JSON.parse(savedSignature)))
+  const updatePlan = (patch: Partial<Plan>) => setPlan(current => current ? { ...current, ...patch } : current)
   useEffect(() => { planRef.current = plan }, [plan])
   useEffect(() => { onDirtyChange?.(dirty || busy) }, [dirty, busy, onDirtyChange])
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
@@ -122,7 +124,13 @@ export function WorkOperationsPanel({
     setError('')
     setStatus('')
     try {
-      const body = parseWorkOperations(plan)
+      // Some browsers, assistive tools and automation update the visible date
+      // without emitting the input/change sequence React normally observes.
+      // Treat the mounted native control as the source of truth at save time.
+      const dueAt = dueAtInput.current ? dueAtInput.current.value || null : plan.dueAt
+      const effectivePlan = { ...plan, dueAt }
+      setPlan(effectivePlan)
+      const body = parseWorkOperations(effectivePlan)
       const response = await fetch(endpoint, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body), signal: AbortSignal.timeout(15_000),
@@ -178,12 +186,12 @@ export function WorkOperationsPanel({
 
   const advanced = plan && <>
     <p>{t('groupEvidence', { count: plan.evidence.length })}</p>
-    <label className="block">{t('owner')}<select className="min-h-11 border" value={plan.ownerId ?? ''} disabled={busy} onChange={event => setPlan({ ...plan, ownerId: event.target.value || null })}>
+    <label className="block">{t('owner')}<select className="min-h-11 border" value={plan.ownerId ?? ''} disabled={busy} onChange={event => updatePlan({ ownerId: event.target.value || null })}>
       <option value="">{t('unassigned')}</option>
       {plan.owners.map(owner => <option key={owner.id} value={owner.id}>{owner.display_name ?? owner.id}</option>)}
     </select></label>
-    <label className="block">{t('dueAt')}<input type="date" className="min-h-11 border" value={plan.dueAt ?? ''} disabled={busy} onChange={event => setPlan({ ...plan, dueAt: event.target.value || null })} /></label>
-    <label className="block">{t('operationStatus')}<select className="min-h-11 border" value={plan.operationStatus} disabled={busy} onChange={event => setPlan({ ...plan, operationStatus: event.target.value as Plan['operationStatus'] })}>
+    <label className="block">{t('dueAt')}<input ref={dueAtInput} name="dueAt" type="date" className="min-h-11 border" value={plan.dueAt ?? ''} disabled={busy} onChange={event => updatePlan({ dueAt: event.target.value || null })} /></label>
+    <label className="block">{t('operationStatus')}<select className="min-h-11 border" value={plan.operationStatus} disabled={busy} onChange={event => updatePlan({ operationStatus: event.target.value as Plan['operationStatus'] })}>
       {(['todo', 'in_progress', 'done'] as const).map(value => <option key={value} value={value}>{t('operation_' + value)}</option>)}
     </select></label>
   </>
@@ -217,7 +225,7 @@ export function WorkOperationsPanel({
         <dt className="font-semibold">{t('acceptanceCriteria')}</dt><dd className="whitespace-pre-wrap break-words">{plan.acceptanceCriteria || t('acceptanceMissing')}</dd>
       </dl> : <>
         {(['targetUrl', 'acceptanceCriteria'] as const).map(key => <label key={key} className="block">{t(key)}
-          <textarea rows={key === 'targetUrl' ? 2 : 4} className="block min-h-11 w-full rounded border bg-background p-2 text-foreground" value={plan[key] ?? ''} disabled={busy} onChange={event => { setStatus(''); setPlan({ ...plan, [key]: key === 'targetUrl' ? event.target.value || null : event.target.value }) }} />
+          <textarea rows={key === 'targetUrl' ? 2 : 4} className="block min-h-11 w-full rounded border bg-background p-2 text-foreground" value={plan[key] ?? ''} disabled={busy} onChange={event => { setStatus(''); updatePlan({ [key]: key === 'targetUrl' ? event.target.value || null : event.target.value }) }} />
         </label>)}
         {mode === 'prepare' ? <details onToggle={event => setOpen(event.currentTarget.open)}><summary className="min-h-11 font-semibold">{t('operationsTitle')}</summary><div className="space-y-3">{advanced}</div></details> : advanced}
         <button type="button" className="min-h-11 underline" disabled={busy} onClick={() => void save()}>{t('saveOperations')}</button>
