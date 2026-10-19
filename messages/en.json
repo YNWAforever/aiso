@@ -1163,6 +1163,8 @@
     "save_again": "The summary changed while saving. Save it again before review.",
     "save_conflict": "Another tab saved a newer version. Your edits were kept and were not saved. Reload the latest version before continuing.",
     "save_conflict_title": "Newer version saved",
+    "save_recovered_superseded": "Your original save was recovered, but another tab has since saved a newer version. Reload the latest version before continuing.",
+    "save_recovered_superseded_title": "Your saved version was superseded",
     "reload_latest": "Reload latest version",
     "reload_conflict_confirm": "Reload the latest saved version? Your unsaved changes in this tab will be discarded.",
     "back_to_reports": "Back to client reports",

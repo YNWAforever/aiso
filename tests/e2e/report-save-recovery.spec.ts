@@ -11,6 +11,12 @@ type Call = {
   method: string; path: string; id: string | undefined; scan: string | undefined
   expectedVersion: string | undefined; body: Record<string, string> | null
 }
+type SyntheticSavedResult = {
+  reviewArtifact?: { versionNumber?: number; versionId?: string }
+  currentLatestVersionId?: string
+  currentLatestVersionNumber?: number
+  [key: string]: unknown
+}
 const createPath = `/api/clients/${reportClientId}/reports`
 const versionPath = '/api/client-reports/synthetic-report/versions'
 const readBase = `/api/clients/${reportClientId}/report-save-requests/`
@@ -54,6 +60,7 @@ async function fixture(page: Page, lang: Locale, existing = false, newReportRout
     if (call.method === 'POST' && [createPath, versionPath].includes(call.path)) {
       const id = call.id ?? 'baseline-without-identity'
       if (call.path === versionPath && call.expectedVersion
+        && !state.receipts.has(id)
         && call.expectedVersion !== `synthetic-version-${state.versionNumber}`) {
         return route.fulfill({ status: 409, json: { error: 'conflict' } })
       }
@@ -77,7 +84,20 @@ async function fixture(page: Page, lang: Locale, existing = false, newReportRout
       }
       if (state.transport === 'drop') return route.abort()
       const receipt = state.receipts.get(id) as { result: unknown } | undefined
-      return route.fulfill({ json: receipt?.result ?? { error: 'SYNTHETIC_NO_COMMIT' }, status: receipt ? 201 : 503 })
+      const result = receipt?.result && typeof receipt.result === 'object' && receipt.result !== null
+        ? receipt.result as SyntheticSavedResult
+        : null
+      const currentLatest = result?.reviewArtifact?.versionNumber !== undefined
+        && state.versionNumber > result.reviewArtifact.versionNumber
+        ? {
+            currentLatestVersionId: `synthetic-version-${state.versionNumber}`,
+            currentLatestVersionNumber: state.versionNumber,
+          }
+        : {}
+      return route.fulfill({
+        json: result ? { ...result, ...currentLatest } : { error: 'SYNTHETIC_NO_COMMIT' },
+        status: result ? 201 : 503,
+      })
     }
     if (call.method === 'GET' && call.path.startsWith(readBase)) {
       if (state.read === 'hold') {
@@ -88,8 +108,19 @@ async function fixture(page: Page, lang: Locale, existing = false, newReportRout
       if (state.read === 'forbidden') return route.fulfill({ status: 404, json: { error: 'not_found' } })
       if (state.read === 'invalid') return route.fulfill({ json: { reports: [] } })
       const id = call.path.slice(readBase.length)
-      const receipt = structuredClone(state.receipts.get(id) ?? null) as { request: { scanId: string } } | null
+      const receipt = structuredClone(state.receipts.get(id) ?? null) as {
+        request: { scanId: string }
+        result?: SyntheticSavedResult
+      } | null
       if (receipt && state.read === 'wrong-scan') receipt.request.scanId = 'foreign-synthetic-scan'
+      if (receipt?.result?.reviewArtifact?.versionNumber !== undefined
+        && state.versionNumber > receipt.result.reviewArtifact.versionNumber) {
+        receipt.result = {
+          ...receipt.result,
+          currentLatestVersionId: `synthetic-version-${state.versionNumber}`,
+          currentLatestVersionNumber: state.versionNumber,
+        }
+      }
       return route.fulfill({ json: { receipt } })
     }
     state.unexpected.push(call.path)
@@ -355,6 +386,77 @@ for (const lang of ['en', 'zh-HK'] as const) {
     expect(writes(f.state.calls)[0].expectedVersion).toBe('synthetic-version-1')
     expect(f.state.writes).toBe(0)
     expect(f.state.receipts.size).toBe(0)
+    await isolated(f.state)
+  })
+  test(`Report readback keeps the later tab version after a committed save response is lost ${lang}`, async ({ page }) => {
+    const f = await fixture(page, lang, true)
+    f.state.transport = 'drop'
+    await page.getByRole('button', { name: f.copy.save_draft, exact: true }).click()
+    await unconfirmed(page, f)
+    const original = writes(f.state.calls)[0]
+    expect(original.expectedVersion).toBe('synthetic-version-1')
+    f.state.transport = 'success'
+
+    const laterSummary = lang === 'en'
+      ? `${f.edited} A later tab committed this newer private version before the original request was read back.`
+      : `${f.edited} 另一個分頁已在讀回原請求之前提交這個較新私人版本。`
+    expect(laterSummary.trim().length).toBeGreaterThanOrEqual(40)
+    const later = await page.evaluate(async input => {
+      const response = await fetch(input.path, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Report-Request-Id': input.requestId,
+          'X-Report-Scan-Id': input.scanId,
+          'X-Report-Expected-Version-Id': input.expectedVersion,
+        },
+        body: JSON.stringify({ locale: input.locale, executiveSummary: input.executiveSummary }),
+      })
+      return { status: response.status, body: await response.json() }
+    }, {
+      path: versionPath, requestId: crypto.randomUUID(),
+      scanId: reportScanId, expectedVersion: 'synthetic-version-2',
+      locale: lang, executiveSummary: laterSummary,
+    })
+    expect(later.status).toBe(201)
+    expect(later.body.reviewArtifact.versionNumber).toBe(3)
+    expect(f.state.versionNumber).toBe(3)
+
+    await f.check.click()
+    await expect(page.locator('[data-notice-kind="warning"]')).toHaveText(f.copy.save_recovered_superseded)
+    await expect(page.getByRole('heading', { name: f.copy.save_recovered_superseded_title, exact: true })).toBeVisible()
+    await expect(f.input).toHaveValue(f.original)
+    await expect(page.getByRole('button', { name: f.copy.save_draft, exact: true })).toBeDisabled()
+    await expect(page.getByRole('button', { name: f.copy.review_report, exact: true })).toBeDisabled()
+    await expect(page.getByRole('button', { name: f.copy.polish_ai, exact: true })).toBeDisabled()
+    await expect(page.getByRole('button', { name: f.copy.reload_latest, exact: true })).toBeEnabled()
+    expect(f.state.writes).toBe(2)
+
+    const retry = await page.evaluate(async input => {
+      const response = await fetch(input.path, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Report-Request-Id': input.requestId,
+          'X-Report-Scan-Id': input.scanId,
+          'X-Report-Expected-Version-Id': input.expectedVersion,
+        },
+        body: JSON.stringify(input.body),
+      })
+      return { status: response.status, body: await response.json() }
+    }, {
+      path: versionPath, requestId: original.id!,
+      scanId: original.scan!, expectedVersion: original.expectedVersion!,
+      body: original.body!,
+    })
+    expect(retry.status).toBe(201)
+    expect(retry.body.reviewArtifact.versionId).toBe('synthetic-version-2')
+    expect(retry.body.currentLatestVersionId).toBe('synthetic-version-3')
+    expect(retry.body.currentLatestVersionNumber).toBe(3)
+    expect(writes(f.state.calls)).toHaveLength(3)
+    expect(f.state.writes).toBe(2)
+    expect(f.state.receipts.size).toBe(2)
+    expect(f.state.versionNumber).toBe(3)
     await isolated(f.state)
   })
 }

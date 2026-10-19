@@ -1163,6 +1163,8 @@
     "save_again": "摘要在儲存期間再有改動。請重新儲存後才進行審閱。",
     "save_conflict": "另一個分頁已儲存較新版本。你的修改已保留，但未有儲存。請先重新載入最新版本再繼續。",
     "save_conflict_title": "已有較新版本",
+    "save_recovered_superseded": "已找回你原先儲存的版本，但另一個分頁其後已儲存較新版本。請先重新載入最新版本再繼續。",
+    "save_recovered_superseded_title": "你儲存的版本已被較新版本取代",
     "reload_latest": "重新載入最新版本",
     "reload_conflict_confirm": "重新載入最新已儲存版本？此分頁未儲存的修改會遭到捨棄。",
     "back_to_reports": "返回客戶報告",

@@ -176,6 +176,48 @@ it('carries the expected version through the authenticated append API and return
   expect(await stale.json()).toEqual({ error: 'conflict' })
   expect(await counts()).toEqual({ reports: before.reports, versions: before.versions + 1, receipts: before.receipts + 1 })
 })
+it('reads and replays an acknowledged request without overwriting a newer version', async () => {
+  profile = owner
+  const created = await save(crypto.randomUUID()), reportId = created.report.id
+  const originalId = crypto.randomUUID(), originalText = summary + ' Original response was lost.'
+  const original = await saveExpected(originalId, reportId, created.version.id, originalText)
+  const laterText = summary + ' Another tab saved this newer version.'
+  const later = await saveExpected(crypto.randomUUID(), reportId, original.version.id, laterText)
+  const before = await counts()
+
+  const read = await readReceipt(client, originalId), data = await read.json()
+  expect(read.status).toBe(200)
+  expect(data.receipt.result).toMatchObject({
+    report: { id: reportId, latestVersionNumber: 2 },
+    reviewArtifact: { versionId: original.version.id, versionNumber: 2 },
+    currentLatestVersionId: later.version.id,
+    currentLatestVersionNumber: 3,
+  })
+
+  const retry = await APPEND_REPORT(new Request(
+    `https://fixture.invalid/api/client-reports/${reportId}/versions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json', 'X-Report-Request-Id': originalId,
+        'X-Report-Scan-Id': scan, 'X-Report-Expected-Version-Id': created.version.id,
+      },
+      body: JSON.stringify({ locale: 'en', executiveSummary: originalText }),
+    },
+  ), { params: Promise.resolve({ reportId }) })
+  const replay = await retry.json()
+  expect(retry.status).toBe(201)
+  expect(replay).toMatchObject({
+    report: { id: reportId, latestVersionNumber: 2 },
+    reviewArtifact: { versionId: original.version.id, versionNumber: 2 },
+    currentLatestVersionId: later.version.id,
+    currentLatestVersionNumber: 3,
+  })
+  expect(await counts()).toEqual(before)
+  const current = (await pg.query<{ latest_version_id: string; executive_summary: string }>(`
+    select r.latest_version_id,v.executive_summary from client_reports r
+    join client_report_versions v on v.id=r.latest_version_id where r.id=$1`, [reportId])).rows[0]
+  expect(current).toEqual({ latest_version_id: later.version.id, executive_summary: laterText })
+})
 it('rolls back both the report/version and receipt if receipt persistence fails', async () => {
   const before = await counts()
   await pg.exec(`create function fail_synthetic_receipt() returns trigger language plpgsql as $$
@@ -309,7 +351,12 @@ it('creates, appends, replays and reads both acknowledgements through real API/s
   expect(second.reviewArtifact).toMatchObject({ versionNumber: 2, snapshot: { executiveSummary: secondText } })
   expect(await (await append()).json()).toEqual(second)
   expect((await (await readReceipt(client, appendId)).json()).receipt.result).toEqual(second)
-  expect((await (await readReceipt(client, createId)).json()).receipt.result).toEqual(first)
+  const createAfterAppend = (await (await readReceipt(client, createId)).json()).receipt.result
+  expect(createAfterAppend).toMatchObject(first)
+  expect(createAfterAppend).toMatchObject({
+    currentLatestVersionId: second.reviewArtifact.versionId,
+    currentLatestVersionNumber: 2,
+  })
   expect(await counts()).toEqual({ reports: before.reports + 1, versions: before.versions + 2, receipts: before.receipts + 2 })
 })
 it('replays the same whitespace normalization request through the API without inserting twice', async () => {

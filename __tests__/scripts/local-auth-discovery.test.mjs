@@ -7,7 +7,7 @@ import { expect, it } from 'vitest'
 import { evidenceMode, localEnvironment } from '../../scripts/ci/local-auth-safety.mjs'
 
 for (const [scenario, file] of [['first-value', 'first-value.spec.mjs'], ['brand-isolation', 'brand-isolation.spec.mjs'], ['auth-rate-limit', 'auth-rate-limit.spec.mjs'], ['login-rate-limit', 'login-rate-limit.spec.mjs'], ['account-unlock-rate-limit', 'account-unlock-rate-limit.spec.mjs'], ['report-recovery', 'report-recovery.spec.mjs'], ['report-list', 'report-list.spec.mjs'], ['report-multi', 'report-multi.spec.mjs'], ['report-conflict', 'report-conflict.spec.mjs']]) {
-  it(`discovers only the four requested ${scenario} cases without starting a runtime`, () => {
+  it(`discovers only the expected requested ${scenario} cases without starting a runtime`, () => {
     const dir = mkdtempSync(join(tmpdir(), 'aiso-local-auth-discovery-')), config = join(dir, 'discovery-only.json')
     writeFileSync(config, JSON.stringify({
       mode: evidenceMode, scenario, containerVerified: true, discoveryOnly: true,
@@ -28,10 +28,11 @@ for (const [scenario, file] of [['first-value', 'first-value.spec.mjs'], ['brand
         for (const nested of suite.suites ?? []) walk(nested)
       }
       walk(value)
-      expect(cases).toHaveLength(4)
+      const expectedCases = scenario === 'report-conflict' ? 8 : 4
+      expect(cases).toHaveLength(expectedCases)
       expect(cases.every(row => resolve(value.config.rootDir, row.file) === resolve('tests/local-auth', file))).toBe(true)
       for (const project of ['local-real-auth-desktop', 'local-real-auth-mobile']) {
-        expect(cases.filter(row => row.project === project)).toHaveLength(2)
+        expect(cases.filter(row => row.project === project)).toHaveLength(expectedCases / 2)
         for (const lang of ['en', 'zh-HK']) expect(cases.some(row => row.project === project && row.title.startsWith(`${lang} `))).toBe(true)
       }
     } finally { unlinkSync(config); rmdirSync(dir) }

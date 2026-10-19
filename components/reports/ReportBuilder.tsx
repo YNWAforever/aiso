@@ -42,6 +42,7 @@ export { installReportNavigationBlocker } from '@/lib/reports/navigation-blocker
 type BuilderStep = 'compose' | 'review' | 'publish'
 type NoticeKind = 'idle' | 'loading' | 'success' | 'warning' | 'error'
 type SaveAttempt = PendingReportSave & { startingSummary: string; startingRevision: number }
+type VersionConflictKind = 'stale-save' | 'superseded-recovery'
 
 export function hasUnsavedReportChanges(savedSummary: string, currentSummary: string): boolean {
   return savedSummary !== currentSummary
@@ -103,7 +104,7 @@ export function ReportBuilder({
   const [canRetrySave, setCanRetrySave] = useState(false)
   const [restoringSave, setRestoringSave] = useState(Boolean(saveScope))
   const [restoreError, setRestoreError] = useState(false)
-  const [versionConflict, setVersionConflict] = useState(false)
+  const [versionConflict, setVersionConflict] = useState<VersionConflictKind | null>(null)
   const saveAttemptRef = useRef<SaveAttempt | null>(null)
   const saveBusyRef = useRef(false)
   const summaryRef = useRef(initialSnapshot.executiveSummary)
@@ -113,7 +114,7 @@ export function ReportBuilder({
   const activeReportId = report?.id ?? null
   const saveStorageKey = saveScope
     ? `aiso-report-save-v1:${saveScope}:${clientId}:${scanId}:${activeReportId ?? 'new'}:${lang}` : null
-  const blocked = pending !== null || unconfirmed !== null || restoringSave || restoreError || versionConflict
+  const blocked = pending !== null || unconfirmed !== null || restoringSave || restoreError || versionConflict !== null
 
   useEffect(() => {
     if (!saveStorageKey) return
@@ -224,6 +225,9 @@ export function ReportBuilder({
   }
 
   function applySavedDraft(data: ReportSaveResponse, attempt: SaveAttempt) {
+    const supersededRecovery = data.currentLatestVersionId !== undefined
+      && data.currentLatestVersionNumber !== undefined
+      && data.currentLatestVersionNumber > data.reviewArtifact.versionNumber
     setReport(data.report)
     setSavedArtifact(data.reviewArtifact)
     setSavedSummary(data.reviewArtifact.snapshot.executiveSummary)
@@ -240,7 +244,7 @@ export function ReportBuilder({
     saveAttemptRef.current = null
     setUnconfirmed(null)
     setCanRetrySave(false)
-    setVersionConflict(false)
+    setVersionConflict(supersededRecovery ? 'superseded-recovery' : null)
     forgetSave(attempt)
     const newPath = `/${lang}/dashboard/${encodeURIComponent(clientId)}/reports/new`
     if (window.location.pathname === newPath) {
@@ -251,9 +255,11 @@ export function ReportBuilder({
           `/${lang}/dashboard/${encodeURIComponent(clientId)}/reports/${encodeURIComponent(data.report.id)}`)
       } catch { /* The saved-report link still provides the confirmed destination. */ }
     }
-    setNotice(summaryRef.current === data.reviewArtifact.snapshot.executiveSummary
-      ? { kind: 'success', text: t('saved') }
-      : { kind: 'warning', text: t('save_again') })
+    setNotice(supersededRecovery
+      ? { kind: 'warning', text: t('save_recovered_superseded') }
+      : summaryRef.current === data.reviewArtifact.snapshot.executiveSummary
+        ? { kind: 'success', text: t('saved') }
+        : { kind: 'warning', text: t('save_again') })
     // Invalidate stale Reports/back-forward data only from a server-loaded edit
     // route. A new form changes its URL via History above; refreshing that
     // transitional tree can reload /new and lose its confirmed report context.
@@ -294,7 +300,7 @@ export function ReportBuilder({
         saveAttemptRef.current = null
         setUnconfirmed(null)
         setCanRetrySave(false)
-        setVersionConflict(true)
+        setVersionConflict('stale-save')
         forgetSave(attempt)
         setNotice({ kind: 'error', text: t('save_conflict') })
         return null
@@ -587,9 +593,19 @@ export function ReportBuilder({
       </div>
 
       {versionConflict && (
-        <section aria-label={t('save_conflict_title')} className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-          <h2 className="font-semibold">{t('save_conflict_title')}</h2>
-          <p className="text-sm text-muted-foreground">{t('save_conflict')}</p>
+        <section
+          aria-label={versionConflict === 'superseded-recovery'
+            ? t('save_recovered_superseded_title') : t('save_conflict_title')}
+          className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4"
+        >
+          <h2 className="font-semibold">
+            {versionConflict === 'superseded-recovery'
+              ? t('save_recovered_superseded_title') : t('save_conflict_title')}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {versionConflict === 'superseded-recovery'
+              ? t('save_recovered_superseded') : t('save_conflict')}
+          </p>
           <Button type="button" variant="outline" className="min-h-11" onClick={reloadLatestDraft}>
             {t('reload_latest')}
           </Button>

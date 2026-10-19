@@ -36,7 +36,9 @@ export async function interruptCommittedSave(page, path, mode, audit) {
       const response = await route.fetch({ timeout: 30000 })
       const data = await response.json()
       const entry = { path, method: 'POST', requestId: headers['x-report-request-id'],
-        scanId: headers['x-report-scan-id'], body, status: response.status(), result: data }
+        scanId: headers['x-report-scan-id'],
+        expectedVersion: headers['x-report-expected-version-id'],
+        body, status: response.status(), result: data }
       audit.disruptions.push(entry)
       resolveCaptured(entry)
       if (mode === 'timeout') await gate

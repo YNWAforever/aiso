@@ -672,6 +672,10 @@ async function savedReportRequest(
     || saved.version.locale !== request.locale || saved.version.executive_summary !== request.executiveSummary) {
     throw new ReportServiceError('service_unavailable')
   }
+  const current = await ownedReport(profile, saved.report.id)
+  const currentVersions = resolvedReportVersions(current.report, await versionsFor(current.report))
+  if (!currentVersions.latest) throw new ReportServiceError('service_unavailable')
+  const superseded = currentVersions.latest.id !== saved.version.id
   return {
     requestId, request,
     result: {
@@ -680,6 +684,10 @@ async function savedReportRequest(
         published: appended?.publishedVersion ?? null,
       }),
       reviewArtifact: reviewArtifact(saved.version),
+      ...(superseded ? {
+        currentLatestVersionId: currentVersions.latest.id,
+        currentLatestVersionNumber: currentVersions.latest.version_number,
+      } : {}),
     },
   }
 }

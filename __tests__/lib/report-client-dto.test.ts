@@ -57,6 +57,24 @@ describe('report client DTO validation', () => {
     }
 
     expect(parseReportSaveResponse(valid)).toEqual(valid)
+    expect(parseReportSaveResponse({
+      ...valid,
+      currentLatestVersionId: 'version-2',
+      currentLatestVersionNumber: 2,
+    })).toEqual({
+      ...valid,
+      currentLatestVersionId: 'version-2',
+      currentLatestVersionNumber: 2,
+    })
+    for (const current of [
+      { currentLatestVersionId: 'version-2' },
+      { currentLatestVersionNumber: 2 },
+      { currentLatestVersionId: '', currentLatestVersionNumber: 2 },
+      { currentLatestVersionId: 'version-2', currentLatestVersionNumber: 0 },
+      { currentLatestVersionId: 'version-1', currentLatestVersionNumber: 2 },
+    ]) {
+      expect(parseReportSaveResponse({ ...valid, ...current })).toBeNull()
+    }
     expect(parseReportSaveResponse({ report: {} })).toBeNull()
     expect(parseReportSaveResponse({
       ...valid,
