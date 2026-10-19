@@ -7,13 +7,16 @@ type Plan = WorkOperations & {
   owners: { id: string; display_name: string | null }[]
   groupScope: { context?: { runId: string } } | null
   evidence: unknown[]
+  workNotes: string
+  updatedAt: string
 }
 const operationFields = (plan: Plan) => JSON.stringify([
   plan.targetUrl, plan.ownerId, plan.dueAt, plan.acceptanceCriteria, plan.operationStatus,
 ])
 
 export function WorkOperationsPanel({
-  clientId, itemId, revision, onRevision, onDirtyChange, onReloadDraft, mode = 'details',
+  clientId, itemId, revision, onRevision, onDirtyChange, onReloadDraft,
+  onOperationChange, mode = 'details',
 }: {
   clientId: string
   itemId: string
@@ -21,6 +24,12 @@ export function WorkOperationsPanel({
   onRevision?: (revision: number) => void
   onDirtyChange?: (dirty: boolean) => void
   onReloadDraft?: () => Promise<boolean>
+  onOperationChange?: (value: {
+    operationStatus: Plan['operationStatus']
+    updatedAt: string
+    workNotes: string
+    dirty: boolean
+  }) => void
   mode?: 'details' | 'prepare' | 'review'
 }) {
   const t = useTranslations('opportunities'), lang = useLocale()
@@ -40,6 +49,14 @@ export function WorkOperationsPanel({
   useEffect(() => { onDirtyChange?.(dirty || busy) }, [dirty, busy, onDirtyChange])
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
   useEffect(() => {
+    if (plan) onOperationChange?.({
+      operationStatus: plan.operationStatus,
+      updatedAt: plan.updatedAt,
+      workNotes: plan.workNotes,
+      dirty,
+    })
+  }, [dirty, onOperationChange, plan])
+  useEffect(() => {
     if (!preparing && !open) return
     const controller = new AbortController()
     fetch(endpoint, { cache: 'no-store', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]) })
@@ -56,7 +73,17 @@ export function WorkOperationsPanel({
           setError(t('operationsConflict'))
           return
         }
-        setPlan(unsaved ? { ...current, expectedRevision: saved.expectedRevision } : saved)
+        setPlan(unsaved
+          ? {
+              ...current,
+              expectedRevision: saved.expectedRevision,
+              workNotes: saved.workNotes,
+              updatedAt: saved.updatedAt,
+              owners: saved.owners,
+              groupScope: saved.groupScope,
+              evidence: saved.evidence,
+            }
+          : saved)
         persisted.current = JSON.stringify(saved)
         setSavedSignature(JSON.stringify(saved))
         try {
@@ -86,6 +113,10 @@ export function WorkOperationsPanel({
     if (pending.current || !plan || readOnly) return
     // A metadata read must not advance the revision of stale draft text.
     if (plan.expectedRevision !== revision) { setError(t('operationsConflict')); return }
+    if (plan.operationStatus === 'done' && !plan.workNotes.trim()) {
+      setError(t('reportNotesRequired'))
+      return
+    }
     pending.current = true
     setBusy(true)
     setError('')
@@ -156,7 +187,7 @@ export function WorkOperationsPanel({
       {(['todo', 'in_progress', 'done'] as const).map(value => <option key={value} value={value}>{t('operation_' + value)}</option>)}
     </select></label>
   </>
-  const content = <section className="min-w-0 space-y-3 rounded-xl border border-border p-4" aria-label={t(preparing ? 'reviewPreparationTitle' : 'operationsTitle')} aria-busy={busy}>
+  const content = <section data-operation-revision={plan?.expectedRevision} className="min-w-0 space-y-3 rounded-xl border border-border p-4" aria-label={t(preparing ? 'reviewPreparationTitle' : 'operationsTitle')} aria-busy={busy}>
     <h3 className="font-semibold">{t(preparing ? 'reviewPreparationTitle' : 'operationsTitle')}</h3>
     {preparing && <>
       <p className="font-semibold">{t('targetPageUnconfirmed')}</p>
@@ -169,6 +200,16 @@ export function WorkOperationsPanel({
     {error === t('operationsConflict') && <>
       {onReloadDraft && <p>{t('reloadPreparationHelp')}</p>}
       <button type="button" className="min-h-11 underline" disabled={busy} onClick={() => void reloadRecord()}>{t('reloadOperations')}</button>
+    </>}
+    {plan && <>
+      <p className="text-sm font-semibold">
+        {t('operationStatus')}: {t('operation_' + plan.operationStatus)}
+      </p>
+      {plan.operationStatus === 'done' && (
+        <p data-operation-reported="pending-verification" className="text-sm">
+          {t('operationPendingVerification', { updatedAt: plan.updatedAt })}
+        </p>
+      )}
     </>}
     {!plan ? !readError && <p>{t('preparationLoading')}</p> : <>
       {readOnly ? <dl className="space-y-2">

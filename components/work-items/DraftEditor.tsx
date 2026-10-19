@@ -1,9 +1,14 @@
 'use client'
 import {WorkOperationsPanel} from './WorkOperationsPanel'
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { VerificationPreview } from './VerificationPreview'
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { parseDraftEdit } from '@/lib/work-items/edit-input'
 import type { WorkItem } from '@/lib/work-items/schema'
+import type {
+  WorkVerificationBaseline,
+  WorkVerificationObservation,
+} from '@/lib/work-items/verification'
 import { EvidenceDetails } from '@/components/opportunities/EvidenceDetails'
 import { useAuthRateLimit } from '@/components/auth/useAuthRateLimit'
 export function DraftEditor({
@@ -12,12 +17,14 @@ export function DraftEditor({
   onSaved,
   onDirtyChange,
   scanId,
+  verificationObservations = [],
 }: {
   clientId: string
   item: WorkItem
   onSaved: (item: WorkItem) => void
   onDirtyChange?: (dirty: boolean) => void
   scanId?: string
+  verificationObservations?: WorkVerificationObservation[]
 }) {
   const lang = useLocale()
   const fieldId = useId()
@@ -30,8 +37,15 @@ export function DraftEditor({
     [error, setError] = useState(''),
     [status, setStatus] = useState('')
   const [preparationDirty, setPreparationDirty] = useState(false)
+  const [operations, setOperations] = useState<{
+    operationStatus: 'todo' | 'in_progress' | 'done'
+    updatedAt: string
+    workNotes: string
+    dirty: boolean
+  }>({ operationStatus: 'todo', updatedAt: '', workNotes: '', dirty: false })
   const lock = useRef(false)
   const { captureAuthLimit, clearAuthLimit, authWaiting, authNotice } = useAuthRateLimit()
+  const onOperationChange = useCallback((value: typeof operations) => setOperations(value), [])
   const endpoint = `/api/clients/${encodeURIComponent(clientId)}/work-items/${encodeURIComponent(item.id)}`
   function accept(next: WorkItem) {
     setSaved(next)
@@ -134,10 +148,19 @@ export function DraftEditor({
     >
       <h2 className="text-xl font-semibold">{t('savedDraft')}</h2>
       <p>{t('draftOnly')}</p>
+      <ReportProvenancePanel clientId={clientId} lang={lang} item={saved} />
       <p aria-live="polite">{t(busy ? 'saving' : dirty ? 'unsavedChanges' : 'savedRevision', { revision: saved.revision })}</p>
       <WorkOperationsPanel clientId={clientId} itemId={item.id} revision={saved.revision} mode="prepare"
         onDirtyChange={setPreparationDirty} onReloadDraft={reload}
+        onOperationChange={onOperationChange}
         onRevision={revision=>{const next={...saved,revision};setSaved(next);onSaved(next)}}/>
+      {operations.operationStatus === 'done' && !operations.dirty && operations.updatedAt && (
+        <VerificationPreview
+          baseline={verificationBaseline(saved)}
+          reportedAt={operations.updatedAt}
+          observations={verificationObservations}
+        />
+      )}
       {dirty || busy || preparationDirty ? (
         <p>{t('saveBeforeVersions')}</p>
       ) : (
@@ -196,6 +219,7 @@ export function DraftEditor({
             onChange={(e) => setNotes(e.target.value)}
             disabled={busy}
           />
+          <p className="text-xs leading-5 text-muted-foreground">{t('notesHelp')}</p>
         </div>
         <p className="text-sm">{t('fieldLimits')}</p>
         {error && <p role="alert">{t(error)}</p>}
@@ -241,6 +265,102 @@ export function DraftEditor({
           limitations={saved.evidenceSnapshot.limitations}
         />
       </section>
+    </section>
+  )
+}
+
+function verificationBaseline(item: WorkItem): WorkVerificationBaseline {
+  const evidence = item.evidenceSnapshot.evidence
+  return evidence.kind === 'scan-check'
+    ? {
+        source: `scan-check:${evidence.checkKey}`,
+        observedAt: evidence.recordedAt ?? evidence.collectedAt,
+        target: evidence.evaluated.origin,
+        issuePresent: true,
+      }
+    : {
+        source: `pulse-metric:${evidence.id}`,
+        observedAt: evidence.recordedAt,
+        target: null,
+        issuePresent: true,
+      }
+}
+
+function ReportProvenancePanel({
+  clientId,
+  lang,
+  item,
+}: {
+  clientId: string
+  lang: string
+  item: WorkItem
+}) {
+  const t = useTranslations('opportunities')
+  const report = item.evidenceSnapshot.reportProvenance
+  const [freshness, setFreshness] = useState<{
+    state: 'checking' | 'current' | 'newer' | 'unavailable'
+    latestVersionNumber: number | null
+  }>({ state: 'checking', latestVersionNumber: null })
+
+  useEffect(() => {
+    if (!report) return
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => controller.abort(), 15_000)
+    let active = true
+    fetch(`/api/clients/${encodeURIComponent(clientId)}/reports`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    }).then(async response => {
+      if (!response.ok) throw new Error()
+      const body = await response.json() as { reports?: unknown }
+      if (!Array.isArray(body.reports)) throw new Error()
+      const row = body.reports.find((value): value is { id: string; latestVersionNumber: number } =>
+        Boolean(value && typeof value === 'object'
+          && (value as { id?: unknown }).id === report.reportId
+          && Number.isSafeInteger((value as { latestVersionNumber?: unknown }).latestVersionNumber)))
+      if (!row) throw new Error()
+      if (active) setFreshness({
+        state: row.latestVersionNumber > report.reportVersionNumber ? 'newer' : 'current',
+        latestVersionNumber: row.latestVersionNumber,
+      })
+    }).catch(() => {
+      if (active) setFreshness({ state: 'unavailable', latestVersionNumber: null })
+    }).finally(() => window.clearTimeout(timer))
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [clientId, report])
+
+  if (!report) return null
+  return (
+    <section className="space-y-2 rounded-lg border border-border bg-muted/20 p-4" aria-label={t('reportSourceTitle')}>
+      <h3 className="font-semibold">{t('reportSourceTitle')}</h3>
+      <p data-report-provenance-version={report.reportVersionNumber}>
+        {t('reportSourceVersion', { version: report.reportVersionNumber })}
+      </p>
+      <p className="font-semibold">{report.findingTitle}</p>
+      <p className="whitespace-pre-wrap break-words text-sm">{report.findingRationale}</p>
+      <p className="text-sm">{t('reportSourcePriority')}: {report.expectedImpact}</p>
+      <p className="break-all text-sm">{t('reportSourceTarget')}: {report.targetOrigin ?? t('findingsTargetMissing')}</p>
+      <p className="text-sm">{t('reportSourceCitation')}: {report.findingKey}</p>
+      {freshness.state === 'newer' && (
+        <div role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            <p>{t('reportSourceNewer', {
+              latest: freshness.latestVersionNumber ?? report.reportVersionNumber,
+              original: report.reportVersionNumber,
+            })}</p>
+          <a className="mt-2 inline-flex min-h-11 items-center underline" href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/reports/${encodeURIComponent(report.reportId)}`}>
+            {t('reportSourceReview')}
+          </a>
+        </div>
+      )}
+      {freshness.state === 'unavailable' && <p className="text-sm">{t('reportSourceFreshnessUnknown')}</p>}
+      <a className="inline-flex min-h-11 items-center underline" href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/reports/${encodeURIComponent(report.reportId)}`}>
+        {t('reportSourceOpen')}
+      </a>
+      <p className="text-xs text-muted-foreground">{t('reportSourceFrozen')}</p>
     </section>
   )
 }

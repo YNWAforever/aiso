@@ -1,11 +1,22 @@
 import 'server-only'
 import { serializeDraftSnapshot } from '@/lib/opportunities/fingerprint'
 import { scanOpportunityCopy } from '@/lib/opportunities/presentation'
-import type { DraftSnapshotV1, OpportunityLocale, SourceEvidence, Suggestion } from '@/lib/opportunities/types'
+import type {
+  DraftSnapshotV1,
+  OpportunityLocale,
+  ReportFindingProvenance,
+  SourceEvidence,
+  Suggestion,
+} from '@/lib/opportunities/types'
 import { parseDraftEdit } from './schema'
 
 /** Shared server-side eligibility and locale copy. Never accepts browser-generated text. */
-export function buildInitialDraftSnapshot(suggestion:Suggestion,source:SourceEvidence,locale:OpportunityLocale):DraftSnapshotV1 {
+export function buildInitialDraftSnapshot(
+  suggestion: Suggestion,
+  source: SourceEvidence,
+  locale: OpportunityLocale,
+  reportFinding?: Omit<ReportFindingProvenance, 'targetOrigin'>,
+): DraftSnapshotV1 {
  const chinese=locale==='zh-HK'
  const scanCopy=suggestion.evidence.kind==='scan-check'?scanOpportunityCopy(suggestion.evidence,locale):null
  const title=scanCopy?.title ?? (chinese?'檢視問題內容覆蓋':'Review question coverage')
@@ -22,7 +33,23 @@ export function buildInitialDraftSnapshot(suggestion:Suggestion,source:SourceEvi
  if(suggestion.evidence.kind==='pulse-metric'&&source.kind!=='pulse-metric')throw new TypeError('Source kind mismatch')
  const evidence=suggestion.evidence.kind==='pulse-metric'
   ? {...suggestion.evidence,answerDigest:(source as Extract<SourceEvidence,{kind:'pulse-metric'}>).answerDigest} : suggestion.evidence
- const snapshot:DraftSnapshotV1={schemaVersion:1,source:suggestion.source,ruleVersion:suggestion.ruleVersion,evidence,limitations:suggestion.limitations,titleKey:suggestion.titleKey,actionKey:suggestion.actionKey,args:suggestion.args,locale,initialTitle:normalized.title,initialAction:normalized.action}
+ if (reportFinding && (suggestion.source.kind !== 'scan-check'
+   || reportFinding.findingKey !== suggestion.source.checkKey)) {
+  throw new TypeError('Report provenance does not match the selected suggestion')
+ }
+ const snapshot:DraftSnapshotV1={
+  schemaVersion:1, source:suggestion.source, ruleVersion:suggestion.ruleVersion,
+  evidence, limitations:suggestion.limitations, titleKey:suggestion.titleKey,
+  actionKey:suggestion.actionKey, args:suggestion.args, locale,
+  initialTitle:normalized.title, initialAction:normalized.action,
+  ...(reportFinding ? {
+    reportProvenance: {
+      ...reportFinding,
+      targetOrigin: suggestion.evidence.kind === 'scan-check'
+        ? suggestion.evidence.evaluated.origin : null,
+    },
+  } : {}),
+ }
  serializeDraftSnapshot(snapshot)
  // Pretty JSON adds at least all separators PostgreSQL adds to JSONB text. A conservative
  // byte upper bound lets the read model disable oversized candidates before a save attempt.

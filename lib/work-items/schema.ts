@@ -10,6 +10,7 @@ export type CreateDraftInput = {
   ruleVersion: 'pulse-brand-absent.v1' | 'scan-check-gap.v1' | 'stored-recommendation.v1'
   fingerprint: string
   locale: OpportunityLocale
+  reportVersionId?: string
 }
 export type WorkItem = {
   id: string; clientId: string; status: 'draft'; title: string; action: string; notes: string
@@ -45,7 +46,9 @@ function uuid(value: unknown): string {
 export function parseCreateDraft(value: unknown): CreateDraftInput {
   boundedBytes(value, CREATE_DRAFT_BODY_LIMIT)
   const input = record(value)
-  exactKeys(input, ['source', 'ruleVersion', 'fingerprint', 'locale'])
+  const allowed = ['source', 'ruleVersion', 'fingerprint', 'locale', 'reportVersionId']
+  if (Object.keys(input).some(key => !allowed.includes(key))
+    || !['source', 'ruleVersion', 'fingerprint', 'locale'].every(key => Object.hasOwn(input, key))) invalid()
   const source = record(input.source)
   if (source.kind === 'agent-recommendation') invalid()
   if (typeof source.kind !== 'string' || !Object.hasOwn(SOURCE_RULE, source.kind)) invalid()
@@ -59,5 +62,13 @@ export function parseCreateDraft(value: unknown): CreateDraftInput {
     if (typeof source.checkKey !== 'string' || !Object.hasOwn(CHECK_VERSIONS, source.checkKey)) invalid()
     parsedSource.checkKey = source.checkKey as EvidenceCheckKey
   }
-  return { source: parsedSource, ruleVersion: input.ruleVersion as CreateDraftInput['ruleVersion'], fingerprint: input.fingerprint, locale: input.locale }
+  const reportVersionId = input.reportVersionId === undefined ? undefined : uuid(input.reportVersionId)
+  if (reportVersionId !== undefined && kind !== 'scan-check') invalid()
+  return {
+    source: parsedSource,
+    ruleVersion: input.ruleVersion as CreateDraftInput['ruleVersion'],
+    fingerprint: input.fingerprint,
+    locale: input.locale,
+    ...(reportVersionId === undefined ? {} : { reportVersionId }),
+  }
 }

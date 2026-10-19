@@ -88,7 +88,7 @@ function assertSignals(value: unknown): void {
 }
 
 function assertSnapshotAllowlist(snapshot: DraftSnapshotV1): void {
-  assertAllowedKeys(snapshot, ['schemaVersion', 'source', 'ruleVersion', 'evidence', 'limitations', 'titleKey', 'actionKey', 'args', 'locale', 'initialTitle', 'initialAction'], 'snapshot')
+  assertAllowedKeys(snapshot, ['schemaVersion', 'source', 'ruleVersion', 'evidence', 'limitations', 'titleKey', 'actionKey', 'args', 'locale', 'initialTitle', 'initialAction', 'reportProvenance'], 'snapshot')
   assertAllowedKeys(snapshot.source, ['kind', 'id', 'checkKey'], 'snapshot source')
   if (snapshot.schemaVersion !== 1 || !validNormalizedString(snapshot.source.id, 36)) throw new TypeError('Invalid snapshot identity')
   if (!validNormalizedString(snapshot.ruleVersion, 80) || !validNormalizedString(snapshot.titleKey, 160)
@@ -98,6 +98,33 @@ function assertSnapshotAllowlist(snapshot: DraftSnapshotV1): void {
   }
   assertRuleArgs(snapshot)
   assertStringArray(snapshot.limitations, 40, 160, 'snapshot limitations')
+  if (snapshot.reportProvenance !== undefined) {
+    const report = snapshot.reportProvenance
+    assertAllowedKeys(report, [
+      'reportId', 'reportVersionId', 'reportVersionNumber', 'reportCreatedAt',
+      'findingKey', 'findingTitle', 'findingRationale', 'findingNextStep',
+      'expectedImpact', 'targetOrigin',
+    ], 'report provenance')
+    if (snapshot.source.kind !== 'scan-check'
+      || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(report.reportId)
+      || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(report.reportVersionId)
+      || !Number.isSafeInteger(report.reportVersionNumber) || report.reportVersionNumber < 1
+      || !validNormalizedString(report.reportCreatedAt, 40) || !Number.isFinite(Date.parse(report.reportCreatedAt))
+      || !Object.hasOwn(CHECK_VERSIONS, report.findingKey)
+      || report.findingKey !== snapshot.source.checkKey
+      || !validNormalizedString(report.findingTitle, 160)
+      || !validNormalizedString(report.findingRationale, 2_000)
+      || !validNormalizedString(report.findingNextStep, 4_000)
+      || !['high', 'medium', 'low'].includes(report.expectedImpact)) {
+      throw new TypeError('Invalid report finding provenance')
+    }
+    if (report.targetOrigin !== null) {
+      if (!validNormalizedString(report.targetOrigin, 300)) throw new TypeError('Invalid report target origin')
+      const target = new URL(report.targetOrigin)
+      if (!['http:', 'https:'].includes(target.protocol) || target.username || target.password
+        || target.origin !== report.targetOrigin) throw new TypeError('Invalid report target origin')
+    }
+  }
 
   const evidence = snapshot.evidence
   if (evidence.kind === 'pulse-metric') {
