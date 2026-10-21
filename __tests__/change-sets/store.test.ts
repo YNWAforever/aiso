@@ -6,7 +6,13 @@ vi.mock('server-only',()=>({}))
 vi.mock('@/lib/db',()=>({db:()=>Object.assign(m.sql,{transaction:m.transaction})}))
 vi.mock('@/lib/work-items/store',()=>({readOwnedDraft:m.draft}))
 const id='11111111-1111-4111-8111-111111111111'
-beforeEach(()=>{vi.resetAllMocks();m.sql.mockReturnValue([]);m.draft.mockResolvedValue(null)})
+beforeEach(()=>{
+ vi.resetAllMocks()
+ m.sql.mockImplementation((strings:TemplateStringsArray)=>
+  strings.join('').includes('SELECT d.target_url,d.acceptance_criteria')
+   ? [{target_url:'https://example.test/submitted',acceptance_criteria:'Synthetic retained criterion'}] : [])
+ m.draft.mockResolvedValue(null)
+})
 it.each(['not_found','denied','conflict','validation_failed'])('returns locked %s without success fabrication',async(kind)=>{m.transaction.mockResolvedValue([[],[],[{kind}]]);expect(await submitVersion(id,id,id,id,1)).toEqual({kind})})
 it('keeps same-revision replay before validation and exact INSERT SELECT under initialized locks',async()=>{
  m.draft.mockRejectedValue(new Error('INVALID_DRAFT_SNAPSHOT'));m.transaction.mockResolvedValue([[],[],[{kind:'validation_failed'}]])
@@ -91,7 +97,7 @@ it('retained history preserves unknown recorded time and nullable actor name wit
  const query=(m.sql.mock.calls[0][0] as string[]).join('?')
  expect(query).not.toMatch(/FROM (pulse_metrics|scans)/i)
 })
-it('writes schemaVersion 1 content when the multi-source flag is off, byte-identical to before 051',async()=>{
+it('keeps single-source schemaVersion 1 and freezes preparation when the multi-source flag is off',async()=>{
  delete process.env.WORK_ITEM_MULTI_SOURCE_V1
  m.draft.mockResolvedValue(draft());m.transaction.mockResolvedValue([[],[],[{kind:'validation_failed'}]])
  await submitVersion(id,id,itemId,id,1)
@@ -99,13 +105,14 @@ it('writes schemaVersion 1 content when the multi-source flag is off, byte-ident
  const contentValue=values.find((v):v is string=>typeof v==='string'&&v.includes('"evidenceSnapshot"'))
  expect(contentValue).toBeDefined();expect(JSON.parse(contentValue!).schemaVersion).toBe(1)
  expect(contentValue).not.toContain('evidenceSnapshots')
+ expect(JSON.parse(contentValue!).preparation).toEqual({schemaVersion:1,targetUrl:'https://example.test/submitted',acceptanceCriteria:'Synthetic retained criterion'})
 })
 it('writes schemaVersion 2 content with an array when the flag is on',async()=>{
  process.env.WORK_ITEM_MULTI_SOURCE_V1='1'
  try {
   m.draft.mockResolvedValue(draft());m.transaction.mockResolvedValue([[],[],[{kind:'validation_failed'}]])
-  // Call order per invocation is [saved-check, listLiveSources, lock1, lock2,
-  // write]. Seeding only the first two: listLiveSources must see a real row,
+  // Seed saved-check and listLiveSources; the preparation read uses the default implementation.
+  // listLiveSources must see a real row,
   // or freezeMultiSourceReview throws on an empty array before the write is
   // ever built.
   m.sql.mockReturnValueOnce([]).mockReturnValueOnce([{id:'source-1',opportunity_key:'k',source_kind:'pulse-metric',source_id:itemId,rule_version:'pulse-brand-absent.v1',check_key:null,evidence_fingerprint:'f'.repeat(64),evidence_snapshot:draft().evidenceSnapshot}])
@@ -115,5 +122,6 @@ it('writes schemaVersion 2 content with an array when the flag is on',async()=>{
   expect(contentValue).toBeDefined()
   const parsed=JSON.parse(contentValue!)
   expect(parsed.schemaVersion).toBe(2);expect(parsed.evidenceSnapshots).toEqual([draft().evidenceSnapshot])
+  expect(parsed.preparation).toEqual({schemaVersion:1,targetUrl:'https://example.test/submitted',acceptanceCriteria:'Synthetic retained criterion'})
  } finally { delete process.env.WORK_ITEM_MULTI_SOURCE_V1 }
 })

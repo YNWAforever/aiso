@@ -3,7 +3,7 @@ import 'server-only'
 import { fingerprintEvidence, serializeDraftSnapshot } from '@/lib/opportunities/fingerprint'
 import { parseDraftEdit } from '@/lib/work-items/edit-input'
 import type { WorkItem } from '@/lib/work-items/schema'
-import type { FrozenReviewV1, FrozenReviewV2, ReviewContentV1, ReviewContentV2, ValidationResult } from './types'
+import type { FrozenReviewV1, FrozenReviewV2, PreparationSnapshot, ReviewContentV1, ReviewContentV2, ValidationResult } from './types'
 
 const REVIEW_CONTENT_LIMIT = 128 * 1024
 
@@ -26,7 +26,20 @@ export function assertReviewPackageSize(value: unknown): void {
   if (conservativeJsonBytes(value) > REVIEW_CONTENT_LIMIT) validationFailed()
 }
 
-export function freezeReview(item: WorkItem): FrozenReviewV1 {
+function freezePreparation(value: PreparationSnapshot): PreparationSnapshot {
+  if (!value || typeof value !== 'object' || Array.isArray(value) ||
+      Object.keys(value).sort().join(',') !== 'acceptanceCriteria,schemaVersion,targetUrl' ||
+      value.schemaVersion !== 1 || typeof value.acceptanceCriteria !== 'string' ||
+      value.acceptanceCriteria.length > 4000) validationFailed()
+  if (value.targetUrl !== null) {
+    if (typeof value.targetUrl !== 'string' || value.targetUrl.length < 1 || value.targetUrl.length > 2048) validationFailed()
+    const url = new URL(value.targetUrl)
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) validationFailed()
+  }
+  return { schemaVersion: 1, targetUrl: value.targetUrl, acceptanceCriteria: value.acceptanceCriteria }
+}
+
+export function freezeReview(item: WorkItem, preparation?: PreparationSnapshot): FrozenReviewV1 {
   try {
     if (item.locale !== 'en' && item.locale !== 'zh-HK') validationFailed()
 
@@ -48,6 +61,7 @@ export function freezeReview(item: WorkItem): FrozenReviewV1 {
       notes: item.notes,
       locale: item.locale,
       evidenceSnapshot,
+      ...(preparation === undefined ? {} : { preparation: freezePreparation(preparation) }),
     }
     assertReviewPackageSize(content)
 
@@ -80,6 +94,7 @@ export function freezeReview(item: WorkItem): FrozenReviewV1 {
 export function freezeMultiSourceReview(
   item: Pick<WorkItem, 'id' | 'revision' | 'title' | 'action' | 'notes' | 'locale'>,
   snapshots: WorkItem['evidenceSnapshot'][],
+  preparation?: PreparationSnapshot,
 ): FrozenReviewV2 {
   try {
     if (item.locale !== 'en' && item.locale !== 'zh-HK') validationFailed()
@@ -105,6 +120,7 @@ export function freezeMultiSourceReview(
       notes: item.notes,
       locale: item.locale,
       evidenceSnapshots,
+      ...(preparation === undefined ? {} : { preparation: freezePreparation(preparation) }),
     }
     assertReviewPackageSize(content)
 

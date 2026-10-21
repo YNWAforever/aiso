@@ -98,11 +98,11 @@ for (const lang of ['en', 'zh-HK']) {
       page.getByRole('heading', { name: draft.title, exact: true }),
     ).toBeVisible()
     await page.getByRole('button', { name: c.reloadDraft, exact: true }).click()
-    await expect(page.getByRole('status')).toHaveText(c.draftReloaded)
+    await expect(page.getByRole('status', { name: c.versionReviewStatus, exact: true })).toHaveText(c.draftReloaded)
     await page
       .getByRole('button', { name: c.submitVersion, exact: true })
       .click()
-    await expect(page.getByRole('status')).toHaveText(c.versionSubmitted)
+    await expect(page.getByRole('status', { name: c.versionReviewStatus, exact: true })).toHaveText(c.versionSubmitted)
     expect(posts).toBe(2)
     await expect(page.getByText(c.notDelivery, { exact: true })).toBeVisible()
     await page.route('**/versions/' + version.id, (route) =>
@@ -124,6 +124,221 @@ for (const lang of ['en', 'zh-HK']) {
       ),
     ).toBe(true)
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  })
+  test(`C9d saved-version timeout unlocks one manual retry ${lang}`, async ({
+    page,
+  }, testInfo) => {
+    const { changeSets: c } = await fixture(page, lang)
+    let attempts = 0
+    let releaseFirst!: () => void
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+    await page.route('**/api/clients/*/work-items/*/versions', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue()
+      attempts++
+      expect(route.request().postDataJSON()).toEqual({
+        expectedRevision: draft.revision,
+      })
+      if (attempts === 1) {
+        await firstGate
+        try {
+          await route.abort()
+        } catch {
+          // The browser may already have aborted after its timeout.
+        }
+        return
+      }
+      await route.fulfill({ status: 201, json: { version } })
+    })
+
+    const submit = page.getByRole('button', {
+      name: c.submitVersion,
+      exact: true,
+    })
+    await submit.click()
+    await expect(page.getByRole('alert')).toHaveText(c.unavailable, {
+      timeout: 17_000,
+    })
+    expect(attempts).toBe(1)
+    await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false')
+    await expect(submit).toBeEnabled()
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true)
+    await page.screenshot({
+      path: testInfo.outputPath(`${lang}-${testInfo.project.name}-submit-timeout.png`),
+      fullPage: true,
+    })
+
+    releaseFirst()
+    await submit.click()
+    await expect(
+      page.getByRole('status', { name: c.versionReviewStatus, exact: true }),
+    ).toHaveText(c.versionSubmitted)
+    expect(attempts).toBe(2)
+    await page.screenshot({
+      path: testInfo.outputPath(`${lang}-${testInfo.project.name}-submit-retried.png`),
+      fullPage: true,
+    })
+  })
+  test(`C9d requires an explicit decision before recording ${lang}`, async ({
+    page,
+  }, testInfo) => {
+    const { changeSets: c } = await fixture(page, lang)
+    const decision = page.getByLabel(c.decision, { exact: true })
+    const reason = page.getByLabel(c.reason, { exact: true })
+    let posts = 0
+    await page.route('**/versions/*/decision', (route) => {
+      posts++
+      return route.fulfill({
+        status: 200,
+        json: {
+          version: {
+            ...version,
+            decision: {
+              decision: 'changes_requested',
+              reason: 'Check the page first.',
+              decidedBy: {
+                profileId: clientId,
+                displayName: 'Independent reviewer',
+                role: 'account_approver',
+              },
+              decidedAt: '2026-09-07T00:00:00Z',
+            },
+            capabilities: { canDecide: false },
+          },
+        },
+      })
+    })
+
+    await expect(decision).toHaveValue('')
+    await expect(decision.locator('option[value=""]')).toHaveText(
+      c.decisionPlaceholder,
+    )
+    await reason.fill('Check the page first.')
+    await page
+      .getByRole('button', { name: c.recordDecision, exact: true })
+      .click()
+    await expect(page.getByRole('alert')).toHaveText(c.decisionRequired)
+    await expect(decision).toBeFocused()
+    await expect(reason).toHaveValue('Check the page first.')
+    expect(posts).toBe(0)
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true)
+    await page.screenshot({
+      path: testInfo.outputPath(`${lang}-${testInfo.project.name}-decision-required.png`),
+      fullPage: true,
+    })
+
+    await decision.selectOption('changes_requested')
+    await expect(page.getByRole('alert')).toHaveCount(0)
+    await page
+      .getByRole('button', { name: c.recordDecision, exact: true })
+      .click()
+    await expect.poll(() => posts).toBe(1)
+    await expect(
+      page.getByRole('status', { name: c.versionReviewStatus, exact: true }),
+    ).toHaveText(c.decisionRecorded)
+    await page.screenshot({
+      path: testInfo.outputPath(`${lang}-${testInfo.project.name}-decision-recorded.png`),
+      fullPage: true,
+    })
+  })
+  test(`C9d stalled decision request unlocks one manual retry ${lang}`, async ({
+    page,
+  }, testInfo) => {
+    const { changeSets: c } = await fixture(page, lang)
+    const bodies: Record<string, unknown>[] = []
+    let releaseFirst!: () => void
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+    await page.route('**/versions/*/decision', async (route) => {
+      const body = route.request().postDataJSON()
+      bodies.push(body)
+      if (bodies.length === 1) {
+        await firstGate
+        try {
+          await route.abort()
+        } catch {
+          // The browser may already have aborted after its timeout.
+        }
+        return
+      }
+      await route.fulfill({
+        status: 200,
+        json: {
+          version: {
+            ...version,
+            decision: {
+              decision: 'approved',
+              reason: body.reason,
+              decidedBy: {
+                profileId: clientId,
+                displayName: 'Independent reviewer',
+                role: 'account_approver',
+              },
+              decidedAt: '2026-09-07T00:00:00Z',
+            },
+            capabilities: { canDecide: false },
+          },
+        },
+      })
+    })
+
+    const decision = page.getByLabel(c.decision, { exact: true })
+    const reason = page.getByLabel(c.reason, { exact: true })
+    const submit = page.getByRole('button', {
+      name: c.recordDecision,
+      exact: true,
+    })
+    await decision.selectOption('approved')
+    await reason.fill('Review reason')
+    await submit.click()
+
+    await expect(page.getByRole('alert')).toHaveText(c.unavailable, {
+      timeout: 17_000,
+    })
+    expect(bodies).toHaveLength(1)
+    expect(bodies[0]).toEqual({
+      decision: 'approved',
+      reason: 'Review reason',
+      requestId: expect.any(String),
+    })
+    await expect(decision).toHaveValue('approved')
+    await expect(reason).toHaveValue('Review reason')
+    await expect(reason).toBeFocused()
+    await expect(submit).toBeEnabled()
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true)
+    await page.screenshot({
+      path: testInfo.outputPath(`${lang}-${testInfo.project.name}-decision-network-timeout.png`),
+      fullPage: true,
+    })
+
+    releaseFirst()
+    await submit.click()
+    await expect(
+      page.getByRole('status', { name: c.versionReviewStatus, exact: true }),
+    ).toHaveText(c.decisionRecorded)
+    expect(bodies).toHaveLength(2)
+    expect(bodies[1]).toEqual(bodies[0])
+    await page.screenshot({
+      path: testInfo.outputPath(`${lang}-${testInfo.project.name}-decision-network-retried.png`),
+      fullPage: true,
+    })
   })
   for (const decision of ['approved', 'changes_requested'] as const)
     test(`C9d ${decision} timeout retry retains exact request and focus ${lang}`, async ({
@@ -178,8 +393,8 @@ for (const lang of ['en', 'zh-HK']) {
       await page
         .getByRole('button', { name: c.recordDecision, exact: true })
         .click()
-      await expect(page.getByRole('status')).toHaveText(c.decisionRecorded)
-      await expect(page.getByRole('status')).toBeFocused()
+      await expect(page.getByRole('status', { name: c.versionReviewStatus, exact: true })).toHaveText(c.decisionRecorded)
+      await expect(page.getByRole('status', { name: c.versionReviewStatus, exact: true })).toBeFocused()
       expect(bodies).toHaveLength(2)
       expect(bodies[1]).toEqual(bodies[0])
       await expect(
@@ -200,6 +415,7 @@ for (const lang of ['en', 'zh-HK']) {
         json: { error: 'CHANGE_SET_DENIED' },
       })
     })
+    await page.getByLabel(c.decision, { exact: true }).selectOption('approved')
     await page.getByLabel(c.reason, { exact: true }).fill('First reason')
     await page
       .getByRole('button', { name: c.recordDecision, exact: true })
@@ -469,6 +685,7 @@ for (const lang of ['en', 'zh-HK'])
         },
       }),
     )
+    await page.getByLabel(c.decision, { exact: true }).selectOption('approved')
     await page.getByLabel(c.reason, { exact: true }).fill('Retained review')
     await page
       .getByRole('button', { name: c.recordDecision, exact: true })
@@ -533,6 +750,7 @@ for (const lang of ['en', 'zh-HK']) {
       .getByRole('button', { name: c.reloadHistory, exact: true })
       .click()
     await expect.poll(() => reads).toBe(1)
+    await page.getByLabel(c.decision, { exact: true }).selectOption('approved')
     try {
       await page.getByLabel(c.reason, { exact: true }).fill(reason)
       await page
@@ -543,7 +761,7 @@ for (const lang of ['en', 'zh-HK']) {
       release()
     }
     await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false')
-    await expect(page.getByRole('status')).toHaveText(c.decisionRecorded)
+    await expect(page.getByRole('status', { name: c.versionReviewStatus, exact: true })).toHaveText(c.decisionRecorded)
     await expect(page.getByText(reason, { exact: true })).toBeVisible()
     await expect(
       page.getByRole('button', { name: c.recordDecision, exact: true }),

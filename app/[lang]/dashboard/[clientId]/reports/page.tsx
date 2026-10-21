@@ -32,6 +32,11 @@ function toReportsListItem(value: Record<string, unknown>): ReportsListItem | nu
     || !isNullableString(value.lastViewedAt)
     || !isNullableNonNegativeInteger(value.viewCount)
     || !isNullableNonNegativeInteger(value.ctaClickCount)
+  const latest = value.latestVersion !== null && typeof value.latestVersion === 'object'
+    && !Array.isArray(value.latestVersion) ? value.latestVersion as Record<string, unknown> : null
+  const savedAt = typeof latest?.createdAt === 'string'
+    && /^\d{4}-\d{2}-\d{2}T/.test(latest.createdAt) && Number.isFinite(Date.parse(latest.createdAt))
+    ? latest.createdAt : null
 
   return {
     id: value.id,
@@ -45,6 +50,8 @@ function toReportsListItem(value: Record<string, unknown>): ReportsListItem | nu
     ctaClickCount: isNullableNonNegativeInteger(value.ctaClickCount) ? value.ctaClickCount : null,
     metricsUnavailable,
     signedUrl: typeof value.signedUrl === 'string' ? value.signedUrl : undefined,
+    savedAt,
+    summaryPreview: typeof latest?.executiveSummary === 'string' ? latest.executiveSummary.trim().slice(0, 180) : undefined,
   }
 }
 

@@ -1,4 +1,4 @@
-import { auth } from '@/lib/neon-auth'
+import { auth, magicLinkAuthResponse } from '@/lib/neon-auth'
 
 /**
  * The Neon Auth catch-all, deliberately built lazily.
@@ -36,7 +36,10 @@ function route(method: keyof AuthHandlers) {
       }
     }
     handlers ??= auth().handler()
-    const response = await handlers[method](request, context)
+    const { path } = await context.params
+    const response = method === 'POST' && path.length === 2 && path[0] === 'sign-in' && path[1] === 'magic-link'
+      ? await magicLinkAuthResponse(request)
+      : await handlers[method](request, context)
     // Node fetch decodes upstream gzip/br before the SDK returns this body,
     // but SDK 0.4.2-beta retains the old transport headers. Forwarding them
     // makes the browser decode JSON again, even after the cookie was stored.

@@ -129,6 +129,7 @@ export function SourcePackWorkspace({
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15_000),
       })
       const payload = await response.json().catch(() => ({}))
       if (!response.ok) {
@@ -202,7 +203,7 @@ export function SourcePackWorkspace({
     setBusy(sourceId)
     setActionError(null)
     try {
-      const response = await fetch(`${base}/${encodeURIComponent(sourceId)}`, { cache: 'no-store' })
+      const response = await fetch(`${base}/${encodeURIComponent(sourceId)}`, { cache: 'no-store', signal: AbortSignal.timeout(15_000) })
       const payload = await response.json()
       if (!response.ok) { setActionError(messageFor(payload.error)); return }
       setReview(payload.source)
@@ -218,6 +219,7 @@ export function SourcePackWorkspace({
       const response = await fetch(`${base}/${encodeURIComponent(review.id)}/versions/${encodeURIComponent(review.current.id)}/approve`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ expectedLatestVersion: review.latestVersion, expectedContentHash: review.current.contentHash }),
+        signal: AbortSignal.timeout(15_000),
       })
       const payload = await response.json()
       if (!response.ok) { setActionError(messageFor(payload.error)); return }

@@ -2,116 +2,98 @@ import { useLocale, useTranslations } from 'next-intl'
 import { ScoreRing } from '@/components/ScoreRing'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
 import { PillarScoreCards } from '@/components/PillarScoreCards'
+import { ScanEvidencePanel } from '@/components/result/ScanEvidencePanel'
 import { getCheckExplanations } from '@/lib/checkExplanations'
 import type { Scan, CheckResult } from '@/lib/types'
+import type { ScanSummaryView } from '@/lib/view-models/scan-summary'
 import { factualDensityState } from '@/lib/factual-density-evidence'
 
 type Props = {
   scan: Pick<Scan, 'id' | 'score' | 'grade' | 'domain' | 'created_at' | 'results'>
+  view?: ScanSummaryView | null
+  brandName?: string | null
 }
+const GROUPS = [
+  { title: 'core', keys: ['c1_robots', 'c2_llms_txt', 'c3_bot_access', 'c4_structured_data', 'c5_extractability'] },
+  { title: 'extended', keys: ['c6_llms_full_txt', 'c7_mcp_card', 'c8_sitemap', 'c9_meta_desc', 'c10_headings', 'c11_faq', 'c12_canonical', 'c13_render', 'c14_internal_links', 'c15_entity', 'c16_freshness'] },
+  { title: 'geo', keys: ['c17_citation_density', 'c18_factual_density', 'c19_topical_authority', 'c20_chunkability'] },
+] as const
+const verdicts = ['pass', 'warn', 'fail'] as const
 
-const CORE_KEYS     = ['c1_robots', 'c2_llms_txt', 'c3_bot_access', 'c4_structured_data', 'c5_extractability'] as const
-const EXTENDED_KEYS = ['c6_llms_full_txt', 'c7_mcp_card', 'c8_sitemap', 'c9_meta_desc', 'c10_headings', 'c11_faq', 'c12_canonical', 'c13_render', 'c14_internal_links', 'c15_entity', 'c16_freshness'] as const
-const GEO_KEYS      = ['c17_citation_density', 'c18_factual_density', 'c19_topical_authority', 'c20_chunkability'] as const
-
-type Group = { title: string; keys: readonly string[]; accentVar: string }
-
-const GROUPS: Group[] = [
-  { title: 'Core',     keys: CORE_KEYS,     accentVar: '--dash-accent' },
-  { title: 'Extended', keys: EXTENDED_KEYS, accentVar: '--dash-purple' },
-  { title: 'GEO',      keys: GEO_KEYS,      accentVar: '--dash-success' },
-]
-
-export function ScanSummary({ scan }: Props) {
-  const t = useTranslations('dashboard')
-  const locale = useLocale()
-  // Resolved once, not per check. Reading CHECK_EXPLANATIONS directly showed
-  // English copy to zh-HK users even though the translations existed.
+export function ScanSummary({ scan, view, brandName }: Props) {
+  const t = useTranslations('resultSummary'), checkT = useTranslations('checks'), locale = useLocale()
   const explanations = getCheckExplanations(locale)
-  const r = scan.results as Record<string, unknown>
-  const isPassing = (key: string) => (r[key] as CheckResult)?.status === 'pass'
-    && (key !== 'c18_factual_density' || factualDensityState(r.c18_factual_density_data ?? r.c18, (r[key] as CheckResult)?.diagnostic) === 'observed')
-  const date = new Date(scan.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
-
-  const totalChecks = GROUPS.reduce((s, g) => s + g.keys.length, 0)
-  const totalPassed = GROUPS.reduce((s, g) => s + g.keys.filter(isPassing).length, 0)
-  const healthPct = Math.round((totalPassed / totalChecks) * 100)
-
-  const scoreColor = scan.score >= 80 ? 'var(--dash-success)' : scan.score >= 50 ? 'var(--dash-warning)' : 'var(--dash-danger)'
+  // A response for a different selected scan cannot supply its score or evidence.
+  const current = view?.scanId === scan.id ? view : null
+  const r = (scan.results ?? {}) as Record<string, unknown>
+  const evidence = current?.evidence ?? null
+  const observations = new Map(evidence?.checks.map(check => [check.key, check]) ?? [])
+  const counts = current?.counts
+  const observed = counts ? counts.pass + counts.warn + counts.fail : 0
+  const title = current?.state === 'scored' ? t('websiteDiagnostic')
+    : current?.state === 'limited' ? t('provisional')
+    : current?.state === 'failed' ? t('collectionFailed') : t('unavailable')
+  const date = new Date(scan.created_at)
+  const recorded = Number.isFinite(date.getTime())
+    ? new Intl.DateTimeFormat(locale === 'zh-HK' ? 'zh-HK' : 'en', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(date)
+    : null
+  const confirmed = (key: string) => {
+    const check = observations.get(key)
+    return check?.collection === 'complete' && verdicts.includes(check.assessment as typeof verdicts[number])
+  }
 
   return (
-    <div className="rounded-xl border border-dash-border bg-dash-surface overflow-hidden">
-      <div className="flex items-center justify-between p-5 border-b border-dash-border">
-        <div>
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-dash-success animate-pulse" />
-            <p className="text-xs font-semibold text-dash-muted tracking-widest uppercase">{t('latest_scan')}</p>
-          </div>
-          <p className="text-[12px] text-dash-muted/80 font-mono mt-1">{scan.domain}</p>
-          <p className="text-[10px] text-dash-muted/60 font-mono mt-0.5">{date}</p>
+    <section className="min-w-0 space-y-5 rounded-xl border border-dash-border bg-dash-surface p-4 sm:p-5" aria-label={t('title')}>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 space-y-2">
+          <h2 className="break-words text-xl font-bold text-dash-text">{brandName || scan.domain}</h2>
+          <p className="break-all text-sm text-dash-muted">{scan.domain}</p>
+          <p className="text-sm text-dash-muted">{t('recordedAt')}: {recorded
+            ? <time dateTime={scan.created_at}>{recorded} UTC</time> : t('unknownTime')}</p>
+          <p className="font-semibold text-dash-text">{title}</p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="hidden sm:flex items-center gap-2">
-            <div className="w-16 h-1 rounded-full bg-dash-border overflow-hidden">
-              <div className="h-full rounded-full transition-all duration-700"
-                style={{ width: healthPct + '%', background: scoreColor }} />
+        {current?.score !== null && current?.score !== undefined && <ScoreRing score={current.score} />}
+      </header>
+      <p className="text-sm text-dash-muted">{t('scope')}</p>
+      {current?.state === 'scored' && current.grade && <p className="font-semibold">{t('grade')}: {current.grade}</p>}
+      {evidence && counts && <div className="space-y-1 text-sm" aria-label={t('coverage')}>
+        <p>{t('observed', { observed, total: counts.total })}</p>
+        {observed > 0 ? <p>{t('passing', { pass: counts.pass, observed })}</p> : <p>{t('noObserved')}</p>}
+        <p>{t('verdicts', { pass: counts.pass, warn: counts.warn, fail: counts.fail, unknown: counts.unknown, notApplicable: counts.notApplicable })}</p>
+      </div>}
+      <ScanEvidencePanel evidence={evidence} locale={locale} />
+      {evidence && <PillarScoreCards results={r} evidenceInputs={evidence.pillarInputs} locale={locale} tone="dashboard" />}
+      <div className="space-y-2">
+        {GROUPS.map(group => {
+          const keys = group.keys.filter(key => observations.has(key) || r[key])
+          if (!keys.length) return null
+          const covered = keys.filter(confirmed)
+          const passed = covered.filter(key => observations.get(key)?.assessment === 'pass').length
+          return <details key={group.title} className="rounded-lg border border-dash-border p-3">
+            <summary className="min-h-11 cursor-pointer text-sm font-semibold text-dash-text">
+              {t(group.title)} · {covered.length ? t('passing', { pass: passed, observed: covered.length }) : t('noObserved')}
+            </summary>
+            <div className="space-y-2 pt-2">
+              {keys.map(key => {
+                const check = observations.get(key)
+                const label = checkT(key)
+                if (!confirmed(key)) return <div key={key} className="border-b border-dash-border py-3 text-sm">
+                  <p className="font-semibold">{label}</p>
+                  <p>{check?.assessment === 'not-applicable' ? t('notApplicable')
+                    : t('collectionState', { state: t(`states.${check?.collection ?? 'unknown'}`) })}</p>
+                </div>
+                const raw = r[key] as CheckResult | undefined
+                const status = check!.assessment as typeof verdicts[number]
+                const message = typeof raw?.message === 'string' && raw.status === status && checkT.has(raw.message)
+                  ? checkT(raw.message) : t(`assessment.${status}`)
+                return <ExpandableCheckItem key={key} label={label} result={{ ...raw, status, message: raw?.message ?? '' }}
+                  message={message} explanation={explanations[key]}
+                  factualState={key === 'c18_factual_density' ? factualDensityState(r.c18_factual_density_data ?? r.c18, raw?.diagnostic) : undefined} />
+              })}
             </div>
-            <span className="text-[10px] font-mono text-dash-muted">{totalPassed}/{totalChecks}</span>
-          </div>
-          <ScoreRing score={scan.score} />
-        </div>
-      </div>
-
-      <div className="px-5 py-3 border-b border-dash-border flex items-center gap-3">
-        <span className="text-lg font-bold font-mono text-dash-text">
-          {t('grade')} <span style={{ color: scoreColor }}>{scan.grade ?? 'F'}</span>
-        </span>
-        <span className="text-[11px] text-dash-muted">{t('score_outof', { score: scan.score })}</span>
-      </div>
-
-      <div className="border-b border-dash-border p-5">
-        <PillarScoreCards results={r} locale={locale} tone="dashboard" />
-      </div>
-
-      <div className="p-4 space-y-1">
-        {GROUPS.map((group) => {
-          const checks = group.keys.map(key => ({ key, result: r[key] as CheckResult | undefined })).filter(c => c.result)
-          if (!checks.length) return null
-
-          const passed = checks.filter(c => isPassing(c.key)).length
-          const pct = Math.round((passed / checks.length) * 100)
-
-          return (
-            <details key={group.title} className="group">
-              <summary className="cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg hover:bg-dash-elevated transition-colors list-none select-none">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-2 h-2 rounded-full" style={{ background: 'var(' + group.accentVar + ')' }} />
-                  <span className="text-[11px] font-medium text-dash-muted font-mono">{group.title}</span>
-                  <span className="text-[10px] text-dash-muted/60 font-mono">{passed}/{checks.length}</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <div className="w-12 h-1 rounded-full bg-dash-border overflow-hidden">
-                    <div className="h-full rounded-full transition-all" style={{ width: pct + '%', background: scoreColor }} />
-                  </div>
-                  <svg className="w-3 h-3 text-dash-muted transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </summary>
-              <div className="mt-1 space-y-0.5 pl-7 pr-2">
-                {checks.map(({ key, result }) => {
-                  const explanation = explanations[key]
-                  const label = key.replace(/^c\d+_/, '').replace(/_/g, ' ')
-                  return (
-                    <ExpandableCheckItem key={key} label={label} result={result!} message={result!.message} explanation={explanation}
-                      factualState={key === 'c18_factual_density' ? factualDensityState(r.c18_factual_density_data ?? r.c18, result?.diagnostic) : undefined} />
-                  )
-                })}
-              </div>
-            </details>
-          )
+          </details>
         })}
       </div>
-    </div>
+    </section>
   )
 }

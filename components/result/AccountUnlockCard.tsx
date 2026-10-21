@@ -10,6 +10,7 @@ import { buildScanClaimNext } from './ClaimScanOnReturn'
 import { trackFunnelEvent } from '@/lib/funnel-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useAuthRateLimit } from '@/components/auth/useAuthRateLimit'
 
 const COPY_EN = {
   title: 'Save your full report',
@@ -21,7 +22,7 @@ const COPY_EN = {
   or: 'or',
   sending: 'Sending magic link…',
   checkEmail: 'Check your inbox for your secure sign-in link.',
-  tooManyAttempts: 'Too many attempts. Please wait a few minutes before trying again.',
+  tooManyAttempts: 'Too many link requests. Please wait before trying again.',
   googleFailed: 'Could not start Google sign-in. Please try again.',
   magicLinkFailed: 'Could not send the magic link. Please try again.',
   finePrint: 'No credit card · Save this scan for free',
@@ -44,7 +45,7 @@ const COPY_ZH_HK: typeof COPY_EN = {
   or: '或',
   sending: '正在發送登入連結…',
   checkEmail: '請查看收件箱內的安全登入連結。',
-  tooManyAttempts: '嘗試次數過多，請等待幾分鐘後再試。',
+  tooManyAttempts: '登入連結請求次數過多，請稍候再試。',
   googleFailed: '無法啟動 Google 登入，請再試一次。',
   magicLinkFailed: '無法發送登入連結，請再試一次。',
   finePrint: '無需信用卡 · 免費保存此掃描',
@@ -166,6 +167,10 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
   const googlePopupMonitorRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const googlePopupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasStartedClaimIntent = useRef(false)
+  const magicLinkLock = useRef(false)
+  const magicLinkActive = useRef(true)
+  const magicLinkRequest = useRef<AbortController | null>(null)
+  const { captureAuthLimit, clearAuthLimit, authWaiting, authNotice } = useAuthRateLimit('magicLink')
   const [continuation, setContinuation] = useState<AccountUnlockContinuation>({ mode: 'claim', next: buildScanClaimNext(lang, scanId) })
   const next = continuation.next
   const callbackURL = buildAuthCompleteUrl(lang, next)
@@ -179,9 +184,14 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
     setLoading(null)
   }
 
-  useEffect(() => () => {
-    if (googlePopupMonitorRef.current) clearInterval(googlePopupMonitorRef.current)
-    if (googlePopupTimeoutRef.current) clearTimeout(googlePopupTimeoutRef.current)
+  useEffect(() => {
+    magicLinkActive.current = true
+    return () => {
+      magicLinkActive.current = false
+      magicLinkRequest.current?.abort()
+      if (googlePopupMonitorRef.current) clearInterval(googlePopupMonitorRef.current)
+      if (googlePopupTimeoutRef.current) clearTimeout(googlePopupTimeoutRef.current)
+    }
   }, [])
 
   const prepareClaimIntent = useCallback(async (showPreparing = true) => {
@@ -249,19 +259,41 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
 
   async function signInWithMagicLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (magicLinkLock.current || authWaiting || intentState !== 'ready' || loading !== null) return
+    magicLinkLock.current = true
     trackFunnelEvent({ name: 'signup_started', locale: lang === 'zh-HK' ? 'zh-HK' : 'en', provider: 'magic_link', scanId })
     setLoading('email')
     setStatus('')
     setIsError(false)
-    await runAccountUnlockRequest({
-      request: () => authClient.signIn.magicLink({ email, callbackURL }),
-      onFailure: error => {
-        setStatus(error?.code === 'TOO_MANY_ATTEMPTS' ? c.tooManyAttempts : c.magicLinkFailed)
+    clearAuthLimit()
+    const controller = new AbortController()
+    magicLinkRequest.current = controller
+    const timer = setTimeout(() => controller.abort(), 15_000)
+    try {
+      const response = await fetch('/api/auth/sign-in/magic-link', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, callbackURL }), signal: controller.signal,
+      })
+      if (!magicLinkActive.current) return
+      if (await captureAuthLimit(response)) return
+      if (!response.ok) {
+        setStatus(response.status === 429 ? c.tooManyAttempts : c.magicLinkFailed)
         setIsError(true)
-      },
-      onSuccess: () => setStatus(c.checkEmail),
-      onFinally: () => setLoading(null),
-    })
+        return
+      }
+      const result: unknown = await response.json()
+      if (!result || typeof result !== 'object' || !('status' in result) || result.status !== true) throw new Error()
+      if (magicLinkActive.current) setStatus(c.checkEmail)
+    } catch {
+      if (magicLinkActive.current) {
+        setStatus(c.magicLinkFailed)
+        setIsError(true)
+      }
+    } finally {
+      clearTimeout(timer)
+      magicLinkLock.current = false
+      if (magicLinkActive.current) setLoading(null)
+    }
   }
 
   return (
@@ -307,17 +339,20 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
             value={email}
             onChange={event => setEmail(event.target.value)}
             placeholder={c.emailPlaceholder}
+            disabled={loading === 'email'}
+            aria-describedby={authNotice ? 'account-unlock-auth-limit' : undefined}
             className="mt-2 border-white/15 bg-white/10 text-white placeholder:text-slate-500"
           />
           <Button
             type="submit"
-            disabled={loading !== null || intentState !== 'ready'}
+            disabled={loading !== null || intentState !== 'ready' || authWaiting}
             data-testid="create-account"
             className="mt-3 h-auto min-h-11 w-full whitespace-normal py-2.5 leading-snug"
           >
             {loading === 'email' ? c.sending : c.createAccount}
           </Button>
         </form>
+        {authNotice && <div id="account-unlock-auth-limit">{authNotice}</div>}
 
         <p
           role="status"

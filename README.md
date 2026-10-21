@@ -78,6 +78,27 @@ touch .env.local   # then fill in the variables below
 npm run dev        # http://localhost:3000
 ```
 
+For local build verification without live account or provider settings, run
+`npm run build:offline`. It runs the normal Turbopack production build with
+test-only Auth settings, blanks variables found in local dotenv files and
+provider/database credentials, and disables telemetry and monitoring in that
+build process. It does not edit `.env.local`, deploy, migrate, or run a scan.
+`npm run build` remains the standard deployment build.
+
+Turbopack needs child processes to connect to a local TCP listener and, on
+Windows, to create generated build junctions. The offline command checks child
+IPC before building and reports `BUILD_IPC_UNAVAILABLE` if the child exits
+without connecting, even with exit code zero. Run it from a terminal permitted
+to use those resources; a restricted agent must request approval to run outside
+its sandbox. The command never changes OS permissions, elevates, or retries.
+
+`npm run e2e:runtime-isolation` starts the existing local production build on
+an owned ephemeral loopback port, applies the same credential isolation at
+runtime, and blocks outbound sockets and fetch. It tests public rendering and
+unauthenticated access denial, then stops that server. Its existing fixture
+Auth mode returns no session; it does not prove real sign-in or DB persistence.
+Evidence goes to a unique directory under `artifacts/isolated-runtime/`.
+
 **`.env.example` is the authoritative list** — copy it to `.env.local` and fill it in. Each
 entry there says what breaks when it is missing. The highlights:
 
@@ -96,6 +117,12 @@ entry there says what breaks when it is missing. The highlights:
 
 Optional (have fallbacks): `RESEND_FROM_EMAIL`, `WIKIPEDIA_USER_AGENT`.
 E2E only: `BASE_URL`, `START_DEV_SERVER`, `PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_TEST_PASSWORD`.
+
+Scan-summary receipts and their offline/live verification procedure are documented
+in [`n8n/README.md`](n8n/README.md). The summary workflow writes through a scan-bound
+AISO callback, without database credentials. Optional tooling-only `N8N_API_KEY`
+and `N8N_API_BASE_URL` allow a read-only comparison with the exact n8n execution.
+The application and workflow must be rolled out together in the documented order.
 
 Auth and database clients are lazy. A successful build does not verify runtime configuration.
 The readiness configuration report applies a stricter, explicit release policy to supplied

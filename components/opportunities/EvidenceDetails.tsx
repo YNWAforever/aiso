@@ -31,6 +31,7 @@ export function EvidenceDetails({
         </>
       ) : (
         <>
+          <p className="break-all">{t('sourceScan')}: {evidence.scanId}</p>
           <p>
             {t('check')}: {evidence.checkKey} ·{' '}
             {t(evidence.check.assessment === 'warn' ? 'warning' : 'failed')}

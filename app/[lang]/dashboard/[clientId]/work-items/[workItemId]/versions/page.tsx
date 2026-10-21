@@ -9,13 +9,16 @@ import { listAuthenticatedVersions } from '@/lib/change-sets/service'
 import { VersionWorkspace } from '@/components/change-sets/VersionWorkspace'
 export default async function VersionsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ lang: string; clientId: string; workItemId: string }>
+  searchParams?: Promise<{ scanId?: string }>
 }) {
   const { lang: requested, clientId, workItemId } = await params,
     lang = requested === 'zh-HK' ? 'zh-HK' : 'en'
   await requireAuth(lang)
   const t = await getTranslations({ locale: lang, namespace: 'changeSets' })
+  const requestedScan = (await searchParams)?.scanId
   let draft
   try {
     draft = (await readAuthenticatedDraft(clientId, workItemId)).item
@@ -50,6 +53,7 @@ export default async function VersionsPage({
       clientId={clientId}
       workItemId={workItemId}
       initialDraft={draft}
+      returnScanId={typeof requestedScan==='string'?requestedScan:undefined}
       initial={response.ok ? await response.json() : null}
       initialError={response.ok ? '' : 'unavailable'}
     />

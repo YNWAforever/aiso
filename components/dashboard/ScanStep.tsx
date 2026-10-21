@@ -14,9 +14,31 @@ const INDUSTRY_VALUES = [
 const REGION_VALUES = ['global', 'HK', 'TW', 'SG', 'JP', 'KR', 'US', 'UK', 'EU', 'AU', 'CA'] as const
 
 /** A translated message key for a known scan failure, or null to keep the existing handling. */
-export function getDashboardScanErrorKey(status: number, payload: unknown): 'scan_unreachable' | null {
+export function getDashboardScanErrorKey(status: number, payload: unknown): 'scan_unreachable' | 'scan_outcome_unknown' | null {
   const error = payload && typeof payload === 'object' && 'error' in payload ? payload.error : undefined
+  if(status === 409 && error === 'SCAN_OUTCOME_UNKNOWN') return 'scan_outcome_unknown'
   return status === 422 && error === 'SCAN_UNREACHABLE' ? 'scan_unreachable' : null
+}
+
+/**
+ * Persist one request identity per unchanged first-use setup so a reload,
+ * Back or remount of the auto-scan resolves to the same server claim instead
+ * of paying for a second scan. Explicit form submissions always mint a fresh
+ * identity because the user asked for a new run.
+ */
+function scanIntent(clientId: string, url: string, industry: string, region: string, reuse: boolean) {
+  const storageKey = `aiso:scan-request:${clientId}:${url.trim()}:${industry}:${region}`
+  try {
+    if (reuse) {
+      const existing = sessionStorage.getItem(storageKey)
+      if (existing && /^[0-9a-z-]{8,128}$/i.test(existing)) return { storageKey, requestKey: existing }
+    }
+    const requestKey = crypto.randomUUID()
+    sessionStorage.setItem(storageKey, requestKey)
+    return { storageKey, requestKey }
+  } catch {
+    return { storageKey, requestKey: crypto.randomUUID() }
+  }
 }
 
 type Props = {
@@ -34,42 +56,61 @@ export function ScanStep({ lang, clientId, scanHistory }: Props) {
   const autoUrl      = searchParams.get('url') ?? ''
 
   const [url, setUrl]           = useState(autoUrl)
-  const [industry, setIndustry] = useState('')
-  const [region, setRegion]     = useState('')
+  const [industry, setIndustry] = useState(searchParams.get('industry') ?? '')
+  const [region, setRegion]     = useState(searchParams.get('region') ?? '')
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
   const autoSubmitted           = useRef(false)
+  const inFlight = useRef(false)
 
   // Auto-submit when arriving from onboarding with a pre-filled URL
   useEffect(() => {
     if (autoUrl && !autoSubmitted.current && !loading) {
       autoSubmitted.current = true
-      runScan(autoUrl)
+      runScan(autoUrl, true)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoUrl])
 
-  async function runScan(scanUrl: string) {
-    if (!scanUrl.trim()) return
+  async function runScan(scanUrl: string, reuseIntent = false) {
+    if (!scanUrl.trim() || inFlight.current) return
+    inFlight.current = true
+    let navigating = false
     setLoading(true)
     setError('')
+    const intent = scanIntent(clientId, scanUrl, industry, region, reuseIntent)
     try {
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: scanUrl.trim(), industry: industry || undefined, region: region || undefined, clientId }),
+        body: JSON.stringify({
+          url: scanUrl.trim(), industry: industry || undefined, region: region || undefined,
+          clientId, requestKey: intent.requestKey,
+        }),
       })
       const data = await res.json()
       if (!res.ok) {
+        // A failed response can follow completed/charged work. Keep its identity
+        // for automatic reentry; only an explicit form submit creates a new run.
         const key = getDashboardScanErrorKey(res.status, data)
         setError(key ? t(key) : (data.error || t('scan_failed')))
         setLoading(false)
         return
       }
-      router.push(`/${lang}/dashboard/${clientId}?step=results&scanId=${data.id}`)
+      if (data?.state === 'processing' && typeof data.id === 'string' && data.id.trim()) {
+        router.push(`/${lang}/dashboard/${clientId}?step=results&scanId=${encodeURIComponent(data.id)}`)
+        navigating = true
+        return
+      }
+      if (typeof data?.id !== 'string' || !data.id.trim()) { setError(t('scan_failed')); return }
+      router.push(`/${lang}/dashboard/${clientId}?step=results&scanId=${encodeURIComponent(data.id)}`)
+      navigating = true
     } catch {
       setError(t('network_error'))
       setLoading(false)
+    } finally {
+      // Keep the successful request locked until navigation unmounts this screen.
+      if (!navigating) { inFlight.current = false; setLoading(false) }
     }
   }
 
@@ -143,7 +184,7 @@ export function ScanStep({ lang, clientId, scanHistory }: Props) {
           </div>
 
           {error && (
-            <p className="text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>
+            <p role="alert" className="text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>
           )}
 
           <button

@@ -1,7 +1,8 @@
-import enMessages from '@/messages/en.json'
-import zhMessages from '@/messages/zh-HK.json'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { Suspense } from 'react'
+import { ScanImprovements } from '@/components/dashboard/ScanImprovements'
+import { ResultPriorityLoading } from '@/components/dashboard/ResultPriorityCard'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
@@ -14,6 +15,10 @@ import type { Scan, CheckResult } from '@/lib/types'
 import { factualDensityState, type FactualDensityView } from '@/lib/factual-density-evidence'
 import { topicalAuthorityState } from '@/lib/topical-authority-evidence'
 import { buildPublicResultSummary } from '@/lib/result-access'
+import { buildScanSummaryView } from '@/lib/view-models/scan-summary'
+import { ResultsStep } from '@/components/dashboard/ResultsStep'
+import { SavedScanSummary } from '@/components/dashboard/SavedScanSummary'
+import { ScanEvidencePanel } from '@/components/result/ScanEvidencePanel'
 
 const CORE_CHECK_KEYS = [
   'c1_robots', 'c2_llms_txt', 'c3_bot_access', 'c4_structured_data', 'c5_extractability',
@@ -50,6 +55,7 @@ export default async function DashboardResultPage({
   const explanations = getCheckExplanations(lang)
 
   let scan: Scan | null = null
+  let brandName: string | null = null
   let loadError = false
 
   try {
@@ -58,11 +64,13 @@ export default async function DashboardResultPage({
     // brand (or an anonymous scan with client_id null) cannot render inside
     // this workspace. See app/[lang]/dashboard/[clientId]/page.tsx.
     const rows = await sql`
-      select * from scans
-      where id = ${scanId} and account_id = ${profile.account_id} and client_id = ${clientId}
+      select s.*, c.brand_name as brand_label from scans s
+      join clients c on c.id = s.client_id and c.account_id = s.account_id
+      where s.id = ${scanId} and s.account_id = ${profile.account_id} and s.client_id = ${clientId}
       limit 1
     `
     const row = rows[0] as Record<string, unknown> | undefined
+    brandName = typeof row?.brand_label === 'string' ? row.brand_label : null
     // Postgres numeric values arrive as strings. Preserve an unavailable score.
     scan = row ? {
       ...row,
@@ -87,14 +95,21 @@ export default async function DashboardResultPage({
   if (!scan) notFound()
 
   const display = buildPublicResultSummary(scan)
-  if (display.score === null) return <main className="mx-auto max-w-2xl space-y-4 px-4 py-12">
-    <p>{scan.domain}</p>
-    <h1>{(lang === 'zh-HK' ? zhMessages : enMessages).portfolio[display.collectionFailed ? 'scanIncomplete' : 'scanUnknown']}</h1>
-    <Link href={`/${lang}/dashboard/${clientId}?step=scan`}>{t('dashboard.run_new_scan')}</Link>
+  const view = buildScanSummaryView(scan)
+  const selected = encodeURIComponent(scan.id)
+  const priority = <Suspense fallback={<ResultPriorityLoading />}><ScanImprovements clientId={clientId} scanId={scan.id} featured brandName={brandName} /></Suspense>
+  if (view.state !== 'scored') return <main className="mx-auto max-w-3xl space-y-5 px-4 py-8">
+    <Link className="inline-flex min-h-11 items-center underline" href={`/${lang}/dashboard/${clientId}?step=results&scanId=${selected}`}>{t('resultSummary.backToResults')}</Link>
+    <ResultsStep scan={scan} view={view} brandName={brandName} lang={lang} clientId={clientId} priority={priority} />
+    {display.score !== null && <>
+      <Link className="inline-flex min-h-11 items-center underline" href={`/${lang}/dashboard/${clientId}/reports/new?scanId=${selected}`}>{t('reports.create_client_report')}</Link>
+      <FixPackClient scanId={scan.id} fixCta={t('generatedWork.packCta')} fixSubtitle={t('generatedWork.draftNotice')}
+        copyLabel={t('result.copy')} copiedLabel={t('result.copied')} />
+    </>}
   </main>
   const s = scan
-  const grade = s.grade ?? 'F'
-  const gradeConfig = GRADE_CONFIG[grade] ?? GRADE_CONFIG['F']!
+  const grade = s.grade && Object.hasOwn(GRADE_CONFIG, s.grade) ? s.grade : null
+  const gradeConfig = GRADE_CONFIG[grade ?? 'F']!
   const scoreLabel = s.score >= 80
     ? t('result.score_good')
     : s.score >= 50
@@ -146,20 +161,21 @@ export default async function DashboardResultPage({
 
   return (
     <>
+      <div className="mx-auto w-full max-w-2xl px-4 pt-4 sm:px-6">{priority}</div>
       {/* Top nav bar */}
       <div className="flex flex-col gap-3 border-b border-dash-border bg-dash-surface px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="flex min-w-0 flex-wrap items-center gap-3">
           <Link
-            href={`/${lang}/dashboard/${clientId}?step=results`}
+            href={`/${lang}/dashboard/${clientId}?step=results&scanId=${selected}`}
             className="text-xs text-dash-muted hover:text-dash-text transition-colors"
           >
-            ← Back to Results
+            {t('resultSummary.backToResults')}
           </Link>
           <span className="text-dash-border">|</span>
           <p className="break-all text-sm font-semibold text-dash-text">{s.domain}</p>
           {pending && (
             <span className="text-[10px] font-medium bg-dash-warning/10 text-dash-warning px-2 py-0.5 rounded-full border border-dash-warning/20">
-              Agent analysis pending
+              {t('resultSummary.agentPending')}
             </span>
           )}
         </div>
@@ -171,16 +187,16 @@ export default async function DashboardResultPage({
             {t('reports.create_client_report')}
           </Link>
           <Link
-            href={`/${lang}/dashboard/${clientId}?step=improve`}
+            href={`/${lang}/dashboard/${clientId}?step=improve&scanId=${selected}`}
             className="inline-flex min-h-11 items-center rounded-lg border border-dash-border bg-transparent px-4 py-2 text-xs font-semibold text-dash-text transition-colors hover:bg-dash-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Improve with AI agents →
+            {t('dashboard.next_improve')}
           </Link>
           <Link
             href={`/${lang}/dashboard/${clientId}?step=scan`}
             className="inline-flex min-h-11 items-center rounded-lg px-4 py-2 text-xs font-medium text-dash-muted transition-colors hover:bg-dash-elevated hover:text-dash-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Full History
+            {t('resultSummary.history')}
           </Link>
         </div>
       </div>
@@ -190,17 +206,23 @@ export default async function DashboardResultPage({
         <div className="rounded-xl border border-dash-border bg-dash-surface p-6 mb-6 flex items-center gap-5">
           <ScoreRing score={s.score} />
           <div className="flex-1">
-            <p className="text-lg font-bold text-dash-text">{s.domain}</p>
+            <p className="text-lg font-bold text-dash-text">{brandName || s.domain}</p>
             <p className="text-sm text-dash-muted">{t('result.score_label')} — {scoreLabel}</p>
             {s.industry && s.region && (
               <p className="text-xs text-dash-muted/70 mt-0.5">{s.industry} · {s.region}</p>
             )}
           </div>
           <div className={`rounded-xl border-2 ${gradeConfig.bg} ${gradeConfig.border} px-4 py-2 text-center min-w-[64px]`}>
-            <p className={`text-2xl font-black ${gradeConfig.text}`}>{grade}</p>
-            <p className={`text-xs font-semibold ${gradeConfig.text} mt-0.5`}>{gradeConfig.label}</p>
+            <p className={`text-2xl font-black ${gradeConfig.text}`}>{grade ?? t('resultSummary.gradeUnavailable')}</p>
+            {grade && <p className={`text-xs font-semibold ${gradeConfig.text} mt-0.5`}>{t(`resultSummary.grades.${grade === 'A+' ? 'APlus' : grade}`)}</p>}
           </div>
         </div>
+        <p className="mb-4 text-sm text-dash-muted">{t('resultSummary.scope')}</p>
+        <p className="mb-4 text-sm">{t('resultSummary.recordedAt')}: {Number.isFinite(Date.parse(s.created_at))
+          ? <time dateTime={s.created_at}>{new Intl.DateTimeFormat(lang === 'zh-HK' ? 'zh-HK' : 'en', {dateStyle:'medium',timeStyle:'short',timeZone:'UTC'}).format(new Date(s.created_at))} UTC</time>
+          : t('resultSummary.unknownTime')}</p>
+        <SavedScanSummary value={r._n8n} />
+        <ScanEvidencePanel evidence={view.evidence} locale={lang} />
 
         {/* Score breakdown (only if GEO data present) */}
         {hasGeo && (
@@ -237,11 +259,11 @@ export default async function DashboardResultPage({
 
         {/* Scan summary pill row */}
         <div className="flex items-center gap-2 mb-4 text-sm flex-wrap">
-          <span className="text-dash-muted text-xs">{allChecks.length} checks scanned — click any row for details &amp; fix guidance</span>
+          <span className="text-dash-muted text-xs">{t('resultSummary.recordedChecks', {count: allChecks.length})}</span>
           <span className="ml-auto flex gap-2">
-            {passes > 0 && <span className="bg-dash-success/10 text-dash-success font-semibold px-2 py-0.5 rounded-full text-xs border border-dash-success/20">✓ {passes} passing</span>}
-            {warns  > 0 && <span className="bg-dash-warning/10 text-dash-warning font-semibold px-2 py-0.5 rounded-full text-xs border border-dash-warning/20">⚠ {warns} warnings</span>}
-            {fails  > 0 && <span className="bg-dash-danger/10 text-dash-danger font-semibold px-2 py-0.5 rounded-full text-xs border border-dash-danger/20">✗ {fails} failing</span>}
+            {passes > 0 && <span className="bg-dash-success/10 text-dash-success font-semibold px-2 py-0.5 rounded-full text-xs border border-dash-success/20">✓ {passes} {t('resultSummary.assessment.pass')}</span>}
+            {warns  > 0 && <span className="bg-dash-warning/10 text-dash-warning font-semibold px-2 py-0.5 rounded-full text-xs border border-dash-warning/20">⚠ {warns} {t('resultSummary.assessment.warn')}</span>}
+            {fails  > 0 && <span className="bg-dash-danger/10 text-dash-danger font-semibold px-2 py-0.5 rounded-full text-xs border border-dash-danger/20">✗ {fails} {t('resultSummary.assessment.fail')}</span>}
             {unknown > 0 && <span className="text-dash-muted text-xs">{t('result.evidence_unverified', { count: unknown })}</span>}
           </span>
         </div>
@@ -386,16 +408,16 @@ export default async function DashboardResultPage({
         {/* Bottom nav */}
         <div className="flex items-center justify-between">
           <Link
-            href={`/${lang}/dashboard/${clientId}?step=results`}
+            href={`/${lang}/dashboard/${clientId}?step=results&scanId=${selected}`}
             className="text-xs text-dash-muted hover:text-dash-text transition-colors"
           >
-            ← Back to Results
+            {t('resultSummary.backToResults')}
           </Link>
           <Link
-            href={`/${lang}/dashboard/${clientId}?step=improve`}
+            href={`/${lang}/dashboard/${clientId}?step=improve&scanId=${selected}`}
             className="inline-flex items-center px-5 py-2.5 text-sm font-medium rounded-lg text-primary-foreground bg-dash-accent hover:opacity-90 transition-opacity"
           >
-            Improve with AI agents →
+            {t('dashboard.next_improve')}
           </Link>
         </div>
       </main>

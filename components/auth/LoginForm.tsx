@@ -5,6 +5,7 @@ import { authClient, buildAuthCompleteUrl } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
 import { Input }  from '@/components/ui/input'
 import { MailCheck } from 'lucide-react'
+import { useAuthRateLimit } from '@/components/auth/useAuthRateLimit'
 
 const COPY_EN = {
   checkEmail: 'Check your email',
@@ -15,7 +16,7 @@ const COPY_EN = {
   sendMagicLink: 'Send Magic Link',
   emailLabel: 'Work email',
   emailPlaceholder: 'you@company.com',
-  tooManyAttempts: 'Too many attempts. Please wait a few minutes before trying again.',
+  tooManyAttempts: 'Too many link requests. Please wait before trying again.',
   googleFailed: 'Could not start Google sign-in. Please try again.',
   magicLinkFailed: 'Could not send the magic link. Please try again.',
 }
@@ -29,7 +30,7 @@ const COPY_ZH_HK: typeof COPY_EN = {
   sendMagicLink: '發送登入連結',
   emailLabel: '工作電郵',
   emailPlaceholder: 'you@company.com',
-  tooManyAttempts: '嘗試次數過多，請等待幾分鐘後再試。',
+  tooManyAttempts: '登入連結請求次數過多，請稍候再試。',
   googleFailed: '無法啟動 Google 登入，請再試一次。',
   magicLinkFailed: '無法發送登入連結，請再試一次。',
 }
@@ -42,7 +43,13 @@ export function LoginForm({ next }: { next?: string }) {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const sentMessageRef = useRef<HTMLDivElement>(null)
+  const lock = useRef(false), active = useRef(true), pending = useRef<AbortController | null>(null)
+  const { captureAuthLimit, clearAuthLimit, authWaiting, authNotice } = useAuthRateLimit('magicLink')
 
+  useEffect(() => {
+    active.current = true
+    return () => { active.current = false; pending.current?.abort() }
+  }, [])
   useEffect(() => {
     if (sent) sentMessageRef.current?.focus()
   }, [sent])
@@ -61,19 +68,31 @@ export function LoginForm({ next }: { next?: string }) {
 
   const signInWithMagicLink = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (lock.current || authWaiting) return
+    lock.current = true
     setLoading(true)
     setErrorMsg('')
+    clearAuthLimit()
+    const controller = new AbortController()
+    pending.current = controller
+    const timer = setTimeout(() => controller.abort(), 15000)
     try {
-      const { error } = await authClient.signIn.magicLink({ email, callbackURL })
-      if (error) {
-        setErrorMsg(error.code === 'TOO_MANY_ATTEMPTS' ? c.tooManyAttempts : c.magicLinkFailed)
-      } else {
-        setSent(true)
-      }
+      const response = await fetch('/api/auth/sign-in/magic-link', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, callbackURL }), signal: controller.signal,
+      })
+      if (!active.current) return
+      if (await captureAuthLimit(response)) return
+      if (!response.ok) { setErrorMsg(response.status === 429 ? c.tooManyAttempts : c.magicLinkFailed); return }
+      const result: unknown = await response.json()
+      if (!result || typeof result !== 'object' || !('status' in result) || result.status !== true) throw new Error()
+      if (active.current) setSent(true)
     } catch {
-      setErrorMsg(c.magicLinkFailed)
+      if (active.current) setErrorMsg(c.magicLinkFailed)
     } finally {
-      setLoading(false)
+      clearTimeout(timer)
+      lock.current = false
+      if (active.current) setLoading(false)
     }
   }
 
@@ -117,15 +136,17 @@ export function LoginForm({ next }: { next?: string }) {
           autoComplete="email"
           inputMode="email"
           required
+          disabled={loading}
           className="h-11"
-          aria-describedby={errorMsg ? 'login-email-error' : undefined}
+          aria-describedby={errorMsg ? 'login-email-error' : authNotice ? 'login-auth-limit' : undefined}
         />
-        <Button type="submit" disabled={loading} className="h-11 w-full font-semibold">
+        <Button type="submit" disabled={loading || authWaiting} className="h-11 w-full font-semibold">
           {loading ? c.sending : c.sendMagicLink}
         </Button>
         {errorMsg && (
           <p id="login-email-error" role="alert" aria-live="polite" className="text-destructive text-sm mt-2">{errorMsg}</p>
         )}
+        {authNotice && <div id="login-auth-limit">{authNotice}</div>}
       </form>
     </div>
   )

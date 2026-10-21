@@ -1,9 +1,14 @@
 export type OpportunityCursor={accountId:string;clientId:string;week:string;asOf:string;recordedAt:string|null;id:string}
-export type OpportunityQuery={cursor:OpportunityCursor|null}
+export type OpportunityQuery={cursor:OpportunityCursor|null;scanId?:string}
 export function encodeOpportunityCursor(cursor:OpportunityCursor){return Buffer.from(JSON.stringify(cursor)).toString('base64url')}
 export function parseOpportunityQuery(params:URLSearchParams,accountId:string,clientId:string):OpportunityQuery{
  const keys=[...params.keys()]
- if(keys.length>1||keys.some(key=>key!=='cursor'))throw new Error('INVALID_OPPORTUNITY_QUERY')
+ if(keys.length>1||keys.some(key=>key!=='cursor'&&key!=='scanId'))throw new Error('INVALID_OPPORTUNITY_QUERY')
+ const scanId=params.get('scanId')
+ if(scanId!==null){
+  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(scanId))throw new Error('INVALID_OPPORTUNITY_QUERY')
+  return{cursor:null,scanId:scanId.toLowerCase()}
+ }
  const raw=params.get('cursor')
  if(raw===null)return{cursor:null}
  try{

@@ -1,17 +1,19 @@
 vi.mock('server-only',()=>({}))
 import { beforeEach, expect, it, vi } from 'vitest'
-const mocks = vi.hoisted(() => ({ profile:vi.fn(), owner:vi.fn(), find:vi.fn(), source:vi.fn(), create:vi.fn(), update:vi.fn(), read:vi.fn(), list:vi.fn() }))
+const mocks = vi.hoisted(() => ({ profile:vi.fn(), owner:vi.fn(), find:vi.fn(), source:vi.fn(), create:vi.fn(), update:vi.fn(), read:vi.fn(), list:vi.fn(), reportFinding:vi.fn() }))
 vi.mock('@/lib/auth',()=>({getProfile:mocks.profile}))
 vi.mock('@/lib/work-items/store',()=>({loadOwnedDraftClient:mocks.owner,findOwnedDraft:mocks.find,loadOwnedDraftSource:mocks.source,createDraftIfEvidenceCurrent:mocks.create,updateOwnedDraft:mocks.update,readOwnedDraft:mocks.read,listOwnedDrafts:mocks.list}))
+vi.mock('@/lib/reports/finding-tasks',()=>({loadOwnedReportFinding:mocks.reportFinding}))
 import { saveAuthenticatedDraft, editAuthenticatedDraft } from '@/lib/work-items/service'
 import { projectPulseOpportunityInput } from '@/lib/opportunities/store'
 import { deriveSuggestions } from '@/lib/opportunities/rules'
+import { buildScanEvidence } from '@/lib/scan-evidence'
 const id='00000000-0000-4000-8000-000000000001'
 const projected=projectPulseOpportunityInput(id,{id,client_id:id,prompt_id:null,question:'Question?',platform:'chatgpt',scan_week:'2026-08-31',created_at:null,raw_answer:'PRIVATE',classification_status:'classified',brand_mentioned:false,has_answer:true})
 const suggestion=deriveSuggestions(projected.source)[0]
 const input={source:suggestion.source,ruleVersion:suggestion.ruleVersion,fingerprint:suggestion.fingerprint,locale:'en'}
 const request=(value:unknown)=>new Request('http://localhost',{method:'POST',body:JSON.stringify(value)})
-beforeEach(()=>{vi.clearAllMocks();mocks.profile.mockResolvedValue({id,account_id:id});mocks.owner.mockResolvedValue({id});mocks.find.mockResolvedValue(null);mocks.source.mockResolvedValue(projected);mocks.create.mockResolvedValue(null);vi.spyOn(console,'error').mockImplementation(()=>{})})
+beforeEach(()=>{vi.resetAllMocks();mocks.profile.mockResolvedValue({id,account_id:id});mocks.owner.mockResolvedValue({id});mocks.find.mockResolvedValue(null);mocks.source.mockResolvedValue(projected);mocks.create.mockResolvedValue(null);mocks.reportFinding.mockResolvedValue(null);vi.spyOn(console,'error').mockImplementation(()=>{})})
  it('auth precedes invalid input and foreign owner precedes body parsing',async()=>{
   mocks.profile.mockResolvedValueOnce(null)
   await expect(saveAuthenticatedDraft('bad',request({}))).rejects.toMatchObject({status:401})
@@ -65,6 +67,68 @@ it('caps edit raw bytes and rejects immutable fields before persistence',async()
  const req=new Request('http://localhost',{method:'PATCH',body:JSON.stringify({title:'Review',action:'Check',notes:'',expectedRevision:1})+' '.repeat(32768)})
  await expect(editAuthenticatedDraft(id,id,req)).rejects.toMatchObject({status:400})
  expect(mocks.update).not.toHaveBeenCalled()
+})
+it('links one scan finding to the exact report version and preserves the frozen provenance',async()=>{
+ const reportVersionId='00000000-0000-4000-8000-000000000002'
+ const envelope=buildScanEvidence({requestedUrl:'https://example.test',evaluatedUrl:'https://example.test',
+   industry:'general_b2b',region:'HK',sitemapSource:'unknown',
+   checks:{c1_robots:{assessment:'fail',collection:'complete'}}})
+ const scanSource={kind:'scan-check' as const,scanId:id,recordedAt:'2026-10-18T09:00:00.000Z',envelope}
+ const scanSuggestion=deriveSuggestions(scanSource)[0]
+ mocks.source.mockResolvedValueOnce({source:scanSource,version:{kind:'scan-check',row:{id,client_id:id,account_id:id,created_at:'2026-10-18T09:00:00.000Z',envelope}}})
+ mocks.reportFinding.mockResolvedValueOnce({reportId:'00000000-0000-4000-8000-000000000003',reportVersionId,
+   reportVersionNumber:2,reportCreatedAt:'2026-10-18T09:02:00.000Z',findingKey:'c1_robots',
+   findingTitle:'Review crawler access',findingRationale:'Synthetic report evidence',findingNextStep:'Review robots',
+   expectedImpact:'high'})
+ mocks.create.mockResolvedValueOnce({item:{id},created:true})
+ await saveAuthenticatedDraft(id,request({source:scanSuggestion.source,ruleVersion:scanSuggestion.ruleVersion,
+   fingerprint:scanSuggestion.fingerprint,locale:'en',reportVersionId}))
+ expect(mocks.reportFinding).toHaveBeenCalledWith({accountId:id,clientId:id,reportVersionId,
+   scanId:id,checkKey:'c1_robots',locale:'en'})
+ expect(mocks.create.mock.calls[0][4]).toMatchObject({reportProvenance:{
+   reportVersionId,reportVersionNumber:2,findingKey:'c1_robots',targetOrigin:'https://example.test',
+ }})
+})
+it('replays an existing task before validating report provenance and rejects a missing report link',async()=>{
+ const reportVersionId='00000000-0000-4000-8000-000000000002'
+ const envelope=buildScanEvidence({requestedUrl:'https://example.test',evaluatedUrl:'https://example.test',
+   industry:'general_b2b',region:'HK',sitemapSource:'unknown',
+   checks:{c1_robots:{assessment:'fail',collection:'complete'}}})
+ const scanSource={kind:'scan-check' as const,scanId:id,recordedAt:'2026-10-18T09:00:00.000Z',envelope}
+ const scanSuggestion=deriveSuggestions(scanSource)[0]
+ const scanInput={source:scanSuggestion.source,ruleVersion:scanSuggestion.ruleVersion,
+   fingerprint:scanSuggestion.fingerprint,locale:'en' as const,reportVersionId}
+ mocks.find.mockResolvedValueOnce({id})
+ expect(await saveAuthenticatedDraft(id,request(scanInput))).toEqual({item:{id},created:false})
+ expect(mocks.reportFinding).not.toHaveBeenCalled()
+ mocks.find.mockResolvedValueOnce(null)
+ mocks.source.mockResolvedValueOnce({source:scanSource,version:{kind:'scan-check',row:{id,client_id:id,account_id:id,created_at:'2026-10-18T09:00:00.000Z',envelope}}})
+ mocks.reportFinding.mockResolvedValueOnce(null)
+ await expect(saveAuthenticatedDraft(id,request(scanInput))).rejects.toMatchObject({code:'EVIDENCE_CHANGED',status:409})
+})
+it('keeps a v2-linked task and its citations when a create request is retried from report v3',async()=>{
+ const v2='00000000-0000-4000-8000-000000000002'
+ const v3='00000000-0000-4000-8000-000000000003'
+ const envelope=buildScanEvidence({requestedUrl:'https://example.test',evaluatedUrl:'https://example.test',
+   industry:'general_b2b',region:'HK',sitemapSource:'unknown',
+   checks:{c1_robots:{assessment:'fail',collection:'complete'}}})
+ const scanSource={kind:'scan-check' as const,scanId:id,recordedAt:'2026-10-18T09:00:00.000Z',envelope}
+ const scanSuggestion=deriveSuggestions(scanSource)[0]
+ const stored={id,clientId:id,revision:4,evidenceSnapshot:{reportProvenance:{
+   reportId:id,reportVersionId:v2,reportVersionNumber:2,findingKey:'c1_robots',
+   findingTitle:'Review crawler access',findingRationale:'Frozen v2 evidence',
+   findingNextStep:'Review robots',expectedImpact:'high',targetOrigin:'https://example.test',
+ }}}
+ mocks.find.mockResolvedValueOnce(stored)
+ const result=await saveAuthenticatedDraft(id,request({
+   source:scanSuggestion.source,ruleVersion:scanSuggestion.ruleVersion,
+   fingerprint:scanSuggestion.fingerprint,locale:'en',reportVersionId:v3,
+ }))
+ expect(result).toEqual({item:stored,created:false})
+ expect(result.item.evidenceSnapshot.reportProvenance).toMatchObject({
+   reportVersionId:v2,reportVersionNumber:2,findingKey:'c1_robots',
+ })
+ expect(mocks.reportFinding).not.toHaveBeenCalled()
 })
 it('returns identical-payload lost-response replay from persistence without snapshot rewriting',async()=>{
  const stored={id,revision:3,evidenceSnapshot:{retained:'original'}}

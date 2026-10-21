@@ -7,6 +7,7 @@ import { VersionDetails } from './VersionDetails'
 import { DecisionForm } from './DecisionForm'
 import { DeliveryWorkspace } from '@/components/delivery/DeliveryWorkspace'
 import { OutcomeWorkspace } from '@/components/outcomes/OutcomeWorkspace'
+import { WorkOperationsPanel } from '@/components/work-items/WorkOperationsPanel'
 export type VersionPageDTO = {
   versions: VersionSummary[]
   nextCursor: string | null
@@ -19,6 +20,7 @@ export type VersionWorkspaceProps = {
   initial: VersionPageDTO | null
   initialVersion?: VersionDetail | null
   initialError?: string
+  returnScanId?: string
 }
 export function VersionWorkspace({
   clientId,
@@ -27,7 +29,12 @@ export function VersionWorkspace({
   initial,
   initialVersion = null,
   initialError = '',
+  returnScanId,
 }: VersionWorkspaceProps) {
+  const originalScan = initialDraft?.evidenceSnapshot.source.kind === 'scan-check' ? initialDraft.evidenceSnapshot.source.id : null
+  const liveScans = initialDraft?.sourceScanIds ?? (originalScan ? [originalScan] : [])
+  const resumeScan = returnScanId && liveScans.includes(returnScanId) ? returnScanId
+    : originalScan && liveScans.includes(originalScan) ? originalScan : liveScans.length === 1 ? liveScans[0] : null
   const t = useTranslations('changeSets'),
     lang = useLocale(),
     [draft, setDraft] = useState(initialDraft),
@@ -106,6 +113,7 @@ export function VersionWorkspace({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ expectedRevision: draft.revision }),
+        signal: AbortSignal.timeout(15_000),
       })
       if (!res.ok) {
         setError(
@@ -126,7 +134,10 @@ export function VersionWorkspace({
   }
   async function reload() {
     await run(async () => {
-      const res = await fetch(base, { cache: 'no-store' })
+      const res = await fetch(base, {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(15_000),
+      })
       if (!res.ok) throw Error()
       setDraft((await res.json()).item)
       setStatus('draftReloaded')
@@ -140,7 +151,7 @@ export function VersionWorkspace({
           (more && page?.nextCursor
             ? '?cursor=' + encodeURIComponent(page.nextCursor)
             : ''),
-        { cache: 'no-store' },
+        { cache: 'no-store', signal: AbortSignal.timeout(15_000) },
       )
       if (!res.ok) throw Error()
       const next: VersionPageDTO = await res.json()
@@ -179,6 +190,7 @@ export function VersionWorkspace({
       const generation = versionReadGeneration.current
       const res = await fetch(endpoint + '/' + encodeURIComponent(id), {
         cache: 'no-store',
+        signal: AbortSignal.timeout(15_000),
       })
       if (!res.ok) throw Error()
       const next: { version: VersionDetail } = await res.json()
@@ -196,7 +208,9 @@ export function VersionWorkspace({
     >
       <a
         className="inline-flex min-h-11 items-center underline"
-        href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/opportunities`}
+        href={resumeScan
+          ? `/${lang}/dashboard/${encodeURIComponent(clientId)}?step=improve&scanId=${encodeURIComponent(resumeScan)}&draft=${encodeURIComponent(workItemId)}`
+          : `/${lang}/dashboard/${encodeURIComponent(clientId)}/opportunities?draft=${encodeURIComponent(workItemId)}`}
       >
         {t('backToDrafts')}
       </a>
@@ -204,7 +218,7 @@ export function VersionWorkspace({
       <p>{t('notDelivery')}</p>
       <p>{t('immutableNotice')}</p>
       {error && <p role="alert">{t(error)}</p>}
-      <p role="status" tabIndex={-1} ref={statusRef}>
+      <p role="status" aria-label={t('versionReviewStatus')} tabIndex={-1} ref={statusRef}>
         {busy ? t('loading') : status ? t(status) : ''}
       </p>
       <section className="space-y-3 rounded-xl border border-border p-4">
@@ -215,6 +229,7 @@ export function VersionWorkspace({
             <h3 className="whitespace-pre-wrap break-words">{draft.title}</h3>
             <p className="whitespace-pre-wrap break-words">{draft.action}</p>
             <p className="whitespace-pre-wrap break-words">{draft.notes}</p>
+            <WorkOperationsPanel key={workItemId} clientId={clientId} itemId={workItemId} revision={draft.revision} mode="review" />
             <form onSubmit={submit}>
               <button className={button} disabled={busy || anyDirty} type="submit">
                 {t('submitVersion')}

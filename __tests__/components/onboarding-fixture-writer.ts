@@ -13,4 +13,6 @@ export async function writeOnboardingFixture() {
     build: { outDir: resolve(dir), emptyOutDir: false, lib: { entry, name: 'OnboardingFixture', formats: ['iife'], fileName: () => 'fixture.js' } },
   })
   unlinkSync(entry)
+  const { writeFirstResultFixture } = await import('../../tests/fixtures/onboarding-first-result-build.mjs')
+  await writeFirstResultFixture()
 }

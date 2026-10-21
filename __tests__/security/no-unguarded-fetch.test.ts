@@ -22,7 +22,7 @@ import { describe, expect, it } from 'vitest'
  * one a deliberate, reviewed act.
  */
 
-const SCANNED_DIRS = ['lib/checks', 'lib/authority', 'lib/pulse/runs', 'app/api']
+const SCANNED_DIRS = ['lib/checks', 'lib/authority', 'lib/pulse/runs', 'lib/n8n', 'app/api']
 
 /**
  * Call sites that legitimately keep the global fetch, with the reason each is
@@ -37,13 +37,6 @@ const ALLOWED: Record<string, { count: number; reason: string }> = {
     count: 2,
     reason: 'Self-origin producer call and the one chainTo() continuation (every hop, including candidate deadline continuation and the 4xx pass-over) use appOrigin(). The guarded fetcher '
       + 'blocks private ranges, so it would reject localhost in dev and preview.',
-  },
-  'app/api/scan/route.ts': {
-    count: 1,
-    reason: 'N8N_SCAN_WEBHOOK_URL is set by the deployment, not by a caller, and may '
-      + 'address an internal n8n host that the guarded fetcher would reject as a private '
-      + 'range. Note the client-configured webhook a few lines above it DOES use '
-      + 'fetchPublicUrl, because that destination is customer data.',
   },
   'lib/authority/layer2-signals.ts': {
     count: 2,

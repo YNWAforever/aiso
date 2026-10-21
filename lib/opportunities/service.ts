@@ -1,4 +1,5 @@
 import {groupOpportunities} from './groups'
+import { AuthRateLimitError, authRateLimitResponse } from '@/lib/auth-rate-limit'
 import { buildInitialDraftSnapshot } from '@/lib/work-items/snapshot'
 import 'server-only'
 import { getProfile } from '@/lib/auth'
@@ -65,12 +66,13 @@ export async function loadAuthenticatedOpportunities(clientId: string,params=new
         savedState: savedDraftsState === 'unavailable' ? 'unavailable' : saved.has(item.key) ? 'saved' : 'unsaved' })),
     }
   } catch (error) {
-    if (error instanceof OpportunityServiceError) throw error
+    if (error instanceof OpportunityServiceError || error instanceof AuthRateLimitError) throw error
     diagnostic('load')
     throw new OpportunityServiceError('OPPORTUNITIES_UNAVAILABLE')
   }
 }
 export function opportunityErrorResponse(error: unknown): Response {
+  const limited = authRateLimitResponse(error); if (limited) return limited
   const safe = error instanceof OpportunityServiceError ? error : new OpportunityServiceError('OPPORTUNITIES_UNAVAILABLE')
   return Response.json({ error: safe.code }, { status: safe.status, headers: { 'Cache-Control':'no-store' } })
 }

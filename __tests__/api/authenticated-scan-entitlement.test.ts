@@ -120,7 +120,7 @@ describe('authenticated scan commercial entitlement', () => {
 
     expect(response.status).toBe(422)
     expect(consumeAuthenticatedScanQuota).toHaveBeenCalledTimes(1)
-    expect(releaseAuthenticatedScanQuota).toHaveBeenCalledWith('account-basic')
+    expect(releaseAuthenticatedScanQuota).toHaveBeenCalledExactlyOnceWith('account-basic', state.quota)
   })
 
   it('refunds a Basic monthly scan when the page is not usable', async () => {
@@ -133,7 +133,7 @@ describe('authenticated scan commercial entitlement', () => {
     const response = await scan()
 
     expect(response.status).toBe(502)
-    expect(releaseAuthenticatedScanQuota).toHaveBeenCalledWith('account-basic')
+    expect(releaseAuthenticatedScanQuota).toHaveBeenCalledExactlyOnceWith('account-basic', state.quota)
   })
 
   it('refunds nothing for a plan whose scans are not counted', async () => {

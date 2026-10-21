@@ -40,6 +40,8 @@ import { calculatePillarScores } from '@/lib/pillar-scores'
 import { buildScanEvidence, CHECK_VERSIONS, type EvidenceCheckKey } from '@/lib/scan-evidence'
 import { createScanEvidenceCapture } from '@/lib/scan-evidence-capture'
 import { fetchSitemapPageUrls } from '@/lib/sitemap-fetch'
+import { createSummaryReceipt } from '@/lib/n8n/schema'
+import { dispatchScanSummary } from '@/lib/n8n/dispatch'
 
 const IPV4 = /^(?:\d{1,3}\.){3}\d{1,3}$/
 const TLD = /^(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$/i
@@ -74,10 +76,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { url, industry, region, sitemapUrls, clientId: requestedClientId } =
+  const { url, industry, region, sitemapUrls, clientId: requestedClientId, requestKey } =
     body as Record<string, unknown>
   if (!url || typeof url !== 'string') {
     return NextResponse.json({ error: 'Invalid URL' }, { status: 400 })
+  }
+  if (requestKey !== undefined && requestKey !== null
+    && (typeof requestKey !== 'string' || requestKey.length < 8 || requestKey.length > 128)) {
+    return NextResponse.json({ error: 'Invalid requestKey' }, { status: 400 })
   }
 
   let baseUrl: string
@@ -164,6 +170,77 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Server misconfiguration: missing DATABASE_URL' }, { status: 500 })
   }
 
+  const account_id = profile?.account_id ?? null
+  const clientId = ownedClient?.id
+  const geoIndustry = ((industry as string | undefined) ?? 'general_b2c') as IndustryCode
+  const geoRegion   = ((region   as string | undefined) ?? 'global')       as RegionCode
+
+  // First-use scans are claimed before any check runs. The browser keeps one
+  // requestKey per unchanged setup, so a double click, reload or Back resolves
+  // to this row instead of paying for a second scan. The claim lives in the
+  // existing scans row (results._scan_request) so no schema change is needed.
+  const claimKey = ownedClient && account_id && typeof requestKey === 'string' ? requestKey : null
+  const PROCESSING_CLAIM_TTL_MS = 2 * 60_000
+  let claimId: string | null = null
+  const claimResults = (state: 'processing' | 'failed' | 'complete', extra: Record<string, unknown> = {}) => ({
+    _scan_request: {
+      key: claimKey, state, startedAt: new Date().toISOString(), ...extra,
+    },
+  })
+  const markClaimFailed = async (error: string, status: number) => {
+    if (!claimId) return
+    try {
+      await sql`
+        update scans
+        set results = jsonb_set(results, '{_scan_request}',
+          ${JSON.stringify(claimResults('failed', { error, status, finishedAt: new Date().toISOString() })._scan_request)}::jsonb, true)
+        where id = ${claimId} and account_id = ${account_id}
+      `
+    } catch (markError) {
+      console.error('[scan] claim failure marker failed:', (markError as Error)?.name ?? 'Error')
+    }
+  }
+  if (claimKey && account_id && clientId) {
+    try {
+      const { claimOwnedScan } = await import('@/lib/scans/request-claim')
+      const claim = await claimOwnedScan({
+        accountId: account_id, clientId, key: claimKey, url: baseUrl, domain,
+        industry: geoIndustry, region: geoRegion, results: claimResults('processing'),
+      })
+      const row = claim.row
+      if (!claim.created) {
+        const run = (row.results?._scan_request ?? {}) as Record<string, unknown>
+        const savedScore = row.score === null ? null : Number(row.score)
+        if (savedScore !== null && Number.isFinite(savedScore)) {
+          return NextResponse.json({ id: row.id, score: savedScore, grade: row.grade, reused: true })
+        }
+        if (run.state === 'failed') {
+          const status = typeof run.status === 'number' && run.status >= 400 && run.status <= 599 ? run.status : 502
+          return NextResponse.json({
+            error: typeof run.error === 'string' ? run.error : 'SCAN_FAILED',
+            scanId: row.id, state: 'failed', reused: true,
+          }, { status })
+        }
+        const started = typeof run.startedAt === 'string' ? run.startedAt : row.created_at
+        const age = Date.now() - new Date(started).getTime()
+        if (!Number.isFinite(age) || age < PROCESSING_CLAIM_TTL_MS) {
+          return NextResponse.json({ id: row.id, state: 'processing', reused: true }, { status: 202 })
+        }
+        // A timed-out invocation may already have charged a provider. Preserve
+        // its row/evidence and require an explicit new intent, never takeover.
+        await sql`update scans set results=jsonb_set(results,'{_scan_request}',
+          ${JSON.stringify({ ...run, state: 'failed', error: 'SCAN_OUTCOME_UNKNOWN', status: 409 })}::jsonb,true)
+          where id=${row.id} and account_id=${account_id} and client_id=${clientId} and score is null
+            and results->'_scan_request'=${JSON.stringify(run)}::jsonb`
+        return NextResponse.json({ scanId: row.id, state: 'failed', error: 'SCAN_OUTCOME_UNKNOWN', reused: true }, { status: 409 })
+      }
+      claimId = row.id
+    } catch (claimError) {
+      console.error('[scan] request claim failed:', (claimError as Error)?.name ?? 'Error')
+      return NextResponse.json({ error: 'Scan request unavailable' }, { status: 503 })
+    }
+  }
+
   const entitlement = resolveCommercialEntitlement(profile?.accounts)
   let scanHeaders: Headers | undefined
   // Set once a monthly scan has been spent, so a scan that turns out to have
@@ -174,6 +251,7 @@ export async function POST(req: NextRequest) {
       const decision = await consumePublicScanRateLimit(req)
       scanHeaders = rateLimitHeaders(decision)
       if (!decision.allowed) {
+        await markClaimFailed('Too many scan requests. Please try again later.', 429)
         return NextResponse.json(
           { error: 'Too many scan requests. Please try again later.' },
           { status: 429, headers: scanHeaders },
@@ -184,12 +262,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Public scan temporarily unavailable' }, { status: 503 })
     }
   } else if (entitlement.plan === 'free') {
+    await markClaimFailed('AUTHENTICATED_SCAN_UPGRADE_REQUIRED', 403)
     return NextResponse.json({ error: 'AUTHENTICATED_SCAN_UPGRADE_REQUIRED' }, { status: 403 })
   } else if (entitlement.monthlyScanLimit !== null) {
     try {
       const decision = await consumeAuthenticatedScanQuota(profile.account_id)
       scanHeaders = authenticatedScanQuotaHeaders(decision)
       if (!decision.allowed) {
+        await markClaimFailed('AUTHENTICATED_SCAN_LIMIT_REACHED', 429)
         return NextResponse.json(
           { error: 'AUTHENTICATED_SCAN_LIMIT_REACHED' },
           { status: 429, headers: scanHeaders },
@@ -198,20 +278,19 @@ export async function POST(req: NextRequest) {
       quotaReservation = { accountId: profile.account_id, decision }
     } catch (error) {
       console.error('[scan] authenticated quota failed:', (error as Error)?.message ?? String(error))
+      await markClaimFailed('Authenticated scan quota unavailable', 503)
       return NextResponse.json({ error: 'Authenticated scan quota unavailable' }, { status: 503 })
     }
   }
 
-  const account_id = profile?.account_id ?? null
-  const clientId = ownedClient?.id
-
   // Fetch page HTML once — shared by extended checks + GEO checks.
   // The reusable boundary validates DNS and every redirect hop.
   const capture = createScanEvidenceCapture(fetchPublicUrl)
-  // Nothing is saved on any refusal below, so the monthly scan it spent is
-  // given back. A failed refund is logged, not surfaced: the refusal is still
-  // the true answer.
+  // No completed scan is saved on refusal; a failed request claim may remain.
+  // Give back the monthly scan reservation. A failed refund is logged, not
+  // surfaced: the refusal is still the true answer.
   const refuse = async (error: string, status: number) => {
+    await markClaimFailed(error, status)
     if (quotaReservation) {
       const reservation = quotaReservation
       quotaReservation = null
@@ -316,8 +395,6 @@ export async function POST(req: NextRequest) {
   const score = calculateScore(results)   // 0–75 before GEO
 
   // GEO checks — always run, default to general_b2c / global when not specified
-  const geoIndustry = ((industry as string | undefined) ?? 'general_b2c') as IndustryCode
-  const geoRegion   = ((region   as string | undefined) ?? 'global')       as RegionCode
   const geoContext  = { industry: geoIndustry, region: geoRegion, clientId: clientId }
 
   // Fetch sitemap URLs for c19 (Topical Authority) — reuse caller-supplied list or fetch /sitemap.xml
@@ -377,6 +454,8 @@ export async function POST(req: NextRequest) {
     && Object.values(agentRequirements).some(Boolean)
 
   let scanId: string
+  const summaryWebhook = process.env.N8N_SCAN_WEBHOOK_URL?.trim()
+  let summaryDispatch: ReturnType<typeof createSummaryReceipt> | undefined
   try {
     // Trust signals are a diagnostic outside the score (lib/trust-signals.ts):
     // computed from the page already fetched, after scoring, so they cannot
@@ -395,19 +474,39 @@ export async function POST(req: NextRequest) {
       observations: capture.observations, limited: capture.limited, collectedAt: new Date().toISOString(),
     })
     const pillarScores = calculatePillarScores(combinedResults, evidence.checks)
-    const rows = await sql`
-      insert into scans (url, domain, score, results, industry, region, grade, account_id, agent_status, client_id)
-      values (${baseUrl}, ${domain}, ${totalScore},
-              ${JSON.stringify({ ...combinedResults, pillarScores, evidence })}::jsonb,
-              ${geoIndustry}, ${geoRegion}, ${grade}, ${account_id},
-              ${queueAgentAnalysis ? 'pending' : null}, ${clientId ?? null})
-      returning id
-    `
+    if (summaryWebhook) summaryDispatch = createSummaryReceipt({ domain, score: totalScore, grade, results: { ...combinedResults, evidence } })
+    const persisted = {
+      ...combinedResults,
+      pillarScores,
+      evidence,
+      ...(summaryDispatch ? { _n8n: summaryDispatch.receipt } : {}),
+      ...(claimKey ? { _scan_request: claimResults('complete', { finishedAt: new Date().toISOString() })._scan_request } : {}),
+    }
+    // The claim row created before the checks ran is finalised in place, so
+    // every replay of this requestKey resolves to the same scan id.
+    const rows = claimId
+      ? await sql`
+          update scans
+          set url = ${baseUrl}, domain = ${domain}, score = ${totalScore},
+              results = ${JSON.stringify(persisted)}::jsonb,
+              industry = ${geoIndustry}, region = ${geoRegion}, grade = ${grade},
+              agent_status = ${queueAgentAnalysis ? 'pending' : null}
+          where id = ${claimId} and account_id = ${account_id}
+          returning id
+        `
+      : await sql`
+          insert into scans (url, domain, score, results, industry, region, grade, account_id, agent_status, client_id)
+          values (${baseUrl}, ${domain}, ${totalScore}, ${JSON.stringify(persisted)}::jsonb,
+                  ${geoIndustry}, ${geoRegion}, ${grade}, ${account_id},
+                  ${queueAgentAnalysis ? 'pending' : null}, ${clientId ?? null})
+          returning id
+        `
     const inserted = rows[0] as { id: string } | undefined
     if (!inserted) return NextResponse.json({ error: 'Insert returned no data' }, { status: 500 })
     scanId = inserted.id
   } catch (dbErr) {
     console.error('[scan] DB insert failed:', (dbErr as Error)?.message ?? String(dbErr))
+    await markClaimFailed('Database error — check Neon configuration', 500)
     return NextResponse.json({ error: 'Database error — check Neon configuration' }, { status: 500 })
   }
 
@@ -461,33 +560,22 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Schedule summary processing after the response so serverless runtimes keep it alive.
-  const n8nWebhook = process.env.N8N_SCAN_WEBHOOK_URL
-  if (n8nWebhook) {
+  // The capability hash and frozen input are already retained with this scan.
+  // A durable dispatch claim prevents retries from repeating the provider work.
+  if (summaryWebhook && summaryDispatch?.receipt.state === 'queued') {
+    const prepared = summaryDispatch
     const dispatch = async () => {
       try {
-        await fetch(n8nWebhook, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            scanId,
-            clientId: clientId ?? null,
-            domain,
-            score: totalScore,
-            grade,
-            results: { ...results, ...geoDetails },
-          }),
-          signal: AbortSignal.timeout(5_000),
-        })
-      } catch (error) {
-        console.error('[scan] n8n webhook failed:', error)
+        await dispatchScanSummary({ scanId, accountId: account_id, clientId: clientId ?? null },
+          prepared.token, prepared.receipt, summaryWebhook)
+      } catch {
+        console.error('[scan] n8n receipt dispatch unavailable')
       }
     }
 
     try {
       after(dispatch)
-    } catch (error) {
-      console.error('[scan] n8n webhook scheduling failed:', error)
+    } catch {
       await dispatch()
     }
   }

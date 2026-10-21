@@ -5,6 +5,7 @@ import { ChevronRight, Zap, X } from 'lucide-react'
 import {trackFunnelEvent,consumeOneTimeFunnelEvent} from '@/lib/funnel-client'
 import {loadBrowserDraft,saveBrowserDraft,removeBrowserDraft} from '@/lib/onboarding/browser-draft'
 import { BrandAssistant } from './BrandAssistant'
+import { onboardingDestination, onboardingWebsiteUrl } from '@/lib/onboarding/first-result'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 import { PROMPT_MARKETS, isPromptLanguage, type PromptLanguage } from '@/lib/prompts/context'
@@ -29,9 +30,16 @@ const REGIONS = PROMPT_MARKETS
 
 const COPY_EN = {
   stepOf: (step: number, total: number) => `Step ${step} of ${total}`,
-  setupTitle: 'Set up your brand',
+  setupTitle: 'Get your first website result',
+  quickProgress: 'Brand → First website result',
+  quickHint: 'Only your brand and website are needed. Add other details later.',
+  quickWebsite: 'Your website',
+  quickAction: 'Save and check my website',
+  invalidWebsite: 'Enter a public website, for example example.com.',
+  advancedHint: 'Optional: continue to industry, market and tracking questions.',
+  assistantTitle: 'Optional: draft brand details with AI',
   s1Title: "What's your brand name?",
-  s1Subtitle: 'This is how AI agents will look for you.',
+  s1Subtitle: 'Shown on your dashboard and reports.',
   s1Placeholder: 'e.g. Fimmick',
   continue: 'Continue',
   back: 'Back',
@@ -68,9 +76,16 @@ const COPY_EN = {
 
 const COPY_ZH_HK: typeof COPY_EN = {
   stepOf: (step: number, total: number) => `第 ${step} 步，共 ${total} 步`,
-  setupTitle: '設定你的品牌',
+  setupTitle: '查看你的首個網站分析結果',
+  quickProgress: '品牌 → 首個網站分析',
+  quickHint: '只需品牌名稱和網站，其他資料可稍後補充。',
+  quickWebsite: '你的網站',
+  quickAction: '儲存並分析我的網站',
+  invalidWebsite: '請輸入公開網站，例如 example.com。',
+  advancedHint: '可選：繼續設定行業、市場及追蹤問題。',
+  assistantTitle: '可選：用 AI 草擬品牌資料',
   s1Title: '你的品牌名稱是？',
-  s1Subtitle: 'AI 將以此名稱搜尋你的品牌。',
+  s1Subtitle: '用於工作區及報告的品牌名稱。',
   s1Placeholder: '例如 Fimmick',
   continue: '繼續',
   back: '返回',
@@ -127,7 +142,7 @@ interface Props {
   scanId?: string
 }
 
-type Draft = { intentKey?: string; brand?: string; domain?: string; websiteUrl?: string; industry?: string; region?: string; language?: PromptLanguage; description?: string; competitors?: string[]; step?: number; clientId?: string; partial?: boolean; recoveredReady?: boolean; submittedPayload?: string }
+type Draft = { assistantOpen?: boolean; intentKey?: string; brand?: string; domain?: string; websiteUrl?: string; industry?: string; region?: string; language?: PromptLanguage; description?: string; competitors?: string[]; step?: number; clientId?: string; partial?: boolean; recoveredReady?: boolean; submittedPayload?: string }
 const subscribeHydration = () => () => {}
 export function OnboardingWizard(props: Props) {
   const ready = useSyncExternalStore(subscribeHydration, () => true, () => false)
@@ -145,6 +160,7 @@ export function OnboardingWizard(props: Props) {
       }
       if (Array.isArray(saved.competitors) && saved.competitors.every((v: unknown) => typeof v === 'string')) clean.competitors = saved.competitors
       if (Number.isInteger(saved.step) && saved.step >= 1 && saved.step <= TOTAL_STEPS) clean.step = saved.step
+      clean.assistantOpen = saved.assistantOpen === true
       clean.partial = saved.partial === true
       clean.recoveredReady = saved.recoveredReady === true
       if (isPromptLanguage(saved.language)) clean.language = saved.language
@@ -177,6 +193,7 @@ function WizardForm({
     stepHeadingRef.current?.focus()
   }, [step])
 
+  const [assistantOpen, setAssistantOpen] = useState(draft.assistantOpen ?? false)
   const [brand, setBrand]           = useState(draft.brand ?? initialBrand)
   const [domain, setDomain]         = useState(draft.domain ?? normaliseDomain(initialDomain))
   const [websiteUrl, setWebsiteUrl] = useState(draft.websiteUrl ?? draft.domain ?? initialDomain)
@@ -198,9 +215,9 @@ function WizardForm({
   const draftKey = `aiso:onboarding:${accountId}:${scanId ?? 'new'}`
   useEffect(() => {
     if (!draftReady || submitted.current) return
-    try { saveBrowserDraft(draftKey, JSON.stringify({ intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, step, clientId, partial,recoveredReady,submittedPayload:submittedPayload.current })) }
+    try { saveBrowserDraft(draftKey, JSON.stringify({ intentKey, assistantOpen, brand, domain, websiteUrl, industry, region, language, description, competitors, step, clientId, partial,recoveredReady,submittedPayload:submittedPayload.current })) }
     catch { /* Form state still survives in this tab when storage is unavailable. */ }
-  }, [draftReady, draftKey, intentKey, brand, domain, websiteUrl, industry, region, language, description, competitors, step, clientId, partial, recoveredReady])
+  }, [draftReady, draftKey, intentKey, assistantOpen, brand, domain, websiteUrl, industry, region, language, description, competitors, step, clientId, partial, recoveredReady])
 
   function handleDomainChange(raw: string) {
     // Normalise on the fly as the user types
@@ -221,13 +238,16 @@ function WizardForm({
   }
 
   const inFlight=useRef(false)
-  async function complete() {
+  async function complete(firstResult = false) {
     if(inFlight.current||recoveredReady)return
+    if(firstResult&&(!brand.trim()||!onboardingWebsiteUrl(websiteUrl)))return
     inFlight.current=true
     setLoading(true)
     setError('')
     try {
-      const values={brand,domain,industry,region,language,description,competitors,scanId}
+      // Website analysis does not wait for optional AI tracking-question setup.
+      const resultDomain=firstResult?new URL(onboardingWebsiteUrl(websiteUrl)!).hostname.replace(/^www\./i,''):domain
+      const values={brand,domain:resultDomain,industry,region,language:firstResult?'':language,description,competitors,scanId}
       const payload=JSON.stringify(values)
       const send=(v:typeof values,key:string,target:string|null)=>fetch('/api/onboarding/complete',{
         method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brandName:v.brand,domain:v.domain||undefined,industry:v.industry||undefined,region:v.region||undefined,language:v.language||undefined,market:v.region||null,description:v.description||undefined,competitors:v.competitors.length?v.competitors:undefined,scanId:v.scanId,intentKey:key||undefined,clientId:target||undefined})
@@ -244,12 +264,12 @@ function WizardForm({
         if(body.progress.prompts==='ready'){
           // Original setup committed. Preserve the edited draft without rewriting it.
           setPartial(false);setRecoveredReady(true)
-          try{saveBrowserDraft(draftKey,JSON.stringify({intentKey,...values,websiteUrl,step,clientId:body.clientId,partial:false,recoveredReady:true,submittedPayload:previous}))}catch{}
+          try{saveBrowserDraft(draftKey,JSON.stringify({intentKey,assistantOpen,...values,websiteUrl,step,clientId:body.clientId,partial:false,recoveredReady:true,submittedPayload:previous}))}catch{}
           return
         }
       }
       const requestIntent=targetClientId&&previous!==undefined&&previous!==payload?crypto.randomUUID():intentKey
-      if(!saveBrowserDraft(draftKey,JSON.stringify({intentKey:requestIntent,...values,websiteUrl,step,clientId:targetClientId,partial,submittedPayload:payload}))){setError(recoveryCopy.cacheUnavailable);return}
+      if(!saveBrowserDraft(draftKey,JSON.stringify({intentKey:requestIntent,assistantOpen,...values,websiteUrl,step,clientId:targetClientId,partial,submittedPayload:payload}))){setError(recoveryCopy.cacheUnavailable);return}
       submittedPayload.current=payload;setIntentKey(requestIntent)
       const res=await send(values,requestIntent,targetClientId)
       const data = await res.json()
@@ -257,7 +277,7 @@ function WizardForm({
       if (typeof data.clientId !== 'string' || !data.progress) throw new Error('Invalid progress')
       setClientId(data.clientId)
       // Keep the request intent: recovery may reuse the original progress row's identity.
-      if (data.progress.prompts !== 'ready') { setPartial(true); setError(c.seedPartial); return }
+      if (data.progress.prompts !== 'ready' && !(firstResult && data.progress.brand === 'ready')) { setPartial(true); setError(c.seedPartial); return }
       submitted.current = true
       try { removeBrowserDraft(draftKey) } catch { /* optional storage */ }
       navigateToWorkspace(data.clientId)
@@ -266,9 +286,9 @@ function WizardForm({
   }
 
   function navigateToWorkspace(targetClientId: string) {
-    if (scanId) { router.push(`/${lang}/dashboard/${targetClientId}/result/${scanId}`); return }
-    const scanUrl = '/prompts'
-    router.push(`/${lang}/dashboard/${targetClientId}${scanUrl}`)
+    // Use the reconciled request, not edits made after an unknown outcome.
+    const setup = submittedPayload.current ? JSON.parse(submittedPayload.current) : {scanId,domain,industry,region}
+    router.push(onboardingDestination(lang,targetClientId,setup))
   }
 
   const progress = (step / TOTAL_STEPS) * 100
@@ -294,11 +314,11 @@ function WizardForm({
         {/* Progress */}
         <div className="mb-6">
           <div className="flex justify-between text-xs text-muted-foreground mb-2">
-            <span>{c.stepOf(step, TOTAL_STEPS)}</span>
-            <span>{Math.round(progress)}%</span>
+            <span>{step === 1 ? c.quickProgress : c.stepOf(step, TOTAL_STEPS)}</span>
+            {step !== 1 && <span>{Math.round(progress)}%</span>}
           </div>
           <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+            <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${step === 1 ? 50 : progress}%` }} />
           </div>
         </div>
 
@@ -306,18 +326,13 @@ function WizardForm({
         {step === 1 && (
           <div>
             <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary">{c.setupTitle}</h1>
-            <BrandAssistant lang={lang} context={{ url: websiteUrl, language, market: region }} onContextChange={next => {
-              setWebsiteUrl(next.url); setDomain(normaliseDomain(next.url)); setLanguage(next.language); setRegion(next.market)
-            }} onManual={() => manualBrandRef.current?.focus()} onApply={suggestion => {
-              setBrand(suggestion.brandName); setDomain(suggestion.domain); setWebsiteUrl(suggestion.domain); setDescription(suggestion.description)
-              setIndustry(suggestion.industry ?? ''); setLanguage(suggestion.language); setRegion(suggestion.market); setStep(4)
-            }} />
             <h2 className="text-lg font-bold text-foreground mb-1"><label htmlFor="onboarding-brand">{c.s1Title}</label></h2>
             <p className="text-sm text-muted-foreground mb-6">{c.s1Subtitle}</p>
             <input
               id="onboarding-brand"
               ref={manualBrandRef}
               name="brandName"
+              disabled={loading}
               value={brand}
               maxLength={160}
               onChange={e => setBrand(e.target.value)}
@@ -325,9 +340,33 @@ function WizardForm({
               placeholder={c.s1Placeholder}
               className={`${inputClass} mb-6`}
             />
-            <button onClick={() => setStep(2)} disabled={!brand.trim()} className={btnPrimary}>
+            <label htmlFor="onboarding-website" className="block text-sm font-semibold mb-1.5">{c.quickWebsite}</label>
+            <input id="onboarding-website" name="website" value={websiteUrl}
+              onChange={e => handleDomainChange(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && brand.trim() && onboardingWebsiteUrl(websiteUrl)) void complete(true) }}
+              placeholder="example.com" autoComplete="url" disabled={loading} className={`${inputClass} mb-2`} />
+            <p className="text-xs text-muted-foreground mb-4">{c.quickHint}</p>
+            {websiteUrl.trim() && !onboardingWebsiteUrl(websiteUrl) && <p role="alert" className="text-destructive text-sm mb-3">{c.invalidWebsite}</p>}
+            {error && <p role="alert" className="text-destructive text-sm mb-3">{error}</p>}
+            <button type="button" onClick={() => complete(true)}
+              disabled={loading || recoveredReady || !brand.trim() || !onboardingWebsiteUrl(websiteUrl)}
+              className={`${btnPrimary} w-full mb-4 disabled:opacity-60`}>{loading ? c.settingUp : c.quickAction}</button>
+            {recoveredReady && <p role="status" className="text-sm mb-3">{recoveryCopy.reconciledReady}</p>}
+            {error===recoveryCopy.cacheUnavailable&&<a href={`/${lang}/dashboard`} className={btnBack}>{recoveryCopy.reviewBrands}</a>}
+            {recoveredReady && clientId && <button type="button" onClick={() => navigateToWorkspace(clientId)} className={`${btnBack} mb-3 w-full`}>{c.openWorkspace}</button>}
+            <p className="text-xs text-muted-foreground mb-2">{c.advancedHint}</p>
+            <button onClick={() => setStep(2)} disabled={!brand.trim() || loading} className={`${btnBack} w-full inline-flex items-center justify-center gap-2`}>
               {c.continue} <ChevronRight className="size-4" />
             </button>
+            <details open={assistantOpen} onToggle={event => setAssistantOpen(event.currentTarget.open)} className="mt-5 border-t pt-4">
+              <summary className="cursor-pointer min-h-11 text-sm font-semibold flex items-center">{c.assistantTitle}</summary>
+            <BrandAssistant lang={lang} context={{ url: websiteUrl, language, market: region }} onContextChange={next => {
+              setWebsiteUrl(next.url); setDomain(normaliseDomain(next.url)); setLanguage(next.language); setRegion(next.market)
+            }} onManual={() => manualBrandRef.current?.focus()} onApply={suggestion => {
+              setBrand(suggestion.brandName); setDomain(suggestion.domain); setWebsiteUrl(suggestion.domain); setDescription(suggestion.description)
+              setIndustry(suggestion.industry ?? ''); setLanguage(suggestion.language); setRegion(suggestion.market); setStep(4)
+            }} />
+            </details>
           </div>
         )}
 
@@ -487,13 +526,13 @@ function WizardForm({
 
             <div className="flex flex-wrap gap-3">
               <button onClick={() => setStep(3)} className={btnBack}>{c.back}</button>
-              <button onClick={complete} disabled={loading || recoveredReady} className={`${btnPrimary} disabled:opacity-60`}>
+              <button onClick={() => complete()} disabled={loading || recoveredReady} className={`${btnPrimary} disabled:opacity-60`}>
                 {loading ? c.settingUp : partial ? c.retrySeed : c.goToDashboard}
                 {!loading && <ChevronRight className="size-4" />}
               </button>
             </div>
             {(partial || recoveredReady) && clientId && <button type="button" onClick={() => navigateToWorkspace(clientId)} className={`${btnBack} mt-3 w-full`}>{c.openWorkspace}</button>}
-            <button onClick={complete} disabled={loading || recoveredReady} className="w-full text-xs text-muted-foreground hover:text-foreground mt-3 transition">
+            <button onClick={() => complete()} disabled={loading || recoveredReady} className="w-full text-xs text-muted-foreground hover:text-foreground mt-3 transition">
               {c.s4Skip}
             </button>
           </div>

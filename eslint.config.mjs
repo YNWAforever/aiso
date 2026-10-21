@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated Playwright reports contain bundled third-party trace viewers.
+    "playwright-report/**",
+    "test-results/**",
   ]),
   {
     // The repo already writes `_baseUrl` / `_context` / `_req` for parameters a

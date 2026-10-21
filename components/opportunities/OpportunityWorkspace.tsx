@@ -8,20 +8,25 @@ import type { OpportunityResponse } from '@/lib/opportunities/types'
 import type { WorkItem } from '@/lib/work-items/schema'
 import { DraftEditor } from '@/components/work-items/DraftEditor'
 import { EvidenceDetails } from './EvidenceDetails'
-type WorkspaceProps = { clientId: string } & (
+import { selectScanOpportunities } from '@/lib/opportunities/scan-selection'
+import { useAuthRateLimit } from '@/components/auth/useAuthRateLimit'
+import { AuthRateLimitError } from '@/lib/auth-rate-limit'
+type WorkspaceProps = { clientId: string; scanId?: string } & (
   | { initial: OpportunityResponse; initialError?: never }
   | { initial: null; initialError: 'unavailable' }
 )
 export function OpportunityWorkspace(props: WorkspaceProps) {
-  return <OpportunityContent key={props.clientId} {...props} />
+  return <OpportunityContent key={`${props.clientId}:${props.scanId ?? ''}`} {...props} />
 }
 function OpportunityContent({
   clientId,
+  scanId,
   initial,
   initialError,
 }: WorkspaceProps) {
   const t = useTranslations('opportunities'),
     locale = useLocale() === 'zh-HK' ? 'zh-HK' : 'en'
+  const { captureAuthLimit, clearAuthLimit, authWaiting, authNotice } = useAuthRateLimit()
   const [data, setData] = useState(initial),
     [refreshing, setRefreshing] = useState(false),
     [loadError, setLoadError] = useState(Boolean(initialError))
@@ -29,6 +34,7 @@ function OpportunityContent({
     [items, setItems] = useState<WorkItem[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
     [listState, setListState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
+  const [editorDirty, setEditorDirty] = useState(false)
   const listed = listState === 'loaded', listing = listState === 'loading', listError = listState === 'error'
   const [selected, setSelected] = useState<WorkItem | null>(null),
     [opening, setOpening] = useState(false),
@@ -50,14 +56,26 @@ function OpportunityContent({
     restored = useRef(false),
     refreshLock = useRef(false),
     openLock = useRef(false),
+    active = useRef(true),
     selectionEpoch = useRef(0),
     editor = useRef<HTMLDivElement>(null)
   const base = `/api/clients/${encodeURIComponent(clientId)}`
+  const belongsToScan = useCallback((item: WorkItem) => !scanId || (item.sourceScanIds ? item.sourceScanIds.includes(scanId) : (
+    item.evidenceSnapshot?.source.kind === 'scan-check' && item.evidenceSnapshot.source.id === scanId
+  )), [scanId])
   const selectedId = selected?.id
+  const visibleSuggestions = (scanId ? selectScanOpportunities(data, scanId) : data?.suggestions)?.filter(s =>
+    !data?.groups?.some(g => g.context?.runId && g.platforms.length > 1 && g.suggestionKeys.includes(s.key))) ?? []
+  const displayedSuggestions = scanId ? visibleSuggestions.slice(0, 3) : visibleSuggestions
+  useEffect(() => {
+    active.current = true
+    return () => { active.current = false }
+  }, [])
   useEffect(() => {
     if (selectedId && view === 'drafts') editor.current?.focus()
   }, [selectedId, view])
   const remember = useCallback((item: WorkItem) => {
+    if (!active.current) return
     setItems((old) => [item, ...old.filter((row) => row.id !== item.id)])
     setSelected(item)
     selectedItem.current = item
@@ -66,6 +84,7 @@ function OpportunityContent({
     window.history.replaceState(window.history.state, '', url)
   }, [])
   const list = useCallback((more = false): Promise<void> => {
+    if (authWaiting) return Promise.resolve()
     if (listRequest.current) return listRequest.current
     const task = (async () => {
     setListState('loading')
@@ -76,6 +95,10 @@ function OpportunityContent({
         `${base}/work-items${more && listCursor.current ? `?cursor=${encodeURIComponent(listCursor.current)}` : ''}`,
         { cache: 'no-store', signal: controller.signal },
       )
+      if (await captureAuthLimit(response)) {
+        setListState(listLoaded.current ? 'loaded' : 'idle')
+        return
+      }
       if (!response.ok) throw new Error()
       const result = (await response.json()) as {
         items: WorkItem[]
@@ -84,7 +107,8 @@ function OpportunityContent({
       if (!Array.isArray(result.items) || result.items.some(row => !row || typeof row.id !== 'string' || row.clientId !== clientId) || (result.nextCursor !== null && typeof result.nextCursor !== 'string')) throw new Error()
       setItems((old) => {
         const selected = selectedItem.current
-        const rows = more ? [...old, ...result.items] : [...result.items, ...(selected && !result.items.some(row => row.id === selected.id) ? [selected] : [])]
+        const matching = result.items.filter(belongsToScan)
+        const rows = more ? [...old, ...matching] : [...matching, ...(selected && !matching.some(row => row.id === selected.id) ? [selected] : [])]
         const seen = new Set<string>()
         return rows.filter(row => seen.has(row.id) ? false : Boolean(seen.add(row.id)))
       })
@@ -92,6 +116,7 @@ function OpportunityContent({
       setCursor(result.nextCursor)
       listLoaded.current = true
       setListState('loaded')
+      clearAuthLimit()
     } catch {
       setListState('error')
     } finally {
@@ -101,7 +126,7 @@ function OpportunityContent({
     })()
     listRequest.current = task
     return task
-  }, [base, clientId])
+  }, [base, clientId, belongsToScan, authWaiting, captureAuthLimit, clearAuthLimit])
   const ensureDraftListLoaded = useCallback((): Promise<void> => listLoaded.current ? Promise.resolve() : list(), [list])
   function showView(next: 'suggestions' | 'drafts') {
     selectionEpoch.current++
@@ -117,21 +142,23 @@ function OpportunityContent({
     void ensureDraftListLoaded()
   }
   async function refresh(more=false) {
-    if (refreshLock.current || savingLock.current) return
+    if (refreshLock.current || savingLock.current || authWaiting) return
     refreshLock.current = true
     setRefreshing(true)
     setLoadError(false)
     try {
-      const response = await fetch(`${base}/opportunities${more&&data?.window.nextCursor?`?cursor=${encodeURIComponent(data.window.nextCursor)}`:''}`, {
+      const response = await fetch(`${base}/opportunities${scanId?`?scanId=${encodeURIComponent(scanId)}`:more&&data?.window.nextCursor?`?cursor=${encodeURIComponent(data.window.nextCursor)}`:''}`, {
         cache: 'no-store',
         signal:AbortSignal.timeout(15000),
       })
+      if (await captureAuthLimit(response)) return
       if (!response.ok) throw new Error()
       const next=await response.json() as OpportunityResponse
-      if(!Array.isArray(next.suggestions)||!next.window)throw new Error()
+      if(!Array.isArray(next.suggestions)||!next.window||scanId&&next.window.scanId!==null&&next.window.scanId!==scanId)throw new Error()
       setData(old=>more&&old?{...next,suggestions:[...old.suggestions,...next.suggestions].filter((row,index,rows)=>rows.findIndex(item=>item.key===row.key)===index)}:next)
       if(!more){setEvidenceChangedKeys(new Set());setSaveError(null)}
       setStatus(t('refreshed'))
+      clearAuthLimit()
     } catch {
       setLoadError(true)
     } finally {
@@ -141,30 +168,33 @@ function OpportunityContent({
   }
   const readDraft = useCallback(async (id: string): Promise<WorkItem> => {
     const response = await fetch(`${base}/work-items/${encodeURIComponent(id)}`, { cache: 'no-store', signal: AbortSignal.timeout(15_000) })
+    const limited = await captureAuthLimit(response)
+    if (limited) throw limited
     if (!response.ok) throw new Error()
     const item = (await response.json()).item as WorkItem
-    if (!item || item.id !== id || item.clientId !== clientId) throw new Error()
+    if (!item || item.id !== id || item.clientId !== clientId || !belongsToScan(item)) throw new Error()
     return item
-  }, [base, clientId])
+  }, [base, clientId, belongsToScan, captureAuthLimit])
   const open = useCallback(async (id: string) => {
-    if (openLock.current) return
+    if (openLock.current || editorDirty || authWaiting) return
     openLock.current = true
     const epoch = ++selectionEpoch.current
     setOpening(true)
     setOpenError(false)
     try {
       const item = await readDraft(id)
-      if (epoch !== selectionEpoch.current) return
+      if (!active.current || epoch !== selectionEpoch.current) return
       remember(item)
       setView('drafts')
       void ensureDraftListLoaded()
-    } catch {
+    } catch (error) {
+      if (error instanceof AuthRateLimitError) return
       if (epoch === selectionEpoch.current) setOpenError(true)
     } finally {
       openLock.current = false
       setOpening(false)
     }
-  }, [readDraft, remember, ensureDraftListLoaded])
+  }, [readDraft, remember, ensureDraftListLoaded, editorDirty, authWaiting])
   useEffect(() => {
     if (restored.current) return
     restored.current = true
@@ -175,13 +205,15 @@ function OpportunityContent({
       void readDraft(id).then(item => {
         if (cancelled || epoch !== selectionEpoch.current) return
         remember(item); setView('drafts'); void ensureDraftListLoaded()
-      }).catch(() => { if (!cancelled && epoch === selectionEpoch.current) setOpenError(true) })
+      }).catch(error => { if (!(error instanceof AuthRateLimitError) && !cancelled && epoch === selectionEpoch.current) setOpenError(true) })
     }
     return () => { cancelled = true }
   }, [readDraft, remember, ensureDraftListLoaded])
   async function save(suggestion: OpportunityResponse['suggestions'][number]) {
     if (
       savingLock.current ||
+      authWaiting ||
+      editorDirty ||
       refreshLock.current ||
       evidenceChangedKeys.has(suggestion.key)
     )
@@ -194,6 +226,7 @@ function OpportunityContent({
       const response = await fetch(`${base}/work-items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(15_000),
         body: JSON.stringify({
           source: suggestion.source,
           ruleVersion: suggestion.ruleVersion,
@@ -201,7 +234,9 @@ function OpportunityContent({
           locale,
         }),
       })
+      if (await captureAuthLimit(response)) return
       const result = await response.json()
+      if (!active.current) return
       if (!response.ok) {
         if (response.status === 409) {
           setEvidenceChangedKeys((previous) =>
@@ -213,7 +248,7 @@ function OpportunityContent({
         return
       }
       const item = result.item as WorkItem
-      if (!item || typeof item.id !== 'string' || item.clientId !== clientId) throw new Error()
+      if (!item || typeof item.id !== 'string' || item.clientId !== clientId || !belongsToScan(item)) throw new Error()
       remember(item)
       setData(
         (old) =>
@@ -229,6 +264,7 @@ function OpportunityContent({
       setView('drafts')
       void ensureDraftListLoaded()
       setStatus(t('draftSaved'))
+      clearAuthLimit()
     } catch {
       setSaveError({ key: suggestion.key, message: 'saveError' })
     } finally {
@@ -238,11 +274,13 @@ function OpportunityContent({
   }
   const button =
     'min-h-11 rounded-lg border border-border px-4 py-2 font-semibold disabled:opacity-50'
+  const Container = scanId ? 'section' : 'main'
   return (
-    <main className="mx-auto w-full min-w-0 max-w-5xl space-y-6 p-4 text-foreground sm:p-8">
+    <Container className={`mx-auto w-full min-w-0 max-w-5xl space-y-6 text-foreground ${scanId ? '' : 'p-4 sm:p-8'}`}>
       <header className="space-y-2">
-        <h1 className="text-2xl font-bold">{t('title')}</h1>
-        <p>{t('intro')}</p>
+        {scanId ? <h2 className="text-2xl font-bold">{t('scanDraftTitle')}</h2> : <h1 className="text-2xl font-bold">{t('title')}</h1>}
+        <p>{t(scanId ? 'scanDraftIntro' : 'intro')}</p>
+        {scanId && <p className="break-all text-sm">{t('sourceScan')}: {scanId}</p>}
       </header>
       <div
         role="group"
@@ -252,7 +290,7 @@ function OpportunityContent({
         <button
           className={button}
           aria-pressed={view === 'suggestions'}
-          disabled={saving !== null}
+          disabled={saving !== null || authWaiting}
           onClick={() => showView('suggestions')}
         >
           {t('suggestions')}
@@ -260,7 +298,7 @@ function OpportunityContent({
         <button
           className={button}
           aria-pressed={view === 'drafts'}
-          disabled={saving !== null}
+          disabled={saving !== null || authWaiting}
           onClick={showDrafts}
         >
           {t('savedDrafts')}
@@ -269,7 +307,9 @@ function OpportunityContent({
       <p role="status" aria-live="polite">
         {status || (saving ? t('saving') : opening ? t('loadingDraft') : '')}
       </p>
+      {editorDirty && <p>{t('finishEditing')}</p>}
       {openError && <p role="alert">{t('openError')}</p>}
+      {authNotice}
       <section
         hidden={view !== 'suggestions'}
         aria-label={t('suggestions')}
@@ -277,17 +317,19 @@ function OpportunityContent({
         aria-busy={refreshing}
       >
         <div className="space-y-2 rounded-xl border border-border bg-card p-4">
-          <p>{t('window')}</p>
+          <p>{t(scanId ? 'scanPriorityReason' : 'window')}</p>
+          {scanId && <p>{t('scanPriorityCount', { shown: displayedSuggestions.length, available: visibleSuggestions.length })}</p>}
+          {scanId && data?.suggestions.some(s => s.saveAvailability === 'limited-evidence') && <p>{t('limitedEvidence')}</p>}
           {data && (
             <>
-              <p>
+              {!scanId && <p>
                 {t('week')}: {data.window.pulseWeek ?? t('noWeek')}
-              </p>
+              </p>}
               {data.window.pulseTruncated && <p>{t('pulseTruncated')}</p>}
               {data.partial && <p>{t('partial')}</p>}
-              <p>
+              {!scanId && <p>
                 {t('pulse')}: {t(`sourceStates.${data.sourceStates.pulse}`)}
-              </p>
+              </p>}
               <p>
                 {t('scan')}: {t(`sourceStates.${data.sourceStates.scan}`)}
               </p>
@@ -298,7 +340,7 @@ function OpportunityContent({
           )}
           <button
             className={button}
-            disabled={refreshing || saving !== null}
+            disabled={refreshing || saving !== null || authWaiting}
             onClick={() => refresh()}
           >
             {refreshing ? t('loadingSuggestions') : t('refresh')}
@@ -315,7 +357,7 @@ function OpportunityContent({
           </p>
         )}
         {data?.groups&&<GroupedOpportunityCards clientId={clientId} groups={data.groups.filter(g=>g.context?.runId&&g.platforms.length>1)} suggestions={data.suggestions} onOpen={id=>void open(id)}/>}
-        {data?.suggestions.filter(s=>!data.groups?.some(g=>g.context?.runId&&g.platforms.length>1&&g.suggestionKeys.includes(s.key))).map((suggestion) => {
+        {displayedSuggestions.map((suggestion) => {
           const copy = suggestion.evidence.kind === 'scan-check' ? scanOpportunityCopy(suggestion.evidence, locale) : null
           const displayArgs = copy ? { ...suggestion.args, checkTitle: copy.title, checkAction: copy.action } : suggestion.args
           return (
@@ -347,7 +389,7 @@ function OpportunityContent({
                 <p>{t('evidenceChanged')}</p>
                 <button
                   className={button}
-                  disabled={refreshing || saving !== null}
+                  disabled={refreshing || saving !== null || authWaiting}
                   onClick={() => refresh()}
                 >
                   {t('refresh')}
@@ -356,7 +398,7 @@ function OpportunityContent({
             )}
             {suggestion.savedDraftId ? (
               <button
-                disabled={opening || saving !== null}
+                disabled={opening || saving !== null || authWaiting}
                 className={button}
                 onClick={() => open(suggestion.savedDraftId!)}
               >
@@ -367,8 +409,10 @@ function OpportunityContent({
                 className={`${button} bg-primary text-primary-foreground`}
                 disabled={
                   refreshing ||
+                  authWaiting ||
                   opening ||
                   saving !== null ||
+                  editorDirty ||
                   suggestion.saveAvailability === 'limited-evidence' ||
                   evidenceChangedKeys.has(suggestion.key)
                 }
@@ -389,7 +433,7 @@ function OpportunityContent({
       >
         <div className="space-y-3" aria-busy={listing}>
           <h2 className="text-xl font-semibold">{t('savedDrafts')}</h2>
-          <button className={button} disabled={listing} onClick={() => list()}>
+          <button className={button} disabled={listing || authWaiting} onClick={() => list()}>
             {listing ? t('loadingDrafts') : t('refreshDrafts')}
           </button>
           {listError && <p role="alert">{t('listError')}</p>}
@@ -399,7 +443,7 @@ function OpportunityContent({
               <li key={item.id}>
                 <button
                   className={`${button} w-full break-words text-left`}
-                  disabled={opening || saving !== null}
+                  disabled={opening || saving !== null || editorDirty || authWaiting}
                   onClick={() => open(item.id)}
                 >
                   {item.title}
@@ -410,7 +454,7 @@ function OpportunityContent({
           {cursor && (
             <button
               className={button}
-              disabled={listing}
+              disabled={listing || authWaiting}
               onClick={() => list(true)}
             >
               {t('loadMore')}
@@ -422,7 +466,9 @@ function OpportunityContent({
             <DraftEditor
               key={`${selected.id}:${selected.revision}`}
               clientId={clientId}
+              scanId={scanId}
               item={selected}
+              onDirtyChange={setEditorDirty}
               onSaved={(item) => {
                 setItems((old) =>
                   old.map((row) => (row.id === item.id ? item : row)),
@@ -432,7 +478,7 @@ function OpportunityContent({
           </div>
         )}
       </section>
-      <MaintenanceNextSteps clientId={clientId} lang={locale} current="opportunities" copy={Object.fromEntries(workflowCopyKeys.map(key=>[key,t(key)])) as WorkflowCopy}/>
-    </main>
+      {!scanId && <MaintenanceNextSteps clientId={clientId} lang={locale} current="opportunities" copy={Object.fromEntries(workflowCopyKeys.map(key=>[key,t(key)])) as WorkflowCopy}/>}
+    </Container>
   )
 }

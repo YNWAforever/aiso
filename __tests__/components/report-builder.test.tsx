@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { ClientReportSnapshotV1 } from '@/lib/reports/types'
+import { ReportRouterFixture } from './report-router-fixture'
 
 const messages = JSON.parse(
   readFileSync(join(process.cwd(), 'messages/en.json'), 'utf8'),
@@ -53,7 +54,7 @@ const snapshot: ClientReportSnapshotV1 = {
 function provider(children: React.ReactNode) {
   return (
     <NextIntlClientProvider locale="en" messages={messages} timeZone="Asia/Hong_Kong">
-      {children}
+      <ReportRouterFixture>{children}</ReportRouterFixture>
     </NextIntlClientProvider>
   )
 }

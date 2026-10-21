@@ -698,16 +698,21 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   line, which is the database answering `current_user`; the `role` line is only parsed
   out of the URL and proves nothing. **Vercel still points at the production project and
   was deliberately left alone** — repointing it at AISO is a cutover decision, not part
-  of repairing local dev. **Still genuinely unconfirmed: n8n's stored Postgres
-  credential and the MCP Postgres server's shell-exported `DATABASE_URL`** — follow
+  of repairing local dev. **Still genuinely unconfirmed: the legacy deployed n8n's
+  stored Postgres credential and the MCP Postgres server's shell-exported `DATABASE_URL`** — follow
   `docs/runbooks/roll-out-least-privilege-role.md` for both. Don't assume either is done
   without checking `role:` in `scripts/verify-db-connection.mjs`'s output first (that script
   doesn't apply directly to the MCP server itself — the runbook has the equivalent check for
   that one).
-- `n8n/configure-credentials.sh` and `n8n/deploy-workflows.sh` both now read from env and exit
-  if unset. `configure-credentials.sh` goes further and is the pattern to copy: it builds the
-  Postgres credential payload through a `python3` heredoc so the password never lands in a
-  shell argument, posts it with `--data-binary @tempfile`, and cleans up with `trap … EXIT`.
+- The source scan-summary workflow now uses `POST /api/scans/[id]/n8n` with a
+  short-lived, scan-bound capability; it has no Postgres nodes. Receipt and summary
+  are retained in `scans.results._n8n`, independently of native Improve. The owner
+  GET projection hides capability material and does not claim independent execution
+  verification. `n8n/verify-execution.mjs` can compare one exact execution using
+  a separately provided read-only n8n API key. See `n8n/README.md` for deployment
+  ordering and verification. This source change does not prove the live workflow
+  has been updated. The legacy shell entry points now stop; local review payloads
+  come from `n8n/prepare-scan-workflow.mjs`, which performs no remote mutations.
 - Never paste a connection string into a shell command — the `@neondatabase/serverless`
   driver echoes the **full URL including the password** in its error messages. Pipe through
   `2>&1 | grep -v "postgresql://"` when scripting against it.

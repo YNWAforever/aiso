@@ -31,4 +31,29 @@ describe('validated return destination', () => {
   it('retains a selected private draft id without arbitrary query data', () => {
     expect(normalizeAuthNext('en', `/en/dashboard/${client}/opportunities?draft=${client}&token=secret`)).toBe(`/en/dashboard/${client}/opportunities?draft=${client}`)
   })
+  it('retains the selected scan and private draft when sign-in returns to Improve', () => {
+    const scan = '22222222-2222-4222-8222-222222222222'
+    const draft = '33333333-3333-4333-8333-333333333333'
+    const target = `/en/dashboard/${client}?step=improve&scanId=${scan}&draft=${draft}`
+    expect(normalizeAuthNext('en', `${target}&token=secret`)).toBe(target)
+  })
+  it('does not adopt invalid or ambiguous selected scan parameters', () => {
+    const draft = '33333333-3333-4333-8333-333333333333'
+    expect(normalizeAuthNext('en', `/en/dashboard/${client}?step=improve&scanId=foreign&draft=${draft}`))
+      .toBe(`/en/dashboard/${client}?step=improve&draft=${draft}`)
+    expect(normalizeAuthNext('en', `/en/dashboard/${client}?step=improve&scanId=${client}&scanId=${client}&draft=${draft}`))
+      .toBe(`/en/dashboard/${client}?step=improve&draft=${draft}`)
+  })
+  it.each(['en', 'zh-HK'])('retains selected result and editable draft context in %s', lang => {
+    const scan = '22222222-2222-4222-8222-222222222222'
+    const draft = '33333333-3333-4333-8333-333333333333'
+    const base = `/${lang}/dashboard/${client}`
+    expect(safeReturnTo(`${base}?step=results&scanId=${scan}`, lang)).toBe(`${base}?step=results&scanId=${scan}`)
+    expect(safeReturnTo(`${base}?step=improve&scanId=${scan}&draft=${draft}&draft=${draft}`, lang))
+      .toBe(`${base}?step=improve&scanId=${scan}`)
+    expect(safeReturnTo(`${base}?step=improve&scanId=${scan}&draft=//evil.test&Authorization=secret`, lang))
+      .toBe(`${base}?step=improve&scanId=${scan}`)
+    expect(safeReturnTo(`/${lang}/dashboard?step=improve&scanId=${scan}&draft=${draft}`, lang))
+      .toBe(`/${lang}/dashboard?step=improve`)
+  })
 })

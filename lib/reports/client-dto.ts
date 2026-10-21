@@ -28,6 +28,8 @@ export interface ReportReviewArtifact {
 export interface ReportSaveResponse {
   report: ReportWorkspaceReport
   reviewArtifact: ReportReviewArtifact
+  currentLatestVersionId?: string
+  currentLatestVersionNumber?: number
 }
 
 type LifecycleResponse = {
@@ -172,6 +174,10 @@ export function parseReportSaveResponse(value: unknown): ReportSaveResponse | nu
   if (!isRecord(value) || !isRecord(value.reviewArtifact)) return null
   const report = parseReportWorkspaceReport(value.report)
   const snapshot = parseClientReportSnapshot(value.reviewArtifact.snapshot)
+  const hasCurrentLatestVersionId = Object.hasOwn(value, 'currentLatestVersionId')
+  const hasCurrentLatestVersionNumber = Object.hasOwn(value, 'currentLatestVersionNumber')
+  const currentLatestVersionId = value.currentLatestVersionId
+  const currentLatestVersionNumber = value.currentLatestVersionNumber
   if (!report
     || !snapshot
     || typeof value.reviewArtifact.versionId !== 'string'
@@ -179,7 +185,19 @@ export function parseReportSaveResponse(value: unknown): ReportSaveResponse | nu
     || typeof value.reviewArtifact.versionNumber !== 'number'
     || !Number.isInteger(value.reviewArtifact.versionNumber)
     || value.reviewArtifact.versionNumber <= 0
-    || report.latestVersionNumber !== value.reviewArtifact.versionNumber) return null
+    || report.latestVersionNumber !== value.reviewArtifact.versionNumber
+    || hasCurrentLatestVersionId !== hasCurrentLatestVersionNumber
+    || (hasCurrentLatestVersionId && (
+      typeof currentLatestVersionId !== 'string'
+      || currentLatestVersionId.length === 0
+      || typeof currentLatestVersionNumber !== 'number'
+      || !Number.isInteger(currentLatestVersionNumber)
+      || currentLatestVersionNumber < value.reviewArtifact.versionNumber
+      || (currentLatestVersionNumber === value.reviewArtifact.versionNumber
+        && currentLatestVersionId !== value.reviewArtifact.versionId)
+      || (currentLatestVersionNumber > value.reviewArtifact.versionNumber
+        && currentLatestVersionId === value.reviewArtifact.versionId)
+    ))) return null
   return {
     report,
     reviewArtifact: {
@@ -187,6 +205,10 @@ export function parseReportSaveResponse(value: unknown): ReportSaveResponse | nu
       versionNumber: value.reviewArtifact.versionNumber,
       snapshot,
     },
+    ...(hasCurrentLatestVersionId ? {
+      currentLatestVersionId: currentLatestVersionId as string,
+      currentLatestVersionNumber: currentLatestVersionNumber as number,
+    } : {}),
   }
 }
 

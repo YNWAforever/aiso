@@ -1,4 +1,5 @@
 import { buildInitialDraftSnapshot } from './snapshot'
+import { AuthRateLimitError, authRateLimitResponse } from '@/lib/auth-rate-limit'
 import 'server-only'
 import { getProfile } from '@/lib/auth'
 import { opportunityKey } from '@/lib/opportunities/fingerprint'
@@ -7,6 +8,7 @@ import type { DraftSnapshotV1 } from '@/lib/opportunities/types'
 import { CREATE_DRAFT_BODY_LIMIT, EDIT_DRAFT_BODY_LIMIT, parseCreateDraft, parseDraftEdit } from './schema'
 import { parseWorkItemListQuery } from './query'
 import { loadOwnedDraftClient, loadOwnedDraftSource, findOwnedDraft, createDraftIfEvidenceCurrent, updateOwnedDraft, readOwnedDraft, listOwnedDrafts } from './store'
+import { loadOwnedReportFinding } from '@/lib/reports/finding-tasks'
 
 const statuses={UNAUTHENTICATED:401,INVALID_WORK_ITEM_INPUT:400,CLIENT_NOT_FOUND:404,WORK_ITEM_NOT_FOUND:404,EVIDENCE_CHANGED:409,WORK_ITEM_CONFLICT:409,WORK_ITEMS_UNAVAILABLE:503} as const
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -16,7 +18,7 @@ export class WorkItemServiceError extends Error {
 }
 async function safely<T>(operation:()=>Promise<T>):Promise<T> {
  try{return await operation()}catch(error){
-  if(error instanceof WorkItemServiceError)throw error
+  if(error instanceof WorkItemServiceError||error instanceof AuthRateLimitError)throw error
   console.error({event:'work_items_unavailable'})
   throw new WorkItemServiceError('WORK_ITEMS_UNAVAILABLE')
  }
@@ -53,8 +55,18 @@ export async function saveAuthenticatedDraft(clientId:string,request:Request) {
   const selected=await loadOwnedDraftSource(profile.account_id,clientId,input.source)
   const suggestion=selected&&deriveSuggestions(selected.source).find(item=>item.key===opportunityKey(input.ruleVersion,input.source))
   if(!selected||!suggestion||suggestion.fingerprint!==input.fingerprint)throw new WorkItemServiceError('EVIDENCE_CHANGED')
+  let reportFinding: Exclude<Awaited<ReturnType<typeof loadOwnedReportFinding>>, null> | undefined
+  if(input.reportVersionId){
+    if(input.source.kind!=='scan-check'||!input.source.checkKey)throw new WorkItemServiceError('INVALID_WORK_ITEM_INPUT')
+    const loadedReportFinding = await loadOwnedReportFinding({
+      accountId:profile.account_id,clientId,reportVersionId:input.reportVersionId,
+      scanId:input.source.id,checkKey:input.source.checkKey,locale:input.locale,
+    })
+    if(!loadedReportFinding)throw new WorkItemServiceError('EVIDENCE_CHANGED')
+    reportFinding = loadedReportFinding
+  }
   let snapshot:DraftSnapshotV1
-  try{snapshot=buildInitialDraftSnapshot(suggestion,selected.source,input.locale)}catch{throw new WorkItemServiceError('EVIDENCE_CHANGED')}
+  try{snapshot=buildInitialDraftSnapshot(suggestion,selected.source,input.locale,reportFinding)}catch{throw new WorkItemServiceError('EVIDENCE_CHANGED')}
   const result=await createDraftIfEvidenceCurrent(profile.account_id,clientId,profile.id,input,snapshot,selected.version)
   if(result)return result
   if(!await loadOwnedDraftClient(profile.account_id,clientId))throw new WorkItemServiceError('CLIENT_NOT_FOUND')
@@ -88,6 +100,7 @@ export async function readAuthenticatedDraft(clientId:string,itemId:string) {
 }
 export function workItemResponse(value:unknown,status=200) {return Response.json(value,{status,headers:{'Cache-Control':'no-store'}})}
 export function workItemErrorResponse(error:unknown) {
+ const limited=authRateLimitResponse(error);if(limited)return limited
  const safe=error instanceof WorkItemServiceError?error:new WorkItemServiceError('WORK_ITEMS_UNAVAILABLE')
  return workItemResponse({error:safe.code},safe.status)
 }

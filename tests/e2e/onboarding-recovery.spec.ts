@@ -10,6 +10,8 @@ async function openFixture(page: Page, lang: string) {
     body: `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>Onboarding recovery</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>` }))
   await page.goto(`https://onboarding.fixture/${lang}`)
   await page.waitForFunction(() => Boolean((window as Window & { aisoFixtureReady?: boolean }).aisoFixtureReady))
+  const assistant = page.locator('details').filter({ has: page.locator('#brand-assist-url') })
+  if (await assistant.count()) await assistant.locator('summary').click()
 }
 async function finalStep(page: Page, lang: string) {
   const next = lang === 'en' ? 'Continue' : '繼續'

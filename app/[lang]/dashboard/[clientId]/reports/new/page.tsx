@@ -117,6 +117,8 @@ export default async function NewClientReportPage({
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{t('new_body')}</p>
       </div>
       <ReportBuilder
+        key={`${profile.account_id}:${profile.id}:${clientId}:${scanId}`}
+        saveScope={`${profile.account_id}:${profile.id}`}
         lang={locale}
         clientId={clientId}
         scanId={scanId}

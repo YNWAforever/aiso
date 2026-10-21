@@ -127,6 +127,21 @@ export interface DraftSnapshotV1 {
   locale: OpportunityLocale
   initialTitle: string
   initialAction: string
+  /** Frozen when the task is created from a saved client-report version. */
+  reportProvenance?: ReportFindingProvenance
+}
+
+export interface ReportFindingProvenance {
+  reportId: string
+  reportVersionId: string
+  reportVersionNumber: number
+  reportCreatedAt: string
+  findingKey: EvidenceCheckKey
+  findingTitle: string
+  findingRationale: string
+  findingNextStep: string
+  expectedImpact: 'high' | 'medium' | 'low'
+  targetOrigin: string | null
 }
 
 export type OpportunitySourceState = 'ok' | 'empty' | 'unavailable'

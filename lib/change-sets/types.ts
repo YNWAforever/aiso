@@ -20,6 +20,12 @@ export type ApproverAccessInput = {
   requestId: string
 }
 
+export type PreparationSnapshot = {
+  schemaVersion: 1
+  targetUrl: string | null
+  acceptanceCriteria: string
+}
+
 type ReviewContentBase = {
   workItemId: string
   draftRevision: number
@@ -27,9 +33,11 @@ type ReviewContentBase = {
   action: string
   notes: string
   locale: 'en' | 'zh-HK'
+  /** Absent on legacy versions. Never substitute current work details on read. */
+  preparation?: PreparationSnapshot
 }
 
-/** A version submitted before multi-source items existed (051). Never written by new code; still read. */
+/** Single-source content. Older rows have no preparation snapshot. */
 export type ReviewContentV1 = ReviewContentBase & {
   schemaVersion: 1
   evidenceSnapshot: WorkItem['evidenceSnapshot']
@@ -46,13 +54,7 @@ export type ReviewContentV2 = ReviewContentBase & {
   evidenceSnapshots: WorkItem['evidenceSnapshot'][]
 }
 
-/**
- * A discriminated union, not a single evolving shape. lib/delivery/export.ts
- * (out of scope for this work, never touched) already refuses anything but
- * schemaVersion 1 with its own `if (version.schemaVersion !== 1) invalid()`
- * guard -- TypeScript's control-flow narrowing on that exact check is what
- * keeps that file type-checking against this union with zero edits to it.
- */
+/** Source cardinality stays discriminated; preparation has its own versioned contract. */
 export type ReviewContent = ReviewContentV1 | ReviewContentV2
 
 export type ValidationResult = {

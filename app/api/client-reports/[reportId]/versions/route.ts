@@ -5,6 +5,7 @@ import {
   reportJson,
 } from '@/lib/reports/service'
 import type { ReportLocale } from '@/lib/reports/types'
+import { reportSaveHeaders } from '@/lib/reports/save-request'
 
 const CANONICAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
@@ -44,9 +45,12 @@ export async function POST(
   try {
     const { reportId } = await ctx.params
     const body = await parseBody(req)
+    let identity
+    try { identity = reportSaveHeaders(req) } catch { throw new ReportServiceError('invalid_request') }
     return reportJson(await appendAuthenticatedClientReportVersion({
       reportId: identifier(reportId),
       ...body,
+      ...identity,
     }), 201)
   } catch (error) {
     return reportErrorResponse(error)

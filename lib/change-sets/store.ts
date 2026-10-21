@@ -4,7 +4,7 @@ import { readOwnedDraft } from '@/lib/work-items/store'
 import type { WorkItem } from '@/lib/work-items/schema'
 import { fingerprintEvidence } from '@/lib/opportunities/fingerprint'
 import { freezeMultiSourceReview, freezeReview } from './validation'
-import type { ActorSnapshot, DecisionDTO, FrozenReview, StoreResult, VersionDetail, VersionSummary } from './types'
+import type { ActorSnapshot, DecisionDTO, FrozenReview, PreparationSnapshot, StoreResult, VersionDetail, VersionSummary } from './types'
 import { listLiveSources } from '@/lib/work-items/sources'
 import { multiSourceEnabled } from '@/lib/work-items/multi-source-flag'
 
@@ -30,9 +30,9 @@ export function versionDTO(row: Record<string, unknown>): VersionDetail {
     // on write, never re-validated on read) -- both branches must be readable,
     // not just the one new code writes.
     const frozen = c.schemaVersion === 1
-      ? freezeReview({ id: c.workItemId, revision: c.draftRevision, title: c.title, action: c.action, notes: c.notes, locale: c.locale, evidenceSnapshot: c.evidenceSnapshot } as WorkItem)
+      ? freezeReview({ id: c.workItemId, revision: c.draftRevision, title: c.title, action: c.action, notes: c.notes, locale: c.locale, evidenceSnapshot: c.evidenceSnapshot } as WorkItem, c.preparation)
       : c.schemaVersion === 2
-        ? freezeMultiSourceReview({ id: c.workItemId, revision: c.draftRevision, title: c.title, action: c.action, notes: c.notes, locale: c.locale }, c.evidenceSnapshots)
+        ? freezeMultiSourceReview({ id: c.workItemId, revision: c.draftRevision, title: c.title, action: c.action, notes: c.notes, locale: c.locale }, c.evidenceSnapshots, c.preparation)
         : invalidSaved()
     if (frozen.contentHash !== row.content_hash || fingerprintEvidence(c) !== frozen.contentHash || fingerprintEvidence(row.validation) !== fingerprintEvidence(frozen.validation)) invalidSaved()
     const submittedBy = actor(row.submitter)
@@ -116,10 +116,16 @@ export async function submitVersion(accountId: string, clientId: string, itemId:
       preRevision = draft.revision
       if (draft.revision === expectedRevision) {
         liveSnapshots = (await listLiveSources(accountId, clientId, itemId)).map(source => source.snapshot)
-        // Content SHAPE is the flag-gated half (051's stored-contract rule):
-        // with the flag off this is byte-identical to today's freezeReview
-        // call, so an existing submission's hash never moves under it.
-        frozen = multiSourceEnabled() ? freezeMultiSourceReview(draft, liveSnapshots) : freezeReview(draft)
+        const [details] = await sql`SELECT d.target_url,d.acceptance_criteria FROM evidence_work_items d
+          JOIN clients c ON c.id = d.client_id AND c.account_id = d.account_id
+          WHERE d.account_id = ${accountId}::uuid AND d.client_id = ${clientId}::uuid AND d.id = ${itemId}::uuid
+            AND d.revision = ${expectedRevision}`
+        if (details) {
+          const preparation: PreparationSnapshot = { schemaVersion: 1, targetUrl: details.target_url as string | null,
+            acceptanceCriteria: details.acceptance_criteria as string }
+          // Only new submissions include work details. Replayed/legacy rows retain their original bytes and hash.
+          frozen = multiSourceEnabled() ? freezeMultiSourceReview(draft, liveSnapshots, preparation) : freezeReview(draft, preparation)
+        }
         if (supplied && fingerprintEvidence(supplied) !== fingerprintEvidence(frozen)) frozen = null
       }
     }
@@ -156,6 +162,8 @@ export async function submitVersion(accountId: string, clientId: string, itemId:
         FROM owned d CROSS JOIN member p WHERE NOT EXISTS (SELECT 1 FROM replay) AND ${frozen !== null}
           AND d.revision = ${expectedRevision} AND d.title = ${content?.title ?? null} AND d.action = ${content?.action ?? null}
           AND d.notes = ${content?.notes ?? null} AND d.locale = ${content?.locale ?? null}
+          AND d.target_url IS NOT DISTINCT FROM ${content?.preparation?.targetUrl ?? null}
+          AND d.acceptance_criteria = ${content?.preparation?.acceptanceCriteria ?? null}
           AND COALESCE((SELECT jsonb_agg(s.evidence_snapshot ORDER BY s.opportunity_key)
                FROM work_item_sources s
                WHERE s.work_item_id = d.id AND s.account_id = d.account_id AND s.client_id = d.client_id AND s.withdrawn_at IS NULL), '[]'::jsonb)

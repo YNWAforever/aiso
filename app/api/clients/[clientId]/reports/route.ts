@@ -6,6 +6,7 @@ import {
   reportJson,
 } from '@/lib/reports/service'
 import type { ReportLocale } from '@/lib/reports/types'
+import { reportSaveHeaders } from '@/lib/reports/save-request'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -72,7 +73,10 @@ export async function POST(
   try {
     const { clientId } = await ctx.params
     const body = await parseCreate(req)
-    const result = await createAuthenticatedClientReport({ clientId: identifier(clientId), ...body })
+    let identity
+    try { identity = reportSaveHeaders(req) } catch { throw new ReportServiceError('invalid_request') }
+    if (identity.scanId && identity.scanId !== body.scanId) throw new ReportServiceError('invalid_request')
+    const result = await createAuthenticatedClientReport({ clientId: identifier(clientId), ...body, requestId: identity.requestId })
     return reportJson(result, 201)
   } catch (error) {
     return reportErrorResponse(error)

@@ -2,15 +2,17 @@
  * TDD: Full scan flow
  * Tests the complete path: POST /api/scan → score → DB insert → n8n webhook fire
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { NextRequest } from 'next/server'
 import { checkRobots } from '@/lib/checks/robots'
+import { emitFetchEvidence } from '@/lib/scan-evidence-context'
+import { describeEvidenceUrl } from '@/lib/scan-evidence'
 
 // Set required env vars before any module is loaded
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test'
 
-const dbState = vi.hoisted(() => ({ insertValues: [] as unknown[], failInsert: false }))
+const dbState = vi.hoisted(() => ({ insertValues: [] as unknown[], failInsert: false, dispatched: false }))
 const afterState = vi.hoisted(() => ({ callbacks: [] as Array<() => Promise<void> | void> }))
 vi.mock('next/server', async importOriginal => ({
   ...(await importOriginal<typeof import('next/server')>()),
@@ -57,6 +59,11 @@ vi.mock('@/lib/db', () => {
       dbState.insertValues = values
       return [{ id: 'scan-abc' }]
     }
+    if (/update scans/i.test(q) && q.includes("'{_n8n,dispatch,state}'='pending'")) {
+      if (dbState.dispatched) return []
+      dbState.dispatched = true
+      return [{ id: 'scan-abc' }]
+    }
     return []
   }
   return { db: () => sql }
@@ -65,7 +72,15 @@ vi.mock('@/lib/db', () => {
 
 vi.mock('@/lib/security/public-url', () => ({
   PublicUrlError: class PublicUrlError extends Error {},
-  fetchPublicUrl: (input: string | URL | Request, init?: RequestInit) => fetch(input, init),
+  fetchPublicUrl: async (input: string | URL | Request, init?: RequestInit) => {
+    const response = await fetch(input, init)
+    // The injected transport must retain the same collection boundary as the
+    // real transport; otherwise every mocked parser finding is unmeasured.
+    emitFetchEvidence({ target: describeEvidenceUrl(String(input)), collection: 'complete',
+      provenance: 'validated-fetch', observedAt: new Date().toISOString(), httpStatus: response.status })
+    return response
+  },
+  createPublicUrlFetcher: () => (input: string | URL | Request, init?: RequestInit) => fetch(input, init),
 }))
 vi.mock('@/lib/security/public-scan-rate-limit', () => ({
   consumePublicScanRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 4, resetAt: 2_000_000_000 }),
@@ -94,8 +109,10 @@ describe('POST /api/scan — full scan flow', () => {
     afterState.callbacks.length = 0
     dbState.insertValues = []
     dbState.failInsert = false
+    dbState.dispatched = false
     vi.mocked(checkRobots).mockClear()
   })
+  afterEach(() => { vi.unstubAllEnvs() })
 
   it.each(['network', 'http-error', 'empty', 'json'])('does not score or save a scan when origin collection fails: %s', async mode => {
     if (mode === 'network') fetchMock.mockRejectedValueOnce(new Error('private network diagnostics'))
@@ -202,24 +219,38 @@ describe('POST /api/scan — full scan flow', () => {
     const [, opts] = webhookCall!
     const body = JSON.parse((opts as RequestInit).body as string)
     expect(body).toHaveProperty('scanId')
-    expect(body).toHaveProperty('score')
-    expect(body).toHaveProperty('grade')
-    expect(body.results).not.toHaveProperty('evidence')
+    expect(body).toHaveProperty('dispatchId')
+    expect(body.token).toMatch(/^[a-f0-9]{64}$/)
+    expect(Object.keys(body).sort()).toEqual(['accountId', 'clientId', 'dispatchId', 'scanId', 'token', 'version'])
     delete process.env.N8N_SCAN_WEBHOOK_URL
   })
 
-  it('keeps the n8n scan workflow compatible with object results and out of agent completion', () => {
+  it('requires an authenticated execution claim and persists its summary through the app without legacy SQL', () => {
     const workflow = JSON.parse(readFileSync(new URL('../../n8n/aiso-scan-webhook.json', import.meta.url), 'utf8')) as {
-      nodes: Array<{ id: string; name: string; parameters: Record<string, string> }>
+      nodes: Array<{ id: string; name: string; type: string; continueOnFail?: boolean; parameters: Record<string, string> }>
     }
-    const summary = workflow.nodes.find(node => node.id === 'node-ai-summary')?.parameters.jsonBody ?? ''
-    const updateNode = workflow.nodes.find(node => node.id === 'node-update-scan')
-    const update = updateNode?.parameters.query ?? ''
-
-    expect(summary).toContain('Object.values(')
-    expect(updateNode?.name).toBe('Update Scan (AI Summary)')
-    expect(update).toContain('ai_summary')
-    expect(update).not.toMatch(/\bagent_status\b/i)
+    expect(workflow.nodes.some(node => node.type === 'n8n-nodes-base.postgres')).toBe(false)
+    expect(workflow.nodes.find(node => node.id === 'node-claim')).toBeDefined()
+    expect(workflow.nodes.find(node => node.id === 'node-complete')).toBeDefined()
+    expect(JSON.stringify(workflow)).not.toContain('ai_summary')
+    expect(JSON.stringify(workflow)).not.toMatch(/\bagent_status\b/)
+    expect(JSON.stringify(workflow)).toContain('$execution.id')
+    expect(JSON.stringify(workflow)).toContain('$workflow.id')
+  })
+  it('retains a scoped pending receipt before the n8n dispatch and never exposes its capability in the response', async () => {
+    vi.stubEnv('N8N_SCAN_WEBHOOK_URL', 'https://n8n.example.com/webhook/aiso-scan')
+    const { POST } = await import('@/app/api/scan/route')
+    const res = await POST(new NextRequest('http://localhost/api/scan', {
+      method: 'POST', body: JSON.stringify({ url: 'https://example.com' }),
+      headers: { 'Content-Type': 'application/json' },
+    }))
+    const stored = JSON.parse(dbState.insertValues[3] as string)
+    expect(stored._n8n?.version).toBe(1)
+    expect(stored._n8n?.state).toBe('queued')
+    expect(stored._n8n?.tokenHash).toMatch(/^[0-9a-f]{64}$/)
+    expect(stored._n8n?.snapshotHash).toMatch(/^[0-9a-f]{64}$/)
+    expect(await res.json()).toEqual({ id: 'scan-abc', score: expect.any(Number), grade: expect.any(String) })
+    vi.unstubAllEnvs()
   })
   it('does NOT fire n8n webhook when N8N_SCAN_WEBHOOK_URL is not set', async () => {
     delete process.env.N8N_SCAN_WEBHOOK_URL

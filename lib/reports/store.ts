@@ -727,7 +727,14 @@ export async function listClientReports(input: {
            published_at, revoked_at, created_by, created_at, updated_at
     from client_reports
     where account_id = ${input.accountId} and client_id = ${input.clientId}
-    order by created_at desc
+    order by (
+      select latest_saved.created_at
+      from client_report_versions latest_saved
+      where latest_saved.account_id = ${input.accountId}
+        and latest_saved.client_id = ${input.clientId}
+        and latest_saved.report_id = client_reports.id
+        and latest_saved.id = client_reports.latest_version_id
+    ) desc nulls last, created_at desc, id desc
   `)
   return normalizeClientReportRows(rows)
 }
