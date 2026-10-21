@@ -63,6 +63,7 @@ import { assessTrustSignals } from '@/lib/trust-signals'
 export { assignGrade, calculateScore, calculateGeoScore }
 
 export async function POST(req: NextRequest) {
+  const generationDeadlineAt = Date.now() + 55_000
   let body: unknown
   try {
     body = await req.json()
@@ -167,7 +168,7 @@ export async function POST(req: NextRequest) {
   let scanHeaders: Headers | undefined
   // Set once a monthly scan has been spent, so a scan that turns out to have
   // nothing to assess can give it back.
-  let quotaSpentBy: string | null = null
+  let quotaReservation: { accountId: string; decision: Awaited<ReturnType<typeof consumeAuthenticatedScanQuota>> } | null = null
   if (!profile || (entitlement.plan === 'free' && !ownedClient)) {
     try {
       const decision = await consumePublicScanRateLimit(req)
@@ -194,7 +195,7 @@ export async function POST(req: NextRequest) {
           { status: 429, headers: scanHeaders },
         )
       }
-      quotaSpentBy = profile.account_id
+      quotaReservation = { accountId: profile.account_id, decision }
     } catch (error) {
       console.error('[scan] authenticated quota failed:', (error as Error)?.message ?? String(error))
       return NextResponse.json({ error: 'Authenticated scan quota unavailable' }, { status: 503 })
@@ -211,9 +212,11 @@ export async function POST(req: NextRequest) {
   // given back. A failed refund is logged, not surfaced: the refusal is still
   // the true answer.
   const refuse = async (error: string, status: number) => {
-    if (quotaSpentBy) {
+    if (quotaReservation) {
+      const reservation = quotaReservation
+      quotaReservation = null
       try {
-        await releaseAuthenticatedScanQuota(quotaSpentBy)
+        await releaseAuthenticatedScanQuota(reservation.accountId, reservation.decision)
       } catch (releaseError) {
         console.error('[scan] quota refund failed:', (releaseError as Error)?.name ?? 'Error')
       }
@@ -229,10 +232,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     if (error instanceof PublicUrlError) {
-      return NextResponse.json({ error: 'URL must resolve to a public HTTP or HTTPS address' }, {
-        status: 400,
-        headers: scanHeaders,
-      })
+      return refuse('URL must resolve to a public HTTP or HTTPS address', 400)
     }
     // No HTTP response at all (DNS failure, refused connection, timeout): there
     // is no site to assess, so nothing is graded or saved.
@@ -453,7 +453,7 @@ export async function POST(req: NextRequest) {
     }
   } else if (queueAgentAnalysis && ownedClient && account_id) {
     const dispatch = async () => {
-      await generateImprove({ accountId: account_id, clientId: ownedClient.id, scanId })
+      await generateImprove({ accountId: account_id, clientId: ownedClient.id, scanId }, { deadlineAt: generationDeadlineAt })
     }
     try { after(dispatch) } catch {
       // Direct fallback is still fenced by the same persisted native claim.
