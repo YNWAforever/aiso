@@ -27,7 +27,10 @@ describe('CI component fixture preparation',()=>{
    await prepareComponentFixtures(root,{NODE_ENV: 'test'},(_bin:string,args:string[],options:{env:NodeJS.ProcessEnv})=>{
     for(const slice of ['AISO_SOURCES','AISO_REPORT','AISO_REPORT_TASK','AISO_ONBOARDING','AISO_ADMIN','AISO_PRIORITY','PROMPT_BANK','AUTH_RETURN']) expect(options.env[`${slice}_HTML_DIR`]).toBe(join(root,'.next/component-fixtures',slice))
     for(const file of ['domain-verification-first-use','onboarding-wizard-bilingual','prompt-bank-editor','top-issue-card','auth-return-fixture','source-maintenance-fixture','admin-directory','suggest-questions-panel','report-builder-fixture','report-improvement-task-fixture']) expect(args).toContain(`__tests__/components/${file}.test.tsx`)
-    expect(args.filter(a=>a.endsWith('.test.tsx'))).toHaveLength(24)
+    expect(args).toContain('__tests__/components/result-draft-fixture.test.tsx')
+    expect(options.env.AISO_RESULT_DRAFT_FIXTURE).toBe('1')
+    expect(options.env.AISO_RESULT_DRAFT_DIR).toBe(join(root,'.next/component-fixtures/AISO_RESULT_DRAFT'))
+    expect(args.filter(a=>a.endsWith('.test.tsx'))).toHaveLength(25)
     expect(options.env.AISO_REPORT_CSS_PATH).toBe(join(root,'.next/component-fixtures/build.css'))
     for(const slice of ['C8A','C8B','C8C','C8G','C9A','C9B','C9C','C9C_DRAFT','C9D','C9D_APPROVERS','C9E','C9F']){expect(options.env[`${slice}_HTML_DIR`]).toBe(join(root,'.next/component-fixtures',slice));expect(options.env[`${slice}_CSS_PATH`]).toBe(join(root,'.next/component-fixtures/build.css'))}
     return {status:0}

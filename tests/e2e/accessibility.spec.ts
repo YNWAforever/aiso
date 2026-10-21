@@ -76,7 +76,7 @@ test('fixture result page has no blocking accessibility violations before and af
   await page.route('**/sign-in/magic-link*', route => route.fulfill({
     status: 200,
     contentType: 'application/json',
-    body: JSON.stringify({}),
+    body: JSON.stringify({ status: true }),
   }))
   const emailInput = page.getByRole('textbox', { name: 'Work email' })
   await emailInput.fill('accessibility@example.com')

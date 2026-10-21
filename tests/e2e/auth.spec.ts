@@ -70,7 +70,7 @@ test.describe('Auth — login page', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({}),
+          body: JSON.stringify({ status: true }),
         })
       })
 
@@ -84,8 +84,8 @@ test.describe('Auth — login page', () => {
 
       const request = await requestPromise
       expect(request.method()).toBe('POST')
-      expect(routeInvocations).toBe(1)
       await expect(page.getByText(copy.checkEmail, { exact: true })).toBeVisible({ timeout: 8_000 })
+      expect(routeInvocations).toBe(1)
     })
   }
 

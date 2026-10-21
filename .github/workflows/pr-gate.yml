@@ -262,6 +262,8 @@ jobs:
           AISO_ADMIN_HTML_DIR: .next/component-fixtures/AISO_ADMIN
           AISO_FIRST_PULSE_HTML_DIR: .next/component-fixtures/AISO_FIRST_PULSE
           AISO_AUDIT_LOOP_HTML_DIR: .next/component-fixtures/AISO_AUDIT_LOOP
+          AISO_RESULT_DRAFT_DIR: .next/component-fixtures/AISO_RESULT_DRAFT
+          AISO_REPORT_TASK_HTML_DIR: .next/component-fixtures/AISO_REPORT_TASK
           AISO_PRIORITY_HTML_DIR: .next/component-fixtures/AISO_PRIORITY
           PROMPT_BANK_HTML_DIR: .next/component-fixtures/PROMPT_BANK
           AUTH_RETURN_HTML_DIR: .next/component-fixtures/AUTH_RETURN
@@ -387,3 +389,4 @@ jobs:
           name: pr-gate-diagnostics
           if-no-files-found: warn
           path: artifacts/gate-summary.json
+
