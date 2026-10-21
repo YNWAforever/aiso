@@ -14,7 +14,7 @@ const COPY = {
     points: [
       { title: '20 evidence-backed checks', body: 'Crawler access, structured data and citability — each with traceable pass, warning or fail evidence.' },
       { title: 'Prioritised fix packs', body: 'llms.txt, robots.txt and FAQ JSON-LD drafted for the gaps that matter most.' },
-      { title: 'Weekly AI visibility pulse', body: 'Sampled model answers, brand mentions and share of voice, tracked week over week.' },
+      { title: 'AI visibility observations', body: 'Review saved model API answers, brand mentions and share of voice with their collection dates and evidence limits.' },
     ],
     trust: 'Sessions are encrypted and every workspace is isolated by account.',
   },
@@ -29,7 +29,7 @@ const COPY = {
     points: [
       { title: '20 項有證據支持的檢查', body: '爬蟲存取、結構化資料及可引用性——每項均附可追溯的通過、警告或失敗證據。' },
       { title: '按優先次序的修正包', body: '針對最重要的缺口，草擬 llms.txt、robots.txt 及 FAQ JSON-LD。' },
-      { title: '每週 AI 能見度脈搏', body: '抽樣模型回答、品牌提及及聲量佔有率，按週追蹤。' },
+      { title: 'AI 能見度觀測', body: '查看已儲存的模型 API 回答、品牌提及及聲量佔有率，並核對採集時間與證據限制。' },
     ],
     trust: '工作階段經加密，每個工作區均按帳戶隔離。',
   },

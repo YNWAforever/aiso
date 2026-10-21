@@ -4,6 +4,7 @@ import { getMessages, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { routing } from '@/i18n/routing'
 import { buildLocalizedMetadata } from '@/lib/seo'
+import { DocumentLanguage } from '@/components/i18n/DocumentLanguage'
 
 type LangLayoutProps = {
   children: React.ReactNode
@@ -24,5 +25,8 @@ export default async function LangLayout({ children, params }: LangLayoutProps) 
   setRequestLocale(lang)
   const messages = await getMessages()
 
-  return <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
+  return <NextIntlClientProvider messages={messages}>
+    <DocumentLanguage locale={lang} />
+    {children}
+  </NextIntlClientProvider>
 }
