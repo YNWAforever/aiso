@@ -2,7 +2,7 @@
 
 The **Quota concurrency** workflow runs a separate acceptance job on an ephemeral Ubuntu 24.04 runner with Node 24 and PostgreSQL 16. It uses no database URL, Neon resource, secret, or production deployment. It does not change `PR gate` or branch-protection requirements.
 
-**Execution status:** adding this workflow is not a passing concurrency result. T05 stays open until an actual run produces the acceptance evidence below. Local preparation checked syntax, lint and workflow parsing; the preparation executor maps only root, so PostgreSQL's non-root startup requirement prevents a real local run there.
+**Execution status:** T05 stays open until an actual run produces the acceptance evidence below. Run `39623480436`, attempt 1, exercised PostgreSQL 16.15 with 17 verified sessions: the first six cases passed, then the seventh exposed a real refund race. The owned cluster stopped successfully. The correction described below still requires a fresh passing run. The preparation executor maps only root, so PostgreSQL's non-root startup requirement prevents a real local run there.
 
 ## Run and scope
 
@@ -18,7 +18,13 @@ The final argument must stay short: Linux Unix socket paths, including the socke
 
 The harness imports the **actual quota TypeScript module**, replacing only its `db()` transport with a per-session `pg` tagged-template adapter. It executes **migration025 verbatim** after creating a minimal `accounts(id uuid primary key)` parent. This is quota SQL/locking acceptance, not a full schema replay, production-role grant check or Neon transport test.
 
-The quota and migration contents are pinned by Git blob hash in the script. The reference commit identifies those two reviewed contents, not the current checkout HEAD. An intentional change to either file must review and update its pin; changing a pin alone does not establish acceptance.
+The quota and migration contents are pinned by Git blob hash in the script. `reviewBaselineHead` identifies the revision reviewed before the correction; `sourceBlobs` identifies the actual tested contents. Neither field is a claim about the current checkout HEAD. An intentional change to either file must review and update its pin; changing a pin alone does not establish acceptance.
+
+### Refund race found by the first run
+
+With count 1, an admission held the row lock while incrementing to 2. The waiting refund's `FOR UPDATE` reservation then read 2, but its separate UPDATE expression still provisionally calculated `1 - 1` from the older statement snapshot. PostgreSQL rejected that zero under migration025's positive-count constraint before the update could be rechecked.
+
+The correction uses the count returned by the locked reservation in the UPDATE expression. It retains the positive-count constraint, account/month scope, and all ten acceptance cases, including this lock ordering. The reviewed quota blob is `cf0364350541cf0d7427750574c1b5addf428296`; migration025 remains `ae2e513f138fa327f72127b9c8d324f1a882ec57`. A successful single-session PGlite test cannot close this concurrency finding.
 
 ## Identity and acceptance evidence
 

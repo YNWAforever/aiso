@@ -33,15 +33,19 @@ export async function loadAuthenticatedOpportunities(clientId: string,params=new
     if (Object.values(sourceStates).every(state => state === 'unavailable')) throw new OpportunityServiceError('OPPORTUNITIES_UNAVAILABLE')
     const suggestions = snapshot.sources.filter(source =>
       (source.kind === 'pulse-metric' && sourceStates.pulse === 'ok') || (source.kind === 'scan-check' && sourceStates.scan === 'ok'),
-    ).flatMap(deriveSuggestions).sort((a, b) => {
+    ).flatMap(source => {
+      const recordedAt = source.kind === 'pulse-metric' ? source.observation.recordedAt : source.recordedAt
+      return deriveSuggestions(source).map(suggestion => ({ suggestion, recordedAt }))
+    }).sort(({ suggestion: a, recordedAt: aDate }, { suggestion: b, recordedAt: bDate }) => {
       const compare = (left: string, right: string) => left < right ? -1 : left > right ? 1 : 0
-      // SQL projects UTC timestamps with six fractional digits; compare without losing microseconds.
+      // Sort by the original six-digit UTC source timestamp. Suggestion evidence
+      // intentionally normalizes to milliseconds for its existing fingerprint.
       return compare(a.source.kind, b.source.kind)
-        || compare(b.evidence.recordedAt ?? '', a.evidence.recordedAt ?? '')
+        || compare(bDate ?? '', aDate ?? '')
         || compare(a.source.id, b.source.id)
         // Each validated scan's candidates are already ordered by the shared
         // evidence resolver. Stable sort preserves failure-before-warning.
-    })
+    }).map(({ suggestion }) => suggestion)
     const saveAvailability = new Map<string, 'available' | 'limited-evidence'>()
     for (const source of snapshot.sources) {
       for (const suggestion of deriveSuggestions(source)) {

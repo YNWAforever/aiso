@@ -30,7 +30,7 @@ const socketDirectory = join(runDirectory, 'socket')
 mkdirSync(socketDirectory, { mode: 0o700 })
 const port = 5432 // Unix socket only; private directory prevents collisions.
 const role = 'quota_harness_owner'
-const report = { runId, sourceRoot: repo, blobReferenceHead: 'bcd49f29e308b4586a88ddab1e12af18da9cafc7', status: 'running', tests: [], connections: [], limits: [
+const report = { runId, sourceRoot: repo, reviewBaselineHead: 'c3bcbfcd08996c8a9542a30375e0b06ae07fbf31', status: 'running', tests: [], connections: [], limits: [
   'Local PostgreSQL SQL/locking evidence; not Neon transport or production-role grants.',
   'Migration025 with a minimal accounts parent table; not a full application migration replay.',
   'UTC anchoring and prior-period refunds are tested; wall clock is not advanced across a month boundary.',
@@ -71,7 +71,7 @@ function verifySource(path, expectedBlob) {
   assert.equal(gitBlob(source), expectedBlob, `Source identity changed: ${path}; review before changing this pin`)
   return source
 }
-const quotaSource = verifySource('lib/security/authenticated-scan-quota.ts', '1a28bd4a6c28c695f9c2972780642cab8496c1c5')
+const quotaSource = verifySource('lib/security/authenticated-scan-quota.ts', 'cf0364350541cf0d7427750574c1b5addf428296')
 const migration = verifySource('supabase/migrations/025_authenticated_scan_quotas.sql', 'ae2e513f138fa327f72127b9c8d324f1a882ec57')
 report.sourceBlobs = { quota: gitBlob(quotaSource), migration025: gitBlob(migration) }
 

@@ -81,6 +81,9 @@ export async function releaseAuthenticatedScanQuota(
   reset.setUTCMonth(reset.getUTCMonth() - 1)
   const periodStart = reset.toISOString().split('T')[0]
 
+  // FOR UPDATE refreshes the reservation after a concurrent admission commits.
+  // Use that locked count in SET too: a snapshot count of 1 could otherwise
+  // produce 0 and fail CHECK before PostgreSQL rechecks the updated row.
   await db()`
     with reservation as materialized (
       select request_count
@@ -90,7 +93,7 @@ export async function releaseAuthenticatedScanQuota(
       for update
     ), refunded as (
       update authenticated_scan_monthly_usage
-      set request_count = request_count - 1
+      set request_count = (select request_count from reservation) - 1
       where account_id = ${accountId}::uuid
         and month_start = ${periodStart}::date
         and (select request_count from reservation) > 1
