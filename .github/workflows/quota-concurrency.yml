@@ -1,0 +1,68 @@
+name: Quota concurrency
+
+on:
+  pull_request:
+    # Include callers and dependencies, not just the quota module: a receipt
+    # passed incorrectly by a changed route also warrants this acceptance run.
+    paths:
+      - 'app/**'
+      - 'lib/**'
+      - 'supabase/migrations/**'
+      - '__tests__/api/**'
+      - '__tests__/lib/authenticated-scan-quota*.test.ts'
+      - 'scripts/ci/verify-quota-concurrency.mjs'
+      - 'docs/runbooks/quota-concurrency.md'
+      - '.github/workflows/quota-concurrency.yml'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-concurrency:
+    name: Local PostgreSQL quota acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - name: Ensure PostgreSQL 16 binaries are installed
+        shell: bash
+        run: |
+          need_pg_install=false
+          for tool in postgres initdb pg_ctl pg_controldata; do
+            if [ ! -x "/usr/lib/postgresql/16/bin/$tool" ]; then
+              need_pg_install=true
+            fi
+          done
+          if [ "$need_pg_install" = true ]; then
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends --yes postgresql-16
+          fi
+          for tool in postgres initdb pg_ctl pg_controldata; do
+            test -x "/usr/lib/postgresql/16/bin/$tool"
+          done
+      - name: Verify quota with independent local PostgreSQL sessions
+        # The runner user starts its own private Unix-socket-only cluster.
+        # Do not run this command through sudo or supply any database URL.
+        run: node scripts/ci/verify-quota-concurrency.mjs . /usr/lib/postgresql/16/bin /tmp/aiso-quota
+      - name: Upload quota acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quota-concurrency-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 14
+          # Explicit file allow-list: never upload the cluster data directory.
+          path: |
+            /tmp/aiso-quota/quota-pg-*/report.json
+            /tmp/aiso-quota/quota-pg-*/identity-before-client.json
+            /tmp/aiso-quota/quota-pg-*/postgres.log

@@ -48,6 +48,8 @@ describe('PR gate workflow contract', () => {
       expect(e2eJob).toContain(`${slice}_CSS_PATH: .next/component-fixtures/build.css`)
     }
     expect(e2eJob).not.toContain('--skipped 0')
+    expect(e2eJob).toContain('AISO_RESULT_DRAFT_DIR: .next/component-fixtures/AISO_RESULT_DRAFT')
+    expect(e2eJob).toContain('AISO_REPORT_TASK_HTML_DIR: .next/component-fixtures/AISO_REPORT_TASK')
     expect(workflow).toContain('npm run build')
     expect(workflow).toContain('E2E_FIXTURE_MODE: 1')
     expect(workflow).toContain('BASE_URL: http://127.0.0.1:3000')

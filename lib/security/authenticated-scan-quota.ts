@@ -19,18 +19,21 @@ const consumeFromNeon: DurableAuthenticatedScanCounter = async (accountId, limit
       select date_trunc('month', now() at time zone 'UTC')::date as month_start
     ), cleanup as (
       delete from authenticated_scan_monthly_usage
-      where month_start < date_trunc('month', now() at time zone 'UTC')::date - interval '14 months'
+      where account_id = ${accountId}::uuid
+        and month_start < date_trunc('month', now() at time zone 'UTC')::date - interval '14 months'
     ), consumed as (
       insert into authenticated_scan_monthly_usage (account_id, month_start, request_count)
       select ${accountId}::uuid, month_start, 1 from current_month
       on conflict (account_id, month_start)
       do update set request_count = authenticated_scan_monthly_usage.request_count + 1
+      where authenticated_scan_monthly_usage.request_count < ${limit}
       returning request_count, month_start
     )
-    select request_count <= ${limit} as allowed,
-      greatest(0, ${limit} - request_count)::int as remaining,
-      extract(epoch from ((month_start + interval '1 month')::timestamp at time zone 'UTC'))::bigint as reset_at
-    from consumed
+    select consumed.request_count is not null as allowed,
+      greatest(0, ${limit} - coalesce(consumed.request_count, ${limit}))::int as remaining,
+      extract(epoch from ((current_month.month_start + interval '1 month')::timestamp at time zone 'UTC'))::bigint as reset_at
+    from current_month
+    left join consumed on true
   `
   const row = rows[0] as {
     allowed: boolean
@@ -53,17 +56,52 @@ export function consumeAuthenticatedScanQuota(
 }
 
 /**
- * Gives back one scan consumed this month. Used when a scan that already spent
- * quota turns out to have nothing to assess (the site never responded): no
- * result is saved, so it must not cost one of the account's monthly scans.
- * Floors at zero and only touches the current UTC month, the one consumed.
+ * Gives back one admitted scan in its original UTC month, including when the
+ * scan finishes after the month changes. The caller must release a reservation
+ * at most once and only after a definitive failure before a scan is saved.
+ * Deletes the row at zero to respect migration 025's positive-count constraint;
+ * this aggregate counter is not an idempotent reservation ledger.
  */
-export async function releaseAuthenticatedScanQuota(accountId: string): Promise<void> {
+export async function releaseAuthenticatedScanQuota(
+  accountId: string,
+  reservation: Pick<AuthenticatedScanQuotaDecision, 'allowed' | 'resetAt'>,
+): Promise<void> {
+  const reset = new Date(reservation.resetAt * 1000)
+  if (
+    reservation.allowed !== true ||
+    !Number.isSafeInteger(reservation.resetAt) ||
+    !Number.isFinite(reset.getTime()) ||
+    reset.getUTCDate() !== 1 ||
+    reset.getUTCHours() !== 0 ||
+    reset.getUTCMinutes() !== 0 ||
+    reset.getUTCSeconds() !== 0
+  ) {
+    throw new Error('Authenticated scan quota release requires an admitted reservation with a UTC month reset')
+  }
+  reset.setUTCMonth(reset.getUTCMonth() - 1)
+  const periodStart = reset.toISOString().split('T')[0]
+
+  // FOR UPDATE refreshes the reservation after a concurrent admission commits.
+  // Use that locked count in SET too: a snapshot count of 1 could otherwise
+  // produce 0 and fail CHECK before PostgreSQL rechecks the updated row.
   await db()`
-    update authenticated_scan_monthly_usage
-    set request_count = greatest(0, request_count - 1)
+    with reservation as materialized (
+      select request_count
+      from authenticated_scan_monthly_usage
+      where account_id = ${accountId}::uuid
+        and month_start = ${periodStart}::date
+      for update
+    ), refunded as (
+      update authenticated_scan_monthly_usage
+      set request_count = (select request_count from reservation) - 1
+      where account_id = ${accountId}::uuid
+        and month_start = ${periodStart}::date
+        and (select request_count from reservation) > 1
+    )
+    delete from authenticated_scan_monthly_usage
     where account_id = ${accountId}::uuid
-      and month_start = date_trunc('month', now() at time zone 'UTC')::date
+      and month_start = ${periodStart}::date
+      and (select request_count from reservation) = 1
   `
 }
 

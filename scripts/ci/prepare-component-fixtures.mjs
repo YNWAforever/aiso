@@ -16,6 +16,8 @@ export async function prepareComponentFixtures(root, environment = process.env, 
   await mkdir(output,{recursive:true})
   await writeFile(join(output,'build.css'),(await Promise.all(cssFiles.map(file=>readFile(join(chunks,file),'utf8')))).join('\n'))
   const env = {...environment}
+  env.AISO_RESULT_DRAFT_FIXTURE = '1'
+  env.AISO_RESULT_DRAFT_DIR = join(output,'AISO_RESULT_DRAFT')
   const slices = ['C8A','C8B','C8C','C8G','C9A','C9B','C9C','C9C_DRAFT','C9D','C9D_APPROVERS','C9E','C9F','AISO_SOURCES','AISO_REPORT','AISO_REPORT_TASK','AISO_ONBOARDING','AISO_ADMIN','AISO_PRIORITY','PROMPT_BANK','AUTH_RETURN','AISO_FIRST_PULSE','AISO_AUDIT_LOOP']
   for(const slice of slices) {
     env[`${slice}_HTML_DIR`] = join(output,slice)
@@ -29,9 +31,11 @@ export async function prepareComponentFixtures(root, environment = process.env, 
   files.push('__tests__/components/suggest-questions-panel.test.tsx')
   files.push('__tests__/components/report-builder-fixture.test.tsx')
   files.push('__tests__/components/report-improvement-task-fixture.test.tsx')
+  files.push('__tests__/components/result-draft-fixture.test.tsx')
   const result = run(process.execPath,[join(root,'node_modules/vitest/vitest.mjs'),'run',...files,'--maxWorkers=1'],{cwd:root,env,stdio:'inherit'})
   if(result.error || result.status !== 0) throw new Error('Component fixture renderer failed')
 }
 if(process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   prepareComponentFixtures(process.cwd()).catch(error=>{process.stderr.write(error.message+'\n');process.exitCode=1})
 }
+

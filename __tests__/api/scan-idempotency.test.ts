@@ -21,7 +21,7 @@ const state = vi.hoisted(() => ({
   profile: {
     account_id: 'acct-1',
     accounts: {
-      plan: 'pro' as const,
+      plan: 'pro' as 'pro' | 'basic' | 'free',
       status: 'active' as const,
       stripe_subscription_id: 'sub_pro',
       trial_ends_at: null,
@@ -35,6 +35,9 @@ const state = vi.hoisted(() => ({
 }))
 
 const checkRobots = vi.hoisted(() => vi.fn())
+const quotaDecision = vi.hoisted(() => ({ allowed: true, remaining: 2, resetAt: 1_788_192_000 }))
+const consumeQuota = vi.hoisted(() => vi.fn(async () => quotaDecision))
+const releaseQuota = vi.hoisted(() => vi.fn(async () => undefined))
 
 vi.mock('@/lib/auth', () => ({ getProfile: async () => state.profile }))
 vi.mock('@/lib/scans/request-claim', () => ({
@@ -50,8 +53,8 @@ vi.mock('next/server', async importOriginal => ({
   after: () => {},
 }))
 vi.mock('@/lib/security/authenticated-scan-quota', () => ({
-  consumeAuthenticatedScanQuota: async () => ({ allowed: true, remaining: 2, resetAt: 1_788_192_000 }),
-  releaseAuthenticatedScanQuota: async () => undefined,
+  consumeAuthenticatedScanQuota: consumeQuota,
+  releaseAuthenticatedScanQuota: releaseQuota,
   authenticatedScanQuotaHeaders: () => new Headers(),
 }))
 vi.mock('@/lib/security/public-scan-rate-limit', () => ({
@@ -139,6 +142,9 @@ const body = {
 describe('POST /api/scan — first-use request idempotency', () => {
   beforeEach(() => {
     delete process.env.N8N_SCAN_WEBHOOK_URL
+    state.profile.accounts.plan = 'pro'
+    consumeQuota.mockClear()
+    releaseQuota.mockClear()
     state.existing = []
     state.claimInserts = 0
     state.finalUpdates = []
@@ -197,6 +203,70 @@ describe('POST /api/scan — first-use request idempotency', () => {
     expect(await res.json()).toMatchObject({ error: 'SCAN_UNREACHABLE', scanId: 'scan-failed' })
     expect(checkRobots).not.toHaveBeenCalled()
     expect(state.claimInserts).toBe(0)
+  })
+
+  it('retains a refused Basic claim and refunds its reservation once across replay', async () => {
+    state.profile.accounts.plan = 'basic'
+    const { PublicUrlError } = await import('@/lib/security/public-url')
+    fetchMock.mockRejectedValueOnce(new PublicUrlError('Blocked destination', 'UNSAFE_URL'))
+    const { POST } = await import('@/app/api/scan/route')
+
+    const first = await POST(request(body))
+    expect(first.status).toBe(400)
+    expect(state.failedMarks).toHaveLength(1)
+    const [savedFailure, scanId, accountId] = state.failedMarks[0]
+    expect([scanId, accountId]).toEqual(['scan-claim', 'acct-1'])
+    const receipt = JSON.parse(String(savedFailure))
+    expect(receipt).toMatchObject({
+      key: body.requestKey, state: 'failed', status: 400,
+      error: 'URL must resolve to a public HTTP or HTTPS address',
+    })
+    expect(releaseQuota).toHaveBeenCalledExactlyOnceWith('acct-1', quotaDecision)
+
+    state.existing = [{
+      id: 'scan-claim', score: null, grade: null, created_at: new Date().toISOString(),
+      results: { _scan_request: receipt },
+    }]
+    const replay = await POST(request(body))
+    expect(replay.status).toBe(400)
+    expect(await replay.json()).toMatchObject({ scanId: 'scan-claim', error: receipt.error })
+    expect(consumeQuota).toHaveBeenCalledExactlyOnceWith('acct-1')
+    expect(releaseQuota).toHaveBeenCalledExactlyOnceWith('acct-1', quotaDecision)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(state.claimInserts).toBe(1)
+    expect(state.finalUpdates).toHaveLength(0)
+    expect(checkRobots).not.toHaveBeenCalled()
+  })
+
+  it('retains an upgrade refusal so a free-plan replay never appears to be processing', async () => {
+    state.profile.accounts.plan = 'free'
+    const { POST } = await import('@/app/api/scan/route')
+    const first = await POST(request(body))
+    expect(first.status).toBe(403)
+    expect(state.failedMarks).toHaveLength(1)
+    const [savedFailure, scanId, accountId] = state.failedMarks[0]
+    expect([scanId, accountId]).toEqual(['scan-claim', 'acct-1'])
+    const receipt = JSON.parse(String(savedFailure))
+    expect(receipt).toMatchObject({
+      key: body.requestKey, state: 'failed', status: 403,
+      error: 'AUTHENTICATED_SCAN_UPGRADE_REQUIRED',
+    })
+    state.existing = [{
+      id: 'scan-claim', score: null, grade: null, created_at: new Date().toISOString(),
+      results: { _scan_request: receipt },
+    }]
+    const replay = await POST(request(body))
+    expect(replay.status).toBe(403)
+    expect(await replay.json()).toMatchObject({
+      scanId: 'scan-claim', state: 'failed', reused: true,
+      error: 'AUTHENTICATED_SCAN_UPGRADE_REQUIRED',
+    })
+    expect(consumeQuota).not.toHaveBeenCalled()
+    expect(releaseQuota).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(checkRobots).not.toHaveBeenCalled()
+    expect(state.claimInserts).toBe(1)
+    expect(state.finalUpdates).toHaveLength(0)
   })
 
   it('stops an expired claim without repeating checks or potentially charged work', async () => {

@@ -65,6 +65,7 @@ import { assessTrustSignals } from '@/lib/trust-signals'
 export { assignGrade, calculateScore, calculateGeoScore }
 
 export async function POST(req: NextRequest) {
+  const generationDeadlineAt = Date.now() + 55_000
   let body: unknown
   try {
     body = await req.json()
@@ -244,7 +245,7 @@ export async function POST(req: NextRequest) {
   let scanHeaders: Headers | undefined
   // Set once a monthly scan has been spent, so a scan that turns out to have
   // nothing to assess can give it back.
-  let quotaSpentBy: string | null = null
+  let quotaReservation: { accountId: string; decision: Awaited<ReturnType<typeof consumeAuthenticatedScanQuota>> } | null = null
   if (!profile || (entitlement.plan === 'free' && !ownedClient)) {
     try {
       const decision = await consumePublicScanRateLimit(req)
@@ -261,6 +262,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Public scan temporarily unavailable' }, { status: 503 })
     }
   } else if (entitlement.plan === 'free') {
+    await markClaimFailed('AUTHENTICATED_SCAN_UPGRADE_REQUIRED', 403)
     return NextResponse.json({ error: 'AUTHENTICATED_SCAN_UPGRADE_REQUIRED' }, { status: 403 })
   } else if (entitlement.monthlyScanLimit !== null) {
     try {
@@ -273,7 +275,7 @@ export async function POST(req: NextRequest) {
           { status: 429, headers: scanHeaders },
         )
       }
-      quotaSpentBy = profile.account_id
+      quotaReservation = { accountId: profile.account_id, decision }
     } catch (error) {
       console.error('[scan] authenticated quota failed:', (error as Error)?.message ?? String(error))
       await markClaimFailed('Authenticated scan quota unavailable', 503)
@@ -284,14 +286,16 @@ export async function POST(req: NextRequest) {
   // Fetch page HTML once — shared by extended checks + GEO checks.
   // The reusable boundary validates DNS and every redirect hop.
   const capture = createScanEvidenceCapture(fetchPublicUrl)
-  // Nothing is saved on any refusal below, so the monthly scan it spent is
-  // given back. A failed refund is logged, not surfaced: the refusal is still
-  // the true answer.
+  // No completed scan is saved on refusal; a failed request claim may remain.
+  // Give back the monthly scan reservation. A failed refund is logged, not
+  // surfaced: the refusal is still the true answer.
   const refuse = async (error: string, status: number) => {
     await markClaimFailed(error, status)
-    if (quotaSpentBy) {
+    if (quotaReservation) {
+      const reservation = quotaReservation
+      quotaReservation = null
       try {
-        await releaseAuthenticatedScanQuota(quotaSpentBy)
+        await releaseAuthenticatedScanQuota(reservation.accountId, reservation.decision)
       } catch (releaseError) {
         console.error('[scan] quota refund failed:', (releaseError as Error)?.name ?? 'Error')
       }
@@ -307,11 +311,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     if (error instanceof PublicUrlError) {
-      await markClaimFailed('URL must resolve to a public HTTP or HTTPS address', 400)
-      return NextResponse.json({ error: 'URL must resolve to a public HTTP or HTTPS address' }, {
-        status: 400,
-        headers: scanHeaders,
-      })
+      return refuse('URL must resolve to a public HTTP or HTTPS address', 400)
     }
     // No HTTP response at all (DNS failure, refused connection, timeout): there
     // is no site to assess, so nothing is graded or saved.
@@ -552,7 +552,7 @@ export async function POST(req: NextRequest) {
     }
   } else if (queueAgentAnalysis && ownedClient && account_id) {
     const dispatch = async () => {
-      await generateImprove({ accountId: account_id, clientId: ownedClient.id, scanId })
+      await generateImprove({ accountId: account_id, clientId: ownedClient.id, scanId }, { deadlineAt: generationDeadlineAt })
     }
     try { after(dispatch) } catch {
       // Direct fallback is still fenced by the same persisted native claim.

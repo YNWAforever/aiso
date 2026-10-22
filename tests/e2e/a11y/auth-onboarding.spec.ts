@@ -9,7 +9,7 @@ const COPY = {
     googleError: 'Could not start Google sign-in. Please try again.',
     emailError: 'Could not send the magic link. Please try again.',
     brand: "What's your brand name?",
-    steps: ['Set up your brand', 'Your website domain', 'Your industry & region', 'Tell AI what you do'],
+    steps: ['Get your first website result', 'Your website domain', 'Your industry & region', 'Tell AI what you do'],
     continue: 'Continue', back: 'Back', industry: 'Industry (optional)', region: 'Region (optional)',
     description: 'Brand description', competitors: 'Main competitors', finish: 'Go to my dashboard',
     completeError: 'Something went wrong',
@@ -20,7 +20,7 @@ const COPY = {
     googleError: '無法啟動 Google 登入，請再試一次。',
     emailError: '無法發送登入連結，請再試一次。',
     brand: '你的品牌名稱是？',
-    steps: ['設定你的品牌', '你的網站域名', '你的行業及地區', '讓 AI 了解你的業務'],
+    steps: ['查看你的首個網站分析結果', '你的網站域名', '你的行業及地區', '讓 AI 了解你的業務'],
     continue: '繼續', back: '返回', industry: '行業（可選）', region: '地區（可選）',
     description: '品牌描述', competitors: '主要競爭對手', finish: '前往我的儀表板',
     completeError: '發生錯誤，請再試一次',
@@ -38,7 +38,7 @@ async function mockRequests(page: Page) {
     if (path.endsWith('/sign-in/magic-link')) {
       state.magicLinks += 1
       status = state.magicLinkSucceeds ? 200 : 400
-      body = state.magicLinkSucceeds ? {} : { code: 'PROVIDER_UNAVAILABLE', message: 'Mock failure' }
+      body = state.magicLinkSucceeds ? { status: true } : { code: 'PROVIDER_UNAVAILABLE', message: 'Mock failure' }
     } else if (path.endsWith('/sign-in/social')) {
       state.social += 1
       status = 400
@@ -143,9 +143,16 @@ for (const locale of A11Y_LOCALES) {
     await expect(page.getByRole('heading',{level:1})).toHaveText(c.login)
     expect(new URL(page.url()).searchParams.get('next')).toBe(`/${locale}/onboarding`)
     await openOnboardingComponent(page,locale)
+    // The shared fixture helper opens the optional assistant with a click.
+    // Reload the intercepted fixture to test keyboard entry from the document,
+    // without leaving focus on that summary or forcing focus onto the skip link.
+    await page.reload()
+    await page.waitForFunction(() => Boolean((window as Window & { aisoFixtureReady?: boolean }).aisoFixtureReady))
     await expectShell(page, c.steps[0], c.skip)
     await page.keyboard.press('Tab')
-    await expect(page.locator('#brand-assist-url')).toBeFocused()
+    await expect(page.getByRole('textbox', { name: c.brand, exact: true })).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(page.locator('#onboarding-website')).toBeFocused()
     await expectZoomReflow(page)
   })
 
@@ -165,8 +172,8 @@ for (const locale of A11Y_LOCALES) {
       // avoids raising the mobile software keyboard until the user tabs.
       await expect(heading).toBeFocused()
       await page.keyboard.press('Tab')
-      // The website assistant is now the first interactive control on step one.
-      await expect(step === 0 ? page.locator('#brand-assist-url') : firstControls[step]).toBeFocused()
+      // The first-result form precedes the optional website assistant.
+      await expect(firstControls[step]).toBeFocused()
       await expectNoOverflow(page)
     }
     await firstControls[0].fill('Accessibility fixture')

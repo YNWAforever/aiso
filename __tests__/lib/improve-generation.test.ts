@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PGlite } from '@electric-sql/pglite'
 import { buildScanEvidence } from '@/lib/scan-evidence'
 import { generateImprove } from '@/lib/agents/generate'
@@ -39,8 +39,10 @@ beforeAll(async () => {
   `)
 })
 afterAll(async () => { await pg.close() })
+afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks() })
 beforeEach(async () => {
   vi.clearAllMocks()
+  vi.stubEnv('OPENROUTER_API_KEY', 'fixture-openrouter-key')
   await pg.exec('truncate accounts,clients,scans,agent_recommendations,agent_progress,agent_competitors,pulse_metrics,pulse_runs,pulse_run_items')
   await pg.query("insert into accounts(id,plan,status,stripe_subscription_id) values($1,'pro','active','sub_fixture')", [accountId])
   await pg.query('insert into clients(id,account_id) values($1,$2)', [clientId, accountId])
@@ -55,6 +57,45 @@ beforeEach(async () => {
 })
 
 describe('native Improve on local PostgreSQL', () => {
+  it('keeps an unconfigured provider recoverable without spending allowance or claiming a request', async () => {
+    vi.stubEnv('OPENROUTER_API_KEY', '')
+    const first = await generateImprove(scope)
+    expect(first).toMatchObject({ status: 503, state: 'unavailable', generation: null, error: 'GENERATION_PROVIDER_UNAVAILABLE' })
+    expect(h.allowance).not.toHaveBeenCalled(); expect(h.model).not.toHaveBeenCalled()
+    const saved = (await pg.query<{ agent_status: string; receipt: unknown }>("select agent_status, results->'_agent_generation' as receipt from scans")).rows[0]!
+    expect(saved).toEqual({ agent_status: 'pending', receipt: null })
+    vi.stubEnv('OPENROUTER_API_KEY', 'fixture-corrected-key')
+    expect((await generateImprove(scope)).state).toBe('complete')
+    expect(h.model).toHaveBeenCalledTimes(1); expect(h.allowance).toHaveBeenCalledTimes(1)
+  })
+  it('defers a late scan callback without spending and permits an independent Generate request', async () => {
+    const result = await generateImprove(scope, { deadlineAt: Date.now() + 24_000 })
+    expect(result).toMatchObject({ status: 503, state: 'unavailable', generation: null, error: 'GENERATION_DEFERRED' })
+    expect(h.allowance).not.toHaveBeenCalled(); expect(h.model).not.toHaveBeenCalled()
+    expect((await pg.query<{ agent_status: string }>('select agent_status from scans')).rows[0]!.agent_status).toBe('pending')
+    expect((await generateImprove(scope)).state).toBe('complete')
+    expect(h.model).toHaveBeenCalledTimes(1)
+  })
+  it('rechecks the remaining invocation budget after slow evidence reads before spending allowance', async () => {
+    let now = Date.now()
+    vi.spyOn(Date, 'now').mockImplementation(() => now)
+    const query = h.sql.getMockImplementation()!
+    h.sql.mockImplementation(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const result = await query(strings, ...values)
+      if (strings.join('').includes('with observations as materialized')) now += 20_000
+      return result
+    })
+    const result = await generateImprove(scope, { deadlineAt: now + 30_000 })
+    expect(result).toMatchObject({ status: 503, error: 'GENERATION_DEFERRED', generation: { state: 'error', providerStarted: false } })
+    expect(h.allowance).not.toHaveBeenCalled(); expect(h.model).not.toHaveBeenCalled()
+    expect((await pg.query<{ started: string }>("select results#>>'{_agent_generation,providerStarted}' as started from scans")).rows[0]!.started).toBe('false')
+  })
+  it('does not give a late invocation a new lease beyond its original deadline', async () => {
+    const deadlineAt = Date.now() + 30_000
+    const result = await generateImprove(scope, { deadlineAt })
+    expect(result.state).toBe('complete')
+    expect(Date.parse(result.generation!.leaseUntil)).toBeLessThanOrEqual(deadlineAt)
+  })
   it('generates grounded drafts for the retained scan with explicit unavailable evidence receipts', async () => {
     const result = await generateImprove(scope)
     expect(result.state).toBe('complete')
@@ -69,6 +110,26 @@ describe('native Improve on local PostgreSQL', () => {
     expect(h.model).toHaveBeenCalledTimes(1)
     expect(h.model.mock.calls[0]![0]).toMatchObject({ maxTokens: 1200, label: 'improve.recommendations' })
     expect(JSON.stringify(h.model.mock.calls[0]![0])).not.toContain('c3_bot_access')
+  })
+  it('defers after a slow provider-marker acknowledgement and remains safe to retry', async () => {
+    let clock = Date.now()
+    const clockSpy = vi.spyOn(Date, 'now').mockImplementation(() => clock)
+    const query = h.sql.getMockImplementation()!
+    h.sql.mockImplementation(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const result = await query(strings, ...values)
+      if (strings.join('').includes("set results=jsonb_set(s.results,'{_agent_generation,providerStarted}'")) clock += 35_000
+      return result
+    })
+    const result = await generateImprove(scope, { deadlineAt: clock + 30_000 })
+    expect(result.error).toBe('GENERATION_DEFERRED')
+    expect(result.generation?.providerStarted).toBe(false)
+    expect(h.model).not.toHaveBeenCalled()
+    const saved = (await pg.query<{ started: string; state: string }>("select results#>>'{_agent_generation,providerStarted}' as started, results#>>'{_agent_generation,state}' as state from scans")).rows[0]!
+    expect(saved).toEqual({ started: 'false', state: 'error' })
+    h.sql.mockImplementation(query)
+    clockSpy.mockRestore()
+    expect((await generateImprove(scope)).state).toBe('complete')
+    expect(h.model).toHaveBeenCalledTimes(1)
   })
   it('returns the saved receipt without spending twice', async () => {
     const first = await generateImprove(scope), second = await generateImprove(scope)

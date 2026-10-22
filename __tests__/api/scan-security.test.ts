@@ -34,6 +34,7 @@ const state = vi.hoisted(() => ({
 }))
 
 const nativeGeneration = vi.hoisted(() => vi.fn().mockResolvedValue({ state: 'complete' }))
+const quotaRelease = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
 vi.mock('@/lib/agents/generate', () => ({ generateImprove: nativeGeneration }))
 vi.mock('next/server', async importOriginal => ({
   ...(await importOriginal<typeof import('next/server')>()),
@@ -52,6 +53,7 @@ vi.mock('@/lib/security/public-url', () => ({
   fetchPublicUrl: fetchPublicUrlMock,
 }))
 vi.mock('@/lib/security/authenticated-scan-quota', () => ({
+  releaseAuthenticatedScanQuota: quotaRelease,
   consumeAuthenticatedScanQuota: vi.fn().mockResolvedValue({
     allowed: true,
     remaining: 2,
@@ -130,6 +132,7 @@ describe('POST /api/scan security boundaries', () => {
     state.insertValues = []
     state.afterCallbacks = []
     nativeGeneration.mockClear()
+    quotaRelease.mockClear()
     vi.stubGlobal('fetch', fetchMock)
     fetchMock.mockClear()
     fetchPublicUrlMock.mockClear()
@@ -151,6 +154,16 @@ describe('POST /api/scan security boundaries', () => {
     ]) {
       vi.mocked(check).mockClear()
     }
+  })
+
+  it('refunds the original monthly reservation when the public URL guard refuses a paid scan', async () => {
+    state.profile = { account_id: 'account-a', accounts: { plan: 'basic', status: 'active', stripe_subscription_id: 'sub_basic', trial_ends_at: null } }
+    const { PublicUrlError } = await import('@/lib/security/public-url')
+    fetchPublicUrlMock.mockRejectedValueOnce(new PublicUrlError('private destination', 'UNSAFE_URL'))
+    const response = await scan({ url: 'https://example.com' })
+    expect(response.status).toBe(400)
+    expect(state.insertValues).toEqual([])
+    expect(quotaRelease).toHaveBeenCalledExactlyOnceWith('account-a', expect.objectContaining({ allowed: true, resetAt: 2_000_000_000 }))
   })
 
   it.each([
@@ -265,10 +278,29 @@ describe('POST /api/scan security boundaries', () => {
     expect(nativeGeneration).not.toHaveBeenCalled()
     await state.afterCallbacks[0]!()
     if (webhook === null) {
-      expect(nativeGeneration).toHaveBeenCalledExactlyOnceWith({ accountId: 'account-a', clientId: state.client.id, scanId: 'scan-0' })
+      expect(nativeGeneration).toHaveBeenCalledExactlyOnceWith({ accountId: 'account-a', clientId: state.client.id, scanId: 'scan-0' }, { deadlineAt: expect.any(Number) })
     } else {
       expect(nativeGeneration).not.toHaveBeenCalled()
       expect(fetchPublicUrlMock.mock.calls.filter(([url]) => url === webhook)).toHaveLength(1)
+    }
+  })
+
+  it('keeps the original request deadline when Improve starts after a slow scan', async () => {
+    const startedAt = Date.now()
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(startedAt)
+    try {
+      state.profile = { account_id: 'account-a', accounts: { plan: 'basic', status: 'active', stripe_subscription_id: 'sub_basic', trial_ends_at: null } }
+      state.client = { id: '11111111-1111-4111-8111-111111111111', account_id: 'account-a', webhook_url: null, brand_name: 'Owned' }
+      const response = await scan({ url: 'https://example.com', clientId: state.client.id })
+      expect(response.status).toBe(200)
+      clock.mockReturnValue(startedAt + 45_000)
+      await state.afterCallbacks[0]!()
+      expect(nativeGeneration).toHaveBeenCalledExactlyOnceWith(
+        { accountId: 'account-a', clientId: state.client.id, scanId: 'scan-0' },
+        { deadlineAt: startedAt + 55_000 },
+      )
+    } finally {
+      clock.mockRestore()
     }
   })
 

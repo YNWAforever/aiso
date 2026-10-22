@@ -26,6 +26,10 @@ async function callbackFixture(page: Page, lang: string, next: string) {
   await page.route('**/*', route => route.abort())
   await page.route('https://auth.fixture/**', route => {
     const url = new URL(route.request().url()), mode = url.pathname.endsWith('/auth/complete') ? 'complete' : 'login'
+    if (url.pathname === '/api/auth/sign-in/magic-link') {
+      expect(route.request().method()).toBe('POST')
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: true }) })
+    }
     if (url.pathname.includes('/dashboard')) return route.fulfill({ contentType: 'text/html', body: '<html><body><main><h1>Returned to tool</h1></main></body></html>' })
     const html = readFileSync(`${dir}/${lang}-${mode}.html`, 'utf8')
     return route.fulfill({ contentType: 'text/html; charset=utf-8', body: `<!doctype html><html lang="${lang}"><head><title>Auth return fixture</title></head><body>${html}<script>${js}</script></body></html>` })
@@ -36,12 +40,22 @@ async function callbackFixture(page: Page, lang: string, next: string) {
 for (const [index, tool] of tools.entries()) for (const flow of ['google', 'magic-link']) test(`callback contract ${flow} returns to ${tool}`, async ({ page }) => {
   const lang = index % 2 ? 'zh-HK' : 'en', next = `/${lang}/dashboard/${client}/${tool}`
   await callbackFixture(page, lang, `${next}?neon_auth_session_verifier=private&access_token=private`)
-  if (flow === 'google') await page.getByRole('button', { name: lang === 'en' ? 'Continue with Google' : '使用 Google 繼續' }).click()
-  else {
+  let recorded: { callbackURL: string; flow: string }
+  if (flow === 'google') {
+    await page.getByRole('button', { name: lang === 'en' ? 'Continue with Google' : '使用 Google 繼續' }).click()
+    recorded = await page.evaluate(() => (window as Window & { lastAuth?: { callbackURL: string; flow: string } }).lastAuth!)
+  } else {
+    // Magic links use the route's HTTP response so Retry-After is retained;
+    // record the actual request instead of the unused SDK adapter method.
+    const requested = page.waitForRequest(request => request.method() === 'POST'
+      && request.url() === 'https://auth.fixture/api/auth/sign-in/magic-link')
     await page.getByLabel(lang === 'en' ? 'Work email' : '工作電郵').fill('fixture@example.test')
     await page.getByRole('button', { name: lang === 'en' ? 'Send Magic Link' : '發送登入連結' }).click()
+    const payload = (await requested).postDataJSON() as { email: string; callbackURL: string }
+    expect(payload).toMatchObject({ email: 'fixture@example.test', callbackURL: expect.any(String) })
+    await expect(page.getByRole('status')).toContainText(lang === 'en' ? 'Check your email' : '請查看你的電郵')
+    recorded = { flow: 'magic-link', callbackURL: payload.callbackURL }
   }
-  const recorded = await page.evaluate(() => (window as Window & { lastAuth?: { callbackURL: string; flow: string } }).lastAuth!)
   expect(recorded.flow).toBe(flow)
   const callback = new URL(recorded.callbackURL)
   expect(callback.searchParams.get('next')).toBe(next)

@@ -14,6 +14,15 @@ export type { AgentGenerationReceipt, ImproveResult } from './generation-state'
 const PRODUCER = 'native-improve.v1' as const
 const MAX_RECOMMENDATIONS = 6
 const MODEL = 'anthropic/claude-sonnet-4-5'
+const PROVIDER_TIMEOUT_MS = 20_000
+const COMPLETION_RESERVE_MS = 5_000
+type GenerationOptions = { deadlineAt?: number }
+
+function providerPreflight(deadlineAt: number): string | null {
+  if (!process.env.OPENROUTER_API_KEY?.trim()) return 'GENERATION_PROVIDER_UNAVAILABLE'
+  if (!Number.isFinite(deadlineAt) || deadlineAt - Date.now() < PROVIDER_TIMEOUT_MS + COMPLETION_RESERVE_MS) return 'GENERATION_DEFERRED'
+  return null
+}
 
 function sources(scanId: string, raw: unknown) {
   const envelope = readScanEvidence(raw)
@@ -59,8 +68,11 @@ function savedResult(scanId: string, raw: unknown): ImproveResult {
 }
 
 /** One scan, one native claim, at most one model call. Reads never invoke this service. */
-export async function generateImprove(scope: GenerationScope): Promise<ImproveResult> {
+export async function generateImprove(scope: GenerationScope, options: GenerationOptions = {}): Promise<ImproveResult> {
   const { scanId } = scope
+  // after() shares its caller's invocation budget. It must not start a fresh
+  // provider window when the scan has already consumed most of that budget.
+  const deadlineAt = options.deadlineAt ?? Date.now() + 55_000
   let receipt: AgentGenerationReceipt | null = null
   try {
     const scan = await readGenerationScan(scope)
@@ -83,6 +95,8 @@ export async function generateImprove(scope: GenerationScope): Promise<ImproveRe
     }
     if (scan.agent_status === 'complete') return { status: 200, state: 'complete', scanId, generation: null }
     const input = sources(scanId, scan.results?.evidence)
+    const unavailable = input.length ? providerPreflight(deadlineAt) : null
+    if (unavailable) return { status: 503, state: 'unavailable', scanId, generation: null, error: unavailable }
     const requirements = { agent_recs: features.agent_recs, agent_progress: features.agent_progress, agent_competitors: features.agent_competitors }
     const expiry = entitlementSource === 'override' ? scan.override_expires_at
       : entitlementSource === 'trial' && !(scan.status === 'trialing' && scan.stripe_subscription_id) ? scan.trial_ends_at : null
@@ -91,7 +105,7 @@ export async function generateImprove(scope: GenerationScope): Promise<ImproveRe
     receipt = {
       version: 1, producer: PRODUCER, token: randomUUID(), state: 'running',
       fingerprint: createHash('sha256').update(JSON.stringify({ producer: PRODUCER, scanId, input, requirements, platforms: features.platform_access, guard })).digest('hex'),
-      startedAt: new Date().toISOString(), leaseUntil: new Date(Date.now() + 60_000).toISOString(), providerStarted: false,
+      startedAt: new Date().toISOString(), leaseUntil: new Date(Math.min(Date.now() + 60_000, deadlineAt)).toISOString(), providerStarted: false,
       outcomes: { recommendations: 'unavailable', progress: features.agent_progress ? 'unavailable' : 'not-required', competitors: features.agent_competitors ? 'unavailable' : 'not-required' },
       counts: { recommendations: 0, progress: 0, competitors: 0 }, reasons: {}, sourceCheckIds: input.map(item => item.checkId),
       recommendationBasis: input,
@@ -116,13 +130,22 @@ export async function generateImprove(scope: GenerationScope): Promise<ImproveRe
       if (!current || !currentFeatures.agent_recs || JSON.stringify(currentFeatures) !== JSON.stringify(features)
         || JSON.stringify(current.commercial_snapshot) !== JSON.stringify(guard.commercial)
         || JSON.stringify(current.results?.evidence) !== JSON.stringify(guard.evidence)) throw new Error('GENERATION_INPUT_CHANGED')
+      const unavailable = providerPreflight(deadlineAt)
+      if (unavailable) throw new Error(unavailable)
       const allowance = await consumeAiToolAllowance(scope.accountId)
       if (allowance) {
         receipt.state = 'error'; receipt.error = 'AI_TOOL_ALLOWANCE_UNAVAILABLE'
         await failGeneration(scope, receipt)
         return { status: allowance.status, state: 'error', scanId, generation: receipt, error: receipt.error }
       }
+      const deferred = providerPreflight(deadlineAt)
+      if (deferred) throw new Error(deferred)
       if (!await markProviderStarted(scope, receipt, guard)) throw new Error('GENERATION_CLAIM_LOST')
+      // A slow acknowledgement can consume the remaining window. No provider
+      // call has happened yet, so a fenced failure may safely restore false.
+      // If that write fails, the persisted true remains fail-closed.
+      const markedTooLate = providerPreflight(deadlineAt)
+      if (markedTooLate) throw new Error(markedTooLate)
       receipt.providerStarted = true
       const budget = createTaskBudget({ calls: 1, tokens: 1200 }); budget.reserve(1200)
       const rawOutput = await callOpenRouter({ label: 'improve.recommendations', model: MODEL, maxTokens: 1200,
@@ -130,7 +153,7 @@ export async function generateImprove(scope: GenerationScope): Promise<ImproveRe
           receipt!.provider = { requestedModel: MODEL, actualModel: evidence.actualModel, requestId: evidence.requestId,
             promptTokens: evidence.promptTokens, completionTokens: evidence.completionTokens, costUsd: evidence.costUsd, httpStatus: evidence.httpStatus }
         },
-        signal: AbortSignal.timeout(20_000), responseFormat: recommendationFormat(receipt.sourceCheckIds), messages: [
+        signal: AbortSignal.timeout(Math.max(1, Math.min(PROVIDER_TIMEOUT_MS, deadlineAt - Date.now() - COMPLETION_RESERVE_MS))), responseFormat: recommendationFormat(receipt.sourceCheckIds), messages: [
           { role: 'system', content: UNTRUSTED_SYSTEM_RULE + ' Write proposed website review actions using only the supplied measured checks. Each checkId must be supplied. Do not invent page contents, rankings, competitor rates, progress, or completed fixes. These are human review drafts, not per-platform measurements.' },
           { role: 'user', content: fenceUntrusted('validated scan check evidence and review actions', JSON.stringify(input)) },
         ] })
@@ -143,7 +166,7 @@ export async function generateImprove(scope: GenerationScope): Promise<ImproveRe
     if (!await commitGeneration(scope, receipt, recommendations, progress, guard)) throw new Error('GENERATION_CLAIM_LOST')
     return { status: 200, state: 'complete', scanId, generation: receipt }
   } catch (error) {
-    const known = ['INVALID_GENERATED_RECOMMENDATIONS', 'GENERATION_CLAIM_LOST', 'GENERATION_INPUT_CHANGED']
+    const known = ['INVALID_GENERATED_RECOMMENDATIONS', 'GENERATION_CLAIM_LOST', 'GENERATION_INPUT_CHANGED', 'GENERATION_PROVIDER_UNAVAILABLE', 'GENERATION_DEFERRED']
     const code = error instanceof Error && known.includes(error.message) ? error.message : 'GENERATION_UNAVAILABLE'
     if (receipt) {
       receipt = { ...receipt, state: 'error', error: code }

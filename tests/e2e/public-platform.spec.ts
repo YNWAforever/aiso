@@ -5,7 +5,11 @@ for (const locale of ['en', 'zh-HK']) for (const colorScheme of ['light', 'dark'
     await page.route('**/api/**', route => route.abort())
     await page.setViewportSize({ width, height: 900 })
     await page.emulateMedia({ colorScheme })
-    await page.goto(`/${locale}/platform/site-health`)
+    const response = await page.goto(`/${locale}/platform/site-health`)
+    expect(response?.status()).toBe(200)
+    // Hydration must not be required to supply the initial document language.
+    expect(await response!.text()).toMatch(new RegExp(`<html[^>]*\\blang="${locale}"`))
+    await expect(page.locator('html')).toHaveAttribute('lang', locale)
     await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveCount(1)
     const banner = page.getByRole('banner')
     const currentLink = banner.locator(`a[href="/${locale}/platform/site-health"]:not([hreflang]):visible`)
@@ -44,7 +48,21 @@ for (const locale of ['en', 'zh-HK']) for (const colorScheme of ['light', 'dark'
     const suffix = width < 1280 ? '/platform' : '/platform/site-health'
     const localeLink = banner.locator(`a[hreflang="${target}"]`)
     await expect(localeLink).toHaveAttribute('href', `/${target}${suffix}`)
+    // A full page load would hide a stale cached root-layout language.
+    const documentMarker = await page.evaluate(() => {
+      const marker = crypto.randomUUID()
+      ;(window as Window & { localeNavigationMarker?: string }).localeNavigationMarker = marker
+      return marker
+    })
     await localeLink.click()
     await expect(page).toHaveURL(new RegExp(`/${target}${suffix}$`))
+    await expect(page.locator('html')).toHaveAttribute('lang', target)
+    expect(await page.evaluate(() => (window as Window & { localeNavigationMarker?: string }).localeNavigationMarker)).toBe(documentMarker)
+
+    // Returning also exercises the previously visited locale's cached layout.
+    await banner.locator(`a[hreflang="${locale}"]`).click()
+    await expect(page).toHaveURL(new RegExp(`/${locale}${suffix}$`))
+    await expect(page.locator('html')).toHaveAttribute('lang', locale)
+    expect(await page.evaluate(() => (window as Window & { localeNavigationMarker?: string }).localeNavigationMarker)).toBe(documentMarker)
   })
 }
