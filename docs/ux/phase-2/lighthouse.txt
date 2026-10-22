@@ -1,0 +1,4 @@
+branch_en n=5 perf 92 a11y 100 lcp 2374 cls 0.000 tbt 251 obsFCP 255 all 89,91,94,92,93
+branch_zh-HK n=5 perf 90 a11y 100 lcp 2987 cls 0.000 tbt 210 obsFCP 1284 all 89,91,90,87,93
+main_en n=5 perf 96 a11y 100 lcp 2030 cls 0.000 tbt 168 obsFCP 205 all 96,94,96,98,97
+main_zh-HK n=5 perf 92 a11y 100 lcp 2803 cls 0.000 tbt 205 obsFCP 1280 all 92,97,92,90,97
