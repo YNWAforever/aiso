@@ -15,13 +15,16 @@ export function RevealObserver() {
       targets.forEach(el => el.setAttribute('data-revealed', ''))
       return
     }
+    // Any overlap, measured against a viewport trimmed by 10% at the bottom: a
+    // ratio threshold would never fire on a section taller than the viewport
+    // divided by that ratio (the sample card at 400% zoom), leaving it hidden.
     const observer = new IntersectionObserver(entries => {
       for (const entry of entries) {
         if (!entry.isIntersecting) continue
         entry.target.setAttribute('data-revealed', '')
         observer.unobserve(entry.target)
       }
-    }, { threshold: 0.2 })
+    }, { threshold: 0, rootMargin: '0px 0px -10% 0px' })
     targets.forEach(el => observer.observe(el))
     return () => observer.disconnect()
   }, [])

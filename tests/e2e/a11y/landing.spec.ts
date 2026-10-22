@@ -82,4 +82,15 @@ for (const locale of A11Y_LOCALES) {
     await page.goto(`/${locale}`, { waitUntil: 'networkidle' })
     await expect(page.getByTestId('hero-demo').getByRole('button')).toBeHidden()
   })
+
+  test(`landing ${locale}: sections taller than the viewport still reveal`, async ({ page }) => {
+    // A 120 px viewport makes the sample card several viewports tall, as at
+    // 400% zoom; a ratio threshold never fired there and left it hidden.
+    await page.setViewportSize({ width: 390, height: 120 })
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.goto(`/${locale}`, { waitUntil: 'networkidle' })
+    const ring = page.getByTestId('score-ring').first()
+    await ring.scrollIntoViewIfNeeded()
+    await expect(page.locator('[data-reveal]:has([data-testid="score-ring"])')).toHaveAttribute('data-revealed', '')
+  })
 }
