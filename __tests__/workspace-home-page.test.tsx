@@ -45,7 +45,8 @@ it.each(['scan', 'results', 'improve', 'roi'])('preserves explicit legacy %s rou
 })
 it('provides a home navigation entry without removing explicit legacy links', () => {
   const source = readFileSync('components/dashboard/DashboardSidebar.tsx', 'utf8')
-  expect(source).toContain("{ key: 'home'")
+  // Overview is the brand's home step; a URL without ?step= lands on it.
+  expect(readFileSync('lib/dashboard-nav.ts', 'utf8')).toContain("href: `${brand}?step=home`")
   expect(source).toContain("?? 'home'")
   expect(source).toContain('md:w-60')
   expect(source).toContain('aria-expanded')
