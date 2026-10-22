@@ -52,7 +52,9 @@ test.describe('Scan to result journey', () => {
     await home.scan('https://example.com')
     await home.waitForNavToResult()
     await expect(page.locator('body')).not.toContainText('This page could not be found')
-    await expect(page.getByTestId('result-score').getByText('63.5/100', { exact: true })).toBeVisible()
+    // The "Your score" line. The ring also reads 63.5/100 (number and suffix side by
+    // side), so take the last match rather than relying on a count-up mid-frame.
+    await expect(page.getByTestId('result-score').getByText('63.5/100', { exact: true }).last()).toBeVisible()
     // The exact stored score, once the count-up settles. The old /^\d{1,3}$/
     // matched nothing at rest (the ring shows 63.5) and passed only by
     // catching an intermediate frame of the animation.
