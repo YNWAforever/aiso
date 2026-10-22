@@ -338,9 +338,10 @@
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --animate-shimmer: shimmer 1.4s var(--ease-standard) infinite;
 
-  /* --font-inter / --font-noto-tc come from next/font in app/layout.tsx; the
-     named families after them are the fallback if a font fails to load. */
-  --font-sans:                  var(--font-inter), var(--font-noto-tc), Inter, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, Arial, sans-serif;
+  /* --font-inter comes from next/font in app/layout.tsx (Latin only). CJK falls
+     through to the platform's Traditional Chinese face: PingFang TC (Apple),
+     Microsoft JhengHei (Windows), Noto Sans CJK TC (Android/ChromeOS). */
+  --font-sans:                  var(--font-inter), Inter, "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", "Noto Sans CJK TC", system-ui, Arial, sans-serif;
   --font-mono:                  "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --radius-sm:                  calc(var(--radius) - 0.25rem);
   --radius-md:                  var(--radius);

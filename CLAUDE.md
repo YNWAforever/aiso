@@ -611,8 +611,10 @@ Plan and rationale: `docs/ux/` (audit, target IA, visual system). Live gallery a
 - **`dark:` follows the `.dark` class** (`@custom-variant dark`), like the tokens. Before Phase 1
   it followed the OS preference, so the two disagreed whenever the toggle differed from the OS.
 - Dark `--primary` is blue-400 (`#60a5fa`) with dark foreground, not the old cyan.
-- **Fonts**: `next/font/google` Inter + Noto Sans TC in `app/layout.tsx`, so `next build` needs
-  network access to Google Fonts. Noto is `preload: false` (unicode-range slices).
+- **Fonts**: `next/font/google` Inter (Latin, `display: 'optional'`) in `app/layout.tsx`, so
+  `next build` needs network access to Google Fonts. **Do not add a CJK webfont**: Noto Sans TC
+  was tried and cost 1.1 MB / 18 files on the zh-HK home page, taking mobile LCP from 2.6 s to
+  9.9 s. Chinese uses the platform's TC face via `--font-sans`.
 - zh-HK: `:lang(zh-HK)` sets line-height and line-break rules in `@layer base`, and neutralises
   `uppercase` / wide `tracking-*` outside a layer (so it beats the utilities).
 - **Motion**: durations, the one curve and variants live in `lib/motion.ts` (pure, server-safe).

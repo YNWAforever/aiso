@@ -145,17 +145,21 @@ function HeroDemoInner({ score = 72, className }: HeroDemoProps) {
           <span className="text-xs font-semibold text-muted-foreground">{t('canCite')}</span>
           {PLATFORMS.map((platform, i) => {
             const lit = reached('cite')
+            // Only the dot lights up; the label stays at full contrast throughout.
             return (
-              <m.span
-                key={`${platform}-${cycle}`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border px-2 py-0.5 text-xs font-medium text-foreground"
-                initial={false}
-                animate={{ opacity: lit ? 1 : 0.4 }}
-                transition={transition(DURATION.enter, lit && !reduced ? i * 0.12 : 0)}
+              <span
+                key={platform}
+                className={cn('inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium text-foreground transition-colors duration-200', lit ? 'border-tone-success/40 bg-tone-success-soft' : 'border-border bg-card')}
               >
-                <span className={cn('size-2 rounded-full transition-colors duration-200', lit ? 'bg-tone-success' : 'bg-neutral-6')} />
+                <m.span
+                  key={`dot-${cycle}`}
+                  className="size-2 rounded-full bg-tone-success"
+                  initial={false}
+                  animate={{ opacity: lit ? 1 : 0.25, scale: lit ? 1 : 0.6 }}
+                  transition={transition(DURATION.enter, lit && !reduced ? i * 0.12 : 0)}
+                />
                 {t(`platforms.${platform}`)}
-              </m.span>
+              </span>
             )
           })}
         </div>
