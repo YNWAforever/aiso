@@ -73,16 +73,17 @@ describe('Local Trust dashboard wiring', () => {
     }
   })
 
-  it('keeps Local Trust ROI visible but locked for plans without access', () => {
-    // WizardProgress duplicated this and was deleted as part of the orphan
-    // cleanup (see orphaned-components.test.ts) — DashboardSidebar is the live
-    // implementation of the roi step.
-    const sidebar = read('components/dashboard/DashboardSidebar.tsx')
+  it('keeps Local Trust ROI reachable from Overview and locked in place for plans without access', () => {
+    // Phase 4 moved it out of the sidebar into Overview's "Local visibility"
+    // card. The link is never removed for a plan limit: the step renders its
+    // own locked state with the upgrade path.
+    const home = read('components/dashboard/WorkspaceHome.tsx')
+    const step = read('components/dashboard/local-trust/LocalTrustStep.tsx')
 
-    expect(sidebar).toContain("key: 'roi'")
-    expect(sidebar).toContain('features.local_trust_roi')
-    expect(sidebar).toContain('<Lock')
-    expect(sidebar).not.toContain('🔒')
+    expect(home).toContain('?step=roi')
+    expect(home).not.toContain('local_trust_roi')
+    expect(step).toContain('if (!features.local_trust_roi)')
+    expect(home + step).not.toContain('🔒')
   })
 
   it('guards Local Trust snapshot generation to scans belonging to this brand', () => {

@@ -24,7 +24,10 @@ describe('workspace home presentation', () => {
       expect(html).toContain(copy.freshnessUnknown)
       expect(html).not.toContain('0%')
       expect(html).toContain('Example Brand')
-      for (const step of ['scan','results','improve','monitor','roi']) expect(html).toContain(`/dashboard/client-a?step=${step}`)
+      for (const step of ['scan','results','improve','roi']) expect(html).toContain(`/dashboard/client-a?step=${step}`)
+      // Monitor is hidden until Pulse is scheduled; its page still works by URL.
+      expect(html).not.toContain('/dashboard/client-a?step=monitor')
+      expect(html).toContain(copy.localVisibility.title)
     }
   })
   it('renders persisted observation dates and labels generated work as draft', () => {
