@@ -18,7 +18,7 @@ describe('validated return destination', () => {
   it.each([null, [], { next: '/en/dashboard' }, '/en/dashboard?step=monitor&step=roi', '/en/dashboard#access_token=secret'])('does not adopt ambiguous context %j', raw => {
     expect(safeReturnTo(raw, 'en')).toBe('/en/dashboard')
   })
-  it.each(['entities', 'sources', 'observations', 'opportunities', 'prompts'])('retains deep link to %s', tool => {
+  it.each(['entities', 'sources', 'observations', 'opportunities', 'prompts', 'tasks'])('retains deep link to %s', tool => {
     const path = `/zh-HK/dashboard/${client}/${tool}`
     expect(normalizeAuthNext('zh-HK', path)).toBe(path)
   })
