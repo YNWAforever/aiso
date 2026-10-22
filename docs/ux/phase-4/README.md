@@ -32,8 +32,14 @@ motion. Dashboard routes need a session, which the test server cannot create.
 | Overview, zh-HK dark, 390 / 1440 | `overview-zh-dark-{390,1440}-before.jpg` | `overview-zh-dark-{390,1440}-after.jpg` |
 | Tasks (new) | — | `tasks-{en,zh-HK}-{desktop,mobile}.png` |
 
-Recording: `shell-interactions.webm` (⌘K search, brand switcher, help menu,
-task filters), from a temporary hydrated page that was not committed.
+Recordings: `shell-interactions-{desktop,mobile}.webm` (1280×800 and 390×844):
+Ctrl+K before and after the palette has loaded, search, the Search button,
+brand switcher, help menu, task filters. They come from a temporary page that
+mounted the real shell and task list in the production build at a
+`[clientId]` URL; the page was not committed. The same script asserted 18
+checks at both widths, all passing with no page errors: palette not loaded
+before use, one toggle per Ctrl+K once loaded, focus back on the trigger after
+Escape, outside click closes a menu, filter counts and aria-pressed.
 
 ## Performance
 
@@ -41,7 +47,20 @@ Lighthouse cannot load the dashboard (it needs a session), and no public page
 changed. Instead, client JS per route from the two production builds
 (`page_client-reference-manifest.js`, gzip):
 
-PERF_TABLE
+| Route | main | branch | Δ |
+|---|---|---|---|
+| `/dashboard` (brand list) | 153 KB | 156 KB | +3 |
+| `/dashboard/[clientId]` (Overview, Scan, Fixes) | 364 KB | 368 KB | +4 |
+| `/dashboard/[clientId]/reports` | 157 KB | 160 KB | +3 |
+| `/dashboard/[clientId]/opportunities` | 161 KB | 173 KB | +12 |
+| `/dashboard/[clientId]/tasks` (new) | — | 156 KB | — |
+
+Before the palette was made lazy the shell cost 16–25 KB per route; the
+command palette (Radix Dialog) now loads on first use. The shell costs
+3–4 KB on the other routes; Opportunities gains 12 KB and the remaining ~8 KB
+is not traced to a module yet.
+CLS: the top bar has a fixed minimum height and renders on the server, and
+nothing in the shell animates layout.
 
 ## Accessibility
 
