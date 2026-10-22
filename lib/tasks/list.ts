@@ -1,5 +1,6 @@
 import 'server-only'
 import { db } from '@/lib/db'
+import { TASK_LIMIT, taskStatus, type TaskRow } from './status'
 
 /**
  * Every work item for one brand as a task with a single status, in one
@@ -19,33 +20,7 @@ import { db } from '@/lib/db'
  * (lib/outcomes), so they stay on the task's own page.
  */
 
-export const TASK_STATUSES = ['draft', 'in_review', 'changes_requested', 'approved', 'delivered'] as const
-export type TaskStatus = (typeof TASK_STATUSES)[number]
-
-export interface TaskRow {
-  id: string
-  title: string
-  checkKey: string | null
-  status: TaskStatus
-  versionNumber: number | null
-  updatedAt: string
-}
-
-export interface TaskStatusInput {
-  versionId: string | null
-  decision: string | null
-  delivered: boolean
-}
-
-export function taskStatus({ versionId, decision, delivered }: TaskStatusInput): TaskStatus {
-  if (!versionId) return 'draft'
-  if (decision === 'changes_requested') return 'changes_requested'
-  if (decision === 'approved') return delivered ? 'delivered' : 'approved'
-  return 'in_review'
-}
-
-/** The most recent tasks first. Capped: a brand with more than this many items pages through Opportunities. */
-export const TASK_LIMIT = 200
+export { TASK_LIMIT, TASK_STATUSES, taskStatus, type TaskRow, type TaskStatus, type TaskStatusInput } from './status'
 
 function iso(value: unknown): string {
   if (value instanceof Date) return value.toISOString()

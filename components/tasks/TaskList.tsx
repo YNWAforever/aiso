@@ -5,7 +5,7 @@ import { ChevronRight, CircleCheck, CircleDashed, CircleDot, PackageCheck, Rotat
 import { useFormatter, useTranslations } from 'next-intl'
 import { EmptyState } from '@/components/ui/empty-state'
 import { cn } from '@/lib/utils'
-import { TASK_STATUSES, type TaskRow, type TaskStatus } from '@/lib/tasks/list'
+import { TASK_STATUSES, type TaskRow, type TaskStatus } from '@/lib/tasks/status'
 
 const STATUS_STYLE: Record<TaskStatus, { icon: LucideIcon; className: string }> = {
   draft: { icon: CircleDashed, className: 'bg-neutral-3 text-foreground' },

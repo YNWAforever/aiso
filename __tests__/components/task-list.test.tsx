@@ -4,7 +4,7 @@ vi.mock('server-only', () => ({}))
 vi.mock('@/lib/db', () => ({ db: () => vi.fn() }))
 
 import { TaskList } from '@/components/tasks/TaskList'
-import type { TaskRow } from '@/lib/tasks/list'
+import type { TaskRow } from '@/lib/tasks/status'
 import { renderWithIntl } from '@/__tests__/helpers/intl'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'

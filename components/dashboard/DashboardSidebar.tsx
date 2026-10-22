@@ -90,7 +90,7 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
                   <Icon className="size-4 shrink-0" aria-hidden="true" />
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold">{t(section.labelKey)}</span>
-                    <span className={cn('block truncate text-[11px] leading-tight', inSection ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
+                    <span className={cn('block truncate text-[11px] leading-tight', inSection ? 'text-primary-foreground' : 'text-muted-foreground')}>
                       {t(unreachable ? 'select_brand_first' : section.descKey)}
                     </span>
                   </span>
