@@ -8,7 +8,7 @@ type SupportedLang = 'en' | 'zh-HK'
 // went stale when the hero copy changed, and nothing noticed because a
 // locator that matches nothing only fails when a test uses it.
 const copyFor = (catalogue: typeof en) => ({
-  heading: catalogue.home.proof_headline,
+  heading: catalogue.landing.hero.title,
   url: catalogue.home.website_url,
   scan: catalogue.home.cta,
   personalise: catalogue.home.personalise_toggle,

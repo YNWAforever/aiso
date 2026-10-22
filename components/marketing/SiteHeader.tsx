@@ -65,7 +65,8 @@ function SiteHeaderNavigation({ pathname }: { pathname: string }) {
         </nav>
         <div className="flex items-center gap-1">
           <nav aria-label={t('locale_label')}><ul className="flex">{routing.locales.map(target => <li key={target}><Link href={swapLocale(pathname,locale,target)} hrefLang={target} aria-current={target===locale?'true':undefined} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-2 text-sm font-semibold">{t(LOCALE_LABEL_KEY[target] ?? 'en')}</Link></li>)}</ul></nav>
-          <Link href={`/${locale}#scan`} className="hidden min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground sm:inline-flex">{t('get_started')}</Link>
+          {/* On the landing page the hero's scan button is the one primary action, so this steps down to outline. */}
+          <Link href={`/${locale}#scan`} data-cta={current('/') ? undefined : 'primary'} className={`hidden min-h-11 items-center rounded-xl px-4 text-sm font-bold sm:inline-flex ${current('/') ? 'border border-border text-foreground hover:bg-accent' : 'bg-primary text-primary-foreground'}`}>{t('get_started')}</Link>
           <button ref={trigger} type="button" aria-label={t('menu')} aria-expanded={mobileOpen} aria-controls="mobile-navigation" onClick={() => setOpenPath(mobileOpen?null:pathname)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-border xl:hidden"><Menu aria-hidden="true" className="size-5" /></button>
         </div>
       </div>

@@ -70,7 +70,7 @@ export function SiteFooter() {
             <p className="mt-4 text-sm leading-6 text-muted-foreground">{t('footer_blurb')}</p>
             <Link
               href={`/${locale}#scan`}
-              className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary-accessible focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-bold text-foreground transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               {t('get_started')}
               <ArrowRight aria-hidden="true" className="size-4" />

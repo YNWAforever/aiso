@@ -180,6 +180,7 @@ export function ScanForm({ lang }: ScanFormProps) {
           className="h-12 min-w-0 flex-1 rounded-xl border-2 border-border bg-card px-4 text-base text-foreground shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-wait disabled:opacity-70"
         />
         <button
+          data-cta="primary"
           type="submit"
           disabled={isSubmitting}
           className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:translate-y-0 disabled:cursor-wait disabled:opacity-70"
