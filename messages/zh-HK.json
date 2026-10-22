@@ -2970,7 +2970,9 @@
         "googleAi": "Google AI",
         "gemini": "Gemini",
         "claude": "Claude"
-      }
+      },
+      "pause": "暫停動畫",
+      "play": "播放動畫"
     }
   },
   "designSystem": {

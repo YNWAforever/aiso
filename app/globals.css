@@ -526,6 +526,7 @@ html { scroll-behavior: smooth; }
     animation-iteration-count: infinite;
     animation-timing-function: var(--ease-standard);
   }
+  .hero-loop[data-paused] :is(.hero-type-cover, .hero-beam, .hero-ring, .hero-score, .hero-lit-tint, .hero-lit-dot) { animation-play-state: paused; }
   .hero-loop .hero-type-cover { animation-name: hero-type; animation-timing-function: steps(var(--type-steps), end); }
   .hero-loop .hero-beam { animation-name: hero-beam; }
   .hero-loop .hero-ring { animation-name: hero-ring; }
@@ -535,4 +536,8 @@ html { scroll-behavior: smooth; }
   .hero-loop [data-lit='2'] :is(.hero-lit-tint, .hero-lit-dot) { animation-name: hero-lit-2; }
   .hero-loop [data-lit='3'] :is(.hero-lit-tint, .hero-lit-dot) { animation-name: hero-lit-3; }
   .hero-loop [data-lit='4'] :is(.hero-lit-tint, .hero-lit-dot) { animation-name: hero-lit-4; }
+}
+/* The pause control only exists while something moves, and needs a script. */
+@media (prefers-reduced-motion: reduce), (scripting: none) {
+  .hero-loop-toggle { display: none; }
 }

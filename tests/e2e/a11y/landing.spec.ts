@@ -60,4 +60,26 @@ for (const locale of A11Y_LOCALES) {
     await expect(page.getByTestId('check-heatmap').locator('li').last()).toHaveCSS('opacity', '1')
     await expect(page.getByText(copy.compare.source)).toHaveCSS('opacity', '1')
   })
+
+  test(`landing ${locale}: the hero loop can be paused and resumed`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.goto(`/${locale}`, { waitUntil: 'networkidle' })
+    const copy = catalogs[locale].visuals.heroDemo
+    const hero = page.getByTestId('hero-demo')
+    const states = () => hero.evaluate(el => [...new Set(el.getAnimations({ subtree: true }).map(a => a.playState))])
+    await expect.poll(states).toEqual(['running'])
+    const results = await new AxeBuilder({ page }).include('[data-testid="hero-demo"]').analyze()
+    expect(results.violations.map(v => v.id)).toEqual([])
+
+    await hero.getByRole('button', { name: copy.pause }).click()
+    await expect.poll(states).toEqual(['paused'])
+    await hero.getByRole('button', { name: copy.play }).click()
+    await expect.poll(states).toEqual(['running'])
+  })
+
+  test(`landing ${locale}: reduced motion hides the pause control`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto(`/${locale}`, { waitUntil: 'networkidle' })
+    await expect(page.getByTestId('hero-demo').getByRole('button')).toBeHidden()
+  })
 }

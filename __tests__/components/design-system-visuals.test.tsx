@@ -117,6 +117,8 @@ describe('visuals carry a text alternative in both languages', () => {
     const html = render(<HeroDemo score={72} />)
     expect(html).toContain('aria-hidden="true"')
     expect(html).toContain('scores 72 out of 100')
+    // The loop runs longer than 5 s, so it carries its own pause control (WCAG 2.2.2).
+    expect(html).toContain('aria-label="Pause animation"')
   })
 
   it('AnimatedSteps is a named ordered list', () => {

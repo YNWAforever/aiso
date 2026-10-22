@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
+import { HeroLoopToggle } from '@/components/visuals/HeroLoopToggle'
 
 /**
  * The landing-page loop (7.2 s): a URL types itself, a beam sweeps a mock page,
@@ -10,7 +11,8 @@ import { cn } from '@/lib/utils'
  * landing page, where a motion-driven version cost about 165 KB of script and
  * a full second of mobile LCP. The markup rests in the finished frame; the
  * keyframes run only when motion is welcome, so reduced-motion and no-CSS
- * visitors see the composed end state. Browsers pause it in hidden tabs.
+ * visitors see the composed end state. Browsers pause it in hidden tabs, and
+ * HeroLoopToggle lets anyone pause it (the loop runs longer than 5 s).
  *
  * Decorative: the whole figure is aria-hidden with one sentence for screen
  * readers.
@@ -38,9 +40,10 @@ export function HeroDemo({ score = 72, className }: HeroDemoProps) {
   return (
     <div className={cn('hero-loop relative w-full max-w-md', className)} data-testid="hero-demo">
       <p className="sr-only">{t('description', { score: clamped })}</p>
+      <HeroLoopToggle />
       <div aria-hidden="true" className="overflow-hidden rounded-2xl border border-border bg-card shadow-e3">
         {/* Browser bar with the URL typing in */}
-        <div className="flex items-center gap-2 border-b border-border bg-neutral-2 px-4 py-2.5">
+        <div className="flex items-center gap-2 border-b border-border bg-neutral-2 py-2.5 pl-4 pr-12">
           <span className="flex gap-1">
             {[0, 1, 2].map(i => <span key={i} className="size-2 rounded-full bg-neutral-6" />)}
           </span>
