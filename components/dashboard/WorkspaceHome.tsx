@@ -35,8 +35,11 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
   /** A card's closing link, pinned to the bottom so cards in one row align. */
   const cardLink = (href: string, label: ReactNode) => <div className="mt-auto pt-4"><Link className={linkClass} href={href}>{label}<ArrowRight aria-hidden="true" className="size-4" /></Link></div>
   const toolIcons = { scan: ScanSearch, results: ListChecks, improve: Sparkles } as const
-  // Monitor stays reachable by URL but is not advertised until Pulse is scheduled.
-  const nextStep = workspace.nextStep && (MONITOR_VISIBLE || !workspace.nextStep.href.includes('?step=monitor')) ? workspace.nextStep : null
+  // Monitor stays reachable by URL but is not advertised until Pulse is scheduled:
+  // a next step that would open it becomes a new scan, without the Pulse reason.
+  const nextStep: { href: string; label: string; reasonKey?: NonNullable<HomeDto['nextStep']>['reasonKey'] } | null = !workspace.nextStep ? null
+    : !MONITOR_VISIBLE && workspace.nextStep.href.includes('?step=monitor') ? { href: `${base}?step=scan`, label: copy.nextStep.scan }
+    : { href: workspace.nextStep.href, label: copy.nextStep[workspace.nextStep.labelKey], reasonKey: workspace.nextStep.reasonKey }
   const health = workspace.siteHealth.data
   const visibility = workspace.visibility.data
   const priorities = workspace.priorities
@@ -48,7 +51,7 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
       <h1 className="mt-2 text-3xl font-black tracking-tight text-dash-text">{workspace.client.brand_name}</h1>
       <p className="mt-1 text-sm font-medium text-dash-muted">{workspace.client.domain}</p>
       <p className="mt-4 max-w-3xl text-sm leading-relaxed text-dash-muted">{copy.summary}</p>
-      {nextStep&&<Link className={`${primaryClass} mt-5`} href={nextStep.href.replace("__locale__",lang)}>{copy.nextStep[nextStep.labelKey]}<ArrowRight aria-hidden="true" className="size-4" /></Link>}
+      {nextStep&&<Link className={`${primaryClass} mt-5`} href={nextStep.href.replace("__locale__",lang)}>{nextStep.label}<ArrowRight aria-hidden="true" className="size-4" /></Link>}
       {nextStep?.reasonKey&&<p className="mt-2 max-w-3xl text-sm leading-relaxed text-dash-muted">{nextStep.reasonKey==='unknown'?copy.daily.unknown:(lang==='zh-HK'?zhHK:en).runProgress.availabilityReasons[nextStep.reasonKey]}</p>}
     </header>
     {workspace.dailyWork&&<details aria-labelledby="daily-work-heading" className="group mb-8 space-y-3 rounded-2xl border border-dash-border bg-dash-surface p-5 shadow-sm sm:p-6">

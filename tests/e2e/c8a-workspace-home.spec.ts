@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { readFileSync } from 'node:fs'
 import en from '../../messages/en.json'
 import zh from '../../messages/zh-HK.json'
+import { MONITOR_VISIBLE } from '../../lib/dashboard-nav'
 
 // Component acceptance only: no authenticated route or provider request is bypassed.
 // Generate HTML by running workspace-home-render.test.tsx with C8A_HTML_DIR set.
@@ -31,7 +32,7 @@ for (const lang of ['en', 'zh-HK'] as const) for (const width of [375,768,1440])
         await expect(page.getByRole('main')).toContainText('2026-09-05')
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-      for (const step of ['scan','results','improve','monitor','roi']) await expect(page.locator(`a[href="/${lang}/dashboard/fixture-client?step=${step}"]`).first()).toBeVisible()
+      for (const step of ['scan','results','improve','roi']) await expect(page.locator(`a[href="/${lang}/dashboard/fixture-client?step=${step}"]`).first()).toBeVisible()
       const violations = (await new AxeBuilder({page}).analyze()).violations
       expect(violations).toEqual([])
     }
@@ -59,14 +60,16 @@ for(const lang of ['en','zh-HK'] as const)for(const width of [375,768,1440])for(
  const dir=process.env.C8A_HTML_DIR,css=process.env.C8A_CSS_PATH;if(!dir||!css)throw Error('Generate actual workspace fixtures')
  await page.route('**/*',r=>r.abort());await page.setViewportSize({width,height:900})
  const copy=(lang==='en'?en:zh).workspaceHome
- const cases={unknown:['status','?step=monitor#first-monitoring'],paused:['status','?step=monitor#first-monitoring'],active:['start','?step=monitor#first-monitoring'],missing:['configure','/prompts'],pending:['review','/observations?run=saved#run-status'],partial:['repair','/observations?run=saved#run-status'],source:['work','/sources?source=s&version=v'],draft:['work','/opportunities?draft=d'],complete:['results','/observations']} as const
+ // Monitor is hidden until Pulse is scheduled (MONITOR_VISIBLE): steps that would open it become a new scan.
+ const monitor=(label:'status'|'start')=>MONITOR_VISIBLE?[label,'?step=monitor#first-monitoring'] as const:['scan','?step=scan'] as const
+ const cases={unknown:monitor('status'),paused:monitor('status'),active:monitor('start'),missing:['configure','/prompts'],pending:['review','/observations?run=saved#run-status'],partial:['repair','/observations?run=saved#run-status'],source:['work','/sources?source=s&version=v'],draft:['work','/opportunities?draft=d'],complete:['results','/observations']} as const
  for(const [state,[label,path]] of Object.entries(cases)){
   const html=readFileSync(dir+'/'+lang+'-next-'+state+'.html','utf8')
   await page.setContent('<!doctype html><html lang="'+lang+'" class="'+theme+'"><head><meta charset="utf-8"><title>Next useful action</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+readFileSync(css,'utf8')+'</style></head><body>'+html+'</body></html>')
   const header=page.locator('header');await expect(header.getByRole('link')).toHaveCount(1)
   await expect(header.getByRole('link',{name:copy.nextStep[label],exact:true})).toHaveAttribute('href','/'+lang+'/dashboard/fixture-client'+path)
-  if(state==='unknown')await expect(header).toContainText(copy.daily.unknown)
-  if(state==='paused')await expect(header).toContainText((lang==='en'?en:zh).runProgress.availabilityReasons.paused)
+  if(state==='unknown'&&MONITOR_VISIBLE)await expect(header).toContainText(copy.daily.unknown)
+  if(state==='paused'&&MONITOR_VISIBLE)await expect(header).toContainText((lang==='en'?en:zh).runProgress.availabilityReasons.paused)
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
   expect((await new AxeBuilder({page}).analyze()).violations).toEqual([])
  }

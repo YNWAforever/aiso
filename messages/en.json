@@ -1605,7 +1605,8 @@
       "opportunities": "Review improvement work",
       "review": "Review monitoring status",
       "status": "Check monitoring availability",
-      "work": "Review saved work"
+      "work": "Review saved work",
+      "scan": "Run a new scan"
     },
     "localVisibility": {
       "title": "Local visibility",

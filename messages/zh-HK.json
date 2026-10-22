@@ -1605,7 +1605,8 @@
       "opportunities": "查看改善工作",
       "review": "查看監測狀態",
       "status": "查看監測可用性",
-      "work": "覆核已保存的工作"
+      "work": "覆核已保存的工作",
+      "scan": "執行新掃描"
     },
     "localVisibility": {
       "title": "本地能見度",

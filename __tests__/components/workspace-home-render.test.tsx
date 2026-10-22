@@ -30,6 +30,14 @@ describe('workspace home presentation', () => {
       expect(html).toContain(copy.localVisibility.title)
     }
   })
+  it('turns a next step into Monitor into a new scan while Monitor is hidden', () => {
+    const workspace = homeFixture()
+    workspace.nextStep = { kind: 'start_run', labelKey: 'start', href: '/__locale__/dashboard/client-a?step=monitor#first-monitoring', reasonKey: 'paused' }
+    const html = renderToStaticMarkup(<WorkspaceHome workspace={workspace} lang="en" />)
+    expect(html).toContain(`href="/en/dashboard/client-a?step=scan">${en.workspaceHome.nextStep.scan}`)
+    expect(html).not.toContain(en.runProgress.availabilityReasons.paused)
+    expect(html).not.toContain('step=monitor')
+  })
   it('renders persisted observation dates and labels generated work as draft', () => {
     const workspace = homeFixture()
     workspace.siteHealth = { state: 'ready', data: { scanId: 'scan-a', domain:'example.com', score: 62, grade:'C', pillarScores: null }, observedAt:'2026-09-05T10:00:00.000Z', freshness:'unknown' }
