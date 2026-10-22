@@ -99,6 +99,10 @@
     "sample-report": {
       "title": "Sample AI search report | Fimmick AISO",
       "description": "Explore a clearly labelled synthetic report with illustrative website checks, draft recommendations and evidence limitations."
+    },
+    "root": {
+      "title": "Fimmick AISO — AI Search Readiness Check",
+      "description": "Check if your website is visible to AI search engines. Free Fix Pack included."
     }
   },
   "nav": {
@@ -2937,5 +2941,182 @@
     "reconciledReady": "Your original brand and questions are ready. Your edits have not been applied; they remain in this draft. Open the workspace to review the saved brand.",
     "cacheUnavailable": "This tab cannot save this setup request. Your input is still here. Review saved brands before trying again, or use a tab that can save drafts.",
     "reviewBrands": "Review saved brands"
+  },
+  "ui": {
+    "breadcrumbs": "Breadcrumb",
+    "close": "Close",
+    "dismiss": "Dismiss",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "table": {
+      "filter": "Filter",
+      "noMatches": "No matching rows",
+      "count": "Showing {shown} of {total}"
+    },
+    "command": {
+      "title": "Search",
+      "placeholder": "Search pages and actions",
+      "results": "Results",
+      "empty": "Nothing found",
+      "hint": "↑↓ to move · Enter to open · Esc to close"
+    }
+  },
+  "visuals": {
+    "grade": {
+      "aPlus": "Excellent",
+      "a": "Very good",
+      "b": "Good",
+      "c": "Fair",
+      "d": "Poor",
+      "f": "Critical",
+      "unknown": "Not graded"
+    },
+    "status": {
+      "pass": "Pass",
+      "warn": "Needs work",
+      "fail": "Fail",
+      "unknown": "Not checked",
+      "pending": "Waiting",
+      "running": "Checking"
+    },
+    "pillars": {
+      "core": "Core",
+      "extended": "Extended",
+      "geo": "GEO"
+    },
+    "delta": "{direction, select, up {Up {change}} down {Down {change}} other {No change}} since last time",
+    "scoreRing": {
+      "label": "Score {score} out of 100, grade {grade}, {gradeLabel}",
+      "outOf": "/100"
+    },
+    "scoreBadge": {
+      "label": "Grade {grade}, {gradeLabel}"
+    },
+    "statCard": {
+      "noChange": "No change"
+    },
+    "heatmap": {
+      "summary": "{pass} passed · {warn} need work · {fail} failed",
+      "tile": "{label}: {status}"
+    },
+    "pillarGauge": {
+      "value": "{earned} of {max} points"
+    },
+    "potentialBar": {
+      "label": "Score {current} now, {potential} if the top fixes are done",
+      "now": "Now {score}",
+      "potential": "Possible {score}"
+    },
+    "sparkline": {
+      "summary": "{label}: {direction, select, up {up {change}} down {down {change}} other {no change}} over {count} points"
+    },
+    "scanTimeline": {
+      "progress": "{done} of {total} checks done · {pillar}",
+      "complete": "All {total} checks done"
+    },
+    "platformDots": {
+      "platform": "AI platform",
+      "legend": "Legend",
+      "cited": "Cited",
+      "mentioned": "Mentioned",
+      "absent": "Not mentioned",
+      "notRun": "Not checked"
+    },
+    "heroDemo": {
+      "description": "Animation: a website is scanned, scores {score} out of 100, and AI assistants can cite it.",
+      "domain": "yourbusiness.com",
+      "scoreLabel": "AI score",
+      "canCite": "Can cite you",
+      "platforms": {
+        "chatgpt": "ChatGPT",
+        "perplexity": "Perplexity",
+        "googleAi": "Google AI",
+        "gemini": "Gemini",
+        "claude": "Claude"
+      }
+    }
+  },
+  "designSystem": {
+    "title": "Design system",
+    "description": "Every token and component, in both themes and languages.",
+    "crumbDev": "Developer",
+    "controls": {
+      "dark": "Dark mode",
+      "reducedMotion": "Reduced motion",
+      "language": "中文 / English"
+    },
+    "sections": {
+      "foundations": "Foundations",
+      "visuals": "Visuals",
+      "components": "Components"
+    },
+    "foundations": {
+      "neutral": "Neutral scale",
+      "tones": "Brand and tones",
+      "brand": "Brand",
+      "success": "Success",
+      "warning": "Warning",
+      "danger": "Danger",
+      "info": "Info",
+      "type": "Type scale",
+      "sample": "Can AI recommend you?",
+      "body": "AI assistants read your site before they answer.",
+      "elevation": "Elevation"
+    },
+    "replay": "Replay scan",
+    "sample": {
+      "score": "AI score",
+      "failing": "Failing checks",
+      "fixesDone": "Fixes done",
+      "pts": "{n} pts",
+      "platformCaption": "AI answers by platform and week",
+      "week": "Wk {n}",
+      "stepsLabel": "How it works",
+      "stepScan": "Scan",
+      "stepScanBody": "Check your site in 15 seconds.",
+      "stepFix": "Fix",
+      "stepFixBody": "Copy the fixes that matter most.",
+      "stepMonitor": "Monitor",
+      "stepMonitorBody": "See when AI starts citing you.",
+      "emptyTitle": "No scans yet",
+      "emptyBody": "Scan your site to see your score.",
+      "emptyAction": "Scan now",
+      "errorTitle": "Couldn't load this",
+      "errorBody": "Check your connection and try again.",
+      "retry": "Try again",
+      "loading": "Loading",
+      "tabOverview": "Overview",
+      "tabFixes": "Fixes",
+      "tabTasks": "Tasks",
+      "tooltipTrigger": "What is this?",
+      "tooltip": "Your score out of 100.",
+      "code": "# yourbusiness.com\n> What you do, in one line.\n\n## Services\n- [Pricing](https://yourbusiness.com/pricing)",
+      "generateFix": "Generate fix pack",
+      "brandA": "Harbour Café",
+      "brandB": "Kowloon Dental",
+      "brandC": "Peak Florist",
+      "tableCaption": "Brands",
+      "colBrand": "Brand",
+      "colScore": "Score",
+      "colScans": "Scans",
+      "showToast": "Show toast",
+      "toastTitle": "Fix pack ready",
+      "toastBody": "3 fixes to copy.",
+      "showConfirm": "Remove brand",
+      "confirmTitle": "Remove this brand?",
+      "confirmBody": "Its scans and reports stay in your history.",
+      "confirmAction": "Remove",
+      "removed": "Brand removed",
+      "showDialog": "Open dialog",
+      "dialogTitle": "Dialog",
+      "dialogBody": "One question, one decision.",
+      "ok": "OK",
+      "showPalette": "Open search (⌘K)",
+      "groupPages": "Pages",
+      "groupActions": "Actions",
+      "navOverview": "Overview",
+      "navScan": "Scan & Fix",
+      "navReports": "Reports"
+    }
   }
 }
