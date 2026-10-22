@@ -21,6 +21,8 @@ for (const locale of A11Y_LOCALES) {
       const copy = catalogs[locale].designSystem
 
       await expect(page.getByRole('heading', { level: 1, name: copy.title })).toBeVisible()
+      // Scan a settled page: a fade caught mid-way reads as a contrast failure.
+      await page.waitForFunction(() => document.getAnimations().every(a => a.playState !== 'running'))
       expect(await page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(theme === 'dark')
       expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0)
 

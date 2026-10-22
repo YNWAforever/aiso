@@ -4,7 +4,7 @@ import { Check, HelpCircle, Loader2, Minus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { DURATION, transition, variants } from '@/lib/motion'
-import { MotionRoot } from '@/components/visuals/MotionRoot'
+import { MotionRoot, useReducedMotion } from '@/components/visuals/MotionRoot'
 import { PILLARS, TONE_CLASSES, statusTone, type CheckStatus, type Pillar } from '@/components/visuals/tone'
 
 export type TimelineStatus = 'pending' | 'running' | CheckStatus
@@ -39,6 +39,9 @@ function ScanTimelineInner({ checks, score, className }: ScanTimelineProps) {
   const done = checks.filter(c => c.status !== 'pending' && c.status !== 'running').length
   const active = checks.find(c => c.status === 'running')?.bucket ?? checks.find(c => c.status === 'pending')?.bucket ?? null
   const complete = done === checks.length
+  // Reduced motion swaps values outright. A cross-fade would still run (motion
+  // only drops transforms), and a half-faded number fails contrast mid-swap.
+  const reduced = useReducedMotion()
 
   return (
     <div className={cn('flex flex-col gap-4', className)} data-testid="scan-timeline">
@@ -48,7 +51,10 @@ function ScanTimelineInner({ checks, score, className }: ScanTimelineProps) {
             ? t('scanTimeline.complete', { total: checks.length })
             : t('scanTimeline.progress', { done, total: checks.length, pillar: active ? t(`pillars.${active}`) : '' })}
         </p>
-        {score != null && (
+        {score != null && reduced && (
+          <span aria-hidden="true" className="text-3xl font-black tabular-nums leading-none text-foreground">{Math.round(score)}</span>
+        )}
+        {score != null && !reduced && (
           <AnimatePresence mode="popLayout" initial={false}>
             <m.span
               key={Math.round(score)}
@@ -91,27 +97,32 @@ function TimelineDot({ check }: { check: TimelineCheck }) {
   const settled = check.status !== 'pending' && check.status !== 'running'
   const tone = settled ? TONE_CLASSES[statusTone(check.status as CheckStatus)] : null
   const Icon = settled ? SETTLED_ICONS[check.status as CheckStatus] : check.status === 'running' ? Loader2 : null
+  const reduced = useReducedMotion()
+  const dotClass = cn(
+    'absolute inset-0 flex items-center justify-center rounded-full border',
+    tone ? cn(tone.soft, tone.fg, tone.border) : check.status === 'running' ? 'border-primary text-primary' : 'border-neutral-6 bg-neutral-2',
+  )
+  const icon = Icon && <Icon className={cn('size-3.5', check.status === 'running' && 'animate-spin motion-reduce:animate-none')} />
 
   return (
     <li className="relative size-6">
       <span className="sr-only">{t('heatmap.tile', { label: check.label, status: t(`status.${check.status}`) })}</span>
-      <AnimatePresence mode="popLayout" initial={false}>
-        <m.span
-          key={check.status}
-          aria-hidden="true"
-          variants={variants.scaleIn}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          transition={transition(DURATION.ui)}
-          className={cn(
-            'absolute inset-0 flex items-center justify-center rounded-full border',
-            tone ? cn(tone.soft, tone.fg, tone.border) : check.status === 'running' ? 'border-primary text-primary' : 'border-neutral-6 bg-neutral-2',
-          )}
-        >
-          {Icon && <Icon className={cn('size-3.5', check.status === 'running' && 'animate-spin motion-reduce:animate-none')} />}
-        </m.span>
-      </AnimatePresence>
+      {reduced ? <span aria-hidden="true" className={dotClass}>{icon}</span> : (
+        <AnimatePresence mode="popLayout" initial={false}>
+          <m.span
+            key={check.status}
+            aria-hidden="true"
+            variants={variants.scaleIn}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            transition={transition(DURATION.ui)}
+            className={dotClass}
+          >
+            {icon}
+          </m.span>
+        </AnimatePresence>
+      )}
     </li>
   )
 }
