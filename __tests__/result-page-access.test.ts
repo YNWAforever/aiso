@@ -14,6 +14,13 @@ const { getProfileMock, notFoundMock, sqlMock } = vi.hoisted(() => ({
 vi.mock('@/lib/auth', () => ({ getProfile: getProfileMock }))
 vi.mock('@/lib/db', () => ({ db: () => sqlMock }))
 vi.mock('next/navigation', () => ({ notFound: notFoundMock }))
+vi.mock('next-intl/server', async () => {
+  const { createTranslator } = await import('next-intl')
+  const en = (await import('@/messages/en.json')).default
+  const zh = (await import('@/messages/zh-HK.json')).default
+  return { getTranslations: async ({ locale, namespace }: { locale: string; namespace: string }) =>
+    createTranslator({ locale, messages: locale === 'zh-HK' ? zh : en, namespace: namespace as never }) }
+})
 vi.mock('@/components/result/ResultClient', () => ({ ResultClient: () => null }))
 
 import ResultPage, {generateMetadata} from '@/app/[lang]/result/[id]/page'
@@ -159,5 +166,23 @@ describe('public result route access boundary', () => {
     expect(serialized).toContain('"results"')
     expect(serialized).toContain(RAW_EVIDENCE)
     expect(serialized).toContain(PRIVATE_REMEDIATION)
+  })
+
+  it('looks up the previous score only for the owner, filtered by the viewer account', async () => {
+    sqlMock.mockResolvedValueOnce([scan('owner-rescan', 'account-1')]).mockResolvedValueOnce([{ score: '55.5', grade: 'D' }])
+    getProfileMock.mockResolvedValue({ account_id: 'account-1' })
+    const props = await renderPage('owner-rescan') as ResultClientProps & { previous?: unknown }
+    expect(props.previous).toEqual({ score: 55.5, grade: 'D' })
+    const [, ...values] = sqlMock.mock.calls[1]!
+    expect(values[0]).toBe('account-1')
+    expect(String((sqlMock.mock.calls[1]![0] as TemplateStringsArray).join('?'))).toMatch(/where account_id = \?/)
+  })
+
+  it('never looks up a previous score for a non-owner', async () => {
+    sqlMock.mockResolvedValue([scan('non-owner-rescan', 'account-1')])
+    getProfileMock.mockResolvedValue({ account_id: 'account-2' })
+    const props = await renderPage('non-owner-rescan') as ResultClientProps & { previous?: unknown }
+    expect(props.previous).toBeNull()
+    expect(sqlMock).toHaveBeenCalledTimes(1)
   })
 })

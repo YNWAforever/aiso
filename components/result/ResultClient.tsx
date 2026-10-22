@@ -1,121 +1,31 @@
 'use client'
-import enMessages from '@/messages/en.json'
-import zhMessages from '@/messages/zh-HK.json'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Zap } from 'lucide-react'
-import { useLocale } from 'next-intl'
+import { useLocale, useMessages, useTranslations } from 'next-intl'
 import { ScoreReveal }      from './ScoreReveal'
 import { TopIssueCard }     from './TopIssueCard'
-import { LockedPreview }    from './LockedPreview'
 import { DeepGeoSection }   from './DeepGeoSection'
 import { TrustSignalsSection } from './TrustSignalsSection'
-import { ImpactTeaser }     from './ImpactTeaser'
-import { ImpactPanel }      from './ImpactPanel'
-import { ShareButton }      from './ShareButton'
 import { AccountUnlockCard } from './AccountUnlockCard'
 import { ClaimScanOnReturn } from './ClaimScanOnReturn'
-import { PillarScoreCards } from '@/components/PillarScoreCards'
 import { ScanEvidencePanel } from './ScanEvidencePanel'
+import { ResultActions } from './ResultActions'
+import { FixList } from './FixList'
+import { FixDrawer } from './FixDrawer'
+import { CheckList } from './CheckList'
+import { PotentialScoreBar } from '@/components/visuals/PotentialScoreBar'
+import { PillarGauge } from '@/components/visuals/PillarGauge'
+import { CheckHeatmap, type HeatmapCheck } from '@/components/visuals/CheckHeatmap'
 import type { OwnedResultEvidence } from '@/lib/result-evidence'
-import { computeImpact, type PlatformStatus } from '@/lib/impact'
+import type { PlatformStatus } from '@/lib/impact'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
 import { getCheckExplanations }  from '@/lib/checkExplanations'
 import type { Scan, CheckResult, ScanResults } from '@/lib/types'
 import type { PublicResultSummary } from '@/lib/result-access'
 import { consumeOneTimeFunnelEvent, trackFunnelEvent } from '@/lib/funnel-client'
 import { factualDensityState, type FactualDensityView } from '@/lib/factual-density-evidence'
-
-/* ── Check key lists ─────────────────────────────────────────── */
-const CORE_KEYS = ['c1_robots','c2_llms_txt','c3_bot_access','c4_structured_data','c5_extractability'] as const
-const EXT_KEYS  = ['c6_llms_full_txt','c7_mcp_card','c8_sitemap','c9_meta_desc','c10_headings','c11_faq','c12_canonical','c13_render','c14_internal_links','c15_entity','c16_freshness'] as const
-const GEO_KEYS  = ['c17_citation_density','c18_factual_density','c19_topical_authority','c20_chunkability'] as const
-
-const CHECK_LABELS_EN: Record<string, string> = {
-  c1_robots:            'robots.txt for AI crawlers',
-  c2_llms_txt:          'llms.txt present',
-  c3_bot_access:        'AI bot accessibility',
-  c4_structured_data:   'Structured data (JSON-LD)',
-  c5_extractability:    'Content extractability',
-  c6_llms_full_txt:     'llms.txt content completeness (optional)',
-  c7_mcp_card:          'MCP server card',
-  c8_sitemap:           'XML sitemap',
-  c9_meta_desc:         'Meta descriptions',
-  c10_headings:         'Heading structure',
-  c11_faq:              'FAQ schema',
-  c12_canonical:        'Canonical tags',
-  c13_render:           'Server-side rendering',
-  c14_internal_links:   'Internal link graph',
-  c15_entity:           'Entity signals',
-  c16_freshness:        'Content freshness',
-  c17_citation_density: 'Citation density & authority',
-  c18_factual_density:  'Factual density',
-  c19_topical_authority:'Topical authority',
-  c20_chunkability:     'AI chunkability',
-}
-
-const CHECK_LABELS_ZH_HK: Record<string, string> = {
-  c1_robots:            'robots.txt AI 爬蟲規則',
-  c2_llms_txt:          'llms.txt 是否存在',
-  c3_bot_access:        'AI 機械人可存取性',
-  c4_structured_data:   '結構化數據（JSON-LD）',
-  c5_extractability:    '內容可提取度',
-  c6_llms_full_txt:     'llms.txt 內容完整度（選配）',
-  c7_mcp_card:          'MCP 伺服器卡片',
-  c8_sitemap:           'XML sitemap',
-  c9_meta_desc:         'Meta description',
-  c10_headings:         '標題結構',
-  c11_faq:              'FAQ schema',
-  c12_canonical:        'canonical 標籤',
-  c13_render:           '伺服器端渲染',
-  c14_internal_links:   '內部連結網絡',
-  c15_entity:           '實體訊號',
-  c16_freshness:        '內容新鮮度',
-  c17_citation_density: '引用密度及權威度',
-  c18_factual_density:  '事實密度',
-  c19_topical_authority:'主題權威',
-  c20_chunkability:     'AI 分塊能力',
-}
-
-const UI_EN = {
-  getFullAccess: 'Get full access',
-  checksScanned: (n: number) => `${n} checks scanned`,
-  passing:  (n: number) => `${n} passing`,
-  warnings: (n: number) => `${n} warnings`,
-  failing:  (n: number) => `${n} failing`,
-  coreTitle: 'CORE CHECKS',
-  extTitle:  'EXTENDED CHECKS',
-  extSubtitle: 'Additional signals that strengthen your AI visibility',
-  geoTitle:  'GEO CHECKS',
-  geoSubtitle: 'Generative Engine Optimisation — content quality for AI citation',
-  scanAnother: '← Scan another URL',
-  platforms: 'Consumer AI exposure',
-  platformNote: 'Not measured by this technical scan. Crawler access is reported separately below.',
-  estimatedImpact: 'Estimated impact: the following projections are inferred from site checks, not measured visibility or guaranteed gains.',
-  openFixPack: 'Open your Fix Pack',
-  collectionFailedTitle: 'This scan could not be completed',
-  collectionFailedBody: 'The website page was not collected. A score or improvement estimate would be misleading. Check the address and try again.',
-}
-
-const UI_ZH_HK: typeof UI_EN = {
-  getFullAccess: '解鎖完整版',
-  checksScanned: (n: number) => `已掃描 ${n} 項檢查`,
-  passing:  (n: number) => `${n} 項通過`,
-  warnings: (n: number) => `${n} 項警告`,
-  failing:  (n: number) => `${n} 項不及格`,
-  coreTitle: '核心檢查',
-  extTitle:  '進階檢查',
-  extSubtitle: '進一步強化 AI 可見度的附加訊號',
-  geoTitle:  'GEO 檢查',
-  geoSubtitle: '生成式引擎優化——內容能否被 AI 引用的質素指標',
-  scanAnother: '← 掃描另一個網址',
-  platforms: '消費者 AI 曝光',
-  platformNote: '本技術掃描尚未量度實際曝光。下方另列爬蟲存取結果。',
-  estimatedImpact: '預估影響：以下推算根據網站檢查，並非實際可見度測量，亦不保證改善成效。',
-  openFixPack: '開啟你的 Fix Pack',
-  collectionFailedTitle: '未能完成這次掃描',
-  collectionFailedBody: '未有成功採集網站頁面，因此無法提供可靠分數或改善估算。請核對網址後重試。',
-}
+import { CHECK_SLOTS, bucketPoints, potentialScore, rankFixes, visualStatus } from '@/lib/result/view-model'
 
 /* ── Helpers ────────────────────────────────────────────────── */
 function getResult(results: Record<string, unknown>, key: string): CheckResult | undefined {
@@ -133,60 +43,34 @@ export function getPlatformStatusLabel(status: PlatformStatus, locale: string) {
   return PLATFORM_STATUS_LABELS[locale === 'zh-HK' ? 'zh-HK' : 'en'][status]
 }
 
-/* ── Section: check list ─────────────────────────────────────── */
-function CheckSection({ title, subtitle, keys, results }: {
-  title: string; subtitle?: string; keys: readonly string[]; results: Record<string, unknown>
-}) {
-  const locale = useLocale()
-  const labels = locale === 'zh-HK' ? CHECK_LABELS_ZH_HK : CHECK_LABELS_EN
-  const explanations = getCheckExplanations(locale)
-  const messages = (locale === 'zh-HK' ? zhMessages : enMessages).checks as Record<string, string>
-  return (
-    <div className="bg-card rounded-2xl border border-border p-6">
-      <p className="text-xs font-bold text-muted-foreground tracking-widest mb-1">{title}</p>
-      {subtitle && <p className="text-xs text-muted-foreground mb-4">{subtitle}</p>}
-      {!subtitle && <div className="mb-4" />}
-      {keys.map(key => {
-        const r = getResult(results, key)
-        if (!r) return null
-        return (
-          <div key={key} id={key} className="scroll-mt-20">
-            <ExpandableCheckItem
-              label={labels[key] ?? key}
-              result={r}
-              message={Object.hasOwn(messages, r.message) ? messages[r.message] : r.message}
-              explanation={explanations[key]}
-              factualState={key === 'c18_factual_density' ? factualDensityState(results.c18_factual_density_data ?? results.c18, r.diagnostic) : undefined}
-            />
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 /* ── Main component ──────────────────────────────────────────── */
 type Props = {
   lang: string
   summary: PublicResultSummary
   fullScan?: Scan
   ownedEvidence?: OwnedResultEvidence | null
+  /** The owner's previous scan of the same domain; drives the one celebration. */
+  previous?: { score: number; grade: string } | null
 }
 
-export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) {
+/**
+ * The scan result, in the order a reader needs it: the score and what it
+ * means, what fixing the top three would reach, the top three fixes, the
+ * three areas, every check at a glance, then the filterable detail.
+ *
+ * Anonymous viewers see each check's verdict (no messages, details or
+ * remediation from the scan); owners also get the scan's own findings.
+ */
+export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous }: Props) {
+  const t = useTranslations('resultPage')
+  const checkNames = useTranslations('checks')
+  const portfolio = useTranslations('portfolio')
+  const catalogue = useMessages().checks as Record<string, string> | undefined
   const locale = useLocale()
   const resultViewTracked = useRef(false)
   const signupCtaTracked = useRef(false)
-  const ui = locale === 'zh-HK' ? UI_ZH_HK : UI_EN
-  const { pass, warn, fail, total } = summary.counts
-  const r = (fullScan?.results ?? {}) as Record<string, unknown>
-  const impact = fullScan
-    ? computeImpact(r, { score: fullScan.score, grade: fullScan.grade ?? 'F', industry: fullScan.industry, confirmedChecks: ownedEvidence?.pillarInputs ?? {} })
-    : null
-  const publicImpact = { ...summary.teaser, aiReadablePercent: null, quickWins: [] }
-  const topIssueResults = summary.topIssueKey && summary.topIssueStatus
-    ? { [summary.topIssueKey]: { status: summary.topIssueStatus, assessment: summary.topIssueStatus, collection: 'complete', applicability: 'applicable', message: 'public_summary' } }
-    : {}
+  const [openKey, setOpenKey] = useState<string | null>(null)
+  const owner = Boolean(fullScan)
 
   useEffect(() => {
     if (!consumeOneTimeFunnelEvent(resultViewTracked)) return
@@ -202,176 +86,213 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence }: Props) 
 
   if (summary.collectionFailed) return <main className="mx-auto max-w-2xl space-y-4 px-4 py-12" data-testid="collection-failed">
     <p className="break-all text-sm text-muted-foreground">{summary.domain}</p>
-    <h1 className="text-2xl font-bold">{ui.collectionFailedTitle}</h1>
-    <p>{ui.collectionFailedBody}</p>
-    <Link href={`/${lang}/scan`} className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-primary-foreground">{ui.scanAnother}</Link>
+    <h1 className="text-2xl font-bold">{t('collection_failed_title')}</h1>
+    <p>{t('collection_failed_body')}</p>
+    <Link href={`/${lang}/scan`} className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-primary-foreground">{t('scan_another')}</Link>
   </main>
 
   if (summary.score === null || summary.grade === null) return <main className="mx-auto max-w-2xl space-y-4 px-4 py-12" data-testid="collection-unknown">
-    <h1 className="text-2xl font-bold">{(locale === 'zh-HK' ? zhMessages : enMessages).portfolio.scanUnknown}</h1>
+    <h1 className="text-2xl font-bold">{portfolio('scanUnknown')}</h1>
     <ScanEvidencePanel evidence={ownedEvidence ?? null} locale={locale} />
-    <Link href={`/${lang}/scan`}>{ui.scanAnother}</Link>
+    <Link href={`/${lang}/scan`}>{t('scan_another')}</Link>
   </main>
 
-  // GEO rich data
+  const score = summary.score
+  const grade = summary.grade
+  const assessments = summary.checks
+  const topFixes = rankFixes(assessments).slice(0, 3)
+  const potential = potentialScore(score, topFixes)
+  const points = bucketPoints(assessments)
+  const heatmapChecks: HeatmapCheck[] = CHECK_SLOTS.map(slot => ({
+    key: slot.key, label: checkNames(slot.key), status: visualStatus(assessments[slot.key]), bucket: slot.bucket,
+  }))
+  const r = (fullScan?.results ?? {}) as Record<string, unknown>
+  const topIssueResults = summary.topIssueKey && summary.topIssueStatus
+    ? { [summary.topIssueKey]: { status: summary.topIssueStatus, assessment: summary.topIssueStatus, collection: 'complete', applicability: 'applicable', message: 'public_summary' } }
+    : {}
+
+  function goToSave() {
+    setOpenKey(null)
+    requestAnimationFrame(() => {
+      const card = document.getElementById('save')
+      card?.scrollIntoView({ block: 'start' })
+      const target = document.getElementById('account-unlock-email') ?? card
+      target?.focus({ preventScroll: true })
+    })
+  }
+
+  // GEO rich data (owner only)
   type C17 = { qualityScore?: number; authorityBreakdown?: Record<string, number>; citationsPerThousandWords?: number; totalLinks?: number; externalLinks?: number }
   type C18 = FactualDensityView
   type C19 = { topicalCoverageScore?: number; totalClusters?: number; hasOrphanPages?: number; detectedClusters?: { topic: string; completenessScore: number }[] }
   type C20 = { avgChunkLength?: number; optimalChunkRatio?: number; totalChunks?: number; hasFaqStyle?: boolean; chunkAnalysis?: { heading: string; extractabilityScore: number; isAnswerFirst?: boolean; isSelfContained?: boolean }[] }
 
-  const c17 = (r['c17_citation_density_data'] ?? r['c17']) as C17 | undefined
-  const c18 = (r['c18_factual_density_data']  ?? r['c18']) as C18 | undefined
-  const c19 = (r['c19_topical_authority_data'] ?? r['c19']) as C19 | undefined
-  const c20 = (r['c20_chunkability_data']      ?? r['c20']) as C20 | undefined
+  const explanations = getCheckExplanations(locale)
+  const renderOwnerRow = fullScan ? (key: string) => {
+    const result = getResult(r, key)
+    if (!result) return null
+    return (
+      <ExpandableCheckItem
+        label={checkNames(key)}
+        result={result}
+        message={catalogue && Object.hasOwn(catalogue, result.message) ? catalogue[result.message]! : result.message}
+        explanation={explanations[key]}
+        factualState={key === 'c18_factual_density' ? factualDensityState(r.c18_factual_density_data ?? r.c18, result.diagnostic) : undefined}
+      />
+    )
+  } : undefined
 
   return (
     <div className="min-h-screen bg-background">
 
-      {/* Nav */}
-      <nav className="bg-card border-b border-border px-6 py-3 flex justify-between items-center sticky top-0 z-50">
+      <nav className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur sm:px-6">
         <Link href={`/${lang}`} className="flex items-center gap-2">
-          <div className="size-6 rounded-md bg-primary flex items-center justify-center">
-            <Zap className="size-3.5 text-primary-foreground" />
-          </div>
-          <span className="font-black text-foreground text-sm">
-            Fimmick <span className="text-primary">AISO</span>
+          <span className="flex size-6 items-center justify-center rounded-md bg-primary">
+            <Zap aria-hidden="true" className="size-3.5 text-primary-foreground" />
           </span>
+          <span className="text-sm font-black text-foreground">Fimmick <span className="text-primary-accessible">AISO</span></span>
         </Link>
-        <div className="flex items-center gap-3">
-          <ShareButton domain={summary.domain} score={summary.score} grade={summary.grade} />
-          {fullScan ? (
-            <Link
-              href={`/${lang}/pricing`}
-              className="text-sm font-semibold bg-primary text-primary-foreground px-4 py-1.5 rounded-lg hover:bg-primary/90 transition"
-            >
-              {ui.getFullAccess}
+        <div className="flex items-center gap-2">
+          <ResultActions domain={summary.domain} score={score} grade={grade} onSave={owner ? undefined : goToSave} />
+          {owner && (
+            <Link href={`/${lang}/pricing`} data-print-hide className="hidden min-h-9 items-center rounded-lg border border-border px-3 text-sm font-semibold text-foreground hover:bg-neutral-3 sm:inline-flex">
+              {t('full_access')}
             </Link>
-          ) : null}
+          )}
         </div>
       </nav>
 
-      <main className="max-w-2xl mx-auto px-4 py-10 space-y-5">
+      <main className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-8 sm:py-10">
         <ClaimScanOnReturn scanId={summary.id} lang={lang} />
 
-        {/* 1. Score reveal */}
-        <div data-testid="result-score">
-          <ScoreReveal
-            score={summary.score}
-            grade={summary.grade}
-            domain={summary.domain}
-            industry={summary.industry}
-            region={summary.region}
-          />
-        </div>
+        {/* 1. Score, grade and one line */}
+        <section data-testid="result-score" className="flex flex-col gap-4">
+          <ScoreReveal score={score} grade={grade} domain={summary.domain} industry={summary.industry} region={summary.region} previous={owner ? previous : null} />
+          {topFixes.length > 0 && (
+            <section aria-label={t('estimate_heading')} className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+              <PotentialScoreBar current={score} potential={potential} />
+              <p className="mt-3 text-xs text-muted-foreground">{t('estimate_heading')}</p>
+            </section>
+          )}
+        </section>
 
-        {/* 2. Summary pills */}
-        <div className="flex items-center gap-2 flex-wrap text-xs">
-          <span className="text-muted-foreground">{ui.checksScanned(total)}</span>
-          <span className="ml-auto flex gap-2">
-            {pass > 0 && <span className="bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-semibold px-2.5 py-1 rounded-full">✅ {ui.passing(pass)}</span>}
-            {warn > 0 && <span className="bg-amber-100 dark:bg-amber-950/60  text-amber-700 dark:text-amber-300  font-semibold px-2.5 py-1 rounded-full">⚠️ {ui.warnings(warn)}</span>}
-            {fail > 0 && <span className="bg-red-100 dark:bg-red-950/60    text-red-700 dark:text-red-300    font-semibold px-2.5 py-1 rounded-full">❌ {ui.failing(fail)}</span>}
-            {summary.counts.unknown > 0 && <span className="rounded-full bg-muted px-2.5 py-1 font-semibold text-muted-foreground">{locale === 'zh-HK' ? `${summary.counts.unknown} 項資料不足` : `${summary.counts.unknown} need evidence`}</span>}
-          </span>
-        </div>
-
-        {/* 3. #1 Issue card */}
-        <div data-testid="result-top-issue">
-          <TopIssueCard
-            results={topIssueResults as ScanResults & Record<string, unknown>}
-            failCount={fail + warn}
-            priorityState={summary.priorityState}
-            owner={Boolean(fullScan)}
-          />
-        </div>
-
-        {/* 4. Public teaser or owner-only full results */}
-        <div className="bg-card rounded-2xl border border-border p-5">
-          <p className="text-xs font-bold text-muted-foreground tracking-widest mb-3">{ui.platforms}</p>
-          <p className="mb-3 text-xs text-muted-foreground">{ui.platformNote}</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {summary.teaser.platformVisibility.map(platform => (
-              <div key={platform.platform} className="flex items-center justify-between gap-3 text-sm">
-                <span className="font-medium text-foreground/80">{platform.label}</span>
-                <span
-                  data-status={platform.status}
-                  aria-label={`${platform.label}: ${getPlatformStatusLabel(platform.status, locale)}`}
-                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                    platform.status === 'visible'
-                      ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
-                      : platform.status === 'partial'
-                        ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
-                        : platform.status === 'not_measured' ? 'bg-muted text-foreground/80' : 'bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300'
-                  }`}
-                >
-                  {getPlatformStatusLabel(platform.status, locale)}
-                </span>
-              </div>
-            ))}
+        {/* 2. Top 3 fixes */}
+        <section data-testid="result-top-issue" aria-labelledby="fixes-title" className="flex flex-col gap-3">
+          <div>
+            <h2 id="fixes-title" className="text-lg font-bold text-foreground">{t('fixes_title')}</h2>
+            {topFixes.length > 0 && <p className="text-sm text-muted-foreground">{t('fixes_subtitle')}</p>}
           </div>
-          {(summary.teaser.collectorAccess ?? []).length > 0 && <ul className="mt-4 space-y-2 text-xs text-muted-foreground" aria-label={locale === 'zh-HK' ? '爬蟲技術存取' : 'Crawler technical access'}>
-            {summary.teaser.collectorAccess.map(collector => <li key={collector.crawler}>
-              {collector.crawler} · {locale === 'zh-HK'
-                ? ({ search: '搜尋', training: '訓練', user_triggered: '使用者觸發' }[collector.role]) : collector.role.replace('_', ' ')} · {locale === 'zh-HK'
-                ? `規則：${{ allowed: '允許', blocked: '封鎖', unknown: '未知' }[collector.policy]}；抓取：${{ reachable: '可存取', unreachable: '不可存取', not_measured: '未量度' }[collector.probe]}`
-                : `Policy: ${collector.policy}; fetch: ${collector.probe.replace('_', ' ')}`}
-            </li>)}
-          </ul>}
-        </div>
+          {topFixes.length > 0
+            ? <FixList fixes={topFixes} onSelect={setOpenKey} />
+            : <TopIssueCard results={topIssueResults as ScanResults & Record<string, unknown>} failCount={0} priorityState={summary.priorityState} owner={owner} />}
+        </section>
 
-        {fullScan && impact ? (
+        {/* 3. Three areas */}
+        <section aria-labelledby="pillars-title" className="flex flex-col gap-3">
+          <h2 id="pillars-title" className="text-lg font-bold text-foreground">{t('pillars_title')}</h2>
+          <div className="grid grid-cols-1 gap-3 rounded-2xl border border-border bg-card p-4 min-[480px]:grid-cols-3">
+            <PillarGauge pillar="core" earned={points.core.earned} max={points.core.max} />
+            <PillarGauge pillar="extended" earned={points.extended.earned} max={points.extended.max} />
+            <PillarGauge pillar="geo" earned={points.geo.earned} max={points.geo.max} />
+          </div>
+        </section>
+
+        {/* 4. Every check at a glance */}
+        <section aria-labelledby="checks-title" className="flex flex-col gap-3">
+          <div>
+            <h2 id="checks-title" className="text-lg font-bold text-foreground">{t('checks_title')}</h2>
+            <p className="text-sm text-muted-foreground">{t('checks_subtitle')}</p>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+            <CheckHeatmap checks={heatmapChecks} onSelect={setOpenKey} selectedKey={openKey} />
+          </div>
+        </section>
+
+        {/* 5. Filterable detail */}
+        <section aria-labelledby="list-title" className="flex flex-col gap-3">
+          <h2 id="list-title" className="text-lg font-bold text-foreground">{t('list_title')}</h2>
+          <CheckList assessments={assessments} onSelect={setOpenKey} renderOwnerRow={renderOwnerRow} />
+        </section>
+
+        {fullScan && (
           <>
-            <PillarScoreCards results={r} locale={locale} evidenceInputs={ownedEvidence?.pillarInputs} />
             <ScanEvidencePanel evidence={ownedEvidence ?? null} locale={locale} />
-            <section aria-label={ui.estimatedImpact}>
-              <p className="mb-2 text-sm font-semibold text-foreground/80">{ui.estimatedImpact}</p>
-              <ImpactPanel impact={impact} score={fullScan.score} grade={fullScan.grade ?? 'F'} />
-            </section>
-
-            <div data-testid="full-check-breakdown" className="space-y-5">
-              <CheckSection title={ui.coreTitle} keys={CORE_KEYS} results={r} />
-              <CheckSection
-                title={ui.extTitle}
-                subtitle={ui.extSubtitle}
-                keys={EXT_KEYS}
-                results={r}
-              />
-              <CheckSection
-                title={ui.geoTitle}
-                subtitle={ui.geoSubtitle}
-                keys={GEO_KEYS}
-                results={r}
-              />
-              <DeepGeoSection c17={c17} c18={c18} c19={c19} c19Check={r.c19_topical_authority} c20={c20} />
-              <TrustSignalsSection value={r.trust_signals} />
-            </div>
-
-            <Link
-              href={`/${lang}/dashboard`}
-              data-testid="fix-pack-action"
-              className="block rounded-2xl bg-foreground px-6 py-4 text-center text-sm font-bold text-background hover:bg-foreground/90 transition"
-            >
-              {ui.openFixPack}
-            </Link>
-          </>
-        ) : (
-          <>
-            <section aria-label={ui.estimatedImpact}>
-              <p className="mb-2 text-sm font-semibold text-foreground/80">{ui.estimatedImpact}</p>
-              <ImpactTeaser impact={publicImpact} score={summary.score} />
-            </section>
-            <LockedPreview checkCount={total} />
-            <AccountUnlockCard scanId={summary.id} lang={lang} />
+            <DeepGeoSection
+              c17={(r['c17_citation_density_data'] ?? r['c17']) as C17 | undefined}
+              c18={(r['c18_factual_density_data'] ?? r['c18']) as C18 | undefined}
+              c19={(r['c19_topical_authority_data'] ?? r['c19']) as C19 | undefined}
+              c19Check={r.c19_topical_authority}
+              c20={(r['c20_chunkability_data'] ?? r['c20']) as C20 | undefined}
+            />
+            <TrustSignalsSection value={r.trust_signals} />
           </>
         )}
 
-        {/* Scan another */}
-        <div className="text-center pb-4">
-          <Link href={`/${lang}`} className="text-sm text-muted-foreground hover:text-foreground transition underline underline-offset-2">
-            {ui.scanAnother}
+        <PlatformPanel summary={summary} locale={locale} />
+
+        {fullScan ? (
+          <Link
+            href={`/${lang}/dashboard`}
+            data-testid="fix-pack-action"
+            data-print-hide
+            className="block rounded-2xl bg-foreground px-6 py-4 text-center text-sm font-bold text-background transition hover:bg-foreground/90"
+          >
+            {t('fix_pack')}
+          </Link>
+        ) : (
+          <div id="save" tabIndex={-1} className="scroll-mt-20 focus:outline-none" data-print-hide>
+            <AccountUnlockCard scanId={summary.id} lang={lang} />
+          </div>
+        )}
+
+        <div className="pb-4 text-center" data-print-hide>
+          <Link href={`/${lang}`} className="text-sm text-muted-foreground underline underline-offset-2 transition hover:text-foreground">
+            {t('scan_another')}
           </Link>
         </div>
       </main>
+
+      <FixDrawer
+        lang={lang}
+        checkKey={openKey}
+        assessment={openKey ? assessments[openKey] : undefined}
+        owner={owner}
+        onClose={() => setOpenKey(null)}
+        onSignup={goToSave}
+      />
     </div>
+  )
+}
+
+/** Consumer exposure is not measured by a technical scan; crawler access is listed as collected. */
+function PlatformPanel({ summary, locale }: { summary: PublicResultSummary; locale: string }) {
+  const t = useTranslations('resultPage')
+  return (
+    <section aria-label={t('platforms_title')} className="rounded-2xl border border-border bg-card p-5">
+      <h2 className="mb-1 text-sm font-bold text-foreground">{t('platforms_title')}</h2>
+      <p className="mb-3 text-xs text-muted-foreground">{t('platforms_note')}</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {summary.teaser.platformVisibility.map(platform => (
+          <div key={platform.platform} className="flex items-center justify-between gap-3 text-sm">
+            <span className="font-medium text-foreground">{platform.label}</span>
+            <span
+              data-status={platform.status}
+              aria-label={`${platform.label}: ${getPlatformStatusLabel(platform.status, locale)}`}
+              className="rounded-full bg-neutral-3 px-2 py-0.5 text-xs font-semibold text-foreground"
+            >
+              {getPlatformStatusLabel(platform.status, locale)}
+            </span>
+          </div>
+        ))}
+      </div>
+      {(summary.teaser.collectorAccess ?? []).length > 0 && <ul className="mt-4 space-y-2 text-xs text-muted-foreground" aria-label={t('crawler_label')}>
+        {summary.teaser.collectorAccess.map(collector => <li key={collector.crawler}>
+          {collector.crawler} · {locale === 'zh-HK'
+            ? ({ search: '搜尋', training: '訓練', user_triggered: '使用者觸發' }[collector.role]) : collector.role.replace('_', ' ')} · {locale === 'zh-HK'
+            ? `規則：${{ allowed: '允許', blocked: '封鎖', unknown: '未知' }[collector.policy]}；抓取：${{ reachable: '可存取', unreachable: '不可存取', not_measured: '未量度' }[collector.probe]}`
+            : `Policy: ${collector.policy}; fetch: ${collector.probe.replace('_', ' ')}`}
+        </li>)}
+      </ul>}
+    </section>
   )
 }

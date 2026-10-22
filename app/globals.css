@@ -541,3 +541,29 @@ html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce), (scripting: none) {
   .hero-loop-toggle { display: none; }
 }
+
+/* ── Result: the one celebration ─────────────────────────────────────────
+   A soft glow behind the score ring, once, when the owner's score improved
+   or reached a better grade (components/result/ScoreReveal.tsx). Opacity and
+   transform only; reduced motion keeps the written note and skips the glow. */
+.result-glow { opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .result-glow { animation: result-glow 1600ms var(--ease-standard) 500ms 1 both; }
+}
+@keyframes result-glow {
+  0% { opacity: 0; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0; transform: scale(1.15); }
+}
+
+/* ── Print: "Save PDF" on the result page ────────────────────────────────
+   The browser's own Save as PDF over this stylesheet: actions, filters,
+   drawers and the sign-up card are dropped and cards are not split across
+   pages. The PDF button prints in the light theme (ResultActions). */
+@media print {
+  [data-print-hide] { display: none !important; }
+  nav { position: static !important; }
+  body { background: #fff !important; }
+  section, figure, li { break-inside: avoid; }
+  [data-testid="fix-drawer"] { display: none !important; }
+}

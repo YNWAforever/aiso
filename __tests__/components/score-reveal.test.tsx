@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
-import { renderToStaticMarkup } from 'react-dom/server'
+import { describe, expect, it } from 'vitest'
+import { renderWithIntl } from '../helpers/intl'
 
-const intl = vi.hoisted(() => ({ locale: 'en' }))
-vi.mock('next-intl', () => ({ useLocale: () => intl.locale }))
+const intl = { locale: 'en' }
+const renderToStaticMarkup = (ui: Parameters<typeof renderWithIntl>[0]) => renderWithIntl(ui, intl.locale)
 
 import { ScoreReveal, formatScore } from '@/components/result/ScoreReveal'
 
