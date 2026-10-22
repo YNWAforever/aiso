@@ -26,7 +26,7 @@ describe('TaskList', () => {
 
   it('opens a draft in Opportunities and a submitted task on its review page', () => {
     const html = renderWithIntl(<TaskList lang="en" clientId="c1" limited={false} tasks={[task('a', 'draft', null), task('b', 'approved', 2)]} />)
-    expect(html).toContain('href="/en/dashboard/c1/opportunities"')
+    expect(html).toContain('href="/en/dashboard/c1/opportunities?draft=a"')
     expect(html).toContain('href="/en/dashboard/c1/work-items/b/versions"')
   })
 

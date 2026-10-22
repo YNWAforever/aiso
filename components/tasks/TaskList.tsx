@@ -19,8 +19,8 @@ type Filter = 'all' | TaskStatus
 
 /**
  * Tasks with one status each and a filter per status (with counts). A row
- * opens the task's existing review page; a draft opens Opportunities, where
- * drafts are edited. Null tasks means the list could not be read: say so and
+ * opens the task's existing review page; a draft opens that draft in
+ * Opportunities, where drafts are edited. Null tasks means the list could not be read: say so and
  * offer a retry, never an empty list.
  */
 export function TaskList({ lang, clientId, tasks, limited }: { lang: string; clientId: string; tasks: TaskRow[] | null; limited: boolean }) {
@@ -78,7 +78,7 @@ export function TaskList({ lang, clientId, tasks, limited }: { lang: string; cli
             {visible.map(task => {
               const style = STATUS_STYLE[task.status]
               const Icon = style.icon
-              const href = task.status === 'draft' ? `${base}/opportunities` : `${base}/work-items/${task.id}/versions`
+              const href = task.status === 'draft' ? `${base}/opportunities?draft=${encodeURIComponent(task.id)}` : `${base}/work-items/${task.id}/versions`
               const updated = task.updatedAt ? format.dateTime(new Date(task.updatedAt), { dateStyle: 'medium' }) : null
               return (
                 <li key={task.id}>

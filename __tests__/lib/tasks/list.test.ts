@@ -31,7 +31,9 @@ describe('listTasks', () => {
     const text = strings.join('?')
     expect(values).toEqual(['acct-1', 'client-1', TASK_LIMIT])
     expect(text).toContain('where w.account_id = ? and w.client_id = ?')
-    for (const alias of ['lv', 'd', 'e', 'x']) expect(text).toMatch(new RegExp(`${alias}\\.account_id = \\w+\\.account_id and ${alias}\\.client_id = \\w+\\.client_id`))
+    for (const alias of ['lv', 'd', 'e', 'x', 'le']) expect(text).toMatch(new RegExp(`${alias}\\.account_id = \\w+\\.account_id and ${alias}\\.client_id = \\w+\\.client_id`))
+    // Submissions, decisions and deliveries do not touch w.updated_at.
+    expect(text).toContain('order by greatest(w.updated_at, v.submitted_at, d.decided_at, de.recorded_at) desc')
     // Never `returning *`/`select *` across joins: duplicate column names collapse.
     expect(text).not.toContain('*')
   })

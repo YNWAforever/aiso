@@ -16,6 +16,10 @@ import { TASK_LIMIT, taskStatus, type TaskRow } from './status'
  *   approved           approved, no active attestation
  *   delivered          approved with an attestation that was not withdrawn
  *
+ * Ordered and dated by the latest lifecycle activity: submitting, deciding and
+ * delivering append rows elsewhere without touching the work item's own
+ * updated_at, so that column alone would bury recently active tasks.
+ *
  * "Measured" is not a status here: outcomes are evaluated per version in code
  * (lib/outcomes), so they stay on the task's own page.
  */
@@ -30,7 +34,8 @@ function iso(value: unknown): string {
 /** Throws on a database failure, so the page can say "unavailable" rather than "no tasks". */
 export async function listTasks(accountId: string, clientId: string): Promise<TaskRow[]> {
   const rows = await db()`
-    select w.id, w.title, w.check_key, w.updated_at,
+    select w.id, w.title, w.check_key,
+      greatest(w.updated_at, v.submitted_at, d.decided_at, de.recorded_at) as updated_at,
       v.id as version_id, v.version_number,
       d.decision,
       exists (
@@ -44,14 +49,18 @@ export async function listTasks(accountId: string, clientId: string): Promise<Ta
       ) as delivered
     from evidence_work_items w
     left join lateral (
-      select lv.id, lv.version_number from work_item_versions lv
+      select lv.id, lv.version_number, lv.submitted_at from work_item_versions lv
       where lv.account_id = w.account_id and lv.client_id = w.client_id and lv.work_item_id = w.id
       order by lv.version_number desc limit 1
     ) v on true
     left join work_item_decisions d
       on d.account_id = w.account_id and d.client_id = w.client_id and d.work_item_id = w.id and d.version_id = v.id
+    left join lateral (
+      select max(le.recorded_at) as recorded_at from work_item_delivery_events le
+      where le.account_id = w.account_id and le.client_id = w.client_id and le.work_item_id = w.id
+    ) de on true
     where w.account_id = ${accountId} and w.client_id = ${clientId}
-    order by w.updated_at desc, w.id desc
+    order by greatest(w.updated_at, v.submitted_at, d.decided_at, de.recorded_at) desc, w.id desc
     limit ${TASK_LIMIT}
   `
   return rows.map(row => ({
