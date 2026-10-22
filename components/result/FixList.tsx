@@ -41,11 +41,13 @@ export function FixList({ fixes, onSelect }: Props) {
               <span aria-hidden="true" className={cn('flex size-9 shrink-0 items-center justify-center rounded-lg border', tone.soft, tone.fg, tone.border)}>
                 {Icon && <Icon className="size-4" />}
               </span>
-              <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">{title}</span>
-              <span aria-hidden="true" className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-                <span className="rounded-full bg-tone-success-soft px-2 py-0.5 text-xs font-bold tabular-nums text-tone-success-fg">{t('fix_points', { points })}</span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-neutral-3 px-2 py-0.5 text-xs font-medium text-foreground">
-                  <Clock className="size-3" />{t(`effort.${fix.effort}`)}
+              <span className="flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+                <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">{title}</span>
+                <span aria-hidden="true" className="flex shrink-0 flex-wrap items-center gap-1.5">
+                  <span className="rounded-full bg-tone-success-soft px-2 py-0.5 text-xs font-bold tabular-nums text-tone-success-fg">{t('fix_points', { points })}</span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-neutral-3 px-2 py-0.5 text-xs font-medium text-foreground">
+                    <Clock className="size-3" />{t(`effort.${fix.effort}`)}
+                  </span>
                 </span>
               </span>
               <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none" />

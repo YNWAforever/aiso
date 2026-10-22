@@ -38,7 +38,7 @@ export function ShareButton({ domain, score, grade }: Props) {
       className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-semibold text-foreground hover:bg-neutral-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     >
       {copied ? <Check aria-hidden="true" className="size-3.5 text-tone-success-fg" /> : <Share2 aria-hidden="true" className="size-3.5" />}
-      <span aria-live="polite">{copied ? t('share_copied') : t('share')}</span>
+      <span aria-live="polite" className="sr-only sm:not-sr-only">{copied ? t('share_copied') : t('share')}</span>
     </button>
   )
 }

@@ -146,11 +146,11 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
     <div className="min-h-screen bg-background">
 
       <nav className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur sm:px-6">
-        <Link href={`/${lang}`} className="flex items-center gap-2">
+        <Link href={`/${lang}`} className="flex shrink-0 items-center gap-2">
           <span className="flex size-6 items-center justify-center rounded-md bg-primary">
             <Zap aria-hidden="true" className="size-3.5 text-primary-foreground" />
           </span>
-          <span className="text-sm font-black text-foreground">Fimmick <span className="text-primary-accessible">AISO</span></span>
+          <span className="whitespace-nowrap text-sm font-black text-foreground">Fimmick <span className="text-primary-accessible">AISO</span></span>
         </Link>
         <div className="flex items-center gap-2">
           <ResultActions domain={summary.domain} score={score} grade={grade} onSave={owner ? undefined : goToSave} />
@@ -190,10 +190,10 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
         {/* 3. Three areas */}
         <section aria-labelledby="pillars-title" className="flex flex-col gap-3">
           <h2 id="pillars-title" className="text-lg font-bold text-foreground">{t('pillars_title')}</h2>
-          <div className="grid grid-cols-1 gap-3 rounded-2xl border border-border bg-card p-4 min-[480px]:grid-cols-3">
-            <PillarGauge pillar="core" earned={points.core.earned} max={points.core.max} />
-            <PillarGauge pillar="extended" earned={points.extended.earned} max={points.extended.max} />
-            <PillarGauge pillar="geo" earned={points.geo.earned} max={points.geo.max} />
+          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-border bg-card p-3 sm:gap-3 sm:p-4">
+            <PillarGauge fluid pillar="core" earned={points.core.earned} max={points.core.max} />
+            <PillarGauge fluid pillar="extended" earned={points.extended.earned} max={points.extended.max} />
+            <PillarGauge fluid pillar="geo" earned={points.geo.earned} max={points.geo.max} />
           </div>
         </section>
 

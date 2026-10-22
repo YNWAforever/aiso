@@ -29,14 +29,14 @@ export function ResultActions({ domain, score, grade, onSave }: Props) {
   const t = useTranslations('resultPage')
   const button = 'inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-semibold text-foreground hover:bg-neutral-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
   return (
-    <div role="group" aria-label={t('nav_label')} className="flex flex-wrap items-center gap-2" data-print-hide>
+    <div role="group" aria-label={t('nav_label')} className="flex items-center gap-1.5 sm:gap-2" data-print-hide>
       <ShareButton domain={domain} score={score} grade={grade} />
       <button type="button" onClick={printLight} className={button}>
-        <FileDown aria-hidden="true" className="size-3.5" />{t('pdf')}
+        <FileDown aria-hidden="true" className="size-3.5" /><span className="sr-only sm:not-sr-only">{t('pdf')}</span>
       </button>
       {onSave && (
         <button type="button" onClick={onSave} className={button} data-testid="save-result">
-          <Bookmark aria-hidden="true" className="size-3.5" />{t('save')}
+          <Bookmark aria-hidden="true" className="size-3.5" /><span className="sr-only sm:not-sr-only">{t('save')}</span>
         </button>
       )}
     </div>
