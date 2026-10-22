@@ -1,6 +1,7 @@
 import type { CheckResult, IndustryCode, RegionCode, CitationDensityResult, AuthorityTier } from '@/lib/types'
 import { computeAuthority } from '@/lib/authority/aggregator'
 import { stripNonVisible, visibleText } from '@/lib/checks/visibleText'
+import { formatDensityDetails } from '@/lib/score-display'
 
 interface Context { industry: IndustryCode; region: RegionCode; clientId?: string }
 
@@ -77,5 +78,5 @@ export async function checkCitationDensity(
 
   const status = qualityScore >= 30 ? 'pass' : qualityScore >= 15 ? 'warn' : 'fail'
 
-  return { diagnostic: { collection: domainsToScore.length ? 'partial' : 'complete', ...(domainsToScore.length ? { reason: authorityResults.some(r => r.status === 'rejected') ? 'provider-fallback' as const : 'inferred-only' as const } : {}) }, status, message: `citation_density_${status}`, details: `Quality score ${qualityScore}/100`, geoDetails }
+  return { diagnostic: { collection: domainsToScore.length ? 'partial' : 'complete', ...(domainsToScore.length ? { reason: authorityResults.some(r => r.status === 'rejected') ? 'provider-fallback' as const : 'inferred-only' as const } : {}) }, status, message: `citation_density_${status}`, details: formatDensityDetails(`Quality score ${qualityScore}/100`), geoDetails }
 }

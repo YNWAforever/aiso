@@ -386,6 +386,26 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
 
 ## Database (Neon Postgres)
 
+### Native Improve and saved-answer recovery
+
+- Dashboard scans select one Improve producer: a configured client webhook, or
+  `lib/agents/generate.ts`. `POST /api/clients/[clientId]/agents/generate` explicitly
+  recovers the selected retained scan; page reads never start paid generation.
+- Native generation claims the owned scan through a CAS receipt in
+  `scans.results._agent_generation`, then makes at most one bounded OpenRouter
+  request. Output and completion are committed under the same tenant/token fence.
+  A started provider call with an unknown outcome must not be automatically replaced.
+- Recommendation drafts reference validated actionable scan checks. Monitoring
+  progress comes from saved classified canonical answers. Empty or unavailable
+  sections stay explicit; do not create competitor rates, domains, or platform
+  measurements to satisfy a completion check. Existing callback routes remain valid.
+- Exhausted Pulse classifications use the existing repair journal with frozen run
+  context and one assessment per corrected classifier version. Original collection
+  receipts and the three ordinary attempts remain intact. Explicit run-backed
+  classification and summary finalization work while collection is paused; they
+  cannot collect new answers. Canonical summary finalization is replayable without
+  another model call.
+
 - **`pulse_metrics` has no unique key**, and `total_queries` in the weekly rollup is a count
   over its rows — so writing a prompt twice inflates `sov_score`, the number the whole feature
   reports. `pulse/run` therefore deletes a prompt's rows for the week before writing them,

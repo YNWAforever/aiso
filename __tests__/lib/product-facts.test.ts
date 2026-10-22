@@ -70,19 +70,16 @@ describe('PRODUCT_FACTS', () => {
     )
   })
 
-  it('does not substitute GPT-4o in tracked-platform recommendations', () => {
-    expect(enMessages.dashboard.step_improve_body).toBe(
-      'AI agents analyze your scan and give you specific recommendations. Each platform (ChatGPT, Google AI, Perplexity, Claude, Gemini) evaluates your content differently — we show you what each one needs.',
-    )
-    expect(enMessages.dashboard.step_improve_locked).toBe(
-      'Upgrade to Pro to unlock AI agent analysis. Get platform-specific recommendations from ChatGPT, Google AI, Perplexity, Claude, and Gemini. Track your progress over time with before-and-after metrics.',
-    )
-    expect(zhMessages.dashboard.step_improve_body).toBe(
-      'AI 代理會分析你的掃描結果並提供具體建議。每個平台（ChatGPT、Google AI、Perplexity、Claude、Gemini）對內容的評估各有不同——我們會告訴你每個平台需要甚麼。',
-    )
-    expect(zhMessages.dashboard.step_improve_locked).toBe(
-      '升級至專業版即可解鎖 AI 代理分析。獲取 ChatGPT、Google AI、Perplexity、Claude 及 Gemini 的平台專屬建議，並以前後對比指標追蹤你的進度。',
-    )
+  it('separates website draft recommendations from measured visibility and comparable observations', () => {
+    expect(enMessages.dashboard.step_improve_body).toContain('saved website checks')
+    expect(enMessages.dashboard.step_improve_body).toContain('do not establish')
+    expect(enMessages.dashboard.step_improve_locked).toContain('comparisons require compatible observations')
+    expect(zhMessages.dashboard.step_improve_body).toContain('逐項對照來源證據覆核')
+    expect(zhMessages.dashboard.step_improve_body).toContain('不能據此判定')
+    expect(zhMessages.dashboard.step_improve_locked).toContain('只有相容的觀測結果才可作比較')
+    for (const copy of [enMessages.dashboard.step_improve_body,enMessages.dashboard.step_improve_locked,zhMessages.dashboard.step_improve_body,zhMessages.dashboard.step_improve_locked]) {
+      expect(copy).not.toMatch(/GPT-4o|platform-specific|before-and-after metrics|平台專屬建議|前後對比指標/)
+    }
   })
 
   it('does not advertise six tracked platforms', () => {

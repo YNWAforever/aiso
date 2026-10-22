@@ -12,6 +12,7 @@ type Copy = {
   statusLabel: string
   doneLabel: string
   skipLabel: string
+  reopenLabel: string
   updatingLabel: string
   errorMessage: string
   impactLabels: Record<LocalTrustImpact, string>
@@ -57,6 +58,7 @@ const defaultCopy: Copy = {
   statusLabel: 'Status',
   doneLabel: 'Done',
   skipLabel: 'Skip',
+  reopenLabel: 'Reopen',
   updatingLabel: 'Saving...',
   errorMessage: 'Something went wrong. Please try again.',
   impactLabels: {
@@ -237,6 +239,16 @@ export function TrustGapChecklist({ clientId, actions, copy }: Props) {
                     >
                       {isBusy ? labels.updatingLabel : labels.skipLabel}
                     </button>
+                    {isTerminal ? (
+                      <button
+                        type="button"
+                        className="min-h-11 rounded-lg border border-dash-border px-3 py-2.5 text-xs font-semibold text-dash-text transition hover:bg-dash-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dash-accent/40 disabled:cursor-not-allowed disabled:opacity-60"
+                        onClick={() => updateStatus(action.id, 'open')}
+                        disabled={isBusy}
+                      >
+                        {isBusy ? labels.updatingLabel : labels.reopenLabel}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
                 {actionErrors[action.id] ? (

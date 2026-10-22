@@ -14,7 +14,18 @@ const load=()=>loadOwnedPulse({clientId:'11111111-1111-4111-8111-111111111111',p
 beforeEach(()=>{mocks.calls=[];mocks.failure='';mocks.rows=[]})
 describe('owned Pulse observations',()=>{
  it('checks ownership before every other read',async()=>{expect(await loadOwnedPulse({clientId:'11111111-1111-4111-8111-111111111111',profile:{account_id:'foreign'}})).toBeNull();expect(mocks.calls).toHaveLength(1);expect(mocks.calls[0].values).toEqual(['11111111-1111-4111-8111-111111111111','foreign'])})
- it('binds every query to tenant and client without agent/provider/write work',async()=>{await load();expect(mocks.calls).toHaveLength(4);for(const call of mocks.calls){expect(call.values).toContain('11111111-1111-4111-8111-111111111111');expect(call.values).toContain('account-a');expect(call.text).not.toMatch(/\b(insert|update|delete)\b|agent_/i)}})
+ it('binds every query to tenant and client without agent/provider/write work',async()=>{
+  await load()
+  expect(mocks.calls).toHaveLength(5)
+  const manifests=mocks.calls.filter(call=>call.text.includes('select r.id as run_id'))
+  expect(manifests).toHaveLength(1)
+  expect(manifests[0].values).toEqual(['account-a',['11111111-1111-4111-8111-111111111111']])
+  for(const call of mocks.calls){
+    if(call!==manifests[0])expect(call.values).toContain('11111111-1111-4111-8111-111111111111')
+    expect(call.values).toContain('account-a')
+    expect(call.text).not.toMatch(/\b(insert|update|delete)\b|agent_/i)
+  }
+ })
  it('fails authoritative ownership closed and optional observations independently',async()=>{mocks.failure='from clients';await expect(load()).rejects.toThrow();mocks.failure='with recent_weeks';expect(buildPulseView((await load())!).observations.state).toBe('error')})
  it('retains genuine zero but invalid denominator becomes a gap',async()=>{mocks.rows=[row('2026-08-03'),{...row('2026-08-10'),successful_queries:0},row('2026-08-17')];const dto=buildPulseView((await load())!);expect(dto.observations.series[0].points.map(p=>p.sov)).toEqual([0,null,0])})
  it('fills wholly missing weeks with gaps and keeps per-platform validity independent',async()=>{mocks.rows=[row('2026-08-03'),row('2026-08-17'),row('2026-08-03','gemini'),{...row('2026-08-17','gemini'),observed_brand_mentions:1}];const dto=buildPulseView((await load())!);expect(dto.observations.series.find(s=>s.platform==='gemini')?.points.map(p=>p.sov)).toEqual([0,null,null]);expect(dto.observations.series[0].points.map(p=>p.sov)).toEqual([0,null,0])})

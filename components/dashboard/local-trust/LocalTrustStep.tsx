@@ -248,6 +248,7 @@ export function LocalTrustStep({ lang, clientId, features, profile, snapshot, ac
           statusLabel: t('local_trust_action_status'),
           doneLabel: t('mark_done'),
           skipLabel: t('mark_skipped'),
+          reopenLabel: t('reopen_action'),
           updatingLabel: t('alerts_saving'),
           errorMessage: t('generic_error'),
           impactLabels: {

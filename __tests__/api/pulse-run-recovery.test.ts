@@ -63,7 +63,7 @@ beforeEach(() => {
     dispatched.push(platforms)
     if (platforms.some(p => accepted.includes(p))) throw Error('would recollect an accepted answer')
     return platforms.map(platform => ({
-      platform, answer: 'Synthetic retained answer', providerCitations: null, grounding: 'none',
+      platform, answer: 'Synthetic recovery retained answer', providerCitations: null, grounding: 'none',
     }))
   })
   h.classify.mockReset().mockResolvedValue(JSON.stringify({

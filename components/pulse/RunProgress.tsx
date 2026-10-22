@@ -32,13 +32,14 @@ export function RunProgress({clientId,lang}:{clientId:string;lang:string}){
   try{intentKey=localStorage.getItem(storageKey)??crypto.randomUUID();localStorage.setItem(storageKey,intentKey)}catch{intentKey=`${kind}:${sourceRunId??options.week}:${clientId}`}
   try{const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind,intentKey,...(sourceRunId?{sourceRunId}:{})})});const result=await response.json();if(!response.ok){setError(copy.errors[result.error as keyof typeof copy.errors]??copy.unavailable);return}selectedRun.current=result.run.id;setRun(result.run);setRevision(value=>value+1)}catch{setError(copy.unavailable)}finally{inFlight.current=false;setBusy(false)}
  }
- async function repairLegacy(){
-  if(inFlight.current||error||!options?.legacyObservationIds.length)return
+ async function repairLegacy(savedRunId?:string){
+  const observationIds=savedRunId?(run?.classificationRepairIds??[]):options?.legacyObservationIds
+  if(inFlight.current||error||!observationIds||(!observationIds.length&&(!savedRunId||run?.coverage.status!=='completed')))return
   inFlight.current=true;setBusy(true);setError(null)
-  const key='aiso:pulse:legacy:'+clientId+':'+options.legacyObservationIds.join(',')
+  const key='aiso:pulse:classification:'+clientId+':'+(savedRunId??'legacy')+':'+observationIds.join(',')
   let intentKey:string
-  try{intentKey=localStorage.getItem(key)??crypto.randomUUID();localStorage.setItem(key,intentKey)}catch{intentKey='legacy:'+clientId+':'+options.week}
-  try{const response=await fetch(endpoint+'/legacy-repair',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({observationIds:options.legacyObservationIds,intentKey})});const result=await response.json();if(!response.ok)throw new Error('unavailable');setRepairOutcome(result);try{localStorage.removeItem(key)}catch{}setRevision(value=>value+1)}catch{setError(copy.unavailable)}finally{inFlight.current=false;setBusy(false)}
+  try{intentKey=localStorage.getItem(key)??crypto.randomUUID();localStorage.setItem(key,intentKey)}catch{intentKey='repair:'+clientId+':'+(savedRunId??options?.week)}
+  try{const response=await fetch(endpoint+'/legacy-repair',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({observationIds,intentKey,...(savedRunId?{runId:savedRunId}:{})})});const result=await response.json();if(!response.ok)throw new Error('unavailable');setRepairOutcome(result);if(savedRunId)selectedRun.current=savedRunId;try{localStorage.removeItem(key)}catch{}setRevision(value=>value+1)}catch{setError(copy.unavailable)}finally{inFlight.current=false;setBusy(false)}
  }
  const fill=(text:string,values:Record<string,number|string>)=>Object.entries(values).reduce((s,[key,value])=>s.replace(`{${key}}`,String(value)),text)
  const retestReady=!!run&&Number.isSafeInteger(run.coverage.expected)&&run.coverage.expected>0&&!!options&&options.variants>0&&options.remaining>=run.coverage.expected
@@ -61,7 +62,9 @@ export function RunProgress({clientId,lang}:{clientId:string;lang:string}){
    {options.legacyCurrentWeek&&!run&&<p>{copy.legacy} <Link className="underline" href={`${base}/observations?result=incomplete`}>{copy.legacyLink}</Link></p>}
    {run&&<div aria-live="polite"><p>{run.purpose==='retest'?copy.retestScope:copy.canonicalScope} · {run.week}</p><p className="font-semibold">{copy.states[run.coverage.status]}</p><p>{fill(copy.collected,{collected:run.coverage.succeeded,expected:run.coverage.expected})}</p><p>{fill(copy.classified,{classified:run.coverage.classified,collected:run.coverage.succeeded})}</p>{run.reasons.map(reason=><p key={reason}>{copy.reasons[reason as keyof typeof copy.reasons]??copy.unavailable}</p>)}<Link className="inline-flex min-h-11 items-center underline" href={`${base}/observations?run=${encodeURIComponent(run.id)}&week=${run.week}`}>{copy.results}</Link></div>}
    <div className="flex flex-wrap gap-3">
-    {!!options.legacyObservationIds.length&&<button className={button} disabled={busy||!!error||!options.enabled} onClick={repairLegacy}>{copy.repairLegacy}</button>}
+    {!!options.legacyObservationIds.length&&<button className={button} disabled={busy||!!error||!options.enabled} onClick={()=>repairLegacy()}>{copy.repairLegacy}</button>}
+    {!!run?.classificationRepairIds?.length&&<><p className="text-sm">{copy.repairSavedNotice}</p><button className={button} disabled={busy||!!error} onClick={()=>repairLegacy(run.id)}>{copy.repairSaved}</button></>}
+    {run?.purpose==='canonical'&&run.coverage.status==='completed'&&<button className={button} disabled={busy||!!error} onClick={()=>repairLegacy(run.id)}>{copy.repairSummary}</button>}
     {!options.currentCanonicalId&&(!run||run.purpose!=='canonical'||run.week!==options.week)&&!options.legacyCurrentWeek&&<button className={button} disabled={busy||!!error||!availability?.canStart} onClick={()=>start('initial')}>{copy.start}</button>}
     {run?.retryable&&<button className={button} disabled={busy||!!error||!options.enabled} onClick={()=>start('repair')}>{copy.repair}</button>}
     {run?.coverage.status==='completed'&&<p>{fill(copy.retestWorkload,{expected:Number.isSafeInteger(run.coverage.expected)?run.coverage.expected:'—'})}</p>}

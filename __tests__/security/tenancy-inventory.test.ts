@@ -129,19 +129,6 @@ const DECLARED: Record<string, string> = {
     'The same public page\'s OG card. It renders domain, score and grade, all three of which ' +
     'buildPublicResultSummary already publishes to anonymous viewers of that same id.',
   // ---- Cron-authenticated: the system is the caller, so there is no session to scope to. ----
-  'app/api/clients/[clientId]/agents/competitors/route.ts::POST':
-    'x-cron-secret, not a session — the n8n agent workflow posts results back. No account exists ' +
-    'to constrain to; the binding that matters is scan-to-client, which it proves first ' +
-    '(select id from scans where id = $scanId and client_id = $clientId) and 404s without.',
-  'app/api/clients/[clientId]/agents/progress/route.ts::POST':
-    'Same shape and same proof as the competitors route above.',
-  'app/api/clients/[clientId]/agents/recommendations/route.ts::POST':
-    'Same shape and same proof as the competitors route above. Its scans UPDATE is additionally ' +
-    'narrowed to rows still pending, so a replay cannot reopen a completed run.',
-  'lib/agents.ts::markCompleteIfAllPresent':
-    'Called only by those three routes (grep: no other importer), each after it has bound scanId ' +
-    'to clientId. It takes a scanId those callers validated and writes no tenant-visible data — ' +
-    'it flips scans.agent_status once all three agent tables have a row.',
   'lib/alerts/neon-store.ts::loadWeeklyRows':
     'Alert evaluation is one bounded pass over every client with an alert config, run by ' +
     'cron/evaluate-alerts. It is cross-account by definition; the clientIds it reads come from ' +
@@ -180,7 +167,7 @@ const ACCOUNT_BLIND_BY_DESIGN: Record<string, string> = {
  * it a visible edit.
  */
 // T10 scopes the onboarding prefill to the session or its signed public-scan intent.
-const EXPECTED_UNSCOPED_TOTAL = 15
+const EXPECTED_UNSCOPED_TOTAL = 4
 
 const ROOT = process.cwd()
 const BACKSLASH = String.fromCharCode(92)

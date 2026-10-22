@@ -29,6 +29,15 @@ const state = vi.hoisted(() => ({
     brand_name: string | null
   },
   rateCount: 0,
+  insertValues: [] as unknown[],
+  afterCallbacks: [] as Array<() => Promise<void> | void>,
+}))
+
+const nativeGeneration = vi.hoisted(() => vi.fn().mockResolvedValue({ state: 'complete' }))
+vi.mock('@/lib/agents/generate', () => ({ generateImprove: nativeGeneration }))
+vi.mock('next/server', async importOriginal => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: (callback: () => Promise<void> | void) => { state.afterCallbacks.push(callback) },
 }))
 
 const getProfileMock = vi.hoisted(() => vi.fn(async () => state.profile))
@@ -91,7 +100,7 @@ vi.mock('@/lib/db', () => {
         reset_at: 2_000_000_000,
       }]
     }
-    if (/insert into scans/i.test(query)) return [{ id: `scan-${state.rateCount}` }]
+    if (/insert into scans/i.test(query)) { state.insertValues = values; return [{ id: `scan-${state.rateCount}` }] }
     if (/select plan from accounts/i.test(query)) return [{ plan: 'basic' }]
     if (/from clients/i.test(query)) return clientLookupMock(values[0] as string)
     return []
@@ -118,6 +127,9 @@ describe('POST /api/scan security boundaries', () => {
     state.profile = null
     state.client = null
     state.rateCount = 0
+    state.insertValues = []
+    state.afterCallbacks = []
+    nativeGeneration.mockClear()
     vi.stubGlobal('fetch', fetchMock)
     fetchMock.mockClear()
     fetchPublicUrlMock.mockClear()
@@ -240,6 +252,24 @@ describe('POST /api/scan security boundaries', () => {
       score: expect.any(Number),
       grade: expect.any(String),
     })
+  })
+
+  it.each([null, 'https://external.example/agents'])('selects a single owned Improve producer for webhook %s', async webhook => {
+    state.profile = { account_id: 'account-a', accounts: { plan: 'basic', status: 'active', stripe_subscription_id: 'sub_basic', trial_ends_at: null } }
+    state.client = { id: '11111111-1111-4111-8111-111111111111', account_id: 'account-a', webhook_url: webhook, brand_name: 'Owned' }
+    const response = await scan({ url: 'https://example.com', clientId: state.client.id })
+    expect(response.status).toBe(200)
+    expect(state.insertValues[8]).toBe('pending')
+    expect(JSON.parse(state.insertValues[3] as string)._agent_requirements).toEqual({ agent_recs: true, agent_progress: false, agent_competitors: false })
+    expect(state.afterCallbacks).toHaveLength(1)
+    expect(nativeGeneration).not.toHaveBeenCalled()
+    await state.afterCallbacks[0]!()
+    if (webhook === null) {
+      expect(nativeGeneration).toHaveBeenCalledExactlyOnceWith({ accountId: 'account-a', clientId: state.client.id, scanId: 'scan-0' })
+    } else {
+      expect(nativeGeneration).not.toHaveBeenCalled()
+      expect(fetchPublicUrlMock.mock.calls.filter(([url]) => url === webhook)).toHaveLength(1)
+    }
   })
 
   it('returns a deterministic 429 with standard headers after the anonymous allowance is exhausted', async () => {

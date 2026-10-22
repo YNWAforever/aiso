@@ -13,6 +13,7 @@ import {derivePulseAvailability} from './availability'
 import {createOrResumeRun} from './store'
 import {coverageFromCounts,type PulseScope,type PulseIntent,type RunCoverage} from './schema'
 import {runPulseChunk} from './service'
+import {ANALYSIS_VERSION} from '@/lib/pulse/analysis-fallback'
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i
 export function parsePulseIntent(raw:unknown):PulseIntent {
  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new Error('INVALID_PULSE_INTENT')
@@ -26,7 +27,7 @@ export function userPulseBudget(maxBrands:number,variants:number):number {
  if(raw!==undefined){if(!/^\d+$/.test(raw)||!Number.isSafeInteger(Number(raw)))throw new Error('PULSE_BUDGET_UNAVAILABLE');return Number(raw)}
  return Math.max(1,maxBrands)*MAX_PROMPTS*variants*2
 }
-export type UserPulseRun={id:string;week:string;purpose:'canonical'|'retest';sourceRunId:string|null;coverage:RunCoverage;reasons:string[];retryable:boolean;observedAt:string|null}
+export type UserPulseRun={id:string;week:string;purpose:'canonical'|'retest';sourceRunId:string|null;coverage:RunCoverage;reasons:string[];retryable:boolean;observedAt:string|null;classificationRepairIds?:string[]}
 export type PulseStartResult={run:UserPulseRun;coverage:RunCoverage}
 export async function readUserPulseRun(scope:PulseScope,runId:string):Promise<UserPulseRun|null>{
  const [row]=await db()`select r.id,r.scan_week,r.purpose,r.source_run_id,r.updated_at,jsonb_array_length(r.manifest->'items') as manifest_expected,
@@ -42,6 +43,15 @@ export async function readUserPulseRun(scope:PulseScope,runId:string):Promise<Us
   left join pulse_item_attempts a on a.item_id=i.id and a.account_id=r.account_id and a.attempt_number=i.attempt_count
   where r.id=${runId}::uuid and r.account_id=${scope.accountId} and r.client_id=${scope.clientId}::uuid group by r.id`
  if(!row)return null
+ const repairRows=await db()`select m.id from pulse_metrics m
+  join pulse_run_items i on i.id=m.run_item_id and i.client_id=m.client_id
+  join pulse_item_attempts a on a.id=i.accepted_attempt_id and a.item_id=i.id and a.account_id=i.account_id and a.client_id=i.client_id
+  where i.run_id=${runId}::uuid and i.account_id=${scope.accountId} and i.client_id=${scope.clientId}::uuid
+   and i.status='succeeded' and i.classification_status<>'classified' and i.classification_attempt_count>=3
+   and (i.classification_lease_until is null or i.classification_lease_until<now())
+   and a.classifier_version is distinct from ${ANALYSIS_VERSION} and a.raw_answer=m.raw_answer and a.raw_answer ~ '[^[:space:]]'
+   and not exists(select 1 from pulse_legacy_classification_attempts j where j.account_id=${scope.accountId} and j.client_id=${scope.clientId}::uuid and j.observation_id=m.id and j.context->>'version'=${ANALYSIS_VERSION})
+  order by m.id limit 1`
  if(Number(row.expected)!==Number(row.manifest_expected))throw new Error('PULSE_STATUS_UNAVAILABLE')
  const coverage=coverageFromCounts({expected:Number(row.expected),succeeded:Number(row.succeeded),failed:Number(row.failed),pending:Number(row.pending),blocked:Number(row.blocked),classified:Number(row.classified),mentioned:Number(row.mentioned)})
  if(coverage.status==='queued'&&Number(row.running)>0)coverage.status='running'
@@ -49,7 +59,7 @@ export async function readUserPulseRun(scope:PulseScope,runId:string):Promise<Us
  const codes=row.errors as string[]
  const reasons:string[]=[...new Set(codes.map(code=>code.includes('OUTCOME_UNKNOWN')?'outcome_unknown':code==='PROVIDER_NOT_CONFIGURED'?'provider_not_configured':code==='PLAN_HAS_NO_PLATFORMS'?'entitlement_changed':'collection_failed'))]
  if(coverage.classified<coverage.succeeded)reasons.push('classification_pending')
- return{id:String(row.id),week:isoDate(row.scan_week as string|Date,''),purpose:row.purpose as 'canonical'|'retest',sourceRunId:row.source_run_id as string|null,coverage,reasons,retryable:row.retryable===true,observedAt:row.updated_at instanceof Date?row.updated_at.toISOString():typeof row.updated_at==='string'?row.updated_at:null}
+ return{id:String(row.id),week:isoDate(row.scan_week as string|Date,''),purpose:row.purpose as 'canonical'|'retest',sourceRunId:row.source_run_id as string|null,coverage,reasons,retryable:row.retryable===true,classificationRepairIds:repairRows.map(r=>String(r.id)),observedAt:row.updated_at instanceof Date?row.updated_at.toISOString():typeof row.updated_at==='string'?row.updated_at:null}
 }
 export async function readUserPulseOptions(scope:PulseScope){
  const sql=db();const [client]=await sql`select a.plan,a.status,a.stripe_subscription_id,a.trial_ends_at,a.override_plan,a.override_expires_at from clients c join accounts a on a.id=c.account_id where c.id=${scope.clientId}::uuid and c.account_id=${scope.accountId} and c.status='active'`

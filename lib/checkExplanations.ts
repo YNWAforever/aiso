@@ -183,11 +183,11 @@ export const CHECK_EXPLANATIONS: Record<string, CheckExplanation> = {
   },
   c20_chunkability: {
     question: 'Can each section answer one question on its own?',
-    why: 'AI models extract answers in chunks of roughly 100–1,500 tokens. Content organised under clear headings, with self-contained answer-first paragraphs, gives them a natural place to cut.',
+    why: 'This check groups visible content under H2–H4 headings and estimates section length, answer-first wording and self-contained text using local heuristics. These signals do not measure how any AI provider extracts answers.',
     fix: {
-      pass: 'Content is well-chunked for AI extraction — no action needed.',
-      warn: 'Some sections are hard to extract as standalone answers. Start each H2 section with a direct answer sentence, keep each section self-contained, and avoid referencing "above" or "below".',
-      fail: 'Content has few or no H2 headings, making chunked extraction impossible. Break your content into clearly labelled H2 sections, each answering one question directly.',
+      pass: 'The detected sections meet this check’s local heuristics for self-contained answers. Review the content in context; provider extraction was not tested.',
+      warn: 'Some detected sections do not meet this check’s local heuristics. Start each section with a direct answer, keep it self-contained, and avoid references to "above" or "below".',
+      fail: 'No H2–H4 sections were detected, or the detected sections did not meet this check’s local heuristics. Add clear headings where useful and make each section answer one question directly. Missing headings does not rule out extraction.',
     },
   },
 }
@@ -366,11 +366,11 @@ export const CHECK_EXPLANATIONS_ZH_HK: Record<string, CheckExplanation> = {
   },
   c20_chunkability: {
     question: '每個分段能否獨立回答一個問題？',
-    why: 'AI 模型以大約 100–1,500 個 token 為單位提取答案。內容若在清晰標題之下、以自成一體、答案先行的段落組織，便有自然的切分位置。',
+    why: '本檢查按 H2–H4 標題將可見內容分段，並以長度、答案先行及內容可獨立閱讀等本地啟發式規則作估算。這些訊號並不代表已量度任何 AI 供應商如何提取答案。',
     fix: {
-      pass: '內容分塊結構良好，便於 AI 提取 — 無需任何操作。',
-      warn: '部分段落難以作為獨立答案被提取。每個 H2 段落應以直接回答的句子開頭，內容自成一體，並避免使用「上文」、「下文」等指涉。',
-      fail: '內容的 H2 標題極少或完全沒有，無法進行分塊提取。請將內容拆分為標示清晰的 H2 段落，每段直接回答一條問題。',
+      pass: '偵測到的分段符合本檢查對獨立答案的本地啟發式規則。請按內容脈絡檢視；本檢查並未測試供應商的提取結果。',
+      warn: '部分偵測到的分段未符合本檢查的本地啟發式規則。請以直接答案開始每段，保持內容可獨立閱讀，並避免引用「上文」或「下文」。',
+      fail: '本檢查未偵測到 H2–H4 分段，或偵測到的分段未符合本檢查的本地啟發式規則。請在適當位置加入清晰標題，並讓每段直接回答一條問題。缺少標題並不代表內容無法被提取。',
     },
   },
 }

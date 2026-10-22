@@ -11,6 +11,7 @@ vi.mock('@/lib/db', () => ({ db: () => async (strings: TemplateStringsArray, ...
   state.calls.push({ text, values })
   if (state.failed && text.includes(state.failed)) throw new Error('Database incident')
   if (text.includes('from clients') && !text.includes('join')) return state.missing || !values.includes('account-a') || !values.includes('client-a') ? [] : [{ id: 'client-a', brand_name: 'Acme', domain: 'example.com', industry: 'technology', status: 'active' }]
+  if (text.includes('select r.id as run_id')) return []
   if (text.includes('from prompt_bank')) return [{language:'en',market:'HK'}]
   if (text.includes('agent_')) return state.agents
   if (text.includes('with recent_weeks')) {
@@ -34,6 +35,18 @@ const pulseRow = (week: string, total: unknown = 2, successful: unknown = 2) => 
 beforeEach(() => { monitoringMock.mockReset().mockRejectedValue(new Error('Synthetic monitoring unknown')); state.calls = []; state.missing = false; state.failed = ''; state.selectedMissing = false; state.dateRows = false; state.scanResults = {}; state.pulse = [] })
 
 describe('owned workspace loader', () => {
+  it('normalizes Neon numeric strings and preserves unknown nullable agent values',async()=>{
+    const original=state.agents
+    state.agents=[{...original[0],...{impact_score:'4.50',current_value:'12.50',previous_value:null,delta:'1.25',mention_rate:'20.50',your_rate:'12.50'}}]
+    try{
+      const workspace=(await load())!
+      expect(workspace.recommendations.data[0].impact_score).toBe(4.5)
+      expect(workspace.progress.data[0]).toMatchObject({current_value:12.5,previous_value:null,delta:1.25})
+      expect(workspace.competitors.data[0]).toMatchObject({mention_rate:20.5,your_rate:12.5})
+      Object.assign(state.agents[0],{previous_value:' ',delta:'not-a-number'})
+      expect((await load())!.progress.data[0]).toMatchObject({previous_value:null,delta:null})
+    }finally{state.agents=original}
+  })
   it('partial_run_guides_to_failed_items instead of claiming 100 percent coverage',async()=>{
     const workspace={...(await load())!,maintenance:{status:'ok',data:{eligible:true,ledgerEnabled:true,runRead:'ok',sourceRead:'ok',draftRead:'ok',latestRun:{id:'11111111-1111-4111-8111-111111111111',week:'2026-09-28',expected:15,succeeded:13,failed:2,pending:0,blocked:0,classified:13,mentioned:4},lastCompleteAt:null,awaitingSource:null,latestDraftId:null}}}
     const home=buildWorkspaceHome(workspace as unknown as OwnedWorkspace) as ReturnType<typeof buildWorkspaceHome>&{dailyWork?:{state:string;coverage:{expected:number;succeeded:number};nextActions:{path:string}[]}}
@@ -53,8 +66,12 @@ describe('owned workspace loader', () => {
   })
   it('binds every dependent read to both tenant and client and never writes', async () => {
     await load()
+    const manifests = state.calls.filter(call => call.text.includes('select r.id as run_id'))
+    expect(manifests).toHaveLength(1)
+    expect(manifests[0].values).toEqual(['account-a', ['client-a']])
     for (const call of state.calls) {
-      expect(call.values).toContain('client-a'); expect(call.values).toContain('account-a')
+      if (call !== manifests[0]) expect(call.values).toContain('client-a')
+      expect(call.values).toContain('account-a')
       expect(call.text).toContain('account_id')
       expect(call.text).not.toMatch(/\b(insert|update|delete)\b/i)
     }

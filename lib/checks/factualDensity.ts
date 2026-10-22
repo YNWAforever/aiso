@@ -1,6 +1,7 @@
 import { UNTRUSTED_SYSTEM_RULE, fenceUntrusted } from '@/lib/agents/untrusted'
 import type { CheckResult, IndustryCode, RegionCode, FactualDensityResult } from '@/lib/types'
 import { callOpenRouter, type JsonSchemaFormat } from '@/lib/openrouter'
+import { formatDensityDetails } from '@/lib/score-display'
 import { visibleText } from '@/lib/checks/visibleText'
 
 interface Context { industry: IndustryCode; region: RegionCode }
@@ -94,5 +95,5 @@ ${fenceUntrusted('PAGE CONTENT', text.slice(0, 800))}` },
     status: 'fail', message: 'factual_density_unavailable', details: 'Provider assessment unavailable', geoDetails,
   }
   const status = qualityScore >= 40 ? 'pass' : qualityScore >= 20 ? 'warn' : 'fail'
-  return { diagnostic: { collection: 'complete' }, status, message: `factual_density_${status}`, details: `Quality score ${qualityScore}/100`, geoDetails }
+  return { diagnostic: { collection: 'complete' }, status, message: `factual_density_${status}`, details: formatDensityDetails(`Quality score ${qualityScore}/100`), geoDetails }
 }

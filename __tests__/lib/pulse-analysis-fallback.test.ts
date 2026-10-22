@@ -15,6 +15,30 @@ describe('uncertain Pulse classification',()=>{
     expect(coerceAnalysis({brand_mentioned:false,sentiment:'not_mentioned',competitors_mentioned:[]},'An apple is a fruit.','Apple'))
       .toMatchObject({classificationStatus:'classified',brandMentioned:false,sentiment:'unknown',matchedText:[]})
   })
+  it('classifies a literally identified brand when its sentiment is unknown',()=>{
+    expect(coerceAnalysis({brand_mentioned:true,sentiment:'unknown',competitors_mentioned:[]},'Fimmick is listed here.','Fimmick'))
+      .toMatchObject({classificationStatus:'classified',brandMentioned:true,sentiment:'unknown',matchedText:['Fimmick'],mentionPosition:0})
+  })
+  it('preserves valid identity uncertainty as an abstention with literal evidence',()=>{
+    expect(coerceAnalysis({brand_mentioned:null,sentiment:'unknown',competitors_mentioned:['Citi']},'Apple and Citi are mentioned.','Apple'))
+      .toMatchObject({classificationStatus:'fallback',brandMentioned:null,sentiment:'unknown',matchedText:['Apple'],
+        competitorsMentioned:['Citi'],diagnosticReason:'brand_identity_uncertain'})
+  })
+  it.each([
+    undefined,
+    null,
+    {},
+    {sentiment:'unknown',competitors_mentioned:[]},
+    {brand_mentioned:'false',sentiment:'unknown',competitors_mentioned:[]},
+    {brand_mentioned:null,sentiment:'positive',competitors_mentioned:[]},
+    {brand_mentioned:true,sentiment:'not_mentioned',competitors_mentioned:[]},
+    {brand_mentioned:false,sentiment:'unknown',competitors_mentioned:[123]},
+  ])('rejects malformed or contradictory classifier decisions: %j',value=>{
+    expect(coerceAnalysis(value,'Apple is listed.','Apple')).toBeNull()
+  })
+  it('keeps the literal guard when affirmative sentiment is unknown',()=>{
+    expect(coerceAnalysis({brand_mentioned:true,sentiment:'unknown',competitors_mentioned:[]},'Fresh pineapple juice.','Apple')).toBeNull()
+  })
   it('does not infer aliases or hallucinated competitors',()=>{
     expect(coerceAnalysis({brand_mentioned:true,sentiment:'positive',competitors_mentioned:['Invisible']},'Fimmick works.','Fimmick',['Invisible']))
       .toMatchObject({competitorsMentioned:[]})

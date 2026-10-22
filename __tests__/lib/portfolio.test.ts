@@ -5,6 +5,7 @@ vi.mock('server-only', () => ({}))
 vi.mock('@/lib/db', () => ({ db: () => async (strings: TemplateStringsArray, ...values: unknown[]) => {
   const text = strings.join('?'); state.calls.push({ text, values })
   if (state.failure && text.includes(state.failure)) throw new Error('Offline')
+  if (text.includes('select r.id as run_id')) return []
   if (text.includes('with owned_clients')) return state.pulse
   if (text.includes('count(*)')) return [{ n: state.count }]
   if (text.includes('from clients')) return values[0] === 'account-a' ? state.clients : []
@@ -20,7 +21,7 @@ beforeEach(() => { state.calls = []; state.failure = ''; state.count = 3; state.
 describe('owned portfolio read model', () => {
   it('binds authenticated tenant to each read and never mutates', async () => {
     await load()
-    expect(state.calls).toHaveLength(4)
+    expect(state.calls).toHaveLength(5)
     for (const call of state.calls) {
       expect(call.values).toContain('account-a')
       expect(call.text).toContain('account_id')
@@ -72,10 +73,13 @@ describe('owned portfolio read model', () => {
   it('batches Pulse across clients without query growth or agent reads', async () => {
     state.clients = Array.from({ length: 30 }, (_, i) => ({ ...state.clients[0], id: `active-${i}` }))
     await load()
-    expect(state.calls).toHaveLength(4)
+    expect(state.calls).toHaveLength(5)
     expect(state.calls.some(call => call.text.includes('agent_'))).toBe(false)
     const pulse = state.calls.find(call => call.text.includes('with owned_clients'))!
     expect(pulse.values).toContainEqual(state.clients.map(client => client.id))
+    const manifests = state.calls.filter(call => call.text.includes('select r.id as run_id'))
+    expect(manifests).toHaveLength(1)
+    expect(manifests[0].values).toEqual(['account-a', state.clients.map(client => client.id)])
     expect(pulse.text).toContain('max(scan_week)')
     expect(pulse.text).toContain('union')
   })

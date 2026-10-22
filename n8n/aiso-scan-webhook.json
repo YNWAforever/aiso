@@ -98,7 +98,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'openai/gpt-4o-mini', max_tokens: 400, messages: [{ role: 'system', content: 'You are an AEO (Answer Engine Optimisation) expert. Given a scan score, grade, and check results, produce exactly 3 concise bullet points (each starting with •) summarising the top improvements the website owner should make to be better cited by AI search engines. Be specific and actionable. Return only the 3 bullets, no preamble.' }, { role: 'user', content: 'Domain: ' + $('Webhook Trigger').first().json.body.domain + '\\nScore: ' + $('Webhook Trigger').first().json.body.score + '/100\\nGrade: ' + $('Webhook Trigger').first().json.body.grade + '\\nFailed checks: ' + JSON.stringify(($('Webhook Trigger').first().json.body.results || []).filter(r => r.status === \"fail\").map(r => r.message).slice(0, 10)) }] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'openai/gpt-4o-mini', max_tokens: 400, messages: [{ role: 'system', content: 'You are an AEO (Answer Engine Optimisation) expert. Given a scan score, grade, and check results, produce exactly 3 concise bullet points (each starting with •) summarising the top improvements the website owner should make to be better cited by AI search engines. Be specific and actionable. Return only the 3 bullets, no preamble.' }, { role: 'user', content: 'Domain: ' + $('Webhook Trigger').first().json.body.domain + '\\nScore: ' + $('Webhook Trigger').first().json.body.score + '/100\\nGrade: ' + $('Webhook Trigger').first().json.body.grade + '\\nFailed checks: ' + JSON.stringify(Object.values($('Webhook Trigger').first().json.body.results || {}).filter(r => r && typeof r === 'object' && r.status === \"fail\").map(r => r.message).slice(0, 10)) }] }) }}",
         "options": {}
       },
       "name": "Generate AI Summary (GPT-4o-mini)",
@@ -129,10 +129,10 @@
       "id": "node-update-scan",
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE scans SET agent_status = 'complete', ai_summary = '{{ $json.ai_summary.replace(/'/g, \"''\") }}', updated_at = NOW() WHERE id = '{{ $('Webhook Trigger').first().json.body.scanId }}'",
+        "query": "UPDATE scans SET ai_summary = '{{ $json.ai_summary.replace(/'/g, \"''\") }}', updated_at = NOW() WHERE id = '{{ $('Webhook Trigger').first().json.body.scanId }}'",
         "options": {}
       },
-      "name": "Update Scan (agent_status = complete)",
+      "name": "Update Scan (AI Summary)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [1400, 0],
@@ -187,7 +187,7 @@
     "Extract Summary Text": {
       "main": [
         [
-          { "node": "Update Scan (agent_status = complete)", "type": "main", "index": 0 }
+          { "node": "Update Scan (AI Summary)", "type": "main", "index": 0 }
         ]
       ]
     }

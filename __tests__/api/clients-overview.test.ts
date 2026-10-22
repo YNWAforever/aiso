@@ -7,6 +7,8 @@ let nextResults: unknown[][] = []
 const mockSql = vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => {
   bindings.push(values)
   queries.push(strings.join('?'))
+  // Saved manifest coverage is a separate account-scoped read, not an agent result.
+  if (strings.join('?').includes('select r.id as run_id')) return Promise.resolve([])
   const result = nextResults.shift()
   if (result instanceof Error) throw result
   return Promise.resolve(result ?? [])

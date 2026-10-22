@@ -21,6 +21,7 @@ export interface JsonSchemaFormat {
  * list, so a new call site can neither forget it nor misspell it.
  */
 export type CallLabel =
+  | 'improve.recommendations'
   | 'check.factual_density'
   | 'check.topical_authority'
   | 'fix.pack'
