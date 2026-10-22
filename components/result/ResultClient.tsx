@@ -12,11 +12,13 @@ import { ClaimScanOnReturn } from './ClaimScanOnReturn'
 import { ScanEvidencePanel } from './ScanEvidencePanel'
 import { ResultActions } from './ResultActions'
 import { FixList } from './FixList'
-import { FixDrawer } from './FixDrawer'
+import dynamic from 'next/dynamic'
 import { CheckList } from './CheckList'
-import { PotentialScoreBar } from '@/components/visuals/PotentialScoreBar'
-import { PillarGauge } from '@/components/visuals/PillarGauge'
-import { CheckHeatmap, type HeatmapCheck } from '@/components/visuals/CheckHeatmap'
+import { RevealPotentialBar } from '@/components/visuals/reveal/RevealPotentialBar'
+import { RevealPillarGauge } from '@/components/visuals/reveal/RevealPillarGauge'
+import { RevealHeatmap } from '@/components/visuals/reveal/RevealHeatmap'
+import { RevealObserver } from '@/components/visuals/reveal/RevealObserver'
+import type { HeatmapCheck } from '@/components/visuals/CheckHeatmap'
 import type { OwnedResultEvidence } from '@/lib/result-evidence'
 import type { PlatformStatus } from '@/lib/impact'
 import { ExpandableCheckItem } from '@/components/ExpandableCheckItem'
@@ -26,6 +28,9 @@ import type { PublicResultSummary } from '@/lib/result-access'
 import { consumeOneTimeFunnelEvent, trackFunnelEvent } from '@/lib/funnel-client'
 import { factualDensityState, type FactualDensityView } from '@/lib/factual-density-evidence'
 import { CHECK_SLOTS, bucketPoints, potentialScore, rankFixes, visualStatus } from '@/lib/result/view-model'
+
+// The drawer (and its dialog primitive) loads the first time a check is opened.
+const FixDrawer = dynamic(() => import('@/components/result/FixDrawer').then(module => module.FixDrawer), { ssr: false })
 
 /* ── Helpers ────────────────────────────────────────────────── */
 function getResult(results: Record<string, unknown>, key: string): CheckResult | undefined {
@@ -70,6 +75,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
   const resultViewTracked = useRef(false)
   const signupCtaTracked = useRef(false)
   const [openKey, setOpenKey] = useState<string | null>(null)
+  const [drawerLoaded, setDrawerLoaded] = useState(false)
   // Where focus goes back to when the drawer closes, unless the reader went to sign up.
   const opener = useRef<HTMLElement | null>(null)
   const returnFocus = useRef(true)
@@ -77,6 +83,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
   function openCheck(key: string) {
     opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     returnFocus.current = true
+    setDrawerLoaded(true)
     setOpenKey(key)
   }
   const owner = Boolean(fullScan)
@@ -188,8 +195,8 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
         <section data-testid="result-score" className="flex flex-col gap-4">
           <ScoreReveal score={score} grade={grade} domain={summary.domain} industry={summary.industry} region={summary.region} previous={owner ? previous : null} />
           {topFixes.length > 0 && (
-            <section aria-label={t('estimate_heading')} className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-              <PotentialScoreBar current={score} potential={potential} />
+            <section data-reveal aria-label={t('estimate_heading')} className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+              <RevealPotentialBar current={score} potential={potential} />
               <p className="mt-3 text-xs text-muted-foreground">{t('estimate_heading')}</p>
             </section>
           )}
@@ -209,10 +216,10 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
         {/* 3. Three areas */}
         <section aria-labelledby="pillars-title" className="flex flex-col gap-3">
           <h2 id="pillars-title" className="text-lg font-bold text-foreground">{t('pillars_title')}</h2>
-          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-border bg-card p-3 sm:gap-3 sm:p-4">
-            <PillarGauge fluid pillar="core" earned={points.core.earned} max={points.core.max} />
-            <PillarGauge fluid pillar="extended" earned={points.extended.earned} max={points.extended.max} />
-            <PillarGauge fluid pillar="geo" earned={points.geo.earned} max={points.geo.max} />
+          <div data-reveal className="grid grid-cols-3 gap-2 rounded-2xl border border-border bg-card p-3 sm:gap-3 sm:p-4">
+            <RevealPillarGauge pillar="core" earned={points.core.earned} max={points.core.max} />
+            <RevealPillarGauge pillar="extended" earned={points.extended.earned} max={points.extended.max} />
+            <RevealPillarGauge pillar="geo" earned={points.geo.earned} max={points.geo.max} />
           </div>
         </section>
 
@@ -222,8 +229,8 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
             <h2 id="checks-title" className="text-lg font-bold text-foreground">{t('checks_title')}</h2>
             <p className="text-sm text-muted-foreground">{t('checks_subtitle')}</p>
           </div>
-          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-            <CheckHeatmap checks={heatmapChecks} onSelect={openCheck} selectedKey={openKey} />
+          <div data-reveal className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+            <RevealHeatmap checks={heatmapChecks} onSelect={openCheck} selectedKey={openKey} />
           </div>
         </section>
 
@@ -271,7 +278,8 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
         </div>
       </main>
 
-      <FixDrawer
+      <RevealObserver />
+      {drawerLoaded && <FixDrawer
         lang={lang}
         checkKey={openKey}
         assessment={openKey ? assessments[openKey] : undefined}
@@ -279,7 +287,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
         onClose={() => setOpenKey(null)}
         onClosed={onDrawerClosed}
         onSignup={goToSave}
-      />
+      />}
     </div>
   )
 }

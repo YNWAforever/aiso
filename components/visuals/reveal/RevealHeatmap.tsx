@@ -7,8 +7,17 @@ import { revealDelay } from '@/components/visuals/reveal/reveal'
 
 const ICONS = { pass: Check, warn: Minus, fail: X, unknown: HelpCircle } as const
 
-/** Read-only CheckHeatmap without hydration: tiles pop in with a CSS stagger when revealed. */
-export function RevealHeatmap({ checks, className }: { checks: readonly HeatmapCheck[]; className?: string }) {
+/**
+ * CheckHeatmap without motion: tiles pop in with a CSS stagger when revealed.
+ * Read-only on server-rendered pages; with `onSelect` (from a client parent)
+ * each tile is a button that opens the check's detail.
+ */
+export function RevealHeatmap({ checks, onSelect, selectedKey, className }: {
+  checks: readonly HeatmapCheck[]
+  onSelect?: (key: string) => void
+  selectedKey?: string | null
+  className?: string
+}) {
   const t = useTranslations('visuals')
   const counts = { pass: 0, warn: 0, fail: 0, unknown: 0 }
   for (const check of checks) counts[check.status] += 1
@@ -30,10 +39,27 @@ export function RevealHeatmap({ checks, className }: { checks: readonly HeatmapC
                 const name = t('heatmap.tile', { label: check.label, status: t(`status.${check.status}`) })
                 return (
                   <li key={check.key} className="reveal-pop" style={revealDelay(index++)}>
-                    <span className={cn('flex size-10 items-center justify-center rounded-md border', tone.soft, tone.fg, tone.border)} title={name}>
-                      <Icon aria-hidden="true" className="size-4" />
-                      <span className="sr-only">{name}</span>
-                    </span>
+                    {onSelect ? (
+                      <button
+                        type="button"
+                        title={name}
+                        aria-label={name}
+                        aria-pressed={selectedKey === check.key}
+                        onClick={() => onSelect(check.key)}
+                        className={cn(
+                          'flex size-10 items-center justify-center rounded-md border transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+                          tone.soft, tone.fg, tone.border,
+                          selectedKey === check.key && 'ring-2 ring-ring ring-offset-2 ring-offset-background',
+                        )}
+                      >
+                        <Icon aria-hidden="true" className="size-4" />
+                      </button>
+                    ) : (
+                      <span className={cn('flex size-10 items-center justify-center rounded-md border', tone.soft, tone.fg, tone.border)} title={name}>
+                        <Icon aria-hidden="true" className="size-4" />
+                        <span className="sr-only">{name}</span>
+                      </span>
+                    )}
                   </li>
                 )
               })}

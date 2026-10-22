@@ -3,7 +3,7 @@ import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { formatScanScore } from '@/lib/score-display'
 import { GRADES, TONE_CLASSES, gradeKey, gradeTone } from '@/components/visuals/tone'
-import { ScoreRing } from '@/components/visuals/ScoreRing'
+import { RevealScoreRing } from '@/components/visuals/reveal/RevealScoreRing'
 
 interface Props {
   score: number
@@ -46,11 +46,11 @@ export function ScoreReveal({ score, grade, domain, industry, region, previous }
   const newGrade = improved && previous && previous.grade !== grade
 
   return (
-    <div data-testid="score-reveal" data-improved={improved || undefined} className="rounded-3xl border border-border bg-card p-6 shadow-e1 sm:p-8">
+    <div data-testid="score-reveal" data-reveal data-improved={improved || undefined} className="rounded-3xl border border-border bg-card p-6 shadow-e1 sm:p-8">
       <div className="flex flex-col items-center gap-6 sm:flex-row sm:gap-8">
         <div className="relative shrink-0">
           {improved && <span aria-hidden="true" className="result-glow pointer-events-none absolute inset-0 rounded-full bg-tone-success/30 blur-2xl" />}
-          <ScoreRing score={score} grade={grade} previous={previous?.score ?? null} size="lg" className="relative" />
+          <RevealScoreRing score={score} grade={grade} previous={previous?.score ?? null} size="lg" className="relative" />
         </div>
 
         <div className="min-w-0 flex-1 text-center sm:text-left">
