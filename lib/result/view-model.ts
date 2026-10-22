@@ -29,6 +29,20 @@ export interface FixItem {
 }
 
 const EFFORT_RANK: Record<Effort, number> = { minutes: 0, hours: 1, days: 2 }
+const GEO_TOTAL = Object.values(GEO_PTS).reduce((sum, pts) => sum + pts, 0)
+const round2 = (value: number) => Math.round(value * 100) / 100
+
+/**
+ * The scanner's GEO rule (lib/scoring.ts calculateGeoScore): a GEO check that
+ * could not be assessed drops out and the rest are rescaled to 25 points, so a
+ * GEO point is worth 25 / (weight of the assessed GEO checks). Without a
+ * confirmed verdict a check counts as not assessed here.
+ */
+export function geoScale(assessments: Readonly<Record<string, CheckAssessment>>): number {
+  const possible = CHECK_SLOTS.filter(slot => slot.bucket === 'geo' && ['pass', 'warn', 'fail'].includes(String(assessments[slot.key])))
+    .reduce((sum, slot) => sum + slot.weight, 0)
+  return possible > 0 ? GEO_TOTAL / possible : 1
+}
 
 /** Points a passing check would add: the full weight for a fail, half for a warning (lib/scoring.ts scorePts). */
 export function pointsToGain(weight: number, assessment: 'warn' | 'fail'): number {
@@ -41,10 +55,12 @@ export function pointsToGain(weight: number, assessment: 'warn' | 'fail'): numbe
  * needs a confirmed problem.
  */
 export function rankFixes(assessments: Readonly<Record<string, CheckAssessment>>): FixItem[] {
+  const scale = geoScale(assessments)
   return CHECK_SLOTS.flatMap((slot, index) => {
     const assessment = assessments[slot.key]
     if (assessment !== 'warn' && assessment !== 'fail') return []
-    return [{ item: { key: slot.key, bucket: slot.bucket, assessment, points: pointsToGain(slot.weight, assessment), effort: EFFORT_MAP[slot.key] ?? 'hours' }, index }]
+    const points = round2(pointsToGain(slot.weight, assessment) * (slot.bucket === 'geo' ? scale : 1))
+    return [{ item: { key: slot.key, bucket: slot.bucket, assessment, points, effort: EFFORT_MAP[slot.key] ?? 'hours' }, index }]
   })
     .sort((a, b) => b.item.points - a.item.points || EFFORT_RANK[a.item.effort] - EFFORT_RANK[b.item.effort] || a.index - b.index)
     .map(entry => entry.item)
@@ -57,7 +73,11 @@ export function potentialScore(score: number, fixes: readonly FixItem[]): number
 
 export interface BucketPoints { earned: number; max: number }
 
-/** Points earned per bucket from confirmed verdicts. Unverified checks earn nothing until they are confirmed. */
+/**
+ * Points earned per bucket from confirmed verdicts. Unverified Core and
+ * Extended checks earn nothing until confirmed; GEO is rescaled over its
+ * assessed checks, as the scanner scores it.
+ */
 export function bucketPoints(assessments: Readonly<Record<string, CheckAssessment>>): Record<Bucket, BucketPoints> {
   const result: Record<Bucket, BucketPoints> = { core: { earned: 0, max: 0 }, extended: { earned: 0, max: 0 }, geo: { earned: 0, max: 0 } }
   for (const slot of CHECK_SLOTS) {
@@ -65,6 +85,7 @@ export function bucketPoints(assessments: Readonly<Record<string, CheckAssessmen
     result[slot.bucket].max += slot.weight
     result[slot.bucket].earned += assessment === 'pass' ? slot.weight : assessment === 'warn' ? slot.weight / 2 : 0
   }
+  result.geo.earned = Math.min(GEO_TOTAL, round2(result.geo.earned * geoScale(assessments)))
   return result
 }
 

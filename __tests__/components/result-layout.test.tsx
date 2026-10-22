@@ -44,8 +44,10 @@ describe('result page layout', () => {
   it('lists the top three fixes worth the most points first', () => {
     const html = render(false)
     const fixes = html.slice(html.indexOf('data-testid="result-top-issue"'), html.indexOf('pillars-title'))
-    // c1 (fail) and c2 (fail) and c19 (fail) carry the most points; the c4 warning is fourth.
-    const points = [CORE_PTS.c1_robots, CORE_PTS.c2_llms_txt, GEO_PTS.c19_topical_authority].sort((a, b) => b - a)
+    // c1, c2 and c19 fail; the c4 warning is fourth. GEO is rescaled over its assessed
+    // checks as the scanner scores it: only c19 and c20 have verdicts here.
+    const c19 = Math.round(GEO_PTS.c19_topical_authority * 25 / (GEO_PTS.c19_topical_authority + GEO_PTS.c20_chunkability) * 100) / 100
+    const points = [CORE_PTS.c1_robots, CORE_PTS.c2_llms_txt, c19].sort((a, b) => b - a)
     expect(fixes.match(/\+\d+(\.\d+)? pts/g)).toEqual(points.map(p => `+${p} pts`))
   })
 

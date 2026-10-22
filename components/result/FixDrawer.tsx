@@ -23,6 +23,8 @@ interface Props {
   /** The viewer owns the scan, so the Fix Pack is one click away. */
   owner: boolean
   onClose: () => void
+  /** The GEO rescale factor (lib/result/view-model geoScale), so GEO points match the score. */
+  geoScale: number
   /**
    * Called once the drawer has closed. The drawer opens from many places
    * (fix rows, tiles, list rows), not one trigger, so the page hands focus back.
@@ -37,7 +39,7 @@ interface Props {
  * starter snippet to copy, and what passing would add. Generic guidance only;
  * the scan's own messages and evidence stay in the owner's check list.
  */
-export function FixDrawer({ lang, checkKey, assessment, owner, onClose, onClosed, onSignup }: Props) {
+export function FixDrawer({ lang, checkKey, assessment, owner, onClose, onClosed, onSignup, geoScale }: Props) {
   const t = useTranslations('resultPage')
   const visuals = useTranslations('visuals')
   const checkNames = useTranslations('checks')
@@ -97,7 +99,7 @@ export function FixDrawer({ lang, checkKey, assessment, owner, onClose, onClosed
               </dl>
             )}
 
-            {actionable && <BeforeAfter weight={slot.weight} assessment={status} />}
+            {actionable && <BeforeAfter weight={slot.bucket === 'geo' ? Math.round(slot.weight * geoScale * 100) / 100 : slot.weight} assessment={status} />}
 
             {snippet && <Snippet language={snippet.language} code={snippet.code} />}
 
@@ -130,15 +132,15 @@ export function FixDrawer({ lang, checkKey, assessment, owner, onClose, onClosed
 function BeforeAfter({ weight, assessment }: { weight: number; assessment: 'warn' | 'fail' }) {
   const t = useTranslations('resultPage')
   const visuals = useTranslations('visuals')
-  const earned = assessment === 'warn' ? weight / 2 : 0
+  const earned = assessment === 'warn' ? Math.round(weight * 50) / 100 : 0
   const gain = pointsToGain(weight, assessment)
   return (
     <figure className="rounded-xl border border-border p-3">
       <figcaption className="mb-2 text-xs font-semibold text-muted-foreground">{t('drawer.before_after')}</figcaption>
       <div className="flex items-center gap-2">
-        <StatusTile label={t('drawer.before')} status={assessment} points={t('drawer.points', { earned: formatScanScore(earned), max: weight })} statusLabel={visuals(`status.${assessment}`)} />
+        <StatusTile label={t('drawer.before')} status={assessment} points={t('drawer.points', { earned: formatScanScore(earned), max: formatScanScore(weight) })} statusLabel={visuals(`status.${assessment}`)} />
         <ArrowRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-        <StatusTile label={t('drawer.after')} status="pass" points={t('drawer.points', { earned: weight, max: weight })} statusLabel={visuals('status.pass')} />
+        <StatusTile label={t('drawer.after')} status="pass" points={t('drawer.points', { earned: formatScanScore(weight), max: formatScanScore(weight) })} statusLabel={visuals('status.pass')} />
         <span className="ml-auto shrink-0 rounded-full bg-tone-success-soft px-2 py-0.5 text-xs font-bold tabular-nums text-tone-success-fg">{t('fix_points', { points: formatScanScore(gain) })}</span>
       </div>
     </figure>

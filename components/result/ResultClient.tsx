@@ -27,7 +27,7 @@ import type { Scan, CheckResult, ScanResults } from '@/lib/types'
 import type { PublicResultSummary } from '@/lib/result-access'
 import { consumeOneTimeFunnelEvent, trackFunnelEvent } from '@/lib/funnel-client'
 import { factualDensityState, type FactualDensityView } from '@/lib/factual-density-evidence'
-import { CHECK_SLOTS, bucketPoints, potentialScore, rankFixes, visualStatus } from '@/lib/result/view-model'
+import { CHECK_SLOTS, bucketPoints, geoScale, potentialScore, rankFixes, visualStatus } from '@/lib/result/view-model'
 
 // The drawer (and its dialog primitive) loads the first time a check is opened.
 const FixDrawer = dynamic(() => import('@/components/result/FixDrawer').then(module => module.FixDrawer), { ssr: false })
@@ -287,6 +287,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
         onClose={() => setOpenKey(null)}
         onClosed={onDrawerClosed}
         onSignup={goToSave}
+        geoScale={geoScale(assessments)}
       />}
     </div>
   )

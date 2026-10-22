@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { CORE_PTS, EXT_PTS, GEO_PTS } from '@/lib/scoring'
-import { CHECK_SLOTS, bucketPoints, matchesFilter, potentialScore, rankFixes, visualStatus } from '@/lib/result/view-model'
+import { CHECK_SLOTS, bucketPoints, geoScale, matchesFilter, potentialScore, rankFixes, visualStatus } from '@/lib/result/view-model'
+import { calculateGeoScore } from '@/lib/scoring'
 import type { CheckAssessment } from '@/lib/view-models/check-priority'
 
 describe('result view model', () => {
@@ -43,5 +44,23 @@ describe('result view model', () => {
     expect(matchesFilter('not-applicable', 'unknown')).toBe(true)
     expect(matchesFilter('fail', 'all')).toBe(true)
     expect(matchesFilter('fail', 'pass')).toBe(false)
+  })
+
+  it('rescales GEO fixes and points over the assessed GEO checks, as the scanner scores them', () => {
+    // c18 could not be assessed: the scanner drops it and rescales the other three to 25.
+    const assessments: Record<string, CheckAssessment> = { c17_citation_density: 'fail', c18_factual_density: 'unknown', c19_topical_authority: 'pass', c20_chunkability: 'pass' }
+    const before = calculateGeoScore({
+      c17_citation_density: { status: 'fail', message: '' }, c18_factual_density: { status: 'fail', message: 'factual_density_unavailable' },
+      c19_topical_authority: { status: 'pass', message: '' }, c20_chunkability: { status: 'pass', message: '' },
+    })
+    const after = calculateGeoScore({
+      c17_citation_density: { status: 'pass', message: '' }, c18_factual_density: { status: 'fail', message: 'factual_density_unavailable' },
+      c19_topical_authority: { status: 'pass', message: '' }, c20_chunkability: { status: 'pass', message: '' },
+    })
+    const c17 = rankFixes(assessments).find(fix => fix.key === 'c17_citation_density')!
+    expect(c17.points).toBeCloseTo(after - before, 1)
+    expect(c17.points).toBe(9.21)
+    expect(bucketPoints(assessments).geo.earned).toBeCloseTo(before, 1)
+    expect(geoScale({})).toBe(1)
   })
 })
