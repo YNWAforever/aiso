@@ -70,6 +70,15 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
   const resultViewTracked = useRef(false)
   const signupCtaTracked = useRef(false)
   const [openKey, setOpenKey] = useState<string | null>(null)
+  // Where focus goes back to when the drawer closes, unless the reader went to sign up.
+  const opener = useRef<HTMLElement | null>(null)
+  const returnFocus = useRef(true)
+  const pendingSave = useRef(false)
+  function openCheck(key: string) {
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    returnFocus.current = true
+    setOpenKey(key)
+  }
   const owner = Boolean(fullScan)
 
   useEffect(() => {
@@ -111,14 +120,24 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
     ? { [summary.topIssueKey]: { status: summary.topIssueStatus, assessment: summary.topIssueStatus, collection: 'complete', applicability: 'applicable', message: 'public_summary' } }
     : {}
 
+  function focusSave() {
+    const card = document.getElementById('save')
+    card?.scrollIntoView({ block: 'start' })
+    const target = document.getElementById('account-unlock-email') ?? card
+    target?.focus({ preventScroll: true })
+  }
+
+  // From the drawer, wait until it has closed and released focus; from the bar, go now.
   function goToSave() {
+    if (openKey === null) { focusSave(); return }
+    returnFocus.current = false
+    pendingSave.current = true
     setOpenKey(null)
-    requestAnimationFrame(() => {
-      const card = document.getElementById('save')
-      card?.scrollIntoView({ block: 'start' })
-      const target = document.getElementById('account-unlock-email') ?? card
-      target?.focus({ preventScroll: true })
-    })
+  }
+
+  function onDrawerClosed() {
+    if (pendingSave.current) { pendingSave.current = false; focusSave() }
+    else if (returnFocus.current) opener.current?.focus()
   }
 
   // GEO rich data (owner only)
@@ -183,7 +202,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
             {topFixes.length > 0 && <p className="text-sm text-muted-foreground">{t('fixes_subtitle')}</p>}
           </div>
           {topFixes.length > 0
-            ? <FixList fixes={topFixes} onSelect={setOpenKey} />
+            ? <FixList fixes={topFixes} onSelect={openCheck} />
             : <TopIssueCard results={topIssueResults as ScanResults & Record<string, unknown>} failCount={0} priorityState={summary.priorityState} owner={owner} />}
         </section>
 
@@ -204,14 +223,14 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
             <p className="text-sm text-muted-foreground">{t('checks_subtitle')}</p>
           </div>
           <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-            <CheckHeatmap checks={heatmapChecks} onSelect={setOpenKey} selectedKey={openKey} />
+            <CheckHeatmap checks={heatmapChecks} onSelect={openCheck} selectedKey={openKey} />
           </div>
         </section>
 
         {/* 5. Filterable detail */}
         <section aria-labelledby="list-title" className="flex flex-col gap-3">
           <h2 id="list-title" className="text-lg font-bold text-foreground">{t('list_title')}</h2>
-          <CheckList assessments={assessments} onSelect={setOpenKey} renderOwnerRow={renderOwnerRow} />
+          <CheckList assessments={assessments} onSelect={openCheck} renderOwnerRow={renderOwnerRow} />
         </section>
 
         {fullScan && (
@@ -258,6 +277,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
         assessment={openKey ? assessments[openKey] : undefined}
         owner={owner}
         onClose={() => setOpenKey(null)}
+        onClosed={onDrawerClosed}
         onSignup={goToSave}
       />
     </div>

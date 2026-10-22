@@ -23,6 +23,11 @@ interface Props {
   /** The viewer owns the scan, so the Fix Pack is one click away. */
   owner: boolean
   onClose: () => void
+  /**
+   * Called once the drawer has closed. The drawer opens from many places
+   * (fix rows, tiles, list rows), not one trigger, so the page hands focus back.
+   */
+  onClosed: () => void
   /** Anonymous viewers are sent to the free-account card to generate a fix pack. */
   onSignup: () => void
 }
@@ -32,7 +37,7 @@ interface Props {
  * starter snippet to copy, and what passing would add. Generic guidance only;
  * the scan's own messages and evidence stay in the owner's check list.
  */
-export function FixDrawer({ lang, checkKey, assessment, owner, onClose, onSignup }: Props) {
+export function FixDrawer({ lang, checkKey, assessment, owner, onClose, onClosed, onSignup }: Props) {
   const t = useTranslations('resultPage')
   const visuals = useTranslations('visuals')
   const checkNames = useTranslations('checks')
@@ -47,7 +52,14 @@ export function FixDrawer({ lang, checkKey, assessment, owner, onClose, onSignup
 
   return (
     <Sheet open={checkKey !== null} onOpenChange={open => { if (!open) onClose() }}>
-      <SheetContent data-testid="fix-drawer" data-check={checkKey ?? undefined}>
+      <SheetContent
+        data-testid="fix-drawer"
+        data-check={checkKey ?? undefined}
+        onCloseAutoFocus={event => {
+          event.preventDefault()
+          onClosed()
+        }}
+      >
         {checkKey && slot && (
           <>
             <SheetHeader>
