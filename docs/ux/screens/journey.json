@@ -1,0 +1,61 @@
+{
+  "resultUrl": "https://aiso-kappa.vercel.app/en/result/6ab7f40c-59e2-4e18-b872-295f3fe2212b",
+  "log": [
+    [
+      "1.4",
+      "landing DOM ready"
+    ],
+    [
+      "1.5",
+      "typed url (click 1: focus field)"
+    ],
+    [
+      "1.6",
+      "clicked Run Free Scan (click 2)"
+    ],
+    [
+      "3.3",
+      "progress shot 0"
+    ],
+    [
+      "5.0",
+      "progress shot 1"
+    ],
+    [
+      "10.2",
+      "progress shot 2"
+    ],
+    [
+      "15.2",
+      "progress shot 3"
+    ],
+    [
+      "20.3",
+      "progress shot 4"
+    ],
+    [
+      "25.4",
+      "progress shot 5"
+    ],
+    [
+      "25.4",
+      "result URL reached"
+    ],
+    [
+      "25.4",
+      "result idle (first score visible)"
+    ]
+  ],
+  "words": 289,
+  "headings": [
+    "H1:aiso-kappa.vercel.app",
+    "H2:Review content dates and accuracy",
+    "H2:Save your full report"
+  ],
+  "ctas": [
+    "Continue with Google to save your full report",
+    "Use Email Magic Link instead",
+    "← Scan another URL"
+  ],
+  "axe": []
+}
