@@ -1,6 +1,6 @@
 'use client'
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { LazyMotion, MotionConfig, domAnimation, useReducedMotionConfig } from 'motion/react'
+import { LazyMotion, MotionConfig, useReducedMotionConfig } from 'motion/react'
 import { DURATION, EASE, countUpValue } from '@/lib/motion'
 
 type ReducedMotionSetting = 'user' | 'always' | 'never'
@@ -12,6 +12,14 @@ type ReducedMotionSetting = 'user' | 'always' | 'never'
  */
 const ReducedMotionOverride = createContext<ReducedMotionSetting | null>(null)
 
+/**
+ * The animation engine (domAnimation) is fetched after hydration rather than
+ * shipped with the page: only motion's small `m` core is in the first bundle.
+ * Until it lands, `m.*` elements render their initial styles, which is why
+ * every visual's initial state is also an acceptable still frame.
+ */
+const loadFeatures = () => import('@/components/visuals/motion-features').then(module => module.default)
+
 export function ReducedMotionPreview({ setting, children }: { setting: ReducedMotionSetting; children: ReactNode }) {
   return <ReducedMotionOverride.Provider value={setting}>{children}</ReducedMotionOverride.Provider>
 }
@@ -19,7 +27,7 @@ export function ReducedMotionPreview({ setting, children }: { setting: ReducedMo
 /**
  * The motion boundary every animated visual renders inside.
  *
- * LazyMotion + domAnimation keeps `motion` to its small feature bundle, and
+ * LazyMotion + domAnimation (loaded async, below) keeps `motion` small, and
  * `strict` makes a stray full `motion.*` component throw instead of silently
  * pulling the whole library back in. Nested roots are harmless, which is why
  * each visual brings its own rather than relying on an app-level provider.
@@ -30,7 +38,7 @@ export function ReducedMotionPreview({ setting, children }: { setting: ReducedMo
 export function MotionRoot({ children, reducedMotion }: { children: ReactNode; reducedMotion?: ReducedMotionSetting }) {
   const override = useContext(ReducedMotionOverride)
   return (
-    <LazyMotion features={domAnimation} strict>
+    <LazyMotion features={loadFeatures} strict>
       <MotionConfig reducedMotion={reducedMotion ?? override ?? 'user'} transition={{ duration: DURATION.ui, ease: EASE }}>
         {children}
       </MotionConfig>

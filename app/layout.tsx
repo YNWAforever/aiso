@@ -6,13 +6,14 @@ import './globals.css'
 
 // Inter for Latin text only. `optional` so it can never delay LCP: a first
 // visit on a slow connection paints with the size-adjusted fallback and later
-// visits use the cached font.
+// visits use the cached font. Not preloaded: on zh-HK pages the 48 KB preload
+// competed with first paint for text that is mostly CJK anyway.
 //
 // Traditional Chinese deliberately uses system fonts (see --font-sans). A CJK
 // webfont was tried: Noto Sans TC cost 18 files / 1.1 MB on the zh-HK home
 // page and pushed mobile LCP from 2.6 s to 9.9 s (Lighthouse 94 -> 57), while
 // every platform already ships a good TC face.
-const inter = Inter({ subsets: ['latin'], display: 'optional', variable: '--font-inter' })
+const inter = Inter({ subsets: ['latin'], display: 'optional', variable: '--font-inter', preload: false })
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations({ locale: await getLocale(), namespace: 'seo.root' })

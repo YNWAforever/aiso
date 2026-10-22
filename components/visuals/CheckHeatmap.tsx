@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils'
 import { DURATION, staggerDelay, transition, variants } from '@/lib/motion'
 import { MotionRoot, useReducedMotion } from '@/components/visuals/MotionRoot'
 import { PILLARS, TONE_CLASSES, statusTone, type CheckStatus, type Pillar } from '@/components/visuals/tone'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 export interface HeatmapCheck {
   key: string
@@ -34,7 +33,7 @@ const ICONS = { pass: Check, warn: Minus, fail: X, unknown: HelpCircle } as cons
  * colour). With `onSelect`, tiles are buttons that open the check's detail.
  */
 export function CheckHeatmap(props: CheckHeatmapProps) {
-  return <MotionRoot><TooltipProvider delayDuration={200}><CheckHeatmapInner {...props} /></TooltipProvider></MotionRoot>
+  return <MotionRoot><CheckHeatmapInner {...props} /></MotionRoot>
 }
 
 function CheckHeatmapInner({ checks, onSelect, selectedKey, animate = true, className }: CheckHeatmapProps) {
@@ -76,21 +75,20 @@ function CheckHeatmapInner({ checks, onSelect, selectedKey, animate = true, clas
                     animate={shown ? 'visible' : 'hidden'}
                     transition={transition(DURATION.enter, delay)}
                   >
+                    {/* A native title, not a Radix tooltip: the heatmap sits on the landing page,
+                        and the tooltip's positioning engine cost more JS than the hint is worth.
+                        The full name is in aria-label / sr-only text either way. */}
                     {onSelect ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            aria-label={name}
-                            aria-pressed={selectedKey === check.key}
-                            onClick={() => onSelect(check.key)}
-                            className={cn(tileClass, 'hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')}
-                          >
-                            <Icon aria-hidden="true" className="size-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>{name}</TooltipContent>
-                      </Tooltip>
+                      <button
+                        type="button"
+                        title={name}
+                        aria-label={name}
+                        aria-pressed={selectedKey === check.key}
+                        onClick={() => onSelect(check.key)}
+                        className={cn(tileClass, 'hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')}
+                      >
+                        <Icon aria-hidden="true" className="size-4" />
+                      </button>
                     ) : (
                       <span className={tileClass} title={name}>
                         <Icon aria-hidden="true" className="size-4" />
