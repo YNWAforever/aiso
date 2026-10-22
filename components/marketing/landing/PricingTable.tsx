@@ -28,9 +28,9 @@ export function PricingTable({ lang }: { lang: string }) {
     <section aria-labelledby="pricing-title" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
       <SectionHeading id="pricing-title" eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')} />
 
-      <div role="region" aria-labelledby="pricing-title" tabIndex={0} className="relative mt-10 hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-e1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:block">
+      <div role="region" aria-label={t('table_label')} tabIndex={0} className="relative mt-10 hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-e1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:block">
         <table className="w-full text-sm">
-          <caption className="sr-only">{t('title')}</caption>
+          <caption className="sr-only">{t('table_label')}</caption>
           <thead>
             <tr className="border-b border-border">
               <th scope="col" className="px-5 py-4 text-left font-semibold text-muted-foreground"><span className="sr-only">{t('feature')}</span></th>

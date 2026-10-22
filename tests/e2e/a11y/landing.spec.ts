@@ -25,7 +25,9 @@ for (const locale of A11Y_LOCALES) {
       await expect(page.getByRole('heading', { level: 1, name: catalogs[locale].landing.hero.title })).toBeVisible()
       await settle(page)
       expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0)
-      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze()
+      // Every axe rule, best practices included: the repo-wide ratchet counts them too,
+      // and landmark-unique (a best practice) is what a WCAG-only scan missed here.
+      const results = await new AxeBuilder({ page }).analyze()
       expect(results.violations.map(v => `${v.id}: ${v.nodes.map(n => n.target.join(' ')).join(', ')}`)).toEqual([])
     })
   }

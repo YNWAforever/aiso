@@ -3136,7 +3136,8 @@
       "included": "Included",
       "not_included": "Not included",
       "free_note": "Free: scan any site, and get a Fix Pack with a free account.",
-      "link": "Compare all plan details"
+      "link": "Compare all plan details",
+      "table_label": "Plan comparison"
     },
     "faq": {
       "eyebrow": "FAQ",

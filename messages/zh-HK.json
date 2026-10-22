@@ -3136,7 +3136,8 @@
       "included": "已包括",
       "not_included": "不包括",
       "free_note": "免費：可掃描任何網站，註冊免費帳戶即可獲取修復包。",
-      "link": "比較所有方案詳情"
+      "link": "比較所有方案詳情",
+      "table_label": "方案比較"
     },
     "faq": {
       "eyebrow": "常見問題",
