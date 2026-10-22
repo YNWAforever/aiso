@@ -3,7 +3,7 @@ import { useRef, type ReactNode } from 'react'
 import { m, useInView } from 'motion/react'
 import { cn } from '@/lib/utils'
 import { DURATION, EASE, MAX_STAGGER_TOTAL, transition, variants } from '@/lib/motion'
-import { MotionRoot } from '@/components/visuals/MotionRoot'
+import { MotionRoot, useReducedMotion } from '@/components/visuals/MotionRoot'
 
 export interface StepItem {
   /** A rendered icon element (e.g. `<Search />`), so server components can pass it. */
@@ -50,7 +50,9 @@ export function AnimatedSteps(props: AnimatedStepsProps) {
 function AnimatedStepsInner({ steps, label, animate = true, className }: AnimatedStepsProps) {
   const ref = useRef<HTMLOListElement>(null)
   const inView = useInView(ref, { once: true, amount: 0.4 })
-  const shown = !animate || inView
+  // Reduced motion shows the finished row at once rather than waiting for a scroll.
+  const reduced = useReducedMotion()
+  const shown = !animate || reduced || inView
   const lineTransition = { duration: DURATION.count, ease: EASE }
   // Steps land in sequence with the line, the whole group inside 400 ms.
   const stepDelay = steps.length > 1 ? Math.min(0.16, MAX_STAGGER_TOTAL / (steps.length - 1)) : 0

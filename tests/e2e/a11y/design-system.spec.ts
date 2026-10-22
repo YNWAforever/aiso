@@ -32,9 +32,13 @@ for (const locale of A11Y_LOCALES) {
   test(`design system ${locale}: reduced motion renders end states immediately`, async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto(`/${locale}/dev/design-system`, { waitUntil: 'networkidle' })
+    const copy = catalogs[locale].designSystem
     const rings = page.getByTestId('score-ring')
     await expect(rings.nth(1)).toContainText('68')
     await expect(page.getByTestId('pillar-gauge-core')).toContainText('38')
+    // Scroll-triggered entrances are already finished, without scrolling.
+    await expect(page.getByTestId('check-heatmap').locator('li').last()).toHaveCSS('opacity', '1')
+    await expect(page.getByRole('list', { name: copy.sample.stepsLabel }).locator('li').last()).toHaveCSS('opacity', '1')
     // The hero shows its finished frame: score drawn, platforms lit.
     const hero = page.getByTestId('hero-demo')
     await hero.scrollIntoViewIfNeeded()

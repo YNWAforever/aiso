@@ -5,7 +5,7 @@ import { Check, HelpCircle, Minus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { DURATION, staggerDelay, transition, variants } from '@/lib/motion'
-import { MotionRoot } from '@/components/visuals/MotionRoot'
+import { MotionRoot, useReducedMotion } from '@/components/visuals/MotionRoot'
 import { PILLARS, TONE_CLASSES, statusTone, type CheckStatus, type Pillar } from '@/components/visuals/tone'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -41,6 +41,9 @@ function CheckHeatmapInner({ checks, onSelect, selectedKey, animate = true, clas
   const t = useTranslations('visuals')
   const ref = useRef<HTMLDivElement>(null)
   const inView = useInView(ref, { once: true, amount: 0.2 })
+  // Reduced motion shows the tiles at once rather than waiting for a scroll.
+  const reduced = useReducedMotion()
+  const shown = !animate || reduced || inView
   const counts = { pass: 0, warn: 0, fail: 0, unknown: 0 }
   for (const check of checks) counts[check.status] += 1
   let index = 0
@@ -70,7 +73,7 @@ function CheckHeatmapInner({ checks, onSelect, selectedKey, animate = true, clas
                     key={check.key}
                     variants={variants.scaleIn}
                     initial={animate ? 'hidden' : false}
-                    animate={!animate || inView ? 'visible' : 'hidden'}
+                    animate={shown ? 'visible' : 'hidden'}
                     transition={transition(DURATION.enter, delay)}
                   >
                     {onSelect ? (
