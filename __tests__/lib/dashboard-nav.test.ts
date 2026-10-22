@@ -13,6 +13,10 @@ describe('dashboard navigation model', () => {
     expect(buildDashboardNav({ lang: 'en', clientId: 'c1', features }).map(s => s.key)).toEqual(['overview', 'scan', 'reports', 'settings'])
   })
 
+  it('keeps hidden sections only when asked, for breadcrumbs', () => {
+    expect(buildDashboardNav({ lang: 'en', clientId: 'c1', features, includeHidden: true }).map(s => s.key)).toEqual(['overview', 'scan', 'monitor', 'reports', 'settings'])
+  })
+
   it('builds every link against the brand in the route', () => {
     const nav = buildDashboardNav({ lang: 'zh-HK', clientId: 'c1', features })
     for (const href of nav.flatMap(s => [s.href, ...s.items.map(i => i.href)])) {

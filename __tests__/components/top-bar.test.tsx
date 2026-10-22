@@ -56,6 +56,14 @@ describe('TopBar', () => {
     expect(crumbs(html)).toEqual([en.dashboard.shell.brands, 'Acme', en.dashboard.nav_overview, en.dashboard.local_visibility])
   })
 
+  it('keeps a trail on a page of the hidden Monitor section, without naming Monitor', () => {
+    nav.params = { lang: 'en', clientId: 'c1' }
+    nav.pathname = '/en/dashboard/c1/prompts'
+    const html = renderWithIntl(<TopBar lang="en" brands={brands} unreadCount={0} features={features} />)
+    expect(crumbs(html)).toEqual([en.dashboard.shell.brands, 'Acme', en.dashboard.question_bank])
+    expect(html).not.toContain('step=monitor')
+  })
+
   it('lists every brand in the switcher, marking the current one', () => {
     nav.params = { lang: 'en', clientId: 'c2' }
     nav.pathname = '/en/dashboard/c2'

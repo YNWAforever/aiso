@@ -46,7 +46,11 @@ export interface NavFeatures {
 
 const BRAND_LIST = '#portfolio-brands'
 
-export function buildDashboardNav({ lang, clientId, features }: { lang: string; clientId?: string | null; features: NavFeatures }): NavSection[] {
+/**
+ * `includeHidden` keeps hidden sections (Monitor) for breadcrumbs only: their
+ * pages still work by URL and need a trail, but must not be advertised.
+ */
+export function buildDashboardNav({ lang, clientId, features, includeHidden = false }: { lang: string; clientId?: string | null; features: NavFeatures; includeHidden?: boolean }): NavSection[] {
   const root = `/${lang}/dashboard`
   const account = `${root}/settings`
   if (!clientId) {
@@ -84,7 +88,7 @@ export function buildDashboardNav({ lang, clientId, features }: { lang: string; 
       { key: 'account', labelKey: 'nav_account', href: account },
     ] },
   ]
-  return MONITOR_VISIBLE ? sections : sections.filter(section => section.key !== 'monitor')
+  return MONITOR_VISIBLE || includeHidden ? sections : sections.filter(section => section.key !== 'monitor')
 }
 
 const STEP_LOCATION: Record<string, [SectionKey, string | null]> = {

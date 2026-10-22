@@ -60,9 +60,13 @@ export function TopBar({ lang, brands, unreadCount, features }: Props) {
   // Brands › Brand › Section › Page. The last crumb is the current page.
   const crumbs: { label: string; href: string }[] = [{ label: shell('brands'), href: root }]
   if (clientId) crumbs.push({ label: brand?.name ?? shell('brands'), href: `${root}/${clientId}?step=home` })
-  const section = nav.find(s => s.key === here.section)
+  // Resolve against every section, so a hidden one's pages (Monitor's question
+  // bank, observations, …) still get a trail; the hidden section itself gets no
+  // crumb, because a link to it would advertise it.
+  const section = buildDashboardNav({ lang, clientId, features, includeHidden: true }).find(s => s.key === here.section)
+  const sectionHidden = !!section && !nav.some(s => s.key === section.key)
   if (section && !(section.key === 'overview' && !here.item)) {
-    crumbs.push({ label: t(section.labelKey), href: section.href })
+    if (!sectionHidden) crumbs.push({ label: t(section.labelKey), href: section.href })
     const item = section.items.find(i => i.key === here.item)
     if (item && item.href !== section.href) crumbs.push({ label: t(item.labelKey), href: item.href })
     if (here.item === 'roi') crumbs.push({ label: t('local_visibility'), href: `${root}/${clientId}?step=roi` })
