@@ -48,6 +48,9 @@ export function buildPublicResultSummary(
     region: scan.region ?? null,
     createdAt: scan.created_at ?? null,
     counts: resolution.counts,
+    // Verdicts only (pass / warn / fail / unknown / not-applicable): what the
+    // heatmap and gauges draw. Messages, details and remediation stay owner-only.
+    checks: resolution.assessments,
     priorityState: resolution.state,
     topIssueKey,
     topIssueStatus,
