@@ -314,16 +314,23 @@ M (≤1 week) or L (more than a week).
 Quick wins I would fold into Phase 1–3 PRs: items 1 (routing part), 6, the dark-mode variant fix, loading a
 webfont, and the stale `pricing.faq_2_a`.
 
-## Decisions I need from you
+## Decisions
 
-These are also listed in the reply. I'm asking rather than guessing (rule 9).
-1. **Product name and category term.** For example "Fimmick AISO" with the category "AI visibility" (AI 能見度)?
-2. **Monitor while Pulse is paused.** Do we show it with an honest "not running yet" state, or hide it from the
-   new nav until Pulse is scheduled?
-3. **Fix Pack without signup.** Phase 3 wants a "Generate fix pack" action in the result drawer. Today `/api/fix`
+Decided 2026-10-22:
+- **Product name: "Fimmick AISO"** everywhere: UI, metadata, llms.txt, README (Phase 8). `package.json`'s
+  `fimmick-aeo` is an internal identifier and stays.
+- **Monitor is hidden** from the new navigation until Pulse is scheduled in production and a brand has active
+  questions. The routes stay reachable by URL and the code stays in place, so it can be switched back on
+  with one flag. Onboarding drops its "turn on weekly Pulse" step, and Overview shows no AI-visibility card.
+- **Later phases use `ux/phase-N-name` branches.**
+
+Still open:
+1. **Category term.** For example "AI visibility" (AI 能見度)?
+2. **Fix Pack without signup.** Phase 3 wants a "Generate fix pack" action in the result drawer. Today `/api/fix`
    requires sign-in. Is a read-only preview of the top fix for anonymous users acceptable, or must generation
    stay behind sign-in?
-4. **Marketing surface.** Should the 20 platform/solutions/company pages be kept, merged into the new landing
+3. **Marketing surface.** Should the 20 platform/solutions/company pages be kept, merged into the new landing
    page plus a few pages, or redirected? (Old→new map proposal is in `target-ia.md`.)
-5. **Branch naming.** This session is pinned to `claude/intelligent-curie-kyzh8q`. Should later phases use
-   `ux/phase-N-name` as you specified? I will need your go-ahead to push to those.
+4. **Local Trust / ROI placement.** The proposal is an Overview section plus Reports.
+5. **AI platform logos.** Who confirms usage rights? Until then the design uses neutral dots with the
+   platform name.

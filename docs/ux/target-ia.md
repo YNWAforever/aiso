@@ -3,6 +3,10 @@
 Status: proposal for review (Phase 0). Nothing here is implemented yet. Names in quotes are placeholders
 until the naming decision is made (see `audit.md` → Decisions).
 
+> **Decision 2026-10-22: Monitor is hidden** until Pulse is scheduled in production. The shell ships with
+> four items (Overview, Scan & Fix, Reports, Settings). Monitor's row below is the design for when it
+> returns, behind a single feature flag. Its old routes are left as they are, not redirected.
+
 Journey: **Scan → Understand → Fix → Monitor**. Every screen maps to one of these four verbs.
 
 ## 1. Navigation
@@ -43,7 +47,7 @@ top bar.
 |---|---|---|
 | **Overview** | Score + trend, next best action, onboarding checklist, 3 StatCards | `?step=home`, portfolio card for the active brand |
 | **Scan & Fix** | Latest result (canonical) · Fixes (Fix pack + AI recommendations + opportunities, merged) · **Tasks** (status filter: Draft / In review / Approved / Delivered / Measured) · Scan history | `?step=scan`, `?step=results`, `?step=improve`, `/result/[scanId]`, `/opportunities`, `/work-items/*/versions` (approvals, change-sets, delivery, outcomes) |
-| **Monitor** | AI answers (PlatformDots matrix) · Competitors · Citations · Questions · Alerts | `?step=monitor`, `/pulse/[clientId]`, `/observations`, `/citations`, `/competitors`, `/prompts` |
+| **Monitor** *(hidden, see decision)* | AI answers (PlatformDots matrix) · Competitors · Citations · Questions · Alerts | `?step=monitor`, `/pulse/[clientId]`, `/observations`, `/citations`, `/competitors`, `/prompts` |
 | **Reports** | Report list · builder · share links | `/reports*` (and `?step=roi`; see note) |
 | **Settings** | Brand profile (identity, approved facts, pages & Search Console) · Plan & billing · Members · Report branding · Integrations | `/entities`, `/sources`, `/assets`, `/dashboard/settings` |
 
