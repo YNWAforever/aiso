@@ -1,14 +1,14 @@
 import { Search, TrendingUp, Wrench } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { AnimatedSteps } from '@/components/visuals/AnimatedStep'
+import { RevealSteps } from '@/components/visuals/reveal/RevealSteps'
 import { SectionHeading } from '@/components/marketing/landing/SectionHeading'
 
 export function HowItWorks() {
   const t = useTranslations('landing.how')
   return (
-    <section aria-labelledby="how-title" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
+    <section data-reveal aria-labelledby="how-title" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
       <SectionHeading id="how-title" eyebrow={t('eyebrow')} title={t('title')} align="center" />
-      <AnimatedSteps
+      <RevealSteps
         className="mt-12"
         label={t('title')}
         steps={[

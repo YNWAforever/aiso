@@ -4,9 +4,9 @@ import { useTranslations } from 'next-intl'
 import { SAMPLE_CHECKS, SAMPLE_DOMAIN, sampleSummary, sampleTopFixes } from '@/lib/marketing/landing'
 import { CHECK_ICONS } from '@/components/marketing/landing/check-icons'
 import { SectionHeading } from '@/components/marketing/landing/SectionHeading'
-import { ScoreRing } from '@/components/visuals/ScoreRing'
-import { PotentialScoreBar } from '@/components/visuals/PotentialScoreBar'
-import { CheckHeatmap } from '@/components/visuals/CheckHeatmap'
+import { RevealScoreRing } from '@/components/visuals/reveal/RevealScoreRing'
+import { RevealPotentialBar } from '@/components/visuals/reveal/RevealPotentialBar'
+import { RevealHeatmap } from '@/components/visuals/reveal/RevealHeatmap'
 import { ScoreBadge } from '@/components/ui/score-badge'
 
 /** What a result looks like, from a synthetic sample whose numbers come from the real weights. */
@@ -20,14 +20,14 @@ export function SampleReportPreview({ lang }: { lang: string }) {
     <section aria-labelledby="sample-title" className="border-y border-border bg-neutral-2 py-16 sm:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <SectionHeading id="sample-title" eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')} />
-        <div className="mt-10 grid gap-6 rounded-3xl border border-border bg-card p-5 shadow-e2 sm:p-8 lg:grid-cols-[auto_1fr] lg:gap-10">
+        <div data-reveal className="mt-10 grid gap-6 rounded-3xl border border-border bg-card p-5 shadow-e2 sm:p-8 lg:grid-cols-[auto_1fr] lg:gap-10">
           <div className="flex flex-col items-center gap-3 text-center">
-            <ScoreRing score={summary.score} grade={summary.grade} size="lg" />
+            <RevealScoreRing score={summary.score} grade={summary.grade} size="lg" />
             <ScoreBadge grade={summary.grade} />
             <p className="text-sm font-semibold text-muted-foreground">{t('domain', { domain: SAMPLE_DOMAIN })}</p>
           </div>
           <div className="flex min-w-0 flex-col gap-6">
-            <PotentialScoreBar current={summary.score} potential={summary.potential} />
+            <RevealPotentialBar current={summary.score} potential={summary.potential} />
             <div>
               <h3 className="text-base font-bold text-foreground">{t('top_fixes')}</h3>
               <ol className="mt-3 flex flex-col gap-2">
@@ -44,7 +44,7 @@ export function SampleReportPreview({ lang }: { lang: string }) {
                 })}
               </ol>
             </div>
-            <CheckHeatmap checks={SAMPLE_CHECKS.map(check => ({ key: check.key, label: checks(check.key), status: check.status, bucket: check.pillar }))} />
+            <RevealHeatmap checks={SAMPLE_CHECKS.map(check => ({ key: check.key, label: checks(check.key), status: check.status, bucket: check.pillar }))} />
           </div>
         </div>
         <p className="mt-3 text-xs text-muted-foreground">{t('synthetic')}</p>

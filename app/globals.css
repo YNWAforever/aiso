@@ -464,3 +464,75 @@ html { scroll-behavior: smooth; }
    sit outside a layer on purpose: they must beat the utilities. */
 :lang(zh-HK) .uppercase { text-transform: none; }
 :lang(zh-HK) :is(.tracking-wide, .tracking-wider, .tracking-widest, [class*="tracking-[0."]) { letter-spacing: 0.02em; }
+
+/* ── Reveal: CSS entrances for server-rendered visuals ─────────────────────
+   Used on marketing pages so nothing below the fold hydrates. Elements rest in
+   their final state; the hidden starting state applies only when scripts run
+   (RevealObserver will mark them) and motion is welcome, so no-JS visitors and
+   reduced-motion visitors see the finished visual immediately. Transitions use
+   transform, opacity and stroke-dashoffset only. */
+.reveal-up, .reveal-pop {
+  transition: opacity 250ms var(--ease-standard), transform 250ms var(--ease-standard);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.reveal-bar {
+  transform: scaleX(var(--to, 1));
+  transform-origin: left;
+  transition: transform 800ms var(--ease-standard) var(--reveal-delay, 0ms);
+}
+.reveal-ring {
+  stroke-dashoffset: var(--ring-to);
+  transition: stroke-dashoffset 800ms var(--ease-standard);
+}
+.reveal-line-x { transform-origin: left; transition: transform 800ms var(--ease-standard); }
+.reveal-line-y { transform-origin: top; transition: transform 800ms var(--ease-standard); }
+
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  [data-reveal]:not([data-revealed]) .reveal-up { opacity: 0; transform: translateY(8px); }
+  [data-reveal]:not([data-revealed]) .reveal-pop { opacity: 0; transform: scale(0.92); }
+  [data-reveal]:not([data-revealed]) .reveal-bar { transform: scaleX(0); }
+  [data-reveal]:not([data-revealed]) .reveal-ring { stroke-dashoffset: var(--ring-from); }
+  [data-reveal]:not([data-revealed]) .reveal-line-x { transform: scaleX(0); }
+  [data-reveal]:not([data-revealed]) .reveal-line-y { transform: scaleY(0); }
+}
+
+/* ── Hero loop: the landing hero's 7.2 s demo in CSS (components/visuals/HeroDemo.tsx)
+   Phases: type 0–1.4 s, scan 1.4–3.4 s, score 3.4–4.4 s, cite 4.4–6.2 s, hold.
+   The elements rest in the finished frame, and each keyframe set ends on it,
+   so reduced motion (no animation) shows the composed end state. Transform,
+   opacity and stroke-dashoffset only. */
+.hero-beam { opacity: 0; }
+.hero-ring { stroke-dashoffset: var(--ring-to); }
+.hero-type-cover { transform: scaleX(0); transform-origin: right; }
+.hero-lit-tint { --lit-from: 0; --lit-scale: 1; }
+.hero-lit-dot { --lit-from: 0.25; --lit-scale: 0.6; }
+@keyframes hero-type { 0% { transform: scaleX(1); } 15.28%, 100% { transform: scaleX(0); } }
+@keyframes hero-beam {
+  0%, 19.44% { transform: translateY(-100%); opacity: 0; }
+  23.61% { opacity: 1; }
+  43.06% { opacity: 1; }
+  47.22%, 100% { transform: translateY(420%); opacity: 0; }
+}
+@keyframes hero-ring { 0%, 47.22% { stroke-dashoffset: var(--ring-from); } 58.33%, 100% { stroke-dashoffset: var(--ring-to); } }
+@keyframes hero-score { 0%, 47.22% { opacity: 0; } 50.00%, 100% { opacity: 1; } }
+@keyframes hero-lit-0 { 0%, 61.11% { opacity: var(--lit-from); transform: scale(var(--lit-scale)); } 64.58%, 100% { opacity: 1; transform: none; } }
+@keyframes hero-lit-1 { 0%, 62.78% { opacity: var(--lit-from); transform: scale(var(--lit-scale)); } 66.25%, 100% { opacity: 1; transform: none; } }
+@keyframes hero-lit-2 { 0%, 64.44% { opacity: var(--lit-from); transform: scale(var(--lit-scale)); } 67.92%, 100% { opacity: 1; transform: none; } }
+@keyframes hero-lit-3 { 0%, 66.11% { opacity: var(--lit-from); transform: scale(var(--lit-scale)); } 69.58%, 100% { opacity: 1; transform: none; } }
+@keyframes hero-lit-4 { 0%, 67.78% { opacity: var(--lit-from); transform: scale(var(--lit-scale)); } 71.25%, 100% { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .hero-loop :is(.hero-type-cover, .hero-beam, .hero-ring, .hero-score, .hero-lit-tint, .hero-lit-dot) {
+    animation-duration: 7.2s;
+    animation-iteration-count: infinite;
+    animation-timing-function: var(--ease-standard);
+  }
+  .hero-loop .hero-type-cover { animation-name: hero-type; animation-timing-function: steps(var(--type-steps), end); }
+  .hero-loop .hero-beam { animation-name: hero-beam; }
+  .hero-loop .hero-ring { animation-name: hero-ring; }
+  .hero-loop .hero-score { animation-name: hero-score; }
+  .hero-loop [data-lit='0'] :is(.hero-lit-tint, .hero-lit-dot) { animation-name: hero-lit-0; }
+  .hero-loop [data-lit='1'] :is(.hero-lit-tint, .hero-lit-dot) { animation-name: hero-lit-1; }
+  .hero-loop [data-lit='2'] :is(.hero-lit-tint, .hero-lit-dot) { animation-name: hero-lit-2; }
+  .hero-loop [data-lit='3'] :is(.hero-lit-tint, .hero-lit-dot) { animation-name: hero-lit-3; }
+  .hero-loop [data-lit='4'] :is(.hero-lit-tint, .hero-lit-dot) { animation-name: hero-lit-4; }
+}

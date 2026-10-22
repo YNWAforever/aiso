@@ -11,6 +11,7 @@ import { SampleReportPreview } from '@/components/marketing/landing/SampleReport
 import { PricingTable } from '@/components/marketing/landing/PricingTable'
 import { Faq } from '@/components/marketing/landing/Faq'
 import { FinalCta } from '@/components/marketing/landing/FinalCta'
+import { RevealObserver } from '@/components/visuals/reveal/RevealObserver'
 
 type HomePageProps = {
   params: Promise<{ lang: string }>
@@ -27,6 +28,11 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
  * Landing page (UX Phase 2, docs/ux/target-ia.md §3.1): scan → how it works →
  * what we check → before/after → sample result → pricing → FAQ → scan again.
  * One primary call to action per viewport: the scan form at the top and bottom.
+ *
+ * No visual on this page hydrates. The hero loop is pure CSS, and everything
+ * below the fold is server-rendered and animated by CSS via RevealObserver:
+ * motion-driven versions cost about 165 KB of script and 8 Lighthouse points
+ * on mobile (zh-HK 92 -> 84) for nothing a reader needed to interact with.
  */
 export default async function HomePage({ params }: HomePageProps) {
   const { lang } = await params
@@ -62,6 +68,7 @@ export default async function HomePage({ params }: HomePageProps) {
       <PricingTable lang={lang} />
       <Faq eyebrow={t('eyebrow')} title={t('title')} items={faqs} />
       <FinalCta lang={lang} />
+      <RevealObserver />
     </div>
   )
 }

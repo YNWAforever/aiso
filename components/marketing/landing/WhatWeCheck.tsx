@@ -4,6 +4,7 @@ import { PILLAR_WEIGHTS, type Pillar } from '@/lib/marketing/landing'
 import { CHECK_ICONS } from '@/components/marketing/landing/check-icons'
 import { SectionHeading } from '@/components/marketing/landing/SectionHeading'
 import { cn } from '@/lib/utils'
+import { revealDelay } from '@/components/visuals/reveal/reveal'
 
 const PILLAR_STYLE: Record<Pillar, { bar: string; icon: string }> = {
   core: { bar: 'bg-primary', icon: 'bg-accent text-accent-foreground' },
@@ -29,9 +30,9 @@ export function WhatWeCheck() {
     <section aria-labelledby="checks-title" className="border-y border-border bg-neutral-2 py-16 sm:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <SectionHeading id="checks-title" eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')} />
-        <ul className="mt-10 grid gap-5 md:grid-cols-3">
-          {pillars.map(({ pillar, keys, points }) => (
-            <li key={pillar} className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-e1">
+        <ul data-reveal className="mt-10 grid gap-5 md:grid-cols-3">
+          {pillars.map(({ pillar, keys, points }, i) => (
+            <li key={pillar} className="reveal-up flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-e1" style={revealDelay(i * 3)}>
               <div className="flex items-baseline justify-between gap-3">
                 <h3 className="text-lg font-black text-foreground">{t(`${pillar}_title`)}</h3>
                 <span className="text-sm font-semibold tabular-nums text-muted-foreground">{t('points', { points })}</span>
@@ -49,7 +50,7 @@ export function WhatWeCheck() {
                 })}
               </ul>
               <div aria-hidden="true" className="mt-auto h-1.5 overflow-hidden rounded-full bg-neutral-4">
-                <div className={cn('h-full w-full origin-left rounded-full', PILLAR_STYLE[pillar].bar)} style={{ transform: `scaleX(${points / 100})` }} />
+                <div className={cn('reveal-bar h-full w-full rounded-full', PILLAR_STYLE[pillar].bar)} style={{ ['--to' as string]: points / 100 }} />
               </div>
             </li>
           ))}
