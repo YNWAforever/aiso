@@ -50,13 +50,15 @@ function componentFiles(): string[] {
 
 /**
  * Component names a file imports, both `@/components/x/Y` and sibling-relative.
+ * A dynamic `import('@/components/x/Y')` (next/dynamic) counts too: it is
+ * still a use, only a lazy one.
  *
  * Only real imports count. A component named in a comment — the prompts page
  * explains why it does NOT use QuestionBankSection — is not a use.
  */
 function importsIn(path: string): string[] {
   const src = readFileSync(join(process.cwd(), path), 'utf8')
-  const names = [...src.matchAll(/from\s+'@\/components\/([^']+)'/g)].map(m => m[1])
+  const names = [...src.matchAll(/(?:from\s+|import\(\s*)'@\/components\/([^']+)'/g)].map(m => m[1])
   if (path.startsWith('components/')) {
     const here = path.replace(/^components\//, '').replace(/\/[^/]+$/, '')
     const dir = here === path.replace(/^components\//, '') ? '' : here
