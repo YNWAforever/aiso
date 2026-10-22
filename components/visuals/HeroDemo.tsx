@@ -55,6 +55,16 @@ function HeroDemoInner({ score = 72, className }: HeroDemoProps) {
   const [cycle, setCycle] = useState(0)
   const running = inView && pageVisible && !reduced
 
+  // Pausing stops the timer but not animations already in flight, so a resumed
+  // phase would replay its full duration over a finished animation. Resuming
+  // restarts the loop from the top instead (state adjusted during render, the
+  // React-recommended way to react to a changed input without an effect).
+  const [wasRunning, setWasRunning] = useState(running)
+  if (running !== wasRunning) {
+    setWasRunning(running)
+    if (running) { setPhaseIndex(0); setCycle(c => c + 1) }
+  }
+
   useEffect(() => {
     if (!running) return
     const timer = setTimeout(() => {

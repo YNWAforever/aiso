@@ -46,11 +46,18 @@ function ScanTimelineInner({ checks, score, className }: ScanTimelineProps) {
   return (
     <div className={cn('flex flex-col gap-4', className)} data-testid="scan-timeline">
       <div className="flex items-end justify-between gap-4">
-        <p aria-live="polite" className="text-sm font-medium text-foreground">
-          {complete
-            ? t('scanTimeline.complete', { total: checks.length })
-            : t('scanTimeline.progress', { done, total: checks.length, pillar: active ? t(`pillars.${active}`) : '' })}
-        </p>
+        <div className="text-sm font-medium text-foreground">
+          {/* The visible count moves with every check; the live region only
+              changes when the pillar changes or the scan completes. */}
+          <p aria-hidden="true">
+            {complete
+              ? t('scanTimeline.complete', { total: checks.length })
+              : t('scanTimeline.progress', { done, total: checks.length, pillar: active ? t(`pillars.${active}`) : '' })}
+          </p>
+          <p aria-live="polite" className="sr-only">
+            {complete ? t('scanTimeline.complete', { total: checks.length }) : active ? t('scanTimeline.checking', { pillar: t(`pillars.${active}`) }) : ''}
+          </p>
+        </div>
         {score != null && reduced && (
           <span aria-hidden="true" className="text-3xl font-black tabular-nums leading-none text-foreground">{Math.round(score)}</span>
         )}

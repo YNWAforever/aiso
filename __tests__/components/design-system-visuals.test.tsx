@@ -23,6 +23,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { DataTable } from '@/components/ui/data-table'
 import { DesignSystemGallery } from '@/components/dev/DesignSystemGallery'
 import { gradeTone, statusTone } from '@/components/visuals/tone'
+import { groupCommands } from '@/components/ui/command-palette'
 
 const catalogs = { en, 'zh-HK': zhHK } as const
 
@@ -92,9 +93,10 @@ describe('visuals carry a text alternative in both languages', () => {
       { key: 'b', label: 'Sitemap', bucket: 'extended', status: 'running' },
       { key: 'c', label: 'Citations', bucket: 'geo', status: 'pending' },
     ]} />)
-    expect(html).toContain('aria-live="polite"')
     expect(html).toContain('1 of 3 checks done · Extended')
     expect(html.match(/aria-live/g)).toHaveLength(1)
+    // The live region names only the pillar, so it changes per pillar, not per check.
+    expect(html).toMatch(/<p aria-live="polite" class="sr-only">Checking Extended checks<\/p>/)
   })
 
   it('Sparkline summarises its direction', () => {
@@ -125,6 +127,14 @@ describe('visuals carry a text alternative in both languages', () => {
 })
 
 describe('ui primitives', () => {
+  it('command palette navigates in render order when groups are interleaved', () => {
+    const { groups, ordered } = groupCommands([
+      { id: 'a1', label: 'A1', group: 'A' }, { id: 'b1', label: 'B1', group: 'B' }, { id: 'a2', label: 'A2', group: 'A' },
+    ])
+    expect(groups.map(([group]) => group)).toEqual(['A', 'B'])
+    expect(ordered.map(item => item.id)).toEqual(['a1', 'a2', 'b1'])
+  })
+
   it('ScoreBadge prints the letter and the word, or a full name when the word is hidden', () => {
     expect(render(<ScoreBadge grade="A+" />)).toContain('Excellent')
     expect(render(<ScoreBadge grade="B" showLabel={false} />)).toContain('Grade B, Good')

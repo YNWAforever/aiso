@@ -3012,7 +3012,8 @@
     },
     "scanTimeline": {
       "progress": "{done} of {total} checks done · {pillar}",
-      "complete": "All {total} checks done"
+      "complete": "All {total} checks done",
+      "checking": "Checking {pillar} checks"
     },
     "platformDots": {
       "platform": "AI platform",

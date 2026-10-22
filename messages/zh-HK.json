@@ -3012,7 +3012,8 @@
     },
     "scanTimeline": {
       "progress": "已完成 {done}／{total} 項檢查 · {pillar}",
-      "complete": "{total} 項檢查全部完成"
+      "complete": "{total} 項檢查全部完成",
+      "checking": "正在檢查{pillar}項目"
     },
     "platformDots": {
       "platform": "AI 平台",

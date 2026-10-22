@@ -26,6 +26,19 @@ export interface CommandPaletteProps {
 }
 
 /**
+ * Groups items under their headings, first-seen group first, and returns the
+ * flattened render order alongside. Keyboard navigation must use `ordered`:
+ * grouping pulls interleaved items together, so indexing the ungrouped list
+ * would highlight one item and run another.
+ */
+export function groupCommands(items: readonly CommandItem[]) {
+  const map = new Map<string, CommandItem[]>()
+  for (const item of items) map.set(item.group ?? '', [...(map.get(item.group ?? '') ?? []), item])
+  const groups = [...map.entries()]
+  return { groups, ordered: groups.flatMap(([, groupItems]) => groupItems) }
+}
+
+/**
  * ⌘K / Ctrl+K search over pages and actions. A combobox input controlling a
  * listbox (the WAI-ARIA pattern), built on the dialog primitive rather than a
  * command-menu library.
@@ -58,11 +71,7 @@ export function CommandPalette({ items, open: controlled, onOpenChange }: Comman
     return items.filter(item => [item.label, item.group ?? '', ...(item.keywords ?? [])].some(text => text.toLowerCase().includes(needle)))
   }, [items, query])
 
-  const groups = useMemo(() => {
-    const map = new Map<string, CommandItem[]>()
-    for (const item of results) map.set(item.group ?? '', [...(map.get(item.group ?? '') ?? []), item])
-    return [...map.entries()]
-  }, [results])
+  const { groups, ordered } = useMemo(() => groupCommands(results), [results])
 
   function choose(item: CommandItem | undefined) {
     if (!item) return
@@ -73,16 +82,15 @@ export function CommandPalette({ items, open: controlled, onOpenChange }: Comman
   }
 
   function onInputKey(event: KeyboardEvent<HTMLInputElement>) {
-    if (!results.length) return
-    if (event.key === 'ArrowDown') { event.preventDefault(); setActive(i => (i + 1) % results.length) }
-    else if (event.key === 'ArrowUp') { event.preventDefault(); setActive(i => (i - 1 + results.length) % results.length) }
+    if (!ordered.length) return
+    if (event.key === 'ArrowDown') { event.preventDefault(); setActive(i => (i + 1) % ordered.length) }
+    else if (event.key === 'ArrowUp') { event.preventDefault(); setActive(i => (i - 1 + ordered.length) % ordered.length) }
     else if (event.key === 'Home') { event.preventDefault(); setActive(0) }
-    else if (event.key === 'End') { event.preventDefault(); setActive(results.length - 1) }
-    else if (event.key === 'Enter') { event.preventDefault(); choose(results[active]) }
+    else if (event.key === 'End') { event.preventDefault(); setActive(ordered.length - 1) }
+    else if (event.key === 'Enter') { event.preventDefault(); choose(ordered[active]) }
   }
 
   const optionId = (index: number) => `${listId}-option-${index}`
-  let index = -1
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={next => { setOpen(next); if (!next) setQuery('') }}>
@@ -115,8 +123,7 @@ export function CommandPalette({ items, open: controlled, onOpenChange }: Comman
               <div key={group || 'ungrouped'} role="group" aria-label={group || undefined} className="flex flex-col">
                 {group && <p aria-hidden="true" className="px-3 pb-1 pt-2 text-xs font-semibold text-muted-foreground">{group}</p>}
                 {groupItems.map(item => {
-                  index += 1
-                  const i = index
+                  const i = ordered.indexOf(item)
                   const selected = i === active
                   return (
                     <div
