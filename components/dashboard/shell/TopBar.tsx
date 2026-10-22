@@ -1,13 +1,17 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Check, ChevronDown, ChevronRight, CircleHelp, Search } from 'lucide-react'
-import { CommandPalette, type CommandItem } from '@/components/ui/command-palette'
+import type { CommandItem } from '@/components/ui/command-palette'
 import { NotificationBell } from '@/components/dashboard/NotificationBell'
 import { MenuButton } from '@/components/dashboard/shell/MenuButton'
 import { buildDashboardNav, locateDashboard, type NavFeatures } from '@/lib/dashboard-nav'
+
+// The palette (Radix Dialog) loads on first use, not with every dashboard page.
+const CommandPalette = dynamic(() => import('@/components/ui/command-palette').then(m => m.CommandPalette), { ssr: false })
 
 export interface ShellBrand { id: string; name: string; domain: string | null }
 
@@ -33,6 +37,21 @@ export function TopBar({ lang, brands, unreadCount, features }: Props) {
   const searchParams = useSearchParams()
   const clientId = params?.clientId ?? null
   const [paletteOpen, setPaletteOpen] = useState(false)
+  // Until the palette has loaded, ⌘K / Ctrl+K is caught here; afterwards the
+  // palette's own listener owns the shortcut, so it is never toggled twice.
+  const [paletteLoaded, setPaletteLoaded] = useState(false)
+  useEffect(() => {
+    if (paletteLoaded) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault()
+        setPaletteLoaded(true)
+        setPaletteOpen(true)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [paletteLoaded])
   const nav = buildDashboardNav({ lang, clientId, features })
   const here = locateDashboard(pathname, clientId ? (searchParams?.get('step') ?? 'home') : null)
   const brand = clientId ? brands?.find(b => b.id === clientId) ?? null : null
@@ -116,7 +135,7 @@ export function TopBar({ lang, brands, unreadCount, features }: Props) {
       <div className="ml-auto flex items-center gap-1">
         <button
           type="button"
-          onClick={() => setPaletteOpen(true)}
+          onClick={() => { setPaletteLoaded(true); setPaletteOpen(true) }}
           className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-border px-2.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <Search aria-hidden="true" className="size-4" />
@@ -142,7 +161,7 @@ export function TopBar({ lang, brands, unreadCount, features }: Props) {
         </MenuButton>
       </div>
 
-      <CommandPalette items={commands} open={paletteOpen} onOpenChange={setPaletteOpen} />
+      {paletteLoaded && <CommandPalette items={commands} open={paletteOpen} onOpenChange={setPaletteOpen} />}
     </header>
   )
 }
