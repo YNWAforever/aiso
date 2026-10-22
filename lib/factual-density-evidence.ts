@@ -1,5 +1,5 @@
 import type { FactualDensityResult } from '@/lib/types'
-import { CHECK_VERSIONS } from '@/lib/scan-evidence'
+import { CHECK_VERSIONS } from '@/lib/scan-evidence-versions'
 
 // Shared by client rendering and server projections. Stored legacy rows lack
 // uniquenessStatus; their numeric 50 cannot establish provider provenance.

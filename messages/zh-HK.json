@@ -754,7 +754,8 @@
       "manufacturing": "製造業",
       "media_entertainment": "媒體及娛樂",
       "general_b2b": "一般 B2B",
-      "general_b2c": "一般 B2C"
+      "general_b2c": "一般 B2C",
+      "energy_utilities": "能源及公用事業"
     },
     "regions": {
       "global": "全球",
@@ -3158,6 +3159,85 @@
     "final": {
       "title": "立即查看你的 AI 能見度分數",
       "subtitle": "免費、毋須註冊，一分鐘內有結果。"
+    }
+  },
+  "resultPage": {
+    "nav_label": "結果操作",
+    "share": "分享",
+    "share_copied": "已複製連結",
+    "share_text": "{domain} 的網站就緒分數為 {score}/100（{grade}），以 Fimmick AISO 掃描",
+    "share_title": "{domain} 的網站就緒分數",
+    "pdf": "儲存 PDF",
+    "save": "儲存結果",
+    "full_access": "解鎖完整版",
+    "your_score": "你的分數",
+    "grade_line": {
+      "aPlus": "網站已準備好讓 AI 閱讀及引用。",
+      "a": "網站已為 AI 做好準備。",
+      "b": "基礎良好，仍有少量缺口。",
+      "c": "AI 能讀取網站，但有明顯缺口。",
+      "d": "較大缺口令 AI 難以讀取網站。",
+      "f": "AI 工具難以讀取你的網站。",
+      "unknown": "尚未評級。"
+    },
+    "improved": "分數比上次掃描提升了。",
+    "new_grade": "新評級：{grade}。",
+    "estimate_heading": "預估影響：以下推算根據網站檢查，並非實際可見度測量，亦不保證改善成效。",
+    "estimate_short": "根據檢查推算，並非保證。",
+    "fixes_title": "三大修復",
+    "fixes_subtitle": "按可得分數排序。",
+    "fix_points": "+{points} 分",
+    "fix_open": "開啟「{name}」",
+    "effort": {
+      "minutes": "數分鐘",
+      "hours": "數小時",
+      "days": "數天"
+    },
+    "effort_label": "所需工夫：{effort}",
+    "impact_label": "影響：{points} 分",
+    "pillars_title": "各範疇分數",
+    "checks_title": "全部 20 項檢查",
+    "checks_subtitle": "選擇一項檢查，查看修復方法。",
+    "list_title": "檢查詳情",
+    "filters_label": "顯示檢查",
+    "filter": {
+      "all": "全部（{count}）",
+      "fail": "不及格（{count}）",
+      "warn": "需改善（{count}）",
+      "pass": "通過（{count}）",
+      "unknown": "未檢查（{count}）"
+    },
+    "list_empty": "這組沒有檢查。",
+    "details": "詳情",
+    "drawer": {
+      "what": "這項檢查甚麼",
+      "why": "為何重要",
+      "how": "如何修復",
+      "snippet": "範例",
+      "copy": "複製",
+      "copied": "已複製",
+      "before_after": "修復前後",
+      "before": "現在",
+      "after": "修復後",
+      "points": "{earned}／{max} 分",
+      "generate": "生成修復包",
+      "generate_signup": "建立免費帳戶以生成修復包",
+      "needs_evidence": "未能確認這項檢查。請重新掃描。"
+    },
+    "platforms_title": "消費者 AI 曝光",
+    "platforms_note": "本技術掃描尚未量度實際曝光。下方另列爬蟲存取結果。",
+    "crawler_label": "爬蟲技術存取",
+    "save_title": "儲存這個結果",
+    "collection_failed_title": "未能完成這次掃描",
+    "collection_failed_body": "未有成功採集網站頁面，因此無法提供可靠分數或改善估算。請核對網址後重試。",
+    "scan_another": "← 掃描另一個網址",
+    "fix_pack": "開啟你的 Fix Pack",
+    "meta": {
+      "default_title": "AI 可見度掃描 — Fimmick AISO",
+      "failed_title": "{domain} — 未能完成掃描",
+      "unknown_title": "{domain} — 採集證據未能確認",
+      "title": "{domain} 的網站就緒分數 {score}/100（{grade}）",
+      "description": "查看 {domain} 的網站技術及內容就緒檢查。此分數並非 AI 推薦率或曝光量。"
     }
   }
 }

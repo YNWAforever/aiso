@@ -1,4 +1,5 @@
 import { notFound }        from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import { cache }            from 'react'
 import { db }               from '@/lib/db'
 import { getE2EScanFixture } from '@/lib/e2e-fixtures'
@@ -6,6 +7,7 @@ import { ResultClient }     from '@/components/result/ResultClient'
 import { getProfile }       from '@/lib/auth'
 import { buildOwnedResultEvidence } from '@/lib/result-evidence'
 import { buildPublicResultSummary, canViewFullResult, hasFailedScanPage } from '@/lib/result-access'
+import { compareScanEvidence } from '@/lib/scan-evidence'
 import type { Scan }        from '@/lib/types'
 import type { Metadata }    from 'next'
 
@@ -66,35 +68,57 @@ export async function generateMetadata({
   params: Promise<{ lang: string; id: string }>
 }): Promise<Metadata> {
   const { lang, id } = await params
-  const isZh = lang === 'zh-HK'
+  const t = await getTranslations({ locale: lang, namespace: 'resultPage.meta' })
   const scan = await getScan(id)
 
   if (!scan) {
-    return { title: isZh ? 'AI 可見度掃描 — Fimmick AISO' : 'AI Visibility Scan — Fimmick AISO' }
+    return { title: t('default_title') }
   }
 
   if (hasFailedScanPage(scan.results as Record<string,unknown>)) {
-    const title=isZh ? `${scan.domain} — 未能完成掃描` : `${scan.domain} — scan could not be completed`
+    const title = t('failed_title', { domain: scan.domain })
     return {title,openGraph:{title},twitter:{card:'summary',title}}
   }
   const display = buildPublicResultSummary(scan)
   if (display.score === null || display.grade === null) {
-    const title = isZh ? `${scan.domain} — 採集證據未能確認` : `${scan.domain} — collection evidence unavailable`
+    const title = t('unknown_title', { domain: scan.domain })
     return { title, openGraph: { title }, twitter: { card: 'summary', title } }
   }
   const score = Math.round(display.score)
   const grade = display.grade
-  const title = isZh
-    ? `${scan.domain} 的網站就緒分數 ${score}/100（${grade}）`
-    : `${scan.domain} scored ${score}/100 (${grade}) on website readiness`
-  const description = isZh
-    ? `查看 ${scan.domain} 的網站技術及內容就緒檢查。此分數並非 AI 推薦率或曝光量。`
-    : `Review technical and content readiness for ${scan.domain}. This score does not measure AI recommendations or exposure.`
+  const title = t('title', { domain: scan.domain, score, grade })
+  const description = t('description', { domain: scan.domain })
   return {
     title,
     description,
     openGraph: { title, description },
     twitter: { card: 'summary_large_image', title, description },
+  }
+}
+
+/**
+ * The owner's most recent earlier scan of the same domain, for the score
+ * delta and the one celebration. Filtered by the viewer's own account, never
+ * the scan's: only an owner reaches this. Only a comparable scan counts (same
+ * scanner method, checks, industry, region and scope, per its evidence
+ * signature): otherwise a method or scope change would read as an improvement.
+ * A failed lookup just skips the celebration.
+ */
+async function getPreviousOwnedScan(scan: Scan, accountId: string): Promise<{ score: number; grade: string } | null> {
+  if (!scan.created_at) return null
+  try {
+    const rows = await db()`
+      select score, grade, results->'evidence' as evidence from scans
+      where account_id = ${accountId} and domain = ${scan.domain} and id <> ${scan.id}
+        and created_at < ${scan.created_at} and score is not null and grade is not null
+      order by created_at desc limit 1`
+    const row = rows[0] as { score: unknown; grade: unknown; evidence: unknown } | undefined
+    const score = row ? Number(row.score) : NaN
+    if (!row || !Number.isFinite(score) || typeof row.grade !== 'string') return null
+    const current = (scan.results as Record<string, unknown>).evidence
+    return compareScanEvidence(row.evidence, current).comparable ? { score, grade: row.grade } : null
+  } catch {
+    return null
   }
 }
 
@@ -112,6 +136,7 @@ export default async function ResultPage({
   const profile = await getResultViewerProfile()
   const unlocked = canViewFullResult(scan.account_id, profile?.account_id)
   const summary = buildPublicResultSummary(scan)
+  const previous = unlocked && profile?.account_id ? await getPreviousOwnedScan(scan, profile.account_id) : null
 
   return (
     <ResultClient
@@ -119,6 +144,7 @@ export default async function ResultPage({
       summary={summary}
       fullScan={unlocked ? scan : undefined}
       ownedEvidence={unlocked ? buildOwnedResultEvidence((scan.results as Record<string, unknown>).evidence, scan.results as Record<string, unknown>) : undefined}
+      previous={previous}
     />
   )
 }

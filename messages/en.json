@@ -754,7 +754,8 @@
       "manufacturing": "Manufacturing",
       "media_entertainment": "Media & Entertainment",
       "general_b2b": "General B2B",
-      "general_b2c": "General B2C"
+      "general_b2c": "General B2C",
+      "energy_utilities": "Energy & Utilities"
     },
     "regions": {
       "global": "Global",
@@ -3158,6 +3159,85 @@
     "final": {
       "title": "See your AI visibility score",
       "subtitle": "Free, no sign-up, results in under a minute."
+    }
+  },
+  "resultPage": {
+    "nav_label": "Result actions",
+    "share": "Share",
+    "share_copied": "Link copied",
+    "share_text": "{domain} scored {score}/100 ({grade}) on website readiness, scanned with Fimmick AISO",
+    "share_title": "Website readiness score for {domain}",
+    "pdf": "Save PDF",
+    "save": "Save result",
+    "full_access": "Get full access",
+    "your_score": "Your score",
+    "grade_line": {
+      "aPlus": "Your site is ready for AI to read and quote.",
+      "a": "Your site is well prepared for AI.",
+      "b": "Good foundations, with a few gaps.",
+      "c": "AI can read your site, with clear gaps.",
+      "d": "Big gaps stop AI reading your site well.",
+      "f": "AI tools struggle to read your site.",
+      "unknown": "Not graded yet."
+    },
+    "improved": "Your score went up since your last scan.",
+    "new_grade": "New grade: {grade}.",
+    "estimate_heading": "Estimated impact: the following projections are inferred from site checks, not measured visibility or guaranteed gains.",
+    "estimate_short": "Estimate from your checks. Not a guarantee.",
+    "fixes_title": "Top 3 fixes",
+    "fixes_subtitle": "Worth the most points first.",
+    "fix_points": "+{points} pts",
+    "fix_open": "Open {name}",
+    "effort": {
+      "minutes": "Minutes",
+      "hours": "Hours",
+      "days": "Days"
+    },
+    "effort_label": "Effort: {effort}",
+    "impact_label": "Impact: {points} points",
+    "pillars_title": "Score by area",
+    "checks_title": "All 20 checks",
+    "checks_subtitle": "Select a check to see what to do.",
+    "list_title": "Check details",
+    "filters_label": "Show checks",
+    "filter": {
+      "all": "All ({count})",
+      "fail": "Failing ({count})",
+      "warn": "Needs work ({count})",
+      "pass": "Passing ({count})",
+      "unknown": "Not checked ({count})"
+    },
+    "list_empty": "No checks in this group.",
+    "details": "Details",
+    "drawer": {
+      "what": "What this checks",
+      "why": "Why it matters",
+      "how": "How to fix",
+      "snippet": "Example",
+      "copy": "Copy",
+      "copied": "Copied",
+      "before_after": "Before and after",
+      "before": "Now",
+      "after": "After the fix",
+      "points": "{earned} of {max} pts",
+      "generate": "Generate fix pack",
+      "generate_signup": "Create a free account to generate a fix pack",
+      "needs_evidence": "This check could not be confirmed. Scan again to check it."
+    },
+    "platforms_title": "Consumer AI exposure",
+    "platforms_note": "Not measured by this technical scan. Crawler access is reported separately below.",
+    "crawler_label": "Crawler technical access",
+    "save_title": "Save this result",
+    "collection_failed_title": "This scan could not be completed",
+    "collection_failed_body": "The website page was not collected. A score or improvement estimate would be misleading. Check the address and try again.",
+    "scan_another": "← Scan another URL",
+    "fix_pack": "Open your Fix Pack",
+    "meta": {
+      "default_title": "AI Visibility Scan — Fimmick AISO",
+      "failed_title": "{domain} — scan could not be completed",
+      "unknown_title": "{domain} — collection evidence unavailable",
+      "title": "{domain} scored {score}/100 ({grade}) on website readiness",
+      "description": "Review technical and content readiness for {domain}. This score does not measure AI recommendations or exposure."
     }
   }
 }

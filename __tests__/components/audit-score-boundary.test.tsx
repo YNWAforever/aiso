@@ -1,16 +1,13 @@
-import { expect, it, vi } from 'vitest'
-import { renderToStaticMarkup } from 'react-dom/server'
+import { expect, it } from 'vitest'
 import { assignGrade, calculateGeoScore, calculateScore } from '@/lib/scoring'
 import type { ScanResults } from '@/lib/types'
 
-const intl = vi.hoisted(() => ({ locale: 'en' }))
-vi.mock('next-intl', () => ({ useLocale: () => intl.locale }))
+import { renderWithIntl } from '../helpers/intl'
 import { ScoreReveal } from '@/components/result/ScoreReveal'
 
 // Audit acceptance reproducer: intentionally RED on PR92 03c7b806.
 // All source data is synthetic; there is no HTTP, database or provider call.
 it.each(['en', 'zh-HK'])('does not round a stored D-grade score up to the C threshold (%s)', locale => {
-  intl.locale = locale
   const pass = { status: 'pass', message: 'fixture' } as const
   const warn = { status: 'warn', message: 'fixture' } as const
   const unavailable = { status: 'fail', message: 'fixture_unavailable' } as const
@@ -23,7 +20,7 @@ it.each(['en', 'zh-HK'])('does not round a stored D-grade score up to the C thre
   const score = Math.round((calculateScore(results) + calculateGeoScore(results)) * 100) / 100
   expect(score).toBe(59.97)
   expect(assignGrade(score)).toBe('D')
-  const html = renderToStaticMarkup(<ScoreReveal score={score} grade={assignGrade(score)} domain="example.invalid" />)
+  const html = renderWithIntl(<ScoreReveal score={score} grade={assignGrade(score)} domain="example.invalid" />, locale)
   const renderedScore = />(\d+(?:\.\d+)?)\/100</.exec(html)?.[1]
   expect(renderedScore).toBe('59.97')
 })

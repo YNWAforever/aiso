@@ -44,4 +44,15 @@ describe('result access', () => {
     expect(summary).not.toHaveProperty('results')
     expect(JSON.stringify(summary)).not.toContain('private remediation detail')
   })
+
+  it('carries per-check verdicts from collection evidence only, without messages or details', () => {
+    const summary = buildPublicResultSummary(scan)
+    // c2 has complete evidence; the others have stored statuses but no evidence, so they stay unknown.
+    expect(summary.checks.c2_llms_txt).toBe('fail')
+    expect(summary.checks.c1_robots).toBe('unknown')
+    expect(Object.keys(summary.checks)).toHaveLength(20)
+    expect(new Set(Object.values(summary.checks))).toEqual(new Set(['fail', 'unknown']))
+    const serialized = JSON.stringify(summary.checks)
+    for (const leak of ['llms_txt_missing', 'robots_ai_allowed', 'private']) expect(serialized).not.toContain(leak)
+  })
 })

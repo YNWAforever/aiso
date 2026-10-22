@@ -4,11 +4,15 @@ import { useId, useRef, useState } from 'react'
 import { ChevronDown, LoaderCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { trackFunnelEvent } from '@/lib/funnel-client'
 import { normalizeScanUrl } from '@/lib/scan-input'
 import type { IndustryCode } from '@/lib/types'
 
 export type ScanFormProps = { lang: string }
+
+// Loaded when a scan starts: the hero ships no motion code for the checklist.
+const ScanProgress = dynamic(() => import('@/components/scan/ScanProgress'), { ssr: false })
 
 export function normalizeSubmittedUrl(value: string): string {
   return normalizeScanUrl(value)
@@ -97,6 +101,7 @@ export function ScanForm({ lang }: ScanFormProps) {
   const [status, setStatus] = useState('')
   const [statusIsError, setStatusIsError] = useState(false)
   const [hasFailed, setHasFailed] = useState(false)
+  const [finalScore, setFinalScore] = useState<number | null>(null)
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -116,6 +121,7 @@ export function ScanForm({ lang }: ScanFormProps) {
     }
 
     setIsSubmitting(true)
+    setFinalScore(null)
     setStatusIsError(false)
     setStatus(t('scan_loading'))
 
@@ -140,6 +146,8 @@ export function ScanForm({ lang }: ScanFormProps) {
       }
       const data: unknown = await response.json()
       const id = getScanResultId(data)
+      const score = data && typeof data === 'object' && 'score' in data ? Number(data.score) : Number.NaN
+      if (Number.isFinite(score)) setFinalScore(score)
       trackFunnelEvent({
         name: 'scan_completed',
         locale: lang === 'zh-HK' ? 'zh-HK' : 'en',
@@ -193,8 +201,11 @@ export function ScanForm({ lang }: ScanFormProps) {
         {urlError}
       </p>
 
+      {isSubmitting && <ScanProgress score={finalScore} />}
+
       <button
         type="button"
+        hidden={isSubmitting}
         aria-expanded={isExpanded}
         aria-controls={optionsId}
         onClick={() => setIsExpanded((value) => !value)}
@@ -207,7 +218,7 @@ export function ScanForm({ lang }: ScanFormProps) {
         {t('personalise_toggle')}
       </button>
 
-      <div id={optionsId} hidden={!isExpanded} className="mt-3 grid gap-3 sm:grid-cols-2">
+      <div id={optionsId} hidden={!isExpanded || isSubmitting} className="mt-3 grid gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor={industryId} className="mb-1.5 block text-sm font-medium text-foreground">
             {t('industry_placeholder')}

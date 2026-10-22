@@ -1,20 +1,18 @@
 import { describe, expect, it, vi } from 'vitest'
-import { renderToStaticMarkup } from 'react-dom/server'
+import { renderWithIntl } from '../helpers/intl'
 import { ResultClient } from '@/components/result/ResultClient'
 import { buildPublicResultSummary } from '@/lib/result-access'
 import { ScoreReveal } from '@/components/result/ScoreReveal'
 import { computeImpact } from '@/lib/impact'
 import {buildScanEvidence} from '@/lib/scan-evidence'
 
-const language = vi.hoisted(() => ({ value: 'en' }))
-vi.mock('next-intl', () => ({ useLocale: () => language.value, useTranslations: () => (key: string) => key }))
 vi.mock('@/components/result/ClaimScanOnReturn', () => ({ ClaimScanOnReturn: () => null }))
 vi.mock('@/components/result/AccountUnlockCard', () => ({ AccountUnlockCard: () => null }))
 vi.mock('@/components/result/ShareButton', () => ({ ShareButton: () => null }))
 vi.mock('@/lib/auth-client', () => ({ authClient: {}, buildAuthCompleteUrl: vi.fn() }))
 
 const summary = buildPublicResultSummary({ id: 'public-scan', domain: 'example.com', score: 20, grade: 'F', industry: 'general_b2c', region: 'HK', results: {
-  evidence:buildScanEvidence({requestedUrl:'https://example.com',evaluatedUrl:'https://example.com',industry:'general_b2c',region:'HK',sitemapSource:null,checks:{},observations:[{target:'https://example.com',check:'page',collection:'complete',provenance:'validated-fetch',httpStatus:200}]}),
+  evidence:buildScanEvidence({requestedUrl:'https://example.com',evaluatedUrl:'https://example.com',industry:'general_b2c',region:'HK',sitemapSource:null,checks:{c1_robots:{assessment:'fail',collection:'complete'},c2_llms_txt:{assessment:'fail',collection:'complete'},c3_bot_access:{assessment:'warn',collection:'complete'},c4_structured_data:{assessment:'pass',collection:'complete'},c5_extractability:{assessment:'warn',collection:'complete'}},observations:[{target:'https://example.com',check:'page',collection:'complete',provenance:'validated-fetch',httpStatus:200}]}),
   c1_robots: { status: 'fail', message: 'robots_blocked' },
   c2_llms_txt: { status: 'fail', message: 'llms_missing' },
   c3_bot_access: { status: 'warn', message: 'bot_partial' },
@@ -24,8 +22,7 @@ const summary = buildPublicResultSummary({ id: 'public-scan', domain: 'example.c
 
 describe('public result impact estimate', () => {
   it.each(['en','zh-HK'])('does not render a score, grade, upsell or projected gains for failed collection in %s', locale=>{
-    language.value=locale
-    const html=renderToStaticMarkup(<ResultClient lang={locale} summary={{...summary,collectionFailed:true}} />)
+    const html=renderWithIntl(<ResultClient lang={locale} summary={{...summary,collectionFailed:true}} />, locale)
     expect(html).toContain('collection-failed')
     expect(html).not.toContain('score-reveal')
     expect(html).not.toContain('/100')
@@ -33,8 +30,7 @@ describe('public result impact estimate', () => {
     expect(html).not.toContain('pricing')
   })
   it.each(['en', 'zh-HK'])('unverified_benchmark_is_hidden in %s and the technical score stays readable', locale => {
-    language.value = locale
-    const html = renderToStaticMarkup(<ScoreReveal score={73} grade="B" domain="example.test" industry="technology" />)
+    const html = renderWithIntl(<ScoreReveal score={73} grade="B" domain="example.test" industry="technology" />, locale)
     expect(html).toContain('73/100')
     expect(html).not.toMatch(/Avg\.|vs avg|行業平均|科技平均|比平均|61\/100/)
     const impact = computeImpact({}, { score: 73, industry: 'technology' })
@@ -45,8 +41,7 @@ describe('public result impact estimate', () => {
     ['en', 'Estimated impact:', 'not measured visibility or guaranteed gains'],
     ['zh-HK', '預估影響：', '並非實際可見度測量，亦不保證改善成效'],
   ])('qualifies the public teaser in %s without owned evidence', (locale, heading, limit) => {
-    language.value = locale
-    const html = renderToStaticMarkup(<ResultClient lang={locale} summary={summary} />)
+    const html = renderWithIntl(<ResultClient lang={locale} summary={summary} />, locale)
     expect(html).toContain(heading)
     expect(html).toContain(limit)
     expect(html).not.toContain('owned-scan-evidence')

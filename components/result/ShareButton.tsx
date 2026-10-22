@@ -1,23 +1,8 @@
 'use client'
 import { useState } from 'react'
-import { useLocale } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { Share2, Check } from 'lucide-react'
-
-const COPY_EN = {
-  shareText: (domain: string, score: number, grade: string) =>
-    `${domain} scored ${score}/100 (${grade}) on website readiness — scanned with Fimmick AISO`,
-  shareTitle: (domain: string) => `Website readiness score for ${domain}`,
-  copied: 'Link copied',
-  share: 'Share',
-}
-
-const COPY_ZH_HK: typeof COPY_EN = {
-  shareText: (domain: string, score: number, grade: string) =>
-    `${domain} 的網站就緒分數為 ${score}/100（${grade}）——以 Fimmick AISO 掃描`,
-  shareTitle: (domain: string) => `${domain} 的網站就緒分數`,
-  copied: '已複製連結',
-  share: '分享',
-}
+import { formatScanScore } from '@/lib/score-display'
 
 interface Props {
   domain: string
@@ -25,18 +10,17 @@ interface Props {
   grade: string
 }
 
-/** Web Share API with clipboard fallback — nudges the OG-card acquisition loop */
+/** Web Share API with clipboard fallback. The shared link carries the score as its OG image. */
 export function ShareButton({ domain, score, grade }: Props) {
-  const locale = useLocale()
-  const c = locale === 'zh-HK' ? COPY_ZH_HK : COPY_EN
+  const t = useTranslations('resultPage')
   const [copied, setCopied] = useState(false)
 
   async function share() {
     const url = window.location.href
-    const text = c.shareText(domain, score, grade)
+    const text = t('share_text', { domain, score: formatScanScore(score), grade })
     if (navigator.share) {
       try {
-        await navigator.share({ title: c.shareTitle(domain), text, url })
+        await navigator.share({ title: t('share_title', { domain }), text, url })
         return
       } catch { /* user cancelled — fall through to copy */ }
     }
@@ -49,11 +33,12 @@ export function ShareButton({ domain, score, grade }: Props) {
 
   return (
     <button
+      type="button"
       onClick={share}
-      className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground border border-border px-3 py-1.5 rounded-lg hover:bg-muted transition"
+      className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-semibold text-foreground hover:bg-neutral-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     >
-      {copied ? <Check className="size-3.5 text-emerald-600 dark:text-emerald-300" /> : <Share2 className="size-3.5" />}
-      {copied ? c.copied : c.share}
+      {copied ? <Check aria-hidden="true" className="size-3.5 text-tone-success-fg" /> : <Share2 aria-hidden="true" className="size-3.5" />}
+      <span aria-live="polite" className="sr-only sm:not-sr-only">{copied ? t('share_copied') : t('share')}</span>
     </button>
   )
 }

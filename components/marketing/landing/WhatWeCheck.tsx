@@ -1,7 +1,7 @@
 import { useTranslations } from 'next-intl'
 import { SCAN_GRADE_BANDS } from '@/lib/score-display'
 import { PILLAR_WEIGHTS, type Pillar } from '@/lib/marketing/landing'
-import { CHECK_ICONS } from '@/components/marketing/landing/check-icons'
+import { CHECK_ICONS } from '@/components/visuals/check-icons'
 import { SectionHeading } from '@/components/marketing/landing/SectionHeading'
 import { cn } from '@/lib/utils'
 import { revealDelay } from '@/components/visuals/reveal/reveal'

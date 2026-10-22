@@ -52,7 +52,8 @@ const PLATFORM_LABELS: Record<PlatformKey, string> = {
 
 const ALL_PLATFORMS: PlatformKey[] = ['chatgpt', 'perplexity', 'claude', 'gemini', 'google_aio']
 
-const EFFORT_MAP: Record<string, Effort> = {
+/** How long each fix usually takes: minutes, hours or days. */
+export const EFFORT_MAP: Record<string, Effort> = {
   c1_robots: 'minutes', c2_llms_txt: 'minutes', c6_llms_full_txt: 'minutes',
   c8_sitemap: 'minutes', c12_canonical: 'minutes',
   c4_structured_data: 'hours', c7_mcp_card: 'hours', c9_meta_desc: 'hours',

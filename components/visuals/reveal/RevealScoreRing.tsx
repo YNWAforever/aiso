@@ -1,3 +1,4 @@
+import { ArrowDown, ArrowUp } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { formatScanScore } from '@/lib/score-display'
@@ -13,7 +14,14 @@ const SIZES = {
  * with a CSS transition once a `[data-reveal]` ancestor scrolls into view. The
  * number is shown at its final value (a count-up would need a client script).
  */
-export function RevealScoreRing({ score, grade, size = 'md', className }: { score: number; grade: string; size?: keyof typeof SIZES; className?: string }) {
+export function RevealScoreRing({ score, grade, previous, size = 'md', className }: {
+  score: number
+  grade: string
+  /** The previous scan's score; shows a delta chip when present. */
+  previous?: number | null
+  size?: keyof typeof SIZES
+  className?: string
+}) {
   const t = useTranslations('visuals')
   const clamped = Math.min(100, Math.max(0, score))
   const dims = SIZES[size]
@@ -21,11 +29,17 @@ export function RevealScoreRing({ score, grade, size = 'md', className }: { scor
   const circ = 2 * Math.PI * r
   const tone = TONE_CLASSES[gradeTone(grade)]
   const vars = { ['--ring-from' as string]: circ, ['--ring-to' as string]: circ * (1 - clamped / 100) }
+  const delta = previous == null ? null : Math.round((clamped - previous) * 100) / 100
+  // role="img" makes its children presentational, so the delta is part of the name.
+  const label = [
+    t('scoreRing.label', { score: formatScanScore(clamped), grade, gradeLabel: t(`grade.${gradeKey(grade)}`) }),
+    delta === null ? null : t('delta', { direction: delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat', change: formatScanScore(Math.abs(delta)) }),
+  ].filter(Boolean).join('. ')
 
   return (
     <div
       role="img"
-      aria-label={t('scoreRing.label', { score: formatScanScore(clamped), grade, gradeLabel: t(`grade.${gradeKey(grade)}`) })}
+      aria-label={label}
       className={cn('inline-flex flex-col items-center gap-2', className)}
       data-testid="score-ring"
     >
@@ -42,6 +56,12 @@ export function RevealScoreRing({ score, grade, size = 'md', className }: { scor
           <span className={cn('font-medium text-muted-foreground', dims.suffix)}>{t('scoreRing.outOf')}</span>
         </div>
       </div>
+      {delta !== null && delta !== 0 && (
+        <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold', delta > 0 ? 'bg-tone-success-soft text-tone-success-fg' : 'bg-tone-danger-soft text-tone-danger-fg')}>
+          {delta > 0 ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
+          {formatScanScore(Math.abs(delta))}
+        </span>
+      )}
     </div>
   )
 }

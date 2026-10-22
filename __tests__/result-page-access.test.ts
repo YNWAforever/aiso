@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactElement } from 'react'
 import type { PublicResultSummary } from '@/lib/result-access'
 import type { Scan } from '@/lib/types'
-import { buildScanEvidence } from '@/lib/scan-evidence'
+import { buildScanEvidence, CHECK_VERSIONS } from '@/lib/scan-evidence'
 import type { OwnedResultEvidence } from '@/lib/result-evidence'
 
 const { getProfileMock, notFoundMock, sqlMock } = vi.hoisted(() => ({
@@ -14,6 +14,13 @@ const { getProfileMock, notFoundMock, sqlMock } = vi.hoisted(() => ({
 vi.mock('@/lib/auth', () => ({ getProfile: getProfileMock }))
 vi.mock('@/lib/db', () => ({ db: () => sqlMock }))
 vi.mock('next/navigation', () => ({ notFound: notFoundMock }))
+vi.mock('next-intl/server', async () => {
+  const { createTranslator } = await import('next-intl')
+  const en = (await import('@/messages/en.json')).default
+  const zh = (await import('@/messages/zh-HK.json')).default
+  return { getTranslations: async ({ locale, namespace }: { locale: string; namespace: string }) =>
+    createTranslator({ locale, messages: locale === 'zh-HK' ? zh : en, namespace: namespace as never }) }
+})
 vi.mock('@/components/result/ResultClient', () => ({ ResultClient: () => null }))
 
 import ResultPage, {generateMetadata} from '@/app/[lang]/result/[id]/page'
@@ -159,5 +166,42 @@ describe('public result route access boundary', () => {
     expect(serialized).toContain('"results"')
     expect(serialized).toContain(RAW_EVIDENCE)
     expect(serialized).toContain(PRIVATE_REMEDIATION)
+  })
+
+  function withPageEvidence(row: Scan, industry: string | null = null) {
+    // Complete collection on every check: the only kind of earlier scan a score can be compared with.
+    const checks = Object.fromEntries(Object.keys(CHECK_VERSIONS).map(key => [key, { assessment: 'pass', collection: 'complete' }]))
+    Object.assign(row.results, { evidence: buildScanEvidence({ requestedUrl: 'https://example.com', evaluatedUrl: 'https://example.com', industry, region: null, sitemapSource: 'fetched', checks,
+      observations: [{ check: 'page', collection: 'complete', httpStatus: 200, target: { origin: 'https://example.com' } }] }) })
+    return row
+  }
+
+  it('looks up the previous score only for the owner, filtered by the viewer account', async () => {
+    const current = withPageEvidence(scan('owner-rescan', 'account-1'))
+    const earlier = withPageEvidence(scan('owner-earlier', 'account-1'))
+    sqlMock.mockResolvedValueOnce([current]).mockResolvedValueOnce([{ score: '55.5', grade: 'D', evidence: (earlier.results as Record<string, unknown>).evidence }])
+    getProfileMock.mockResolvedValue({ account_id: 'account-1' })
+    const props = await renderPage('owner-rescan') as ResultClientProps & { previous?: unknown }
+    expect(props.previous).toEqual({ score: 55.5, grade: 'D' })
+    const [, ...values] = sqlMock.mock.calls[1]!
+    expect(values[0]).toBe('account-1')
+    expect(String((sqlMock.mock.calls[1]![0] as TemplateStringsArray).join('?'))).toMatch(/where account_id = \?/)
+  })
+
+  it('ignores a previous scan that is not comparable, so a method or scope change never celebrates', async () => {
+    const current = withPageEvidence(scan('owner-rescan-2', 'account-1'))
+    const otherScope = withPageEvidence(scan('owner-earlier-2', 'account-1'), 'finance')
+    sqlMock.mockResolvedValueOnce([current]).mockResolvedValueOnce([{ score: '40', grade: 'F', evidence: (otherScope.results as Record<string, unknown>).evidence }])
+    getProfileMock.mockResolvedValue({ account_id: 'account-1' })
+    const props = await renderPage('owner-rescan-2') as ResultClientProps & { previous?: unknown }
+    expect(props.previous).toBeNull()
+  })
+
+  it('never looks up a previous score for a non-owner', async () => {
+    sqlMock.mockResolvedValue([scan('non-owner-rescan', 'account-1')])
+    getProfileMock.mockResolvedValue({ account_id: 'account-2' })
+    const props = await renderPage('non-owner-rescan') as ResultClientProps & { previous?: unknown }
+    expect(props.previous).toBeNull()
+    expect(sqlMock).toHaveBeenCalledTimes(1)
   })
 })

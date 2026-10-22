@@ -17,7 +17,8 @@ export class ResultPage {
 
   constructor(readonly page: Page, private readonly lang: SupportedLang = 'en') {
     this.score = page.getByTestId('result-score')
-    this.topIssue = page.getByTestId('result-top-issue').locator('h2')
+    // The section's own heading ("Top 3 fixes"); an empty-state card inside may add a second h2.
+    this.topIssue = page.getByTestId('result-top-issue').locator('h2').first()
     this.emailInput = page.locator('input[name="email"]')
     this.createAccountButton = page.getByTestId('create-account')
     this.googleSignupButton = page.getByTestId('google-signup')

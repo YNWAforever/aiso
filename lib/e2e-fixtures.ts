@@ -37,12 +37,37 @@ export const E2E_FIXTURE_SCAN: Scan = {
   },
 }
 
+/**
+ * A second synthetic result whose checks carry complete collection evidence,
+ * so the result page has confirmed verdicts to draw (the base fixture is
+ * deliberately all "needs evidence"). Statuses follow the base fixture; the
+ * score is what those statuses earn under lib/scoring.ts.
+ */
+export const E2E_ASSESSED_SCAN_ID = 'e2e00000-0000-4000-a000-000000000100'
+const ASSESSED: Record<string, 'pass' | 'warn' | 'fail'> = {
+  c1_robots: 'pass', c2_llms_txt: 'fail', c3_bot_access: 'pass', c4_structured_data: 'warn', c5_extractability: 'pass',
+  c6_llms_full_txt: 'fail', c7_mcp_card: 'fail', c8_sitemap: 'pass', c9_meta_desc: 'pass', c10_headings: 'pass', c11_faq: 'fail',
+  c12_canonical: 'pass', c13_render: 'pass', c14_internal_links: 'warn', c15_entity: 'pass', c16_freshness: 'warn',
+  c17_citation_density: 'fail', c18_factual_density: 'warn', c19_topical_authority: 'warn', c20_chunkability: 'pass',
+}
+const ASSESSED_SCORE = 61.5
+function assessedScan(): Scan {
+  const results: Record<string, unknown> = {
+    evidence: buildScanEvidence({requestedUrl:'https://e2e-test.example.com',evaluatedUrl:'https://e2e-test.example.com',industry:null,region:null,sitemapSource:'fetched',
+      checks:Object.fromEntries(Object.entries(ASSESSED).map(([key, assessment]) => [key, { assessment, collection: 'complete' }])),
+      observations:[{check:'page',collection:'complete',httpStatus:200,target:{origin:'https://e2e-test.example.com'}}]}),
+  }
+  for (const [key, status] of Object.entries(ASSESSED)) results[key] = { status, message: key + '_' + status }
+  return { ...structuredClone(E2E_FIXTURE_SCAN), id: E2E_ASSESSED_SCAN_ID, score: ASSESSED_SCORE, grade: assignGrade(ASSESSED_SCORE), results: results as Scan['results'] }
+}
+
 const PRECISION_SCORES = [49.97,59.97,69.97,79.97,89.97,63.5,0,50,60,70,80,90,100]
 const precisionFixtureId = (index: number) => 'e2e00000-0000-4000-a000-'+String(index+2).padStart(12,'0')
 
 export function getE2EScanFixture(id: string): Scan | null {
   if (process.env.E2E_FIXTURE_MODE !== '1') return null
   if (id === E2E_FIXTURE_SCAN_ID) return structuredClone(E2E_FIXTURE_SCAN)
+  if (id === E2E_ASSESSED_SCAN_ID) return assessedScan()
   const index = PRECISION_SCORES.findIndex((_, index) => id === precisionFixtureId(index))
   if (index < 0) return null
   const score = PRECISION_SCORES[index]
