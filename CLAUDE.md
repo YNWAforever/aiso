@@ -597,6 +597,43 @@ centralized:** the scan route computes `Math.min(100, score + geoScore)` inline,
   otherwise invisible, because the suite goes green having run nothing.
 - Coverage: `@vitest/coverage-v8` available
 
+## Design system (UX Phase 1)
+
+Plan and rationale: `docs/ux/` (audit, target IA, visual system). Live gallery at
+`/{lang}/dev/design-system` — every token and component in both themes and languages; it
+404s only when `VERCEL_ENV=production`, so previews, local and the CI e2e server show it.
+
+- **Tokens** (`app/globals.css`, additive): `neutral-1…12`, `tone-{success,warning,danger,info}`
+  with `-soft` surfaces and `-fg` text, `shadow-e1/e2/e3`, `text-display`, `ease-standard`.
+  New UI uses these; `--dash-*`/`--sidebar-*` remain for older surfaces until they are rebuilt.
+  `__tests__/config/design-tokens.test.ts` asserts every tone/neutral exists in both themes and
+  every fg-on-surface pairing clears 4.5:1 — add a pairing there before using a new one.
+- **`dark:` follows the `.dark` class** (`@custom-variant dark`), like the tokens. Before Phase 1
+  it followed the OS preference, so the two disagreed whenever the toggle differed from the OS.
+- Dark `--primary` is blue-400 (`#60a5fa`) with dark foreground, not the old cyan.
+- **Fonts**: `next/font/google` Inter (Latin, `display: 'optional'`) in `app/layout.tsx`, so
+  `next build` needs network access to Google Fonts. **Do not add a CJK webfont**: Noto Sans TC
+  was tried and cost 1.1 MB / 18 files on the zh-HK home page, taking mobile LCP from 2.6 s to
+  9.9 s. Chinese uses the platform's TC face via `--font-sans`.
+- zh-HK: `:lang(zh-HK)` sets line-height and line-break rules in `@layer base`, and neutralises
+  `uppercase` / wide `tracking-*` outside a layer (so it beats the utilities).
+- **Motion**: durations, the one curve and variants live in `lib/motion.ts` (pure, server-safe).
+  Animated visuals render inside `MotionRoot` (`components/visuals/MotionRoot.tsx`: `LazyMotion`
+  + `domAnimation`, `strict` — use `m.*`, never `motion.*`). Transform/opacity only; ring and
+  gauge strokes animate `stroke-dashoffset`.
+- **Reduced motion must be hydration-safe.** Use `useReducedMotion` from `MotionRoot`, which is
+  false during hydration. Reading the preference on the first client render mismatches the
+  server HTML; React then re-renders the whole document and the theme script's `dark` class on
+  `<html>` is lost. The design-system e2e caught exactly that.
+- **`sr-only` text inside a horizontal scroller needs a `relative` scroller.** `sr-only` is
+  `position: absolute`; with a non-positioned scroller it escapes the clip and widens the page
+  (it did, by 29 px at 375 px in zh-HK). Scrollers also need `tabIndex={0}` + a region label
+  (axe `scrollable-region-focusable`).
+- `components/ui/*` are lowercase shadcn-style primitives; `components/visuals/*` are PascalCase
+  data-driven visuals. Both take every string from `messages/` (`ui.*`, `visuals.*`).
+- Import components by file path (`@/components/visuals/ScoreRing`), not a barrel: the
+  orphaned-components test resolves reachability from literal `@/components/...` imports.
+
 ## i18n
 
 - Locales: `en` (default), `zh-HK`

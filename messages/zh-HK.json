@@ -99,6 +99,10 @@
     "sample-report": {
       "title": "AI 搜尋報告示範 | Fimmick AISO",
       "description": "查看清楚標示的合成報告，了解網站檢查示例、草稿建議及證據限制。"
+    },
+    "root": {
+      "title": "Fimmick AISO — AI 搜尋就緒度檢查",
+      "description": "檢查你的網站能否被 AI 搜尋引擎看見，並免費獲得修正包。"
     }
   },
   "nav": {
@@ -2937,5 +2941,183 @@
     "reconciledReady": "原品牌及問題設定已完成。新的修改尚未套用，仍保留在這份草稿；可開啟工作區覆核已儲存的品牌。",
     "cacheUnavailable": "此分頁無法保留這次設定請求，輸入仍在這裡。請先覆核已儲存的品牌，或使用可保留草稿的分頁再試。",
     "reviewBrands": "覆核已儲存的品牌"
+  },
+  "ui": {
+    "breadcrumbs": "導覽路徑",
+    "close": "關閉",
+    "dismiss": "關閉通知",
+    "cancel": "取消",
+    "confirm": "確認",
+    "table": {
+      "filter": "篩選",
+      "noMatches": "沒有相符的資料",
+      "count": "顯示 {shown} 項，共 {total} 項"
+    },
+    "command": {
+      "title": "搜尋",
+      "placeholder": "搜尋頁面及操作",
+      "results": "搜尋結果",
+      "empty": "找不到結果",
+      "hint": "↑↓ 移動 · Enter 開啟 · Esc 關閉"
+    }
+  },
+  "visuals": {
+    "grade": {
+      "aPlus": "極佳",
+      "a": "很好",
+      "b": "良好",
+      "c": "一般",
+      "d": "欠佳",
+      "f": "危急",
+      "unknown": "未評級"
+    },
+    "status": {
+      "pass": "通過",
+      "warn": "需改善",
+      "fail": "不合格",
+      "unknown": "未檢查",
+      "pending": "等待中",
+      "running": "檢查中"
+    },
+    "pillars": {
+      "core": "核心",
+      "extended": "延伸",
+      "geo": "GEO"
+    },
+    "delta": "{direction, select, up {比上次上升 {change}} down {比上次下降 {change}} other {與上次相同}}",
+    "scoreRing": {
+      "label": "分數 {score}／100，評級 {grade}（{gradeLabel}）",
+      "outOf": "/100"
+    },
+    "scoreBadge": {
+      "label": "評級 {grade}（{gradeLabel}）"
+    },
+    "statCard": {
+      "noChange": "沒有變化"
+    },
+    "heatmap": {
+      "summary": "{pass} 項通過 · {warn} 項需改善 · {fail} 項不合格",
+      "tile": "{label}：{status}"
+    },
+    "pillarGauge": {
+      "value": "{earned}／{max} 分"
+    },
+    "potentialBar": {
+      "label": "現時 {current} 分，完成首要修正後可達 {potential} 分",
+      "now": "現時 {score}",
+      "potential": "可達 {score}"
+    },
+    "sparkline": {
+      "summary": "{label}：{count} 個數據點內{direction, select, up {上升 {change}} down {下降 {change}} other {沒有變化}}"
+    },
+    "scanTimeline": {
+      "progress": "已完成 {done}／{total} 項檢查 · {pillar}",
+      "complete": "{total} 項檢查全部完成",
+      "checking": "正在檢查{pillar}項目"
+    },
+    "platformDots": {
+      "platform": "AI 平台",
+      "legend": "圖例",
+      "cited": "已引用",
+      "mentioned": "有提及",
+      "absent": "未提及",
+      "notRun": "未檢查"
+    },
+    "heroDemo": {
+      "description": "動畫：網站完成掃描，得分 {score}／100，AI 助理可以引用它。",
+      "domain": "yourbusiness.com",
+      "scoreLabel": "AI 分數",
+      "canCite": "可引用你",
+      "platforms": {
+        "chatgpt": "ChatGPT",
+        "perplexity": "Perplexity",
+        "googleAi": "Google AI",
+        "gemini": "Gemini",
+        "claude": "Claude"
+      }
+    }
+  },
+  "designSystem": {
+    "title": "設計系統",
+    "description": "所有設計元素及組件，涵蓋兩種主題及語言。",
+    "crumbDev": "開發者",
+    "controls": {
+      "dark": "深色模式",
+      "reducedMotion": "減少動態效果",
+      "language": "English / 中文"
+    },
+    "sections": {
+      "foundations": "基礎",
+      "visuals": "視覺組件",
+      "components": "介面組件"
+    },
+    "foundations": {
+      "neutral": "中性色階",
+      "tones": "品牌及語意色",
+      "brand": "品牌",
+      "success": "成功",
+      "warning": "警告",
+      "danger": "危險",
+      "info": "資訊",
+      "type": "字體大小",
+      "sample": "AI 會推薦你嗎？",
+      "body": "AI 助理回答前會先閱讀你的網站。",
+      "elevation": "陰影層級"
+    },
+    "replay": "重播掃描",
+    "sample": {
+      "score": "AI 分數",
+      "failing": "不合格項目",
+      "fixesDone": "已完成修正",
+      "pts": "{n} 分",
+      "platformCaption": "按平台及週數劃分的 AI 回答",
+      "week": "第 {n} 週",
+      "stepsLabel": "運作方式",
+      "stepScan": "掃描",
+      "stepScanBody": "15 秒檢查你的網站。",
+      "stepFix": "修正",
+      "stepFixBody": "複製最重要的修正。",
+      "stepMonitor": "監測",
+      "stepMonitorBody": "看看 AI 何時開始引用你。",
+      "emptyTitle": "尚未有掃描",
+      "emptyBody": "掃描網站即可查看分數。",
+      "emptyAction": "立即掃描",
+      "errorTitle": "無法載入",
+      "errorBody": "請檢查網絡連線後再試。",
+      "retry": "再試一次",
+      "loading": "載入中",
+      "tabOverview": "概覽",
+      "tabFixes": "修正",
+      "tabTasks": "任務",
+      "tooltipTrigger": "這是甚麼？",
+      "tooltip": "你的分數（滿分 100）。",
+      "code": "# yourbusiness.com\n> 用一句說明你的業務。\n\n## 服務\n- [價錢](https://yourbusiness.com/pricing)",
+      "generateFix": "生成修正包",
+      "brandA": "海港咖啡室",
+      "brandB": "九龍牙科",
+      "brandC": "山頂花店",
+      "tableCaption": "品牌",
+      "colBrand": "品牌",
+      "colScore": "分數",
+      "colScans": "掃描次數",
+      "showToast": "顯示通知",
+      "toastTitle": "修正包已準備好",
+      "toastBody": "有 3 項修正可複製。",
+      "showConfirm": "移除品牌",
+      "confirmTitle": "要移除這個品牌嗎？",
+      "confirmBody": "它的掃描及報告會保留在記錄中。",
+      "confirmAction": "移除",
+      "removed": "已移除品牌",
+      "showDialog": "開啟對話框",
+      "dialogTitle": "對話框",
+      "dialogBody": "一個問題，一個決定。",
+      "ok": "確定",
+      "showPalette": "開啟搜尋（⌘K）",
+      "groupPages": "頁面",
+      "groupActions": "操作",
+      "navOverview": "概覽",
+      "navScan": "掃描及修正",
+      "navReports": "報告"
+    }
   }
 }

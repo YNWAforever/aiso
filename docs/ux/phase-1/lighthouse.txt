@@ -1,0 +1,14 @@
+branch_en-desktop                        perf 100 a11y 100 LCP 675 CLS 0.000 TBT 0
+branch_en-mobile                         perf 94 a11y 100 LCP 2919 CLS 0.000 TBT 72
+branch_en_dev_design-system-desktop      perf 100 a11y 100 LCP 733 CLS 0.000 TBT 0
+branch_en_dev_design-system-mobile       perf 89 a11y 100 LCP 3115 CLS 0.000 TBT 269
+branch_en_pricing-desktop                perf 100 a11y 100 LCP 680 CLS 0.000 TBT 0
+branch_en_pricing-mobile                 perf 94 a11y 100 LCP 2965 CLS 0.000 TBT 58
+branch_zh-HK-desktop                     perf 100 a11y 100 LCP 686 CLS 0.000 TBT 0
+branch_zh-HK-mobile                      perf 93 a11y 100 LCP 3115 CLS 0.000 TBT 103
+main_en-desktop                          perf 100 a11y 100 LCP 639 CLS 0.000 TBT 0
+main_en-mobile                           perf 96 a11y 100 LCP 2644 CLS 0.000 TBT 135
+main_en_pricing-desktop                  perf 100 a11y 100 LCP 624 CLS 0.000 TBT 0
+main_en_pricing-mobile                   perf 97 a11y 100 LCP 2578 CLS 0.000 TBT 101
+main_zh-HK-desktop                       perf 100 a11y 100 LCP 638 CLS 0.000 TBT 0
+main_zh-HK-mobile                        perf 94 a11y 100 LCP 2618 CLS 0.000 TBT 176

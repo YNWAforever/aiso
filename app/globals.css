@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* `dark:` utilities follow the `.dark` class the theme script and toggle set, not
+   the OS preference. Without this, Tailwind v4 binds `dark:` to
+   prefers-color-scheme while every token below follows `.dark`, so the two
+   disagreed whenever someone's toggle differed from their OS. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ── Light mode tokens ─────────────────────────────────────── */
 :root {
   --background:             #f8fafc;
@@ -106,11 +112,54 @@
   --brand-muted:   #5f6b7e;
   --brand-success: #0b724b;
   --brand-warning: #945700;
+
+  /* ── Design system (Phase 1, docs/ux/visual-system.md) ─────────────
+     Additive: existing tokens above keep their values. New components use
+     these; older surfaces migrate as each phase rebuilds them. */
+
+  /* Neutral scale, 1 (page) → 12 (strongest text). Steps 11/12 pass AA as
+     text on steps 1–3. */
+  --neutral-1:  #fbfcfd;
+  --neutral-2:  #f8fafc;
+  --neutral-3:  #f1f5f9;
+  --neutral-4:  #e8edf3;
+  --neutral-5:  #e2e8f0;
+  --neutral-6:  #d3dbe5;
+  --neutral-7:  #bcc7d4;
+  --neutral-8:  #94a3b8;
+  --neutral-9:  #718096;
+  --neutral-10: #5e6e85;
+  --neutral-11: #334155;
+  --neutral-12: #0f172a;
+
+  /* Semantic tones: a solid (icons, fills, rings), a soft surface, and an
+     fg that passes 4.5:1 on both the soft surface and the card. */
+  --tone-success:      #16a34a;
+  --tone-success-soft: #ecfdf3;
+  --tone-success-fg:   #15803d;
+  --tone-warning:      #d97706;
+  --tone-warning-soft: #fffbeb;
+  --tone-warning-fg:   #a16207;
+  --tone-danger:       #dc2626;
+  --tone-danger-soft:  #fef2f2;
+  --tone-danger-fg:    #b91c1c;
+  --tone-info:         #2563eb;
+  --tone-info-soft:    #eff6ff;
+  --tone-info-fg:      #1d4ed8;
+
+  /* Elevation: e1 card, e2 hover/popover, e3 dialog/drawer. */
+  --shadow-e1: 0 1px 2px rgb(15 23 42 / 0.06), 0 1px 3px rgb(15 23 42 / 0.04);
+  --shadow-e2: 0 4px 12px rgb(15 23 42 / 0.08), 0 2px 4px rgb(15 23 42 / 0.04);
+  --shadow-e3: 0 16px 40px rgb(15 23 42 / 0.16), 0 4px 12px rgb(15 23 42 / 0.06);
 }
 
 /* ── Dark mode tokens ──────────────────────────────────────── */
 .dark {
   color-scheme: dark;
+
+  /* Brand primary is the blue family in both themes (it was cyan here, which
+     made the two themes read as two brands). Blue-400 keeps the dark-on-light
+     button pairing the cyan had: #050510 on #60a5fa is 7.9:1. */
 
   --background:             #050510;
   --foreground:             #e0e0ec;
@@ -121,9 +170,9 @@
   --popover:                #0d0d18;
   --popover-foreground:     #e0e0ec;
 
-  --primary:                #00d4ff;
+  --primary:                #60a5fa;
   --primary-foreground:     #050510;
-  --primary-accessible:     #7dd3fc;
+  --primary-accessible:     #93c5fd;
 
   --secondary:              #141422;
   --secondary-foreground:   #e0e0ec;
@@ -146,7 +195,7 @@
   --border:                 #1e1e30;
   /* Fill only -- see the note in :root. Same value as --card here too. */
   --input:                  #0d0d18;
-  --ring:                   #00d4ff;
+  --ring:                   #60a5fa;
 
   --sidebar-background:     #0a0a14;
   --sidebar-foreground:     #e0e0ec;
@@ -162,11 +211,41 @@
   --dash-border:   #1e1e30;
   --dash-text:     #e0e0ec;
   --dash-muted:    #88889a;
-  --dash-accent:   #00d4ff;
+  --dash-accent:   #60a5fa;
   --dash-purple:   #a78bfa;
   --dash-success:  #22c55e;
   --dash-warning:  #f59e0b;
   --dash-danger:   #ef4444;
+
+  --neutral-1:  #050510;
+  --neutral-2:  #0d0d18;
+  --neutral-3:  #141422;
+  --neutral-4:  #1a1a2b;
+  --neutral-5:  #1e1e30;
+  --neutral-6:  #2a2a40;
+  --neutral-7:  #3a3a52;
+  --neutral-8:  #55556d;
+  --neutral-9:  #6e6e86;
+  --neutral-10: #88889a;
+  --neutral-11: #b4b4c4;
+  --neutral-12: #e0e0ec;
+
+  --tone-success:      #22c55e;
+  --tone-success-soft: #0b2a18;
+  --tone-success-fg:   #4ade80;
+  --tone-warning:      #f59e0b;
+  --tone-warning-soft: #2b1d05;
+  --tone-warning-fg:   #fbbf24;
+  --tone-danger:       #ef4444;
+  --tone-danger-soft:  #2c0d0f;
+  --tone-danger-fg:    #f87171;
+  --tone-info:         #60a5fa;
+  --tone-info-soft:    #0c1a33;
+  --tone-info-fg:      #93c5fd;
+
+  --shadow-e1: 0 0 0 1px rgb(255 255 255 / 0.04);
+  --shadow-e2: 0 0 0 1px rgb(255 255 255 / 0.06), 0 6px 16px rgb(0 0 0 / 0.5);
+  --shadow-e3: 0 0 0 1px rgb(255 255 255 / 0.08), 0 20px 48px rgb(0 0 0 / 0.6);
 }
 
 /* ── Tailwind v4 token registration ───────────────────────── */
@@ -217,7 +296,52 @@
   --color-dash-warning:   var(--dash-warning);
   --color-dash-danger:    var(--dash-danger);
 
-  --font-sans:                  Inter, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", Arial, sans-serif;
+
+  /* Design system registration (Phase 1) */
+  --color-neutral-1:  var(--neutral-1);
+  --color-neutral-2:  var(--neutral-2);
+  --color-neutral-3:  var(--neutral-3);
+  --color-neutral-4:  var(--neutral-4);
+  --color-neutral-5:  var(--neutral-5);
+  --color-neutral-6:  var(--neutral-6);
+  --color-neutral-7:  var(--neutral-7);
+  --color-neutral-8:  var(--neutral-8);
+  --color-neutral-9:  var(--neutral-9);
+  --color-neutral-10: var(--neutral-10);
+  --color-neutral-11: var(--neutral-11);
+  --color-neutral-12: var(--neutral-12);
+  --color-tone-success:      var(--tone-success);
+  --color-tone-success-soft: var(--tone-success-soft);
+  --color-tone-success-fg:   var(--tone-success-fg);
+  --color-tone-warning:      var(--tone-warning);
+  --color-tone-warning-soft: var(--tone-warning-soft);
+  --color-tone-warning-fg:   var(--tone-warning-fg);
+  --color-tone-danger:       var(--tone-danger);
+  --color-tone-danger-soft:  var(--tone-danger-soft);
+  --color-tone-danger-fg:    var(--tone-danger-fg);
+  --color-tone-info:         var(--tone-info);
+  --color-tone-info-soft:    var(--tone-info-soft);
+  --color-tone-info-fg:      var(--tone-info-fg);
+  --shadow-e1: var(--shadow-e1);
+  --shadow-e2: var(--shadow-e2);
+  --shadow-e3: var(--shadow-e3);
+
+  /* Type: the body scale is Tailwind's (xs 12 · sm 14 · base 16 · lg 18 ·
+     xl 20 · 2xl 24 · 3xl 30); these add the two display steps. New
+     components never go below text-xs (12px). */
+  --text-display:                 3rem;
+  --text-display--line-height:    1.1;
+  --text-display-lg:              4rem;
+  --text-display-lg--line-height: 1.05;
+
+  /* Motion: one curve for everything (lib/motion.ts mirrors it). */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --animate-shimmer: shimmer 1.4s var(--ease-standard) infinite;
+
+  /* --font-inter comes from next/font in app/layout.tsx (Latin only). CJK falls
+     through to the platform's Traditional Chinese face: PingFang TC (Apple),
+     Microsoft JhengHei (Windows), Noto Sans CJK TC (Android/ChromeOS). */
+  --font-sans:                  var(--font-inter), Inter, "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", "Noto Sans CJK TC", system-ui, Arial, sans-serif;
   --font-mono:                  "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --radius-sm:                  calc(var(--radius) - 0.25rem);
   --radius-md:                  var(--radius);
@@ -265,6 +389,33 @@
 :root .animate-fade-up   { animation: fade-up 0.5s ease-out both; }
 :root .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
 
+@keyframes tooltip-in {
+  from { opacity: 0; transform: translateY(2px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes overlay-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes overlay-out { from { opacity: 1; } to { opacity: 0; } }
+/* Centring comes from Tailwind v4's `translate` property, which composes
+   with `transform`, so these keyframes must not translate by -50% again. */
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes dialog-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(8px) scale(0.97); }
+}
+@keyframes sheet-right-in  { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes sheet-right-out { from { transform: translateX(0); } to { transform: translateX(100%); } }
+@keyframes sheet-up-in     { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes sheet-up-out    { from { transform: translateY(0); } to { transform: translateY(100%); } }
+
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
 /* Chevon rotation on details[open] */
 details[open] > summary .chevron-icon {
   transform: rotate(180deg);
@@ -295,3 +446,21 @@ html { scroll-behavior: smooth; }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Traditional Chinese typography ────────────────────────────
+   In @layer base so any Tailwind utility (leading-*, tracking-*) still wins
+   where a component sets one deliberately. */
+@layer base {
+  :lang(zh-HK) {
+    line-height: 1.75;
+    line-break: strict;
+    word-break: normal;
+    overflow-wrap: break-word;
+  }
+}
+
+/* Uppercase and wide tracking are Latin label styles. On CJK they do nothing
+   useful or spread characters apart, so they are neutralised for zh-HK. These
+   sit outside a layer on purpose: they must beat the utilities. */
+:lang(zh-HK) .uppercase { text-transform: none; }
+:lang(zh-HK) :is(.tracking-wide, .tracking-wider, .tracking-widest, [class*="tracking-[0."]) { letter-spacing: 0.02em; }
