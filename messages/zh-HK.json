@@ -1760,10 +1760,10 @@
     "unclassified": "查看未分類回答",
     "signals": {
       "status": {
-        "running": "每週追蹤運作中",
-        "stale": "自 {week} 起沒有每週結果",
-        "never": "每週追蹤尚未運作",
-        "body": "每次每週執行後會顯示新結果。"
+        "fresh": "最新結果：{week} 當週",
+        "stale": "自 {week} 起沒有新結果",
+        "never": "暫時未有每週結果",
+        "body": "每次執行後，結果會在此顯示。"
       },
       "platforms": {
         "title": "各 AI 平台每週表現",

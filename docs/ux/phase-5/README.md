@@ -16,7 +16,9 @@ Cloudflare side and the database could not be checked from this session.
 Deploying it is `docs/runbooks/deploy-cron-worker.md`.
 
 So Monitor stays hidden (`MONITOR_VISIBLE = false`), and its new status line
-says plainly when weekly results have stopped or never started.
+says how fresh the results are: "latest results: week of …", "no new results
+since …" or "no weekly results yet". It never claims the schedule runs,
+because a run started by hand also makes results fresh.
 
 ## What changed
 
@@ -30,8 +32,8 @@ says plainly when weekly results have stopped or never started.
   button on the current step, ticked from stored rows only; it disappears when
   done and is not shown when a read fails. Step 4 says "questions", not
   "weekly Pulse", because Pulse is not running.
-- **Monitor (hidden)**: status (running / no results since … / not running
-  yet), platform × week dots (ChatGPT, Perplexity, Gemini — never "cited",
+- **Monitor (hidden)**: result freshness (latest week / no new results since …
+  / none yet), platform × week dots (ChatGPT, Perplexity, Gemini — never "cited",
   which the weekly data cannot show), you vs competitors as share of
   classified answers over four weeks, and alert on/off with the last alert.
 - **States**: loading skeletons for the dashboard, the brand pages and Tasks;

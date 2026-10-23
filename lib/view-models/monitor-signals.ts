@@ -63,15 +63,15 @@ export function buildCompetitorBars(rows: { name: string | null; mentions: numbe
     .map(row => ({ name: row.name, mentions: row.mentions, share: share(row.mentions) }))
 }
 
-export type MonitorStatus = { state: 'running' | 'stale' | 'never'; lastWeek: string | null }
+export type MonitorStatus = { state: 'fresh' | 'stale' | 'never'; lastWeek: string | null }
 
 /**
- * Whether weekly tracking is actually producing results. Pulse rolls up weekly;
- * a latest week more than 14 days old means the schedule has stopped (or never
- * started), whatever the configuration says.
+ * How fresh the stored weekly results are, and nothing more. A run started by
+ * hand from the dashboard makes results fresh without any schedule, so fresh
+ * results must not be read (or worded) as "the schedule is running".
  */
 export function monitorStatus(latestWeek: string | null, now: Date): MonitorStatus {
   if (!latestWeek) return { state: 'never', lastWeek: null }
   const age = now.getTime() - Date.parse(`${latestWeek}T00:00:00Z`)
-  return { state: Number.isFinite(age) && age <= 14 * 86_400_000 ? 'running' : 'stale', lastWeek: latestWeek }
+  return { state: Number.isFinite(age) && age <= 14 * 86_400_000 ? 'fresh' : 'stale', lastWeek: latestWeek }
 }

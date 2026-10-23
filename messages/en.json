@@ -1760,10 +1760,10 @@
     "unclassified": "Read unclassified answers",
     "signals": {
       "status": {
-        "running": "Weekly tracking is running",
-        "stale": "No weekly results since {week}",
-        "never": "Weekly tracking is not running yet",
-        "body": "New results appear after each weekly run."
+        "fresh": "Latest results: week of {week}",
+        "stale": "No new results since {week}",
+        "never": "No weekly results yet",
+        "body": "Results appear here after each run."
       },
       "platforms": {
         "title": "AI platforms by week",

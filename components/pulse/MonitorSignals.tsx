@@ -10,7 +10,8 @@ import zhHK from '@/messages/zh-HK.json'
 const panel = 'min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6'
 
 /**
- * Monitor's top: whether weekly tracking is producing results at all, then
+ * Monitor's top: how fresh the weekly results are (not whether a schedule
+ * runs: a manual run also makes them fresh), then
  * platform × week, brand vs competitors, and alert status. Every panel reads
  * stored rows only, and says so plainly when there are none.
  */
@@ -28,14 +29,14 @@ export function MonitorSignals({ view, lang, now }: { view: PulseView; lang: str
       <div
         role="status"
         data-testid="monitor-status"
-        className={cn('flex items-start gap-3 rounded-2xl border p-4', status.state === 'running' ? 'border-tone-success/40 bg-tone-success-soft' : 'border-tone-warning/40 bg-tone-warning-soft')}
+        className={cn('flex items-start gap-3 rounded-2xl border p-4', status.state === 'fresh' ? 'border-tone-success/40 bg-tone-success-soft' : 'border-tone-warning/40 bg-tone-warning-soft')}
       >
-        <Radio aria-hidden="true" className={cn('mt-0.5 size-5 shrink-0', status.state === 'running' ? 'text-tone-success-fg' : 'text-tone-warning-fg')} />
+        <Radio aria-hidden="true" className={cn('mt-0.5 size-5 shrink-0', status.state === 'fresh' ? 'text-tone-success-fg' : 'text-tone-warning-fg')} />
         <div>
-          <p className={cn('font-semibold', status.state === 'running' ? 'text-tone-success-fg' : 'text-tone-warning-fg')}>
-            {status.state === 'running' ? copy.status.running : status.state === 'stale' ? copy.status.stale.replace('{week}', status.lastWeek!) : copy.status.never}
+          <p className={cn('font-semibold', status.state === 'fresh' ? 'text-tone-success-fg' : 'text-tone-warning-fg')}>
+            {status.state === 'fresh' ? copy.status.fresh.replace('{week}', status.lastWeek!) : status.state === 'stale' ? copy.status.stale.replace('{week}', status.lastWeek!) : copy.status.never}
           </p>
-          <p className={cn('text-sm', status.state === 'running' ? 'text-tone-success-fg' : 'text-tone-warning-fg')}>{copy.status.body}</p>
+          <p className={cn('text-sm', status.state === 'fresh' ? 'text-tone-success-fg' : 'text-tone-warning-fg')}>{copy.status.body}</p>
         </div>
       </div>
 

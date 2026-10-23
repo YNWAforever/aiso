@@ -40,8 +40,8 @@ describe('competitor bars', () => {
 
 describe('monitor status', () => {
   const now = new Date('2026-10-23T00:00:00Z')
-  it('is running only with a week from the last fortnight', () => {
-    expect(monitorStatus('2026-10-19', now)).toEqual({ state: 'running', lastWeek: '2026-10-19' })
+  it('calls results fresh only with a week from the last fortnight, and claims nothing about a schedule', () => {
+    expect(monitorStatus('2026-10-19', now)).toEqual({ state: 'fresh', lastWeek: '2026-10-19' })
     expect(monitorStatus('2026-09-28', now)).toEqual({ state: 'stale', lastWeek: '2026-09-28' })
     expect(monitorStatus(null, now)).toEqual({ state: 'never', lastWeek: null })
   })

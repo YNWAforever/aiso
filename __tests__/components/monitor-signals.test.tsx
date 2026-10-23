@@ -17,7 +17,12 @@ describe('MonitorSignals', () => {
     expect(html).toContain(copy.competitors.share.replace('{n}', '50'))
     expect(html).toContain(copy.alerts.last.replace('{date}', '2026-09-29'))
   })
-  it('says tracking is not running yet, and shows no chart, when nothing was ever collected', () => {
+  it('describes fresh results by their week, never as a running schedule', () => {
+    const html = renderWithIntl(<MonitorSignals view={monitorView('2026-10-19')} lang="en" now={now} />)
+    expect(html).toContain(en.pulseView.signals.status.fresh.replace('{week}', '2026-10-19'))
+    expect(html.toLowerCase()).not.toContain('running')
+  })
+  it('says there are no results yet, and shows no chart, when nothing was ever collected', () => {
     const html = renderWithIntl(<MonitorSignals view={monitorView(null)} lang="en" now={now} />)
     expect(html).toContain(en.pulseView.signals.status.never)
     expect(html).toContain(en.pulseView.signals.platforms.empty)
