@@ -30,8 +30,10 @@ export function EmptyState({ illustration = 'scan', title, description, action, 
  * the theme. Decorative: the heading next to them says what they mean.
  */
 export function Illustration({ name, className }: { name: IllustrationName; className?: string }) {
+  // A className replaces the default size rather than merging with it: no cn()
+  // here, so pages that only need an illustration do not load tailwind-merge.
   return (
-    <svg aria-hidden="true" viewBox="0 0 120 88" className={cn('h-20 w-28', className)} fill="none">
+    <svg aria-hidden="true" viewBox="0 0 120 88" className={className ?? 'h-20 w-28'} fill="none">
       <rect x="10" y="8" width="100" height="72" rx="10" className="fill-neutral-3" />
       {name === 'scan' && (<>
         <rect x="24" y="22" width="52" height="6" rx="3" className="fill-neutral-6" />
