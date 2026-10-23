@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { CommandPalette } from '@/components/ui/command-palette'
+import { CopyButton } from '@/components/ui/copy-button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DataTable } from '@/components/ui/data-table'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -253,7 +254,7 @@ function Gallery({ reduced, onReducedChange }: { reduced: boolean; onReducedChan
             </Tooltip>
           </TooltipProvider>
         </Sub>
-        <Sub title="Toast · ConfirmDialog · Dialog · CommandPalette">
+        <Sub title="Toast · ConfirmDialog · Dialog · CommandPalette · CopyButton">
           <Overlays />
         </Sub>
       </Section>
@@ -388,6 +389,7 @@ function Overlays() {
         </DialogContent>
       </Dialog>
       <Button variant="outline" size="sm" onClick={() => setPaletteOpen(true)}>{t('sample.showPalette')}</Button>
+      <CopyButton value="https://example.com/en/r/sample" className="min-h-9 px-3" />
       <CommandPalette
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
