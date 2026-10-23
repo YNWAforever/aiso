@@ -1612,6 +1612,54 @@
       "title": "Local visibility",
       "body": "See how buyers nearby find you.",
       "cta": "Open local visibility"
+    },
+    "stats": {
+      "title": "At a glance",
+      "score": "AISO score",
+      "fixesLeft": "Fixes left",
+      "pointsToGain": "Points to gain",
+      "points": "{n} pts",
+      "unknown": "—"
+    },
+    "trend": {
+      "title": "Score trend",
+      "empty": "Run another scan to see a trend.",
+      "summary": "Score went from {first} to {last} over {count} scans.",
+      "date": "Date",
+      "score": "Score"
+    },
+    "nextAction": {
+      "label": "Next best action",
+      "fix": "Fix first: {check}",
+      "fixCta": "See the fix",
+      "points": "Worth up to {n} points"
+    },
+    "gettingStarted": {
+      "title": "Get set up",
+      "progress": "{done} of 4 done",
+      "done": "Done",
+      "steps": {
+        "brand": {
+          "title": "Add your brand",
+          "body": "Your brand and website are saved.",
+          "cta": "View brand"
+        },
+        "scan": {
+          "title": "Run your first scan",
+          "body": "See how AI search reads your site.",
+          "cta": "Run a scan"
+        },
+        "fixes": {
+          "title": "Save your top fixes",
+          "body": "Turn the biggest findings into tasks.",
+          "cta": "Open fixes"
+        },
+        "questions": {
+          "title": "Choose questions to track",
+          "body": "Pick the questions buyers ask AI.",
+          "cta": "Choose questions"
+        }
+      }
     }
   },
   "portfolio": {

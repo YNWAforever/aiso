@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
-export type IllustrationName = 'scan' | 'fixes' | 'tasks' | 'reports' | 'error'
+export type IllustrationName = 'scan' | 'fixes' | 'tasks' | 'reports' | 'error' | 'brand' | 'questions' | 'monitor' | 'upgrade'
 
 export interface EmptyStateProps {
   illustration?: IllustrationName
@@ -56,6 +56,25 @@ export function Illustration({ name, className }: { name: IllustrationName; clas
         <rect x="44" y="40" width="12" height="28" rx="2" className="fill-neutral-6" />
         <rect x="62" y="30" width="12" height="38" rx="2" className="fill-primary" />
         <rect x="80" y="44" width="12" height="24" rx="2" className="fill-neutral-6" />
+      </>)}
+      {name === 'brand' && (<>
+        <rect x="30" y="34" width="60" height="34" rx="4" className="fill-neutral-6" />
+        <path d="M26 34l8-14h52l8 14z" className="fill-primary" />
+        <rect x="52" y="48" width="16" height="20" rx="2" className="fill-neutral-3" />
+      </>)}
+      {name === 'questions' && (<>
+        <rect x="22" y="20" width="52" height="26" rx="8" className="fill-neutral-6" />
+        <path d="M32 46l-4 10 14-10z" className="fill-neutral-6" />
+        <rect x="50" y="42" width="48" height="24" rx="8" className="fill-primary" />
+        <path d="M88 66l4 8-12-8z" className="fill-primary" />
+      </>)}
+      {name === 'monitor' && (<>
+        <path d="M22 62l18-16 14 10 20-22 22 14" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" className="stroke-primary" />
+        {[22, 40, 54, 74, 96].map((x, i) => <circle key={x} cx={x} cy={[62, 46, 56, 34, 48][i]} r="4" className="fill-neutral-6" />)}
+      </>)}
+      {name === 'upgrade' && (<>
+        <path d="M60 18l20 24H68v24H52V42H40z" className="fill-primary" />
+        <rect x="34" y="70" width="52" height="4" rx="2" className="fill-neutral-6" />
       </>)}
       {name === 'error' && (<>
         <path d="M60 22l26 44H34z" strokeWidth="5" strokeLinejoin="round" className="stroke-tone-warning" />

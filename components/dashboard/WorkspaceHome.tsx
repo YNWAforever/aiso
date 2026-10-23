@@ -4,6 +4,12 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { ArrowRight, BarChart3, ChevronDown, Clock, FileText, Gauge, ListChecks, MapPin, MessageSquareText, ScanSearch, Sparkles } from 'lucide-react'
 import { MONITOR_VISIBLE } from '@/lib/dashboard-nav'
+import { RevealObserver } from '@/components/visuals/reveal/RevealObserver'
+import { NextActionCard } from '@/components/dashboard/overview/NextActionCard'
+import { GettingStarted } from '@/components/dashboard/overview/GettingStarted'
+import { OverviewStats } from '@/components/dashboard/overview/OverviewStats'
+import { ScoreTrend } from '@/components/dashboard/overview/ScoreTrend'
+import type { IllustrationName } from '@/components/ui/empty-state'
 import { PillarScoreCards } from '@/components/PillarScoreCards'
 import { getCheckExplanations } from '@/lib/checkExplanations'
 import type { WorkspaceHome as HomeDto } from '@/lib/view-models/workspace-home'
@@ -16,7 +22,6 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
   const base = `/${lang}/dashboard/${workspace.client.id}`
   // Flush-left with the text above them (no horizontal padding), 44px tall for touch.
   const linkClass = 'inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm font-semibold text-primary-accessible underline decoration-primary/30 underline-offset-4 transition-colors hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
-  const primaryClass = 'inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm transition-colors hover:bg-primary-accessible focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
   const cardClass = 'flex min-w-0 flex-col rounded-2xl border border-dash-border bg-dash-surface p-5 shadow-sm sm:p-6'
   function panel(title: string, section: { state: HomeDto['visibility']['state']; observedAt: string|null }, children: ReactNode, className = '') {
     return <section className={`${cardClass} ${className}`}>
@@ -35,25 +40,36 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
   /** A card's closing link, pinned to the bottom so cards in one row align. */
   const cardLink = (href: string, label: ReactNode) => <div className="mt-auto pt-4"><Link className={linkClass} href={href}>{label}<ArrowRight aria-hidden="true" className="size-4" /></Link></div>
   const toolIcons = { scan: ScanSearch, results: ListChecks, improve: Sparkles } as const
-  // Monitor stays reachable by URL but is not advertised until Pulse is scheduled:
-  // a next step that would open it becomes a new scan, without the Pulse reason.
-  const nextStep: { href: string; label: string; reasonKey?: NonNullable<HomeDto['nextStep']>['reasonKey'] } | null = !workspace.nextStep ? null
-    : !MONITOR_VISIBLE && workspace.nextStep.href.includes('?step=monitor') ? { href: `${base}?step=scan`, label: copy.nextStep.scan }
-    : { href: workspace.nextStep.href, label: copy.nextStep[workspace.nextStep.labelKey], reasonKey: workspace.nextStep.reasonKey }
   const health = workspace.siteHealth.data
   const visibility = workspace.visibility.data
   const priorities = workspace.priorities
   const pcopy = copy.priorities
   const explanations = getCheckExplanations(lang)
+  // Monitor stays reachable by URL but is not advertised until Pulse is scheduled:
+  // a next step that would open it becomes the top observed fix when there is
+  // one, or else a new scan, without the Pulse reason.
+  const top = priorities.state === 'ready' ? priorities.primaryAction : null
+  const monitorBound = !MONITOR_VISIBLE && !!workspace.nextStep?.href.includes('?step=monitor')
+  const nextStep: { href: string; label: string; sentence?: string; detail?: string; illustration: IllustrationName; reasonKey?: NonNullable<HomeDto['nextStep']>['reasonKey'] } | null = !workspace.nextStep ? null
+    : monitorBound && top && health ? {
+      href: `${base}?step=results&scanId=${encodeURIComponent(health.scanId)}`, label: copy.nextAction.fixCta, illustration: 'fixes',
+      sentence: copy.nextAction.fix.replace('{check}', explanations[top.checkKey]?.question ?? top.checkKey),
+      detail: copy.nextAction.points.replace('{n}', String(Number(top.pointsAtStake.toFixed(1)))),
+    }
+    : monitorBound ? { href: `${base}?step=scan`, label: copy.nextStep.scan, illustration: 'scan' }
+    : { href: workspace.nextStep.href, label: copy.nextStep[workspace.nextStep.labelKey], illustration: workspace.nextStep.href.includes('?step=scan') ? 'scan' : 'tasks', reasonKey: workspace.nextStep.reasonKey }
   return <main className="mx-auto w-full min-w-0 max-w-6xl break-words px-4 py-8 sm:px-6">
     <header className="mb-8">
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary-accessible">{copy.title}</p>
       <h1 className="mt-2 text-3xl font-black tracking-tight text-dash-text">{workspace.client.brand_name}</h1>
       <p className="mt-1 text-sm font-medium text-dash-muted">{workspace.client.domain}</p>
       <p className="mt-4 max-w-3xl text-sm leading-relaxed text-dash-muted">{copy.summary}</p>
-      {nextStep&&<Link className={`${primaryClass} mt-5`} href={nextStep.href.replace("__locale__",lang)}>{nextStep.label}<ArrowRight aria-hidden="true" className="size-4" /></Link>}
+      {nextStep&&<NextActionCard caption={copy.nextAction.label} sentence={nextStep.sentence} detail={nextStep.detail} href={nextStep.href.replace("__locale__",lang)} cta={nextStep.label} illustration={nextStep.illustration} />}
       {nextStep?.reasonKey&&<p className="mt-2 max-w-3xl text-sm leading-relaxed text-dash-muted">{nextStep.reasonKey==='unknown'?copy.daily.unknown:(lang==='zh-HK'?zhHK:en).runProgress.availabilityReasons[nextStep.reasonKey]}</p>}
     </header>
+    <RevealObserver />
+    {workspace.gettingStarted&&<GettingStarted model={workspace.gettingStarted} lang={lang} base={base} />}
+    {workspace.stats&&<OverviewStats stats={workspace.stats} lang={lang} resultsHref={health?`${base}?step=results&scanId=${encodeURIComponent(health.scanId)}`:null} />}
     {workspace.dailyWork&&<details aria-labelledby="daily-work-heading" className="group mb-8 space-y-3 rounded-2xl border border-dash-border bg-dash-surface p-5 shadow-sm sm:p-6">
       <summary id="daily-work-heading" className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg text-lg font-bold text-dash-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">{copy.daily.title}<ChevronDown aria-hidden="true" className="size-5 shrink-0 text-dash-muted transition-transform group-open:rotate-180 motion-reduce:transition-none" /></summary>
       <p className="text-dash-text">{copy.daily.states[workspace.dailyWork.state]}</p>
@@ -92,6 +108,7 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
         <p className="mt-1 max-w-3xl text-xs leading-relaxed text-dash-muted">{pcopy.needsEvidenceNote}</p>
       </div>}
     </section>
+    {workspace.stats&&<ScoreTrend trend={workspace.stats.trend} lang={lang} />}
     <RunProgress clientId={workspace.client.id} lang={lang}/>
     <div className="grid min-w-0 gap-5 lg:grid-cols-3">
       {panel(copy.siteHealth, workspace.siteHealth, health && <>

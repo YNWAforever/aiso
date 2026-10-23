@@ -1612,6 +1612,54 @@
       "title": "本地能見度",
       "body": "看看附近的買家如何找到你。",
       "cta": "查看本地能見度"
+    },
+    "stats": {
+      "title": "概覽",
+      "score": "AISO 分數",
+      "fixesLeft": "待修復",
+      "pointsToGain": "可提升分數",
+      "points": "{n} 分",
+      "unknown": "—"
+    },
+    "trend": {
+      "title": "分數走勢",
+      "empty": "再掃描一次即可看到走勢。",
+      "summary": "分數在 {count} 次掃描中由 {first} 變為 {last}。",
+      "date": "日期",
+      "score": "分數"
+    },
+    "nextAction": {
+      "label": "下一步最佳行動",
+      "fix": "先修復：{check}",
+      "fixCta": "查看修復方法",
+      "points": "最多可加 {n} 分"
+    },
+    "gettingStarted": {
+      "title": "開始設定",
+      "progress": "已完成 {done}／4",
+      "done": "已完成",
+      "steps": {
+        "brand": {
+          "title": "加入品牌",
+          "body": "你的品牌及網站已儲存。",
+          "cta": "查看品牌"
+        },
+        "scan": {
+          "title": "進行首次掃描",
+          "body": "了解 AI 搜尋如何解讀你的網站。",
+          "cta": "開始掃描"
+        },
+        "fixes": {
+          "title": "儲存首要修復",
+          "body": "把最重要的發現轉成任務。",
+          "cta": "打開修復"
+        },
+        "questions": {
+          "title": "選擇追蹤問題",
+          "body": "挑選買家會問 AI 的問題。",
+          "cta": "選擇問題"
+        }
+      }
     }
   },
   "portfolio": {
