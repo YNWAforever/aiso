@@ -82,3 +82,27 @@ missing Supabase function (migration `036` dropped them). It also listed
 
 `__tests__/docs/readme-links.test.ts` checks that every relative link in the
 README and the moved pages resolves, and that the README stays a front page.
+
+## Evidence
+
+| | |
+|---|---|
+| The new sources list under "What we check" | `evidence/checks-sources-en-1440.png`, `evidence/checks-sources-zh-HK-390.png` |
+
+## Lighthouse (mobile, fixture server, single run)
+
+| Page | perf | a11y | SEO | LCP | CLS | JS (budget) |
+|---|---|---|---|---|---|---|
+| /en | 87 | 100 | 100 | 3.4 s | 0 | 175 KB (200) |
+| /zh-HK | 88 | 100 | 100 | 3.4 s | 0 | 175 KB (200) |
+
+A single local run, not the median of three that CI's Lighthouse job asserts
+on, so the performance score is within run-to-run noise of Phase 7's figures;
+this phase adds no client script beyond the wordmark component.
+
+## Verification
+
+- `npm run lint`, `npm run typecheck`, `npm run audit:text`: clean.
+- `npm run test:unit`: 474 files, 6,499 tests pass.
+- Full Playwright suite against the production build with the CI component
+  fixtures: 1,582 passed, none skipped.
