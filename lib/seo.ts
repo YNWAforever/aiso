@@ -3,11 +3,12 @@ import en from '@/messages/en.json'
 import zhHK from '@/messages/zh-HK.json'
 import { appOrigin } from '@/lib/app-origin'
 import { PRODUCT_FACTS } from '@/lib/product-facts'
+import { BRAND, PRODUCT_NAME } from '@/lib/brand'
 
 export const SITE_URL = new URL(appOrigin())
 
 /** The company behind the product (a product-owner decision, UX Phase 8). No logo or sameAs until official ones exist. */
-export const ORGANIZATION = { name: 'Fimmick', url: 'https://www.fimmick.com' } as const
+export const ORGANIZATION = { name: BRAND.company, url: 'https://www.fimmick.com' } as const
 
 /**
  * The date the public marketing copy last changed, published as
@@ -61,7 +62,7 @@ export function buildLocalizedMetadata(locale: string, path = ''): Metadata {
     openGraph: {
       type: 'website',
       url: localizedUrl(locale, path),
-      siteName: 'Fimmick AISO',
+      siteName: PRODUCT_NAME,
       locale: isZh ? 'zh_HK' : 'en_US',
       title,
       description,
@@ -76,7 +77,7 @@ export function buildSoftwareApplicationJsonLd(locale: string) {
   return {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
-    name: 'Fimmick AISO',
+    name: PRODUCT_NAME,
     applicationCategory: 'BusinessApplication',
     operatingSystem: 'Web',
     url: localizedUrl(locale),

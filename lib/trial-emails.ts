@@ -30,7 +30,7 @@ export function pendingTrialEmails(days: number, sentMask: number, appUrl: strin
   if (days >= 1 && !(sentMask & EMAIL_DAY1)) {
     toSend.push({
       bit: EMAIL_DAY1,
-      subject: '✅ Your AISO Fix Pack is ready — deploy these 3 files',
+      subject: '✅ Your Fimmick AISO Fix Pack is ready — deploy these 3 files',
       text: `Your 7-day trial is active.\n\nDownload your Fix Pack from your dashboard:\n${appUrl}/en/dashboard\n\nThe 3 files (llms.txt, robots.txt patch, FAQ schema) are ready to deploy. Most sites see AI indexing improve within 48 hours of deploying llms.txt.\n\nYou have 6 days remaining on your trial.\n\n— Fimmick AISO`,
     })
   }
@@ -44,14 +44,14 @@ export function pendingTrialEmails(days: number, sentMask: number, appUrl: strin
   if (days >= 7 && !(sentMask & EMAIL_DAY7)) {
     toSend.push({
       bit: EMAIL_DAY7,
-      subject: '🔔 Last day of your AISO trial',
+      subject: '🔔 Last day of your Fimmick AISO trial',
       text: `Today is the last day of your free trial.\n\nKeep your dashboard, Fix Pack, and AI visibility report by upgrading:\n${appUrl}/en/pricing\n\nBasic plan starts at $29/month — no credit card was required for your trial, but you'll need one to continue.\n\n— Fimmick AISO`,
     })
   }
   if (days >= 10 && !(sentMask & EMAIL_DAY10)) {
     toSend.push({
       bit: EMAIL_DAY10,
-      subject: 'Your AISO report is saved — come back anytime',
+      subject: 'Your Fimmick AISO report is saved — come back anytime',
       text: `Your trial ended a few days ago, but your scan report and AISO score are still waiting for you.\n\nNo pressure — whenever you're ready:\n${appUrl}/en/pricing\n\n— Fimmick AISO`,
     })
   }

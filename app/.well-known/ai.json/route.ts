@@ -1,6 +1,7 @@
 import sitemap from '@/app/sitemap'
 import { PRODUCT_FACTS } from '@/lib/product-facts'
 import { ORGANIZATION, SITE_URL } from '@/lib/seo'
+import { PRODUCT_NAME } from '@/lib/brand'
 
 /**
  * A plain description of the site for AI agents (/.well-known/ai.json, one of
@@ -11,7 +12,7 @@ import { ORGANIZATION, SITE_URL } from '@/lib/seo'
 export function GET() {
   const body = {
     schema_version: '1',
-    name: 'Fimmick AISO',
+    name: PRODUCT_NAME,
     description: `Runs ${PRODUCT_FACTS.checkCount} AI search readiness checks on a website and returns an evidence score out of ${PRODUCT_FACTS.scoreMaximum} with prioritised fixes.`,
     url: new URL('/', SITE_URL).toString(),
     languages: ['en', 'zh-HK'],

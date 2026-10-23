@@ -23,7 +23,7 @@ import type { PublicUrlFetch } from '@/lib/security/public-url'
 function fetcher(request: APIRequestContext): PublicUrlFetch {
   return (async (url: string) => {
     const response = await request.get(new URL(url).pathname, { failOnStatusCode: false })
-    return new Response(await response.body(), { status: response.status(), headers: response.headers() })
+    return new Response(new Uint8Array(await response.body()), { status: response.status(), headers: response.headers() })
   }) as unknown as PublicUrlFetch
 }
 

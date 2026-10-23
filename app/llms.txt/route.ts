@@ -2,6 +2,7 @@ import en from '@/messages/en.json'
 import sitemap from '@/app/sitemap'
 import { PRODUCT_FACTS } from '@/lib/product-facts'
 import { SITE_URL, seoMessageKey } from '@/lib/seo'
+import { PRODUCT_NAME } from '@/lib/brand'
 
 /** The SEO title of a sitemap URL, from the catalogue its pages already use. */
 function pageTitle(url: string): string {
@@ -16,9 +17,9 @@ function pageTitle(url: string): string {
 
 export function GET() {
   const pages = sitemap().map(({ url }) => `- [${pageTitle(url)}](${url})`)
-  const body = `# Fimmick AISO
+  const body = `# ${PRODUCT_NAME}
 
-> Fimmick AISO runs ${PRODUCT_FACTS.checkCount} AI readiness checks and scores website evidence out of ${PRODUCT_FACTS.scoreMaximum} points.
+> ${PRODUCT_NAME} runs ${PRODUCT_FACTS.checkCount} AI readiness checks and scores website evidence out of ${PRODUCT_FACTS.scoreMaximum} points.
 
 ## Supported AI platforms
 ${PRODUCT_FACTS.platforms.map((platform) => `- ${platform}`).join('\n')}

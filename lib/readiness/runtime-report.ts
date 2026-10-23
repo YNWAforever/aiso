@@ -145,7 +145,7 @@ export function renderRuntimeReport(report: RuntimeReport, policy: RuntimePolicy
   const canonical = buildRuntimeReport({ nonce: report.nonce, policyHash: report.policyHash, startedAt: report.startedAt, completedAt: report.completedAt, expected: report.expected, observed: report.observed, observedDatabase: report.observedDatabase, configuration: report.configuration, checks: report.checks, ...('configuredTeamId' in report ? { configuredTeamId: report.configuredTeamId } : {}) }, policy)
   const show = (value: string | null) => value ?? 'unavailable'
   return [
-    '# AISO runtime readiness', '', 'REPORT ONLY / NOT ENFORCED', '',
+    '# Fimmick AISO runtime readiness', '', 'REPORT ONLY / NOT ENFORCED', '',
     `Runtime: ${canonical.runtimeStatus}`, `Configuration: ${canonical.configurationStatus}`, 'Production readiness: unverified',
     `Nonce: ${canonical.nonce}`, `Policy hash: ${canonical.policyHash}`, `Started: ${canonical.startedAt}`, `Completed: ${canonical.completedAt}`, '',
     '## Expected candidate', ...Object.entries(canonical.expected).map(([key, value]) => `- ${key}: ${value}`), '',

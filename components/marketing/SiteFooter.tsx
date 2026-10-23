@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowRight, Zap } from 'lucide-react'
 import { NAV, type NavSection } from '@/lib/navigation'
+import { Wordmark } from '@/components/brand/Wordmark'
 
 /**
  * The public footer, rendered once by `app/[lang]/(marketing)/layout.tsx`.
@@ -63,9 +64,7 @@ export function SiteFooter() {
               <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary">
                 <Zap aria-hidden="true" className="size-4 text-primary-foreground" />
               </span>
-              <span>
-                {t('brand_name')} <span className="text-primary">{t('brand_product')}</span>
-              </span>
+              <Wordmark />
             </Link>
             <p className="mt-4 text-sm leading-6 text-muted-foreground">{t('footer_blurb')}</p>
             <Link

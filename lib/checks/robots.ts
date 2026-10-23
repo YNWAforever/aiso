@@ -9,7 +9,7 @@ export async function checkRobots(baseUrl: string, fetcher: PublicUrlFetch): Pro
   try {
     const res = await fetcher(robotsUrl, {
       signal: AbortSignal.timeout(8000),
-      headers: { 'User-Agent': 'Fimmick-AEO/1.0' },
+      headers: { 'User-Agent': 'FimmickAISO/1.0' },
     })
 
     if (!res.ok) {

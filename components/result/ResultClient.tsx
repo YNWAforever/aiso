@@ -28,6 +28,7 @@ import type { PublicResultSummary } from '@/lib/result-access'
 import { consumeOneTimeFunnelEvent, trackFunnelEvent } from '@/lib/funnel-client'
 import { factualDensityState, type FactualDensityView } from '@/lib/factual-density-evidence'
 import { CHECK_SLOTS, bucketPoints, geoScale, potentialScore, rankFixes, visualStatus } from '@/lib/result/view-model'
+import { Wordmark } from '@/components/brand/Wordmark'
 
 // The drawer (and its dialog primitive) loads the first time a check is opened.
 const FixDrawer = dynamic(() => import('@/components/result/FixDrawer').then(module => module.FixDrawer), { ssr: false })
@@ -173,7 +174,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
           <span className="flex size-6 items-center justify-center rounded-md bg-primary">
             <Zap aria-hidden="true" className="size-3.5 text-primary-foreground" />
           </span>
-          <span className="whitespace-nowrap text-sm font-black text-foreground">Fimmick <span className="text-primary-accessible">AISO</span></span>
+          <Wordmark className="whitespace-nowrap text-sm font-black text-foreground" accentClassName="text-primary-accessible" />
         </Link>
         <div className="flex items-center gap-2">
           <ResultActions domain={summary.domain} score={score} grade={grade} onSave={owner ? undefined : goToSave} />

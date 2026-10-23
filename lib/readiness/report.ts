@@ -66,7 +66,7 @@ export function renderConfigurationReport(report: ConfigurationReport): string {
   const canonical = buildConfigurationReport(report.checks)
 
   return [
-    '# AISO configuration readiness',
+    '# Fimmick AISO configuration readiness',
     '',
     'REPORT ONLY / NOT ENFORCED',
     '',

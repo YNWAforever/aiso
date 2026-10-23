@@ -7,6 +7,7 @@ import { useRef, useState } from 'react'
 import { Menu, Zap } from 'lucide-react'
 import { routing } from '@/i18n/routing'
 import { NAV, type NavSection } from '@/lib/navigation'
+import { Wordmark } from '@/components/brand/Wordmark'
 
 const GROUPED_SECTIONS: NavSection[] = ['platform', 'solutions', 'company']
 const LOCALE_LABEL_KEY: Record<string, string> = { en: 'en', 'zh-HK': 'zh' }
@@ -51,7 +52,7 @@ function SiteHeaderNavigation({ pathname }: { pathname: string }) {
       <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-x-2 gap-y-1 px-4 py-2 sm:px-6">
         <Link href={`/${locale}`} className="flex min-h-11 items-center gap-2 rounded-lg font-black tracking-tight">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary"><Zap aria-hidden="true" className="size-4 text-primary-foreground" /></span>
-          <span>{t('brand_name')} <span className="text-primary">{t('brand_product')}</span></span>
+          <Wordmark />
         </Link>
         <nav aria-label={t('primary_label')} className="hidden items-center xl:flex">
           {topEntries.map(entry => <Link key={entry.href} href={href(entry.href)} aria-current={current(entry.href)} className={`inline-flex ${linkClass}`}>{t(entry.labelKey.replace(/^nav\./, ''))}</Link>)}

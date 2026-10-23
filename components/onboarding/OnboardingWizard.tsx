@@ -10,6 +10,7 @@ import { createTranslator } from 'next-intl'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 import { PROMPT_MARKETS, isPromptLanguage, type PromptLanguage } from '@/lib/prompts/context'
+import { Wordmark } from '@/components/brand/Wordmark'
 
 const INDUSTRIES = [
   { value: 'technology',         labelEn: 'Technology',            labelZh: '科技' },
@@ -219,7 +220,7 @@ function WizardForm({
           <div className="size-6 rounded-md bg-primary flex items-center justify-center">
             <Zap className="size-3.5 text-primary-foreground" />
           </div>
-          <span className="font-black text-foreground text-sm">Fimmick <span className="text-primary">AISO</span></span>
+          <Wordmark className="font-black text-foreground text-sm" />
         </div>
 
         {/* Progress */}

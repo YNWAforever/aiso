@@ -1,56 +1,6 @@
 {
   "hardcoded": [
     {
-      "text": "Fimmick",
-      "file": "components/dashboard/DashboardSidebar.tsx",
-      "reason": "brand wordmark, the same in every language (the name itself is Phase 8)"
-    },
-    {
-      "text": "AISO",
-      "file": "components/dashboard/DashboardSidebar.tsx",
-      "reason": "brand wordmark, the same in every language (the name itself is Phase 8)"
-    },
-    {
-      "text": "Fimmick",
-      "file": "components/result/ResultClient.tsx",
-      "reason": "brand wordmark, the same in every language (the name itself is Phase 8)"
-    },
-    {
-      "text": "AISO",
-      "file": "components/result/ResultClient.tsx",
-      "reason": "brand wordmark, the same in every language (the name itself is Phase 8)"
-    },
-    {
-      "text": "Fimmick",
-      "file": "app/[lang]/auth/login/page.tsx",
-      "reason": "brand wordmark, the same in every language (the name itself is Phase 8)"
-    },
-    {
-      "text": "AISO",
-      "file": "app/[lang]/auth/login/page.tsx",
-      "reason": "brand wordmark, the same in every language (the name itself is Phase 8)"
-    },
-    {
-      "text": "Fimmick",
-      "file": "components/onboarding/OnboardingWizard.tsx",
-      "reason": "brand wordmark, the same in every language (the name itself is Phase 8)"
-    },
-    {
-      "text": "AISO",
-      "file": "components/onboarding/OnboardingWizard.tsx",
-      "reason": "brand wordmark, the same in every language (the name itself is Phase 8)"
-    },
-    {
-      "text": "Fimmick&nbsp;",
-      "file": "app/[lang]/result/[id]/opengraph-image.tsx",
-      "reason": "brand wordmark in the share image"
-    },
-    {
-      "text": "AISO",
-      "file": "app/[lang]/result/[id]/opengraph-image.tsx",
-      "reason": "brand wordmark in the share image"
-    },
-    {
       "text": "English",
       "reason": "a language named in its own language, so a reader can find theirs whatever the interface language"
     },
