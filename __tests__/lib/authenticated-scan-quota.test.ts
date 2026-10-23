@@ -34,7 +34,7 @@ describe('authenticated scan quota', () => {
   })
 
   it('documents migration 025 as a release prerequisite for authenticated scans', () => {
-    const readme = readFileSync('README.md', 'utf8')
+    const readme = readFileSync('docs/runbooks/public-scan-prerequisites.md', 'utf8')
 
     expect(readme).toContain('supabase/migrations/025_authenticated_scan_quotas.sql')
     expect(readme).toMatch(/before (?:releasing|enabling) authenticated scans/i)
