@@ -30,9 +30,6 @@ async function settle(page: Page) {
   await page.waitForFunction(() => document.getAnimations().every(a => a.playState !== 'running'))
 }
 
-// Each test sets its own viewports, so one of the four a11y width projects is enough.
-test.beforeEach(({}, info) => { test.skip(info.project.name !== 'a11y-375', 'runs once, in a11y-375') })
-
 const overflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
 
 for (const locale of A11Y_LOCALES) {
