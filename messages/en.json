@@ -1048,6 +1048,17 @@
       "errorTitle": "This page did not load",
       "errorBody": "Nothing was lost. Try again in a moment.",
       "retry": "Try again"
+    },
+    "upgrade": {
+      "cta": "See plans",
+      "scansLeft": "{remaining} of {limit} scans left this month",
+      "scansOutTitle": "You have used this month’s scans",
+      "scansOutBody": "Upgrade to Pro for unlimited scans.",
+      "freeTitle": "Scanning a brand needs a paid plan",
+      "freeBody": "Basic includes 3 scans a month.",
+      "brandLimitTitle": "You have reached your brand limit",
+      "brandLimitBody": "Your plan includes {limit} brands. Upgrade to add more.",
+      "brandLimitShort": "Upgrade your plan to add another brand."
     }
   },
   "reports": {

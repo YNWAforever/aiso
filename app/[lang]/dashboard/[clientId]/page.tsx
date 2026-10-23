@@ -15,6 +15,8 @@ import { ScanStep } from '@/components/dashboard/ScanStep'
 import { ResultsStep } from '@/components/dashboard/ResultsStep'
 import { ImproveStep } from '@/components/dashboard/ImproveStep'
 import { MonitorStep } from '@/components/dashboard/MonitorStep'
+import type { ScanQuota } from '@/components/dashboard/ScanStep'
+import { readAuthenticatedScanQuota } from '@/lib/security/authenticated-scan-quota'
 import { LocalTrustStep } from '@/components/dashboard/local-trust/LocalTrustStep'
 import { getLocalTrustProfile, getOrCreateLocalTrustSnapshot } from '@/lib/localTrust/store'
 import type {
@@ -95,7 +97,8 @@ export default async function DashboardPage({
   const t = await getTranslations('dashboard')
   const reportT = await getTranslations('reports')
   const profile  = await requireAuth(lang)
-  const { features } = resolveCommercialEntitlement(profile.accounts)
+  const entitlement = resolveCommercialEntitlement(profile.accounts)
+  const { features } = entitlement
 
   if (step === 'home') {
     let owned
@@ -122,6 +125,16 @@ export default async function DashboardPage({
 
   const sql = db()
 
+  // Same order as the scan API's gate (app/api/scan/route.ts): Free cannot
+  // scan a brand, a metered plan shows what is left, anything else is unlimited.
+  let scanQuota: ScanQuota = { kind: 'unlimited' }
+  if (step === 'scan') {
+    if (entitlement.plan === 'free') scanQuota = { kind: 'upgrade' }
+    else if (entitlement.monthlyScanLimit !== null) {
+      try { scanQuota = { kind: 'metered', ...(await readAuthenticatedScanQuota(profile.account_id)) } }
+      catch { scanQuota = { kind: 'metered', limit: entitlement.monthlyScanLimit, remaining: null } }
+    }
+  }
   let workspace: Workspace | null = null
   let clientMissing = false
   let loadError = false
@@ -297,7 +310,7 @@ export default async function DashboardPage({
       </div>
 
       <main className="flex-1 px-6 pb-10 max-w-3xl">
-        {step === 'scan' && <ScanStep lang={lang} clientId={clientId} scan={scan} scanHistory={scanHistory} />}
+        {step === 'scan' && <ScanStep lang={lang} clientId={clientId} scan={scan} scanHistory={scanHistory} quota={scanQuota} />}
 
         {step === 'results' && hasDisplayableScore(scan) && <ResultsStep scan={scan} lang={lang} clientId={clientId} />}
         {step === 'results' && !hasDisplayableScore(scan) && (

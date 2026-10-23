@@ -1048,6 +1048,17 @@
       "errorTitle": "此頁未能載入",
       "errorBody": "資料沒有遺失，請稍後再試。",
       "retry": "再試一次"
+    },
+    "upgrade": {
+      "cta": "查看方案",
+      "scansLeft": "本月尚餘 {remaining}／{limit} 次掃描",
+      "scansOutTitle": "本月掃描次數已用完",
+      "scansOutBody": "升級至 Pro 即可無限次掃描。",
+      "freeTitle": "掃描品牌需要付費方案",
+      "freeBody": "Basic 方案每月包括 3 次掃描。",
+      "brandLimitTitle": "已達品牌數量上限",
+      "brandLimitBody": "你的方案包括 {limit} 個品牌，升級即可加入更多。",
+      "brandLimitShort": "升級方案即可加入另一個品牌。"
     }
   },
   "reports": {

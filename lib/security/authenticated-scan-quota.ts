@@ -80,3 +80,19 @@ export function authenticatedScanQuotaHeaders(
   if (!decision.allowed) headers.set('Retry-After', String(Math.max(1, resetDelay)))
   return headers
 }
+
+/**
+ * How many of this month's metered scans are left, without spending one. For
+ * display only: consumeAuthenticatedScanQuota stays the gate. A row that does
+ * not exist yet means none were used.
+ */
+export async function readAuthenticatedScanQuota(accountId: string): Promise<{ limit: number; remaining: number }> {
+  const rows = await db()`
+    select request_count from authenticated_scan_monthly_usage
+    where account_id = ${accountId}::uuid
+      and month_start = date_trunc('month', now() at time zone 'UTC')::date
+  `
+  const used = Number(rows[0]?.request_count ?? 0)
+  if (!Number.isFinite(used)) throw new Error('Invalid scan usage')
+  return { limit: AUTHENTICATED_BASIC_SCAN_LIMIT, remaining: Math.max(0, AUTHENTICATED_BASIC_SCAN_LIMIT - used) }
+}
