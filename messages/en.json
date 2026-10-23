@@ -1198,7 +1198,8 @@
     "trend_method_same": "Yes",
     "trend_method_changed": "No",
     "download_pdf": "Download PDF",
-    "download_pdf_hint": "Opens your browser's print window. Choose “Save as PDF”."
+    "download_pdf_hint": "Opens your browser's print window. Choose “Save as PDF”.",
+    "fix_shortened": "Shortened for print. The online report has the full text."
   },
   "reportBranding": {
     "title": "Report branding",

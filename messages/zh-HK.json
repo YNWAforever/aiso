@@ -1198,7 +1198,8 @@
     "trend_method_same": "是",
     "trend_method_changed": "否",
     "download_pdf": "下載 PDF",
-    "download_pdf_hint": "會開啟瀏覽器的列印視窗，請選擇「另存為 PDF」。"
+    "download_pdf_hint": "會開啟瀏覽器的列印視窗，請選擇「另存為 PDF」。",
+    "fix_shortened": "為列印而縮短，網上報告載有全文。"
   },
   "reportBranding": {
     "title": "報告品牌設定",

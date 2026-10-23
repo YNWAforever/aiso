@@ -265,6 +265,8 @@ jobs:
           AISO_PRIORITY_HTML_DIR: .next/component-fixtures/AISO_PRIORITY
           AISO_SHELL_HTML_DIR: .next/component-fixtures/AISO_SHELL
           AISO_SHELL_CSS_PATH: .next/component-fixtures/build.css
+          AISO_REPORT_HTML_DIR: .next/component-fixtures/AISO_REPORT
+          AISO_REPORT_CSS_PATH: .next/component-fixtures/build.css
           PROMPT_BANK_HTML_DIR: .next/component-fixtures/PROMPT_BANK
           AUTH_RETURN_HTML_DIR: .next/component-fixtures/AUTH_RETURN
           AUTH_RETURN_APP_URL: http://127.0.0.1:3000

@@ -35,7 +35,8 @@ export type ReportCustomFix = {
   key: string
   title: string
   rationale: string
-  nextStep: string
+  /** Null when it repeats the rationale (stored recommendations fill both with one text). */
+  nextStep: string | null
   impact: ReportPriorityFix['expectedImpact']
 }
 export type ReportFixView = ReportCheckFix | ReportCustomFix
@@ -44,7 +45,10 @@ export function reportFixView(fix: ReportPriorityFix): ReportFixView {
   const reason = CHECK_KEYS.has(fix.key) ? DERIVED.find(([pattern]) => pattern.test(fix.title))?.[1] : undefined
   return reason
     ? { kind: 'check', key: fix.key, checkKey: fix.key, reason, impact: fix.expectedImpact }
-    : { kind: 'custom', key: fix.key, title: fix.title, rationale: fix.rationale, nextStep: fix.nextStep, impact: fix.expectedImpact }
+    : {
+        kind: 'custom', key: fix.key, title: fix.title, rationale: fix.rationale,
+        nextStep: fix.nextStep.trim() === fix.rationale.trim() ? null : fix.nextStep, impact: fix.expectedImpact,
+      }
 }
 
 export type ReportHeatmapTile = { key: string; bucket: Bucket; status: 'pass' | 'warn' | 'fail' | 'unknown' }
@@ -86,4 +90,34 @@ export function buildReportPage(snapshot: ClientReportSnapshotV1): ReportPageVie
       regressed: snapshot.changes.filter(change => change.kind === 'regressed' || change.kind === 'lost_coverage').length,
     },
   }
+}
+
+/**
+ * Print layout for one A4 page. The visuals are a fixed size; what varies is
+ * the text an agency or a generator wrote (a summary of up to 1,200
+ * characters, recommendations of up to 1,200 each). Han characters set about
+ * 2.2 times as wide as Latin ones in this layout, so they weigh more.
+ *
+ * Steps are the largest scale that still fits, measured by
+ * tests/e2e/report-print.spec.ts on Chromium, with margin. Below the last
+ * step text stops being readable, so instead of shrinking further an
+ * agency's recommendations are cut to a few lines in print only, with a note
+ * that the online report has the full text.
+ */
+export const PRINT_ZOOM_STEPS: ReadonlyArray<{ upTo: number; zoom: number }> = [
+  { upTo: 1300, zoom: 0.92 },
+  { upTo: 2300, zoom: 0.82 },
+  { upTo: 3000, zoom: 0.8 },
+  { upTo: 5000, zoom: 0.66 },
+]
+const FLOOR = PRINT_ZOOM_STEPS[PRINT_ZOOM_STEPS.length - 1]!.zoom
+
+const WIDE = /[\u2e80-\u9fff\uf900-\ufaff\uff00-\uffef]/
+
+export function reportPrintLayout(snapshot: ClientReportSnapshotV1): { zoom: number; shortenFixes: boolean } {
+  const custom = buildReportPage(snapshot).fixes.flatMap(fix => fix.kind === 'custom' ? [fix.title, fix.rationale, fix.nextStep ?? ''] : [])
+  let weight = 0
+  for (const char of [snapshot.executiveSummary, ...custom].join('')) weight += WIDE.test(char) ? 2.2 : 1
+  const step = PRINT_ZOOM_STEPS.find(candidate => weight <= candidate.upTo)
+  return step ? { zoom: step.zoom, shortenFixes: false } : { zoom: FLOOR, shortenFixes: true }
 }
