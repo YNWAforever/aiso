@@ -5,6 +5,7 @@ import { AUTH_RETURN_TO_HEADER } from '@/lib/auth-return-to'
 import { db } from '@/lib/db'
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar'
 import { TrialBanner } from '@/components/dashboard/TrialBanner'
+import { ToastProvider } from '@/components/ui/toast'
 import { TopBar } from '@/components/dashboard/shell/TopBar'
 import { listOwnedBrands, type OwnedBrand } from '@/lib/workspace/list-owned-brands'
 import { getTrialStatus } from '@/lib/trial'
@@ -62,7 +63,7 @@ export default async function DashboardLayout({
         <DashboardSidebar profile={profile} entitlement={entitlement} />
         <div className="flex-1 min-w-0 w-full flex flex-col overflow-auto print:block print:overflow-visible">
           <TopBar lang={lang} brands={brands} unreadCount={unreadCount} features={entitlement.features} />
-          {children}
+          <ToastProvider>{children}</ToastProvider>
         </div>
       </div>
     </div>

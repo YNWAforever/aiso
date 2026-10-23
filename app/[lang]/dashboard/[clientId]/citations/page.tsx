@@ -31,8 +31,8 @@ export default async function CitationsPage({
   // 404 rather than 403: the id came from the caller.
   if (!client) notFound()
   const raw=await searchParams
-  let query;try{query=parseCitationQuery(new URLSearchParams(Object.entries(raw??{}).filter(([,v])=>typeof v==='string') as [string,string][]))}catch{return <main><p>{locale==='en'?'Invalid citation filters':'引用篩選條件不正確'}</p></main>}
-  let report;try{report=await readCitationReport(sql, profile.account_id, clientId,query)}catch{return <main><p>{locale==='en'?'Citation read unavailable or scope too large. Narrow filters and retry.':'引用讀取暫時無法使用或範圍太大，請縮小範圍再試。'}</p></main>}
+  let query;try{query=parseCitationQuery(new URLSearchParams(Object.entries(raw??{}).filter(([,v])=>typeof v==='string') as [string,string][]))}catch{return <main><p>{t('invalid_filters')}</p></main>}
+  let report;try{report=await readCitationReport(sql, profile.account_id, clientId,query)}catch{return <main><p>{t('read_unavailable')}</p></main>}
   if (!report) notFound()
 
   return (

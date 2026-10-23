@@ -293,6 +293,7 @@ export function LocalTrustStep({ lang, clientId, features, profile, snapshot, ac
             title: t('competitor_snapshot'),
             empty: t('local_trust_competitor_empty'),
             mentionGap: t('local_trust_competitor_mention_gap'),
+            points: (value) => t('local_trust_competitor_gap_points', { value }),
           }}
         />
       ) : null}

@@ -1,4 +1,7 @@
 import { ImageResponse } from 'next/og'
+import { createTranslator } from 'next-intl'
+import en from '@/messages/en.json'
+import zhHK from '@/messages/zh-HK.json'
 import { formatScanScore } from '@/lib/score-display'
 import { db } from '@/lib/db'
 import { buildPublicResultSummary, type PublicResultSummary } from '@/lib/result-access'
@@ -13,8 +16,11 @@ const GRADE_COLORS: Record<string, string> = {
   'C': '#eab308', 'D': '#f97316', 'F': '#ef4444',
 }
 
-export default async function Image({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export default async function Image({ params }: { params: Promise<{ lang: string; id: string }> }) {
+  const { lang, id } = await params
+  // The image route renders outside the intl provider, so read the catalogue directly.
+  const locale = lang === 'zh-HK' ? 'zh-HK' : 'en'
+  const t = createTranslator({ locale, messages: locale === 'zh-HK' ? zhHK : en, namespace: 'result.og' })
 
   let domain = 'fimmick.com'
   let score: number | null = null
@@ -70,27 +76,27 @@ export default async function Image({ params }: { params: Promise<{ id: string }
                   borderRadius: 20, padding: '8px 32px',
                 }}>{grade}</div>
                 <div style={{ display: 'flex', fontSize: 36, color: '#cbd5e1', fontWeight: 700 }}>
-                  Website readiness score
+                  {t('score_label')}
                 </div>
               </div>
             ) : (
               <div style={{ display: 'flex', fontSize: 36, color: '#cbd5e1', fontWeight: 700 }}>
-                {collectionFailed ? 'Scan could not be completed — please retry' : 'Website readiness — technical and content checks'}
+                {collectionFailed ? t('collection_failed') : t('no_score')}
               </div>
             )}
             {score !== null && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, fontSize: 26, fontWeight: 700 }}>
-                <span style={{ color: '#34d399' }}>✓ {counts.pass} passing</span>
-                <span style={{ color: '#fbbf24' }}>⚠ {counts.warn} warnings</span>
-                <span style={{ color: '#f87171' }}>✕ {counts.fail} failing</span>
-                {counts.unknown > 0 && <span style={{ color: '#94a3b8' }}>{counts.unknown} need evidence</span>}
+                <span style={{ color: '#34d399' }}>✓ {t('passing', { count: counts.pass })}</span>
+                <span style={{ color: '#fbbf24' }}>⚠ {t('warnings', { count: counts.warn })}</span>
+                <span style={{ color: '#f87171' }}>✕ {t('failing', { count: counts.fail })}</span>
+                {counts.unknown > 0 && <span style={{ color: '#94a3b8' }}>{t('need_evidence', { count: counts.unknown })}</span>}
               </div>
             )}
           </div>
 
           {/* Footer */}
           <div style={{ display: 'flex', fontSize: 24, color: '#64748b', fontWeight: 600 }}>
-            Review your website readiness. Scan free →
+            {t('footer')}
           </div>
         </div>
 

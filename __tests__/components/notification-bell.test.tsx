@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Children, isValidElement, type ReactElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { NotificationBell } from '@/components/dashboard/NotificationBell'
+import en from '@/messages/en.json'
+import zhHK from '@/messages/zh-HK.json'
 
-const hooks = vi.hoisted(() => ({ slots: [] as unknown[], cursor: 0, refresh: vi.fn() }))
+const hooks = vi.hoisted(() => ({ slots: [] as unknown[], cursor: 0, refresh: vi.fn(), locale: 'en' }))
 vi.mock('react', async importOriginal => ({
   ...await importOriginal<typeof import('react')>(),
   useState(initial: unknown) {
@@ -17,6 +19,13 @@ vi.mock('react', async importOriginal => ({
   useRef: () => ({ current: null }),
   useId: () => 'notifications-test',
 }))
+// The component is called outside a React render, so it has no provider context;
+// translate with the real catalogue for the locale under test instead.
+vi.mock('next-intl', async importOriginal => {
+  const actual = await importOriginal<typeof import('next-intl')>()
+  return { ...actual, useTranslations: (namespace: 'notificationBell') =>
+    actual.createTranslator({ locale: hooks.locale, messages: hooks.locale === 'zh-HK' ? zhHK : en, namespace }) }
+})
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: hooks.refresh }) }))
 
 type Element = ReactElement<{ children?: ReactNode; onClick?: () => Promise<void>; 'aria-controls'?: string }>
@@ -25,6 +34,7 @@ function elements(node: ReactNode): Element[] {
     ? [child as Element, ...elements((child as Element).props.children)] : [])
 }
 function mount(initialCount: number | null, lang = 'en') {
+  hooks.locale = lang
   const render = () => { hooks.cursor = 0; return NotificationBell({ initialCount, lang }) }
   return {
     html: () => renderToStaticMarkup(render()),

@@ -1,76 +1,20 @@
+import { useTranslations } from 'next-intl'
 import { resolvePillarScores, isPillarScoreStored, type PillarKey } from '@/lib/pillar-scores'
 
 type Tone = 'light' | 'dashboard'
 
 type Props = {
   results: Record<string, unknown>
+  /** Unused: copy follows the surrounding next-intl locale. Kept so callers need no change. */
   locale?: string
   tone?: Tone
   evidenceInputs?: Parameters<typeof resolvePillarScores>[1]
 }
 
-const COPY = {
-  en: {
-    aria: 'SEO, AEO and GEO diagnostic scores',
-    note: 'These diagnostic pillars overlap by design and do not add together. The overall AISO score remains the 100-point benchmark.',
-    recalculated: 'Recalculated with current methodology — not the original scan result.',
-    legacy: 'Historical stored score — coverage was not gated under this methodology.',
-    stored: 'Stored scan diagnostic',
-    coverage: 'Weighted coverage',
-    version: 'Methodology',
-    states: { insufficient_evidence: 'Insufficient evidence', provisional: 'Provisional', scored: 'Scored' },
-    pass: 'pass',
-    warn: 'warn',
-    fail: 'fail',
-    pillars: {
-      seo: {
-        label: 'SEO Foundation',
-        description: 'Discovery, crawlability, indexing and site structure',
-      },
-      aeo: {
-        label: 'AEO Answer Readiness',
-        description: 'Machine extraction, answer structure and crawler access',
-      },
-      geo: {
-        label: 'GEO Citation Authority',
-        description: 'Evidence, entities, factual depth and topical authority',
-      },
-    },
-  },
-  'zh-HK': {
-    aria: 'SEO、AEO 及 GEO 診斷分數',
-    note: '三個診斷維度刻意包含重疊訊號，不應相加；整體 AISO 分數仍以 100 分為基準。',
-    recalculated: '此分數已按目前方法重新計算，並非原始掃描結果。',
-    legacy: '歷史儲存分數 — 當時的方法未設證據覆蓋門檻。',
-    stored: '已儲存的掃描診斷',
-    coverage: '加權覆蓋率',
-    version: '方法版本',
-    states: { insufficient_evidence: '證據不足', provisional: '暫定分數', scored: '已評分' },
-    pass: '通過',
-    warn: '警告',
-    fail: '不及格',
-    pillars: {
-      seo: {
-        label: 'SEO 搜尋基礎',
-        description: '網站發現、爬取、索引及資訊架構',
-      },
-      aeo: {
-        label: 'AEO 答案就緒度',
-        description: '機器提取、答案結構及爬蟲存取',
-      },
-      geo: {
-        label: 'GEO 引用權威',
-        description: '證據、實體、事實深度及主題權威',
-      },
-    },
-  },
-} as const
-
 const PILLAR_ORDER: PillarKey[] = ['seo', 'aeo', 'geo']
 
-export function PillarScoreCards({ results, locale = 'en', tone = 'light', evidenceInputs }: Props) {
-  const language = locale === 'zh-HK' ? 'zh-HK' : 'en'
-  const copy = COPY[language]
+export function PillarScoreCards({ results, tone = 'light', evidenceInputs }: Props) {
+  const t = useTranslations('pillarCards')
   const snapshot = resolvePillarScores(results, evidenceInputs)
   const stored = isPillarScoreStored(results)
   const dashboard = tone === 'dashboard'
@@ -84,7 +28,7 @@ export function PillarScoreCards({ results, locale = 'en', tone = 'light', evide
 
   return (
     <section
-      aria-label={copy.aria}
+      aria-label={t('aria')}
       data-testid="pillar-score-cards"
       data-methodology-version={snapshot.methodologyVersion}
       data-recalculated={!stored}
@@ -92,17 +36,16 @@ export function PillarScoreCards({ results, locale = 'en', tone = 'light', evide
       <div className="grid gap-3 sm:grid-cols-3">
         {PILLAR_ORDER.map((key) => {
           const score = snapshot[key]
-          const pillarCopy = copy.pillars[key]
 
           return (
             <article key={key} data-pillar={key} className={cardClass}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className={`text-xs font-bold uppercase tracking-[0.12em] ${mutedClass}`}>
-                    {pillarCopy.label}
+                    {t(`pillars.${key}.label`)}
                   </p>
                   <p className={`mt-2 text-xs leading-relaxed ${mutedClass}`}>
-                    {pillarCopy.description}
+                    {t(`pillars.${key}.description`)}
                   </p>
                 </div>
                 {score.score !== null && <p className={`shrink-0 font-mono text-2xl font-black ${headingClass}`}>
@@ -111,10 +54,10 @@ export function PillarScoreCards({ results, locale = 'en', tone = 'light', evide
                 </p>}
               </div>
 
-              {score.state && <p className={`mt-3 text-xs font-semibold ${headingClass}`}>{copy.states[score.state]}</p>}
+              {score.state && <p className={`mt-3 text-xs font-semibold ${headingClass}`}>{t(`states.${score.state}`)}</p>}
               {score.score !== null && <div
                 role="progressbar"
-                aria-label={`${pillarCopy.label}: ${score.score} out of 100`}
+                aria-label={`${t(`pillars.${key}.label`)}: ${score.score} out of 100`}
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={score.score}
@@ -126,9 +69,9 @@ export function PillarScoreCards({ results, locale = 'en', tone = 'light', evide
                 />
               </div>}
 
-              <p className={`mt-3 text-xs ${mutedClass}`}>{copy.coverage}: {Math.round(score.coverage * 10000) / 100}%</p>
+              <p className={`mt-3 text-xs ${mutedClass}`}>{t('coverage')}: {Math.round(score.coverage * 10000) / 100}%</p>
               <p className={`mt-3 text-xs tabular-nums ${mutedClass}`}>
-                {score.passing} {copy.pass} · {score.warnings} {copy.warn} · {score.failing} {copy.fail}
+                {t('checkCounts', { passing: score.passing, warnings: score.warnings, failing: score.failing })}
               </p>
             </article>
           )
@@ -137,15 +80,15 @@ export function PillarScoreCards({ results, locale = 'en', tone = 'light', evide
 
       {!stored && (
         <p className={`mt-2 text-xs font-semibold ${mutedClass}`}>
-          {copy.recalculated}
+          {t('recalculated')}
         </p>
       )}
       {stored && <p className={`mt-2 text-xs font-semibold ${mutedClass}`}>
-        {snapshot.seo.state === undefined ? copy.legacy : copy.stored}
+        {snapshot.seo.state === undefined ? t('legacy') : t('stored')}
       </p>}
-      <p className={`mt-2 text-xs ${mutedClass}`}>{copy.version}: {snapshot.methodologyVersion}</p>
+      <p className={`mt-2 text-xs ${mutedClass}`}>{t('version')}: {snapshot.methodologyVersion}</p>
       <p className={`mt-3 text-xs leading-relaxed ${mutedClass}`}>
-        {copy.note}
+        {t('note')}
       </p>
     </section>
   )

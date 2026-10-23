@@ -4,14 +4,16 @@ import { NextIntlClientProvider } from 'next-intl'
 import { mkdirSync, writeFileSync, unlinkSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { build } from 'vite'
+import en from '@/messages/en.json'
+import zh from '@/messages/zh-HK.json'
 vi.mock('@neondatabase/auth/next', () => ({ createAuthClient: () => ({}) }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: vi.fn() }) }))
 import { LoginForm } from '@/components/auth/LoginForm'
 import { AuthComplete } from '@/components/auth/AuthComplete'
-const render = (lang: string, mode: string) => renderToString(<NextIntlClientProvider locale={lang} timeZone="UTC" messages={{}}>{mode === 'login' ? <LoginForm next={`/${lang}/dashboard`} /> : <AuthComplete lang={lang} next={`/${lang}/dashboard`} />}</NextIntlClientProvider>)
+const render = (lang: string, mode: string) => renderToString(<NextIntlClientProvider locale={lang} timeZone="UTC" messages={lang === 'zh-HK' ? zh : en}>{mode === 'login' ? <LoginForm next={`/${lang}/dashboard`} /> : <AuthComplete lang={lang} next={`/${lang}/dashboard`} />}</NextIntlClientProvider>)
 it('renders both localized login and completion without initiating a provider action', () => {
-  expect(render('en', 'login')).toContain('Continue with Google')
-  expect(render('zh-HK', 'complete')).toContain('正在為你登入')
+  expect(render('en', 'login')).toContain(en.authFlow.login.continueWithGoogle)
+  expect(render('zh-HK', 'complete')).toContain(zh.authFlow.complete.signingIn)
 })
 afterAll(async () => {
   const dir = process.env.AUTH_RETURN_HTML_DIR
@@ -22,7 +24,7 @@ afterAll(async () => {
   // Test adapter records intent only: no email, OAuth redirect or session cookie is sent.
   writeFileSync(client, `export{buildAuthCompleteUrl}from ${JSON.stringify(resolve('lib/auth-client.ts').replaceAll('\\', '/'))};export const authClient={signIn:{social:async input=>{window.lastAuth={flow:'google',...input};return{error:null}},magicLink:async input=>{window.lastAuth={flow:'magic-link',...input};return{error:null}}},getSession:async()=>{window.fixtureVerifier=new URL(location.href).searchParams.get('neon_auth_session_verifier');return{data:new URL(location.href).searchParams.has('fixture-failed')?null:{session:{id:'synthetic-session'},user:{id:'synthetic-user'}}}}};`)
   writeFileSync(router, `export const useRouter=()=>({replace:url=>location.assign(url)});`)
-  writeFileSync(entry, `import React,{useEffect}from'react';import{hydrateRoot}from'react-dom/client';import{NextIntlClientProvider}from'next-intl';import{LoginForm}from'@/components/auth/LoginForm';import{AuthComplete}from'@/components/auth/AuthComplete';const d=JSON.parse(document.getElementById('fixture-props').textContent);function Fixture(){useEffect(()=>{window.authReturnReady=true},[]);const next=new URL(location.href).searchParams.get('next');return React.createElement(NextIntlClientProvider,{locale:d.lang,messages:{},timeZone:'UTC'},React.createElement(d.mode==='login'?LoginForm:AuthComplete,{lang:d.lang,next}))};hydrateRoot(document.getElementById('root'),React.createElement(Fixture));`)
+  writeFileSync(entry, `import React,{useEffect}from'react';import{hydrateRoot}from'react-dom/client';import{NextIntlClientProvider}from'next-intl';import{LoginForm}from'@/components/auth/LoginForm';import{AuthComplete}from'@/components/auth/AuthComplete';import en from'@/messages/en.json';import zh from'@/messages/zh-HK.json';const d=JSON.parse(document.getElementById('fixture-props').textContent);function Fixture(){useEffect(()=>{window.authReturnReady=true},[]);const next=new URL(location.href).searchParams.get('next');return React.createElement(NextIntlClientProvider,{locale:d.lang,messages:d.lang==='zh-HK'?zh:en,timeZone:'UTC'},React.createElement(d.mode==='login'?LoginForm:AuthComplete,{lang:d.lang,next}))};hydrateRoot(document.getElementById('root'),React.createElement(Fixture));`)
   await build({ configFile: false, envDir: false, oxc: { jsx: { development: false } }, resolve: { alias: [{ find: '@/lib/auth-client', replacement: client }, { find: 'next/navigation', replacement: router }, { find: '@', replacement: resolve('.') }] }, define: { 'process.env.NODE_ENV': '"production"' }, build: { outDir: resolve(dir), emptyOutDir: false, lib: { entry, name: 'AuthReturnFixture', formats: ['iife'], fileName: () => 'fixture.js' } } })
   // Exercise the installed SDK's response hooks as well as the lightweight flow adapter.
   // No real provider is called: the browser suite supplies synthetic get-session JSON.

@@ -52,7 +52,7 @@ export function RunProgress({clientId,lang}:{clientId:string;lang:string}){
   {options&&<>
    <p>{fill(copy.workload,{prompts:options.prompts,variants:options.variants,expected:options.expected})}</p>
    <p>{fill(copy.budget,{remaining:options.remaining})}</p><p className="text-sm">{copy.cost}</p>
-   <p className="text-sm">{fill(copy.search,{requested:options.search.requested==='off'?(lang==='zh-HK'?'關閉':'off'):(lang==='zh-HK'?'視可用額度而定':'subject to allowance')})}</p>
+   <p className="text-sm">{fill(copy.search,{requested:options.search.requested==='off'?copy.searchOff:copy.searchAllowance})}</p>
    <p className="text-sm">{copy.schedule}</p>
    {!!availability?.reasons.length&&<ul aria-label={copy.availabilityTitle} className="list-disc pl-5">{availability.reasons.map(reason=><li key={reason}>{copy.availabilityReasons[reason]}</li>)}</ul>}
    {availability?.action==='view_existing'&&<Link className={button} href={options.currentCanonicalId?`${base}/observations?run=${encodeURIComponent(options.currentCanonicalId)}&week=${options.week}`:`${base}/observations?result=incomplete`}>{copy.viewExisting}</Link>}

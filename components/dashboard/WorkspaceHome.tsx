@@ -144,7 +144,7 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
       <nav aria-label={copy.tools} className="mt-4">
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-3">
           {([...(['scan','results','improve'] as const).map(step => ({ key: step, href: `${base}?step=${step}`, label: copy[step], Icon: toolIcons[step] })), { key: 'reports', href: `${base}/reports`, label: copy.reports, Icon: FileText }, { key: 'prompts', href: `${base}/prompts`, label: copy.prompts, Icon: BarChart3 }]).map(({ key, href, label, Icon }) => <li key={key}>
-            <Link className="group flex min-h-14 items-center gap-3 rounded-xl border border-dash-border bg-dash-surface px-4 py-3 text-sm font-semibold text-dash-text shadow-sm transition-colors hover:border-primary/40 hover:bg-dash-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" href={href}>
+            <Link className="group flex min-h-14 items-center gap-3 rounded-xl border border-dash-border bg-dash-surface px-4 py-3 text-sm font-semibold text-dash-text shadow-sm card-interactive hover:border-primary/40" href={href}>
               <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary-accessible"><Icon className="size-4" /></span>
               <span className="min-w-0 flex-1">{label}</span>
               <ArrowRight aria-hidden="true" className="size-4 shrink-0 text-dash-muted transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />

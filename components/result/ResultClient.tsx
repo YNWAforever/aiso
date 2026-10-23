@@ -39,13 +39,9 @@ function getResult(results: Record<string, unknown>, key: string): CheckResult |
   return undefined
 }
 
-const PLATFORM_STATUS_LABELS: Record<'en' | 'zh-HK', Record<PlatformStatus, string>> = {
-  en: { visible: 'Legacy technical estimate', partial: 'Legacy technical estimate', blocked: 'Legacy technical estimate', not_measured: 'Not measured' },
-  'zh-HK': { visible: '歷史技術估算', partial: '歷史技術估算', blocked: '歷史技術估算', not_measured: '未量度' },
-}
-
-export function getPlatformStatusLabel(status: PlatformStatus, locale: string) {
-  return PLATFORM_STATUS_LABELS[locale === 'zh-HK' ? 'zh-HK' : 'en'][status]
+/** `t` is a translator scoped to the `resultPage` namespace. */
+export function getPlatformStatusLabel(status: PlatformStatus, t: (key: `platform_status.${PlatformStatus}`) => string) {
+  return t(`platform_status.${status}`)
 }
 
 /* ── Main component ──────────────────────────────────────────── */
@@ -85,6 +81,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
     returnFocus.current = true
     setDrawerLoaded(true)
     setOpenKey(key)
+    trackFunnelEvent({ name: 'fix_opened', locale: lang === 'zh-HK' ? 'zh-HK' : 'en', scanId: summary.id })
   }
   const owner = Boolean(fullScan)
 
@@ -109,7 +106,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
 
   if (summary.score === null || summary.grade === null) return <main className="mx-auto max-w-2xl space-y-4 px-4 py-12" data-testid="collection-unknown">
     <h1 className="text-2xl font-bold">{portfolio('scanUnknown')}</h1>
-    <ScanEvidencePanel evidence={ownedEvidence ?? null} locale={locale} />
+    <ScanEvidencePanel evidence={ownedEvidence ?? null} />
     <Link href={`/${lang}/scan`}>{t('scan_another')}</Link>
   </main>
 
@@ -242,7 +239,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
 
         {fullScan && (
           <>
-            <ScanEvidencePanel evidence={ownedEvidence ?? null} locale={locale} />
+            <ScanEvidencePanel evidence={ownedEvidence ?? null} />
             <DeepGeoSection
               c17={(r['c17_citation_density_data'] ?? r['c17']) as C17 | undefined}
               c18={(r['c18_factual_density_data'] ?? r['c18']) as C18 | undefined}
@@ -306,10 +303,10 @@ function PlatformPanel({ summary, locale }: { summary: PublicResultSummary; loca
             <span className="font-medium text-foreground">{platform.label}</span>
             <span
               data-status={platform.status}
-              aria-label={`${platform.label}: ${getPlatformStatusLabel(platform.status, locale)}`}
+              aria-label={`${platform.label}: ${getPlatformStatusLabel(platform.status, t)}`}
               className="rounded-full bg-neutral-3 px-2 py-0.5 text-xs font-semibold text-foreground"
             >
-              {getPlatformStatusLabel(platform.status, locale)}
+              {getPlatformStatusLabel(platform.status, t)}
             </span>
           </div>
         ))}

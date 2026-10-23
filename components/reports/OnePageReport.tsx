@@ -8,7 +8,7 @@ import { RevealObserver } from '@/components/visuals/reveal/RevealObserver'
 import { getCheckActionCopy } from '@/lib/checkExplanations'
 import { accessibleReportPrimaryColor, reportInitialsForeground } from '@/lib/reports/colors'
 import type { ClientReportSnapshotV1, PublicClientReportSnapshot } from '@/lib/reports/types'
-import { buildReportPage, type ReportFixView } from '@/lib/view-models/report-page'
+import { buildReportPage, reportPrintLayout, type ReportFixView } from '@/lib/view-models/report-page'
 import { PrintButton, PrintThemeGuard } from './PrintButton'
 import { ReportLogo } from './ReportLogo'
 import { ReportTrend } from './ReportTrend'
@@ -64,15 +64,16 @@ export function OnePageReport({ snapshot, variant, printable = false, publishedA
   const Section = variant === 'page' ? 'h2' : 'h3'
   const heatmap: HeatmapCheck[] | null = view.heatmap?.map(tile => ({ ...tile, label: checkNames(tile.key) })) ?? null
   const delta = snapshot.score.delta
+  const print = reportPrintLayout(snapshot as ClientReportSnapshotV1)
 
   return (
     <article
       className="one-page-report mx-auto w-full max-w-5xl overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-e2 print:max-w-none print:rounded-none print:border-0 print:shadow-none"
-      style={{ '--report-primary': primary, '--report-on-primary': onPrimary } as CSSProperties}
+      style={{ '--report-primary': primary, '--report-on-primary': onPrimary, '--print-zoom': print.zoom } as CSSProperties}
       data-testid="one-page-report"
     >
       {/* One A4 page: the print classes below fit the report inside these margins. */}
-      <style>{'@media print { @page { size: A4; margin: 12mm; } .one-page-report { zoom: 0.92; } }'}</style>
+      <style>{'@media print { @page { size: A4; margin: 12mm; } .one-page-report { zoom: var(--print-zoom); } }'}</style>
       <RevealObserver />
       <PrintThemeGuard />
       <header className="border-b border-border p-5 sm:p-8 print:px-0 print:pb-4 print:pt-0">
@@ -108,10 +109,10 @@ export function OnePageReport({ snapshot, variant, printable = false, publishedA
         </div>
       </header>
 
-      <div className="grid gap-4 p-5 sm:p-8 md:grid-cols-2 print:grid-cols-2 print:gap-3 print:px-0 print:py-3">
+      <div className="grid gap-4 p-5 sm:p-8 md:grid-cols-2 print:grid-cols-3 print:gap-3 print:px-0 print:py-3">
         <section data-reveal aria-labelledby="report-score-heading" className="min-w-0 rounded-xl border border-border p-5 print:break-inside-avoid print:p-4">
           <Section id="report-score-heading" className="text-sm font-semibold text-muted-foreground">{t('current_score')}</Section>
-          <div className="mt-3 flex flex-wrap items-center gap-5 print:flex-nowrap print:gap-4">
+          <div className="mt-3 flex flex-wrap items-center gap-5 print:gap-3">
             <RevealScoreRing score={view.score.current} grade={view.score.grade} previous={view.score.previous} size="md" />
             <div className="min-w-0 flex-1 basis-40 space-y-2 text-sm leading-6 text-muted-foreground print:space-y-1 print:text-xs print:leading-5">
               <p className="font-semibold text-foreground">{t('grade', { grade: view.score.grade })}</p>
@@ -150,11 +151,11 @@ export function OnePageReport({ snapshot, variant, printable = false, publishedA
           </div>
         </section>
 
-        <section aria-labelledby="report-fixes-heading" className="min-w-0 rounded-xl border border-border p-5 print:break-inside-avoid print:p-4">
+        <section aria-labelledby="report-fixes-heading" className="min-w-0 rounded-xl border border-border p-5 print:col-span-3 print:break-inside-avoid print:p-4">
           <Section id="report-fixes-heading" className="text-sm font-semibold text-muted-foreground">{page('fixes_title')}</Section>
           {view.fixes.length ? (
-            <ol className="mt-3 grid gap-4 print:gap-2">
-              {view.fixes.map((fix, index) => <FixItem key={fix.key} fix={fix} index={index} locale={locale} heading={variant === 'page' ? 'h3' : 'h4'} />)}
+            <ol className="mt-3 grid gap-4 print:grid-cols-3 print:gap-4">
+              {view.fixes.map((fix, index) => <FixItem key={fix.key} fix={fix} index={index} locale={locale} heading={variant === 'page' ? 'h3' : 'h4'} shorten={print.shortenFixes} />)}
             </ol>
           ) : (
             <p className="mt-3 text-sm text-muted-foreground">{t('no_priority_fixes')}</p>
@@ -186,7 +187,7 @@ export function OnePageReport({ snapshot, variant, printable = false, publishedA
   )
 }
 
-function FixItem({ fix, index, locale, heading: Heading }: { fix: ReportFixView; index: number; locale: string; heading: 'h3' | 'h4' }) {
+function FixItem({ fix, index, locale, heading: Heading, shorten }: { fix: ReportFixView; index: number; locale: string; heading: 'h3' | 'h4'; shorten: boolean }) {
   const t = useTranslations('reports')
   const page = useTranslations('reportPage')
   const checkNames = useTranslations('checks')
@@ -194,6 +195,8 @@ function FixItem({ fix, index, locale, heading: Heading }: { fix: ReportFixView;
   const title = fix.kind === 'check' ? action?.title ?? checkNames(fix.checkKey) : fix.title
   const rationale = fix.kind === 'check' ? page(`fix_reason_${fix.reason}`, { check: checkNames(fix.checkKey) }) : fix.rationale
   const nextStep = fix.kind === 'check' ? action?.nextStep ?? null : fix.nextStep
+  // Only an agency's own text can be long enough to need it (see reportPrintLayout).
+  const cut = shorten && fix.kind === 'custom'
 
   return (
     <li className="flex min-w-0 items-start gap-3 print:break-inside-avoid">
@@ -206,13 +209,14 @@ function FixItem({ fix, index, locale, heading: Heading }: { fix: ReportFixView;
       </span>
       <div className="min-w-0">
         <Heading className="break-words font-semibold leading-6 print:text-sm">{title}</Heading>
-        <p className="mt-1 break-words text-sm leading-6 text-muted-foreground print:text-xs print:leading-5">{rationale}</p>
+        <p className={`mt-1 break-words text-sm leading-6 text-muted-foreground print:text-xs print:leading-5 ${cut ? 'print:line-clamp-8' : ''}`}>{rationale}</p>
         {nextStep && (
           <p className="mt-1.5 flex min-w-0 items-start gap-2 text-sm leading-6 print:mt-1 print:text-xs print:leading-5">
             <CheckCircle2 aria-hidden="true" className="mt-1 size-4 shrink-0 text-primary-accessible" />
-            <span className="min-w-0 break-words"><span className="font-medium">{page('next_step')}:</span> {nextStep}</span>
+            <span className={`min-w-0 break-words ${cut ? 'print:line-clamp-3' : ''}`}><span className="font-medium">{page('next_step')}:</span> {nextStep}</span>
           </p>
         )}
+        {cut && <p className="hidden text-xs italic text-muted-foreground print:block">{page('fix_shortened')}</p>}
         <p className="mt-1 text-xs font-medium text-muted-foreground">
           {t('expected_impact', { impact: t(`impact_${fix.impact}`) })}
         </p>

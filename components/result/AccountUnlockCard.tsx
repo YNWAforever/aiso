@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   authClient,
   buildAuthCompleteUrl,
@@ -10,52 +11,6 @@ import { buildScanClaimNext } from './ClaimScanOnReturn'
 import { trackFunnelEvent } from '@/lib/funnel-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-
-const COPY_EN = {
-  title: 'Save your full report',
-  body: 'Your report stays available after you sign in.',
-  emailLabel: 'Work email',
-  emailPlaceholder: 'you@company.com',
-  createAccount: 'Use Email Magic Link instead',
-  continueGoogle: 'Continue with Google to save your full report',
-  or: 'or',
-  sending: 'Sending magic link…',
-  checkEmail: 'Check your inbox for your secure sign-in link.',
-  tooManyAttempts: 'Too many attempts. Please wait a few minutes before trying again.',
-  googleFailed: 'Could not start Google sign-in. Please try again.',
-  magicLinkFailed: 'Could not send the magic link. Please try again.',
-  finePrint: 'No credit card · Save this scan for free',
-  preparing: 'Preparing your report save…',
-  intentFailed: 'Could not prepare your report save. Please try again.',
-  retrySaving: 'Retry saving',
-  savedTitle: 'Sign in to your saved report',
-  savedBody: 'Use the account that saved this report to view its full details.',
-  savedGoogle: 'Continue with Google to view your report',
-  savedNote: 'Access stays with the account that saved this report.',
-}
-
-const COPY_ZH_HK: typeof COPY_EN = {
-  title: '保存你的完整報告',
-  body: '登入後可隨時查看這份報告。',
-  emailLabel: '工作電郵',
-  emailPlaceholder: 'you@company.com',
-  createAccount: '改用 Email Magic Link',
-  continueGoogle: '使用 Google 免費保存完整報告',
-  or: '或',
-  sending: '正在發送登入連結…',
-  checkEmail: '請查看收件箱內的安全登入連結。',
-  tooManyAttempts: '嘗試次數過多，請等待幾分鐘後再試。',
-  googleFailed: '無法啟動 Google 登入，請再試一次。',
-  magicLinkFailed: '無法發送登入連結，請再試一次。',
-  finePrint: '無需信用卡 · 免費保存此掃描',
-  preparing: '正在準備保存報告…',
-  intentFailed: '暫時未能準備保存報告，請再試一次。',
-  retrySaving: '重試保存',
-  savedTitle: '登入以查看已保存報告',
-  savedBody: '請使用保存這份報告的帳戶，查看完整內容。',
-  savedGoogle: '使用 Google 繼續查看報告',
-  savedNote: '只有保存報告的帳戶可以查看完整內容。',
-}
 
 type Props = {
   scanId: string
@@ -156,7 +111,7 @@ export async function runAccountUnlockRequest({
 }
 
 export function AccountUnlockCard({ scanId, lang }: Props) {
-  const c = lang === 'zh-HK' ? COPY_ZH_HK : COPY_EN
+  const t = useTranslations('accountUnlock')
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState<'google' | 'email' | null>(null)
   const [status, setStatus] = useState('')
@@ -222,7 +177,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
       })
 
       if (result.error) {
-        setStatus(c.googleFailed)
+        setStatus(t('googleFailed'))
         setIsError(true)
         setLoading(null)
         return
@@ -241,7 +196,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
 
       setLoading(null)
     } catch {
-      setStatus(c.googleFailed)
+      setStatus(t('googleFailed'))
       setIsError(true)
       setLoading(null)
     }
@@ -256,10 +211,10 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
     await runAccountUnlockRequest({
       request: () => authClient.signIn.magicLink({ email, callbackURL }),
       onFailure: error => {
-        setStatus(error?.code === 'TOO_MANY_ATTEMPTS' ? c.tooManyAttempts : c.magicLinkFailed)
+        setStatus(error?.code === 'TOO_MANY_ATTEMPTS' ? t('tooManyAttempts') : t('magicLinkFailed'))
         setIsError(true)
       },
-      onSuccess: () => setStatus(c.checkEmail),
+      onSuccess: () => setStatus(t('checkEmail')),
       onFinally: () => setLoading(null),
     })
   }
@@ -267,8 +222,8 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
   return (
     <section ref={startClaimIntentOnMount} data-testid="save-report-cta" className="rounded-2xl border-2 border-primary/30 bg-slate-900 p-6 sm:p-8">
       <div className="mx-auto max-w-md text-center">
-        <h2 className="text-xl font-black text-white">{continuation.mode === 'sign-in' ? c.savedTitle : c.title}</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-300">{continuation.mode === 'sign-in' ? c.savedBody : c.body}</p>
+        <h2 className="text-xl font-black text-white">{continuation.mode === 'sign-in' ? t('savedTitle') : t('title')}</h2>
+        <p className="mt-2 text-sm leading-relaxed text-slate-300">{continuation.mode === 'sign-in' ? t('savedBody') : t('body')}</p>
 
         <Button
           type="button"
@@ -284,18 +239,18 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
             <path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z" />
             <path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z" />
           </svg>
-          {continuation.mode === 'sign-in' ? c.savedGoogle : c.continueGoogle}
+          {continuation.mode === 'sign-in' ? t('savedGoogle') : t('continueGoogle')}
         </Button>
 
         <div className="my-4 flex items-center gap-3" aria-hidden="true">
           <div className="h-px flex-1 bg-white/15" />
-          <span className="text-xs text-slate-400">{c.or}</span>
+          <span className="text-xs text-slate-400">{t('or')}</span>
           <div className="h-px flex-1 bg-white/15" />
         </div>
 
         <form onSubmit={signInWithMagicLink} className="text-left">
           <label htmlFor="account-unlock-email" className="text-sm font-semibold text-white">
-            {c.emailLabel}
+            {t('emailLabel')}
           </label>
           <Input
             id="account-unlock-email"
@@ -306,7 +261,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
             required
             value={email}
             onChange={event => setEmail(event.target.value)}
-            placeholder={c.emailPlaceholder}
+            placeholder={t('emailPlaceholder')}
             className="mt-2 border-white/15 bg-white/10 text-white placeholder:text-slate-500"
           />
           <Button
@@ -315,7 +270,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
             data-testid="create-account"
             className="mt-3 h-auto min-h-11 w-full whitespace-normal py-2.5 leading-snug"
           >
-            {loading === 'email' ? c.sending : c.createAccount}
+            {loading === 'email' ? t('sending') : t('createAccount')}
           </Button>
         </form>
 
@@ -326,11 +281,11 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
         >
           {status}
         </p>
-        <p className="mt-2 text-xs text-slate-400">{continuation.mode === 'sign-in' ? c.savedNote : c.finePrint}</p>
-        {intentState === 'preparing' ? <p className="mt-2 text-xs text-slate-400">{c.preparing}</p> : null}
+        <p className="mt-2 text-xs text-slate-400">{continuation.mode === 'sign-in' ? t('savedNote') : t('finePrint')}</p>
+        {intentState === 'preparing' ? <p className="mt-2 text-xs text-slate-400">{t('preparing')}</p> : null}
         {intentState === 'error' ? (
           <div className="mt-2">
-            <p className="text-xs text-red-300">{c.intentFailed}</p>
+            <p className="text-xs text-red-300">{t('intentFailed')}</p>
             <button
               type="button"
               onClick={() => {
@@ -339,7 +294,7 @@ export function AccountUnlockCard({ scanId, lang }: Props) {
               }}
               className="min-h-11 text-sm font-semibold text-white underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
-              {c.retrySaving}
+              {t('retrySaving')}
             </button>
           </div>
         ) : null}

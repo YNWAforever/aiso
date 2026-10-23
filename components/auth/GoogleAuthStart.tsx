@@ -6,23 +6,16 @@ import {
   buildAuthCompleteUrl,
   startGoogleAuthRedirect,
 } from '@/lib/auth-client'
-
-const COPY_EN = {
-  starting: 'Opening Google sign-in…',
-  failed: 'Could not start Google sign-in in this window.',
-  back: 'Back to sign in',
-}
-
-const COPY_ZH_HK: typeof COPY_EN = {
-  starting: '正在開啟 Google 登入…',
-  failed: '未能在此視窗開啟 Google 登入。',
-  back: '返回登入',
-}
+import { createTranslator } from 'next-intl'
+import en from '@/messages/en.json'
+import zh from '@/messages/zh-HK.json'
 
 export function GoogleAuthStart({ lang, next }: { lang: string; next: string }) {
   const ran = useRef(false)
   const [failed, setFailed] = useState(false)
-  const copy = lang === 'zh-HK' ? COPY_ZH_HK : COPY_EN
+  const t = lang === 'zh-HK'
+    ? createTranslator({ locale: 'zh-HK', messages: zh, namespace: 'authFlow.google' })
+    : createTranslator({ locale: 'en', messages: en, namespace: 'authFlow.google' })
   const callbackURL = buildAuthCompleteUrl(lang, next)
 
   useEffect(() => {
@@ -44,14 +37,14 @@ export function GoogleAuthStart({ lang, next }: { lang: string; next: string }) 
           aria-live={failed ? 'assertive' : 'polite'}
           className="font-medium text-foreground"
         >
-          {failed ? copy.failed : copy.starting}
+          {failed ? t('failed') : t('starting')}
         </p>
         {failed && (
           <a
             href={`/${lang}/auth/login?next=${encodeURIComponent(next)}`}
             className="mt-3 inline-block text-sm text-primary underline"
           >
-            {copy.back}
+            {t('back')}
           </a>
         )}
       </div>

@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ignore-pattern \".claude/\" --ignore-pattern \".superpowers/\" --ignore-pattern \".codebase-memory/**\" --ignore-pattern \"coverage/\" --ignore-pattern \"cloudflare/**\" --ignore-pattern \".playwright-ci-server/**\" --ignore-pattern \".worktrees/\" --ignore-pattern \".codex/\" --ignore-pattern \"artifacts/\"",
+    "audit:text": "node scripts/text-audit.mjs",
     "test": "node scripts/run-tests.mjs",
     "test:unit": "vitest run --exclude '__tests__/integration/**'",
     "test:integration": "vitest run --config vitest.integration.config.ts",
@@ -68,6 +69,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
     "@electric-sql/pglite": "0.5.8",
+    "@lhci/cli": "0.15.1",
     "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22.19.17",

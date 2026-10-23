@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useId, useMemo, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { CornerDownLeft, Search } from 'lucide-react'
@@ -52,6 +52,16 @@ export function CommandPalette({ items, open: controlled, onOpenChange }: Comman
   const setOpen = (next: boolean) => { onOpenChange?.(next); if (controlled === undefined) setUncontrolled(next) }
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
+  // Opened by a shortcut or a button outside Radix's Trigger, so Radix has
+  // nothing to return focus to. Remember what had focus and give it back.
+  const opener = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    function onFocus(event: FocusEvent) {
+      if (event.target instanceof HTMLElement && !event.target.closest('[data-command-palette]')) opener.current = event.target
+    }
+    document.addEventListener('focusin', onFocus)
+    return () => document.removeEventListener('focusin', onFocus)
+  }, [])
 
   useEffect(() => {
     function onKey(event: globalThis.KeyboardEvent) {
@@ -98,6 +108,10 @@ export function CommandPalette({ items, open: controlled, onOpenChange }: Comman
         <DialogOverlay />
         <DialogPrimitive.Content
           aria-describedby={undefined}
+          data-command-palette=""
+          onCloseAutoFocus={event => {
+            if (opener.current?.isConnected) { event.preventDefault(); opener.current.focus() }
+          }}
           className="fixed left-1/2 top-[12vh] z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-e3 data-[state=open]:animate-[dialog-in_200ms_var(--ease-standard)] data-[state=closed]:animate-[dialog-out_160ms_var(--ease-standard)]"
         >
           <DialogPrimitive.Title className="sr-only">{t('title')}</DialogPrimitive.Title>

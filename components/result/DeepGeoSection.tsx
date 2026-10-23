@@ -1,102 +1,9 @@
 'use client'
 import { Brain, Link2, TrendingUp, Layers } from 'lucide-react'
-import { useLocale } from 'next-intl'
+import type { ReactNode } from 'react'
+import { useTranslations } from 'next-intl'
 import { factualDensityState, type FactualDensityView } from '@/lib/factual-density-evidence'
 import { topicalAuthorityState } from '@/lib/topical-authority-evidence'
-
-const COPY_EN = {
-  sectionTitle: 'Deep GEO Analysis',
-  unlocked: 'Unlocked',
-  checkNo: (n: number) => `Check #${n}`,
-  // C17
-  c17Title: 'Citation Density & Authority',
-  c17Desc: 'AISO rates external links with a local heuristic. Actual AI citations and consumer visibility are not measured by this check.',
-  overallQuality: 'Overall quality score',
-  citationsPer1k: 'Citations per 1,000 words',
-  authorityBreakdown: 'Citation authority breakdown',
-  tierNote: 'Tier 1 groups academic, government and major publications under AISO’s heuristic. These weights are not platform ranking rules.',
-  tierOther: 'Other',
-  totalLinks: (n: number) => <><strong className="text-foreground/80">{n}</strong> total links</>,
-  externalLinks: (n: number) => <><strong className="text-foreground/80">{n}</strong> external</>,
-  // C18
-  c18Title: 'Factual Density',
-  c18Desc: 'Page counts and a model assessment of factual uniqueness. Real search and consumer visibility are not measured by this check.',
-  c18Unavailable: 'Unavailable — retry to obtain provider evidence. Page counts remain available.',
-  c18Legacy: 'Legacy / unverifiable — provider provenance is unknown. Run a new scan.',
-  numberDensity: 'Number/stat density',
-  entityDensity: 'Named entity density',
-  uniqueness: 'Content uniqueness',
-  dateRefs: (n: number) => `${n} date references`,
-  comparativeData: 'Comparative data',
-  timeSeriesData: 'Time-series data',
-  // C19
-  c19Title: 'Topical Authority',
-  c19Unavailable: 'Unavailable — no usable topical evidence was collected. Review the sitemap or run a new scan.',
-  c19Legacy: 'Legacy / unverifiable — topical collection provenance is unknown. Run a new scan.',
-  c19Desc: 'A local heuristic for topic clusters in the sampled sitemap. Coverage does not establish search ranking or citation performance.',
-  coverageScore: 'Topical coverage score',
-  clustersDetected: (n: number) => `${n} topic cluster${n !== 1 ? 's' : ''} detected`,
-  orphanPages: (n: number) => `⚠ ${n} orphan page${n > 1 ? 's' : ''}`,
-  detectedClusters: 'Detected clusters',
-  // C20
-  c20Title: 'AI Chunkability',
-  c20Desc: 'A local heuristic for content structure and chunk sizes. These thresholds are not platform requirements or guaranteed visibility gains.',
-  optimalChunkRatio: 'Optimal chunk ratio',
-  contentChunks: (n: number) => `${n} content chunks`,
-  avgWords: (n: number) => `Avg ${n} words/chunk`,
-  faqStyle: '✓ FAQ-style structure detected',
-  topChunks: 'Top chunks by extractability',
-  answerFirst: 'Answer-first',
-  selfContained: 'Self-contained',
-  section: (i: number) => `Section ${i}`,
-}
-
-const COPY_ZH_HK: typeof COPY_EN = {
-  sectionTitle: '深度 GEO 分析',
-  unlocked: '已解鎖',
-  checkNo: (n: number) => `檢查 #${n}`,
-  // C17
-  c17Title: '引用密度及權威度',
-  c17Desc: 'AISO 以本地啟發式規則評估對外連結。本檢查尚未量度實際 AI 引用及消費者可見度。',
-  overallQuality: '整體質素分數',
-  citationsPer1k: '每 1,000 字引用數',
-  authorityBreakdown: '引用權威分佈',
-  tierNote: 'Tier 1 按 AISO 的啟發式規則包括學術、政府及主要刊物。這些權重並非平台排名規則。',
-  tierOther: '其他',
-  totalLinks: (n: number) => <>連結總數 <strong className="text-foreground/80">{n}</strong></>,
-  externalLinks: (n: number) => <>對外連結 <strong className="text-foreground/80">{n}</strong></>,
-  // C18
-  c18Title: '事實密度',
-  c18Desc: '頁面數量統計及模型對事實獨特性的評估。本檢查尚未量度真實搜尋及消費者可見度。',
-  c18Unavailable: '未能取得資料 — 請重試以取得供應商證據。頁面統計仍可查看。',
-  c18Legacy: '歷史／未能核實 — 供應商來源不明。請重新掃描。',
-  numberDensity: '數字／統計密度',
-  entityDensity: '具名實體密度',
-  uniqueness: '內容獨特性',
-  dateRefs: (n: number) => `${n} 個日期參照`,
-  comparativeData: '比較數據',
-  timeSeriesData: '時間序列數據',
-  // C19
-  c19Title: '主題權威',
-  c19Unavailable: '未能取得資料 — 未採集到可用的主題證據。請檢視 sitemap 或重新掃描。',
-  c19Legacy: '歷史／未能核實 — 主題採集來源不明。請重新掃描。',
-  c19Desc: '以本地啟發式規則評估已抽樣 sitemap 的主題群組。覆蓋程度不能證明搜尋排名或引用成效。',
-  coverageScore: '主題覆蓋分數',
-  clustersDetected: (n: number) => `偵測到 ${n} 個主題群組`,
-  orphanPages: (n: number) => `⚠ ${n} 個孤立頁面`,
-  detectedClusters: '偵測到的群組',
-  // C20
-  c20Title: 'AI 分塊能力',
-  c20Desc: '以本地啟發式規則評估內容結構及分塊大小。這些門檻並非平台要求，亦不保證可見度改善。',
-  optimalChunkRatio: '理想分塊比例',
-  contentChunks: (n: number) => `${n} 個內容分塊`,
-  avgWords: (n: number) => `平均每塊 ${n} 字`,
-  faqStyle: '✓ 偵測到 FAQ 式結構',
-  topChunks: '可提取度最高的分塊',
-  answerFirst: '答案先行',
-  selfContained: '自成一體',
-  section: (i: number) => `第 ${i} 節`,
-}
 
 interface MetricBarProps { label: string; value: number; max?: number; color?: string }
 function MetricBar({ label, value, max = 100, color = 'bg-primary' }: MetricBarProps) {
@@ -114,7 +21,7 @@ function MetricBar({ label, value, max = 100, color = 'bg-primary' }: MetricBarP
   )
 }
 
-interface TierBadgeProps { tier: string; count: number; otherLabel?: string }
+interface TierBadgeProps { tier: string; count: number; otherLabel: string }
 function TierBadge({ tier, count, otherLabel }: TierBadgeProps) {
   const colors: Record<string, string> = {
     tier1: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60',
@@ -122,7 +29,7 @@ function TierBadge({ tier, count, otherLabel }: TierBadgeProps) {
     tier3: 'bg-muted text-muted-foreground border-border',
     other: 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-300 border-orange-200 dark:border-orange-800/60',
   }
-  const labels: Record<string, string> = { tier1: 'Tier 1', tier2: 'Tier 2', tier3: 'Tier 3', other: otherLabel ?? 'Other' }
+  const labels: Record<string, string> = { tier1: 'Tier 1', tier2: 'Tier 2', tier3: 'Tier 3', other: otherLabel }
   return (
     <div className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-semibold ${colors[tier] ?? colors.other}`}>
       <span>{labels[tier] ?? tier}</span>
@@ -145,8 +52,8 @@ interface Props {
 }
 
 export function DeepGeoSection({ c17, c18, c19, c19Check, c20 }: Props) {
-  const locale = useLocale()
-  const c = locale === 'zh-HK' ? COPY_ZH_HK : COPY_EN
+  const t = useTranslations('geoDetail')
+  const strong = (chunks: ReactNode) => <strong className="text-foreground/80">{chunks}</strong>
   const c18State = factualDensityState(c18)
   const c19State = topicalAuthorityState(c19Check)
   if (!c17 && !c18 && !c19 && !c20) return null
@@ -155,8 +62,8 @@ export function DeepGeoSection({ c17, c18, c19, c19Check, c20 }: Props) {
     <div className="space-y-5">
       <div className="flex items-center gap-2">
         <Brain className="size-4 text-violet-500" />
-        <h2 className="text-sm font-black text-foreground tracking-widest uppercase">{c.sectionTitle}</h2>
-        <span className="text-xs bg-violet-100 text-violet-700 font-bold px-2 py-0.5 rounded-full">{c.unlocked}</span>
+        <h2 className="text-sm font-black text-foreground tracking-widest uppercase">{t('sectionTitle')}</h2>
+        <span className="text-xs bg-violet-100 text-violet-700 font-bold px-2 py-0.5 rounded-full">{t('unlocked')}</span>
       </div>
 
       {/* C17 — Citation Density */}
@@ -164,36 +71,36 @@ export function DeepGeoSection({ c17, c18, c19, c19Check, c20 }: Props) {
         <div className="bg-card rounded-2xl border border-border p-6">
           <div className="flex items-center gap-2 mb-1">
             <Link2 className="size-4 text-blue-500" />
-            <h3 className="text-sm font-bold text-foreground">{c.c17Title}</h3>
-            <span className="ml-auto text-xs text-muted-foreground">{c.checkNo(17)}</span>
+            <h3 className="text-sm font-bold text-foreground">{t('c17Title')}</h3>
+            <span className="ml-auto text-xs text-muted-foreground">{t('checkNo', { n: 17 })}</span>
           </div>
           <p className="text-xs text-muted-foreground mb-5 leading-relaxed">
-            {c.c17Desc}
+            {t('c17Desc')}
           </p>
           <div className="space-y-3 mb-5">
             {c17.qualityScore !== undefined && (
-              <MetricBar label={c.overallQuality} value={c17.qualityScore} color="auto" />
+              <MetricBar label={t('overallQuality')} value={c17.qualityScore} color="auto" />
             )}
             {c17.citationsPerThousandWords !== undefined && (
-              <MetricBar label={c.citationsPer1k} value={c17.citationsPerThousandWords} max={10} color="auto" />
+              <MetricBar label={t('citationsPer1k')} value={c17.citationsPerThousandWords} max={10} color="auto" />
             )}
           </div>
           {c17.authorityBreakdown && (
             <div>
-              <p className="text-xs font-semibold text-muted-foreground mb-3">{c.authorityBreakdown}</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-3">{t('authorityBreakdown')}</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {(['tier1','tier2','tier3','other'] as const).map(t => (
-                  <TierBadge key={t} tier={t} count={c17.authorityBreakdown?.[t] ?? 0} otherLabel={c.tierOther} />
+                {(['tier1','tier2','tier3','other'] as const).map(tier => (
+                  <TierBadge key={tier} tier={tier} count={c17.authorityBreakdown?.[tier] ?? 0} otherLabel={t('tierOther')} />
                 ))}
               </div>
               <p className="text-xs text-muted-foreground mt-3">
-                {c.tierNote}
+                {t('tierNote')}
               </p>
             </div>
           )}
           <div className="mt-4 pt-4 border-t border-border flex gap-4 text-xs text-muted-foreground">
-            {c17.totalLinks !== undefined && <span>{c.totalLinks(c17.totalLinks)}</span>}
-            {c17.externalLinks !== undefined && <span>{c.externalLinks(c17.externalLinks)}</span>}
+            {c17.totalLinks !== undefined && <span>{t.rich('totalLinks', { n: c17.totalLinks, strong })}</span>}
+            {c17.externalLinks !== undefined && <span>{t.rich('externalLinks', { n: c17.externalLinks, strong })}</span>}
           </div>
         </div>
       )}
@@ -203,41 +110,41 @@ export function DeepGeoSection({ c17, c18, c19, c19Check, c20 }: Props) {
         <div className="bg-card rounded-2xl border border-border p-6">
           <div className="flex items-center gap-2 mb-1">
             <TrendingUp className="size-4 text-emerald-500" />
-            <h3 className="text-sm font-bold text-foreground">{c.c18Title}</h3>
-            <span className="ml-auto text-xs text-muted-foreground">{c.checkNo(18)}</span>
+            <h3 className="text-sm font-bold text-foreground">{t('c18Title')}</h3>
+            <span className="ml-auto text-xs text-muted-foreground">{t('checkNo', { n: 18 })}</span>
           </div>
           <p className="text-xs text-muted-foreground mb-5 leading-relaxed">
-            {c.c18Desc}
+            {t('c18Desc')}
           </p>
           <div className="space-y-3 mb-5">
-            {c18State !== 'observed' && <p className="text-xs text-muted-foreground" role="status">{c18State === 'legacy' ? c.c18Legacy : c.c18Unavailable}</p>}
+            {c18State !== 'observed' && <p className="text-xs text-muted-foreground" role="status">{c18State === 'legacy' ? t('c18Legacy') : t('c18Unavailable')}</p>}
             {c18State === 'observed' && typeof c18.qualityScore === 'number' && (
-              <MetricBar label={c.overallQuality} value={c18.qualityScore} color="auto" />
+              <MetricBar label={t('overallQuality')} value={c18.qualityScore} color="auto" />
             )}
             {c18.numberDensity !== undefined && (
-              <MetricBar label={c.numberDensity} value={c18.numberDensity} max={10} color="auto" />
+              <MetricBar label={t('numberDensity')} value={c18.numberDensity} max={10} color="auto" />
             )}
             {c18.namedEntityDensity !== undefined && (
-              <MetricBar label={c.entityDensity} value={c18.namedEntityDensity} max={10} color="auto" />
+              <MetricBar label={t('entityDensity')} value={c18.namedEntityDensity} max={10} color="auto" />
             )}
             {c18State === 'observed' && typeof c18.uniquenessScore === 'number' && (
-              <MetricBar label={c.uniqueness} value={c18.uniquenessScore} color="auto" />
+              <MetricBar label={t('uniqueness')} value={c18.uniquenessScore} color="auto" />
             )}
           </div>
           <div className="flex flex-wrap gap-2">
             {c18.dateReferences !== undefined && (
               <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${(c18.dateReferences ?? 0) > 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60' : 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 border-red-200 dark:border-red-800/60'}`}>
-                {c.dateRefs(c18.dateReferences)}
+                {t('dateRefs', { n: c18.dateReferences })}
               </span>
             )}
             {c18.hasComparativeData !== undefined && (
               <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${c18.hasComparativeData ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60' : 'bg-muted/50 text-muted-foreground border-border'}`}>
-                {c18.hasComparativeData ? '✓' : '✗'} {c.comparativeData}
+                {c18.hasComparativeData ? '✓' : '✗'} {t('comparativeData')}
               </span>
             )}
             {c18.hasTimeSeriesData !== undefined && (
               <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${c18.hasTimeSeriesData ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60' : 'bg-muted/50 text-muted-foreground border-border'}`}>
-                {c18.hasTimeSeriesData ? '✓' : '✗'} {c.timeSeriesData}
+                {c18.hasTimeSeriesData ? '✓' : '✗'} {t('timeSeriesData')}
               </span>
             )}
           </div>
@@ -249,32 +156,32 @@ export function DeepGeoSection({ c17, c18, c19, c19Check, c20 }: Props) {
         <div className="bg-card rounded-2xl border border-border p-6">
           <div className="flex items-center gap-2 mb-1">
             <Layers className="size-4 text-violet-500" />
-            <h3 className="text-sm font-bold text-foreground">{c.c19Title}</h3>
-            <span className="ml-auto text-xs text-muted-foreground">{c.checkNo(19)}</span>
+            <h3 className="text-sm font-bold text-foreground">{t('c19Title')}</h3>
+            <span className="ml-auto text-xs text-muted-foreground">{t('checkNo', { n: 19 })}</span>
           </div>
           <p className="text-xs text-muted-foreground mb-5 leading-relaxed">
-            {c.c19Desc}
+            {t('c19Desc')}
           </p>
-          {c19State !== 'observed' && <p className="text-xs text-muted-foreground" role="status">{c19State === 'legacy' ? c.c19Legacy : c.c19Unavailable}</p>}
+          {c19State !== 'observed' && <p className="text-xs text-muted-foreground" role="status">{c19State === 'legacy' ? t('c19Legacy') : t('c19Unavailable')}</p>}
           {c19State === 'observed' && <>
           <div className="space-y-3 mb-5">
             {c19.topicalCoverageScore !== undefined && (
-              <MetricBar label={c.coverageScore} value={c19.topicalCoverageScore} color="auto" />
+              <MetricBar label={t('coverageScore')} value={c19.topicalCoverageScore} color="auto" />
             )}
           </div>
           <div className="flex flex-wrap gap-2 mb-4">
             <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${(c19.totalClusters ?? 0) > 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60' : 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 border-red-200 dark:border-red-800/60'}`}>
-              {c.clustersDetected(c19.totalClusters ?? 0)}
+              {t('clustersDetected', { n: c19.totalClusters ?? 0 })}
             </span>
             {(c19.hasOrphanPages ?? 0) > 0 && (
               <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/60">
-                {c.orphanPages(c19.hasOrphanPages ?? 0)}
+                {t('orphanPages', { n: c19.hasOrphanPages ?? 0 })}
               </span>
             )}
           </div>
           {(c19.detectedClusters?.length ?? 0) > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground mb-2">{c.detectedClusters}</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-2">{t('detectedClusters')}</p>
               {c19.detectedClusters!.slice(0, 5).map((cl, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <span className="text-xs text-muted-foreground flex-1 truncate capitalize">{cl.topic}</span>
@@ -298,44 +205,44 @@ export function DeepGeoSection({ c17, c18, c19, c19Check, c20 }: Props) {
         <div className="bg-card rounded-2xl border border-border p-6">
           <div className="flex items-center gap-2 mb-1">
             <Brain className="size-4 text-orange-500" />
-            <h3 className="text-sm font-bold text-foreground">{c.c20Title}</h3>
-            <span className="ml-auto text-xs text-muted-foreground">{c.checkNo(20)}</span>
+            <h3 className="text-sm font-bold text-foreground">{t('c20Title')}</h3>
+            <span className="ml-auto text-xs text-muted-foreground">{t('checkNo', { n: 20 })}</span>
           </div>
           <p className="text-xs text-muted-foreground mb-5 leading-relaxed">
-            {c.c20Desc}
+            {t('c20Desc')}
           </p>
           <div className="space-y-3 mb-5">
             {c20.optimalChunkRatio !== undefined && (
-              <MetricBar label={c.optimalChunkRatio} value={c20.optimalChunkRatio * 100} color="auto" />
+              <MetricBar label={t('optimalChunkRatio')} value={c20.optimalChunkRatio * 100} color="auto" />
             )}
           </div>
           <div className="flex flex-wrap gap-2 mb-4">
             {c20.totalChunks !== undefined && (
               <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-muted/50 text-muted-foreground border-border">
-                {c.contentChunks(c20.totalChunks)}
+                {t('contentChunks', { n: c20.totalChunks })}
               </span>
             )}
             {c20.avgChunkLength !== undefined && (
               <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-muted/50 text-muted-foreground border-border">
-                {c.avgWords(Math.round(c20.avgChunkLength))}
+                {t('avgWords', { n: Math.round(c20.avgChunkLength) })}
               </span>
             )}
             {c20.hasFaqStyle && (
               <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60">
-                {c.faqStyle}
+                {t('faqStyle')}
               </span>
             )}
           </div>
           {(c20.chunkAnalysis?.length ?? 0) > 0 && (
             <div>
-              <p className="text-xs font-semibold text-muted-foreground mb-2">{c.topChunks}</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-2">{t('topChunks')}</p>
               <div className="space-y-2">
                 {c20.chunkAnalysis!.slice(0, 4).map((ch, i) => (
                   <div key={i} className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground flex-1 truncate">{ch.heading || c.section(i + 1)}</span>
+                    <span className="text-xs text-muted-foreground flex-1 truncate">{ch.heading || t('section', { i: i + 1 })}</span>
                     <div className="flex gap-1">
-                      {ch.isAnswerFirst && <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 px-1 rounded">{c.answerFirst}</span>}
-                      {ch.isSelfContained && <span className="text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 px-1 rounded">{c.selfContained}</span>}
+                      {ch.isAnswerFirst && <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 px-1 rounded">{t('answerFirst')}</span>}
+                      {ch.isSelfContained && <span className="text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 px-1 rounded">{t('selfContained')}</span>}
                     </div>
                     <span className={`text-xs font-bold w-8 text-right ${ch.extractabilityScore >= 60 ? 'text-emerald-600 dark:text-emerald-300' : ch.extractabilityScore >= 30 ? 'text-amber-600 dark:text-amber-300' : 'text-red-500'}`}>
                       {Math.round(ch.extractabilityScore)}

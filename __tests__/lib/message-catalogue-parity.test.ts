@@ -151,12 +151,12 @@ describe('the parity check cannot pass vacuously', () => {
     // Adding a namespace is a deliberate edit here; deleting one from both
     // catalogues at once is exactly what set equality misses.
     expect(Object.keys(load(DEFAULT)).sort()).toEqual([
-      'activation', 'adminDirectory',
-      'alertFeedback', 'approverAccess', 'assets', 'auth', 'brandAssistant', 'changeSets', 'checks', 'citations', 'competitors', 'dashboard',
-      'delivery', 'designSystem', 'entities', 'errorPage', 'generatedWork', 'home', 'landing', 'maintenance', 'members', 'methodologyPage', 'nav',
-      'notFound', 'observations', 'onboardingSetup', 'opportunities', 'outcomes', 'portfolio', 'pricing',
+      'accountUnlock', 'activation', 'adminDirectory',
+      'alertFeedback', 'approverAccess', 'assets', 'auth', 'authFlow', 'brandAssistant', 'changeSets', 'checkItem', 'checks', 'citations', 'competitors', 'dashboard',
+      'delivery', 'designSystem', 'entities', 'errorPage', 'generatedWork', 'geoDetail', 'home', 'landing', 'maintenance', 'members', 'methodologyPage', 'nav',
+      'notFound', 'notificationBell', 'observations', 'onboardingSetup', 'onboardingWizard', 'opportunities', 'outcomes', 'pillarCards', 'portfolio', 'pricing',
       'publicPages', 'pulse', 'pulseView', 'reportBranding', 'reportPage', 'reports', 'result', 'resultPage', 'runProgress',
-      'sampleReport', 'scanPage', 'searchConsole', 'seo', 'settings', 'shareOfVoice', 'sources', 'trustSignals', 'ui', 'unavailable',
+      'sampleReport', 'scanEvidence', 'scanPage', 'searchConsole', 'seo', 'settings', 'shareOfVoice', 'sources', 'trustSignals', 'ui', 'unavailable',
       'upsell', 'visuals', 'workspaceHome',
     ])
   })

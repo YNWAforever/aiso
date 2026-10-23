@@ -90,6 +90,9 @@ export default defineConfig({
     ...[375, 768, 1024, 1440].map(width => ({
       name: `a11y-${width}`,
       testMatch: 'tests/e2e/a11y/**/*.spec.ts',
+      // wcag22.spec.ts sets its own viewports (320, 375, 640), so it runs once,
+      // here, rather than skipping in three projects: CI treats a skip as a failure.
+      ...(width === 375 ? {} : { testIgnore: 'tests/e2e/a11y/wcag22.spec.ts' }),
       use: { ...devices['Desktop Chrome'], viewport: { width, height: 900 } },
     })),
     // Appended only when a captured session exists. Absent it, the project list

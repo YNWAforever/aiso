@@ -68,3 +68,6 @@ artifacts/
 
 # A captured Playwright session. Live cookies — treat it like a password.
 .auth/
+
+# Lighthouse CI working files (lighthouserc.cjs)
+.lighthouseci/

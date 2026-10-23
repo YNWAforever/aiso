@@ -17,7 +17,7 @@ describe('funnel verification contracts', () => {
     expect(source).not.toContain("text=/sent|check|email|magic|success/i")
     expect(source).toContain('provider error recovery')
     expect(loginSource).toContain('error.code === \'TOO_MANY_ATTEMPTS\'')
-    expect(loginSource).toContain('c.magicLinkFailed')
+    expect(loginSource).toContain("t('magicLinkFailed')")
     expect(loginSource).not.toContain('error.message')
   })
 

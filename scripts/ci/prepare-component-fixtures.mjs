@@ -16,7 +16,7 @@ export async function prepareComponentFixtures(root, environment = process.env, 
   await mkdir(output,{recursive:true})
   await writeFile(join(output,'build.css'),(await Promise.all(cssFiles.map(file=>readFile(join(chunks,file),'utf8')))).join('\n'))
   const env = {...environment}
-  const slices = ['C8A','C8B','C8C','C8G','C9A','C9B','C9C','C9C_DRAFT','C9D','C9D_APPROVERS','C9E','C9F','AISO_SOURCES','AISO_ONBOARDING','AISO_ADMIN','AISO_PRIORITY','PROMPT_BANK','AUTH_RETURN','AISO_FIRST_PULSE','AISO_AUDIT_LOOP','AISO_SHELL']
+  const slices = ['C8A','C8B','C8C','C8G','C9A','C9B','C9C','C9C_DRAFT','C9D','C9D_APPROVERS','C9E','C9F','AISO_SOURCES','AISO_ONBOARDING','AISO_ADMIN','AISO_PRIORITY','PROMPT_BANK','AUTH_RETURN','AISO_FIRST_PULSE','AISO_AUDIT_LOOP','AISO_SHELL','AISO_REPORT']
   for(const slice of slices) {
     env[`${slice}_HTML_DIR`] = join(output,slice)
     env[`${slice}_CSS_PATH`] = join(output,'build.css')
@@ -24,7 +24,7 @@ export async function prepareComponentFixtures(root, environment = process.env, 
     await copyFile(join(output,'build.css'),join(output,slice,'build.css'))
   }
   const files = ['workspace-home','portfolio','pulse-view','settings','entity','observation','opportunity','draft','change-set','approver-access','delivery','outcomes'].map(name=>`__tests__/components/${name}-render.test.tsx`)
-  files.push(...['domain-verification-first-use','onboarding-wizard-bilingual','prompt-bank-editor','top-issue-card','auth-return-fixture','source-maintenance-fixture','first-pulse-fixture','audit-loop-fixture','app-shell-fixture'].map(name=>`__tests__/components/${name}.test.tsx`))
+  files.push(...['domain-verification-first-use','onboarding-wizard-bilingual','prompt-bank-editor','top-issue-card','auth-return-fixture','source-maintenance-fixture','first-pulse-fixture','audit-loop-fixture','app-shell-fixture','report-print-fixture'].map(name=>`__tests__/components/${name}.test.tsx`))
   files.push('__tests__/components/admin-directory.test.tsx')
   files.push('__tests__/components/suggest-questions-panel.test.tsx')
   const result = run(process.execPath,[join(root,'node_modules/vitest/vitest.mjs'),'run',...files,'--maxWorkers=1'],{cwd:root,env,stdio:'inherit'})
