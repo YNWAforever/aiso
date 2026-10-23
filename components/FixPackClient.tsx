@@ -48,9 +48,9 @@ export function FixPackClient({ scanId, fixCta, fixSubtitle, copyLabel, copiedLa
   if (fixPack) return <div key={scanId} className="space-y-4">
     <p className="text-sm text-dash-text">{t('draftNotice')}</p>
     <p className="text-xs text-dash-muted">{t('storageNotice')}</p>
-    <FixPackBlock title="llms.txt" content={fixPack.llms_txt} copyLabel={copyLabel} copiedLabel={copiedLabel} />
-    <FixPackBlock title="robots.txt patch" content={fixPack.robots_patch} copyLabel={copyLabel} copiedLabel={copiedLabel} />
-    <FixPackBlock title="FAQ JSON-LD" content={fixPack.faq_schema} copyLabel={copyLabel} copiedLabel={copiedLabel} />
+    <FixPackBlock title={t('fileLlms')} content={fixPack.llms_txt} copyLabel={copyLabel} copiedLabel={copiedLabel} />
+    <FixPackBlock title={t('fileRobots')} content={fixPack.robots_patch} copyLabel={copyLabel} copiedLabel={copiedLabel} />
+    <FixPackBlock title={t('fileFaq')} content={fixPack.faq_schema} copyLabel={copyLabel} copiedLabel={copiedLabel} />
   </div>
 
   return <div className="rounded-xl border border-dash-border bg-dash-surface p-6 text-center" aria-busy={loading}>

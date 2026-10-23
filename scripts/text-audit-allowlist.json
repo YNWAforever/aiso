@@ -1,0 +1,161 @@
+{
+  "hardcoded": [
+    {
+      "text": "Fimmick",
+      "file": "components/dashboard/DashboardSidebar.tsx",
+      "reason": "brand wordmark, the same in every language (the name itself is Phase 8)"
+    },
+    {
+      "text": "AISO",
+      "file": "components/dashboard/DashboardSidebar.tsx",
+      "reason": "brand wordmark, the same in every language (the name itself is Phase 8)"
+    },
+    {
+      "text": "Fimmick",
+      "file": "components/result/ResultClient.tsx",
+      "reason": "brand wordmark, the same in every language (the name itself is Phase 8)"
+    },
+    {
+      "text": "AISO",
+      "file": "components/result/ResultClient.tsx",
+      "reason": "brand wordmark, the same in every language (the name itself is Phase 8)"
+    },
+    {
+      "text": "Fimmick",
+      "file": "app/[lang]/auth/login/page.tsx",
+      "reason": "brand wordmark, the same in every language (the name itself is Phase 8)"
+    },
+    {
+      "text": "AISO",
+      "file": "app/[lang]/auth/login/page.tsx",
+      "reason": "brand wordmark, the same in every language (the name itself is Phase 8)"
+    },
+    {
+      "text": "Fimmick",
+      "file": "components/onboarding/OnboardingWizard.tsx",
+      "reason": "brand wordmark, the same in every language (the name itself is Phase 8)"
+    },
+    {
+      "text": "AISO",
+      "file": "components/onboarding/OnboardingWizard.tsx",
+      "reason": "brand wordmark, the same in every language (the name itself is Phase 8)"
+    },
+    {
+      "text": "Fimmick&nbsp;",
+      "file": "app/[lang]/result/[id]/opengraph-image.tsx",
+      "reason": "brand wordmark in the share image"
+    },
+    {
+      "text": "AISO",
+      "file": "app/[lang]/result/[id]/opengraph-image.tsx",
+      "reason": "brand wordmark in the share image"
+    },
+    {
+      "text": "English",
+      "reason": "a language named in its own language, so a reader can find theirs whatever the interface language"
+    },
+    {
+      "text": "繁體中文（香港）",
+      "reason": "a language named in its own language, so a reader can find theirs whatever the interface language"
+    },
+    {
+      "text": "繁體中文",
+      "reason": "a language named in its own language, so a reader can find theirs whatever the interface language"
+    },
+    {
+      "text": "(UTC)",
+      "file": "components/outcomes/OutcomeWindows.tsx",
+      "reason": "time zone label"
+    },
+    {
+      "text": "https://example.com",
+      "file": "components/dashboard/ScanStep.tsx",
+      "reason": "example address used as an input placeholder"
+    },
+    {
+      "text": "example.com",
+      "file": "components/onboarding/BrandAssistant.tsx",
+      "reason": "example address used as an input placeholder"
+    },
+    {
+      "text": "https://agency.example/logo.webp",
+      "file": "components/reports/ReportBrandingForm.tsx",
+      "reason": "example address used as an input placeholder"
+    },
+    {
+      "text": "https://agency.example/contact",
+      "file": "components/reports/ReportBrandingForm.tsx",
+      "reason": "example address used as an input placeholder"
+    },
+    {
+      "text": "fimmick.com",
+      "file": "components/onboarding/OnboardingWizard.tsx",
+      "reason": "example address used as an input placeholder"
+    },
+    {
+      "text": "https://www.fimmick.com",
+      "file": "components/onboarding/OnboardingWizard.tsx",
+      "reason": "example address used as an input placeholder"
+    },
+    {
+      "text": "question,category,language,market,is_active",
+      "file": "components/pulse/PromptBulkPanel.tsx",
+      "reason": "the CSV column header format the importer requires"
+    },
+    {
+      "text": "Powered by Fimmick AISO",
+      "file": "components/reports/ReportBrandingForm.tsx",
+      "reason": "fixed report attribution, stored as a literal in every snapshot"
+    },
+    {
+      "text": "Not Found",
+      "file": "app/[lang]/r/[slug]/not-found.tsx",
+      "reason": "share-link not found is deliberately neutral: no locale, product or report hint (public-report-page test)"
+    }
+  ],
+  "untranslated": [
+    {
+      "key": "searchConsole.connections_title",
+      "reason": "Google's product name, not translated"
+    },
+    {
+      "key": "members.emailPlaceholder",
+      "reason": "an example address, the same in both languages"
+    }
+  ],
+  "claimRules": [
+    {
+      "id": "citation-claim",
+      "pattern": "\\b(was|were|is|are|been|being) cited\\b|\\bcites? (your|this) (page|site|brand)"
+    },
+    {
+      "id": "guarantee",
+      "pattern": "(?<!\\b(?:not|no|never|n't|or)\\s(?:\\w+\\s){0,2})\\bguarantee(?:d|s)?\\b|(?<![不非])保證"
+    },
+    {
+      "id": "ranking-promise",
+      "pattern": "\\b(rank|ranked|ranking) (#?1|first|number one|top)\\b|排名第一"
+    }
+  ],
+  "claims": [
+    {
+      "locale": "en",
+      "key": "citations.gaps_title",
+      "reason": "describes citations observed in sampled API answers, which the Citations view measures"
+    }
+  ],
+  "skipFiles": [
+    {
+      "file": "app/[lang]/audit-fixture-error/page.tsx",
+      "reason": "E2E fixture page, reachable only in fixture mode"
+    },
+    {
+      "file": "components/pulse/CompetitorTab.tsx",
+      "reason": "orphaned: nothing renders it (__tests__/components/orphaned-components.test.ts)"
+    },
+    {
+      "file": "components/pulse/CompetitorChart.tsx",
+      "reason": "orphaned: only rendered by the orphaned CompetitorTab"
+    }
+  ]
+}

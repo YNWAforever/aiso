@@ -375,7 +375,15 @@
     "geo_optimal": "最佳比例",
     "geo_faq_style": "FAQ 格式",
     "extended_checks_title": "延伸檢查",
-    "extended_checks_subtitle": "超越核心技術要求的 AEO 信號"
+    "extended_checks_subtitle": "超越核心技術要求的 AEO 信號",
+    "back_to_results": "← 返回結果",
+    "agent_pending": "AI 代理分析處理中",
+    "improve_with_agents": "用 AI 代理改善 →",
+    "full_history": "完整記錄",
+    "checks_scanned": "已掃描 {count} 項檢查。選擇任何一列查看詳情及修正指引。",
+    "passing_count": "✓ {count} 項通過",
+    "warning_count": "⚠ {count} 項警告",
+    "failing_count": "✗ {count} 項未通過"
   },
   "checks": {
     "c1_robots": "robots.txt AI 政策",
@@ -1878,7 +1886,10 @@
     "llmsDescription": "供審閱的網站內容摘要建議。",
     "robotsDescription": "請按你的存取政策核對爬蟲規則建議。",
     "faqDescription": "使用前請核實的結構化問答建議。",
-    "packCta": "生成草稿檔案"
+    "packCta": "生成草稿檔案",
+    "fileLlms": "llms.txt",
+    "fileRobots": "robots.txt 修訂",
+    "fileFaq": "FAQ JSON-LD"
   },
   "alertFeedback": {
     "loadFailed": "未能載入提示設定，請重試。",

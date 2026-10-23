@@ -153,13 +153,13 @@ export default async function DashboardResultPage({
             href={`/${lang}/dashboard/${clientId}?step=results`}
             className="text-xs text-dash-muted hover:text-dash-text transition-colors"
           >
-            ← Back to Results
+            {t('result.back_to_results')}
           </Link>
           <span className="text-dash-border">|</span>
           <p className="break-all text-sm font-semibold text-dash-text">{s.domain}</p>
           {pending && (
             <span className="text-[10px] font-medium bg-dash-warning/10 text-dash-warning px-2 py-0.5 rounded-full border border-dash-warning/20">
-              Agent analysis pending
+              {t('result.agent_pending')}
             </span>
           )}
         </div>
@@ -174,13 +174,13 @@ export default async function DashboardResultPage({
             href={`/${lang}/dashboard/${clientId}?step=improve`}
             className="inline-flex min-h-11 items-center rounded-lg border border-dash-border bg-transparent px-4 py-2 text-xs font-semibold text-dash-text transition-colors hover:bg-dash-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Improve with AI agents →
+            {t('result.improve_with_agents')}
           </Link>
           <Link
             href={`/${lang}/dashboard/${clientId}?step=scan`}
             className="inline-flex min-h-11 items-center rounded-lg px-4 py-2 text-xs font-medium text-dash-muted transition-colors hover:bg-dash-elevated hover:text-dash-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Full History
+            {t('result.full_history')}
           </Link>
         </div>
       </div>
@@ -237,11 +237,11 @@ export default async function DashboardResultPage({
 
         {/* Scan summary pill row */}
         <div className="flex items-center gap-2 mb-4 text-sm flex-wrap">
-          <span className="text-dash-muted text-xs">{allChecks.length} checks scanned — click any row for details &amp; fix guidance</span>
+          <span className="text-dash-muted text-xs">{t('result.checks_scanned', { count: allChecks.length })}</span>
           <span className="ml-auto flex gap-2">
-            {passes > 0 && <span className="bg-dash-success/10 text-dash-success font-semibold px-2 py-0.5 rounded-full text-xs border border-dash-success/20">✓ {passes} passing</span>}
-            {warns  > 0 && <span className="bg-dash-warning/10 text-dash-warning font-semibold px-2 py-0.5 rounded-full text-xs border border-dash-warning/20">⚠ {warns} warnings</span>}
-            {fails  > 0 && <span className="bg-dash-danger/10 text-dash-danger font-semibold px-2 py-0.5 rounded-full text-xs border border-dash-danger/20">✗ {fails} failing</span>}
+            {passes > 0 && <span className="bg-dash-success/10 text-dash-success font-semibold px-2 py-0.5 rounded-full text-xs border border-dash-success/20">{t('result.passing_count', { count: passes })}</span>}
+            {warns  > 0 && <span className="bg-dash-warning/10 text-dash-warning font-semibold px-2 py-0.5 rounded-full text-xs border border-dash-warning/20">{t('result.warning_count', { count: warns })}</span>}
+            {fails  > 0 && <span className="bg-dash-danger/10 text-dash-danger font-semibold px-2 py-0.5 rounded-full text-xs border border-dash-danger/20">{t('result.failing_count', { count: fails })}</span>}
             {unknown > 0 && <span className="text-dash-muted text-xs">{t('result.evidence_unverified', { count: unknown })}</span>}
           </span>
         </div>
@@ -370,9 +370,9 @@ export default async function DashboardResultPage({
           </div>
           <div className="rounded-xl border border-dash-border bg-dash-elevated p-4 mb-3 text-sm text-dash-muted space-y-1">
             <p className="font-semibold text-dash-text mb-2">{t('generatedWork.packContents')}</p>
-            <p><strong>llms.txt</strong> — {t('generatedWork.llmsDescription')}</p>
-            <p><strong>robots.txt patch</strong> — {t('generatedWork.robotsDescription')}</p>
-            <p><strong>FAQ JSON-LD</strong> — {t('generatedWork.faqDescription')}</p>
+            <p><strong>{t('generatedWork.fileLlms')}</strong> — {t('generatedWork.llmsDescription')}</p>
+            <p><strong>{t('generatedWork.fileRobots')}</strong> — {t('generatedWork.robotsDescription')}</p>
+            <p><strong>{t('generatedWork.fileFaq')}</strong> — {t('generatedWork.faqDescription')}</p>
           </div>
           <FixPackClient
             scanId={s.id}
@@ -389,13 +389,13 @@ export default async function DashboardResultPage({
             href={`/${lang}/dashboard/${clientId}?step=results`}
             className="text-xs text-dash-muted hover:text-dash-text transition-colors"
           >
-            ← Back to Results
+            {t('result.back_to_results')}
           </Link>
           <Link
             href={`/${lang}/dashboard/${clientId}?step=improve`}
             className="inline-flex items-center px-5 py-2.5 text-sm font-medium rounded-lg text-primary-foreground bg-dash-accent hover:opacity-90 transition-opacity"
           >
-            Improve with AI agents →
+            {t('result.improve_with_agents')}
           </Link>
         </div>
       </main>

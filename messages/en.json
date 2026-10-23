@@ -375,7 +375,15 @@
     "geo_optimal": "Optimal size",
     "geo_faq_style": "FAQ style",
     "extended_checks_title": "EXTENDED CHECKS",
-    "extended_checks_subtitle": "AEO signals beyond core technical requirements"
+    "extended_checks_subtitle": "AEO signals beyond core technical requirements",
+    "back_to_results": "← Back to results",
+    "agent_pending": "Agent analysis pending",
+    "improve_with_agents": "Improve with AI agents →",
+    "full_history": "Full history",
+    "checks_scanned": "{count} checks scanned. Select any row for details and fix guidance.",
+    "passing_count": "✓ {count} passing",
+    "warning_count": "⚠ {count, plural, one {# warning} other {# warnings}}",
+    "failing_count": "✗ {count} failing"
   },
   "checks": {
     "c1_robots": "robots.txt AI Policy",
@@ -1878,7 +1886,10 @@
     "llmsDescription": "A proposed summary of your site for review.",
     "robotsDescription": "Proposed crawler rules to check against your access policy.",
     "faqDescription": "Proposed structured questions and answers to verify before use.",
-    "packCta": "Generate draft files"
+    "packCta": "Generate draft files",
+    "fileLlms": "llms.txt",
+    "fileRobots": "robots.txt patch",
+    "fileFaq": "FAQ JSON-LD"
   },
   "alertFeedback": {
     "loadFailed": "Alert settings could not be loaded. Try again.",
