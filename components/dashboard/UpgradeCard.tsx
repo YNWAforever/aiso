@@ -1,4 +1,4 @@
-import { Illustration } from '@/components/ui/empty-state'
+import { Illustration } from '@/components/ui/illustration'
 
 /**
  * An in-context upgrade prompt: shown where a plan limit stopped the user,

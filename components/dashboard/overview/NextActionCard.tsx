@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { Illustration, type IllustrationName } from '@/components/ui/empty-state'
+import { Illustration, type IllustrationName } from '@/components/ui/illustration'
 
 /**
  * The page's one focal action: a caption, an optional sentence, one button.

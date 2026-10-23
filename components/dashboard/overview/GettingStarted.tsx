@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Check } from 'lucide-react'
-import { Illustration, type IllustrationName } from '@/components/ui/empty-state'
+import { Illustration, type IllustrationName } from '@/components/ui/illustration'
 import type { GettingStarted as Model, GettingStartedKey } from '@/lib/view-models/getting-started'
 import { cn } from '@/lib/utils'
 import en from '@/messages/en.json'
