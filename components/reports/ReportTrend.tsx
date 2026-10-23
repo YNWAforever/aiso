@@ -1,5 +1,3 @@
-'use client'
-
 import { useLocale, useTranslations } from 'next-intl'
 import type { ReportTrendPoint } from '@/lib/reports/types'
 import { formatScanScore } from '@/lib/score-display'
@@ -14,10 +12,9 @@ const H = 160
  * Labels are HTML so they keep their size when the plot stretches; a visually
  * hidden table carries every value.
  */
-export function ReportTrend({ trend, methodChanged, animate }: {
+export function ReportTrend({ trend, methodChanged }: {
   trend: ReadonlyArray<ReportTrendPoint>
   methodChanged: boolean
-  animate: boolean
 }) {
   const t = useTranslations('reportPage')
   const locale = useLocale()
@@ -29,14 +26,14 @@ export function ReportTrend({ trend, methodChanged, animate }: {
   const summary = t('trend_summary', { count: trend.length, first: formatScanScore(first.score), last: formatScanScore(last.score) })
 
   return (
-    <div className="relative" {...(animate ? { 'data-reveal': '' } : {})}>
+    <div className="relative" data-reveal>
       <p className="text-sm font-semibold tabular-nums">{formatScanScore(first.score)} → {formatScanScore(last.score)}</p>
       <div className="mt-3 flex gap-2">
-        <div aria-hidden="true" className="flex h-32 flex-col justify-between text-right text-xs tabular-nums text-muted-foreground print:h-28">
+        <div aria-hidden="true" className="flex h-32 flex-col justify-between text-right text-xs tabular-nums text-muted-foreground print:h-24">
           <span>100</span><span>50</span><span>0</span>
         </div>
         <div className="min-w-0 flex-1">
-          <div className="reveal-line-x relative h-32 print:h-28">
+          <div className="reveal-line-x relative h-32 print:h-24">
             <svg role="img" aria-label={summary} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="size-full overflow-visible">
               {[0, 50, 100].map(v => (
                 <line key={v} x1={0} x2={W} y1={y(v)} y2={y(v)} strokeWidth={1} vectorEffect="non-scaling-stroke" className="stroke-border" />

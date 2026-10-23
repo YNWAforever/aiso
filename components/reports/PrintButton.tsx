@@ -1,31 +1,27 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { flushSync } from 'react-dom'
+import { useEffect } from 'react'
 import { FileDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 
 /**
- * Print mode for the one-page report. On `beforeprint` (the button below, or
- * the browser's own Print command) it renders the end state of every
- * animation synchronously and drops the dark theme, so the PDF is the light,
- * fully drawn report; `afterprint` restores both. Mount it once per page.
+ * Prints light whatever the theme: on `beforeprint` (the button below, or the
+ * browser's own Print command) it drops the `dark` class and `afterprint`
+ * restores it. The visuals need nothing here: their CSS reveal states apply
+ * on screen only, so print always gets the finished drawing. Mount it once.
  */
-export function usePrintMode(): boolean {
-  const [printing, setPrinting] = useState(false)
+export function PrintThemeGuard() {
   useEffect(() => {
     const html = document.documentElement
     let restoreDark = false
     const before = () => {
       restoreDark = html.classList.contains('dark')
       html.classList.remove('dark')
-      flushSync(() => setPrinting(true))
     }
     const after = () => {
       if (restoreDark) html.classList.add('dark')
       restoreDark = false
-      setPrinting(false)
     }
     window.addEventListener('beforeprint', before)
     window.addEventListener('afterprint', after)
@@ -34,7 +30,7 @@ export function usePrintMode(): boolean {
       window.removeEventListener('afterprint', after)
     }
   }, [])
-  return printing
+  return null
 }
 
 /** "Download PDF": the browser's print window, where Save as PDF is one choice. No server rendering. */

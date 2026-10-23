@@ -1,16 +1,16 @@
-'use client'
-
-import { useState, type CSSProperties } from 'react'
+import type { CSSProperties } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { CheckCircle2 } from 'lucide-react'
-import { ScoreRing } from '@/components/visuals/ScoreRing'
-import { CheckHeatmap, type HeatmapCheck } from '@/components/visuals/CheckHeatmap'
+import type { HeatmapCheck } from '@/components/visuals/CheckHeatmap'
+import { RevealHeatmap } from '@/components/visuals/reveal/RevealHeatmap'
+import { RevealScoreRing } from '@/components/visuals/reveal/RevealScoreRing'
 import { RevealObserver } from '@/components/visuals/reveal/RevealObserver'
 import { getCheckActionCopy } from '@/lib/checkExplanations'
 import { accessibleReportPrimaryColor, reportInitialsForeground } from '@/lib/reports/colors'
 import type { ClientReportSnapshotV1, PublicClientReportSnapshot } from '@/lib/reports/types'
 import { buildReportPage, type ReportFixView } from '@/lib/view-models/report-page'
-import { PrintButton, usePrintMode } from './PrintButton'
+import { PrintButton, PrintThemeGuard } from './PrintButton'
+import { ReportLogo } from './ReportLogo'
 import { ReportTrend } from './ReportTrend'
 
 function initials(name: string): string {
@@ -53,9 +53,6 @@ export function OnePageReport({ snapshot, variant, printable = false, publishedA
   const page = useTranslations('reportPage')
   const checkNames = useTranslations('checks')
   const locale = useLocale()
-  const printing = usePrintMode()
-  const animate = !printing
-  const [logoFailed, setLogoFailed] = useState(false)
   const view = buildReportPage(snapshot as ClientReportSnapshotV1)
   const primary = accessibleReportPrimaryColor(snapshot.branding.primaryColor)
   const onPrimary = reportInitialsForeground(primary)
@@ -75,8 +72,9 @@ export function OnePageReport({ snapshot, variant, printable = false, publishedA
       data-testid="one-page-report"
     >
       {/* One A4 page: the print classes below fit the report inside these margins. */}
-      <style>{'@media print { @page { size: A4; margin: 12mm; } }'}</style>
-      {animate && <RevealObserver />}
+      <style>{'@media print { @page { size: A4; margin: 12mm; } .one-page-report { zoom: 0.92; } }'}</style>
+      <RevealObserver />
+      <PrintThemeGuard />
       <header className="border-b border-border p-5 sm:p-8 print:px-0 print:pb-4 print:pt-0">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between print:flex-row">
           <div className="flex min-w-0 items-center gap-3">
@@ -85,18 +83,7 @@ export function OnePageReport({ snapshot, variant, printable = false, publishedA
               style={{ backgroundColor: 'var(--report-primary)', color: 'var(--report-on-primary)' }}
             >
               <span aria-hidden="true">{initials(snapshot.branding.agencyName)}</span>
-              {logo && !logoFailed && (
-                // Version-scoped same-origin proxy URLs intentionally bypass the build-time host allowlist.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={logo}
-                  width={48}
-                  height={48}
-                  alt={t('agency_logo_alt', { agency: snapshot.branding.agencyName })}
-                  className="absolute inset-0 size-12 bg-card object-contain"
-                  onError={() => setLogoFailed(true)}
-                />
-              )}
+              {logo && <ReportLogo src={logo} alt={t('agency_logo_alt', { agency: snapshot.branding.agencyName })} />}
             </div>
             <div className="min-w-0">
               <p className="break-words text-sm font-semibold">{snapshot.branding.agencyName}</p>
@@ -122,11 +109,11 @@ export function OnePageReport({ snapshot, variant, printable = false, publishedA
       </header>
 
       <div className="grid gap-4 p-5 sm:p-8 md:grid-cols-2 print:grid-cols-2 print:gap-3 print:px-0 print:py-3">
-        <section aria-labelledby="report-score-heading" className="min-w-0 rounded-xl border border-border p-5 print:break-inside-avoid print:p-4">
+        <section data-reveal aria-labelledby="report-score-heading" className="min-w-0 rounded-xl border border-border p-5 print:break-inside-avoid print:p-4">
           <Section id="report-score-heading" className="text-sm font-semibold text-muted-foreground">{t('current_score')}</Section>
-          <div className="mt-3 flex flex-wrap items-center gap-5">
-            <ScoreRing key={animate ? 'screen' : 'print'} score={view.score.current} grade={view.score.grade} previous={view.score.previous} size="md" animate={animate} />
-            <div className="min-w-0 flex-1 basis-40 space-y-2 text-sm leading-6 text-muted-foreground">
+          <div className="mt-3 flex flex-wrap items-center gap-5 print:flex-nowrap print:gap-4">
+            <RevealScoreRing score={view.score.current} grade={view.score.grade} previous={view.score.previous} size="md" />
+            <div className="min-w-0 flex-1 basis-40 space-y-2 text-sm leading-6 text-muted-foreground print:space-y-1 print:text-xs print:leading-5">
               <p className="font-semibold text-foreground">{t('grade', { grade: view.score.grade })}</p>
               <p>
                 {view.comparisonState === 'baseline'
@@ -149,16 +136,16 @@ export function OnePageReport({ snapshot, variant, printable = false, publishedA
           <Section id="report-trend-heading" className="text-sm font-semibold text-muted-foreground">{page('trend_title')}</Section>
           <div className="mt-3">
             {view.trend
-              ? <ReportTrend key={animate ? 'screen' : 'print'} trend={view.trend} methodChanged={view.methodChanged} animate={animate} />
+              ? <ReportTrend trend={view.trend} methodChanged={view.methodChanged} />
               : <p className="text-sm text-muted-foreground">{page('trend_none')}</p>}
           </div>
         </section>
 
-        <section aria-labelledby="report-heatmap-heading" className="min-w-0 rounded-xl border border-border p-5 print:break-inside-avoid print:p-4">
+        <section data-reveal aria-labelledby="report-heatmap-heading" className="min-w-0 rounded-xl border border-border p-5 print:break-inside-avoid print:p-4">
           <Section id="report-heatmap-heading" className="text-sm font-semibold text-muted-foreground">{page('heatmap_title')}</Section>
           <div className="mt-3">
             {heatmap
-              ? <CheckHeatmap key={animate ? 'screen' : 'print'} checks={heatmap} animate={animate} />
+              ? <RevealHeatmap checks={heatmap} />
               : <p className="text-sm text-muted-foreground">{page('heatmap_not_recorded')}</p>}
           </div>
         </section>

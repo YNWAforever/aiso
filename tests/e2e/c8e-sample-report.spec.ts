@@ -33,7 +33,7 @@ for(const lang of ['en','zh-HK'] as const){
     await page.emulateMedia({colorScheme:'dark'})
     await page.goto(`/${lang}/sample-report`,{waitUntil:'networkidle'})
     await expect(page.getByTestId('one-page-report')).toBeVisible()
-    // page.pdf does not fire beforeprint; window.print() does, and that is what draws the end state and drops dark.
+    // page.pdf does not fire beforeprint; window.print() does, and that is what drops the dark theme.
     await page.evaluate(()=>window.dispatchEvent(new Event('beforeprint')))
     expect(await page.evaluate(()=>document.documentElement.classList.contains('dark'))).toBe(false)
     const pdf=(await page.pdf({format:'A4',printBackground:true,preferCSSPageSize:true})).toString('latin1')
