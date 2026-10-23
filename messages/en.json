@@ -10,7 +10,7 @@
     },
     "platform": {
       "title": "Understand your website. Choose what to improve. | Fimmick AISO",
-      "description": "Bring website readiness, customer questions and sampled AI answers into a practical review workflow. Start with an observation, inspect its limits and decide your next action.",
+      "description": "Bring website readiness, customer questions and sampled AI answers into one review workflow. Start with an observation, check its limits, then decide.",
       "site-health": {
         "title": "Find the website issues you can act on. | Fimmick AISO",
         "description": "Review crawl access, structured information and answer readiness before deciding what to change on your site."
@@ -86,7 +86,7 @@
     },
     "integrations": {
       "title": "Understand where services support the product. | Fimmick AISO",
-      "description": "The application uses external services for authentication, data, AI processing, billing and email. Those dependencies are distinct from integrations you connect yourself."
+      "description": "The app relies on external services for authentication, data, AI processing, billing and email. These are separate from integrations you connect yourself."
     },
     "scan": {
       "title": "Scan your website for AI search readiness | Fimmick AISO",
@@ -3303,7 +3303,16 @@
       "extended_title": "Extended",
       "extended_body": "Is your site easy to understand?",
       "geo_title": "GEO",
-      "geo_body": "Is your content worth quoting?"
+      "geo_body": "Is your content worth quoting?",
+      "sources_label": "Our checks are based on public standards and crawler documentation:",
+      "sources": {
+        "rfc9309": "RFC 9309: Robots Exclusion Protocol",
+        "llmstxt": "The llms.txt proposal",
+        "schema": "Schema.org vocabulary",
+        "jsonld": "W3C JSON-LD 1.1",
+        "google": "Google Search Central: AI features and your website",
+        "openai": "OpenAI crawlers"
+      }
     },
     "compare": {
       "eyebrow": "Why it matters",

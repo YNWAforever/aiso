@@ -74,9 +74,9 @@ describe('llms.txt discovery contract', () => {
       '- robots.txt patch',
       '- FAQ JSON-LD',
     ])
-    expect(body).toMatch(/\/en$/m)
-    expect(body).toMatch(/\/en\/pricing$/m)
-    expect(body).toMatch(/\/zh-HK$/m)
-    expect(body).toMatch(/\/zh-HK\/pricing$/m)
+    expect(body).toMatch(/\]\(https?:\/\/[^)]+\/en\)$/m)
+    expect(body).toMatch(/\]\(https?:\/\/[^)]+\/en\/pricing\)$/m)
+    expect(body).toMatch(/\]\(https?:\/\/[^)]+\/zh-HK\)$/m)
+    expect(body).toMatch(/\]\(https?:\/\/[^)]+\/zh-HK\/pricing\)$/m)
   })
 })

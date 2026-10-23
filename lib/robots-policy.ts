@@ -13,6 +13,14 @@ export const AI_CRAWLER_ROLES = [
   { token: 'anthropic-ai', role: 'legacy', automatic: true },
 ] as const
 
+/**
+ * The crawlers this site's own robots.txt names. Training crawlers are left
+ * to the wildcard rule on purpose (a product decision, UX Phase 8).
+ */
+export const SITE_AI_ALLOWED_AGENTS = AI_CRAWLER_ROLES
+  .filter(bot => bot.role === 'search' || bot.role === 'user')
+  .map(bot => bot.token)
+
 type Rule = { allow: boolean; pattern: string }
 type Group = { agents: string[]; rules: Rule[]; startedRules: boolean }
 

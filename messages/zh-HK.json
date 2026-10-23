@@ -2,107 +2,107 @@
   "seo": {
     "home": {
       "title": "Fimmick AISO｜AI 搜尋網站就緒檢查",
-      "description": "檢視網站技術及內容就緒程度、排列改善優先次序，並在工作區查看 AI 回答樣本。"
+      "description": "檢視網站在技術及內容方面是否已為 AI 搜尋做好準備，排列網站改善的優先次序，並在工作區查看 AI 回答樣本。免費掃描，毋須註冊。"
     },
     "pricing": {
       "title": "方案及收費｜Fimmick AISO",
-      "description": "比較 Fimmick AISO 的網站檢查、AI 搜尋能見度監察及改善建議方案。"
+      "description": "比較 Fimmick AISO 各個方案：網站就緒檢查、AI 搜尋能見度監察及可直接執行的改善建議，按團隊需要選擇合適方案。"
     },
     "platform": {
       "title": "了解網站，選擇值得改善的地方。 | Fimmick AISO",
-      "description": "把網站就緒程度、客戶問題及 AI 答案樣本帶進實際審閱流程。先看觀察，再了解限制，最後決定行動。",
+      "description": "把網站就緒程度、客戶問題及 AI 答案樣本帶進實際的審閱流程：先看觀察結果，再了解它的限制，最後決定下一步行動。",
       "site-health": {
         "title": "找出可以着手處理的網站問題。 | Fimmick AISO",
-        "description": "先檢視爬取權限、結構化資訊及回答就緒程度，再決定如何修改網站。"
+        "description": "先檢視 AI 爬蟲的爬取權限、網站的結構化資訊及回答就緒程度，了解問題所在，再決定網站上應該修改甚麼。"
       },
       "search-intelligence": {
         "title": "為搜尋建立更清晰的基礎。 | Fimmick AISO",
-        "description": "透過網站就緒檢查，找出值得在搜尋工作中深入調查的技術及內容問題。"
+        "description": "利用網站就緒檢查的發現，找出值得在搜尋工作流程中深入調查的技術及內容問題，再按優先次序逐一安排跟進。"
       },
       "demand-intelligence": {
         "title": "整理客戶真正想問的問題。 | Fimmick AISO",
-        "description": "利用工作區問題庫擬定及審閱提示問題，反映你的客戶、服務與市場。"
+        "description": "利用工作區的問題庫擬定及審閱提示問題，令這些問題真正反映你的客戶、你提供的服務，以及你所在的市場及地區。"
       },
       "brand-product-discovery": {
         "title": "更清楚地整理品牌及產品資訊。 | Fimmick AISO",
-        "description": "規劃中：把品牌及產品資料連同來源與審閱狀態一起整理。此功能目前尚未提供。"
+        "description": "規劃中：一個有系統地整理品牌及產品資料的方法，並同時清楚記錄每項資料的來源與審閱狀態。此功能目前尚未提供。"
       },
       "ai-visibility": {
         "title": "逐個樣本理解 AI 答案。 | Fimmick AISO",
-        "description": "Pulse 協助你審閱指定問題的答案樣本，了解品牌在這些觀察中如何出現。"
+        "description": "Pulse 協助你審閱 AI 平台就指定問題給出的答案樣本，了解你的品牌在這些觀察之中於何處及如何出現。"
       },
       "action-studio": {
         "title": "把發現轉成可編輯的修復建議。 | Fimmick AISO",
-        "description": "利用現有 Fix 工具準備網站改善內容，在網站套用前先完成審閱。"
+        "description": "利用現有的 Fix 工具準備網站改善內容，並在內容套用到網站之前先完成審閱，確保每項修改都經過人手確認。"
       },
       "governed-agents": {
         "title": "讓人對代理工作負責。 | Fimmick AISO",
-        "description": "規劃中：在明確政策及人工審閱界線內準備工作的受管治流程。此功能目前尚未提供。"
+        "description": "規劃中：一個受管治的工作流程，在明確的政策及人工審閱界線之內準備各項工作，由人負責最後決定。此功能目前尚未提供。"
       },
       "proof": {
         "title": "讓報告更容易核對。 | Fimmick AISO",
-        "description": "以現有掃描發現、Pulse 觀察及客戶報告，說明已觀察的內容與仍待驗證的事項。"
+        "description": "以現有的掃描發現、Pulse 觀察結果及客戶報告，清楚說明已經觀察到的內容，以及仍然需要進一步驗證的事項。"
       }
     },
     "solutions": {
       "title": "配合團隊工作的審閱流程。 | Fimmick AISO",
-      "description": "從一致的證據原則出發，再按團隊、客戶及審閱責任調整工作方式。",
+      "description": "從一致的證據原則出發，再按你的團隊、你服務的客戶及各人的審閱責任，調整網站改善工作在日常的實際進行方式。",
       "sme": {
         "title": "讓小型團隊有清晰的起點。 | Fimmick AISO",
-        "description": "找出網站改善方向，同時考慮實施所需的人手及時間。"
+        "description": "找出值得進行的網站改善方向，同時不忽略實施這些改善所需要的時間及人手，按團隊的實際能力及預算逐步推進。"
       },
       "agencies": {
         "title": "為客戶工作留下更清晰的審閱脈絡。 | Fimmick AISO",
-        "description": "利用客戶工作區及報告工具，把觀察與給客戶的建議連接起來。"
+        "description": "利用客戶工作區及報告工具，把網站觀察與你給客戶的建議連接起來，讓每項建議都有清楚可查、可以解釋的根據。"
       },
       "enterprise": {
         "title": "把網站證據帶進現有審閱制度。 | Fimmick AISO",
-        "description": "以具體發現及可審閱輸出，配合機構本身的管治方式。"
+        "description": "以聚焦的發現及可供審閱的輸出內容，配合你的機構本身已經建立的管治實務，而不是取代機構內部現有的審批流程。"
       },
       "regulated-industries": {
         "title": "把證據與審批放在同一場討論。 | Fimmick AISO",
-        "description": "把網站觀察作為審慎內容審閱的參考，由你的法律及合規專業人員負責受規管聲稱。"
+        "description": "把網站觀察作為審慎內容審閱的其中一項參考，受規管的聲稱則一律由你的法律及合規專業人員負責審核及把關。"
       }
     },
     "how-it-works": {
       "title": "掃描、審閱、修改、再檢查。 | Fimmick AISO",
-      "description": "透過可以清楚解釋的流程，從網站觀察走向審慎的改善。"
+      "description": "透過一個你可以向團隊清楚解釋的工作流程，由網站上的觀察出發，一步一步走向經過深思熟慮、有根據的改善。"
     },
     "resources": {
       "title": "了解目前可用功能的指南。 | Fimmick AISO",
-      "description": "選擇流程前，先了解網站檢查、AI 答案樣本及可編輯修復。"
+      "description": "在選擇工作流程之前，先了解產品提供的網站檢查、AI 答案樣本及可編輯的修復內容，看看哪些最適合你的團隊。"
     },
     "contact": {
       "title": "為產品討論準備具體資料。 | Fimmick AISO",
-      "description": "透過既有 Fimmick 聯絡渠道，帶同清楚的網站問題、需要的流程及團隊限制展開討論。"
+      "description": "透過你現有的 Fimmick 聯絡渠道，帶同清楚的網站問題、你需要的工作流程及團隊面對的限制，與我們展開討論。"
     },
     "security": {
       "title": "了解流程背後的控制。 | Fimmick AISO",
-      "description": "檢視產品在原始碼中的存取及請求控制，再評估是否符合你的用途。"
+      "description": "先檢視產品在原始碼層面實際的存取控制及請求控制，再自行評估這些控制是否符合你的實際使用情況及風險要求。"
     },
     "trust": {
       "title": "知道結果能支持哪些結論。 | Fimmick AISO",
-      "description": "信任始於分清量度結果、生成建議，以及仍需要證據的聲稱。"
+      "description": "建立信任，始於清楚分辨以下三件事：一個量度結果、一個由系統生成的建議，以及一個仍然需要更多證據支持的聲稱。"
     },
     "integrations": {
       "title": "了解哪些服務支援產品。 | Fimmick AISO",
-      "description": "應用程式使用外部服務處理身份驗證、資料、AI、帳單及電郵。這些依賴服務與你自行連接的整合不同。"
+      "description": "應用程式使用外部服務處理身份驗證、資料、AI 處理、帳單及電郵。這些依賴服務與你自行連接的整合並不相同。"
     },
     "scan": {
       "title": "掃描網站的 AI 搜尋就緒程度 | Fimmick AISO",
-      "description": "執行現有網站檢查，查看已儲存的結果、證據覆蓋率及收集限制。"
+      "description": "執行現有的網站檢查，然後查看已儲存的結果，包括證據覆蓋率及收集限制，了解哪些地方已核實、哪些未能核實。"
     },
     "methodology": {
       "title": "如何解讀掃描證據 | Fimmick AISO",
-      "description": "支柱診斷說明掃描背後的證據。覆蓋率反映可核實的資料，不承諾搜尋排名、AI 引用或業務成效。"
+      "description": "支柱診斷說明每次掃描背後的證據。覆蓋率反映我們能夠核實的資料，並不承諾搜尋排名、AI 引用或任何業務成效。"
     },
     "sample-report": {
       "title": "AI 搜尋報告示範 | Fimmick AISO",
-      "description": "查看清楚標示的合成報告，了解網站檢查示例、草稿建議及證據限制。"
+      "description": "查看一份清楚標示為合成資料的示例報告，了解網站檢查示例、草稿建議，以及報告中清楚列明的各項證據限制。"
     },
     "root": {
       "title": "Fimmick AISO — AI 搜尋就緒度檢查",
-      "description": "檢查你的網站能否被 AI 搜尋引擎看見，並免費獲得修正包。"
+      "description": "免費檢查你的網站能否被 ChatGPT、Perplexity 等 AI 搜尋引擎看見及讀取，並免費獲得列出優先修復事項的修正包。"
     }
   },
   "nav": {
@@ -3303,7 +3303,16 @@
       "extended_title": "延伸",
       "extended_body": "你的網站是否容易理解？",
       "geo_title": "GEO",
-      "geo_body": "你的內容是否值得引用？"
+      "geo_body": "你的內容是否值得引用？",
+      "sources_label": "我們的檢查依據以下公開標準及爬蟲文件：",
+      "sources": {
+        "rfc9309": "RFC 9309：機械人排除協定（robots.txt）",
+        "llmstxt": "llms.txt 建議標準",
+        "schema": "Schema.org 結構化資料詞彙",
+        "jsonld": "W3C JSON-LD 1.1 規範",
+        "google": "Google 搜尋中心：AI 功能與你的網站",
+        "openai": "OpenAI 網絡爬蟲說明"
+      }
     },
     "compare": {
       "eyebrow": "為何重要",
