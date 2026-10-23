@@ -10,6 +10,7 @@ import { attachManifestCoverage } from '@/lib/pulse/runs/read-coverage'
 import type { AgentCompetitor, AgentProgress, AgentRecommendation, Client, ClientOverview, Scan } from '@/lib/types'
 import { loadMaintenanceSnapshot,type MaintenanceSnapshot } from './maintenance'
 import {normalizeAgentNumbers} from './agent-numbers'
+import type { TrendScan } from '@/lib/view-models/overview-stats'
 
 export type WorkspaceRead<T> = { status: 'ok' | 'error' | 'locked'; data: T }
 export type WorkspaceClient = Pick<Client, 'id' | 'brand_name' | 'domain' | 'industry' | 'status'>
@@ -25,7 +26,12 @@ export type OwnedWorkspace = {
   monitoring?:WorkspaceRead<PulseAvailability|null>
   setup?:WorkspaceRead<{active:number;contextConfirmed:boolean}|null>
   maintenance?:WorkspaceRead<MaintenanceSnapshot|null>
+  /** The same rows as history, newest first, with their evidence. */
+  trend?: WorkspaceRead<TrendScan[]>
+  /** How many tasks (work items) this brand has ever saved. */
+  tasks?: WorkspaceRead<number>
 }
+type HistoryRow = { id: string; domain: string; score: number | null; grade: string | null; created_at: string; evidence: unknown }
 
 async function read<T>(name: string, work: () => Promise<T>, empty: T): Promise<WorkspaceRead<T>> {
   try { return { status: 'ok', data: await work() } } catch {
@@ -51,10 +57,12 @@ function scanRow<T extends { score: unknown; created_at: unknown }>(row: T) {
 }
 
 /** Call only after the route/page authenticates. Ownership failure is null; lookup outage throws. */
-export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
+export async function loadOwnedWorkspace({ clientId, profile, scanId, withTaskCount = false }: {
   clientId: string
   profile: { account_id: string; accounts?: CommercialAccount }
   scanId?: string
+  /** Overview's checklist only; the overview API does not read it. */
+  withTaskCount?: boolean
 }): Promise<OwnedWorkspace | null> {
   const sql = db()
   const accountId = profile.account_id
@@ -65,17 +73,17 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
   if (!clientRows[0]) return null
   const client = clientRows[0] as WorkspaceClient
   const { features } = resolveCommercialEntitlement(profile.accounts)
-  const [scan, history, pulse, missed,setup,maintenance,monitoring] = await Promise.all([
+  const [scan, historyRows, pulse, missed,setup,maintenance,monitoring,tasks] = await Promise.all([
     read('scan', async () => {
       const rows = scanId !== undefined
         ? await sql`select * from scans where id = ${scanId} and client_id = ${clientId} and account_id = ${accountId} limit 1`
         : await sql`select * from scans where client_id = ${clientId} and account_id = ${accountId} order by created_at desc, id desc limit 1`
       return rows[0] ? scanRow(rows[0] as Scan) : null
     }, null),
-    read('history', async () => { const rows = await sql`
+    read('history', async () => (await sql`
       select id, domain, score, grade, created_at, results->'evidence' as evidence from scans
       where client_id = ${clientId} and account_id = ${accountId} order by created_at desc, id desc limit 10
-    `; return rows.map(row => { const display = projectScanStatus({ score: number(row.score), grade: typeof row.grade === 'string' ? row.grade : null, evidence: row.evidence }); return { id: row.id as string, domain: row.domain as string, score: display.score, grade: display.grade, displayState: display.state, created_at: timestamp(row.created_at) } }) }, []),
+    `).map(row => ({ id: row.id as string, domain: row.domain as string, score: number(row.score), grade: typeof row.grade === 'string' ? row.grade : null, created_at: timestamp(row.created_at), evidence: row.evidence as unknown })), [] as HistoryRow[]),
     read('pulse', async () => {
       const rows = await sql`
         with recent_weeks as (
@@ -116,7 +124,19 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
     read('setup',async()=>{const rows=await sql`select p.language,p.market from prompt_bank p join clients c on c.id=p.client_id and c.account_id=${accountId} where p.client_id=${clientId} and c.account_id=${accountId} and p.is_active=true`;return{active:rows.length,contextConfirmed:rows.length>0&&rows.every(row=>isPromptLanguage(row.language)&&isPromptMarket(row.market))}},null),
     read('maintenance',()=>loadMaintenanceSnapshot(accountId,clientId,features.platform_access.length>0),null),
     read('monitoring',async()=>(await readUserPulseOptions({accountId,clientId})).availability,null),
+    // Only whether any task was ever saved: the getting-started checklist's third step.
+    withTaskCount ? read('tasks', async () => {
+      const rows = await sql`select count(*)::int as n from evidence_work_items where account_id = ${accountId} and client_id = ${clientId}`
+      return Number(rows[0]?.n ?? 0)
+    }, 0) : undefined,
   ])
+  // One read, two projections: the overview API's history keeps its shape, and
+  // the trend keeps the evidence it needs to decide whether two scans compare.
+  const history: WorkspaceRead<ClientOverview['scanHistory']> = { status: historyRows.status, data: historyRows.data.map(({ evidence, ...row }) => {
+    const display = projectScanStatus({ score: row.score, grade: row.grade, evidence })
+    return { id: row.id, domain: row.domain, score: display.score, grade: display.grade, displayState: display.state, created_at: row.created_at }
+  }) }
+  const trend: WorkspaceRead<TrendScan[]> = { status: historyRows.status, data: historyRows.data }
   const selected = scan.data
   const platforms = features.platform_access
   const agentRead = async <T extends { platform: string }>(allowed: boolean, name: 'recommendations'|'progress'|'competitors', work: () => Promise<T[]>): Promise<WorkspaceRead<T[]>> => {
@@ -143,7 +163,7 @@ export async function loadOwnedWorkspace({ clientId, profile, scanId }: {
         order by a.mention_rate desc
     ` as AgentCompetitor[]),
   ])
-  return { client, scan, history, pulse, missed, recommendations, progress, competitors,maintenance,setup,monitoring }
+  return { client, scan, history, trend, tasks, pulse, missed, recommendations, progress, competitors,maintenance,setup,monitoring }
 }
 
 /** Existing API shape remains stable; unlike home it must not return partial success. */
