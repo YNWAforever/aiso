@@ -24,7 +24,7 @@
  *
  * Usage: node scripts/text-audit.mjs [--json report.json]
  */
-import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import ts from 'typescript'
 
@@ -53,7 +53,7 @@ function files(dir) {
 
 function hardcoded() {
   const findings = []
-  for (const file of SCAN.flatMap(dir => files(join(ROOT, dir)))) {
+  for (const file of SCAN.filter(dir => existsSync(join(ROOT, dir))).flatMap(dir => files(join(ROOT, dir)))) {
     const source = ts.createSourceFile(file, readFileSync(join(ROOT, file), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
     const report = (node, text) => {
       const value = text.replace(/\s+/g, ' ').trim()

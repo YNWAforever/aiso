@@ -28,7 +28,7 @@ export function SettingsView({lang,plan,status,hasStripe,children}: {
     <header><h1 className="text-2xl font-bold text-foreground">{copy.title}</h1><p className="mt-3 text-sm text-muted-foreground">{copy.intro}</p></header>
     <section className="space-y-6 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6" aria-labelledby="settings-plan">
       <div><h2 id="settings-plan" className="text-lg font-bold text-foreground">{copy.currentPlan}</h2><p className="mt-2 text-2xl font-black tracking-tight text-foreground">{label}</p>
-        {plan!=='free'&&<p className="mt-2 text-sm text-muted-foreground">{copy.cataloguePrice}: USD {price} / {copy.perMonth}</p>}
+        {plan!=='free'&&<p className="mt-2 text-sm text-muted-foreground">{copy.cataloguePrice}: {copy.currencyUsd} {price} / {copy.perMonth}</p>}
         <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-foreground">{copy.status}: <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${STATUS_TONE[status]}`}>{copy.statusLabels[status]}</span></p>
       </div>
       <div className="border-t border-border pt-5"><h2 className="text-lg font-bold text-foreground">{copy.billing}</h2>

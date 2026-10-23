@@ -38,9 +38,11 @@ jobs:
           lint_exit=${PIPESTATUS[0]}
           npm run typecheck 2>&1 | tee artifacts/static/typecheck.log
           typecheck_exit=${PIPESTATUS[0]}
+          npm run audit:text -- --json artifacts/static/text-audit.json 2>&1 | tee artifacts/static/text-audit.log
+          text_audit_exit=${PIPESTATUS[0]}
           set -e
-          if [ "$lint_exit" -eq 0 ] && [ "$typecheck_exit" -eq 0 ]; then status=success; else status=failure; fi
-          node scripts/ci/write-job-summary.mjs --job static --status "$status" --executed 2 --skipped 0 --artifact static/lint.log --artifact static/typecheck.log --output artifacts/static-summary.json
+          if [ "$lint_exit" -eq 0 ] && [ "$typecheck_exit" -eq 0 ] && [ "$text_audit_exit" -eq 0 ]; then status=success; else status=failure; fi
+          node scripts/ci/write-job-summary.mjs --job static --status "$status" --executed 3 --skipped 0 --artifact static/lint.log --artifact static/typecheck.log --artifact static/text-audit.log --artifact static/text-audit.json --output artifacts/static-summary.json
           if [ "$status" != success ]; then exit 1; fi
       - name: Upload static diagnostics
         if: always()

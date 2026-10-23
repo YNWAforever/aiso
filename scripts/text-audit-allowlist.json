@@ -121,6 +121,18 @@
     {
       "key": "members.emailPlaceholder",
       "reason": "an example address, the same in both languages"
+    },
+    {
+      "key": "accountUnlock.emailPlaceholder",
+      "reason": "an example address, the same in both languages"
+    },
+    {
+      "key": "authFlow.login.emailPlaceholder",
+      "reason": "an example address, the same in both languages"
+    },
+    {
+      "key": "generatedWork.fileFaq",
+      "reason": "a technical format name (FAQ JSON-LD), the same in both languages"
     }
   ],
   "claimRules": [

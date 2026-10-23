@@ -4,12 +4,14 @@ type Copy = {
   title: string
   empty: string
   mentionGap: string
+  points: (value: string) => string
 }
 
 const defaultCopy: Copy = {
   title: 'Local Competitor Snapshot',
   empty: 'Add competitors or run agent analysis to compare local trust gaps.',
   mentionGap: 'Mention gap',
+  points: (value) => `${value} pts`,
 }
 
 type Props = {
@@ -48,7 +50,7 @@ export function CompetitorSnapshot({ competitors, copy }: Props) {
                   </p>
                 </div>
                 <p className="shrink-0 font-mono text-xs font-semibold text-dash-muted">
-                  {labels.mentionGap}: {gap.toFixed(0)} pts
+                  {labels.mentionGap}: {labels.points(gap.toFixed(0))}
                 </p>
               </div>
               <p className="mt-3 text-xs leading-relaxed text-dash-muted">{row.gap_analysis}</p>
