@@ -52,7 +52,7 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
   const here = locateDashboard(pathname ?? '', clientId ? (searchParams?.get('step') ?? 'home') : null)
 
   return (
-    <aside className="w-full md:w-60 shrink-0 border-b md:border-b-0 md:border-r border-border bg-card flex flex-col md:min-h-full">
+    <aside className="print:hidden w-full md:w-60 shrink-0 border-b md:border-b-0 md:border-r border-border bg-card flex flex-col md:min-h-full">
 
       <div className="px-5 py-4 border-b border-border">
         <Link href={`/${lang}/dashboard`} className="flex min-h-11 items-center gap-2.5">

@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { NextIntlClientProvider } from 'next-intl'
+import type { ReactNode } from 'react'
+import enMessages from '@/messages/en.json'
+import zhMessages from '@/messages/zh-HK.json'
 
 vi.mock('server-only', () => ({}))
 
@@ -85,6 +89,12 @@ const resolved = {
   },
 }
 
+function render(node: ReactNode, lang = 'en') {
+  return renderToStaticMarkup(
+    <NextIntlClientProvider locale={lang} messages={lang === 'zh-HK' ? zhMessages : enMessages} timeZone="UTC">{node}</NextIntlClientProvider>,
+  )
+}
+
 function props(lang = 'en') {
   return {
     params: Promise.resolve({ lang, slug }),
@@ -101,7 +111,7 @@ describe('public client report page', () => {
   it('renders the published snapshot as one semantic, responsive, server-only report', async () => {
     h.incrementClientReportView.mockRejectedValue(new Error('counter unavailable'))
 
-    const markup = renderToStaticMarkup(await PublicReportPage(props()))
+    const markup = render(await PublicReportPage(props()))
 
     expect((markup.match(/<main/g) ?? [])).toHaveLength(1)
     expect(markup).toContain('Acme Agency')
@@ -111,16 +121,18 @@ describe('public client report page', () => {
     expect(markup).toContain('82')
     expect(markup).toContain('Grade A')
     expect(markup).toContain('first measured benchmark')
-    expect(markup).toContain('Improved')
-    expect(markup).toContain('Regressed')
     expect(markup).toContain('Powered by Fimmick AISO')
     expect(markup).toContain('Methodology and coverage')
     expect(markup).toContain('--report-primary:#123ABC')
     expect(markup).toContain(resolved.dto.logoProxyUrl.replaceAll('&', '&amp;'))
     expect(markup).toContain(resolved.dto.contactProxyUrl.replaceAll('&', '&amp;'))
     expect(markup).not.toContain('https://agency.example')
-    expect(markup).not.toContain('Priority 6')
-    expect(markup).not.toContain('PDF')
+    expect(markup).toContain('Priority 3')
+    expect(markup).not.toContain('Priority 4')
+    expect(markup).toContain('Download PDF')
+    // A version published before the one-page report says what it lacks rather than drawing zeros.
+    expect(markup).toContain('published before check details were recorded')
+    expect(markup).toContain('A trend appears once there is more than one scan')
     expect(h.incrementClientReportView).toHaveBeenCalledWith({
       publicSlug: slug,
       shareVersion: 2,
@@ -146,7 +158,7 @@ describe('public client report page', () => {
       },
     })
 
-    const markup = renderToStaticMarkup(await PublicReportPage(props()))
+    const markup = render(await PublicReportPage(props()))
 
     expect(markup).toContain('+7')
     expect(markup).toContain('closest eligible scan')
@@ -165,9 +177,9 @@ describe('public client report page', () => {
       },
     })
 
-    const markup = renderToStaticMarkup(await PublicReportPage(props()))
+    const markup = render(await PublicReportPage(props()))
 
-    expect(markup).toContain('--report-primary:#2563EB')
+    expect(markup).toContain('--report-primary:#1D4ED8')
     expect(markup).not.toContain('--report-primary:#FFFFFF')
   })
   it('uses a safe fallback instead of applying an invalid Agency color', async () => {
@@ -182,9 +194,9 @@ describe('public client report page', () => {
       },
     })
 
-    const markup = renderToStaticMarkup(await PublicReportPage(props()))
+    const markup = render(await PublicReportPage(props()))
 
-    expect(markup).toContain('--report-primary:#2563EB')
+    expect(markup).toContain('--report-primary:#1D4ED8')
     expect(markup).not.toContain('position:fixed')
   })
 

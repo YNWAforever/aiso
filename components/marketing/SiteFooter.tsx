@@ -52,7 +52,7 @@ export function SiteFooter() {
     'inline-flex min-h-8 items-center rounded-md text-sm [overflow-wrap:anywhere] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 
   return (
-    <footer className="border-t border-border bg-card">
+    <footer className="border-t border-border bg-card print:hidden">
       <div className="mx-auto max-w-6xl px-4 pb-8 pt-14 sm:px-6">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))]">
           <div className="max-w-sm">

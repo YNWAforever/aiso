@@ -53,14 +53,14 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background overflow-hidden">
+    <div className="flex flex-col h-screen bg-background overflow-hidden print:h-auto print:overflow-visible print:bg-white">
       <SessionRefresh />
       {entitlement.source === 'trial' && trial.isTrial && !trial.isExpired && (
         <TrialBanner daysRemaining={trial.daysRemaining} lang={lang} />
       )}
-      <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden print:block print:overflow-visible">
         <DashboardSidebar profile={profile} entitlement={entitlement} />
-        <div className="flex-1 min-w-0 w-full flex flex-col overflow-auto">
+        <div className="flex-1 min-w-0 w-full flex flex-col overflow-auto print:block print:overflow-visible">
           <TopBar lang={lang} brands={brands} unreadCount={unreadCount} features={entitlement.features} />
           {children}
         </div>

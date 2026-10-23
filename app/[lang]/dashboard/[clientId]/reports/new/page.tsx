@@ -110,8 +110,8 @@ export default async function NewClientReportPage({
   })
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
-      <div className="mb-6">
+    <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 print:max-w-none print:p-0">
+      <div className="mb-6 print:hidden">
         <p className="text-sm font-medium text-primary">{client.name}</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">{t('new_title')}</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{t('new_body')}</p>

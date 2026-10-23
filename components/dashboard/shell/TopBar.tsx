@@ -84,7 +84,7 @@ export function TopBar({ lang, brands, unreadCount, features }: Props) {
   ], [nav, brands, clientId, lang, root, shell, t])
 
   return (
-    <header className="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-4 py-2 sm:px-6">
+    <header className="print:hidden flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-4 py-2 sm:px-6">
       {clientId && (
         <MenuButton
           label={shell('brand_menu', { name: brand?.name ?? clientId })}
