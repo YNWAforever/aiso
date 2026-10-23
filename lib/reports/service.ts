@@ -8,6 +8,7 @@ import { normalizeReportBranding } from './branding'
 import { polishReportSummary } from './ai'
 import { buildReportShareUrl, prepareReportShareUrl } from './share'
 import { buildClientReportSnapshot, replaceExecutiveSummary } from './snapshot'
+import { hasValidReportVisuals } from './visuals'
 import { buildDeterministicReportSummary } from './summary'
 import {
   ReportStoreError,
@@ -22,6 +23,7 @@ import {
   loadPreviousReportScan,
   loadReportBranding,
   loadReportRecommendations,
+  loadReportScoreHistory,
   publishClientReportLatest,
   revokeClientReport,
   rotateClientReportLink,
@@ -286,13 +288,14 @@ async function reportSnapshot(input: {
     throw new ReportServiceError('not_found')
   }
 
-  const [recommendations, branding] = await Promise.all([
+  const [recommendations, branding, history] = await Promise.all([
     loadReportRecommendations({
       accountId: input.profile.account_id,
       scanId: currentScan.id,
       clientDomain: input.client.domain,
     }),
     loadReportBranding({ accountId: input.profile.account_id }),
+    loadReportScoreHistory({ accountId: input.profile.account_id, currentScan }),
   ])
   if (!branding) throw new ReportServiceError('conflict')
   if (branding.accountId !== input.profile.account_id) throw new ReportServiceError('not_found')
@@ -306,6 +309,7 @@ async function reportSnapshot(input: {
       currentScan,
       previousScan,
       recommendations,
+      history,
     })
     if (input.executiveSummary !== undefined) {
       snapshot = replaceExecutiveSummary(snapshot, input.executiveSummary)
@@ -667,6 +671,8 @@ function isSnapshot(value: unknown): value is ClientReportSnapshotV1 {
       && typeof fix.nextStep === 'string')
     || typeof value.executiveSummary !== 'string'
     || typeof value.methodology !== 'string') return false
+
+  if (!hasValidReportVisuals(value)) return false
 
   const score = value.score as {
     current: number

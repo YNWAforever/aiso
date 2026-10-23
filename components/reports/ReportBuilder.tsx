@@ -29,6 +29,7 @@ import {
 import { installReportNavigationBlocker } from '@/lib/reports/navigation-blocker'
 import type { ClientReportSnapshotV1 } from '@/lib/reports/types'
 import { ReportPreview } from './ReportPreview'
+import { PrintButton } from './PrintButton'
 import { ReportStatusBadge } from './ReportStatusBadge'
 
 export type { ReportWorkspaceReport } from '@/lib/reports/client-dto'
@@ -375,13 +376,13 @@ export function ReportBuilder({
         href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/reports`}
         data-report-guarded="true"
         onNavigate={guardBackToReports}
-        className="inline-flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring print:hidden"
       >
         <ArrowLeft aria-hidden="true" />
         {t('back_to_reports')}
       </Link>
 
-      <nav aria-label={t('progress_label')} className="overflow-x-auto">
+      <nav aria-label={t('progress_label')} className="overflow-x-auto print:hidden">
         <ol className="grid min-w-[32rem] grid-cols-3 gap-2">
           {steps.map((item, index) => {
             const isDisabled = item.key === 'publish' && (step === 'compose' || !reviewedArtifact)
@@ -410,7 +411,7 @@ export function ReportBuilder({
         </ol>
       </nav>
 
-      <div aria-live="polite" className="min-h-6 text-sm" data-notice-kind={notice.kind}>
+      <div aria-live="polite" className="min-h-6 text-sm print:hidden" data-notice-kind={notice.kind}>
         {notice.text}
       </div>
 
@@ -477,15 +478,18 @@ export function ReportBuilder({
             logoProxyUrl={previewAssets?.logoProxyUrl}
             contactProxyUrl={previewAssets?.contactProxyUrl}
           />
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between print:hidden">
             <Button type="button" variant="outline" className="min-h-11" onClick={returnToCompose}>
               <ArrowLeft aria-hidden="true" />
               {t('back_to_compose')}
             </Button>
-            <Button type="button" className="min-h-11" onClick={() => setStep('publish')}>
-              {t('continue_publish')}
-              <ArrowRight aria-hidden="true" />
-            </Button>
+            <div className="flex flex-col-reverse gap-3 sm:flex-row">
+              <PrintButton />
+              <Button type="button" className="min-h-11" onClick={() => setStep('publish')}>
+                {t('continue_publish')}
+                <ArrowRight aria-hidden="true" />
+              </Button>
+            </div>
           </div>
         </div>
       )}

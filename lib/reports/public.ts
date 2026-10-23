@@ -99,6 +99,8 @@ function copyPublishedSnapshot(snapshot: ClientReportSnapshotV1): PublicClientRe
     })),
     executiveSummary: snapshot.executiveSummary,
     methodology: snapshot.methodology,
+    ...(snapshot.checks ? { checks: { ...snapshot.checks } } : {}),
+    ...(snapshot.trend ? { trend: snapshot.trend.map(point => ({ date: point.date, score: point.score, comparable: point.comparable })) } : {}),
   }
 }
 

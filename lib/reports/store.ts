@@ -263,6 +263,32 @@ export async function loadPreviousReportScan(input: {
   return candidates.find(candidate => candidate === selected) ?? null
 }
 
+/**
+ * Earlier scans for the report's score trend: the same account and domain,
+ * newest first. Only the evidence envelope is read, which is all the trend's
+ * scoring and comparability need.
+ */
+export async function loadReportScoreHistory(input: {
+  accountId: string
+  currentScan: ReportScanInput
+}): Promise<StoredReportScanInput[]> {
+  const normalizedDomain = normalizeReportDomain(input.currentScan.domain)
+  if (!normalizedDomain || input.currentScan.accountId !== input.accountId) return []
+
+  const sql = db()
+  const rows = await runQuery(() => sql`
+    select id, account_id, domain, created_at, score::float8 as score, grade,
+      jsonb_build_object('evidence', results->'evidence') as results
+    from scans
+    where account_id = ${input.accountId}
+      and domain in (${normalizedDomain}, ${`www.${normalizedDomain}`})
+      and created_at < ${input.currentScan.createdAt}::timestamptz
+    order by created_at desc
+    limit 25
+  `)
+  return rows.map(mapScan).filter((scan): scan is StoredReportScanInput => scan !== null && scan.accountId === input.accountId)
+}
+
 export async function loadReportRecommendations(input: {
   accountId: string
   scanId: string

@@ -40,7 +40,7 @@ function SiteHeaderNavigation({ pathname }: { pathname: string }) {
 
   return <>
     <a href="#main" className="sr-only fixed left-4 top-4 z-[60] rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground focus:not-sr-only">{t('skip_to_main')}</a>
-    <header ref={header} className="sticky top-0 z-50 border-b border-border/80 bg-background/95 backdrop-blur-md" onKeyDown={event => {
+    <header ref={header} className="print:hidden sticky top-0 z-50 border-b border-border/80 bg-background/95 backdrop-blur-md" onKeyDown={event => {
       if (event.key !== 'Escape') return
       if (mobileOpen) { setOpenPath(null); trigger.current?.focus() }
       const details = (event.target as HTMLElement).closest('details')

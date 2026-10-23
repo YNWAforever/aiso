@@ -24,3 +24,19 @@ for(const lang of ['en','zh-HK'] as const) for(const width of [375,1440]) for(co
     expect(redirect.headers().location).toContain(`/${lang}/sample-report?ref=sample`)
   })
 }
+
+// "Download PDF" is the browser's print: the report must fit one A4 page, fully drawn and light.
+for(const lang of ['en','zh-HK'] as const){
+  test(`C8e sample report prints to one A4 page in ${lang}`,async({page,browserName})=>{
+    test.skip(browserName!=='chromium','page.pdf is Chromium-only')
+    await page.route('**/api/**',route=>route.abort())
+    await page.emulateMedia({colorScheme:'dark'})
+    await page.goto(`/${lang}/sample-report`,{waitUntil:'networkidle'})
+    await expect(page.getByTestId('one-page-report')).toBeVisible()
+    // page.pdf does not fire beforeprint; window.print() does, and that is what drops the dark theme.
+    await page.evaluate(()=>window.dispatchEvent(new Event('beforeprint')))
+    expect(await page.evaluate(()=>document.documentElement.classList.contains('dark'))).toBe(false)
+    const pdf=(await page.pdf({format:'A4',printBackground:true,preferCSSPageSize:true})).toString('latin1')
+    expect(pdf.match(/\/Type\s*\/Page(?!s)/g)?.length).toBe(1)
+  })
+}

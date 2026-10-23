@@ -12,6 +12,7 @@ const h = vi.hoisted(() => ({
   loadOwnedReportClient: vi.fn(),
   loadOwnedReportScan: vi.fn(),
   loadPreviousReportScan: vi.fn(),
+  loadReportScoreHistory: vi.fn(),
   loadReportRecommendations: vi.fn(),
   loadReportBranding: vi.fn(),
   loadOwnedClientReportById: vi.fn(),
@@ -159,6 +160,7 @@ describe('authenticated client report APIs', () => {
     h.loadOwnedReportClient.mockResolvedValue(client)
     h.loadOwnedReportScan.mockResolvedValue(currentScan)
     h.loadPreviousReportScan.mockResolvedValue(previousScan)
+    h.loadReportScoreHistory.mockResolvedValue([])
     h.loadReportRecommendations.mockResolvedValue([])
     h.loadReportBranding.mockResolvedValue(branding)
     h.loadOwnedClientReportById.mockResolvedValue(report)

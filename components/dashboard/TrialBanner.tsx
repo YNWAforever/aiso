@@ -12,7 +12,7 @@ export function TrialBanner({ daysRemaining, lang }: Props) {
   const t = useTranslations('dashboard')
   const urgent = daysRemaining <= 2
   return (
-    <div className={`flex items-center justify-between px-6 py-2.5 text-sm font-medium ${urgent ? 'bg-red-600 text-white' : 'bg-primary text-primary-foreground'}`}>
+    <div className={`print:hidden flex items-center justify-between px-6 py-2.5 text-sm font-medium ${urgent ? 'bg-red-600 text-white' : 'bg-primary text-primary-foreground'}`}>
       <div className="flex items-center gap-2">
         {urgent ? <Clock className="size-3.5" /> : <Zap className="size-3.5" />}
         <span>

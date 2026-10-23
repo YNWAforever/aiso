@@ -4,6 +4,7 @@ import type {
   ReportBrandingInput,
   ReportStatus,
 } from './types'
+import { hasValidReportVisuals } from './visuals'
 
 export interface ReportWorkspaceReport {
   id: string
@@ -146,6 +147,8 @@ export function parseClientReportSnapshot(value: unknown): ClientReportSnapshotV
       || !['high', 'medium', 'low'].includes(String(fix.expectedImpact))
       || typeof fix.nextStep !== 'string') return null
   }
+
+  if (!hasValidReportVisuals(value)) return null
 
   return value as unknown as ClientReportSnapshotV1
 }

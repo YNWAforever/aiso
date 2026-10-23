@@ -50,6 +50,7 @@ import {
   loadPreviousReportScan,
   loadReportBranding,
   loadReportRecommendations,
+  loadReportScoreHistory,
   publishClientReportLatest,
   resolvePublicClientReport,
   revokeClientReport,
@@ -175,6 +176,26 @@ describe('report store tenant boundary', () => {
     expect(query?.text).toContain('domain in')
     expect(query?.values).toEqual(expect.arrayContaining(['example.com', 'www.example.com', currentScan.createdAt]))
     expect(query?.text).toContain('order by created_at desc')
+  })
+
+  it('reads score history for the same account and domain, evidence only', async () => {
+    queue([
+      { id: 'mine', account_id: 'account-1', domain: 'example.com', created_at: '2026-07-19T08:00:00.000Z', score: 70, grade: 'B', results: { evidence: {} } },
+      { id: 'theirs', account_id: 'account-2', domain: 'example.com', created_at: '2026-07-18T08:00:00.000Z', score: 70, grade: 'B', results: { evidence: {} } },
+    ])
+
+    const result = await loadReportScoreHistory({ accountId: 'account-1', currentScan })
+
+    expect(result.map(scan => scan.id)).toEqual(['mine'])
+    const query = callsContaining('from scans')[0]
+    expect(query?.text).toContain('where account_id =')
+    expect(query?.values).toEqual(expect.arrayContaining(['account-1', 'example.com', 'www.example.com', currentScan.createdAt]))
+    expect(query?.text).toContain("results->'evidence'")
+  })
+
+  it('does not read history for a scan from another account', async () => {
+    expect(await loadReportScoreHistory({ accountId: 'account-2', currentScan })).toEqual([])
+    expect(callsContaining('from scans')).toHaveLength(0)
   })
 
   it('authorizes recommendation loading by the scan account and domain before reading children', async () => {
