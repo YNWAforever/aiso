@@ -1,35 +1,11 @@
 'use client'
 import { useState } from 'react'
-import { useLocale } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import type { CheckResult } from '@/lib/types'
 import type { CheckExplanation } from '@/lib/checkExplanations'
 import type { FactualDensityState } from '@/lib/factual-density-evidence'
 import { topicalAuthorityState } from '@/lib/topical-authority-evidence'
 import { formatDensityDetails } from '@/lib/score-display'
-
-const COPY_EN = {
-  question: 'What this checks',
-  whyItMatters: 'Why it matters',
-  whatWeFound: 'What we found',
-  status: 'Status',
-  howToFix: 'How to fix',
-  unavailable: 'Unavailable — retry to obtain provider evidence',
-  legacy: 'Legacy / unverifiable — run a new scan',
-  topicalUnavailable: 'Unavailable — no usable topical evidence was collected. Review the sitemap or run a new scan.',
-}
-
-// Typed `typeof COPY_EN` deliberately: adding a key above forces it here too,
-// so a label cannot ship untranslated.
-const COPY_ZH_HK: typeof COPY_EN = {
-  question: '這項檢查甚麼',
-  whyItMatters: '為何重要',
-  whatWeFound: '掃描發現',
-  status: '狀態',
-  howToFix: '如何修復',
-  unavailable: '未能取得資料 — 請重試以取得供應商證據',
-  legacy: '歷史／未能核實 — 請重新掃描',
-  topicalUnavailable: '未能取得資料 — 未採集到可用的主題證據。請檢視 sitemap 或重新掃描。',
-}
 
 const STATUS_ICON  = { pass: '✅', warn: '⚠️', fail: '❌' } as const
 const STATUS_COLOR = {
@@ -52,15 +28,14 @@ interface Props {
 }
 
 export function ExpandableCheckItem({ label, result, message, explanation, factualState }: Props) {
-  const locale = useLocale()
+  const t = useTranslations('checkItem')
   const details = result.details && (result.message.startsWith('factual_density_') || result.message.startsWith('citation_density_'))
     ? formatDensityDetails(result.details) : result.details
-  const c = locale === 'zh-HK' ? COPY_ZH_HK : COPY_EN
   const [open, setOpen] = useState(false)
   const topicalState = result.message.startsWith('topical_authority_') ? topicalAuthorityState(result) : null
   const unavailable = (topicalState !== null && topicalState !== 'observed') || factualState === 'unavailable' || factualState === 'legacy' || result.message === 'factual_density_unavailable'
-  const displayedMessage = topicalState === 'legacy' || factualState === 'legacy' ? c.legacy
-    : topicalState === 'unavailable' ? c.topicalUnavailable : unavailable ? c.unavailable : message
+  const displayedMessage = topicalState === 'legacy' || factualState === 'legacy' ? t('legacy')
+    : topicalState === 'unavailable' ? t('topicalUnavailable') : unavailable ? t('unavailable') : message
 
   if (unavailable) return (
     <div className="border-b border-slate-100 last:border-0 py-2.5">
@@ -98,20 +73,20 @@ export function ExpandableCheckItem({ label, result, message, explanation, factu
         <div className={`mx-1 mb-3 rounded-lg border p-4 text-sm space-y-3 ${STATUS_DETAIL_BG[result.status]}`}>
           {/* What this checks */}
           <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{c.question}</p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{t('question')}</p>
             <p className="text-slate-700 leading-relaxed">{explanation.question}</p>
           </div>
 
           {/* Why it matters */}
           <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{c.whyItMatters}</p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{t('whyItMatters')}</p>
             <p className="text-slate-700 leading-relaxed">{explanation.why}</p>
           </div>
 
           {/* What we found */}
           {details && (
             <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{c.whatWeFound}</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{t('whatWeFound')}</p>
               <p className="text-slate-700 font-mono text-xs bg-white/60 rounded px-2 py-1">{details}</p>
             </div>
           )}
@@ -119,7 +94,7 @@ export function ExpandableCheckItem({ label, result, message, explanation, factu
           {/* How to fix */}
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">
-              {result.status === 'pass' ? c.status : c.howToFix}
+              {result.status === 'pass' ? t('status') : t('howToFix')}
             </p>
             <p className="text-slate-700 leading-relaxed">{explanation.fix[result.status]}</p>
           </div>

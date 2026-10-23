@@ -36,7 +36,7 @@ export function FixList({ fixes, onSelect }: Props) {
               type="button"
               onClick={() => onSelect(fix.key)}
               aria-label={`${title}. ${t('impact_label', { points })}. ${t('effort_label', { effort: t(`effort.${fix.effort}`) })}`}
-              className="group flex min-h-14 w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-e1 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-e2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              className="group flex min-h-14 w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-e1 card-interactive"
             >
               <span aria-hidden="true" className={cn('flex size-9 shrink-0 items-center justify-center rounded-lg border', tone.soft, tone.fg, tone.border)}>
                 {Icon && <Icon className="size-4" />}

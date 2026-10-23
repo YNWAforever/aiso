@@ -4,6 +4,8 @@ import { useEffect } from 'react'
 import { FileDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
+import { trackFunnelEvent } from '@/lib/funnel-client'
+import { funnelLocale } from '@/components/funnel/funnel-locale'
 
 /**
  * Prints light whatever the theme: on `beforeprint` (the button below, or the
@@ -39,7 +41,10 @@ export function PrintButton({ className }: { className?: string }) {
   return (
     <button
       type="button"
-      onClick={() => window.print()}
+      onClick={() => {
+        trackFunnelEvent({ name: 'report_pdf_downloaded', locale: funnelLocale() })
+        window.print()
+      }}
       title={t('download_pdf_hint')}
       className={cn(
         'inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-e1 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 print:hidden',

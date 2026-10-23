@@ -53,6 +53,6 @@ export function StatCard({ label, value, delta, deltaText, invertDelta, trend, h
 
   const classes = cn('flex flex-col gap-3 rounded-xl border border-border bg-card p-5 shadow-e1', className)
   return href
-    ? <Link href={href} className={cn(classes, 'transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-e2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:hover:translate-y-0')}>{body}</Link>
+    ? <Link href={href} className={cn(classes, 'card-interactive')}>{body}</Link>
     : <div className={classes}>{body}</div>
 }

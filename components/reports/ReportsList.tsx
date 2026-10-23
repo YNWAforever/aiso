@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { EmptyState } from '@/components/ui/empty-state'
 import Link from 'next/link'
+import { CopyButton } from '@/components/ui/copy-button'
+import { trackFunnelEvent } from '@/lib/funnel-client'
 import {
-  Clipboard,
   ExternalLink,
   FilePenLine,
   RotateCw,
@@ -61,16 +62,6 @@ export function ReportsList({
     value ? dateFormatter.format(new Date(value)) : t('not_yet')
   const metric = (value: number | null, unavailable?: boolean) =>
     unavailable || value === null ? t('unavailable') : new Intl.NumberFormat(lang).format(value)
-
-  async function copyLink(report: ReportsListItem) {
-    if (!report.signedUrl) return
-    try {
-      await navigator.clipboard.writeText(report.signedUrl)
-      setNotice(t('link_copied'))
-    } catch {
-      setNotice(t('copy_error'))
-    }
-  }
 
   function openReport(report: ReportsListItem) {
     if (report.signedUrl) window.open(report.signedUrl, '_blank', 'noopener,noreferrer')
@@ -147,10 +138,7 @@ export function ReportsList({
                           <ExternalLink aria-hidden="true" />
                           {t('open_report')}
                         </Button>
-                        <Button type="button" variant="outline" className="min-h-11" onClick={() => copyLink(report)}>
-                          <Clipboard aria-hidden="true" />
-                          {t('copy_link')}
-                        </Button>
+                        <CopyButton value={report.signedUrl} label={t('copy_link')} copiedLabel={t('link_copied')} onCopied={() => trackFunnelEvent({ name: 'report_link_copied', locale: lang === 'zh-HK' ? 'zh-HK' : 'en' })} />
                       </>
                     )}
                     <Button asChild variant="outline" className="min-h-11">

@@ -13,10 +13,10 @@ import Image from '@/app/[lang]/result/[id]/opengraph-image'
 
 afterEach(() => vi.clearAllMocks())
 
-async function card(results: Record<string, unknown>) {
+async function card(results: Record<string, unknown>, lang = 'en') {
   sql.mockResolvedValue([{ id: 'scan-1', domain: 'example.com', score: 62, grade: 'C',
     industry: 'technology', region: 'HK', results }])
-  const rendered = await Image({ params: Promise.resolve({ id: 'scan-1' }) })
+  const rendered = await Image({ params: Promise.resolve({ lang, id: 'scan-1' }) })
   return renderToStaticMarkup((rendered as unknown as { element: ReactNode }).element)
 }
 
@@ -54,6 +54,16 @@ describe('shared result card evidence', () => {
     expect(html).toContain('0 warnings')
     expect(html).toContain('0 failing')
     expect(html).toContain('19 need evidence')
+    const zh = await card({ evidence,
+      c1_robots: { status: 'pass' }, c2_llms_txt: { status: 'fail' }, c3_bot_access: { status: 'warn' },
+    }, 'zh-HK')
+    expect(zh).toContain('網站就緒分數')
+    expect(zh).toContain('1 項通過')
+    expect(zh).toContain('0 項警告')
+    expect(zh).toContain('0 項未通過')
+    expect(zh).toContain('19 項需要證據')
+    expect(zh).toContain('檢視你的網站就緒程度。免費掃描 →')
+    expect(zh).not.toContain(' passing')
   })
 
   it('continues to hide every score and count when the page was not collected', async () => {

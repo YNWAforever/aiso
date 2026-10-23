@@ -120,7 +120,7 @@ describe('ReportBuilder', () => {
     expect(navigationSource).toContain('popstate')
     expect(navigationSource).toContain('prepareFailOpen?.()')
     expect(source).toContain('onNavigate')
-    expect(source).toContain('navigator.clipboard.writeText')
+    expect(source).toContain('<CopyButton value={shareUrl}')
     expect(source).toContain('window.open')
     expect(source).toContain("confirm(t('confirm_first_publish'))")
     expect(source).toContain("confirm(t('confirm_publish_update'))")

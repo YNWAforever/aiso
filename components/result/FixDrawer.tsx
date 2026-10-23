@@ -1,9 +1,9 @@
 'use client'
-import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Check, Copy, HelpCircle, Minus, Sparkles, X } from 'lucide-react'
+import { ArrowRight, Check, HelpCircle, Minus, Sparkles, X } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
+import { CopyButton } from '@/components/ui/copy-button'
 import { getCheckExplanations } from '@/lib/checkExplanations'
 import { formatScanScore } from '@/lib/score-display'
 import { FIX_SNIPPETS } from '@/lib/result/fix-snippets'
@@ -161,26 +161,11 @@ function StatusTile({ label, status, points, statusLabel }: { label: string; sta
 
 function Snippet({ language, code }: { language: string; code: string }) {
   const t = useTranslations('resultPage')
-  const [copied, setCopied] = useState(false)
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(code)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch { /* clipboard unavailable: the code stays selectable */ }
-  }
   return (
     <div className="overflow-hidden rounded-xl border border-border">
       <div className="flex items-center justify-between gap-2 border-b border-border bg-neutral-2 px-3 py-1.5">
         <span className="text-xs font-semibold text-muted-foreground">{t('drawer.snippet')} · {language}</span>
-        <button
-          type="button"
-          onClick={copy}
-          className="inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-xs font-semibold text-foreground hover:bg-neutral-4 focus-visible:outline-2 focus-visible:outline-primary"
-        >
-          {copied ? <Check aria-hidden="true" className="size-3.5 text-tone-success-fg" /> : <Copy aria-hidden="true" className="size-3.5" />}
-          <span aria-live="polite">{copied ? t('drawer.copied') : t('drawer.copy')}</span>
-        </button>
+        <CopyButton value={code} label={t('drawer.copy')} copiedLabel={t('drawer.copied')} className="min-h-8 gap-1 border-0 bg-transparent px-2 text-xs hover:bg-neutral-4" />
       </div>
       <pre tabIndex={0} className="max-h-64 overflow-auto bg-neutral-1 p-3 text-xs leading-relaxed text-foreground"><code>{code}</code></pre>
     </div>

@@ -6,6 +6,7 @@ import {trackFunnelEvent,consumeOneTimeFunnelEvent} from '@/lib/funnel-client'
 import {loadBrowserDraft,saveBrowserDraft,removeBrowserDraft} from '@/lib/onboarding/browser-draft'
 import { BrandAssistant } from './BrandAssistant'
 import { UpgradeCard } from '@/components/dashboard/UpgradeCard'
+import { createTranslator } from 'next-intl'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 import { PROMPT_MARKETS, isPromptLanguage, type PromptLanguage } from '@/lib/prompts/context'
@@ -27,84 +28,6 @@ const INDUSTRIES = [
 ]
 
 const REGIONS = PROMPT_MARKETS
-
-const COPY_EN = {
-  stepOf: (step: number, total: number) => `Step ${step} of ${total}`,
-  setupTitle: 'Set up your brand',
-  s1Title: "What's your brand name?",
-  s1Subtitle: 'This is how AI agents will look for you.',
-  s1Placeholder: 'e.g. Fimmick',
-  continue: 'Continue',
-  back: 'Back',
-  s2Title: 'Your website domain',
-  s2Subtitle: 'Enter your domain — no need for www or http.',
-  s2HintPrefix: 'e.g. type',
-  s2HintNot: 'not',
-  s2Skip: "Skip — I don't have a website yet",
-  s3Title: 'Your industry & region',
-  s3Subtitle: 'Confirm the language and market for your tracking questions.',
-  questionLanguage: 'Question language',
-  industryPlaceholder: 'Industry (optional)',
-  regionPlaceholder: 'Region (optional)',
-  s3Skip: 'Skip — set up later',
-  s4Title: 'Tell AI what you do',
-  s4Subtitle: 'Review your brand details. We will use them to draft relevant tracking questions for your chosen language and market.',
-  descLabel: 'Brand description',
-  optional: '(optional)',
-  descPlaceholder: (brand: string) => `e.g. ${brand || 'Your brand'} is an AI search optimisation platform that helps businesses improve their visibility in ChatGPT, Perplexity, and Google AI answers.`,
-  competitorsLabel: 'Main competitors',
-  competitorsHint: "AI may mention these brands instead of yours — we'll track that.",
-  competitorsPlaceholder: 'e.g. Semrush, Ahrefs',
-  add: 'Add',
-  settingUp: 'Setting up…',
-  goToDashboard: 'Go to my dashboard',
-  s4Skip: "Skip — I'll set this up later",
-  genericError: 'Something went wrong',
-  seedPartial: 'Your brand is saved. Question setup is incomplete; retry or continue to your workspace.',
-  retrySeed: 'Retry question setup',
-  openWorkspace: 'Open workspace',
-  skipToMain: 'Skip to main content',
-  removeCompetitor: (name: string) => `Remove ${name}`,
-}
-
-const COPY_ZH_HK: typeof COPY_EN = {
-  stepOf: (step: number, total: number) => `第 ${step} 步，共 ${total} 步`,
-  setupTitle: '設定你的品牌',
-  s1Title: '你的品牌名稱是？',
-  s1Subtitle: 'AI 將以此名稱搜尋你的品牌。',
-  s1Placeholder: '例如 Fimmick',
-  continue: '繼續',
-  back: '返回',
-  s2Title: '你的網站域名',
-  s2Subtitle: '輸入你的域名——無需 www 或 http。',
-  s2HintPrefix: '例如輸入',
-  s2HintNot: '而非',
-  s2Skip: '略過——我暫時未有網站',
-  s3Title: '你的行業及地區',
-  s3Subtitle: '確認追蹤問題的語言及市場。',
-  questionLanguage: '問題語言',
-  industryPlaceholder: '行業（可選）',
-  regionPlaceholder: '地區（可選）',
-  s3Skip: '略過——稍後設定',
-  s4Title: '讓 AI 了解你的業務',
-  s4Subtitle: '請核對品牌資料。我們會按你選擇的語言及市場，草擬相關的追蹤問題。',
-  descLabel: '品牌描述',
-  optional: '（可選）',
-  descPlaceholder: (brand: string) => `例如：${brand || '你的品牌'} 是一個 AI 搜尋優化平台，幫助企業提升在 ChatGPT、Perplexity 及 Google AI 答案中的能見度。`,
-  competitorsLabel: '主要競爭對手',
-  competitorsHint: 'AI 可能會提及這些品牌而非你的品牌——我們會為你追蹤。',
-  competitorsPlaceholder: '例如 Semrush, Ahrefs',
-  add: '新增',
-  settingUp: '設定中…',
-  goToDashboard: '前往我的儀表板',
-  s4Skip: '略過——我稍後再設定',
-  genericError: '發生錯誤，請再試一次',
-  seedPartial: '品牌已儲存，問題設定尚未完成；你可重試或先進入工作區。',
-  retrySeed: '重試問題設定',
-  openWorkspace: '開啟工作區',
-  skipToMain: '跳至主要內容',
-  removeCompetitor: (name: string) => `移除${name}`,
-}
 
 /** Strip protocol and www prefix so only bare domain is stored */
 function normaliseDomain(raw: string): string {
@@ -161,8 +84,12 @@ function WizardForm({
 }: Props & { draft: Draft; draftReady: boolean }) {
   const router = useRouter()
   const isZh = lang === 'zh-HK'
-  const c = isZh ? COPY_ZH_HK : COPY_EN
-  const recoveryCopy = (isZh ? zh : en).onboardingSetup
+  // Reads the lang prop rather than the provider, like the rest of this surface's copy.
+  const t = isZh
+    ? createTranslator({ locale: 'zh-HK', messages: zh, namespace: 'onboardingWizard' })
+    : createTranslator({ locale: 'en', messages: en, namespace: 'onboardingWizard' })
+  const shared = isZh ? zh : en
+  const recoveryCopy = shared.onboardingSetup
   const started=useRef(false)
   useEffect(()=>{if(draftReady&&consumeOneTimeFunnelEvent(started))trackFunnelEvent({name:'onboarding_started',locale:lang==='zh-HK'?'zh-HK':'en'})},[draftReady,lang])
   const hasScanPrefill = Boolean(scanId && initialBrand && initialDomain)
@@ -240,7 +167,7 @@ function WizardForm({
       if(!targetClientId&&previous!==undefined&&previous!==payload){
         const recovered=await send(JSON.parse(previous) as typeof values,intentKey,null)
         const body=await recovered.json()
-        if(!recovered.ok){setError(typeof body.error==='string'?body.error:c.genericError);return}
+        if(!recovered.ok){setError(typeof body.error==='string'?body.error:t('genericError'));return}
         if(typeof body.clientId!=='string'||!body.progress)throw new Error('Invalid progress')
         targetClientId=body.clientId;setClientId(body.clientId)
         if(body.progress.prompts==='ready'){
@@ -256,15 +183,15 @@ function WizardForm({
       const res=await send(values,requestIntent,targetClientId)
       const data = await res.json()
       if (res.status === 403 && data.error === 'BRAND_LIMIT_REACHED') { setBrandLimit(true); return }
-      if (!res.ok) { setError(typeof data.error === 'string' ? data.error : c.genericError); return }
+      if (!res.ok) { setError(typeof data.error === 'string' ? data.error : t('genericError')); return }
       if (typeof data.clientId !== 'string' || !data.progress) throw new Error('Invalid progress')
       setClientId(data.clientId)
       // Keep the request intent: recovery may reuse the original progress row's identity.
-      if (data.progress.prompts !== 'ready') { setPartial(true); setError(c.seedPartial); return }
+      if (data.progress.prompts !== 'ready') { setPartial(true); setError(t('seedPartial')); return }
       submitted.current = true
       try { removeBrowserDraft(draftKey) } catch { /* optional storage */ }
       navigateToWorkspace(data.clientId)
-    } catch { setError(c.genericError) }
+    } catch { setError(t('genericError')) }
     finally { inFlight.current=false;setLoading(false) }
   }
 
@@ -282,7 +209,7 @@ function WizardForm({
 
   return (
     <>
-      <a href="#main-content" className="sr-only fixed left-4 top-4 z-[60] rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground shadow-lg focus:not-sr-only focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{c.skipToMain}</a>
+      <a href="#main-content" className="sr-only fixed left-4 top-4 z-[60] rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground shadow-lg focus:not-sr-only focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{shared.nav.skip_to_main}</a>
       <main id="main-content" tabIndex={-1} className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="bg-card rounded-2xl border p-4 sm:p-8 w-full max-w-md shadow-sm">
 
@@ -297,7 +224,7 @@ function WizardForm({
         {/* Progress */}
         <div className="mb-6">
           <div className="flex justify-between text-xs text-muted-foreground mb-2">
-            <span>{c.stepOf(step, TOTAL_STEPS)}</span>
+            <span>{t('stepOf', { step, total: TOTAL_STEPS })}</span>
             <span>{Math.round(progress)}%</span>
           </div>
           <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -308,15 +235,15 @@ function WizardForm({
         {/* ── Step 1: Brand name ── */}
         {step === 1 && (
           <div>
-            <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary">{c.setupTitle}</h1>
+            <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary">{t('setupTitle')}</h1>
             <BrandAssistant lang={lang} context={{ url: websiteUrl, language, market: region }} onContextChange={next => {
               setWebsiteUrl(next.url); setDomain(normaliseDomain(next.url)); setLanguage(next.language); setRegion(next.market)
             }} onManual={() => manualBrandRef.current?.focus()} onApply={suggestion => {
               setBrand(suggestion.brandName); setDomain(suggestion.domain); setWebsiteUrl(suggestion.domain); setDescription(suggestion.description)
               setIndustry(suggestion.industry ?? ''); setLanguage(suggestion.language); setRegion(suggestion.market); setStep(4)
             }} />
-            <h2 className="text-lg font-bold text-foreground mb-1"><label htmlFor="onboarding-brand">{c.s1Title}</label></h2>
-            <p className="text-sm text-muted-foreground mb-6">{c.s1Subtitle}</p>
+            <h2 className="text-lg font-bold text-foreground mb-1"><label htmlFor="onboarding-brand">{t('s1Title')}</label></h2>
+            <p className="text-sm text-muted-foreground mb-6">{t('s1Subtitle')}</p>
             <input
               id="onboarding-brand"
               ref={manualBrandRef}
@@ -325,11 +252,11 @@ function WizardForm({
               maxLength={160}
               onChange={e => setBrand(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && brand.trim() && setStep(2)}
-              placeholder={c.s1Placeholder}
+              placeholder={t('s1Placeholder')}
               className={`${inputClass} mb-6`}
             />
             <button onClick={() => setStep(2)} disabled={!brand.trim()} className={btnPrimary}>
-              {c.continue} <ChevronRight className="size-4" />
+              {t('continue')} <ChevronRight className="size-4" />
             </button>
           </div>
         )}
@@ -337,9 +264,9 @@ function WizardForm({
         {/* ── Step 2: Domain ── */}
         {step === 2 && (
           <div>
-            <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-1 focus-visible:outline-2 focus-visible:outline-primary"><label htmlFor="onboarding-domain">{c.s2Title}</label></h1>
-            <p className="text-sm text-muted-foreground mb-1">{c.s2Subtitle}</p>
-            <p className="text-2xs text-muted-foreground/60 mb-5">{c.s2HintPrefix} <span className="font-mono bg-muted px-1 rounded">fimmick.com</span> {c.s2HintNot} <span className="font-mono bg-muted px-1 rounded">https://www.fimmick.com</span></p>
+            <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-1 focus-visible:outline-2 focus-visible:outline-primary"><label htmlFor="onboarding-domain">{t('s2Title')}</label></h1>
+            <p className="text-sm text-muted-foreground mb-1">{t('s2Subtitle')}</p>
+            <p className="text-2xs text-muted-foreground/60 mb-5">{t.rich('s2Hint', { domain: chunks => <span className="font-mono bg-muted px-1 rounded">{chunks}</span> })}</p>
             <div className="relative mb-6">
               <input
                 id="onboarding-domain"
@@ -357,13 +284,13 @@ function WizardForm({
               )}
             </div>
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => setStep(1)} className={btnBack}>{c.back}</button>
+              <button onClick={() => setStep(1)} className={btnBack}>{t('back')}</button>
               <button onClick={() => setStep(3)} className={btnPrimary}>
-                {c.continue} <ChevronRight className="size-4" />
+                {t('continue')} <ChevronRight className="size-4" />
               </button>
             </div>
             <button onClick={() => setStep(3)} className="w-full text-xs text-muted-foreground hover:text-foreground mt-3 transition">
-              {c.s2Skip}
+              {t('s2Skip')}
             </button>
           </div>
         )}
@@ -371,40 +298,40 @@ function WizardForm({
         {/* ── Step 3: Industry + Region ── */}
         {step === 3 && (
           <div>
-            <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-1 focus-visible:outline-2 focus-visible:outline-primary">{c.s3Title}</h1>
-            <p className="text-sm text-muted-foreground mb-6">{c.s3Subtitle}</p>
+            <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-1 focus-visible:outline-2 focus-visible:outline-primary">{t('s3Title')}</h1>
+            <p className="text-sm text-muted-foreground mb-6">{t('s3Subtitle')}</p>
             <div className="space-y-3 mb-6">
               <div>
-                <label htmlFor="onboarding-language" className="block text-xs font-semibold text-foreground mb-1.5">{c.questionLanguage}</label>
+                <label htmlFor="onboarding-language" className="block text-xs font-semibold text-foreground mb-1.5">{shared.brandAssistant.language}</label>
                 <select id="onboarding-language" name="language" value={language} onChange={e => { if (e.target.value === '' || isPromptLanguage(e.target.value)) setLanguage(e.target.value) }} className={inputClass}>
-                  <option value="">{c.questionLanguage}</option><option value="en">English</option><option value="zh-HK">繁體中文（香港）</option>
+                  <option value="">{shared.brandAssistant.language}</option><option value="en">English</option><option value="zh-HK">繁體中文（香港）</option>
                 </select>
               </div>
               <div>
-                <label htmlFor="onboarding-industry" className="block text-xs font-semibold text-foreground mb-1.5">{c.industryPlaceholder}</label>
+                <label htmlFor="onboarding-industry" className="block text-xs font-semibold text-foreground mb-1.5">{t('industryPlaceholder')}</label>
                 <select id="onboarding-industry" name="industry" value={industry} onChange={e => setIndustry(e.target.value)}
                   className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
-                  <option value="">{c.industryPlaceholder}</option>
+                  <option value="">{t('industryPlaceholder')}</option>
                   {INDUSTRIES.map(i => <option key={i.value} value={i.value}>{isZh ? i.labelZh : i.labelEn}</option>)}
                 </select>
               </div>
               <div>
-                <label htmlFor="onboarding-region" className="block text-xs font-semibold text-foreground mb-1.5">{c.regionPlaceholder}</label>
+                <label htmlFor="onboarding-region" className="block text-xs font-semibold text-foreground mb-1.5">{t('regionPlaceholder')}</label>
                 <select id="onboarding-region" name="region" value={region} onChange={e => setRegion(e.target.value)}
                   className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
-                  <option value="">{c.regionPlaceholder}</option>
+                  <option value="">{t('regionPlaceholder')}</option>
                   {REGIONS.map(r => <option key={r.value} value={r.value}>{isZh ? r.labelZh : r.labelEn}</option>)}
                 </select>
               </div>
             </div>
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => setStep(2)} className={btnBack}>{c.back}</button>
+              <button onClick={() => setStep(2)} className={btnBack}>{t('back')}</button>
               <button onClick={() => setStep(4)} className={btnPrimary}>
-                {c.continue} <ChevronRight className="size-4" />
+                {t('continue')} <ChevronRight className="size-4" />
               </button>
             </div>
             <button onClick={() => setStep(4)} className="w-full text-xs text-muted-foreground hover:text-foreground mt-3 transition">
-              {c.s3Skip}
+              {t('s3Skip')}
             </button>
           </div>
         )}
@@ -412,9 +339,9 @@ function WizardForm({
         {/* ── Step 4: Brand details ── */}
         {step === 4 && (
           <div>
-            <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-1 focus-visible:outline-2 focus-visible:outline-primary">{c.s4Title}</h1>
+            <h1 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-black text-foreground mb-1 focus-visible:outline-2 focus-visible:outline-primary">{t('s4Title')}</h1>
             <p className="text-sm text-muted-foreground mb-6">
-              {c.s4Subtitle}
+              {t('s4Subtitle')}
             </p>
 
             <section aria-label={recoveryCopy.summaryTitle} className="mb-4 rounded-lg border p-3 text-sm">
@@ -426,10 +353,10 @@ function WizardForm({
             </section>
             {/* Brand description */}
             <p className="mb-2 font-semibold">{brand} · {domain}</p>
-            <p className="mb-4 text-sm text-muted-foreground">{c.questionLanguage}: {language === 'en' ? 'English' : language === 'zh-HK' ? '繁體中文（香港）' : '—'} · {REGIONS.find(r => r.value === region)?.[isZh ? 'labelZh' : 'labelEn'] ?? c.regionPlaceholder}</p>
+            <p className="mb-4 text-sm text-muted-foreground">{shared.brandAssistant.language}: {language === 'en' ? 'English' : language === 'zh-HK' ? '繁體中文（香港）' : '—'} · {REGIONS.find(r => r.value === region)?.[isZh ? 'labelZh' : 'labelEn'] ?? t('regionPlaceholder')}</p>
             <div className="mb-4">
               <label htmlFor="onboarding-description" className="block text-xs font-semibold text-foreground mb-1.5">
-                {c.descLabel} <span className="text-muted-foreground font-normal">{c.optional}</span>
+                {t('descLabel')} <span className="text-muted-foreground font-normal">{t('optional')}</span>
               </label>
               <textarea
                 id="onboarding-description"
@@ -437,7 +364,7 @@ function WizardForm({
                 maxLength={4000}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                placeholder={c.descPlaceholder(brand)}
+                placeholder={t('descPlaceholder', { brand: brand || t('yourBrand') })}
                 rows={3}
                 className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none leading-relaxed"
               />
@@ -446,9 +373,9 @@ function WizardForm({
             {/* Competitors */}
             <div className="mb-6">
               <label htmlFor="onboarding-competitor" className="block text-xs font-semibold text-foreground mb-1.5">
-                {c.competitorsLabel} <span className="text-muted-foreground font-normal">{c.optional}</span>
+                {t('competitorsLabel')} <span className="text-muted-foreground font-normal">{t('optional')}</span>
               </label>
-              <p className="text-2xs text-muted-foreground mb-2">{c.competitorsHint}</p>
+              <p className="text-2xs text-muted-foreground mb-2">{t('competitorsHint')}</p>
               <div className="flex gap-2 mb-2">
                 <input
                   id="onboarding-competitor"
@@ -458,7 +385,7 @@ function WizardForm({
                   onKeyDown={e => {
                     if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addCompetitor() }
                   }}
-                  placeholder={c.competitorsPlaceholder}
+                  placeholder={t('competitorsPlaceholder')}
                   className="min-w-0 flex-1 h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
                 <button
@@ -467,7 +394,7 @@ function WizardForm({
                   disabled={!competitorInput.trim()}
                   className="h-9 px-3 rounded-lg bg-secondary text-foreground text-xs font-semibold border border-border hover:bg-muted transition disabled:opacity-40"
                 >
-                  {c.add}
+                  {t('add')}
                 </button>
               </div>
               {competitors.length > 0 && (
@@ -475,7 +402,7 @@ function WizardForm({
                   {competitors.map(competitor => (
                     <span key={competitor} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 px-2 py-1 rounded-full font-medium">
                       {competitor}
-                      <button type="button" onClick={() => removeCompetitor(competitor)} aria-label={c.removeCompetitor(competitor)} className="min-h-6 min-w-6 inline-flex items-center justify-center hover:text-destructive transition">
+                      <button type="button" onClick={() => removeCompetitor(competitor)} aria-label={t('removeCompetitor', { name: competitor })} className="min-h-6 min-w-6 inline-flex items-center justify-center hover:text-destructive transition">
                         <X className="size-2.5" />
                       </button>
                     </span>
@@ -490,15 +417,15 @@ function WizardForm({
             {error===recoveryCopy.cacheUnavailable&&<a href={`/${lang}/dashboard`} className={btnBack}>{recoveryCopy.reviewBrands}</a>}
 
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => setStep(3)} className={btnBack}>{c.back}</button>
+              <button onClick={() => setStep(3)} className={btnBack}>{t('back')}</button>
               <button onClick={complete} disabled={loading || recoveredReady} className={`${btnPrimary} disabled:opacity-60`}>
-                {loading ? c.settingUp : partial ? c.retrySeed : c.goToDashboard}
+                {loading ? t('settingUp') : partial ? t('retrySeed') : t('goToDashboard')}
                 {!loading && <ChevronRight className="size-4" />}
               </button>
             </div>
-            {(partial || recoveredReady) && clientId && <button type="button" onClick={() => navigateToWorkspace(clientId)} className={`${btnBack} mt-3 w-full`}>{c.openWorkspace}</button>}
+            {(partial || recoveredReady) && clientId && <button type="button" onClick={() => navigateToWorkspace(clientId)} className={`${btnBack} mt-3 w-full`}>{t('openWorkspace')}</button>}
             <button onClick={complete} disabled={loading || recoveredReady} className="w-full text-xs text-muted-foreground hover:text-foreground mt-3 transition">
-              {c.s4Skip}
+              {t('s4Skip')}
             </button>
           </div>
         )}

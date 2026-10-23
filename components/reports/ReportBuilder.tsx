@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  Clipboard,
   ExternalLink,
   Link2,
   Loader2,
@@ -30,6 +29,9 @@ import { installReportNavigationBlocker } from '@/lib/reports/navigation-blocker
 import type { ClientReportSnapshotV1 } from '@/lib/reports/types'
 import { ReportPreview } from './ReportPreview'
 import { PrintButton } from './PrintButton'
+import { CopyButton } from '@/components/ui/copy-button'
+import { useToast } from '@/components/ui/toast'
+import { trackFunnelEvent } from '@/lib/funnel-client'
 import { ReportStatusBadge } from './ReportStatusBadge'
 
 export type { ReportWorkspaceReport } from '@/lib/reports/client-dto'
@@ -90,6 +92,15 @@ export function ReportBuilder({
   const [reviewedArtifact, setReviewedArtifact] = useState<ReportReviewArtifact | null>(null)
   const [shareUrl, setShareUrl] = useState(initialReport?.signedUrl ?? '')
   const [notice, setNotice] = useState<{ kind: NoticeKind; text: string }>({ kind: 'idle', text: '' })
+  const { toast } = useToast()
+  // Done is a toast; anything still needing attention (loading, a warning, an
+  // error) stays in the inline live region beside the form.
+  function notify(next: { kind: NoticeKind; text: string }) {
+    if (next.kind === 'success') {
+      toast({ title: next.text, tone: 'success' })
+      setNotice({ kind: 'idle', text: '' })
+    } else setNotice(next)
+  }
   const [pending, setPending] = useState<string | null>(null)
   const summaryRef = useRef(initialSnapshot.executiveSummary)
   const revisionRef = useRef(0)
@@ -207,7 +218,7 @@ export function ReportBuilder({
         summaryRef.current = data.reviewArtifact.snapshot.executiveSummary
         setSummary(data.reviewArtifact.snapshot.executiveSummary)
       }
-      setNotice({ kind: 'success', text: t('saved') })
+      notify({ kind: 'success', text: t('saved') })
       return data
     } catch {
       setNotice({ kind: 'error', text: t('save_error') })
@@ -247,7 +258,7 @@ export function ReportBuilder({
         return
       }
       updateSummary(data.summary)
-      setNotice({ kind: 'success', text: t('ai_ready') })
+      notify({ kind: 'success', text: t('ai_ready') })
     } catch {
       setNotice({ kind: 'warning', text: t('ai_fallback') })
     } finally {
@@ -295,21 +306,12 @@ export function ReportBuilder({
       if (!response.ok || !data?.signedUrl) throw new Error('Invalid publish response')
       setReport(data.report)
       setShareUrl(data.signedUrl)
-      setNotice({ kind: 'success', text: t('published_success') })
+      notify({ kind: 'success', text: t('published_success') })
+      trackFunnelEvent({ name: 'report_published', locale: lang })
     } catch {
       setNotice({ kind: 'error', text: t('publish_error') })
     } finally {
       setPending(null)
-    }
-  }
-
-  async function copyLink() {
-    if (!shareUrl) return
-    try {
-      await navigator.clipboard.writeText(shareUrl)
-      setNotice({ kind: 'success', text: t('link_copied') })
-    } catch {
-      setNotice({ kind: 'error', text: t('copy_error') })
     }
   }
 
@@ -331,7 +333,7 @@ export function ReportBuilder({
       if (!response.ok || !data?.signedUrl) throw new Error('Invalid rotate response')
       setReport(data.report)
       setShareUrl(data.signedUrl)
-      setNotice({ kind: 'success', text: t('rotated_success') })
+      notify({ kind: 'success', text: t('rotated_success') })
     } catch {
       setNotice({ kind: 'error', text: t('rotate_error') })
     } finally {
@@ -353,7 +355,7 @@ export function ReportBuilder({
       if (!response.ok || !data) throw new Error('Invalid revoke response')
       setReport(data.report)
       setShareUrl('')
-      setNotice({ kind: 'success', text: t('revoked_success') })
+      notify({ kind: 'success', text: t('revoked_success') })
     } catch {
       setNotice({ kind: 'error', text: t('revoke_error') })
     } finally {
@@ -512,10 +514,7 @@ export function ReportBuilder({
               <div className="rounded-xl border border-border bg-muted/20 p-4">
                 <p className="break-all text-sm text-muted-foreground">{shareUrl}</p>
                 <div className="mt-4 flex flex-wrap gap-3">
-                  <Button type="button" variant="outline" className="min-h-11" onClick={copyLink}>
-                    <Clipboard aria-hidden="true" />
-                    {t('copy_link')}
-                  </Button>
+                  <CopyButton value={shareUrl} label={t('copy_link')} copiedLabel={t('link_copied')} onCopied={() => trackFunnelEvent({ name: 'report_link_copied', locale: lang })} />
                   <Button type="button" variant="outline" className="min-h-11" onClick={openLink}>
                     <ExternalLink aria-hidden="true" />
                     {t('open_link')}

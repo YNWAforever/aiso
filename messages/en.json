@@ -383,7 +383,17 @@
     "checks_scanned": "{count} checks scanned. Select any row for details and fix guidance.",
     "passing_count": "✓ {count} passing",
     "warning_count": "⚠ {count, plural, one {# warning} other {# warnings}}",
-    "failing_count": "✗ {count} failing"
+    "failing_count": "✗ {count} failing",
+    "og": {
+      "score_label": "Website readiness score",
+      "collection_failed": "Scan could not be completed — please retry",
+      "no_score": "Website readiness — technical and content checks",
+      "passing": "{count} passing",
+      "warnings": "{count, plural, one {# warning} other {# warnings}}",
+      "failing": "{count} failing",
+      "need_evidence": "{count, plural, one {# needs evidence} other {# need evidence}}",
+      "footer": "Review your website readiness. Scan free →"
+    }
   },
   "checks": {
     "c1_robots": "robots.txt AI Policy",
@@ -1067,7 +1077,8 @@
       "brandLimitTitle": "You have reached your brand limit",
       "brandLimitBody": "Your plan includes {limit} brands. Upgrade to add more.",
       "brandLimitShort": "Upgrade your plan to add another brand."
-    }
+    },
+    "local_trust_competitor_gap_points": "{value} pts"
   },
   "reports": {
     "create_client_report": "Create client report",
@@ -1763,7 +1774,8 @@
     "billingBody": "Update your payment method, view invoices or cancel your subscription.",
     "billingUnavailable": "No billing portal is linked to this account.",
     "pricing": "Compare plans",
-    "pricingNote": "Catalogue prices describe plans; your billing portal shows your actual subscription charges."
+    "pricingNote": "Catalogue prices describe plans; your billing portal shows your actual subscription charges.",
+    "currencyUsd": "USD"
   },
   "pulseView": {
     "title": "Observed AI visibility",
@@ -2838,7 +2850,9 @@
     "next_evidence": "Next evidence page",
     "scope_evidence": "Explore all evidence for this site",
     "gaps_page_empty": "No gaps on this page. Other pages contain gaps in this scope.",
-    "page_empty": "No sources on this page. Return to an earlier page in this scope."
+    "page_empty": "No sources on this page. Return to an earlier page in this scope.",
+    "invalid_filters": "Invalid citation filters",
+    "read_unavailable": "Citation read unavailable or scope too large. Narrow filters and retry."
   },
   "runProgress": {
     "title": "Monitor your brand",
@@ -2902,7 +2916,9 @@
     },
     "retestWorkload": "A separate retest uses the saved run workload: {expected} answers.",
     "reviewQuestions": "Review tracking questions",
-    "refresh": "Refresh saved status"
+    "refresh": "Refresh saved status",
+    "searchOff": "off",
+    "searchAllowance": "subject to allowance"
   },
   "brandAssistant": {
     "title": "Set up faster with AI",
@@ -3083,7 +3099,10 @@
       "results": "Results",
       "empty": "Nothing found",
       "hint": "↑↓ to move · Enter to open · Esc to close"
-    }
+    },
+    "copy": "Copy",
+    "copied": "Copied",
+    "copy_failed": "Could not copy. Select the text and copy it yourself."
   },
   "visuals": {
     "grade": {
@@ -3425,6 +3444,237 @@
       "unknown_title": "{domain} — collection evidence unavailable",
       "title": "{domain} scored {score}/100 ({grade}) on website readiness",
       "description": "Review technical and content readiness for {domain}. This score does not measure AI recommendations or exposure."
+    },
+    "platform_status": {
+      "visible": "Legacy technical estimate",
+      "partial": "Legacy technical estimate",
+      "blocked": "Legacy technical estimate",
+      "not_measured": "Not measured"
     }
+  },
+  "geoDetail": {
+    "sectionTitle": "Deep GEO Analysis",
+    "unlocked": "Unlocked",
+    "checkNo": "Check #{n}",
+    "c17Title": "Citation Density & Authority",
+    "c17Desc": "AISO rates external links with a local heuristic. Actual AI citations and consumer visibility are not measured by this check.",
+    "overallQuality": "Overall quality score",
+    "citationsPer1k": "Citations per 1,000 words",
+    "authorityBreakdown": "Citation authority breakdown",
+    "tierNote": "Tier 1 groups academic, government and major publications under AISO’s heuristic. These weights are not platform ranking rules.",
+    "tierOther": "Other",
+    "totalLinks": "<strong>{n}</strong> total links",
+    "externalLinks": "<strong>{n}</strong> external",
+    "c18Title": "Factual Density",
+    "c18Desc": "Page counts and a model assessment of factual uniqueness. Real search and consumer visibility are not measured by this check.",
+    "c18Unavailable": "Unavailable — retry to obtain provider evidence. Page counts remain available.",
+    "c18Legacy": "Legacy / unverifiable — provider provenance is unknown. Run a new scan.",
+    "numberDensity": "Number/stat density",
+    "entityDensity": "Named entity density",
+    "uniqueness": "Content uniqueness",
+    "dateRefs": "{n, plural, one {# date reference} other {# date references}}",
+    "comparativeData": "Comparative data",
+    "timeSeriesData": "Time-series data",
+    "c19Title": "Topical Authority",
+    "c19Unavailable": "Unavailable — no usable topical evidence was collected. Review the sitemap or run a new scan.",
+    "c19Legacy": "Legacy / unverifiable — topical collection provenance is unknown. Run a new scan.",
+    "c19Desc": "A local heuristic for topic clusters in the sampled sitemap. Coverage does not establish search ranking or citation performance.",
+    "coverageScore": "Topical coverage score",
+    "clustersDetected": "{n, plural, one {# topic cluster} other {# topic clusters}} detected",
+    "orphanPages": "⚠ {n, plural, one {# orphan page} other {# orphan pages}}",
+    "detectedClusters": "Detected clusters",
+    "c20Title": "AI Chunkability",
+    "c20Desc": "A local heuristic for content structure and chunk sizes. These thresholds are not platform requirements or guaranteed visibility gains.",
+    "optimalChunkRatio": "Optimal chunk ratio",
+    "contentChunks": "{n, plural, one {# content chunk} other {# content chunks}}",
+    "avgWords": "Avg {n} words/chunk",
+    "faqStyle": "✓ FAQ-style structure detected",
+    "topChunks": "Top chunks by extractability",
+    "answerFirst": "Answer-first",
+    "selfContained": "Self-contained",
+    "section": "Section {i}"
+  },
+  "checkItem": {
+    "question": "What this checks",
+    "whyItMatters": "Why it matters",
+    "whatWeFound": "What we found",
+    "status": "Status",
+    "howToFix": "How to fix",
+    "unavailable": "Unavailable — retry to obtain provider evidence",
+    "legacy": "Legacy / unverifiable — run a new scan",
+    "topicalUnavailable": "Unavailable — no usable topical evidence was collected. Review the sitemap or run a new scan."
+  },
+  "scanEvidence": {
+    "title": "Collection evidence",
+    "absent": "No verifiable collection evidence is available for this historical scan.",
+    "scope": "This scan has origin-only scope. No comparable improvement claim is available from this result.",
+    "collection": "Collection",
+    "pages": "Completed pages",
+    "collected": "Collected at",
+    "scanner": "Scanner",
+    "method": "Methodology",
+    "limited": "Collection is limited; missing observations are not measured failures or zero scores.",
+    "check": "Check",
+    "assessment": "Assessment",
+    "states": {
+      "complete": "Complete",
+      "partial": "Partial",
+      "blocked": "Blocked",
+      "failed": "Failed",
+      "unsupported": "Unsupported",
+      "unknown": "Unknown",
+      "pass": "Pass",
+      "warn": "Warning",
+      "fail": "Fail",
+      "not-verifiable": "Not verifiable",
+      "not-applicable": "Not applicable"
+    }
+  },
+  "accountUnlock": {
+    "title": "Save your full report",
+    "body": "Your report stays available after you sign in.",
+    "emailLabel": "Work email",
+    "emailPlaceholder": "you@company.com",
+    "createAccount": "Use Email Magic Link instead",
+    "continueGoogle": "Continue with Google to save your full report",
+    "or": "or",
+    "sending": "Sending magic link…",
+    "checkEmail": "Check your inbox for your secure sign-in link.",
+    "tooManyAttempts": "Too many attempts. Please wait a few minutes before trying again.",
+    "googleFailed": "Could not start Google sign-in. Please try again.",
+    "magicLinkFailed": "Could not send the magic link. Please try again.",
+    "finePrint": "No credit card · Save this scan for free",
+    "preparing": "Preparing your report save…",
+    "intentFailed": "Could not prepare your report save. Please try again.",
+    "retrySaving": "Retry saving",
+    "savedTitle": "Sign in to your saved report",
+    "savedBody": "Use the account that saved this report to view its full details.",
+    "savedGoogle": "Continue with Google to view your report",
+    "savedNote": "Access stays with the account that saved this report."
+  },
+  "pillarCards": {
+    "aria": "SEO, AEO and GEO diagnostic scores",
+    "note": "These diagnostic pillars overlap by design and do not add together. The overall AISO score remains the 100-point benchmark.",
+    "recalculated": "Recalculated with current methodology — not the original scan result.",
+    "legacy": "Historical stored score — coverage was not gated under this methodology.",
+    "stored": "Stored scan diagnostic",
+    "coverage": "Weighted coverage",
+    "version": "Methodology",
+    "states": {
+      "insufficient_evidence": "Insufficient evidence",
+      "provisional": "Provisional",
+      "scored": "Scored"
+    },
+    "checkCounts": "{passing} pass · {warnings} warn · {failing} fail",
+    "progressLabel": "{label}: {score} out of 100",
+    "pillars": {
+      "seo": {
+        "label": "SEO Foundation",
+        "description": "Discovery, crawlability, indexing and site structure"
+      },
+      "aeo": {
+        "label": "AEO Answer Readiness",
+        "description": "Machine extraction, answer structure and crawler access"
+      },
+      "geo": {
+        "label": "GEO Citation Authority",
+        "description": "Evidence, entities, factual depth and topical authority"
+      }
+    }
+  },
+  "notificationBell": {
+    "title": "Notifications",
+    "unknown": "Unread count unavailable",
+    "empty": "No notifications yet.",
+    "loading": "Loading…",
+    "failed": "Notifications could not be loaded.",
+    "retry": "Retry",
+    "mark": "Mark all read",
+    "writeFailed": "Notifications could not be marked as read."
+  },
+  "authFlow": {
+    "login": {
+      "checkEmail": "Check your email",
+      "sentTo": "We sent a magic link to <strong>{email}</strong>",
+      "continueWithGoogle": "Continue with Google",
+      "or": "or",
+      "sending": "Sending…",
+      "sendMagicLink": "Send Magic Link",
+      "emailLabel": "Work email",
+      "emailPlaceholder": "you@company.com",
+      "tooManyAttempts": "Too many attempts. Please wait a few minutes before trying again.",
+      "googleFailed": "Could not start Google sign-in. Please try again.",
+      "magicLinkFailed": "Could not send the magic link. Please try again."
+    },
+    "complete": {
+      "signingIn": "Signing you in…",
+      "failed": "Sign-in could not be completed. Please try again.",
+      "backToLogin": "Back to login"
+    },
+    "google": {
+      "starting": "Opening Google sign-in…",
+      "failed": "Could not start Google sign-in in this window.",
+      "back": "Back to sign in"
+    },
+    "loginPage": {
+      "signIn": "Sign in to your dashboard",
+      "subtitle": "Use Google or a one-time magic link. No password to remember.",
+      "back": "Back to site",
+      "eyebrow": "AI search readiness platform",
+      "headlineLead": "Be the answer",
+      "headlineHighlight": "AI search engines cite.",
+      "lede": "Scan, fix and monitor how ChatGPT, Google AI, Perplexity, Claude and Gemini read your website.",
+      "points": {
+        "checks": {
+          "title": "20 evidence-backed checks",
+          "body": "Crawler access, structured data and citability — each with traceable pass, warning or fail evidence."
+        },
+        "fixes": {
+          "title": "Prioritised fix packs",
+          "body": "llms.txt, robots.txt and FAQ JSON-LD drafted for the gaps that matter most."
+        },
+        "pulse": {
+          "title": "Weekly AI visibility pulse",
+          "body": "Sampled model answers, brand mentions and share of voice, tracked week over week."
+        }
+      },
+      "trust": "Sessions are encrypted and every workspace is isolated by account."
+    }
+  },
+  "onboardingWizard": {
+    "stepOf": "Step {step} of {total}",
+    "setupTitle": "Set up your brand",
+    "s1Title": "What's your brand name?",
+    "s1Subtitle": "This is how AI agents will look for you.",
+    "s1Placeholder": "e.g. Fimmick",
+    "continue": "Continue",
+    "back": "Back",
+    "s2Title": "Your website domain",
+    "s2Subtitle": "Enter your domain — no need for www or http.",
+    "s2Hint": "e.g. type <domain>fimmick.com</domain> not <domain>https://www.fimmick.com</domain>",
+    "s2Skip": "Skip — I don't have a website yet",
+    "s3Title": "Your industry & region",
+    "s3Subtitle": "Confirm the language and market for your tracking questions.",
+    "industryPlaceholder": "Industry (optional)",
+    "regionPlaceholder": "Region (optional)",
+    "s3Skip": "Skip — set up later",
+    "s4Title": "Tell AI what you do",
+    "s4Subtitle": "Review your brand details. We will use them to draft relevant tracking questions for your chosen language and market.",
+    "descLabel": "Brand description",
+    "optional": "(optional)",
+    "yourBrand": "Your brand",
+    "descPlaceholder": "e.g. {brand} is an AI search optimisation platform that helps businesses improve their visibility in ChatGPT, Perplexity, and Google AI answers.",
+    "competitorsLabel": "Main competitors",
+    "competitorsHint": "AI may mention these brands instead of yours — we'll track that.",
+    "competitorsPlaceholder": "e.g. Semrush, Ahrefs",
+    "add": "Add",
+    "settingUp": "Setting up…",
+    "goToDashboard": "Go to my dashboard",
+    "s4Skip": "Skip — I'll set this up later",
+    "genericError": "Something went wrong",
+    "seedPartial": "Your brand is saved. Question setup is incomplete; retry or continue to your workspace.",
+    "retrySeed": "Retry question setup",
+    "openWorkspace": "Open workspace",
+    "removeCompetitor": "Remove {name}"
   }
 }

@@ -567,3 +567,18 @@ html { scroll-behavior: smooth; }
   section, figure, li { break-inside: avoid; }
   [data-testid="fix-drawer"] { display: none !important; }
 }
+
+/* ── Interactive card: the one hover and focus treatment for a card that is a
+   link or a button (stat cards, the fix list, brand cards, workspace tools).
+   Lifts 2px with the e2 shadow; focus gets the ring; reduced motion keeps
+   the shadow and drops the movement. Transform and box-shadow only. */
+@utility card-interactive {
+  transition: transform 200ms var(--ease-standard), box-shadow 200ms var(--ease-standard), background-color 200ms var(--ease-standard);
+  &:hover { transform: translateY(-2px); box-shadow: var(--shadow-e2); }
+  &:active { transform: translateY(0); }
+  &:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
+  @media (prefers-reduced-motion: reduce) {
+    transition: box-shadow 200ms var(--ease-standard);
+    &:hover { transform: none; }
+  }
+}

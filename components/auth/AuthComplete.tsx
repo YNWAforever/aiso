@@ -3,18 +3,9 @@ import { useEffect, useRef, useState } from 'react'
 import { authClient } from '@/lib/auth-client'
 import { normalizeAuthNext } from '@/lib/auth-navigation'
 import { authLocale } from '@/lib/auth-return-to'
-
-const COPY_EN = {
-  signingIn: 'Signing you in…',
-  failed: 'Sign-in could not be completed. Please try again.',
-  backToLogin: 'Back to login',
-}
-
-const COPY_ZH_HK: typeof COPY_EN = {
-  signingIn: '正在為你登入…',
-  failed: '登入未能完成，請再試一次。',
-  backToLogin: '返回登入頁',
-}
+import { createTranslator } from 'next-intl'
+import en from '@/messages/en.json'
+import zh from '@/messages/zh-HK.json'
 
 function hasCompletedSession(data: unknown): boolean {
   if (!data || typeof data !== 'object') return false
@@ -38,7 +29,10 @@ function hasCompletedSession(data: unknown): boolean {
 export function AuthComplete({ lang, next }: { lang: string; next?: string }) {
   const ran = useRef(false)
   const [failed, setFailed] = useState(false)
-  const c = lang === 'zh-HK' ? COPY_ZH_HK : COPY_EN
+  // A lang prop, not the provider: the SDK browser fixture mounts this without one.
+  const t = lang === 'zh-HK'
+    ? createTranslator({ locale: 'zh-HK', messages: zh, namespace: 'authFlow.complete' })
+    : createTranslator({ locale: 'en', messages: en, namespace: 'authFlow.complete' })
 
   useEffect(() => {
     if (ran.current) return
@@ -84,16 +78,16 @@ export function AuthComplete({ lang, next }: { lang: string; next?: string }) {
       <div className="text-center">
         {failed ? (
           <>
-            <p className="text-foreground font-medium">{c.failed}</p>
+            <p className="text-foreground font-medium">{t('failed')}</p>
             <a
               href={`/${authLocale(lang)}/auth/login?next=${encodeURIComponent(normalizeAuthNext(lang, next))}`}
               className="text-primary underline text-sm mt-2 inline-block"
             >
-              {c.backToLogin}
+              {t('backToLogin')}
             </a>
           </>
         ) : (
-          <p className="text-muted-foreground">{c.signingIn}</p>
+          <p className="text-muted-foreground">{t('signingIn')}</p>
         )}
       </div>
     </div>

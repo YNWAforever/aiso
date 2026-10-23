@@ -1,9 +1,11 @@
 import { Illustration } from '@/components/ui/illustration'
+import { TrackedUpgradeLink } from '@/components/funnel/TrackedUpgradeLink'
 
 /**
  * An in-context upgrade prompt: shown where a plan limit stopped the user,
  * with one sentence of why and one button. No hooks, so client and server
- * components can both render it; the caller passes translated strings. A plain
+ * components can both render it; the caller passes translated strings. The
+ * link (TrackedUpgradeLink) records the prompt's funnel events. A plain
  * anchor, not next/link: pricing is a full page change, and the card also
  * renders in standalone component bundles that have no Next router.
  */
@@ -15,9 +17,9 @@ export function UpgradeCard({ title, body, cta, href, testId = 'upgrade-card' }:
         <p className="font-semibold text-foreground">{title}</p>
         <p className="mt-0.5 text-sm text-muted-foreground">{body}</p>
       </div>
-      <a href={href} className="inline-flex min-h-11 shrink-0 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-accessible focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+      <TrackedUpgradeLink href={href} className="inline-flex min-h-11 shrink-0 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-accessible focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
         {cta}
-      </a>
+      </TrackedUpgradeLink>
     </div>
   )
 }
