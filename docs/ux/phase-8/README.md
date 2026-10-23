@@ -25,7 +25,7 @@ Our own 20 checks, run against the home page (`general_b2c`, `global`).
 | c15 entity | warn `entity_signals_only` | pass | Organization JSON-LD on every public page |
 | c16 freshness | fail `freshness_missing` | pass | `dateModified` from `SITE_CONTENT_UPDATED`, a real date kept by hand |
 | c17 citations | fail | **warn** | the home page now cites the six standards the checks follow |
-| c18 factual density, c19 topical authority | need the LLM provider | verify on the preview | no change |
+| c18 factual density, c19 topical authority | need the LLM provider | verify on production after merge (the preview is behind a Vercel login) | no change |
 
 Score: **71 (B) → 89 (A)** on a local production build, counting c8 and c12
 as before (they compare against the configured public origin, which a local

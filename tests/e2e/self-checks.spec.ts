@@ -18,7 +18,7 @@ import type { PublicUrlFetch } from '@/lib/security/public-url'
  * build actually serves. Left out on purpose: c8 and c12 compare against the
  * configured public origin, which a test server does not run on; c17 scores
  * cited domains over the network; c18 and c19 need the LLM provider. Those
- * are verified on the deployed preview (docs/ux/phase-8/README.md).
+ * are verified on the deployed site (docs/ux/phase-8/README.md).
  */
 function fetcher(request: APIRequestContext): PublicUrlFetch {
   return (async (url: string) => {
