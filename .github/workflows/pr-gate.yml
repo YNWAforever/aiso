@@ -288,7 +288,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -303,10 +303,20 @@ jobs:
           set +e
           npm run build 2>&1 | tee artifacts/build/build.log
           build_exit=${PIPESTATUS[0]}
+          lighthouse_exit=1
+          if [ "$build_exit" -eq 0 ]; then
+            # Lighthouse CI against the same build: lighthouserc.cjs blocks on
+            # accessibility, layout shift and each page's JavaScript budget.
+            # Fixture mode is runtime-only (server env), so the build itself is
+            # the same production build as before.
+            E2E_FIXTURE_MODE=1 REPORT_SHARE_SECRET=fixture-report-share-secret-for-ci-only-00000001 \
+              npx lhci autorun --config=lighthouserc.cjs 2>&1 | tee artifacts/build/lighthouse.log
+            lighthouse_exit=${PIPESTATUS[0]}
+          fi
           set -e
-          if [ "$build_exit" -eq 0 ]; then status=success; else status=failure; fi
-          node scripts/ci/write-job-summary.mjs --job build --status "$status" --executed 1 --skipped 0 --artifact build/build.log --output artifacts/build-summary.json
-          exit "$build_exit"
+          if [ "$build_exit" -eq 0 ] && [ "$lighthouse_exit" -eq 0 ]; then status=success; else status=failure; fi
+          node scripts/ci/write-job-summary.mjs --job build --status "$status" --executed 2 --skipped 0 --artifact build/build.log --artifact build/lighthouse.log --artifact build/lighthouse --output artifacts/build-summary.json
+          if [ "$status" != success ]; then exit 1; fi
         env:
           CI: 'true'
           DATABASE_URL: postgresql://fixture:fixture@127.0.0.1:5432/fixture
