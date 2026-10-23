@@ -18,14 +18,23 @@ export function hasFailedScanPage(results: Record<string, unknown>): boolean {
   return hasFailedScanEvidence(evidence)
 }
 
+function confirmedCheckInputs(results: Record<string, unknown>) {
+  const envelope = readScanEvidence(results.evidence)
+  return projectFactualDensityChecks(envelope?.checks ?? Object.fromEntries(Object.keys(results).map(key => [key, {}])), results)
+}
+
+/** Each check's evidence-backed verdict: what the public heatmap draws, and what a report freezes. */
+export function publicCheckAssessments(results: Record<string, unknown>) {
+  return resolveCheckPriorities(confirmedCheckInputs(results)).assessments
+}
+
 export function buildPublicResultSummary(
   scan: Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'industry' | 'region' | 'results'>
     & Partial<Pick<Scan, 'account_id' | 'created_at'>> ,
 ) {
   const results = scan.results as Record<string, { status?: string } | unknown>
-  const envelope = readScanEvidence(results.evidence)
   const display = projectScanStatus({ score: scan.score, grade: scan.grade ?? null, evidence: results.evidence })
-  const checks = projectFactualDensityChecks(envelope?.checks ?? Object.fromEntries(Object.keys(results).map(key => [key, {}])), results)
+  const checks = confirmedCheckInputs(results)
   // Legacy verdicts are retained in storage/owner details; they cannot establish
   // a confirmed fix or a success count without collection evidence.
   const resolution = resolveCheckPriorities(checks)

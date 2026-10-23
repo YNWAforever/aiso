@@ -1,8 +1,10 @@
 import {projectScanStatus} from '@/lib/view-models/scan-status'
-import { hasFailedScanPage } from '@/lib/result-access'
+import { hasFailedScanPage, publicCheckAssessments } from '@/lib/result-access'
+import { CHECK_SLOTS } from '@/lib/result/view-model'
 import { compareScanEvidence, readScanEvidence } from '@/lib/scan-evidence'
 import { compareReportEvidence, isReportEvidence, normalizeReportDomain, parseReportTimestamp, REPORTABLE_CHECKS } from './comparison'
 import { buildDeterministicReportSummary } from './summary'
+import { REPORT_TREND_MAX } from './visuals'
 import {
   REPORT_LOCALES,
   REPORT_SNAPSHOT_SCHEMA_VERSION,
@@ -13,6 +15,8 @@ import {
   type ReportPriorityFix,
   type ReportRecommendationInput,
   type ReportScanInput,
+  type ReportCheckStatus,
+  type ReportTrendPoint,
 } from './types'
 
 export interface ClientReportSnapshotInput {
@@ -22,6 +26,8 @@ export interface ClientReportSnapshotInput {
   readonly currentScan: ReportScanInput
   readonly previousScan: ReportScanInput | null
   readonly recommendations: ReadonlyArray<ReportRecommendationInput>
+  /** Earlier scans for the score trend, any order; unusable ones are skipped. */
+  readonly history?: ReadonlyArray<ReportScanInput>
 }
 
 function normalizeText(value: string): string {
@@ -86,6 +92,44 @@ function buildFixes(
   }).slice(0, 5)
 }
 
+function reportChecks(results: unknown): Record<string, ReportCheckStatus> {
+  const assessments = publicCheckAssessments(results as Record<string, unknown>)
+  return Object.fromEntries(CHECK_SLOTS.map(slot => [slot.key, assessments[slot.key] ?? 'unknown']))
+}
+
+function evidenceOf(scan: ReportScanInput): unknown {
+  return (scan.results as Record<string, unknown>).evidence
+}
+
+/** The displayed score, or null when the scan cannot be shown as scored. */
+function trendScore(scan: ReportScanInput): number | null {
+  if (!isReportEvidence(scan.results) || hasFailedScanPage(scan.results)) return null
+  return projectScanStatus({ score: scan.score, grade: scan.grade, evidence: evidenceOf(scan) }).score
+}
+
+/**
+ * Up to eight scores ending on the current scan, for the same account and
+ * domain. Each point says whether it was collected the same way as the one
+ * before, so a method change is labelled rather than read as progress.
+ */
+function reportTrend(current: ReportScanInput, history: ReadonlyArray<ReportScanInput>): ReportTrendPoint[] | undefined {
+  const domain = normalizeReportDomain(current.domain)
+  const currentTime = parseReportTimestamp(current.createdAt)!
+  const earlier = history
+    .filter(scan => scan.accountId === current.accountId && normalizeReportDomain(scan.domain) === domain)
+    .filter(scan => { const time = parseReportTimestamp(scan.createdAt); return time !== null && time < currentTime })
+    .filter(scan => trendScore(scan) !== null)
+    .sort((a, b) => parseReportTimestamp(a.createdAt)! - parseReportTimestamp(b.createdAt)!)
+    .slice(-(REPORT_TREND_MAX - 1))
+  if (!earlier.length) return undefined
+  const scans = [...earlier, current]
+  return scans.map((scan, index) => ({
+    date: scan.createdAt,
+    score: scan === current ? current.score : trendScore(scan)!,
+    comparable: index === 0 || compareScanEvidence(evidenceOf(scans[index - 1]!), evidenceOf(scan)).comparable,
+  }))
+}
+
 export function buildClientReportSnapshot(input: ClientReportSnapshotInput): ClientReportSnapshotV1 {
   if (!REPORT_LOCALES.includes(input.locale)) throw new Error('Unsupported report locale')
   const domain = normalizeReportDomain(input.client.domain)
@@ -133,6 +177,7 @@ export function buildClientReportSnapshot(input: ClientReportSnapshotInput): Cli
     locale: input.locale, comparisonState, currentScore: input.currentScan.score,
     delta: 'delta' in score ? score.delta : undefined, changes: comparison.changes,
   })
+  const trend = reportTrend(input.currentScan, input.history ?? [])
   const coverage = readScanEvidence((input.currentScan.results as Record<string, unknown>).evidence)!
   const collectionLabel = input.locale === 'zh-HK'
     ? coverage.collection === 'complete' ? '完整' : '部分' : coverage.collection
@@ -168,6 +213,8 @@ export function buildClientReportSnapshot(input: ClientReportSnapshotInput): Cli
     priorityFixes,
     executiveSummary,
     methodology,
+    checks: reportChecks(input.currentScan.results),
+    ...(trend ? { trend } : {}),
   }
 }
 

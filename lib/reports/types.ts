@@ -23,6 +23,20 @@ export interface ReportPriorityFix {
   nextStep: string
 }
 
+/** A check's evidence-backed verdict, the same vocabulary the public result heatmap draws. */
+export type ReportCheckStatus = 'pass' | 'warn' | 'fail' | 'unknown' | 'not-applicable'
+
+export interface ReportTrendPoint {
+  date: string
+  score: number
+  /**
+   * Collected the same way as the point before it (compareScanEvidence). The
+   * first point is always true; a false point means the move into it may be a
+   * change of method, not of the site.
+   */
+  comparable: boolean
+}
+
 export interface ClientReportSnapshotV1 {
   snapshotSchemaVersion: 1
   locale: ReportLocale
@@ -34,6 +48,13 @@ export interface ClientReportSnapshotV1 {
   priorityFixes: ReadonlyArray<ReportPriorityFix>
   executiveSummary: string
   methodology: string
+  /**
+   * Optional, frozen at build. Versions built before the one-page report have
+   * neither, so every reader treats absence as "not recorded", never as zero.
+   */
+  checks?: Readonly<Record<string, ReportCheckStatus>>
+  /** Oldest first, ending with this report's own scan; at least two points. */
+  trend?: ReadonlyArray<ReportTrendPoint>
 }
 
 export type PublicReportBrandingSnapshot = Omit<ReportBrandingSnapshot, 'logoUrl' | 'contactUrl'> & {
