@@ -1739,7 +1739,35 @@
     "classifiedCoverage": "{classified}／{recorded} 個已記錄回答完成分類",
     "collectionCoverage": "{collected}／{expected} 個預期回答已採集",
     "legacyCoverage": "這個舊樣本沒有記錄整次工作的預期數量",
-    "unclassified": "查看未分類回答"
+    "unclassified": "查看未分類回答",
+    "signals": {
+      "status": {
+        "running": "每週追蹤運作中",
+        "stale": "自 {week} 起沒有每週結果",
+        "never": "每週追蹤尚未運作",
+        "body": "每次每週執行後會顯示新結果。"
+      },
+      "platforms": {
+        "title": "各 AI 平台每週表現",
+        "caption": "各 AI 平台每週的品牌提及",
+        "empty": "暫時未有平台結果。"
+      },
+      "competitors": {
+        "title": "你與競爭對手",
+        "caption": "過去 4 週提及各品牌的答案比例",
+        "you": "{brand}（你）",
+        "empty": "暫時未有可比較的答案。",
+        "share": "{n}% 的答案"
+      },
+      "alerts": {
+        "title": "提示",
+        "on": "已開啟",
+        "off": "已關閉",
+        "last": "最近提示：{date}",
+        "none": "暫時未有提示",
+        "error": "無法讀取提示狀態。"
+      }
+    }
   },
   "sampleReport": {
     "eyebrow": "合成示範 — 不含客戶資料",

@@ -91,7 +91,7 @@ it.each([
 
 it('routes explicit monitor through the owned Pulse loader before legacy reads', async () => {
   await expect(render({step:'monitor'})).rejects.toThrow('NOT_FOUND')
-  expect(mocks.pulse).toHaveBeenCalledWith({clientId:'client-a',profile})
+  expect(mocks.pulse).toHaveBeenCalledWith({clientId:'client-a',profile,withSignals:true})
   expect(mocks.load).not.toHaveBeenCalled()
   expect(mocks.sql).not.toHaveBeenCalled()
   expect(mocks.roi).not.toHaveBeenCalled()

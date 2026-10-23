@@ -21,6 +21,8 @@ import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar'
 import { TopBar } from '@/components/dashboard/shell/TopBar'
 import { TaskList } from '@/components/tasks/TaskList'
 import { PageHeader } from '@/components/ui/page-header'
+import { MonitorSignals } from '@/components/pulse/MonitorSignals'
+import { monitorView } from '../../tests/fixtures/monitor'
 import type { TaskRow } from '@/lib/tasks/status'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import { renderWithIntl } from '@/__tests__/helpers/intl'
@@ -79,6 +81,8 @@ const STATES = {
   tasks: (lang: string) => tasksPage(lang, tasks),
   'tasks-empty': (lang: string) => tasksPage(lang, []),
   'tasks-unavailable': (lang: string) => tasksPage(lang, null),
+  monitor: (lang: string) => shell(lang, `/${lang}/dashboard/${CLIENT}`, CLIENT,
+    <main className="mx-auto w-full min-w-0 max-w-4xl px-4 py-8 sm:px-6"><MonitorSignals view={monitorView('2026-09-28')} lang={lang} now={new Date('2026-10-23T00:00:00Z')} /></main>),
   portfolio: (lang: string) => shell(lang, `/${lang}/dashboard`, undefined, <main className="px-4 py-8"><h1>{(lang === 'en' ? en : zh).dashboard.shell.brands}</h1></main>),
 } as const
 

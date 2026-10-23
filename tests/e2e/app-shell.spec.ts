@@ -21,7 +21,7 @@ for (const lang of ['en', 'zh-HK'] as const) for (const width of [375, 1440]) fo
       await page.setContent(`<!doctype html><html lang="${lang}" class="${theme}"><head><meta charset="utf-8"><title>App shell acceptance</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}</style></head><body>${readFileSync(`${dir}/${lang}-${state}.html`, 'utf8')}</body></html>`)
     }
 
-    for (const state of ['tasks', 'tasks-empty', 'tasks-unavailable', 'portfolio']) {
+    for (const state of ['tasks', 'tasks-empty', 'tasks-unavailable', 'monitor', 'portfolio']) {
       await load(state)
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), state).toBe(true)
       expect((await new AxeBuilder({ page }).analyze()).violations, state).toEqual([])

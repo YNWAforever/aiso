@@ -1739,7 +1739,35 @@
     "classifiedCoverage": "{classified}/{recorded} recorded answers classified",
     "collectionCoverage": "{collected}/{expected} expected answers collected",
     "legacyCoverage": "Expected run size was not recorded for this legacy sample",
-    "unclassified": "Read unclassified answers"
+    "unclassified": "Read unclassified answers",
+    "signals": {
+      "status": {
+        "running": "Weekly tracking is running",
+        "stale": "No weekly results since {week}",
+        "never": "Weekly tracking is not running yet",
+        "body": "New results appear after each weekly run."
+      },
+      "platforms": {
+        "title": "AI platforms by week",
+        "caption": "Brand mentions by AI platform and week",
+        "empty": "No platform results yet."
+      },
+      "competitors": {
+        "title": "You vs competitors",
+        "caption": "Share of answers naming each brand, last 4 weeks",
+        "you": "{brand} (you)",
+        "empty": "No answers to compare yet.",
+        "share": "{n}% of answers"
+      },
+      "alerts": {
+        "title": "Alerts",
+        "on": "On",
+        "off": "Off",
+        "last": "Last alert {date}",
+        "none": "No alert raised yet",
+        "error": "Alert status could not be read."
+      }
+    }
   },
   "sampleReport": {
     "eyebrow": "Synthetic sample — no customer data",
