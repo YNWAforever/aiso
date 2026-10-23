@@ -1042,7 +1042,13 @@
       "limit": "Showing the {count} most recent tasks."
     },
     "local_visibility": "Local visibility",
-    "local_visibility_desc": "Local trust and ROI planning"
+    "local_visibility_desc": "Local trust and ROI planning",
+    "states": {
+      "loading": "Loading…",
+      "errorTitle": "This page did not load",
+      "errorBody": "Nothing was lost. Try again in a moment.",
+      "retry": "Try again"
+    }
   },
   "reports": {
     "create_client_report": "Create client report",
@@ -1155,7 +1161,8 @@
     "impact_high": "High",
     "impact_medium": "Medium",
     "impact_low": "Low",
-    "methodology": "Methodology and coverage"
+    "methodology": "Methodology and coverage",
+    "empty_action": "Open latest scan"
   },
   "reportBranding": {
     "title": "Report branding",
@@ -2143,7 +2150,8 @@
     "observedDelta": "Comparable observations: mention difference {delta}; causality and ROI unproven.",
     "notComparable": "Cannot directly compare: {reasons}",
     "operationsConflict": "This work record changed in another session. Your unsaved changes are retained. Reload the saved version to reconcile before saving.",
-    "reloadOperations": "Reload saved work record"
+    "reloadOperations": "Reload saved work record",
+    "emptyAction": "Run a scan"
   },
   "changeSets": {
     "title": "Version review",

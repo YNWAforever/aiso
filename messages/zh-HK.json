@@ -1042,7 +1042,13 @@
       "limit": "顯示最近 {count} 項任務。"
     },
     "local_visibility": "本地能見度",
-    "local_visibility_desc": "本地信任及 ROI 規劃"
+    "local_visibility_desc": "本地信任及 ROI 規劃",
+    "states": {
+      "loading": "載入中…",
+      "errorTitle": "此頁未能載入",
+      "errorBody": "資料沒有遺失，請稍後再試。",
+      "retry": "再試一次"
+    }
   },
   "reports": {
     "create_client_report": "建立客戶報告",
@@ -1155,7 +1161,8 @@
     "impact_high": "高",
     "impact_medium": "中",
     "impact_low": "低",
-    "methodology": "方法及覆蓋範圍"
+    "methodology": "方法及覆蓋範圍",
+    "empty_action": "打開最新掃描"
   },
   "reportBranding": {
     "title": "報告品牌設定",
@@ -2143,7 +2150,8 @@
     "observedDelta": "可比觀測：品牌提及差異 {delta}；未證明因果或 ROI。",
     "notComparable": "不能直接比較：{reasons}",
     "operationsConflict": "另一個視窗已更改工作紀錄。已保留你的未儲存內容；請重新載入已儲存版本並核對後再儲存。",
-    "reloadOperations": "重新載入已儲存工作紀錄"
+    "reloadOperations": "重新載入已儲存工作紀錄",
+    "emptyAction": "進行掃描"
   },
   "changeSets": {
     "title": "版本審核",

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import {citationQueryParams} from '@/lib/citations/query'
 import { useLocale, useTranslations } from 'next-intl'
+import { EmptyState } from '@/components/ui/empty-state'
 
 import type { CitationKind } from '@/lib/citations/classify'
 import type { CitationDomain, CitationReport } from '@/lib/citations/report'
@@ -54,7 +55,7 @@ export function CitationExplorer({ report, clientId }: { report: CitationReport;
       {report.evidenceWindow&&<nav aria-label={t('answer_evidence')} className="flex flex-wrap gap-3"><p>{t('evidence_window',{shown:report.evidence?.length??0,total:report.evidenceWindow.total,page:report.evidenceWindow.page})}</p>{report.evidenceWindow.page>1&&<a className="min-h-11 underline" href={queryHref({evidencePage:report.evidenceWindow.page-1})}>{t('previous')}</a>}{report.evidenceWindow.page*report.evidenceWindow.pageSize<report.evidenceWindow.total&&<a className="min-h-11 underline" href={queryHref({evidencePage:report.evidenceWindow.page+1})}>{t('next_evidence')}</a>}</nav>}
       <section className="space-y-2"><p>{t('gap_'+report.gapCoverage.state,{configured:report.gapCoverage.configuredCompetitors,domains:report.gapCoverage.competitorsWithDomains})}</p>{['not_configured','partial_config'].includes(report.gapCoverage.state)&&<a className="inline-flex min-h-11 items-center underline" href={`/${locale}/dashboard/${clientId}/competitors`}>{t('configure_competitors')}</a>}</section>
       {report.domains.length === 0 && (!report.pages||report.pages.domains.total===0) ? (
-        <p className="text-sm text-muted-foreground">{report.query?.kind||report.query?.domain?t('filtered_empty'):t('empty')}</p>
+        report.query?.kind||report.query?.domain?<p className="text-sm text-muted-foreground">{t('filtered_empty')}</p>:<EmptyState illustration="monitor" title={t('empty')} />
       ) : (
         <>
           <section aria-labelledby="citation-gaps-title" className="space-y-2">
