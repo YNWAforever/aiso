@@ -49,8 +49,10 @@ Evidence for the Phase 7 PR. "Before" is `main`; "after" is
   (1,200-character summary and three 1,200-character recommendations) now
   prints on one A4 page in both languages. Print puts score, trend and
   heatmap in one row and the fixes full width; the scale follows the amount
-  of text, calibrated against real PDFs. Below a readable floor (66%), only
-  an agency's recommendations are cut in print, with a note that the online
+  of text, calibrated against real PDFs with at least 0.06 of headroom (CI
+  runners set text slightly larger than a laptop). Past the last step the
+  scale stops at a readable 68% and only an agency's recommendations are cut
+  in print, to 8 lines plus 3 for the next step, with a note that the online
   report has the full text. A recommendation stored as both rationale and
   next step now prints once.
 

@@ -209,11 +209,11 @@ function FixItem({ fix, index, locale, heading: Heading, shorten }: { fix: Repor
       </span>
       <div className="min-w-0">
         <Heading className="break-words font-semibold leading-6 print:text-sm">{title}</Heading>
-        <p className={`mt-1 break-words text-sm leading-6 text-muted-foreground print:text-xs print:leading-5 ${cut ? 'print:line-clamp-10' : ''}`}>{rationale}</p>
+        <p className={`mt-1 break-words text-sm leading-6 text-muted-foreground print:text-xs print:leading-5 ${cut ? 'print:line-clamp-8' : ''}`}>{rationale}</p>
         {nextStep && (
           <p className="mt-1.5 flex min-w-0 items-start gap-2 text-sm leading-6 print:mt-1 print:text-xs print:leading-5">
             <CheckCircle2 aria-hidden="true" className="mt-1 size-4 shrink-0 text-primary-accessible" />
-            <span className={`min-w-0 break-words ${cut ? 'print:line-clamp-4' : ''}`}><span className="font-medium">{page('next_step')}:</span> {nextStep}</span>
+            <span className={`min-w-0 break-words ${cut ? 'print:line-clamp-3' : ''}`}><span className="font-medium">{page('next_step')}:</span> {nextStep}</span>
           </p>
         )}
         {cut && <p className="hidden text-xs italic text-muted-foreground print:block">{page('fix_shortened')}</p>}

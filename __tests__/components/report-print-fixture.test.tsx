@@ -4,7 +4,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { OnePageReport } from '@/components/reports/OnePageReport'
 import { sampleReportSnapshot } from '@/lib/reports/sample'
 import { parseClientReportSnapshot } from '@/lib/reports/client-dto'
-import { PRINT_ZOOM_STEPS, reportPrintLayout } from '@/lib/view-models/report-page'
+import { PRINT_FLOOR_ZOOM, reportPrintLayout } from '@/lib/view-models/report-page'
 import type { ClientReportSnapshotV1, ReportLocale } from '@/lib/reports/types'
 import { renderWithIntl } from '@/__tests__/helpers/intl'
 
@@ -56,10 +56,11 @@ describe('report print fixtures', () => {
     const layouts = ['sample', 'medium', 'longest'].map(state => reportPrintLayout(STATES[state]!('zh-HK')))
     const zooms = layouts.map(layout => layout.zoom)
     expect(zooms).toEqual([...zooms].sort((a, b) => b - a))
-    expect(zooms.at(-1)).toBe(PRINT_ZOOM_STEPS.at(-1)!.zoom)
+    expect(zooms.at(-1)).toBe(PRINT_FLOOR_ZOOM)
     // Only past the last step is an agency's text cut, and only in print.
-    expect(layouts.map(layout => layout.shortenFixes)).toEqual([false, false, true])
-    expect(reportPrintLayout(STATES.longest!('en')).shortenFixes).toBe(false)
+    expect(layouts.map(layout => layout.shortenFixes)).toEqual([false, true, true])
+    expect(reportPrintLayout(STATES.medium!('en')).shortenFixes).toBe(false)
+    expect(reportPrintLayout(STATES.longest!('en')).shortenFixes).toBe(true)
   })
 
   it('prints a recommendation once when its next step repeats it', () => {

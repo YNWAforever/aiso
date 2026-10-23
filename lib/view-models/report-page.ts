@@ -98,19 +98,20 @@ export function buildReportPage(snapshot: ClientReportSnapshotV1): ReportPageVie
  * characters, recommendations of up to 1,200 each). Han characters set about
  * 2.2 times as wide as Latin ones in this layout, so they weigh more.
  *
- * Steps are the largest scale that still fits, measured by
- * tests/e2e/report-print.spec.ts on Chromium, with margin. Below the last
+ * Steps sit at least 0.06 below the largest scale that still fits, measured
+ * by tests/e2e/report-print.spec.ts on Chromium: CI runners set text a little
+ * larger than a laptop, and a zero-margin step failed there. Below the last
  * step text stops being readable, so instead of shrinking further an
  * agency's recommendations are cut to a few lines in print only, with a note
  * that the online report has the full text.
  */
 export const PRINT_ZOOM_STEPS: ReadonlyArray<{ upTo: number; zoom: number }> = [
-  { upTo: 1300, zoom: 0.92 },
-  { upTo: 2300, zoom: 0.82 },
-  { upTo: 3000, zoom: 0.8 },
-  { upTo: 5000, zoom: 0.66 },
+  { upTo: 600, zoom: 0.86 },
+  { upTo: 1500, zoom: 0.84 },
+  { upTo: 3000, zoom: 0.76 },
 ]
-const FLOOR = PRINT_ZOOM_STEPS[PRINT_ZOOM_STEPS.length - 1]!.zoom
+/** Past the last step: the readable floor, with an agency's text cut in print. */
+export const PRINT_FLOOR_ZOOM = 0.68
 
 const WIDE = /[\u2e80-\u9fff\uf900-\ufaff\uff00-\uffef]/
 
@@ -119,5 +120,5 @@ export function reportPrintLayout(snapshot: ClientReportSnapshotV1): { zoom: num
   let weight = 0
   for (const char of [snapshot.executiveSummary, ...custom].join('')) weight += WIDE.test(char) ? 2.2 : 1
   const step = PRINT_ZOOM_STEPS.find(candidate => weight <= candidate.upTo)
-  return step ? { zoom: step.zoom, shortenFixes: false } : { zoom: FLOOR, shortenFixes: true }
+  return step ? { zoom: step.zoom, shortenFixes: false } : { zoom: PRINT_FLOOR_ZOOM, shortenFixes: true }
 }
