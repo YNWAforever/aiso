@@ -2,7 +2,6 @@
 import {GroupedOpportunityCards} from './GroupedOpportunityCards'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import Link from 'next/link'
 import { EmptyState } from '@/components/ui/empty-state'
 import { scanOpportunityCopy } from '@/lib/opportunities/presentation'
 import { MaintenanceNextSteps,workflowCopyKeys,type WorkflowCopy } from '@/components/workspace/MaintenanceNextSteps'
@@ -311,7 +310,7 @@ function OpportunityContent({
         </div>
         {data && data.suggestions.length === 0 && (Object.values(data.sourceStates).includes('unavailable')
           ? <p>{t('noAvailableSuggestions')}</p>
-          : <EmptyState illustration="fixes" title={t('empty')} action={<Link href={`/${locale}/dashboard/${clientId}?step=scan`} className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-accessible focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t('emptyAction')}</Link>} />)}
+          : <EmptyState illustration="fixes" title={t('empty')} action={<a href={`/${locale}/dashboard/${clientId}?step=scan`} className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-accessible focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t('emptyAction')}</a>} />)}
         {data?.groups&&<GroupedOpportunityCards clientId={clientId} groups={data.groups.filter(g=>g.context?.runId&&g.platforms.length>1)} suggestions={data.suggestions} onOpen={id=>void open(id)}/>}
         {data?.suggestions.filter(s=>!data.groups?.some(g=>g.context?.runId&&g.platforms.length>1&&g.suggestionKeys.includes(s.key))).map((suggestion) => {
           const copy = suggestion.evidence.kind === 'scan-check' ? scanOpportunityCopy(suggestion.evidence, locale) : null
