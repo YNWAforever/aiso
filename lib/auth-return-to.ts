@@ -16,7 +16,7 @@ export function safeReturnTo(raw: unknown, requestedLang: string): string {
     if (url.origin !== 'https://auth.invalid') return dashboard
     const path = url.pathname
     const clientRoot = new RegExp(`^${dashboard}/${UUID}$`, 'i')
-    const tools = new RegExp(`^${dashboard}/${UUID}/(?:entities|sources|observations|opportunities|prompts|reports)$`, 'i')
+    const tools = new RegExp(`^${dashboard}/${UUID}/(?:entities|sources|observations|opportunities|prompts|reports|tasks)$`, 'i')
     const nested = new RegExp(`^${dashboard}/${UUID}/(?:reports/(?:new|${UUID})|result/${OPAQUE}|work-items/${UUID}/versions)$`, 'i')
     // Existing public scan claim is a separate, already-used login continuation.
     const scanClaim = new RegExp(`^/${lang}/result/${OPAQUE}$`)

@@ -980,7 +980,69 @@
     "local_trust_timeline_limitation": "Estimated, not observed. This is arithmetic over the figures you entered. AISO has not measured any enquiry, sale or revenue, and a technical or visibility improvement is not proven search or revenue uplift.",
     "cited_sources": "Cited sources",
     "select_brand_first": "Select a brand first",
-    "plan_required": "Plan access required"
+    "plan_required": "Plan access required",
+    "nav_overview": "Overview",
+    "nav_overview_desc": "Score, trend and next step",
+    "nav_scan_fix": "Scan & Fix",
+    "nav_scan_fix_desc": "Checks, fixes and tasks",
+    "nav_reports": "Reports",
+    "nav_reports_desc": "Reports to share",
+    "nav_settings": "Settings",
+    "nav_settings_desc": "Brand, facts and plan",
+    "nav_fixes": "Fixes",
+    "nav_tasks": "Tasks",
+    "nav_assets": "Pages & assets",
+    "nav_account": "Account & plan",
+    "shell": {
+      "brands": "Brands",
+      "switch_brand": "Switch brand",
+      "all_brands": "All brands",
+      "brand_menu": "Brand: {name}",
+      "brands_unavailable": "Brand list unavailable",
+      "search": "Search",
+      "help": "Help",
+      "help_methodology": "How scoring works",
+      "help_sample": "Sample report",
+      "help_contact": "Contact us",
+      "help_shortcuts": "Search with ⌘K or Ctrl+K",
+      "group_go": "Go to",
+      "group_brands": "Brands",
+      "group_actions": "Actions",
+      "action_scan": "Scan a website",
+      "action_report": "New report"
+    },
+    "tasks": {
+      "title": "Tasks",
+      "subtitle": "Every fix, from draft to delivered.",
+      "filters": "Filter by status",
+      "all": "All ({count})",
+      "status": {
+        "draft": "Draft",
+        "in_review": "In review",
+        "changes_requested": "Changes requested",
+        "approved": "Approved",
+        "delivered": "Delivered"
+      },
+      "filter": {
+        "draft": "Draft ({count})",
+        "in_review": "In review ({count})",
+        "changes_requested": "Changes requested ({count})",
+        "approved": "Approved ({count})",
+        "delivered": "Delivered ({count})"
+      },
+      "version": "Version {number}",
+      "not_submitted": "Not submitted",
+      "updated": "Updated {date}",
+      "empty_title": "No tasks yet",
+      "empty_body": "Turn a fix into a task from Opportunities.",
+      "empty_action": "Open Opportunities",
+      "empty_filter": "No tasks with this status.",
+      "unavailable": "Tasks are unavailable right now. Try again shortly.",
+      "retry": "Try again",
+      "limit": "Showing the {count} most recent tasks."
+    },
+    "local_visibility": "Local visibility",
+    "local_visibility_desc": "Local trust and ROI planning"
   },
   "reports": {
     "create_client_report": "Create client report",
@@ -1543,7 +1605,13 @@
       "opportunities": "Review improvement work",
       "review": "Review monitoring status",
       "status": "Check monitoring availability",
-      "work": "Review saved work"
+      "work": "Review saved work",
+      "scan": "Run a new scan"
+    },
+    "localVisibility": {
+      "title": "Local visibility",
+      "body": "See how buyers nearby find you.",
+      "cta": "Open local visibility"
     }
   },
   "portfolio": {

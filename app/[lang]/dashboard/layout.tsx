@@ -5,7 +5,8 @@ import { AUTH_RETURN_TO_HEADER } from '@/lib/auth-return-to'
 import { db } from '@/lib/db'
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar'
 import { TrialBanner } from '@/components/dashboard/TrialBanner'
-import { NotificationBell } from '@/components/dashboard/NotificationBell'
+import { TopBar } from '@/components/dashboard/shell/TopBar'
+import { listOwnedBrands, type OwnedBrand } from '@/lib/workspace/list-owned-brands'
 import { getTrialStatus } from '@/lib/trial'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 
@@ -42,6 +43,15 @@ export default async function DashboardLayout({
     console.error('[dashboard] unread notification count failed:', error)
   }
 
+  // The brand list for the switcher and ⌘K. The current brand itself is read
+  // from the route by the top bar, for the same reason as above.
+  let brands: OwnedBrand[] | null = null
+  try {
+    brands = await listOwnedBrands(profile.account_id)
+  } catch (error) {
+    console.error('[dashboard] brand list failed:', error)
+  }
+
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       <SessionRefresh />
@@ -51,9 +61,7 @@ export default async function DashboardLayout({
       <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
         <DashboardSidebar profile={profile} entitlement={entitlement} />
         <div className="flex-1 min-w-0 w-full flex flex-col overflow-auto">
-          <header className="flex justify-end px-6 py-3 border-b border-border">
-            <NotificationBell key={unreadCount ?? 'unknown'} initialCount={unreadCount} lang={lang} />
-          </header>
+          <TopBar lang={lang} brands={brands} unreadCount={unreadCount} features={entitlement.features} />
           {children}
         </div>
       </div>

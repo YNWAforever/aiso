@@ -16,9 +16,12 @@ function code(path: string) {
 }
 
 const SIDEBAR = 'components/dashboard/DashboardSidebar.tsx'
+const TOPBAR = 'components/dashboard/shell/TopBar.tsx'
 const LAYOUT = 'app/[lang]/dashboard/layout.tsx'
-const PAGE = 'app/[lang]/dashboard/[clientId]/page.tsx'
 
+// Link targets, locks and reachability live in lib/dashboard-nav.ts and are
+// tested in __tests__/lib/dashboard-nav.test.ts; rendering in
+// dashboard-sidebar-portfolio.test.tsx. These pin the wiring around them.
 describe('dashboard sidebar brand resolution', () => {
   it('no longer depends on the header Next 16 does not set', () => {
     // The layout read `x-invoke-path`, a Next 13-era internal. Nothing in the
@@ -26,8 +29,8 @@ describe('dashboard sidebar brand resolution', () => {
     // matched: brandId was permanently undefined, every nav link dropped the
     // brand, and the results entry was locked and unclickable forever.
     expect(code(LAYOUT)).not.toContain('x-invoke-path')
-    // T14 adds an app-owned authentication return header. Brand resolution
-    // still belongs to the sidebar's route params and must not move back here.
+    // Brand resolution belongs to the route params of the client components
+    // and must not move back here.
     expect(code(LAYOUT)).not.toContain('const brandId')
   })
 
@@ -36,114 +39,34 @@ describe('dashboard sidebar brand resolution', () => {
 
     expect(sidebar).toContain('useParams<{ lang: string; clientId?: string }>()')
     expect(sidebar).toContain('const clientId = params?.clientId ?? brandId')
+    expect(code(TOPBAR)).toContain('const clientId = params?.clientId ?? null')
   })
 
-  it('builds every workflow link against that id', () => {
-    // The bug's user-visible symptom: links resolved to the brand-less
-    // /dashboard, losing the brand on every navigation.
-    const sidebar = code(SIDEBAR)
-
-    expect(sidebar).toContain('clientId ? `/${lang}/dashboard/${clientId}?step=${s.key}`')
-    expect(sidebar).not.toContain('brandId ? `/${lang}/dashboard/${brandId}')
-  })
-
-  it('unlocks results once a brand is in the route', () => {
-    // results was the first step to need this; monitor and roi joined it on
-    // restore, so the rule reads off BRAND_STEPS instead of naming one key.
-    const sidebar = code(SIDEBAR)
-
-    expect(sidebar).toContain("new Set(['results', 'monitor', 'roi'])")
-    expect(sidebar).toContain('BRAND_STEPS.has(s.key) && !clientId')
-  })
-})
-
-describe('monitor and roi navigation', () => {
-  it('leaves no step the page renders but the sidebar cannot reach', () => {
-    // The regression this catches shipped for real: 7b0cb9d removed the monitor
-    // and roi entries while their targets were fenced, the page's step switch
-    // went on rendering both, and MonitorStep and LocalTrustStep spent that
-    // whole window reachable only by hand-typing ?step=. Derived from source on
-    // both sides so adding a step to either file alone fails here.
-    const rendered = new Set(
-      [...code(PAGE).matchAll(/step === '(\w+)'/g)].map((m) => m[1]),
-    )
-    const linked = new Set(
-      [...code(SIDEBAR).matchAll(/\{ key: '(\w+)'/g)].map((m) => m[1]),
-    )
-
-    expect([...linked].sort()).toEqual([...rendered].sort())
-  })
-
-  it('reuses the copy that outlived the removal in both locales', () => {
-    // Same story as the question bank below: the keys were never deleted, so
-    // restoring the entries needed no new translations.
-    for (const locale of ['en', 'zh-HK'] as const) {
-      const dashboard = JSON.parse(read(`messages/${locale}.json`)).dashboard
-      for (const key of ['nav_monitor', 'nav_monitor_desc', 'nav_roi', 'nav_roi_desc']) {
-        expect(dashboard[key], `${locale} ${key}`).toBeTruthy()
-      }
+  it('takes every link from the shared navigation model', () => {
+    // One source for the sidebar, the breadcrumbs and ⌘K, so they cannot disagree.
+    for (const file of [SIDEBAR, TOPBAR]) {
+      expect(code(file)).toContain('buildDashboardNav({ lang, clientId, features })')
+      expect(code(file)).toContain('locateDashboard(')
     }
   })
 
-  it('blocks navigation for a missing brand but not for a plan limit', () => {
-    // A brand-less step has no target to reach; an unentitled one renders its
-    // own locked card and pricing link, which pointer-events-none would hide.
-    const sidebar = code(SIDEBAR)
-
-    expect(sidebar).toContain('portfolio-brands')
-    expect(sidebar).toContain('BRAND_STEPS.has(s.key) && !clientId')
-    expect(sidebar).toContain("(s.key === 'roi' && !features.local_trust_roi)")
+  it('never blocks a link for a plan limit', () => {
+    // An unentitled page renders its own locked card and pricing link, which
+    // pointer-events-none would hide.
+    expect(code(SIDEBAR)).not.toContain('pointer-events-none')
+    expect(code(SIDEBAR)).not.toContain('aria-disabled')
   })
 })
 
-describe('question bank navigation', () => {
-  it('links the question bank from the sidebar', () => {
-    const sidebar = code(SIDEBAR)
-
-    expect(sidebar).toContain('/${lang}/dashboard/${clientId}/prompts')
-    expect(sidebar).toContain("t('question_bank')")
-    expect(sidebar).toContain("t('tools')")
-  })
-
-  it('reuses the copy that was already translated in both locales', () => {
-    // dashboard.tools and dashboard.question_bank survived 7b0cb9d, which
-    // removed the link because its target was fenced, not because the shape was
-    // wrong. No new keys needed.
+describe('navigation copy', () => {
+  it('has every section and item label in both locales', () => {
+    const keys = ['nav_overview', 'nav_overview_desc', 'nav_scan_fix', 'nav_scan_fix_desc', 'nav_monitor', 'nav_monitor_desc',
+      'nav_reports', 'nav_reports_desc', 'nav_settings', 'nav_settings_desc', 'nav_scan', 'nav_results', 'nav_fixes', 'nav_tasks',
+      'opportunities', 'observations', 'question_bank', 'competitors', 'cited_sources', 'entity', 'sources', 'nav_assets', 'nav_account',
+      'select_brand_first', 'local_visibility']
     for (const locale of ['en', 'zh-HK'] as const) {
       const dashboard = JSON.parse(read(`messages/${locale}.json`)).dashboard
-      expect(dashboard.tools, `${locale} tools`).toBeTruthy()
-      expect(dashboard.question_bank, `${locale} question_bank`).toBeTruthy()
+      for (const key of keys) expect(dashboard[key], `${locale} ${key}`).toBeTruthy()
     }
-  })
-
-  it('stays clickable for a plan without edit_prompts', () => {
-    // The page renders its own locked card and a pricing link, so blocking
-    // navigation would make that unreachable — the same carve-out the workflow
-    // steps make for a plan limit. A Pro pill marks it instead.
-    const sidebar = code(SIDEBAR)
-    const tools = sidebar.slice(sidebar.indexOf("t('tools')"))
-
-    expect(tools).not.toContain('pointer-events-none')
-    expect(tools).toContain('!features.edit_prompts')
-  })
-
-  it('marks itself active on its own route rather than leaving Scan highlighted', () => {
-    // Sub-routes carry no ?step=, so `step` falls back to 'scan' and the Scan
-    // entry would otherwise render as active while the user is on the bank.
-    const sidebar = code(SIDEBAR)
-
-    expect(sidebar).toContain('usePathname')
-    expect(sidebar).toContain('const active = !onSubRoute && step === s.key')
-    expect(sidebar).toContain("pathname?.endsWith('/prompts')")
-  })
-})
-
-describe('private entity navigation', () => {
-  it('offers the owned-client tool with an exact active destination', () => {
-    const sidebar = code(SIDEBAR)
-    expect(sidebar).toContain('href={`/${lang}/dashboard/${clientId}/entities`}')
-    expect(sidebar).toContain("pathname === `/${lang}/dashboard/${clientId}/entities` ? 'page' : undefined")
-    expect(sidebar).toContain("{t('entity')}")
-    for (const locale of ['en', 'zh-HK']) expect(JSON.parse(read(`messages/${locale}.json`)).dashboard.entity).toBeTruthy()
   })
 })

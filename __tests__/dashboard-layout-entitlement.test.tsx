@@ -21,13 +21,14 @@ vi.mock('@/components/dashboard/DashboardSidebar', () => ({
 vi.mock('@/components/dashboard/TrialBanner', () => ({
   TrialBanner: () => null,
 }))
-vi.mock('@/components/dashboard/NotificationBell', () => ({
-  NotificationBell: () => null,
+vi.mock('@/components/dashboard/shell/TopBar', () => ({
+  TopBar: () => null,
 }))
+vi.mock('server-only', () => ({}))
 
 import DashboardLayout from '@/app/[lang]/dashboard/layout'
 import { TrialBanner } from '@/components/dashboard/TrialBanner'
-import { NotificationBell } from '@/components/dashboard/NotificationBell'
+import { TopBar } from '@/components/dashboard/shell/TopBar'
 
 type TrialBannerProps = {
   daysRemaining: number
@@ -122,25 +123,27 @@ describe('dashboard notification bell', () => {
     dbNextResults.length = 0
   })
 
-  it('passes the unread count to the bell', async () => {
-    dbNextResults.push([{ n: 3 }])
+  // The bell lives in the top bar now (Phase 4); the layout still owns the count.
+  type TopBarProps = { unreadCount: number | null; brands: { id: string; name: string }[] | null }
+
+  it('passes the unread count and the brands to the top bar', async () => {
+    dbNextResults.push([{ n: 3 }], [{ id: 'c1', brand_name: 'Acme', domain: 'acme.test' }])
 
     const layout = await renderLayout(account())
-    const bell = findElementOfType<{ initialCount: number | null }>(layout, NotificationBell)
+    const bar = findElementOfType<TopBarProps>(layout, TopBar)
 
-    expect(bell).toBeDefined()
-    expect(bell?.props.initialCount).toBe(3)
-    expect(String(bell?.key).endsWith('3')).toBe(true)
+    expect(bar?.props.unreadCount).toBe(3)
+    expect(bar?.props.brands).toEqual([{ id: 'c1', name: 'Acme', domain: 'acme.test' }])
   })
 
-  it('preserves an unknown count without failing the page when the query throws', async () => {
-    dbNextResults.push(new Error('connection terminated'))
+  it('preserves an unknown count and unknown brands without failing the page', async () => {
+    dbNextResults.push(new Error('connection terminated'), new Error('connection terminated'))
 
     const layout = await renderLayout(account())
-    const bell = findElementOfType<{ initialCount: number | null }>(layout, NotificationBell)
+    const bar = findElementOfType<TopBarProps>(layout, TopBar)
 
-    expect(bell).toBeDefined()
-    expect(bell?.props.initialCount).toBeNull()
-    expect(String(bell?.key).endsWith('unknown')).toBe(true)
+    expect(bar).toBeDefined()
+    expect(bar?.props.unreadCount).toBeNull()
+    expect(bar?.props.brands).toBeNull()
   })
 })

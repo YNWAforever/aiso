@@ -980,7 +980,69 @@
     "local_trust_timeline_limitation": "這是估算，不是觀察所得。這只是根據你輸入的數字所作的計算。AISO 並未量度過任何查詢、成交或收入；技術或能見度上的改善，並不等於已證實的搜尋或收入提升。",
     "cited_sources": "被引用的來源",
     "select_brand_first": "先選擇品牌",
-    "plan_required": "需要方案權益"
+    "plan_required": "需要方案權益",
+    "nav_overview": "總覽",
+    "nav_overview_desc": "分數、趨勢及下一步",
+    "nav_scan_fix": "掃描及修復",
+    "nav_scan_fix_desc": "檢查、修復及任務",
+    "nav_reports": "報告",
+    "nav_reports_desc": "可分享的報告",
+    "nav_settings": "設定",
+    "nav_settings_desc": "品牌、資料及方案",
+    "nav_fixes": "修復建議",
+    "nav_tasks": "任務",
+    "nav_assets": "頁面及資產",
+    "nav_account": "帳戶及方案",
+    "shell": {
+      "brands": "品牌",
+      "switch_brand": "切換品牌",
+      "all_brands": "所有品牌",
+      "brand_menu": "品牌：{name}",
+      "brands_unavailable": "暫時無法載入品牌",
+      "search": "搜尋",
+      "help": "說明",
+      "help_methodology": "評分方法",
+      "help_sample": "範例報告",
+      "help_contact": "聯絡我們",
+      "help_shortcuts": "按 ⌘K 或 Ctrl+K 搜尋",
+      "group_go": "前往",
+      "group_brands": "品牌",
+      "group_actions": "操作",
+      "action_scan": "掃描網站",
+      "action_report": "新增報告"
+    },
+    "tasks": {
+      "title": "任務",
+      "subtitle": "每項修復，由草稿到交付。",
+      "filters": "按狀態篩選",
+      "all": "全部（{count}）",
+      "status": {
+        "draft": "草稿",
+        "in_review": "審批中",
+        "changes_requested": "需修改",
+        "approved": "已批准",
+        "delivered": "已交付"
+      },
+      "filter": {
+        "draft": "草稿（{count}）",
+        "in_review": "審批中（{count}）",
+        "changes_requested": "需修改（{count}）",
+        "approved": "已批准（{count}）",
+        "delivered": "已交付（{count}）"
+      },
+      "version": "第 {number} 版",
+      "not_submitted": "未提交",
+      "updated": "更新於 {date}",
+      "empty_title": "暫時沒有任務",
+      "empty_body": "在改善機會中把修復建議轉為任務。",
+      "empty_action": "開啟改善機會",
+      "empty_filter": "沒有這個狀態的任務。",
+      "unavailable": "暫時無法載入任務，請稍後再試。",
+      "retry": "再試一次",
+      "limit": "顯示最近 {count} 項任務。"
+    },
+    "local_visibility": "本地能見度",
+    "local_visibility_desc": "本地信任及 ROI 規劃"
   },
   "reports": {
     "create_client_report": "建立客戶報告",
@@ -1543,7 +1605,13 @@
       "opportunities": "查看改善工作",
       "review": "查看監測狀態",
       "status": "查看監測可用性",
-      "work": "覆核已保存的工作"
+      "work": "覆核已保存的工作",
+      "scan": "執行新掃描"
+    },
+    "localVisibility": {
+      "title": "本地能見度",
+      "body": "看看附近的買家如何找到你。",
+      "cta": "查看本地能見度"
     }
   },
   "portfolio": {

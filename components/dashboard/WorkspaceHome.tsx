@@ -2,7 +2,8 @@ import {RunProgress} from '@/components/pulse/RunProgress'
 import {PulseCoverage} from '@/components/pulse/PulseCoverage'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { ArrowRight, BarChart3, ChevronDown, Clock, FileText, Gauge, ListChecks, MessageSquareText, Radar, ScanSearch, Sparkles, TrendingUp } from 'lucide-react'
+import { ArrowRight, BarChart3, ChevronDown, Clock, FileText, Gauge, ListChecks, MapPin, MessageSquareText, ScanSearch, Sparkles } from 'lucide-react'
+import { MONITOR_VISIBLE } from '@/lib/dashboard-nav'
 import { PillarScoreCards } from '@/components/PillarScoreCards'
 import { getCheckExplanations } from '@/lib/checkExplanations'
 import type { WorkspaceHome as HomeDto } from '@/lib/view-models/workspace-home'
@@ -33,7 +34,12 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
   }
   /** A card's closing link, pinned to the bottom so cards in one row align. */
   const cardLink = (href: string, label: ReactNode) => <div className="mt-auto pt-4"><Link className={linkClass} href={href}>{label}<ArrowRight aria-hidden="true" className="size-4" /></Link></div>
-  const toolIcons = { scan: ScanSearch, results: ListChecks, improve: Sparkles, monitor: Radar, roi: TrendingUp } as const
+  const toolIcons = { scan: ScanSearch, results: ListChecks, improve: Sparkles } as const
+  // Monitor stays reachable by URL but is not advertised until Pulse is scheduled:
+  // a next step that would open it becomes a new scan, without the Pulse reason.
+  const nextStep: { href: string; label: string; reasonKey?: NonNullable<HomeDto['nextStep']>['reasonKey'] } | null = !workspace.nextStep ? null
+    : !MONITOR_VISIBLE && workspace.nextStep.href.includes('?step=monitor') ? { href: `${base}?step=scan`, label: copy.nextStep.scan }
+    : { href: workspace.nextStep.href, label: copy.nextStep[workspace.nextStep.labelKey], reasonKey: workspace.nextStep.reasonKey }
   const health = workspace.siteHealth.data
   const visibility = workspace.visibility.data
   const priorities = workspace.priorities
@@ -45,8 +51,8 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
       <h1 className="mt-2 text-3xl font-black tracking-tight text-dash-text">{workspace.client.brand_name}</h1>
       <p className="mt-1 text-sm font-medium text-dash-muted">{workspace.client.domain}</p>
       <p className="mt-4 max-w-3xl text-sm leading-relaxed text-dash-muted">{copy.summary}</p>
-      {workspace.nextStep&&<Link className={`${primaryClass} mt-5`} href={workspace.nextStep.href.replace("__locale__",lang)}>{copy.nextStep[workspace.nextStep.labelKey]}<ArrowRight aria-hidden="true" className="size-4" /></Link>}
-      {workspace.nextStep?.reasonKey&&<p className="mt-2 max-w-3xl text-sm leading-relaxed text-dash-muted">{workspace.nextStep.reasonKey==='unknown'?copy.daily.unknown:(lang==='zh-HK'?zhHK:en).runProgress.availabilityReasons[workspace.nextStep.reasonKey]}</p>}
+      {nextStep&&<Link className={`${primaryClass} mt-5`} href={nextStep.href.replace("__locale__",lang)}>{nextStep.label}<ArrowRight aria-hidden="true" className="size-4" /></Link>}
+      {nextStep?.reasonKey&&<p className="mt-2 max-w-3xl text-sm leading-relaxed text-dash-muted">{nextStep.reasonKey==='unknown'?copy.daily.unknown:(lang==='zh-HK'?zhHK:en).runProgress.availabilityReasons[nextStep.reasonKey]}</p>}
     </header>
     {workspace.dailyWork&&<details aria-labelledby="daily-work-heading" className="group mb-8 space-y-3 rounded-2xl border border-dash-border bg-dash-surface p-5 shadow-sm sm:p-6">
       <summary id="daily-work-heading" className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg text-lg font-bold text-dash-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">{copy.daily.title}<ChevronDown aria-hidden="true" className="size-5 shrink-0 text-dash-muted transition-transform group-open:rotate-180 motion-reduce:transition-none" /></summary>
@@ -99,7 +105,7 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
         {workspace.visibility.state==='partial'&&<p className="mt-1 text-sm text-dash-muted">{(lang==='zh-HK'?zhHK:en).pulseView.partial}</p>}<PulseCoverage coverage={workspace.visibility.coverage} lang={lang} href={`${base}/observations?result=incomplete`}/><dl className="mt-4 grid grid-cols-3 gap-2 text-sm">
           {([[copy.mentions, visibility?.brandMentions], [copy.queries, visibility?.totalQueries], [copy.platforms, visibility?.platformCount]] as const).map(([label, value]) => <div key={label} className="min-w-0 rounded-xl bg-dash-elevated px-3 py-2.5"><dt className="text-xs leading-snug text-dash-muted">{label}</dt><dd className="mt-0.5 text-lg font-bold tabular-nums text-dash-text">{value??'—'}</dd></div>)}
         </dl>
-        {cardLink(`${base}?step=monitor`, copy.monitor)}
+        {MONITOR_VISIBLE && cardLink(`${base}?step=monitor`, copy.monitor)}
       </>)}
       {panel(copy.recommendations, workspace.recommendations, <ul className="space-y-4">{workspace.recommendations.data?.map(rec => <li key={rec.id} className="border-b border-dash-border pb-4 last:border-0">
         <p className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary-accessible">{copy.draft}</p><p className="mt-2 text-sm leading-relaxed text-dash-text">{rec.recommendation}</p><p className="mt-2 inline-flex items-center gap-1.5 text-xs text-dash-muted"><MessageSquareText aria-hidden="true" className="size-3.5" />{rec.platform}</p>
@@ -109,10 +115,18 @@ export function WorkspaceHome({ workspace, lang }: { workspace: HomeDto; lang: s
         <p className="text-xs text-dash-muted"><time dateTime={scan.created_at}>{scan.created_at.replace('T', ' ').replace('.000Z', ' UTC')}</time></p>
       </li>)}</ul>)}
     </div>
+    <section aria-labelledby="local-visibility-heading" className={`${cardClass} mt-5 sm:flex-row sm:items-center sm:gap-5`}>
+      <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary-accessible"><MapPin className="size-5" /></span>
+      <div className="mt-3 min-w-0 flex-1 sm:mt-0">
+        <h2 id="local-visibility-heading" className="text-lg font-bold text-dash-text">{copy.localVisibility.title}</h2>
+        <p className="mt-1 text-sm text-dash-muted">{copy.localVisibility.body}</p>
+      </div>
+      <Link className={`${linkClass} mt-2 shrink-0 sm:mt-0`} href={`${base}?step=roi`}>{copy.localVisibility.cta}<ArrowRight aria-hidden="true" className="size-4" /></Link>
+    </section>
     <section className="mt-10 border-t border-dash-border pt-8"><h2 className="text-lg font-bold text-dash-text">{copy.tools}</h2>
       <nav aria-label={copy.tools} className="mt-4">
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-3">
-          {([...(['scan','results','improve','monitor','roi'] as const).map(step => ({ key: step, href: `${base}?step=${step}`, label: copy[step], Icon: toolIcons[step] })), { key: 'reports', href: `${base}/reports`, label: copy.reports, Icon: FileText }, { key: 'prompts', href: `${base}/prompts`, label: copy.prompts, Icon: BarChart3 }]).map(({ key, href, label, Icon }) => <li key={key}>
+          {([...(['scan','results','improve'] as const).map(step => ({ key: step, href: `${base}?step=${step}`, label: copy[step], Icon: toolIcons[step] })), { key: 'reports', href: `${base}/reports`, label: copy.reports, Icon: FileText }, { key: 'prompts', href: `${base}/prompts`, label: copy.prompts, Icon: BarChart3 }]).map(({ key, href, label, Icon }) => <li key={key}>
             <Link className="group flex min-h-14 items-center gap-3 rounded-xl border border-dash-border bg-dash-surface px-4 py-3 text-sm font-semibold text-dash-text shadow-sm transition-colors hover:border-primary/40 hover:bg-dash-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" href={href}>
               <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary-accessible"><Icon className="size-4" /></span>
               <span className="min-w-0 flex-1">{label}</span>
