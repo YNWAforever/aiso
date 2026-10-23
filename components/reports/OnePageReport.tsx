@@ -114,18 +114,18 @@ export function OnePageReport({ snapshot, variant, printable = false, publishedA
         <div className="mt-5 min-w-0 print:mt-3">
           <Title className="break-words text-2xl font-bold tracking-tight sm:text-3xl print:text-2xl">{snapshot.client.name}</Title>
           <p className="mt-1 break-all text-sm text-muted-foreground">{snapshot.client.domain}</p>
-          <p className="mt-4 max-w-3xl whitespace-pre-wrap break-words text-base leading-7 text-muted-foreground print:mt-2 print:text-sm print:leading-6">
+          <p className="mt-4 max-w-3xl whitespace-pre-wrap break-words text-base leading-7 text-muted-foreground print:mt-2 print:text-xs print:leading-5">
             <span className="sr-only">{t('executive_summary')}: </span>
             {snapshot.executiveSummary}
           </p>
         </div>
       </header>
 
-      <div className="grid gap-4 p-5 sm:p-8 md:grid-cols-2 print:grid-cols-2 print:gap-3 print:px-0 print:py-4">
+      <div className="grid gap-4 p-5 sm:p-8 md:grid-cols-2 print:grid-cols-2 print:gap-3 print:px-0 print:py-3">
         <section aria-labelledby="report-score-heading" className="min-w-0 rounded-xl border border-border p-5 print:break-inside-avoid print:p-4">
           <Section id="report-score-heading" className="text-sm font-semibold text-muted-foreground">{t('current_score')}</Section>
           <div className="mt-3 flex flex-wrap items-center gap-5">
-            <ScoreRing score={view.score.current} grade={view.score.grade} previous={view.score.previous} size="md" animate={animate} />
+            <ScoreRing key={animate ? 'screen' : 'print'} score={view.score.current} grade={view.score.grade} previous={view.score.previous} size="md" animate={animate} />
             <div className="min-w-0 flex-1 basis-40 space-y-2 text-sm leading-6 text-muted-foreground">
               <p className="font-semibold text-foreground">{t('grade', { grade: view.score.grade })}</p>
               <p>
@@ -149,7 +149,7 @@ export function OnePageReport({ snapshot, variant, printable = false, publishedA
           <Section id="report-trend-heading" className="text-sm font-semibold text-muted-foreground">{page('trend_title')}</Section>
           <div className="mt-3">
             {view.trend
-              ? <ReportTrend trend={view.trend} methodChanged={view.methodChanged} animate={animate} />
+              ? <ReportTrend key={animate ? 'screen' : 'print'} trend={view.trend} methodChanged={view.methodChanged} animate={animate} />
               : <p className="text-sm text-muted-foreground">{page('trend_none')}</p>}
           </div>
         </section>
@@ -158,7 +158,7 @@ export function OnePageReport({ snapshot, variant, printable = false, publishedA
           <Section id="report-heatmap-heading" className="text-sm font-semibold text-muted-foreground">{page('heatmap_title')}</Section>
           <div className="mt-3">
             {heatmap
-              ? <CheckHeatmap checks={heatmap} animate={animate} />
+              ? <CheckHeatmap key={animate ? 'screen' : 'print'} checks={heatmap} animate={animate} />
               : <p className="text-sm text-muted-foreground">{page('heatmap_not_recorded')}</p>}
           </div>
         </section>
@@ -166,7 +166,7 @@ export function OnePageReport({ snapshot, variant, printable = false, publishedA
         <section aria-labelledby="report-fixes-heading" className="min-w-0 rounded-xl border border-border p-5 print:break-inside-avoid print:p-4">
           <Section id="report-fixes-heading" className="text-sm font-semibold text-muted-foreground">{page('fixes_title')}</Section>
           {view.fixes.length ? (
-            <ol className="mt-3 grid gap-4 print:gap-2.5">
+            <ol className="mt-3 grid gap-4 print:gap-2">
               {view.fixes.map((fix, index) => <FixItem key={fix.key} fix={fix} index={index} locale={locale} heading={variant === 'page' ? 'h3' : 'h4'} />)}
             </ol>
           ) : (
@@ -218,10 +218,10 @@ function FixItem({ fix, index, locale, heading: Heading }: { fix: ReportFixView;
         {index + 1}
       </span>
       <div className="min-w-0">
-        <Heading className="break-words font-semibold leading-6">{title}</Heading>
-        <p className="mt-1 break-words text-sm leading-6 text-muted-foreground">{rationale}</p>
+        <Heading className="break-words font-semibold leading-6 print:text-sm">{title}</Heading>
+        <p className="mt-1 break-words text-sm leading-6 text-muted-foreground print:text-xs print:leading-5">{rationale}</p>
         {nextStep && (
-          <p className="mt-1.5 flex min-w-0 items-start gap-2 text-sm leading-6">
+          <p className="mt-1.5 flex min-w-0 items-start gap-2 text-sm leading-6 print:mt-1 print:text-xs print:leading-5">
             <CheckCircle2 aria-hidden="true" className="mt-1 size-4 shrink-0 text-primary-accessible" />
             <span className="min-w-0 break-words"><span className="font-medium">{page('next_step')}:</span> {nextStep}</span>
           </p>

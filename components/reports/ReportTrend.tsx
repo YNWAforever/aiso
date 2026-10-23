@@ -29,7 +29,7 @@ export function ReportTrend({ trend, methodChanged, animate }: {
   const summary = t('trend_summary', { count: trend.length, first: formatScanScore(first.score), last: formatScanScore(last.score) })
 
   return (
-    <div {...(animate ? { 'data-reveal': '' } : {})}>
+    <div className="relative" {...(animate ? { 'data-reveal': '' } : {})}>
       <p className="text-sm font-semibold tabular-nums">{formatScanScore(first.score)} → {formatScanScore(last.score)}</p>
       <div className="mt-3 flex gap-2">
         <div aria-hidden="true" className="flex h-32 flex-col justify-between text-right text-xs tabular-nums text-muted-foreground print:h-28">

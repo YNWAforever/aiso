@@ -31,7 +31,7 @@ for(const lang of ['en','zh-HK'] as const){
     test.skip(browserName!=='chromium','page.pdf is Chromium-only')
     await page.route('**/api/**',route=>route.abort())
     await page.emulateMedia({colorScheme:'dark'})
-    await page.goto(`/${lang}/sample-report`)
+    await page.goto(`/${lang}/sample-report`,{waitUntil:'networkidle'})
     await expect(page.getByTestId('one-page-report')).toBeVisible()
     // page.pdf does not fire beforeprint; window.print() does, and that is what draws the end state and drops dark.
     await page.evaluate(()=>window.dispatchEvent(new Event('beforeprint')))
