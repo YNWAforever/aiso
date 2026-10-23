@@ -81,6 +81,7 @@ export function ResultClient({ lang, summary, fullScan, ownedEvidence, previous 
     returnFocus.current = true
     setDrawerLoaded(true)
     setOpenKey(key)
+    trackFunnelEvent({ name: 'fix_opened', locale: lang === 'zh-HK' ? 'zh-HK' : 'en', scanId: summary.id })
   }
   const owner = Boolean(fullScan)
 

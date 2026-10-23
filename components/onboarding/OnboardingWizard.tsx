@@ -189,6 +189,7 @@ function WizardForm({
       // Keep the request intent: recovery may reuse the original progress row's identity.
       if (data.progress.prompts !== 'ready') { setPartial(true); setError(t('seedPartial')); return }
       submitted.current = true
+      trackFunnelEvent({ name: 'onboarding_completed', locale: lang === 'zh-HK' ? 'zh-HK' : 'en' })
       try { removeBrowserDraft(draftKey) } catch { /* optional storage */ }
       navigateToWorkspace(data.clientId)
     } catch { setError(t('genericError')) }
