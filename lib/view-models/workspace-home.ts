@@ -6,6 +6,8 @@ import type { OwnedWorkspace, WorkspaceClient, WorkspaceRead } from '@/lib/works
 import { buildOwnerPriorities, type OwnerPriorities } from '@/lib/view-models/owner-priorities'
 import type { AgentRecommendation, ClientOverview } from '@/lib/types'
 import { buildDailyWorkSummary,type DailyWorkSummary } from './daily-work'
+import { buildOverviewStats, type OverviewStats } from './overview-stats'
+import { buildGettingStarted, type GettingStarted } from './getting-started'
 
 export type WorkspaceSection<T> = {
   state: 'ready' | 'locked' | PulseDisplayState
@@ -29,6 +31,10 @@ export type WorkspaceHome = {
   history: WorkspaceSection<ClientOverview['scanHistory']>
   visibility: WorkspaceSection<NonNullable<ClientOverview['pulseKpi']>>
   recommendations: WorkspaceSection<AgentRecommendation[]> & { generated: true }
+  /** Stat cards and score trend. Absent when the history could not be read. */
+  stats?: OverviewStats | null
+  /** First-run checklist; null once done or when it cannot be told. */
+  gettingStarted?: GettingStarted
 }
 function section<T>(read: WorkspaceRead<unknown>, data: T | null, observedAt: string | null): WorkspaceSection<T> {
   const state = read.status === 'ok' ? data === null ? 'empty' : 'ready' : read.status
@@ -53,6 +59,8 @@ export function buildWorkspaceHome(workspace: OwnedWorkspace): WorkspaceHome {
       pillarScores: isPillarScoreSnapshot(persisted) ? persisted : null } : null, row?.created_at || null),
     history: section(history, history.data.length ? history.data : null, history.data[0]?.created_at || null),
     visibility: {...section(pulse,pulse.data.kpi,pulse.data.latestWeek),state:pulse.status==='error'?'error':pulse.status==='locked'?'locked':pulse.data.state??(pulse.data.kpi?'complete':'empty'),coverage:pulse.status==='ok'?pulse.data.coverage:null},
+    stats: workspace.trend?.status === 'ok' ? buildOverviewStats(workspace.trend.data) : null,
+    gettingStarted: buildGettingStarted({ scans: workspace.trend, tasks: workspace.tasks, setup: workspace.setup }),
     recommendations: { ...section(recommendations, recommendations.data.length ? recommendations.data : null,
       recommendations.data.map(row => row.created_at).filter(Boolean).sort().at(-1) ?? null), generated: true },
   }

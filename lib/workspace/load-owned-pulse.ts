@@ -9,9 +9,13 @@ export type OwnedPulse = {
  observations:PulseRead<Record<string,unknown>[]>
  missed:PulseRead<ClientOverview['missedOpportunities']>
  prompts:PulseRead<Pick<PromptBankItem,'id'|'question'|'category'|'language'|'is_active'>[]>
+ /** Brand (name null) and each competitor: mentions in classified answers over the last four weeks with any. */
+ competitors?:PulseRead<{name:string|null;mentions:number;answers:number}[]>
+ /** Whether alerts are switched on, and when the last one was raised. */
+ alerts?:PulseRead<{enabled:boolean;lastAt:string|null}>
 }
 async function read<T>(name:string,work:()=>Promise<T>,empty:T):Promise<PulseRead<T>>{try{return{status:'ok',data:await work()}}catch{console.error(`[pulse-view] ${name} read failed`);return{status:'error',data:empty}}}
-export async function loadOwnedPulse({clientId,profile}:{clientId:string;profile:{account_id:string}}):Promise<OwnedPulse|null>{
+export async function loadOwnedPulse({clientId,profile,withSignals=false}:{clientId:string;profile:{account_id:string};/** Monitor's competitor and alert panels. */withSignals?:boolean}):Promise<OwnedPulse|null>{
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientId))return null
  const sql=db();const accountId=profile.account_id
  const clients=await sql`select id,brand_name from clients where id = ${clientId} and account_id = ${accountId} limit 1`
@@ -52,5 +56,28 @@ export async function loadOwnedPulse({clientId,profile}:{clientId:string;profile
    where c.id=${clientId} and c.account_id=${accountId} order by p.id limit ${MAX_PROMPTS}
   ` as OwnedPulse['prompts']['data'],[]),
  ])
- return{client:{id:clients[0].id as string,brand_name:clients[0].brand_name as string},observations,missed,prompts}
+ const [competitors,alerts]=!withSignals?[undefined,undefined]:await Promise.all([
+  read('competitors',async()=>(await sql`
+   with recent as (
+    select distinct m.scan_week from pulse_metrics m join clients c on c.id=m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
+    where c.id=${clientId} and c.account_id=${accountId} order by m.scan_week desc limit 4
+   ), answers as (
+    select m.brand_mentioned,m.competitors_mentioned from pulse_metrics m join clients c on c.id=m.client_id and (m.run_item_id is null or exists(select 1 from pulse_run_items scope_item join pulse_runs scope_run on scope_run.id=scope_item.run_id and scope_run.account_id=scope_item.account_id and scope_run.client_id=scope_item.client_id where scope_item.id=m.run_item_id and scope_item.client_id=m.client_id and scope_run.purpose='canonical'))
+    join recent r on r.scan_week=m.scan_week
+    where c.id=${clientId} and c.account_id=${accountId} and to_jsonb(m)->>'classification_status'='classified'
+      and m.raw_answer ~ '[^[:space:]]' and m.brand_mentioned is not null
+   ), total as (select count(*)::int as n from answers)
+   select null::text as name,count(*) filter(where a.brand_mentioned)::int as mentions,(select n from total) as answers from answers a
+   union all
+   select x.name,count(*)::int as mentions,(select n from total) as answers from answers a cross join lateral unnest(coalesce(a.competitors_mentioned,'{}'::text[])) as x(name)
+   group by x.name
+  `).map(row=>({name:typeof row.name==='string'?row.name:null,mentions:Number(row.mentions),answers:Number(row.answers)})),[]),
+  read('alerts',async()=>{
+   const [config]=await sql`select ac.enabled_sov,ac.enabled_wow from alert_configs ac join clients c on c.id=ac.client_id where c.id=${clientId} and c.account_id=${accountId} limit 1`
+   const [last]=await sql`select created_at from notifications where account_id=${accountId} and client_id=${clientId} order by created_at desc limit 1`
+   const at=last?.created_at
+   return{enabled:config?.enabled_sov===true||config?.enabled_wow===true,lastAt:at instanceof Date?at.toISOString():typeof at==='string'?at:null}
+  },{enabled:false,lastAt:null}),
+ ])
+ return{client:{id:clients[0].id as string,brand_name:clients[0].brand_name as string},observations,missed,prompts,competitors,alerts}
 }

@@ -17,6 +17,8 @@ describe('real portfolio presentation', () => {
     expect(render('unknown',lang)).not.toContain('Create fixture brand')
     expect(render('atLimit',lang)).toContain(copy.capacityLimit)
     expect(render('atLimit',lang)).not.toContain('Create fixture brand')
+    expect(render('atLimit',lang)).toContain('data-testid="upgrade-card"')
+    expect(render('atLimit',lang)).toContain(`href="/${lang}/pricing"`)
     expect(render('empty',lang)).toContain('Create fixture brand')
     expect(render('error',lang)).toContain(copy.historyError)
     expect(render('error',lang)).toContain(copy.visibilityError)

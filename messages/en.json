@@ -1042,7 +1042,24 @@
       "limit": "Showing the {count} most recent tasks."
     },
     "local_visibility": "Local visibility",
-    "local_visibility_desc": "Local trust and ROI planning"
+    "local_visibility_desc": "Local trust and ROI planning",
+    "states": {
+      "loading": "Loading…",
+      "errorTitle": "This page did not load",
+      "errorBody": "Nothing was lost. Try again in a moment.",
+      "retry": "Try again"
+    },
+    "upgrade": {
+      "cta": "See plans",
+      "scansLeft": "{remaining} of {limit} scans left this month",
+      "scansOutTitle": "You have used this month’s scans",
+      "scansOutBody": "Upgrade to Pro for unlimited scans.",
+      "freeTitle": "Scanning a brand needs a paid plan",
+      "freeBody": "Basic includes 3 scans a month.",
+      "brandLimitTitle": "You have reached your brand limit",
+      "brandLimitBody": "Your plan includes {limit} brands. Upgrade to add more.",
+      "brandLimitShort": "Upgrade your plan to add another brand."
+    }
   },
   "reports": {
     "create_client_report": "Create client report",
@@ -1155,7 +1172,8 @@
     "impact_high": "High",
     "impact_medium": "Medium",
     "impact_low": "Low",
-    "methodology": "Methodology and coverage"
+    "methodology": "Methodology and coverage",
+    "empty_action": "Open latest scan"
   },
   "reportBranding": {
     "title": "Report branding",
@@ -1612,6 +1630,54 @@
       "title": "Local visibility",
       "body": "See how buyers nearby find you.",
       "cta": "Open local visibility"
+    },
+    "stats": {
+      "title": "At a glance",
+      "score": "AISO score",
+      "fixesLeft": "Fixes left",
+      "pointsToGain": "Points to gain",
+      "points": "{n} pts",
+      "unknown": "—"
+    },
+    "trend": {
+      "title": "Score trend",
+      "empty": "Run another scan to see a trend.",
+      "summary": "Score went from {first} to {last} over {count} scans.",
+      "date": "Date",
+      "score": "Score"
+    },
+    "nextAction": {
+      "label": "Next best action",
+      "fix": "Fix first: {check}",
+      "fixCta": "See the fix",
+      "points": "Worth up to {n} points"
+    },
+    "gettingStarted": {
+      "title": "Get set up",
+      "progress": "{done} of 4 done",
+      "done": "Done",
+      "steps": {
+        "brand": {
+          "title": "Add your brand",
+          "body": "Your brand and website are saved.",
+          "cta": "View brand"
+        },
+        "scan": {
+          "title": "Run your first scan",
+          "body": "See how AI search reads your site.",
+          "cta": "Run a scan"
+        },
+        "fixes": {
+          "title": "Save your top fixes",
+          "body": "Turn the biggest findings into tasks.",
+          "cta": "Open fixes"
+        },
+        "questions": {
+          "title": "Choose questions to track",
+          "body": "Pick the questions buyers ask AI.",
+          "cta": "Choose questions"
+        }
+      }
     }
   },
   "portfolio": {
@@ -1691,7 +1757,35 @@
     "classifiedCoverage": "{classified}/{recorded} recorded answers classified",
     "collectionCoverage": "{collected}/{expected} expected answers collected",
     "legacyCoverage": "Expected run size was not recorded for this legacy sample",
-    "unclassified": "Read unclassified answers"
+    "unclassified": "Read unclassified answers",
+    "signals": {
+      "status": {
+        "fresh": "Latest results: week of {week}",
+        "stale": "No new results since {week}",
+        "never": "No weekly results yet",
+        "body": "Results appear here after each run."
+      },
+      "platforms": {
+        "title": "AI platforms by week",
+        "caption": "Brand mentions by AI platform and week",
+        "empty": "No platform results yet."
+      },
+      "competitors": {
+        "title": "You vs competitors",
+        "caption": "Share of answers naming each brand, last 4 weeks",
+        "you": "{brand} (you)",
+        "empty": "No answers to compare yet.",
+        "share": "{n}% of answers"
+      },
+      "alerts": {
+        "title": "Alerts",
+        "on": "On",
+        "off": "Off",
+        "last": "Last alert {date}",
+        "none": "No alert raised yet",
+        "error": "Alert status could not be read."
+      }
+    }
   },
   "sampleReport": {
     "eyebrow": "Synthetic sample — no customer data",
@@ -2067,7 +2161,8 @@
     "observedDelta": "Comparable observations: mention difference {delta}; causality and ROI unproven.",
     "notComparable": "Cannot directly compare: {reasons}",
     "operationsConflict": "This work record changed in another session. Your unsaved changes are retained. Reload the saved version to reconcile before saving.",
-    "reloadOperations": "Reload saved work record"
+    "reloadOperations": "Reload saved work record",
+    "emptyAction": "Run a scan"
   },
   "changeSets": {
     "title": "Version review",

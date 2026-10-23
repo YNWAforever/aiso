@@ -9,6 +9,9 @@ export type PulseView={
  observations:{state:PulseDisplayState|'ready';coverage?:PulseCoverageView|null;latestKpi:ClientOverview['pulseKpi'];latestWeek:string|null;series:{platform:string|null;points:PulsePoint[]}[]}
  missed:{state:'ready'|'empty'|'error';data:OwnedPulse['missed']['data']}
  prompts:{state:'ready'|'empty'|'error';data:OwnedPulse['prompts']['data']}
+ /** Monitor's extra panels; absent when the loader was not asked for them. */
+ competitors?:{state:'ready'|'error';data:NonNullable<OwnedPulse['competitors']>['data']}
+ alerts?:{state:'ready'|'error';data:NonNullable<OwnedPulse['alerts']>['data']}
 }
 export function buildPulseView(owned:OwnedPulse):PulseView{
  const rows=owned.observations.data.map((row):Record<string,unknown>&{scan_week:string}=>({...row,scan_week:isoDate(row.scan_week as string|Date|null,'')})).filter(row=>/^\d{4}-\d{2}-\d{2}$/.test(row.scan_week)&&Number.isFinite(Date.parse(row.scan_week)))
@@ -22,5 +25,7 @@ export function buildPulseView(owned:OwnedPulse):PulseView{
  const projection=projectObservedSummary(rows);const state=owned.observations.status==='error'?'error':projection.state??'empty'
  return{client:owned.client,observations:{state,coverage:state==='error'?null:projection.coverage,latestKpi:state==='error'?null:projection.kpi,latestWeek:latest,series:state==='error'?[]:series},
  missed:{state:owned.missed.status==='error'?'error':owned.missed.data.length?'ready':'empty',data:owned.missed.data.map(row=>({platform:row.platform,question:row.question,competitors_mentioned:Array.isArray(row.competitors_mentioned)?row.competitors_mentioned:[],scan_week:isoDate(row.scan_week,'')}))},
+ ...(owned.competitors?{competitors:{state:owned.competitors.status==='error'?'error' as const:'ready' as const,data:owned.competitors.data}}:{}),
+ ...(owned.alerts?{alerts:{state:owned.alerts.status==='error'?'error' as const:'ready' as const,data:owned.alerts.data}}:{}),
  prompts:{state:owned.prompts.status==='error'?'error':owned.prompts.data.length?'ready':'empty',data:owned.prompts.data.map(row=>({id:row.id,question:row.question,category:row.category,language:row.language,is_active:row.is_active}))}}
 }

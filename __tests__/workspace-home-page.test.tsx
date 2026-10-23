@@ -20,7 +20,7 @@ beforeEach(() => { vi.clearAllMocks(); mocks.auth.mockResolvedValue(profile); mo
 it('defaults to the independently authenticated read-only home and preserves selected scan', async () => {
   const page = await render({ scanId: 'selected-scan' })
   expect(mocks.auth).toHaveBeenCalledWith('en')
-  expect(mocks.load).toHaveBeenCalledWith({ clientId: 'client-a', profile, scanId: 'selected-scan' })
+  expect(mocks.load).toHaveBeenCalledWith({ clientId: 'client-a', profile, scanId: 'selected-scan', withTaskCount: true })
   expect(page.props.workspace.client.id).toBe('client-a')
   expect(mocks.sql).not.toHaveBeenCalled()
   expect(mocks.roi).not.toHaveBeenCalled()
@@ -91,7 +91,7 @@ it.each([
 
 it('routes explicit monitor through the owned Pulse loader before legacy reads', async () => {
   await expect(render({step:'monitor'})).rejects.toThrow('NOT_FOUND')
-  expect(mocks.pulse).toHaveBeenCalledWith({clientId:'client-a',profile})
+  expect(mocks.pulse).toHaveBeenCalledWith({clientId:'client-a',profile,withSignals:true})
   expect(mocks.load).not.toHaveBeenCalled()
   expect(mocks.sql).not.toHaveBeenCalled()
   expect(mocks.roi).not.toHaveBeenCalled()

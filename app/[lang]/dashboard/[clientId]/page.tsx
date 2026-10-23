@@ -15,6 +15,8 @@ import { ScanStep } from '@/components/dashboard/ScanStep'
 import { ResultsStep } from '@/components/dashboard/ResultsStep'
 import { ImproveStep } from '@/components/dashboard/ImproveStep'
 import { MonitorStep } from '@/components/dashboard/MonitorStep'
+import type { ScanQuota } from '@/components/dashboard/ScanStep'
+import { readAuthenticatedScanQuota } from '@/lib/security/authenticated-scan-quota'
 import { LocalTrustStep } from '@/components/dashboard/local-trust/LocalTrustStep'
 import { getLocalTrustProfile, getOrCreateLocalTrustSnapshot } from '@/lib/localTrust/store'
 import type {
@@ -95,12 +97,13 @@ export default async function DashboardPage({
   const t = await getTranslations('dashboard')
   const reportT = await getTranslations('reports')
   const profile  = await requireAuth(lang)
-  const { features } = resolveCommercialEntitlement(profile.accounts)
+  const entitlement = resolveCommercialEntitlement(profile.accounts)
+  const { features } = entitlement
 
   if (step === 'home') {
     let owned
     try {
-      owned = await loadOwnedWorkspace({ clientId, profile, scanId })
+      owned = await loadOwnedWorkspace({ clientId, profile, scanId, withTaskCount: true })
     } catch {
       return <div className="flex-1 px-6 py-16 text-center">
         <h1 className="mb-2 text-lg font-bold text-dash-text">{t('workspace_load_error_title')}</h1>
@@ -113,15 +116,25 @@ export default async function DashboardPage({
 
   if (step === 'monitor') {
     let owned
-    try { owned = await loadOwnedPulse({ clientId, profile }) } catch {
+    try { owned = await loadOwnedPulse({ clientId, profile, withSignals: true }) } catch {
       return <main className="px-6 py-12"><h1 className="text-xl font-bold">{t('workspace_load_error_title')}</h1><p className="mt-3">{t('workspace_load_error_body')}</p></main>
     }
     if (!owned) notFound()
-    return <main className="mx-auto w-full min-w-0 max-w-4xl px-4 py-8 sm:px-6"><h1 className="mb-5 text-2xl font-bold">{t('step_monitor_title')}</h1><MonitorStep features={features} lang={lang} clientId={clientId} view={buildPulseView(owned)} /></main>
+    return <main className="mx-auto w-full min-w-0 max-w-4xl px-4 py-8 sm:px-6"><h1 className="mb-5 text-2xl font-bold">{t('step_monitor_title')}</h1><MonitorStep features={features} lang={lang} clientId={clientId} view={buildPulseView(owned)} now={new Date()} /></main>
   }
 
   const sql = db()
 
+  // Same order as the scan API's gate (app/api/scan/route.ts): Free cannot
+  // scan a brand, a metered plan shows what is left, anything else is unlimited.
+  let scanQuota: ScanQuota = { kind: 'unlimited' }
+  if (step === 'scan') {
+    if (entitlement.plan === 'free') scanQuota = { kind: 'upgrade' }
+    else if (entitlement.monthlyScanLimit !== null) {
+      try { scanQuota = { kind: 'metered', ...(await readAuthenticatedScanQuota(profile.account_id)) } }
+      catch { scanQuota = { kind: 'metered', limit: entitlement.monthlyScanLimit, remaining: null } }
+    }
+  }
   let workspace: Workspace | null = null
   let clientMissing = false
   let loadError = false
@@ -297,7 +310,7 @@ export default async function DashboardPage({
       </div>
 
       <main className="flex-1 px-6 pb-10 max-w-3xl">
-        {step === 'scan' && <ScanStep lang={lang} clientId={clientId} scan={scan} scanHistory={scanHistory} />}
+        {step === 'scan' && <ScanStep lang={lang} clientId={clientId} scan={scan} scanHistory={scanHistory} quota={scanQuota} />}
 
         {step === 'results' && hasDisplayableScore(scan) && <ResultsStep scan={scan} lang={lang} clientId={clientId} />}
         {step === 'results' && !hasDisplayableScore(scan) && (

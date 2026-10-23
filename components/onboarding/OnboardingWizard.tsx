@@ -5,6 +5,7 @@ import { ChevronRight, Zap, X } from 'lucide-react'
 import {trackFunnelEvent,consumeOneTimeFunnelEvent} from '@/lib/funnel-client'
 import {loadBrowserDraft,saveBrowserDraft,removeBrowserDraft} from '@/lib/onboarding/browser-draft'
 import { BrandAssistant } from './BrandAssistant'
+import { UpgradeCard } from '@/components/dashboard/UpgradeCard'
 import en from '@/messages/en.json'
 import zh from '@/messages/zh-HK.json'
 import { PROMPT_MARKETS, isPromptLanguage, type PromptLanguage } from '@/lib/prompts/context'
@@ -193,6 +194,7 @@ function WizardForm({
   const [intentKey, setIntentKey] = useState(() => draft.intentKey ?? (draftReady ? crypto.randomUUID() : ''))
   const [clientId, setClientId] = useState<string | null>(draft.clientId ?? null)
   const [partial, setPartial] = useState(draft.partial ?? false)
+  const [brandLimit, setBrandLimit] = useState(false)
   const [recoveredReady, setRecoveredReady] = useState(draft.recoveredReady ?? false)
   const submitted = useRef(false),submittedPayload=useRef(draft.submittedPayload)
   const draftKey = `aiso:onboarding:${accountId}:${scanId ?? 'new'}`
@@ -253,6 +255,7 @@ function WizardForm({
       submittedPayload.current=payload;setIntentKey(requestIntent)
       const res=await send(values,requestIntent,targetClientId)
       const data = await res.json()
+      if (res.status === 403 && data.error === 'BRAND_LIMIT_REACHED') { setBrandLimit(true); return }
       if (!res.ok) { setError(typeof data.error === 'string' ? data.error : c.genericError); return }
       if (typeof data.clientId !== 'string' || !data.progress) throw new Error('Invalid progress')
       setClientId(data.clientId)
@@ -482,6 +485,7 @@ function WizardForm({
             </div>
 
             {recoveredReady && <p role="status" className="text-sm mb-4">{recoveryCopy.reconciledReady}</p>}
+            {brandLimit && <div className="mb-4"><UpgradeCard title={(lang === 'zh-HK' ? zh : en).dashboard.upgrade.brandLimitTitle} body={(lang === 'zh-HK' ? zh : en).dashboard.upgrade.brandLimitShort} cta={(lang === 'zh-HK' ? zh : en).dashboard.upgrade.cta} href={`/${lang}/pricing`} /></div>}
             {error && <p role="alert" className="text-destructive text-sm mb-4">{error}</p>}
             {error===recoveryCopy.cacheUnavailable&&<a href={`/${lang}/dashboard`} className={btnBack}>{recoveryCopy.reviewBrands}</a>}
 

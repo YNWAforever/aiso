@@ -109,3 +109,20 @@ export function buildOwnerPriorities(evidence: unknown): OwnerPriorities {
     observedFindings: findings.length,
   }
 }
+
+/**
+ * Points every observed finding is forfeiting, not only the top three: what a
+ * stat card can honestly call "points to gain". Null when the scan has no
+ * readable evidence or nothing could be observed, so "unknown" never reads as 0.
+ */
+export function ownerPointsAtStake(evidence: unknown): number | null {
+  const envelope = readScanEvidence(evidence)
+  if (!envelope) return null
+  const resolution = resolveCheckPriorities(envelope.checks)
+  if (!resolution.ranked.length && resolution.needsEvidence.length) return null
+  const total = resolution.ranked.reduce((sum, check) => {
+    const weighted = bucketOf(check.checkKey)!
+    return sum + (check.assessment === 'fail' ? weighted.weight : weighted.weight / 2)
+  }, 0)
+  return Math.round(total * 100) / 100
+}

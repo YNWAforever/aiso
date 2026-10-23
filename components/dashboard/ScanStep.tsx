@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import type { Scan } from '@/lib/types'
+import { UpgradeCard } from '@/components/dashboard/UpgradeCard'
 
 const INDUSTRY_VALUES = [
   'finance', 'medical', 'legal', 'technology', 'retail_ecommerce',
@@ -19,14 +20,33 @@ export function getDashboardScanErrorKey(status: number, payload: unknown): 'sca
   return status === 422 && error === 'SCAN_UNREACHABLE' ? 'scan_unreachable' : null
 }
 
+/**
+ * What the plan allows before a scan is attempted. The scan API stays the gate;
+ * this only lets the page say so up front. `remaining: null` means the count
+ * could not be read, so nothing is shown rather than a guess.
+ */
+export type ScanQuota =
+  | { kind: 'unlimited' }
+  | { kind: 'upgrade' }
+  | { kind: 'metered'; limit: number; remaining: number | null }
+
+/** A plan limit the scan API answered with, or null for any other failure. */
+export function scanLimitFrom(status: number, payload: unknown): 'scansOut' | 'free' | null {
+  const error = payload && typeof payload === 'object' && 'error' in payload ? payload.error : undefined
+  if (status === 429 && error === 'AUTHENTICATED_SCAN_LIMIT_REACHED') return 'scansOut'
+  if (status === 403 && error === 'AUTHENTICATED_SCAN_UPGRADE_REQUIRED') return 'free'
+  return null
+}
+
 type Props = {
   lang: string
   clientId: string
   scan: Scan | null
   scanHistory: Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'created_at'>[]
+  quota?: ScanQuota
 }
 
-export function ScanStep({ lang, clientId, scanHistory }: Props) {
+export function ScanStep({ lang, clientId, scanHistory, quota = { kind: 'unlimited' } }: Props) {
   const t            = useTranslations('dashboard')
   const locale       = useLocale()
   const router       = useRouter()
@@ -38,6 +58,10 @@ export function ScanStep({ lang, clientId, scanHistory }: Props) {
   const [region, setRegion]     = useState('')
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
+  const [limit, setLimit]       = useState<'scansOut' | 'free' | null>(
+    quota.kind === 'upgrade' ? 'free' : quota.kind === 'metered' && quota.remaining === 0 ? 'scansOut' : null,
+  )
+  const upgrade                 = useTranslations('dashboard.upgrade')
   const autoSubmitted           = useRef(false)
 
   // Auto-submit when arriving from onboarding with a pre-filled URL
@@ -61,6 +85,8 @@ export function ScanStep({ lang, clientId, scanHistory }: Props) {
       })
       const data = await res.json()
       if (!res.ok) {
+        const reached = scanLimitFrom(res.status, data)
+        if (reached) { setLimit(reached); setLoading(false); return }
         const key = getDashboardScanErrorKey(res.status, data)
         setError(key ? t(key) : (data.error || t('scan_failed')))
         setLoading(false)
@@ -94,6 +120,17 @@ export function ScanStep({ lang, clientId, scanHistory }: Props) {
           <div className="h-full bg-dash-accent rounded-full animate-pulse" style={{ width: '60%' }} />
         </div>
       </div>
+    )
+  }
+
+  if (limit) {
+    return (
+      <UpgradeCard
+        title={upgrade(limit === 'free' ? 'freeTitle' : 'scansOutTitle')}
+        body={upgrade(limit === 'free' ? 'freeBody' : 'scansOutBody')}
+        cta={upgrade('cta')}
+        href={`/${lang}/pricing`}
+      />
     )
   }
 
@@ -153,6 +190,11 @@ export function ScanStep({ lang, clientId, scanHistory }: Props) {
           >
             {loading ? t('scanning') : t('run_scan')}
           </button>
+          {quota.kind === 'metered' && quota.remaining !== null && (
+            <p className="text-center text-xs text-dash-muted" data-testid="scans-left">
+              {upgrade('scansLeft', { remaining: quota.remaining, limit: quota.limit })}
+            </p>
+          )}
         </form>
       </div>
 

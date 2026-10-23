@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { EmptyState } from '@/components/ui/empty-state'
 import Link from 'next/link'
 import {
   Clipboard,
@@ -108,12 +109,12 @@ export function ReportsList({
 
   if (!reports.length) {
     return (
-      <Card>
-        <CardContent className="p-8 text-center">
-          <h2 className="text-lg font-semibold">{t('empty_title')}</h2>
-          <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">{t('empty_body')}</p>
-        </CardContent>
-      </Card>
+      <EmptyState
+        illustration="reports"
+        title={t('empty_title')}
+        description={t('empty_body')}
+        action={<Link href={`/${lang}/dashboard/${clientId}?step=results`} className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-accessible focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t('empty_action')}</Link>}
+      />
     )
   }
 
