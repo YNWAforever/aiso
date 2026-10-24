@@ -4,7 +4,7 @@ import type { CheckResult } from '@/lib/types'
 export async function checkExtractability(url: string, fetcher: PublicUrlFetch): Promise<CheckResult> {
   try {
     const res = await fetcher(url, {
-      headers: { 'User-Agent': 'Fimmick-AEO/1.0' },
+      headers: { 'User-Agent': 'FimmickAISO/1.0' },
       signal: AbortSignal.timeout(10000),
     })
     if (!res.ok) return { diagnostic: { collection: 'failed', reason: 'fetch-failed' }, status: 'fail', message: 'extractability_fetch_error' }

@@ -6,7 +6,7 @@ export async function checkLlmsTxt(baseUrl: string, fetcher: PublicUrlFetch): Pr
   try {
     const res = await fetcher(url, {
       signal: AbortSignal.timeout(8000),
-      headers: { 'User-Agent': 'Fimmick-AEO/1.0' },
+      headers: { 'User-Agent': 'FimmickAISO/1.0' },
     })
     if (!res.ok) return { status: 'fail', message: 'llms_txt_missing' }
     const text = await res.text()

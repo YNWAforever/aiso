@@ -432,7 +432,7 @@ describe('Local Trust read-only UI components', () => {
     expect(html).toContain('HKD 12,000-28,000')
     expect(html).toContain('41-point rise since Apr 2026')
     expect(html).toContain('one per 10 points')
-    expect(html).toContain('an assumption AISO has not measured')
+    expect(html).toContain('an assumption Fimmick AISO has not measured')
   })
 
   it('omits the movement line for a row written before a real baseline was required', async () => {

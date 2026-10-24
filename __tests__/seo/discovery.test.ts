@@ -10,7 +10,10 @@ import { buildLocalizedMetadata, buildSoftwareApplicationJsonLd } from '@/lib/se
 describe('public discovery', () => {
   it('allows crawling and advertises the sitemap', () => {
     const value = robots()
-    expect(value.rules).toEqual([{ userAgent: '*', allow: '/' }])
+    expect(value.rules).toEqual([
+      { userAgent: '*', allow: '/' },
+      { userAgent: ['OAI-SearchBot', 'ChatGPT-User', 'Claude-SearchBot', 'Claude-User', 'PerplexityBot', 'Perplexity-User'], allow: '/' },
+    ])
     expect(value.sitemap).toMatch(/\/sitemap\.xml$/)
   })
 

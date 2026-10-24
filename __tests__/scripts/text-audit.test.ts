@@ -72,4 +72,17 @@ describe('text audit', () => {
     expect(result.stdout).toContain('[guarantee] "We guarantee results"')
     expect(result.stdout).not.toContain('does not guarantee')
   })
+
+  it('holds the product to one name, Fimmick AISO', () => {
+    const result = audit({
+      ...catalogue(
+        { old: 'Welcome to Fimmick AEO', bare: 'AISO will try again tomorrow', score: 'Your AISO score', full: 'Fimmick AISO will try again' },
+        { old: '歡迎使用 Fimmick AEO', bare: 'AISO 會於明天再試', score: 'AISO 總分', full: 'Fimmick AISO 會再試' },
+      ),
+      'lib/mail.ts': ["export const title = 'FimmickAEO'", "export const from = 'alerts@fimmick-aeo.com'", "export const host = 'fimmick-aeo-oitb.vercel.app'"].join('\n'),
+    })
+    expect(result.status).toBe(1)
+    for (const where of ['en old', 'zh-HK old', 'en bare', 'zh-HK bare', 'lib/mail.ts:1']) expect(result.stdout).toContain(`naming        ${where} `)
+    for (const where of ['en score', 'en full', 'zh-HK score', 'lib/mail.ts:2', 'lib/mail.ts:3']) expect(result.stdout).not.toContain(`naming        ${where} `)
+  })
 })

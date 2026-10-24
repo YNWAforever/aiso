@@ -9,6 +9,7 @@ import type { CommercialEntitlement } from '@/lib/tier'
 import { ThemeToggle } from '@/components/dashboard/ThemeToggle'
 import { buildDashboardNav, locateDashboard, type SectionKey } from '@/lib/dashboard-nav'
 import { cn } from '@/lib/utils'
+import { Wordmark } from '@/components/brand/Wordmark'
 
 const SECTION_ICONS: Record<SectionKey, LucideIcon> = {
   overview: LayoutDashboard, scan: ScanSearch, monitor: Radio, reports: FileText, settings: Settings2,
@@ -59,9 +60,7 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
           <div className="size-7 rounded-lg bg-primary flex items-center justify-center shadow-sm">
             <Brain className="size-4 text-primary-foreground" aria-hidden="true" />
           </div>
-          <span className="font-black text-foreground text-sm">
-            Fimmick <span className="text-primary-accessible">AISO</span>
-          </span>
+          <Wordmark className="font-black text-foreground text-sm" accentClassName="text-primary-accessible" />
         </Link>
       </div>
 

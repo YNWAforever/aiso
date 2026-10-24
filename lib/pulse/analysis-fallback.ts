@@ -39,7 +39,7 @@ function fold(text:string){
 /**
  * Latin word boundaries reject pineapple/ApplePay, while allowing adjacent CJK.
  * Words of a multi-word name may be joined by any separator or none
- * (Fimmick AEO = fimmick-aeo = FimmickAEO). The evidence is the answer's own
+ * (Acme Shop = acme-shop = AcmeShop). The evidence is the answer's own
  * span, as written.
  */
 export function literalBrandEvidence(answer:string,brandName:string):{text:string;position:number}|null{

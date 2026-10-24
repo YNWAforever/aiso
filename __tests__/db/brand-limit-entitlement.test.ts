@@ -84,6 +84,6 @@ describe('effective brand-limit migration', () => {
   })
 
   it('documents migration 028 as a release prerequisite', () => {
-    expect(readFileSync('README.md', 'utf8')).toContain(migrationPath)
+    expect(readFileSync('docs/runbooks/public-scan-prerequisites.md', 'utf8')).toContain(migrationPath)
   })
 })

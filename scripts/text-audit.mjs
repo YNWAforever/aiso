@@ -14,9 +14,11 @@
  *                 reads as English prose
  *   claims        wording the product must not use (it cannot observe that a
  *                 page was cited, ranked or guaranteed anything)
+ *   naming        the product called anything but "Fimmick AISO": the old
+ *                 "Fimmick AEO" in the catalogue or in app/, components/ or
+ *                 lib/ source, or a bare "AISO" standing for the product
  *
- * Each of those fails the run. Product-name spellings are counted and
- * reported only: which name to standardise on is still open.
+ * Each of those fails the run.
  *
  * Admin and developer surfaces are internal and English-only by decision, so
  * app/admin, components/admin and components/dev are not scanned. Accepted
@@ -169,19 +171,46 @@ function claims() {
   return findings
 }
 
-function productNames() {
-  const counts = {}
-  for (const text of [...Object.values(en), ...Object.values(zh)]) {
-    for (const name of ['Fimmick AISO', 'Fimmick AEO', 'Fimmick', 'AISO', 'AEO']) {
-      const matches = text.match(new RegExp(`\\b${name}\\b`, 'g'))?.length ?? 0
-      if (matches) counts[name] = (counts[name] ?? 0) + matches
-    }
+/**
+ * The product is "Fimmick AISO" (decided in UX Phase 8). "AISO" alone may
+ * only name a thing the product produces (an AISO score, grade, scan, check,
+ * platform) or sit in the two-tone wordmark (lib/brand.ts). The old
+ * "Fimmick AEO" may not appear in any UI text or source file. "AEO" on its
+ * own is the industry term (answer engine optimisation) and is fine.
+ */
+// Not inside a host or address (fimmick-aeo.vercel.app, alerts@fimmick-aeo.com):
+// those are identifiers whose change is a deployment decision, not copy.
+const OLD_NAME = /(?<![@\w.-])fimmick[\s_-]*aeo(?![\w-]*\.[a-z])/i
+const SHORT_NAME = /(?<!Fimmick(?:\s|&nbsp;| ))\bAISO\b(?!\s*(?:scores?|grades?|scans?|checks?|platform|benchmark|總分|評級|掃描|檢查|檢測|平台|分數|評分))/gi
+const SOURCE_DIRS = ['app', 'components', 'lib']
+
+function sourceFiles(dir) {
+  const out = []
+  for (const name of readdirSync(dir)) {
+    const path = join(dir, name)
+    if (statSync(path).isDirectory()) out.push(...sourceFiles(path))
+    else if (/\.(ts|tsx|mjs)$/.test(name)) out.push(relative(ROOT, path).split(sep).join('/'))
   }
-  return counts
+  return out
 }
 
-const report = { hardcoded: hardcoded(), parity: parity(), untranslated: untranslated(), claims: claims(), productNames: productNames() }
-const failures = report.hardcoded.length + report.parity.length + report.untranslated.length + report.claims.length
+function naming() {
+  const findings = []
+  for (const [locale, catalogue] of [['en', en], ['zh-HK', zh]]) {
+    for (const [key, text] of Object.entries(catalogue)) {
+      if (OLD_NAME.test(text) || text.match(SHORT_NAME)) findings.push({ where: `${locale} ${key}`, text })
+    }
+  }
+  for (const file of SOURCE_DIRS.filter(dir => existsSync(join(ROOT, dir))).flatMap(dir => sourceFiles(join(ROOT, dir)))) {
+    readFileSync(join(ROOT, file), 'utf8').split('\n').forEach((line, index) => {
+      if (OLD_NAME.test(line)) findings.push({ where: `${file}:${index + 1}`, text: line.trim() })
+    })
+  }
+  return findings
+}
+
+const report = { hardcoded: hardcoded(), parity: parity(), untranslated: untranslated(), claims: claims(), naming: naming() }
+const failures = report.hardcoded.length + report.parity.length + report.untranslated.length + report.claims.length + report.naming.length
 
 const jsonAt = process.argv.indexOf('--json')
 if (jsonAt > 0 && process.argv[jsonAt + 1]) writeFileSync(process.argv[jsonAt + 1], `${JSON.stringify(report, null, 2)}\n`)
@@ -190,6 +219,6 @@ for (const finding of report.hardcoded) console.log(`hardcoded     ${finding.fil
 for (const finding of report.parity) console.log(`parity        ${finding.key}  ${finding.problem}`)
 for (const finding of report.untranslated) console.log(`untranslated  ${finding.key}  ${JSON.stringify(finding.text)}`)
 for (const finding of report.claims) console.log(`claims        ${finding.locale} ${finding.key}  [${finding.rule}] ${JSON.stringify(finding.text)}`)
-console.log(`product names (reported, not enforced): ${JSON.stringify(report.productNames)}`)
+for (const finding of report.naming) console.log(`naming        ${finding.where}  ${JSON.stringify(finding.text)}`)
 console.log(failures ? `\ntext audit: ${failures} finding(s)` : '\ntext audit: clean')
 process.exitCode = failures ? 1 : 0

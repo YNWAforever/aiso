@@ -1,7 +1,8 @@
-# Fimmick AEO
+# Fimmick AISO
 
 Multi-tenant SaaS that scores websites on **AEO / GEO** — how well AI answer engines
 (ChatGPT, Perplexity, Google AI Overviews, …) can crawl, parse, and cite them.
+Live at [aiso-kappa.vercel.app](https://aiso-kappa.vercel.app).
 
 - **Scan** — 20 checks across three buckets (Core 45 pts, Extended 30 pts, GEO 25 pts)
   produce a 0–100 score and a letter grade (`A+` → `F`). Entry point: `POST /api/scan`.
@@ -16,53 +17,12 @@ Multi-tenant SaaS that scores websites on **AEO / GEO** — how well AI answer e
   `docs/runbooks/deploy-cron-worker.md`).
 - Bilingual **en / zh-HK** (`next-intl`), billed through **Stripe**, deployed on **Vercel**.
 
-**No features are currently fenced.** Routes used to return `503 FEATURE_UNAVAILABLE` via
-`lib/unavailable.ts`, and `__tests__/api/fenced-routes.test.ts` is the canonical list (now empty).
-Restored: Local Trust, alert *configuration*, the Pulse
-producer (`POST /api/pulse/run`), the question bank (including AI question suggestions),
-`notifications` (restored), `cron/trial-emails` (restored 2026-08-22), content tools
-(`fix/cluster-map`, `fix/content-brief`, restored 2026-08-23), and `agents/*` (`competitors`,
-`progress`, `recommendations`, restored 2026-08-23). Alert *evaluation*
-has an available producer route (scheduler source in `cloudflare/cron-worker/`) and
-emails threshold, week-over-week and recovery alerts, deduped to one per client, type and
-week, with in-app notifications written and readable. Migrations `033`–`035` gate its deploy (see
-[`docs/alert-evaluation-release.md`](./docs/alert-evaluation-release.md)). A fence is not a
-gate — restoring one means adding a real auth/entitlement/ownership gate, not just deleting
-the `featureUnavailable` call. `lib/localTrust/guard.ts` is the shape to copy.
-
-**Runtime readback, 2026-10-03 13:25 HKT:** the deployed `aiso-cron-worker` has no enabled
-cron schedules and no `APP_BASE_URL` binding. Weekly operation and job coverage are
-unverified; the remediation candidate has not been deployed. See the
-[runtime evidence register](docs/runbooks/aiso-runtime-evidence.md) and
-[release/rollback runbook](docs/runbooks/aiso-remediation-release.md).
-
 Stack: Next.js 16 (App Router) · TypeScript 5.9 · Neon Postgres + Neon Auth · Tailwind v4 ·
 shadcn/ui · Vitest · Playwright.
 
-## Project status — read before you touch anything
-
-**The Supabase → Neon migration is complete.** `db()` from `@/lib/db` is the only database
-client: zero files import `lib/supabase.ts` / `lib/supabase-server.ts` (both deleted), no
-`@supabase/*` package remains, and an ESLint rule makes re-adding one an error rather than a
-convention. The dashboard and admin routes run on Neon.
-
-What is *not* done is a separate thing, and it is tracked above: several features are fenced
-to `503` because their queries were never ported, not because anything is broken.
-
-Two live caveats worth knowing before you touch the database:
-
-- **All migrations `001`–`035` are applied** as of a `--verify` run against production on
-  2026-08-15, which also settled the long-running `021` dispute: it *did* run, its three
-  `local_trust_*` tables exist, and `021`'s own "never been applied" header comment (since
-  corrected) was the thing that was wrong. Run `npm run migrate -- --verify` against the target database before
-  believing any of this — it reports which migrations' objects actually exist, and this line
-  is only as fresh as its date.
-- **RLS is enabled but inert.** The app connects as `aeo_app` (migration `037` moved it off
-  `neondb_owner` to a least-privilege role), and the leftover policies call a Supabase function
-  that no longer exists. Every query must filter by `account_id` explicitly — there is no
-  backstop.
-
 Read [`CLAUDE.md`](./CLAUDE.md) before writing code. It is the real architecture document.
+Current project state (migrations, fences, scheduler) is in
+[`docs/project-status.md`](./docs/project-status.md).
 
 ## Prerequisites
 
@@ -74,12 +34,12 @@ Read [`CLAUDE.md`](./CLAUDE.md) before writing code. It is the real architecture
 
 ```bash
 npm install
-touch .env.local   # then fill in the variables below
-npm run dev        # http://localhost:3000
+cp .env.example .env.local   # then fill it in
+npm run dev                  # http://localhost:3000
 ```
 
-**`.env.example` is the authoritative list** — copy it to `.env.local` and fill it in. Each
-entry there says what breaks when it is missing. The highlights:
+**`.env.example` is the authoritative list.** Each entry there says what breaks when it is
+missing. The highlights:
 
 | Variable | Notes |
 |---|---|
@@ -94,28 +54,9 @@ entry there says what breaks when it is missing. The highlights:
 | `NEXT_PUBLIC_APP_URL` | public origin; falls back to `https://aiso-kappa.vercel.app` (`lib/app-origin.ts`) |
 | `N8N_SCAN_WEBHOOK_URL` | n8n scan automation; unset = feature off |
 
-Optional (have fallbacks): `RESEND_FROM_EMAIL`, `WIKIPEDIA_USER_AGENT`.
-E2E only: `BASE_URL`, `START_DEV_SERVER`, `PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_TEST_PASSWORD`.
-
-Auth and database clients are lazy. A successful build does not verify runtime configuration.
-The readiness configuration report applies a stricter, explicit release policy to supplied
-values, including values that current runtime paths only require when used. It is report-only:
-it validates configuration shape and consistency, but does not contact providers, prove runtime
-reachability, enforce promotion or establish production acceptance.
-
-`CRON_SECRET` (≥16 chars) authenticates the weekly Pulse chain: the Cloudflare Worker
-(`cloudflare/cron-worker/`, not Vercel Cron) calls `GET /api/cron/pulse` with
-`Authorization: Bearer`, and that driver calls `POST /api/pulse/run` with `x-cron-secret`.
-Both return 500 rather than running when it is unset. `/api/cron/trial-emails` is restored
-(2026-08-22) and validates the same `Authorization: Bearer` shape; `/api/cron/evaluate-alerts`
-is Neon-backed, accepting both header shapes on its own handlers. Scheduling requires
-verified control-plane configuration.
-
-Dead — read by nothing, listed so nobody re-adds them expecting an effect:
-`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (checkout is server-side only). `RESEND_API_KEY`
-is used by the Neon alert evaluator. The legacy `NEXT_PUBLIC_SUPABASE_URL`,
-`NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — the Neon migration is complete
-and no application code reads them.
+Optional (have fallbacks): `RESEND_FROM_EMAIL`, `WIKIPEDIA_USER_AGENT`. More detail, including
+cron secrets, E2E variables and dead variables:
+[`docs/configuration.md`](./docs/configuration.md).
 
 ## Commands
 
@@ -159,100 +100,14 @@ what has run in a `schema_migrations` ledger; `--dry-run` previews.
 ## Further reading
 
 - [`CLAUDE.md`](./CLAUDE.md) — architecture, auth model, checks engine, DB notes, gotchas
-- [`docs/`](./docs) — historical plans and specs
-
-## Public scan deployment prerequisites
-
-Production anonymous scans are supported only on Vercel, where the platform overwrites
-`x-vercel-forwarded-for` and exposes the `VERCEL=1` system environment invariant.
-The endpoint fails closed when either invariant is missing.
-
-Before releasing public scans:
-
-- Apply `supabase/migrations/023_public_scan_rate_limits.sql` to the production database.
-- Apply `supabase/migrations/024_stripe_lifecycle_integrity.sql` before enabling Stripe webhooks.
-- Apply `supabase/migrations/025_authenticated_scan_quotas.sql` before releasing authenticated scans.
-  The server-only `DATABASE_URL` role must be able to insert, update, select, and delete rows in
-  `authenticated_scan_monthly_usage`; authenticated scans fail closed if the counter is unavailable.
-- Apply `supabase/migrations/026_effective_brand_limit.sql` before releasing self-service brand creation.
-  It replaces the legacy raw-plan trigger with serialized, effective-entitlement enforcement.
-- **Apply `supabase/migrations/028_account_plan_overrides.sql` BEFORE deploying the code that
-  expects it — not before first using admin plan comps.** `getProfile()` in `lib/auth.ts`
-  selects `override_plan` and `override_expires_at` on every authenticated request, and the
-  Neon driver throws on a missing column. Deploying the code against a pre-028 schema returns
-  500 for every signed-in request (dashboard, admin, pulse, reports, authenticated scans)
-  while anonymous traffic keeps working — so the public funnel smoke-tests green while every
-  logged-in customer is down. The migration is additive (`add column if not exists`) and its
-  only destructive statement drops the orphaned `plan_features` table, so migration-first is
-  always the safe order. Apply it before, or atomically with, the deploy.
-  It adds the override columns and replaces `check_brand_limit()` so a comp is honoured by
-  the database as well as the application.
-- Configure the server-only `PUBLIC_SCAN_RATE_LIMIT_SECRET` with at least 32 random characters.
-  Do not expose it through a `NEXT_PUBLIC_` variable or commit its value.
-
-Local development and tests use a single explicitly isolated identity and development-only
-HMAC key. They ignore forwarding headers and do not claim production proxy security.
-
-## Manual runtime readiness (local implementation; live approval separate)
-
-Slice B adds a protected, read-only runtime probe and explicit candidate runner.
-Configuration and runtime results always retain `enforced: false` and
-`productionReady: false`; exit 0 means only that the selected checks passed.
-Whole-branch independent review approved the local implementation; no live candidate has been verified.
-
-After separately approving a concrete candidate and credential sources, use Node 24:
-
-```text
-node scripts/readiness/check-candidate.mjs --team TEAM_ID --project PROJECT_ID --deployment DEPLOYMENT_ID --sha FULL_LOWERCASE_SHA --environment preview --policy POLICY_JSON_PATH --output-dir OUTPUT_DIRECTORY
-```
-
-All seven options are mandatory. Team/project/deployment must be immutable IDs
-(`team_`, `prj_`, `dpl_`); SHA is exactly 40 lowercase hex characters. Environment
-is explicitly `preview` or `production`, with no default. Unknown/duplicate options,
-aliases and URL targets fail closed. This placeholder command is not authorization.
-The runner does not load dotenv files and accepts no credential CLI options.
-
-Inject `VERCEL_TOKEN` from the approved operator's Vercel metadata credential,
-`READINESS_PROBE_SECRET` from a separately provisioned dedicated server secret,
-and, when protection requires it, `VERCEL_AUTOMATION_BYPASS_SECRET` from that
-candidate project's Deployment Protection automation configuration. The first
-reaches only the Vercel control plane; the second authenticates the readiness
-endpoint; the third crosses outer deployment protection. They are separate credentials.
-
-Artifacts are exclusive `readiness-{nonce}.json` / `.md` writes in the explicit
-output directory. Existing files are never replaced. A failed Markdown write can
-leave validated JSON alone and returns exit 1; there is no atomic pair guarantee.
-Honest failed/unknown reports are retained with exit 1. Invalid reports or failed
-metadata checks are rejected before artifact writes.
-
-See the [runtime handoff](docs/superpowers/plans/2026-09-08-runtime-readiness-handoff.md) for policy format,
-limits, exact local evidence, and the blocked live-action proposal.
-The [synthetic sample](docs/superpowers/examples/2026-09-08-runtime-readiness-synthetic.md)
-is fixture-only; its JSON wrapper is intentionally rejected by the runner.
-
-## Schema-equivalence rehearsal (local tooling; live approval separate)
-
-Slice C provides a strict request-bound rehearsal and canonical cleanup-bound evidence.
-The Node 24 command, only after separate approval of exact live inputs, is:
-
-```text
-node scripts/schema-equivalence.mjs --request ABSOLUTE_REQUEST_JSON_PATH --output-dir ABSOLUTE_OUTPUT_DIRECTORY
-```
-
-Both flags are required. The request pins the project, sterile parent, database/role,
-protected IDs/hosts, sterility reference, clean source SHA and actual manifest hash.
-Unknown/duplicate options and JSON fields fail closed. Put operator files outside the
-checkout or in an explicitly ignored directory. Inject NEON_API_KEY only from a
-separately approved source; no dotenv or database URL fallback is used.
-
-Cleanup requires exact active-child absence readback after recoverable deletion;
-TTL never confirms deletion. Failed cleanup or a partial artifact write returns exit 1.
-Artifacts always retain enforced:false and productionReady:false; local validation
-cannot establish provenance and reusable remains false, even for live-labeled input.
-
-Final source d8347fa passed 436 selected synthetic tests across 10 files in two runs
-and changed-file lint. Independent whole-slice source review approved the final repair;
-local tooling is complete. Earlier typegen/TypeScript and full scoped lint passed at
-b866f14; the final repair changed only MJS/tests. No live schema equivalence has been proved. See the [schema handoff](docs/superpowers/plans/2026-09-08-schema-equivalence-handoff.md)
-for the exact request, limits, dated verification, synthetic example and blocked live
-proposal. A later docs commit changes HEAD and therefore requires a new manifest hash.
+- [`docs/project-status.md`](./docs/project-status.md) — migration state, feature fences, scheduler
+- [`docs/configuration.md`](./docs/configuration.md) — environment variable details
+- [`docs/runbooks/public-scan-prerequisites.md`](./docs/runbooks/public-scan-prerequisites.md) —
+  migrations and secrets to apply before releasing public or authenticated scans
+- [`docs/runbooks/runtime-readiness.md`](./docs/runbooks/runtime-readiness.md) — the manual
+  runtime readiness probe
+- [`docs/runbooks/schema-equivalence.md`](./docs/runbooks/schema-equivalence.md) — the
+  schema-equivalence rehearsal
+- [`docs/runbooks/`](./docs/runbooks) — deploy, rotate, roll out and verify procedures
+- [`docs/ux/`](./docs/ux) — the UX rebuild, phase by phase, with evidence
+- [`docs/`](./docs) — everything else: ADRs, plans, contracts, audits

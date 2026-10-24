@@ -1,4 +1,4 @@
-# Fimmick AEO — Project Instructions
+# Fimmick AISO — Project Instructions
 
 > **CRITICAL**: This project uses **Next.js 16** (App Router). APIs, file conventions, and caching behaviour may differ from your training data. Before writing any Next.js code, read the relevant guide in `node_modules/next/dist/docs/`. Heed deprecation notices.
 >

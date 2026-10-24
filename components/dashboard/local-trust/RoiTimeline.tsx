@@ -46,9 +46,9 @@ const defaultCopy: Copy = {
   noEstimate: 'Add average lead value and close rate to estimate enquiry value.',
   basis: 'Scenario: {low}–{high} extra enquiries at the average lead value ({leadValue}) and close rate ({closeRate}) you entered.',
   movement:
-    'Keyed to a {delta}-point rise since {month}. Turning points into enquiries — one per {lowPoints} points at the low end, one per {highPoints} at the high — is an assumption AISO has not measured.',
+    'Keyed to a {delta}-point rise since {month}. Turning points into enquiries — one per {lowPoints} points at the low end, one per {highPoints} at the high — is an assumption Fimmick AISO has not measured.',
   limitation:
-    'Estimated, not observed. This is arithmetic over the figures you entered. AISO has not measured any enquiry, sale or revenue, and a technical or visibility improvement is not proven search or revenue uplift.',
+    'Estimated, not observed. This is arithmetic over the figures you entered. Fimmick AISO has not measured any enquiry, sale or revenue, and a technical or visibility improvement is not proven search or revenue uplift.',
 }
 
 type Props = {

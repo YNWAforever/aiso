@@ -29,7 +29,7 @@ export async function sendInvitationEmail({
 }) {
   const resend = new Resend(process.env.RESEND_API_KEY)
   const signInUrl = `${appOrigin()}/${locale}/auth/login`
-  const workspace = accountName?.trim() || (locale === 'zh-HK' ? '一個 AISO 工作區' : 'an AISO workspace')
+  const workspace = accountName?.trim() || (locale === 'zh-HK' ? '一個 Fimmick AISO 工作區' : 'a Fimmick AISO workspace')
   const inviter = invitedBy?.trim() || (locale === 'zh-HK' ? '一位成員' : 'a member')
 
   const subject = locale === 'zh-HK'

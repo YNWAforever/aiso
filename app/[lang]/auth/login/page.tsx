@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import { LoginForm } from '@/components/auth/LoginForm'
 import { ArrowLeft, Gauge, ListChecks, Radar, ShieldCheck, Zap } from 'lucide-react'
+import { Wordmark } from '@/components/brand/Wordmark'
 
 const POINTS = [
   { key: 'checks', Icon: ListChecks },
@@ -39,7 +40,7 @@ export default async function LoginPage({
             <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary">
               <Zap aria-hidden="true" className="size-4 text-primary-foreground" />
             </span>
-            <span>Fimmick <span className="text-primary">AISO</span></span>
+            <Wordmark />
           </Link>
           <Link href={`/${lang}`} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
             <ArrowLeft aria-hidden="true" className="size-4" />

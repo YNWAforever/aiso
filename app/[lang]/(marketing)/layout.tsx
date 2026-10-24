@@ -1,5 +1,6 @@
 import { SiteFooter } from '@/components/marketing/SiteFooter'
 import { SiteHeader } from '@/components/marketing/SiteHeader'
+import { buildOrganizationJsonLd } from '@/lib/seo'
 
 /**
  * The shell every public page renders inside.
@@ -13,10 +14,17 @@ import { SiteHeader } from '@/components/marketing/SiteHeader'
  *
  * `flex-1` makes the footer sit at the bottom of short pages: the root
  * `<body>` is `min-h-full flex flex-col`.
+ *
+ * Every public page names the company behind the product (Organization
+ * JSON-LD), which is what entity checks such as our own c15 look for.
  */
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(buildOrganizationJsonLd()).replace(/</g, '\\u003c') }}
+      />
       <SiteHeader />
       <main id="main" className="flex-1">
         {children}

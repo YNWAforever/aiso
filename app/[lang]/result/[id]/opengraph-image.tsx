@@ -6,6 +6,7 @@ import { formatScanScore } from '@/lib/score-display'
 import { db } from '@/lib/db'
 import { buildPublicResultSummary, type PublicResultSummary } from '@/lib/result-access'
 import type { Scan } from '@/lib/types'
+import { BRAND } from '@/lib/brand'
 
 export const alt = 'Website readiness scan — Fimmick AISO'
 export const size = { width: 1200, height: 630 }
@@ -61,7 +62,7 @@ export default async function Image({ params }: { params: Promise<{ lang: string
               color: 'white', fontSize: 26, fontWeight: 900,
             }}>⚡</div>
             <div style={{ display: 'flex', fontSize: 30, fontWeight: 900, color: 'white' }}>
-              Fimmick&nbsp;<span style={{ color: '#60a5fa' }}>AISO</span>
+              {`${BRAND.company}\u00a0`}<span style={{ color: '#60a5fa' }}>{BRAND.product}</span>
             </div>
           </div>
 

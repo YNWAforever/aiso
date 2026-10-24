@@ -82,7 +82,7 @@ export async function callOpenRouterWithEvidence({ label, model, messages, maxTo
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'HTTP-Referer': appOrigin(),
-        'X-Title': 'Fimmick AEO',
+        'X-Title': 'Fimmick AISO',
         'Content-Type': 'application/json',
       },
       // Clamped, never raised. The ceiling is deployer-configured and applies here

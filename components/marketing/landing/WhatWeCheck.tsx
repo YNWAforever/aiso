@@ -6,6 +6,19 @@ import { SectionHeading } from '@/components/marketing/landing/SectionHeading'
 import { cn } from '@/lib/utils'
 import { revealDelay } from '@/components/visuals/reveal/reveal'
 
+/**
+ * The public standards and crawler documentation the checks follow. Linked
+ * so a reader (and an answer engine, see our own c17) can verify the basis.
+ */
+const SOURCES = {
+  rfc9309: 'https://www.rfc-editor.org/rfc/rfc9309',
+  llmstxt: 'https://llmstxt.org/',
+  schema: 'https://schema.org/',
+  jsonld: 'https://www.w3.org/TR/json-ld11/',
+  google: 'https://developers.google.com/search/docs/appearance/ai-features',
+  openai: 'https://platform.openai.com/docs/bots',
+} as const
+
 const PILLAR_STYLE: Record<Pillar, { bar: string; icon: string }> = {
   core: { bar: 'bg-primary', icon: 'bg-accent text-accent-foreground' },
   extended: { bar: 'bg-tone-info', icon: 'bg-tone-info-soft text-tone-info-fg' },
@@ -70,6 +83,18 @@ export function WhatWeCheck() {
                 {band.maxExclusive === null
                   ? home('score_grade_last', { min: band.minInclusive, max: 100 })
                   : home('score_grade_interval', { min: band.minInclusive, max: band.maxExclusive })}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="mt-8">
+          <p id="checks-sources" className="text-sm font-semibold text-muted-foreground">{t('sources_label')}</p>
+          <ul aria-labelledby="checks-sources" className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            {(Object.keys(SOURCES) as Array<keyof typeof SOURCES>).map(key => (
+              <li key={key}>
+                <a href={SOURCES[key]} className="inline-flex min-h-6 items-center text-primary underline-offset-4 hover:underline">
+                  {t(`sources.${key}`)}
+                </a>
               </li>
             ))}
           </ul>
