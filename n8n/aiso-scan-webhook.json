@@ -7,12 +7,21 @@
         "httpMethod": "POST",
         "path": "aiso-scan",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {},
+        "authentication": "headerAuth"
       },
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 0]
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "AISO Scan Webhook"
+        }
+      }
     },
     {
       "id": "node-respond-ok",
@@ -68,16 +77,21 @@
       "id": "node-get-client",
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, brand_name, email, webhook_url FROM clients WHERE id = '{{ $json.body.clientId }}' LIMIT 1",
-        "options": {}
+        "query": "SELECT id, brand_name, webhook_url FROM clients WHERE id = $1::uuid LIMIT 1",
+        "options": {
+          "queryReplacement": "={{ [ $('Webhook Trigger').first().json.body.clientId ] }}"
+        }
       },
       "name": "Get Client Details",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [800, 0],
+      "position": [
+        800,
+        0
+      ],
       "credentials": {
         "postgres": {
-          "name": "Supabase Postgres"
+          "name": "Neon Postgres"
         }
       },
       "continueOnFail": true
@@ -91,9 +105,14 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "HTTP-Referer", "value": "https://aeo.fimmick.com" },
-            { "name": "X-Title", "value": "Fimmick AISO Scan" },
-            { "name": "Authorization", "value": "Bearer {{ $env.OPENROUTER_API_KEY }}" }
+            {
+              "name": "HTTP-Referer",
+              "value": "https://aeo.fimmick.com"
+            },
+            {
+              "name": "X-Title",
+              "value": "Fimmick AISO Scan"
+            }
           ]
         },
         "sendBody": true,
@@ -104,8 +123,16 @@
       "name": "Generate AI Summary (GPT-4o-mini)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1000, 0],
-      "continueOnFail": true
+      "position": [
+        1000,
+        0
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "OpenRouter API"
+        }
+      }
     },
     {
       "id": "node-extract-summary",
@@ -129,16 +156,21 @@
       "id": "node-update-scan",
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE scans SET ai_summary = '{{ $json.ai_summary.replace(/'/g, \"''\") }}', updated_at = NOW() WHERE id = '{{ $('Webhook Trigger').first().json.body.scanId }}'",
-        "options": {}
+        "query": "UPDATE scans SET ai_summary = $1, updated_at = NOW() WHERE id = $2::uuid AND client_id IS NOT DISTINCT FROM $3::uuid",
+        "options": {
+          "queryReplacement": "={{ [ $json.ai_summary, $('Webhook Trigger').first().json.body.scanId, $('Webhook Trigger').first().json.body.clientId ] }}"
+        }
       },
       "name": "Update Scan (AI Summary)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1400, 0],
+      "position": [
+        1400,
+        0
+      ],
       "credentials": {
         "postgres": {
-          "name": "Supabase Postgres"
+          "name": "Neon Postgres"
         }
       },
       "continueOnFail": true

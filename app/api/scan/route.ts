@@ -463,12 +463,22 @@ export async function POST(req: NextRequest) {
 
   // Schedule summary processing after the response so serverless runtimes keep it alive.
   const n8nWebhook = process.env.N8N_SCAN_WEBHOOK_URL
-  if (n8nWebhook) {
+  const n8nSecret = process.env.N8N_SCAN_WEBHOOK_SECRET
+  const secureN8nWebhook = !!n8nWebhook && URL.canParse(n8nWebhook) && new URL(n8nWebhook).protocol === 'https:'
+  if (n8nWebhook && !secureN8nWebhook) {
+    console.error('[scan] n8n dispatch disabled: N8N_SCAN_WEBHOOK_URL must be a valid HTTPS URL')
+  }
+  if (n8nWebhook && (!n8nSecret || n8nSecret.length < 32)) {
+    console.error('[scan] n8n dispatch disabled: N8N_SCAN_WEBHOOK_SECRET must be at least 32 characters')
+  }
+  if (n8nWebhook && secureN8nWebhook && n8nSecret && n8nSecret.length >= 32) {
     const dispatch = async () => {
       try {
         await fetch(n8nWebhook, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          // Never forward the shared credential through an HTTP redirect.
+          redirect: 'error',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${n8nSecret}` },
           body: JSON.stringify({
             scanId,
             clientId: clientId ?? null,
@@ -480,7 +490,7 @@ export async function POST(req: NextRequest) {
           signal: AbortSignal.timeout(5_000),
         })
       } catch (error) {
-        console.error('[scan] n8n webhook failed:', error)
+        console.error('[scan] n8n webhook failed:', error instanceof Error ? error.name : 'Error')
       }
     }
 

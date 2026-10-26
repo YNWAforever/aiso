@@ -184,6 +184,7 @@ describe('POST /api/scan — full scan flow', () => {
   it('fires n8n webhook after scan is saved when N8N_SCAN_WEBHOOK_URL is set', async () => {
     // Set env var before the POST call — the route reads it at call time
     process.env.N8N_SCAN_WEBHOOK_URL = 'https://n8n.example.com/webhook/aiso-scan'
+    process.env.N8N_SCAN_WEBHOOK_SECRET = 'synthetic-webhook-secret-for-tests-000001'
     const { POST } = await import('@/app/api/scan/route')
     const req = new NextRequest('http://localhost/api/scan', {
       method: 'POST',
@@ -200,12 +201,55 @@ describe('POST /api/scan — full scan flow', () => {
     )
     expect(webhookCall).toBeDefined()
     const [, opts] = webhookCall!
+    expect(new Headers((opts as RequestInit).headers).get('authorization')).toBe('Bearer synthetic-webhook-secret-for-tests-000001')
+    expect((opts as RequestInit).redirect).toBe('error')
     const body = JSON.parse((opts as RequestInit).body as string)
     expect(body).toHaveProperty('scanId')
     expect(body).toHaveProperty('score')
     expect(body).toHaveProperty('grade')
     expect(body.results).not.toHaveProperty('evidence')
     delete process.env.N8N_SCAN_WEBHOOK_URL
+    delete process.env.N8N_SCAN_WEBHOOK_SECRET
+  })
+
+  it.each([undefined, '', 'too-short'])('does not schedule an unauthenticated n8n dispatch with secret %s', async secret => {
+    vi.stubEnv('N8N_SCAN_WEBHOOK_URL', 'https://n8n.example.com/webhook/aiso-scan')
+    vi.stubEnv('N8N_SCAN_WEBHOOK_SECRET', secret)
+    try {
+      const { POST } = await import('@/app/api/scan/route')
+      const response = await POST(new NextRequest('http://localhost/api/scan', {
+        method: 'POST', body: JSON.stringify({ url: 'https://example.com' }),
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      expect(response.status).toBe(200)
+      expect(afterState.callbacks).toHaveLength(0)
+      expect(fetchMock.mock.calls.some(([url]) => String(url).includes('n8n.example.com'))).toBe(false)
+    } finally { vi.unstubAllEnvs() }
+  })
+
+  it.each([
+    'http://n8n.example.com/webhook/aiso-scan?private=endpoint-sentinel',
+    'not-a-webhook-url?private=endpoint-sentinel',
+  ])('does not send the webhook credential to an insecure or invalid endpoint: %s', async webhook => {
+    const secret = 'synthetic-webhook-secret-for-tests-000001'
+    vi.stubEnv('N8N_SCAN_WEBHOOK_URL', webhook)
+    vi.stubEnv('N8N_SCAN_WEBHOOK_SECRET', secret)
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { POST } = await import('@/app/api/scan/route')
+      const res = await POST(new NextRequest('http://localhost/api/scan', {
+        method: 'POST', body: JSON.stringify({ url: 'https://example.com' }),
+      }))
+      expect(res.status).toBe(200)
+      expect(await res.json()).toMatchObject({ id: 'scan-abc' })
+      expect(dbState.insertValues.length).toBeGreaterThan(0)
+      for (const callback of afterState.callbacks) await callback()
+      expect(afterState.callbacks).toHaveLength(0)
+      expect(fetchMock.mock.calls.some(([url]) => String(url) === webhook)).toBe(false)
+      const diagnostics = log.mock.calls.flat().join(' ')
+      expect(diagnostics).not.toContain('endpoint-sentinel')
+      expect(diagnostics).not.toContain(secret)
+    } finally { log.mockRestore(); vi.unstubAllEnvs() }
   })
 
   it('keeps the n8n scan workflow compatible with object results and out of agent completion', () => {
