@@ -199,35 +199,32 @@ describe('callOpenRouter failure logging', () => {
     expect(error).toHaveBeenCalledWith(failure({ reason: 'missing_api_key' }))
   })
 
-  it('logs the status, code and capped message without putting the upstream body in the error', async () => {
+  it('logs only reason and status for an HTTP error', async () => {
     const body = JSON.stringify({ error: { message: 'No auth credentials found', code: 401 } })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 401 })))
 
-    await expect(call()).rejects.toThrow(/^OpenRouter 401$/)
+    await expect(call()).rejects.toThrow('OpenRouter request failed (HTTP 401)')
 
-    expect(error).toHaveBeenCalledWith(failure({ reason: 'http_error', status: 401, providerCode: 401, providerMessage: 'No auth credentials found' }))
+    expect(error).toHaveBeenCalledWith(failure({ reason: 'http_error', status: 401 }))
     expect(info).not.toHaveBeenCalled()
   })
 
-  it('logs a null providerMessage when the error body is not OpenRouter JSON', async () => {
+  it('does not expose a non-JSON provider body', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('upstream down', { status: 502 })))
 
-    await expect(call()).rejects.toThrow(/^OpenRouter 502$/)
+    await expect(call()).rejects.toThrow('OpenRouter request failed (HTTP 502)')
 
-    expect(error).toHaveBeenCalledWith(failure({ reason: 'http_error', status: 502, providerCode: null, providerMessage: null }))
+    expect(error).toHaveBeenCalledWith(failure({ reason: 'http_error', status: 502 }))
   })
 
-  it('bounds diagnostics and omits provider metadata that could echo credentials or page text', async () => {
+  it('omits provider diagnostics that could echo credentials or page text', async () => {
     const body = JSON.stringify({ error: {
       code: 'invalid_schema', message: 'test-key ' + 'x'.repeat(300),
       metadata: { raw: JSON.stringify({ error: { message: PROMPT, type: 'invalid_request_error' } }) },
     } })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 400 })))
-    await expect(call()).rejects.toThrow(/^OpenRouter 400$/)
-    expect(error).toHaveBeenCalledWith(failure({
-      reason: 'http_error', status: 400, providerCode: 'invalid_schema',
-      providerMessage: ('[redacted] ' + 'x'.repeat(300)).slice(0, 200),
-    }))
+    await expect(call()).rejects.toThrow('OpenRouter request failed (HTTP 400)')
+    expect(error).toHaveBeenCalledWith(failure({ reason: 'http_error', status: 400 }))
     expect(JSON.stringify(error.mock.calls)).not.toContain('test-key')
     expect(JSON.stringify(error.mock.calls)).not.toContain(PROMPT)
   })
@@ -236,19 +233,17 @@ describe('callOpenRouter failure logging', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
       error: { code: { request: PROMPT }, message: 'Provider returned error' },
     }), { status: 400 })))
-    await expect(call()).rejects.toThrow(/^OpenRouter 400$/)
-    expect(error).toHaveBeenCalledWith(failure({
-      reason: 'http_error', status: 400, providerCode: null, providerMessage: 'Provider returned error',
-    }))
+    await expect(call()).rejects.toThrow('OpenRouter request failed (HTTP 400)')
+    expect(error).toHaveBeenCalledWith(failure({ reason: 'http_error', status: 400 }))
   })
 
   it('logs timeout and network failures apart', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('signal timed out', 'TimeoutError')))
-    await expect(call()).rejects.toThrow('signal timed out')
+    await expect(call()).rejects.toThrow('OpenRouter request timed out')
     expect(error).toHaveBeenLastCalledWith(failure({ reason: 'timeout' }))
 
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fetch failed')))
-    await expect(call()).rejects.toThrow('fetch failed')
+    await expect(call()).rejects.toThrow('OpenRouter request failed')
     expect(error).toHaveBeenLastCalledWith(failure({ reason: 'network' }))
   })
 
@@ -276,5 +271,28 @@ describe('callOpenRouter failure logging', () => {
     await expect(call()).rejects.toThrow()
 
     expect(JSON.stringify(error.mock.calls)).not.toContain(PROMPT)
+  })
+
+  it('does not log untrusted identifiers on a malformed completion', async () => {
+    respondWith({ model: PROMPT, id: PROMPT, choices: [{ finish_reason: PROMPT }], usage: { completion_tokens: 2 } })
+    await expect(call()).rejects.toThrow('OpenRouter returned no content')
+    expect(JSON.stringify([...info.mock.calls, ...error.mock.calls])).not.toContain(PROMPT)
+    expect(info).toHaveBeenCalledWith(expect.objectContaining({ completionTokens: 2 }))
+  })
+
+  it.each(['json', 'text', 'network', 'invalid-json'] as const)('excludes synthetic customer text from %s errors and recursive formatting', async mode => {
+    const { format } = await import('node:util')
+    const secret = `${PROMPT} customer-private-sentinel`
+    if (mode === 'network') vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error(secret, { cause: { secret } })))
+    else vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      mode === 'json' ? JSON.stringify({ error: { message: secret, metadata: { raw: secret } } }) : secret,
+      { status: mode === 'invalid-json' ? 200 : 400 },
+    )))
+    const thrown = await call().catch(error => error)
+    expect(thrown).toBeInstanceOf(Error)
+    expect(thrown).not.toHaveProperty('cause')
+    expect(format(thrown)).not.toContain(secret)
+    expect(JSON.stringify(thrown)).not.toContain(secret)
+    expect(format([...error.mock.calls, ...warn.mock.calls, ...info.mock.calls])).not.toContain(secret)
   })
 })

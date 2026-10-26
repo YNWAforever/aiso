@@ -116,34 +116,39 @@ export async function callOpenRouterWithEvidence({ label, model, messages, maxTo
       signal: signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
     })
   } catch (error) {
-    fail({ reason: error instanceof DOMException && error.name === 'TimeoutError' ? 'timeout' : 'network' })
-    throw error
+    const timeout = error instanceof DOMException && error.name === 'TimeoutError'
+    fail({ reason: timeout ? 'timeout' : 'network' })
+    throw new Error(timeout ? 'OpenRouter request timed out' : 'OpenRouter request failed')
   }
 
   if (!res.ok) {
-    const text = await res.text()
-    fail({ reason: 'http_error', status: res.status, ...providerError(text, apiKey) })
-    // Provider bodies can echo page text or credentials; callers may log errors.
-    throw new Error(`OpenRouter ${res.status}`)
+    // Upstreams can echo prompts even inside a JSON error.message. Do not read,
+    // retain as a cause, or log any error body.
+    await res.body?.cancel().catch(() => {})
+    fail({ reason: 'http_error', status: res.status })
+    throw new Error(`OpenRouter request failed (HTTP ${res.status})`)
   }
 
   let data: CompletionMetadata & { choices?: Array<{ message?: { content?: unknown; annotations?: unknown } }> }
   try {
     data = await res.json()
-  } catch (error) {
+  } catch {
     fail({ reason: 'invalid_json' })
-    throw error
+    throw new Error('OpenRouter returned invalid JSON')
   }
-  logUsage(label, model, data)
-
   const content = data?.choices?.[0]?.message?.content
+  const finishReason = str(data?.choices?.[0]?.finish_reason)
+  const incomplete = label === 'pulse.platform' && finishReason !== null && finishReason !== 'stop'
+  // Failed completions retain numeric usage for spend accounting, but no
+  // upstream-supplied identifiers that could echo private request content.
+  logUsage(label, model, typeof content === 'string' && content.trim() && !incomplete
+    ? data : { usage: data?.usage, choices: [{ finish_reason: finishReason }] })
   if (typeof content !== 'string' || !content.trim()) {
-    fail({ reason: 'no_content', finishReason: str(data?.choices?.[0]?.finish_reason) })
+    fail({ reason: 'no_content', finishReason: safeFinishReason(data?.choices?.[0]?.finish_reason) })
     throw new Error('OpenRouter returned no content')
   }
-  const finishReason = str(data?.choices?.[0]?.finish_reason)
-  if (label === 'pulse.platform' && finishReason !== null && finishReason !== 'stop') {
-    fail({ reason: 'incomplete_content', finishReason })
+  if (incomplete) {
+    fail({ reason: 'incomplete_content', finishReason: safeFinishReason(finishReason) })
     throw new Error('OpenRouter returned incomplete content')
   }
   return { answer: content, actualModel: str(data.model), requestId: str(data.id),
@@ -153,24 +158,8 @@ export async function callOpenRouterWithEvidence({ label, model, messages, maxTo
     providerCitations: citationsFromAnnotations(data?.choices?.[0]?.message?.annotations), providerFinishReason: finishReason?.slice(0,64) ?? null }
 }
 
-/**
- * OpenRouter's own error text (e.g. "No auth credentials found", or a routing
- * failure naming an unsupported parameter), which is what tells a bad key from a
- * provider problem. Only the parsed `error.message`, capped -- never the raw
- * body/metadata, which a provider could fill with an echo of the request.
- */
-function providerError(body: string, apiKey: string): { providerCode: string | number | null; providerMessage: string | null } {
-  try {
-    const { code, message } = JSON.parse(body)?.error ?? {}
-    return {
-      providerCode: typeof code === 'number' && Number.isSafeInteger(code) ? code
-        : typeof code === 'string' && /^[\w.-]{1,64}$/.test(code) && code !== apiKey ? code : null,
-      providerMessage: typeof message === 'string' ? message.replaceAll(apiKey, '[redacted]').slice(0, 200) : null,
-    }
-  } catch {
-    return { providerCode: null, providerMessage: null }
-  }
-}
+const FINISH_REASONS = new Set(['stop', 'length', 'content_filter', 'tool_calls', 'error', 'cancelled'])
+const safeFinishReason = (value: unknown): string | null => typeof value === 'string' && FINISH_REASONS.has(value) ? value : null
 
 type CompletionMetadata = {
   id?: unknown
@@ -194,7 +183,7 @@ const str = (value: unknown): string | null => (typeof value === 'string' ? valu
  * OpenRouter includes it and null otherwise.
  */
 function logUsage(label: CallLabel, model: string, data: CompletionMetadata | null | undefined): void {
-  const finishReason = str(data?.choices?.[0]?.finish_reason)
+  const finishReason = safeFinishReason(data?.choices?.[0]?.finish_reason)
   const entry = {
     event: 'openrouter_usage',
     label,

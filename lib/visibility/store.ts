@@ -7,6 +7,7 @@ import type { MonitoredQueryInput } from './input'
 import { projectVisibilityObservation,buildVisibilityReport,type VisibilityContext } from './report'
 import { generateVisibilityArtifact } from './artifacts'
 import { validateVisibilityPage } from './page'
+import { boundVisibilityResponse } from './budget'
 const missing=():never=>{throw new OutcomeError('VISIBILITY_NOT_FOUND',404)}
 function context(brand:Record<string,unknown>):VisibilityContext {
   return {domain:normalizeBrandDomain(String(brand?.domain??''))??'',competitors:Array.isArray(brand?.competitorRefs)?brand.competitorRefs.map(raw=>{
@@ -25,29 +26,42 @@ export async function saveMonitoredQuery(scope:OutcomeScope,input:MonitoredQuery
   if(!saved)throw new OutcomeError('VISIBILITY_REFERENCE_NOT_FOUND',404)
   return {id:String(saved.id)}
 }
-async function observationRows(scope:OutcomeScope,id:string|null=null) {
+async function observationRows(scope:OutcomeScope,id:string|null=null,runId:string|null=null) {
   const sql=db()
   return sql`select o.*,r.review from ai_observations o left join lateral (
     select jsonb_build_object('id',v.id,'recommendation',v.recommendation,'accuracy',v.accuracy,'risk',v.risk,'notes',v.notes,'createdAt',v.created_at,'reviewerId',v.created_by) as review
     from visibility_reviews v where v.account_id=o.account_id and v.client_id=o.client_id and v.observation_id=o.id order by v.created_at desc,v.id desc limit 1
   ) r on true where o.account_id=${scope.accountId}::uuid and o.client_id=${scope.clientId}::uuid and (${id}::uuid is null or o.id=${id}::uuid)
-    order by o.finished_at desc,o.id desc limit 500`
+    and (${runId}::uuid is null or o.run_id=${runId}::uuid) order by o.finished_at desc,o.id desc limit 500`
+}
+export async function readVisibilityRunEvidence(scope:OutcomeScope,id:string) {
+  const sql=db()
+  const [run]=await sql`select id,manifest,status from pulse_runs where account_id=${scope.accountId}::uuid and client_id=${scope.clientId}::uuid and id=${id}::uuid`
+  if(!run)return null
+  const rows=await observationRows(scope,null,id)
+  return{manifest:run.manifest as Record<string,unknown>,status:String(run.status),observations:rows.map(row=>projectVisibilityObservation(row,context(row.brand as Record<string,unknown>)))}
 }
 export async function loadVisibilityWorkspace(scope:OutcomeScope) {
   const sql=db()
   const [client]=await sql`select id,domain from clients where account_id=${scope.accountId}::uuid and id=${scope.clientId}::uuid`
   if(!client)return null
-  const [queries,rows,drafts,jobs,settings,competitors]=await Promise.all([
+  const [queries,rows,drafts,jobs,settings,competitors,pageSnapshots,sources]=await Promise.all([
     sql`select id,question,locale,market,is_active,monitoring,context_current from monitored_queries where account_id=${scope.accountId}::uuid and client_id=${scope.clientId}::uuid order by id limit 100`,
     observationRows(scope),
     sql`select id,observation_id,kind,locale,state,artifact,created_at from visibility_drafts where account_id=${scope.accountId}::uuid and client_id=${scope.clientId}::uuid order by created_at desc,id desc limit 20`,
     sql`select id,source_kind,source_id,source_run_id,retest_run_id,status,reason,attempt_count,result,created_at from visibility_revalidations where account_id=${scope.accountId}::uuid and client_id=${scope.clientId}::uuid order by created_at desc,id desc limit 30`,
-    sql`select auto_retest from visibility_settings where account_id=${scope.accountId}::uuid and client_id=${scope.clientId}::uuid`,
+    sql`select s.auto_retest,p.id as active_creator from visibility_settings s left join profiles p on p.id=s.enabled_by and p.account_id=s.account_id and p.deactivated_at is null
+      where s.account_id=${scope.accountId}::uuid and s.client_id=${scope.clientId}::uuid`,
     sql`select id,name from competitors where account_id=${scope.accountId}::uuid and client_id=${scope.clientId}::uuid and archived_at is null order by name,id limit 10`,
+    sql`select id,url,observed_at,evidence from visibility_page_snapshots where account_id=${scope.accountId}::uuid and client_id=${scope.clientId}::uuid order by observed_at desc,id desc limit 20`,
+    sql`select source.id,source.kind,source.label,source.source_at from (
+      select id,'deployment' as kind,external_id as label,deployed_at as source_at from outcome_deployments where account_id=${scope.accountId}::uuid and client_id=${scope.clientId}::uuid
+      union all select e.id,'work_completion',w.title,e.completed_at from visibility_completion_events e join evidence_work_items w on w.id=e.work_item_id and w.account_id=e.account_id and w.client_id=e.client_id
+      where e.account_id=${scope.accountId}::uuid and e.client_id=${scope.clientId}::uuid) source order by source.source_at desc,source.id desc limit 30`,
   ])
   const observations=rows.map(row=>projectVisibilityObservation(row,context(row.brand as Record<string,unknown>)))
-  return{clientId:scope.clientId,domain:client.domain,queries,observations,report:buildVisibilityReport(observations),drafts,jobs,autoRetest:settings[0]?.auto_retest===true,competitors,
-    coverage:{limit:500,limitReached:rows.length===500,source:'accepted-pulse-ledger'}}
+  return boundVisibilityResponse({clientId:scope.clientId,domain:client.domain,queries,observations,report:buildVisibilityReport(observations),drafts,jobs,autoRetest:settings[0]?.auto_retest===true&&!!settings[0]?.active_creator,competitors,pageSnapshots,sources,
+    coverage:{limit:500,limitReached:rows.length===500,responseLimited:false,source:'accepted-pulse-ledger'}})
 }
 export async function saveVisibilityReview(scope:OutcomeScope,actor:string,input:{observationId:string;recommendation:string;accuracy:string;risk:string;notes:string}) {
   const sql=db()
@@ -77,3 +91,5 @@ export async function createVisibilityDraft(scope:OutcomeScope,actor:string,inpu
   if(!old)missing()
   return old
 }
+
+export type VisibilityWorkspaceData=NonNullable<Awaited<ReturnType<typeof loadVisibilityWorkspace>>>

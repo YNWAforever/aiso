@@ -52,6 +52,15 @@ const TENANT_TABLES: Record<string, string> = {
   outcome_attempt_receipts: 'account_id + client_id (071/072)',
   outcome_regressions: 'account_id + client_id (071/072)',
   search_console_appearance: 'account_id + client_id (071/072)',
+  monitored_queries: 'account_id + client_id (074/075)',
+  ai_observations: 'account_id + client_id (074/075)',
+  visibility_reviews: 'account_id + client_id (074/075)',
+  visibility_drafts: 'account_id + client_id (074/075)',
+  visibility_settings: 'account_id + client_id (074/075)',
+  visibility_revalidations: 'account_id + client_id (074/075)',
+  visibility_revalidation_attempts: 'account_id + client_id (074/075)',
+  visibility_page_snapshots: 'account_id + client_id (074/075)',
+  visibility_completion_events: 'account_id + client_id (074/075)',
   clients: 'account_id (004)',
   scans: 'account_id (008), client_id (029)',
   account_report_branding: 'account_id (027)',
@@ -159,6 +168,9 @@ const DECLARED: Record<string, string> = {
  * each entry pointing at a live function that still carries tenant SQL.
  */
 const ACCOUNT_BLIND_BY_DESIGN: Record<string, string> = {
+  'lib/visibility/cron.ts::loadVisibilityAutomationTargets': 'Cron-authenticated opt-in target selection across accounts; active creator and client, each subsequent operation uses the returned account/client scope.',
+  'lib/visibility/cron.ts::loadDueVisibilityJobs': 'Cron-authenticated bounded pending-job selection across accounts. Job authorization, leases and final writes use each row account/client; no browser-supplied scope.',
+  'lib/visibility/jobs.ts::repairVisibilityLeases': 'Cron-only bounded stale-lease repair matches job/account/client/token to each existing attempt and never sends a provider request.',
   'lib/outcome-integrations/credentials.ts::loadOutcomeCredential':
     'Opaque key establishes scope; active creator, owned client/account joins, commercial entitlement and exact-body HMAC are required before ingestion. No caller account parameter.',
   'lib/integrations/search-console/store.ts::loadDueBindings':

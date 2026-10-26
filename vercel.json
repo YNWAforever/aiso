@@ -12,6 +12,7 @@
     "app/api/cron/trial-emails/route.ts": { "maxDuration": 60 },
     "app/api/cron/search-console/route.ts": { "maxDuration": 60 },
     "app/api/cron/outcomes/route.ts": { "maxDuration": 60 },
-    "app/api/clients/[clientId]/outcomes/[action]/route.ts": { "maxDuration": 30 }
+    "app/api/clients/[clientId]/outcomes/[action]/route.ts": { "maxDuration": 30 },
+    "app/api/clients/[clientId]/visibility/[action]/route.ts": { "maxDuration": 30 }
   }
 }

@@ -33,6 +33,6 @@ export async function validateVisibilityPage(input:string,domain:string,fetcher:
       canonicalState='unverifiable'
       if(canonicals.length===1&&canonicals[0])try { canonicalState=new URL(canonicals[0],url).href===url?'present':'different' }catch{}
     }
-    return {...evidence,collection:'complete',canonicalState,noindex,titlePresent,contentHash:createHash('sha256').update(html).digest('hex')}
+    return {...evidence,observedAt:new Date().toISOString(),collection:'complete',canonicalState,noindex,titlePresent,contentHash:createHash('sha256').update(html).digest('hex')}
   }catch{return evidence}
 }

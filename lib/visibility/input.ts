@@ -1,6 +1,6 @@
 import { canonicalOutcomeUrl, object, text, uuid, OutcomeError } from '@/lib/outcome-integrations/input'
 import { isPromptLanguage, isPromptMarket } from '@/lib/prompts/context'
-const invalid = (): never => { throw new OutcomeError('INVALID_VISIBILITY_INPUT') }
+function invalid(): never { throw new OutcomeError('INVALID_VISIBILITY_INPUT') }
 export const VISIBILITY_SAMPLING = { temperature: 0.2, samplesPerRun: 1, seed: null, version: 'visibility-sampling.v1' } as const
 export function parseMonitoredQuery(raw: unknown, domain: string) {
   const body = object(raw, ['promptId','locale','market','persona','intent','funnel','topic','targetUrl','priority','branded','expectedAttributes','competitorIds'])

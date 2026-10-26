@@ -135,6 +135,8 @@ function allRelations() {
     'pulse_legacy_classification_attempts','pulse_user_intents','pulse_run_reservations','prompt_batch_intents','work_item_groups',
     // 071-073: synthetic outcome inventories; no claim of managed application.
     'outcome_integration_settings','outcome_ingest_credentials','outcome_query_clusters','outcome_events','outcome_deployments','outcome_attempts','outcome_attempt_receipts','outcome_regressions','search_console_appearance',
+    // 074/075 authored visibility tables; synthetic inventory, not managed DB proof.
+    'visibility_reviews','visibility_drafts','visibility_settings','visibility_revalidations','visibility_revalidation_attempts','visibility_page_snapshots','visibility_completion_events',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }
