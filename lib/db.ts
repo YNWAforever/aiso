@@ -3,7 +3,9 @@ import {
   assertExpectationConfigured,
   checkBinding,
   readExpectationFromEnv,
-} from '@/lib/security/db-binding'
+// Native Node scripts share this guarded client; only explicit relative paths resolve.
+// @ts-expect-error -- Node requires .ts; bundler mode forbids it without a global relaxation
+} from './security/db-binding.ts'
 
 type Sql = NeonQueryFunction<false, false>
 
