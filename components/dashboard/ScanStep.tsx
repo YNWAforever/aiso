@@ -44,18 +44,20 @@ type Props = {
   scan: Scan | null
   scanHistory: Pick<Scan, 'id' | 'domain' | 'score' | 'grade' | 'created_at'>[]
   quota?: ScanQuota
+  client?: { domain: string | null; industry: string | null }
 }
 
-export function ScanStep({ lang, clientId, scanHistory, quota = { kind: 'unlimited' } }: Props) {
+export function ScanStep({ lang, clientId, scan, scanHistory, client, quota = { kind: 'unlimited' } }: Props) {
   const t            = useTranslations('dashboard')
   const locale       = useLocale()
   const router       = useRouter()
   const searchParams = useSearchParams()
   const autoUrl      = searchParams.get('url') ?? ''
 
-  const [url, setUrl]           = useState(autoUrl)
-  const [industry, setIndustry] = useState('')
-  const [region, setRegion]     = useState('')
+  const savedUrl = scan?.url || client?.domain || ''
+  const [url, setUrl]           = useState(autoUrl || (savedUrl && !/^https?:\/\//i.test(savedUrl) ? `https://${savedUrl}` : savedUrl))
+  const [industry, setIndustry] = useState(scan?.industry || client?.industry || '')
+  const [region, setRegion]     = useState(scan?.region || '')
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
   const [limit, setLimit]       = useState<'scansOut' | 'free' | null>(
@@ -63,10 +65,11 @@ export function ScanStep({ lang, clientId, scanHistory, quota = { kind: 'unlimit
   )
   const upgrade                 = useTranslations('dashboard.upgrade')
   const autoSubmitted           = useRef(false)
+  const submitting              = useRef(false)
 
   // Auto-submit when arriving from onboarding with a pre-filled URL
   useEffect(() => {
-    if (autoUrl && !autoSubmitted.current && !loading) {
+    if (autoUrl && !searchParams.has('scanId') && !scan && !scanHistory.length && !limit && !autoSubmitted.current && !loading) {
       autoSubmitted.current = true
       runScan(autoUrl)
     }
@@ -74,7 +77,8 @@ export function ScanStep({ lang, clientId, scanHistory, quota = { kind: 'unlimit
   }, [autoUrl])
 
   async function runScan(scanUrl: string) {
-    if (!scanUrl.trim()) return
+    if (!scanUrl.trim() || submitting.current || limit) return
+    submitting.current = true
     setLoading(true)
     setError('')
     try {
@@ -86,16 +90,18 @@ export function ScanStep({ lang, clientId, scanHistory, quota = { kind: 'unlimit
       const data = await res.json()
       if (!res.ok) {
         const reached = scanLimitFrom(res.status, data)
-        if (reached) { setLimit(reached); setLoading(false); return }
+        if (reached) { setLimit(reached); setLoading(false); submitting.current = false; return }
         const key = getDashboardScanErrorKey(res.status, data)
         setError(key ? t(key) : (data.error || t('scan_failed')))
         setLoading(false)
+        submitting.current = false
         return
       }
       router.push(`/${lang}/dashboard/${clientId}?step=results&scanId=${data.id}`)
     } catch {
       setError(t('network_error'))
       setLoading(false)
+      submitting.current = false
     }
   }
 
@@ -149,6 +155,7 @@ export function ScanStep({ lang, clientId, scanHistory, quota = { kind: 'unlimit
 
         <form onSubmit={handleSubmit} className="max-w-md mx-auto space-y-3">
           <input
+            aria-label={t('scan_url')}
             type="url"
             value={url}
             onChange={e => setUrl(e.target.value)}
@@ -158,6 +165,7 @@ export function ScanStep({ lang, clientId, scanHistory, quota = { kind: 'unlimit
           />
           <div className="flex gap-2">
             <select
+              aria-label={t('industry_optional')}
               value={industry}
               onChange={e => setIndustry(e.target.value)}
               className="flex-1 rounded-lg border border-dash-border bg-dash-elevated px-3 py-2.5 text-xs text-dash-text font-mono focus:outline-none focus:border-dash-accent transition-colors appearance-none"
@@ -168,6 +176,7 @@ export function ScanStep({ lang, clientId, scanHistory, quota = { kind: 'unlimit
               ))}
             </select>
             <select
+              aria-label={t('region_optional')}
               value={region}
               onChange={e => setRegion(e.target.value)}
               className="flex-1 rounded-lg border border-dash-border bg-dash-elevated px-3 py-2.5 text-xs text-dash-text font-mono focus:outline-none focus:border-dash-accent transition-colors appearance-none"

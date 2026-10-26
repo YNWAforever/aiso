@@ -708,6 +708,11 @@
     "sign_in": "Already have an account? Sign in →"
   },
   "dashboard": {
+    "choose_saved_scan": "Choose a saved scan",
+    "select_saved_scan": "Select a completed scan",
+    "no_completed_scans": "No completed scans yet",
+    "open_selected_scan": "Open scan",
+    "scan_url": "Website URL",
     "my_brands": "My Brands",
     "add_brand": "Add Brand",
     "ai_pulse": "AI Pulse",
@@ -1078,6 +1083,10 @@
     "local_trust_competitor_gap_points": "{value} pts"
   },
   "reports": {
+    "scan_domain_mismatch": "This scan is for a different domain from the brand’s current website. Choose a completed scan for the current domain, or run a new scan.",
+    "back_to_source_scan": "Back to source scan",
+    "run_scan": "Run a scan",
+    "create_share_report": "Create / share report",
     "create_client_report": "Create client report",
     "list_title": "Client reports",
     "list_body": "Review, publish, and control the client-facing reports created from this brand's scans.",

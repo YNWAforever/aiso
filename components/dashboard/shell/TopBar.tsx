@@ -32,7 +32,7 @@ export function TopBar({ lang, brands, unreadCount, features }: Props) {
   const t = useTranslations('dashboard')
   const shell = useTranslations('dashboard.shell')
   const ui = useTranslations('ui')
-  const params = useParams<{ lang: string; clientId?: string }>()
+  const params = useParams<{ lang: string; clientId?: string; scanId?: string }>()
   const pathname = usePathname() ?? ''
   const searchParams = useSearchParams()
   const clientId = params?.clientId ?? null
@@ -52,7 +52,9 @@ export function TopBar({ lang, brands, unreadCount, features }: Props) {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [paletteLoaded])
-  const nav = buildDashboardNav({ lang, clientId, features })
+  const scanId = params?.scanId ?? searchParams?.get('scanId')
+  const scanQuery = scanId ? `?scanId=${encodeURIComponent(scanId)}` : ''
+  const nav = buildDashboardNav({ lang, clientId, features, scanId })
   const here = locateDashboard(pathname, clientId ? (searchParams?.get('step') ?? 'home') : null)
   const brand = clientId ? brands?.find(b => b.id === clientId) ?? null : null
   const root = `/${lang}/dashboard`
@@ -63,7 +65,7 @@ export function TopBar({ lang, brands, unreadCount, features }: Props) {
   // Resolve against every section, so a hidden one's pages (Monitor's question
   // bank, observations, …) still get a trail; the hidden section itself gets no
   // crumb, because a link to it would advertise it.
-  const section = buildDashboardNav({ lang, clientId, features, includeHidden: true }).find(s => s.key === here.section)
+  const section = buildDashboardNav({ lang, clientId, features, scanId, includeHidden: true }).find(s => s.key === here.section)
   const sectionHidden = !!section && !nav.some(s => s.key === section.key)
   if (section && !(section.key === 'overview' && !here.item)) {
     if (!sectionHidden) crumbs.push({ label: t(section.labelKey), href: section.href })
@@ -79,9 +81,9 @@ export function TopBar({ lang, brands, unreadCount, features }: Props) {
       ...s.items.filter(i => i.href !== s.href).map(i => ({ id: `item-${s.key}-${i.key}`, label: `${t(s.labelKey)} › ${t(i.labelKey)}`, group: shell('group_go'), href: i.href })),
     ]),
     ...(brands ?? []).map(b => ({ id: `brand-${b.id}`, label: b.name, keywords: b.domain ? [b.domain] : [], group: shell('group_brands'), href: `${root}/${b.id}?step=home` })),
-    { id: 'action-scan', label: shell('action_scan'), group: shell('group_actions'), href: clientId ? `${root}/${clientId}?step=scan` : `/${lang}#scan` },
-    ...(clientId ? [{ id: 'action-report', label: shell('action_report'), group: shell('group_actions'), href: `${root}/${clientId}/reports/new` }] : []),
-  ], [nav, brands, clientId, lang, root, shell, t])
+    { id: 'action-scan', label: shell('action_scan'), group: shell('group_actions'), href: clientId ? `${root}/${clientId}?step=scan${scanId ? `&scanId=${encodeURIComponent(scanId)}` : ''}` : `/${lang}#scan` },
+    ...(clientId ? [{ id: 'action-report', label: shell('action_report'), group: shell('group_actions'), href: `${root}/${clientId}/reports/new${scanQuery}` }] : []),
+  ], [nav, brands, clientId, lang, root, shell, t, scanId, scanQuery])
 
   return (
     <header className="print:hidden flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-4 py-2 sm:px-6">

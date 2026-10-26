@@ -1,14 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { authClient } from '@/lib/auth-client'
+import { safeReturnTo } from '@/lib/auth-return-to'
 
 export default function LogoutPage() {
   const router = useRouter()
   const params = useParams<{ lang: string }>()
   const lang = params?.lang ?? 'en'
+  const query = useSearchParams()
+  const next = safeReturnTo(query.get('next'), lang)
   const t = useTranslations('auth')
   const [failed, setFailed] = useState(false)
 
@@ -32,14 +35,14 @@ export default function LogoutPage() {
           setFailed(true)
           return
         }
-        router.replace(`/${lang}/auth/login`)
+        router.replace(`/${lang}/auth/login?next=${encodeURIComponent(next)}`)
       } catch {
         // Network-level rejection: the request never reached a response.
         if (!cancelled) setFailed(true)
       }
     })()
     return () => { cancelled = true }
-  }, [lang, router])
+  }, [lang, router, next])
 
   return (
     <main className="mx-auto max-w-sm px-6 py-24 text-center">
@@ -50,7 +53,7 @@ export default function LogoutPage() {
         <>
           <p className="text-foreground font-medium">{t('sign_out_failed')}</p>
           <a
-            href={`/${lang}/auth/logout`}
+            href={`/${lang}/auth/logout?next=${encodeURIComponent(next)}`}
             className="text-primary underline text-sm mt-2 inline-block"
           >
             {t('try_again')}

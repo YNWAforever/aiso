@@ -3,6 +3,8 @@ import { getTranslations } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { LockKeyhole, Settings2 } from 'lucide-react'
 import { ReportBuilder } from '@/components/reports/ReportBuilder'
+import { ScanPicker } from '@/components/dashboard/ScanPicker'
+import { loadOwnedScanChoices } from '@/lib/workspace/scan-choices'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { requireAuth } from '@/lib/auth'
@@ -15,6 +17,7 @@ import {
   loadReportRecommendations,
 } from '@/lib/reports/store'
 import { resolveCommercialEntitlement } from '@/lib/tier'
+import { normalizeReportDomain } from '@/lib/reports/comparison'
 
 export default async function NewClientReportPage({
   params,
@@ -50,16 +53,25 @@ export default async function NewClientReportPage({
     )
   }
 
-  if (!scanId) {
+  const ownedScans = await loadOwnedScanChoices({ accountId: profile.account_id, clientId })
+  if (query.scanId !== undefined && (!scanId || !ownedScans.some(scan => scan.id === scanId))) notFound()
+  // Reports compare scans for the brand's current domain. The scan tool can
+  // also hold explicitly associated scans of other domains; don't offer those
+  // as report sources only to reject them later in the store/service gate.
+  const scans = ownedScans.filter(scan => normalizeReportDomain(scan.domain) === normalizeReportDomain(client.domain))
+  const picker = <ScanPicker lang={locale} action={`/${locale}/dashboard/${clientId}/reports/new`} scans={scans} selectedScanId={scanId} />
+
+  if (!scanId || !scans.some(scan => scan.id === scanId)) {
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
         <Card>
           <CardContent className="p-8 text-center">
             <h1 className="text-xl font-semibold">{t('scan_required_title')}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">{t('scan_required_body')}</p>
-            <Button asChild variant="outline" className="mt-6 min-h-11">
-              <Link href={`/${locale}/dashboard/${clientId}?step=results`}>{t('choose_scan')}</Link>
-            </Button>
+            <p className="mt-2 text-sm text-muted-foreground">{t(scanId ? 'scan_domain_mismatch' : 'scan_required_body')}</p>
+            <div className="mt-6 text-left">{picker}</div>
+            {!scans.length && <Button asChild variant="outline" className="mt-6 min-h-11">
+              <Link href={`/${locale}/dashboard/${clientId}?step=scan&url=${encodeURIComponent(`https://${normalizeReportDomain(client.domain)}`)}`}>{t('run_scan')}</Link>
+            </Button>}
           </CardContent>
         </Card>
       </main>
@@ -86,6 +98,7 @@ export default async function NewClientReportPage({
   if (!branding) {
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+        {picker}
         <Card>
           <CardContent className="p-8 text-center">
             <Settings2 className="mx-auto size-8 text-muted-foreground" aria-hidden="true" />
@@ -116,6 +129,7 @@ export default async function NewClientReportPage({
         <h1 className="mt-1 text-2xl font-bold tracking-tight">{t('new_title')}</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{t('new_body')}</p>
       </div>
+      <div className="print:hidden">{picker}</div>
       <ReportBuilder
         lang={locale}
         clientId={clientId}

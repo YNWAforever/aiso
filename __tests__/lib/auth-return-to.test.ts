@@ -3,6 +3,17 @@ import { normalizeAuthNext } from '@/lib/auth-navigation'
 import { safeReturnTo } from '@/lib/auth-return-to'
 const client = '11111111-1111-4111-8111-111111111111'
 describe('validated return destination', () => {
+  it.each(['results', 'improve', 'scan'])('retains the selected scan on %s after re-login', step => {
+    const path = `/en/dashboard/${client}?step=${step}&scanId=scan_older-123`
+    expect(safeReturnTo(`${path}&access_token=secret`, 'en')).toBe(path)
+  })
+  it.each(['reports', 'reports/new', `reports/${client}`])('retains report scan context on %s', route => {
+    const path = `/zh-HK/dashboard/${client}/${route}?scanId=scan_older-123`
+    expect(safeReturnTo(path, 'zh-HK')).toBe(path)
+  })
+  it.each(['scanId=one&scanId=two', 'scanId=bad%2Fid', 'scanId=', `scanId=${'a'.repeat(129)}`])('rejects ambiguous or invalid scan context: %s', query => {
+    expect(safeReturnTo(`/en/dashboard/${client}?step=results&${query}`, 'en')).toBe(`/en/dashboard/${client}?step=results`)
+  })
   it('retains first-use scan context while stripping secrets and ambiguous IDs',()=>{
     expect(safeReturnTo(`/en/onboarding?scan=${client}&access_token=secret`,'en')).toBe(`/en/onboarding?scan=${client}`)
     expect(safeReturnTo('/zh-HK/onboarding?scan=bad','zh-HK')).toBe('/zh-HK/onboarding')

@@ -90,7 +90,7 @@ export default async function DashboardResultPage({
   if (display.score === null) return <main className="mx-auto max-w-2xl space-y-4 px-4 py-12">
     <p>{scan.domain}</p>
     <h1>{(lang === 'zh-HK' ? zhMessages : enMessages).portfolio[display.collectionFailed ? 'scanIncomplete' : 'scanUnknown']}</h1>
-    <Link href={`/${lang}/dashboard/${clientId}?step=scan`}>{t('dashboard.run_new_scan')}</Link>
+    <Link href={`/${lang}/dashboard/${clientId}?step=scan&scanId=${encodeURIComponent(scanId)}`}>{t('dashboard.run_new_scan')}</Link>
   </main>
   const s = scan
   const grade = s.grade ?? 'F'
@@ -150,7 +150,7 @@ export default async function DashboardResultPage({
       <div className="flex flex-col gap-3 border-b border-dash-border bg-dash-surface px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="flex min-w-0 flex-wrap items-center gap-3">
           <Link
-            href={`/${lang}/dashboard/${clientId}?step=results`}
+            href={`/${lang}/dashboard/${clientId}?step=results&scanId=${encodeURIComponent(scanId)}`}
             className="text-xs text-dash-muted hover:text-dash-text transition-colors"
           >
             {t('result.back_to_results')}
@@ -171,13 +171,13 @@ export default async function DashboardResultPage({
             {t('reports.create_client_report')}
           </Link>
           <Link
-            href={`/${lang}/dashboard/${clientId}?step=improve`}
+            href={`/${lang}/dashboard/${clientId}?step=improve&scanId=${encodeURIComponent(scanId)}`}
             className="inline-flex min-h-11 items-center rounded-lg border border-dash-border bg-transparent px-4 py-2 text-xs font-semibold text-dash-text transition-colors hover:bg-dash-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t('result.improve_with_agents')}
           </Link>
           <Link
-            href={`/${lang}/dashboard/${clientId}?step=scan`}
+            href={`/${lang}/dashboard/${clientId}?step=scan&scanId=${encodeURIComponent(scanId)}`}
             className="inline-flex min-h-11 items-center rounded-lg px-4 py-2 text-xs font-medium text-dash-muted transition-colors hover:bg-dash-elevated hover:text-dash-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t('result.full_history')}
@@ -386,13 +386,13 @@ export default async function DashboardResultPage({
         {/* Bottom nav */}
         <div className="flex items-center justify-between">
           <Link
-            href={`/${lang}/dashboard/${clientId}?step=results`}
+            href={`/${lang}/dashboard/${clientId}?step=results&scanId=${encodeURIComponent(scanId)}`}
             className="text-xs text-dash-muted hover:text-dash-text transition-colors"
           >
             {t('result.back_to_results')}
           </Link>
           <Link
-            href={`/${lang}/dashboard/${clientId}?step=improve`}
+            href={`/${lang}/dashboard/${clientId}?step=improve&scanId=${encodeURIComponent(scanId)}`}
             className="inline-flex items-center px-5 py-2.5 text-sm font-medium rounded-lg text-primary-foreground bg-dash-accent hover:opacity-90 transition-opacity"
           >
             {t('result.improve_with_agents')}

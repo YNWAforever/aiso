@@ -37,7 +37,7 @@ describe('dashboard sidebar brand resolution', () => {
   it('reads the brand from the route it renders inside', () => {
     const sidebar = code(SIDEBAR)
 
-    expect(sidebar).toContain('useParams<{ lang: string; clientId?: string }>()')
+    expect(sidebar).toContain('useParams<{ lang: string; clientId?: string; scanId?: string }>()')
     expect(sidebar).toContain('const clientId = params?.clientId ?? brandId')
     expect(code(TOPBAR)).toContain('const clientId = params?.clientId ?? null')
   })
@@ -45,7 +45,7 @@ describe('dashboard sidebar brand resolution', () => {
   it('takes every link from the shared navigation model', () => {
     // One source for the sidebar, the breadcrumbs and ⌘K, so they cannot disagree.
     for (const file of [SIDEBAR, TOPBAR]) {
-      expect(code(file)).toContain('buildDashboardNav({ lang, clientId, features })')
+      expect(code(file)).toContain('buildDashboardNav({ lang, clientId, features, scanId })')
       expect(code(file)).toContain('locateDashboard(')
     }
   })

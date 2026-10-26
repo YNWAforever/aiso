@@ -28,6 +28,9 @@ export function safeReturnTo(raw: unknown, requestedLang: string): string {
     if(onboarding && scan && uuid.test(scan)) kept.set('scan',scan)
     const step = single('step')
     if ((path === dashboard || clientRoot.test(path)) && step && ['home', 'scan', 'results', 'improve', 'monitor', 'roi'].includes(step)) kept.set('step', step)
+    const scanId = single('scanId')
+    if ((clientRoot.test(path) || new RegExp(`^${dashboard}/${UUID}/reports(?:/(?:new|${UUID}))?$`, 'i').test(path))
+      && scanId && new RegExp(`^${OPAQUE}$`).test(scanId)) kept.set('scanId', scanId)
     const draft = single('draft')
     if (path.endsWith('/opportunities') && draft && uuid.test(draft)) kept.set('draft', draft)
     if(path.endsWith('/sources')){

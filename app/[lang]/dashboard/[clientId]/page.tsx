@@ -12,6 +12,8 @@ import { redactSecrets } from '@/lib/security/redact-secrets'
 import { resolveCommercialEntitlement } from '@/lib/tier'
 import type { PlanFeatures } from '@/lib/types'
 import { ScanStep } from '@/components/dashboard/ScanStep'
+import { ScanPicker } from '@/components/dashboard/ScanPicker'
+import { loadOwnedScanChoices } from '@/lib/workspace/scan-choices'
 import { ResultsStep } from '@/components/dashboard/ResultsStep'
 import { ImproveStep } from '@/components/dashboard/ImproveStep'
 import { MonitorStep } from '@/components/dashboard/MonitorStep'
@@ -175,9 +177,7 @@ export default async function DashboardPage({
         await Promise.all([
           sql`select * from scans where client_id = ${clientId} and account_id = ${profile.account_id}
               order by created_at desc limit 1`,
-          sql`select id, domain, score, grade, created_at from scans
-              where client_id = ${clientId} and account_id = ${profile.account_id}
-              order by created_at desc limit 10`,
+          loadOwnedScanChoices({ accountId: profile.account_id, clientId }),
           specificScanPromise,
           sql`select * from pulse_weekly_summary
               where client_id = ${clientId} order by scan_week limit 40`,
@@ -296,7 +296,7 @@ export default async function DashboardPage({
 
       <div className="px-6 pt-5">
         <Link
-          href={`/${lang}/dashboard/${clientId}/reports`}
+          href={`/${lang}/dashboard/${clientId}/reports${scan ? `?scanId=${encodeURIComponent(scan.id)}` : ''}`}
           className="flex min-h-11 items-center justify-between gap-4 rounded-xl border border-dash-border bg-dash-surface px-4 py-3 text-sm transition-colors hover:bg-dash-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span>
@@ -310,7 +310,9 @@ export default async function DashboardPage({
       </div>
 
       <main className="flex-1 px-6 pb-10 max-w-3xl">
-        {step === 'scan' && <ScanStep lang={lang} clientId={clientId} scan={scan} scanHistory={scanHistory} quota={scanQuota} />}
+        {step === 'scan' && <ScanStep key={scan?.id ?? clientId} lang={lang} clientId={clientId} client={workspace.typedClient} scan={scan} scanHistory={scanHistory} quota={scanQuota} />}
+
+        {(step === 'results' || step === 'improve') && <ScanPicker lang={lang} action={`/${lang}/dashboard/${clientId}`} step={step} scans={scanHistory} selectedScanId={scan?.id} />}
 
         {step === 'results' && hasDisplayableScore(scan) && <ResultsStep scan={scan} lang={lang} clientId={clientId} />}
         {step === 'results' && !hasDisplayableScore(scan) && (

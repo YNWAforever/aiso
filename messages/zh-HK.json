@@ -708,6 +708,11 @@
     "sign_in": "已有帳號？立即登入 →"
   },
   "dashboard": {
+    "choose_saved_scan": "選擇已儲存的掃描",
+    "select_saved_scan": "選擇已完成的掃描",
+    "no_completed_scans": "尚未有已完成的掃描",
+    "open_selected_scan": "開啟掃描",
+    "scan_url": "網站網址",
     "my_brands": "我的品牌",
     "add_brand": "新增品牌",
     "ai_pulse": "AI 品牌監測",
@@ -1078,6 +1083,10 @@
     "local_trust_competitor_gap_points": "{value} 分"
   },
   "reports": {
+    "scan_domain_mismatch": "此掃描的網域與品牌目前的網站不同。請選擇目前網域的已完成掃描，或執行新的掃描。",
+    "back_to_source_scan": "返回來源掃描",
+    "run_scan": "執行掃描",
+    "create_share_report": "建立／分享報告",
     "create_client_report": "建立客戶報告",
     "list_title": "客戶報告",
     "list_body": "審閱、發布及管理由此品牌掃描建立的客戶報告。",
