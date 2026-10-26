@@ -9,6 +9,8 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push }), use
 import { ResultsStep } from '@/components/dashboard/ResultsStep'
 import { ScanStep } from '@/components/dashboard/ScanStep'
 import { ScanPicker } from '@/components/dashboard/ScanPicker'
+import { safeReturnTo } from '@/lib/auth-return-to'
+import { normalizeAuthNext } from '@/lib/auth-navigation'
 
 export const savedScan = {
   id: 'older-scan', account_id: 'account-a', url: 'https://example.com/guide', domain: 'example.com',
@@ -49,6 +51,16 @@ describe('post-login scan UX', () => {
     expect(html).toContain('value="https://example.com/guide"')
     expect(html).toContain('value="technology" selected=""')
     expect(html).toContain('value="HK" selected=""')
+  })
+  it.each(['en', 'zh-HK'] as const)('prefills the recovery domain after logout and re-login in %s', lang => {
+    const clientId = '11111111-1111-4111-8111-111111111111'
+    const recovery = `/${lang}/dashboard/${clientId}?step=scan&scanId=older-scan&url=https%3A%2F%2Fbrand.example`
+    const returnTo = normalizeAuthNext(lang, safeReturnTo(recovery, lang))
+    state.query = new URL(returnTo, 'https://auth.fixture').searchParams
+    const html = renderWithIntl(<ScanStep lang={lang} clientId={clientId} scan={savedScan} scanHistory={choices} />, lang)
+    expect(state.query.get('scanId')).toBe('older-scan')
+    expect(html).toContain('value="https://brand.example"')
+    expect(html).not.toContain('value="https://example.com/guide"')
   })
   it('uses the saved brand domain and industry when there is no previous scan', () => {
     const html = renderWithIntl(<ScanStep lang="en" clientId="brand-a" scan={null} scanHistory={[]} client={{ domain: 'example.com', industry: 'legal' }} />)
