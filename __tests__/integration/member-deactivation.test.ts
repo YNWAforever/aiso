@@ -27,8 +27,9 @@ const OTHER_ACCOUNT = 'aa000000-0000-4000-8000-000000000002'
 const OWNER = 'aa000000-0000-4000-8000-000000000003'
 const MEMBER = 'aa000000-0000-4000-8000-000000000004'
 const OUTSIDER = 'aa000000-0000-4000-8000-000000000005'
+const RESTOREE = 'aa000000-0000-4000-8000-000000000006'
 
-const PEOPLE = [OWNER, MEMBER, OUTSIDER]
+const PEOPLE = [OWNER, MEMBER, OUTSIDER, RESTOREE]
 const ACCOUNTS = [ACCOUNT, OTHER_ACCOUNT]
 
 beforeEach(async () => {
@@ -66,7 +67,69 @@ const activeFlags = async () => {
   return Object.fromEntries(page.members.map(member => [member.profileId, member.active]))
 }
 
+// Widen the old single-statement race deliberately. Each HTTP call/transaction
+// owns an independent PostgreSQL session; this is not an in-memory lock model.
+async function withSlowMembershipWrites(run: () => Promise<void>) {
+  await sql`create or replace function audit_slow_member_write() returns trigger language plpgsql as $$
+    begin perform pg_sleep(0.4); return new; end $$`
+  await sql`create trigger audit_slow_member_write before update on profiles for each row
+    when (new.account_id = 'aa000000-0000-4000-8000-000000000001'::uuid)
+    execute function audit_slow_member_write()`
+  try { await run() }
+  finally {
+    await sql`drop trigger audit_slow_member_write on profiles`
+    await sql`drop function audit_slow_member_write()`
+  }
+}
+
+async function waitForMembershipWrite() {
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const rows = await sql`select 1 from pg_stat_activity where pid <> pg_backend_pid()
+      and wait_event = 'PgSleep' and query like '%deactivated_at = case%'`
+    if (rows.length) return
+    await new Promise(resolve => setTimeout(resolve, 10))
+  }
+  throw new Error('Membership write did not enter its test barrier')
+}
+
 describe('setMemberActive', () => {
+  it('serializes reciprocal removals from independent sessions and leaves one active member', async () => {
+    await withSlowMembershipWrites(async () => {
+      const outcomes = await Promise.all([set(MEMBER, false, OWNER), set(OWNER, false, MEMBER)])
+      expect(outcomes.sort()).toEqual(['not_found', 'updated'])
+      const flags = await activeFlags()
+      expect(Object.values(flags).filter(Boolean)).toHaveLength(1)
+    })
+  })
+
+  it('rechecks a removed actor after the account lock before allowing a concurrent restore', async () => {
+    await sql`insert into neon_auth.user (id, email, name, "emailVerified") values (${RESTOREE}, 'restoree@example.com', 'Fixture', false)`
+    await sql`insert into profiles (id, account_id, display_name, deactivated_at, deactivated_by)
+      values (${RESTOREE}::uuid, ${ACCOUNT}::uuid, 'Fixture', now(), ${OWNER}::uuid)`
+    await withSlowMembershipWrites(async () => {
+      const removal = set(MEMBER, false, OWNER)
+      try {
+        await waitForMembershipWrite()
+        expect(await set(RESTOREE, true, MEMBER)).toBe('not_found')
+      } finally { await removal }
+      expect(await activeFlags()).toEqual({ [OWNER]: true, [MEMBER]: false, [RESTOREE]: false })
+    })
+  })
+
+  it('allows a restore that acquires the account lock before its actor is removed', async () => {
+    await sql`insert into neon_auth.user (id, email, name, "emailVerified") values (${RESTOREE}, 'restoree@example.com', 'Fixture', false)`
+    await sql`insert into profiles (id, account_id, display_name, deactivated_at, deactivated_by)
+      values (${RESTOREE}::uuid, ${ACCOUNT}::uuid, 'Fixture', now(), ${OWNER}::uuid)`
+    await withSlowMembershipWrites(async () => {
+      const restoration = set(RESTOREE, true, MEMBER)
+      try {
+        await waitForMembershipWrite()
+        expect(await set(MEMBER, false, OWNER)).toBe('updated')
+      } finally { expect(await restoration).toBe('updated') }
+      expect(await activeFlags()).toEqual({ [OWNER]: true, [MEMBER]: false, [RESTOREE]: true })
+    })
+  })
+
   it('deactivates a member while leaving the row, and its account, in place', async () => {
     await expect(set(MEMBER, false)).resolves.toBe('updated')
 
@@ -104,12 +167,8 @@ describe('setMemberActive', () => {
   })
 
   /**
-   * An account can never be emptied, and the self-guard alone is what
-   * guarantees it — there is no separate "last active member" rule, because
-   * there cannot be one to reach. Removing anybody other than yourself leaves
-   * at least you; removing yourself is refused; and once you are deactivated
-   * you cannot act at all. Writing a last_active guard would have been dead
-   * code that read like a safety net.
+   * The account lock serializes the active-actor recheck, so the self-removal
+   * rule also holds when different sessions remove different members.
    */
   it('cannot be used to empty an account', async () => {
     await set(MEMBER, false)
