@@ -84,6 +84,7 @@ describe('real scoped signing credentials and portals',()=>{
   const invalid=new URLSearchParams(url.searchParams);invalid.set('accountId',i.foreign);expect(await readPublicPortal(slug,'en',invalid)).toBeNull();expect(await readPublicPortal(slug,'zh-HK',url.searchParams)).toBeNull()
   await h.pg!.query("update accounts set status='cancelled' where id=$1",[i.account]);expect(await readPublicPortal(slug,'en',url.searchParams)).toBeNull();await h.pg!.query("update accounts set status='active' where id=$1",[i.account])
   await revokeEnterpriseResource(scope,i.manager,'portal',link.id);expect(await readPublicPortal(slug,'en',url.searchParams)).toBeNull()
+  const rotated=await publishEnterprisePortal(scope,i.manager,String(report.id)),fresh=new URL(rotated.path,'https://app.example');expect(fresh.searchParams.get('v')).toBe('2');expect(rotated.path).not.toBe(link.path);expect(await readPublicPortal(slug,'en',url.searchParams)).toBeNull();expect(await readPublicPortal(fresh.pathname.split('/').at(-1)!,'en',fresh.searchParams)).not.toBeNull()
  })
 })
 

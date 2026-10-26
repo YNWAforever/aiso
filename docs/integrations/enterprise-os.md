@@ -64,7 +64,10 @@ computes SHA-256 over canonical PostgreSQL JSONB text at insert. Approval record
 bind that exact hash and the existing grant event/revision. Visibility drafts can
 be retained for approval without applying, modifying or deploying their content.
 
-A manager can publish an approved executive snapshot. Revocable portal links bind
+A manager can publish an approved executive snapshot. Republishing a revoked
+snapshot rotates its slug and increments its signed version; old links remain
+invalid. Publishing an already active snapshot is idempotent. There is one current
+capability per immutable snapshot, without an unrelated active-portal quota. Revocable portal links bind
 random 32-character slug, version and locale with a purpose-separated HMAC using
 `REPORT_SHARE_SECRET`. Public reads recheck active client, current Enterprise
 entitlement and the matching approved hash. Branding edits cannot rewrite an old

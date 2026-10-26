@@ -22,3 +22,14 @@ describe('immutable executive workflow SQL',()=>{
   await pg.query('update enterprise_portals set revoked_at=now() where id=$1',[rows[0].id]);expect((await pg.query('select * from enterprise_portals where revoked_at is null')).rows).toHaveLength(0)
  })
 })
+
+
+describe('revocable portal publication',()=>{
+ it('rotates the capability when republishing an approved revoked snapshot and replays active publication',async()=>{
+  const republished=(await pg.query<{id:string;slug:string;version:number}>("select id,slug,version from enterprise_publish_portal($1,$2,$3,$4,$5)",[a,c,artifact,editor,'b'.repeat(32)])).rows
+  expect(republished).toMatchObject([{slug:'b'.repeat(32),version:2}])
+  const replay=(await pg.query("select id,slug,version from enterprise_publish_portal($1,$2,$3,$4,$5)",[a,c,artifact,editor,'c'.repeat(32)])).rows
+  expect(replay).toEqual(republished)
+  expect((await pg.query("select metadata->>'version' as version from enterprise_audit where action='portal.published' order by created_at")).rows).toEqual([{version:'1'},{version:'2'}])
+ })
+})

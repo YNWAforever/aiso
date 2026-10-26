@@ -79,7 +79,7 @@ create function public.enterprise_decide(p_account uuid,p_client uuid,p_artifact
  end $$;
 create function public.enterprise_publish_portal(p_account uuid,p_client uuid,p_artifact uuid,p_actor uuid,p_slug text)
  returns setof public.enterprise_portals language plpgsql as $$
- declare target public.enterprise_artifacts; portal_id uuid;
+ declare target public.enterprise_artifacts; portal_id uuid; portal_version integer;
  begin
   perform id from public.accounts where id=p_account for update;
   perform id from public.profiles where id=p_actor for share;
@@ -88,11 +88,11 @@ create function public.enterprise_publish_portal(p_account uuid,p_client uuid,p_
    on d.account_id=a.account_id and d.client_id=a.client_id and d.artifact_id=a.id and d.content_hash=a.content_hash and d.decision='approved'
    where a.account_id=p_account and a.client_id=p_client and a.id=p_artifact and a.kind='executive_report';
   if not found then return;end if;
-  if (select count(*) from public.enterprise_portals where account_id=p_account and client_id=p_client and revoked_at is null)>=10 then return;end if;
   insert into public.enterprise_portals(account_id,client_id,artifact_id,content_hash,slug,published_by)
-   values(p_account,p_client,p_artifact,target.content_hash,p_slug,p_actor) on conflict(account_id,client_id,artifact_id) do nothing returning id into portal_id;
+   values(p_account,p_client,p_artifact,target.content_hash,p_slug,p_actor) on conflict(account_id,client_id,artifact_id) do update set slug=excluded.slug,version=enterprise_portals.version+1,published_by=excluded.published_by,published_at=clock_timestamp(),revoked_at=null
+   where enterprise_portals.revoked_at is not null returning id,version into portal_id,portal_version;
   if portal_id is not null then
-   insert into public.enterprise_audit(account_id,client_id,actor_id,action,target_id,metadata) values(p_account,p_client,p_actor,'portal.published',portal_id,jsonb_build_object('artifactId',p_artifact,'contentHash',target.content_hash));
+   insert into public.enterprise_audit(account_id,client_id,actor_id,action,target_id,metadata) values(p_account,p_client,p_actor,'portal.published',portal_id,jsonb_build_object('artifactId',p_artifact,'contentHash',target.content_hash,'version',portal_version));
   end if;
   return query select * from public.enterprise_portals where account_id=p_account and client_id=p_client and artifact_id=p_artifact and revoked_at is null;
  end $$;

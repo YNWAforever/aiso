@@ -44,12 +44,13 @@ export async function publicEnterpriseApi(request:Request,clientId:string,resour
  else if(resource==='outcomes'){for(const key of params.keys())if(!['start','end'].includes(key)||params.getAll(key).length!==1)throw new OutcomeError('INVALID_ENTERPRISE_INPUT');window=parseOutcomeWindow(params)}
  else if(resource==='reports'){for(const key of params.keys())if(key!=='id'||params.getAll(key).length!==1)throw new OutcomeError('INVALID_ENTERPRISE_INPUT');if(params.has('id'))uuid(params.get('id'))}
  else if([...params].length)throw new OutcomeError('INVALID_ENTERPRISE_INPUT')
+ if(resource==='adapters'&&!access.adapterId)throw new OutcomeError('ENTERPRISE_SCOPE_REQUIRED',403)
  // Bad input has no nonce/rate/business/provider side effects.
  await consumeEnterpriseApi(access,scope)
  if(resource==='results')return json({version:'v1',...await ingestAdapterObservation(access.scope,access.adapterId!,input!)},201)
  if(resource==='outcomes')return json({version:'v1',window,data:await loadOutcomeMeasurements(access.scope,window!)})
  if(resource==='visibility')return json({version:'v1',data:await loadVisibilityWorkspace(access.scope)})
- if(resource==='adapters'){if(!access.adapterId)throw new OutcomeError('ENTERPRISE_SCOPE_REQUIRED',403);return json({version:'v1',runs:await readAdapterRuns(access.scope,access.adapterId)})}
+ if(resource==='adapters')return json({version:'v1',runs:await readAdapterRuns(access.scope,access.adapterId!)})
  if(params.has('id')){const report=await readEnterpriseArtifact(access.scope,uuid(params.get('id')));if(!report||report.kind!=='executive_report')missing();return json({version:'v1',report})}
  const sql=db();const rows=await sql`select a.id,a.payload,a.content_hash,a.created_at,d.decision from enterprise_artifacts a left join enterprise_decisions d on d.artifact_id=a.id and d.account_id=a.account_id and d.client_id=a.client_id and d.content_hash=a.content_hash where a.account_id=${access.scope.accountId}::uuid and a.client_id=${access.scope.clientId}::uuid and a.kind='executive_report' order by a.created_at desc,a.id desc limit 20`
  return json({version:'v1',reports:rows})
