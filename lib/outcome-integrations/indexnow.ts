@@ -26,8 +26,10 @@ const defaults: Dependencies = { key: loadIndexNowKey, begin: beginOutcomeAttemp
 export async function submitIndexNow(scope: OutcomeScope, input: IndexNowInput, deps: Dependencies = defaults) {
   const config = await deps.key(scope)
   if (!config) throw new OutcomeError('INDEXNOW_SETUP_REQUIRED', 409)
-  const host = normalizeBrandDomain(config.domain)
-  if (!host || !/^[a-zA-Z0-9-]{8,128}$/.test(config.key)) throw new OutcomeError('INDEXNOW_SETUP_REQUIRED', 409)
+  if (!normalizeBrandDomain(config.domain) || !/^[a-zA-Z0-9-]{8,128}$/.test(config.key)) throw new OutcomeError('INDEXNOW_SETUP_REQUIRED', 409)
+  // Brand ownership permits www/apex equivalence; IndexNow proof and batches
+  // use the exact canonical host supplied by the owner, including www.
+  const host = new URL(canonicalOutcomeUrl(input.urls[0], config.domain)).hostname
   for (const url of input.urls) {
     const parsed = new URL(canonicalOutcomeUrl(url, config.domain))
     if (parsed.hostname !== host || parsed.protocol !== 'https:') throw new OutcomeError('INVALID_OUTCOME_INPUT')

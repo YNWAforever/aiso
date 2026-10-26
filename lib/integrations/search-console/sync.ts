@@ -204,38 +204,49 @@ async function attempt(b: DueBinding, deps: SyncDeps): Promise<AttemptResult> {
     // keeps backfill_pending set, so the next run re-fetches the full window.
     // Keeping the partial result means a backfill too large for one run still
     // lands its property totals and its first pages instead of nothing.
+    // Core observations are independent of optional appearance collection. A
+    // refusal/deadline on the latter must never discard fetched traffic/query data.
+    const coreWritten = await deps.writeDaily(b.accountId, b.clientId, daily)
+      + await deps.writePageQueries(b.accountId, b.clientId, queries, { startDate, endDate, pageUrls: completedPages })
     let appearanceWritten = 0
     if (deps.writeAppearance && pageUrls.length) {
       if (deferred || outOfTime()) deferred = true
       else {
         try {
-          const appearance = await deps.query(accessToken, b.siteUrl, { ...window, dimensions: ['date', 'page', 'searchAppearance'] })
-          // A full capped response cannot prove that any sampled page is complete.
-          if (appearance.length >= MAX_PAGES * ROW_LIMIT) deferred = true
+          // Provider protocol: discover types alone, then filter by each type.
+          // https://developers.google.com/webmaster-tools/v1/how-tos/all-your-data#getting_search_appearance_data
+          const discovered = await deps.query(accessToken, b.siteUrl, { ...window, dimensions: ['searchAppearance'] })
+          const validType = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_]{1,80}$/.test(value)
+          const categories = [...new Set(discovered.map(row => row.keys[0]))]
+          if (discovered.length >= MAX_PAGES * ROW_LIMIT || categories.length > 20 || categories.some(type => !validType(type))) deferred = true
           else {
             const pages = new Set(completedPages), seen = new Set<string>()
             const metrics: SearchAppearanceMetric[] = []
-            for (const row of appearance) {
-              const [date, pageUrl, category] = row.keys
-              if (!date || !pageUrl || !category || !pages.has(pageUrl) || !/^[A-Za-z0-9_]{1,80}$/.test(category)) continue
-              const key = JSON.stringify([date,pageUrl,category])
-              if (seen.has(key)) continue
-              seen.add(key)
-              metrics.push({ date, pageUrl, appearance: category, clicks: row.clicks, impressions: row.impressions, ctr: row.ctr, position: row.position })
+            for (const category of categories) {
+              if (outOfTime()) throw new DeadlineReachedError()
+              const rows = await deps.query(accessToken, b.siteUrl, { ...window, dimensions: ['date', 'page'], searchAppearanceEquals: category })
+              if (rows.length >= MAX_PAGES * ROW_LIMIT) { deferred = true; break }
+              for (const row of rows) {
+                const [date, pageUrl] = row.keys
+                if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !pageUrl) { deferred = true; break }
+                if (!pages.has(pageUrl)) continue
+                const key = JSON.stringify([date,pageUrl,category])
+                if (seen.has(key)) continue
+                seen.add(key)
+                metrics.push({ date, pageUrl, appearance: category, clicks: row.clicks, impressions: row.impressions, ctr: row.ctr, position: row.position })
+              }
+              if (deferred) break
             }
-            appearanceWritten = await deps.writeAppearance(b.accountId, b.clientId, metrics, { startDate, endDate, pageUrls: completedPages })
+            // Replace the window only after all discovered categories completed.
+            if (!deferred) appearanceWritten = await deps.writeAppearance(b.accountId, b.clientId, metrics, { startDate, endDate, pageUrls: completedPages })
           }
-        } catch (error) {
-          if (error instanceof DeadlineReachedError) deferred = true
-          else throw error
+        } catch {
+          deferred = true
+          console.error('[search-console] appearance deferred', { clientId: b.clientId, reason: 'APPEARANCE_UNAVAILABLE' })
         }
       }
     }
-    const written = appearanceWritten + await deps.writeDaily(b.accountId, b.clientId, daily)
-      // Called with the same fetched window even when queries is empty, so a
-      // page that dropped out of the top ranks entirely still has its stale
-      // rows cleared — see store.ts's writePageQueries doc.
-      + await deps.writePageQueries(b.accountId, b.clientId, queries, { startDate, endDate, pageUrls: completedPages })
+    const written = coreWritten + appearanceWritten
     const dataThrough = property.map(r => r.keys[0]!).sort().at(-1) ?? null
     return { outcome: deferred ? 'deferred' : 'ok', rows: written, through: dataThrough }
   } catch (error) {

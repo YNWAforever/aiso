@@ -6,16 +6,17 @@ import en from '@/messages/en.json'
 import zhHK from '@/messages/zh-HK.json'
 type Row = Record<string, unknown>
 export type OutcomeView = { technical: { id: string; score: number; recordedAt: string; method: string | null; collection: string } | null;
-  search: Row[]; analytics: Row[]; appearance: Row[]; clusters: Row[]; clusterOutcomes: Row[]; attempts: Row[]; regressions: Row[]; settings: { indexnow_key?: string } | null; lastSearchSync?: Row | null }
+  search: Row[]; analytics: Row[]; appearance: Row[]; clusters: Row[]; clusterOutcomes: Row[]; attempts: Row[]; regressions: Row[]; settings: { indexnow_key?: string } | null; lastSearchSync?: Row | null; window?: {start:string;end:string} }
 const lines = (value: FormDataEntryValue | null) => String(value ?? '').split('\n').map(line => line.trim()).filter(Boolean)
 const cell = (value: unknown) => value == null ? '—' : String(value)
-export function OutcomeWorkspace({ clientId, lang, initialView = null }: { clientId: string; lang: string; initialView?: OutcomeView | null }) {
+type Submission = { key: string; urls: string[] }
+export function OutcomeWorkspace({ clientId, lang, initialView = null, initialSubmission = null }: { clientId: string; lang: string; initialView?: OutcomeView | null; initialSubmission?: Submission | null }) {
   const c = (lang === 'zh-HK' ? zhHK : en).outcomeIntegrations, base = `/api/clients/${clientId}/outcomes`
   const [view, setView] = useState<OutcomeView | null>(initialView), [credentials, setCredentials] = useState<Row[]>([])
   const [error, setError] = useState(false), [busy, setBusy] = useState(false), [notice, setNotice] = useState('')
   const [secret, setSecret] = useState<{ id: string; secret: string } | null>(null)
   // Keep an intent across retries; change it only after a confirmed response.
-  const [submission, setSubmission] = useState<{ key: string; urls: string[] } | null>(null)
+  const [submission, setSubmission] = useState<Submission | null>(initialSubmission)
   const status = (value: unknown) => c[String(value) as keyof typeof c] ?? c.unknown
   async function load() {
     setError(false)
@@ -48,13 +49,13 @@ export function OutcomeWorkspace({ clientId, lang, initialView = null }: { clien
   const button = 'min-h-11 rounded bg-primary px-4 text-primary-foreground disabled:opacity-50'
   const panel = 'space-y-3 rounded-xl border border-border bg-card p-5'
   return <div className="space-y-6">
-    <h1 className="text-2xl font-bold">{c.title}</h1><p>{c.intro}</p>
+    <h1 className="text-2xl font-bold">{c.title}</h1><p>{c.intro}</p>{view?.window&&<p>{c.window}: {view.window.start} – {view.window.end}</p>}
     <nav className="flex gap-4"><button onClick={() => void load()} className="min-h-11 underline">{c.retry}</button><Link className="inline-flex min-h-11 items-center underline" href={`/${lang}/dashboard/${clientId}/assets`}>{c.search}</Link><a className="inline-flex min-h-11 items-center underline" href={`/${lang}/guides/outcomes`}>{c.setup}</a></nav>
     {error && <p role="alert">{c.unavailable}</p>}{notice && <p role="status">{notice}</p>}
     {!view ? !error && <p role="status">{c.loading}</p> : <>
       <section className={panel}><h2 className="font-semibold">{c.technical}</h2>{view.technical ? <p>{view.technical.score}/100 · {view.technical.method ?? c.unknown} · {c.at}: {view.technical.recordedAt} · {status(view.technical.collection)}</p> : <p>{c.noScan}</p>}</section>
       <section className={panel}><h2 className="font-semibold">{c.retrieval}</h2><p>{c.noRetrieval}</p></section>
-      <section className={panel}><h2 className="font-semibold">{c.outcomes}</h2><p>{c.limit}</p>{view.lastSearchSync && <p>{c.lastSync}: {cell(view.lastSearchSync.ran_at)} · {c.through}: {cell(view.lastSearchSync.data_through)}</p>}
+      <section className={panel}><h2 className="font-semibold">{c.outcomes}</h2><p>{c.limit}</p>{view.lastSearchSync && <p>{c.lastSync}: {view.lastSearchSync.outcome==='ok'?c.succeeded:view.lastSearchSync.outcome==='deferred'?c.partial:c.unknown} · {cell(view.lastSearchSync.ran_at)} · {c.through}: {cell(view.lastSearchSync.data_through)}</p>}
         {!view.search.length && !view.analytics.length && <p>{c.empty}</p>}
         {view.search.filter(row => row.scope === 'property').map((row, i) => <p key={i}>{c.search}: {c.clicks} {cell(row.clicks)} · {c.impressions} {cell(row.impressions)} · {c.position} {cell(row.position)}</p>)}
         <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr>{[c.page,c.currency,c.sessions,c.conversions,c.revenue].map(label => <th className="p-2" key={label}>{label}</th>)}</tr></thead><tbody>{view.analytics.map((row,i) => <tr key={i}>{['page_url','currency','sessions','conversions','revenue_minor'].map(key => <td className="p-2" key={key}>{cell(row[key])}</td>)}</tr>)}</tbody></table></div>
@@ -69,7 +70,7 @@ export function OutcomeWorkspace({ clientId, lang, initialView = null }: { clien
       <section className={panel}><h2 className="font-semibold">{c.indexnow}</h2><p>{c.keyHint}</p><button className={button} disabled={busy} onClick={() => void act('indexnow-key', {})}>{c.key}</button>
         {view.settings?.indexnow_key && <pre className="overflow-x-auto whitespace-pre-wrap break-all">/{view.settings.indexnow_key}{c.keyFileSuffix}{'\n'}{view.settings.indexnow_key}</pre>}
         <form className="space-y-3" onSubmit={event => { event.preventDefault(); const urls = lines(new FormData(event.currentTarget).get('urls')); const intent = submission ?? { key: crypto.randomUUID(), urls }; setSubmission(intent); void act('indexnow', { intentKey: intent.key, urls: intent.urls }).then(result => { if (result && ['succeeded','failed','blocked'].includes(result.status)) setSubmission(null) }) }}>
-          <label className="block">{c.urls}<textarea className={field} name="urls" required maxLength={40000} disabled={submission !== null}/></label><button className={button} disabled={busy || !view.settings?.indexnow_key || submission !== null}>{c.submit}</button>
+          <label className="block">{c.urls}<textarea className={field} name="urls" required maxLength={40000} disabled={submission !== null}/></label><button className={button} disabled={busy || !view.settings?.indexnow_key}>{submission ? c.checkSubmission : c.submit}</button>
         </form>
       </section>
       <section className={panel}><h2 className="font-semibold">{c.credential}</h2><p>{c.credentialHint}</p>

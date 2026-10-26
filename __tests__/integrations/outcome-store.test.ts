@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { PGlite } from '@electric-sql/pglite'
 import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AnalyticsEvent } from '@/lib/outcome-integrations/input'
+import { resolveCommercialEntitlement } from '@/lib/tier'
 
 const h = vi.hoisted(() => ({ pg: null as PGlite | null }))
 vi.mock('server-only', () => ({}))
@@ -52,6 +53,34 @@ beforeEach(async () => {
 })
 
 describe('real SQL outcome persistence and tenant boundaries', () => {
+  it.each([
+    {plan:'pro',status:'active',sub:'sub_test'},
+    {plan:'pro',status:'active',sub:null,trial:new Date(Date.now()+86400000).toISOString()},
+    {plan:'pro',status:'trialing',sub:'sub_test',trial:'2020-01-01'},
+    {plan:'pro',status:'past_due',sub:'sub_test',trial:new Date(Date.now()+86400000).toISOString()},
+    {plan:'enterprise',status:'cancelled',sub:'sub_test'},
+    {plan:'free',status:'cancelled',sub:null,override:'pro',expires:null},
+    {plan:'pro',status:'active',sub:'sub_test',override:'free',expires:null},
+    {plan:'free',status:'active',sub:null,override:'pro',expires:'infinity'},
+    {plan:'pro',status:'active',sub:null,trial:'infinity'},
+  ])('matches runtime entitlement before due selection: %j',async input=>{
+    const data={plan:input.plan,status:input.status,stripe_subscription_id:input.sub,trial_ends_at:'trial' in input?input.trial:null,
+      override_plan:'override' in input?input.override:null,override_expires_at:'expires' in input?input.expires:null}
+    await h.pg!.query('update accounts set plan=$1,status=$2,stripe_subscription_id=$3,trial_ends_at=$4,override_plan=$5,override_expires_at=$6 where id=$7',
+      [data.plan,data.status,data.stripe_subscription_id,data.trial_ends_at,data.override_plan,data.override_expires_at,account])
+    await store.recordOutcomeDeployment(scope,{intentKey:'entitlement:case',externalId:'entitlement-case',deployedAt:'2026-07-01T00:00:00Z',urls:['https://example.com/a'],baselineScanId:null,workItemId:null})
+    expect((await loadDueOutcomeEvaluations()).some(row=>row.account_id===account)).toBe(resolveCommercialEntitlement(data).features.outcome_integrations)
+  })
+  it('excludes ineligible deployments before the due batch limit so entitled accounts progress',async()=>{
+    await h.pg!.query("update accounts set status='cancelled' where id=$1",[foreign])
+    for(let i=0;i<7;i++)await store.recordOutcomeDeployment({accountId:foreign,clientId:otherClient},{intentKey:`cancelled:${i}`,externalId:`cancelled:${i}`,deployedAt:'2026-07-01T00:00:00Z',urls:['https://foreign.example/a'],baselineScanId:null,workItemId:null})
+    await store.recordOutcomeDeployment(scope,{intentKey:'eligible:release',externalId:'eligible-release',deployedAt:'2026-09-01T00:00:00Z',urls:['https://example.com/a'],baselineScanId:null,workItemId:null})
+    const due=await loadDueOutcomeEvaluations()
+    expect(due.length).toBeGreaterThan(0)
+    expect(due.every(row=>row.account_id===account)).toBe(true)
+    await h.pg!.query("update accounts set override_plan='pro',override_expires_at=null where id=$1",[foreign])
+    expect((await loadDueOutcomeEvaluations()).some(row=>row.account_id===foreign)).toBe(true)
+  })
   it('reads only the current owned Search Console binding generation', async () => {
     const connection = '44000000-0000-4000-8000-000000000001'
     await h.pg!.query("insert into google_connections values($1,$2,'active')", [connection,account])

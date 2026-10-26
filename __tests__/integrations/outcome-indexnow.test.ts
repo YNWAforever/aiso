@@ -12,6 +12,16 @@ function fixture() {
     fetch: vi.fn(async (url: string | URL | Request) => new Response(String(url).includes('indexnow.org') ? '' : key, { status: 200 })) }
 }
 describe('IndexNow bounded verified submissions', () => {
+  it('verifies the exact www host used by canonical URLs',async()=>{
+    const deps=fixture();deps.key=async()=>({key,domain:'www.example.com'})
+    expect(await submitIndexNow(scope,{intentKey:'intent:www01',urls:['https://www.example.com/a']},deps)).toMatchObject({status:'succeeded'})
+    expect(String(deps.fetch.mock.calls[0][0])).toBe(`https://www.example.com/${key}.txt`)
+  })
+  it('retains an owned www canonical host even when the brand was saved as apex',async()=>{
+    const deps=fixture()
+    expect(await submitIndexNow(scope,{intentKey:'intent:www02',urls:['https://www.example.com/a']},deps)).toMatchObject({status:'succeeded'})
+    expect(String(deps.fetch.mock.calls[0][0])).toBe(`https://www.example.com/${key}.txt`)
+  })
   it('verifies a same-origin key file before sending owned URLs and records acceptance', async () => {
     const deps = fixture()
     expect(await submitIndexNow(scope, { intentKey: 'intent:0001', urls: ['https://example.com/a'] }, deps)).toMatchObject({ status: 'succeeded', reason: 'ACCEPTED_NOT_INDEXING_PROOF' })

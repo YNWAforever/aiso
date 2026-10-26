@@ -4,6 +4,7 @@ import { loadBinding } from '@/lib/integrations/search-console/store'
 import { bindingMatchesDomain } from '@/lib/integrations/search-console/binding'
 import { readScanEvidence } from '@/lib/scan-evidence'
 import { resolveCommercialEntitlement, type CommercialAccount } from '@/lib/tier'
+import { PLAN_CATALOG,PLAN_IDS } from '@/lib/plans/catalog'
 import { beginOutcomeAttempt, finishOutcomeAttempt, type OutcomeScope } from './store'
 import { compareOutcomeCounts, compareOutcomeScores } from './regression'
 
@@ -19,7 +20,14 @@ export async function loadDueOutcomeEvaluations(limit = 20) {
   const sql = db()
   return sql`select d.account_id,d.client_id,d.id,days.n as days,a.plan,a.status,a.stripe_subscription_id,a.trial_ends_at,a.override_plan,a.override_expires_at
     from outcome_deployments d join accounts a on a.id=d.account_id cross join (values(7),(28),(56)) as days(n)
-    where d.deployed_at+((days.n+3)||' days')::interval<clock_timestamp()
+    where (case
+      when a.override_plan=any(${PLAN_IDS}::text[]) and (a.override_expires_at is null or (isfinite(a.override_expires_at) and a.override_expires_at>clock_timestamp())) then a.override_plan
+      when a.status in ('past_due','cancelled') then 'free'
+      when a.plan=any(${PLAN_IDS.filter(plan=>plan!=='free')}::text[]) and (
+        (a.status='active' and length(a.stripe_subscription_id)>0) or (isfinite(a.trial_ends_at) and a.trial_ends_at>clock_timestamp())
+        or (a.status='trialing' and length(a.stripe_subscription_id)>0)) then a.plan else 'free' end)
+      =any(${PLAN_IDS.filter(plan=>PLAN_CATALOG[plan].features.outcome_integrations)}::text[])
+      and d.deployed_at+((days.n+3)||' days')::interval<clock_timestamp()
       and not exists(select 1 from outcome_attempts t where t.account_id=d.account_id and t.client_id=d.client_id
         and t.kind='regression' and t.request->>'deploymentId'=d.id::text and t.request->>'days'=days.n::text
         and (t.status in ('running','succeeded') or t.started_at>clock_timestamp()-interval '20 hours'))

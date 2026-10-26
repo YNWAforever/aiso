@@ -7,6 +7,16 @@ const json = (status: number, body: unknown) => vi.fn().mockResolvedValue(new Re
 const raw = (status: number, text: string) => vi.fn().mockResolvedValue(new Response(text, { status }))
 
 describe('listSites', () => {
+  it('refuses mixed appearance dimensions before spending a provider request',async()=>{
+    const f=json(200,{rows:[]})
+    await expect(querySearchAnalytics('token','sc-domain:example.com',{startDate:'2026-10-01',endDate:'2026-10-25',dimensions:['date','searchAppearance']},f)).rejects.toMatchObject({kind:'misconfigured',code:'invalid_dimensions'})
+    expect(f).not.toHaveBeenCalled()
+  })
+  it('sends appearance as a filter alongside date/page dimensions',async()=>{
+    const f=json(200,{rows:[]})
+    await querySearchAnalytics('token','sc-domain:example.com',{startDate:'2026-10-01',endDate:'2026-10-25',dimensions:['date','page'],pageEquals:'https://example.com/a',searchAppearanceEquals:'RICH_RESULTS'},f)
+    expect(JSON.parse(f.mock.calls[0][1].body)).toMatchObject({dimensions:['date','page'],dimensionFilterGroups:[{filters:[{dimension:'page',operator:'equals',expression:'https://example.com/a'},{dimension:'searchAppearance',operator:'equals',expression:'RICH_RESULTS'}]}]})
+  })
   it('returns every property with its permission level', async () => {
     const f = json(200, { siteEntry: [{ siteUrl: 'sc-domain:example.com', permissionLevel: 'siteOwner' }] })
     expect(await listSites('ya29.t', f)).toEqual([{ siteUrl: 'sc-domain:example.com', permissionLevel: 'siteOwner' }])

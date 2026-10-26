@@ -3766,6 +3766,8 @@
     "revalidation": "Revalidation",
     "hookGuide": "Send compact page aggregates from your server using these signed headers. Sign the exact UTF-8 request body; event IDs stay unchanged on retry. Timestamps expire after five minutes. Maximum: 100 events, 64 KiB and 60 requests per minute. Never send visitor identifiers or raw logs.",
     "lastSync": "Latest collection",
-    "through": "Data through"
+    "through": "Data through",
+    "checkSubmission": "Check saved submission",
+    "window": "Evidence window"
   }
 }

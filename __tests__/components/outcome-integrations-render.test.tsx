@@ -3,6 +3,12 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { OutcomeWorkspace, type OutcomeView } from '@/components/integrations/OutcomeWorkspace'
 const empty: OutcomeView = { technical: null, search: [], analytics: [], appearance: [], clusters: [], clusterOutcomes: [], attempts: [], regressions: [], settings: null }
 describe('outcome evidence presentation', () => {
+  it('allows checking the preserved submission while its outcome is unknown',()=>{
+    const html=renderToStaticMarkup(<OutcomeWorkspace clientId="client" lang="en" initialView={{...empty,settings:{indexnow_key:'12345678abcdef00'}}} initialSubmission={{key:'intent:preserved',urls:['https://example.com/a']}}/>)
+    const retry=html.match(/<button([^>]*)>Check saved submission<\/button>/)
+    expect(retry).not.toBeNull();expect(retry?.[1]).not.toMatch(/\sdisabled(?:=|\s|$)/)
+    expect(html.match(/<textarea[^>]*name="urls"[^>]*>/)?.[0]).toContain('disabled')
+  })
   it.each(['en','zh-HK'])('separates evidence classes and renders honest empty/setup states in %s', lang => {
     const html = renderToStaticMarkup(<OutcomeWorkspace clientId="client" lang={lang} initialView={empty}/>)
     for (const text of lang === 'en' ? ['Technical readiness','Observed retrieval','Observed outcomes','No observations','do not prove retrieval'] : ['技術就緒','觀察到的擷取','觀察到的成效','尚無觀察紀錄','不證明已擷取']) {

@@ -8,7 +8,7 @@ ranking or AI inclusion. Deployment comparisons are associations, not causation.
 
 Apply `071_outcome_integrations.sql`, `072_search_console_appearance.sql` and
 `073_outcome_alert_receipts.sql` through the existing guarded migration process.
-No migration has been run against a managed database by this implementation.
+No persistent or production database was changed. Hosted integration applies migrations only to its disposable test branch.
 Keep the existing Neon project/branch/`aeo_app` identity guard unchanged.
 
 `FEATURE_OUTCOME_INTEGRATIONS=1` exposes the owned workspace at
@@ -21,7 +21,7 @@ Google continues to require `FEATURE_SEARCH_CONSOLE=1`, the existing OAuth
 client configuration, approved redirect URI and `GOOGLE_TOKEN_ENCRYPTION_KEY`.
 The existing settings connect/reconnect/revoke flow and asset property binding
 are reused. Refresh tokens stay encrypted and account-bound. Search appearance
-uses the same deadlines and run ledger. Queries are sampled: 20 registered
+uses the same deadlines and run ledger. Google appearance types are discovered alone, then each type is used as a filter for date/page queries. Up to 20 discovered types are collected per bounded run; incomplete/capped appearance collection preserves stored categories and is labelled deferred. Core traffic/query writes are saved independently. Queries are sampled: 20 registered
 pages, 25 queries per page/date, with at most 1,000 grouped queries in the outcome
 view. Appearance categories may overlap. Old query rows without binding
 provenance are hidden until refreshed; rebindings cannot present them as current.
@@ -32,7 +32,7 @@ Conversions remain associated with pages, not attributed to individual queries.
 
 Prepare a public key from the outcome workspace, publish its exact value at
 `https://YOUR_DOMAIN/KEY.txt`, then explicitly submit up to 100 canonical HTTPS
-URLs on that exact host. The public key is not an API secret. Key-file verification
+URLs on one exact canonical host, including `www` when supplied. Ownership can use www/apex equivalence; proof never silently switches to the apex. The public key is not an API secret. Key-file verification
 has no redirects, a 4 KiB response ceiling, a five-second timeout, public DNS
 checks and a pinned connection. The fixed IndexNow endpoint uses the same guard.
 Query strings and fragments are rejected rather than silently conflating pages.
@@ -41,7 +41,7 @@ Configure the site's canonical connector URLs deliberately.
 The ledger distinguishes confirmed acceptance (200/202), refusal, blocked proof
 and unknown delivery. Acceptance is not indexing proof. Identical intent keys
 never repeat a provider request; changed payloads with the same intent return
-409. Interrupted running attempts become visible unknown receipts. Investigate
+409. Interrupted running attempts become visible unknown receipts. The UI can check the saved submission with the same intent after a lost response or unknown receipt; this never repeats the external request. Investigate
 unknown delivery before creating another intent. No automatic external retry is
 performed. This uses the provider-documented IndexNow protocol for Bing and other
 participating engines; no unsupported Bing metrics API is invented.
@@ -106,7 +106,7 @@ points or 30% count decline with at least 25 reported exposures in both periods.
 These thresholds are Fimmick heuristics, not provider recommendations. No zero
 baseline, missing sample or incompatible scan method is reported as a successful
 comparison. The score URL/method must match and both envelopes must be complete.
-Outcomes include insufficient evidence and not comparable. Failed or interrupted internal evaluations can retry up to three durable attempts, at least 20 hours apart; exhausted failures remain visible. External IndexNow attempts never retry automatically. Evaluation receipts
+Outcomes include insufficient evidence and not comparable. Ineligible accounts are excluded before the due-batch limit using the shared catalogue and the commercial resolver rules, so cancelled accounts cannot starve entitled work. Failed or interrupted internal evaluations can retry up to three durable attempts, at least 20 hours apart; exhausted failures remain visible. External IndexNow attempts never retry automatically. Evaluation receipts
 and regression records are durable; regression notifications are inserted
 atomically and deduplicated by result. Read the saved evidence when a dependency
 fails rather than assuming that an empty state means no change.
