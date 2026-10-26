@@ -153,3 +153,8 @@ Page evidence follows account/client retention and cascades with client deletion
 Live acceptance still needs a reviewed release, Willy's provider credentials,
 explicit automation opt-in and real before/deployment/after observations. No paid
 provider calls, production writes, deployments or secret rotations were performed.
+
+Before/after deltas and volatility also require unchanged known grounding.
+Web/native search must have provider-confirmed execution; requested-only search
+and unknown historical evidence remain incomparable. A quota-driven change from
+searched to training-data answers never becomes an attributed numeric delta.

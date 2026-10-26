@@ -1,4 +1,5 @@
 import { buildVisibilityReport,type VisibilityObservation } from './report'
+import { visibilityGroundingKey } from './grounding'
 type Run = {manifest:Record<string,unknown>;observations:VisibilityObservation[]}
 export function compareVisibilityRuns(before:Run,after:Run) {
   const reasons:string[]=[],expected=Array.isArray(before.manifest.items)?before.manifest.items.length:0
@@ -10,6 +11,7 @@ export function compareVisibilityRuns(before:Run,after:Run) {
   if(indexed.size!==after.observations.length||new Set(before.observations.map(key)).size!==before.observations.length)reasons.push('DUPLICATE_SAMPLE')
   for(const row of before.observations) {
     const next=indexed.get(key(row))
+    if(!visibilityGroundingKey(row)||!next||visibilityGroundingKey(row)!==visibilityGroundingKey(next))reasons.push('GROUNDING_UNKNOWN_OR_CHANGED')
     if(!next||!row.model||row.model!==next.model||!row.requestedModel||row.requestedModel!==next.requestedModel)reasons.push('MODEL_UNKNOWN_OR_CHANGED')
     if(!row.locale||!row.market||row.locale!==next?.locale||row.market!==next?.market||JSON.stringify(row.monitoring)!==JSON.stringify(next?.monitoring))reasons.push('CONTEXT_UNKNOWN_OR_CHANGED')
     for(const item of [row,next]) {

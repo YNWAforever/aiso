@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { normalizeCitationUrl, registrableDomain } from '@/lib/citations/normalize'
+import { readSearchEvidence,type Grounding } from '@/lib/pulse/grounding'
 type Row = Record<string, unknown>
 type Competitor = { id?:string; name:string; domains:string[]; aliases:string[] }
 export type VisibilityContext = { domain:string; competitors:Competitor[] }
@@ -24,9 +25,10 @@ export function projectVisibilityObservation(row: Row, context: VisibilityContex
   const first = citations.findIndex(citation=>citation.owned), ownedCitations = citations.filter(citation=>citation.owned).length
   const answer = typeof row.raw_answer==='string' ? row.raw_answer : ''
   const observed = row.finished_at instanceof Date ? row.finished_at.toISOString() : typeof row.finished_at==='string' ? row.finished_at : null
+  const grounding:Grounding|null=['none','web','native'].includes(String(row.grounding))?row.grounding as Grounding:null
   return { id:String(row.id),runId:String(row.run_id),promptId:String(row.prompt_id),question:String(snapshot.question??''),locale:typeof snapshot.language==='string'?snapshot.language:null,market:typeof snapshot.market==='string'?snapshot.market:null,
     monitoring,platform:String(row.platform),model:typeof row.actual_model==='string'?row.actual_model:null,requestedModel:typeof row.requested_model==='string'?row.requested_model:null,
-    observedAt:observed,answerExcerpt:answer.slice(0,2000),answerDigest:createHash('sha256').update(answer).digest('hex'),answerPresence,
+    observedAt:observed,grounding,searchEvidence:readSearchEvidence(row.search_evidence,grounding),answerExcerpt:answer.slice(0,2000),answerDigest:createHash('sha256').update(answer).digest('hex'),answerPresence,
     citationsRecorded:recorded,citations,ownedCitations,citationShare:recorded ? (citations.length ? ownedCitations/citations.length : 0) : null,
     firstCitationPosition:first<0?null:first+1,citationOrder:'provider_annotation_order',competitorNames,
     sentiment:classified && answerPresence===true && ['positive','neutral','negative'].includes(String(classification.sentiment)) ? String(classification.sentiment) : 'unknown',

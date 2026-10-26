@@ -11,7 +11,7 @@ create view public.monitored_queries as
 create view public.ai_observations as
   select a.id,i.id as item_id,i.account_id,i.client_id,i.run_id,i.prompt_snapshot_id as prompt_id,
     i.platform,i.snapshot,i.classification_status,a.requested_model,a.actual_model,a.finished_at,
-    a.raw_answer,a.provider_citations,a.classification,r.manifest->'brand' as brand,r.purpose
+    a.raw_answer,a.provider_citations,a.classification,r.manifest->'brand' as brand,r.purpose,a.grounding,a.search_evidence
   from public.pulse_run_items i join public.pulse_item_attempts a
     on a.id=i.accepted_attempt_id and a.item_id=i.id and a.account_id=i.account_id and a.client_id=i.client_id
     join public.pulse_runs r on r.id=i.run_id and r.account_id=i.account_id and r.client_id=i.client_id

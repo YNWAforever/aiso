@@ -1,4 +1,5 @@
 import type { VisibilityObservation } from './report'
+import { visibilityGroundingKey } from './grounding'
 export function buildVisibilityReport(observations: VisibilityObservation[]) {
   const classified = observations.filter(row=>row.answerPresence!==null), named = classified.filter(row=>row.answerPresence===true).length
   const recorded = observations.filter(row=>row.citationsRecorded), totalCitations = recorded.reduce((sum,row)=>sum+row.citations.length,0), ownedCitations = recorded.reduce((sum,row)=>sum+row.ownedCitations,0)
@@ -8,8 +9,9 @@ export function buildVisibilityReport(observations: VisibilityObservation[]) {
     for (const domain of new Set(row.citations.filter(citation=>!citation.owned).map(citation=>citation.domain))) {
       const source=domains.get(domain)??{domain,answers:0,platforms:new Set<string>()};source.answers++;source.platforms.add(row.platform);domains.set(domain,source)
     }
-    if (row.model && row.observedAt) {
-      const key=JSON.stringify([row.promptId,row.question,row.locale,row.market,row.platform,row.model,row.monitoring])
+    const grounding=visibilityGroundingKey(row)
+    if (row.model && row.observedAt && grounding) {
+      const key=JSON.stringify([row.promptId,row.question,row.locale,row.market,row.platform,row.model,row.monitoring,grounding])
       groups.set(key,[...(groups.get(key)??[]),row])
     }
   }

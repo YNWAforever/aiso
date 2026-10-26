@@ -25,7 +25,7 @@ beforeAll(async()=>{
  create table evidence_work_items(id uuid primary key,account_id uuid,client_id uuid,revision integer default 1,target_url text,operation_status text default 'todo',title text default 'Work item',unique(id,client_id,account_id));
  create table outcome_deployments(id uuid primary key,account_id uuid,client_id uuid,deployed_at timestamptz,urls jsonb,external_id text default 'release');
  create table pulse_run_items(id uuid primary key,account_id uuid,client_id uuid,run_id uuid,prompt_snapshot_id uuid,platform text,snapshot jsonb,classification_status text,status text,accepted_attempt_id uuid);
- create table pulse_item_attempts(id uuid primary key,item_id uuid,account_id uuid,client_id uuid,requested_model text,actual_model text,finished_at timestamptz,raw_answer text,provider_citations jsonb,classification jsonb,collection_status text,accepted boolean,unique(id,item_id,client_id,account_id));`)
+ create table pulse_item_attempts(id uuid primary key,item_id uuid,account_id uuid,client_id uuid,requested_model text,actual_model text,finished_at timestamptz,raw_answer text,provider_citations jsonb,classification jsonb,collection_status text,accepted boolean,grounding text default 'none',search_evidence jsonb default '{"requested":"none","execution":"unknown","basis":"request-only"}',unique(id,item_id,client_id,account_id));`)
  await h.pg.exec(readFileSync('supabase/migrations/074_closed_loop_visibility.sql','utf8'))
  await h.pg.exec(readFileSync('supabase/migrations/075_visibility_revalidation_sources.sql','utf8'))
 })
@@ -40,7 +40,7 @@ beforeEach(async()=>{
  const monitoring={targetUrl:'https://example.com/a',intent:'comparison',expectedAttributes:['Evidence'],sampling:{temperature:0.2,samplesPerRun:1,seed:null}}
  await h.pg!.query("insert into pulse_runs(id,account_id,client_id,manifest,purpose) values($1,$2,$3,$4,'canonical')",[run,account,client,JSON.stringify({brand:{domain:'example.com',competitorRefs:[]}})])
  await h.pg!.query("insert into pulse_run_items values($1,$2,$3,$4,$5,'gpt-4o',$6,'classified','succeeded',$7)",[item,account,client,run,prompt,JSON.stringify({question:'Frozen question',language:'en',market:'HK',monitoring}),observation])
- await h.pg!.query("insert into pulse_item_attempts values($1,$2,$3,$4,'model','model',now(),'A source answer',$5,$6,'succeeded',true)",[observation,item,account,client,JSON.stringify([{url:'https://source.example/a'}]),JSON.stringify({brandMentioned:false,sentiment:'unknown',competitorsMentioned:[]})])
+ await h.pg!.query("insert into pulse_item_attempts values($1,$2,$3,$4,'model','model',now(),'A source answer',$5,$6,'succeeded',true,default,default)",[observation,item,account,client,JSON.stringify([{url:'https://source.example/a'}]),JSON.stringify({brandMentioned:false,sentiment:'unknown',competitorsMentioned:[]})])
 })
 describe('actual SQL visibility boundaries',()=>{
  it('captures work completion transitions without inventing historic completions or repeating done edits',async()=>{
@@ -71,7 +71,7 @@ describe('actual SQL visibility boundaries',()=>{
   await h.pg!.query("insert into outcome_deployments values($1,$2,$3,now()-interval '30 minutes',$4)",[observation,account,client,JSON.stringify(['https://example.com/a'])])
   await h.pg!.query("insert into pulse_runs(id,account_id,client_id,manifest,purpose) values($1,$2,$3,$4,'retest')",[nextRun,account,client,JSON.stringify(manifest)])
   await h.pg!.query('insert into pulse_run_items select $1,account_id,client_id,$2,prompt_snapshot_id,platform,snapshot,classification_status,status,$3 from pulse_run_items where id=$4',[nextItem,nextRun,nextAnswer,item])
-  await h.pg!.query("insert into pulse_item_attempts select $1,$2,account_id,client_id,requested_model,actual_model,clock_timestamp(),'A new answer',$3,$4,collection_status,accepted from pulse_item_attempts where id=$5",[nextAnswer,nextItem,JSON.stringify([{url:'https://example.com/a'}]),JSON.stringify({brandMentioned:true,sentiment:'neutral',competitorsMentioned:[]}),observation])
+  await h.pg!.query("insert into pulse_item_attempts select $1,$2,account_id,client_id,requested_model,actual_model,clock_timestamp(),'A new answer',$3,$4,collection_status,accepted,grounding,search_evidence from pulse_item_attempts where id=$5",[nextAnswer,nextItem,JSON.stringify([{url:'https://example.com/a'}]),JSON.stringify({brandMentioned:true,sentiment:'neutral',competitorsMentioned:[]}),observation])
   const job=await enqueueVisibilitySource(scope,'deployment',observation,actor),lease=await claimVisibilityJob(scope,job.id)
   expect(lease?.sourceRunId).toBe(run)
   await finishVisibilityJob(lease!,'waiting','PULSE_PENDING',{pages:[]},nextRun)
