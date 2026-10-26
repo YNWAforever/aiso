@@ -4,9 +4,25 @@ import {
   checkBinding,
   readExpectationFromEnv,
 } from '@/lib/security/db-binding'
-import { redactSecrets } from '@/lib/security/redact-secrets'
 
 type Sql = NeonQueryFunction<false, false>
+
+// Never retain driver objects: util.format recursively renders cause/sourceError,
+// and even apparently harmless fields may contain SQL values or credentials.
+const ERROR_CODES = new Set(['08000', '08001', '08003', '08006', '23502', '23503', '23505', '23514', '40001', '40P01', '42501', '57014', '57P01', 'P0001'])
+const APPLICATION_ERRORS = new Set([
+  'BRAND_LIMIT_REACHED', 'ACCOUNT_ENTITLEMENT_INVALID',
+  'CLIENT_REPORT_NOT_FOUND', 'CLIENT_REPORT_SCAN_NOT_FOUND',
+  'CLIENT_REPORT_PREVIOUS_SCAN_INVALID', 'reviewed version is stale',
+])
+
+function databaseFailure(error: unknown, message = 'Database operation failed'): Error {
+  const fields = error && typeof error === 'object' ? error as { code?: unknown; message?: unknown } : {}
+  const code = typeof fields.code === 'string' && ERROR_CODES.has(fields.code) ? fields.code : undefined
+  const signal = code === 'P0001' && typeof fields.message === 'string' && APPLICATION_ERRORS.has(fields.message)
+    ? fields.message : message
+  return Object.assign(new Error(signal), code ? { code } : {})
+}
 
 // Lazy singleton — neon() is deferred until first use so that module
 // evaluation at Next.js build time (when env vars may be absent) does not
@@ -56,16 +72,7 @@ async function verifyBinding(raw: Sql): Promise<void> {
              current_database()                       as database
     `
   } catch (err) {
-    // Rethrown, never swallowed — a guard that could not ask still fails
-    // closed. Redacted because this is the one query whose failure is reported
-    // by the driver, and the driver puts the connection URL, password included,
-    // into its own error text (see CLAUDE.md, Secrets Hygiene). `cause` keeps
-    // the original for a debugger without putting it in the message.
-    throw new Error(
-      `Refusing to query the database — the connection could not be identified: ` +
-      redactSecrets(err instanceof Error ? err.message : String(err)),
-      { cause: err },
-    )
+    throw databaseFailure(err, 'Refusing to query the database — the connection could not be identified')
   }
   const row = rows[0] ?? {}
   const verdict = checkBinding(
@@ -102,7 +109,8 @@ function deferUntilVerified<T extends object>(raw: Sql, query: T): T {
     // `.then(() => query)` adopts the thenable, which is what triggers the real
     // send. It reads `.then` off the raw query object, not off this proxy, so
     // there is no recursion.
-    verified(raw).then(() => query as unknown as PromiseLike<unknown>)
+    verified(raw).then(() => Promise.resolve(query as unknown as PromiseLike<unknown>)
+      .catch(error => { throw databaseFailure(error) }))
 
   return new Proxy(query, {
     get(target, prop, receiver) {
@@ -132,12 +140,15 @@ function deferUntilVerified<T extends object>(raw: Sql, query: T): T {
  */
 export function db(): NeonQueryFunction<false, false> {
   if (!_guarded) {
-    const raw = neon<false, false>(process.env.DATABASE_URL!)
+    let raw: Sql
+    try { raw = neon<false, false>(process.env.DATABASE_URL!) }
+    catch (error) { throw databaseFailure(error) }
     _guarded = new Proxy(raw, {
       // Tagged-template calls: forward strings and values unchanged, then defer
       // the result until the binding is proved.
       apply(target, thisArg, args: Parameters<Sql>) {
-        return deferUntilVerified(raw, Reflect.apply(target, thisArg, args) as object)
+        try { return deferUntilVerified(raw, Reflect.apply(target, thisArg, args) as object) }
+        catch (error) { throw databaseFailure(error) }
       },
       // Everything else on NeonQueryFunction is forwarded rather than
       // re-declared, so a driver upgrade that adds a property needs no change
@@ -153,11 +164,16 @@ export function db(): NeonQueryFunction<false, false> {
         if (typeof value !== 'function') return value
         if (prop === 'transaction') {
           return (...args: unknown[]) =>
-            verified(raw).then(() => (value as (...a: unknown[]) => unknown).apply(target, args))
+            verified(raw).then(async () => {
+              try { return await (value as (...a: unknown[]) => unknown).apply(target, args) }
+              catch (error) { throw databaseFailure(error) }
+            })
         }
         if (prop === 'query') {
-          return (...args: unknown[]) =>
-            deferUntilVerified(raw, (value as (...a: unknown[]) => object).apply(target, args))
+          return (...args: unknown[]) => {
+            try { return deferUntilVerified(raw, (value as (...a: unknown[]) => object).apply(target, args)) }
+            catch (error) { throw databaseFailure(error) }
+          }
         }
         return value.bind(target)
       },

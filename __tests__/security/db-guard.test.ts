@@ -1,5 +1,9 @@
 import { neonConfig } from '@neondatabase/serverless'
+import { format, inspect } from 'node:util'
+import { NextRequest } from 'next/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('@/lib/fix/guard', () => ({ authorizeAiTool: async () => ({ ok: true, accountId: 'synthetic' }), consumeAiToolAllowance: vi.fn() }))
 
 /**
  * The impure half of the binding guard: the Proxy lib/db.ts wraps around
@@ -177,10 +181,13 @@ describe('the guard fails closed', () => {
     const sql = (await loadDb())()
 
     await expect(sql`select 1 as ok`).rejects.toThrow(/could not be identified/)
-    // Positively assert the redaction happened, rather than only asserting the
-    // password's absence — a message that lost the URL entirely would satisfy
-    // the negative form while proving nothing about redactSecrets running.
-    await expect(sql`select 1 as ok`).rejects.toThrow(/aeo_app:\*\*\*@/)
+    // Only approved diagnostics survive, including Node's recursive formatter.
+    const error = await sql`select 1 as ok`.catch(error => error)
+    expect(format(error)).not.toContain(DSN)
+    expect(inspect(error)).not.toContain(':pw@')
+    expect(JSON.stringify(error)).not.toContain(':pw@')
+    expect(error).not.toHaveProperty('cause')
+    expect(error).not.toHaveProperty('sourceError')
     await expect(sql`select 1 as ok`).rejects.not.toThrow(/:pw@/)
   })
 
@@ -213,6 +220,55 @@ describe('the guard fails closed', () => {
     const sql = (await loadDb())()
 
     await expect(sql`select 1 as ok`).rejects.toThrow(/neondb_owner/)
+  })
+})
+
+describe('database diagnostic boundary after binding', () => {
+  it.each(['template', 'query', 'transaction'] as const)('sanitizes %s failures without retaining nested driver errors', async mode => {
+    const sql = (await loadDb())()
+    await sql`select 1 as ok`
+    neonConfig.fetchFunction = async () => { throw Object.assign(new Error(`failed ${DSN} password=pw`), { cause: { secret: DSN }, sourceError: { password: 'pw' } }) }
+    const pending = mode === 'template' ? sql`select 2` : mode === 'query' ? sql.query('select 2', []) : sql.transaction([sql`select 2`])
+    const error = await pending.catch(error => error)
+    expect(error.message).toBe('Database operation failed')
+    for (const rendered of [format(error), inspect(error), JSON.stringify(error)]) {
+      expect(rendered).not.toContain(DSN)
+      expect(rendered).not.toContain('password=pw')
+      expect(rendered).not.toContain('sourceError')
+    }
+    expect(error).not.toHaveProperty('cause')
+  })
+
+  it.each(['23505', '23503', '57014'])('preserves SQLSTATE %s for application handling without unsafe detail', async code => {
+    const sql = (await loadDb())()
+    await sql`select 1 as ok`
+    neonConfig.fetchFunction = async () => ({ ok: false, status: 400, json: async () => ({ code, message: DSN, detail: DSN }) })
+    await expect(sql`select 2`).rejects.toMatchObject({ code, message: 'Database operation failed' })
+  })
+
+  it.each(['BRAND_LIMIT_REACHED', 'ACCOUNT_ENTITLEMENT_INVALID', 'CLIENT_REPORT_NOT_FOUND', 'reviewed version is stale'])('retains the exact application signal %s', async message => {
+    const sql = (await loadDb())()
+    await sql`select 1 as ok`
+    neonConfig.fetchFunction = async () => ({ ok: false, status: 400, json: async () => ({ code: 'P0001', message, detail: DSN }) })
+    const error = await sql`select 2`.catch(error => error)
+    expect(error.message).toBe(message)
+    expect(format(error)).not.toContain(DSN)
+  })
+
+  it('keeps raw database failure credentials out of fix route logs and responses', async () => {
+    const sql = (await loadDb())()
+    await sql`select 1 as ok`
+    neonConfig.fetchFunction = async () => { throw new Error(`connection refused ${DSN}`) }
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { POST } = await import('@/app/api/fix/route')
+      const response = await POST(new NextRequest('http://localhost/api/fix', { method: 'POST', body: JSON.stringify({ scanId: 'synthetic' }) }))
+      expect(response.status).toBe(500)
+      expect(log).toHaveBeenCalled()
+      expect(format(log.mock.calls)).not.toContain(DSN)
+      expect(format(log.mock.calls)).not.toContain(':pw@')
+      expect(await response.text()).not.toContain(DSN)
+    } finally { log.mockRestore() }
   })
 })
 
