@@ -58,6 +58,43 @@ test('failed completion retains safe destination on retry', async ({ page }) => 
   await expect(page.getByRole('link', { name: '返回登入頁' })).toHaveAttribute('href', `/zh-HK/auth/login?next=${encodeURIComponent(next)}`)
 })
 
+for (const lang of ['en', 'zh-HK']) for (const scanQuery of ['', '&scanId=scan_older-123']) for (const flow of ['google', 'magic-link']) {
+  test(`recovery scan re-login ${flow} survives failed completion and retry in ${lang} (${scanQuery || 'no scanId'})`, async ({ page }) => {
+    const recoveryUrl = 'https://brand.example/landing?campaign=report&source=old+scan&next=%2Fen%2Fdashboard#section'
+    const next = `/${lang}/dashboard/${client}?step=scan${scanQuery}&url=${encodeURIComponent(recoveryUrl)}`
+    await callbackFixture(page, lang, `${next}&access_token=private&next=//evil.test`)
+    async function signIn() {
+      await page.waitForFunction(() => Boolean((window as Window & { authReturnReady?: boolean }).authReturnReady))
+      if (flow === 'google') await page.getByRole('button', { name: lang === 'en' ? 'Continue with Google' : '使用 Google 繼續' }).click()
+      else {
+        await page.getByLabel(lang === 'en' ? 'Work email' : '工作電郵').fill('fixture@example.test')
+        await page.getByRole('button', { name: lang === 'en' ? 'Send Magic Link' : '發送登入連結' }).click()
+      }
+      const recorded = await page.evaluate(() => (window as Window & { lastAuth?: { callbackURL: string; flow: string } }).lastAuth!)
+      expect(recorded.flow).toBe(flow)
+      const callback = new URL(recorded.callbackURL)
+      expect(callback.pathname).toBe(`/${lang}/auth/complete`)
+      expect(callback.searchParams.get('next')).toBe(next)
+      callback.searchParams.set('neon_auth_session_verifier', 'synthetic-verifier')
+      return callback
+    }
+    const failedCallback = await signIn()
+    failedCallback.searchParams.set('fixture-failed', '1')
+    await page.goto(failedCallback.toString())
+    const retry = page.getByRole('link', { name: lang === 'en' ? 'Back to login' : '返回登入頁' })
+    await expect(retry).toHaveAttribute('href', `/${lang}/auth/login?next=${encodeURIComponent(next)}`)
+    await retry.click()
+    expect(new URL(page.url()).searchParams.get('next')).toBe(next)
+    await page.goto((await signIn()).toString())
+    await expect(page.getByRole('heading', { name: 'Returned to tool' })).toBeVisible()
+    await expect(page).toHaveURL(`https://auth.fixture${next}`)
+    await page.reload()
+    expect(new URL(page.url()).searchParams.get('url')).toBe(recoveryUrl)
+    expect(new URL(page.url()).searchParams.get('scanId')).toBe(scanQuery ? 'scan_older-123' : null)
+    expect(new URL(page.url()).searchParams.has('neon_auth_session_verifier')).toBe(false)
+  })
+}
+
 
 const sdkCases = [
   { name: 'valid session', status: 200, payload: 'valid', historyError: null, completes: true },

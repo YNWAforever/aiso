@@ -9,6 +9,21 @@ import { normalizeAuthNext } from '@/lib/auth-navigation'
 
 describe('Google auth navigation', () => {
   it.each([
+    ['en', ''], ['en', '&scanId=scan_older-123'],
+    ['zh-HK', ''], ['zh-HK', '&scanId=scan_older-123'],
+  ])('preserves the recovery scan URL through both auth callbacks in %s (%s)', (lang, scanQuery) => {
+    const recoveryUrl = 'https://brand.example/landing?campaign=report&source=old+scan&next=%2Fen%2Fdashboard#section'
+    const next = `/${lang}/dashboard/11111111-1111-4111-8111-111111111111?step=scan${scanQuery}&url=${encodeURIComponent(recoveryUrl)}`
+    for (const buildCallback of [authModule.buildAuthCompleteUrl, authModule.buildGoogleAuthStartUrl]) {
+      const callback = new URL(buildCallback(lang, `${next}&access_token=secret`), 'https://aiso.test')
+      expect(callback.searchParams.get('next')).toBe(next)
+      const returned = normalizeAuthNext(lang, callback.searchParams.get('next')!)
+      expect(returned).toBe(next)
+      expect(new URL(returned, callback.origin).searchParams.get('url')).toBe(recoveryUrl)
+    }
+  })
+
+  it.each([
     ['https://attacker.example', '/en/dashboard'],
     ['//attacker.example', '/en/dashboard'],
     ['/zh-HK/dashboard', '/en/dashboard'],
