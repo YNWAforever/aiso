@@ -84,10 +84,11 @@ describe('actual SQL visibility boundaries',()=>{
   expect(await pollWaitingVisibilityJob(pending)).toBe(false)
   vi.unstubAllEnvs()
  })
- it.each(['sampling','grounding','model','citations','manifest-count'])('does not reserve an unusable AI baseline with invalid %s',async invalid=>{
+ it.each(['sampling','grounding','model','citations','manifest-count','confirmed-none'])('does not reserve an unusable AI baseline with invalid %s',async invalid=>{
   await h.pg!.query("update pulse_runs set created_at=now()-interval '2 hours',manifest=$1 where id=$2",[JSON.stringify({version:'2026-10-26.v1',brand:{domain:'example.com'},items:[{promptId:prompt,language:'en',market:'HK',contextVersion:invalid==='sampling'?'2026-10-03.v1':'2026-10-26.v1',monitoring:{locale:'en',market:'HK',sampling:{temperature:0.2,samplesPerRun:1,seed:null}}},...(invalid==='manifest-count'?[{promptId:item}]:[])]}),run])
   await h.pg!.query("update pulse_item_attempts set finished_at=now()-interval '1 hour' where id=$1",[observation])
   if(invalid==='grounding')await h.pg!.query("update pulse_item_attempts set grounding='web',search_evidence=null where id=$1",[observation])
+  if(invalid==='confirmed-none')await h.pg!.query("update pulse_item_attempts set search_evidence='{}'::jsonb||jsonb_build_object('requested','none','execution','confirmed','basis','provider-search-event') where id=$1",[observation])
   if(invalid==='model')await h.pg!.query("update pulse_item_attempts set actual_model=null where id=$1",[observation])
   if(invalid==='citations')await h.pg!.query("update pulse_item_attempts set provider_citations=null where id=$1",[observation])
   await h.pg!.query("insert into outcome_deployments values($1,$2,$3,now(),$4)",[observation,account,client,JSON.stringify(['https://example.com/a'])])
