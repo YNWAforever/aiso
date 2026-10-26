@@ -80,6 +80,7 @@ export async function GET(req: Request) {
           listPages: store.listSyncPages,
           writeDaily: store.writeDaily,
           writePageQueries: store.writePageQueries,
+          ...(isFeatureEnabled('outcome_integrations') ? { writeAppearance: store.writeSearchAppearance } : {}),
           markConnection: store.markConnection,
           recordRun: store.recordRun,
           today: () => new Date().toISOString().slice(0, 10),

@@ -22,7 +22,7 @@ export const ROW_LIMIT = 25_000
 export const MAX_PAGES = 8
 
 export type SiteEntry = { siteUrl: string; permissionLevel: string }
-export type AnalyticsDimension = 'date' | 'page' | 'query'
+export type AnalyticsDimension = 'date' | 'page' | 'query' | 'searchAppearance'
 export type AnalyticsQuery = {
   startDate: string
   endDate: string

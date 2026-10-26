@@ -15,6 +15,7 @@ vi.mock('@/lib/db', () => {
   return { db: () => sql }
 })
 import * as store from '@/lib/outcome-integrations/store'
+import { writeSearchAppearance } from '@/lib/integrations/search-console/store'
 
 const account = '11000000-0000-4000-8000-000000000001', foreign = '11000000-0000-4000-8000-000000000002'
 const client = '22000000-0000-4000-8000-000000000001', otherClient = '22000000-0000-4000-8000-000000000002'
@@ -31,6 +32,7 @@ beforeAll(async () => {
     create table evidence_work_items(id uuid primary key,account_id uuid,client_id uuid);
   `)
   await h.pg.exec(readFileSync('supabase/migrations/071_outcome_integrations.sql', 'utf8'))
+  await h.pg.exec(readFileSync('supabase/migrations/072_search_console_appearance.sql', 'utf8'))
 })
 afterAll(async () => { await h.pg?.close() })
 beforeEach(async () => {
@@ -40,6 +42,15 @@ beforeEach(async () => {
 })
 
 describe('real SQL outcome persistence and tenant boundaries', () => {
+  it('replaces only an owned completed search-appearance window, including empty refreshes', async () => {
+    const metrics = [{ date: '2026-10-25', pageUrl: 'https://example.com/a', appearance: 'RICH_RESULTS', clicks: 2, impressions: 10, ctr: 0.2, position: 4 }]
+    const window = { startDate: '2026-10-01', endDate: '2026-10-26', pageUrls: ['https://example.com/a'] }
+    expect(await writeSearchAppearance(account, client, metrics, window)).toBe(1)
+    expect(await writeSearchAppearance(foreign, client, [], window)).toBe(0)
+    expect((await h.pg!.query('select clicks from search_console_appearance')).rows).toEqual([{ clicks: 2 }])
+    expect(await writeSearchAppearance(account, client, [], window)).toBe(0)
+    expect((await h.pg!.query('select clicks from search_console_appearance')).rows).toEqual([])
+  })
   it('removes inherited update/delete rights from append-only evidence and receipts', async () => {
     const rights = await h.pg!.query<{ events_update: boolean; events_delete: boolean; receipts_update: boolean; receipts_delete: boolean }>(`select
       has_table_privilege('aeo_app','outcome_events','UPDATE') as events_update,

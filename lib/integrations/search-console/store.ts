@@ -56,6 +56,7 @@ export type DailyMetric = {
 }
 
 export type PageQueryMetric = { pageUrl: string; date: string; query: string } & Omit<AnalyticsRow, 'keys'>
+export type SearchAppearanceMetric = { pageUrl: string; date: string; appearance: string } & Omit<AnalyticsRow, 'keys'>
 
 export type MetricTotals = Pick<DailyMetric, 'clicks' | 'impressions' | 'ctr' | 'position'>
 
@@ -318,6 +319,22 @@ export async function writeDaily(accountId: string, clientId: string, metrics: D
 }
 
 export type QueryWindow = { startDate: string; endDate: string; pageUrls: string[] }
+
+/** Replace only a successfully collected sample/window; empty results clear stale categories. */
+export async function writeSearchAppearance(accountId: string, clientId: string, metrics: SearchAppearanceMetric[], window: QueryWindow): Promise<number> {
+  if (!window.pageUrls.length) return 0
+  const sql = db()
+  const [, rows] = await sql.transaction([
+    sql`delete from search_console_appearance where account_id=${accountId}::uuid and client_id=${clientId}::uuid
+      and page_url=any(${window.pageUrls}::text[]) and date between ${window.startDate}::date and ${window.endDate}::date`,
+    sql`insert into search_console_appearance(account_id,client_id,date,page_url,appearance,clicks,impressions,ctr,position)
+      select ${accountId}::uuid,c.id,x.date,x.page_url,x.appearance,x.clicks,x.impressions,x.ctr,x.position
+      from jsonb_to_recordset(${JSON.stringify(metrics.map(row => ({ ...row, page_url: row.pageUrl })))}::jsonb)
+        as x(date date,page_url text,appearance text,clicks int,impressions int,ctr float8,position float8)
+      cross join clients c where c.account_id=${accountId}::uuid and c.id=${clientId}::uuid returning date`,
+  ])
+  return rows.length
+}
 
 /**
  * Replaces the top queries for the re-fetched window, in one transaction. Google
