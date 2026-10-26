@@ -11,8 +11,9 @@ this repo, not a Claude-only file. Two things bite immediately:
 
 - Next.js 16 renames `middleware.ts` → **`proxy.ts`** (exporting `proxy`). This repo has
   `proxy.ts` at the root; do not create a `middleware.ts`.
-- The project is **mid-migration from Supabase to Neon** and the Supabase project is deleted.
+- The migration from Supabase to Neon is **complete** and the Supabase project is deleted.
   Never add a new import of `lib/supabase.ts` / `lib/supabase-server.ts` — use `db()` from
   `@/lib/db` (tagged-template queries only), and filter every query by `account_id`.
 
-See [`README.md`](./README.md) for setup, env vars, and commands.
+See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the system and risk map,
+and [`docs/development.md`](./docs/development.md) for run, test and deploy procedures.

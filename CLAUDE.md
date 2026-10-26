@@ -1,5 +1,9 @@
 # Fimmick AISO — Project Instructions
 
+For a compact system and risk map, start with [ARCHITECTURE.md](ARCHITECTURE.md).
+Runnable setup, test-layer boundaries and release steps are in
+[docs/development.md](docs/development.md).
+
 > **CRITICAL**: This project uses **Next.js 16** (App Router). APIs, file conventions, and caching behaviour may differ from your training data. Before writing any Next.js code, read the relevant guide in `node_modules/next/dist/docs/`. Heed deprecation notices.
 >
 > Next.js 16 renames `middleware.ts` → **`proxy.ts`** (exporting `proxy`, not `middleware`). This repo uses `proxy.ts` at the root. Do not create a `middleware.ts`.
@@ -65,7 +69,8 @@ npm run e2e        # Playwright E2E (needs a dev server, or START_DEV_SERVER=1)
 ```
 
 CI is `.github/workflows/pr-gate.yml` — a deterministic merge gate on every PR, running
-four jobs (`static`, `unit-contract`, `e2e-accessibility`, `build`) that a final `pr-gate`
+six job classes (`static`, `unit-contract`, `integration`, `e2e-accessibility`, `build`,
+`cloudflare-worker`) that a final `pr-gate`
 job aggregates from their uploaded summaries via `scripts/ci/aggregate-gate.mjs`. Still run
 `build`, `lint`, and `test` locally first; the gate is the backstop, not the first signal.
 
@@ -203,14 +208,13 @@ n8n/               # n8n workflow exports (JSON) + deploy/credential shell scrip
   (`__tests__/config/lint-ignores.test.ts`), `tsc` skips dot-directories, and
   `playwright.config.ts` excludes `**/.worktrees/**`. A new copy location needs adding to both
   tests' lists and to the lint script.
-- Lazy singletons: `db()` and `auth()` defer client construction. This genuinely protects the
-  build for `db()` — `next build` succeeds with `DATABASE_URL` unset. It does **not** protect
-  `auth()`: `app/api/auth/[...path]/route.ts` calls `auth().handler()` at module scope, so
-  Next evaluates it eagerly during "Collecting page data".
-- **Build-time env requirement:** `NEON_AUTH_COOKIE_SECRET` must be set and ≥32 chars at
-  **build** time, not just runtime. Without it `next build` fails with
-  `Failed to collect page data for /api/auth/[...path]`, and Vercel deploys fail.
-  (`NEON_AUTH_BASE_URL` is runtime-only.)
+- Lazy singletons: `db()` and `auth()` defer client construction. The Auth catch-all
+  in `app/api/auth/[...path]/route.ts` also constructs its handlers on first request,
+  not at module scope. A build does not verify runtime configuration.
+- **Runtime auth requirement:** `NEON_AUTH_BASE_URL` and a ≥32-character
+  `NEON_AUTH_COOKIE_SECRET` must be configured for auth requests. The old build-time
+  secret requirement was removed when the catch-all became lazy; do not reintroduce
+  module-scope `auth().handler()` initialization.
 - Never call `db()` or `auth()` at module scope in a route file. `export const dynamic =
   'force-dynamic'` does **not** exempt a route from build-time module evaluation.
 

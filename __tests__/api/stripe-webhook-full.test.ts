@@ -200,4 +200,76 @@ describe('POST /api/stripe/webhook full lifecycle flow', () => {
     expect(response.status).toBe(400)
     expect(applyRpcArgs()).toBeUndefined()
   })
+
+  it.each([{ rows: [] }, { rows: [{ acquired: null }] }, { rows: [{ acquired: 'true' }] }])(
+    'fails closed on an invalid lease response $rows before contacting Stripe', async ({ rows }) => {
+      mocks.sql.mockResolvedValueOnce(rows)
+
+      const response = await postWebhook(lifecycleEvent('customer.subscription.updated', { id: 'sub_xyz' }))
+
+      expect(response.status).toBe(500)
+      expect(await response.json()).toEqual({ error: 'Failed to acquire Stripe processing lease' })
+      expect(mocks.retrieveSubscription).not.toHaveBeenCalled()
+      expect(mocks.sql).toHaveBeenCalledOnce()
+    },
+  )
+
+  it.each([{ rows: [] }, { rows: [{ result: null }] }, { rows: [{ result: 'unexpected' }] }])(
+    'never acknowledges an unconfirmed persistence result $rows and releases the lease', async ({ rows }) => {
+      mocks.sql.mockResolvedValueOnce([{ acquired: true }]).mockResolvedValueOnce(rows)
+
+      const response = await postWebhook(lifecycleEvent('customer.subscription.updated', { id: 'sub_xyz' }))
+
+      expect(response.status).toBe(500)
+      expect(await response.json()).toEqual({ error: 'Failed to persist Stripe event' })
+      expect(mocks.calls.at(-1)?.name).toBe('release_stripe_subscription_lease')
+    },
+  )
+
+  it.each([
+    ['different subscription', { ...subscription(), id: 'sub_other' }],
+    ['different checkout customer', { ...subscription(), customer: 'cus_other' }],
+    ['missing customer', { ...subscription(), customer: null }],
+    ['multiple prices', { ...subscription(), items: { data: [
+      { price: { id: 'price_pro_test' } }, { price: { id: 'price_basic_test' } },
+    ] } }],
+    ['no prices', { ...subscription(), items: { data: [] } }],
+    ['unsupported status', { ...subscription(), status: 'unknown_status' }],
+  ])('rejects canonical data with %s, writes no entitlement and releases the lease', async (_label, canonical) => {
+    mocks.retrieveSubscription.mockResolvedValue(canonical)
+
+    const response = await postWebhook(lifecycleEvent('checkout.session.completed', {
+      metadata: { account_id: 'acc-123' }, customer: 'cus_abc', subscription: 'sub_xyz',
+    }))
+
+    expect(response.status).toBe(400)
+    expect(applyRpcArgs()).toBeUndefined()
+    expect(mocks.calls.map(call => call.name)).toEqual([
+      'acquire_stripe_subscription_lease', 'release_stripe_subscription_lease',
+    ])
+    expect(mocks.calls[1].args).toEqual(mocks.calls[0].args)
+  })
+
+  it.each([['applied', 200], ['not_found', 503]] as const)(
+    'preserves the %s outcome if lease cleanup fails', async (outcome, expectedStatus) => {
+      const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const sql = mocks.sql.getMockImplementation()!
+      mocks.sql.mockImplementation(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+        if (functionName(strings) === 'release_stripe_subscription_lease') throw new Error('cleanup unavailable')
+        if (functionName(strings) === 'apply_stripe_account_event') return [{ result: outcome }]
+        return sql(strings, ...values)
+      })
+
+      try {
+        const response = await postWebhook(lifecycleEvent('customer.subscription.updated', { id: 'sub_xyz' }))
+
+        expect(response.status).toBe(expectedStatus)
+        expect(await response.json()).toEqual(outcome === 'applied'
+          ? { ok: true } : { error: 'Stripe account linkage is not ready' })
+        expect(log).toHaveBeenCalledWith('[stripe/webhook] lease release failed', expect.any(Error))
+      } finally {
+        log.mockRestore()
+      }
+    },
+  )
 })
