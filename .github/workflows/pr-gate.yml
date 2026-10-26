@@ -264,6 +264,7 @@ jobs:
           AISO_ADMIN_HTML_DIR: .next/component-fixtures/AISO_ADMIN
           AISO_FIRST_PULSE_HTML_DIR: .next/component-fixtures/AISO_FIRST_PULSE
           AISO_AUDIT_LOOP_HTML_DIR: .next/component-fixtures/AISO_AUDIT_LOOP
+          AISO_SCAN_UX_HTML_DIR: .next/component-fixtures/AISO_SCAN_UX
           AISO_PRIORITY_HTML_DIR: .next/component-fixtures/AISO_PRIORITY
           AISO_SHELL_HTML_DIR: .next/component-fixtures/AISO_SHELL
           AISO_SHELL_CSS_PATH: .next/component-fixtures/build.css

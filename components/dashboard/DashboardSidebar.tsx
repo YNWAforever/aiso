@@ -40,7 +40,7 @@ type Props = {
 export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
   const t = useTranslations('dashboard')
   const [navigationOpen, setNavigationOpen] = useState(false)
-  const params = useParams<{ lang: string; clientId?: string }>()
+  const params = useParams<{ lang: string; clientId?: string; scanId?: string }>()
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const lang = params?.lang ?? 'en'
@@ -49,7 +49,8 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
   // route, so useParams can.
   const clientId = params?.clientId ?? brandId
   const { plan, features } = entitlement
-  const nav = buildDashboardNav({ lang, clientId, features })
+  const scanId = params?.scanId ?? searchParams?.get('scanId')
+  const nav = buildDashboardNav({ lang, clientId, features, scanId })
   const here = locateDashboard(pathname ?? '', clientId ? (searchParams?.get('step') ?? 'home') : null)
 
   return (
@@ -158,7 +159,7 @@ export function DashboardSidebar({ profile, entitlement, brandId }: Props) {
                 <Wrench size={13} aria-hidden="true" />
               </Link>
             )}
-            <Link href={`/${lang}/auth/logout`} className="inline-flex size-11 items-center justify-center text-muted-foreground transition-colors hover:text-destructive" title={t('sign_out')} aria-label={t('sign_out')}>
+            <Link href={`/${lang}/auth/logout?next=${encodeURIComponent(`${pathname}${searchParams?.size ? `?${searchParams}` : ''}`)}`} className="inline-flex size-11 items-center justify-center text-muted-foreground transition-colors hover:text-destructive" title={t('sign_out')} aria-label={t('sign_out')}>
               <LogOut size={13} aria-hidden="true" />
             </Link>
           </div>

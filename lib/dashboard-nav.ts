@@ -50,7 +50,7 @@ const BRAND_LIST = '#portfolio-brands'
  * `includeHidden` keeps hidden sections (Monitor) for breadcrumbs only: their
  * pages still work by URL and need a trail, but must not be advertised.
  */
-export function buildDashboardNav({ lang, clientId, features, includeHidden = false }: { lang: string; clientId?: string | null; features: NavFeatures; includeHidden?: boolean }): NavSection[] {
+export function buildDashboardNav({ lang, clientId, features, scanId, includeHidden = false }: { lang: string; clientId?: string | null; features: NavFeatures; scanId?: string | null; includeHidden?: boolean }): NavSection[] {
   const root = `/${lang}/dashboard`
   const account = `${root}/settings`
   if (!clientId) {
@@ -88,7 +88,13 @@ export function buildDashboardNav({ lang, clientId, features, includeHidden = fa
       { key: 'account', labelKey: 'nav_account', href: account },
     ] },
   ]
-  return MONITOR_VISIBLE || includeHidden ? sections : sections.filter(section => section.key !== 'monitor')
+  const visible = MONITOR_VISIBLE || includeHidden ? sections : sections.filter(section => section.key !== 'monitor')
+  if (!scanId) return visible
+  // Context belongs only to this brand. Account settings and brand-switch links
+  // deliberately start without it; the destination still validates ownership.
+  const withScan = (href: string) => href.startsWith(`${brand}?`) || href === `${brand}/reports`
+    ? `${href}${href.includes('?') ? '&' : '?'}scanId=${encodeURIComponent(scanId)}` : href
+  return visible.map(section => ({ ...section, href: withScan(section.href), items: section.items.map(item => ({ ...item, href: withScan(item.href) })) }))
 }
 
 const STEP_LOCATION: Record<string, [SectionKey, string | null]> = {

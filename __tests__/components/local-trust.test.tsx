@@ -43,8 +43,10 @@ describe('Local Trust dashboard wiring', () => {
     // Every "from scans" query must carry both client_id and account_id — an
     // account-only filter would show whichever scan ran most recently
     // anywhere on the account, not this brand's scan.
+    // Scan-history metadata now uses loadOwnedScanChoices, whose parameter
+    // binding is exercised in __tests__/lib/scan-choices.test.ts.
     const scanQueryBlocks = page.split('from scans').slice(1)
-    expect(scanQueryBlocks.length).toBeGreaterThanOrEqual(4)
+    expect(scanQueryBlocks.length).toBeGreaterThanOrEqual(3)
     for (const block of scanQueryBlocks) {
       const clause = block.slice(0, block.indexOf('`'))
       expect(clause).toContain('client_id = ${clientId}')

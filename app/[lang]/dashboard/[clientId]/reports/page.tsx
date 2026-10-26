@@ -50,10 +50,15 @@ function toReportsListItem(value: Record<string, unknown>): ReportsListItem | nu
 
 export default async function ClientReportsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ lang: string; clientId: string }>
+  searchParams?: Promise<{ scanId?: string | string[] }>
 }) {
   const { lang, clientId } = await params
+  const query = await searchParams
+  const scanId = typeof query?.scanId === 'string' ? query.scanId : null
+  const scanQuery = scanId ? `?scanId=${encodeURIComponent(scanId)}` : ''
   const locale = lang === 'zh-HK' ? 'zh-HK' : 'en'
   const t = await getTranslations('reports')
   const profile = await requireAuth(locale)
@@ -98,9 +103,9 @@ export default async function ClientReportsPage({
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{t('list_body')}</p>
         </div>
         <Button asChild className="min-h-11">
-          <Link href={`/${locale}/dashboard/${clientId}?step=scan`}>
+          <Link href={`/${locale}/dashboard/${clientId}/reports/new${scanQuery}`}>
             <Plus aria-hidden="true" />
-            {t('choose_scan')}
+            {t('create_share_report')}
           </Link>
         </Button>
       </div>

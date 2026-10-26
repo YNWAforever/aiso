@@ -1,5 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { buildScanEvidence } from '@/lib/scan-evidence'
+vi.mock('server-only', () => ({}))
 const mocks = vi.hoisted(() => ({ auth: vi.fn(), load: vi.fn(), project: vi.fn(), sql: vi.fn(), roi: vi.fn(), pulse: vi.fn() }))
 vi.mock('@/lib/workspace/load-owned-pulse', () => ({ loadOwnedPulse: mocks.pulse }))
 vi.mock('@/lib/auth', () => ({ requireAuth: mocks.auth }))
@@ -111,10 +113,11 @@ function texts(node: unknown): string[] {
   return texts((node as ReactElement<{ children?: unknown }>).props?.children)
 }
 function stubScanScore(score: unknown) {
+  const evidence = buildScanEvidence({ requestedUrl: 'https://example.com', evaluatedUrl: 'https://example.com', industry: null, region: null, sitemapSource: 'unknown', checks: {}, observations: [{ check: 'page', collection: 'complete', httpStatus: 200, target: { origin: 'https://example.com' } }] })
   mocks.sql.mockImplementation(async (strings: TemplateStringsArray) => {
     const query = strings.join('?')
     if (query.includes('from clients')) return [{id:'client-a',brand_name:'Example',domain:'example.com'}]
-    if (query.includes('from scans')) return [{id:'scan-a',score,grade:'F',domain:'example.com',results:{},created_at:'2026-09-11'}]
+    if (query.includes('from scans')) return [{id:'scan-a',score,grade:'F',domain:'example.com',results:{evidence},created_at:'2026-09-11'}]
     return []
   })
 }
@@ -125,9 +128,9 @@ it('hands the results step a numeric score when Neon returns numeric as a string
   const results = findResults(await render({step:'results'}))
   expect(results?.props.scan.score).toBe(18)
 })
-it('shows the empty state rather than crashing for a scan with no stored score', async () => {
+it('shows unavailable collection status rather than crashing for an owned scan with no stored score', async () => {
   stubScanScore(null)
   const page = await render({step:'results'})
   expect(findResults(page)).toBeUndefined()
-  expect(texts(page)).toContain('no_scan_selected')
+  expect(texts(page)).toContain('scanUnknown')
 })

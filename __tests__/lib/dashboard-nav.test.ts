@@ -8,6 +8,14 @@ const HOME = readFileSync(join(process.cwd(), 'components/dashboard/WorkspaceHom
 const features = { agent_recs: true, edit_prompts: true }
 
 describe('dashboard navigation model', () => {
+  it('retains the selected scan in Results, Improve and Reports links', () => {
+    const nav = buildDashboardNav({ lang: 'en', clientId: 'c1', features, scanId: 'older-scan' })
+    const scan = nav.find(section => section.key === 'scan')!
+    expect(scan.items.find(item => item.key === 'results')!.href).toBe('/en/dashboard/c1?step=results&scanId=older-scan')
+    expect(scan.items.find(item => item.key === 'improve')!.href).toBe('/en/dashboard/c1?step=improve&scanId=older-scan')
+    expect(nav.find(section => section.key === 'reports')!.href).toBe('/en/dashboard/c1/reports?scanId=older-scan')
+    expect(nav.find(section => section.key === 'settings')!.items.at(-1)!.href).toBe('/en/dashboard/settings')
+  })
   it('has the five sections, with Monitor hidden until Pulse is scheduled', () => {
     expect(MONITOR_VISIBLE).toBe(false)
     expect(buildDashboardNav({ lang: 'en', clientId: 'c1', features }).map(s => s.key)).toEqual(['overview', 'scan', 'reports', 'settings'])

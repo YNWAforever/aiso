@@ -375,13 +375,21 @@ export function ReportBuilder({
   return (
     <div className="space-y-6">
       <Link
-        href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/reports`}
+        href={`/${lang}/dashboard/${encodeURIComponent(clientId)}/reports?scanId=${encodeURIComponent(scanId)}`}
         data-report-guarded="true"
         onNavigate={guardBackToReports}
         className="inline-flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring print:hidden"
       >
         <ArrowLeft aria-hidden="true" />
         {t('back_to_reports')}
+      </Link>
+      <Link
+        href={`/${lang}/dashboard/${encodeURIComponent(clientId)}?step=results&scanId=${encodeURIComponent(scanId)}`}
+        data-report-guarded="true"
+        onNavigate={guardBackToReports}
+        className="inline-flex min-h-11 items-center rounded-md px-3 text-sm font-semibold text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring print:hidden"
+      >
+        {t('back_to_source_scan')}
       </Link>
 
       <nav aria-label={t('progress_label')} className="overflow-x-auto print:hidden">
