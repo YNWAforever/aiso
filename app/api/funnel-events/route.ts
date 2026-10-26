@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readLimitedJson } from '@/lib/approvals/request'
 import { logRedactedFunnelEvent, redactFunnelEvent } from '@/lib/observability/funnel'
 import {
   consumeFunnelEventRateLimit,
@@ -16,11 +17,7 @@ export async function POST(request: NextRequest) {
 
   let body: unknown
   try {
-    const text = await request.text()
-    if (new TextEncoder().encode(text).byteLength >= MAX_BODY_BYTES) {
-      return NextResponse.json(INVALID_EVENT, { status: 400 })
-    }
-    body = JSON.parse(text)
+    body = await readLimitedJson(request, MAX_BODY_BYTES - 1)
   } catch {
     return NextResponse.json(INVALID_EVENT, { status: 400 })
   }

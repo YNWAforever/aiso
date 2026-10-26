@@ -35,6 +35,33 @@ beforeEach(() => {
 })
 
 describe('POST /api/funnel-events', () => {
+  it('cancels a chunked body at the 2 KiB ceiling before metering or logging', async () => {
+    let pulls = 0
+    const cancelled = vi.fn()
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls++
+        controller.enqueue(new TextEncoder().encode(' '.repeat(1024)))
+        if (pulls === 8) controller.close()
+      },
+      cancel: cancelled,
+    }, { highWaterMark: 0 })
+    const { POST } = await import('@/app/api/funnel-events/route')
+    const response = await POST(new NextRequest('http://localhost/api/funnel-events', { method: 'POST', body }))
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'Invalid funnel event' })
+    expect(pulls).toBe(2)
+    expect(cancelled).toHaveBeenCalledOnce()
+    expect(consumeMock).not.toHaveBeenCalled()
+    expect(info).not.toHaveBeenCalled()
+  })
+
+  it('enforces the strict byte ceiling with multibyte UTF-8 and dishonest Content-Length', async () => {
+    const response = await post(JSON.stringify({ ...VALID, attemptId: '文'.repeat(800) }), { 'content-length': '1' })
+    expect(response.status).toBe(400)
+    expect(consumeMock).not.toHaveBeenCalled()
+    expect(info).not.toHaveBeenCalled()
+  })
   it('accepts a redacted event without echoing its input', async () => {
     const response = await post(JSON.stringify({ ...VALID, scanId: 'scan-1' }))
     expect(response.status).toBe(200)
