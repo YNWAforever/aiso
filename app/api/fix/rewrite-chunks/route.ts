@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { callOpenRouter, type JsonSchemaFormat } from '@/lib/openrouter'
 import { authorizeAiTool, consumeAiToolAllowance } from '@/lib/fix/guard'
+import { readLimitedJson } from '@/lib/approvals/request'
 
 const REWRITE_FORMAT: JsonSchemaFormat = {
   name: 'chunk_rewrite',
@@ -21,8 +22,19 @@ export async function POST(req: NextRequest) {
   const access = await authorizeAiTool({ paidOnly: true })
   if (!access.ok) return access.response
 
-  const { chunkText, heading, targetLength = '600-1000 tokens' } = await req.json()
-  if (!chunkText) return NextResponse.json({ error: 'chunkText required' }, { status: 400 })
+  let input: { chunkText: string; heading?: string; targetLength?: string }
+  try {
+    const raw = await readLimitedJson(req, 16384)
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('invalid')
+    const body = raw as Record<string, unknown>
+    if (typeof body.chunkText !== 'string' || !body.chunkText.trim()
+      || (body.heading !== undefined && typeof body.heading !== 'string')
+      || (body.targetLength !== undefined && (typeof body.targetLength !== 'string' || !body.targetLength.trim()))) throw new Error('invalid')
+    input = body as typeof input
+  } catch {
+    return NextResponse.json({ error: 'Invalid rewrite request' }, { status: 400 })
+  }
+  const { chunkText, heading, targetLength = '600-1000 tokens' } = input
 
   const overAllowance = await consumeAiToolAllowance(access.accountId)
   if (overAllowance) return overAllowance
