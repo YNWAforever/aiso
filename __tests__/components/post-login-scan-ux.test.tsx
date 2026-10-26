@@ -52,14 +52,17 @@ describe('post-login scan UX', () => {
     expect(html).toContain('value="technology" selected=""')
     expect(html).toContain('value="HK" selected=""')
   })
-  it.each(['en', 'zh-HK'] as const)('prefills the recovery domain after logout and re-login in %s', lang => {
+  it.each([
+    ['en', ''], ['en', '&scanId=older-scan'],
+    ['zh-HK', ''], ['zh-HK', '&scanId=older-scan'],
+  ] as const)('prefills the recovery URL after logout and re-login in %s (%s)', (lang, scanQuery) => {
     const clientId = '11111111-1111-4111-8111-111111111111'
-    const recovery = `/${lang}/dashboard/${clientId}?step=scan&scanId=older-scan&url=https%3A%2F%2Fbrand.example`
+    const recovery = `/${lang}/dashboard/${clientId}?step=scan${scanQuery}&url=https%3A%2F%2Fbrand.example%2Flanding%3Fcampaign%3Dreport%26source%3Dold%23section`
     const returnTo = normalizeAuthNext(lang, safeReturnTo(recovery, lang))
     state.query = new URL(returnTo, 'https://auth.fixture').searchParams
     const html = renderWithIntl(<ScanStep lang={lang} clientId={clientId} scan={savedScan} scanHistory={choices} />, lang)
-    expect(state.query.get('scanId')).toBe('older-scan')
-    expect(html).toContain('value="https://brand.example"')
+    expect(state.query.get('scanId')).toBe(scanQuery ? 'older-scan' : null)
+    expect(html).toContain('value="https://brand.example/landing?campaign=report&amp;source=old#section"')
     expect(html).not.toContain('value="https://example.com/guide"')
   })
   it('uses the saved brand domain and industry when there is no previous scan', () => {

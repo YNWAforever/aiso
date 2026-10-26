@@ -19,6 +19,29 @@ async function fixture(page: Page) {
 for (const lang of ['en', 'zh-HK'] as const) {
   const copy = lang === 'en' ? en : zh
   const base = `https://scan-ux.fixture/${lang}/dashboard/${brand}`
+  for (const scanQuery of ['', '&scanId=older-scan']) {
+    test(`recovery scan preserves its URL through re-login in ${lang} (${scanQuery || 'latest scan'})`, async ({ page }) => {
+      await fixture(page)
+      const requests: unknown[] = []
+      await page.route('**/api/scan', route => {
+        requests.push(route.request().postDataJSON())
+        return route.fulfill({ json: { id: 'recovered-scan' } })
+      })
+      const recovery = `/${lang}/dashboard/${brand}?step=scan${scanQuery}&url=https%3A%2F%2Fbrand.invalid%2Flanding%3Fcampaign%3Dreport%26source%3Dold%23section`
+      await page.goto(`https://scan-ux.fixture${recovery}`)
+      await page.getByRole('link', { name: 'Fixture sign out', exact: true }).click()
+      await expect(page).toHaveURL(new RegExp(`/${lang}/auth/login\\?next=`))
+      expect(new URL(page.url()).searchParams.get('next')).toBe(recovery)
+      await page.getByRole('link', { name: 'Synthetic sign-in continuation' }).click()
+      await expect(page).toHaveURL(`https://scan-ux.fixture${recovery}`)
+      await page.reload()
+      await expect(page.getByRole('textbox', { name: copy.dashboard.scan_url })).toHaveValue('https://brand.invalid/landing?campaign=report&source=old#section')
+      expect(requests).toHaveLength(0)
+      await page.getByRole('button', { name: copy.dashboard.run_scan, exact: true }).click()
+      await expect(page).toHaveURL(`${base}?step=results&scanId=recovered-scan`)
+      expect(requests).toEqual([{ url: 'https://brand.invalid/landing?campaign=report&source=old#section', industry: 'technology', region: 'HK', clientId: brand }])
+    })
+  }
   test(`selected scan survives Results, Improve, Report and re-login in ${lang}`, async ({ page }) => {
     await fixture(page)
     await page.goto(`${base}?step=results`)
