@@ -61,10 +61,10 @@ describe('actual SQL visibility boundaries',()=>{
   await h.pg!.query('update profiles set deactivated_at=now() where id=$1',[actor])
   expect(await loadVisibilityAutomationTargets()).toEqual([])
  })
- it('polls a completed frozen retest into an owned immutable before/after result',async()=>{
+ it.each(['completed','partial'])('polls a terminal %s frozen retest without waiting seven days',async status=>{
   vi.stubEnv('FEATURE_CLOSED_LOOP_VISIBILITY','1')
   const nextRun='55000000-0000-4000-8000-000000000002',nextItem='66000000-0000-4000-8000-000000000002',nextAnswer='77000000-0000-4000-8000-000000000002'
-  const manifest={version:'2026-10-26.v1',items:[{promptId:prompt,question:'Frozen question',language:'en',market:'HK',platform:'gpt-4o',model:'model'}],brand:{domain:'example.com',competitorRefs:[]}}
+  const manifest={version:'2026-10-26.v1',items:[{promptId:prompt,question:'Frozen question',language:'en',market:'HK',platform:'gpt-4o',model:'model',contextVersion:'2026-10-26.v1',monitoring:{locale:'en',market:'HK',sampling:{temperature:0.2,samplesPerRun:1,seed:null}}}],brand:{domain:'example.com',competitorRefs:[]}}
   await h.pg!.query('update pulse_runs set manifest=$1 where id=$2',[JSON.stringify(manifest),run])
   await h.pg!.query("update pulse_runs set created_at=now()-interval '2 hours' where id=$1",[run])
   await h.pg!.query("update pulse_item_attempts set finished_at=now()-interval '1 hour' where id=$1",[observation])
@@ -72,6 +72,7 @@ describe('actual SQL visibility boundaries',()=>{
   await h.pg!.query("insert into pulse_runs(id,account_id,client_id,manifest,purpose) values($1,$2,$3,$4,'retest')",[nextRun,account,client,JSON.stringify(manifest)])
   await h.pg!.query('insert into pulse_run_items select $1,account_id,client_id,$2,prompt_snapshot_id,platform,snapshot,classification_status,status,$3 from pulse_run_items where id=$4',[nextItem,nextRun,nextAnswer,item])
   await h.pg!.query("insert into pulse_item_attempts select $1,$2,account_id,client_id,requested_model,actual_model,clock_timestamp(),'A new answer',$3,$4,collection_status,accepted,grounding,search_evidence from pulse_item_attempts where id=$5",[nextAnswer,nextItem,JSON.stringify([{url:'https://example.com/a'}]),JSON.stringify({brandMentioned:true,sentiment:'neutral',competitorsMentioned:[]}),observation])
+  if(status==='partial'){await h.pg!.query("update pulse_runs set status='partial' where id=$1",[nextRun]);await h.pg!.query("update pulse_run_items set status='blocked',accepted_attempt_id=null where id=$1",[nextItem])}
   const job=await enqueueVisibilitySource(scope,'deployment',observation,actor),lease=await claimVisibilityJob(scope,job.id)
   expect(lease?.sourceRunId).toBe(run)
   await finishVisibilityJob(lease!,'waiting','PULSE_PENDING',{pages:[]},nextRun)
@@ -79,9 +80,19 @@ describe('actual SQL visibility boundaries',()=>{
   const [pending]=await loadDueVisibilityJobs()
   expect(await pollWaitingVisibilityJob(pending)).toBe(true)
   const [saved]=(await h.pg!.query<{status:string;result:{ai:{comparable:boolean;delta:{answerPresence:number;citationShare:number}}}}>('select status,result from visibility_revalidations where id=$1',[job.id])).rows
-  expect(saved).toMatchObject({status:'completed',result:{ai:{comparable:true,delta:{answerPresence:1,citationShare:1}}}})
+  expect(saved).toMatchObject({status:'completed',result:{ai:{comparable:status==='completed',delta:{answerPresence:status==='completed'?1:null,citationShare:status==='completed'?1:null}}}})
   expect(await pollWaitingVisibilityJob(pending)).toBe(false)
   vi.unstubAllEnvs()
+ })
+ it.each(['sampling','grounding','model','citations','manifest-count'])('does not reserve an unusable AI baseline with invalid %s',async invalid=>{
+  await h.pg!.query("update pulse_runs set created_at=now()-interval '2 hours',manifest=$1 where id=$2",[JSON.stringify({version:'2026-10-26.v1',brand:{domain:'example.com'},items:[{promptId:prompt,language:'en',market:'HK',contextVersion:invalid==='sampling'?'2026-10-03.v1':'2026-10-26.v1',monitoring:{locale:'en',market:'HK',sampling:{temperature:0.2,samplesPerRun:1,seed:null}}},...(invalid==='manifest-count'?[{promptId:item}]:[])]}),run])
+  await h.pg!.query("update pulse_item_attempts set finished_at=now()-interval '1 hour' where id=$1",[observation])
+  if(invalid==='grounding')await h.pg!.query("update pulse_item_attempts set grounding='web',search_evidence=null where id=$1",[observation])
+  if(invalid==='model')await h.pg!.query("update pulse_item_attempts set actual_model=null where id=$1",[observation])
+  if(invalid==='citations')await h.pg!.query("update pulse_item_attempts set provider_citations=null where id=$1",[observation])
+  await h.pg!.query("insert into outcome_deployments values($1,$2,$3,now(),$4)",[observation,account,client,JSON.stringify(['https://example.com/a'])])
+  const job=await enqueueVisibilitySource(scope,'deployment',observation,actor)
+  expect((await claimVisibilityJob(scope,job.id))?.sourceRunId).toBeNull()
  })
  it('queues owned source snapshots once and fences foreign/stale job completion',async()=>{
   await setVisibilityAutomation(scope,actor,true)
@@ -106,6 +117,7 @@ describe('actual SQL visibility boundaries',()=>{
  })
  it('repairs expired leases visibly and refuses foreign waiting-job completion',async()=>{
   await h.pg!.query("insert into outcome_deployments values($1,$2,$3,now(),$4)",[observation,account,client,JSON.stringify(['https://example.com/a'])])
+
   const job=await enqueueVisibilitySource(scope,'deployment',observation,actor),lease=await claimVisibilityJob(scope,job.id)
   await h.pg!.query("update visibility_revalidations set lease_until=now()-interval '1 minute' where id=$1",[job.id])
   expect(await repairVisibilityLeases()).toBe(1)

@@ -5,7 +5,7 @@ describe('monitored query context and review contracts', () => {
   it('keeps all measurement context explicit and sampling fixed', () => {
     expect(parseMonitoredQuery(input,'example.com')).toMatchObject({ ...input,sampling:{temperature:0.2,samplesPerRun:1,seed:null,version:'visibility-sampling.v1'} })
   })
-  it.each([{locale:'fr'},{market:'XX'},{intent:'anything'},{priority:0},{targetUrl:'https://foreign.example/a'},{expectedAttributes:['x'.repeat(201)]},{accountId:'foreign'}])('refuses invalid context %j', change => {
+  it.each([{locale:'fr'},{market:'XX'},{intent:'anything'},{priority:0},{targetUrl:'https://foreign.example/a'},{targetUrl:'http://example.com/a'},{expectedAttributes:['x'.repeat(201)]},{accountId:'foreign'}])('refuses invalid context %j', change => {
     expect(()=>parseMonitoredQuery({...input,...change},'example.com')).toThrow()
   })
   it('does not permit browser-supplied measurement or invented review enums', () => {

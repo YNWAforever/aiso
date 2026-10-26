@@ -46,7 +46,7 @@ export async function pollWaitingVisibilityJob(row:Record<string,unknown>) {
   const expected=Array.isArray(after.manifest.items)?after.manifest.items.length:0
   const complete=expected>0&&after.observations.length===expected&&after.observations.every(observation=>observation.answerPresence!==null)
   const expired=Date.now()-new Date(String(row.created_at)).getTime()>7*86400000
-  if(!complete&&!['failed','blocked'].includes(after.status)&&!expired) {
+  if(!complete&&after.pending>0&&!['failed','blocked'].includes(after.status)&&!expired) {
     const sql=db()
     await sql`update visibility_revalidations set next_at=clock_timestamp()+interval '1 hour' where account_id=${scope.accountId}::uuid and client_id=${scope.clientId}::uuid
       and id=${job.id}::uuid and status='waiting' and retest_run_id=${retest}::uuid`
@@ -67,31 +67,38 @@ async function captureRoutineBaselines(scope:OutcomeScope,domain:string,deadline
   for(const page of evidence)if(page.status==='fulfilled'){await saveVisibilityPageSnapshot(scope,page.value,'routine');captured++}
   return captured
 }
-export async function runVisibilityRevalidations(deadline=Date.now()+45000) {
-  const repaired=await repairVisibilityLeases(),targets=await loadVisibilityAutomationTargets(),active:typeof targets=[]
-  let queued=0,processed=0,baselines=0,deferred=0
-  const sql=db()
-  for(const target of targets) {
-    if(Date.now()+6000>=deadline){deferred++;continue}
-    const scope={accountId:String(target.account_id),clientId:String(target.client_id)}
-    if(resolveCommercialEntitlement(target as CommercialAccount).features.closed_loop_visibility) {
-      active.push(target)
-      for(const source of await discoverVisibilitySources(scope)) {
-        if(Date.now()+6000>=deadline){deferred++;break}
-        await enqueueVisibilitySource(scope,source.kind as 'deployment'|'work_completion',String(source.id));queued++
-      }
-    }
-    await sql`update visibility_settings set last_checked_at=clock_timestamp() where account_id=${scope.accountId}::uuid and client_id=${scope.clientId}::uuid`
+const cronDefaults={repair:repairVisibilityLeases,targets:loadVisibilityAutomationTargets,sources:discoverVisibilitySources,enqueue:enqueueVisibilitySource,
+ touch:async(scope:OutcomeScope)=>{const sql=db();await sql`update visibility_settings set last_checked_at=clock_timestamp() where account_id=${scope.accountId}::uuid and client_id=${scope.clientId}::uuid`},
+ due:loadDueVisibilityJobs,poll:pollWaitingVisibilityJob,claim:claimVisibilityJob,process:processVisibilityJob,baseline:captureRoutineBaselines}
+type CronPorts={repair:()=>Promise<number>;targets:()=>Promise<Record<string,unknown>[]>;sources:(scope:OutcomeScope)=>Promise<Record<string,unknown>[]>;
+ enqueue:typeof enqueueVisibilitySource;touch:(scope:OutcomeScope)=>Promise<unknown>;due:()=>Promise<Record<string,unknown>[]>;poll:typeof pollWaitingVisibilityJob;claim:typeof claimVisibilityJob;process:typeof processVisibilityJob;baseline:typeof captureRoutineBaselines}
+export async function runVisibilityRevalidations(deadline=Date.now()+45000,deps:CronPorts=cronDefaults) {
+ let queued=0,processed=0,baselines=0,deferred=0,repaired=0
+ // Isolate each independent ledger operation. One stale lease or bad source
+ // must not silently skip other accounts, waiting polls or page baselines.
+ async function attempt<T>(operation:()=>Promise<T>,fallback:T):Promise<T>{try{return await operation()}catch{deferred++;return fallback}}
+ repaired=await attempt(()=>deps.repair(),0)
+ const targets=await attempt(()=>deps.targets(),[]),active:typeof targets=[]
+ for(const target of targets){
+  if(Date.now()+6000>=deadline){deferred++;continue}
+  const scope={accountId:String(target.account_id),clientId:String(target.client_id)}
+  if(resolveCommercialEntitlement(target as CommercialAccount).features.closed_loop_visibility){
+   active.push(target)
+   for(const source of await attempt(()=>deps.sources(scope),[])){
+    if(Date.now()+6000>=deadline){deferred++;break}
+    if(await attempt(async()=>{await deps.enqueue(scope,source.kind as 'deployment'|'work_completion',String(source.id));return true},false))queued++
+   }
   }
-  for(const row of await loadDueVisibilityJobs()) {
-    if(Date.now()+7000>=deadline){deferred++;continue}
-    if(row.status==='waiting')await pollWaitingVisibilityJob(row)
-    else {
-      const lease=await claimVisibilityJob({accountId:String(row.account_id),clientId:String(row.client_id)},String(row.id))
-      if(lease)await processVisibilityJob(lease,deadline)
-    }
-    processed++
-  }
-  for(const target of active)baselines+=await captureRoutineBaselines({accountId:String(target.account_id),clientId:String(target.client_id)},String(target.domain),deadline)
-  return{repaired,queued,processed,baselines,deferred}
+  await attempt(()=>deps.touch(scope),null)
+ }
+ for(const row of await attempt(()=>deps.due(),[])){
+  if(Date.now()+7000>=deadline){deferred++;continue}
+  await attempt(async()=>{
+   if(row.status==='waiting')await deps.poll(row)
+   else{const lease=await deps.claim({accountId:String(row.account_id),clientId:String(row.client_id)},String(row.id));if(lease)await deps.process(lease,deadline)}
+   processed++
+  },undefined)
+ }
+ for(const target of active)baselines+=await attempt(()=>deps.baseline({accountId:String(target.account_id),clientId:String(target.client_id)},String(target.domain),deadline),0)
+ return{repaired,queued,processed,baselines,deferred}
 }

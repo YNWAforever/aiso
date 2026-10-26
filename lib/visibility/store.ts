@@ -39,7 +39,8 @@ export async function readVisibilityRunEvidence(scope:OutcomeScope,id:string) {
   const [run]=await sql`select id,manifest,status from pulse_runs where account_id=${scope.accountId}::uuid and client_id=${scope.clientId}::uuid and id=${id}::uuid`
   if(!run)return null
   const rows=await observationRows(scope,null,id)
-  return{manifest:run.manifest as Record<string,unknown>,status:String(run.status),observations:rows.map(row=>projectVisibilityObservation(row,context(row.brand as Record<string,unknown>)))}
+  const [work]=await sql`select count(*) filter(where status in('queued','running','retry_wait') or(status='succeeded' and classification_status<>'classified' and(coalesce((to_jsonb(i)->>'classification_attempt_count')::int,3)<3 or to_jsonb(i)->>'classification_lease_until' is not null)))::int as pending from pulse_run_items i where account_id=${scope.accountId}::uuid and client_id=${scope.clientId}::uuid and run_id=${id}::uuid`
+  return{pending:Number(work?.pending??0),manifest:run.manifest as Record<string,unknown>,status:String(run.status),observations:rows.map(row=>projectVisibilityObservation(row,context(row.brand as Record<string,unknown>)))}
 }
 export async function loadVisibilityWorkspace(scope:OutcomeScope) {
   const sql=db()

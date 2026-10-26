@@ -158,3 +158,11 @@ Before/after deltas and volatility also require unchanged known grounding.
 Web/native search must have provider-confirmed execution; requested-only search
 and unknown historical evidence remain incomparable. A quota-driven change from
 searched to training-data answers never becomes an attributed numeric delta.
+
+Cron work is isolated per source/job/account; dependency and lease failures mark
+the tick deferred while later independent work continues. Terminal partial
+retests produce limited comparisons as soon as collection and classifier repair
+have no pending work. They do not wait for the seven-day timeout. Monitored
+page targets require HTTPS at save time. AI baselines additionally require
+complete frozen monitoring/sampling and known usable grounding/model/citation
+evidence, preventing quota spend on a guaranteed incomparable baseline.

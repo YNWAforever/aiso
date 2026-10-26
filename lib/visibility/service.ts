@@ -2,8 +2,8 @@ import 'server-only'
 import { authorizeVisibilityClient } from './guard'
 import { outcomeErrorResponse,outcomeHeaders } from '@/lib/outcome-integrations/guard'
 import { readOutcomeJson } from '@/lib/outcome-integrations/request'
-import { object,uuid,canonicalOutcomeUrl,OutcomeError } from '@/lib/outcome-integrations/input'
-import { parseMonitoredQuery,parseVisibilityReview,parseVisibilityDraft } from './input'
+import { object,uuid,OutcomeError } from '@/lib/outcome-integrations/input'
+import { parseMonitoredQuery,parseVisibilityReview,parseVisibilityDraft,visibilityTargetUrl } from './input'
 import { createVisibilityDraft,loadVisibilityWorkspace,saveMonitoredQuery,saveVisibilityReview } from './store'
 import { setVisibilityAutomation,enqueueVisibilitySource,retryVisibilityJob,saveVisibilityPageSnapshot } from './jobs'
 import { validateVisibilityPage } from './page'
@@ -28,7 +28,7 @@ export async function mutateVisibility(clientId:string,action:string,request:Req
       return json(await setVisibilityAutomation(scope,profile.id,body.enabled))
     }
     if(action==='baseline') {
-      const body=object(raw,['url']),url=canonicalOutcomeUrl(body.url,domain)
+      const body=object(raw,['url']),url=visibilityTargetUrl(body.url,domain)
       const evidence=await validateVisibilityPage(url,domain)
       await saveVisibilityPageSnapshot(scope,evidence,'manual',profile.id)
       return json({evidence},201)
