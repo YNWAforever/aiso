@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { LockKeyhole, Settings2 } from 'lucide-react'
 import { ReportBuilder } from '@/components/reports/ReportBuilder'
 import { ScanPicker } from '@/components/dashboard/ScanPicker'
-import { loadOwnedScanChoices } from '@/lib/workspace/scan-choices'
+import { isOwnedWorkspaceScan, loadOwnedScanChoices } from '@/lib/workspace/scan-choices'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { requireAuth } from '@/lib/auth'
@@ -54,7 +54,8 @@ export default async function NewClientReportPage({
   }
 
   const ownedScans = await loadOwnedScanChoices({ accountId: profile.account_id, clientId })
-  if (query.scanId !== undefined && (!scanId || !ownedScans.some(scan => scan.id === scanId))) notFound()
+  const selectedScanAvailable = ownedScans.some(scan => scan.id === scanId)
+  if (query.scanId !== undefined && (!scanId || (!selectedScanAvailable && !await isOwnedWorkspaceScan({ accountId: profile.account_id, clientId, scanId })))) notFound()
   // Reports compare scans for the brand's current domain. The scan tool can
   // also hold explicitly associated scans of other domains; don't offer those
   // as report sources only to reject them later in the store/service gate.
@@ -67,7 +68,7 @@ export default async function NewClientReportPage({
         <Card>
           <CardContent className="p-8 text-center">
             <h1 className="text-xl font-semibold">{t('scan_required_title')}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">{t(scanId ? 'scan_domain_mismatch' : 'scan_required_body')}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{t(!scanId ? 'scan_required_body' : selectedScanAvailable ? 'scan_domain_mismatch' : 'scan_collection_unavailable')}</p>
             <div className="mt-6 text-left">{picker}</div>
             {!scans.length && <Button asChild variant="outline" className="mt-6 min-h-11">
               <Link href={`/${locale}/dashboard/${clientId}?step=scan&url=${encodeURIComponent(`https://${normalizeReportDomain(client.domain)}`)}`}>{t('run_scan')}</Link>

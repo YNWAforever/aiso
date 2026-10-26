@@ -11,7 +11,7 @@ import type { Scan } from '@/lib/types'
 
 const h = vi.hoisted(() => ({ auth: vi.fn(), client: vi.fn(), scans: vi.fn(), scan: vi.fn(), previous: vi.fn(), recommendations: vi.fn(), branding: vi.fn(), snapshot: vi.fn(), query: new URLSearchParams() }))
 vi.mock('@/lib/auth', () => ({ requireAuth: h.auth }))
-vi.mock('@/lib/workspace/scan-choices', () => ({ loadOwnedScanChoices: h.scans }))
+vi.mock('@/lib/workspace/scan-choices', () => ({ loadOwnedScanChoices: h.scans, isOwnedWorkspaceScan: async () => false }))
 vi.mock('@/lib/reports/store', () => ({ loadOwnedReportClient: h.client, loadOwnedReportScan: h.scan, loadPreviousReportScan: h.previous, loadReportRecommendations: h.recommendations, loadReportBranding: h.branding }))
 vi.mock('@/lib/reports/snapshot', () => ({ buildClientReportSnapshot: h.snapshot }))
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NOT_FOUND') }, useSearchParams: () => h.query, useRouter: () => ({ push: vi.fn() }) }))

@@ -754,6 +754,8 @@
     "workspace_load_error_body": "The database is temporarily unavailable. Your brand is fine — try refreshing in a moment.",
     "no_scan_selected": "No scan selected",
     "no_scan_selected_body": "Run a scan from the Scan step or select one from history.",
+    "scan_collection_failed_body": "The scan could not read this page, so a website score cannot be shown. Check that the address opens publicly, then run a new scan.",
+    "scan_collection_unknown_body": "This scan has no verified page collection evidence or usable score. Run a new scan to get a current result.",
     "no_scan_yet": "No scan yet",
     "no_scan_yet_body": "AI agent analysis requires a completed scan. Run one from the Scan step.",
     "scanning_brand": "Scanning your brand…",
@@ -1084,6 +1086,7 @@
   },
   "reports": {
     "scan_domain_mismatch": "This scan is for a different domain from the brand’s current website. Choose a completed scan for the current domain, or run a new scan.",
+    "scan_collection_unavailable": "This scan has no verified page collection evidence or usable score for a report. Choose another completed scan, or run a new scan for the brand’s current website.",
     "back_to_source_scan": "Back to source scan",
     "run_scan": "Run a scan",
     "create_share_report": "Create / share report",

@@ -4,6 +4,7 @@ import { loadOwnedPulse } from '@/lib/workspace/load-owned-pulse'
 import { buildPulseView } from '@/lib/view-models/pulse'
 import { loadOwnedWorkspace } from '@/lib/workspace/load-owned-workspace'
 import { buildWorkspaceHome } from '@/lib/view-models/workspace-home'
+import { projectScanStatus } from '@/lib/view-models/scan-status'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { requireAuth } from '@/lib/auth'
@@ -34,10 +35,6 @@ function withNumericScore<T extends { score: unknown } | null>(row: T): T {
   if (row === null || typeof row.score !== 'string') return row
   return { ...row, score: Number(row.score) }
 }
-function hasDisplayableScore(scan: Scan | null): scan is Scan {
-  return scan !== null && Number.isFinite(scan.score)
-}
-
 async function StepHeader({ step, features }: { step: string; features: PlanFeatures }) {
   const t = await getTranslations('dashboard')
   const info: Record<string, { title: string; body: string }> = {
@@ -98,6 +95,7 @@ export default async function DashboardPage({
   const { step = 'home', scanId } = await searchParams
   const t = await getTranslations('dashboard')
   const reportT = await getTranslations('reports')
+  const portfolioT = await getTranslations('portfolio')
   const profile  = await requireAuth(lang)
   const entitlement = resolveCommercialEntitlement(profile.accounts)
   const { features } = entitlement
@@ -289,6 +287,7 @@ export default async function DashboardPage({
 
   const hasAggregatePulseBaseline = summary.some(row => !row.platform)
   const hasLocalTrustBaseline = Boolean(localTrustScan || hasAggregatePulseBaseline)
+  const scanDisplay = step === 'results' && scan ? projectScanStatus({ score: scan.score, grade: scan.grade ?? null, evidence: scan.results?.evidence }) : null
 
   return (
     <>
@@ -314,8 +313,18 @@ export default async function DashboardPage({
 
         {(step === 'results' || step === 'improve') && <ScanPicker lang={lang} action={`/${lang}/dashboard/${clientId}`} step={step} scans={scanHistory} selectedScanId={scan?.id} />}
 
-        {step === 'results' && hasDisplayableScore(scan) && <ResultsStep scan={scan} lang={lang} clientId={clientId} />}
-        {step === 'results' && !hasDisplayableScore(scan) && (
+        {step === 'results' && scan && (scanDisplay?.score != null
+          ? <ResultsStep scan={scan} lang={lang} clientId={clientId} />
+          : <div className="space-y-4 rounded-xl border border-dash-border bg-dash-surface p-8">
+              <p className="break-all text-sm text-dash-muted">{scan.domain}</p>
+              <h1 className="text-lg font-semibold text-dash-text">{portfolioT(scanDisplay?.state === 'failed' ? 'scanIncomplete' : 'scanUnknown')}</h1>
+              <p className="text-sm text-dash-muted">{t(scanDisplay?.state === 'failed' ? 'scan_collection_failed_body' : 'scan_collection_unknown_body')}</p>
+              <Link href={`/${lang}/dashboard/${clientId}?step=scan&scanId=${encodeURIComponent(scan.id)}`}
+                className="inline-flex min-h-11 items-center rounded-lg border border-dash-border px-4 text-sm font-medium text-dash-text hover:bg-dash-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                {t('run_new_scan')}
+              </Link>
+            </div>)}
+        {step === 'results' && !scan && (
           <div className="rounded-xl border border-dash-border bg-dash-surface p-8 text-center">
             <p className="text-sm text-dash-text mb-1">{t('no_scan_selected')}</p>
             <p className="text-xs text-dash-muted">{t('no_scan_selected_body')}</p>

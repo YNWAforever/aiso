@@ -754,6 +754,8 @@
     "workspace_load_error_body": "資料庫暫時無法使用。你的品牌沒有問題，請稍後重新整理再試。",
     "no_scan_selected": "未選擇掃描",
     "no_scan_selected_body": "請在掃描步驟執行掃描，或從歷史記錄中選擇一次掃描。",
+    "scan_collection_failed_body": "掃描未能讀取此網頁，因此無法顯示網站評分。請確認網址可公開開啟，然後執行新掃描。",
+    "scan_collection_unknown_body": "此掃描沒有已核實的網頁採集證據或可用評分。請執行新掃描以取得最新結果。",
     "no_scan_yet": "尚未有掃描",
     "no_scan_yet_body": "AI 代理分析需要先完成掃描。請在掃描步驟執行一次。",
     "scanning_brand": "正在掃描你的品牌…",
@@ -1084,6 +1086,7 @@
   },
   "reports": {
     "scan_domain_mismatch": "此掃描的網域與品牌目前的網站不同。請選擇目前網域的已完成掃描，或執行新的掃描。",
+    "scan_collection_unavailable": "此掃描沒有已核實的網頁採集證據或可用於報告的評分。請選擇其他已完成掃描，或為品牌目前的網站執行新掃描。",
     "back_to_source_scan": "返回來源掃描",
     "run_scan": "執行掃描",
     "create_share_report": "建立／分享報告",
