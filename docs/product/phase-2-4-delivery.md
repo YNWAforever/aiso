@@ -85,7 +85,7 @@ labelled Fimmick heuristics.
 
 ## Delivered Phase 2 / Phase 3 engineering decisions
 
-Phase 2 is PR #113 (`47c8cba`), with all hosted gates green. Phase 3 extends the
+Phase 2 is PR #113 (`3ab93fb`), including connector protocol, retry and due-batch review fixes. See the PR for current hosted checks. Phase 3 extends the
 existing question identity through `monitored_queries` and reads accepted attempts
 through `ai_observations`; it does not duplicate raw answers. Request context and
 requested sampling are frozen. Human assessments append instead of fabricating

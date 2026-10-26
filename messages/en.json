@@ -3810,7 +3810,7 @@
     "volatility": "Answer-presence volatility",
     "coverage": "Classified / accepted answers",
     "limits": "This view uses up to 500 recent accepted observations within a bounded response budget. Older evidence may be omitted. Filters apply to this sample; unknown classification and unrecorded citations are excluded from their respective rates.",
-    "sample": "One sample per query/model/run; temperature 0.2 for the new monitoring method. Providers can still return different answers.",
+    "sample": "One sample per query/model/run; requested temperature 0.2 for the new monitoring method. Providers can still return different answers.",
     "sources": "Repeated citation sources",
     "sourceHint": "Fimmick heuristic: recurring provider-annotated domains are investigation candidates, not independent authority or endorsement.",
     "gaps": "Citation-source gaps",
