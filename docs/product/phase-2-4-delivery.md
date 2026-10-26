@@ -61,8 +61,9 @@ diagnostic approach. The sole writer implements and reviews this sequence.
 - Add versioned account-scoped public API credentials, rate limits, signed
   webhooks and bounded delivery attempts with visible unknown outcomes.
 - Extend role workflows and audit logs without implicitly minting an owner or
-  relaxing the existing platform-admin approver grant boundary. The role-grant
-  authority choice has been raised with Willy and remains pending.
+  relaxing the existing platform-admin approver grant boundary. The optional role-grant
+  authority question was raised with Willy; this delivery preserves existing
+  platform-admin authority and does not enable workspace delegation.
 - Add context-compatible multi-market benchmarks and documented custom adapter
   contracts. Cross-account benchmark sharing requires explicit opt-in; private
   customer evidence is not a default shared dataset.
@@ -96,3 +97,9 @@ and future-events-only, within existing Pulse budgets and approved schedules.
 The minimum page-identity prerequisite retains exact owned canonical paths and
 compact metadata/hashes; historical origin-only scans and headline scoring remain
 unchanged. See [Phase 3 release and limits](../integrations/closed-loop-visibility.md).
+
+Phase 4 implements Enterprise-only portals, immutable executive snapshots, UTC
+schedule watermarks, scoped signed API v1, encrypted signed webhooks, existing-grant
+approval/audit workflows, private context-compatible market benchmarks and external
+connector-reported adapters. All are dark behind `FEATURE_ENTERPRISE_OS`. See
+[Enterprise release, contracts and limits](../integrations/enterprise-os.md).
