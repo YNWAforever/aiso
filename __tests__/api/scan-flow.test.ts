@@ -227,6 +227,31 @@ describe('POST /api/scan — full scan flow', () => {
     } finally { vi.unstubAllEnvs() }
   })
 
+  it.each([
+    'http://n8n.example.com/webhook/aiso-scan?private=endpoint-sentinel',
+    'not-a-webhook-url?private=endpoint-sentinel',
+  ])('does not send the webhook credential to an insecure or invalid endpoint: %s', async webhook => {
+    const secret = 'synthetic-webhook-secret-for-tests-000001'
+    vi.stubEnv('N8N_SCAN_WEBHOOK_URL', webhook)
+    vi.stubEnv('N8N_SCAN_WEBHOOK_SECRET', secret)
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { POST } = await import('@/app/api/scan/route')
+      const res = await POST(new NextRequest('http://localhost/api/scan', {
+        method: 'POST', body: JSON.stringify({ url: 'https://example.com' }),
+      }))
+      expect(res.status).toBe(200)
+      expect(await res.json()).toMatchObject({ id: 'scan-abc' })
+      expect(dbState.insertValues.length).toBeGreaterThan(0)
+      for (const callback of afterState.callbacks) await callback()
+      expect(afterState.callbacks).toHaveLength(0)
+      expect(fetchMock.mock.calls.some(([url]) => String(url) === webhook)).toBe(false)
+      const diagnostics = log.mock.calls.flat().join(' ')
+      expect(diagnostics).not.toContain('endpoint-sentinel')
+      expect(diagnostics).not.toContain(secret)
+    } finally { log.mockRestore(); vi.unstubAllEnvs() }
+  })
+
   it('keeps the n8n scan workflow compatible with object results and out of agent completion', () => {
     const workflow = JSON.parse(readFileSync(new URL('../../n8n/aiso-scan-webhook.json', import.meta.url), 'utf8')) as {
       nodes: Array<{ id: string; name: string; parameters: Record<string, string> }>

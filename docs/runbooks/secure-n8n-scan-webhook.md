@@ -46,10 +46,16 @@ the export-assumed schema and proves parameter safety, not schema equivalence.
    data. Check actual summary persistence and the expected provider behavior.
    The export responds before later work completes, so HTTP 200 alone is not
    an acceptance result.
-7. Configure the app URL and matching secret together, restart/redeploy through
-   the normal release process, then verify a permitted test scan end to end.
+7. Configure the app's HTTPS webhook URL and matching secret together, then
+   restart/redeploy through the normal release process and verify a permitted
+   test scan end to end.
    Inspect authenticated workflow execution and database state; never infer
    success from the browser result or the immediate webhook response alone.
+
+The app rejects non-HTTPS or malformed webhook URLs before scheduling dispatch,
+so a configuration mistake cannot send the bearer credential over plain HTTP.
+This also applies to local HTTP endpoints. Use an HTTPS sandbox for transport
+acceptance; unit tests replace the transport with a synthetic boundary.
 
 Credentials are passed to curl using private files, removed on script exit.
 Do not run these scripts with shell tracing enabled. They suppress raw response

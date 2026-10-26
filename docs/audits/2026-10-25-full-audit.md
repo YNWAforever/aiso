@@ -27,7 +27,7 @@ P0 means an immediate security boundary requiring containment; P1 is significant
 
 ## What the PR fixes
 
-A01: dedicated n8n Header Auth and `N8N_SCAN_WEBHOOK_SECRET` (minimum 32 characters), authenticated sender, redirect refusal, PostgreSQL bound parameter arrays for caller IDs and model text, matching client constraint on scan updates, and no raw webhook exception logging. The configurator installs the reviewed local graph and validates every response before activation; private temporary files hold credentials and headers. The old export lookup's unused `clients.email` selection is removed. Scripts are exercised with fake curl, not live n8n.
+A01: dedicated n8n Header Auth and `N8N_SCAN_WEBHOOK_SECRET` (minimum 32 characters), HTTPS-only authenticated sender, redirect refusal, PostgreSQL bound parameter arrays for caller IDs and model text, matching client constraint on scan updates, and no raw webhook exception logging. The configurator installs the reviewed local graph and validates every response before activation; private temporary files hold credentials and headers. The old export lookup's unused `clients.email` selection is removed. Scripts are exercised with fake curl, not live n8n.
 
 This is a local code repair. Existing deployed n8n workflows remain unchanged until an operator performs a controlled cutover. Keep the optional webhook off until its summary storage contract (A08) is resolved or verified on the intended legacy database. Do not restore the unauthenticated export as rollback.
 
@@ -51,6 +51,8 @@ Read-only live retrieval returned HTTP 200 for the public English homepage and l
 
 ## Verification
 
+### Original audit environment
+
 - Baseline: lint and typecheck passed. Unit suite: 461/474 files passed, 6,473/6,499 tests passed, 26 failures in 13 files plus one unhandled error. Failures involve blocked child processes/local TCP/UDP ports; some downstream assertions see empty subprocess output.
 - Post-change full unit run: 463/476 files passed, 6,493/6,519 tests passed; the same 26 baseline failures and one unhandled error remain. This is not a full green suite.
 - P0 RED/GREEN: initial sender/export tests failed on missing authorization, missing receiver auth, SQL interpolation and missing-secret dispatch; repaired versions passed. Script tests first failed against unsafe activation/response behavior and then passed with fake-curl provisioning.
@@ -60,6 +62,27 @@ Read-only live retrieval returned HTTP 200 for the public English homepage and l
 - npm advisory lookup was rejected by automatic approval review because it sends this private repository's dependency metadata to an external registry without established authorization. Local import analysis is complete; vulnerability status is unverified. No alternative route was used to send that metadata.
 
 The 13 baseline failing files: `api/auth-response-transport.test.ts`, `ci/disposable-role-authorization.test.ts`, `config/playwright-projects.test.ts`, `config/vitest-discovery.test.ts`, `db/client-report-migration.test.ts`, `lib/public-url.test.ts`, `readiness/dns.test.ts`, `scripts/check-candidate.test.mjs`, `scripts/neon-wrapper.test.ts`, `scripts/schema-cli.test.mjs`, `scripts/text-audit.test.ts`, `scripts/verify-db-connection.test.ts`, and `work-items/migration.test.ts`, all under `__tests__/`.
+
+### Managed aiso environment follow-up — 26 October 2026
+
+At `10538dcb`, lint, typecheck and all 6,519 unit tests (476 files) pass with
+the supported process/network permissions. The 26 original sandbox failures
+are not reproduced with those permissions; no test was removed or weakened.
+
+The transport follow-up rejects HTTP and malformed n8n webhook URLs before
+scheduling dispatch. Both new cases first failed against the old sender, then
+passed after the guard was added; saved core scans still return success and
+diagnostics expose neither the endpoint nor bearer secret. The 47 focused
+scan, export/PGlite and fake-curl provisioning tests pass. The full unit suite
+passes 6,521 tests across 476 files, with lint, typecheck, text audit, default
+production build, shell syntax and diff checks passing. Worker tests pass
+11/11 and worker typecheck passes. Independent review found no actionable
+issue in the transport follow-up.
+
+The unit command explicitly skips SQL integration; this is not a full database
+or hosted-runtime acceptance result. No real n8n execution, provider request,
+production data access, secret rotation or deployment was performed. A08 and
+the controlled cutover of existing receivers remain draft release conditions.
 
 ## Remediation tasks and acceptance
 
