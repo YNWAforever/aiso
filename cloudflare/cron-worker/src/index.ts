@@ -7,12 +7,12 @@ export interface Env {
 // asserts the keys agree. A schedule may call several routes: the free tier
 // allows three triggers per Worker and all three are used, so the daily trigger
 // carries trial emails and Search Console sync in the three-cron template.
-// The deployed two-cron AISO profile repairs saved raw on its existing Pulse
-// schedule; it does not activate the template email/search schedule.
+// The deployed two-cron AISO profile collects outcomes on its existing Pulse
+// schedule; it does not activate the template email schedule.
 export const ROUTES: Record<string, readonly string[]> = {
   // Daily: the driver only picks clients whose week is not yet rolled up, so
   // the Tuesday–Sunday firings finish weeks a failed hop left incomplete.
-  '17 4 * * *': ['/api/cron/pulse', '/api/cron/pulse?mode=repair'],
+  '17 4 * * *': ['/api/cron/pulse', '/api/cron/pulse?mode=repair', '/api/cron/search-console', '/api/cron/outcomes'],
   '47 7 * * 1': ['/api/cron/evaluate-alerts'],
   '0 9 * * *': ['/api/cron/trial-emails', '/api/cron/search-console'],
 }

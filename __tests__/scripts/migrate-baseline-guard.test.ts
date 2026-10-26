@@ -133,6 +133,8 @@ function allRelations() {
     'competitors',
     // 065-069: verified against task-owned local PG16 only; not hosted evidence.
     'pulse_legacy_classification_attempts','pulse_user_intents','pulse_run_reservations','prompt_batch_intents','work_item_groups',
+    // 071-073: synthetic outcome inventories; no claim of managed application.
+    'outcome_integration_settings','outcome_ingest_credentials','outcome_query_clusters','outcome_events','outcome_deployments','outcome_attempts','outcome_attempt_receipts','outcome_regressions','search_console_appearance',
     ...listMigrationFiles().flatMap(f => migrationCreatedIndexes(sqlFor(f))),
   ])
 }

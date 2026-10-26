@@ -58,6 +58,7 @@ const LLM_ROUTES = [
   'app/api/cron/trial-emails/route.ts',
   // Not an LLM caller: a paced loop of Google API calls under a 45s budget.
   'app/api/cron/search-console/route.ts',
+  'app/api/cron/outcomes/route.ts',
 ]
 
 describe('Vercel function durations', () => {
@@ -110,7 +111,7 @@ describe('Cloudflare cron-worker schedule', () => {
     const worker = readFileSync(join(process.cwd(), 'cloudflare/cron-worker/src/index.ts'), 'utf8')
     expect(worker).toMatch(/'0 9 \* \* \*':\s*\[\s*'\/api\/cron\/trial-emails',\s*'\/api\/cron\/search-console'\s*\]/)
     // The deployed AISO profile enables the Pulse trigger and leaves emails disabled.
-    expect(worker).toMatch(/'17 4 \* \* \*':\s*\[\s*'\/api\/cron\/pulse',\s*'\/api\/cron\/pulse\?mode=repair'\s*\]/)
+    expect(worker).toMatch(/'17 4 \* \* \*':\s*\[\s*'\/api\/cron\/pulse',\s*'\/api\/cron\/pulse\?mode=repair',\s*'\/api\/cron\/search-console',\s*'\/api\/cron\/outcomes'\s*\]/)
   })
 
   it('maps every scheduled cron string to routes in the Worker', () => {

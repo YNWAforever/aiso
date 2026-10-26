@@ -154,7 +154,7 @@ describe('the parity check cannot pass vacuously', () => {
       'accountUnlock', 'activation', 'adminDirectory',
       'alertFeedback', 'approverAccess', 'assets', 'auth', 'authFlow', 'brandAssistant', 'changeSets', 'checkItem', 'checks', 'citations', 'competitors', 'dashboard',
       'delivery', 'designSystem', 'entities', 'errorPage', 'generatedWork', 'geoDetail', 'home', 'landing', 'maintenance', 'members', 'methodologyPage', 'nav',
-      'notFound', 'notificationBell', 'observations', 'onboardingSetup', 'onboardingWizard', 'opportunities', 'outcomes', 'pillarCards', 'portfolio', 'pricing',
+      'notFound', 'notificationBell', 'observations', 'onboardingSetup', 'onboardingWizard', 'opportunities', 'outcomeIntegrations', 'outcomes', 'pillarCards', 'portfolio', 'pricing',
       'publicPages', 'pulse', 'pulseView', 'reportBranding', 'reportPage', 'reports', 'result', 'resultPage', 'runProgress',
       'sampleReport', 'scanEvidence', 'scanPage', 'searchConsole', 'seo', 'settings', 'shareOfVoice', 'sources', 'trustSignals', 'ui', 'unavailable',
       'upsell', 'visuals', 'workspaceHome',

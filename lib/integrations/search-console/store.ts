@@ -43,6 +43,7 @@ export type DueBinding = {
   currentDomain: string | null
   backfillPending: boolean
   account: CommercialAccount
+  boundAt?: string
 }
 
 export type DailyMetric = {
@@ -208,7 +209,7 @@ export async function unbindProperty(accountId: string, clientId: string): Promi
 export async function loadBinding(accountId: string, clientId: string): Promise<BindingRow | null> {
   const sql = db()
   const rows = await sql`
-    select b.connection_id, b.site_url, b.permission_level, b.bound_domain, b.backfill_pending, b.bound_at,
+    select b.connection_id, b.site_url, b.permission_level, b.bound_domain, b.backfill_pending, b.bound_at::text as bound_at,
            g.status as connection_status, c.domain as current_domain
     from search_console_bindings b
     join google_connections g on g.id = b.connection_id and g.account_id = b.account_id
@@ -253,7 +254,7 @@ export async function loadDueBindings(limit: number): Promise<DueBinding[]> {
   const sql = db()
   const rows = await sql`
     select b.account_id, b.client_id, b.connection_id, b.site_url, b.permission_level, b.bound_domain,
-           b.backfill_pending, c.domain as current_domain,
+           b.backfill_pending, b.bound_at::text as bound_at, c.domain as current_domain,
            jsonb_build_object(
              'plan', a.plan, 'status', a.status, 'stripe_subscription_id', a.stripe_subscription_id,
              'trial_ends_at', a.trial_ends_at, 'override_plan', a.override_plan,
@@ -282,6 +283,7 @@ export async function loadDueBindings(limit: number): Promise<DueBinding[]> {
     currentDomain: (r.current_domain as string | null) ?? null,
     backfillPending: Boolean(r.backfill_pending),
     account: r.account as CommercialAccount,
+    boundAt: iso(r.bound_at),
   }))
 }
 
@@ -297,22 +299,23 @@ export async function listSyncPages(accountId: string, clientId: string, cap: nu
   return rows.map(r => String(r.url))
 }
 
-export async function writeDaily(accountId: string, clientId: string, metrics: DailyMetric[]): Promise<number> {
+export async function writeDaily(accountId: string, clientId: string, metrics: DailyMetric[], generation: string | null = null): Promise<number> {
   if (!metrics.length) return 0
   const sql = db()
   const rows = await sql`
     insert into search_console_daily
-      (account_id, client_id, date, scope, page_url, clicks, impressions, ctr, position)
-    select ${accountId}, ${clientId}, d::date, s, p, cl, im, ct, po
+      (account_id, client_id, date, scope, page_url, clicks, impressions, ctr, position, synced_at)
+    select ${accountId}, ${clientId}, d::date, s, p, cl, im, ct, po, coalesce(${generation}::timestamptz,now())
     from unnest(
       ${metrics.map(m => m.date)}::text[], ${metrics.map(m => m.scope)}::text[],
       ${metrics.map(m => m.pageUrl)}::text[], ${metrics.map(m => m.clicks)}::int[],
       ${metrics.map(m => m.impressions)}::int[], ${metrics.map(m => m.ctr)}::float8[],
       ${metrics.map(m => m.position)}::float8[]
     ) as t(d, s, p, cl, im, ct, po)
+    where exists(select 1 from clients c where c.account_id=${accountId}::uuid and c.id=${clientId}::uuid) and (${generation}::timestamptz is null or exists(select 1 from search_console_bindings b where b.account_id=${accountId}::uuid and b.client_id=${clientId}::uuid and b.bound_at=${generation}::timestamptz))
     on conflict on constraint search_console_daily_unique do update set
       clicks = excluded.clicks, impressions = excluded.impressions,
-      ctr = excluded.ctr, position = excluded.position, synced_at = now()
+      ctr = excluded.ctr, position = excluded.position, synced_at = excluded.synced_at
     returning 1
   `
   return rows.length
@@ -321,17 +324,17 @@ export async function writeDaily(accountId: string, clientId: string, metrics: D
 export type QueryWindow = { startDate: string; endDate: string; pageUrls: string[] }
 
 /** Replace only a successfully collected sample/window; empty results clear stale categories. */
-export async function writeSearchAppearance(accountId: string, clientId: string, metrics: SearchAppearanceMetric[], window: QueryWindow): Promise<number> {
+export async function writeSearchAppearance(accountId: string, clientId: string, metrics: SearchAppearanceMetric[], window: QueryWindow, generation: string | null = null): Promise<number> {
   if (!window.pageUrls.length) return 0
   const sql = db()
   const [, rows] = await sql.transaction([
     sql`delete from search_console_appearance where account_id=${accountId}::uuid and client_id=${clientId}::uuid
-      and page_url=any(${window.pageUrls}::text[]) and date between ${window.startDate}::date and ${window.endDate}::date`,
-    sql`insert into search_console_appearance(account_id,client_id,date,page_url,appearance,clicks,impressions,ctr,position)
-      select ${accountId}::uuid,c.id,x.date,x.page_url,x.appearance,x.clicks,x.impressions,x.ctr,x.position
+      and exists(select 1 from clients c where c.account_id=${accountId}::uuid and c.id=${clientId}::uuid) and (${generation}::timestamptz is null or exists(select 1 from search_console_bindings b where b.account_id=${accountId}::uuid and b.client_id=${clientId}::uuid and b.bound_at=${generation}::timestamptz)) and page_url=any(${window.pageUrls}::text[]) and date between ${window.startDate}::date and ${window.endDate}::date`,
+    sql`insert into search_console_appearance(account_id,client_id,date,page_url,appearance,clicks,impressions,ctr,position,synced_at)
+      select ${accountId}::uuid,c.id,x.date,x.page_url,x.appearance,x.clicks,x.impressions,x.ctr,x.position,coalesce(${generation}::timestamptz,now())
       from jsonb_to_recordset(${JSON.stringify(metrics.map(row => ({ ...row, page_url: row.pageUrl })))}::jsonb)
         as x(date date,page_url text,appearance text,clicks int,impressions int,ctr float8,position float8)
-      cross join clients c where c.account_id=${accountId}::uuid and c.id=${clientId}::uuid returning date`,
+      cross join clients c where c.account_id=${accountId}::uuid and c.id=${clientId}::uuid and exists(select 1 from clients c where c.account_id=${accountId}::uuid and c.id=${clientId}::uuid) and (${generation}::timestamptz is null or exists(select 1 from search_console_bindings b where b.account_id=${accountId}::uuid and b.client_id=${clientId}::uuid and b.bound_at=${generation}::timestamptz)) returning date`,
   ])
   return rows.length
 }
@@ -348,6 +351,7 @@ export async function writePageQueries(
   clientId: string,
   metrics: PageQueryMetric[],
   window: QueryWindow,
+  generation: string | null = null,
 ): Promise<number> {
   if (!window.pageUrls.length) return 0
   const sql = db()
@@ -355,19 +359,21 @@ export async function writePageQueries(
     sql`
       delete from search_console_page_queries
       where account_id = ${accountId} and client_id = ${clientId}
+        and exists(select 1 from clients c where c.account_id=${accountId}::uuid and c.id=${clientId}::uuid) and (${generation}::timestamptz is null or exists(select 1 from search_console_bindings b where b.account_id=${accountId}::uuid and b.client_id=${clientId}::uuid and b.bound_at=${generation}::timestamptz))
         and page_url = any(${window.pageUrls}::text[])
         and date between ${window.startDate}::date and ${window.endDate}::date
     `,
     sql`
       insert into search_console_page_queries
-        (account_id, client_id, page_url, date, query, clicks, impressions, ctr, position)
-      select ${accountId}, ${clientId}, p, d::date, q, cl, im, ct, po
+        (account_id, client_id, page_url, date, query, clicks, impressions, ctr, position, synced_at)
+      select ${accountId}, ${clientId}, p, d::date, q, cl, im, ct, po, coalesce(${generation}::timestamptz,now())
       from unnest(
         ${metrics.map(m => m.pageUrl)}::text[], ${metrics.map(m => m.date)}::text[],
         ${metrics.map(m => m.query)}::text[], ${metrics.map(m => m.clicks)}::int[],
         ${metrics.map(m => m.impressions)}::int[], ${metrics.map(m => m.ctr)}::float8[],
         ${metrics.map(m => m.position)}::float8[]
       ) as t(p, d, q, cl, im, ct, po)
+      where exists(select 1 from clients c where c.account_id=${accountId}::uuid and c.id=${clientId}::uuid) and (${generation}::timestamptz is null or exists(select 1 from search_console_bindings b where b.account_id=${accountId}::uuid and b.client_id=${clientId}::uuid and b.bound_at=${generation}::timestamptz))
       returning 1
     `,
   ])

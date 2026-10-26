@@ -14,12 +14,14 @@ create table public.outcome_integration_settings (
 
 create table public.outcome_ingest_credentials (
   id uuid primary key default gen_random_uuid(), account_id uuid not null, client_id uuid not null,
+  created_by uuid not null,
   name text not null check(char_length(name) between 1 and 100),
   token_ciphertext bytea not null, token_key_id text not null,
   scopes text[] not null check(cardinality(scopes) between 1 and 3 and scopes <@ array['analytics','crawler','deployments']::text[]),
   created_at timestamptz not null default now(), revoked_at timestamptz,
   rate_window timestamptz, rate_count integer not null default 0 check(rate_count >= 0),
-  foreign key(client_id,account_id) references public.clients(id,account_id) on delete cascade
+  foreign key(client_id,account_id) references public.clients(id,account_id) on delete cascade,
+  foreign key(created_by,account_id) references public.profiles(id,account_id)
 );
 create index outcome_ingest_credentials_scope_idx on public.outcome_ingest_credentials(account_id,client_id,created_at);
 

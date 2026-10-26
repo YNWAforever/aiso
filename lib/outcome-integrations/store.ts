@@ -86,7 +86,7 @@ export async function recordOutcomeDeployment(scope: OutcomeScope, input: Deploy
   const [row] = await sql`insert into outcome_deployments(account_id,client_id,intent_key,external_id,request_hash,deployed_at,urls,baseline_scan_id,work_item_id,baseline)
     select ${scope.accountId}::uuid,c.id,${input.intentKey},${input.externalId},${hash},${input.deployedAt}::timestamptz,${JSON.stringify(input.urls)}::jsonb,
       ${input.baselineScanId}::uuid,${input.workItemId}::uuid,
-      (select jsonb_build_object('scanId',s.id,'score',s.score,'url',s.url,'recordedAt',s.created_at,'methods',s.results->'evidence'->'methods')
+      (select jsonb_build_object('scanId',s.id,'score',s.score,'url',s.url,'recordedAt',s.created_at,'evidence',s.results->'evidence')
        from scans s where s.account_id=${scope.accountId}::uuid and s.client_id=c.id and s.id=${input.baselineScanId}::uuid and s.created_at<=${input.deployedAt}::timestamptz)
     from clients c where c.account_id=${scope.accountId}::uuid and c.id=${scope.clientId}::uuid
       and (${input.baselineScanId}::uuid is null or exists(select 1 from scans s where s.account_id=${scope.accountId}::uuid and s.client_id=c.id and s.id=${input.baselineScanId}::uuid and s.created_at<=${input.deployedAt}::timestamptz))

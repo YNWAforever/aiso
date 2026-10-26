@@ -1,3 +1,6 @@
+import en from '@/messages/en.json'
+import zhHK from '@/messages/zh-HK.json'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { requireAuth } from '@/lib/auth'
 import { loadOwnedWorkspace } from '@/lib/workspace/load-owned-workspace'
@@ -63,6 +66,7 @@ export default async function AssetsPage({
         lang={lang}
         clientId={clientId}
       />
+      {isFeatureEnabled('outcome_integrations') && <Link className="inline-flex min-h-11 items-center underline" href={`/${lang}/dashboard/${clientId}/outcomes`}>{(lang === 'zh-HK' ? zhHK : en).outcomeIntegrations.nav}</Link>}
       {searchConsole && <SearchConsolePanel clientId={clientId} lang={lang} />}
     </>
   )

@@ -26,6 +26,8 @@ import { describe, expect, it } from 'vitest'
  * conversation, whereas a false positive would silently bless an open route.
  */
 const GATE_TOKENS = [
+  'authorizeOutcomeClient', // auth + runtime entitlement + tenant ownership
+  'loadOutcomeCredential', // encrypted, scoped signed connector capability
   'getProfile',            // session lookup; callers null-check
   'requireAuth',
   'requireAdmin',

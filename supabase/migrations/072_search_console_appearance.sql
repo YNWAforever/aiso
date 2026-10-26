@@ -15,3 +15,7 @@ do $$ begin if to_regrole('aeo_app') is not null then
   revoke all on public.search_console_appearance from aeo_app;
   grant select,insert,update,delete on public.search_console_appearance to aeo_app;
 end if; end $$;
+
+-- Historical query rows have no provable binding generation. Hide until refreshed.
+alter table public.search_console_page_queries add column synced_at timestamptz not null default '-infinity'::timestamptz;
+alter table public.search_console_page_queries alter column synced_at set default now();

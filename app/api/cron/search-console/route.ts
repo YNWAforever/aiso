@@ -78,9 +78,9 @@ export async function GET(req: Request) {
           refresh: token => refreshAccessToken(cfg, token),
           query: querySearchAnalytics,
           listPages: store.listSyncPages,
-          writeDaily: store.writeDaily,
-          writePageQueries: store.writePageQueries,
-          ...(isFeatureEnabled('outcome_integrations') ? { writeAppearance: store.writeSearchAppearance } : {}),
+          writeDaily: (a,c,metrics) => store.writeDaily(a,c,metrics,binding.boundAt ?? null),
+          writePageQueries: (a,c,metrics,window) => store.writePageQueries(a,c,metrics,window,binding.boundAt ?? null),
+          ...(isFeatureEnabled('outcome_integrations') ? { writeAppearance: (a,c,metrics,window) => store.writeSearchAppearance(a,c,metrics,window,binding.boundAt ?? null) } : {}),
           markConnection: store.markConnection,
           recordRun: store.recordRun,
           today: () => new Date().toISOString().slice(0, 10),
@@ -90,14 +90,9 @@ export async function GET(req: Request) {
         if (!SKIPS.has(outcome)) due++
       }
     }
-  } catch (error) {
-    // Never log error.message or the error object: the Neon driver can echo
-    // the full connection string, password included, into some of its own
-    // error messages. Only the error's name is logged, and only that name is
-    // passed to finishCronRun's error argument.
-    const name = error instanceof Error ? error.name : typeof error
-    await finishCronRun(runId, 'error', { outcomes }, name)
-    console.error('[cron/search-console] run failed', { name })
+  } catch {
+    await finishCronRun(runId, 'error', { outcomes }, 'DEPENDENCY_UNAVAILABLE')
+    console.error('[cron/search-console] run failed', { reason: 'DEPENDENCY_UNAVAILABLE' })
     return Response.json({ error: 'Sync failed', outcomes }, { status: 500 })
   }
 

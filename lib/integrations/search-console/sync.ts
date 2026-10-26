@@ -83,13 +83,6 @@ function daysBefore(isoDate: string, days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-/** True/string properties are read this way for an unknown thrown value without assuming it is an Error. */
-function stringProp(value: unknown, key: string): string | undefined {
-  if (!value || typeof value !== 'object') return undefined
-  const v = (value as Record<string, unknown>)[key]
-  return typeof v === 'string' ? v : undefined
-}
-
 /**
  * Keeps the first row seen per (date, query) — Google Search Analytics can
  * return the same key twice across `startRow` pages, and inserting it twice
@@ -249,7 +242,8 @@ async function attempt(b: DueBinding, deps: SyncDeps): Promise<AttemptResult> {
     if (!(error instanceof GoogleApiError)) throw error
     if (error.kind === 'revoked') await deps.markConnection(b.accountId, b.connectionId, 'needs_reconnect')
     if (error.kind === 'misconfigured') {
-      console.error('[search-console] google misconfigured', { clientId: b.clientId, status: error.status, code: error.code })
+      console.error('[search-console] google misconfigured', { clientId: b.clientId, status: error.status,
+        code: error.code === 'invalid_client' ? 'invalid_client' : 'GOOGLE_CONFIG_ERROR' })
     }
     return { outcome: OUTCOME_FOR[error.kind], rows: 0, through: null }
   }
@@ -259,16 +253,10 @@ export async function syncBinding(b: DueBinding, deps: SyncDeps): Promise<SyncOu
   let result: AttemptResult
   try {
     result = await attempt(b, deps)
-  } catch (error) {
-    // Never log error.message: the Neon driver can echo the full connection
-    // string, password included, into some of its own error messages. Only
-    // well-known, narrow string fields are logged, and only if present.
-    console.error('[search-console] sync failed', {
-      clientId: b.clientId,
-      name: error instanceof Error ? error.name : typeof error,
-      code: stringProp(error, 'code'),
-      constraint: stringProp(error, 'constraint'),
-    })
+  } catch {
+    // Error names, codes and constraints are also arbitrary driver/provider
+    // text. Emit only the controlled outcome, never a serialized cause.
+    console.error('[search-console] sync failed', { clientId: b.clientId, reason: 'DEPENDENCY_UNAVAILABLE' })
     result = { outcome: 'internal_error', rows: 0, through: null }
   }
 

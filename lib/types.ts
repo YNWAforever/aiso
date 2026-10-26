@@ -159,7 +159,7 @@ export interface Notification {
   id: string
   account_id: string
   client_id: string | null
-  type: 'sov_threshold' | 'sov_wow_drop' | 'sov_recovery'
+  type: 'sov_threshold' | 'sov_wow_drop' | 'sov_recovery' | 'outcome_regression'
   title: string
   message: string
   read: boolean
