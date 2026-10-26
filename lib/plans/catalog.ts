@@ -30,6 +30,13 @@ export interface PlanFeatures {
   search_console: boolean
   outcome_integrations: boolean
   closed_loop_visibility: boolean
+  white_label_portals: boolean
+  scheduled_reports: boolean
+  public_api: boolean
+  webhooks: boolean
+  enterprise_workflows: boolean
+  multi_market_benchmarks: boolean
+  custom_adapters: boolean
 }
 
 /**
@@ -96,6 +103,13 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       search_console: false,
       outcome_integrations: false,
       closed_loop_visibility: false,
+      white_label_portals: false,
+      scheduled_reports: false,
+      public_api: false,
+      webhooks: false,
+      enterprise_workflows: false,
+      multi_market_benchmarks: false,
+      custom_adapters: false,
     },
   },
   basic: {
@@ -112,6 +126,13 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       search_console: false,
       outcome_integrations: false,
       closed_loop_visibility: false,
+      white_label_portals: false,
+      scheduled_reports: false,
+      public_api: false,
+      webhooks: false,
+      enterprise_workflows: false,
+      multi_market_benchmarks: false,
+      custom_adapters: false,
     },
   },
   pro: {
@@ -139,6 +160,13 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       search_console: true,
       outcome_integrations: true,
       closed_loop_visibility: true,
+      white_label_portals: false,
+      scheduled_reports: false,
+      public_api: false,
+      webhooks: false,
+      enterprise_workflows: false,
+      multi_market_benchmarks: false,
+      custom_adapters: false,
     },
   },
   enterprise: {
@@ -162,6 +190,13 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
       search_console: true,
       outcome_integrations: true,
       closed_loop_visibility: true,
+      white_label_portals: true,
+      scheduled_reports: true,
+      public_api: true,
+      webhooks: true,
+      enterprise_workflows: true,
+      multi_market_benchmarks: true,
+      custom_adapters: true,
     },
   },
 }
