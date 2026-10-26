@@ -3,7 +3,7 @@ import { normalizeBrandDomain } from '@/lib/integrations/search-console/binding'
 export class OutcomeError extends Error {
   constructor(readonly code: string, readonly status = 400) { super(code); this.name = 'OutcomeError' }
 }
-const invalid = (): never => { throw new OutcomeError('INVALID_OUTCOME_INPUT') }
+function invalid(): never { throw new OutcomeError('INVALID_OUTCOME_INPUT') }
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 export function object(value: unknown, keys: string[]): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !keys.includes(key))) invalid()
