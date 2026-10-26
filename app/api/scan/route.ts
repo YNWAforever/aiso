@@ -229,10 +229,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     if (error instanceof PublicUrlError) {
-      return NextResponse.json({ error: 'URL must resolve to a public HTTP or HTTPS address' }, {
-        status: 400,
-        headers: scanHeaders,
-      })
+      return refuse('URL must resolve to a public HTTP or HTTPS address', 400)
     }
     // No HTTP response at all (DNS failure, refused connection, timeout): there
     // is no site to assess, so nothing is graded or saved.

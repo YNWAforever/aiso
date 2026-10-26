@@ -104,9 +104,20 @@ describe('authenticated scan commercial entitlement', () => {
     state.quota = { allowed: true, remaining: 2, resetAt: 1_788_192_000 }
     getProfile.mockClear()
     consumeAuthenticatedScanQuota.mockClear()
+    releaseAuthenticatedScanQuota.mockClear()
     consumePublicScanRateLimit.mockClear()
     fetchMock.mockClear()
     vi.stubGlobal('fetch', fetchMock)
+  })
+
+  it.each(['UNSAFE_URL', 'TOO_MANY_REDIRECTS', 'RESPONSE_TOO_LARGE'])('refunds a post-quota public URL refusal: %s', async code => {
+    state.profile = { account_id: 'account-basic', accounts: paidAccount('basic') }
+    const { PublicUrlError } = await import('@/lib/security/public-url')
+    fetchMock.mockRejectedValueOnce(new PublicUrlError('synthetic refusal', code as 'UNSAFE_URL'))
+    const response = await scan()
+    expect(response.status).toBe(400)
+    expect(consumeAuthenticatedScanQuota).toHaveBeenCalledTimes(1)
+    expect(releaseAuthenticatedScanQuota).toHaveBeenCalledExactlyOnceWith('account-basic')
   })
 
   it('refunds a Basic monthly scan when the site cannot be reached', async () => {
@@ -180,6 +191,8 @@ describe('authenticated scan commercial entitlement', () => {
 
     expect(response.status).toBe(200)
     expect(consumeAuthenticatedScanQuota).toHaveBeenCalledWith('account-basic')
+    expect(consumeAuthenticatedScanQuota).toHaveBeenCalledTimes(1)
+    expect(releaseAuthenticatedScanQuota).not.toHaveBeenCalled()
     expect(response.headers.get('ratelimit-limit')).toBe('3')
     expect(response.headers.get('ratelimit-remaining')).toBe('2')
   })
