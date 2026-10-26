@@ -1,12 +1,18 @@
 import { describe, expect, it, vi } from 'vitest'
 import { parseOnboardingInput, parseSeedPrompts } from '@/lib/onboarding/schema'
-import { parsePromptContext, readPromptLanguage } from '@/lib/prompts/context'
+import { parsePromptContext, readPromptLanguage, promptCollectionMessages } from '@/lib/prompts/context'
 const provider = vi.hoisted(() => vi.fn(async (_request: unknown) => '[]'))
 vi.mock('@/lib/openrouter', () => ({ callOpenRouter: provider }))
 vi.mock('@/lib/onboarding/store', () => ({}))
 import { generateOnboardingSeed } from '@/lib/onboarding/service'
 
 describe('T11 confirmed prompt context', () => {
+  it('preserves historic prompts and includes frozen new persona/intent without injecting target/competitors',()=>{
+    const snapshot={question:'Which service?',language:'en',market:'HK',monitoring:{persona:'Buyer',intent:'comparison',funnel:'consideration',topic:'Services',targetUrl:'https://private.example/a',competitorIds:['secret']},contextVersion:'2026-10-26.v1'}
+    expect(promptCollectionMessages(snapshot)[0].content).toContain('Buyer')
+    expect(JSON.stringify(promptCollectionMessages(snapshot))).not.toContain('private.example')
+    expect(promptCollectionMessages({...snapshot,contextVersion:'historic'})).toEqual([{role:'user',content:snapshot.question}])
+  })
   it('uses explicit brand defaults and allows market clearing', () => {
     expect(parsePromptContext({}, { language: 'zh-HK', market: 'HK' })).toEqual({ language: 'zh-HK', market: 'HK' })
     expect(parsePromptContext({ language: 'en', market: null }, { market: 'HK' })).toEqual({ language: 'en', market: null })

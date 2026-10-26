@@ -31,10 +31,11 @@ export function parsePromptContext(input: PromptContextDefaults, defaults: Promp
   if (!isPromptLanguage(language) || (market !== null && !isPromptMarket(market))) throw new Error('Invalid prompt context')
   return { language, market }
 }
-export function promptCollectionMessages(snapshot: { question: string; language: string | null; market: string | null; contextVersion?: string }): { role: 'system' | 'user'; content: string }[] {
+export function promptCollectionMessages(snapshot: { question: string; language: string | null; market: string | null; contextVersion?: string; monitoring?: Record<string,unknown> }): { role: 'system' | 'user'; content: string }[] {
   const question = { role: 'user' as const, content: snapshot.question }
   const language = readPromptLanguage(snapshot.language)
   // Old manifests keep their exact original provider input even during repair.
+  if (snapshot.contextVersion === '2026-10-26.v1' && language && snapshot.monitoring) return [{role:'system',content:`Answer in ${language}. Market context: ${isPromptMarket(snapshot.market)?snapshot.market:'unspecified'}. Audience context: ${JSON.stringify({persona:snapshot.monitoring.persona,intent:snapshot.monitoring.intent,funnel:snapshot.monitoring.funnel,topic:snapshot.monitoring.topic})}.`},question]
   if (snapshot.contextVersion !== '2026-10-03.v1' || !language) return [question]
   return [{ role: 'system', content: `Answer in ${language}. Market context: ${isPromptMarket(snapshot.market) ? snapshot.market : 'unspecified'}.` }, question]
 }

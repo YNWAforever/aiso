@@ -27,6 +27,12 @@ describe('attribution', () => {
 })
 
 describe('web search request shape', () => {
+  it('sends explicit monitoring sampling only when requested', async () => {
+    await callOpenRouterWithEvidence({label:'pulse.platform',model:'openai/gpt-4o',messages:[{role:'user',content:'Q'}],temperature:0.2})
+    expect(bodies()[0].temperature).toBe(0.2)
+    await callOpenRouterWithEvidence({label:'pulse.platform',model:'openai/gpt-4o',messages:[{role:'user',content:'Q'}]})
+    expect(bodies()[1].temperature).toBeUndefined()
+  })
   it('adds the web plugin and low search context only when asked', async () => {
     await callOpenRouterWithEvidence({ label: 'pulse.platform', model: 'anthropic/claude-haiku-4-5', messages: [{ role: 'user', content: 'Q' }], webSearch: true })
     await callOpenRouterWithEvidence({ label: 'pulse.platform', model: 'anthropic/claude-haiku-4-5', messages: [{ role: 'user', content: 'Q' }] })

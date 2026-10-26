@@ -41,6 +41,7 @@ interface CallOptions {
   model: string
   messages: Message[]
   maxTokens?: number
+  temperature?: number
   signal?: AbortSignal
   responseFormat?: JsonSchemaFormat
   /**
@@ -63,7 +64,7 @@ export async function callOpenRouter(options: CallOptions): Promise<string> {
   const evidence=await callOpenRouterWithEvidence(options);options.onEvidence?.(evidence);return evidence.answer
 }
 
-export async function callOpenRouterWithEvidence({ label, model, messages, maxTokens = 2000, signal, responseFormat, webSearch }: CallOptions): Promise<import('@/lib/pulse/runs/schema').ProviderEvidence> {
+export async function callOpenRouterWithEvidence({ label, model, messages, maxTokens = 2000, signal, responseFormat, webSearch, temperature }: CallOptions): Promise<import('@/lib/pulse/runs/schema').ProviderEvidence> {
   const fail = (fields: Record<string, unknown>) => console.error({ event: 'openrouter_failed', label, model, ...fields })
 
   // Checked here rather than left to a 401: an empty key is a deployment fault,
@@ -89,6 +90,7 @@ export async function callOpenRouterWithEvidence({ label, model, messages, maxTo
       // rather than at each call site, so a caller cannot opt out by forgetting.
       body: JSON.stringify({
         model, max_tokens: clampOutputTokens(maxTokens), messages,
+        ...(temperature!==undefined && Number.isFinite(temperature) && temperature>=0 && temperature<=2 ? {temperature} : {}),
         // Structured outputs: the provider enforces the schema, so a caller no longer
         // depends on the model echoing a schema written out in prose.
         // require_parameters stops OpenRouter routing to a provider that would
